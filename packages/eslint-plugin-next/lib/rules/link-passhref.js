@@ -44,7 +44,10 @@ module.exports = {
 
         const hasAnchorChild = children.some(
           (attr) =>
-            attr.type === 'JSXElement' && attr.openingElement.name.name === 'a'
+            attr.type === 'JSXElement' &&
+            attr.openingElement &&
+            attr.openingElement.name &&
+            attr.openingElement.name.name === 'a'
         )
 
         if (!hasAnchorChild && !hasPassHref) {

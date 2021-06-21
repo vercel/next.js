@@ -44,12 +44,6 @@ import PagesManifestPlugin from './webpack/plugins/pages-manifest-plugin'
 import { ProfilingPlugin } from './webpack/plugins/profiling-plugin'
 import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
 import { ServerlessPlugin } from './webpack/plugins/serverless-plugin'
-import WebpackConformancePlugin, {
-  DuplicatePolyfillsConformanceCheck,
-  GranularChunksConformanceCheck,
-  MinificationConformanceCheck,
-  ReactSyncScriptsConformanceCheck,
-} from './webpack/plugins/webpack-conformance-plugin'
 import { WellKnownErrorsPlugin } from './webpack/plugins/wellknown-errors-plugin'
 import { regexLikeCss } from './webpack/config/blocks/css'
 
@@ -629,30 +623,6 @@ export default async function getBaseWebpackConfig(
     customAppFile = path.resolve(path.join(pagesDir, customAppFile))
   }
 
-  const conformanceConfig = Object.assign(
-    {
-      ReactSyncScriptsConformanceCheck: {
-        enabled: true,
-      },
-      MinificationConformanceCheck: {
-        enabled: true,
-      },
-      DuplicatePolyfillsConformanceCheck: {
-        enabled: true,
-        BlockedAPIToBePolyfilled: Object.assign(
-          [],
-          ['fetch'],
-          config.conformance?.DuplicatePolyfillsConformanceCheck
-            ?.BlockedAPIToBePolyfilled || []
-        ),
-      },
-      GranularChunksConformanceCheck: {
-        enabled: true,
-      },
-    },
-    config.conformance
-  )
-
   async function handleExternals(
     context: string,
     request: string,
@@ -1219,34 +1189,6 @@ export default async function getBaseWebpackConfig(
             isLikeServerless,
           })
         })(),
-      config.experimental.conformance &&
-        !isWebpack5 &&
-        !dev &&
-        new WebpackConformancePlugin({
-          tests: [
-            !isServer &&
-              conformanceConfig.MinificationConformanceCheck.enabled &&
-              new MinificationConformanceCheck(),
-            conformanceConfig.ReactSyncScriptsConformanceCheck.enabled &&
-              new ReactSyncScriptsConformanceCheck({
-                AllowedSources:
-                  conformanceConfig.ReactSyncScriptsConformanceCheck
-                    .allowedSources || [],
-              }),
-            !isServer &&
-              conformanceConfig.DuplicatePolyfillsConformanceCheck.enabled &&
-              new DuplicatePolyfillsConformanceCheck({
-                BlockedAPIToBePolyfilled:
-                  conformanceConfig.DuplicatePolyfillsConformanceCheck
-                    .BlockedAPIToBePolyfilled,
-              }),
-            !isServer &&
-              conformanceConfig.GranularChunksConformanceCheck.enabled &&
-              new GranularChunksConformanceCheck(
-                splitChunksConfigs.prodGranular
-              ),
-          ].filter(Boolean),
-        }),
       new WellKnownErrorsPlugin(),
     ].filter((Boolean as any) as ExcludesFalse),
   }
