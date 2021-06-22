@@ -43,7 +43,7 @@ export default function ({
         const specifier = (binding.path.parent as BabelTypes.ImportDeclaration)
           .source.value
         // not a match
-        if (!libs.some((lib) => lib === specifier)) return
+        if (!libs.some((lib: any) => lib === specifier)) return
       }
 
       // only match function calls with names that look like a hook

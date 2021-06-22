@@ -40,7 +40,12 @@ declare module '*.png' {
 }
 
 declare module '*.svg' {
-  const content: StaticImageData
+  /**
+   * Use `any` to avoid conflicts with
+   * `@svgr/webpack` plugin or
+   * `babel-plugin-inline-react-svg` plugin.
+   */
+  const content: any
 
   export default content
 }
