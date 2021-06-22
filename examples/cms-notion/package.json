@@ -1,5 +1,5 @@
 {
-  "name": "cms-prismic",
+  "name": "cms-notion",
   "version": "1.0.0",
   "scripts": {
     "dev": "next",
