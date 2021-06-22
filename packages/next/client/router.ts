@@ -52,7 +52,9 @@ const routerEvents = [
   'routeChangeError',
   'hashChangeStart',
   'hashChangeComplete',
-]
+] as const
+export type RouterEvent = typeof routerEvents[number]
+
 const coreMethodFields = [
   'push',
   'replace',
@@ -90,7 +92,7 @@ coreMethodFields.forEach((field: string) => {
   }
 })
 
-routerEvents.forEach((event: string) => {
+routerEvents.forEach((event) => {
   singletonRouter.ready(() => {
     Router.events.on(event, (...args) => {
       const eventField = `on${event.charAt(0).toUpperCase()}${event.substring(
