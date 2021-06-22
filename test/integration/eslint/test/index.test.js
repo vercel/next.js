@@ -42,6 +42,9 @@ describe('ESLint', () => {
 
       const output = stdout + stderr
       expect(output).toContain(
+        'Warning: External synchronous scripts are forbidden'
+      )
+      expect(output).toContain(
         'Error: Comments inside children section of tag should be placed inside braces'
       )
     })
@@ -75,7 +78,7 @@ describe('ESLint', () => {
       )
     })
 
-    test.only('invalid eslint version', async () => {
+    test('invalid eslint version', async () => {
       const { stdout, stderr } = await nextBuild(dirInvalidEslintVersion, [], {
         stdout: true,
         stderr: true,
@@ -115,6 +118,9 @@ describe('ESLint', () => {
       })
 
       const output = stdout + stderr
+      expect(output).toContain(
+        'Warning: External synchronous scripts are forbidden'
+      )
       expect(output).toContain(
         'Error: Comments inside children section of tag should be placed inside braces'
       )
@@ -166,6 +172,21 @@ describe('ESLint', () => {
           await fs.move(`${eslintrcFile}.original`, eslintrcFile)
         }
       }
+    })
+
+    test('quiet flag suppresses warnings and only reports errors', async () => {
+      const { stdout, stderr } = await nextLint(dirCustomConfig, ['--quiet'], {
+        stdout: true,
+        stderr: true,
+      })
+
+      const output = stdout + stderr
+      expect(output).toContain(
+        'Error: Comments inside children section of tag should be placed inside braces'
+      )
+      expect(output).not.toContain(
+        'Warning: External synchronous scripts are forbidden'
+      )
     })
   })
 })
