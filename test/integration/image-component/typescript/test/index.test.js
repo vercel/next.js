@@ -39,7 +39,9 @@ describe('TypeScript Image Component', () => {
         nextConfig,
         content.replace('// disableStaticImages', 'disableStaticImages')
       )
-      const { code } = await nextBuild(appDir, [], { stderr: true })
+      const { code, stderr } = await nextBuild(appDir, [], { stderr: true })
+      expect(stderr).toMatch(/Failed to compile/)
+      expect(stderr).toMatch(/is not assignable to type/)
       expect(code).toBe(1)
       await fs.writeFile(nextConfig, content)
       const envTypes = await fs.readFile(join(appDir, 'next-env.d.ts'), 'utf8')
