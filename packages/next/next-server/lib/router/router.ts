@@ -336,7 +336,7 @@ function stripOrigin(url: string) {
   return url.startsWith(origin) ? url.substring(origin.length) : url
 }
 
-function prepareUrlAs(router: NextRouter, url: Url, as?: Url) {
+export function prepareUrlAs(router: NextRouter, url: Url, as?: Url) {
   // If url and as provided as an object representation,
   // we'll format them into the string version here.
   let [resolvedHref, resolvedAs] = resolveHref(router, url, true)
