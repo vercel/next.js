@@ -13,14 +13,16 @@ To improve the security of your application, you can use [`headers`](/docs/api-r
 // after learning more below.
 const securityHeaders = [];
 
-async headers() {
-  return [
-    {
-      // Apply these headers to all routes in your application.
-      source: '/(.*)',
-      headers: securityHeaders
-    }
-  ]
+module.exports = {
+  async headers() {
+    return [
+      {
+        // Apply these headers to all routes in your application.
+        source: '/(.*)',
+        headers: securityHeaders
+      }
+    ]
+  }
 }
 ```
 
