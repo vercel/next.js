@@ -12,6 +12,7 @@ import {
   isAssetError,
   markAssetError,
 } from '../../../client/route-loader'
+import { RouterEvent } from '../../../client/router'
 import { DomainLocales } from '../../server/config'
 import { denormalizePagePath } from '../../server/denormalize-page-path'
 import { normalizeLocalePath } from '../i18n/normalize-locale-path'
@@ -522,7 +523,7 @@ export default class Router implements BaseRouter {
   clc: ComponentLoadCancel
   pageLoader: any
   _bps: BeforePopStateCallback | undefined
-  events: MittEmitter
+  events: MittEmitter<RouterEvent>
   _wrapApp: (App: AppComponent) => any
   isSsr: boolean
   isFallback: boolean
@@ -538,7 +539,7 @@ export default class Router implements BaseRouter {
 
   private _idx: number = 0
 
-  static events: MittEmitter = mitt()
+  static events: MittEmitter<RouterEvent> = mitt()
 
   constructor(
     pathname: string,

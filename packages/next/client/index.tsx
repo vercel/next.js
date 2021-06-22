@@ -259,7 +259,7 @@ class Container extends React.Component<{
   }
 }
 
-export const emitter: MittEmitter = mitt()
+export const emitter: MittEmitter<string> = mitt()
 let CachedComponent: React.ComponentType
 
 export default async (opts: { webpackHMR?: any } = {}) => {
