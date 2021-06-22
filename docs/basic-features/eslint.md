@@ -70,7 +70,7 @@ Also, the `--dir` flag can be used for `next lint`:
 yarn lint --dir pages --dir utils
 ```
 
-and it will take precedence over the configuration from `next.config.js`.
+This will take precedence over the configuration from `next.config.js`.
 
 ## ESLint Plugin
 
