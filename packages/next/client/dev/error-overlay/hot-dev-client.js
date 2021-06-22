@@ -173,13 +173,21 @@ function handleErrors(errors) {
   }
 }
 
+let startLatency = undefined
+
 function onFastRefresh(hasUpdates) {
   DevOverlay.onBuildOk()
   if (hasUpdates) {
     DevOverlay.onRefresh()
   }
 
-  console.log('[Fast Refresh] done')
+  if (startLatency) {
+    const latency = Date.now() - startLatency
+    console.log(`[Fast Refresh] done in ${latency}ms`)
+    if (self.__NEXT_HMR_LATENCY_CB) {
+      self.__NEXT_HMR_LATENCY_CB(latency)
+    }
+  }
 }
 
 // There is a newer version of the code available.
@@ -193,6 +201,7 @@ function processMessage(e) {
   const obj = JSON.parse(e.data)
   switch (obj.action) {
     case 'building': {
+      startLatency = Date.now()
       console.log('[Fast Refresh] rebuilding')
       break
     }

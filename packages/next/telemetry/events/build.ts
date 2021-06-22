@@ -20,6 +20,27 @@ export function eventTypeCheckCompleted(
   }
 }
 
+const EVENT_LINT_CHECK_COMPLETED = 'NEXT_LINT_CHECK_COMPLETED'
+export type EventLintCheckCompleted = {
+  durationInSeconds: number
+  eslintVersion: string | null
+  lintedFilesCount?: number
+  lintFix?: boolean
+  buildLint?: boolean
+  nextEslintPluginVersion?: string | null
+  nextEslintPluginErrorsCount?: number
+  nextEslintPluginWarningsCount?: number
+}
+
+export function eventLintCheckCompleted(
+  event: EventLintCheckCompleted
+): { eventName: string; payload: EventLintCheckCompleted } {
+  return {
+    eventName: EVENT_LINT_CHECK_COMPLETED,
+    payload: event,
+  }
+}
+
 const EVENT_BUILD_COMPLETED = 'NEXT_BUILD_COMPLETED'
 type EventBuildCompleted = {
   durationInSeconds: number

@@ -7,58 +7,79 @@ import * as CommentJson from 'next/dist/compiled/comment-json'
 
 export async function writeDefaultConfig(
   eslintrcFile: string | null,
-  pkgJsonPath: string | null
+  pkgJsonPath: string | null,
+  packageJsonConfig: { eslintConfig: any } | null
 ) {
   const defaultConfig = {
     extends: 'next',
   }
 
   if (eslintrcFile) {
-    const ext = path.extname(eslintrcFile)
+    const content = await fs.readFile(eslintrcFile, { encoding: 'utf8' }).then(
+      (txt) => txt.trim().replace(/\n/g, ''),
+      () => null
+    )
 
-    let fileContent
-    if (ext === '.yaml' || ext === '.yml') {
-      fileContent = "extends: 'next'"
-    } else {
-      fileContent = CommentJson.stringify(defaultConfig, null, 2)
+    if (
+      content === '' ||
+      content === '{}' ||
+      content === '---' ||
+      content === 'module.exports = {}'
+    ) {
+      const ext = path.extname(eslintrcFile)
 
-      if (ext === '.js') {
-        fileContent = 'module.exports = ' + fileContent
+      let newFileContent
+      if (ext === '.yaml' || ext === '.yml') {
+        newFileContent = "extends: 'next'"
+      } else {
+        newFileContent = CommentJson.stringify(defaultConfig, null, 2)
+
+        if (ext === '.js') {
+          newFileContent = 'module.exports = ' + newFileContent
+        }
       }
-    }
 
-    await fs.writeFile(eslintrcFile, fileContent + os.EOL)
+      await fs.writeFile(eslintrcFile, newFileContent + os.EOL)
 
-    console.log(
-      '\n' +
+      console.log(
         chalk.green(
-          `We detected ESLint in your project and updated the ${chalk.bold(
+          `We detected an empty ESLint configuration file (${chalk.bold(
             path.basename(eslintrcFile)
-          )} file for you.`
-        ) +
-        '\n'
-    )
-  } else if (pkgJsonPath) {
-    const pkgJsonContent = await fs.readFile(pkgJsonPath, {
-      encoding: 'utf8',
-    })
-    let packageJsonConfig = CommentJson.parse(pkgJsonContent)
+          )}) and updated it for you to include the base Next.js ESLint configuration.`
+        )
+      )
+    }
+  } else if (packageJsonConfig?.eslintConfig) {
+    // Creates .eslintrc only if package.json's eslintConfig field is empty
+    if (Object.entries(packageJsonConfig?.eslintConfig).length === 0) {
+      packageJsonConfig.eslintConfig = defaultConfig
 
-    packageJsonConfig.eslintConfig = defaultConfig
+      if (pkgJsonPath)
+        await fs.writeFile(
+          pkgJsonPath,
+          CommentJson.stringify(packageJsonConfig, null, 2) + os.EOL
+        )
 
+      console.log(
+        chalk.green(
+          `We detected an empty ${chalk.bold(
+            'eslintConfig'
+          )} field in package.json and updated it for you to include the base Next.js ESLint configuration.`
+        )
+      )
+    }
+  } else {
     await fs.writeFile(
-      pkgJsonPath,
-      CommentJson.stringify(packageJsonConfig, null, 2) + os.EOL
+      '.eslintrc',
+      CommentJson.stringify(defaultConfig, null, 2) + os.EOL
     )
 
     console.log(
-      '\n' +
-        chalk.green(
-          `We detected ESLint in your project and updated the ${chalk.bold(
-            'eslintConfig'
-          )} field for you in package.json...`
-        ) +
-        '\n'
+      chalk.green(
+        `We created the ${chalk.bold(
+          '.eslintrc'
+        )} file for you and included the base Next.js ESLint configuration.`
+      )
     )
   }
 }

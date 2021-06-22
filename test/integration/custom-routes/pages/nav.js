@@ -1,6 +1,6 @@
 import Link from 'next/link'
 
-export default () => (
+const Page = () => (
   <>
     <h3 id="nav">Nav</h3>
     <Link href="/hello" as="/first">
@@ -42,3 +42,4 @@ export default () => (
     <br />
   </>
 )
+export default Page

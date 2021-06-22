@@ -9,6 +9,7 @@ import {
   killApp,
   waitFor,
   nextBuild,
+  nextLint,
 } from 'next-test-utils'
 
 jest.setTimeout(1000 * 60 * 2)
@@ -516,5 +517,49 @@ describe('Telemetry CLI', () => {
     expect(event2).toMatch(/"imageSizes": "64,128,256,512,1024"/)
     expect(event2).toMatch(/"trailingSlashEnabled": false/)
     expect(event2).toMatch(/"reactStrictMode": false/)
+  })
+
+  it('emits telemetry for lint during build', async () => {
+    await fs.writeFile(path.join(appDir, '.eslintrc'), `{ "extends": "next" }`)
+    const { stderr } = await nextBuild(appDir, [], {
+      stderr: true,
+      env: { NEXT_TELEMETRY_DEBUG: 1 },
+    })
+    await fs.remove(path.join(appDir, '.eslintrc'))
+
+    const event1 = /NEXT_LINT_CHECK_COMPLETED[\s\S]+?{([\s\S]+?)}/
+      .exec(stderr)
+      .pop()
+
+    expect(event1).toMatch(/"durationInSeconds": [\d]{1,}/)
+    expect(event1).toMatch(/"eslintVersion": ".*?\..*?\..*?"/)
+    expect(event1).toMatch(/"lintedFilesCount": [\d]{1,}/)
+    expect(event1).toMatch(/"lintFix": false/)
+    expect(event1).toMatch(/"buildLint": true/)
+    expect(event1).toMatch(/"nextEslintPluginVersion": ".*?\..*?\..*?"/)
+    expect(event1).toMatch(/"nextEslintPluginErrorsCount": \d{1,}/)
+    expect(event1).toMatch(/"nextEslintPluginWarningsCount": \d{1,}/)
+  })
+
+  it('emits telemetry for `next lint`', async () => {
+    await fs.writeFile(path.join(appDir, '.eslintrc'), `{ "extends": "next" }`)
+    const { stderr } = await nextLint(appDir, [], {
+      stderr: true,
+      env: { NEXT_TELEMETRY_DEBUG: 1 },
+    })
+    await fs.remove(path.join(appDir, '.eslintrc'))
+
+    const event1 = /NEXT_LINT_CHECK_COMPLETED[\s\S]+?{([\s\S]+?)}/
+      .exec(stderr)
+      .pop()
+
+    expect(event1).toMatch(/"durationInSeconds": [\d]{1,}/)
+    expect(event1).toMatch(/"eslintVersion": ".*?\..*?\..*?"/)
+    expect(event1).toMatch(/"lintedFilesCount": [\d]{1,}/)
+    expect(event1).toMatch(/"lintFix": false/)
+    expect(event1).toMatch(/"buildLint": false/)
+    expect(event1).toMatch(/"nextEslintPluginVersion": ".*?\..*?\..*?"/)
+    expect(event1).toMatch(/"nextEslintPluginErrorsCount": \d{1,}/)
+    expect(event1).toMatch(/"nextEslintPluginWarningsCount": \d{1,}/)
   })
 })
