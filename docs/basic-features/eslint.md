@@ -149,6 +149,16 @@ A stricter `next/core-web-vitals` rule set can also be added in `.eslintrc`:
 
 > Both `next` and `next/core-web-vitals` entry points are automatically included for new applications built with [Create Next App](/docs/api-reference/create-next-app.md).
 
+## Usage with Prettier
+
+ESLint also contains code formatting rules, which can conflict with your existing [Prettier](https://prettier.io/) setup. We recommend including [eslint-config-prettier](https://github.com/prettier/eslint-config-prettier) in your ESLint config to make ESLint and Prettier work together.
+
+```js
+{
+  "extends": ["next", "prettier"]
+}
+```
+
 ## Migrating Existing Config
 
 If you already have ESLint configured in your application, we recommend extending directly from the Next.js ESLint plugin instead of the shareable configuration.

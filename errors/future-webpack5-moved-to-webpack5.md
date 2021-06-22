@@ -6,7 +6,7 @@ The `future.webpack5` option has been moved to `webpack5` in `next.config.js`.
 
 #### Possible Ways to Fix It
 
-If you had the value `true` you can removed the option as webpack 5 is now the default for all Next.js apps unless opted out.
+If you had the value `true` you can remove the option as webpack 5 is now the default for all Next.js apps unless opted out.
 
 If you had he value `false` you can update `next.config.js`:
 

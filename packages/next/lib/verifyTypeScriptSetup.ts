@@ -18,6 +18,7 @@ export async function verifyTypeScriptSetup(
   dir: string,
   pagesDir: string,
   typeCheckPreflight: boolean,
+  imageImportsEnabled: boolean,
   cacheDir?: string
 ): Promise<{ result?: TypeCheckResult; version: string | null }> {
   const tsConfigPath = path.join(dir, 'tsconfig.json')
@@ -52,7 +53,7 @@ export async function verifyTypeScriptSetup(
     await writeConfigurationDefaults(ts, tsConfigPath, firstTimeSetup)
     // Write out the necessary `next-env.d.ts` file to correctly register
     // Next.js' types:
-    await writeAppTypeDeclarations(dir)
+    await writeAppTypeDeclarations(dir, imageImportsEnabled)
 
     let result
     if (typeCheckPreflight) {

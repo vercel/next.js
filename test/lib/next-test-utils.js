@@ -83,7 +83,7 @@ export function renderViaHTTP(appPort, pathname, query, opts) {
 
 export function fetchViaHTTP(appPort, pathname, query, opts) {
   const url = `http://localhost:${appPort}${pathname}${
-    query ? `?${qs.stringify(query)}` : ''
+    typeof query === 'string' ? query : query ? `?${qs.stringify(query)}` : ''
   }`
   return fetch(url, opts)
 }

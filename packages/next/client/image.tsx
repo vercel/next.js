@@ -360,6 +360,14 @@ export default function Image({
         ).join(',')}.`
       )
     }
+    if (
+      (typeof widthInt !== 'undefined' && isNaN(widthInt)) ||
+      (typeof heightInt !== 'undefined' && isNaN(heightInt))
+    ) {
+      throw new Error(
+        `Image with src "${src}" has invalid "width" or "height" property. These should be numeric values.`
+      )
+    }
     if (!VALID_LOADING_VALUES.includes(loading)) {
       throw new Error(
         `Image with src "${src}" has invalid "loading" property. Provided "${loading}" should be one of ${VALID_LOADING_VALUES.map(
@@ -373,7 +381,7 @@ export default function Image({
       )
     }
     if (placeholder === 'blur') {
-      if ((widthInt || 0) * (heightInt || 0) < 1600) {
+      if (layout !== 'fill' && (widthInt || 0) * (heightInt || 0) < 1600) {
         console.warn(
           `Image with src "${src}" is smaller than 40x40. Consider removing the "placeholder='blur'" property to improve performance.`
         )
@@ -569,9 +577,7 @@ export default function Image({
               sizes,
               loader,
             })}
-            src={src}
             decoding="async"
-            sizes={sizes}
             style={imgStyle}
             className={className}
           />
