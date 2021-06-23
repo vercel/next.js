@@ -57,7 +57,7 @@ You're now ready to start converting files from `.js` to `.tsx` and leveraging t
 
 > TypeScript `strict` mode is turned off by default. When you feel comfortable with TypeScript, it's recommended to turn it on in your `tsconfig.json`.
 
-> Additional types can be added to your project separate of `next-env.d.ts` by adding a separate file e.g. `additional.d.ts` and then adding it to the `include` config in your `tsconfig.json`
+> Instead of editing `next-env.d.ts`, you can include additional types by adding a new file e.g. `additional.d.ts` and then referencing it in the [`include`](https://www.typescriptlang.org/tsconfig#include) array in your `tsconfig.json`.
 
 By default, Next.js will do type checking as part of `next build`. We recommend using code editor type checking during development.
 
