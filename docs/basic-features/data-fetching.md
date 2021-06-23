@@ -825,8 +825,10 @@ The team behind Next.js has created a React hook for data fetching called [**SWR
 ```jsx
 import useSWR from 'swr'
 
+const fetcher = url => fetch(url).then(res => res.json());
+
+
 function Profile() {
-  const fetcher = url => fetch(url).then(r => r.json())
   const { data, error } = useSWR('/api/user', fetcher)
 
   if (error) return <div>failed to load</div>
