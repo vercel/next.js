@@ -6,7 +6,7 @@ A custom font was added to a page and not with a custom `Document`. This only ad
 
 ### Possible Ways to Fix It
 
-Create the file `./pages/document.js` and add the font to a custom Document:
+Create the file `./pages/_document.js` and add the font to a custom Document:
 
 ```jsx
 // pages/_document.js

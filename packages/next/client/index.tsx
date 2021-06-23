@@ -141,8 +141,8 @@ if (process.env.__NEXT_I18N_SUPPORT) {
   }
 }
 
-if (process.env.__NEXT_SCRIPT_LOADER && data.scriptLoader) {
-  const { initScriptLoader } = require('./experimental-script')
+if (data.scriptLoader) {
+  const { initScriptLoader } = require('./script')
   initScriptLoader(data.scriptLoader)
 }
 
@@ -259,7 +259,7 @@ class Container extends React.Component<{
   }
 }
 
-export const emitter: MittEmitter = mitt()
+export const emitter: MittEmitter<string> = mitt()
 let CachedComponent: React.ComponentType
 
 export default async (opts: { webpackHMR?: any } = {}) => {
@@ -508,11 +508,7 @@ function renderReactElement(
   const reactEl = fn(shouldHydrate ? markHydrateComplete : markRenderComplete)
   if (process.env.__NEXT_REACT_ROOT) {
     if (!reactRoot) {
-      const createRootName =
-        typeof (ReactDOM as any).unstable_createRoot === 'function'
-          ? 'unstable_createRoot'
-          : 'createRoot'
-      reactRoot = (ReactDOM as any)[createRootName](domEl, {
+      reactRoot = (ReactDOM as any).createRoot(domEl, {
         hydrate: shouldHydrate,
       })
     }

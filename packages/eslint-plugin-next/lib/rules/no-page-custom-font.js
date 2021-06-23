@@ -38,15 +38,15 @@ module.exports = {
         }
 
         const hrefValue = attributes.value('href')
-        const isGoogleFont = hrefValue.includes(
-          'https://fonts.googleapis.com/css'
-        )
+        const isGoogleFont =
+          typeof hrefValue === 'string' &&
+          hrefValue.startsWith('https://fonts.googleapis.com/css')
 
         if (isGoogleFont) {
           context.report({
             node,
             message:
-              'Custom fonts should be added at the document level. See https://nextjs.org/docs/messages/no-page-custom-font.',
+              'Custom fonts not added at the document level will only load for a single page. This is discouraged. See https://nextjs.org/docs/messages/no-page-custom-font.',
           })
         }
       },

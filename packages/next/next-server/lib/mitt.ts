@@ -16,13 +16,13 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 type Handler = (...evts: any[]) => void
 
-export type MittEmitter = {
-  on(type: string, handler: Handler): void
-  off(type: string, handler: Handler): void
-  emit(type: string, ...evts: any[]): void
+export type MittEmitter<T> = {
+  on(type: T, handler: Handler): void
+  off(type: T, handler: Handler): void
+  emit(type: T, ...evts: any[]): void
 }
 
-export default function mitt(): MittEmitter {
+export default function mitt(): MittEmitter<string> {
   const all: { [s: string]: Handler[] } = Object.create(null)
 
   return {

@@ -136,6 +136,18 @@ export interface NextPageContext {
    */
   asPath?: string
   /**
+   * The currently active locale
+   */
+  locale?: string
+  /**
+   * All configured locales
+   */
+  locales?: string[]
+  /**
+   * The configured default locale
+   */
+  defaultLocale?: string
+  /**
    * `Component` the tree of the App to use if needing to render separately
    */
   AppTree: AppTreeType
@@ -191,8 +203,9 @@ export type DocumentProps = DocumentInitialProps & {
   unstable_runtimeJS?: false
   unstable_JsPreload?: false
   devOnlyCacheBusterQueryString: string
-  scriptLoader: { afterInteraction?: string[]; beforeInteraction?: any[] }
+  scriptLoader: { afterInteractive?: string[]; beforeInteractive?: any[] }
   locale?: string
+  disableOptimizedLoading?: boolean
 }
 
 /**

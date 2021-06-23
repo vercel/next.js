@@ -34,7 +34,7 @@ describe('Script Loader', () => {
     stopApp(server)
   })
 
-  it('priority afterInteraction', async () => {
+  it('priority afterInteractive', async () => {
     let browser
     try {
       browser = await webdriver(appPort, '/')
@@ -42,32 +42,26 @@ describe('Script Loader', () => {
 
       async function test(id) {
         const script = await browser.elementById(id)
-        const src = await script.getAttribute('src')
         const endScripts = await browser.elementsByCss(
           `#${id} ~ script[src^="/_next/static/"]`
-        )
-        const endPreloads = await browser.elementsByCss(
-          `link[rel=preload][href="${src}"] ~ link[rel=preload][href^="/_next/static/"]`
         )
 
         // Renders script tag
         expect(script).toBeDefined()
         // Script is inserted at the end
         expect(endScripts.length).toBe(0)
-        //Preload is defined at the end
-        expect(endPreloads.length).toBe(0)
       }
 
-      // afterInteraction script in page
-      await test('scriptAfterInteraction')
-      // afterInteraction script in _document
-      await test('documentAfterInteraction')
+      // afterInteractive script in page
+      await test('scriptAfterInteractive')
+      // afterInteractive script in _document
+      await test('documentAfterInteractive')
     } finally {
       if (browser) await browser.close()
     }
   })
 
-  it('priority lazy', async () => {
+  it('priority lazyOnload', async () => {
     let browser
     try {
       browser = await webdriver(appPort, '/page3')
@@ -87,51 +81,33 @@ describe('Script Loader', () => {
         expect(endScripts.length).toBe(0)
       }
 
-      // Lazy script in page
-      await test('scriptLazy')
-      // Lazy script in _document
-      await test('documentLazy')
+      // lazyOnload script in page
+      await test('scriptLazyOnload')
+      // lazyOnload script in _document
+      await test('documentLazyOnload')
     } finally {
       if (browser) await browser.close()
     }
   })
 
-  it('priority beforeInteraction', async () => {
+  it('priority beforeInteractive', async () => {
     const html = await renderViaHTTP(appPort, '/page1')
     const $ = cheerio.load(html)
 
     function test(id) {
       const script = $(`#${id}`)
-      const src = script.attr('src')
 
       // Renders script tag
-      expect(script).toBeDefined()
-      // Preload is inserted at the beginning
-      expect(
-        $(
-          `link[rel=preload][href="${src}"] ~ link[rel=preload][href^="/_next/static/"]`
-        ).length &&
-          !$(
-            `link[rel=preload][href^="/_next/static/chunks/main"] ~ link[rel=preload][href="${src}"]`
-          ).length
-      ).toBeTruthy()
-
-      // Preload is inserted after fonts and CSS
-      expect(
-        $(
-          `link[rel=stylesheet][href^="/_next/static/css"] ~ link[rel=preload][href="${src}"]`
-        ).length
-      ).toBeGreaterThan(0)
+      expect(script.length).toBe(1)
 
       // Script is inserted before NextScripts
       expect(
-        $(`#__NEXT_DATA__ ~ #${id} ~ script[src^="/_next/static/chunks/main"]`)
-          .length
+        $(`#${id} ~ script[src^="/_next/static/chunks/main"]`).length
       ).toBeGreaterThan(0)
     }
 
-    test('scriptBeforeInteraction')
-    test('documentBeforeInteraction')
+    test('scriptBeforeInteractive')
+    test('documentBeforeInteractive')
   })
 
   it('onload fires correctly', async () => {

@@ -280,7 +280,7 @@ export function getUtils({
 
   function normalizeDynamicRouteParams(params: ParsedUrlQuery) {
     let hasValidParams = true
-    if (!defaultRouteRegex) return { params, hasValidParams }
+    if (!defaultRouteRegex) return { params, hasValidParams: false }
 
     params = Object.keys(defaultRouteRegex.groups).reduce((prev, key) => {
       let value: string | string[] | undefined = params[key]
@@ -288,9 +288,15 @@ export function getUtils({
       // if the value matches the default value we can't rely
       // on the parsed params, this is used to signal if we need
       // to parse x-now-route-matches or not
-      const isDefaultValue = Array.isArray(value)
-        ? value.every((val, idx) => val === defaultRouteMatches![key][idx])
-        : value === defaultRouteMatches![key]
+      const defaultValue = defaultRouteMatches![key]
+
+      const isDefaultValue = Array.isArray(defaultValue)
+        ? defaultValue.some((defaultVal) => {
+            return Array.isArray(value)
+              ? value.some((val) => val.includes(defaultVal))
+              : value?.includes(defaultVal)
+          })
+        : value?.includes(defaultValue as string)
 
       if (isDefaultValue || typeof value === 'undefined') {
         hasValidParams = false
@@ -345,10 +351,15 @@ export function getUtils({
 
     let defaultLocale = i18n.defaultLocale
     let detectedLocale = detectLocaleCookie(req, i18n.locales)
-    let acceptPreferredLocale =
-      i18n.localeDetection !== false
-        ? accept.language(req.headers['accept-language'], i18n.locales)
-        : detectedLocale
+    let acceptPreferredLocale
+    try {
+      acceptPreferredLocale =
+        i18n.localeDetection !== false
+          ? accept.language(req.headers['accept-language'], i18n.locales)
+          : detectedLocale
+    } catch (_) {
+      acceptPreferredLocale = detectedLocale
+    }
 
     const { host } = req.headers || {}
     // remove port from host and remove port if present

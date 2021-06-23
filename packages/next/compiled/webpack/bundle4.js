@@ -40466,7 +40466,7 @@ module.exports = isAccessorDescriptor;
 /***/ 1057:
 /***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
-var isBuffer = __webpack_require__(72195);
+var isBuffer = __webpack_require__(9848);
 var toString = Object.prototype.toString;
 
 /**
@@ -40586,6 +40586,34 @@ module.exports = function kindOf(val) {
 
 /***/ }),
 
+/***/ 9848:
+/***/ (function(module) {
+
+/*!
+ * Determine if an object is a Buffer
+ *
+ * @author   Feross Aboukhadijeh <https://feross.org>
+ * @license  MIT
+ */
+
+// The _isBuffer check is for Safari 5-7 support, because it's missing
+// Object.prototype.constructor. Remove this eventually
+module.exports = function (obj) {
+  return obj != null && (isBuffer(obj) || isSlowBuffer(obj) || !!obj._isBuffer)
+}
+
+function isBuffer (obj) {
+  return !!obj.constructor && typeof obj.constructor.isBuffer === 'function' && obj.constructor.isBuffer(obj)
+}
+
+// For Node v0.10 support. Remove this eventually.
+function isSlowBuffer (obj) {
+  return typeof obj.readFloatLE === 'function' && typeof obj.slice === 'function' && isBuffer(obj.slice(0, 0))
+}
+
+
+/***/ }),
+
 /***/ 54963:
 /***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
@@ -40652,7 +40680,7 @@ module.exports = isDataDescriptor;
 /***/ 31072:
 /***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
-var isBuffer = __webpack_require__(72195);
+var isBuffer = __webpack_require__(9848);
 var toString = Object.prototype.toString;
 
 /**
@@ -49529,10 +49557,38 @@ module.exports = function hasValue(val) {
 
 /***/ }),
 
+/***/ 93293:
+/***/ (function(module) {
+
+/*!
+ * Determine if an object is a Buffer
+ *
+ * @author   Feross Aboukhadijeh <https://feross.org>
+ * @license  MIT
+ */
+
+// The _isBuffer check is for Safari 5-7 support, because it's missing
+// Object.prototype.constructor. Remove this eventually
+module.exports = function (obj) {
+  return obj != null && (isBuffer(obj) || isSlowBuffer(obj) || !!obj._isBuffer)
+}
+
+function isBuffer (obj) {
+  return !!obj.constructor && typeof obj.constructor.isBuffer === 'function' && obj.constructor.isBuffer(obj)
+}
+
+// For Node v0.10 support. Remove this eventually.
+function isSlowBuffer (obj) {
+  return typeof obj.readFloatLE === 'function' && typeof obj.slice === 'function' && isBuffer(obj.slice(0, 0))
+}
+
+
+/***/ }),
+
 /***/ 54329:
 /***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
-var isBuffer = __webpack_require__(72195);
+var isBuffer = __webpack_require__(93293);
 var toString = Object.prototype.toString;
 
 /**
@@ -49913,34 +49969,6 @@ function isBuffer(val) {
     return val.constructor.isBuffer(val);
   }
   return false;
-}
-
-
-/***/ }),
-
-/***/ 72195:
-/***/ (function(module) {
-
-/*!
- * Determine if an object is a Buffer
- *
- * @author   Feross Aboukhadijeh <https://feross.org>
- * @license  MIT
- */
-
-// The _isBuffer check is for Safari 5-7 support, because it's missing
-// Object.prototype.constructor. Remove this eventually
-module.exports = function (obj) {
-  return obj != null && (isBuffer(obj) || isSlowBuffer(obj) || !!obj._isBuffer)
-}
-
-function isBuffer (obj) {
-  return !!obj.constructor && typeof obj.constructor.isBuffer === 'function' && obj.constructor.isBuffer(obj)
-}
-
-// For Node v0.10 support. Remove this eventually.
-function isSlowBuffer (obj) {
-  return typeof obj.readFloatLE === 'function' && typeof obj.slice === 'function' && isBuffer(obj.slice(0, 0))
 }
 
 
@@ -50579,7 +50607,7 @@ function escapeJsonPtr(str) {
 /***/ 48865:
 /***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
-var isBuffer = __webpack_require__(72195);
+var isBuffer = __webpack_require__(45408);
 var toString = Object.prototype.toString;
 
 /**
@@ -50695,6 +50723,34 @@ module.exports = function kindOf(val) {
   // must be a plain object
   return 'object';
 };
+
+
+/***/ }),
+
+/***/ 45408:
+/***/ (function(module) {
+
+/*!
+ * Determine if an object is a Buffer
+ *
+ * @author   Feross Aboukhadijeh <https://feross.org>
+ * @license  MIT
+ */
+
+// The _isBuffer check is for Safari 5-7 support, because it's missing
+// Object.prototype.constructor. Remove this eventually
+module.exports = function (obj) {
+  return obj != null && (isBuffer(obj) || isSlowBuffer(obj) || !!obj._isBuffer)
+}
+
+function isBuffer (obj) {
+  return !!obj.constructor && typeof obj.constructor.isBuffer === 'function' && obj.constructor.isBuffer(obj)
+}
+
+// For Node v0.10 support. Remove this eventually.
+function isSlowBuffer (obj) {
+  return typeof obj.readFloatLE === 'function' && typeof obj.slice === 'function' && isBuffer(obj.slice(0, 0))
+}
 
 
 /***/ }),
@@ -130861,6 +130917,14 @@ module.exports = function () {
     NodeTargetPlugin: __webpack_require__(59743),
     ModuleFilenameHelpers: __webpack_require__(71474),
     GraphHelpers: __webpack_require__(32973),
+    Module: __webpack_require__(75993),
+    NormalModule: __webpack_require__(25963),
+    Dependency: __webpack_require__(57282),
+    LibraryTemplatePlugin: __webpack_require__(65237),
+    SingleEntryPlugin: __webpack_require__(19070),
+    node: __webpack_require__(92929).node,
+    util: __webpack_require__(92929).util,
+    optimize: __webpack_require__(92929).optimize,
     sources: __webpack_require__(53665),
     webpack: __webpack_require__(92929),
     package: {

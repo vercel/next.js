@@ -20,18 +20,27 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (pathname.startsWith('/_next/static/')) {
-    res.write(
-      fs.readFileSync(
-        path.join(
-          __dirname,
-          './.next/static/',
-          decodeURI(pathname.slice('/_next/static/'.length))
-        ),
-        'utf8'
+    let prom = Promise.resolve()
+    if (pathname.endsWith('.css')) {
+      prom = new Promise((resolve) => setTimeout(resolve, 20000))
+    }
+    prom.then(() => {
+      res.write(
+        fs.readFileSync(
+          path.join(
+            __dirname,
+            './.next/static/',
+            decodeURI(pathname.slice('/_next/static/'.length))
+          ),
+          'utf8'
+        )
       )
-    )
-    return res.end()
+      return res.end()
+    })
   } else {
+    if (pathname === '') {
+      pathname = '/index'
+    }
     const ext = isDataReq ? 'json' : 'html'
     if (
       fs.existsSync(
