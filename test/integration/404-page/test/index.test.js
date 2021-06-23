@@ -61,6 +61,38 @@ const runTests = (mode = 'server') => {
       expect('/404' in manifest).toBe(true)
     })
   }
+
+  if (mode === 'server') {
+    it('should always revalidate custom 404 page without ssg', async () => {
+      const res404 = await fetchViaHTTP(appPort, '/404')
+      const resNext = await fetchViaHTTP(appPort, '/_next/abc')
+
+      expect(res404.headers.get('Cache-Control')).toBe(null)
+      expect(resNext.headers.get('Cache-Control')).toBe(
+        'no-cache, no-store, max-age=0, must-revalidate'
+      )
+    })
+
+    it('should use swr cache on custom 404 page with ssg', async () => {
+      await fs.move(pages404, `${pages404}.bak`)
+      await fs.writeFile(
+        pages404,
+        `
+        const page = () => 'custom 404 page'
+        export async function getStaticProps() { return { props: {}, revalidate: 1 } }
+        export default page
+      `
+      )
+      const swrCacheControl = 's-maxage=31536000, stale-while-revalidate'
+      const res404 = await fetchViaHTTP(appPort, '/404')
+      const resNext = await fetchViaHTTP(appPort, '/_next/abc')
+      await fs.remove(pages404)
+      await fs.move(`${pages404}.bak`, pages404)
+
+      expect(res404.headers.get('Cache-Control')).toBe(swrCacheControl)
+      expect(resNext.headers.get('Cache-Control')).toBe(swrCacheControl)
+    })
+  }
 }
 
 describe('404 Page Support', () => {
