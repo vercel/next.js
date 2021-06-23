@@ -427,11 +427,15 @@ export default class Server {
 
       let defaultLocale = i18n.defaultLocale
       let detectedLocale = detectLocaleCookie(req, i18n.locales)
-      let acceptPreferredLocale =
-        i18n.localeDetection !== false
-          ? accept.language(req.headers['accept-language'], i18n.locales)
-          : detectedLocale
-
+      let acceptPreferredLocale
+      try {
+        acceptPreferredLocale =
+          i18n.localeDetection !== false
+            ? accept.language(req.headers['accept-language'], i18n.locales)
+            : detectedLocale
+      } catch (_) {
+        acceptPreferredLocale = detectedLocale
+      }
       const { host } = req?.headers || {}
       // remove port from host if present
       const hostname = host?.split(':')[0].toLowerCase()

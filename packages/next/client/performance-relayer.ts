@@ -36,9 +36,9 @@ function onReport(metric: Metric): void {
       value: metric.value.toString(),
       speed:
         'connection' in navigator &&
-        navigator['connection'] &&
-        'effectiveType' in navigator['connection']
-          ? (navigator['connection']['effectiveType'] as string)
+        (navigator as any)['connection'] &&
+        'effectiveType' in (navigator as any)['connection']
+          ? ((navigator as any)['connection']['effectiveType'] as string)
           : '',
     }
 
