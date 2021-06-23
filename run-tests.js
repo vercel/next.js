@@ -20,6 +20,14 @@ const UNIT_TEST_EXT = '.unit.test.js'
 const DEV_TEST_EXT = '.dev.test.js'
 const PROD_TEST_EXT = '.prod.test.js'
 
+const NON_CONCURRENT_TESTS = [
+  'test/integration/basic/test/index.test.js',
+  'test/acceptance/ReactRefresh.dev.test.js',
+  'test/acceptance/ReactRefreshLogBox.dev.test.js',
+  'test/acceptance/ReactRefreshRegression.dev.test.js',
+  'test/acceptance/ReactRefreshRequire.dev.test.js',
+]
+
 // which types we have configured to run separate
 const configuredTestTypes = [UNIT_TEST_EXT]
 
@@ -216,6 +224,61 @@ async function main() {
         resolve(new Date().getTime() - start)
       })
     })
+
+  const nonConcurrentTestNames = []
+
+  testNames = testNames.filter((testName) => {
+    if (NON_CONCURRENT_TESTS.includes(testName)) {
+      nonConcurrentTestNames.push(testName)
+      return false
+    }
+    return true
+  })
+
+  // run non-concurrent test names separately and before
+  // concurrent ones
+  for (const test of nonConcurrentTestNames) {
+    let passed = false
+
+    for (let i = 0; i < NUM_RETRIES + 1; i++) {
+      try {
+        const time = await runTest(test, i > 0)
+        timings.push({
+          file: test,
+          time,
+        })
+        passed = true
+        break
+      } catch (err) {
+        if (i < NUM_RETRIES) {
+          try {
+            const testDir = path.dirname(path.join(__dirname, test))
+            console.log('Cleaning test files at', testDir)
+            await exec(`git clean -fdx "${testDir}"`)
+            await exec(`git checkout "${testDir}"`)
+          } catch (err) {}
+        }
+      }
+    }
+    if (!passed) {
+      console.error(`${test} failed to pass within ${NUM_RETRIES} retries`)
+      children.forEach((child) => child.kill())
+
+      if (isTestJob) {
+        try {
+          const testsOutput = await fs.readFile(`${test}${RESULTS_EXT}`, 'utf8')
+          console.log(
+            `--test output start--`,
+            testsOutput,
+            `--test output end--`
+          )
+        } catch (err) {
+          console.log(`Failed to load test output`, err)
+        }
+      }
+      process.exit(1)
+    }
+  }
 
   await Promise.all(
     testNames.map(async (test) => {

@@ -37,7 +37,12 @@ async function tryApplyUpdates() {
     return
   }
   try {
-    const res = await fetch(`${hotUpdatePath}${curHash}.hot-update.json`)
+    const res = await fetch(
+      typeof __webpack_runtime_id__ !== 'undefined'
+        ? // eslint-disable-next-line no-undef
+          `${hotUpdatePath}${curHash}.${__webpack_runtime_id__}.hot-update.json`
+        : `${hotUpdatePath}${curHash}.hot-update.json`
+    )
     const jsonData = await res.json()
     const curPage = page === '/' ? 'index' : page
     // webpack 5 uses an array instead

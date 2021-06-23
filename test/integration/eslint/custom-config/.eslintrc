@@ -3,6 +3,6 @@
   "root": true,
   "rules": {
     "@next/next/no-html-link-for-pages": 0,
-    "@next/next/no-sync-scripts": 2
+    "@next/next/no-sync-scripts": 1
   }
 }

@@ -12,6 +12,7 @@ import {
   isAssetError,
   markAssetError,
 } from '../../../client/route-loader'
+import { RouterEvent } from '../../../client/router'
 import { DomainLocales } from '../../server/config'
 import { denormalizePagePath } from '../../server/denormalize-page-path'
 import { normalizeLocalePath } from '../i18n/normalize-locale-path'
@@ -522,7 +523,7 @@ export default class Router implements BaseRouter {
   clc: ComponentLoadCancel
   pageLoader: any
   _bps: BeforePopStateCallback | undefined
-  events: MittEmitter
+  events: MittEmitter<RouterEvent>
   _wrapApp: (App: AppComponent) => any
   isSsr: boolean
   isFallback: boolean
@@ -538,7 +539,7 @@ export default class Router implements BaseRouter {
 
   private _idx: number = 0
 
-  static events: MittEmitter = mitt()
+  static events: MittEmitter<RouterEvent> = mitt()
 
   constructor(
     pathname: string,
@@ -815,11 +816,6 @@ export default class Router implements BaseRouter {
     if ((options as any)._h) {
       this.isReady = true
     }
-
-    // Default to scroll reset behavior unless explicitly specified to be
-    // `false`! This makes the behavior between using `Router#push` and a
-    // `<Link />` consistent.
-    options.scroll = !!(options.scroll ?? true)
 
     let localeChange = options.locale !== this.locale
 
@@ -1117,14 +1113,12 @@ export default class Router implements BaseRouter {
               pages
             )
 
-            if (pages.includes(parsedHref.pathname)) {
-              const { url: newUrl, as: newAs } = prepareUrlAs(
-                this,
-                destination,
-                destination
-              )
-              return this.change(method, newUrl, newAs, options)
-            }
+            const { url: newUrl, as: newAs } = prepareUrlAs(
+              this,
+              destination,
+              destination
+            )
+            return this.change(method, newUrl, newAs, options)
           }
 
           window.location.href = destination
@@ -1165,9 +1159,6 @@ export default class Router implements BaseRouter {
           !(routeInfo.Component as any).getInitialProps
       }
 
-      // shallow routing is only allowed for same page URL changes.
-      const isValidShallowRoute = options.shallow && this.route === route
-
       if (
         (options as any)._h &&
         pathname === '/_error' &&
@@ -1179,14 +1170,18 @@ export default class Router implements BaseRouter {
         props.pageProps.statusCode = 500
       }
 
+      // shallow routing is only allowed for same page URL changes.
+      const isValidShallowRoute = options.shallow && this.route === route
+
+      const shouldScroll = options.scroll ?? !isValidShallowRoute
+      const resetScroll = shouldScroll ? { x: 0, y: 0 } : null
       await this.set(
         route,
         pathname!,
         query,
         cleanedAs,
         routeInfo,
-        forcedScroll ||
-          (isValidShallowRoute || !options.scroll ? null : { x: 0, y: 0 })
+        forcedScroll ?? resetScroll
       ).catch((e) => {
         if (e.cancelled) error = error || e
         else throw e
