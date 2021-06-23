@@ -267,6 +267,28 @@ describe('i18n Support', () => {
       expect($('#router-as-path').text()).toBe('/')
     })
 
+    it('should ignore the invalid accept-language header', async () => {
+      nextConfig.replace('localeDetection: false', 'localeDetection: true')
+      const res = await fetchViaHTTP(
+        ctx.appPort,
+        '/',
+        {},
+        {
+          headers: {
+            'accept-language': 'ldfir;',
+          },
+        }
+      )
+
+      expect(res.status).toBe(200)
+      const $ = cheerio.load(await res.text())
+      expect($('html').attr('lang')).toBe('en-US')
+      expect($('#router-locale').text()).toBe('en-US')
+      expect(JSON.parse($('#router-locales').text())).toEqual(locales)
+      expect($('#router-pathname').text()).toBe('/')
+      expect($('#router-as-path').text()).toBe('/')
+    })
+
     it('should set locale from detected path', async () => {
       for (const locale of nonDomainLocales) {
         const res = await fetchViaHTTP(
