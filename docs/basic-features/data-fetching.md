@@ -827,7 +827,6 @@ import useSWR from 'swr'
 
 const fetcher = url => fetch(url).then(res => res.json());
 
-
 function Profile() {
   const { data, error } = useSWR('/api/user', fetcher)
 
