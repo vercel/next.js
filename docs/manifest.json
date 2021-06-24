@@ -26,12 +26,20 @@
               "path": "/docs/basic-features/image-optimization.md"
             },
             {
+              "title": "Font Optimization",
+              "path": "/docs/basic-features/font-optimization.md"
+            },
+            {
               "title": "Static File Serving",
               "path": "/docs/basic-features/static-file-serving.md"
             },
             {
               "title": "Fast Refresh",
               "path": "/docs/basic-features/fast-refresh.md"
+            },
+            {
+              "title": "ESLint",
+              "path": "/docs/basic-features/eslint.md"
             },
             {
               "title": "TypeScript",
@@ -44,6 +52,10 @@
             {
               "title": "Supported Browsers and Features",
               "path": "/docs/basic-features/supported-browsers-features.md"
+            },
+            {
+              "title": "Script",
+              "path": "/docs/basic-features/script.md"
             }
           ]
         },
@@ -196,6 +208,10 @@
             {
               "title": "Internationalized Routing",
               "path": "/docs/advanced-features/i18n-routing.md"
+            },
+            {
+              "title": "Security Headers",
+              "path": "/docs/advanced-features/security-headers.md"
             }
           ]
         },
@@ -335,6 +351,10 @@
             {
               "title": "Configuring onDemandEntries",
               "path": "/docs/api-reference/next.config.js/configuring-onDemandEntries.md"
+            },
+            {
+              "title": "Ignoring ESLint",
+              "path": "/docs/api-reference/next.config.js/ignoring-eslint.md"
             },
             {
               "title": "Ignoring TypeScript Errors",

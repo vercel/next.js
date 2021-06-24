@@ -15,7 +15,7 @@ yarn create next-app --example with-docker nextjs-docker
 ## Using Docker
 
 1. [Install Docker](https://docs.docker.com/get-docker/) on your machine.
-1. Build your container: `docker build . -t nextjs-docker`.
+1. Build your container: `docker build -t nextjs-docker .`.
 1. Run your container: `docker run -p 3000:3000 nextjs-docker`.
 
 You can view your images created with `docker images`.
@@ -33,6 +33,10 @@ The `start` script in `package.json` has been modified to accept a `PORT` enviro
    - You will be prompted for the service name: press Enter to accept the default name, `helloworld`.
    - You will be prompted for [region](https://cloud.google.com/run/docs/quickstarts/build-and-deploy#follow-cloud-run): select the region of your choice, for example `us-central1`.
    - You will be prompted to **allow unauthenticated invocations**: respond `y`.
+
+Or click the button below, authorize the script, and select the project and region when prompted:
+
+[![Run on Google Cloud](https://deploy.cloud.run/button.svg)](https://deploy.cloud.run/?git_repo=https://github.com/vercel/next.js.git&dir=examples/with-docker)
 
 ## Running Locally
 

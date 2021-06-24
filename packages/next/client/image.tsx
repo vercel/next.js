@@ -45,13 +45,74 @@ const VALID_LAYOUT_VALUES = [
 ] as const
 type LayoutValue = typeof VALID_LAYOUT_VALUES[number]
 
+type PlaceholderValue = 'blur' | 'empty'
+
 type ImgElementStyle = NonNullable<JSX.IntrinsicElements['img']['style']>
+
+interface StaticImageData {
+  src: string
+  height: number
+  width: number
+  blurDataURL?: string
+}
+
+interface StaticRequire {
+  default: StaticImageData
+}
+
+type StaticImport = StaticRequire | StaticImageData
+
+function isStaticRequire(
+  src: StaticRequire | StaticImageData
+): src is StaticRequire {
+  return (src as StaticRequire).default !== undefined
+}
+
+function isStaticImageData(
+  src: StaticRequire | StaticImageData
+): src is StaticImageData {
+  return (src as StaticImageData).src !== undefined
+}
+
+function isStaticImport(src: string | StaticImport): src is StaticImport {
+  return (
+    typeof src === 'object' &&
+    (isStaticRequire(src as StaticImport) ||
+      isStaticImageData(src as StaticImport))
+  )
+}
+
+type StringImageProps = {
+  src: string
+} & (
+  | { width?: never; height?: never; layout: 'fill' }
+  | {
+      width: number | string
+      height: number | string
+      layout?: Exclude<LayoutValue, 'fill'>
+    }
+) &
+  (
+    | {
+        placeholder?: Exclude<PlaceholderValue, 'blur'>
+        blurDataURL?: never
+      }
+    | { placeholder: 'blur'; blurDataURL: string }
+  )
+
+type ObjectImageProps = {
+  src: StaticImport
+  width?: number | string
+  height?: number | string
+  layout?: LayoutValue
+  placeholder?: PlaceholderValue
+  blurDataURL?: never
+}
 
 export type ImageProps = Omit<
   JSX.IntrinsicElements['img'],
   'src' | 'srcSet' | 'ref' | 'width' | 'height' | 'loading' | 'style'
 > & {
-  src: string
   loader?: ImageLoader
   quality?: number | string
   priority?: boolean
@@ -59,20 +120,7 @@ export type ImageProps = Omit<
   unoptimized?: boolean
   objectFit?: ImgElementStyle['objectFit']
   objectPosition?: ImgElementStyle['objectPosition']
-} & (
-    | {
-        width?: never
-        height?: never
-        /** @deprecated Use `layout="fill"` instead */
-        unsized: true
-      }
-    | { width?: never; height?: never; layout: 'fill' }
-    | {
-        width: number | string
-        height: number | string
-        layout?: Exclude<LayoutValue, 'fill'>
-      }
-  )
+} & (StringImageProps | ObjectImageProps)
 
 const {
   deviceSizes: configDeviceSizes,
@@ -94,9 +142,11 @@ function getWidths(
 ): { widths: number[]; kind: 'w' | 'x' } {
   if (sizes && (layout === 'fill' || layout === 'responsive')) {
     // Find all the "vw" percent sizes used in the sizes prop
-    const percentSizes = [...sizes.matchAll(/(^|\s)(1?\d?\d)vw/g)].map((m) =>
-      parseInt(m[2])
-    )
+    const viewportWidthRe = /(^|\s)(1?\d?\d)vw/g
+    const percentSizes = []
+    for (let match; (match = viewportWidthRe.exec(sizes)); match) {
+      percentSizes.push(parseInt(match[2]))
+    }
     if (percentSizes.length) {
       const smallestRatio = Math.min(...percentSizes) * 0.01
       return {
@@ -209,6 +259,34 @@ function defaultImageLoader(loaderProps: ImageLoaderProps) {
   )
 }
 
+// See https://stackoverflow.com/q/39777833/266535 for why we use this ref
+// handler instead of the img's onLoad attribute.
+function removePlaceholder(
+  img: HTMLImageElement | null,
+  placeholder: PlaceholderValue
+) {
+  if (placeholder === 'blur' && img) {
+    const handleLoad = () => {
+      if (!img.src.startsWith('data:')) {
+        const p = 'decode' in img ? img.decode() : Promise.resolve()
+        p.catch(() => {}).then(() => {
+          img.style.filter = 'none'
+          img.style.backgroundSize = 'none'
+          img.style.backgroundImage = 'none'
+        })
+      }
+    }
+    if (img.complete) {
+      // If the real image fails to load, this will still remove the placeholder.
+      // This is the desired behavior for now, and will be revisited when error
+      // handling is worked on for the image component itself.
+      handleLoad()
+    } else {
+      img.onload = handleLoad
+    }
+  }
+}
+
 export default function Image({
   src,
   sizes,
@@ -222,22 +300,50 @@ export default function Image({
   objectFit,
   objectPosition,
   loader = defaultImageLoader,
+  placeholder = 'empty',
+  blurDataURL,
   ...all
 }: ImageProps) {
   let rest: Partial<ImageProps> = all
   let layout: NonNullable<LayoutValue> = sizes ? 'responsive' : 'intrinsic'
-  let unsized = false
-  if ('unsized' in rest) {
-    unsized = Boolean(rest.unsized)
-    // Remove property so it's not spread into image:
-    delete rest['unsized']
-  } else if ('layout' in rest) {
+  if ('layout' in rest) {
     // Override default layout if the user specified one:
     if (rest.layout) layout = rest.layout
 
     // Remove property so it's not spread into image:
     delete rest['layout']
   }
+
+  let staticSrc = ''
+  if (isStaticImport(src)) {
+    const staticImageData = isStaticRequire(src) ? src.default : src
+
+    if (!staticImageData.src) {
+      throw new Error(
+        `An object should only be passed to the image component src parameter if it comes from a static image import. It must include src. Received ${JSON.stringify(
+          staticImageData
+        )}`
+      )
+    }
+    blurDataURL = blurDataURL || staticImageData.blurDataURL
+    staticSrc = staticImageData.src
+    if (!layout || layout !== 'fill') {
+      height = height || staticImageData.height
+      width = width || staticImageData.width
+      if (!staticImageData.height || !staticImageData.width) {
+        throw new Error(
+          `An object should only be passed to the image component src parameter if it comes from a static image import. It must include height and width. Received ${JSON.stringify(
+            staticImageData
+          )}`
+        )
+      }
+    }
+  }
+  src = typeof src === 'string' ? src : staticSrc
+
+  const widthInt = getInt(width)
+  const heightInt = getInt(height)
+  const qualityInt = getInt(quality)
 
   if (process.env.NODE_ENV !== 'production') {
     if (!src) {
@@ -254,6 +360,14 @@ export default function Image({
         ).join(',')}.`
       )
     }
+    if (
+      (typeof widthInt !== 'undefined' && isNaN(widthInt)) ||
+      (typeof heightInt !== 'undefined' && isNaN(heightInt))
+    ) {
+      throw new Error(
+        `Image with src "${src}" has invalid "width" or "height" property. These should be numeric values.`
+      )
+    }
     if (!VALID_LOADING_VALUES.includes(loading)) {
       throw new Error(
         `Image with src "${src}" has invalid "loading" property. Provided "${loading}" should be one of ${VALID_LOADING_VALUES.map(
@@ -266,13 +380,28 @@ export default function Image({
         `Image with src "${src}" has both "priority" and "loading='lazy'" properties. Only one should be used.`
       )
     }
-    if (unsized) {
-      throw new Error(
-        `Image with src "${src}" has deprecated "unsized" property, which was removed in favor of the "layout='fill'" property`
-      )
+    if (placeholder === 'blur') {
+      if (layout !== 'fill' && (widthInt || 0) * (heightInt || 0) < 1600) {
+        console.warn(
+          `Image with src "${src}" is smaller than 40x40. Consider removing the "placeholder='blur'" property to improve performance.`
+        )
+      }
+      if (!blurDataURL) {
+        const VALID_BLUR_EXT = ['jpeg', 'png', 'webp'] // should match next-image-loader
+
+        throw new Error(
+          `Image with src "${src}" has "placeholder='blur'" property but is missing the "blurDataURL" property.
+          Possible solutions:
+            - Add a "blurDataURL" property, the contents should be a small Data URL to represent the image
+            - Change the "src" property to a static import with one of the supported file types: ${VALID_BLUR_EXT.join(
+              ','
+            )}
+            - Remove the "placeholder" property, effectively no blur effect
+          Read more: https://nextjs.org/docs/messages/placeholder-blur-data-url`
+        )
+      }
     }
   }
-
   let isLazy =
     !priority && (loading === 'lazy' || typeof loading === 'undefined')
   if (src && src.startsWith('data:')) {
@@ -286,10 +415,6 @@ export default function Image({
     disabled: !isLazy,
   })
   const isVisible = !isLazy || isIntersected
-
-  const widthInt = getInt(width)
-  const heightInt = getInt(height)
-  const qualityInt = getInt(quality)
 
   let wrapperStyle: JSX.IntrinsicElements['div']['style'] | undefined
   let sizerStyle: JSX.IntrinsicElements['div']['style'] | undefined
@@ -316,6 +441,14 @@ export default function Image({
 
     objectFit,
     objectPosition,
+
+    ...(placeholder === 'blur'
+      ? {
+          filter: 'blur(20px)',
+          backgroundSize: 'cover',
+          backgroundImage: `url("${blurDataURL}")`,
+        }
+      : undefined),
   }
   if (
     typeof widthInt !== 'undefined' &&
@@ -410,11 +543,6 @@ export default function Image({
     })
   }
 
-  if (unsized) {
-    wrapperStyle = undefined
-    sizerStyle = undefined
-    imgStyle = undefined
-  }
   return (
     <div style={wrapperStyle}>
       {sizerStyle ? (
@@ -449,9 +577,7 @@ export default function Image({
               sizes,
               loader,
             })}
-            src={src}
             decoding="async"
-            sizes={sizes}
             style={imgStyle}
             className={className}
           />
@@ -462,7 +588,10 @@ export default function Image({
         {...imgAttributes}
         decoding="async"
         className={className}
-        ref={setRef}
+        ref={(element) => {
+          setRef(element)
+          removePlaceholder(element, placeholder)
+        }}
         style={imgStyle}
       />
       {priority ? (
@@ -574,7 +703,10 @@ function defaultLoader({
         )
       }
 
-      if (!configDomains.includes(parsedSrc.hostname)) {
+      if (
+        process.env.NODE_ENV !== 'test' &&
+        !configDomains.includes(parsedSrc.hostname)
+      ) {
         throw new Error(
           `Invalid src prop (${src}) on \`next/image\`, hostname "${parsedSrc.hostname}" is not configured under images in your \`next.config.js\`\n` +
             `See more info: https://nextjs.org/docs/messages/next-image-unconfigured-host`

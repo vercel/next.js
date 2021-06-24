@@ -4,13 +4,21 @@ description: Add redirects to your Next.js app.
 
 # Redirects
 
-> This feature was introduced in [Next.js 9.5](https://nextjs.org/blog/next-9-5) and up. If you’re using older versions of Next.js, please upgrade before trying it out.
-
 <details open>
   <summary><b>Examples</b></summary>
   <ul>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/redirects">Redirects</a></li>
   </ul>
+</details>
+
+<details>
+  <summary><b>Version History</b></summary>
+
+| Version   | Changes          |
+| --------- | ---------------- |
+| `v10.2.0` | `has` added.     |
+| `v9.5.0`  | Redirects added. |
+
 </details>
 
 Redirects allow you to redirect an incoming request path to a different destination path.
@@ -82,7 +90,7 @@ module.exports = {
 
 ### Regex Path Matching
 
-To match a regex path you can wrap the regex in parenthesis after a parameter, for example `/post/:slug(\\d{1,})` will match `/post/123` but not `/post/abc`:
+To match a regex path you can wrap the regex in parentheses after a parameter, for example `/post/:slug(\\d{1,})` will match `/post/123` but not `/post/abc`:
 
 ```js
 module.exports = {
@@ -91,6 +99,23 @@ module.exports = {
       {
         source: '/post/:slug(\\d{1,})',
         destination: '/news/:slug', // Matched parameters can be used in the destination
+        permanent: false,
+      },
+    ]
+  },
+}
+```
+
+The following characters `(`, `)`, `{`, `}`, `:`, `*`, `+`, `?` are used for regex path matching, so when used in the `source` as non-special values they must be escaped by adding `\\` before them:
+
+```js
+module.exports = {
+  async redirects() {
+    return [
+      {
+        // this will match `/english(default)/something` being requested
+        source: '/english\\(default\\)/:slug',
+        destination: '/en-us/:slug',
         permanent: false,
       },
     ]
@@ -115,7 +140,7 @@ module.exports = {
       // if the header `x-redirect-me` is present,
       // this redirect will be applied
       {
-        source: '/:path*',
+        source: '/:path((?!another-page$).*)',
         has: [
           {
             type: 'header',
@@ -133,6 +158,9 @@ module.exports = {
           {
             type: 'query',
             key: 'page',
+            // the page value will not be available in the
+            // destination since value is provided and doesn't
+            // use a named capture group e.g. (?<page>home)
             value: 'home',
           },
           {
@@ -142,12 +170,12 @@ module.exports = {
           },
         ],
         permanent: false,
-        destination: '/:path*/:page',
+        destination: '/another/:path*',
       },
       // if the header `x-authorized` is present and
       // contains a matching value, this redirect will be applied
       {
-        source: '/:path*',
+        source: '/',
         has: [
           {
             type: 'header',
@@ -161,7 +189,7 @@ module.exports = {
       // if the host is `example.com`,
       // this redirect will be applied
       {
-        source: '/:path*',
+        source: '/:path((?!another-page$).*)',,
         has: [
           {
             type: 'host',

@@ -52,7 +52,11 @@ import {
 import { DomainLocales, isTargetLikeServerless, NextConfig } from './config'
 import pathMatch from '../lib/router/utils/path-match'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
-import { loadComponents, LoadComponentsReturnType } from './load-components'
+import {
+  loadComponents,
+  LoadComponentsReturnType,
+  loadDefaultErrorComponents,
+} from './load-components'
 import { normalizePagePath } from './normalize-page-path'
 import { RenderOpts, RenderOptsPartial, renderToHTML } from './render'
 import { getPagePath, requireFontManifest } from './require'
@@ -87,6 +91,8 @@ import { detectDomainLocale } from '../lib/i18n/detect-domain-locale'
 import cookie from 'next/dist/compiled/cookie'
 import escapePathDelimiters from '../lib/router/utils/escape-path-delimiters'
 import { getUtils } from '../../build/webpack/loaders/next-serverless-loader/utils'
+import { PreviewData } from 'next/types'
+import HotReloader from '../../server/hot-reloader'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -151,6 +157,7 @@ export default class Server {
     images: string
     fontManifest: FontManifest
     optimizeImages: boolean
+    disableOptimizedLoading?: boolean
     optimizeCss: any
     locale?: string
     locales?: string[]
@@ -159,7 +166,6 @@ export default class Server {
     distDir: string
   }
   private compression?: Middleware
-  private onErrorMiddleware?: ({ err }: { err: Error }) => Promise<void>
   private incrementalCache: IncrementalCache
   protected router: Router
   protected dynamicRoutes?: DynamicRoutes
@@ -212,6 +218,8 @@ export default class Server {
           : null,
       optimizeImages: !!this.nextConfig.experimental.optimizeImages,
       optimizeCss: this.nextConfig.experimental.optimizeCss,
+      disableOptimizedLoading: this.nextConfig.experimental
+        .disableOptimizedLoading,
       domainLocales: this.nextConfig.i18n?.domains,
       distDir: this.distDir,
     }
@@ -246,18 +254,6 @@ export default class Server {
     this.router = new Router(this.generateRoutes())
     this.setAssetPrefix(assetPrefix)
 
-    // call init-server middleware, this is also handled
-    // individually in serverless bundles when deployed
-    if (!dev && this.nextConfig.experimental.plugins) {
-      const initServer = require(join(this.serverBuildDir, 'init-server.js'))
-        .default
-      this.onErrorMiddleware = require(join(
-        this.serverBuildDir,
-        'on-error-server.js'
-      )).default
-      initServer()
-    }
-
     this.incrementalCache = new IncrementalCache({
       dev,
       distDir: this.distDir,
@@ -288,9 +284,6 @@ export default class Server {
   }
 
   public logError(err: Error): void {
-    if (this.onErrorMiddleware) {
-      this.onErrorMiddleware({ err })
-    }
     if (this.quiet) return
     console.error(err)
   }
@@ -434,11 +427,15 @@ export default class Server {
 
       let defaultLocale = i18n.defaultLocale
       let detectedLocale = detectLocaleCookie(req, i18n.locales)
-      let acceptPreferredLocale =
-        i18n.localeDetection !== false
-          ? accept.language(req.headers['accept-language'], i18n.locales)
-          : detectedLocale
-
+      let acceptPreferredLocale
+      try {
+        acceptPreferredLocale =
+          i18n.localeDetection !== false
+            ? accept.language(req.headers['accept-language'], i18n.locales)
+            : detectedLocale
+      } catch (_) {
+        acceptPreferredLocale = detectedLocale
+      }
       const { host } = req?.headers || {}
       // remove port from host if present
       const hostname = host?.split(':')[0].toLowerCase()
@@ -825,28 +822,30 @@ export default class Server {
     }
 
     // Headers come very first
-    const headers = this.customRoutes.headers.map((r) => {
-      const headerRoute = getCustomRoute(r, 'header')
-      return {
-        match: headerRoute.match,
-        has: headerRoute.has,
-        type: headerRoute.type,
-        name: `${headerRoute.type} ${headerRoute.source} header route`,
-        fn: async (_req, res, params, _parsedUrl) => {
-          const hasParams = Object.keys(params).length > 0
+    const headers = this.minimalMode
+      ? []
+      : this.customRoutes.headers.map((r) => {
+          const headerRoute = getCustomRoute(r, 'header')
+          return {
+            match: headerRoute.match,
+            has: headerRoute.has,
+            type: headerRoute.type,
+            name: `${headerRoute.type} ${headerRoute.source} header route`,
+            fn: async (_req, res, params, _parsedUrl) => {
+              const hasParams = Object.keys(params).length > 0
 
-          for (const header of (headerRoute as Header).headers) {
-            let { key, value } = header
-            if (hasParams) {
-              key = compileNonPath(key, params)
-              value = compileNonPath(value, params)
-            }
-            res.setHeader(key, value)
-          }
-          return { finished: false }
-        },
-      } as Route
-    })
+              for (const header of (headerRoute as Header).headers) {
+                let { key, value } = header
+                if (hasParams) {
+                  key = compileNonPath(key, params)
+                  value = compileNonPath(value, params)
+                }
+                res.setHeader(key, value)
+              }
+              return { finished: false }
+            },
+          } as Route
+        })
 
     // since initial query values are decoded by querystring.parse
     // we need to re-encode them here but still allow passing through
@@ -907,11 +906,11 @@ export default class Server {
           } as Route
         })
 
-    const buildRewrite = (rewrite: Rewrite) => {
+    const buildRewrite = (rewrite: Rewrite, check = true) => {
       const rewriteRoute = getCustomRoute(rewrite, 'rewrite')
       return {
         ...rewriteRoute,
-        check: true,
+        check,
         type: rewriteRoute.type,
         name: `Rewrite route ${rewriteRoute.source}`,
         match: rewriteRoute.match,
@@ -934,12 +933,29 @@ export default class Server {
               target,
               changeOrigin: true,
               ignorePath: true,
+              proxyTimeout: 30_000, // limit proxying to 30 seconds
             })
-            proxy.web(req, res)
 
-            proxy.on('error', (err: Error) => {
-              console.error(`Error occurred proxying ${target}`, err)
+            await new Promise((proxyResolve, proxyReject) => {
+              let finished = false
+
+              proxy.on('proxyReq', (proxyReq) => {
+                proxyReq.on('close', () => {
+                  if (!finished) {
+                    finished = true
+                    proxyResolve(true)
+                  }
+                })
+              })
+              proxy.on('error', (err) => {
+                if (!finished) {
+                  finished = true
+                  proxyReject(err)
+                }
+              })
+              proxy.web(req, res)
             })
+
             return {
               finished: true,
             }
@@ -961,12 +977,20 @@ export default class Server {
     let afterFiles: Route[] = []
     let fallback: Route[] = []
 
-    if (Array.isArray(this.customRoutes.rewrites)) {
-      afterFiles = this.customRoutes.rewrites.map(buildRewrite)
-    } else {
-      beforeFiles = this.customRoutes.rewrites.beforeFiles.map(buildRewrite)
-      afterFiles = this.customRoutes.rewrites.afterFiles.map(buildRewrite)
-      fallback = this.customRoutes.rewrites.fallback.map(buildRewrite)
+    if (!this.minimalMode) {
+      if (Array.isArray(this.customRoutes.rewrites)) {
+        afterFiles = this.customRoutes.rewrites.map((r) => buildRewrite(r))
+      } else {
+        beforeFiles = this.customRoutes.rewrites.beforeFiles.map((r) =>
+          buildRewrite(r, false)
+        )
+        afterFiles = this.customRoutes.rewrites.afterFiles.map((r) =>
+          buildRewrite(r)
+        )
+        fallback = this.customRoutes.rewrites.fallback.map((r) =>
+          buildRewrite(r)
+        )
+      }
     }
 
     const catchAllRoute: Route = {
@@ -993,8 +1017,11 @@ export default class Server {
             parsedUrl.query.__nextLocale = localePathResult.detectedLocale
           }
         }
+        const bubbleNoFallback = !!query._nextBubbleNoFallback
 
         if (pathname === '/api' || pathname.startsWith('/api/')) {
+          delete query._nextBubbleNoFallback
+
           const handled = await this.handleApiRequest(
             req as NextApiRequest,
             res as NextApiResponse,
@@ -1006,9 +1033,19 @@ export default class Server {
           }
         }
 
-        await this.render(req, res, pathname, query, parsedUrl)
-        return {
-          finished: true,
+        try {
+          await this.render(req, res, pathname, query, parsedUrl)
+
+          return {
+            finished: true,
+          }
+        } catch (err) {
+          if (err instanceof NoFallbackError && bubbleNoFallback) {
+            return {
+              finished: false,
+            }
+          }
+          throw err
         }
       },
     }
@@ -1138,8 +1175,7 @@ export default class Server {
       query,
       pageModule,
       this.renderOpts.previewProps,
-      false,
-      this.onErrorMiddleware
+      false
     )
     return true
   }
@@ -1236,7 +1272,7 @@ export default class Server {
         return
       }
     } catch (err) {
-      if (err.code === 'DECODE_FAILED') {
+      if (err.code === 'DECODE_FAILED' || err.code === 'ENAMETOOLONG') {
         res.statusCode = 400
         return this.renderError(null, req, res, '/_error', {})
       }
@@ -1288,11 +1324,17 @@ export default class Server {
     // we don't modify the URL for _next/data request but still
     // call render so we special case this to prevent an infinite loop
     if (
+      !this.minimalMode &&
       !query._nextDataReq &&
       (url.match(/^\/_next\//) ||
         (this.hasStaticDir && url.match(/^\/static\//)))
     ) {
       return this.handleRequest(req, res, parsedUrl)
+    }
+
+    // Custom server users can run `app.render()` which needs compression.
+    if (this.renderOpts.customServer) {
+      this.handleCompression(req, res)
     }
 
     if (isBlockedPage(pathname)) {
@@ -1401,6 +1443,7 @@ export default class Server {
     opts: RenderOptsPartial
   ): Promise<string | null> {
     const is404Page = pathname === '/404'
+    const is500Page = pathname === '/500'
 
     const isLikeServerless =
       typeof components.Component === 'object' &&
@@ -1442,7 +1485,7 @@ export default class Server {
     const { i18n } = this.nextConfig
     const locales = i18n?.locales
 
-    let previewData: string | false | object | undefined
+    let previewData: PreviewData
     let isPreviewMode = false
 
     if (hasServerProps || isSSG) {
@@ -1522,7 +1565,7 @@ export default class Server {
               : resolvedUrlPathname
           }${query.amp ? '.amp' : ''}`
 
-    if (is404Page && isSSG) {
+    if ((is404Page || is500Page) && isSSG) {
       ssgCacheKey = `${locale ? `/${locale}` : ''}${pathname}${
         query.amp ? '.amp' : ''
       }`
@@ -1856,6 +1899,9 @@ export default class Server {
     pathname: string,
     query: ParsedUrlQuery = {}
   ): Promise<string | null> {
+    const bubbleNoFallback = !!query._nextBubbleNoFallback
+    delete query._nextBubbleNoFallback
+
     try {
       const result = await this.findPageComponents(pathname, query)
       if (result) {
@@ -1868,7 +1914,9 @@ export default class Server {
             { ...this.renderOpts }
           )
         } catch (err) {
-          if (!(err instanceof NoFallbackError)) {
+          const isNoFallbackError = err instanceof NoFallbackError
+
+          if (!isNoFallbackError || (isNoFallbackError && bubbleNoFallback)) {
             throw err
           }
         }
@@ -1896,7 +1944,12 @@ export default class Server {
                 { ...this.renderOpts, params }
               )
             } catch (err) {
-              if (!(err instanceof NoFallbackError)) {
+              const isNoFallbackError = err instanceof NoFallbackError
+
+              if (
+                !isNoFallbackError ||
+                (isNoFallbackError && bubbleNoFallback)
+              ) {
                 throw err
               }
             }
@@ -1904,6 +1957,11 @@ export default class Server {
         }
       }
     } catch (err) {
+      const isNoFallbackError = err instanceof NoFallbackError
+
+      if (isNoFallbackError && bubbleNoFallback) {
+        throw err
+      }
       if (err && err.code === 'DECODE_FAILED') {
         this.logError(err)
         res.statusCode = 400
@@ -1963,38 +2021,38 @@ export default class Server {
     _pathname: string,
     query: ParsedUrlQuery = {}
   ) {
-    let result: null | FindComponentsResult = null
-
-    const is404 = res.statusCode === 404
-    let using404Page = false
-
-    // use static 404 page if available and is 404 response
-    if (is404) {
-      result = await this.findPageComponents('/404', query)
-      using404Page = result !== null
-    }
-    let statusPage = `/${res.statusCode}`
-
-    if (!result && STATIC_STATUS_PAGES.includes(statusPage)) {
-      result = await this.findPageComponents(statusPage, query)
-    }
-
-    if (!result) {
-      result = await this.findPageComponents('/_error', query)
-      statusPage = '/_error'
-    }
-
-    if (
-      process.env.NODE_ENV !== 'production' &&
-      !using404Page &&
-      (await this.hasPage('/_error')) &&
-      !(await this.hasPage('/404'))
-    ) {
-      this.customErrorNo404Warn()
-    }
-
     let html: string | null
     try {
+      let result: null | FindComponentsResult = null
+
+      const is404 = res.statusCode === 404
+      let using404Page = false
+
+      // use static 404 page if available and is 404 response
+      if (is404) {
+        result = await this.findPageComponents('/404', query)
+        using404Page = result !== null
+      }
+      let statusPage = `/${res.statusCode}`
+
+      if (!result && STATIC_STATUS_PAGES.includes(statusPage)) {
+        result = await this.findPageComponents(statusPage, query)
+      }
+
+      if (!result) {
+        result = await this.findPageComponents('/_error', query)
+        statusPage = '/_error'
+      }
+
+      if (
+        process.env.NODE_ENV !== 'production' &&
+        !using404Page &&
+        (await this.hasPage('/_error')) &&
+        !(await this.hasPage('/404'))
+      ) {
+        this.customErrorNo404Warn()
+      }
+
       try {
         html = await this.renderToHTMLWithComponents(
           req,
@@ -2015,6 +2073,25 @@ export default class Server {
     } catch (renderToHtmlError) {
       console.error(renderToHtmlError)
       res.statusCode = 500
+
+      if (this.renderOpts.dev) {
+        await ((this as any).hotReloader as HotReloader).buildFallbackError()
+
+        const fallbackResult = await loadDefaultErrorComponents(this.distDir)
+        return this.renderToHTMLWithComponents(
+          req,
+          res,
+          '/_error',
+          {
+            query,
+            components: fallbackResult,
+          },
+          {
+            ...this.renderOpts,
+            err,
+          }
+        )
+      }
       html = 'Internal Server Error'
     }
     return html

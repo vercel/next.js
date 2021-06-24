@@ -1,6 +1,7 @@
 module.exports = {
   // target: 'serverless',
   async rewrites() {
+    // no-rewrites comment
     return {
       afterFiles: [
         ...(process.env.ADD_NOOP_REWRITE === 'true'
@@ -12,8 +13,16 @@ module.exports = {
             ]
           : []),
         {
+          source: '/to-nowhere',
+          destination: 'http://localhost:12233',
+        },
+        {
           source: '/rewriting-to-auto-export',
-          destination: '/auto-export/hello',
+          destination: '/auto-export/hello?rewrite=1',
+        },
+        {
+          source: '/rewriting-to-another-auto-export/:path*',
+          destination: '/auto-export/another?rewrite=1',
         },
         {
           source: '/to-another',
@@ -134,7 +143,7 @@ module.exports = {
             {
               type: 'cookie',
               key: 'loggedIn',
-              value: 'true',
+              value: '(?<loggedIn>true)',
             },
           ],
           destination: '/with-params?authorized=1',
@@ -159,6 +168,42 @@ module.exports = {
           ],
           destination: '/:hasParam',
         },
+        {
+          source: '/has-rewrite-6',
+          has: [
+            {
+              type: 'header',
+              key: 'hasParam',
+              value: 'with-params',
+            },
+          ],
+          destination: '/with-params',
+        },
+        {
+          source: '/has-rewrite-7',
+          has: [
+            {
+              type: 'query',
+              key: 'hasParam',
+              value: '(?<idk>with-params|hello)',
+            },
+          ],
+          destination: '/with-params?idk=:idk',
+        },
+        {
+          source: '/has-rewrite-8',
+          has: [
+            {
+              type: 'query',
+              key: 'post',
+            },
+          ],
+          destination: '/blog/:post',
+        },
+        {
+          source: '/blog/about',
+          destination: '/hello',
+        },
       ],
       beforeFiles: [
         {
@@ -170,6 +215,10 @@ module.exports = {
             },
           ],
           destination: '/with-params?overridden=1',
+        },
+        {
+          source: '/old-blog/:path*',
+          destination: '/blog/:path*',
         },
       ],
     }

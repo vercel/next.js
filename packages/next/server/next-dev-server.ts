@@ -1,4 +1,3 @@
-import { ReactDevOverlay } from '@next/react-dev-overlay/lib/client'
 import crypto from 'crypto'
 import fs from 'fs'
 import { IncomingMessage, ServerResponse } from 'http'
@@ -45,6 +44,16 @@ if (typeof React.Suspense === 'undefined') {
   throw new Error(
     `The version of React you are using is lower than the minimum required version needed for Next.js. Please upgrade "react" and "react-dom": "npm install react react-dom" https://nextjs.org/docs/messages/invalid-react-version`
   )
+}
+
+// Load ReactDevOverlay only when needed
+let ReactDevOverlayImpl: React.FunctionComponent
+const ReactDevOverlay = (props: any) => {
+  if (ReactDevOverlayImpl === undefined) {
+    ReactDevOverlayImpl = require('@next/react-dev-overlay/lib/client')
+      .ReactDevOverlay
+  }
+  return ReactDevOverlayImpl(props)
 }
 
 export default class DevServer extends Server {
@@ -266,7 +275,12 @@ export default class DevServer extends Server {
   }
 
   async prepare(): Promise<void> {
-    await verifyTypeScriptSetup(this.dir, this.pagesDir!, false)
+    await verifyTypeScriptSetup(
+      this.dir,
+      this.pagesDir!,
+      false,
+      !this.nextConfig.images.disableStaticImages
+    )
 
     this.customRoutes = await loadCustomRoutes(this.nextConfig)
 
@@ -299,6 +313,7 @@ export default class DevServer extends Server {
     const telemetry = new Telemetry({ distDir: this.distDir })
     telemetry.record(
       eventCliSession(PHASE_DEVELOPMENT_SERVER, this.distDir, {
+        webpackVersion: this.hotReloader.isWebpack5 ? 5 : 4,
         cliCommand: 'dev',
         isSrcDir: relative(this.dir, this.pagesDir!).startsWith('src'),
         hasNowJson: !!(await findUp('now.json', { cwd: this.dir })),

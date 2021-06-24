@@ -1,4 +1,3 @@
-/* global __NEXT_DATA__ */
 // tslint:disable:no-console
 import { ParsedUrlQuery } from 'querystring'
 import { ComponentType } from 'react'
@@ -13,6 +12,7 @@ import {
   isAssetError,
   markAssetError,
 } from '../../../client/route-loader'
+import { RouterEvent } from '../../../client/router'
 import { DomainLocales } from '../../server/config'
 import { denormalizePagePath } from '../../server/denormalize-page-path'
 import { normalizeLocalePath } from '../i18n/normalize-locale-path'
@@ -113,10 +113,14 @@ export function addLocale(
   defaultLocale?: string
 ) {
   if (process.env.__NEXT_I18N_SUPPORT) {
+    const pathname = pathNoQueryHash(path)
+    const pathLower = pathname.toLowerCase()
+    const localeLower = locale && locale.toLowerCase()
+
     return locale &&
       locale !== defaultLocale &&
-      !path.startsWith('/' + locale + '/') &&
-      path !== '/' + locale
+      !pathLower.startsWith('/' + localeLower + '/') &&
+      pathLower !== '/' + localeLower
       ? addPathPrefix(path, '/' + locale)
       : path
   }
@@ -126,8 +130,12 @@ export function addLocale(
 export function delLocale(path: string, locale?: string) {
   if (process.env.__NEXT_I18N_SUPPORT) {
     const pathname = pathNoQueryHash(path)
+    const pathLower = pathname.toLowerCase()
+    const localeLower = locale && locale.toLowerCase()
+
     return locale &&
-      (pathname.startsWith('/' + locale + '/') || pathname === '/' + locale)
+      (pathLower.startsWith('/' + localeLower + '/') ||
+        pathLower === '/' + localeLower)
       ? (pathname.length === locale.length + 1 ? '/' : '') +
           path.substr(locale.length + 1)
       : path
@@ -166,7 +174,8 @@ export function delBasePath(path: string): string {
  */
 export function isLocalURL(url: string): boolean {
   // prevent a hydration mismatch on href for url with anchor refs
-  if (url.startsWith('/') || url.startsWith('#')) return true
+  if (url.startsWith('/') || url.startsWith('#') || url.startsWith('?'))
+    return true
   try {
     // absolute urls can be local if they are on the same origin
     const locationOrigin = getLocationOrigin()
@@ -259,14 +268,24 @@ function omitParmsFromQuery(query: ParsedUrlQuery, params: string[]) {
  * Preserves absolute urls.
  */
 export function resolveHref(
-  currentPath: string,
+  router: NextRouter,
   href: Url,
   resolveAs?: boolean
 ): string {
   // we use a dummy base url for relative urls
-  const base = new URL(currentPath, 'http://n')
+  let base: URL
   const urlAsString =
     typeof href === 'string' ? href : formatWithValidation(href)
+
+  try {
+    base = new URL(
+      urlAsString.startsWith('#') ? router.asPath : router.pathname,
+      'http://n'
+    )
+  } catch (_) {
+    // fallback to / for invalid asPath values e.g. //
+    base = new URL('/', 'http://n')
+  }
   // Return because it cannot be routed by the Next.js router
   if (!isLocalURL(urlAsString)) {
     return (resolveAs ? [urlAsString] : urlAsString) as string
@@ -321,7 +340,7 @@ function stripOrigin(url: string) {
 function prepareUrlAs(router: NextRouter, url: Url, as?: Url) {
   // If url and as provided as an object representation,
   // we'll format them into the string version here.
-  let [resolvedHref, resolvedAs] = resolveHref(router.pathname, url, true)
+  let [resolvedHref, resolvedAs] = resolveHref(router, url, true)
   const origin = getLocationOrigin()
   const hrefHadOrigin = resolvedHref.startsWith(origin)
   const asHadOrigin = resolvedAs && resolvedAs.startsWith(origin)
@@ -331,7 +350,7 @@ function prepareUrlAs(router: NextRouter, url: Url, as?: Url) {
 
   const preparedUrl = hrefHadOrigin ? resolvedHref : addBasePath(resolvedHref)
   const preparedAs = as
-    ? stripOrigin(resolveHref(router.pathname, as))
+    ? stripOrigin(resolveHref(router, as))
     : resolvedAs || resolvedHref
 
   return {
@@ -504,7 +523,7 @@ export default class Router implements BaseRouter {
   clc: ComponentLoadCancel
   pageLoader: any
   _bps: BeforePopStateCallback | undefined
-  events: MittEmitter
+  events: MittEmitter<RouterEvent>
   _wrapApp: (App: AppComponent) => any
   isSsr: boolean
   isFallback: boolean
@@ -520,7 +539,7 @@ export default class Router implements BaseRouter {
 
   private _idx: number = 0
 
-  static events: MittEmitter = mitt()
+  static events: MittEmitter<RouterEvent> = mitt()
 
   constructor(
     pathname: string,
@@ -546,7 +565,7 @@ export default class Router implements BaseRouter {
       pageLoader: any
       Component: ComponentType
       App: AppComponent
-      wrapApp: (App: AppComponent) => any
+      wrapApp: (WrapAppComponent: AppComponent) => any
       err?: Error
       isFallback: boolean
       locale?: string
@@ -608,7 +627,9 @@ export default class Router implements BaseRouter {
     this.isReady = !!(
       self.__NEXT_DATA__.gssp ||
       self.__NEXT_DATA__.gip ||
-      (!autoExportDynamic && !self.location.search)
+      (!autoExportDynamic &&
+        !self.location.search &&
+        !process.env.__NEXT_HAS_REWRITES)
     )
     this.isPreview = !!isPreview
     this.isLocaleDomain = false
@@ -630,11 +651,14 @@ export default class Router implements BaseRouter {
       if (as.substr(0, 2) !== '//') {
         // in order for `e.state` to work on the `onpopstate` event
         // we have to register the initial route upon initialization
+        const options: TransitionOptions = { locale }
+        ;(options as any)._shouldResolveHref = as !== pathname
+
         this.changeState(
           'replaceState',
           formatWithValidation({ pathname: addBasePath(pathname), query }),
           getURL(),
-          { locale }
+          options
         )
       }
 
@@ -784,17 +808,14 @@ export default class Router implements BaseRouter {
       window.location.href = url
       return false
     }
+    const shouldResolveHref =
+      url === as || (options as any)._h || (options as any)._shouldResolveHref
 
     // for static pages with query params in the URL we delay
     // marking the router ready until after the query is updated
     if ((options as any)._h) {
       this.isReady = true
     }
-
-    // Default to scroll reset behavior unless explicitly specified to be
-    // `false`! This makes the behavior between using `Router#push` and a
-    // `<Link />` consistent.
-    options.scroll = !!(options.scroll ?? true)
 
     let localeChange = options.locale !== this.locale
 
@@ -912,7 +933,11 @@ export default class Router implements BaseRouter {
     // WARNING: `_h` is an internal option for handing Next.js client-side
     // hydration. Your app should _never_ use this property. It may change at
     // any time without notice.
-    if (!(options as any)._h && this.onlyAHashChange(cleanedAs)) {
+    if (
+      !(options as any)._h &&
+      this.onlyAHashChange(cleanedAs) &&
+      !localeChange
+    ) {
       this.asPath = cleanedAs
       Router.events.emit('hashChangeStart', as, routeProps)
       // TODO: do we need the resolved href when only a hash change?
@@ -960,7 +985,9 @@ export default class Router implements BaseRouter {
       ? removePathTrailingSlash(delBasePath(pathname))
       : pathname
 
-    if (pathname !== '/_error') {
+    if (shouldResolveHref && pathname !== '/_error') {
+      ;(options as any)._shouldResolveHref = true
+
       if (process.env.__NEXT_HAS_REWRITES && as.startsWith('/')) {
         const rewritesResult = resolveRewrites(
           addBasePath(addLocale(cleanedAs, this.locale)),
@@ -976,7 +1003,7 @@ export default class Router implements BaseRouter {
           // if this directly matches a page we need to update the href to
           // allow the correct page chunk to be loaded
           pathname = rewritesResult.resolvedHref
-          parsed.pathname = pathname
+          parsed.pathname = addBasePath(pathname)
           url = formatWithValidation(parsed)
         }
       } else {
@@ -984,6 +1011,7 @@ export default class Router implements BaseRouter {
 
         if (parsed.pathname !== pathname) {
           pathname = parsed.pathname
+          parsed.pathname = addBasePath(pathname)
           url = formatWithValidation(parsed)
         }
       }
@@ -1089,14 +1117,12 @@ export default class Router implements BaseRouter {
               pages
             )
 
-            if (pages.includes(parsedHref.pathname)) {
-              const { url: newUrl, as: newAs } = prepareUrlAs(
-                this,
-                destination,
-                destination
-              )
-              return this.change(method, newUrl, newAs, options)
-            }
+            const { url: newUrl, as: newAs } = prepareUrlAs(
+              this,
+              destination,
+              destination
+            )
+            return this.change(method, newUrl, newAs, options)
           }
 
           window.location.href = destination
@@ -1137,9 +1163,6 @@ export default class Router implements BaseRouter {
           !(routeInfo.Component as any).getInitialProps
       }
 
-      // shallow routing is only allowed for same page URL changes.
-      const isValidShallowRoute = options.shallow && this.route === route
-
       if (
         (options as any)._h &&
         pathname === '/_error' &&
@@ -1151,14 +1174,18 @@ export default class Router implements BaseRouter {
         props.pageProps.statusCode = 500
       }
 
+      // shallow routing is only allowed for same page URL changes.
+      const isValidShallowRoute = options.shallow && this.route === route
+
+      const shouldScroll = options.scroll ?? !isValidShallowRoute
+      const resetScroll = shouldScroll ? { x: 0, y: 0 } : null
       await this.set(
         route,
         pathname!,
         query,
         cleanedAs,
         routeInfo,
-        forcedScroll ||
-          (isValidShallowRoute || !options.scroll ? null : { x: 0, y: 0 })
+        forcedScroll ?? resetScroll
       ).catch((e) => {
         if (e.cancelled) error = error || e
         else throw e
@@ -1362,6 +1389,9 @@ export default class Router implements BaseRouter {
                 pathname,
                 query,
                 asPath: as,
+                locale: this.locale,
+                locales: this.locales,
+                defaultLocale: this.defaultLocale,
               } as any
             )
       )
@@ -1509,6 +1539,7 @@ export default class Router implements BaseRouter {
 
       if (parsed.pathname !== pathname) {
         pathname = parsed.pathname
+        parsed.pathname = pathname
         url = formatWithValidation(parsed)
       }
     }
