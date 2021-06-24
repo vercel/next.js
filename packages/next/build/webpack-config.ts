@@ -231,15 +231,31 @@ export default async function getBaseWebpackConfig(
     rewrites.beforeFiles.length > 0 ||
     rewrites.afterFiles.length > 0 ||
     rewrites.fallback.length > 0
-
-  const reactVersion = await getPackageVersion({ cwd: dir, name: 'react' })
   const hasReactRefresh: boolean = dev && !isServer
-  const hasJsxRuntime: boolean =
-    config.experimental.reactRoot ||
-    (Boolean(reactVersion) &&
-      // 17.0.0-rc.0 had a breaking change not compatible with Next.js, but was
-      // fixed in rc.1.
-      semver.gte(reactVersion!, '17.0.0-rc.1'))
+  const reactDomVersion = await getPackageVersion({
+    cwd: dir,
+    name: 'react-dom',
+  })
+  const hasReact18: boolean =
+    Boolean(reactDomVersion) &&
+    (semver.gte(reactDomVersion!, '18.0.0') ||
+      semver.coerce(reactDomVersion)?.version === '18.0.0')
+  const hasReactPrerelease =
+    Boolean(reactDomVersion) && semver.prerelease(reactDomVersion!) != null
+  const hasReactRoot: boolean = config.experimental.reactRoot || hasReact18
+
+  // Only inform during one of the builds
+  if (!isServer) {
+    if (hasReactRoot) {
+      Log.info('Using the createRoot API for React')
+    }
+    if (hasReactPrerelease) {
+      Log.warn(
+        `You are using an unsupported prerelease of 'react-dom' which may cause ` +
+          `unexpected or broken application behavior. Continue at your own risk.`
+      )
+    }
+  }
 
   const babelConfigFile = await [
     '.babelrc',
@@ -279,7 +295,7 @@ export default async function getBaseWebpackConfig(
         cache: !isWebpack5,
         development: dev,
         hasReactRefresh,
-        hasJsxRuntime,
+        hasJsxRuntime: true,
       },
     },
     // Backwards compat
@@ -494,7 +510,7 @@ export default async function getBaseWebpackConfig(
 
   // Contains various versions of the Webpack SplitChunksPlugin used in different build types
   const splitChunksConfigs: {
-    [propName: string]: webpack.Options.SplitChunksOptions
+    [propName: string]: webpack.Options.SplitChunksOptions | false
   } = {
     dev: {
       cacheGroups: {
@@ -595,9 +611,9 @@ export default async function getBaseWebpackConfig(
   }
 
   // Select appropriate SplitChunksPlugin config for this build
-  let splitChunksConfig: webpack.Options.SplitChunksOptions
+  let splitChunksConfig: webpack.Options.SplitChunksOptions | false
   if (dev) {
-    splitChunksConfig = splitChunksConfigs.dev
+    splitChunksConfig = isWebpack5 ? false : splitChunksConfigs.dev
   } else {
     splitChunksConfig = splitChunksConfigs.prodGranular
   }
@@ -924,7 +940,7 @@ export default async function getBaseWebpackConfig(
         : {}),
       // we must set publicPath to an empty value to override the default of
       // auto which doesn't work in IE11
-      publicPath: '',
+      publicPath: `${config.assetPrefix || ''}/_next/`,
       path:
         isServer && isWebpack5 && !dev
           ? path.join(outputPath, 'chunks')
@@ -943,7 +959,7 @@ export default async function getBaseWebpackConfig(
         ? 'static/webpack/[id].[fullhash].hot-update.js'
         : 'static/webpack/[id].[hash].hot-update.js',
       hotUpdateMainFilename: isWebpack5
-        ? 'static/webpack/[fullhash].hot-update.json'
+        ? 'static/webpack/[fullhash].[runtime].hot-update.json'
         : 'static/webpack/[hash].hot-update.json',
       // This saves chunks with the name given via `import()`
       chunkFilename: isServer
@@ -1017,7 +1033,7 @@ export default async function getBaseWebpackConfig(
         ...(!config.images.disableStaticImages && isWebpack5
           ? [
               {
-                test: /\.(png|svg|jpg|jpeg|gif|webp|ico|bmp)$/i,
+                test: /\.(png|jpg|jpeg|gif|webp|ico|bmp|svg)$/i,
                 loader: 'next-image-loader',
                 issuer: { not: regexLikeCss },
                 dependency: { not: ['url'] },
@@ -1086,9 +1102,7 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_STRICT_MODE': JSON.stringify(
           config.reactStrictMode
         ),
-        'process.env.__NEXT_REACT_ROOT': JSON.stringify(
-          config.experimental.reactRoot
-        ),
+        'process.env.__NEXT_REACT_ROOT': JSON.stringify(hasReactRoot),
         'process.env.__NEXT_OPTIMIZE_FONTS': JSON.stringify(
           config.optimizeFonts && !dev
         ),
@@ -1153,7 +1167,7 @@ export default async function getBaseWebpackConfig(
       // by default due to how Webpack interprets its code. This is a practical
       // solution that requires the user to opt into importing specific locales.
       // https://github.com/jmblog/how-to-optimize-momentjs-with-webpack
-      config.future.excludeDefaultMomentLocales &&
+      config.excludeDefaultMomentLocales &&
         new webpack.IgnorePlugin({
           resourceRegExp: /^\.\/locale$/,
           contextRegExp: /moment$/,
@@ -1333,7 +1347,7 @@ export default async function getBaseWebpackConfig(
       scrollRestoration: config.experimental.scrollRestoration,
       basePath: config.basePath,
       pageEnv: config.experimental.pageEnv,
-      excludeDefaultMomentLocales: config.future.excludeDefaultMomentLocales,
+      excludeDefaultMomentLocales: config.excludeDefaultMomentLocales,
       assetPrefix: config.assetPrefix,
       disableOptimizedLoading: config.experimental.disableOptimizedLoading,
       target,
@@ -1451,6 +1465,26 @@ export default async function getBaseWebpackConfig(
       console.warn(
         '> Promise returned in next config. https://nextjs.org/docs/messages/promise-in-next-config'
       )
+    }
+  }
+
+  if (!config.images.disableStaticImages && isWebpack5) {
+    const rules = webpackConfig.module?.rules || []
+    const hasCustomSvg = rules.some(
+      (rule) =>
+        rule.loader !== 'next-image-loader' &&
+        'test' in rule &&
+        rule.test instanceof RegExp &&
+        rule.test.test('.svg')
+    )
+    const nextImageRule = rules.find(
+      (rule) => rule.loader === 'next-image-loader'
+    )
+    if (hasCustomSvg && nextImageRule) {
+      // Exclude svg if the user already defined it in custom
+      // webpack config such as `@svgr/webpack` plugin or
+      // the `babel-plugin-inline-react-svg` plugin.
+      nextImageRule.test = /\.(png|jpg|jpeg|gif|webp|ico|bmp)$/i
     }
   }
 

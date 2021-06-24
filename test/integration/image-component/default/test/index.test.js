@@ -484,6 +484,48 @@ function runTests(mode) {
         'Failed to parse src "//assets.example.com/img.jpg" on `next/image`, protocol-relative URL (//) must be changed to an absolute URL (http:// or https://)'
       )
     })
+
+    it('should show error when string src and placeholder=blur and blurDataURL is missing', async () => {
+      const browser = await webdriver(appPort, '/invalid-placeholder-blur')
+
+      expect(await hasRedbox(browser)).toBe(true)
+      expect(await getRedboxHeader(browser)).toContain(
+        `Image with src "/test.png" has "placeholder='blur'" property but is missing the "blurDataURL" property.`
+      )
+    })
+
+    it('should show error when not numeric string width or height', async () => {
+      const browser = await webdriver(appPort, '/invalid-width-or-height')
+
+      expect(await hasRedbox(browser)).toBe(true)
+      expect(await getRedboxHeader(browser)).toContain(
+        `Image with src "/test.jpg" has invalid "width" or "height" property. These should be numeric values.`
+      )
+    })
+
+    it('should show error when static import and placeholder=blur and blurDataUrl is missing', async () => {
+      const browser = await webdriver(
+        appPort,
+        '/invalid-placeholder-blur-static'
+      )
+
+      expect(await hasRedbox(browser)).toBe(true)
+      expect(await getRedboxHeader(browser)).toMatch(
+        /Image with src "(.*)bmp" has "placeholder='blur'" property but is missing the "blurDataURL" property/
+      )
+    })
+
+    it('should warn when using a very small image with placeholder=blur', async () => {
+      const browser = await webdriver(appPort, '/small-img-import')
+
+      const warnings = (await browser.log('browser'))
+        .map((log) => log.message)
+        .join('\n')
+      expect(await hasRedbox(browser)).toBe(false)
+      expect(warnings).toMatch(
+        /Image with src (.*)jpg(.*) is smaller than 40x40. Consider removing(.*)/gm
+      )
+    })
   }
 
   it('should correctly ignore prose styles', async () => {

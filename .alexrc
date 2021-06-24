@@ -1,0 +1,12 @@
+{
+  "allow": [
+    "dead",
+    "executed",
+    "executes",
+    "failed",
+    "failure",
+    "hook",
+    "host-hostess",
+    "invalid"
+  ]
+}

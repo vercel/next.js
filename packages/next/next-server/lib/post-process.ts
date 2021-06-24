@@ -191,10 +191,7 @@ class ImageOptimizerMiddleware implements PostProcessMiddleware {
           acc + `<link rel="preload" href="${imgHref}" as="image"/>`,
         ''
       )
-    return result.replace(
-      /<link rel="preload"/,
-      `${imagePreloadTags}<link rel="preload"`
-    )
+    return result.replace('<meta name="next-image-preload"/>', imagePreloadTags)
   }
 }
 

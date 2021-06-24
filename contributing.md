@@ -46,7 +46,7 @@ Running a specific test suite inside of the `test/integration` directory:
 yarn testonly --testPathPattern "production"
 ```
 
-Running just one test in the `production` test suite:
+Running one test in the `production` test suite:
 
 ```sh
 yarn testonly --testPathPattern "production" -t "should allow etag header support"
