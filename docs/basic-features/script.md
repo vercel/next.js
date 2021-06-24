@@ -35,7 +35,7 @@ Previously, you needed to define `script` tags inside the `Head` of your Next.js
 // pages/index.js
 import Head from 'next/head'
 
-function Home() {
+export default function Home() {
   return (
     <>
       <Head>
@@ -54,7 +54,7 @@ With `next/script`, you no longer need to wrap scripts in `next/head`. Further, 
 // pages/index.js
 import Script from 'next/script'
 
-function Home() {
+export default function Home() {
   return (
     <>
       <Script src="https://www.google-analytics.com/analytics.js" />
@@ -70,14 +70,16 @@ function Home() {
 ```js
 import Script from 'next/script'
 
-const Home = () => (
-  <>
-    <Script
-      src="https://polyfill.io/v3/polyfill.min.js?features=IntersectionObserverEntry%2CIntersectionObserver"
-      strategy="beforeInteractive"
-    />
-  </>
-)
+export default function Home() {
+  return (
+    <>
+      <Script
+        src="https://polyfill.io/v3/polyfill.min.js?features=IntersectionObserverEntry%2CIntersectionObserver"
+        strategy="beforeInteractive"
+      />
+    </>
+  )
+}
 ```
 
 ### Lazy-Loading
@@ -85,14 +87,16 @@ const Home = () => (
 ```js
 import Script from 'next/script'
 
-const Home = () => (
-  <>
-    <Script
-      src="https://connect.facebook.net/en_US/sdk.js"
-      strategy="lazyOnload"
-    />
-  </>
-)
+export default function Home() {
+  return (
+    <>
+      <Script
+        src="https://connect.facebook.net/en_US/sdk.js"
+        strategy="lazyOnload"
+      />
+    </>
+  )
+}
 ```
 
 ### Executing Code After Loading (`onLoad`)
@@ -100,17 +104,19 @@ const Home = () => (
 ```js
 import Script from 'next/script'
 
-const Home = () => (
-  <>
-    <Script
-      id="stripe-js"
-      src="https://js.stripe.com/v3/"
-      onLoad={() => {
-        this.setState({ stripe: window.Stripe('pk_test_12345') })
-      }}
-    />
-  </>
-)
+export default function Home() {
+  return (
+    <>
+      <Script
+        id="stripe-js"
+        src="https://js.stripe.com/v3/"
+        onLoad={() => {
+          this.setState({ stripe: window.Stripe('pk_test_12345') })
+        }}
+      />
+    </>
+  )
+}
 ```
 
 ### Inline Scripts
@@ -136,14 +142,16 @@ import Script from 'next/script'
 ```js
 import Script from 'next/script'
 
-const Home = () => (
-  <>
-    <Script
-      src="https://www.google-analytics.com/analytics.js"
-      id="analytics"
-      nonce="XUENAJFW"
-      data-test="analytics"
-    />
-  </>
-)
+export default function Home() {
+  return (
+    <>
+      <Script
+        src="https://www.google-analytics.com/analytics.js"
+        id="analytics"
+        nonce="XUENAJFW"
+        data-test="analytics"
+      />
+    </>
+  )
+}
 ```
