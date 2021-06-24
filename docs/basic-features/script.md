@@ -69,33 +69,48 @@ function Home() {
 
 ```js
 import Script from 'next/script'
-;<Script
-  src="https://polyfill.io/v3/polyfill.min.js?features=IntersectionObserverEntry%2CIntersectionObserver"
-  strategy="beforeInteractive"
-/>
+
+const Home = () => (
+  <>
+    <Script
+      src="https://polyfill.io/v3/polyfill.min.js?features=IntersectionObserverEntry%2CIntersectionObserver"
+      strategy="beforeInteractive"
+    />
+  </>
+)
 ```
 
 ### Lazy-Loading
 
 ```js
 import Script from 'next/script'
-;<Script
-  src="https://connect.facebook.net/en_US/sdk.js"
-  strategy="lazyOnload"
-/>
+
+const Home = () => (
+  <>
+    <Script
+      src="https://connect.facebook.net/en_US/sdk.js"
+      strategy="lazyOnload"
+    />
+  </>
+)
 ```
 
 ### Executing Code After Loading (`onLoad`)
 
 ```js
 import Script from 'next/script'
-;<Script
-  id="stripe-js"
-  src="https://js.stripe.com/v3/"
-  onLoad={() => {
-    this.setState({ stripe: window.Stripe('pk_test_12345') })
-  }}
-/>
+
+const Home = () => (
+  <>
+    <Script
+      id="stripe-js"
+      src="https://js.stripe.com/v3/"
+      onLoad={() => {
+        this.setState({ stripe: window.Stripe('pk_test_12345') })
+      }}
+    />
+  </>
+)
 ```
 
 ### Inline Scripts
@@ -120,10 +135,15 @@ import Script from 'next/script'
 
 ```js
 import Script from 'next/script'
-;<Script
-  src="https://www.google-analytics.com/analytics.js"
-  id="analytics"
-  nonce="XUENAJFW"
-  data-test="analytics"
-/>
+
+const Home = () => (
+  <>
+    <Script
+      src="https://www.google-analytics.com/analytics.js"
+      id="analytics"
+      nonce="XUENAJFW"
+      data-test="analytics"
+    />
+  </>
+)
 ```
