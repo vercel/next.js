@@ -42,7 +42,7 @@ If no ESLint configuration is present, Next.js will create an `.eslintrc` file i
 
 You can now run `next lint` every time you want to run ESLint to catch errors.
 
-> The default base configuration (`"extends": "next"`) can be updated at any time and will only be included if no ESLint configuration is present. If you already have an existing ESLint configuration, refer to the [Migrating Existing Config](/docs/basic-features/eslint#migrating-existing-config) section to find the best way to include Next.js rules directly in your application.
+> The default base configuration (`"extends": "next"`) can be updated at any time and will only be included if no ESLint configuration is present. If you already have an existing ESLint configuration, refer to the [Migrating Existing Config](/docs/basic-features/eslint.md#migrating-existing-config) section to find the best way to include Next.js rules directly in your application.
 
 We recommend using an appropriate [integration](https://eslint.org/docs/user-guide/integrations#editors) to view warnings and errors directly in your code editor during development.
 
@@ -161,8 +161,8 @@ If you already have ESLint configured in your application and any of the followi
   - `react-hooks`
   - `jsx-a11y`
   - `import`
-- You've defined specific `parserOptions` that need to be different how Babel is configured within Next.js
-- You have `eslint-plugin-import` installed with Node and/or TypeScript resolvers defined
+- You've defined specific `parserOptions` that are different from how Babel is configured within Next.js (this is not recommended unless you have [customized your Babel configuration](https://nextjs.org/docs/advanced-features/customizing-babel-config))
+- You have `eslint-plugin-import` installed with Node.js and/or TypeScript [resolvers](https://github.com/benmosher/eslint-plugin-import#resolvers) defined to handle imports
 
 Then we recommend either removing these settings if you prefer how these properties have been configured within [`eslint-config-next`](https://github.com/vercel/next.js/blob/canary/packages/eslint-config-next/index.js) or extending directly from the Next.js ESLint plugin instead:
 
@@ -175,11 +175,19 @@ module.exports = {
 }
 ```
 
+The plugin can be installed normally in your project without needing to run `next lint`:
+
+```bash
+npm install --save-dev eslint-plugin-next
+# or
+yarn add --dev eslint-plugin-next
+```
+
 This eliminates any risk of collisions or errors that can occur due to importing the same plugin or parser across multiple configurations.
 
 ### Additional Configurations
 
-If you already use a separate ESLint configuration and want to include `eslint-config-next`, ensure that is extended last after other configurations. For example:
+If you already use a separate ESLint configuration and want to include `eslint-config-next`, ensure that it is extended last after other configurations. For example:
 
 ```
 {
