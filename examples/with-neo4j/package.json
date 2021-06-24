@@ -8,7 +8,7 @@
   },
   "license": "MIT",
   "dependencies": {
-    "neo4j-driver": "^4.1.1",
+    "neo4j-driver": "^4.3.1",
     "next": "latest",
     "react": "16.13.1",
     "react-dom": "16.13.1",
