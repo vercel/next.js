@@ -17,6 +17,7 @@ export default async function handler(req, res) {
                 actors: [ (movie)<-[:ACTED_IN]-(actor) | actor.name ],
                 directed: [ (movie)<-[:DIRECTED]-(director) | director.name ]
               } as movie
+              ORDER BY movie.title ASC
             `
 
             const moviesTxResponse = await transaction.run(cypher)

@@ -33,7 +33,7 @@ export default function Movie() {
             </div>
             <div>
               <strong>Released: </strong>
-              {data.movie.released.toNumber()}
+              {data.movie.released}
             </div>
           </div>
           <div className="actors">
@@ -42,10 +42,7 @@ export default function Movie() {
               <div key={actor}>
                 <Link
                   key={actor}
-                  href="/actor/[name]"
-                  as={{
-                    pathname: `/actor/${encodeURIComponent(actor)}`,
-                  }}
+                  href={`/actor/${encodeURIComponent(actor)}`}
                 >
                   <a className="link">{actor}</a>
                 </Link>
