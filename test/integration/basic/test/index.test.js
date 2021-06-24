@@ -20,16 +20,6 @@ describe('Basic Features', () => {
     context.server = await launchApp(join(__dirname, '../'), context.appPort, {
       env: { __NEXT_TEST_WITH_DEVTOOL: 1 },
     })
-
-    // pre-build all pages at the start
-    await Promise.all([
-      renderViaHTTP(context.appPort, '/process-env'),
-
-      renderViaHTTP(context.appPort, '/hmr/about'),
-      renderViaHTTP(context.appPort, '/hmr/style'),
-      renderViaHTTP(context.appPort, '/hmr/contact'),
-      renderViaHTTP(context.appPort, '/hmr/counter'),
-    ])
   })
   afterAll(() => killApp(context.server))
 
