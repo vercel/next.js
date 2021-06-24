@@ -13,6 +13,13 @@ import { getTypeScriptIntent } from './typescript/getTypeScriptIntent'
 import { TypeCheckResult } from './typescript/runTypeCheck'
 import { writeAppTypeDeclarations } from './typescript/writeAppTypeDeclarations'
 import { writeConfigurationDefaults } from './typescript/writeConfigurationDefaults'
+import { missingDepsError } from './typescript/missingDependencyError'
+
+const requiredPackages = [
+  { file: 'typescript', pkg: 'typescript' },
+  { file: '@types/react/index.d.ts', pkg: '@types/react' },
+  { file: '@types/node/index.d.ts', pkg: '@types/node' },
+]
 
 export async function verifyTypeScriptSetup(
   dir: string,
@@ -34,9 +41,13 @@ export async function verifyTypeScriptSetup(
     // Ensure TypeScript and necessary `@types/*` are installed:
     const deps: NecessaryDependencies = await hasNecessaryDependencies(
       dir,
-      !!intent,
-      false
+      requiredPackages,
+      !!intent
     )
+
+    if (deps.missing?.length > 0) {
+      missingDepsError(dir, deps.missing)
+    }
 
     // Load TypeScript after we're sure it exists:
     const ts = (await import(

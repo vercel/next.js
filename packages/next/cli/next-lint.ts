@@ -185,7 +185,7 @@ const nextLint: cliCommand = (argv) => {
 
       if (lintOutput) {
         console.log(lintOutput)
-      } else {
+      } else if (lintResults && !lintOutput) {
         console.log(chalk.green('✔ No ESLint warnings or errors'))
       }
     })
