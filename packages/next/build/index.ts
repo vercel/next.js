@@ -192,7 +192,13 @@ export default async function build(
     const verifyResult = await nextBuildSpan
       .traceChild('verify-typescript-setup')
       .traceAsyncFn(() =>
-        verifyTypeScriptSetup(dir, pagesDir, !ignoreTypeScriptErrors, cacheDir)
+        verifyTypeScriptSetup(
+          dir,
+          pagesDir,
+          !ignoreTypeScriptErrors,
+          !config.images.disableStaticImages,
+          cacheDir
+        )
       )
 
     const typeCheckEnd = process.hrtime(typeCheckStart)
