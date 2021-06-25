@@ -126,13 +126,10 @@ describe('404 Page Support', () => {
     await fs.remove(pages404)
     await fs.move(`${pages404}.bak`, pages404)
     await killApp(app)
-
-    expect(res404.headers.get('Cache-Control')).toBe(
+    const privateCache =
       'private, no-cache, no-store, max-age=0, must-revalidate'
-    )
-    expect(resNext.headers.get('Cache-Control')).toBe(
-      's-maxage=31536000, stale-while-revalidate'
-    )
+    expect(res404.headers.get('Cache-Control')).toBe(privateCache)
+    expect(resNext.headers.get('Cache-Control')).toBe(privateCache)
   })
 
   it('should not cache for custom 404 page without ssg', async () => {
