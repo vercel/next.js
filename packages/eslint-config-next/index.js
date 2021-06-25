@@ -16,6 +16,7 @@ module.exports = {
   rules: {
     'import/no-anonymous-default-export': 'warn',
     'react/react-in-jsx-scope': 'off',
+    'react/prop-types': 'off',
     'jsx-a11y/alt-text': [
       'warn',
       {
@@ -56,6 +57,9 @@ module.exports = {
     'import/resolver': {
       [require.resolve('eslint-import-resolver-node')]: {
         extensions: ['.js', '.jsx', '.ts', '.tsx'],
+      },
+      [require.resolve('eslint-import-resolver-typescript')]: {
+        alwaysTryTypes: true,
       },
     },
   },

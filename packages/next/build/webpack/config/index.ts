@@ -15,6 +15,7 @@ export async function build(
     sassOptions,
     productionBrowserSourceMaps,
     future,
+    isCraCompat,
   }: {
     rootDirectory: string
     customAppFile: string | null
@@ -24,6 +25,7 @@ export async function build(
     sassOptions: any
     productionBrowserSourceMaps: boolean
     future: NextConfig['future']
+    isCraCompat?: boolean
   }
 ): Promise<webpack.Configuration> {
   const ctx: ConfigurationContext = {
@@ -41,6 +43,7 @@ export async function build(
     sassOptions,
     productionBrowserSourceMaps,
     future,
+    isCraCompat,
   }
 
   const fn = pipe(base(ctx), css(ctx))

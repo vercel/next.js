@@ -427,11 +427,15 @@ export default class Server {
 
       let defaultLocale = i18n.defaultLocale
       let detectedLocale = detectLocaleCookie(req, i18n.locales)
-      let acceptPreferredLocale =
-        i18n.localeDetection !== false
-          ? accept.language(req.headers['accept-language'], i18n.locales)
-          : detectedLocale
-
+      let acceptPreferredLocale
+      try {
+        acceptPreferredLocale =
+          i18n.localeDetection !== false
+            ? accept.language(req.headers['accept-language'], i18n.locales)
+            : detectedLocale
+      } catch (_) {
+        acceptPreferredLocale = detectedLocale
+      }
       const { host } = req?.headers || {}
       // remove port from host if present
       const hostname = host?.split(':')[0].toLowerCase()
@@ -1439,6 +1443,7 @@ export default class Server {
     opts: RenderOptsPartial
   ): Promise<string | null> {
     const is404Page = pathname === '/404'
+    const is500Page = pathname === '/500'
 
     const isLikeServerless =
       typeof components.Component === 'object' &&
@@ -1560,7 +1565,7 @@ export default class Server {
               : resolvedUrlPathname
           }${query.amp ? '.amp' : ''}`
 
-    if (is404Page && isSSG) {
+    if ((is404Page || is500Page) && isSSG) {
       ssgCacheKey = `${locale ? `/${locale}` : ''}${pathname}${
         query.amp ? '.amp' : ''
       }`

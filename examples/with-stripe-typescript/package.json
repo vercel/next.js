@@ -14,8 +14,8 @@
     "micro": "^9.3.4",
     "micro-cors": "^0.1.1",
     "next": "latest",
-    "react": "^16.12.0",
-    "react-dom": "^16.12.0",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
     "stripe": "8.56.0",
     "swr": "^0.1.16",
     "use-shopping-cart": "2.1.0"

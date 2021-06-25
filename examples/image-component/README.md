@@ -6,7 +6,13 @@ The index page ([`pages/index.js`](pages/index.js)) has a couple images, one int
 
 ## Live demo
 
-[https://next-image-component-demo.vercel.app/](https://next-image-component-demo.vercel.app/)
+[https://image-component.nextjs.gallery/](https://https://image-component.nextjs.gallery/)
+
+## Preview
+
+Preview the example live on [StackBlitz](http://stackblitz.com/):
+
+[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/image-component)
 
 ## Deploy your own
 

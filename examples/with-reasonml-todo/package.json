@@ -11,9 +11,9 @@
   "license": "MIT",
   "dependencies": {
     "next": "latest",
-    "next-transpile-modules": "^4.0.2",
-    "react": "^16.8.6",
-    "react-dom": "^16.8.6",
+    "next-transpile-modules": "^7.3.0",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
     "reason-react": "^0.7.0"
   },
   "devDependencies": {

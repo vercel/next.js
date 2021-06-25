@@ -39,6 +39,53 @@ let appPort
 let app
 
 const runTests = (isDev = false) => {
+  it('should handle has query encoding correctly', async () => {
+    for (const expected of [
+      {
+        post: 'first',
+      },
+      {
+        post: 'hello%20world',
+      },
+      {
+        post: 'hello/world',
+      },
+      {
+        post: 'hello%2fworld',
+      },
+    ]) {
+      const { status = 200, post } = expected
+      const res = await fetchViaHTTP(
+        appPort,
+        '/has-rewrite-8',
+        `?post=${post}`,
+        {
+          redirect: 'manual',
+        }
+      )
+
+      expect(res.status).toBe(status)
+
+      if (status === 200) {
+        const $ = cheerio.load(await res.text())
+        expect(JSON.parse($('#query').text())).toEqual({
+          post: decodeURIComponent(post),
+        })
+      }
+    }
+  })
+
+  it('should support long URLs for rewrites', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/catchall-rewrite/a9btBxtHQALZ6cxfuj18X6OLGNSkJVzrOXz41HG4QwciZfn7ggRZzPx21dWqGiTBAqFRiWvVNm5ko2lpyso5jtVaXg88dC1jKfqI2qmIcdeyJat8xamrIh2LWnrYRrsBcoKfQU65KHod8DPANuzPS3fkVYWlmov05GQbc82HwR1exOvPVKUKb5gBRWiN0WOh7hN4QyezIuq3dJINAptFQ6m2bNGjYACBRk4MOSHdcQG58oq5Ch7luuqrl9EcbWSa'
+    )
+
+    const html = await res.text()
+    expect(res.status).toBe(200)
+    expect(html).toContain('/with-params')
+  })
+
   it('should resolveHref correctly navigating through history', async () => {
     const browser = await webdriver(appPort, '/')
     await browser.eval('window.beforeNav = 1')
@@ -1706,6 +1753,17 @@ const runTests = (isDev = false) => {
               ],
               regex: normalizeRegEx('^\\/has-rewrite-7$'),
               source: '/has-rewrite-7',
+            },
+            {
+              destination: '/blog/:post',
+              has: [
+                {
+                  key: 'post',
+                  type: 'query',
+                },
+              ],
+              regex: normalizeRegEx('^\\/has-rewrite-8$'),
+              source: '/has-rewrite-8',
             },
             {
               destination: '/hello',

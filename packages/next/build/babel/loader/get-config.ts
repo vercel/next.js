@@ -1,10 +1,12 @@
 import { readFileSync } from 'fs'
+import JSON5 from 'next/dist/compiled/json5'
 
 import { createConfigItem, loadOptions } from 'next/dist/compiled/babel/core'
 import loadConfig from 'next/dist/compiled/babel/core-lib-config'
 
 import { NextBabelLoaderOptions, NextJsLoaderContext } from './types'
 import { consumeIterator } from './util'
+import * as Log from '../../output/log'
 
 const nextDistPath = /(next[\\/]dist[\\/]next-server[\\/]lib)|(next[\\/]dist[\\/]client)|(next[\\/]dist[\\/]pages)/
 
@@ -151,32 +153,13 @@ const isJsFile = /\.js$/
 function getCustomBabelConfig(configFilePath: string) {
   if (isJsonFile.exec(configFilePath)) {
     const babelConfigRaw = readFileSync(configFilePath, 'utf8')
-    return JSON.parse(babelConfigRaw)
+    return JSON5.parse(babelConfigRaw)
   } else if (isJsFile.exec(configFilePath)) {
     return require(configFilePath)
   }
   throw new Error(
-    'The Next Babel loader does not support MJS or CJS config files.'
+    'The Next.js Babel loader does not support .mjs or .cjs config files.'
   )
-}
-
-function getCustomPresets(presets: any[], customConfig: any) {
-  presets = [...presets, ...customConfig?.presets]
-
-  const hasNextBabelPreset = (customConfig?.presets || [])
-    .filter((preset: any) => {
-      return (
-        preset === 'next/babel' ||
-        (Array.isArray(preset) && preset[0] === 'next/babel')
-      )
-    })
-    .reduce((memo: boolean, presetFound: boolean) => memo || presetFound, false)
-
-  if (!hasNextBabelPreset) {
-    presets.push('next/babel')
-  }
-
-  return presets
 }
 
 /**
@@ -192,7 +175,6 @@ function getFreshConfig(
   inputSourceMap?: object | null
 ) {
   let {
-    presets = [],
     isServer,
     pagesDir,
     development,
@@ -200,16 +182,9 @@ function getFreshConfig(
     configFile,
   } = loaderOptions
 
-  let customPlugins = []
-  if (configFile) {
-    const customConfig = getCustomBabelConfig(configFile)
-    presets = getCustomPresets(presets, customConfig)
-    if (customConfig.plugins) {
-      customPlugins = customConfig.plugins
-    }
-  } else {
-    presets = [...presets, 'next/babel']
-  }
+  let customConfig: any = configFile
+    ? getCustomBabelConfig(configFile)
+    : undefined
 
   let options = {
     babelrc: false,
@@ -231,10 +206,28 @@ function getFreshConfig(
 
     plugins: [
       ...getPlugins(loaderOptions, cacheCharacteristics),
-      ...customPlugins,
+      ...(customConfig?.plugins || []),
     ],
 
-    presets,
+    // target can be provided in babelrc
+    target: isServer ? undefined : customConfig?.target,
+    // env can be provided in babelrc
+    env: customConfig?.env,
+
+    presets: (() => {
+      // If presets is defined the user will have next/babel in their babelrc
+      if (customConfig?.presets) {
+        return customConfig.presets
+      }
+
+      // If presets is not defined the user will likely have "env" in their babelrc
+      if (customConfig) {
+        return undefined
+      }
+
+      // If no custom config is provided the default is to use next/babel
+      return ['next/babel']
+    })(),
 
     overrides: loaderOptions.overrides,
 
@@ -260,6 +253,11 @@ function getFreshConfig(
       ...loaderOptions.caller,
     },
   } as any
+
+  // Babel does strict checks on the config so undefined is not allowed
+  if (typeof options.target === 'undefined') {
+    delete options.target
+  }
 
   Object.defineProperty(options.caller, 'onWarning', {
     enumerable: false,
@@ -309,8 +307,8 @@ export default function getConfig(
   this: NextJsLoaderContext,
   {
     source,
-    loaderOptions,
     target,
+    loaderOptions,
     filename,
     inputSourceMap,
   }: {
@@ -327,6 +325,11 @@ export default function getConfig(
     filename
   )
 
+  if (loaderOptions.configFile) {
+    // Ensures webpack invalidates the cache for this loader when the config file changes
+    this.addDependency(loaderOptions.configFile)
+  }
+
   const cacheKey = getCacheKey(cacheCharacteristics)
   if (configCache.has(cacheKey)) {
     const cachedConfig = configCache.get(cacheKey)
@@ -341,6 +344,12 @@ export default function getConfig(
         sourceFileName: filename,
       },
     }
+  }
+
+  if (loaderOptions.configFile) {
+    Log.info(
+      `Using external babel configuration from ${loaderOptions.configFile}`
+    )
   }
 
   const freshConfig = getFreshConfig.call(
