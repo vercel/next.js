@@ -94,7 +94,8 @@ function createLoadableComponent(loadFn, options) {
   if (
     !initialized &&
     typeof window !== 'undefined' &&
-    typeof opts.webpack === 'function'
+    typeof opts.webpack === 'function' &&
+    typeof require.resolveWeak === 'function'
   ) {
     const moduleIds = opts.webpack()
     READY_INITIALIZERS.push((ids) => {
