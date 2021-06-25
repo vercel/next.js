@@ -445,8 +445,9 @@ export default function Image({
     ...(placeholder === 'blur'
       ? {
           filter: 'blur(20px)',
-          backgroundSize: 'cover',
+          backgroundSize: objectFit || 'cover',
           backgroundImage: `url("${blurDataURL}")`,
+          backgroundPosition: objectPosition || '0% 0%',
         }
       : undefined),
   }
