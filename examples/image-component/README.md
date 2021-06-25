@@ -6,7 +6,7 @@ The index page ([`pages/index.js`](pages/index.js)) has a couple images, one int
 
 ## Live demo
 
-[https://image-component.nextjs.gallery/](https://https://image-component.nextjs.gallery/)
+[https://image-component.nextjs.gallery/](https://image-component.nextjs.gallery/)
 
 ## Preview
 
