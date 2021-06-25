@@ -47,13 +47,22 @@ function onReport(metric: Metric): void {
       type: 'application/x-www-form-urlencoded',
     })
     const vitalsUrl = 'https://vitals.vercel-insights.com/v1/vitals'
-    ;(navigator.sendBeacon && navigator.sendBeacon(vitalsUrl, blob)) ||
+    const send = navigator.sendBeacon && navigator.sendBeacon.bind(navigator)
+
+    function fallbackSend() {
       fetch(vitalsUrl, {
         body: blob,
         method: 'POST',
         credentials: 'omit',
         keepalive: true,
       })
+    }
+
+    try {
+      send(vitalsUrl, blob) || fallbackSend()
+    } catch (err) {
+      fallbackSend()
+    }
   }
 }
 
