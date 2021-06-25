@@ -76,7 +76,7 @@ You can see the full details of the shareable configuration in the [`eslint-conf
 
 ## ESLint Plugin
 
-Next.js provides an ESLint plugin, [`eslint-plugin-next`](https://www.npmjs.com/package/@next/eslint-plugin-next), already bundled within the base configuration that makes it easy to catch common issues and problems in a Next.js application. The full set of rules is as follows:
+Next.js provides an ESLint plugin, [`eslint-plugin-next`](https://www.npmjs.com/package/@next/eslint-plugin-next), already bundled within the base configuration that makes it possible to catch common issues and problems in a Next.js application. The full set of rules is as follows:
 
 |     | Rule                                                                                           | Description                                                      |
 | :-: | ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |

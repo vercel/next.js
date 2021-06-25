@@ -73,7 +73,7 @@ async function lint(
     if (!ESLint) {
       eslintVersion = mod?.CLIEngine?.version
 
-      if (semver.lt(eslintVersion, '7.0.0')) {
+      if (!eslintVersion || semver.lt(eslintVersion, '7.0.0')) {
         return `${chalk.red(
           'error'
         )} - Your project has an older version of ESLint installed${
