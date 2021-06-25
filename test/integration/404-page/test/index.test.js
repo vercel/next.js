@@ -108,7 +108,7 @@ describe('404 Page Support', () => {
     runTests('serverless')
   })
 
-  it('should revalidate for custom 404 page with ssg', async () => {
+  it('should not cache for custom 404 page with ssg', async () => {
     await fs.move(pages404, `${pages404}.bak`)
     await fs.writeFile(
       pages404,
@@ -121,18 +121,21 @@ describe('404 Page Support', () => {
     await nextBuild(appDir)
     appPort = await findPort()
     app = await nextStart(appDir, appPort)
-    const swrCacheControl = `s-maxage=31536000, stale-while-revalidate`
     const res404 = await fetchViaHTTP(appPort, '/404')
     const resNext = await fetchViaHTTP(appPort, '/_next/abc')
     await fs.remove(pages404)
     await fs.move(`${pages404}.bak`, pages404)
     await killApp(app)
 
-    expect(res404.headers.get('Cache-Control')).toBe(swrCacheControl)
-    expect(resNext.headers.get('Cache-Control')).toBe(swrCacheControl)
+    expect(res404.headers.get('Cache-Control')).toBe(
+      'private, no-cache, no-store, max-age=0, must-revalidate'
+    )
+    expect(resNext.headers.get('Cache-Control')).toBe(
+      's-maxage=31536000, stale-while-revalidate'
+    )
   })
 
-  it('should revalidate for custom 404 page without ssg', async () => {
+  it('should not cache for custom 404 page without ssg', async () => {
     await nextBuild(appDir)
     appPort = await findPort()
     app = await nextStart(appDir, appPort)

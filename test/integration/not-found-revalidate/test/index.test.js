@@ -89,7 +89,7 @@ const runTests = () => {
     let $ = cheerio.load(await res.text())
 
     expect(res.headers.get('cache-control')).toBe(
-      's-maxage=1, stale-while-revalidate'
+      'private, no-cache, no-store, max-age=0, must-revalidate'
     )
     expect(res.status).toBe(404)
     expect(JSON.parse($('#props').text()).notFound).toBe(true)
