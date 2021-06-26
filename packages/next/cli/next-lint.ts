@@ -28,7 +28,6 @@ const eslintOptions = (args: arg.Spec) => ({
     args['--report-unused-disable-directives'] || null,
   cache: args['--cache'] ?? false,
   cacheLocation: args['--cache-location'] || '.eslintcache',
-  cacheStrategy: args['--cache-strategy'] || 'metadata',
   errorOnUnmatchedPattern: !Boolean(args['--no-error-on-unmatched-pattern']),
 })
 
@@ -55,11 +54,11 @@ const nextLint: cliCommand = (argv) => {
     '--fix-type': [String],
     '--ignore-path': String,
     '--no-ignore': Boolean,
+    '--quiet': Boolean,
     '--no-inline-config': Boolean,
     '--report-unused-disable-directives': String,
     '--cache': Boolean,
     '--cache-location': String,
-    '--cache-strategy': String,
     '--no-error-on-unmatched-pattern': Boolean,
 
     // Aliases
@@ -107,6 +106,9 @@ const nextLint: cliCommand = (argv) => {
           --ignore-path path::String     Specify path of ignore file
           --no-ignore                    Disable use of ignore files and patterns
 
+        Handling warnings:
+          --quiet                        Report errors only - default: false
+
         Inline configuration comments:
           --no-inline-config             Prevent comments from changing config or rules
           --report-unused-disable-directives  Adds reported errors for unused eslint-disable directives ("error" | "warn" | "off")
@@ -114,7 +116,6 @@ const nextLint: cliCommand = (argv) => {
         Caching:
           --cache                        Only check changed files - default: false
           --cache-location path::String  Path to the cache file or directory - default: .eslintcache
-          --cache-strategy String        Strategy to use for detecting changed files - either: metadata or content - default: metadata
         
         Miscellaneous:
           --no-error-on-unmatched-pattern  Prevent errors when pattern is unmatched - default: false
@@ -140,7 +141,10 @@ const nextLint: cliCommand = (argv) => {
     },
     []
   )
-  runLintCheck(baseDir, lintDirs, false, eslintOptions(args))
+
+  const reportErrorsOnly = Boolean(args['--quiet'])
+
+  runLintCheck(baseDir, lintDirs, false, eslintOptions(args), reportErrorsOnly)
     .then(async (lintResults) => {
       const lintOutput =
         typeof lintResults === 'string' ? lintResults : lintResults?.output
