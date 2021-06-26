@@ -1030,6 +1030,16 @@ export default async function getBaseWebpackConfig(
               ]
             : defaultLoaders.babel,
         },
+        ...(!config.images.disableStaticImages && isWebpack5
+          ? [
+              {
+                test: /\.(png|jpg|jpeg|gif|webp|ico|bmp|svg)$/i,
+                loader: 'next-image-loader',
+                issuer: { not: regexLikeCss },
+                dependency: { not: ['url'] },
+              },
+            ]
+          : []),
       ].filter(Boolean),
     },
     plugins: [
@@ -1459,27 +1469,23 @@ export default async function getBaseWebpackConfig(
   }
 
   if (!config.images.disableStaticImages && isWebpack5) {
-    if (!webpackConfig.module) {
-      webpackConfig.module = { rules: [] }
-    }
-
-    const hasSvg = webpackConfig.module.rules.some(
+    const rules = webpackConfig.module?.rules || []
+    const hasCustomSvg = rules.some(
       (rule) =>
-        'test' in rule && rule.test instanceof RegExp && rule.test.test('.svg')
+        rule.loader !== 'next-image-loader' &&
+        'test' in rule &&
+        rule.test instanceof RegExp &&
+        rule.test.test('.svg')
     )
-
-    // Exclude svg if the user already defined it in custom
-    // webpack config such as `@svgr/webpack` plugin or
-    // the `babel-plugin-inline-react-svg` plugin.
-    webpackConfig.module.rules.push({
-      test: hasSvg
-        ? /\.(png|jpg|jpeg|gif|webp|ico|bmp)$/i
-        : /\.(png|svg|jpg|jpeg|gif|webp|ico|bmp)$/i,
-      loader: 'next-image-loader',
-      dependency: { not: ['url'] },
-      // @ts-ignore
-      issuer: { not: regexLikeCss },
-    })
+    const nextImageRule = rules.find(
+      (rule) => rule.loader === 'next-image-loader'
+    )
+    if (hasCustomSvg && nextImageRule) {
+      // Exclude svg if the user already defined it in custom
+      // webpack config such as `@svgr/webpack` plugin or
+      // the `babel-plugin-inline-react-svg` plugin.
+      nextImageRule.test = /\.(png|jpg|jpeg|gif|webp|ico|bmp)$/i
+    }
   }
 
   if (

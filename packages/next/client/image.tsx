@@ -703,7 +703,10 @@ function defaultLoader({
         )
       }
 
-      if (!configDomains.includes(parsedSrc.hostname)) {
+      if (
+        process.env.NODE_ENV !== 'test' &&
+        !configDomains.includes(parsedSrc.hostname)
+      ) {
         throw new Error(
           `Invalid src prop (${src}) on \`next/image\`, hostname "${parsedSrc.hostname}" is not configured under images in your \`next.config.js\`\n` +
             `See more info: https://nextjs.org/docs/messages/next-image-unconfigured-host`
