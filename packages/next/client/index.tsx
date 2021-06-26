@@ -467,6 +467,14 @@ export function renderError(renderErrorProps: RenderErrorProps): Promise<any> {
   return pageLoader
     .loadPage('/_error')
     .then(({ page: ErrorComponent, styleSheets }) => {
+      return lastAppProps?.Component === ErrorComponent
+        ? import('next/dist/pages/_error').then((m) => ({
+            ErrorComponent: m.default as React.ComponentType<{}>,
+            styleSheets: [],
+          }))
+        : { ErrorComponent, styleSheets }
+    })
+    .then(({ ErrorComponent, styleSheets }) => {
       // In production we do a normal render with the `ErrorComponent` as component.
       // If we've gotten here upon initial render, we can use the props from the server.
       // Otherwise, we need to call `getInitialProps` on `App` before mounting.
