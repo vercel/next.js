@@ -194,7 +194,11 @@ export class IncrementalCache {
 
     // TODO: This option needs to cease to exist unless it stops mutating the
     // `next build` output's manifest.
-    if (this.incrementalOptions.flushToDisk && !data.isNotFound) {
+    if (
+      this.incrementalOptions.flushToDisk &&
+      !data.isNotFound &&
+      !data.isRedirect
+    ) {
       try {
         const seedPath = this.getSeedPath(pathname, 'html')
         await promises.mkdir(path.dirname(seedPath), { recursive: true })
