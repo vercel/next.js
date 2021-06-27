@@ -37,6 +37,21 @@ async function addDefaultLocaleCookie(browser) {
 }
 
 export function runTests(ctx) {
+  it.only('should have domainLocales available on useRouter', async () => {
+    const browser = await webdriver(ctx.appPort, `${ctx.basePath || '/'}`)
+    expect(
+      JSON.parse(await browser.elementByCss('#router-domain-locales').text())
+    ).toEqual([
+      {
+        http: true,
+        domain: 'example.do',
+        defaultLocale: 'do',
+        locales: ['do-BE'],
+      },
+      { domain: 'example.com', defaultLocale: 'go', locales: ['go-BE'] },
+    ])
+  })
+
   it('should not error with similar named cookie to locale cookie', async () => {
     const res = await fetchViaHTTP(
       ctx.appPort,

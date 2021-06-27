@@ -6,6 +6,7 @@ import loadConfig from 'next/dist/compiled/babel/core-lib-config'
 
 import { NextBabelLoaderOptions, NextJsLoaderContext } from './types'
 import { consumeIterator } from './util'
+import * as Log from '../../output/log'
 
 const nextDistPath = /(next[\\/]dist[\\/]next-server[\\/]lib)|(next[\\/]dist[\\/]client)|(next[\\/]dist[\\/]pages)/
 
@@ -181,11 +182,6 @@ function getFreshConfig(
     configFile,
   } = loaderOptions
 
-  // Ensures webpack invalidates the cache for this loader when the config file changes
-  if (configFile) {
-    this.addDependency(configFile)
-  }
-
   let customConfig: any = configFile
     ? getCustomBabelConfig(configFile)
     : undefined
@@ -329,6 +325,11 @@ export default function getConfig(
     filename
   )
 
+  if (loaderOptions.configFile) {
+    // Ensures webpack invalidates the cache for this loader when the config file changes
+    this.addDependency(loaderOptions.configFile)
+  }
+
   const cacheKey = getCacheKey(cacheCharacteristics)
   if (configCache.has(cacheKey)) {
     const cachedConfig = configCache.get(cacheKey)
@@ -343,6 +344,12 @@ export default function getConfig(
         sourceFileName: filename,
       },
     }
+  }
+
+  if (loaderOptions.configFile) {
+    Log.info(
+      `Using external babel configuration from ${loaderOptions.configFile}`
+    )
   }
 
   const freshConfig = getFreshConfig.call(
