@@ -516,8 +516,8 @@ function renderReactElement(
         reactRoot = ReactDOM18.createRoot(domEl, { hydrate: shouldHydrate })
         reactRoot.render(reactEl)
       }
-      shouldHydrate = false
     }
+    shouldHydrate = false
   } else {
     // The check for `.hydrate` is there to support React alternatives like preact
     if (shouldHydrate) {

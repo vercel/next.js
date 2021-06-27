@@ -82,19 +82,10 @@ describe('React 18 Support', () => {
     let app
     let appPort
     beforeAll(async () => {
-      jest.mock('react', () => {
-        return jest.requireActual('react-18')
-      })
-      jest.mock('react-dom', () => {
-        return jest.requireActual('react-dom-18')
-      })
       await fs.remove(join(appDir, '.next'))
-      const { stderr } = await nextBuild(appDir, [dirPrerelease], {
-        stderr: true,
-      })
-      console.error(stderr)
+      await nextBuild(appDir, [dirPrerelease])
       appPort = await findPort()
-      app = await nextStart(appDir, appPort, { stderr: true })
+      app = await nextStart(appDir, appPort)
     })
     afterAll(async () => await killApp(app))
     it('hydrates correctly for normal page', async () => {
