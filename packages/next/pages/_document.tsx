@@ -79,11 +79,12 @@ function getPreNextScripts(context: DocumentProps, props: OriginProps) {
   const { scriptLoader, disableOptimizedLoading } = context
 
   return (scriptLoader.beforeInteractive || []).map(
-    (file: ScriptLoaderProps) => {
+    (file: ScriptLoaderProps, index: number) => {
       const { strategy, ...scriptProps } = file
       return (
         <script
           {...scriptProps}
+          key={scriptProps.src || index}
           defer={!disableOptimizedLoading}
           nonce={props.nonce}
           crossOrigin={props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN}
