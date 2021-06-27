@@ -19,7 +19,7 @@
     "autoprefixer": "^10.2.6",
     "next": "latest",
     "postcss": "^8.3.5",
-    "tailwindcss": "^2.2.4",
+    "tailwindcss": "~2.1.4",
     "xwind": "0.8.0"
   },
   "license": "MIT"
