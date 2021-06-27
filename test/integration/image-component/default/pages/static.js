@@ -9,8 +9,8 @@ import testSVG from '../public/test.svg'
 import testGIF from '../public/test.gif'
 import testBMP from '../public/test.bmp'
 import testICO from '../public/test.ico'
+import testTall from '../public/tall.png'
 
-import TallImage from '../components/TallImage'
 const Page = () => {
   return (
     <div>
@@ -21,7 +21,12 @@ const Page = () => {
         layout="fixed"
         placeholder="blur"
       />
-      <TallImage />
+      <Image
+        id="basic-static-tall"
+        src={testTall}
+        layout="fixed"
+        placeholder="blur"
+      />
       <Image
         id="defined-size-static"
         src={testPNG}
