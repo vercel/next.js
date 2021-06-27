@@ -89,19 +89,27 @@ export class FontStylesheetGatheringPlugin {
             }
 
             // node.arguments[0] is the name of the tag and [1] are the props.
-            const propsNode = node.arguments[1] as namedTypes.ObjectExpression
+            const arg1 = node.arguments[1]
+
+            const propsNode =
+              arg1.type === 'ObjectExpression'
+                ? (arg1 as namedTypes.ObjectExpression)
+                : undefined
             const props: { [key: string]: string } = {}
-            propsNode.properties.forEach((prop) => {
-              if (prop.type !== 'Property') {
-                return
-              }
-              if (
-                prop.key.type === 'Identifier' &&
-                prop.value.type === 'Literal'
-              ) {
-                props[prop.key.name] = prop.value.value as string
-              }
-            })
+            if (propsNode) {
+              propsNode.properties.forEach((prop) => {
+                if (prop.type !== 'Property') {
+                  return
+                }
+                if (
+                  prop.key.type === 'Identifier' &&
+                  prop.value.type === 'Literal'
+                ) {
+                  props[prop.key.name] = prop.value.value as string
+                }
+              })
+            }
+
             if (
               !props.rel ||
               props.rel !== 'stylesheet' ||
