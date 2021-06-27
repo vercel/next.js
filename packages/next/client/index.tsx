@@ -493,8 +493,10 @@ export function renderError(renderErrorProps: RenderErrorProps): Promise<any> {
     })
 }
 
+const ReactDOM18: any = ReactDOM as any
 let reactRoot: any = null
-let shouldHydrate: boolean = typeof ReactDOM.hydrate === 'function'
+let shouldHydrate: boolean =
+  typeof (ReactDOM.hydrate || ReactDOM18.hydrateRoot) === 'function'
 
 function renderReactElement(
   domEl: HTMLElement,
@@ -508,12 +510,14 @@ function renderReactElement(
   const reactEl = fn(shouldHydrate ? markHydrateComplete : markRenderComplete)
   if (process.env.__NEXT_REACT_ROOT) {
     if (!reactRoot) {
-      reactRoot = (ReactDOM as any).createRoot(domEl, {
-        hydrate: shouldHydrate,
-      })
+      if (shouldHydrate && typeof ReactDOM18.hydrateRoot === 'function') {
+        reactRoot = ReactDOM18.hydrateRoot(domEl, reactEl)
+      } else {
+        reactRoot = ReactDOM18.createRoot(domEl, { hydrate: shouldHydrate })
+        reactRoot.render(reactEl)
+      }
+      shouldHydrate = false
     }
-    reactRoot.render(reactEl)
-    shouldHydrate = false
   } else {
     // The check for `.hydrate` is there to support React alternatives like preact
     if (shouldHydrate) {
