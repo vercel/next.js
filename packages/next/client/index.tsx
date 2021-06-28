@@ -510,10 +510,10 @@ function renderReactElement(
   const reactEl = fn(shouldHydrate ? markHydrateComplete : markRenderComplete)
   if (process.env.__NEXT_REACT_ROOT) {
     if (!reactRoot) {
-      if (shouldHydrate && typeof ReactDOM18.hydrateRoot === 'function') {
+      if (shouldHydrate) {
         reactRoot = ReactDOM18.hydrateRoot(domEl, reactEl)
       } else {
-        reactRoot = ReactDOM18.createRoot(domEl, { hydrate: shouldHydrate })
+        reactRoot = ReactDOM18.createRoot(domEl)
         reactRoot.render(reactEl)
       }
     }
