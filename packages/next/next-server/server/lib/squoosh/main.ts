@@ -1,7 +1,4 @@
-import { Worker } from 'jest-worker'
-import * as path from 'path'
-import { execOnce } from '../../../lib/utils'
-import { cpus } from 'os'
+import * as worker from './impl'
 
 type RotateOperation = {
   type: 'rotate'
@@ -13,25 +10,12 @@ type ResizeOperation = {
 export type Operation = RotateOperation | ResizeOperation
 export type Encoding = 'jpeg' | 'png' | 'webp'
 
-const getWorker = execOnce(
-  () =>
-    new Worker(path.resolve(__dirname, 'impl'), {
-      enableWorkerThreads: true,
-      // There will be at most 6 workers needed since each worker will take
-      // at least 1 operation type.
-      numWorkers: Math.max(1, Math.min(cpus().length - 1, 6)),
-      computeWorkerKey: (method) => method,
-    })
-)
-
 export async function processBuffer(
   buffer: Buffer,
   operations: Operation[],
   encoding: Encoding,
   quality: number
 ): Promise<Buffer> {
-  const worker: typeof import('./impl') = getWorker() as any
-
   let imageData = await worker.decodeBuffer(buffer)
   for (const operation of operations) {
     if (operation.type === 'rotate') {
