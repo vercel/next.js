@@ -51,6 +51,10 @@ module.exports = {
 
   create: function (context) {
     function checkTypos(node, name) {
+      if (NEXT_EXPORT_FUNCTIONS.includes(name)) {
+        return
+      }
+
       const potentialTypos = NEXT_EXPORT_FUNCTIONS.map((o) => ({
         option: o,
         distance: minDistance(o, name),
