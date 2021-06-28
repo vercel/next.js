@@ -191,6 +191,16 @@ module.exports = {
           destination: '/with-params?idk=:idk',
         },
         {
+          source: '/has-rewrite-8',
+          has: [
+            {
+              type: 'query',
+              key: 'post',
+            },
+          ],
+          destination: '/blog/:post',
+        },
+        {
           source: '/blog/about',
           destination: '/hello',
         },

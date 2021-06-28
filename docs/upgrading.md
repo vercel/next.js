@@ -142,7 +142,13 @@ There were no breaking changes between version 9 and 10.
 To upgrade run the following command:
 
 ```
-npm install next@latest
+npm install next@10
+```
+
+Or using `yarn`:
+
+```
+yarn add next@10
 ```
 
 ## Upgrading from version 8 to 9
@@ -216,7 +222,7 @@ import { AppContext, AppInitialProps } from 'next/app'
 import { DocumentContext, DocumentInitialProps } from 'next/document'
 ```
 
-#### The `config` key is now a special export on a page
+#### The `config` key is now an export on a page
 
 You may no longer export a custom variable named `config` from a page (i.e. `export { config }` / `export const config ...`).
 This exported variable is now used to specify page-level Next.js configuration like Opt-in AMP and API Route features.
