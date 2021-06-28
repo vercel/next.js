@@ -6,7 +6,7 @@ description: Extend the default document markup added by Next.js.
 
 A custom `Document` is commonly used to augment your application's `<html>` and `<body>` tags. This is necessary because Next.js pages skip the definition of the surrounding document's markup.
 
-To override the default `Document`, create the file `./pages/_document.js` and extend the `Document` class as shown below:
+To override the default `Document`, create the file `./pages/_document.jsx` and extend the `Document` class as shown below:
 
 ```jsx
 import Document, { Html, Head, Main, NextScript } from 'next/document'
