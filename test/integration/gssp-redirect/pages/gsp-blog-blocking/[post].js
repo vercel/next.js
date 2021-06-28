@@ -81,6 +81,6 @@ export const getStaticProps = ({ params }) => {
 export const getStaticPaths = () => {
   return {
     paths: ['first', 'second'].map((post) => ({ params: { post } })),
-    fallback: true,
+    fallback: 'blocking',
   }
 }
