@@ -1,31 +1,28 @@
-import { codecs as supportedFormats, preprocessors } from './codecs'
 import ImageData from './image_data'
+// @ts-ignore: TODO get TS types for squoosh
+import { encoders, preprocessors } from '@squoosh/lib'
 
-export async function decodeBuffer(
-  _buffer: Buffer | Uint8Array
-): Promise<ImageData> {
-  const buffer = Buffer.from(_buffer)
+export async function decodeBuffer(buffer: Buffer): Promise<ImageData> {
   const firstChunk = buffer.slice(0, 16)
   const firstChunkString = Array.from(firstChunk)
     .map((v) => String.fromCodePoint(v))
     .join('')
-  const key = Object.entries(supportedFormats).find(([, { detectors }]) =>
-    detectors.some((detector) => detector.exec(firstChunkString))
-  )?.[0] as keyof typeof supportedFormats
-  if (!key) {
+  const key = Object.entries(encoders).find(([, val]) =>
+    // @ts-ignore: TODO get TS types for squoosh
+    val.detectors.some((detector) => detector.exec(firstChunkString))
+  )?.[0]
+  if (!key || !['mozjpeg', 'webp', 'oxipng'].includes(key)) {
     throw Error(`Buffer has an unsupported format`)
   }
-  const d = await supportedFormats[key].dec()
-  return d.decode(new Uint8Array(buffer))
+  const d = await encoders[key].dec()
+  return d.decode(Uint8ClampedArray.from(buffer))
 }
 
 export async function rotate(
   image: ImageData,
   numRotations: number
 ): Promise<ImageData> {
-  image = ImageData.from(image)
-
-  const m = await preprocessors['rotate'].instantiate()
+  const m = await preprocessors.rotate.instantiate()
   return await m(image.data, image.width, image.height, { numRotations })
 }
 
@@ -35,9 +32,7 @@ type ResizeOpts = { image: ImageData } & (
 )
 
 export async function resize({ image, width, height }: ResizeOpts) {
-  image = ImageData.from(image)
-
-  const p = preprocessors['resize']
+  const p = preprocessors.resize
   const m = await p.instantiate()
   return await m(image.data, image.width, image.height, {
     ...p.defaultOptions,
@@ -49,12 +44,10 @@ export async function resize({ image, width, height }: ResizeOpts) {
 export async function encodeJpeg(
   image: ImageData,
   { quality }: { quality: number }
-): Promise<Buffer | Uint8Array> {
-  image = ImageData.from(image)
-
-  const e = supportedFormats['mozjpeg']
+): Promise<Buffer> {
+  const e = encoders.mozjpeg
   const m = await e.enc()
-  const r = await m.encode!(image.data, image.width, image.height, {
+  const r = await m.encode(image.data, image.width, image.height, {
     ...e.defaultEncoderOptions,
     quality,
   })
@@ -64,24 +57,18 @@ export async function encodeJpeg(
 export async function encodeWebp(
   image: ImageData,
   { quality }: { quality: number }
-): Promise<Buffer | Uint8Array> {
-  image = ImageData.from(image)
-
-  const e = supportedFormats['webp']
+): Promise<Buffer> {
+  const e = encoders.webp
   const m = await e.enc()
-  const r = await m.encode!(image.data, image.width, image.height, {
+  const r = await m.encode(image.data, image.width, image.height, {
     ...e.defaultEncoderOptions,
     quality,
   })
   return Buffer.from(r)
 }
 
-export async function encodePng(
-  image: ImageData
-): Promise<Buffer | Uint8Array> {
-  image = ImageData.from(image)
-
-  const e = supportedFormats['oxipng']
+export async function encodePng(image: ImageData): Promise<Buffer> {
+  const e = encoders.oxipng
   const m = await e.enc()
   const r = await m.encode(image.data, image.width, image.height, {
     ...e.defaultEncoderOptions,
