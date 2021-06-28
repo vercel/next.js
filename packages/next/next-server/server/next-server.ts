@@ -1451,6 +1451,7 @@ export default class Server {
   ): Promise<string | null> {
     const is404Page = pathname === '/404'
     const is500Page = pathname === '/500'
+    const isErrorPage = pathname === '/_error'
 
     const isLikeServerless =
       typeof components.Component === 'object' &&
@@ -1466,6 +1467,10 @@ export default class Server {
 
     // we need to ensure the status code if /404 is visited directly
     if (is404Page && !isDataReq) {
+      res.statusCode = 404
+    }
+
+    if (isErrorPage && res.statusCode === 200) {
       res.statusCode = 404
     }
 
