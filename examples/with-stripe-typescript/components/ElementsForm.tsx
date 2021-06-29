@@ -148,7 +148,7 @@ const ElementsForm = () => {
               onChange={(e) => {
                 if (e.error) {
                   setPayment({ status: 'error' })
-                  setErrorMessage(e.error.message ?? 'An unknown error occured')
+                  setErrorMessage(e.error.message ?? 'An unknown error occurred')
                 }
               }}
             />
