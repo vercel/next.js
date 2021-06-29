@@ -330,6 +330,26 @@ function runTests({ w, isDev, domains }) {
       expect(res.headers.get('etag')).toBeTruthy()
       await expectWidth(res, w)
     })
+
+    it('should automatically detect image type when content-type is octet-stream', async () => {
+      const url =
+        'https://image-optimization-test.vercel.app/png-as-octet-stream'
+      const resOrig = await fetch(url)
+      expect(resOrig.status).toBe(200)
+      expect(resOrig.headers.get('Content-Type')).toBe(
+        'application/octet-stream'
+      )
+      const query = { url, w, q: 80 }
+      const opts = { headers: { accept: 'image/webp' } }
+      const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+      expect(res.status).toBe(200)
+      expect(res.headers.get('Content-Type')).toBe('image/webp')
+      expect(res.headers.get('cache-control')).toBe(
+        'public, max-age=0, must-revalidate'
+      )
+      expect(res.headers.get('etag')).toBeTruthy()
+      await expectWidth(res, w)
+    })
   }
 
   it('should fail when url has file protocol', async () => {
@@ -697,7 +717,11 @@ describe('Image Optimizer', () => {
   })
 
   // domains for testing
-  const domains = ['localhost', 'example.com']
+  const domains = [
+    'localhost',
+    'example.com',
+    'image-optimization-test.vercel.app',
+  ]
 
   describe('dev support w/o next.config.js', () => {
     const size = 384 // defaults defined in server/config.ts
