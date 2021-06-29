@@ -1,0 +1,29 @@
+{
+  "name": "with-fauna",
+  "version": "1.0.0",
+  "license": "MIT",
+  "description": "Guestbook example with Next.js and Fauna.",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start",
+    "setup": "node ./scripts/setup.js"
+  },
+  "dependencies": {
+    "date-fns": "2.22.1",
+    "graphql-request": "3.4.0",
+    "micro-cookie-session": "2.0.0-beta.1",
+    "next": "latest",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
+    "swr": "0.5.6"
+  },
+  "devDependencies": {
+    "autoprefixer": "10.2.6",
+    "faunadb": "2.11.1",
+    "postcss": "8.3.5",
+    "request": "2.88.2",
+    "stream-to-promise": "2.2.0",
+    "tailwindcss": "2.2.4"
+  }
+}
