@@ -6,8 +6,6 @@ export default function Layout({ children }) {
     <>
       <Head>
         <title>Layouts Example</title>
-        <meta charSet="utf-8" />
-        <meta name="viewport" content="initial-scale=1.0, width=device-width" />
       </Head>
       <main className={styles.main}>{children}</main>
     </>
