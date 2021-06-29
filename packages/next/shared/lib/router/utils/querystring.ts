@@ -1,4 +1,4 @@
-import { ParsedUrlQuery } from 'shared/lib/router/utils/querystring'
+import { ParsedUrlQuery } from 'querystring'
 
 export function searchParamsToUrlQuery(
   searchParams: URLSearchParams
