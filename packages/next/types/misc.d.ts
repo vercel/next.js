@@ -45,8 +45,6 @@ declare module 'next/dist/compiled/arg/index.js' {
   export = arg
 }
 
-declare module 'next/dist/pages/_error'
-
 declare module 'next/dist/compiled/babel/code-frame' {
   export * from '@babel/code-frame'
 }

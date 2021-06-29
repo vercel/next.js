@@ -468,7 +468,7 @@ export function renderError(renderErrorProps: RenderErrorProps): Promise<any> {
     .loadPage('/_error')
     .then(({ page: ErrorComponent, styleSheets }) => {
       return lastAppProps?.Component === ErrorComponent
-        ? import('next/dist/pages/_error').then((m) => ({
+        ? import('../pages/_error').then((m) => ({
             ErrorComponent: m.default as React.ComponentType<{}>,
             styleSheets: [],
           }))
