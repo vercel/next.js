@@ -16,4 +16,5 @@ export interface NextBabelLoaderOptions {
   caller: any
   configFile: string | undefined
   cwd: string
+  rootMode?: string
 }

@@ -230,6 +230,7 @@ function getFreshConfig(
     })(),
 
     overrides: loaderOptions.overrides,
+    rootMode: loaderOptions.rootMode,
 
     caller: {
       name: 'next-babel-turbo-loader',
