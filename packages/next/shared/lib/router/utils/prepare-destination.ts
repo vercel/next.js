@@ -1,5 +1,5 @@
 import { IncomingMessage } from 'http'
-import { ParsedUrlQuery } from 'querystring'
+import { ParsedUrlQuery } from 'shared/lib/router/utils/querystring'
 import { searchParamsToUrlQuery } from './querystring'
 import { parseRelativeUrl } from './parse-relative-url'
 import * as pathToRegexp from 'next/dist/compiled/path-to-regexp'

@@ -13,7 +13,7 @@ import {
   NextApiRequest,
   NextApiHandler,
   // @ts-ignore This path is generated at build time and conflicts otherwise
-} from '../dist/next-server/lib/utils'
+} from '../dist/shared/lib/utils'
 
 import {
   NextApiRequestCookies,

@@ -21,7 +21,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 import { UrlObject } from 'url'
-import { ParsedUrlQuery } from 'querystring'
+import { ParsedUrlQuery } from 'shared/lib/router/utils/querystring'
 import * as querystring from './querystring'
 
 const slashedProtocols = /https?|ftp|gopher|file/

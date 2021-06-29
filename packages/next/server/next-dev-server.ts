@@ -20,13 +20,13 @@ import {
   CLIENT_STATIC_FILES_PATH,
   DEV_CLIENT_PAGES_MANIFEST,
   STATIC_STATUS_PAGES,
-} from '../next-server/lib/constants'
+} from '../shared/lib/constants'
 import {
   getRouteMatcher,
   getRouteRegex,
   getSortedRoutes,
   isDynamicRoute,
-} from '../next-server/lib/router/utils'
+} from '../shared/lib/router/utils'
 import { __ApiPreviewProps } from '../next-server/server/api-utils'
 import Server, { ServerConstructor } from '../next-server/server/next-server'
 import { normalizePagePath } from '../next-server/server/normalize-page-path'

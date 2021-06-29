@@ -16,22 +16,22 @@ import {
 } from '../../lib/constants'
 import { isSerializableProps } from '../../lib/is-serializable-props'
 import { GetServerSideProps, GetStaticProps, PreviewData } from '../../types'
-import { isInAmpMode } from '../lib/amp'
-import { AmpStateContext } from '../lib/amp-context'
+import { isInAmpMode } from '../../shared/lib/amp'
+import { AmpStateContext } from '../../shared/lib/amp-context'
 import {
   AMP_RENDER_TARGET,
   SERVER_PROPS_ID,
   STATIC_PROPS_ID,
   STATIC_STATUS_PAGES,
-} from '../lib/constants'
-import { defaultHead } from '../lib/head'
-import { HeadManagerContext } from '../lib/head-manager-context'
-import Loadable from '../lib/loadable'
-import { LoadableContext } from '../lib/loadable-context'
-import postProcess from '../lib/post-process'
-import { RouterContext } from '../lib/router-context'
-import { NextRouter } from '../lib/router/router'
-import { isDynamicRoute } from '../lib/router/utils/is-dynamic'
+} from '../../shared/lib/constants'
+import { defaultHead } from '../../shared/lib/head'
+import { HeadManagerContext } from '../../shared/lib/head-manager-context'
+import Loadable from '../../shared/lib/loadable'
+import { LoadableContext } from '../../shared/lib/loadable-context'
+import postProcess from '../../shared/lib/post-process'
+import { RouterContext } from '../../shared/lib/router-context'
+import { NextRouter } from '../../shared/lib/router/router'
+import { isDynamicRoute } from '../../shared/lib/router/utils/is-dynamic'
 import {
   AppType,
   ComponentsEnhancer,
@@ -43,7 +43,7 @@ import {
   loadGetInitialProps,
   NextComponentType,
   RenderPage,
-} from '../lib/utils'
+} from '../../shared/lib/utils'
 import {
   tryGetPreviewData,
   NextApiRequestCookies,

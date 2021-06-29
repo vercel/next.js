@@ -1,5 +1,5 @@
 import { IncomingMessage, ServerResponse } from 'http'
-import { isResSent } from '../lib/utils'
+import { isResSent } from '../../shared/lib/utils'
 import generateETag from 'etag'
 import fresh from 'next/dist/compiled/fresh'
 

@@ -33,15 +33,19 @@ import {
   SERVER_DIRECTORY,
   STATIC_STATUS_PAGES,
   TEMPORARY_REDIRECT_STATUS,
-} from '../lib/constants'
+} from '../../shared/lib/constants'
 import {
   getRouteMatcher,
   getRouteRegex,
   getSortedRoutes,
   isDynamicRoute,
-} from '../lib/router/utils'
-import * as envConfig from '../lib/runtime-config'
-import { isResSent, NextApiRequest, NextApiResponse } from '../lib/utils'
+} from '../../shared/lib/router/utils'
+import * as envConfig from '../../shared/lib/runtime-config'
+import {
+  isResSent,
+  NextApiRequest,
+  NextApiResponse,
+} from '../../shared/lib/utils'
 import {
   apiResolver,
   setLazyProp,
@@ -50,7 +54,7 @@ import {
   __ApiPreviewProps,
 } from './api-utils'
 import { DomainLocales, isTargetLikeServerless, NextConfig } from './config'
-import pathMatch from '../lib/router/utils/path-match'
+import pathMatch from '../../shared/lib/router/utils/path-match'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
 import {
   loadComponents,
@@ -69,27 +73,27 @@ import Router, {
 } from './router'
 import prepareDestination, {
   compileNonPath,
-} from '../lib/router/utils/prepare-destination'
+} from '../../shared/lib/router/utils/prepare-destination'
 import { sendPayload, setRevalidateHeaders } from './send-payload'
 import { serveStatic } from './serve-static'
 import { IncrementalCache } from './incremental-cache'
-import { execOnce } from '../lib/utils'
+import { execOnce } from '../../shared/lib/utils'
 import { isBlockedPage } from './utils'
 import { loadEnvConfig } from '@next/env'
 import './node-polyfill-fetch'
 import { PagesManifest } from '../../build/webpack/plugins/pages-manifest-plugin'
 import { removePathTrailingSlash } from '../../client/normalize-trailing-slash'
-import getRouteFromAssetPath from '../lib/router/utils/get-route-from-asset-path'
+import getRouteFromAssetPath from '../../shared/lib/router/utils/get-route-from-asset-path'
 import { FontManifest } from './font-utils'
 import { denormalizePagePath } from './denormalize-page-path'
 import accept from '@hapi/accept'
-import { normalizeLocalePath } from '../lib/i18n/normalize-locale-path'
-import { detectLocaleCookie } from '../lib/i18n/detect-locale-cookie'
+import { normalizeLocalePath } from '../../shared/lib/i18n/normalize-locale-path'
+import { detectLocaleCookie } from '../../shared/lib/i18n/detect-locale-cookie'
 import * as Log from '../../build/output/log'
 import { imageOptimizer } from './image-optimizer'
-import { detectDomainLocale } from '../lib/i18n/detect-domain-locale'
+import { detectDomainLocale } from '../../shared/lib/i18n/detect-domain-locale'
 import cookie from 'next/dist/compiled/cookie'
-import escapePathDelimiters from '../lib/router/utils/escape-path-delimiters'
+import escapePathDelimiters from '../../shared/lib/router/utils/escape-path-delimiters'
 import { getUtils } from '../../build/webpack/loaders/next-serverless-loader/utils'
 import { PreviewData } from 'next/types'
 import HotReloader from '../../server/hot-reloader'

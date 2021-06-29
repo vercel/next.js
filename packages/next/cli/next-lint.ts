@@ -10,7 +10,7 @@ import { runLintCheck } from '../lib/eslint/runLintCheck'
 import { printAndExit } from '../server/lib/utils'
 import { Telemetry } from '../telemetry/storage'
 import loadConfig from '../next-server/server/config'
-import { PHASE_PRODUCTION_BUILD } from '../next-server/lib/constants'
+import { PHASE_PRODUCTION_BUILD } from '../shared/lib/constants'
 import { eventLintCheckCompleted } from '../telemetry/events'
 import { CompileError } from '../lib/compile-error'
 

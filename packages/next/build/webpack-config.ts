@@ -25,8 +25,8 @@ import {
   REACT_LOADABLE_MANIFEST,
   SERVERLESS_DIRECTORY,
   SERVER_DIRECTORY,
-} from '../next-server/lib/constants'
-import { execOnce } from '../next-server/lib/utils'
+} from '../shared/lib/constants'
+import { execOnce } from '../shared/lib/utils'
 import { NextConfig } from '../next-server/server/config'
 import { findPageFile } from '../server/lib/find-page-file'
 import { WebpackEntrypoints } from './entries'
@@ -305,7 +305,7 @@ export default async function getBaseWebpackConfig(
   }
 
   const babelIncludeRegexes: RegExp[] = [
-    /next[\\/]dist[\\/]next-server[\\/]lib/,
+    /next[\\/]dist[\\/]shared[\\/]lib/,
     /next[\\/]dist[\\/]client/,
     /next[\\/]dist[\\/]pages/,
     /[\\/](strip-ansi|ansi-regex)[\\/]/,
@@ -396,10 +396,10 @@ export default async function getBaseWebpackConfig(
   }
 
   const clientResolveRewrites = require.resolve(
-    '../next-server/lib/router/utils/resolve-rewrites'
+    '../shared/lib/router/utils/resolve-rewrites'
   )
   const clientResolveRewritesNoop = require.resolve(
-    '../next-server/lib/router/utils/resolve-rewrites-noop'
+    '../shared/lib/router/utils/resolve-rewrites-noop'
   )
 
   const resolveConfig = {
@@ -677,6 +677,7 @@ export default async function getBaseWebpackConfig(
     // Absolute requires (require('/foo')) are extremely uncommon, but
     // also have no need for customization as they're already resolved.
     if (isLocal) {
+      // Fast bailout to ensure next-server related files don't have to be resolved
       if (!/[/\\]next-server[/\\]/.test(request)) {
         return
       }
@@ -713,9 +714,9 @@ export default async function getBaseWebpackConfig(
     }
 
     if (isLocal) {
-      // we need to process next-server/lib/router/router so that
+      // we need to process shared/lib/router/router so that
       // the DefinePlugin can inject process.env values
-      const isNextExternal = /next[/\\]dist[/\\]next-server[/\\](?!lib[/\\]router[/\\]router)/.test(
+      const isNextExternal = /next[/\\]dist[/\\]shared[/\\](?!lib[/\\]router[/\\]router)/.test(
         res
       )
 
@@ -761,9 +762,7 @@ export default async function getBaseWebpackConfig(
     }
 
     if (
-      res.match(
-        /next[/\\]dist[/\\]next-server[/\\](?!lib[/\\]router[/\\]router)/
-      )
+      res.match(/next[/\\]dist[/\\]shared[/\\](?!lib[/\\]router[/\\]router)/)
     ) {
       return `commonjs ${request}`
     }
@@ -1193,7 +1192,7 @@ export default async function getBaseWebpackConfig(
       !dev &&
         new webpack.IgnorePlugin({
           resourceRegExp: /react-is/,
-          contextRegExp: /(next-server|next)[\\/]dist[\\/]/,
+          contextRegExp: /next[\\/]dist[\\/]/,
         }),
       isServerless && isServer && new ServerlessPlugin(),
       isServer &&

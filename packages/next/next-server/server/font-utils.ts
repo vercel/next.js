@@ -1,5 +1,5 @@
 import * as Log from '../../build/output/log'
-import { GOOGLE_FONT_PROVIDER } from '../lib/constants'
+import { GOOGLE_FONT_PROVIDER } from '../../shared/lib/constants'
 const https = require('https')
 
 const CHROME_UA =

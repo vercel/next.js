@@ -19,16 +19,16 @@ import {
 } from '../lib/constants'
 import prettyBytes from '../lib/pretty-bytes'
 import { recursiveReadDir } from '../lib/recursive-readdir'
-import { getRouteMatcher, getRouteRegex } from '../next-server/lib/router/utils'
-import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
-import escapePathDelimiters from '../next-server/lib/router/utils/escape-path-delimiters'
+import { getRouteMatcher, getRouteRegex } from '../shared/lib/router/utils'
+import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
+import escapePathDelimiters from '../shared/lib/router/utils/escape-path-delimiters'
 import { findPageFile } from '../server/lib/find-page-file'
 import { GetStaticPaths } from 'next/types'
 import { denormalizePagePath } from '../next-server/server/normalize-page-path'
 import { BuildManifest } from '../next-server/server/get-page-files'
 import { removePathTrailingSlash } from '../client/normalize-trailing-slash'
 import { UnwrapPromise } from '../lib/coalesced-function'
-import { normalizeLocalePath } from '../next-server/lib/i18n/normalize-locale-path'
+import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import * as Log from './output/log'
 import { loadComponents } from '../next-server/server/load-components'
 import { trace } from '../telemetry/trace'
@@ -765,7 +765,7 @@ export async function isPageStatic(
   const isPageStaticSpan = trace('is-page-static-utils', parentId)
   return isPageStaticSpan.traceAsyncFn(async () => {
     try {
-      require('../next-server/lib/runtime-config').setConfig(runtimeEnvConfig)
+      require('../shared/lib/runtime-config').setConfig(runtimeEnvConfig)
       const components = await loadComponents(distDir, page, serverless)
       const mod = components.ComponentMod
       const Comp = mod.default || mod
@@ -880,7 +880,7 @@ export async function hasCustomGetInitialProps(
   runtimeEnvConfig: any,
   checkingApp: boolean
 ): Promise<boolean> {
-  require('../next-server/lib/runtime-config').setConfig(runtimeEnvConfig)
+  require('../shared/lib/runtime-config').setConfig(runtimeEnvConfig)
 
   const components = await loadComponents(distDir, page, isLikeServerless)
   let mod = components.ComponentMod
@@ -900,7 +900,7 @@ export async function getNamedExports(
   isLikeServerless: boolean,
   runtimeEnvConfig: any
 ): Promise<Array<string>> {
-  require('../next-server/lib/runtime-config').setConfig(runtimeEnvConfig)
+  require('../shared/lib/runtime-config').setConfig(runtimeEnvConfig)
   const components = await loadComponents(distDir, page, isLikeServerless)
   let mod = components.ComponentMod
 
