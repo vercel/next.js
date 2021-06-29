@@ -21,4 +21,17 @@ describe('Babel', () => {
   it('should allow babelrc JSON5 syntax', async () => {
     await nextBuild(join(__dirname, '../fixtures/babel-json5'))
   })
+
+  it('should allow setting root mode', async () => {
+    const nextDir = join(__dirname, '../fixtures/babel-root-mode/next')
+    const { code, stdout } = await nextBuild(nextDir, [], {
+      cwd: nextDir,
+      stdout: true,
+    })
+
+    expect(code).toEqual(0)
+    expect(stdout).toEqual(
+      expect.stringContaining(join(nextDir, '../babel.config.js'))
+    )
+  })
 })
