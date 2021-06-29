@@ -809,6 +809,7 @@ export async function compile(task, opts) {
       'client',
       'telemetry',
       'nextserver',
+      'shared',
       'nextserver_wasm',
       // we compile this each time so that fresh runtime data is pulled
       // before each publish
