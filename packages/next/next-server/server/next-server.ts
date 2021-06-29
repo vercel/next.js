@@ -465,6 +465,13 @@ export default class Server {
           pathname: localePathResult.pathname,
         })
         ;(req as any).__nextStrippedLocale = true
+
+        if (
+          localePathResult.pathname === '/api' ||
+          localePathResult.pathname.startsWith('/api/')
+        ) {
+          return this.render404(req, res, parsedUrl)
+        }
       }
 
       // If a detected locale is a domain specific locale and we aren't already
