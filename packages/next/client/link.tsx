@@ -28,6 +28,7 @@ export type LinkProps = {
   shallow?: boolean
   passHref?: boolean
   prefetch?: boolean
+  prefetchOnHover?: boolean
   locale?: string | false
 }
 type LinkPropsRequired = RequiredKeys<LinkProps>
@@ -155,6 +156,7 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
       shallow: true,
       passHref: true,
       prefetch: true,
+      prefetchOnHover: true,
       locale: true,
     } as const
     const optionalProps: LinkPropsOptional[] = Object.keys(
@@ -184,7 +186,8 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
         key === 'scroll' ||
         key === 'shallow' ||
         key === 'passHref' ||
-        key === 'prefetch'
+        key === 'prefetch'||
+        key === 'prefetchOnHover'
       ) {
         if (props[key] != null && valType !== 'boolean') {
           throw createPropError({
@@ -210,7 +213,7 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
       )
     }
   }
-  const p = props.prefetch !== false
+  const isPrefetchEnabled = props.prefetch !== false
   const router = useRouter()
 
   const { href, as } = React.useMemo(() => {
@@ -262,7 +265,7 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
     [childRef, setIntersectionRef]
   )
   useEffect(() => {
-    const shouldPrefetch = isVisible && p && isLocalURL(href)
+    const shouldPrefetch = isVisible && isPrefetchEnabled && isLocalURL(href)
     const curLocale =
       typeof locale !== 'undefined' ? locale : router && router.locale
     const isPrefetched =
@@ -272,7 +275,7 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
         locale: curLocale,
       })
     }
-  }, [as, href, isVisible, locale, p, router])
+  }, [as, href, isVisible, locale, isPrefetchEnabled, router])
 
   const childProps: {
     onMouseEnter?: React.MouseEventHandler
@@ -296,7 +299,8 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
     if (child.props && typeof child.props.onMouseEnter === 'function') {
       child.props.onMouseEnter(e)
     }
-    prefetch(router, href, as, { priority: true })
+    if(props.prefetchOnHover !== false)
+      prefetch(router, href, as, { priority: true })
   }
 
   // If child is an <a> tag and doesn't have a href attribute, or if the 'passHref' property is
