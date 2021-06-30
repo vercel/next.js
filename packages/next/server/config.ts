@@ -1,13 +1,10 @@
 import chalk from 'chalk'
 import findUp from 'next/dist/compiled/find-up'
 import { basename, extname } from 'path'
-import * as Log from '../../build/output/log'
-import { hasNextSupport } from '../../telemetry/ci-info'
-import {
-  CONFIG_FILE,
-  PHASE_DEVELOPMENT_SERVER,
-} from '../../shared/lib/constants'
-import { execOnce } from '../../shared/lib/utils'
+import * as Log from '../build/output/log'
+import { hasNextSupport } from '../telemetry/ci-info'
+import { CONFIG_FILE, PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
+import { execOnce } from '../shared/lib/utils'
 import { defaultConfig, normalizeConfig } from './config-shared'
 import { loadWebpackHook } from './config-utils'
 import { ImageConfig, imageConfigDefault, VALID_LOADERS } from './image-config'

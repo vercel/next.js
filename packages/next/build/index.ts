@@ -51,15 +51,15 @@ import {
   getSortedRoutes,
   isDynamicRoute,
 } from '../shared/lib/router/utils'
-import { __ApiPreviewProps } from '../next-server/server/api-utils'
+import { __ApiPreviewProps } from '../server/api-utils'
 import loadConfig, {
   isTargetLikeServerless,
   NextConfig,
-} from '../next-server/server/config'
-import { BuildManifest } from '../next-server/server/get-page-files'
-import '../next-server/server/node-polyfill-fetch'
-import { normalizePagePath } from '../next-server/server/normalize-page-path'
-import { getPagePath } from '../next-server/server/require'
+} from '../server/config'
+import { BuildManifest } from '../server/get-page-files'
+import '../server/node-polyfill-fetch'
+import { normalizePagePath } from '../server/normalize-page-path'
+import { getPagePath } from '../server/require'
 import * as ciEnvironment from '../telemetry/ci-info'
 import {
   eventBuildCompleted,

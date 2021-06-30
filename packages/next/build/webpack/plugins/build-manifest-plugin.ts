@@ -12,8 +12,8 @@ import {
   CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
   CLIENT_STATIC_FILES_RUNTIME_AMP,
 } from '../../../shared/lib/constants'
-import { BuildManifest } from '../../../next-server/server/get-page-files'
-import getRouteFromEntrypoint from '../../../next-server/server/get-route-from-entrypoint'
+import { BuildManifest } from '../../../server/get-page-files'
+import getRouteFromEntrypoint from '../../../server/get-route-from-entrypoint'
 import { ampFirstEntryNamesMap } from './next-drop-client-page-plugin'
 import { Rewrite } from '../../../lib/load-custom-routes'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'

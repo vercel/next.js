@@ -11,11 +11,8 @@ import {
   DocumentInitialProps,
   DocumentProps,
 } from '../shared/lib/utils'
-import {
-  BuildManifest,
-  getPageFiles,
-} from '../next-server/server/get-page-files'
-import { cleanAmpPath } from '../next-server/server/utils'
+import { BuildManifest, getPageFiles } from '../server/get-page-files'
+import { cleanAmpPath } from '../server/utils'
 import { htmlEscapeJsonString } from '../server/htmlescape'
 import Script, { Props as ScriptLoaderProps } from '../client/script'
 

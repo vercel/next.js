@@ -2,8 +2,8 @@ import { IncomingMessage, ServerResponse } from 'http'
 import { ParsedUrlQuery } from 'querystring'
 import React from 'react'
 import { renderToStaticMarkup, renderToString } from 'react-dom/server'
-import { warn } from '../../build/output/log'
-import { UnwrapPromise } from '../../lib/coalesced-function'
+import { warn } from '../build/output/log'
+import { UnwrapPromise } from '../lib/coalesced-function'
 import {
   GSP_NO_RETURNED_VALUE,
   GSSP_COMPONENT_MEMBER_ERROR,
@@ -13,25 +13,25 @@ import {
   SERVER_PROPS_SSG_CONFLICT,
   SSG_GET_INITIAL_PROPS_CONFLICT,
   UNSTABLE_REVALIDATE_RENAME_ERROR,
-} from '../../lib/constants'
-import { isSerializableProps } from '../../lib/is-serializable-props'
-import { GetServerSideProps, GetStaticProps, PreviewData } from '../../types'
-import { isInAmpMode } from '../../shared/lib/amp'
-import { AmpStateContext } from '../../shared/lib/amp-context'
+} from '../lib/constants'
+import { isSerializableProps } from '../lib/is-serializable-props'
+import { GetServerSideProps, GetStaticProps, PreviewData } from '../types'
+import { isInAmpMode } from '../shared/lib/amp'
+import { AmpStateContext } from '../shared/lib/amp-context'
 import {
   AMP_RENDER_TARGET,
   SERVER_PROPS_ID,
   STATIC_PROPS_ID,
   STATIC_STATUS_PAGES,
-} from '../../shared/lib/constants'
-import { defaultHead } from '../../shared/lib/head'
-import { HeadManagerContext } from '../../shared/lib/head-manager-context'
-import Loadable from '../../shared/lib/loadable'
-import { LoadableContext } from '../../shared/lib/loadable-context'
-import postProcess from '../../shared/lib/post-process'
-import { RouterContext } from '../../shared/lib/router-context'
-import { NextRouter } from '../../shared/lib/router/router'
-import { isDynamicRoute } from '../../shared/lib/router/utils/is-dynamic'
+} from '../shared/lib/constants'
+import { defaultHead } from '../shared/lib/head'
+import { HeadManagerContext } from '../shared/lib/head-manager-context'
+import Loadable from '../shared/lib/loadable'
+import { LoadableContext } from '../shared/lib/loadable-context'
+import postProcess from '../shared/lib/post-process'
+import { RouterContext } from '../shared/lib/router-context'
+import { NextRouter } from '../shared/lib/router/router'
+import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import {
   AppType,
   ComponentsEnhancer,
@@ -43,7 +43,7 @@ import {
   loadGetInitialProps,
   NextComponentType,
   RenderPage,
-} from '../../shared/lib/utils'
+} from '../shared/lib/utils'
 import {
   tryGetPreviewData,
   NextApiRequestCookies,
@@ -58,7 +58,7 @@ import {
   allowedStatusCodes,
   getRedirectStatus,
   Redirect,
-} from '../../lib/load-custom-routes'
+} from '../lib/load-custom-routes'
 import { DomainLocales } from './config'
 
 function noRouter() {

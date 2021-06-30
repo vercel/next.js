@@ -808,9 +808,8 @@ export async function compile(task, opts) {
       'lib',
       'client',
       'telemetry',
-      'nextserver',
       'shared',
-      'nextserver_wasm',
+      'server_wasm',
       // we compile this each time so that fresh runtime data is pulled
       // before each publish
       'ncc_amp_optimizer',
@@ -926,17 +925,8 @@ export default async function (task) {
   await task.watch('lib/**/*.+(js|ts|tsx)', 'lib', opts)
   await task.watch('cli/**/*.+(js|ts|tsx)', 'cli', opts)
   await task.watch('telemetry/**/*.+(js|ts|tsx)', 'telemetry', opts)
-  await task.watch('next-server/**/*.+(js|ts|tsx)', 'nextserver', opts)
   await task.watch('shared/**/*.+(js|ts|tsx)', 'shared', opts)
-  await task.watch('next-server/**/*.+(wasm)', 'nextserver_wasm', opts)
-}
-
-export async function nextserver(task, opts) {
-  await task
-    .source(opts.src || 'next-server/**/*.+(js|ts|tsx)')
-    .babel('server', { dev: opts.dev })
-    .target('dist/next-server')
-  notify('Compiled server files')
+  await task.watch('server/**/*.+(wasm)', 'server_wasm', opts)
 }
 
 export async function shared(task, opts) {
@@ -947,10 +937,8 @@ export async function shared(task, opts) {
   notify('Compiled shared files')
 }
 
-export async function nextserver_wasm(task, opts) {
-  await task
-    .source(opts.src || 'next-server/**/*.+(wasm)')
-    .target('dist/next-server')
+export async function server_wasm(task, opts) {
+  await task.source(opts.src || 'server/**/*.+(wasm)').target('dist/server')
   notify('Moved server wasm files')
 }
 

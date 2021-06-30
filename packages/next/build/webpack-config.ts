@@ -27,7 +27,7 @@ import {
   SERVER_DIRECTORY,
 } from '../shared/lib/constants'
 import { execOnce } from '../shared/lib/utils'
-import { NextConfig } from '../next-server/server/config'
+import { NextConfig } from '../server/config'
 import { findPageFile } from '../server/lib/find-page-file'
 import { WebpackEntrypoints } from './entries'
 import * as Log from './output/log'
@@ -709,10 +709,10 @@ export default async function getBaseWebpackConfig(
     }
 
     if (isLocal) {
-      // Makes sure dist/shared and dist/next-server are not bundled
+      // Makes sure dist/shared and dist/server are not bundled
       // we need to process shared/lib/router/router so that
       // the DefinePlugin can inject process.env values
-      const isNextExternal = /next[/\\]dist[/\\](shared|next-server)[/\\](?!lib[/\\]router[/\\]router)/.test(
+      const isNextExternal = /next[/\\]dist[/\\](shared|server)[/\\](?!lib[/\\]router[/\\]router)/.test(
         res
       )
 

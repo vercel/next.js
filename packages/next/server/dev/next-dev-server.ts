@@ -8,44 +8,44 @@ import { join as pathJoin, relative, resolve as pathResolve, sep } from 'path'
 import React from 'react'
 import { UrlWithParsedQuery } from 'url'
 import Watchpack from 'watchpack'
-import { ampValidation } from '../build/output/index'
-import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../lib/constants'
-import { fileExists } from '../lib/file-exists'
-import { findPagesDir } from '../lib/find-pages-dir'
-import loadCustomRoutes, { CustomRoutes } from '../lib/load-custom-routes'
-import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
+import { ampValidation } from '../../build/output'
+import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../../lib/constants'
+import { fileExists } from '../../lib/file-exists'
+import { findPagesDir } from '../../lib/find-pages-dir'
+import loadCustomRoutes, { CustomRoutes } from '../../lib/load-custom-routes'
+import { verifyTypeScriptSetup } from '../../lib/verifyTypeScriptSetup'
 import {
   PHASE_DEVELOPMENT_SERVER,
   CLIENT_STATIC_FILES_PATH,
   DEV_CLIENT_PAGES_MANIFEST,
-} from '../shared/lib/constants'
+} from '../../shared/lib/constants'
 import {
   getRouteMatcher,
   getRouteRegex,
   getSortedRoutes,
   isDynamicRoute,
-} from '../shared/lib/router/utils'
-import { __ApiPreviewProps } from '../next-server/server/api-utils'
+} from '../../shared/lib/router/utils'
+import { __ApiPreviewProps } from '../api-utils'
 import Server, {
   WrappedBuildError,
   ServerConstructor,
   FindComponentsResult,
-} from '../next-server/server/next-server'
-import { normalizePagePath } from '../next-server/server/normalize-page-path'
-import Router, { Params, route } from '../next-server/server/router'
-import { eventCliSession } from '../telemetry/events'
-import { Telemetry } from '../telemetry/storage'
-import { setGlobal } from '../telemetry/trace'
+} from '../next-server'
+import { normalizePagePath } from '../normalize-page-path'
+import Router, { Params, route } from '../router'
+import { eventCliSession } from '../../telemetry/events'
+import { Telemetry } from '../../telemetry/storage'
+import { setGlobal } from '../../telemetry/trace'
 import HotReloader from './hot-reloader'
-import { findPageFile } from './lib/find-page-file'
-import { getNodeOptionsWithoutInspect } from './lib/utils'
-import { withCoalescedInvoke } from '../lib/coalesced-function'
-import { NextConfig } from '../next-server/server/config'
+import { findPageFile } from '../lib/find-page-file'
+import { getNodeOptionsWithoutInspect } from '../lib/utils'
+import { withCoalescedInvoke } from '../../lib/coalesced-function'
+import { NextConfig } from '../config'
 import { ParsedUrlQuery } from 'querystring'
 import {
   LoadComponentsReturnType,
   loadDefaultErrorComponents,
-} from '../next-server/server/load-components'
+} from '../load-components'
 
 if (typeof React.Suspense === 'undefined') {
   throw new Error(
@@ -704,7 +704,7 @@ export default class DevServer extends Server {
     // During development mode, files can be added while the server is running.
     // Checks for .next/static, .next/server, static and public.
     // Note that in development .next/server is available for error reporting purposes.
-    // see `packages/next/next-server/server/next-server.ts` for more details.
+    // see `packages/next/server/next-server.ts` for more details.
     if (
       untrustedFilePath.startsWith(pathJoin(this.distDir, 'static') + sep) ||
       untrustedFilePath.startsWith(pathJoin(this.distDir, 'server') + sep) ||

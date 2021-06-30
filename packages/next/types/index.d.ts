@@ -18,7 +18,7 @@ import {
 import {
   NextApiRequestCookies,
   // @ts-ignore This path is generated at build time and conflicts otherwise
-} from '../dist/next-server/server/api-utils'
+} from '../dist/server/api-utils'
 
 // @ts-ignore This path is generated at build time and conflicts otherwise
 import next from '../dist/server/next'

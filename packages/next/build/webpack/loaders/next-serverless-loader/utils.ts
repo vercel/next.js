@@ -9,8 +9,8 @@ import { getRouteMatcher } from '../../../../shared/lib/router/utils/route-match
 import prepareDestination, {
   matchHas,
 } from '../../../../shared/lib/router/utils/prepare-destination'
-import { __ApiPreviewProps } from '../../../../next-server/server/api-utils'
-import { BuildManifest } from '../../../../next-server/server/get-page-files'
+import { __ApiPreviewProps } from '../../../../server/api-utils'
+import { BuildManifest } from '../../../../server/get-page-files'
 import {
   GetServerSideProps,
   GetStaticPaths,
@@ -19,10 +19,10 @@ import {
 import accept from '@hapi/accept'
 import { detectLocaleCookie } from '../../../../shared/lib/i18n/detect-locale-cookie'
 import { detectDomainLocale } from '../../../../shared/lib/i18n/detect-domain-locale'
-import { denormalizePagePath } from '../../../../next-server/server/denormalize-page-path'
+import { denormalizePagePath } from '../../../../server/denormalize-page-path'
 import cookie from 'next/dist/compiled/cookie'
 import { TEMPORARY_REDIRECT_STATUS } from '../../../../shared/lib/constants'
-import { NextConfig } from '../../../../next-server/server/config'
+import { NextConfig } from '../../../../server/config'
 
 const getCustomRouteMatcher = pathMatch(true)
 

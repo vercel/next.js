@@ -1,16 +1,13 @@
 import { IncomingMessage, ServerResponse } from 'http'
 import { parse as parseUrl, format as formatUrl, UrlWithParsedQuery } from 'url'
 import { isResSent } from '../../../../shared/lib/utils'
-import { sendPayload } from '../../../../next-server/server/send-payload'
+import { sendPayload } from '../../../../server/send-payload'
 import { getUtils, vercelHeader, ServerlessHandlerCtx } from './utils'
 
-import { renderToHTML } from '../../../../next-server/server/render'
-import { tryGetPreviewData } from '../../../../next-server/server/api-utils'
-import { denormalizePagePath } from '../../../../next-server/server/denormalize-page-path'
-import {
-  setLazyProp,
-  getCookieParser,
-} from '../../../../next-server/server/api-utils'
+import { renderToHTML } from '../../../../server/render'
+import { tryGetPreviewData } from '../../../../server/api-utils'
+import { denormalizePagePath } from '../../../../server/denormalize-page-path'
+import { setLazyProp, getCookieParser } from '../../../../server/api-utils'
 import { getRedirectStatus } from '../../../../lib/load-custom-routes'
 import getRouteNoAssetPath from '../../../../shared/lib/router/utils/get-route-from-asset-path'
 import { PERMANENT_REDIRECT_STATUS } from '../../../../shared/lib/constants'

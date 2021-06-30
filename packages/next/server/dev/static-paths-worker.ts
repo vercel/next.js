@@ -1,6 +1,6 @@
-import { buildStaticPaths } from '../build/utils'
-import { loadComponents } from '../next-server/server/load-components'
-import '../next-server/server/node-polyfill-fetch'
+import { buildStaticPaths } from '../../build/utils'
+import { loadComponents } from '../load-components'
+import '../node-polyfill-fetch'
 
 type RuntimeConfig = any
 
@@ -24,7 +24,7 @@ export async function loadStaticPaths(
   }
 
   // update work memory runtime-config
-  require('../shared/lib/runtime-config').setConfig(config)
+  require('../../shared/lib/runtime-config').setConfig(config)
 
   const components = await loadComponents(distDir, pathname, serverless)
 

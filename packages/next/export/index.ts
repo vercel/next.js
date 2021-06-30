@@ -32,19 +32,19 @@ import {
 import loadConfig, {
   isTargetLikeServerless,
   NextConfig,
-} from '../next-server/server/config'
+} from '../server/config'
 import { eventCliSession } from '../telemetry/events'
 import { hasNextSupport } from '../telemetry/ci-info'
 import { Telemetry } from '../telemetry/storage'
 import {
   normalizePagePath,
   denormalizePagePath,
-} from '../next-server/server/normalize-page-path'
+} from '../server/normalize-page-path'
 import { loadEnvConfig } from '@next/env'
 import { PrerenderManifest } from '../build'
 import exportPage from './worker'
 import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
-import { getPagePath } from '../next-server/server/require'
+import { getPagePath } from '../server/require'
 import { trace } from '../telemetry/trace'
 
 const exists = promisify(existsOrig)
