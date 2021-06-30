@@ -56,11 +56,7 @@ import {
 import { DomainLocales, isTargetLikeServerless, NextConfig } from './config'
 import pathMatch from '../../shared/lib/router/utils/path-match'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
-import {
-  loadComponents,
-  LoadComponentsReturnType,
-  loadDefaultErrorComponents,
-} from './load-components'
+import { loadComponents, LoadComponentsReturnType } from './load-components'
 import { normalizePagePath } from './normalize-page-path'
 import { RenderOpts, RenderOptsPartial, renderToHTML } from './render'
 import { getPagePath, requireFontManifest } from './require'
@@ -96,7 +92,6 @@ import cookie from 'next/dist/compiled/cookie'
 import escapePathDelimiters from '../../shared/lib/router/utils/escape-path-delimiters'
 import { getUtils } from '../../build/webpack/loaders/next-serverless-loader/utils'
 import { PreviewData } from 'next/types'
-import HotReloader from '../../server/hot-reloader'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -106,7 +101,7 @@ type Middleware = (
   next: (err?: Error) => void
 ) => void
 
-type FindComponentsResult = {
+export type FindComponentsResult = {
   components: LoadComponentsReturnType
   query: ParsedUrlQuery
 }
@@ -1361,7 +1356,7 @@ export default class Server {
     return this.sendHTML(req, res, html)
   }
 
-  private async findPageComponents(
+  protected async findPageComponents(
     pathname: string,
     query: ParsedUrlQuery = {},
     params: Params | null = null
@@ -1978,18 +1973,27 @@ export default class Server {
       if (isNoFallbackError && bubbleNoFallback) {
         throw err
       }
+
       if (err && err.code === 'DECODE_FAILED') {
-        this.logError(err)
         res.statusCode = 400
         return await this.renderErrorToHTML(err, req, res, pathname, query)
       }
       res.statusCode = 500
-      const html = await this.renderErrorToHTML(err, req, res, pathname, query)
+      const isWrappedError = err instanceof WrappedBuildError
+      const html = await this.renderErrorToHTML(
+        isWrappedError ? err.innerError : err,
+        req,
+        res,
+        pathname,
+        query
+      )
 
-      if (this.minimalMode) {
-        throw err
+      if (!isWrappedError) {
+        if (this.minimalMode) {
+          throw err
+        }
+        this.logError(err)
       }
-      this.logError(err)
       return html
     }
     res.statusCode = 404
@@ -2031,12 +2035,19 @@ export default class Server {
   })
 
   public async renderErrorToHTML(
-    err: Error | null,
+    _err: Error | null,
     req: IncomingMessage,
     res: ServerResponse,
     _pathname: string,
     query: ParsedUrlQuery = {}
   ) {
+    let err = _err
+    if (this.renderOpts.dev && !err && res.statusCode === 500) {
+      err = new Error(
+        'An undefined error was thrown sometime during render... ' +
+          'See https://nextjs.org/docs/messages/threw-undefined'
+      )
+    }
     let html: string | null
     try {
       let result: null | FindComponentsResult = null
@@ -2087,30 +2098,40 @@ export default class Server {
         throw maybeFallbackError
       }
     } catch (renderToHtmlError) {
-      console.error(renderToHtmlError)
+      const isWrappedError = renderToHtmlError instanceof WrappedBuildError
+      if (!isWrappedError) {
+        this.logError(renderToHtmlError)
+      }
       res.statusCode = 500
+      const fallbackComponents = await this.getFallbackErrorComponents()
 
-      if (this.renderOpts.dev) {
-        await ((this as any).hotReloader as HotReloader).buildFallbackError()
-
-        const fallbackResult = await loadDefaultErrorComponents(this.distDir)
+      if (fallbackComponents) {
         return this.renderToHTMLWithComponents(
           req,
           res,
           '/_error',
           {
             query,
-            components: fallbackResult,
+            components: fallbackComponents,
           },
           {
             ...this.renderOpts,
-            err,
+            // We render `renderToHtmlError` here because `err` is
+            // already captured in the stacktrace.
+            err: isWrappedError
+              ? renderToHtmlError.innerError
+              : renderToHtmlError,
           }
         )
       }
       html = 'Internal Server Error'
     }
     return html
+  }
+
+  protected async getFallbackErrorComponents(): Promise<LoadComponentsReturnType | null> {
+    // The development server will provide an implementation for this
+    return null
   }
 
   public async render404(
@@ -2273,3 +2294,14 @@ function prepareServerlessUrl(
 }
 
 class NoFallbackError extends Error {}
+
+// Internal wrapper around build errors at development
+// time, to prevent us from propagating or logging them
+export class WrappedBuildError extends Error {
+  innerError: Error
+
+  constructor(innerError: Error) {
+    super()
+    this.innerError = innerError
+  }
+}
