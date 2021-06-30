@@ -854,10 +854,10 @@ describe('Image Optimizer', () => {
         },
       }`
       nextConfig.replace('{ /* replaceme */ }', newConfig)
+      await nextBuild(appDir)
       appPort = await findPort()
-      app = await launchApp(appDir, appPort)
+      app = await nextStart(appDir, appPort)
     })
-
     afterAll(async () => {
       await killApp(app)
       nextConfig.restore()
