@@ -489,7 +489,8 @@ export function renderError(renderErrorProps: RenderErrorProps): Promise<any> {
 }
 
 let reactRoot: any = null
-let shouldHydrate: boolean = typeof ReactDOM.hydrate === 'function'
+// On initial render a hydrate should always happen
+let shouldHydrate: boolean = true
 
 function renderReactElement(
   domEl: HTMLElement,
@@ -503,12 +504,13 @@ function renderReactElement(
   const reactEl = fn(shouldHydrate ? markHydrateComplete : markRenderComplete)
   if (process.env.__NEXT_REACT_ROOT) {
     if (!reactRoot) {
-      reactRoot = (ReactDOM as any).createRoot(domEl, {
-        hydrate: shouldHydrate,
-      })
+      // Unlike with createRoot, you don't need a separate root.render() call here
+      reactRoot = (ReactDOM as any).hydrateRoot(domEl, reactEl)
+      // TODO: Remove shouldHydrate variable when React 18 is stable as it can depend on `reactRoot` existing
+      shouldHydrate = false
+    } else {
+      reactRoot.render(reactEl)
     }
-    reactRoot.render(reactEl)
-    shouldHydrate = false
   } else {
     // The check for `.hydrate` is there to support React alternatives like preact
     if (shouldHydrate) {
