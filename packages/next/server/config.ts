@@ -6,7 +6,6 @@ import { hasNextSupport } from '../telemetry/ci-info'
 import { CONFIG_FILE, PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import { execOnce } from '../shared/lib/utils'
 import { defaultConfig, normalizeConfig } from './config-shared'
-import { loadWebpackHook } from './config-utils'
 import { ImageConfig, imageConfigDefault, VALID_LOADERS } from './image-config'
 import { loadEnvConfig } from '@next/env'
 
@@ -412,7 +411,6 @@ export default async function loadConfig(
   customConfig?: object | null
 ) {
   await loadEnvConfig(dir, phase === PHASE_DEVELOPMENT_SERVER, Log)
-  await loadWebpackHook(phase, dir)
 
   if (customConfig) {
     return assignDefaults({ configOrigin: 'server', ...customConfig })
