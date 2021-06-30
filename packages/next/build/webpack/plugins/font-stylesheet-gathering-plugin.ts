@@ -8,13 +8,13 @@ import { namedTypes } from 'ast-types'
 import {
   getFontDefinitionFromNetwork,
   FontManifest,
-} from '../../../next-server/server/font-utils'
+} from '../../../server/font-utils'
 import postcss from 'postcss'
 import minifier from 'cssnano-simple'
 import {
   FONT_MANIFEST,
   OPTIMIZED_FONT_PROVIDERS,
-} from '../../../next-server/lib/constants'
+} from '../../../shared/lib/constants'
 
 function minifyCss(css: string): Promise<string> {
   return postcss([

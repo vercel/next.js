@@ -1,6 +1,6 @@
 import { parse as parseUrl } from 'url'
 import { IncomingMessage, ServerResponse } from 'http'
-import { apiResolver } from '../../../../next-server/server/api-utils'
+import { apiResolver } from '../../../../server/api-utils'
 import { getUtils, vercelHeader, ServerlessHandlerCtx } from './utils'
 
 export function getApiHandler(ctx: ServerlessHandlerCtx) {

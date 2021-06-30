@@ -6,7 +6,7 @@ import initWebpackHMR from './dev/webpack-hot-middleware-client'
 import initializeBuildWatcher from './dev/dev-build-watcher'
 import { displayContent } from './dev/fouc'
 import { addMessageListener } from './dev/error-overlay/eventsource'
-import * as querystring from '../next-server/lib/router/utils/querystring'
+import * as querystring from '../shared/lib/router/utils/querystring'
 
 // Temporary workaround for the issue described here:
 // https://github.com/vercel/next.js/issues/3775#issuecomment-407438123
