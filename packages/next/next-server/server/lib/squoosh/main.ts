@@ -1,6 +1,6 @@
 import { Worker } from 'jest-worker'
 import * as path from 'path'
-import { execOnce } from '../../../lib/utils'
+import { execOnce } from '../../../../shared/lib/utils'
 import { cpus } from 'os'
 
 type RotateOperation = {

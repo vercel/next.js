@@ -1,6 +1,6 @@
 import { IncomingMessage, ServerResponse } from 'http'
 import { parse as parseUrl, format as formatUrl, UrlWithParsedQuery } from 'url'
-import { isResSent } from '../../../../next-server/lib/utils'
+import { isResSent } from '../../../../shared/lib/utils'
 import { sendPayload } from '../../../../next-server/server/send-payload'
 import { getUtils, vercelHeader, ServerlessHandlerCtx } from './utils'
 
@@ -12,8 +12,8 @@ import {
   getCookieParser,
 } from '../../../../next-server/server/api-utils'
 import { getRedirectStatus } from '../../../../lib/load-custom-routes'
-import getRouteNoAssetPath from '../../../../next-server/lib/router/utils/get-route-from-asset-path'
-import { PERMANENT_REDIRECT_STATUS } from '../../../../next-server/lib/constants'
+import getRouteNoAssetPath from '../../../../shared/lib/router/utils/get-route-from-asset-path'
+import { PERMANENT_REDIRECT_STATUS } from '../../../../shared/lib/constants'
 
 export function getPageHandler(ctx: ServerlessHandlerCtx) {
   const {

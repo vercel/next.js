@@ -5,10 +5,10 @@ import {
   SERVER_DIRECTORY,
   SERVERLESS_DIRECTORY,
   FONT_MANIFEST,
-} from '../lib/constants'
+} from '../../shared/lib/constants'
 import { normalizePagePath, denormalizePagePath } from './normalize-page-path'
 import { PagesManifest } from '../../build/webpack/plugins/pages-manifest-plugin'
-import { normalizeLocalePath } from '../lib/i18n/normalize-locale-path'
+import { normalizeLocalePath } from '../../shared/lib/i18n/normalize-locale-path'
 
 export function pageNotFoundError(page: string): Error {
   const err: any = new Error(`Cannot find module for page: ${page}`)

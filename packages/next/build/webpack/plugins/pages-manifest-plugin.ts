@@ -3,7 +3,7 @@ import {
   isWebpack5,
   sources,
 } from 'next/dist/compiled/webpack/webpack'
-import { PAGES_MANIFEST } from '../../../next-server/lib/constants'
+import { PAGES_MANIFEST } from '../../../shared/lib/constants'
 import getRouteFromEntrypoint from '../../../next-server/server/get-route-from-entrypoint'
 
 export type PagesManifest = { [page: string]: string }

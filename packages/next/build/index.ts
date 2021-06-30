@@ -45,12 +45,12 @@ import {
   SERVER_DIRECTORY,
   SERVER_FILES_MANIFEST,
   STATIC_STATUS_PAGES,
-} from '../next-server/lib/constants'
+} from '../shared/lib/constants'
 import {
   getRouteRegex,
   getSortedRoutes,
   isDynamicRoute,
-} from '../next-server/lib/router/utils'
+} from '../shared/lib/router/utils'
 import { __ApiPreviewProps } from '../next-server/server/api-utils'
 import loadConfig, {
   isTargetLikeServerless,
@@ -89,7 +89,7 @@ import {
 import getBaseWebpackConfig from './webpack-config'
 import { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
 import { writeBuildId } from './write-build-id'
-import { normalizeLocalePath } from '../next-server/lib/i18n/normalize-locale-path'
+import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { isWebpack5 } from 'next/dist/compiled/webpack/webpack'
 
 const staticCheckWorker = require.resolve('./utils')

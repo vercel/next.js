@@ -4,7 +4,11 @@ import { CookieSerializeOptions } from 'next/dist/compiled/cookie'
 import getRawBody from 'raw-body'
 import { PageConfig, PreviewData } from 'next/types'
 import { Stream } from 'stream'
-import { isResSent, NextApiRequest, NextApiResponse } from '../lib/utils'
+import {
+  isResSent,
+  NextApiRequest,
+  NextApiResponse,
+} from '../../shared/lib/utils'
 import { decryptWithSecret, encryptWithSecret } from './crypto-utils'
 import { interopDefault } from './load-components'
 import { sendEtagResponse } from './send-payload'

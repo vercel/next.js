@@ -1,4 +1,4 @@
-import { BLOCKED_PAGES } from '../lib/constants'
+import { BLOCKED_PAGES } from '../../shared/lib/constants'
 
 export function isBlockedPage(pathname: string): boolean {
   return BLOCKED_PAGES.includes(pathname)

@@ -14,7 +14,7 @@ import minifier from 'cssnano-simple'
 import {
   FONT_MANIFEST,
   OPTIMIZED_FONT_PROVIDERS,
-} from '../../../next-server/lib/constants'
+} from '../../../shared/lib/constants'
 
 function minifyCss(css: string): Promise<string> {
   return postcss([

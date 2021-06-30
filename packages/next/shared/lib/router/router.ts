@@ -13,8 +13,8 @@ import {
   markAssetError,
 } from '../../../client/route-loader'
 import { RouterEvent } from '../../../client/router'
-import { DomainLocales } from '../../server/config'
-import { denormalizePagePath } from '../../server/denormalize-page-path'
+import { DomainLocales } from '../../../next-server/server/config'
+import { denormalizePagePath } from '../../../next-server/server/denormalize-page-path'
 import { normalizeLocalePath } from '../i18n/normalize-locale-path'
 import mitt, { MittEmitter } from '../mitt'
 import {

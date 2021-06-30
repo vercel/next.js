@@ -4,13 +4,13 @@ import { join } from 'path'
 import { parse } from 'querystring'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { API_ROUTE } from '../../../../lib/constants'
-import { isDynamicRoute } from '../../../../next-server/lib/router/utils'
+import { isDynamicRoute } from '../../../../shared/lib/router/utils'
 import { __ApiPreviewProps } from '../../../../next-server/server/api-utils'
 import {
   BUILD_MANIFEST,
   ROUTES_MANIFEST,
   REACT_LOADABLE_MANIFEST,
-} from '../../../../next-server/lib/constants'
+} from '../../../../shared/lib/constants'
 import { trace } from '../../../../telemetry/trace'
 
 export type ServerlessLoaderQuery = {

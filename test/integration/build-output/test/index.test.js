@@ -149,7 +149,7 @@ describe('Build Output', () => {
             true
           )
 
-          expect(parseFloat(mainSize)).toBeCloseTo(gz ? 20.2 : 62.8, 1)
+          expect(parseFloat(mainSize)).toBeCloseTo(gz ? 20.1 : 62.7, 1)
           expect(mainSize.endsWith('kB')).toBe(true)
 
           expect(parseFloat(frameworkSize)).toBeCloseTo(gz ? 42.0 : 130, 1)

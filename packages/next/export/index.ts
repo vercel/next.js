@@ -28,7 +28,7 @@ import {
   PRERENDER_MANIFEST,
   SERVERLESS_DIRECTORY,
   SERVER_DIRECTORY,
-} from '../next-server/lib/constants'
+} from '../shared/lib/constants'
 import loadConfig, {
   isTargetLikeServerless,
   NextConfig,

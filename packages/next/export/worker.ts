@@ -4,9 +4,9 @@ import { renderToHTML } from '../next-server/server/render'
 import { promises } from 'fs'
 import AmpHtmlValidator from 'next/dist/compiled/amphtml-validator'
 import { loadComponents } from '../next-server/server/load-components'
-import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
-import { getRouteMatcher } from '../next-server/lib/router/utils/route-matcher'
-import { getRouteRegex } from '../next-server/lib/router/utils/route-regex'
+import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
+import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
+import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { normalizePagePath } from '../next-server/server/normalize-page-path'
 import { SERVER_PROPS_EXPORT_ERROR } from '../lib/constants'
 import 'next/dist/next-server/server/node-polyfill-fetch'
@@ -15,11 +15,11 @@ import { ComponentType } from 'react'
 import { GetStaticProps } from '../types'
 import { requireFontManifest } from '../next-server/server/require'
 import { FontManifest } from '../next-server/server/font-utils'
-import { normalizeLocalePath } from '../next-server/lib/i18n/normalize-locale-path'
+import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { trace } from '../telemetry/trace'
-import { isInAmpMode } from '../next-server/lib/amp'
+import { isInAmpMode } from '../shared/lib/amp'
 
-const envConfig = require('../next-server/lib/runtime-config')
+const envConfig = require('../shared/lib/runtime-config')
 
 ;(global as any).__NEXT_DATA__ = {
   nextExport: true,
