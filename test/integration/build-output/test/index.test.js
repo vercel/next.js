@@ -115,7 +115,7 @@ describe('Build Output', () => {
             expect(parseFloat(size)).toBeGreaterThan(0)
           }
 
-          const gz = gzipSize !== false
+          // const gz = gzipSize !== false
 
           // expect(parseFloat(indexSize) / 1000).toBeCloseTo(
           //   gz ? 0.251 : 0.394,
