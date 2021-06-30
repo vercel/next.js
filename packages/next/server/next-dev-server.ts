@@ -18,13 +18,13 @@ import {
   PHASE_DEVELOPMENT_SERVER,
   CLIENT_STATIC_FILES_PATH,
   DEV_CLIENT_PAGES_MANIFEST,
-} from '../next-server/lib/constants'
+} from '../shared/lib/constants'
 import {
   getRouteMatcher,
   getRouteRegex,
   getSortedRoutes,
   isDynamicRoute,
-} from '../next-server/lib/router/utils'
+} from '../shared/lib/router/utils'
 import { __ApiPreviewProps } from '../next-server/server/api-utils'
 import Server, {
   WrappedBuildError,

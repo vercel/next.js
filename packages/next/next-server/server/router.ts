@@ -1,11 +1,11 @@
 import { IncomingMessage, ServerResponse } from 'http'
 import { UrlWithParsedQuery } from 'url'
 
-import pathMatch from '../lib/router/utils/path-match'
+import pathMatch from '../../shared/lib/router/utils/path-match'
 import { removePathTrailingSlash } from '../../client/normalize-trailing-slash'
-import { normalizeLocalePath } from '../lib/i18n/normalize-locale-path'
+import { normalizeLocalePath } from '../../shared/lib/i18n/normalize-locale-path'
 import { RouteHas } from '../../lib/load-custom-routes'
-import { matchHas } from '../lib/router/utils/prepare-destination'
+import { matchHas } from '../../shared/lib/router/utils/prepare-destination'
 
 export const route = pathMatch()
 

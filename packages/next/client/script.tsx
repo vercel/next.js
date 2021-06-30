@@ -1,6 +1,6 @@
 import React, { useEffect, useContext } from 'react'
 import { ScriptHTMLAttributes } from 'react'
-import { HeadManagerContext } from '../next-server/lib/head-manager-context'
+import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import { DOMAttributeNames } from './head-manager'
 import { requestIdleCallback } from './request-idle-callback'
 

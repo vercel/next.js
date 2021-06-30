@@ -4,13 +4,13 @@ import flush from 'styled-jsx/server'
 import {
   AMP_RENDER_TARGET,
   OPTIMIZED_FONT_PROVIDERS,
-} from '../next-server/lib/constants'
-import { DocumentContext as DocumentComponentContext } from '../next-server/lib/document-context'
+} from '../shared/lib/constants'
+import { DocumentContext as DocumentComponentContext } from '../shared/lib/document-context'
 import {
   DocumentContext,
   DocumentInitialProps,
   DocumentProps,
-} from '../next-server/lib/utils'
+} from '../shared/lib/utils'
 import {
   BuildManifest,
   getPageFiles,

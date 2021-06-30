@@ -809,6 +809,7 @@ export async function compile(task, opts) {
       'client',
       'telemetry',
       'nextserver',
+      'shared',
       'nextserver_wasm',
       // we compile this each time so that fresh runtime data is pulled
       // before each publish
@@ -926,6 +927,7 @@ export default async function (task) {
   await task.watch('cli/**/*.+(js|ts|tsx)', 'cli', opts)
   await task.watch('telemetry/**/*.+(js|ts|tsx)', 'telemetry', opts)
   await task.watch('next-server/**/*.+(js|ts|tsx)', 'nextserver', opts)
+  await task.watch('shared/**/*.+(js|ts|tsx)', 'shared', opts)
   await task.watch('next-server/**/*.+(wasm)', 'nextserver_wasm', opts)
 }
 
@@ -935,6 +937,14 @@ export async function nextserver(task, opts) {
     .babel('server', { dev: opts.dev })
     .target('dist/next-server')
   notify('Compiled server files')
+}
+
+export async function shared(task, opts) {
+  await task
+    .source(opts.src || 'shared/**/*.+(js|ts|tsx)')
+    .babel('server', { dev: opts.dev })
+    .target('dist/shared')
+  notify('Compiled shared files')
 }
 
 export async function nextserver_wasm(task, opts) {

@@ -10,7 +10,7 @@ import { resolve } from 'path'
 import {
   PHASE_DEVELOPMENT_SERVER,
   PHASE_PRODUCTION_SERVER,
-} from '../next-server/lib/constants'
+} from '../shared/lib/constants'
 import { IncomingMessage, ServerResponse } from 'http'
 import { UrlWithParsedQuery } from 'url'
 

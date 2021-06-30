@@ -1,4 +1,4 @@
-import getRouteFromAssetPath from '../lib/router/utils/get-route-from-asset-path'
+import getRouteFromAssetPath from '../../shared/lib/router/utils/get-route-from-asset-path'
 
 // matches pages/:page*.js
 const SERVER_ROUTE_NAME_REGEX = /^pages[/\\](.*)$/
