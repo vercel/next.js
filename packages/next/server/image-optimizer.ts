@@ -22,7 +22,7 @@ const PNG = 'image/png'
 const JPEG = 'image/jpeg'
 const GIF = 'image/gif'
 const SVG = 'image/svg+xml'
-const CACHE_VERSION = 2
+const CACHE_VERSION = 3
 const MODERN_TYPES = [/* AVIF, */ WEBP]
 const ANIMATABLE_TYPES = [WEBP, PNG, GIF]
 const VECTOR_TYPES = [SVG]
@@ -35,7 +35,8 @@ export async function imageOptimizer(
   res: ServerResponse,
   parsedUrl: UrlWithParsedQuery,
   nextConfig: NextConfig,
-  distDir: string
+  distDir: string,
+  isDev = false
 ) {
   const imageData: ImageConfig = nextConfig.images || imageConfigDefault
   const { deviceSizes = [], imageSizes = [], domains = [], loader } = imageData
@@ -158,24 +159,24 @@ export async function imageOptimizer(
     if (await fileExists(hashDir, 'directory')) {
       const files = await promises.readdir(hashDir)
       for (let file of files) {
-        const [prefix, etag, extension] = file.split('.')
-        const expireAt = Number(prefix)
+        const [maxAgeStr, expireAtSt, etag, extension] = file.split('.')
+        const maxAge = Number(maxAgeStr)
+        const expireAt = Number(expireAtSt)
         const contentType = getContentType(extension)
         const fsPath = join(hashDir, file)
         if (now < expireAt) {
-          res.setHeader(
-            'Cache-Control',
-            isStatic
-              ? 'public, max-age=315360000, immutable'
-              : 'public, max-age=0, must-revalidate'
+          const result = setResponseHeaders(
+            req,
+            res,
+            etag,
+            maxAge,
+            contentType,
+            isStatic,
+            isDev
           )
-          if (sendEtagResponse(req, res, etag)) {
-            return { finished: true }
+          if (!result.finished) {
+            createReadStream(fsPath).pipe(res)
           }
-          if (contentType) {
-            res.setHeader('Content-Type', contentType)
-          }
-          createReadStream(fsPath).pipe(res)
           return { finished: true }
         } else {
           await promises.unlink(fsPath)
@@ -271,8 +272,22 @@ export async function imageOptimizer(
       const animate =
         ANIMATABLE_TYPES.includes(upstreamType) && isAnimated(upstreamBuffer)
       if (vector || animate) {
-        await writeToCacheDir(hashDir, upstreamType, expireAt, upstreamBuffer)
-        sendResponse(req, res, upstreamType, upstreamBuffer, isStatic)
+        await writeToCacheDir(
+          hashDir,
+          upstreamType,
+          maxAge,
+          expireAt,
+          upstreamBuffer
+        )
+        sendResponse(
+          req,
+          res,
+          maxAge,
+          upstreamType,
+          upstreamBuffer,
+          isStatic,
+          isDev
+        )
         return { finished: true }
       }
 
@@ -342,13 +357,35 @@ export async function imageOptimizer(
       }
 
       if (optimizedBuffer) {
-        await writeToCacheDir(hashDir, contentType, expireAt, optimizedBuffer)
-        sendResponse(req, res, contentType, optimizedBuffer, isStatic)
+        await writeToCacheDir(
+          hashDir,
+          contentType,
+          maxAge,
+          expireAt,
+          optimizedBuffer
+        )
+        sendResponse(
+          req,
+          res,
+          maxAge,
+          contentType,
+          optimizedBuffer,
+          isStatic,
+          isDev
+        )
       } else {
         throw new Error('Unable to optimize buffer')
       }
     } catch (error) {
-      sendResponse(req, res, upstreamType, upstreamBuffer, isStatic)
+      sendResponse(
+        req,
+        res,
+        maxAge,
+        upstreamType,
+        upstreamBuffer,
+        isStatic,
+        isDev
+      )
     }
 
     return { finished: true }
@@ -362,37 +399,64 @@ export async function imageOptimizer(
 async function writeToCacheDir(
   dir: string,
   contentType: string,
+  maxAge: number,
   expireAt: number,
   buffer: Buffer
 ) {
   await promises.mkdir(dir, { recursive: true })
   const extension = getExtension(contentType)
   const etag = getHash([buffer])
-  const filename = join(dir, `${expireAt}.${etag}.${extension}`)
+  const filename = join(dir, `${maxAge}.${expireAt}.${etag}.${extension}`)
   await promises.writeFile(filename, buffer)
+}
+
+function setResponseHeaders(
+  req: IncomingMessage,
+  res: ServerResponse,
+  etag: string,
+  maxAge: number,
+  contentType: string | null,
+  isStatic: boolean,
+  isDev: boolean
+) {
+  res.setHeader(
+    'Cache-Control',
+    isStatic
+      ? 'public, max-age=315360000, immutable'
+      : `public, max-age=${isDev ? 0 : maxAge}, must-revalidate`
+  )
+  if (sendEtagResponse(req, res, etag)) {
+    // already called res.end() so we're finished
+    return { finished: true }
+  }
+  if (contentType) {
+    res.setHeader('Content-Type', contentType)
+  }
+  return { finished: false }
 }
 
 function sendResponse(
   req: IncomingMessage,
   res: ServerResponse,
+  maxAge: number,
   contentType: string | null,
   buffer: Buffer,
-  isStatic: boolean
+  isStatic: boolean,
+  isDev: boolean
 ) {
   const etag = getHash([buffer])
-  res.setHeader(
-    'Cache-Control',
-    isStatic
-      ? 'public, max-age=315360000, immutable'
-      : 'public, max-age=0, must-revalidate'
+  const result = setResponseHeaders(
+    req,
+    res,
+    etag,
+    maxAge,
+    contentType,
+    isStatic,
+    isDev
   )
-  if (sendEtagResponse(req, res, etag)) {
-    return
+  if (!result.finished) {
+    res.end(buffer)
   }
-  if (contentType) {
-    res.setHeader('Content-Type', contentType)
-  }
-  res.end(buffer)
 }
 
 function getSupportedMimeType(options: string[], accept = ''): string {
