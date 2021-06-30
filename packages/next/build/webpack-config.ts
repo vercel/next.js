@@ -971,7 +971,6 @@ export default async function getBaseWebpackConfig(
     resolveLoader: {
       // The loaders Next.js provides
       alias: [
-        'emit-file-loader',
         'error-loader',
         'next-client-pages-loader',
         'next-image-loader',
