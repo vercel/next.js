@@ -562,6 +562,7 @@ function runTests({ w, isDev, domains }) {
   })
 
   it('should handle concurrent requests', async () => {
+    await fs.remove(imagesDir)
     const query = { url: '/test.png', w, q: 80 }
     const opts = { headers: { accept: 'image/webp,*/*' } }
     const [res1, res2] = await Promise.all([
@@ -575,19 +576,8 @@ function runTests({ w, isDev, domains }) {
     await expectWidth(res1, w)
     await expectWidth(res2, w)
 
-    // There should be only one image created in the cache directory.
-    const hashItems = [3, '/test.png', w, 80, 'image/webp']
-    const hash = createHash('sha256')
-    for (let item of hashItems) {
-      if (typeof item === 'number') hash.update(String(item))
-      else {
-        hash.update(item)
-      }
-    }
-    const hashDir = hash.digest('base64').replace(/\//g, '-')
-    const dir = join(imagesDir, hashDir)
-    const files = await fs.readdir(dir)
-    expect(files.length).toBe(1)
+    const json1 = await fsToJson(imagesDir)
+    expect(Object.keys(json1).length).toBe(1)
   })
 }
 
