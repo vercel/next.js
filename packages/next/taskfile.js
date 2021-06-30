@@ -54,7 +54,6 @@ const externals = {
   sass: 'sass',
   fibers: 'fibers',
 
-  chokidar: 'chokidar',
   'jest-worker': 'jest-worker',
 }
 // eslint-disable-next-line camelcase
