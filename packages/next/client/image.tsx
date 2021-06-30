@@ -120,6 +120,7 @@ export type ImageProps = Omit<
   unoptimized?: boolean
   objectFit?: ImgElementStyle['objectFit']
   objectPosition?: ImgElementStyle['objectPosition']
+  onLoadingComplete?: () => void
 } & (StringImageProps | ObjectImageProps)
 
 const {
@@ -263,7 +264,8 @@ function defaultImageLoader(loaderProps: ImageLoaderProps) {
 // handler instead of the img's onLoad attribute.
 function removePlaceholder(
   img: HTMLImageElement | null,
-  placeholder: PlaceholderValue
+  placeholder: PlaceholderValue,
+  onLoadingComplete: () => void
 ) {
   if (placeholder === 'blur' && img) {
     const handleLoad = () => {
@@ -273,6 +275,7 @@ function removePlaceholder(
           img.style.filter = 'none'
           img.style.backgroundSize = 'none'
           img.style.backgroundImage = 'none'
+          onLoadingComplete()
         })
       }
     }
@@ -299,6 +302,7 @@ export default function Image({
   height,
   objectFit,
   objectPosition,
+  onLoadingComplete = () => {},
   loader = defaultImageLoader,
   placeholder = 'empty',
   blurDataURL,
@@ -590,7 +594,7 @@ export default function Image({
         className={className}
         ref={(element) => {
           setRef(element)
-          removePlaceholder(element, placeholder)
+          removePlaceholder(element, placeholder, onLoadingComplete)
         }}
         style={imgStyle}
       />
