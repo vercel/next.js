@@ -35,7 +35,8 @@ export async function imageOptimizer(
   res: ServerResponse,
   parsedUrl: UrlWithParsedQuery,
   nextConfig: NextConfig,
-  distDir: string
+  distDir: string,
+  isDev = false
 ) {
   const imageData: ImageConfig = nextConfig.images || imageConfigDefault
   const { deviceSizes = [], imageSizes = [], domains = [], loader } = imageData
@@ -170,7 +171,8 @@ export async function imageOptimizer(
             etag,
             maxAge,
             contentType,
-            isStatic
+            isStatic,
+            isDev
           )
           if (!result.finished) {
             createReadStream(fsPath).pipe(res)
@@ -277,7 +279,15 @@ export async function imageOptimizer(
           expireAt,
           upstreamBuffer
         )
-        sendResponse(req, res, maxAge, upstreamType, upstreamBuffer, isStatic)
+        sendResponse(
+          req,
+          res,
+          maxAge,
+          upstreamType,
+          upstreamBuffer,
+          isStatic,
+          isDev
+        )
         return { finished: true }
       }
 
@@ -354,12 +364,28 @@ export async function imageOptimizer(
           expireAt,
           optimizedBuffer
         )
-        sendResponse(req, res, maxAge, contentType, optimizedBuffer, isStatic)
+        sendResponse(
+          req,
+          res,
+          maxAge,
+          contentType,
+          optimizedBuffer,
+          isStatic,
+          isDev
+        )
       } else {
         throw new Error('Unable to optimize buffer')
       }
     } catch (error) {
-      sendResponse(req, res, maxAge, upstreamType, upstreamBuffer, isStatic)
+      sendResponse(
+        req,
+        res,
+        maxAge,
+        upstreamType,
+        upstreamBuffer,
+        isStatic,
+        isDev
+      )
     }
 
     return { finished: true }
@@ -390,13 +416,14 @@ function setResponseHeaders(
   etag: string,
   maxAge: number,
   contentType: string | null,
-  isStatic: boolean
+  isStatic: boolean,
+  isDev: boolean
 ) {
   res.setHeader(
     'Cache-Control',
     isStatic
       ? 'public, max-age=315360000, immutable'
-      : `public, max-age=${maxAge}, must-revalidate`
+      : `public, max-age=${isDev ? 0 : maxAge}, must-revalidate`
   )
   if (sendEtagResponse(req, res, etag)) {
     // already called res.end() so we're finished
@@ -414,7 +441,8 @@ function sendResponse(
   maxAge: number,
   contentType: string | null,
   buffer: Buffer,
-  isStatic: boolean
+  isStatic: boolean,
+  isDev: boolean
 ) {
   const etag = getHash([buffer])
   const result = setResponseHeaders(
@@ -423,7 +451,8 @@ function sendResponse(
     etag,
     maxAge,
     contentType,
-    isStatic
+    isStatic,
+    isDev
   )
   if (!result.finished) {
     res.end(buffer)

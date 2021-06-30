@@ -13,7 +13,6 @@ import {
 } from 'next-test-utils'
 import isAnimated from 'next/dist/compiled/is-animated'
 import { join } from 'path'
-import { createHash } from 'crypto'
 
 jest.setTimeout(1000 * 60 * 2)
 
@@ -57,7 +56,7 @@ function runTests({ w, isDev, domains }) {
     expect(res.status).toBe(200)
     expect(res.headers.get('content-type')).toContain('image/gif')
     expect(res.headers.get('Cache-Control')).toBe(
-      'public, max-age=60, must-revalidate'
+      `public, max-age=${isDev ? 0 : 60}, must-revalidate`
     )
     expect(res.headers.get('etag')).toBeTruthy()
     expect(isAnimated(await res.buffer())).toBe(true)
@@ -69,7 +68,7 @@ function runTests({ w, isDev, domains }) {
     expect(res.status).toBe(200)
     expect(res.headers.get('content-type')).toContain('image/png')
     expect(res.headers.get('Cache-Control')).toBe(
-      'public, max-age=60, must-revalidate'
+      `public, max-age=${isDev ? 0 : 60}, must-revalidate`
     )
     expect(res.headers.get('etag')).toBeTruthy()
     expect(isAnimated(await res.buffer())).toBe(true)
@@ -81,7 +80,7 @@ function runTests({ w, isDev, domains }) {
     expect(res.status).toBe(200)
     expect(res.headers.get('content-type')).toContain('image/webp')
     expect(res.headers.get('Cache-Control')).toBe(
-      'public, max-age=60, must-revalidate'
+      `public, max-age=${isDev ? 0 : 60}, must-revalidate`
     )
     expect(res.headers.get('etag')).toBeTruthy()
     expect(isAnimated(await res.buffer())).toBe(true)
@@ -94,7 +93,7 @@ function runTests({ w, isDev, domains }) {
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toContain('image/svg+xml')
     expect(res.headers.get('Cache-Control')).toBe(
-      'public, max-age=60, must-revalidate'
+      `public, max-age=${isDev ? 0 : 60}, must-revalidate`
     )
     expect(res.headers.get('etag')).toBeTruthy()
     const actual = await res.text()
@@ -112,7 +111,7 @@ function runTests({ w, isDev, domains }) {
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toContain('image/x-icon')
     expect(res.headers.get('Cache-Control')).toBe(
-      'public, max-age=60, must-revalidate'
+      `public, max-age=${isDev ? 0 : 60}, must-revalidate`
     )
     expect(res.headers.get('etag')).toBeTruthy()
     const actual = await res.text()
@@ -132,7 +131,7 @@ function runTests({ w, isDev, domains }) {
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toContain('image/jpeg')
     expect(res.headers.get('Cache-Control')).toBe(
-      'public, max-age=60, must-revalidate'
+      `public, max-age=${isDev ? 0 : 60}, must-revalidate`
     )
     expect(res.headers.get('etag')).toBeTruthy()
   })
@@ -146,7 +145,7 @@ function runTests({ w, isDev, domains }) {
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toContain('image/png')
     expect(res.headers.get('Cache-Control')).toBe(
-      'public, max-age=60, must-revalidate'
+      `public, max-age=${isDev ? 0 : 60}, must-revalidate`
     )
     expect(res.headers.get('etag')).toBeTruthy()
   })
@@ -243,7 +242,7 @@ function runTests({ w, isDev, domains }) {
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/webp')
     expect(res.headers.get('Cache-Control')).toBe(
-      'public, max-age=60, must-revalidate'
+      `public, max-age=${isDev ? 0 : 60}, must-revalidate`
     )
     expect(res.headers.get('etag')).toBeTruthy()
     await expectWidth(res, w)
@@ -256,7 +255,7 @@ function runTests({ w, isDev, domains }) {
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/png')
     expect(res.headers.get('Cache-Control')).toBe(
-      'public, max-age=60, must-revalidate'
+      `public, max-age=${isDev ? 0 : 60}, must-revalidate`
     )
     expect(res.headers.get('etag')).toBeTruthy()
     await expectWidth(res, w)
@@ -269,7 +268,7 @@ function runTests({ w, isDev, domains }) {
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/png')
     expect(res.headers.get('Cache-Control')).toBe(
-      'public, max-age=60, must-revalidate'
+      `public, max-age=${isDev ? 0 : 60}, must-revalidate`
     )
     expect(res.headers.get('etag')).toBeTruthy()
     await expectWidth(res, w)
@@ -282,7 +281,7 @@ function runTests({ w, isDev, domains }) {
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/gif')
     expect(res.headers.get('Cache-Control')).toBe(
-      'public, max-age=60, must-revalidate'
+      `public, max-age=${isDev ? 0 : 60}, must-revalidate`
     )
     expect(res.headers.get('etag')).toBeTruthy()
     // FIXME: await expectWidth(res, w)
@@ -295,7 +294,7 @@ function runTests({ w, isDev, domains }) {
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/tiff')
     expect(res.headers.get('Cache-Control')).toBe(
-      'public, max-age=60, must-revalidate'
+      `public, max-age=${isDev ? 0 : 60}, must-revalidate`
     )
     expect(res.headers.get('etag')).toBeTruthy()
     // FIXME: await expectWidth(res, w)
@@ -310,7 +309,7 @@ function runTests({ w, isDev, domains }) {
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/webp')
     expect(res.headers.get('Cache-Control')).toBe(
-      'public, max-age=60, must-revalidate'
+      `public, max-age=${isDev ? 0 : 60}, must-revalidate`
     )
     expect(res.headers.get('etag')).toBeTruthy()
     await expectWidth(res, w)
@@ -325,7 +324,7 @@ function runTests({ w, isDev, domains }) {
       expect(res.status).toBe(200)
       expect(res.headers.get('Content-Type')).toBe('image/webp')
       expect(res.headers.get('Cache-Control')).toBe(
-        'public, max-age=60, must-revalidate'
+        `public, max-age=${isDev ? 0 : 60}, must-revalidate`
       )
       expect(res.headers.get('etag')).toBeTruthy()
       await expectWidth(res, w)
@@ -345,7 +344,7 @@ function runTests({ w, isDev, domains }) {
       expect(res.status).toBe(200)
       expect(res.headers.get('Content-Type')).toBe('image/webp')
       expect(res.headers.get('Cache-Control')).toBe(
-        'public, max-age=60, must-revalidate'
+        `public, max-age=${isDev ? 0 : 60}, must-revalidate`
       )
       expect(res.headers.get('etag')).toBeTruthy()
       await expectWidth(res, w)
@@ -447,7 +446,7 @@ function runTests({ w, isDev, domains }) {
     expect(res1.status).toBe(200)
     expect(res1.headers.get('Content-Type')).toBe('image/webp')
     expect(res1.headers.get('Cache-Control')).toBe(
-      'public, max-age=60, must-revalidate'
+      `public, max-age=${isDev ? 0 : 60}, must-revalidate`
     )
     const etag = res1.headers.get('Etag')
     expect(etag).toBeTruthy()
@@ -459,7 +458,7 @@ function runTests({ w, isDev, domains }) {
     expect(res2.headers.get('Content-Type')).toBeFalsy()
     expect(res2.headers.get('Etag')).toBe(etag)
     expect(res2.headers.get('Cache-Control')).toBe(
-      'public, max-age=60, must-revalidate'
+      `public, max-age=${isDev ? 0 : 60}, must-revalidate`
     )
     expect((await res2.buffer()).length).toBe(0)
 
@@ -468,7 +467,7 @@ function runTests({ w, isDev, domains }) {
     expect(res3.status).toBe(200)
     expect(res3.headers.get('Content-Type')).toBe('image/webp')
     expect(res3.headers.get('Cache-Control')).toBe(
-      'public, max-age=60, must-revalidate'
+      `public, max-age=${isDev ? 0 : 60}, must-revalidate`
     )
     expect(res3.headers.get('Etag')).toBeTruthy()
     expect(res3.headers.get('Etag')).not.toBe(etag)
@@ -485,7 +484,7 @@ function runTests({ w, isDev, domains }) {
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/bmp')
     expect(res.headers.get('Cache-Control')).toBe(
-      'public, max-age=60, must-revalidate'
+      `public, max-age=${isDev ? 0 : 60}, must-revalidate`
     )
     expect(res.headers.get('etag')).toBeTruthy()
 
@@ -500,7 +499,7 @@ function runTests({ w, isDev, domains }) {
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/webp')
     expect(res.headers.get('Cache-Control')).toBe(
-      'public, max-age=60, must-revalidate'
+      `public, max-age=${isDev ? 0 : 60}, must-revalidate`
     )
     expect(res.headers.get('etag')).toBeTruthy()
     await expectWidth(res, 400)
@@ -515,7 +514,7 @@ function runTests({ w, isDev, domains }) {
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/png')
     expect(res.headers.get('Cache-Control')).toBe(
-      'public, max-age=60, must-revalidate'
+      `public, max-age=${isDev ? 0 : 60}, must-revalidate`
     )
 
     const png = await res.buffer()
@@ -538,7 +537,7 @@ function runTests({ w, isDev, domains }) {
 
       const res1 = await fetchViaHTTP(appPort, '/_next/image', query, opts)
       expect(res1.status).toBe(200)
-      expect(res1.headers.get('cache-control')).toBe(
+      expect(res1.headers.get('Cache-Control')).toBe(
         'public, max-age=315360000, immutable'
       )
       await expectWidth(res1, w)
@@ -546,7 +545,7 @@ function runTests({ w, isDev, domains }) {
       // Ensure subsequent request also has immutable header
       const res2 = await fetchViaHTTP(appPort, '/_next/image', query, opts)
       expect(res2.status).toBe(200)
-      expect(res2.headers.get('cache-control')).toBe(
+      expect(res2.headers.get('Cache-Control')).toBe(
         'public, max-age=315360000, immutable'
       )
       await expectWidth(res2, w)
@@ -713,6 +712,7 @@ describe('Image Optimizer', () => {
   const domains = [
     'localhost',
     'example.com',
+    'assets.vercel.com',
     'image-optimization-test.vercel.app',
   ]
 
@@ -871,7 +871,7 @@ describe('Image Optimizer', () => {
       expect(res.status).toBe(200)
       expect(res.headers.get('Content-Type')).toBe('image/webp')
       expect(res.headers.get('Cache-Control')).toBe(
-        'public, max-age=31536000, must-revalidate'
+        `public, max-age=31536000, must-revalidate`
       )
       await expectWidth(res, 64)
     })
