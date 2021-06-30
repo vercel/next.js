@@ -180,14 +180,6 @@ export async function ncc_bfj(task, opts) {
     .target('compiled/bfj')
 }
 // eslint-disable-next-line camelcase
-externals['cacache'] = 'next/dist/compiled/cacache'
-export async function ncc_cacache(task, opts) {
-  await task
-    .source(opts.src || relative(__dirname, require.resolve('cacache')))
-    .ncc({ packageName: 'cacache' })
-    .target('compiled/cacache')
-}
-// eslint-disable-next-line camelcase
 externals['ci-info'] = 'next/dist/compiled/ci-info'
 export async function ncc_ci_info(task, opts) {
   await task
@@ -723,7 +715,6 @@ export async function ncc(task, opts) {
         'ncc_babel_bundle',
         'ncc_babel_bundle_packages',
         'ncc_bfj',
-        'ncc_cacache',
         'ncc_ci_info',
         'ncc_comment_json',
         'ncc_compression',

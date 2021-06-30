@@ -193,7 +193,6 @@
     "babel-plugin-transform-define": "2.0.0",
     "babel-plugin-transform-react-remove-prop-types": "0.4.24",
     "bfj": "7.0.2",
-    "cacache": "15.0.5",
     "ci-info": "watson/ci-info#f43f6a1cefff47fb361c88cf4b943fdbcaafe540",
     "comment-json": "3.0.3",
     "compression": "1.7.4",
