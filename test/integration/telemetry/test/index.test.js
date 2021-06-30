@@ -543,7 +543,7 @@ describe('Telemetry CLI', () => {
 
   it('emits telemetry for `next lint`', async () => {
     await fs.writeFile(path.join(appDir, '.eslintrc'), `{ "extends": "next" }`)
-    const { stderr } = await nextLint(appDir, [], {
+    const { stderr } = await nextLint(['--base-dir', appDir], {
       stderr: true,
       env: { NEXT_TELEMETRY_DEBUG: 1 },
     })

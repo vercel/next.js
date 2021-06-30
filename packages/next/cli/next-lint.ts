@@ -36,12 +36,10 @@ const nextLint: cliCommand = (argv) => {
     // Types
     '--help': Boolean,
     '--base-dir': String,
-    '--dir': [String],
 
     // Aliases
     '-h': '--help',
     '-b': '--base-dir',
-    '-d': '--dir',
   }
 
   const validEslintArgs: arg.Spec = {
@@ -83,17 +81,14 @@ const nextLint: cliCommand = (argv) => {
         If not configured, ESLint will be set up for the first time.
 
       Usage
-        $ next lint <baseDir> [options]
+        $ next lint [options] file.js [file.js] [dir]
       
-      <baseDir> represents the directory of the Next.js application.
-      If no directory is provided, the current directory will be used.
-
       Options
         Basic configuration:
           -h, --help                     List this help
-          -d, --dir Array                Set directory, or directories, to run ESLint - default: 'pages', 'components', and 'lib'
           -c, --config path::String      Use this configuration file, overriding all other config options
-          --ext [String]                 Specify JavaScript file extensions - default: .js, .jsx, .ts, .tsx
+          -b, --base-dir path::String    Set directory of the Next.js application - default: Current directory
+          --ext String                   Specify JavaScript file extensions - default: .js, .jsx, .ts, .tsx
           --resolve-plugins-relative-to path::String  A folder where plugins should be resolved from, CWD by default
 
         Specifying rules:
@@ -126,30 +121,29 @@ const nextLint: cliCommand = (argv) => {
     )
   }
 
-  const baseDir = resolve(args._[0] || '.')
+  const baseDir = resolve(args['--base-dir'] || '.')
 
   // Check if the provided directory exists
   if (!existsSync(baseDir)) {
     printAndExit(`> No such directory exists as the project root: ${baseDir}`)
   }
 
-  const dirs: string[] = args['--dir']
-  const lintDirs = (dirs ?? ESLINT_DEFAULT_DIRS).reduce(
-    (res: string[], d: string) => {
-      const currDir = join(baseDir, d)
-      if (!existsSync(currDir)) return res
-      res.push(currDir)
-      return res
-    },
-    []
-  )
+  const filesToLint: string[] = (args._.length
+    ? args._
+    : ESLINT_DEFAULT_DIRS
+  ).reduce((res: string[], d: string) => {
+    const currDir = join(baseDir, d)
+    if (!existsSync(currDir)) return res
+    res.push(currDir)
+    return res
+  }, [])
 
   const reportErrorsOnly = Boolean(args['--quiet'])
   const maxWarnings = args['--max-warnings'] ?? -1
 
   runLintCheck(
     baseDir,
-    lintDirs,
+    filesToLint,
     false,
     eslintOptions(args),
     reportErrorsOnly,

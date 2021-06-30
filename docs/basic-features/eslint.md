@@ -64,10 +64,10 @@ module.exports = {
 }
 ```
 
-Similarly, the `--dir` flag can be used for `next lint`:
+Similarly, any file paths, directory paths, or glob patterns can be passed in directly when using `next lint`:
 
 ```bash
-yarn lint --dir pages --dir utils
+yarn lint file1.js utils
 ```
 
 ## ESLint Plugin

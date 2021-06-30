@@ -97,10 +97,13 @@ describe('ESLint', () => {
       const eslintrc = join(dirFirstTimeSetup, '.eslintrc')
       await writeFile(eslintrc, '')
 
-      const { stdout, stderr } = await nextLint(dirFirstTimeSetup, [], {
-        stdout: true,
-        stderr: true,
-      })
+      const { stdout, stderr } = await nextLint(
+        ['--base-dir', dirFirstTimeSetup],
+        {
+          stdout: true,
+          stderr: true,
+        }
+      )
       const output = stdout + stderr
       const eslintrcContent = await readFile(eslintrc, 'utf8')
 
@@ -113,10 +116,13 @@ describe('ESLint', () => {
     })
 
     test('shows warnings and errors', async () => {
-      const { stdout, stderr } = await nextLint(dirCustomConfig, [], {
-        stdout: true,
-        stderr: true,
-      })
+      const { stdout, stderr } = await nextLint(
+        ['--base-dir', dirCustomConfig],
+        {
+          stdout: true,
+          stderr: true,
+        }
+      )
 
       const output = stdout + stderr
       expect(output).toContain(
@@ -128,10 +134,13 @@ describe('ESLint', () => {
     })
 
     test('success message when no warnings or errors', async () => {
-      const { stdout, stderr } = await nextLint(dirFirstTimeSetup, [], {
-        stdout: true,
-        stderr: true,
-      })
+      const { stdout, stderr } = await nextLint(
+        ['--base-dir', dirFirstTimeSetup],
+        {
+          stdout: true,
+          stderr: true,
+        }
+      )
 
       const output = stdout + stderr
       expect(output).toContain('No ESLint warnings or errors')
@@ -158,10 +167,13 @@ describe('ESLint', () => {
           await fs.move(eslintrcFile, `${eslintrcFile}.original`)
         }
 
-        const { stdout, stderr } = await nextLint(dirConfigInPackageJson, [], {
-          stdout: true,
-          stderr: true,
-        })
+        const { stdout, stderr } = await nextLint(
+          ['--base-dir', dirConfigInPackageJson],
+          {
+            stdout: true,
+            stderr: true,
+          }
+        )
 
         const output = stdout + stderr
         expect(output).not.toContain(
@@ -176,10 +188,13 @@ describe('ESLint', () => {
     })
 
     test('quiet flag suppresses warnings and only reports errors', async () => {
-      const { stdout, stderr } = await nextLint(dirCustomConfig, ['--quiet'], {
-        stdout: true,
-        stderr: true,
-      })
+      const { stdout, stderr } = await nextLint(
+        ['--base-dir', dirCustomConfig, '--quiet'],
+        {
+          stdout: true,
+          stderr: true,
+        }
+      )
 
       const output = stdout + stderr
       expect(output).toContain(
@@ -192,8 +207,7 @@ describe('ESLint', () => {
 
     test('max warnings flag errors when warnings exceed threshold', async () => {
       const { stdout, stderr } = await nextLint(
-        dirMaxWarnings,
-        ['--max-warnings', 1],
+        ['--base-dir', dirMaxWarnings, '--max-warnings', 1],
         {
           stdout: true,
           stderr: true,
@@ -211,8 +225,7 @@ describe('ESLint', () => {
 
     test('max warnings flag does not error when warnings do not exceed threshold', async () => {
       const { stdout, stderr } = await nextLint(
-        dirMaxWarnings,
-        ['--max-warnings', 2],
+        ['--base-dir', dirMaxWarnings, '--max-warnings', 2],
         {
           stdout: true,
           stderr: true,
@@ -225,6 +238,24 @@ describe('ESLint', () => {
       )
       expect(stdout).toContain(
         'Warning: External synchronous scripts are forbidden'
+      )
+    })
+
+    test('custom directories', async () => {
+      const { stdout, stderr } = await nextLint(
+        ['--base-dir', dirCustomDirectories, 'custom'],
+        {
+          stdout: true,
+          stderr: true,
+        }
+      )
+
+      const output = stdout + stderr
+      expect(output).toContain(
+        'Warning: External synchronous scripts are forbidden'
+      )
+      expect(output).not.toContain(
+        'Error: Comments inside children section of tag should be placed inside braces'
       )
     })
   })
