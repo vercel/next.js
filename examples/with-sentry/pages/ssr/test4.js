@@ -8,9 +8,13 @@ export async function getServerSideProps() {
   } catch (error) {
     Sentry.captureException(error)
 
-    // Flushing before returning is necessary if deploying to Vercel, see
-    // https://vercel.com/docs/platform/limits#streaming-responses
-    await Sentry.flush(2000)
+    try {
+      // Flushing before returning is necessary if deploying to Vercel, see
+      // https://vercel.com/docs/platform/limits#streaming-responses
+      await Sentry.flush(2000)
+    } catch (err) {
+      console.log(err)
+    }
   }
 
   return { props: {} }

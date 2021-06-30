@@ -39,21 +39,22 @@ MyError.getInitialProps = async ({ res, err, asPath }) => {
 
   if (err) {
     Sentry.captureException(err)
+  } else {
+    // If this point is reached, getInitialProps was called without any
+    // information about what the error might be. This is unexpected and may
+    // indicate a bug introduced in Next.js, so record it in Sentry
+    Sentry.captureException(
+      new Error(`_error.js getInitialProps missing data at path: ${asPath}`)
+    )
+  }
 
+  try {
     // Flushing before returning is necessary if deploying to Vercel, see
     // https://vercel.com/docs/platform/limits#streaming-responses
     await Sentry.flush(2000)
-
-    return errorInitialProps
+  } catch (err) {
+    console.log(err)
   }
-
-  // If this point is reached, getInitialProps was called without any
-  // information about what the error might be. This is unexpected and may
-  // indicate a bug introduced in Next.js, so record it in Sentry
-  Sentry.captureException(
-    new Error(`_error.js getInitialProps missing data at path: ${asPath}`)
-  )
-  await Sentry.flush(2000)
 
   return errorInitialProps
 }
