@@ -789,7 +789,8 @@ export default class Server {
             res,
             parsedUrl,
             server.nextConfig,
-            server.distDir
+            server.distDir,
+            this.renderOpts.dev
           ),
       },
       {
