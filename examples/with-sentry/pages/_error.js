@@ -53,7 +53,7 @@ MyError.getInitialProps = async ({ res, err, asPath }) => {
     // https://vercel.com/docs/platform/limits#streaming-responses
     await Sentry.flush(2000)
   } catch (err) {
-    console.log(err)
+    // no-empty
   }
 
   return errorInitialProps
