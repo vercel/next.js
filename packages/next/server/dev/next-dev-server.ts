@@ -47,12 +47,6 @@ import {
   loadDefaultErrorComponents,
 } from '../load-components'
 
-if (typeof React.Suspense === 'undefined') {
-  throw new Error(
-    `The version of React you are using is lower than the minimum required version needed for Next.js. Please upgrade "react" and "react-dom": "npm install react react-dom" https://nextjs.org/docs/messages/invalid-react-version`
-  )
-}
-
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: React.FunctionComponent
 const ReactDevOverlay = (props: any) => {
