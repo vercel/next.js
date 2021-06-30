@@ -709,9 +709,10 @@ export default async function getBaseWebpackConfig(
     }
 
     if (isLocal) {
+      // Makes sure dist/shared and dist/next-server are not bundled
       // we need to process shared/lib/router/router so that
       // the DefinePlugin can inject process.env values
-      const isNextExternal = /next[/\\]dist[/\\]shared[/\\](?!lib[/\\]router[/\\]router)/.test(
+      const isNextExternal = /next[/\\]dist[/\\](shared|next-server)[/\\](?!lib[/\\]router[/\\]router)/.test(
         res
       )
 
