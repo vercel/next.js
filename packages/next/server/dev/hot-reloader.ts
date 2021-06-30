@@ -4,7 +4,7 @@ import { IncomingMessage, ServerResponse } from 'http'
 import { WebpackHotMiddleware } from './hot-middleware'
 import { join } from 'path'
 import { UrlObject } from 'url'
-import { webpack, isWebpack5 } from 'next/dist/compiled/webpack/webpack'
+import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { createEntrypoints, createPagesMapping } from '../../build/entries'
 import { watchCompilers } from '../../build/output'
 import getBaseWebpackConfig from '../../build/webpack-config'
@@ -142,7 +142,6 @@ export default class HotReloader {
   private watcher: any
   private rewrites: CustomRoutes['rewrites']
   private fallbackWatcher: any
-  public isWebpack5: any
 
   constructor(
     dir: string,
@@ -172,7 +171,6 @@ export default class HotReloader {
     this.config = config
     this.previewProps = previewProps
     this.rewrites = rewrites
-    this.isWebpack5 = isWebpack5
   }
 
   public async run(
@@ -568,7 +566,6 @@ export default class HotReloader {
       this.onDemandEntries.middleware,
       this.webpackHotMiddleware.middleware,
       getOverlayMiddleware({
-        isWebpack5,
         rootDirectory: this.dir,
         stats: () => this.stats,
         serverStats: () => this.serverStats,

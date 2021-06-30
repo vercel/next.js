@@ -1,6 +1,6 @@
 import curry from 'next/dist/compiled/lodash.curry'
 import path from 'path'
-import { webpack, isWebpack5 } from 'next/dist/compiled/webpack/webpack'
+import { webpack } from 'next/dist/compiled/webpack/webpack'
 import MiniCssExtractPlugin from '../../../plugins/mini-css-extract-plugin'
 import { loader, plugin } from '../../helpers'
 import { ConfigurationContext, ConfigurationFn, pipe } from '../../utils'
@@ -323,7 +323,7 @@ export const css = curry(async function css(
       plugin(
         // @ts-ignore webpack 5 compat
         new MiniCssExtractPlugin({
-          experimentalUseImportModule: isWebpack5,
+          experimentalUseImportModule: true,
           filename: 'static/css/[contenthash].css',
           chunkFilename: 'static/css/[contenthash].css',
           // Next.js guarantees that CSS order "doesn't matter", due to imposed

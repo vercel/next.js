@@ -1,6 +1,6 @@
 import isWslBoolean from 'next/dist/compiled/is-wsl'
 import curry from 'next/dist/compiled/lodash.curry'
-import { webpack, isWebpack5 } from 'next/dist/compiled/webpack/webpack'
+import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { ConfigurationContext } from '../utils'
 
 const isWindows = process.platform === 'win32' || isWslBoolean
@@ -48,7 +48,7 @@ export const base = curry(function base(
   }
 
   // TODO: add codemod for "Should not import the named export" with JSON files
-  config.module.strictExportPresence = !isWebpack5
+  config.module.strictExportPresence = false
 
   return config
 })

@@ -659,20 +659,6 @@ export async function ncc_mini_css_extract_plugin(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
-export async function ncc_webpack_bundle4(task, opts) {
-  await task
-    .source(opts.src || 'bundles/webpack/bundle4.js')
-    .ncc({
-      packageName: 'webpack',
-      bundleName: 'webpack',
-      externals,
-      minify: false,
-      target: 'es5',
-    })
-    .target('compiled/webpack')
-}
-
-// eslint-disable-next-line camelcase
 export async function ncc_webpack_bundle5(task, opts) {
   await task
     .source(opts.src || 'bundles/webpack/bundle5.js')
@@ -785,7 +771,6 @@ export async function ncc(task, opts) {
         'ncc_text_table',
         'ncc_unistore',
         'ncc_web_vitals',
-        'ncc_webpack_bundle4',
         'ncc_webpack_bundle5',
         'ncc_webpack_bundle_packages',
         'ncc_webpack_sources',

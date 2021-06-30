@@ -1,16 +1,12 @@
-import { webpack, isWebpack5 } from 'next/dist/compiled/webpack/webpack'
+import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { trace, stackPush, stackPop, Span } from '../../../telemetry/trace'
 
 const pluginName = 'ProfilingPlugin'
 export const spans = new WeakMap<any, Span>()
 
 function getNormalModuleLoaderHook(compilation: any) {
-  if (isWebpack5) {
-    // @ts-ignore TODO: Remove ignore when webpack 5 is stable
-    return webpack.NormalModule.getCompilationHooks(compilation).loader
-  }
-
-  return compilation.hooks.normalModuleLoader
+  // @ts-ignore TODO: Remove ignore when webpack 5 is stable
+  return webpack.NormalModule.getCompilationHooks(compilation).loader
 }
 
 export class ProfilingPlugin {
@@ -83,14 +79,12 @@ export class ProfilingPlugin {
   }
 
   traceCompilationHooks(compiler: any) {
-    if (isWebpack5) {
-      this.traceHookPair(
-        'webpack-compilation',
-        compiler.hooks.beforeCompile,
-        compiler.hooks.afterCompile,
-        () => ({ name: compiler.name })
-      )
-    }
+    this.traceHookPair(
+      'webpack-compilation',
+      compiler.hooks.beforeCompile,
+      compiler.hooks.afterCompile,
+      () => ({ name: compiler.name })
+    )
 
     compiler.hooks.compilation.tap(pluginName, (compilation: any) => {
       compilation.hooks.buildModule.tap(pluginName, (module: any) => {
