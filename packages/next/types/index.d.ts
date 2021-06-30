@@ -23,6 +23,11 @@ import {
 // @ts-ignore This path is generated at build time and conflicts otherwise
 import next from '../dist/server/next'
 
+// @ts-ignore This path is generated at build time and conflicts otherwise
+import { NextConfig as NextConfigType } from '../dist/server/config'
+
+export type NextConfig = NextConfigType
+
 // Extend the React types with missing properties
 declare module 'react' {
   // <html amp=""> support
