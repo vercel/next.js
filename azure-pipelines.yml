@@ -111,36 +111,37 @@ stages:
           - script: |
               node run-tests.js -g 1/1 --timings --azure --type unit
             displayName: 'Run tests'
-
-      - job: test_chrome_integration
-        pool:
-          vmImage: 'windows-2019'
-        strategy:
-          matrix:
-            nodejs-1:
-              group: 1/4
-            nodejs-2:
-              group: 2/4
-            nodejs-3:
-              group: 3/4
-            nodejs-4:
-              group: 4/4
-        steps:
-          - checkout: none
-          - script: |
-              wmic datafile where name="C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe" get Version /value
-            displayName: 'List Chrome version'
-          - task: NodeTool@0
-            inputs:
-              versionSpec: $(node_version)
-            displayName: 'Install Node.js'
-          - task: Cache@2
-            inputs:
-              # use deterministic cache key that is specific
-              # to this test run
-              key: $(Build.SourceVersion)
-              path: $(System.DefaultWorkingDirectory)
-            displayName: Cache Build
-          - script: |
-              node run-tests.js -g $(group) --timings --azure
-            displayName: 'Run tests'
+      # TODO: investigate re-enabling when stability matches running in
+      # tests in ubuntu environment
+      # - job: test_chrome_integration
+      #   pool:
+      #     vmImage: 'windows-2019'
+      #   strategy:
+      #     matrix:
+      #       nodejs-1:
+      #         group: 1/4
+      #       nodejs-2:
+      #         group: 2/4
+      #       nodejs-3:
+      #         group: 3/4
+      #       nodejs-4:
+      #         group: 4/4
+      #   steps:
+      #     - checkout: none
+      #     - script: |
+      #         wmic datafile where name="C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe" get Version /value
+      #       displayName: 'List Chrome version'
+      #     - task: NodeTool@0
+      #       inputs:
+      #         versionSpec: $(node_version)
+      #       displayName: 'Install Node.js'
+      #     - task: Cache@2
+      #       inputs:
+      #         # use deterministic cache key that is specific
+      #         # to this test run
+      #         key: $(Build.SourceVersion)
+      #         path: $(System.DefaultWorkingDirectory)
+      #       displayName: Cache Build
+      #     - script: |
+      #         node run-tests.js -g $(group) --timings --azure
+      #       displayName: 'Run tests'
