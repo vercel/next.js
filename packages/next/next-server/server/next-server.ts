@@ -121,6 +121,10 @@ export type ServerConstructor = {
    */
   quiet?: boolean
   /**
+   * Custom logger for error - @default null
+   */
+  logger?: ((err: Error) => void) | null
+  /**
    * Object what you would use in next.config.js - @default {}
    */
   conf?: NextConfig | null
@@ -131,6 +135,7 @@ export type ServerConstructor = {
 export default class Server {
   protected dir: string
   protected quiet: boolean
+  protected logger: ((err: Error) => void) | null
   protected nextConfig: NextConfig
   protected distDir: string
   protected pagesDir?: string
@@ -173,6 +178,7 @@ export default class Server {
   public constructor({
     dir = '.',
     quiet = false,
+    logger = null,
     conf,
     dev = false,
     minimalMode = false,
@@ -180,6 +186,7 @@ export default class Server {
   }: ServerConstructor & { conf: NextConfig; minimalMode?: boolean }) {
     this.dir = resolve(dir)
     this.quiet = quiet
+    this.logger = logger
     loadEnvConfig(this.dir, dev, Log)
 
     this.nextConfig = conf
@@ -284,6 +291,10 @@ export default class Server {
 
   public logError(err: Error): void {
     if (this.quiet) return
+    if (this.logger) {
+      this.logger(err)
+      return
+    }
     console.error(err)
   }
 
