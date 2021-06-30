@@ -262,31 +262,36 @@ function defaultImageLoader(loaderProps: ImageLoaderProps) {
 
 // See https://stackoverflow.com/q/39777833/266535 for why we use this ref
 // handler instead of the img's onLoad attribute.
-function removePlaceholder(
+function handleLoading(
   img: HTMLImageElement | null,
   placeholder: PlaceholderValue,
-  onLoadingComplete: () => void
+  onLoadingComplete?: () => void
 ) {
-  if (placeholder === 'blur' && img) {
-    const handleLoad = () => {
-      if (!img.src.startsWith('data:')) {
-        const p = 'decode' in img ? img.decode() : Promise.resolve()
-        p.catch(() => {}).then(() => {
+  if (!img) {
+    return
+  }
+  const handleLoad = () => {
+    if (!img.src.startsWith('data:')) {
+      const p = 'decode' in img ? img.decode() : Promise.resolve()
+      p.catch(() => {}).then(() => {
+        if (placeholder === 'blur') {
           img.style.filter = 'none'
           img.style.backgroundSize = 'none'
           img.style.backgroundImage = 'none'
+        }
+        if (onLoadingComplete) {
           onLoadingComplete()
-        })
-      }
+        }
+      })
     }
-    if (img.complete) {
-      // If the real image fails to load, this will still remove the placeholder.
-      // This is the desired behavior for now, and will be revisited when error
-      // handling is worked on for the image component itself.
-      handleLoad()
-    } else {
-      img.onload = handleLoad
-    }
+  }
+  if (img.complete) {
+    // If the real image fails to load, this will still remove the placeholder.
+    // This is the desired behavior for now, and will be revisited when error
+    // handling is worked on for the image component itself.
+    handleLoad()
+  } else {
+    img.onload = handleLoad
   }
 }
 
@@ -302,7 +307,7 @@ export default function Image({
   height,
   objectFit,
   objectPosition,
-  onLoadingComplete = () => {},
+  onLoadingComplete,
   loader = defaultImageLoader,
   placeholder = 'empty',
   blurDataURL,
@@ -592,9 +597,9 @@ export default function Image({
         {...imgAttributes}
         decoding="async"
         className={className}
-        ref={(element) => {
-          setRef(element)
-          removePlaceholder(element, placeholder, onLoadingComplete)
+        ref={(img) => {
+          setRef(img)
+          handleLoading(img, placeholder, onLoadingComplete)
         }}
         style={imgStyle}
       />
