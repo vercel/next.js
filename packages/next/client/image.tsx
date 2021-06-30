@@ -1,12 +1,12 @@
 import React from 'react'
-import Head from '../next-server/lib/head'
-import { toBase64 } from '../next-server/lib/to-base-64'
+import Head from '../shared/lib/head'
+import { toBase64 } from '../shared/lib/to-base-64'
 import {
   ImageConfig,
   imageConfigDefault,
   LoaderValue,
   VALID_LOADERS,
-} from '../next-server/server/image-config'
+} from '../server/image-config'
 import { useIntersection } from './use-intersection'
 
 if (typeof window === 'undefined') {

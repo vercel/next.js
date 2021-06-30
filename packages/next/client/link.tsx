@@ -8,7 +8,7 @@ import {
   NextRouter,
   PrefetchOptions,
   resolveHref,
-} from '../next-server/lib/router/router'
+} from '../shared/lib/router/router'
 import { useRouter } from './router'
 import { useIntersection } from './use-intersection'
 

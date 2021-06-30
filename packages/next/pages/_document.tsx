@@ -4,18 +4,15 @@ import flush from 'styled-jsx/server'
 import {
   AMP_RENDER_TARGET,
   OPTIMIZED_FONT_PROVIDERS,
-} from '../next-server/lib/constants'
-import { DocumentContext as DocumentComponentContext } from '../next-server/lib/document-context'
+} from '../shared/lib/constants'
+import { DocumentContext as DocumentComponentContext } from '../shared/lib/document-context'
 import {
   DocumentContext,
   DocumentInitialProps,
   DocumentProps,
-} from '../next-server/lib/utils'
-import {
-  BuildManifest,
-  getPageFiles,
-} from '../next-server/server/get-page-files'
-import { cleanAmpPath } from '../next-server/server/utils'
+} from '../shared/lib/utils'
+import { BuildManifest, getPageFiles } from '../server/get-page-files'
+import { cleanAmpPath } from '../server/utils'
 import { htmlEscapeJsonString } from '../server/htmlescape'
 import Script, { Props as ScriptLoaderProps } from '../client/script'
 

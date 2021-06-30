@@ -1,6 +1,6 @@
 /* eslint-env jest */
 import { Component } from 'react'
-import { getDisplayName } from 'next/dist/next-server/lib/utils'
+import { getDisplayName } from 'next/dist/shared/lib/utils'
 
 describe('getDisplayName', () => {
   it('gets the proper display name of a component', () => {

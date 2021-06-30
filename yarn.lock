@@ -15632,6 +15632,23 @@ rc@^1.0.1, rc@^1.1.6, rc@^1.2.7, rc@^1.2.8:
     minimist "^1.2.0"
     strip-json-comments "~2.0.1"
 
+"react-18@npm:react@next":
+  version "18.0.0-alpha-73ffce1b6-20210624"
+  resolved "https://registry.yarnpkg.com/react/-/react-18.0.0-alpha-73ffce1b6-20210624.tgz#d9fb8700c6fad8de752ec0427f2ae3a941eea951"
+  integrity sha512-Qaj2vhrMlYc169Yh0gXBB7WeKWMeIVx99JnuouuT71Jku2Cly9TxAWurc+h6PSgz/qjjmDA2NOtHCb6mGlmzGA==
+  dependencies:
+    loose-envify "^1.1.0"
+    object-assign "^4.1.1"
+
+"react-dom-18@npm:react-dom@next":
+  version "18.0.0-alpha-73ffce1b6-20210624"
+  resolved "https://registry.yarnpkg.com/react-dom/-/react-dom-18.0.0-alpha-73ffce1b6-20210624.tgz#3d789e4f3446abc685a7754c8dc74dea0ffb4247"
+  integrity sha512-TgA+VhVas3mJdhy6AQLXnPzBN2JeNKC7EGhLKU11XOxUODCGQ94nyT04i1ta2R3Fv0QevMLp0Wb5hccan0wMEg==
+  dependencies:
+    loose-envify "^1.1.0"
+    object-assign "^4.1.1"
+    scheduler "0.21.0-alpha-73ffce1b6-20210624"
+
 react-dom@17.0.2:
   version "17.0.2"
   resolved "https://registry.yarnpkg.com/react-dom/-/react-dom-17.0.2.tgz#ecffb6845e3ad8dbfcdc498f0d0a939736502c23"
@@ -16648,6 +16665,14 @@ saxes@^5.0.1:
   resolved "https://registry.yarnpkg.com/saxes/-/saxes-5.0.1.tgz#eebab953fa3b7608dbe94e5dadb15c888fa6696d"
   dependencies:
     xmlchars "^2.2.0"
+
+scheduler@0.21.0-alpha-73ffce1b6-20210624:
+  version "0.21.0-alpha-73ffce1b6-20210624"
+  resolved "https://registry.yarnpkg.com/scheduler/-/scheduler-0.21.0-alpha-73ffce1b6-20210624.tgz#6fff95e26af73cfaa365b68fa3b68c4c66dfe347"
+  integrity sha512-7SXTiepGRo63F5Yp/fxLhZDYi5TInsqjnMTYF6GwtunUGAwyuK4V/AFiF0Q1gtB32U/e+C+OE4SSj9LtBYBjYw==
+  dependencies:
+    loose-envify "^1.1.0"
+    object-assign "^4.1.1"
 
 scheduler@^0.20.2:
   version "0.20.2"
