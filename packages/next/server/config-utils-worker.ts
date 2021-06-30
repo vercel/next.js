@@ -1,12 +1,9 @@
 import { loadEnvConfig } from '@next/env'
 import findUp from 'next/dist/compiled/find-up'
 import { init as initWebpack } from 'next/dist/compiled/webpack/webpack'
-import {
-  CONFIG_FILE,
-  PHASE_DEVELOPMENT_SERVER,
-} from '../../shared/lib/constants'
+import { CONFIG_FILE, PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import { NextConfig, normalizeConfig } from './config-shared'
-import * as Log from '../../build/output/log'
+import * as Log from '../build/output/log'
 
 let installed: boolean = false
 
@@ -20,7 +17,7 @@ export function install(useWebpack5: boolean) {
 
   // hook the Node.js require so that webpack requires are
   // routed to the bundled and now initialized webpack version
-  require('../../build/webpack/require-hook')
+  require('../build/webpack/require-hook')
 }
 
 export type CheckReasons =

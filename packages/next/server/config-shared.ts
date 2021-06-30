@@ -1,5 +1,5 @@
 import os from 'os'
-import { Header, Redirect, Rewrite } from '../../lib/load-custom-routes'
+import { Header, Redirect, Rewrite } from '../lib/load-custom-routes'
 import { imageConfigDefault } from './image-config'
 
 export type DomainLocales = Array<{

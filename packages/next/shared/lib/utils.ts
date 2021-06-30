@@ -5,8 +5,8 @@ import { UrlObject } from 'url'
 import { formatUrl } from './router/utils/format-url'
 import { NextRouter } from './router/router'
 import { Env } from '@next/env'
-import { BuildManifest } from '../../next-server/server/get-page-files'
-import { DomainLocales } from '../../next-server/server/config'
+import { BuildManifest } from '../../server/get-page-files'
+import { DomainLocales } from '../../server/config'
 import { PreviewData } from 'next/types'
 
 export type NextComponentType<

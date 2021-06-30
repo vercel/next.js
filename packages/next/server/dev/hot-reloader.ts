@@ -5,30 +5,27 @@ import { WebpackHotMiddleware } from './hot-middleware'
 import { join } from 'path'
 import { UrlObject } from 'url'
 import { webpack, isWebpack5 } from 'next/dist/compiled/webpack/webpack'
-import { createEntrypoints, createPagesMapping } from '../build/entries'
-import { watchCompilers } from '../build/output'
-import getBaseWebpackConfig from '../build/webpack-config'
-import { API_ROUTE } from '../lib/constants'
-import { recursiveDelete } from '../lib/recursive-delete'
-import { BLOCKED_PAGES } from '../shared/lib/constants'
-import { __ApiPreviewProps } from '../next-server/server/api-utils'
-import { route } from '../next-server/server/router'
-import { findPageFile } from './lib/find-page-file'
+import { createEntrypoints, createPagesMapping } from '../../build/entries'
+import { watchCompilers } from '../../build/output'
+import getBaseWebpackConfig from '../../build/webpack-config'
+import { API_ROUTE } from '../../lib/constants'
+import { recursiveDelete } from '../../lib/recursive-delete'
+import { BLOCKED_PAGES } from '../../shared/lib/constants'
+import { __ApiPreviewProps } from '../api-utils'
+import { route } from '../router'
+import { findPageFile } from '../lib/find-page-file'
 import onDemandEntryHandler, {
   entries,
   BUILDING,
 } from './on-demand-entry-handler'
-import {
-  denormalizePagePath,
-  normalizePathSep,
-} from '../next-server/server/normalize-page-path'
-import getRouteFromEntrypoint from '../next-server/server/get-route-from-entrypoint'
-import { isWriteable } from '../build/is-writeable'
-import { ClientPagesLoaderOptions } from '../build/webpack/loaders/next-client-pages-loader'
+import { denormalizePagePath, normalizePathSep } from '../normalize-page-path'
+import getRouteFromEntrypoint from '../get-route-from-entrypoint'
+import { isWriteable } from '../../build/is-writeable'
+import { ClientPagesLoaderOptions } from '../../build/webpack/loaders/next-client-pages-loader'
 import { stringify } from 'querystring'
-import { difference } from '../build/utils'
-import { NextConfig } from '../next-server/server/config'
-import { CustomRoutes } from '../lib/load-custom-routes'
+import { difference } from '../../build/utils'
+import { NextConfig } from '../config'
+import { CustomRoutes } from '../../lib/load-custom-routes'
 
 export async function renderScriptError(
   res: ServerResponse,

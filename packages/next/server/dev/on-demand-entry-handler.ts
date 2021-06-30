@@ -3,14 +3,11 @@ import { IncomingMessage, ServerResponse } from 'http'
 import { join, posix } from 'path'
 import { parse } from 'url'
 import { webpack, isWebpack5 } from 'next/dist/compiled/webpack/webpack'
-import * as Log from '../build/output/log'
-import {
-  normalizePagePath,
-  normalizePathSep,
-} from '../next-server/server/normalize-page-path'
-import { pageNotFoundError } from '../next-server/server/require'
-import { findPageFile } from './lib/find-page-file'
-import getRouteFromEntrypoint from '../next-server/server/get-route-from-entrypoint'
+import * as Log from '../../build/output/log'
+import { normalizePagePath, normalizePathSep } from '../normalize-page-path'
+import { pageNotFoundError } from '../require'
+import { findPageFile } from '../lib/find-page-file'
+import getRouteFromEntrypoint from '../get-route-from-entrypoint'
 
 export const ADDED = Symbol('added')
 export const BUILDING = Symbol('building')

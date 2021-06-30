@@ -6,7 +6,7 @@ import {
   imageConfigDefault,
   LoaderValue,
   VALID_LOADERS,
-} from '../next-server/server/image-config'
+} from '../server/image-config'
 import { useIntersection } from './use-intersection'
 
 if (typeof window === 'undefined') {

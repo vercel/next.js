@@ -6,7 +6,7 @@ import {
   PHASE_EXPORT,
   PHASE_PRODUCTION_BUILD,
 } from '../../shared/lib/constants'
-import { normalizeConfig } from '../../next-server/server/config'
+import { normalizeConfig } from '../../server/config'
 
 const EVENT_VERSION = 'NEXT_CLI_SESSION_STARTED'
 

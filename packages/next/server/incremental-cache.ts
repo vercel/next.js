@@ -1,8 +1,8 @@
 import { promises, readFileSync } from 'fs'
 import LRUCache from 'next/dist/compiled/lru-cache'
 import path from 'path'
-import { PrerenderManifest } from '../../build'
-import { PRERENDER_MANIFEST } from '../../shared/lib/constants'
+import { PrerenderManifest } from '../build'
+import { PRERENDER_MANIFEST } from '../shared/lib/constants'
 import { normalizePagePath } from './normalize-page-path'
 
 function toRoute(pathname: string): string {

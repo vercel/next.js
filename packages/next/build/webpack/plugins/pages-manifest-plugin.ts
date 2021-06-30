@@ -4,7 +4,7 @@ import {
   sources,
 } from 'next/dist/compiled/webpack/webpack'
 import { PAGES_MANIFEST } from '../../../shared/lib/constants'
-import getRouteFromEntrypoint from '../../../next-server/server/get-route-from-entrypoint'
+import getRouteFromEntrypoint from '../../../server/get-route-from-entrypoint'
 
 export type PagesManifest = { [page: string]: string }
 

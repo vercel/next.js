@@ -1,11 +1,11 @@
 import {
   BUILD_MANIFEST,
   REACT_LOADABLE_MANIFEST,
-} from '../../shared/lib/constants'
+} from '../shared/lib/constants'
 import { join } from 'path'
 import { requirePage } from './require'
 import { BuildManifest } from './get-page-files'
-import { AppType, DocumentType } from '../../shared/lib/utils'
+import { AppType, DocumentType } from '../shared/lib/utils'
 import {
   PageConfig,
   GetStaticPaths,
