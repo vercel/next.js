@@ -1,0 +1,37 @@
+{
+  "name": "with-mat-ui-rtk-ts",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@material-ui/core": "^4.11.4",
+    "@material-ui/icons": "^4.11.2",
+    "@reduxjs/toolkit": "^1.6.0",
+    "next": "11.0.1",
+    "react": "17.0.2",
+    "react-dom": "17.0.2",
+    "react-redux": "^7.2.4"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^5.14.1",
+    "@testing-library/react": "^12.0.0",
+    "@testing-library/user-event": "^13.1.9",
+    "@types/jest": "^26.0.23",
+    "@types/node": "^15.12.5",
+    "@types/react": "17.0.11",
+    "@types/react-dom": "^17.0.8",
+    "@types/react-redux": "^7.1.16",
+    "eslint": "7.29.0",
+    "eslint-config-next": "11.0.1",
+    "jest": "^27.0.6",
+    "jest-css-modules-transform": "^4.2.1",
+    "ts-jest": "^27.0.3",
+    "ts-node": "^10.0.0",
+    "typescript": "4.3.4"
+  }
+}
