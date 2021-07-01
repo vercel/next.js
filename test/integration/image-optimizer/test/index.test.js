@@ -98,6 +98,8 @@ function runTests({ w, isDev, domains }) {
     expect(res.headers.get('Cache-Control')).toBe(
       `public, max-age=${isDev ? 0 : 60}, must-revalidate`
     )
+    // SVG is compressible so will have accept-encoding set from
+    // compression
     expect(res.headers.get('Vary')).toMatch(/^Accept(,|$)/)
     expect(res.headers.get('etag')).toBeTruthy()
     const actual = await res.text()
@@ -504,7 +506,9 @@ function runTests({ w, isDev, domains }) {
     expect(res.headers.get('Cache-Control')).toBe(
       `public, max-age=${isDev ? 0 : 60}, must-revalidate`
     )
-    expect(res.headers.get('Vary')).toBe('Accept')
+    // bmp is compressible so will have accept-encoding set from
+    // compression
+    expect(res.headers.get('Vary')).toMatch(/^Accept(,|$)/)
     expect(res.headers.get('etag')).toBeTruthy()
 
     const json2 = await fsToJson(imagesDir)
