@@ -2,14 +2,14 @@ import chalk from 'chalk'
 import { posix, join } from 'path'
 import { stringify } from 'querystring'
 import { API_ROUTE, DOT_NEXT_ALIAS, PAGES_DIR_ALIAS } from '../lib/constants'
-import { __ApiPreviewProps } from '../next-server/server/api-utils'
-import { isTargetLikeServerless } from '../next-server/server/config'
-import { normalizePagePath } from '../next-server/server/normalize-page-path'
+import { __ApiPreviewProps } from '../server/api-utils'
+import { isTargetLikeServerless } from '../server/config'
+import { normalizePagePath } from '../server/normalize-page-path'
 import { warn } from './output/log'
 import { ClientPagesLoaderOptions } from './webpack/loaders/next-client-pages-loader'
 import { ServerlessLoaderQuery } from './webpack/loaders/next-serverless-loader'
 import { LoadedEnvFiles } from '@next/env'
-import { NextConfig } from '../next-server/server/config'
+import { NextConfig } from '../server/config'
 
 type PagesMapping = {
   [page: string]: string
