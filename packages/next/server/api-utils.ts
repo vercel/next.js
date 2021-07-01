@@ -68,7 +68,7 @@ export async function apiResolver(
     const endResponse = apiRes.end
     apiRes.write = (...args) => {
       contentLength += Buffer.byteLength(args[0])
-      writeData(...args)
+      writeData.apply(apiRes, args)
     }
     apiRes.end = (...args) => {
       if (args.length && typeof args[0] !== 'function') {
@@ -81,7 +81,7 @@ export async function apiResolver(
         )
       }
 
-      endResponse(...args)
+      endResponse.apply(apiRes, args)
     }
     apiRes.status = (statusCode) => sendStatusCode(apiRes, statusCode)
     apiRes.send = (data) => sendData(apiReq, apiRes, data)
