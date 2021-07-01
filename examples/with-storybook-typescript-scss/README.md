@@ -1,47 +1,27 @@
-# Example app with Storybook
+# Next.js Example Storybook Scss Typescript
 
-This example shows a default set up of Storybook. Also included in the example is a custom component included in both Storybook and the Next.js application.
-
-### TypeScript
-
-As of v6.0, Storybook has built-in TypeScript support, so no configuration is needed. If you want to customize the default configuration, refer to the [TypeScript docs](https://storybook.js.org/docs/react/configure/typescript).
+This is an example which shows how to create a working storybook with webpack 5 and next.js 11. If you discover any issues feel free to [contact me](https://github.com/jawil003) on social media (in my profile description).
 
 ## Preview
 
 Preview the example live on [StackBlitz](http://stackblitz.com/):
 
-[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-storybook)
+[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-storybook-typescript-scss-example)
 
 ## Deploy your own
 
 Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-storybook&project-name=with-storybook&repository-name=with-storybook)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-storybook-typescript-scss-example&project-name=DIRECTORY_NAME&repository-name=with-storybook-typescript-scss-example)
 
 ## How to use
 
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-storybook with-storybook-app
+npx create-next-app --example with-storybook-typescript-scss-example with-storybook-typescript-scss-example -app
 # or
-yarn create next-app --example with-storybook with-storybook-app
+yarn create next-app --example with-storybook-typescript-scss-example with-storybook-typescript-scss-example-app
 ```
 
-### Run Storybook
-
-```bash
-npm run storybook
-# or
-yarn storybook
-```
-
-### Build Static Storybook
-
-```bash
-npm run build-storybook
-# or
-yarn build-storybook
-```
-
-You can use [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) to deploy Storybook. Specify `storybook-static` as the output directory.
+Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
