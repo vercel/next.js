@@ -183,6 +183,35 @@ function runTests(mode) {
     }
   })
 
+  it('should callback onLoadingComplete when image is fully loaded', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/on-loading-complete')
+
+      await check(
+        () => browser.eval(`document.getElementById("img1").src`),
+        /test(.*)jpg/
+      )
+
+      await check(
+        () => browser.eval(`document.getElementById("img2").src`),
+        /test(.*).png/
+      )
+      await check(
+        () => browser.eval(`document.getElementById("msg1").textContent`),
+        'loaded img1'
+      )
+      await check(
+        () => browser.eval(`document.getElementById("msg2").textContent`),
+        'loaded img2'
+      )
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
+
   it('should work when using flexbox', async () => {
     let browser
     try {
@@ -647,6 +676,14 @@ describe('Image Component Tests', () => {
       expect($html('#blurry-placeholder')[0].attribs.style).toContain(
         `background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'%3E%3Cfilter id='blur' filterUnits='userSpaceOnUse' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='20' edgeMode='duplicate' /%3E%3CfeComponentTransfer%3E%3CfeFuncA type='discrete' tableValues='1 1' /%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Cimage filter='url(%23blur)' href='data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMDAwMDAwQEBAQFBQUFBQcHBgYHBwsICQgJCAsRCwwLCwwLEQ8SDw4PEg8bFRMTFRsfGhkaHyYiIiYwLTA+PlT/wAALCAAKAAoBAREA/8QAMwABAQEAAAAAAAAAAAAAAAAAAAcJEAABAwUAAwAAAAAAAAAAAAAFAAYRAQMEEyEVMlH/2gAIAQEAAD8Az1bLPaxhiuk0QdeCOLDtHixN2dmd2bsc5FPX7VTREX//2Q==' x='0' y='0' height='100%25' width='100%25'/%3E%3C/svg%3E")`
       )
+
+      expect($html('#blurry-placeholder')[0].attribs.style).toContain(
+        `background-position:0% 0%`
+      )
+
+      expect(
+        $html('#blurry-placeholder-tall-centered')[0].attribs.style
+      ).toContain(`background-position:center`)
 
       expect($html('#blurry-placeholder-with-lazy')[0].attribs.style).toContain(
         `background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'%3E%3Cfilter id='blur' filterUnits='userSpaceOnUse' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='20' edgeMode='duplicate' /%3E%3CfeComponentTransfer%3E%3CfeFuncA type='discrete' tableValues='1 1' /%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Cimage filter='url(%23blur)' href='data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMDAwMDAwQEBAQFBQUFBQcHBgYHBwsICQgJCAsRCwwLCwwLEQ8SDw4PEg8bFRMTFRsfGhkaHyYiIiYwLTA+PlT/wAALCAAKAAoBAREA/8QAMwABAQEAAAAAAAAAAAAAAAAAAAcJEAABAwUAAwAAAAAAAAAAAAAFAAYRAQMEEyEVMlH/2gAIAQEAAD8Az1bLPaxhiuk0QdeCOLDtHixN2dmd2bsc5FPX7VTREX//2Q==' x='0' y='0' height='100%25' width='100%25'/%3E%3C/svg%3E")`
