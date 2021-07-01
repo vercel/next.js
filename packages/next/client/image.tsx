@@ -410,6 +410,11 @@ export default function Image({
         )
       }
     }
+    if ('ref' in rest) {
+      console.warn(
+        `Image with src "${src}" is using unsupported "ref" property. Consider using the "onLoadingComplete" property instead.`
+      )
+    }
   }
   let isLazy =
     !priority && (loading === 'lazy' || typeof loading === 'undefined')
