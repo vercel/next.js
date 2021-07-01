@@ -75,7 +75,7 @@ export async function apiResolver(
         contentLength += Buffer.byteLength(args[0])
       }
 
-      if (contentLength >= 5_000_000) {
+      if (contentLength >= 5 * 1024 * 1024) {
         console.warn(
           `API response for ${req.url} exceeds 5mb. This will cause the request to fail in a future version.`
         )
@@ -259,7 +259,6 @@ export function sendData(
   }
 
   const contentType = res.getHeader('Content-Type')
-
   if (body instanceof Stream) {
     if (!contentType) {
       res.setHeader('Content-Type', 'application/octet-stream')
@@ -267,14 +266,12 @@ export function sendData(
     body.pipe(res)
     return
   }
-
   const isJSONLike = ['object', 'number', 'boolean'].includes(typeof body)
   const stringifiedBody = isJSONLike ? JSON.stringify(body) : body
   const etag = generateETag(stringifiedBody)
   if (sendEtagResponse(req, res, etag)) {
     return
   }
-
   if (Buffer.isBuffer(body)) {
     if (!contentType) {
       res.setHeader('Content-Type', 'application/octet-stream')
@@ -283,7 +280,6 @@ export function sendData(
     res.end(body)
     return
   }
-
   if (isJSONLike) {
     res.setHeader('Content-Type', 'application/json; charset=utf-8')
   }
