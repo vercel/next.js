@@ -68,9 +68,9 @@ export async function apiResolver(
     const endResponse = apiRes.end
     apiRes.write = (...args) => {
       contentLength += Buffer.byteLength(args[0])
-      writeData.apply(apiRes, args)
+      return writeData.apply(apiRes, args)
     }
-    apiRes.end = (...args) => {
+    apiRes.end = (...args: any[]) => {
       if (args.length && typeof args[0] !== 'function') {
         contentLength += Buffer.byteLength(args[0])
       }
