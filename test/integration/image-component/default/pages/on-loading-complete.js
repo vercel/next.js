@@ -14,7 +14,7 @@ const Page = () => (
 )
 
 function ImageWithMessage({ id, src }) {
-  const [msg, setMsg] = useState('')
+  const [msg, setMsg] = useState('[LOADING]')
   return (
     <>
       <Image
