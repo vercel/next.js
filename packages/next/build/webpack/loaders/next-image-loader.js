@@ -1,6 +1,6 @@
 import loaderUtils from 'next/dist/compiled/loader-utils'
 import sizeOf from 'image-size'
-import { processBuffer } from '../../../next-server/server/lib/squoosh/main'
+import { processBuffer } from '../../../server/lib/squoosh/main'
 
 const BLUR_IMG_SIZE = 8
 const BLUR_QUALITY = 70

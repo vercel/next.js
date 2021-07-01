@@ -1,12 +1,12 @@
 import React from 'react'
-import Head from '../next-server/lib/head'
-import { toBase64 } from '../next-server/lib/to-base-64'
+import Head from '../shared/lib/head'
+import { toBase64 } from '../shared/lib/to-base-64'
 import {
   ImageConfig,
   imageConfigDefault,
   LoaderValue,
   VALID_LOADERS,
-} from '../next-server/server/image-config'
+} from '../server/image-config'
 import { useIntersection } from './use-intersection'
 
 if (typeof window === 'undefined') {
@@ -445,8 +445,9 @@ export default function Image({
     ...(placeholder === 'blur'
       ? {
           filter: 'blur(20px)',
-          backgroundSize: 'cover',
+          backgroundSize: objectFit || 'cover',
           backgroundImage: `url("${blurDataURL}")`,
+          backgroundPosition: objectPosition || '0% 0%',
         }
       : undefined),
   }
@@ -703,7 +704,10 @@ function defaultLoader({
         )
       }
 
-      if (!configDomains.includes(parsedSrc.hostname)) {
+      if (
+        process.env.NODE_ENV !== 'test' &&
+        !configDomains.includes(parsedSrc.hostname)
+      ) {
         throw new Error(
           `Invalid src prop (${src}) on \`next/image\`, hostname "${parsedSrc.hostname}" is not configured under images in your \`next.config.js\`\n` +
             `See more info: https://nextjs.org/docs/messages/next-image-unconfigured-host`
