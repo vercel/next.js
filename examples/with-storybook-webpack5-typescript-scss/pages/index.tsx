@@ -1,5 +1,5 @@
-import { NextPage } from "next";
-import HelloWorld from "../components";
+import { NextPage } from 'next'
+import HelloWorld from '../components'
 
 const HomePage: NextPage = () => {
   return (
@@ -7,7 +7,7 @@ const HomePage: NextPage = () => {
       <h1>Simple Storybook Example</h1>
       <HelloWorld />
     </div>
-  );
-};
+  )
+}
 
-export default HomePage;
+export default HomePage
