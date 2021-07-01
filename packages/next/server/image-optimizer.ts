@@ -497,7 +497,7 @@ function parseCacheControl(str: string | null): Map<string, string> {
  * it matches the "magic number" of known file signatures.
  * https://en.wikipedia.org/wiki/List_of_file_signatures
  */
-function detectContentType(buffer: Buffer) {
+export function detectContentType(buffer: Buffer) {
   if ([0xff, 0xd8, 0xff].every((b, i) => buffer[i] === b)) {
     return JPEG
   }
