@@ -1,6 +1,6 @@
-# Example app with [native-base](https://github.com/GeekyAnts/nativebase)
+# Example app with [native-base-typescript](https://github.com/GeekyAnts/nativebase)
 
-This example features how to use [native-base](https://github.com/GeekyAnts/nativebase) as the component library within a Next.js app.
+This example features how to use [native-base](https://github.com/GeekyAnts/nativebase) as the component library within a Next.js app with Typescript config.
 
 ## Preview
 
