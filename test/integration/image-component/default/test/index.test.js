@@ -15,6 +15,7 @@ import {
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
+import { existsSync } from 'fs'
 
 jest.setTimeout(1000 * 80)
 
@@ -525,6 +526,13 @@ function runTests(mode) {
       expect(warnings).toMatch(
         /Image with src (.*)jpg(.*) is smaller than 40x40. Consider removing(.*)/gm
       )
+    })
+  } else {
+    //server-only tests
+    it('should not create an image folder in server/chunks', async () => {
+      expect(
+        existsSync(join(appDir, '.next/server/chunks/static/image'))
+      ).toBeFalsy()
     })
   }
 
