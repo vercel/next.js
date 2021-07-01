@@ -25,6 +25,9 @@ let nextConfigContent
 let appPort
 let app
 
+const getCacheHeader = async (port, pathname) =>
+  (await fetchViaHTTP(port, pathname)).headers.get('Cache-Control')
+
 const runTests = (mode = 'server') => {
   it('should use pages/404', async () => {
     const html = await renderViaHTTP(appPort, '/abc')
@@ -108,7 +111,7 @@ describe('404 Page Support', () => {
     runTests('serverless')
   })
 
-  it('should not cache for custom 404 page with ssg', async () => {
+  it('should cache for custom 404 page on ssg without revalidate', async () => {
     await fs.move(pages404, `${pages404}.bak`)
     await fs.writeFile(
       pages404,
@@ -121,29 +124,49 @@ describe('404 Page Support', () => {
     await nextBuild(appDir)
     appPort = await findPort()
     app = await nextStart(appDir, appPort)
-    const res404 = await fetchViaHTTP(appPort, '/404')
-    const resNext = await fetchViaHTTP(appPort, '/_next/abc')
+    const cache404 = await getCacheHeader(appPort, '/404')
+    const cacheNext = await getCacheHeader(appPort, '/_next/abc')
     await fs.remove(pages404)
     await fs.move(`${pages404}.bak`, pages404)
     await killApp(app)
-    const privateCache =
-      'private, no-cache, no-store, max-age=0, must-revalidate'
-    expect(res404.headers.get('Cache-Control')).toBe(privateCache)
-    expect(resNext.headers.get('Cache-Control')).toBe(privateCache)
+
+    expect(cache404).toBe('s-maxage=31536000, stale-while-revalidate')
+    expect(cacheNext).toBe('s-maxage=31536000, stale-while-revalidate')
   })
 
-  it('should not cache for custom 404 page without ssg', async () => {
+  it('should not cache for custom 404 page on ssg with revalidate', async () => {
+    await fs.move(pages404, `${pages404}.bak`)
+    await fs.writeFile(
+      pages404,
+      `
+      const page = () => 'custom 404 page'
+      export async function getStaticProps() { return { props: {}, revalidate: 10 } }
+      export default page
+    `
+    )
     await nextBuild(appDir)
     appPort = await findPort()
     app = await nextStart(appDir, appPort)
-    const res404 = await fetchViaHTTP(appPort, '/404')
-    const resNext = await fetchViaHTTP(appPort, '/_next/abc')
+    const cache404 = await getCacheHeader(appPort, '/404')
+    const cacheNext = await getCacheHeader(appPort, '/_next/abc')
+    await fs.remove(pages404)
+    await fs.move(`${pages404}.bak`, pages404)
     await killApp(app)
 
-    expect(res404.headers.get('Cache-Control')).toBe(null)
-    expect(resNext.headers.get('Cache-Control')).toBe(
-      'no-cache, no-store, max-age=0, must-revalidate'
-    )
+    expect(cache404).toBe('s-maxage=10, stale-while-revalidate')
+    expect(cacheNext).toBe('s-maxage=10, stale-while-revalidate')
+  })
+
+  it('should not cache for custom 404 page on production mode', async () => {
+    await nextBuild(appDir)
+    appPort = await findPort()
+    app = await nextStart(appDir, appPort)
+    const cache404 = await getCacheHeader(appPort, '/404')
+    const cacheNext = await getCacheHeader(appPort, '/_next/abc')
+    await killApp(app)
+
+    expect(cache404).toBe(null)
+    expect(cacheNext).toBe('no-cache, no-store, max-age=0, must-revalidate')
   })
 
   it('falls back to _error correctly without pages/404', async () => {
