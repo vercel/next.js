@@ -6,17 +6,17 @@ for PROJECT_DIR in $@;do :;done
 
 if [ -z $PROJECT_DIR ];then
   echo "No project directory provided, exiting..."
-  exit 0;
+  exit 1;
 fi;
 
 if [ ! -d $PROJECT_DIR ];then
   echo "Invalid project directory provided, exiting..."
-  exit 0;
+  exit 1;
 fi;
 
 if [ $PROJECT_DIR == $PWD ] || [ "$PROJECT_DIR" == "." ];then
   echo "Project directory can not be root, exiting..."
-  exit 0;
+  exit 1;
 fi;
 
 CONFLICTING_DEPS=("react" "react-dom" "styled-jsx" "next")
