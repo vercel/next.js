@@ -197,7 +197,7 @@ The image position when using `layout="fill"`.
 
 ### onLoadingComplete
 
-A callback function that is invoked once the image is completely loaded.
+A callback function that is invoked once the image is completely loaded and the placeholder has been removed.
 
 ### loading
 
