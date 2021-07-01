@@ -63,6 +63,26 @@ export async function apiResolver(
       )
     }
 
+    let contentLength = 0
+    const writeData = apiRes.write
+    const endResponse = apiRes.end
+    apiRes.write = (...args) => {
+      contentLength += Buffer.byteLength(args[0])
+      writeData(...args)
+    }
+    apiRes.end = (...args) => {
+      if (args.length && typeof args[0] !== 'function') {
+        contentLength += Buffer.byteLength(args[0])
+      }
+
+      if (contentLength >= 5_000_000) {
+        console.warn(
+          `API response for ${req.url} exceeds 5mb. This will cause the request to fail in a future version.`
+        )
+      }
+
+      endResponse(...args)
+    }
     apiRes.status = (statusCode) => sendStatusCode(apiRes, statusCode)
     apiRes.send = (data) => sendData(apiReq, apiRes, data)
     apiRes.json = (data) => sendJson(apiRes, data)
@@ -268,7 +288,8 @@ export function sendData(
     res.setHeader('Content-Type', 'application/json; charset=utf-8')
   }
 
-  res.setHeader('Content-Length', Buffer.byteLength(stringifiedBody))
+  const contentLength = Buffer.byteLength(stringifiedBody)
+  res.setHeader('Content-Length', contentLength)
   res.end(stringifiedBody)
 }
 
