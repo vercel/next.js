@@ -49,7 +49,7 @@ describe('Build Output', () => {
       expect(indexSize.endsWith('kB')).toBe(true)
 
       expect(parseFloat(indexFirstLoad)).toBeLessThanOrEqual(
-        process.env.NEXT_PRIVATE_TEST_WEBPACK4_MODE ? 68.6 : 67.9
+        process.env.NEXT_PRIVATE_TEST_WEBPACK4_MODE ? 68.1 : 67.9
       )
       expect(parseFloat(indexFirstLoad)).toBeGreaterThanOrEqual(60)
       expect(indexFirstLoad.endsWith('kB')).toBe(true)
