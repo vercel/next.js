@@ -419,6 +419,7 @@ function setResponseHeaders(
   isStatic: boolean,
   isDev: boolean
 ) {
+  res.setHeader('Vary', 'Accept')
   res.setHeader(
     'Cache-Control',
     isStatic
