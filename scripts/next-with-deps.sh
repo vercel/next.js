@@ -29,8 +29,10 @@ done
 
 if [ ! -z $HAS_CONFLICTING_DEP ] || [ ! -d "$PROJECT_DIR/node_modules" ];then
   cd $PROJECT_DIR
-  yarn
-  rm -rf node_modules/{react,react-dom,styled-jsx,next}
+  yarn install
+  for dep in ${CONFLICTING_DEPS[@]};do 
+    rm -rf node_modules/$dep
+  done
 fi
 
 cd $START_DIR
