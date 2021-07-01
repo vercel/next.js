@@ -31,7 +31,7 @@
     "types": "lerna run types --stream",
     "typescript": "lerna run typescript",
     "prepublish": "lerna run prepublish",
-    "publish-canary": "lerna version prerelease --preid canary --force-publish && release --pre --skip-questions",
+    "publish-canary": "git checkout canary && git pull && lerna version prerelease --preid canary --force-publish && release --pre --skip-questions",
     "publish-stable": "lerna version --force-publish",
     "lint-staged": "lint-staged",
     "next-with-deps": "./scripts/next-with-deps.sh",
