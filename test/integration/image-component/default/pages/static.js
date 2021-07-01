@@ -11,6 +11,7 @@ import testBMP from '../public/test.bmp'
 import testICO from '../public/test.ico'
 
 import TallImage from '../components/TallImage'
+
 const Page = () => {
   return (
     <div>

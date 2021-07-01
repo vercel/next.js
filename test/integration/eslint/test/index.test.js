@@ -12,6 +12,7 @@ const dirIgnoreDuringBuilds = join(__dirname, '../ignore-during-builds')
 const dirCustomDirectories = join(__dirname, '../custom-directories')
 const dirConfigInPackageJson = join(__dirname, '../config-in-package-json')
 const dirInvalidEslintVersion = join(__dirname, '../invalid-eslint-version')
+const dirMaxWarnings = join(__dirname, '../max-warnings')
 
 describe('ESLint', () => {
   describe('Next Build', () => {
@@ -185,6 +186,44 @@ describe('ESLint', () => {
         'Error: Comments inside children section of tag should be placed inside braces'
       )
       expect(output).not.toContain(
+        'Warning: External synchronous scripts are forbidden'
+      )
+    })
+
+    test('max warnings flag errors when warnings exceed threshold', async () => {
+      const { stdout, stderr } = await nextLint(
+        dirMaxWarnings,
+        ['--max-warnings', 1],
+        {
+          stdout: true,
+          stderr: true,
+        }
+      )
+
+      expect(stderr).not.toEqual('')
+      expect(stderr).toContain(
+        'Warning: External synchronous scripts are forbidden'
+      )
+      expect(stdout).not.toContain(
+        'Warning: External synchronous scripts are forbidden'
+      )
+    })
+
+    test('max warnings flag does not error when warnings do not exceed threshold', async () => {
+      const { stdout, stderr } = await nextLint(
+        dirMaxWarnings,
+        ['--max-warnings', 2],
+        {
+          stdout: true,
+          stderr: true,
+        }
+      )
+
+      expect(stderr).toEqual('')
+      expect(stderr).not.toContain(
+        'Warning: External synchronous scripts are forbidden'
+      )
+      expect(stdout).toContain(
         'Warning: External synchronous scripts are forbidden'
       )
     })
