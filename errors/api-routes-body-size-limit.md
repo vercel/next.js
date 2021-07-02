@@ -1,13 +1,13 @@
-# API Routes body size limited to 5mb
+# API Routes Body Size Limited to 5mb
 
 #### Why This Error Occurred
 
-API routes are meant to respond quickly and are not intended to support responding with large globs of data. The size limit for responses is set to 5mb.
+API Routes are meant to respond quickly and are not intended to support responding with large amounts of data. The maximum size of responses is 5 MB.
 
 #### Possible Ways to Fix It
 
-Limit your api route responses to less than 5mb. If you need to support sending large files to the client, you should consider using a dedicated media host for those assets. See link below for suggestions.
+Limit your API Route responses to less than 5 MB. If you need to support sending large files to the client, you should consider using a dedicated media host for those assets. See link below for suggestions.
 
 ### Useful Links
 
-[Bypass 5mb body size limit](https://vercel.com/support/articles/how-to-bypass-vercel-5mb-body-size-limit-serverless-functions?query=5mb#request-directly-from-the-source)
+[Tips to avoid the 5mb limit](https://vercel.com/support/articles/how-to-bypass-vercel-5mb-body-size-limit-serverless-functions)
