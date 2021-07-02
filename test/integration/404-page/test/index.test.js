@@ -111,7 +111,7 @@ describe('404 Page Support', () => {
     runTests('serverless')
   })
 
-  it('should cache for custom 404 page on ssg without revalidate', async () => {
+  it('should not cache for custom 404 page with gssp and revalidate disabled', async () => {
     await fs.move(pages404, `${pages404}.bak`)
     await fs.writeFile(
       pages404,
@@ -130,17 +130,21 @@ describe('404 Page Support', () => {
     await fs.move(`${pages404}.bak`, pages404)
     await killApp(app)
 
-    expect(cache404).toBe('s-maxage=31536000, stale-while-revalidate')
-    expect(cacheNext).toBe('s-maxage=31536000, stale-while-revalidate')
+    expect(cache404).toBe(
+      'private, no-cache, no-store, max-age=0, must-revalidate'
+    )
+    expect(cacheNext).toBe(
+      'private, no-cache, no-store, max-age=0, must-revalidate'
+    )
   })
 
-  it('should not cache for custom 404 page on ssg with revalidate', async () => {
+  it('should not cache for custom 404 page with gssp and revalidate enabled', async () => {
     await fs.move(pages404, `${pages404}.bak`)
     await fs.writeFile(
       pages404,
       `
       const page = () => 'custom 404 page'
-      export async function getStaticProps() { return { props: {}, revalidate: 10 } }
+      export async function getStaticProps() { return { props: {}, revalidate: 1 } }
       export default page
     `
     )
@@ -153,11 +157,15 @@ describe('404 Page Support', () => {
     await fs.move(`${pages404}.bak`, pages404)
     await killApp(app)
 
-    expect(cache404).toBe('s-maxage=10, stale-while-revalidate')
-    expect(cacheNext).toBe('s-maxage=10, stale-while-revalidate')
+    expect(cache404).toBe(
+      'private, no-cache, no-store, max-age=0, must-revalidate'
+    )
+    expect(cacheNext).toBe(
+      'private, no-cache, no-store, max-age=0, must-revalidate'
+    )
   })
 
-  it('should not cache for custom 404 page on production mode', async () => {
+  it('should not cache for custom 404 page without gssp', async () => {
     await nextBuild(appDir)
     appPort = await findPort()
     app = await nextStart(appDir, appPort)
