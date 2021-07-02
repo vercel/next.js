@@ -259,6 +259,7 @@ export function sendData(
   }
 
   const contentType = res.getHeader('Content-Type')
+
   if (body instanceof Stream) {
     if (!contentType) {
       res.setHeader('Content-Type', 'application/octet-stream')
@@ -266,12 +267,14 @@ export function sendData(
     body.pipe(res)
     return
   }
+
   const isJSONLike = ['object', 'number', 'boolean'].includes(typeof body)
   const stringifiedBody = isJSONLike ? JSON.stringify(body) : body
   const etag = generateETag(stringifiedBody)
   if (sendEtagResponse(req, res, etag)) {
     return
   }
+
   if (Buffer.isBuffer(body)) {
     if (!contentType) {
       res.setHeader('Content-Type', 'application/octet-stream')
@@ -280,12 +283,12 @@ export function sendData(
     res.end(body)
     return
   }
+
   if (isJSONLike) {
     res.setHeader('Content-Type', 'application/json; charset=utf-8')
   }
 
-  const contentLength = Buffer.byteLength(stringifiedBody)
-  res.setHeader('Content-Length', contentLength)
+  res.setHeader('Content-Length', Buffer.byteLength(stringifiedBody))
   res.end(stringifiedBody)
 }
 
