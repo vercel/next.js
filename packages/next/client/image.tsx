@@ -34,6 +34,7 @@ const loaders = new Map<
   ['cloudinary', cloudinaryLoader],
   ['akamai', akamaiLoader],
   ['default', defaultLoader],
+  ['static', staticLoader],
 ])
 
 const VALID_LAYOUT_VALUES = [
@@ -676,6 +677,10 @@ function cloudinaryLoader({
   const params = ['f_auto', 'c_limit', 'w_' + width, 'q_' + (quality || 'auto')]
   let paramsString = params.join(',') + '/'
   return `${root}${paramsString}${normalizeSrc(src)}`
+}
+
+function staticLoader({ src }: DefaultImageLoaderProps): string {
+  return `${normalizeSrc(src)}`
 }
 
 function defaultLoader({
