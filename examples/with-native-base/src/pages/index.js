@@ -66,7 +66,11 @@ export default function App() {
         </HStack>
       </VStack>
       <ColorModeSwitch />
-      <Link mt="6" href="https://docs.nativebase.io" isExternal>
+      <Link
+        mt="6"
+        href="https://github.com/vercel/next.js/tree/canary/examples/with-native-base"
+        isExternal
+      >
         <Button variant="outline" colorScheme="coolGray">
           View Repo
         </Button>
