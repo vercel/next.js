@@ -1614,7 +1614,8 @@ export default class Server {
 
       const revalidateOptions = !this.renderOpts.dev
         ? {
-            private: isPreviewMode,
+            // When the page is 404 cache-control should not be added
+            private: isPreviewMode || is404Page,
             stateful: false, // GSP response
             revalidate:
               cachedData.curRevalidate !== undefined
@@ -1842,7 +1843,7 @@ export default class Server {
     const revalidateOptions =
       !this.renderOpts.dev || (hasServerProps && !isDataReq)
         ? {
-            private: isPreviewMode,
+            private: isPreviewMode || is404Page,
             stateful: !isSSG,
             revalidate: sprRevalidate,
           }
