@@ -1,12 +1,12 @@
-# API Routes Body Size Limited to 5mb
+# API Routes Body Size Limited to 4mb
 
 #### Why This Error Occurred
 
-API Routes are meant to respond quickly and are not intended to support responding with large amounts of data. The maximum size of responses is 5 MB.
+API Routes are meant to respond quickly and are not intended to support responding with large amounts of data. The maximum size of responses is 4 MB.
 
 #### Possible Ways to Fix It
 
-Limit your API Route responses to less than 5 MB. If you need to support sending large files to the client, you should consider using a dedicated media host for those assets. See link below for suggestions.
+Limit your API Route responses to less than 4 MB. If you need to support sending large files to the client, you should consider using a dedicated media host for those assets. See link below for suggestions.
 
 ### Useful Links
 
