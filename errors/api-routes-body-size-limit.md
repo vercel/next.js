@@ -10,4 +10,4 @@ Limit your API Route responses to less than 5 MB. If you need to support sending
 
 ### Useful Links
 
-[Tips to avoid the 5mb limit](https://vercel.com/support/articles/how-to-bypass-vercel-5mb-body-size-limit-serverless-functions)
+[Tips to avoid the 5 MB limit](https://vercel.com/support/articles/how-to-bypass-vercel-5mb-body-size-limit-serverless-functions)
