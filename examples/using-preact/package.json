@@ -14,7 +14,9 @@
     "preact-render-to-string": "^5.1.11",
     "react": "npm:@preact/compat",
     "react-dom": "npm:@preact/compat",
-    "react-ssr-prepass": "npm:preact-ssr-prepass@^1.1.2"
+    "react-ssr-prepass": "npm:preact-ssr-prepass@^1.1.2",
+    "webpack": "^5.4.0",
+    "webpack-cli": "^4.2.0"
   },
   "license": "MIT"
 }
