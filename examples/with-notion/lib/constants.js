@@ -1,4 +1,4 @@
-export const EXAMPLE_PATH = 'cms-notion'
+export const EXAMPLE_PATH = 'with-notion'
 export const CMS_NAME = 'Notion'
 export const CMS_URL = 'https://notion.so/'
 export const HOME_OG_IMAGE_URL =

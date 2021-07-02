@@ -1,5 +1,5 @@
 {
-  "name": "cms-notion",
+  "name": "with-notion",
   "version": "1.0.0",
   "scripts": {
     "dev": "next",

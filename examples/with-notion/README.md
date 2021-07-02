@@ -31,9 +31,9 @@ Once you have access to [the environment variables you'll need](#step-5-set-up-e
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npx create-next-app --example cms-notion cms-notion-app
+npx create-next-app --example with-notion notion-app
 # or
-yarn create next-app --example cms-notion cms-notion-app
+yarn create next-app --example with-notion notion-app
 ```
 
 ## Configuration
