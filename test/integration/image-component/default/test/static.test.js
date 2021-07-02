@@ -18,7 +18,7 @@ let app
 let browser
 let html
 
-const indexPage = new File(join(appDir, 'pages/static.js'))
+const indexPage = new File(join(appDir, 'pages/static-img.js'))
 
 const runTests = () => {
   it('Should allow an image with a static src to omit height and width', async () => {
@@ -97,8 +97,8 @@ describe('Static Image Component Tests', () => {
     await nextBuild(appDir)
     appPort = await findPort()
     app = await nextStart(appDir, appPort)
-    html = await renderViaHTTP(appPort, '/static')
-    browser = await webdriver(appPort, '/static')
+    html = await renderViaHTTP(appPort, '/static-img')
+    browser = await webdriver(appPort, '/static-img')
   })
   afterAll(() => {
     killApp(app)
