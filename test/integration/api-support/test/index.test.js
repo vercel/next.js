@@ -398,6 +398,20 @@ function runTests(dev = false) {
     expect(data).toBe('hi')
   })
 
+  it('should warn if response body is larger than 5MB', async () => {
+    let res = await fetchViaHTTP(appPort, '/api/large-response')
+    expect(res.ok).toBeTruthy()
+    expect(stderr).toContain(
+      'API response for /api/large-response exceeds 5MB. This will cause the request to fail in a future version.'
+    )
+
+    res = await fetchViaHTTP(appPort, '/api/large-chunked-response')
+    expect(res.ok).toBeTruthy()
+    expect(stderr).toContain(
+      'API response for /api/large-chunked-response exceeds 5MB. This will cause the request to fail in a future version.'
+    )
+  })
+
   if (dev) {
     it('should compile only server code in development', async () => {
       await fetchViaHTTP(appPort, '/api/users')
