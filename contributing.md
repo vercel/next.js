@@ -155,3 +155,7 @@ yarn create next-app --example DIRECTORY_NAME DIRECTORY_NAME-app
 
 Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 ````
+
+## Publishing
+
+Repo maintainers can use `yarn publish-canary` to publish a new version of all packages to npm.

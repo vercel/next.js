@@ -5,6 +5,7 @@ import {
   nextStart,
   renderViaHTTP,
   File,
+  waitFor,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
@@ -23,11 +24,39 @@ const runTests = () => {
   it('Should allow an image with a static src to omit height and width', async () => {
     expect(await browser.elementById('basic-static')).toBeTruthy()
     expect(await browser.elementById('blur-png')).toBeTruthy()
+    expect(await browser.elementById('blur-webp')).toBeTruthy()
     expect(await browser.elementById('blur-jpg')).toBeTruthy()
     expect(await browser.elementById('static-svg')).toBeTruthy()
     expect(await browser.elementById('static-gif')).toBeTruthy()
     expect(await browser.elementById('static-bmp')).toBeTruthy()
     expect(await browser.elementById('static-ico')).toBeTruthy()
+    expect(await browser.elementById('static-unoptimized')).toBeTruthy()
+  })
+  it('Should use immutable cache-control header for static import', async () => {
+    await browser.eval(
+      `document.getElementById("basic-static").scrollIntoView()`
+    )
+    await waitFor(1000)
+    const url = await browser.eval(
+      `document.getElementById("basic-static").src`
+    )
+    const res = await fetch(url)
+    expect(res.headers.get('cache-control')).toBe(
+      'public, max-age=315360000, immutable'
+    )
+  })
+  it('Should use immutable cache-control header even when unoptimized', async () => {
+    await browser.eval(
+      `document.getElementById("static-unoptimized").scrollIntoView()`
+    )
+    await waitFor(1000)
+    const url = await browser.eval(
+      `document.getElementById("static-unoptimized").src`
+    )
+    const res = await fetch(url)
+    expect(res.headers.get('cache-control')).toBe(
+      'public, max-age=31536000, immutable'
+    )
   })
   it('Should automatically provide an image height and width', async () => {
     expect(html).toContain('width:400px;height:300px')
