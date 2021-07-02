@@ -4,10 +4,7 @@ import {
   types as BabelTypes,
 } from 'next/dist/compiled/babel/core'
 import { SERVER_PROPS_SSG_CONFLICT } from '../../../lib/constants'
-import {
-  SERVER_PROPS_ID,
-  STATIC_PROPS_ID,
-} from '../../../next-server/lib/constants'
+import { SERVER_PROPS_ID, STATIC_PROPS_ID } from '../../../shared/lib/constants'
 
 export const EXPORT_NAME_GET_STATIC_PROPS = 'getStaticProps'
 export const EXPORT_NAME_GET_STATIC_PATHS = 'getStaticPaths'

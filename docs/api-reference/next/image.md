@@ -102,7 +102,7 @@ When `responsive`, the image will scale the dimensions down for smaller
 viewports and scale up for larger viewports.
 
 When `fill`, the image will stretch both width and height to the dimensions of
-the parent element, usually paired with the [`objectFit`](#objectFit) property.
+the parent element, provided the parent element is relative. This is usually paired with the [`objectFit`](#objectFit) property.
 
 Try it out:
 
@@ -195,6 +195,10 @@ The image position when using `layout="fill"`.
 
 [Learn more](https://developer.mozilla.org/en-US/docs/Web/CSS/object-position)
 
+### onLoadingComplete
+
+A callback function that is invoked once the image is completely loaded and the placeholder has been removed.
+
 ### loading
 
 > **Attention**: This property is only meant for advanced usage. Switching an
@@ -242,6 +246,7 @@ Other properties on the `<Image />` component will be passed to the underlying
 - `srcSet`. Use
   [Device Sizes](/docs/basic-features/image-optimization.md#device-sizes)
   instead.
+- `ref`. Use [`onLoadingComplete`](#onloadingcomplete) instead.
 - `decoding`. It is always `"async"`.
 
 ## Related
