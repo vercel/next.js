@@ -36,13 +36,11 @@ export async function verifyTypeScriptSetup(
     if (!intent) {
       return { version: null }
     }
-    const firstTimeSetup = intent.firstTimeSetup
 
     // Ensure TypeScript and necessary `@types/*` are installed:
     const deps: NecessaryDependencies = await hasNecessaryDependencies(
       dir,
-      requiredPackages,
-      !!intent
+      requiredPackages
     )
 
     if (deps.missing?.length > 0) {
@@ -61,7 +59,7 @@ export async function verifyTypeScriptSetup(
     }
 
     // Reconfigure (or create) the user's `tsconfig.json` for them:
-    await writeConfigurationDefaults(ts, tsConfigPath, firstTimeSetup)
+    await writeConfigurationDefaults(ts, tsConfigPath, intent.firstTimeSetup)
     // Write out the necessary `next-env.d.ts` file to correctly register
     // Next.js' types:
     await writeAppTypeDeclarations(dir, imageImportsEnabled)

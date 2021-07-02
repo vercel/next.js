@@ -58,32 +58,22 @@ export const ESLINT_DEFAULT_DIRS = [
   'src/lib',
 ]
 
-export const ESLINT_PROMPT = {
-  type: 'select',
-  name: 'option',
-  message:
-    'No ESLint configuration detected. How would you like to configure it?',
-  choices: [
-    {
-      title: 'Strict (recommended)',
-      description:
-        'Select this option to use the base configuration with the Core Web Vitals rule-set.',
-      value: {
-        extends: ['next', 'next/core-web-vitals'],
-      },
+export const ESLINT_PROMPT_VALUES = [
+  {
+    title: 'Base configuration + Core Web Vitals rule-set',
+    recommended: true,
+    config: {
+      extends: ['next', 'next/core-web-vitals'],
     },
-    {
-      title: 'Base',
-      description: 'Select this option to use the base configuration.',
-      value: {
-        extends: 'next',
-      },
+  },
+  {
+    title: 'Base configuration',
+    config: {
+      extends: 'next',
     },
-    {
-      title: 'None',
-      description:
-        'Select this option if you would like to set up ESLint yourself',
-      value: null,
-    },
-  ],
-} as any
+  },
+  {
+    title: 'None',
+    config: null,
+  },
+]

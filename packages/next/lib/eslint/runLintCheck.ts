@@ -1,7 +1,6 @@
 import { promises as fs } from 'fs'
 import chalk from 'chalk'
 import path from 'path'
-import prompts from 'prompts'
 
 import findUp from 'next/dist/compiled/find-up'
 import semver from 'next/dist/compiled/semver'
@@ -11,7 +10,7 @@ import { LintResult, formatResults } from './customFormatter'
 import { writeDefaultConfig } from './writeDefaultConfig'
 import { hasEslintConfiguration } from './hasEslintConfiguration'
 
-import { ESLINT_PROMPT } from '../constants'
+import { ESLINT_PROMPT_VALUES } from '../constants'
 import { existsSync, findPagesDir } from '../find-pages-dir'
 import { installDependencies } from '../install-dependencies'
 import { hasNecessaryDependencies } from '../has-necessary-dependencies'
@@ -29,6 +28,35 @@ const requiredPackages = [
   { file: 'eslint/lib/api.js', pkg: 'eslint' },
   { file: 'eslint-config-next', pkg: 'eslint-config-next' },
 ]
+
+async function cliPrompt() {
+  console.log(
+    chalk.bold(`${chalk.cyan('?')} How would you like to configure ESLint?`)
+  )
+
+  try {
+    const cliSelect = (await import('next/dist/compiled/cli-select')).default
+    const { value } = await cliSelect({
+      values: ESLINT_PROMPT_VALUES,
+      valueRenderer: (
+        {
+          title,
+          recommended,
+        }: { title: string; recommended?: boolean; config: any },
+        selected: boolean
+      ) => {
+        const name = selected ? chalk.bold.underline.cyan(title) : title
+        return name + (recommended ? chalk.bold.yellow(' (recommended)') : '')
+      },
+      selected: chalk.cyan('❯ '),
+      unselected: '  ',
+    })
+
+    return { config: value?.config }
+  } catch {
+    return { config: null }
+  }
+}
 
 async function lint(
   baseDir: string,
@@ -150,12 +178,12 @@ async function lint(
       (sum: number, file: LintResult) => sum + file.warningCount,
       0
     )
-  
+
     return {
       output: formattedResult.output,
       isError:
-      ESLint.getErrorResults(results)?.length > 0 ||
-      (maxWarnings >= 0 && totalWarnings > maxWarnings),      
+        ESLint.getErrorResults(results)?.length > 0 ||
+        (maxWarnings >= 0 && totalWarnings > maxWarnings),
       eventInfo: {
         durationInSeconds: lintEnd[0],
         eslintVersion: eslintVersion,
@@ -242,8 +270,9 @@ export async function runLintCheck(
         )
         return null
       } else {
-        // Set up config if no ESLint configuration is present during "next lint"
-        const { option: selectedConfig } = await prompts(ESLINT_PROMPT)
+        // Ask user what config they would like to start with for first time "next lint" setup
+        const { config: selectedConfig } = await cliPrompt()
+
         if (selectedConfig == null) {
           // Show a warning if no option is selected in prompt
           Log.warn(

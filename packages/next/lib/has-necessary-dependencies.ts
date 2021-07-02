@@ -10,13 +10,8 @@ export type NecessaryDependencies = {
 
 export async function hasNecessaryDependencies(
   baseDir: string,
-  requiredPackages: MissingDependency[],
-  checkDeps: boolean = true
+  requiredPackages: MissingDependency[]
 ): Promise<NecessaryDependencies> {
-  if (!checkDeps) {
-    return { resolved: undefined!, missing: [] }
-  }
-
   let resolutions = new Map<string, string>()
   const missingPackages = requiredPackages.filter((p) => {
     try {

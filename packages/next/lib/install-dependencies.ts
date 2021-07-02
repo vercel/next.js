@@ -20,7 +20,7 @@ export async function installDependencies(
 
   if (deps.length) {
     console.log()
-    console.log(`Installing package${deps.length > 1 ? 's' : ''}:`)
+    console.log(`Installing ${dev ? 'devDependencies' : 'dependencies'}:`)
     for (const dep of deps) {
       console.log(`- ${chalk.cyan(dep.pkg)}`)
     }

@@ -145,13 +145,13 @@ describe('ESLint', () => {
         stderr: true,
       })
       const output = stdout + stderr
-      expect(output).toContain(
-        'No ESLint configuration detected. How would you like to configure it?'
-      )
+      expect(output).toContain('How would you like to configure ESLint?')
 
       // Different options that can be selected
-      expect(output).toContain('Strict (recommended)')
-      expect(output).toContain('Base')
+      expect(output).toContain(
+        'Base configuration + Core Web Vitals rule-set (recommended)'
+      )
+      expect(output).toContain('Base configuration')
       expect(output).toContain('None')
     })
 

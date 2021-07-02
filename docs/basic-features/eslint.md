@@ -25,16 +25,16 @@ yarn lint
 
 # You'll see a prompt like this:
 #
-# ? No ESLint configuration detected. How would you like to configure it?
+# ? How would you like to configure ESLint?
 #
-# ❯   Strict (recommended)
-#     Base
+# ❯   Base configuration + Core Web Vitals rule-set (recommended)
+#     Base configuration
 #     None
 ```
 
 One of the following three options can be selected:
 
-- **Strict**: Includes Next.js' base ESLint configuration along with a stricter [Core Web Vitals rule-set](/docs/basic-features/eslint.md#core-web-vitals).
+- **Base configuration + Core Web Vitals rule-set**: Includes Next.js' base ESLint configuration along with a stricter [Core Web Vitals rule-set](/docs/basic-features/eslint.md#core-web-vitals). This is the recommended configuration for developers setting up ESLint for the first time.
 
   ```js
   {
@@ -42,7 +42,7 @@ One of the following three options can be selected:
   }
   ```
 
-- **Base**: Includes Next.js' base ESLint configuration.
+- **Base configuration**: Includes Next.js' base ESLint configuration.
 
   ```js
   {
@@ -52,7 +52,7 @@ One of the following three options can be selected:
 
 - **None**: Does not include any ESLint configuration. Only select this option if you plan on setting up your own custom ESLint configuration.
 
-If either **Strict** or **Base** is selected, Next.js will automatically install `eslint` and `eslint-config-next` as development dependencies in your application and create an `.eslintrc` file in the root of your project that includes your selected configuration.
+If either of the two configuration options are selected, Next.js will automatically install `eslint` and `eslint-config-next` as development dependencies in your application and create an `.eslintrc` file in the root of your project that includes your selected configuration.
 
 You can now run `next lint` every time you want to run ESLint to catch errors. Once ESLint has been set up, it will also automatically run during every build (`next build`). Errors will fail the build, while warnings will not.
 
@@ -143,7 +143,7 @@ If you would like to modify or disable any rules provided by the supported plugi
 
 ### Core Web Vitals
 
-The `next/core-web-vitals` rule set is enabled when `Strict` is selected when `next lint` is run for the first time:
+The `next/core-web-vitals` rule set is enabled when `next lint` is run for the first time and the recommended option is selected.
 
 ```js
 {

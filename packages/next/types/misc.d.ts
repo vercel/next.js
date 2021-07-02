@@ -75,6 +75,10 @@ declare module 'next/dist/compiled/ci-info' {
   import m from 'ci-info'
   export = m
 }
+declare module 'next/dist/compiled/cli-select' {
+  import m from 'cli-select'
+  export = m
+}
 declare module 'next/dist/compiled/compression' {
   import m from 'compression'
   export = m
