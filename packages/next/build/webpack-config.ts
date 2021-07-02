@@ -1032,6 +1032,9 @@ export default async function getBaseWebpackConfig(
                 loader: 'next-image-loader',
                 issuer: { not: regexLikeCss },
                 dependency: { not: ['url'] },
+                options: {
+                  isServer,
+                },
               },
             ]
           : []),
