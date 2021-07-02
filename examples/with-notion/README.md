@@ -1,6 +1,6 @@
-# A statically generated blog example using Next.js and Prismic
+# A statically generated blog example using Next.js and Notion
 
-This example showcases Next.js's [Static Generation](https://nextjs.org/docs/basic-features/pages) feature using [Prismic](https://prismic.io/) as the data source.
+This example showcases Next.js's [Static Generation](https://nextjs.org/docs/basic-features/pages) feature using [Notion](https://www.notion.so/) as the data source.
 
 ## Demo
 
@@ -9,8 +9,6 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 ## Deploy your own
 
 Once you have access to [the environment variables you'll need](#step-5-set-up-environment-variables), deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
-
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/cms-prismic&project-name=cms-prismic&repository-name=cms-prismic&env=PRISMIC_API_TOKEN,PRISMIC_REPOSITORY_NAME&envDescription=Required%20to%20connect%20the%20app%20with%20Prismic&envLink=https://vercel.link/cms-prismic-env)
 
 ### Related examples
 
@@ -33,9 +31,9 @@ Once you have access to [the environment variables you'll need](#step-5-set-up-e
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npx create-next-app --example cms-prismic cms-prismic-app
+npx create-next-app --example cms-notion cms-notion-app
 # or
-yarn create next-app --example cms-prismic cms-prismic-app
+yarn create next-app --example cms-notion cms-notion-app
 ```
 
 ## Configuration
@@ -139,23 +137,7 @@ yarn dev
 
 Your blog should be up and running on [http://localhost:3000](http://localhost:3000)! If it doesn't work, post on [GitHub discussions](https://github.com/vercel/next.js/discussions).
 
-### Step 7. Try preview mode
-
-On your repository page, go to **Settings**, click on **Previews** and then **Create a New Preview** for development, fill the form like so:
-
-- **Site Name**: may be anything, like `development`
-- **Domain of Your Application**: `http://localhost:3000`
-- **Link Resolver**: `/api/preview`
-
-Once saved, go to one of the posts you've created and:
-
-- **Update the title**. For example, you can add `[Draft]` in front of the title.
-- Click **Save**, but **DO NOT** click **Publish**. By doing this, the post will be in draft state.
-- Right next to the **Publish** button you should see the **Preview** button, displayed with an eye icon. Click on it!
-
-You should now be able to see the updated title. To exit preview mode, you can click on **Click here to exit preview mode** at the top of the page.
-
-### Step 8. Deploy on Vercel
+### Step 7. Deploy on Vercel
 
 You can deploy this app to the cloud with [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
@@ -164,9 +146,3 @@ You can deploy this app to the cloud with [Vercel](https://vercel.com?utm_source
 To deploy your local project to Vercel, push it to GitHub/GitLab/Bitbucket and [import to Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example).
 
 **Important**: When you import your project on Vercel, make sure to click on **Environment Variables** and set them to match your `.env.local` file.
-
-#### Deploy from Our Template
-
-Alternatively, you can deploy using our template by clicking on the Deploy button below.
-
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/cms-prismic&project-name=cms-prismic&repository-name=cms-prismic&env=PRISMIC_API_TOKEN,PRISMIC_REPOSITORY_NAME&envDescription=Required%20to%20connect%20the%20app%20with%20Prismic&envLink=https://vercel.link/cms-prismic-env)

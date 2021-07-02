@@ -18,7 +18,7 @@ export default function Post({ post, morePosts }) {
     return <ErrorPage statusCode={404} />
   }
 
-  const coverImageUrl = `/cover-images/${post.id}.jpeg`;
+  const coverImageUrl = `/cover-images/${post.id}.jpeg`
 
   return (
     <Layout>
@@ -67,7 +67,7 @@ export async function getStaticProps({ params }) {
 export async function getStaticPaths() {
   const allPosts = await getAllPostsWithSlug()
   return {
-    paths: allPosts?.map(post => `/posts/${post.slug}`) || [],
+    paths: allPosts?.map((post) => `/posts/${post.slug}`) || [],
     fallback: true,
   }
 }
