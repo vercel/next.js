@@ -13,15 +13,20 @@ import {
   NextApiRequest,
   NextApiHandler,
   // @ts-ignore This path is generated at build time and conflicts otherwise
-} from '../dist/next-server/lib/utils'
+} from '../dist/shared/lib/utils'
 
 import {
   NextApiRequestCookies,
   // @ts-ignore This path is generated at build time and conflicts otherwise
-} from '../dist/next-server/server/api-utils'
+} from '../dist/server/api-utils'
 
 // @ts-ignore This path is generated at build time and conflicts otherwise
 import next from '../dist/server/next'
+
+// @ts-ignore This path is generated at build time and conflicts otherwise
+import { NextConfig as NextConfigType } from '../dist/server/config'
+
+export type NextConfig = NextConfigType
 
 // Extend the React types with missing properties
 declare module 'react' {

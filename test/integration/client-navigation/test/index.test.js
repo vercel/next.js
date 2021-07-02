@@ -29,6 +29,7 @@ describe('Client Navigation', () => {
   afterAll(() => killApp(context.server))
 
   it('should not reload when visiting /_error directly', async () => {
+    const { status } = await fetchViaHTTP(context.appPort, '/_error')
     const browser = await webdriver(context.appPort, '/_error')
 
     await browser.eval('window.hello = true')
@@ -41,6 +42,7 @@ describe('Client Navigation', () => {
     }
     const html = await browser.eval('document.documentElement.innerHTML')
 
+    expect(status).toBe(404)
     expect(html).toContain('This page could not be found')
     expect(html).toContain('404')
   })
