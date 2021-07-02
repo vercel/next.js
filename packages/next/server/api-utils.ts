@@ -77,7 +77,7 @@ export async function apiResolver(
 
       if (contentLength >= 5 * 1024 * 1024) {
         console.warn(
-          `API response for ${req.url} exceeds 5mb. This will cause the request to fail in a future version.`
+          `API response for ${req.url} exceeds 5mb. This will cause the request to fail in a future version. https://nextjs.org/docs/messages/api-routes-body-size-limit`
         )
       }
 
