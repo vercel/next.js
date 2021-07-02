@@ -45,6 +45,8 @@ const Page = () => {
       <Image id="static-gif" src={testGIF} />
       <Image id="static-bmp" src={testBMP} />
       <Image id="static-ico" src={testICO} />
+      <br />
+      <Image id="static-unoptimized" src={testJPG} unoptimized />
     </div>
   )
 }
