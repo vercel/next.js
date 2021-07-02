@@ -1,6 +1,5 @@
 import React from 'react'
 import {
-  NativeBaseProvider,
   Center,
   useColorMode,
   Tooltip,
@@ -15,12 +14,11 @@ import {
   Link,
   VStack,
   Button,
+  AspectRatio,
 } from 'native-base'
-import { theme } from '../theme'
 
 // Start editing here, save and see your changes.
-
-function Root() {
+export default function App() {
   return (
     <Center
       flex={1}
@@ -29,14 +27,17 @@ function Root() {
     >
       <VStack alignItems="center" space="md">
         <HStack alignItems="center" space="2xl">
-          <Image
-            source={{ uri: 'images/nextjs-logo.png' }}
-            size={24}
-            resizeMode="contain"
-          />
+          <AspectRatio w={24} ratio={1.66}>
+            <Image
+              source={{ uri: 'images/nextjs-logo.png' }}
+              alt="NextJS Logo"
+              resizeMode="contain"
+            />
+          </AspectRatio>
           <Text fontSize="4xl">+</Text>
           <Image
             source={{ uri: 'images/nativebase-logo.svg' }}
+            alt="NativeBase Logo"
             size={24}
             resizeMode="contain"
           />
@@ -73,7 +74,6 @@ function Root() {
     </Center>
   )
 }
-
 // Color Switch Component
 function ColorModeSwitch() {
   const { colorMode, toggleColorMode } = useColorMode()
@@ -90,15 +90,8 @@ function ColorModeSwitch() {
         right={8}
         onPress={toggleColorMode}
         icon={colorMode === 'dark' ? <SunIcon /> : <MoonIcon />}
+        accessibilityLabel="Color Mode Switch"
       />
     </Tooltip>
-  )
-}
-
-export default function App() {
-  return (
-    <NativeBaseProvider theme={theme}>
-      <Root />
-    </NativeBaseProvider>
   )
 }

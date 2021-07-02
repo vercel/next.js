@@ -1,5 +1,11 @@
 import { Children } from 'react'
-import NextDocument, { Html, Head, Main, NextScript } from 'next/document'
+import NextDocument, {
+  Html,
+  Head,
+  Main,
+  NextScript,
+  DocumentContext,
+} from 'next/document'
 import { AppRegistry } from 'react-native'
 import config from '../../app.json'
 
@@ -13,7 +19,7 @@ const normalizeNextElements = `
 `
 
 export default class MyDocument extends NextDocument {
-  static async getInitialProps({ renderPage }) {
+  static async getInitialProps({ renderPage }: DocumentContext) {
     AppRegistry.registerComponent(config.name, () => Main)
     // @ts-ignore
     const { getStyleElement } = AppRegistry.getApplication(config.name)
@@ -27,7 +33,7 @@ export default class MyDocument extends NextDocument {
 
   render() {
     return (
-      <Html style={{ height: '100%' }}>
+      <Html lang="en" style={{ height: '100%' }}>
         <Head />
         <body style={{ height: '100%', overflow: 'hidden' }}>
           <Main />
