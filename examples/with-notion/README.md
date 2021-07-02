@@ -2,6 +2,10 @@
 
 This example showcases Next.js's [Static Generation](https://nextjs.org/docs/basic-features/pages) feature using [Notion](https://www.notion.so/) as the data source.
 
+** Disclaimer: ** Notion can't be considered a CMS, as it's missing many more advanced features, typical CMS are offering. For more full featured CMS look at the [related examples](#related-examples).
+
+In the meantime, if you love Notion and want a basic integration and syncronasiation of Notion content to your blog feel free to gice a try. 🏅
+
 ## Demo
 
 ### [https://next-blog-prismic.vercel.app/](https://next-blog-prismic.vercel.app/)
@@ -9,6 +13,8 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 ## Deploy your own
 
 Once you have access to [the environment variables you'll need](#step-5-set-up-environment-variables), deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-notion&project-name=with-notion&repository-name=with-notion&env=NOTION_API_TOKEN,NOTION_DATABASE_ID&envDescription=Required%20to%20connect%20the%20app%20with%20Prismic&envLink=https://vercel.link/with-prismic-env)
 
 ### Related examples
 
@@ -40,66 +46,53 @@ yarn create next-app --example with-notion notion-app
 
 ### Step 1. Create an account and a repository on Prismic
 
-First, [create an account on Prismic](https://prismic.io/).
+First, [create an account on Notion](https://notion.io/).
 
-After creating an account, create a **repository** from the [dashboard](https://prismic.io/dashboard/) and assign to it any name of your liking.
+After creating an account, create a new \*page** and then a database as **full page table\*\* from the left panel.
 
-### Step 2. Create an `author` type
+### Step 2. Create database columns
 
-From the repository page, create a new **custom type**:
+These columns will be used as blog post meta information, in order to be able to access the posts information from Notion.
 
-- The name should be `author`.
+For the full page table database, create the new **column**:
 
-Next, add these fields (you don't have to modify the settings):
+- Create a column with the name `Slug`, and the type `Text`
 
-- `name` - **Key Text** field
-- `picture` - **Image** field
+- Create a column with the name `Category`, and the type `Multi-select`
 
-Alternatively, you can copy the JSON in [`types/author.json`](types/author.json), then click on **JSON editor** and paste it there.
+  - Then create a new `Category` select option with the name `home`
 
-Save the type and continue.
+- Create a column with the name `Author`, and the type `Person`
 
-### Step 3. Create a `post` type
+- Create a column with the name `Date`, and the type `Text`
 
-From the repository page, create a new **custom type**:
+### Step 3. Create a Blog Post
 
-- The name should be `post`.
+The rows will be used as your collection of blog posts.
 
-Next, add these fields (you don't have to modify the settings unless specified):
+To create a new blog post populate the row with the information for each of the columns previously added.
 
-- `title` - **Title** field
-- `content` - **Rich Text** field
-- `excerpt` - **Key Text** field
-- `coverimage` - **Image** field
-- `date` - **Date** field
-- `author` - **Content relationship** field, you may also add `author` to the **Constraint to custom type** option to only accept documents from the `author` type.
-- `slug` - **UID** field.
+- Add a `Name` e.g. Learn How to Pre-render Pages Using Static Generation with Next.js
+- Add a `Slug` e.g. learn-how-to-pre-render-pages-using-static-generation
+- Select a `Category` named `home`
+- Select an `Author` from the list
+- Add a `Date` e.g. June 6, 2021
 
-Alternatively, you can copy the JSON in [`types/post.json`](types/post.json), then click on **JSON editor** and paste it there.
+### Step 4. Populate Blog Post Content
 
-Save the type and continue.
+Open the the blog post page previously added, there is an **Open** button when you hover over the **Name** column
 
-### Step 4. Populate Content
-
-Go to the **Content** page, it's in the menu at the top left, then click on **Create new** and select the **author** type:
-
-- You just need **1 author document**.
 - Use dummy data for the text.
-- For the image, you can download one from [Unsplash](https://unsplash.com/).
+- For the image, you can set one by clicking on `Add Cover` button that appears when you hover over above the page name. You can change the image by clicking on `Change Cover` button when hover over the image set.
 
 Next, select **Post** and create a new document.
 
 - We recommend creating at least **2 Post documents**.
 - Use dummy data for the text.
-- You can write markdown for the **content** field.
-- For images, you can download them from [Unsplash](https://unsplash.com/).
-- Pick the **author** you created earlier.
-
-**Important:** For each document, you need to click **Publish** after saving. If not, the document will be in the draft state.
 
 ### Step 5. Set up environment variables
 
-Follow the instructions in [this post](https://intercom.help/prismicio/en/articles/1036153-generating-an-access-token) to generate a new access token.
+Follow the instructions in [this post](https://developers.notion.com/docs/getting-started) to generate a new API Token, and find the Database ID needed for the integration.
 
 Next, copy the `.env.local.example` file in this directory to `.env.local` (which will be ignored by Git):
 
@@ -109,19 +102,15 @@ cp .env.local.example .env.local
 
 Then set each variable on `.env.local`:
 
-- `PRISMIC_API_TOKEN` should be the **Permanent access token** you just created
-- `PRISMIC_REPOSITORY_NAME` is the name of your repository (the one in the URL)
-- `PRISMIC_REPOSITORY_LOCALE` is the locale of your repository. Defaults to `en-us`
+- `NOTION_API_TOKEN` should be the **Permanent access token** you just created
+- `NOTION_DATABASE_ID` is the id of your repository (the one in the URL)
 
 Your `.env.local` file should look like this:
 
 ```bash
-PRISMIC_API_TOKEN=...
-PRISMIC_REPOSITORY_NAME=...
-PRISMIC_REPOSITORY_LOCALE=...
+NOTION_API_TOKEN=...
+NOTION_DATABASE_ID=...
 ```
-
-Make sure the locale matches your settings in the Prismic dashboard.
 
 ### Step 6. Run Next.js in development mode
 
