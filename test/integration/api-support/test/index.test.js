@@ -398,7 +398,7 @@ function runTests(dev = false) {
     expect(data).toBe('hi')
   })
 
-  it.only('should warn if response body is larger than 5MB', async () => {
+  it('should warn if response body is larger than 5MB', async () => {
     let res = await fetchViaHTTP(appPort, '/api/large-response')
     expect(res.ok).toBeTruthy()
     expect(stderr).toContain(
