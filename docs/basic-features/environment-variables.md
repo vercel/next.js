@@ -16,7 +16,7 @@ description: Learn to add and access environment variables in your Next.js appli
 Next.js comes with built-in support for environment variables, which allows you to do the following:
 
 - [Use `.env.local` to load environment variables](#loading-environment-variables)
-- [Expose environment variables to the browser](#exposing-environment-variables-to-the-browser)
+- [Expose environment variables to the browser by prefixing with `NEXT_PUBLIC_`](#exposing-environment-variables-to-the-browser)
 
 ## Loading Environment Variables
 
