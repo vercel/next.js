@@ -2,7 +2,7 @@
 
 #### Why This Error Occurred
 
-<!-- Explain why the error occured. Ensure the description makes it clear why the warning/error exists -->
+<!-- Explain why the error occurred. Ensure the description makes it clear why the warning/error exists -->
 
 #### Possible Ways to Fix It
 
