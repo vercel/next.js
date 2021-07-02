@@ -344,7 +344,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
                 poweredByHeader,
               },
               {
-                private: isPreviewMode,
+                private: isPreviewMode || page === '/404',
                 stateful: !!getServerSideProps,
                 revalidate: renderOpts.revalidate,
               }
@@ -385,7 +385,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
                 poweredByHeader,
               },
               {
-                private: isPreviewMode,
+                private: isPreviewMode || renderOpts.is404Page,
                 stateful: !!getServerSideProps,
                 revalidate: renderOpts.revalidate,
               }
