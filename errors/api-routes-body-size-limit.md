@@ -1,4 +1,4 @@
-# API Routes Body Size Limited to 4mb
+# API Routes Body Size Limited to 4MB
 
 #### Why This Error Occurred
 
