@@ -407,8 +407,4 @@ export const ST =
   typeof performance.mark === 'function' &&
   typeof performance.measure === 'function'
 
-export class DecodeError extends Error {
-  constructor(message: string) {
-    super(message)
-  }
-}
+export class DecodeError extends Error {}
