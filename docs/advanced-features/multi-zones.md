@@ -18,7 +18,7 @@ With multi zones support, you can merge both these apps into a single one allowi
 
 ## How to define a zone
 
-There are no special zones related APIs. You only need to do following:
+There are no zone related APIs. You only need to do following:
 
 - Make sure to keep only the pages you need in your app, meaning that an app can't have pages from another app, if app `A` has `/blog` then app `B` shouldn't have it too.
 - Make sure to configure a [basePath](/docs/api-reference/next.config.js/basepath.md) to avoid conflicts with pages and static files.
