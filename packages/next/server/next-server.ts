@@ -1386,16 +1386,15 @@ export default class Server {
           pagePath!,
           !this.renderOpts.dev && this._isLikeServerless
         )
-        // if loading an static HTML file the locale is required
-        // to be present since all HTML files are output under their locale
+
         if (
           query.__nextLocale &&
           typeof components.Component === 'string' &&
           !pagePath?.startsWith(`/${query.__nextLocale}`)
         ) {
-          const err = new Error('NOT_FOUND')
-          ;(err as any).code = 'ENOENT'
-          throw err
+          // if loading an static HTML file the locale is required
+          // to be present since all HTML files are output under their locale
+          continue
         }
 
         return {
