@@ -4,13 +4,13 @@ import { join } from 'path'
 import { parse } from 'querystring'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { API_ROUTE } from '../../../../lib/constants'
-import { isDynamicRoute } from '../../../../next-server/lib/router/utils'
-import { __ApiPreviewProps } from '../../../../next-server/server/api-utils'
+import { isDynamicRoute } from '../../../../shared/lib/router/utils'
+import { __ApiPreviewProps } from '../../../../server/api-utils'
 import {
   BUILD_MANIFEST,
   ROUTES_MANIFEST,
   REACT_LOADABLE_MANIFEST,
-} from '../../../../next-server/lib/constants'
+} from '../../../../shared/lib/constants'
 import { trace } from '../../../../telemetry/trace'
 
 export type ServerlessLoaderQuery = {
@@ -99,7 +99,7 @@ const nextServerlessLoader: webpack.loader.Loader = function () {
           */
           runtimeConfigSetter
         }
-        import 'next/dist/next-server/server/node-polyfill-fetch'
+        import 'next/dist/server/node-polyfill-fetch'
         import routesManifest from '${routesManifest}'
 
         import { getApiHandler } from 'next/dist/build/webpack/loaders/next-serverless-loader/api-handler'
@@ -127,7 +127,7 @@ const nextServerlessLoader: webpack.loader.Loader = function () {
       `
     } else {
       return `
-      import 'next/dist/next-server/server/node-polyfill-fetch'
+      import 'next/dist/server/node-polyfill-fetch'
       import routesManifest from '${routesManifest}'
       import buildManifest from '${buildManifest}'
       import reactLoadableManifest from '${reactLoadableManifest}'
