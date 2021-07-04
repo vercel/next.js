@@ -1,18 +1,20 @@
 // types only import
-import {
-  version,
+import type {
   Compiler as WebpackCompiler,
-  Template,
+  Template as WebpackTemplate,
   // @ts-ignore exists in webpack 5
-  RuntimeModule,
+  RuntimeModule as WebpackRuntimeModule,
   // @ts-ignore exists in webpack 5
-  RuntimeGlobals,
+  RuntimeGlobals as WebpackRuntimeGlobals,
   // @ts-ignore exists in webpack 5
   compilation as WebpackCompilation,
 } from 'webpack'
 
 // Shared between webpack 4 and 5:
-function injectRefreshFunctions(compilation: WebpackCompilation.Compilation) {
+function injectRefreshFunctions(
+  compilation: WebpackCompilation.Compilation,
+  Template: typeof WebpackTemplate
+) {
   const hookVars: any = (compilation.mainTemplate.hooks as any).localVars
 
   hookVars.tap('ReactFreshWebpackPlugin', (source: string) =>
@@ -33,6 +35,7 @@ function injectRefreshFunctions(compilation: WebpackCompilation.Compilation) {
 }
 
 function webpack5(this: ReactFreshWebpackPlugin, compiler: WebpackCompiler) {
+  const { RuntimeGlobals, RuntimeModule, Template } = this
   class ReactRefreshRuntimeModule extends RuntimeModule {
     constructor() {
       super('react refresh', 5)
@@ -82,7 +85,7 @@ function webpack5(this: ReactFreshWebpackPlugin, compiler: WebpackCompiler) {
 
   // @ts-ignore webpack 5 types compat
   compiler.hooks.compilation.tap('ReactFreshWebpackPlugin', (compilation) => {
-    injectRefreshFunctions(compilation)
+    injectRefreshFunctions(compilation, Template)
 
     // @ts-ignore Exists in webpack 5
     compilation.hooks.additionalTreeRuntimeRequirements.tap(
@@ -97,8 +100,18 @@ function webpack5(this: ReactFreshWebpackPlugin, compiler: WebpackCompiler) {
 
 class ReactFreshWebpackPlugin {
   webpackMajorVersion: number
-  constructor() {
+  // @ts-ignore exists in webpack 5
+  RuntimeGlobals: typeof WebpackRuntimeGlobals
+  // @ts-ignore exists in webpack 5
+  RuntimeModule: typeof WebpackRuntimeModule
+  Template: typeof WebpackTemplate
+  constructor(
+    { version, RuntimeGlobals, RuntimeModule, Template } = require('webpack')
+  ) {
     this.webpackMajorVersion = parseInt(version ?? '', 10)
+    this.RuntimeGlobals = RuntimeGlobals
+    this.RuntimeModule = RuntimeModule
+    this.Template = Template
   }
   apply(compiler: WebpackCompiler) {
     switch (this.webpackMajorVersion) {

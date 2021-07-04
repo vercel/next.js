@@ -119,8 +119,6 @@ export const defaultConfig: NextConfig = {
     gzipSize: true,
     craCompat: false,
   },
-  webpack5:
-    Number(process.env.NEXT_PRIVATE_TEST_WEBPACK4_MODE) > 0 ? false : undefined,
   excludeDefaultMomentLocales: true,
   future: {
     strictPostcssConfiguration: false,
