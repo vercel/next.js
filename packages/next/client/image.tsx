@@ -1,12 +1,12 @@
 import React from 'react'
-import Head from '../next-server/lib/head'
-import { toBase64 } from '../next-server/lib/to-base-64'
+import Head from '../shared/lib/head'
+import { toBase64 } from '../shared/lib/to-base-64'
 import {
   ImageConfig,
   imageConfigDefault,
   LoaderValue,
   VALID_LOADERS,
-} from '../next-server/server/image-config'
+} from '../server/image-config'
 import { useIntersection } from './use-intersection'
 
 if (typeof window === 'undefined') {
@@ -120,6 +120,7 @@ export type ImageProps = Omit<
   unoptimized?: boolean
   objectFit?: ImgElementStyle['objectFit']
   objectPosition?: ImgElementStyle['objectPosition']
+  onLoadingComplete?: () => void
 } & (StringImageProps | ObjectImageProps)
 
 const {
@@ -261,29 +262,36 @@ function defaultImageLoader(loaderProps: ImageLoaderProps) {
 
 // See https://stackoverflow.com/q/39777833/266535 for why we use this ref
 // handler instead of the img's onLoad attribute.
-function removePlaceholder(
+function handleLoading(
   img: HTMLImageElement | null,
-  placeholder: PlaceholderValue
+  placeholder: PlaceholderValue,
+  onLoadingComplete?: () => void
 ) {
-  if (placeholder === 'blur' && img) {
-    const handleLoad = () => {
-      if (!img.src.startsWith('data:')) {
-        const p = 'decode' in img ? img.decode() : Promise.resolve()
-        p.catch(() => {}).then(() => {
+  if (!img) {
+    return
+  }
+  const handleLoad = () => {
+    if (!img.src.startsWith('data:')) {
+      const p = 'decode' in img ? img.decode() : Promise.resolve()
+      p.catch(() => {}).then(() => {
+        if (placeholder === 'blur') {
           img.style.filter = 'none'
           img.style.backgroundSize = 'none'
           img.style.backgroundImage = 'none'
-        })
-      }
+        }
+        if (onLoadingComplete) {
+          onLoadingComplete()
+        }
+      })
     }
-    if (img.complete) {
-      // If the real image fails to load, this will still remove the placeholder.
-      // This is the desired behavior for now, and will be revisited when error
-      // handling is worked on for the image component itself.
-      handleLoad()
-    } else {
-      img.onload = handleLoad
-    }
+  }
+  if (img.complete) {
+    // If the real image fails to load, this will still remove the placeholder.
+    // This is the desired behavior for now, and will be revisited when error
+    // handling is worked on for the image component itself.
+    handleLoad()
+  } else {
+    img.onload = handleLoad
   }
 }
 
@@ -299,6 +307,7 @@ export default function Image({
   height,
   objectFit,
   objectPosition,
+  onLoadingComplete,
   loader = defaultImageLoader,
   placeholder = 'empty',
   blurDataURL,
@@ -360,6 +369,14 @@ export default function Image({
         ).join(',')}.`
       )
     }
+    if (
+      (typeof widthInt !== 'undefined' && isNaN(widthInt)) ||
+      (typeof heightInt !== 'undefined' && isNaN(heightInt))
+    ) {
+      throw new Error(
+        `Image with src "${src}" has invalid "width" or "height" property. These should be numeric values.`
+      )
+    }
     if (!VALID_LOADING_VALUES.includes(loading)) {
       throw new Error(
         `Image with src "${src}" has invalid "loading" property. Provided "${loading}" should be one of ${VALID_LOADING_VALUES.map(
@@ -373,7 +390,7 @@ export default function Image({
       )
     }
     if (placeholder === 'blur') {
-      if ((widthInt || 0) * (heightInt || 0) < 1600) {
+      if (layout !== 'fill' && (widthInt || 0) * (heightInt || 0) < 1600) {
         console.warn(
           `Image with src "${src}" is smaller than 40x40. Consider removing the "placeholder='blur'" property to improve performance.`
         )
@@ -392,6 +409,11 @@ export default function Image({
           Read more: https://nextjs.org/docs/messages/placeholder-blur-data-url`
         )
       }
+    }
+    if ('ref' in rest) {
+      console.warn(
+        `Image with src "${src}" is using unsupported "ref" property. Consider using the "onLoadingComplete" property instead.`
+      )
     }
   }
   let isLazy =
@@ -437,8 +459,9 @@ export default function Image({
     ...(placeholder === 'blur'
       ? {
           filter: 'blur(20px)',
-          backgroundSize: 'cover',
+          backgroundSize: objectFit || 'cover',
           backgroundImage: `url("${blurDataURL}")`,
+          backgroundPosition: objectPosition || '0% 0%',
         }
       : undefined),
   }
@@ -569,9 +592,7 @@ export default function Image({
               sizes,
               loader,
             })}
-            src={src}
             decoding="async"
-            sizes={sizes}
             style={imgStyle}
             className={className}
           />
@@ -582,9 +603,9 @@ export default function Image({
         {...imgAttributes}
         decoding="async"
         className={className}
-        ref={(element) => {
-          setRef(element)
-          removePlaceholder(element, placeholder)
+        ref={(img) => {
+          setRef(img)
+          handleLoading(img, placeholder, onLoadingComplete)
         }}
         style={imgStyle}
       />
@@ -697,7 +718,10 @@ function defaultLoader({
         )
       }
 
-      if (!configDomains.includes(parsedSrc.hostname)) {
+      if (
+        process.env.NODE_ENV !== 'test' &&
+        !configDomains.includes(parsedSrc.hostname)
+      ) {
         throw new Error(
           `Invalid src prop (${src}) on \`next/image\`, hostname "${parsedSrc.hostname}" is not configured under images in your \`next.config.js\`\n` +
             `See more info: https://nextjs.org/docs/messages/next-image-unconfigured-host`

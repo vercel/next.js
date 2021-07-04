@@ -470,6 +470,15 @@ describe('Required Server Files', () => {
     expect(errors[0].message).toContain('gsp hit an oops')
   })
 
+  it('should bubble error correctly for API page', async () => {
+    errors = []
+    const res = await fetchViaHTTP(appPort, '/api/error')
+    expect(res.status).toBe(500)
+    expect(await res.text()).toBe('error')
+    expect(errors.length).toBe(1)
+    expect(errors[0].message).toContain('some error from /api/error')
+  })
+
   it('should normalize optional values correctly for SSP page', async () => {
     const res = await fetchViaHTTP(
       appPort,

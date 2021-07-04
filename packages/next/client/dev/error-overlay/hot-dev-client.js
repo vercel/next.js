@@ -173,16 +173,20 @@ function handleErrors(errors) {
   }
 }
 
+let startLatency = undefined
+
 function onFastRefresh(hasUpdates) {
   DevOverlay.onBuildOk()
   if (hasUpdates) {
     DevOverlay.onRefresh()
   }
 
-  const latency = Date.now() - startLatency
-  console.log(`[Fast Refresh] done in ${latency}ms`)
-  if (self.__NEXT_HMR_LATENCY_CB) {
-    self.__NEXT_HMR_LATENCY_CB(latency)
+  if (startLatency) {
+    const latency = Date.now() - startLatency
+    console.log(`[Fast Refresh] done in ${latency}ms`)
+    if (self.__NEXT_HMR_LATENCY_CB) {
+      self.__NEXT_HMR_LATENCY_CB(latency)
+    }
   }
 }
 
@@ -191,8 +195,6 @@ function handleAvailableHash(hash) {
   // Update last known compilation hash.
   mostRecentCompilationHash = hash
 }
-
-let startLatency = undefined
 
 // Handle messages from the server.
 function processMessage(e) {

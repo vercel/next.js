@@ -3,6 +3,7 @@ import chalk from 'chalk'
 import crypto from 'crypto'
 import { readFileSync } from 'fs'
 import { codeFrameColumns } from 'next/dist/compiled/babel/code-frame'
+import semver from 'next/dist/compiled/semver'
 import { isWebpack5, webpack } from 'next/dist/compiled/webpack/webpack'
 import path, { join as pathJoin, relative as relativePath } from 'path'
 import {
@@ -12,6 +13,7 @@ import {
   PAGES_DIR_ALIAS,
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
+import { getPackageVersion } from '../lib/get-package-version'
 import { CustomRoutes } from '../lib/load-custom-routes.js'
 import { getTypeScriptConfiguration } from '../lib/typescript/getTypeScriptConfiguration'
 import {
@@ -23,9 +25,9 @@ import {
   REACT_LOADABLE_MANIFEST,
   SERVERLESS_DIRECTORY,
   SERVER_DIRECTORY,
-} from '../next-server/lib/constants'
-import { execOnce } from '../next-server/lib/utils'
-import { NextConfig } from '../next-server/server/config'
+} from '../shared/lib/constants'
+import { execOnce } from '../shared/lib/utils'
+import { NextConfig } from '../server/config'
 import { findPageFile } from '../server/lib/find-page-file'
 import { WebpackEntrypoints } from './entries'
 import * as Log from './output/log'
@@ -230,6 +232,30 @@ export default async function getBaseWebpackConfig(
     rewrites.afterFiles.length > 0 ||
     rewrites.fallback.length > 0
   const hasReactRefresh: boolean = dev && !isServer
+  const reactDomVersion = await getPackageVersion({
+    cwd: dir,
+    name: 'react-dom',
+  })
+  const hasReact18: boolean =
+    Boolean(reactDomVersion) &&
+    (semver.gte(reactDomVersion!, '18.0.0') ||
+      semver.coerce(reactDomVersion)?.version === '18.0.0')
+  const hasReactPrerelease =
+    Boolean(reactDomVersion) && semver.prerelease(reactDomVersion!) != null
+  const hasReactRoot: boolean = config.experimental.reactRoot || hasReact18
+
+  // Only inform during one of the builds
+  if (!isServer) {
+    if (hasReactRoot) {
+      Log.info('Using the createRoot API for React')
+    }
+    if (hasReactPrerelease) {
+      Log.warn(
+        `You are using an unsupported prerelease of 'react-dom' which may cause ` +
+          `unexpected or broken application behavior. Continue at your own risk.`
+      )
+    }
+  }
 
   const babelConfigFile = await [
     '.babelrc',
@@ -279,7 +305,7 @@ export default async function getBaseWebpackConfig(
   }
 
   const babelIncludeRegexes: RegExp[] = [
-    /next[\\/]dist[\\/]next-server[\\/]lib/,
+    /next[\\/]dist[\\/]shared[\\/]lib/,
     /next[\\/]dist[\\/]client/,
     /next[\\/]dist[\\/]pages/,
     /[\\/](strip-ansi|ansi-regex)[\\/]/,
@@ -370,10 +396,10 @@ export default async function getBaseWebpackConfig(
   }
 
   const clientResolveRewrites = require.resolve(
-    '../next-server/lib/router/utils/resolve-rewrites'
+    '../shared/lib/router/utils/resolve-rewrites'
   )
   const clientResolveRewritesNoop = require.resolve(
-    '../next-server/lib/router/utils/resolve-rewrites-noop'
+    '../shared/lib/router/utils/resolve-rewrites-noop'
   )
 
   const resolveConfig = {
@@ -484,7 +510,7 @@ export default async function getBaseWebpackConfig(
 
   // Contains various versions of the Webpack SplitChunksPlugin used in different build types
   const splitChunksConfigs: {
-    [propName: string]: webpack.Options.SplitChunksOptions
+    [propName: string]: webpack.Options.SplitChunksOptions | false
   } = {
     dev: {
       cacheGroups: {
@@ -585,9 +611,9 @@ export default async function getBaseWebpackConfig(
   }
 
   // Select appropriate SplitChunksPlugin config for this build
-  let splitChunksConfig: webpack.Options.SplitChunksOptions
+  let splitChunksConfig: webpack.Options.SplitChunksOptions | false
   if (dev) {
-    splitChunksConfig = splitChunksConfigs.dev
+    splitChunksConfig = isWebpack5 ? false : splitChunksConfigs.dev
   } else {
     splitChunksConfig = splitChunksConfigs.prodGranular
   }
@@ -650,11 +676,7 @@ export default async function getBaseWebpackConfig(
     // are relative to requests we've already resolved here.
     // Absolute requires (require('/foo')) are extremely uncommon, but
     // also have no need for customization as they're already resolved.
-    if (isLocal) {
-      if (!/[/\\]next-server[/\\]/.test(request)) {
-        return
-      }
-    } else {
+    if (!isLocal) {
       if (/^(?:next$|react(?:$|\/))/.test(request)) {
         return `commonjs ${request}`
       }
@@ -687,9 +709,10 @@ export default async function getBaseWebpackConfig(
     }
 
     if (isLocal) {
-      // we need to process next-server/lib/router/router so that
+      // Makes sure dist/shared and dist/server are not bundled
+      // we need to process shared/lib/router/router so that
       // the DefinePlugin can inject process.env values
-      const isNextExternal = /next[/\\]dist[/\\]next-server[/\\](?!lib[/\\]router[/\\]router)/.test(
+      const isNextExternal = /next[/\\]dist[/\\](shared|server)[/\\](?!lib[/\\]router[/\\]router)/.test(
         res
       )
 
@@ -735,9 +758,7 @@ export default async function getBaseWebpackConfig(
     }
 
     if (
-      res.match(
-        /next[/\\]dist[/\\]next-server[/\\](?!lib[/\\]router[/\\]router)/
-      )
+      res.match(/next[/\\]dist[/\\]shared[/\\](?!lib[/\\]router[/\\]router)/)
     ) {
       return `commonjs ${request}`
     }
@@ -914,7 +935,7 @@ export default async function getBaseWebpackConfig(
         : {}),
       // we must set publicPath to an empty value to override the default of
       // auto which doesn't work in IE11
-      publicPath: '',
+      publicPath: `${config.assetPrefix || ''}/_next/`,
       path:
         isServer && isWebpack5 && !dev
           ? path.join(outputPath, 'chunks')
@@ -933,7 +954,7 @@ export default async function getBaseWebpackConfig(
         ? 'static/webpack/[id].[fullhash].hot-update.js'
         : 'static/webpack/[id].[hash].hot-update.js',
       hotUpdateMainFilename: isWebpack5
-        ? 'static/webpack/[fullhash].hot-update.json'
+        ? 'static/webpack/[fullhash].[runtime].hot-update.json'
         : 'static/webpack/[hash].hot-update.json',
       // This saves chunks with the name given via `import()`
       chunkFilename: isServer
@@ -1007,10 +1028,13 @@ export default async function getBaseWebpackConfig(
         ...(!config.images.disableStaticImages && isWebpack5
           ? [
               {
-                test: /\.(png|svg|jpg|jpeg|gif|webp|ico|bmp)$/i,
+                test: /\.(png|jpg|jpeg|gif|webp|ico|bmp|svg)$/i,
                 loader: 'next-image-loader',
                 issuer: { not: regexLikeCss },
                 dependency: { not: ['url'] },
+                options: {
+                  isServer,
+                },
               },
             ]
           : []),
@@ -1076,9 +1100,7 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_STRICT_MODE': JSON.stringify(
           config.reactStrictMode
         ),
-        'process.env.__NEXT_REACT_ROOT': JSON.stringify(
-          config.experimental.reactRoot
-        ),
+        'process.env.__NEXT_REACT_ROOT': JSON.stringify(hasReactRoot),
         'process.env.__NEXT_OPTIMIZE_FONTS': JSON.stringify(
           config.optimizeFonts && !dev
         ),
@@ -1169,7 +1191,7 @@ export default async function getBaseWebpackConfig(
       !dev &&
         new webpack.IgnorePlugin({
           resourceRegExp: /react-is/,
-          contextRegExp: /(next-server|next)[\\/]dist[\\/]/,
+          contextRegExp: /next[\\/]dist[\\/]/,
         }),
       isServerless && isServer && new ServerlessPlugin(),
       isServer &&
@@ -1441,6 +1463,26 @@ export default async function getBaseWebpackConfig(
       console.warn(
         '> Promise returned in next config. https://nextjs.org/docs/messages/promise-in-next-config'
       )
+    }
+  }
+
+  if (!config.images.disableStaticImages && isWebpack5) {
+    const rules = webpackConfig.module?.rules || []
+    const hasCustomSvg = rules.some(
+      (rule) =>
+        rule.loader !== 'next-image-loader' &&
+        'test' in rule &&
+        rule.test instanceof RegExp &&
+        rule.test.test('.svg')
+    )
+    const nextImageRule = rules.find(
+      (rule) => rule.loader === 'next-image-loader'
+    )
+    if (hasCustomSvg && nextImageRule) {
+      // Exclude svg if the user already defined it in custom
+      // webpack config such as `@svgr/webpack` plugin or
+      // the `babel-plugin-inline-react-svg` plugin.
+      nextImageRule.test = /\.(png|jpg|jpeg|gif|webp|ico|bmp)$/i
     }
   }
 

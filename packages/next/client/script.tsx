@@ -1,6 +1,6 @@
 import React, { useEffect, useContext } from 'react'
 import { ScriptHTMLAttributes } from 'react'
-import { HeadManagerContext } from '../next-server/lib/head-manager-context'
+import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import { DOMAttributeNames } from './head-manager'
 import { requestIdleCallback } from './request-idle-callback'
 
@@ -45,7 +45,7 @@ const loadScript = (props: Props): void => {
 
   const el = document.createElement('script')
 
-  const loadPromise = new Promise((resolve, reject) => {
+  const loadPromise = new Promise<void>((resolve, reject) => {
     el.addEventListener('load', function () {
       resolve()
       if (onLoad) {
