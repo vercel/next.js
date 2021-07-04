@@ -156,10 +156,7 @@ declare module 'next/dist/compiled/path-to-regexp' {
   import m from 'path-to-regexp'
   export = m
 }
-declare module 'next/dist/compiled/recast' {
-  import m from 'recast'
-  export = m
-}
+
 declare module 'next/dist/compiled/send' {
   import m from 'send'
   export = m
