@@ -880,7 +880,6 @@ export default async function getBaseWebpackConfig(
           }.js`,
       strictModuleExceptionHandling: true,
       crossOriginLoading: crossOrigin,
-      futureEmitAssets: !dev,
       webassemblyModuleFilename: 'static/wasm/[modulehash].wasm',
     },
     performance: false,
