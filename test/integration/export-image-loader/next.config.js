@@ -1,3 +1,2 @@
-module.exports = {
-  /* replaceme */
-}
+// prettier-ignore
+module.exports = { /* replaceme */ }
