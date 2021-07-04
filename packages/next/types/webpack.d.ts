@@ -29,7 +29,6 @@ declare module 'next/dist/compiled/loader-utils'
 declare module 'next/dist/compiled/webpack/webpack' {
   import webpackSources from 'webpack-sources'
   import webpack, { loader } from 'webpack'
-  export let isWebpack5: boolean
   export function init(): void
   export let BasicEvaluatedExpression: any
   export let GraphHelpers: any
