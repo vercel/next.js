@@ -1680,7 +1680,7 @@ export default class Server {
 
           // Stop the request chain here if the data we sent was up-to-date
           if (!cachedData.isStale) {
-            return null
+            return
           }
         }
 
