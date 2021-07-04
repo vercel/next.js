@@ -572,30 +572,6 @@ export default async function getBaseWebpackConfig(
     customAppFile = path.resolve(path.join(pagesDir, customAppFile))
   }
 
-  const conformanceConfig = Object.assign(
-    {
-      ReactSyncScriptsConformanceCheck: {
-        enabled: true,
-      },
-      MinificationConformanceCheck: {
-        enabled: true,
-      },
-      DuplicatePolyfillsConformanceCheck: {
-        enabled: true,
-        BlockedAPIToBePolyfilled: Object.assign(
-          [],
-          ['fetch'],
-          config.conformance?.DuplicatePolyfillsConformanceCheck
-            ?.BlockedAPIToBePolyfilled || []
-        ),
-      },
-      GranularChunksConformanceCheck: {
-        enabled: true,
-      },
-    },
-    config.conformance
-  )
-
   async function handleExternals(
     context: string,
     request: string,
