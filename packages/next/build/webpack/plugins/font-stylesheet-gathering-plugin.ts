@@ -226,12 +226,12 @@ export class FontStylesheetGatheringPlugin {
   }
 }
 
-function isNodeCreatingLinkElement(node: namedTypes.CallExpression) {
-  const callee = node.callee as namedTypes.Identifier
+function isNodeCreatingLinkElement(node: any) {
+  const callee = node.callee
   if (callee.type !== 'Identifier') {
     return false
   }
-  const componentNode = node.arguments[0] as namedTypes.Literal
+  const componentNode = node.arguments[0]
   if (componentNode.type !== 'Literal') {
     return false
   }
