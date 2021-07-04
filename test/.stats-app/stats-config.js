@@ -103,53 +103,5 @@ module.exports = {
         numRequests: 2500,
       },
     },
-    {
-      title: 'Webpack 4 Mode',
-      diff: 'onOutputChange',
-      diffConfigFiles: [
-        {
-          path: 'next.config.js',
-          content: `
-            module.exports = {
-              generateBuildId: () => 'BUILD_ID',
-              webpack5: false,
-              webpack(config) {
-                config.optimization.minimize = false
-                config.optimization.minimizer = undefined
-                return config
-              }
-            }
-          `,
-        },
-      ],
-      renames,
-      configFiles: [
-        {
-          path: 'next.config.js',
-          content: `
-            module.exports = {
-              generateBuildId: () => 'BUILD_ID',
-              webpack5: false
-            }
-          `,
-        },
-      ],
-      filesToTrack: clientGlobs,
-      // will be output to fetched-pages/${pathname}.html
-      pagesToFetch: [
-        'http://localhost:$PORT/',
-        'http://localhost:$PORT/link',
-        'http://localhost:$PORT/withRouter',
-      ],
-      pagesToBench: [
-        'http://localhost:$PORT/',
-        'http://localhost:$PORT/error-in-render',
-      ],
-      benchOptions: {
-        reqTimeout: 60,
-        concurrency: 50,
-        numRequests: 2500,
-      },
-    },
   ],
 }

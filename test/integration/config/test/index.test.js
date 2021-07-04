@@ -1,15 +1,7 @@
 /* eslint-env jest */
 
 import cheerio from 'cheerio'
-import { readFileSync, writeFileSync } from 'fs'
-import {
-  check,
-  File,
-  findPort,
-  killApp,
-  launchApp,
-  renderViaHTTP,
-} from 'next-test-utils'
+import { findPort, killApp, launchApp, renderViaHTTP } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import fetch from 'node-fetch'
 import { join } from 'path'
@@ -64,40 +56,6 @@ describe('Configuration', () => {
     expect(header).not.toBe('Next.js')
   })
 
-  test('renders css imports', async () => {
-    let browser
-    try {
-      browser = await webdriver(context.appPort, '/webpack-css')
-
-      await check(
-        () => browser.elementByCss('.hello-world').getComputedCss('font-size'),
-        '100px'
-      )
-    } finally {
-      if (browser) {
-        await browser.close()
-      }
-    }
-  })
-
-  test('renders non-js imports from node_modules', async () => {
-    let browser
-    try {
-      browser = await webdriver(context.appPort, '/webpack-css')
-      await check(
-        () =>
-          browser
-            .elementByCss('.hello-world')
-            .getComputedCss('background-color'),
-        'rgba(0, 0, 255, 1)'
-      )
-    } finally {
-      if (browser) {
-        await browser.close()
-      }
-    }
-  })
-
   test('renders server config on the server only', async () => {
     const $ = await get$('/next-config')
     expect($('#server-only').text()).toBe('secret')
@@ -131,86 +89,5 @@ describe('Configuration', () => {
     expect(serverClientText).toBe('/static')
     expect(envValue).toBe('hello')
     await browser.close()
-  })
-
-  it('should update css styles using hmr', async () => {
-    let browser
-    try {
-      browser = await webdriver(context.appPort, '/webpack-css')
-
-      await check(async () => {
-        const pTag = await browser.elementByCss('.hello-world')
-        const initialFontSize = await pTag.getComputedCss('font-size')
-        return initialFontSize
-      }, '100px')
-
-      const pagePath = join(
-        __dirname,
-        '../',
-        'components',
-        'hello-webpack-css.css'
-      )
-
-      const originalContent = readFileSync(pagePath, 'utf8')
-      const editedContent = originalContent.replace('100px', '200px')
-
-      // Change the page
-      writeFileSync(pagePath, editedContent, 'utf8')
-
-      try {
-        // Check whether the this page has reloaded or not.
-        await check(
-          () =>
-            browser.elementByCss('.hello-world').getComputedCss('font-size'),
-          '200px'
-        )
-      } finally {
-        // Finally is used so that we revert the content back to the original regardless of the test outcome
-        // restore the about page content.
-        writeFileSync(pagePath, originalContent, 'utf8')
-        // This also make sure that the change is reverted when the test ends
-        await check(
-          () =>
-            browser.elementByCss('.hello-world').getComputedCss('font-size'),
-          '100px'
-        )
-      }
-    } finally {
-      if (browser) {
-        await browser.close()
-      }
-    }
-  })
-
-  it('should update sass styles using hmr', async () => {
-    const file = new File(
-      join(__dirname, '../', 'components', 'hello-webpack-sass.scss')
-    )
-    let browser
-    try {
-      browser = await webdriver(context.appPort, '/webpack-css')
-      await check(
-        () => browser.elementByCss('.hello-world').getComputedCss('color'),
-        'rgba(255, 255, 0, 1)'
-      )
-
-      try {
-        file.replace('yellow', 'red')
-        await check(
-          () => browser.elementByCss('.hello-world').getComputedCss('color'),
-          'rgba(255, 0, 0, 1)'
-        )
-      } finally {
-        file.restore()
-        await check(
-          () => browser.elementByCss('.hello-world').getComputedCss('color'),
-          'rgba(255, 255, 0, 1)'
-        )
-      }
-    } finally {
-      if (browser) {
-        await browser.close()
-      }
-    }
   })
 })
