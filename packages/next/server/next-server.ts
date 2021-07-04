@@ -1450,7 +1450,7 @@ export default class Server {
     }
   }
 
-  private async renderToHTMLWithComponents(
+  private renderToHTMLWithComponents(
     req: IncomingMessage,
     res: ServerResponse,
     pathname: string,
