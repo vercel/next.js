@@ -1445,7 +1445,7 @@ export default class Server {
     pathname: string,
     { components, query }: FindComponentsResult,
     opts: RenderOptsPartial
-  ): Promise<string | null> {
+  ): Promise<RenderResult | null> {
     const is404Page = pathname === '/404'
     const is500Page = pathname === '/500'
 
@@ -1474,7 +1474,10 @@ export default class Server {
 
     // handle static page
     if (typeof components.Component === 'string') {
-      return components.Component
+      return {
+        type: 'html',
+        body: components.Component,
+      }
     }
 
     if (!query.amp) {
@@ -1898,12 +1901,12 @@ export default class Server {
     return resHtml
   }
 
-  public async renderToHTML(
+  private async renderToResult(
     req: IncomingMessage,
     res: ServerResponse,
     pathname: string,
     query: ParsedUrlQuery = {}
-  ): Promise<string | null> {
+  ): Promise<RenderResult | null> {
     const bubbleNoFallback = !!query._nextBubbleNoFallback
     delete query._nextBubbleNoFallback
 
@@ -1970,11 +1973,11 @@ export default class Server {
 
       if (err && err.code === 'DECODE_FAILED') {
         res.statusCode = 400
-        return await this.renderErrorToHTML(err, req, res, pathname, query)
+        return await this.renderErrorToResult(err, req, res, pathname, query)
       }
       res.statusCode = 500
       const isWrappedError = err instanceof WrappedBuildError
-      const html = await this.renderErrorToHTML(
+      const result = await this.renderErrorToResult(
         isWrappedError ? err.innerError : err,
         req,
         res,
@@ -1988,10 +1991,20 @@ export default class Server {
         }
         this.logError(err)
       }
-      return html
+      return result
     }
     res.statusCode = 404
-    return await this.renderErrorToHTML(null, req, res, pathname, query)
+    return await this.renderErrorToResult(null, req, res, pathname, query)
+  }
+
+  public async renderToHTML(
+    req: IncomingMessage,
+    res: ServerResponse,
+    pathname: string,
+    query: ParsedUrlQuery = {}
+  ): Promise<string | null> {
+    const result = await this.renderToResult(req, res, pathname, query)
+    return result ? result.body : null
   }
 
   public async renderError(
@@ -2028,13 +2041,13 @@ export default class Server {
     )
   })
 
-  public async renderErrorToHTML(
+  private async renderErrorToResult(
     _err: Error | null,
     req: IncomingMessage,
     res: ServerResponse,
     _pathname: string,
     query: ParsedUrlQuery = {}
-  ) {
+  ): Promise<RenderResult | null> {
     let err = _err
     if (this.renderOpts.dev && !err && res.statusCode === 500) {
       err = new Error(
@@ -2042,7 +2055,6 @@ export default class Server {
           'See https://nextjs.org/docs/messages/threw-undefined'
       )
     }
-    let html: string | null
     try {
       let result: null | FindComponentsResult = null
 
@@ -2075,7 +2087,7 @@ export default class Server {
       }
 
       try {
-        html = await this.renderToHTMLWithComponents(
+        return await this.renderToHTMLWithComponents(
           req,
           res,
           statusPage,
@@ -2118,9 +2130,28 @@ export default class Server {
           }
         )
       }
-      html = 'Internal Server Error'
+      return {
+        type: 'html',
+        body: 'Internal Server Error',
+      }
     }
-    return html
+  }
+
+  public async renderErrorToHTML(
+    err: Error | null,
+    req: IncomingMessage,
+    res: ServerResponse,
+    pathname: string,
+    query: ParsedUrlQuery = {}
+  ): Promise<string | null> {
+    const result = await this.renderErrorToResult(
+      err,
+      req,
+      res,
+      pathname,
+      query
+    )
+    return result ? result.body : null
   }
 
   protected async getFallbackErrorComponents(): Promise<LoadComponentsReturnType | null> {
@@ -2298,4 +2329,9 @@ export class WrappedBuildError extends Error {
     super()
     this.innerError = innerError
   }
+}
+
+type RenderResult = {
+  type: 'html' | 'json'
+  body: any
 }
