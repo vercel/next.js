@@ -1457,8 +1457,17 @@ export default class Server {
     { components, query }: FindComponentsResult,
     opts: RenderOptsPartial
   ): Promise<RenderResult | null> {
-    return new Promise(async (resolveResult, rejectResult) => {
+    return new Promise(async (resolver, reject) => {
       try {
+        let resolved = false
+        const resolveResult = (result: RenderResult | null) => {
+          if (!resolved) {
+            resolved = true
+            resolver(result)
+          }
+        }
+        const isResolved = () => resolved || isResSent(res)
+
         const is404Page = pathname === '/404'
         const is500Page = pathname === '/500'
 
@@ -1779,7 +1788,7 @@ export default class Server {
 
         const isProduction = !this.renderOpts.dev
         const isDynamicPathname = isDynamicRoute(pathname)
-        const didRespond = isResSent(res)
+        const didRespond = isResolved()
 
         const { staticPaths, fallbackMode } = hasStaticPaths
           ? await this.getStaticPaths(pathname)
@@ -1870,7 +1879,7 @@ export default class Server {
             : undefined
 
         if (
-          !isResSent(res) &&
+          !isResolved() &&
           !isNotFound &&
           (isSSG || isDataReq || hasServerProps)
         ) {
@@ -1895,7 +1904,7 @@ export default class Server {
           )
         }
 
-        if (!isResSent(res) && isNotFound) {
+        if (!isResolved() && isNotFound) {
           if (revalidateOptions) {
             setRevalidateHeaders(res, revalidateOptions)
           }
@@ -1913,7 +1922,7 @@ export default class Server {
           resHtml ? { type: 'html', body: resHtml, revalidateOptions } : null
         )
       } catch (err) {
-        rejectResult(err)
+        reject(err)
       }
     })
   }
