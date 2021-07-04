@@ -217,6 +217,10 @@ export async function runLintCheck(
       maxWarnings
     )
   } catch (err) {
+    // If the user decides to `.eslintignore` all of the files in the lint directory it should not throw an error during `next build` or `next lint`
+    if (err?.messageTemplate === 'all-files-ignored') {
+      return null
+    }
     throw err
   }
 }
