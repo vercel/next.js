@@ -406,3 +406,5 @@ export const ST =
   SP &&
   typeof performance.mark === 'function' &&
   typeof performance.measure === 'function'
+
+export class DecodeError extends Error {}
