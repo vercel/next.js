@@ -1456,21 +1456,19 @@ export default class Server {
     return new Promise(async (resolver, reject) => {
       try {
         let resolved = false
-        const resolveResult = (result: RenderResult | null) => {
-          if (!resolved) {
-            resolved = true
-            resolver(result)
-          }
-        }
-        const isResolved = () => resolved || isResSent(res)
-        return this.renderToResultWithComponentsInternal({
+        return await this.renderToResultWithComponentsInternal({
           req,
           res,
           pathname,
           findComponentsResult,
           opts,
-          resolveResult,
-          isResolved,
+          resolveResult: (result) => {
+            if (!resolved) {
+              resolved = true
+              resolver(result)
+            }
+          },
+          isResolved: () => resolved || isResSent(res),
         })
       } catch (err) {
         reject(err)
@@ -2034,7 +2032,7 @@ export default class Server {
       return result
     }
     res.statusCode = 404
-    return await this.renderErrorToResult(null, req, res, pathname, query)
+    return this.renderErrorToResult(null, req, res, pathname, query)
   }
 
   public async renderToHTML(
