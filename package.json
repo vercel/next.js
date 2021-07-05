@@ -21,7 +21,7 @@
     "test-take2": "yarn git-reset && yarn git-clean && yarn testall",
     "test": "yarn run testall || yarn run test-take2",
     "lint-typescript": "lerna run typescript",
-    "lint-eslint": "eslint . --ext js,jsx,ts,tsx --max-warnings=0",
+    "lint-eslint": "eslint test/integration/async-modules --ext js,jsx,ts,tsx --max-warnings=0 --no-eslintrc --config ./.eslintrc.json",
     "lint-no-typescript": "run-p prettier-check lint-eslint",
     "lint": "run-p lint-typescript prettier-check lint-eslint lint-language",
     "lint-fix": "yarn prettier-fix && eslint . --ext js,jsx,ts,tsx --fix --max-warnings=0",
