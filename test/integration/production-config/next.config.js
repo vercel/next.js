@@ -1,4 +1,3 @@
-const path = require('path')
 module.exports = {
   env: {
     ...(process.env.ENABLE_ENV_FAIL_UNDERSCORE
