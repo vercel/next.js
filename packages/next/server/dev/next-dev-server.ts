@@ -47,6 +47,7 @@ import {
   LoadComponentsReturnType,
   loadDefaultErrorComponents,
 } from '../load-components'
+import { DecodeError } from '../../shared/lib/utils'
 
 if (typeof React.Suspense === 'undefined') {
   throw new Error(
@@ -377,9 +378,7 @@ export default class DevServer extends Server {
     try {
       decodedPath = decodeURIComponent(path)
     } catch (_) {
-      const err: Error & { code?: string } = new Error('failed to decode param')
-      err.code = 'DECODE_FAILED'
-      throw err
+      throw new DecodeError('failed to decode param')
     }
 
     if (await this.hasPublicFile(decodedPath)) {

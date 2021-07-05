@@ -1,3 +1,4 @@
+import { DecodeError } from '../../utils'
 import { getRouteRegex } from './route-regex'
 
 export function getRouteMatcher(routeRegex: ReturnType<typeof getRouteRegex>) {
@@ -12,11 +13,7 @@ export function getRouteMatcher(routeRegex: ReturnType<typeof getRouteRegex>) {
       try {
         return decodeURIComponent(param)
       } catch (_) {
-        const err: Error & { code?: string } = new Error(
-          'failed to decode param'
-        )
-        err.code = 'DECODE_FAILED'
-        throw err
+        throw new DecodeError('failed to decode param')
       }
     }
     const params: { [paramName: string]: string | string[] } = {}

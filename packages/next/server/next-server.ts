@@ -41,7 +41,12 @@ import {
   isDynamicRoute,
 } from '../shared/lib/router/utils'
 import * as envConfig from '../shared/lib/runtime-config'
-import { isResSent, NextApiRequest, NextApiResponse } from '../shared/lib/utils'
+import {
+  DecodeError,
+  isResSent,
+  NextApiRequest,
+  NextApiResponse,
+} from '../shared/lib/utils'
 import {
   apiResolver,
   setLazyProp,
@@ -1276,7 +1281,7 @@ export default class Server {
         return
       }
     } catch (err) {
-      if (err.code === 'DECODE_FAILED' || err.code === 'ENAMETOOLONG') {
+      if (err instanceof DecodeError) {
         res.statusCode = 400
         return this.renderError(null, req, res, '/_error', {})
       }
@@ -1388,16 +1393,15 @@ export default class Server {
           pagePath!,
           !this.renderOpts.dev && this._isLikeServerless
         )
-        // if loading an static HTML file the locale is required
-        // to be present since all HTML files are output under their locale
+
         if (
           query.__nextLocale &&
           typeof components.Component === 'string' &&
           !pagePath?.startsWith(`/${query.__nextLocale}`)
         ) {
-          const err = new Error('NOT_FOUND')
-          ;(err as any).code = 'ENOENT'
-          throw err
+          // if loading an static HTML file the locale is required
+          // to be present since all HTML files are output under their locale
+          continue
         }
 
         return {
@@ -1640,13 +1644,8 @@ export default class Server {
           try {
             seg = escapePathDelimiters(decodeURIComponent(seg), true)
           } catch (_) {
-            // An improperly encoded URL was provided, this is considered
-            // a bad request (400)
-            const err: Error & { code?: string } = new Error(
-              'failed to decode param'
-            )
-            err.code = 'DECODE_FAILED'
-            throw err
+            // An improperly encoded URL was provided
+            throw new DecodeError('failed to decode param')
           }
           return seg
         })
@@ -2003,16 +2002,14 @@ export default class Server {
         }
       }
     } catch (err) {
-      const isNoFallbackError = err instanceof NoFallbackError
-
-      if (isNoFallbackError && bubbleNoFallback) {
+      if (err instanceof NoFallbackError && bubbleNoFallback) {
         throw err
       }
-
-      if (err && err.code === 'DECODE_FAILED') {
+      if (err instanceof DecodeError) {
         res.statusCode = 400
         return await this.renderErrorToResult(err, req, res, pathname, query)
       }
+
       res.statusCode = 500
       const isWrappedError = err instanceof WrappedBuildError
       const result = await this.renderErrorToResult(
