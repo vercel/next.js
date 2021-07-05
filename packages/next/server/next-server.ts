@@ -73,7 +73,7 @@ import prepareDestination, {
 } from '../shared/lib/router/utils/prepare-destination'
 import { sendPayload, setRevalidateHeaders } from './send-payload'
 import { serveStatic } from './serve-static'
-import { IncrementalCache } from './incremental-cache'
+import { IncrementalCache, IncrementalCacheValue } from './incremental-cache'
 import { execOnce } from '../shared/lib/utils'
 import { isBlockedPage } from './utils'
 import { loadEnvConfig } from '@next/env'
@@ -1625,7 +1625,7 @@ export default class Server {
           sendPayload(
             req,
             res,
-            cachedData.props,
+            JSON.stringify(cachedData.props),
             'json',
             {
               generateEtags: this.renderOpts.generateEtags,
@@ -1653,7 +1653,7 @@ export default class Server {
         sendPayload(
           req,
           res,
-          isDataReq ? cachedData.pageData : cachedData.html,
+          isDataReq ? JSON.stringify(cachedData.pageData) : cachedData.html,
           isDataReq ? 'json' : 'html',
           {
             generateEtags: this.renderOpts.generateEtags,
@@ -1884,25 +1884,15 @@ export default class Server {
 
     // Update the cache if the head request and cacheable
     if (isOrigin && ssgCacheKey) {
+      let cacheValue: IncrementalCacheValue
       if (isNotFound) {
-        await this.incrementalCache.set(
-          ssgCacheKey,
-          { kind: 'not_found' },
-          sprRevalidate
-        )
+        cacheValue = { kind: 'not_found' }
       } else if (isRedirect) {
-        await this.incrementalCache.set(
-          ssgCacheKey,
-          { kind: 'redirect', props: pageData },
-          sprRevalidate
-        )
+        cacheValue = { kind: 'redirect', props: pageData }
       } else {
-        await this.incrementalCache.set(
-          ssgCacheKey,
-          { kind: 'page', html, pageData },
-          sprRevalidate
-        )
+        cacheValue = { kind: 'page', html, pageData }
       }
+      await this.incrementalCache.set(ssgCacheKey, cacheValue, sprRevalidate)
     }
 
     if (!isResSent(res) && isNotFound) {

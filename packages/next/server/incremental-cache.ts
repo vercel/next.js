@@ -24,7 +24,7 @@ interface CachedPageValue {
   pageData: Object
 }
 
-type IncrementalCacheValue =
+export type IncrementalCacheValue =
   | CachedRedirectValue
   | CachedNotFoundValue
   | CachedPageValue
