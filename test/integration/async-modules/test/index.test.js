@@ -108,7 +108,9 @@ describe('Async modules', () => {
       app = await launchApp(appDir, appPort)
     })
     afterAll(async () => {
-      await killApp(app)
+      if (app) {
+        await killApp(app)
+      }
     })
 
     runTests(true)
@@ -121,7 +123,9 @@ describe('Async modules', () => {
       app = await nextStart(appDir, appPort)
     })
     afterAll(async () => {
-      await killApp(app)
+      if (app) {
+        await killApp(app)
+      }
     })
 
     runTests()
@@ -136,7 +140,9 @@ describe('Async modules', () => {
     })
     afterAll(async () => {
       await nextConfig.restore()
-      await killApp(app)
+      if (app) {
+        await killApp(app)
+      }
     })
 
     runTests()
