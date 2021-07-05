@@ -14,27 +14,20 @@ interface CachedRedirectValue {
   props: Object
 }
 
-interface CachedNotFoundValue {
-  kind: 'not_found'
-}
-
 interface CachedPageValue {
   kind: 'page'
   html: string
   pageData: Object
 }
 
-export type IncrementalCacheValue =
-  | CachedRedirectValue
-  | CachedNotFoundValue
-  | CachedPageValue
+export type IncrementalCacheValue = CachedRedirectValue | CachedPageValue
 
 type IncrementalCacheEntry = {
   curRevalidate?: number | false
   // milliseconds to revalidate after
   revalidateAfter: number | false
   isStale?: boolean
-  value: IncrementalCacheValue
+  value: IncrementalCacheValue | null
 }
 
 export class IncrementalCache {
@@ -91,7 +84,7 @@ export class IncrementalCache {
       // default to 50MB limit
       max: max || 50 * 1024 * 1024,
       length({ value }) {
-        if (value.kind === 'redirect' || value.kind === 'not_found') return 25
+        if (!value || value.kind === 'redirect') return 25
         // rough estimate of size of cache value
         return value.html.length + JSON.stringify(value.pageData).length
       },
@@ -138,7 +131,7 @@ export class IncrementalCache {
     // let's check the disk for seed data
     if (!data) {
       if (this.prerenderManifest.notFoundRoutes.includes(pathname)) {
-        return { revalidateAfter: false, value: { kind: 'not_found' } }
+        return { revalidateAfter: false, value: null }
       }
 
       try {
@@ -187,7 +180,7 @@ export class IncrementalCache {
   // populate the incremental cache with new data
   async set(
     pathname: string,
-    data: IncrementalCacheValue,
+    data: IncrementalCacheValue | null,
     revalidateSeconds?: number | false
   ) {
     if (this.incrementalOptions.dev) return
@@ -212,7 +205,7 @@ export class IncrementalCache {
 
     // TODO: This option needs to cease to exist unless it stops mutating the
     // `next build` output's manifest.
-    if (this.incrementalOptions.flushToDisk && data.kind === 'page') {
+    if (this.incrementalOptions.flushToDisk && data?.kind === 'page') {
       try {
         const seedPath = this.getSeedPath(pathname, 'html')
         await promises.mkdir(path.dirname(seedPath), { recursive: true })

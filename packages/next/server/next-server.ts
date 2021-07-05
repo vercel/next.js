@@ -1620,7 +1620,20 @@ export default class Server {
           }
         : undefined
 
-      if (cachedData.kind === 'redirect') {
+      if (!cachedData) {
+        if (revalidateOptions) {
+          setRevalidateHeaders(res, revalidateOptions)
+        }
+        if (isDataReq) {
+          res.statusCode = 404
+          res.end('{"notFound":true}')
+        } else {
+          await this.render404(req, res, {
+            pathname,
+            query,
+          } as UrlWithParsedQuery)
+        }
+      } else if (cachedData.kind === 'redirect') {
         if (isDataReq) {
           sendPayload(
             req,
@@ -1635,19 +1648,6 @@ export default class Server {
           )
         } else {
           await handleRedirect(cachedData.props)
-        }
-      } else if (cachedData.kind === 'not_found') {
-        if (revalidateOptions) {
-          setRevalidateHeaders(res, revalidateOptions)
-        }
-        if (isDataReq) {
-          res.statusCode = 404
-          res.end('{"notFound":true}')
-        } else {
-          await this.render404(req, res, {
-            pathname,
-            query,
-          } as UrlWithParsedQuery)
         }
       } else {
         sendPayload(
@@ -1884,9 +1884,9 @@ export default class Server {
 
     // Update the cache if the head request and cacheable
     if (isOrigin && ssgCacheKey) {
-      let cacheValue: IncrementalCacheValue
+      let cacheValue: IncrementalCacheValue | null
       if (isNotFound) {
-        cacheValue = { kind: 'not_found' }
+        cacheValue = null
       } else if (isRedirect) {
         cacheValue = { kind: 'redirect', props: pageData }
       } else {
