@@ -1,5 +1,3 @@
-const Child = () => {
+export default () => {
   return <div />
 }
-
-export default Child

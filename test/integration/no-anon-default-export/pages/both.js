@@ -1,4 +1,4 @@
 import Child from '../components/Child'
-export default function Both() {
+export default function () {
   return <Child />
 }
