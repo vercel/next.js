@@ -1446,7 +1446,7 @@ export default class Server {
     }
   }
 
-  private renderToHTMLWithComponents(
+  private renderToResultWithComponents(
     req: IncomingMessage,
     res: ServerResponse,
     pathname: string,
@@ -1936,7 +1936,7 @@ export default class Server {
       const result = await this.findPageComponents(pathname, query)
       if (result) {
         try {
-          return await this.renderToHTMLWithComponents(
+          return await this.renderToResultWithComponents(
             req,
             res,
             pathname,
@@ -1966,7 +1966,7 @@ export default class Server {
           )
           if (dynamicRouteResult) {
             try {
-              return await this.renderToHTMLWithComponents(
+              return await this.renderToResultWithComponents(
                 req,
                 res,
                 dynamicRoute.page,
@@ -2115,7 +2115,7 @@ export default class Server {
       }
 
       try {
-        return await this.renderToHTMLWithComponents(
+        return await this.renderToResultWithComponents(
           req,
           res,
           statusPage,
@@ -2140,7 +2140,7 @@ export default class Server {
       const fallbackComponents = await this.getFallbackErrorComponents()
 
       if (fallbackComponents) {
-        return this.renderToHTMLWithComponents(
+        return this.renderToResultWithComponents(
           req,
           res,
           '/_error',
