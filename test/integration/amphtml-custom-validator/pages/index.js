@@ -2,4 +2,6 @@ export const config = {
   amp: true,
 }
 
-export default () => <p>Hello from AMP</p>
+export default function HomePage() {
+  return <p>Hello from AMP</p>
+}

@@ -1,7 +1,9 @@
 import Link from 'next/link'
 
-export default () => (
-  <Link href="/[id]/non-existent" as="/another/non-existent">
-    <a id="to-nonexistent">to 404</a>
-  </Link>
-)
+export default function InvalidLinkPage() {
+  return (
+    <Link href="/[id]/non-existent" as="/another/non-existent">
+      <a id="to-nonexistent">to 404</a>
+    </Link>
+  )
+}
