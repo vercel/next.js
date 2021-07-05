@@ -1,1 +1,2 @@
-export default () => <div>API - support</div>
+const Index = () => <div>API - support</div>
+export default Index

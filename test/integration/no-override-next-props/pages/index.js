@@ -1,1 +1,2 @@
-export default () => <p>Hello there 👋</p>
+const Index = () => <p>Hello there 👋</p>
+export default Index

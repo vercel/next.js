@@ -1,1 +1,2 @@
-export default () => <p>made it to dashboard</p>
+const Index = () => <p>made it to dashboard</p>
+export default Index

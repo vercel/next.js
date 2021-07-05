@@ -1,8 +1,10 @@
 import { config as hello } from '../something'
 import { config as world } from '../config'
 
-export default () => (
+const Index = () => (
   <p>
     {hello} {world}
   </p>
 )
+
+export default Index

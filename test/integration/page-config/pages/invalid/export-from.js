@@ -1,3 +1,4 @@
+const ExportFrom = () => <p>hello world</p>
 // export { config } from '../../config'
 
-export default () => <p>hello world</p>
+export default ExportFrom

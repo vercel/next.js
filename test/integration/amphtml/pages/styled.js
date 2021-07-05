@@ -3,7 +3,7 @@ import Bar from '../components/Bar'
 
 export const config = { amp: true }
 
-export default () => (
+const Styled = () => (
   <div>
     <Foo />
     <Bar />
@@ -14,3 +14,5 @@ export default () => (
     `}</style>
   </div>
 )
+
+export default Styled

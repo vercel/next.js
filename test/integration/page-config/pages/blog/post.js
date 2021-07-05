@@ -2,4 +2,6 @@ export const meta = {
   hello: 'world',
 }
 
-export default () => <p>hi</p>
+const Post = () => <p>hi</p>
+
+export default Post

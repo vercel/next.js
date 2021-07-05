@@ -3,7 +3,7 @@ import seedrandom from 'seedrandom'
 
 const rng = seedrandom('hello')
 
-export default function () {
+export default function Index() {
   const [value, setValue] = useState(null)
   useEffect(() => {
     if (value) return

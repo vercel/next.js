@@ -1,7 +1,9 @@
 import Link from 'next/link'
 
-export default () => (
+const Hello = () => (
   <Link href="/">
     <a>Hello world</a>
   </Link>
 )
+
+export default Hello

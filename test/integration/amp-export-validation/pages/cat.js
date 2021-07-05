@@ -1,8 +1,10 @@
 export const config = { amp: true }
 
-export default () => (
+const Cat = () => (
   <div>
     {/* I show a warning since the width and height attribute is missing */}
     <amp-video src="/cats.mp4" layout="responsive" />
   </div>
 )
+
+export default Cat

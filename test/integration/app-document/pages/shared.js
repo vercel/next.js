@@ -1,5 +1,7 @@
 import currentState from '../shared-module'
 
-export default () => {
+const Shared = () => {
   return <p id="currentstate">{currentState()}</p>
 }
+
+export default Shared

@@ -7,8 +7,10 @@ const MyLink = React.forwardRef((props, ref) => (
   </a>
 ))
 
-export default () => (
+const Function = () => (
   <Link href="/" passHref>
     <MyLink />
   </Link>
 )
+
+export default Function

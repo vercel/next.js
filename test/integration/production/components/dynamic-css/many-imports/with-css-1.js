@@ -1,3 +1,5 @@
 import styles from './with-css-1.module.css'
 
-export default () => <p className={styles.content}>With CSS 1</p>
+const WithCss1 = () => <p className={styles.content}>With CSS 1</p>
+
+export default WithCss1

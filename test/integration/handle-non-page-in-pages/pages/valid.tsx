@@ -1,1 +1,2 @@
-export default (): JSX.Element => <p>Hello world</p>
+const Valid = (): JSX.Element => <p>Hello world</p>
+export default Valid

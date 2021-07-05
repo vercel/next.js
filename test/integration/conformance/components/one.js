@@ -1,5 +1,8 @@
 import rd from 'react-dom'
-export default () => {
+
+const One = () => {
   console.log(rd)
   return <div>Component One</div>
 }
+
+export default One

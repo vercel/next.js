@@ -1,1 +1,2 @@
-export default () => <p>Hello world</p>
+const TypeErrorRecover = () => <p>Hello world</p>
+export default TypeErrorRecover

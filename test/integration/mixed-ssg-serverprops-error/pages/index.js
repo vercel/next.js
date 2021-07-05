@@ -10,4 +10,6 @@ export const getServerSideProps = async () => {
   }
 }
 
-export default ({ world }) => <p>Hello {world}</p>
+const Index = ({ world }) => <p>Hello {world}</p>
+
+export default Index

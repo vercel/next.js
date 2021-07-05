@@ -1,8 +1,10 @@
 import Logo from '../components/logo'
 
-export default () => (
+const CssModules = () => (
   <div>
     <Logo />
     <input />
   </div>
 )
+
+export default CssModules

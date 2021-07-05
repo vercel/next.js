@@ -1,7 +1,9 @@
 import fs from 'fs'
 import findUp from 'find-up'
 
-export default ({ world }) => <h1>About {world}</h1>
+const About = ({ world }) => <h1>About {world}</h1>
+
+export default About
 
 export async function getStaticProps() {
   const text = fs

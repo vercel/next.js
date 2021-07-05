@@ -10,7 +10,7 @@ export function getStaticProps({ preview, previewData }) {
   }
 }
 
-export default function ({ hasProps, preview, previewData }) {
+export default function Index({ hasProps, preview, previewData }) {
   return (
     <>
       <pre id="props-pre">

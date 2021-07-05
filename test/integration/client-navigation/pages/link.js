@@ -1,6 +1,7 @@
 import React from 'react'
 import Link from 'next/link'
-export default () => (
+
+const LinkComponent = () => (
   <div>
     Hello World.{' '}
     <Link href="/about">
@@ -8,3 +9,5 @@ export default () => (
     </Link>
   </div>
 )
+
+export default LinkComponent

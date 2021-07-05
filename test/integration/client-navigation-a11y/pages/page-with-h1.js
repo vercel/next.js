@@ -1,6 +1,6 @@
 import Head from 'next/head'
 
-export default () => (
+const PageWithH1 = () => (
   <div id="page-with-h1">
     <Head>
       <title>Another Page's Title</title>
@@ -9,3 +9,5 @@ export default () => (
     <div>Extraneous stuff</div>
   </div>
 )
+
+export default PageWithH1

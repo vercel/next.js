@@ -1,6 +1,6 @@
 import Link from 'next/link'
 
-export default () => {
+const DeDuped = () => {
   return (
     <p>
       <Link href="/first">
@@ -9,3 +9,5 @@ export default () => {
     </p>
   )
 }
+
+export default DeDuped

@@ -1,1 +1,2 @@
-export default () => <div>test chunkfilename</div>
+const HelloChunkfilename = () => <div>test chunkfilename</div>
+export default HelloChunkfilename

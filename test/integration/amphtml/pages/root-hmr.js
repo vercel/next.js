@@ -1,3 +1,5 @@
 export const config = { amp: true }
 
-export default () => <p>I'm an AMP page!</p>
+const RootHmr = () => <p>I'm an AMP page!</p>
+
+export default RootHmr

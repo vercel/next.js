@@ -1,6 +1,6 @@
 import Link from 'next/link'
 
-export default () => (
+const Index = () => (
   <div>
     <Link href="/about">
       <a>About Page</a>
@@ -8,3 +8,5 @@ export default () => (
     <p className="index-page">Hello World</p>
   </div>
 )
+
+export default Index

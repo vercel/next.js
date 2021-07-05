@@ -8,4 +8,6 @@ if (typeof window !== 'undefined') {
 
 export const config = { amp: 'hybrid' }
 
-export default () => <p>{useAmp() ? 'AMP' : 'Not AMP'}</p>
+const SomeAmp = () => <p>{useAmp() ? 'AMP' : 'Not AMP'}</p>
+
+export default SomeAmp

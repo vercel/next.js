@@ -3,6 +3,8 @@ import dynamic from 'next/dynamic'
 
 const HmrDynamic = dynamic(import('../../components/hmr/dynamic'))
 
-export default () => {
+const StyleDynamicComponent = () => {
   return <HmrDynamic />
 }
+
+export default StyleDynamicComponent

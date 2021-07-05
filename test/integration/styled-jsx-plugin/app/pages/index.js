@@ -1,4 +1,4 @@
-export default () => (
+const Index = () => (
   <div className="hello">
     <p>Hello World</p>
     <style jsx>{`
@@ -19,3 +19,5 @@ export default () => (
     `}</style>
   </div>
 )
+
+export default Index

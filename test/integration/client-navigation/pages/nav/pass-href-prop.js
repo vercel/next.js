@@ -12,7 +12,7 @@ const UnexpectedNestedA = () => {
 
 const FakeA = UnexpectedNestedA()
 
-export default () => (
+const PassHrefProp = () => (
   <div className="nav-pass-href-prop">
     <Link href="/nav" passHref>
       <FakeA id="with-href">Will redirect as an `a` tag</FakeA>
@@ -25,3 +25,5 @@ export default () => (
     <p>This is the passHref prop page.</p>
   </div>
 )
+
+export default PassHrefProp

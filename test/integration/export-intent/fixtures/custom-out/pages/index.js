@@ -1,1 +1,2 @@
-export default () => <div>Hello Export</div>
+const Index = () => <div>Hello Export</div>
+export default Index

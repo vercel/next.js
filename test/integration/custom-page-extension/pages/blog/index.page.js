@@ -1,1 +1,2 @@
-export default () => <div>Blog - CPE</div>
+const IndexPage = () => <div>Blog - CPE</div>
+export default IndexPage

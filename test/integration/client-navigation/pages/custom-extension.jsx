@@ -1,8 +1,10 @@
 import { World } from '../components/world'
 import { Hello } from '../components/hello.jsx'
 
-export default () => (
+const CustomExtension = () => (
   <div>
     <Hello /> <World />
   </div>
 )
+
+export default CustomExtension

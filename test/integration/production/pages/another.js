@@ -1,6 +1,6 @@
 import Link from 'next/link'
 
-export default () => (
+const Another = () => (
   <div>
     <Link href="/">
       <a>Index Page</a>
@@ -8,3 +8,5 @@ export default () => (
     <p>Another</p>
   </div>
 )
+
+export default Another

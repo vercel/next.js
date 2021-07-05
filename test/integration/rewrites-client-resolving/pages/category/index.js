@@ -1,1 +1,2 @@
-export default () => <p id="categories">categories</p>
+const Index = () => <p id="categories">categories</p>
+export default Index

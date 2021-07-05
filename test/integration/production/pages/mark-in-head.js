@@ -1,6 +1,6 @@
 import Head from 'next/head'
 
-export default () => {
+const MarkInHead = () => {
   return (
     <div>
       Hello
@@ -14,3 +14,5 @@ export default () => {
     </div>
   )
 }
+
+export default MarkInHead

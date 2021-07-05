@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { useEffect } from 'react'
 import { useRouter } from 'next/router'
 
-export default () => {
+const MultiPrefetch = () => {
   const router = useRouter()
   useEffect(() => {
     router.prefetch('/dynamic/[hello]')
@@ -21,3 +21,5 @@ export default () => {
     </div>
   )
 }
+
+export default MultiPrefetch

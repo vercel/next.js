@@ -1,6 +1,6 @@
 import Link from 'next/link'
 
-export default () => (
+const Mismatch = () => (
   <main>
     <h1>Mismatched SSG Data Prefetch Fixtures</h1>
     <p>
@@ -87,3 +87,5 @@ export default () => (
     </p>
   </main>
 )
+
+export default Mismatch

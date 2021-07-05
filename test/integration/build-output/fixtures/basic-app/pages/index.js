@@ -1,4 +1,4 @@
 /*! DO NOT EXTRACT ME */
-export default function () {
+export default function Index() {
   return <div />
 }

@@ -1,7 +1,7 @@
 import React from 'react'
 import Link from 'next/link'
 
-export default () => {
+const ChildRefFunc = () => {
   const myRef = React.createRef(null)
 
   React.useEffect(() => {
@@ -22,3 +22,5 @@ export default () => {
     </Link>
   )
 }
+
+export default ChildRefFunc

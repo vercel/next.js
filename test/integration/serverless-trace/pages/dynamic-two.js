@@ -2,8 +2,10 @@ import dynamic from 'next/dynamic'
 
 const Hello = dynamic(() => import('../components/hello'))
 
-export default () => (
+const DynamicTwo = () => (
   <div>
     <Hello />
   </div>
 )
+
+export default DynamicTwo

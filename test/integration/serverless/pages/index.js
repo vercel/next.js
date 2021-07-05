@@ -1,5 +1,6 @@
 import Link from 'next/link'
-export default () => {
+
+const Index = () => {
   return (
     <div>
       Hello World
@@ -12,3 +13,5 @@ export default () => {
     </div>
   )
 }
+
+export default Index

@@ -1,6 +1,6 @@
 import Link from 'next/link'
 
-export default () => {
+const PrefetchDisabled = () => {
   return (
     <div>
       <br />
@@ -10,3 +10,5 @@ export default () => {
     </div>
   )
 }
+
+export default PrefetchDisabled

@@ -1,1 +1,2 @@
-export default () => <h1>SRC</h1>
+const Index = () => <h1>SRC</h1>
+export default Index

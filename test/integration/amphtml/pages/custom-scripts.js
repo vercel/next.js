@@ -2,7 +2,7 @@ import Head from 'next/head'
 
 export const config = { amp: true }
 
-export default () => (
+const CustomScripts = () => (
   <div>
     <Head>
       <script src="/im-not-allowed.js" type="text/javascript" />
@@ -15,3 +15,5 @@ export default () => (
     <p>We only allow AMP scripts now</p>
   </div>
 )
+
+export default CustomScripts

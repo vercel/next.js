@@ -1,4 +1,4 @@
-export default () => (
+const StyledJsx = () => (
   <div>
     <p id="blue-box">This is blue</p>
     <style jsx>{`
@@ -8,3 +8,5 @@ export default () => (
     `}</style>
   </div>
 )
+
+export default StyledJsx

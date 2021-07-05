@@ -1,1 +1,2 @@
-export default () => <p id="static">hello from static page</p>
+const Static = () => <p id="static">hello from static page</p>
+export default Static

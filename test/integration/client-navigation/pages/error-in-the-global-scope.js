@@ -1,3 +1,5 @@
 aa = 10 //eslint-disable-line
 
-export default () => <div>Hello</div>
+const ErrorInTheGlobalScope = () => <div>Hello</div>
+
+export default ErrorInTheGlobalScope

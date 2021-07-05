@@ -1,5 +1,6 @@
 import React from 'react'
-export default () => {
+
+const Style = () => {
   return (
     <React.Fragment>
       <div className="hmr-style-page">
@@ -15,3 +16,5 @@ export default () => {
     </React.Fragment>
   )
 }
+
+export default Style

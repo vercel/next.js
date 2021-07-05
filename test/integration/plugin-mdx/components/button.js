@@ -1,4 +1,4 @@
-export default ({ children }) => (
+const Button = ({ children }) => (
   <button
     style={{
       borderRadius: '3px',
@@ -12,3 +12,5 @@ export default ({ children }) => (
     {children}
   </button>
 )
+
+export default Button

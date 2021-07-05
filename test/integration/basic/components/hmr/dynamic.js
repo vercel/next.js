@@ -1,4 +1,4 @@
-export default () => {
+const Dynamic = () => {
   return (
     <div id="dynamic-component">
       Dynamic Component
@@ -10,3 +10,5 @@ export default () => {
     </div>
   )
 }
+
+export default Dynamic

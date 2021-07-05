@@ -1,7 +1,7 @@
 import React from 'react'
 import Head from 'next/head'
 
-export default () => (
+const HeadComponent = () => (
   <div>
     <Head>
       {/* this will not render */}
@@ -141,3 +141,5 @@ export default () => (
     <h1>I can have meta tags</h1>
   </div>
 )
+
+export default HeadComponent

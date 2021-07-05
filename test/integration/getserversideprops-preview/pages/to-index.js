@@ -4,7 +4,7 @@ export function getServerSideProps() {
   return { props: {} }
 }
 
-export default function () {
+export default function ToIndex() {
   return (
     <main>
       <Link href="/">

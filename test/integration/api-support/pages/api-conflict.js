@@ -1,1 +1,2 @@
-export default () => <div>API - conflict</div>
+const ApiConflict = () => <div>API - conflict</div>
+export default ApiConflict

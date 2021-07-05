@@ -28,7 +28,7 @@ function Nav() {
   )
 }
 
-export default () => (
+const Index = () => (
   <div>
     <Nav />
     <div className="hero">
@@ -36,3 +36,5 @@ export default () => (
     </div>
   </div>
 )
+
+export default Index

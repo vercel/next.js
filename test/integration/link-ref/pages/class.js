@@ -7,8 +7,10 @@ class MyLink extends React.Component {
   }
 }
 
-export default () => (
+const Class = () => (
   <Link href="/" passHref>
     <MyLink />
   </Link>
 )
+
+export default Class

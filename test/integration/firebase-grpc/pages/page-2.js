@@ -1,2 +1,3 @@
 import 'firebase/firestore'
-export default () => <div>Firebase</div>
+const Page2 = () => <div>Firebase</div>
+export default Page2

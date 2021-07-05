@@ -1,1 +1,2 @@
-export default () => <p>hello from another</p>
+const Another = () => <p>hello from another</p>
+export default Another

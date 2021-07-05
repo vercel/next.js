@@ -1,2 +1,3 @@
 import { a } from '../component/child'
-export default () => <h1>Hello world {a}</h1>
+const Index = () => <h1>Hello world {a}</h1>
+export default Index

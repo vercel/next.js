@@ -1,5 +1,6 @@
 import { pBlue } from '../lib/colored-blue'
-export default () => (
+
+const StyledJsxExternal = () => (
   <div>
     <p id="blue-box" className={pBlue.className}>
       This is blue
@@ -7,3 +8,5 @@ export default () => (
     {pBlue.styles}
   </div>
 )
+
+export default StyledJsxExternal

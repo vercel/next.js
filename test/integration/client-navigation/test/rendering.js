@@ -7,7 +7,7 @@ import { BUILD_MANIFEST, REACT_LOADABLE_MANIFEST } from 'next/constants'
 import { join } from 'path'
 import url from 'url'
 
-export default function (render, fetch, ctx) {
+export default function Rendering(render, fetch, ctx) {
   async function get$(path, query) {
     const html = await render(path, query)
     return cheerio.load(html)

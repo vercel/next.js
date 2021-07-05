@@ -1,6 +1,6 @@
 import Link from 'next/link'
 
-export default () => (
+const About = () => (
   <div className="nav-about">
     <Link href="/nav">
       <a id="home-link">Go Back</a>
@@ -9,3 +9,5 @@ export default () => (
     <p>This is the about page.</p>
   </div>
 )
+
+export default About

@@ -8,7 +8,7 @@ const Hello2 = dynamic(
   import(/* webpackChunkName: 'hello2' */ '../../components/hello4')
 )
 
-export default () => {
+const MultipleModules = () => {
   return (
     <div>
       <Hello />
@@ -21,3 +21,5 @@ export default () => {
     </div>
   )
 }
+
+export default MultipleModules

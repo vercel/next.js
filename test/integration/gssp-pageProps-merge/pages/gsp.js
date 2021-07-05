@@ -1,2 +1,3 @@
 export const getStaticProps = () => ({ props: { hi: 'hi' } })
-export default (props) => <p>{JSON.stringify(props)}</p>
+const Gsp = (props) => <p>{JSON.stringify(props)}</p>
+export default Gsp

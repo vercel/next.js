@@ -1,4 +1,5 @@
-export default ({ lang }) => <p id="about">About: {lang}</p>
+const About = ({ lang }) => <p id="about">About: {lang}</p>
+export default About
 
 export const getStaticProps = ({ params: { lang } }) => ({
   props: {

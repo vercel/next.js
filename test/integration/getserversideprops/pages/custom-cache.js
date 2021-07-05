@@ -7,6 +7,8 @@ export async function getServerSideProps({ res }) {
   }
 }
 
-export default ({ world }) => {
+const CustomCache = ({ world }) => {
   return <p>hello: {world}</p>
 }
+
+export default CustomCache

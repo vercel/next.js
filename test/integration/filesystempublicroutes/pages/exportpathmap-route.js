@@ -1,1 +1,2 @@
-export default () => <div>exportpathmap was here</div>
+const ExportpathmapRoute = () => <div>exportpathmap was here</div>
+export default ExportpathmapRoute

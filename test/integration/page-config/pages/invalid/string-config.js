@@ -1,3 +1,4 @@
+const StringConfig = () => <p>hello world</p>
 // export const config = 'hello world'
 
-export default () => <p>hello world</p>
+export default StringConfig

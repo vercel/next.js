@@ -1,6 +1,6 @@
 import Link from 'next/link'
 
-export default () => (
+const Normal = () => (
   <div>
     <p>No AMP for me...</p>
     <Link href="/only-amp">
@@ -8,3 +8,5 @@ export default () => (
     </Link>
   </div>
 )
+
+export default Normal

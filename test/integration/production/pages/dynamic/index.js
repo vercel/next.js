@@ -1,9 +1,11 @@
 import Link from 'next/link'
 
-export default () => (
+const Index = () => (
   <div>
     <Link href="/dynamic/no-chunk">
       <a>No Chunk</a>
     </Link>
   </div>
 )
+
+export default Index

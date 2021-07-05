@@ -1,7 +1,7 @@
 import React from 'react'
 import Link, { LinkProps } from 'next/link'
 
-export default () => {
+const LinkComponent = () => {
   const props: LinkProps = {
     href: '/page',
     as: '/as-page',
@@ -13,3 +13,5 @@ export default () => {
     </Link>
   )
 }
+
+export default LinkComponent

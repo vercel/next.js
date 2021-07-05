@@ -1,6 +1,6 @@
 import Link from 'next/link'
 
-export default () => (
+const Index = () => (
   <main>
     <h1>SSG Data Prefetch Fixtures</h1>
     <p>
@@ -63,3 +63,5 @@ export default () => (
     </p>
   </main>
 )
+
+export default Index

@@ -3,7 +3,7 @@ import dynamic from 'next/dynamic'
 
 const DynamicComponent = dynamic(() => import('../components/hello'))
 
-export default () => (
+const DynamicImports = () => (
   <div id="dynamic-imports-page">
     <div>
       <Link href="/">
@@ -13,3 +13,5 @@ export default () => (
     <DynamicComponent />
   </div>
 )
+
+export default DynamicImports

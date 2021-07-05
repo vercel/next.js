@@ -4,7 +4,7 @@ import Link from 'next/link'
 // eslint-disable-next-line no-unused-vars
 import next from 'next'
 
-export default () => (
+const NextImport = () => (
   <div>
     <Link href="/about">
       <a>About Page</a>
@@ -12,3 +12,5 @@ export default () => (
     <p className="index-page">Hello World</p>
   </div>
 )
+
+export default NextImport

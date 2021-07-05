@@ -1,3 +1,5 @@
 export const config = { amp: true }
 
-export default () => <p>Hello AMP!</p>
+const First = () => <p>Hello AMP!</p>
+
+export default First

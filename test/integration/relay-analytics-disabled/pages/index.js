@@ -15,7 +15,7 @@ if (typeof navigator !== 'undefined') {
   }
 }
 
-export default () => {
+const Index = () => {
   return (
     <div>
       <h1>Foo!</h1>
@@ -23,3 +23,5 @@ export default () => {
     </div>
   )
 }
+
+export default Index

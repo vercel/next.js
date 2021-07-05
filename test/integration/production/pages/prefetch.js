@@ -1,6 +1,6 @@
 import Link from 'next/link'
 
-export default () => {
+const Prefetch = () => {
   return (
     <div>
       <ul>
@@ -28,3 +28,5 @@ export default () => {
     </div>
   )
 }
+
+export default Prefetch

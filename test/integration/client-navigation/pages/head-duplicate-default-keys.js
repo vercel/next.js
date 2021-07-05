@@ -1,7 +1,7 @@
 import React from 'react'
 import Head from 'next/head'
 
-export default () => (
+const HeadDuplicateDefaultKeys = () => (
   <div>
     <Head>
       {/* this will not render */}
@@ -18,3 +18,5 @@ export default () => (
     <h1>Meta tags with same keys as default get deduped</h1>
   </div>
 )
+
+export default HeadDuplicateDefaultKeys

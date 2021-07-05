@@ -2,7 +2,7 @@ import React from 'react'
 import Head from 'next/head'
 import Link from 'next/link'
 
-export default (props) => (
+const Head3 = (props) => (
   <div id="head-3">
     <Head>
       <meta name="description" content="Head Three" />
@@ -13,3 +13,5 @@ export default (props) => (
     </Link>
   </div>
 )
+
+export default Head3

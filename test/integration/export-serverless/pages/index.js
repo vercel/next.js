@@ -6,7 +6,7 @@ function routeToAbout(e) {
   Router.push('/about')
 }
 
-export default () => (
+const Index = () => (
   <div id="home-page">
     <div>
       <Link href="/about">
@@ -51,3 +51,5 @@ export default () => (
     `}</style>
   </div>
 )
+
+export default Index

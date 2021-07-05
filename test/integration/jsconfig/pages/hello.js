@@ -1,1 +1,2 @@
-export default () => <div>hello world</div>
+const Hello = () => <div>hello world</div>
+export default Hello

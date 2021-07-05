@@ -1,1 +1,2 @@
-export default () => <div id="asset-page">asset page</div>
+const Asset = () => <div id="asset-page">asset page</div>
+export default Asset

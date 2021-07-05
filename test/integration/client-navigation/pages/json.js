@@ -1,3 +1,5 @@
 import data from '../lib/data'
 
-export default () => <div>{data.name}</div>
+const Json = () => <div>{data.name}</div>
+
+export default Json

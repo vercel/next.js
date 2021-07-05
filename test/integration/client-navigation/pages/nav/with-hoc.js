@@ -17,9 +17,11 @@ const Link = withRouter(({ router, children, href }) => {
   )
 })
 
-export default () => (
+const WithHoc = () => (
   <div className="nav-with-hoc">
     <Link href="/nav">Go Back</Link>
     <p>This is the about page.</p>
   </div>
 )
+
+export default WithHoc

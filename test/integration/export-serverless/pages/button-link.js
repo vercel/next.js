@@ -1,6 +1,6 @@
 import Link from 'next/link'
 
-export default () => (
+const ButtonLink = () => (
   <div id="button-link-page">
     <div>
       <Link href="/">
@@ -10,3 +10,5 @@ export default () => (
     <p>This is the About page</p>
   </div>
 )
+
+export default ButtonLink

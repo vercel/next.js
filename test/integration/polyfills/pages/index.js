@@ -1,7 +1,9 @@
 import Link from 'next/link'
 
-export default () => (
+const Index = () => (
   <div>
     <Link href="/fetch">Fetch</Link>
   </div>
 )
+
+export default Index

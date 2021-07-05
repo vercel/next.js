@@ -1,3 +1,5 @@
 export const config = { amp: 'hybrid' }
 
-export default () => <p>Hello amp</p>
+const AmpHybrid = () => <p>Hello amp</p>
+
+export default AmpHybrid

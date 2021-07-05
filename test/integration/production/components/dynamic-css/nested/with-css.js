@@ -1,8 +1,10 @@
 import styles from './with-css.module.css'
 import Nested from './Nested'
 
-export default () => (
+const WithCss = () => (
   <div className={styles.content}>
     <Nested />
   </div>
 )
+
+export default WithCss

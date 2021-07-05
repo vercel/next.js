@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { useState } from 'react'
 
-export default () => {
+const Index = () => {
   const [href, setHref] = useState('/first')
 
   return (
@@ -27,3 +27,5 @@ export default () => {
     </div>
   )
 }
+
+export default Index

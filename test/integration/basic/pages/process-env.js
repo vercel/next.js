@@ -1,1 +1,2 @@
-export default () => <div id="node-env">{process.env.NODE_ENV}</div>
+const ProcessEnv = () => <div id="node-env">{process.env.NODE_ENV}</div>
+export default ProcessEnv

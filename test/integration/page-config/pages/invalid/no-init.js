@@ -1,3 +1,4 @@
+const NoInit = () => <p>hello world</p>
 // export let config
 
-export default () => <p>hello world</p>
+export default NoInit

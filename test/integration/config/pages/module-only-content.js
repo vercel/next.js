@@ -1,3 +1,7 @@
 import messageInAPackage from 'module-only-package'
 
-export default () => <p id="messageInAPackage">{messageInAPackage}</p>
+const ModuleOnlyContent = () => (
+  <p id="messageInAPackage">{messageInAPackage}</p>
+)
+
+export default ModuleOnlyContent

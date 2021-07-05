@@ -7,4 +7,6 @@ export const getServerSideProps = () => {
   }
 }
 
-export default () => <p>hello world</p>
+const NotConfigExport = () => <p>hello world</p>
+
+export default NotConfigExport
