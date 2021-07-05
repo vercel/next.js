@@ -9,12 +9,13 @@
     "node": true
   },
   "parserOptions": {
+    "requireConfigFile": false,
     "sourceType": "module",
     "ecmaFeatures": {
       "jsx": true
     },
     "babelOptions": {
-      "presets": ["@babel/preset-env"],
+      "presets": ["@babel/preset-env", "@babel/preset-react"],
       "caller": {
         // Eslint supports top level await when a parser for it is included. We enable the parser by default for Babel.
         "supportsTopLevelAwait": true
