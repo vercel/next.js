@@ -146,7 +146,9 @@ export function runNextCommand(argv, options = {}) {
         !options.ignoreFail &&
         code !== 0
       ) {
-        return reject(new Error(`command failed with code ${code}`))
+        return reject(
+          new Error(`command "next ${argv.join(' ')}" failed with code ${code}`)
+        )
       }
 
       resolve({
