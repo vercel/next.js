@@ -2,7 +2,7 @@ import PropTypes from 'prop-types'
 import React, { Component, ReactElement, ReactNode, useContext } from 'react'
 import flush from 'styled-jsx/server'
 import {
-  AMP_RENDER_TARGET,
+  NEXT_RENDER_TARGET,
   OPTIMIZED_FONT_PROVIDERS,
 } from '../shared/lib/constants'
 import { DocumentContext as DocumentComponentContext } from '../shared/lib/document-context'
@@ -744,14 +744,10 @@ export class Head extends Component<
 }
 
 export function Main() {
-  const { inAmpMode, html, docComponentsRendered } = useContext(
-    DocumentComponentContext
-  )
+  const { docComponentsRendered } = useContext(DocumentComponentContext)
 
   docComponentsRendered.Main = true
-
-  if (inAmpMode) return <>{AMP_RENDER_TARGET}</>
-  return <div id="__next" dangerouslySetInnerHTML={{ __html: html }} />
+  return <>{NEXT_RENDER_TARGET}</>
 }
 
 export class NextScript extends Component<OriginProps> {

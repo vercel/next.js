@@ -19,7 +19,7 @@ import { GetServerSideProps, GetStaticProps, PreviewData } from '../types'
 import { isInAmpMode } from '../shared/lib/amp'
 import { AmpStateContext } from '../shared/lib/amp-context'
 import {
-  AMP_RENDER_TARGET,
+  NEXT_RENDER_TARGET,
   SERVER_PROPS_ID,
   STATIC_PROPS_ID,
   STATIC_STATUS_PAGES,
@@ -1046,7 +1046,7 @@ export async function renderToHTML(
   const nextExport =
     !isSSG && (renderOpts.nextExport || (dev && (isAutoExport || isFallback)))
 
-  let html = renderDocument(Document, {
+  const document = renderDocument(Document, {
     ...renderOpts,
     canonicalBase:
       !renderOpts.ampPath && (req as any).__nextStrippedLocale
@@ -1107,16 +1107,23 @@ export async function renderToHTML(
     }
   }
 
-  if (inAmpMode && html) {
-    // inject HTML to AMP_RENDER_TARGET to allow rendering
-    // directly to body in AMP mode
-    const ampRenderIndex = html.indexOf(AMP_RENDER_TARGET)
-    html =
-      html.substring(0, ampRenderIndex) +
-      `<!-- __NEXT_DATA__ -->${docProps.html}` +
-      html.substring(ampRenderIndex + AMP_RENDER_TARGET.length)
-    html = await optimizeAmp(html, renderOpts.ampOptimizerConfig)
+  let body: string
+  if (inAmpMode) {
+    body = `<!-- __NEXT_DATA__ -->${docProps.html}`
+  } else {
+    body = renderToStaticMarkup(
+      <div id="__next" dangerouslySetInnerHTML={{ __html: docProps.html }} />
+    )
+  }
 
+  const renderTargetIndex = document.indexOf(NEXT_RENDER_TARGET)
+  let html =
+    document.substring(0, renderTargetIndex) +
+    body +
+    document.substring(renderTargetIndex + NEXT_RENDER_TARGET.length)
+
+  if (inAmpMode) {
+    html = await optimizeAmp(html, renderOpts.ampOptimizerConfig)
     if (!renderOpts.ampSkipValidation && renderOpts.ampValidator) {
       await renderOpts.ampValidator(html, pathname)
     }
