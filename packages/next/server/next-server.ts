@@ -1607,10 +1607,6 @@ export default class Server {
       : undefined
 
     if (cachedData) {
-      const data = isDataReq
-        ? JSON.stringify(cachedData.pageData)
-        : cachedData.html
-
       const revalidateOptions = !this.renderOpts.dev
         ? {
             // When the page is 404 cache-control should not be added
@@ -1623,9 +1619,23 @@ export default class Server {
           }
         : undefined
 
-      if (!isDataReq && cachedData.pageData?.pageProps?.__N_REDIRECT) {
-        await handleRedirect(cachedData.pageData)
-      } else if (cachedData.isNotFound) {
+      if (cachedData.kind === 'redirect') {
+        if (isDataReq) {
+          sendPayload(
+            req,
+            res,
+            cachedData.props,
+            'json',
+            {
+              generateEtags: this.renderOpts.generateEtags,
+              poweredByHeader: this.renderOpts.poweredByHeader,
+            },
+            revalidateOptions
+          )
+        } else {
+          await handleRedirect(cachedData.props)
+        }
+      } else if (cachedData.kind === 'not_found') {
         if (revalidateOptions) {
           setRevalidateHeaders(res, revalidateOptions)
         }
@@ -1642,7 +1652,7 @@ export default class Server {
         sendPayload(
           req,
           res,
-          data,
+          isDataReq ? cachedData.pageData : cachedData.html,
           isDataReq ? 'json' : 'html',
           {
             generateEtags: this.renderOpts.generateEtags,
@@ -1873,11 +1883,25 @@ export default class Server {
 
     // Update the cache if the head request and cacheable
     if (isOrigin && ssgCacheKey) {
-      await this.incrementalCache.set(
-        ssgCacheKey,
-        { html: html!, pageData, isNotFound, isRedirect },
-        sprRevalidate
-      )
+      if (isNotFound) {
+        await this.incrementalCache.set(
+          ssgCacheKey,
+          { kind: 'not_found' },
+          sprRevalidate
+        )
+      } else if (isRedirect) {
+        await this.incrementalCache.set(
+          ssgCacheKey,
+          { kind: 'redirect', props: pageData },
+          sprRevalidate
+        )
+      } else {
+        await this.incrementalCache.set(
+          ssgCacheKey,
+          { kind: 'page', html, pageData },
+          sprRevalidate
+        )
+      }
     }
 
     if (!isResSent(res) && isNotFound) {
