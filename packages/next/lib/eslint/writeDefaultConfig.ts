@@ -70,14 +70,14 @@ export async function writeDefaultConfig(
     }
   } else {
     await fs.writeFile(
-      '.eslintrc',
+      '.eslintrc.json',
       CommentJson.stringify(defaultConfig, null, 2) + os.EOL
     )
 
     console.log(
       chalk.green(
         `We created the ${chalk.bold(
-          '.eslintrc'
+          '.eslintrc.json'
         )} file for you and included the base Next.js ESLint configuration.`
       )
     )

@@ -917,26 +917,30 @@ describe('Production Usage', () => {
     expect(missing).toBe(false)
   })
 
-  it('should preserve query when hard navigating from page 404', async () => {
-    const browser = await webdriver(appPort, '/')
-    await browser.eval(`(function() {
-      window.beforeNav = 1
-      window.next.router.push({
-        pathname: '/non-existent',
-        query: { hello: 'world' }
-      })
-    })()`)
+  if (global.browserName !== 'internet explorer') {
+    it('should preserve query when hard navigating from page 404', async () => {
+      const browser = await webdriver(appPort, '/')
+      await browser.eval(`(function() {
+        window.beforeNav = 1
+        window.next.router.push({
+          pathname: '/non-existent',
+          query: { hello: 'world' }
+        })
+      })()`)
 
-    await check(
-      () => browser.eval('document.documentElement.innerHTML'),
-      /page could not be found/
-    )
+      await check(
+        () => browser.eval('document.documentElement.innerHTML'),
+        /page could not be found/
+      )
 
-    expect(await browser.eval('window.beforeNav')).toBe(null)
-    expect(await browser.eval('window.location.hash')).toBe('')
-    expect(await browser.eval('window.location.search')).toBe('?hello=world')
-    expect(await browser.eval('window.location.pathname')).toBe('/non-existent')
-  })
+      expect(await browser.eval('window.beforeNav')).toBe(null)
+      expect(await browser.eval('window.location.hash')).toBe('')
+      expect(await browser.eval('window.location.search')).toBe('?hello=world')
+      expect(await browser.eval('window.location.pathname')).toBe(
+        '/non-existent'
+      )
+    })
+  }
 
   if (!process.env.NEXT_PRIVATE_TEST_WEBPACK4_MODE) {
     it('should remove placeholder for next/image correctly', async () => {

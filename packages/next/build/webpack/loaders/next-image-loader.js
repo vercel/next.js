@@ -1,12 +1,13 @@
 import loaderUtils from 'next/dist/compiled/loader-utils'
 import sizeOf from 'image-size'
-import { processBuffer } from '../../../next-server/server/lib/squoosh/main'
+import { processBuffer } from '../../../server/lib/squoosh/main'
 
 const BLUR_IMG_SIZE = 8
 const BLUR_QUALITY = 70
 const VALID_BLUR_EXT = ['jpeg', 'png', 'webp']
 
 async function nextImageLoader(content) {
+  const isServer = loaderUtils.getOptions(this).isServer
   const context = this.rootContext
   const opts = { context, content }
   const interpolatedName = loaderUtils.interpolateName(
@@ -46,7 +47,9 @@ async function nextImageLoader(content) {
     blurDataURL,
   })
 
-  this.emitFile(interpolatedName, content, null)
+  if (!isServer) {
+    this.emitFile(interpolatedName, content, null)
+  }
 
   return `${'export default '} ${stringifiedData};`
 }
