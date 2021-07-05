@@ -4,6 +4,8 @@
     "import/no-anonymous-default-export": "off",
     "react/display-name": "off",
     "@next/next/no-img-element": "off",
-    "jsx-a11y/alt-text": "off"
+    "jsx-a11y/alt-text": "off",
+    "@next/next/no-sync-scripts": "off",
+    "react/no-unescaped-entities": "off"
   }
 }
