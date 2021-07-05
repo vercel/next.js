@@ -240,7 +240,7 @@ function getFreshConfig(
       // https://github.com/babel/babel-loader/issues/787
       target: target,
 
-      // Webpack 5 supports TLA behind a flag. We enable it by default
+      // Webpack 5 supports top level await behind a flag. We enable it by default
       // for Babel, and then webpack will throw an error if the experimental
       // flag isn't enabled.
       supportsTopLevelAwait: true,
