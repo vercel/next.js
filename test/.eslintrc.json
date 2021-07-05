@@ -1,3 +1,9 @@
 {
-  "extends": []
+  "extends": ["next", "next/core-web-vitals"],
+  "rules": {
+    "import/no-anonymous-default-export": "off",
+    "react/display-name": "off",
+    "@next/next/no-img-element": "off",
+    "jsx-a11y/alt-text": "off"
+  }
 }
