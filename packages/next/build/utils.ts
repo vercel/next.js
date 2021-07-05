@@ -768,7 +768,8 @@ export async function isPageStatic(
       require('../shared/lib/runtime-config').setConfig(runtimeEnvConfig)
       const components = await loadComponents(distDir, page, serverless)
       const mod = components.ComponentMod
-      const Comp = mod.default || mod
+      // await is needed here for top level await in serverless mode
+      const Comp = await (mod.default || mod)
 
       if (!Comp || !isValidElementType(Comp) || typeof Comp === 'string') {
         throw new Error('INVALID_DEFAULT_EXPORT')
