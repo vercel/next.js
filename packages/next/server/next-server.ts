@@ -1286,16 +1286,12 @@ export default class Server {
     await this.render404(req, res, parsedUrl)
   }
 
-  private async sendResult(
+  protected async sendResult(
     req: IncomingMessage,
     res: ServerResponse,
     { type, body, revalidateOptions }: RenderResult
   ): Promise<void> {
-    const { generateEtags, poweredByHeader, dev } = this.renderOpts
-    if (dev) {
-      // In dev, we should not cache pages for any reason.
-      res.setHeader('Cache-Control', 'no-store, must-revalidate')
-    }
+    const { generateEtags, poweredByHeader } = this.renderOpts
     return sendPayload(
       req,
       res,
@@ -2363,7 +2359,7 @@ export class WrappedBuildError extends Error {
   }
 }
 
-type RenderResult = {
+export type RenderResult = {
   type: 'html' | 'json'
   body: string
   revalidateOptions?: any

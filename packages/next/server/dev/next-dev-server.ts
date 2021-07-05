@@ -30,6 +30,7 @@ import Server, {
   WrappedBuildError,
   ServerConstructor,
   FindComponentsResult,
+  RenderResult,
 } from '../next-server'
 import { normalizePagePath } from '../normalize-page-path'
 import Router, { Params, route } from '../router'
@@ -635,6 +636,16 @@ export default class DevServer extends Server {
     // TODO: See if this can be moved into hotReloader or removed.
     await this.hotReloader!.ensurePage('/_error')
     return await loadDefaultErrorComponents(this.distDir)
+  }
+
+  sendResult(
+    req: IncomingMessage,
+    res: ServerResponse,
+    result: RenderResult
+  ): Promise<void> {
+    // In dev, we should not cache pages for any reason.
+    res.setHeader('Cache-Control', 'no-store, must-revalidate')
+    return super.sendResult(req, res, result)
   }
 
   protected setImmutableAssetCacheControl(res: ServerResponse): void {
