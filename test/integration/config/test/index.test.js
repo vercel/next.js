@@ -44,12 +44,6 @@ describe('Configuration', () => {
     return cheerio.load(html)
   }
 
-  it('should log webpack version correctly', async () => {
-    expect(context.output).toContain(
-      `Using webpack 4. Reason: webpack5 flag is set to false in next.config.js`
-    )
-  })
-
   it('should disable X-Powered-By header support', async () => {
     const url = `http://localhost:${context.appPort}/`
     const header = (await fetch(url)).headers.get('X-Powered-By')
