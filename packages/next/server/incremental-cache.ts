@@ -9,15 +9,25 @@ function toRoute(pathname: string): string {
   return pathname.replace(/\/$/, '').replace(/\/index$/, '') || '/'
 }
 
-type IncrementalCacheValue = {
-  html?: string
-  pageData?: any
-  isStale?: boolean
-  isNotFound?: boolean
-  isRedirect?: boolean
+interface CachedRedirectValue {
+  kind: 'REDIRECT'
+  props: Object
+}
+
+interface CachedPageValue {
+  kind: 'PAGE'
+  html: string
+  pageData: Object
+}
+
+export type IncrementalCacheValue = CachedRedirectValue | CachedPageValue
+
+type IncrementalCacheEntry = {
   curRevalidate?: number | false
   // milliseconds to revalidate after
   revalidateAfter: number | false
+  isStale?: boolean
+  value: IncrementalCacheValue | null
 }
 
 export class IncrementalCache {
@@ -29,7 +39,7 @@ export class IncrementalCache {
   }
 
   prerenderManifest: PrerenderManifest
-  cache: LRUCache<string, IncrementalCacheValue>
+  cache: LRUCache<string, IncrementalCacheEntry>
   locales?: string[]
 
   constructor({
@@ -73,10 +83,10 @@ export class IncrementalCache {
     this.cache = new LRUCache({
       // default to 50MB limit
       max: max || 50 * 1024 * 1024,
-      length(val) {
-        if (val.isNotFound || val.isRedirect) return 25
+      length({ value }) {
+        if (!value || value.kind === 'REDIRECT') return 25
         // rough estimate of size of cache value
-        return val.html!.length + JSON.stringify(val.pageData).length
+        return value.html.length + JSON.stringify(value.pageData).length
       },
     })
   }
@@ -112,8 +122,8 @@ export class IncrementalCache {
   }
 
   // get data from cache if available
-  async get(pathname: string): Promise<IncrementalCacheValue | void> {
-    if (this.incrementalOptions.dev) return
+  async get(pathname: string): Promise<IncrementalCacheEntry | null> {
+    if (this.incrementalOptions.dev) return null
     pathname = normalizePagePath(pathname)
 
     let data = this.cache.get(pathname)
@@ -121,7 +131,7 @@ export class IncrementalCache {
     // let's check the disk for seed data
     if (!data) {
       if (this.prerenderManifest.notFoundRoutes.includes(pathname)) {
-        return { isNotFound: true, revalidateAfter: false }
+        return { revalidateAfter: false, value: null }
       }
 
       try {
@@ -134,14 +144,20 @@ export class IncrementalCache {
         )
 
         data = {
-          html,
-          pageData,
           revalidateAfter: this.calculateRevalidate(pathname),
+          value: {
+            kind: 'PAGE',
+            html,
+            pageData,
+          },
         }
         this.cache.set(pathname, data)
       } catch (_) {
         // unable to get data from disk
       }
+    }
+    if (!data) {
+      return null
     }
 
     if (
@@ -164,12 +180,7 @@ export class IncrementalCache {
   // populate the incremental cache with new data
   async set(
     pathname: string,
-    data: {
-      html?: string
-      pageData?: any
-      isNotFound?: boolean
-      isRedirect?: boolean
-    },
+    data: IncrementalCacheValue | null,
     revalidateSeconds?: number | false
   ) {
     if (this.incrementalOptions.dev) return
@@ -188,17 +199,13 @@ export class IncrementalCache {
 
     pathname = normalizePagePath(pathname)
     this.cache.set(pathname, {
-      ...data,
       revalidateAfter: this.calculateRevalidate(pathname),
+      value: data,
     })
 
     // TODO: This option needs to cease to exist unless it stops mutating the
     // `next build` output's manifest.
-    if (
-      this.incrementalOptions.flushToDisk &&
-      !data.isNotFound &&
-      !data.isRedirect
-    ) {
+    if (this.incrementalOptions.flushToDisk && data?.kind === 'PAGE') {
       try {
         const seedPath = this.getSeedPath(pathname, 'html')
         await promises.mkdir(path.dirname(seedPath), { recursive: true })
