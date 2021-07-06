@@ -38,12 +38,7 @@ export default class ResponseCache {
       return pendingResponse
     }
 
-    const cleanup = () => {
-      if (key) {
-        this.pendingResponses.delete(key)
-      }
-    }
-    const response: Promise<ResponseCacheEntry> = new Promise(
+    let response: Promise<ResponseCacheEntry> = new Promise(
       async (resolve, reject) => {
         try {
           // We wait to check the underlying cache, because we want this promise to be
@@ -66,6 +61,8 @@ export default class ResponseCache {
           }
 
           const [shouldCache, cacheEntry] = await responseGenerator()
+          resolve(cacheEntry)
+
           if (key && shouldCache) {
             await this.incrementalCache.set(
               key,
@@ -73,16 +70,16 @@ export default class ResponseCache {
               cacheEntry.revalidate
             )
           }
-          resolve(cacheEntry)
         } catch (err) {
           reject(err)
-        } finally {
-          cleanup()
         }
       }
     )
 
     if (key) {
+      response = response.finally(() => {
+        this.pendingResponses.delete(key)
+      })
       this.pendingResponses.set(key, response)
     }
     return response
