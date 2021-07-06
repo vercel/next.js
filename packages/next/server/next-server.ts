@@ -19,7 +19,6 @@ import {
   RouteType,
   CustomRoutes,
 } from '../lib/load-custom-routes'
-import { withCoalescedInvoke } from '../lib/coalesced-function'
 import {
   BUILD_ID_FILE,
   CLIENT_PUBLIC_FILES_PATH,
