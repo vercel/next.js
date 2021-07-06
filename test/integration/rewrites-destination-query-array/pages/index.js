@@ -1,5 +1,3 @@
-import Link from 'next/link'
-
 export function getServerSideProps(context) {
   return {
     props: {
