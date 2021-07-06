@@ -9,6 +9,8 @@ import {
 } from '../server/image-config'
 import { useIntersection } from './use-intersection'
 
+const loadedImageURLs = new Set<string>()
+
 if (typeof window === 'undefined') {
   ;(global as any).__NEXT_IMAGE_IMPORTED = true
 }
@@ -264,6 +266,7 @@ function defaultImageLoader(loaderProps: ImageLoaderProps) {
 // handler instead of the img's onLoad attribute.
 function handleLoading(
   img: HTMLImageElement | null,
+  src: string,
   placeholder: PlaceholderValue,
   onLoadingComplete?: () => void
 ) {
@@ -279,6 +282,7 @@ function handleLoading(
           img.style.backgroundSize = 'none'
           img.style.backgroundImage = 'none'
         }
+        loadedImageURLs.add(src)
         if (onLoadingComplete) {
           onLoadingComplete()
         }
@@ -423,6 +427,9 @@ export default function Image({
     unoptimized = true
     isLazy = false
   }
+  if (src && loadedImageURLs.has(src)) {
+    isLazy = false
+  }
 
   const [setRef, isIntersected] = useIntersection<HTMLImageElement>({
     rootMargin: '200px',
@@ -558,6 +565,8 @@ export default function Image({
     })
   }
 
+  let srcString: string = src
+
   return (
     <div style={wrapperStyle}>
       {sizerStyle ? (
@@ -605,7 +614,7 @@ export default function Image({
         className={className}
         ref={(img) => {
           setRef(img)
-          handleLoading(img, placeholder, onLoadingComplete)
+          handleLoading(img, srcString, placeholder, onLoadingComplete)
         }}
         style={imgStyle}
       />
