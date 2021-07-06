@@ -1686,17 +1686,11 @@ export default class Server {
         }
       } else if (cachedData.kind === 'REDIRECT') {
         if (isDataReq) {
-          sendPayload(
-            req,
-            res,
-            JSON.stringify(cachedData.props),
-            'json',
-            {
-              generateEtags: this.renderOpts.generateEtags,
-              poweredByHeader: this.renderOpts.poweredByHeader,
-            },
-            revalidateOptions
-          )
+          respondWith({
+            type: 'json',
+            body: JSON.stringify(cachedData.props),
+            revalidateOptions,
+          })
         } else {
           await handleRedirect(cachedData.props)
         }
