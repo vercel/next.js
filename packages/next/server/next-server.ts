@@ -1808,7 +1808,7 @@ export default class Server {
 
     const { revalidate, value: cachedData } = cacheEntry
     const revalidateOptions: any =
-      (!this.renderOpts.dev || (hasServerProps && !isDataReq)) && !cacheable
+      (!this.renderOpts.dev || (hasServerProps && !isDataReq)) && cacheable
         ? {
             // When the page is 404 cache-control should not be added
             private: isPreviewMode || is404Page,
