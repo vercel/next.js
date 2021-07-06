@@ -1,2 +1,1 @@
-const Hello = () => <p>Hello World</p>
-export default Hello
+export default () => <p>Hello World</p>
