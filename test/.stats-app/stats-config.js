@@ -1,3 +1,12 @@
+const fs = require('fs')
+const path = require('path')
+// this page is conditionally added when not testing
+// in webpack 4 mode since it's not supported for webpack 4
+const imagePageData = fs.readFileSync(
+  path.join(__dirname, './image.js'),
+  'utf8'
+)
+
 const clientGlobs = [
   {
     name: 'Client Bundles (main, webpack, commons)',
@@ -61,6 +70,10 @@ module.exports = {
       diff: 'onOutputChange',
       diffConfigFiles: [
         {
+          path: 'pages/image.js',
+          content: imagePageData,
+        },
+        {
           path: 'next.config.js',
           content: `
             module.exports = {
@@ -77,6 +90,10 @@ module.exports = {
       // renames to apply to make file names deterministic
       renames,
       configFiles: [
+        {
+          path: 'pages/image.js',
+          content: imagePageData,
+        },
         {
           path: 'next.config.js',
           content: `
