@@ -180,7 +180,6 @@
     "@types/send": "0.14.4",
     "@types/styled-jsx": "2.2.8",
     "@types/text-table": "0.2.1",
-    "@types/webpack": "5.28.0",
     "@types/webpack-sources": "0.1.5",
     "@vercel/ncc": "0.27.0",
     "amphtml-validator": "1.0.33",
