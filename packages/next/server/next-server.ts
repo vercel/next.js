@@ -73,7 +73,7 @@ import prepareDestination, {
 } from '../shared/lib/router/utils/prepare-destination'
 import { sendPayload, setRevalidateHeaders } from './send-payload'
 import { serveStatic } from './serve-static'
-import { IncrementalCache } from './incremental-cache'
+import { IncrementalCache, IncrementalCacheValue } from './incremental-cache'
 import { execOnce } from '../shared/lib/utils'
 import { isBlockedPage } from './utils'
 import { loadEnvConfig } from '@next/env'
@@ -1653,30 +1653,25 @@ export default class Server {
     }
 
     // Complete the response with cached data if its present
-    const cachedData = ssgCacheKey
+    const cacheEntry = ssgCacheKey
       ? await this.incrementalCache.get(ssgCacheKey)
       : undefined
 
-    if (cachedData) {
-      const data = isDataReq
-        ? JSON.stringify(cachedData.pageData)
-        : cachedData.html
-
+    if (cacheEntry) {
+      const cachedData = cacheEntry.value
       const revalidateOptions = !this.renderOpts.dev
         ? {
             // When the page is 404 cache-control should not be added
             private: isPreviewMode || is404Page,
             stateful: false, // GSP response
             revalidate:
-              cachedData.curRevalidate !== undefined
-                ? cachedData.curRevalidate
+              cacheEntry.curRevalidate !== undefined
+                ? cacheEntry.curRevalidate
                 : /* default to minimum revalidate (this should be an invariant) */ 1,
           }
         : undefined
 
-      if (!isDataReq && cachedData.pageData?.pageProps?.__N_REDIRECT) {
-        await handleRedirect(cachedData.pageData)
-      } else if (cachedData.isNotFound) {
+      if (!cachedData) {
         if (revalidateOptions) {
           setRevalidateHeaders(res, revalidateOptions)
         }
@@ -1689,16 +1684,34 @@ export default class Server {
             query,
           } as UrlWithParsedQuery)
         }
+      } else if (cachedData.kind === 'REDIRECT') {
+        if (isDataReq) {
+          sendPayload(
+            req,
+            res,
+            JSON.stringify(cachedData.props),
+            'json',
+            {
+              generateEtags: this.renderOpts.generateEtags,
+              poweredByHeader: this.renderOpts.poweredByHeader,
+            },
+            revalidateOptions
+          )
+        } else {
+          await handleRedirect(cachedData.props)
+        }
       } else {
         respondWith({
           type: isDataReq ? 'json' : 'html',
-          body: data!,
+          body: isDataReq
+            ? JSON.stringify(cachedData.pageData)
+            : cachedData.html,
           revalidateOptions,
         })
       }
 
       // Stop the request chain here if the data we sent was up-to-date
-      if (!cachedData.isStale) {
+      if (!cacheEntry.isStale) {
         return
       }
     }
@@ -1912,11 +1925,15 @@ export default class Server {
 
     // Update the cache if the head request and cacheable
     if (isOrigin && ssgCacheKey) {
-      await this.incrementalCache.set(
-        ssgCacheKey,
-        { html: html!, pageData, isNotFound, isRedirect },
-        sprRevalidate
-      )
+      let cacheValue: IncrementalCacheValue | null
+      if (isNotFound) {
+        cacheValue = null
+      } else if (isRedirect) {
+        cacheValue = { kind: 'REDIRECT', props: pageData }
+      } else {
+        cacheValue = { kind: 'PAGE', html, pageData }
+      }
+      await this.incrementalCache.set(ssgCacheKey, cacheValue, sprRevalidate)
     }
 
     if (!hasResponded() && isNotFound) {
