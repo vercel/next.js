@@ -2289,7 +2289,7 @@ export class WrappedBuildError extends Error {
   }
 }
 
-export type ResponsePayload = {
+type ResponsePayload = {
   type: 'html' | 'json'
   body: string
   revalidateOptions?: any
