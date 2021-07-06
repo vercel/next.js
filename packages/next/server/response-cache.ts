@@ -14,7 +14,6 @@ interface CachedPageValue {
 export type ResponseCacheValue = CachedRedirectValue | CachedPageValue
 
 export type ResponseCacheEntry = {
-  cacheable: boolean
   revalidate?: number | false
   value: ResponseCacheValue | null
 }
@@ -58,7 +57,6 @@ export default class ResponseCache {
             : null
           if (cachedResponse) {
             resolve({
-              cacheable: true,
               revalidate: cachedResponse.curRevalidate,
               value: cachedResponse.value,
             })
@@ -73,7 +71,7 @@ export default class ResponseCache {
           const cacheEntry = await responseGenerator(resolved)
           resolve(cacheEntry)
 
-          if (key && cacheEntry.cacheable) {
+          if (key && typeof cacheEntry.revalidate !== 'undefined') {
             await this.incrementalCache.set(
               key,
               cacheEntry.value,

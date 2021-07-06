@@ -1770,7 +1770,6 @@ export default class Server {
                 locale ? `/${locale}${pathname}` : pathname
               )
               return {
-                cacheable: false,
                 value: {
                   kind: 'PAGE',
                   html,
@@ -1785,10 +1784,8 @@ export default class Server {
                 prepareServerlessUrl(req, query)
               }
               const result = await doRender()
-              return {
-                ...result,
-                cacheable: false,
-              }
+              delete result.revalidate
+              return result
             }
           }
         }
@@ -1807,7 +1804,7 @@ export default class Server {
     const { revalidate, value: cachedData } = cacheEntry
     const revalidateOptions: any =
       (!this.renderOpts.dev || (hasServerProps && !isDataReq)) &&
-      cacheEntry.cacheable
+      typeof revalidate !== 'undefined'
         ? {
             // When the page is 404 cache-control should not be added
             private: isPreviewMode || is404Page,
