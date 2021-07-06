@@ -14,16 +14,16 @@ interface CachedPageValue {
 export type ResponseCacheValue = CachedRedirectValue | CachedPageValue
 
 export type ResponseCacheEntry = {
+  cacheable: boolean
   revalidate?: number | false
   value: ResponseCacheValue | null
 }
-export type ResponseCacheResult = [boolean, ResponseCacheEntry]
 
-type ResponseGenerator = (hasResolved: boolean) => Promise<ResponseCacheResult>
+type ResponseGenerator = (hasResolved: boolean) => Promise<ResponseCacheEntry>
 
 export default class ResponseCache {
   incrementalCache: IncrementalCache
-  pendingResponses: Map<string, Promise<ResponseCacheResult>>
+  pendingResponses: Map<string, Promise<ResponseCacheEntry>>
 
   constructor(incrementalCache: IncrementalCache) {
     this.incrementalCache = incrementalCache
@@ -33,17 +33,17 @@ export default class ResponseCache {
   public get(
     key: string | null,
     responseGenerator: ResponseGenerator
-  ): Promise<ResponseCacheResult> {
+  ): Promise<ResponseCacheEntry> {
     const pendingResponse = key ? this.pendingResponses.get(key) : null
     if (pendingResponse) {
       return pendingResponse
     }
 
-    let response: Promise<ResponseCacheResult> = new Promise(
+    let response: Promise<ResponseCacheEntry> = new Promise(
       async (resolver, reject) => {
         try {
           let resolved = false
-          const resolve = (cacheEntry: ResponseCacheResult) => {
+          const resolve = (cacheEntry: ResponseCacheEntry) => {
             if (!resolved) {
               resolved = true
               resolver(cacheEntry)
@@ -57,13 +57,11 @@ export default class ResponseCache {
             ? await this.incrementalCache.get(key)
             : null
           if (cachedResponse) {
-            resolve([
-              true,
-              {
-                revalidate: cachedResponse.curRevalidate,
-                value: cachedResponse.value,
-              },
-            ])
+            resolve({
+              cacheable: true,
+              revalidate: cachedResponse.curRevalidate,
+              value: cachedResponse.value,
+            })
 
             if (!cachedResponse.isStale) {
               // The cached value is still valid, so we don't need
@@ -72,10 +70,10 @@ export default class ResponseCache {
             }
           }
 
-          const [cacheable, cacheEntry] = await responseGenerator(resolved)
-          resolve([cacheable, cacheEntry])
+          const cacheEntry = await responseGenerator(resolved)
+          resolve(cacheEntry)
 
-          if (key && cacheable) {
+          if (key && cacheEntry.cacheable) {
             await this.incrementalCache.set(
               key,
               cacheEntry.value,

@@ -1707,10 +1707,10 @@ export default class Server {
       } else {
         value = { kind: 'PAGE', html: html!, pageData }
       }
-      return { revalidate: sprRevalidate, value }
+      return { cacheable: true, revalidate: sprRevalidate, value }
     }
 
-    const [cacheable, cacheEntry] = await this.responseCache.get(
+    const cacheEntry = await this.responseCache.get(
       ssgCacheKey,
       async (hasResolved) => {
         const isProduction = !this.renderOpts.dev
@@ -1769,16 +1769,14 @@ export default class Server {
               const html = await this.incrementalCache.getFallback(
                 locale ? `/${locale}${pathname}` : pathname
               )
-              return [
-                false,
-                {
-                  value: {
-                    kind: 'PAGE',
-                    html,
-                    pageData: {},
-                  },
+              return {
+                cacheable: false,
+                value: {
+                  kind: 'PAGE',
+                  html,
+                  pageData: {},
                 },
-              ]
+              }
             }
             // We need to generate the fallback on-demand for development.
             else {
@@ -1787,28 +1785,29 @@ export default class Server {
                 prepareServerlessUrl(req, query)
               }
               const result = await doRender()
-              return [false, result]
+              return {
+                ...result,
+                cacheable: false,
+              }
             }
           }
         }
 
         const result = await doRender()
-        return [
-          true,
-          {
-            ...result,
-            revalidate:
-              result.revalidate !== undefined
-                ? result.revalidate
-                : /* default to minimum revalidate (this should be an invariant) */ 1,
-          },
-        ]
+        return {
+          ...result,
+          revalidate:
+            result.revalidate !== undefined
+              ? result.revalidate
+              : /* default to minimum revalidate (this should be an invariant) */ 1,
+        }
       }
     )
 
     const { revalidate, value: cachedData } = cacheEntry
     const revalidateOptions: any =
-      (!this.renderOpts.dev || (hasServerProps && !isDataReq)) && cacheable
+      (!this.renderOpts.dev || (hasServerProps && !isDataReq)) &&
+      cacheEntry.cacheable
         ? {
             // When the page is 404 cache-control should not be added
             private: isPreviewMode || is404Page,
