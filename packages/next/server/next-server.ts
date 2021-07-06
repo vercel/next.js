@@ -1704,99 +1704,102 @@ export default class Server {
       return { revalidate: sprRevalidate, value }
     }
 
-    const cacheEntry = await this.responseCache.get(ssgCacheKey, async () => {
-      const isProduction = !this.renderOpts.dev
-      const isDynamicPathname = isDynamicRoute(pathname)
-      const didRespond = isResSent(res)
+    const cacheEntry = await this.responseCache.get(
+      ssgCacheKey,
+      async (hasResolved) => {
+        const isProduction = !this.renderOpts.dev
+        const isDynamicPathname = isDynamicRoute(pathname)
+        const didRespond = hasResolved || isResSent(res)
 
-      const { staticPaths, fallbackMode } = hasStaticPaths
-        ? await this.getStaticPaths(pathname)
-        : { staticPaths: undefined, fallbackMode: false }
+        const { staticPaths, fallbackMode } = hasStaticPaths
+          ? await this.getStaticPaths(pathname)
+          : { staticPaths: undefined, fallbackMode: false }
 
-      // When we did not respond from cache, we need to choose to block on
-      // rendering or return a skeleton.
-      //
-      // * Data requests always block.
-      //
-      // * Blocking mode fallback always blocks.
-      //
-      // * Preview mode toggles all pages to be resolved in a blocking manner.
-      //
-      // * Non-dynamic pages should block (though this is an impossible
-      //   case in production).
-      //
-      // * Dynamic pages should return their skeleton if not defined in
-      //   getStaticPaths, then finish the data request on the client-side.
-      //
-      if (
-        this.minimalMode !== true &&
-        fallbackMode !== 'blocking' &&
-        ssgCacheKey &&
-        !didRespond &&
-        !isPreviewMode &&
-        isDynamicPathname &&
-        // Development should trigger fallback when the path is not in
-        // `getStaticPaths`
-        (isProduction ||
-          !staticPaths ||
-          !staticPaths.includes(
-            // we use ssgCacheKey here as it is normalized to match the
-            // encoding from getStaticPaths along with including the locale
-            query.amp ? ssgCacheKey.replace(/\.amp$/, '') : ssgCacheKey
-          ))
-      ) {
+        // When we did not respond from cache, we need to choose to block on
+        // rendering or return a skeleton.
+        //
+        // * Data requests always block.
+        //
+        // * Blocking mode fallback always blocks.
+        //
+        // * Preview mode toggles all pages to be resolved in a blocking manner.
+        //
+        // * Non-dynamic pages should block (though this is an impossible
+        //   case in production).
+        //
+        // * Dynamic pages should return their skeleton if not defined in
+        //   getStaticPaths, then finish the data request on the client-side.
+        //
         if (
-          // In development, fall through to render to handle missing
-          // getStaticPaths.
-          (isProduction || staticPaths) &&
-          // When fallback isn't present, abort this render so we 404
-          fallbackMode !== 'static'
+          this.minimalMode !== true &&
+          fallbackMode !== 'blocking' &&
+          ssgCacheKey &&
+          !didRespond &&
+          !isPreviewMode &&
+          isDynamicPathname &&
+          // Development should trigger fallback when the path is not in
+          // `getStaticPaths`
+          (isProduction ||
+            !staticPaths ||
+            !staticPaths.includes(
+              // we use ssgCacheKey here as it is normalized to match the
+              // encoding from getStaticPaths along with including the locale
+              query.amp ? ssgCacheKey.replace(/\.amp$/, '') : ssgCacheKey
+            ))
         ) {
-          throw new NoFallbackError()
-        }
+          if (
+            // In development, fall through to render to handle missing
+            // getStaticPaths.
+            (isProduction || staticPaths) &&
+            // When fallback isn't present, abort this render so we 404
+            fallbackMode !== 'static'
+          ) {
+            throw new NoFallbackError()
+          }
 
-        if (!isDataReq) {
-          // Production already emitted the fallback as static HTML.
-          if (isProduction) {
-            const html = await this.incrementalCache.getFallback(
-              locale ? `/${locale}${pathname}` : pathname
-            )
-            return [
-              false,
-              {
-                value: {
-                  kind: 'PAGE',
-                  html,
-                  pageData: {},
+          if (!isDataReq) {
+            // Production already emitted the fallback as static HTML.
+            if (isProduction) {
+              const html = await this.incrementalCache.getFallback(
+                locale ? `/${locale}${pathname}` : pathname
+              )
+              return [
+                false,
+                {
+                  value: {
+                    kind: 'PAGE',
+                    html,
+                    pageData: {},
+                  },
                 },
-              },
-            ]
-          }
-          // We need to generate the fallback on-demand for development.
-          else {
-            query.__nextFallback = 'true'
-            if (isLikeServerless) {
-              prepareServerlessUrl(req, query)
+              ]
             }
-            const result = await doRender()
-            delete result.revalidate
-            return [false, result]
+            // We need to generate the fallback on-demand for development.
+            else {
+              query.__nextFallback = 'true'
+              if (isLikeServerless) {
+                prepareServerlessUrl(req, query)
+              }
+              const result = await doRender()
+              delete result.revalidate
+              return [false, result]
+            }
           }
         }
-      }
 
-      const result = await doRender()
-      return [
-        true,
-        {
-          ...result,
-          revalidate:
-            result.revalidate !== undefined
-              ? result.revalidate
-              : /* default to minimum revalidate (this should be an invariant) */ 1,
-        },
-      ]
-    })
+        const result = await doRender()
+        return [
+          true,
+          {
+            ...result,
+            revalidate:
+              result.revalidate !== undefined
+                ? result.revalidate
+                : /* default to minimum revalidate (this should be an invariant) */ 1,
+          },
+        ]
+      }
+    )
 
     const { revalidate, value: cachedData } = cacheEntry
     let revalidateOptions: PayloadOptions | undefined = undefined

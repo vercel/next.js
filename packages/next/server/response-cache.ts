@@ -18,7 +18,9 @@ export type ResponseCacheEntry = {
   value: ResponseCacheValue | null
 }
 
-type ResponseGenerator = () => Promise<[boolean, ResponseCacheEntry]>
+type ResponseGenerator = (
+  hasResolved: boolean
+) => Promise<[boolean, ResponseCacheEntry]>
 
 export default class ResponseCache {
   incrementalCache: IncrementalCache
@@ -39,8 +41,16 @@ export default class ResponseCache {
     }
 
     let response: Promise<ResponseCacheEntry> = new Promise(
-      async (resolve, reject) => {
+      async (resolver, reject) => {
         try {
+          let resolved = false
+          const resolve = (cacheEntry: ResponseCacheEntry) => {
+            if (!resolved) {
+              resolved = true
+              resolver(cacheEntry)
+            }
+          }
+
           // We wait to check the underlying cache, because we want this promise to be
           // added to `pendingResponses` synchronously, so there's only ever one pending
           // response in-flight for a given key.
@@ -60,7 +70,7 @@ export default class ResponseCache {
             }
           }
 
-          const [shouldCache, cacheEntry] = await responseGenerator()
+          const [shouldCache, cacheEntry] = await responseGenerator(resolved)
           resolve(cacheEntry)
 
           if (key && shouldCache) {
