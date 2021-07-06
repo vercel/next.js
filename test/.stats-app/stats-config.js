@@ -26,11 +26,11 @@ const clientGlobs = [
 
 const renames = [
   {
-    srcGlob: '.next/static/*/pages',
+    srcGlob: '.next/static/!(image)/pages',
     dest: '.next/static/BUILD_ID/pages',
   },
   {
-    srcGlob: '.next/static/*/pages/**/*',
+    srcGlob: '.next/static/!(image)/pages/**/*',
     removeHash: true,
   },
   {
