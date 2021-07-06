@@ -31,6 +31,7 @@ import Server, {
   ServerConstructor,
   FindComponentsResult,
   RenderResult,
+  ResponsePayload,
 } from '../next-server'
 import { normalizePagePath } from '../normalize-page-path'
 import Router, { Params, route } from '../router'
@@ -637,14 +638,14 @@ export default class DevServer extends Server {
     return await loadDefaultErrorComponents(this.distDir)
   }
 
-  sendResult(
+  sendResponse(
     req: IncomingMessage,
     res: ServerResponse,
-    result: RenderResult
+    response: ResponsePayload
   ): Promise<void> {
     // In dev, we should not cache pages for any reason.
     res.setHeader('Cache-Control', 'no-store, must-revalidate')
-    return super.sendResult(req, res, result)
+    return super.sendResponse(req, res, response)
   }
 
   protected setImmutableAssetCacheControl(res: ServerResponse): void {
