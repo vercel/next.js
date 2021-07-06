@@ -13,6 +13,6 @@
     "build": "microbundle watch -i src/index.js -o dist/polyfill-module.js -f iife --no-sourcemap --external none --no-pkg-main"
   },
   "devDependencies": {
-    "microbundle": "0.13.0"
+    "microbundle": "0.13.3"
   }
 }

@@ -42,7 +42,6 @@
   "devDependencies": {
     "@babel/eslint-parser": "7.14.7",
     "@babel/plugin-proposal-object-rest-spread": "7.12.1",
-    "@babel/preset-env": "7.14.7",
     "@babel/preset-flow": "7.12.1",
     "@babel/preset-react": "7.12.10",
     "@fullhuman/postcss-purgecss": "1.3.0",
