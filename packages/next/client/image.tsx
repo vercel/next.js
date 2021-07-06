@@ -427,7 +427,7 @@ export default function Image({
     unoptimized = true
     isLazy = false
   }
-  if (src && loadedImageURLs.has(src)) {
+  if (src && typeof window !== 'undefined' && loadedImageURLs.has(src)) {
     isLazy = false
   }
 
