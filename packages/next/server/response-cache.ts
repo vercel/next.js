@@ -82,14 +82,15 @@ export default class ResponseCache {
           }
         } catch (err) {
           reject(err)
+        } finally {
+          if (key) {
+            this.pendingResponses.delete(key)
+          }
         }
       }
     )
 
     if (key) {
-      response = response.finally(() => {
-        this.pendingResponses.delete(key)
-      })
       this.pendingResponses.set(key, response)
     }
     return response
