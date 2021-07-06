@@ -1787,7 +1787,16 @@ export default class Server {
       }
 
       const result = await doRender()
-      return [true, result]
+      return [
+        true,
+        {
+          ...result,
+          revalidate:
+            result.revalidate !== undefined
+              ? result.revalidate
+              : /* default to minimum revalidate (this should be an invariant) */ 1,
+        },
+      ]
     })
 
     const { revalidate, value: cachedData } = cacheEntry
