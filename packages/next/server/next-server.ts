@@ -1808,17 +1808,15 @@ export default class Server {
     )
 
     const { revalidate, value: cachedData } = cacheEntry
-    let revalidateOptions: PayloadOptions | undefined = undefined
-
-    if (!this.renderOpts.dev) {
-      // When the page is 404 cache-control should not be added
-      if (isPreviewMode || is404Page) {
-        revalidateOptions = { private: true }
-      } else
-        revalidateOptions = revalidate
-          ? { private: false, stateful: false, revalidate }
-          : { private: false, stateful: true }
-    }
+    const revalidateOptions: any =
+      !this.renderOpts.dev && revalidate !== undefined
+        ? {
+            // When the page is 404 cache-control should not be added
+            private: isPreviewMode || is404Page,
+            stateful: false, // GSP response
+            revalidate,
+          }
+        : undefined
 
     if (!cachedData) {
       if (revalidateOptions) {
