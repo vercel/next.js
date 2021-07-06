@@ -30,7 +30,6 @@ import Server, {
   WrappedBuildError,
   ServerConstructor,
   FindComponentsResult,
-  RenderResult,
   ResponsePayload,
 } from '../next-server'
 import { normalizePagePath } from '../normalize-page-path'
