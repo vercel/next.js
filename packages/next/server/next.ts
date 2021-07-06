@@ -153,7 +153,9 @@ export class NextServer {
 }
 
 // This file is used for when users run `require('next')`
-function createServer(options: NextServerConstructor): NextServer {
+function createServer(
+  options: NextServerConstructor & { isNextDevCommand?: boolean }
+): NextServer {
   const standardEnv = ['production', 'development', 'test']
 
   if (options == null) {
@@ -163,7 +165,7 @@ function createServer(options: NextServerConstructor): NextServer {
   }
 
   if (
-    !(options as any).isNextDevCommand &&
+    !options.isNextDevCommand &&
     process.env.NODE_ENV &&
     !standardEnv.includes(process.env.NODE_ENV)
   ) {
