@@ -8,6 +8,7 @@ import type {
   RuntimeGlobals as WebpackRuntimeGlobals,
   // @ts-ignore exists in webpack 5
   compilation as WebpackCompilation,
+  // @ts-ignore exists in webpack 5
 } from 'webpack'
 
 // Shared between webpack 4 and 5:

@@ -1,6 +1,7 @@
 import {
   // @ts-ignore exists in webpack 5
   loader,
+  // @ts-ignore exists in webpack 5
 } from 'webpack'
 import RefreshModuleRuntime from './internal/ReactRefreshModule.runtime'
 
