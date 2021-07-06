@@ -1633,7 +1633,7 @@ export default class Server {
             query,
           } as UrlWithParsedQuery)
         }
-      } else if (cachedData.kind === 'redirect') {
+      } else if (cachedData.kind === 'REDIRECT') {
         if (isDataReq) {
           sendPayload(
             req,
@@ -1888,9 +1888,9 @@ export default class Server {
       if (isNotFound) {
         cacheValue = null
       } else if (isRedirect) {
-        cacheValue = { kind: 'redirect', props: pageData }
+        cacheValue = { kind: 'REDIRECT', props: pageData }
       } else {
-        cacheValue = { kind: 'page', html, pageData }
+        cacheValue = { kind: 'PAGE', html, pageData }
       }
       await this.incrementalCache.set(ssgCacheKey, cacheValue, sprRevalidate)
     }

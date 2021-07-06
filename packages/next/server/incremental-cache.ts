@@ -10,12 +10,12 @@ function toRoute(pathname: string): string {
 }
 
 interface CachedRedirectValue {
-  kind: 'redirect'
+  kind: 'REDIRECT'
   props: Object
 }
 
 interface CachedPageValue {
-  kind: 'page'
+  kind: 'PAGE'
   html: string
   pageData: Object
 }
@@ -84,7 +84,7 @@ export class IncrementalCache {
       // default to 50MB limit
       max: max || 50 * 1024 * 1024,
       length({ value }) {
-        if (!value || value.kind === 'redirect') return 25
+        if (!value || value.kind === 'REDIRECT') return 25
         // rough estimate of size of cache value
         return value.html.length + JSON.stringify(value.pageData).length
       },
@@ -146,7 +146,7 @@ export class IncrementalCache {
         data = {
           revalidateAfter: this.calculateRevalidate(pathname),
           value: {
-            kind: 'page',
+            kind: 'PAGE',
             html,
             pageData,
           },
@@ -205,7 +205,7 @@ export class IncrementalCache {
 
     // TODO: This option needs to cease to exist unless it stops mutating the
     // `next build` output's manifest.
-    if (this.incrementalOptions.flushToDisk && data?.kind === 'page') {
+    if (this.incrementalOptions.flushToDisk && data?.kind === 'PAGE') {
       try {
         const seedPath = this.getSeedPath(pathname, 'html')
         await promises.mkdir(path.dirname(seedPath), { recursive: true })
