@@ -1291,16 +1291,23 @@ export default class Server {
     await this.render404(req, res, parsedUrl)
   }
 
-  protected async sendHTML(
+  protected async sendResponse(
     req: IncomingMessage,
     res: ServerResponse,
-    html: string
+    { type, body, revalidateOptions }: ResponsePayload
   ): Promise<void> {
     const { generateEtags, poweredByHeader } = this.renderOpts
-    return sendPayload(req, res, html, 'html', {
-      generateEtags,
-      poweredByHeader,
-    })
+    return sendPayload(
+      req,
+      res,
+      body,
+      type,
+      {
+        generateEtags,
+        poweredByHeader,
+      },
+      revalidateOptions
+    )
   }
 
   public async render(
@@ -1350,13 +1357,13 @@ export default class Server {
       return this.render404(req, res, parsedUrl)
     }
 
-    const html = await this.renderToHTML(req, res, pathname, query)
+    const response = await this.renderToResponse(req, res, pathname, query)
     // Request was ended by the user
-    if (html === null) {
+    if (response === null) {
       return
     }
 
-    return this.sendHTML(req, res, html)
+    return this.sendResponse(req, res, response)
   }
 
   protected async findPageComponents(
@@ -1443,13 +1450,53 @@ export default class Server {
     }
   }
 
-  private async renderToHTMLWithComponents(
+  private renderToResponseWithComponents(
     req: IncomingMessage,
     res: ServerResponse,
     pathname: string,
-    { components, query }: FindComponentsResult,
+    findComponentsResult: FindComponentsResult,
     opts: RenderOptsPartial
-  ): Promise<string | null> {
+  ): Promise<ResponsePayload | null> {
+    return new Promise(async (resolver, reject) => {
+      try {
+        let responded = false
+        return await this.renderToResponseWithComponentsInternal({
+          req,
+          res,
+          pathname,
+          findComponentsResult,
+          opts,
+          respondWith: (response) => {
+            if (!responded) {
+              responded = true
+              resolver(response)
+            }
+          },
+          hasResponded: () => responded || isResSent(res),
+        })
+      } catch (err) {
+        reject(err)
+      }
+    })
+  }
+
+  private async renderToResponseWithComponentsInternal({
+    req,
+    res,
+    pathname,
+    opts,
+    findComponentsResult: { components, query },
+    respondWith,
+    hasResponded,
+  }: {
+    req: IncomingMessage
+    res: ServerResponse
+    pathname: string
+    findComponentsResult: FindComponentsResult
+    opts: RenderOptsPartial
+    respondWith: (response: ResponsePayload | null) => void
+    hasResponded: () => boolean
+  }): Promise<void> {
     const is404Page = pathname === '/404'
     const is500Page = pathname === '/500'
 
@@ -1478,7 +1525,11 @@ export default class Server {
 
     // handle static page
     if (typeof components.Component === 'string') {
-      return components.Component
+      respondWith({
+        type: 'html',
+        body: components.Component,
+      })
+      return
     }
 
     if (!query.amp) {
@@ -1650,22 +1701,18 @@ export default class Server {
           await handleRedirect(cachedData.props)
         }
       } else {
-        sendPayload(
-          req,
-          res,
-          isDataReq ? JSON.stringify(cachedData.pageData) : cachedData.html,
-          isDataReq ? 'json' : 'html',
-          {
-            generateEtags: this.renderOpts.generateEtags,
-            poweredByHeader: this.renderOpts.poweredByHeader,
-          },
-          revalidateOptions
-        )
+        respondWith({
+          type: isDataReq ? 'json' : 'html',
+          body: isDataReq
+            ? JSON.stringify(cachedData.pageData)
+            : cachedData.html,
+          revalidateOptions,
+        })
       }
 
       // Stop the request chain here if the data we sent was up-to-date
       if (!cacheEntry.isStale) {
-        return null
+        return
       }
     }
 
@@ -1769,7 +1816,7 @@ export default class Server {
 
     const isProduction = !this.renderOpts.dev
     const isDynamicPathname = isDynamicRoute(pathname)
-    const didRespond = isResSent(res)
+    const didRespond = hasResponded()
 
     const { staticPaths, fallbackMode } = hasStaticPaths
       ? await this.getStaticPaths(pathname)
@@ -1836,11 +1883,11 @@ export default class Server {
           html = renderResult.html
         }
 
-        sendPayload(req, res, html, 'html', {
-          generateEtags: this.renderOpts.generateEtags,
-          poweredByHeader: this.renderOpts.poweredByHeader,
+        respondWith({
+          type: 'html',
+          body: html,
         })
-        return null
+        return
       }
     }
 
@@ -1860,24 +1907,18 @@ export default class Server {
         : undefined
 
     if (
-      !isResSent(res) &&
+      !hasResponded() &&
       !isNotFound &&
       (isSSG || isDataReq || hasServerProps)
     ) {
       if (isRedirect && !isDataReq) {
         await handleRedirect(pageData)
       } else {
-        sendPayload(
-          req,
-          res,
-          isDataReq ? JSON.stringify(pageData) : html,
-          isDataReq ? 'json' : 'html',
-          {
-            generateEtags: this.renderOpts.generateEtags,
-            poweredByHeader: this.renderOpts.poweredByHeader,
-          },
-          revalidateOptions
-        )
+        respondWith({
+          type: isDataReq ? 'json' : 'html',
+          body: isDataReq ? JSON.stringify(pageData) : html,
+          revalidateOptions,
+        })
       }
       resHtml = null
     }
@@ -1895,7 +1936,7 @@ export default class Server {
       await this.incrementalCache.set(ssgCacheKey, cacheValue, sprRevalidate)
     }
 
-    if (!isResSent(res) && isNotFound) {
+    if (!hasResponded() && isNotFound) {
       if (revalidateOptions) {
         setRevalidateHeaders(res, revalidateOptions)
       }
@@ -1909,15 +1950,17 @@ export default class Server {
         } as UrlWithParsedQuery)
       }
     }
-    return resHtml
+    respondWith(
+      resHtml ? { type: 'html', body: resHtml, revalidateOptions } : null
+    )
   }
 
-  public async renderToHTML(
+  private async renderToResponse(
     req: IncomingMessage,
     res: ServerResponse,
     pathname: string,
     query: ParsedUrlQuery = {}
-  ): Promise<string | null> {
+  ): Promise<ResponsePayload | null> {
     const bubbleNoFallback = !!query._nextBubbleNoFallback
     delete query._nextBubbleNoFallback
 
@@ -1925,7 +1968,7 @@ export default class Server {
       const result = await this.findPageComponents(pathname, query)
       if (result) {
         try {
-          return await this.renderToHTMLWithComponents(
+          return await this.renderToResponseWithComponents(
             req,
             res,
             pathname,
@@ -1955,7 +1998,7 @@ export default class Server {
           )
           if (dynamicRouteResult) {
             try {
-              return await this.renderToHTMLWithComponents(
+              return await this.renderToResponseWithComponents(
                 req,
                 res,
                 dynamicRoute.page,
@@ -1981,12 +2024,12 @@ export default class Server {
       }
       if (err instanceof DecodeError) {
         res.statusCode = 400
-        return await this.renderErrorToHTML(err, req, res, pathname, query)
+        return await this.renderErrorToResponse(err, req, res, pathname, query)
       }
 
       res.statusCode = 500
       const isWrappedError = err instanceof WrappedBuildError
-      const html = await this.renderErrorToHTML(
+      const response = await this.renderErrorToResponse(
         isWrappedError ? err.innerError : err,
         req,
         res,
@@ -2000,10 +2043,20 @@ export default class Server {
         }
         this.logError(err)
       }
-      return html
+      return response
     }
     res.statusCode = 404
-    return await this.renderErrorToHTML(null, req, res, pathname, query)
+    return this.renderErrorToResponse(null, req, res, pathname, query)
+  }
+
+  public async renderToHTML(
+    req: IncomingMessage,
+    res: ServerResponse,
+    pathname: string,
+    query: ParsedUrlQuery = {}
+  ): Promise<string | null> {
+    const response = await this.renderToResponse(req, res, pathname, query)
+    return response ? response.body : null
   }
 
   public async renderError(
@@ -2020,15 +2073,21 @@ export default class Server {
         'no-cache, no-store, max-age=0, must-revalidate'
       )
     }
-    const html = await this.renderErrorToHTML(err, req, res, pathname, query)
+    const response = await this.renderErrorToResponse(
+      err,
+      req,
+      res,
+      pathname,
+      query
+    )
 
     if (this.minimalMode && res.statusCode === 500) {
       throw err
     }
-    if (html === null) {
+    if (response === null) {
       return
     }
-    return this.sendHTML(req, res, html)
+    return this.sendResponse(req, res, response)
   }
 
   private customErrorNo404Warn = execOnce(() => {
@@ -2040,13 +2099,13 @@ export default class Server {
     )
   })
 
-  public async renderErrorToHTML(
+  private async renderErrorToResponse(
     _err: Error | null,
     req: IncomingMessage,
     res: ServerResponse,
     _pathname: string,
     query: ParsedUrlQuery = {}
-  ) {
+  ): Promise<ResponsePayload | null> {
     let err = _err
     if (this.renderOpts.dev && !err && res.statusCode === 500) {
       err = new Error(
@@ -2054,7 +2113,6 @@ export default class Server {
           'See https://nextjs.org/docs/messages/threw-undefined'
       )
     }
-    let html: string | null
     try {
       let result: null | FindComponentsResult = null
 
@@ -2087,7 +2145,7 @@ export default class Server {
       }
 
       try {
-        html = await this.renderToHTMLWithComponents(
+        return await this.renderToResponseWithComponents(
           req,
           res,
           statusPage,
@@ -2112,7 +2170,7 @@ export default class Server {
       const fallbackComponents = await this.getFallbackErrorComponents()
 
       if (fallbackComponents) {
-        return this.renderToHTMLWithComponents(
+        return this.renderToResponseWithComponents(
           req,
           res,
           '/_error',
@@ -2130,9 +2188,28 @@ export default class Server {
           }
         )
       }
-      html = 'Internal Server Error'
+      return {
+        type: 'html',
+        body: 'Internal Server Error',
+      }
     }
-    return html
+  }
+
+  public async renderErrorToHTML(
+    err: Error | null,
+    req: IncomingMessage,
+    res: ServerResponse,
+    pathname: string,
+    query: ParsedUrlQuery = {}
+  ): Promise<string | null> {
+    const response = await this.renderErrorToResponse(
+      err,
+      req,
+      res,
+      pathname,
+      query
+    )
+    return response ? response.body : null
   }
 
   protected async getFallbackErrorComponents(): Promise<LoadComponentsReturnType | null> {
@@ -2310,4 +2387,10 @@ export class WrappedBuildError extends Error {
     super()
     this.innerError = innerError
   }
+}
+
+export type ResponsePayload = {
+  type: 'html' | 'json'
+  body: string
+  revalidateOptions?: any
 }
