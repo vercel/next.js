@@ -32,7 +32,11 @@ module.exports = async function collectDiffs(
 
       await Promise.all(
         globs.map(async (pattern) => {
-          curFiles.push(...(await glob(pattern, { cwd: statsAppDir })))
+          curFiles.push(
+            ...(await glob(pattern, { cwd: statsAppDir })).filter((file) =>
+              file.endsWith('.js')
+            )
+          )
         })
       )
 
