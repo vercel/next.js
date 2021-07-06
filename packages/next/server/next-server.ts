@@ -76,7 +76,7 @@ import {
   setRevalidateHeaders,
 } from './send-payload'
 import { serveStatic } from './serve-static'
-import { IncrementalCache, IncrementalCacheValue } from './incremental-cache'
+import { IncrementalCache } from './incremental-cache'
 import { execOnce } from '../shared/lib/utils'
 import { isBlockedPage } from './utils'
 import { loadEnvConfig } from '@next/env'
