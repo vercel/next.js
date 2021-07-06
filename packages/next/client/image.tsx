@@ -649,17 +649,19 @@ function imgixLoader({
   width,
   quality,
 }: DefaultImageLoaderProps): string {
-  // Demo: https://static.imgix.net/daisy.png?format=auto&fit=max&w=300
-  const params = ['auto=format', 'fit=max', 'w=' + width]
-  let paramsString = ''
+  // Demo: https://static.imgix.net/daisy.png?auto=format&fit=max&w=300
+  const url = new URL(`${root}${normalizeSrc(src)}`)
+  const params = url.searchParams
+
+  params.set('auto', params.get('auto') || 'format')
+  params.set('fit', params.get('fit') || 'max')
+  params.set('w', params.get('w') || width.toString())
+
   if (quality) {
-    params.push('q=' + quality)
+    params.set('q', quality.toString())
   }
 
-  if (params.length) {
-    paramsString = '?' + params.join('&')
-  }
-  return `${root}${normalizeSrc(src)}${paramsString}`
+  return url.href
 }
 
 function akamaiLoader({ root, src, width }: DefaultImageLoaderProps): string {
