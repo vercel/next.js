@@ -2,12 +2,12 @@
 
 module.exports = function () {
   return {
-    BasicEvaluatedExpression: require('webpack5/lib/javascript/BasicEvaluatedExpression'),
-    ModuleFilenameHelpers: require('webpack5/lib/ModuleFilenameHelpers'),
-    NodeTargetPlugin: require('webpack5/lib/node/NodeTargetPlugin'),
-    StringXor: require('webpack5/lib/util/StringXor'),
+    BasicEvaluatedExpression: require('webpack/lib/javascript/BasicEvaluatedExpression'),
+    ModuleFilenameHelpers: require('webpack/lib/ModuleFilenameHelpers'),
+    NodeTargetPlugin: require('webpack/lib/node/NodeTargetPlugin'),
+    StringXor: require('webpack/lib/util/StringXor'),
     NormalModule: require('webpack/lib/NormalModule'),
-    sources: require('webpack5').sources,
-    webpack: require('webpack5'),
+    sources: require('webpack').sources,
+    webpack: require('webpack'),
   }
 }
