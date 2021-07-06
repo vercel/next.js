@@ -1305,18 +1305,24 @@ export default class Server {
     res: ServerResponse,
     { type, body, revalidateOptions }: ResponsePayload
   ): Promise<void> {
-    const { generateEtags, poweredByHeader } = this.renderOpts
-    return sendPayload(
-      req,
-      res,
-      body,
-      type,
-      {
-        generateEtags,
-        poweredByHeader,
-      },
-      revalidateOptions
-    )
+    if (!isResSent(res)) {
+      const { generateEtags, poweredByHeader, dev } = this.renderOpts
+      if (dev) {
+        // In dev, we should not cache pages for any reason.
+        res.setHeader('Cache-Control', 'no-store, must-revalidate')
+      }
+      return sendPayload(
+        req,
+        res,
+        body,
+        type,
+        {
+          generateEtags,
+          poweredByHeader,
+        },
+        revalidateOptions
+      )
+    }
   }
 
   public async render(
