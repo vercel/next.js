@@ -1710,7 +1710,7 @@ export default class Server {
       return { revalidate: sprRevalidate, value }
     }
 
-    const [cached, cacheEntry] = await this.responseCache.get(
+    const [cacheable, cacheEntry] = await this.responseCache.get(
       ssgCacheKey,
       async (hasResolved) => {
         const isProduction = !this.renderOpts.dev
@@ -1787,7 +1787,6 @@ export default class Server {
                 prepareServerlessUrl(req, query)
               }
               const result = await doRender()
-              delete result.revalidate
               return [false, result]
             }
           }
@@ -1809,11 +1808,11 @@ export default class Server {
 
     const { revalidate, value: cachedData } = cacheEntry
     const revalidateOptions: any =
-      !this.renderOpts.dev && cached
+      (!this.renderOpts.dev || (hasServerProps && !isDataReq)) && !cacheable
         ? {
             // When the page is 404 cache-control should not be added
             private: isPreviewMode || is404Page,
-            stateful: false, // GSP response
+            stateful: !isSSG,
             revalidate,
           }
         : undefined

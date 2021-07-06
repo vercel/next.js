@@ -72,10 +72,10 @@ export default class ResponseCache {
             }
           }
 
-          const [shouldCache, cacheEntry] = await responseGenerator(resolved)
-          resolve([shouldCache, cacheEntry])
+          const [cacheable, cacheEntry] = await responseGenerator(resolved)
+          resolve([cacheable, cacheEntry])
 
-          if (key && shouldCache) {
+          if (key && cacheable) {
             await this.incrementalCache.set(
               key,
               cacheEntry.value,
