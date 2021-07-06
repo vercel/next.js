@@ -18,11 +18,6 @@ export type ResponseCacheEntry = {
   value: ResponseCacheValue | null
 }
 
-type CachedResponse = {
-  revalidateSeconds?: number | false
-  value: CachedRedirectValue | CachedPageValue
-}
-
 type ResponseGenerator = () => Promise<[boolean, ResponseCacheEntry]>
 
 export default class ResponseCache {
@@ -78,6 +73,7 @@ export default class ResponseCache {
               cacheEntry.revalidate
             )
           }
+          resolve(cacheEntry)
         } catch (err) {
           reject(err)
         } finally {
