@@ -938,7 +938,7 @@ export default class Router implements BaseRouter {
     if (
       !(options as any)._h &&
       this.onlyAHashChange(cleanedAs) &&
-      prevLocale === this.locale
+      !localeChange
     ) {
       this.asPath = cleanedAs
       Router.events.emit('hashChangeStart', as, routeProps)
