@@ -88,7 +88,7 @@ describe('Production Usage', () => {
   })
 
   if (!process.env.NEXT_PRIVATE_TEST_WEBPACK4_MODE) {
-    it.only('should output traces', async () => {
+    it('should output traces', async () => {
       const checks = [
         {
           page: '/_app',
