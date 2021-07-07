@@ -818,6 +818,7 @@ export default class Router implements BaseRouter {
     }
 
     let localeChange = options.locale !== this.locale
+    let prevLocale = this.locale
 
     if (process.env.__NEXT_I18N_SUPPORT) {
       this.locale =
@@ -936,7 +937,7 @@ export default class Router implements BaseRouter {
     if (
       !(options as any)._h &&
       this.onlyAHashChange(cleanedAs) &&
-      !localeChange
+      prevLocale === this.locale
     ) {
       this.asPath = cleanedAs
       Router.events.emit('hashChangeStart', as, routeProps)
