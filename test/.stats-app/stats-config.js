@@ -21,11 +21,11 @@ const clientGlobs = [
   },
   {
     name: 'Client Pages',
-    globs: ['.next/static/!(images)/pages/**/*', '.next/static/css/**/*'],
+    globs: ['.next/static/BUILD_ID/pages/**/*.js', '.next/static/css/**/*'],
   },
   {
     name: 'Client Build Manifests',
-    globs: ['.next/static/*/_buildManifest*'],
+    globs: ['.next/static/BUILD_ID/_buildManifest*'],
   },
   {
     name: 'Rendered Page Sizes',
@@ -35,19 +35,15 @@ const clientGlobs = [
 
 const renames = [
   {
-    srcGlob: '.next/static/!(image)/pages',
-    dest: '.next/static/BUILD_ID/pages',
-  },
-  {
-    srcGlob: '.next/static/!(image)/pages/**/*',
+    srcGlob: '.next/static/BUILD_ID/pages/**/*.js',
     removeHash: true,
   },
   {
-    srcGlob: '.next/static/runtime/*',
+    srcGlob: '.next/static/runtime/*.js',
     removeHash: true,
   },
   {
-    srcGlob: '.next/static/chunks/*',
+    srcGlob: '.next/static/chunks/*.js',
     removeHash: true,
   },
   {
