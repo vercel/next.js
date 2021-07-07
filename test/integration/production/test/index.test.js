@@ -87,55 +87,48 @@ describe('Production Usage', () => {
     expect(output.match(/Generating static pages/g).length).toBe(5)
   })
 
-  it('should output traces', async () => {
-    const checks = [
-      {
-        page: '/_app',
-        tests: [
-          ...(!process.env.NEXT_PRIVATE_TEST_WEBPACK4_MODE
-            ? [/\.next\/server\/webpack-runtime\.js/]
-            : []),
-          /node_modules\/react\/index\.js/,
-          /node_modules\/react\/package\.json/,
-          /node_modules\/react\/cjs\/react\.production\.min\.js/,
-        ],
-        notTests: [/node_modules\/react\/cjs\/react\.development\.js/],
-      },
-      {
-        page: '/dynamic',
-        tests: [
-          ...(!process.env.NEXT_PRIVATE_TEST_WEBPACK4_MODE
-            ? [
-                /\.next\/server\/webpack-runtime\.js/,
-                /\.next\/server\/chunks\/.*?\.js/,
-              ]
-            : []),
-          /node_modules\/react\/index\.js/,
-          /node_modules\/react\/package\.json/,
-          /node_modules\/react\/cjs\/react\.production\.min\.js/,
-        ],
-        notTests: [/node_modules\/react\/cjs\/react\.development\.js/],
-      },
-    ]
-
-    for (const check of checks) {
-      const contents = await fs.readFile(
-        join(appDir, '.next/server/pages/', check.page + '.nft.json'),
-        'utf8'
-      )
-      const { version, files } = JSON.parse(contents)
-      expect(version).toBe(1)
-
-      expect(
-        check.tests.every((item) => files.some((file) => item.test(file)))
-      ).toBe(true)
-      expect(
-        check.notTests.some((item) => files.some((file) => item.test(file)))
-      ).toBe(false)
-    }
-  })
-
   if (!process.env.NEXT_PRIVATE_TEST_WEBPACK4_MODE) {
+    it.only('should output traces', async () => {
+      const checks = [
+        {
+          page: '/_app',
+          tests: [
+            /\.next\/server\/webpack-runtime\.js/,
+            /node_modules\/react\/index\.js/,
+            /node_modules\/react\/package\.json/,
+            /node_modules\/react\/cjs\/react\.production\.min\.js/,
+          ],
+          notTests: [/node_modules\/react\/cjs\/react\.development\.js/],
+        },
+        {
+          page: '/dynamic',
+          tests: [
+            /\.next\/server\/webpack-runtime\.js/,
+            /node_modules\/react\/index\.js/,
+            /node_modules\/react\/package\.json/,
+            /node_modules\/react\/cjs\/react\.production\.min\.js/,
+          ],
+          notTests: [/node_modules\/react\/cjs\/react\.development\.js/],
+        },
+      ]
+
+      for (const check of checks) {
+        const contents = await fs.readFile(
+          join(appDir, '.next/server/pages/', check.page + '.nft.json'),
+          'utf8'
+        )
+        const { version, files } = JSON.parse(contents)
+        expect(version).toBe(1)
+
+        expect(
+          check.tests.every((item) => files.some((file) => item.test(file)))
+        ).toBe(true)
+        expect(
+          check.notTests.some((item) => files.some((file) => item.test(file)))
+        ).toBe(false)
+      }
+    })
+
     it('should not contain currentScript usage for publicPath', async () => {
       const globResult = await glob('webpack-*.js', {
         cwd: join(appDir, '.next/static/chunks'),
