@@ -74,9 +74,6 @@ describe('TypeScript Image Component', () => {
     it('should print error when invalid Image usage', async () => {
       await renderViaHTTP(appPort, '/invalid', {})
       expect(output).toMatch(/Error: Image/)
-      expect(output).toMatch(
-        /has "placeholder='blur'" property but is missing the "blurDataURL" property/
-      )
     })
   })
 
