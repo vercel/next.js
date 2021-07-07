@@ -44,13 +44,13 @@ describe('Export with cloudinary loader next/image component', () => {
   })
 })
 
-describe('Export with static loader next/image component', () => {
+describe('Export with dangerously-unoptimized loader next/image component', () => {
   beforeAll(async () => {
     await nextConfig.replace(
       '{ /* replaceme */ }',
       JSON.stringify({
         images: {
-          loader: 'static',
+          loader: 'dangerously-unoptimized',
         },
       })
     )

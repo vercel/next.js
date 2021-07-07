@@ -34,7 +34,7 @@ const loaders = new Map<
   ['cloudinary', cloudinaryLoader],
   ['akamai', akamaiLoader],
   ['default', defaultLoader],
-  ['static', staticLoader],
+  ['dangerously-unoptimized', unoptimizedLoader],
 ])
 
 const VALID_LAYOUT_VALUES = [
@@ -679,7 +679,7 @@ function cloudinaryLoader({
   return `${root}${paramsString}${normalizeSrc(src)}`
 }
 
-function staticLoader({ src }: DefaultImageLoaderProps): string {
+function unoptimizedLoader({ src }: DefaultImageLoaderProps): string {
   return `${normalizeSrc(src)}`
 }
 
