@@ -15,6 +15,11 @@ export interface ScriptProps extends ScriptHTMLAttributes<HTMLScriptElement> {
   children?: React.ReactNode
 }
 
+/**
+ * @deprecated Use `ScriptProps` instead.
+ */
+export type Props = ScriptProps
+
 const ignoreProps = [
   'onLoad',
   'dangerouslySetInnerHTML',
