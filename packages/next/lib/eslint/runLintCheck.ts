@@ -6,7 +6,7 @@ import findUp from 'next/dist/compiled/find-up'
 import semver from 'next/dist/compiled/semver'
 import * as CommentJson from 'next/dist/compiled/comment-json'
 
-import { formatResults } from './customFormatter'
+import { LintResult, formatResults } from './customFormatter'
 import { writeDefaultConfig } from './writeDefaultConfig'
 import { existsSync, findPagesDir } from '../find-pages-dir'
 import {
@@ -29,7 +29,8 @@ async function lint(
   eslintrcFile: string | null,
   pkgJsonPath: string | null,
   eslintOptions: any = null,
-  reportErrorsOnly: boolean = false
+  reportErrorsOnly: boolean = false,
+  maxWarnings: number = -1
 ): Promise<
   | string
   | null
@@ -116,10 +117,16 @@ async function lint(
 
   const formattedResult = formatResults(baseDir, results)
   const lintEnd = process.hrtime(lintStart)
+  const totalWarnings = results.reduce(
+    (sum: number, file: LintResult) => sum + file.warningCount,
+    0
+  )
 
   return {
     output: formattedResult.output,
-    isError: ESLint.getErrorResults(results)?.length > 0,
+    isError:
+      ESLint.getErrorResults(results)?.length > 0 ||
+      (maxWarnings >= 0 && totalWarnings > maxWarnings),
     eventInfo: {
       durationInSeconds: lintEnd[0],
       eslintVersion: eslintVersion,
@@ -143,7 +150,8 @@ export async function runLintCheck(
   lintDirs: string[],
   lintDuringBuild: boolean = false,
   eslintOptions: any = null,
-  reportErrorsOnly: boolean = false
+  reportErrorsOnly: boolean = false,
+  maxWarnings: number = -1
 ): ReturnType<typeof lint> {
   try {
     // Find user's .eslintrc file
@@ -205,7 +213,8 @@ export async function runLintCheck(
       eslintrcFile,
       pkgJsonPath,
       eslintOptions,
-      reportErrorsOnly
+      reportErrorsOnly,
+      maxWarnings
     )
   } catch (err) {
     throw err

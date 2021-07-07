@@ -24,7 +24,7 @@ const runTests = () => {
 
     expect(code).toBe(1)
     expect(stderr).toMatch(
-      /pages with `getServerSideProps` can not be exported. See more info here: https/
+      /pages with `getServerSideProps` can not be exported\. See more info here: https/
     )
   })
 }

@@ -1,7 +1,16 @@
 /* eslint-env jest */
 
-import { findPort, killApp, launchApp, runNextCommand } from 'next-test-utils'
 import { join } from 'path'
+import fs from 'fs-extra'
+import webdriver from 'next-webdriver'
+import {
+  findPort,
+  killApp,
+  launchApp,
+  runNextCommand,
+  nextBuild,
+  nextStart,
+} from 'next-test-utils'
 
 jest.setTimeout(1000 * 60 * 5)
 
@@ -65,6 +74,23 @@ describe('React 18 Support', () => {
       let output = await getDevOutput(dirPrerelease)
       expect(output).toMatch(USING_CREATE_ROOT)
       expect(output).toMatch(UNSUPPORTED_PRERELEASE)
+    })
+  })
+
+  describe('hydration', () => {
+    const appDir = join(__dirname, '../prerelease')
+    let app
+    let appPort
+    beforeAll(async () => {
+      await fs.remove(join(appDir, '.next'))
+      await nextBuild(appDir, [dirPrerelease])
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
+    })
+    afterAll(async () => await killApp(app))
+    it('hydrates correctly for normal page', async () => {
+      const browser = await webdriver(appPort, '/')
+      expect(await browser.eval('window.didHydrate')).toBe(true)
     })
   })
 })

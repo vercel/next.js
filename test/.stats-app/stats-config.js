@@ -57,7 +57,7 @@ module.exports = {
   autoMergeMain: true,
   configs: [
     {
-      title: 'Default Server Mode',
+      title: 'Default Build',
       diff: 'onOutputChange',
       diffConfigFiles: [
         {
@@ -102,29 +102,6 @@ module.exports = {
         concurrency: 50,
         numRequests: 2500,
       },
-    },
-    {
-      title: 'Serverless Mode',
-      diff: false,
-      renames,
-      configFiles: [
-        {
-          path: 'next.config.js',
-          content: `
-            module.exports = {
-              generateBuildId: () => 'BUILD_ID',
-              target: 'serverless'
-            }
-          `,
-        },
-      ],
-      filesToTrack: [
-        ...clientGlobs,
-        {
-          name: 'Serverless bundles',
-          globs: ['.next/serverless/pages/**/*'],
-        },
-      ],
     },
     {
       title: 'Webpack 4 Mode',

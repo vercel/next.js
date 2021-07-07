@@ -9,8 +9,8 @@ import { ESLINT_DEFAULT_DIRS } from '../lib/constants'
 import { runLintCheck } from '../lib/eslint/runLintCheck'
 import { printAndExit } from '../server/lib/utils'
 import { Telemetry } from '../telemetry/storage'
-import loadConfig from '../next-server/server/config'
-import { PHASE_PRODUCTION_BUILD } from '../next-server/lib/constants'
+import loadConfig from '../server/config'
+import { PHASE_PRODUCTION_BUILD } from '../shared/lib/constants'
 import { eventLintCheckCompleted } from '../telemetry/events'
 import { CompileError } from '../lib/compile-error'
 
@@ -55,6 +55,7 @@ const nextLint: cliCommand = (argv) => {
     '--ignore-path': String,
     '--no-ignore': Boolean,
     '--quiet': Boolean,
+    '--max-warnings': Number,
     '--no-inline-config': Boolean,
     '--report-unused-disable-directives': String,
     '--cache': Boolean,
@@ -108,6 +109,7 @@ const nextLint: cliCommand = (argv) => {
 
         Handling warnings:
           --quiet                        Report errors only - default: false
+          --max-warnings Int             Number of warnings to trigger nonzero exit code - default: -1
 
         Inline configuration comments:
           --no-inline-config             Prevent comments from changing config or rules
@@ -143,8 +145,16 @@ const nextLint: cliCommand = (argv) => {
   )
 
   const reportErrorsOnly = Boolean(args['--quiet'])
+  const maxWarnings = args['--max-warnings'] ?? -1
 
-  runLintCheck(baseDir, lintDirs, false, eslintOptions(args), reportErrorsOnly)
+  runLintCheck(
+    baseDir,
+    lintDirs,
+    false,
+    eslintOptions(args),
+    reportErrorsOnly,
+    maxWarnings
+  )
     .then(async (lintResults) => {
       const lintOutput =
         typeof lintResults === 'string' ? lintResults : lintResults?.output
