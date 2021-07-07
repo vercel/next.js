@@ -46,13 +46,17 @@ export default class ResponseCache {
         rejecter = reject
       }
     )
-
     if (key) {
       this.pendingResponses.set(key, promise)
     }
 
     let resolved = false
     const resolve = (cacheEntry: ResponseCacheEntry) => {
+      if (key) {
+        // Ensure the cached value is always the latest result,
+        // even if our initial promise was already resolved.
+        this.pendingResponses.set(key, Promise.resolve(cacheEntry))
+      }
       if (!resolved) {
         resolved = true
         resolver(cacheEntry)
