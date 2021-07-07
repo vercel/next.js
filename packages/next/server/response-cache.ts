@@ -53,8 +53,7 @@ export default class ResponseCache {
     let resolved = false
     const resolve = (cacheEntry: ResponseCacheEntry) => {
       if (key) {
-        // Ensure the cached value is always the latest result,
-        // even if our initial promise was already resolved.
+        // Ensure all reads from the cache get the latest value.
         this.pendingResponses.set(key, Promise.resolve(cacheEntry))
       }
       if (!resolved) {
