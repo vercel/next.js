@@ -732,13 +732,11 @@ export async function precompile(task, opts) {
 
 // eslint-disable-next-line camelcase
 export async function trace_next_server(task) {
-  const {
-    TRACE_OUTPUT_VERSION,
-  } = require('next/dist/next-server/lib/constants')
+  const { TRACE_OUTPUT_VERSION } = require('next/dist/shared/lib/constants')
   const root = join(__dirname, '../../')
 
   const result = await nodeFileTrace(
-    [require.resolve('next/dist/next-server/server/next-server')],
+    [require.resolve('next/dist/server/next-server')],
     {
       base: root,
       processCwd: __dirname,
@@ -763,7 +761,7 @@ export async function trace_next_server(task) {
   }
 
   fs.writeFileSync(
-    join(__dirname, 'dist/next-server/server/next-server.nft.json'),
+    join(__dirname, 'dist/server/next-server.nft.json'),
     JSON.stringify({
       version: TRACE_OUTPUT_VERSION,
       files: tracedDeps,

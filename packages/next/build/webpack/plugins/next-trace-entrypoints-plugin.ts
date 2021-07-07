@@ -5,24 +5,13 @@ import {
   isWebpack5,
   sources,
 } from 'next/dist/compiled/webpack/webpack'
-import { TRACE_OUTPUT_VERSION } from '../../../next-server/lib/constants'
+import { TRACE_OUTPUT_VERSION } from '../../../shared/lib/constants'
 
 const PLUGIN_NAME = 'TraceEntryPointsPlugin'
 const TRACE_IGNORES = [
   '**/*/node_modules/react/**/*.development.js',
   '**/*/node_modules/react-dom/**/*.development.js',
 ]
-
-function getChunkGroupFromBlock(
-  compilation: any,
-  block: any
-): webpack.compilation.ChunkGroup {
-  if (isWebpack5) {
-    return compilation.chunkGraph.getBlockChunkGroup(block)
-  }
-
-  return block.chunkGroup
-}
 
 function getModuleFromDependency(
   compilation: any,
@@ -48,36 +37,38 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
     this.entryNameMap = new Map()
   }
 
+  // Here we output all traced assets and webpack chunks to a
+  // ${page}.nft.json file
   createTraceAssets(compilation: any, assets: any) {
     const namePathMap = new Map<string, string>()
 
     this.entryNameMap.forEach((value, key) => {
       namePathMap.set(value, key)
     })
+    const outputPath = compilation.outputOptions.path
 
     for (const entrypoint of compilation.entrypoints.values()) {
       const entryFiles = new Set<string>()
-      const entryMod = this.entryModMap.get(namePathMap.get(entrypoint.name)!)
 
-      entrypoint.getFiles().forEach((file: string) => {
-        if (!file.endsWith(entrypoint.name + '.js')) {
-          entryFiles.add(nodePath.join(compilation.outputOptions.path, file))
+      // TODO: use this to collect all modules for tracing/accessing
+      // transpiled source also
+      for (const chunk of entrypoint
+        .getEntrypointChunk()
+        .getAllReferencedChunks()) {
+        for (const file of chunk.files) {
+          entryFiles.add(nodePath.join(outputPath, file))
         }
-      })
-
-      for (const block of entryMod.blocks) {
-        const chunkGroup = getChunkGroupFromBlock(compilation, block)
-
-        if (!chunkGroup) {
-          continue
-        }
-
-        for (const chunk of (chunkGroup as any).chunks || []) {
-          chunk.files?.forEach((file: string) => {
-            entryFiles.add(nodePath.join(compilation.outputOptions.path, file))
-          })
+        for (const file of chunk.auxiliaryFiles) {
+          entryFiles.add(nodePath.join(outputPath, file))
         }
       }
+      // don't include the entry itself in the trace
+      entryFiles.delete(
+        nodePath.join(
+          outputPath,
+          `${isWebpack5 ? '../' : ''}${entrypoint.name}.js`
+        )
+      )
 
       assets[
         `${isWebpack5 ? '../' : ''}${entrypoint.name}.nft.json`
@@ -92,11 +83,11 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
 
   apply(compiler: webpack.Compiler) {
     if (isWebpack5) {
-      compiler.hooks.make.tap('NextJsPagesManifest', (compilation) => {
+      compiler.hooks.compilation.tap(PLUGIN_NAME, (compilation) => {
         // @ts-ignore TODO: Remove ignore when webpack 5 is stable
         compilation.hooks.processAssets.tap(
           {
-            name: 'NextJsPagesManifest',
+            name: PLUGIN_NAME,
             // @ts-ignore TODO: Remove ignore when webpack 5 is stable
             stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
           },
@@ -106,7 +97,7 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
         )
       })
     } else {
-      compiler.hooks.emit.tap('NextJsPagesManifest', (compilation: any) => {
+      compiler.hooks.emit.tap(PLUGIN_NAME, (compilation: any) => {
         this.createTraceAssets(compilation, compilation.assets)
       })
     }
@@ -134,13 +125,17 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
               }
             })
 
+            // TODO: investigate allowing non-sync fs calls in node-file-trace
+            // for better performance
             const readFile = (path: string) => {
               const mod = depModMap.get(path) || this.entryModMap.get(path)
 
               // map the transpiled source when available to avoid
               // parse errors in node-file-trace
-              if (mod?._source?._valueAsBuffer) {
-                return mod._source._valueAsBuffer
+              const source = mod?.originalSource()
+
+              if (source?._valueAsBuffer) {
+                return source._valueAsBuffer
               }
 
               try {
@@ -183,6 +178,9 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
             for (const entry of entryPaths) {
               depModMap.clear()
               const entryMod = this.entryModMap.get(entry)
+
+              // TODO: consider trace version for whether to use the cache
+              // or not
               const cachedTraces = entryMod.buildInfo?.cachedNextEntryTrace
 
               if (isWebpack5 && cachedTraces) {
