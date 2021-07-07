@@ -209,13 +209,13 @@ export default function prepareDestination(
 
   // update any params in query values
   for (const [key, strOrArray] of Object.entries(destQuery)) {
-    let value = Array.isArray(strOrArray) ? strOrArray[0] : strOrArray
-    if (value) {
-      // the value needs to start with a forward-slash to be compiled
-      // correctly
-      value = compileNonPath(value, params)
+    // the value needs to start with a forward-slash to be compiled
+    // correctly
+    if (Array.isArray(strOrArray)) {
+      destQuery[key] = strOrArray.map((value) => compileNonPath(value, params))
+    } else {
+      destQuery[key] = compileNonPath(strOrArray, params)
     }
-    destQuery[key] = value
   }
 
   // add path params to query if it's not a redirect and not
