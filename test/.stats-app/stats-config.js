@@ -35,6 +35,10 @@ const clientGlobs = [
 
 const renames = [
   {
+    srcGlob: '.next/static/chunks/pages',
+    dest: '.next/static/BUILD_ID/pages',
+  },
+  {
     srcGlob: '.next/static/BUILD_ID/pages/**/*.js',
     removeHash: true,
   },
