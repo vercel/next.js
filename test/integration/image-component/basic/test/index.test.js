@@ -87,6 +87,23 @@ function runTests() {
       await browser.elementById('unoptimized-image').getAttribute('srcset')
     ).toBeFalsy()
   })
+  it('should keep auto parameter if already set', async () => {
+    expect(
+      await browser.elementById('image-with-param-auto').getAttribute('src')
+    ).toBe('https://example.com/myaccount/foo.png?auto=compress&fit=max&w=1024')
+  })
+  it('should keep width parameter if already set', async () => {
+    expect(
+      await browser.elementById('image-with-param-width').getAttribute('src')
+    ).toBe('https://example.com/myaccount/foo.png?auto=format&w=500&fit=max')
+  })
+  it('should keep fit parameter if already set', async () => {
+    expect(
+      await browser.elementById('image-with-param-fit').getAttribute('src')
+    ).toBe(
+      'https://example.com/myaccount/foo.png?auto=format&fit=crop&w=300&h=300'
+    )
+  })
 }
 
 function lazyLoadingTests() {
