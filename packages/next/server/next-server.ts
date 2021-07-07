@@ -1703,7 +1703,7 @@ export default class Server {
       } else {
         value = { kind: 'PAGE', html: html!, pageData }
       }
-      return { cacheable: true, revalidate: sprRevalidate, value }
+      return { revalidate: sprRevalidate, value }
     }
 
     const cacheEntry = await this.responseCache.get(
@@ -1780,6 +1780,7 @@ export default class Server {
                 prepareServerlessUrl(req, query)
               }
               const result = await doRender()
+              // Prevent caching this result
               delete result.revalidate
               return result
             }
