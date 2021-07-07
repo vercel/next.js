@@ -86,21 +86,16 @@ function isStaticImport(src: string | StaticImport): src is StaticImport {
 
 type StringImageProps = {
   src: string
+  width?: number | string
+  height?: number | string
+  layout?: LayoutValue
 } & (
-  | { width?: never; height?: never; layout: 'fill' }
   | {
-      width: number | string
-      height: number | string
-      layout?: Exclude<LayoutValue, 'fill'>
+      placeholder?: Exclude<PlaceholderValue, 'blur'>
+      blurDataURL?: never
     }
-) &
-  (
-    | {
-        placeholder?: Exclude<PlaceholderValue, 'blur'>
-        blurDataURL?: never
-      }
-    | { placeholder: 'blur'; blurDataURL: string }
-  )
+  | { placeholder: 'blur'; blurDataURL: string }
+)
 
 type ObjectImageProps = {
   src: StaticImport
@@ -381,6 +376,11 @@ export default function Image({
         `Image with src "${src}" has invalid "width" or "height" property. These should be numeric values.`
       )
     }
+    if (layout === 'fill' && (width || height)) {
+      console.warn(
+        `Image with src "${src}" and "layout='fill'" has unused properties assigned. Please remove "width" and "height".`
+      )
+    }
     if (!VALID_LOADING_VALUES.includes(loading)) {
       throw new Error(
         `Image with src "${src}" has invalid "loading" property. Provided "${loading}" should be one of ${VALID_LOADING_VALUES.map(
@@ -472,10 +472,24 @@ export default function Image({
         }
       : undefined),
   }
-  if (
+  if (layout === 'fill') {
+    // <Image src="i.png" layout="fill" />
+    wrapperStyle = {
+      display: 'block',
+      overflow: 'hidden',
+
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      bottom: 0,
+      right: 0,
+
+      boxSizing: 'border-box',
+      margin: 0,
+    }
+  } else if (
     typeof widthInt !== 'undefined' &&
-    typeof heightInt !== 'undefined' &&
-    layout !== 'fill'
+    typeof heightInt !== 'undefined'
   ) {
     // <Image src="i.png" width="100" height="100" />
     const quotient = heightInt / widthInt
@@ -517,25 +531,6 @@ export default function Image({
         width: widthInt,
         height: heightInt,
       }
-    }
-  } else if (
-    typeof widthInt === 'undefined' &&
-    typeof heightInt === 'undefined' &&
-    layout === 'fill'
-  ) {
-    // <Image src="i.png" layout="fill" />
-    wrapperStyle = {
-      display: 'block',
-      overflow: 'hidden',
-
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      bottom: 0,
-      right: 0,
-
-      boxSizing: 'border-box',
-      margin: 0,
     }
   } else {
     // <Image src="i.png" />
