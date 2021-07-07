@@ -70,11 +70,7 @@ import Router, {
 import prepareDestination, {
   compileNonPath,
 } from '../shared/lib/router/utils/prepare-destination'
-import {
-  PayloadOptions,
-  sendPayload,
-  setRevalidateHeaders,
-} from './send-payload'
+import { sendPayload, setRevalidateHeaders } from './send-payload'
 import { serveStatic } from './serve-static'
 import { IncrementalCache } from './incremental-cache'
 import { execOnce } from '../shared/lib/utils'
