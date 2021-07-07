@@ -686,7 +686,7 @@ function cloudinaryLoader({
 }
 
 function unoptimizedLoader({ src }: DefaultImageLoaderProps): string {
-  return `${normalizeSrc(src)}`
+  return src
 }
 
 function defaultLoader({
