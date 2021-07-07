@@ -32,10 +32,11 @@ const loaders = new Map<
   LoaderValue,
   (props: DefaultImageLoaderProps) => string
 >([
+  ['default', defaultLoader],
   ['imgix', imgixLoader],
   ['cloudinary', cloudinaryLoader],
   ['akamai', akamaiLoader],
-  ['default', defaultLoader],
+  ['custom', customLoader],
   ['dangerously-unoptimized', unoptimizedLoader],
 ])
 
@@ -626,8 +627,6 @@ export default function Image({
   )
 }
 
-//BUILT IN LOADERS
-
 function normalizeSrc(src: string): string {
   return src[0] === '/' ? src.slice(1) : src
 }
@@ -671,6 +670,10 @@ function cloudinaryLoader({
 
 function unoptimizedLoader({ src }: DefaultImageLoaderProps): string {
   return src
+}
+
+function customLoader(_: DefaultImageLoaderProps): string {
+  throw new Error('Expected `loader` prop on `next/image` component')
 }
 
 function defaultLoader({
