@@ -38,29 +38,36 @@ export default class ResponseCache {
       return pendingResponse
     }
 
-    let response: Promise<ResponseCacheEntry> = new Promise(
-      async (resolver, reject) => {
-        try {
-          let resolved = false
-          const resolve = (cacheEntry: ResponseCacheEntry) => {
-            if (!resolved) {
-              resolved = true
-              resolver(cacheEntry)
-            }
-          }
+    const self = this
+    return new Promise(function (
+      this: Promise<ResponseCacheEntry>,
+      resolver,
+      reject
+    ) {
+      if (key) {
+        self.pendingResponses.set(key, this)
+      }
+      let resolved = false
+      const resolve = (cacheEntry: ResponseCacheEntry) => {
+        if (!resolved) {
+          resolved = true
+          resolver(cacheEntry)
+        }
+      }
 
-          // We wait to check the underlying cache, because we want this promise to be
-          // added to `pendingResponses` synchronously, so there's only ever one pending
-          // response in-flight for a given key.
+      // We wait to do any async work until after we've added our promise to
+      // `pendingResponses` to ensure that any any other calls will reuse the
+      // same promise until we've fully finished our work.
+      ;(async () => {
+        try {
           const cachedResponse = key
-            ? await this.incrementalCache.get(key)
+            ? await self.incrementalCache.get(key)
             : null
           if (cachedResponse) {
             resolve({
               revalidate: cachedResponse.curRevalidate,
               value: cachedResponse.value,
             })
-
             if (!cachedResponse.isStale) {
               // The cached value is still valid, so we don't need
               // to update it yet.
@@ -72,7 +79,7 @@ export default class ResponseCache {
           resolve(cacheEntry)
 
           if (key && typeof cacheEntry.revalidate !== 'undefined') {
-            await this.incrementalCache.set(
+            await self.incrementalCache.set(
               key,
               cacheEntry.value,
               cacheEntry.revalidate
@@ -82,15 +89,10 @@ export default class ResponseCache {
           reject(err)
         } finally {
           if (key) {
-            this.pendingResponses.delete(key)
+            self.pendingResponses.delete(key)
           }
         }
-      }
-    )
-
-    if (key) {
-      this.pendingResponses.set(key, response)
-    }
-    return response
+      })()
+    })
   }
 }
