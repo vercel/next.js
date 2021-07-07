@@ -90,7 +90,7 @@ describe('Export with custom loader next/image component', () => {
     )
     await pagesIndexJs.replace(
       'loader = undefined',
-      '({src}) => "custom-" + src '
+      'loader = ({src}) => "/custom" + src'
     )
   })
   it('should build successfully', async () => {
@@ -107,7 +107,7 @@ describe('Export with custom loader next/image component', () => {
   it('should contain img element with same src in html output', async () => {
     const html = await fs.readFile(join(outdir, 'index.html'))
     const $ = cheerio.load(html)
-    expect($('img[alt="icon"]').attr('src')).toBe('/custom-i.png')
+    expect($('img[alt="icon"]').attr('src')).toBe('/custom/i.png')
   })
 
   afterAll(async () => {
