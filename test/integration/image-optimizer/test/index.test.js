@@ -730,7 +730,7 @@ describe('Image Optimizer', () => {
       await nextConfig.restore()
 
       expect(stderr).toContain(
-        'Specified images.loader should be one of (default, imgix, cloudinary, akamai, dangerously-unoptimized), received invalid value (notreal)'
+        'Specified images.loader should be one of (default, imgix, cloudinary, akamai, custom, dangerously-unoptimized), received invalid value (notreal)'
       )
     })
   })
