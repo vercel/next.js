@@ -249,14 +249,17 @@ export function getUtils({
         let paramValue: string
 
         if (Array.isArray(params[param])) {
-          paramValue = (params[param] as string[]).join('/')
+          paramValue = (params[param] as string[])
+            .map((v) => v && encodeURIComponent(v))
+            .join('/')
         } else {
-          paramValue = params[param] as string
+          paramValue =
+            params[param] && encodeURIComponent(params[param] as string)
         }
 
         pathname =
           pathname.substr(0, paramIdx) +
-          encodeURI(paramValue || '') +
+          (paramValue || '') +
           pathname.substr(paramIdx + builtParam.length)
       }
     }
