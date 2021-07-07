@@ -26,6 +26,7 @@ import { stringify } from 'querystring'
 import { difference } from '../../build/utils'
 import { NextConfig } from '../config'
 import { CustomRoutes } from '../../lib/load-custom-routes'
+import { DecodeError } from '../../shared/lib/utils'
 
 export async function renderScriptError(
   res: ServerResponse,
@@ -212,11 +213,7 @@ export default class HotReloader {
           .map((param) => decodeURIComponent(param))
           .join('/')}`
       } catch (_) {
-        const err: Error & { code?: string } = new Error(
-          'failed to decode param'
-        )
-        err.code = 'DECODE_FAILED'
-        throw err
+        throw new DecodeError('failed to decode param')
       }
 
       const page = denormalizePagePath(decodedPagePath)

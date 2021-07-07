@@ -9,6 +9,8 @@ import {
 } from '../server/image-config'
 import { useIntersection } from './use-intersection'
 
+const loadedImageURLs = new Set<string>()
+
 if (typeof window === 'undefined') {
   ;(global as any).__NEXT_IMAGE_IMPORTED = true
 }
@@ -85,21 +87,16 @@ function isStaticImport(src: string | StaticImport): src is StaticImport {
 
 type StringImageProps = {
   src: string
+  width?: number | string
+  height?: number | string
+  layout?: LayoutValue
 } & (
-  | { width?: never; height?: never; layout: 'fill' }
   | {
-      width: number | string
-      height: number | string
-      layout?: Exclude<LayoutValue, 'fill'>
+      placeholder?: Exclude<PlaceholderValue, 'blur'>
+      blurDataURL?: never
     }
-) &
-  (
-    | {
-        placeholder?: Exclude<PlaceholderValue, 'blur'>
-        blurDataURL?: never
-      }
-    | { placeholder: 'blur'; blurDataURL: string }
-  )
+  | { placeholder: 'blur'; blurDataURL: string }
+)
 
 type ObjectImageProps = {
   src: StaticImport
@@ -265,6 +262,7 @@ function defaultImageLoader(loaderProps: ImageLoaderProps) {
 // handler instead of the img's onLoad attribute.
 function handleLoading(
   img: HTMLImageElement | null,
+  src: string,
   placeholder: PlaceholderValue,
   onLoadingComplete?: () => void
 ) {
@@ -280,6 +278,7 @@ function handleLoading(
           img.style.backgroundSize = 'none'
           img.style.backgroundImage = 'none'
         }
+        loadedImageURLs.add(src)
         if (onLoadingComplete) {
           onLoadingComplete()
         }
@@ -378,6 +377,11 @@ export default function Image({
         `Image with src "${src}" has invalid "width" or "height" property. These should be numeric values.`
       )
     }
+    if (layout === 'fill' && (width || height)) {
+      console.warn(
+        `Image with src "${src}" and "layout='fill'" has unused properties assigned. Please remove "width" and "height".`
+      )
+    }
     if (!VALID_LOADING_VALUES.includes(loading)) {
       throw new Error(
         `Image with src "${src}" has invalid "loading" property. Provided "${loading}" should be one of ${VALID_LOADING_VALUES.map(
@@ -424,6 +428,9 @@ export default function Image({
     unoptimized = true
     isLazy = false
   }
+  if (src && typeof window !== 'undefined' && loadedImageURLs.has(src)) {
+    isLazy = false
+  }
 
   const [setRef, isIntersected] = useIntersection<HTMLImageElement>({
     rootMargin: '200px',
@@ -466,10 +473,24 @@ export default function Image({
         }
       : undefined),
   }
-  if (
+  if (layout === 'fill') {
+    // <Image src="i.png" layout="fill" />
+    wrapperStyle = {
+      display: 'block',
+      overflow: 'hidden',
+
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      bottom: 0,
+      right: 0,
+
+      boxSizing: 'border-box',
+      margin: 0,
+    }
+  } else if (
     typeof widthInt !== 'undefined' &&
-    typeof heightInt !== 'undefined' &&
-    layout !== 'fill'
+    typeof heightInt !== 'undefined'
   ) {
     // <Image src="i.png" width="100" height="100" />
     const quotient = heightInt / widthInt
@@ -512,25 +533,6 @@ export default function Image({
         height: heightInt,
       }
     }
-  } else if (
-    typeof widthInt === 'undefined' &&
-    typeof heightInt === 'undefined' &&
-    layout === 'fill'
-  ) {
-    // <Image src="i.png" layout="fill" />
-    wrapperStyle = {
-      display: 'block',
-      overflow: 'hidden',
-
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      bottom: 0,
-      right: 0,
-
-      boxSizing: 'border-box',
-      margin: 0,
-    }
   } else {
     // <Image src="i.png" />
     if (process.env.NODE_ENV !== 'production') {
@@ -558,6 +560,8 @@ export default function Image({
       loader,
     })
   }
+
+  let srcString: string = src
 
   return (
     <div style={wrapperStyle}>
@@ -606,7 +610,7 @@ export default function Image({
         className={className}
         ref={(img) => {
           setRef(img)
-          handleLoading(img, placeholder, onLoadingComplete)
+          handleLoading(img, srcString, placeholder, onLoadingComplete)
         }}
         style={imgStyle}
       />
@@ -650,17 +654,19 @@ function imgixLoader({
   width,
   quality,
 }: DefaultImageLoaderProps): string {
-  // Demo: https://static.imgix.net/daisy.png?format=auto&fit=max&w=300
-  const params = ['auto=format', 'fit=max', 'w=' + width]
-  let paramsString = ''
+  // Demo: https://static.imgix.net/daisy.png?auto=format&fit=max&w=300
+  const url = new URL(`${root}${normalizeSrc(src)}`)
+  const params = url.searchParams
+
+  params.set('auto', params.get('auto') || 'format')
+  params.set('fit', params.get('fit') || 'max')
+  params.set('w', params.get('w') || width.toString())
+
   if (quality) {
-    params.push('q=' + quality)
+    params.set('q', quality.toString())
   }
 
-  if (params.length) {
-    paramsString = '?' + params.join('&')
-  }
-  return `${root}${normalizeSrc(src)}${paramsString}`
+  return url.href
 }
 
 function akamaiLoader({ root, src, width }: DefaultImageLoaderProps): string {

@@ -516,6 +516,28 @@ describe('Required Server Files', () => {
     expect(props.params).toEqual({})
   })
 
+  it('should normalize optional values correctly for SSG page with encoded slash', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/optional-ssg/[[...rest]]',
+      undefined,
+      {
+        headers: {
+          'x-matched-path': '/optional-ssg/[[...rest]]',
+          'x-now-route-matches':
+            '1=en%2Fes%2Fhello%252Fworld&rest=en%2Fes%2Fhello%252Fworld',
+        },
+      }
+    )
+
+    const html = await res.text()
+    const $ = cheerio.load(html)
+    const props = JSON.parse($('#props').text())
+    expect(props.params).toEqual({
+      rest: ['en', 'es', 'hello/world'],
+    })
+  })
+
   it('should normalize optional values correctly for API page', async () => {
     const res = await fetchViaHTTP(
       appPort,

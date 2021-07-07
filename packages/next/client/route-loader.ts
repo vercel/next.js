@@ -176,7 +176,7 @@ function resolvePromiseWithTimeout<T>(
 
 // TODO: stop exporting or cache the failure
 // It'd be best to stop exporting this. It's an implementation detail. We're
-// only exporting it for backwards compatibilty with the `page-loader`.
+// only exporting it for backwards compatibility with the `page-loader`.
 // Only cache this response as a last resort if we cannot eliminate all other
 // code branches that use the Build Manifest Callback and push them through
 // the Route Loader interface.
