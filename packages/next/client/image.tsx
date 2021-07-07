@@ -84,21 +84,16 @@ function isStaticImport(src: string | StaticImport): src is StaticImport {
 
 type StringImageProps = {
   src: string
+  width?: number | string
+  height?: number | string
+  layout?: LayoutValue
 } & (
-  | { width?: never; height?: never; layout: 'fill' }
   | {
-      width: number | string
-      height: number | string
-      layout?: Exclude<LayoutValue, 'fill'>
+      placeholder?: Exclude<PlaceholderValue, 'blur'>
+      blurDataURL?: never
     }
-) &
-  (
-    | {
-        placeholder?: Exclude<PlaceholderValue, 'blur'>
-        blurDataURL?: never
-      }
-    | { placeholder: 'blur'; blurDataURL: string }
-  )
+  | { placeholder: 'blur'; blurDataURL: string }
+)
 
 type ObjectImageProps = {
   src: StaticImport
@@ -375,6 +370,11 @@ export default function Image({
     ) {
       throw new Error(
         `Image with src "${src}" has invalid "width" or "height" property. These should be numeric values.`
+      )
+    }
+    if (layout === 'fill' && (width || height)) {
+      console.warn(
+        `Image with src "${src}" and "layout='fill'" has unused properties assigned. Please remove "width" and "height".`
       )
     }
     if (!VALID_LOADING_VALUES.includes(loading)) {
