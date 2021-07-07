@@ -75,7 +75,10 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
       ] = new sources.RawSource(
         JSON.stringify({
           version: TRACE_OUTPUT_VERSION,
-          files: [...entryFiles, ...this.entryTraces.get(entrypoint.name)!],
+          files: [
+            ...entryFiles,
+            ...this.entryTraces.get(entrypoint.name)!,
+          ].map((file) => file.replace(/\\/g, '/')),
         })
       )
     }

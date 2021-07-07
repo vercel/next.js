@@ -121,14 +121,10 @@ describe('Production Usage', () => {
         expect(version).toBe(1)
 
         expect(
-          check.tests.every((item) =>
-            files.some((file) => item.test(file.replace(/\\/g, '/')))
-          )
+          check.tests.every((item) => files.some((file) => item.test(file)))
         ).toBe(true)
         expect(
-          check.notTests.some((item) =>
-            files.some((file) => item.test(file.replace(/\\/g, '/')))
-          )
+          check.notTests.some((item) => files.some((file) => item.test(file)))
         ).toBe(false)
       }
     })
