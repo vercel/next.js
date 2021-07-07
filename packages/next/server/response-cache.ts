@@ -38,61 +38,63 @@ export default class ResponseCache {
       return pendingResponse
     }
 
-    const self = this
-    return new Promise(function (
-      this: Promise<ResponseCacheEntry>,
-      resolver,
-      reject
-    ) {
-      if (key) {
-        self.pendingResponses.set(key, this)
+    let resolver: (cacheEntry: ResponseCacheEntry) => void = () => {}
+    let rejecter: (error: Error) => void = () => {}
+    const promise: Promise<ResponseCacheEntry> = new Promise(
+      (resolve, reject) => {
+        resolver = resolve
+        rejecter = reject
       }
-      let resolved = false
-      const resolve = (cacheEntry: ResponseCacheEntry) => {
-        if (!resolved) {
-          resolved = true
-          resolver(cacheEntry)
-        }
+    )
+
+    if (key) {
+      this.pendingResponses.set(key, promise)
+    }
+
+    let resolved = false
+    const resolve = (cacheEntry: ResponseCacheEntry) => {
+      if (!resolved) {
+        resolved = true
+        resolver(cacheEntry)
       }
+    }
 
-      // We wait to do any async work until after we've added our promise to
-      // `pendingResponses` to ensure that any any other calls will reuse the
-      // same promise until we've fully finished our work.
-      ;(async () => {
-        try {
-          const cachedResponse = key
-            ? await self.incrementalCache.get(key)
-            : null
-          if (cachedResponse) {
-            resolve({
-              revalidate: cachedResponse.curRevalidate,
-              value: cachedResponse.value,
-            })
-            if (!cachedResponse.isStale) {
-              // The cached value is still valid, so we don't need
-              // to update it yet.
-              return
-            }
-          }
-
-          const cacheEntry = await responseGenerator(resolved)
-          resolve(cacheEntry)
-
-          if (key && typeof cacheEntry.revalidate !== 'undefined') {
-            await self.incrementalCache.set(
-              key,
-              cacheEntry.value,
-              cacheEntry.revalidate
-            )
-          }
-        } catch (err) {
-          reject(err)
-        } finally {
-          if (key) {
-            self.pendingResponses.delete(key)
+    // We wait to do any async work until after we've added our promise to
+    // `pendingResponses` to ensure that any any other calls will reuse the
+    // same promise until we've fully finished our work.
+    ;(async () => {
+      try {
+        const cachedResponse = key ? await this.incrementalCache.get(key) : null
+        if (cachedResponse) {
+          resolve({
+            revalidate: cachedResponse.curRevalidate,
+            value: cachedResponse.value,
+          })
+          if (!cachedResponse.isStale) {
+            // The cached value is still valid, so we don't need
+            // to update it yet.
+            return
           }
         }
-      })()
-    })
+
+        const cacheEntry = await responseGenerator(resolved)
+        resolve(cacheEntry)
+
+        if (key && typeof cacheEntry.revalidate !== 'undefined') {
+          await this.incrementalCache.set(
+            key,
+            cacheEntry.value,
+            cacheEntry.revalidate
+          )
+        }
+      } catch (err) {
+        rejecter(err)
+      } finally {
+        if (key) {
+          this.pendingResponses.delete(key)
+        }
+      }
+    })()
+    return promise
   }
 }
