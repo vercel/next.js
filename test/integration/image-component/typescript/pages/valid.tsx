@@ -83,7 +83,7 @@ const Page = () => {
         width={100}
         height={100}
       />
-      <ImageCard id="image-card" src="https://via.placeholder.com/200" />
+      <ImageCard id="image-card" src="https://via.placeholder.com/300" />
       <p id="stubtext">This is valid usage of the Image component</p>
     </div>
   )

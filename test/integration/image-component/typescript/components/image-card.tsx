@@ -10,5 +10,5 @@ type ImageCardProps = ImageProps & {
  * Example of using the `Image` component in a HOC.
  */
 export function ImageCard(props: ImageCardProps) {
-  return <Image layout="fill" {...props} />
+  return <Image {...props} layout="fill" />
 }
