@@ -85,41 +85,25 @@ function isStaticImport(src: string | StaticImport): src is StaticImport {
   )
 }
 
-type StringImageProps = {
-  src: string
-  width?: number | string
-  height?: number | string
-  layout?: LayoutValue
-} & (
-  | {
-      placeholder?: Exclude<PlaceholderValue, 'blur'>
-      blurDataURL?: never
-    }
-  | { placeholder: 'blur'; blurDataURL: string }
-)
-
-type ObjectImageProps = {
-  src: StaticImport
-  width?: number | string
-  height?: number | string
-  layout?: LayoutValue
-  placeholder?: PlaceholderValue
-  blurDataURL?: never
-}
-
 export type ImageProps = Omit<
   JSX.IntrinsicElements['img'],
   'src' | 'srcSet' | 'ref' | 'width' | 'height' | 'loading' | 'style'
 > & {
+  src: string | StaticImport
+  width?: number | string
+  height?: number | string
+  layout?: LayoutValue
   loader?: ImageLoader
   quality?: number | string
   priority?: boolean
   loading?: LoadingValue
+  placeholder?: PlaceholderValue
+  blurDataURL?: string
   unoptimized?: boolean
   objectFit?: ImgElementStyle['objectFit']
   objectPosition?: ImgElementStyle['objectPosition']
   onLoadingComplete?: () => void
-} & (StringImageProps | ObjectImageProps)
+}
 
 const {
   deviceSizes: configDeviceSizes,
