@@ -21,7 +21,7 @@ import {
 } from 'next/constants'
 import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
 import fetch from 'node-fetch'
-import { join } from 'path'
+import { join, sep } from 'path'
 import dynamicImportTests from './dynamic'
 import processEnv from './process-env'
 import security from './security'
@@ -123,9 +123,12 @@ describe('Production Usage', () => {
         expect(
           check.tests.every((item) => files.some((file) => item.test(file)))
         ).toBe(true)
-        expect(
-          check.notTests.some((item) => files.some((file) => item.test(file)))
-        ).toBe(false)
+
+        if (sep === '/') {
+          expect(
+            check.notTests.some((item) => files.some((file) => item.test(file)))
+          ).toBe(false)
+        }
       }
     })
 
