@@ -1,4 +1,5 @@
 import { IncrementalCache } from './incremental-cache'
+import { ReplaySubject, firstValueFrom } from 'rxjs'
 
 interface CachedRedirectValue {
   kind: 'REDIRECT'
@@ -22,7 +23,7 @@ type ResponseGenerator = (hasResolved: boolean) => Promise<ResponseCacheEntry>
 
 export default class ResponseCache {
   incrementalCache: IncrementalCache
-  pendingResponses: Map<string, Promise<ResponseCacheEntry>>
+  pendingResponses: Map<string, ReplaySubject<ResponseCacheEntry>>
 
   constructor(incrementalCache: IncrementalCache) {
     this.incrementalCache = incrementalCache
@@ -35,31 +36,18 @@ export default class ResponseCache {
   ): Promise<ResponseCacheEntry> {
     const pendingResponse = key ? this.pendingResponses.get(key) : null
     if (pendingResponse) {
-      return pendingResponse
+      return firstValueFrom(pendingResponse)
     }
 
-    let resolver: (cacheEntry: ResponseCacheEntry) => void = () => {}
-    let rejecter: (error: Error) => void = () => {}
-    const promise: Promise<ResponseCacheEntry> = new Promise(
-      (resolve, reject) => {
-        resolver = resolve
-        rejecter = reject
-      }
-    )
+    const response: ReplaySubject<ResponseCacheEntry> = new ReplaySubject(1)
     if (key) {
-      this.pendingResponses.set(key, promise)
+      this.pendingResponses.set(key, response)
     }
 
     let resolved = false
     const resolve = (cacheEntry: ResponseCacheEntry) => {
-      if (key) {
-        // Ensure all reads from the cache get the latest value.
-        this.pendingResponses.set(key, Promise.resolve(cacheEntry))
-      }
-      if (!resolved) {
-        resolved = true
-        resolver(cacheEntry)
-      }
+      resolved = true
+      response.next(cacheEntry)
     }
 
     // We wait to do any async work until after we've added our promise to
@@ -91,13 +79,16 @@ export default class ResponseCache {
           )
         }
       } catch (err) {
-        rejecter(err)
+        response.error(err)
       } finally {
+        if (!response.closed) {
+          response.complete()
+        }
         if (key) {
           this.pendingResponses.delete(key)
         }
       }
     })()
-    return promise
+    return firstValueFrom(response)
   }
 }
