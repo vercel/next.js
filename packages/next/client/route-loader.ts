@@ -1,7 +1,6 @@
 import { ComponentType } from 'react'
 import { ClientBuildManifest } from '../build/webpack/plugins/build-manifest-plugin'
 import getAssetPathFromRoute from '../shared/lib/router/utils/get-asset-path-from-route'
-import { addMessageListener } from './dev/error-overlay/eventsource'
 import { requestIdleCallback } from './request-idle-callback'
 
 // 3.8s was arbitrarily chosen as it's what https://web.dev/interactive
@@ -150,38 +149,6 @@ function appendScript(
   })
 }
 
-function onBuildCallback(cb) {
-  if (process.env.NODE_ENV !== 'development') {
-    cb()
-    return
-  }
-
-  let isComplete = false
-
-  addMessageListener((event) => {
-    if (isComplete) {
-      return
-    }
-
-    // This is the heartbeat event
-    if (event.data === '\uD83D\uDC93') {
-      return
-    }
-
-    const obj =
-      typeof event === 'string' ? { action: event } : JSON.parse(event.data)
-
-    switch (obj.action) {
-      case 'built':
-        cb()
-        isComplete = true
-        break
-
-      default:
-    }
-  })
-}
-
 // Resolve a promise that times out after given amount of milliseconds.
 function resolvePromiseWithTimeout<T>(
   p: Promise<T>,
@@ -197,15 +164,45 @@ function resolvePromiseWithTimeout<T>(
       resolve(r)
     }).catch(reject)
 
-    onBuildCallback(() => {
-      requestIdleCallback(() =>
-        setTimeout(() => {
-          if (!cancelled) {
-            reject(err)
+    new Promise((res: (value?: unknown) => void) => {
+      if (process.env.NODE_ENV === 'development') {
+        const {
+          addMessageListener,
+        } = require('./dev/error-overlay/eventsource')
+
+        addMessageListener((event: any) => {
+          // This is the heartbeat event
+          if (event.data === '\uD83D\uDC93') {
+            return
           }
-        }, ms)
-      )
+
+          const obj =
+            typeof event === 'string'
+              ? { action: event }
+              : JSON.parse(event.data)
+
+          switch (obj.action) {
+            case 'built':
+              res()
+              break
+
+            default:
+          }
+        })
+      } else {
+        res()
+      }
     })
+      .then(() => {
+        requestIdleCallback(() =>
+          setTimeout(() => {
+            if (!cancelled) {
+              reject(err)
+            }
+          }, ms)
+        )
+      })
+      .catch(reject)
   })
 }
 
