@@ -1,0 +1,17 @@
+{
+  "name": "cypress",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "cy:dev": "cypress open",
+    "cy:run": "cypress run"
+  },
+  "keywords": [],
+  "author": "Matt Revell",
+  "license": "ISC",
+  "dependencies": {
+    "cypress": "^7.7.0",
+    "typescript": "^4.3.5"
+  }
+}

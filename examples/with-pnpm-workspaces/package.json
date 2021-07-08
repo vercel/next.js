@@ -1,0 +1,15 @@
+{
+  "name": "with-pnpm-workspaces",
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {
+    "dev": "pnpm --filter web-app dev",
+    "build": "pnpm --filter web-app build",
+    "start": "pnpm --filter web-app start",
+    "cy:run": "pnpm -r cy:run --stream --parallel",
+    "cy:dev": "pnpm -r cy:dev --stream --parallel"
+  },
+  "keywords": [],
+  "author": "Matt Revell",
+  "license": "MIT"
+}
