@@ -14,6 +14,20 @@ Read about our [Commitment to Open Source](https://vercel.com/oss).
 
 To contribute to [our examples](examples), take a look at the [“Adding examples” section](#adding-examples).
 
+## Adding warning/error descriptions
+
+In Next.js we have a system to add helpful links to warnings and errors.
+
+This allows for the logged message to be short while giving a broader description and instructions on how to solve the warning/error.
+
+In general all warnings and errors added should have these links attached.
+
+Below are the steps to add a new link:
+
+- Create a new markdown file under the `errors` directory based on `errors/template.md`: `cp errors/template.md errors/<error-file-name>.md`
+- Add the newly added file to `errors/manifest.json`
+- Add the following url to your warning/error: `https://nextjs.org/docs/messages/<file-path-without-dotmd>`. For example to link to `errors/api-routes-static-export.md` you use the url: `https://nextjs.org/docs/messages/api-routes-static-export`
+
 ## To run tests
 
 Make sure you have `chromedriver` installed for your Chrome version. You can install it with
@@ -46,7 +60,7 @@ Running a specific test suite inside of the `test/integration` directory:
 yarn testonly --testPathPattern "production"
 ```
 
-Running just one test in the `production` test suite:
+Running one test in the `production` test suite:
 
 ```sh
 yarn testonly --testPathPattern "production" -t "should allow etag header support"
@@ -155,3 +169,7 @@ yarn create next-app --example DIRECTORY_NAME DIRECTORY_NAME-app
 
 Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 ````
+
+## Publishing
+
+Repository maintainers can use `yarn publish-canary` to publish a new version of all packages to npm.

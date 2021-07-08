@@ -1,11 +1,11 @@
 import { parse as parseUrl } from 'url'
-import { NextConfig } from '../next-server/server/config'
+import { NextConfig } from '../server/config'
 import * as pathToRegexp from 'next/dist/compiled/path-to-regexp'
 import escapeStringRegexp from 'next/dist/compiled/escape-string-regexp'
 import {
   PERMANENT_REDIRECT_STATUS,
   TEMPORARY_REDIRECT_STATUS,
-} from '../next-server/lib/constants'
+} from '../shared/lib/constants'
 
 export type RouteHas =
   | {

@@ -1,19 +1,24 @@
 import React, { useEffect, useContext } from 'react'
 import { ScriptHTMLAttributes } from 'react'
-import { HeadManagerContext } from '../next-server/lib/head-manager-context'
+import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import { DOMAttributeNames } from './head-manager'
 import { requestIdleCallback } from './request-idle-callback'
 
 const ScriptCache = new Map()
 const LoadCache = new Set()
 
-export interface Props extends ScriptHTMLAttributes<HTMLScriptElement> {
+export interface ScriptProps extends ScriptHTMLAttributes<HTMLScriptElement> {
   strategy?: 'afterInteractive' | 'lazyOnload' | 'beforeInteractive'
   id?: string
   onLoad?: () => void
   onError?: () => void
   children?: React.ReactNode
 }
+
+/**
+ * @deprecated Use `ScriptProps` instead.
+ */
+export type Props = ScriptProps
 
 const ignoreProps = [
   'onLoad',
@@ -23,7 +28,7 @@ const ignoreProps = [
   'strategy',
 ]
 
-const loadScript = (props: Props): void => {
+const loadScript = (props: ScriptProps): void => {
   const {
     src,
     id,
@@ -90,7 +95,7 @@ const loadScript = (props: Props): void => {
   document.body.appendChild(el)
 }
 
-function handleClientScriptLoad(props: Props) {
+function handleClientScriptLoad(props: ScriptProps) {
   const { strategy = 'afterInteractive' } = props
   if (strategy === 'afterInteractive') {
     loadScript(props)
@@ -101,7 +106,7 @@ function handleClientScriptLoad(props: Props) {
   }
 }
 
-function loadLazyScript(props: Props) {
+function loadLazyScript(props: ScriptProps) {
   if (document.readyState === 'complete') {
     requestIdleCallback(() => loadScript(props))
   } else {
@@ -111,11 +116,11 @@ function loadLazyScript(props: Props) {
   }
 }
 
-export function initScriptLoader(scriptLoaderItems: Props[]) {
+export function initScriptLoader(scriptLoaderItems: ScriptProps[]) {
   scriptLoaderItems.forEach(handleClientScriptLoad)
 }
 
-function Script(props: Props): JSX.Element | null {
+function Script(props: ScriptProps): JSX.Element | null {
   const {
     src = '',
     onLoad = () => {},
