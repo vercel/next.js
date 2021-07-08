@@ -338,6 +338,17 @@ export default function Image({
   const heightInt = getInt(height)
   const qualityInt = getInt(quality)
 
+  let isLazy =
+    !priority && (loading === 'lazy' || typeof loading === 'undefined')
+  if (src.startsWith('data:')) {
+    // https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
+    unoptimized = true
+    isLazy = false
+  }
+  if (typeof window !== 'undefined' && loadedImageURLs.has(src)) {
+    isLazy = false
+  }
+
   if (process.env.NODE_ENV !== 'production') {
     if (!src) {
       throw new Error(
@@ -405,22 +416,14 @@ export default function Image({
       )
     }
     const rand = Math.floor(Math.random() * 1000) + 100
-    const url = loader({ src, width: rand, quality: 75 })
-    if (!url.includes(rand.toString()) && !unoptimized) {
+    if (
+      !unoptimized &&
+      !loader({ src, width: rand, quality: 75 }).includes(rand.toString())
+    ) {
       console.warn(
         `Image with src "${src}" has a "loader" property that does not implement width. Please implement it or use the "unoptimized" property instead.`
       )
     }
-  }
-  let isLazy =
-    !priority && (loading === 'lazy' || typeof loading === 'undefined')
-  if (src && src.startsWith('data:')) {
-    // https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
-    unoptimized = true
-    isLazy = false
-  }
-  if (src && typeof window !== 'undefined' && loadedImageURLs.has(src)) {
-    isLazy = false
   }
 
   const [setRef, isIntersected] = useIntersection<HTMLImageElement>({
