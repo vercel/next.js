@@ -58,6 +58,7 @@ function runTests({ w, isDev, domains }) {
     expect(res.headers.get('Cache-Control')).toBe(
       `public, max-age=${isDev ? 0 : 60}, must-revalidate`
     )
+    expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
     expect(isAnimated(await res.buffer())).toBe(true)
   })
@@ -70,6 +71,7 @@ function runTests({ w, isDev, domains }) {
     expect(res.headers.get('Cache-Control')).toBe(
       `public, max-age=${isDev ? 0 : 60}, must-revalidate`
     )
+    expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
     expect(isAnimated(await res.buffer())).toBe(true)
   })
@@ -82,6 +84,7 @@ function runTests({ w, isDev, domains }) {
     expect(res.headers.get('Cache-Control')).toBe(
       `public, max-age=${isDev ? 0 : 60}, must-revalidate`
     )
+    expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
     expect(isAnimated(await res.buffer())).toBe(true)
   })
@@ -95,6 +98,9 @@ function runTests({ w, isDev, domains }) {
     expect(res.headers.get('Cache-Control')).toBe(
       `public, max-age=${isDev ? 0 : 60}, must-revalidate`
     )
+    // SVG is compressible so will have accept-encoding set from
+    // compression
+    expect(res.headers.get('Vary')).toMatch(/^Accept(,|$)/)
     expect(res.headers.get('etag')).toBeTruthy()
     const actual = await res.text()
     const expected = await fs.readFile(
@@ -113,6 +119,7 @@ function runTests({ w, isDev, domains }) {
     expect(res.headers.get('Cache-Control')).toBe(
       `public, max-age=${isDev ? 0 : 60}, must-revalidate`
     )
+    expect(res.headers.get('Vary')).toMatch(/^Accept(,|$)/)
     expect(res.headers.get('etag')).toBeTruthy()
     const actual = await res.text()
     const expected = await fs.readFile(
@@ -133,6 +140,7 @@ function runTests({ w, isDev, domains }) {
     expect(res.headers.get('Cache-Control')).toBe(
       `public, max-age=${isDev ? 0 : 60}, must-revalidate`
     )
+    expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
   })
 
@@ -147,6 +155,7 @@ function runTests({ w, isDev, domains }) {
     expect(res.headers.get('Cache-Control')).toBe(
       `public, max-age=${isDev ? 0 : 60}, must-revalidate`
     )
+    expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
   })
 
@@ -244,6 +253,7 @@ function runTests({ w, isDev, domains }) {
     expect(res.headers.get('Cache-Control')).toBe(
       `public, max-age=${isDev ? 0 : 60}, must-revalidate`
     )
+    expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
     await expectWidth(res, w)
   })
@@ -257,6 +267,7 @@ function runTests({ w, isDev, domains }) {
     expect(res.headers.get('Cache-Control')).toBe(
       `public, max-age=${isDev ? 0 : 60}, must-revalidate`
     )
+    expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
     await expectWidth(res, w)
   })
@@ -270,6 +281,7 @@ function runTests({ w, isDev, domains }) {
     expect(res.headers.get('Cache-Control')).toBe(
       `public, max-age=${isDev ? 0 : 60}, must-revalidate`
     )
+    expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
     await expectWidth(res, w)
   })
@@ -283,6 +295,7 @@ function runTests({ w, isDev, domains }) {
     expect(res.headers.get('Cache-Control')).toBe(
       `public, max-age=${isDev ? 0 : 60}, must-revalidate`
     )
+    expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
     // FIXME: await expectWidth(res, w)
   })
@@ -296,6 +309,7 @@ function runTests({ w, isDev, domains }) {
     expect(res.headers.get('Cache-Control')).toBe(
       `public, max-age=${isDev ? 0 : 60}, must-revalidate`
     )
+    expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
     // FIXME: await expectWidth(res, w)
   })
@@ -311,6 +325,7 @@ function runTests({ w, isDev, domains }) {
     expect(res.headers.get('Cache-Control')).toBe(
       `public, max-age=${isDev ? 0 : 60}, must-revalidate`
     )
+    expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
     await expectWidth(res, w)
   })
@@ -326,6 +341,7 @@ function runTests({ w, isDev, domains }) {
       expect(res.headers.get('Cache-Control')).toBe(
         `public, max-age=${isDev ? 0 : 60}, must-revalidate`
       )
+      expect(res.headers.get('Vary')).toBe('Accept')
       expect(res.headers.get('etag')).toBeTruthy()
       await expectWidth(res, w)
     })
@@ -346,6 +362,7 @@ function runTests({ w, isDev, domains }) {
       expect(res.headers.get('Cache-Control')).toBe(
         `public, max-age=${isDev ? 0 : 60}, must-revalidate`
       )
+      expect(res.headers.get('Vary')).toBe('Accept')
       expect(res.headers.get('etag')).toBeTruthy()
       await expectWidth(res, w)
     })
@@ -448,6 +465,7 @@ function runTests({ w, isDev, domains }) {
     expect(res1.headers.get('Cache-Control')).toBe(
       `public, max-age=${isDev ? 0 : 60}, must-revalidate`
     )
+    expect(res1.headers.get('Vary')).toBe('Accept')
     const etag = res1.headers.get('Etag')
     expect(etag).toBeTruthy()
     await expectWidth(res1, w)
@@ -460,6 +478,7 @@ function runTests({ w, isDev, domains }) {
     expect(res2.headers.get('Cache-Control')).toBe(
       `public, max-age=${isDev ? 0 : 60}, must-revalidate`
     )
+    expect(res2.headers.get('Vary')).toBe('Accept')
     expect((await res2.buffer()).length).toBe(0)
 
     const query3 = { url: '/test.jpg', w, q: 25 }
@@ -469,6 +488,7 @@ function runTests({ w, isDev, domains }) {
     expect(res3.headers.get('Cache-Control')).toBe(
       `public, max-age=${isDev ? 0 : 60}, must-revalidate`
     )
+    expect(res3.headers.get('Vary')).toBe('Accept')
     expect(res3.headers.get('Etag')).toBeTruthy()
     expect(res3.headers.get('Etag')).not.toBe(etag)
     await expectWidth(res3, w)
@@ -486,6 +506,9 @@ function runTests({ w, isDev, domains }) {
     expect(res.headers.get('Cache-Control')).toBe(
       `public, max-age=${isDev ? 0 : 60}, must-revalidate`
     )
+    // bmp is compressible so will have accept-encoding set from
+    // compression
+    expect(res.headers.get('Vary')).toMatch(/^Accept(,|$)/)
     expect(res.headers.get('etag')).toBeTruthy()
 
     const json2 = await fsToJson(imagesDir)
@@ -501,6 +524,7 @@ function runTests({ w, isDev, domains }) {
     expect(res.headers.get('Cache-Control')).toBe(
       `public, max-age=${isDev ? 0 : 60}, must-revalidate`
     )
+    expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
     await expectWidth(res, 400)
   })
@@ -516,6 +540,7 @@ function runTests({ w, isDev, domains }) {
     expect(res.headers.get('Cache-Control')).toBe(
       `public, max-age=${isDev ? 0 : 60}, must-revalidate`
     )
+    expect(res.headers.get('Vary')).toBe('Accept')
 
     const png = await res.buffer()
 
@@ -540,6 +565,7 @@ function runTests({ w, isDev, domains }) {
       expect(res1.headers.get('Cache-Control')).toBe(
         'public, max-age=315360000, immutable'
       )
+      expect(res1.headers.get('Vary')).toBe('Accept')
       await expectWidth(res1, w)
 
       // Ensure subsequent request also has immutable header
@@ -548,6 +574,7 @@ function runTests({ w, isDev, domains }) {
       expect(res2.headers.get('Cache-Control')).toBe(
         'public, max-age=315360000, immutable'
       )
+      expect(res2.headers.get('Vary')).toBe('Accept')
       await expectWidth(res2, w)
     }
   })
@@ -703,7 +730,7 @@ describe('Image Optimizer', () => {
       await nextConfig.restore()
 
       expect(stderr).toContain(
-        'Specified images.loader should be one of (default, imgix, cloudinary, akamai), received invalid value (notreal)'
+        'Specified images.loader should be one of (default, imgix, cloudinary, akamai, dangerously-unoptimized), received invalid value (notreal)'
       )
     })
   })
@@ -873,6 +900,7 @@ describe('Image Optimizer', () => {
       expect(res.headers.get('Cache-Control')).toBe(
         `public, max-age=31536000, must-revalidate`
       )
+      expect(res.headers.get('Vary')).toBe('Accept')
       await expectWidth(res, 64)
     })
   })

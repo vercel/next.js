@@ -3,6 +3,7 @@ export const VALID_LOADERS = [
   'imgix',
   'cloudinary',
   'akamai',
+  'dangerously-unoptimized',
 ] as const
 
 export type LoaderValue = typeof VALID_LOADERS[number]

@@ -15,6 +15,7 @@ import {
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
+import { existsSync } from 'fs'
 
 jest.setTimeout(1000 * 80)
 
@@ -174,6 +175,35 @@ function runTests(mode) {
       await check(
         () => browser.eval(`document.getElementById("update-image").src`),
         /test\.png/
+      )
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
+
+  it('should callback onLoadingComplete when image is fully loaded', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/on-loading-complete')
+
+      await check(
+        () => browser.eval(`document.getElementById("img1").src`),
+        /test(.*)jpg/
+      )
+
+      await check(
+        () => browser.eval(`document.getElementById("img2").src`),
+        /test(.*).png/
+      )
+      await check(
+        () => browser.eval(`document.getElementById("msg1").textContent`),
+        'loaded img1'
+      )
+      await check(
+        () => browser.eval(`document.getElementById("msg2").textContent`),
+        'loaded img2'
       )
     } finally {
       if (browser) {
@@ -525,6 +555,13 @@ function runTests(mode) {
       expect(warnings).toMatch(
         /Image with src (.*)jpg(.*) is smaller than 40x40. Consider removing(.*)/gm
       )
+    })
+  } else {
+    //server-only tests
+    it('should not create an image folder in server/chunks', async () => {
+      expect(
+        existsSync(join(appDir, '.next/server/chunks/static/image'))
+      ).toBeFalsy()
     })
   }
 

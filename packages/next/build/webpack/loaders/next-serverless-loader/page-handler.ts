@@ -1,6 +1,6 @@
 import { IncomingMessage, ServerResponse } from 'http'
 import { parse as parseUrl, format as formatUrl, UrlWithParsedQuery } from 'url'
-import { isResSent } from '../../../../shared/lib/utils'
+import { DecodeError, isResSent } from '../../../../shared/lib/utils'
 import { sendPayload } from '../../../../server/send-payload'
 import { getUtils, vercelHeader, ServerlessHandlerCtx } from './utils'
 
@@ -344,7 +344,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
                 poweredByHeader,
               },
               {
-                private: isPreviewMode,
+                private: isPreviewMode || page === '/404',
                 stateful: !!getServerSideProps,
                 revalidate: renderOpts.revalidate,
               }
@@ -385,7 +385,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
                 poweredByHeader,
               },
               {
-                private: isPreviewMode,
+                private: isPreviewMode || renderOpts.is404Page,
                 stateful: !!getServerSideProps,
                 revalidate: renderOpts.revalidate,
               }
@@ -409,8 +409,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
 
       if (err.code === 'ENOENT') {
         res.statusCode = 404
-      } else if (err.code === 'DECODE_FAILED' || err.code === 'ENAMETOOLONG') {
-        // TODO: better error?
+      } else if (err instanceof DecodeError) {
         res.statusCode = 400
       } else {
         console.error('Unhandled error during request:', err)

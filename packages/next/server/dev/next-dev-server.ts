@@ -30,6 +30,7 @@ import Server, {
   WrappedBuildError,
   ServerConstructor,
   FindComponentsResult,
+  ResponsePayload,
 } from '../next-server'
 import { normalizePagePath } from '../normalize-page-path'
 import Router, { Params, route } from '../router'
@@ -46,6 +47,7 @@ import {
   LoadComponentsReturnType,
   loadDefaultErrorComponents,
 } from '../load-components'
+import { DecodeError } from '../../shared/lib/utils'
 
 if (typeof React.Suspense === 'undefined') {
   throw new Error(
@@ -376,9 +378,7 @@ export default class DevServer extends Server {
     try {
       decodedPath = decodeURIComponent(path)
     } catch (_) {
-      const err: Error & { code?: string } = new Error('failed to decode param')
-      err.code = 'DECODE_FAILED'
-      throw err
+      throw new DecodeError('failed to decode param')
     }
 
     if (await this.hasPublicFile(decodedPath)) {
@@ -637,14 +637,14 @@ export default class DevServer extends Server {
     return await loadDefaultErrorComponents(this.distDir)
   }
 
-  sendHTML(
+  sendResponse(
     req: IncomingMessage,
     res: ServerResponse,
-    html: string
+    response: ResponsePayload
   ): Promise<void> {
     // In dev, we should not cache pages for any reason.
     res.setHeader('Cache-Control', 'no-store, must-revalidate')
-    return super.sendHTML(req, res, html)
+    return super.sendResponse(req, res, response)
   }
 
   protected setImmutableAssetCacheControl(res: ServerResponse): void {
