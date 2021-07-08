@@ -250,6 +250,14 @@
           "path": "/errors/next-head-count-missing.md"
         },
         {
+          "title": "next-image-missing-loader.md",
+          "path": "/errors/next-image-missing-loader.md"
+        },
+        {
+          "title": "next-image-missing-loader-width.md",
+          "path": "/errors/next-image-missing-loader-width.md"
+        },
+        {
           "title": "next-image-unconfigured-host",
           "path": "/errors/next-image-unconfigured-host.md"
         },

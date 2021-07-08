@@ -421,7 +421,8 @@ export default function Image({
       !loader({ src, width: rand, quality: 75 }).includes(rand.toString())
     ) {
       console.warn(
-        `Image with src "${src}" has a "loader" property that does not implement width. Please implement it or use the "unoptimized" property instead.`
+        `Image with src "${src}" has a "loader" property that does not implement width. Please implement it or use the "unoptimized" property instead.` +
+          `\nRead more: https://nextjs.org/docs/messages/next-image-missing-loader-width`
       )
     }
   }
@@ -678,7 +679,10 @@ function cloudinaryLoader({
 }
 
 function customLoader({ src }: DefaultImageLoaderProps): string {
-  throw new Error(`Image with src "${src}" is missing "loader" prop.`)
+  throw new Error(
+    `Image with src "${src}" is missing "loader" prop.` +
+      `\nRead more: https://nextjs.org/docs/messages/next-image-missing-loader`
+  )
 }
 
 function defaultLoader({
