@@ -37,7 +37,6 @@ const loaders = new Map<
   ['cloudinary', cloudinaryLoader],
   ['akamai', akamaiLoader],
   ['custom', customLoader],
-  ['dangerously-unoptimized', unoptimizedLoader],
 ])
 
 const VALID_LAYOUT_VALUES = [
@@ -666,10 +665,6 @@ function cloudinaryLoader({
   const params = ['f_auto', 'c_limit', 'w_' + width, 'q_' + (quality || 'auto')]
   let paramsString = params.join(',') + '/'
   return `${root}${paramsString}${normalizeSrc(src)}`
-}
-
-function unoptimizedLoader({ src }: DefaultImageLoaderProps): string {
-  return src
 }
 
 function customLoader(_: DefaultImageLoaderProps): string {

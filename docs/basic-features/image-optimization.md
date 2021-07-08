@@ -122,7 +122,6 @@ The following Image Optimization cloud providers are included:
 - [Cloudinary](https://cloudinary.com): `loader: 'cloudinary'`
 - [Akamai](https://www.akamai.com): `loader: 'akamai'`
 - Custom: `loader: 'custom'` use a custom cloud provider by implementing the [`loader`](/docs/api-reference/next/image.md#loader) prop on the `next/image` component
-- Dangerously Unoptimized: `loader: 'dangerously-unoptimized'` uses image directly from `src` prop without optimization
 - Default: Works automatically with `next dev`, `next start`, or a custom server
 
 If you need a different provider, you can use the [`loader`](/docs/api-reference/next/image.md#loader) prop with `next/image`.

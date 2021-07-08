@@ -4,7 +4,6 @@ export const VALID_LOADERS = [
   'cloudinary',
   'akamai',
   'custom',
-  'dangerously-unoptimized',
 ] as const
 
 export type LoaderValue = typeof VALID_LOADERS[number]
