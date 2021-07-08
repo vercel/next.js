@@ -404,6 +404,13 @@ export default function Image({
         `Image with src "${src}" is using unsupported "ref" property. Consider using the "onLoadingComplete" property instead.`
       )
     }
+    const rand = Math.floor(Math.random() * 1000) + 100
+    const url = loader({ src, width: rand, quality: 75 })
+    if (!url.includes(rand.toString()) && !unoptimized) {
+      console.warn(
+        `Image with src "${src}" has a "loader" property that does not implement width. Please implement it or use the "unoptimized" property instead.`
+      )
+    }
   }
   let isLazy =
     !priority && (loading === 'lazy' || typeof loading === 'undefined')
