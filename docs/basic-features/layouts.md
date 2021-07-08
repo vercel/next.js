@@ -11,7 +11,7 @@ description: Learn how to share components and state between Next.js pages with 
   </ul>
 </details>
 
-The React mental model allows us to deconstruct a [page](/docs/basic-features/pages.md) into a series of components. Many of these components are often reused between pages. For example, you might have the same navigation bar and footer on every page.
+The React model allows us to deconstruct a [page](/docs/basic-features/pages.md) into a series of components. Many of these components are often reused between pages. For example, you might have the same navigation bar and footer on every page.
 
 ```jsx
 // components/layout.js
