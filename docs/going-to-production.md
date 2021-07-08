@@ -16,7 +16,7 @@ Before taking your Next.js application to production, here are some recommendati
 - Ensure [error handling](#error-handling) is set up.
 - Configure the [404](/docs/advanced-features/custom-error-page.md#404-page) (Not Found) and [500](/docs/advanced-features/custom-error-page.md#500-page) (Error) pages.
 - Ensure you are [measuring performance](/docs/advanced-features/measuring-performance.md).
-- Run [Lighthouse](https://developers.google.com/web/tools/lighthouse) to check for performance, best practices, accessibility, and SEO.
+- Run [Lighthouse](https://developers.google.com/web/tools/lighthouse) to check for performance, best practices, accessibility, and SEO. For best results, use a production build of Next.js and use incognito in your browser so results aren't affected by extensions.
 - Review [Supported Browsers and Features](/docs/basic-features/supported-browsers-features.md).
 - Improve performance using:
   - [`next/image` and Automatic Image Optimization](/docs/basic-features/image-optimization.md)
