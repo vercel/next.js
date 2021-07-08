@@ -667,8 +667,8 @@ function cloudinaryLoader({
   return `${root}${paramsString}${normalizeSrc(src)}`
 }
 
-function customLoader(_: DefaultImageLoaderProps): string {
-  throw new Error('Expected `loader` prop on `next/image` component')
+function customLoader({ src }: DefaultImageLoaderProps): string {
+  throw new Error(`Image with src "${src}" is missing "loader" prop.`)
 }
 
 function defaultLoader({

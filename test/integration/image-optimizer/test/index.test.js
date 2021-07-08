@@ -757,8 +757,8 @@ describe('Image Optimizer', () => {
       await renderViaHTTP(appPort, '/', {})
       await killApp(app).catch(() => {})
       await nextConfig.restore()
-      expect(output).toContain(
-        'Error: Expected `loader` prop on `next/image` component'
+      expect(output).toMatch(
+        /Error: Image with src "(.+)" is missing "loader" prop/
       )
     })
   })
