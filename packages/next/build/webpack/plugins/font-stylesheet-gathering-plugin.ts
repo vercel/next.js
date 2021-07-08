@@ -18,11 +18,14 @@ import {
 
 function minifyCss(css: string): Promise<string> {
   return postcss([
-    minifier({
-      excludeAll: true,
-      discardComments: true,
-      normalizeWhitespace: { exclude: false },
-    }),
+    minifier(
+      {
+        excludeAll: true,
+        discardComments: true,
+        normalizeWhitespace: { exclude: false },
+      },
+      postcss
+    ),
   ])
     .process(css, { from: undefined })
     .then((res) => res.css)
