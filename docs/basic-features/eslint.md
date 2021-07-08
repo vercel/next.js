@@ -34,17 +34,17 @@ yarn lint
 
 One of the following three options can be selected:
 
-- **Base configuration + Core Web Vitals rule-set**: Includes Next.js' base ESLint configuration along with a stricter [Core Web Vitals rule-set](/docs/basic-features/eslint.md#core-web-vitals). This is the recommended configuration for developers setting up ESLint for the first time.
+- **Strict**: Includes Next.js' base ESLint configuration along with a stricter [Core Web Vitals rule-set](/docs/basic-features/eslint.md#core-web-vitals). This is the recommended configuration for developers setting up ESLint for the first time.
 
-  ```js
+  ```json
   {
-    "extends": ["next", "next/core-web-vitals"]
+    "extends": "next/core-web-vitals"
   }
   ```
 
-- **Base configuration**: Includes Next.js' base ESLint configuration.
+- **Base**: Includes Next.js' base ESLint configuration.
 
-  ```js
+  ```json
   {
     "extends": "next"
   }
@@ -119,12 +119,12 @@ yarn lint --dir pages --dir utils
 
 If you would like to modify or disable any rules provided by the supported plugins (`react`, `react-hooks`, `next`), you can directly change them using the `rules` property in your `.eslintrc`:
 
-```js
+```json
 {
   "extends": "next",
   "rules": {
     "react/no-unescaped-entities": "off",
-    "@next/next/no-page-custom-font": "off",
+    "@next/next/no-page-custom-font": "off"
   }
 }
 ```
@@ -143,23 +143,23 @@ If you would like to modify or disable any rules provided by the supported plugi
 
 ### Core Web Vitals
 
-The `next/core-web-vitals` rule set is enabled when `next lint` is run for the first time and the recommended option is selected.
+The `next/core-web-vitals` rule set is enabled when `next lint` is run for the first time and the **strict** option is selected.
 
-```js
+```json
 {
-  "extends": ["next", "next/core-web-vitals"]
+  "extends": "next/core-web-vitals"
 }
 ```
 
 `next/core-web-vitals` updates `eslint-plugin-next` to error on a number of rules that are warnings by default if they affect [Core Web Vitals](https://web.dev/vitals/).
 
-> Both `next` and `next/core-web-vitals` entry points are automatically included for new applications built with [Create Next App](/docs/api-reference/create-next-app.md).
+> The `next/core-web-vitals` entry point is automatically included for new applications built with [Create Next App](/docs/api-reference/create-next-app.md).
 
 ## Usage with Prettier
 
 ESLint also contains code formatting rules, which can conflict with your existing [Prettier](https://prettier.io/) setup. We recommend including [eslint-config-prettier](https://github.com/prettier/eslint-config-prettier) in your ESLint config to make ESLint and Prettier work together.
 
-```js
+```json
 {
   "extends": ["next", "prettier"]
 }

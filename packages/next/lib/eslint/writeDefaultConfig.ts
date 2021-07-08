@@ -59,7 +59,7 @@ export async function writeDefaultConfig(
       chalk.green(
         `We created the ${chalk.bold(
           '.eslintrc.json'
-        )} file for you and included the base Next.js ESLint configuration.`
+        )} file for you and included your selected configuration.`
       )
     )
   }

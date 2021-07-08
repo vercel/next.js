@@ -31,7 +31,11 @@ const requiredPackages = [
 
 async function cliPrompt() {
   console.log(
-    chalk.bold(`${chalk.cyan('?')} How would you like to configure ESLint?`)
+    chalk.bold(
+      `${chalk.cyan(
+        '?'
+      )} How would you like to configure ESLint? https://nextjs.org/docs/basic-features/eslint`
+    )
   )
 
   try {

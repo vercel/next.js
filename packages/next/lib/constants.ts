@@ -60,14 +60,14 @@ export const ESLINT_DEFAULT_DIRS = [
 
 export const ESLINT_PROMPT_VALUES = [
   {
-    title: 'Base configuration + Core Web Vitals rule-set',
+    title: 'Strict',
     recommended: true,
     config: {
-      extends: ['next', 'next/core-web-vitals'],
+      extends: 'next/core-web-vitals',
     },
   },
   {
-    title: 'Base configuration',
+    title: 'Base',
     config: {
       extends: 'next',
     },
