@@ -652,6 +652,26 @@ const runTests = (isDev = false) => {
     expect(res.headers.get('refresh')).toBe(`0;url=/`)
   })
 
+  it('should have correctly encoded query in location and refresh headers', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      // Query unencoded is ?テスト=あ
+      '/redirect4?%E3%83%86%E3%82%B9%E3%83%88=%E3%81%82',
+      undefined,
+      {
+        redirect: 'manual',
+      }
+    )
+    expect(res.status).toBe(308)
+
+    expect(res.headers.get('location').split('?')[1]).toBe(
+      '%E3%83%86%E3%82%B9%E3%83%88=%E3%81%82'
+    )
+    expect(res.headers.get('refresh')).toBe(
+      '0;url=/?%E3%83%86%E3%82%B9%E3%83%88=%E3%81%82'
+    )
+  })
+
   it('should handle basic api rewrite successfully', async () => {
     const data = await renderViaHTTP(appPort, '/api-hello')
     expect(JSON.parse(data)).toEqual({ query: {} })

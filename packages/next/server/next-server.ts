@@ -860,13 +860,26 @@ export default class Server {
     // we need to re-encode them here but still allow passing through
     // values from rewrites/redirects
     const stringifyQuery = (req: IncomingMessage, query: ParsedUrlQuery) => {
-      const initialQueryValues = Object.values((req as any).__NEXT_INIT_QUERY)
+      const initialQuery = (req as any).__NEXT_INIT_QUERY
+      const initialQueryValues: Array<string | string[]> = Object.values(
+        initialQuery
+      )
 
       return stringifyQs(query, undefined, undefined, {
         encodeURIComponent(value) {
-          if (initialQueryValues.some((val) => val === value)) {
+          const queryContainsValue = (queryVal: string | string[]) =>
+            Array.isArray(queryVal)
+              ? queryVal.includes(value)
+              : queryVal === value
+
+          if (
+            value in initialQuery ||
+            initialQueryValues.some(queryContainsValue)
+          ) {
+            // Encode keys and values from initial query
             return encodeURIComponent(value)
           }
+
           return value
         },
       })
