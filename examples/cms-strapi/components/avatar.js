@@ -1,21 +1,20 @@
 import Image from 'next/image'
+import { getStrapiMedia } from '../lib/media'
 
 export default function Avatar({ name, picture }) {
-  const url = picture.url ?? picture[0].url
+  const fullUrl = getStrapiMedia(picture)
 
   return (
-    <div className="flex items-center">
-      <div className="w-12 h-12 relative mr-4">
-        <Image
-          src={`${
-            url.startsWith('/') ? process.env.NEXT_PUBLIC_STRAPI_API_URL : ''
-          }${url}`}
-          layout="fill"
-          className="rounded-full"
-          alt={name}
-        />
-      </div>
-      <div className="text-xl font-bold">{name}</div>
+    <div className="flex items-center ">
+      <Image
+        src={fullUrl}
+        layout="fixed"
+        width={48}
+        height={48}
+        alt={name}
+        className="rounded-full grayscale"
+      />
+      <div className="text-xl font-bold ml-4">{name}</div>
     </div>
   )
 }

@@ -61,11 +61,15 @@ export async function getAllPostsForHome(preview) {
         date
         coverImage {
           url
+          width
+          height
         }
         author {
           name
           picture {
             url
+            width
+            height
           }
         }
       }
@@ -96,11 +100,15 @@ export async function getPostAndMorePosts(slug, preview) {
       }
       coverImage {
         url
+        width
+        height
       }
       author {
         name
         picture {
           url
+          width
+          height
         }
       }
     }
@@ -112,11 +120,15 @@ export async function getPostAndMorePosts(slug, preview) {
       date
       coverImage {
         url
+        width
+        height
       }
       author {
         name
         picture {
           url
+          width
+          height
         }
       }
     }

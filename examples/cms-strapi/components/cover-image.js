@@ -1,31 +1,27 @@
-import cn from 'classnames'
 import Image from 'next/image'
 import Link from 'next/link'
+import { getStrapiMedia } from '../lib/media'
 
-export default function CoverImage({ title, url, slug }) {
-  const imageUrl = `${
-    url.startsWith('/') ? process.env.NEXT_PUBLIC_STRAPI_API_URL : ''
-  }${url}`
+export default function CoverImage({ title, image, slug }) {
+  const fullUrl = getStrapiMedia(image)
 
-  const image = (
-    <Image
-      width={2000}
-      height={1000}
-      alt={`Cover Image for ${title}`}
-      src={imageUrl}
-      className={cn('shadow-small', {
-        'hover:shadow-medium transition-shadow duration-200': slug,
-      })}
-    />
-  )
   return (
     <div className="sm:mx-0">
       {slug ? (
-        <Link href={slug}>
-          <a aria-label={title}>{image}</a>
+        <Link as={`/posts/${slug}`} href="/posts/[slug]">
+          <a aria-label={title}>
+            <Image
+              src={fullUrl}
+              layout="responsive"
+              objectFit="contain"
+              width={image.width}
+              height={image.height}
+              alt={`Cover Image for ${title}`}
+            />
+          </a>
         </Link>
       ) : (
-        image
+        <img src={fullUrl} alt={title} />
       )}
     </div>
   )
