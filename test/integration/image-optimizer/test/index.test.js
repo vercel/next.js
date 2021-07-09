@@ -932,4 +932,26 @@ describe('Image Optimizer', () => {
       await expectWidth(res, 64)
     })
   })
+
+  describe('dev support for dynamic blur placeholder', () => {
+    const size = 8
+    beforeAll(async () => {
+      const json = JSON.stringify({
+        images: {
+          deviceSizes: [largeSize],
+          imageSizes: [],
+        },
+      })
+      nextConfig.replace('{ /* replaceme */ }', json)
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort)
+    })
+    afterAll(async () => {
+      await killApp(app)
+      nextConfig.restore()
+      await fs.remove(imagesDir)
+    })
+
+    runTests({ w: size, isDev: true })
+  })
 })

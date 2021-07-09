@@ -1034,6 +1034,8 @@ export default async function getBaseWebpackConfig(
                 dependency: { not: ['url'] },
                 options: {
                   isServer,
+                  isDev: dev,
+                  configImageSizes: config.images.imageSizes,
                 },
               },
             ]

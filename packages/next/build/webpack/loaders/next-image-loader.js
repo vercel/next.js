@@ -9,7 +9,7 @@ const VALID_BLUR_EXT = ['jpeg', 'png', 'webp']
 function nextImageLoader(content) {
   const imageLoaderSpan = this.currentTraceSpan.traceChild('next-image-loader')
   return imageLoaderSpan.traceAsyncFn(async () => {
-    const isServer = loaderUtils.getOptions(this).isServer
+    const { isServer, isDev } = loaderUtils.getOptions(this)
     const context = this.rootContext
     const opts = { context, content }
     const interpolatedName = loaderUtils.interpolateName(
@@ -17,6 +17,7 @@ function nextImageLoader(content) {
       '/static/image/[path][name].[hash].[ext]',
       opts
     )
+    const outputPath = '/_next' + interpolatedName
 
     let extension = loaderUtils.interpolateName(this, '[ext]', opts)
     if (extension === 'jpg') {
@@ -26,7 +27,15 @@ function nextImageLoader(content) {
     const imageSizeSpan = imageLoaderSpan.traceChild('image-size-calculation')
     const imageSize = imageSizeSpan.traceFn(() => sizeOf(content))
     let blurDataURL
-    if (VALID_BLUR_EXT.includes(extension)) {
+
+    if (isDev) {
+      const prefix = 'http://localhost'
+      const url = new URL('/_next/image', prefix)
+      url.searchParams.set('url', outputPath)
+      url.searchParams.set('w', BLUR_IMG_SIZE)
+      url.searchParams.set('q', BLUR_QUALITY)
+      blurDataURL = url.href.slice(prefix.length)
+    } else if (VALID_BLUR_EXT.includes(extension)) {
       // Shrink the image's largest dimension
       const resizeOperationOpts =
         imageSize.width >= imageSize.height
@@ -50,7 +59,7 @@ function nextImageLoader(content) {
       .traceChild('image-data-stringify')
       .traceFn(() =>
         JSON.stringify({
-          src: '/_next' + interpolatedName,
+          src: outputPath,
           height: imageSize.height,
           width: imageSize.width,
           blurDataURL,
