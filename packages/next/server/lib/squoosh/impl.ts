@@ -1,90 +1,44 @@
-import { codecs as supportedFormats, preprocessors } from './codecs'
-import ImageData from './image_data'
+import sharp from 'sharp'
 
 export async function decodeBuffer(
-  _buffer: Buffer | Uint8Array
-): Promise<ImageData> {
-  const buffer = Buffer.from(_buffer)
-  const firstChunk = buffer.slice(0, 16)
-  const firstChunkString = Array.from(firstChunk)
-    .map((v) => String.fromCodePoint(v))
-    .join('')
-  const key = Object.entries(supportedFormats).find(([, { detectors }]) =>
-    detectors.some((detector) => detector.exec(firstChunkString))
-  )?.[0] as keyof typeof supportedFormats
-  if (!key) {
-    throw Error(`Buffer has an unsupported format`)
-  }
-  const d = await supportedFormats[key].dec()
-  return d.decode(new Uint8Array(buffer))
+  buffer: Buffer
+): Promise<{ width?: number; height?: number }> {
+  const { width, height } = await sharp(buffer).metadata()
+  return { width, height }
 }
 
 export async function rotate(
-  image: ImageData,
+  image: Buffer,
   numRotations: number
-): Promise<ImageData> {
-  image = ImageData.from(image)
-
-  const m = await preprocessors['rotate'].instantiate()
-  return await m(image.data, image.width, image.height, { numRotations })
+): Promise<Buffer> {
+  return sharp(image)
+    .rotate(numRotations * 90)
+    .toBuffer()
 }
 
-type ResizeOpts = { image: ImageData } & (
+type ResizeOpts = { image: Buffer } & (
   | { width: number; height?: never }
   | { height: number; width?: never }
 )
 
 export async function resize({ image, width, height }: ResizeOpts) {
-  image = ImageData.from(image)
-
-  const p = preprocessors['resize']
-  const m = await p.instantiate()
-  return await m(image.data, image.width, image.height, {
-    ...p.defaultOptions,
-    width,
-    height,
-  })
+  return sharp(image).resize(width, height).toBuffer()
 }
 
 export async function encodeJpeg(
-  image: ImageData,
+  image: Buffer,
   { quality }: { quality: number }
-): Promise<Buffer | Uint8Array> {
-  image = ImageData.from(image)
-
-  const e = supportedFormats['mozjpeg']
-  const m = await e.enc()
-  const r = await m.encode!(image.data, image.width, image.height, {
-    ...e.defaultEncoderOptions,
-    quality,
-  })
-  return Buffer.from(r)
+): Promise<Buffer> {
+  return sharp(image).jpeg({ quality }).toBuffer()
 }
 
 export async function encodeWebp(
-  image: ImageData,
+  image: Buffer,
   { quality }: { quality: number }
-): Promise<Buffer | Uint8Array> {
-  image = ImageData.from(image)
-
-  const e = supportedFormats['webp']
-  const m = await e.enc()
-  const r = await m.encode!(image.data, image.width, image.height, {
-    ...e.defaultEncoderOptions,
-    quality,
-  })
-  return Buffer.from(r)
+): Promise<Buffer> {
+  return sharp(image).webp({ quality }).toBuffer()
 }
 
-export async function encodePng(
-  image: ImageData
-): Promise<Buffer | Uint8Array> {
-  image = ImageData.from(image)
-
-  const e = supportedFormats['oxipng']
-  const m = await e.enc()
-  const r = await m.encode(image.data, image.width, image.height, {
-    ...e.defaultEncoderOptions,
-  })
-  return Buffer.from(r)
+export async function encodePng(image: Buffer): Promise<Buffer | Uint8Array> {
+  return sharp(image).png().toBuffer()
 }

@@ -2,6 +2,7 @@ import { Worker } from 'jest-worker'
 import * as path from 'path'
 import { execOnce } from '../../../shared/lib/utils'
 import { cpus } from 'os'
+import * as worker from './impl'
 
 type RotateOperation = {
   type: 'rotate'
@@ -25,31 +26,25 @@ const getWorker = execOnce(
 )
 
 export async function processBuffer(
-  buffer: Buffer,
+  imageData: Buffer,
   operations: Operation[],
   encoding: Encoding,
   quality: number
 ): Promise<Buffer> {
-  const worker: typeof import('./impl') = getWorker() as any
-
-  let imageData = await worker.decodeBuffer(buffer)
+  let meta = await worker.decodeBuffer(imageData)
   for (const operation of operations) {
     if (operation.type === 'rotate') {
       imageData = await worker.rotate(imageData, operation.numRotations)
     } else if (operation.type === 'resize') {
-      if (
-        operation.width &&
-        imageData.width &&
-        imageData.width > operation.width
-      ) {
+      if (operation.width && meta.width && meta.width > operation.width) {
         imageData = await worker.resize({
           image: imageData,
           width: operation.width,
         })
       } else if (
         operation.height &&
-        imageData.height &&
-        imageData.height > operation.height
+        meta.height &&
+        meta.height > operation.height
       ) {
         imageData = await worker.resize({
           image: imageData,
