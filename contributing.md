@@ -93,6 +93,14 @@ EXAMPLE=./test/integration/basic
 
 ## Running your own app with locally compiled version of Next.js
 
+1. Move your app inside of the Next.js monorepo.
+
+2. Run with `yarn next-with-deps ./app-path-in-monorepo`
+
+This will use the version of `next` built inside of the Next.js monorepo and the main `yarn dev` monorepo command can be running to make changes to the local Next.js version at the same time (some changes might require re-running `yarn next-with-deps` to take affect).
+
+or
+
 1. In your app's `package.json`, replace:
 
    ```json
