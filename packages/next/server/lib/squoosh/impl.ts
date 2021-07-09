@@ -2,8 +2,10 @@ import semver from 'next/dist/compiled/semver'
 import { codecs as supportedFormats, preprocessors } from './codecs'
 import ImageData from './image_data'
 
+// Broken in 9.1.269 so hopefully fixed in 9.2.0 :fingerscrossed:
+// See https://crbug.com/1224882
+const V8_FIXED_VERSION = '9.2.0'
 const DELAY_MS = 100
-const V8_FIXED_VERSION = '9.2.0' // assumption that its broken in 9.1.269 so hopefully fixed in 9.2.0
 let _promise: Promise<void> | undefined
 
 function delayOnce(ms: number): Promise<void> {
