@@ -32,11 +32,11 @@ const loaders = new Map<
   LoaderValue,
   (props: DefaultImageLoaderProps) => string
 >([
+  ['default', defaultLoader],
   ['imgix', imgixLoader],
   ['cloudinary', cloudinaryLoader],
   ['akamai', akamaiLoader],
-  ['default', defaultLoader],
-  ['dangerously-unoptimized', unoptimizedLoader],
+  ['custom', customLoader],
 ])
 
 const VALID_LAYOUT_VALUES = [
@@ -338,6 +338,17 @@ export default function Image({
   const heightInt = getInt(height)
   const qualityInt = getInt(quality)
 
+  let isLazy =
+    !priority && (loading === 'lazy' || typeof loading === 'undefined')
+  if (src.startsWith('data:')) {
+    // https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
+    unoptimized = true
+    isLazy = false
+  }
+  if (typeof window !== 'undefined' && loadedImageURLs.has(src)) {
+    isLazy = false
+  }
+
   if (process.env.NODE_ENV !== 'production') {
     if (!src) {
       throw new Error(
@@ -404,16 +415,16 @@ export default function Image({
         `Image with src "${src}" is using unsupported "ref" property. Consider using the "onLoadingComplete" property instead.`
       )
     }
-  }
-  let isLazy =
-    !priority && (loading === 'lazy' || typeof loading === 'undefined')
-  if (src && src.startsWith('data:')) {
-    // https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
-    unoptimized = true
-    isLazy = false
-  }
-  if (src && typeof window !== 'undefined' && loadedImageURLs.has(src)) {
-    isLazy = false
+    const rand = Math.floor(Math.random() * 1000) + 100
+    if (
+      !unoptimized &&
+      !loader({ src, width: rand, quality: 75 }).includes(rand.toString())
+    ) {
+      console.warn(
+        `Image with src "${src}" has a "loader" property that does not implement width. Please implement it or use the "unoptimized" property instead.` +
+          `\nRead more: https://nextjs.org/docs/messages/next-image-missing-loader-width`
+      )
+    }
   }
 
   const [setRef, isIntersected] = useIntersection<HTMLImageElement>({
@@ -626,8 +637,6 @@ export default function Image({
   )
 }
 
-//BUILT IN LOADERS
-
 function normalizeSrc(src: string): string {
   return src[0] === '/' ? src.slice(1) : src
 }
@@ -669,8 +678,11 @@ function cloudinaryLoader({
   return `${root}${paramsString}${normalizeSrc(src)}`
 }
 
-function unoptimizedLoader({ src }: DefaultImageLoaderProps): string {
-  return src
+function customLoader({ src }: DefaultImageLoaderProps): string {
+  throw new Error(
+    `Image with src "${src}" is missing "loader" prop.` +
+      `\nRead more: https://nextjs.org/docs/messages/next-image-missing-loader`
+  )
 }
 
 function defaultLoader({

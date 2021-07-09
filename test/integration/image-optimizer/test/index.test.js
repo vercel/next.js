@@ -9,6 +9,7 @@ import {
   launchApp,
   nextBuild,
   nextStart,
+  renderViaHTTP,
   waitFor,
 } from 'next-test-utils'
 import isAnimated from 'next/dist/compiled/is-animated'
@@ -730,7 +731,34 @@ describe('Image Optimizer', () => {
       await nextConfig.restore()
 
       expect(stderr).toContain(
-        'Specified images.loader should be one of (default, imgix, cloudinary, akamai, dangerously-unoptimized), received invalid value (notreal)'
+        'Specified images.loader should be one of (default, imgix, cloudinary, akamai, custom), received invalid value (notreal)'
+      )
+    })
+
+    it('should error when loader=custom but loader prop is undefined', async () => {
+      await nextConfig.replace(
+        '{ /* replaceme */ }',
+        JSON.stringify({
+          images: {
+            loader: 'custom',
+          },
+        })
+      )
+      let output = ''
+      const appPort = await findPort()
+      app = await launchApp(appDir, appPort, {
+        onStderr(msg) {
+          output += msg || ''
+        },
+        onStdout(msg) {
+          output += msg || ''
+        },
+      })
+      await renderViaHTTP(appPort, '/', {})
+      await killApp(app).catch(() => {})
+      await nextConfig.restore()
+      expect(output).toMatch(
+        /Error: Image with src "(.+)" is missing "loader" prop/
       )
     })
   })
