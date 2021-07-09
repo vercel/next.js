@@ -934,7 +934,6 @@ describe('Image Optimizer', () => {
   })
 
   describe('dev support for dynamic blur placeholder', () => {
-    const size = 8
     beforeAll(async () => {
       const json = JSON.stringify({
         images: {
@@ -952,6 +951,12 @@ describe('Image Optimizer', () => {
       await fs.remove(imagesDir)
     })
 
-    runTests({ w: size, isDev: true })
+    it('should support width 8 per BLUR_IMG_SIZE with next dev', async () => {
+      const query = { url: '/test.png', w: 8, q: 70 }
+      const opts = { headers: { accept: 'image/webp' } }
+      const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+      expect(res.status).toBe(200)
+      await expectWidth(res, 8)
+    })
   })
 })
