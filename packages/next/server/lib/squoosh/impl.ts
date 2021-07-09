@@ -1,10 +1,10 @@
 import { codecs as supportedFormats, preprocessors } from './codecs'
-import ImageData from './image_data'
+import ImageData, { ImageDataSerialized } from './image_data'
 
 export async function decodeBuffer(
-  _buffer: Buffer | Uint8Array
-): Promise<ImageData> {
-  const buffer = Buffer.from(_buffer)
+  dataBase64: string
+): Promise<ImageDataSerialized> {
+  const buffer = Buffer.from(dataBase64, 'base64')
   const firstChunk = buffer.slice(0, 16)
   const firstChunkString = Array.from(firstChunk)
     .map((v) => String.fromCodePoint(v))
@@ -16,75 +16,75 @@ export async function decodeBuffer(
     throw Error(`Buffer has an unsupported format`)
   }
   const d = await supportedFormats[key].dec()
-  return d.decode(new Uint8Array(buffer))
+  const obj = d.decode(new Uint8Array(buffer))
+  return new ImageDataSerialized(obj)
 }
 
 export async function rotate(
-  image: ImageData,
+  image: ImageDataSerialized,
   numRotations: number
-): Promise<ImageData> {
-  image = ImageData.from(image)
-
+): Promise<ImageDataSerialized> {
+  const data = Buffer.from(image.dataBase64, 'base64')
   const m = await preprocessors['rotate'].instantiate()
-  return await m(image.data, image.width, image.height, { numRotations })
+  const img = await m(data, image.width, image.height, { numRotations })
+  return new ImageDataSerialized(img)
 }
 
-type ResizeOpts = { image: ImageData } & (
+type ResizeOpts = { image: ImageDataSerialized } & (
   | { width: number; height?: never }
   | { height: number; width?: never }
 )
 
-export async function resize({ image, width, height }: ResizeOpts) {
-  image = ImageData.from(image)
-
+export async function resize({
+  image,
+  width,
+  height,
+}: ResizeOpts): Promise<ImageDataSerialized> {
+  const data = Buffer.from(image.dataBase64, 'base64')
   const p = preprocessors['resize']
   const m = await p.instantiate()
-  return await m(image.data, image.width, image.height, {
+  const img = await m(data, image.width, image.height, {
     ...p.defaultOptions,
     width,
     height,
   })
+  return new ImageDataSerialized(img)
 }
 
 export async function encodeJpeg(
-  image: ImageData,
+  image: ImageDataSerialized,
   { quality }: { quality: number }
-): Promise<Buffer | Uint8Array> {
-  image = ImageData.from(image)
-
+): Promise<string> {
+  const data = Buffer.from(image.dataBase64, 'base64')
   const e = supportedFormats['mozjpeg']
   const m = await e.enc()
-  const r = await m.encode!(image.data, image.width, image.height, {
+  const r = await m.encode!(data, image.width, image.height, {
     ...e.defaultEncoderOptions,
     quality,
   })
-  return Buffer.from(r)
+  return Buffer.from(r).toString('base64')
 }
 
 export async function encodeWebp(
-  image: ImageData,
+  image: ImageDataSerialized,
   { quality }: { quality: number }
-): Promise<Buffer | Uint8Array> {
-  image = ImageData.from(image)
-
+): Promise<string> {
+  const data = Buffer.from(image.dataBase64, 'base64')
   const e = supportedFormats['webp']
   const m = await e.enc()
-  const r = await m.encode!(image.data, image.width, image.height, {
+  const r = await m.encode!(data, image.width, image.height, {
     ...e.defaultEncoderOptions,
     quality,
   })
-  return Buffer.from(r)
+  return Buffer.from(r).toString('base64')
 }
 
-export async function encodePng(
-  image: ImageData
-): Promise<Buffer | Uint8Array> {
-  image = ImageData.from(image)
-
+export async function encodePng(image: ImageDataSerialized): Promise<string> {
+  const data = Buffer.from(image.dataBase64, 'base64')
   const e = supportedFormats['oxipng']
   const m = await e.enc()
-  const r = await m.encode(image.data, image.width, image.height, {
+  const r = await m.encode(data, image.width, image.height, {
     ...e.defaultEncoderOptions,
   })
-  return Buffer.from(r)
+  return Buffer.from(r).toString('base64')
 }

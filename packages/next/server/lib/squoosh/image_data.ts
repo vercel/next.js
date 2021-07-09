@@ -1,8 +1,4 @@
 export default class ImageData {
-  static from(input: ImageData): ImageData {
-    return new ImageData(input.data || input._data, input.width, input.height)
-  }
-
   private _data: Buffer | Uint8Array | Uint8ClampedArray
   width: number
   height: number
@@ -29,5 +25,17 @@ export default class ImageData {
     this._data = data
     this.width = width
     this.height = height
+  }
+}
+
+export class ImageDataSerialized {
+  public dataBase64: string
+  public width: number
+  public height: number
+
+  constructor(imageData: ImageData) {
+    this.dataBase64 = imageData.data.toString('base64')
+    this.width = imageData.width
+    this.height = imageData.height
   }
 }
