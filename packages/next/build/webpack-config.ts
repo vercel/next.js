@@ -1035,7 +1035,7 @@ export default async function getBaseWebpackConfig(
                 options: {
                   isServer,
                   isDev: dev,
-                  configImageSizes: config.images.imageSizes,
+                  assetPrefix: config.assetPrefix,
                 },
               },
             ]
