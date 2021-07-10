@@ -1100,6 +1100,8 @@ export default async function getBaseWebpackConfig(
                 dependency: { not: ['url'] },
                 options: {
                   isServer,
+                  isDev: dev,
+                  assetPrefix: config.assetPrefix,
                 },
               },
             ]
