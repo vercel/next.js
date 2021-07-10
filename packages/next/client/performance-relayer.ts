@@ -57,6 +57,7 @@ function onReport(metric: Metric): void {
         method: 'POST',
         credentials: 'omit',
         keepalive: true,
+        // console.error is used here as when the fetch fails it does not affect functioning of the app
       }).catch(console.error)
     }
 
