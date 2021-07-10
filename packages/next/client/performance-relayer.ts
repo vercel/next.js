@@ -55,11 +55,15 @@ function onReport(metric: Metric): void {
         method: 'POST',
         credentials: 'omit',
         keepalive: true,
-      })
+      }).catch(console.error)
     }
 
     try {
-      send(vitalsUrl, blob) || fallbackSend()
+      if (send) {
+        send(vitalsUrl, blob)
+      } else {
+        fallbackSend()
+      }
     } catch (err) {
       fallbackSend()
     }
