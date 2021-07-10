@@ -47,6 +47,8 @@ function onReport(metric: Metric): void {
       type: 'application/x-www-form-urlencoded',
     })
     const vitalsUrl = 'https://vitals.vercel-insights.com/v1/vitals'
+    // Navigator has to be bound to ensure it does not error in some browsers
+    // https://xgwang.me/posts/you-may-not-know-beacon/#it-may-throw-error%2C-be-sure-to-catch
     const send = navigator.sendBeacon && navigator.sendBeacon.bind(navigator)
 
     function fallbackSend() {
