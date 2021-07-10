@@ -28,31 +28,33 @@ function nextImageLoader(content) {
     const imageSize = imageSizeSpan.traceFn(() => sizeOf(content))
     let blurDataURL
 
-    if (isDev) {
-      const prefix = 'http://localhost'
-      const url = new URL('/_next/image', prefix)
-      url.searchParams.set('url', assetPrefix + outputPath)
-      url.searchParams.set('w', BLUR_IMG_SIZE)
-      url.searchParams.set('q', BLUR_QUALITY)
-      blurDataURL = url.href.slice(prefix.length)
-    } else if (VALID_BLUR_EXT.includes(extension)) {
-      // Shrink the image's largest dimension
-      const resizeOperationOpts =
-        imageSize.width >= imageSize.height
-          ? { type: 'resize', width: BLUR_IMG_SIZE }
-          : { type: 'resize', height: BLUR_IMG_SIZE }
+    if (VALID_BLUR_EXT.includes(extension)) {
+      if (isDev) {
+        const prefix = 'http://localhost'
+        const url = new URL('/_next/image', prefix)
+        url.searchParams.set('url', assetPrefix + outputPath)
+        url.searchParams.set('w', BLUR_IMG_SIZE)
+        url.searchParams.set('q', BLUR_QUALITY)
+        blurDataURL = url.href.slice(prefix.length)
+      } else {
+        // Shrink the image's largest dimension
+        const resizeOperationOpts =
+          imageSize.width >= imageSize.height
+            ? { type: 'resize', width: BLUR_IMG_SIZE }
+            : { type: 'resize', height: BLUR_IMG_SIZE }
 
-      const resizeImageSpan = imageLoaderSpan.traceChild('image-resize')
-      const resizedImage = await resizeImageSpan.traceAsyncFn(() =>
-        processBuffer(content, [resizeOperationOpts], extension, BLUR_QUALITY)
-      )
-      const blurDataURLSpan = imageLoaderSpan.traceChild(
-        'image-base64-tostring'
-      )
-      blurDataURL = blurDataURLSpan.traceFn(
-        () =>
-          `data:image/${extension};base64,${resizedImage.toString('base64')}`
-      )
+        const resizeImageSpan = imageLoaderSpan.traceChild('image-resize')
+        const resizedImage = await resizeImageSpan.traceAsyncFn(() =>
+          processBuffer(content, [resizeOperationOpts], extension, BLUR_QUALITY)
+        )
+        const blurDataURLSpan = imageLoaderSpan.traceChild(
+          'image-base64-tostring'
+        )
+        blurDataURL = blurDataURLSpan.traceFn(
+          () =>
+            `data:image/${extension};base64,${resizedImage.toString('base64')}`
+        )
+      }
     }
 
     const stringifiedData = imageLoaderSpan
