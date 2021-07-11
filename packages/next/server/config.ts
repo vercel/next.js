@@ -450,7 +450,9 @@ export default async function loadConfig(
           : canonicalBase) || ''
     }
 
-    userConfig.target = process.env.NEXT_PRIVATE_TARGET || 'server'
+    if (process.env.NEXT_PRIVATE_TARGET) {
+      userConfig.target = process.env.NEXT_PRIVATE_TARGET || 'server'
+    }
 
     return assignDefaults({
       configOrigin: CONFIG_FILE,
