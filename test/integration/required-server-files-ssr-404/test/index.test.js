@@ -27,7 +27,7 @@ describe('Required Server Files', () => {
     await fs.remove(join(appDir, '.next'))
     await nextBuild(appDir, undefined, {
       env: {
-        NOW_BUILDER: '1',
+        VERCEL: '1',
       },
     })
 

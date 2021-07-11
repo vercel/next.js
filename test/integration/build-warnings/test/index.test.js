@@ -66,7 +66,7 @@ describe('Build warnings', () => {
 
     const { stdout } = await nextBuild(appDir, undefined, {
       stdout: true,
-      env: { CI: '1', NOW_BUILDER: '1' },
+      env: { CI: '1', VERCEL: '1' },
     })
     expect(stdout).not.toContain('no-cache')
   })
