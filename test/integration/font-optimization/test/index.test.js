@@ -328,4 +328,10 @@ describe('Font Optimization', () => {
       })
     }
   )
+
+  test('Spread operator regression on <link>', async () => {
+    const appDir = join(fixturesDir, 'spread-operator-regression')
+    const { code } = await nextBuild(appDir)
+    expect(code).toBe(0)
+  })
 })
