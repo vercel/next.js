@@ -52,10 +52,7 @@ import {
   isDynamicRoute,
 } from '../shared/lib/router/utils'
 import { __ApiPreviewProps } from '../server/api-utils'
-import loadConfig, {
-  isTargetLikeServerless,
-  NextConfig,
-} from '../server/config'
+import loadConfig, { isTargetLikeServerless } from '../server/config'
 import { BuildManifest } from '../server/get-page-files'
 import '../server/node-polyfill-fetch'
 import { normalizePagePath } from '../server/normalize-page-path'
@@ -91,6 +88,7 @@ import { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
 import { writeBuildId } from './write-build-id'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { isWebpack5 } from 'next/dist/compiled/webpack/webpack'
+import { NextConfigComplete } from '../server/config-shared'
 
 const staticCheckWorker = require.resolve('./utils')
 
@@ -130,7 +128,7 @@ export default async function build(
       .traceChild('load-dotenv')
       .traceFn(() => loadEnvConfig(dir, false, Log))
 
-    const config: NextConfig = await nextBuildSpan
+    const config: NextConfigComplete = await nextBuildSpan
       .traceChild('load-next-config')
       .traceAsyncFn(() => loadConfig(PHASE_PRODUCTION_BUILD, dir, conf))
     const { target } = config
@@ -1527,7 +1525,7 @@ export default async function build(
 
     const images = { ...config.images }
     const { deviceSizes, imageSizes } = images
-    images.sizes = [...deviceSizes, ...imageSizes]
+    ;(images as any).sizes = [...deviceSizes, ...imageSizes]
 
     await promises.writeFile(
       path.join(distDir, IMAGES_MANIFEST),

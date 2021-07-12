@@ -1,6 +1,6 @@
 import os from 'os'
 import { Header, Redirect, Rewrite } from '../lib/load-custom-routes'
-import { imageConfigDefault } from './image-config'
+import { ImageConfig, imageConfigDefault } from './image-config'
 
 export type DomainLocales = Array<{
   http?: true
@@ -9,8 +9,13 @@ export type DomainLocales = Array<{
   defaultLocale: string
 }>
 
+type NoOptionals<T> = {
+  [P in keyof T]-?: T[P]
+}
+
+export type NextConfigComplete = NoOptionals<NextConfig>
+
 export type NextConfig = { [key: string]: any } & {
-  cleanDistDir?: boolean
   i18n?: {
     locales: string[]
     defaultLocale: string
@@ -28,9 +33,35 @@ export type NextConfig = { [key: string]: any } & {
       }
   >
   redirects?: () => Promise<Redirect[]>
-  trailingSlash?: boolean
+
   webpack5?: false
   excludeDefaultMomentLocales?: boolean
+
+  trailingSlash?: boolean
+  env?: { [key: string]: string }
+  distDir?: string
+  cleanDistDir?: boolean
+  assetPrefix?: string
+  useFileSystemPublicRoutes?: boolean
+  generateBuildId: () => string | null
+  generateEtags?: boolean
+  pageExtensions?: string[]
+  compress?: boolean
+  images?: ImageConfig
+  devIndicators?: {
+    buildActivity?: boolean
+  }
+  onDemandEntries?: {
+    maxInactiveAge?: number
+    pagesBufferLength?: number
+  }
+  amp?: {
+    canonicalBase?: string
+  }
+  basePath?: string
+  sassOptions?: { [key: string]: any }
+  productionBrowserSourceMaps?: boolean
+  optimizeFonts?: boolean
 
   future: {
     /**
@@ -67,7 +98,7 @@ export type NextConfig = { [key: string]: any } & {
 }
 
 export const defaultConfig: NextConfig = {
-  env: [],
+  env: {},
   webpack: null,
   webpackDevMiddleware: null,
   distDir: '.next',
@@ -99,6 +130,12 @@ export const defaultConfig: NextConfig = {
   i18n: null,
   productionBrowserSourceMaps: false,
   optimizeFonts: true,
+  webpack5:
+    Number(process.env.NEXT_PRIVATE_TEST_WEBPACK4_MODE) > 0 ? false : undefined,
+  excludeDefaultMomentLocales: true,
+  serverRuntimeConfig: {},
+  publicRuntimeConfig: {},
+  reactStrictMode: false,
   experimental: {
     cpus: Math.max(
       1,
@@ -121,15 +158,9 @@ export const defaultConfig: NextConfig = {
     craCompat: false,
     esmExternals: false,
   },
-  webpack5:
-    Number(process.env.NEXT_PRIVATE_TEST_WEBPACK4_MODE) > 0 ? false : undefined,
-  excludeDefaultMomentLocales: true,
   future: {
     strictPostcssConfiguration: false,
   },
-  serverRuntimeConfig: {},
-  publicRuntimeConfig: {},
-  reactStrictMode: false,
 }
 
 export function normalizeConfig(phase: string, config: any) {
