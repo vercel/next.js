@@ -5,7 +5,6 @@
     "build": "next build",
     "start": "next start"
   },
-  "keywords": [],
   "author": "Kuldeep Keshwar",
   "license": "MIT",
   "dependencies": {

@@ -5,7 +5,6 @@
     "build": "next build",
     "start": "next start"
   },
-  "keywords": [],
   "license": "MIT",
   "dependencies": {
     "@aws-amplify/ui-react": "^1.0.7",
