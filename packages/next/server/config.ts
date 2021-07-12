@@ -450,7 +450,10 @@ export default async function loadConfig(
           : canonicalBase) || ''
     }
 
-    if (process.env.NEXT_PRIVATE_TARGET) {
+    if (
+      process.env.NEXT_PRIVATE_TARGET ||
+      (process.env.VERCEL === '1' && process.env.VERCEL_ENV !== 'development')
+    ) {
       userConfig.target = process.env.NEXT_PRIVATE_TARGET || 'server'
     }
 
