@@ -1,6 +1,5 @@
 {
   "private": true,
-  "author": "Daniel Reinoso <danielreinoso1807@gmail.com>",
   "scripts": {
     "dev": "next",
     "build": "next build",

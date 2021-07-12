@@ -1,6 +1,5 @@
 {
   "private": true,
-  "author": "Asten Mies",
   "license": "MIT",
   "scripts": {
     "dev": "next",

@@ -1,6 +1,5 @@
 {
   "private": true,
-  "author": "Adem ilter <ademilter@gmail.com>",
   "license": "MIT",
   "scripts": {
     "dev": "next dev",

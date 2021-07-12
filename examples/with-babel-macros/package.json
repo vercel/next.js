@@ -11,7 +11,6 @@
     "react": "^17.0.2",
     "react-dom": "^17.0.2"
   },
-  "author": "Kent C. Dodds <kent@doddsfamily.us> (http://kentcdodds.com/)",
   "license": "MIT",
   "devDependencies": {
     "babel-plugin-macros": "^2.4.2",

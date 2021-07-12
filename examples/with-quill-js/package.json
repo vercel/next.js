@@ -1,6 +1,5 @@
 {
   "private": true,
-  "author": "Arya Sadeghi",
   "license": "MIT",
   "scripts": {
     "dev": "next",

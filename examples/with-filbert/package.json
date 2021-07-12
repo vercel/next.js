@@ -5,7 +5,6 @@
     "build": "next build",
     "start": "next start"
   },
-  "author": "Kuldeep Keshwar",
   "license": "MIT",
   "dependencies": {
     "@filbert-js/core": "latest",

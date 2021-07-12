@@ -1,7 +1,6 @@
 {
   "private": true,
   "license": "MIT",
-  "author": "Jag Reehal",
   "scripts": {
     "dev": "next",
     "build": "next build",

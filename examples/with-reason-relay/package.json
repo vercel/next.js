@@ -9,7 +9,6 @@
     "relay": "reason-relay-compiler",
     "schema": "graphql get-schema -e dev"
   },
-  "author": "arnarkari93@gmail.com",
   "license": "MIT",
   "dependencies": {
     "bs-fetch": "0.5.2",

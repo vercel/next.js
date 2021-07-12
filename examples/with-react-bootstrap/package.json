@@ -1,6 +1,5 @@
 {
   "private": true,
-  "author": "Wenzhi Li",
   "license": "MIT",
   "scripts": {
     "dev": "next dev",
