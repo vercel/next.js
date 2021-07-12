@@ -62,7 +62,8 @@ function onReport(metric: Metric): void {
     }
 
     try {
-     send!(vitalsUrl, blob)
+      // If send is undefined it'll throw as well. This reduces output code size.
+      send!(vitalsUrl, blob)
     } catch (err) {
       fallbackSend()
     }
