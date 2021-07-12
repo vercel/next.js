@@ -5,7 +5,6 @@
     "build": "next build",
     "start": "next start"
   },
-  "license": "MIT",
   "dependencies": {
     "@cerebral/react": "^2.1.0",
     "cerebral": "^3.1.0",

@@ -1,6 +1,5 @@
 {
   "private": true,
-  "license": "MIT",
   "scripts": {
     "codegen": "graphql-let",
     "dev": "yarn codegen && next",

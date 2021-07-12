@@ -7,7 +7,6 @@
     "build": "bsb -clean-world -make-world && next build",
     "start": "next start"
   },
-  "license": "MIT",
   "dependencies": {
     "next": "latest",
     "next-transpile-modules": "^7.3.0",

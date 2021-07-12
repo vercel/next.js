@@ -13,7 +13,6 @@
     "react": "^17.0.2",
     "react-dom": "^17.0.2"
   },
-  "license": "MIT",
   "devDependencies": {
     "@babel/core": "^7.12.3",
     "@storybook/addon-actions": "^6.1.11",

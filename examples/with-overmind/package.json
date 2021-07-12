@@ -5,7 +5,6 @@
     "build": "next build",
     "start": "next start"
   },
-  "license": "MIT",
   "dependencies": {
     "next": "latest",
     "overmind": "^17.0.0-1551262265873",

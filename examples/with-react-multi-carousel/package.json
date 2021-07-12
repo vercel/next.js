@@ -5,7 +5,6 @@
     "build": "next build",
     "start": "next start"
   },
-  "license": "MIT",
   "dependencies": {
     "@material-ui/core": "^3.9.2",
     "@material-ui/icons": "^3.0.2",

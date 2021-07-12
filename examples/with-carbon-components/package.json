@@ -5,7 +5,6 @@
     "build": "next build",
     "start": "next start"
   },
-  "license": "MIT",
   "dependencies": {
     "@carbon/icons-react": "^10.3.0",
     "carbon-components": "^10.3.0",

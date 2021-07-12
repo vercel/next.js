@@ -1,6 +1,5 @@
 {
   "private": true,
-  "license": "MIT",
   "main": "main/index.js",
   "productName": "ElectronTypescriptNext",
   "scripts": {

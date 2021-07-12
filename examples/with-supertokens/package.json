@@ -12,7 +12,6 @@
     "supertokens-auth-react": "^0.15.0",
     "supertokens-node": "^6.0.0"
   },
-  "license": "MIT",
   "devDependencies": {
     "eslint-config-next": "11.0.1"
   }

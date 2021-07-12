@@ -5,7 +5,6 @@
     "build": "next build",
     "start": "next start"
   },
-  "license": "MIT",
   "dependencies": {
     "@auth0/nextjs-auth0": "^1.4.2",
     "next": "latest",

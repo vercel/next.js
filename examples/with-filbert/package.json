@@ -5,7 +5,6 @@
     "build": "next build",
     "start": "next start"
   },
-  "license": "MIT",
   "dependencies": {
     "@filbert-js/core": "latest",
     "@filbert-js/macro": "latest",
