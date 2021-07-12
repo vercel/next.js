@@ -1,6 +1,7 @@
 /* eslint-env jest */
 
-import { join } from 'path'
+import fs from 'fs-extra'
+import { join, sep } from 'path'
 import webdriver from 'next-webdriver'
 import {
   findPort,
@@ -72,6 +73,55 @@ describe('Prerender native module', () => {
       app = await nextStart(appDir, appPort, { cwd: appDir })
     })
     afterAll(() => killApp(app))
+
+    it('should output traces', async () => {
+      const checks = [
+        {
+          page: '/_app',
+          tests: [
+            /\.next\/server\/webpack-runtime\.js/,
+            /node_modules\/react\/index\.js/,
+            /node_modules\/react\/package\.json/,
+            /node_modules\/react\/cjs\/react\.production\.min\.js/,
+          ],
+          notTests: [/node_modules\/react\/cjs\/react\.development\.js/],
+        },
+        {
+          page: '/blog/[slug]',
+          tests: [
+            /\.next\/server\/webpack-runtime\.js/,
+            /\.next\/server\/chunks\/.*?\.js/,
+            /node_modules\/react\/index\.js/,
+            /node_modules\/react\/package\.json/,
+            /node_modules\/react\/cjs\/react\.production\.min\.js/,
+            /node_modules\/sqlite3\/.*?\.js/,
+            /node_modules\/sqlite3\/.*?\.node/,
+            /node_modules\/sqlite\/.*?\.js/,
+            /prerender-native-module\/data\.sqlite/,
+          ],
+          notTests: [/node_modules\/react\/cjs\/react\.development\.js/],
+        },
+      ]
+
+      for (const check of checks) {
+        const contents = await fs.readFile(
+          join(appDir, '.next/server/pages/', check.page + '.nft.json'),
+          'utf8'
+        )
+        const { version, files } = JSON.parse(contents)
+        expect(version).toBe(1)
+
+        expect(
+          check.tests.every((item) => files.some((file) => item.test(file)))
+        ).toBe(true)
+
+        if (sep === '/') {
+          expect(
+            check.notTests.some((item) => files.some((file) => item.test(file)))
+          ).toBe(false)
+        }
+      }
+    })
 
     runTests()
   })

@@ -27,31 +27,20 @@ function getModuleFromDependency(
 export class TraceEntryPointsPlugin implements webpack.Plugin {
   private appDir: string
   private entryTraces: Map<string, string[]>
-  private entryModMap: Map<string, any>
-  private entryNameMap: Map<string, string>
 
   constructor({ appDir }: { appDir: string }) {
     this.appDir = appDir
     this.entryTraces = new Map()
-    this.entryModMap = new Map()
-    this.entryNameMap = new Map()
   }
 
   // Here we output all traced assets and webpack chunks to a
   // ${page}.nft.json file
   createTraceAssets(compilation: any, assets: any) {
-    const namePathMap = new Map<string, string>()
-
-    this.entryNameMap.forEach((value, key) => {
-      namePathMap.set(value, key)
-    })
     const outputPath = compilation.outputOptions.path
 
     for (const entrypoint of compilation.entrypoints.values()) {
       const entryFiles = new Set<string>()
 
-      // TODO: use this to collect all modules for tracing/accessing
-      // transpiled source also
       for (const chunk of entrypoint
         .getEntrypointChunk()
         .getAllReferencedChunks()) {
@@ -109,6 +98,12 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
       compilation.hooks.finishModules.tapAsync(
         PLUGIN_NAME,
         async (_stats: any, callback: any) => {
+          // we create entry -> module maps so that we can
+          // look them up faster instead of having to iterate
+          // over the compilation modules list
+          const entryNameMap = new Map<string, string>()
+          const entryModMap = new Map<string, any>()
+
           try {
             const depModMap = new Map<string, any>()
 
@@ -122,8 +117,8 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
                 )
 
                 if (entryMod.resource) {
-                  this.entryNameMap.set(entryMod.resource, name)
-                  this.entryModMap.set(entryMod.resource, entryMod)
+                  entryNameMap.set(entryMod.resource, name)
+                  entryModMap.set(entryMod.resource, entryMod)
                 }
               }
             })
@@ -131,7 +126,7 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
             // TODO: investigate allowing non-sync fs calls in node-file-trace
             // for better performance
             const readFile = (path: string) => {
-              const mod = depModMap.get(path) || this.entryModMap.get(path)
+              const mod = depModMap.get(path) || entryModMap.get(path)
 
               // map the transpiled source when available to avoid
               // parse errors in node-file-trace
@@ -176,20 +171,22 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
             }
 
             const nftCache = {}
-            const entryPaths = Array.from(this.entryModMap.keys())
+            const entryPaths = Array.from(entryModMap.keys())
 
             for (const entry of entryPaths) {
               depModMap.clear()
-              const entryMod = this.entryModMap.get(entry)
-
-              // TODO: consider trace version for whether to use the cache
-              // or not
+              const entryMod = entryModMap.get(entry)
               const cachedTraces = entryMod.buildInfo?.cachedNextEntryTrace
 
-              if (isWebpack5 && cachedTraces) {
+              // Use cached trace if available and trace version matches
+              if (
+                isWebpack5 &&
+                cachedTraces &&
+                cachedTraces.version === TRACE_OUTPUT_VERSION
+              ) {
                 this.entryTraces.set(
-                  this.entryNameMap.get(entry)!,
-                  cachedTraces
+                  entryNameMap.get(entry)!,
+                  cachedTraces.tracedDeps
                 )
                 continue
               }
@@ -224,8 +221,11 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
                 tracedDeps.push(nodePath.join(root, file))
               }
 
-              entryMod.buildInfo.cachedNextEntryTrace = tracedDeps
-              this.entryTraces.set(this.entryNameMap.get(entry)!, tracedDeps)
+              entryMod.buildInfo.cachedNextEntryTrace = {
+                version: TRACE_OUTPUT_VERSION,
+                tracedDeps,
+              }
+              this.entryTraces.set(entryNameMap.get(entry)!, tracedDeps)
             }
 
             callback()
