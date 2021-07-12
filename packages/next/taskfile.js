@@ -436,7 +436,13 @@ externals['postcss-loader'] = 'next/dist/compiled/postcss-loader'
 export async function ncc_postcss_loader(task, opts) {
   await task
     .source(opts.src || relative(__dirname, require.resolve('postcss-loader')))
-    .ncc({ packageName: 'postcss-loader', externals })
+    .ncc({
+      packageName: 'postcss-loader',
+      externals: {
+        ...externals,
+        'schema-utils': 'next/dist/compiled/schema-utils3',
+      },
+    })
     .target('compiled/postcss-loader')
 }
 // eslint-disable-next-line camelcase
@@ -688,7 +694,7 @@ export async function ncc_webpack_bundle5(task, opts) {
 }
 
 const webpackBundlePackages = {
-  webpack: 'next/dist/compiled/webpack/webpack',
+  webpack: 'next/dist/compiled/webpack/webpack-lib',
 }
 
 Object.assign(externals, webpackBundlePackages)

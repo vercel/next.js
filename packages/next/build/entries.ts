@@ -58,7 +58,7 @@ export type WebpackEntrypoints = {
     | string[]
     | {
         import: string | string[]
-        dependOn: string | string[]
+        dependOn?: string | string[]
       }
 }
 
