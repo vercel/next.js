@@ -68,7 +68,7 @@ export async function getServerSideProps({ req, res }) {
 }
 ```
 
-**Note:** Your deployment provider must support edge caching for dynamic responses. If you are self-hosting, you will need to add this logic to the edge yourself using a key/value store. If you are using Vercel, [edge caching works without configuration](https://vercel.com/docs/edge-network/caching).
+> **Note:** Your deployment provider must support edge caching for dynamic responses. If you are self-hosting, you will need to add this logic to the edge yourself using a key/value store. If you are using Vercel, [edge caching works without configuration](https://vercel.com/docs/edge-network/caching).
 
 ## Reducing JavaScript Size
 
