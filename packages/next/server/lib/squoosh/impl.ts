@@ -2,10 +2,12 @@ import semver from 'next/dist/compiled/semver'
 import { codecs as supportedFormats, preprocessors } from './codecs'
 import ImageData from './image_data'
 
-// Broken in 9.1.269 so hopefully fixed in 9.2.0 :fingerscrossed:
-// See https://crbug.com/1224882
-const V8_FIXED_VERSION = '9.2.0'
-const DELAY_MS = 100
+// Fixed in Node.js 16.5.0 and newer.
+// See https://github.com/nodejs/node/pull/39337
+// Eventually, remove this delay when engines is updated.
+// See https://git.io/JCTr0
+const FIXED_VERSION = '16.5.0'
+const DELAY_MS = 1000
 let _promise: Promise<void> | undefined
 
 function delayOnce(ms: number): Promise<void> {
@@ -19,9 +21,7 @@ function delayOnce(ms: number): Promise<void> {
 
 function maybeDelay(): Promise<void> {
   const isAppleM1 = process.arch === 'arm64' && process.platform === 'darwin'
-  const [major, minor, patch] = process.versions.v8.split('.')
-  const version = [major, minor, patch].join('.')
-  if (isAppleM1 && semver.lt(version, V8_FIXED_VERSION)) {
+  if (isAppleM1 && semver.lt(process.version, FIXED_VERSION)) {
     return delayOnce(DELAY_MS)
   }
   return Promise.resolve()
