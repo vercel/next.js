@@ -1,5 +1,5 @@
 {
-  "name": "with-rebass",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",

@@ -1,12 +1,10 @@
 {
-  "name": "active-class-name",
-  "version": "1.0.0",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",
     "start": "next start"
   },
-  "author": "Remy Sharp <remy@leftlogic.com>",
   "dependencies": {
     "next": "latest",
     "react": "^17.0.2",
