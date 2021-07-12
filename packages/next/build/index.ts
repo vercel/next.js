@@ -45,21 +45,21 @@ import {
   SERVER_DIRECTORY,
   SERVER_FILES_MANIFEST,
   STATIC_STATUS_PAGES,
-} from '../next-server/lib/constants'
+} from '../shared/lib/constants'
 import {
   getRouteRegex,
   getSortedRoutes,
   isDynamicRoute,
-} from '../next-server/lib/router/utils'
-import { __ApiPreviewProps } from '../next-server/server/api-utils'
+} from '../shared/lib/router/utils'
+import { __ApiPreviewProps } from '../server/api-utils'
 import loadConfig, {
   isTargetLikeServerless,
   NextConfig,
-} from '../next-server/server/config'
-import { BuildManifest } from '../next-server/server/get-page-files'
-import '../next-server/server/node-polyfill-fetch'
-import { normalizePagePath } from '../next-server/server/normalize-page-path'
-import { getPagePath } from '../next-server/server/require'
+} from '../server/config'
+import { BuildManifest } from '../server/get-page-files'
+import '../server/node-polyfill-fetch'
+import { normalizePagePath } from '../server/normalize-page-path'
+import { getPagePath } from '../server/require'
 import * as ciEnvironment from '../telemetry/ci-info'
 import {
   eventBuildCompleted,
@@ -89,7 +89,7 @@ import {
 import getBaseWebpackConfig from './webpack-config'
 import { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
 import { writeBuildId } from './write-build-id'
-import { normalizeLocalePath } from '../next-server/lib/i18n/normalize-locale-path'
+import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { isWebpack5 } from 'next/dist/compiled/webpack/webpack'
 
 const staticCheckWorker = require.resolve('./utils')
