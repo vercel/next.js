@@ -14,11 +14,11 @@ Take a look at the following `next.config.js` example:
 /**
  * @type {import('next').NextConfig}
  */
-const config = {
+const nextConfig = {
   /* config options here */
 }
 
-module.exports = config
+module.exports = nextConfig
 ```
 
 You can also use a function:
@@ -28,10 +28,10 @@ module.exports = (phase, { defaultConfig }) => {
   /**
    * @type {import('next').NextConfig}
    */
-  const config = {
+  const nextConfig = {
     /* config options here */
   }
-  return config
+  return nextConfig
 }
 ```
 
