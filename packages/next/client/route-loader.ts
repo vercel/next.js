@@ -149,6 +149,39 @@ function appendScript(
   })
 }
 
+// We wait for pages to be built in dev before we start the route transition
+// timeout to prevent an un-necessary hard navigation in development.
+let devBuildPromise: Promise<void> | undefined
+let devBuildResolve: (() => void) | undefined
+
+if (process.env.NODE_ENV === 'development') {
+  const { addMessageListener } = require('./dev/error-overlay/eventsource')
+
+  addMessageListener((event: any) => {
+    // This is the heartbeat event
+    if (event.data === '\uD83D\uDC93') {
+      return
+    }
+
+    const obj =
+      typeof event === 'string' ? { action: event } : JSON.parse(event.data)
+
+    switch (obj.action) {
+      case 'built':
+      case 'sync':
+        if (devBuildResolve) {
+          devBuildResolve()
+          devBuildResolve = undefined
+        }
+
+        break
+
+      default:
+        break
+    }
+  })
+}
+
 // Resolve a promise that times out after given amount of milliseconds.
 function resolvePromiseWithTimeout<T>(
   p: Promise<T>,
@@ -164,36 +197,10 @@ function resolvePromiseWithTimeout<T>(
       resolve(r)
     }).catch(reject)
 
-    new Promise((res: (value?: unknown) => void) => {
-      if (process.env.NODE_ENV === 'development') {
-        const {
-          addMessageListener,
-        } = require('./dev/error-overlay/eventsource')
-
-        addMessageListener((event: any) => {
-          // This is the heartbeat event
-          if (event.data === '\uD83D\uDC93') {
-            return
-          }
-
-          const obj =
-            typeof event === 'string'
-              ? { action: event }
-              : JSON.parse(event.data)
-
-          switch (obj.action) {
-            case 'built':
-              res()
-              break
-
-            default:
-          }
-        })
-      } else {
-        res()
-      }
-    })
-      .then(() => {
+    // We wrap these checks separately for better dead-code elimination in
+    // production bundles.
+    if (process.env.NODE_ENV === 'development') {
+      ;(devBuildPromise || Promise.resolve()).then(() => {
         requestIdleCallback(() =>
           setTimeout(() => {
             if (!cancelled) {
@@ -202,7 +209,17 @@ function resolvePromiseWithTimeout<T>(
           }, ms)
         )
       })
-      .catch(reject)
+    }
+
+    if (process.env.NODE_ENV !== 'development') {
+      requestIdleCallback(() =>
+        setTimeout(() => {
+          if (!cancelled) {
+            reject(err)
+          }
+        }, ms)
+      )
+    }
   })
 }
 
@@ -339,6 +356,12 @@ function createRouteLoader(assetPrefix: string): RouteLoader {
     },
     loadRoute(route: string, prefetch?: boolean) {
       return withFuture<RouteLoaderEntry>(route, routes, () => {
+        if (process.env.NODE_ENV === 'development') {
+          devBuildPromise = new Promise<void>((resolve) => {
+            devBuildResolve = resolve
+          })
+        }
+
         return resolvePromiseWithTimeout(
           getFilesForRoute(assetPrefix, route)
             .then(({ scripts, css }) => {
