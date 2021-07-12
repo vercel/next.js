@@ -1,6 +1,5 @@
 {
   "private": true,
-  "description": "",
   "main": "index.js",
   "scripts": {
     "dev": "next",
