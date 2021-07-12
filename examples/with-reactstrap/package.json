@@ -1,6 +1,5 @@
 {
   "private": true,
-  "version": "0.0.1",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

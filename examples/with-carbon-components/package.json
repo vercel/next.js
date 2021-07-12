@@ -1,6 +1,5 @@
 {
   "private": true,
-  "version": "0.0.1",
   "description": "An example of Nextjs setup with carbon-components-react from IBM",
   "main": "index.js",
   "scripts": {

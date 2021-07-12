@@ -1,6 +1,5 @@
 {
   "private": true,
-  "version": "1.0.0",
   "scripts": {
     "dev": "nodemon",
     "build": "next build && tsc --project tsconfig.server.json",

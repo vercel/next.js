@@ -1,6 +1,5 @@
 {
   "private": true,
-  "version": "5.0.0",
   "description": "Host Next.js SSR app on Firebase Cloud Functions with Firebase Hosting redirects.",
   "main": "firebaseFunctions.js",
   "scripts": {

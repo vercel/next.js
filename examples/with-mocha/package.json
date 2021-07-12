@@ -1,6 +1,5 @@
 {
   "private": true,
-  "version": "1.0.0",
   "scripts": {
     "test": "cross-env NODE_ENV=test mocha",
     "dev": "next",

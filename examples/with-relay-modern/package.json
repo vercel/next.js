@@ -1,6 +1,5 @@
 {
   "private": true,
-  "version": "1.0.0",
   "description": "Example of Next.js with Relay Modern",
   "scripts": {
     "dev": "next",

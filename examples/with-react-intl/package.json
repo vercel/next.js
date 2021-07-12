@@ -1,6 +1,5 @@
 {
   "private": true,
-  "version": "1.0.0",
   "scripts": {
     "dev": "cross-env NODE_ICU_DATA=node_modules/full-icu ts-node --project tsconfig.server.json server.ts",
     "dev-no-custom-server": "next dev",
