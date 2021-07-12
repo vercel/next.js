@@ -43,7 +43,7 @@ yarn create next-app --example cms-strapi cms-strapi-app
 
 ### Step 1. Set up Strapi locally
 
-Use the provided [Next example template](https://github.com/strapi/strapi-template-next-example) to run a pre-configured Strapi project locally. See the [Strapi template docs](https://strapi.io/documentation/developer-docs/latest/setup-deployment-guides/installation/templates.html#templates) for more information
+Use the provided [Strapi template Next example](https://github.com/strapi/strapi-template-next-example) to run a pre-configured Strapi project locally. See the [Strapi template docs](https://strapi.io/documentation/developer-docs/latest/setup-deployment-guides/installation/templates.html#templates) for more information
 
 ```bash
 npx create-strapi-app my-project --template next-example --quickstart
@@ -52,6 +52,21 @@ npm run develop # or: yarn develop
 ```
 
 This will open http://localhost:1337/ and prompt you to create an admin user.
+
+After you sign in there should already be data for **Authors** and **Posts**. If you want to add more entries, just do the following:
+
+Select **Author** and click **Add New Author**.
+
+- Use dummy data for the name.
+- For the image, you can download one from [Unsplash](https://unsplash.com/).
+
+Next, select **Posts** and click **Add New Post**.
+
+- Use dummy data for the text.
+- You can write markdown for the **content** field.
+- For the images, you can download ones from [Unsplash](https://unsplash.com/).
+- Pick the **Author** you created earlier.
+- Set the **status** field to be **published**.
 
 ### Step 2. Set up environment variables
 
@@ -72,7 +87,7 @@ Then set each variable on `.env.local`:
 - `STRAPI_PREVIEW_SECRET` can be any random string (but avoid spaces), like `MY_SECRET` - this is used for [Preview Mode](https://nextjs.org/docs/advanced-features/preview-mode).
 - `NEXT_PUBLIC_STRAPI_API_URL` should be set as `http://localhost:1337` (no trailing slash).
 
-### Step 8. Run Next.js in development mode
+### Step 3. Run Next.js in development mode
 
 Make sure that the local Strapi server is still running at http://localhost:1337. Inside the Next.js app directory, run:
 
@@ -86,27 +101,18 @@ yarn install
 yarn dev
 ```
 
-Your blog should be up and running on [http://localhost:3000](http://localhost:3000)! You should see the two posts you’ve created. If it doesn't work, make sure that:
+Your blog should be up and running on [http://localhost:3000](http://localhost:3000)!
 
-- You’ve installed GraphQL to Strapi on Step 2.
-- You’ve set the Roles & Permissions in Step 5.
-- You’ve set the `status` of each post to be `published` in Step 6.
+The best place to debug is inside the `fetchAPI` function in `lib/api.js`. If you need help, you can post on [GitHub discussions](https://github.com/vercel/next.js/discussions).
 
-The best place to debug is inside the `fetchAPI` function in `lib/api.js`. If you still need help, you can post on [GitHub discussions](https://github.com/vercel/next.js/discussions).
+### Step 4. Try preview mode
 
-### Step 3. Try preview mode
-
-To try preview mode, create another post like before, but:
-
-- Set the **title** as `Draft Post Test`
-- Set the **status** as `draft`.
-
-Now, if you go to the post page on localhost, you won't see this post because it’s not published. However, if you use the **Preview Mode**, you'll be able to see the change ([Documentation](https://nextjs.org/docs/advanced-features/preview-mode)).
+If you go to the `/posts/draft` page on localhost, you won't see this post because it’s not published. However, if you use the **Preview Mode**, you'll be able to see the change ([Documentation](https://nextjs.org/docs/advanced-features/preview-mode)).
 
 To enable the Preview Mode, go to this URL:
 
 ```
-http://localhost:3000/api/preview?secret=<secret>&slug=draft-post-test
+http://localhost:3000/api/preview?secret=<secret>&slug=draft
 ```
 
 - `<secret>` should be the string you entered for `STRAPI_PREVIEW_SECRET`.
@@ -114,11 +120,13 @@ http://localhost:3000/api/preview?secret=<secret>&slug=draft-post-test
 
 You should now be able to see the draft post. To exit the preview mode, you can click **Click here to exit preview mode** at the top.
 
-### Step 4. Deploy Strapi
+To add more preview pages, create a post and set the **status** as `draft`.
+
+### Step 5. Deploy Strapi
 
 To deploy to production, you must first deploy your Strapi app. The Strapi app for our demo at https://next-blog-strapi.vercel.app/ is deployed to Heroku ([here’s the documentation](https://strapi.io/documentation/developer-docs/latest/setup-deployment-guides/deployment/hosting-guides/heroku.html)) and uses Cloudinary for image hosting ([see this file](https://github.com/strapi/strapi-starter-next-blog/blob/23b184781a3f219ad472f6a2c3a3d239a3d16513/backend/extensions/upload/config/settings.js)).
 
-### Step 5. Deploy on Vercel
+### Step 6. Deploy on Vercel
 
 You can deploy this app to the cloud with [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
