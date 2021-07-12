@@ -96,6 +96,7 @@ import ResponseCache, {
   ResponseCacheEntry,
   ResponseCacheValue,
 } from './response-cache'
+import { NextConfigComplete } from './config-shared'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -135,7 +136,7 @@ export type ServerConstructor = {
 export default class Server {
   protected dir: string
   protected quiet: boolean
-  protected nextConfig: NextConfig
+  protected nextConfig: NextConfigComplete
   protected distDir: string
   protected pagesDir?: string
   protected publicDir: string
@@ -187,7 +188,8 @@ export default class Server {
     this.quiet = quiet
     loadEnvConfig(this.dir, dev, Log)
 
-    this.nextConfig = conf
+    this.nextConfig = conf as NextConfigComplete
+
     this.distDir = join(this.dir, this.nextConfig.distDir)
     this.publicDir = join(this.dir, CLIENT_PUBLIC_FILES_PATH)
     this.hasStaticDir = !minimalMode && fs.existsSync(join(this.dir, 'static'))
@@ -207,7 +209,7 @@ export default class Server {
 
     this.renderOpts = {
       poweredByHeader: this.nextConfig.poweredByHeader,
-      canonicalBase: this.nextConfig.amp.canonicalBase,
+      canonicalBase: this.nextConfig.amp.canonicalBase || '',
       buildId: this.buildId,
       generateEtags,
       previewProps: this.getPreviewProps(),

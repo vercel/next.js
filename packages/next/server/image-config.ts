@@ -14,7 +14,7 @@ export type ImageConfig = {
   loader: LoaderValue
   path: string
   domains?: string[]
-  disableStaticImages: boolean
+  disableStaticImages?: boolean
 }
 
 export const imageConfigDefault: ImageConfig = {

@@ -29,10 +29,8 @@ import {
   SERVERLESS_DIRECTORY,
   SERVER_DIRECTORY,
 } from '../shared/lib/constants'
-import loadConfig, {
-  isTargetLikeServerless,
-  NextConfig,
-} from '../server/config'
+import loadConfig, { isTargetLikeServerless } from '../server/config'
+import { NextConfigComplete } from '../server/config-shared'
 import { eventCliSession } from '../telemetry/events'
 import { hasNextSupport } from '../telemetry/ci-info'
 import { Telemetry } from '../telemetry/storage'
@@ -136,7 +134,7 @@ interface ExportOptions {
 export default async function exportApp(
   dir: string,
   options: ExportOptions,
-  configuration?: NextConfig
+  configuration?: NextConfigComplete
 ): Promise<void> {
   const nextExportSpan = trace('next-export')
 
