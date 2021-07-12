@@ -250,6 +250,14 @@
           "path": "/errors/next-head-count-missing.md"
         },
         {
+          "title": "next-image-missing-loader",
+          "path": "/errors/next-image-missing-loader.md"
+        },
+        {
+          "title": "next-image-missing-loader-width",
+          "path": "/errors/next-image-missing-loader-width.md"
+        },
+        {
           "title": "next-image-unconfigured-host",
           "path": "/errors/next-image-unconfigured-host.md"
         },
@@ -398,6 +406,10 @@
         {
           "title": "placeholder-blur-data-url",
           "path": "/errors/placeholder-blur-data-url.md"
+        },
+        {
+          "title": "import-esm-externals",
+          "path": "/errors/import-esm-externals.md"
         }
       ]
     }
