@@ -43,7 +43,7 @@ yarn create next-app --example cms-strapi cms-strapi-app
 
 ### Step 1. Set up Strapi locally
 
-[Follow the instructions on this page](https://strapi.io/documentation/developer-docs/latest/getting-started/quick-start.html#_1-install-strapi-and-create-a-new-project) to create a Strapi project locally.
+Use the provided [Next example template](https://github.com/strapi/strapi-template-next-example) to run a pre-configured Strapi project locally. See the [Strapi template docs](https://strapi.io/documentation/developer-docs/latest/setup-deployment-guides/installation/templates.html#templates) for more information
 
 ```bash
 npx create-strapi-app my-project --template next-example --quickstart
