@@ -39,6 +39,42 @@ let appPort
 let app
 
 const runTests = (isDev = false) => {
+  it('should handle has query encoding correctly', async () => {
+    for (const expected of [
+      {
+        post: 'first',
+      },
+      {
+        post: 'hello%20world',
+      },
+      {
+        post: 'hello/world',
+      },
+      {
+        post: 'hello%2fworld',
+      },
+    ]) {
+      const { status = 200, post } = expected
+      const res = await fetchViaHTTP(
+        appPort,
+        '/has-rewrite-8',
+        `?post=${post}`,
+        {
+          redirect: 'manual',
+        }
+      )
+
+      expect(res.status).toBe(status)
+
+      if (status === 200) {
+        const $ = cheerio.load(await res.text())
+        expect(JSON.parse($('#query').text())).toEqual({
+          post: decodeURIComponent(post),
+        })
+      }
+    }
+  })
+
   it('should support long URLs for rewrites', async () => {
     const res = await fetchViaHTTP(
       appPort,
@@ -1717,6 +1753,17 @@ const runTests = (isDev = false) => {
               ],
               regex: normalizeRegEx('^\\/has-rewrite-7$'),
               source: '/has-rewrite-7',
+            },
+            {
+              destination: '/blog/:post',
+              has: [
+                {
+                  key: 'post',
+                  type: 'query',
+                },
+              ],
+              regex: normalizeRegEx('^\\/has-rewrite-8$'),
+              source: '/has-rewrite-8',
             },
             {
               destination: '/hello',

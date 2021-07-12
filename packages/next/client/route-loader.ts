@@ -1,6 +1,6 @@
 import { ComponentType } from 'react'
 import { ClientBuildManifest } from '../build/webpack/plugins/build-manifest-plugin'
-import getAssetPathFromRoute from '../next-server/lib/router/utils/get-asset-path-from-route'
+import getAssetPathFromRoute from '../shared/lib/router/utils/get-asset-path-from-route'
 import { requestIdleCallback } from './request-idle-callback'
 
 // 3.8s was arbitrarily chosen as it's what https://web.dev/interactive
@@ -93,7 +93,7 @@ function prefetchViaDom(
   as: string,
   link?: HTMLLinkElement
 ): Promise<any> {
-  return new Promise((res, rej) => {
+  return new Promise<void>((res, rej) => {
     if (document.querySelector(`link[rel="prefetch"][href^="${href}"]`)) {
       return res()
     }
@@ -104,7 +104,7 @@ function prefetchViaDom(
     if (as) link!.as = as
     link!.rel = `prefetch`
     link!.crossOrigin = process.env.__NEXT_CROSS_ORIGIN!
-    link!.onload = res
+    link!.onload = res as any
     link!.onerror = rej
 
     // `href` should always be last:
@@ -176,7 +176,7 @@ function resolvePromiseWithTimeout<T>(
 
 // TODO: stop exporting or cache the failure
 // It'd be best to stop exporting this. It's an implementation detail. We're
-// only exporting it for backwards compatibilty with the `page-loader`.
+// only exporting it for backwards compatibility with the `page-loader`.
 // Only cache this response as a last resort if we cannot eliminate all other
 // code branches that use the Build Manifest Callback and push them through
 // the Route Loader interface.

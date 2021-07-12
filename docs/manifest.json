@@ -30,6 +30,10 @@
               "path": "/docs/basic-features/font-optimization.md"
             },
             {
+              "title": "Script Optimization",
+              "path": "/docs/basic-features/script.md"
+            },
+            {
               "title": "Static File Serving",
               "path": "/docs/basic-features/static-file-serving.md"
             },
@@ -52,10 +56,6 @@
             {
               "title": "Supported Browsers and Features",
               "path": "/docs/basic-features/supported-browsers-features.md"
-            },
-            {
-              "title": "Script",
-              "path": "/docs/basic-features/script.md"
             }
           ]
         },
@@ -208,6 +208,10 @@
             {
               "title": "Internationalized Routing",
               "path": "/docs/advanced-features/i18n-routing.md"
+            },
+            {
+              "title": "Security Headers",
+              "path": "/docs/advanced-features/security-headers.md"
             }
           ]
         },

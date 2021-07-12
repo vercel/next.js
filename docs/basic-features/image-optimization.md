@@ -79,7 +79,7 @@ function Home() {
 }
 ```
 
-For dynamic images you have to provide `width`, `height` and `blurDataURL` manually.
+For dynamic or remote images, you'll have to provide [`width`](/docs/api-reference/next/image#width), [`height`](/docs/api-reference/next/image#height) and [`blurDataURL`](/docs/api-reference/next/image#blurdataurl) manually.
 
 ## Properties
 
@@ -121,6 +121,7 @@ The following Image Optimization cloud providers are included:
 - [Imgix](https://www.imgix.com): `loader: 'imgix'`
 - [Cloudinary](https://cloudinary.com): `loader: 'cloudinary'`
 - [Akamai](https://www.akamai.com): `loader: 'akamai'`
+- Custom: `loader: 'custom'` use a custom cloud provider by implementing the [`loader`](/docs/api-reference/next/image.md#loader) prop on the `next/image` component
 - Default: Works automatically with `next dev`, `next start`, or a custom server
 
 If you need a different provider, you can use the [`loader`](/docs/api-reference/next/image.md#loader) prop with `next/image`.

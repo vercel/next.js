@@ -53,7 +53,7 @@ ruleTester.run('link-passhref', rule, {
       errors: [
         {
           message:
-            'passHref is missing. See https://nextjs.org/docs/messages/link-passhref.',
+            'passHref is missing. See https://nextjs.org/docs/messages/link-passhref',
           type: 'JSXOpeningElement',
         },
       ],
@@ -70,7 +70,7 @@ ruleTester.run('link-passhref', rule, {
       errors: [
         {
           message:
-            'passHref must be set to true. See https://nextjs.org/docs/messages/link-passhref.',
+            'passHref must be set to true. See https://nextjs.org/docs/messages/link-passhref',
           type: 'JSXOpeningElement',
         },
       ],
