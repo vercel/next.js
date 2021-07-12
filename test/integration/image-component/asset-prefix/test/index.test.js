@@ -1,14 +1,11 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
 import {
-  check,
   findPort,
   killApp,
   launchApp,
   nextBuild,
   nextStart,
-  waitFor,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
