@@ -11,18 +11,27 @@ For custom advanced behavior of Next.js, you can create a `next.config.js` in th
 Take a look at the following `next.config.js` example:
 
 ```js
-module.exports = {
+/**
+ * @type {import('next').NextConfig}
+ */
+const config = {
   /* config options here */
 }
+
+module.exports = config
 ```
 
 You can also use a function:
 
 ```js
 module.exports = (phase, { defaultConfig }) => {
-  return {
+  /**
+   * @type {import('next').NextConfig}
+   */
+  const config = {
     /* config options here */
   }
+  return config
 }
 ```
 
