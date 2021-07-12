@@ -115,6 +115,7 @@ export default function Layout({ children }) {
     </>
   )
 }
+```
 
 For more information on what to do next, we recommend the following sections:
 
@@ -131,4 +132,3 @@ For more information on what to do next, we recommend the following sections:
     <small>Learn more about how Next.js initialize pages.</small>
   </a>
 </div>
-```
