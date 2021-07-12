@@ -1,6 +1,5 @@
 {
   "private": true,
-  "author": "",
   "license": "MIT",
   "scripts": {
     "codegen": "graphql-let",

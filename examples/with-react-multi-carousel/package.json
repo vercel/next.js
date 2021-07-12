@@ -6,7 +6,6 @@
     "build": "next build",
     "start": "next start"
   },
-  "author": "",
   "license": "MIT",
   "dependencies": {
     "@material-ui/core": "^3.9.2",

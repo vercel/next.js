@@ -7,7 +7,6 @@
     "start": "next start"
   },
   "keywords": [],
-  "author": "",
   "license": "MIT",
   "dependencies": {
     "next": "latest",
