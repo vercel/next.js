@@ -406,6 +406,10 @@
         {
           "title": "placeholder-blur-data-url",
           "path": "/errors/placeholder-blur-data-url.md"
+        },
+        {
+          "title": "import-esm-externals",
+          "path": "/errors/import-esm-externals.md"
         }
       ]
     }
