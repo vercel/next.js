@@ -1,6 +1,5 @@
 {
-  "name": "with-i18n-rosetta",
-  "version": "1.0.0",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",
