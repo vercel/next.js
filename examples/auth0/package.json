@@ -1,5 +1,5 @@
 {
-  "name": "auth0",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",

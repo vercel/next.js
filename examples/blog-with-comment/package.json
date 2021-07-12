@@ -1,5 +1,5 @@
 {
-  "name": "blog-with-comment",
+  "private": true,
   "version": "1.0.0",
   "author": "Adem ilter <ademilter@gmail.com>",
   "license": "MIT",

@@ -1,5 +1,5 @@
 {
-  "name": "with-dynamic-import",
+  "private": true,
   "version": "1.0.0",
   "scripts": {
     "dev": "next",

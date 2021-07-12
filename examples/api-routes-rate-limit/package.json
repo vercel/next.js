@@ -1,5 +1,5 @@
 {
-  "name": "nextjs-rate-limit",
+  "private": true,
   "version": "0.0.0",
   "private": true,
   "scripts": {

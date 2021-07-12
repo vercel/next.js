@@ -1,5 +1,5 @@
 {
-  "name": "api-routes-apollo-server-and-client",
+  "private": true,
   "version": "1.0.0",
   "scripts": {
     "dev": "next",

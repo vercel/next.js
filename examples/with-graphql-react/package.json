@@ -1,5 +1,5 @@
 {
-  "name": "with-graphql-react",
+  "private": true,
   "private": true,
   "license": "MIT",
   "dependencies": {

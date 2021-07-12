@@ -1,5 +1,5 @@
 {
-  "name": "with-patternfly",
+  "private": true,
   "author": "Daniel Reinoso <danielreinoso1807@gmail.com>",
   "version": "1.1.0",
   "scripts": {

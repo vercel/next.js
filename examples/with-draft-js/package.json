@@ -1,5 +1,5 @@
 {
-  "name": "with-draft-js",
+  "private": true,
   "version": "1.0.0",
   "author": "Asten Mies",
   "license": "MIT",

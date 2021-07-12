@@ -1,5 +1,5 @@
 {
-  "name": "with-reactstrap",
+  "private": true,
   "version": "0.0.1",
   "scripts": {
     "dev": "next dev",

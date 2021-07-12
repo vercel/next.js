@@ -1,5 +1,5 @@
 {
-  "name": "with-zones-blog",
+  "private": true,
   "version": "1.0.0",
   "scripts": {
     "dev": "next dev -p 4000",

@@ -1,5 +1,5 @@
 {
-  "name": "with-babel-macros",
+  "private": true,
   "version": "1.0.0",
   "description": "using next.js with babel-macros",
   "scripts": {

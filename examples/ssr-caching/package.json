@@ -1,5 +1,5 @@
 {
-  "name": "ssr-caching",
+  "private": true,
   "version": "1.0.0",
   "scripts": {
     "dev": "next",
