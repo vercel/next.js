@@ -1,7 +1,6 @@
 {
   "private": true,
   "license": "MIT",
-  "description": "Using Next.js with Unsplash API",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

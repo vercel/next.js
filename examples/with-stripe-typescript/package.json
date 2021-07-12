@@ -1,6 +1,5 @@
 {
   "private": true,
-  "description": "Full-stack TypeScript example using Next.js, react-stripe-js, and stripe-node.",
   "scripts": {
     "dev": "next",
     "build": "next build",

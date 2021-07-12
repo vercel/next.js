@@ -1,6 +1,5 @@
 {
   "private": true,
-  "description": "Example of Next.js with Relay Modern SSR",
   "scripts": {
     "dev": "next",
     "build": "bsb -make-world",

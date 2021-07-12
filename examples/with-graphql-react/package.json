@@ -1,6 +1,5 @@
 {
   "private": true,
-  "private": true,
   "license": "MIT",
   "dependencies": {
     "graphql-react": "^11.0.1",
