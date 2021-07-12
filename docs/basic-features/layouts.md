@@ -90,7 +90,31 @@ This layout pattern enables state persistence because the React component tree i
 
 > **Note**: This process is called [reconciliation](https://reactjs.org/docs/reconciliation.html), which is how React understands which elements have changed.
 
-## Related
+## Data Fetching
+
+Inside your layout, you can fetch data on the client-side using `useEffect` or a library like [SWR](https://swr.vercel.app/). Because this file is not a [Page](https://nextjs.org/docs/basic-features/pages), you cannot use `getStaticProps` or `getServerSideProps` currently.
+
+```jsx
+// components/layout.js
+
+import useSWR from 'swr'
+import Navbar from './navbar'
+import Footer from './footer'
+
+export default function Layout({ children }) {
+  const { data, error } = useSWR('/api/navigation', fetcher)
+
+  if (error) return <div>Failed to load</div>
+  if (!data) return <div>Loading...</div>
+
+  return (
+    <>
+      <Navbar links={data.links} />
+      <main>{children}</main>
+      <Footer />
+    </>
+  )
+}
 
 For more information on what to do next, we recommend the following sections:
 
