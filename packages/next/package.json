@@ -133,7 +133,7 @@
     }
   },
   "devDependencies": {
-    "@ampproject/toolbox-optimizer": "2.7.1-alpha.0",
+    "@ampproject/toolbox-optimizer": "2.8.3",
     "@babel/code-frame": "7.12.11",
     "@babel/core": "7.12.10",
     "@babel/eslint-parser": "7.13.14",
