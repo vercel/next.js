@@ -62,11 +62,7 @@ function onReport(metric: Metric): void {
     }
 
     try {
-      if (send) {
-        send(vitalsUrl, blob)
-      } else {
-        fallbackSend()
-      }
+     send!(vitalsUrl, blob)
     } catch (err) {
       fallbackSend()
     }
