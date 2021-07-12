@@ -92,7 +92,7 @@ This layout pattern enables state persistence because the React component tree i
 
 ### Data Fetching
 
-Inside your layout, you can fetch data on the client-side using `useEffect` or a library like [SWR](https://swr.vercel.app/). Because this file is not a [Page](https://nextjs.org/docs/basic-features/pages), you cannot use `getStaticProps` or `getServerSideProps` currently.
+Inside your layout, you can fetch data on the client-side using `useEffect` or a library like [SWR](https://swr.vercel.app/). Because this file is not a [Page](/docs/basic-features/pages.md), you cannot use `getStaticProps` or `getServerSideProps` currently.
 
 ```jsx
 // components/layout.js
