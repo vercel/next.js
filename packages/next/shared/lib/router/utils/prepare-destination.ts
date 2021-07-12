@@ -76,7 +76,9 @@ export function matchHas(
       }
     }
 
-    if (!hasItem.value && value) {
+    if (hasItem.value === false && value === undefined) {
+      return true
+    } else if (!hasItem.value && value) {
       params[getSafeParamName(key!)] = value
       return true
     } else if (value) {
