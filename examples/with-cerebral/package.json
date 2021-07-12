@@ -1,14 +1,10 @@
 {
   "private": true,
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
   "scripts": {
     "dev": "next",
     "build": "next build",
     "start": "next start"
   },
-  "author": "",
   "license": "MIT",
   "dependencies": {
     "@cerebral/react": "^2.1.0",
