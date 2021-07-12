@@ -2,25 +2,20 @@
 import '@next/polyfill-module'
 import React from 'react'
 import ReactDOM from 'react-dom'
-import { HeadManagerContext } from '../next-server/lib/head-manager-context'
-import mitt, { MittEmitter } from '../next-server/lib/mitt'
-import { RouterContext } from '../next-server/lib/router-context'
+import { HeadManagerContext } from '../shared/lib/head-manager-context'
+import mitt, { MittEmitter } from '../shared/lib/mitt'
+import { RouterContext } from '../shared/lib/router-context'
 import Router, {
   AppComponent,
   AppProps,
   delBasePath,
   hasBasePath,
   PrivateRouteInfo,
-} from '../next-server/lib/router/router'
-import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
-import * as querystring from '../next-server/lib/router/utils/querystring'
-import * as envConfig from '../next-server/lib/runtime-config'
-import {
-  getURL,
-  loadGetInitialProps,
-  NEXT_DATA,
-  ST,
-} from '../next-server/lib/utils'
+} from '../shared/lib/router/router'
+import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
+import * as querystring from '../shared/lib/router/utils/querystring'
+import * as envConfig from '../shared/lib/runtime-config'
+import { getURL, loadGetInitialProps, NEXT_DATA, ST } from '../shared/lib/utils'
 import { Portal } from './portal'
 import initHeadManager from './head-manager'
 import PageLoader, { StyleSheetTuple } from './page-loader'
@@ -99,19 +94,19 @@ if (hasBasePath(asPath)) {
 if (process.env.__NEXT_I18N_SUPPORT) {
   const {
     normalizeLocalePath,
-  } = require('../next-server/lib/i18n/normalize-locale-path') as typeof import('../next-server/lib/i18n/normalize-locale-path')
+  } = require('../shared/lib/i18n/normalize-locale-path') as typeof import('../shared/lib/i18n/normalize-locale-path')
 
   const {
     detectDomainLocale,
-  } = require('../next-server/lib/i18n/detect-domain-locale') as typeof import('../next-server/lib/i18n/detect-domain-locale')
+  } = require('../shared/lib/i18n/detect-domain-locale') as typeof import('../shared/lib/i18n/detect-domain-locale')
 
   const {
     parseRelativeUrl,
-  } = require('../next-server/lib/router/utils/parse-relative-url') as typeof import('../next-server/lib/router/utils/parse-relative-url')
+  } = require('../shared/lib/router/utils/parse-relative-url') as typeof import('../shared/lib/router/utils/parse-relative-url')
 
   const {
     formatUrl,
-  } = require('../next-server/lib/router/utils/format-url') as typeof import('../next-server/lib/router/utils/format-url')
+  } = require('../shared/lib/router/utils/format-url') as typeof import('../shared/lib/router/utils/format-url')
 
   if (locales) {
     const parsedAs = parseRelativeUrl(asPath)
@@ -141,8 +136,8 @@ if (process.env.__NEXT_I18N_SUPPORT) {
   }
 }
 
-if (process.env.__NEXT_SCRIPT_LOADER && data.scriptLoader) {
-  const { initScriptLoader } = require('./experimental-script')
+if (data.scriptLoader) {
+  const { initScriptLoader } = require('./script')
   initScriptLoader(data.scriptLoader)
 }
 
@@ -259,7 +254,7 @@ class Container extends React.Component<{
   }
 }
 
-export const emitter: MittEmitter = mitt()
+export const emitter: MittEmitter<string> = mitt()
 let CachedComponent: React.ComponentType
 
 export default async (opts: { webpackHMR?: any } = {}) => {
@@ -467,6 +462,14 @@ export function renderError(renderErrorProps: RenderErrorProps): Promise<any> {
   return pageLoader
     .loadPage('/_error')
     .then(({ page: ErrorComponent, styleSheets }) => {
+      return lastAppProps?.Component === ErrorComponent
+        ? import('../pages/_error').then((m) => ({
+            ErrorComponent: m.default as React.ComponentType<{}>,
+            styleSheets: [],
+          }))
+        : { ErrorComponent, styleSheets }
+    })
+    .then(({ ErrorComponent, styleSheets }) => {
       // In production we do a normal render with the `ErrorComponent` as component.
       // If we've gotten here upon initial render, we can use the props from the server.
       // Otherwise, we need to call `getInitialProps` on `App` before mounting.
@@ -494,7 +497,8 @@ export function renderError(renderErrorProps: RenderErrorProps): Promise<any> {
 }
 
 let reactRoot: any = null
-let shouldHydrate: boolean = typeof ReactDOM.hydrate === 'function'
+// On initial render a hydrate should always happen
+let shouldHydrate: boolean = true
 
 function renderReactElement(
   domEl: HTMLElement,
@@ -508,16 +512,13 @@ function renderReactElement(
   const reactEl = fn(shouldHydrate ? markHydrateComplete : markRenderComplete)
   if (process.env.__NEXT_REACT_ROOT) {
     if (!reactRoot) {
-      const createRootName =
-        typeof (ReactDOM as any).unstable_createRoot === 'function'
-          ? 'unstable_createRoot'
-          : 'createRoot'
-      reactRoot = (ReactDOM as any)[createRootName](domEl, {
-        hydrate: shouldHydrate,
-      })
+      // Unlike with createRoot, you don't need a separate root.render() call here
+      reactRoot = (ReactDOM as any).hydrateRoot(domEl, reactEl)
+      // TODO: Remove shouldHydrate variable when React 18 is stable as it can depend on `reactRoot` existing
+      shouldHydrate = false
+    } else {
+      reactRoot.render(reactEl)
     }
-    reactRoot.render(reactEl)
-    shouldHydrate = false
   } else {
     // The check for `.hydrate` is there to support React alternatives like preact
     if (shouldHydrate) {
