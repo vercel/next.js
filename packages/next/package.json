@@ -59,7 +59,7 @@
     "requires": [
       "./taskfile-ncc.js",
       "./taskfile-babel.js",
-      "./taskfile-typescript.js"
+      "./taskfile-swc.js"
     ]
   },
   "dependencies": {
