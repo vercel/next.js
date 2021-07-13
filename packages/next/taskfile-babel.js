@@ -52,7 +52,7 @@ const babelServerOpts = {
       {
         modules: 'commonjs',
         targets: {
-          node: '8.3',
+          node: '12.0',
         },
         loose: true,
         // This is handled by the Next.js webpack config that will run next/babel over the same code.
