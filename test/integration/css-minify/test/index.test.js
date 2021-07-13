@@ -24,7 +24,7 @@ function runTests() {
     expect(href).toMatch(/\/_next\/static\/css\/.*\.css/)
     const css = await renderViaHTTP(appPort, href)
     expect(css).toBe(
-      '.a{--var-1:0;--var-2:0;--var-1:-50%;--var-2:-50%;}.b{--var-1:0;--var-2:0;--var-2:-50%;}'
+      '.a{--var-1:0;--var-2:0;--var-1:-50%;--var-2:-50%}.b{--var-1:0;--var-2:0;--var-2:-50%}'
     )
   })
 }
