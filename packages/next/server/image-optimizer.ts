@@ -26,7 +26,7 @@ const CACHE_VERSION = 3
 const MODERN_TYPES = [/* AVIF, */ WEBP]
 const ANIMATABLE_TYPES = [WEBP, PNG, GIF]
 const VECTOR_TYPES = [SVG]
-
+const BLUR_IMG_SIZE = 8 // should match `next-image-loader`
 const inflightRequests = new Map<string, Promise<undefined>>()
 
 export async function imageOptimizer(
@@ -124,6 +124,10 @@ export async function imageOptimizer(
   }
 
   const sizes = [...deviceSizes, ...imageSizes]
+
+  if (isDev) {
+    sizes.push(BLUR_IMG_SIZE)
+  }
 
   if (!sizes.includes(width)) {
     res.statusCode = 400

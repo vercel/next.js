@@ -22,6 +22,10 @@
               "path": "/docs/basic-features/built-in-css-support.md"
             },
             {
+              "title": "Layouts",
+              "path": "/docs/basic-features/layouts.md"
+            },
+            {
               "title": "Image Optimization",
               "path": "/docs/basic-features/image-optimization.md"
             },
@@ -100,6 +104,10 @@
               "path": "/docs/api-routes/response-helpers.md"
             }
           ]
+        },
+        {
+          "title": "Going to Production",
+          "path": "/docs/going-to-production.md"
         },
         {
           "title": "Deployment",

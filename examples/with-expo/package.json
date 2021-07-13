@@ -1,5 +1,5 @@
 {
-  "name": "with-expo",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",

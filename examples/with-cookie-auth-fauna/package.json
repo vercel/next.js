@@ -1,5 +1,5 @@
 {
-  "name": "with-cookie-auth-fauna",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",
