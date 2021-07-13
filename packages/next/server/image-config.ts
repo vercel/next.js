@@ -3,7 +3,7 @@ export const VALID_LOADERS = [
   'imgix',
   'cloudinary',
   'akamai',
-  'dangerously-unoptimized',
+  'custom',
 ] as const
 
 export type LoaderValue = typeof VALID_LOADERS[number]
@@ -14,7 +14,7 @@ export type ImageConfig = {
   loader: LoaderValue
   path: string
   domains?: string[]
-  disableStaticImages: boolean
+  disableStaticImages?: boolean
 }
 
 export const imageConfigDefault: ImageConfig = {

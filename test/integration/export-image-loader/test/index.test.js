@@ -9,6 +9,7 @@ jest.setTimeout(1000 * 60 * 5)
 const appDir = join(__dirname, '../')
 const outdir = join(appDir, 'out')
 const nextConfig = new File(join(appDir, 'next.config.js'))
+const pagesIndexJs = new File(join(appDir, 'pages', 'index.js'))
 
 describe('Export with cloudinary loader next/image component', () => {
   beforeAll(async () => {
@@ -44,15 +45,19 @@ describe('Export with cloudinary loader next/image component', () => {
   })
 })
 
-describe('Export with dangerously-unoptimized loader next/image component', () => {
+describe('Export with custom loader next/image component', () => {
   beforeAll(async () => {
     await nextConfig.replace(
       '{ /* replaceme */ }',
       JSON.stringify({
         images: {
-          loader: 'dangerously-unoptimized',
+          loader: 'custom',
         },
       })
+    )
+    await pagesIndexJs.replace(
+      'loader = undefined',
+      'loader = ({src}) => "/custom" + src'
     )
   })
   it('should build successfully', async () => {
@@ -69,10 +74,11 @@ describe('Export with dangerously-unoptimized loader next/image component', () =
   it('should contain img element with same src in html output', async () => {
     const html = await fs.readFile(join(outdir, 'index.html'))
     const $ = cheerio.load(html)
-    expect($('img[alt="icon"]').attr('src')).toBe('/i.png')
+    expect($('img[alt="icon"]').attr('src')).toBe('/custom/i.png')
   })
 
   afterAll(async () => {
     await nextConfig.restore()
+    await pagesIndexJs.restore()
   })
 })

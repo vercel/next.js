@@ -1,8 +1,5 @@
 {
-  "name": "portfolio",
-  "version": "1.0.0",
-  "main": "index.js",
-  "license": "MIT",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "node ./scripts/gen-rss.js && next build",
