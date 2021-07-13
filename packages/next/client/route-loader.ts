@@ -236,7 +236,7 @@ function getFilesForRoute(
       scripts: [
         assetPrefix +
           '/_next/static/chunks/pages' +
-          encodeURI(getAssetPathFromRoute(route, '.js')),
+          encodeURI(getAssetPathFromRoute(route, '.mjs')),
       ],
       // Styles are handled by `style-loader` in development:
       css: [],
@@ -250,7 +250,7 @@ function getFilesForRoute(
       (entry) => assetPrefix + '/_next/' + encodeURI(entry)
     )
     return {
-      scripts: allFiles.filter((v) => v.endsWith('.js')),
+      scripts: allFiles.filter((v) => /\.m?js$/.test(v)),
       css: allFiles.filter((v) => v.endsWith('.css')),
     }
   })

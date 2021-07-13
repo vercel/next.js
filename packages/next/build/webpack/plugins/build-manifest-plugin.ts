@@ -73,7 +73,7 @@ function getEntrypointFiles(entrypoint: any): string[] {
       ?.getFiles()
       .filter((file: string) => {
         // We don't want to include `.hot-update.js` files into the initial page
-        return /(?<!\.hot-update)\.(js|css)($|\?)/.test(file)
+        return /(?<!\.hot-update)\.(m?js|css)($|\?)/.test(file)
       })
       .map((file: string) => file.replace(/\\/g, '/')) ?? []
   )
@@ -183,14 +183,14 @@ export default class BuildManifestPlugin {
         // as a dependency for the app. If the flag is false, the file won't be
         // downloaded by the client.
         assetMap.lowPriorityFiles.push(
-          `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_buildManifest.js`
+          `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_buildManifest.mjs`
         )
         // Add the runtime ssg manifest file as a lazy-loaded file dependency.
         // We also stub this file out for development mode (when it is not
         // generated).
         const srcEmptySsgManifest = `self.__SSG_MANIFEST=new Set;self.__SSG_MANIFEST_CB&&self.__SSG_MANIFEST_CB()`
 
-        const ssgManifestPath = `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_ssgManifest.js`
+        const ssgManifestPath = `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_ssgManifest.mjs`
         assetMap.lowPriorityFiles.push(ssgManifestPath)
         assets[ssgManifestPath] = new sources.RawSource(srcEmptySsgManifest)
       }
@@ -211,7 +211,7 @@ export default class BuildManifestPlugin {
       )
 
       if (!this.isDevFallback) {
-        const clientManifestPath = `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_buildManifest.js`
+        const clientManifestPath = `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_buildManifest.mjs`
 
         assets[clientManifestPath] = new sources.RawSource(
           `self.__BUILD_MANIFEST = ${generateClientManifest(

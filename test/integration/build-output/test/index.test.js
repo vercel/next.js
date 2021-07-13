@@ -45,9 +45,9 @@ describe('Build Output', () => {
 
           expect(stdout).toMatch(/\/ (.* )?\d{1,} B/)
           expect(stdout).toMatch(/\+ First Load JS shared by all [ 0-9.]* kB/)
-          expect(stdout).toMatch(/ chunks\/main\.[0-9a-z]{6}\.js [ 0-9.]* kB/)
+          expect(stdout).toMatch(/ chunks\/main\.[0-9a-z]{6}\.m?js [ 0-9.]* kB/)
           expect(stdout).toMatch(
-            / chunks\/framework\.[0-9a-z]{6}\.js [ 0-9. ]* kB/
+            / chunks\/framework\.[0-9a-z]{6}\.m?js [ 0-9. ]* kB/
           )
 
           expect(stdout).not.toContain(' /_document')
@@ -96,10 +96,10 @@ describe('Build Output', () => {
           const err404FirstLoad = parsePageFirstLoad('/404')
 
           const sharedByAll = parseSharedSize('shared by all')
-          const _appSize = parseSharedSize('_app\\..*?\\.js')
-          const webpackSize = parseSharedSize('webpack\\..*?\\.js')
-          const mainSize = parseSharedSize('main\\..*?\\.js')
-          const frameworkSize = parseSharedSize('framework\\..*?\\.js')
+          const _appSize = parseSharedSize('_app\\..*?\\.m?js')
+          const webpackSize = parseSharedSize('webpack\\..*?\\.m?js')
+          const mainSize = parseSharedSize('main\\..*?\\.m?js')
+          const frameworkSize = parseSharedSize('framework\\..*?\\.m?js')
 
           for (const size of [
             indexSize,
@@ -206,9 +206,9 @@ describe('Build Output', () => {
       expect(stdout).toMatch(/\/ (.* )?\d{1,} B/)
       expect(stdout).toMatch(/\/_app (.* )?\d{1,} B/)
       expect(stdout).toMatch(/\+ First Load JS shared by all \s*[0-9.]+ kB/)
-      expect(stdout).toMatch(/ chunks\/main\.[0-9a-z]{6}\.js \s*[0-9.]+ kB/)
+      expect(stdout).toMatch(/ chunks\/main\.[0-9a-z]{6}\.m?js \s*[0-9.]+ kB/)
       expect(stdout).toMatch(
-        / chunks\/framework\.[0-9a-z]{6}\.js \s*[0-9.]+ kB/
+        / chunks\/framework\.[0-9a-z]{6}\.m?js \s*[0-9.]+ kB/
       )
 
       expect(stdout).not.toContain(' /_document')
@@ -236,9 +236,9 @@ describe('Build Output', () => {
       expect(stdout).toMatch(/\/amp (.* )?AMP/)
       expect(stdout).toMatch(/\/hybrid (.* )?[0-9.]+ B/)
       expect(stdout).toMatch(/\+ First Load JS shared by all \s*[0-9.]+ kB/)
-      expect(stdout).toMatch(/ chunks\/main\.[0-9a-z]{6}\.js \s*[0-9.]+ kB/)
+      expect(stdout).toMatch(/ chunks\/main\.[0-9a-z]{6}\.m?js \s*[0-9.]+ kB/)
       expect(stdout).toMatch(
-        / chunks\/framework\.[0-9a-z]{6}\.js \s*[0-9.]+ kB/
+        / chunks\/framework\.[0-9a-z]{6}\.m?js \s*[0-9.]+ kB/
       )
 
       expect(stdout).not.toContain(' /_document')
@@ -264,8 +264,10 @@ describe('Build Output', () => {
       expect(stdout).toMatch(/\/ (.* )?\d{1,} B/)
       expect(stdout).toMatch(/λ \/404 (.* )?\d{1,} B/)
       expect(stdout).toMatch(/\+ First Load JS shared by all [ 0-9.]* kB/)
-      expect(stdout).toMatch(/ chunks\/main\.[0-9a-z]{6}\.js [ 0-9.]* kB/)
-      expect(stdout).toMatch(/ chunks\/framework\.[0-9a-z]{6}\.js [ 0-9. ]* kB/)
+      expect(stdout).toMatch(/ chunks\/main\.[0-9a-z]{6}\.m?js [ 0-9.]* kB/)
+      expect(stdout).toMatch(
+        / chunks\/framework\.[0-9a-z]{6}\.m?js [ 0-9. ]* kB/
+      )
 
       expect(stdout).not.toContain(' /_document')
       expect(stdout).not.toContain(' /_app')

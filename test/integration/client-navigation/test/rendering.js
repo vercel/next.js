@@ -24,7 +24,7 @@ export default function (render, fetch, ctx) {
       const $ = await get$('/')
       $('script[src]').each((_index, element) => {
         const parsedUrl = url.parse($(element).attr('src'))
-        if (!parsedUrl.pathname.endsWith('.js')) {
+        if (!/\.m?js$/.test(parsedUrl.pathname)) {
           throw new Error(
             `Page includes script that is not a javascript file ${parsedUrl.pathname}`
           )

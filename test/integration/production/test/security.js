@@ -32,6 +32,7 @@ module.exports = (context) => {
       const pathsToCheck = [
         `/_next/${buildId}/page/../../../info`,
         `/_next/${buildId}/page/../../../info.js`,
+        `/_next/${buildId}/page/../../../info.mjs`,
         `/_next/${buildId}/page/../../../info.json`,
         `/_next/:buildId/webpack/chunks/../../../info.json`,
         `/_next/:buildId/webpack/../../../info.json`,

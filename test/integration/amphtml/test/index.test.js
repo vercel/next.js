@@ -307,10 +307,10 @@ describe('AMP Usage', () => {
           )
       ).toEqual([
         '__NEXT_DATA__',
-        '/_next/static/chunks/react-refresh.js',
-        '/_next/static/chunks/polyfills.js',
-        '/_next/static/chunks/webpack.js',
-        '/_next/static/chunks/amp.js',
+        '/_next/static/chunks/react-refresh.mjs',
+        '/_next/static/chunks/polyfills.mjs',
+        '/_next/static/chunks/webpack.mjs',
+        '/_next/static/chunks/amp.mjs',
       ])
     })
 

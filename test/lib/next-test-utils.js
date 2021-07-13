@@ -577,7 +577,7 @@ export function getPageFileFromBuildManifest(dir, page) {
 
   const pageFile = pageFiles.find(
     (file) =>
-      file.endsWith('.js') &&
+      /\.m?js$/.test(file) &&
       file.includes(`pages${page === '' ? '/index' : page}`)
   )
   if (!pageFile) {

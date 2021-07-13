@@ -538,9 +538,9 @@ describe('Required Server Files', () => {
 
   it('should handle 404s properly', async () => {
     for (const pathname of [
-      '/_next/static/chunks/pages/index-abc123.js',
-      '/_next/static/some-file.js',
-      '/static/some-file.js',
+      '/_next/static/chunks/pages/index-abc123.mjs',
+      '/_next/static/some-file.mjs',
+      '/static/some-file.mjs',
       '/non-existent',
       '/404',
     ]) {

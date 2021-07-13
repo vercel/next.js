@@ -57,7 +57,7 @@ describe('Root components import order', () => {
     const html = await res.text()
     const $ = cheerio.load(html)
 
-    const requiredByRegex = /^\/_next\/static\/chunks\/(requiredBy\w*).*\.js/
+    const requiredByRegex = /^\/_next\/static\/chunks\/(requiredBy\w*).*\.m?js/
     const chunks = Array.from($('head').contents())
       .filter(
         (child) =>

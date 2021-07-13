@@ -144,7 +144,7 @@ export default (context, render) => {
       it('should render the correct filename', async () => {
         const $ = await get$('/dynamic/chunkfilename')
         expect($('body').text()).toMatch(/test chunkfilename/)
-        expect($('html').html()).toMatch(/hello-world\.js/)
+        expect($('html').html()).toMatch(/hello-world\.m?js/)
       })
 
       it('should render the component on client side', async () => {
@@ -192,8 +192,8 @@ export default (context, render) => {
       it('should only include the rendered module script tag', async () => {
         const $ = await get$('/dynamic/multiple-modules')
         const html = $('html').html()
-        expect(html).toMatch(/hello1\.js/)
-        expect(html).not.toMatch(/hello2\.js/)
+        expect(html).toMatch(/hello1\.m?js/)
+        expect(html).not.toMatch(/hello2\.m?js/)
       })
 
       it('should only load the rendered module in the browser', async () => {
@@ -206,8 +206,8 @@ export default (context, render) => {
           const html = await browser
             .elementByCss('html')
             .getAttribute('innerHTML')
-          expect(html).toMatch(/hello1\.js/)
-          expect(html).not.toMatch(/hello2\.js/)
+          expect(html).toMatch(/hello1\.m?js/)
+          expect(html).not.toMatch(/hello2\.m?js/)
         } finally {
           if (browser) {
             await browser.close()
@@ -219,8 +219,8 @@ export default (context, render) => {
         const $ = await get$('/dynamic/multiple-modules')
         const html = $('html').html()
         try {
-          expect(html.match(/chunks[\\/]hello1\.js/g).length).toBe(1)
-          expect(html).not.toMatch(/hello2\.js/)
+          expect(html.match(/chunks[\\/]hello1\.m?js/g).length).toBe(1)
+          expect(html).not.toMatch(/hello2\.m?js/)
         } catch (err) {
           console.error(html)
           throw err

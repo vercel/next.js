@@ -54,8 +54,8 @@ describe('Analytics relayer (disabled)', () => {
   it('Does not include the code', async () => {
     const pageFiles = [
       ...new Set([
-        ...buildManifest.pages['/'].filter((file) => file.endsWith('.js')),
-        ...buildManifest.pages['/_app'].filter((file) => file.endsWith('.js')),
+        ...buildManifest.pages['/'].filter((file) => /\.m?js$/.test(file)),
+        ...buildManifest.pages['/_app'].filter((file) => /\.m?js$/.test(file)),
       ]),
     ]
 

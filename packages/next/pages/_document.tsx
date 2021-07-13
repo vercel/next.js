@@ -58,7 +58,9 @@ function getPolyfillScripts(context: DocumentProps, props: OriginProps) {
 
   return buildManifest.polyfillFiles
     .filter(
-      (polyfill) => polyfill.endsWith('.js') && !polyfill.endsWith('.module.js')
+      (polyfill) =>
+        (polyfill.endsWith('.js') && !polyfill.endsWith('.module.js')) ||
+        polyfill.endsWith('.mjs')
     )
     .map((polyfill) => (
       <script
@@ -104,22 +106,24 @@ function getDynamicChunks(
     disableOptimizedLoading,
   } = context
 
-  return dynamicImports.map((file) => {
-    if (!file.endsWith('.js') || files.allFiles.includes(file)) return null
-
-    return (
-      <script
-        async={!isDevelopment && disableOptimizedLoading}
-        defer={!disableOptimizedLoading}
-        key={file}
-        src={`${assetPrefix}/_next/${encodeURI(
-          file
-        )}${devOnlyCacheBusterQueryString}`}
-        nonce={props.nonce}
-        crossOrigin={props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN}
-      />
-    )
-  })
+  return dynamicImports
+    .filter((file) => /\.m?js$/.test(file) && !files.allFiles.includes(file))
+    .map((file) => {
+      const isModule = file.endsWith('.mjs')
+      return (
+        <script
+          async={!isDevelopment && disableOptimizedLoading}
+          defer={!disableOptimizedLoading && !isModule}
+          key={file}
+          src={`${assetPrefix}/_next/${encodeURI(
+            file
+          )}${devOnlyCacheBusterQueryString}`}
+          type={isModule ? 'module' : undefined}
+          nonce={props.nonce}
+          crossOrigin={props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN}
+        />
+      )
+    })
 }
 
 function getScripts(
@@ -135,10 +139,9 @@ function getScripts(
     disableOptimizedLoading,
   } = context
 
-  const normalScripts = files.allFiles.filter((file) => file.endsWith('.js'))
-  const lowPriorityScripts = buildManifest.lowPriorityFiles?.filter((file) =>
-    file.endsWith('.js')
-  )
+  const isJsFile = (file: string) => /\.m?js$/.test(file)
+  const normalScripts = files.allFiles.filter(isJsFile)
+  const lowPriorityScripts = buildManifest.lowPriorityFiles?.filter(isJsFile)
 
   return [...normalScripts, ...lowPriorityScripts].map((file) => {
     return (
@@ -148,6 +151,7 @@ function getScripts(
           file
         )}${devOnlyCacheBusterQueryString}`}
         nonce={props.nonce}
+        type={file.endsWith('.mjs') ? 'module' : undefined}
         async={!isDevelopment && disableOptimizedLoading}
         defer={!disableOptimizedLoading}
         crossOrigin={props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN}
@@ -323,31 +327,24 @@ export class Head extends Component<
       devOnlyCacheBusterQueryString,
     } = this.context
 
-    return (
-      dynamicImports
-        .map((file) => {
-          if (!file.endsWith('.js')) {
-            return null
-          }
-
-          return (
-            <link
-              rel="preload"
-              key={file}
-              href={`${assetPrefix}/_next/${encodeURI(
-                file
-              )}${devOnlyCacheBusterQueryString}`}
-              as="script"
-              nonce={this.props.nonce}
-              crossOrigin={
-                this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
-              }
-            />
-          )
-        })
-        // Filter out nulled scripts
-        .filter(Boolean)
-    )
+    return dynamicImports
+      .filter((file) => /\.m?js$/.test(file))
+      .map((file) => {
+        return (
+          <link
+            rel={file.endsWith('.mjs') ? 'module-preload' : 'preload'}
+            key={file}
+            href={`${assetPrefix}/_next/${encodeURI(
+              file
+            )}${devOnlyCacheBusterQueryString}`}
+            as="script"
+            nonce={this.props.nonce}
+            crossOrigin={
+              this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
+            }
+          />
+        )
+      })
   }
 
   getPreloadMainLinks(files: DocumentFiles): JSX.Element[] | null {
@@ -357,7 +354,7 @@ export class Head extends Component<
       scriptLoader,
     } = this.context
     const preloadFiles = files.allFiles.filter((file: string) => {
-      return file.endsWith('.js')
+      return /\.m?js$/.test(file)
     })
 
     return [
@@ -845,6 +842,7 @@ export class NextScript extends Component<OriginProps> {
               key={file}
               src={`${assetPrefix}/_next/${file}${devOnlyCacheBusterQueryString}`}
               nonce={this.props.nonce}
+              type={file.endsWith('.mjs') ? 'module' : undefined}
               crossOrigin={
                 this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
               }

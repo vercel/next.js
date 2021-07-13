@@ -132,7 +132,7 @@ describe('Serverless Trace', () => {
     for (const page of pages) {
       const file = getPageFileFromPagesManifest(appDir, page)
 
-      expect(file.endsWith('.js')).toBe(true)
+      expect(file).toMatch(/\.m?js$/)
     }
   })
   it('should reply on API request successfully', async () => {

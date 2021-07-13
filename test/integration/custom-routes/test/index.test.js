@@ -571,7 +571,7 @@ const runTests = (isDev = false) => {
     await renderViaHTTP(appPort, '/hello')
     const data = await renderViaHTTP(
       appPort,
-      `/hidden/_next/static/${buildId}/_buildManifest.js`
+      `/hidden/_next/static/${buildId}/_buildManifest.mjs`
     )
     expect(data).toContain('/hello')
   })
