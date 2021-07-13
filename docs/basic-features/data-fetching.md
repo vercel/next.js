@@ -185,11 +185,9 @@ You should use `getStaticProps` if:
 For TypeScript, you can use the `GetStaticProps` type from `next`:
 
 ```ts
-import { GetStaticProps, GetStaticPropsContext } from 'next'
+import { GetStaticProps } from 'next'
 
-export const getStaticProps: GetStaticProps = async (
-  context: GetStaticPropsContext
-) => {
+export const getStaticProps: GetStaticProps = async (context) => {
   // ...
 }
 ```
