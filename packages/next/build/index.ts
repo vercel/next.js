@@ -19,6 +19,7 @@ import { findPagesDir } from '../lib/find-pages-dir'
 import loadCustomRoutes, {
   CustomRoutes,
   getRedirectStatus,
+  modifyRouteRegex,
   normalizeRouteRegex,
   Redirect,
   Rewrite,
@@ -330,6 +331,10 @@ export default async function build(
       )
     }
 
+    const restrictedRedirectPaths = ['/_next'].map((p) =>
+      config.basePath ? `${config.basePath}${p}` : p
+    )
+
     const buildCustomRoute = (
       r: {
         source: string
@@ -347,6 +352,14 @@ export default async function build(
         sensitive: false,
         delimiter: '/', // default is `/#?`, but Next does not pass query info
       })
+      let regexSource = routeRegex.source
+
+      if (!(r as any).internal) {
+        regexSource = modifyRouteRegex(
+          routeRegex.source,
+          type === 'redirect' ? restrictedRedirectPaths : undefined
+        )
+      }
 
       return {
         ...r,
@@ -356,7 +369,7 @@ export default async function build(
               permanent: undefined,
             }
           : {}),
-        regex: normalizeRouteRegex(routeRegex.source),
+        regex: normalizeRouteRegex(regexSource),
       }
     }
 
