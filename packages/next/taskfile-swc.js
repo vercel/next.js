@@ -71,7 +71,7 @@ module.exports = function (task) {
       this._.files.push({
         base: map,
         dir: file.dir,
-        data: Buffer.from(JSON.stringify(output.map)),
+        data: Buffer.from(output.map),
       })
     }
 
