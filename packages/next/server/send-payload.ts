@@ -3,7 +3,7 @@ import { isResSent } from '../shared/lib/utils'
 import generateETag from 'etag'
 import fresh from 'next/dist/compiled/fresh'
 
-type PayloadOptions =
+export type PayloadOptions =
   | { private: true }
   | { private: boolean; stateful: true }
   | { private: boolean; stateful: false; revalidate: number | false }
