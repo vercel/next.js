@@ -68,6 +68,7 @@ const createProgress = (total: number, label: string) => {
   }
   let currentSegmentTotal = segments.shift()
   let currentSegmentCount = 0
+  let lastProgressOutput = Date.now()
   let curProgress = 0
   let progressSpinner = createSpinner(`${label} (${curProgress}/${total})`, {
     spinner: {
@@ -88,21 +89,29 @@ const createProgress = (total: number, label: string) => {
         '[==  ]',
         '[=   ]',
       ],
-      interval: 80,
+      interval: 500,
     },
   })
 
   return () => {
     curProgress++
-    currentSegmentCount++
 
-    // Make sure we only log once per fully generated segment
-    if (currentSegmentCount !== currentSegmentTotal) {
-      return
+    // Make sure we only log once
+    // - per fully generated segment, or
+    // - per minute
+    // when not showing the spinner
+    if (!progressSpinner) {
+      currentSegmentCount++
+
+      if (currentSegmentCount === currentSegmentTotal) {
+        currentSegmentTotal = segments.shift()
+        currentSegmentCount = 0
+      } else if (lastProgressOutput + 60000 > Date.now()) {
+        return
+      }
+
+      lastProgressOutput = Date.now()
     }
-
-    currentSegmentTotal = segments.shift()
-    currentSegmentCount = 0
 
     const newText = `${label} (${curProgress}/${total})`
     if (progressSpinner) {
