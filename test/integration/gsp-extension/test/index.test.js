@@ -13,12 +13,7 @@ let app
 describe('GS(S)P with file extension', () => {
   beforeAll(async () => {
     await fs.remove(join(appDir, '.next'))
-    const { code, stdout, stderr } = await nextBuild(appDir, [], {
-      stdout: true,
-      stderr: true,
-    })
-    stdout && console.log(stdout)
-    stderr && console.error(stderr)
+    const { code } = await nextBuild(appDir)
     if (code !== 0) throw new Error(`build failed with code ${code}`)
 
     appPort = await findPort()

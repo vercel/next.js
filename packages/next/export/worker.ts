@@ -215,7 +215,6 @@ export default async function exportPage({
         const isHtmlExtPath =
           !serverless && !isBuiltinPaths && path.endsWith('.html')
         htmlFilename = isHtmlExtPath ? getHtmlFilename(path) : path
-        console.log('htmlFilename', htmlFilename)
       } else if (path === '/') {
         // If the path is the root, just use index.html
         htmlFilename = 'index.html'
