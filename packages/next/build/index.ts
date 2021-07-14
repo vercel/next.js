@@ -2,7 +2,7 @@ import { loadEnvConfig } from '@next/env'
 import chalk from 'chalk'
 import crypto from 'crypto'
 import { promises, writeFileSync } from 'fs'
-import { Worker } from 'jest-worker'
+import { Worker } from '../lib/worker'
 import devalue from 'next/dist/compiled/devalue'
 import escapeStringRegexp from 'next/dist/compiled/escape-string-regexp'
 import findUp from 'next/dist/compiled/find-up'
@@ -683,12 +683,29 @@ export default async function build(
       process.env.NEXT_PHASE = PHASE_PRODUCTION_BUILD
 
       const staticCheckWorkers = new Worker(staticCheckWorker, {
+        timeout: 60000,
+        onRestart: (_method, [pagePath], attempts) => {
+          if (attempts >= 2) {
+            throw new Error(
+              `Collecting page data for ${pagePath} is still timing out after 2 attempts`
+            )
+          }
+          Log.warn(
+            `Restarted collecting page data for ${pagePath} because it took more than 1 minute`
+          )
+        },
         numWorkers: config.experimental.cpus,
         enableWorkerThreads: config.experimental.workerThreads,
-      }) as Worker & typeof import('./utils')
-
-      staticCheckWorkers.getStdout().pipe(process.stdout)
-      staticCheckWorkers.getStderr().pipe(process.stderr)
+        exposedMethods: [
+          'hasCustomGetInitialProps',
+          'isPageStatic',
+          'getNamedExports',
+        ],
+      }) as Worker &
+        Pick<
+          typeof import('./utils'),
+          'hasCustomGetInitialProps' | 'isPageStatic' | 'getNamedExports'
+        >
 
       const runtimeEnvConfig = {
         publicRuntimeConfig: config.publicRuntimeConfig,
