@@ -1,5 +1,5 @@
 /* globals __REPLACE_NOOP_IMPORT__ */
-import { initNext, version, router, emitter, render } from './'
+import { initNext, version, router, emitter, render, renderError } from './'
 import EventSourcePolyfill from './dev/event-source-polyfill'
 import initOnDemandEntries from './dev/on-demand-entries-client'
 import initWebpackHMR from './dev/webpack-hot-middleware-client'
@@ -30,7 +30,16 @@ const {
 const prefix = assetPrefix || ''
 const webpackHMR = initWebpackHMR()
 
-window.next = { version, router, emitter, render }
+window.next = {
+  version,
+  // router is initialized later so it has to be live-binded
+  get router() {
+    return router
+  },
+  emitter,
+  render,
+  renderError,
+}
 initNext({ webpackHMR })
   .then(({ renderCtx }) => {
     initOnDemandEntries({ assetPrefix: prefix })
