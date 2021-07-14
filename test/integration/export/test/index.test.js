@@ -50,7 +50,8 @@ describe('Static Export', () => {
     expect(doesNotExist).toBe(true)
   })
   beforeAll(async () => {
-    await nextBuild(appDir)
+    const { stdout } = await nextBuild(appDir, [], { stdout: true })
+    console.log(stdout)
     await nextExport(appDir, { outdir })
 
     nextConfig.replace(
