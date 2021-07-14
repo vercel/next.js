@@ -18,6 +18,7 @@ const babelClientPresetEnvOptions = {
     'transform-typeof-symbol',
     'transform-async-to-generator',
     'transform-spread',
+    'proposal-object-rest-spread',
     'proposal-dynamic-import',
   ],
 }
