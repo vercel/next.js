@@ -8,7 +8,7 @@ const transform = require('@swc/core').transform
 
 module.exports = function (task) {
   // eslint-disable-next-line require-yield
-  task.plugin('swc', {}, function* (file, { stripExtension, dev } = {}) {
+  task.plugin('swc', {}, function* (file, serverOrClient, { stripExtension, dev } = {}) {
     // Don't compile .d.ts
     if (file.base.endsWith('.d.ts')) return
 
