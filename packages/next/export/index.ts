@@ -7,7 +7,7 @@ import {
   readFileSync,
   writeFileSync,
 } from 'fs'
-import { Worker } from 'jest-worker'
+import { Worker } from '../lib/worker'
 import { dirname, join, resolve, sep } from 'path'
 import { promisify } from 'util'
 import { AmpPageStatus, formatAmpMessages } from '../build/output/index'
@@ -517,14 +517,22 @@ export default async function exportApp(
     }
 
     const worker = new Worker(require.resolve('./worker'), {
+      timeout: 60000,
+      onRestart: (_method, [{ path }], attempts) => {
+        if (attempts >= 3) {
+          throw new Error(
+            `Static page generation for ${path} is still timing out after 3 attempts`
+          )
+        }
+        Log.warn(
+          `Restarted static page genertion for ${path} because it took more than 1 minute`
+        )
+      },
       maxRetries: 0,
       numWorkers: threads,
       enableWorkerThreads: nextConfig.experimental.workerThreads,
       exposedMethods: ['default'],
     }) as Worker & { default: typeof exportPage }
-
-    worker.getStdout().pipe(process.stdout)
-    worker.getStderr().pipe(process.stderr)
 
     let renderError = false
     const errorPaths: string[] = []
