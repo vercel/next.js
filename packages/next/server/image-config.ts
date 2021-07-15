@@ -15,7 +15,7 @@ export type ImageConfig = {
   path: string
   domains?: string[]
   disableStaticImages?: boolean
-  minimumCacheTtl?: number
+  minimumCacheTTL?: number
 }
 
 export const imageConfigDefault: ImageConfig = {
@@ -25,5 +25,5 @@ export const imageConfigDefault: ImageConfig = {
   loader: 'default',
   domains: [],
   disableStaticImages: false,
-  minimumCacheTtl: 60,
+  minimumCacheTTL: 60,
 }

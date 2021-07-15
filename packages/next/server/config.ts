@@ -293,13 +293,13 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     }
 
     if (
-      images.minimumCacheTtl &&
-      (!Number.isInteger(images.minimumCacheTtl) || images.minimumCacheTtl < 0)
+      images.minimumCacheTTL &&
+      (!Number.isInteger(images.minimumCacheTTL) || images.minimumCacheTTL < 0)
     ) {
       throw new Error(
-        `Specified images.minimumCacheTtl should be an integer 0 or more
+        `Specified images.minimumCacheTTL should be an integer 0 or more
           ', '
-        )}), received  (${images.minimumCacheTtl}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
+        )}), received  (${images.minimumCacheTTL}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
       )
     }
   }

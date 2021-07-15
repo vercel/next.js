@@ -44,7 +44,7 @@ export async function imageOptimizer(
     imageSizes = [],
     domains = [],
     loader,
-    minimumCacheTtl = 60,
+    minimumCacheTTL = 60,
   } = imageData
 
   if (loader !== 'default') {
@@ -214,7 +214,7 @@ export async function imageOptimizer(
         upstreamRes.headers.get('Content-Type')
       maxAge = getMaxAge(
         upstreamRes.headers.get('Cache-Control'),
-        minimumCacheTtl
+        minimumCacheTTL
       )
     } else {
       try {
@@ -270,7 +270,7 @@ export async function imageOptimizer(
         upstreamBuffer = Buffer.concat(resBuffers)
         upstreamType =
           detectContentType(upstreamBuffer) || mockRes.getHeader('Content-Type')
-        maxAge = getMaxAge(mockRes.getHeader('Cache-Control'), minimumCacheTtl)
+        maxAge = getMaxAge(mockRes.getHeader('Cache-Control'), minimumCacheTTL)
       } catch (err) {
         res.statusCode = 500
         res.end('"url" parameter is valid but upstream response is invalid')
@@ -538,7 +538,7 @@ export function detectContentType(buffer: Buffer) {
   return null
 }
 
-export function getMaxAge(str: string | null, minimumCacheTtl: number): number {
+export function getMaxAge(str: string | null, minimumCacheTTL: number): number {
   const map = parseCacheControl(str)
   if (map) {
     let age = map.get('s-maxage') || map.get('max-age') || ''
@@ -547,8 +547,8 @@ export function getMaxAge(str: string | null, minimumCacheTtl: number): number {
     }
     const n = parseInt(age, 10)
     if (!isNaN(n)) {
-      return Math.max(n, minimumCacheTtl)
+      return Math.max(n, minimumCacheTTL)
     }
   }
-  return minimumCacheTtl
+  return minimumCacheTTL
 }

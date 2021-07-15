@@ -808,13 +808,13 @@ describe('Image Optimizer', () => {
     runTests({ w: size, isDev: true, domains })
   })
 
-  describe('dev support for minimumCacheTtl', () => {
+  describe('dev support for minimumCacheTTL', () => {
     const size = 96 // defaults defined in server/config.ts
     const ttl = 500
     beforeAll(async () => {
       const json = JSON.stringify({
         images: {
-          minimumCacheTtl: ttl,
+          minimumCacheTTL: ttl,
         },
       })
       nextConfig.replace('{ /* replaceme */ }', json)
@@ -868,13 +868,13 @@ describe('Image Optimizer', () => {
     runTests({ w: size, isDev: false, domains })
   })
 
-  describe('Server support for minimumCacheTtl', () => {
+  describe('Server support for minimumCacheTTL', () => {
     const size = 96 // defaults defined in server/config.ts
     const ttl = 900000
     beforeAll(async () => {
       const json = JSON.stringify({
         images: {
-          minimumCacheTtl: ttl,
+          minimumCacheTTL: ttl,
         },
       })
       nextConfig.replace('{ /* replaceme */ }', json)

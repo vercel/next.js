@@ -22,8 +22,8 @@ module.exports = {
     loader: 'default',
     // disable static imports for image files
     disableStaticImages: false,
-    // minimumCacheTtl is in seconds, must be integer 0 or more
-    minimumCacheTtl: 60,
+    // minimumCacheTTL is in seconds, must be integer 0 or more
+    minimumCacheTTL: 60,
   },
 }
 ```

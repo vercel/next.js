@@ -136,9 +136,9 @@ Images are optimized dynamically upon request and stored in the `<distDir>/cache
 
 The expiration (or rather Max Age) is defined by the upstream server's `Cache-Control` header.
 
-If `s-maxage` is found in `Cache-Control`, it is used. If no `s-maxage` is found, then `max-age` is used. If no `max-age` is found, then [`minimumCacheTtl`](#minimum-cache-ttl) is used.
+If `s-maxage` is found in `Cache-Control`, it is used. If no `s-maxage` is found, then `max-age` is used. If no `max-age` is found, then [`minimumCacheTTL`](#minimum-cache-ttl) is used.
 
-You can configure [`minimumCacheTtl`](#minimum-cache-ttl) to increase the cache duration when the upstream image does not include `max-age`.
+You can configure [`minimumCacheTTL`](#minimum-cache-ttl) to increase the cache duration when the upstream image does not include `max-age`.
 
 You can also configure [`deviceSizes`](#device-sizes) and [`imageSizes`](#device-sizes) to reduce the total number of possible generated images.
 
@@ -181,7 +181,7 @@ You can configure the time to live (TTL) in seconds for cached optimized images.
 ```js
 module.exports = {
   images: {
-    minimumCacheTtl: 60,
+    minimumCacheTTL: 60,
   },
 }
 ```
