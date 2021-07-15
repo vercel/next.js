@@ -19,6 +19,7 @@ import { install } from './helpers/install'
 import { isFolderEmpty } from './helpers/is-folder-empty'
 import { getOnline } from './helpers/is-online'
 import { shouldUseYarn } from './helpers/should-use-yarn'
+import { checkNpmVersion, checkYarnVersion } from './helpers/check-version'
 import { isWriteable } from './helpers/is-writeable'
 
 export class DownloadError extends Error {}
@@ -122,6 +123,32 @@ export async function createApp({
   const useYarn = useNpm ? false : shouldUseYarn()
   const isOnline = !useYarn || (await getOnline())
   const originalDirectory = process.cwd()
+
+  if (useNpm) {
+    const npmInfo = checkNpmVersion()
+    if (!npmInfo.hasMinNpm) {
+      if (npmInfo.npmVersion) {
+        console.log(
+          chalk.yellow(
+            `You are using npm ${npmInfo.npmVersion} so the project will be bootstrapped with an old unsupported version of tools.\n\n` +
+              `Please update to npm 6 or higher for a better, fully supported experience.\n`
+          )
+        )
+      }
+    }
+  } else if (useYarn) {
+    const yarnInfo = checkYarnVersion()
+    if (yarnInfo.yarnVersion) {
+      if (!yarnInfo.hasMinYarn) {
+        console.log(
+          chalk.yellow(
+            `You are using Yarn ${yarnInfo.yarnVersion} together with the --use-pnp flag, but Plug'n'Play is only supported starting from the 1.12 release.\n\n` +
+              `Please update to Yarn 1.12 or higher for a better, fully supported experience.\n`
+          )
+        )
+      }
+    }
+  }
 
   const displayedCommand = useYarn ? 'yarn' : 'npm'
   console.log(`Creating a new Next.js app in ${chalk.green(root)}.`)
