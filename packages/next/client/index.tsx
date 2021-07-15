@@ -319,15 +319,6 @@ export async function initNext(opts: { webpackHMR?: any } = {}) {
       throw pageEntrypoint.error
     }
     CachedComponent = pageEntrypoint.component
-
-    if (process.env.NODE_ENV !== 'production') {
-      const { isValidElementType } = require('react-is')
-      if (!isValidElementType(CachedComponent)) {
-        throw new Error(
-          `The default export is not a React Component in page: "${page}"`
-        )
-      }
-    }
   } catch (error) {
     // This catches errors like throwing in the top level of a module
     initialErr = error
