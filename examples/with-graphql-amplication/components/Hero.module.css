@@ -1,0 +1,90 @@
+.heroContainer {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.hero {
+  width: 70%;
+  max-width: 700px;
+  text-align: center;
+  flex-basis: 30%;
+}
+
+.heroForm {
+  position: relative;
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+  text-align: left;
+  width: 50%;
+  margin-bottom: 60px;
+}
+
+.heroFormFieldset {
+  outline: none;
+  border: none;
+}
+.heroFormTextArea {
+  display: block;
+  width: 100%;
+  margin-bottom: 20px;
+  resize: none;
+  padding: 5px;
+  border-radius: 5px;
+  border: 1.2px solid rgba(50, 63, 203, 0.5);
+  transition: border 200ms ease -in -out;
+  box-sizing: border-box;
+  font-family: sans-serif;
+}
+.heroFormTextArea:hover,
+.heroFormTextArea:focus {
+  outline: none !important;
+  border: 1.2px solid rgba(50, 63, 203);
+}
+
+.heroFormTwitterInput:hover,
+.heroFormTwitterInput:focus {
+  outline: none !important;
+  border: 1.2px solid rgba(50, 63, 203);
+}
+.heroFormTwitterInput {
+  display: inline-block;
+  width: 45%;
+  padding: 5px;
+  border-radius: 5px;
+  border: 1.2px solid rgba(50, 63, 203, 0.5);
+  transition: border 200ms ease -in -out;
+}
+
+.heroFormSubmitButton {
+  width: 45%;
+  border-radius: 5px;
+  padding: 5px;
+  float: right;
+  background-color: rgba(50, 63, 203);
+  color: white;
+  font-weight: bold;
+  border: 1.2px solid rgba(50, 63, 203, 0.5);
+}
+
+.heroFormSubmitButton:hover {
+  cursor: pointer;
+}
+
+.heroEntries {
+  flex-grow: 0;
+  flex-shrink: 10;
+  flex-basis: 60%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  position: relative;
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+  width: 56%;
+  max-width: 800px;
+  text-align: center;
+}
