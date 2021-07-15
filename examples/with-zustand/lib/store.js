@@ -15,7 +15,6 @@ export const Provider = zustandContext.Provider
 // An example of how to get types
 /** @type {import('zustand/index').UseStore<typeof initialState>} */
 export const useStore = zustandContext.useStore
-
 export const initializeStore = (preloadedState = {}) => {
   return create((set, get) => ({
     ...initialState,
@@ -69,5 +68,5 @@ export function useHydrate(initialState) {
     }, [initialState])
   }
 
-  return _store
+  return () => _store
 }
