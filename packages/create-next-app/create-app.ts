@@ -51,6 +51,17 @@ export async function createApp({
       }
     }
 
+    const isOnline = await getOnline('github.com')
+
+    if (!isOnline) {
+      console.error(
+        `Could not locate the repository for ${chalk.red(
+          `"${example}"`
+        )}. Please check your internet connection and try again`
+      )
+      process.exit(1)
+    }
+
     if (repoUrl) {
       if (repoUrl.origin !== 'https://github.com') {
         console.error(
