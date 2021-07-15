@@ -743,7 +743,9 @@ export class Head extends Component<
   }
 }
 
-export function Main() {
+export function Main<P extends React.HTMLAttributes<T>, T extends HTMLElement>(
+  props?: { type?: keyof React.ReactHTML } & React.ClassAttributes<T> & Omit<P, "id" | "dangerouslySetInnerHTML"> | null
+) {
   const { inAmpMode, html, docComponentsRendered } = useContext(
     DocumentComponentContext
   )
@@ -751,7 +753,10 @@ export function Main() {
   docComponentsRendered.Main = true
 
   if (inAmpMode) return <>{AMP_RENDER_TARGET}</>
-  return <div id="__next" dangerouslySetInnerHTML={{ __html: html }} />
+  return React.createElement(props?.type || "div", {
+    ...props || {},
+    ...{ id: "__next", dangerouslySetInnerHTML: { __html: html } }
+  })
 }
 
 export class NextScript extends Component<OriginProps> {
