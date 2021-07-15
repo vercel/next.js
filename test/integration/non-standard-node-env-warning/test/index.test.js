@@ -112,4 +112,19 @@ describe('Non-Standard NODE_ENV', () => {
     await killApp(app)
     expect(output).toContain(warningText)
   })
+  it('should show the warning with NODE_ENV set to production with dev command', async () => {
+    let output = ''
+
+    app = await launchApp(appDir, await findPort(), {
+      env: {
+        NODE_ENV: 'production',
+      },
+      onStdout(msg) {
+        output += msg || ''
+      },
+    })
+    await waitFor(2000)
+    await killApp(app)
+    expect(output).toContain(warningText)
+  })
 })
