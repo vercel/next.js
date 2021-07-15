@@ -1,0 +1,20 @@
+{
+  "0tlxe2": {
+    "defaultMessage": "Default locale: {locale}"
+  },
+  "30y5Ii": {
+    "defaultMessage": "Supported locales: {locales}"
+  },
+  "ZlQg0i": {
+    "defaultMessage": "Change current page locale using links:"
+  },
+  "bcOwoF": {
+    "defaultMessage": "Choose your language"
+  },
+  "elaVvX": {
+    "defaultMessage": "Change current page locale using a selector:"
+  },
+  "oAAo/M": {
+    "defaultMessage": "Current locale: {locale}"
+  }
+}
