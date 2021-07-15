@@ -13,11 +13,13 @@ const nextStart: cliCommand = (argv) => {
     '--help': Boolean,
     '--port': Number,
     '--hostname': String,
+    '--socket': String,
 
     // Aliases
     '-h': '--help',
     '-p': '--port',
     '-H': '--hostname',
+    '-S': '--socket',
   }
   let args: arg.Result<arg.Spec>
   try {
@@ -43,6 +45,7 @@ const nextStart: cliCommand = (argv) => {
       Options
         --port, -p      A port number on which to start the application
         --hostname, -H  Hostname on which to start the application (default: 0.0.0.0)
+        --socket, -S    Unix socket path to listen on
         --help, -h      Displays this message
     `)
     process.exit(0)
@@ -52,10 +55,18 @@ const nextStart: cliCommand = (argv) => {
   const port =
     args['--port'] || (process.env.PORT && parseInt(process.env.PORT)) || 3000
   const host = args['--hostname'] || '0.0.0.0'
-  const appUrl = `http://${host === '0.0.0.0' ? 'localhost' : host}:${port}`
-  startServer({ dir }, port, host)
+  const socket = args['--socket']
+  const bindAddr = socket || `${host}:${port}`
+  const appUrl = socket
+    ? null
+    : `http://${host === '0.0.0.0' ? 'localhost' : host}:${port}`
+
+  startServer({ dir }, ...(socket ? [socket] : [port, host]))
     .then(async (app) => {
-      Log.ready(`started server on ${host}:${port}, url: ${appUrl}`)
+      Log.ready(
+        `started server on ${bindAddr}` + (appUrl ? `, url: ${appUrl}` : '')
+      )
+
       await app.prepare()
     })
     .catch((err) => {

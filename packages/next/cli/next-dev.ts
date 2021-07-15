@@ -14,11 +14,13 @@ const nextDev: cliCommand = (argv) => {
     '--help': Boolean,
     '--port': Number,
     '--hostname': String,
+    '--socket': String,
 
     // Aliases
     '-h': '--help',
     '-p': '--port',
     '-H': '--hostname',
+    '-S': '--socket',
   }
   let args: arg.Result<arg.Spec>
   try {
@@ -44,6 +46,7 @@ const nextDev: cliCommand = (argv) => {
       Options
         --port, -p      A port number on which to start the application
         --hostname, -H  Hostname on which to start the application (default: 0.0.0.0)
+        --socket, -S    Unix socket path to listen on
         --help, -h      Displays this message
     `)
     process.exit(0)
@@ -74,11 +77,18 @@ const nextDev: cliCommand = (argv) => {
   const port =
     args['--port'] || (process.env.PORT && parseInt(process.env.PORT)) || 3000
   const host = args['--hostname'] || '0.0.0.0'
-  const appUrl = `http://${host === '0.0.0.0' ? 'localhost' : host}:${port}`
+  const socket = args['--socket']
+  const bindAddr = socket || `${host}:${port}`
+  const appUrl = socket
+    ? null
+    : `http://${host === '0.0.0.0' ? 'localhost' : host}:${port}`
 
-  startServer({ dir, dev: true, isNextDevCommand: true }, port, host)
+  startServer(
+    { dir, dev: true, isNextDevCommand: true },
+    ...(socket ? [socket] : [port, host])
+  )
     .then(async (app) => {
-      startedDevelopmentServer(appUrl, `${host}:${port}`)
+      startedDevelopmentServer(appUrl, bindAddr)
       // Start preflight after server is listening and ignore errors:
       preflight().catch(() => {})
       // Finalize server bootup:
@@ -86,7 +96,9 @@ const nextDev: cliCommand = (argv) => {
     })
     .catch((err) => {
       if (err.code === 'EADDRINUSE') {
-        let errorMessage = `Port ${port} is already in use.`
+        let errorMessage = socket
+          ? `Socket path ${socket} already exists.`
+          : `Port ${port} is already in use.`
         const pkgAppPath = require('next/dist/compiled/find-up').sync(
           'package.json',
           {
