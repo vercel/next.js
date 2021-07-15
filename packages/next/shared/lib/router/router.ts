@@ -944,7 +944,7 @@ export default class Router implements BaseRouter {
       Router.events.emit('hashChangeStart', as, routeProps)
       // TODO: do we need the resolved href when only a hash change?
       this.changeState(method, url, as, options)
-      this.scrollToHash(cleanedAs)
+      this.scrollToHash(cleanedAs, options)
       this.notify(this.components[this.route], null)
       Router.events.emit('hashChangeComplete', as, routeProps)
       return true
@@ -1453,7 +1453,10 @@ export default class Router implements BaseRouter {
     return oldHash !== newHash
   }
 
-  scrollToHash(as: string): void {
+  scrollToHash(as: string, options: TransitionOptions = {}): void {
+    // Prevents forced scroll TransitionOptions.scroll is deliberately set to false
+    if (!options.scroll) return;
+
     const [, hash] = as.split('#')
     // Scroll to top if the hash is just `#` with no value or `#top`
     // To mirror browsers
