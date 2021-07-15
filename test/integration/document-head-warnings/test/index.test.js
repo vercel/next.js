@@ -39,5 +39,11 @@ describe('Custom Document Head Warnings', () => {
         /.*Warning: `Head` attribute `crossOrigin` is deprecated\..*/
       )
     })
+
+    it('warns when using an invalid tag in document/head', () => {
+      expect(output).toMatch(
+        /.*Warning: elements of type svg should not be used in _document.js's <Head>\..*/
+      )
+    })
   })
 })

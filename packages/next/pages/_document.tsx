@@ -500,6 +500,14 @@ export class Head extends Component<
     let children = React.Children.toArray(this.props.children).filter(Boolean)
     // show a warning if Head contains <title> (only in development)
     if (process.env.NODE_ENV !== 'production') {
+      const allowedHeadChildren = new Set([
+        'base',
+        'link',
+        'style',
+        'script',
+        'noscript',
+        'template',
+      ])
       children = React.Children.map(children, (child: any) => {
         const isReactHelmet = child?.props?.['data-react-helmet']
         if (!isReactHelmet) {
@@ -513,6 +521,10 @@ export class Head extends Component<
           ) {
             console.warn(
               "Warning: viewport meta tags should not be used in _document.js's <Head>. https://nextjs.org/docs/messages/no-document-viewport-meta"
+            )
+          } else if (!allowedHeadChildren.has(child?.type)) {
+            console.warn(
+              `Warning: elements of type ${child?.type} should not be used in _document.js's <Head>.`
             )
           }
         }

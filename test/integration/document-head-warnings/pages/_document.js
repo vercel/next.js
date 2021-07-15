@@ -7,6 +7,7 @@ class MyDocument extends Document {
         <Head crossOrigin="anonymous">
           <title>Check out this title!</title>
           <meta name="viewport" content="viewport-fit=cover" />
+          <svg></svg>
         </Head>
         <body>
           <Main />
