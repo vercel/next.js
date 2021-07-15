@@ -67,6 +67,7 @@
     "browserslist": "^4.14.7",
     "browserstack-local": "1.4.0",
     "cheerio": "0.22.0",
+    "classnames": "2.2.6",
     "clone": "2.1.2",
     "cookie": "0.4.1",
     "cors": "2.8.5",

@@ -1,0 +1,5 @@
+.bannerOverride {
+  height: 50vh;
+  border: 1px solid red;
+  background-color: #ff6347;
+}

@@ -1826,4 +1826,97 @@ describe('CSS Support', () => {
       }
     })
   })
+
+  // https://github.com/vercel/next.js/issues/15284
+  describe('CSS Page Ordering', () => {
+    const appDir = join(fixturesDir, 'next-issue-15284')
+    let app, appPort
+
+    function tests() {
+      async function checkTomatoBackground(browser) {
+        await browser.waitForElementByCss('#hero-home')
+        const titleColor = await browser.eval(
+          `window.getComputedStyle(document.querySelector('#hero-home')).backgroundColor`
+        )
+        expect(titleColor).toBe('rgb(255, 99, 71)')
+      }
+      async function checkRebeccaPurpleBackground(browser) {
+        await browser.waitForElementByCss('#hero-other')
+        const titleColor = await browser.eval(
+          `window.getComputedStyle(document.querySelector('#hero-other')).backgroundColor`
+        )
+        expect(titleColor).toBe('rgb(102, 51, 153)')
+      }
+
+      it('should have correct color on index page (on load)', async () => {
+        const browser = await webdriver(appPort, '/')
+        try {
+          await checkTomatoBackground(browser)
+        } finally {
+          await browser.close()
+        }
+      })
+
+      it('should have correct color on index page (on hover)', async () => {
+        const browser = await webdriver(appPort, '/')
+        try {
+          await checkTomatoBackground(browser)
+          await browser.waitForElementByCss('#link-home').moveTo()
+          await waitFor(2000)
+          await checkTomatoBackground(browser)
+        } finally {
+          await browser.close()
+        }
+      })
+
+      it('should have correct color on index page (on nav)', async () => {
+        const browser = await webdriver(appPort, '/')
+        try {
+          await checkTomatoBackground(browser)
+          await browser.waitForElementByCss('#link-home').click()
+
+          // Wait for navigation:
+          await browser.waitForElementByCss('#link-other')
+          await checkRebeccaPurpleBackground(browser)
+
+          // Navigate back to index:
+          await browser.waitForElementByCss('#link-other').click()
+          await checkTomatoBackground(browser)
+        } finally {
+          await browser.close()
+        }
+      })
+    }
+
+    describe('Development Mode', () => {
+      beforeAll(async () => {
+        await remove(join(appDir, '.next'))
+      })
+      beforeAll(async () => {
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort)
+      })
+      afterAll(async () => {
+        await killApp(app)
+      })
+
+      tests()
+    })
+
+    describe('Production Mode', () => {
+      beforeAll(async () => {
+        await remove(join(appDir, '.next'))
+      })
+      beforeAll(async () => {
+        await nextBuild(appDir, [], {})
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+      })
+      afterAll(async () => {
+        await killApp(app)
+      })
+
+      tests()
+    })
+  })
 })
