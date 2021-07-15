@@ -790,7 +790,7 @@ export class NextScript extends Component<OriginProps> {
       const data = JSON.stringify(__NEXT_DATA__)
       return htmlEscapeJsonString(data)
     } catch (err) {
-      if (err.message.indexOf('circular structure')) {
+      if (err.message.indexOf('circular structure') !== -1) {
         throw new Error(
           `Circular structure in "getInitialProps" result of page "${__NEXT_DATA__.page}". https://nextjs.org/docs/messages/circular-structure`
         )
