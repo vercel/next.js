@@ -861,7 +861,7 @@ export async function nextbuild(task, opts) {
 export async function client(task, opts) {
   await task
     .source(opts.src || 'client/**/*.+(js|ts|tsx)')
-    .babel('client', { dev: opts.dev })
+    .swc('client', { dev: opts.dev })
     .target('dist/client')
   notify('Compiled client files')
 }
@@ -878,14 +878,14 @@ export async function nextbuildstatic(task, opts) {
 export async function pages_app(task, opts) {
   await task
     .source('pages/_app.tsx')
-    .babel('client', { dev: opts.dev })
+    .swc('client', { dev: opts.dev })
     .target('dist/pages')
 }
 
 export async function pages_error(task, opts) {
   await task
     .source('pages/_error.tsx')
-    .babel('client', { dev: opts.dev })
+    .swc('client', { dev: opts.dev })
     .target('dist/pages')
 }
 
