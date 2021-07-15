@@ -1,8 +1,12 @@
-export default function Slug() {
-  return 'slug'
+export default function Page({ value }) {
+  return value
 }
 
-export const getStaticProps = () => ({ props: {} })
+export const getStaticProps = ({ params }) => ({
+  props: {
+    value: params.slug,
+  },
+})
 
 export const getStaticPaths = () => {
   return {

@@ -2,13 +2,20 @@
 
 import fs from 'fs-extra'
 import { join } from 'path'
-import { findPort, killApp, nextBuild, nextStart } from 'next-test-utils'
+import {
+  findPort,
+  killApp,
+  nextBuild,
+  nextStart,
+  renderViaHTTP,
+} from 'next-test-utils'
 
 jest.setTimeout(1000 * 60 * 2)
 const appDir = join(__dirname, '..')
 
 let appPort
 let app
+const fileNames = ['1', '2.ext', '3.html']
 
 describe('GS(S)P with file extension', () => {
   beforeAll(async () => {
@@ -23,11 +30,17 @@ describe('GS(S)P with file extension', () => {
 
   it('should support slug with different extensions', async () => {
     const baseDir = join(appDir, '.next/server/pages')
-    const fileNames = ['1', '2.ext', '3.html']
     fileNames.forEach((name) => {
       const filePath = join(baseDir, name)
       expect(fs.existsSync(filePath + '.html')).toBe(true)
       expect(fs.existsSync(filePath + '.json')).toBe(true)
     })
+  })
+
+  it('should render properly for routes with extension', async () => {
+    const paths = fileNames.map((name) => `/${name}`)
+    const contentPromises = paths.map((path) => renderViaHTTP(appPort, path))
+    const contents = await Promise.all(contentPromises)
+    contents.forEach((content, i) => expect(content).toContain(fileNames[i]))
   })
 })
