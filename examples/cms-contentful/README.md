@@ -28,6 +28,7 @@ Using the Deploy Button below, you'll deploy the Next.js project as well as conn
 - [Kontent](/examples/cms-kontent)
 - [Ghost](/examples/cms-ghost)
 - [Blog Starter](/examples/blog-starter)
+- [Builder.io](/examples/cms-builder-io)
 
 ## How to use
 
