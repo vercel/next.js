@@ -1453,7 +1453,7 @@ export default class Router implements BaseRouter {
     return oldHash !== newHash
   }
 
-  scrollToHash(as: string, options: TransitionOptions = {}): void {
+  scrollToHash(as: string, options: TransitionOptions): void {
     // Prevents forced scroll TransitionOptions.scroll is deliberately set to false
     if (!options.scroll) return;
 
