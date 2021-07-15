@@ -40,7 +40,6 @@ import {
 } from '../server/normalize-page-path'
 import { loadEnvConfig } from '@next/env'
 import { PrerenderManifest } from '../build'
-import exportPage from './worker'
 import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import { getPagePath } from '../server/require'
 import { trace } from '../telemetry/trace'
@@ -532,7 +531,7 @@ export default async function exportApp(
       numWorkers: threads,
       enableWorkerThreads: nextConfig.experimental.workerThreads,
       exposedMethods: ['default'],
-    }) as Worker & { default: typeof exportPage }
+    }) as Worker & typeof import('./worker')
 
     let renderError = false
     const errorPaths: string[] = []
@@ -543,9 +542,10 @@ export default async function exportApp(
         pageExportSpan.setAttribute('path', path)
 
         return pageExportSpan.traceAsyncFn(async () => {
+          const pathMap = exportPathMap[path]
           const result = await worker.default({
             path,
-            pathMap: exportPathMap[path],
+            pathMap,
             distDir,
             outDir,
             pagesDataDir,
@@ -582,6 +582,10 @@ export default async function exportApp(
             if (result.ssgNotFound === true) {
               configuration.ssgNotFoundPaths.push(path)
             }
+
+            const durations = (configuration.pageDurationMap[pathMap.page] =
+              configuration.pageDurationMap[pathMap.page] || {})
+            durations[path] = result.duration
           }
 
           if (progress) progress()

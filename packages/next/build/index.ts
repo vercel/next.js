@@ -896,6 +896,8 @@ export default async function build(
               isHybridAmp,
               ssgPageRoutes,
               initialRevalidateSeconds: false,
+              pageDuration: undefined,
+              ssgPageDurations: undefined,
             })
           })
         })
@@ -1082,6 +1084,7 @@ export default async function build(
         const exportConfig: any = {
           ...config,
           initialPageRevalidationMap: {},
+          pageDurationMap: {},
           ssgNotFoundPaths: [] as string[],
           // Default map will be the collection of automatic statically exported
           // pages and incremental pages.
@@ -1329,6 +1332,18 @@ export default async function build(
           const hasAmp = hybridAmpPages.has(page)
           const file = normalizePagePath(page)
 
+          const pageInfo = pageInfos.get(page)
+          const durationInfo = exportConfig.pageDurationMap[page]
+          if (pageInfo && durationInfo) {
+            // Set Build Duration
+            if (pageInfo.ssgPageRoutes) {
+              pageInfo.ssgPageDurations = pageInfo.ssgPageRoutes.map(
+                (pagePath) => durationInfo[pagePath]
+              )
+            }
+            pageInfo.pageDuration = durationInfo[page]
+          }
+
           // The dynamic version of SSG pages are only prerendered if the
           // fallback is enabled. Below, we handle the specific prerenders
           // of these.
@@ -1384,11 +1399,9 @@ export default async function build(
                 }
               }
               // Set Page Revalidation Interval
-              const pageInfo = pageInfos.get(page)
               if (pageInfo) {
                 pageInfo.initialRevalidateSeconds =
                   exportConfig.initialPageRevalidationMap[page]
-                pageInfos.set(page, pageInfo)
               }
             } else {
               // For a dynamic SSG page, we did not copy its data exports and only
@@ -1447,11 +1460,9 @@ export default async function build(
                 }
 
                 // Set route Revalidation Interval
-                const pageInfo = pageInfos.get(route)
                 if (pageInfo) {
                   pageInfo.initialRevalidateSeconds =
                     exportConfig.initialPageRevalidationMap[route]
-                  pageInfos.set(route, pageInfo)
                 }
               }
             }
