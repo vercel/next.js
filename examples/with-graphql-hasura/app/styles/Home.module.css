@@ -1,0 +1,18 @@
+.container {
+  min-height: 100vh;
+  padding: 0 0.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.todo {
+  margin: 10px;
+  border-style: dashed;
+  padding: 10px;
+  width: 200px;
+  display: flex;
+  justify-content: space-between;
+}
+.box {
+  margin: 20px;
+}
