@@ -18,6 +18,7 @@ import {
   Rewrite,
   RouteType,
   CustomRoutes,
+  modifyRouteRegex,
 } from '../lib/load-custom-routes'
 import {
   BUILD_ID_FILE,
@@ -822,11 +823,24 @@ export default class Server {
       ...staticFilesRoute,
     ]
 
+    const restrictedRedirectPaths = ['/_next'].map((p) =>
+      this.nextConfig.basePath ? `${this.nextConfig.basePath}${p}` : p
+    )
+
     const getCustomRoute = (
       r: Rewrite | Redirect | Header,
       type: RouteType
     ) => {
-      const match = getCustomRouteMatcher(r.source)
+      const match = getCustomRouteMatcher(
+        r.source,
+        !(r as any).internal
+          ? (regex: string) =>
+              modifyRouteRegex(
+                regex,
+                type === 'redirect' ? restrictedRedirectPaths : undefined
+              )
+          : undefined
+      )
 
       return {
         ...r,

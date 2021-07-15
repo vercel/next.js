@@ -138,7 +138,8 @@
     "wait-port": "0.2.2",
     "web-streams-polyfill": "2.1.1",
     "webpack-bundle-analyzer": "4.3.0",
-    "worker-loader": "3.0.7"
+    "worker-loader": "3.0.7",
+    "@swc/core": "1.2.63"
   },
   "resolutions": {
     "browserslist": "4.16.6",

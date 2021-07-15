@@ -9,7 +9,8 @@ import getAssetPathFromRoute from '../shared/lib/router/utils/get-asset-path-fro
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import { parseRelativeUrl } from '../shared/lib/router/utils/parse-relative-url'
 import { removePathTrailingSlash } from './normalize-trailing-slash'
-import createRouteLoader, {
+import {
+  createRouteLoader,
   getClientBuildManifest,
   RouteLoader,
 } from './route-loader'
