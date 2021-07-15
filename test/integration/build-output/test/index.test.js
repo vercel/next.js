@@ -43,7 +43,7 @@ describe('Build Output', () => {
             stdout: true,
           }))
 
-          expect(stdout).toMatch(/\/ [ ]* \d{1,} B/)
+          expect(stdout).toMatch(/\/ (.* )?\d{1,} B/)
           expect(stdout).toMatch(/\+ First Load JS shared by all [ 0-9.]* kB/)
           expect(stdout).toMatch(/ chunks\/main\.[0-9a-z]{6}\.js [ 0-9.]* kB/)
           expect(stdout).toMatch(
@@ -156,6 +156,30 @@ describe('Build Output', () => {
           expect(frameworkSize.endsWith('kB')).toBe(true)
         })
 
+        it('should print duration when rendering or get static props takes long', () => {
+          const matches = stdout.match(
+            / \/slow-static\/.+\/.+(?: \(\d+ ms\))?| \[\+\d+ more paths\]/g
+          )
+
+          expect(matches).toEqual([
+            // summary
+            expect.stringMatching(
+              /\/\[propsDuration\]\/\[renderDuration\] \(\d+ ms\)/
+            ),
+            // ordered by duration, includes duration
+            expect.stringMatching(/\/2000\/10 \(\d+ ms\)$/),
+            expect.stringMatching(/\/10\/1000 \(\d+ ms\)$/),
+            expect.stringMatching(/\/300\/10 \(\d+ ms\)$/),
+            // kept in original order
+            expect.stringMatching(/\/5\/5$/),
+            expect.stringMatching(/\/25\/25$/),
+            expect.stringMatching(/\/20\/20$/),
+            expect.stringMatching(/\/10\/10$/),
+            // max of 7 preview paths
+            ' [+2 more paths]',
+          ])
+        })
+
         it('should not emit extracted comments', async () => {
           const files = await recursiveReadDir(
             join(appDir, '.next'),
@@ -179,11 +203,13 @@ describe('Build Output', () => {
         stdout: true,
       })
 
-      expect(stdout).toMatch(/\/ [ ]* \d{1,} B/)
-      expect(stdout).toMatch(/\/_app [ ]* \d{1,} B/)
-      expect(stdout).toMatch(/\+ First Load JS shared by all [ 0-9.]* kB/)
-      expect(stdout).toMatch(/ chunks\/main\.[0-9a-z]{6}\.js [ 0-9.]* kB/)
-      expect(stdout).toMatch(/ chunks\/framework\.[0-9a-z]{6}\.js [ 0-9. ]* kB/)
+      expect(stdout).toMatch(/\/ (.* )?\d{1,} B/)
+      expect(stdout).toMatch(/\/_app (.* )?\d{1,} B/)
+      expect(stdout).toMatch(/\+ First Load JS shared by all \s*[0-9.]+ kB/)
+      expect(stdout).toMatch(/ chunks\/main\.[0-9a-z]{6}\.js \s*[0-9.]+ kB/)
+      expect(stdout).toMatch(
+        / chunks\/framework\.[0-9a-z]{6}\.js \s*[0-9.]+ kB/
+      )
 
       expect(stdout).not.toContain(' /_document')
       expect(stdout).not.toContain(' /_error')
@@ -206,12 +232,14 @@ describe('Build Output', () => {
         stdout: true,
       })
 
-      expect(stdout).toMatch(/\/ [ 0-9.]* B [ 0-9.]* kB/)
-      expect(stdout).toMatch(/\/amp .* AMP/)
-      expect(stdout).toMatch(/\/hybrid [ 0-9.]* B/)
-      expect(stdout).toMatch(/\+ First Load JS shared by all [ 0-9.]* kB/)
-      expect(stdout).toMatch(/ chunks\/main\.[0-9a-z]{6}\.js [ 0-9.]* kB/)
-      expect(stdout).toMatch(/ chunks\/framework\.[0-9a-z]{6}\.js [ 0-9. ]* kB/)
+      expect(stdout).toMatch(/\/ (.* )?[0-9.]+ B \s*[0-9.]+ kB/)
+      expect(stdout).toMatch(/\/amp (.* )?AMP/)
+      expect(stdout).toMatch(/\/hybrid (.* )?[0-9.]+ B/)
+      expect(stdout).toMatch(/\+ First Load JS shared by all \s*[0-9.]+ kB/)
+      expect(stdout).toMatch(/ chunks\/main\.[0-9a-z]{6}\.js \s*[0-9.]+ kB/)
+      expect(stdout).toMatch(
+        / chunks\/framework\.[0-9a-z]{6}\.js \s*[0-9.]+ kB/
+      )
 
       expect(stdout).not.toContain(' /_document')
       expect(stdout).not.toContain(' /_error')
@@ -233,8 +261,8 @@ describe('Build Output', () => {
         stdout: true,
       })
 
-      expect(stdout).toMatch(/\/ [ ]* \d{1,} B/)
-      expect(stdout).toMatch(/λ \/404 [ ]* \d{1,} B/)
+      expect(stdout).toMatch(/\/ (.* )?\d{1,} B/)
+      expect(stdout).toMatch(/λ \/404 (.* )?\d{1,} B/)
       expect(stdout).toMatch(/\+ First Load JS shared by all [ 0-9.]* kB/)
       expect(stdout).toMatch(/ chunks\/main\.[0-9a-z]{6}\.js [ 0-9.]* kB/)
       expect(stdout).toMatch(/ chunks\/framework\.[0-9a-z]{6}\.js [ 0-9. ]* kB/)

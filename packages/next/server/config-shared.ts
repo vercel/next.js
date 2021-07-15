@@ -94,6 +94,8 @@ export type NextConfig = { [key: string]: any } & {
     gzipSize?: boolean
     craCompat?: boolean
     esmExternals?: boolean | 'loose'
+    staticPageGenerationTimeout?: number
+    pageDataCollectionTimeout?: number
   }
 }
 
@@ -157,6 +159,8 @@ export const defaultConfig: NextConfig = {
     gzipSize: true,
     craCompat: false,
     esmExternals: false,
+    staticPageGenerationTimeout: 60,
+    pageDataCollectionTimeout: 60,
   },
   future: {
     strictPostcssConfiguration: false,
