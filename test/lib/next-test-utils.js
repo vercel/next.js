@@ -254,8 +254,8 @@ export function nextExportDefault(dir, opts = {}) {
   return runNextCommand(['export', dir], opts)
 }
 
-export function nextLint(dir, args = [], opts = {}) {
-  return runNextCommand(['lint', dir, ...args], opts)
+export function nextLint(args = [], opts = {}) {
+  return runNextCommand(['lint', ...args], opts)
 }
 
 export function nextStart(dir, port, opts = {}) {

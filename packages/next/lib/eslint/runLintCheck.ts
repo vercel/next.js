@@ -25,7 +25,7 @@ type Config = {
 async function lint(
   deps: NecessaryDependencies,
   baseDir: string,
-  lintDirs: string[],
+  filesToLint: string[],
   eslintrcFile: string | null,
   pkgJsonPath: string | null,
   eslintOptions: any = null,
@@ -111,7 +111,7 @@ async function lint(
   }
   const lintStart = process.hrtime()
 
-  let results = await eslint.lintFiles(lintDirs)
+  let results = await eslint.lintFiles(filesToLint)
   if (options.fix) await ESLint.outputFixes(results)
   if (reportErrorsOnly) results = await ESLint.getErrorResults(results) // Only return errors if --quiet flag is used
 
@@ -147,7 +147,7 @@ async function lint(
 
 export async function runLintCheck(
   baseDir: string,
-  lintDirs: string[],
+  filesToLint: string[],
   lintDuringBuild: boolean = false,
   eslintOptions: any = null,
   reportErrorsOnly: boolean = false,
@@ -209,7 +209,7 @@ export async function runLintCheck(
     return await lint(
       deps,
       baseDir,
-      lintDirs,
+      filesToLint,
       eslintrcFile,
       pkgJsonPath,
       eslintOptions,
