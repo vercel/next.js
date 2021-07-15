@@ -47,6 +47,7 @@ describe('SCSS Support', () => {
       expect(stderr).toContain(
         'Learn more: https://nextjs.org/docs/messages/install-sass'
       )
+      expect(stderr).not.toContain('Require stack:')
     })
   })
 

@@ -119,6 +119,11 @@ function formatMessage(message) {
     ''
   ) // at ... ...:x:y
   message = message.replace(/^\s*at\s<anonymous>(\n|$)/gm, '') // at <anonymous>
+
+  // Remove useless stack trace from the error message
+  // in order to have a short and readable error message
+  message = message.replace(/\nRequire stack:(.*)[\s\S]*/g, '')
+
   lines = message.split('\n')
 
   // Remove duplicated newlines
