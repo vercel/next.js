@@ -357,7 +357,7 @@ describe('CSS Support', () => {
       expect(stderr).toContain('Failed to compile')
       expect(stderr).toContain('styles/global.css')
       expect(stderr).toMatch(
-        /Please move all global CSS imports.*?pages(\/|\\)_app/
+        /Please move all first-party global CSS imports.*?pages(\/|\\)_app/
       )
       expect(stderr).toMatch(/Location:.*pages[\\/]index\.js/)
     })
@@ -407,7 +407,7 @@ describe('CSS Support', () => {
       expect(stderr).toContain('Failed to compile')
       expect(stderr).toContain('styles/global.css')
       expect(stderr).toMatch(
-        /Please move all global CSS imports.*?pages(\/|\\)_app/
+        /Please move all first-party global CSS imports.*?pages(\/|\\)_app/
       )
       expect(stderr).toMatch(/Location:.*pages[\\/]index\.js/)
     })
