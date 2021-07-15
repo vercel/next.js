@@ -291,6 +291,17 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     if (images.path === imageConfigDefault.path && result.basePath) {
       images.path = `${result.basePath}${images.path}`
     }
+
+    if (
+      images.minimumCacheTtl &&
+      (!Number.isInteger(images.minimumCacheTtl) || images.minimumCacheTtl < 0)
+    ) {
+      throw new Error(
+        `Specified images.minimumCacheTtl should be an integer 0 or more
+          ', '
+        )}), received  (${images.minimumCacheTtl}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
+      )
+    }
   }
 
   if (result.i18n) {
