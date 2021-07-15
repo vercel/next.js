@@ -1,7 +1,5 @@
 {
-  "name": "with-graphql-faunadb",
-  "version": "1.0.0",
-  "description": "",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",

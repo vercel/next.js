@@ -65,6 +65,22 @@ export function normalizeRouteRegex(regex: string) {
   return regex.replace(/\\\//g, '/')
 }
 
+// for redirects we restrict matching /_next and for all routes
+// we add an optional trailing slash at the end for easier
+// configuring between trailingSlash: true/false
+export function modifyRouteRegex(regex: string, restrictedPaths?: string[]) {
+  if (restrictedPaths) {
+    regex = regex.replace(
+      /\^/,
+      `^(?!${restrictedPaths
+        .map((path) => path.replace(/\//g, '\\/'))
+        .join('|')})`
+    )
+  }
+  regex = regex.replace(/\$$/, '(?:\\/)?$')
+  return regex
+}
+
 function checkRedirect(
   route: Redirect
 ): { invalidParts: string[]; hadInvalidStatus: boolean } {
@@ -525,10 +541,14 @@ function processRoutes<T>(
         }`
       }
     }
-    r.source = `${srcBasePath}${r.source}`
+    r.source = `${srcBasePath}${
+      r.source === '/' && srcBasePath ? '' : r.source
+    }`
 
     if (r.destination) {
-      r.destination = `${destBasePath}${r.destination}`
+      r.destination = `${destBasePath}${
+        r.destination === '/' && destBasePath ? '' : r.destination
+      }`
     }
     newRoutes.push(r)
   }

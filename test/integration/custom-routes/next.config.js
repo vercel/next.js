@@ -378,6 +378,17 @@ module.exports = {
         destination: '/another?host=1',
         permanent: false,
       },
+      {
+        source: '/:path/has-redirect-5',
+        has: [
+          {
+            type: 'header',
+            key: 'x-test-next',
+          },
+        ],
+        destination: '/somewhere',
+        permanent: false,
+      },
     ]
   },
 

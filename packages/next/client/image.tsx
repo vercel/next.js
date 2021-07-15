@@ -32,10 +32,11 @@ const loaders = new Map<
   LoaderValue,
   (props: DefaultImageLoaderProps) => string
 >([
+  ['default', defaultLoader],
   ['imgix', imgixLoader],
   ['cloudinary', cloudinaryLoader],
   ['akamai', akamaiLoader],
-  ['default', defaultLoader],
+  ['custom', customLoader],
 ])
 
 const VALID_LAYOUT_VALUES = [
@@ -84,46 +85,25 @@ function isStaticImport(src: string | StaticImport): src is StaticImport {
   )
 }
 
-type StringImageProps = {
-  src: string
-} & (
-  | { width?: never; height?: never; layout: 'fill' }
-  | {
-      width: number | string
-      height: number | string
-      layout?: Exclude<LayoutValue, 'fill'>
-    }
-) &
-  (
-    | {
-        placeholder?: Exclude<PlaceholderValue, 'blur'>
-        blurDataURL?: never
-      }
-    | { placeholder: 'blur'; blurDataURL: string }
-  )
-
-type ObjectImageProps = {
-  src: StaticImport
-  width?: number | string
-  height?: number | string
-  layout?: LayoutValue
-  placeholder?: PlaceholderValue
-  blurDataURL?: never
-}
-
 export type ImageProps = Omit<
   JSX.IntrinsicElements['img'],
   'src' | 'srcSet' | 'ref' | 'width' | 'height' | 'loading' | 'style'
 > & {
+  src: string | StaticImport
+  width?: number | string
+  height?: number | string
+  layout?: LayoutValue
   loader?: ImageLoader
   quality?: number | string
   priority?: boolean
   loading?: LoadingValue
+  placeholder?: PlaceholderValue
+  blurDataURL?: string
   unoptimized?: boolean
   objectFit?: ImgElementStyle['objectFit']
   objectPosition?: ImgElementStyle['objectPosition']
   onLoadingComplete?: () => void
-} & (StringImageProps | ObjectImageProps)
+}
 
 const {
   deviceSizes: configDeviceSizes,
@@ -358,6 +338,17 @@ export default function Image({
   const heightInt = getInt(height)
   const qualityInt = getInt(quality)
 
+  let isLazy =
+    !priority && (loading === 'lazy' || typeof loading === 'undefined')
+  if (src.startsWith('data:')) {
+    // https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
+    unoptimized = true
+    isLazy = false
+  }
+  if (typeof window !== 'undefined' && loadedImageURLs.has(src)) {
+    isLazy = false
+  }
+
   if (process.env.NODE_ENV !== 'production') {
     if (!src) {
       throw new Error(
@@ -379,6 +370,11 @@ export default function Image({
     ) {
       throw new Error(
         `Image with src "${src}" has invalid "width" or "height" property. These should be numeric values.`
+      )
+    }
+    if (layout === 'fill' && (width || height)) {
+      console.warn(
+        `Image with src "${src}" and "layout='fill'" has unused properties assigned. Please remove "width" and "height".`
       )
     }
     if (!VALID_LOADING_VALUES.includes(loading)) {
@@ -419,16 +415,16 @@ export default function Image({
         `Image with src "${src}" is using unsupported "ref" property. Consider using the "onLoadingComplete" property instead.`
       )
     }
-  }
-  let isLazy =
-    !priority && (loading === 'lazy' || typeof loading === 'undefined')
-  if (src && src.startsWith('data:')) {
-    // https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
-    unoptimized = true
-    isLazy = false
-  }
-  if (src && typeof window !== 'undefined' && loadedImageURLs.has(src)) {
-    isLazy = false
+    const rand = Math.floor(Math.random() * 1000) + 100
+    if (
+      !unoptimized &&
+      !loader({ src, width: rand, quality: 75 }).includes(rand.toString())
+    ) {
+      console.warn(
+        `Image with src "${src}" has a "loader" property that does not implement width. Please implement it or use the "unoptimized" property instead.` +
+          `\nRead more: https://nextjs.org/docs/messages/next-image-missing-loader-width`
+      )
+    }
   }
 
   const [setRef, isIntersected] = useIntersection<HTMLImageElement>({
@@ -472,10 +468,24 @@ export default function Image({
         }
       : undefined),
   }
-  if (
+  if (layout === 'fill') {
+    // <Image src="i.png" layout="fill" />
+    wrapperStyle = {
+      display: 'block',
+      overflow: 'hidden',
+
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      bottom: 0,
+      right: 0,
+
+      boxSizing: 'border-box',
+      margin: 0,
+    }
+  } else if (
     typeof widthInt !== 'undefined' &&
-    typeof heightInt !== 'undefined' &&
-    layout !== 'fill'
+    typeof heightInt !== 'undefined'
   ) {
     // <Image src="i.png" width="100" height="100" />
     const quotient = heightInt / widthInt
@@ -517,25 +527,6 @@ export default function Image({
         width: widthInt,
         height: heightInt,
       }
-    }
-  } else if (
-    typeof widthInt === 'undefined' &&
-    typeof heightInt === 'undefined' &&
-    layout === 'fill'
-  ) {
-    // <Image src="i.png" layout="fill" />
-    wrapperStyle = {
-      display: 'block',
-      overflow: 'hidden',
-
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      bottom: 0,
-      right: 0,
-
-      boxSizing: 'border-box',
-      margin: 0,
     }
   } else {
     // <Image src="i.png" />
@@ -646,8 +637,6 @@ export default function Image({
   )
 }
 
-//BUILT IN LOADERS
-
 function normalizeSrc(src: string): string {
   return src[0] === '/' ? src.slice(1) : src
 }
@@ -687,6 +676,13 @@ function cloudinaryLoader({
   const params = ['f_auto', 'c_limit', 'w_' + width, 'q_' + (quality || 'auto')]
   let paramsString = params.join(',') + '/'
   return `${root}${paramsString}${normalizeSrc(src)}`
+}
+
+function customLoader({ src }: DefaultImageLoaderProps): string {
+  throw new Error(
+    `Image with src "${src}" is missing "loader" prop.` +
+      `\nRead more: https://nextjs.org/docs/messages/next-image-missing-loader`
+  )
 }
 
 function defaultLoader({
