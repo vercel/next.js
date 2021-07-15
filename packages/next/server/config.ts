@@ -2,7 +2,6 @@ import chalk from 'chalk'
 import findUp from 'next/dist/compiled/find-up'
 import { basename, extname } from 'path'
 import * as Log from '../build/output/log'
-import { hasNextSupport } from '../telemetry/ci-info'
 import { CONFIG_FILE, PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import { execOnce } from '../shared/lib/utils'
 import {
@@ -469,7 +468,10 @@ export default async function loadConfig(
           : canonicalBase) || ''
     }
 
-    if (hasNextSupport) {
+    if (
+      process.env.NEXT_PRIVATE_TARGET ||
+      (process.env.VERCEL === '1' && process.env.VERCEL_ENV !== 'development')
+    ) {
       userConfig.target = process.env.NEXT_PRIVATE_TARGET || 'server'
     }
 

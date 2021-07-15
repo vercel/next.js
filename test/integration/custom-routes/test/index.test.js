@@ -2035,7 +2035,7 @@ describe('Custom routes', () => {
         {
           stderr: true,
           env: {
-            NOW_BUILDER: '1',
+            VERCEL: '1',
           },
         }
       )
