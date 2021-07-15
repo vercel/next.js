@@ -1,4 +1,5 @@
 import { parse as parseUrl } from 'url'
+import * as Log from '../build/output/log'
 import { NextConfig } from '../server/config'
 import * as pathToRegexp from 'next/dist/compiled/path-to-regexp'
 import escapeStringRegexp from 'next/dist/compiled/escape-string-regexp'
@@ -666,6 +667,23 @@ export default async function loadCustomRoutes(
         internal: true,
       } as Redirect)
     }
+  }
+
+  const totalRewrites =
+    rewrites.beforeFiles.length +
+    rewrites.afterFiles.length +
+    rewrites.fallback.length
+
+  const totalRoutes = headers.length + redirects.length + totalRewrites
+
+  if (totalRoutes > 1024) {
+    console.warn(
+      `Warning total number of custom routes exceeds 1024, this can reduce performance. Route counts:\n` +
+        `headers: ${headers.length}\n` +
+        `rewrites: ${totalRewrites}\n` +
+        `redirects: ${redirects.length}\n` +
+        `See more info: https://nextjs.org/docs/messages/max-custom-routes-reached`
+    )
   }
 
   return {

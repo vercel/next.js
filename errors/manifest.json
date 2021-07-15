@@ -414,6 +414,10 @@
         {
           "title": "import-esm-externals",
           "path": "/errors/import-esm-externals.md"
+        },
+        {
+          "title": "max-custom-routes-reached",
+          "path": "max-custom-routes-reached.md"
         }
       ]
     }
