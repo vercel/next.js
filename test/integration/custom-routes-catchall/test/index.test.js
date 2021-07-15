@@ -28,7 +28,7 @@ const runTests = () => {
     const bundlePath = await join(
       '/docs/_next/static/',
       buildId,
-      '_buildManifest.js'
+      '_buildManifest.mjs'
     )
     const data = await renderViaHTTP(appPort, bundlePath)
     expect(data).toContain('/hello')

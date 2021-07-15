@@ -17,7 +17,7 @@ function runTests() {
       /.*/
     )
     const jsFiles = browserFiles.filter(
-      (file) => file.endsWith('.js') && file.includes('/pages/')
+      (file) => /\.m?js$/.test(file) && file.includes('/pages/')
     )
 
     jsFiles.forEach((file) => {

@@ -1013,9 +1013,9 @@ export default async function getBaseWebpackConfig(
           : '[name].js'
         : `static/chunks/${isDevFallback ? 'fallback/' : ''}[name]${
             dev ? '' : isWebpack5 ? '-[contenthash]' : '-[chunkhash]'
-          }.js`,
+          }.mjs`,
       library: isServer ? undefined : '_N_E',
-      libraryTarget: isServer ? 'commonjs2' : 'assign',
+      libraryTarget: isServer ? 'commonjs2' : 'global',
       hotUpdateChunkFilename: isWebpack5
         ? 'static/webpack/[id].[fullhash].hot-update.js'
         : 'static/webpack/[id].[hash].hot-update.js',
@@ -1027,7 +1027,7 @@ export default async function getBaseWebpackConfig(
         ? '[name].js'
         : `static/chunks/${isDevFallback ? 'fallback/' : ''}${
             dev ? '[name]' : '[name].[contenthash]'
-          }.js`,
+          }.mjs`,
       strictModuleExceptionHandling: true,
       crossOriginLoading: crossOrigin,
       futureEmitAssets: !dev,
@@ -1341,6 +1341,13 @@ export default async function getBaseWebpackConfig(
   if (isWebpack5) {
     // futureEmitAssets is on by default in webpack 5
     delete webpackConfig.output?.futureEmitAssets
+
+    if (!isServer) {
+      // @ts-ignore experiments exists
+      webpackConfig.experiments = {
+        outputModule: true,
+      }
+    }
 
     if (isServer && dev) {
       // Enable building of client compilation before server compilation in development

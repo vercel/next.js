@@ -201,7 +201,7 @@ describe('Serverless', () => {
     for (const page of pages) {
       const file = getPageFileFromPagesManifest(appDir, page)
 
-      expect(file.endsWith('.js')).toBe(true)
+      expect(file).toMatch(/\.m?js$/)
     }
   })
 

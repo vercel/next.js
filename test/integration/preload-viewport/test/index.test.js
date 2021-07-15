@@ -353,7 +353,7 @@ describe('Prefetching Links in viewport', () => {
 
   it('should correctly omit pre-generated dynamic pages from SSG manifest', async () => {
     const content = await readFile(
-      join(appDir, '.next', 'static', 'test-build', '_ssgManifest.js'),
+      join(appDir, '.next', 'static', 'test-build', '_ssgManifest.mjs'),
       'utf8'
     )
 

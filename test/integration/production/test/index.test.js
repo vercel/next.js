@@ -344,7 +344,7 @@ describe('Production Usage', () => {
     it('should set correct Cache-Control header for static 404s', async () => {
       // this is to fix where 404 headers are set to 'public, max-age=31536000, immutable'
       const res = await fetch(
-        `http://localhost:${appPort}/_next//static/common/bad-static.js`
+        `http://localhost:${appPort}/_next//static/common/bad-static.mjs`
       )
 
       expect(res.status).toBe(404)
@@ -753,14 +753,14 @@ describe('Production Usage', () => {
     const url = `http://localhost:${appPort}`
     await fetch(`${url}/stateless`) // make sure the stateless page is built
     const clientSideJsRes = await fetch(
-      `${url}/_next/development/static/development/pages/stateless.js`
+      `${url}/_next/development/static/development/pages/stateless.mjs`
     )
     expect(clientSideJsRes.status).toBe(404)
     const clientSideJsBody = await clientSideJsRes.text()
     expect(clientSideJsBody).toMatch(/404/)
 
     const serverSideJsRes = await fetch(
-      `${url}/_next/development/server/static/development/pages/stateless.js`
+      `${url}/_next/development/server/static/development/pages/stateless.mjs`
     )
     expect(serverSideJsRes.status).toBe(404)
     const serverSideJsBody = await serverSideJsRes.text()
@@ -799,7 +799,7 @@ describe('Production Usage', () => {
     for (const page of pages) {
       const file = getPageFileFromPagesManifest(appDir, page)
 
-      expect(file.endsWith('.js')).toBe(true)
+      expect(file).toMatch(/\.m?js$/)
     }
   })
 

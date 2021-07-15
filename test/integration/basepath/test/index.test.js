@@ -473,13 +473,13 @@ const runTests = (dev = false) => {
           `[].slice.call(document.querySelectorAll("link[rel=prefetch]")).map((e) => new URL(e.href).pathname)`
         )
         expect(prefetches).toContainEqual(
-          expect.stringMatching(/\/gsp-[^./]+\.js/)
+          expect.stringMatching(/\/gsp-[^./]+\.m?js/)
         )
         expect(prefetches).toContainEqual(
-          expect.stringMatching(/\/gssp-[^./]+\.js/)
+          expect.stringMatching(/\/gssp-[^./]+\.m?js/)
         )
         expect(prefetches).toContainEqual(
-          expect.stringMatching(/\/other-page-[^./]+\.js/)
+          expect.stringMatching(/\/other-page-[^./]+\.m?js/)
         )
         return 'yes'
       }, 'yes')

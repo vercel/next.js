@@ -68,7 +68,7 @@ export class NextJsRequireCacheHotReloader implements webpack.Plugin {
         entries.forEach((page) => {
           const outputPath = path.join(
             compilation.outputOptions.path,
-            page + '.js'
+            page + '.mjs'
           )
           deleteCache(outputPath)
         })

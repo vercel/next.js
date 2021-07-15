@@ -25,7 +25,7 @@ describe('typeof window replace', () => {
 
   it('Replaces `typeof window` with object for client code', async () => {
     const pageFile = buildManifest.pages['/'].find(
-      (file) => file.endsWith('.js') && file.includes('pages/index')
+      (file) => /\.m?js$/.test(file) && file.includes('pages/index')
     )
 
     const content = await fs.readFile(
@@ -48,7 +48,7 @@ describe('typeof window replace', () => {
 
   it('Does not replace `typeof window` for `node_modules` code', async () => {
     const pageFile = buildManifest.pages['/'].find(
-      (file) => file.endsWith('.js') && file.includes('pages/index')
+      (file) => /\.m?js$/.test(file) && file.includes('pages/index')
     )
 
     const content = await fs.readFile(

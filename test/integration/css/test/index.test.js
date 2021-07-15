@@ -1686,7 +1686,7 @@ describe('CSS Support', () => {
           appDir,
           '.next/static/',
           buildId,
-          '_buildManifest.js'
+          '_buildManifest.mjs'
         )
         if (!(await pathExists(fileName))) {
           throw new Error('Missing build manifest')
