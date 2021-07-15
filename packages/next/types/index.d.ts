@@ -136,6 +136,14 @@ export type GetStaticPathsResult<P extends ParsedUrlQuery = ParsedUrlQuery> = {
   fallback: boolean | 'blocking'
 }
 
+export type InferGetStaticPathsType<T> = T extends GetStaticPaths<infer P>
+  ? P
+  : T extends (
+      context?: GetStaticPathsContext
+    ) => Promise<GetStaticPathsResult<infer P>>
+  ? P
+  : never
+
 export type GetStaticPaths<P extends ParsedUrlQuery = ParsedUrlQuery> = (
   context: GetStaticPathsContext
 ) => Promise<GetStaticPathsResult<P>> | GetStaticPathsResult<P>
