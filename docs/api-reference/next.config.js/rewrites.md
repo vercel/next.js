@@ -87,6 +87,8 @@ module.exports = {
 }
 ```
 
+Note: rewrites in `beforeFiles` do not check the filesystem/dynamic routes immediately after matching a source, they continue until all `beforeFiles` have been checked.
+
 ## Rewrite parameters
 
 When using parameters in a rewrite the parameters will be passed in the query by default when none of the parameters are used in the `destination`.
