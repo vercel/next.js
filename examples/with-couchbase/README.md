@@ -55,7 +55,7 @@ cp .env.local.example .env.local
 Set each variable on `.env.local`:
 
 - `COUCHBASE_USERNAME` - The username of an authorized user on your Couchbase instance
-- `COUCHBASE_PASSWORD` - The corresponding password for the user specified above
+- `COUCHBASE_PASSWORD` - The corresponding password for the username specified above
 - `COUCHBASE_ENDPOINT` - The endpoint to connect to. Use `localhost` for a local instance of Couchbase, or the Wide Area Network address for a cloud instance.
 - `TEST_BUCKET_NAME` - The bucket you'd like to connect to for testing.
 - `IS_CLOUD_INSTANCE` - `true` if you are trying to connect to an instance of Couchbase Cloud, `false` otherwise.
@@ -76,7 +76,7 @@ You will either see a message stating "You are connected to Couchbase" or "You a
 
 When you are successfully connected, you can refer to the [Couchbase Node.js SDK docs](https://docs.couchbase.com/nodejs-sdk/current/hello-world/start-using-sdk.html) for further instructions on how to query your database.
 
-_NOTE_: this project is pre-populated with a test query. If you have loaded the `travel-sample` bucket, the query will run successfully, and you should see list of airlines on the index page.
+_NOTE_: this project is pre-populated with a test query. If you have loaded the `travel-sample` bucket, the query will run successfully, and you should see a list of airlines on the index page.
 
 ## Deploy on Vercel
 
@@ -94,5 +94,5 @@ To deploy your local project to Vercel, push it to GitHub/GitLab/Bitbucket and [
 
   - _Important:_ you will have to allowlist 0.0.0.0/0 as the IP address, since Vercel's serverless deployments use [dynamic IP addresses](https://vercel.com/docs/solutions/databases#allowing-&-blocking-ip-addresses)
 
-- This project is pre-populated with a test query on the `travel-sample` example bucket. If you have loaded the `travel-sample` bucket, the query will run successfully, and you should see list of airlines on the index page.
+- This project is pre-populated with a test query on the `travel-sample` example bucket. If you have loaded the `travel-sample` bucket, the query will run successfully, and you should see a list of airlines on the index page.
   - See notes on adding [sample buckets](https://docs.couchbase.com/server/current/manage/manage-settings/install-sample-buckets.html) for more info.
