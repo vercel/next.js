@@ -43,13 +43,13 @@ describe('Script Loader', () => {
       async function test(id) {
         const script = await browser.elementById(id)
         const endScripts = await browser.elementsByCss(
-          `#${id} ~ script[src^="/_next/static/"]`
+          `#__NEXT_DATA__ ~ #${id}`
         )
 
         // Renders script tag
         expect(script).toBeDefined()
         // Script is inserted at the end
-        expect(endScripts.length).toBe(0)
+        expect(endScripts.length).toBe(1)
       }
 
       // afterInteractive script in page
@@ -72,13 +72,13 @@ describe('Script Loader', () => {
       async function test(id) {
         const script = await browser.elementById(id)
         const endScripts = await browser.elementsByCss(
-          `#${id} ~ script[src^="/_next/static/"]`
+          `#__NEXT_DATA__ ~ #${id}`
         )
 
         // Renders script tag
         expect(script).toBeDefined()
         // Script is inserted at the end
-        expect(endScripts.length).toBe(0)
+        expect(endScripts.length).toBe(1)
       }
 
       // lazyOnload script in page
