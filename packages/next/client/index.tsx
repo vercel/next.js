@@ -484,7 +484,7 @@ export function renderError(renderErrorProps: RenderErrorProps): Promise<any> {
         ctx: { err, pathname: page, query, asPath, AppTree },
       }
       return Promise.resolve(
-        renderErrorProps.props
+        renderErrorProps.props?.err
           ? renderErrorProps.props
           : loadGetInitialProps(App, appCtx)
       ).then((initProps) =>
