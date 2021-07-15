@@ -1,0 +1,21 @@
+{
+  "name": "web-app",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "cy:run": "pnpm build && pnpm start",
+    "cy:dev": "pnpm dev"
+  },
+  "dependencies": {
+    "@types/react": "^17.0.14",
+    "bar": "workspace:1.0.0",
+    "next": "^11.0.1",
+    "next-transpile-modules": "^7.3.0",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
+    "typescript": "^4.3.5"
+  },
+  "license": "MIT"
+}
