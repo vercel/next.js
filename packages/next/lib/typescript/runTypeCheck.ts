@@ -56,9 +56,14 @@ export async function runTypeCheck(
         incremental: true,
         tsBuildInfoFile: path.join(cacheDir, '.tsbuildinfo'),
       },
+      projectReferences: effectiveConfiguration.projectReferences,
     })
   } else {
-    program = ts.createProgram(effectiveConfiguration.fileNames, options)
+    program = ts.createProgram({
+      rootNames: effectiveConfiguration.fileNames,
+      options,
+      projectReferences: effectiveConfiguration.projectReferences,
+    })
   }
   const result = program.emit()
 
