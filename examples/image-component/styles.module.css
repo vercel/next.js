@@ -48,3 +48,25 @@
   padding-top: 40vh;
   text-shadow: 1px 1px 1px #3c5c5e;
 }
+
+.containedWrap {
+  display: flex;
+  height: 200px;
+  width: 300px;
+}
+
+.containedPageLayout {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+}
+
+.containedText {
+  margin: 0;
+  font-size: 1.5rem;
+  line-height: 2rem;
+  text-align: center;
+  padding-top: 40vh;
+  text-shadow: 1px 1px 1px #3c5c5e;
+}
