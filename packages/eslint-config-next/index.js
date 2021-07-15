@@ -46,6 +46,15 @@ module.exports = {
         warnOnUnsupportedTypeScriptVersion: true,
       },
     },
+    {
+      files: ['**/pages/api/**/*.[jt]s'],
+      rules: {
+        'import/no-anonymous-default-export': [
+          'warn',
+          { allowArrowFunction: true },
+        ],
+      },
+    },
   ],
   settings: {
     react: {
