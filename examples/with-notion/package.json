@@ -1,0 +1,23 @@
+{
+  "name": "with-notion",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@notionhq/client": "^0.1.3",
+    "classnames": "2.2.6",
+    "date-fns": "2.10.0",
+    "next": "latest",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2"
+  },
+  "devDependencies": {
+    "postcss-flexbugs-fixes": "^5.0.2",
+    "postcss-preset-env": "^6.7.0",
+    "tailwindcss": "^2.1.2"
+  },
+  "license": "MIT"
+}
