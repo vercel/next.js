@@ -88,6 +88,10 @@ const loadScript = (props: ScriptProps): void => {
       continue
     }
 
+    if ((dangerouslySetInnerHTML || children) && k === 'src') {
+      continue
+    }
+
     const attr = DOMAttributeNames[k] || k.toLowerCase()
     el.setAttribute(attr, value)
   }
