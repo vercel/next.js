@@ -11,7 +11,7 @@ export type RouteHas =
   | {
       type: 'header' | 'query' | 'cookie'
       key: string
-      value?: string
+      value?: string | boolean
     }
   | {
       type: 'host'
@@ -263,6 +263,7 @@ function checkCustomRoutes(
         }
         if (
           typeof hasItem.value !== 'undefined' &&
+          typeof hasItem.value !== 'boolean' &&
           typeof hasItem.value !== 'string'
         ) {
           invalidHasParts.push(`invalid value "${hasItem.value}"`)
