@@ -8,6 +8,7 @@ import {
   VALID_LOADERS,
 } from '../server/image-config'
 import { useIntersection } from './use-intersection'
+import { normalizePathTrailingSlash } from './normalize-trailing-slash'
 
 const loadedImageURLs = new Set<string>()
 
@@ -737,5 +738,7 @@ function defaultLoader({
     }
   }
 
-  return `${root}?url=${encodeURIComponent(src)}&w=${width}&q=${quality || 75}`
+  return `${normalizePathTrailingSlash(root)}?url=${encodeURIComponent(
+    src
+  )}&w=${width}&q=${quality || 75}`
 }
