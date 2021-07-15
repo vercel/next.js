@@ -53,26 +53,27 @@ export class Worker {
 
     for (const method of farmOptions.exposedMethods) {
       if (method.startsWith('_')) continue
-      const anyThis = this as any
-      // eslint-disable-next-line no-loop-func
-      anyThis[method] = async (...args: any[]) => {
-        activeTasks++
-        try {
-          let attempts = 0
-          for (;;) {
-            onActivity()
-            const result = await Promise.race([
-              (this._worker as any)[method](...args),
-              restartPromise,
-            ])
-            if (result !== RESTARTED) return result
-            if (onRestart) onRestart(method, args, ++attempts)
+      ;(this as any)[method] = timeout
+        ? // eslint-disable-next-line no-loop-func
+          async (...args: any[]) => {
+            activeTasks++
+            try {
+              let attempts = 0
+              for (;;) {
+                onActivity()
+                const result = await Promise.race([
+                  (this._worker as any)[method](...args),
+                  restartPromise,
+                ])
+                if (result !== RESTARTED) return result
+                if (onRestart) onRestart(method, args, ++attempts)
+              }
+            } finally {
+              activeTasks--
+              onActivity()
+            }
           }
-        } finally {
-          activeTasks--
-          onActivity()
-        }
-      }
+        : (this._worker as any)[method].bind(this._worker)
     }
   }
 

@@ -682,17 +682,25 @@ export default async function build(
     } = await staticCheckSpan.traceAsyncFn(async () => {
       process.env.NEXT_PHASE = PHASE_PRODUCTION_BUILD
 
+      const timeout = config.experimental.pageDataCollectionTimeout || 0
+      let infoPrinted = false
       const staticCheckWorkers = new Worker(staticCheckWorker, {
-        timeout: 60000,
+        timeout: timeout * 1000,
         onRestart: (_method, [pagePath], attempts) => {
           if (attempts >= 2) {
             throw new Error(
-              `Collecting page data for ${pagePath} is still timing out after 2 attempts`
+              `Collecting page data for ${pagePath} is still timing out after 2 attempts. See more info here https://nextjs.org/docs/messages/page-data-collection-timeout`
             )
           }
           Log.warn(
-            `Restarted collecting page data for ${pagePath} because it took more than 1 minute`
+            `Restarted collecting page data for ${pagePath} because it took more than ${timeout} seconds`
           )
+          if (!infoPrinted) {
+            Log.warn(
+              'See more info here https://nextjs.org/docs/messages/page-data-collection-timeout'
+            )
+            infoPrinted = true
+          }
         },
         numWorkers: config.experimental.cpus,
         enableWorkerThreads: config.experimental.workerThreads,
