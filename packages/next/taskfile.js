@@ -196,6 +196,14 @@ export async function ncc_ci_info(task, opts) {
     .ncc({ packageName: 'ci-info', externals })
     .target('compiled/ci-info')
 }
+// eslint-disable-next-line camelcase
+externals['cli-select'] = 'next/dist/compiled/cli-select'
+export async function ncc_cli_select(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('cli-select')))
+    .ncc({ packageName: 'cli-select', externals })
+    .target('compiled/cli-select')
+}
 externals['comment-json'] = 'next/dist/compiled/comment-json'
 export async function ncc_comment_json(task, opts) {
   await task
@@ -740,6 +748,7 @@ export async function ncc(task, opts) {
         'ncc_bfj',
         'ncc_cacache',
         'ncc_ci_info',
+        'ncc_cli_select',
         'ncc_comment_json',
         'ncc_compression',
         'ncc_conf',

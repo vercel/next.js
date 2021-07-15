@@ -18,39 +18,84 @@ Then run `npm run lint` or `yarn lint`:
 yarn lint
 ```
 
-If you don't already have ESLint configured in your application, you will be guided through the installation of the required packages.
+If you don't already have ESLint configured in your application, you will be guided through the installation and configuration process.
 
 ```bash
 yarn lint
 
-# You'll see instructions like these:
+# You'll see a prompt like this:
 #
-# Please install eslint and eslint-config-next by running:
+# ? How would you like to configure ESLint?
 #
-#         yarn add --dev eslint eslint-config-next
-#
-# ...
+# ❯   Base configuration + Core Web Vitals rule-set (recommended)
+#     Base configuration
+#     None
 ```
 
-If no ESLint configuration is present, Next.js will create an `.eslintrc` file in the root of your project and automatically configure it with the base configuration:
+One of the following three options can be selected:
 
-```js
-{
-  "extends": "next"
-}
-```
+- **Strict**: Includes Next.js' base ESLint configuration along with a stricter [Core Web Vitals rule-set](/docs/basic-features/eslint.md#core-web-vitals). This is the recommended configuration for developers setting up ESLint for the first time.
 
-You can now run `next lint` every time you want to run ESLint to catch errors.
+  ```json
+  {
+    "extends": "next/core-web-vitals"
+  }
+  ```
 
-> The default base configuration (`"extends": "next"`) can be updated at any time and will only be included if no ESLint configuration is present.
+- **Base**: Includes Next.js' base ESLint configuration.
+
+  ```json
+  {
+    "extends": "next"
+  }
+  ```
+
+- **None**: Does not include any ESLint configuration. Only select this option if you plan on setting up your own custom ESLint configuration.
+
+If either of the two configuration options are selected, Next.js will automatically install `eslint` and `eslint-config-next` as development dependencies in your application and create an `.eslintrc` file in the root of your project that includes your selected configuration.
+
+You can now run `next lint` every time you want to run ESLint to catch errors. Once ESLint has been set up, it will also automatically run during every build (`next build`). Errors will fail the build, while warnings will not.
+
+> If you do not want ESLint to run as a build step, refer to the documentation for [Ignoring ESLint](/docs/api-reference/next.config.js/ignoring-eslint.md).
 
 We recommend using an appropriate [integration](https://eslint.org/docs/user-guide/integrations#editors) to view warnings and errors directly in your code editor during development.
 
-## Linting During Builds
+## ESLint Config
 
-Once ESLint has been set up, it will automatically run during every build (`next build`). Errors will fail the build, while warnings will not.
+The default configuration (`eslint-config-next`) includes everything you need to have an optimal out-of-the-box linting experience in Next.js. If you do not have ESLint already configured in your application, we recommend using `next lint` to set up ESLint along with this configuration.
 
-If you do not want ESLint to run as a build step, refer to the documentation for [Ignoring ESLint](/docs/api-reference/next.config.js/ignoring-eslint.md):
+> If you would like to use `eslint-config-next` along with other ESLint configurations, refer to the [Additional Configurations](/docs/basic-features/eslint.md#additional-configurations) section to learn how to do so without causing any conflicts.
+
+Recommended rule-sets from the following ESLint plugins are all used within `eslint-config-next`:
+
+- [`eslint-plugin-react`](https://www.npmjs.com/package/eslint-plugin-react)
+- [`eslint-plugin-react-hooks`](https://www.npmjs.com/package/eslint-plugin-react-hooks)
+- [`eslint-plugin-next`](https://www.npmjs.com/package/@next/eslint-plugin-next)
+
+You can see the full details of the shareable configuration in the [`eslint-config-next`](https://www.npmjs.com/package/eslint-config-next) package.
+
+## ESLint Plugin
+
+Next.js provides an ESLint plugin, [`eslint-plugin-next`](https://www.npmjs.com/package/@next/eslint-plugin-next), already bundled within the base configuration that makes it possible to catch common issues and problems in a Next.js application. The full set of rules is as follows:
+
+|     | Rule                                                                                           | Description                                                      |
+| :-: | ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| ✔️  | [next/google-font-display](https://nextjs.org/docs/messages/google-font-display)               | Enforce optional or swap font-display behavior with Google Fonts |
+| ✔️  | [next/google-font-preconnect](https://nextjs.org/docs/messages/google-font-preconnect)         | Enforce preconnect usage with Google Fonts                       |
+| ✔️  | [next/link-passhref](https://nextjs.org/docs/messages/link-passhref)                           | Enforce passHref prop usage with custom Link components          |
+| ✔️  | [next/no-css-tags](https://nextjs.org/docs/messages/no-css-tags)                               | Prevent manual stylesheet tags                                   |
+| ✔️  | [next/no-document-import-in-page](https://nextjs.org/docs/messages/no-document-import-in-page) | Disallow importing next/document outside of pages/document.js    |
+| ✔️  | [next/no-head-import-in-document](https://nextjs.org/docs/messages/no-head-import-in-document) | Disallow importing next/head in pages/document.js                |
+| ✔️  | [next/no-html-link-for-pages](https://nextjs.org/docs/messages/no-html-link-for-pages)         | Prohibit HTML anchor links to pages without a Link component     |
+| ✔️  | [next/no-img-element](https://nextjs.org/docs/messages/no-img-element)                         | Prohibit usage of HTML &lt;img&gt; element                       |
+| ✔️  | [next/no-page-custom-font](https://nextjs.org/docs/messages/no-page-custom-font)               | Prevent page-only custom fonts                                   |
+| ✔️  | [next/no-sync-scripts](https://nextjs.org/docs/messages/no-sync-scripts)                       | Forbid synchronous scripts                                       |
+| ✔️  | [next/no-title-in-document-head](https://nextjs.org/docs/messages/no-title-in-document-head)   | Disallow using &lt;title&gt; with Head from next/document        |
+| ✔️  | [next/no-unwanted-polyfillio](https://nextjs.org/docs/messages/no-unwanted-polyfillio)         | Prevent duplicate polyfills from Polyfill.io                     |
+
+- ✔: Enabled in the recommended configuration
+
+If you already have ESLint configured in your application, we recommend extending from this plugin directly instead of including `eslint-config-next` unless a few conditions are met. Refer to the [Recommended Plugin Ruleset](/docs/basic-features/eslint.md#recommended-plugin-ruleset) to learn more.
 
 ## Linting Custom Directories
 
@@ -70,55 +115,16 @@ Similarly, the `--dir` flag can be used for `next lint`:
 yarn lint --dir pages --dir utils
 ```
 
-## ESLint Plugin
-
-Next.js provides an ESLint plugin, [`eslint-plugin-next`](https://www.npmjs.com/package/@next/eslint-plugin-next), making it easier to catch common issues and problems in a Next.js application. The full set of rules is as follows:
-
-|     | Rule                                                                                           | Description                                                      |
-| :-: | ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| ✔️  | [next/google-font-display](https://nextjs.org/docs/messages/google-font-display)               | Enforce optional or swap font-display behavior with Google Fonts |
-| ✔️  | [next/google-font-preconnect](https://nextjs.org/docs/messages/google-font-preconnect)         | Enforce preconnect usage with Google Fonts                       |
-| ✔️  | [next/link-passhref](https://nextjs.org/docs/messages/link-passhref)                           | Enforce passHref prop usage with custom Link components          |
-| ✔️  | [next/no-css-tags](https://nextjs.org/docs/messages/no-css-tags)                               | Prevent manual stylesheet tags                                   |
-| ✔️  | [next/no-document-import-in-page](https://nextjs.org/docs/messages/no-document-import-in-page) | Disallow importing next/document outside of pages/document.js    |
-| ✔️  | [next/no-head-import-in-document](https://nextjs.org/docs/messages/no-head-import-in-document) | Disallow importing next/head in pages/document.js                |
-| ✔️  | [next/no-html-link-for-pages](https://nextjs.org/docs/messages/no-html-link-for-pages)         | Prohibit HTML anchor links to pages without a Link component     |
-| ✔️  | [next/no-img-element](https://nextjs.org/docs/messages/no-img-element)                         | Prohibit usage of HTML &lt;img&gt; element                       |
-| ✔️  | [next/no-page-custom-font](https://nextjs.org/docs/messages/no-page-custom-font)               | Prevent page-only custom fonts                                   |
-| ✔️  | [next/no-sync-scripts](https://nextjs.org/docs/messages/no-sync-scripts)                       | Forbid synchronous scripts                                       |
-| ✔️  | [next/no-title-in-document-head](https://nextjs.org/docs/messages/no-title-in-document-head)   | Disallow using &lt;title&gt; with Head from next/document        |
-| ✔️  | [next/no-unwanted-polyfillio](https://nextjs.org/docs/messages/no-unwanted-polyfillio)         | Prevent duplicate polyfills from Polyfill.io                     |
-
-- ✔: Enabled in the recommended configuration
-
-## Base Configuration
-
-The Next.js base ESLint configuration is automatically generated when `next lint` is run for the first time:
-
-```js
-{
-  "extends": "next"
-}
-```
-
-This configuration extends recommended rule sets from various ESLint plugins:
-
-- [`eslint-plugin-react`](https://www.npmjs.com/package/eslint-plugin-react)
-- [`eslint-plugin-react-hooks`](https://www.npmjs.com/package/eslint-plugin-react-hooks)
-- [`eslint-plugin-next`](https://www.npmjs.com/package/@next/eslint-plugin-next)
-
-You can see the full details of the shareable configuration in the [`eslint-config-next`](https://www.npmjs.com/package/eslint-config-next) package.
-
 ## Disabling Rules
 
 If you would like to modify or disable any rules provided by the supported plugins (`react`, `react-hooks`, `next`), you can directly change them using the `rules` property in your `.eslintrc`:
 
-```js
+```json
 {
   "extends": "next",
   "rules": {
     "react/no-unescaped-entities": "off",
-    "@next/next/no-page-custom-font": "off",
+    "@next/next/no-page-custom-font": "off"
   }
 }
 ```
@@ -137,23 +143,23 @@ If you would like to modify or disable any rules provided by the supported plugi
 
 ### Core Web Vitals
 
-A stricter `next/core-web-vitals` rule set can also be added in `.eslintrc`:
+The `next/core-web-vitals` rule set is enabled when `next lint` is run for the first time and the **strict** option is selected.
 
-```
+```json
 {
-  "extends": ["next", "next/core-web-vitals"]
+  "extends": "next/core-web-vitals"
 }
 ```
 
 `next/core-web-vitals` updates `eslint-plugin-next` to error on a number of rules that are warnings by default if they affect [Core Web Vitals](https://web.dev/vitals/).
 
-> Both `next` and `next/core-web-vitals` entry points are automatically included for new applications built with [Create Next App](/docs/api-reference/create-next-app.md).
+> The `next/core-web-vitals` entry point is automatically included for new applications built with [Create Next App](/docs/api-reference/create-next-app.md).
 
 ## Usage with Prettier
 
 ESLint also contains code formatting rules, which can conflict with your existing [Prettier](https://prettier.io/) setup. We recommend including [eslint-config-prettier](https://github.com/prettier/eslint-config-prettier) in your ESLint config to make ESLint and Prettier work together.
 
-```js
+```json
 {
   "extends": ["next", "prettier"]
 }

@@ -256,7 +256,7 @@ export async function createApp({
       rename: (name) => {
         switch (name) {
           case 'gitignore':
-          case 'eslintrc': {
+          case 'eslintrc.json': {
             return '.'.concat(name)
           }
           // README.md is ignored by webpack-asset-relocator-loader used by ncc:
