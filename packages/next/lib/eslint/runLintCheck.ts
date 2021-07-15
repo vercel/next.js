@@ -64,6 +64,7 @@ async function lint(
   let options: any = {
     useEslintrc: true,
     baseConfig: {},
+    errorOnUnmatchedPattern: false,
     extensions: ['.js', '.jsx', '.ts', '.tsx'],
     ...eslintOptions,
   }

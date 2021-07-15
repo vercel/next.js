@@ -1,0 +1,16 @@
+{
+  "extends": ["next"],
+  "rules": {
+    "import/no-anonymous-default-export": "off",
+    "react/display-name": "off",
+    "@next/next/no-img-element": "off",
+    "jsx-a11y/alt-text": "off",
+    "@next/next/no-css-tags": "off",
+    "@next/next/no-page-custom-font": "off",
+    "@next/next/no-sync-scripts": "off",
+    "react/no-unescaped-entities": "off",
+    "@next/next/no-html-link-for-pages": "off",
+    "react/no-unknown-property": "off",
+    "@next/next/google-font-display": "off"
+  }
+}
