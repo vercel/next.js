@@ -1,0 +1,29 @@
+{
+  "name": "cms-contentstack",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@contentstack/management": "1.1.2",
+    "classnames": "^2.2.6",
+    "contentstack": "^3.12.1",
+    "date-fns": "^2.16.1",
+    "next": "10.0.3",
+    "react": "17.0.1",
+    "react-dom": "17.0.1",
+    "react-html-parser": "^2.0.2"
+  },
+  "devDependencies": {
+    "@fullhuman/postcss-purgecss": "^2.1.0",
+    "postcss-preset-env": "^6.7.0",
+    "tailwindcss": "^1.2.0"
+  },
+  "engines": {
+    "node": ">=10.0.0 <14.0.0"
+  },
+  "license": "MIT"
+}
