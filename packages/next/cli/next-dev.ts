@@ -4,6 +4,7 @@ import arg from 'next/dist/compiled/arg/index.js'
 import { existsSync } from 'fs'
 import startServer from '../server/lib/start-server'
 import { printAndExit } from '../server/lib/utils'
+import { getNetworkHost } from '../lib/get-network-host'
 import * as Log from '../build/output/log'
 import { startedDevelopmentServer } from '../build/output'
 import { cliCommand } from '../bin/next'
@@ -78,7 +79,12 @@ const nextDev: cliCommand = (argv) => {
 
   startServer({ dir, dev: true, isNextDevCommand: true }, port, host)
     .then(async (app) => {
-      startedDevelopmentServer(appUrl, `${host}:${port}`)
+      const networkHost = getNetworkHost()
+      startedDevelopmentServer({
+        appUrl,
+        bindAddr: `${host}:${port}`,
+        appUrlNet: networkHost ? `http://${networkHost}:${port}` : null,
+      })
       // Start preflight after server is listening and ignore errors:
       preflight().catch(() => {})
       // Finalize server bootup:

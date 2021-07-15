@@ -8,6 +8,7 @@ import http from 'http'
 // This is done so that requiring from `next` works.
 // The reason we don't import the relative path `../../dist/<etc>` is that it would lead to inconsistent module singletons
 import server from 'next/dist/server/next'
+import { getNetworkHost as _getNetworkHost } from 'next/dist/lib/get-network-host'
 import _pkg from 'next/package.json'
 import fetch from 'node-fetch'
 import path from 'path'
@@ -90,6 +91,10 @@ export function fetchViaHTTP(appPort, pathname, query, opts) {
 
 export function findPort() {
   return getPort()
+}
+
+export function getNetworkHost() {
+  return _getNetworkHost()
 }
 
 export function runNextCommand(argv, options = {}) {

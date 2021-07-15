@@ -1,27 +1,39 @@
 import createStore from 'next/dist/compiled/unistore'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
+import chalk from 'chalk'
 
 import * as Log from './log'
 
+export type Address = {
+  appUrl: string | null
+  bindAddr: string | null
+  appUrlNet: string | null
+}
 export type OutputState =
-  | { bootstrap: true; appUrl: string | null; bindAddr: string | null }
-  | ({ bootstrap: false; appUrl: string | null; bindAddr: string | null } & (
-      | { loading: true }
-      | {
-          loading: false
-          typeChecking: boolean
-          errors: string[] | null
-          warnings: string[] | null
-        }
-    ))
+  | (Address & { bootstrap: true })
+  | (Address & { bootstrap: false } & (
+        | { loading: true }
+        | {
+            loading: false
+            typeChecking: boolean
+            errors: string[] | null
+            warnings: string[] | null
+          }
+      ))
 
 export const store = createStore<OutputState>({
   appUrl: null,
   bindAddr: null,
   bootstrap: true,
+  appUrlNet: null,
 })
 
-let lastStore: OutputState = { appUrl: null, bindAddr: null, bootstrap: true }
+let lastStore: OutputState = {
+  appUrl: null,
+  bindAddr: null,
+  bootstrap: true,
+  appUrlNet: null,
+}
 function hasStoreChanged(nextStore: OutputState) {
   if (
     ([
@@ -43,9 +55,20 @@ store.subscribe((state) => {
   }
 
   if (state.bootstrap) {
+    const space = ' '.repeat(8)
+    let message = `started server on - \n`
+
     if (state.appUrl) {
-      Log.ready(`started server on ${state.bindAddr}, url: ${state.appUrl}`)
+      message +=
+        space +
+        `local - url: ${chalk.green(state.appUrl)}, on - ${state.bindAddr}\n`
     }
+
+    if (state.appUrlNet) {
+      message += space + `network - url: ${chalk.green(state.appUrlNet)}`
+    }
+
+    Log.ready(message)
     return
   }
 
