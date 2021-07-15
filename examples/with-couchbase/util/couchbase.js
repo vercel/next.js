@@ -2,9 +2,9 @@ const couchbase = require('couchbase')
 
 const COUCHBASE_USER = process.env.COUCHBASE_USER
 const COUCHBASE_PASSWORD = process.env.COUCHBASE_PASSWORD
-const COUCHBASE_ENDPOINT = process.env.COUCHBASE_ENDPOINT
-let TEST_BUCKET_NAME = process.env.TEST_BUCKET_NAME
-let IS_CLOUD_INSTANCE = process.env.IS_CLOUD_INSTANCE
+const COUCHBASE_ENDPOINT = process.env.COUCHBASE_ENDPOINT || 'localhost'
+const TEST_BUCKET_NAME = process.env.TEST_BUCKET_NAME || 'travel-sample'
+let IS_CLOUD_INSTANCE = process.env.IS_CLOUD_INSTANCE || 'false'
 
 if (!COUCHBASE_USER) {
   throw new Error(
@@ -16,10 +16,6 @@ if (!COUCHBASE_PASSWORD) {
   throw new Error(
     'Please define the COUCHBASE_PASSWORD environment variable inside .env.local'
   )
-}
-
-if (!TEST_BUCKET_NAME) {
-  TEST_BUCKET_NAME = 'travel-sample'
 }
 
 /**
