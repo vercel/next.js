@@ -1455,7 +1455,7 @@ export default class Router implements BaseRouter {
 
   scrollToHash(as: string, options: TransitionOptions): void {
     // Prevents forced scroll TransitionOptions.scroll is deliberately set to false
-    if (!options.scroll) return;
+    if (!options.scroll) return
 
     const [, hash] = as.split('#')
     // Scroll to top if the hash is just `#` with no value or `#top`
