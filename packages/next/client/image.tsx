@@ -510,6 +510,7 @@ export default function Image({
         position: 'relative',
         boxSizing: 'border-box',
         margin: 0,
+        verticalAlign: 'top',
       }
       sizerStyle = {
         boxSizing: 'border-box',
@@ -526,6 +527,7 @@ export default function Image({
         position: 'relative',
         width: widthInt,
         height: heightInt,
+        verticalAlign: 'top',
       }
     }
   } else {
