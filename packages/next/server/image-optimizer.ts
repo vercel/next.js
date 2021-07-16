@@ -244,6 +244,7 @@ export async function imageOptimizer(
         mockRes.setHeader = (name: string, value: string | string[]) =>
           (mockHeaders[name.toLowerCase()] = value)
         mockRes._implicitHeader = () => {}
+        mockRes.connection = res.connection
         mockRes.finished = false
         mockRes.statusCode = 200
 
@@ -258,6 +259,7 @@ export async function imageOptimizer(
         mockReq.headers = req.headers
         mockReq.method = req.method
         mockReq.url = href
+        mockReq.connection = req.connection
 
         await server.getRequestHandler()(
           mockReq,
