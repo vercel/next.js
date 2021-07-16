@@ -39,12 +39,17 @@ const loadScript = (props: ScriptProps): void => {
   } = props
 
   const cacheKey = id || src
+
+  // Script has already loaded
+  if (cacheKey && LoadCache.has(cacheKey)) {
+    return
+  }
+
+  // Contents of this script are already loading/loaded
   if (ScriptCache.has(src)) {
-    if (!LoadCache.has(cacheKey)) {
-      LoadCache.add(cacheKey)
-      // Execute onLoad since the script loading has begun
-      ScriptCache.get(src).then(onLoad, onError)
-    }
+    LoadCache.add(cacheKey)
+    // Execute onLoad since the script loading has begun
+    ScriptCache.get(src).then(onLoad, onError)
     return
   }
 
@@ -67,8 +72,8 @@ const loadScript = (props: ScriptProps): void => {
 
   if (src) {
     ScriptCache.set(src, loadPromise)
-    LoadCache.add(cacheKey)
   }
+  LoadCache.add(cacheKey)
 
   if (dangerouslySetInnerHTML) {
     el.innerHTML = dangerouslySetInnerHTML.__html || ''
