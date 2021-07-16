@@ -418,6 +418,14 @@
         {
           "title": "max-custom-routes-reached",
           "path": "max-custom-routes-reached.md"
+        },
+        {
+          "title": "static-page-generation-timeout",
+          "path": "/errors/static-page-generation-timeout.md"
+        },
+        {
+          "title": "page-data-collection-timeout",
+          "path": "/errors/page-data-collection-timeout.md"
         }
       ]
     }
