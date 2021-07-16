@@ -61,6 +61,7 @@ interface ExportPageResults {
   fromBuildExportRevalidate?: number
   error?: boolean
   ssgNotFound?: boolean
+  duration: number
 }
 
 interface RenderOpts {
@@ -105,7 +106,8 @@ export default async function exportPage({
   const exportPageSpan = trace('export-page-worker', parentSpanId)
 
   return exportPageSpan.traceAsyncFn(async () => {
-    let results: ExportPageResults = {
+    const start = Date.now()
+    let results: Omit<ExportPageResults, 'duration'> = {
       ampValidations: [],
     }
 
@@ -270,7 +272,7 @@ export default async function exportPage({
           // for non-dynamic SSG pages we should have already
           // prerendered the file
           if (renderedDuringBuild((mod as ComponentModule).getStaticProps))
-            return results
+            return { ...results, duration: Date.now() - start }
 
           if (
             (mod as ComponentModule).getStaticProps &&
@@ -331,7 +333,7 @@ export default async function exportPage({
         // for non-dynamic SSG pages we should have already
         // prerendered the file
         if (renderedDuringBuild(components.getStaticProps)) {
-          return results
+          return { ...results, duration: Date.now() - start }
         }
 
         // TODO: de-dupe the logic here between serverless and server mode
@@ -473,18 +475,17 @@ export default async function exportPage({
       }
       results.fromBuildExportRevalidate = (curRenderOpts as any).revalidate
 
-      if (results.ssgNotFound) {
+      if (!results.ssgNotFound) {
         // don't attempt writing to disk if getStaticProps returned not found
-        return results
+        await promises.writeFile(htmlFilepath, html, 'utf8')
       }
-      await promises.writeFile(htmlFilepath, html, 'utf8')
-      return results
     } catch (error) {
       console.error(
         `\nError occurred prerendering page "${path}". Read more: https://nextjs.org/docs/messages/prerender-error\n` +
           error.stack
       )
-      return { ...results, error: true }
+      results.error = true
     }
+    return { ...results, duration: Date.now() - start }
   })
 }
