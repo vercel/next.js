@@ -7,7 +7,7 @@ import CustomLink from '../../components/CustomLink'
 import Layout from '../../components/Layout'
 import { postFilePaths, POSTS_PATH } from '../../utils/mdxUtils'
 import { bundleMDX } from 'mdx-bundler'
-import { getMDXComponent } from 'mdx-bundler/client';
+import { getMDXComponent } from 'mdx-bundler/client'
 import React from 'react'
 
 // Custom components/renderers to pass to MDX.
@@ -19,12 +19,12 @@ const components = {
   // It also works with dynamically-imported components, which is especially
   // useful for conditionally loading components for certain routes.
   // See the notes in README.md for more details.
-  TestComponent: dynamic(() => import(' ../../components/TestComponent')),
+  TestComponent: dynamic(() => import('../../components/TestComponent')),
   Head,
 }
 
 export default function PostPage({ code, frontMatter }) {
-  const Component = React.useMemo(() => getMDXComponent(code), [code]);
+  const Component = React.useMemo(() => getMDXComponent(code), [code])
 
   return (
     <Layout>
@@ -65,7 +65,7 @@ export const getStaticProps = async ({ params }) => {
   const postFilePath = path.join(POSTS_PATH, `${params.slug}.mdx`)
   const source = fs.readFileSync(postFilePath)
 
-  const {code, frontmatter: frontMatter} = await bundleMDX(source)
+  const { code, frontmatter: frontMatter } = await bundleMDX(source)
 
   return {
     props: {
