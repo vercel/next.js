@@ -116,7 +116,7 @@ describe('Script Loader', () => {
       browser = await webdriver(appPort, '/')
 
       await browser.waitForElementByCss('[href="/page1"]')
-      await browser.click('#page1')
+      await browser.click('[href="/page1"]')
 
       await browser.waitForElementByCss('.container')
       await waitFor(1000)
@@ -139,6 +139,30 @@ describe('Script Loader', () => {
       const text = await browser.elementById('text').text()
 
       expect(text).toBe('aaabbbccc')
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+
+  it('Does not duplicate inline scripts', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/')
+
+      // Navigate away and back to page
+      await browser.waitForElementByCss('[href="/page5"]')
+      await browser.click('[href="/page5"]')
+      await browser.waitForElementByCss('[href="/"]')
+      await browser.click('[href="/"]')
+      await browser.waitForElementByCss('[href="/page5"]')
+      await browser.click('[href="/page5"]')
+
+      await browser.waitForElementByCss('.container')
+      await waitFor(1000)
+
+      const text = await browser.elementById('text').text()
+
+      expect(text).toBe('abc')
     } finally {
       if (browser) await browser.close()
     }
