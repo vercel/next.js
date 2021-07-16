@@ -18,8 +18,6 @@ const {
 
 /** @typedef {import("./index.js").CustomMinifyFunction} CustomMinifyFunction */
 
-/** @typedef {import("./index.js").MinifyOptions} MinifyOptions */
-
 /** @typedef {import("terser").MinifyOptions} TerserMinifyOptions */
 
 /** @typedef {import("terser").MinifyOutput} MinifyOutput */
@@ -33,13 +31,17 @@ const {
 /** @typedef {import("./index.js").ExtractCommentsCondition} ExtractCommentsCondition */
 
 /**
+ * @typedef {Object.<any, any>} CustomMinifyOptions
+ */
+
+/**
  * @typedef {Object} InternalMinifyOptions
  * @property {string} name
  * @property {string} input
- * @property {RawSourceMap | undefined} inputSourceMap
+ * @property {RawSourceMap} [inputSourceMap]
  * @property {ExtractCommentsOptions} extractComments
- * @property {CustomMinifyFunction | undefined} minify
- * @property {MinifyOptions} minifyOptions
+ * @property {CustomMinifyFunction} [minify]
+ * @property {TerserMinifyOptions | CustomMinifyOptions} minifyOptions
  */
 
 /**
@@ -61,12 +63,18 @@ const {
 
 
 function buildTerserOptions(terserOptions = {}) {
+  // Need deep copy objects to avoid https://github.com/terser/terser/issues/366
   return { ...terserOptions,
+    compress: typeof terserOptions.compress === "boolean" ? terserOptions.compress : { ...terserOptions.compress
+    },
+    // ecma: terserOptions.ecma,
+    // ie8: terserOptions.ie8,
+    // keep_classnames: terserOptions.keep_classnames,
+    // keep_fnames: terserOptions.keep_fnames,
     mangle: terserOptions.mangle == null ? true : typeof terserOptions.mangle === "boolean" ? terserOptions.mangle : { ...terserOptions.mangle
     },
-    // Ignoring sourceMap from options
-    // eslint-disable-next-line no-undefined
-    sourceMap: undefined,
+    // module: terserOptions.module,
+    // nameCache: { ...terserOptions.toplevel },
     // the `output` option is deprecated
     ...(terserOptions.format ? {
       format: {
@@ -78,7 +86,14 @@ function buildTerserOptions(terserOptions = {}) {
         beautify: false,
         ...terserOptions.output
       }
-    })
+    }),
+    parse: { ...terserOptions.parse
+    },
+    // safari10: terserOptions.safari10,
+    // Ignoring sourceMap from options
+    // eslint-disable-next-line no-undefined
+    sourceMap: undefined // toplevel: terserOptions.toplevel
+
   };
 }
 /**

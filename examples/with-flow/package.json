@@ -1,8 +1,5 @@
 {
-  "name": "with-flow",
-  "version": "1.0.0",
-  "license": "MIT",
-  "author": "Jag Reehal",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",

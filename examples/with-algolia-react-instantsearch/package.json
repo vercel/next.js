@@ -1,5 +1,5 @@
 {
-  "name": "with-algolia-react-instantsearch",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "cross-env NODE_ENV=development next build",
