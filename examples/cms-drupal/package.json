@@ -1,0 +1,22 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "classnames": "2.3.1",
+    "date-fns": "2.22.1",
+    "next": "latest",
+    "next-drupal": "latest",
+    "react": "17.0.2",
+    "react-dom": "17.0.2"
+  },
+  "devDependencies": {
+    "autoprefixer": "10.2.6",
+    "postcss": "8.3.5",
+    "tailwindcss": "^2.2.4"
+  },
+  "license": "MIT"
+}

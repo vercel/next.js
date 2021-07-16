@@ -45,7 +45,7 @@ export default function Page() {
 
 You can think of dynamic imports as another way to split your code into manageable chunks.
 
-React components can also be imported using dynamic imports, but in this case we use it in conjunction with `next/dynamic` to make sure it works just like any other React Component. Check out the sections below for more details on how it works.
+React components can also be imported using dynamic imports, but in this case we use it in conjunction with `next/dynamic` to make sure it works like any other React Component. Check out the sections below for more details on how it works.
 
 ## Basic usage
 
@@ -71,7 +71,7 @@ export default Home
 
 `DynamicComponent` will be the default component returned by `../components/hello`. It works like a regular React Component, and you can pass props to it as you normally would.
 
-> **Note**: `import()` needs to be explicitly written without template strings. Furthermore the `import()` has to be inside the `dynamic()` call for Next.js to be able to match webpack bundles / module ids to the specific `dynamic()` call and preload them before rendering. `dynamic()` can't be used inside of React rendering as it needs to be marked in the top level of the module for preloading to work, similar to `React.lazy`.
+> **Note**: In `import('path/to/component')`, the path must be explicitly written. It can't be a template string nor a variable. Furthermore the `import()` has to be inside the `dynamic()` call for Next.js to be able to match webpack bundles / module ids to the specific `dynamic()` call and preload them before rendering. `dynamic()` can't be used inside of React rendering as it needs to be marked in the top level of the module for preloading to work, similar to `React.lazy`.
 
 ## With named exports
 

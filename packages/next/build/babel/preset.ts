@@ -41,7 +41,6 @@ type NextBabelPresetOptions = {
   'preset-react'?: any
   'class-properties'?: any
   'transform-runtime'?: any
-  'experimental-modern-preset'?: PluginItem
   'styled-jsx'?: StyledJsxBabelOptions
   'preset-typescript'?: any
 }
@@ -58,7 +57,7 @@ function supportsStaticESM(caller: any): boolean {
   return !!caller?.supportsStaticESM
 }
 
-module.exports = (
+export default (
   api: any,
   options: NextBabelPresetOptions = {}
 ): BabelPreset => {
@@ -78,17 +77,16 @@ module.exports = (
   const isProduction = !(isTest || isDevelopment)
 
   const isBabelLoader = api.caller(
-    (caller: any) => !!caller && caller.name === 'babel-loader'
+    (caller: any) =>
+      !!caller &&
+      (caller.name === 'babel-loader' ||
+        caller.name === 'next-babel-turbo-loader')
   )
 
   const useJsxRuntime =
     options['preset-react']?.runtime === 'automatic' ||
     (Boolean(api.caller((caller: any) => !!caller && caller.hasJsxRuntime)) &&
       options['preset-react']?.runtime !== 'classic')
-
-  const isLaxModern =
-    options['preset-env']?.targets &&
-    options['preset-env'].targets.esmodules === true
 
   const presetEnvConfig = {
     // In the test environment `modules` is often needed to be set to true, babel figures that out by itself using the `'auto'` option
@@ -119,17 +117,10 @@ module.exports = (
     }
   }
 
-  // specify a preset to use instead of @babel/preset-env
-  const customModernPreset =
-    isLaxModern && options['experimental-modern-preset']
-
   return {
     sourceType: 'unambiguous',
     presets: [
-      customModernPreset || [
-        require('next/dist/compiled/babel/preset-env'),
-        presetEnvConfig,
-      ],
+      [require('next/dist/compiled/babel/preset-env'), presetEnvConfig],
       [
         require('next/dist/compiled/babel/preset-react'),
         {

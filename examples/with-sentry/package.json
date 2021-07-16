@@ -1,19 +1,14 @@
 {
-  "name": "with-sentry",
-  "version": "1.0.0",
-  "license": "MIT",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",
     "start": "next start"
   },
   "dependencies": {
-    "@sentry/browser": "^5.21.3",
-    "@sentry/integrations": "^5.21.3",
-    "@sentry/node": "^5.21.3",
-    "@sentry/webpack-plugin": "^1.12.1",
+    "@sentry/nextjs": "^6.3.5",
     "next": "latest",
-    "react": "^16.8.6",
-    "react-dom": "^16.8.6"
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2"
   }
 }

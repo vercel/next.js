@@ -25,7 +25,7 @@ export default function GuestbookEntry(props) {
             >
               <img
                 className={guestbookEntryUserDetailAvatarImg.className}
-                src={`https://twitter-avatar.now.sh/${props.twitter_handle}/`}
+                src={`https://twitter-avatar.vercel.app/${props.twitter_handle}/`}
               />
             </a>
           </div>
@@ -46,11 +46,10 @@ export default function GuestbookEntry(props) {
       <div className={guestbookEntryShare.className}>
         <a
           href={`http://twitter.com/share?text=${encodeURIComponent(
-            props.story + ' @faunadb @zeithq'
+            props.story + ' @faunadb @vercel'
           )}&url=${encodeURIComponent(
             'https://fauna.com'
-          )}&hashtags=graphql,nextjs
-                    `}
+          )}&hashtags=graphql,nextjs`}
           target="_blank"
           rel="noopener noreferrer"
           className={guestbookEntryShareTwitterButton.className}

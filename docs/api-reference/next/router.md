@@ -17,7 +17,7 @@ function ActiveLink({ children, href }) {
   const router = useRouter()
   const style = {
     marginRight: 10,
-    color: router.pathname === href ? 'red' : 'black',
+    color: router.asPath === href ? 'red' : 'black',
   }
 
   const handleClick = (e) => {
@@ -41,7 +41,7 @@ export default ActiveLink
 
 The following is the definition of the `router` object returned by both [`useRouter`](#useRouter) and [`withRouter`](#withRouter):
 
-- `pathname`: `String` - Current route. That is the path of the page in `/pages`
+- `pathname`: `String` - Current route. That is the path of the page in `/pages`, the configured `basePath` or `locale` is not included.
 - `query`: `Object` - The query string parsed to an object. It will be an empty object during prerendering if the page doesn't have [data fetching requirements](/docs/basic-features/data-fetching.md). Defaults to `{}`
 - `asPath`: `String` - The path (including the query) shown in the browser without the configured `basePath` or `locale`.
 - `isFallback`: `boolean` - Whether the current page is in [fallback mode](/docs/basic-features/data-fetching.md#fallback-pages).
@@ -49,6 +49,7 @@ The following is the definition of the `router` object returned by both [`useRou
 - `locale`: `String` - The active locale (if enabled).
 - `locales`: `String[]` - All supported locales (if enabled).
 - `defaultLocale`: `String` - The current default locale (if enabled).
+- `domainLocales`: `Array<{domain, defaultLocale, locales}>` - Any configured domain locales.
 - `isReady`: `boolean` - Whether the router fields are updated client-side and ready for use. Should only be used inside of `useEffect` methods and not for conditionally rendering on the server.
 - `isPreview`: `boolean` - Whether the application is currently in [preview mode](/docs/advanced-features/preview-mode.md).
 
@@ -72,9 +73,9 @@ router.push(url, as, options)
 - `url` - The URL to navigate to
 - `as` - Optional decorator for the URL that will be shown in the browser. Before Next.js 9.5.3 this was used for dynamic routes, check our [previous docs](https://nextjs.org/docs/tag/v9.5.2/api-reference/next/link#dynamic-routes) to see how it worked
 - `options` - Optional object with the following configuration options:
-  - `scroll`: Scroll to the top of the page after a navigation. Defaults to `true`
-  - [`shallow`](/docs/routing/shallow-routing.md): Update the path of the current page without rerunning [`getStaticProps`](/docs/basic-features/data-fetching.md#getstaticprops-static-generation), [`getServerSideProps`](/docs/basic-features/data-fetching.md#getserversideprops-server-side-rendering) or [`getInitialProps`](/docs/api-reference/data-fetching/getInitialProps.md). Defaults to `false`
   - `scroll` - Optional boolean, controls scrolling to the top of the page after navigation. Defaults to `true`
+  - [`shallow`](/docs/routing/shallow-routing.md): Update the path of the current page without rerunning [`getStaticProps`](/docs/basic-features/data-fetching.md#getstaticprops-static-generation), [`getServerSideProps`](/docs/basic-features/data-fetching.md#getserversideprops-server-side-rendering) or [`getInitialProps`](/docs/api-reference/data-fetching/getInitialProps.md). Defaults to `false`
+  - `locale` - Optional string, indicates locale of the new page
 
 > You don't need to use `router.push` for external URLs. [window.location](https://developer.mozilla.org/en-US/docs/Web/API/Window/location) is better suited for those cases.
 
@@ -88,7 +89,11 @@ import { useRouter } from 'next/router'
 export default function Page() {
   const router = useRouter()
 
-  return <span onClick={() => router.push('/about')}>Click me</span>
+  return (
+    <button type="button" onClick={() => router.push('/about')}>
+      Click me
+    </button>
+  )
 }
 ```
 
@@ -100,9 +105,15 @@ import { useRouter } from 'next/router'
 export default function Page() {
   const router = useRouter()
 
-  return <span onClick={() => router.push('/post/abc')}>Click me</span>
+  return (
+    <button type="button" onClick={() => router.push('/post/abc')}>
+      Click me
+    </button>
+  )
 }
 ```
+
+> **Note:** When navigating to the same page in Next.js, the page's state **will not** be reset by default, as the top-level React component is the same. You can manually ensure the state is updated using `useEffect`.
 
 Redirecting the user to `pages/login.js`, useful for pages behind [authentication](/docs/authentication):
 
@@ -138,7 +149,8 @@ export default function ReadMore({ post }) {
   const router = useRouter()
 
   return (
-    <span
+    <button
+      type="button"
       onClick={() => {
         router.push({
           pathname: '/post/[pid]',
@@ -147,7 +159,7 @@ export default function ReadMore({ post }) {
       }}
     >
       Click here to read more
-    </span>
+    </button>
   )
 }
 ```
@@ -172,7 +184,11 @@ import { useRouter } from 'next/router'
 export default function Page() {
   const router = useRouter()
 
-  return <span onClick={() => router.replace('/home')}>Click me</span>
+  return (
+    <button type="button" onClick={() => router.replace('/home')}>
+      Click me
+    </button>
+  )
 }
 ```
 
@@ -283,7 +299,11 @@ import { useRouter } from 'next/router'
 export default function Page() {
   const router = useRouter()
 
-  return <span onClick={() => router.back()}>Click here to go back</span>
+  return (
+    <button type="button" onClick={() => router.back()}>
+      Click here to go back
+    </button>
+  )
 }
 ```
 
@@ -299,7 +319,11 @@ import { useRouter } from 'next/router'
 export default function Page() {
   const router = useRouter()
 
-  return <span onClick={() => router.reload()}>Click here to reload</span>
+  return (
+    <button type="button" onClick={() => router.reload()}>
+      Click here to reload
+    </button>
+  )
 }
 ```
 
@@ -318,7 +342,7 @@ You can listen to different events happening inside the Next.js Router. Here's a
 - `routeChangeComplete(url, { shallow })` - Fires when a route changed completely
 - `routeChangeError(err, url, { shallow })` - Fires when there's an error when changing routes, or a route load is cancelled
   - `err.cancelled` - Indicates if the navigation was cancelled
-- `beforeHistoryChange(url, { shallow })` - Fires just before changing the browser's history
+- `beforeHistoryChange(url, { shallow })` - Fires before changing the browser's history
 - `hashChangeStart(url, { shallow })` - Fires when the hash will change but not the page
 - `hashChangeComplete(url, { shallow })` - Fires when the hash has changed but not the page
 
@@ -406,7 +430,7 @@ function Page({ router }) {
 export default withRouter(Page)
 ```
 
-### Typescript
+### TypeScript
 
 To use class components with `withRouter`, the component needs to accept a router prop:
 

@@ -1,8 +1,5 @@
 {
-  "name": "with-flow",
-  "version": "1.0.0",
-  "license": "MIT",
-  "author": "Jag Reehal",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",
@@ -11,8 +8,8 @@
   },
   "dependencies": {
     "next": "latest",
-    "react": "^16.7.0",
-    "react-dom": "^16.7.0"
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2"
   },
   "devDependencies": {
     "babel-eslint": "8.2.6",

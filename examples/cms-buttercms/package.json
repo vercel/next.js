@@ -1,24 +1,22 @@
 {
-  "name": "cms-buttercms",
-  "version": "1.0.0",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",
     "start": "next start"
   },
   "dependencies": {
-    "buttercms": "1.2.2",
-    "classnames": "2.2.6",
-    "date-fns": "2.14.0",
-    "isomorphic-unfetch": "3.0.0",
+    "buttercms": "1.2.7",
+    "classnames": "2.3.1",
+    "date-fns": "2.22.1",
     "next": "latest",
-    "react": "^16.13.1",
-    "react-dom": "^16.13.1"
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2"
   },
   "devDependencies": {
-    "postcss-flexbugs-fixes": "4.2.1",
-    "postcss-preset-env": "^6.7.0",
-    "tailwindcss": "^1.4.6"
+    "autoprefixer": "10.2.6",
+    "postcss": "8.3.5",
+    "tailwindcss": "^2.2.4"
   },
   "license": "MIT"
 }
