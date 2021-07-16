@@ -25,8 +25,8 @@ With `next/script`, you can define the `strategy` property and Next.js will o
 
 > **Note:**
 >
-> - `<Script>` supports inline scripts with `afterInteractive` and `lazyOnload` strategy
-> - Inline scripts wrapped with `<Script>` _require an `id` attribute to be defined_. This helps to efficiently track and optimize the inline scripts.
+> - `<Script>` supports inline scripts with `afterInteractive` and `lazyOnload` strategy.
+> - Inline scripts wrapped with `<Script>` _require an `id` attribute to be defined_ to track and optimize the script.
 
 ## Usage
 
