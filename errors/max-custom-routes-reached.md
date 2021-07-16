@@ -2,7 +2,7 @@
 
 #### Why This Error Occurred
 
-The number of combined routes from `headers`, `redirects`, and `rewrites` exceeds 1024. This can impact the performance of requests since for each request all of these routes can potentially need to be checked.
+The number of combined routes from `headers`, `redirects`, and `rewrites` exceeds 1024. This can impact performance because each request will iterate over all routes to check for a match in the worst case.
 
 #### Possible Ways to Fix It
 
