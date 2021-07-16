@@ -1,5 +1,4 @@
 import { parse as parseUrl } from 'url'
-import * as Log from '../build/output/log'
 import { NextConfig } from '../server/config'
 import * as pathToRegexp from 'next/dist/compiled/path-to-regexp'
 import escapeStringRegexp from 'next/dist/compiled/escape-string-regexp'
