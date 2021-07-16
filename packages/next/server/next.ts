@@ -112,7 +112,8 @@ export class NextServer {
       const DevServer = require('./dev/next-dev-server').default
       return new DevServer(options)
     }
-    return new (await getServerImpl())(options)
+    const ServerImplementation = await getServerImpl()
+    return new ServerImplementation(options)
   }
 
   private async loadConfig() {
