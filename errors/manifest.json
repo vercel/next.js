@@ -280,6 +280,10 @@
           "path": "/errors/no-document-viewport-meta.md"
         },
         {
+          "title": "no-duplicate-head",
+          "path": "/errors/no-duplicate-head.md"
+        },
+        {
           "title": "no-head-import-in-document",
           "path": "/errors/no-head-import-in-document.md"
         },

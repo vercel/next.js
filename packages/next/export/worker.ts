@@ -201,15 +201,22 @@ export default async function exportPage({
         publicRuntimeConfig: renderOpts.runtimeConfig,
       })
 
-      let htmlFilename = `${filePath}${sep}index.html`
-      if (!subFolders) htmlFilename = `${filePath}.html`
+      const getHtmlFilename = (_path: string) =>
+        subFolders ? `${_path}${sep}index.html` : `${_path}.html`
+      let htmlFilename = getHtmlFilename(filePath)
 
       const pageExt = extname(page)
       const pathExt = extname(path)
       // Make sure page isn't a folder with a dot in the name e.g. `v1.2`
       if (pageExt !== pathExt && pathExt !== '') {
-        // If the path has an extension, use that as the filename instead
-        htmlFilename = path
+        const isBuiltinPaths = ['/500', '/404'].some(
+          (p) => p === path || p === path + '.html'
+        )
+        // If the ssg path has .html extension, and it's not builtin paths, use it directly
+        // Otherwise, use that as the filename instead
+        const isHtmlExtPath =
+          !serverless && !isBuiltinPaths && path.endsWith('.html')
+        htmlFilename = isHtmlExtPath ? getHtmlFilename(path) : path
       } else if (path === '/') {
         // If the path is the root, just use index.html
         htmlFilename = 'index.html'
