@@ -48,7 +48,7 @@ const SomeHeavyComponent = dynamic(() => import('SomeHeavyComponent'))
 const defaultComponents = { Test }
 
 export function SomePage({ code, componentNames }) {
-  const Component = React.useMemo(() => getMDXComponent(code), [code]);
+  const Component = React.useMemo(() => getMDXComponent(code), [code])
   const components = {
     ...defaultComponents,
     SomeHeavyComponent: componentNames.includes('SomeHeavyComponent')
@@ -67,12 +67,11 @@ export async function getStaticProps() {
   Some **mdx** text, with a default component <Test name={title}/> and a Heavy component <SomeHeavyComponent />
   `
 
-
   const componentNames = [
     /<SomeHeavyComponent/.test(content) ? 'SomeHeavyComponent' : null,
   ].filter(Boolean)
 
-  const {code } = await bundleMDX(source)
+  const { code } = await bundleMDX(source)
 
   return {
     props: {
