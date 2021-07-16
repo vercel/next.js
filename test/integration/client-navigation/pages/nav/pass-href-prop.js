@@ -18,6 +18,7 @@ export default () => (
       <FakeA id="with-href">Will redirect as an `a` tag</FakeA>
     </Link>
 
+    {/* eslint-disable-next-line @next/next/link-passhref */}
     <Link href="/nav">
       <FakeA id="without-href">Will not redirect as an `a` tag</FakeA>
     </Link>

@@ -13,6 +13,8 @@ const dirCustomDirectories = join(__dirname, '../custom-directories')
 const dirConfigInPackageJson = join(__dirname, '../config-in-package-json')
 const dirInvalidEslintVersion = join(__dirname, '../invalid-eslint-version')
 const dirMaxWarnings = join(__dirname, '../max-warnings')
+const dirEmptyDirectory = join(__dirname, '../empty-directory')
+const dirEslintIgnore = join(__dirname, '../eslint-ignore')
 
 describe('ESLint', () => {
   describe('Next Build', () => {
@@ -89,6 +91,36 @@ describe('ESLint', () => {
       expect(output).toContain(
         'Your project has an older version of ESLint installed'
       )
+    })
+
+    test('empty directories do not fail the build', async () => {
+      const { stdout, stderr } = await nextBuild(dirEmptyDirectory, [], {
+        stdout: true,
+        stderr: true,
+      })
+
+      const output = stdout + stderr
+      expect(output).not.toContain('Build error occurred')
+      expect(output).not.toContain('NoFilesFoundError')
+      expect(output).toContain(
+        'Warning: External synchronous scripts are forbidden'
+      )
+      expect(output).toContain('Compiled successfully')
+    })
+
+    test('eslint ignored directories do not fail the build', async () => {
+      const { stdout, stderr } = await nextBuild(dirEslintIgnore, [], {
+        stdout: true,
+        stderr: true,
+      })
+
+      const output = stdout + stderr
+      expect(output).not.toContain('Build error occurred')
+      expect(output).not.toContain('AllFilesIgnoredError')
+      expect(output).toContain(
+        'Warning: External synchronous scripts are forbidden'
+      )
+      expect(output).toContain('Compiled successfully')
     })
   })
 
