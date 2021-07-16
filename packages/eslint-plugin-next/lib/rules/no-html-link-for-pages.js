@@ -25,9 +25,14 @@ module.exports = {
   },
 
   create: function (context) {
-    const [customPagesDirectory] = context.options
-    const pagesDirs = customPagesDirectory
-      ? [customPagesDirectory]
+    const [customPagesOption] = context.options
+
+    const customPagesDirectories = Array.isArray(customPagesOption)
+      ? customPagesOption
+      : [customPagesOption]
+
+    const pagesDirs = customPagesDirectories
+      ? customPagesDirectories
       : [
           path.join(context.getCwd(), 'pages'),
           path.join(context.getCwd(), 'src', 'pages'),
