@@ -963,6 +963,7 @@ export default class Server {
               target,
               changeOrigin: true,
               ignorePath: true,
+              xfwd: true,
               proxyTimeout: 30_000, // limit proxying to 30 seconds
             })
 

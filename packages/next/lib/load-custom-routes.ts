@@ -1,3 +1,4 @@
+import chalk from 'chalk'
 import { parse as parseUrl } from 'url'
 import { NextConfig } from '../server/config'
 import * as pathToRegexp from 'next/dist/compiled/path-to-regexp'
@@ -620,6 +621,24 @@ export default async function loadCustomRoutes(
     loadRewrites(config),
     loadRedirects(config),
   ])
+
+  const totalRewrites =
+    rewrites.beforeFiles.length +
+    rewrites.afterFiles.length +
+    rewrites.fallback.length
+
+  const totalRoutes = headers.length + redirects.length + totalRewrites
+
+  if (totalRoutes > 1000) {
+    console.warn(
+      chalk.bold.yellow(`Warning: `) +
+        `total number of custom routes exceeds 1000, this can reduce performance. Route counts:\n` +
+        `headers: ${headers.length}\n` +
+        `rewrites: ${totalRewrites}\n` +
+        `redirects: ${redirects.length}\n` +
+        `See more info: https://nextjs.org/docs/messages/max-custom-routes-reached`
+    )
+  }
 
   if (config.trailingSlash) {
     redirects.unshift(

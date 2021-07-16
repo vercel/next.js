@@ -152,6 +152,8 @@ function Script(props: ScriptProps): JSX.Element | null {
         },
       ])
       updateScripts(scripts)
+    } else {
+      loadScript(props)
     }
   }
 
