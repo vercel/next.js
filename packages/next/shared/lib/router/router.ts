@@ -318,10 +318,8 @@ export function resolveHref(
     }
 
     // if the origin didn't change, it means we received a relative href
-    const resolvedHref =
-      finalUrl.origin === base.origin
-        ? finalUrl.href.slice(finalUrl.origin.length)
-        : finalUrl.href
+    // thus we canuse back the original href
+    const resolvedHref = finalUrl.origin === base.origin ? href : finalUrl.href
 
     return (resolveAs
       ? [resolvedHref, interpolatedAs || resolvedHref]
