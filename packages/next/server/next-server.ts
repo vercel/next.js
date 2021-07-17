@@ -1831,17 +1831,14 @@ export default class Server {
       if (revalidateOptions) {
         setRevalidateHeaders(res, revalidateOptions)
       }
+      const nextQuery = { ...query }
       if (isDataReq) {
-        res.statusCode = 404
-        res.end('{"notFound":true}')
-        return null
-      } else {
-        await this.render404(req, res, {
-          pathname,
-          query,
-        } as UrlWithParsedQuery)
-        return null
+        nextQuery._nextDataReq = '1'
       }
+      return await this.render404ToResponse(req, res, {
+        pathname,
+        query: nextQuery,
+      } as UrlWithParsedQuery)
     } else if (cachedData.kind === 'REDIRECT') {
       if (isDataReq) {
         return {
@@ -2028,6 +2025,12 @@ export default class Server {
 
       // use static 404 page if available and is 404 response
       if (is404) {
+        if (!!query._nextDataReq) {
+          return {
+            type: 'json',
+            body: '{"notFound":true}',
+          }
+        }
         result = await this.findPageComponents('/404', query)
         using404Page = result !== null
       }
@@ -2130,6 +2133,31 @@ export default class Server {
     parsedUrl?: UrlWithParsedQuery,
     setHeaders = true
   ): Promise<void> {
+    const response = await this.render404ToResponse(
+      req,
+      res,
+      parsedUrl,
+      setHeaders
+    )
+    if (response === null) {
+      return
+    }
+    return this.sendResponse(req, res, response)
+  }
+
+  private async render404ToResponse(
+    req: IncomingMessage,
+    res: ServerResponse,
+    parsedUrl?: UrlWithParsedQuery,
+    setHeaders = true
+  ): Promise<ResponsePayload | null> {
+    if (setHeaders) {
+      res.setHeader(
+        'Cache-Control',
+        'no-cache, no-store, max-age=0, must-revalidate'
+      )
+    }
+
     const url: any = req.url
     const { pathname, query } = parsedUrl ? parsedUrl : parseUrl(url, true)
     const { i18n } = this.nextConfig
@@ -2140,7 +2168,7 @@ export default class Server {
         query.__nextDefaultLocale || i18n.defaultLocale
     }
     res.statusCode = 404
-    return this.renderError(null, req, res, pathname!, query, setHeaders)
+    return this.renderErrorToResponse(null, req, res, pathname!, query)
   }
 
   public async serveStatic(
