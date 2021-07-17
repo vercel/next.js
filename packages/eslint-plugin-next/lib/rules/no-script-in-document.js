@@ -10,7 +10,6 @@ module.exports = {
   create: function (context) {
     return {
       ImportDeclaration(node) {
-        console.log('hello')
         if (node.source.value !== 'next/script') {
           return
         }
