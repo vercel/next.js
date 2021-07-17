@@ -232,6 +232,13 @@ Try it out:
 
 You can also [generate a solid color Data URL](https://png-pixel.com) to match the image.
 
+### rootMargin
+
+The IntersectionObserver interface's `rootMargin` property is a string with syntax similar to that of the CSS margin property.
+Defaults to `"200px"`.
+
+[Learn more](https://developer.mozilla.org/en-US/docs/Web/API/IntersectionObserver/rootMargin)
+
 ### unoptimized
 
 When true, the source image will be served as-is instead of changing quality,
