@@ -18,7 +18,7 @@ import { tryGitInit } from './helpers/git'
 import { install } from './helpers/install'
 import { isFolderEmpty } from './helpers/is-folder-empty'
 import { getOnline } from './helpers/is-online'
-import { shouldUseYarn } from './helpers/should-use-yarn'
+import { getPackageManager } from './helpers/get-package-manager'
 import { isWriteable } from './helpers/is-writeable'
 
 export class DownloadError extends Error {}
@@ -119,11 +119,12 @@ export async function createApp({
     process.exit(1)
   }
 
-  const useYarn = useNpm ? false : shouldUseYarn()
-  const isOnline = !useYarn || (await getOnline())
+  const packageManager = useNpm ? 'npm' : getPackageManager()
+  const useYarnOrPnpm = packageManager === 'yarn' || packageManager === 'pnpm'
+  const isOnline = !useYarnOrPnpm || (await getOnline())
   const originalDirectory = process.cwd()
 
-  const displayedCommand = useYarn ? 'yarn' : 'npm'
+  const displayedCommand = packageManager
   console.log(`Creating a new Next.js app in ${chalk.green(root)}.`)
   console.log()
 
@@ -172,7 +173,7 @@ export async function createApp({
     console.log('Installing packages. This might take a couple of minutes.')
     console.log()
 
-    await install(root, null, { useYarn, isOnline })
+    await install(root, null, { packageManager, isOnline })
     console.log()
   } else {
     /**
@@ -204,7 +205,7 @@ export async function createApp({
     /**
      * These flags will be passed to `install()`.
      */
-    const installFlags = { useYarn, isOnline }
+    const installFlags = { packageManager, isOnline }
     /**
      * Default dependencies.
      */
@@ -287,10 +288,14 @@ export async function createApp({
   console.log(`${chalk.green('Success!')} Created ${appName} at ${appPath}`)
   console.log('Inside that directory, you can run several commands:')
   console.log()
-  console.log(chalk.cyan(`  ${displayedCommand} ${useYarn ? '' : 'run '}dev`))
+  console.log(
+    chalk.cyan(`  ${displayedCommand} ${useYarnOrPnpm ? '' : 'run '}dev`)
+  )
   console.log('    Starts the development server.')
   console.log()
-  console.log(chalk.cyan(`  ${displayedCommand} ${useYarn ? '' : 'run '}build`))
+  console.log(
+    chalk.cyan(`  ${displayedCommand} ${useYarnOrPnpm ? '' : 'run '}build`)
+  )
   console.log('    Builds the app for production.')
   console.log()
   console.log(chalk.cyan(`  ${displayedCommand} start`))
@@ -300,7 +305,7 @@ export async function createApp({
   console.log()
   console.log(chalk.cyan('  cd'), cdpath)
   console.log(
-    `  ${chalk.cyan(`${displayedCommand} ${useYarn ? '' : 'run '}dev`)}`
+    `  ${chalk.cyan(`${displayedCommand} ${useYarnOrPnpm ? '' : 'run '}dev`)}`
   )
   console.log()
 }

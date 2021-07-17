@@ -23,6 +23,7 @@ export function isFolderEmpty(root: string, name: string): boolean {
     'npm-debug.log',
     'yarn-debug.log',
     'yarn-error.log',
+    '.pnpm-debug.log', 
   ]
 
   const conflicts = fs

@@ -4,9 +4,9 @@ import spawn from 'cross-spawn'
 
 interface InstallArgs {
   /**
-   * Indicate whether to install packages using Yarn.
+   * Indicate whether to install with which package manager
    */
-  useYarn: boolean
+  packageManager: 'npm' | 'yarn' | 'pnpm'
   /**
    * Indicate whether there is an active Internet connection.
    */
@@ -25,7 +25,7 @@ interface InstallArgs {
 export function install(
   root: string,
   dependencies: string[] | null,
-  { useYarn, isOnline, devDependencies }: InstallArgs
+  { packageManager, isOnline, devDependencies }: InstallArgs
 ): Promise<void> {
   /**
    * NPM-specific command-line flags.
@@ -40,7 +40,9 @@ export function install(
    */
   return new Promise((resolve, reject) => {
     let args: string[]
-    let command: string = useYarn ? 'yarnpkg' : 'npm'
+    let command: string = packageManager === 'yarn' ? 'yarnpkg' : packageManager
+    const useYarn = packageManager === 'yarn'
+    const usePnpm = packageManager === 'pnpm'
 
     if (dependencies && dependencies.length) {
       /**
@@ -54,6 +56,14 @@ export function install(
         if (!isOnline) args.push('--offline')
         args.push('--cwd', root)
         if (devDependencies) args.push('--dev')
+        args.push(...dependencies)
+      } else if (usePnpm) {
+        /**
+         * Call `pnpm add --save-exact (-D)?  ...`.
+         */
+        args = ['add', '--save-exact']
+        if (!isOnline) args.push('--offline')
+        if (devDependencies) args.push('-D')
         args.push(...dependencies)
       } else {
         /**
@@ -69,10 +79,12 @@ export function install(
        * install`.
        */
       args = ['install']
-      if (useYarn) {
+      if (useYarn || usePnpm) {
         if (!isOnline) {
           console.log(chalk.yellow('You appear to be offline.'))
-          console.log(chalk.yellow('Falling back to the local Yarn cache.'))
+          console.log(
+            chalk.yellow(`Falling back to the local ${packageManager} cache.`)
+          )
           console.log()
           args.push('--offline')
         }

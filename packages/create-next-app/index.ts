@@ -6,7 +6,7 @@ import path from 'path'
 import prompts from 'prompts'
 import checkForUpdate from 'update-check'
 import { createApp, DownloadError } from './create-app'
-import { shouldUseYarn } from './helpers/should-use-yarn'
+import { getPackageManager } from './helpers/get-package-manager'
 import { validateNpmName } from './helpers/validate-pkg'
 import packageJson from './package.json'
 
@@ -159,7 +159,12 @@ async function notifyUpdate(): Promise<void> {
   try {
     const res = await update
     if (res?.latest) {
-      const isYarn = shouldUseYarn()
+      const packageManager = getPackageManager()
+      const globalInstallMessages = {
+        pnpm: 'pnpm i -g create-next-app',
+        yarn: 'yarn global add create-next-app',
+        npm: 'npm i -g create-next-app',
+      }
 
       console.log()
       console.log(
@@ -167,11 +172,7 @@ async function notifyUpdate(): Promise<void> {
       )
       console.log(
         'You can update by running: ' +
-          chalk.cyan(
-            isYarn
-              ? 'yarn global add create-next-app'
-              : 'npm i -g create-next-app'
-          )
+          chalk.cyan(globalInstallMessages[packageManager])
       )
       console.log()
     }
