@@ -41,11 +41,10 @@ ruleTester.run('no-script-in-head', rule, {
             </Head>
         );
       }`,
-      filename: 'pages/index.tsx',
+      filename: 'pages/index.js',
       errors: [
         {
-          message:
-            "Script shouldn't be used inside <Head></Head>",
+          message: "Script shouldn't be used inside <Head></Head>",
         },
       ],
     },

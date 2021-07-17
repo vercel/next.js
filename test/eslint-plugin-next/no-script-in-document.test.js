@@ -1,4 +1,4 @@
-const rule = require('@next/eslint-plugin-next/lib/rules/no-script-import-in-document')
+const rule = require('@next/eslint-plugin-next/lib/rules/no-script-in-document')
 
 const RuleTester = require('eslint').RuleTester
 
@@ -46,10 +46,6 @@ ruleTester.run('no-script-import-in-document', rule, {
             <Html>
               <Head>
                 <meta charSet="utf-8" />
-                <link
-                  href="https://fonts.googleapis.com/css2?family=Sarabun:ital,wght@0,400;0,700;1,400;1,700&display=swap"
-                  rel="stylesheet"
-                />
               </Head>
             </Html>
           )
@@ -82,7 +78,7 @@ ruleTester.run('no-script-import-in-document', rule, {
       filename: 'pages/_document.js',
       errors: [
         {
-          message: "Script shouldn't be used inside <Head></Head>",
+          message: 'next/script should not be imported in pages/_document.js',
         },
       ],
     },
@@ -97,10 +93,6 @@ ruleTester.run('no-script-import-in-document', rule, {
             <Html>
               <Head>
                 <meta charSet="utf-8" />
-                <link
-                  href="https://fonts.googleapis.com/css2?family=Sarabun:ital,wght@0,400;0,700;1,400;1,700&display=swap"
-                  rel="stylesheet"
-                />
               </Head>
               <body>
                 <Main />
@@ -117,9 +109,7 @@ ruleTester.run('no-script-import-in-document', rule, {
       filename: 'pages/_document.js',
       errors: [
         {
-          message:
-            'Do not include multiple instances of <Head/>. See: https://nextjs.org/docs/messages/no-duplicate-head',
-          type: 'JSXElement',
+          message: 'next/script should not be imported in pages/_document.js',
         },
       ],
     },
