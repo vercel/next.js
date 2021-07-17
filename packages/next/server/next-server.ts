@@ -1831,13 +1831,9 @@ export default class Server {
       if (revalidateOptions) {
         setRevalidateHeaders(res, revalidateOptions)
       }
-      const nextQuery = { ...query }
-      if (isDataReq) {
-        nextQuery._nextDataReq = '1'
-      }
       return await this.render404ToResponse(req, res, {
         pathname,
-        query: nextQuery,
+        query: isDataReq ? { ...query, _nextDataReq: '1' } : query,
       } as UrlWithParsedQuery)
     } else if (cachedData.kind === 'REDIRECT') {
       if (isDataReq) {
