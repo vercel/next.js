@@ -1,5 +1,5 @@
 /* eslint-env jest */
-import { cleanAmpPath } from 'next/dist/next-server/server/utils'
+import { cleanAmpPath } from 'next/dist/server/utils'
 
 // convenience function so tests can be aligned neatly
 // and easy to eyeball

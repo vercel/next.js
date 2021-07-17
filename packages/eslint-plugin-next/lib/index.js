@@ -14,6 +14,7 @@ module.exports = {
     'no-head-import-in-document': require('./rules/no-head-import-in-document'),
     'no-script-in-document': require('./rules/no-script-in-document'),
     'no-script-in-head': require('./rules/no-script-in-head'),
+    'no-duplicate-head': require('./rules/no-duplicate-head'),
   },
   configs: {
     recommended: {
@@ -33,6 +34,7 @@ module.exports = {
         '@next/next/no-head-import-in-document': 2,
         '@next/next/no-script-in-document': 2,
         '@next/next/no-script-in-head': 2,
+        '@next/next/no-duplicate-head': 2,
       },
     },
   },
