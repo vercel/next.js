@@ -8,7 +8,6 @@ module.exports = {
   create: function (context) {
     let isNextHead = null
 
-
     return {
       ImportDeclaration(node) {
         if (node.source.value === 'next/head') {
@@ -16,16 +15,15 @@ module.exports = {
         }
 
         if (node.source.value !== 'next/script') {
-          return;
+          return
         }
       },
       JSXElement(node) {
         if (!isNextHead) {
-          return;
+          return
         }
 
         if (
-          
           node.openingElement &&
           node.openingElement.name &&
           node.openingElement.name.name !== 'Head'
