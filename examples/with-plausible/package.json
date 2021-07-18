@@ -1,5 +1,5 @@
 {
-  "name": "with-plausible",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",

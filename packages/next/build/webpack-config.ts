@@ -25,9 +25,9 @@ import {
   REACT_LOADABLE_MANIFEST,
   SERVERLESS_DIRECTORY,
   SERVER_DIRECTORY,
-} from '../next-server/lib/constants'
-import { execOnce } from '../next-server/lib/utils'
-import { NextConfig } from '../next-server/server/config'
+} from '../shared/lib/constants'
+import { execOnce } from '../shared/lib/utils'
+import { NextConfigComplete } from '../server/config-shared'
 import { findPageFile } from '../server/lib/find-page-file'
 import { WebpackEntrypoints } from './entries'
 import * as Log from './output/log'
@@ -180,6 +180,11 @@ const WEBPACK_RESOLVE_OPTIONS = {
   symlinks: true,
 }
 
+const WEBPACK_ESM_RESOLVE_OPTIONS = {
+  dependencyType: 'esm',
+  symlinks: true,
+}
+
 const NODE_RESOLVE_OPTIONS = {
   dependencyType: 'commonjs',
   modules: ['node_modules'],
@@ -201,6 +206,13 @@ const NODE_RESOLVE_OPTIONS = {
   restrictions: [],
 }
 
+const NODE_ESM_RESOLVE_OPTIONS = {
+  ...NODE_RESOLVE_OPTIONS,
+  dependencyType: 'esm',
+  conditionNames: ['node', 'import', 'module'],
+  fullySpecified: true,
+}
+
 export default async function getBaseWebpackConfig(
   dir: string,
   {
@@ -216,7 +228,7 @@ export default async function getBaseWebpackConfig(
     isDevFallback = false,
   }: {
     buildId: string
-    config: NextConfig
+    config: NextConfigComplete
     dev?: boolean
     isServer?: boolean
     pagesDir: string
@@ -305,7 +317,7 @@ export default async function getBaseWebpackConfig(
   }
 
   const babelIncludeRegexes: RegExp[] = [
-    /next[\\/]dist[\\/]next-server[\\/]lib/,
+    /next[\\/]dist[\\/]shared[\\/]lib/,
     /next[\\/]dist[\\/]client/,
     /next[\\/]dist[\\/]pages/,
     /[\\/](strip-ansi|ansi-regex)[\\/]/,
@@ -396,10 +408,10 @@ export default async function getBaseWebpackConfig(
   }
 
   const clientResolveRewrites = require.resolve(
-    '../next-server/lib/router/utils/resolve-rewrites'
+    '../shared/lib/router/utils/resolve-rewrites'
   )
   const clientResolveRewritesNoop = require.resolve(
-    '../next-server/lib/router/utils/resolve-rewrites-noop'
+    '../shared/lib/router/utils/resolve-rewrites-noop'
   )
 
   const resolveConfig = {
@@ -653,12 +665,19 @@ export default async function getBaseWebpackConfig(
     config.conformance
   )
 
+  const esmExternals = !!config.experimental?.esmExternals
+  const looseEsmExternals = config.experimental?.esmExternals === 'loose'
+
   async function handleExternals(
     context: string,
     request: string,
+    dependencyType: string,
     getResolve: (
       options: any
-    ) => (resolveContext: string, resolveRequest: string) => Promise<string>
+    ) => (
+      resolveContext: string,
+      resolveRequest: string
+    ) => Promise<[string | null, boolean]>
   ) {
     // We need to externalize internal requests for files intended to
     // not be bundled.
@@ -676,11 +695,7 @@ export default async function getBaseWebpackConfig(
     // are relative to requests we've already resolved here.
     // Absolute requires (require('/foo')) are extremely uncommon, but
     // also have no need for customization as they're already resolved.
-    if (isLocal) {
-      if (!/[/\\]next-server[/\\]/.test(request)) {
-        return
-      }
-    } else {
+    if (!isLocal) {
       if (/^(?:next$|react(?:$|\/))/.test(request)) {
         return `commonjs ${request}`
       }
@@ -691,31 +706,58 @@ export default async function getBaseWebpackConfig(
       }
     }
 
-    const resolve = getResolve(WEBPACK_RESOLVE_OPTIONS)
+    // When in esm externals mode, and using import, we resolve with
+    // ESM resolving options.
+    const isEsmRequested = dependencyType === 'esm'
+    const preferEsm = esmExternals && isEsmRequested
+
+    const resolve = getResolve(
+      preferEsm ? WEBPACK_ESM_RESOLVE_OPTIONS : WEBPACK_RESOLVE_OPTIONS
+    )
 
     // Resolve the import with the webpack provided context, this
     // ensures we're resolving the correct version when multiple
     // exist.
-    let res: string
+    let res: string | null
+    let isEsm: boolean = false
     try {
-      res = await resolve(context, request)
+      ;[res, isEsm] = await resolve(context, request)
     } catch (err) {
-      // If the request cannot be resolved, we need to tell webpack to
-      // "bundle" it so that webpack shows an error (that it cannot be
-      // resolved).
-      return
+      res = null
     }
 
-    // Same as above, if the request cannot be resolved we need to have
+    // If resolving fails, and we can use an alternative way
+    // try the alternative resolving options.
+    if (!res && (isEsmRequested || looseEsmExternals)) {
+      const resolveAlternative = getResolve(
+        preferEsm ? WEBPACK_RESOLVE_OPTIONS : WEBPACK_ESM_RESOLVE_OPTIONS
+      )
+      try {
+        ;[res, isEsm] = await resolveAlternative(context, request)
+      } catch (err) {
+        res = null
+      }
+    }
+
+    // If the request cannot be resolved we need to have
     // webpack "bundle" it so it surfaces the not found error.
     if (!res) {
       return
     }
 
+    // ESM externals can only be imported (and not required).
+    // Make an exception in loose mode.
+    if (!isEsmRequested && isEsm && !looseEsmExternals) {
+      throw new Error(
+        `ESM packages (${request}) need to be imported. Use 'import' to reference the package instead. https://nextjs.org/docs/messages/import-esm-externals`
+      )
+    }
+
     if (isLocal) {
-      // we need to process next-server/lib/router/router so that
+      // Makes sure dist/shared and dist/server are not bundled
+      // we need to process shared/lib/router/router so that
       // the DefinePlugin can inject process.env values
-      const isNextExternal = /next[/\\]dist[/\\]next-server[/\\](?!lib[/\\]router[/\\]router)/.test(
+      const isNextExternal = /next[/\\]dist[/\\](shared|server)[/\\](?!lib[/\\]router[/\\]router)/.test(
         res
       )
 
@@ -744,28 +786,32 @@ export default async function getBaseWebpackConfig(
     // package that'll be available at runtime. If it's not identical,
     // we need to bundle the code (even if it _should_ be external).
     let baseRes: string | null
+    let baseIsEsm: boolean
     try {
-      const baseResolve = getResolve(NODE_RESOLVE_OPTIONS)
-      baseRes = await baseResolve(dir, request)
+      const baseResolve = getResolve(
+        isEsm ? NODE_ESM_RESOLVE_OPTIONS : NODE_RESOLVE_OPTIONS
+      )
+      ;[baseRes, baseIsEsm] = await baseResolve(dir, request)
     } catch (err) {
       baseRes = null
+      baseIsEsm = false
     }
 
     // Same as above: if the package, when required from the root,
     // would be different from what the real resolution would use, we
     // cannot externalize it.
-    // if res or baseRes are symlinks they could point to the the same file,
-    // but the resolver will resolve symlinks so this is already handled
-    if (baseRes !== res) {
+    // if request is pointing to a symlink it could point to the the same file,
+    // the resolver will resolve symlinks so this is handled
+    if (baseRes !== res || isEsm !== baseIsEsm) {
       return
     }
 
+    const externalType = isEsm ? 'module' : 'commonjs'
+
     if (
-      res.match(
-        /next[/\\]dist[/\\]next-server[/\\](?!lib[/\\]router[/\\]router)/
-      )
+      res.match(/next[/\\]dist[/\\]shared[/\\](?!lib[/\\]router[/\\]router)/)
     ) {
-      return `commonjs ${request}`
+      return `${externalType} ${request}`
     }
 
     // Default pages have to be transpiled
@@ -788,7 +834,7 @@ export default async function getBaseWebpackConfig(
     // Anything else that is standard JavaScript within `node_modules`
     // can be externalized.
     if (/node_modules[/\\].*\.c?js$/.test(res)) {
-      return `commonjs ${request}`
+      return `${externalType} ${request}`
     }
 
     // Default behavior: bundle the code!
@@ -808,17 +854,43 @@ export default async function getBaseWebpackConfig(
             ? ({
                 context,
                 request,
+                dependencyType,
                 getResolve,
               }: {
                 context: string
                 request: string
+                dependencyType: string
                 getResolve: (
                   options: any
                 ) => (
                   resolveContext: string,
-                  resolveRequest: string
-                ) => Promise<string>
-              }) => handleExternals(context, request, getResolve)
+                  resolveRequest: string,
+                  callback: (
+                    err?: Error,
+                    result?: string,
+                    resolveData?: { descriptionFileData?: { type?: any } }
+                  ) => void
+                ) => void
+              }) =>
+                handleExternals(context, request, dependencyType, (options) => {
+                  const resolveFunction = getResolve(options)
+                  return (resolveContext: string, requestToResolve: string) =>
+                    new Promise((resolve, reject) => {
+                      resolveFunction(
+                        resolveContext,
+                        requestToResolve,
+                        (err, result, resolveData) => {
+                          if (err) return reject(err)
+                          if (!result) return resolve([null, false])
+                          const isEsm = /\.js$/i.test(result)
+                            ? resolveData?.descriptionFileData?.type ===
+                              'module'
+                            : /\.mjs$/i.test(result)
+                          resolve([result, isEsm])
+                        }
+                      )
+                    })
+                })
             : (
                 context: string,
                 request: string,
@@ -827,13 +899,15 @@ export default async function getBaseWebpackConfig(
                 handleExternals(
                   context,
                   request,
+                  'commonjs',
                   () => (resolveContext: string, requestToResolve: string) =>
                     new Promise((resolve) =>
-                      resolve(
+                      resolve([
                         require.resolve(requestToResolve, {
                           paths: [resolveContext],
-                        })
-                      )
+                        }),
+                        false,
+                      ])
                     )
                 ).then((result) => callback(undefined, result), callback),
         ]
@@ -925,19 +999,6 @@ export default async function getBaseWebpackConfig(
       ],
     },
     output: {
-      ...(isWebpack5
-        ? {
-            environment: {
-              arrowFunction: false,
-              bigIntLiteral: false,
-              const: false,
-              destructuring: false,
-              dynamicImport: false,
-              forOf: false,
-              module: false,
-            },
-          }
-        : {}),
       // we must set publicPath to an empty value to override the default of
       // auto which doesn't work in IE11
       publicPath: `${config.assetPrefix || ''}/_next/`,
@@ -1037,6 +1098,11 @@ export default async function getBaseWebpackConfig(
                 loader: 'next-image-loader',
                 issuer: { not: regexLikeCss },
                 dependency: { not: ['url'] },
+                options: {
+                  isServer,
+                  isDev: dev,
+                  assetPrefix: config.assetPrefix,
+                },
               },
             ]
           : []),
@@ -1193,7 +1259,7 @@ export default async function getBaseWebpackConfig(
       !dev &&
         new webpack.IgnorePlugin({
           resourceRegExp: /react-is/,
-          contextRegExp: /(next-server|next)[\\/]dist[\\/]/,
+          contextRegExp: /next[\\/]dist[\\/]/,
         }),
       isServerless && isServer && new ServerlessPlugin(),
       isServer &&

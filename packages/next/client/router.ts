@@ -1,7 +1,8 @@
 /* global window */
 import React from 'react'
-import Router, { NextRouter } from '../next-server/lib/router/router'
-import { RouterContext } from '../next-server/lib/router-context'
+import Router from '../shared/lib/router/router'
+import type { NextRouter } from '../shared/lib/router/router'
+import { RouterContext } from '../shared/lib/router-context'
 
 type ClassArguments<T> = T extends new (...args: infer U) => any ? U : any
 
@@ -13,7 +14,9 @@ type SingletonRouterBase = {
   ready(cb: () => any): void
 }
 
-export { Router, NextRouter }
+export { Router }
+
+export type { NextRouter }
 
 export type SingletonRouter = SingletonRouterBase & NextRouter
 

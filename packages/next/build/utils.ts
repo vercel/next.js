@@ -1,4 +1,4 @@
-import '../next-server/server/node-polyfill-fetch'
+import '../server/node-polyfill-fetch'
 import chalk from 'chalk'
 import getGzipSize from 'next/dist/compiled/gzip-size'
 import textTable from 'next/dist/compiled/text-table'
@@ -19,18 +19,18 @@ import {
 } from '../lib/constants'
 import prettyBytes from '../lib/pretty-bytes'
 import { recursiveReadDir } from '../lib/recursive-readdir'
-import { getRouteMatcher, getRouteRegex } from '../next-server/lib/router/utils'
-import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
-import escapePathDelimiters from '../next-server/lib/router/utils/escape-path-delimiters'
+import { getRouteMatcher, getRouteRegex } from '../shared/lib/router/utils'
+import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
+import escapePathDelimiters from '../shared/lib/router/utils/escape-path-delimiters'
 import { findPageFile } from '../server/lib/find-page-file'
 import { GetStaticPaths } from 'next/types'
-import { denormalizePagePath } from '../next-server/server/normalize-page-path'
-import { BuildManifest } from '../next-server/server/get-page-files'
+import { denormalizePagePath } from '../server/normalize-page-path'
+import { BuildManifest } from '../server/get-page-files'
 import { removePathTrailingSlash } from '../client/normalize-trailing-slash'
 import { UnwrapPromise } from '../lib/coalesced-function'
-import { normalizeLocalePath } from '../next-server/lib/i18n/normalize-locale-path'
+import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import * as Log from './output/log'
-import { loadComponents } from '../next-server/server/load-components'
+import { loadComponents } from '../server/load-components'
 import { trace } from '../telemetry/trace'
 
 const fileGzipStats: { [k: string]: Promise<number> | undefined } = {}
@@ -67,6 +67,8 @@ export interface PageInfo {
   isSsg: boolean
   ssgPageRoutes: string[] | null
   initialRevalidateSeconds: number | false
+  pageDuration: number | undefined
+  ssgPageDurations: number[] | undefined
 }
 
 export async function printTreeView(
@@ -99,6 +101,17 @@ export async function printTreeView(
     if (_size < 170 * 1000) return chalk.yellow(size)
     // red for >= 170kb
     return chalk.red.bold(size)
+  }
+
+  const MIN_DURATION = 300
+  const getPrettyDuration = (_duration: number): string => {
+    const duration = `${_duration} ms`
+    // green for 300-1000ms
+    if (_duration < 1000) return chalk.green(duration)
+    // yellow for 1000-2000ms
+    if (_duration < 2000) return chalk.yellow(duration)
+    // red for >= 2000ms
+    return chalk.red.bold(duration)
   }
 
   const getCleanName = (fileName: string) =>
@@ -159,6 +172,10 @@ export async function printTreeView(
     const pageInfo = pageInfos.get(item)
     const ampFirst = buildManifest.ampFirstPages.includes(item)
 
+    const totalDuration =
+      (pageInfo?.pageDuration || 0) +
+      (pageInfo?.ssgPageDurations?.reduce((a, b) => a + (b || 0), 0) || 0)
+
     messages.push([
       `${symbol} ${
         item === '/_app'
@@ -172,6 +189,10 @@ export async function printTreeView(
         pageInfo?.initialRevalidateSeconds
           ? `${item} (ISR: ${pageInfo?.initialRevalidateSeconds} Seconds)`
           : item
+      }${
+        totalDuration > MIN_DURATION
+          ? ` (${getPrettyDuration(totalDuration)})`
+          : ''
       }`,
       pageInfo
         ? ampFirst
@@ -209,18 +230,64 @@ export async function printTreeView(
 
     if (pageInfo?.ssgPageRoutes?.length) {
       const totalRoutes = pageInfo.ssgPageRoutes.length
-      const previewPages = totalRoutes === 4 ? 4 : 3
       const contSymbol = i === arr.length - 1 ? ' ' : '├'
 
-      const routes = pageInfo.ssgPageRoutes.slice(0, previewPages)
-      if (totalRoutes > previewPages) {
-        const remaining = totalRoutes - previewPages
-        routes.push(`[+${remaining} more paths]`)
+      let routes: { route: string; duration: number; avgDuration?: number }[]
+      if (
+        pageInfo.ssgPageDurations &&
+        pageInfo.ssgPageDurations.some((d) => d > MIN_DURATION)
+      ) {
+        const previewPages = totalRoutes === 8 ? 8 : Math.min(totalRoutes, 7)
+        const routesWithDuration = pageInfo.ssgPageRoutes
+          .map((route, idx) => ({
+            route,
+            duration: pageInfo.ssgPageDurations![idx] || 0,
+          }))
+          .sort(({ duration: a }, { duration: b }) =>
+            // Sort by duration
+            // keep too small durations in original order at the end
+            a <= MIN_DURATION && b <= MIN_DURATION ? 0 : b - a
+          )
+        routes = routesWithDuration.slice(0, previewPages)
+        const remainingRoutes = routesWithDuration.slice(previewPages)
+        if (remainingRoutes.length) {
+          const remaining = remainingRoutes.length
+          const avgDuration = Math.round(
+            remainingRoutes.reduce(
+              (total, { duration }) => total + duration,
+              0
+            ) / remainingRoutes.length
+          )
+          routes.push({
+            route: `[+${remaining} more paths]`,
+            duration: 0,
+            avgDuration,
+          })
+        }
+      } else {
+        const previewPages = totalRoutes === 4 ? 4 : Math.min(totalRoutes, 3)
+        routes = pageInfo.ssgPageRoutes
+          .slice(0, previewPages)
+          .map((route) => ({ route, duration: 0 }))
+        if (totalRoutes > previewPages) {
+          const remaining = totalRoutes - previewPages
+          routes.push({ route: `[+${remaining} more paths]`, duration: 0 })
+        }
       }
 
-      routes.forEach((slug, index, { length }) => {
+      routes.forEach(({ route, duration, avgDuration }, index, { length }) => {
         const innerSymbol = index === length - 1 ? '└' : '├'
-        messages.push([`${contSymbol}   ${innerSymbol} ${slug}`, '', ''])
+        messages.push([
+          `${contSymbol}   ${innerSymbol} ${route}${
+            duration > MIN_DURATION ? ` (${getPrettyDuration(duration)})` : ''
+          }${
+            avgDuration && avgDuration > MIN_DURATION
+              ? ` (avg ${getPrettyDuration(avgDuration)})`
+              : ''
+          }`,
+          '',
+          '',
+        ])
       })
     }
   })
@@ -765,7 +832,7 @@ export async function isPageStatic(
   const isPageStaticSpan = trace('is-page-static-utils', parentId)
   return isPageStaticSpan.traceAsyncFn(async () => {
     try {
-      require('../next-server/lib/runtime-config').setConfig(runtimeEnvConfig)
+      require('../shared/lib/runtime-config').setConfig(runtimeEnvConfig)
       const components = await loadComponents(distDir, page, serverless)
       const mod = components.ComponentMod
       const Comp = mod.default || mod
@@ -880,7 +947,7 @@ export async function hasCustomGetInitialProps(
   runtimeEnvConfig: any,
   checkingApp: boolean
 ): Promise<boolean> {
-  require('../next-server/lib/runtime-config').setConfig(runtimeEnvConfig)
+  require('../shared/lib/runtime-config').setConfig(runtimeEnvConfig)
 
   const components = await loadComponents(distDir, page, isLikeServerless)
   let mod = components.ComponentMod
@@ -900,7 +967,7 @@ export async function getNamedExports(
   isLikeServerless: boolean,
   runtimeEnvConfig: any
 ): Promise<Array<string>> {
-  require('../next-server/lib/runtime-config').setConfig(runtimeEnvConfig)
+  require('../shared/lib/runtime-config').setConfig(runtimeEnvConfig)
   const components = await loadComponents(distDir, page, isLikeServerless)
   let mod = components.ComponentMod
 
