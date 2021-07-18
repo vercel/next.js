@@ -44,7 +44,8 @@ ruleTester.run('no-script-in-head', rule, {
       filename: 'pages/index.js',
       errors: [
         {
-          message: "Script shouldn't be used inside <Head></Head>",
+          message:
+            "next/script shouldn't be used inside <Head></Head>  See: https://nextjs.org/docs/messages/no-script-in-head-component ",
         },
       ],
     },

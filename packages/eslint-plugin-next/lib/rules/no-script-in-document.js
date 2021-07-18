@@ -21,7 +21,7 @@ module.exports = {
 
         context.report({
           node,
-          message: `next/script should not be imported in pages/_document.js`,
+          message: `next/script should not be used in pages/_document.js. See: https://nextjs.org/docs/messages/no-script-in-document-page `,
         })
       },
     }

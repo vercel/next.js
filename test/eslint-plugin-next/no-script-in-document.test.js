@@ -78,7 +78,7 @@ ruleTester.run('no-script-import-in-document', rule, {
       filename: 'pages/_document.js',
       errors: [
         {
-          message: 'next/script should not be imported in pages/_document.js',
+          message: `next/script should not be used in pages/_document.js. See: https://nextjs.org/docs/messages/no-script-in-document-page `,
         },
       ],
     },
@@ -109,7 +109,7 @@ ruleTester.run('no-script-import-in-document', rule, {
       filename: 'pages/_document.js',
       errors: [
         {
-          message: 'next/script should not be imported in pages/_document.js',
+          message: `next/script should not be used in pages/_document.js. See: https://nextjs.org/docs/messages/no-script-in-document-page `,
         },
       ],
     },

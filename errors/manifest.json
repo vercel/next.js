@@ -426,6 +426,14 @@
         {
           "title": "page-data-collection-timeout",
           "path": "/errors/page-data-collection-timeout.md"
+        },
+        {
+          "title": "script-in-document-page",
+          "path": "/errors/no-script-in-document-page.md"
+        },
+        {
+          "title": "script-in-head-component",
+          "path": "/errors/no-script-in-head-component"
         }
       ]
     }
