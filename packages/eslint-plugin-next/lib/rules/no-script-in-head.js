@@ -31,14 +31,14 @@ module.exports = {
           return
         }
 
-        const titleTag = node.children.find(
+        const scriptTag = node.children.find(
           (child) =>
             child.openingElement &&
             child.openingElement.name &&
             child.openingElement.name.name === 'Script'
         )
 
-        if (titleTag) {
+        if (scriptTag) {
           context.report({
             node,
             message:
