@@ -29,6 +29,13 @@ const VECTOR_TYPES = [SVG]
 const BLUR_IMG_SIZE = 8 // should match `next-image-loader`
 const inflightRequests = new Map<string, Promise<undefined>>()
 
+let sharp: any
+try {
+  sharp = require('sharp')
+} catch (e) {
+  // Sharp not present on the server, Squoosh fallback will be used
+}
+
 export async function imageOptimizer(
   server: Server,
   req: IncomingMessage,
@@ -314,53 +321,28 @@ export async function imageOptimizer(
     } else {
       contentType = JPEG
     }
-
     try {
-      const orientation = await getOrientation(upstreamBuffer)
+      if (sharp) {
+        // Begin sharp transformation logic
+        const transformer = sharp(upstreamBuffer)
 
-      const operations: Operation[] = []
+        transformer.rotate()
 
-      if (orientation === Orientation.RIGHT_TOP) {
-        operations.push({ type: 'rotate', numRotations: 1 })
-      } else if (orientation === Orientation.BOTTOM_RIGHT) {
-        operations.push({ type: 'rotate', numRotations: 2 })
-      } else if (orientation === Orientation.LEFT_BOTTOM) {
-        operations.push({ type: 'rotate', numRotations: 3 })
-      } else {
-        // TODO: support more orientations
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        // const _: never = orientation
-      }
+        const { width: metaWidth } = await transformer.metadata()
 
-      operations.push({ type: 'resize', width })
+        if (metaWidth && metaWidth > width) {
+          transformer.resize(width)
+        }
 
-      let optimizedBuffer: Buffer | undefined
-      //if (contentType === AVIF) {
-      //} else
-      if (contentType === WEBP) {
-        optimizedBuffer = await processBuffer(
-          upstreamBuffer,
-          operations,
-          'webp',
-          quality
-        )
-      } else if (contentType === PNG) {
-        optimizedBuffer = await processBuffer(
-          upstreamBuffer,
-          operations,
-          'png',
-          quality
-        )
-      } else if (contentType === JPEG) {
-        optimizedBuffer = await processBuffer(
-          upstreamBuffer,
-          operations,
-          'jpeg',
-          quality
-        )
-      }
+        if (contentType === WEBP) {
+          transformer.webp({ quality })
+        } else if (contentType === PNG) {
+          transformer.png({ quality })
+        } else if (contentType === JPEG) {
+          transformer.jpeg({ quality })
+        }
 
-      if (optimizedBuffer) {
+        const optimizedBuffer = await transformer.toBuffer()
         await writeToCacheDir(
           hashDir,
           contentType,
@@ -377,8 +359,74 @@ export async function imageOptimizer(
           isStatic,
           isDev
         )
+        // End sharp transformation logic
       } else {
-        throw new Error('Unable to optimize buffer')
+        // Begin Squoosh transformation logic
+        const orientation = await getOrientation(upstreamBuffer)
+
+        const operations: Operation[] = []
+
+        if (orientation === Orientation.RIGHT_TOP) {
+          operations.push({ type: 'rotate', numRotations: 1 })
+        } else if (orientation === Orientation.BOTTOM_RIGHT) {
+          operations.push({ type: 'rotate', numRotations: 2 })
+        } else if (orientation === Orientation.LEFT_BOTTOM) {
+          operations.push({ type: 'rotate', numRotations: 3 })
+        } else {
+          // TODO: support more orientations
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          // const _: never = orientation
+        }
+
+        operations.push({ type: 'resize', width })
+
+        let optimizedBuffer: Buffer | undefined
+        //if (contentType === AVIF) {
+        //} else
+        if (contentType === WEBP) {
+          optimizedBuffer = await processBuffer(
+            upstreamBuffer,
+            operations,
+            'webp',
+            quality
+          )
+        } else if (contentType === PNG) {
+          optimizedBuffer = await processBuffer(
+            upstreamBuffer,
+            operations,
+            'png',
+            quality
+          )
+        } else if (contentType === JPEG) {
+          optimizedBuffer = await processBuffer(
+            upstreamBuffer,
+            operations,
+            'jpeg',
+            quality
+          )
+        }
+
+        if (optimizedBuffer) {
+          await writeToCacheDir(
+            hashDir,
+            contentType,
+            maxAge,
+            expireAt,
+            optimizedBuffer
+          )
+          sendResponse(
+            req,
+            res,
+            maxAge,
+            contentType,
+            optimizedBuffer,
+            isStatic,
+            isDev
+          )
+        } else {
+          throw new Error('Unable to optimize buffer')
+        }
+        // End Squoosh transformation logic
       }
     } catch (error) {
       sendResponse(
@@ -543,4 +591,46 @@ export function getMaxAge(str: string | null): number {
     }
   }
   return minimum
+}
+
+export async function resizeImage(
+  content: Buffer,
+  dimension: 'width' | 'height',
+  size: number,
+  extension: 'webp' | 'png' | 'jpeg',
+  quality: number
+) {
+  if (sharp) {
+    const transformer = sharp(content)
+
+    if (extension === 'webp') {
+      transformer.webp({ quality })
+    } else if (extension === 'png') {
+      transformer.png({ quality })
+    } else if (extension === 'jpeg') {
+      transformer.jpeg({ quality })
+    }
+    if (dimension === 'width') {
+      transformer.resize(size)
+    } else {
+      transformer.resize(null, size)
+    }
+    const buf = await transformer.toBuffer()
+    console.log(
+      'Build-resizing image using SHARP in ' + (Date.now() - startTime) + 'ms'
+    )
+    return buf
+  } else {
+    const resizeOperationOpts: Operation =
+      dimension === 'width'
+        ? { type: 'resize', width: size }
+        : { type: 'resize', height: size }
+    const buf = await processBuffer(
+      content,
+      [resizeOperationOpts],
+      extension,
+      quality
+    )
+    return buf
+  }
 }
