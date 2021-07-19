@@ -857,7 +857,7 @@ describe('Image Optimizer', () => {
     runTests({ w: size, isDev: false, domains })
   })
 
-  describe('Server support for minimumCacheTTL', () => {
+  describe('Server support for minimumCacheTTL in next.config.js', () => {
     const size = 96 // defaults defined in server/config.ts
     const ttl = 5 // super low ttl in seconds
     beforeAll(async () => {
@@ -878,6 +878,58 @@ describe('Image Optimizer', () => {
     })
 
     runTests({ w: size, isDev: false, ttl })
+  })
+
+  describe('Server support for headers in next.config.js', () => {
+    const size = 96 // defaults defined in server/config.ts
+    beforeAll(async () => {
+      nextConfig.replace(
+        '{ /* replaceme */ }',
+        `{
+        async headers() {
+          return [
+            {
+              source: '/test.png',
+              headers: [
+                {
+                  key: 'Cache-Control',
+                  value: 'public, max-age=86400, must-revalidate',
+                },
+              ],
+            },
+          ]
+        },
+      }`
+      )
+      await nextBuild(appDir)
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
+    })
+    afterAll(async () => {
+      await killApp(app)
+      nextConfig.restore()
+      await fs.remove(imagesDir)
+    })
+
+    it('should set max-age header from upstream when matching next.config.js', async () => {
+      const query = { url: '/test.png', w: size, q: 75 }
+      const opts = { headers: { accept: 'image/webp' } }
+      const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+      expect(res.status).toBe(200)
+      expect(res.headers.get('Cache-Control')).toBe(
+        `public, max-age=86400, must-revalidate`
+      )
+    })
+
+    it('should not set max-age header when not matching next.config.js', async () => {
+      const query = { url: '/test.jpg', w: size, q: 75 }
+      const opts = { headers: { accept: 'image/webp' } }
+      const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+      expect(res.status).toBe(200)
+      expect(res.headers.get('Cache-Control')).toBe(
+        `public, max-age=0, must-revalidate`
+      )
+    })
   })
 
   describe('Serverless support with next.config.js', () => {
