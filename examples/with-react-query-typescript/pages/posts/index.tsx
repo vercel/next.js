@@ -1,6 +1,5 @@
 import { GetStaticProps } from "next";
 import Link from "next/link";
-import Layout from "../../components/Layout";
 import { QueryClient } from "react-query";
 import { dehydrate } from "react-query/hydration";
 import { api, usePosts } from "../../hooks/usePosts";
@@ -8,13 +7,7 @@ import { TPost } from "../../types";
 import { useRouterReady } from "../../hooks/common";
 
 const Posts = () => {
-  const { isRouterReady, router } = useRouterReady();
-
-  const { isLoading, isError, data } = usePosts<TPost[]>(
-    ["posts", 'limit=3'],
-    '/posts?_limit=3',
-    isRouterReady,
-  );
+  const { isLoading, isError, data } = usePosts();
 
   if (isLoading) {
     return 'Loading...';
@@ -55,7 +48,7 @@ export const getStaticProps: GetStaticProps = async () => {
 
   // Prefetching post on server side. Post will be available to useQuery hook on client side without any refetch
   const queryClient = new QueryClient();
-  await queryClient.prefetchQuery(["posts", 'limit=3'], async () => {
+  await queryClient.prefetchQuery(["posts", '_limit=3'], async () => {
     return await api<TPost[]>('/posts?_limit=3');
   });
 
