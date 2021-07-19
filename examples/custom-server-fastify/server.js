@@ -1,4 +1,7 @@
-const fastify = require('fastify')({ logger: { level: 'error' }, pluginTimeout: 0 })
+const fastify = require('fastify')({
+  logger: { level: 'error' },
+  pluginTimeout: 0,
+})
 const Next = require('next')
 
 const port = parseInt(process.env.PORT, 10) || 3000
