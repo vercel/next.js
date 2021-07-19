@@ -2141,7 +2141,7 @@ export default class Server {
     return this.sendResponse(req, res, response)
   }
 
-  private async render404ToResponse(
+  private render404ToResponse(
     req: IncomingMessage,
     res: ServerResponse,
     parsedUrl?: UrlWithParsedQuery,
