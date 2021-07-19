@@ -186,7 +186,7 @@ module.exports = {
 }
 ```
 
-If you need to add a `Cache-Control` header for the browser (not recommended), you can configured [`headers`](/docs/api-reference/next.config.js/headers) on the upstream image.
+If you need to add a `Cache-Control` header for the browser (not recommended), you can configure [`headers`](/docs/api-reference/next.config.js/headers) on the upstream image e.g. `/some-asset.jpg` not `/_next/image` itself.
 
 ### Disable Static Imports
 
