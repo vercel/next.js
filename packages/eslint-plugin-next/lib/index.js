@@ -33,5 +33,13 @@ module.exports = {
         '@next/next/no-duplicate-head': 2,
       },
     },
+    'core-web-vitals': {
+      plugins: ['@next/next'],
+      // extends: ['plugin:@next/next/recommended'],
+      rules: {
+        '@next/next/no-sync-scripts': 2,
+        '@next/next/no-html-link-for-pages': 2,
+      },
+    },
   },
 }
