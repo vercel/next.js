@@ -73,12 +73,16 @@ const nextDev: cliCommand = (argv) => {
 
   const port =
     args['--port'] || (process.env.PORT && parseInt(process.env.PORT)) || 3000
-  const host = args['--hostname'] || '0.0.0.0'
-  const appUrl = `http://${host === '0.0.0.0' ? 'localhost' : host}:${port}`
+
+  // We do not set a default host value here to prevent breaking
+  // some set-ups that rely on listening on other interfaces
+  const host = args['--hostname']
+  const ipPort = `${!host ? 'localhost' : host}:${port}`
+  const appUrl = `http://${ipPort}`
 
   startServer({ dir, dev: true, isNextDevCommand: true }, port, host)
     .then(async (app) => {
-      startedDevelopmentServer(appUrl, `${host}:${port}`)
+      startedDevelopmentServer(appUrl, ipPort)
       // Start preflight after server is listening and ignore errors:
       preflight().catch(() => {})
       // Finalize server bootup:
