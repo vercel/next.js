@@ -1,5 +1,5 @@
 {
-  "name": "with-urql",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",

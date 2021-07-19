@@ -15,6 +15,7 @@ import {
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
+import { existsSync } from 'fs'
 
 jest.setTimeout(1000 * 80)
 
@@ -174,6 +175,35 @@ function runTests(mode) {
       await check(
         () => browser.eval(`document.getElementById("update-image").src`),
         /test\.png/
+      )
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
+
+  it('should callback onLoadingComplete when image is fully loaded', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/on-loading-complete')
+
+      await check(
+        () => browser.eval(`document.getElementById("img1").src`),
+        /test(.*)jpg/
+      )
+
+      await check(
+        () => browser.eval(`document.getElementById("img2").src`),
+        /test(.*).png/
+      )
+      await check(
+        () => browser.eval(`document.getElementById("msg1").textContent`),
+        'loaded img1'
+      )
+      await check(
+        () => browser.eval(`document.getElementById("msg2").textContent`),
+        'loaded img2'
       )
     } finally {
       if (browser) {
@@ -494,6 +524,15 @@ function runTests(mode) {
       )
     })
 
+    it('should show error when not numeric string width or height', async () => {
+      const browser = await webdriver(appPort, '/invalid-width-or-height')
+
+      expect(await hasRedbox(browser)).toBe(true)
+      expect(await getRedboxHeader(browser)).toContain(
+        `Image with src "/test.jpg" has invalid "width" or "height" property. These should be numeric values.`
+      )
+    })
+
     it('should show error when static import and placeholder=blur and blurDataUrl is missing', async () => {
       const browser = await webdriver(
         appPort,
@@ -516,6 +555,13 @@ function runTests(mode) {
       expect(warnings).toMatch(
         /Image with src (.*)jpg(.*) is smaller than 40x40. Consider removing(.*)/gm
       )
+    })
+  } else {
+    //server-only tests
+    it('should not create an image folder in server/chunks', async () => {
+      expect(
+        existsSync(join(appDir, '.next/server/chunks/static/image'))
+      ).toBeFalsy()
     })
   }
 
@@ -630,6 +676,14 @@ describe('Image Component Tests', () => {
       expect($html('#blurry-placeholder')[0].attribs.style).toContain(
         `background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'%3E%3Cfilter id='blur' filterUnits='userSpaceOnUse' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='20' edgeMode='duplicate' /%3E%3CfeComponentTransfer%3E%3CfeFuncA type='discrete' tableValues='1 1' /%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Cimage filter='url(%23blur)' href='data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMDAwMDAwQEBAQFBQUFBQcHBgYHBwsICQgJCAsRCwwLCwwLEQ8SDw4PEg8bFRMTFRsfGhkaHyYiIiYwLTA+PlT/wAALCAAKAAoBAREA/8QAMwABAQEAAAAAAAAAAAAAAAAAAAcJEAABAwUAAwAAAAAAAAAAAAAFAAYRAQMEEyEVMlH/2gAIAQEAAD8Az1bLPaxhiuk0QdeCOLDtHixN2dmd2bsc5FPX7VTREX//2Q==' x='0' y='0' height='100%25' width='100%25'/%3E%3C/svg%3E")`
       )
+
+      expect($html('#blurry-placeholder')[0].attribs.style).toContain(
+        `background-position:0% 0%`
+      )
+
+      expect(
+        $html('#blurry-placeholder-tall-centered')[0].attribs.style
+      ).toContain(`background-position:center`)
 
       expect($html('#blurry-placeholder-with-lazy')[0].attribs.style).toContain(
         `background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'%3E%3Cfilter id='blur' filterUnits='userSpaceOnUse' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='20' edgeMode='duplicate' /%3E%3CfeComponentTransfer%3E%3CfeFuncA type='discrete' tableValues='1 1' /%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Cimage filter='url(%23blur)' href='data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMDAwMDAwQEBAQFBQUFBQcHBgYHBwsICQgJCAsRCwwLCwwLEQ8SDw4PEg8bFRMTFRsfGhkaHyYiIiYwLTA+PlT/wAALCAAKAAoBAREA/8QAMwABAQEAAAAAAAAAAAAAAAAAAAcJEAABAwUAAwAAAAAAAAAAAAAFAAYRAQMEEyEVMlH/2gAIAQEAAD8Az1bLPaxhiuk0QdeCOLDtHixN2dmd2bsc5FPX7VTREX//2Q==' x='0' y='0' height='100%25' width='100%25'/%3E%3C/svg%3E")`

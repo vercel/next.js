@@ -1,6 +1,5 @@
 {
-  "name": "with-mdx-remote",
-  "version": "1.0.0",
+  "private": true,
   "scripts": {
     "dev": "next",
     "dev:watch": "next-remote-watch ./posts",

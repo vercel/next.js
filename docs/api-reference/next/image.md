@@ -102,7 +102,7 @@ When `responsive`, the image will scale the dimensions down for smaller
 viewports and scale up for larger viewports.
 
 When `fill`, the image will stretch both width and height to the dimensions of
-the parent element, usually paired with the [`objectFit`](#objectFit) property.
+the parent element, provided the parent element is relative. This is usually paired with the [`objectFit`](#objectFit) property.
 
 Try it out:
 
@@ -167,7 +167,9 @@ Should only be used when the image is visible above the fold. Defaults to
 
 A placeholder to use while the image is loading, possible values are `blur` or `empty`. Defaults to `empty`.
 
-When `blur`, the [`blurDataURL`](#blurdataurl) property will be used as the placeholder. If `src` is an object from a static import and the imported image is jpg, png, or webp, then `blurDataURL` will automatically be populated. Otherwise you must provide the [`blurDataURL`](#blurdataurl) property.
+When `blur`, the [`blurDataURL`](#blurdataurl) property will be used as the placeholder. If `src` is an object from a static import and the imported image is jpg, png, or webp, then `blurDataURL` will automatically be populated.
+
+For dynamic images, you must provide the [`blurDataURL`](#blurdataurl) property. Solutions such as [Plaiceholder](https://github.com/joe-bell/plaiceholder) can help with `base64` generation.
 
 When `empty`, there will be no placeholder while the image is loading, only empty space.
 
@@ -192,6 +194,10 @@ The image fit when using `layout="fill"`.
 The image position when using `layout="fill"`.
 
 [Learn more](https://developer.mozilla.org/en-US/docs/Web/CSS/object-position)
+
+### onLoadingComplete
+
+A callback function that is invoked once the image is completely loaded and the placeholder has been removed.
 
 ### loading
 
@@ -240,6 +246,7 @@ Other properties on the `<Image />` component will be passed to the underlying
 - `srcSet`. Use
   [Device Sizes](/docs/basic-features/image-optimization.md#device-sizes)
   instead.
+- `ref`. Use [`onLoadingComplete`](#onloadingcomplete) instead.
 - `decoding`. It is always `"async"`.
 
 ## Related

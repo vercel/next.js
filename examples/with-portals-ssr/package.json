@@ -1,5 +1,5 @@
 {
-  "name": "with-portals-ssr",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",

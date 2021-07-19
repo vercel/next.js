@@ -1,6 +1,6 @@
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { isWebpack5 } from 'next/dist/compiled/webpack/webpack'
-import { STRING_LITERAL_DROP_BUNDLE } from '../../../next-server/lib/constants'
+import { STRING_LITERAL_DROP_BUNDLE } from '../../../shared/lib/constants'
 
 export const ampFirstEntryNamesMap: WeakMap<
   webpack.compilation.Compilation,
