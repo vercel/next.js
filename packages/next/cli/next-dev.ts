@@ -77,7 +77,7 @@ const nextDev: cliCommand = (argv) => {
   // We do not set a default host value here to prevent breaking
   // some set-ups that rely on listening on other interfaces
   const host = args['--hostname']
-  const ipPort = `${!host ? 'localhost' : host}:${port}`
+  const ipPort = `${host || 'localhost'}:${port}`
   const appUrl = `http://${ipPort}`
 
   startServer({ dir, dev: true, isNextDevCommand: true }, port, host)
