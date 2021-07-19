@@ -36,6 +36,8 @@ try {
   // Sharp not present on the server, Squoosh fallback will be used
 }
 
+let shouldShowSharpWarning = process.env.NODE_ENV === 'production'
+
 export async function imageOptimizer(
   server: Server,
   req: IncomingMessage,
@@ -47,7 +49,6 @@ export async function imageOptimizer(
 ) {
   const imageData: ImageConfig = nextConfig.images || imageConfigDefault
   const { deviceSizes = [], imageSizes = [], domains = [], loader } = imageData
-  let shouldShowSharpWarning = process.env.NODE_ENV === 'production'
 
   if (loader !== 'default') {
     await server.render404(req, res, parsedUrl)
