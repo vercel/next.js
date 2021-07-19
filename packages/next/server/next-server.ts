@@ -135,6 +135,7 @@ export type ServerConstructor = {
 }
 
 type RequestContext = {
+  kind: 'STATIC'
   req: IncomingMessage
   res: ServerResponse
   pathname: string
@@ -1320,49 +1321,59 @@ export default class Server {
     await this.render404(req, res, parsedUrl)
   }
 
-  private withResponse(
-    req: IncomingMessage,
-    res: ServerResponse,
-    pathname: string,
-    query: ParsedUrlQuery,
-    fn: (ctx: RequestContext) => Promise<ResponsePayload | null>
-  ): {
-    toString: () => Promise<string | null>
-    pipe: () => Promise<void>
-  } {
-    const getResponse = () => fn({ req, res, pathname, query })
-
-    return {
-      toString: async () => {
-        const response = await getResponse()
-        return response ? response.body : null
-      },
-      pipe: async () => {
-        const response = await getResponse()
-        if (response === null) {
-          return
-        }
-        const { body, type, revalidateOptions } = response
-        if (!isResSent(res)) {
-          const { generateEtags, poweredByHeader, dev } = this.renderOpts
-          if (dev) {
-            // In dev, we should not cache pages for any reason.
-            res.setHeader('Cache-Control', 'no-store, must-revalidate')
-          }
-          return sendPayload(
-            req,
-            res,
-            body,
-            type,
-            {
-              generateEtags,
-              poweredByHeader,
-            },
-            revalidateOptions
-          )
-        }
-      },
+  private async pipe(
+    fn: (ctx: RequestContext) => Promise<ResponsePayload | null>,
+    initialContext: {
+      req: IncomingMessage
+      res: ServerResponse
+      pathname: string
+      query: ParsedUrlQuery
     }
+  ): Promise<void> {
+    const ctx = {
+      ...initialContext,
+      kind: 'STATIC',
+    } as const
+    const payload = await fn(ctx)
+    if (payload === null) {
+      return
+    }
+    const { req, res } = ctx
+    const { body, type, revalidateOptions } = payload
+    if (!isResSent(res)) {
+      const { generateEtags, poweredByHeader, dev } = this.renderOpts
+      if (dev) {
+        // In dev, we should not cache pages for any reason.
+        res.setHeader('Cache-Control', 'no-store, must-revalidate')
+      }
+      return sendPayload(
+        req,
+        res,
+        body,
+        type,
+        {
+          generateEtags,
+          poweredByHeader,
+        },
+        revalidateOptions
+      )
+    }
+  }
+
+  private async getStaticHTML(
+    fn: (ctx: RequestContext) => Promise<ResponsePayload | null>,
+    initialContext: {
+      req: IncomingMessage
+      res: ServerResponse
+      pathname: string
+      query: ParsedUrlQuery
+    }
+  ): Promise<string | null> {
+    const payload = await fn({
+      ...initialContext,
+      kind: 'STATIC',
+    })
+    return payload ? payload.body : null
   }
 
   public async render(
@@ -1412,9 +1423,12 @@ export default class Server {
       return this.render404(req, res, parsedUrl)
     }
 
-    return this.withResponse(req, res, pathname, query, (ctx) =>
-      this.renderToResponse(ctx)
-    ).pipe()
+    return this.pipe((ctx) => this.renderToResponse(ctx), {
+      req,
+      res,
+      pathname,
+      query,
+    })
   }
 
   protected async findPageComponents(
@@ -1969,9 +1983,12 @@ export default class Server {
     pathname: string,
     query: ParsedUrlQuery = {}
   ): Promise<string | null> {
-    return this.withResponse(req, res, pathname, query, (ctx) =>
-      this.renderToResponse(ctx)
-    ).toString()
+    return this.getStaticHTML((ctx) => this.renderToResponse(ctx), {
+      req,
+      res,
+      pathname,
+      query,
+    })
   }
 
   public async renderError(
@@ -1989,14 +2006,17 @@ export default class Server {
       )
     }
 
-    return this.withResponse(req, res, pathname, query, async (ctx) => {
-      const response = await this.renderErrorToResponse(ctx, err)
-      if (this.minimalMode && res.statusCode === 500) {
-        throw err
-      }
+    return this.pipe(
+      async (ctx) => {
+        const response = await this.renderErrorToResponse(ctx, err)
+        if (this.minimalMode && res.statusCode === 500) {
+          throw err
+        }
 
-      return response
-    }).pipe()
+        return response
+      },
+      { req, res, pathname, query }
+    )
   }
 
   private customErrorNo404Warn = execOnce(() => {
@@ -2117,9 +2137,12 @@ export default class Server {
     pathname: string,
     query: ParsedUrlQuery = {}
   ): Promise<string | null> {
-    return this.withResponse(req, res, pathname, query, (ctx) =>
-      this.renderErrorToResponse(ctx, err)
-    ).toString()
+    return this.getStaticHTML((ctx) => this.renderErrorToResponse(ctx, err), {
+      req,
+      res,
+      pathname,
+      query,
+    })
   }
 
   protected async getFallbackErrorComponents(): Promise<LoadComponentsReturnType | null> {
@@ -2150,9 +2173,12 @@ export default class Server {
         query.__nextDefaultLocale || i18n.defaultLocale
     }
 
-    return this.withResponse(req, res, pathname!, query, (ctx) =>
-      this.render404ToResponse(ctx)
-    ).pipe()
+    return this.pipe((ctx) => this.render404ToResponse(ctx), {
+      req,
+      res,
+      pathname: pathname!,
+      query,
+    })
   }
 
   private render404ToResponse(
