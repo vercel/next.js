@@ -47,6 +47,7 @@ export async function imageOptimizer(
 ) {
   const imageData: ImageConfig = nextConfig.images || imageConfigDefault
   const { deviceSizes = [], imageSizes = [], domains = [], loader } = imageData
+  let shouldShowSharpWarning = process.env.NODE_ENV === 'production'
 
   if (loader !== 'default') {
     await server.render404(req, res, parsedUrl)
@@ -322,6 +323,7 @@ export async function imageOptimizer(
       contentType = JPEG
     }
     try {
+      let optimizedBuffer: Buffer | undefined
       if (sharp) {
         // Begin sharp transformation logic
         const transformer = sharp(upstreamBuffer)
@@ -342,25 +344,17 @@ export async function imageOptimizer(
           transformer.jpeg({ quality })
         }
 
-        const optimizedBuffer = await transformer.toBuffer()
-        await writeToCacheDir(
-          hashDir,
-          contentType,
-          maxAge,
-          expireAt,
-          optimizedBuffer
-        )
-        sendResponse(
-          req,
-          res,
-          maxAge,
-          contentType,
-          optimizedBuffer,
-          isStatic,
-          isDev
-        )
+        optimizedBuffer = await transformer.toBuffer()
         // End sharp transformation logic
       } else {
+        // Show sharp warning in production once
+        if (shouldShowSharpWarning) {
+          console.warn(
+            `WARNING: For production image optimization with Next.js, the optional 'sharp' package is strongly recommended. Run 'yarn add sharp' or install sharp globally, and Next.js will use it automatically for image optimization.`
+          )
+          shouldShowSharpWarning = false
+        }
+
         // Begin Squoosh transformation logic
         const orientation = await getOrientation(upstreamBuffer)
 
@@ -380,7 +374,6 @@ export async function imageOptimizer(
 
         operations.push({ type: 'resize', width })
 
-        let optimizedBuffer: Buffer | undefined
         //if (contentType === AVIF) {
         //} else
         if (contentType === WEBP) {
@@ -406,27 +399,27 @@ export async function imageOptimizer(
           )
         }
 
-        if (optimizedBuffer) {
-          await writeToCacheDir(
-            hashDir,
-            contentType,
-            maxAge,
-            expireAt,
-            optimizedBuffer
-          )
-          sendResponse(
-            req,
-            res,
-            maxAge,
-            contentType,
-            optimizedBuffer,
-            isStatic,
-            isDev
-          )
-        } else {
-          throw new Error('Unable to optimize buffer')
-        }
         // End Squoosh transformation logic
+      }
+      if (optimizedBuffer) {
+        await writeToCacheDir(
+          hashDir,
+          contentType,
+          maxAge,
+          expireAt,
+          optimizedBuffer
+        )
+        sendResponse(
+          req,
+          res,
+          maxAge,
+          contentType,
+          optimizedBuffer,
+          isStatic,
+          isDev
+        )
+      } else {
+        throw new Error('Unable to optimize buffer')
       }
     } catch (error) {
       sendResponse(
@@ -599,7 +592,7 @@ export async function resizeImage(
   size: number,
   extension: 'webp' | 'png' | 'jpeg',
   quality: number
-) {
+): Promise<Buffer> {
   if (sharp) {
     const transformer = sharp(content)
 
@@ -616,9 +609,6 @@ export async function resizeImage(
       transformer.resize(null, size)
     }
     const buf = await transformer.toBuffer()
-    console.log(
-      'Build-resizing image using SHARP in ' + (Date.now() - startTime) + 'ms'
-    )
     return buf
   } else {
     const resizeOperationOpts: Operation =
