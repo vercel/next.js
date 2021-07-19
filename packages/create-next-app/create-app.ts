@@ -89,7 +89,11 @@ export async function createApp({
         console.error(
           `Could not locate an example named ${chalk.red(
             `"${example}"`
-          )}. Please check your spelling and try again.`
+          )}. It could be due to the following:\n`,
+          `1. Your spelling of example ${chalk.red(
+            `"${example}"`
+          )} might be incorrect.\n`,
+          `2. You might not be connected to the internet.`
         )
         process.exit(1)
       }

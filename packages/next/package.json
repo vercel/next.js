@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "11.0.1",
+  "version": "11.0.2-canary.16",
   "description": "The React Framework",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -59,16 +59,16 @@
     "requires": [
       "./taskfile-ncc.js",
       "./taskfile-babel.js",
-      "./taskfile-typescript.js"
+      "./taskfile-swc.js"
     ]
   },
   "dependencies": {
     "@babel/runtime": "7.12.5",
     "@hapi/accept": "5.0.2",
-    "@next/env": "11.0.1",
-    "@next/polyfill-module": "11.0.1",
-    "@next/react-dev-overlay": "11.0.1",
-    "@next/react-refresh-utils": "11.0.1",
+    "@next/env": "11.0.2-canary.16",
+    "@next/polyfill-module": "11.0.2-canary.16",
+    "@next/react-dev-overlay": "11.0.2-canary.16",
+    "@next/react-refresh-utils": "11.0.2-canary.16",
     "assert": "2.0.0",
     "ast-types": "0.13.2",
     "browserify-zlib": "0.2.0",
@@ -79,7 +79,7 @@
     "chokidar": "3.5.1",
     "constants-browserify": "1.0.0",
     "crypto-browserify": "3.12.0",
-    "cssnano-simple": "2.0.0",
+    "cssnano-simple": "3.0.0",
     "domain-browser": "4.19.0",
     "encoding": "0.1.13",
     "etag": "1.8.1",
@@ -96,7 +96,7 @@
     "p-limit": "3.1.0",
     "path-browserify": "1.0.1",
     "pnp-webpack-plugin": "1.6.4",
-    "postcss": "8.2.13",
+    "postcss": "8.2.15",
     "process": "0.11.10",
     "prop-types": "15.7.2",
     "querystring-es3": "0.2.1",
@@ -152,7 +152,7 @@
     "@babel/preset-typescript": "7.12.7",
     "@babel/traverse": "^7.12.10",
     "@babel/types": "7.12.12",
-    "@next/polyfill-nomodule": "11.0.1",
+    "@next/polyfill-nomodule": "11.0.2-canary.16",
     "@taskr/clear": "1.1.0",
     "@taskr/esnext": "1.1.0",
     "@taskr/watch": "1.1.0",
@@ -242,7 +242,7 @@
     "text-table": "0.2.0",
     "typescript": "4.3.4",
     "unistore": "3.4.1",
-    "web-vitals": "0.2.4",
+    "web-vitals": "2.1.0",
     "webpack": "4.44.1",
     "webpack-sources": "1.4.3"
   },

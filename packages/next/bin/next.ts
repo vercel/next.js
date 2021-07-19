@@ -118,7 +118,7 @@ commands[command]()
   })
 
 if (command === 'dev') {
-  const { CONFIG_FILE } = require('../next-server/lib/constants')
+  const { CONFIG_FILE } = require('../shared/lib/constants')
   const { watchFile } = require('fs')
   watchFile(`${process.cwd()}/${CONFIG_FILE}`, (cur: any, prev: any) => {
     if (cur.size > 0 || prev.size > 0) {

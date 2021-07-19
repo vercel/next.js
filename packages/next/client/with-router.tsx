@@ -1,5 +1,5 @@
 import React from 'react'
-import { NextComponentType, NextPageContext } from '../next-server/lib/utils'
+import { NextComponentType, NextPageContext } from '../shared/lib/utils'
 import { NextRouter, useRouter } from './router'
 
 export type WithRouterProps = {
