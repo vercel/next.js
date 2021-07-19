@@ -176,7 +176,7 @@ module.exports = {
 
 ### Minimum Cache TTL
 
-You can configure the time to live (TTL) in seconds for cached optimized images. This will configure the server's image cache as well as the `Cache-Control` header sent to the browser. This is a global setting that will affect all images. In most cases, its better to use a [Static Image Import](#image-Imports) which will handle hashing file contents and caching the file. You can also configure the `Cache-Control` header on an individual upstream image instead.
+You can configure the time to live (TTL) in seconds for cached optimized images. In many cases, its better to use a [Static Image Import](#image-Imports) which will handle hashing file contents and caching the file forever.
 
 ```js
 module.exports = {
@@ -185,6 +185,8 @@ module.exports = {
   },
 }
 ```
+
+If you need to add a `Cache-Control` header for the browser (not recommended), you can configured [`headers`](/docs/api-reference/next.config.js/headers) on the upstream image.
 
 ### Disable Static Imports
 
