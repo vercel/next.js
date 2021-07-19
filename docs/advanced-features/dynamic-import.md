@@ -45,7 +45,7 @@ export default function Page() {
 
 You can think of dynamic imports as another way to split your code into manageable chunks.
 
-React components can also be imported using dynamic imports, but in this case we use it in conjunction with `next/dynamic` to make sure it works just like any other React Component. Check out the sections below for more details on how it works.
+React components can also be imported using dynamic imports, but in this case we use it in conjunction with `next/dynamic` to make sure it works like any other React Component. Check out the sections below for more details on how it works.
 
 ## Basic usage
 
