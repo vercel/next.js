@@ -1852,11 +1852,17 @@ export default class Server {
       if (revalidateOptions) {
         setRevalidateHeaders(res, revalidateOptions)
       }
-      await this.render404(req, res, {
-        pathname,
-        query: isDataReq ? { ...query, _nextDataReq: '1' } : query,
-      } as UrlWithParsedQuery)
-      return null
+      if (isDataReq) {
+        res.statusCode = 404
+        res.end('{"notFound":true}')
+        return null
+      } else {
+        await this.render404(req, res, {
+          pathname,
+          query,
+        } as UrlWithParsedQuery)
+        return null
+      }
     } else if (cachedData.kind === 'REDIRECT') {
       if (isDataReq) {
         return {
