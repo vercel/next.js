@@ -1880,7 +1880,7 @@ export default class Server {
   private async renderToResponse(
     ctx: RequestContext
   ): Promise<ResponsePayload | null> {
-    const { req, res, query, pathname } = ctx
+    const { res, query, pathname } = ctx
     const bubbleNoFallback = !!query._nextBubbleNoFallback
     delete query._nextBubbleNoFallback
 
@@ -2012,7 +2012,7 @@ export default class Server {
     ctx: RequestContext,
     _err: Error | null
   ): Promise<ResponsePayload | null> {
-    const { req, res, query } = ctx
+    const { res, query } = ctx
     let err = _err
     if (this.renderOpts.dev && !err && res.statusCode === 500) {
       err = new Error(
