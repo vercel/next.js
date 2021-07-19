@@ -33,7 +33,7 @@ async function fsToJson(dir, output = {}) {
       output[file] = {}
       await fsToJson(fsPath, output[file])
     } else {
-      output[file] = 'file'
+      output[file] = stat.mtime.toISOString()
     }
   }
   return output
@@ -45,7 +45,7 @@ async function expectWidth(res, w) {
   expect(d.width).toBe(w)
 }
 
-function runTests({ w, isDev, domains = [], ttl = 60 }) {
+function runTests({ w, isDev, domains = [], ttl }) {
   it('should return home page', async () => {
     const res = await fetchViaHTTP(appPort, '/', null, {})
     expect(await res.text()).toMatch(/Image Optimizer Home/m)
@@ -57,7 +57,7 @@ function runTests({ w, isDev, domains = [], ttl = 60 }) {
     expect(res.status).toBe(200)
     expect(res.headers.get('content-type')).toContain('image/gif')
     expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=${isDev ? 0 : ttl}, must-revalidate`
+      `public, max-age=0, must-revalidate`
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
@@ -70,7 +70,7 @@ function runTests({ w, isDev, domains = [], ttl = 60 }) {
     expect(res.status).toBe(200)
     expect(res.headers.get('content-type')).toContain('image/png')
     expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=${isDev ? 0 : ttl}, must-revalidate`
+      `public, max-age=0, must-revalidate`
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
@@ -83,7 +83,7 @@ function runTests({ w, isDev, domains = [], ttl = 60 }) {
     expect(res.status).toBe(200)
     expect(res.headers.get('content-type')).toContain('image/webp')
     expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=${isDev ? 0 : ttl}, must-revalidate`
+      `public, max-age=0, must-revalidate`
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
@@ -97,7 +97,7 @@ function runTests({ w, isDev, domains = [], ttl = 60 }) {
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toContain('image/svg+xml')
     expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=${isDev ? 0 : ttl}, must-revalidate`
+      `public, max-age=0, must-revalidate`
     )
     // SVG is compressible so will have accept-encoding set from
     // compression
@@ -118,7 +118,7 @@ function runTests({ w, isDev, domains = [], ttl = 60 }) {
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toContain('image/x-icon')
     expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=${isDev ? 0 : ttl}, must-revalidate`
+      `public, max-age=0, must-revalidate`
     )
     expect(res.headers.get('Vary')).toMatch(/^Accept(,|$)/)
     expect(res.headers.get('etag')).toBeTruthy()
@@ -139,7 +139,7 @@ function runTests({ w, isDev, domains = [], ttl = 60 }) {
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toContain('image/jpeg')
     expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=${isDev ? 0 : ttl}, must-revalidate`
+      `public, max-age=0, must-revalidate`
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
@@ -154,7 +154,7 @@ function runTests({ w, isDev, domains = [], ttl = 60 }) {
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toContain('image/png')
     expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=${isDev ? 0 : ttl}, must-revalidate`
+      `public, max-age=0, must-revalidate`
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
@@ -252,7 +252,7 @@ function runTests({ w, isDev, domains = [], ttl = 60 }) {
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/webp')
     expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=${isDev ? 0 : ttl}, must-revalidate`
+      `public, max-age=0, must-revalidate`
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
@@ -266,7 +266,7 @@ function runTests({ w, isDev, domains = [], ttl = 60 }) {
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/png')
     expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=${isDev ? 0 : ttl}, must-revalidate`
+      `public, max-age=0, must-revalidate`
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
@@ -280,7 +280,7 @@ function runTests({ w, isDev, domains = [], ttl = 60 }) {
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/png')
     expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=${isDev ? 0 : ttl}, must-revalidate`
+      `public, max-age=0, must-revalidate`
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
@@ -294,7 +294,7 @@ function runTests({ w, isDev, domains = [], ttl = 60 }) {
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/gif')
     expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=${isDev ? 0 : ttl}, must-revalidate`
+      `public, max-age=0, must-revalidate`
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
@@ -308,7 +308,7 @@ function runTests({ w, isDev, domains = [], ttl = 60 }) {
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/tiff')
     expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=${isDev ? 0 : ttl}, must-revalidate`
+      `public, max-age=0, must-revalidate`
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
@@ -324,7 +324,7 @@ function runTests({ w, isDev, domains = [], ttl = 60 }) {
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/webp')
     expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=${isDev ? 0 : ttl}, must-revalidate`
+      `public, max-age=0, must-revalidate`
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
@@ -340,7 +340,7 @@ function runTests({ w, isDev, domains = [], ttl = 60 }) {
       expect(res.status).toBe(200)
       expect(res.headers.get('Content-Type')).toBe('image/webp')
       expect(res.headers.get('Cache-Control')).toBe(
-        `public, max-age=${isDev ? 0 : ttl}, must-revalidate`
+        `public, max-age=0, must-revalidate`
       )
       expect(res.headers.get('Vary')).toBe('Accept')
       expect(res.headers.get('etag')).toBeTruthy()
@@ -361,7 +361,7 @@ function runTests({ w, isDev, domains = [], ttl = 60 }) {
       expect(res.status).toBe(200)
       expect(res.headers.get('Content-Type')).toBe('image/webp')
       expect(res.headers.get('Cache-Control')).toBe(
-        `public, max-age=${isDev ? 0 : ttl}, must-revalidate`
+        `public, max-age=0, must-revalidate`
       )
       expect(res.headers.get('Vary')).toBe('Accept')
       expect(res.headers.get('etag')).toBeTruthy()
@@ -416,6 +416,17 @@ function runTests({ w, isDev, domains = [], ttl = 60 }) {
     expect(res2.headers.get('Content-Type')).toBe('image/webp')
     const json2 = await fsToJson(imagesDir)
     expect(json2).toStrictEqual(json1)
+
+    if (ttl) {
+      // Wait until expired so we can confirm image is regenerated
+      await waitFor(ttl * 1000)
+      const res3 = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+      expect(res3.status).toBe(200)
+      expect(res3.headers.get('Content-Type')).toBe('image/webp')
+      const json3 = await fsToJson(imagesDir)
+      expect(json3).not.toStrictEqual(json1)
+      expect(Object.keys(json3).length).toBe(1)
+    }
   })
 
   it('should use cached image file when parameters are the same for svg', async () => {
@@ -464,7 +475,7 @@ function runTests({ w, isDev, domains = [], ttl = 60 }) {
     expect(res1.status).toBe(200)
     expect(res1.headers.get('Content-Type')).toBe('image/webp')
     expect(res1.headers.get('Cache-Control')).toBe(
-      `public, max-age=${isDev ? 0 : ttl}, must-revalidate`
+      `public, max-age=0, must-revalidate`
     )
     expect(res1.headers.get('Vary')).toBe('Accept')
     const etag = res1.headers.get('Etag')
@@ -477,7 +488,7 @@ function runTests({ w, isDev, domains = [], ttl = 60 }) {
     expect(res2.headers.get('Content-Type')).toBeFalsy()
     expect(res2.headers.get('Etag')).toBe(etag)
     expect(res2.headers.get('Cache-Control')).toBe(
-      `public, max-age=${isDev ? 0 : ttl}, must-revalidate`
+      `public, max-age=0, must-revalidate`
     )
     expect(res2.headers.get('Vary')).toBe('Accept')
     expect((await res2.buffer()).length).toBe(0)
@@ -487,7 +498,7 @@ function runTests({ w, isDev, domains = [], ttl = 60 }) {
     expect(res3.status).toBe(200)
     expect(res3.headers.get('Content-Type')).toBe('image/webp')
     expect(res3.headers.get('Cache-Control')).toBe(
-      `public, max-age=${isDev ? 0 : ttl}, must-revalidate`
+      `public, max-age=0, must-revalidate`
     )
     expect(res3.headers.get('Vary')).toBe('Accept')
     expect(res3.headers.get('Etag')).toBeTruthy()
@@ -505,7 +516,7 @@ function runTests({ w, isDev, domains = [], ttl = 60 }) {
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/bmp')
     expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=${isDev ? 0 : ttl}, must-revalidate`
+      `public, max-age=0, must-revalidate`
     )
     // bmp is compressible so will have accept-encoding set from
     // compression
@@ -523,7 +534,7 @@ function runTests({ w, isDev, domains = [], ttl = 60 }) {
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/webp')
     expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=${isDev ? 0 : ttl}, must-revalidate`
+      `public, max-age=0, must-revalidate`
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
@@ -539,7 +550,7 @@ function runTests({ w, isDev, domains = [], ttl = 60 }) {
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/png')
     expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=${isDev ? 0 : ttl}, must-revalidate`
+      `public, max-age=0, must-revalidate`
     )
     expect(res.headers.get('Vary')).toBe('Accept')
 
@@ -808,28 +819,6 @@ describe('Image Optimizer', () => {
     runTests({ w: size, isDev: true, domains })
   })
 
-  describe('dev support for minimumCacheTTL', () => {
-    const size = 96 // defaults defined in server/config.ts
-    const ttl = 500
-    beforeAll(async () => {
-      const json = JSON.stringify({
-        images: {
-          minimumCacheTTL: ttl,
-        },
-      })
-      nextConfig.replace('{ /* replaceme */ }', json)
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-    })
-    afterAll(async () => {
-      await killApp(app)
-      nextConfig.restore()
-      await fs.remove(imagesDir)
-    })
-
-    runTests({ w: size, isDev: true, ttl })
-  })
-
   describe('Server support w/o next.config.js', () => {
     const size = 384 // defaults defined in server/config.ts
     beforeAll(async () => {
@@ -870,7 +859,7 @@ describe('Image Optimizer', () => {
 
   describe('Server support for minimumCacheTTL', () => {
     const size = 96 // defaults defined in server/config.ts
-    const ttl = 900000
+    const ttl = 5 // super low ttl in seconds
     beforeAll(async () => {
       const json = JSON.stringify({
         images: {
