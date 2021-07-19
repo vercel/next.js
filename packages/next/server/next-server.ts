@@ -1323,7 +1323,7 @@ export default class Server {
 
   private async pipe(
     fn: (ctx: RequestContext) => Promise<ResponsePayload | null>,
-    initialContext: {
+    partialContext: {
       req: IncomingMessage
       res: ServerResponse
       pathname: string
@@ -1331,7 +1331,7 @@ export default class Server {
     }
   ): Promise<void> {
     const ctx = {
-      ...initialContext,
+      ...partialContext,
       kind: 'STATIC',
     } as const
     const payload = await fn(ctx)
@@ -1362,7 +1362,7 @@ export default class Server {
 
   private async getStaticHTML(
     fn: (ctx: RequestContext) => Promise<ResponsePayload | null>,
-    initialContext: {
+    partialContext: {
       req: IncomingMessage
       res: ServerResponse
       pathname: string
@@ -1370,7 +1370,7 @@ export default class Server {
     }
   ): Promise<string | null> {
     const payload = await fn({
-      ...initialContext,
+      ...partialContext,
       kind: 'STATIC',
     })
     return payload ? payload.body : null
@@ -1866,11 +1866,17 @@ export default class Server {
       if (revalidateOptions) {
         setRevalidateHeaders(res, revalidateOptions)
       }
-      await this.render404(req, res, {
-        pathname,
-        query: isDataReq ? { ...query, _nextDataReq: '1' } : query,
-      } as UrlWithParsedQuery)
-      return null
+      if (isDataReq) {
+        res.statusCode = 404
+        res.end('{"notFound":true}')
+        return null
+      } else {
+        await this.render404(req, res, {
+          pathname,
+          query,
+        } as UrlWithParsedQuery)
+        return null
+      }
     } else if (cachedData.kind === 'REDIRECT') {
       if (isDataReq) {
         return {
