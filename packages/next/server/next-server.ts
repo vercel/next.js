@@ -1320,7 +1320,7 @@ export default class Server {
     await this.render404(req, res, parsedUrl)
   }
 
-  private createResponse(
+  private withResponse(
     req: IncomingMessage,
     res: ServerResponse,
     pathname: string,
@@ -1412,7 +1412,7 @@ export default class Server {
       return this.render404(req, res, parsedUrl)
     }
 
-    return this.createResponse(req, res, pathname, query, (ctx) =>
+    return this.withResponse(req, res, pathname, query, (ctx) =>
       this.renderToResponse(ctx)
     ).pipe()
   }
@@ -1969,7 +1969,7 @@ export default class Server {
     pathname: string,
     query: ParsedUrlQuery = {}
   ): Promise<string | null> {
-    return this.createResponse(req, res, pathname, query, (ctx) =>
+    return this.withResponse(req, res, pathname, query, (ctx) =>
       this.renderToResponse(ctx)
     ).toString()
   }
@@ -1989,7 +1989,7 @@ export default class Server {
       )
     }
 
-    return this.createResponse(req, res, pathname, query, async (ctx) => {
+    return this.withResponse(req, res, pathname, query, async (ctx) => {
       const response = await this.renderErrorToResponse(ctx, err)
       if (this.minimalMode && res.statusCode === 500) {
         throw err
@@ -2117,7 +2117,7 @@ export default class Server {
     pathname: string,
     query: ParsedUrlQuery = {}
   ): Promise<string | null> {
-    return this.createResponse(req, res, pathname, query, (ctx) =>
+    return this.withResponse(req, res, pathname, query, (ctx) =>
       this.renderErrorToResponse(ctx, err)
     ).toString()
   }
@@ -2150,7 +2150,7 @@ export default class Server {
         query.__nextDefaultLocale || i18n.defaultLocale
     }
 
-    return this.createResponse(req, res, pathname!, query, (ctx) =>
+    return this.withResponse(req, res, pathname!, query, (ctx) =>
       this.render404ToResponse(ctx)
     ).pipe()
   }
