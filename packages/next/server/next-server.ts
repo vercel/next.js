@@ -2054,12 +2054,6 @@ export default class Server {
 
       // use static 404 page if available and is 404 response
       if (is404) {
-        if (!!query._nextDataReq) {
-          return {
-            type: 'json',
-            body: '{"notFound":true}',
-          }
-        }
         result = await this.findPageComponents('/404', query)
         using404Page = result !== null
       }
