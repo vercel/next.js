@@ -26,7 +26,7 @@ const CACHE_VERSION = 3
 const MODERN_TYPES = [/* AVIF, */ WEBP]
 const ANIMATABLE_TYPES = [WEBP, PNG, GIF]
 const VECTOR_TYPES = [SVG]
-
+const BLUR_IMG_SIZE = 8 // should match `next-image-loader`
 const inflightRequests = new Map<string, Promise<undefined>>()
 
 export async function imageOptimizer(
@@ -39,7 +39,13 @@ export async function imageOptimizer(
   isDev = false
 ) {
   const imageData: ImageConfig = nextConfig.images || imageConfigDefault
-  const { deviceSizes = [], imageSizes = [], domains = [], loader } = imageData
+  const {
+    deviceSizes = [],
+    imageSizes = [],
+    domains = [],
+    loader,
+    minimumCacheTTL = 60,
+  } = imageData
 
   if (loader !== 'default') {
     await server.render404(req, res, parsedUrl)
@@ -125,6 +131,10 @@ export async function imageOptimizer(
 
   const sizes = [...deviceSizes, ...imageSizes]
 
+  if (isDev) {
+    sizes.push(BLUR_IMG_SIZE)
+  }
+
   if (!sizes.includes(width)) {
     res.statusCode = 400
     res.end(`"w" parameter (width) of ${width} is not allowed`)
@@ -202,7 +212,10 @@ export async function imageOptimizer(
       upstreamType =
         detectContentType(upstreamBuffer) ||
         upstreamRes.headers.get('Content-Type')
-      maxAge = getMaxAge(upstreamRes.headers.get('Cache-Control'))
+      maxAge = getMaxAge(
+        upstreamRes.headers.get('Cache-Control'),
+        minimumCacheTTL
+      )
     } else {
       try {
         const resBuffers: Buffer[] = []
@@ -231,6 +244,7 @@ export async function imageOptimizer(
         mockRes.setHeader = (name: string, value: string | string[]) =>
           (mockHeaders[name.toLowerCase()] = value)
         mockRes._implicitHeader = () => {}
+        mockRes.connection = res.connection
         mockRes.finished = false
         mockRes.statusCode = 200
 
@@ -245,6 +259,7 @@ export async function imageOptimizer(
         mockReq.headers = req.headers
         mockReq.method = req.method
         mockReq.url = href
+        mockReq.connection = req.connection
 
         await server.getRequestHandler()(
           mockReq,
@@ -257,7 +272,7 @@ export async function imageOptimizer(
         upstreamBuffer = Buffer.concat(resBuffers)
         upstreamType =
           detectContentType(upstreamBuffer) || mockRes.getHeader('Content-Type')
-        maxAge = getMaxAge(mockRes.getHeader('Cache-Control'))
+        maxAge = getMaxAge(mockRes.getHeader('Cache-Control'), minimumCacheTTL)
       } catch (err) {
         res.statusCode = 500
         res.end('"url" parameter is valid but upstream response is invalid')
@@ -525,8 +540,7 @@ export function detectContentType(buffer: Buffer) {
   return null
 }
 
-export function getMaxAge(str: string | null): number {
-  const minimum = 60
+export function getMaxAge(str: string | null, minimumCacheTTL: number): number {
   const map = parseCacheControl(str)
   if (map) {
     let age = map.get('s-maxage') || map.get('max-age') || ''
@@ -535,8 +549,8 @@ export function getMaxAge(str: string | null): number {
     }
     const n = parseInt(age, 10)
     if (!isNaN(n)) {
-      return Math.max(n, minimum)
+      return Math.max(n, minimumCacheTTL)
     }
   }
-  return minimum
+  return minimumCacheTTL
 }

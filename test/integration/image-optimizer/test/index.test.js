@@ -9,6 +9,7 @@ import {
   launchApp,
   nextBuild,
   nextStart,
+  renderViaHTTP,
   waitFor,
 } from 'next-test-utils'
 import isAnimated from 'next/dist/compiled/is-animated'
@@ -44,7 +45,7 @@ async function expectWidth(res, w) {
   expect(d.width).toBe(w)
 }
 
-function runTests({ w, isDev, domains }) {
+function runTests({ w, isDev, domains = [], ttl = 60 }) {
   it('should return home page', async () => {
     const res = await fetchViaHTTP(appPort, '/', null, {})
     expect(await res.text()).toMatch(/Image Optimizer Home/m)
@@ -56,7 +57,7 @@ function runTests({ w, isDev, domains }) {
     expect(res.status).toBe(200)
     expect(res.headers.get('content-type')).toContain('image/gif')
     expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=${isDev ? 0 : 60}, must-revalidate`
+      `public, max-age=${isDev ? 0 : ttl}, must-revalidate`
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
@@ -69,7 +70,7 @@ function runTests({ w, isDev, domains }) {
     expect(res.status).toBe(200)
     expect(res.headers.get('content-type')).toContain('image/png')
     expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=${isDev ? 0 : 60}, must-revalidate`
+      `public, max-age=${isDev ? 0 : ttl}, must-revalidate`
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
@@ -82,7 +83,7 @@ function runTests({ w, isDev, domains }) {
     expect(res.status).toBe(200)
     expect(res.headers.get('content-type')).toContain('image/webp')
     expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=${isDev ? 0 : 60}, must-revalidate`
+      `public, max-age=${isDev ? 0 : ttl}, must-revalidate`
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
@@ -96,7 +97,7 @@ function runTests({ w, isDev, domains }) {
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toContain('image/svg+xml')
     expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=${isDev ? 0 : 60}, must-revalidate`
+      `public, max-age=${isDev ? 0 : ttl}, must-revalidate`
     )
     // SVG is compressible so will have accept-encoding set from
     // compression
@@ -117,7 +118,7 @@ function runTests({ w, isDev, domains }) {
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toContain('image/x-icon')
     expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=${isDev ? 0 : 60}, must-revalidate`
+      `public, max-age=${isDev ? 0 : ttl}, must-revalidate`
     )
     expect(res.headers.get('Vary')).toMatch(/^Accept(,|$)/)
     expect(res.headers.get('etag')).toBeTruthy()
@@ -138,7 +139,7 @@ function runTests({ w, isDev, domains }) {
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toContain('image/jpeg')
     expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=${isDev ? 0 : 60}, must-revalidate`
+      `public, max-age=${isDev ? 0 : ttl}, must-revalidate`
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
@@ -153,7 +154,7 @@ function runTests({ w, isDev, domains }) {
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toContain('image/png')
     expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=${isDev ? 0 : 60}, must-revalidate`
+      `public, max-age=${isDev ? 0 : ttl}, must-revalidate`
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
@@ -251,7 +252,7 @@ function runTests({ w, isDev, domains }) {
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/webp')
     expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=${isDev ? 0 : 60}, must-revalidate`
+      `public, max-age=${isDev ? 0 : ttl}, must-revalidate`
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
@@ -265,7 +266,7 @@ function runTests({ w, isDev, domains }) {
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/png')
     expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=${isDev ? 0 : 60}, must-revalidate`
+      `public, max-age=${isDev ? 0 : ttl}, must-revalidate`
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
@@ -279,7 +280,7 @@ function runTests({ w, isDev, domains }) {
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/png')
     expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=${isDev ? 0 : 60}, must-revalidate`
+      `public, max-age=${isDev ? 0 : ttl}, must-revalidate`
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
@@ -293,7 +294,7 @@ function runTests({ w, isDev, domains }) {
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/gif')
     expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=${isDev ? 0 : 60}, must-revalidate`
+      `public, max-age=${isDev ? 0 : ttl}, must-revalidate`
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
@@ -307,7 +308,7 @@ function runTests({ w, isDev, domains }) {
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/tiff')
     expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=${isDev ? 0 : 60}, must-revalidate`
+      `public, max-age=${isDev ? 0 : ttl}, must-revalidate`
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
@@ -323,7 +324,7 @@ function runTests({ w, isDev, domains }) {
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/webp')
     expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=${isDev ? 0 : 60}, must-revalidate`
+      `public, max-age=${isDev ? 0 : ttl}, must-revalidate`
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
@@ -339,7 +340,7 @@ function runTests({ w, isDev, domains }) {
       expect(res.status).toBe(200)
       expect(res.headers.get('Content-Type')).toBe('image/webp')
       expect(res.headers.get('Cache-Control')).toBe(
-        `public, max-age=${isDev ? 0 : 60}, must-revalidate`
+        `public, max-age=${isDev ? 0 : ttl}, must-revalidate`
       )
       expect(res.headers.get('Vary')).toBe('Accept')
       expect(res.headers.get('etag')).toBeTruthy()
@@ -360,7 +361,7 @@ function runTests({ w, isDev, domains }) {
       expect(res.status).toBe(200)
       expect(res.headers.get('Content-Type')).toBe('image/webp')
       expect(res.headers.get('Cache-Control')).toBe(
-        `public, max-age=${isDev ? 0 : 60}, must-revalidate`
+        `public, max-age=${isDev ? 0 : ttl}, must-revalidate`
       )
       expect(res.headers.get('Vary')).toBe('Accept')
       expect(res.headers.get('etag')).toBeTruthy()
@@ -463,7 +464,7 @@ function runTests({ w, isDev, domains }) {
     expect(res1.status).toBe(200)
     expect(res1.headers.get('Content-Type')).toBe('image/webp')
     expect(res1.headers.get('Cache-Control')).toBe(
-      `public, max-age=${isDev ? 0 : 60}, must-revalidate`
+      `public, max-age=${isDev ? 0 : ttl}, must-revalidate`
     )
     expect(res1.headers.get('Vary')).toBe('Accept')
     const etag = res1.headers.get('Etag')
@@ -476,7 +477,7 @@ function runTests({ w, isDev, domains }) {
     expect(res2.headers.get('Content-Type')).toBeFalsy()
     expect(res2.headers.get('Etag')).toBe(etag)
     expect(res2.headers.get('Cache-Control')).toBe(
-      `public, max-age=${isDev ? 0 : 60}, must-revalidate`
+      `public, max-age=${isDev ? 0 : ttl}, must-revalidate`
     )
     expect(res2.headers.get('Vary')).toBe('Accept')
     expect((await res2.buffer()).length).toBe(0)
@@ -486,7 +487,7 @@ function runTests({ w, isDev, domains }) {
     expect(res3.status).toBe(200)
     expect(res3.headers.get('Content-Type')).toBe('image/webp')
     expect(res3.headers.get('Cache-Control')).toBe(
-      `public, max-age=${isDev ? 0 : 60}, must-revalidate`
+      `public, max-age=${isDev ? 0 : ttl}, must-revalidate`
     )
     expect(res3.headers.get('Vary')).toBe('Accept')
     expect(res3.headers.get('Etag')).toBeTruthy()
@@ -504,7 +505,7 @@ function runTests({ w, isDev, domains }) {
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/bmp')
     expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=${isDev ? 0 : 60}, must-revalidate`
+      `public, max-age=${isDev ? 0 : ttl}, must-revalidate`
     )
     // bmp is compressible so will have accept-encoding set from
     // compression
@@ -522,7 +523,7 @@ function runTests({ w, isDev, domains }) {
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/webp')
     expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=${isDev ? 0 : 60}, must-revalidate`
+      `public, max-age=${isDev ? 0 : ttl}, must-revalidate`
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
@@ -538,7 +539,7 @@ function runTests({ w, isDev, domains }) {
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/png')
     expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=${isDev ? 0 : 60}, must-revalidate`
+      `public, max-age=${isDev ? 0 : ttl}, must-revalidate`
     )
     expect(res.headers.get('Vary')).toBe('Accept')
 
@@ -730,7 +731,34 @@ describe('Image Optimizer', () => {
       await nextConfig.restore()
 
       expect(stderr).toContain(
-        'Specified images.loader should be one of (default, imgix, cloudinary, akamai), received invalid value (notreal)'
+        'Specified images.loader should be one of (default, imgix, cloudinary, akamai, custom), received invalid value (notreal)'
+      )
+    })
+
+    it('should error when loader=custom but loader prop is undefined', async () => {
+      await nextConfig.replace(
+        '{ /* replaceme */ }',
+        JSON.stringify({
+          images: {
+            loader: 'custom',
+          },
+        })
+      )
+      let output = ''
+      const appPort = await findPort()
+      app = await launchApp(appDir, appPort, {
+        onStderr(msg) {
+          output += msg || ''
+        },
+        onStdout(msg) {
+          output += msg || ''
+        },
+      })
+      await renderViaHTTP(appPort, '/', {})
+      await killApp(app).catch(() => {})
+      await nextConfig.restore()
+      expect(output).toMatch(
+        /Error: Image with src "(.+)" is missing "loader" prop/
       )
     })
   })
@@ -780,6 +808,28 @@ describe('Image Optimizer', () => {
     runTests({ w: size, isDev: true, domains })
   })
 
+  describe('dev support for minimumCacheTTL', () => {
+    const size = 96 // defaults defined in server/config.ts
+    const ttl = 500
+    beforeAll(async () => {
+      const json = JSON.stringify({
+        images: {
+          minimumCacheTTL: ttl,
+        },
+      })
+      nextConfig.replace('{ /* replaceme */ }', json)
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort)
+    })
+    afterAll(async () => {
+      await killApp(app)
+      nextConfig.restore()
+      await fs.remove(imagesDir)
+    })
+
+    runTests({ w: size, isDev: true, ttl })
+  })
+
   describe('Server support w/o next.config.js', () => {
     const size = 384 // defaults defined in server/config.ts
     beforeAll(async () => {
@@ -816,6 +866,29 @@ describe('Image Optimizer', () => {
     })
 
     runTests({ w: size, isDev: false, domains })
+  })
+
+  describe('Server support for minimumCacheTTL', () => {
+    const size = 96 // defaults defined in server/config.ts
+    const ttl = 900000
+    beforeAll(async () => {
+      const json = JSON.stringify({
+        images: {
+          minimumCacheTTL: ttl,
+        },
+      })
+      nextConfig.replace('{ /* replaceme */ }', json)
+      await nextBuild(appDir)
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
+    })
+    afterAll(async () => {
+      await killApp(app)
+      nextConfig.restore()
+      await fs.remove(imagesDir)
+    })
+
+    runTests({ w: size, isDev: false, ttl })
   })
 
   describe('Serverless support with next.config.js', () => {
@@ -902,6 +975,33 @@ describe('Image Optimizer', () => {
       )
       expect(res.headers.get('Vary')).toBe('Accept')
       await expectWidth(res, 64)
+    })
+  })
+
+  describe('dev support for dynamic blur placeholder', () => {
+    beforeAll(async () => {
+      const json = JSON.stringify({
+        images: {
+          deviceSizes: [largeSize],
+          imageSizes: [],
+        },
+      })
+      nextConfig.replace('{ /* replaceme */ }', json)
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort)
+    })
+    afterAll(async () => {
+      await killApp(app)
+      nextConfig.restore()
+      await fs.remove(imagesDir)
+    })
+
+    it('should support width 8 per BLUR_IMG_SIZE with next dev', async () => {
+      const query = { url: '/test.png', w: 8, q: 70 }
+      const opts = { headers: { accept: 'image/webp' } }
+      const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+      expect(res.status).toBe(200)
+      await expectWidth(res, 8)
     })
   })
 })

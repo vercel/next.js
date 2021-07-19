@@ -1,15 +1,10 @@
 {
-  "name": "with-aws-amplify-typescript",
-  "version": "1.0.0",
-  "description": "",
+  "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start"
   },
-  "keywords": [],
-  "author": "",
-  "license": "MIT",
   "dependencies": {
     "@aws-amplify/ui-react": "^1.0.7",
     "aws-amplify": "^3.3.27",

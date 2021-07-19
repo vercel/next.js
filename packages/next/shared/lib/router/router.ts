@@ -817,7 +817,7 @@ export default class Router implements BaseRouter {
       this.isReady = true
     }
 
-    let localeChange = options.locale !== this.locale
+    const prevLocale = this.locale
 
     if (process.env.__NEXT_I18N_SUPPORT) {
       this.locale =
@@ -926,6 +926,8 @@ export default class Router implements BaseRouter {
       this.locale
     )
     this._inFlightRoute = as
+
+    let localeChange = prevLocale !== this.locale
 
     // If the url change is only related to a hash change
     // We should not proceed. We should only change the state.
