@@ -95,7 +95,10 @@ export class IncrementalCache {
     return path.join(this.incrementalOptions.pagesDir!, `${pathname}.${ext}`)
   }
 
-  private calculateRevalidate(pathname: string): number | false {
+  private calculateRevalidate(
+    pathname: string,
+    fileTime?: number
+  ): number | false {
     pathname = toRoute(pathname)
 
     // in development we don't have a prerender-manifest
@@ -110,7 +113,7 @@ export class IncrementalCache {
     }
     const revalidateAfter =
       typeof initialRevalidateSeconds === 'number'
-        ? initialRevalidateSeconds * 1000 + curTime
+        ? initialRevalidateSeconds * 1000 + (fileTime ?? curTime)
         : initialRevalidateSeconds
 
     return revalidateAfter
@@ -135,16 +138,15 @@ export class IncrementalCache {
       }
 
       try {
-        const html = await promises.readFile(
-          this.getSeedPath(pathname, 'html'),
-          'utf8'
-        )
+        const htmlPathname = this.getSeedPath(pathname, 'html')
+        const html = await promises.readFile(htmlPathname, 'utf8')
+        const { mtimeMs } = await promises.stat(htmlPathname)
         const pageData = JSON.parse(
           await promises.readFile(this.getSeedPath(pathname, 'json'), 'utf8')
         )
 
         data = {
-          revalidateAfter: this.calculateRevalidate(pathname),
+          revalidateAfter: this.calculateRevalidate(pathname, mtimeMs),
           value: {
             kind: 'PAGE',
             html,
