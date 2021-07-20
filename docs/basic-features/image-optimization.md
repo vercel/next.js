@@ -117,7 +117,7 @@ module.exports = {
 
 The following Image Optimization cloud providers are included:
 
-- [Vercel](https://vercel.com): Works automatically when you deploy on Vercel, no configuration necessary. [Learn more](https://vercel.com/docs/next.js/image-optimization)
+- [Vercel](https://vercel.com): Works automatically when you deploy on Vercel, no configuration necessary. [Learn more](/docs/next.js/image-optimization)
 - [Imgix](https://www.imgix.com): `loader: 'imgix'`
 - [Cloudinary](https://cloudinary.com): `loader: 'cloudinary'`
 - [Akamai](https://www.akamai.com): `loader: 'akamai'`
@@ -127,6 +127,8 @@ The following Image Optimization cloud providers are included:
 If you need a different provider, you can use the [`loader`](/docs/api-reference/next/image.md#loader) prop with `next/image`.
 
 > The `next/image` component's default loader is not supported when using [`next export`](/docs/advanced-features/static-html-export.md). However, other loader options will work.
+
+> By default, Next.js uses the ['squoosh'](https://github.com/GoogleChromeLabs/squoosh/tree/dev/cli) library for image resizing and optimization. This library is quick to install and suitable for a dev server environment. If you are going to use the default image loader and built-in image optimizer in production, it is strongly recommended that you install the optional [`sharp`](https://github.com/lovell/sharp) image optimization library. Do this by running `yarn add sharp` in your application directory.
 
 ## Caching
 
