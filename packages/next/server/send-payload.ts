@@ -112,8 +112,10 @@ export function sendRenderResult({
     setRevalidateHeaders(res, options)
   }
 
-  if (isPayload) {
-    res.end(req.method === 'HEAD' ? null : (resultOrPayload as string))
+  if (req.method === 'HEAD') {
+    res.end(null)
+  } else if (isPayload) {
+    res.end(resultOrPayload as string)
   } else {
     ;(resultOrPayload as RenderResult)({
       next: (chunk) => res.write(chunk),

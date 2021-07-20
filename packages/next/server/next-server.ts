@@ -1359,7 +1359,9 @@ export default class Server {
       return sendRenderResult({
         req,
         res,
-        resultOrPayload: body,
+        resultOrPayload: requireStaticHTML
+          ? (await resultToChunks(body)).join('')
+          : body,
         type,
         generateEtags,
         poweredByHeader,
