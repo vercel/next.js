@@ -1,19 +1,22 @@
 {
-  "name": "analyze-bundles",
-  "version": "1.0.0",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",
     "start": "next start",
-    "analyze": "cross-env ANALYZE=true yarn build"
+    "analyze": "cross-env ANALYZE=true yarn build",
+    "serve": "serve .next/analyze"
   },
   "dependencies": {
     "@next/bundle-analyzer": "^9.1.4",
     "cross-env": "^6.0.3",
     "faker": "^4.1.0",
     "next": "latest",
-    "react": "^16.8.0",
-    "react-dom": "^16.8.0"
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2"
+  },
+  "devDependencies": {
+    "serve": "^11.3.2"
   },
   "license": "MIT"
 }

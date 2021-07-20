@@ -1,6 +1,5 @@
 {
-  "name": "with-tailwindcss-emotion",
-  "version": "1.0.0",
+  "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -9,17 +8,17 @@
   "dependencies": {
     "@emotion/react": "^11.1.5",
     "@emotion/styled": "11.3.0",
-    "react": "17.0.2",
-    "react-dom": "17.0.2",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
     "tailwindcss-filters": "3.0.0"
   },
   "devDependencies": {
     "@babel/core": "^7.13.15",
     "@emotion/babel-plugin": "11.3.0",
-    "autoprefixer": "10.2.5",
+    "autoprefixer": "^10.2.6",
     "next": "latest",
-    "postcss": "8.2.10",
-    "tailwindcss": "^2.1.1",
+    "postcss": "^8.3.5",
+    "tailwindcss": "^2.2.4",
     "xwind": "0.8.0"
   },
   "license": "MIT"

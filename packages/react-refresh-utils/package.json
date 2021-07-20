@@ -1,6 +1,6 @@
 {
   "name": "@next/react-refresh-utils",
-  "version": "10.2.1-canary.10",
+  "version": "11.0.2-canary.17",
   "description": "An experimental package providing utilities for React Refresh.",
   "repository": {
     "url": "vercel/next.js",
@@ -12,7 +12,7 @@
     "*.d.ts",
     "*.js"
   ],
-  "author": "Joe Haddad <timer@zeit.co>",
+  "author": "Joe Haddad <timer@vercel.com>",
   "license": "MIT",
   "scripts": {
     "prepublish": "tsc -d -p tsconfig.json",

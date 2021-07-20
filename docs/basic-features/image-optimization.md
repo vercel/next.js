@@ -50,6 +50,39 @@ function Home() {
 export default Home
 ```
 
+## Image Imports
+
+You can `import` images that live in your project. (Note that `require` is not supported—only `import`.)
+
+With direct `import`s, `width`, `height`, and `blurDataURL` will be automatically provided to the image component. Alt text is still needed separately.
+
+```js
+import Image from 'next/image'
+import profilePic from '../public/me.png'
+
+function Home() {
+  return (
+    <>
+      <h1>My Homepage</h1>
+      <Image
+        src={profilePic}
+        alt="Picture of the author"
+        // width={500} automatically provided
+        // height={500} automatically provided
+        // blurDataURL="data:..." automatically provided
+        // Optionally allows to add a blurred version of the image while loading
+        // placeholder="blur"
+      />
+      <p>Welcome to my homepage!</p>
+    </>
+  )
+}
+```
+
+For dynamic or remote images, you'll have to provide [`width`](/docs/api-reference/next/image#width), [`height`](/docs/api-reference/next/image#height) and [`blurDataURL`](/docs/api-reference/next/image#blurdataurl) manually.
+
+## Properties
+
 [View all properties](/docs/api-reference/next/image.md) available to the `next/image` component.
 
 ## Configuration
@@ -88,6 +121,7 @@ The following Image Optimization cloud providers are included:
 - [Imgix](https://www.imgix.com): `loader: 'imgix'`
 - [Cloudinary](https://cloudinary.com): `loader: 'cloudinary'`
 - [Akamai](https://www.akamai.com): `loader: 'akamai'`
+- Custom: `loader: 'custom'` use a custom cloud provider by implementing the [`loader`](/docs/api-reference/next/image.md#loader) prop on the `next/image` component
 - Default: Works automatically with `next dev`, `next start`, or a custom server
 
 If you need a different provider, you can use the [`loader`](/docs/api-reference/next/image.md#loader) prop with `next/image`.
@@ -102,9 +136,11 @@ Images are optimized dynamically upon request and stored in the `<distDir>/cache
 
 The expiration (or rather Max Age) is defined by the upstream server's `Cache-Control` header.
 
-If `s-maxage` is found in `Cache-Control`, it is used. If no `s-maxage` is found, then `max-age` is used. If no `max-age` is found, then 60 seconds is used.
+If `s-maxage` is found in `Cache-Control`, it is used. If no `s-maxage` is found, then `max-age` is used. If no `max-age` is found, then [`minimumCacheTTL`](#minimum-cache-ttl) is used.
 
-You can configure [`deviceSizes`](#device-sizes) and [`imageSizes`](#device-sizes) to reduce the total number of possible generated images.
+You can configure [`minimumCacheTTL`](#minimum-cache-ttl) to increase the cache duration when the upstream image does not include `max-age`.
+
+You can also configure [`deviceSizes`](#device-sizes) and [`imageSizes`](#device-sizes) to reduce the total number of possible generated images.
 
 ## Advanced
 
@@ -134,6 +170,36 @@ If no configuration is provided, the default below is used.
 module.exports = {
   images: {
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+  },
+}
+```
+
+### Minimum Cache TTL
+
+You can configure the time to live (TTL) in seconds for cached optimized images. In many cases, its better to use a [Static Image Import](#image-Imports) which will handle hashing file contents and caching the file forever.
+
+```js
+module.exports = {
+  images: {
+    minimumCacheTTL: 60,
+  },
+}
+```
+
+If you need to add a `Cache-Control` header for the browser (not recommended), you can configure [`headers`](/docs/api-reference/next.config.js/headers) on the upstream image e.g. `/some-asset.jpg` not `/_next/image` itself.
+
+### Disable Static Imports
+
+The default behavior allows you to import static files such as `import icon from './icon.png` and then pass that to the `src` property.
+
+In some cases, you may wish to disable this feature if it conflicts with other plugins that expect the import to behave differently.
+
+You can disable static image imports with the following configuration below.
+
+```js
+module.exports = {
+  images: {
+    disableStaticImages: true,
   },
 }
 ```

@@ -1,7 +1,8 @@
 /* eslint-env jest */
 /* global browserName */
 import cheerio from 'cheerio'
-import { existsSync } from 'fs'
+import fs, { existsSync } from 'fs-extra'
+import globOriginal from 'glob'
 import {
   nextServer,
   renderViaHTTP,
@@ -24,6 +25,10 @@ import { join } from 'path'
 import dynamicImportTests from './dynamic'
 import processEnv from './process-env'
 import security from './security'
+import { promisify } from 'util'
+
+const glob = promisify(globOriginal)
+
 const appDir = join(__dirname, '../')
 let appPort
 let server
@@ -35,6 +40,13 @@ const context = {}
 describe('Production Usage', () => {
   let output = ''
   beforeAll(async () => {
+    if (process.env.NEXT_PRIVATE_TEST_WEBPACK4_MODE) {
+      await fs.rename(
+        join(appDir, 'pages/static-image.js'),
+        join(appDir, 'pages/static-image.js.bak')
+      )
+    }
+
     const result = await runNextCommand(['build', appDir], {
       stderr: true,
       stdout: true,
@@ -55,14 +67,44 @@ describe('Production Usage', () => {
     server = await startApp(app)
     context.appPort = appPort = server.address().port
   })
-  afterAll(() => stopApp(server))
+  afterAll(async () => {
+    if (process.env.NEXT_PRIVATE_TEST_WEBPACK4_MODE) {
+      await fs.rename(
+        join(appDir, 'pages/static-image.js.bak'),
+        join(appDir, 'pages/static-image.js')
+      )
+    }
+    await stopApp(server)
+  })
 
   it('should contain generated page count in output', async () => {
-    expect(output).toContain('Generating static pages (0/37)')
-    expect(output).toContain('Generating static pages (37/37)')
+    const pageCount = process.env.NEXT_PRIVATE_TEST_WEBPACK4_MODE ? 37 : 38
+    expect(output).toContain(`Generating static pages (0/${pageCount})`)
+    expect(output).toContain(
+      `Generating static pages (${pageCount}/${pageCount})`
+    )
     // we should only have 4 segments and the initial message logged out
     expect(output.match(/Generating static pages/g).length).toBe(5)
   })
+
+  if (!process.env.NEXT_PRIVATE_TEST_WEBPACK4_MODE) {
+    it('should not contain currentScript usage for publicPath', async () => {
+      const globResult = await glob('webpack-*.js', {
+        cwd: join(appDir, '.next/static/chunks'),
+      })
+
+      if (!globResult || globResult.length !== 1) {
+        throw new Error('could not find webpack-hash.js chunk')
+      }
+
+      const content = await fs.readFile(
+        join(appDir, '.next/static/chunks', globResult[0]),
+        'utf8'
+      )
+
+      expect(content).not.toContain('.currentScript')
+    })
+  }
 
   describe('With basic usage', () => {
     it('should render the page', async () => {
@@ -254,11 +296,13 @@ describe('Production Usage', () => {
       const manifestKey = Object.keys(reactLoadableManifest).find((item) => {
         return item
           .replace(/\\/g, '/')
-          .endsWith('bundle.js -> ../../components/hello1')
+          .endsWith('dynamic/css.js -> ../../components/dynamic-css/with-css')
       })
 
       // test dynamic chunk
-      resources.add(url + reactLoadableManifest[manifestKey].files[0])
+      reactLoadableManifest[manifestKey].files.forEach((f) => {
+        resources.add(url + f)
+      })
 
       // test main.js runtime etc
       for (const item of buildManifest.pages['/']) {
@@ -506,7 +550,9 @@ describe('Production Usage', () => {
       const browser = await webdriver(appPort, '/error-in-browser-render')
       await waitFor(2000)
       const text = await browser.elementByCss('body').text()
-      expect(text).toMatch(/An unexpected error has occurred\./)
+      expect(text).toMatch(
+        /Application error: a client-side exception has occurred/
+      )
       await browser.close()
     })
 
@@ -633,8 +679,9 @@ describe('Production Usage', () => {
 
       if (browserName === 'safari') {
         const elements = await browser.elementsByCss('link[rel=preload]')
-        // 4 page preloads and 5 existing preloads for _app, commons, main, etc
-        expect(elements.length).toBe(11)
+        // optimized preloading uses defer instead of preloading and prefetches
+        // aren't generated client-side since safari does not support prefetch
+        expect(elements.length).toBe(0)
       } else {
         const elements = await browser.elementsByCss('link[rel=prefetch]')
         expect(elements.length).toBe(4)
@@ -849,7 +896,7 @@ describe('Production Usage', () => {
     }
   })
 
-  it('should have async on all script tags', async () => {
+  it('should have defer on all script tags', async () => {
     const html = await renderViaHTTP(appPort, '/')
     const $ = cheerio.load(html)
     let missing = false
@@ -863,33 +910,88 @@ describe('Production Usage', () => {
         continue
       }
 
-      if (script.attribs.defer === '' || script.attribs.async !== '') {
+      if (script.attribs.defer !== '' || script.attribs.async === '') {
         missing = true
       }
     }
     expect(missing).toBe(false)
   })
 
-  it('should preserve query when hard navigating from page 404', async () => {
-    const browser = await webdriver(appPort, '/')
-    await browser.eval(`(function() {
-      window.beforeNav = 1
-      window.next.router.push({
-        pathname: '/non-existent',
-        query: { hello: 'world' }
-      })
-    })()`)
+  if (global.browserName !== 'internet explorer') {
+    it('should preserve query when hard navigating from page 404', async () => {
+      const browser = await webdriver(appPort, '/')
+      await browser.eval(`(function() {
+        window.beforeNav = 1
+        window.next.router.push({
+          pathname: '/non-existent',
+          query: { hello: 'world' }
+        })
+      })()`)
 
-    await check(
-      () => browser.eval('document.documentElement.innerHTML'),
-      /page could not be found/
-    )
+      await check(
+        () => browser.eval('document.documentElement.innerHTML'),
+        /page could not be found/
+      )
 
-    expect(await browser.eval('window.beforeNav')).toBe(null)
-    expect(await browser.eval('window.location.hash')).toBe('')
-    expect(await browser.eval('window.location.search')).toBe('?hello=world')
-    expect(await browser.eval('window.location.pathname')).toBe('/non-existent')
-  })
+      expect(await browser.eval('window.beforeNav')).toBe(null)
+      expect(await browser.eval('window.location.hash')).toBe('')
+      expect(await browser.eval('window.location.search')).toBe('?hello=world')
+      expect(await browser.eval('window.location.pathname')).toBe(
+        '/non-existent'
+      )
+    })
+  }
+
+  if (!process.env.NEXT_PRIVATE_TEST_WEBPACK4_MODE) {
+    it('should remove placeholder for next/image correctly', async () => {
+      const browser = await webdriver(context.appPort, '/')
+
+      await browser.eval(`(function() {
+        window.beforeNav = 1
+        window.next.router.push('/static-image')
+      })()`)
+      await browser.waitForElementByCss('#static-image')
+
+      expect(await browser.eval('window.beforeNav')).toBe(1)
+
+      await check(
+        () => browser.elementByCss('img').getComputedCss('background-image'),
+        'none'
+      )
+
+      await browser.eval(`(function() {
+        window.beforeNav = 1
+        window.next.router.push('/')
+      })()`)
+      await browser.waitForElementByCss('.index-page')
+      await waitFor(1000)
+
+      await browser.eval(`(function() {
+        window.beforeNav = 1
+        window.next.router.push('/static-image')
+      })()`)
+      await browser.waitForElementByCss('#static-image')
+
+      expect(await browser.eval('window.beforeNav')).toBe(1)
+
+      await check(
+        () =>
+          browser
+            .elementByCss('#static-image')
+            .getComputedCss('background-image'),
+        'none'
+      )
+
+      for (let i = 0; i < 5; i++) {
+        expect(
+          await browser
+            .elementByCss('#static-image')
+            .getComputedCss('background-image')
+        ).toBe('none')
+        await waitFor(500)
+      }
+    })
+  }
 
   dynamicImportTests(context, (p, q) => renderViaHTTP(context.appPort, p, q))
 

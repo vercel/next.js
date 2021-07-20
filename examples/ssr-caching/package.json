@@ -1,18 +1,14 @@
 {
-  "name": "ssr-caching",
-  "version": "1.0.0",
+  "private": true,
   "scripts": {
-    "dev": "node server.js",
+    "dev": "next",
     "build": "next build",
-    "start": "cross-env NODE_ENV=production node server.js"
+    "start": "next start"
   },
   "dependencies": {
-    "cacheable-response": "^2.1.6",
-    "cross-env": "^7.0.2",
-    "express": "^4.17.1",
     "next": "latest",
-    "react": "^17.0.1",
-    "react-dom": "^17.0.1"
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2"
   },
   "license": "MIT"
 }
