@@ -15,6 +15,7 @@ import { processBuffer, Operation } from './lib/squoosh/main'
 import Server from './next-server'
 import { sendEtagResponse } from './send-payload'
 import { getContentType, getExtension } from './serve-static'
+import Sharp from 'sharp'
 
 //const AVIF = 'image/avif'
 const WEBP = 'image/webp'
@@ -29,7 +30,11 @@ const VECTOR_TYPES = [SVG]
 const BLUR_IMG_SIZE = 8 // should match `next-image-loader`
 const inflightRequests = new Map<string, Promise<undefined>>()
 
-let sharp: any
+let sharp: (
+  input?: string | Buffer,
+  options?: Sharp.SharpOptions
+) => Sharp.Sharp
+
 try {
   sharp = require('sharp')
 } catch (e) {
