@@ -1,7 +1,5 @@
 {
-  "name": "with-firebase-hosting",
-  "version": "5.0.0",
-  "description": "Host Next.js SSR app on Firebase Cloud Functions with Firebase Hosting redirects.",
+  "private": true,
   "main": "firebaseFunctions.js",
   "scripts": {
     "dev": "next src/",
@@ -16,8 +14,8 @@
     "firebase-admin": "^9.4.2",
     "firebase-functions": "^3.13.1",
     "next": "latest",
-    "react": "^17.0.1",
-    "react-dom": "^17.0.1"
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2"
   },
   "devDependencies": {
     "firebase-functions-test": "^0.2.3",

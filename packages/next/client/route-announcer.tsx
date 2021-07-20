@@ -1,18 +1,18 @@
-import React, { useEffect, useState, useRef } from 'react'
+import React from 'react'
 import { useRouter } from './router'
 
 export function RouteAnnouncer() {
   const { asPath } = useRouter()
-  const [routeAnnouncement, setRouteAnnouncement] = useState('')
+  const [routeAnnouncement, setRouteAnnouncement] = React.useState('')
 
   // Only announce the path change, but not for the first load because screen reader will do that automatically.
-  const initialPathLoaded = useRef(false)
+  const initialPathLoaded = React.useRef(false)
 
   // Every time the path changes, announce the route change. The announcement will be prioritized by h1, then title
   // (from metadata), and finally if those don't exist, then the pathName that is in the URL. This methodology is
   // inspired by Marcy Sutton's accessible client routing user testing. More information can be found here:
   // https://www.gatsbyjs.com/blog/2019-07-11-user-testing-accessible-client-routing/
-  useEffect(
+  React.useEffect(
     () => {
       if (!initialPathLoaded.current) {
         initialPathLoaded.current = true

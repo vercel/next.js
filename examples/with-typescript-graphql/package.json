@@ -1,8 +1,5 @@
 {
-  "name": "with-typescript-graphql",
-  "version": "0.1.0",
-  "author": "",
-  "license": "MIT",
+  "private": true,
   "scripts": {
     "codegen": "graphql-let",
     "dev": "yarn codegen && next",
@@ -18,11 +15,12 @@
     "apollo-server-micro": "^2.16.1",
     "graphql": "15.3.0",
     "next": "latest",
-    "react": "^16.13.1",
-    "react-dom": "^16.13.1"
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2"
   },
   "devDependencies": {
     "@graphql-codegen/cli": "^1.17.8",
+    "@graphql-codegen/import-types-preset": "1.18.2",
     "@graphql-codegen/plugin-helpers": "^1.17.8",
     "@graphql-codegen/typescript": "^1.17.8",
     "@graphql-codegen/typescript-operations": "^1.17.8",

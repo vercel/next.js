@@ -49,6 +49,17 @@ export const getStaticProps = ({ params }) => {
     } else if (!statusCode) {
       permanent = false
     }
+    let revalidate
+
+    if (params.post.includes('revalidate-')) {
+      revalidate = 1
+    }
+    console.log('redirecting', {
+      destination,
+      permanent,
+      statusCode,
+      revalidate,
+    })
 
     return {
       redirect: {
@@ -56,6 +67,7 @@ export const getStaticProps = ({ params }) => {
         permanent,
         statusCode,
       },
+      revalidate,
     }
   }
 

@@ -6,7 +6,7 @@ description: Get started with Next.js in the official documentation, and learn m
 
 Welcome to the Next.js documentation!
 
-If you're new to Next.js we recommend that you start with the [learn course](https://nextjs.org/learn/basics/getting-started).
+If you're new to Next.js we recommend that you start with the [learn course](https://nextjs.org/learn/basics/create-nextjs-app).
 
 The interactive course with quizzes will guide you through everything you need to know to use Next.js.
 
@@ -14,7 +14,7 @@ If you have questions about anything related to Next.js, you're always welcome t
 
 #### System Requirements
 
-- [Node.js 10.13](https://nodejs.org/) or later
+- [Node.js 12.0](https://nodejs.org/) or later
 - MacOS, Windows (including WSL), and Linux are supported
 
 ## Setup

@@ -1,6 +1,5 @@
 {
-  "name": "with-mobx",
-  "version": "1.0.0",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",
@@ -10,11 +9,11 @@
     "mobx": "^6.0.1",
     "mobx-react": "^7.0.0",
     "next": "latest",
-    "react": "^16.13.1",
-    "react-dom": "^16.13.1"
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2"
   },
-  "license": "MIT",
   "devDependencies": {
+    "@babel/core": "7.14.5",
     "@babel/plugin-proposal-class-properties": "^7.1.0",
     "@babel/plugin-proposal-decorators": "^7.1.0"
   }
