@@ -2156,13 +2156,6 @@ export default class Server {
     parsedUrl?: UrlWithParsedQuery,
     setHeaders = true
   ): Promise<void> {
-    if (setHeaders) {
-      res.setHeader(
-        'Cache-Control',
-        'no-cache, no-store, max-age=0, must-revalidate'
-      )
-    }
-
     const url: any = req.url
     const { pathname, query } = parsedUrl ? parsedUrl : parseUrl(url, true)
     const { i18n } = this.nextConfig
@@ -2173,20 +2166,8 @@ export default class Server {
         query.__nextDefaultLocale || i18n.defaultLocale
     }
 
-    return this.pipe((ctx) => this.render404ToResponse(ctx), {
-      req,
-      res,
-      pathname: pathname!,
-      query,
-    })
-  }
-
-  private render404ToResponse(
-    ctx: RequestContext
-  ): Promise<ResponsePayload | null> {
-    const { res } = ctx
     res.statusCode = 404
-    return this.renderErrorToResponse(ctx, null)
+    return this.renderError(null, req, res, pathname!, query, setHeaders)
   }
 
   public async serveStatic(
