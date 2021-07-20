@@ -1712,7 +1712,7 @@ export default class Server {
           }
         )
 
-        body = resultFromChunks([renderResult.html])
+        body = renderResult.html
         pageData = renderResult.renderOpts.pageData
         sprRevalidate = renderResult.renderOpts.revalidate
         isNotFound = renderResult.renderOpts.isNotFound
