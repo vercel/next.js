@@ -212,10 +212,7 @@ export async function imageOptimizer(
       upstreamType =
         detectContentType(upstreamBuffer) ||
         upstreamRes.headers.get('Content-Type')
-      maxAge = getMaxAge(
-        upstreamRes.headers.get('Cache-Control'),
-        minimumCacheTTL
-      )
+      maxAge = getMaxAge(upstreamRes.headers.get('Cache-Control'))
     } else {
       try {
         const resBuffers: Buffer[] = []
@@ -244,6 +241,7 @@ export async function imageOptimizer(
         mockRes.setHeader = (name: string, value: string | string[]) =>
           (mockHeaders[name.toLowerCase()] = value)
         mockRes._implicitHeader = () => {}
+        mockRes.connection = res.connection
         mockRes.finished = false
         mockRes.statusCode = 200
 
@@ -258,6 +256,7 @@ export async function imageOptimizer(
         mockReq.headers = req.headers
         mockReq.method = req.method
         mockReq.url = href
+        mockReq.connection = req.connection
 
         await server.getRequestHandler()(
           mockReq,
@@ -270,7 +269,7 @@ export async function imageOptimizer(
         upstreamBuffer = Buffer.concat(resBuffers)
         upstreamType =
           detectContentType(upstreamBuffer) || mockRes.getHeader('Content-Type')
-        maxAge = getMaxAge(mockRes.getHeader('Cache-Control'), minimumCacheTTL)
+        maxAge = getMaxAge(mockRes.getHeader('Cache-Control'))
       } catch (err) {
         res.statusCode = 500
         res.end('"url" parameter is valid but upstream response is invalid')
@@ -278,7 +277,7 @@ export async function imageOptimizer(
       }
     }
 
-    const expireAt = maxAge * 1000 + now
+    const expireAt = Math.max(maxAge, minimumCacheTTL) * 1000 + now
 
     if (upstreamType) {
       const vector = VECTOR_TYPES.includes(upstreamType)
@@ -538,7 +537,7 @@ export function detectContentType(buffer: Buffer) {
   return null
 }
 
-export function getMaxAge(str: string | null, minimumCacheTTL: number): number {
+export function getMaxAge(str: string | null): number {
   const map = parseCacheControl(str)
   if (map) {
     let age = map.get('s-maxage') || map.get('max-age') || ''
@@ -547,8 +546,8 @@ export function getMaxAge(str: string | null, minimumCacheTTL: number): number {
     }
     const n = parseInt(age, 10)
     if (!isNaN(n)) {
-      return Math.max(n, minimumCacheTTL)
+      return n
     }
   }
-  return minimumCacheTTL
+  return 0
 }
