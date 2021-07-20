@@ -1330,11 +1330,13 @@ export default class Server {
       query: ParsedUrlQuery
     }
   ): Promise<void> {
+    // TODO: Determine when dynamic HTML is allowed
+    const requireStaticHTML = true
     const ctx = {
       ...partialContext,
       renderOpts: {
         ...this.renderOpts,
-        requireStaticHTML: false,
+        requireStaticHTML,
       },
     } as const
     const payload = await fn(ctx)
