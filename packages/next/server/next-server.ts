@@ -1524,11 +1524,14 @@ export default class Server {
   private async renderToResponseWithComponents(
     { req, res, pathname, renderOpts }: RequestContext,
     { components, query }: FindComponentsResult,
-    overrideRenderOpts: RenderOptsPartial
+    extraRenderOpts?: {
+      err?: Error | null
+      params?: ParsedUrlQuery
+    }
   ): Promise<ResponsePayload | null> {
     const opts = {
       ...renderOpts,
-      ...overrideRenderOpts,
+      ...(extraRenderOpts ?? {}),
     }
     const is404Page = pathname === '/404'
     const is500Page = pathname === '/500'
@@ -1918,9 +1921,7 @@ export default class Server {
       const result = await this.findPageComponents(pathname, query)
       if (result) {
         try {
-          return await this.renderToResponseWithComponents(ctx, result, {
-            ...this.renderOpts,
-          })
+          return await this.renderToResponseWithComponents(ctx, result)
         } catch (err) {
           const isNoFallbackError = err instanceof NoFallbackError
 
@@ -1950,7 +1951,7 @@ export default class Server {
                   pathname: dynamicRoute.page,
                 },
                 dynamicRouteResult,
-                { ...this.renderOpts, params }
+                { params }
               )
             } catch (err) {
               const isNoFallbackError = err instanceof NoFallbackError
@@ -2094,7 +2095,6 @@ export default class Server {
           },
           result!,
           {
-            ...this.renderOpts,
             err,
           }
         )
@@ -2123,7 +2123,6 @@ export default class Server {
             components: fallbackComponents,
           },
           {
-            ...this.renderOpts,
             // We render `renderToHtmlError` here because `err` is
             // already captured in the stacktrace.
             err: isWrappedError
