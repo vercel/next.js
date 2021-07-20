@@ -1563,6 +1563,7 @@ export default class Server {
     if (typeof components.Component === 'string') {
       return {
         type: 'html',
+        // TODO: Static pages should be written as chunks
         body: resultFromChunks([components.Component]),
       }
     }

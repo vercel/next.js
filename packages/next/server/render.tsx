@@ -948,7 +948,7 @@ export async function renderToHTML(
   // Avoid rendering page un-necessarily for getServerSideProps data request
   // and getServerSideProps/getStaticProps redirects
   if ((isDataReq && !isSSG) || (renderOpts as any).isRedirect) {
-    return null
+    return resultFromChunks([JSON.stringify(props)])
   }
 
   // We don't call getStaticProps or getServerSideProps while generating
