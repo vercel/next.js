@@ -1563,7 +1563,7 @@ export default class Server {
     if (typeof components.Component === 'string') {
       return {
         type: 'html',
-        body: components.Component,
+        body: resultFromChunks([components.Component]),
       }
     }
 

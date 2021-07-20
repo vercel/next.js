@@ -376,6 +376,7 @@ export default async function exportApp(
       domainLocales: i18n?.domains,
       trailingSlash: nextConfig.trailingSlash,
       disableOptimizedLoading: nextConfig.experimental.disableOptimizedLoading,
+      requireStaticHTML: true,
     }
 
     const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig

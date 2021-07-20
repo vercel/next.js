@@ -18,6 +18,7 @@ import { FontManifest } from '../server/font-utils'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { trace } from '../telemetry/trace'
 import { isInAmpMode } from '../shared/lib/amp'
+import { resultToChunks } from '../server/utils'
 
 const envConfig = require('../shared/lib/runtime-config')
 
@@ -308,7 +309,7 @@ export default async function exportPage({
             params
           )
           curRenderOpts = (result as any).renderOpts || {}
-          html = (result as any).html
+          html = (await resultToChunks((result as any).html)).join('')
         }
 
         if (!html && !(curRenderOpts as any).isNotFound) {
@@ -378,6 +379,7 @@ export default async function exportPage({
           }
           // @ts-ignore
           html = await renderMethod(req, res, page, query, curRenderOpts)
+          html = (await resultToChunks(html!)).join('')
         }
       }
       results.ssgNotFound = (curRenderOpts as any).isNotFound
