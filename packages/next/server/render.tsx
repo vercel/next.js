@@ -188,6 +188,7 @@ export type RenderOptsPartial = {
   defaultLocale?: string
   domainLocales?: DomainLocales
   disableOptimizedLoading?: boolean
+  requireStaticHTML?: boolean
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
