@@ -17,6 +17,7 @@ use swc_common::{
     FilePathMapping, SourceMap,
 };
 
+mod hook_optimizer;
 mod transform;
 mod util;
 

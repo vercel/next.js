@@ -1,5 +1,6 @@
 use crate::{
     complete_output, get_compiler,
+    hook_optimizer::hook_optimizer,
     util::{CtxtExt, MapErr},
 };
 use anyhow::{bail, Error};
@@ -9,10 +10,7 @@ use swc::config::{BuiltConfig, Options};
 use swc::{Compiler, TransformOutput};
 use swc_common::{chain, comments::Comment, BytePos, FileName, SourceFile};
 use swc_ecmascript::ast::Program;
-use swc_ecmascript::transforms::{
-    helpers::{self, Helpers},
-    pass::noop,
-};
+use swc_ecmascript::transforms::helpers::{self, Helpers};
 use swc_ecmascript::utils::HANDLER;
 use swc_ecmascript::visit::FoldWith;
 
@@ -146,8 +144,7 @@ fn process_js_custom(
         }
     };
     let config = BuiltConfig {
-        // TODO: replace noop with custom transformers
-        pass: chain!(noop(), config.pass),
+        pass: chain!(hook_optimizer(), config.pass),
         syntax: config.syntax,
         target: config.target,
         minify: config.minify,

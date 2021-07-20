@@ -253,7 +253,6 @@
     "node": ">=12.0.0"
   },
   "napi": {
-    "name": "next-swc",
-    "triples": {}
+    "name": "next-swc"
   }
 }
