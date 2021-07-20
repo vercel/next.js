@@ -80,6 +80,11 @@ export class IncrementalCache {
       )
     }
 
+    if (process.env.__NEXT_TEST_MAX_ISR_CACHE) {
+      // Allow cache size to be overridden for testing purposes
+      max = parseInt(process.env.__NEXT_TEST_MAX_ISR_CACHE, 10)
+    }
+
     this.cache = new LRUCache({
       // default to 50MB limit
       max: max || 50 * 1024 * 1024,
