@@ -62,15 +62,18 @@ export type NextConfig = { [key: string]: any } & {
   sassOptions?: { [key: string]: any }
   productionBrowserSourceMaps?: boolean
   optimizeFonts?: boolean
+  reactStrictMode?: boolean
+  publicRuntimeConfig?: { [key: string]: any }
+  serverRuntimeConfig?: { [key: string]: any }
 
-  future: {
+  future?: {
     /**
      * @deprecated this options was moved to the top level
      */
     webpack5?: false
     strictPostcssConfiguration?: boolean
   }
-  experimental: {
+  experimental?: {
     cpus?: number
     plugins?: boolean
     profiling?: boolean
