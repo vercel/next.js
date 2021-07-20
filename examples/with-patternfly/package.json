@@ -1,7 +1,5 @@
 {
-  "name": "with-patternfly",
-  "author": "Daniel Reinoso <danielreinoso1807@gmail.com>",
-  "version": "1.1.0",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",
@@ -11,7 +9,7 @@
     "@patternfly/react-core": "^4.121.1",
     "@patternfly/react-icons": "^4.10.7",
     "next": "latest",
-    "next-transpile-modules": "^7.2.0",
+    "next-transpile-modules": "^8.0.0",
     "react": "^17.0.2",
     "react-dom": "^17.0.2"
   },

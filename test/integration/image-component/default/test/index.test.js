@@ -1,7 +1,6 @@
 /* eslint-env jest */
 
 import cheerio from 'cheerio'
-import fs from 'fs-extra'
 import {
   check,
   findPort,
@@ -16,11 +15,11 @@ import {
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
+import { existsSync } from 'fs'
 
-jest.setTimeout(1000 * 60)
+jest.setTimeout(1000 * 80)
 
 const appDir = join(__dirname, '../')
-const nextConfig = join(appDir, 'next.config.js')
 
 let appPort
 let app
@@ -51,6 +50,12 @@ async function getComputed(browser, id, prop) {
     return v
   }
   return null
+}
+
+async function getComputedStyle(browser, id, prop) {
+  return browser.eval(
+    `window.getComputedStyle(document.getElementById('${id}')).getPropertyValue('${prop}')`
+  )
 }
 
 async function getSrc(browser, id) {
@@ -170,6 +175,35 @@ function runTests(mode) {
       await check(
         () => browser.eval(`document.getElementById("update-image").src`),
         /test\.png/
+      )
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
+
+  it('should callback onLoadingComplete when image is fully loaded', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/on-loading-complete')
+
+      await check(
+        () => browser.eval(`document.getElementById("img1").src`),
+        /test(.*)jpg/
+      )
+
+      await check(
+        () => browser.eval(`document.getElementById("img2").src`),
+        /test(.*).png/
+      )
+      await check(
+        () => browser.eval(`document.getElementById("msg1").textContent`),
+        'loaded img1'
+      )
+      await check(
+        () => browser.eval(`document.getElementById("msg2").textContent`),
+        'loaded img2'
       )
     } finally {
       if (browser) {
@@ -480,6 +514,55 @@ function runTests(mode) {
         'Failed to parse src "//assets.example.com/img.jpg" on `next/image`, protocol-relative URL (//) must be changed to an absolute URL (http:// or https://)'
       )
     })
+
+    it('should show error when string src and placeholder=blur and blurDataURL is missing', async () => {
+      const browser = await webdriver(appPort, '/invalid-placeholder-blur')
+
+      expect(await hasRedbox(browser)).toBe(true)
+      expect(await getRedboxHeader(browser)).toContain(
+        `Image with src "/test.png" has "placeholder='blur'" property but is missing the "blurDataURL" property.`
+      )
+    })
+
+    it('should show error when not numeric string width or height', async () => {
+      const browser = await webdriver(appPort, '/invalid-width-or-height')
+
+      expect(await hasRedbox(browser)).toBe(true)
+      expect(await getRedboxHeader(browser)).toContain(
+        `Image with src "/test.jpg" has invalid "width" or "height" property. These should be numeric values.`
+      )
+    })
+
+    it('should show error when static import and placeholder=blur and blurDataUrl is missing', async () => {
+      const browser = await webdriver(
+        appPort,
+        '/invalid-placeholder-blur-static'
+      )
+
+      expect(await hasRedbox(browser)).toBe(true)
+      expect(await getRedboxHeader(browser)).toMatch(
+        /Image with src "(.*)bmp" has "placeholder='blur'" property but is missing the "blurDataURL" property/
+      )
+    })
+
+    it('should warn when using a very small image with placeholder=blur', async () => {
+      const browser = await webdriver(appPort, '/small-img-import')
+
+      const warnings = (await browser.log('browser'))
+        .map((log) => log.message)
+        .join('\n')
+      expect(await hasRedbox(browser)).toBe(false)
+      expect(warnings).toMatch(
+        /Image with src (.*)jpg(.*) is smaller than 40x40. Consider removing(.*)/gm
+      )
+    })
+  } else {
+    //server-only tests
+    it('should not create an image folder in server/chunks', async () => {
+      expect(
+        existsSync(join(appDir, '.next/server/chunks/static/image'))
+      ).toBeFalsy()
+    })
   }
 
   it('should correctly ignore prose styles', async () => {
@@ -553,21 +636,10 @@ function runTests(mode) {
 describe('Image Component Tests', () => {
   describe('dev mode', () => {
     beforeAll(async () => {
-      await fs.writeFile(
-        nextConfig,
-        `
-        module.exports = {
-          experimental: {
-            enableStaticImages: true
-          },
-        }
-      `
-      )
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
     })
     afterAll(async () => {
-      await fs.unlink(nextConfig)
       await killApp(app)
     })
 
@@ -576,22 +648,11 @@ describe('Image Component Tests', () => {
 
   describe('server mode', () => {
     beforeAll(async () => {
-      await fs.writeFile(
-        nextConfig,
-        `
-        module.exports = {
-          experimental: {
-            enableStaticImages: true
-          },
-        }
-      `
-      )
       await nextBuild(appDir)
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
     })
     afterAll(async () => {
-      await fs.unlink(nextConfig)
       await killApp(app)
     })
 
@@ -600,31 +661,32 @@ describe('Image Component Tests', () => {
 
   describe('serverless mode', () => {
     beforeAll(async () => {
-      await fs.writeFile(
-        nextConfig,
-        `
-        module.exports = {
-          target: 'serverless',
-          experimental: {
-            enableBlurryPlaceholder: true,
-            enableStaticImages: true
-          },
-        }
-      `
-      )
       await nextBuild(appDir)
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
     })
     afterAll(async () => {
-      await fs.unlink(nextConfig)
       await killApp(app)
     })
 
     it('should have blurry placeholder when enabled', async () => {
       const html = await renderViaHTTP(appPort, '/blurry-placeholder')
-      expect(html).toContain(
-        'background-image:url(&quot;data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; width=&#x27;400&#x27; height=&#x27;400&#x27; viewBox=&#x27;0 0 400 400&#x27;%3E%3Cfilter id=&#x27;blur&#x27; filterUnits=&#x27;userSpaceOnUse&#x27; color-interpolation-filters=&#x27;sRGB&#x27;%3E%3CfeGaussianBlur stdDeviation=&#x27;20&#x27; edgeMode=&#x27;duplicate&#x27; /%3E%3CfeComponentTransfer%3E%3CfeFuncA type=&#x27;discrete&#x27; tableValues=&#x27;1 1&#x27; /%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Cimage filter=&#x27;url(%23blur)&#x27; href=&#x27;data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMDAwMDAwQEBAQFBQUFBQcHBgYHBwsICQgJCAsRCwwLCwwLEQ8SDw4PEg8bFRMTFRsfGhkaHyYiIiYwLTA+PlT/wAALCAAKAAoBAREA/8QAMwABAQEAAAAAAAAAAAAAAAAAAAcJEAABAwUAAwAAAAAAAAAAAAAFAAYRAQMEEyEVMlH/2gAIAQEAAD8Az1bLPaxhiuk0QdeCOLDtHixN2dmd2bsc5FPX7VTREX//2Q==&#x27; x=&#x27;0&#x27; y=&#x27;0&#x27; height=&#x27;100%25&#x27; width=&#x27;100%25&#x27;/%3E%3C/svg%3E&quot;)'
+      const $html = cheerio.load(html)
+
+      expect($html('#blurry-placeholder')[0].attribs.style).toContain(
+        `background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'%3E%3Cfilter id='blur' filterUnits='userSpaceOnUse' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='20' edgeMode='duplicate' /%3E%3CfeComponentTransfer%3E%3CfeFuncA type='discrete' tableValues='1 1' /%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Cimage filter='url(%23blur)' href='data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMDAwMDAwQEBAQFBQUFBQcHBgYHBwsICQgJCAsRCwwLCwwLEQ8SDw4PEg8bFRMTFRsfGhkaHyYiIiYwLTA+PlT/wAALCAAKAAoBAREA/8QAMwABAQEAAAAAAAAAAAAAAAAAAAcJEAABAwUAAwAAAAAAAAAAAAAFAAYRAQMEEyEVMlH/2gAIAQEAAD8Az1bLPaxhiuk0QdeCOLDtHixN2dmd2bsc5FPX7VTREX//2Q==' x='0' y='0' height='100%25' width='100%25'/%3E%3C/svg%3E")`
+      )
+
+      expect($html('#blurry-placeholder')[0].attribs.style).toContain(
+        `background-position:0% 0%`
+      )
+
+      expect(
+        $html('#blurry-placeholder-tall-centered')[0].attribs.style
+      ).toContain(`background-position:center`)
+
+      expect($html('#blurry-placeholder-with-lazy')[0].attribs.style).toContain(
+        `background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'%3E%3Cfilter id='blur' filterUnits='userSpaceOnUse' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='20' edgeMode='duplicate' /%3E%3CfeComponentTransfer%3E%3CfeFuncA type='discrete' tableValues='1 1' /%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Cimage filter='url(%23blur)' href='data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMDAwMDAwQEBAQFBQUFBQcHBgYHBwsICQgJCAsRCwwLCwwLEQ8SDw4PEg8bFRMTFRsfGhkaHyYiIiYwLTA+PlT/wAALCAAKAAoBAREA/8QAMwABAQEAAAAAAAAAAAAAAAAAAAcJEAABAwUAAwAAAAAAAAAAAAAFAAYRAQMEEyEVMlH/2gAIAQEAAD8Az1bLPaxhiuk0QdeCOLDtHixN2dmd2bsc5FPX7VTREX//2Q==' x='0' y='0' height='100%25' width='100%25'/%3E%3C/svg%3E")`
       )
     })
 
@@ -632,11 +694,36 @@ describe('Image Component Tests', () => {
       let browser
       try {
         browser = await webdriver(appPort, '/blurry-placeholder')
-        const id = 'blurry-placeholder'
-        const backgroundImage = await browser.eval(
-          `window.getComputedStyle(document.getElementById('${id}')).getPropertyValue('background-image')`
+        await check(
+          async () =>
+            await getComputedStyle(
+              browser,
+              'blurry-placeholder',
+              'background-image'
+            ),
+          'none'
         )
-        expect(backgroundImage).toBe('none')
+        expect(
+          await getComputedStyle(
+            browser,
+            'blurry-placeholder-with-lazy',
+            'background-image'
+          )
+        ).toBe(
+          `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'%3E%3Cfilter id='blur' filterUnits='userSpaceOnUse' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='20' edgeMode='duplicate' /%3E%3CfeComponentTransfer%3E%3CfeFuncA type='discrete' tableValues='1 1' /%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Cimage filter='url(%23blur)' href='data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMDAwMDAwQEBAQFBQUFBQcHBgYHBwsICQgJCAsRCwwLCwwLEQ8SDw4PEg8bFRMTFRsfGhkaHyYiIiYwLTA+PlT/wAALCAAKAAoBAREA/8QAMwABAQEAAAAAAAAAAAAAAAAAAAcJEAABAwUAAwAAAAAAAAAAAAAFAAYRAQMEEyEVMlH/2gAIAQEAAD8Az1bLPaxhiuk0QdeCOLDtHixN2dmd2bsc5FPX7VTREX//2Q==' x='0' y='0' height='100%25' width='100%25'/%3E%3C/svg%3E")`
+        )
+
+        await browser.eval('document.getElementById("spacer").remove()')
+
+        await check(
+          async () =>
+            await getComputedStyle(
+              browser,
+              'blurry-placeholder-with-lazy',
+              'background-image'
+            ),
+          'none'
+        )
       } finally {
         if (browser) {
           await browser.close()

@@ -102,7 +102,9 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
       logger(`Running initial build for ${dir}`)
       if (!actionInfo.skipClone) {
         let buildCommand = `cd ${dir}${
-          !statsConfig.skipInitialInstall ? ' && yarn install' : ''
+          !statsConfig.skipInitialInstall
+            ? ' && yarn install --network-timeout 1000000'
+            : ''
         }`
 
         if (statsConfig.initialBuildCommand) {
