@@ -460,16 +460,16 @@ export default function Image({
 
     objectFit,
     objectPosition,
-
-    ...(placeholder === 'blur'
+  }
+  const blurStyle =
+    placeholder === 'blur'
       ? {
           filter: 'blur(20px)',
           backgroundSize: objectFit || 'cover',
           backgroundImage: `url("${blurDataURL}")`,
           backgroundPosition: objectPosition || '0% 0%',
         }
-      : undefined),
-  }
+      : {}
   if (layout === 'fill') {
     // <Image src="i.png" layout="fill" />
     wrapperStyle = {
@@ -609,7 +609,7 @@ export default function Image({
           setRef(img)
           handleLoading(img, srcString, placeholder, onLoadingComplete)
         }}
-        style={imgStyle}
+        style={{ ...imgStyle, ...blurStyle }}
       />
       {priority ? (
         // Note how we omit the `href` attribute, as it would only be relevant
