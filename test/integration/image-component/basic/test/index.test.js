@@ -87,15 +87,32 @@ function runTests() {
       await browser.elementById('unoptimized-image').getAttribute('srcset')
     ).toBeFalsy()
   })
+  it('should keep auto parameter if already set', async () => {
+    expect(
+      await browser.elementById('image-with-param-auto').getAttribute('src')
+    ).toBe('https://example.com/myaccount/foo.png?auto=compress&fit=max&w=1024')
+  })
+  it('should keep width parameter if already set', async () => {
+    expect(
+      await browser.elementById('image-with-param-width').getAttribute('src')
+    ).toBe('https://example.com/myaccount/foo.png?auto=format&w=500&fit=max')
+  })
+  it('should keep fit parameter if already set', async () => {
+    expect(
+      await browser.elementById('image-with-param-fit').getAttribute('src')
+    ).toBe(
+      'https://example.com/myaccount/foo.png?auto=format&fit=crop&w=300&h=300'
+    )
+  })
 }
 
 function lazyLoadingTests() {
   it('should have loaded the first image immediately', async () => {
     expect(await browser.elementById('lazy-top').getAttribute('src')).toBe(
-      'https://example.com/myaccount/foo1.jpg?auto=format&fit=max&w=2000'
+      'https://example.com/myaccount/lazy1.jpg?auto=format&fit=max&w=2000'
     )
     expect(await browser.elementById('lazy-top').getAttribute('srcset')).toBe(
-      'https://example.com/myaccount/foo1.jpg?auto=format&fit=max&w=1024 1x, https://example.com/myaccount/foo1.jpg?auto=format&fit=max&w=2000 2x'
+      'https://example.com/myaccount/lazy1.jpg?auto=format&fit=max&w=1024 1x, https://example.com/myaccount/lazy1.jpg?auto=format&fit=max&w=2000 2x'
     )
   })
   it('should not have loaded the second image immediately', async () => {
@@ -123,11 +140,11 @@ function lazyLoadingTests() {
 
     await check(() => {
       return browser.elementById('lazy-mid').getAttribute('src')
-    }, 'https://example.com/myaccount/foo2.jpg?auto=format&fit=max&w=1024')
+    }, 'https://example.com/myaccount/lazy2.jpg?auto=format&fit=max&w=1024')
 
     await check(() => {
       return browser.elementById('lazy-mid').getAttribute('srcset')
-    }, 'https://example.com/myaccount/foo2.jpg?auto=format&fit=max&w=480 1x, https://example.com/myaccount/foo2.jpg?auto=format&fit=max&w=1024 2x')
+    }, 'https://example.com/myaccount/lazy2.jpg?auto=format&fit=max&w=480 1x, https://example.com/myaccount/lazy2.jpg?auto=format&fit=max&w=1024 2x')
   })
   it('should not have loaded the third image after scrolling down', async () => {
     expect(await browser.elementById('lazy-bottom').getAttribute('src')).toBe(
@@ -148,7 +165,7 @@ function lazyLoadingTests() {
     )
     await waitFor(200)
     expect(await browser.elementById('lazy-bottom').getAttribute('src')).toBe(
-      'https://www.otherhost.com/foo3.jpg'
+      'https://www.otherhost.com/lazy3.jpg'
     )
     expect(
       await browser.elementById('lazy-bottom').getAttribute('srcset')
@@ -172,17 +189,17 @@ function lazyLoadingTests() {
     await waitFor(200)
     expect(
       await browser.elementById('lazy-without-attribute').getAttribute('src')
-    ).toBe('https://example.com/myaccount/foo4.jpg?auto=format&fit=max&w=1600')
+    ).toBe('https://example.com/myaccount/lazy4.jpg?auto=format&fit=max&w=1600')
     expect(
       await browser.elementById('lazy-without-attribute').getAttribute('srcset')
     ).toBe(
-      'https://example.com/myaccount/foo4.jpg?auto=format&fit=max&w=1024 1x, https://example.com/myaccount/foo4.jpg?auto=format&fit=max&w=1600 2x'
+      'https://example.com/myaccount/lazy4.jpg?auto=format&fit=max&w=1024 1x, https://example.com/myaccount/lazy4.jpg?auto=format&fit=max&w=1600 2x'
     )
   })
 
   it('should load the fifth image eagerly, without scrolling', async () => {
     expect(await browser.elementById('eager-loading').getAttribute('src')).toBe(
-      'https://example.com/myaccount/foo5.jpg?auto=format&fit=max&w=2000'
+      'https://example.com/myaccount/lazy5.jpg?auto=format&fit=max&w=2000'
     )
     expect(
       await browser.elementById('eager-loading').getAttribute('srcset')

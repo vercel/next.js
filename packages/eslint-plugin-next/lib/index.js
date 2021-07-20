@@ -12,6 +12,7 @@ module.exports = {
     'link-passhref': require('./rules/link-passhref'),
     'no-document-import-in-page': require('./rules/no-document-import-in-page'),
     'no-head-import-in-document': require('./rules/no-head-import-in-document'),
+    'no-duplicate-head': require('./rules/no-duplicate-head'),
   },
   configs: {
     recommended: {
@@ -29,6 +30,7 @@ module.exports = {
         '@next/next/link-passhref': 1,
         '@next/next/no-document-import-in-page': 2,
         '@next/next/no-head-import-in-document': 2,
+        '@next/next/no-duplicate-head': 2,
       },
     },
   },

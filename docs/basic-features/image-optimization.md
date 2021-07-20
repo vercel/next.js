@@ -121,6 +121,7 @@ The following Image Optimization cloud providers are included:
 - [Imgix](https://www.imgix.com): `loader: 'imgix'`
 - [Cloudinary](https://cloudinary.com): `loader: 'cloudinary'`
 - [Akamai](https://www.akamai.com): `loader: 'akamai'`
+- Custom: `loader: 'custom'` use a custom cloud provider by implementing the [`loader`](/docs/api-reference/next/image.md#loader) prop on the `next/image` component
 - Default: Works automatically with `next dev`, `next start`, or a custom server
 
 If you need a different provider, you can use the [`loader`](/docs/api-reference/next/image.md#loader) prop with `next/image`.
@@ -135,9 +136,11 @@ Images are optimized dynamically upon request and stored in the `<distDir>/cache
 
 The expiration (or rather Max Age) is defined by the upstream server's `Cache-Control` header.
 
-If `s-maxage` is found in `Cache-Control`, it is used. If no `s-maxage` is found, then `max-age` is used. If no `max-age` is found, then 60 seconds is used.
+If `s-maxage` is found in `Cache-Control`, it is used. If no `s-maxage` is found, then `max-age` is used. If no `max-age` is found, then [`minimumCacheTTL`](#minimum-cache-ttl) is used.
 
-You can configure [`deviceSizes`](#device-sizes) and [`imageSizes`](#device-sizes) to reduce the total number of possible generated images.
+You can configure [`minimumCacheTTL`](#minimum-cache-ttl) to increase the cache duration when the upstream image does not include `max-age`.
+
+You can also configure [`deviceSizes`](#device-sizes) and [`imageSizes`](#device-sizes) to reduce the total number of possible generated images.
 
 ## Advanced
 
@@ -170,6 +173,20 @@ module.exports = {
   },
 }
 ```
+
+### Minimum Cache TTL
+
+You can configure the time to live (TTL) in seconds for cached optimized images. In many cases, its better to use a [Static Image Import](#image-Imports) which will handle hashing file contents and caching the file forever.
+
+```js
+module.exports = {
+  images: {
+    minimumCacheTTL: 60,
+  },
+}
+```
+
+If you need to add a `Cache-Control` header for the browser (not recommended), you can configure [`headers`](/docs/api-reference/next.config.js/headers) on the upstream image e.g. `/some-asset.jpg` not `/_next/image` itself.
 
 ### Disable Static Imports
 
