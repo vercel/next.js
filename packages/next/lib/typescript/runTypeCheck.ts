@@ -1,3 +1,4 @@
+import path from 'path'
 import {
   DiagnosticCategory,
   getFormattedDiagnostic,
@@ -18,7 +19,8 @@ export interface TypeCheckResult {
 export async function runTypeCheck(
   ts: typeof import('typescript'),
   baseDir: string,
-  tsConfigPath: string
+  tsConfigPath: string,
+  cacheDir?: string
 ): Promise<TypeCheckResult> {
   const effectiveConfiguration = await getTypeScriptConfiguration(
     ts,
@@ -35,11 +37,29 @@ export async function runTypeCheck(
   }
   const requiredConfig = getRequiredConfiguration(ts)
 
-  const program = ts.createProgram(effectiveConfiguration.fileNames, {
+  const options = {
     ...effectiveConfiguration.options,
     ...requiredConfig,
     noEmit: true,
-  })
+  }
+
+  let program:
+    | import('typescript').Program
+    | import('typescript').BuilderProgram
+  let incremental = false
+  if (options.incremental && cacheDir) {
+    incremental = true
+    program = ts.createIncrementalProgram({
+      rootNames: effectiveConfiguration.fileNames,
+      options: {
+        ...options,
+        incremental: true,
+        tsBuildInfoFile: path.join(cacheDir, '.tsbuildinfo'),
+      },
+    })
+  } else {
+    program = ts.createProgram(effectiveConfiguration.fileNames, options)
+  }
   const result = program.emit()
 
   // Intended to match:
@@ -54,7 +74,7 @@ export async function runTypeCheck(
   //
   const regexIgnoredFile = /[\\/]__(?:tests|mocks)__[\\/]|(?<=[\\/.])(?:spec|test)\.[^\\/]+$/
   const allDiagnostics = ts
-    .getPreEmitDiagnostics(program)
+    .getPreEmitDiagnostics(program as import('typescript').Program)
     .concat(result.diagnostics)
     .filter((d) => !(d.file && regexIgnoredFile.test(d.file.fileName)))
 
@@ -79,6 +99,6 @@ export async function runTypeCheck(
     warnings,
     inputFilesCount: effectiveConfiguration.fileNames.length,
     totalFilesCount: program.getSourceFiles().length,
-    incremental: false,
+    incremental,
   }
 }

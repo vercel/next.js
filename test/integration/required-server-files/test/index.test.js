@@ -216,6 +216,20 @@ describe('Required Server Files', () => {
     expect($2('#slug').text()).toBe('second')
     expect(isNaN(data2.random)).toBe(false)
     expect(data2.random).not.toBe(data.random)
+
+    const html3 = await renderViaHTTP(appPort, '/some-other-path', undefined, {
+      headers: {
+        'x-matched-path': '/dynamic/[slug]?slug=%5Bslug%5D.json',
+        'x-now-route-matches': '1=second&slug=second',
+      },
+    })
+    const $3 = cheerio.load(html3)
+    const data3 = JSON.parse($3('#props').text())
+
+    expect($3('#dynamic').text()).toBe('dynamic page')
+    expect($3('#slug').text()).toBe('second')
+    expect(isNaN(data3.random)).toBe(false)
+    expect(data3.random).not.toBe(data.random)
   })
 
   it('should render fallback page correctly with x-matched-path and routes-matches', async () => {
@@ -456,6 +470,15 @@ describe('Required Server Files', () => {
     expect(errors[0].message).toContain('gsp hit an oops')
   })
 
+  it('should bubble error correctly for API page', async () => {
+    errors = []
+    const res = await fetchViaHTTP(appPort, '/api/error')
+    expect(res.status).toBe(500)
+    expect(await res.text()).toBe('error')
+    expect(errors.length).toBe(1)
+    expect(errors[0].message).toContain('some error from /api/error')
+  })
+
   it('should normalize optional values correctly for SSP page', async () => {
     const res = await fetchViaHTTP(
       appPort,
@@ -491,6 +514,28 @@ describe('Required Server Files', () => {
     const $ = cheerio.load(html)
     const props = JSON.parse($('#props').text())
     expect(props.params).toEqual({})
+  })
+
+  it('should normalize optional values correctly for SSG page with encoded slash', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/optional-ssg/[[...rest]]',
+      undefined,
+      {
+        headers: {
+          'x-matched-path': '/optional-ssg/[[...rest]]',
+          'x-now-route-matches':
+            '1=en%2Fes%2Fhello%252Fworld&rest=en%2Fes%2Fhello%252Fworld',
+        },
+      }
+    )
+
+    const html = await res.text()
+    const $ = cheerio.load(html)
+    const props = JSON.parse($('#props').text())
+    expect(props.params).toEqual({
+      rest: ['en', 'es', 'hello/world'],
+    })
   })
 
   it('should normalize optional values correctly for API page', async () => {

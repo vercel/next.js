@@ -1,5 +1,5 @@
 {
-  "name": "with-clerk",
+  "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -9,8 +9,8 @@
     "@clerk/clerk-react": "1.7.0",
     "@clerk/clerk-sdk-node": "0.3.0",
     "next": "10.0.9",
-    "react": "17.0.1",
-    "react-dom": "17.0.1"
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2"
   },
   "license": "MIT"
 }

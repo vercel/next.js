@@ -4,8 +4,6 @@ description: Add rewrites to your Next.js app.
 
 # Rewrites
 
-> This feature was introduced in [Next.js 9.5](https://nextjs.org/blog/next-9-5) and up. If you’re using older versions of Next.js, please upgrade before trying it out.
-
 <details open>
   <summary><b>Examples</b></summary>
   <ul>
@@ -13,9 +11,19 @@ description: Add rewrites to your Next.js app.
   </ul>
 </details>
 
+<details>
+  <summary><b>Version History</b></summary>
+
+| Version   | Changes         |
+| --------- | --------------- |
+| `v10.2.0` | `has` added.    |
+| `v9.5.0`  | Rewrites added. |
+
+</details>
+
 Rewrites allow you to map an incoming request path to a different destination path.
 
-Rewrites are only available on the Node.js environment and do not affect client-side routing.
+Rewrites act as a URL proxy and mask the destination path, making it appear the user hasn't changed their location on the site. In contrast, [redirects](/docs/api-reference/next.config.js/redirects.md) will reroute to a new page and show the URL changes.
 
 To use rewrites you can use the `rewrites` key in `next.config.js`:
 
@@ -31,6 +39,8 @@ module.exports = {
   },
 }
 ```
+
+Rewrites are applied to client-side routing, a `<Link href="/about">` will have the rewrite applied in the above example.
 
 `rewrites` is an async function that expects an array to be returned holding objects with `source` and `destination` properties:
 
@@ -48,8 +58,8 @@ module.exports = {
     return {
       beforeFiles: [
         // These rewrites are checked after headers/redirects
-        // and before pages/public files which allows overriding
-        // page files
+        // and before all files including _next/public files which
+        // allows overriding page files
         {
           source: '/some-page',
           destination: '/somewhere-else',
@@ -69,13 +79,24 @@ module.exports = {
         // and dynamic routes are checked
         {
           source: '/:path*',
-          destination: 'https://my-old-site.com',
+          destination: `https://my-old-site.com/:path*`,
         },
       ],
     }
   },
 }
 ```
+
+Note: rewrites in `beforeFiles` do not check the filesystem/dynamic routes immediately after matching a source, they continue until all `beforeFiles` have been checked.
+
+The order Next.js routes are checked is:
+
+1. [headers](/docs/api-reference/next.config.js/headers) are checked/applied
+2. [redirects](/docs/api-reference/next.config.js/redirects) are checked/applied
+3. `beforeFiles` rewrites are checked/applied
+4. static files from the [public directory](/docs/basic-features/static-file-serving), `_next/static` files, and non-dynamic pages are checked/served
+5. `afterFiles` rewrites are checked/applied, if one of these rewrites is matched we check dynamic routes/static files after each match
+6. `fallback` rewrites are checked/applied, these are applied before rendering the 404 page and after dynamic routes/all static assets have been checked.
 
 ## Rewrite parameters
 
@@ -317,7 +338,7 @@ module.exports = {
 }
 ```
 
-See additional information on incremental adoption [in the docs here](https://nextjs.org/docs/migrating/incremental-adoption).
+See additional information on incremental adoption [in the docs here](/docs/migrating/incremental-adoption.md).
 
 ### Rewrites with basePath support
 

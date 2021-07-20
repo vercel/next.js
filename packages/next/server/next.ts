@@ -1,16 +1,13 @@
-import '../next-server/server/node-polyfill-fetch'
-import type {
-  default as Server,
-  ServerConstructor,
-} from '../next-server/server/next-server'
+import './node-polyfill-fetch'
+import { default as Server, ServerConstructor } from './next-server'
 import { NON_STANDARD_NODE_ENV } from '../lib/constants'
 import * as log from '../build/output/log'
-import loadConfig, { NextConfig } from '../next-server/server/config'
+import loadConfig, { NextConfig } from './config'
 import { resolve } from 'path'
 import {
   PHASE_DEVELOPMENT_SERVER,
   PHASE_PRODUCTION_SERVER,
-} from '../next-server/lib/constants'
+} from '../shared/lib/constants'
 import { IncomingMessage, ServerResponse } from 'http'
 import { UrlWithParsedQuery } from 'url'
 
@@ -25,7 +22,7 @@ let ServerImpl: typeof Server
 
 const getServerImpl = async () => {
   if (ServerImpl === undefined)
-    ServerImpl = (await import('../next-server/server/next-server')).default
+    ServerImpl = (await import('./next-server')).default
   return ServerImpl
 }
 
@@ -112,10 +109,11 @@ export class NextServer {
     }
   ): Promise<Server> {
     if (options.dev) {
-      const DevServer = require('./next-dev-server').default
+      const DevServer = require('./dev/next-dev-server').default
       return new DevServer(options)
     }
-    return new (await getServerImpl())(options)
+    const ServerImplementation = await getServerImpl()
+    return new ServerImplementation(options)
   }
 
   private async loadConfig() {

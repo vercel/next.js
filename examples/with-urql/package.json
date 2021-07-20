@@ -1,5 +1,5 @@
 {
-  "name": "with-urql",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",
@@ -9,8 +9,8 @@
     "graphql": "^15.0.0",
     "isomorphic-unfetch": "^3.0.0",
     "next": "latest",
-    "react": "^16.13.1",
-    "react-dom": "^16.13.1",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
     "urql": "^1.9.7"
   },
   "license": "MIT"

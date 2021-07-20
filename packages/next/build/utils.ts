@@ -1,8 +1,9 @@
-import '../next-server/server/node-polyfill-fetch'
+import '../server/node-polyfill-fetch'
 import chalk from 'chalk'
-import gzipSize from 'next/dist/compiled/gzip-size'
+import getGzipSize from 'next/dist/compiled/gzip-size'
 import textTable from 'next/dist/compiled/text-table'
 import path from 'path'
+import { promises as fs } from 'fs'
 import { isValidElementType } from 'react-is'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import {
@@ -18,25 +19,34 @@ import {
 } from '../lib/constants'
 import prettyBytes from '../lib/pretty-bytes'
 import { recursiveReadDir } from '../lib/recursive-readdir'
-import { getRouteMatcher, getRouteRegex } from '../next-server/lib/router/utils'
-import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
-import escapePathDelimiters from '../next-server/lib/router/utils/escape-path-delimiters'
+import { getRouteMatcher, getRouteRegex } from '../shared/lib/router/utils'
+import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
+import escapePathDelimiters from '../shared/lib/router/utils/escape-path-delimiters'
 import { findPageFile } from '../server/lib/find-page-file'
 import { GetStaticPaths } from 'next/types'
-import { denormalizePagePath } from '../next-server/server/normalize-page-path'
-import { BuildManifest } from '../next-server/server/get-page-files'
+import { denormalizePagePath } from '../server/normalize-page-path'
+import { BuildManifest } from '../server/get-page-files'
 import { removePathTrailingSlash } from '../client/normalize-trailing-slash'
 import { UnwrapPromise } from '../lib/coalesced-function'
-import { normalizeLocalePath } from '../next-server/lib/i18n/normalize-locale-path'
+import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import * as Log from './output/log'
-import { loadComponents } from '../next-server/server/load-components'
+import { loadComponents } from '../server/load-components'
 import { trace } from '../telemetry/trace'
 
-const fileGzipStats: { [k: string]: Promise<number> } = {}
+const fileGzipStats: { [k: string]: Promise<number> | undefined } = {}
 const fsStatGzip = (file: string) => {
-  if (fileGzipStats[file]) return fileGzipStats[file]
-  fileGzipStats[file] = gzipSize.file(file)
-  return fileGzipStats[file]
+  const cached = fileGzipStats[file]
+  if (cached) return cached
+  return (fileGzipStats[file] = getGzipSize.file(file))
+}
+
+const fileSize = async (file: string) => (await fs.stat(file)).size
+
+const fileStats: { [k: string]: Promise<number> | undefined } = {}
+const fsStat = (file: string) => {
+  const cached = fileStats[file]
+  if (cached) return cached
+  return (fileStats[file] = fileSize(file))
 }
 
 export function collectPages(
@@ -57,6 +67,8 @@ export interface PageInfo {
   isSsg: boolean
   ssgPageRoutes: string[] | null
   initialRevalidateSeconds: number | false
+  pageDuration: number | undefined
+  ssgPageDurations: number[] | undefined
 }
 
 export async function printTreeView(
@@ -70,6 +82,7 @@ export async function printTreeView(
     pageExtensions,
     buildManifest,
     useStatic404,
+    gzipSize = true,
   }: {
     distPath: string
     buildId: string
@@ -77,6 +90,7 @@ export async function printTreeView(
     pageExtensions: string[]
     buildManifest: BuildManifest
     useStatic404: boolean
+    gzipSize?: boolean
   }
 ) {
   const getPrettySize = (_size: number): string => {
@@ -89,6 +103,17 @@ export async function printTreeView(
     return chalk.red.bold(size)
   }
 
+  const MIN_DURATION = 300
+  const getPrettyDuration = (_duration: number): string => {
+    const duration = `${_duration} ms`
+    // green for 300-1000ms
+    if (_duration < 1000) return chalk.green(duration)
+    // yellow for 1000-2000ms
+    if (_duration < 2000) return chalk.yellow(duration)
+    // red for >= 2000ms
+    return chalk.red.bold(duration)
+  }
+
   const getCleanName = (fileName: string) =>
     fileName
       // Trim off `static/`
@@ -96,7 +121,7 @@ export async function printTreeView(
       // Re-add `static/` for root files
       .replace(/^<buildId>/, 'static')
       // Remove file hash
-      .replace(/[.-]([0-9a-z]{6})[0-9a-z]{14}(?=\.)/, '.$1')
+      .replace(/(?:^|[.-])([0-9a-z]{6})[0-9a-z]{14}(?=\.)/, '.$1')
 
   const messages: [string, string, string][] = [
     ['Page', 'Size', 'First Load JS'].map((entry) =>
@@ -115,7 +140,12 @@ export async function printTreeView(
     list = [...list, '/404']
   }
 
-  const sizeData = await computeFromManifest(buildManifest, distPath, pageInfos)
+  const sizeData = await computeFromManifest(
+    buildManifest,
+    distPath,
+    gzipSize,
+    pageInfos
+  )
 
   const pageList = list
     .slice()
@@ -142,6 +172,10 @@ export async function printTreeView(
     const pageInfo = pageInfos.get(item)
     const ampFirst = buildManifest.ampFirstPages.includes(item)
 
+    const totalDuration =
+      (pageInfo?.pageDuration || 0) +
+      (pageInfo?.ssgPageDurations?.reduce((a, b) => a + (b || 0), 0) || 0)
+
     messages.push([
       `${symbol} ${
         item === '/_app'
@@ -155,6 +189,10 @@ export async function printTreeView(
         pageInfo?.initialRevalidateSeconds
           ? `${item} (ISR: ${pageInfo?.initialRevalidateSeconds} Seconds)`
           : item
+      }${
+        totalDuration > MIN_DURATION
+          ? ` (${getPrettyDuration(totalDuration)})`
+          : ''
       }`,
       pageInfo
         ? ampFirst
@@ -192,18 +230,64 @@ export async function printTreeView(
 
     if (pageInfo?.ssgPageRoutes?.length) {
       const totalRoutes = pageInfo.ssgPageRoutes.length
-      const previewPages = totalRoutes === 4 ? 4 : 3
       const contSymbol = i === arr.length - 1 ? ' ' : '├'
 
-      const routes = pageInfo.ssgPageRoutes.slice(0, previewPages)
-      if (totalRoutes > previewPages) {
-        const remaining = totalRoutes - previewPages
-        routes.push(`[+${remaining} more paths]`)
+      let routes: { route: string; duration: number; avgDuration?: number }[]
+      if (
+        pageInfo.ssgPageDurations &&
+        pageInfo.ssgPageDurations.some((d) => d > MIN_DURATION)
+      ) {
+        const previewPages = totalRoutes === 8 ? 8 : Math.min(totalRoutes, 7)
+        const routesWithDuration = pageInfo.ssgPageRoutes
+          .map((route, idx) => ({
+            route,
+            duration: pageInfo.ssgPageDurations![idx] || 0,
+          }))
+          .sort(({ duration: a }, { duration: b }) =>
+            // Sort by duration
+            // keep too small durations in original order at the end
+            a <= MIN_DURATION && b <= MIN_DURATION ? 0 : b - a
+          )
+        routes = routesWithDuration.slice(0, previewPages)
+        const remainingRoutes = routesWithDuration.slice(previewPages)
+        if (remainingRoutes.length) {
+          const remaining = remainingRoutes.length
+          const avgDuration = Math.round(
+            remainingRoutes.reduce(
+              (total, { duration }) => total + duration,
+              0
+            ) / remainingRoutes.length
+          )
+          routes.push({
+            route: `[+${remaining} more paths]`,
+            duration: 0,
+            avgDuration,
+          })
+        }
+      } else {
+        const previewPages = totalRoutes === 4 ? 4 : Math.min(totalRoutes, 3)
+        routes = pageInfo.ssgPageRoutes
+          .slice(0, previewPages)
+          .map((route) => ({ route, duration: 0 }))
+        if (totalRoutes > previewPages) {
+          const remaining = totalRoutes - previewPages
+          routes.push({ route: `[+${remaining} more paths]`, duration: 0 })
+        }
       }
 
-      routes.forEach((slug, index, { length }) => {
+      routes.forEach(({ route, duration, avgDuration }, index, { length }) => {
         const innerSymbol = index === length - 1 ? '└' : '├'
-        messages.push([`${contSymbol}   ${innerSymbol} ${slug}`, '', ''])
+        messages.push([
+          `${contSymbol}   ${innerSymbol} ${route}${
+            duration > MIN_DURATION ? ` (${getPrettyDuration(duration)})` : ''
+          }${
+            avgDuration && avgDuration > MIN_DURATION
+              ? ` (avg ${getPrettyDuration(avgDuration)})`
+              : ''
+          }`,
+          '',
+          '',
+        ])
       })
     }
   })
@@ -378,9 +462,10 @@ let cachedBuildManifest: BuildManifest | undefined
 let lastCompute: ComputeManifestShape | undefined
 let lastComputePageInfo: boolean | undefined
 
-async function computeFromManifest(
+export async function computeFromManifest(
   manifest: BuildManifest,
   distPath: string,
+  gzipSize: boolean = true,
   pageInfos?: Map<string, PageInfo>
 ): Promise<ComputeManifestShape> {
   if (
@@ -414,6 +499,8 @@ async function computeFromManifest(
     })
   })
 
+  const getSize = gzipSize ? fsStatGzip : fsStat
+
   const commonFiles = [...files.entries()]
     .filter(([, len]) => len === expected || len === Infinity)
     .map(([f]) => f)
@@ -426,7 +513,7 @@ async function computeFromManifest(
     stats = await Promise.all(
       commonFiles.map(
         async (f) =>
-          [f, await fsStatGzip(path.join(distPath, f))] as [string, number]
+          [f, await getSize(path.join(distPath, f))] as [string, number]
       )
     )
   } catch (_) {
@@ -438,7 +525,7 @@ async function computeFromManifest(
     uniqueStats = await Promise.all(
       uniqueFiles.map(
         async (f) =>
-          [f, await fsStatGzip(path.join(distPath, f))] as [string, number]
+          [f, await getSize(path.join(distPath, f))] as [string, number]
       )
     )
   } catch (_) {
@@ -486,9 +573,13 @@ function sum(a: number[]): number {
 export async function getJsPageSizeInKb(
   page: string,
   distPath: string,
-  buildManifest: BuildManifest
+  buildManifest: BuildManifest,
+  gzipSize: boolean = true,
+  computedManifestData?: ComputeManifestShape
 ): Promise<[number, number]> {
-  const data = await computeFromManifest(buildManifest, distPath)
+  const data =
+    computedManifestData ||
+    (await computeFromManifest(buildManifest, distPath, gzipSize))
 
   const fnFilterJs = (entry: string) => entry.endsWith('.js')
 
@@ -507,11 +598,13 @@ export async function getJsPageSizeInKb(
     data.commonFiles
   ).map(fnMapRealPath)
 
+  const getSize = gzipSize ? fsStatGzip : fsStat
+
   try {
     // Doesn't use `Promise.all`, as we'd double compute duplicate files. This
     // function is memoized, so the second one will instantly resolve.
-    const allFilesSize = sum(await Promise.all(allFilesReal.map(fsStatGzip)))
-    const selfFilesSize = sum(await Promise.all(selfFilesReal.map(fsStatGzip)))
+    const allFilesSize = sum(await Promise.all(allFilesReal.map(getSize)))
+    const selfFilesSize = sum(await Promise.all(selfFilesReal.map(getSize)))
 
     return [selfFilesSize, allFilesSize]
   } catch (_) {}
@@ -739,7 +832,7 @@ export async function isPageStatic(
   const isPageStaticSpan = trace('is-page-static-utils', parentId)
   return isPageStaticSpan.traceAsyncFn(async () => {
     try {
-      require('../next-server/lib/runtime-config').setConfig(runtimeEnvConfig)
+      require('../shared/lib/runtime-config').setConfig(runtimeEnvConfig)
       const components = await loadComponents(distDir, page, serverless)
       const mod = components.ComponentMod
       const Comp = mod.default || mod
@@ -854,7 +947,7 @@ export async function hasCustomGetInitialProps(
   runtimeEnvConfig: any,
   checkingApp: boolean
 ): Promise<boolean> {
-  require('../next-server/lib/runtime-config').setConfig(runtimeEnvConfig)
+  require('../shared/lib/runtime-config').setConfig(runtimeEnvConfig)
 
   const components = await loadComponents(distDir, page, isLikeServerless)
   let mod = components.ComponentMod
@@ -874,7 +967,7 @@ export async function getNamedExports(
   isLikeServerless: boolean,
   runtimeEnvConfig: any
 ): Promise<Array<string>> {
-  require('../next-server/lib/runtime-config').setConfig(runtimeEnvConfig)
+  require('../shared/lib/runtime-config').setConfig(runtimeEnvConfig)
   const components = await loadComponents(distDir, page, isLikeServerless)
   let mod = components.ComponentMod
 

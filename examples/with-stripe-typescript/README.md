@@ -3,7 +3,7 @@
 This is a full-stack TypeScript example using:
 
 - Frontend:
-  - Next.js and [SWR](https://github.com/zeit/swr)
+  - Next.js and [SWR](https://github.com/vercel/swr)
   - [react-stripe-js](https://github.com/stripe/react-stripe-js) for [Checkout](https://stripe.com/checkout) and [Elements](https://stripe.com/elements)
 - Backend
   - Next.js [API routes](https://nextjs.org/docs/api-routes/introduction)
@@ -47,7 +47,7 @@ Once you have access to [the environment variables you'll need](#required-config
   - Custom Amount Donation with redirect to Stripe Checkout:
     - Frontend: [pages/donate-with-checkout.tsx](pages/donate-with-checkout.tsx)
     - Backend: [pages/api/checkout_sessions/](pages/api/checkout_sessions/)
-    - Checkout payment result page that uses [SWR](https://github.com/zeit/swr) hooks to fetch the CheckoutSession status from the API route: [pages/result.tsx](pages/result.tsx).
+    - Checkout payment result page that uses [SWR](https://github.com/vercel/swr) hooks to fetch the CheckoutSession status from the API route: [pages/result.tsx](pages/result.tsx).
 - Stripe Elements
   - Custom Amount Donation with Stripe Elements & PaymentIntents (no redirect):
     - Frontend: [pages/donate-with-elements.tsx](pages/donate-with-checkout.tsx)

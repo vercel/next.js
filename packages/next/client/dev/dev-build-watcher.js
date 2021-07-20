@@ -66,7 +66,7 @@ export default function initializeBuildWatcher(toggleCallback) {
       case 'built':
       case 'sync':
         isBuilding = false
-        // Wait for the fade out transtion to complete
+        // Wait for the fade out transition to complete
         timeoutId = setTimeout(() => {
           isVisible = false
           updateContainer()

@@ -1,6 +1,5 @@
 {
-  "name": "with-paste-typescript",
-  "version": "0.1.0",
+  "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -11,8 +10,8 @@
     "@twilio-paste/icons": "^3.10.5",
     "next": "10.0.4",
     "prop-types": "^15.7.2",
-    "react": "16.14.0",
-    "react-dom": "16.14.0"
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2"
   },
   "devDependencies": {
     "@types/node": "^14.14.16",

@@ -83,7 +83,7 @@ export function renderViaHTTP(appPort, pathname, query, opts) {
 
 export function fetchViaHTTP(appPort, pathname, query, opts) {
   const url = `http://localhost:${appPort}${pathname}${
-    query ? `?${qs.stringify(query)}` : ''
+    typeof query === 'string' ? query : query ? `?${qs.stringify(query)}` : ''
   }`
   return fetch(url, opts)
 }
@@ -166,7 +166,9 @@ export function runNextCommand(argv, options = {}) {
 }
 
 export function runNextCommandDev(argv, stdOut, opts = {}) {
-  const cwd = path.dirname(require.resolve('next/package'))
+  const nextDir = path.dirname(require.resolve('next/package'))
+  const nextBin = path.join(nextDir, 'dist/bin/next')
+  const cwd = opts.cwd || nextDir
   const env = {
     ...process.env,
     NODE_ENV: undefined,
@@ -175,11 +177,10 @@ export function runNextCommandDev(argv, stdOut, opts = {}) {
   }
 
   return new Promise((resolve, reject) => {
-    const instance = spawn(
-      'node',
-      ['--no-deprecation', 'dist/bin/next', ...argv],
-      { cwd, env }
-    )
+    const instance = spawn('node', ['--no-deprecation', nextBin, ...argv], {
+      cwd,
+      env,
+    })
     let didResolve = false
 
     function handleStdout(data) {
@@ -251,6 +252,10 @@ export function nextExport(dir, { outdir }, opts = {}) {
 
 export function nextExportDefault(dir, opts = {}) {
   return runNextCommand(['export', dir], opts)
+}
+
+export function nextLint(dir, args = [], opts = {}) {
+  return runNextCommand(['lint', dir, ...args], opts)
 }
 
 export function nextStart(dir, port, opts = {}) {

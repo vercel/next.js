@@ -3,14 +3,33 @@ import { isWebpack5 } from 'next/dist/compiled/webpack/webpack'
 import { realpathSync } from 'fs'
 import path from 'path'
 
+const originModules = [
+  require.resolve('../../../server/require'),
+  require.resolve('../../../server/load-components'),
+]
+
 function deleteCache(filePath: string) {
   try {
-    delete require.cache[realpathSync(filePath)]
+    filePath = realpathSync(filePath)
   } catch (e) {
     if (e.code !== 'ENOENT') throw e
-  } finally {
-    delete require.cache[filePath]
   }
+  const module = require.cache[filePath]
+  if (module) {
+    // remove the child reference from the originModules
+    for (const originModule of originModules) {
+      const parent = require.cache[originModule]
+      if (parent) {
+        const idx = parent.children.indexOf(module)
+        if (idx >= 0) parent.children.splice(idx, 1)
+      }
+    }
+    // remove parent references from external modules
+    for (const child of module.children) {
+      child.parent = null
+    }
+  }
+  delete require.cache[filePath]
 }
 
 const PLUGIN_NAME = 'NextJsRequireCacheHotReloader'

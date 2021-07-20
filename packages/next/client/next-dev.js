@@ -1,12 +1,15 @@
 /* globals __REPLACE_NOOP_IMPORT__ */
-import initNext, * as next from './'
+import { initNext, version, router, emitter, render, renderError } from './'
 import EventSourcePolyfill from './dev/event-source-polyfill'
 import initOnDemandEntries from './dev/on-demand-entries-client'
 import initWebpackHMR from './dev/webpack-hot-middleware-client'
 import initializeBuildWatcher from './dev/dev-build-watcher'
 import { displayContent } from './dev/fouc'
 import { addMessageListener } from './dev/error-overlay/eventsource'
-import * as querystring from '../next-server/lib/router/utils/querystring'
+import {
+  assign,
+  urlQueryToSearchParams,
+} from '../shared/lib/router/utils/querystring'
 
 // Temporary workaround for the issue described here:
 // https://github.com/vercel/next.js/issues/3775#issuecomment-407438123
@@ -27,9 +30,18 @@ const {
 const prefix = assetPrefix || ''
 const webpackHMR = initWebpackHMR()
 
-window.next = next
+window.next = {
+  version,
+  // router is initialized later so it has to be live-binded
+  get router() {
+    return router
+  },
+  emitter,
+  render,
+  renderError,
+}
 initNext({ webpackHMR })
-  .then(({ renderCtx, render }) => {
+  .then(({ renderCtx }) => {
     initOnDemandEntries({ assetPrefix: prefix })
 
     let buildIndicatorHandler = () => {}
@@ -46,9 +58,8 @@ initNext({ webpackHMR })
           })
       } else if (event.data.indexOf('serverOnlyChanges') !== -1) {
         const { pages } = JSON.parse(event.data)
-        const router = window.next.router
 
-        if (pages.includes(router.pathname)) {
+        if (!router.clc && pages.includes(router.pathname)) {
           console.log('Refreshing page data due to server-side change')
 
           buildIndicatorHandler('building')
@@ -60,8 +71,8 @@ initNext({ webpackHMR })
               router.pathname +
                 '?' +
                 String(
-                  querystring.assign(
-                    querystring.urlQueryToSearchParams(router.query),
+                  assign(
+                    urlQueryToSearchParams(router.query),
                     new URLSearchParams(location.search)
                   )
                 ),

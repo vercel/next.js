@@ -3,8 +3,8 @@ import {
   isWebpack5,
   sources,
 } from 'next/dist/compiled/webpack/webpack'
-import { PAGES_MANIFEST } from '../../../next-server/lib/constants'
-import getRouteFromEntrypoint from '../../../next-server/server/get-route-from-entrypoint'
+import { PAGES_MANIFEST } from '../../../shared/lib/constants'
+import getRouteFromEntrypoint from '../../../server/get-route-from-entrypoint'
 
 export type PagesManifest = { [page: string]: string }
 
@@ -38,7 +38,7 @@ export default class PagesManifestPlugin implements webpack.Plugin {
             !file.includes('webpack-runtime') && file.endsWith('.js')
         )
 
-      if (files.length > 1) {
+      if (!isWebpack5 && files.length > 1) {
         console.log(
           `Found more than one file in server entrypoint ${entrypoint.name}`,
           files
@@ -47,7 +47,7 @@ export default class PagesManifestPlugin implements webpack.Plugin {
       }
 
       // Write filename, replace any backslashes in path (on windows) with forwardslashes for cross-platform consistency.
-      pages[pagePath] = files[0]
+      pages[pagePath] = files[files.length - 1]
 
       if (isWebpack5 && !this.dev) {
         pages[pagePath] = pages[pagePath].slice(3)
