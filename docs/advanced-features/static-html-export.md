@@ -17,7 +17,7 @@ The exported app supports almost every feature of Next.js, including dynamic rou
 
 `next export` works by prerendering all pages to HTML. For [dynamic routes](/docs/routing/dynamic-routes.md), your page can export a [`getStaticPaths`](/docs/basic-features/data-fetching.md#getstaticpaths-static-generation) function to let the exporter know which HTML pages to generate for that route.
 
-> `next export` is intended for scenarios where **none** of your pages have server-side or incremental data requirements (though statically-rendered pages can still [fetch data on the client side](/docs/basic-features/data-fetching.md#fetching-data-on-the-client-side) just fine).
+> `next export` is intended for scenarios where **none** of your pages have server-side or incremental data requirements (though statically-rendered pages can still [fetch data on the client side](/docs/basic-features/data-fetching.md#fetching-data-on-the-client-side)).
 >
 > If you're looking to make a hybrid site where only _some_ pages are prerendered to static HTML, Next.js already does that automatically for you! Read up on [Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md) for details.
 >

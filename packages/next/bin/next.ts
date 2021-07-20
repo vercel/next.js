@@ -20,6 +20,7 @@ const commands: { [command: string]: () => Promise<cliCommand> } = {
   start: () => import('../cli/next-start').then((i) => i.nextStart),
   export: () => import('../cli/next-export').then((i) => i.nextExport),
   dev: () => import('../cli/next-dev').then((i) => i.nextDev),
+  lint: () => import('../cli/next-lint').then((i) => i.nextLint),
   telemetry: () => import('../cli/next-telemetry').then((i) => i.nextTelemetry),
 }
 
@@ -117,7 +118,7 @@ commands[command]()
   })
 
 if (command === 'dev') {
-  const { CONFIG_FILE } = require('../next-server/lib/constants')
+  const { CONFIG_FILE } = require('../shared/lib/constants')
   const { watchFile } = require('fs')
   watchFile(`${process.cwd()}/${CONFIG_FILE}`, (cur: any, prev: any) => {
     if (cur.size > 0 || prev.size > 0) {

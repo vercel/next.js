@@ -1,11 +1,10 @@
 {
-  "name": "with-custom-reverse-proxy",
-  "license": "MIT",
+  "private": true,
   "dependencies": {
     "express": "^4.15.3",
     "next": "latest",
-    "react": "16.13.1",
-    "react-dom": "16.13.1",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
     "swr": "0.2.0"
   },
   "devDependencies": {

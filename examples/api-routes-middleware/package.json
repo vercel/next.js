@@ -1,6 +1,5 @@
 {
-  "name": "api-routes-middleware",
-  "version": "1.0.0",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",
@@ -9,8 +8,8 @@
   "dependencies": {
     "cookie": "0.4.0",
     "next": "latest",
-    "react": "^16.8.6",
-    "react-dom": "^16.8.6",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
     "swr": "0.1.18"
   },
   "license": "MIT"

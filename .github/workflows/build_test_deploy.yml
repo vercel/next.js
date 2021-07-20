@@ -55,7 +55,7 @@ jobs:
         with:
           path: ./*
           key: ${{ github.sha }}
-      - run: ./check-pre-compiled.sh
+      - run: ./scripts/check-pre-compiled.sh
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
   testUnit:
@@ -146,7 +146,7 @@ jobs:
           path: ./*
           key: ${{ github.sha }}
 
-      - run: bash ./test-pnp.sh
+      - run: bash ./scripts/test-pnp.sh
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
   testsPass:
@@ -156,15 +156,15 @@ jobs:
     steps:
       - run: exit 0
 
-  testFutureDependencies:
-    name: Webpack 5 (Basic, Production, Acceptance)
+  testLegacyWebpack:
+    name: Webpack 4 (Basic, Production, Acceptance)
     runs-on: ubuntu-latest
     needs: build
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
       HEADLESS: true
-      NEXT_PRIVATE_TEST_WEBPACK5_MODE: 1
+      NEXT_PRIVATE_TEST_WEBPACK4_MODE: 1
 
     steps:
       - uses: actions/cache@v2
@@ -174,42 +174,8 @@ jobs:
           path: ./*
           key: ${{ github.sha }}
 
-      - run: xvfb-run node run-tests.js test/integration/{fallback-modules,link-ref,production,basic,async-modules,font-optimization,ssr-ctx}/test/index.test.js test/acceptance/*.test.js
+      - run: xvfb-run node run-tests.js test/integration/{basic,fallback-modules,link-ref,production,async-modules,font-optimization,ssr-ctx}/test/index.test.js test/acceptance/*.test.js
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
-
-  testLegacyReact:
-    name: React 16 + Webpack 4 (Basic, Production, Acceptance)
-    runs-on: ubuntu-latest
-    env:
-      NEXT_TELEMETRY_DISABLED: 1
-      NEXT_TEST_JOB: 1
-      HEADLESS: true
-
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          fetch-depth: 25
-
-      - run: echo ::set-output name=DOCS_CHANGE::$(node skip-docs-change.js echo 'not-docs-only-change')
-        id: docs-change
-
-      - run: git fetch --depth=1 origin +refs/tags/*:refs/tags/*
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
-
-      - run: cat package.json | jq '.resolutions.react = "^16.14.0"' > package.json.tmp && mv package.json.tmp package.json
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
-
-      - run: cat package.json | jq '.resolutions."react-dom" = "^16.14.0"' > package.json.tmp && mv package.json.tmp package.json
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
-
-      - run: yarn install --check-files
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
-
-      - run: yarn list react react-dom
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
-
-      - run: xvfb-run node run-tests.js test/integration/{link-ref,production,basic,async-modules,font-optimization,ssr-ctx,worker-loader}/test/index.test.js test/acceptance/*.test.js
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
 
   testFirefox:
     name: Test Firefox (production)
@@ -217,7 +183,7 @@ jobs:
     needs: build
     env:
       HEADLESS: true
-      BROWSERNAME: 'firefox'
+      BROWSER_NAME: 'firefox'
       NEXT_TELEMETRY_DISABLED: 1
     steps:
       - uses: actions/cache@v2
@@ -226,7 +192,7 @@ jobs:
         with:
           path: ./*
           key: ${{ github.sha }}
-      - run: node run-tests.js test/integration/production/test/index.test.js
+      - run: node run-tests.js -c 1 test/integration/production/test/index.test.js
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
   testSafari:
@@ -235,7 +201,7 @@ jobs:
     needs: build
     env:
       BROWSERSTACK: true
-      BROWSERNAME: 'safari'
+      BROWSER_NAME: 'safari'
       NEXT_TELEMETRY_DISABLED: 1
       SKIP_LOCAL_SELENIUM_SERVER: true
       BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
@@ -247,7 +213,7 @@ jobs:
         with:
           path: ./*
           key: ${{ github.sha }}
-      - run: '[[ -z "$BROWSERSTACK_ACCESS_KEY" ]] && echo "Skipping for PR" || node run-tests.js test/integration/production/test/index.test.js'
+      - run: '[[ -z "$BROWSERSTACK_ACCESS_KEY" ]] && echo "Skipping for PR" || node run-tests.js -c 1 test/integration/production/test/index.test.js'
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
   testSafariOld:
@@ -257,7 +223,7 @@ jobs:
     env:
       BROWSERSTACK: true
       LEGACY_SAFARI: true
-      BROWSERNAME: 'safari'
+      BROWSER_NAME: 'safari'
       NEXT_TELEMETRY_DISABLED: 1
       SKIP_LOCAL_SELENIUM_SERVER: true
       BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
@@ -269,7 +235,7 @@ jobs:
         with:
           path: ./*
           key: ${{ github.sha }}
-      - run: '[[ -z "$BROWSERSTACK_ACCESS_KEY" ]] && echo "Skipping for PR" || node run-tests.js test/integration/production-nav/test/index.test.js'
+      - run: '[[ -z "$BROWSERSTACK_ACCESS_KEY" ]] && echo "Skipping for PR" || node run-tests.js -c 1 test/integration/production-nav/test/index.test.js'
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
   publishRelease:
@@ -285,7 +251,7 @@ jobs:
           path: ./*
           key: ${{ github.sha }}
 
-      - run: ./publish-release.sh
+      - run: ./scripts/publish-release.sh
 
   prStats:
     name: Release Stats
@@ -297,7 +263,7 @@ jobs:
         with:
           path: ./*
           key: ${{ github.sha }}
-      - run: ./release-stats.sh
+      - run: ./scripts/release-stats.sh
       - uses: ./.github/actions/next-stats-action
         env:
           PR_STATS_COMMENT_TOKEN: ${{ secrets.PR_STATS_COMMENT_TOKEN }}
