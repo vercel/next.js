@@ -128,7 +128,7 @@ If you need a different provider, you can use the [`loader`](/docs/api-reference
 
 > The `next/image` component's default loader is not supported when using [`next export`](/docs/advanced-features/static-html-export.md). However, other loader options will work.
 
-> By default, Next.js uses the ['squoosh'](https://github.com/GoogleChromeLabs/squoosh/tree/dev/cli) library for image resizing and optimization. This library is quick to install and suitable for a dev server environment. If you are going to use the default image loader and built-in image optimizer in production, it is strongly recommended that you install the optional [`sharp`](https://github.com/lovell/sharp) image optimization library. Do this by running `yarn add sharp` in your application directory.
+> The `next/image` component's default loader uses the ['squoosh'](https://www.npmjs.com/package/@squoosh/lib) library for image resizing and optimization. This library is quick to install and suitable for a dev server environment. For a production environment, it is strongly recommended that you install the optional [`sharp`](https://www.npmjs.com/package/sharp) library by running `yarn add sharp` in your project directory.
 
 ## Caching
 
