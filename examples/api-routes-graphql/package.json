@@ -6,12 +6,12 @@
     "start": "next start"
   },
   "dependencies": {
-    "apollo-server-micro": "2.11.0",
-    "graphql": "14.6.0",
+    "apollo-server-micro": "^3.0.1",
+    "graphql": "^15.5.1",
     "next": "latest",
     "react": "^17.0.2",
     "react-dom": "^17.0.2",
-    "swr": "0.1.18"
+    "swr": "^0.5.6"
   },
   "license": "MIT"
 }

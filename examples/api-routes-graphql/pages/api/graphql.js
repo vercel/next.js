@@ -1,4 +1,4 @@
-import { ApolloServer, gql } from 'apollo-server-micro'
+import { ApolloServer, gql } from "apollo-server-micro";
 
 const typeDefs = gql`
   type Query {
@@ -7,22 +7,39 @@ const typeDefs = gql`
   type User {
     name: String
   }
-`
+`;
 
 const resolvers = {
   Query: {
     users(parent, args, context) {
-      return [{ name: 'Nextjs' }]
+      return [{ name: 'Nextjs' }];
     },
   },
-}
+};
 
-const apolloServer = new ApolloServer({ typeDefs, resolvers })
+const apolloServer = new ApolloServer({ typeDefs, resolvers });
+
+const startServer = apolloServer.start();
+
+export default async (req, res) => {
+  if (req.method === "OPTIONS") {
+    res.end();
+    return false;
+  }
+  res.setHeader("Access-Control-Allow-Credentials", "true");
+  res.setHeader(
+    "Access-Control-Allow-Origin",
+    "https://studio.apollographql.com"
+  );
+
+  await startServer;
+  await apolloServer.createHandler({
+    path: "/api/graphql",
+  })(req, res);
+};
 
 export const config = {
   api: {
     bodyParser: false,
   },
-}
-
-export default apolloServer.createHandler({ path: '/api/graphql' })
+};
