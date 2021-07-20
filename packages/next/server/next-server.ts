@@ -135,11 +135,11 @@ export type ServerConstructor = {
 }
 
 type RequestContext = {
-  kind: 'STATIC'
   req: IncomingMessage
   res: ServerResponse
   pathname: string
   query: ParsedUrlQuery
+  renderOpts: RenderOptsPartial
 }
 
 export default class Server {
@@ -1332,7 +1332,10 @@ export default class Server {
   ): Promise<void> {
     const ctx = {
       ...partialContext,
-      kind: 'STATIC',
+      renderOpts: {
+        ...this.renderOpts,
+        requireStaticHTML: false,
+      },
     } as const
     const payload = await fn(ctx)
     if (payload === null) {
@@ -1371,7 +1374,10 @@ export default class Server {
   ): Promise<string | null> {
     const payload = await fn({
       ...partialContext,
-      kind: 'STATIC',
+      renderOpts: {
+        ...this.renderOpts,
+        requireStaticHTML: true,
+      },
     })
     return payload ? payload.body : null
   }
@@ -1516,10 +1522,14 @@ export default class Server {
   }
 
   private async renderToResponseWithComponents(
-    { req, res, pathname }: RequestContext,
+    { req, res, pathname, renderOpts }: RequestContext,
     { components, query }: FindComponentsResult,
-    opts: RenderOptsPartial
+    overrideRenderOpts: RenderOptsPartial
   ): Promise<ResponsePayload | null> {
+    const opts = {
+      ...renderOpts,
+      ...overrideRenderOpts,
+    }
     const is404Page = pathname === '/404'
     const is500Page = pathname === '/500'
 
@@ -2018,7 +2028,6 @@ export default class Server {
         if (this.minimalMode && res.statusCode === 500) {
           throw err
         }
-
         return response
       },
       { req, res, pathname, query }
