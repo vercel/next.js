@@ -83,11 +83,7 @@ describe('disabled runtime JS', () => {
       const $ = cheerio.load(html)
       expect($('script#__NEXT_DATA__').length).toBe(1)
     })
-    it('should have preload links', async () => {
-      const html = await renderViaHTTP(appPort, '/')
-      const $ = cheerio.load(html)
-      expect($('link[rel=preload]').length).toBeGreaterThan(0)
-    })
+
     it('should have a script for each preload link', async () => {
       const html = await renderViaHTTP(appPort, '/')
       const $ = cheerio.load(html)

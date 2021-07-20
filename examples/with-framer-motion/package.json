@@ -1,6 +1,5 @@
 {
-  "name": "with-framer-motion",
-  "version": "1.0.0",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",
@@ -9,8 +8,8 @@
   "dependencies": {
     "framer-motion": "latest",
     "next": "latest",
-    "react": "16.11.0",
-    "react-dom": "16.11.0"
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2"
   },
   "license": "MIT"
 }

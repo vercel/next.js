@@ -1,5 +1,5 @@
 /* eslint-env jest */
-import { parseRelativeUrl } from 'next/dist/next-server/lib/router/utils/parse-relative-url'
+import { parseRelativeUrl } from 'next/dist/shared/lib/router/utils/parse-relative-url'
 
 // convenience function so tests can be aligned neatly
 // and easy to eyeball

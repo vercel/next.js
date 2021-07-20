@@ -30,6 +30,18 @@ const appDir = join(__dirname, '../')
 const buildIdPath = join(appDir, '.next/BUILD_ID')
 
 function runTests(dev) {
+  it('should support long URLs for dynamic routes', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/dash/a9btBxtHQALZ6cxfuj18X6OLGNSkJVzrOXz41HG4QwciZfn7ggRZzPx21dWqGiTBAqFRiWvVNm5ko2lpyso5jtVaXg88dC1jKfqI2qmIcdeyJat8xamrIh2LWnrYRrsBcoKfQU65KHod8DPANuzPS3fkVYWlmov05GQbc82HwR1exOvPVKUKb5gBRWiN0WOh7hN4QyezIuq3dJINAptFQ6m2bNGjYACBRk4MOSHdcQG58oq5Ch7luuqrl9EcbWSa'
+    )
+
+    const html = await res.text()
+    expect(res.status).toBe(200)
+    expect(html).toContain('hi')
+    expect(html).toContain('/dash/[hello-world]')
+  })
+
   it('should handle only query on dynamic route', async () => {
     const browser = await webdriver(appPort, '/post-1')
 
@@ -950,20 +962,6 @@ function runTests(dev) {
   it('should respond with bad request with invalid encoding', async () => {
     const res = await fetchViaHTTP(appPort, '/%')
     expect(res.status).toBe(400)
-  })
-
-  it('should preload buildManifest for auto-export dynamic pages', async () => {
-    const html = await renderViaHTTP(appPort, '/on-mount/hello')
-    const $ = cheerio.load(html)
-    let found = 0
-
-    for (const el of Array.from($('link[rel="preload"]'))) {
-      const { href } = el.attribs
-      if (href.includes('_buildManifest')) {
-        found++
-      }
-    }
-    expect(found).toBe(1)
   })
 
   it('should not preload buildManifest for non-auto export dynamic pages', async () => {

@@ -1,6 +1,5 @@
 {
-  "name": "custom-server-koa",
-  "version": "1.0.0",
+  "private": true,
   "scripts": {
     "dev": "node server.js",
     "build": "next build",
@@ -11,8 +10,8 @@
     "cross-env": "^5.2.0",
     "koa": "^2.13.0",
     "next": "latest",
-    "react": "^16.7.0",
-    "react-dom": "^16.7.0"
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2"
   },
   "license": "MIT"
 }

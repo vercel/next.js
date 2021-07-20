@@ -34,7 +34,7 @@ const runTests = (isDev) => {
 
   it('should render error correctly', async () => {
     const text = await renderViaHTTP(appPort, '/err')
-    expect(text).toContain(isDev ? 'oops' : 'An unexpected error has occurred')
+    expect(text).toContain(isDev ? 'oops' : 'Internal Server Error')
   })
 
   it('should not show an error in the logs for 404 SSG', async () => {
