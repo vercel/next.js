@@ -1,4 +1,4 @@
-const loaderUtils = require('loader-utils')
+import { getOptions } from 'next/dist/compiled/loader-utils'
 const { transform, transformSync } = require('../../swc/core')
 
 function makeLoader() {
@@ -7,7 +7,7 @@ function makeLoader() {
     const callback = this.async()
     const filename = this.resourcePath
 
-    let loaderOptions = loaderUtils.getOptions(this) || {}
+    let loaderOptions = getOptions(this) || {}
 
     // Standardize on 'sourceMaps' as the key passed through to Webpack, so that
     // users may safely use either one alongside our default use of
