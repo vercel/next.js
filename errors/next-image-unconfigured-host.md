@@ -17,10 +17,6 @@ module.exports = {
 }
 ```
 
-### Using Docker
-
-If deploying to docker containers with a custom `next.config.js` make sure to copy your `next.config.js` file over to the app serve directory to accommodate the runtime config, otherwise you will still receive this error. See https://nextjs.org/docs/deployment#docker-image
-
 ### Useful Links
 
 - [Image Optimization Documentation](https://nextjs.org/docs/basic-features/image-optimization)
