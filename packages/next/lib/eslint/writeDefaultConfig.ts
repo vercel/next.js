@@ -49,35 +49,35 @@ export async function writeDefaultConfig(
         )
       )
     }
-  } else if (
-    packageJsonConfig?.eslintConfig &&
-    Object.entries(packageJsonConfig?.eslintConfig).length === 0
-  ) {
-    packageJsonConfig.eslintConfig = defaultConfig
+  } else if (packageJsonConfig?.eslintConfig) {
+    // Creates .eslintrc only if package.json's eslintConfig field is empty
+    if (Object.entries(packageJsonConfig?.eslintConfig).length === 0) {
+      packageJsonConfig.eslintConfig = defaultConfig
 
-    if (pkgJsonPath)
-      await fs.writeFile(
-        pkgJsonPath,
-        CommentJson.stringify(packageJsonConfig, null, 2) + os.EOL
-      )
+      if (pkgJsonPath)
+        await fs.writeFile(
+          pkgJsonPath,
+          CommentJson.stringify(packageJsonConfig, null, 2) + os.EOL
+        )
 
-    console.log(
-      chalk.green(
-        `We detected an empty ${chalk.bold(
-          'eslintConfig'
-        )} field in package.json and updated it for you to include the base Next.js ESLint configuration.`
+      console.log(
+        chalk.green(
+          `We detected an empty ${chalk.bold(
+            'eslintConfig'
+          )} field in package.json and updated it for you to include the base Next.js ESLint configuration.`
+        )
       )
-    )
+    }
   } else {
     await fs.writeFile(
-      '.eslintrc',
+      '.eslintrc.json',
       CommentJson.stringify(defaultConfig, null, 2) + os.EOL
     )
 
     console.log(
       chalk.green(
         `We created the ${chalk.bold(
-          '.eslintrc'
+          '.eslintrc.json'
         )} file for you and included the base Next.js ESLint configuration.`
       )
     )

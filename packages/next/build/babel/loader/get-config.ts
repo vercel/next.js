@@ -1,12 +1,14 @@
 import { readFileSync } from 'fs'
+import JSON5 from 'next/dist/compiled/json5'
 
 import { createConfigItem, loadOptions } from 'next/dist/compiled/babel/core'
 import loadConfig from 'next/dist/compiled/babel/core-lib-config'
 
 import { NextBabelLoaderOptions, NextJsLoaderContext } from './types'
 import { consumeIterator } from './util'
+import * as Log from '../../output/log'
 
-const nextDistPath = /(next[\\/]dist[\\/]next-server[\\/]lib)|(next[\\/]dist[\\/]client)|(next[\\/]dist[\\/]pages)/
+const nextDistPath = /(next[\\/]dist[\\/]shared[\\/]lib)|(next[\\/]dist[\\/]client)|(next[\\/]dist[\\/]pages)/
 
 /**
  * The properties defined here are the conditions with which subsets of inputs
@@ -151,7 +153,7 @@ const isJsFile = /\.js$/
 function getCustomBabelConfig(configFilePath: string) {
   if (isJsonFile.exec(configFilePath)) {
     const babelConfigRaw = readFileSync(configFilePath, 'utf8')
-    return JSON.parse(babelConfigRaw)
+    return JSON5.parse(babelConfigRaw)
   } else if (isJsFile.exec(configFilePath)) {
     return require(configFilePath)
   }
@@ -179,11 +181,6 @@ function getFreshConfig(
     hasJsxRuntime,
     configFile,
   } = loaderOptions
-
-  // Ensures webpack invalidates the cache for this loader when the config file changes
-  if (configFile) {
-    this.addDependency(configFile)
-  }
 
   let customConfig: any = configFile
     ? getCustomBabelConfig(configFile)
@@ -328,6 +325,11 @@ export default function getConfig(
     filename
   )
 
+  if (loaderOptions.configFile) {
+    // Ensures webpack invalidates the cache for this loader when the config file changes
+    this.addDependency(loaderOptions.configFile)
+  }
+
   const cacheKey = getCacheKey(cacheCharacteristics)
   if (configCache.has(cacheKey)) {
     const cachedConfig = configCache.get(cacheKey)
@@ -342,6 +344,12 @@ export default function getConfig(
         sourceFileName: filename,
       },
     }
+  }
+
+  if (loaderOptions.configFile) {
+    Log.info(
+      `Using external babel configuration from ${loaderOptions.configFile}`
+    )
   }
 
   const freshConfig = getFreshConfig.call(

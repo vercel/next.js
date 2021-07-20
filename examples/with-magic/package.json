@@ -1,5 +1,5 @@
 {
-  "name": "with-magic",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",
@@ -11,8 +11,8 @@
     "cookie": "0.4.0",
     "magic-sdk": "1.0.1",
     "next": "latest",
-    "react": "latest",
-    "react-dom": "latest",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
     "swr": "0.5.5"
   },
   "license": "MIT"

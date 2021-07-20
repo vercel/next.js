@@ -1,6 +1,5 @@
 {
-  "name": "with-ionic-typescript",
-  "version": "0.1.0",
+  "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -11,8 +10,8 @@
     "@ionic/core": "^5.4.1",
     "ionicons": "^5.2.3",
     "next": "latest",
-    "react": "17.0.1",
-    "react-dom": "17.0.1"
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2"
   },
   "devDependencies": {
     "@types/node": "^14.14.6",

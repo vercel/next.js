@@ -1,6 +1,5 @@
 {
-  "name": "with-mobx-state-tree",
-  "version": "1.0.0",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",
@@ -11,10 +10,11 @@
     "mobx-react": "^4.0.4",
     "mobx-state-tree": "1.0.1",
     "next": "latest",
-    "react": "^16.7.0",
-    "react-dom": "^16.7.0"
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2"
   },
   "devDependencies": {
+    "@babel/core": "7.14.5",
     "@babel/plugin-proposal-decorators": "^7.1.2"
   },
   "license": "MIT"

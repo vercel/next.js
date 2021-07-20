@@ -1,39 +1,5 @@
 import React, { useCallback, useState } from 'react'
 import { useInView } from 'react-intersection-observer'
-//  type ResponsiveImageType = {
-//   aspectRatio: number;
-//   base64?: string | null;
-//   height?: number | null;
-//   width: number;
-//   sizes?: string | null;
-//   src?: string | null;
-//   srcSet?: string | null;
-//   webpSrcSet?: string | null;
-//   bgColor?: string | null;
-//   alt?: string | null;
-//   title?: string | null;
-// };
-
-// type ImagePropTypes = {
-//   data: ResponsiveImageType;
-//   className?: string;
-//   pictureClassName?: string;
-//   fadeInDuration?: number;
-//   intersectionTreshold?: number;
-//   intersectionMargin?: string;
-//   lazyLoad?: boolean;
-//   style?: React.CSSProperties;
-//   pictureStyle?: React.CSSProperties;
-//   explicitWidth?: boolean;
-// };
-
-// type State = {
-//   lazyLoad: boolean;
-//   isSsr: boolean;
-//   isIntersectionObserverAvailable: boolean;
-//   inView: boolean;
-//   loaded: boolean;
-// };
 
 const imageAddStrategy = ({
   lazyLoad,
