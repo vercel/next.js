@@ -6,6 +6,8 @@ const NUM_OF_MICROSEC_IN_SEC = BigInt('1000')
 
 const getId = () => randomBytes(8).toString('hex')
 
+// eslint typescript has a bug with TS enums
+/* eslint-disable no-shadow */
 export enum SpanStatus {
   Started,
   Stopped,
@@ -69,7 +71,7 @@ export class Span {
     }
   }
 
-  async traceAsyncFn(fn: any) {
+  async traceAsyncFn<T>(fn: () => T | Promise<T>): Promise<T> {
     try {
       return await fn()
     } finally {

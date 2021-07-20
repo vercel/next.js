@@ -1,6 +1,6 @@
 import curry from 'next/dist/compiled/lodash.curry'
 import path from 'path'
-import { webpack } from 'next/dist/compiled/webpack/webpack'
+import { webpack, isWebpack5 } from 'next/dist/compiled/webpack/webpack'
 import MiniCssExtractPlugin from '../../../plugins/mini-css-extract-plugin'
 import { loader, plugin } from '../../helpers'
 import { ConfigurationContext, ConfigurationFn, pipe } from '../../utils'
@@ -14,7 +14,7 @@ import {
 import { getPostCssPlugins } from './plugins'
 
 // RegExps for all Style Sheet variants
-const regexLikeCss = /\.(css|scss|sass)$/
+export const regexLikeCss = /\.(css|scss|sass)(\.webpack\[javascript\/auto\])?$/
 
 // RegExps for Style Sheets
 const regexCssGlobal = /(?<!\.module)\.css$/
@@ -198,10 +198,12 @@ export const css = curry(async function css(
             include: { and: [/node_modules/] },
             // Global CSS is only supported in the user's application, not in
             // node_modules.
-            issuer: {
-              and: [ctx.rootDirectory],
-              not: [/node_modules/],
-            },
+            issuer: ctx.isCraCompat
+              ? undefined
+              : {
+                  and: [ctx.rootDirectory],
+                  not: [/node_modules/],
+                },
             use: getGlobalCssLoader(ctx, postCssPlugins),
           },
         ],
@@ -245,22 +247,24 @@ export const css = curry(async function css(
   }
 
   // Throw an error for Global CSS used inside of `node_modules`
-  fns.push(
-    loader({
-      oneOf: [
-        {
-          test: [regexCssGlobal, regexSassGlobal],
-          issuer: { and: [/node_modules/] },
-          use: {
-            loader: 'error-loader',
-            options: {
-              reason: getGlobalModuleImportError(),
+  if (!ctx.isCraCompat) {
+    fns.push(
+      loader({
+        oneOf: [
+          {
+            test: [regexCssGlobal, regexSassGlobal],
+            issuer: { and: [/node_modules/] },
+            use: {
+              loader: 'error-loader',
+              options: {
+                reason: getGlobalModuleImportError(),
+              },
             },
           },
-        },
-      ],
-    })
-  )
+        ],
+      })
+    )
+  }
 
   // Throw an error for Global CSS used outside of our custom <App> file
   fns.push(
@@ -292,7 +296,12 @@ export const css = curry(async function css(
             // This should only be applied to CSS files
             issuer: regexLikeCss,
             // Exclude extensions that webpack handles by default
-            exclude: [/\.(js|mjs|jsx|ts|tsx)$/, /\.html$/, /\.json$/],
+            exclude: [
+              /\.(js|mjs|jsx|ts|tsx)$/,
+              /\.html$/,
+              /\.json$/,
+              /\.webpack\[[^\]]+\]$/,
+            ],
             use: {
               // `file-loader` always emits a URL reference, where `url-loader`
               // might inline the asset as a data URI
@@ -314,6 +323,7 @@ export const css = curry(async function css(
       plugin(
         // @ts-ignore webpack 5 compat
         new MiniCssExtractPlugin({
+          experimentalUseImportModule: isWebpack5,
           filename: 'static/css/[contenthash].css',
           chunkFilename: 'static/css/[contenthash].css',
           // Next.js guarantees that CSS order "doesn't matter", due to imposed

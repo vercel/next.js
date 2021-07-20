@@ -1,6 +1,5 @@
 {
-  "name": "with-grommet",
-  "version": "1.0.0",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",
@@ -9,9 +8,9 @@
   "dependencies": {
     "grommet": "^2.5.5",
     "next": "latest",
-    "react": "^16.7.0",
-    "react-dom": "^16.7.0",
-    "styled-components": "^4.0.0"
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
+    "styled-components": "^5.3.0"
   },
   "devDependencies": {
     "babel-plugin-styled-components": "^1.8.0"

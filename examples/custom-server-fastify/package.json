@@ -1,6 +1,5 @@
 {
-  "name": "custom-server-fastify",
-  "version": "1.0.0",
+  "private": true,
   "scripts": {
     "dev": "node ./server.js",
     "build": "next build",
@@ -8,10 +7,10 @@
   },
   "dependencies": {
     "cross-env": "^7.0.2",
-    "fastify": "^2.12.1",
+    "fastify": "^3.19.1",
     "next": "latest",
-    "react": "^16.13.0",
-    "react-dom": "^16.13.0"
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2"
   },
   "license": "MIT"
 }

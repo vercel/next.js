@@ -18,6 +18,18 @@ const linterConfig = {
     },
   },
 }
+const linterConfigWithMultipleDirectories = {
+  ...linterConfig,
+  rules: {
+    'no-html-link-for-pages': [
+      2,
+      [
+        path.join(__dirname, 'custom-pages'),
+        path.join(__dirname, 'custom-pages/list'),
+      ],
+    ],
+  },
+}
 
 linter.defineRules({
   'no-html-link-for-pages': rule,
@@ -108,6 +120,17 @@ describe('no-html-link-for-pages', function () {
     assert.deepEqual(report, [])
   })
 
+  it('valid link element with multiple directories', function () {
+    const report = linter.verify(
+      validCode,
+      linterConfigWithMultipleDirectories,
+      {
+        filename: 'foo.js',
+      }
+    )
+    assert.deepEqual(report, [])
+  })
+
   it('valid anchor element', function () {
     const report = linter.verify(validAnchorCode, linterConfig, {
       filename: 'foo.js',
@@ -129,7 +152,7 @@ describe('no-html-link-for-pages', function () {
     assert.notEqual(report, undefined, 'No lint errors found.')
     assert.equal(
       report.message,
-      "You're using <a> tag to navigate to /. Use Link from 'next/link' to make sure the app behaves like an SPA."
+      "Do not use the HTML <a> tag to navigate to /. Use Link from 'next/link' instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages."
     )
   })
 
@@ -140,7 +163,7 @@ describe('no-html-link-for-pages', function () {
     assert.notEqual(report, undefined, 'No lint errors found.')
     assert.equal(
       report.message,
-      "You're using <a> tag to navigate to /list/blah/. Use Link from 'next/link' to make sure the app behaves like an SPA."
+      "Do not use the HTML <a> tag to navigate to /list/blah/. Use Link from 'next/link' instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages."
     )
   })
 })

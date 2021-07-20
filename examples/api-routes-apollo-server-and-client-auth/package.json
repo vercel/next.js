@@ -1,6 +1,5 @@
 {
-  "name": "api-routes-apollo-server-and-client-auth",
-  "version": "1.0.0",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",
@@ -15,8 +14,8 @@
     "graphql": "^14.0.2",
     "next": "latest",
     "prop-types": "^15.6.2",
-    "react": "^16.7.0",
-    "react-dom": "^16.7.0",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
     "uuid": "8.1.0"
   },
   "license": "MIT"

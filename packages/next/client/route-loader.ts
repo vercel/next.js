@@ -1,6 +1,6 @@
 import { ComponentType } from 'react'
 import { ClientBuildManifest } from '../build/webpack/plugins/build-manifest-plugin'
-import getAssetPathFromRoute from '../next-server/lib/router/utils/get-asset-path-from-route'
+import getAssetPathFromRoute from '../shared/lib/router/utils/get-asset-path-from-route'
 import { requestIdleCallback } from './request-idle-callback'
 
 // 3.8s was arbitrarily chosen as it's what https://web.dev/interactive
@@ -68,7 +68,7 @@ function withFuture<T>(
 export interface RouteLoader {
   whenEntrypoint(route: string): Promise<RouteEntrypoint>
   onEntrypoint(route: string, execute: () => unknown): void
-  loadRoute(route: string): Promise<RouteLoaderEntry>
+  loadRoute(route: string, prefetch?: boolean): Promise<RouteLoaderEntry>
   prefetch(route: string): Promise<void>
 }
 
@@ -93,7 +93,7 @@ function prefetchViaDom(
   as: string,
   link?: HTMLLinkElement
 ): Promise<any> {
-  return new Promise((res, rej) => {
+  return new Promise<void>((res, rej) => {
     if (document.querySelector(`link[rel="prefetch"][href^="${href}"]`)) {
       return res()
     }
@@ -104,7 +104,7 @@ function prefetchViaDom(
     if (as) link!.as = as
     link!.rel = `prefetch`
     link!.crossOrigin = process.env.__NEXT_CROSS_ORIGIN!
-    link!.onload = res
+    link!.onload = res as any
     link!.onerror = rej
 
     // `href` should always be last:
@@ -149,6 +149,39 @@ function appendScript(
   })
 }
 
+// We wait for pages to be built in dev before we start the route transition
+// timeout to prevent an un-necessary hard navigation in development.
+let devBuildPromise: Promise<void> | undefined
+let devBuildResolve: (() => void) | undefined
+
+if (process.env.NODE_ENV === 'development') {
+  const { addMessageListener } = require('./dev/error-overlay/eventsource')
+
+  addMessageListener((event: any) => {
+    // This is the heartbeat event
+    if (event.data === '\uD83D\uDC93') {
+      return
+    }
+
+    const obj =
+      typeof event === 'string' ? { action: event } : JSON.parse(event.data)
+
+    switch (obj.action) {
+      case 'built':
+      case 'sync':
+        if (devBuildResolve) {
+          devBuildResolve()
+          devBuildResolve = undefined
+        }
+
+        break
+
+      default:
+        break
+    }
+  })
+}
+
 // Resolve a promise that times out after given amount of milliseconds.
 function resolvePromiseWithTimeout<T>(
   p: Promise<T>,
@@ -164,19 +197,35 @@ function resolvePromiseWithTimeout<T>(
       resolve(r)
     }).catch(reject)
 
-    requestIdleCallback(() =>
-      setTimeout(() => {
-        if (!cancelled) {
-          reject(err)
-        }
-      }, ms)
-    )
+    // We wrap these checks separately for better dead-code elimination in
+    // production bundles.
+    if (process.env.NODE_ENV === 'development') {
+      ;(devBuildPromise || Promise.resolve()).then(() => {
+        requestIdleCallback(() =>
+          setTimeout(() => {
+            if (!cancelled) {
+              reject(err)
+            }
+          }, ms)
+        )
+      })
+    }
+
+    if (process.env.NODE_ENV !== 'development') {
+      requestIdleCallback(() =>
+        setTimeout(() => {
+          if (!cancelled) {
+            reject(err)
+          }
+        }, ms)
+      )
+    }
   })
 }
 
 // TODO: stop exporting or cache the failure
 // It'd be best to stop exporting this. It's an implementation detail. We're
-// only exporting it for backwards compatibilty with the `page-loader`.
+// only exporting it for backwards compatibility with the `page-loader`.
 // Only cache this response as a last resort if we cannot eliminate all other
 // code branches that use the Build Manifest Callback and push them through
 // the Route Loader interface.
@@ -191,7 +240,7 @@ export function getClientBuildManifest(): Promise<ClientBuildManifest> {
     // Mandatory because this is not concurrent safe:
     const cb = self.__BUILD_MANIFEST_CB
     self.__BUILD_MANIFEST_CB = () => {
-      resolve(self.__BUILD_MANIFEST)
+      resolve(self.__BUILD_MANIFEST!)
       cb && cb()
     }
   })
@@ -236,7 +285,7 @@ function getFilesForRoute(
   })
 }
 
-function createRouteLoader(assetPrefix: string): RouteLoader {
+export function createRouteLoader(assetPrefix: string): RouteLoader {
   const entrypoints: Map<
     string,
     Future<RouteEntrypoint> | RouteEntrypoint
@@ -305,33 +354,47 @@ function createRouteLoader(assetPrefix: string): RouteLoader {
           if (old && 'resolve' in old) old.resolve(input)
         })
     },
-    loadRoute(route: string) {
-      return withFuture<RouteLoaderEntry>(route, routes, async () => {
-        try {
-          const { scripts, css } = await getFilesForRoute(assetPrefix, route)
-          const [, styles] = await Promise.all([
-            entrypoints.has(route)
-              ? []
-              : Promise.all(scripts.map(maybeExecuteScript)),
-            Promise.all(css.map(fetchStyleSheet)),
-          ] as const)
-
-          const entrypoint: RouteEntrypoint = await resolvePromiseWithTimeout(
-            this.whenEntrypoint(route),
-            MS_MAX_IDLE_DELAY,
-            markAssetError(
-              new Error(`Route did not complete loading: ${route}`)
-            )
-          )
-
-          const res: RouteLoaderEntry = Object.assign<
-            { styles: RouteStyleSheet[] },
-            RouteEntrypoint
-          >({ styles }, entrypoint)
-          return 'error' in entrypoint ? entrypoint : res
-        } catch (err) {
-          return { error: err }
+    loadRoute(route: string, prefetch?: boolean) {
+      return withFuture<RouteLoaderEntry>(route, routes, () => {
+        if (process.env.NODE_ENV === 'development') {
+          devBuildPromise = new Promise<void>((resolve) => {
+            devBuildResolve = resolve
+          })
         }
+
+        return resolvePromiseWithTimeout(
+          getFilesForRoute(assetPrefix, route)
+            .then(({ scripts, css }) => {
+              return Promise.all([
+                entrypoints.has(route)
+                  ? []
+                  : Promise.all(scripts.map(maybeExecuteScript)),
+                Promise.all(css.map(fetchStyleSheet)),
+              ] as const)
+            })
+            .then((res) => {
+              return this.whenEntrypoint(route).then((entrypoint) => ({
+                entrypoint,
+                styles: res[1],
+              }))
+            }),
+          MS_MAX_IDLE_DELAY,
+          markAssetError(new Error(`Route did not complete loading: ${route}`))
+        )
+          .then(({ entrypoint, styles }) => {
+            const res: RouteLoaderEntry = Object.assign<
+              { styles: RouteStyleSheet[] },
+              RouteEntrypoint
+            >({ styles: styles! }, entrypoint)
+            return 'error' in entrypoint ? entrypoint : res
+          })
+          .catch((err) => {
+            if (prefetch) {
+              // we don't want to cache errors during prefetch
+              throw err
+            }
+            return { error: err }
+          })
       })
     },
     prefetch(route: string): Promise<void> {
@@ -351,7 +414,7 @@ function createRouteLoader(assetPrefix: string): RouteLoader {
           )
         )
         .then(() => {
-          requestIdleCallback(() => this.loadRoute(route))
+          requestIdleCallback(() => this.loadRoute(route, true).catch(() => {}))
         })
         .catch(
           // swallow prefetch errors
@@ -360,5 +423,3 @@ function createRouteLoader(assetPrefix: string): RouteLoader {
     },
   }
 }
-
-export default createRouteLoader

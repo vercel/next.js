@@ -7,7 +7,7 @@ import {
   sources,
 } from 'next/dist/compiled/webpack/webpack'
 import pLimit from 'p-limit'
-import jestWorker from 'jest-worker'
+import { Worker } from 'jest-worker'
 import crypto from 'crypto'
 import cacache from 'next/dist/compiled/cacache'
 import { spans } from '../../profiling-plugin'
@@ -102,7 +102,7 @@ class Webpack4Cache {
   }
 }
 
-class TerserPlugin {
+export class TerserPlugin {
   constructor(options = {}) {
     const { cacheDir, terserOptions = {}, parallel } = options
 
@@ -192,13 +192,10 @@ class TerserPlugin {
           return initializedWorker
         }
 
-        initializedWorker = new jestWorker(
-          path.join(__dirname, './minify.js'),
-          {
-            numWorkers: numberOfWorkers,
-            enableWorkerThreads: true,
-          }
-        )
+        initializedWorker = new Worker(path.join(__dirname, './minify.js'), {
+          numWorkers: numberOfWorkers,
+          enableWorkerThreads: true,
+        })
 
         initializedWorker.getStdout().pipe(process.stdout)
         initializedWorker.getStderr().pipe(process.stderr)
@@ -403,5 +400,3 @@ class TerserPlugin {
     })
   }
 }
-
-export default TerserPlugin

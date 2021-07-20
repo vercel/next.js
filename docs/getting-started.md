@@ -6,7 +6,7 @@ description: Get started with Next.js in the official documentation, and learn m
 
 Welcome to the Next.js documentation!
 
-If you're new to Next.js we recommend that you start with the [learn course](https://nextjs.org/learn/basics/getting-started).
+If you're new to Next.js we recommend that you start with the [learn course](https://nextjs.org/learn/basics/create-nextjs-app).
 
 The interactive course with quizzes will guide you through everything you need to know to use Next.js.
 
@@ -14,7 +14,7 @@ If you have questions about anything related to Next.js, you're always welcome t
 
 #### System Requirements
 
-- [Node.js 10.13](https://nodejs.org/) or later
+- [Node.js 12.0](https://nodejs.org/) or later
 - MacOS, Windows (including WSL), and Linux are supported
 
 ## Setup
@@ -25,6 +25,14 @@ We recommend creating a new Next.js app using `create-next-app`, which sets up e
 npx create-next-app
 # or
 yarn create next-app
+```
+
+If you want to start with a TypeScript project you can use the `--typescript` flag:
+
+```bash
+npx create-next-app --typescript
+# or
+yarn create next-app --typescript
 ```
 
 After the installation is complete, follow the instructions to start the development server. Try editing `pages/index.js` and see the result on your browser.
@@ -47,7 +55,8 @@ Open `package.json` and add the following `scripts`:
 "scripts": {
   "dev": "next dev",
   "build": "next build",
-  "start": "next start"
+  "start": "next start",
+  "lint": "next lint"
 }
 ```
 
@@ -56,6 +65,7 @@ These scripts refer to the different stages of developing an application:
 - `dev` - Runs [`next dev`](/docs/api-reference/cli.md#development) which starts Next.js in development mode
 - `build` - Runs [`next build`](/docs/api-reference/cli.md#build) which builds the application for production usage
 - `start` - Runs [`next start`](/docs/api-reference/cli.md#production) which starts a Next.js production server
+- `lint` - Runs [`next lint`](/docs/api-reference/cli.md#lint) which sets up Next.js' built-in ESLint configuration
 
 Next.js is built around the concept of [pages](/docs/basic-features/pages.md). A page is a [React Component](https://reactjs.org/docs/components-and-props.html) exported from a `.js`, `.jsx`, `.ts`, or `.tsx` file in the `pages` directory.
 

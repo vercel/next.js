@@ -4,13 +4,13 @@ import { join } from 'path'
 import { parse } from 'querystring'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { API_ROUTE } from '../../../../lib/constants'
-import { isDynamicRoute } from '../../../../next-server/lib/router/utils'
-import { __ApiPreviewProps } from '../../../../next-server/server/api-utils'
+import { isDynamicRoute } from '../../../../shared/lib/router/utils'
+import { __ApiPreviewProps } from '../../../../server/api-utils'
 import {
   BUILD_MANIFEST,
   ROUTES_MANIFEST,
   REACT_LOADABLE_MANIFEST,
-} from '../../../../next-server/lib/constants'
+} from '../../../../shared/lib/constants'
 import { trace } from '../../../../telemetry/trace'
 
 export type ServerlessLoaderQuery = {
@@ -99,33 +99,35 @@ const nextServerlessLoader: webpack.loader.Loader = function () {
           */
           runtimeConfigSetter
         }
-        import initServer from 'next-plugin-loader?middleware=on-init-server!'
-        import onError from 'next-plugin-loader?middleware=on-error-server!'
-        import 'next/dist/next-server/server/node-polyfill-fetch'
+        import 'next/dist/server/node-polyfill-fetch'
         import routesManifest from '${routesManifest}'
 
         import { getApiHandler } from 'next/dist/build/webpack/loaders/next-serverless-loader/api-handler'
 
+        const combinedRewrites = Array.isArray(routesManifest.rewrites)
+          ? routesManifest.rewrites
+          : []
+
+        if (!Array.isArray(routesManifest.rewrites)) {
+          combinedRewrites.push(...routesManifest.rewrites.beforeFiles)
+          combinedRewrites.push(...routesManifest.rewrites.afterFiles)
+          combinedRewrites.push(...routesManifest.rewrites.fallback)
+        }
+
         const apiHandler = getApiHandler({
           pageModule: require("${absolutePagePath}"),
-          rewrites: routesManifest.rewrites,
+          rewrites: combinedRewrites,
           i18n: ${i18n || 'undefined'},
           page: "${page}",
           basePath: "${basePath}",
           pageIsDynamic: ${pageIsDynamicRoute},
-          encodedPreviewProps: ${encodedPreviewProps},
-          experimental: {
-            onError,
-            initServer,
-          }
+          encodedPreviewProps: ${encodedPreviewProps}
         })
         export default apiHandler
       `
     } else {
       return `
-      import initServer from 'next-plugin-loader?middleware=on-init-server!'
-      import onError from 'next-plugin-loader?middleware=on-error-server!'
-      import 'next/dist/next-server/server/node-polyfill-fetch'
+      import 'next/dist/server/node-polyfill-fetch'
       import routesManifest from '${routesManifest}'
       import buildManifest from '${buildManifest}'
       import reactLoadableManifest from '${reactLoadableManifest}'
@@ -160,6 +162,16 @@ const nextServerlessLoader: webpack.loader.Loader = function () {
       export let config = compMod['confi' + 'g'] || (compMod.then && compMod.then(mod => mod['confi' + 'g'])) || {}
       export const _app = App
 
+      const combinedRewrites = Array.isArray(routesManifest.rewrites)
+        ? routesManifest.rewrites
+        : []
+
+      if (!Array.isArray(routesManifest.rewrites)) {
+        combinedRewrites.push(...routesManifest.rewrites.beforeFiles)
+        combinedRewrites.push(...routesManifest.rewrites.afterFiles)
+        combinedRewrites.push(...routesManifest.rewrites.fallback)
+      }
+
       const { renderReqToHTML, render } = getPageHandler({
         pageModule: compMod,
         pageComponent: Component,
@@ -183,18 +195,14 @@ const nextServerlessLoader: webpack.loader.Loader = function () {
         buildManifest,
         reactLoadableManifest,
 
-        rewrites: routesManifest.rewrites,
+        rewrites: combinedRewrites,
         i18n: ${i18n || 'undefined'},
         page: "${page}",
         buildId: "${buildId}",
         escapedBuildId: "${escapedBuildId}",
         basePath: "${basePath}",
         pageIsDynamic: ${pageIsDynamicRoute},
-        encodedPreviewProps: ${encodedPreviewProps},
-        experimental: {
-          onError,
-          initServer,
-        }
+        encodedPreviewProps: ${encodedPreviewProps}
       })
       export { renderReqToHTML, render }
     `

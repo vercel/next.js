@@ -22,8 +22,20 @@
               "path": "/docs/basic-features/built-in-css-support.md"
             },
             {
+              "title": "Layouts",
+              "path": "/docs/basic-features/layouts.md"
+            },
+            {
               "title": "Image Optimization",
               "path": "/docs/basic-features/image-optimization.md"
+            },
+            {
+              "title": "Font Optimization",
+              "path": "/docs/basic-features/font-optimization.md"
+            },
+            {
+              "title": "Script Optimization",
+              "path": "/docs/basic-features/script.md"
             },
             {
               "title": "Static File Serving",
@@ -32,6 +44,10 @@
             {
               "title": "Fast Refresh",
               "path": "/docs/basic-features/fast-refresh.md"
+            },
+            {
+              "title": "ESLint",
+              "path": "/docs/basic-features/eslint.md"
             },
             {
               "title": "TypeScript",
@@ -88,6 +104,10 @@
               "path": "/docs/api-routes/response-helpers.md"
             }
           ]
+        },
+        {
+          "title": "Going to Production",
+          "path": "/docs/going-to-production.md"
         },
         {
           "title": "Deployment",
@@ -196,6 +216,10 @@
             {
               "title": "Internationalized Routing",
               "path": "/docs/advanced-features/i18n-routing.md"
+            },
+            {
+              "title": "Security Headers",
+              "path": "/docs/advanced-features/security-headers.md"
             }
           ]
         },
@@ -335,6 +359,10 @@
             {
               "title": "Configuring onDemandEntries",
               "path": "/docs/api-reference/next.config.js/configuring-onDemandEntries.md"
+            },
+            {
+              "title": "Ignoring ESLint",
+              "path": "/docs/api-reference/next.config.js/ignoring-eslint.md"
             },
             {
               "title": "Ignoring TypeScript Errors",

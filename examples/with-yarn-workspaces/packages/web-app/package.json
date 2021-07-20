@@ -1,6 +1,5 @@
 {
-  "name": "web-app",
-  "version": "1.0.0",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",
@@ -8,9 +7,9 @@
   },
   "dependencies": {
     "next": "latest",
-    "next-transpile-modules": "^4.0.2",
-    "react": "^16.8.3",
-    "react-dom": "^16.8.3"
+    "next-transpile-modules": "^7.3.0",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2"
   },
   "license": "ISC"
 }

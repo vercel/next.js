@@ -2,14 +2,14 @@ import chalk from 'chalk'
 import { posix, join } from 'path'
 import { stringify } from 'querystring'
 import { API_ROUTE, DOT_NEXT_ALIAS, PAGES_DIR_ALIAS } from '../lib/constants'
-import { __ApiPreviewProps } from '../next-server/server/api-utils'
-import { isTargetLikeServerless } from '../next-server/server/config'
-import { normalizePagePath } from '../next-server/server/normalize-page-path'
+import { __ApiPreviewProps } from '../server/api-utils'
+import { isTargetLikeServerless } from '../server/config'
+import { normalizePagePath } from '../server/normalize-page-path'
 import { warn } from './output/log'
 import { ClientPagesLoaderOptions } from './webpack/loaders/next-client-pages-loader'
 import { ServerlessLoaderQuery } from './webpack/loaders/next-serverless-loader'
 import { LoadedEnvFiles } from '@next/env'
-import { NextConfig } from '../next-server/server/config'
+import { NextConfigComplete } from '../server/config-shared'
 
 type PagesMapping = {
   [page: string]: string
@@ -53,7 +53,13 @@ export function createPagesMapping(
 }
 
 export type WebpackEntrypoints = {
-  [bundle: string]: string | string[]
+  [bundle: string]:
+    | string
+    | string[]
+    | {
+        import: string | string[]
+        dependOn?: string | string[]
+      }
 }
 
 type Entrypoints = {
@@ -66,7 +72,7 @@ export function createEntrypoints(
   target: 'server' | 'serverless' | 'experimental-serverless-trace',
   buildId: string,
   previewMode: __ApiPreviewProps,
-  config: NextConfig,
+  config: NextConfigComplete,
   loadedEnvFiles: LoadedEnvFiles
 ): Entrypoints {
   const client: WebpackEntrypoints = {}
@@ -84,9 +90,9 @@ export function createEntrypoints(
     distDir: DOT_NEXT_ALIAS,
     buildId,
     assetPrefix: config.assetPrefix,
-    generateEtags: config.generateEtags,
+    generateEtags: config.generateEtags ? 'true' : '',
     poweredByHeader: config.poweredByHeader,
-    canonicalBase: config.amp.canonicalBase,
+    canonicalBase: config.amp.canonicalBase || '',
     basePath: config.basePath,
     runtimeConfig: hasRuntimeConfig
       ? JSON.stringify({
