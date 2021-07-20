@@ -75,7 +75,12 @@ import { sendPayload, setRevalidateHeaders } from './send-payload'
 import { serveStatic } from './serve-static'
 import { IncrementalCache } from './incremental-cache'
 import { execOnce } from '../shared/lib/utils'
-import { isBlockedPage } from './utils'
+import {
+  isBlockedPage,
+  RenderResult,
+  resultFromChunks,
+  resultToChunks,
+} from './utils'
 import { loadEnvConfig } from '@next/env'
 import './node-polyfill-fetch'
 import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
@@ -1351,10 +1356,12 @@ export default class Server {
         // In dev, we should not cache pages for any reason.
         res.setHeader('Cache-Control', 'no-store, must-revalidate')
       }
+      const chunks = await resultToChunks(body)
       return sendPayload(
         req,
         res,
-        body,
+        // TODO: Support streaming chunks
+        chunks.join(''),
         type,
         {
           generateEtags,
@@ -1381,7 +1388,8 @@ export default class Server {
         requireStaticHTML: true,
       },
     })
-    return payload ? payload.body : null
+    const chunks = payload ? await resultToChunks(payload.body) : []
+    return chunks.length > 0 ? chunks.join('') : null
   }
 
   public async render(
@@ -1683,7 +1691,7 @@ export default class Server {
 
     const doRender: () => Promise<ResponseCacheEntry> = async () => {
       let pageData: any
-      let html: string | null
+      let body: RenderResult | null
       let sprRevalidate: number | false
       let isNotFound: boolean | undefined
       let isRedirect: boolean | undefined
@@ -1706,7 +1714,7 @@ export default class Server {
           }
         )
 
-        html = renderResult.html
+        body = resultFromChunks([renderResult.html])
         pageData = renderResult.renderOpts.pageData
         sprRevalidate = renderResult.renderOpts.revalidate
         isNotFound = renderResult.renderOpts.isNotFound
@@ -1746,7 +1754,7 @@ export default class Server {
 
         renderResult = await renderToHTML(req, res, pathname, query, renderOpts)
 
-        html = renderResult
+        body = renderResult
         // TODO: change this to a different passing mechanism
         pageData = (renderOpts as any).pageData
         sprRevalidate = (renderOpts as any).revalidate
@@ -1760,7 +1768,7 @@ export default class Server {
       } else if (isRedirect) {
         value = { kind: 'REDIRECT', props: pageData }
       } else {
-        value = { kind: 'PAGE', html: html!, pageData }
+        value = { kind: 'PAGE', html: body!, pageData }
       }
       return { revalidate: sprRevalidate, value }
     }
@@ -1827,7 +1835,7 @@ export default class Server {
               return {
                 value: {
                   kind: 'PAGE',
-                  html,
+                  html: resultFromChunks([html]),
                   pageData: {},
                 },
               }
@@ -1888,7 +1896,7 @@ export default class Server {
       if (isDataReq) {
         return {
           type: 'json',
-          body: JSON.stringify(cachedData.props),
+          body: resultFromChunks([JSON.stringify(cachedData.props)]),
           revalidateOptions,
         }
       } else {
@@ -1898,7 +1906,9 @@ export default class Server {
     } else {
       return {
         type: isDataReq ? 'json' : 'html',
-        body: isDataReq ? JSON.stringify(cachedData.pageData) : cachedData.html,
+        body: isDataReq
+          ? resultFromChunks([JSON.stringify(cachedData.pageData)])
+          : cachedData.html,
         revalidateOptions,
       }
     }
@@ -2132,7 +2142,7 @@ export default class Server {
       }
       return {
         type: 'html',
-        body: 'Internal Server Error',
+        body: resultFromChunks(['Internal Server Error']),
       }
     }
   }
@@ -2332,6 +2342,6 @@ export class WrappedBuildError extends Error {
 
 type ResponsePayload = {
   type: 'html' | 'json'
-  body: string
+  body: RenderResult
   revalidateOptions?: any
 }
