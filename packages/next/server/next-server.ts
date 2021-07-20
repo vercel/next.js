@@ -1522,17 +1522,9 @@ export default class Server {
   }
 
   private async renderToResponseWithComponents(
-    { req, res, pathname, renderOpts }: RequestContext,
-    { components, query }: FindComponentsResult,
-    extraRenderOpts?: {
-      err?: Error | null
-      params?: ParsedUrlQuery
-    }
+    { req, res, pathname, renderOpts: opts }: RequestContext,
+    { components, query }: FindComponentsResult
   ): Promise<ResponsePayload | null> {
-    const opts = {
-      ...renderOpts,
-      ...(extraRenderOpts ?? {}),
-    }
     const is404Page = pathname === '/404'
     const is500Page = pathname === '/500'
 
@@ -1949,9 +1941,12 @@ export default class Server {
                 {
                   ...ctx,
                   pathname: dynamicRoute.page,
+                  renderOpts: {
+                    ...ctx.renderOpts,
+                    params,
+                  },
                 },
-                dynamicRouteResult,
-                { params }
+                dynamicRouteResult
               )
             } catch (err) {
               const isNoFallbackError = err instanceof NoFallbackError
@@ -2092,11 +2087,12 @@ export default class Server {
           {
             ...ctx,
             pathname: statusPage,
+            renderOpts: {
+              ...ctx.renderOpts,
+              err,
+            },
           },
-          result!,
-          {
-            err,
-          }
+          result!
         )
       } catch (maybeFallbackError) {
         if (maybeFallbackError instanceof NoFallbackError) {
@@ -2117,17 +2113,18 @@ export default class Server {
           {
             ...ctx,
             pathname: '/_error',
+            renderOpts: {
+              ...ctx.renderOpts,
+              // We render `renderToHtmlError` here because `err` is
+              // already captured in the stacktrace.
+              err: isWrappedError
+                ? renderToHtmlError.innerError
+                : renderToHtmlError,
+            },
           },
           {
             query,
             components: fallbackComponents,
-          },
-          {
-            // We render `renderToHtmlError` here because `err` is
-            // already captured in the stacktrace.
-            err: isWrappedError
-              ? renderToHtmlError.innerError
-              : renderToHtmlError,
           }
         )
       }
