@@ -285,7 +285,7 @@ function getFilesForRoute(
   })
 }
 
-function createRouteLoader(assetPrefix: string): RouteLoader {
+export function createRouteLoader(assetPrefix: string): RouteLoader {
   const entrypoints: Map<
     string,
     Future<RouteEntrypoint> | RouteEntrypoint
@@ -423,5 +423,3 @@ function createRouteLoader(assetPrefix: string): RouteLoader {
     },
   }
 }
-
-export default createRouteLoader

@@ -280,6 +280,10 @@
           "path": "/errors/no-document-viewport-meta.md"
         },
         {
+          "title": "no-duplicate-head",
+          "path": "/errors/no-duplicate-head.md"
+        },
+        {
           "title": "no-head-import-in-document",
           "path": "/errors/no-head-import-in-document.md"
         },
@@ -410,6 +414,18 @@
         {
           "title": "import-esm-externals",
           "path": "/errors/import-esm-externals.md"
+        },
+        {
+          "title": "max-custom-routes-reached",
+          "path": "max-custom-routes-reached.md"
+        },
+        {
+          "title": "static-page-generation-timeout",
+          "path": "/errors/static-page-generation-timeout.md"
+        },
+        {
+          "title": "page-data-collection-timeout",
+          "path": "/errors/page-data-collection-timeout.md"
         }
       ]
     }

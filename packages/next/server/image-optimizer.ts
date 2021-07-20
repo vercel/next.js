@@ -48,7 +48,13 @@ export async function imageOptimizer(
   isDev = false
 ) {
   const imageData: ImageConfig = nextConfig.images || imageConfigDefault
-  const { deviceSizes = [], imageSizes = [], domains = [], loader } = imageData
+  const {
+    deviceSizes = [],
+    imageSizes = [],
+    domains = [],
+    loader,
+    minimumCacheTTL = 60,
+  } = imageData
 
   if (loader !== 'default') {
     await server.render404(req, res, parsedUrl)
@@ -244,6 +250,7 @@ export async function imageOptimizer(
         mockRes.setHeader = (name: string, value: string | string[]) =>
           (mockHeaders[name.toLowerCase()] = value)
         mockRes._implicitHeader = () => {}
+        mockRes.connection = res.connection
         mockRes.finished = false
         mockRes.statusCode = 200
 
@@ -258,6 +265,7 @@ export async function imageOptimizer(
         mockReq.headers = req.headers
         mockReq.method = req.method
         mockReq.url = href
+        mockReq.connection = req.connection
 
         await server.getRequestHandler()(
           mockReq,
@@ -278,7 +286,7 @@ export async function imageOptimizer(
       }
     }
 
-    const expireAt = maxAge * 1000 + now
+    const expireAt = Math.max(maxAge, minimumCacheTTL) * 1000 + now
 
     if (upstreamType) {
       const vector = VECTOR_TYPES.includes(upstreamType)
@@ -572,7 +580,6 @@ export function detectContentType(buffer: Buffer) {
 }
 
 export function getMaxAge(str: string | null): number {
-  const minimum = 60
   const map = parseCacheControl(str)
   if (map) {
     let age = map.get('s-maxage') || map.get('max-age') || ''
@@ -581,10 +588,10 @@ export function getMaxAge(str: string | null): number {
     }
     const n = parseInt(age, 10)
     if (!isNaN(n)) {
-      return Math.max(n, minimum)
+      return n
     }
   }
-  return minimum
+  return 0
 }
 
 export async function resizeImage(
