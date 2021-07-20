@@ -103,7 +103,7 @@ viewports and scale up for larger viewports.
 
 When `fill`, the image will stretch both width and height to the dimensions of
 the parent element, provided the parent element is relative. This is usually paired with the [`objectFit`](#objectFit) property. 
-Make sure that the parent element has `position: relative` in their stylesheet.
+Ensure the parent element has `position: relative` in their stylesheet.
 
 
 Try it out:
