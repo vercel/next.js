@@ -97,7 +97,7 @@ To enable Image Optimization for images hosted on an external website, use an ab
 ```js
 module.exports = {
   images: {
-    domains: ['example.com'],
+    domains: ['example.com', '*.example.com'],
   },
 }
 ```

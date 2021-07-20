@@ -3,6 +3,7 @@ import { createHash } from 'crypto'
 import { createReadStream, promises } from 'fs'
 import { getOrientation, Orientation } from 'get-orientation'
 import { IncomingMessage, ServerResponse } from 'http'
+import micromatch from 'micromatch'
 // @ts-ignore no types for is-animated
 import isAnimated from 'next/dist/compiled/is-animated'
 import { join } from 'path'
@@ -91,7 +92,7 @@ export async function imageOptimizer(
       return { finished: true }
     }
 
-    if (!domains.includes(hrefParsed.hostname)) {
+    if (!micromatch.isMatch(hrefParsed.hostname, domains)) {
       res.statusCode = 400
       res.end('"url" parameter is not allowed')
       return { finished: true }

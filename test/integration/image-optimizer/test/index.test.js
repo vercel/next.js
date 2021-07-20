@@ -780,6 +780,7 @@ describe('Image Optimizer', () => {
     'example.com',
     'assets.vercel.com',
     'image-optimization-test.vercel.app',
+    '*.vercel.app',
   ]
 
   describe('dev support w/o next.config.js', () => {
