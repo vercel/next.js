@@ -2,6 +2,7 @@ import { IncomingMessage, ServerResponse } from 'http'
 import { isResSent } from '../shared/lib/utils'
 import generateETag from 'etag'
 import fresh from 'next/dist/compiled/fresh'
+import { RenderResult } from './utils'
 
 export type PayloadOptions =
   | { private: true }
@@ -46,6 +47,34 @@ export function sendPayload(
   }: { generateEtags: boolean; poweredByHeader: boolean },
   options?: PayloadOptions
 ): void {
+  sendRenderResult({
+    req,
+    res,
+    resultOrPayload: payload,
+    type,
+    generateEtags,
+    poweredByHeader,
+    options,
+  })
+}
+
+export function sendRenderResult({
+  req,
+  res,
+  resultOrPayload,
+  type,
+  generateEtags,
+  poweredByHeader,
+  options,
+}: {
+  req: IncomingMessage
+  res: ServerResponse
+  resultOrPayload: RenderResult | string
+  type: 'html' | 'json'
+  generateEtags: boolean
+  poweredByHeader: boolean
+  options?: PayloadOptions
+}): void {
   if (isResSent(res)) {
     return
   }
@@ -54,9 +83,15 @@ export function sendPayload(
     res.setHeader('X-Powered-By', 'Next.js')
   }
 
-  const etag = generateEtags ? generateETag(payload) : undefined
-  if (sendEtagResponse(req, res, etag)) {
-    return
+  const isPayload = typeof resultOrPayload === 'string'
+
+  if (isPayload) {
+    const etag = generateEtags
+      ? generateETag(resultOrPayload as string)
+      : undefined
+    if (sendEtagResponse(req, res, etag)) {
+      return
+    }
   }
 
   if (!res.getHeader('Content-Type')) {
@@ -65,11 +100,27 @@ export function sendPayload(
       type === 'json' ? 'application/json' : 'text/html; charset=utf-8'
     )
   }
-  res.setHeader('Content-Length', Buffer.byteLength(payload))
+
+  if (isPayload) {
+    res.setHeader(
+      'Content-Length',
+      Buffer.byteLength(resultOrPayload as string)
+    )
+  }
+
   if (options != null) {
     setRevalidateHeaders(res, options)
   }
-  res.end(req.method === 'HEAD' ? null : payload)
+
+  if (isPayload) {
+    res.end(req.method === 'HEAD' ? null : (resultOrPayload as string))
+  } else {
+    ;(resultOrPayload as RenderResult)({
+      next: (chunk) => res.write(chunk),
+      error: (_) => res.end(),
+      complete: () => res.end(),
+    })
+  }
 }
 
 export function sendEtagResponse(

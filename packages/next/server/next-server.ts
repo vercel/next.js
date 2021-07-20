@@ -71,7 +71,7 @@ import Router, {
 import prepareDestination, {
   compileNonPath,
 } from '../shared/lib/router/utils/prepare-destination'
-import { sendPayload, setRevalidateHeaders } from './send-payload'
+import { sendRenderResult, setRevalidateHeaders } from './send-payload'
 import { serveStatic } from './serve-static'
 import { IncrementalCache } from './incremental-cache'
 import { execOnce } from '../shared/lib/utils'
@@ -1356,19 +1356,15 @@ export default class Server {
         // In dev, we should not cache pages for any reason.
         res.setHeader('Cache-Control', 'no-store, must-revalidate')
       }
-      const chunks = await resultToChunks(body)
-      return sendPayload(
+      return sendRenderResult({
         req,
         res,
-        // TODO: Support streaming chunks
-        chunks.join(''),
+        resultOrPayload: body,
         type,
-        {
-          generateEtags,
-          poweredByHeader,
-        },
-        revalidateOptions
-      )
+        generateEtags,
+        poweredByHeader,
+        options: revalidateOptions,
+      })
     }
   }
 
