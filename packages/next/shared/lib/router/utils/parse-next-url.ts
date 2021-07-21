@@ -12,7 +12,7 @@ interface Params {
 }
 
 export function parseNextUrl({ headers, nextConfig, url = '/' }: Params) {
-  const urlParsed: ParsedNextUrl = parseUrl(url)
+  const urlParsed: ParsedNextUrl = parseUrl(url.replace(/^\/+/, '/'))
   const { basePath } = nextConfig
 
   if (basePath && urlParsed.pathname.startsWith(basePath)) {
@@ -42,6 +42,8 @@ export function parseNextUrl({ headers, nextConfig, url = '/' }: Params) {
 
 export interface ParsedNextUrl extends ParsedUrl {
   basePath?: string
+  params?: { [key: string]: string }
+  page?: string
   locale?: {
     defaultLocale: string
     domain?: DomainLocale
