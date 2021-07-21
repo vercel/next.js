@@ -325,7 +325,7 @@ export default class Server {
     const url = parseNextUrl({
       headers: req.headers,
       nextConfig: this.nextConfig,
-      url: req.url,
+      url: req.url?.replace(/^\/+/, '/'),
     })
 
     if (url.basePath) {
