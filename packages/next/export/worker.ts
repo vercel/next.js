@@ -435,6 +435,7 @@ export default async function exportPage({
                 params
               )
             ).html
+            ampHtml = ampHtml ? (await resultToChunks(ampHtml)).join('') : ''
           } else {
             ampHtml = await renderMethod(
               req,
@@ -444,6 +445,7 @@ export default async function exportPage({
               { ...query, amp: '1' },
               curRenderOpts as any
             )
+            ampHtml = ampHtml ? (await resultToChunks(ampHtml)).join('') : ''
           }
 
           if (!curRenderOpts.ampSkipValidation) {
