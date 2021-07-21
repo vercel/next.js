@@ -34,6 +34,7 @@ import { finalizeEntrypoint } from './entries'
 import * as Log from './output/log'
 import { build as buildConfiguration } from './webpack/config'
 import { __overrideCssConfiguration } from './webpack/config/blocks/css/overrideCssConfiguration'
+import MiddlewareManifestPlugin from './webpack/plugins/middleware-manifest-plugin'
 import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
 import BuildStatsPlugin from './webpack/plugins/build-stats-plugin'
 import ChunkNamesPlugin from './webpack/plugins/chunk-names-plugin'
@@ -972,7 +973,12 @@ export default async function getBaseWebpackConfig(
           : false
         : splitChunksConfig,
       runtimeChunk: isServer
-        ? undefined
+        ? isWebpack5 && !isLikeServerless
+          ? {
+              name: ({ name }) =>
+                name.endsWith('_middleware') ? undefined : 'webpack-runtime',
+            }
+          : undefined
         : { name: CLIENT_STATIC_FILES_RUNTIME_WEBPACK },
       minimize: !(dev || isServer),
       minimizer: [
@@ -1333,6 +1339,7 @@ export default async function getBaseWebpackConfig(
       isServerless && isServer && new ServerlessPlugin(),
       isServer &&
         new PagesManifestPlugin({ serverless: isLikeServerless, dev }),
+      isServer && new MiddlewareManifestPlugin({ dev }),
       !isWebpack5 &&
         target === 'server' &&
         isServer &&
