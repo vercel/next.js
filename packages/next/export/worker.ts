@@ -455,11 +455,14 @@ export default async function exportPage({
             await validateAmp(ampChunks.join(''), page + '?amp=1')
           }
           await promises.mkdir(ampBaseDir, { recursive: true })
-          await promises.writeFile(
-            ampHtmlFilepath,
-            JSON.stringify(ampChunks),
-            'utf8'
-          )
+          await Promise.all([
+            promises.writeFile(ampHtmlFilepath, ampChunks.join(''), 'utf8'),
+            promises.writeFile(
+              ampHtmlFilepath + '.json',
+              JSON.stringify(ampChunks),
+              'utf8'
+            ),
+          ])
         }
       }
 
@@ -488,11 +491,14 @@ export default async function exportPage({
 
       if (!results.ssgNotFound) {
         // don't attempt writing to disk if getStaticProps returned not found
-        await promises.writeFile(
-          htmlFilepath,
-          JSON.stringify(htmlChunks),
-          'utf8'
-        )
+        await Promise.all([
+          promises.writeFile(htmlFilepath, htmlChunks.join(''), 'utf8'),
+          promises.writeFile(
+            htmlFilepath + '.json',
+            JSON.stringify(htmlChunks),
+            'utf8'
+          ),
+        ])
       }
     } catch (error) {
       console.error(
