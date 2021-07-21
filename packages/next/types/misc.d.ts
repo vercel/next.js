@@ -182,6 +182,14 @@ declare module 'next/dist/compiled/strip-ansi' {
   import m from 'strip-ansi'
   export = m
 }
+declare module 'next/dist/compiled/ua-parser-js' {
+  import m from 'ua-parser-js'
+  export = m
+}
+declare module 'next/dist/compiled/isbot' {
+  import m from 'isbot'
+  export = m
+}
 declare module 'next/dist/compiled/@vercel/nft' {
   import m from '@vercel/nft'
   export = m

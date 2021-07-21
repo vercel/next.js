@@ -112,7 +112,8 @@
     "use-subscription": "1.5.1",
     "util": "0.12.4",
     "vm-browserify": "1.1.2",
-    "watchpack": "2.1.1"
+    "watchpack": "2.1.1",
+    "web-streams-polyfill": "3.0.3"
   },
   "peerDependencies": {
     "fibers": ">= 3.1.0",
@@ -183,6 +184,8 @@
     "@types/send": "0.14.4",
     "@types/styled-jsx": "2.2.8",
     "@types/text-table": "0.2.1",
+    "@types/ua-parser-js": "0.7.36",
+    "@types/uuid": "8.3.1",
     "@types/webpack-sources1": "npm:@types/webpack-sources@0.1.5",
     "@vercel/ncc": "0.27.0",
     "@vercel/nft": "0.15.0",
@@ -216,6 +219,7 @@
     "ignore-loader": "0.1.2",
     "is-docker": "2.0.0",
     "is-wsl": "2.2.0",
+    "isbot": "3.3.2",
     "json5": "2.2.0",
     "jsonwebtoken": "8.5.1",
     "loader-utils": "2.0.0",
@@ -247,6 +251,7 @@
     "taskr": "1.1.0",
     "terser": "5.7.1",
     "text-table": "0.2.0",
+    "ua-parser-js": "0.7.28",
     "unistore": "3.4.1",
     "web-vitals": "2.1.0",
     "webpack-sources1": "npm:webpack-sources@1.4.3",
