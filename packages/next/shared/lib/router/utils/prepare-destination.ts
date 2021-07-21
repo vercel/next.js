@@ -1,6 +1,6 @@
 import type { IncomingMessage } from 'http'
 import type { ParsedUrlQuery } from 'querystring'
-import { parseURL } from './parse-url'
+import { parseUrl } from './parse-url'
 import * as pathToRegexp from 'next/dist/compiled/path-to-regexp'
 import type { RouteHas } from '../../../../lib/load-custom-routes'
 
@@ -152,7 +152,7 @@ export default function prepareDestination(
   delete query.__nextLocale
   delete query.__nextDefaultLocale
 
-  const parsedDestination = parseURL(destination)
+  const parsedDestination = parseUrl(destination)
   const destQuery = parsedDestination.query
   const destPath = `${parsedDestination.pathname!}${
     parsedDestination.hash || ''

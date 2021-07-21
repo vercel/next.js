@@ -13,7 +13,7 @@ export interface ParsedUrl {
   search: string
 }
 
-export function parseURL(url: string): ParsedUrl {
+export function parseUrl(url: string): ParsedUrl {
   if (url.startsWith('/')) {
     return parseRelativeUrl(url)
   }

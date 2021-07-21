@@ -1,6 +1,6 @@
 import { getCookieParser } from '../../../../server/api-utils'
 import { getLocaleMetadata } from '../../i18n/get-locale-metadata'
-import { parseURL } from './parse-url'
+import { parseUrl } from './parse-url'
 import type { NextConfig, DomainLocale } from '../../../../server/config-shared'
 import type { ParsedUrl } from './parse-url'
 import type { PathLocale } from '../../i18n/normalize-locale-path'
@@ -12,7 +12,7 @@ interface Params {
 }
 
 export function parseNextUrl({ headers, nextConfig, url = '/' }: Params) {
-  const urlParsed: ParsedNextUrl = parseURL(url)
+  const urlParsed: ParsedNextUrl = parseUrl(url)
   const { basePath } = nextConfig
 
   if (basePath && urlParsed.pathname.startsWith(basePath)) {
