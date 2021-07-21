@@ -1,9 +1,8 @@
-import { IncomingMessage } from 'http'
-import { ParsedUrlQuery } from 'querystring'
-import { searchParamsToUrlQuery } from './querystring'
-import { parseRelativeUrl } from './parse-relative-url'
+import type { IncomingMessage } from 'http'
+import type { ParsedUrlQuery } from 'querystring'
+import { parseURL } from './parse-url'
 import * as pathToRegexp from 'next/dist/compiled/path-to-regexp'
-import { RouteHas } from '../../../../lib/load-custom-routes'
+import type { RouteHas } from '../../../../lib/load-custom-routes'
 
 type Params = { [param: string]: any }
 
@@ -147,45 +146,13 @@ export default function prepareDestination(
   query: ParsedUrlQuery,
   appendParamsToQuery: boolean
 ) {
-  let parsedDestination: {
-    query?: ParsedUrlQuery
-    protocol?: string
-    hostname?: string
-    port?: string
-  } & ReturnType<typeof parseRelativeUrl> = {} as any
-
   // clone query so we don't modify the original
   query = Object.assign({}, query)
   const hadLocale = query.__nextLocale
   delete query.__nextLocale
   delete query.__nextDefaultLocale
 
-  if (destination.startsWith('/')) {
-    parsedDestination = parseRelativeUrl(destination)
-  } else {
-    const {
-      pathname,
-      searchParams,
-      hash,
-      hostname,
-      port,
-      protocol,
-      search,
-      href,
-    } = new URL(destination)
-
-    parsedDestination = {
-      pathname,
-      query: searchParamsToUrlQuery(searchParams),
-      hash,
-      protocol,
-      hostname,
-      port,
-      search,
-      href,
-    }
-  }
-
+  const parsedDestination = parseURL(destination)
   const destQuery = parsedDestination.query
   const destPath = `${parsedDestination.pathname!}${
     parsedDestination.hash || ''

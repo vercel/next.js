@@ -1,10 +1,12 @@
+export interface PathLocale {
+  detectedLocale?: string
+  pathname: string
+}
+
 export function normalizeLocalePath(
   pathname: string,
   locales?: string[]
-): {
-  detectedLocale?: string
-  pathname: string
-} {
+): PathLocale {
   let detectedLocale: string | undefined
   // first item will be empty string from splitting at first char
   const pathnameParts = pathname.split('/')
