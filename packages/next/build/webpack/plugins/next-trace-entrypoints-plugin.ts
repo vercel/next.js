@@ -60,7 +60,7 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
       )
 
       assets[
-        `${isWebpack5 ? '../' : ''}${entrypoint.name}.nft.json`
+        `${isWebpack5 ? '../' : ''}${entrypoint.name}.js.nft.json`
       ] = new sources.RawSource(
         JSON.stringify({
           version: TRACE_OUTPUT_VERSION,
@@ -81,7 +81,7 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
           {
             name: PLUGIN_NAME,
             // @ts-ignore TODO: Remove ignore when webpack 5 is stable
-            stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
+            stage: webpack.Compilation.PROCESS_ASSETS_STAGE_SUMMARIZE,
           },
           (assets: any) => {
             this.createTraceAssets(compilation, assets)
@@ -130,10 +130,10 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
 
               // map the transpiled source when available to avoid
               // parse errors in node-file-trace
-              const source = mod?.originalSource()
+              const source = mod?.originalSource.?()
 
-              if (source?._valueAsBuffer) {
-                return source._valueAsBuffer
+              if (source) {
+                return source.buffer()
               }
 
               try {
@@ -201,7 +201,7 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
 
               const toTrace: string[] = [entry, ...depModMap.keys()]
 
-              const root = nodePath.parse(process.cwd()).root
+              const root = compiler.options.context
               const result = await nodeFileTrace(toTrace, {
                 base: root,
                 cache: nftCache,
