@@ -11,12 +11,12 @@ import {
   CLIENT_STATIC_FILES_RUNTIME_POLYFILLS,
   CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
   CLIENT_STATIC_FILES_RUNTIME_AMP,
-} from '../../../next-server/lib/constants'
-import { BuildManifest } from '../../../next-server/server/get-page-files'
-import getRouteFromEntrypoint from '../../../next-server/server/get-route-from-entrypoint'
+} from '../../../shared/lib/constants'
+import { BuildManifest } from '../../../server/get-page-files'
+import getRouteFromEntrypoint from '../../../server/get-route-from-entrypoint'
 import { ampFirstEntryNamesMap } from './next-drop-client-page-plugin'
 import { Rewrite } from '../../../lib/load-custom-routes'
-import { getSortedRoutes } from '../../../next-server/lib/router/utils'
+import { getSortedRoutes } from '../../../shared/lib/router/utils'
 import { spans } from './profiling-plugin'
 import { CustomRoutes } from '../../../lib/load-custom-routes'
 

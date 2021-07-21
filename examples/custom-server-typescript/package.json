@@ -1,6 +1,5 @@
 {
-  "name": "custom-server-typescript",
-  "version": "1.0.0",
+  "private": true,
   "scripts": {
     "dev": "nodemon",
     "build": "next build && tsc --project tsconfig.server.json",
@@ -9,8 +8,8 @@
   "dependencies": {
     "cross-env": "^7.0.2",
     "next": "latest",
-    "react": "^16.13.1",
-    "react-dom": "^16.13.1"
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2"
   },
   "devDependencies": {
     "@types/node": "^12.0.12",

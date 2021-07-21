@@ -2,7 +2,7 @@
 
 import { join } from 'path'
 import webdriver from 'next-webdriver'
-import { killApp, findPort, nextBuild, nextStart } from 'next-test-utils'
+import { killApp, findPort, nextBuild, nextStart, check } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
 let appPort
@@ -59,34 +59,32 @@ describe('Analytics relayer', () => {
     expect(largestContentfulPaint).not.toBeNaN()
     expect(largestContentfulPaint).toBeGreaterThan(0)
 
+    await check(async () => {
+      const numBeacons = await browser.eval('window.__BEACONS.length')
+      return numBeacons === 2
+        ? 'success'
+        : `invalid beacon count: ${numBeacons}`
+    }, 'success')
+
     const beacons = (await browser.eval('window.__BEACONS')).map(([, value]) =>
       Object.fromEntries(new URLSearchParams(value))
     )
 
-    beacons.sort((a, b) => a.event_name.localeCompare(b.event_name))
-
     expect(beacons.length).toBe(2)
-    expect(beacons[0]).toMatchObject({
-      dsn: 'test',
-      event_name: 'FCP',
-      href: expect.stringMatching('http://'),
-      id: expect.stringContaining('-'),
-      page: '/',
-      speed: '4g',
-      value: expect.stringContaining('.'),
-    })
-    expect(beacons[1]).toMatchObject({
-      dsn: 'test',
-      event_name: 'TTFB',
-      href: expect.stringMatching('http://'),
-      id: expect.stringContaining('-'),
-      page: '/',
-      speed: '4g',
-      value: expect.stringContaining('.'),
-    })
+
+    for (const beacon of beacons) {
+      expect(beacon.event_name === 'FCP' || beacon.event_name === 'TTFB').toBe(
+        true
+      )
+      expect(beacon.dsn).toBe('test')
+      expect(beacon.href.includes('http://')).toBe(true)
+      expect(beacon.id.includes('-')).toBe(true)
+      expect(beacon.page).toBe('/')
+      expect(beacon.speed).toBe('4g')
+      expect(isNaN(parseFloat(beacon.value))).toBe(false)
+    }
 
     expect(stdout).toMatch('Next.js Analytics')
-
     await browser.close()
   })
 })

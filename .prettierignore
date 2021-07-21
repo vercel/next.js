@@ -16,3 +16,4 @@ packages/next-codemod/**/*.js
 packages/next-codemod/**/*.d.ts
 packages/next-env/**/*.d.ts
 test-timings.json
+test/**/out/**

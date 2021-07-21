@@ -470,6 +470,15 @@ describe('Required Server Files', () => {
     expect(errors[0].message).toContain('gsp hit an oops')
   })
 
+  it('should bubble error correctly for API page', async () => {
+    errors = []
+    const res = await fetchViaHTTP(appPort, '/api/error')
+    expect(res.status).toBe(500)
+    expect(await res.text()).toBe('error')
+    expect(errors.length).toBe(1)
+    expect(errors[0].message).toContain('some error from /api/error')
+  })
+
   it('should normalize optional values correctly for SSP page', async () => {
     const res = await fetchViaHTTP(
       appPort,
@@ -505,6 +514,28 @@ describe('Required Server Files', () => {
     const $ = cheerio.load(html)
     const props = JSON.parse($('#props').text())
     expect(props.params).toEqual({})
+  })
+
+  it('should normalize optional values correctly for SSG page with encoded slash', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/optional-ssg/[[...rest]]',
+      undefined,
+      {
+        headers: {
+          'x-matched-path': '/optional-ssg/[[...rest]]',
+          'x-now-route-matches':
+            '1=en%2Fes%2Fhello%252Fworld&rest=en%2Fes%2Fhello%252Fworld',
+        },
+      }
+    )
+
+    const html = await res.text()
+    const $ = cheerio.load(html)
+    const props = JSON.parse($('#props').text())
+    expect(props.params).toEqual({
+      rest: ['en', 'es', 'hello/world'],
+    })
   })
 
   it('should normalize optional values correctly for API page', async () => {
