@@ -2070,7 +2070,7 @@ describe('SSG Prerender', () => {
         {
           page: '/_app',
           tests: [
-            /\.next\/server\/webpack-runtime\.js/,
+            /webpack-runtime\.js/,
             /node_modules\/react\/index\.js/,
             /node_modules\/react\/package\.json/,
             /node_modules\/react\/cjs\/react\.production\.min\.js/,
@@ -2080,24 +2080,24 @@ describe('SSG Prerender', () => {
         {
           page: '/another',
           tests: [
-            /\.next\/server\/webpack-runtime\.js/,
-            /\.next\/server\/chunks\/.*?\.js/,
+            /webpack-runtime\.js/,
+            /chunks\/.*?\.js/,
             /node_modules\/react\/index\.js/,
             /node_modules\/react\/package\.json/,
             /node_modules\/react\/cjs\/react\.production\.min\.js/,
-            /prerender\/world.txt/,
+            /\/world.txt/,
           ],
           notTests: [
             /node_modules\/react\/cjs\/react\.development\.js/,
             /node_modules\/@firebase\/firestore\/.*?\.js/,
-            /prerender\/server\.js/,
+            /\/server\.js/,
           ],
         },
         {
           page: '/blog/[post]',
           tests: [
-            /\.next\/server\/webpack-runtime\.js/,
-            /\.next\/server\/chunks\/.*?\.js/,
+            /webpack-runtime\.js/,
+            /chunks\/.*?\.js/,
             /node_modules\/react\/index\.js/,
             /node_modules\/react\/package\.json/,
             /node_modules\/react\/cjs\/react\.production\.min\.js/,
@@ -2105,8 +2105,7 @@ describe('SSG Prerender', () => {
           ],
           notTests: [
             /node_modules\/react\/cjs\/react\.development\.js/,
-            /prerender\/server\.js/,
-            /prerender\/world.txt/,
+            /\/world.txt/,
           ],
         },
       ]

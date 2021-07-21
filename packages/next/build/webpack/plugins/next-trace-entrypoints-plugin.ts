@@ -58,16 +58,21 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
           `${isWebpack5 ? '../' : ''}${entrypoint.name}.js`
         )
       )
+      const traceOutputName = `${isWebpack5 ? '../' : ''}${
+        entrypoint.name
+      }.js.nft.json`
+      const traceOutputPath = nodePath.join(outputPath, traceOutputName)
 
-      assets[
-        `${isWebpack5 ? '../' : ''}${entrypoint.name}.js.nft.json`
-      ] = new sources.RawSource(
+      assets[traceOutputName] = new sources.RawSource(
         JSON.stringify({
           version: TRACE_OUTPUT_VERSION,
-          files: [
-            ...entryFiles,
-            ...this.entryTraces.get(entrypoint.name)!,
-          ].map((file) => file.replace(/\\/g, '/')),
+          files: [...entryFiles, ...this.entryTraces.get(entrypoint.name)!].map(
+            (file) => {
+              return nodePath
+                .relative(traceOutputPath, file)
+                .replace(/\\/g, '/')
+            }
+          ),
         })
       )
     }
@@ -176,20 +181,24 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
             for (const entry of entryPaths) {
               depModMap.clear()
               const entryMod = entryModMap.get(entry)
-              const cachedTraces = entryMod.buildInfo?.cachedNextEntryTrace
+              // TODO: investigate caching, will require ensuring no traced
+              // files in the cache have changed, we could potentially hash
+              // all traced files and only leverage the cache if the hashes
+              // match
+              // const cachedTraces = entryMod.buildInfo?.cachedNextEntryTrace
 
               // Use cached trace if available and trace version matches
-              if (
-                isWebpack5 &&
-                cachedTraces &&
-                cachedTraces.version === TRACE_OUTPUT_VERSION
-              ) {
-                this.entryTraces.set(
-                  entryNameMap.get(entry)!,
-                  cachedTraces.tracedDeps
-                )
-                continue
-              }
+              // if (
+              //   isWebpack5 &&
+              //   cachedTraces &&
+              //   cachedTraces.version === TRACE_OUTPUT_VERSION
+              // ) {
+              //   this.entryTraces.set(
+              //     entryNameMap.get(entry)!,
+              //     cachedTraces.tracedDeps
+              //   )
+              //   continue
+              // }
 
               for (const dep of entryMod.dependencies) {
                 const depMod = getModuleFromDependency(compilation, dep)
@@ -201,7 +210,7 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
 
               const toTrace: string[] = [entry, ...depModMap.keys()]
 
-              const root = compiler.options.context || '/'
+              const root = nodePath.parse(process.cwd()).root
               const result = await nodeFileTrace(toTrace, {
                 base: root,
                 cache: nftCache,
@@ -221,10 +230,10 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
                 tracedDeps.push(nodePath.join(root, file))
               }
 
-              entryMod.buildInfo.cachedNextEntryTrace = {
-                version: TRACE_OUTPUT_VERSION,
-                tracedDeps,
-              }
+              // entryMod.buildInfo.cachedNextEntryTrace = {
+              //   version: TRACE_OUTPUT_VERSION,
+              //   tracedDeps,
+              // }
               this.entryTraces.set(entryNameMap.get(entry)!, tracedDeps)
             }
 

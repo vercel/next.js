@@ -93,7 +93,7 @@ describe('Production Usage', () => {
         {
           page: '/_app',
           tests: [
-            /\.next\/server\/webpack-runtime\.js/,
+            /webpack-runtime\.js/,
             /node_modules\/react\/index\.js/,
             /node_modules\/react\/package\.json/,
             /node_modules\/react\/cjs\/react\.production\.min\.js/,
@@ -103,8 +103,8 @@ describe('Production Usage', () => {
         {
           page: '/dynamic',
           tests: [
-            /\.next\/server\/webpack-runtime\.js/,
-            /\.next\/server\/chunks\/.*?\.js/,
+            /webpack-runtime\.js/,
+            /chunks\/.*?\.js/,
             /node_modules\/react\/index\.js/,
             /node_modules\/react\/package\.json/,
             /node_modules\/react\/cjs\/react\.production\.min\.js/,

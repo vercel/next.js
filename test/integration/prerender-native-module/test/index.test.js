@@ -79,7 +79,7 @@ describe('Prerender native module', () => {
         {
           page: '/_app',
           tests: [
-            /\.next\/server\/webpack-runtime\.js/,
+            /webpack-runtime\.js/,
             /node_modules\/react\/index\.js/,
             /node_modules\/react\/package\.json/,
             /node_modules\/react\/cjs\/react\.production\.min\.js/,
@@ -89,15 +89,14 @@ describe('Prerender native module', () => {
         {
           page: '/blog/[slug]',
           tests: [
-            /\.next\/server\/webpack-runtime\.js/,
-            /\.next\/server\/chunks\/.*?\.js/,
+            /webpack-runtime\.js/,
             /node_modules\/react\/index\.js/,
             /node_modules\/react\/package\.json/,
             /node_modules\/react\/cjs\/react\.production\.min\.js/,
             /node_modules\/sqlite3\/.*?\.js/,
             /node_modules\/sqlite3\/.*?\.node/,
             /node_modules\/sqlite\/.*?\.js/,
-            /prerender-native-module\/data\.sqlite/,
+            /\/data\.sqlite/,
           ],
           notTests: [/node_modules\/react\/cjs\/react\.development\.js/],
         },
