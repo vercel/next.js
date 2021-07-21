@@ -31,17 +31,6 @@ jobs:
           path: ./*
           key: ${{ github.sha }}
 
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: nightly
-          override: true
-      - run: yarn --cwd packages/next build-native
-      - uses: actions/upload-artifact@v2
-        with:
-          name: next-swc-binaries
-          path: packages/next/native/
-
   lint:
     runs-on: ubuntu-latest
     needs: build
