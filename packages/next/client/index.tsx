@@ -358,6 +358,10 @@ export async function initNext(opts: { webpackHMR?: any } = {}) {
           error.name = initialErr!.name
           error.stack = initialErr!.stack
 
+          if ('middleware' in hydrateErr) {
+            throw error
+          }
+
           const node = getNodeError(error)
           throw node
         })

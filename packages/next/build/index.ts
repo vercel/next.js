@@ -13,6 +13,7 @@ import formatWebpackMessages from '../client/dev/error-overlay/format-webpack-me
 import {
   STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR,
   PUBLIC_DIR_MIDDLEWARE_CONFLICT,
+  MIDDLEWARE_ROUTE,
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
 import { findPagesDir } from '../lib/find-pages-dir'
@@ -46,6 +47,7 @@ import {
   SERVER_DIRECTORY,
   SERVER_FILES_MANIFEST,
   STATIC_STATUS_PAGES,
+  MIDDLEWARE_MANIFEST,
 } from '../shared/lib/constants'
 import {
   getRouteRegex,
@@ -94,6 +96,9 @@ import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { NextConfigComplete } from '../server/config-shared'
 import isError from '../lib/is-error'
 import { TelemetryPlugin } from './webpack/plugins/telemetry-plugin'
+import { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
+
+const RESERVED_PAGE = /^\/(_app|_error|_document|api(\/|$))/
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -394,6 +399,12 @@ export default async function build(
             fallback: Array<ReturnType<typeof buildCustomRoute>>
           }
       headers: Array<ReturnType<typeof buildCustomRoute>>
+      staticRoutes: Array<{
+        page: string
+        regex: string
+        namedRegex?: string
+        routeKeys?: { [key: string]: string }
+      }>
       dynamicRoutes: Array<{
         page: string
         regex: string
@@ -424,16 +435,16 @@ export default async function build(
       redirects: redirects.map((r: any) => buildCustomRoute(r, 'redirect')),
       headers: headers.map((r: any) => buildCustomRoute(r, 'header')),
       dynamicRoutes: getSortedRoutes(pageKeys)
-        .filter(isDynamicRoute)
-        .map((page) => {
-          const routeRegex = getRouteRegex(page)
-          return {
-            page,
-            regex: normalizeRouteRegex(routeRegex.re.source),
-            routeKeys: routeRegex.routeKeys,
-            namedRegex: routeRegex.namedRegex,
-          }
-        }),
+        .filter((page) => isDynamicRoute(page) && !page.match(MIDDLEWARE_ROUTE))
+        .map(pageToRoute),
+      staticRoutes: getSortedRoutes(pageKeys)
+        .filter(
+          (page) =>
+            !isDynamicRoute(page) &&
+            !page.match(MIDDLEWARE_ROUTE) &&
+            !page.match(RESERVED_PAGE)
+        )
+        .map(pageToRoute),
       dataRoutes: [],
       i18n: config.i18n || undefined,
     }))
@@ -833,11 +844,7 @@ export default async function build(
             let isHybridAmp = false
             let ssgPageRoutes: string[] | null = null
 
-            const nonReservedPage = !page.match(
-              /^\/(_app|_error|_document|api(\/|$))/
-            )
-
-            if (nonReservedPage) {
+            if (!page.match(MIDDLEWARE_ROUTE) && !page.match(RESERVED_PAGE)) {
               try {
                 let isPageStaticSpan =
                   checkPageSpan.traceChild('is-page-static')
@@ -1694,6 +1701,25 @@ export default async function build(
       )
     }
 
+    const middlewareManifest: MiddlewareManifest = JSON.parse(
+      await promises.readFile(
+        path.join(distDir, SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
+        'utf8'
+      )
+    )
+
+    writeFileSync(
+      path.join(
+        distDir,
+        CLIENT_STATIC_FILES_PATH,
+        buildId,
+        '_middlewareManifest.js'
+      ),
+      `self.__MIDDLEWARE_MANIFEST=${devalue(
+        middlewareManifest.sortedMiddleware
+      )};self.__MIDDLEWARE_MANIFEST_CB&&self.__MIDDLEWARE_MANIFEST_CB()`
+    )
+
     const images = { ...config.images }
     const { deviceSizes, imageSizes } = images
     ;(images as any).sizes = [...deviceSizes, ...imageSizes]
@@ -1796,4 +1822,14 @@ function generateClientSsgManifest(
 
 function isTelemetryPlugin(plugin: unknown): plugin is TelemetryPlugin {
   return plugin instanceof TelemetryPlugin
+}
+
+function pageToRoute(page: string) {
+  const routeRegex = getRouteRegex(page)
+  return {
+    page,
+    regex: normalizeRouteRegex(routeRegex.re.source),
+    routeKeys: routeRegex.routeKeys,
+    namedRegex: routeRegex.namedRegex,
+  }
 }

@@ -2,10 +2,12 @@ import chalk from 'chalk'
 import { posix, join } from 'path'
 import { stringify } from 'querystring'
 import { API_ROUTE, DOT_NEXT_ALIAS, PAGES_DIR_ALIAS } from '../lib/constants'
+import { MIDDLEWARE_ROUTE } from '../lib/constants'
 import { __ApiPreviewProps } from '../server/api-utils'
 import { isTargetLikeServerless } from '../server/config'
 import { normalizePagePath } from '../server/normalize-page-path'
 import { warn } from './output/log'
+import { MiddlewareLoaderOptions } from './webpack/loaders/next-middleware-loader'
 import { ClientPagesLoaderOptions } from './webpack/loaders/next-client-pages-loader'
 import { ServerlessLoaderQuery } from './webpack/loaders/next-serverless-loader'
 import { LoadedEnvFiles } from '@next/env'
@@ -118,6 +120,24 @@ export function createEntrypoints(
 
     const isLikeServerless = isTargetLikeServerless(target)
 
+    if (page.match(MIDDLEWARE_ROUTE)) {
+      const loaderOpts: MiddlewareLoaderOptions = {
+        absolutePagePath: pages[page],
+        page,
+      }
+
+      client[clientBundlePath] = {
+        filename: 'server/[name].js',
+        import: `next-middleware-loader?${stringify(loaderOpts)}!`,
+        layer: 'middleware',
+        library: {
+          name: ['_NEXT_ENTRIES', 'middleware_[name]'],
+          type: 'assign',
+        },
+      }
+      return
+    }
+
     if (isApiRoute && isLikeServerless) {
       const serverlessLoaderOptions: ServerlessLoaderQuery = {
         page,
@@ -200,7 +220,8 @@ export function finalizeEntrypoint(
       name !== 'polyfills' &&
       name !== 'main' &&
       name !== 'amp' &&
-      name !== 'react-refresh'
+      name !== 'react-refresh' &&
+      !name.match(MIDDLEWARE_ROUTE)
     ) {
       const dependOn =
         name.startsWith('pages/') && name !== 'pages/_app'
