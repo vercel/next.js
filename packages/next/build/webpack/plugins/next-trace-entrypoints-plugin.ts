@@ -34,7 +34,7 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
   }
 
   // Here we output all traced assets and webpack chunks to a
-  // ${page}.nft.json file
+  // ${page}.js.nft.json file
   createTraceAssets(compilation: any, assets: any) {
     const outputPath = compilation.outputOptions.path
 
@@ -130,7 +130,7 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
 
               // map the transpiled source when available to avoid
               // parse errors in node-file-trace
-              const source = mod?.originalSource.?()
+              const source = mod?.originalSource?.()
 
               if (source) {
                 return source.buffer()
@@ -201,7 +201,7 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
 
               const toTrace: string[] = [entry, ...depModMap.keys()]
 
-              const root = compiler.options.context
+              const root = compiler.options.context || '/'
               const result = await nodeFileTrace(toTrace, {
                 base: root,
                 cache: nftCache,

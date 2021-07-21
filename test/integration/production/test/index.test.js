@@ -115,7 +115,7 @@ describe('Production Usage', () => {
 
       for (const check of checks) {
         const contents = await fs.readFile(
-          join(appDir, '.next/server/pages/', check.page + '.nft.json'),
+          join(appDir, '.next/server/pages/', check.page + '.js.nft.json'),
           'utf8'
         )
         const { version, files } = JSON.parse(contents)
