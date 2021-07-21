@@ -7,6 +7,7 @@ import { isTargetLikeServerless } from '../server/config'
 import { normalizePagePath } from '../server/normalize-page-path'
 import { MIDDLEWARE_ROUTE } from '../lib/constants'
 import { warn } from './output/log'
+import { EdgeFunctionLoaderOptions } from './webpack/loaders/edge-function-loader'
 import { ClientPagesLoaderOptions } from './webpack/loaders/next-client-pages-loader'
 import { ServerlessLoaderQuery } from './webpack/loaders/next-serverless-loader'
 import { LoadedEnvFiles } from '@next/env'
@@ -141,6 +142,14 @@ export function createEntrypoints(
       server[serverBundlePath] = `next-serverless-loader?${stringify(
         serverlessLoaderOptions
       )}!`
+    }
+
+    if (isMiddleware) {
+      const loaderOpts: EdgeFunctionLoaderOptions = { absolutePagePath }
+      server[serverBundlePath] = {
+        import: `edge-function-loader?${stringify(loaderOpts)}!`,
+        layer: 'edge',
+      }
     }
 
     if (page === '/_document') {

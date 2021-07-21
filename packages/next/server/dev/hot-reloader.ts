@@ -409,7 +409,8 @@ export default class HotReloader {
             const page = pageKey.slice(
               isClientKey ? 'client'.length : 'server'.length
             )
-            const isServerOnly = page.match(API_ROUTE) || page.match(MIDDLEWARE_ROUTE)
+            const isMiddleware = page.match(MIDDLEWARE_ROUTE)
+            const isServerOnly = page.match(API_ROUTE) || isMiddleware
             if (isClientCompilation && isServerOnly) {
               return
             }
@@ -427,14 +428,21 @@ export default class HotReloader {
               absolutePagePath,
             }
 
-            entrypoints[bundlePath] = finalizeEntrypoint(
-              bundlePath,
-              isClientCompilation
-                ? `next-client-pages-loader?${stringify(pageLoaderOpts)}!`
-                : absolutePagePath,
-              !isClientCompilation,
-              isWebpack5
-            )
+            if (!isClientCompilation && isMiddleware) {
+              entrypoints[bundlePath] = {
+                import: `edge-function-loader?${stringify(pageLoaderOpts)}!`,
+                layer: 'edge',
+              }
+            } else {
+              entrypoints[bundlePath] = finalizeEntrypoint(
+                bundlePath,
+                isClientCompilation
+                  ? `next-client-pages-loader?${stringify(pageLoaderOpts)}!`
+                  : absolutePagePath,
+                !isClientCompilation,
+                isWebpack5
+              )  
+            }
           })
         )
 
