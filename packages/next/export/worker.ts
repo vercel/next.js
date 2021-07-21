@@ -46,7 +46,7 @@ interface ExportPageInput {
   pagesDataDir: string
   renderOpts: RenderOpts
   buildExport?: boolean
-  serverRuntimeConfig: string
+  serverRuntimeConfig: { [key: string]: any }
   subFolders?: boolean
   serverless: boolean
   optimizeFonts: boolean
@@ -61,6 +61,7 @@ interface ExportPageResults {
   fromBuildExportRevalidate?: number
   error?: boolean
   ssgNotFound?: boolean
+  duration: number
 }
 
 interface RenderOpts {
@@ -105,7 +106,8 @@ export default async function exportPage({
   const exportPageSpan = trace('export-page-worker', parentSpanId)
 
   return exportPageSpan.traceAsyncFn(async () => {
-    let results: ExportPageResults = {
+    const start = Date.now()
+    let results: Omit<ExportPageResults, 'duration'> = {
       ampValidations: [],
     }
 
@@ -199,15 +201,22 @@ export default async function exportPage({
         publicRuntimeConfig: renderOpts.runtimeConfig,
       })
 
-      let htmlFilename = `${filePath}${sep}index.html`
-      if (!subFolders) htmlFilename = `${filePath}.html`
+      const getHtmlFilename = (_path: string) =>
+        subFolders ? `${_path}${sep}index.html` : `${_path}.html`
+      let htmlFilename = getHtmlFilename(filePath)
 
       const pageExt = extname(page)
       const pathExt = extname(path)
       // Make sure page isn't a folder with a dot in the name e.g. `v1.2`
       if (pageExt !== pathExt && pathExt !== '') {
-        // If the path has an extension, use that as the filename instead
-        htmlFilename = path
+        const isBuiltinPaths = ['/500', '/404'].some(
+          (p) => p === path || p === path + '.html'
+        )
+        // If the ssg path has .html extension, and it's not builtin paths, use it directly
+        // Otherwise, use that as the filename instead
+        const isHtmlExtPath =
+          !serverless && !isBuiltinPaths && path.endsWith('.html')
+        htmlFilename = isHtmlExtPath ? getHtmlFilename(path) : path
       } else if (path === '/') {
         // If the path is the root, just use index.html
         htmlFilename = 'index.html'
@@ -263,7 +272,7 @@ export default async function exportPage({
           // for non-dynamic SSG pages we should have already
           // prerendered the file
           if (renderedDuringBuild((mod as ComponentModule).getStaticProps))
-            return results
+            return { ...results, duration: Date.now() - start }
 
           if (
             (mod as ComponentModule).getStaticProps &&
@@ -324,7 +333,7 @@ export default async function exportPage({
         // for non-dynamic SSG pages we should have already
         // prerendered the file
         if (renderedDuringBuild(components.getStaticProps)) {
-          return results
+          return { ...results, duration: Date.now() - start }
         }
 
         // TODO: de-dupe the logic here between serverless and server mode
@@ -466,18 +475,17 @@ export default async function exportPage({
       }
       results.fromBuildExportRevalidate = (curRenderOpts as any).revalidate
 
-      if (results.ssgNotFound) {
+      if (!results.ssgNotFound) {
         // don't attempt writing to disk if getStaticProps returned not found
-        return results
+        await promises.writeFile(htmlFilepath, html, 'utf8')
       }
-      await promises.writeFile(htmlFilepath, html, 'utf8')
-      return results
     } catch (error) {
       console.error(
         `\nError occurred prerendering page "${path}". Read more: https://nextjs.org/docs/messages/prerender-error\n` +
           error.stack
       )
-      return { ...results, error: true }
+      results.error = true
     }
+    return { ...results, duration: Date.now() - start }
   })
 }

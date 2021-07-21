@@ -27,7 +27,7 @@ import {
   SERVER_DIRECTORY,
 } from '../shared/lib/constants'
 import { execOnce } from '../shared/lib/utils'
-import { NextConfig } from '../server/config'
+import { NextConfigComplete } from '../server/config-shared'
 import { findPageFile } from '../server/lib/find-page-file'
 import { WebpackEntrypoints } from './entries'
 import * as Log from './output/log'
@@ -229,7 +229,7 @@ export default async function getBaseWebpackConfig(
     isDevFallback = false,
   }: {
     buildId: string
-    config: NextConfig
+    config: NextConfigComplete
     dev?: boolean
     isServer?: boolean
     pagesDir: string

@@ -73,7 +73,7 @@ The `context` parameter is an object containing the following keys:
 `getStaticProps` should return an object with:
 
 - `props` - An **optional** object with the props that will be received by the page component. It should be a [serializable object](https://en.wikipedia.org/wiki/Serialization)
-- `revalidate` - An **optional** amount in seconds after which a page re-generation can occur (defaults to: `false` or no revalidating). More on [Incremental Static Regeneration](#incremental-static-regeneration)
+- `revalidate` - An **optional** amount in seconds after which a page re-generation can occur. Defaults to `false`. When `revalidate` is `false` it means that there is no revalidation, so the page will be cached as built until your next build. More on [Incremental Static Regeneration](#incremental-static-regeneration)
 - `notFound` - An **optional** boolean value to allow the page to return a 404 status and page. Below is an example of how it works:
 
   ```js
@@ -185,11 +185,9 @@ You should use `getStaticProps` if:
 For TypeScript, you can use the `GetStaticProps` type from `next`:
 
 ```ts
-import { GetStaticProps, GetStaticPropsContext } from 'next'
+import { GetStaticProps } from 'next'
 
-export const getStaticProps: GetStaticProps = async (
-  context: GetStaticPropsContext
-) => {
+export const getStaticProps: GetStaticProps = async (context) => {
   // ...
 }
 ```

@@ -28,7 +28,9 @@ const eslintOptions = (args: arg.Spec) => ({
     args['--report-unused-disable-directives'] || null,
   cache: args['--cache'] ?? false,
   cacheLocation: args['--cache-location'] || '.eslintcache',
-  errorOnUnmatchedPattern: !Boolean(args['--no-error-on-unmatched-pattern']),
+  errorOnUnmatchedPattern: args['--error-on-unmatched-pattern']
+    ? Boolean(args['--error-on-unmatched-pattern'])
+    : false,
 })
 
 const nextLint: cliCommand = (argv) => {
@@ -60,7 +62,7 @@ const nextLint: cliCommand = (argv) => {
     '--report-unused-disable-directives': String,
     '--cache': Boolean,
     '--cache-location': String,
-    '--no-error-on-unmatched-pattern': Boolean,
+    '--error-on-unmatched-pattern': Boolean,
 
     // Aliases
     '-c': '--config',
@@ -120,7 +122,7 @@ const nextLint: cliCommand = (argv) => {
           --cache-location path::String  Path to the cache file or directory - default: .eslintcache
         
         Miscellaneous:
-          --no-error-on-unmatched-pattern  Prevent errors when pattern is unmatched - default: false
+          --error-on-unmatched-pattern   Show errors when any file patterns are unmatched - default: false
           `,
       0
     )

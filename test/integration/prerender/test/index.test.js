@@ -1646,6 +1646,7 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
 
       it('should handle revalidating HTML correctly', async () => {
         const route = '/blog/post-2/comment-2'
+        await renderViaHTTP(appPort, route)
         const initialHtml = await renderViaHTTP(appPort, route)
         expect(initialHtml).toMatch(/Post:.*?post-2/)
         expect(initialHtml).toMatch(/Comment:.*?comment-2/)
