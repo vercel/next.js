@@ -20,8 +20,6 @@ let app
 let mockServer
 
 describe('node-fetch-keep-alive', () => {
-  let output = ''
-
   beforeAll(async () => {
     mockServer = createServer((req, res) => {
       // we can test request headers by sending them
@@ -34,7 +32,6 @@ describe('node-fetch-keep-alive', () => {
       stdout: true,
       stderr: true,
     })
-    output = (stderr || '') + (stdout + '')
     if (stdout) console.log(stdout)
     if (stderr) console.error(stderr)
     appPort = await findPort()
