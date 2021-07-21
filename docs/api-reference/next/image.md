@@ -100,6 +100,7 @@ but maintain the original dimensions for larger viewports.
 
 When `responsive`, the image will scale the dimensions down for smaller
 viewports and scale up for larger viewports.
+Note: the responsive layout may not work correctly if the parent element uses a display value other than `block` such as `display: flex` or `display: grid`.
 
 When `fill`, the image will stretch both width and height to the dimensions of
 the parent element, provided the parent element is relative. This is usually paired with the [`objectFit`](#objectFit) property.
