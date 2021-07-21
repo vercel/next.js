@@ -309,7 +309,7 @@ export default async function exportPage({
             params
           )
           curRenderOpts = (result as any).renderOpts || {}
-          html = (await resultToChunks((result as any).html)).join('')
+          html = (result as any).html
         }
 
         if (!html && !(curRenderOpts as any).isNotFound) {
@@ -379,7 +379,6 @@ export default async function exportPage({
           }
           // @ts-ignore
           html = await renderMethod(req, res, page, query, curRenderOpts)
-          html = (await resultToChunks(html!)).join('')
         }
       }
       results.ssgNotFound = (curRenderOpts as any).isNotFound
@@ -405,9 +404,14 @@ export default async function exportPage({
         }
       }
 
+      const htmlChunks = html ? await resultToChunks(html) : []
       if (inAmpMode && !curRenderOpts.ampSkipValidation) {
         if (!results.ssgNotFound) {
-          await validateAmp(html, path, curRenderOpts.ampValidatorPath)
+          await validateAmp(
+            htmlChunks.join(''),
+            path,
+            curRenderOpts.ampValidatorPath
+          )
         }
       } else if (hybridAmp) {
         // we need to render the AMP version
@@ -435,7 +439,6 @@ export default async function exportPage({
                 params
               )
             ).html
-            ampHtml = ampHtml ? (await resultToChunks(ampHtml)).join('') : ''
           } else {
             ampHtml = await renderMethod(
               req,
@@ -445,14 +448,18 @@ export default async function exportPage({
               { ...query, amp: '1' },
               curRenderOpts as any
             )
-            ampHtml = ampHtml ? (await resultToChunks(ampHtml)).join('') : ''
           }
 
+          const ampChunks = await resultToChunks(ampHtml)
           if (!curRenderOpts.ampSkipValidation) {
-            await validateAmp(ampHtml, page + '?amp=1')
+            await validateAmp(ampChunks.join(''), page + '?amp=1')
           }
           await promises.mkdir(ampBaseDir, { recursive: true })
-          await promises.writeFile(ampHtmlFilepath, ampHtml, 'utf8')
+          await promises.writeFile(
+            ampHtmlFilepath,
+            JSON.stringify(ampChunks),
+            'utf8'
+          )
         }
       }
 
@@ -481,7 +488,11 @@ export default async function exportPage({
 
       if (!results.ssgNotFound) {
         // don't attempt writing to disk if getStaticProps returned not found
-        await promises.writeFile(htmlFilepath, html, 'utf8')
+        await promises.writeFile(
+          htmlFilepath,
+          JSON.stringify(htmlChunks),
+          'utf8'
+        )
       }
     } catch (error) {
       console.error(
