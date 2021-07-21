@@ -12,7 +12,7 @@ import {
 } from '../../build/entries'
 import { watchCompilers } from '../../build/output'
 import getBaseWebpackConfig from '../../build/webpack-config'
-import { API_ROUTE } from '../../lib/constants'
+import { API_ROUTE, MIDDLEWARE_ROUTE } from '../../lib/constants'
 import { recursiveDelete } from '../../lib/recursive-delete'
 import { BLOCKED_PAGES } from '../../shared/lib/constants'
 import { __ApiPreviewProps } from '../api-utils'
@@ -409,7 +409,8 @@ export default class HotReloader {
             const page = pageKey.slice(
               isClientKey ? 'client'.length : 'server'.length
             )
-            if (isClientCompilation && page.match(API_ROUTE)) {
+            const isServerOnly = page.match(API_ROUTE) || page.match(MIDDLEWARE_ROUTE)
+            if (isClientCompilation && isServerOnly) {
               return
             }
             const { bundlePath, absolutePagePath } = entries[pageKey]
