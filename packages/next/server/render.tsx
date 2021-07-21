@@ -59,7 +59,7 @@ import {
   getRedirectStatus,
   Redirect,
 } from '../lib/load-custom-routes'
-import { DomainLocales } from './config'
+import { DomainLocale } from './config'
 import { RenderResult, resultFromChunks } from './utils'
 
 function noRouter() {
@@ -80,7 +80,7 @@ class ServerRouter implements NextRouter {
   isReady: boolean
   locales?: string[]
   defaultLocale?: string
-  domainLocales?: DomainLocales
+  domainLocales?: DomainLocale[]
   isPreview: boolean
   isLocaleDomain: boolean
 
@@ -94,7 +94,7 @@ class ServerRouter implements NextRouter {
     locale?: string,
     locales?: string[],
     defaultLocale?: string,
-    domainLocales?: DomainLocales,
+    domainLocales?: DomainLocale[],
     isPreview?: boolean,
     isLocaleDomain?: boolean
   ) {
@@ -187,7 +187,7 @@ export type RenderOptsPartial = {
   locale?: string
   locales?: string[]
   defaultLocale?: string
-  domainLocales?: DomainLocales
+  domainLocales?: DomainLocale[]
   disableOptimizedLoading?: boolean
   requireStaticHTML?: boolean
 }
