@@ -54,7 +54,7 @@
     "types": "tsc --declaration --emitDeclarationOnly --declarationDir dist",
     "typescript": "tsc --noEmit --declaration",
     "ncc-compiled": "ncc cache clean && taskr ncc",
-    "build-native": "napi build --platform --release --cargo-cwd build/swc"
+    "build-native": "napi build --platform --release --cargo-cwd build/swc native"
   },
   "taskr": {
     "requires": [
@@ -253,6 +253,9 @@
     "node": ">=12.0.0"
   },
   "napi": {
-    "name": "next-swc"
+    "name": "next-swc",
+    "triples": {
+      "defaults": true
+    }
   }
 }

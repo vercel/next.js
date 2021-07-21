@@ -10,7 +10,7 @@ const path = require('path')
  * If failed to load addon, it will fallback to load from `next-swc-[PLATFORM]`
  */
 const bindings = loadBinding(
-  path.join(__dirname, '../..'),
+  path.join(__dirname, '../../native'),
   'next-swc',
   'next-swc'
 )
