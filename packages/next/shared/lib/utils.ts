@@ -1,13 +1,13 @@
-import { IncomingMessage, ServerResponse } from 'http'
-import { ParsedUrlQuery } from 'querystring'
-import { ComponentType } from 'react'
-import { UrlObject } from 'url'
 import { formatUrl } from './router/utils/format-url'
-import { NextRouter } from './router/router'
-import { Env } from '@next/env'
-import { BuildManifest } from '../../server/get-page-files'
-import { DomainLocales } from '../../server/config'
-import { PreviewData } from 'next/types'
+import type { BuildManifest } from '../../server/get-page-files'
+import type { ComponentType } from 'react'
+import type { DomainLocale } from '../../server/config'
+import type { Env } from '@next/env'
+import type { IncomingMessage, ServerResponse } from 'http'
+import type { NextRouter } from './router/router'
+import type { ParsedUrlQuery } from 'querystring'
+import type { PreviewData } from 'next/types'
+import type { UrlObject } from 'url'
 
 export type NextComponentType<
   C extends BaseContext = NextPageContext,
@@ -108,7 +108,7 @@ export type NEXT_DATA = {
   locale?: string
   locales?: string[]
   defaultLocale?: string
-  domainLocales?: DomainLocales
+  domainLocales?: DomainLocale[]
   scriptLoader?: any[]
   isPreview?: boolean
 }

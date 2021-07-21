@@ -2,26 +2,28 @@ import os from 'os'
 import { Header, Redirect, Rewrite } from '../lib/load-custom-routes'
 import { ImageConfig, imageConfigDefault } from './image-config'
 
-export type DomainLocales = Array<{
-  http?: true
-  domain: string
-  locales?: string[]
-  defaultLocale: string
-}>
-
 type NoOptionals<T> = {
   [P in keyof T]-?: T[P]
 }
 
 export type NextConfigComplete = NoOptionals<NextConfig>
 
+export interface I18NConfig {
+  defaultLocale: string
+  domains?: DomainLocale[]
+  localeDetection?: false
+  locales: string[]
+}
+
+export interface DomainLocale {
+  defaultLocale: string
+  domain: string
+  http?: true
+  locales?: string[]
+}
+
 export type NextConfig = { [key: string]: any } & {
-  i18n?: {
-    locales: string[]
-    defaultLocale: string
-    domains?: DomainLocales
-    localeDetection?: false
-  } | null
+  i18n?: I18NConfig | null
 
   headers?: () => Promise<Header[]>
   rewrites?: () => Promise<

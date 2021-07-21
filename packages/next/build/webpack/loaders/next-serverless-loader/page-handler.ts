@@ -98,7 +98,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
 
     let hasValidParams = true
 
-    setLazyProp({ req: req as any }, 'cookies', getCookieParser(req))
+    setLazyProp({ req: req as any }, 'cookies', getCookieParser(req.headers))
 
     const options = {
       App,
