@@ -18,7 +18,7 @@ import { FontManifest } from '../server/font-utils'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { trace } from '../telemetry/trace'
 import { isInAmpMode } from '../shared/lib/amp'
-import { resultToChunks } from '../server/utils'
+import { resultFromChunks, resultToChunks } from '../server/utils'
 
 const envConfig = require('../shared/lib/runtime-config')
 
@@ -267,7 +267,7 @@ export default async function exportPage({
 
         // if it was auto-exported the HTML is loaded here
         if (typeof mod === 'string') {
-          html = mod
+          html = resultFromChunks([mod])
           queryWithAutoExportWarn()
         } else {
           // for non-dynamic SSG pages we should have already
@@ -345,7 +345,7 @@ export default async function exportPage({
         }
 
         if (typeof components.Component === 'string') {
-          html = components.Component
+          html = resultFromChunks([components.Component])
           queryWithAutoExportWarn()
         } else {
           /**
