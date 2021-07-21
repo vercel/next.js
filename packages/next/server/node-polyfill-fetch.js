@@ -6,7 +6,8 @@ import { Agent as HttpsAgent } from 'https'
 if (!global.fetch) {
   const httpAgent = new HttpAgent({ keepAlive: true })
   const httpsAgent = new HttpsAgent({ keepAlive: true })
-  const agent = ({ protocol }) => (protocol == 'http:' ? httpAgent : httpsAgent)
+  const agent = ({ protocol }) =>
+    protocol === 'http:' ? httpAgent : httpsAgent
   const fetchWithAgent = (url, opts, ...rest) => {
     if (!opts) {
       opts = { agent }
