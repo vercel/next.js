@@ -1,8 +1,7 @@
 /* eslint-env jest */
 
 import { join } from 'path'
-import { createServer as createHttpServer } from 'http'
-import { createServer as createHttpsServer } from 'https'
+import { createServer } from 'http'
 import {
   fetchViaHTTP,
   nextBuild,
@@ -18,24 +17,19 @@ const appDir = join(__dirname, '../')
 
 let appPort
 let app
-let server1
-let server2
+let mockServer
 
 describe('node-fetch-keep-alive', () => {
   let output = ''
 
   beforeAll(async () => {
-    const t = 1000
-    server1 = createHttpServer((_, res) => res.end('Mock HTTP response'))
-    server1.keepAliveTimeout = t
-    server1.on('error', (err) => console.error('Mock HTTP error', err))
-    server1.on('connection', (socket) => socket.setTimeout(t + 500))
-    server1.listen(44001)
-    // server2 = createHttpsServer((_, res) => res.end('Mock HTTPS response'));
-    // server2.keepAliveTimeout = t;
-    // server2.on('error', err => console.error('Mock HTTPS error', err));
-    // server2.on('connection', socket => socket.setTimeout(t+300));
-    // server2.listen(44002)
+    mockServer = createServer((req, res) => {
+      // we can test request headers by sending them
+      // back with the response
+      const { connection } = req.headers
+      res.end(JSON.stringify({ connection }))
+    })
+    mockServer.listen(44001)
     const { stdout, stderr } = await nextBuild(appDir, [], {
       stdout: true,
       stderr: true,
@@ -48,29 +42,28 @@ describe('node-fetch-keep-alive', () => {
   })
   afterAll(async () => {
     await killApp(app)
-    server1.close()
-    //server2.close();
+    mockServer.close()
   })
 
-  it('should keep-alive for json API', async () => {
+  it('should send keep-alive for json API', async () => {
     const res = await fetchViaHTTP(appPort, '/api/json')
     const obj = await res.json()
-    expect(obj).toBe({ text1: 'Mock HTTP response', connection1: 'keep-alive' })
+    expect(obj).toEqual({ connection: 'keep-alive' })
   })
 
-  it('should keep-alive for getStaticProps', async () => {
+  it('should send keep-alive for getStaticProps', async () => {
     const browser = await webdriver(appPort, '/ssg')
     const props = await browser.elementById('props').text()
     const obj = JSON.parse(props)
-    expect(obj).toBe({ text1: 'Mock HTTP response', connection1: 'keep-alive' })
+    expect(obj).toEqual({ connection: 'keep-alive' })
     await browser.close()
   })
 
-  it('should keep-alive for getServerSideProps', async () => {
+  it('should send keep-alive for getServerSideProps', async () => {
     const browser = await webdriver(appPort, '/ssr')
     const props = await browser.elementById('props').text()
     const obj = JSON.parse(props)
-    expect(obj).toBe({ text1: 'Mock HTTP response', connection1: 'keep-alive' })
+    expect(obj).toEqual({ connection: 'keep-alive' })
     await browser.close()
   })
 })
