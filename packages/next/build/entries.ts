@@ -5,6 +5,7 @@ import { API_ROUTE, DOT_NEXT_ALIAS, PAGES_DIR_ALIAS } from '../lib/constants'
 import { __ApiPreviewProps } from '../server/api-utils'
 import { isTargetLikeServerless } from '../server/config'
 import { normalizePagePath } from '../server/normalize-page-path'
+import { MIDDLEWARE_ROUTE } from '../lib/constants'
 import { warn } from './output/log'
 import { ClientPagesLoaderOptions } from './webpack/loaders/next-client-pages-loader'
 import { ServerlessLoaderQuery } from './webpack/loaders/next-serverless-loader'
@@ -113,6 +114,7 @@ export function createEntrypoints(
     const absolutePagePath = pages[page]
     const bundleFile = normalizePagePath(page)
     const isApiRoute = page.match(API_ROUTE)
+    const isMiddleware = page.match(MIDDLEWARE_ROUTE)
 
     const clientBundlePath = posix.join('pages', bundleFile)
     const serverBundlePath = posix.join('pages', bundleFile)
@@ -145,7 +147,7 @@ export function createEntrypoints(
       return
     }
 
-    if (!isApiRoute) {
+    if (!isApiRoute && !isMiddleware) {
       const pageLoaderOpts: ClientPagesLoaderOptions = {
         page,
         absolutePagePath,
