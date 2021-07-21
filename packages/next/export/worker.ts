@@ -455,7 +455,7 @@ export default async function exportPage({
             await validateAmp(ampChunks.join(''), page + '?amp=1')
           }
           await promises.mkdir(ampBaseDir, { recursive: true })
-          await Promise.all([
+          await Promise.allSettled([
             promises.writeFile(ampHtmlFilepath, ampChunks.join(''), 'utf8'),
             promises.writeFile(
               ampHtmlFilepath + '.json',
@@ -491,7 +491,7 @@ export default async function exportPage({
 
       if (!results.ssgNotFound) {
         // don't attempt writing to disk if getStaticProps returned not found
-        await Promise.all([
+        await Promise.allSettled([
           promises.writeFile(htmlFilepath, htmlChunks.join(''), 'utf8'),
           promises.writeFile(
             htmlFilepath + '.json',

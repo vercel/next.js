@@ -639,12 +639,19 @@ export default async function exportApp(
 
           await promises.mkdir(dirname(htmlDest), { recursive: true })
           await promises.mkdir(dirname(jsonDest), { recursive: true })
-          await promises.copyFile(`${orig}.html`, htmlDest)
-          await promises.copyFile(`${orig}.json`, jsonDest)
+
+          await Promise.allSettled([
+            promises.copyFile(`${orig}.html`, htmlDest),
+            promises.copyFile(`${orig}.html.json`, htmlDest),
+            promises.copyFile(`${orig}.json`, jsonDest),
+          ])
 
           if (await exists(`${orig}.amp.html`)) {
             await promises.mkdir(dirname(ampHtmlDest), { recursive: true })
-            await promises.copyFile(`${orig}.amp.html`, ampHtmlDest)
+            await Promise.allSettled([
+              promises.copyFile(`${orig}.amp.html`, ampHtmlDest),
+              promises.copyFile(`${orig}.amp.html.json`, ampHtmlDest),
+            ])
           }
         })
       )
