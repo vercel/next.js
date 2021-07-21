@@ -54,7 +54,7 @@ import {
   tryGetPreviewData,
   __ApiPreviewProps,
 } from './api-utils'
-import { DomainLocales, isTargetLikeServerless, NextConfig } from './config'
+import { DomainLocale, isTargetLikeServerless, NextConfig } from './config'
 import pathMatch from '../shared/lib/router/utils/path-match'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
 import { loadComponents, LoadComponentsReturnType } from './load-components'
@@ -83,13 +83,10 @@ import { removePathTrailingSlash } from '../client/normalize-trailing-slash'
 import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-asset-path'
 import { FontManifest } from './font-utils'
 import { denormalizePagePath } from './denormalize-page-path'
-import accept from '@hapi/accept'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
-import { detectLocaleCookie } from '../shared/lib/i18n/detect-locale-cookie'
 import * as Log from '../build/output/log'
 import { imageOptimizer } from './image-optimizer'
 import { detectDomainLocale } from '../shared/lib/i18n/detect-domain-locale'
-import cookie from 'next/dist/compiled/cookie'
 import escapePathDelimiters from '../shared/lib/router/utils/escape-path-delimiters'
 import { getUtils } from '../build/webpack/loaders/next-serverless-loader/utils'
 import { PreviewData } from 'next/types'
@@ -98,6 +95,7 @@ import ResponseCache, {
   ResponseCacheValue,
 } from './response-cache'
 import { NextConfigComplete } from './config-shared'
+import { parseNextUrl } from '../shared/lib/router/utils/parse-next-url'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -175,7 +173,7 @@ export default class Server {
     locale?: string
     locales?: string[]
     defaultLocale?: string
-    domainLocales?: DomainLocales
+    domainLocales?: DomainLocale[]
     distDir: string
   }
   private compression?: Middleware
@@ -309,7 +307,7 @@ export default class Server {
     res: ServerResponse,
     parsedUrl?: UrlWithParsedQuery
   ): Promise<void> {
-    setLazyProp({ req: req as any }, 'cookies', getCookieParser(req))
+    setLazyProp({ req: req as any }, 'cookies', getCookieParser(req.headers))
 
     // Parse url if parsedUrl not provided
     if (!parsedUrl || typeof parsedUrl !== 'object') {
@@ -324,9 +322,13 @@ export default class Server {
     }
     ;(req as any).__NEXT_INIT_QUERY = Object.assign({}, parsedUrl.query)
 
-    if (basePath && req.url?.startsWith(basePath)) {
-      // store original URL to allow checking if basePath was
-      // provided or not
+    const url = parseNextUrl({
+      headers: req.headers,
+      nextConfig: this.nextConfig,
+      url: req.url?.replace(/^\/+/, '/'),
+    })
+
+    if (url.basePath) {
       ;(req as any)._nextHadBasePath = true
       req.url = req.url!.replace(basePath, '') || '/'
     }
@@ -436,156 +438,34 @@ export default class Server {
       }`
     }
 
-    if (i18n) {
-      // get pathname from URL with basePath stripped for locale detection
-      let { pathname, ...parsed } = parseUrl(req.url || '/')
-      pathname = pathname || '/'
+    ;(req as any).__nextHadTrailingSlash = url.locale?.trailingSlash
+    if (url.locale?.domain) {
+      ;(req as any).__nextIsLocaleDomain = true
+    }
 
-      let defaultLocale = i18n.defaultLocale
-      let detectedLocale = detectLocaleCookie(req, i18n.locales)
-      let acceptPreferredLocale
-      try {
-        acceptPreferredLocale =
-          i18n.localeDetection !== false
-            ? accept.language(req.headers['accept-language'], i18n.locales)
-            : detectedLocale
-      } catch (_) {
-        acceptPreferredLocale = detectedLocale
+    if (url.locale?.path.detectedLocale) {
+      req.url = formatUrl(url)
+      ;(req as any).__nextStrippedLocale = true
+      if (url.pathname === '/api' || url.pathname.startsWith('/api/')) {
+        return this.render404(req, res, parsedUrl)
       }
-      const { host } = req?.headers || {}
-      // remove port from host if present
-      const hostname = host?.split(':')[0].toLowerCase()
+    }
 
-      const detectedDomain = detectDomainLocale(i18n.domains, hostname)
-      if (detectedDomain) {
-        defaultLocale = detectedDomain.defaultLocale
-        detectedLocale = defaultLocale
-        ;(req as any).__nextIsLocaleDomain = true
+    if (!this.minimalMode || !parsedUrl.query.__nextLocale) {
+      if (url?.locale?.locale) {
+        parsedUrl.query.__nextLocale = url.locale.locale
       }
+    }
 
-      // if not domain specific locale use accept-language preferred
-      detectedLocale = detectedLocale || acceptPreferredLocale
+    if (url?.locale?.defaultLocale) {
+      parsedUrl.query.__nextDefaultLocale = url.locale.defaultLocale
+    }
 
-      let localeDomainRedirect: string | undefined
-      ;(req as any).__nextHadTrailingSlash = pathname!.endsWith('/')
-
-      if (pathname === '/') {
-        ;(req as any).__nextHadTrailingSlash = this.nextConfig.trailingSlash
-      }
-      const localePathResult = normalizeLocalePath(pathname!, i18n.locales)
-
-      if (localePathResult.detectedLocale) {
-        detectedLocale = localePathResult.detectedLocale
-        req.url = formatUrl({
-          ...parsed,
-          pathname: localePathResult.pathname,
-        })
-        ;(req as any).__nextStrippedLocale = true
-
-        if (
-          localePathResult.pathname === '/api' ||
-          localePathResult.pathname.startsWith('/api/')
-        ) {
-          return this.render404(req, res, parsedUrl)
-        }
-      }
-
-      // If a detected locale is a domain specific locale and we aren't already
-      // on that domain and path prefix redirect to it to prevent duplicate
-      // content from multiple domains
-      if (detectedDomain && pathname === '/') {
-        const localeToCheck = acceptPreferredLocale
-        // const localeToCheck = localePathResult.detectedLocale
-        //   ? detectedLocale
-        //   : acceptPreferredLocale
-
-        const matchedDomain = detectDomainLocale(
-          i18n.domains,
-          undefined,
-          localeToCheck
-        )
-
-        if (
-          matchedDomain &&
-          (matchedDomain.domain !== detectedDomain.domain ||
-            localeToCheck !== matchedDomain.defaultLocale)
-        ) {
-          localeDomainRedirect = `http${matchedDomain.http ? '' : 's'}://${
-            matchedDomain.domain
-          }/${
-            localeToCheck === matchedDomain.defaultLocale ? '' : localeToCheck
-          }`
-        }
-      }
-
-      const denormalizedPagePath = denormalizePagePath(pathname || '/')
-      const detectedDefaultLocale =
-        !detectedLocale ||
-        detectedLocale.toLowerCase() === defaultLocale.toLowerCase()
-      const shouldStripDefaultLocale = false
-      // detectedDefaultLocale &&
-      // denormalizedPagePath.toLowerCase() ===
-      //   `/${i18n.defaultLocale.toLowerCase()}`
-
-      const shouldAddLocalePrefix =
-        !detectedDefaultLocale && denormalizedPagePath === '/'
-
-      detectedLocale = detectedLocale || i18n.defaultLocale
-
-      if (
-        i18n.localeDetection !== false &&
-        (localeDomainRedirect ||
-          shouldAddLocalePrefix ||
-          shouldStripDefaultLocale)
-      ) {
-        // set the NEXT_LOCALE cookie when a user visits the default locale
-        // with the locale prefix so that they aren't redirected back to
-        // their accept-language preferred locale
-        if (
-          shouldStripDefaultLocale &&
-          acceptPreferredLocale !== defaultLocale
-        ) {
-          const previous = res.getHeader('set-cookie')
-
-          res.setHeader('set-cookie', [
-            ...(typeof previous === 'string'
-              ? [previous]
-              : Array.isArray(previous)
-              ? previous
-              : []),
-            cookie.serialize('NEXT_LOCALE', defaultLocale, {
-              httpOnly: true,
-              path: '/',
-            }),
-          ])
-        }
-
-        res.setHeader(
-          'Location',
-          localeDomainRedirect
-            ? localeDomainRedirect
-            : formatUrl({
-                // make sure to include any query values when redirecting
-                ...parsed,
-                pathname: shouldStripDefaultLocale
-                  ? basePath || `/`
-                  : `${basePath || ''}/${detectedLocale}`,
-              })
-        )
-        res.statusCode = TEMPORARY_REDIRECT_STATUS
-        res.end()
-        return
-      }
-
-      parsedUrl.query.__nextDefaultLocale =
-        detectedDomain?.defaultLocale || i18n.defaultLocale
-
-      if (!this.minimalMode || !parsedUrl.query.__nextLocale) {
-        parsedUrl.query.__nextLocale =
-          localePathResult.detectedLocale ||
-          detectedDomain?.defaultLocale ||
-          defaultLocale
-      }
+    if (url.locale?.redirect) {
+      res.setHeader('Location', url.locale.redirect)
+      res.statusCode = TEMPORARY_REDIRECT_STATUS
+      res.end()
+      return
     }
 
     res.statusCode = 200
