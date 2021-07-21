@@ -1266,8 +1266,12 @@ export default class Server {
         requireStaticHTML: true,
       },
     })
-    const chunks = payload ? await resultToChunks(payload.body) : []
-    return chunks.length > 0 ? chunks.join('') : null
+    if (payload === null) {
+      return null
+    }
+    console.warn(payload)
+    const chunks = await resultToChunks(payload.body)
+    return chunks.join('')
   }
 
   public async render(
@@ -1568,7 +1572,7 @@ export default class Server {
         .join('/')
     }
 
-    const doRender: () => Promise<ResponseCacheEntry> = async () => {
+    const doRender: () => Promise<ResponseCacheEntry | null> = async () => {
       let pageData: any
       let body: RenderResult | null
       let sprRevalidate: number | false
@@ -1639,6 +1643,10 @@ export default class Server {
         sprRevalidate = (renderOpts as any).revalidate
         isNotFound = (renderOpts as any).isNotFound
         isRedirect = (renderOpts as any).isRedirect
+      }
+
+      if (!body) {
+        return null
       }
 
       let value: ResponseCacheValue | null
@@ -1726,6 +1734,9 @@ export default class Server {
                 prepareServerlessUrl(req, query)
               }
               const result = await doRender()
+              if (!result) {
+                return null
+              }
               // Prevent caching this result
               delete result.revalidate
               return result
@@ -1734,15 +1745,21 @@ export default class Server {
         }
 
         const result = await doRender()
-        return {
-          ...result,
-          revalidate:
-            result.revalidate !== undefined
-              ? result.revalidate
-              : /* default to minimum revalidate (this should be an invariant) */ 1,
-        }
+        return result
+          ? {
+              ...result,
+              revalidate:
+                result.revalidate !== undefined
+                  ? result.revalidate
+                  : /* default to minimum revalidate (this should be an invariant) */ 1,
+            }
+          : null
       }
     )
+
+    if (!cacheEntry) {
+      return null
+    }
 
     const { revalidate, value: cachedData } = cacheEntry
     const revalidateOptions: any =

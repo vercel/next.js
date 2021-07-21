@@ -19,11 +19,13 @@ export type ResponseCacheEntry = {
   value: ResponseCacheValue | null
 }
 
-type ResponseGenerator = (hasResolved: boolean) => Promise<ResponseCacheEntry>
+type ResponseGenerator = (
+  hasResolved: boolean
+) => Promise<ResponseCacheEntry | null>
 
 export default class ResponseCache {
   incrementalCache: IncrementalCache
-  pendingResponses: Map<string, Promise<ResponseCacheEntry>>
+  pendingResponses: Map<string, Promise<ResponseCacheEntry | null>>
 
   constructor(incrementalCache: IncrementalCache) {
     this.incrementalCache = incrementalCache
@@ -33,15 +35,15 @@ export default class ResponseCache {
   public get(
     key: string | null,
     responseGenerator: ResponseGenerator
-  ): Promise<ResponseCacheEntry> {
+  ): Promise<ResponseCacheEntry | null> {
     const pendingResponse = key ? this.pendingResponses.get(key) : null
     if (pendingResponse) {
       return pendingResponse
     }
 
-    let resolver: (cacheEntry: ResponseCacheEntry) => void = () => {}
+    let resolver: (cacheEntry: ResponseCacheEntry | null) => void = () => {}
     let rejecter: (error: Error) => void = () => {}
-    const promise: Promise<ResponseCacheEntry> = new Promise(
+    const promise: Promise<ResponseCacheEntry | null> = new Promise(
       (resolve, reject) => {
         resolver = resolve
         rejecter = reject
@@ -52,7 +54,7 @@ export default class ResponseCache {
     }
 
     let resolved = false
-    const resolve = (cacheEntry: ResponseCacheEntry) => {
+    const resolve = (cacheEntry: ResponseCacheEntry | null) => {
       if (key) {
         // Ensure all reads from the cache get the latest value.
         this.pendingResponses.set(key, Promise.resolve(cacheEntry))
@@ -91,7 +93,7 @@ export default class ResponseCache {
         const cacheEntry = await responseGenerator(resolved)
         resolve(cacheEntry)
 
-        if (key && typeof cacheEntry.revalidate !== 'undefined') {
+        if (key && cacheEntry && typeof cacheEntry.revalidate !== 'undefined') {
           await this.incrementalCache.set(
             key,
             cacheEntry.value?.kind === 'PAGE'
