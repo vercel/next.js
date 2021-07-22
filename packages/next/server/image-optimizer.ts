@@ -15,7 +15,7 @@ import { processBuffer, Operation } from './lib/squoosh/main'
 import Server from './next-server'
 import { sendEtagResponse } from './send-payload'
 import { getContentType, getExtension } from './serve-static'
-import Sharp from 'sharp'
+import chalk from 'chalk'
 
 //const AVIF = 'image/avif'
 const WEBP = 'image/webp'
@@ -30,13 +30,15 @@ const VECTOR_TYPES = [SVG]
 const BLUR_IMG_SIZE = 8 // should match `next-image-loader`
 const inflightRequests = new Map<string, Promise<undefined>>()
 
-let sharp: (
-  input?: string | Buffer,
-  options?: Sharp.SharpOptions
-) => Sharp.Sharp
+let sharp:
+  | ((
+      input?: string | Buffer,
+      options?: import('sharp').SharpOptions
+    ) => import('sharp').Sharp)
+  | undefined
 
 try {
-  sharp = require('sharp')
+  sharp = require(process.env.__NEXT_TEST_SHARP_PATH || 'sharp')
 } catch (e) {
   // Sharp not present on the server, Squoosh fallback will be used
 }
@@ -364,7 +366,9 @@ export async function imageOptimizer(
         // Show sharp warning in production once
         if (shouldShowSharpWarning) {
           console.warn(
-            `WARNING: For production image optimization with Next.js, the optional 'sharp' package is strongly recommended. Run 'yarn add sharp', and Next.js will use it automatically for image optimization.`
+            chalk.yellow.bold('Warning: ') +
+              `For production image optimization with Next.js, the optional 'sharp' package is strongly recommended. Run 'yarn add sharp', and Next.js will use it automatically for image optimization.\n` +
+              'Read more: https://nextjs.org/docs/messages/improper-devtool'
           )
           shouldShowSharpWarning = false
         }
