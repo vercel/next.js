@@ -999,8 +999,6 @@ export default async function getBaseWebpackConfig(
       ],
     },
     output: {
-      // we must set publicPath to an empty value to override the default of
-      // auto which doesn't work in IE11
       publicPath: isServer ? '' : `${config.assetPrefix || ''}/_next/`,
       path:
         isServer && isWebpack5 && !dev
