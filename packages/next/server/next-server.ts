@@ -1562,17 +1562,16 @@ export default class Server {
         .join('/')
     }
 
-    const doRender: () => Promise<ResponseCacheEntry> = async () => {
+    const doRender: () => Promise<ResponseCacheEntry | null> = async () => {
       let pageData: any
       let html: string | null
       let sprRevalidate: number | false
       let isNotFound: boolean | undefined
       let isRedirect: boolean | undefined
 
-      let renderResult
       // handle serverless
       if (isLikeServerless) {
-        renderResult = await (components.Component as any).renderReqToHTML(
+        const renderResult = await (components.Component as any).renderReqToHTML(
           req,
           res,
           'passthrough',
@@ -1625,7 +1624,13 @@ export default class Server {
               : resolvedUrl,
         }
 
-        renderResult = await renderToHTML(req, res, pathname, query, renderOpts)
+        const renderResult = await renderToHTML(
+          req,
+          res,
+          pathname,
+          query,
+          renderOpts
+        )
 
         html = renderResult
         // TODO: change this to a different passing mechanism
@@ -1641,7 +1646,10 @@ export default class Server {
       } else if (isRedirect) {
         value = { kind: 'REDIRECT', props: pageData }
       } else {
-        value = { kind: 'PAGE', html: html!, pageData }
+        if (!html) {
+          return null
+        }
+        value = { kind: 'PAGE', html, pageData }
       }
       return { revalidate: sprRevalidate, value }
     }
@@ -1720,6 +1728,9 @@ export default class Server {
                 prepareServerlessUrl(req, query)
               }
               const result = await doRender()
+              if (!result) {
+                return null
+              }
               // Prevent caching this result
               delete result.revalidate
               return result
@@ -1728,6 +1739,9 @@ export default class Server {
         }
 
         const result = await doRender()
+        if (!result) {
+          return null
+        }
         return {
           ...result,
           revalidate:
@@ -1737,6 +1751,18 @@ export default class Server {
         }
       }
     )
+
+    if (!cacheEntry) {
+      if (ssgCacheKey) {
+        // A cache entry might not be generated if a response is written
+        // in `getInitialProps` or `getServerSideProps`, but those shouldn't
+        // have a cache key. If we do have a cache key but we don't end up
+        // with a cache entry, then either Next.js or the application has a
+        // bug that needs fixing.
+        throw new Error('invariant: cache entry required but not generated')
+      }
+      return null
+    }
 
     const { revalidate, value: cachedData } = cacheEntry
     const revalidateOptions: any =
