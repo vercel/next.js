@@ -1755,6 +1755,14 @@ export default class Server {
     )
 
     if (!cacheEntry) {
+      if (ssgCacheKey) {
+        // A cache entry might not be generated if a response is written
+        // in `getInitialProps` or `getServerSideProps`, but those shouldn't
+        // have a cache key. If we do have a cache key but we don't end up
+        // with a cache entry, then either Next.js or the application has a
+        // bug that needs fixing.
+        throw new Error('invariant: cache entry required but not generated')
+      }
       return null
     }
 
