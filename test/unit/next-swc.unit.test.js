@@ -1,5 +1,5 @@
 /* eslint-env jest */
-import { transform } from 'next/build/swc'
+import { transform } from 'next/dist/build/swc'
 
 const swc = async (code) => {
   let output = await transform(code)
