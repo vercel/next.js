@@ -1411,13 +1411,14 @@ export default class Server {
     const is404Page = pathname === '/404'
     const is500Page = pathname === '/500'
 
+    const component = components.Component as unknown
     const isLikeServerless =
-      typeof components.Component === 'object' &&
-      typeof (components.Component as any).renderReqToHTML === 'function'
+      typeof component === 'object' &&
+      typeof (component as any).renderReqToHTML === 'function'
     const isSSG = !!components.getStaticProps
     const hasServerProps = !!components.getServerSideProps
     const hasStaticPaths = !!components.getStaticPaths
-    const hasGetInitialProps = !!(components.Component as any).getInitialProps
+    const hasGetInitialProps = !!(component as any).getInitialProps
 
     // Toggle whether or not this is a Data request
     const isDataReq = !!query._nextDataReq && (isSSG || hasServerProps)
@@ -1435,10 +1436,10 @@ export default class Server {
     }
 
     // handle static page
-    if (typeof components.Component === 'string') {
+    if (typeof component === 'string') {
       return {
         type: 'html',
-        body: components.Component,
+        body: [component],
       }
     }
 
@@ -1572,7 +1573,7 @@ export default class Server {
       let renderResult
       // handle serverless
       if (isLikeServerless) {
-        renderResult = await (components.Component as any).renderReqToHTML(
+        renderResult = await (component as any).renderReqToHTML(
           req,
           res,
           'passthrough',
