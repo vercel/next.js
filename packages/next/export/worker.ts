@@ -46,7 +46,7 @@ interface ExportPageInput {
   pagesDataDir: string
   renderOpts: RenderOpts
   buildExport?: boolean
-  serverRuntimeConfig: string
+  serverRuntimeConfig: { [key: string]: any }
   subFolders?: boolean
   serverless: boolean
   optimizeFonts: boolean
