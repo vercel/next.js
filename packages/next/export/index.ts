@@ -638,6 +638,7 @@ export default async function exportApp(
           await promises.mkdir(dirname(htmlDest), { recursive: true })
           await promises.mkdir(dirname(jsonDest), { recursive: true })
           await Promise.allSettled([
+            // TODO: Remove support for unchunked HTML
             promises.copyFile(`${orig}.html`, htmlDest),
             promises.copyFile(`${orig}.html.json`, htmlDest),
             promises.copyFile(`${orig}.json`, jsonDest),
@@ -646,6 +647,7 @@ export default async function exportApp(
           if (await exists(`${orig}.amp.html`)) {
             await promises.mkdir(dirname(ampHtmlDest), { recursive: true })
             await Promise.allSettled([
+              // TODO: Remove support for unchunked HTML
               promises.copyFile(`${orig}.amp.html`, ampHtmlDest),
               promises.copyFile(`${orig}.amp.html.json`, ampHtmlDest),
             ])

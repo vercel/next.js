@@ -449,6 +449,7 @@ export default async function exportPage({
           }
           await promises.mkdir(ampBaseDir, { recursive: true })
           await Promise.allSettled([
+            // TODO: Remove support for unchunked HTML
             promises.writeFile(ampHtmlFilepath, ampHtml, 'utf8'),
             promises.writeFile(
               ampHtmlFilepath + '.json',
@@ -485,6 +486,7 @@ export default async function exportPage({
       if (!results.ssgNotFound) {
         // don't attempt writing to disk if getStaticProps returned not found
         await Promise.allSettled([
+          // TODO: Remove support for unchunked HTML
           promises.writeFile(htmlFilepath, html, 'utf8'),
           promises.writeFile(
             htmlFilepath + '.json',
