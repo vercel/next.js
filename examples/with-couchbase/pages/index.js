@@ -39,7 +39,7 @@ export default function Home({ isConnected, rows }) {
         {rows === null ? (
           <em className="small center">
             Note: you must have travel-sample data imported to your couchbase
-            instance and set the TEST_BUCKET_NAME properly for this to populate
+            instance and set the COUCHBASE_BUCKET properly for this to populate
           </em>
         ) : (
           <></>

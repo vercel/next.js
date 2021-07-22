@@ -3,7 +3,7 @@ const couchbase = require('couchbase')
 const COUCHBASE_USER = process.env.COUCHBASE_USER
 const COUCHBASE_PASSWORD = process.env.COUCHBASE_PASSWORD
 const COUCHBASE_ENDPOINT = process.env.COUCHBASE_ENDPOINT || 'localhost'
-const TEST_BUCKET_NAME = process.env.TEST_BUCKET_NAME || 'travel-sample'
+const COUCHBASE_BUCKET = process.env.COUCHBASE_BUCKET || 'travel-sample'
 let IS_CLOUD_INSTANCE = process.env.IS_CLOUD_INSTANCE || 'false'
 
 if (!COUCHBASE_USER) {
@@ -53,7 +53,7 @@ async function createCouchbaseCluster() {
 export async function connectToDatabase() {
   const cluster = await createCouchbaseCluster()
 
-  const bucket = cluster.bucket(TEST_BUCKET_NAME)
+  const bucket = cluster.bucket(COUCHBASE_BUCKET)
   const collection = bucket.defaultCollection()
 
   let dbConnection = {
