@@ -639,7 +639,7 @@ export default async function exportApp(
           await promises.mkdir(dirname(jsonDest), { recursive: true })
           await Promise.allSettled([
             promises.copyFile(`${orig}.html`, htmlDest),
-            promises.copyFile(`${orig}.html.json`, htmlDest),
+            promises.copyFile(`${orig}.html.json`, htmlDest + '.json'),
             promises.copyFile(`${orig}.json`, jsonDest),
           ])
 
@@ -647,7 +647,7 @@ export default async function exportApp(
             await promises.mkdir(dirname(ampHtmlDest), { recursive: true })
             await Promise.allSettled([
               promises.copyFile(`${orig}.amp.html`, ampHtmlDest),
-              promises.copyFile(`${orig}.amp.html.json`, ampHtmlDest),
+              promises.copyFile(`${orig}.amp.html.json`, ampHtmlDest + '.json'),
             ])
           }
         })
