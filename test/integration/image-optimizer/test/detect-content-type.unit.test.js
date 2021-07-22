@@ -1,6 +1,6 @@
 /* eslint-env jest */
 import { detectContentType } from '../../../../packages/next/dist/server/image-optimizer.js'
-import { readFile } from 'fs/promises'
+import { readFile } from 'fs-extra'
 import { join } from 'path'
 
 const getImage = (filepath) => readFile(join(__dirname, filepath))
