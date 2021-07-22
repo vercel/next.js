@@ -1,4 +1,5 @@
 /* eslint-env jest */
+import execa from 'execa'
 import fs from 'fs-extra'
 import sizeOf from 'image-size'
 import {
@@ -15,14 +16,17 @@ import {
 import isAnimated from 'next/dist/compiled/is-animated'
 import { join } from 'path'
 
-jest.setTimeout(1000 * 60 * 2)
+jest.setTimeout(1000 * 60 * 5)
 
-const appDir = join(__dirname, '../')
+const appDir = join(__dirname, '../app')
 const imagesDir = join(appDir, '.next', 'cache', 'images')
 const nextConfig = new File(join(appDir, 'next.config.js'))
 const largeSize = 1080 // defaults defined in server/config.ts
+let nextOutput
 let appPort
 let app
+
+const sharpMissingText = `For production Image Optimization with Next.js, the optional 'sharp' package is strongly recommended`
 
 async function fsToJson(dir, output = {}) {
   const files = await fs.readdir(dir)
@@ -45,7 +49,7 @@ async function expectWidth(res, w) {
   expect(d.width).toBe(w)
 }
 
-function runTests({ w, isDev, domains = [], ttl }) {
+function runTests({ w, isDev, domains = [], ttl, isSharp }) {
   it('should return home page', async () => {
     const res = await fetchViaHTTP(appPort, '/', null, {})
     expect(await res.text()).toMatch(/Image Optimizer Home/m)
@@ -105,7 +109,7 @@ function runTests({ w, isDev, domains = [], ttl }) {
     expect(res.headers.get('etag')).toBeTruthy()
     const actual = await res.text()
     const expected = await fs.readFile(
-      join(__dirname, '..', 'public', 'test.svg'),
+      join(appDir, 'public', 'test.svg'),
       'utf8'
     )
     expect(actual).toMatch(expected)
@@ -124,7 +128,7 @@ function runTests({ w, isDev, domains = [], ttl }) {
     expect(res.headers.get('etag')).toBeTruthy()
     const actual = await res.text()
     const expected = await fs.readFile(
-      join(__dirname, '..', 'public', 'test.ico'),
+      join(appDir, 'public', 'test.ico'),
       'utf8'
     )
     expect(actual).toMatch(expected)
@@ -541,26 +545,30 @@ function runTests({ w, isDev, domains = [], ttl }) {
     await expectWidth(res, 400)
   })
 
-  it('should not change the color type of a png', async () => {
-    // https://github.com/vercel/next.js/issues/22929
-    // A grayscaled PNG with transparent pixels.
-    const query = { url: '/grayscale.png', w: largeSize, q: 80 }
-    const opts = { headers: { accept: 'image/png' } }
-    const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
-    expect(res.status).toBe(200)
-    expect(res.headers.get('Content-Type')).toBe('image/png')
-    expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=0, must-revalidate`
-    )
-    expect(res.headers.get('Vary')).toBe('Accept')
+  if (!isSharp) {
+    // this checks for specific color type output by squoosh
+    // which differs in sharp
+    it('should not change the color type of a png', async () => {
+      // https://github.com/vercel/next.js/issues/22929
+      // A grayscaled PNG with transparent pixels.
+      const query = { url: '/grayscale.png', w: largeSize, q: 80 }
+      const opts = { headers: { accept: 'image/png' } }
+      const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+      expect(res.status).toBe(200)
+      expect(res.headers.get('Content-Type')).toBe('image/png')
+      expect(res.headers.get('Cache-Control')).toBe(
+        `public, max-age=0, must-revalidate`
+      )
+      expect(res.headers.get('Vary')).toBe('Accept')
 
-    const png = await res.buffer()
+      const png = await res.buffer()
 
-    // Read the color type byte (offset 9 + magic number 16).
-    // http://www.libpng.org/pub/png/spec/1.2/PNG-Chunks.html
-    const colorType = png.readUIntBE(25, 1)
-    expect(colorType).toBe(4)
-  })
+      // Read the color type byte (offset 9 + magic number 16).
+      // http://www.libpng.org/pub/png/spec/1.2/PNG-Chunks.html
+      const colorType = png.readUIntBE(25, 1)
+      expect(colorType).toBe(4)
+    })
+  }
 
   it('should set cache-control to immutable for static images', async () => {
     if (!isDev) {
@@ -617,6 +625,16 @@ function runTests({ w, isDev, domains = [], ttl }) {
     const json1 = await fsToJson(imagesDir)
     expect(Object.keys(json1).length).toBe(1)
   })
+
+  if (isDev || isSharp) {
+    it('should not have sharp missing warning', () => {
+      expect(nextOutput).not.toContain(sharpMissingText)
+    })
+  } else {
+    it('should have sharp missing warning', () => {
+      expect(nextOutput).toContain(sharpMissingText)
+    })
+  }
 }
 
 describe('Image Optimizer', () => {
@@ -782,81 +800,6 @@ describe('Image Optimizer', () => {
     'image-optimization-test.vercel.app',
   ]
 
-  describe('dev support w/o next.config.js', () => {
-    const size = 384 // defaults defined in server/config.ts
-    beforeAll(async () => {
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-    })
-    afterAll(async () => {
-      await killApp(app)
-      await fs.remove(imagesDir)
-    })
-
-    runTests({ w: size, isDev: true, domains: [] })
-  })
-
-  describe('dev support with next.config.js', () => {
-    const size = 64
-    beforeAll(async () => {
-      const json = JSON.stringify({
-        images: {
-          deviceSizes: [largeSize],
-          imageSizes: [size],
-          domains,
-        },
-      })
-      nextConfig.replace('{ /* replaceme */ }', json)
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-    })
-    afterAll(async () => {
-      await killApp(app)
-      nextConfig.restore()
-      await fs.remove(imagesDir)
-    })
-
-    runTests({ w: size, isDev: true, domains })
-  })
-
-  describe('Server support w/o next.config.js', () => {
-    const size = 384 // defaults defined in server/config.ts
-    beforeAll(async () => {
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(async () => {
-      await killApp(app)
-      await fs.remove(imagesDir)
-    })
-
-    runTests({ w: size, isDev: false, domains: [] })
-  })
-
-  describe('Server support with next.config.js', () => {
-    const size = 128
-    beforeAll(async () => {
-      const json = JSON.stringify({
-        images: {
-          deviceSizes: [size, largeSize],
-          domains,
-        },
-      })
-      nextConfig.replace('{ /* replaceme */ }', json)
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(async () => {
-      await killApp(app)
-      nextConfig.restore()
-      await fs.remove(imagesDir)
-    })
-
-    runTests({ w: size, isDev: false, domains })
-  })
-
   describe('Server support for minimumCacheTTL in next.config.js', () => {
     const size = 96 // defaults defined in server/config.ts
     const ttl = 5 // super low ttl in seconds
@@ -866,10 +809,15 @@ describe('Image Optimizer', () => {
           minimumCacheTTL: ttl,
         },
       })
+      nextOutput = ''
       nextConfig.replace('{ /* replaceme */ }', json)
       await nextBuild(appDir)
       appPort = await findPort()
-      app = await nextStart(appDir, appPort)
+      app = await nextStart(appDir, appPort, {
+        onStderr(msg) {
+          nextOutput += msg
+        },
+      })
     })
     afterAll(async () => {
       await killApp(app)
@@ -930,30 +878,6 @@ describe('Image Optimizer', () => {
         `public, max-age=0, must-revalidate`
       )
     })
-  })
-
-  describe('Serverless support with next.config.js', () => {
-    const size = 256
-    beforeAll(async () => {
-      const json = JSON.stringify({
-        target: 'experimental-serverless-trace',
-        images: {
-          deviceSizes: [size, largeSize],
-          domains,
-        },
-      })
-      nextConfig.replace('{ /* replaceme */ }', json)
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(async () => {
-      await killApp(app)
-      nextConfig.restore()
-      await fs.remove(imagesDir)
-    })
-
-    runTests({ w: size, isDev: false, domains })
   })
 
   describe('dev support next.config.js cloudinary loader', () => {
@@ -1044,5 +968,144 @@ describe('Image Optimizer', () => {
       expect(res.status).toBe(200)
       await expectWidth(res, 8)
     })
+  })
+
+  const setupTests = (isSharp = false) => {
+    describe('dev support w/o next.config.js', () => {
+      const size = 384 // defaults defined in server/config.ts
+      beforeAll(async () => {
+        nextOutput = ''
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort, {
+          onStderr(msg) {
+            nextOutput += msg
+          },
+          cwd: appDir,
+        })
+      })
+      afterAll(async () => {
+        await killApp(app)
+        await fs.remove(imagesDir)
+      })
+
+      runTests({ w: size, isDev: true, domains: [], isSharp })
+    })
+
+    describe('dev support with next.config.js', () => {
+      const size = 64
+      beforeAll(async () => {
+        const json = JSON.stringify({
+          images: {
+            deviceSizes: [largeSize],
+            imageSizes: [size],
+            domains,
+          },
+        })
+        nextOutput = ''
+        nextConfig.replace('{ /* replaceme */ }', json)
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort, {
+          onStderr(msg) {
+            nextOutput += msg
+          },
+          cwd: appDir,
+        })
+      })
+      afterAll(async () => {
+        await killApp(app)
+        nextConfig.restore()
+        await fs.remove(imagesDir)
+      })
+
+      runTests({ w: size, isDev: true, domains, isSharp })
+    })
+
+    describe('Server support w/o next.config.js', () => {
+      const size = 384 // defaults defined in server/config.ts
+      beforeAll(async () => {
+        nextOutput = ''
+        await nextBuild(appDir)
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort, {
+          onStderr(msg) {
+            nextOutput += msg
+          },
+          env: {
+            NEXT_SHARP_PATH: isSharp
+              ? require.resolve('sharp', {
+                  paths: [join(appDir, 'node_modules')],
+                })
+              : '',
+          },
+          cwd: appDir,
+        })
+      })
+      afterAll(async () => {
+        await killApp(app)
+        await fs.remove(imagesDir)
+      })
+
+      runTests({ w: size, isDev: false, domains: [], isSharp })
+    })
+
+    describe('Server support with next.config.js', () => {
+      const size = 128
+      beforeAll(async () => {
+        const json = JSON.stringify({
+          images: {
+            deviceSizes: [size, largeSize],
+            domains,
+          },
+        })
+        nextOutput = ''
+        nextConfig.replace('{ /* replaceme */ }', json)
+        await nextBuild(appDir)
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort, {
+          onStderr(msg) {
+            nextOutput += msg
+          },
+          env: {
+            NEXT_SHARP_PATH: isSharp
+              ? require.resolve('sharp', {
+                  paths: [join(appDir, 'node_modules')],
+                })
+              : '',
+          },
+          cwd: appDir,
+        })
+      })
+      afterAll(async () => {
+        await killApp(app)
+        nextConfig.restore()
+        await fs.remove(imagesDir)
+      })
+
+      runTests({ w: size, isDev: false, domains, isSharp })
+    })
+  }
+
+  describe('with squoosh', () => {
+    setupTests()
+  })
+
+  describe('with sharp', () => {
+    beforeAll(async () => {
+      await execa('yarn', ['init', '-y'], {
+        cwd: appDir,
+        stdio: 'inherit',
+      })
+      await execa('yarn', ['add', 'sharp'], {
+        cwd: appDir,
+        stdio: 'inherit',
+      })
+    })
+    afterAll(async () => {
+      await fs.remove(join(appDir, 'node_modules'))
+      await fs.remove(join(appDir, 'yarn.lock'))
+      await fs.remove(join(appDir, 'package.json'))
+    })
+
+    setupTests(true)
   })
 })
