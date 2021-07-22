@@ -70,7 +70,7 @@
     "@next/polyfill-module": "11.0.2-canary.20",
     "@next/react-dev-overlay": "11.0.2-canary.20",
     "@next/react-refresh-utils": "11.0.2-canary.20",
-    "@node-rs/helper": "1.2.0",
+    "@node-rs/helper": "1.2.1",
     "assert": "2.0.0",
     "ast-types": "0.13.2",
     "browserify-zlib": "0.2.0",

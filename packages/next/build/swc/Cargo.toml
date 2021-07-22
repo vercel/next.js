@@ -15,12 +15,12 @@ path-clean = "0.1"
 regex = "1.5"
 serde = "1"
 serde_json = "1"
-swc = "0.28"
+swc = "0.29"
 swc_atoms = "0.2.6"
-swc_common = { version = "0.10.23", features = ["tty-emitter", "sourcemap"] }
-swc_node_base = "0.1.0"
-swc_ecmascript = { version = "0.45.0", features = ["codegen", "optimization", "parser", "react", "transforms", "typescript", "utils", "visit"] }
-swc_ecma_preset_env = "0.28.0"
+swc_common = { version = "0.11.1", features = ["tty-emitter", "sourcemap"] }
+swc_node_base = "0.2.0"
+swc_ecmascript = { version = "0.46.0", features = ["codegen", "optimization", "parser", "react", "transforms", "typescript", "utils", "visit"] }
+swc_ecma_preset_env = "0.29.0"
 
 
 [build-dependencies]
