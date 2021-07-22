@@ -46,7 +46,7 @@ async function expectWidth(res, w) {
   expect(d.width).toBe(w)
 }
 
-function runTests({ w, isDev, domains = [], ttl }) {
+function runTests({ w, isDev, domains = [], ttl, isSharp }) {
   it('should return home page', async () => {
     const res = await fetchViaHTTP(appPort, '/', null, {})
     expect(await res.text()).toMatch(/Image Optimizer Home/m)
@@ -542,26 +542,30 @@ function runTests({ w, isDev, domains = [], ttl }) {
     await expectWidth(res, 400)
   })
 
-  it('should not change the color type of a png', async () => {
-    // https://github.com/vercel/next.js/issues/22929
-    // A grayscaled PNG with transparent pixels.
-    const query = { url: '/grayscale.png', w: largeSize, q: 80 }
-    const opts = { headers: { accept: 'image/png' } }
-    const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
-    expect(res.status).toBe(200)
-    expect(res.headers.get('Content-Type')).toBe('image/png')
-    expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=0, must-revalidate`
-    )
-    expect(res.headers.get('Vary')).toBe('Accept')
+  if (!isSharp) {
+    // this checks for specific color type output by squoosh
+    // which differs in sharp
+    it('should not change the color type of a png', async () => {
+      // https://github.com/vercel/next.js/issues/22929
+      // A grayscaled PNG with transparent pixels.
+      const query = { url: '/grayscale.png', w: largeSize, q: 80 }
+      const opts = { headers: { accept: 'image/png' } }
+      const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+      expect(res.status).toBe(200)
+      expect(res.headers.get('Content-Type')).toBe('image/png')
+      expect(res.headers.get('Cache-Control')).toBe(
+        `public, max-age=0, must-revalidate`
+      )
+      expect(res.headers.get('Vary')).toBe('Accept')
 
-    const png = await res.buffer()
+      const png = await res.buffer()
 
-    // Read the color type byte (offset 9 + magic number 16).
-    // http://www.libpng.org/pub/png/spec/1.2/PNG-Chunks.html
-    const colorType = png.readUIntBE(25, 1)
-    expect(colorType).toBe(4)
-  })
+      // Read the color type byte (offset 9 + magic number 16).
+      // http://www.libpng.org/pub/png/spec/1.2/PNG-Chunks.html
+      const colorType = png.readUIntBE(25, 1)
+      expect(colorType).toBe(4)
+    })
+  }
 
   it('should set cache-control to immutable for static images', async () => {
     if (!isDev) {
@@ -968,7 +972,7 @@ describe('Image Optimizer', () => {
         await fs.remove(imagesDir)
       })
 
-      runTests({ w: size, isDev: true, domains: [] })
+      runTests({ w: size, isDev: true, domains: [], isSharp })
 
       it('should not have sharp warning in development', () => {
         expect(output).not.toContain(sharpMissingText)
@@ -1001,7 +1005,7 @@ describe('Image Optimizer', () => {
         await fs.remove(imagesDir)
       })
 
-      runTests({ w: size, isDev: true, domains })
+      runTests({ w: size, isDev: true, domains, isSharp })
 
       it('should not have sharp warning in development', () => {
         expect(output).not.toContain(sharpMissingText)
@@ -1033,7 +1037,7 @@ describe('Image Optimizer', () => {
         await fs.remove(imagesDir)
       })
 
-      runTests({ w: size, isDev: false, domains: [] })
+      runTests({ w: size, isDev: false, domains: [], isSharp })
 
       if (isSharp) {
         it('should not have sharp warning when installed', () => {
@@ -1079,7 +1083,7 @@ describe('Image Optimizer', () => {
         await fs.remove(imagesDir)
       })
 
-      runTests({ w: size, isDev: false, domains })
+      runTests({ w: size, isDev: false, domains, isSharp })
 
       if (isSharp) {
         it('should not have sharp warning when installed', () => {
