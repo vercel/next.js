@@ -79,7 +79,7 @@ export type NextConfig = { [key: string]: any } & {
     cpus?: number
     plugins?: boolean
     profiling?: boolean
-    sprFlushToDisk?: boolean
+    isrFlushToDisk?: boolean
     reactMode?: 'legacy' | 'concurrent' | 'blocking'
     workerThreads?: boolean
     pageEnv?: boolean
@@ -152,7 +152,7 @@ export const defaultConfig: NextConfig = {
     ),
     plugins: false,
     profiling: false,
-    sprFlushToDisk: true,
+    isrFlushToDisk: true,
     workerThreads: false,
     pageEnv: false,
     optimizeImages: false,

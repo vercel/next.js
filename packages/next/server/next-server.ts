@@ -277,7 +277,7 @@ export default class Server {
       ),
       locales: this.nextConfig.i18n?.locales,
       max: this.nextConfig.experimental.isrMemoryCacheSize,
-      flushToDisk: !minimalMode && this.nextConfig.experimental.sprFlushToDisk,
+      flushToDisk: !minimalMode && this.nextConfig.experimental.isrFlushToDisk,
     })
     this.responseCache = new ResponseCache(this.incrementalCache)
 
