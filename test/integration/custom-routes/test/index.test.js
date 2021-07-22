@@ -646,7 +646,9 @@ const runTests = (isDev = false) => {
         },
       },
     ])
-    expect(await res.text()).toContain('hi from external')
+    const nextHost = `localhost:${appPort}`
+    const externalHost = `localhost:${externalServerPort}`
+    expect(await res.text()).toContain(`hi ${nextHost} from ${externalHost}`)
   })
 
   it('should support unnamed parameters correctly', async () => {
@@ -1911,7 +1913,9 @@ describe('Custom routes', () => {
     externalServerPort = await findPort()
     externalServer = http.createServer((req, res) => {
       externalServerHits.add(req.url)
-      res.end('hi from external')
+      const nextHost = req.headers['x-forwarded-host']
+      const externalHost = req.headers['host']
+      res.end(`hi ${nextHost} from ${externalHost}`)
     })
     await new Promise((resolve, reject) => {
       externalServer.listen(externalServerPort, (error) => {

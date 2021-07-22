@@ -66,11 +66,13 @@ export default function Page() {
   }
 }
 
-Page.getLayout = (page) => (
-  <Layout>
-    <NestedLayout>{page}</NestedLayout>
-  </Layout>
-)
+Page.getLayout = function getLayout(page) {
+  return (
+    <Layout>
+      <NestedLayout>{page}</NestedLayout>
+    </Layout>
+  )
+}
 ```
 
 ```jsx

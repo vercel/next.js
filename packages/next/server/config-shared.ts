@@ -2,26 +2,28 @@ import os from 'os'
 import { Header, Redirect, Rewrite } from '../lib/load-custom-routes'
 import { ImageConfig, imageConfigDefault } from './image-config'
 
-export type DomainLocales = Array<{
-  http?: true
-  domain: string
-  locales?: string[]
-  defaultLocale: string
-}>
-
 type NoOptionals<T> = {
   [P in keyof T]-?: T[P]
 }
 
 export type NextConfigComplete = NoOptionals<NextConfig>
 
+export interface I18NConfig {
+  defaultLocale: string
+  domains?: DomainLocale[]
+  localeDetection?: false
+  locales: string[]
+}
+
+export interface DomainLocale {
+  defaultLocale: string
+  domain: string
+  http?: true
+  locales?: string[]
+}
+
 export type NextConfig = { [key: string]: any } & {
-  i18n?: {
-    locales: string[]
-    defaultLocale: string
-    domains?: DomainLocales
-    localeDetection?: false
-  } | null
+  i18n?: I18NConfig | null
 
   headers?: () => Promise<Header[]>
   rewrites?: () => Promise<
@@ -62,19 +64,22 @@ export type NextConfig = { [key: string]: any } & {
   sassOptions?: { [key: string]: any }
   productionBrowserSourceMaps?: boolean
   optimizeFonts?: boolean
+  reactStrictMode?: boolean
+  publicRuntimeConfig?: { [key: string]: any }
+  serverRuntimeConfig?: { [key: string]: any }
 
-  future: {
+  future?: {
     /**
      * @deprecated this options was moved to the top level
      */
     webpack5?: false
     strictPostcssConfiguration?: boolean
   }
-  experimental: {
+  experimental?: {
     cpus?: number
     plugins?: boolean
     profiling?: boolean
-    sprFlushToDisk?: boolean
+    isrFlushToDisk?: boolean
     reactMode?: 'legacy' | 'concurrent' | 'blocking'
     workerThreads?: boolean
     pageEnv?: boolean
@@ -94,6 +99,9 @@ export type NextConfig = { [key: string]: any } & {
     gzipSize?: boolean
     craCompat?: boolean
     esmExternals?: boolean | 'loose'
+    staticPageGenerationTimeout?: number
+    pageDataCollectionTimeout?: number
+    isrMemoryCacheSize?: number
   }
 }
 
@@ -144,7 +152,7 @@ export const defaultConfig: NextConfig = {
     ),
     plugins: false,
     profiling: false,
-    sprFlushToDisk: true,
+    isrFlushToDisk: true,
     workerThreads: false,
     pageEnv: false,
     optimizeImages: false,
@@ -157,6 +165,10 @@ export const defaultConfig: NextConfig = {
     gzipSize: true,
     craCompat: false,
     esmExternals: false,
+    staticPageGenerationTimeout: 60,
+    pageDataCollectionTimeout: 60,
+    // default to 50MB limit
+    isrMemoryCacheSize: 50 * 1024 * 1024,
   },
   future: {
     strictPostcssConfiguration: false,

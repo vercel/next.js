@@ -14,7 +14,7 @@ import { loadWebpackHook } from './config-utils'
 import { ImageConfig, imageConfigDefault, VALID_LOADERS } from './image-config'
 import { loadEnvConfig } from '@next/env'
 
-export { DomainLocales, NextConfig, normalizeConfig } from './config-shared'
+export { DomainLocale, NextConfig, normalizeConfig } from './config-shared'
 
 const targets = ['server', 'serverless', 'experimental-serverless-trace']
 
@@ -290,6 +290,17 @@ function assignDefaults(userConfig: { [key: string]: any }) {
 
     if (images.path === imageConfigDefault.path && result.basePath) {
       images.path = `${result.basePath}${images.path}`
+    }
+
+    if (
+      images.minimumCacheTTL &&
+      (!Number.isInteger(images.minimumCacheTTL) || images.minimumCacheTTL < 0)
+    ) {
+      throw new Error(
+        `Specified images.minimumCacheTTL should be an integer 0 or more
+          ', '
+        )}), received  (${images.minimumCacheTTL}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
+      )
     }
   }
 
