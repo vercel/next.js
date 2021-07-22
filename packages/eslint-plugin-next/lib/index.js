@@ -35,7 +35,7 @@ module.exports = {
     },
     'core-web-vitals': {
       plugins: ['@next/next'],
-      // extends: ['plugin:@next/next/recommended'],
+      extends: ['plugin:@next/next/recommended'],
       rules: {
         '@next/next/no-sync-scripts': 2,
         '@next/next/no-html-link-for-pages': 2,
