@@ -952,7 +952,7 @@ describe('Image Optimizer', () => {
     })
   })
 
-  const sharpMissingText = `For production image optimization with Next.js, the optional 'sharp' package is strongly recommended`
+  const sharpMissingText = `For production Image Optimization with Next.js, the optional 'sharp' package is strongly recommended`
 
   const setupTests = (isSharp = false) => {
     describe('dev support w/o next.config.js', () => {
