@@ -367,7 +367,7 @@ export async function imageOptimizer(
         if (shouldShowSharpWarning) {
           console.warn(
             chalk.yellow.bold('Warning: ') +
-              `For production image optimization with Next.js, the optional 'sharp' package is strongly recommended. Run 'yarn add sharp', and Next.js will use it automatically for image optimization.\n` +
+              `For production Image Optimization with Next.js, the optional 'sharp' package is strongly recommended. Run 'yarn add sharp', and Next.js will use it automatically for image optimization.\n` +
               'Read more: https://nextjs.org/docs/messages/improper-devtool'
           )
           shouldShowSharpWarning = false

@@ -22,8 +22,11 @@ const appDir = join(__dirname, '../app')
 const imagesDir = join(appDir, '.next', 'cache', 'images')
 const nextConfig = new File(join(appDir, 'next.config.js'))
 const largeSize = 1080 // defaults defined in server/config.ts
+let nextOutput
 let appPort
 let app
+
+const sharpMissingText = `For production Image Optimization with Next.js, the optional 'sharp' package is strongly recommended`
 
 async function fsToJson(dir, output = {}) {
   const files = await fs.readdir(dir)
@@ -622,6 +625,16 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
     const json1 = await fsToJson(imagesDir)
     expect(Object.keys(json1).length).toBe(1)
   })
+
+  if (isDev || isSharp) {
+    it('should not have sharp missing warning', () => {
+      expect(nextOutput).not.toContain(sharpMissingText)
+    })
+  } else {
+    it('should have sharp missing warning', () => {
+      expect(nextOutput).toContain(sharpMissingText)
+    })
+  }
 }
 
 describe('Image Optimizer', () => {
@@ -796,10 +809,15 @@ describe('Image Optimizer', () => {
           minimumCacheTTL: ttl,
         },
       })
+      nextOutput = ''
       nextConfig.replace('{ /* replaceme */ }', json)
       await nextBuild(appDir)
       appPort = await findPort()
-      app = await nextStart(appDir, appPort)
+      app = await nextStart(appDir, appPort, {
+        onStderr(msg) {
+          nextOutput += msg
+        },
+      })
     })
     afterAll(async () => {
       await killApp(app)
@@ -952,17 +970,15 @@ describe('Image Optimizer', () => {
     })
   })
 
-  const sharpMissingText = `For production Image Optimization with Next.js, the optional 'sharp' package is strongly recommended`
-
   const setupTests = (isSharp = false) => {
     describe('dev support w/o next.config.js', () => {
-      let output = ''
       const size = 384 // defaults defined in server/config.ts
       beforeAll(async () => {
+        nextOutput = ''
         appPort = await findPort()
         app = await launchApp(appDir, appPort, {
           onStderr(msg) {
-            output += msg
+            nextOutput += msg
           },
           cwd: appDir,
         })
@@ -973,14 +989,9 @@ describe('Image Optimizer', () => {
       })
 
       runTests({ w: size, isDev: true, domains: [], isSharp })
-
-      it('should not have sharp warning in development', () => {
-        expect(output).not.toContain(sharpMissingText)
-      })
     })
 
     describe('dev support with next.config.js', () => {
-      let output = ''
       const size = 64
       beforeAll(async () => {
         const json = JSON.stringify({
@@ -990,11 +1001,12 @@ describe('Image Optimizer', () => {
             domains,
           },
         })
+        nextOutput = ''
         nextConfig.replace('{ /* replaceme */ }', json)
         appPort = await findPort()
         app = await launchApp(appDir, appPort, {
           onStderr(msg) {
-            output += msg
+            nextOutput += msg
           },
           cwd: appDir,
         })
@@ -1006,21 +1018,17 @@ describe('Image Optimizer', () => {
       })
 
       runTests({ w: size, isDev: true, domains, isSharp })
-
-      it('should not have sharp warning in development', () => {
-        expect(output).not.toContain(sharpMissingText)
-      })
     })
 
     describe('Server support w/o next.config.js', () => {
-      let output = ''
       const size = 384 // defaults defined in server/config.ts
       beforeAll(async () => {
+        nextOutput = ''
         await nextBuild(appDir)
         appPort = await findPort()
         app = await nextStart(appDir, appPort, {
           onStderr(msg) {
-            output += msg
+            nextOutput += msg
           },
           env: {
             NEXT_SHARP_PATH: isSharp
@@ -1038,21 +1046,10 @@ describe('Image Optimizer', () => {
       })
 
       runTests({ w: size, isDev: false, domains: [], isSharp })
-
-      if (isSharp) {
-        it('should not have sharp warning when installed', () => {
-          expect(output).not.toContain(sharpMissingText)
-        })
-      } else {
-        it('should have sharp warning when not installed', () => {
-          expect(output).toContain(sharpMissingText)
-        })
-      }
     })
 
     describe('Server support with next.config.js', () => {
       const size = 128
-      let output = ''
       beforeAll(async () => {
         const json = JSON.stringify({
           images: {
@@ -1060,12 +1057,13 @@ describe('Image Optimizer', () => {
             domains,
           },
         })
+        nextOutput = ''
         nextConfig.replace('{ /* replaceme */ }', json)
         await nextBuild(appDir)
         appPort = await findPort()
         app = await nextStart(appDir, appPort, {
           onStderr(msg) {
-            output += msg
+            nextOutput += msg
           },
           env: {
             NEXT_SHARP_PATH: isSharp
@@ -1084,16 +1082,6 @@ describe('Image Optimizer', () => {
       })
 
       runTests({ w: size, isDev: false, domains, isSharp })
-
-      if (isSharp) {
-        it('should not have sharp warning when installed', () => {
-          expect(output).not.toContain(sharpMissingText)
-        })
-      } else {
-        it('should have sharp warning when not installed', () => {
-          expect(output).toContain(sharpMissingText)
-        })
-      }
     })
   }
 
