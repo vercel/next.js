@@ -7,7 +7,7 @@ interface CachedRedirectValue {
 
 interface CachedPageValue {
   kind: 'PAGE'
-  html: string
+  html: string[]
   pageData: Object
 }
 

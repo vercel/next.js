@@ -16,7 +16,7 @@ interface CachedRedirectValue {
 
 interface CachedPageValue {
   kind: 'PAGE'
-  html: string
+  html: string[]
   pageData: Object
 }
 
@@ -91,7 +91,10 @@ export class IncrementalCache {
         length({ value }) {
           if (!value || value.kind === 'REDIRECT') return 25
           // rough estimate of size of cache value
-          return value.html.length + JSON.stringify(value.pageData).length
+          return (
+            JSON.stringify(value.html).length +
+            JSON.stringify(value.pageData).length
+          )
         },
       })
     }
@@ -124,9 +127,11 @@ export class IncrementalCache {
     return revalidateAfter
   }
 
-  getFallback(page: string): Promise<string> {
+  async getFallback(page: string): Promise<string[]> {
     page = normalizePagePath(page)
-    return promises.readFile(this.getSeedPath(page, 'html'), 'utf8')
+    return JSON.parse(
+      await promises.readFile(this.getSeedPath(page, 'html.json'), 'utf8')
+    )
   }
 
   // get data from cache if available
@@ -143,8 +148,8 @@ export class IncrementalCache {
       }
 
       try {
-        const htmlPath = this.getSeedPath(pathname, 'html')
-        const html = await promises.readFile(htmlPath, 'utf8')
+        const htmlPath = this.getSeedPath(pathname, 'html.json')
+        const html = JSON.parse(await promises.readFile(htmlPath, 'utf8'))
         const { mtime } = await promises.stat(htmlPath)
         const pageData = JSON.parse(
           await promises.readFile(this.getSeedPath(pathname, 'json'), 'utf8')
@@ -221,9 +226,9 @@ export class IncrementalCache {
     // `next build` output's manifest.
     if (this.incrementalOptions.flushToDisk && data?.kind === 'PAGE') {
       try {
-        const seedPath = this.getSeedPath(pathname, 'html')
+        const seedPath = this.getSeedPath(pathname, 'html.json')
         await promises.mkdir(path.dirname(seedPath), { recursive: true })
-        await promises.writeFile(seedPath, data.html, 'utf8')
+        await promises.writeFile(seedPath, JSON.stringify(data.html), 'utf8')
         await promises.writeFile(
           this.getSeedPath(pathname, 'json'),
           JSON.stringify(data.pageData),

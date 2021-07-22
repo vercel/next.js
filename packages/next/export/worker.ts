@@ -266,7 +266,7 @@ export default async function exportPage({
 
         // if it was auto-exported the HTML is loaded here
         if (typeof mod === 'string') {
-          html = mod
+          html = [mod]
           queryWithAutoExportWarn()
         } else {
           // for non-dynamic SSG pages we should have already
@@ -344,7 +344,7 @@ export default async function exportPage({
         }
 
         if (typeof components.Component === 'string') {
-          html = components.Component
+          html = [components.Component]
           queryWithAutoExportWarn()
         } else {
           /**
@@ -448,7 +448,14 @@ export default async function exportPage({
             await validateAmp(ampHtml, page + '?amp=1')
           }
           await promises.mkdir(ampBaseDir, { recursive: true })
-          await promises.writeFile(ampHtmlFilepath, ampHtml, 'utf8')
+          await Promise.allSettled([
+            promises.writeFile(ampHtmlFilepath, ampHtml, 'utf8'),
+            promises.writeFile(
+              ampHtmlFilepath + '.json',
+              JSON.stringify([ampHtml]),
+              'utf8'
+            ),
+          ])
         }
       }
 
@@ -477,7 +484,14 @@ export default async function exportPage({
 
       if (!results.ssgNotFound) {
         // don't attempt writing to disk if getStaticProps returned not found
-        await promises.writeFile(htmlFilepath, html, 'utf8')
+        await Promise.allSettled([
+          promises.writeFile(htmlFilepath, html, 'utf8'),
+          promises.writeFile(
+            htmlFilepath + '.json',
+            JSON.stringify([html]),
+            'utf8'
+          ),
+        ])
       }
     } catch (error) {
       console.error(

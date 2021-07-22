@@ -1270,7 +1270,11 @@ export default async function build(
               // without the prefix
               if ((!i18n || additionalSsgFile) && !isNotFound) {
                 await promises.mkdir(path.dirname(dest), { recursive: true })
+                // TODO: Remove support for unchunked HTML
                 await promises.rename(orig, dest)
+                if (ext === 'html') {
+                  await promises.rename(orig + '.json', dest + '.json')
+                }
               } else if (i18n && !isSsg) {
                 // this will be updated with the locale prefixed variant
                 // since all files are output with the locale prefix
@@ -1318,7 +1322,14 @@ export default async function build(
                   await promises.mkdir(path.dirname(updatedDest), {
                     recursive: true,
                   })
+                  // TODO: Remove support for unchunked HTML
                   await promises.rename(updatedOrig, updatedDest)
+                  if (ext === 'html') {
+                    await promises.rename(
+                      updatedOrig + '.json',
+                      updatedDest + '.json'
+                    )
+                  }
                 }
               }
             })

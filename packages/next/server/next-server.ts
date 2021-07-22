@@ -1235,7 +1235,7 @@ export default class Server {
       return sendPayload(
         req,
         res,
-        body,
+        body.join(''),
         type,
         {
           generateEtags,
@@ -1262,7 +1262,7 @@ export default class Server {
         requireStaticHTML: true,
       },
     })
-    return payload ? payload.body : null
+    return payload ? payload.body.join('') : null
   }
 
   public async render(
@@ -1641,7 +1641,7 @@ export default class Server {
       } else if (isRedirect) {
         value = { kind: 'REDIRECT', props: pageData }
       } else {
-        value = { kind: 'PAGE', html: html!, pageData }
+        value = { kind: 'PAGE', html: [html!], pageData }
       }
       return { revalidate: sprRevalidate, value }
     }
@@ -1769,7 +1769,7 @@ export default class Server {
       if (isDataReq) {
         return {
           type: 'json',
-          body: JSON.stringify(cachedData.props),
+          body: [JSON.stringify(cachedData.props)],
           revalidateOptions,
         }
       } else {
@@ -1779,7 +1779,9 @@ export default class Server {
     } else {
       return {
         type: isDataReq ? 'json' : 'html',
-        body: isDataReq ? JSON.stringify(cachedData.pageData) : cachedData.html,
+        body: isDataReq
+          ? [JSON.stringify(cachedData.pageData)]
+          : cachedData.html,
         revalidateOptions,
       }
     }
@@ -2013,7 +2015,7 @@ export default class Server {
       }
       return {
         type: 'html',
-        body: 'Internal Server Error',
+        body: ['Internal Server Error'],
       }
     }
   }
@@ -2213,6 +2215,6 @@ export class WrappedBuildError extends Error {
 
 type ResponsePayload = {
   type: 'html' | 'json'
-  body: string
+  body: string[]
   revalidateOptions?: any
 }
