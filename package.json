@@ -1,5 +1,5 @@
 {
-  "name": "nextjs-project",
+  "name": "nextjs-project1",
   "private": true,
   "workspaces": [
     "packages/*"
