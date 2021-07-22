@@ -1019,7 +1019,7 @@ describe('Image Optimizer', () => {
             output += msg
           },
           env: {
-            __NEXT_TEST_SHARP_PATH: isSharp
+            NEXT_SHARP_PATH: isSharp
               ? require.resolve('sharp', {
                   paths: [join(appDir, 'node_modules')],
                 })
@@ -1064,7 +1064,7 @@ describe('Image Optimizer', () => {
             output += msg
           },
           env: {
-            __NEXT_TEST_SHARP_PATH: isSharp
+            NEXT_SHARP_PATH: isSharp
               ? require.resolve('sharp', {
                   paths: [join(appDir, 'node_modules')],
                 })
