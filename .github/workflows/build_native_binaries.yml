@@ -23,9 +23,8 @@ jobs:
       - name: Install
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly
+          toolchain: stable
           profile: minimal
-          override: true
 
       - name: Cache cargo registry
         uses: actions/cache@v1
@@ -78,3 +77,4 @@ jobs:
       - uses: EndBug/add-and-commit@v7
         with:
           add: 'packages/next/native --force'
+          message: 'Build next-swc binaries'
