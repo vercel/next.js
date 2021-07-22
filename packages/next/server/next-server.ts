@@ -1647,8 +1647,6 @@ export default class Server {
         value = { kind: 'REDIRECT', props: pageData }
       } else {
         if (!html) {
-          // The response was already sent, so there is
-          // nothing to cache.
           return null
         }
         value = { kind: 'PAGE', html, pageData }
