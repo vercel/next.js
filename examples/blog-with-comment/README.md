@@ -46,7 +46,7 @@ Go to the [Upstash Console](https://console.upstash.com/) and create a new datab
      to `https://myapp.com/` when deploying your application.
    - **Allowed Logout URLs**: Should be set to `http://localhost:3000/` when testing locally or typically
      to `https://myapp.com/` when deploying your application.
-   - **Allowed Web Origins**: Should be set to `http://localhost:3000` when testing locally or typically 
+   - **Allowed Web Origins**: Should be set to `http://localhost:3000` when testing locally or typically
      to `https://myapp.com/` when deploying your application.
 4. Save the settings.
 
