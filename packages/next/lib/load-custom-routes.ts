@@ -514,21 +514,23 @@ function processRoutes<T>(
     const destBasePath = srcBasePath && !isExternal ? srcBasePath : ''
 
     if (config.i18n && r.locale !== false) {
-      defaultLocales.forEach((item) => {
-        let destination
+      if (!isExternal) {
+        defaultLocales.forEach((item) => {
+          let destination
 
-        if (r.destination) {
-          destination = item.base
-            ? `${item.base}${destBasePath}${r.destination}`
-            : `${destBasePath}${r.destination}`
-        }
+          if (r.destination) {
+            destination = item.base
+              ? `${item.base}${destBasePath}${r.destination}`
+              : `${destBasePath}${r.destination}`
+          }
 
-        newRoutes.push({
-          ...r,
-          destination,
-          source: `${srcBasePath}/${item.locale}${r.source}`,
+          newRoutes.push({
+            ...r,
+            destination,
+            source: `${srcBasePath}/${item.locale}${r.source}`,
+          })
         })
-      })
+      }
 
       r.source = `/:nextInternalLocale(${config.i18n.locales
         .map((locale: string) => escapeStringRegexp(locale))
