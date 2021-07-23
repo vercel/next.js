@@ -16,6 +16,7 @@ description: Enable Image Optimization with the built-in Image component.
 
 | Version   | Changes                                                                                           |
 | --------- | ------------------------------------------------------------------------------------------------- |
+| `v11.1.0` | `onLoadingComplete` and `lazyBoundary` props added.                                               |
 | `v11.0.0` | `src` prop support for static import.<br/>`placeholder` prop added.<br/>`blurDataURL` prop added. |
 | `v10.0.5` | `loader` prop added.                                                                              |
 | `v10.0.1` | `layout` prop added.                                                                              |
@@ -199,7 +200,7 @@ The image position when using `layout="fill"`.
 
 ### onLoadingComplete
 
-A callback function that is invoked once the image is completely loaded and the placeholder has been removed.
+A callback function that is invoked once the image is completely loaded and the [placeholder](#placeholder) has been removed.
 
 ### loading
 
@@ -233,6 +234,12 @@ Try it out:
 - [Demo the shimmer effect with `blurDataURL` prop](https://image-component.nextjs.gallery/shimmer)
 
 You can also [generate a solid color Data URL](https://png-pixel.com) to match the image.
+
+### lazyBoundary
+
+A string (with similar syntax to the margin property) that acts as the bounding box used to detect the intersection of the viewport with the image and trigger lazy [loading](#loading). Defaults to `"200px"`.
+
+[Learn more](https://developer.mozilla.org/en-US/docs/Web/API/IntersectionObserver/rootMargin)
 
 ### unoptimized
 
