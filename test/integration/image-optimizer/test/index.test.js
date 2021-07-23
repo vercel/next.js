@@ -337,7 +337,7 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
 
   if (isSharp) {
     it('should resize relative url and Chrome accept header as avif', async () => {
-      const query = { url: '/test.avif', w, q: 80 }
+      const query = { url: '/test.png', w, q: 80 }
       const opts = {
         headers: {
           accept: 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
