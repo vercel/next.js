@@ -1,6 +1,6 @@
-import LocaleSwitcher from '../../components/locale-switcher'
-import { useRouter } from 'next/router'
 import Link from 'next/link'
+import { useRouter } from 'next/router'
+import LocaleSwitcher from '../../components/locale-switcher'
 
 export default function GspPage(props) {
   const router = useRouter()
@@ -19,7 +19,6 @@ export default function GspPage(props) {
       <p>Configured locales: {JSON.stringify(props.locales)}</p>
 
       <LocaleSwitcher />
-      <br />
 
       <Link href="/gsp">
         <a>To getStaticProps page</a>
