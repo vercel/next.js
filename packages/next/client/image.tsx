@@ -97,7 +97,7 @@ export type ImageProps = Omit<
   quality?: number | string
   priority?: boolean
   loading?: LoadingValue
-  rootMargin?: string
+  lazyBoundary?: string
   placeholder?: PlaceholderValue
   blurDataURL?: string
   unoptimized?: boolean
@@ -286,7 +286,7 @@ export default function Image({
   unoptimized = false,
   priority = false,
   loading,
-  rootMargin = '200px',
+  lazyBoundary = '200px',
   className,
   quality,
   width,
@@ -430,7 +430,7 @@ export default function Image({
   }
 
   const [setRef, isIntersected] = useIntersection<HTMLImageElement>({
-    rootMargin,
+    rootMargin: lazyBoundary,
     disabled: !isLazy,
   })
   const isVisible = !isLazy || isIntersected

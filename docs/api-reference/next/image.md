@@ -234,9 +234,9 @@ Try it out:
 
 You can also [generate a solid color Data URL](https://png-pixel.com) to match the image.
 
-### rootMargin
+### lazyBoundary
 
-The IntersectionObserver interface's `rootMargin` property is a string with syntax similar to that of the CSS margin property.
+This property serves to grow or shrink each side of the root element's bounding box before computing intersections. The values can be percentages.
 Defaults to `"200px"`.
 
 [Learn more](https://developer.mozilla.org/en-US/docs/Web/API/IntersectionObserver/rootMargin)
