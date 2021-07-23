@@ -72,18 +72,22 @@ export function matchHas(
         break
       }
       case 'custom': {
-        if (typeof hasItem.match !== 'function') {
+        if (typeof hasItem.check !== 'function') {
           return false
         }
-        const result = hasItem.match(req)
-
-        if (!result) {
+        try {
+          const result = hasItem.check(req)
+          if (!result) {
+            return false
+          }
+          if (typeof result === 'object') {
+            Object.assign(params, result)
+          }
+          return true
+        } catch (e) {
+          console.error(e)
           return false
         }
-        if (typeof result === 'object') {
-          Object.assign(params, result)
-        }
-        return true
       }
       default: {
         break

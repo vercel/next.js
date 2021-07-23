@@ -222,9 +222,10 @@ To only match a rewrite when header, cookie, or query values also match the `has
 
 `has` items have the following fields:
 
-- `type`: `String` - must be either `header`, `cookie`, `host`, or `query`.
+- `type`: `String` - must be either `header`, `cookie`, `host`, `query`, or `custom`.
 - `key`: `String` - the key from the selected type to match against.
 - `value`: `String` or `undefined` - the value to check for, if undefined any value will match. A regex like string can be used to capture a specific part of the value, e.g. if the value `first-(?<paramName>.*)` is used for `first-second` then `second` will be usable in the destination with `:paramName`.
+- `check`: `Function` - when the `type` is `custom`, `check` is a function that accepts `req` and returns `false` when it should not rewrite, `true` when it should redirect, or a parameters object, with parameters to be used in the redirection.
 
 ```js
 module.exports = {
@@ -284,6 +285,18 @@ module.exports = {
           {
             type: 'host',
             value: 'example.com',
+          },
+        ],
+        destination: '/another-page',
+      },
+      // if a custom check matches (the cookie foo should be equal to the query parameter foo),
+      // this redirect will be applied
+      {
+        source: '/some-page',
+        has: [
+          {
+            type: 'custom',
+            check: (req) => req.cookies.foo === req.query.foo,
           },
         ],
         destination: '/another-page',

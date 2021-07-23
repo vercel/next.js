@@ -14,19 +14,19 @@ export type RouteHas =
       type: 'header' | 'query' | 'cookie'
       key: string
       value?: string
-      match?: undefined
+      check?: undefined
     }
   | {
       type: 'host'
       key?: undefined
       value: string
-      match?: undefined
+      check?: undefined
     }
   | {
       type: 'custom'
       key?: undefined
       value?: undefined
-      match: (req: IncomingMessage) => boolean | { [param: string]: any }
+      check: (req: IncomingMessage) => boolean | { [param: string]: any }
     }
 
 export type Rewrite = {
