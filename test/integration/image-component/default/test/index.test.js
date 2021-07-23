@@ -556,6 +556,19 @@ function runTests(mode) {
         /Image with src (.*)jpg(.*) is smaller than 40x40. Consider removing(.*)/gm
       )
     })
+
+    it('should warn when style prop is used', async () => {
+      const browser = await webdriver(appPort, '/invalid-style')
+
+      const warnings = (await browser.log('browser'))
+        .map((log) => log.message)
+        .join('\n')
+      console.log({ warnings })
+      expect(await hasRedbox(browser)).toBe(false)
+      expect(warnings).toMatch(
+        /Image with src (.*)jpg(.*) is using unsupported \\"style\\" property(.*)/gm
+      )
+    })
   } else {
     //server-only tests
     it('should not create an image folder in server/chunks', async () => {
