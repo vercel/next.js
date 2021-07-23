@@ -16,6 +16,7 @@ description: Enable Image Optimization with the built-in Image component.
 
 | Version   | Changes                                                                                           |
 | --------- | ------------------------------------------------------------------------------------------------- |
+| `v11.1.0` | `lazyBoundary` prop added.                                                                        |
 | `v11.0.0` | `src` prop support for static import.<br/>`placeholder` prop added.<br/>`blurDataURL` prop added. |
 | `v10.0.5` | `loader` prop added.                                                                              |
 | `v10.0.1` | `layout` prop added.                                                                              |
@@ -236,8 +237,7 @@ You can also [generate a solid color Data URL](https://png-pixel.com) to match t
 
 ### lazyBoundary
 
-This property serves to grow or shrink each side of the root element's bounding box before computing intersections. The values can be percentages.
-Defaults to `"200px"`.
+A string (with similar syntax to the margin property) that acts as the bounding box used to detect the intersection of the viewport with the image and trigger lazy [loading](#loading). Defaults to `"200px"`.
 
 [Learn more](https://developer.mozilla.org/en-US/docs/Web/API/IntersectionObserver/rootMargin)
 
