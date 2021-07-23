@@ -114,4 +114,4 @@ jobs:
         with:
           name: next-swc-binaries
           path: packages/next/native
-      - run: ./scripts/check-pre-compiled.sh
+      - run: git diff --exit-code
