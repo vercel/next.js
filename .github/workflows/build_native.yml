@@ -1,4 +1,9 @@
-on: workflow_dispatch
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize]
+    paths:
+      - 'packages/next/build/swc/**'
 
 name: Build next-swc native binaries
 
@@ -106,11 +111,29 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
+        if: ${{ env.GITHUB_EVENT_NAME }} == 'workflow_dispatch'
       - uses: actions/download-artifact@v2
         with:
           name: next-swc-binaries
           path: packages/next/native
+        if: ${{ env.GITHUB_EVENT_NAME }} == 'workflow_dispatch'
       - uses: EndBug/add-and-commit@v7
         with:
           add: 'packages/next/native --force'
           message: 'Build next-swc binaries'
+        if: ${{ env.GITHUB_EVENT_NAME }} == 'workflow_dispatch'
+
+    check:
+      needs: [build, build-apple-silicon]
+      runs-on: ubuntu-18.04
+
+      steps:
+        - uses: actions/checkout@v2
+          if: ${{ env.GITHUB_EVENT_NAME }} == 'pull_request'
+        - uses: actions/download-artifact@v2
+          with:
+            name: next-swc-binaries
+            path: packages/next/native
+          if: ${{ env.GITHUB_EVENT_NAME }} == 'pull_request'
+        - run: git diff --exit-code
+          if: ${{ env.GITHUB_EVENT_NAME }} == 'pull_request'
