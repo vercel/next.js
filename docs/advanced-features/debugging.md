@@ -55,7 +55,7 @@ Create a file named `.vscode/launch.json` at the root of your project with this 
     {
       "type": "node",
       "request": "attach",
-      "name": "Launch Program",
+      "name": "Attach to application",
       "skipFiles": ["<node_internals>/**"],
       "port": 9229
     }
