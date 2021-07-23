@@ -17,14 +17,14 @@ import { sendEtagResponse } from './send-payload'
 import { getContentType, getExtension } from './serve-static'
 import chalk from 'chalk'
 
-//const AVIF = 'image/avif'
+const AVIF = 'image/avif'
 const WEBP = 'image/webp'
 const PNG = 'image/png'
 const JPEG = 'image/jpeg'
 const GIF = 'image/gif'
 const SVG = 'image/svg+xml'
 const CACHE_VERSION = 3
-const MODERN_TYPES = [/* AVIF, */ WEBP]
+const MODERN_TYPES = [AVIF, WEBP]
 const ANIMATABLE_TYPES = [WEBP, PNG, GIF]
 const VECTOR_TYPES = [SVG]
 const BLUR_IMG_SIZE = 8 // should match `next-image-loader`
@@ -353,6 +353,8 @@ export async function imageOptimizer(
         }
 
         if (contentType === WEBP) {
+          transformer.avif({ quality })
+        } else if (contentType === WEBP) {
           transformer.webp({ quality })
         } else if (contentType === PNG) {
           transformer.png({ quality })
