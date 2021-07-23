@@ -344,7 +344,7 @@ function checkCustomRoutes(
           hasSegments.add(hasItem.key)
         }
 
-        if (hasItem.value) {
+        if (typeof hasItem.value === 'string') {
           for (const match of hasItem.value.matchAll(namedGroupsRegex)) {
             if (match[1]) {
               hasSegments.add(match[1])
