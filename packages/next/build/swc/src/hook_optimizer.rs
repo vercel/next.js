@@ -74,10 +74,9 @@ impl HookOptimizer {
       definite,
     } = decl.clone();
     if let Pat::Array(a) = name {
-      // ? Is there a way to do this without cloning
-      if let Expr::Call(c) = *init.clone().unwrap() {
-        if let ExprOrSuper::Expr(i) = c.callee {
-          if let Expr::Ident(Ident { sym, .. }) = *i {
+      if let Expr::Call(c) = &*init.as_deref().unwrap() {
+        if let ExprOrSuper::Expr(i) = &c.callee {
+          if let Expr::Ident(Ident { sym, .. }) = &**i {
             if self.hooks.contains(&sym.to_string()) {
               let name = get_object_pattern(&a);
               return VarDeclarator {
@@ -101,23 +100,18 @@ fn get_object_pattern(array_pattern: &ArrayPat) -> Pat {
     .elems
     .iter()
     .enumerate()
-    .filter_map(|(i, elem)| {
-      match elem {
-        Some(elem) => {
-          Some(ObjectPatProp::KeyValue(KeyValuePatProp {
-            key: PropName::Num(Number {
-              value: i as f64,
-              span: DUMMY_SP, // ?: Is this okay?
-            }),
-            value: Box::new(elem.clone()),
-          }))
-        }
-        None => None,
-      }
+    .filter_map(|(i, elem)| match elem {
+      Some(elem) => Some(ObjectPatProp::KeyValue(KeyValuePatProp {
+        key: PropName::Num(Number {
+          value: i as f64,
+          span: DUMMY_SP,
+        }),
+        value: Box::new(elem.clone()),
+      })),
+      None => None,
     })
     .collect();
 
-  // ?: not sure about optional and ts_ann
   Pat::Object(ObjectPat {
     props,
     span: DUMMY_SP,

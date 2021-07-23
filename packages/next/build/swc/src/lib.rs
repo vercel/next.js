@@ -7,7 +7,7 @@ extern crate napi_derive;
 extern crate swc_node_base;
 
 use backtrace::Backtrace;
-use napi::{CallContext, Env, JsFunction, JsObject, JsUndefined};
+use napi::{CallContext, Env, JsObject, JsUndefined};
 use std::{env, panic::set_hook, sync::Arc};
 use swc::{Compiler, TransformOutput};
 use swc_common::{
@@ -42,8 +42,6 @@ fn init(mut exports: JsObject) -> napi::Result<()> {
         }));
     }
 
-    exports.create_named_method("define", define_compiler_class)?;
-
     exports.create_named_method("transform", transform::transform)?;
     exports.create_named_method("transformSync", transform::transform_sync)?;
 
@@ -52,12 +50,6 @@ fn init(mut exports: JsObject) -> napi::Result<()> {
 
 fn get_compiler(_ctx: &CallContext) -> Arc<Compiler> {
     COMPILER.clone()
-}
-
-#[js_function]
-fn define_compiler_class(ctx: CallContext) -> napi::Result<JsFunction> {
-    ctx.env
-        .define_class("Compiler", construct_compiler, &vec![])
 }
 
 #[js_function]
