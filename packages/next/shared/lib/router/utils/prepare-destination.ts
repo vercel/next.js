@@ -71,6 +71,20 @@ export function matchHas(
         value = hostname
         break
       }
+      case 'custom': {
+        if (typeof hasItem.match !== 'function') {
+          return false
+        }
+        const result = hasItem.match(req)
+
+        if (!result) {
+          return false
+        }
+        if (typeof result === 'object') {
+          Object.assign(params, result)
+        }
+        return true
+      }
       default: {
         break
       }

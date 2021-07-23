@@ -1,4 +1,5 @@
 import chalk from 'chalk'
+import { IncomingMessage } from 'http'
 import { parse as parseUrl } from 'url'
 import { NextConfig } from '../server/config'
 import * as pathToRegexp from 'next/dist/compiled/path-to-regexp'
@@ -13,11 +14,19 @@ export type RouteHas =
       type: 'header' | 'query' | 'cookie'
       key: string
       value?: string
+      match?: undefined
     }
   | {
       type: 'host'
       key?: undefined
       value: string
+      match?: undefined
+    }
+  | {
+      type: 'custom'
+      key?: undefined
+      value?: undefined
+      match: (req: IncomingMessage) => boolean | { [param: string]: any }
     }
 
 export type Rewrite = {
