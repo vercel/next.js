@@ -1,4 +1,3 @@
-use regex::Regex;
 use swc_common::DUMMY_SP;
 use swc_ecmascript::ast::{
   ArrayPat, Decl, Expr, ExprOrSuper, Ident, ImportDecl, ImportSpecifier, KeyValuePatProp, Number,
@@ -18,7 +17,6 @@ struct HookOptimizer {
 impl Fold for HookOptimizer {
   // Find hooks imported from react/preact
   fn fold_import_decl(&mut self, decl: ImportDecl) -> ImportDecl {
-    let hook_re = Regex::new(r"^use[A-Z]").unwrap();
     let ImportDecl {
       ref src,
       ref specifiers,
@@ -27,7 +25,7 @@ impl Fold for HookOptimizer {
     if &src.value == "react" || &src.value == "preact/hooks" {
       for specifier in specifiers {
         if let ImportSpecifier::Named(named_specifier) = specifier {
-          if hook_re.is_match(&named_specifier.local.sym) {
+          if String::from(&named_specifier.local.sym as &str).starts_with("use") {
             self
               .hooks
               .push(String::from(&named_specifier.local.sym as &str))
@@ -72,7 +70,8 @@ impl HookOptimizer {
       init,
       span,
       definite,
-    } = decl.clone();
+    } = &decl;
+    let init_clone = init.clone();
     if let Pat::Array(a) = name {
       if let Expr::Call(c) = &*init.as_deref().unwrap() {
         if let ExprOrSuper::Expr(i) = &c.callee {
@@ -81,9 +80,9 @@ impl HookOptimizer {
               let name = get_object_pattern(&a);
               return VarDeclarator {
                 name,
-                init,
-                span,
-                definite,
+                init: init_clone,
+                span: *span,
+                definite: *definite,
               };
             }
           }
