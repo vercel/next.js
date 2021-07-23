@@ -340,6 +340,19 @@ function assignDefaults(userConfig: { [key: string]: any }) {
         if (!item.defaultLocale) return true
         if (!item.domain || typeof item.domain !== 'string') return true
 
+        const defaultLocaleDuplicate = i18n.domains?.find(
+          (altItem) =>
+            altItem.defaultLocale === item.defaultLocale &&
+            altItem.domain !== item.domain
+        )
+
+        if (defaultLocaleDuplicate) {
+          console.warn(
+            `Both ${item.domain} and ${defaultLocaleDuplicate.domain} configured the defaultLocale ${item.defaultLocale} but only one can. Change one item's default locale to continue`
+          )
+          return true
+        }
+
         let hasInvalidLocale = false
 
         if (Array.isArray(item.locales)) {
