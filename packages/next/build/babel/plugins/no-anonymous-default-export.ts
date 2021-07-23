@@ -21,9 +21,11 @@ export default function NoAnonymousDefaultExport({
   const warn: any = onWarning
   return {
     visitor: {
-      ExportDefaultDeclaration(path) {
-        const def = path.node.declaration
+      ExportDefaultDeclaration(path, state) {
+        const filename = state.file.opts.filename
+        if (filename.includes('/node_modules/')) return
 
+        const def = path.node.declaration
         if (
           !(
             def.type === 'ArrowFunctionExpression' ||
