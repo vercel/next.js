@@ -352,7 +352,7 @@ export async function imageOptimizer(
           transformer.resize(width)
         }
 
-        if (contentType === WEBP) {
+        if (contentType === AVIF) {
           transformer.avif({ quality })
         } else if (contentType === WEBP) {
           transformer.webp({ quality })
