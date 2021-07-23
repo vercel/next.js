@@ -18,10 +18,6 @@ describe('detectContentType', () => {
     const buffer = await getImage('../app/public/animated.webp')
     expect(detectContentType(buffer)).toBe('image/webp')
   })
-  it('should return avif', async () => {
-    const buffer = await getImage('../app/public/test.avif')
-    expect(detectContentType(buffer)).toBe('image/avif')
-  })
   it('should return svg', async () => {
     const buffer = await getImage('../app/public/test.svg')
     expect(detectContentType(buffer)).toBe('image/svg+xml')
