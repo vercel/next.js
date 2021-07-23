@@ -14,11 +14,12 @@ description: Enable Image Optimization with the built-in Image component.
 <details>
   <summary><b>Version History</b></summary>
 
-| Version   | Changes                  |
-| --------- | ------------------------ |
-| `v10.0.5` | `loader` prop added.     |
-| `v10.0.1` | `layout` prop added.     |
-| `v10.0.0` | `next/image` introduced. |
+| Version   | Changes                                                                                           |
+| --------- | ------------------------------------------------------------------------------------------------- |
+| `v11.0.0` | `src` prop support for static import.<br/>`placeholder` prop added.<br/>`blurDataURL` prop added. |
+| `v10.0.5` | `loader` prop added.                                                                              |
+| `v10.0.1` | `layout` prop added.                                                                              |
+| `v10.0.0` | `next/image` introduced.                                                                          |
 
 </details>
 
@@ -39,17 +40,13 @@ We can serve an optimized image like so:
 
 ```jsx
 import Image from 'next/image'
+import profilePic from '../public/me.png'
 
 function Home() {
   return (
     <>
       <h1>My Homepage</h1>
-      <Image
-        src="/me.png"
-        alt="Picture of the author"
-        width={500}
-        height={500}
-      />
+      <Image src={profilePic} alt="Picture of the author" />
       <p>Welcome to my homepage!</p>
     </>
   )
@@ -64,7 +61,11 @@ The `<Image />` component requires the following properties.
 
 ### src
 
-The path or URL to the source image. This is required.
+Required and must be one of the following:
+
+1. A statically imported image file, as in the example code above, or
+2. A path string. This can be either an absolute external URL,
+   or an internal path depending on the [loader](#loader).
 
 When using an external URL, you must add it to
 [domains](/docs/basic-features/image-optimization.md#domains) in
@@ -74,13 +75,13 @@ When using an external URL, you must add it to
 
 The width of the image, in pixels. Must be an integer without a unit.
 
-Required unless [`layout="fill"`](#layout).
+Required, except for statically imported images, or those with [`layout="fill"`](#layout).
 
 ### height
 
 The height of the image, in pixels. Must be an integer without a unit.
 
-Required unless [`layout="fill"`](#layout).
+Required, except for statically imported images, or those with [`layout="fill"`](#layout).
 
 ## Optional Props
 
@@ -99,10 +100,11 @@ but maintain the original dimensions for larger viewports.
 
 When `responsive`, the image will scale the dimensions down for smaller
 viewports and scale up for larger viewports.
+Note: the responsive layout may not work correctly if the parent element uses a display value other than `block` such as `display: flex` or `display: grid`.
 
 When `fill`, the image will stretch both width and height to the dimensions of
-the parent element, usually paired with
-[object-fit](https://developer.mozilla.org/en-US/docs/Web/CSS/object-fit).
+the parent element, provided the parent element is relative. This is usually paired with the [`objectFit`](#objectFit) property.
+Ensure the parent element has `position: relative` in their stylesheet.
 
 Try it out:
 
@@ -133,7 +135,7 @@ const MyImage = (props) => {
   return (
     <Image
       loader={myLoader}
-      src="/me.png"
+      src="me.png"
       alt="Picture of the author"
       width={500}
       height={500}
@@ -163,6 +165,21 @@ When true, the image will be considered high priority and
 Should only be used when the image is visible above the fold. Defaults to
 `false`.
 
+### placeholder
+
+A placeholder to use while the image is loading, possible values are `blur` or `empty`. Defaults to `empty`.
+
+When `blur`, the [`blurDataURL`](#blurdataurl) property will be used as the placeholder. If `src` is an object from a static import and the imported image is jpg, png, or webp, then `blurDataURL` will automatically be populated.
+
+For dynamic images, you must provide the [`blurDataURL`](#blurdataurl) property. Solutions such as [Plaiceholder](https://github.com/joe-bell/plaiceholder) can help with `base64` generation.
+
+When `empty`, there will be no placeholder while the image is loading, only empty space.
+
+Try it out:
+
+- [Demo the `blur` placeholder](https://image-component.nextjs.gallery/placeholder)
+- [Demo the shimmer effect with `blurDataURL` prop](https://image-component.nextjs.gallery/shimmer)
+
 ## Advanced Props
 
 In some cases, you may need more advanced usage. The `<Image />` component
@@ -179,6 +196,10 @@ The image fit when using `layout="fill"`.
 The image position when using `layout="fill"`.
 
 [Learn more](https://developer.mozilla.org/en-US/docs/Web/CSS/object-position)
+
+### onLoadingComplete
+
+A callback function that is invoked once the image is completely loaded and the placeholder has been removed.
 
 ### loading
 
@@ -197,6 +218,22 @@ When `eager`, load the image immediately.
 
 [Learn more](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/img#attr-loading)
 
+### blurDataURL
+
+A [Data URL](https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs) to
+be used as a placeholder image before the `src` image successfully loads. Only takes effect when combined
+with [`placeholder="blur"`](#placeholder).
+
+Must be a base64-encoded image. It will be enlarged and blurred, so a very small image (10px or
+less) is recommended. Including larger images as placeholders may harm your application performance.
+
+Try it out:
+
+- [Demo the default `blurDataURL` prop](https://image-component.nextjs.gallery/placeholder)
+- [Demo the shimmer effect with `blurDataURL` prop](https://image-component.nextjs.gallery/shimmer)
+
+You can also [generate a solid color Data URL](https://png-pixel.com) to match the image.
+
 ### unoptimized
 
 When true, the source image will be served as-is instead of changing quality,
@@ -211,6 +248,7 @@ Other properties on the `<Image />` component will be passed to the underlying
 - `srcSet`. Use
   [Device Sizes](/docs/basic-features/image-optimization.md#device-sizes)
   instead.
+- `ref`. Use [`onLoadingComplete`](#onloadingcomplete) instead.
 - `decoding`. It is always `"async"`.
 
 ## Related

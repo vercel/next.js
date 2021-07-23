@@ -1,6 +1,6 @@
 {
   "root": true,
-  "parser": "babel-eslint",
+  "parser": "@babel/eslint-parser",
   "plugins": ["react", "react-hooks", "jest", "import"],
   "env": {
     "browser": true,
@@ -9,10 +9,17 @@
     "node": true
   },
   "parserOptions": {
-    "ecmaVersion": 2018,
+    "requireConfigFile": false,
     "sourceType": "module",
     "ecmaFeatures": {
       "jsx": true
+    },
+    "babelOptions": {
+      "presets": ["@babel/preset-env", "@babel/preset-react"],
+      "caller": {
+        // Eslint supports top level await when a parser for it is included. We enable the parser by default for Babel.
+        "supportsTopLevelAwait": true
+      }
     }
   },
   "settings": {
@@ -27,7 +34,10 @@
       "extends": ["plugin:jest/recommended"],
       "rules": {
         "jest/expect-expect": "off",
-        "jest/no-disabled-tests": "off"
+        "jest/no-disabled-tests": "off",
+        "jest/no-conditional-expect": "off",
+        "jest/valid-title": "off",
+        "jest/no-interpolation-in-snapshots": "off"
       }
     },
     { "files": ["**/__tests__/**"], "env": { "jest": true } },

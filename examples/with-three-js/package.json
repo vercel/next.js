@@ -1,6 +1,4 @@
 {
-  "name": "with-three-js",
-  "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -8,15 +6,12 @@
     "start": "next start"
   },
   "dependencies": {
-    "@react-three/drei": "3.8.6",
-    "next": "10.0.7",
-    "react": "17.0.1",
-    "react-dom": "17.0.1",
-    "react-three-fiber": "5.3.19",
-    "three": "0.126.0"
-  },
-  "devDependencies": {
-    "next-transpile-modules": "6.3.0"
+    "@react-three/drei": "4.3.3",
+    "@react-three/fiber": "6.0.19",
+    "next": "10.2.0",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
+    "three": "0.128.0"
   },
   "license": "MIT"
 }

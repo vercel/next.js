@@ -1,5 +1,5 @@
 /* eslint-env jest */
-import { loadGetInitialProps } from 'next/dist/next-server/lib/utils'
+import { loadGetInitialProps } from 'next/dist/shared/lib/utils'
 
 describe('loadGetInitialProps', () => {
   it('should throw if getInitialProps is defined as an instance method', () => {
@@ -8,7 +8,7 @@ describe('loadGetInitialProps', () => {
     }
     const rejectPromise = loadGetInitialProps(TestComponent, {})
     const error = new Error(
-      '"TestComponent.getInitialProps()" is defined as an instance method - visit https://err.sh/vercel/next.js/get-initial-props-as-an-instance-method for more information.'
+      '"TestComponent.getInitialProps()" is defined as an instance method - visit https://nextjs.org/docs/messages/get-initial-props-as-an-instance-method for more information.'
     )
     return expect(rejectPromise).rejects.toEqual(error)
   })

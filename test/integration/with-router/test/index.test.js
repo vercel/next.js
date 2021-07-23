@@ -109,7 +109,7 @@ describe('withRouter SSR', () => {
     const browser = await webdriver(port, '/router-method-ssr')
     expect(await hasRedbox(browser)).toBe(true)
     expect(await getRedboxHeader(browser)).toMatch(
-      `No router instance found. you should only use "next/router" inside the client side of your app. https://err.sh/`
+      `No router instance found. you should only use "next/router" inside the client side of your app. https://`
     )
     await browser.close()
   })
