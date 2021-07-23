@@ -39,7 +39,7 @@ export class IncrementalCache {
   }
 
   prerenderManifest: PrerenderManifest
-  cache: LRUCache<string, IncrementalCacheEntry>
+  cache?: LRUCache<string, IncrementalCacheEntry>
   locales?: string[]
 
   constructor({
@@ -85,15 +85,16 @@ export class IncrementalCache {
       max = parseInt(process.env.__NEXT_TEST_MAX_ISR_CACHE, 10)
     }
 
-    this.cache = new LRUCache({
-      // default to 50MB limit
-      max: max || 50 * 1024 * 1024,
-      length({ value }) {
-        if (!value || value.kind === 'REDIRECT') return 25
-        // rough estimate of size of cache value
-        return value.html.length + JSON.stringify(value.pageData).length
-      },
-    })
+    if (max) {
+      this.cache = new LRUCache({
+        max,
+        length({ value }) {
+          if (!value || value.kind === 'REDIRECT') return 25
+          // rough estimate of size of cache value
+          return value.html.length + JSON.stringify(value.pageData).length
+        },
+      })
+    }
   }
 
   private getSeedPath(pathname: string, ext: string): string {
@@ -133,7 +134,7 @@ export class IncrementalCache {
     if (this.incrementalOptions.dev) return null
     pathname = normalizePagePath(pathname)
 
-    let data = this.cache.get(pathname)
+    let data = this.cache && this.cache.get(pathname)
 
     // let's check the disk for seed data
     if (!data) {
@@ -157,7 +158,9 @@ export class IncrementalCache {
             pageData,
           },
         }
-        this.cache.set(pathname, data)
+        if (this.cache) {
+          this.cache.set(pathname, data)
+        }
       } catch (_) {
         // unable to get data from disk
       }
@@ -204,10 +207,15 @@ export class IncrementalCache {
     }
 
     pathname = normalizePagePath(pathname)
-    this.cache.set(pathname, {
-      revalidateAfter: this.calculateRevalidate(pathname, new Date().getTime()),
-      value: data,
-    })
+    if (this.cache) {
+      this.cache.set(pathname, {
+        revalidateAfter: this.calculateRevalidate(
+          pathname,
+          new Date().getTime()
+        ),
+        value: data,
+      })
+    }
 
     // TODO: This option needs to cease to exist unless it stops mutating the
     // `next build` output's manifest.
