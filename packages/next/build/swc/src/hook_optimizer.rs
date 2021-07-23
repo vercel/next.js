@@ -46,7 +46,7 @@ impl Fold for HookOptimizer {
         kind,
         declare,
       }) => {
-        let mut new_decls: Vec<VarDeclarator> = Vec::new();
+        let mut new_decls = Vec::with_capacity(decls.len());
         for decl in decls {
           new_decls.push(self.get_decl(decl));
         }
