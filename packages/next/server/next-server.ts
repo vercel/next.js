@@ -264,7 +264,11 @@ export default class Server {
     }
 
     // Modules cache pre-warm speed up initial pages render
-    if (this.pagesManifest && !this._isLikeServerless) {
+    if (
+      this.nextConfig.experimental.prewarmRequiredPages &&
+      this.pagesManifest &&
+      !this._isLikeServerless
+    ) {
       require(join(this.serverBuildDir, this.pagesManifest['/_document']))
       require(join(this.serverBuildDir, this.pagesManifest['/_app']))
     }
