@@ -563,7 +563,6 @@ function runTests(mode) {
       const warnings = (await browser.log('browser'))
         .map((log) => log.message)
         .join('\n')
-      console.log({ warnings })
       expect(await hasRedbox(browser)).toBe(false)
       expect(warnings).toMatch(
         /Image with src (.*)jpg(.*) is using unsupported \\"style\\" property(.*)/gm
