@@ -417,6 +417,11 @@ export default function Image({
         `Image with src "${src}" is using unsupported "ref" property. Consider using the "onLoadingComplete" property instead.`
       )
     }
+    if ('style' in rest) {
+      console.warn(
+        `Image with src "${src}" is using unsupported "style" property. Please use the "className" property instead.`
+      )
+    }
     const rand = Math.floor(Math.random() * 1000) + 100
     if (
       !unoptimized &&

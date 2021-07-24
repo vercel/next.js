@@ -8,6 +8,14 @@ jest.setTimeout(1000 * 60 * 2)
 
 const dirFirstTimeSetup = join(__dirname, '../first-time-setup')
 const dirCustomConfig = join(__dirname, '../custom-config')
+const dirPluginRecommendedConfig = join(
+  __dirname,
+  '../plugin-recommended-config'
+)
+const dirPluginCoreWebVitalsConfig = join(
+  __dirname,
+  '../plugin-core-web-vitals-config'
+)
 const dirIgnoreDuringBuilds = join(__dirname, '../ignore-during-builds')
 const dirCustomDirectories = join(__dirname, '../custom-directories')
 const dirConfigInPackageJson = join(__dirname, '../config-in-package-json')
@@ -156,6 +164,44 @@ describe('ESLint', () => {
       )
       expect(output).toContain(
         'Error: Comments inside children section of tag should be placed inside braces'
+      )
+    })
+
+    test('shows warnings and errors when extending plugin recommended config', async () => {
+      const { stdout, stderr } = await nextLint(
+        dirPluginRecommendedConfig,
+        [],
+        {
+          stdout: true,
+          stderr: true,
+        }
+      )
+
+      const output = stdout + stderr
+      expect(output).toContain(
+        'Warning: External synchronous scripts are forbidden'
+      )
+      expect(output).toContain(
+        'Error: next/document should not be imported outside of pages/_document.js.'
+      )
+    })
+
+    test('shows warnings and errors when extending plugin core-web-vitals config', async () => {
+      const { stdout, stderr } = await nextLint(
+        dirPluginCoreWebVitalsConfig,
+        [],
+        {
+          stdout: true,
+          stderr: true,
+        }
+      )
+
+      const output = stdout + stderr
+      expect(output).toContain(
+        "Warning: Do not use <img>. Use Image from 'next/image' instead."
+      )
+      expect(output).toContain(
+        'Error: External synchronous scripts are forbidden'
       )
     })
 
