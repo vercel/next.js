@@ -1,0 +1,29 @@
+name: yarn.lock deduplication
+
+on:
+  push:
+    branches:
+      - master
+      - main
+      - next
+      - canary
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    #if: "contains(github.event.head_commit.message, '[skip ci]')"
+    steps:
+      - uses: actions/checkout@v2
+      - name: yarn.lock deduplication
+        uses: bluelovers/action-yarnlock-dedupe@v1
+      - name: commit yarn.lock
+        run: |
+          git config --global user.email "action@github.com"
+          git config --global user.name "GitHub Action"
+          git add ./yarn.lock
+          git commit -m "chore(deps): yarn.lock deduplication" ./yarn.lock || echo done
+      - name: Push changes
+        if: success()
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
