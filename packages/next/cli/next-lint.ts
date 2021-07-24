@@ -63,9 +63,11 @@ const nextLint: cliCommand = (argv) => {
     '--cache': Boolean,
     '--cache-location': String,
     '--error-on-unmatched-pattern': Boolean,
+    '--format': String,
 
     // Aliases
     '-c': '--config',
+    '-f': '--format',
   }
 
   let args: arg.Result<arg.Spec>
@@ -112,6 +114,9 @@ const nextLint: cliCommand = (argv) => {
         Handling warnings:
           --quiet                        Report errors only - default: false
           --max-warnings Int             Number of warnings to trigger nonzero exit code - default: -1
+        
+        Output:
+          -f, --format String            Use a specific output format - default: Next.js custom formatter
 
         Inline configuration comments:
           --no-inline-config             Prevent comments from changing config or rules
@@ -148,6 +153,7 @@ const nextLint: cliCommand = (argv) => {
 
   const reportErrorsOnly = Boolean(args['--quiet'])
   const maxWarnings = args['--max-warnings'] ?? -1
+  const formatter = args['--format'] || null
 
   runLintCheck(
     baseDir,
@@ -155,7 +161,8 @@ const nextLint: cliCommand = (argv) => {
     false,
     eslintOptions(args),
     reportErrorsOnly,
-    maxWarnings
+    maxWarnings,
+    formatter
   )
     .then(async (lintResults) => {
       const lintOutput =

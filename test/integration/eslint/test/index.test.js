@@ -305,5 +305,23 @@ describe('ESLint', () => {
         'Warning: External synchronous scripts are forbidden'
       )
     })
+
+    test('format flag supports additional user-defined formats', async () => {
+      const { stdout, stderr } = await nextLint(
+        dirMaxWarnings,
+        ['-f', 'codeframe'],
+        {
+          stdout: true,
+          stderr: true,
+        }
+      )
+
+      const output = stdout + stderr
+      expect(output).toContain(
+        'warning: External synchronous scripts are forbidden'
+      )
+      expect(stdout).toContain('<script src="https://example.com" />')
+      expect(stdout).toContain('2 warnings found')
+    })
   })
 })
