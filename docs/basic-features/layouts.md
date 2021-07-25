@@ -99,7 +99,7 @@ When using TypeScript you must first create a new type for your pages which incl
 ```tsx
 // pages/index.tsx
 
-import type { ReactElement } from "react";
+import type { ReactElement } from 'react'
 import Layout from '../components/layout'
 import NestedLayout from '../components/nested-layout'
 
@@ -121,17 +121,17 @@ Page.getLayout = function getLayout(page: ReactElement) {
 ```tsx
 // pages/_app.tsx
 
-import type { ReactElement, ReactNode } from "react";
-import type { NextPage } from "next";
-import type { AppProps } from "next/app";
+import type { ReactElement, ReactNode } from 'react'
+import type { NextPage } from 'next'
+import type { AppProps } from 'next/app'
 
 type NextPageWithLayout = NextPage & {
-  getLayout?: (page: ReactElement) => ReactNode;
-};
+  getLayout?: (page: ReactElement) => ReactNode
+}
 
 type AppPropsWithLayout = AppProps & {
-  Component: NextPageWithLayout;
-};
+  Component: NextPageWithLayout
+}
 
 export default function MyApp({ Component, pageProps }: AppPropsWithLayout) {
   // Use the layout defined at the page level, if available
