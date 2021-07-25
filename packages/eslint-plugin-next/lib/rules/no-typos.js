@@ -77,7 +77,12 @@ module.exports = {
         }
 
         const decl = node.declaration
-        switch (decl?.type) {
+
+        if (!decl) {
+          return
+        }
+
+        switch (decl.type) {
           case 'FunctionDeclaration': {
             checkTypos(node, decl.id.name)
             break
