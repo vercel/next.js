@@ -1,11 +1,12 @@
+import chalk from 'chalk'
 import { parse as parseUrl } from 'url'
-import { NextConfig } from '../next-server/server/config'
+import { NextConfig } from '../server/config'
 import * as pathToRegexp from 'next/dist/compiled/path-to-regexp'
 import escapeStringRegexp from 'next/dist/compiled/escape-string-regexp'
 import {
   PERMANENT_REDIRECT_STATUS,
   TEMPORARY_REDIRECT_STATUS,
-} from '../next-server/lib/constants'
+} from '../shared/lib/constants'
 
 export type RouteHas =
   | {
@@ -63,6 +64,22 @@ export function getRedirectStatus(route: {
 export function normalizeRouteRegex(regex: string) {
   // clean up un-necessary escaping from regex.source which turns / into \\/
   return regex.replace(/\\\//g, '/')
+}
+
+// for redirects we restrict matching /_next and for all routes
+// we add an optional trailing slash at the end for easier
+// configuring between trailingSlash: true/false
+export function modifyRouteRegex(regex: string, restrictedPaths?: string[]) {
+  if (restrictedPaths) {
+    regex = regex.replace(
+      /\^/,
+      `^(?!${restrictedPaths
+        .map((path) => path.replace(/\//g, '\\/'))
+        .join('|')})`
+    )
+  }
+  regex = regex.replace(/\$$/, '(?:\\/)?$')
+  return regex
 }
 
 function checkRedirect(
@@ -497,21 +514,23 @@ function processRoutes<T>(
     const destBasePath = srcBasePath && !isExternal ? srcBasePath : ''
 
     if (config.i18n && r.locale !== false) {
-      defaultLocales.forEach((item) => {
-        let destination
+      if (!isExternal) {
+        defaultLocales.forEach((item) => {
+          let destination
 
-        if (r.destination) {
-          destination = item.base
-            ? `${item.base}${destBasePath}${r.destination}`
-            : `${destBasePath}${r.destination}`
-        }
+          if (r.destination) {
+            destination = item.base
+              ? `${item.base}${destBasePath}${r.destination}`
+              : `${destBasePath}${r.destination}`
+          }
 
-        newRoutes.push({
-          ...r,
-          destination,
-          source: `${srcBasePath}/${item.locale}${r.source}`,
+          newRoutes.push({
+            ...r,
+            destination,
+            source: `${srcBasePath}/${item.locale}${r.source}`,
+          })
         })
-      })
+      }
 
       r.source = `/:nextInternalLocale(${config.i18n.locales
         .map((locale: string) => escapeStringRegexp(locale))
@@ -525,10 +544,14 @@ function processRoutes<T>(
         }`
       }
     }
-    r.source = `${srcBasePath}${r.source}`
+    r.source = `${srcBasePath}${
+      r.source === '/' && srcBasePath ? '' : r.source
+    }`
 
     if (r.destination) {
-      r.destination = `${destBasePath}${r.destination}`
+      r.destination = `${destBasePath}${
+        r.destination === '/' && destBasePath ? '' : r.destination
+      }`
     }
     newRoutes.push(r)
   }
@@ -600,6 +623,24 @@ export default async function loadCustomRoutes(
     loadRewrites(config),
     loadRedirects(config),
   ])
+
+  const totalRewrites =
+    rewrites.beforeFiles.length +
+    rewrites.afterFiles.length +
+    rewrites.fallback.length
+
+  const totalRoutes = headers.length + redirects.length + totalRewrites
+
+  if (totalRoutes > 1000) {
+    console.warn(
+      chalk.bold.yellow(`Warning: `) +
+        `total number of custom routes exceeds 1000, this can reduce performance. Route counts:\n` +
+        `headers: ${headers.length}\n` +
+        `rewrites: ${totalRewrites}\n` +
+        `redirects: ${redirects.length}\n` +
+        `See more info: https://nextjs.org/docs/messages/max-custom-routes-reached`
+    )
+  }
 
   if (config.trailingSlash) {
     redirects.unshift(

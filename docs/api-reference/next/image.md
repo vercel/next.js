@@ -16,6 +16,7 @@ description: Enable Image Optimization with the built-in Image component.
 
 | Version   | Changes                                                                                           |
 | --------- | ------------------------------------------------------------------------------------------------- |
+| `v11.1.0` | `onLoadingComplete` and `lazyBoundary` props added.                                               |
 | `v11.0.0` | `src` prop support for static import.<br/>`placeholder` prop added.<br/>`blurDataURL` prop added. |
 | `v10.0.5` | `loader` prop added.                                                                              |
 | `v10.0.1` | `layout` prop added.                                                                              |
@@ -100,9 +101,11 @@ but maintain the original dimensions for larger viewports.
 
 When `responsive`, the image will scale the dimensions down for smaller
 viewports and scale up for larger viewports.
+Note: the responsive layout may not work correctly if the parent element uses a display value other than `block` such as `display: flex` or `display: grid`.
 
 When `fill`, the image will stretch both width and height to the dimensions of
-the parent element, usually paired with the [`objectFit`](#objectFit) property.
+the parent element, provided the parent element is relative. This is usually paired with the [`objectFit`](#objectFit) property.
+Ensure the parent element has `position: relative` in their stylesheet.
 
 Try it out:
 
@@ -195,6 +198,10 @@ The image position when using `layout="fill"`.
 
 [Learn more](https://developer.mozilla.org/en-US/docs/Web/CSS/object-position)
 
+### onLoadingComplete
+
+A callback function that is invoked once the image is completely loaded and the [placeholder](#placeholder) has been removed.
+
 ### loading
 
 > **Attention**: This property is only meant for advanced usage. Switching an
@@ -228,6 +235,12 @@ Try it out:
 
 You can also [generate a solid color Data URL](https://png-pixel.com) to match the image.
 
+### lazyBoundary
+
+A string (with similar syntax to the margin property) that acts as the bounding box used to detect the intersection of the viewport with the image and trigger lazy [loading](#loading). Defaults to `"200px"`.
+
+[Learn more](https://developer.mozilla.org/en-US/docs/Web/API/IntersectionObserver/rootMargin)
+
 ### unoptimized
 
 When true, the source image will be served as-is instead of changing quality,
@@ -242,6 +255,7 @@ Other properties on the `<Image />` component will be passed to the underlying
 - `srcSet`. Use
   [Device Sizes](/docs/basic-features/image-optimization.md#device-sizes)
   instead.
+- `ref`. Use [`onLoadingComplete`](#onloadingcomplete) instead.
 - `decoding`. It is always `"async"`.
 
 ## Related
