@@ -396,7 +396,7 @@ describe('SCSS Support', () => {
       expect(code).not.toBe(0)
       expect(stderr).toContain('Failed to compile')
       expect(stderr).toContain('styles/global.scss')
-      expect(stderr).toContain('Please move all global CSS imports')
+      expect(stderr).toContain('Please move all first-party global CSS imports')
       expect(stderr).toMatch(/Location:.*pages[\\/]index\.js/)
     })
   })
