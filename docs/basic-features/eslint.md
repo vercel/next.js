@@ -54,21 +54,23 @@ If you do not want ESLint to run as a build step, refer to the documentation for
 
 ## Linting Custom Directories
 
-By default, Next.js will run ESLint for all files in the `pages/`, `components/`, and `lib/` directories. However, you can specify which directories using the `dirs` option in the `eslint` config in `next.config.js` for production builds:
+By default, Next.js will run ESLint for all files in the `pages/`, `components/`, and `lib/` directories. However, you can specify which directories using the `dirs` option in the `eslint` config in `next.config.js`:
 
 ```js
 module.exports = {
   eslint: {
-    dirs: ['pages', 'utils'], // Only run ESLint on the 'pages' and 'utils' directories during production builds (next build)
+    dirs: ['pages', 'utils'], // Only run ESLint on the 'pages' and 'utils' directories (next build and next lint)
   },
 }
 ```
 
-Similarly, the `--dir` flag can be used for `next lint`:
+Also, the `--dir` flag can be used for `next lint`:
 
 ```bash
 yarn lint --dir pages --dir utils
 ```
+
+This will take precedence over the configuration from `next.config.js`.
 
 ## ESLint Plugin
 
