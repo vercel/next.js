@@ -571,7 +571,11 @@ export async function renderToHTML(
   }
 
   // url will always be set
-  const routerIsReady = !!(getServerSideProps || hasPageGetInitialProps)
+  const routerIsReady = !!(
+    getServerSideProps ||
+    hasPageGetInitialProps ||
+    defaultAppGetInitialProps
+  )
   const router = new ServerRouter(
     pathname,
     query,
