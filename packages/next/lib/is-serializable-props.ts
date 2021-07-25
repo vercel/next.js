@@ -23,7 +23,9 @@ export function isSerializableProps(
       page,
       method,
       '',
-      `Props must be returned as a plain object from ${method}: \`{ props: { ... } }\` (received: \`${getObjectClassLabel(input)}\`).`
+      `Props must be returned as a plain object from ${method}: \`{ props: { ... } }\` (received: \`${getObjectClassLabel(
+        input
+      )}\`).`
     )
   }
 
