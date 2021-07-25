@@ -5,13 +5,13 @@ Use `webpack-bundle-analyzer` in your Next.js project
 ## Installation
 
 ```
-npm install @next/bundle-analyzer
+npm install -D @next/bundle-analyzer
 ```
 
 or
 
 ```
-yarn add @next/bundle-analyzer
+yarn add --dev @next/bundle-analyzer
 ```
 
 ### Usage with environment variables
