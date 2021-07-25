@@ -1,7 +1,6 @@
 {
-  "name": "with-electron",
+  "private": true,
   "productName": "ElectronNext",
-  "version": "1.0.0",
   "main": "main/index.js",
   "scripts": {
     "clean": "rimraf dist renderer/.next renderer/out",
@@ -18,11 +17,11 @@
     ]
   },
   "devDependencies": {
-    "electron": "^7.1.7",
-    "electron-builder": "^21.2.0",
+    "electron": "^12.0.2",
+    "electron-builder": "^22.10.5",
     "next": "latest",
-    "react": "^16.12.0",
-    "react-dom": "^16.12.0"
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2"
   },
   "dependencies": {
     "electron-is-dev": "^1.1.0",

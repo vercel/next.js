@@ -7,8 +7,7 @@ import {
   readFileSync,
   writeFileSync,
 } from 'fs'
-import Worker from 'jest-worker'
-import { cpus } from 'os'
+import { Worker } from '../lib/worker'
 import { dirname, join, resolve, sep } from 'path'
 import { promisify } from 'util'
 import { AmpPageStatus, formatAmpMessages } from '../build/output/index'
@@ -29,23 +28,20 @@ import {
   PRERENDER_MANIFEST,
   SERVERLESS_DIRECTORY,
   SERVER_DIRECTORY,
-} from '../next-server/lib/constants'
-import loadConfig, {
-  isTargetLikeServerless,
-  NextConfig,
-} from '../next-server/server/config'
+} from '../shared/lib/constants'
+import loadConfig, { isTargetLikeServerless } from '../server/config'
+import { NextConfigComplete } from '../server/config-shared'
 import { eventCliSession } from '../telemetry/events'
 import { hasNextSupport } from '../telemetry/ci-info'
 import { Telemetry } from '../telemetry/storage'
 import {
   normalizePagePath,
   denormalizePagePath,
-} from '../next-server/server/normalize-page-path'
+} from '../server/normalize-page-path'
 import { loadEnvConfig } from '@next/env'
 import { PrerenderManifest } from '../build'
-import exportPage from './worker'
 import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
-import { getPagePath } from '../next-server/server/require'
+import { getPagePath } from '../server/require'
 import { trace } from '../telemetry/trace'
 
 const exists = promisify(existsOrig)
@@ -71,6 +67,7 @@ const createProgress = (total: number, label: string) => {
   }
   let currentSegmentTotal = segments.shift()
   let currentSegmentCount = 0
+  let lastProgressOutput = Date.now()
   let curProgress = 0
   let progressSpinner = createSpinner(`${label} (${curProgress}/${total})`, {
     spinner: {
@@ -91,21 +88,29 @@ const createProgress = (total: number, label: string) => {
         '[==  ]',
         '[=   ]',
       ],
-      interval: 80,
+      interval: 500,
     },
   })
 
   return () => {
     curProgress++
-    currentSegmentCount++
 
-    // Make sure we only log once per fully generated segment
-    if (currentSegmentCount !== currentSegmentTotal) {
-      return
+    // Make sure we only log once
+    // - per fully generated segment, or
+    // - per minute
+    // when not showing the spinner
+    if (!progressSpinner) {
+      currentSegmentCount++
+
+      if (currentSegmentCount === currentSegmentTotal) {
+        currentSegmentTotal = segments.shift()
+        currentSegmentCount = 0
+      } else if (lastProgressOutput + 60000 > Date.now()) {
+        return
+      }
+
+      lastProgressOutput = Date.now()
     }
-
-    currentSegmentTotal = segments.shift()
-    currentSegmentCount = 0
 
     const newText = `${label} (${curProgress}/${total})`
     if (progressSpinner) {
@@ -137,7 +142,7 @@ interface ExportOptions {
 export default async function exportApp(
   dir: string,
   options: ExportOptions,
-  configuration?: NextConfig
+  configuration?: NextConfigComplete
 ): Promise<void> {
   const nextExportSpan = trace('next-export')
 
@@ -154,7 +159,7 @@ export default async function exportApp(
       (await nextExportSpan
         .traceChild('load-next-config')
         .traceAsyncFn(() => loadConfig(PHASE_EXPORT, dir)))
-    const threads = options.threads || Math.max(cpus().length - 1, 1)
+    const threads = options.threads || nextConfig.experimental.cpus
     const distDir = join(dir, nextConfig.distDir)
 
     const telemetry = options.buildExport ? null : new Telemetry({ distDir })
@@ -162,6 +167,7 @@ export default async function exportApp(
     if (telemetry) {
       telemetry.record(
         eventCliSession(PHASE_EXPORT, distDir, {
+          webpackVersion: null,
           cliCommand: 'export',
           isSrcDir: null,
           hasNowJson: !!(await findUp('now.json', { cwd: dir })),
@@ -181,7 +187,7 @@ export default async function exportApp(
 
     if (!existsSync(buildIdFile)) {
       throw new Error(
-        `Could not find a production build in the '${distDir}' directory. Try building your app with 'next build' before starting the static export. https://err.sh/vercel/next.js/next-export-no-build-id`
+        `Could not find a production build in the '${distDir}' directory. Try building your app with 'next build' before starting the static export. https://nextjs.org/docs/messages/next-export-no-build-id`
       )
     }
 
@@ -197,7 +203,7 @@ export default async function exportApp(
       Log.warn(
         `rewrites, redirects, and headers are not applied when exporting your application, detected (${customRoutesDetected.join(
           ', '
-        )}). See more info here: https://err.sh/next.js/export-no-custom-routes`
+        )}). See more info here: https://nextjs.org/docs/messages/export-no-custom-routes`
       )
     }
 
@@ -251,13 +257,13 @@ export default async function exportApp(
 
     if (outDir === join(dir, 'public')) {
       throw new Error(
-        `The 'public' directory is reserved in Next.js and can not be used as the export out directory. https://err.sh/vercel/next.js/can-not-output-to-public`
+        `The 'public' directory is reserved in Next.js and can not be used as the export out directory. https://nextjs.org/docs/messages/can-not-output-to-public`
       )
     }
 
     if (outDir === join(dir, 'static')) {
       throw new Error(
-        `The 'static' directory is reserved in Next.js and can not be used as the export out directory. https://err.sh/vercel/next.js/can-not-output-to-static`
+        `The 'static' directory is reserved in Next.js and can not be used as the export out directory. https://nextjs.org/docs/messages/can-not-output-to-static`
       )
     }
 
@@ -341,10 +347,11 @@ export default async function exportApp(
         throw new Error(
           `Image Optimization using Next.js' default loader is not compatible with \`next export\`.
   Possible solutions:
-    - Use \`next start\`, which starts the Image Optimization API.
-    - Use Vercel to deploy, which supports Image Optimization.
+    - Use \`next start\` to run a server, which includes the Image Optimization API.
+    - Use any provider which supports Image Optimization (like Vercel).
     - Configure a third-party loader in \`next.config.js\`.
-  Read more: https://err.sh/next.js/export-image-api`
+    - Use the \`loader\` prop for \`next/image\`.
+  Read more: https://nextjs.org/docs/messages/export-image-api`
         )
       }
     }
@@ -368,6 +375,7 @@ export default async function exportApp(
       defaultLocale: i18n?.defaultLocale,
       domainLocales: i18n?.domains,
       trailingSlash: nextConfig.trailingSlash,
+      disableOptimizedLoading: nextConfig.experimental.disableOptimizedLoading,
     }
 
     const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
@@ -424,6 +432,10 @@ export default async function exportApp(
       hasApiRoutes = true
     }
 
+    if (filteredPaths.length === 0) {
+      return
+    }
+
     if (prerenderManifest && !options.buildExport) {
       const fallbackEnabledPages = new Set()
 
@@ -466,7 +478,7 @@ export default async function exportApp(
             ) +
             `\n` +
             chalk.yellow(
-              `Learn more: https://err.sh/vercel/next.js/api-routes-static-export`
+              `Learn more: https://nextjs.org/docs/messages/api-routes-static-export`
             )
         )
       }
@@ -503,15 +515,31 @@ export default async function exportApp(
         )
     }
 
+    const timeout = configuration?.experimental.staticPageGenerationTimeout || 0
+    let infoPrinted = false
     const worker = new Worker(require.resolve('./worker'), {
+      timeout: timeout * 1000,
+      onRestart: (_method, [{ path }], attempts) => {
+        if (attempts >= 3) {
+          throw new Error(
+            `Static page generation for ${path} is still timing out after 3 attempts. See more info here https://nextjs.org/docs/messages/static-page-generation-timeout`
+          )
+        }
+        Log.warn(
+          `Restarted static page genertion for ${path} because it took more than ${timeout} seconds`
+        )
+        if (!infoPrinted) {
+          Log.warn(
+            'See more info here https://nextjs.org/docs/messages/static-page-generation-timeout'
+          )
+          infoPrinted = true
+        }
+      },
       maxRetries: 0,
       numWorkers: threads,
-      enableWorkerThreads: true,
+      enableWorkerThreads: nextConfig.experimental.workerThreads,
       exposedMethods: ['default'],
-    }) as Worker & { default: typeof exportPage }
-
-    worker.getStdout().pipe(process.stdout)
-    worker.getStderr().pipe(process.stderr)
+    }) as Worker & typeof import('./worker')
 
     let renderError = false
     const errorPaths: string[] = []
@@ -522,9 +550,10 @@ export default async function exportApp(
         pageExportSpan.setAttribute('path', path)
 
         return pageExportSpan.traceAsyncFn(async () => {
+          const pathMap = exportPathMap[path]
           const result = await worker.default({
             path,
-            pathMap: exportPathMap[path],
+            pathMap,
             distDir,
             outDir,
             pagesDataDir,
@@ -533,9 +562,11 @@ export default async function exportApp(
             subFolders,
             buildExport: options.buildExport,
             serverless: isTargetLikeServerless(nextConfig.target),
-            optimizeFonts: nextConfig.experimental.optimizeFonts,
+            optimizeFonts: nextConfig.optimizeFonts,
             optimizeImages: nextConfig.experimental.optimizeImages,
             optimizeCss: nextConfig.experimental.optimizeCss,
+            disableOptimizedLoading:
+              nextConfig.experimental.disableOptimizedLoading,
             parentSpanId: pageExportSpan.id,
           })
 
@@ -559,6 +590,10 @@ export default async function exportApp(
             if (result.ssgNotFound === true) {
               configuration.ssgNotFoundPaths.push(path)
             }
+
+            const durations = (configuration.pageDurationMap[pathMap.page] =
+              configuration.pageDurationMap[pathMap.page] || {})
+            durations[path] = result.duration
           }
 
           if (progress) progress()
@@ -618,7 +653,7 @@ export default async function exportApp(
     }
     if (hadValidationError) {
       throw new Error(
-        `AMP Validation caused the export to fail. https://err.sh/vercel/next.js/amp-export-validation`
+        `AMP Validation caused the export to fail. https://nextjs.org/docs/messages/amp-export-validation`
       )
     }
 

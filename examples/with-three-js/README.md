@@ -2,9 +2,15 @@
 
 This example uses:
 
-`threejs`: A lightweight, 3D library with a default WebGL renderer. The library also provides Canvas 2D, SVG and CSS3D renderers in the examples.
-`react-three-fiber`: A React renderer for Threejs on the web and react-native.
-`drei`: A growing collection of useful helpers and abstractions for react-three-fiber.
+[`threejs`](https://threejs.org/): A lightweight, 3D library with a default WebGL renderer. The library also provides Canvas 2D, SVG and CSS3D renderers in the examples.
+[`react-three-fiber`](https://github.com/pmndrs/react-three-fiber): A React renderer for Threejs on the web and react-native.
+[`drei`](https://github.com/pmndrs/drei): A growing collection of useful helpers and abstractions for react-three-fiber.
+
+## Preview
+
+Preview the example live on [StackBlitz](http://stackblitz.com/):
+
+[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-three-js)
 
 ## Deploy your own
 

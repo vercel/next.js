@@ -6,26 +6,27 @@ const path = require('path')
 // eslint-disable-next-line import/no-extraneous-dependencies
 const transform = require('@babel/core').transform
 
+const babelClientPresetEnvOptions = {
+  modules: 'commonjs',
+  targets: {
+    esmodules: true,
+  },
+  bugfixes: true,
+  loose: true,
+  // This is handled by the Next.js webpack config that will run next/babel over the same code.
+  exclude: [
+    'transform-typeof-symbol',
+    'transform-async-to-generator',
+    'transform-spread',
+    'proposal-object-rest-spread',
+    'proposal-dynamic-import',
+  ],
+}
+
 const babelClientOpts = {
   presets: [
     '@babel/preset-typescript',
-    [
-      '@babel/preset-env',
-      {
-        modules: 'commonjs',
-        targets: {
-          esmodules: true,
-        },
-        bugfixes: true,
-        loose: true,
-        // This is handled by the Next.js webpack config that will run next/babel over the same code.
-        exclude: [
-          'transform-typeof-symbol',
-          'transform-async-to-generator',
-          'transform-spread',
-        ],
-      },
-    ],
+    ['@babel/preset-env', babelClientPresetEnvOptions],
     ['@babel/preset-react', { useBuiltIns: true }],
   ],
   plugins: [
@@ -33,6 +34,15 @@ const babelClientOpts = {
     // eslint-disable-next-line no-useless-concat
     '@babel/plugin-syntax-dynamic-impor' + 't',
     ['@babel/plugin-proposal-class-properties', { loose: true }],
+    [
+      '@babel/plugin-transform-runtime',
+      {
+        corejs: false,
+        helpers: true,
+        regenerator: false,
+        useESModules: false,
+      },
+    ],
   ],
   overrides: [
     {
@@ -52,15 +62,9 @@ const babelServerOpts = {
       {
         modules: 'commonjs',
         targets: {
-          node: '8.3',
+          node: '12.0',
         },
         loose: true,
-        // This is handled by the Next.js webpack config that will run next/babel over the same code.
-        exclude: [
-          'transform-typeof-symbol',
-          'transform-async-to-generator',
-          'transform-spread',
-        ],
       },
     ],
   ],
@@ -96,21 +100,6 @@ module.exports = function (task) {
 
     const options = {
       ...babelOpts,
-      plugins: [
-        ...babelOpts.plugins,
-        // pages dir doesn't need core-js
-        serverOrClient === 'client'
-          ? [
-              '@babel/plugin-transform-runtime',
-              {
-                corejs: false,
-                helpers: true,
-                regenerator: false,
-                useESModules: false,
-              },
-            ]
-          : false,
-      ].filter(Boolean),
       compact: !dev,
       babelrc: false,
       configFile: false,

@@ -1,0 +1,28 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@auth0/auth0-react": "^1.4.0",
+    "@tailwindcss/typography": "^0.4.0",
+    "date-fns": "^2.19.0",
+    "gray-matter": "4.0.3",
+    "ioredis": "^4.27.1",
+    "nanoid": "^3.1.22",
+    "next": "^10.2.3",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
+    "remark": "13.0.0",
+    "remark-html": "13.0.1",
+    "swr": "^0.5.5"
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.2.5",
+    "postcss": "^8.2.13",
+    "prettier": "^2.2.1",
+    "tailwindcss": "^2.1.2"
+  }
+}

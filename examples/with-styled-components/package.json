@@ -1,6 +1,5 @@
 {
-  "name": "with-styled-components",
-  "version": "1.0.0",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",
@@ -8,13 +7,13 @@
   },
   "dependencies": {
     "next": "latest",
-    "react": "^16.8.0",
-    "react-dom": "^16.8.0",
-    "react-is": "^16.8.0",
-    "styled-components": "^5.0.0"
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
+    "react-is": "^17.0.2",
+    "styled-components": "^5.2.3"
   },
   "devDependencies": {
-    "babel-plugin-styled-components": "^1.8.0"
+    "babel-plugin-styled-components": "^1.12.0"
   },
   "license": "MIT"
 }
