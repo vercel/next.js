@@ -1,0 +1,18 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "latest",
+    "react": "17.0.1",
+    "react-dom": "17.0.1",
+    "supertokens-auth-react": "^0.15.0",
+    "supertokens-node": "^6.0.0"
+  },
+  "devDependencies": {
+    "eslint-config-next": "11.0.1"
+  }
+}

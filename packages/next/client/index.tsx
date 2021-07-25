@@ -2,28 +2,28 @@
 import '@next/polyfill-module'
 import React from 'react'
 import ReactDOM from 'react-dom'
-import { HeadManagerContext } from '../next-server/lib/head-manager-context'
-import mitt, { MittEmitter } from '../next-server/lib/mitt'
-import { RouterContext } from '../next-server/lib/router-context'
+import { HeadManagerContext } from '../shared/lib/head-manager-context'
+import mitt, { MittEmitter } from '../shared/lib/mitt'
+import { RouterContext } from '../shared/lib/router-context'
 import Router, {
   AppComponent,
   AppProps,
   delBasePath,
   hasBasePath,
   PrivateRouteInfo,
-} from '../next-server/lib/router/router'
-import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
-import * as querystring from '../next-server/lib/router/utils/querystring'
-import * as envConfig from '../next-server/lib/runtime-config'
+} from '../shared/lib/router/router'
+import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import {
-  getURL,
-  loadGetInitialProps,
-  NEXT_DATA,
-  ST,
-} from '../next-server/lib/utils'
+  urlQueryToSearchParams,
+  assign,
+} from '../shared/lib/router/utils/querystring'
+import { setConfig } from '../shared/lib/runtime-config'
+import { getURL, loadGetInitialProps, NEXT_DATA, ST } from '../shared/lib/utils'
+import { Portal } from './portal'
 import initHeadManager from './head-manager'
 import PageLoader, { StyleSheetTuple } from './page-loader'
 import measureWebVitals from './performance-relayer'
+import { RouteAnnouncer } from './route-announcer'
 import { createRouter, makePublicRouterInstance } from './router'
 
 /// <reference types="react-dom/experimental" />
@@ -37,7 +37,7 @@ declare global {
     __NEXT_HYDRATED_CB?: () => void
 
     /* prod */
-    __NEXT_PRELOADREADY?: (ids?: string[]) => void
+    __NEXT_PRELOADREADY?: (ids?: (string | number)[]) => void
     __NEXT_DATA__: NEXT_DATA
     __NEXT_P: any[]
   }
@@ -71,6 +71,7 @@ const {
   locale,
   locales,
   domainLocales,
+  isPreview,
 } = data
 
 let { defaultLocale } = data
@@ -81,7 +82,7 @@ const prefix: string = assetPrefix || ''
 // So, this is how we do it in the client side at runtime
 __webpack_public_path__ = `${prefix}/_next/` //eslint-disable-line
 // Initialize next/config with the environment configuration
-envConfig.setConfig({
+setConfig({
   serverRuntimeConfig: {},
   publicRuntimeConfig: runtimeConfig || {},
 })
@@ -96,19 +97,19 @@ if (hasBasePath(asPath)) {
 if (process.env.__NEXT_I18N_SUPPORT) {
   const {
     normalizeLocalePath,
-  } = require('../next-server/lib/i18n/normalize-locale-path') as typeof import('../next-server/lib/i18n/normalize-locale-path')
+  } = require('../shared/lib/i18n/normalize-locale-path') as typeof import('../shared/lib/i18n/normalize-locale-path')
 
   const {
     detectDomainLocale,
-  } = require('../next-server/lib/i18n/detect-domain-locale') as typeof import('../next-server/lib/i18n/detect-domain-locale')
+  } = require('../shared/lib/i18n/detect-domain-locale') as typeof import('../shared/lib/i18n/detect-domain-locale')
 
   const {
     parseRelativeUrl,
-  } = require('../next-server/lib/router/utils/parse-relative-url') as typeof import('../next-server/lib/router/utils/parse-relative-url')
+  } = require('../shared/lib/router/utils/parse-relative-url') as typeof import('../shared/lib/router/utils/parse-relative-url')
 
   const {
     formatUrl,
-  } = require('../next-server/lib/router/utils/format-url') as typeof import('../next-server/lib/router/utils/format-url')
+  } = require('../shared/lib/router/utils/format-url') as typeof import('../shared/lib/router/utils/format-url')
 
   if (locales) {
     const parsedAs = parseRelativeUrl(asPath)
@@ -136,6 +137,11 @@ if (process.env.__NEXT_I18N_SUPPORT) {
       defaultLocale = detectedDomain.defaultLocale
     }
   }
+}
+
+if (data.scriptLoader) {
+  const { initScriptLoader } = require('./script')
+  initScriptLoader(data.scriptLoader)
 }
 
 type RegisterFn = (input: [string, () => void]) => void
@@ -178,18 +184,32 @@ class Container extends React.Component<{
     // - if it is a client-side skeleton (fallback render)
     if (
       router.isSsr &&
+      // We don't update for 404 requests as this can modify
+      // the asPath unexpectedly e.g. adding basePath when
+      // it wasn't originally present
+      page !== '/404' &&
+      !(
+        page === '/_error' &&
+        hydrateProps &&
+        hydrateProps.pageProps &&
+        hydrateProps.pageProps.statusCode === 404
+      ) &&
       (isFallback ||
         (data.nextExport &&
-          (isDynamicRoute(router.pathname) || location.search)) ||
-        (hydrateProps && hydrateProps.__N_SSG && location.search))
+          (isDynamicRoute(router.pathname) ||
+            location.search ||
+            process.env.__NEXT_HAS_REWRITES)) ||
+        (hydrateProps &&
+          hydrateProps.__N_SSG &&
+          (location.search || process.env.__NEXT_HAS_REWRITES)))
     ) {
       // update query on mount for exported pages
       router.replace(
         router.pathname +
           '?' +
           String(
-            querystring.assign(
-              querystring.urlQueryToSearchParams(router.query),
+            assign(
+              urlQueryToSearchParams(router.query),
               new URLSearchParams(location.search)
             )
           ),
@@ -237,59 +257,58 @@ class Container extends React.Component<{
   }
 }
 
-export const emitter: MittEmitter = mitt()
+export const emitter: MittEmitter<string> = mitt()
 let CachedComponent: React.ComponentType
 
-export default async (opts: { webpackHMR?: any } = {}) => {
+export async function initNext(opts: { webpackHMR?: any } = {}) {
   // This makes sure this specific lines are removed in production
   if (process.env.NODE_ENV === 'development') {
     webpackHMR = opts.webpackHMR
   }
 
-  const appEntrypoint = await pageLoader.routeLoader.whenEntrypoint('/_app')
-  if ('error' in appEntrypoint) {
-    throw appEntrypoint.error
-  }
-
-  const { component: app, exports: mod } = appEntrypoint
-  CachedApp = app as AppComponent
-
-  if (mod && mod.reportWebVitals) {
-    onPerfEntry = ({
-      id,
-      name,
-      startTime,
-      value,
-      duration,
-      entryType,
-      entries,
-    }): void => {
-      // Combines timestamp with random number for unique ID
-      const uniqueID: string = `${Date.now()}-${
-        Math.floor(Math.random() * (9e12 - 1)) + 1e12
-      }`
-      let perfStartEntry: string | undefined
-
-      if (entries && entries.length) {
-        perfStartEntry = entries[0].startTime
-      }
-
-      mod.reportWebVitals({
-        id: id || uniqueID,
-        name,
-        startTime: startTime || perfStartEntry,
-        value: value == null ? duration : value,
-        label:
-          entryType === 'mark' || entryType === 'measure'
-            ? 'custom'
-            : 'web-vital',
-      })
-    }
-  }
-
   let initialErr = hydrateErr
 
   try {
+    const appEntrypoint = await pageLoader.routeLoader.whenEntrypoint('/_app')
+    if ('error' in appEntrypoint) {
+      throw appEntrypoint.error
+    }
+
+    const { component: app, exports: mod } = appEntrypoint
+    CachedApp = app as AppComponent
+    if (mod && mod.reportWebVitals) {
+      onPerfEntry = ({
+        id,
+        name,
+        startTime,
+        value,
+        duration,
+        entryType,
+        entries,
+      }): void => {
+        // Combines timestamp with random number for unique ID
+        const uniqueID: string = `${Date.now()}-${
+          Math.floor(Math.random() * (9e12 - 1)) + 1e12
+        }`
+        let perfStartEntry: string | undefined
+
+        if (entries && entries.length) {
+          perfStartEntry = entries[0].startTime
+        }
+
+        mod.reportWebVitals({
+          id: id || uniqueID,
+          name,
+          startTime: startTime || perfStartEntry,
+          value: value == null ? duration : value,
+          label:
+            entryType === 'mark' || entryType === 'measure'
+              ? 'custom'
+              : 'web-vital',
+        })
+      }
+    }
+
     const pageEntrypoint =
       // The dev server fails to serve script assets when there's a hydration
       // error, so we need to skip waiting for the entrypoint.
@@ -375,20 +394,8 @@ export default async (opts: { webpackHMR?: any } = {}) => {
     locales,
     defaultLocale,
     domainLocales,
+    isPreview,
   })
-
-  // call init-client middleware
-  if (process.env.__NEXT_PLUGINS) {
-    // @ts-ignore
-    // eslint-disable-next-line
-    import('next-plugin-loader?middleware=on-init-client!')
-      .then((initClientModule) => {
-        return initClientModule.default({ router })
-      })
-      .catch((initClientErr) => {
-        console.error('Error calling client-init for plugins', initClientErr)
-      })
-  }
 
   const renderCtx: RenderRouteInfo = {
     App: CachedApp,
@@ -402,7 +409,7 @@ export default async (opts: { webpackHMR?: any } = {}) => {
     render(renderCtx)
     return emitter
   } else {
-    return { emitter, render, renderCtx }
+    return { emitter, renderCtx }
   }
 }
 
@@ -452,26 +459,20 @@ export function renderError(renderErrorProps: RenderErrorProps): Promise<any> {
       styleSheets: [],
     })
   }
-  if (process.env.__NEXT_PLUGINS) {
-    // @ts-ignore
-    // eslint-disable-next-line
-    import('next-plugin-loader?middleware=on-error-client!')
-      .then((onClientErrorModule) => {
-        return onClientErrorModule.default({ err })
-      })
-      .catch((onClientErrorErr) => {
-        console.error(
-          'error calling on-error-client for plugins',
-          onClientErrorErr
-        )
-      })
-  }
 
   // Make sure we log the error to the console, otherwise users can't track down issues.
   console.error(err)
   return pageLoader
     .loadPage('/_error')
     .then(({ page: ErrorComponent, styleSheets }) => {
+      return lastAppProps?.Component === ErrorComponent
+        ? import('../pages/_error').then((m) => ({
+            ErrorComponent: m.default as React.ComponentType<{}>,
+            styleSheets: [],
+          }))
+        : { ErrorComponent, styleSheets }
+    })
+    .then(({ ErrorComponent, styleSheets }) => {
       // In production we do a normal render with the `ErrorComponent` as component.
       // If we've gotten here upon initial render, we can use the props from the server.
       // Otherwise, we need to call `getInitialProps` on `App` before mounting.
@@ -499,29 +500,35 @@ export function renderError(renderErrorProps: RenderErrorProps): Promise<any> {
 }
 
 let reactRoot: any = null
-let shouldUseHydrate: boolean = typeof ReactDOM.hydrate === 'function'
-function renderReactElement(reactEl: JSX.Element, domEl: HTMLElement): void {
-  if (process.env.__NEXT_REACT_MODE !== 'legacy') {
-    if (!reactRoot) {
-      const opts = { hydrate: true }
-      reactRoot =
-        process.env.__NEXT_REACT_MODE === 'concurrent'
-          ? (ReactDOM as any).unstable_createRoot(domEl, opts)
-          : (ReactDOM as any).unstable_createBlockingRoot(domEl, opts)
-    }
-    reactRoot.render(reactEl)
-  } else {
-    // mark start of hydrate/render
-    if (ST) {
-      performance.mark('beforeRender')
-    }
+// On initial render a hydrate should always happen
+let shouldHydrate: boolean = true
 
-    // The check for `.hydrate` is there to support React alternatives like preact
-    if (shouldUseHydrate) {
-      ReactDOM.hydrate(reactEl, domEl, markHydrateComplete)
-      shouldUseHydrate = false
+function renderReactElement(
+  domEl: HTMLElement,
+  fn: (cb: () => void) => JSX.Element
+): void {
+  // mark start of hydrate/render
+  if (ST) {
+    performance.mark('beforeRender')
+  }
+
+  const reactEl = fn(shouldHydrate ? markHydrateComplete : markRenderComplete)
+  if (process.env.__NEXT_REACT_ROOT) {
+    if (!reactRoot) {
+      // Unlike with createRoot, you don't need a separate root.render() call here
+      reactRoot = (ReactDOM as any).hydrateRoot(domEl, reactEl)
+      // TODO: Remove shouldHydrate variable when React 18 is stable as it can depend on `reactRoot` existing
+      shouldHydrate = false
     } else {
-      ReactDOM.render(reactEl, domEl, markRenderComplete)
+      reactRoot.render(reactEl)
+    }
+  } else {
+    // The check for `.hydrate` is there to support React alternatives like preact
+    if (shouldHydrate) {
+      ReactDOM.hydrate(reactEl, domEl)
+      shouldHydrate = false
+    } else {
+      ReactDOM.render(reactEl, domEl)
     }
   }
 }
@@ -772,39 +779,45 @@ function doRender(input: RenderRouteInfo): Promise<any> {
     resolvePromise()
   }
 
+  onStart()
+
   const elem: JSX.Element = (
-    <Root callback={onRootCommit}>
+    <>
       <Head callback={onHeadCommit} />
       <AppContainer>
         <App {...appProps} />
+        <Portal type="next-route-announcer">
+          <RouteAnnouncer />
+        </Portal>
       </AppContainer>
-    </Root>
+    </>
   )
-
-  onStart()
 
   // We catch runtime errors using componentDidCatch which will trigger renderError
-  renderReactElement(
-    process.env.__NEXT_STRICT_MODE ? (
-      <React.StrictMode>{elem}</React.StrictMode>
-    ) : (
-      elem
-    ),
-    appElement!
-  )
+  renderReactElement(appElement!, (callback) => (
+    <Root callbacks={[callback, onRootCommit]}>
+      {process.env.__NEXT_STRICT_MODE ? (
+        <React.StrictMode>{elem}</React.StrictMode>
+      ) : (
+        elem
+      )}
+    </Root>
+  ))
 
   return renderPromise
 }
 
 function Root({
-  callback,
+  callbacks,
   children,
 }: React.PropsWithChildren<{
-  callback: () => void
+  callbacks: Array<() => void>
 }>): React.ReactElement {
-  // We use `useLayoutEffect` to guarantee the callback is executed
-  // as soon as React flushes the update.
-  React.useLayoutEffect(() => callback(), [callback])
+  // We use `useLayoutEffect` to guarantee the callbacks are executed
+  // as soon as React flushes the update
+  React.useLayoutEffect(() => callbacks.forEach((callback) => callback()), [
+    callbacks,
+  ])
   if (process.env.__NEXT_TEST_MODE) {
     // eslint-disable-next-line react-hooks/rules-of-hooks
     React.useEffect(() => {

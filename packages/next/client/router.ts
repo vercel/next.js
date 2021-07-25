@@ -1,7 +1,8 @@
 /* global window */
 import React from 'react'
-import Router, { NextRouter } from '../next-server/lib/router/router'
-import { RouterContext } from '../next-server/lib/router-context'
+import Router from '../shared/lib/router/router'
+import type { NextRouter } from '../shared/lib/router/router'
+import { RouterContext } from '../shared/lib/router-context'
 
 type ClassArguments<T> = T extends new (...args: infer U) => any ? U : any
 
@@ -13,7 +14,9 @@ type SingletonRouterBase = {
   ready(cb: () => any): void
 }
 
-export { Router, NextRouter }
+export { Router }
+
+export type { NextRouter }
 
 export type SingletonRouter = SingletonRouterBase & NextRouter
 
@@ -41,6 +44,9 @@ const urlPropertyFields = [
   'locales',
   'defaultLocale',
   'isReady',
+  'isPreview',
+  'isLocaleDomain',
+  'domainLocales',
 ]
 const routerEvents = [
   'routeChangeStart',
@@ -49,7 +55,9 @@ const routerEvents = [
   'routeChangeError',
   'hashChangeStart',
   'hashChangeComplete',
-]
+] as const
+export type RouterEvent = typeof routerEvents[number]
+
 const coreMethodFields = [
   'push',
   'replace',
@@ -67,7 +75,7 @@ Object.defineProperty(singletonRouter, 'events', {
 })
 
 urlPropertyFields.forEach((field: string) => {
-  // Here we need to use Object.defineProperty because, we need to return
+  // Here we need to use Object.defineProperty because we need to return
   // the property assigned to the actual router
   // The value might get changed as we change routes and this is the
   // proper way to access it
@@ -87,7 +95,7 @@ coreMethodFields.forEach((field: string) => {
   }
 })
 
-routerEvents.forEach((event: string) => {
+routerEvents.forEach((event) => {
   singletonRouter.ready(() => {
     Router.events.on(event, (...args) => {
       const eventField = `on${event.charAt(0).toUpperCase()}${event.substring(
@@ -110,7 +118,7 @@ function getRouter(): Router {
   if (!singletonRouter.router) {
     const message =
       'No router instance found.\n' +
-      'You should only use "next/router" inside the client side of your app.\n'
+      'You should only use "next/router" on the client side of your app.\n'
     throw new Error(message)
   }
   return singletonRouter.router
@@ -132,7 +140,7 @@ export function useRouter(): NextRouter {
 
 // Create a router and assign it as the singleton instance.
 // This is used in client side when we are initilizing the app.
-// This should **not** use inside the server.
+// This should **not** be used inside the server.
 export const createRouter = (...args: RouterArgs): Router => {
   singletonRouter.router = new Router(...args)
   singletonRouter.readyCallbacks.forEach((cb) => cb())

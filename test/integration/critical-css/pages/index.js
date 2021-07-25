@@ -7,3 +7,11 @@ export default function Home() {
     </div>
   )
 }
+
+export const getServerSideProps = () => {
+  return {
+    props: {
+      hello: 'world',
+    },
+  }
+}

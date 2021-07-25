@@ -81,7 +81,11 @@ Using GitHub's [actions/cache](https://github.com/actions/cache), add the follow
 uses: actions/cache@v2
 with:
   path: ${{ github.workspace }}/.next/cache
-  key: ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}
+  # Generate a new cache whenever packages or source files change.
+  key: ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}-${{ hashFiles('**.[jt]sx?') }}
+  # If source files changed but packages didn't, rebuild from a prior cache.
+  restore-keys: |
+    ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}-
 ```
 
 #### Bitbucket Pipelines
@@ -110,4 +114,16 @@ Using Heroku's [custom cache](https://devcenter.heroku.com/articles/nodejs-suppo
 
 ```javascript
 "cacheDirectories": [".next/cache"]
+```
+
+#### Azure Pipelines
+
+Using Azure Pipelines' [Cache task](https://docs.microsoft.com/en-us/azure/devops/pipelines/tasks/utility/cache), add the following task to your pipeline yaml file somewhere prior to the task that executes `next build`:
+
+```yaml
+- task: Cache@2
+  displayName: 'Cache .next/cache'
+  inputs:
+    key: next | $(Agent.OS) | yarn.lock
+    path: '$(System.DefaultWorkingDirectory)/.next/cache'
 ```

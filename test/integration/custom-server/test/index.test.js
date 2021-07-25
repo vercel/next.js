@@ -183,4 +183,17 @@ describe('Custom Server', () => {
       expect(stderr).toContain('Cannot render page with path "dashboard"')
     })
   })
+
+  describe('compression handling', function () {
+    beforeAll(() => startServer())
+    afterAll(() => killApp(server))
+
+    it.each(['/', '/no-query'])(
+      'should handle compression for route %s',
+      async (route) => {
+        const response = await fetchViaHTTP(appPort, route)
+        expect(response.headers.get('Content-Encoding')).toBe('gzip')
+      }
+    )
+  })
 })

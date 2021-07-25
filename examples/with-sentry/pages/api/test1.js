@@ -1,11 +1,10 @@
-import { init } from '../../utils/sentry'
-
-init()
+import { withSentry } from '@sentry/nextjs'
 
 const doAsyncWork = () => Promise.reject(new Error('API Test 1'))
 doAsyncWork()
 
-export default async function handler(req, res) {
-  res.statusCode = 200
-  res.json({ name: 'John Doe' })
+async function handler(req, res) {
+  res.status(200).json({ name: 'John Doe' })
 }
+
+export default withSentry(handler)

@@ -48,7 +48,7 @@ Create React App uses the `public` directory for the [entry HTML file](https://c
 
 ## Creating Routes & Linking
 
-With Create React App, you're likely using React Router. Instead of using a third-party library, Next.js includes it's own [file-system based routing](/docs/routing/introduction.md).
+With Create React App, you're likely using React Router. Instead of using a third-party library, Next.js includes its own [file-system based routing](/docs/routing/introduction.md).
 
 - Convert all `Route` components to new files in the `pages` directory.
 - For routes that require dynamic content (e.g. `/blog/:slug`), you can use [Dynamic Routes](/docs/routing/dynamic-routes.md) with Next.js (e.g. `pages/blog/[slug].js`). The value of `slug` is accessible through a [query parameter](/docs/routing/dynamic-routes.md). For example, the route `/blog/first-post` would forward the query object `{ 'slug': 'first-post' }` to `pages/blog/[slug].js` ([learn more here](/docs/basic-features/data-fetching.md#getstaticpaths-static-generation)).
@@ -199,12 +199,12 @@ export default function SEO({ description, title, siteTitle }) {
 
 ## Single-Page App (SPA)
 
-If you want to move your existing Create React App to Next.js and keep a Single-Page App, you can move your old application entry point to an [Optional Catch-All Route](/docs/routing/dynamic-routes.md#optional-catch-all-routes) named `pages/[[…app]].js`.
+If you want to move your existing Create React App to Next.js and keep a Single-Page App, you can move your old application's entry point to an [Optional Catch-All Route](/docs/routing/dynamic-routes.md#optional-catch-all-routes) named `pages/[[...app]].js`.
 
 ```jsx
 // pages/[[...app]].js
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import CreateReactAppEntryPoint from '../components/app'
 
 function App() {
@@ -236,4 +236,4 @@ If you've ejected Create React App, here are some things to consider:
 
 ## Learn More
 
-You can learn more about Next.js by completing our [starter tutorial](https://nextjs.org/learn/basics/getting-started). If you have questions or if this guide didn't work for you, feel free to reach out to our community on [GitHub Discussions](https://github.com/vercel/next.js/discussions).
+You can learn more about Next.js by completing our [starter tutorial](https://nextjs.org/learn/basics/create-nextjs-app). If you have questions or if this guide didn't work for you, feel free to reach out to our community on [GitHub Discussions](https://github.com/vercel/next.js/discussions).

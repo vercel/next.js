@@ -1,6 +1,5 @@
 {
-  "name": "with-gsap",
-  "version": "0.1.0",
+  "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -9,8 +8,8 @@
   "dependencies": {
     "gsap": "^3.0.1",
     "next": "latest",
-    "react": "16.13.1",
-    "react-dom": "16.13.1",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
     "react-transition-group": "^4.3.0",
     "sass": "1.29.0"
   },

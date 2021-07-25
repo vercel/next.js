@@ -1,6 +1,6 @@
 {
   "name": "@next/react-dev-overlay",
-  "version": "10.0.6-canary.8",
+  "version": "11.0.2-canary.21",
   "description": "A development-only overlay for developing React applications.",
   "repository": {
     "url": "vercel/next.js",
@@ -13,7 +13,7 @@
   "license": "MIT",
   "scripts": {
     "prepublish": "tsc -d -p tsconfig.json",
-    "build": "tsc -d -w -p tsconfig.json"
+    "dev": "tsc -d -w -p tsconfig.json"
   },
   "dependencies": {
     "@babel/code-frame": "7.12.11",
@@ -29,7 +29,7 @@
     "strip-ansi": "6.0.0"
   },
   "peerDependencies": {
-    "react": "^16.9.0 || ^17",
-    "react-dom": "^16.9.0 || ^17"
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2"
   }
 }

@@ -1,4 +1,4 @@
-import React, { Children, useEffect } from 'react'
+import React from 'react'
 import { UrlObject } from 'url'
 import {
   addBasePath,
@@ -8,7 +8,7 @@ import {
   NextRouter,
   PrefetchOptions,
   resolveHref,
-} from '../next-server/lib/router/router'
+} from '../shared/lib/router/router'
 import { useRouter } from './router'
 import { useIntersection } from './use-intersection'
 
@@ -94,8 +94,8 @@ function linkClicked(
   e.preventDefault()
 
   //  avoid scroll for urls with anchor refs
-  if (scroll == null) {
-    scroll = as.indexOf('#') < 0
+  if (scroll == null && as.indexOf('#') >= 0) {
+    scroll = false
   }
 
   // replace state instead of push if prop is present
@@ -103,12 +103,6 @@ function linkClicked(
     shallow,
     locale,
     scroll,
-  }).then((success: boolean) => {
-    if (!success) return
-    if (scroll) {
-      // FIXME: proper route announcing at Router level, not Link:
-      document.body.focus()
-    }
   })
 }
 
@@ -212,24 +206,20 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
     if (props.prefetch && !hasWarned.current) {
       hasWarned.current = true
       console.warn(
-        'Next.js auto-prefetches automatically based on viewport. The prefetch attribute is no longer needed. More: https://err.sh/vercel/next.js/prefetch-true-deprecated'
+        'Next.js auto-prefetches automatically based on viewport. The prefetch attribute is no longer needed. More: https://nextjs.org/docs/messages/prefetch-true-deprecated'
       )
     }
   }
   const p = props.prefetch !== false
-
   const router = useRouter()
-  const pathname = (router && router.pathname) || '/'
 
   const { href, as } = React.useMemo(() => {
-    const [resolvedHref, resolvedAs] = resolveHref(pathname, props.href, true)
+    const [resolvedHref, resolvedAs] = resolveHref(router, props.href, true)
     return {
       href: resolvedHref,
-      as: props.as
-        ? resolveHref(pathname, props.as)
-        : resolvedAs || resolvedHref,
+      as: props.as ? resolveHref(router, props.as) : resolvedAs || resolvedHref,
     }
-  }, [pathname, props.href, props.as])
+  }, [router, props.href, props.as])
 
   let { children, replace, shallow, scroll, locale } = props
 
@@ -239,7 +229,21 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
   }
 
   // This will return the first child, if multiple are provided it will throw an error
-  const child: any = Children.only(children)
+  let child: any
+  if (process.env.NODE_ENV === 'development') {
+    try {
+      child = React.Children.only(children)
+    } catch (err) {
+      throw new Error(
+        `Multiple children were passed to <Link> with \`href\` of \`${props.href}\` but only one child is supported https://nextjs.org/docs/messages/link-multiple-children` +
+          (typeof window !== 'undefined'
+            ? "\nOpen your browser's console to view the Component stack trace."
+            : '')
+      )
+    }
+  } else {
+    child = React.Children.only(children)
+  }
   const childRef: any = child && typeof child === 'object' && child.ref
 
   const [setIntersectionRef, isVisible] = useIntersection({
@@ -257,7 +261,7 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
     },
     [childRef, setIntersectionRef]
   )
-  useEffect(() => {
+  React.useEffect(() => {
     const shouldPrefetch = isVisible && p && isLocalURL(href)
     const curLocale =
       typeof locale !== 'undefined' ? locale : router && router.locale
@@ -301,12 +305,17 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
     const curLocale =
       typeof locale !== 'undefined' ? locale : router && router.locale
 
-    const localeDomain = getDomainLocale(
-      as,
-      curLocale,
-      router && router.locales,
-      router && router.domainLocales
-    )
+    // we only render domain locales if we are currently on a domain locale
+    // so that locale links are still visitable in development/preview envs
+    const localeDomain =
+      router &&
+      router.isLocaleDomain &&
+      getDomainLocale(
+        as,
+        curLocale,
+        router && router.locales,
+        router && router.domainLocales
+      )
 
     childProps.href =
       localeDomain ||

@@ -3,8 +3,8 @@ import {
   isWebpack5,
   sources,
 } from 'next/dist/compiled/webpack/webpack'
-import { PAGES_MANIFEST } from '../../../next-server/lib/constants'
-import getRouteFromEntrypoint from '../../../next-server/server/get-route-from-entrypoint'
+import { PAGES_MANIFEST } from '../../../shared/lib/constants'
+import getRouteFromEntrypoint from '../../../server/get-route-from-entrypoint'
 
 export type PagesManifest = { [page: string]: string }
 
@@ -13,9 +13,11 @@ export type PagesManifest = { [page: string]: string }
 // It's also used by next export to provide defaultPathMap
 export default class PagesManifestPlugin implements webpack.Plugin {
   serverless: boolean
+  dev: boolean
 
-  constructor(serverless: boolean) {
+  constructor({ serverless, dev }: { serverless: boolean; dev: boolean }) {
     this.serverless = serverless
+    this.dev = dev
   }
 
   createAssets(compilation: any, assets: any) {
@@ -23,7 +25,7 @@ export default class PagesManifestPlugin implements webpack.Plugin {
     const pages: PagesManifest = {}
 
     for (const entrypoint of entrypoints.values()) {
-      const pagePath = getRouteFromEntrypoint(entrypoint.name, this.serverless)
+      const pagePath = getRouteFromEntrypoint(entrypoint.name)
 
       if (!pagePath) {
         continue
@@ -36,7 +38,7 @@ export default class PagesManifestPlugin implements webpack.Plugin {
             !file.includes('webpack-runtime') && file.endsWith('.js')
         )
 
-      if (files.length > 1) {
+      if (!isWebpack5 && files.length > 1) {
         console.log(
           `Found more than one file in server entrypoint ${entrypoint.name}`,
           files
@@ -45,12 +47,17 @@ export default class PagesManifestPlugin implements webpack.Plugin {
       }
 
       // Write filename, replace any backslashes in path (on windows) with forwardslashes for cross-platform consistency.
-      pages[pagePath] = files[0].replace(/\\/g, '/')
+      pages[pagePath] = files[files.length - 1]
+
+      if (isWebpack5 && !this.dev) {
+        pages[pagePath] = pages[pagePath].slice(3)
+      }
+      pages[pagePath] = pages[pagePath].replace(/\\/g, '/')
     }
 
-    assets[PAGES_MANIFEST] = new sources.RawSource(
-      JSON.stringify(pages, null, 2)
-    )
+    assets[
+      `${isWebpack5 && !this.dev ? '../' : ''}` + PAGES_MANIFEST
+    ] = new sources.RawSource(JSON.stringify(pages, null, 2))
   }
 
   apply(compiler: webpack.Compiler): void {

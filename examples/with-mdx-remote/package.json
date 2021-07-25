@@ -1,6 +1,5 @@
 {
-  "name": "with-mdx-remote",
-  "version": "1.0.0",
+  "private": true,
   "scripts": {
     "dev": "next",
     "dev:watch": "next-remote-watch ./posts",
@@ -10,10 +9,10 @@
   "dependencies": {
     "gray-matter": "^4.0.2",
     "next": "latest",
-    "next-mdx-remote": "^1.0.0",
-    "next-remote-watch": "0.2.0",
-    "react": "^16.13.1",
-    "react-dom": "^16.13.1"
+    "next-mdx-remote": "^3.0.1",
+    "next-remote-watch": "1.0.0",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2"
   },
   "license": "MIT"
 }

@@ -112,6 +112,6 @@ export function loadEnvConfig(
       }
     }
   }
-  combinedEnv = processEnv(cachedLoadedEnvFiles, dir)
+  combinedEnv = processEnv(cachedLoadedEnvFiles, dir, log)
   return { combinedEnv, loadedEnvFiles: cachedLoadedEnvFiles }
 }
