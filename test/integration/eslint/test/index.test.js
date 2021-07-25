@@ -276,13 +276,13 @@ describe('ESLint', () => {
 
       const output = stdout + stderr
       expect(output).toContain(
-          'Error: Comments inside children section of tag should be placed inside braces'
+        'Error: Comments inside children section of tag should be placed inside braces'
       )
       expect(output).toContain(
-          'Warning: External synchronous scripts are forbidden'
+        'Warning: External synchronous scripts are forbidden'
       )
     })
-    
+
     test('max warnings flag errors when warnings exceed threshold', async () => {
       const { stdout, stderr } = await nextLint(
         dirMaxWarnings,
