@@ -48,7 +48,7 @@ export class CssMinimizerPlugin {
       input = asset.source()
     }
 
-    return postcss([cssnanoSimple])
+    return postcss([cssnanoSimple({}, postcss)])
       .process(input, postcssOptions)
       .then((res) => {
         if (res.map) {

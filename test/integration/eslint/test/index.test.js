@@ -8,10 +8,21 @@ jest.setTimeout(1000 * 60 * 2)
 
 const dirFirstTimeSetup = join(__dirname, '../first-time-setup')
 const dirCustomConfig = join(__dirname, '../custom-config')
+const dirPluginRecommendedConfig = join(
+  __dirname,
+  '../plugin-recommended-config'
+)
+const dirPluginCoreWebVitalsConfig = join(
+  __dirname,
+  '../plugin-core-web-vitals-config'
+)
 const dirIgnoreDuringBuilds = join(__dirname, '../ignore-during-builds')
 const dirCustomDirectories = join(__dirname, '../custom-directories')
 const dirConfigInPackageJson = join(__dirname, '../config-in-package-json')
 const dirInvalidEslintVersion = join(__dirname, '../invalid-eslint-version')
+const dirMaxWarnings = join(__dirname, '../max-warnings')
+const dirEmptyDirectory = join(__dirname, '../empty-directory')
+const dirEslintIgnore = join(__dirname, '../eslint-ignore')
 
 describe('ESLint', () => {
   describe('Next Build', () => {
@@ -89,6 +100,36 @@ describe('ESLint', () => {
         'Your project has an older version of ESLint installed'
       )
     })
+
+    test('empty directories do not fail the build', async () => {
+      const { stdout, stderr } = await nextBuild(dirEmptyDirectory, [], {
+        stdout: true,
+        stderr: true,
+      })
+
+      const output = stdout + stderr
+      expect(output).not.toContain('Build error occurred')
+      expect(output).not.toContain('NoFilesFoundError')
+      expect(output).toContain(
+        'Warning: External synchronous scripts are forbidden'
+      )
+      expect(output).toContain('Compiled successfully')
+    })
+
+    test('eslint ignored directories do not fail the build', async () => {
+      const { stdout, stderr } = await nextBuild(dirEslintIgnore, [], {
+        stdout: true,
+        stderr: true,
+      })
+
+      const output = stdout + stderr
+      expect(output).not.toContain('Build error occurred')
+      expect(output).not.toContain('AllFilesIgnoredError')
+      expect(output).toContain(
+        'Warning: External synchronous scripts are forbidden'
+      )
+      expect(output).toContain('Compiled successfully')
+    })
   })
 
   describe('Next Lint', () => {
@@ -123,6 +164,44 @@ describe('ESLint', () => {
       )
       expect(output).toContain(
         'Error: Comments inside children section of tag should be placed inside braces'
+      )
+    })
+
+    test('shows warnings and errors when extending plugin recommended config', async () => {
+      const { stdout, stderr } = await nextLint(
+        dirPluginRecommendedConfig,
+        [],
+        {
+          stdout: true,
+          stderr: true,
+        }
+      )
+
+      const output = stdout + stderr
+      expect(output).toContain(
+        'Warning: External synchronous scripts are forbidden'
+      )
+      expect(output).toContain(
+        'Error: next/document should not be imported outside of pages/_document.js.'
+      )
+    })
+
+    test('shows warnings and errors when extending plugin core-web-vitals config', async () => {
+      const { stdout, stderr } = await nextLint(
+        dirPluginCoreWebVitalsConfig,
+        [],
+        {
+          stdout: true,
+          stderr: true,
+        }
+      )
+
+      const output = stdout + stderr
+      expect(output).toContain(
+        "Warning: Do not use <img>. Use Image from 'next/image' instead."
+      )
+      expect(output).toContain(
+        'Error: External synchronous scripts are forbidden'
       )
     })
 
@@ -202,6 +281,62 @@ describe('ESLint', () => {
       expect(output).toContain(
           'Warning: External synchronous scripts are forbidden'
       )
+    })
+    
+    test('max warnings flag errors when warnings exceed threshold', async () => {
+      const { stdout, stderr } = await nextLint(
+        dirMaxWarnings,
+        ['--max-warnings', 1],
+        {
+          stdout: true,
+          stderr: true,
+        }
+      )
+
+      expect(stderr).not.toEqual('')
+      expect(stderr).toContain(
+        'Warning: External synchronous scripts are forbidden'
+      )
+      expect(stdout).not.toContain(
+        'Warning: External synchronous scripts are forbidden'
+      )
+    })
+
+    test('max warnings flag does not error when warnings do not exceed threshold', async () => {
+      const { stdout, stderr } = await nextLint(
+        dirMaxWarnings,
+        ['--max-warnings', 2],
+        {
+          stdout: true,
+          stderr: true,
+        }
+      )
+
+      expect(stderr).toEqual('')
+      expect(stderr).not.toContain(
+        'Warning: External synchronous scripts are forbidden'
+      )
+      expect(stdout).toContain(
+        'Warning: External synchronous scripts are forbidden'
+      )
+    })
+
+    test('format flag supports additional user-defined formats', async () => {
+      const { stdout, stderr } = await nextLint(
+        dirMaxWarnings,
+        ['-f', 'codeframe'],
+        {
+          stdout: true,
+          stderr: true,
+        }
+      )
+
+      const output = stdout + stderr
+      expect(output).toContain(
+        'warning: External synchronous scripts are forbidden'
+      )
+      expect(stdout).toContain('<script src="https://example.com" />')
+      expect(stdout).toContain('2 warnings found')
     })
   })
 })

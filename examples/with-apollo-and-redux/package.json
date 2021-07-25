@@ -1,6 +1,5 @@
 {
-  "name": "with-apollo-and-redux",
-  "version": "2.0.0",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",

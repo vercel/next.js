@@ -11,16 +11,18 @@ To improve the security of your application, you can use [`headers`](/docs/api-r
 
 // You can choose which headers to add to the list
 // after learning more below.
-const securityHeaders = [];
+const securityHeaders = []
 
-async headers() {
-  return [
-    {
-      // Apply these headers to all routes in your application.
-      source: '/(.*)',
-      headers: securityHeaders
-    }
-  ]
+module.exports = {
+  async headers() {
+    return [
+      {
+        // Apply these headers to all routes in your application.
+        source: '/(.*)',
+        headers: securityHeaders,
+      },
+    ]
+  },
 }
 ```
 
@@ -46,7 +48,7 @@ If you're deploying to [Vercel](https://vercel.com/docs/edge-network/headers#str
 ```jsx
 {
   key: 'Strict-Transport-Security',
-  value: 'max-age=31536000; includeSubDomains; preload'
+  value: 'max-age=63072000; includeSubDomains; preload'
 }
 ```
 
