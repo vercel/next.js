@@ -15,6 +15,7 @@ import { processBuffer, Operation } from './lib/squoosh/main'
 import Server from './next-server'
 import { sendEtagResponse } from './send-payload'
 import { getContentType, getExtension } from './serve-static'
+import chalk from 'chalk'
 
 //const AVIF = 'image/avif'
 const WEBP = 'image/webp'
@@ -26,8 +27,23 @@ const CACHE_VERSION = 3
 const MODERN_TYPES = [/* AVIF, */ WEBP]
 const ANIMATABLE_TYPES = [WEBP, PNG, GIF]
 const VECTOR_TYPES = [SVG]
-
+const BLUR_IMG_SIZE = 8 // should match `next-image-loader`
 const inflightRequests = new Map<string, Promise<undefined>>()
+
+let sharp:
+  | ((
+      input?: string | Buffer,
+      options?: import('sharp').SharpOptions
+    ) => import('sharp').Sharp)
+  | undefined
+
+try {
+  sharp = require(process.env.NEXT_SHARP_PATH || 'sharp')
+} catch (e) {
+  // Sharp not present on the server, Squoosh fallback will be used
+}
+
+let shouldShowSharpWarning = process.env.NODE_ENV === 'production'
 
 export async function imageOptimizer(
   server: Server,
@@ -39,7 +55,13 @@ export async function imageOptimizer(
   isDev = false
 ) {
   const imageData: ImageConfig = nextConfig.images || imageConfigDefault
-  const { deviceSizes = [], imageSizes = [], domains = [], loader } = imageData
+  const {
+    deviceSizes = [],
+    imageSizes = [],
+    domains = [],
+    loader,
+    minimumCacheTTL = 60,
+  } = imageData
 
   if (loader !== 'default') {
     await server.render404(req, res, parsedUrl)
@@ -124,6 +146,10 @@ export async function imageOptimizer(
   }
 
   const sizes = [...deviceSizes, ...imageSizes]
+
+  if (isDev) {
+    sizes.push(BLUR_IMG_SIZE)
+  }
 
   if (!sizes.includes(width)) {
     res.statusCode = 400
@@ -231,6 +257,7 @@ export async function imageOptimizer(
         mockRes.setHeader = (name: string, value: string | string[]) =>
           (mockHeaders[name.toLowerCase()] = value)
         mockRes._implicitHeader = () => {}
+        mockRes.connection = res.connection
         mockRes.finished = false
         mockRes.statusCode = 200
 
@@ -245,6 +272,7 @@ export async function imageOptimizer(
         mockReq.headers = req.headers
         mockReq.method = req.method
         mockReq.url = href
+        mockReq.connection = req.connection
 
         await server.getRequestHandler()(
           mockReq,
@@ -265,7 +293,7 @@ export async function imageOptimizer(
       }
     }
 
-    const expireAt = maxAge * 1000 + now
+    const expireAt = Math.max(maxAge, minimumCacheTTL) * 1000 + now
 
     if (upstreamType) {
       const vector = VECTOR_TYPES.includes(upstreamType)
@@ -310,52 +338,87 @@ export async function imageOptimizer(
     } else {
       contentType = JPEG
     }
-
     try {
-      const orientation = await getOrientation(upstreamBuffer)
-
-      const operations: Operation[] = []
-
-      if (orientation === Orientation.RIGHT_TOP) {
-        operations.push({ type: 'rotate', numRotations: 1 })
-      } else if (orientation === Orientation.BOTTOM_RIGHT) {
-        operations.push({ type: 'rotate', numRotations: 2 })
-      } else if (orientation === Orientation.LEFT_BOTTOM) {
-        operations.push({ type: 'rotate', numRotations: 3 })
-      } else {
-        // TODO: support more orientations
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        // const _: never = orientation
-      }
-
-      operations.push({ type: 'resize', width })
-
       let optimizedBuffer: Buffer | undefined
-      //if (contentType === AVIF) {
-      //} else
-      if (contentType === WEBP) {
-        optimizedBuffer = await processBuffer(
-          upstreamBuffer,
-          operations,
-          'webp',
-          quality
-        )
-      } else if (contentType === PNG) {
-        optimizedBuffer = await processBuffer(
-          upstreamBuffer,
-          operations,
-          'png',
-          quality
-        )
-      } else if (contentType === JPEG) {
-        optimizedBuffer = await processBuffer(
-          upstreamBuffer,
-          operations,
-          'jpeg',
-          quality
-        )
-      }
+      if (sharp) {
+        // Begin sharp transformation logic
+        const transformer = sharp(upstreamBuffer)
 
+        transformer.rotate()
+
+        const { width: metaWidth } = await transformer.metadata()
+
+        if (metaWidth && metaWidth > width) {
+          transformer.resize(width)
+        }
+
+        if (contentType === WEBP) {
+          transformer.webp({ quality })
+        } else if (contentType === PNG) {
+          transformer.png({ quality })
+        } else if (contentType === JPEG) {
+          transformer.jpeg({ quality })
+        }
+
+        optimizedBuffer = await transformer.toBuffer()
+        // End sharp transformation logic
+      } else {
+        // Show sharp warning in production once
+        if (shouldShowSharpWarning) {
+          console.warn(
+            chalk.yellow.bold('Warning: ') +
+              `For production Image Optimization with Next.js, the optional 'sharp' package is strongly recommended. Run 'yarn add sharp', and Next.js will use it automatically for Image Optimization.\n` +
+              'Read more: https://nextjs.org/docs/messages/sharp-missing-in-production'
+          )
+          shouldShowSharpWarning = false
+        }
+
+        // Begin Squoosh transformation logic
+        const orientation = await getOrientation(upstreamBuffer)
+
+        const operations: Operation[] = []
+
+        if (orientation === Orientation.RIGHT_TOP) {
+          operations.push({ type: 'rotate', numRotations: 1 })
+        } else if (orientation === Orientation.BOTTOM_RIGHT) {
+          operations.push({ type: 'rotate', numRotations: 2 })
+        } else if (orientation === Orientation.LEFT_BOTTOM) {
+          operations.push({ type: 'rotate', numRotations: 3 })
+        } else {
+          // TODO: support more orientations
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          // const _: never = orientation
+        }
+
+        operations.push({ type: 'resize', width })
+
+        //if (contentType === AVIF) {
+        //} else
+        if (contentType === WEBP) {
+          optimizedBuffer = await processBuffer(
+            upstreamBuffer,
+            operations,
+            'webp',
+            quality
+          )
+        } else if (contentType === PNG) {
+          optimizedBuffer = await processBuffer(
+            upstreamBuffer,
+            operations,
+            'png',
+            quality
+          )
+        } else if (contentType === JPEG) {
+          optimizedBuffer = await processBuffer(
+            upstreamBuffer,
+            operations,
+            'jpeg',
+            quality
+          )
+        }
+
+        // End Squoosh transformation logic
+      }
       if (optimizedBuffer) {
         await writeToCacheDir(
           hashDir,
@@ -526,7 +589,6 @@ export function detectContentType(buffer: Buffer) {
 }
 
 export function getMaxAge(str: string | null): number {
-  const minimum = 60
   const map = parseCacheControl(str)
   if (map) {
     let age = map.get('s-maxage') || map.get('max-age') || ''
@@ -535,8 +597,47 @@ export function getMaxAge(str: string | null): number {
     }
     const n = parseInt(age, 10)
     if (!isNaN(n)) {
-      return Math.max(n, minimum)
+      return n
     }
   }
-  return minimum
+  return 0
+}
+
+export async function resizeImage(
+  content: Buffer,
+  dimension: 'width' | 'height',
+  size: number,
+  extension: 'webp' | 'png' | 'jpeg',
+  quality: number
+): Promise<Buffer> {
+  if (sharp) {
+    const transformer = sharp(content)
+
+    if (extension === 'webp') {
+      transformer.webp({ quality })
+    } else if (extension === 'png') {
+      transformer.png({ quality })
+    } else if (extension === 'jpeg') {
+      transformer.jpeg({ quality })
+    }
+    if (dimension === 'width') {
+      transformer.resize(size)
+    } else {
+      transformer.resize(null, size)
+    }
+    const buf = await transformer.toBuffer()
+    return buf
+  } else {
+    const resizeOperationOpts: Operation =
+      dimension === 'width'
+        ? { type: 'resize', width: size }
+        : { type: 'resize', height: size }
+    const buf = await processBuffer(
+      content,
+      [resizeOperationOpts],
+      extension,
+      quality
+    )
+    return buf
+  }
 }

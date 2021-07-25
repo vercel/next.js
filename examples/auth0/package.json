@@ -1,12 +1,10 @@
 {
-  "name": "auth0",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",
     "start": "next start"
   },
-  "author": "",
-  "license": "MIT",
   "dependencies": {
     "@auth0/nextjs-auth0": "^1.4.2",
     "next": "latest",

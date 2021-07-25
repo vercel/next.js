@@ -1,5 +1,5 @@
 {
-  "name": "with-webassembly",
+  "private": true,
   "dependencies": {
     "next": "latest",
     "react": "^17.0.2",
