@@ -1650,10 +1650,6 @@ export default class Server {
         isRedirect = (renderOpts as any).isRedirect
       }
 
-      if (!body) {
-        return null
-      }
-
       let value: ResponseCacheValue | null
       if (isNotFound) {
         value = null
