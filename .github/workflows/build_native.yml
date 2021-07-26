@@ -123,17 +123,17 @@ jobs:
           message: 'Build next-swc binaries'
         if: ${{ env.GITHUB_EVENT_NAME }} == 'workflow_dispatch'
 
-    check:
-      needs: [build, build-apple-silicon]
-      runs-on: ubuntu-18.04
+  check:
+    needs: [build, build-apple-silicon]
+    runs-on: ubuntu-18.04
 
-      steps:
-        - uses: actions/checkout@v2
-          if: ${{ env.GITHUB_EVENT_NAME }} == 'pull_request'
-        - uses: actions/download-artifact@v2
-          with:
-            name: next-swc-binaries
-            path: packages/next/native
-          if: ${{ env.GITHUB_EVENT_NAME }} == 'pull_request'
-        - run: git diff --exit-code
-          if: ${{ env.GITHUB_EVENT_NAME }} == 'pull_request'
+    steps:
+      - uses: actions/checkout@v2
+        if: ${{ env.GITHUB_EVENT_NAME }} == 'pull_request'
+      - uses: actions/download-artifact@v2
+        with:
+          name: next-swc-binaries
+          path: packages/next/native
+        if: ${{ env.GITHUB_EVENT_NAME }} == 'pull_request'
+      - run: git diff --exit-code
+        if: ${{ env.GITHUB_EVENT_NAME }} == 'pull_request'
