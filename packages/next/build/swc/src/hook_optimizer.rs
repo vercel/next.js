@@ -25,10 +25,8 @@ impl Fold for HookOptimizer {
     if &src.value == "react" || &src.value == "preact/hooks" {
       for specifier in specifiers {
         if let ImportSpecifier::Named(named_specifier) = specifier {
-          if String::from(&named_specifier.local.sym as &str).starts_with("use") {
-            self
-              .hooks
-              .push(String::from(&named_specifier.local.sym as &str))
+          if named_specifier.local.sym.starts_with("use") {
+            self.hooks.push(named_specifier.local.sym.to_string())
           }
         }
       }
