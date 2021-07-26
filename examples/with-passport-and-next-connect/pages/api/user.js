@@ -13,6 +13,11 @@ handler
     // res.json({ user: { name, username, favoriteColor } })
     res.json({ user: req.user })
   })
+  .post((req, res) => {
+    const { username, password, name } = req.body
+    const user = createUser(req, { username, password, name })
+    res.status(200).json({ success: true, message: "created new user" })
+  })
   .use((req, res, next) => {
     // handlers after this (PUT, DELETE) all require an authenticated user
     // This middleware to check if user is authenticated before continuing
