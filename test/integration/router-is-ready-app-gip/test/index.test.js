@@ -19,14 +19,24 @@ const appDir = join(__dirname, '../')
 const invalidPage = new File(join(appDir, 'pages/invalid.js'))
 
 function runTests(isDev) {
-  it('isReady should be true immediately for pages with getInitialProps in _app', async () => {
+  it('isReady should be true immediately for pages without getStaticProps', async () => {
     const browser = await webdriver(appPort, '/appGip')
     expect(await browser.eval('window.isReadyValues')).toEqual([true])
   })
 
-  it('isReady should be true immediately for pages with getInitialProps in _app, with query', async () => {
+  it('isReady should be true immediately for pages without getStaticProps, with query', async () => {
     const browser = await webdriver(appPort, '/appGip?hello=world')
     expect(await browser.eval('window.isReadyValues')).toEqual([true])
+  })
+
+  it('isReady should be true immediately for getStaticProps page without query', async () => {
+    const browser = await webdriver(appPort, '/gsp')
+    expect(await browser.eval('window.isReadyValues')).toEqual([true])
+  })
+
+  it('isReady should be true after query update for getStaticProps page with query', async () => {
+    const browser = await webdriver(appPort, '/gsp?hello=world')
+    expect(await browser.eval('window.isReadyValues')).toEqual([false, true])
   })
 }
 

@@ -574,7 +574,7 @@ export async function renderToHTML(
   const routerIsReady = !!(
     getServerSideProps ||
     hasPageGetInitialProps ||
-    !defaultAppGetInitialProps
+    (!defaultAppGetInitialProps && !isSSG)
   )
   const router = new ServerRouter(
     pathname,
