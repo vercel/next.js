@@ -1146,7 +1146,7 @@ export async function renderToHTML(
       ssrMode: true,
       reduceInlineStyles: false,
       path: renderOpts.distDir,
-      publicPath: '/_next/',
+      publicPath: `${renderOpts.assetPrefix}/_next/`,
       preload: 'media',
       fonts: false,
       ...renderOpts.optimizeCss,
