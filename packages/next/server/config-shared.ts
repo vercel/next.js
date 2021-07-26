@@ -23,7 +23,7 @@ export interface DomainLocale {
 }
 
 export interface ESLintConfig {
-  /** Only run ESLint on these directories during production builds (`next build`). */
+  /** Only run ESLint on these directories with `next lint` and `next build`. */
   dirs?: string[]
   /** Do not run ESLint during production builds (`next build`). */
   ignoreDuringBuilds?: boolean
