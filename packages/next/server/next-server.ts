@@ -281,7 +281,8 @@ export default class Server {
         'pages'
       ),
       locales: this.nextConfig.i18n?.locales,
-      flushToDisk: !minimalMode && this.nextConfig.experimental.sprFlushToDisk,
+      max: this.nextConfig.experimental.isrMemoryCacheSize,
+      flushToDisk: !minimalMode && this.nextConfig.experimental.isrFlushToDisk,
     })
     this.responseCache = new ResponseCache(this.incrementalCache)
 
@@ -1578,10 +1579,9 @@ export default class Server {
       let isNotFound: boolean | undefined
       let isRedirect: boolean | undefined
 
-      let renderResult
       // handle serverless
       if (isLikeServerless) {
-        renderResult = await (components.Component as any).renderReqToHTML(
+        const renderResult = await (components.Component as any).renderReqToHTML(
           req,
           res,
           'passthrough',
@@ -1634,7 +1634,13 @@ export default class Server {
               : resolvedUrl,
         }
 
-        renderResult = await renderToHTML(req, res, pathname, query, renderOpts)
+        const renderResult = await renderToHTML(
+          req,
+          res,
+          pathname,
+          query,
+          renderOpts
+        )
 
         body = renderResult
         // TODO: change this to a different passing mechanism
@@ -1654,7 +1660,10 @@ export default class Server {
       } else if (isRedirect) {
         value = { kind: 'REDIRECT', props: pageData }
       } else {
-        value = { kind: 'PAGE', html: body!, pageData }
+        if (!body) {
+          return null
+        }
+        value = { kind: 'PAGE', html: body, pageData }
       }
       return { revalidate: sprRevalidate, value }
     }
@@ -1744,19 +1753,28 @@ export default class Server {
         }
 
         const result = await doRender()
-        return result
-          ? {
-              ...result,
-              revalidate:
-                result.revalidate !== undefined
-                  ? result.revalidate
-                  : /* default to minimum revalidate (this should be an invariant) */ 1,
-            }
-          : null
+        if (!result) {
+          return null
+        }
+        return {
+          ...result,
+          revalidate:
+            result.revalidate !== undefined
+              ? result.revalidate
+              : /* default to minimum revalidate (this should be an invariant) */ 1,
+        }
       }
     )
 
     if (!cacheEntry) {
+      if (ssgCacheKey) {
+        // A cache entry might not be generated if a response is written
+        // in `getInitialProps` or `getServerSideProps`, but those shouldn't
+        // have a cache key. If we do have a cache key but we don't end up
+        // with a cache entry, then either Next.js or the application has a
+        // bug that needs fixing.
+        throw new Error('invariant: cache entry required but not generated')
+      }
       return null
     }
 

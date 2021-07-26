@@ -22,8 +22,17 @@ export interface DomainLocale {
   locales?: string[]
 }
 
+export interface ESLintConfig {
+  /** Only run ESLint on these directories with `next lint` and `next build`. */
+  dirs?: string[]
+  /** Do not run ESLint during production builds (`next build`). */
+  ignoreDuringBuilds?: boolean
+}
+
 export type NextConfig = { [key: string]: any } & {
   i18n?: I18NConfig | null
+
+  eslint?: ESLintConfig
 
   headers?: () => Promise<Header[]>
   rewrites?: () => Promise<
@@ -45,7 +54,7 @@ export type NextConfig = { [key: string]: any } & {
   cleanDistDir?: boolean
   assetPrefix?: string
   useFileSystemPublicRoutes?: boolean
-  generateBuildId: () => string | null
+  generateBuildId?: () => string | null
   generateEtags?: boolean
   pageExtensions?: string[]
   compress?: boolean
@@ -79,7 +88,7 @@ export type NextConfig = { [key: string]: any } & {
     cpus?: number
     plugins?: boolean
     profiling?: boolean
-    sprFlushToDisk?: boolean
+    isrFlushToDisk?: boolean
     reactMode?: 'legacy' | 'concurrent' | 'blocking'
     workerThreads?: boolean
     pageEnv?: boolean
@@ -101,6 +110,7 @@ export type NextConfig = { [key: string]: any } & {
     esmExternals?: boolean | 'loose'
     staticPageGenerationTimeout?: number
     pageDataCollectionTimeout?: number
+    isrMemoryCacheSize?: number
   }
 }
 
@@ -151,7 +161,7 @@ export const defaultConfig: NextConfig = {
     ),
     plugins: false,
     profiling: false,
-    sprFlushToDisk: true,
+    isrFlushToDisk: true,
     workerThreads: false,
     pageEnv: false,
     optimizeImages: false,
@@ -166,6 +176,8 @@ export const defaultConfig: NextConfig = {
     esmExternals: false,
     staticPageGenerationTimeout: 60,
     pageDataCollectionTimeout: 60,
+    // default to 50MB limit
+    isrMemoryCacheSize: 50 * 1024 * 1024,
   },
   future: {
     strictPostcssConfiguration: false,

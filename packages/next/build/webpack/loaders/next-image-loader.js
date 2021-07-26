@@ -1,6 +1,6 @@
 import loaderUtils from 'next/dist/compiled/loader-utils'
 import sizeOf from 'image-size'
-import { processBuffer } from '../../../server/lib/squoosh/main'
+import { resizeImage } from '../../../server/image-optimizer'
 
 const BLUR_IMG_SIZE = 8
 const BLUR_QUALITY = 70
@@ -38,14 +38,18 @@ function nextImageLoader(content) {
         blurDataURL = url.href.slice(prefix.length)
       } else {
         // Shrink the image's largest dimension
-        const resizeOperationOpts =
-          imageSize.width >= imageSize.height
-            ? { type: 'resize', width: BLUR_IMG_SIZE }
-            : { type: 'resize', height: BLUR_IMG_SIZE }
+        const dimension =
+          imageSize.width >= imageSize.height ? 'width' : 'height'
 
         const resizeImageSpan = imageLoaderSpan.traceChild('image-resize')
         const resizedImage = await resizeImageSpan.traceAsyncFn(() =>
-          processBuffer(content, [resizeOperationOpts], extension, BLUR_QUALITY)
+          resizeImage(
+            content,
+            dimension,
+            BLUR_IMG_SIZE,
+            extension,
+            BLUR_QUALITY
+          )
         )
         const blurDataURLSpan = imageLoaderSpan.traceChild(
           'image-base64-tostring'
