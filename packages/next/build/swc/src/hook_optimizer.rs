@@ -1,3 +1,4 @@
+use swc_atoms::JsWord;
 use swc_common::DUMMY_SP;
 use swc_ecmascript::ast::{
   ArrayPat, Decl, Expr, ExprOrSuper, Ident, ImportDecl, ImportSpecifier, KeyValuePatProp, Number,
@@ -11,7 +12,7 @@ pub fn hook_optimizer() -> impl Fold {
 
 #[derive(Debug, Default)]
 struct HookOptimizer {
-  hooks: Vec<String>,
+  hooks: Vec<JsWord>,
 }
 
 impl Fold for HookOptimizer {
@@ -26,7 +27,7 @@ impl Fold for HookOptimizer {
       for specifier in specifiers {
         if let ImportSpecifier::Named(named_specifier) = specifier {
           if named_specifier.local.sym.starts_with("use") {
-            self.hooks.push(named_specifier.local.sym.to_string())
+            self.hooks.push(named_specifier.local.sym.clone())
           }
         }
       }
@@ -74,7 +75,7 @@ impl HookOptimizer {
       if let Expr::Call(c) = &*init.as_deref().unwrap() {
         if let ExprOrSuper::Expr(i) = &c.callee {
           if let Expr::Ident(Ident { sym, .. }) = &**i {
-            if self.hooks.contains(&sym.to_string()) {
+            if self.hooks.contains(&sym) {
               let name = get_object_pattern(&a);
               return VarDeclarator {
                 name,
