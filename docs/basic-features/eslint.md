@@ -74,24 +74,27 @@ Recommended rule-sets from the following ESLint plugins are all used within `esl
 
 You can see the full details of the shareable configuration in the [`eslint-config-next`](https://www.npmjs.com/package/eslint-config-next) package.
 
+This will take precedence over the configuration from `next.config.js`.
+
 ## ESLint Plugin
 
 Next.js provides an ESLint plugin, [`eslint-plugin-next`](https://www.npmjs.com/package/@next/eslint-plugin-next), already bundled within the base configuration that makes it possible to catch common issues and problems in a Next.js application. The full set of rules is as follows:
 
-|     | Rule                                                                                           | Description                                                      |
-| :-: | ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| ✔️  | [next/google-font-display](https://nextjs.org/docs/messages/google-font-display)               | Enforce optional or swap font-display behavior with Google Fonts |
-| ✔️  | [next/google-font-preconnect](https://nextjs.org/docs/messages/google-font-preconnect)         | Enforce preconnect usage with Google Fonts                       |
-| ✔️  | [next/link-passhref](https://nextjs.org/docs/messages/link-passhref)                           | Enforce passHref prop usage with custom Link components          |
-| ✔️  | [next/no-css-tags](https://nextjs.org/docs/messages/no-css-tags)                               | Prevent manual stylesheet tags                                   |
-| ✔️  | [next/no-document-import-in-page](https://nextjs.org/docs/messages/no-document-import-in-page) | Disallow importing next/document outside of pages/document.js    |
-| ✔️  | [next/no-head-import-in-document](https://nextjs.org/docs/messages/no-head-import-in-document) | Disallow importing next/head in pages/document.js                |
-| ✔️  | [next/no-html-link-for-pages](https://nextjs.org/docs/messages/no-html-link-for-pages)         | Prohibit HTML anchor links to pages without a Link component     |
-| ✔️  | [next/no-img-element](https://nextjs.org/docs/messages/no-img-element)                         | Prohibit usage of HTML &lt;img&gt; element                       |
-| ✔️  | [next/no-page-custom-font](https://nextjs.org/docs/messages/no-page-custom-font)               | Prevent page-only custom fonts                                   |
-| ✔️  | [next/no-sync-scripts](https://nextjs.org/docs/messages/no-sync-scripts)                       | Forbid synchronous scripts                                       |
-| ✔️  | [next/no-title-in-document-head](https://nextjs.org/docs/messages/no-title-in-document-head)   | Disallow using &lt;title&gt; with Head from next/document        |
-| ✔️  | [next/no-unwanted-polyfillio](https://nextjs.org/docs/messages/no-unwanted-polyfillio)         | Prevent duplicate polyfills from Polyfill.io                     |
+|     | Rule                                                                                           | Description                                                                                                                  |
+| :-: | ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| ✔️  | [next/google-font-display](https://nextjs.org/docs/messages/google-font-display)               | Enforce optional or swap font-display behavior with Google Fonts                                                             |
+| ✔️  | [next/google-font-preconnect](https://nextjs.org/docs/messages/google-font-preconnect)         | Enforce preconnect usage with Google Fonts                                                                                   |
+| ✔️  | [next/link-passhref](https://nextjs.org/docs/messages/link-passhref)                           | Enforce passHref prop usage with custom Link components                                                                      |
+| ✔️  | [next/no-css-tags](https://nextjs.org/docs/messages/no-css-tags)                               | Prevent manual stylesheet tags                                                                                               |
+| ✔️  | [next/no-document-import-in-page](https://nextjs.org/docs/messages/no-document-import-in-page) | Disallow importing next/document outside of pages/document.js                                                                |
+| ✔️  | [next/no-head-import-in-document](https://nextjs.org/docs/messages/no-head-import-in-document) | Disallow importing next/head in pages/document.js                                                                            |
+| ✔️  | [next/no-html-link-for-pages](https://nextjs.org/docs/messages/no-html-link-for-pages)         | Prohibit HTML anchor links to pages without a Link component                                                                 |
+| ✔️  | [next/no-img-element](https://nextjs.org/docs/messages/no-img-element)                         | Prohibit usage of HTML &lt;img&gt; element                                                                                   |
+| ✔️  | [next/no-page-custom-font](https://nextjs.org/docs/messages/no-page-custom-font)               | Prevent page-only custom fonts                                                                                               |
+| ✔️  | [next/no-sync-scripts](https://nextjs.org/docs/messages/no-sync-scripts)                       | Forbid synchronous scripts                                                                                                   |
+| ✔️  | [next/no-title-in-document-head](https://nextjs.org/docs/messages/no-title-in-document-head)   | Disallow using &lt;title&gt; with Head from next/document                                                                    |
+| ✔️  | [next/no-unwanted-polyfillio](https://nextjs.org/docs/messages/no-unwanted-polyfillio)         | Prevent duplicate polyfills from Polyfill.io                                                                                 |
+| ✔️  | next/no-typos                                                                                  | Ensure no typos were made declaring [Next.js's data fetching function](https://nextjs.org/docs/basic-features/data-fetching) |
 
 - ✔: Enabled in the recommended configuration
 

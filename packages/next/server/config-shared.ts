@@ -22,8 +22,17 @@ export interface DomainLocale {
   locales?: string[]
 }
 
+export interface ESLintConfig {
+  /** Only run ESLint on these directories with `next lint` and `next build`. */
+  dirs?: string[]
+  /** Do not run ESLint during production builds (`next build`). */
+  ignoreDuringBuilds?: boolean
+}
+
 export type NextConfig = { [key: string]: any } & {
   i18n?: I18NConfig | null
+
+  eslint?: ESLintConfig
 
   headers?: () => Promise<Header[]>
   rewrites?: () => Promise<
@@ -45,7 +54,7 @@ export type NextConfig = { [key: string]: any } & {
   cleanDistDir?: boolean
   assetPrefix?: string
   useFileSystemPublicRoutes?: boolean
-  generateBuildId: () => string | null
+  generateBuildId?: () => string | null
   generateEtags?: boolean
   pageExtensions?: string[]
   compress?: boolean
