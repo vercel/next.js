@@ -1108,4 +1108,46 @@ describe('Image Optimizer', () => {
 
     setupTests(true)
   })
+
+  describe('content disposition header', () => {
+    beforeAll(async () => {
+      const json = JSON.stringify({
+        images: {
+          domains: ['image-optimization-test.vercel.app'],
+        },
+      })
+      nextConfig.replace('{ /* replaceme */ }', json)
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort)
+    })
+
+    afterAll(async () => {
+      await killApp(app)
+      nextConfig.restore()
+      await fs.remove(imagesDir)
+    })
+
+    it.each`
+      url                                                                 | contentDisposition
+      ${'/test.jpg'}                                                      | ${`inline; filename="test.webp"`}
+      ${'/test.png'}                                                      | ${`inline; filename="test.webp"`}
+      ${'/test.svg'}                                                      | ${`inline; filename="test.svg"`}
+      ${'https://image-optimization-test.vercel.app/api/frog.jpg'}        | ${`inline; filename="frog.webp"`}
+      ${'https://image-optimization-test.vercel.app/api/frog.png'}        | ${`inline; filename="frog.webp"`}
+      ${'https://image-optimization-test.vercel.app/api/vercel.svg'}      | ${`inline; filename="vercel.svg"`}
+      ${'https://image-optimization-test.vercel.app/png-as-octet-stream'} | ${`inline; filename="png-as-octet-stream.webp"`}
+    `(
+      'should return "Content-Disposition: $contentDisposition" header for the URL: $url',
+      async ({ url, contentDisposition }) => {
+        const query = { url, w: 64, q: 75 }
+        const opts = { headers: { accept: 'image/webp' } }
+        const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+
+        expect(res.status).toBe(200)
+        expect(res.headers.get('Content-Disposition')).toEqual(
+          contentDisposition
+        )
+      }
+    )
+  })
 })
