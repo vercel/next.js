@@ -5,14 +5,16 @@ Use `webpack-bundle-analyzer` in your Next.js project
 ## Installation
 
 ```
-npm install -D @next/bundle-analyzer
+npm install @next/bundle-analyzer
 ```
 
 or
 
 ```
-yarn add --dev @next/bundle-analyzer
+yarn add @next/bundle-analyzer
 ```
+
+Note: if installing as a `devDependency` make sure to wrap the require in a `process.env` check as `next.config.js` is loaded during `next start` as well.
 
 ### Usage with environment variables
 
