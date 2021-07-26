@@ -78,7 +78,7 @@ export default class ResponseCache {
               cachedResponse.value?.kind === 'PAGE'
                 ? {
                     kind: 'PAGE',
-                    html: resultFromChunks(cachedResponse.value.html),
+                    html: resultFromChunks([cachedResponse.value.html]),
                     pageData: cachedResponse.value.pageData,
                   }
                 : cachedResponse.value,
@@ -99,7 +99,7 @@ export default class ResponseCache {
             cacheEntry.value?.kind === 'PAGE'
               ? {
                   kind: 'PAGE',
-                  html: await resultToChunks(cacheEntry.value.html),
+                  html: (await resultToChunks(cacheEntry.value.html)).join(''),
                   pageData: cacheEntry.value.pageData,
                 }
               : cacheEntry.value,

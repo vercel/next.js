@@ -1269,7 +1269,6 @@ export default class Server {
     if (payload === null) {
       return null
     }
-    console.warn(payload)
     const chunks = await resultToChunks(payload.body)
     return chunks.join('')
   }

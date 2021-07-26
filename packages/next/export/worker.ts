@@ -405,13 +405,10 @@ export default async function exportPage({
       }
 
       const htmlChunks = html ? await resultToChunks(html) : []
+      html = htmlChunks.join('')
       if (inAmpMode && !curRenderOpts.ampSkipValidation) {
         if (!results.ssgNotFound) {
-          await validateAmp(
-            htmlChunks.join(''),
-            path,
-            curRenderOpts.ampValidatorPath
-          )
+          await validateAmp(html, path, curRenderOpts.ampValidatorPath)
         }
       } else if (hybridAmp) {
         // we need to render the AMP version
@@ -451,18 +448,12 @@ export default async function exportPage({
           }
 
           const ampChunks = await resultToChunks(ampHtml)
+          ampHtml = ampChunks.join('')
           if (!curRenderOpts.ampSkipValidation) {
-            await validateAmp(ampChunks.join(''), page + '?amp=1')
+            await validateAmp(ampHtml, page + '?amp=1')
           }
           await promises.mkdir(ampBaseDir, { recursive: true })
-          await Promise.allSettled([
-            promises.writeFile(ampHtmlFilepath, ampChunks.join(''), 'utf8'),
-            promises.writeFile(
-              ampHtmlFilepath + '.json',
-              JSON.stringify(ampChunks),
-              'utf8'
-            ),
-          ])
+          await promises.writeFile(ampHtmlFilepath, ampHtml, 'utf8')
         }
       }
 
@@ -491,14 +482,7 @@ export default async function exportPage({
 
       if (!results.ssgNotFound) {
         // don't attempt writing to disk if getStaticProps returned not found
-        await Promise.allSettled([
-          promises.writeFile(htmlFilepath, htmlChunks.join(''), 'utf8'),
-          promises.writeFile(
-            htmlFilepath + '.json',
-            JSON.stringify(htmlChunks),
-            'utf8'
-          ),
-        ])
+        await promises.writeFile(htmlFilepath, html, 'utf8')
       }
     } catch (error) {
       console.error(
