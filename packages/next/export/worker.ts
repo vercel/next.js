@@ -389,9 +389,13 @@ export default async function exportPage({
         validatorPath?: string
       ) => {
         const validator = await AmpHtmlValidator.getInstance(validatorPath)
-        const result = validator.validateString(rawAmpHtml)
-        const errors = result.errors.filter((e) => e.severity === 'ERROR')
-        const warnings = result.errors.filter((e) => e.severity !== 'ERROR')
+        const validatorResult = validator.validateString(rawAmpHtml)
+        const errors = validatorResult.errors.filter(
+          (e) => e.severity === 'ERROR'
+        )
+        const warnings = validatorResult.errors.filter(
+          (e) => e.severity !== 'ERROR'
+        )
 
         if (warnings.length || errors.length) {
           results.ampValidations.push({
