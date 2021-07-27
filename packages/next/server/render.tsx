@@ -571,7 +571,11 @@ export async function renderToHTML(
   }
 
   // url will always be set
-  const routerIsReady = !!(getServerSideProps || hasPageGetInitialProps)
+  const routerIsReady = !!(
+    getServerSideProps ||
+    hasPageGetInitialProps ||
+    (!defaultAppGetInitialProps && !isSSG)
+  )
   const router = new ServerRouter(
     pathname,
     query,
@@ -1142,7 +1146,7 @@ export async function renderToHTML(
       ssrMode: true,
       reduceInlineStyles: false,
       path: renderOpts.distDir,
-      publicPath: '/_next/',
+      publicPath: `${renderOpts.assetPrefix}/_next/`,
       preload: 'media',
       fonts: false,
       ...renderOpts.optimizeCss,

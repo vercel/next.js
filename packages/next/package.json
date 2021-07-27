@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "11.0.2-canary.21",
+  "version": "11.0.2-canary.22",
   "description": "The React Framework",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -53,7 +53,8 @@
     "prepublish": "npm run release && yarn types",
     "types": "tsc --declaration --emitDeclarationOnly --declarationDir dist",
     "typescript": "tsc --noEmit --declaration",
-    "ncc-compiled": "ncc cache clean && taskr ncc"
+    "ncc-compiled": "ncc cache clean && taskr ncc",
+    "build-native": "napi build --platform --release --cargo-cwd build/swc native"
   },
   "taskr": {
     "requires": [
@@ -65,10 +66,11 @@
   "dependencies": {
     "@babel/runtime": "7.12.5",
     "@hapi/accept": "5.0.2",
-    "@next/env": "11.0.2-canary.21",
-    "@next/polyfill-module": "11.0.2-canary.21",
-    "@next/react-dev-overlay": "11.0.2-canary.21",
-    "@next/react-refresh-utils": "11.0.2-canary.21",
+    "@next/env": "11.0.2-canary.22",
+    "@next/polyfill-module": "11.0.2-canary.22",
+    "@next/react-dev-overlay": "11.0.2-canary.22",
+    "@next/react-refresh-utils": "11.0.2-canary.22",
+    "@node-rs/helper": "1.2.1",
     "assert": "2.0.0",
     "ast-types": "0.13.2",
     "browserify-zlib": "0.2.0",
@@ -152,7 +154,8 @@
     "@babel/preset-typescript": "7.12.7",
     "@babel/traverse": "^7.12.10",
     "@babel/types": "7.12.12",
-    "@next/polyfill-nomodule": "11.0.2-canary.21",
+    "@napi-rs/cli": "1.1.0",
+    "@next/polyfill-nomodule": "11.0.2-canary.22",
     "@taskr/clear": "1.1.0",
     "@taskr/esnext": "1.1.0",
     "@taskr/watch": "1.1.0",
@@ -248,5 +251,11 @@
   },
   "engines": {
     "node": ">=12.0.0"
+  },
+  "napi": {
+    "name": "next-swc",
+    "triples": {
+      "defaults": true
+    }
   }
 }
