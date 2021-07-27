@@ -1,6 +1,13 @@
 import chalk from 'chalk'
 
-export const prefixes = {
+export const prefixes: {
+  wait: string
+  error: string
+  warn: string
+  ready: string
+  info: string
+  event: string
+} = {
   wait: chalk.cyan('wait') + '  -',
   error: chalk.red('error') + ' -',
   warn: chalk.yellow('warn') + '  -',
@@ -9,23 +16,23 @@ export const prefixes = {
   event: chalk.magenta('event') + ' -',
 }
 
-export function wait(...message: string[]) {
+export const wait = (...message: string[]): void => {
   console.log(prefixes.wait, ...message)
 }
 
-export function error(...message: string[]) {
+export const error = (...message: string[]): void => {
   console.error(prefixes.error, ...message)
 }
 
-export function warn(...message: string[]) {
+export const warn = (...message: string[]): void => {
   console.warn(prefixes.warn, ...message)
 }
 
-export function ready(...message: string[]) {
+export const ready = (...message: string[]): void => {
   console.log(prefixes.ready, ...message)
 }
 
-export function info(...message: string[]) {
+export const info = (...message: string[]): void => {
   console.log(prefixes.info, ...message)
 }
 
