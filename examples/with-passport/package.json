@@ -1,5 +1,5 @@
 {
-  "name": "with-passport",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",

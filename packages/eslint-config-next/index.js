@@ -37,6 +37,10 @@ module.exports = {
     allowImportExportEverywhere: true,
     babelOptions: {
       presets: ['next/babel'],
+      caller: {
+        // Eslint supports top level await when a parser for it is included. We enable the parser by default for Babel.
+        supportsTopLevelAwait: true,
+      },
     },
   },
   overrides: [

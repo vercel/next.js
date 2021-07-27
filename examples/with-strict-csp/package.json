@@ -1,6 +1,5 @@
 {
-  "name": "with-strict-csp",
-  "version": "1.0.0",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",

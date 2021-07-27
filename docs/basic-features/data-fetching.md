@@ -73,7 +73,7 @@ The `context` parameter is an object containing the following keys:
 `getStaticProps` should return an object with:
 
 - `props` - An **optional** object with the props that will be received by the page component. It should be a [serializable object](https://en.wikipedia.org/wiki/Serialization)
-- `revalidate` - An **optional** amount in seconds after which a page re-generation can occur (defaults to: `false` or no revalidating). More on [Incremental Static Regeneration](#incremental-static-regeneration)
+- `revalidate` - An **optional** amount in seconds after which a page re-generation can occur. Defaults to `false`. When `revalidate` is `false` it means that there is no revalidation, so the page will be cached as built until your next build. More on [Incremental Static Regeneration](#incremental-static-regeneration)
 - `notFound` - An **optional** boolean value to allow the page to return a 404 status and page. Below is an example of how it works:
 
   ```js
@@ -134,7 +134,7 @@ The `context` parameter is an object containing the following keys:
 >
 > Fetching from an external API is fine!
 
-### Simple Example
+### Example
 
 Here’s an example which uses `getStaticProps` to fetch a list of blog posts from a CMS (content management system). This example is also in the [Pages documentation](/docs/basic-features/pages.md).
 
@@ -299,7 +299,7 @@ When a request is made to a page that was pre-rendered at build time, it will in
 - Any requests to the page after the initial request and before 10 seconds are also cached and instantaneous.
 - After the 10-second window, the next request will still show the cached (stale) page
 - Next.js triggers a regeneration of the page in the background.
-- Once the page has been successfully generated, Next.js will invalidate the cache and show the updated product page. If the background regeneration fails, the old page remains unaltered.
+- Once the page has been successfully generated, Next.js will invalidate the cache and show the updated product page. If the background regeneration fails, the old page will stay unaltered.
 
 When a request is made to a path that hasn’t been generated, Next.js will server-render the page on the first request. Future requests will serve the static file from the cache.
 
@@ -513,7 +513,7 @@ If `fallback` is `true`, then the behavior of `getStaticProps` changes:
 - The paths that have not been generated at build time will **not** result in a 404 page. Instead, Next.js will serve a “fallback” version of the page on the first request to such a path (see [“Fallback pages”](#fallback-pages) below for details).
 - In the background, Next.js will statically generate the requested path HTML and JSON. This includes running `getStaticProps`.
 - When that’s done, the browser receives the JSON for the generated path. This will be used to automatically render the page with the required props. From the user’s perspective, the page will be swapped from the fallback page to the full page.
-- At the same time, Next.js adds this path to the list of pre-rendered pages. Subsequent requests to the same path will serve the generated page, just like other pages pre-rendered at build time.
+- At the same time, Next.js adds this path to the list of pre-rendered pages. Subsequent requests to the same path will serve the generated page, like other pages pre-rendered at build time.
 
 > `fallback: true` is not supported when using [`next export`](/docs/advanced-features/static-html-export.md).
 
@@ -591,7 +591,7 @@ If `fallback` is `'blocking'`, new paths not returned by `getStaticPaths` will w
 - The paths returned from `getStaticPaths` will be rendered to HTML at build time by `getStaticProps`.
 - The paths that have not been generated at build time will **not** result in a 404 page. Instead, Next.js will SSR on the first request and return the generated HTML.
 - When that’s done, the browser receives the HTML for the generated path. From the user’s perspective, it will transition from "the browser is requesting the page" to "the full page is loaded". There is no flash of loading/fallback state.
-- At the same time, Next.js adds this path to the list of pre-rendered pages. Subsequent requests to the same path will serve the generated page, just like other pages pre-rendered at build time.
+- At the same time, Next.js adds this path to the list of pre-rendered pages. Subsequent requests to the same path will serve the generated page, like other pages pre-rendered at build time.
 
 `fallback: 'blocking'` will not _update_ generated pages by default. To update generated pages, use [Incremental Static Regeneration](#incremental-static-regeneration) in conjunction with `fallback: 'blocking'`.
 
@@ -727,7 +727,7 @@ The `context` parameter is an object containing the following keys:
 >
 > Fetching from an external API is fine!
 
-### Simple example
+### Example
 
 Here’s an example which uses `getServerSideProps` to fetch data at request time and pre-renders it. This example is also in the [Pages documentation](/docs/basic-features/pages.md).
 
@@ -825,8 +825,10 @@ The team behind Next.js has created a React hook for data fetching called [**SWR
 ```jsx
 import useSWR from 'swr'
 
+const fetcher = (url) => fetch(url).then((res) => res.json())
+
 function Profile() {
-  const { data, error } = useSWR('/api/user', fetch)
+  const { data, error } = useSWR('/api/user', fetcher)
 
   if (error) return <div>failed to load</div>
   if (!data) return <div>loading...</div>

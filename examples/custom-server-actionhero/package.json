@@ -1,5 +1,5 @@
 {
-  "name": "custom-server-actionhero",
+  "private": true,
   "engines": {
     "node": ">=8.0.0"
   },

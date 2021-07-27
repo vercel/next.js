@@ -76,7 +76,8 @@ export class ProfilingPlugin {
       this.traceHookPair(
         'webpack-invalidated',
         compiler.hooks.invalid,
-        compiler.hooks.done
+        compiler.hooks.done,
+        () => ({ name: compiler.name })
       )
     }
   }
@@ -86,7 +87,8 @@ export class ProfilingPlugin {
       this.traceHookPair(
         'webpack-compilation',
         compiler.hooks.beforeCompile,
-        compiler.hooks.afterCompile
+        compiler.hooks.afterCompile,
+        () => ({ name: compiler.name })
       )
     }
 
