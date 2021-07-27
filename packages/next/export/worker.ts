@@ -377,12 +377,12 @@ export default async function exportPage({
               : null,
             locale: locale as string,
           }
-          // @ts-ignore
           renderResult = await renderMethod(
             req,
             res,
             page,
             query,
+            // @ts-ignore
             curRenderOpts
           )
         }
