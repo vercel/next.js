@@ -1,10 +1,6 @@
-# A statically generated blog example using Next.js and Agility CMS
+# Agility CMS & Next.js Starter
 
-This example showcases Next.js's [Static Generation](https://nextjs.org/docs/basic-features/pages) feature using [Agility CMS](https://www.agilitycms.com) as the data source.
-
-> `IMPORTANT` - This example uses Agility CMS's [**Page Management**](https://agilitycms.com/resources/posts/page-management-in-agility-cms-vs-other-headless-cmss) features. This means that the CMS ultimately drives what pages are available and what content is on each page. This enables **Editors** to focus on managing their pages, while allowing you, (the **Developer**) to focus on building UI components for the editors to compose their pages.
-
-## Demo
+This is sample Next.js starter site that uses Agility CMS and aims to be a foundation for building fully static sites using Next.js and Agility CMS.
 
 [Live Website Demo](https://agilitycms-nextjs-starter-blog.vercel.app/)
 
@@ -14,24 +10,7 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 
 Click below to create this project in Agility CMS and deploy it automatically to Vercel.
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/cms-agilitycms&project-name=agilitycms-nextjs-starter&repository-name=agilitycms-nextjs-starter&developer-id=oac_Dnqk9CoC6rZ18k9nVR9KresV&integration-ids=oac_Dnqk9CoC6rZ18k9nVR9KresV&production-deploy-hook=cms-deploy-hook&demo-title=Website%20Blog%20with%20Agility%20CMS%20and%20Next.js&demo-description=Next.js%20is%20the%20most%20flexible%20and%20powerful%20framework%20for%20building%20websites%20on%20the%20Jamstack%2C%20and%20we%27ve%20unlocked%20that%20power%20with%20Agility%20CMS%20in%20this%20starter%20template.%0A%0AThis%20project%20is%20an%20example%20blog%2C%20but%20that%27s%20just%20the%20beginning.%20The%20code%20itself%20takes%20advantage%20of%20powerful%20tools%20such%20Tailwind%20CSS%2C%20a%20simple%20and%20lightweight%20utility-first%20CSS%20framework%2C%20and%20next%2Fimage%20for%20automatic%20image%20optimization.&demo-url=https%3A%2F%2Fagilitycms-nextjs-starter-blog.vercel.app%2F&demo-image=https%3A%2F%2Fstatic.agilitycms.com%2FAttachments%2FNewItems%2Fnext-js-starter-screenshot.jpg%3Fw%3D600%26q%3D60&external-id=%7B%22githubRepo%22%3A%22github.com%2Fagility%2Fagilitycms-nextjs-starter%22%7D)
-
-### Related examples
-
-- [WordPress](/examples/cms-wordpress)
-- [DatoCMS](/examples/cms-datocms)
-- [Sanity](/examples/cms-sanity)
-- [TakeShape](/examples/cms-takeshape)
-- [Prismic](/examples/cms-prismic)
-- [Contentful](/examples/cms-contentful)
-- [Strapi](/examples/cms-strapi)
-- [Cosmic](/examples/cms-cosmic)
-- [ButterCMS](/examples/cms-buttercms)
-- [Storyblok](/examples/cms-storyblok)
-- [GraphCMS](/examples/cms-graphcms)
-- [Kontent](/examples/cms-kontent)
-- [Ghost](/examples/cms-ghost)
-- [Blog Starter](/examples/blog-starter)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/agility/agilitycms-nextjs-starter&project-name=agilitycms-nextjs-starter&repository-name=agilitycms-nextjs-starter&developer-id=oac_Dnqk9CoC6rZ18k9nVR9KresV&integration-ids=oac_Dnqk9CoC6rZ18k9nVR9KresV&production-deploy-hook=cms-deploy-hook&demo-title=Website%20Blog%20with%20Agility%20CMS%20and%20Next.js&demo-description=Next.js%20is%20the%20most%20flexible%20and%20powerful%20framework%20for%20building%20websites%20on%20the%20Jamstack%2C%20and%20we%27ve%20unlocked%20that%20power%20with%20Agility%20CMS%20in%20this%20starter%20template.%0A%0AThis%20project%20is%20an%20example%20blog%2C%20but%20that%27s%20just%20the%20beginning.%20The%20code%20itself%20takes%20advantage%20of%20powerful%20tools%20such%20Tailwind%20CSS%2C%20a%20simple%20and%20lightweight%20utility-first%20CSS%20framework%2C%20and%20next%2Fimage%20for%20automatic%20image%20optimization.&demo-url=https%3A%2F%2Fagilitycms-nextjs-starter-blog.vercel.app%2F&demo-image=https%3A%2F%2Fstatic.agilitycms.com%2FAttachments%2FNewItems%2Fnext-js-starter-screenshot.jpg%3Fw%3D600%26q%3D60&external-id=%7B%22githubRepo%22%3A%22github.com%2Fagility%2Fagilitycms-nextjs-starter%22%7D)
 
 ## About This Starter
 
@@ -54,21 +33,14 @@ It also comes equipped with [Autoprefixer](https://www.npmjs.com/package/autopre
 
 This starter supports [TypeScript](https://nextjs.org/docs/basic-features/typescript) out of the box. If you would like to use TypeScript in your project, simply rename your files with a `.ts` extension to start taking advantage of Typescript concepts such as types and interfaces to help describe your data.
 
-## How to use
-
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
-
-```bash
-npx create-next-app --example cms-agilitycms cms-agilitycms-app
-# or
-yarn create next-app --example cms-agilitycms cms-agilitycms-app
-```
-
 ## Getting Started
 
-1. Run `npm install` or `yarn install`
-2. Rename the `.env.local.example` file to `.env.local`
-3. Retrieve your `GUID`, `API Keys (Preview/Fetch)`, and `Security Key` from Agility CMS by going to [Settings > API Keys](https://manager.agilitycms.com/settings/apikeys).
+To start using the Agility CMS & Next.js Starter, [sign up](https://agilitycms.com/free) for a FREE account and create a new Instance using the Blog Template.
+
+1. Clone this repository
+2. Run `npm install` or `yarn install`
+3. Rename the `.env.local.example` file to `.env.local`
+4. Retrieve your `GUID`, `API Keys (Preview/Fetch)`, and `Security Key` from Agility CMS by going to [Settings > API Keys](https://manager.agilitycms.com/settings/apikeys).
 
 [How to Retrieve your GUID and API Keys from Agility](https://help.agilitycms.com/hc/en-us/articles/360031919212-Retrieving-your-API-Key-s-Guid-and-API-URL-)
 
@@ -130,6 +102,14 @@ Some common calls to the Sync SDK include: `getContentItem`, `getContentList`, a
 - `languageCode`, string, *required* - The locale code you want to retrieve content for.
 - `depth`, integer - The depth of list items.
 - `expandAllContentLinks`, boolean - Whether or not to expand entire linked content references, includings lists and items that are rendered in the CMS as Grid or Link.
+
+## Deploying Your Site
+
+The easiest way to deploy a Next.js website to production is to use [Vercel](http://vercel.com/) from the creators of Next.js. Vercel is an all-in-one platform with Global CDN supporting static & Jamstack deployment and Serverless Functions.
+
+<a href="https://vercel.com/new/git/external?repository-url=https%3A%2F%2Fgithub.com%2Fjoshua-isaac%2Fagility-nextjs-starter"><img src="https://vercel.com/button" alt="Deploy with Vercel"/></a>
+
+By clicking the button above, you can get this starter repo deployed to Vercel with a Preview Environment within minutes! It will prompt you to enter your `AGILITY_GUID`, `AGILITY_API_FETCH_KEY`, `AGILITY_API_PREVIEW_KEY` and your `AGILITY_SECURITY_KEY`.
 
 ## Notes
 

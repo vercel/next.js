@@ -1,4 +1,4 @@
-import { validatePreview, getDynamicPageURL } from '@agility/nextjs/node'
+import { validatePreview, getDynamicPageURL } from "@agility/nextjs/node";
 
 // A simple example for testing it manually from your browser.
 // If this is located at pages/api/preview.js, then
@@ -29,7 +29,8 @@ export default async (req, res) => {
 	res.setPreviewData({})
 
 	// Redirect to the slug
-	res.writeHead(307, { Location: previewUrl })
+	//Add a dummy querystring to the location header - since Netlify will keep the QS for the incoming request by default
+	res.writeHead(307, { Location: `${previewUrl}?preview=1` })
 	res.end()
 
 }
