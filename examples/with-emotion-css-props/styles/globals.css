@@ -1,0 +1,12 @@
+* {
+	box-sizing: border-box;
+}
+
+html,
+body {
+	margin: 0;
+	padding: 0;
+	background: white;
+	scroll-behavior: smooth;
+	font-family: sans-serif;
+}
