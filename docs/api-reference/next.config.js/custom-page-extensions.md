@@ -10,7 +10,7 @@ Open `next.config.js` and add the `pageExtensions` config:
 
 ```js
 module.exports = {
-  pageExtensions: ['mdx', 'jsx', 'js', 'ts', 'tsx'],
+  pageExtensions: ['mdx', 'md', 'jsx', 'js', 'tsx', 'ts'],
 }
 ```
 
