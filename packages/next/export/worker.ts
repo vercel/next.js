@@ -227,7 +227,7 @@ export default async function exportPage({
       let htmlFilepath = join(outDir, htmlFilename)
 
       await promises.mkdir(baseDir, { recursive: true })
-      let html
+      let result
       let curRenderOpts: RenderOpts = {}
       let renderMethod = renderToHTML
       let inAmpMode = false,
@@ -267,7 +267,7 @@ export default async function exportPage({
 
         // if it was auto-exported the HTML is loaded here
         if (typeof mod === 'string') {
-          html = resultFromChunks([mod])
+          result = resultFromChunks([mod])
           queryWithAutoExportWarn()
         } else {
           // for non-dynamic SSG pages we should have already
@@ -285,7 +285,7 @@ export default async function exportPage({
           }
 
           renderMethod = (mod as ComponentModule).renderReqToHTML
-          const result = await renderMethod(
+          const renderResult = await renderMethod(
             req,
             res,
             'export',
@@ -308,11 +308,11 @@ export default async function exportPage({
             // @ts-ignore
             params
           )
-          curRenderOpts = (result as any).renderOpts || {}
-          html = (result as any).html
+          curRenderOpts = (renderResult as any).renderOpts || {}
+          result = (result as any).html
         }
 
-        if (!html && !(curRenderOpts as any).isNotFound) {
+        if (!result && !(curRenderOpts as any).isNotFound) {
           throw new Error(`Failed to render serverless page`)
         }
       } else {
@@ -345,7 +345,7 @@ export default async function exportPage({
         }
 
         if (typeof components.Component === 'string') {
-          html = resultFromChunks([components.Component])
+          result = resultFromChunks([components.Component])
           queryWithAutoExportWarn()
         } else {
           /**
@@ -378,7 +378,7 @@ export default async function exportPage({
             locale: locale as string,
           }
           // @ts-ignore
-          html = await renderMethod(req, res, page, query, curRenderOpts)
+          result = await renderMethod(req, res, page, query, curRenderOpts)
         }
       }
       results.ssgNotFound = (curRenderOpts as any).isNotFound
@@ -404,8 +404,8 @@ export default async function exportPage({
         }
       }
 
-      const htmlChunks = html ? await resultToChunks(html) : []
-      html = htmlChunks.join('')
+      const htmlChunks = result ? await resultToChunks(result) : []
+      const html = htmlChunks.join('')
       if (inAmpMode && !curRenderOpts.ampSkipValidation) {
         if (!results.ssgNotFound) {
           await validateAmp(html, path, curRenderOpts.ampValidatorPath)
@@ -423,11 +423,11 @@ export default async function exportPage({
           await promises.access(ampHtmlFilepath)
         } catch (_) {
           // make sure it doesn't exist from manual mapping
-          let ampHtml
+          let ampResult
           if (serverless) {
             req.url += (req.url!.includes('?') ? '&' : '?') + 'amp=1'
             // @ts-ignore
-            ampHtml = (
+            ampResult = (
               await (renderMethod as any)(
                 req,
                 res,
@@ -437,7 +437,7 @@ export default async function exportPage({
               )
             ).html
           } else {
-            ampHtml = await renderMethod(
+            ampResult = await renderMethod(
               req,
               res,
               page,
@@ -447,8 +447,8 @@ export default async function exportPage({
             )
           }
 
-          const ampChunks = await resultToChunks(ampHtml)
-          ampHtml = ampChunks.join('')
+          const ampChunks = await resultToChunks(ampResult)
+          const ampHtml = ampChunks.join('')
           if (!curRenderOpts.ampSkipValidation) {
             await validateAmp(ampHtml, page + '?amp=1')
           }
