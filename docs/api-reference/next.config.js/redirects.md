@@ -52,6 +52,18 @@ module.exports = {
 
 Redirects are checked before the filesystem which includes pages and `/public` files.
 
+When a redirect is applied any query values provided in the request will be passed through to the redirect destination for example with the following redirect:
+
+```js
+{
+  source: '/old-blog/:path*',
+  destination: '/blog/:path*',
+  permanent: false
+}
+```
+
+When `/old-blog/post-1?hello=world` is requested the client will be redirected to `/blog/post-1?hello=world`.
+
 ## Path Matching
 
 Path matches are allowed, for example `/old-blog/:slug` will match `/old-blog/hello-world` (no nested paths):
