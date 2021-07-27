@@ -25,7 +25,6 @@ const PNG_GRAYSCALE_FILENAME = 'grayscale.png'
 const SVG_TEST_FILENAME = 'test.svg'
 const ICO_TEST_FILENAME = 'test.ico'
 const JPG_TEST_FILENAME = 'test.jpg'
-const JPEG_TEST_FILENAME = 'test.jpeg'
 const PNG_TEST_FILENAME = 'test.png'
 const WEBP_TEST_FILENAME = 'test.webp'
 const GIF_TEST_FILENAME = 'test.gif'
@@ -79,7 +78,7 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
-    expect(res.headers.get('Content-Disposition')).toEqual(
+    expect(res.headers.get('Content-Disposition')).toBe(
       `inline; filename="${GIF_ANIMATED_FILENAME}"`
     )
     expect(isAnimated(await res.buffer())).toBe(true)
@@ -95,7 +94,7 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
-    expect(res.headers.get('Content-Disposition')).toEqual(
+    expect(res.headers.get('Content-Disposition')).toBe(
       `inline; filename="${PNG_ANIMATED_FILENAME}"`
     )
     expect(isAnimated(await res.buffer())).toBe(true)
@@ -111,7 +110,7 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
-    expect(res.headers.get('Content-Disposition')).toEqual(
+    expect(res.headers.get('Content-Disposition')).toBe(
       `inline; filename="${WEBP_ANIMATED_FILENAME}"`
     )
     expect(isAnimated(await res.buffer())).toBe(true)
@@ -130,7 +129,7 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
     // compression
     expect(res.headers.get('Vary')).toMatch(/^Accept(,|$)/)
     expect(res.headers.get('etag')).toBeTruthy()
-    expect(res.headers.get('Content-Disposition')).toEqual(
+    expect(res.headers.get('Content-Disposition')).toBe(
       `inline; filename="${SVG_TEST_FILENAME}"`
     )
     const actual = await res.text()
@@ -152,7 +151,7 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
     )
     expect(res.headers.get('Vary')).toMatch(/^Accept(,|$)/)
     expect(res.headers.get('etag')).toBeTruthy()
-    expect(res.headers.get('Content-Disposition')).toEqual(
+    expect(res.headers.get('Content-Disposition')).toBe(
       `inline; filename="${ICO_TEST_FILENAME}"`
     )
     const actual = await res.text()
@@ -176,8 +175,8 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
-    expect(res.headers.get('Content-Disposition')).toEqual(
-      `inline; filename="${JPEG_TEST_FILENAME}"`
+    expect(res.headers.get('Content-Disposition')).toBe(
+      `inline; filename="test.jpeg"`
     )
   })
 
@@ -194,7 +193,7 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
-    expect(res.headers.get('Content-Disposition')).toEqual(
+    expect(res.headers.get('Content-Disposition')).toBe(
       `inline; filename="${PNG_TEST_FILENAME}"`
     )
   })
@@ -295,7 +294,7 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
-    expect(res.headers.get('Content-Disposition')).toEqual(
+    expect(res.headers.get('Content-Disposition')).toBe(
       `inline; filename="${WEBP_TEST_FILENAME}"`
     )
     await expectWidth(res, w)
@@ -312,7 +311,7 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
-    expect(res.headers.get('Content-Disposition')).toEqual(
+    expect(res.headers.get('Content-Disposition')).toBe(
       `inline; filename="${PNG_TEST_FILENAME}"`
     )
     await expectWidth(res, w)
@@ -329,7 +328,7 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
-    expect(res.headers.get('Content-Disposition')).toEqual(
+    expect(res.headers.get('Content-Disposition')).toBe(
       `inline; filename="${PNG_TEST_FILENAME}"`
     )
     await expectWidth(res, w)
@@ -346,7 +345,7 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
-    expect(res.headers.get('Content-Disposition')).toEqual(
+    expect(res.headers.get('Content-Disposition')).toBe(
       `inline; filename="${GIF_TEST_FILENAME}"`
     )
     // FIXME: await expectWidth(res, w)
@@ -363,7 +362,7 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
-    expect(res.headers.get('Content-Disposition')).toEqual(
+    expect(res.headers.get('Content-Disposition')).toBe(
       `inline; filename="${TIFF_TEST_FILENAME}"`
     )
     // FIXME: await expectWidth(res, w)
@@ -382,7 +381,7 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
-    expect(res.headers.get('Content-Disposition')).toEqual(
+    expect(res.headers.get('Content-Disposition')).toBe(
       `inline; filename="${WEBP_TEST_FILENAME}"`
     )
     await expectWidth(res, w)
@@ -401,7 +400,7 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
       )
       expect(res.headers.get('Vary')).toBe('Accept')
       expect(res.headers.get('etag')).toBeTruthy()
-      expect(res.headers.get('Content-Disposition')).toEqual(
+      expect(res.headers.get('Content-Disposition')).toBe(
         `inline; filename="${WEBP_TEST_FILENAME}"`
       )
       await expectWidth(res, w)
@@ -425,7 +424,7 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
       )
       expect(res.headers.get('Vary')).toBe('Accept')
       expect(res.headers.get('etag')).toBeTruthy()
-      expect(res.headers.get('Content-Disposition')).toEqual(
+      expect(res.headers.get('Content-Disposition')).toBe(
         `inline; filename="png-as-octet-stream.webp"`
       )
       await expectWidth(res, w)
@@ -471,7 +470,7 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
     const res1 = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res1.status).toBe(200)
     expect(res1.headers.get('Content-Type')).toBe('image/webp')
-    expect(res1.headers.get('Content-Disposition')).toEqual(
+    expect(res1.headers.get('Content-Disposition')).toBe(
       `inline; filename="${WEBP_TEST_FILENAME}"`
     )
     const json1 = await fsToJson(imagesDir)
@@ -480,7 +479,7 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
     const res2 = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res2.status).toBe(200)
     expect(res2.headers.get('Content-Type')).toBe('image/webp')
-    expect(res2.headers.get('Content-Disposition')).toEqual(
+    expect(res2.headers.get('Content-Disposition')).toBe(
       `inline; filename="${WEBP_TEST_FILENAME}"`
     )
     const json2 = await fsToJson(imagesDir)
@@ -492,7 +491,7 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
       const res3 = await fetchViaHTTP(appPort, '/_next/image', query, opts)
       expect(res3.status).toBe(200)
       expect(res3.headers.get('Content-Type')).toBe('image/webp')
-      expect(res3.headers.get('Content-Disposition')).toEqual(
+      expect(res3.headers.get('Content-Disposition')).toBe(
         `inline; filename="${WEBP_TEST_FILENAME}"`
       )
       const json3 = await fsToJson(imagesDir)
@@ -510,7 +509,7 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
     const res1 = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res1.status).toBe(200)
     expect(res1.headers.get('Content-Type')).toBe('image/svg+xml')
-    expect(res1.headers.get('Content-Disposition')).toEqual(
+    expect(res1.headers.get('Content-Disposition')).toBe(
       `inline; filename="${SVG_TEST_FILENAME}"`
     )
     const json1 = await fsToJson(imagesDir)
@@ -519,7 +518,7 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
     const res2 = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res2.status).toBe(200)
     expect(res2.headers.get('Content-Type')).toBe('image/svg+xml')
-    expect(res2.headers.get('Content-Disposition')).toEqual(
+    expect(res2.headers.get('Content-Disposition')).toBe(
       `inline; filename="${SVG_TEST_FILENAME}"`
     )
     const json2 = await fsToJson(imagesDir)
@@ -535,7 +534,7 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
     const res1 = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res1.status).toBe(200)
     expect(res1.headers.get('Content-Type')).toBe('image/gif')
-    expect(res1.headers.get('Content-Disposition')).toEqual(
+    expect(res1.headers.get('Content-Disposition')).toBe(
       `inline; filename="${GIF_ANIMATED_FILENAME}"`
     )
     const json1 = await fsToJson(imagesDir)
@@ -544,7 +543,7 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
     const res2 = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res2.status).toBe(200)
     expect(res2.headers.get('Content-Type')).toBe('image/gif')
-    expect(res2.headers.get('Content-Disposition')).toEqual(
+    expect(res2.headers.get('Content-Disposition')).toBe(
       `inline; filename="${GIF_ANIMATED_FILENAME}"`
     )
     const json2 = await fsToJson(imagesDir)
@@ -564,7 +563,7 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
     expect(res1.headers.get('Vary')).toBe('Accept')
     const etag = res1.headers.get('Etag')
     expect(etag).toBeTruthy()
-    expect(res1.headers.get('Content-Disposition')).toEqual(
+    expect(res1.headers.get('Content-Disposition')).toBe(
       `inline; filename="${WEBP_TEST_FILENAME}"`
     )
     await expectWidth(res1, w)
@@ -578,9 +577,7 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
       `public, max-age=0, must-revalidate`
     )
     expect(res2.headers.get('Vary')).toBe('Accept')
-    expect(res2.headers.get('Content-Disposition')).toEqual(
-      `inline; filename="${WEBP_TEST_FILENAME}"`
-    )
+    expect(res2.headers.get('Content-Disposition')).toBeFalsy()
     expect((await res2.buffer()).length).toBe(0)
 
     const query3 = { url: `/${JPG_TEST_FILENAME}`, w, q: 25 }
@@ -593,7 +590,7 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
     expect(res3.headers.get('Vary')).toBe('Accept')
     expect(res3.headers.get('Etag')).toBeTruthy()
     expect(res3.headers.get('Etag')).not.toBe(etag)
-    expect(res3.headers.get('Content-Disposition')).toEqual(
+    expect(res3.headers.get('Content-Disposition')).toBe(
       `inline; filename="${WEBP_TEST_FILENAME}"`
     )
     await expectWidth(res3, w)
@@ -615,7 +612,7 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
     // compression
     expect(res.headers.get('Vary')).toMatch(/^Accept(,|$)/)
     expect(res.headers.get('etag')).toBeTruthy()
-    expect(res.headers.get('Content-Disposition')).toEqual(
+    expect(res.headers.get('Content-Disposition')).toBe(
       `inline; filename="${BMP_TEST_FILENAME}"`
     )
 
@@ -634,7 +631,7 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
-    expect(res.headers.get('Content-Disposition')).toEqual(
+    expect(res.headers.get('Content-Disposition')).toBe(
       `inline; filename="${WEBP_TEST_FILENAME}"`
     )
     await expectWidth(res, 400)
@@ -655,7 +652,7 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
         `public, max-age=0, must-revalidate`
       )
       expect(res.headers.get('Vary')).toBe('Accept')
-      expect(res.headers.get('Content-Disposition')).toEqual(
+      expect(res.headers.get('Content-Disposition')).toBe(
         `inline; filename="${PNG_GRAYSCALE_FILENAME}"`
       )
 
@@ -684,7 +681,7 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
         'public, max-age=315360000, immutable'
       )
       expect(res1.headers.get('Vary')).toBe('Accept')
-      expect(res1.headers.get('Content-Disposition')).toEqual(
+      expect(res1.headers.get('Content-Disposition')).toBe(
         `inline; filename="${filename}.webp"`
       )
       await expectWidth(res1, w)
@@ -696,7 +693,7 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
         'public, max-age=315360000, immutable'
       )
       expect(res2.headers.get('Vary')).toBe('Accept')
-      expect(res2.headers.get('Content-Disposition')).toEqual(
+      expect(res2.headers.get('Content-Disposition')).toBe(
         `inline; filename="${filename}.webp"`
       )
       await expectWidth(res2, w)
@@ -722,11 +719,11 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
     expect(res1.status).toBe(200)
     expect(res2.status).toBe(200)
     expect(res1.headers.get('Content-Type')).toBe('image/webp')
-    expect(res1.headers.get('Content-Disposition')).toEqual(
+    expect(res1.headers.get('Content-Disposition')).toBe(
       `inline; filename="${WEBP_TEST_FILENAME}"`
     )
     expect(res2.headers.get('Content-Type')).toBe('image/webp')
-    expect(res2.headers.get('Content-Disposition')).toEqual(
+    expect(res2.headers.get('Content-Disposition')).toBe(
       `inline; filename="${WEBP_TEST_FILENAME}"`
     )
     await expectWidth(res1, w)
@@ -977,7 +974,7 @@ describe('Image Optimizer', () => {
       expect(res.headers.get('Cache-Control')).toBe(
         `public, max-age=86400, must-revalidate`
       )
-      expect(res.headers.get('Content-Disposition')).toEqual(
+      expect(res.headers.get('Content-Disposition')).toBe(
         `inline; filename="${WEBP_TEST_FILENAME}"`
       )
     })
@@ -990,7 +987,7 @@ describe('Image Optimizer', () => {
       expect(res.headers.get('Cache-Control')).toBe(
         `public, max-age=0, must-revalidate`
       )
-      expect(res.headers.get('Content-Disposition')).toEqual(
+      expect(res.headers.get('Content-Disposition')).toBe(
         `inline; filename="${WEBP_TEST_FILENAME}"`
       )
     })
@@ -1056,7 +1053,7 @@ describe('Image Optimizer', () => {
         `public, max-age=31536000, must-revalidate`
       )
       expect(res.headers.get('Vary')).toBe('Accept')
-      expect(res.headers.get('Content-Disposition')).toEqual(
+      expect(res.headers.get('Content-Disposition')).toBe(
         `inline; filename="${filename}.webp"`
       )
       await expectWidth(res, 64)

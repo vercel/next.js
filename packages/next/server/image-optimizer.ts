@@ -502,10 +502,6 @@ function setResponseHeaders(
   isStatic: boolean,
   isDev: boolean
 ) {
-  const fileName = getFileNameWithExtension(url, contentType)
-  if (fileName) {
-    res.setHeader('Content-Disposition', `inline; filename="${fileName}"`)
-  }
   res.setHeader('Vary', 'Accept')
   res.setHeader(
     'Cache-Control',
@@ -520,6 +516,12 @@ function setResponseHeaders(
   if (contentType) {
     res.setHeader('Content-Type', contentType)
   }
+
+  const fileName = getFileNameWithExtension(url, contentType)
+  if (fileName) {
+    res.setHeader('Content-Disposition', `inline; filename="${fileName}"`)
+  }
+
   return { finished: false }
 }
 
