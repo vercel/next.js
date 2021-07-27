@@ -52,7 +52,7 @@ module.exports = {
 
 Redirects are checked before the filesystem which includes pages and `/public` files.
 
-When a redirect is applied any query values provided in the request will be passed through to the redirect destination for example with the following redirect:
+When a redirect is applied, any query values provided in the request will be passed through to the redirect destination. For example, see the following redirect configuration:
 
 ```js
 {
@@ -62,7 +62,7 @@ When a redirect is applied any query values provided in the request will be pass
 }
 ```
 
-When `/old-blog/post-1?hello=world` is requested the client will be redirected to `/blog/post-1?hello=world`.
+When `/old-blog/post-1?hello=world` is requested, the client will be redirected to `/blog/post-1?hello=world`.
 
 ## Path Matching
 
