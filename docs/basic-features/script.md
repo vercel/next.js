@@ -49,11 +49,11 @@ export default function Home() {
 }
 ```
 
-Now, you instead put `next/script` directly into the body of your page. It has client-side functionality that decides when and how to load the remote script based on the `strategy`.
+Now, you use `next/script` in the body of your Next.js page. It has client-side functionality that decides when and how to load the remote script based on the `strategy`.
 
 > **Note:**
 >
-> - `<Script>` **must not** be placed in either a `next/head` component or in `pages/_document.js`. The client-side loader cannot function in those contexts and so your script will not load.
+> - `next/script` **must not** be placed in either a `next/head` component or in `pages/_document.js`. The client-side loader cannot function in those contexts.
 
 ```js
 // After
