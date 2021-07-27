@@ -63,6 +63,22 @@ module.exports = {
 }
 ```
 
+Next.js takes much of the burden away for managing webpack configuration.
+However, when there are some advanced use cases requiring you to make
+finishing adjustment, you can use `webpackFinal`:
+
+```js
+module.exports = {
+  webpackFinal: (
+    config,
+    { buildId, dev, isServer, defaultLoaders, webpack }
+  ) => {
+    // Important: return the modified config
+    return config
+  },
+}
+```
+
 ## Related
 
 <div class="card">
