@@ -56,12 +56,12 @@ import { regexLikeCss } from './webpack/config/blocks/css'
 type ExcludesFalse = <T>(x: T | false) => x is T
 
 const devtoolRevertWarning = execOnce(
-  (devtool: webpack.Configuration['devtool']) => {
+  (devtool: webpack.Configuration['devtool'], reverted = true) => {
     console.warn(
-      chalk.yellow.bold('Warning: ') +
+      chalk.yellow.bold('Warning: ') + reverted &&
         chalk.bold(`Reverting webpack devtool to '${devtool}'.\n`) +
-        'Changing the webpack devtool in development mode will cause severe performance regressions.\n' +
-        'Read more: https://nextjs.org/docs/messages/improper-devtool'
+          'Changing the webpack devtool in development mode will cause severe performance regressions.\n' +
+          'Read more: https://nextjs.org/docs/messages/improper-devtool'
     )
   }
 )
@@ -211,6 +211,32 @@ const NODE_ESM_RESOLVE_OPTIONS = {
   dependencyType: 'esm',
   conditionNames: ['node', 'import', 'module'],
   fullySpecified: true,
+}
+
+function applyCustomConfig(
+  webpackConfig: webpack.Configuration,
+  webpackContext: webpack.Context,
+  method: (
+    config: webpack.Configuration,
+    context: webpack.Context
+  ) => webpack.Configuration
+) {
+  if (typeof method === 'function') {
+    webpackConfig = method(webpackConfig, webpackContext)
+
+    if (!webpackConfig) {
+      throw new Error(
+        'Webpack config is undefined. You may have forgot to return properly from within the "webpack" method of your next.config.js.\n' +
+          'See more info here https://nextjs.org/docs/messages/undefined-webpack-config'
+      )
+    }
+
+    if (typeof (webpackConfig as any).then === 'function') {
+      console.warn(
+        '> Promise returned in next config. https://nextjs.org/docs/messages/promise-in-next-config'
+      )
+    }
+  }
 }
 
 export default async function getBaseWebpackConfig(
@@ -1502,36 +1528,25 @@ export default async function getBaseWebpackConfig(
     isCraCompat: config.experimental.craCompat,
   })
 
+  const webpackContext = {
+    dir,
+    dev,
+    isServer,
+    buildId,
+    config,
+    defaultLoaders,
+    totalPages,
+    webpack,
+  }
+
   let originalDevtool = webpackConfig.devtool
-  if (typeof config.webpack === 'function') {
-    webpackConfig = config.webpack(webpackConfig, {
-      dir,
-      dev,
-      isServer,
-      buildId,
-      config,
-      defaultLoaders,
-      totalPages,
-      webpack,
-    })
 
-    if (!webpackConfig) {
-      throw new Error(
-        'Webpack config is undefined. You may have forgot to return properly from within the "webpack" method of your next.config.js.\n' +
-          'See more info here https://nextjs.org/docs/messages/undefined-webpack-config'
-      )
-    }
+  // Apply any custom webpack config
+  applyCustomConfig(webpackConfig, webpackContext, config.webpack)
 
-    if (dev && originalDevtool !== webpackConfig.devtool) {
-      webpackConfig.devtool = originalDevtool
-      devtoolRevertWarning(originalDevtool)
-    }
-
-    if (typeof (webpackConfig as any).then === 'function') {
-      console.warn(
-        '> Promise returned in next config. https://nextjs.org/docs/messages/promise-in-next-config'
-      )
-    }
+  if (dev && originalDevtool !== webpackConfig.devtool) {
+    webpackConfig.devtool = originalDevtool
+    devtoolRevertWarning(originalDevtool)
   }
 
   if (!config.images.disableStaticImages && isWebpack5) {
@@ -1899,6 +1914,14 @@ export default async function getBaseWebpackConfig(
   if (!dev) {
     // entry is always a function
     webpackConfig.entry = await (webpackConfig.entry as webpack.EntryFunc)()
+  }
+
+  // Apply any final custom webpack config, allowing finishing modifications before passing to webpack
+  applyCustomConfig(webpackConfig, webpackContext, config.webpackFinal)
+
+  if (dev && originalDevtool !== webpackConfig.devtool) {
+    // only warn, but do not revert
+    devtoolRevertWarning(originalDevtool, false)
   }
 
   return webpackConfig

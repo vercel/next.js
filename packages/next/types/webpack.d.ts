@@ -147,6 +147,25 @@ declare module 'webpack' {
       optimization?: Options.Optimization
     }
 
+    interface Context {
+      /** Root app directory */
+      dir: string
+      /** Is for dev mode */
+      dev: boolean
+      /** Is bundling targeted for server (otherwise browser) */
+      isServer: boolean
+      /** Unique build id */
+      buildId: string
+      /** NextConfig object */
+      config: object
+      /** Default webpack loaders */
+      defaultLoaders: object
+      /** Total number of page entries */
+      totalPages: number
+      /** Webpack module **/
+      webpack: object
+    }
+
     interface Entry {
       [name: string]: string | string[]
     }
