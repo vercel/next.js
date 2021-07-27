@@ -59,7 +59,8 @@ import {
   getRedirectStatus,
   Redirect,
 } from '../lib/load-custom-routes'
-import type { DomainLocale } from './config'
+import { DomainLocale } from './config'
+import { RenderResult, resultFromChunks } from './utils'
 
 function noRouter() {
   const message =
@@ -376,7 +377,7 @@ export async function renderToHTML(
   pathname: string,
   query: ParsedUrlQuery,
   renderOpts: RenderOpts
-): Promise<string | null> {
+): Promise<RenderResult | null> {
   // In dev we invalidate the cache by appending a timestamp to the resource URL.
   // This is a workaround to fix https://github.com/vercel/next.js/issues/5860
   // TODO: remove this workaround when https://bugs.webkit.org/show_bug.cgi?id=187726 is fixed.
@@ -951,7 +952,7 @@ export async function renderToHTML(
   // Avoid rendering page un-necessarily for getServerSideProps data request
   // and getServerSideProps/getStaticProps redirects
   if ((isDataReq && !isSSG) || (renderOpts as any).isRedirect) {
-    return props
+    return resultFromChunks([JSON.stringify(props)])
   }
 
   // We don't call getStaticProps or getServerSideProps while generating
@@ -1160,7 +1161,7 @@ export async function renderToHTML(
     html = html.replace(/&amp;amp=1/g, '&amp=1')
   }
 
-  return html
+  return resultFromChunks([html])
 }
 
 function errorToJSON(err: Error): Error {
