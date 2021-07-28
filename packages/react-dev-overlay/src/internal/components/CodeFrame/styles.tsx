@@ -41,6 +41,9 @@ const styles = css`
   [data-nextjs-codeframe] > p:hover {
     text-decoration: underline dotted;
   }
+  [data-nextjs-codeframe] > p > span {
+    word-break: break-all;
+  }
   [data-nextjs-codeframe] > p > svg {
     width: auto;
     height: 1em;
