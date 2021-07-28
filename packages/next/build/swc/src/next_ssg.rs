@@ -448,14 +448,14 @@ impl Fold for NextSsg {
     }
 
     /// This method make `name` of [VarDeclarator] to [Pat::Invalid] if it should be removed.
-    fn fold_var_declarator(&mut self, mut d: VarDeclarator) -> VarDeclarator {
+    fn fold_var_declarator(&mut self, d: VarDeclarator) -> VarDeclarator {
         let old = self.in_lhs_of_var;
         self.in_lhs_of_var = true;
         let name = d.name.fold_with(self);
 
         self.in_lhs_of_var = false;
         let init = d.init.fold_with(self);
-        let old = self.in_lhs_of_var;
+        self.in_lhs_of_var = old;
 
         VarDeclarator { name, init, ..d }
     }
