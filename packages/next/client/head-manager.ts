@@ -32,6 +32,36 @@ function reactElementToDOM({ type, props }: JSX.Element): HTMLElement {
   return el
 }
 
+/**
+ * When a `nonce` is present on an element, browsers such as Chrome and Firefox strip it out of the
+ * actual HTML attributes for security reasons *when the element is added to the document*. Thus,
+ * given two equivalent elements that have nonces, `Element,isEqualNode()` will return false if one
+ * of those elements gets added to the document. Although the `element.nonce` property will be the
+ * same for both elements, the one that was added to the document will return an empty string for
+ * its nonce HTML attribute value.
+ *
+ * This custom `isEqualNode()` function therefore removes the nonce value from the `newTag` before
+ * comparing it to `oldTag`, restoring it afterwards.
+ *
+ * For more information, see:
+ * https://bugs.chromium.org/p/chromium/issues/detail?id=1211471#c12
+ */
+function isEqualNode(oldTag: Element, newTag: Element) {
+  if (oldTag instanceof HTMLElement && newTag instanceof HTMLElement) {
+    const nonce = newTag.getAttribute('nonce')
+    if (nonce) {
+      // Remove nonce for comparison
+      newTag.setAttribute('nonce', '')
+      const isEqual = nonce === oldTag.nonce && oldTag.isEqualNode(newTag)
+      // Restore original nonce
+      newTag.setAttribute('nonce', nonce)
+      return isEqual
+    }
+  }
+
+  return oldTag.isEqualNode(newTag)
+}
+
 function updateElements(type: string, components: JSX.Element[]) {
   const headEl = document.getElementsByTagName('head')[0]
   const headCountEl: HTMLMetaElement = headEl.querySelector(
@@ -62,7 +92,7 @@ function updateElements(type: string, components: JSX.Element[]) {
     (newTag) => {
       for (let k = 0, len = oldTags.length; k < len; k++) {
         const oldTag = oldTags[k]
-        if (oldTag.isEqualNode(newTag)) {
+        if (isEqualNode(oldTag, newTag)) {
           oldTags.splice(k, 1)
           return false
         }
