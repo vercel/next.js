@@ -298,9 +298,9 @@ impl Repeated for NextSsg {
     }
 
     fn reset(&mut self) {
-        let done = self.state.done;
-        self.state = Default::default();
-        self.state.done = done;
+        self.state.refs.clear();
+        self.state.referenced_ids.clear();
+        self.state.should_run_again = false;
     }
 }
 
