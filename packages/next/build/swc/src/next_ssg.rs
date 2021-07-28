@@ -85,9 +85,56 @@ struct Analyzer<'a> {
     state: &'a mut State,
 }
 
+impl Analyzer<'_> {
+    fn add_ref(&mut self, id: Id) {
+        if self.state.referenced_ids.contains(&id) {
+            self.state.refs.insert(id);
+        }
+    }
+}
+
 impl Fold for Analyzer<'_> {
     // This is important for reducing binary sizes.
     noop_fold_type!();
+
+    fn fold_fn_decl(&mut self, f: FnDecl) -> FnDecl {
+        let f = f.fold_children_with(self);
+
+        self.add_ref(f.ident.to_id());
+
+        f
+    }
+
+    fn fold_fn_expr(&mut self, f: FnExpr) -> FnExpr {
+        let f = f.fold_children_with(self);
+
+        if let Some(id) = &f.ident {
+            self.add_ref(id.to_id());
+        }
+
+        f
+    }
+
+    fn fold_import_default_specifier(
+        &mut self,
+        s: ImportDefaultSpecifier,
+    ) -> ImportDefaultSpecifier {
+        self.add_ref(s.local.to_id());
+
+        s
+    }
+
+    fn fold_import_named_specifier(&mut self, s: ImportNamedSpecifier) -> ImportNamedSpecifier {
+        self.add_ref(s.local.to_id());
+
+        s
+    }
+
+    fn fold_import_star_as_specifier(&mut self, s: ImportStarAsSpecifier) -> ImportStarAsSpecifier {
+        self.add_ref(s.local.to_id());
+
+        s
+    }
 
     fn fold_var_declarator(&mut self, decl: VarDeclarator) -> VarDeclarator {
         let decl = decl.fold_children_with(self);
@@ -95,9 +142,7 @@ impl Fold for Analyzer<'_> {
         let ids: Vec<Id> = find_ids(&decl.name);
 
         for id in ids {
-            if self.state.referenced_ids.contains(&id) {
-                self.state.refs.insert(id);
-            }
+            self.add_ref(id)
         }
 
         decl
