@@ -148,9 +148,7 @@ struct Analyzer<'a> {
 
 impl Analyzer<'_> {
     fn add_ref(&mut self, id: Id) {
-        if self.state.referenced_ids.contains(&id) {
-            self.state.refs.insert(id);
-        }
+        self.state.refs.insert(id);
     }
 }
 
