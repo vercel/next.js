@@ -13,9 +13,10 @@ use swc_ecmascript::{
 
 /// Note: This paths requires runnning `resolver` **before** running this.
 pub(crate) fn next_ssg_transform() -> impl Fold {
-    NextSsg {
+    Repeat::new(NextSsg {
         state: Default::default(),
-    }
+        should_run_again: false,
+    })
 }
 
 /// Only modifies subset of `state`.
@@ -241,19 +242,32 @@ impl Fold for Analyzer<'_> {
     }
 }
 
-/// Last pass.
-struct Sweeper<'a> {
-    state: &'a State,
+/// Actual implementation of the transform.
+struct NextSsg {
+    state: State,
     should_run_again: bool,
 }
 
-impl Sweeper<'_> {
+impl NextSsg {
     fn should_remove(&self, id: Id) -> bool {
         self.state.refs.contains(&id) && !self.state.referenced_ids.contains(&id)
     }
 }
 
-impl Fold for Sweeper<'_> {
+impl Repeated for NextSsg {
+    fn changed(&self) -> bool {
+        self.should_run_again
+    }
+
+    fn reset(&mut self) {
+        self.should_run_again = false;
+    }
+}
+
+/// `VisitMut` is faster than [Fold], but we use [Fold] because it's much easier to read.
+///
+/// Note: We don't implement `fold_script` because next.js doesn't use it.
+impl Fold for NextSsg {
     // This is important for reducing binary sizes.
     noop_fold_type!();
 
@@ -277,6 +291,30 @@ impl Fold for Sweeper<'_> {
         });
 
         i
+    }
+
+    fn fold_module(&mut self, mut m: Module) -> Module {
+        {
+            // Fill the list of references.
+            let mut v = BindingColelctor {
+                state: &mut self.state,
+            };
+            m.visit_with(&Invalid { span: DUMMY_SP }, &mut v);
+        }
+
+        {
+            // Fill the state.
+            let mut v = Analyzer {
+                state: &mut self.state,
+            };
+            m = m.fold_with(&mut v);
+        }
+
+        if !self.state.is_prerenderer && !self.state.is_server_props {
+            return m;
+        }
+
+        m.fold_children_with(self)
     }
 
     fn fold_module_item(&mut self, i: ModuleItem) -> ModuleItem {
@@ -347,54 +385,4 @@ impl Fold for Sweeper<'_> {
 
         decls
     }
-}
-
-impl Repeated for Sweeper<'_> {
-    fn changed(&self) -> bool {
-        self.should_run_again
-    }
-
-    fn reset(&mut self) {
-        self.should_run_again = false;
-    }
-}
-
-/// Actual implementation of the transform.
-struct NextSsg {
-    state: State,
-}
-
-/// `VisitMut` is faster than [Fold], but we use [Fold] because it's much easier to read.
-impl Fold for NextSsg {
-    // This is important for reducing binary sizes.
-    noop_fold_type!();
-
-    fn fold_module(&mut self, mut m: Module) -> Module {
-        {
-            // Fill the list of references.
-            let mut v = BindingColelctor {
-                state: &mut self.state,
-            };
-            m.visit_with(&Invalid { span: DUMMY_SP }, &mut v);
-        }
-
-        {
-            // Fill the state.
-            let mut v = Analyzer {
-                state: &mut self.state,
-            };
-            m = m.fold_with(&mut v);
-        }
-
-        if !self.state.is_prerenderer && !self.state.is_server_props {
-            return m;
-        }
-
-        m.fold_children_with(&mut Repeat::new(Sweeper {
-            state: &self.state,
-            should_run_again: false,
-        }))
-    }
-
-    // Note: We don't implement fold_script because next.js doesn't use it.
 }
