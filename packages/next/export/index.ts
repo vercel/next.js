@@ -7,7 +7,7 @@ import {
   readFileSync,
   writeFileSync,
 } from 'fs'
-import { Worker } from 'jest-worker'
+import { Worker } from '../lib/worker'
 import { dirname, join, resolve, sep } from 'path'
 import { promisify } from 'util'
 import { AmpPageStatus, formatAmpMessages } from '../build/output/index'
@@ -40,7 +40,6 @@ import {
 } from '../server/normalize-page-path'
 import { loadEnvConfig } from '@next/env'
 import { PrerenderManifest } from '../build'
-import exportPage from './worker'
 import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import { getPagePath } from '../server/require'
 import { trace } from '../telemetry/trace'
@@ -68,6 +67,7 @@ const createProgress = (total: number, label: string) => {
   }
   let currentSegmentTotal = segments.shift()
   let currentSegmentCount = 0
+  let lastProgressOutput = Date.now()
   let curProgress = 0
   let progressSpinner = createSpinner(`${label} (${curProgress}/${total})`, {
     spinner: {
@@ -88,21 +88,29 @@ const createProgress = (total: number, label: string) => {
         '[==  ]',
         '[=   ]',
       ],
-      interval: 80,
+      interval: 500,
     },
   })
 
   return () => {
     curProgress++
-    currentSegmentCount++
 
-    // Make sure we only log once per fully generated segment
-    if (currentSegmentCount !== currentSegmentTotal) {
-      return
+    // Make sure we only log once
+    // - per fully generated segment, or
+    // - per minute
+    // when not showing the spinner
+    if (!progressSpinner) {
+      currentSegmentCount++
+
+      if (currentSegmentCount === currentSegmentTotal) {
+        currentSegmentTotal = segments.shift()
+        currentSegmentCount = 0
+      } else if (lastProgressOutput + 60000 > Date.now()) {
+        return
+      }
+
+      lastProgressOutput = Date.now()
     }
-
-    currentSegmentTotal = segments.shift()
-    currentSegmentCount = 0
 
     const newText = `${label} (${curProgress}/${total})`
     if (progressSpinner) {
@@ -368,6 +376,8 @@ export default async function exportApp(
       domainLocales: i18n?.domains,
       trailingSlash: nextConfig.trailingSlash,
       disableOptimizedLoading: nextConfig.experimental.disableOptimizedLoading,
+      // TODO: We should support dynamic HTML too
+      requireStaticHTML: true,
     }
 
     const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
@@ -507,15 +517,31 @@ export default async function exportApp(
         )
     }
 
+    const timeout = configuration?.experimental.staticPageGenerationTimeout || 0
+    let infoPrinted = false
     const worker = new Worker(require.resolve('./worker'), {
+      timeout: timeout * 1000,
+      onRestart: (_method, [{ path }], attempts) => {
+        if (attempts >= 3) {
+          throw new Error(
+            `Static page generation for ${path} is still timing out after 3 attempts. See more info here https://nextjs.org/docs/messages/static-page-generation-timeout`
+          )
+        }
+        Log.warn(
+          `Restarted static page genertion for ${path} because it took more than ${timeout} seconds`
+        )
+        if (!infoPrinted) {
+          Log.warn(
+            'See more info here https://nextjs.org/docs/messages/static-page-generation-timeout'
+          )
+          infoPrinted = true
+        }
+      },
       maxRetries: 0,
       numWorkers: threads,
       enableWorkerThreads: nextConfig.experimental.workerThreads,
       exposedMethods: ['default'],
-    }) as Worker & { default: typeof exportPage }
-
-    worker.getStdout().pipe(process.stdout)
-    worker.getStderr().pipe(process.stderr)
+    }) as Worker & typeof import('./worker')
 
     let renderError = false
     const errorPaths: string[] = []
@@ -526,9 +552,10 @@ export default async function exportApp(
         pageExportSpan.setAttribute('path', path)
 
         return pageExportSpan.traceAsyncFn(async () => {
+          const pathMap = exportPathMap[path]
           const result = await worker.default({
             path,
-            pathMap: exportPathMap[path],
+            pathMap,
             distDir,
             outDir,
             pagesDataDir,
@@ -565,6 +592,10 @@ export default async function exportApp(
             if (result.ssgNotFound === true) {
               configuration.ssgNotFoundPaths.push(path)
             }
+
+            const durations = (configuration.pageDurationMap[pathMap.page] =
+              configuration.pageDurationMap[pathMap.page] || {})
+            durations[path] = result.duration
           }
 
           if (progress) progress()
