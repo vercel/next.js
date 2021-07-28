@@ -59,7 +59,6 @@
   "taskr": {
     "requires": [
       "./taskfile-ncc.js",
-      "./taskfile-babel.js",
       "./taskfile-swc.js"
     ]
   },
@@ -100,7 +99,6 @@
     "pnp-webpack-plugin": "1.6.4",
     "postcss": "8.2.15",
     "process": "0.11.10",
-    "prop-types": "15.7.2",
     "querystring-es3": "0.2.1",
     "raw-body": "2.4.1",
     "react-is": "17.0.2",
@@ -193,7 +191,6 @@
     "ast-types": "0.13.2",
     "async-retry": "1.2.3",
     "async-sema": "3.0.0",
-    "babel-plugin-dynamic-import-node": "2.3.3",
     "babel-plugin-transform-define": "2.0.0",
     "babel-plugin-transform-react-remove-prop-types": "0.4.24",
     "bfj": "7.0.2",
