@@ -30,3 +30,6 @@ napi-build = "1"
 
 [profile.release]
 lto = true
+
+[dev-dependencies]
+swc_ecma_transforms_testing = "0.23.0"
