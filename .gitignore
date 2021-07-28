@@ -38,3 +38,7 @@ test-timings.json
 # Vercel
 .vercel
 .now
+
+# Environment Variables
+.env
+.env.local
