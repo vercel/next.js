@@ -81,6 +81,10 @@ struct State {
     done: bool,
 }
 
+impl State {
+    fn is_data_identifier(&self, i: &Ident) -> bool {}
+}
+
 struct Analyzer<'a> {
     state: &'a mut State,
 }
@@ -134,6 +138,61 @@ impl Fold for Analyzer<'_> {
         self.add_ref(s.local.to_id());
 
         s
+    }
+
+    /// Drops [ExportDecl] if all speicifers are removed.
+    fn fold_module_item(&mut self, s: ModuleItem) -> ModuleItem {
+        match s {
+            ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(e)) if !e.specifiers.is_empty() => {
+                let e = e.fold_with(self);
+
+                if e.specifiers.is_empty() {
+                    return ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }));
+                }
+
+                return ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(e));
+            }
+
+            ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(e)) => {
+                match &e.decl {
+                    Decl::Fn(d) => {
+                        if self.state.is_data_identifier(&d.ident) {
+                            return ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }));
+                        }
+                    }
+                    Decl::Var(d) => {
+                        d.decls.retain(|d| match &d.name {
+                            Pat::Ident(name) => !self.state.is_data_identifier(&name.id),
+                            _ => true,
+                        });
+
+                        if d.decls.is_empty() {
+                            return ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }));
+                        }
+                    }
+                }
+
+                return ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(e.fold_with(self)));
+            }
+
+            _ => {}
+        }
+
+        s.fold_children_with(self)
+    }
+
+    fn fold_named_export(&mut self, mut n: NamedExport) -> NamedExport {
+        n.specifiers.retain(|s| match s {
+            ExportSpecifier::Namespace(ExportNamespaceSpecifier { name: exported, .. })
+            | ExportSpecifier::Default(ExportDefaultSpecifier { exported, .. })
+            | ExportSpecifier::Named(ExportNamedSpecifier {
+                exported: Some(exported),
+                ..
+            }) => !self.state.is_data_identifier(&exported),
+            ExportSpecifier::Named(s) => !self.state.is_data_identifier(&s.orig),
+        });
+
+        n
     }
 
     fn fold_var_declarator(&mut self, decl: VarDeclarator) -> VarDeclarator {
