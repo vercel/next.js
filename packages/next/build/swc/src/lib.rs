@@ -46,6 +46,7 @@ use swc_common::{
 };
 
 mod hook_optimizer;
+mod next_ssg;
 mod transform;
 mod util;
 
