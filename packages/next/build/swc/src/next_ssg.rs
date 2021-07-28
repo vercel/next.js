@@ -22,6 +22,7 @@ pub(crate) fn next_ssg() -> impl Fold {
 /// Only modifies subset of `state`.
 struct UsageColelctor<'a> {
     state: &'a mut State,
+    in_lhs_of_var: bool,
 }
 
 impl UsageColelctor<'_> {
@@ -35,7 +36,9 @@ impl Visit for UsageColelctor<'_> {
     noop_visit_type!();
 
     fn visit_binding_ident(&mut self, i: &BindingIdent, _: &dyn Node) {
-        self.add(&i.id);
+        if !self.in_lhs_of_var {
+            self.add(&i.id);
+        }
     }
 
     fn visit_export_named_specifier(&mut self, s: &ExportNamedSpecifier, _: &dyn Node) {
@@ -70,6 +73,18 @@ impl Visit for UsageColelctor<'_> {
             }
             _ => {}
         }
+    }
+
+    fn visit_var_declarator(&mut self, v: &VarDeclarator, _: &dyn Node) {
+        let old = self.in_lhs_of_var;
+
+        self.in_lhs_of_var = true;
+        v.name.visit_with(v, self);
+
+        self.in_lhs_of_var = false;
+        v.init.visit_with(v, self);
+
+        self.in_lhs_of_var = old;
     }
 }
 
@@ -299,6 +314,7 @@ impl Fold for NextSsg {
             // Fill the list of references.
             let mut v = UsageColelctor {
                 state: &mut self.state,
+                in_lhs_of_var: false,
             };
             m.visit_with(&Invalid { span: DUMMY_SP }, &mut v);
         }
