@@ -16,6 +16,7 @@ const swc = async (code) => {
         },
       },
     },
+    minify: true,
   })
   return output.code
 }
