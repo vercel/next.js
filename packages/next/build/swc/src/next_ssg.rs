@@ -335,6 +335,18 @@ impl Fold for NextSsg {
         i.fold_children_with(self)
     }
 
+    fn fold_module_items(&mut self, mut items: Vec<ModuleItem>) -> Vec<ModuleItem> {
+        items = items.fold_children_with(self);
+
+        // Drop nodes.
+        items.retain(|s| match s {
+            ModuleItem::Stmt(Stmt::Empty(..)) => false,
+            _ => true,
+        });
+
+        items
+    }
+
     fn fold_stmt(&mut self, s: Stmt) -> Stmt {
         match &s {
             Stmt::Decl(Decl::Fn(f)) => {
