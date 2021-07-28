@@ -1,33 +1,29 @@
 /* eslint-env jest */
-import { transform } from '@babel/core'
+import { transform } from 'next/dist/build/swc'
 
 const trim = (s) => s.join('\n').trim().replace(/^\s+/gm, '')
 
-// avoid generating __source annotations in JSX during testing:
-const NODE_ENV = process.env.NODE_ENV
-process.env.NODE_ENV = 'production'
-const plugin = require('next/dist/build/babel/plugins/next-ssg-transform')
-process.env.NODE_ENV = NODE_ENV
-
-const babel = (code, esm = true, pluginOptions = {}) =>
-  transform(code, {
-    filename: 'noop.js',
-    presets: [['@babel/preset-react', { development: false, pragma: '__jsx' }]],
-    plugins: [[plugin, pluginOptions]],
-    babelrc: false,
-    configFile: false,
-    sourceType: 'module',
-    compact: true,
-    caller: {
-      name: 'tests',
-      supportsStaticESM: esm,
+const swc = async (code) => {
+  let output = await transform(code, {
+    jsc: {
+      parser: {
+        syntax: 'ecmascript',
+        jsx: true,
+      },
+      transform: {
+        react: {
+          pragma: '__jsx',
+        },
+      },
     },
-  }).code
+  })
+  return output.code
+}
 
 describe('babel plugin (next-ssg-transform)', () => {
   describe('getStaticProps support', () => {
-    it('should remove separate named export specifiers', () => {
-      const output = babel(trim`
+    it('should remove separate named export specifiers', async () => {
+      const output = await swc(trim`
         export { getStaticPaths } from '.'
         export { a as getStaticProps } from '.'
 
@@ -40,8 +36,8 @@ describe('babel plugin (next-ssg-transform)', () => {
       )
     })
 
-    it('should remove combined named export specifiers', () => {
-      const output = babel(trim`
+    it('should remove combined named export specifiers', async () => {
+      const output = await swc(trim`
         export { getStaticPaths, a as getStaticProps } from '.'
 
         export default function Test() {
@@ -53,8 +49,8 @@ describe('babel plugin (next-ssg-transform)', () => {
       )
     })
 
-    it('should retain extra named export specifiers', () => {
-      const output = babel(trim`
+    it('should retain extra named export specifiers', async () => {
+      const output = await swc(trim`
         export { getStaticPaths, a as getStaticProps, foo, bar as baz } from '.'
 
         export default function Test() {
@@ -66,8 +62,8 @@ describe('babel plugin (next-ssg-transform)', () => {
       )
     })
 
-    it('should remove named export function declarations', () => {
-      const output = babel(trim`
+    it('should remove named export function declarations', async () => {
+      const output = await swc(trim`
         export function getStaticPaths() {
           return []
         }
@@ -86,8 +82,8 @@ describe('babel plugin (next-ssg-transform)', () => {
       )
     })
 
-    it('should remove named export function declarations (async)', () => {
-      const output = babel(trim`
+    it('should remove named export function declarations (async)', async () => {
+      const output = await swc(trim`
         export async function getStaticPaths() {
           return []
         }
@@ -106,8 +102,8 @@ describe('babel plugin (next-ssg-transform)', () => {
       )
     })
 
-    it('should not remove extra named export function declarations', () => {
-      const output = babel(trim`
+    it('should not remove extra named export function declarations', async () => {
+      const output = await swc(trim`
         export function getStaticProps() {
           return { props: {} }
         }
@@ -124,8 +120,8 @@ describe('babel plugin (next-ssg-transform)', () => {
       )
     })
 
-    it('should remove named export variable declarations', () => {
-      const output = babel(trim`
+    it('should remove named export variable declarations', async () => {
+      const output = await swc(trim`
         export const getStaticPaths = () => {
           return []
         }
@@ -144,8 +140,8 @@ describe('babel plugin (next-ssg-transform)', () => {
       )
     })
 
-    it('should remove named export variable declarations (async)', () => {
-      const output = babel(trim`
+    it('should remove named export variable declarations (async)', async () => {
+      const output = await swc(trim`
         export const getStaticPaths = async () => {
           return []
         }
@@ -164,8 +160,8 @@ describe('babel plugin (next-ssg-transform)', () => {
       )
     })
 
-    it('should not remove extra named export variable declarations', () => {
-      const output = babel(trim`
+    it('should not remove extra named export variable declarations', async () => {
+      const output = await swc(trim`
         export const getStaticPaths = () => {
           return []
         }, foo = 2
@@ -184,8 +180,8 @@ describe('babel plugin (next-ssg-transform)', () => {
       )
     })
 
-    it('should remove re-exported variable declarations', () => {
-      const output = babel(trim`
+    it('should remove re-exported variable declarations', async () => {
+      const output = await swc(trim`
         const getStaticPaths = () => {
           return []
         }
@@ -202,8 +198,8 @@ describe('babel plugin (next-ssg-transform)', () => {
       )
     })
 
-    it('should remove re-exported variable declarations (safe)', () => {
-      const output = babel(trim`
+    it('should remove re-exported variable declarations (safe)', async () => {
+      const output = await swc(trim`
         const getStaticPaths = () => {
           return []
         }, a = 2
@@ -220,8 +216,8 @@ describe('babel plugin (next-ssg-transform)', () => {
       )
     })
 
-    it('should remove re-exported function declarations', () => {
-      const output = babel(trim`
+    it('should remove re-exported function declarations', async () => {
+      const output = await swc(trim`
         function getStaticPaths() {
           return []
         }
@@ -238,8 +234,8 @@ describe('babel plugin (next-ssg-transform)', () => {
       )
     })
 
-    it('should not crash for class declarations', () => {
-      const output = babel(trim`
+    it('should not crash for class declarations', async () => {
+      const output = await swc(trim`
         function getStaticPaths() {
           return []
         }
@@ -258,8 +254,8 @@ describe('babel plugin (next-ssg-transform)', () => {
       )
     })
 
-    it(`should remove re-exported function declarations' dependents (variables, functions, imports)`, () => {
-      const output = babel(trim`
+    it(`should remove re-exported function declarations' dependents (variables, functions, imports)`, async () => {
+      const output = await swc(trim`
         import keep_me from 'hello'
         import {keep_me2} from 'hello2'
         import * as keep_me3 from 'hello3'
@@ -305,8 +301,8 @@ describe('babel plugin (next-ssg-transform)', () => {
       )
     })
 
-    it('should not mix up bindings', () => {
-      const output = babel(trim`
+    it('should not mix up bindings', async () => {
+      const output = await swc(trim`
         function Function1() {
           return {
             a: function bug(a) {
@@ -328,8 +324,8 @@ describe('babel plugin (next-ssg-transform)', () => {
       )
     })
 
-    it('should support class exports', () => {
-      const output = babel(trim`
+    it('should support class exports', async () => {
+      const output = await swc(trim`
         export function getStaticProps() {
           return { props: {} }
         }
@@ -346,8 +342,8 @@ describe('babel plugin (next-ssg-transform)', () => {
       )
     })
 
-    it('should support class exports 2', () => {
-      const output = babel(trim`
+    it('should support class exports 2', async () => {
+      const output = await swc(trim`
         export function getStaticProps() {
           return { props: {} }
         }
@@ -366,8 +362,8 @@ describe('babel plugin (next-ssg-transform)', () => {
       )
     })
 
-    it('should support export { _ as default }', () => {
-      const output = babel(trim`
+    it('should support export { _ as default }', async () => {
+      const output = await swc(trim`
         export function getStaticProps() {
           return { props: {} }
         }
@@ -384,8 +380,8 @@ describe('babel plugin (next-ssg-transform)', () => {
       )
     })
 
-    it('should support export { _ as default } with other specifiers', () => {
-      const output = babel(trim`
+    it('should support export { _ as default } with other specifiers', async () => {
+      const output = await swc(trim`
         export function getStaticProps() {
           return { props: {} }
         }
@@ -404,8 +400,8 @@ describe('babel plugin (next-ssg-transform)', () => {
       )
     })
 
-    it('should support export { _ as default } with a class', () => {
-      const output = babel(trim`
+    it('should support export { _ as default } with a class', async () => {
+      const output = await swc(trim`
         export function getStaticProps() {
           return { props: {} }
         }
@@ -426,8 +422,8 @@ describe('babel plugin (next-ssg-transform)', () => {
       )
     })
 
-    it('should support full re-export', () => {
-      const output = babel(trim`
+    it('should support full re-export', async () => {
+      const output = await swc(trim`
         export { getStaticProps, default } from 'a'
       `)
 
@@ -436,8 +432,8 @@ describe('babel plugin (next-ssg-transform)', () => {
       )
     })
 
-    it('should support babel-style memoized function', () => {
-      const output = babel(trim`
+    it('should support babel-style memoized function', async () => {
+      const output = await swc(trim`
         function fn() {
           fn = function () {};
           return fn.apply(this, arguments);
@@ -453,8 +449,8 @@ describe('babel plugin (next-ssg-transform)', () => {
       )
     })
 
-    it('destructuring assignment (object)', () => {
-      const output = babel(trim`
+    it('destructuring assignment (object)', async () => {
+      const output = await swc(trim`
         import fs from 'fs';
         import other from 'other';
 
@@ -477,8 +473,8 @@ describe('babel plugin (next-ssg-transform)', () => {
       )
     })
 
-    it('destructuring assignment (array)', () => {
-      const output = babel(trim`
+    it('destructuring assignment (array)', async () => {
+      const output = await swc(trim`
         import fs from 'fs';
         import other from 'other';
 
@@ -501,7 +497,7 @@ describe('babel plugin (next-ssg-transform)', () => {
 
     it('errors for incorrect mix of functions', () => {
       expect(() =>
-        babel(trim`
+        swc(trim`
           export function getStaticProps() {}
           export function getServerSideProps() {}
         `)
@@ -510,7 +506,7 @@ describe('babel plugin (next-ssg-transform)', () => {
       )
 
       expect(() =>
-        babel(trim`
+        swc(trim`
           export function getServerSideProps() {}
           export function getStaticProps() {}
         `)
@@ -519,7 +515,7 @@ describe('babel plugin (next-ssg-transform)', () => {
       )
 
       expect(() =>
-        babel(trim`
+        swc(trim`
           export function getStaticPaths() {}
           export function getServerSideProps() {}
         `)
@@ -528,7 +524,7 @@ describe('babel plugin (next-ssg-transform)', () => {
       )
 
       expect(() =>
-        babel(trim`
+        swc(trim`
           export function getServerSideProps() {}
           export function getStaticPaths() {}
         `)
