@@ -12,6 +12,7 @@ module.exports = {
     'link-passhref': require('./rules/link-passhref'),
     'no-document-import-in-page': require('./rules/no-document-import-in-page'),
     'no-head-import-in-document': require('./rules/no-head-import-in-document'),
+    'no-typos': require('./rules/no-typos'),
     'no-duplicate-head': require('./rules/no-duplicate-head'),
   },
   configs: {
@@ -30,7 +31,16 @@ module.exports = {
         '@next/next/link-passhref': 1,
         '@next/next/no-document-import-in-page': 2,
         '@next/next/no-head-import-in-document': 2,
+        '@next/next/no-typos': 1,
         '@next/next/no-duplicate-head': 2,
+      },
+    },
+    'core-web-vitals': {
+      plugins: ['@next/next'],
+      extends: ['plugin:@next/next/recommended'],
+      rules: {
+        '@next/next/no-sync-scripts': 2,
+        '@next/next/no-html-link-for-pages': 2,
       },
     },
   },
