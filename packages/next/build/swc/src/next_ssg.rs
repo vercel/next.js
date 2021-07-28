@@ -20,17 +20,17 @@ pub(crate) fn next_ssg() -> impl Fold {
 }
 
 /// Only modifies subset of `state`.
-struct BindingColelctor<'a> {
+struct UsageColelctor<'a> {
     state: &'a mut State,
 }
 
-impl BindingColelctor<'_> {
+impl UsageColelctor<'_> {
     fn add(&mut self, i: &Ident) {
         self.state.referenced_ids.insert(i.to_id());
     }
 }
 
-impl Visit for BindingColelctor<'_> {
+impl Visit for UsageColelctor<'_> {
     // This is important for reducing binary sizes.
     noop_visit_type!();
 
@@ -297,7 +297,7 @@ impl Fold for NextSsg {
     fn fold_module(&mut self, mut m: Module) -> Module {
         {
             // Fill the list of references.
-            let mut v = BindingColelctor {
+            let mut v = UsageColelctor {
                 state: &mut self.state,
             };
             m.visit_with(&Invalid { span: DUMMY_SP }, &mut v);
