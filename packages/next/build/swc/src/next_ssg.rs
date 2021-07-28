@@ -386,7 +386,7 @@ impl Fold for NextSsg {
             _ => true,
         });
 
-        if !self.state.done {
+        if !self.state.done && !self.state.should_run_again {
             self.state.done = true;
 
             if items.iter().any(|s| s.is_module_decl()) {
