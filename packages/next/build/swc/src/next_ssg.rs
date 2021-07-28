@@ -1,5 +1,4 @@
 use fxhash::FxHashSet;
-use retain_mut::RetainMut;
 use swc_common::pass::{Repeat, Repeated};
 use swc_common::DUMMY_SP;
 use swc_ecmascript::ast::*;
@@ -16,6 +15,7 @@ pub(crate) fn next_ssg() -> impl Fold {
     Repeat::new(NextSsg {
         state: Default::default(),
         should_run_again: false,
+        in_lhs_of_var: false,
     })
 }
 
@@ -246,6 +246,7 @@ impl Fold for Analyzer<'_> {
 struct NextSsg {
     state: State,
     should_run_again: bool,
+    in_lhs_of_var: bool,
 }
 
 impl NextSsg {
@@ -385,6 +386,46 @@ impl Fold for NextSsg {
         items
     }
 
+    /// This methods returns [Pat::Invalid] if the pattern should be removed.
+    fn fold_pat(&mut self, mut p: Pat) -> Pat {
+        p = p.fold_children_with(self);
+
+        if self.in_lhs_of_var {
+            match &mut p {
+                Pat::Ident(name) => {
+                    if self.should_remove(name.id.to_id()) {
+                        return Pat::Invalid(Invalid { span: DUMMY_SP });
+                    }
+                }
+                Pat::Array(arr) => {
+                    arr.elems.retain(|e| match e {
+                        Some(Pat::Invalid(..)) => return false,
+                        _ => true,
+                    });
+
+                    if arr.elems.is_empty() {
+                        return Pat::Invalid(Invalid { span: DUMMY_SP });
+                    }
+                }
+                Pat::Object(obj) => {
+                    obj.props.retain(|prop| match prop {
+                        ObjectPatProp::KeyValue(prop) => !prop.value.is_invalid(),
+                        ObjectPatProp::Assign(..) => true,
+                        ObjectPatProp::Rest(prop) => !prop.arg.is_invalid(),
+                    });
+                }
+                Pat::Rest(rest) => {
+                    if rest.arg.is_invalid() {
+                        return Pat::Invalid(Invalid { span: DUMMY_SP });
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        p
+    }
+
     fn fold_stmt(&mut self, s: Stmt) -> Stmt {
         match &s {
             Stmt::Decl(Decl::Fn(f)) => {
@@ -408,25 +449,15 @@ impl Fold for NextSsg {
 
     /// This method make `name` of [VarDeclarator] to [Pat::Invalid] if it should be removed.
     fn fold_var_declarator(&mut self, mut d: VarDeclarator) -> VarDeclarator {
-        d = d.fold_children_with(self);
+        let old = self.in_lhs_of_var;
+        self.in_lhs_of_var = true;
+        let name = d.name.fold_with(self);
 
-        match &d.name {
-            Pat::Ident(name) => {
-                if self.should_remove(name.id.to_id()) {
-                    d.name = Pat::Invalid(Invalid { span: DUMMY_SP });
-                    return d;
-                }
-            }
-            Pat::Array(name) => {
-                // TODO
-            }
-            Pat::Object(name) => {
-                // TODO
-            }
-            _ => {}
-        }
+        self.in_lhs_of_var = false;
+        let init = d.init.fold_with(self);
+        let old = self.in_lhs_of_var;
 
-        d
+        VarDeclarator { name, init, ..d }
     }
 
     fn fold_var_declarators(&mut self, mut decls: Vec<VarDeclarator>) -> Vec<VarDeclarator> {
