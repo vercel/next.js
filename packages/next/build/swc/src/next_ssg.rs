@@ -431,6 +431,7 @@ impl Fold for NextSsg {
         match &s {
             Stmt::Decl(Decl::Fn(f)) => {
                 if self.should_remove(f.ident.to_id()) {
+                    self.should_run_again = true;
                     return Stmt::Empty(EmptyStmt { span: DUMMY_SP });
                 }
             }
