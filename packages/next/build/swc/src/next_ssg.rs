@@ -300,7 +300,9 @@ impl Repeated for NextSsg {
     }
 
     fn reset(&mut self) {
+        let done = self.state.done;
         self.state = Default::default();
+        self.state.done = done;
     }
 }
 
@@ -351,9 +353,10 @@ impl Fold for NextSsg {
             m = m.fold_with(&mut v);
         }
 
-        if !self.state.is_prerenderer && !self.state.is_server_props {
-            return m;
-        }
+        // TODO: Use better detection logic
+        // if !self.state.is_prerenderer && !self.state.is_server_props {
+        //     return m;
+        // }
 
         m.fold_children_with(self)
     }
