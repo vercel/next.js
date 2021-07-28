@@ -14,7 +14,6 @@ use swc_ecmascript::{
 pub(crate) fn next_ssg() -> impl Fold {
     Repeat::new(NextSsg {
         state: Default::default(),
-        should_run_again: false,
         in_lhs_of_var: false,
     })
 }
@@ -64,6 +63,14 @@ impl Visit for UsageColelctor<'_> {
         }
     }
 
+    fn visit_named_export(&mut self, e: &NamedExport, _: &dyn Node) {
+        if e.src.is_some() {
+            return;
+        }
+
+        e.visit_children_with(self);
+    }
+
     fn visit_prop(&mut self, p: &Prop, _: &dyn Node) {
         p.visit_children_with(self);
 
@@ -97,6 +104,8 @@ struct State {
     is_prerenderer: bool,
     is_server_props: bool,
     done: bool,
+
+    should_run_again: bool,
 }
 
 impl State {
@@ -205,12 +214,20 @@ impl Fold for Analyzer<'_> {
                 match &mut e.decl {
                     Decl::Fn(d) => {
                         if self.state.is_data_identifier(&d.ident) {
+                            self.state.should_run_again = true;
                             return ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }));
                         }
                     }
                     Decl::Var(d) => {
                         d.decls.retain(|d| match &d.name {
-                            Pat::Ident(name) => !self.state.is_data_identifier(&name.id),
+                            Pat::Ident(name) => {
+                                if self.state.is_data_identifier(&name.id) {
+                                    self.state.should_run_again = true;
+                                    false
+                                } else {
+                                    true
+                                }
+                            }
                             _ => true,
                         });
 
@@ -231,14 +248,22 @@ impl Fold for Analyzer<'_> {
     }
 
     fn fold_named_export(&mut self, mut n: NamedExport) -> NamedExport {
-        n.specifiers.retain(|s| match s {
-            ExportSpecifier::Namespace(ExportNamespaceSpecifier { name: exported, .. })
-            | ExportSpecifier::Default(ExportDefaultSpecifier { exported, .. })
-            | ExportSpecifier::Named(ExportNamedSpecifier {
-                exported: Some(exported),
-                ..
-            }) => !self.state.is_data_identifier(&exported),
-            ExportSpecifier::Named(s) => !self.state.is_data_identifier(&s.orig),
+        n.specifiers.retain(|s| {
+            let preserve = match s {
+                ExportSpecifier::Namespace(ExportNamespaceSpecifier { name: exported, .. })
+                | ExportSpecifier::Default(ExportDefaultSpecifier { exported, .. })
+                | ExportSpecifier::Named(ExportNamedSpecifier {
+                    exported: Some(exported),
+                    ..
+                }) => !self.state.is_data_identifier(&exported),
+                ExportSpecifier::Named(s) => !self.state.is_data_identifier(&s.orig),
+            };
+
+            if !preserve {
+                self.state.should_run_again = true;
+            }
+
+            preserve
         });
 
         n
@@ -260,7 +285,6 @@ impl Fold for Analyzer<'_> {
 /// Actual implementation of the transform.
 struct NextSsg {
     state: State,
-    should_run_again: bool,
     in_lhs_of_var: bool,
 }
 
@@ -272,11 +296,11 @@ impl NextSsg {
 
 impl Repeated for NextSsg {
     fn changed(&self) -> bool {
-        self.should_run_again
+        self.state.should_run_again
     }
 
     fn reset(&mut self) {
-        self.should_run_again = false;
+        self.state = Default::default();
     }
 }
 
@@ -298,7 +322,7 @@ impl Fold for NextSsg {
             | ImportSpecifier::Default(ImportDefaultSpecifier { local, .. })
             | ImportSpecifier::Namespace(ImportStarAsSpecifier { local, .. }) => {
                 if self.should_remove(local.to_id()) {
-                    self.should_run_again = true;
+                    self.state.should_run_again = true;
                     false
                 } else {
                     true
@@ -410,7 +434,7 @@ impl Fold for NextSsg {
             match &mut p {
                 Pat::Ident(name) => {
                     if self.should_remove(name.id.to_id()) {
-                        self.should_run_again = true;
+                        self.state.should_run_again = true;
                         return Pat::Invalid(Invalid { span: DUMMY_SP });
                     }
                 }
@@ -447,7 +471,7 @@ impl Fold for NextSsg {
         match &s {
             Stmt::Decl(Decl::Fn(f)) => {
                 if self.should_remove(f.ident.to_id()) {
-                    self.should_run_again = true;
+                    self.state.should_run_again = true;
                     return Stmt::Empty(EmptyStmt { span: DUMMY_SP });
                 }
             }
