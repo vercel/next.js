@@ -631,6 +631,7 @@ dependencies = [
  "napi-derive",
  "path-clean",
  "regex",
+ "retain_mut",
  "serde",
  "serde_json",
  "swc",
