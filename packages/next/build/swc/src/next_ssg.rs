@@ -12,7 +12,7 @@ use swc_ecmascript::{
 };
 
 /// Note: This paths requires runnning `resolver` **before** running this.
-pub(crate) fn next_ssg_transform() -> impl Fold {
+pub(crate) fn next_ssg() -> impl Fold {
     Repeat::new(NextSsg {
         state: Default::default(),
         should_run_again: false,
