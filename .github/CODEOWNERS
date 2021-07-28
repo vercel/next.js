@@ -1,6 +1,6 @@
 # Learn how to add code owners here:
 # https://help.github.com/en/articles/about-code-owners
 
-*          @timneutkens @ijjk @lfades @divmain @shuding
-/docs/     @timneutkens @ijjk @lfades @divmain @shuding @leerob
-/examples/ @timneutkens @ijjk @lfades @divmain @shuding @leerob
+*          @timneutkens @ijjk @shuding @styfle @huozhi @padmaia
+/docs/     @timneutkens @ijjk @shuding @styfle @huozhi @padmaia @leerob @lfades
+/examples/ @timneutkens @ijjk @shuding @styfle @huozhi @padmaia @leerob @lfades

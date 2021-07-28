@@ -12,10 +12,23 @@ module.exports = {
     'plugin:react-hooks/recommended',
     'plugin:@next/next/recommended',
   ],
-  plugins: ['import', 'react'],
+  plugins: ['import', 'react', 'jsx-a11y'],
   rules: {
     'import/no-anonymous-default-export': 'warn',
     'react/react-in-jsx-scope': 'off',
+    'react/prop-types': 'off',
+    'jsx-a11y/alt-text': [
+      'warn',
+      {
+        elements: ['img'],
+        img: ['Image'],
+      },
+    ],
+    'jsx-a11y/aria-props': 'warn',
+    'jsx-a11y/aria-proptypes': 'warn',
+    'jsx-a11y/aria-unsupported-elements': 'warn',
+    'jsx-a11y/role-has-required-aria-props': 'warn',
+    'jsx-a11y/role-supports-aria-props': 'warn',
   },
   parser: './parser.js',
   parserOptions: {
@@ -24,6 +37,10 @@ module.exports = {
     allowImportExportEverywhere: true,
     babelOptions: {
       presets: ['next/babel'],
+      caller: {
+        // Eslint supports top level await when a parser for it is included. We enable the parser by default for Babel.
+        supportsTopLevelAwait: true,
+      },
     },
   },
   overrides: [
@@ -49,6 +66,9 @@ module.exports = {
     'import/resolver': {
       [require.resolve('eslint-import-resolver-node')]: {
         extensions: ['.js', '.jsx', '.ts', '.tsx'],
+      },
+      [require.resolve('eslint-import-resolver-typescript')]: {
+        alwaysTryTypes: true,
       },
     },
   },

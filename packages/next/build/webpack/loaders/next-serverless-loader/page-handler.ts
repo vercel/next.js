@@ -1,19 +1,17 @@
 import { IncomingMessage, ServerResponse } from 'http'
 import { parse as parseUrl, format as formatUrl, UrlWithParsedQuery } from 'url'
-import { isResSent } from '../../../../next-server/lib/utils'
-import { sendPayload } from '../../../../next-server/server/send-payload'
+import { DecodeError, isResSent } from '../../../../shared/lib/utils'
+import { sendPayload } from '../../../../server/send-payload'
 import { getUtils, vercelHeader, ServerlessHandlerCtx } from './utils'
 
-import { renderToHTML } from '../../../../next-server/server/render'
-import { tryGetPreviewData } from '../../../../next-server/server/api-utils'
-import { denormalizePagePath } from '../../../../next-server/server/denormalize-page-path'
-import {
-  setLazyProp,
-  getCookieParser,
-} from '../../../../next-server/server/api-utils'
+import { renderToHTML } from '../../../../server/render'
+import { tryGetPreviewData } from '../../../../server/api-utils'
+import { denormalizePagePath } from '../../../../server/denormalize-page-path'
+import { setLazyProp, getCookieParser } from '../../../../server/api-utils'
 import { getRedirectStatus } from '../../../../lib/load-custom-routes'
-import getRouteNoAssetPath from '../../../../next-server/lib/router/utils/get-route-from-asset-path'
-import { PERMANENT_REDIRECT_STATUS } from '../../../../next-server/lib/constants'
+import getRouteNoAssetPath from '../../../../shared/lib/router/utils/get-route-from-asset-path'
+import { PERMANENT_REDIRECT_STATUS } from '../../../../shared/lib/constants'
+import { resultToChunks } from '../../../../server/utils'
 
 export function getPageHandler(ctx: ServerlessHandlerCtx) {
   const {
@@ -101,7 +99,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
 
     let hasValidParams = true
 
-    setLazyProp({ req: req as any }, 'cookies', getCookieParser(req))
+    setLazyProp({ req: req as any }, 'cookies', getCookieParser(req.headers))
 
     const options = {
       App,
@@ -336,18 +334,18 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
                 defaultLocale: i18n?.defaultLocale,
               })
             )
-
+            const html = result2 ? (await resultToChunks(result2)).join('') : ''
             sendPayload(
               req,
               res,
-              result2,
+              html,
               'html',
               {
                 generateEtags,
                 poweredByHeader,
               },
               {
-                private: isPreviewMode,
+                private: isPreviewMode || page === '/404',
                 stateful: !!getServerSideProps,
                 revalidate: renderOpts.revalidate,
               }
@@ -388,7 +386,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
                 poweredByHeader,
               },
               {
-                private: isPreviewMode,
+                private: isPreviewMode || renderOpts.is404Page,
                 stateful: !!getServerSideProps,
                 revalidate: renderOpts.revalidate,
               }
@@ -404,7 +402,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
       }
 
       if (renderMode) return { html: result, renderOpts }
-      return result
+      return result ? (await resultToChunks(result)).join('') : null
     } catch (err) {
       if (!parsedUrl!) {
         parsedUrl = parseUrl(req.url!, true)
@@ -412,8 +410,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
 
       if (err.code === 'ENOENT') {
         res.statusCode = 404
-      } else if (err.code === 'DECODE_FAILED' || err.code === 'ENAMETOOLONG') {
-        // TODO: better error?
+      } else if (err instanceof DecodeError) {
         res.statusCode = 400
       } else {
         console.error('Unhandled error during request:', err)
@@ -467,7 +464,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
           err: res.statusCode === 404 ? undefined : err,
         })
       )
-      return result2
+      return result2 ? (await resultToChunks(result2)).join('') : null
     }
   }
 

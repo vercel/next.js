@@ -1,6 +1,5 @@
 {
-  "name": "cms-contentful",
-  "version": "1.0.0",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",
@@ -9,17 +8,17 @@
   },
   "dependencies": {
     "@contentful/rich-text-react-renderer": "14.1.1",
-    "classnames": "2.2.6",
-    "date-fns": "2.14.0",
+    "classnames": "2.3.1",
+    "date-fns": "2.22.1",
     "next": "latest",
-    "react": "^16.13.1",
-    "react-dom": "^16.13.1"
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2"
   },
   "devDependencies": {
-    "@fullhuman/postcss-purgecss": "^2.3.0",
+    "autoprefixer": "10.2.6",
     "contentful-import": "^7.8.7",
-    "postcss-preset-env": "^6.7.0",
-    "tailwindcss": "^1.5.1"
+    "postcss": "8.3.5",
+    "tailwindcss": "^2.2.4"
   },
   "license": "MIT"
 }

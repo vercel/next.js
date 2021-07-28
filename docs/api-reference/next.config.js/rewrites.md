@@ -79,13 +79,24 @@ module.exports = {
         // and dynamic routes are checked
         {
           source: '/:path*',
-          destination: 'https://my-old-site.com',
+          destination: `https://my-old-site.com/:path*`,
         },
       ],
     }
   },
 }
 ```
+
+Note: rewrites in `beforeFiles` do not check the filesystem/dynamic routes immediately after matching a source, they continue until all `beforeFiles` have been checked.
+
+The order Next.js routes are checked is:
+
+1. [headers](/docs/api-reference/next.config.js/headers) are checked/applied
+2. [redirects](/docs/api-reference/next.config.js/redirects) are checked/applied
+3. `beforeFiles` rewrites are checked/applied
+4. static files from the [public directory](/docs/basic-features/static-file-serving), `_next/static` files, and non-dynamic pages are checked/served
+5. `afterFiles` rewrites are checked/applied, if one of these rewrites is matched we check dynamic routes/static files after each match
+6. `fallback` rewrites are checked/applied, these are applied before rendering the 404 page and after dynamic routes/all static assets have been checked.
 
 ## Rewrite parameters
 

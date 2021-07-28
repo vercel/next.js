@@ -5,6 +5,12 @@ Extract and inline critical css with
 [@emotion/server](https://github.com/emotion-js/emotion/tree/master/packages/server),
 [@emotion/css](https://github.com/emotion-js/emotion/tree/master/packages/css)
 
+## Preview
+
+Preview the example live on [StackBlitz](http://stackblitz.com/):
+
+[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-emotion-vanilla)
+
 ## Deploy your own
 
 Deploy the example using [Vercel](https://vercel.com):
