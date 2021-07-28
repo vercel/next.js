@@ -15,6 +15,7 @@ const swc = async (code) => {
           pragma: '__jsx',
         },
       },
+      target: 'es2021',
     },
     minify: true,
   })
