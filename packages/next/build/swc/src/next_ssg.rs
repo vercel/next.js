@@ -394,6 +394,7 @@ impl Fold for NextSsg {
             match &mut p {
                 Pat::Ident(name) => {
                     if self.should_remove(name.id.to_id()) {
+                        self.should_run_again = true;
                         return Pat::Invalid(Invalid { span: DUMMY_SP });
                     }
                 }
