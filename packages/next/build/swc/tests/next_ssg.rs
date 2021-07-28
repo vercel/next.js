@@ -28,7 +28,7 @@ test!(
     }
     ",
     "
-    export var __N_SSG = true;
+    export var __N_SSP = true;
     export default function Test() {
         return <div />;
     }
