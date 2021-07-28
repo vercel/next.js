@@ -3,8 +3,8 @@ use retain_mut::RetainMut;
 use swc_common::pass::{Repeat, Repeated};
 use swc_common::DUMMY_SP;
 use swc_ecmascript::ast::*;
-use swc_ecmascript::utils::find_ids;
 use swc_ecmascript::utils::ident::IdentLike;
+use swc_ecmascript::utils::{find_ids, prepend};
 use swc_ecmascript::visit::{FoldWith, Node, VisitWith};
 use swc_ecmascript::{
     utils::Id,
@@ -343,6 +343,44 @@ impl Fold for NextSsg {
             ModuleItem::Stmt(Stmt::Empty(..)) => false,
             _ => true,
         });
+
+        if !self.state.done {
+            self.state.done = true;
+
+            if items.iter().any(|s| s.is_module_decl()) {
+                let var = VarDeclarator {
+                    span: DUMMY_SP,
+                    name: Pat::Ident(
+                        Ident::new(
+                            if self.state.is_prerenderer {
+                                "__N_SSG".into()
+                            } else {
+                                "__N_SSP".into()
+                            },
+                            DUMMY_SP,
+                        )
+                        .into(),
+                    ),
+                    init: Some(Box::new(Expr::Lit(Lit::Bool(Bool {
+                        span: DUMMY_SP,
+                        value: true,
+                    })))),
+                    definite: Default::default(),
+                };
+                prepend(
+                    &mut items,
+                    ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
+                        span: DUMMY_SP,
+                        decl: Decl::Var(VarDecl {
+                            span: DUMMY_SP,
+                            kind: VarDeclKind::Var,
+                            declare: Default::default(),
+                            decls: vec![var],
+                        }),
+                    })),
+                );
+            }
+        }
 
         items
     }
