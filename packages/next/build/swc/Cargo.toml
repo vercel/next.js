@@ -21,6 +21,7 @@ swc_common = { version = "0.11.1", features = ["tty-emitter", "sourcemap"] }
 swc_node_base = "0.2.0"
 swc_ecmascript = { version = "0.46.0", features = ["codegen", "optimization", "parser", "react", "transforms", "typescript", "utils", "visit"] }
 swc_ecma_preset_env = "0.29.0"
+fxhash = "0.2.1"
 
 
 [build-dependencies]

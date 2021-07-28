@@ -625,6 +625,7 @@ version = "0.0.0"
 dependencies = [
  "anyhow",
  "backtrace",
+ "fxhash",
  "napi",
  "napi-build",
  "napi-derive",
