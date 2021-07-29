@@ -1,9 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import requestIdleCallback from './request-idle-callback'
+import {
+  requestIdleCallback,
+  cancelIdleCallback,
+} from './request-idle-callback'
 
 type UseIntersectionObserverInit = Pick<IntersectionObserverInit, 'rootMargin'>
 type UseIntersection = { disabled?: boolean } & UseIntersectionObserverInit
 type ObserveCallback = (isVisible: boolean) => void
+type Observer = {
+  id: string
+  observer: IntersectionObserver
+  elements: Map<Element, ObserveCallback>
+}
 
 const hasIntersectionObserver = typeof IntersectionObserver !== 'undefined'
 
@@ -11,7 +19,7 @@ export function useIntersection<T extends Element>({
   rootMargin,
   disabled,
 }: UseIntersection): [(element: T | null) => void, boolean] {
-  const isDisabled = disabled || !hasIntersectionObserver
+  const isDisabled: boolean = disabled || !hasIntersectionObserver
 
   const unobserve = useRef<Function>()
   const [visible, setVisible] = useState(false)
@@ -38,7 +46,10 @@ export function useIntersection<T extends Element>({
 
   useEffect(() => {
     if (!hasIntersectionObserver) {
-      if (!visible) requestIdleCallback(() => setVisible(true))
+      if (!visible) {
+        const idleCallback = requestIdleCallback(() => setVisible(true))
+        return () => cancelIdleCallback(idleCallback)
+      }
     }
   }, [visible])
 
@@ -49,12 +60,13 @@ function observe(
   element: Element,
   callback: ObserveCallback,
   options: UseIntersectionObserverInit
-) {
+): () => void {
   const { id, observer, elements } = createObserver(options)
   elements.set(element, callback)
 
   observer.observe(element)
-  return function unobserve() {
+  return function unobserve(): void {
+    elements.delete(element)
     observer.unobserve(element)
 
     // Destroy observer when there's nothing left to watch:
@@ -65,15 +77,8 @@ function observe(
   }
 }
 
-const observers = new Map<
-  string,
-  {
-    id: string
-    observer: IntersectionObserver
-    elements: Map<Element, ObserveCallback>
-  }
->()
-function createObserver(options: UseIntersectionObserverInit) {
+const observers = new Map<string, Observer>()
+function createObserver(options: UseIntersectionObserverInit): Observer {
   const id = options.rootMargin || ''
   let instance = observers.get(id)
   if (instance) {

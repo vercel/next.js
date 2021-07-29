@@ -13,7 +13,7 @@ describe('Errors on output to public', () => {
     await fs.writeFile(nextConfig, `module.exports = { distDir: 'public' }`)
     const results = await nextBuild(appDir, [], { stdout: true, stderr: true })
     expect(results.stdout + results.stderr).toMatch(
-      /The 'public' directory is reserved in Next.js and can not be set as/
+      /The 'public' directory is reserved in Next\.js and can not be set as/
     )
     await fs.remove(nextConfig)
   })
@@ -31,7 +31,7 @@ describe('Errors on output to public', () => {
       }
     )
     expect(results.stdout + results.stderr).toMatch(
-      /The 'public' directory is reserved in Next.js and can not be used as/
+      /The 'public' directory is reserved in Next\.js and can not be used as/
     )
   })
 })

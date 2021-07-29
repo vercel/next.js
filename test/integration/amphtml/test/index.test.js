@@ -29,8 +29,15 @@ const context = {}
 
 describe('AMP Usage', () => {
   describe('production mode', () => {
+    let output = ''
+
     beforeAll(async () => {
-      await nextBuild(appDir)
+      const result = await nextBuild(appDir, undefined, {
+        stdout: true,
+        stderr: true,
+      })
+      output = result.stdout + result.stderr
+
       app = nextServer({
         dir: join(__dirname, '../'),
         dev: false,
@@ -41,6 +48,11 @@ describe('AMP Usage', () => {
       context.appPort = appPort = server.address().port
     })
     afterAll(() => stopApp(server))
+
+    it('should not contain missing files warning', async () => {
+      expect(output).toContain('Compiled successfully')
+      expect(output).not.toContain('Could not find files for')
+    })
 
     describe('With basic usage', () => {
       it('should render the page', async () => {
@@ -259,10 +271,18 @@ describe('AMP Usage', () => {
   describe('AMP dev mode', () => {
     let dynamicAppPort
     let ampDynamic
+    let output = ''
 
     beforeAll(async () => {
       dynamicAppPort = await findPort()
-      ampDynamic = await launchApp(join(__dirname, '../'), dynamicAppPort)
+      ampDynamic = await launchApp(join(__dirname, '../'), dynamicAppPort, {
+        onStdout(msg) {
+          output += msg
+        },
+        onStderr(msg) {
+          output += msg
+        },
+      })
     })
 
     afterAll(() => killApp(ampDynamic))
@@ -278,7 +298,20 @@ describe('AMP Usage', () => {
       const html = await renderViaHTTP(dynamicAppPort, '/only-amp')
       const $ = cheerio.load(html)
       expect($('html').attr('data-ampdevmode')).toBe('')
-      expect($('script[data-ampdevmode]').length).toBe(4)
+      expect(
+        [].slice
+          .apply($('script[data-ampdevmode]'))
+          .map((el) => el.attribs.src || el.attribs.id)
+          .map((e) =>
+            e.startsWith('/') ? new URL(e, 'http://x.x').pathname : e
+          )
+      ).toEqual([
+        '__NEXT_DATA__',
+        '/_next/static/chunks/react-refresh.js',
+        '/_next/static/chunks/polyfills.js',
+        '/_next/static/chunks/webpack.js',
+        '/_next/static/chunks/amp.js',
+      ])
     })
 
     it('should detect the changes and display it', async () => {
@@ -369,6 +402,8 @@ describe('AMP Usage', () => {
 
     it('should not reload unless the page is edited for an AMP page', async () => {
       let browser
+      const hmrTestPagePath = join(__dirname, '../', 'pages', 'hmr', 'test.js')
+      const originalContent = readFileSync(hmrTestPagePath, 'utf8')
       try {
         await renderViaHTTP(dynamicAppPort, '/hmr/test')
 
@@ -376,15 +411,7 @@ describe('AMP Usage', () => {
         await check(() => browser.elementByCss('p').text(), /I'm an AMP page!/)
 
         const origDate = await browser.elementByCss('span').text()
-        const hmrTestPagePath = join(
-          __dirname,
-          '../',
-          'pages',
-          'hmr',
-          'test.js'
-        )
 
-        const originalContent = readFileSync(hmrTestPagePath, 'utf8')
         const editedContent = originalContent.replace(
           `This is the hot AMP page.`,
           'replaced it!'
@@ -423,6 +450,7 @@ describe('AMP Usage', () => {
 
         await check(() => getBrowserBodyText(browser), /I'm an AMP page!/)
       } finally {
+        writeFileSync(hmrTestPagePath, originalContent, 'utf8')
         await browser.close()
       }
     })
@@ -489,6 +517,12 @@ describe('AMP Usage', () => {
       } finally {
         await browser.close()
       }
+    })
+
+    it('should not contain missing files warning', async () => {
+      expect(output).toContain('compiled successfully')
+      expect(output).toContain('build page: /only-amp')
+      expect(output).not.toContain('Could not find files for')
     })
   })
 })

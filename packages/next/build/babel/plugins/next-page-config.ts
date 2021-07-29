@@ -1,10 +1,12 @@
 import {
   NodePath,
   PluginObj,
+  PluginPass,
   types as BabelTypes,
+  Visitor,
 } from 'next/dist/compiled/babel/core'
 import { PageConfig } from 'next/types'
-import { STRING_LITERAL_DROP_BUNDLE } from '../../../next-server/lib/constants'
+import { STRING_LITERAL_DROP_BUNDLE } from '../../../shared/lib/constants'
 
 const CONFIG_KEY = 'config'
 
@@ -28,10 +30,10 @@ function replaceBundle(path: any, t: typeof BabelTypes): void {
 function errorMessage(state: any, details: string): string {
   const pageName =
     (state.filename || '').split(state.cwd || '').pop() || 'unknown'
-  return `Invalid page config export found. ${details} in file ${pageName}. See: https://err.sh/vercel/next.js/invalid-page-config`
+  return `Invalid page config export found. ${details} in file ${pageName}. See: https://nextjs.org/docs/messages/invalid-page-config`
 }
 
-interface ConfigState {
+interface ConfigState extends PluginPass {
   bundleDropped?: boolean
 }
 
@@ -44,7 +46,7 @@ export default function nextPageConfig({
   return {
     visitor: {
       Program: {
-        enter(path, state: ConfigState) {
+        enter(path, state) {
           path.traverse(
             {
               ExportDeclaration(exportPath, exportState) {
@@ -203,6 +205,6 @@ export default function nextPageConfig({
           )
         },
       },
-    },
+    } as Visitor<ConfigState>,
   }
 }

@@ -17,13 +17,50 @@ Codemods are transformations that run on your codebase programmatically. This al
 - `--dry` Do a dry-run, no code will be edited
 - `--print` Prints the changed output for comparison
 
+## Next.js 11
+
+### `cra-to-next` (experimental)
+
+Migrates a Create React App project to Next.js; creating a pages directory and necessary config to match behavior. Client-side only rendering is leveraged initially to prevent breaking compatibility due to `window` usage during SSR and can be enabled seamlessly to allow gradual adoption of Next.js specific features.
+
+Please share any feedback related to this transform [in this discussion](https://github.com/vercel/next.js/discussions/25858).
+
+## Next.js 10
+
+### `add-missing-react-import`
+
+Transforms files that do not import `React` to include the import in order for the new [React JSX transform](https://reactjs.org/blog/2020/09/22/introducing-the-new-jsx-transform.html) to work.
+
+For example:
+
+```jsx
+// my-component.js
+export default class Home extends React.Component {
+  render() {
+    return <div>Hello World</div>
+  }
+}
+```
+
+Transforms into:
+
+```jsx
+// my-component.js
+import React from 'react'
+export default class Home extends React.Component {
+  render() {
+    return <div>Hello World</div>
+  }
+}
+```
+
 ## Next.js 9
 
 ### `name-default-component`
 
 Transforms anonymous components into named components to make sure they work with [Fast Refresh](https://nextjs.org/blog/next-9-4#fast-refresh).
 
-For example
+For example:
 
 ```jsx
 // my-component.js
@@ -103,7 +140,7 @@ npx @next/codemod withamp-to-config
 
 ### `url-to-withrouter`
 
-Transforms the deprecated automatically injected `url` property on top level pages to using `withRouter` and the `router` property it injects. Read more here: [err.sh/next.js/url-deprecated](https://err.sh/next.js/url-deprecated)
+Transforms the deprecated automatically injected `url` property on top level pages to using `withRouter` and the `router` property it injects. Read more here: [https://nextjs.org/docs/messages/url-deprecated](https://nextjs.org/docs/messages/url-deprecated)
 
 For example:
 
@@ -132,7 +169,7 @@ export default withRouter(
 )
 ```
 
-This is just one case. All the cases that are transformed (and tested) can be found in the [`__testfixtures__` directory](https://github.com/vercel/next.js/tree/canary/packages/next-codemod/transforms/__testfixtures__/url-to-withrouter).
+This is one case. All the cases that are transformed (and tested) can be found in the [`__testfixtures__` directory](https://github.com/vercel/next.js/tree/canary/packages/next-codemod/transforms/__testfixtures__/url-to-withrouter).
 
 #### Usage
 

@@ -3,16 +3,10 @@ import { transform } from '@babel/core'
 
 const trim = (s) => s.join('\n').trim().replace(/^\s+/gm, '')
 
-// avoid generating __source annotations in JSX during testing:
-const NODE_ENV = process.env.NODE_ENV
-process.env.NODE_ENV = 'production'
-const preset = require('next/dist/build/babel/preset')
-process.env.NODE_ENV = NODE_ENV
-
 const babel = (code, esm = false, presetOptions = {}, filename = 'noop.js') =>
   transform(code, {
     filename,
-    presets: [[preset, presetOptions]],
+    presets: [[require('next/dist/build/babel/preset'), presetOptions]],
     babelrc: false,
     configFile: false,
     sourceType: 'module',
@@ -20,6 +14,7 @@ const babel = (code, esm = false, presetOptions = {}, filename = 'noop.js') =>
     caller: {
       name: 'tests',
       supportsStaticESM: esm,
+      isDev: false,
     },
   }).code
 
@@ -167,28 +162,6 @@ describe('next/babel', () => {
           expect(output).not.toContain('require("./car")')
         })
       })
-    })
-  })
-
-  describe('experimental-modern-preset', () => {
-    it('should allow passing a custom Babel preset', () => {
-      const code = trim`
-        const [, b, c] = [...[1,2,3]];
-        ({a}) => a;
-      `
-      const output = babel(code, true, {
-        'preset-env': {
-          targets: {
-            esmodules: true,
-          },
-        },
-        // our modern preset is no preset at all
-        'experimental-modern-preset': () => ({}),
-      })
-
-      expect(output).toMatch(trim`
-        const[,b,c]=[...[1,2,3]];({a})=>a;
-      `)
     })
   })
 

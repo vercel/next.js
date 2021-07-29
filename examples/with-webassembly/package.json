@@ -1,14 +1,14 @@
 {
-  "name": "with-webassembly",
+  "private": true,
   "dependencies": {
     "next": "latest",
-    "react": "^17.0.0",
-    "react-dom": "^17.0.0"
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2"
   },
   "scripts": {
     "dev": "next",
     "build": "next build",
-    "build-rust": "rustc +nightly --target wasm32-unknown-unknown -O --crate-type=cdylib src/add.rs -o add.wasm",
+    "build-rust": "rustc --target wasm32-unknown-unknown -O --crate-type=cdylib src/add.rs -o add.wasm",
     "start": "next start"
   },
   "license": "MIT"

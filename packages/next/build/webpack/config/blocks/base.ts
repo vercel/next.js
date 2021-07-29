@@ -1,17 +1,22 @@
 import isWslBoolean from 'next/dist/compiled/is-wsl'
 import curry from 'next/dist/compiled/lodash.curry'
-import { Configuration } from 'webpack'
+import { webpack, isWebpack5 } from 'next/dist/compiled/webpack/webpack'
 import { ConfigurationContext } from '../utils'
 
 const isWindows = process.platform === 'win32' || isWslBoolean
 
 export const base = curry(function base(
   ctx: ConfigurationContext,
-  config: Configuration
+  config: webpack.Configuration
 ) {
   config.mode = ctx.isDevelopment ? 'development' : 'production'
   config.name = ctx.isServer ? 'server' : 'client'
-  config.target = ctx.isServer ? 'node' : 'web'
+  if (isWebpack5) {
+    // @ts-ignore TODO webpack 5 typings
+    config.target = ctx.isServer ? 'node12.17' : ['web', 'es5']
+  } else {
+    config.target = ctx.isServer ? 'node' : 'web'
+  }
 
   // Stop compilation early in a production build when an error is encountered.
   // This behavior isn't desirable in development due to how the HMR system
@@ -35,8 +40,8 @@ export const base = curry(function base(
       config.devtool = 'eval-source-map'
     }
   } else {
-    // Enable browser sourcemaps
-    if (ctx.productionBrowserSourceMaps) {
+    // Enable browser sourcemaps:
+    if (ctx.productionBrowserSourceMaps && ctx.isClient) {
       config.devtool = 'source-map'
     } else {
       config.devtool = false
@@ -46,7 +51,9 @@ export const base = curry(function base(
   if (!config.module) {
     config.module = { rules: [] }
   }
-  config.module.strictExportPresence = true
+
+  // TODO: add codemod for "Should not import the named export" with JSON files
+  config.module.strictExportPresence = !isWebpack5
 
   return config
 })

@@ -27,6 +27,7 @@ export const getServerSideProps = ({ query }) => {
   }
 
   return {
+    notFound: false,
     props: {
       hello: 'world',
     },

@@ -1,6 +1,7 @@
 # build output
 dist
 .next
+target
 
 # dependencies
 node_modules
@@ -25,6 +26,7 @@ test/**/next-env.d.ts
 
 # Editors
 **/.idea
+**/.#*
 
 # examples
 examples/**/out

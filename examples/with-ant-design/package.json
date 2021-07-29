@@ -1,6 +1,5 @@
 {
-  "name": "with-ant-design",
-  "version": "1.0.0",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",
@@ -10,14 +9,13 @@
     "@ant-design/icons": "4.2.1",
     "@next/bundle-analyzer": "^9.1.4",
     "antd": "4.3.0",
-    "babel-plugin-import": "1.13.0",
     "cross-env": "^7.0.2",
     "dayjs": "1.8.28",
     "esm": "^3.2.25",
     "next": "latest",
     "postcss-preset-env": "^6.7.0",
-    "react": "^16.13.1",
-    "react-dom": "^16.13.1"
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2"
   },
   "browser": {
     "fs": false,

@@ -1,21 +1,17 @@
-import { parse as parseQs } from 'querystring'
 import { IncomingMessage, ServerResponse } from 'http'
 import { parse as parseUrl, format as formatUrl, UrlWithParsedQuery } from 'url'
-import { isResSent } from '../../../../next-server/lib/utils'
-import { sendPayload } from '../../../../next-server/server/send-payload'
+import { DecodeError, isResSent } from '../../../../shared/lib/utils'
+import { sendPayload } from '../../../../server/send-payload'
 import { getUtils, vercelHeader, ServerlessHandlerCtx } from './utils'
 
-import { renderToHTML } from '../../../../next-server/server/render'
-import { tryGetPreviewData } from '../../../../next-server/server/api-utils'
-import { denormalizePagePath } from '../../../../next-server/server/denormalize-page-path'
-import {
-  setLazyProp,
-  getCookieParser,
-} from '../../../../next-server/server/api-utils'
+import { renderToHTML } from '../../../../server/render'
+import { tryGetPreviewData } from '../../../../server/api-utils'
+import { denormalizePagePath } from '../../../../server/denormalize-page-path'
+import { setLazyProp, getCookieParser } from '../../../../server/api-utils'
 import { getRedirectStatus } from '../../../../lib/load-custom-routes'
-import getRouteNoAssetPath from '../../../../next-server/lib/router/utils/get-route-from-asset-path'
-import { getRouteMatcher } from '../../../../next-server/lib/router/utils/route-matcher'
-import { PERMANENT_REDIRECT_STATUS } from '../../../../next-server/lib/constants'
+import getRouteNoAssetPath from '../../../../shared/lib/router/utils/get-route-from-asset-path'
+import { PERMANENT_REDIRECT_STATUS } from '../../../../shared/lib/constants'
+import { resultToChunks } from '../../../../server/utils'
 
 export function getPageHandler(ctx: ServerlessHandlerCtx) {
   const {
@@ -47,8 +43,6 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
     assetPrefix,
     canonicalBase,
     escapedBuildId,
-
-    experimental: { initServer, onError },
   } = ctx
   const {
     handleLocale,
@@ -56,7 +50,10 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
     handleBasePath,
     defaultRouteRegex,
     dynamicRouteMatcher,
+    interpolateDynamicPath,
+    getParamsFromRouteMatches,
     normalizeDynamicRouteParams,
+    normalizeVercelUrl,
   } = getUtils(ctx)
 
   async function renderReqToHTML(
@@ -102,7 +99,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
 
     let hasValidParams = true
 
-    setLazyProp({ req: req as any }, 'cookies', getCookieParser(req))
+    setLazyProp({ req: req as any }, 'cookies', getCookieParser(req.headers))
 
     const options = {
       App,
@@ -139,7 +136,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
       }
       const origQuery = Object.assign({}, parsedUrl.query)
 
-      parsedUrl = handleRewrites(parsedUrl)
+      parsedUrl = handleRewrites(req, parsedUrl)
       handleBasePath(req, parsedUrl)
 
       // remove ?amp=1 from request URL if rendering for export
@@ -191,6 +188,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
           locales: i18n?.locales,
           locale: detectedLocale,
           defaultLocale,
+          domainLocales: i18n?.domains,
         },
         options
       )
@@ -222,116 +220,24 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
         !hasValidParams &&
         req.headers?.['x-now-route-matches']
       ) {
-        nowParams = getRouteMatcher(
-          (function () {
-            const { groups, routeKeys } = defaultRouteRegex!
-
-            return {
-              re: {
-                // Simulate a RegExp match from the \`req.url\` input
-                exec: (str: string) => {
-                  const obj = parseQs(str)
-
-                  // favor named matches if available
-                  const routeKeyNames = Object.keys(routeKeys || {})
-
-                  const filterLocaleItem = (val: string | string[]) => {
-                    if (i18n) {
-                      // locale items can be included in route-matches
-                      // for fallback SSG pages so ensure they are
-                      // filtered
-                      const isCatchAll = Array.isArray(val)
-                      const _val = isCatchAll ? val[0] : val
-
-                      if (
-                        typeof _val === 'string' &&
-                        i18n.locales.some((item) => {
-                          if (item.toLowerCase() === _val.toLowerCase()) {
-                            detectedLocale = item
-                            renderOpts.locale = detectedLocale
-                            return true
-                          }
-                          return false
-                        })
-                      ) {
-                        // remove the locale item from the match
-                        if (isCatchAll) {
-                          ;(val as string[]).splice(0, 1)
-                        }
-
-                        // the value is only a locale item and
-                        // shouldn't be added
-                        return isCatchAll ? val.length === 0 : true
-                      }
-                    }
-                    return false
-                  }
-
-                  if (routeKeyNames.every((name) => obj[name])) {
-                    return routeKeyNames.reduce((prev, keyName) => {
-                      const paramName = routeKeys?.[keyName]
-
-                      if (paramName && !filterLocaleItem(obj[keyName])) {
-                        prev[groups[paramName].pos] = obj[keyName]
-                      }
-                      return prev
-                    }, {} as any)
-                  }
-
-                  return Object.keys(obj).reduce((prev, key) => {
-                    if (!filterLocaleItem(obj[key])) {
-                      return Object.assign(prev, {
-                        [key]: obj[key],
-                      })
-                    }
-                    return prev
-                  }, {})
-                },
-              },
-              groups,
-            }
-          })() as any
-        )(req.headers['x-now-route-matches'] as string)
+        nowParams = getParamsFromRouteMatches(req, renderOpts, detectedLocale)
       }
 
       // make sure to set renderOpts to the correct params e.g. _params
       // if provided from worker or params if we're parsing them here
       renderOpts.params = _params || params
 
-      // make sure to normalize req.url on Vercel to strip dynamic params
-      // from the query which are added during routing
-      if (pageIsDynamic && trustQuery && defaultRouteRegex) {
-        const _parsedUrl = parseUrl(req.url!, true)
-        delete (_parsedUrl as any).search
-
-        for (const param of Object.keys(defaultRouteRegex.groups)) {
-          delete _parsedUrl.query[param]
-        }
-        req.url = formatUrl(_parsedUrl)
-      }
+      normalizeVercelUrl(req, !!trustQuery)
 
       // normalize request URL/asPath for fallback/revalidate pages since the
       // proxy sets the request URL to the output's path for fallback pages
       if (pageIsDynamic && nowParams && defaultRouteRegex) {
         const _parsedUrl = parseUrl(req.url!)
 
-        for (const param of Object.keys(defaultRouteRegex.groups)) {
-          const { optional, repeat } = defaultRouteRegex.groups[param]
-          let builtParam = `[${repeat ? '...' : ''}${param}]`
-
-          if (optional) {
-            builtParam = `[${builtParam}]`
-          }
-
-          const paramIdx = _parsedUrl.pathname!.indexOf(builtParam)
-
-          if (paramIdx > -1) {
-            _parsedUrl.pathname =
-              _parsedUrl.pathname!.substr(0, paramIdx) +
-              encodeURI((nowParams as any)[param] || '') +
-              _parsedUrl.pathname!.substr(paramIdx + builtParam.length)
-          }
-        }
+        _parsedUrl.pathname = interpolateDynamicPath(
+          _parsedUrl.pathname!,
+          nowParams
+        )
         parsedUrl.pathname = _parsedUrl.pathname
         req.url = formatUrl(_parsedUrl)
       }
@@ -370,12 +276,17 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
 
       const previewData = tryGetPreviewData(req, res, options.previewProps)
       const isPreviewMode = previewData !== false
-      /**
-       * __webpack_require__.__NEXT_FONT_MANIFEST__ is added by
-       * font-stylesheet-gathering-plugin
-       */
-      // @ts-ignore
-      renderOpts.fontManifest = __webpack_require__.__NEXT_FONT_MANIFEST__
+
+      if (process.env.__NEXT_OPTIMIZE_FONTS) {
+        renderOpts.optimizeFonts = true
+        /**
+         * __webpack_require__.__NEXT_FONT_MANIFEST__ is added by
+         * font-stylesheet-gathering-plugin
+         */
+        // @ts-ignore
+        renderOpts.fontManifest = __webpack_require__.__NEXT_FONT_MANIFEST__
+      }
+
       let result = await renderToHTML(
         req,
         res,
@@ -396,6 +307,11 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
         if (_nextData || getStaticProps || getServerSideProps) {
           if (renderOpts.isNotFound) {
             res.statusCode = 404
+
+            if (_nextData) {
+              res.end('{"notFound":true}')
+              return null
+            }
 
             const NotFoundComponent = notFoundMod ? notFoundMod.default : Error
             const errPathname = notFoundMod ? '/404' : '/_error'
@@ -418,18 +334,18 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
                 defaultLocale: i18n?.defaultLocale,
               })
             )
-
+            const html = result2 ? (await resultToChunks(result2)).join('') : ''
             sendPayload(
               req,
               res,
-              result2,
+              html,
               'html',
               {
                 generateEtags,
                 poweredByHeader,
               },
               {
-                private: isPreviewMode,
+                private: isPreviewMode || page === '/404',
                 stateful: !!getServerSideProps,
                 revalidate: renderOpts.revalidate,
               }
@@ -443,7 +359,11 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
             }
             const statusCode = getRedirectStatus(redirect)
 
-            if (basePath && redirect.basePath !== false) {
+            if (
+              basePath &&
+              redirect.basePath !== false &&
+              redirect.destination.startsWith('/')
+            ) {
               redirect.destination = `${basePath}${redirect.destination}`
             }
 
@@ -466,7 +386,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
                 poweredByHeader,
               },
               {
-                private: isPreviewMode,
+                private: isPreviewMode || renderOpts.is404Page,
                 stateful: !!getServerSideProps,
                 revalidate: renderOpts.revalidate,
               }
@@ -482,7 +402,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
       }
 
       if (renderMode) return { html: result, renderOpts }
-      return result
+      return result ? (await resultToChunks(result)).join('') : null
     } catch (err) {
       if (!parsedUrl!) {
         parsedUrl = parseUrl(req.url!, true)
@@ -490,8 +410,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
 
       if (err.code === 'ENOENT') {
         res.statusCode = 404
-      } else if (err.code === 'DECODE_FAILED') {
-        // TODO: better error?
+      } else if (err instanceof DecodeError) {
         res.statusCode = 400
       } else {
         console.error('Unhandled error during request:', err)
@@ -545,7 +464,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
           err: res.statusCode === 404 ? undefined : err,
         })
       )
-      return result2
+      return result2 ? (await resultToChunks(result2)).join('') : null
     }
   }
 
@@ -553,7 +472,6 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
     renderReqToHTML,
     render: async function render(req: IncomingMessage, res: ServerResponse) {
       try {
-        await initServer()
         const html = await renderReqToHTML(req, res)
         if (html) {
           sendPayload(req, res, html, 'html', {
@@ -563,7 +481,6 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
         }
       } catch (err) {
         console.error(err)
-        await onError(err)
         // Throw the error to crash the serverless function
         throw err
       }

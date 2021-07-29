@@ -1,9 +1,14 @@
-import { getSession } from '../../lib/iron'
+import { getLoginSession } from '../../lib/auth'
+import { findUser } from '../../lib/user'
 
 export default async function user(req, res) {
-  const session = await getSession(req)
-  // After getting the session you may want to fetch for the user instead
-  // of sending the session's payload directly, this example doesn't have a DB
-  // so it won't matter in this case
-  res.status(200).json({ user: session || null })
+  try {
+    const session = await getLoginSession(req)
+    const user = (session && (await findUser(session))) ?? null
+
+    res.status(200).json({ user })
+  } catch (error) {
+    console.error(error)
+    res.status(500).end('Authentication token is invalid, please log in')
+  }
 }

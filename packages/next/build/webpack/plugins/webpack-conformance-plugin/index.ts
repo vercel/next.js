@@ -1,7 +1,7 @@
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { NodePath } from 'ast-types/lib/node-path'
 import { visit } from 'next/dist/compiled/recast'
-import { compilation as CompilationType, Compiler } from 'webpack'
+import { webpack } from 'next/dist/compiled/webpack/webpack'
 import {
   IConformanceAnomaly,
   IConformanceTestResult,
@@ -28,7 +28,7 @@ export default class WebpackConformancePlugin {
   private tests: IWebpackConformanceTest[]
   private errors: Array<IConformanceAnomaly>
   private warnings: Array<IConformanceAnomaly>
-  private compiler?: Compiler
+  private compiler?: webpack.Compiler
 
   constructor(options: IWebpackConformancePluginOptions) {
     this.tests = []
@@ -49,7 +49,7 @@ export default class WebpackConformancePlugin {
   }
 
   private buildStartedHandler = (
-    _compilation: CompilationType.Compilation,
+    _compilation: webpack.compilation.Compilation,
     callback: () => void
   ) => {
     const buildStartedResults: IConformanceTestResult[] = this.tests.map(
@@ -68,7 +68,7 @@ export default class WebpackConformancePlugin {
   }
 
   private buildCompletedHandler = (
-    compilation: CompilationType.Compilation,
+    compilation: webpack.compilation.Compilation,
     cb: () => void
   ): void => {
     const buildCompletedResults: IConformanceTestResult[] = this.tests.map(
@@ -89,7 +89,7 @@ export default class WebpackConformancePlugin {
   }
 
   private parserHandler = (
-    factory: CompilationType.NormalModuleFactory
+    factory: webpack.compilation.NormalModuleFactory
   ): void => {
     const JS_TYPES = ['auto', 'esm', 'dynamic']
     const collectedVisitors: Map<string, [NodeInspector?]> = new Map()
@@ -137,7 +137,7 @@ export default class WebpackConformancePlugin {
     }
   }
 
-  public apply(compiler: Compiler) {
+  public apply(compiler: webpack.Compiler) {
     this.compiler = compiler
     compiler.hooks.make.tapAsync(
       this.constructor.name,

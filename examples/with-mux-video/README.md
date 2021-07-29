@@ -12,7 +12,7 @@ This example uses Mux Video, an API-first platform for video. The example featur
 
 Deploy the example using [Vercel](https://vercel.com/home):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-mux-video)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-mux-video&project-name=with-mux-video&repository-name=with-mux-video)
 
 ## How to use
 
@@ -30,7 +30,7 @@ yarn create next-app --example with-mux-video with-mux-video-app
 
 This example uses:
 
-- [SWR](https://swr.now.sh/) — dynamically changing the `refreshInterval` depending on if the client should be polling for updates or not
+- [SWR](https://swr.vercel.app/) — dynamically changing the `refreshInterval` depending on if the client should be polling for updates or not
 - [`/pages/api`](pages/api) routes — a couple endpoints for making authenticated requests to the Mux API.
 - Dynamic routes using [`getStaticPaths` and `fallback: true`](https://nextjs.org/docs/basic-features/data-fetching#getstaticpaths-static-generation), as well as dynamic API routes.
 
@@ -57,7 +57,7 @@ Then, go to the [settings page](https://dashboard.mux.com/settings/access-tokens
 
 ### Step 3. Deploy on Vercel
 
-You can deploy this app to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+You can deploy this app to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
 To deploy on Vercel, you need to set the environment variables using [Vercel CLI](https://vercel.com/download) ([Documentation](https://vercel.com/docs/cli#commands/secrets)).
 
@@ -68,4 +68,4 @@ vercel secrets add next_example_mux_token_id <MUX_TOKEN_ID>
 vercel secrets add next_example_mux_token_secret <MUX_TOKEN_SECRET>
 ```
 
-Then push the project to GitHub/GitLab/Bitbucket and [import to Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) to deploy.
+Then push the project to GitHub/GitLab/Bitbucket and [import to Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) to deploy.

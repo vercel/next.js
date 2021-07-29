@@ -1,4 +1,5 @@
-import webpack from 'webpack'
+import { webpack } from 'next/dist/compiled/webpack/webpack'
+import { NextConfigComplete } from '../../../server/config-shared'
 
 export type ConfigurationContext = {
   rootDirectory: string
@@ -14,6 +15,10 @@ export type ConfigurationContext = {
 
   sassOptions: any
   productionBrowserSourceMaps: boolean
+
+  future: NextConfigComplete['future']
+
+  isCraCompat?: boolean
 }
 
 export type ConfigurationFn = (

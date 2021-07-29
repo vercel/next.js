@@ -13,24 +13,6 @@ export default createSchema({
   types: schemaTypes.concat([
     /* Your types here! */
     {
-      name: 'author',
-      type: 'document',
-      title: 'Author',
-      fields: [
-        {
-          name: 'name',
-          title: 'Name',
-          type: 'string',
-        },
-        {
-          name: 'picture',
-          title: 'Picture',
-          type: 'image',
-        },
-      ],
-    },
-
-    {
       name: 'post',
       type: 'document',
       title: 'Post',
@@ -39,6 +21,14 @@ export default createSchema({
           name: 'title',
           title: 'Title',
           type: 'string',
+        },
+        {
+          name: 'slug',
+          title: 'Slug',
+          type: 'slug',
+          options: {
+            source: 'title',
+          },
         },
         {
           name: 'content',
@@ -67,10 +57,23 @@ export default createSchema({
           type: 'reference',
           to: [{ type: 'author' }],
         },
+      ],
+    },
+
+    {
+      name: 'author',
+      type: 'document',
+      title: 'Author',
+      fields: [
         {
-          name: 'slug',
-          title: 'Slug',
-          type: 'slug',
+          name: 'name',
+          title: 'Name',
+          type: 'string',
+        },
+        {
+          name: 'picture',
+          title: 'Picture',
+          type: 'image',
         },
       ],
     },

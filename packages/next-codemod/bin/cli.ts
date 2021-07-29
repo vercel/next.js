@@ -8,18 +8,18 @@
 // Based on https://github.com/reactjs/react-codemod/blob/dd8671c9a470a2c342b221ec903c574cf31e9f57/bin/cli.js
 // @next/codemod optional-name-of-transform optional/path/to/src [...options]
 
-const globby = require('globby')
-const inquirer = require('inquirer')
-const meow = require('meow')
-const path = require('path')
-const execa = require('execa')
-const chalk = require('chalk')
-const isGitClean = require('is-git-clean')
+import globby from 'globby'
+import inquirer from 'inquirer'
+import meow from 'meow'
+import path from 'path'
+import execa from 'execa'
+import chalk from 'chalk'
+import isGitClean from 'is-git-clean'
 
-const transformerDirectory = path.join(__dirname, '../', 'transforms')
-const jscodeshiftExecutable = require.resolve('.bin/jscodeshift')
+export const jscodeshiftExecutable = require.resolve('.bin/jscodeshift')
+export const transformerDirectory = path.join(__dirname, '../', 'transforms')
 
-function checkGitStatus(force) {
+export function checkGitStatus(force) {
   let clean = false
   let errorMessage = 'Unable to determine if git directory is clean'
   try {
@@ -49,18 +49,26 @@ function checkGitStatus(force) {
   }
 }
 
-function runTransform({ files, flags, transformer }) {
+export function runTransform({ files, flags, transformer }) {
   const transformerPath = path.join(transformerDirectory, `${transformer}.js`)
+
+  if (transformer === 'cra-to-next') {
+    // cra-to-next transform doesn't use jscodeshift directly
+    return require(transformerPath).default(files, flags)
+  }
 
   let args = []
 
-  const { dry, print } = flags
+  const { dry, print, runInBand } = flags
 
   if (dry) {
     args.push('--dry')
   }
   if (print) {
     args.push('--print')
+  }
+  if (runInBand) {
+    args.push('--run-in-band')
   }
 
   args.push('--verbose=2')
@@ -83,11 +91,11 @@ function runTransform({ files, flags, transformer }) {
 
   const result = execa.sync(jscodeshiftExecutable, args, {
     stdio: 'inherit',
-    stripEof: false,
+    stripFinalNewline: false,
   })
 
-  if (result.error) {
-    throw result.error
+  if (result.failed) {
+    throw new Error(`jscodeshift exited with code ${result.exitCode}`)
   }
 }
 
@@ -99,6 +107,11 @@ const TRANSFORMER_INQUIRER_CHOICES = [
   },
   {
     name:
+      'add-missing-react-import: Transforms files that do not import `React` to include the import in order for the new React JSX transform',
+    value: 'add-missing-react-import',
+  },
+  {
+    name:
       'withamp-to-config: Transforms the withAmp HOC into Next.js 9 page configuration',
     value: 'withamp-to-config',
   },
@@ -106,6 +119,11 @@ const TRANSFORMER_INQUIRER_CHOICES = [
     name:
       'url-to-withrouter: Transforms the deprecated automatically injected url property on top level pages to using withRouter',
     value: 'url-to-withrouter',
+  },
+  {
+    name:
+      'cra-to-next (experimental): automatically migrates a Create React App project to Next.js',
+    value: 'cra-to-next',
   },
 ]
 
@@ -118,11 +136,10 @@ function expandFilePathsIfNeeded(filesBeforeExpansion) {
     : filesBeforeExpansion
 }
 
-function run() {
-  const cli = meow(
-    {
-      description: 'Codemods for updating Next.js apps.',
-      help: `
+export function run() {
+  const cli = meow({
+    description: 'Codemods for updating Next.js apps.',
+    help: `
     Usage
       $ npx @next/codemod <transform> <path> <...options>
         transform    One of the choices from https://github.com/vercel/next.js/tree/canary/packages/next-codemod
@@ -133,15 +150,14 @@ function run() {
       --print            Print transformed files to your terminal
       --jscodeshift  (Advanced) Pass options directly to jscodeshift
     `,
-    },
-    {
+    flags: {
       boolean: ['force', 'dry', 'print', 'help'],
       string: ['_'],
       alias: {
         h: 'help',
       },
-    }
-  )
+    },
+  } as meow.Options<meow.AnyFlags>)
 
   if (!cli.flags.dry) {
     checkGitStatus(cli.flags.force)
@@ -197,12 +213,4 @@ function run() {
         transformer: selectedTransformer,
       })
     })
-}
-
-module.exports = {
-  run: run,
-  runTransform: runTransform,
-  checkGitStatus: checkGitStatus,
-  jscodeshiftExecutable: jscodeshiftExecutable,
-  transformerDirectory: transformerDirectory,
 }

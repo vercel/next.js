@@ -2,6 +2,8 @@ import { codeFrameColumns } from 'next/dist/compiled/babel/code-frame'
 import chalk from 'chalk'
 import path from 'path'
 
+// eslint typescript has a bug with TS enums
+/* eslint-disable no-shadow */
 export enum DiagnosticCategory {
   Warning = 0,
   Error = 1,
@@ -45,7 +47,7 @@ export async function getFormattedDiagnostic(
     const character = pos.character + 1
 
     let fileName = path.posix.normalize(
-      path.relative(baseDir, diagnostic.file.fileName).replace(/\\/, '/')
+      path.relative(baseDir, diagnostic.file.fileName).replace(/\\/g, '/')
     )
     if (!fileName.startsWith('.')) {
       fileName = './' + fileName

@@ -1,8 +1,5 @@
 {
-  "name": "with-custom-babel-config",
-  "version": "1.0.0",
-  "description": "This example features:",
-  "main": "index.js",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",
@@ -10,11 +7,9 @@
   },
   "dependencies": {
     "next": "latest",
-    "react": "^16.7.0",
-    "react-dom": "^16.7.0"
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2"
   },
-  "author": "",
-  "license": "MIT",
   "devDependencies": {
     "@babel/plugin-proposal-do-expressions": "7.0.0-rc.1"
   }

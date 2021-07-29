@@ -16,13 +16,12 @@ import { NON_STANDARD_NODE_ENV } from '../lib/constants'
 const defaultCommand = 'dev'
 export type cliCommand = (argv?: string[]) => void
 const commands: { [command: string]: () => Promise<cliCommand> } = {
-  build: async () => await import('../cli/next-build').then((i) => i.nextBuild),
-  start: async () => await import('../cli/next-start').then((i) => i.nextStart),
-  export: async () =>
-    await import('../cli/next-export').then((i) => i.nextExport),
-  dev: async () => await import('../cli/next-dev').then((i) => i.nextDev),
-  telemetry: async () =>
-    await import('../cli/next-telemetry').then((i) => i.nextTelemetry),
+  build: () => import('../cli/next-build').then((i) => i.nextBuild),
+  start: () => import('../cli/next-start').then((i) => i.nextStart),
+  export: () => import('../cli/next-export').then((i) => i.nextExport),
+  dev: () => import('../cli/next-dev').then((i) => i.nextDev),
+  lint: () => import('../cli/next-lint').then((i) => i.nextLint),
+  telemetry: () => import('../cli/next-telemetry').then((i) => i.nextTelemetry),
 }
 
 const args = arg(
@@ -100,7 +99,7 @@ const React = require('react')
 
 if (typeof React.Suspense === 'undefined') {
   throw new Error(
-    `The version of React you are using is lower than the minimum required version needed for Next.js. Please upgrade "react" and "react-dom": "npm install react react-dom" https://err.sh/vercel/next.js/invalid-react-version`
+    `The version of React you are using is lower than the minimum required version needed for Next.js. Please upgrade "react" and "react-dom": "npm install react react-dom" https://nextjs.org/docs/messages/invalid-react-version`
   )
 }
 
@@ -108,10 +107,18 @@ if (typeof React.Suspense === 'undefined') {
 process.on('SIGTERM', () => process.exit(0))
 process.on('SIGINT', () => process.exit(0))
 
-commands[command]().then((exec) => exec(forwardedArgs))
+commands[command]()
+  .then((exec) => exec(forwardedArgs))
+  .then(() => {
+    if (command === 'build') {
+      // ensure process exits after build completes so open handles/connections
+      // don't cause process to hang
+      process.exit(0)
+    }
+  })
 
 if (command === 'dev') {
-  const { CONFIG_FILE } = require('../next-server/lib/constants')
+  const { CONFIG_FILE } = require('../shared/lib/constants')
   const { watchFile } = require('fs')
   watchFile(`${process.cwd()}/${CONFIG_FILE}`, (cur: any, prev: any) => {
     if (cur.size > 0 || prev.size > 0) {

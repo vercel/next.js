@@ -1,0 +1,12 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  @apply bg-gray-50;
+}
+
+input {
+  /** Remove shadow on Safari iOS */
+  -webkit-appearance: none;
+}

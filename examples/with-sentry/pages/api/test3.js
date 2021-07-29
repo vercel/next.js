@@ -1,14 +1,13 @@
-import { init } from '../../utils/sentry'
-
-init()
+import { withSentry } from '@sentry/nextjs'
 
 function work() {
   throw new Error('API Test 3')
 }
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   work()
 
-  res.statusCode = 200
-  res.json({ name: 'John Doe' })
+  res.status(200).json({ name: 'John Doe' })
 }
+
+export default withSentry(handler)

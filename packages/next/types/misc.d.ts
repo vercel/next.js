@@ -3,15 +3,10 @@ declare module 'next/dist/compiled/babel/plugin-transform-modules-commonjs'
 declare module 'next/dist/compiled/babel/plugin-syntax-jsx'
 declare module 'browserslist'
 declare module 'cssnano-simple' {
-  import { OldPlugin } from 'postcss'
-  const cssnanoSimple: OldPlugin<{}>
+  const cssnanoSimple: any
   export = cssnanoSimple
 }
 declare module 'styled-jsx/server'
-declare module 'unfetch'
-declare module 'webpack/lib/GraphHelpers'
-declare module 'webpack/lib/DynamicEntryPlugin'
-declare module 'webpack/lib/Entrypoint'
 
 declare module 'next/dist/compiled/amphtml-validator' {
   import m from 'amphtml-validator'
@@ -52,12 +47,30 @@ declare module 'next/dist/compiled/arg/index.js' {
 declare module 'next/dist/compiled/babel/code-frame' {
   export * from '@babel/code-frame'
 }
+declare module 'next/dist/compiled/babel/traverse' {
+  import traverse from '@babel/traverse'
+  export default traverse
+  export * from '@babel/traverse'
+}
+declare module 'next/dist/compiled/babel/generator' {
+  import generate from '@babel/generator'
+  export default generate
+  export * from '@babel/generator'
+}
 declare module 'next/dist/compiled/babel/preset-env' {
-  export default any
+  const anyType: any
+  export default anyType
 }
 declare module 'next/dist/compiled/babel/core' {
   export * from '@babel/core'
 }
+
+declare module 'next/dist/compiled/babel/core-lib-config'
+declare module 'next/dist/compiled/babel/core-lib-normalize-file'
+declare module 'next/dist/compiled/babel/core-lib-normalize-opts'
+declare module 'next/dist/compiled/babel/core-lib-block-hoist-plugin'
+declare module 'next/dist/compiled/babel/core-lib-plugin-pass'
+
 declare module 'next/dist/compiled/ci-info' {
   import m from 'ci-info'
   export = m
@@ -130,9 +143,9 @@ declare module 'next/dist/compiled/lru-cache' {
   import m from 'lru-cache'
   export = m
 }
-declare module 'next/dist/compiled/nanoid/index.js' {
-  function nanoid(size?: number): string
-  export = nanoid
+declare module 'next/dist/compiled/nanoid/index.cjs' {
+  import m from 'nanoid'
+  export = m
 }
 declare module 'next/dist/compiled/ora' {
   import m from 'ora'
@@ -144,10 +157,6 @@ declare module 'next/dist/compiled/path-to-regexp' {
 }
 declare module 'next/dist/compiled/recast' {
   import m from 'recast'
-  export = m
-}
-declare module 'next/dist/compiled/resolve/index.js' {
-  import m from 'resolve'
   export = m
 }
 declare module 'next/dist/compiled/send' {

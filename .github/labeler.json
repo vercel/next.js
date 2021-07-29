@@ -8,6 +8,24 @@
       "packages/react-dev-overlay/**",
       "packages/react-refresh-utils/**",
       "packages/next-codemod/**"
+    ],
+    "created-by: Chrome Aurora": [
+      { "type": "user", "pattern": "spanicker" },
+      { "type": "user", "pattern": "housseindjirdeh" },
+      { "type": "user", "pattern": "devknoll" },
+      { "type": "user", "pattern": "janicklas-ralph" },
+      { "type": "user", "pattern": "atcastle" },
+      { "type": "user", "pattern": "Joonpark13" }
+    ],
+    "created-by: Next.js team": [
+      { "type": "user", "pattern": "ijjk" },
+      { "type": "user", "pattern": "padmaia" },
+      { "type": "user", "pattern": "huozhi" },
+      { "type": "user", "pattern": "shuding" },
+      { "type": "user", "pattern": "sokra" },
+      { "type": "user", "pattern": "styfle" },
+      { "type": "user", "pattern": "leerob" },
+      { "type": "user", "pattern": "timneutkens" }
     ]
   }
 }

@@ -1,21 +1,23 @@
 /* eslint-env jest */
+function interopRequireDefault(mod) {
+  return mod.default || mod
+}
 
-// avoid generating __source annotations in JSX during testing:
-const NODE_ENV = process.env.NODE_ENV
-process.env.NODE_ENV = 'production'
-require('next/dist/build/babel/preset')
-process.env.NODE_ENV = NODE_ENV
-
-const loader = require('next/dist/build/webpack/loaders/next-babel-loader')
+const loader = interopRequireDefault(
+  require('next/dist/build/webpack/loaders/next-babel-loader')
+)
 const os = require('os')
 const path = require('path')
 
 const dir = path.resolve(os.tmpdir())
 
-const babel = async (
-  code,
-  { isServer = false, resourcePath = 'index.js', development = false } = {}
-) => {
+const babel = async (code, queryOpts = {}) => {
+  const {
+    isServer = false,
+    resourcePath = 'index.js',
+    development = false,
+  } = queryOpts
+
   let isAsync = false
   return new Promise((resolve, reject) => {
     function callback(err, content) {
@@ -48,9 +50,11 @@ const babel = async (
         cwd: dir,
         isServer,
         distDir: path.resolve(dir, '.next'),
-        pagesDir: path.resolve(dir, 'pages'),
+        pagesDir:
+          'pagesDir' in queryOpts
+            ? queryOpts.pagesDir
+            : path.resolve(dir, 'pages'),
         cache: false,
-        babelPresetPlugins: [],
         development,
         hasReactRefresh: Boolean(!isServer && development),
       },
@@ -196,6 +200,28 @@ describe('next-babel-loader', () => {
     it('should replace NODE_ENV in !== statement (prod)', async () => {
       const code = await babel(`if (process.env.NODE_ENV !== 'production') {}`)
       expect(code).toMatchInlineSnapshot(`"if(false){}"`)
+    })
+
+    it('should handle no pagesDir', async () => {
+      const code = await babel(
+        `
+        import dynamic from 'next/dynamic'
+        
+        const Comp = dynamic(() => import('comp'))
+        
+        export default function Page(props) {
+          return <Comp />
+        }
+      `,
+        {
+          pagesDir: undefined,
+        }
+      )
+      expect(
+        code.replace(/modules:\[".*?"/, 'modules:["/path/to/page"')
+      ).toMatchInlineSnapshot(
+        `"import React from\\"react\\";var __jsx=React.createElement;import dynamic from'next/dynamic';var Comp=dynamic(function(){return import('comp');},{loadableGenerated:{webpack:function webpack(){return[require.resolveWeak('comp')];},modules:[\\"/path/to/page\\"+'comp']}});export default function Page(props){return __jsx(Comp,null);}"`
+      )
     })
 
     it('should not drop unused exports by default', async () => {
@@ -364,8 +390,8 @@ describe('next-babel-loader', () => {
         { resourcePath: pageFile, isServer: false, development: true }
       )
 
-      expect(output).toMatchInlineSnapshot(
-        `"var __jsx=React.createElement;import React from\\"react\\";export var __N_SSG=true;export default function Home(_ref){var greeting=_ref.greeting;return __jsx(\\"h1\\",null,greeting);}_c=Home;var _c;$RefreshReg$(_c,\\"Home\\");"`
+      expect(output).toMatch(
+        /var _jsxFileName="[^"]+";var __jsx=React\.createElement;import React from"react";export var __N_SSG=true;export default function Home\(_ref\)\{var greeting=_ref\.greeting;return __jsx\("h1",\{__self:this,__source:\{fileName:_jsxFileName,lineNumber:8,columnNumber:20\}\},greeting\);\}_c=Home;var _c;\$RefreshReg\$\(_c,"Home"\);/
       )
     })
 
@@ -378,7 +404,7 @@ describe('next-babel-loader', () => {
         }
       )
       expect(code).toMatchInlineSnapshot(
-        `"var hello;export default(function(){return(hello===null||hello===void 0?void 0:hello.world)?'something':'nothing';});"`
+        `"var hello;export default(function(){return hello!==null&&hello!==void 0&&hello.world?'something':'nothing';});"`
       )
     })
 
@@ -391,7 +417,7 @@ describe('next-babel-loader', () => {
         }
       )
       expect(code).toMatchInlineSnapshot(
-        `"var hello;export default(function(){return(hello===null||hello===void 0?void 0:hello.world)?'something':'nothing';});"`
+        `"var hello;export default(function(){return hello!==null&&hello!==void 0&&hello.world?'something':'nothing';});"`
       )
     })
 

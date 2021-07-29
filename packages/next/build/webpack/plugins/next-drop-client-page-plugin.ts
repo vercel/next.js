@@ -1,30 +1,24 @@
-import {
-  Compiler,
-  compilation as CompilationType,
-  Plugin,
-  version,
-} from 'webpack'
-import { STRING_LITERAL_DROP_BUNDLE } from '../../../next-server/lib/constants'
-
-const isWebpack5 = parseInt(version!) === 5
+import { webpack } from 'next/dist/compiled/webpack/webpack'
+import { isWebpack5 } from 'next/dist/compiled/webpack/webpack'
+import { STRING_LITERAL_DROP_BUNDLE } from '../../../shared/lib/constants'
 
 export const ampFirstEntryNamesMap: WeakMap<
-  CompilationType.Compilation,
+  webpack.compilation.Compilation,
   string[]
 > = new WeakMap()
 
 const PLUGIN_NAME = 'DropAmpFirstPagesPlugin'
 
 // Prevents outputting client pages when they are not needed
-export class DropClientPage implements Plugin {
+export class DropClientPage implements webpack.Plugin {
   ampPages = new Set()
 
-  apply(compiler: Compiler) {
+  apply(compiler: webpack.Compiler) {
     compiler.hooks.compilation.tap(
       PLUGIN_NAME,
       (compilation: any, { normalModuleFactory }: any) => {
         // Recursively look up the issuer till it ends up at the root
-        function findEntryModule(mod: any): CompilationType.Module | null {
+        function findEntryModule(mod: any): webpack.compilation.Module | null {
           const queue = new Set([mod])
           for (const module of queue) {
             if (isWebpack5) {

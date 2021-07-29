@@ -1,14 +1,13 @@
-import babelLoader from 'next/dist/compiled/babel-loader'
-import hash from 'next/dist/compiled/string-hash'
-import { basename, join } from 'path'
+import { join } from 'path'
 import * as Log from '../../output/log'
+import babelLoader from './babel-loader/src/index'
 
-// increment 'n' to invalidate cache
+// increment 'p' to invalidate cache
 // eslint-disable-next-line no-useless-concat
-const cacheKey = 'babel-cache-' + 'n' + '-'
+const cacheKey = 'babel-cache-' + 'p' + '-'
 const nextBabelPreset = require('../../babel/preset')
 
-module.exports = babelLoader.custom((babel) => {
+const customBabelLoader = babelLoader((babel) => {
   const presetItem = babel.createConfigItem(nextBabelPreset, {
     type: 'preset',
   })
@@ -28,7 +27,6 @@ module.exports = babelLoader.custom((babel) => {
       const custom = {
         isServer: opts.isServer,
         pagesDir: opts.pagesDir,
-        babelPresetPlugins: opts.babelPresetPlugins,
         development: opts.development,
         hasReactRefresh: opts.hasReactRefresh,
         hasJsxRuntime: opts.hasJsxRuntime,
@@ -37,7 +35,6 @@ module.exports = babelLoader.custom((babel) => {
       const loader = Object.assign(
         opts.cache
           ? {
-              cacheCompression: false,
               cacheDirectory: join(opts.distDir, 'cache', 'next-babel-loader'),
               cacheIdentifier:
                 cacheKey +
@@ -64,7 +61,6 @@ module.exports = babelLoader.custom((babel) => {
       delete loader.cache
       delete loader.distDir
       delete loader.pagesDir
-      delete loader.babelPresetPlugins
       delete loader.development
       delete loader.hasReactRefresh
       delete loader.hasJsxRuntime
@@ -77,7 +73,6 @@ module.exports = babelLoader.custom((babel) => {
         customOptions: {
           isServer,
           pagesDir,
-          babelPresetPlugins,
           development,
           hasReactRefresh,
           hasJsxRuntime,
@@ -104,6 +99,7 @@ module.exports = babelLoader.custom((babel) => {
       options.caller.isServer = isServer
       options.caller.isDev = development
       options.caller.hasJsxRuntime = hasJsxRuntime
+      options.caller.pagesDir = pagesDir
 
       const emitWarning = this.emitWarning.bind(this)
       Object.defineProperty(options.caller, 'onWarning', {
@@ -150,17 +146,6 @@ module.exports = babelLoader.custom((babel) => {
         options.plugins.push(diallowExportAll)
       }
 
-      if (isServer && source.indexOf('next/data') !== -1) {
-        const nextDataPlugin = babel.createConfigItem(
-          [
-            require('../../babel/plugins/next-data'),
-            { key: basename(filename) + '-' + hash(filename) },
-          ],
-          { type: 'plugin' }
-        )
-        options.plugins.push(nextDataPlugin)
-      }
-
       // If the file has `module.exports` we have to transpile commonjs because Babel adds `import` statements
       // That break webpack, since webpack doesn't support combining commonjs and esmodules
       if (source.indexOf('module.exports') !== -1) {
@@ -168,7 +153,7 @@ module.exports = babelLoader.custom((babel) => {
       }
 
       options.plugins.push([
-        require.resolve('babel-plugin-transform-define'),
+        require.resolve('next/dist/compiled/babel/plugin-transform-define'),
         {
           'process.env.NODE_ENV': development ? 'development' : 'production',
           'typeof window': isServer ? 'undefined' : 'object',
@@ -186,12 +171,12 @@ module.exports = babelLoader.custom((babel) => {
         }
       }
 
-      // As next-server/lib has stateful modules we have to transpile commonjs
+      // As shared/lib has stateful modules we have to transpile commonjs
       options.overrides = [
         ...(options.overrides || []),
         {
           test: [
-            /next[\\/]dist[\\/]next-server[\\/]lib/,
+            /next[\\/]dist[\\/]shared[\\/]lib/,
             /next[\\/]dist[\\/]client/,
             /next[\\/]dist[\\/]pages/,
           ],
@@ -199,14 +184,9 @@ module.exports = babelLoader.custom((babel) => {
         },
       ]
 
-      for (const plugin of babelPresetPlugins) {
-        require(join(plugin.dir, 'src', 'babel-preset-build.js'))(
-          options,
-          plugin.config || {}
-        )
-      }
-
       return options
     },
   }
 })
+
+export default customBabelLoader

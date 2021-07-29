@@ -1,11 +1,14 @@
-import webpack, { Stats, Configuration } from 'webpack'
+import { webpack } from 'next/dist/compiled/webpack/webpack'
 
 export type CompilerResult = {
   errors: string[]
   warnings: string[]
 }
 
-function generateStats(result: CompilerResult, stat: Stats): CompilerResult {
+function generateStats(
+  result: CompilerResult,
+  stat: webpack.Stats
+): CompilerResult {
   const { errors, warnings } = stat.toJson('errors-warnings')
   if (errors.length > 0) {
     result.errors.push(...errors)
@@ -21,7 +24,7 @@ function generateStats(result: CompilerResult, stat: Stats): CompilerResult {
 // Webpack 5 requires the compiler to be closed (to save caches)
 // Webpack 4 does not have this close method so in order to be backwards compatible we check if it exists
 function closeCompiler(compiler: webpack.Compiler | webpack.MultiCompiler) {
-  return new Promise((resolve, reject) => {
+  return new Promise<void>((resolve, reject) => {
     if ('close' in compiler) {
       // @ts-ignore Close only exists on the compiler in webpack 5
       return compiler.close((err: any) => (err ? reject(err) : resolve()))
@@ -32,12 +35,15 @@ function closeCompiler(compiler: webpack.Compiler | webpack.MultiCompiler) {
 }
 
 export function runCompiler(
-  config: Configuration | Configuration[]
+  config: webpack.Configuration | webpack.Configuration[]
 ): Promise<CompilerResult> {
   return new Promise((resolve, reject) => {
     const compiler = webpack(config)
     compiler.run(
-      (err: Error, statsOrMultiStats: { stats: Stats[] } | Stats) => {
+      (
+        err: Error,
+        statsOrMultiStats: { stats: webpack.Stats[] } | webpack.Stats
+      ) => {
         closeCompiler(compiler).then(() => {
           if (err) {
             const reason = err?.toString()

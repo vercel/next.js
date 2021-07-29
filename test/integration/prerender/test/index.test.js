@@ -58,7 +58,7 @@ const startServer = async (optEnv = {}) => {
 const expectedManifestRoutes = () => ({
   '/': {
     dataRoute: `/_next/data/${buildId}/index.json`,
-    initialRevalidateSeconds: 1,
+    initialRevalidateSeconds: 2,
     srcRoute: null,
   },
   '/blog/[post3]': {
@@ -227,6 +227,10 @@ const expectedManifestRoutes = () => ({
     srcRoute: '/catchall/[...slug]',
   },
 })
+
+function isCachingHeader(cacheControl) {
+  return !cacheControl || !/no-store/.test(cacheControl)
+}
 
 const navigateTest = (dev = false) => {
   it('should navigate between pages successfully', async () => {
@@ -520,6 +524,15 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
     )
     expect(data.pageProps.post).toBe('post-3')
   })
+
+  if (!dev) {
+    it('should use correct caching headers for a revalidate page', async () => {
+      const initialRes = await fetchViaHTTP(appPort, '/')
+      expect(initialRes.headers.get('cache-control')).toBe(
+        's-maxage=2, stale-while-revalidate'
+      )
+    })
+  }
 
   it('should navigate to a normal page and back', async () => {
     const browser = await webdriver(appPort, '/')
@@ -965,18 +978,20 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
 
     it('should always call getStaticProps without caching in dev', async () => {
       const initialRes = await fetchViaHTTP(appPort, '/something')
-      expect(initialRes.headers.get('cache-control')).toBeFalsy()
+      expect(isCachingHeader(initialRes.headers.get('cache-control'))).toBe(
+        false
+      )
       const initialHtml = await initialRes.text()
       expect(initialHtml).toMatch(/hello.*?world/)
 
       const newRes = await fetchViaHTTP(appPort, '/something')
-      expect(newRes.headers.get('cache-control')).toBeFalsy()
+      expect(isCachingHeader(newRes.headers.get('cache-control'))).toBe(false)
       const newHtml = await newRes.text()
       expect(newHtml).toMatch(/hello.*?world/)
       expect(initialHtml !== newHtml).toBe(true)
 
       const newerRes = await fetchViaHTTP(appPort, '/something')
-      expect(newerRes.headers.get('cache-control')).toBeFalsy()
+      expect(isCachingHeader(newerRes.headers.get('cache-control'))).toBe(false)
       const newerHtml = await newerRes.text()
       expect(newerHtml).toMatch(/hello.*?world/)
       expect(newHtml !== newerHtml).toBe(true)
@@ -1425,7 +1440,7 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
         }
       })
 
-      expect(manifest.version).toBe(2)
+      expect(manifest.version).toBe(3)
       expect(manifest.routes).toEqual(expectedManifestRoutes())
       expect(manifest.dynamicRoutes).toEqual({
         '/api-docs/[...slug]': {
@@ -1631,6 +1646,7 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
 
       it('should handle revalidating HTML correctly', async () => {
         const route = '/blog/post-2/comment-2'
+        await renderViaHTTP(appPort, route)
         const initialHtml = await renderViaHTTP(appPort, route)
         expect(initialHtml).toMatch(/Post:.*?post-2/)
         expect(initialHtml).toMatch(/Comment:.*?comment-2/)

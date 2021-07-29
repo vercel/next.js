@@ -1,6 +1,6 @@
 {
   "name": "@next/mdx",
-  "version": "10.0.4-canary.6",
+  "version": "11.0.2-canary.23",
   "main": "index.js",
   "license": "MIT",
   "repository": {
@@ -8,6 +8,7 @@
     "directory": "packages/next-mdx"
   },
   "peerDependencies": {
-    "@mdx-js/loader": ">=0.15.0"
+    "@mdx-js/loader": ">=0.15.0",
+    "@mdx-js/react": "*"
   }
 }

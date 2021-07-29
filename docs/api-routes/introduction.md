@@ -15,24 +15,22 @@ description: Next.js supports API Routes, which allow you to build your API with
   </ul>
 </details>
 
-API routes provide a straightforward solution to build your **API** with Next.js.
+API routes provide a solution to build your **API** with Next.js.
 
 Any file inside the folder `pages/api` is mapped to `/api/*` and will be treated as an API endpoint instead of a `page`. They are server-side only bundles and won't increase your client-side bundle size.
 
-For example, the following API route `pages/api/user.js` handles a `json` response:
+For example, the following API route `pages/api/user.js` returns a `json` response with a status code of `200`:
 
 ```js
 export default function handler(req, res) {
-  res.statusCode = 200
-  res.setHeader('Content-Type', 'application/json')
-  res.end(JSON.stringify({ name: 'John Doe' }))
+  res.status(200).json({ name: 'John Doe' })
 }
 ```
 
 For an API route to work, you need to export a function as default (a.k.a **request handler**), which then receives the following parameters:
 
-- `req`: An instance of [http.IncomingMessage](https://nodejs.org/api/http.html#http_class_http_incomingmessage), plus some pre-built middlewares you can see [here](/docs/api-routes/api-middlewares.md)
-- `res`: An instance of [http.ServerResponse](https://nodejs.org/api/http.html#http_class_http_serverresponse), plus some helper functions you can see [here](/docs/api-routes/response-helpers.md)
+- `req`: An instance of [http.IncomingMessage](https://nodejs.org/api/http.html#http_class_http_incomingmessage), plus some [pre-built middlewares](/docs/api-routes/api-middlewares.md)
+- `res`: An instance of [http.ServerResponse](https://nodejs.org/api/http.html#http_class_http_serverresponse), plus some [helper functions](/docs/api-routes/response-helpers.md)
 
 To handle different HTTP methods in an API route, you can use `req.method` in your request handler, like so:
 
@@ -47,6 +45,13 @@ export default function handler(req, res) {
 ```
 
 To fetch API endpoints, take a look into any of the examples at the start of this section.
+
+## Use Cases
+
+For new projects, you can build your entire API with API Routes. If you have an existing API, you do not need to forward calls to the API through an API Route. Some other use cases for API Routes are:
+
+- Masking the URL of an external service (e.g. `/api/secret` instead of `https://company.com/secret-url`)
+- Using [Environment Variables](/docs/basic-features/environment-variables.md) on the server to securely access external services.
 
 ## Caveats
 

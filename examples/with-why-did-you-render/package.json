@@ -1,15 +1,14 @@
 {
-  "name": "with-why-did-you-render",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",
     "start": "next start"
   },
   "dependencies": {
-    "@welldone-software/why-did-you-render": "^4.0.4",
+    "@welldone-software/why-did-you-render": "^6.0.5",
     "next": "latest",
-    "react": "^16.7.0",
-    "react-dom": "^16.7.0"
-  },
-  "license": "MIT"
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2"
+  }
 }

@@ -3,7 +3,7 @@ import http from 'http'
 import fs from 'fs-extra'
 import { join } from 'path'
 import cheerio from 'cheerio'
-import { runTests, locales } from './shared'
+import { runTests, locales, nonDomainLocales } from './shared'
 import webdriver from 'next-webdriver'
 import {
   nextBuild,
@@ -14,7 +14,9 @@ import {
   fetchViaHTTP,
   File,
   launchApp,
+  check,
 } from 'next-test-utils'
+import assert from 'assert'
 
 const appDir = join(__dirname, '../')
 const nextConfig = new File(join(appDir, 'next.config.js'))
@@ -213,20 +215,31 @@ describe('i18n Support', () => {
 
       expect(routesManifest.i18n).toEqual({
         localeDetection: false,
-        locales: ['en-US', 'nl-NL', 'nl-BE', 'nl', 'fr-BE', 'fr', 'en'],
+        locales: [
+          'en-US',
+          'nl-NL',
+          'nl-BE',
+          'nl',
+          'fr-BE',
+          'fr',
+          'en',
+          'go',
+          'go-BE',
+          'do',
+          'do-BE',
+        ],
         defaultLocale: 'en-US',
         domains: [
           {
             http: true,
-            domain: 'example.be',
-            defaultLocale: 'nl-BE',
-            locales: ['nl', 'nl-NL', 'nl-BE'],
+            domain: 'example.do',
+            defaultLocale: 'do',
+            locales: ['do-BE'],
           },
           {
-            http: true,
-            domain: 'example.fr',
-            defaultLocale: 'fr',
-            locales: ['fr-BE'],
+            domain: 'example.com',
+            defaultLocale: 'go',
+            locales: ['go-BE'],
           },
         ],
       })
@@ -254,8 +267,30 @@ describe('i18n Support', () => {
       expect($('#router-as-path').text()).toBe('/')
     })
 
+    it('should ignore the invalid accept-language header', async () => {
+      nextConfig.replace('localeDetection: false', 'localeDetection: true')
+      const res = await fetchViaHTTP(
+        ctx.appPort,
+        '/',
+        {},
+        {
+          headers: {
+            'accept-language': 'ldfir;',
+          },
+        }
+      )
+
+      expect(res.status).toBe(200)
+      const $ = cheerio.load(await res.text())
+      expect($('html').attr('lang')).toBe('en-US')
+      expect($('#router-locale').text()).toBe('en-US')
+      expect(JSON.parse($('#router-locales').text())).toEqual(locales)
+      expect($('#router-pathname').text()).toBe('/')
+      expect($('#router-as-path').text()).toBe('/')
+    })
+
     it('should set locale from detected path', async () => {
-      for (const locale of locales) {
+      for (const locale of nonDomainLocales) {
         const res = await fetchViaHTTP(
           ctx.appPort,
           `/${locale}`,
@@ -280,121 +315,221 @@ describe('i18n Support', () => {
   })
 
   describe('with trailingSlash: true', () => {
-    const curCtx = {
-      ...ctx,
-      isDev: true,
-    }
-    beforeAll(async () => {
-      await fs.remove(join(appDir, '.next'))
-      nextConfig.replace('// trailingSlash', 'trailingSlash')
-
-      curCtx.appPort = await findPort()
-      curCtx.app = await launchApp(appDir, curCtx.appPort)
-    })
-    afterAll(async () => {
-      nextConfig.restore()
-      await killApp(curCtx.app)
-    })
-
-    it('should redirect correctly', async () => {
-      for (const locale of locales) {
-        const res = await fetchViaHTTP(curCtx.appPort, '/', undefined, {
-          redirect: 'manual',
-          headers: {
-            'accept-language': locale,
-          },
-        })
-
-        if (locale === 'en-US') {
-          expect(res.status).toBe(200)
-        } else {
-          expect(res.status).toBe(307)
-
-          const parsed = url.parse(res.headers.get('location'), true)
-          expect(parsed.pathname).toBe(`/${locale}`)
-          expect(parsed.query).toEqual({})
-        }
-      }
-    })
-
-    it('should serve pages correctly with locale prefix', async () => {
-      for (const locale of locales) {
-        for (const [pathname, asPath] of [
-          ['/', '/'],
-          ['/links', '/links/'],
-          ['/auto-export', '/auto-export/'],
-          ['/gsp', '/gsp/'],
-          ['/gsp/fallback/[slug]', '/gsp/fallback/always/'],
-          ['/gssp', '/gssp/'],
-          ['/gssp/[slug]', '/gssp/first/'],
-        ]) {
-          const res = await fetchViaHTTP(
+    const runSlashTests = (curCtx) => {
+      if (!curCtx.isDev) {
+        it('should preload all locales data correctly', async () => {
+          const browser = await webdriver(
             curCtx.appPort,
-            `${locale === 'en-US' ? '' : `/${locale}`}${asPath}`,
-            undefined,
-            {
-              redirect: 'manual',
-            }
+            `${curCtx.basePath}/mixed`
           )
-          expect(res.status).toBe(200)
 
-          const $ = cheerio.load(await res.text())
+          await browser.eval(`(function() {
+            document.querySelector('#to-gsp-en-us').scrollIntoView()
+            document.querySelector('#to-gsp-nl-nl').scrollIntoView()
+            document.querySelector('#to-gsp-fr').scrollIntoView()
+          })()`)
 
-          expect($('#router-pathname').text()).toBe(pathname)
-          expect($('#router-as-path').text()).toBe(asPath)
-          expect($('#router-locale').text()).toBe(locale)
-          expect(JSON.parse($('#router-locales').text())).toEqual(locales)
-          expect($('#router-default-locale').text()).toBe('en-US')
+          await check(async () => {
+            const hrefs = await browser.eval(
+              `Object.keys(window.next.router.sdc)`
+            )
+            hrefs.sort()
+
+            assert.deepEqual(
+              hrefs.map((href) =>
+                new URL(href).pathname
+                  .replace(ctx.basePath, '')
+                  .replace(/^\/_next\/data\/[^/]+/, '')
+              ),
+              ['/en-US/gsp.json', '/fr.json', '/fr/gsp.json', '/nl-NL/gsp.json']
+            )
+            return 'yes'
+          }, 'yes')
+        })
+      }
+
+      it('should redirect correctly', async () => {
+        for (const locale of nonDomainLocales) {
+          const res = await fetchViaHTTP(curCtx.appPort, '/', undefined, {
+            redirect: 'manual',
+            headers: {
+              'accept-language': locale,
+            },
+          })
+
+          if (locale === 'en-US') {
+            expect(res.status).toBe(200)
+          } else {
+            expect(res.status).toBe(307)
+
+            const parsed = url.parse(res.headers.get('location'), true)
+            expect(parsed.pathname).toBe(`/${locale}`)
+            expect(parsed.query).toEqual({})
+          }
+        }
+      })
+
+      it('should serve pages correctly with locale prefix', async () => {
+        for (const locale of nonDomainLocales) {
+          for (const [pathname, asPath] of [
+            ['/', '/'],
+            ['/links', '/links/'],
+            ['/auto-export', '/auto-export/'],
+            ['/gsp', '/gsp/'],
+            ['/gsp/fallback/[slug]', '/gsp/fallback/always/'],
+            ['/gssp', '/gssp/'],
+            ['/gssp/[slug]', '/gssp/first/'],
+          ]) {
+            const res = await fetchViaHTTP(
+              curCtx.appPort,
+              `${locale === 'en-US' ? '' : `/${locale}`}${asPath}`,
+              undefined,
+              {
+                redirect: 'manual',
+              }
+            )
+            expect(res.status).toBe(200)
+
+            const $ = cheerio.load(await res.text())
+
+            expect($('#router-pathname').text()).toBe(pathname)
+            expect($('#router-as-path').text()).toBe(asPath)
+            expect($('#router-locale').text()).toBe(locale)
+            expect(JSON.parse($('#router-locales').text())).toEqual(locales)
+            expect($('#router-default-locale').text()).toBe('en-US')
+          }
+        }
+      })
+
+      it('should navigate between pages correctly', async () => {
+        for (const locale of nonDomainLocales) {
+          const localePath = `/${locale !== 'en-US' ? `${locale}/` : ''}`
+          const browser = await webdriver(curCtx.appPort, localePath)
+
+          await browser.eval('window.beforeNav = 1')
+          await browser.elementByCss('#to-gsp').click()
+          await browser.waitForElementByCss('#gsp')
+
+          expect(await browser.elementByCss('#router-pathname').text()).toBe(
+            '/gsp'
+          )
+          expect(await browser.elementByCss('#router-as-path').text()).toBe(
+            '/gsp/'
+          )
+          expect(await browser.elementByCss('#router-locale').text()).toBe(
+            locale
+          )
+          expect(await browser.eval('window.beforeNav')).toBe(1)
+          expect(await browser.eval('window.location.pathname')).toBe(
+            `${localePath}gsp/`
+          )
+
+          await browser.back().waitForElementByCss('#index')
+
+          expect(await browser.elementByCss('#router-pathname').text()).toBe(
+            '/'
+          )
+          expect(await browser.elementByCss('#router-as-path').text()).toBe('/')
+          expect(await browser.elementByCss('#router-locale').text()).toBe(
+            locale
+          )
+          expect(await browser.eval('window.beforeNav')).toBe(1)
+          expect(await browser.eval('window.location.pathname')).toBe(
+            `${localePath}`
+          )
+
+          await browser.elementByCss('#to-gssp-slug').click()
+          await browser.waitForElementByCss('#gssp')
+
+          expect(await browser.elementByCss('#router-pathname').text()).toBe(
+            '/gssp/[slug]'
+          )
+          expect(await browser.elementByCss('#router-as-path').text()).toBe(
+            '/gssp/first/'
+          )
+          expect(await browser.elementByCss('#router-locale').text()).toBe(
+            locale
+          )
+          expect(await browser.eval('window.beforeNav')).toBe(1)
+          expect(await browser.eval('window.location.pathname')).toBe(
+            `${localePath}gssp/first/`
+          )
+        }
+      })
+    }
+
+    describe('dev mode', () => {
+      const curCtx = {
+        ...ctx,
+        isDev: true,
+      }
+      beforeAll(async () => {
+        await fs.remove(join(appDir, '.next'))
+        nextConfig.replace('// trailingSlash', 'trailingSlash')
+
+        curCtx.appPort = await findPort()
+        curCtx.app = await launchApp(appDir, curCtx.appPort)
+      })
+      afterAll(async () => {
+        nextConfig.restore()
+        await killApp(curCtx.app)
+      })
+
+      runSlashTests(curCtx)
+    })
+
+    describe('production mode', () => {
+      const curCtx = {
+        ...ctx,
+      }
+      beforeAll(async () => {
+        await fs.remove(join(appDir, '.next'))
+        nextConfig.replace('// trailingSlash', 'trailingSlash')
+
+        await nextBuild(appDir)
+        curCtx.appPort = await findPort()
+        curCtx.app = await nextStart(appDir, curCtx.appPort)
+      })
+      afterAll(async () => {
+        nextConfig.restore()
+        await killApp(curCtx.app)
+      })
+
+      runSlashTests(curCtx)
+    })
+  })
+
+  it('should show proper error for duplicate defaultLocales', async () => {
+    nextConfig.write(`
+      module.exports = {
+        i18n: {
+          locales: ['en', 'fr', 'nl'],
+          defaultLocale: 'en',
+          domains: [
+            {
+              domain: 'example.com',
+              defaultLocale: 'en'
+            },
+            {
+              domain: 'fr.example.com',
+              defaultLocale: 'fr',
+            },
+            {
+              domain: 'french.example.com',
+              defaultLocale: 'fr',
+            }
+          ]
         }
       }
+    `)
+
+    const { code, stderr } = await nextBuild(appDir, undefined, {
+      stderr: true,
     })
-
-    it('should navigate between pages correctly', async () => {
-      for (const locale of locales) {
-        const localePath = `/${locale !== 'en-US' ? `${locale}/` : ''}`
-        const browser = await webdriver(curCtx.appPort, localePath)
-
-        await browser.eval('window.beforeNav = 1')
-        await browser.elementByCss('#to-gsp').click()
-        await browser.waitForElementByCss('#gsp')
-
-        expect(await browser.elementByCss('#router-pathname').text()).toBe(
-          '/gsp'
-        )
-        expect(await browser.elementByCss('#router-as-path').text()).toBe(
-          '/gsp/'
-        )
-        expect(await browser.elementByCss('#router-locale').text()).toBe(locale)
-        expect(await browser.eval('window.beforeNav')).toBe(1)
-        expect(await browser.eval('window.location.pathname')).toBe(
-          `${localePath}gsp/`
-        )
-
-        await browser.back().waitForElementByCss('#index')
-
-        expect(await browser.elementByCss('#router-pathname').text()).toBe('/')
-        expect(await browser.elementByCss('#router-as-path').text()).toBe('/')
-        expect(await browser.elementByCss('#router-locale').text()).toBe(locale)
-        expect(await browser.eval('window.beforeNav')).toBe(1)
-        expect(await browser.eval('window.location.pathname')).toBe(
-          `${localePath}`
-        )
-
-        await browser.elementByCss('#to-gssp-slug').click()
-        await browser.waitForElementByCss('#gssp')
-
-        expect(await browser.elementByCss('#router-pathname').text()).toBe(
-          '/gssp/[slug]'
-        )
-        expect(await browser.elementByCss('#router-as-path').text()).toBe(
-          '/gssp/first/'
-        )
-        expect(await browser.elementByCss('#router-locale').text()).toBe(locale)
-        expect(await browser.eval('window.beforeNav')).toBe(1)
-        expect(await browser.eval('window.location.pathname')).toBe(
-          `${localePath}gssp/first/`
-        )
-      }
-    })
+    nextConfig.restore()
+    expect(code).toBe(1)
+    expect(stderr).toContain(
+      'Both fr.example.com and french.example.com configured the defaultLocale fr but only one can'
+    )
   })
 })

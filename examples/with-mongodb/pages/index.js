@@ -1,5 +1,5 @@
 import Head from 'next/head'
-import { connectToDatabase } from '../util/mongodb'
+import { connectToDatabase } from '../lib/mongodb'
 
 export default function Home({ isConnected }) {
   return (
@@ -47,7 +47,7 @@ export default function Home({ isConnected }) {
           </a>
 
           <a
-            href="https://vercel.com/import?filter=next.js&utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
+            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
             className="card"
           >
             <h3>Deploy &rarr;</h3>
@@ -225,7 +225,7 @@ export default function Home({ isConnected }) {
 export async function getServerSideProps(context) {
   const { client } = await connectToDatabase()
 
-  const isConnected = await client.isConnected() // Returns true or false
+  const isConnected = await client.isConnected()
 
   return {
     props: { isConnected },

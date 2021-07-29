@@ -1,22 +1,17 @@
 {
-  "name": "with-firebase-cloud-messaging",
-  "version": "1.0.0",
+  "private": true,
   "scripts": {
-    "dev": "node server.js",
+    "dev": "next dev",
     "build": "next build",
-    "start": "cross-env NODE_ENV=production node server.js"
+    "start": "next start"
   },
   "dependencies": {
-    "cross-env": "^7.0.2",
-    "express": "^4.14.0",
     "firebase": "^7.6.2",
     "localforage": "^1.7.3",
     "next": "latest",
-    "react": "^16.7.0",
-    "react-dom": "^16.7.0"
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2"
   },
-  "devDependencies": {
-    "next-offline": "^3.0.10"
-  },
+  "devDependencies": {},
   "license": "MIT"
 }

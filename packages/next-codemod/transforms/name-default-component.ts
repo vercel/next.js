@@ -1,38 +1,49 @@
+import {
+  API,
+  ArrowFunctionExpression,
+  ASTPath,
+  ExportDefaultDeclaration,
+  FileInfo,
+  FunctionDeclaration,
+  Options,
+} from 'jscodeshift'
 import { basename, extname } from 'path'
 
-const camelCase = (value) => {
+const camelCase = (value: string): string => {
   const val = value.replace(/[-_\s.]+(.)?/g, (_match, chr) =>
     chr ? chr.toUpperCase() : ''
   )
   return val.substr(0, 1).toUpperCase() + val.substr(1)
 }
 
-const isValidIdentifier = (value) => /^[a-zA-ZÀ-ÿ][0-9a-zA-ZÀ-ÿ]+$/.test(value)
+const isValidIdentifier = (value: string): boolean =>
+  /^[a-zA-ZÀ-ÿ][0-9a-zA-ZÀ-ÿ]+$/.test(value)
 
-export default function transformer(file, api, options) {
+export default function transformer(
+  file: FileInfo,
+  api: API,
+  options: Options
+) {
   const j = api.jscodeshift
   const root = j(file.source)
 
-  let hasModifications
+  let hasModifications: boolean
 
-  const returnsJSX = (node) =>
+  const returnsJSX = (node): boolean =>
     node.type === 'JSXElement' ||
     (node.type === 'BlockStatement' &&
       j(node)
         .find(j.ReturnStatement)
-        .some(
-          (path) =>
-            path.value.argument && path.value.argument.type === 'JSXElement'
-        ))
+        .some((path) => path.value.argument?.type === 'JSXElement'))
 
-  const hasRootAsParent = (path) => {
+  const hasRootAsParent = (path): boolean => {
     const program = path.parentPath.parentPath.parentPath.parentPath.parentPath
-    return (
-      !program || (program && program.value && program.value.type === 'Program')
-    )
+    return !program || program?.value?.type === 'Program'
   }
 
-  const nameFunctionComponent = (path) => {
+  const nameFunctionComponent = (
+    path: ASTPath<ExportDefaultDeclaration>
+  ): void => {
     const node = path.value
 
     if (!node.declaration) {
@@ -72,14 +83,17 @@ export default function transformer(file, api, options) {
     if (isArrowFunction) {
       path.insertBefore(
         j.variableDeclaration('const', [
-          j.variableDeclarator(j.identifier(name), node.declaration),
+          j.variableDeclarator(
+            j.identifier(name),
+            node.declaration as ArrowFunctionExpression
+          ),
         ])
       )
 
       node.declaration = j.identifier(name)
     } else {
       // Anonymous Function
-      node.declaration.id = j.identifier(name)
+      ;(node.declaration as FunctionDeclaration).id = j.identifier(name)
     }
   }
 

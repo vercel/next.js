@@ -4,10 +4,7 @@ import {
   types as BabelTypes,
 } from 'next/dist/compiled/babel/core'
 import { SERVER_PROPS_SSG_CONFLICT } from '../../../lib/constants'
-import {
-  SERVER_PROPS_ID,
-  STATIC_PROPS_ID,
-} from '../../../next-server/lib/constants'
+import { SERVER_PROPS_ID, STATIC_PROPS_ID } from '../../../shared/lib/constants'
 
 export const EXPORT_NAME_GET_STATIC_PROPS = 'getStaticProps'
 export const EXPORT_NAME_GET_STATIC_PATHS = 'getStaticPaths'
@@ -42,16 +39,15 @@ function decorateSsgExport(
   const gsspId = t.identifier(gsspName)
 
   const addGsspExport = (
-    exportPath: NodePath<
-      BabelTypes.ExportDefaultDeclaration | BabelTypes.ExportNamedDeclaration
-    >
+    exportPath:
+      | NodePath<BabelTypes.ExportDefaultDeclaration>
+      | NodePath<BabelTypes.ExportNamedDeclaration>
   ): void => {
     if (state.done) {
       return
     }
     state.done = true
 
-    // @ts-ignore invalid return type
     const [pageCompPath] = exportPath.replaceWithMultiple([
       t.exportNamedDeclaration(
         t.variableDeclaration(
@@ -65,7 +61,9 @@ function decorateSsgExport(
       ),
       exportPath.node,
     ])
-    exportPath.scope.registerDeclaration(pageCompPath)
+    exportPath.scope.registerDeclaration(
+      pageCompPath as NodePath<BabelTypes.Node>
+    )
   }
 
   path.traverse({
@@ -102,11 +100,10 @@ export default function nextTransformSsg({
   types: typeof BabelTypes
 }): PluginObj<PluginState> {
   function getIdentifier(
-    path: NodePath<
-      | BabelTypes.FunctionDeclaration
-      | BabelTypes.FunctionExpression
-      | BabelTypes.ArrowFunctionExpression
-    >
+    path:
+      | NodePath<BabelTypes.FunctionDeclaration>
+      | NodePath<BabelTypes.FunctionExpression>
+      | NodePath<BabelTypes.ArrowFunctionExpression>
   ): NodePath<BabelTypes.Identifier> | null {
     const parentPath = path.parentPath
     if (parentPath.type === 'VariableDeclarator') {
@@ -154,11 +151,10 @@ export default function nextTransformSsg({
   }
 
   function markFunction(
-    path: NodePath<
-      | BabelTypes.FunctionDeclaration
-      | BabelTypes.FunctionExpression
-      | BabelTypes.ArrowFunctionExpression
-    >,
+    path:
+      | NodePath<BabelTypes.FunctionDeclaration>
+      | NodePath<BabelTypes.FunctionExpression>
+      | NodePath<BabelTypes.ArrowFunctionExpression>,
     state: PluginState
   ): void {
     const ident = getIdentifier(path)
@@ -168,14 +164,13 @@ export default function nextTransformSsg({
   }
 
   function markImport(
-    path: NodePath<
-      | BabelTypes.ImportSpecifier
-      | BabelTypes.ImportDefaultSpecifier
-      | BabelTypes.ImportNamespaceSpecifier
-    >,
+    path:
+      | NodePath<BabelTypes.ImportSpecifier>
+      | NodePath<BabelTypes.ImportDefaultSpecifier>
+      | NodePath<BabelTypes.ImportNamespaceSpecifier>,
     state: PluginState
   ): void {
-    const local = path.get('local')
+    const local = path.get('local') as NodePath<BabelTypes.Identifier>
     if (isIdentifierReferenced(local)) {
       state.refs.add(local)
     }
@@ -320,11 +315,10 @@ export default function nextTransformSsg({
           let count: number
 
           function sweepFunction(
-            sweepPath: NodePath<
-              | BabelTypes.FunctionDeclaration
-              | BabelTypes.FunctionExpression
-              | BabelTypes.ArrowFunctionExpression
-            >
+            sweepPath:
+              | NodePath<BabelTypes.FunctionDeclaration>
+              | NodePath<BabelTypes.FunctionExpression>
+              | NodePath<BabelTypes.ArrowFunctionExpression>
           ): void {
             const ident = getIdentifier(sweepPath)
             if (
@@ -346,13 +340,14 @@ export default function nextTransformSsg({
           }
 
           function sweepImport(
-            sweepPath: NodePath<
-              | BabelTypes.ImportSpecifier
-              | BabelTypes.ImportDefaultSpecifier
-              | BabelTypes.ImportNamespaceSpecifier
-            >
+            sweepPath:
+              | NodePath<BabelTypes.ImportSpecifier>
+              | NodePath<BabelTypes.ImportDefaultSpecifier>
+              | NodePath<BabelTypes.ImportNamespaceSpecifier>
           ): void {
-            const local = sweepPath.get('local')
+            const local = sweepPath.get('local') as NodePath<
+              BabelTypes.Identifier
+            >
             if (refs.has(local) && !isIdentifierReferenced(local)) {
               ++count
               sweepPath.remove()

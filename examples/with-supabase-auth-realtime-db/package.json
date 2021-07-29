@@ -1,18 +1,17 @@
 {
-  "name": "with-supabase-auth-realtime-db",
-  "version": "0.1.0",
-  "license": "MIT",
+  "private": true,
   "scripts": {
-    "dev": "next",
+    "dev": "next dev",
     "build": "next build",
     "start": "next start"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^0.35.9",
+    "@supabase/supabase-js": "^1.2.1",
+    "@supabase/ui": "^0.6.1",
     "next": "latest",
-    "react": "^16.13.1",
-    "react-dom": "^16.13.1",
-    "sass": "^1.26.2",
-    "tailwindcss": "^1.1.4"
-  }
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
+    "swr": "0.2.3"
+  },
+  "license": "MIT"
 }

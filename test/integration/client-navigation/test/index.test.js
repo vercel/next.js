@@ -25,47 +25,27 @@ describe('Client Navigation', () => {
     context.server = await launchApp(join(__dirname, '../'), context.appPort, {
       env: { __NEXT_TEST_WITH_DEVTOOL: 1 },
     })
-
-    const prerender = [
-      '/async-props',
-      '/default-head',
-      '/empty-get-initial-props',
-      '/error',
-      '/finish-response',
-      '/head',
-      '/json',
-      '/link',
-      '/stateless',
-      '/fragment-syntax',
-      '/custom-extension',
-      '/styled-jsx',
-      '/styled-jsx-external',
-      '/with-cdm',
-      '/url-prop',
-      '/url-prop-override',
-
-      '/dynamic/ssr',
-      '/dynamic/[slug]/route',
-
-      '/nav',
-      '/nav/about',
-      '/nav/on-click',
-      '/nav/querystring',
-      '/nav/self-reload',
-      '/nav/hash-changes',
-      '/nav/shallow-routing',
-      '/nav/redirect',
-      '/nav/as-path',
-      '/nav/as-path-using-router',
-      '/nav/url-prop-change',
-
-      '/nested-cdm',
-    ]
-    await Promise.all(
-      prerender.map((route) => renderViaHTTP(context.appPort, route))
-    )
   })
   afterAll(() => killApp(context.server))
+
+  it('should not reload when visiting /_error directly', async () => {
+    const { status } = await fetchViaHTTP(context.appPort, '/_error')
+    const browser = await webdriver(context.appPort, '/_error')
+
+    await browser.eval('window.hello = true')
+
+    // wait on-demand-entries timeout since it can trigger
+    // reloading non-stop
+    for (let i = 0; i < 15; i++) {
+      expect(await browser.eval('window.hello')).toBe(true)
+      await waitFor(1000)
+    }
+    const html = await browser.eval('document.documentElement.innerHTML')
+
+    expect(status).toBe(404)
+    expect(html).toContain('This page could not be found')
+    expect(html).toContain('404')
+  })
 
   describe('with <Link/>', () => {
     it('should navigate the page', async () => {
@@ -166,30 +146,6 @@ describe('Client Navigation', () => {
         'hello'
       )
       expect(await browser.eval(() => window._didNotNavigate)).toBe(true)
-    })
-  })
-
-  describe('With url property', () => {
-    it('Should keep immutable pathname, asPath and query', async () => {
-      const browser = await webdriver(context.appPort, '/nav/url-prop-change')
-      await browser.elementByCss('#add-query').click()
-      const urlResult = await browser.elementByCss('#url-result').text()
-      const previousUrlResult = await browser
-        .elementByCss('#previous-url-result')
-        .text()
-
-      expect(JSON.parse(urlResult)).toMatchObject({
-        query: { added: 'yes' },
-        pathname: '/nav/url-prop-change',
-        asPath: '/nav/url-prop-change?added=yes',
-      })
-      expect(JSON.parse(previousUrlResult)).toMatchObject({
-        query: {},
-        pathname: '/nav/url-prop-change',
-        asPath: '/nav/url-prop-change',
-      })
-
-      await browser.close()
     })
   })
 
@@ -444,7 +400,127 @@ describe('Client Navigation', () => {
     })
   })
 
+  describe('resets scroll at the correct time', () => {
+    it('should reset scroll before the new page runs its lifecycles (<Link />)', async () => {
+      let browser
+      try {
+        browser = await webdriver(
+          context.appPort,
+          '/nav/long-page-to-snap-scroll'
+        )
+
+        // Scrolls to item 400 on the page
+        await browser
+          .waitForElementByCss('#long-page-to-snap-scroll')
+          .elementByCss('#scroll-to-item-400')
+          .click()
+
+        const scrollPosition = await browser.eval('window.pageYOffset')
+        expect(scrollPosition).toBe(7208)
+
+        // Go to snap scroll page
+        await browser
+          .elementByCss('#goto-snap-scroll-position')
+          .click()
+          .waitForElementByCss('#scroll-pos-y')
+
+        const snappedScrollPosition = await browser.eval(
+          'document.getElementById("scroll-pos-y").innerText'
+        )
+        expect(snappedScrollPosition).toBe('0')
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
+    })
+
+    it('should reset scroll before the new page runs its lifecycles (Router#push)', async () => {
+      let browser
+      try {
+        browser = await webdriver(
+          context.appPort,
+          '/nav/long-page-to-snap-scroll'
+        )
+
+        // Scrolls to item 400 on the page
+        await browser
+          .waitForElementByCss('#long-page-to-snap-scroll')
+          .elementByCss('#scroll-to-item-400')
+          .click()
+
+        const scrollPosition = await browser.eval('window.pageYOffset')
+        expect(scrollPosition).toBe(7208)
+
+        // Go to snap scroll page
+        await browser
+          .elementByCss('#goto-snap-scroll-position-imperative')
+          .click()
+          .waitForElementByCss('#scroll-pos-y')
+
+        const snappedScrollPosition = await browser.eval(
+          'document.getElementById("scroll-pos-y").innerText'
+        )
+        expect(snappedScrollPosition).toBe('0')
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
+    })
+
+    it('should intentionally not reset scroll before the new page runs its lifecycles (Router#push)', async () => {
+      let browser
+      try {
+        browser = await webdriver(
+          context.appPort,
+          '/nav/long-page-to-snap-scroll'
+        )
+
+        // Scrolls to item 400 on the page
+        await browser
+          .waitForElementByCss('#long-page-to-snap-scroll')
+          .elementByCss('#scroll-to-item-400')
+          .click()
+
+        const scrollPosition = await browser.eval('window.pageYOffset')
+        expect(scrollPosition).toBe(7208)
+
+        // Go to snap scroll page
+        await browser
+          .elementByCss('#goto-snap-scroll-position-imperative-noscroll')
+          .click()
+          .waitForElementByCss('#scroll-pos-y')
+
+        const snappedScrollPosition = await browser.eval(
+          'document.getElementById("scroll-pos-y").innerText'
+        )
+        expect(snappedScrollPosition).not.toBe('0')
+        expect(Number(snappedScrollPosition)).toBeGreaterThanOrEqual(7208)
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
+    })
+  })
+
   describe('with hash changes', () => {
+    describe('check hydration mis-match', () => {
+      it('should not have hydration mis-match for hash link', async () => {
+        const browser = await webdriver(context.appPort, '/nav/hash-changes')
+        const browserLogs = await browser.log('browser')
+        let found = false
+        browserLogs.forEach((log) => {
+          console.log('log.message', log.message)
+          if (log.message.includes('Warning: Prop')) {
+            found = true
+          }
+        })
+        expect(found).toEqual(false)
+      })
+    })
+
     describe('when hash change via Link', () => {
       it('should not run getInitialProps', async () => {
         const browser = await webdriver(context.appPort, '/nav/hash-changes')
@@ -466,12 +542,12 @@ describe('Client Navigation', () => {
           browser = await webdriver(context.appPort, '/nav/hash-changes')
 
           // Scrolls to item 400 on the page
-          const scrollPosition = await browser
+          const scrollPositionBeforeEmptyHash = await browser
             .elementByCss('#scroll-to-item-400')
             .click()
             .eval('window.pageYOffset')
 
-          expect(scrollPosition).toBe(7258)
+          expect(scrollPositionBeforeEmptyHash).toBe(7258)
 
           // Scrolls back to top when scrolling to `#` with no value.
           const scrollPositionAfterEmptyHash = await browser
@@ -480,6 +556,22 @@ describe('Client Navigation', () => {
             .eval('window.pageYOffset')
 
           expect(scrollPositionAfterEmptyHash).toBe(0)
+
+          // Scrolls to item 400 on the page
+          const scrollPositionBeforeTopHash = await browser
+            .elementByCss('#scroll-to-item-400')
+            .click()
+            .eval('window.pageYOffset')
+
+          expect(scrollPositionBeforeTopHash).toBe(7258)
+
+          // Scrolls back to top when clicking link with href `#top`.
+          const scrollPositionAfterTopHash = await browser
+            .elementByCss('#via-top-hash')
+            .click()
+            .eval('window.pageYOffset')
+
+          expect(scrollPositionAfterTopHash).toBe(0)
         } finally {
           if (browser) {
             await browser.close()
@@ -734,6 +826,57 @@ describe('Client Navigation', () => {
 
       await browser.close()
     })
+
+    it('should keep the scroll position on shallow routing', async () => {
+      const browser = await webdriver(context.appPort, '/nav/shallow-routing')
+      await browser.eval(() =>
+        document.querySelector('#increase').scrollIntoView()
+      )
+      const scrollPosition = await browser.eval('window.pageYOffset')
+
+      expect(scrollPosition).toBeGreaterThan(3000)
+
+      await browser.elementByCss('#increase').click()
+      await waitFor(500)
+      const newScrollPosition = await browser.eval('window.pageYOffset')
+
+      expect(newScrollPosition).toBe(scrollPosition)
+
+      await browser.elementByCss('#increase2').click()
+      await waitFor(500)
+      const newScrollPosition2 = await browser.eval('window.pageYOffset')
+
+      expect(newScrollPosition2).toBe(0)
+
+      await browser.eval(() =>
+        document.querySelector('#invalidShallow').scrollIntoView()
+      )
+      const scrollPositionDown = await browser.eval('window.pageYOffset')
+
+      expect(scrollPositionDown).toBeGreaterThan(3000)
+
+      await browser.elementByCss('#invalidShallow').click()
+      await waitFor(500)
+      const newScrollPosition3 = await browser.eval('window.pageYOffset')
+
+      expect(newScrollPosition3).toBe(0)
+    })
+  })
+
+  it('should scroll to top when the scroll option is set to true', async () => {
+    const browser = await webdriver(context.appPort, '/nav/shallow-routing')
+    await browser.eval(() =>
+      document.querySelector('#increaseWithScroll').scrollIntoView()
+    )
+    const scrollPosition = await browser.eval('window.pageYOffset')
+
+    expect(scrollPosition).toBeGreaterThan(3000)
+
+    await browser.elementByCss('#increaseWithScroll').click()
+    await check(async () => {
+      const newScrollPosition = await browser.eval('window.pageYOffset')
+      return newScrollPosition === 0 ? 'success' : 'fail'
+    }, 'success')
   })
 
   describe('with URL objects', () => {
@@ -1209,6 +1352,26 @@ describe('Client Navigation', () => {
   })
 
   describe('updating head while client routing', () => {
+    it('should only execute async and defer scripts once', async () => {
+      let browser
+      try {
+        browser = await webdriver(context.appPort, '/head')
+
+        await browser.waitForElementByCss('h1')
+        await waitFor(2000)
+        expect(
+          Number(await browser.eval('window.__test_async_executions'))
+        ).toBe(1)
+        expect(
+          Number(await browser.eval('window.__test_defer_executions'))
+        ).toBe(1)
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
+    })
+
     it('should update head during client routing', async () => {
       let browser
       try {

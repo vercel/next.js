@@ -46,6 +46,11 @@ describe('TypeScript Features', () => {
       expect($('body').text()).toMatch(/1000000000000/)
     })
 
+    it('should render the cookies page', async () => {
+      const $ = await get$('/ssr/cookies')
+      expect($('#cookies').text()).toBe('{}')
+    })
+
     it('should resolve files in correct order', async () => {
       const $ = await get$('/hello')
       expect($('#imported-value').text()).toBe('OK')
@@ -104,6 +109,17 @@ export default function EvilPage(): JSX.Element {
         expect(output.stdout).toMatch(/Compiled successfully/)
       } finally {
         errorPage.restore()
+      }
+    })
+
+    it('should compile sync getStaticPaths & getStaticProps', async () => {
+      const page = new File(join(appDir, 'pages/ssg/[slug].tsx'))
+      try {
+        page.replace(/async \(/g, '(')
+        const output = await nextBuild(appDir, [], { stdout: true })
+        expect(output.stdout).toMatch(/Compiled successfully/)
+      } finally {
+        page.restore()
       }
     })
   })

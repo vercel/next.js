@@ -22,8 +22,20 @@
               "path": "/docs/basic-features/built-in-css-support.md"
             },
             {
+              "title": "Layouts",
+              "path": "/docs/basic-features/layouts.md"
+            },
+            {
               "title": "Image Optimization",
               "path": "/docs/basic-features/image-optimization.md"
+            },
+            {
+              "title": "Font Optimization",
+              "path": "/docs/basic-features/font-optimization.md"
+            },
+            {
+              "title": "Script Optimization",
+              "path": "/docs/basic-features/script.md"
             },
             {
               "title": "Static File Serving",
@@ -32,6 +44,10 @@
             {
               "title": "Fast Refresh",
               "path": "/docs/basic-features/fast-refresh.md"
+            },
+            {
+              "title": "ESLint",
+              "path": "/docs/basic-features/eslint.md"
             },
             {
               "title": "TypeScript",
@@ -90,8 +106,16 @@
           ]
         },
         {
+          "title": "Going to Production",
+          "path": "/docs/going-to-production.md"
+        },
+        {
           "title": "Deployment",
           "path": "/docs/deployment.md"
+        },
+        {
+          "title": "Authentication",
+          "path": "/docs/authentication.md"
         },
         {
           "title": "Advanced Features",
@@ -182,12 +206,20 @@
               "path": "/docs/advanced-features/debugging.md"
             },
             {
+              "title": "Source Maps",
+              "path": "/docs/advanced-features/source-maps.md"
+            },
+            {
               "title": "Codemods",
               "path": "/docs/advanced-features/codemods.md"
             },
             {
               "title": "Internationalized Routing",
               "path": "/docs/advanced-features/i18n-routing.md"
+            },
+            {
+              "title": "Security Headers",
+              "path": "/docs/advanced-features/security-headers.md"
             }
           ]
         },
@@ -205,6 +237,14 @@
             {
               "title": "Migrating from Gatsby",
               "path": "/docs/migrating/from-gatsby.md"
+            },
+            {
+              "title": "Migrating from Create React App",
+              "path": "/docs/migrating/from-create-react-app.md"
+            },
+            {
+              "title": "Migrating from React Router",
+              "path": "/docs/migrating/from-react-router.md"
             }
           ]
         },
@@ -250,6 +290,10 @@
           ]
         },
         {
+          "title": "Static Optimization Indicator",
+          "path": "/docs/api-reference/next.config.js/static-optimization-indicator.md"
+        },
+        {
           "title": "next.config.js",
           "routes": [
             {
@@ -285,10 +329,6 @@
               "path": "/docs/api-reference/next.config.js/cdn-support-with-asset-prefix.md"
             },
             {
-              "title": "Build Target",
-              "path": "/docs/api-reference/next.config.js/build-target.md"
-            },
-            {
               "title": "Custom Webpack Config",
               "path": "/docs/api-reference/next.config.js/custom-webpack-config.md"
             },
@@ -319,6 +359,10 @@
             {
               "title": "Configuring onDemandEntries",
               "path": "/docs/api-reference/next.config.js/configuring-onDemandEntries.md"
+            },
+            {
+              "title": "Ignoring ESLint",
+              "path": "/docs/api-reference/next.config.js/ignoring-eslint.md"
             },
             {
               "title": "Ignoring TypeScript Errors",

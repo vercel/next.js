@@ -95,16 +95,16 @@ export async function writeConfigurationDefaults(
   }
 
   const desiredCompilerOptions = getDesiredCompilerOptions(ts)
-  const effectiveConfiguration = await getTypeScriptConfiguration(
-    ts,
-    tsConfigPath
-  )
+  const {
+    options: tsOptions,
+    raw: rawConfig,
+  } = await getTypeScriptConfiguration(ts, tsConfigPath, true)
 
   const userTsConfigContent = await fs.readFile(tsConfigPath, {
     encoding: 'utf8',
   })
   const userTsConfig = CommentJson.parse(userTsConfigContent)
-  if (userTsConfig.compilerOptions == null) {
+  if (userTsConfig.compilerOptions == null && !('extends' in rawConfig)) {
     userTsConfig.compilerOptions = {}
     isFirstTimeSetup = true
   }
@@ -114,14 +114,14 @@ export async function writeConfigurationDefaults(
   for (const optionKey of Object.keys(desiredCompilerOptions)) {
     const check = desiredCompilerOptions[optionKey]
     if ('suggested' in check) {
-      if (!(optionKey in effectiveConfiguration.options)) {
+      if (!(optionKey in tsOptions)) {
         userTsConfig.compilerOptions[optionKey] = check.suggested
         suggestedActions.push(
           chalk.cyan(optionKey) + ' was set to ' + chalk.bold(check.suggested)
         )
       }
     } else if ('value' in check) {
-      const ev = effectiveConfiguration.options[optionKey]
+      const ev = tsOptions[optionKey]
       if (
         !('parsedValues' in check
           ? check.parsedValues?.includes(ev)
@@ -143,7 +143,7 @@ export async function writeConfigurationDefaults(
     }
   }
 
-  if (userTsConfig.include == null) {
+  if (!('include' in rawConfig)) {
     userTsConfig.include = ['next-env.d.ts', '**/*.ts', '**/*.tsx']
     suggestedActions.push(
       chalk.cyan('include') +
@@ -152,7 +152,7 @@ export async function writeConfigurationDefaults(
     )
   }
 
-  if (userTsConfig.exclude == null) {
+  if (!('exclude' in rawConfig)) {
     userTsConfig.exclude = ['node_modules']
     suggestedActions.push(
       chalk.cyan('exclude') + ' was set to ' + chalk.bold(`['node_modules']`)
@@ -183,7 +183,7 @@ export async function writeConfigurationDefaults(
     chalk.green(
       `We detected TypeScript in your project and reconfigured your ${chalk.bold(
         'tsconfig.json'
-      )} file for you.`
+      )} file for you. Strict-mode is set to ${chalk.bold('false')} by default.`
     ) + '\n'
   )
   if (suggestedActions.length) {

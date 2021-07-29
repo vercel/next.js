@@ -18,12 +18,14 @@ function Avatar() {
 export default Avatar
 ```
 
+> Note: `next/image` requires Next.js 10 or later.
+
 This folder is also useful for `robots.txt`, `favicon.ico`, Google Site Verification, and any other static files (including `.html`)!
 
 > **Note**: Don't name the `public` directory anything else. The name cannot be changed and is the only directory used to serve static assets.
 
 > **Note**: Be sure to not have a static file with the same name as a file in the `pages/` directory, as this will result in an error.
 >
-> Read more: <http://err.sh/next.js/conflicting-public-file-page>
+> Read more: <https://nextjs.org/docs/messages/conflicting-public-file-page>
 
 > **Note**: Only assets that are in the `public` directory at [build time](/docs/api-reference/cli.md#build) will be served by Next.js. Files added at runtime won't be available. We recommend using a third party service like [AWS S3](https://aws.amazon.com/s3/) for persistent file storage.

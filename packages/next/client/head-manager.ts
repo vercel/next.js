@@ -3,10 +3,11 @@ export const DOMAttributeNames: Record<string, string> = {
   className: 'class',
   htmlFor: 'for',
   httpEquiv: 'http-equiv',
+  noModule: 'noModule',
 }
 
 function reactElementToDOM({ type, props }: JSX.Element): HTMLElement {
-  const el = document.createElement(type)
+  const el: HTMLElement = document.createElement(type)
   for (const p in props) {
     if (!props.hasOwnProperty(p)) continue
     if (p === 'children' || p === 'dangerouslySetInnerHTML') continue
@@ -15,7 +16,14 @@ function reactElementToDOM({ type, props }: JSX.Element): HTMLElement {
     if (props[p] === undefined) continue
 
     const attr = DOMAttributeNames[p] || p.toLowerCase()
-    el.setAttribute(attr, props[p])
+    if (
+      type === 'script' &&
+      (attr === 'async' || attr === 'defer' || attr === 'noModule')
+    ) {
+      ;(el as HTMLScriptElement)[attr] = !!props[p]
+    } else {
+      el.setAttribute(attr, props[p])
+    }
   }
 
   const { children, dangerouslySetInnerHTML } = props
@@ -63,7 +71,7 @@ export function isEqualNode(oldTag: Element, newTag: Element) {
   return oldTag.isEqualNode(newTag)
 }
 
-function updateElements(type: string, components: JSX.Element[]) {
+function updateElements(type: string, components: JSX.Element[]): void {
   const headEl = document.getElementsByTagName('head')[0]
   const headCountEl: HTMLMetaElement = headEl.querySelector(
     'meta[name=next-head-count]'
@@ -71,7 +79,7 @@ function updateElements(type: string, components: JSX.Element[]) {
   if (process.env.NODE_ENV !== 'production') {
     if (!headCountEl) {
       console.error(
-        'Warning: next-head-count is missing. https://err.sh/next.js/next-head-count-missing'
+        'Warning: next-head-count is missing. https://nextjs.org/docs/messages/next-head-count-missing'
       )
       return
     }
@@ -107,7 +115,10 @@ function updateElements(type: string, components: JSX.Element[]) {
   headCountEl.content = (headCount - oldTags.length + newTags.length).toString()
 }
 
-export default function initHeadManager() {
+export default function initHeadManager(): {
+  mountedInstances: Set<unknown>
+  updateHead: (head: JSX.Element[]) => void
+} {
   let updatePromise: Promise<void> | null = null
 
   return {
@@ -120,6 +131,18 @@ export default function initHeadManager() {
         const tags: Record<string, JSX.Element[]> = {}
 
         head.forEach((h) => {
+          if (
+            // If the font tag is loaded only on client navigation
+            // it won't be inlined. In this case revert to the original behavior
+            h.type === 'link' &&
+            h.props['data-optimized-fonts'] &&
+            !document.querySelector(
+              `style[data-href="${h.props['data-href']}"]`
+            )
+          ) {
+            h.props.href = h.props['data-href']
+            h.props['data-href'] = undefined
+          }
           const components = tags[h.type] || []
           components.push(h)
           tags[h.type] = components

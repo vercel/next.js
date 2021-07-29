@@ -30,6 +30,248 @@ const appDir = join(__dirname, '../')
 const buildIdPath = join(appDir, '.next/BUILD_ID')
 
 function runTests(dev) {
+  it('should support long URLs for dynamic routes', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/dash/a9btBxtHQALZ6cxfuj18X6OLGNSkJVzrOXz41HG4QwciZfn7ggRZzPx21dWqGiTBAqFRiWvVNm5ko2lpyso5jtVaXg88dC1jKfqI2qmIcdeyJat8xamrIh2LWnrYRrsBcoKfQU65KHod8DPANuzPS3fkVYWlmov05GQbc82HwR1exOvPVKUKb5gBRWiN0WOh7hN4QyezIuq3dJINAptFQ6m2bNGjYACBRk4MOSHdcQG58oq5Ch7luuqrl9EcbWSa'
+    )
+
+    const html = await res.text()
+    expect(res.status).toBe(200)
+    expect(html).toContain('hi')
+    expect(html).toContain('/dash/[hello-world]')
+  })
+
+  it('should handle only query on dynamic route', async () => {
+    const browser = await webdriver(appPort, '/post-1')
+
+    for (const expectedValues of [
+      {
+        id: 'dynamic-route-only-query',
+        pathname: '/post-2',
+        query: {},
+        hash: '',
+        navQuery: { name: 'post-2' },
+      },
+      {
+        id: 'dynamic-route-only-query-extra',
+        pathname: '/post-3',
+        query: { another: 'value' },
+        hash: '',
+        navQuery: { name: 'post-3', another: 'value' },
+      },
+      {
+        id: 'dynamic-route-only-query-obj',
+        pathname: '/post-4',
+        query: {},
+        hash: '',
+        navQuery: { name: 'post-4' },
+      },
+      {
+        id: 'dynamic-route-only-query-obj-extra',
+        pathname: '/post-5',
+        query: { another: 'value' },
+        hash: '',
+        navQuery: { name: 'post-5', another: 'value' },
+      },
+      {
+        id: 'dynamic-route-query-hash',
+        pathname: '/post-2',
+        query: {},
+        hash: '#hash-too',
+        navQuery: { name: 'post-2' },
+      },
+      {
+        id: 'dynamic-route-query-extra-hash',
+        pathname: '/post-3',
+        query: { another: 'value' },
+        hash: '#hash-again',
+        navQuery: { name: 'post-3', another: 'value' },
+      },
+      {
+        id: 'dynamic-route-query-hash-obj',
+        pathname: '/post-4',
+        query: {},
+        hash: '#hash-too',
+        navQuery: { name: 'post-4' },
+      },
+      {
+        id: 'dynamic-route-query-obj-extra-hash',
+        pathname: '/post-5',
+        query: { another: 'value' },
+        hash: '#hash-again',
+        navQuery: { name: 'post-5', another: 'value' },
+      },
+    ]) {
+      const { id, pathname, query, hash, navQuery } = expectedValues
+
+      const parsedHref = url.parse(
+        await browser.elementByCss(`#${id}`).getAttribute('href'),
+        true
+      )
+      expect(parsedHref.pathname).toBe(pathname)
+      expect(parsedHref.query || {}).toEqual(query)
+      expect(parsedHref.hash || '').toBe(hash)
+
+      await browser.eval('window.beforeNav = 1')
+      await browser.elementByCss(`#${id}`).click()
+      await check(() => browser.eval('window.location.pathname'), pathname)
+
+      expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual(
+        navQuery
+      )
+      expect(await browser.eval('window.location.pathname')).toBe(pathname)
+      expect(await browser.eval('window.location.hash')).toBe(hash)
+      expect(
+        Object.fromEntries(
+          new URLSearchParams(await browser.eval('window.location.search'))
+        )
+      ).toEqual(query)
+      expect(await browser.eval('window.beforeNav')).toBe(1)
+    }
+  })
+
+  it('should handle only hash on dynamic route', async () => {
+    const browser = await webdriver(appPort, '/post-1')
+    const parsedHref = url.parse(
+      await browser
+        .elementByCss('#dynamic-route-only-hash')
+        .getAttribute('href'),
+      true
+    )
+    expect(parsedHref.pathname).toBe('/post-1')
+    expect(parsedHref.hash).toBe('#only-hash')
+    expect(parsedHref.query || {}).toEqual({})
+
+    const parsedHref2 = url.parse(
+      await browser
+        .elementByCss('#dynamic-route-only-hash-obj')
+        .getAttribute('href'),
+      true
+    )
+    expect(parsedHref2.pathname).toBe('/post-1')
+    expect(parsedHref2.hash).toBe('#only-hash-obj')
+    expect(parsedHref2.query || {}).toEqual({})
+
+    expect(await browser.eval('window.location.hash')).toBe('')
+
+    await browser.elementByCss('#dynamic-route-only-hash').click()
+    expect(await browser.eval('window.location.hash')).toBe('#only-hash')
+
+    await browser.elementByCss('#dynamic-route-only-hash-obj').click()
+    expect(await browser.eval('window.location.hash')).toBe('#only-hash-obj')
+  })
+
+  it('should navigate with hash to dynamic route with link', async () => {
+    const browser = await webdriver(appPort, '/')
+    await browser.eval('window.beforeNav = 1')
+
+    await browser
+      .elementByCss('#view-post-1-hash-1')
+      .click()
+      .waitForElementByCss('#asdf')
+
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
+      name: 'post-1',
+    })
+    expect(await browser.eval('window.next.router.pathname')).toBe('/[name]')
+    expect(await browser.eval('window.location.pathname')).toBe('/post-1')
+    expect(await browser.eval('window.location.hash')).toBe('#my-hash')
+    expect(await browser.eval('window.location.search')).toBe('')
+
+    await browser
+      .back()
+      .waitForElementByCss('#view-post-1-hash-1-interpolated')
+      .elementByCss('#view-post-1-hash-1-interpolated')
+      .click('#view-post-1-hash-1-interpolated')
+      .waitForElementByCss('#asdf')
+
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
+      name: 'post-1',
+    })
+    expect(await browser.eval('window.next.router.pathname')).toBe('/[name]')
+    expect(await browser.eval('window.location.pathname')).toBe('/post-1')
+    expect(await browser.eval('window.location.hash')).toBe('#my-hash')
+    expect(await browser.eval('window.location.search')).toBe('')
+
+    await browser
+      .back()
+      .waitForElementByCss('#view-post-1-hash-1-href-only')
+      .elementByCss('#view-post-1-hash-1-href-only')
+      .click('#view-post-1-hash-1-href-only')
+      .waitForElementByCss('#asdf')
+
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
+      name: 'post-1',
+    })
+    expect(await browser.eval('window.next.router.pathname')).toBe('/[name]')
+    expect(await browser.eval('window.location.pathname')).toBe('/post-1')
+    expect(await browser.eval('window.location.hash')).toBe('#my-hash')
+    expect(await browser.eval('window.location.search')).toBe('')
+  })
+
+  it('should navigate with hash to dynamic route with router', async () => {
+    const browser = await webdriver(appPort, '/')
+    await browser.eval(`(function() {
+      window.beforeNav = 1
+      window.next.router.push('/[name]', '/post-1#my-hash')
+    })()`)
+
+    await browser.waitForElementByCss('#asdf')
+
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
+      name: 'post-1',
+    })
+    expect(await browser.eval('window.next.router.pathname')).toBe('/[name]')
+    expect(await browser.eval('window.location.pathname')).toBe('/post-1')
+    expect(await browser.eval('window.location.hash')).toBe('#my-hash')
+    expect(await browser.eval('window.location.search')).toBe('')
+
+    await browser.back().waitForElementByCss('#view-post-1-hash-1-interpolated')
+
+    await browser.eval(`(function() {
+      window.beforeNav = 1
+      window.next.router.push({
+        hash: 'my-hash',
+        pathname: '/[name]',
+        query: {
+          name: 'post-1'
+        }
+      })
+    })()`)
+
+    await browser.waitForElementByCss('#asdf')
+
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
+      name: 'post-1',
+    })
+    expect(await browser.eval('window.next.router.pathname')).toBe('/[name]')
+    expect(await browser.eval('window.location.pathname')).toBe('/post-1')
+    expect(await browser.eval('window.location.hash')).toBe('#my-hash')
+    expect(await browser.eval('window.location.search')).toBe('')
+
+    await browser.eval(`(function() {
+      window.beforeNav = 1
+      window.next.router.push('/post-1#my-hash')
+    })()`)
+
+    await browser.waitForElementByCss('#asdf')
+
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
+      name: 'post-1',
+    })
+    expect(await browser.eval('window.next.router.pathname')).toBe('/[name]')
+    expect(await browser.eval('window.location.pathname')).toBe('/post-1')
+    expect(await browser.eval('window.location.hash')).toBe('#my-hash')
+    expect(await browser.eval('window.location.search')).toBe('')
+  })
+
   it('should not have any query values when not defined', async () => {
     const html = await renderViaHTTP(appPort, '/')
     const $ = cheerio.load(html)
@@ -722,20 +964,6 @@ function runTests(dev) {
     expect(res.status).toBe(400)
   })
 
-  it('should preload buildManifest for auto-export dynamic pages', async () => {
-    const html = await renderViaHTTP(appPort, '/on-mount/hello')
-    const $ = cheerio.load(html)
-    let found = 0
-
-    for (const el of Array.from($('link[rel="preload"]'))) {
-      const { href } = el.attribs
-      if (href.includes('_buildManifest')) {
-        found++
-      }
-    }
-    expect(found).toBe(1)
-  })
-
   it('should not preload buildManifest for non-auto export dynamic pages', async () => {
     const html = await renderViaHTTP(appPort, '/hello')
     const $ = cheerio.load(html)
@@ -789,7 +1017,7 @@ function runTests(dev) {
       await browser
         .elementByCss('#view-post-1-interpolated-incorrectly')
         .click()
-      await hasRedbox(browser)
+      expect(await hasRedbox(browser)).toBe(true)
       const header = await getRedboxHeader(browser)
       expect(header).toContain(
         'The provided `href` (/[name]?another=value) value is missing query values (name) to be interpolated properly.'
@@ -1096,6 +1324,7 @@ describe('Dynamic Routing', () => {
     })
     afterAll(async () => {
       await killApp(app)
+      await fs.remove(nextConfig)
     })
     runTests()
   })

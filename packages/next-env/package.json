@@ -1,6 +1,6 @@
 {
   "name": "@next/env",
-  "version": "10.0.4-canary.6",
+  "version": "11.0.2-canary.23",
   "keywords": [
     "react",
     "next",
@@ -22,7 +22,7 @@
     "types"
   ],
   "scripts": {
-    "build": "ncc build ./index.ts -w -o dist/",
+    "dev": "ncc build ./index.ts -w -o dist/",
     "prerelease": "rimraf ./dist/",
     "types": "tsc index.ts --declaration --emitDeclarationOnly --declarationDir types --esModuleInterop",
     "release": "ncc build ./index.ts -o ./dist/ --minify --no-cache --no-source-map-register",

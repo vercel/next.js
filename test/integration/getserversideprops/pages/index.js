@@ -1,6 +1,41 @@
 import Link from 'next/link'
+import ReactDOM from 'react-dom/server'
+import { RouterContext } from 'next/dist/shared/lib/router-context'
+import { useRouter } from 'next/router'
 
-export async function getServerSideProps({ req }) {
+function RouterComp(props) {
+  const router = useRouter()
+
+  if (!router) {
+    throw new Error('router is missing!')
+  }
+
+  return (
+    <>
+      <p>props {JSON.stringify(props)}</p>
+      <p>router: {JSON.stringify(router)}</p>
+    </>
+  )
+}
+
+export async function getServerSideProps({ req, query, preview }) {
+  // this ensures the same router context is used by the useRouter hook
+  // no matter where it is imported
+  console.log(
+    ReactDOM.renderToString(
+      <RouterContext.Provider
+        value={{
+          query,
+          pathname: '/',
+          asPath: req.url,
+          isPreview: preview,
+        }}
+      >
+        <p>hello world</p>
+        <RouterComp hello={'world'} />
+      </RouterContext.Provider>
+    )
+  )
   return {
     props: {
       url: req.url,
@@ -35,6 +70,10 @@ const Page = ({ world, time, url }) => {
       <br />
       <Link href="/normal">
         <a id="normal">to normal</a>
+      </Link>
+      <br />
+      <Link href="/slow">
+        <a id="slow">to slow</a>
       </Link>
       <br />
       <Link href="/blog/[post]" as="/blog/post-1">

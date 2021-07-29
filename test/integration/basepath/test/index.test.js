@@ -54,6 +54,32 @@ afterAll(async () => {
 })
 
 const runTests = (dev = false) => {
+  it('should navigate back correctly to a dynamic route', async () => {
+    const browser = await webdriver(appPort, `${basePath}`)
+
+    expect(await browser.elementByCss('#index-page').text()).toContain(
+      'index page'
+    )
+
+    await browser.eval('window.beforeNav = 1')
+
+    await browser.eval('window.next.router.push("/catchall/first")')
+    await check(() => browser.elementByCss('p').text(), /first/)
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+
+    await browser.eval('window.next.router.push("/catchall/second")')
+    await check(() => browser.elementByCss('p').text(), /second/)
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+
+    await browser.eval('window.next.router.back()')
+    await check(() => browser.elementByCss('p').text(), /first/)
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+
+    await browser.eval('window.history.forward()')
+    await check(() => browser.elementByCss('p').text(), /second/)
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+  })
+
   if (dev) {
     describe('Hot Module Reloading', () => {
       describe('delete a page and add it back', () => {
@@ -193,7 +219,7 @@ const runTests = (dev = false) => {
         })
 
         // Added because of a regression in react-hot-loader, see issues: #4246 #4273
-        // Also: https://github.com/zeit/styled-jsx/issues/425
+        // Also: https://github.com/vercel/styled-jsx/issues/425
         it('should update styles correctly', async () => {
           let browser
           try {
@@ -232,7 +258,7 @@ const runTests = (dev = false) => {
         })
 
         // Added because of a regression in react-hot-loader, see issues: #4246 #4273
-        // Also: https://github.com/zeit/styled-jsx/issues/425
+        // Also: https://github.com/vercel/styled-jsx/issues/425
         it('should update styles in a stateful component correctly', async () => {
           let browser
           const pagePath = join(
@@ -271,7 +297,7 @@ const runTests = (dev = false) => {
         })
 
         // Added because of a regression in react-hot-loader, see issues: #4246 #4273
-        // Also: https://github.com/zeit/styled-jsx/issues/425
+        // Also: https://github.com/vercel/styled-jsx/issues/425
         it('should update styles in a dynamic component correctly', async () => {
           let browser = null
           let secondBrowser = null
@@ -924,9 +950,9 @@ const runTests = (dev = false) => {
 
       const eventLog = await browser.eval('window._getEventLog()')
       expect(eventLog).toEqual([
-        ['routeChangeStart', `${basePath}/other-page`],
-        ['beforeHistoryChange', `${basePath}/other-page`],
-        ['routeChangeComplete', `${basePath}/other-page`],
+        ['routeChangeStart', `${basePath}/other-page`, { shallow: false }],
+        ['beforeHistoryChange', `${basePath}/other-page`, { shallow: false }],
+        ['routeChangeComplete', `${basePath}/other-page`, { shallow: false }],
       ])
     } finally {
       await browser.close()
@@ -941,8 +967,12 @@ const runTests = (dev = false) => {
 
       const eventLog = await browser.eval('window._getEventLog()')
       expect(eventLog).toEqual([
-        ['hashChangeStart', `${basePath}/hello#some-hash`],
-        ['hashChangeComplete', `${basePath}/hello#some-hash`],
+        ['hashChangeStart', `${basePath}/hello#some-hash`, { shallow: false }],
+        [
+          'hashChangeComplete',
+          `${basePath}/hello#some-hash`,
+          { shallow: false },
+        ],
       ])
     } finally {
       await browser.close()
@@ -962,11 +992,17 @@ const runTests = (dev = false) => {
 
       const eventLog = await browser.eval('window._getEventLog()')
       expect(eventLog).toEqual([
-        ['routeChangeStart', `${basePath}/slow-route`],
-        ['routeChangeError', 'Route Cancelled', true, `${basePath}/slow-route`],
-        ['routeChangeStart', `${basePath}/other-page`],
-        ['beforeHistoryChange', `${basePath}/other-page`],
-        ['routeChangeComplete', `${basePath}/other-page`],
+        ['routeChangeStart', `${basePath}/slow-route`, { shallow: false }],
+        [
+          'routeChangeError',
+          'Route Cancelled',
+          true,
+          `${basePath}/slow-route`,
+          { shallow: false },
+        ],
+        ['routeChangeStart', `${basePath}/other-page`, { shallow: false }],
+        ['beforeHistoryChange', `${basePath}/other-page`, { shallow: false }],
+        ['routeChangeComplete', `${basePath}/other-page`, { shallow: false }],
       ])
     } finally {
       await browser.close()
@@ -983,12 +1019,13 @@ const runTests = (dev = false) => {
 
       const eventLog = await browser.eval('window._getEventLog()')
       expect(eventLog).toEqual([
-        ['routeChangeStart', `${basePath}/error-route`],
+        ['routeChangeStart', `${basePath}/error-route`, { shallow: false }],
         [
           'routeChangeError',
           'Failed to load static props',
           null,
           `${basePath}/error-route`,
+          { shallow: false },
         ],
       ])
     } finally {
@@ -1009,6 +1046,38 @@ const runTests = (dev = false) => {
 
       const pathname = await browser.elementByCss('#pathname').text()
       expect(pathname).toBe('/hello')
+      expect(await browser.eval('window.location.pathname')).toBe(
+        `${basePath}/hello`
+      )
+      expect(await browser.eval('window.location.search')).toBe('?query=true')
+
+      if (dev) {
+        expect(await hasRedbox(browser, false)).toBe(false)
+      }
+    } finally {
+      await browser.close()
+    }
+  })
+
+  it('should allow URL query strings on index without refresh', async () => {
+    const browser = await webdriver(appPort, `${basePath}?query=true`)
+    try {
+      await browser.eval('window.itdidnotrefresh = "hello"')
+      await new Promise((resolve, reject) => {
+        // Timeout of EventSource created in setupPing()
+        // (on-demand-entries-utils.js) is 5000 ms (see #13132, #13560)
+        setTimeout(resolve, 10000)
+      })
+      expect(await browser.eval('window.itdidnotrefresh')).toBe('hello')
+
+      const pathname = await browser.elementByCss('#pathname').text()
+      expect(pathname).toBe('/')
+      expect(await browser.eval('window.location.pathname')).toBe(basePath)
+      expect(await browser.eval('window.location.search')).toBe('?query=true')
+
+      if (dev) {
+        expect(await hasRedbox(browser, false)).toBe(false)
+      }
     } finally {
       await browser.close()
     }
