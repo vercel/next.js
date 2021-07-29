@@ -141,7 +141,7 @@ export function useRouter(): NextRouter {
 // Create a router and assign it as the singleton instance.
 // This is used in client side when we are initilizing the app.
 // This should **not** be used inside the server.
-export const createRouter = (...args: RouterArgs): Router => {
+export function createRouter(...args: RouterArgs): Router {
   singletonRouter.router = new Router(...args)
   singletonRouter.readyCallbacks.forEach((cb) => cb())
   singletonRouter.readyCallbacks = []
