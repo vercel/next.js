@@ -101,21 +101,16 @@ async function lint(
     const mod = await import(deps.resolved.get('eslint')!)
 
     const { ESLint } = mod
-    let eslintVersion = ESLint?.version
+    let eslintVersion = ESLint?.version ?? mod?.CLIEngine?.version
 
-    if (!ESLint) {
-      eslintVersion = mod?.CLIEngine?.version
-
-      if (!eslintVersion || semver.lt(eslintVersion, '7.0.0')) {
-        return `${chalk.red(
-          'error'
-        )} - Your project has an older version of ESLint installed${
-          eslintVersion ? ' (' + eslintVersion + ')' : ''
-        }. Please upgrade to ESLint version 7 or later`
-      }
-
-      return null
+    if (!eslintVersion || semver.lt(eslintVersion, '7.0.0')) {
+      return `${chalk.red(
+        'error'
+      )} - Your project has an older version of ESLint installed${
+        eslintVersion ? ' (' + eslintVersion + ')' : ''
+      }. Please upgrade to ESLint version 7 or later`
     }
+
     let options: any = {
       useEslintrc: true,
       baseConfig: {},
@@ -231,7 +226,8 @@ export async function runLintCheck(
   eslintOptions: any = null,
   reportErrorsOnly: boolean = false,
   maxWarnings: number = -1,
-  formatter: string | null = null
+  formatter: string | null = null,
+  strict: boolean = false
 ): ReturnType<typeof lint> {
   try {
     // Find user's .eslintrc file
@@ -285,7 +281,11 @@ export async function runLintCheck(
         return null
       } else {
         // Ask user what config they would like to start with for first time "next lint" setup
-        const { config: selectedConfig } = await cliPrompt()
+        const { config: selectedConfig } = strict
+          ? ESLINT_PROMPT_VALUES.find(
+              (opt: { title: string }) => opt.title === 'Strict'
+            )
+          : await cliPrompt()
 
         if (selectedConfig == null) {
           // Show a warning if no option is selected in prompt
@@ -306,6 +306,7 @@ export async function runLintCheck(
             existsSync(path.join(baseDir, 'src/pages'))
           ) {
             await writeDefaultConfig(
+              baseDir,
               config,
               selectedConfig,
               eslintrcFile,

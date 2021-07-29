@@ -8,6 +8,7 @@ import { ConfigAvailable } from './hasEslintConfiguration'
 import * as Log from '../../build/output/log'
 
 export async function writeDefaultConfig(
+  baseDir: string,
   { exists, emptyEslintrc, emptyPkgJsonConfig }: ConfigAvailable,
   selectedConfig: any,
   eslintrcFile: string | null,
@@ -51,10 +52,10 @@ export async function writeDefaultConfig(
     )
   } else if (!exists) {
     await fs.writeFile(
-      '.eslintrc.json',
+      path.join(baseDir, '.eslintrc.json'),
       CommentJson.stringify(selectedConfig, null, 2) + os.EOL
     )
-
+    console.log(path.join(baseDir, '.eslintrc.json'))
     console.log(
       chalk.green(
         `We created the ${chalk.bold(

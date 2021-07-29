@@ -39,6 +39,7 @@ const nextLint: cliCommand = async (argv) => {
     '--help': Boolean,
     '--base-dir': String,
     '--dir': [String],
+    '--strict': Boolean,
 
     // Aliases
     '-h': '--help',
@@ -100,6 +101,9 @@ const nextLint: cliCommand = async (argv) => {
           --ext [String]                 Specify JavaScript file extensions - default: .js, .jsx, .ts, .tsx
           --resolve-plugins-relative-to path::String  A folder where plugins should be resolved from, CWD by default
 
+        Initial setup:
+          --strict                       Creates an .eslintrc file using the Next.js strict configuration automatically (can only be done when no .eslintrc file is present)
+
         Specifying rules:
           --rulesdir [path::String]      Use additional rules from this directory
 
@@ -156,6 +160,7 @@ const nextLint: cliCommand = async (argv) => {
   const reportErrorsOnly = Boolean(args['--quiet'])
   const maxWarnings = args['--max-warnings'] ?? -1
   const formatter = args['--format'] || null
+  const strict = Boolean(args['--strict'])
 
   runLintCheck(
     baseDir,
@@ -164,7 +169,8 @@ const nextLint: cliCommand = async (argv) => {
     eslintOptions(args),
     reportErrorsOnly,
     maxWarnings,
-    formatter
+    formatter,
+    strict
   )
     .then(async (lintResults) => {
       const lintOutput =

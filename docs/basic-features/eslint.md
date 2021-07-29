@@ -56,7 +56,7 @@ If either of the two configuration options are selected, Next.js will automatica
 
 You can now run `next lint` every time you want to run ESLint to catch errors. Once ESLint has been set up, it will also automatically run during every build (`next build`). Errors will fail the build, while warnings will not.
 
-> If you do not want ESLint to run as a build step, refer to the documentation for [Ignoring ESLint](/docs/api-reference/next.config.js/ignoring-eslint.md).
+> If you do not want ESLint to run during `next build`, refer to the documentation for [Ignoring ESLint](/docs/api-reference/next.config.js/ignoring-eslint.md).
 
 We recommend using an appropriate [integration](https://eslint.org/docs/user-guide/integrations#editors) to view warnings and errors directly in your code editor during development.
 
@@ -115,7 +115,7 @@ module.exports = {
 Similarly, the `--dir` flag can be used for `next lint`:
 
 ```bash
-yarn lint --dir pages --dir utils
+next lint --dir pages --dir utils
 ```
 
 ## Disabling Rules
