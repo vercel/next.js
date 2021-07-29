@@ -46,12 +46,13 @@ function reactElementToDOM({ type, props }: JSX.Element): HTMLElement {
  * For more information, see:
  * https://bugs.chromium.org/p/chromium/issues/detail?id=1211471#c12
  */
-function isEqualNode(oldTag: Element, newTag: Element) {
+export function isEqualNode(oldTag: Element, newTag: Element) {
   if (oldTag instanceof HTMLElement && newTag instanceof HTMLElement) {
     const nonce = newTag.getAttribute('nonce')
     if (nonce) {
-      // Remove nonce for comparison
+      // Remove nonce from HTML attribute for comparison
       newTag.setAttribute('nonce', '')
+      newTag.nonce = nonce
       const isEqual = nonce === oldTag.nonce && oldTag.isEqualNode(newTag)
       // Restore original nonce
       newTag.setAttribute('nonce', nonce)
