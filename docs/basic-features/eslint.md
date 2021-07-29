@@ -183,7 +183,7 @@ npm install --save-dev eslint-plugin-next
 yarn add --dev eslint-plugin-next
 ```
 
-This eliminates any risk of collisions or errors that can occur due to importing the same plugin or parser across multiple configurations.
+This eliminates the risk of collisions or errors that can occur due to importing the same plugin or parser across multiple configurations.
 
 ### Additional Configurations
 
