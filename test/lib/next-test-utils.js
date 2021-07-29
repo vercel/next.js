@@ -180,11 +180,11 @@ export function runNextCommandDev(argv, stdOut, opts = {}) {
     ...opts.env,
   }
 
-  const hookArgs = opts.hook ? ['-r', opts.hook] : []
+  const nodeArgs = opts.nodeArgs || []
   return new Promise((resolve, reject) => {
     const instance = spawn(
       'node',
-      [...hookArgs, '--no-deprecation', nextBin, ...argv],
+      [...nodeArgs, '--no-deprecation', nextBin, ...argv],
       {
         cwd,
         env,

@@ -1,6 +1,7 @@
 /* eslint-env jest */
 
 import { join } from 'path'
+import fs from 'fs-extra'
 import webdriver from 'next-webdriver'
 import {
   findPort,
@@ -84,6 +85,7 @@ describe('React 18 Support', () => {
     let app
     let appPort
     beforeAll(async () => {
+      await fs.remove(join(appDir, '.next'))
       await nextBuild(appDir, [dirPrerelease], {
         nodeArgs,
         stdout: true,
