@@ -24,24 +24,6 @@ const swc = async (code) => {
 
 describe('babel plugin (next-ssg-transform)', () => {
   describe('getStaticProps support', () => {
-    it('should not remove extra named export function declarations', async () => {
-      const output = await swc(trim`
-        export function getStaticProps() {
-          return { props: {} }
-        }
-
-        export function Noop() {}
-
-        export default function Test() {
-          return <div />
-        }
-      `)
-
-      expect(output).toMatchInlineSnapshot(
-        `"export var __N_SSG=true;export function Noop(){}export default function Test(){return __jsx(\\"div\\",null);}"`
-      )
-    })
-
     it('should remove named export variable declarations', async () => {
       const output = await swc(trim`
         export const getStaticPaths = () => {
