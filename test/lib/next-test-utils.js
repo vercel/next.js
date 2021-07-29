@@ -104,12 +104,11 @@ export function runNextCommand(argv, options = {}) {
     __NEXT_TEST_MODE: 'true',
   }
 
-  const hookArgs = options.hook ? ['-r', options.hook] : []
   return new Promise((resolve, reject) => {
     console.log(`Running command "next ${argv.join(' ')}"`)
     const instance = spawn(
       'node',
-      [...hookArgs, '--no-deprecation', nextBin, ...argv],
+      [...(options.nodeArgs || []), '--no-deprecation', nextBin, ...argv],
       {
         ...options.spawnOptions,
         cwd,
