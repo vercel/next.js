@@ -250,7 +250,7 @@ async function main() {
   // concurrent ones
   for (const test of nonConcurrentTestNames) {
     let passed = false
-    console.log(test)
+
     for (let i = 0; i < NUM_RETRIES + 1; i++) {
       try {
         console.log(`Starting ${test} retry ${i}/${NUM_RETRIES}`)
