@@ -821,15 +821,15 @@ export async function compile(task, opts) {
 export async function bin(task, opts) {
   await task
     .source(opts.src || 'bin/*')
-    .babel('server', { stripExtension: true, dev: opts.dev })
+    .swc('server', { stripExtension: true, dev: opts.dev })
     .target('dist/bin', { mode: '0755' })
   notify('Compiled binaries')
 }
 
 export async function cli(task, opts) {
   await task
-    .source(opts.src || 'cli/**/*.+(js|ts|tsx)')
-    .babel('server', { dev: opts.dev })
+    .source('cli/**/*.+(js|ts|tsx)')
+    .swc('server', { dev: opts.dev })
     .target('dist/cli')
   notify('Compiled cli files')
 }
@@ -837,7 +837,7 @@ export async function cli(task, opts) {
 export async function lib(task, opts) {
   await task
     .source(opts.src || 'lib/**/*.+(js|ts|tsx)')
-    .babel('server', { dev: opts.dev })
+    .swc('server', { dev: opts.dev })
     .target('dist/lib')
   notify('Compiled lib files')
 }
@@ -845,7 +845,7 @@ export async function lib(task, opts) {
 export async function server(task, opts) {
   await task
     .source(opts.src || 'server/**/*.+(js|ts|tsx)')
-    .babel('server', { dev: opts.dev })
+    .swc('server', { dev: opts.dev })
     .target('dist/server')
   notify('Compiled server files')
 }
@@ -853,7 +853,7 @@ export async function server(task, opts) {
 export async function nextbuild(task, opts) {
   await task
     .source(opts.src || 'build/**/*.+(js|ts|tsx)')
-    .babel('server', { dev: opts.dev })
+    .swc('server', { dev: opts.dev })
     .target('dist/build')
   notify('Compiled build files')
 }
@@ -861,7 +861,7 @@ export async function nextbuild(task, opts) {
 export async function client(task, opts) {
   await task
     .source(opts.src || 'client/**/*.+(js|ts|tsx)')
-    .babel('client', { dev: opts.dev })
+    .swc('client', { dev: opts.dev })
     .target('dist/client')
   notify('Compiled client files')
 }
@@ -870,7 +870,7 @@ export async function client(task, opts) {
 export async function nextbuildstatic(task, opts) {
   await task
     .source(opts.src || 'export/**/*.+(js|ts|tsx)')
-    .babel('server', { dev: opts.dev })
+    .swc('server', { dev: opts.dev })
     .target('dist/export')
   notify('Compiled export files')
 }
@@ -878,21 +878,21 @@ export async function nextbuildstatic(task, opts) {
 export async function pages_app(task, opts) {
   await task
     .source('pages/_app.tsx')
-    .babel('client', { dev: opts.dev })
+    .swc('client', { dev: opts.dev })
     .target('dist/pages')
 }
 
 export async function pages_error(task, opts) {
   await task
     .source('pages/_error.tsx')
-    .babel('client', { dev: opts.dev })
+    .swc('client', { dev: opts.dev })
     .target('dist/pages')
 }
 
 export async function pages_document(task, opts) {
   await task
     .source('pages/_document.tsx')
-    .babel('server', { dev: opts.dev })
+    .swc('server', { dev: opts.dev })
     .target('dist/pages')
 }
 
@@ -903,7 +903,7 @@ export async function pages(task, opts) {
 export async function telemetry(task, opts) {
   await task
     .source(opts.src || 'telemetry/**/*.+(js|ts|tsx)')
-    .babel('server', { dev: opts.dev })
+    .swc('server', { dev: opts.dev })
     .target('dist/telemetry')
   notify('Compiled telemetry files')
 }
@@ -932,7 +932,7 @@ export default async function (task) {
 export async function shared(task, opts) {
   await task
     .source(opts.src || 'shared/**/*.+(js|ts|tsx)')
-    .babel('server', { dev: opts.dev })
+    .swc('server', { dev: opts.dev })
     .target('dist/shared')
   notify('Compiled shared files')
 }

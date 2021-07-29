@@ -119,7 +119,7 @@ export default handler
 
 ## Extending the `req`/`res` objects with TypeScript
 
-For better type-safety, it is not recommended to extend the `req` and `res` objects. Instead, use pure functions to work with them:
+For better type-safety, it is not recommended to extend the `req` and `res` objects. Instead, use functions to work with them:
 
 ```ts
 // utils/cookies.ts

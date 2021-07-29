@@ -1,6 +1,7 @@
 /* global window */
 import React from 'react'
-import Router, { NextRouter } from '../shared/lib/router/router'
+import Router from '../shared/lib/router/router'
+import type { NextRouter } from '../shared/lib/router/router'
 import { RouterContext } from '../shared/lib/router-context'
 
 type ClassArguments<T> = T extends new (...args: infer U) => any ? U : any
@@ -13,7 +14,9 @@ type SingletonRouterBase = {
   ready(cb: () => any): void
 }
 
-export { Router, NextRouter }
+export { Router }
+
+export type { NextRouter }
 
 export type SingletonRouter = SingletonRouterBase & NextRouter
 
@@ -138,7 +141,7 @@ export function useRouter(): NextRouter {
 // Create a router and assign it as the singleton instance.
 // This is used in client side when we are initilizing the app.
 // This should **not** be used inside the server.
-export const createRouter = (...args: RouterArgs): Router => {
+export function createRouter(...args: RouterArgs): Router {
   singletonRouter.router = new Router(...args)
   singletonRouter.readyCallbacks.forEach((cb) => cb())
   singletonRouter.readyCallbacks = []

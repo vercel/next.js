@@ -149,6 +149,10 @@ function appendScript(
   })
 }
 
+// We wait for pages to be built in dev before we start the route transition
+// timeout to prevent an un-necessary hard navigation in development.
+let devBuildPromise: Promise<void> | undefined
+
 // Resolve a promise that times out after given amount of milliseconds.
 function resolvePromiseWithTimeout<T>(
   p: Promise<T>,
@@ -164,13 +168,29 @@ function resolvePromiseWithTimeout<T>(
       resolve(r)
     }).catch(reject)
 
-    requestIdleCallback(() =>
-      setTimeout(() => {
-        if (!cancelled) {
-          reject(err)
-        }
-      }, ms)
-    )
+    // We wrap these checks separately for better dead-code elimination in
+    // production bundles.
+    if (process.env.NODE_ENV === 'development') {
+      ;(devBuildPromise || Promise.resolve()).then(() => {
+        requestIdleCallback(() =>
+          setTimeout(() => {
+            if (!cancelled) {
+              reject(err)
+            }
+          }, ms)
+        )
+      })
+    }
+
+    if (process.env.NODE_ENV !== 'development') {
+      requestIdleCallback(() =>
+        setTimeout(() => {
+          if (!cancelled) {
+            reject(err)
+          }
+        }, ms)
+      )
+    }
   })
 }
 
@@ -236,7 +256,7 @@ function getFilesForRoute(
   })
 }
 
-function createRouteLoader(assetPrefix: string): RouteLoader {
+export function createRouteLoader(assetPrefix: string): RouteLoader {
   const entrypoints: Map<
     string,
     Future<RouteEntrypoint> | RouteEntrypoint
@@ -307,22 +327,34 @@ function createRouteLoader(assetPrefix: string): RouteLoader {
     },
     loadRoute(route: string, prefetch?: boolean) {
       return withFuture<RouteLoaderEntry>(route, routes, () => {
+        const routeFilesPromise = getFilesForRoute(assetPrefix, route)
+          .then(({ scripts, css }) => {
+            return Promise.all([
+              entrypoints.has(route)
+                ? []
+                : Promise.all(scripts.map(maybeExecuteScript)),
+              Promise.all(css.map(fetchStyleSheet)),
+            ] as const)
+          })
+          .then((res) => {
+            return this.whenEntrypoint(route).then((entrypoint) => ({
+              entrypoint,
+              styles: res[1],
+            }))
+          })
+
+        if (process.env.NODE_ENV === 'development') {
+          devBuildPromise = new Promise<void>((resolve) => {
+            if (routeFilesPromise) {
+              return routeFilesPromise.finally(() => {
+                resolve()
+              })
+            }
+          })
+        }
+
         return resolvePromiseWithTimeout(
-          getFilesForRoute(assetPrefix, route)
-            .then(({ scripts, css }) => {
-              return Promise.all([
-                entrypoints.has(route)
-                  ? []
-                  : Promise.all(scripts.map(maybeExecuteScript)),
-                Promise.all(css.map(fetchStyleSheet)),
-              ] as const)
-            })
-            .then((res) => {
-              return this.whenEntrypoint(route).then((entrypoint) => ({
-                entrypoint,
-                styles: res[1],
-              }))
-            }),
+          routeFilesPromise,
           MS_MAX_IDLE_DELAY,
           markAssetError(new Error(`Route did not complete loading: ${route}`))
         )
@@ -368,5 +400,3 @@ function createRouteLoader(assetPrefix: string): RouteLoader {
     },
   }
 }
-
-export default createRouteLoader
