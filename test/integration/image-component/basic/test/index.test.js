@@ -22,7 +22,7 @@ const emptyImage =
 
 function runTests() {
   it('should render an image tag', async () => {
-    await waitFor(1000)
+    await waitFor(100000)
     expect(await browser.hasElementByCssSelector('img')).toBeTruthy()
   })
   it('should support passing through arbitrary attributes', async () => {

@@ -57,7 +57,9 @@ function reactElementToDOM({ type, props }: JSX.Element): HTMLElement {
 export function isEqualNode(oldTag: Element, newTag: Element) {
   if (oldTag instanceof HTMLElement && newTag instanceof HTMLElement) {
     const nonce = newTag.getAttribute('nonce')
-    if (nonce) {
+    // Only strip the nonce if `oldTag` has had it stripped. An element's nonce attribute will not
+    // be stripped if there is no content security policy response header that includes a nonce.
+    if (nonce && !oldTag.getAttribute('nonce')) {
       // Remove nonce from HTML attribute for comparison
       newTag.setAttribute('nonce', '')
       newTag.nonce = nonce
