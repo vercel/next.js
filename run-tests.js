@@ -112,6 +112,7 @@ async function main() {
         }
       } catch (err) {
         console.log(`Failed to fetch timings data`, err)
+        process.exit(1)
       }
     }
   }
@@ -183,6 +184,7 @@ async function main() {
   const runTest = (test = '', usePolling) =>
     new Promise((resolve, reject) => {
       const start = new Date().getTime()
+      let outputChunks = []
       const child = spawn(
         'node',
         [
@@ -196,7 +198,7 @@ async function main() {
           test,
         ],
         {
-          stdio: 'inherit',
+          stdio: ['ignore', 'pipe', 'pipe'],
           env: {
             JEST_RETRY_TIMES: 0,
             ...process.env,
@@ -217,10 +219,19 @@ async function main() {
           },
         }
       )
+      child.stdout.on('data', (chunk) => {
+        outputChunks.push(chunk)
+      })
+      child.stderr.on('data', (chunk) => {
+        outputChunks.push(chunk)
+      })
       children.add(child)
       child.on('exit', (code) => {
         children.delete(child)
-        if (code) reject(new Error(`failed with code: ${code}`))
+        if (code) {
+          outputChunks.forEach((chunk) => process.stdout.write(chunk))
+          reject(new Error(`failed with code: ${code}`))
+        }
         resolve(new Date().getTime() - start)
       })
     })
@@ -239,15 +250,19 @@ async function main() {
   // concurrent ones
   for (const test of nonConcurrentTestNames) {
     let passed = false
-
+    console.log(test)
     for (let i = 0; i < NUM_RETRIES + 1; i++) {
       try {
+        console.log(`Starting ${test} retry ${i}/${NUM_RETRIES}`)
         const time = await runTest(test, i > 0)
         timings.push({
           file: test,
           time,
         })
         passed = true
+        console.log(
+          `Finished ${test} on retry ${i}/${NUM_RETRIES} in ${time / 1000}s`
+        )
         break
       } catch (err) {
         if (i < NUM_RETRIES) {
@@ -287,12 +302,16 @@ async function main() {
 
       for (let i = 0; i < NUM_RETRIES + 1; i++) {
         try {
+          console.log(`Starting ${test} retry ${i}/${NUM_RETRIES}`)
           const time = await runTest(test, i > 0)
           timings.push({
             file: test,
             time,
           })
           passed = true
+          console.log(
+            `Finished ${test} on retry ${i}/${NUM_RETRIES} in ${time / 1000}s`
+          )
           break
         } catch (err) {
           if (i < NUM_RETRIES) {
