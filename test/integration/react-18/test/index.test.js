@@ -1,19 +1,18 @@
 /* eslint-env jest */
 
 import { join } from 'path'
-import fs from 'fs-extra'
 import webdriver from 'next-webdriver'
 import {
   findPort,
   killApp,
   launchApp,
-  runNextCommand,
   nextBuild,
   nextStart,
 } from 'next-test-utils'
 
 jest.setTimeout(1000 * 60 * 5)
 
+const requireHook = join(__dirname, 'require-hook.js')
 const dirSupported = join(__dirname, '../supported')
 const dirPrerelease = join(__dirname, '../prerelease')
 
@@ -22,9 +21,10 @@ const UNSUPPORTED_PRERELEASE =
 const USING_CREATE_ROOT = 'Using the createRoot API for React'
 
 async function getBuildOutput(dir) {
-  const { stdout, stderr } = await runNextCommand(['build', dir], {
+  const { stdout, stderr } = await nextBuild(dir, [], {
     stdout: true,
     stderr: true,
+    hook: requireHook,
   })
   return stdout + stderr
 }
@@ -43,6 +43,7 @@ async function getDevOutput(dir) {
     onStderr(msg) {
       stderr += msg
     },
+    hook: requireHook,
   })
   await killApp(instance)
   return stdout + stderr
@@ -82,12 +83,17 @@ describe('React 18 Support', () => {
     let app
     let appPort
     beforeAll(async () => {
-      await fs.remove(join(appDir, '.next'))
-      await nextBuild(appDir, [dirPrerelease])
+      await nextBuild(appDir, [dirPrerelease], {
+        hook: requireHook,
+        stdout: true,
+        stderr: true,
+      })
       appPort = await findPort()
-      app = await nextStart(appDir, appPort)
+      app = await nextStart(appDir, appPort, { hook: requireHook })
     })
-    afterAll(async () => await killApp(app))
+    afterAll(async () => {
+      await killApp(app)
+    })
     it('hydrates correctly for normal page', async () => {
       const browser = await webdriver(appPort, '/')
       expect(await browser.eval('window.didHydrate')).toBe(true)

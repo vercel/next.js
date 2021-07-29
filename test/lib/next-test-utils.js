@@ -104,14 +104,19 @@ export function runNextCommand(argv, options = {}) {
     __NEXT_TEST_MODE: 'true',
   }
 
+  const hookArgs = options.hook ? ['-r', options.hook] : []
   return new Promise((resolve, reject) => {
     console.log(`Running command "next ${argv.join(' ')}"`)
-    const instance = spawn('node', ['--no-deprecation', nextBin, ...argv], {
-      ...options.spawnOptions,
-      cwd,
-      env,
-      stdio: ['ignore', 'pipe', 'pipe'],
-    })
+    const instance = spawn(
+      'node',
+      [...hookArgs, '--no-deprecation', nextBin, ...argv],
+      {
+        ...options.spawnOptions,
+        cwd,
+        env,
+        stdio: ['ignore', 'pipe', 'pipe'],
+      }
+    )
 
     if (typeof options.instance === 'function') {
       options.instance(instance)
@@ -176,11 +181,16 @@ export function runNextCommandDev(argv, stdOut, opts = {}) {
     ...opts.env,
   }
 
+  const hookArgs = opts.hook ? ['-r', opts.hook] : []
   return new Promise((resolve, reject) => {
-    const instance = spawn('node', ['--no-deprecation', nextBin, ...argv], {
-      cwd,
-      env,
-    })
+    const instance = spawn(
+      'node',
+      [...hookArgs, '--no-deprecation', nextBin, ...argv],
+      {
+        cwd,
+        env,
+      }
+    )
     let didResolve = false
 
     function handleStdout(data) {
