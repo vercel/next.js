@@ -11,6 +11,7 @@ jest.setTimeout(1000 * 60 * 2)
 
 const dirFirstTimeSetup = join(__dirname, '../first-time-setup')
 const dirCustomConfig = join(__dirname, '../custom-config')
+const dirWebVitalsConfig = join(__dirname, '../config-core-web-vitals')
 const dirPluginRecommendedConfig = join(
   __dirname,
   '../plugin-recommended-config'
@@ -236,6 +237,21 @@ describe('ESLint', () => {
       )
       expect(output).toContain(
         'Error: Comments inside children section of tag should be placed inside braces'
+      )
+    })
+
+    test('shows warnings and errors with next/core-web-vitals config', async () => {
+      const { stdout, stderr } = await nextLint(dirWebVitalsConfig, [], {
+        stdout: true,
+        stderr: true,
+      })
+
+      const output = stdout + stderr
+      expect(output).toContain(
+        "Warning: Do not use <img>. Use Image from 'next/image' instead."
+      )
+      expect(output).toContain(
+        'Error: External synchronous scripts are forbidden'
       )
     })
 

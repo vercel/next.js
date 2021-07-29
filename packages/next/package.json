@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "11.0.2-canary.21",
+  "version": "11.0.2-canary.23",
   "description": "The React Framework",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -53,22 +53,23 @@
     "prepublish": "npm run release && yarn types",
     "types": "tsc --declaration --emitDeclarationOnly --declarationDir dist",
     "typescript": "tsc --noEmit --declaration",
-    "ncc-compiled": "ncc cache clean && taskr ncc"
+    "ncc-compiled": "ncc cache clean && taskr ncc",
+    "build-native": "napi build --platform --release --cargo-cwd build/swc native"
   },
   "taskr": {
     "requires": [
       "./taskfile-ncc.js",
-      "./taskfile-babel.js",
       "./taskfile-swc.js"
     ]
   },
   "dependencies": {
     "@babel/runtime": "7.12.5",
     "@hapi/accept": "5.0.2",
-    "@next/env": "11.0.2-canary.21",
-    "@next/polyfill-module": "11.0.2-canary.21",
-    "@next/react-dev-overlay": "11.0.2-canary.21",
-    "@next/react-refresh-utils": "11.0.2-canary.21",
+    "@next/env": "11.0.2-canary.23",
+    "@next/polyfill-module": "11.0.2-canary.23",
+    "@next/react-dev-overlay": "11.0.2-canary.23",
+    "@next/react-refresh-utils": "11.0.2-canary.23",
+    "@node-rs/helper": "1.2.1",
     "assert": "2.0.0",
     "ast-types": "0.13.2",
     "browserify-zlib": "0.2.0",
@@ -100,7 +101,6 @@
     "pnp-webpack-plugin": "1.6.4",
     "postcss": "8.2.15",
     "process": "0.11.10",
-    "prop-types": "15.7.2",
     "querystring-es3": "0.2.1",
     "raw-body": "2.4.1",
     "react-is": "17.0.2",
@@ -154,7 +154,8 @@
     "@babel/preset-typescript": "7.12.7",
     "@babel/traverse": "^7.12.10",
     "@babel/types": "7.12.12",
-    "@next/polyfill-nomodule": "11.0.2-canary.21",
+    "@napi-rs/cli": "1.1.0",
+    "@next/polyfill-nomodule": "11.0.2-canary.23",
     "@taskr/clear": "1.1.0",
     "@taskr/esnext": "1.1.0",
     "@taskr/watch": "1.1.0",
@@ -192,7 +193,6 @@
     "ast-types": "0.13.2",
     "async-retry": "1.2.3",
     "async-sema": "3.0.0",
-    "babel-plugin-dynamic-import-node": "2.3.3",
     "babel-plugin-transform-define": "2.0.0",
     "babel-plugin-transform-react-remove-prop-types": "0.4.24",
     "bfj": "7.0.2",
@@ -250,5 +250,11 @@
   },
   "engines": {
     "node": ">=12.0.0"
+  },
+  "napi": {
+    "name": "next-swc",
+    "triples": {
+      "defaults": true
+    }
   }
 }

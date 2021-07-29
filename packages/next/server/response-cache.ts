@@ -1,4 +1,5 @@
 import { IncrementalCache } from './incremental-cache'
+import { RenderResult, resultFromChunks, resultToChunks } from './utils'
 
 interface CachedRedirectValue {
   kind: 'REDIRECT'
@@ -7,7 +8,7 @@ interface CachedRedirectValue {
 
 interface CachedPageValue {
   kind: 'PAGE'
-  html: string
+  html: RenderResult
   pageData: Object
 }
 
@@ -73,7 +74,14 @@ export default class ResponseCache {
         if (cachedResponse) {
           resolve({
             revalidate: cachedResponse.curRevalidate,
-            value: cachedResponse.value,
+            value:
+              cachedResponse.value?.kind === 'PAGE'
+                ? {
+                    kind: 'PAGE',
+                    html: resultFromChunks([cachedResponse.value.html]),
+                    pageData: cachedResponse.value.pageData,
+                  }
+                : cachedResponse.value,
           })
           if (!cachedResponse.isStale) {
             // The cached value is still valid, so we don't need
@@ -88,7 +96,13 @@ export default class ResponseCache {
         if (key && cacheEntry && typeof cacheEntry.revalidate !== 'undefined') {
           await this.incrementalCache.set(
             key,
-            cacheEntry.value,
+            cacheEntry.value?.kind === 'PAGE'
+              ? {
+                  kind: 'PAGE',
+                  html: (await resultToChunks(cacheEntry.value.html)).join(''),
+                  pageData: cacheEntry.value.pageData,
+                }
+              : cacheEntry.value,
             cacheEntry.revalidate
           )
         }
