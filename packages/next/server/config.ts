@@ -12,6 +12,7 @@ import {
 import { loadWebpackHook } from './config-utils'
 import { ImageConfig, imageConfigDefault, VALID_LOADERS } from './image-config'
 import { loadEnvConfig } from '@next/env'
+import { hasNextSupport } from '../telemetry/ci-info'
 
 export { DomainLocale, NextConfig, normalizeConfig } from './config-shared'
 
@@ -487,10 +488,7 @@ export default async function loadConfig(
           : canonicalBase) || ''
     }
 
-    if (
-      process.env.NEXT_PRIVATE_TARGET ||
-      (process.env.VERCEL === '1' && process.env.VERCEL_ENV !== 'development')
-    ) {
+    if (process.env.NEXT_PRIVATE_TARGET || hasNextSupport) {
       userConfig.target = process.env.NEXT_PRIVATE_TARGET || 'server'
     }
 

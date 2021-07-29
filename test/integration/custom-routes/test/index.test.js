@@ -2039,7 +2039,7 @@ describe('Custom routes', () => {
         {
           stderr: true,
           env: {
-            VERCEL: '1',
+            NOW_BUILDER: '1',
           },
         }
       )
