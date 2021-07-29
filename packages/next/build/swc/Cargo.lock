@@ -703,6 +703,7 @@ dependencies = [
  "swc_ecma_transforms_testing",
  "swc_ecmascript",
  "swc_node_base",
+ "testing",
 ]
 
 [[package]]
