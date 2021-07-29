@@ -5,7 +5,7 @@ export function getGlobalImportError(file: string | null) {
     'cannot'
   )} be imported from files other than your ${chalk.bold(
     'Custom <App>'
-  )}. Please move all global CSS imports to ${chalk.cyan(
+  )}. Due to the Global nature of stylesheets, and to avoid conflicts, Please move all first-party global CSS imports to ${chalk.cyan(
     file ? file : 'pages/_app.js'
   )}. Or convert the import to Component-Level CSS (CSS Modules).\nRead more: https://nextjs.org/docs/messages/css-global`
 }

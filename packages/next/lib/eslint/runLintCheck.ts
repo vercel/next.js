@@ -30,7 +30,8 @@ async function lint(
   pkgJsonPath: string | null,
   eslintOptions: any = null,
   reportErrorsOnly: boolean = false,
-  maxWarnings: number = -1
+  maxWarnings: number = -1,
+  formatter: string | null = null
 ): Promise<
   | string
   | null
@@ -111,12 +112,18 @@ async function lint(
     }
   }
   const lintStart = process.hrtime()
-
   let results = await eslint.lintFiles(lintDirs)
+  let selectedFormatter = null
+
   if (options.fix) await ESLint.outputFixes(results)
   if (reportErrorsOnly) results = await ESLint.getErrorResults(results) // Only return errors if --quiet flag is used
 
-  const formattedResult = formatResults(baseDir, results)
+  if (formatter) selectedFormatter = await eslint.loadFormatter(formatter)
+  const formattedResult = formatResults(
+    baseDir,
+    results,
+    selectedFormatter?.format
+  )
   const lintEnd = process.hrtime(lintStart)
   const totalWarnings = results.reduce(
     (sum: number, file: LintResult) => sum + file.warningCount,
@@ -152,7 +159,8 @@ export async function runLintCheck(
   lintDuringBuild: boolean = false,
   eslintOptions: any = null,
   reportErrorsOnly: boolean = false,
-  maxWarnings: number = -1
+  maxWarnings: number = -1,
+  formatter: string | null = null
 ): ReturnType<typeof lint> {
   try {
     // Find user's .eslintrc file
@@ -215,7 +223,8 @@ export async function runLintCheck(
       pkgJsonPath,
       eslintOptions,
       reportErrorsOnly,
-      maxWarnings
+      maxWarnings,
+      formatter
     )
   } catch (err) {
     throw err

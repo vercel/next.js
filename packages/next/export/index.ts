@@ -376,6 +376,8 @@ export default async function exportApp(
       domainLocales: i18n?.domains,
       trailingSlash: nextConfig.trailingSlash,
       disableOptimizedLoading: nextConfig.experimental.disableOptimizedLoading,
+      // TODO: We should support dynamic HTML too
+      requireStaticHTML: true,
     }
 
     const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
