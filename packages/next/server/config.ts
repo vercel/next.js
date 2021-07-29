@@ -2,7 +2,6 @@ import chalk from 'chalk'
 import findUp from 'next/dist/compiled/find-up'
 import { basename, extname } from 'path'
 import * as Log from '../build/output/log'
-import { hasNextSupport } from '../telemetry/ci-info'
 import { CONFIG_FILE, PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import { execOnce } from '../shared/lib/utils'
 import {
@@ -13,6 +12,7 @@ import {
 import { loadWebpackHook } from './config-utils'
 import { ImageConfig, imageConfigDefault, VALID_LOADERS } from './image-config'
 import { loadEnvConfig } from '@next/env'
+import { hasNextSupport } from '../telemetry/ci-info'
 
 export { DomainLocale, NextConfig, normalizeConfig } from './config-shared'
 
@@ -320,6 +320,12 @@ function assignDefaults(userConfig: { [key: string]: any }) {
       )
     }
 
+    if (i18n.locales.length > 100) {
+      throw new Error(
+        `Received ${i18n.locales.length} i18n.locales items which exceeds the max of 100, please reduce the number of items to continue.\nSee more info here: https://nextjs.org/docs/messages/invalid-i18n-config`
+      )
+    }
+
     const defaultLocaleType = typeof i18n.defaultLocale
 
     if (!i18n.defaultLocale || defaultLocaleType !== 'string') {
@@ -482,7 +488,7 @@ export default async function loadConfig(
           : canonicalBase) || ''
     }
 
-    if (hasNextSupport) {
+    if (process.env.NEXT_PRIVATE_TARGET || hasNextSupport) {
       userConfig.target = process.env.NEXT_PRIVATE_TARGET || 'server'
     }
 

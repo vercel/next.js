@@ -127,7 +127,7 @@ describe('Build Output', () => {
           expect(indexFirstLoad.endsWith('kB')).toBe(true)
 
           // expect(parseFloat(err404Size)).toBeCloseTo(gz ? 3.17 : 8.51, 1)
-          expect(err404Size.endsWith('kB')).toBe(true)
+          expect(err404Size.endsWith('B')).toBe(true)
 
           // expect(parseFloat(err404FirstLoad)).toBeCloseTo(gz ? 66.9 : 204, 1)
           expect(err404FirstLoad.endsWith('kB')).toBe(true)

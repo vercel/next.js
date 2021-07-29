@@ -614,14 +614,14 @@ export async function ncc_webpack_sources(task, opts) {
     .target('compiled/webpack-sources')
 }
 // eslint-disable-next-line camelcase
-externals['webpack-sources2'] = 'next/dist/compiled/webpack-sources2'
-export async function ncc_webpack_sources2(task, opts) {
+externals['webpack-sources3'] = 'next/dist/compiled/webpack-sources3'
+export async function ncc_webpack_sources3(task, opts) {
   await task
     .source(
-      opts.src || relative(__dirname, bundleRequire.resolve('webpack-sources2'))
+      opts.src || relative(__dirname, bundleRequire.resolve('webpack-sources3'))
     )
-    .ncc({ packageName: 'webpack-sources2', externals, target: 'es5' })
-    .target('compiled/webpack-sources2')
+    .ncc({ packageName: 'webpack-sources3', externals, target: 'es5' })
+    .target('compiled/webpack-sources3')
 }
 // eslint-disable-next-line camelcase
 externals['mini-css-extract-plugin'] =
@@ -685,7 +685,7 @@ export async function ncc_webpack_bundle5(task, opts) {
       externals: {
         ...externals,
         'schema-utils': 'next/dist/compiled/schema-utils3',
-        'webpack-sources': 'next/dist/compiled/webpack-sources2',
+        'webpack-sources': 'next/dist/compiled/webpack-sources3',
       },
       minify: false,
       target: 'es5',
@@ -789,7 +789,7 @@ export async function ncc(task, opts) {
         'ncc_webpack_bundle5',
         'ncc_webpack_bundle_packages',
         'ncc_webpack_sources',
-        'ncc_webpack_sources2',
+        'ncc_webpack_sources3',
         'ncc_mini_css_extract_plugin',
       ],
       opts
@@ -861,7 +861,7 @@ export async function nextbuild(task, opts) {
 export async function client(task, opts) {
   await task
     .source(opts.src || 'client/**/*.+(js|ts|tsx)')
-    .babel('client', { dev: opts.dev })
+    .swc('client', { dev: opts.dev })
     .target('dist/client')
   notify('Compiled client files')
 }
@@ -878,14 +878,14 @@ export async function nextbuildstatic(task, opts) {
 export async function pages_app(task, opts) {
   await task
     .source('pages/_app.tsx')
-    .babel('client', { dev: opts.dev })
+    .swc('client', { dev: opts.dev })
     .target('dist/pages')
 }
 
 export async function pages_error(task, opts) {
   await task
     .source('pages/_error.tsx')
-    .babel('client', { dev: opts.dev })
+    .swc('client', { dev: opts.dev })
     .target('dist/pages')
 }
 
