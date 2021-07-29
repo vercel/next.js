@@ -84,7 +84,6 @@ describe('Chunking', () => {
 
   it('should execute the build manifest', async () => {
     const html = await renderViaHTTP(appPort, '/')
-    console.log(html)
     const $ = cheerio.load(html)
     expect(
       Array.from($('script'))
