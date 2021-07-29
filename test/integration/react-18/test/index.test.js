@@ -12,7 +12,8 @@ import {
 
 jest.setTimeout(1000 * 60 * 5)
 
-const requireHook = join(__dirname, 'require-hook.js')
+// overrides react and react-dom to v18
+const nodeArgs = ['-r', join(__dirname, 'require-hook.js')]
 const dirSupported = join(__dirname, '../supported')
 const dirPrerelease = join(__dirname, '../prerelease')
 
@@ -24,7 +25,7 @@ async function getBuildOutput(dir) {
   const { stdout, stderr } = await nextBuild(dir, [], {
     stdout: true,
     stderr: true,
-    hook: requireHook,
+    nodeArgs,
   })
   return stdout + stderr
 }
@@ -43,7 +44,7 @@ async function getDevOutput(dir) {
     onStderr(msg) {
       stderr += msg
     },
-    hook: requireHook,
+    nodeArgs,
   })
   await killApp(instance)
   return stdout + stderr
@@ -84,12 +85,12 @@ describe('React 18 Support', () => {
     let appPort
     beforeAll(async () => {
       await nextBuild(appDir, [dirPrerelease], {
-        hook: requireHook,
+        nodeArgs,
         stdout: true,
         stderr: true,
       })
       appPort = await findPort()
-      app = await nextStart(appDir, appPort, { hook: requireHook })
+      app = await nextStart(appDir, appPort, { nodeArgs })
     })
     afterAll(async () => {
       await killApp(app)
