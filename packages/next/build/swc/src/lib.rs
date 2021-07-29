@@ -45,6 +45,7 @@ use swc_common::{
     FilePathMapping, SourceMap,
 };
 
+mod amp_attribute_patcher;
 mod hook_optimizer;
 mod transform;
 mod util;
