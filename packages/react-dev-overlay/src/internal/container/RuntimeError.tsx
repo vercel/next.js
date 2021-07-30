@@ -193,9 +193,6 @@ export const styles = css`
     font-size: var(--size-font-small);
     color: #999;
   }
-  [data-nextjs-call-stack-frame] > div > span {
-    word-break: break-all;
-  }
   [data-nextjs-call-stack-frame] > div > svg {
     width: auto;
     height: var(--size-font-small);
