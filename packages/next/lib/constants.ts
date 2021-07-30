@@ -76,4 +76,5 @@ export const ESLINT_PROMPT_VALUES = [
     title: 'Cancel',
     config: null,
   },
-] as any
+]
+

@@ -33,8 +33,8 @@ const dirNoConfig = join(__dirname, '../no-config')
 describe('ESLint', () => {
   describe('Next Build', () => {
     test('first time setup', async () => {
-      const eslintrc = join(dirFirstTimeSetup, '.eslintrc')
-      await fs.writeFile(eslintrc, '')
+      const eslintrcJson = join(dirFirstTimeSetup, '.eslintrc.json')
+      await fs.writeFile(eslintrcJson, '')
 
       const { stdout, stderr } = await nextBuild(dirFirstTimeSetup, [], {
         stdout: true,
@@ -181,8 +181,8 @@ describe('ESLint', () => {
       }
 
       test('show a prompt to set up ESLint if no configuration detected', async () => {
-        const eslintrc = join(dirFirstTimeSetup, '.eslintrc')
-        await fs.writeFile(eslintrc, '')
+        const eslintrcJson = join(dirFirstTimeSetup, '.eslintrc.json')
+        await fs.writeFile(eslintrcJson, '')
 
         const { stdout, stderr } = await nextLint(dirFirstTimeSetup, [], {
           stdout: true,

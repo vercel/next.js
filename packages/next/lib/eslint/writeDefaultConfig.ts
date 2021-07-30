@@ -55,7 +55,7 @@ export async function writeDefaultConfig(
       path.join(baseDir, '.eslintrc.json'),
       CommentJson.stringify(selectedConfig, null, 2) + os.EOL
     )
-    console.log(path.join(baseDir, '.eslintrc.json'))
+
     console.log(
       chalk.green(
         `We created the ${chalk.bold(

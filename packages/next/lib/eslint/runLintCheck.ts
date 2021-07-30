@@ -284,7 +284,7 @@ export async function runLintCheck(
         const { config: selectedConfig } = strict
           ? ESLINT_PROMPT_VALUES.find(
               (opt: { title: string }) => opt.title === 'Strict'
-            )
+            )!
           : await cliPrompt()
 
         if (selectedConfig == null) {

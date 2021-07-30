@@ -102,7 +102,7 @@ const nextLint: cliCommand = async (argv) => {
           --resolve-plugins-relative-to path::String  A folder where plugins should be resolved from, CWD by default
 
         Initial setup:
-          --strict                       Creates an .eslintrc file using the Next.js strict configuration automatically (can only be done when no .eslintrc file is present)
+          --strict                       Creates an .eslintrc.json file using the Next.js strict configuration (only possible if no .eslintrc.json file is present)
 
         Specifying rules:
           --rulesdir [path::String]      Use additional rules from this directory
