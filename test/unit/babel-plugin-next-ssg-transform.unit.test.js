@@ -169,16 +169,6 @@ describe('babel plugin (next-ssg-transform)', () => {
       )
     })
 
-    it('should support full re-export', async () => {
-      const output = await swc(trim`
-        export { getStaticProps, default } from 'a'
-      `)
-
-      expect(output).toMatchInlineSnapshot(
-        `"export var __N_SSG=true;export{default}from'a';"`
-      )
-    })
-
     it('errors for incorrect mix of functions', () => {
       expect(() =>
         swc(trim`
