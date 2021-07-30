@@ -419,7 +419,9 @@ impl Fold for NextSsg {
                 for item in take(&mut items) {
                     match &item {
                         ModuleItem::ModuleDecl(
-                            ModuleDecl::ExportNamed(..) | ModuleDecl::ExportDefaultDecl(..),
+                            ModuleDecl::ExportNamed(..)
+                            | ModuleDecl::ExportDecl(..)
+                            | ModuleDecl::ExportDefaultDecl(..),
                         ) => {
                             if let Some(var) = var.take() {
                                 new.push(ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(
