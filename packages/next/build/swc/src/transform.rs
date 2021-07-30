@@ -27,7 +27,7 @@ DEALINGS IN THE SOFTWARE.
 */
 
 use crate::{
-    amp_attribute_patcher::amp_attribute_patcher,
+    amp_attributes::amp_attributes,
     complete_output, get_compiler,
     hook_optimizer::hook_optimizer,
     util::{CtxtExt, MapErr},
@@ -173,7 +173,7 @@ fn process_js_custom(
         }
     };
     let config = BuiltConfig {
-        pass: chain!(hook_optimizer(), amp_attribute_patcher(), config.pass),
+        pass: chain!(hook_optimizer(), amp_attributes(), config.pass),
         syntax: config.syntax,
         target: config.target,
         minify: config.minify,

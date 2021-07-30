@@ -106,34 +106,42 @@ jobs:
           cargo-cache
 
   commit:
+    if: ${{ env.GITHUB_EVENT_NAME  == 'workflow_dispatch' }}
     needs: [build, build-apple-silicon]
     runs-on: ubuntu-18.04
 
     steps:
       - uses: actions/checkout@v2
-        if: ${{ env.GITHUB_EVENT_NAME  == 'workflow_dispatch' }}
       - uses: actions/download-artifact@v2
         with:
           name: next-swc-binaries
           path: packages/next/native
-        if: ${{ env.GITHUB_EVENT_NAME  == 'workflow_dispatch' }}
       - uses: EndBug/add-and-commit@v7
         with:
           add: 'packages/next/native --force'
           message: 'Build next-swc binaries'
-        if: ${{ env.GITHUB_EVENT_NAME  == 'workflow_dispatch' }}
+
+  test:
+    if: ${{ env.GITHUB_EVENT_NAME  == 'pull_request' }}
+    runs-on: ubuntu-18.04
+
+    steps:
+      - name: Install
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly-2021-03-25
+          profile: minimal
+      - run: cd packages/next/build/swc && cargo test
 
   check:
+    if: ${{ env.GITHUB_EVENT_NAME  == 'pull_request' }}
     needs: [build, build-apple-silicon]
     runs-on: ubuntu-18.04
 
     steps:
       - uses: actions/checkout@v2
-        if: ${{ env.GITHUB_EVENT_NAME  == 'pull_request' }}
       - uses: actions/download-artifact@v2
         with:
           name: next-swc-binaries
           path: packages/next/native
-        if: ${{ env.GITHUB_EVENT_NAME  == 'pull_request' }}
       - run: git diff --exit-code
-        if: ${{ env.GITHUB_EVENT_NAME  == 'pull_request' }}

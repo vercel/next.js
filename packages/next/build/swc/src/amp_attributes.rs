@@ -4,7 +4,7 @@ use swc_ecmascript::ast::{
 };
 use swc_ecmascript::visit::Fold;
 
-pub fn amp_attribute_patcher() -> impl Fold {
+pub fn amp_attributes() -> impl Fold {
   AmpAttributePatcher::default()
 }
 
