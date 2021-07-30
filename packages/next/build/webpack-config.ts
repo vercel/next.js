@@ -1323,10 +1323,15 @@ export default async function getBaseWebpackConfig(
       new WellKnownErrorsPlugin(),
       !isServer &&
         new CopyFilePlugin({
-          source: require.resolve('./polyfills/polyfill-nomodule'),
+          filePath: require.resolve('./polyfills/polyfill-nomodule'),
+          cacheKey: process.env.__NEXT_VERSION as string,
           name: `static/chunks/polyfills${dev ? '' : '-[hash]'}.js`,
           minimize: false,
-          info: { [CLIENT_STATIC_FILES_RUNTIME_POLYFILLS_SYMBOL]: 1 },
+          info: {
+            [CLIENT_STATIC_FILES_RUNTIME_POLYFILLS_SYMBOL]: 1,
+            // This file is already minified
+            minimized: true,
+          },
         }),
     ].filter((Boolean as any) as ExcludesFalse),
   }

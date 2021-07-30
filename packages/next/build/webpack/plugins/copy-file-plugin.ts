@@ -9,30 +9,32 @@ import {
 const PLUGIN_NAME = 'CopyFilePlugin'
 
 export class CopyFilePlugin {
-  private source: string
+  private filePath: string
   private name: string
-  private minimize: boolean
+  private cacheKey: string
   private info?: object
 
   constructor({
-    source,
+    filePath,
+    cacheKey,
     name,
-    minimize,
     info,
   }: {
-    source: string
+    filePath: string
+    cacheKey: string
     name: string
     minimize: boolean
     info?: object
   }) {
-    this.source = source
+    this.filePath = filePath
+    this.cacheKey = cacheKey
     this.name = name
-    this.minimize = minimize
     this.info = info
   }
 
   apply(compiler: webpack.Compiler) {
-    compiler.hooks.compilation.tap(PLUGIN_NAME, (compilation) => {
+    compiler.hooks.thisCompilation.tap(PLUGIN_NAME, (compilation: any) => {
+      const cache = isWebpack5 ? compilation.getCache('CopyFilePlugin') : null
       const hook = isWebpack5
         ? // @ts-ignore
           compilation.hooks.processAssets
@@ -46,16 +48,38 @@ export class CopyFilePlugin {
             }
           : PLUGIN_NAME,
         async () => {
-          const content = await fs.readFile(this.source, 'utf8')
+          if (cache) {
+            const cachedResult = await cache.getPromise(
+              this.filePath,
+              this.cacheKey
+            )
+            if (cachedResult) {
+              const { file, source } = cachedResult
+              compilation.emitAsset(file, source, {
+                ...this.info,
+              })
+              return
+            }
+          }
+          const content = await fs.readFile(this.filePath, 'utf8')
 
           const file = loaderUtils.interpolateName(
-            { resourcePath: this.source },
+            { resourcePath: this.filePath },
             this.name,
             { content, context: compiler.context }
           )
 
+          const source = new sources.RawSource(content)
+
+          if (cache) {
+            await cache.storePromise(this.filePath, this.cacheKey, {
+              file,
+              source,
+            })
+          }
+
           // @ts-ignore
-          compilation.emitAsset(file, new sources.RawSource(content), {
+          compilation.emitAsset(file, source, {
             ...this.info,
           })
         }
