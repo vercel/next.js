@@ -6,17 +6,27 @@ const path = require('path')
 // eslint-disable-next-line import/no-extraneous-dependencies
 const transform = require('@swc/core').transform
 
+// SWC doesn't allow setting `sourceFileName` yet so we have to manually edit the sourcemap to the correct input file path
+function updateSourceMapSources(map, sourceFileName) {
+  map.sources = [sourceFileName]
+  return map
+}
+
 module.exports = function (task) {
   // eslint-disable-next-line require-yield
   task.plugin('swc', {}, function* (
     file,
     serverOrClient,
-    { stripExtension, dev } = {}
+    { stripExtension } = {}
   ) {
     // Don't compile .d.ts
     if (file.base.endsWith('.d.ts')) return
 
     const isClient = serverOrClient === 'client'
+
+    const filePath = path.join(file.dir, file.base)
+    const fullFilePath = path.join(__dirname, filePath)
+    const distFilePath = path.dirname(path.join(__dirname, 'dist', filePath))
 
     const swcClientOptions = {
       module: {
@@ -108,7 +118,14 @@ module.exports = function (task) {
       this._.files.push({
         base: map,
         dir: file.dir,
-        data: Buffer.from(output.map),
+        data: Buffer.from(
+          JSON.stringify(
+            updateSourceMapSources(
+              JSON.parse(output.map),
+              path.relative(distFilePath, fullFilePath)
+            )
+          )
+        ),
       })
     }
 
