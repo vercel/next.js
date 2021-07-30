@@ -94,7 +94,7 @@ This layout pattern enables state persistence because the React component tree i
 
 ### With TypeScript
 
-When using TypeScript you must first create a new type for your pages which includes a `getLayout` function. Then you must create a new type for your `AppProps` which overrides the `Component` property to be of the previously created type.
+When using TypeScript, you must first create a new type for your pages which includes a `getLayout` function. Then, you must create a new type for your `AppProps` which overrides the `Component` property to use the previously created type.
 
 ```tsx
 // pages/index.tsx
