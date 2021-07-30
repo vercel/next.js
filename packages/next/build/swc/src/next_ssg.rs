@@ -199,26 +199,6 @@ impl Fold for Analyzer<'_> {
             n.specifiers = n.specifiers.fold_with(self);
         }
 
-        n.specifiers.retain(|s| {
-            let preserve = match s {
-                ExportSpecifier::Namespace(ExportNamespaceSpecifier { name: exported, .. })
-                | ExportSpecifier::Default(ExportDefaultSpecifier { exported, .. })
-                | ExportSpecifier::Named(ExportNamedSpecifier {
-                    exported: Some(exported),
-                    ..
-                }) => !self.state.is_data_identifier(&exported),
-                ExportSpecifier::Named(s) => !self.state.is_data_identifier(&s.orig),
-            };
-
-            if !preserve {
-                log::trace!("Dropping a export specifier because it's a data identifier",);
-
-                self.state.should_run_again = true;
-            }
-
-            preserve
-        });
-
         n
     }
 
@@ -426,6 +406,38 @@ impl Fold for NextSsg {
         }
 
         items
+    }
+
+    fn fold_named_export(&mut self, mut n: NamedExport) -> NamedExport {
+        n.specifiers = n.specifiers.fold_with(self);
+
+        n.specifiers.retain(|s| {
+            let preserve = match s {
+                ExportSpecifier::Namespace(ExportNamespaceSpecifier { name: exported, .. })
+                | ExportSpecifier::Default(ExportDefaultSpecifier { exported, .. })
+                | ExportSpecifier::Named(ExportNamedSpecifier {
+                    exported: Some(exported),
+                    ..
+                }) => !self.state.is_data_identifier(&exported),
+                ExportSpecifier::Named(s) => !self.state.is_data_identifier(&s.orig),
+            };
+
+            if !preserve {
+                log::trace!("Dropping a export specifier because it's a data identifier");
+
+                match s {
+                    ExportSpecifier::Named(ExportNamedSpecifier { orig, .. }) => {
+                        self.state.should_run_again = true;
+                        self.state.refs_from_data_fn.insert(orig.to_id());
+                    }
+                    _ => {}
+                }
+            }
+
+            preserve
+        });
+
+        n
     }
 
     /// This methods returns [Pat::Invalid] if the pattern should be removed.
