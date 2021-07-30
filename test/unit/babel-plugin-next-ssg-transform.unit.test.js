@@ -71,26 +71,6 @@ describe('babel plugin (next-ssg-transform)', () => {
       )
     })
 
-    it('should support class exports 2', async () => {
-      const output = await swc(trim`
-        export function getStaticProps() {
-          return { props: {} }
-        }
-
-        class Test extends React.Component {
-          render() {
-            return <div />
-          }
-        }
-
-        export default Test;
-      `)
-
-      expect(output).toMatchInlineSnapshot(
-        `"class Test extends React.Component{render(){return __jsx(\\"div\\",null);}}export var __N_SSG=true;export default Test;"`
-      )
-    })
-
     it('should support export { _ as default }', async () => {
       const output = await swc(trim`
         export function getStaticProps() {
