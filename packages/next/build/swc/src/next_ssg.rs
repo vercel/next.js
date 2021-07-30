@@ -212,6 +212,12 @@ impl Fold for Analyzer<'_> {
                 match &mut e.decl {
                     Decl::Fn(d) => {
                         if self.state.is_data_identifier(&d.ident) {
+                            log::trace!(
+                                "Dropping var `{}{:?}` because it's a data fn",
+                                d.ident.sym,
+                                d.ident.span.ctxt
+                            );
+
                             self.state.should_run_again = true;
                             return ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }));
                         }
@@ -220,6 +226,11 @@ impl Fold for Analyzer<'_> {
                         d.decls.retain(|d| match &d.name {
                             Pat::Ident(name) => {
                                 if self.state.is_data_identifier(&name.id) {
+                                    log::trace!(
+                                        "Dropping `{}{:?}` because it's a data identifier",
+                                        name.id.sym,
+                                        name.id.span.ctxt
+                                    );
                                     self.state.should_run_again = true;
                                     false
                                 } else {
@@ -258,6 +269,8 @@ impl Fold for Analyzer<'_> {
             };
 
             if !preserve {
+                log::trace!("Dropping a export specifier because it's a data identifier",);
+
                 self.state.should_run_again = true;
             }
 
@@ -322,6 +335,12 @@ impl Fold for NextSsg {
             | ImportSpecifier::Default(ImportDefaultSpecifier { local, .. })
             | ImportSpecifier::Namespace(ImportStarAsSpecifier { local, .. }) => {
                 if self.should_remove(local.to_id()) {
+                    log::trace!(
+                        "Dropping import `{}{:?}` because it should be removed",
+                        local.sym,
+                        local.span.ctxt
+                    );
+
                     self.state.should_run_again = true;
                     false
                 } else {
@@ -436,6 +455,12 @@ impl Fold for NextSsg {
                 Pat::Ident(name) => {
                     if self.should_remove(name.id.to_id()) {
                         self.state.should_run_again = true;
+                        log::trace!(
+                            "Dropping var `{}{:?}` because it should be removed",
+                            name.id.sym,
+                            name.id.span.ctxt
+                        );
+
                         return Pat::Invalid(Invalid { span: DUMMY_SP });
                     }
                 }
