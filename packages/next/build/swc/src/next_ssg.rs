@@ -355,7 +355,16 @@ impl Fold for NextSsg {
             _ => {}
         }
 
-        i.fold_children_with(self)
+        let i = i.fold_children_with(self);
+
+        match &i {
+            ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(e)) if e.specifiers.is_empty() => {
+                return ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }))
+            }
+            _ => {}
+        }
+
+        i
     }
 
     fn fold_module_items(&mut self, mut items: Vec<ModuleItem>) -> Vec<ModuleItem> {
