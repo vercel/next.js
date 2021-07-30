@@ -24,26 +24,6 @@ const swc = async (code) => {
 
 describe('babel plugin (next-ssg-transform)', () => {
   describe('getStaticProps support', () => {
-    it('should not crash for class declarations', async () => {
-      const output = await swc(trim`
-        function getStaticPaths() {
-          return []
-        }
-
-        export { getStaticPaths }
-
-        export class MyClass {}
-
-        export default function Test() {
-          return <div />
-        }
-      `)
-
-      expect(output).toMatchInlineSnapshot(
-        `"export var __N_SSG=true;export class MyClass{}export default function Test(){return __jsx(\\"div\\",null);}"`
-      )
-    })
-
     it(`should remove re-exported function declarations' dependents (variables, functions, imports)`, async () => {
       const output = await swc(trim`
         import keep_me from 'hello'
