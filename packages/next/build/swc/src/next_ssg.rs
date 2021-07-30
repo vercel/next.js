@@ -265,7 +265,7 @@ impl Fold for Analyzer<'_> {
             _ => {}
         }
 
-        let old = self.in_lhs_of_var;
+        let old_in_lhs_of_var = self.in_lhs_of_var;
 
         self.in_lhs_of_var = true;
         v.name = v.name.fold_with(self);
@@ -273,7 +273,7 @@ impl Fold for Analyzer<'_> {
         self.in_lhs_of_var = false;
         v.init = v.init.fold_with(self);
 
-        self.in_lhs_of_var = old;
+        self.in_lhs_of_var = old_in_lhs_of_var;
 
         self.in_data_fn = old_in_data;
 
@@ -291,6 +291,21 @@ impl NextSsg {
     fn should_remove(&self, id: Id) -> bool {
         self.state.refs_from_data_fn.contains(&id) && !self.state.refs_from_other.contains(&id)
     }
+
+    /// Mark `n` as a candidate for removal.
+    fn mark_as_candidate<N>(&mut self, n: N) -> N
+    where
+        N: for<'aa> FoldWith<Analyzer<'aa>>,
+    {
+        // Fill the state.
+        let mut v = Analyzer {
+            state: &mut self.state,
+            in_lhs_of_var: false,
+            in_data_fn: true,
+        };
+
+        n.fold_with(&mut v)
+    }
 }
 
 impl Repeated for NextSsg {
@@ -299,7 +314,6 @@ impl Repeated for NextSsg {
     }
 
     fn reset(&mut self) {
-        self.state.refs_from_data_fn.clear();
         self.state.refs_from_other.clear();
         self.state.should_run_again = false;
     }
@@ -497,12 +511,15 @@ impl Fold for NextSsg {
     }
 
     /// This method make `name` of [VarDeclarator] to [Pat::Invalid] if it should be removed.
-    fn fold_var_declarator(&mut self, d: VarDeclarator) -> VarDeclarator {
+    fn fold_var_declarator(&mut self, mut d: VarDeclarator) -> VarDeclarator {
         let old = self.in_lhs_of_var;
         self.in_lhs_of_var = true;
         let name = d.name.fold_with(self);
 
         self.in_lhs_of_var = false;
+        if name.is_invalid() {
+            d.init = self.mark_as_candidate(d.init);
+        }
         let init = d.init.fold_with(self);
         self.in_lhs_of_var = old;
 
