@@ -297,6 +297,8 @@ impl NextSsg {
     where
         N: for<'aa> FoldWith<Analyzer<'aa>>,
     {
+        log::debug!("mark_as_candidate");
+
         // Fill the state.
         let mut v = Analyzer {
             state: &mut self.state,
@@ -304,7 +306,9 @@ impl NextSsg {
             in_data_fn: true,
         };
 
-        n.fold_with(&mut v)
+        let n = n.fold_with(&mut v);
+        self.state.should_run_again = true;
+        n
     }
 }
 
