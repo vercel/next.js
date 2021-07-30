@@ -23,7 +23,16 @@ pub fn next_ssg() -> impl Fold {
 /// State of the transforms. Shared by the anayzer and the tranform.
 #[derive(Debug, Default)]
 struct State {
+    /// Identifiers referenced by non-data function codes.
+    ///
+    /// Cleared before running each pass, because we drop ast nodes between the
+    /// passes.
     refs_from_other: FxHashSet<Id>,
+
+    /// Identifiers referenced by data functions or derivatives.
+    ///
+    /// Preserved between runs, because we should remember derivatives of data
+    /// functions as the data function itself is already removed.
     refs_from_data_fn: FxHashSet<Id>,
 
     is_prerenderer: bool,
@@ -48,13 +57,19 @@ impl State {
         if ssg_exports.contains(&&*i.sym) {
             if &*i.sym == "" {
                 if self.is_prerenderer {
-                    panic!("You can not use getStaticProps or getStaticPaths with getServerSideProps. To use SSG, please remove getServerSideProps")
+                    panic!(
+                        "You can not use getStaticProps or getStaticPaths with \
+                         getServerSideProps. To use SSG, please remove getServerSideProps"
+                    )
                 }
 
                 self.is_server_props = true;
             } else {
                 if self.is_server_props {
-                    panic!("You can not use getStaticProps or getStaticPaths with getServerSideProps. To use SSG, please remove getServerSideProps")
+                    panic!(
+                        "You can not use getStaticProps or getStaticPaths with \
+                         getServerSideProps. To use SSG, please remove getServerSideProps"
+                    )
                 }
 
                 self.is_prerenderer = true;
@@ -254,14 +269,15 @@ impl NextSsg {
         self.state.refs_from_data_fn.contains(&id) && !self.state.refs_from_other.contains(&id)
     }
 
-    /// Mark `n` as a candidate for removal.
+    /// Mark identifiers in `n` as a candidate for removal.
     fn mark_as_candidate<N>(&mut self, n: N) -> N
     where
         N: for<'aa> FoldWith<Analyzer<'aa>>,
     {
         log::debug!("mark_as_candidate");
 
-        // Fill the state.
+        // Analyzer never change `in_data_fn` to false, so all identifiers in `n` will
+        // be marked as referenced from a data function.
         let mut v = Analyzer {
             state: &mut self.state,
             in_lhs_of_var: false,
@@ -285,7 +301,8 @@ impl Repeated for NextSsg {
     }
 }
 
-/// `VisitMut` is faster than [Fold], but we use [Fold] because it's much easier to read.
+/// `VisitMut` is faster than [Fold], but we use [Fold] because it's much easier
+/// to read.
 ///
 /// Note: We don't implement `fold_script` because next.js doesn't use it.
 impl Fold for NextSsg {
@@ -547,7 +564,8 @@ impl Fold for NextSsg {
         s
     }
 
-    /// This method make `name` of [VarDeclarator] to [Pat::Invalid] if it should be removed.
+    /// This method make `name` of [VarDeclarator] to [Pat::Invalid] if it
+    /// should be removed.
     fn fold_var_declarator(&mut self, mut d: VarDeclarator) -> VarDeclarator {
         let old = self.in_lhs_of_var;
         self.in_lhs_of_var = true;
