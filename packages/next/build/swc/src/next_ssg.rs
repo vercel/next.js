@@ -89,7 +89,7 @@ impl Fold for Analyzer<'_> {
     noop_fold_type!();
 
     fn fold_binding_ident(&mut self, i: BindingIdent) -> BindingIdent {
-        if !self.in_lhs_of_var {
+        if !self.in_lhs_of_var || self.in_data_fn {
             self.add_ref(i.id.to_id());
         }
 
