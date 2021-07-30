@@ -339,6 +339,7 @@ impl Fold for NextSsg {
     }
 
     fn fold_module(&mut self, mut m: Module) -> Module {
+        log::info!("ssg: Start");
         {
             // Fill the state.
             let mut v = Analyzer {
@@ -361,7 +362,7 @@ impl Fold for NextSsg {
         match i {
             ModuleItem::ModuleDecl(ModuleDecl::Import(i)) => {
                 let is_for_side_effect = i.specifiers.is_empty();
-                let i = i.fold_children_with(self);
+                let i = i.fold_with(self);
 
                 if !is_for_side_effect && i.specifiers.is_empty() {
                     return ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }));
