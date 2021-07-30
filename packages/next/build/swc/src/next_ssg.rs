@@ -1,11 +1,9 @@
-use std::mem::take;
-
 use fxhash::FxHashSet;
+use std::mem::take;
 use swc_common::pass::{Repeat, Repeated};
 use swc_common::DUMMY_SP;
 use swc_ecmascript::ast::*;
 use swc_ecmascript::utils::ident::IdentLike;
-use swc_ecmascript::utils::prepend;
 use swc_ecmascript::visit::FoldWith;
 use swc_ecmascript::{
     utils::Id,
@@ -397,7 +395,7 @@ impl Fold for NextSsg {
             self.state.done = true;
 
             if items.iter().any(|s| s.is_module_decl()) {
-                let var = VarDeclarator {
+                let mut var = Some(VarDeclarator {
                     span: DUMMY_SP,
                     name: Pat::Ident(
                         Ident::new(
@@ -415,19 +413,36 @@ impl Fold for NextSsg {
                         value: true,
                     })))),
                     definite: Default::default(),
-                };
-                prepend(
-                    &mut items,
-                    ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
-                        span: DUMMY_SP,
-                        decl: Decl::Var(VarDecl {
-                            span: DUMMY_SP,
-                            kind: VarDeclKind::Var,
-                            declare: Default::default(),
-                            decls: vec![var],
-                        }),
-                    })),
-                );
+                });
+
+                let mut new = Vec::with_capacity(items.len() + 1);
+                for item in take(&mut items) {
+                    match &item {
+                        ModuleItem::ModuleDecl(
+                            ModuleDecl::ExportNamed(..) | ModuleDecl::ExportDefaultDecl(..),
+                        ) => {
+                            if let Some(var) = var.take() {
+                                new.push(ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(
+                                    ExportDecl {
+                                        span: DUMMY_SP,
+                                        decl: Decl::Var(VarDecl {
+                                            span: DUMMY_SP,
+                                            kind: VarDeclKind::Var,
+                                            declare: Default::default(),
+                                            decls: vec![var],
+                                        }),
+                                    },
+                                )))
+                            }
+                        }
+
+                        _ => {}
+                    }
+
+                    new.push(item);
+                }
+
+                return new;
             }
         }
 
