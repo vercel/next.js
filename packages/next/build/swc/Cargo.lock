@@ -688,6 +688,7 @@ dependencies = [
  "anyhow",
  "backtrace",
  "fxhash",
+ "log",
  "napi",
  "napi-build",
  "napi-derive",
