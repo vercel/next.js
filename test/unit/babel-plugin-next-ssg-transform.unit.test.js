@@ -71,29 +71,6 @@ describe('babel plugin (next-ssg-transform)', () => {
       )
     })
 
-    it('should not mix up bindings', async () => {
-      const output = await swc(trim`
-        function Function1() {
-          return {
-            a: function bug(a) {
-              return 2;
-            }
-          };
-        }
-
-        function Function2() {
-          var bug = 1;
-          return { bug };
-        }
-
-        export { getStaticProps } from 'a'
-      `)
-
-      expect(output).toMatchInlineSnapshot(
-        `"function Function1(){return{a:function bug(a){return 2;}};}function Function2(){var bug=1;return{bug};}"`
-      )
-    })
-
     it('should support class exports', async () => {
       const output = await swc(trim`
         export function getStaticProps() {
