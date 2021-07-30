@@ -73,6 +73,7 @@ struct Analyzer<'a> {
 
 impl Analyzer<'_> {
     fn add_ref(&mut self, id: Id) {
+        log::trace!("add_ref({}{:?}, data = {})", id.0, id.1, self.in_data_fn);
         if self.in_data_fn {
             self.state.refs_from_data_fn.insert(id);
         } else {
@@ -138,27 +139,6 @@ impl Fold for Analyzer<'_> {
         }
 
         f
-    }
-
-    fn fold_import_default_specifier(
-        &mut self,
-        s: ImportDefaultSpecifier,
-    ) -> ImportDefaultSpecifier {
-        self.add_ref(s.local.to_id());
-
-        s
-    }
-
-    fn fold_import_named_specifier(&mut self, s: ImportNamedSpecifier) -> ImportNamedSpecifier {
-        self.add_ref(s.local.to_id());
-
-        s
-    }
-
-    fn fold_import_star_as_specifier(&mut self, s: ImportStarAsSpecifier) -> ImportStarAsSpecifier {
-        self.add_ref(s.local.to_id());
-
-        s
     }
 
     fn fold_member_expr(&mut self, mut e: MemberExpr) -> MemberExpr {
