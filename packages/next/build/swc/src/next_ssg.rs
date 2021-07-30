@@ -523,13 +523,15 @@ impl Fold for NextSsg {
         p
     }
 
-    fn fold_stmt(&mut self, s: Stmt) -> Stmt {
-        match &s {
+    fn fold_stmt(&mut self, mut s: Stmt) -> Stmt {
+        match s {
             Stmt::Decl(Decl::Fn(f)) => {
                 if self.should_remove(f.ident.to_id()) {
-                    self.state.should_run_again = true;
+                    self.mark_as_candidate(f.function);
                     return Stmt::Empty(EmptyStmt { span: DUMMY_SP });
                 }
+
+                s = Stmt::Decl(Decl::Fn(f));
             }
             _ => {}
         }
