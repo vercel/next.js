@@ -97,7 +97,6 @@ export type NextConfig = { [key: string]: any } & {
     scrollRestoration?: boolean
     stats?: boolean
     externalDir?: boolean
-    conformance?: boolean
     amp?: {
       optimizer?: any
       validator?: string
