@@ -89,26 +89,6 @@ describe('babel plugin (next-ssg-transform)', () => {
       )
     })
 
-    it('should support export { _ as default } with other specifiers', async () => {
-      const output = await swc(trim`
-        export function getStaticProps() {
-          return { props: {} }
-        }
-
-        function El() {
-          return <div />
-        }
-
-        const a = 5
-
-        export { El as default, a }
-      `)
-
-      expect(output).toMatchInlineSnapshot(
-        `"function El(){return __jsx(\\"div\\",null);}const a=5;export var __N_SSG=true;export{El as default,a};"`
-      )
-    })
-
     it('errors for incorrect mix of functions', () => {
       expect(() =>
         swc(trim`
