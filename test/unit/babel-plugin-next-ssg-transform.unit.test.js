@@ -243,28 +243,6 @@ describe('babel plugin (next-ssg-transform)', () => {
       )
     })
 
-    it('destructuring assignment (array)', async () => {
-      const output = await swc(trim`
-        import fs from 'fs';
-        import other from 'other';
-
-        const [a, b, ...rest]= fs.promises;
-        const [foo, bar] = other;
-
-        export async function getStaticProps() {
-          a;
-          b;
-          rest;
-          bar;
-        }
-        export default function Home() { return <div />; }
-      `)
-
-      expect(output).toMatchInlineSnapshot(
-        `"import other from'other';const[foo]=other;export var __N_SSG=true;export default function Home(){return __jsx(\\"div\\",null);}"`
-      )
-    })
-
     it('errors for incorrect mix of functions', () => {
       expect(() =>
         swc(trim`
