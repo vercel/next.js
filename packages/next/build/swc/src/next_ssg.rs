@@ -1,3 +1,5 @@
+use std::mem::take;
+
 use fxhash::FxHashSet;
 use swc_common::pass::{Repeat, Repeated};
 use swc_common::DUMMY_SP;
@@ -455,11 +457,38 @@ impl Fold for NextSsg {
                     }
                 }
                 Pat::Object(obj) => {
-                    obj.props.retain(|prop| match prop {
-                        ObjectPatProp::KeyValue(prop) => !prop.value.is_invalid(),
-                        ObjectPatProp::Assign(..) => true,
-                        ObjectPatProp::Rest(prop) => !prop.arg.is_invalid(),
-                    });
+                    obj.props = take(&mut obj.props)
+                        .into_iter()
+                        .filter_map(|prop| match prop {
+                            ObjectPatProp::KeyValue(prop) => {
+                                if prop.value.is_invalid() {
+                                    None
+                                } else {
+                                    Some(ObjectPatProp::KeyValue(prop))
+                                }
+                            }
+                            ObjectPatProp::Assign(prop) => {
+                                if self.should_remove(prop.key.to_id()) {
+                                    self.mark_as_candidate(prop.value);
+
+                                    None
+                                } else {
+                                    Some(ObjectPatProp::Assign(prop))
+                                }
+                            }
+                            ObjectPatProp::Rest(prop) => {
+                                if prop.arg.is_invalid() {
+                                    None
+                                } else {
+                                    Some(ObjectPatProp::Rest(prop))
+                                }
+                            }
+                        })
+                        .collect();
+
+                    if obj.props.is_empty() {
+                        return Pat::Invalid(Invalid { span: DUMMY_SP });
+                    }
                 }
                 Pat::Rest(rest) => {
                     if rest.arg.is_invalid() {
