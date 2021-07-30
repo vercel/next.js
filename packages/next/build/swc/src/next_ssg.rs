@@ -3,11 +3,11 @@ use swc_common::pass::{Repeat, Repeated};
 use swc_common::DUMMY_SP;
 use swc_ecmascript::ast::*;
 use swc_ecmascript::utils::ident::IdentLike;
-use swc_ecmascript::utils::{find_ids, prepend};
-use swc_ecmascript::visit::{FoldWith, Node, VisitWith};
+use swc_ecmascript::utils::prepend;
+use swc_ecmascript::visit::FoldWith;
 use swc_ecmascript::{
     utils::Id,
-    visit::{noop_fold_type, noop_visit_type, Fold, Visit},
+    visit::{noop_fold_type, Fold},
 };
 
 /// Note: This paths requires runnning `resolver` **before** running this.
@@ -18,89 +18,12 @@ pub fn next_ssg() -> impl Fold {
     })
 }
 
-/// Only modifies subset of `state`.
-struct UsageColelctor<'a> {
-    state: &'a mut State,
-    in_lhs_of_var: bool,
-}
-
-impl UsageColelctor<'_> {
-    fn add(&mut self, i: &Ident) {
-        self.state.referenced_ids.insert(i.to_id());
-    }
-}
-
-impl Visit for UsageColelctor<'_> {
-    // This is important for reducing binary sizes.
-    noop_visit_type!();
-
-    fn visit_binding_ident(&mut self, i: &BindingIdent, _: &dyn Node) {
-        if !self.in_lhs_of_var {
-            self.add(&i.id);
-        }
-    }
-
-    fn visit_export_named_specifier(&mut self, s: &ExportNamedSpecifier, _: &dyn Node) {
-        self.add(&s.orig);
-    }
-
-    fn visit_expr(&mut self, e: &Expr, _: &dyn Node) {
-        e.visit_children_with(self);
-
-        match e {
-            Expr::Ident(i) => {
-                self.add(&i);
-            }
-            _ => {}
-        }
-    }
-
-    fn visit_member_expr(&mut self, e: &MemberExpr, _: &dyn Node) {
-        e.obj.visit_with(e, self);
-
-        if e.computed {
-            e.prop.visit_with(e, self);
-        }
-    }
-
-    fn visit_named_export(&mut self, e: &NamedExport, _: &dyn Node) {
-        if e.src.is_some() {
-            return;
-        }
-
-        e.visit_children_with(self);
-    }
-
-    fn visit_prop(&mut self, p: &Prop, _: &dyn Node) {
-        p.visit_children_with(self);
-
-        match p {
-            Prop::Shorthand(i) => {
-                self.add(&i);
-            }
-            _ => {}
-        }
-    }
-
-    fn visit_var_declarator(&mut self, v: &VarDeclarator, _: &dyn Node) {
-        let old = self.in_lhs_of_var;
-
-        self.in_lhs_of_var = true;
-        v.name.visit_with(v, self);
-
-        self.in_lhs_of_var = false;
-        v.init.visit_with(v, self);
-
-        self.in_lhs_of_var = old;
-    }
-}
-
 /// State of the transforms. Shared by the anayzer and the tranform.
 #[derive(Debug, Default)]
 struct State {
-    referenced_ids: FxHashSet<Id>,
+    refs_from_other: FxHashSet<Id>,
+    refs_from_data_fn: FxHashSet<Id>,
 
-    refs: FxHashSet<Id>,
     is_prerenderer: bool,
     is_server_props: bool,
     done: bool,
@@ -144,11 +67,17 @@ impl State {
 
 struct Analyzer<'a> {
     state: &'a mut State,
+    in_lhs_of_var: bool,
+    in_data_fn: bool,
 }
 
 impl Analyzer<'_> {
     fn add_ref(&mut self, id: Id) {
-        self.state.refs.insert(id);
+        if self.in_data_fn {
+            self.state.refs_from_data_fn.insert(id);
+        } else {
+            self.state.refs_from_other.insert(id);
+        }
     }
 }
 
@@ -156,10 +85,41 @@ impl Fold for Analyzer<'_> {
     // This is important for reducing binary sizes.
     noop_fold_type!();
 
+    fn fold_binding_ident(&mut self, i: BindingIdent) -> BindingIdent {
+        if !self.in_lhs_of_var {
+            self.add_ref(i.id.to_id());
+        }
+
+        i
+    }
+
+    fn fold_export_named_specifier(&mut self, s: ExportNamedSpecifier) -> ExportNamedSpecifier {
+        self.add_ref(s.orig.to_id());
+
+        s
+    }
+
+    fn fold_expr(&mut self, e: Expr) -> Expr {
+        let e = e.fold_children_with(self);
+
+        match &e {
+            Expr::Ident(i) => {
+                self.add_ref(i.to_id());
+            }
+            _ => {}
+        }
+
+        e
+    }
+
     fn fold_fn_decl(&mut self, f: FnDecl) -> FnDecl {
+        let old_in_data = self.in_data_fn;
+
+        self.in_data_fn |= self.state.is_data_identifier(&f.ident);
+
         let f = f.fold_children_with(self);
 
-        self.add_ref(f.ident.to_id());
+        self.in_data_fn = old_in_data;
 
         f
     }
@@ -193,6 +153,16 @@ impl Fold for Analyzer<'_> {
         self.add_ref(s.local.to_id());
 
         s
+    }
+
+    fn fold_member_expr(&mut self, mut e: MemberExpr) -> MemberExpr {
+        e.obj = e.obj.fold_with(self);
+
+        if e.computed {
+            e.prop = e.prop.fold_with(self);
+        }
+
+        e
     }
 
     /// Drops [ExportDecl] if all speicifers are removed.
@@ -257,6 +227,10 @@ impl Fold for Analyzer<'_> {
     }
 
     fn fold_named_export(&mut self, mut n: NamedExport) -> NamedExport {
+        if n.src.is_some() {
+            n.specifiers = n.specifiers.fold_with(self);
+        }
+
         n.specifiers.retain(|s| {
             let preserve = match s {
                 ExportSpecifier::Namespace(ExportNamespaceSpecifier { name: exported, .. })
@@ -280,16 +254,44 @@ impl Fold for Analyzer<'_> {
         n
     }
 
-    fn fold_var_declarator(&mut self, decl: VarDeclarator) -> VarDeclarator {
-        let decl = decl.fold_children_with(self);
+    fn fold_prop(&mut self, p: Prop) -> Prop {
+        let p = p.fold_children_with(self);
 
-        let ids: Vec<Id> = find_ids(&decl.name);
-
-        for id in ids {
-            self.add_ref(id)
+        match &p {
+            Prop::Shorthand(i) => {
+                self.add_ref(i.to_id());
+            }
+            _ => {}
         }
 
-        decl
+        p
+    }
+
+    fn fold_var_declarator(&mut self, mut v: VarDeclarator) -> VarDeclarator {
+        let old_in_data = self.in_data_fn;
+
+        match &v.name {
+            Pat::Ident(name) => {
+                if self.state.is_data_identifier(&name.id) {
+                    self.in_data_fn = true;
+                }
+            }
+            _ => {}
+        }
+
+        let old = self.in_lhs_of_var;
+
+        self.in_lhs_of_var = true;
+        v.name = v.name.fold_with(self);
+
+        self.in_lhs_of_var = false;
+        v.init = v.init.fold_with(self);
+
+        self.in_lhs_of_var = old;
+
+        self.in_data_fn = old_in_data;
+
+        v
     }
 }
 
@@ -301,7 +303,7 @@ struct NextSsg {
 
 impl NextSsg {
     fn should_remove(&self, id: Id) -> bool {
-        self.state.refs.contains(&id) && !self.state.referenced_ids.contains(&id)
+        self.state.refs_from_data_fn.contains(&id) && !self.state.refs_from_other.contains(&id)
     }
 }
 
@@ -311,8 +313,8 @@ impl Repeated for NextSsg {
     }
 
     fn reset(&mut self) {
-        self.state.refs.clear();
-        self.state.referenced_ids.clear();
+        self.state.refs_from_data_fn.clear();
+        self.state.refs_from_other.clear();
         self.state.should_run_again = false;
     }
 }
@@ -354,18 +356,11 @@ impl Fold for NextSsg {
 
     fn fold_module(&mut self, mut m: Module) -> Module {
         {
-            // Fill the list of references.
-            let mut v = UsageColelctor {
-                state: &mut self.state,
-                in_lhs_of_var: false,
-            };
-            m.visit_with(&Invalid { span: DUMMY_SP }, &mut v);
-        }
-
-        {
             // Fill the state.
             let mut v = Analyzer {
                 state: &mut self.state,
+                in_lhs_of_var: false,
+                in_data_fn: false,
             };
             m = m.fold_with(&mut v);
         }
