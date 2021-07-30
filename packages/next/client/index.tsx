@@ -188,12 +188,7 @@ class Container extends React.Component<{
       // the asPath unexpectedly e.g. adding basePath when
       // it wasn't originally present
       page !== '/404' &&
-      !(
-        page === '/_error' &&
-        hydrateProps &&
-        hydrateProps.pageProps &&
-        hydrateProps.pageProps.statusCode === 404
-      ) &&
+      page !== '/_error' &&
       (isFallback ||
         (data.nextExport &&
           (isDynamicRoute(router.pathname) ||

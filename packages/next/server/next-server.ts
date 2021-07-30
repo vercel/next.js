@@ -46,6 +46,7 @@ import {
   isResSent,
   NextApiRequest,
   NextApiResponse,
+  normalizeRepeatedSlashes,
 } from '../shared/lib/utils'
 import {
   apiResolver,
@@ -313,6 +314,18 @@ export default class Server {
     res: ServerResponse,
     parsedUrl?: UrlWithParsedQuery
   ): Promise<void> {
+    const urlParts = (req.url || '').split('?')
+    const urlNoQuery = urlParts[0]
+
+    if (urlNoQuery?.match(/(\\|\/\/)/)) {
+      const cleanUrl = normalizeRepeatedSlashes(req.url!)
+      res.setHeader('Location', cleanUrl)
+      res.setHeader('Refresh', `0;url=${cleanUrl}`)
+      res.statusCode = 308
+      res.end(cleanUrl)
+      return
+    }
+
     setLazyProp({ req: req as any }, 'cookies', getCookieParser(req.headers))
 
     // Parse url if parsedUrl not provided
@@ -811,7 +824,13 @@ export default class Server {
 
               parsedDestination.search = stringifyQuery(req, query)
 
-              const updatedDestination = formatUrl(parsedDestination)
+              let updatedDestination = formatUrl(parsedDestination)
+
+              if (updatedDestination.startsWith('/')) {
+                updatedDestination = normalizeRepeatedSlashes(
+                  updatedDestination
+                )
+              }
 
               res.setHeader('Location', updatedDestination)
               res.statusCode = getRedirectStatus(redirectRoute as Redirect)
@@ -822,7 +841,7 @@ export default class Server {
                 res.setHeader('Refresh', `0;url=${updatedDestination}`)
               }
 
-              res.end()
+              res.end(updatedDestination)
               return {
                 finished: true,
               }
@@ -1517,6 +1536,10 @@ export default class Server {
         redirect.destination.startsWith('/')
       ) {
         redirect.destination = `${basePath}${redirect.destination}`
+      }
+
+      if (redirect.destination.startsWith('/')) {
+        redirect.destination = normalizeRepeatedSlashes(redirect.destination)
       }
 
       if (statusCode === PERMANENT_REDIRECT_STATUS) {
