@@ -183,53 +183,33 @@ impl Fold for Analyzer<'_> {
 
                 return ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(e));
             }
+            _ => {}
+        };
 
-            ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(mut e)) => {
-                match &mut e.decl {
-                    Decl::Fn(d) => {
-                        if self.state.is_data_identifier(&d.ident) {
-                            log::trace!(
-                                "Dropping var `{}{:?}` because it's a data fn",
-                                d.ident.sym,
-                                d.ident.span.ctxt
-                            );
+        // Visit children to ensure that all references is added to the scope.
+        let s = s.fold_children_with(self);
 
-                            self.state.should_run_again = true;
-                            return ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }));
-                        }
+        match &s {
+            ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(e)) => match &e.decl {
+                Decl::Fn(f) => {
+                    // Drop getStaticProps.
+                    if self.state.is_data_identifier(&f.ident) {
+                        return ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }));
                     }
-                    Decl::Var(d) => {
-                        d.decls.retain(|d| match &d.name {
-                            Pat::Ident(name) => {
-                                if self.state.is_data_identifier(&name.id) {
-                                    log::trace!(
-                                        "Dropping `{}{:?}` because it's a data identifier",
-                                        name.id.sym,
-                                        name.id.span.ctxt
-                                    );
-                                    self.state.should_run_again = true;
-                                    false
-                                } else {
-                                    true
-                                }
-                            }
-                            _ => true,
-                        });
-
-                        if d.decls.is_empty() {
-                            return ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }));
-                        }
-                    }
-                    _ => {}
                 }
 
-                return ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(e.fold_with(self)));
-            }
+                Decl::Var(d) => {
+                    if d.decls.is_empty() {
+                        return ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }));
+                    }
+                }
+                _ => {}
+            },
 
             _ => {}
         }
 
-        s.fold_children_with(self)
+        s
     }
 
     fn fold_named_export(&mut self, mut n: NamedExport) -> NamedExport {
