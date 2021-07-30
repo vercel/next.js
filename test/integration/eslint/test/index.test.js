@@ -294,8 +294,8 @@ describe('ESLint', () => {
     })
 
     test('success message when no warnings or errors', async () => {
-      const eslintrc = join(dirFirstTimeSetup, '.eslintrc')
-      await fs.writeFile(eslintrc, '{ "extends": "next", "root": true }')
+      const eslintrcJson = join(dirFirstTimeSetup, '.eslintrc.json')
+      await fs.writeFile(eslintrcJson, '{ "extends": "next", "root": true }')
 
       const { stdout, stderr } = await nextLint(dirFirstTimeSetup, [], {
         stdout: true,

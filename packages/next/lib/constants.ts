@@ -77,4 +77,3 @@ export const ESLINT_PROMPT_VALUES = [
     config: null,
   },
 ]
-
