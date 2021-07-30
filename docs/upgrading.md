@@ -6,16 +6,6 @@ description: Learn how to upgrade Next.js.
 
 ## Upgrading from version 11 to 12
 
-#### `--dir` flag is no longer supported in `next lint`
-
-The `--dir` flag can no longer be used to specify which directories to lint when using `next lint`. If you use this flag, remove it and include any directory or file paths without a flag.
-
-Example:
-
-```
-next lint utils
-```
-
 #### `--base-dir` must be used as a flag to set the directory of the Next.js application in `next lint`
 
 `next lint` will always default to the current working directory as the Next.js application. If you would like to specify a different directory, the `--base-dir` must be used from now on.

@@ -36,10 +36,12 @@ const nextLint: cliCommand = (argv) => {
     // Types
     '--help': Boolean,
     '--base-dir': String,
+    '--dir': [String],
 
     // Aliases
     '-h': '--help',
     '-b': '--base-dir',
+    '-d': '--dir',
   }
 
   const validEslintArgs: arg.Spec = {
@@ -128,15 +130,17 @@ const nextLint: cliCommand = (argv) => {
     printAndExit(`> No such directory exists as the project root: ${baseDir}`)
   }
 
-  const filesToLint: string[] = (args._.length
-    ? args._
+  // --dir argument still supported for backwards compatibility
+  const files = [...(args['--dir'] || []), ...args._]
+  const filesToLint: string[] = (files.length
+    ? files
     : ESLINT_DEFAULT_DIRS
-  ).reduce((res: string[], d: string) => {
-    const currDir = join(baseDir, d)
-    if (!existsSync(currDir)) return res
-    res.push(currDir)
-    return res
-  }, [])
+    ).reduce((res: string[], d: string) => {
+      const currDir = join(baseDir, d)
+      if (!existsSync(currDir)) return res
+      res.push(currDir)
+      return res
+    }, [])
 
   const reportErrorsOnly = Boolean(args['--quiet'])
   const maxWarnings = args['--max-warnings'] ?? -1
