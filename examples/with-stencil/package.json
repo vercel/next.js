@@ -1,5 +1,4 @@
 {
-  "name": "with-stencil",
   "private": true,
   "workspaces": [
     "packages/*"

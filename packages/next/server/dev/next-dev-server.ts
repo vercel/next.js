@@ -46,6 +46,7 @@ import {
   LoadComponentsReturnType,
   loadDefaultErrorComponents,
 } from '../load-components'
+import { DecodeError } from '../../shared/lib/utils'
 
 if (typeof React.Suspense === 'undefined') {
   throw new Error(
@@ -120,6 +121,7 @@ export default class DevServer extends Server {
       {
         maxRetries: 1,
         numWorkers: this.nextConfig.experimental.cpus,
+        enableWorkerThreads: this.nextConfig.experimental.workerThreads,
         forkOptions: {
           env: {
             ...process.env,
@@ -376,9 +378,7 @@ export default class DevServer extends Server {
     try {
       decodedPath = decodeURIComponent(path)
     } catch (_) {
-      const err: Error & { code?: string } = new Error('failed to decode param')
-      err.code = 'DECODE_FAILED'
-      throw err
+      throw new DecodeError('failed to decode param')
     }
 
     if (await this.hasPublicFile(decodedPath)) {
@@ -635,16 +635,6 @@ export default class DevServer extends Server {
     // TODO: See if this can be moved into hotReloader or removed.
     await this.hotReloader!.ensurePage('/_error')
     return await loadDefaultErrorComponents(this.distDir)
-  }
-
-  sendHTML(
-    req: IncomingMessage,
-    res: ServerResponse,
-    html: string
-  ): Promise<void> {
-    // In dev, we should not cache pages for any reason.
-    res.setHeader('Cache-Control', 'no-store, must-revalidate')
-    return super.sendHTML(req, res, html)
   }
 
   protected setImmutableAssetCacheControl(res: ServerResponse): void {

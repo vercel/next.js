@@ -23,7 +23,10 @@ With `next/script`, you can define the `strategy` property and Next.js will o
 - `afterInteractive` (**default**): For scripts that can fetch and execute **after** the page is interactive, such as tag managers and analytics. These scripts are injected on the client-side and will run after hydration.
 - `lazyOnload` For scripts that can wait to load during idle time, such as chat support and social media widgets.
 
-> **Note:** These loading strategies work the same for inline scripts wrapped with `<Script>`. See the inline scripts example below.
+> **Note:**
+>
+> - `<Script>` supports inline scripts with `afterInteractive` and `lazyOnload` strategy.
+> - Inline scripts wrapped with `<Script>` _require an `id` attribute to be defined_ to track and optimize the script.
 
 ## Usage
 

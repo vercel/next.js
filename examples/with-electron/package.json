@@ -1,7 +1,6 @@
 {
-  "name": "with-electron",
+  "private": true,
   "productName": "ElectronNext",
-  "version": "1.0.0",
   "main": "main/index.js",
   "scripts": {
     "clean": "rimraf dist renderer/.next renderer/out",

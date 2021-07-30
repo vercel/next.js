@@ -1,5 +1,5 @@
 {
-  "name": "with-google-analytics",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",

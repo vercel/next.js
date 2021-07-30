@@ -13,7 +13,7 @@ import {
   markAssetError,
 } from '../../../client/route-loader'
 import { RouterEvent } from '../../../client/router'
-import { DomainLocales } from '../../../server/config'
+import type { DomainLocale } from '../../../server/config'
 import { denormalizePagePath } from '../../../server/denormalize-page-path'
 import { normalizeLocalePath } from '../i18n/normalize-locale-path'
 import mitt, { MittEmitter } from '../mitt'
@@ -89,7 +89,7 @@ export function getDomainLocale(
   path: string,
   locale?: string | false,
   locales?: string[],
-  domainLocales?: DomainLocales
+  domainLocales?: DomainLocale[]
 ) {
   if (process.env.__NEXT_I18N_SUPPORT) {
     locale = locale || normalizeLocalePath(path, locales).detectedLocale
@@ -388,7 +388,7 @@ export type BaseRouter = {
   locale?: string
   locales?: string[]
   defaultLocale?: string
-  domainLocales?: DomainLocales
+  domainLocales?: DomainLocale[]
   isLocaleDomain: boolean
 }
 
@@ -532,7 +532,7 @@ export default class Router implements BaseRouter {
   locale?: string
   locales?: string[]
   defaultLocale?: string
-  domainLocales?: DomainLocales
+  domainLocales?: DomainLocale[]
   isReady: boolean
   isPreview: boolean
   isLocaleDomain: boolean
@@ -571,7 +571,7 @@ export default class Router implements BaseRouter {
       locale?: string
       locales?: string[]
       defaultLocale?: string
-      domainLocales?: DomainLocales
+      domainLocales?: DomainLocale[]
       isPreview?: boolean
     }
   ) {
@@ -627,6 +627,7 @@ export default class Router implements BaseRouter {
     this.isReady = !!(
       self.__NEXT_DATA__.gssp ||
       self.__NEXT_DATA__.gip ||
+      (self.__NEXT_DATA__.appGip && !self.__NEXT_DATA__.gsp) ||
       (!autoExportDynamic &&
         !self.location.search &&
         !process.env.__NEXT_HAS_REWRITES)
@@ -817,7 +818,7 @@ export default class Router implements BaseRouter {
       this.isReady = true
     }
 
-    let localeChange = options.locale !== this.locale
+    const prevLocale = this.locale
 
     if (process.env.__NEXT_I18N_SUPPORT) {
       this.locale =
@@ -926,6 +927,8 @@ export default class Router implements BaseRouter {
       this.locale
     )
     this._inFlightRoute = as
+
+    let localeChange = prevLocale !== this.locale
 
     // If the url change is only related to a hash change
     // We should not proceed. We should only change the state.
