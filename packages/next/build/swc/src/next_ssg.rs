@@ -116,6 +116,12 @@ impl Fold for Analyzer<'_> {
         let old_in_data = self.in_data_fn;
 
         self.in_data_fn |= self.state.is_data_identifier(&f.ident);
+        log::trace!(
+            "ssg: Handling `{}{:?}`; in_data_fn = {:?}",
+            f.ident.sym,
+            f.ident.span.ctxt,
+            self.in_data_fn
+        );
 
         let f = f.fold_children_with(self);
 
