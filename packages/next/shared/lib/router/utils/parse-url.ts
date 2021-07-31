@@ -5,7 +5,6 @@ import { parseRelativeUrl } from './parse-relative-url'
 export interface ParsedUrl {
   hash: string
   hostname?: string | null
-  href: string
   pathname: string
   port?: string | null
   protocol?: string | null
@@ -22,7 +21,6 @@ export function parseUrl(url: string): ParsedUrl {
   return {
     hash: parsedURL.hash,
     hostname: parsedURL.hostname,
-    href: parsedURL.href,
     pathname: parsedURL.pathname,
     port: parsedURL.port,
     protocol: parsedURL.protocol,

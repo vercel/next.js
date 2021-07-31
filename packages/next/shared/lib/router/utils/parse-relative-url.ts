@@ -12,7 +12,7 @@ export function parseRelativeUrl(url: string, base?: string) {
     typeof window === 'undefined' ? 'http://n' : getLocationOrigin()
   )
   const resolvedBase = base ? new URL(base, globalBase) : globalBase
-  const { pathname, searchParams, search, hash, href, origin } = new URL(
+  const { pathname, searchParams, search, hash, origin } = new URL(
     url,
     resolvedBase
   )
@@ -24,6 +24,5 @@ export function parseRelativeUrl(url: string, base?: string) {
     query: searchParamsToUrlQuery(searchParams),
     search,
     hash,
-    href: href.slice(globalBase.origin.length),
   }
 }
