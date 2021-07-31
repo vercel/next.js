@@ -53,7 +53,7 @@ Now, you use `next/script` in the body of your Next.js page. It has client-side 
 
 > **Note:**
 >
-> - `next/script` **must not** be placed in either a `next/head` component or in `pages/_document.js`. The client-side loader cannot function in those contexts.
+> - `next/script` **must not** be placed in either a `next/head` component or in `pages/_document.js`.
 
 ```js
 // After
