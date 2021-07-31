@@ -2,7 +2,6 @@ import chalk from 'chalk'
 import findUp from 'next/dist/compiled/find-up'
 import { basename, extname } from 'path'
 import * as Log from '../build/output/log'
-import { hasNextSupport } from '../telemetry/ci-info'
 import { CONFIG_FILE, PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import { execOnce } from '../shared/lib/utils'
 import {
@@ -13,6 +12,7 @@ import {
 import { loadWebpackHook } from './config-utils'
 import { ImageConfig, imageConfigDefault, VALID_LOADERS } from './image-config'
 import { loadEnvConfig } from '@next/env'
+import { hasNextSupport } from '../telemetry/ci-info'
 
 export { DomainLocale, NextConfig, normalizeConfig } from './config-shared'
 
@@ -488,7 +488,7 @@ export default async function loadConfig(
           : canonicalBase) || ''
     }
 
-    if (hasNextSupport) {
+    if (process.env.NEXT_PRIVATE_TARGET || hasNextSupport) {
       userConfig.target = process.env.NEXT_PRIVATE_TARGET || 'server'
     }
 
