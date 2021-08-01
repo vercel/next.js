@@ -191,10 +191,22 @@ export class TerserPlugin {
       const getWorker = () => {
         if (this.options.swcMinify) {
           return {
-            minify: (options) =>
-              require('../../../../swc').transform(options.input, {
-                minify: true,
-              }),
+            minify: async (options) => {
+              const result = await require('../../../../swc').transform(
+                options.input,
+                {
+                  minify: true,
+                  jsc: {
+                    minify: {
+                      compress: true,
+                      mangle: true,
+                    },
+                  },
+                }
+              )
+
+              return result
+            },
           }
         }
 

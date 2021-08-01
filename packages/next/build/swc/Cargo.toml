@@ -15,7 +15,7 @@ path-clean = "0.1"
 regex = "1.5"
 serde = "1"
 serde_json = "1"
-swc = "0.30"
+swc = "0.33"
 swc_atoms = "0.2.6"
 swc_common = { version = "0.11.1", features = ["tty-emitter", "sourcemap"] }
 swc_node_base = "0.2.0"
