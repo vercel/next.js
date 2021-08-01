@@ -19,6 +19,7 @@ import {
   PHASE_DEVELOPMENT_SERVER,
   CLIENT_STATIC_FILES_PATH,
   DEV_CLIENT_PAGES_MANIFEST,
+  DEV_MIDDLEWARE_MANIFEST,
 } from '../../shared/lib/constants'
 import {
   getRouteMatcher,
@@ -55,6 +56,7 @@ import {
 } from '@next/react-dev-overlay/lib/middleware'
 import * as Log from '../../build/output/log'
 import isError from '../../lib/is-error'
+import { getMiddlewareRegex } from '../../shared/lib/router/utils/get-middleware-regex'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: React.FunctionComponent
@@ -198,6 +200,10 @@ export default class DevServer extends Server {
       return
     }
 
+    const regexMiddleware = new RegExp(
+      `\\.*(_middleware.(?:${this.nextConfig.pageExtensions.join('|')}))$`
+    )
+
     const regexPageExtension = new RegExp(
       `\\.+(?:${this.nextConfig.pageExtensions.join('|')})$`
     )
@@ -222,10 +228,19 @@ export default class DevServer extends Server {
       wp.watch([], [pagesDir!], 0)
 
       wp.on('aggregated', () => {
+        const routedMiddleware = []
         const routedPages = []
         const knownFiles = wp.getTimeInfoEntries()
         for (const [fileName, { accuracy }] of knownFiles) {
           if (accuracy === undefined || !regexPageExtension.test(fileName)) {
+            continue
+          }
+
+          if (regexMiddleware.test(fileName)) {
+            const location = relative(pagesDir!, fileName)
+              .replace(/\\+/g, '/')
+              .replace(regexMiddleware, '')
+            routedMiddleware.push(`/${location}`)
             continue
           }
 
@@ -236,6 +251,11 @@ export default class DevServer extends Server {
 
           routedPages.push(pageName)
         }
+
+        this.middleware = getSortedRoutes(routedMiddleware).map((page) => ({
+          match: getRouteMatcher(getMiddlewareRegex(page)),
+          page,
+        }))
 
         try {
           // we serve a separate manifest with all pages for the client in
@@ -551,6 +571,18 @@ export default class DevServer extends Server {
     })
   }
 
+  protected getMiddleware(): never[] {
+    return []
+  }
+
+  protected async hasMiddleware(pathname: string): Promise<boolean> {
+    return this.hasPage(getMiddlewareFilepath(pathname))
+  }
+
+  protected async ensureMiddleware(pathname: string) {
+    return this.hotReloader!.ensurePage(getMiddlewareFilepath(pathname))
+  }
+
   generateRoutes() {
     const { fsRoutes, ...otherRoutes } = super.generateRoutes()
 
@@ -582,6 +614,26 @@ export default class DevServer extends Server {
           JSON.stringify({
             pages: this.sortedRoutes,
           })
+        )
+        return {
+          finished: true,
+        }
+      },
+    })
+
+    fsRoutes.unshift({
+      match: route(
+        `/_next/${CLIENT_STATIC_FILES_PATH}/${this.buildId}/${DEV_MIDDLEWARE_MANIFEST}`
+      ),
+      type: 'route',
+      name: `_next/${CLIENT_STATIC_FILES_PATH}/${this.buildId}/${DEV_MIDDLEWARE_MANIFEST}`,
+      fn: async (_req, res) => {
+        res.statusCode = 200
+        res.setHeader('Content-Type', 'application/json; charset=utf-8')
+        res.end(
+          JSON.stringify(
+            this.middleware?.map((middleware) => middleware.page) || []
+          )
         )
         return {
           finished: true,
@@ -794,4 +846,10 @@ export default class DevServer extends Server {
 
     return false
   }
+}
+
+function getMiddlewareFilepath(pathname: string) {
+  return pathname.endsWith('/')
+    ? `${pathname}_middleware`
+    : `${pathname}/_middleware`
 }

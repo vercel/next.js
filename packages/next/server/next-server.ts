@@ -33,12 +33,14 @@ import {
   SERVER_DIRECTORY,
   STATIC_STATUS_PAGES,
   TEMPORARY_REDIRECT_STATUS,
+  MIDDLEWARE_MANIFEST,
 } from '../shared/lib/constants'
 import {
   getRouteMatcher,
   getRouteRegex,
   getSortedRoutes,
   isDynamicRoute,
+  getMiddlewareRegex,
 } from '../shared/lib/router/utils'
 import * as envConfig from '../shared/lib/runtime-config'
 import {
@@ -98,10 +100,17 @@ import ResponseCache, {
 import { NextConfigComplete } from './config-shared'
 import { parseNextUrl } from '../shared/lib/router/utils/parse-next-url'
 import isError from '../lib/is-error'
+import { getMiddlewarePath } from './require'
+import { parseUrl as simpleParseUrl } from '../shared/lib/router/utils/parse-url'
+import { run } from './edge-functions/sandbox'
+import type { EdgeFunctionResult } from './edge-functions'
+import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-manifest-plugin'
+import type { ParsedUrl } from '../shared/lib/router/utils/parse-url'
+import type { RequestData, ResponseData } from './edge-functions/types'
 
 const getCustomRouteMatcher = pathMatch(true)
 
-type Middleware = (
+type ExpressHandler = (
   req: IncomingMessage,
   res: ServerResponse,
   next: (err?: Error) => void
@@ -112,7 +121,7 @@ export type FindComponentsResult = {
   query: ParsedUrlQuery
 }
 
-type DynamicRouteItem = {
+interface RoutingItem {
   page: string
   match: ReturnType<typeof getRouteMatcher>
 }
@@ -179,12 +188,14 @@ export default class Server {
     distDir: string
     concurrentFeatures?: boolean
   }
-  private compression?: Middleware
+  private compression?: ExpressHandler
   private incrementalCache: IncrementalCache
   private responseCache: ResponseCache
   protected router: Router
   protected dynamicRoutes?: DynamicRoutes
   protected customRoutes: CustomRoutes
+  protected middlewareManifest?: MiddlewareManifest
+  protected middleware?: RoutingItem[]
 
   public constructor({
     dir = '.',
@@ -248,7 +259,7 @@ export default class Server {
     }
 
     if (compress && this.nextConfig.target === 'server') {
-      this.compression = compression() as Middleware
+      this.compression = compression() as ExpressHandler
     }
 
     // Initialize next/config with the environment configuration
@@ -262,9 +273,16 @@ export default class Server {
       this._isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY
     )
     const pagesManifestPath = join(this.serverBuildDir, PAGES_MANIFEST)
+    const middlewareManifestPath = join(
+      this.serverBuildDir,
+      MIDDLEWARE_MANIFEST
+    )
 
     if (!dev) {
       this.pagesManifest = require(pagesManifestPath)
+      if (!this.minimalMode) {
+        this.middlewareManifest = require(middlewareManifestPath)
+      }
     }
 
     this.customRoutes = this.getCustomRoutes()
@@ -337,12 +355,14 @@ export default class Server {
     if (typeof parsedUrl.query === 'string') {
       parsedUrl.query = parseQs(parsedUrl.query)
     }
+
+    ;(req as any).__NEXT_INIT_URL = req.url
     ;(req as any).__NEXT_INIT_QUERY = Object.assign({}, parsedUrl.query)
 
     const url = parseNextUrl({
       headers: req.headers,
       nextConfig: this.nextConfig,
-      url: req.url?.replace(/^\/+/, '/'),
+      url: req.url,
     })
 
     if (url.basePath) {
@@ -547,6 +567,111 @@ export default class Server {
     return this.getPrerenderManifest().preview
   }
 
+  protected getMiddleware() {
+    return Object.keys(this.middlewareManifest?.middleware || {}).map(
+      (page) => ({
+        match: getRouteMatcher(getMiddlewareRegex(page)),
+        page,
+      })
+    )
+  }
+
+  protected async hasMiddleware(pathname: string): Promise<boolean> {
+    try {
+      return !!getMiddlewarePath({
+        dev: this.renderOpts.dev,
+        distDir: this.distDir,
+        page: pathname,
+        serverless: this._isLikeServerless,
+      })
+    } catch (_) {}
+
+    return false
+  }
+
+  protected async ensureMiddleware(_pathname: string) {}
+
+  protected async runMiddleware(params: {
+    request: RequestData
+    response?: ResponseData
+    prevCalls?: number
+  }): Promise<EdgeFunctionResult> {
+    const req = params.request
+    const res = params.response
+    const url = { ...req.url }
+
+    if (await this.hasPage(req.url.pathname)) {
+      url.page = req.url.pathname
+    } else if (this.dynamicRoutes) {
+      for (const dynamicRoute of this.dynamicRoutes) {
+        const matchParams = dynamicRoute.match(req.url.pathname)
+        if (matchParams) {
+          url.page = dynamicRoute.page
+          url.params = matchParams
+          break
+        }
+      }
+    }
+
+    let result: EdgeFunctionResult | undefined
+
+    for (const middleware of this.middleware || []) {
+      if (middleware.match(url.pathname)) {
+        if (!(await this.hasMiddleware(middleware.page))) {
+          console.warn(`The Edge Function for ${middleware.page} was not found`)
+          continue
+        }
+
+        await this.ensureMiddleware(middleware.page)
+
+        let builtPath: string
+
+        try {
+          builtPath = getMiddlewarePath({
+            dev: this.renderOpts.dev,
+            distDir: this.distDir,
+            page: middleware.page,
+            serverless: this._isLikeServerless,
+          })
+        } catch (err) {
+          if (isError(err) && err.code === 'ENOENT') {
+            console.warn(`No edge function "${middleware}" found`)
+            continue
+          }
+
+          throw err
+        }
+
+        result = await run({
+          path: builtPath,
+          request: {
+            headers: req.headers,
+            method: req.method,
+            url,
+          },
+          response: {
+            headers: result?.response.headers || res?.headers,
+          },
+        })
+
+        result.promise.catch((error) => {
+          console.error(`Error after middleware response:`)
+          console.error(error)
+        })
+
+        if (result.response.headers.has('x-middleware-effect')) {
+          break
+        }
+      }
+    }
+
+    if (!result) {
+      throw new Error(`Expected at least one matching middleware`)
+    }
+
+    return result
+  }
+
   protected generateRoutes(): {
     basePath: string
     headers: Route[]
@@ -558,6 +683,7 @@ export default class Server {
     fsRoutes: Route[]
     redirects: Route[]
     catchAllRoute: Route
+    catchAllMiddleware?: Route
     pageChecker: PageChecker
     useFileSystemPublicRoutes: boolean
     dynamicRoutes: DynamicRoutes | undefined
@@ -808,6 +934,49 @@ export default class Server {
       })
     }
 
+    const proxyRequest = async (
+      req: IncomingMessage,
+      res: ServerResponse,
+      parsedUrl: ParsedUrl
+    ) => {
+      const { query } = parsedUrl
+      delete (parsedUrl as any).query
+      parsedUrl.search = stringifyQuery(req, query)
+
+      const target = formatUrl(parsedUrl)
+      const proxy = new Proxy({
+        target,
+        changeOrigin: true,
+        ignorePath: true,
+        xfwd: true,
+        proxyTimeout: 30_000, // limit proxying to 30 seconds
+      })
+
+      await new Promise((proxyResolve, proxyReject) => {
+        let finished = false
+
+        proxy.on('proxyReq', (proxyReq) => {
+          proxyReq.on('close', () => {
+            if (!finished) {
+              finished = true
+              proxyResolve(true)
+            }
+          })
+        })
+        proxy.on('error', (err) => {
+          if (!finished) {
+            finished = true
+            proxyReject(err)
+          }
+        })
+        proxy.web(req, res)
+      })
+
+      return {
+        finished: true,
+      }
+    }
+
     const redirects = this.minimalMode
       ? []
       : this.customRoutes.redirects.map((redirect) => {
@@ -874,43 +1043,9 @@ export default class Server {
 
           // external rewrite, proxy it
           if (parsedDestination.protocol) {
-            const { query } = parsedDestination
-            delete (parsedDestination as any).query
-            parsedDestination.search = stringifyQuery(req, query)
-
-            const target = formatUrl(parsedDestination)
-            const proxy = new Proxy({
-              target,
-              changeOrigin: true,
-              ignorePath: true,
-              xfwd: true,
-              proxyTimeout: 30_000, // limit proxying to 30 seconds
-            })
-
-            await new Promise((proxyResolve, proxyReject) => {
-              let finished = false
-
-              proxy.on('proxyReq', (proxyReq) => {
-                proxyReq.on('close', () => {
-                  if (!finished) {
-                    finished = true
-                    proxyResolve(true)
-                  }
-                })
-              })
-              proxy.on('error', (err) => {
-                if (!finished) {
-                  finished = true
-                  proxyReject(err)
-                }
-              })
-              proxy.web(req, res)
-            })
-
-            return {
-              finished: true,
-            }
+            return proxyRequest(req, res, parsedDestination)
           }
+
           ;(req as any)._nextRewroteUrl = newUrl
           ;(req as any)._nextDidRewrite =
             (req as any)._nextRewroteUrl !== req.url
@@ -941,6 +1076,123 @@ export default class Server {
         fallback = this.customRoutes.rewrites.fallback.map((r) =>
           buildRewrite(r)
         )
+      }
+    }
+
+    let catchAllMiddleware: Route | undefined
+
+    if (!this.minimalMode) {
+      catchAllMiddleware = {
+        match: route('/:path*'),
+        type: 'route',
+        name: 'middleware catchall',
+        fn: async (req, res, _params, parsed) => {
+          const url = parseNextUrl({
+            headers: req.headers,
+            nextConfig: this.nextConfig,
+            url: (req as any).__NEXT_INIT_URL,
+          })
+
+          if (!this.middleware?.some((m) => m.match(url.pathname))) {
+            return { finished: false }
+          }
+
+          let result: EdgeFunctionResult
+
+          try {
+            result = await this.runMiddleware({
+              request: {
+                headers: new Headers(toWHATWGLikeHeaders(req.headers)),
+                method: req.method || 'GET',
+                url,
+              },
+            })
+          } catch (err) {
+            const error = isError(err) ? err : new Error(err + '')
+            console.error(error)
+            res.statusCode = 500
+            this.renderError(error, req, res, parsed.pathname || '')
+            return { finished: true }
+          }
+
+          const preflight =
+            req.method === 'HEAD' && req.headers['x-middleware-preflight']
+
+          for (const [key, value] of result.response.headers.entries()) {
+            if (preflight || !key.startsWith('x-middleware-')) {
+              res.setHeader(key, value)
+            }
+          }
+
+          if (preflight) {
+            res.writeHead(200)
+            res.end()
+            return {
+              finished: true,
+            }
+          }
+
+          if (result.event === 'streaming') {
+            const reader = result.response.readable.getReader()
+            res.writeHead(result.response.statusCode)
+
+            while (true) {
+              let { value, done } = await reader.read()
+              if (done) break
+              res.write(value)
+            }
+
+            res.end()
+            return {
+              finished: true,
+            }
+          }
+
+          const location = result.response.headers.get('x-middleware-redirect')
+          if (location) {
+            res.statusCode = result.response.statusCode
+            res.setHeader('Location', location)
+            if (res.statusCode === 308) {
+              res.setHeader('Refresh', `0;url=${location}`)
+            }
+
+            res.end()
+            return {
+              finished: true,
+            }
+          }
+
+          const rewrite = result.response.headers.get('x-middleware-rewrite')
+          if (rewrite) {
+            const rewriteParsed = simpleParseUrl(rewrite)
+            if (rewriteParsed.protocol) {
+              return proxyRequest(req, res, rewriteParsed)
+            }
+
+            ;(req as any)._nextRewroteUrl = rewrite
+            ;(req as any)._nextDidRewrite =
+              (req as any)._nextRewroteUrl !== req.url
+
+            return {
+              finished: false,
+              pathname: rewriteParsed.pathname,
+              query: {
+                ...url.query,
+                ...rewriteParsed.query,
+              },
+            }
+          }
+
+          if (result.event === 'data') {
+            res.statusCode = result.response.statusCode
+            res.end(result.response.body)
+            return { finished: true }
+          }
+
+          return {
+            finished: false,
+          }
+        },
       }
     }
 
@@ -1012,6 +1264,9 @@ export default class Server {
 
     if (useFileSystemPublicRoutes) {
       this.dynamicRoutes = this.getDynamicRoutes()
+      if (!this.minimalMode) {
+        this.middleware = this.getMiddleware()
+      }
     }
 
     return {
@@ -1024,6 +1279,7 @@ export default class Server {
       },
       redirects,
       catchAllRoute,
+      catchAllMiddleware,
       useFileSystemPublicRoutes,
       dynamicRoutes: this.dynamicRoutes,
       basePath: this.nextConfig.basePath,
@@ -1200,7 +1456,7 @@ export default class Server {
     ]
   }
 
-  protected getDynamicRoutes(): Array<DynamicRouteItem> {
+  protected getDynamicRoutes(): Array<RoutingItem> {
     const addedPages = new Set<string>()
 
     return getSortedRoutes(
@@ -1217,7 +1473,7 @@ export default class Server {
           match: getRouteMatcher(getRouteRegex(page)),
         }
       })
-      .filter((item): item is DynamicRouteItem => Boolean(item))
+      .filter((item): item is RoutingItem => Boolean(item))
   }
 
   private handleCompression(req: IncomingMessage, res: ServerResponse): void {
@@ -2326,4 +2582,21 @@ type ResponsePayload = {
   type: 'html' | 'json'
   body: RenderResult
   revalidateOptions?: any
+}
+
+function toWHATWGLikeHeaders(iHeaders: {
+  [header: string]: number | string | string[] | undefined
+}) {
+  const headers: { [k: string]: string } = {}
+
+  for (let headerKey in iHeaders) {
+    const headerValue = iHeaders[headerKey]
+    if (Array.isArray(headerValue)) {
+      headers[headerKey] = headerValue.join('; ')
+    } else if (headerValue) {
+      headers[headerKey] = String(headerValue)
+    }
+  }
+
+  return headers
 }
