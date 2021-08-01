@@ -33,6 +33,8 @@ struct State {
     /// functions as the data function itself is already removed.
     refs_from_data_fn: FxHashSet<Id>,
 
+    cur_declaring: FxHashSet<Id>,
+
     is_prerenderer: bool,
     is_server_props: bool,
     done: bool,
@@ -92,6 +94,10 @@ impl Analyzer<'_> {
         if self.in_data_fn {
             self.state.refs_from_data_fn.insert(id);
         } else {
+            if self.state.cur_declaring.contains(&id) {
+                return;
+            }
+
             self.state.refs_from_other.insert(id);
         }
     }
@@ -131,6 +137,8 @@ impl Fold for Analyzer<'_> {
     fn fold_fn_decl(&mut self, f: FnDecl) -> FnDecl {
         let old_in_data = self.in_data_fn;
 
+        self.state.cur_declaring.insert(f.ident.to_id());
+
         self.in_data_fn |= self.state.is_data_identifier(&f.ident);
         log::trace!(
             "ssg: Handling `{}{:?}`; in_data_fn = {:?}",
@@ -140,6 +148,8 @@ impl Fold for Analyzer<'_> {
         );
 
         let f = f.fold_children_with(self);
+
+        self.state.cur_declaring.remove(&f.ident.to_id());
 
         self.in_data_fn = old_in_data;
 
@@ -295,6 +305,7 @@ impl Repeated for NextSsg {
 
     fn reset(&mut self) {
         self.state.refs_from_other.clear();
+        self.state.cur_declaring.clear();
         self.state.should_run_again = false;
     }
 }
