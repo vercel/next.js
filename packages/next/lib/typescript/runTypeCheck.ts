@@ -3,11 +3,14 @@ import {
   DiagnosticCategory,
   getFormattedDiagnostic,
 } from './diagnosticFormatter'
+
+import { CompileError } from '../compile-error'
 import { getTypeScriptConfiguration } from './getTypeScriptConfiguration'
 import { getRequiredConfiguration } from './writeConfigurationDefaults'
 
-import { CompileError } from '../compile-error'
-
+/**
+ * Information about the type-check result.
+ */
 export interface TypeCheckResult {
   hasWarnings: boolean
   warnings?: string[]
@@ -16,89 +19,172 @@ export interface TypeCheckResult {
   incremental: boolean
 }
 
+/**
+ * A RegExp that indicates whether the tsc pass should ignore the file.
+ *
+ * Match:
+ *  - pages/test.js
+ *  - pages/apples.test.js
+ *  - pages/__tests__/a.js
+ *
+ * But not:
+ *  - pages/contest.js
+ *  - pages/other.js
+ *  - pages/test/a.js
+ */
+const ignorePattern = /[\\/]__(?:tests|mocks)__[\\/]|(?<=[\\/.])(?:spec|test)\.[^\\/]+$/
+
+/**
+ * Execute the tsc type-check.
+ */
 export async function runTypeCheck(
   ts: typeof import('typescript'),
   baseDir: string,
   tsConfigPath: string,
   cacheDir?: string
 ): Promise<TypeCheckResult> {
-  const effectiveConfiguration = await getTypeScriptConfiguration(
-    ts,
-    tsConfigPath
-  )
+  /**
+   * Parse the tsc program from the given config.
+   */
+  async function parseTsProgram() {
+    /**
+     * The parsed tsc program to execute.
+     */
+    let program
+    /**
+     * The parsed configuration for this tsc pass given the provided
+     * tsconfig.json.
+     */
+    const parsedConfig = await getTypeScriptConfiguration(ts, tsConfigPath)
+    /**
+     * Fast check: Exit if there are no files to check.
+     */
+    if (parsedConfig.fileNames.length === 0) {
+      return null
+    }
+    /**
+     * Mandatory config overrides.
+     */
+    const requiredConfig = getRequiredConfiguration(ts)
+    /**
+     * Final options to be passed to tsc. Force `noEmit`, do not write to disk.
+     */
+    const options = {
+      ...parsedConfig.options,
+      ...requiredConfig,
+      noEmit: true,
+    }
+    /**
+     * Detect whether or not tsconfig.json has enabled incremental mode.
+     */
+    let { incremental = false } = options
+    /**
+     * Create the tsc program and configure the type-check for incremental mode if
+     * enabled.
+     */
+    if (incremental && cacheDir) {
+      program = ts.createIncrementalProgram({
+        rootNames: parsedConfig.fileNames,
+        options: {
+          ...options,
+          tsBuildInfoFile: path.join(cacheDir, '.tsbuildinfo'),
+        },
+      })
+    } else {
+      program = ts.createProgram(parsedConfig.fileNames, options)
+    }
 
-  if (effectiveConfiguration.fileNames.length < 1) {
     return {
-      hasWarnings: false,
-      inputFilesCount: 0,
-      totalFilesCount: 0,
-      incremental: false,
+      incremental,
+      inputFilesCount: parsedConfig.fileNames.length,
+      totalFilesCount: program.getSourceFiles().length,
+      program,
     }
   }
-  const requiredConfig = getRequiredConfiguration(ts)
 
-  const options = {
-    ...effectiveConfiguration.options,
-    ...requiredConfig,
-    noEmit: true,
+  /**
+   * Parse the tsc program to execute and other config information.
+   */
+  const parsedTsProgram = await parseTsProgram()
+  /**
+   * FAST PATH: Exit if there are no files to check.
+   */
+  if (!parsedTsProgram) {
+    return {
+      hasWarnings: false,
+      incremental: false,
+      inputFilesCount: 0,
+      totalFilesCount: 0,
+    }
   }
 
-  let program:
-    | import('typescript').Program
-    | import('typescript').BuilderProgram
-  let incremental = false
-  if (options.incremental && cacheDir) {
-    incremental = true
-    program = ts.createIncrementalProgram({
-      rootNames: effectiveConfiguration.fileNames,
-      options: {
-        ...options,
-        incremental: true,
-        tsBuildInfoFile: path.join(cacheDir, '.tsbuildinfo'),
-      },
-    })
-  } else {
-    program = ts.createProgram(effectiveConfiguration.fileNames, options)
-  }
-  const result = program.emit()
+  /**
+   * Prepare the tsc command for execution.
+   */
+  const {
+    program,
+    incremental,
+    inputFilesCount,
+    totalFilesCount,
+  } = parsedTsProgram
+  /**
+   * Run the type-check and store the result.
+   */
+  const tscResult = program.emit()
 
-  // Intended to match:
-  // - pages/test.js
-  // - pages/apples.test.js
-  // - pages/__tests__/a.js
-  //
-  // But not:
-  // - pages/contest.js
-  // - pages/other.js
-  // - pages/test/a.js
-  //
-  const regexIgnoredFile = /[\\/]__(?:tests|mocks)__[\\/]|(?<=[\\/.])(?:spec|test)\.[^\\/]+$/
-  const allDiagnostics = ts
-    .getPreEmitDiagnostics(program as import('typescript').Program)
-    .concat(result.diagnostics)
-    .filter((d) => !(d.file && regexIgnoredFile.test(d.file.fileName)))
-
-  const firstError =
-    allDiagnostics.find(
-      (d) => d.category === DiagnosticCategory.Error && Boolean(d.file)
-    ) ?? allDiagnostics.find((d) => d.category === DiagnosticCategory.Error)
-
-  if (firstError) {
-    throw new CompileError(
-      await getFormattedDiagnostic(ts, baseDir, firstError)
+  /**
+   * Parse the warnings from a type-check result.
+   */
+  async function parseWarnings() {
+    /**
+     * Filter the diagnostics from the type-check pass.
+     */
+    const allDiagnostics = ts
+      .getPreEmitDiagnostics(program as import('typescript').Program)
+      .concat(tscResult.diagnostics)
+      .filter((d) => !(d.file && ignorePattern.test(d.file.fileName)))
+    /**
+     * The first error emitted by the tsc pass, if any.
+     */
+    const firstError =
+      allDiagnostics.find(
+        (d) => d.category === DiagnosticCategory.Error && Boolean(d.file)
+      ) ?? allDiagnostics.find((d) => d.category === DiagnosticCategory.Error)
+    /**
+     * If errors were encountered, throw them (including diagnostic messages).
+     */
+    if (firstError) {
+      throw new CompileError(
+        await getFormattedDiagnostic(ts, baseDir, firstError)
+      )
+    }
+    /**
+     * Otherwise, return warnings generated by the tsc pass.
+     */
+    return await Promise.all(
+      allDiagnostics
+        .filter((d) => d.category === DiagnosticCategory.Warning)
+        .map((d) => getFormattedDiagnostic(ts, baseDir, d))
     )
   }
 
-  const warnings = await Promise.all(
-    allDiagnostics
-      .filter((d) => d.category === DiagnosticCategory.Warning)
-      .map((d) => getFormattedDiagnostic(ts, baseDir, d))
-  )
+  /**
+   * The parsed warnings from the type-check result.
+   */
+  const warnings = await parseWarnings()
+  /**
+   * Whether or not warnings were emitted.
+   */
+  const hasWarnings = warnings.length > 0
+
+  /**
+   * Return any warnings and other configuration information.
+   */
   return {
-    hasWarnings: true,
-    warnings,
-    inputFilesCount: effectiveConfiguration.fileNames.length,
-    totalFilesCount: program.getSourceFiles().length,
+    hasWarnings,
     incremental,
+    inputFilesCount,
+    totalFilesCount,
+    warnings,
   }
 }
