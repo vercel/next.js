@@ -104,9 +104,10 @@ class Webpack4Cache {
 
 export class TerserPlugin {
   constructor(options = {}) {
-    const { cacheDir, terserOptions = {}, parallel } = options
+    const { cacheDir, terserOptions = {}, parallel, swcMinify } = options
 
     this.options = {
+      swcMinify,
       cacheDir,
       parallel,
       terserOptions,
@@ -188,6 +189,15 @@ export class TerserPlugin {
 
       // eslint-disable-next-line consistent-return
       const getWorker = () => {
+        if (this.options.swcMinify) {
+          return {
+            minify: (options) =>
+              require('../../../../swc').transform(options.input, {
+                minify: true,
+              }),
+          }
+        }
+
         if (initializedWorker) {
           return initializedWorker
         }

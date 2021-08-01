@@ -85,6 +85,7 @@ export type NextConfig = { [key: string]: any } & {
     strictPostcssConfiguration?: boolean
   }
   experimental?: {
+    swcMinify?: boolean
     cpus?: number
     plugins?: boolean
     profiling?: boolean
@@ -154,6 +155,7 @@ export const defaultConfig: NextConfig = {
   publicRuntimeConfig: {},
   reactStrictMode: false,
   experimental: {
+    swcMinify: false,
     cpus: Math.max(
       1,
       (Number(process.env.CIRCLE_NODE_TOTAL) ||

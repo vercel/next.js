@@ -953,6 +953,7 @@ export default async function getBaseWebpackConfig(
           new TerserPlugin({
             cacheDir: path.join(distDir, 'cache', 'next-minifier'),
             parallel: config.experimental.cpus,
+            swcMinify: config.experimental.swcMinify,
             terserOptions,
           }).apply(compiler)
         },
