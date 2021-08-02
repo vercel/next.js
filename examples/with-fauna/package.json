@@ -5,7 +5,7 @@
   "description": "Guestbook example with Next.js and Fauna.",
   "scripts": {
     "dev": "next",
-    "build": "yarn setup && next build",
+    "build": "next build",
     "start": "next start",
     "setup": "node ./scripts/setup.js"
   },
