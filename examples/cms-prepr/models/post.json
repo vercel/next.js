@@ -133,7 +133,12 @@
       "description": null,
       "disable_editing": false,
       "appearance": null,
-      "accept_restrictions": null
+      "accept_restrictions": null,
+      "publication_models" : {
+        "items" : [{
+            "body" : "Author"
+        ]}
+      }
     },
     {
       "type": "Slug",
