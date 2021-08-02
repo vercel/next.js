@@ -34,7 +34,7 @@ Projects with TypeScript enabled will check your project for type errors on
 `next build`. Therefore, when using a `src/` directory, you will want to adjust
 the following values in tsconfig.json:
 
-```json
+```jsonc
 {
   // ...
   "rootDir": "src/",
