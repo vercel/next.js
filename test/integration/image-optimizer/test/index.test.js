@@ -1,4 +1,5 @@
 /* eslint-env jest */
+import execa from 'execa'
 import fs from 'fs-extra'
 import sizeOf from 'image-size'
 import {
@@ -15,14 +16,17 @@ import {
 import isAnimated from 'next/dist/compiled/is-animated'
 import { join } from 'path'
 
-jest.setTimeout(1000 * 60 * 2)
+jest.setTimeout(1000 * 60 * 5)
 
-const appDir = join(__dirname, '../')
+const appDir = join(__dirname, '../app')
 const imagesDir = join(appDir, '.next', 'cache', 'images')
 const nextConfig = new File(join(appDir, 'next.config.js'))
 const largeSize = 1080 // defaults defined in server/config.ts
+let nextOutput
 let appPort
 let app
+
+const sharpMissingText = `For production Image Optimization with Next.js, the optional 'sharp' package is strongly recommended`
 
 async function fsToJson(dir, output = {}) {
   const files = await fs.readdir(dir)
@@ -33,7 +37,7 @@ async function fsToJson(dir, output = {}) {
       output[file] = {}
       await fsToJson(fsPath, output[file])
     } else {
-      output[file] = 'file'
+      output[file] = stat.mtime.toISOString()
     }
   }
   return output
@@ -45,7 +49,7 @@ async function expectWidth(res, w) {
   expect(d.width).toBe(w)
 }
 
-function runTests({ w, isDev, domains = [], ttl = 60 }) {
+function runTests({ w, isDev, domains = [], ttl, isSharp }) {
   it('should return home page', async () => {
     const res = await fetchViaHTTP(appPort, '/', null, {})
     expect(await res.text()).toMatch(/Image Optimizer Home/m)
@@ -57,10 +61,13 @@ function runTests({ w, isDev, domains = [], ttl = 60 }) {
     expect(res.status).toBe(200)
     expect(res.headers.get('content-type')).toContain('image/gif')
     expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=${isDev ? 0 : ttl}, must-revalidate`
+      `public, max-age=0, must-revalidate`
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
+    expect(res.headers.get('Content-Disposition')).toBe(
+      `inline; filename="animated.gif"`
+    )
     expect(isAnimated(await res.buffer())).toBe(true)
   })
 
@@ -70,10 +77,13 @@ function runTests({ w, isDev, domains = [], ttl = 60 }) {
     expect(res.status).toBe(200)
     expect(res.headers.get('content-type')).toContain('image/png')
     expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=${isDev ? 0 : ttl}, must-revalidate`
+      `public, max-age=0, must-revalidate`
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
+    expect(res.headers.get('Content-Disposition')).toBe(
+      `inline; filename="animated.png"`
+    )
     expect(isAnimated(await res.buffer())).toBe(true)
   })
 
@@ -83,10 +93,13 @@ function runTests({ w, isDev, domains = [], ttl = 60 }) {
     expect(res.status).toBe(200)
     expect(res.headers.get('content-type')).toContain('image/webp')
     expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=${isDev ? 0 : ttl}, must-revalidate`
+      `public, max-age=0, must-revalidate`
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
+    expect(res.headers.get('Content-Disposition')).toBe(
+      `inline; filename="animated.webp"`
+    )
     expect(isAnimated(await res.buffer())).toBe(true)
   })
 
@@ -97,34 +110,40 @@ function runTests({ w, isDev, domains = [], ttl = 60 }) {
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toContain('image/svg+xml')
     expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=${isDev ? 0 : ttl}, must-revalidate`
+      `public, max-age=0, must-revalidate`
     )
     // SVG is compressible so will have accept-encoding set from
     // compression
     expect(res.headers.get('Vary')).toMatch(/^Accept(,|$)/)
     expect(res.headers.get('etag')).toBeTruthy()
+    expect(res.headers.get('Content-Disposition')).toBe(
+      `inline; filename="test.svg"`
+    )
     const actual = await res.text()
     const expected = await fs.readFile(
-      join(__dirname, '..', 'public', 'test.svg'),
+      join(appDir, 'public', 'test.svg'),
       'utf8'
     )
     expect(actual).toMatch(expected)
   })
 
   it('should maintain ico format', async () => {
-    const query = { w, q: 90, url: '/test.ico' }
+    const query = { w, q: 90, url: `/test.ico` }
     const opts = { headers: { accept: 'image/webp' } }
     const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toContain('image/x-icon')
     expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=${isDev ? 0 : ttl}, must-revalidate`
+      `public, max-age=0, must-revalidate`
     )
     expect(res.headers.get('Vary')).toMatch(/^Accept(,|$)/)
     expect(res.headers.get('etag')).toBeTruthy()
+    expect(res.headers.get('Content-Disposition')).toBe(
+      `inline; filename="test.ico"`
+    )
     const actual = await res.text()
     const expected = await fs.readFile(
-      join(__dirname, '..', 'public', 'test.ico'),
+      join(appDir, 'public', 'test.ico'),
       'utf8'
     )
     expect(actual).toMatch(expected)
@@ -139,10 +158,13 @@ function runTests({ w, isDev, domains = [], ttl = 60 }) {
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toContain('image/jpeg')
     expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=${isDev ? 0 : ttl}, must-revalidate`
+      `public, max-age=0, must-revalidate`
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
+    expect(res.headers.get('Content-Disposition')).toBe(
+      `inline; filename="test.jpeg"`
+    )
   })
 
   it('should maintain png format for old Safari', async () => {
@@ -154,10 +176,13 @@ function runTests({ w, isDev, domains = [], ttl = 60 }) {
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toContain('image/png')
     expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=${isDev ? 0 : ttl}, must-revalidate`
+      `public, max-age=0, must-revalidate`
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
+    expect(res.headers.get('Content-Disposition')).toBe(
+      `inline; filename="test.png"`
+    )
   })
 
   it('should fail when url is missing', async () => {
@@ -252,10 +277,13 @@ function runTests({ w, isDev, domains = [], ttl = 60 }) {
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/webp')
     expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=${isDev ? 0 : ttl}, must-revalidate`
+      `public, max-age=0, must-revalidate`
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
+    expect(res.headers.get('Content-Disposition')).toBe(
+      `inline; filename="test.webp"`
+    )
     await expectWidth(res, w)
   })
 
@@ -266,10 +294,13 @@ function runTests({ w, isDev, domains = [], ttl = 60 }) {
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/png')
     expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=${isDev ? 0 : ttl}, must-revalidate`
+      `public, max-age=0, must-revalidate`
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
+    expect(res.headers.get('Content-Disposition')).toBe(
+      `inline; filename="test.png"`
+    )
     await expectWidth(res, w)
   })
 
@@ -280,10 +311,13 @@ function runTests({ w, isDev, domains = [], ttl = 60 }) {
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/png')
     expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=${isDev ? 0 : ttl}, must-revalidate`
+      `public, max-age=0, must-revalidate`
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
+    expect(res.headers.get('Content-Disposition')).toBe(
+      `inline; filename="test.png"`
+    )
     await expectWidth(res, w)
   })
 
@@ -294,10 +328,13 @@ function runTests({ w, isDev, domains = [], ttl = 60 }) {
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/gif')
     expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=${isDev ? 0 : ttl}, must-revalidate`
+      `public, max-age=0, must-revalidate`
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
+    expect(res.headers.get('Content-Disposition')).toBe(
+      `inline; filename="test.gif"`
+    )
     // FIXME: await expectWidth(res, w)
   })
 
@@ -308,10 +345,13 @@ function runTests({ w, isDev, domains = [], ttl = 60 }) {
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/tiff')
     expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=${isDev ? 0 : ttl}, must-revalidate`
+      `public, max-age=0, must-revalidate`
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
+    expect(res.headers.get('Content-Disposition')).toBe(
+      `inline; filename="test.tiff"`
+    )
     // FIXME: await expectWidth(res, w)
   })
 
@@ -324,10 +364,13 @@ function runTests({ w, isDev, domains = [], ttl = 60 }) {
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/webp')
     expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=${isDev ? 0 : ttl}, must-revalidate`
+      `public, max-age=0, must-revalidate`
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
+    expect(res.headers.get('Content-Disposition')).toBe(
+      `inline; filename="test.webp"`
+    )
     await expectWidth(res, w)
   })
 
@@ -340,10 +383,13 @@ function runTests({ w, isDev, domains = [], ttl = 60 }) {
       expect(res.status).toBe(200)
       expect(res.headers.get('Content-Type')).toBe('image/webp')
       expect(res.headers.get('Cache-Control')).toBe(
-        `public, max-age=${isDev ? 0 : ttl}, must-revalidate`
+        `public, max-age=0, must-revalidate`
       )
       expect(res.headers.get('Vary')).toBe('Accept')
       expect(res.headers.get('etag')).toBeTruthy()
+      expect(res.headers.get('Content-Disposition')).toBe(
+        `inline; filename="test.webp"`
+      )
       await expectWidth(res, w)
     })
 
@@ -361,10 +407,13 @@ function runTests({ w, isDev, domains = [], ttl = 60 }) {
       expect(res.status).toBe(200)
       expect(res.headers.get('Content-Type')).toBe('image/webp')
       expect(res.headers.get('Cache-Control')).toBe(
-        `public, max-age=${isDev ? 0 : ttl}, must-revalidate`
+        `public, max-age=0, must-revalidate`
       )
       expect(res.headers.get('Vary')).toBe('Accept')
       expect(res.headers.get('etag')).toBeTruthy()
+      expect(res.headers.get('Content-Disposition')).toBe(
+        `inline; filename="png-as-octet-stream.webp"`
+      )
       await expectWidth(res, w)
     })
   }
@@ -408,14 +457,34 @@ function runTests({ w, isDev, domains = [], ttl = 60 }) {
     const res1 = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res1.status).toBe(200)
     expect(res1.headers.get('Content-Type')).toBe('image/webp')
+    expect(res1.headers.get('Content-Disposition')).toBe(
+      `inline; filename="test.webp"`
+    )
     const json1 = await fsToJson(imagesDir)
     expect(Object.keys(json1).length).toBe(1)
 
     const res2 = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res2.status).toBe(200)
     expect(res2.headers.get('Content-Type')).toBe('image/webp')
+    expect(res2.headers.get('Content-Disposition')).toBe(
+      `inline; filename="test.webp"`
+    )
     const json2 = await fsToJson(imagesDir)
     expect(json2).toStrictEqual(json1)
+
+    if (ttl) {
+      // Wait until expired so we can confirm image is regenerated
+      await waitFor(ttl * 1000)
+      const res3 = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+      expect(res3.status).toBe(200)
+      expect(res3.headers.get('Content-Type')).toBe('image/webp')
+      expect(res3.headers.get('Content-Disposition')).toBe(
+        `inline; filename="test.webp"`
+      )
+      const json3 = await fsToJson(imagesDir)
+      expect(json3).not.toStrictEqual(json1)
+      expect(Object.keys(json3).length).toBe(1)
+    }
   })
 
   it('should use cached image file when parameters are the same for svg', async () => {
@@ -427,12 +496,18 @@ function runTests({ w, isDev, domains = [], ttl = 60 }) {
     const res1 = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res1.status).toBe(200)
     expect(res1.headers.get('Content-Type')).toBe('image/svg+xml')
+    expect(res1.headers.get('Content-Disposition')).toBe(
+      `inline; filename="test.svg"`
+    )
     const json1 = await fsToJson(imagesDir)
     expect(Object.keys(json1).length).toBe(1)
 
     const res2 = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res2.status).toBe(200)
     expect(res2.headers.get('Content-Type')).toBe('image/svg+xml')
+    expect(res2.headers.get('Content-Disposition')).toBe(
+      `inline; filename="test.svg"`
+    )
     const json2 = await fsToJson(imagesDir)
     expect(json2).toStrictEqual(json1)
   })
@@ -446,12 +521,18 @@ function runTests({ w, isDev, domains = [], ttl = 60 }) {
     const res1 = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res1.status).toBe(200)
     expect(res1.headers.get('Content-Type')).toBe('image/gif')
+    expect(res1.headers.get('Content-Disposition')).toBe(
+      `inline; filename="animated.gif"`
+    )
     const json1 = await fsToJson(imagesDir)
     expect(Object.keys(json1).length).toBe(1)
 
     const res2 = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res2.status).toBe(200)
     expect(res2.headers.get('Content-Type')).toBe('image/gif')
+    expect(res2.headers.get('Content-Disposition')).toBe(
+      `inline; filename="animated.gif"`
+    )
     const json2 = await fsToJson(imagesDir)
     expect(json2).toStrictEqual(json1)
   })
@@ -464,11 +545,14 @@ function runTests({ w, isDev, domains = [], ttl = 60 }) {
     expect(res1.status).toBe(200)
     expect(res1.headers.get('Content-Type')).toBe('image/webp')
     expect(res1.headers.get('Cache-Control')).toBe(
-      `public, max-age=${isDev ? 0 : ttl}, must-revalidate`
+      `public, max-age=0, must-revalidate`
     )
     expect(res1.headers.get('Vary')).toBe('Accept')
     const etag = res1.headers.get('Etag')
     expect(etag).toBeTruthy()
+    expect(res1.headers.get('Content-Disposition')).toBe(
+      `inline; filename="test.webp"`
+    )
     await expectWidth(res1, w)
 
     const opts2 = { headers: { accept: 'image/webp', 'if-none-match': etag } }
@@ -477,9 +561,10 @@ function runTests({ w, isDev, domains = [], ttl = 60 }) {
     expect(res2.headers.get('Content-Type')).toBeFalsy()
     expect(res2.headers.get('Etag')).toBe(etag)
     expect(res2.headers.get('Cache-Control')).toBe(
-      `public, max-age=${isDev ? 0 : ttl}, must-revalidate`
+      `public, max-age=0, must-revalidate`
     )
     expect(res2.headers.get('Vary')).toBe('Accept')
+    expect(res2.headers.get('Content-Disposition')).toBeFalsy()
     expect((await res2.buffer()).length).toBe(0)
 
     const query3 = { url: '/test.jpg', w, q: 25 }
@@ -487,11 +572,14 @@ function runTests({ w, isDev, domains = [], ttl = 60 }) {
     expect(res3.status).toBe(200)
     expect(res3.headers.get('Content-Type')).toBe('image/webp')
     expect(res3.headers.get('Cache-Control')).toBe(
-      `public, max-age=${isDev ? 0 : ttl}, must-revalidate`
+      `public, max-age=0, must-revalidate`
     )
     expect(res3.headers.get('Vary')).toBe('Accept')
     expect(res3.headers.get('Etag')).toBeTruthy()
     expect(res3.headers.get('Etag')).not.toBe(etag)
+    expect(res3.headers.get('Content-Disposition')).toBe(
+      `inline; filename="test.webp"`
+    )
     await expectWidth(res3, w)
   })
 
@@ -505,12 +593,15 @@ function runTests({ w, isDev, domains = [], ttl = 60 }) {
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/bmp')
     expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=${isDev ? 0 : ttl}, must-revalidate`
+      `public, max-age=0, must-revalidate`
     )
     // bmp is compressible so will have accept-encoding set from
     // compression
     expect(res.headers.get('Vary')).toMatch(/^Accept(,|$)/)
     expect(res.headers.get('etag')).toBeTruthy()
+    expect(res.headers.get('Content-Disposition')).toBe(
+      `inline; filename="test.bmp"`
+    )
 
     const json2 = await fsToJson(imagesDir)
     expect(json2).toStrictEqual(json1)
@@ -523,39 +614,49 @@ function runTests({ w, isDev, domains = [], ttl = 60 }) {
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/webp')
     expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=${isDev ? 0 : ttl}, must-revalidate`
+      `public, max-age=0, must-revalidate`
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
+    expect(res.headers.get('Content-Disposition')).toBe(
+      `inline; filename="test.webp"`
+    )
     await expectWidth(res, 400)
   })
 
-  it('should not change the color type of a png', async () => {
-    // https://github.com/vercel/next.js/issues/22929
-    // A grayscaled PNG with transparent pixels.
-    const query = { url: '/grayscale.png', w: largeSize, q: 80 }
-    const opts = { headers: { accept: 'image/png' } }
-    const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
-    expect(res.status).toBe(200)
-    expect(res.headers.get('Content-Type')).toBe('image/png')
-    expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=${isDev ? 0 : ttl}, must-revalidate`
-    )
-    expect(res.headers.get('Vary')).toBe('Accept')
+  if (!isSharp) {
+    // this checks for specific color type output by squoosh
+    // which differs in sharp
+    it('should not change the color type of a png', async () => {
+      // https://github.com/vercel/next.js/issues/22929
+      // A grayscaled PNG with transparent pixels.
+      const query = { url: '/grayscale.png', w: largeSize, q: 80 }
+      const opts = { headers: { accept: 'image/png' } }
+      const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+      expect(res.status).toBe(200)
+      expect(res.headers.get('Content-Type')).toBe('image/png')
+      expect(res.headers.get('Cache-Control')).toBe(
+        `public, max-age=0, must-revalidate`
+      )
+      expect(res.headers.get('Vary')).toBe('Accept')
+      expect(res.headers.get('Content-Disposition')).toBe(
+        `inline; filename="grayscale.png"`
+      )
 
-    const png = await res.buffer()
+      const png = await res.buffer()
 
-    // Read the color type byte (offset 9 + magic number 16).
-    // http://www.libpng.org/pub/png/spec/1.2/PNG-Chunks.html
-    const colorType = png.readUIntBE(25, 1)
-    expect(colorType).toBe(4)
-  })
+      // Read the color type byte (offset 9 + magic number 16).
+      // http://www.libpng.org/pub/png/spec/1.2/PNG-Chunks.html
+      const colorType = png.readUIntBE(25, 1)
+      expect(colorType).toBe(4)
+    })
+  }
 
   it('should set cache-control to immutable for static images', async () => {
     if (!isDev) {
+      const filename = 'test'
       const query = {
-        url:
-          '/_next/static/image/public/test.480a01e5ea850d0231aec0fa94bd23a0.jpg',
+        url: `/_next/static/image/public/${filename}.480a01e5ea850d0231aec0fa94bd23a0.jpg`,
         w,
         q: 100,
       }
@@ -567,6 +668,9 @@ function runTests({ w, isDev, domains = [], ttl = 60 }) {
         'public, max-age=315360000, immutable'
       )
       expect(res1.headers.get('Vary')).toBe('Accept')
+      expect(res1.headers.get('Content-Disposition')).toBe(
+        `inline; filename="${filename}.webp"`
+      )
       await expectWidth(res1, w)
 
       // Ensure subsequent request also has immutable header
@@ -576,6 +680,9 @@ function runTests({ w, isDev, domains = [], ttl = 60 }) {
         'public, max-age=315360000, immutable'
       )
       expect(res2.headers.get('Vary')).toBe('Accept')
+      expect(res2.headers.get('Content-Disposition')).toBe(
+        `inline; filename="${filename}.webp"`
+      )
       await expectWidth(res2, w)
     }
   })
@@ -599,13 +706,29 @@ function runTests({ w, isDev, domains = [], ttl = 60 }) {
     expect(res1.status).toBe(200)
     expect(res2.status).toBe(200)
     expect(res1.headers.get('Content-Type')).toBe('image/webp')
+    expect(res1.headers.get('Content-Disposition')).toBe(
+      `inline; filename="test.webp"`
+    )
     expect(res2.headers.get('Content-Type')).toBe('image/webp')
+    expect(res2.headers.get('Content-Disposition')).toBe(
+      `inline; filename="test.webp"`
+    )
     await expectWidth(res1, w)
     await expectWidth(res2, w)
 
     const json1 = await fsToJson(imagesDir)
     expect(Object.keys(json1).length).toBe(1)
   })
+
+  if (isDev || isSharp) {
+    it('should not have sharp missing warning', () => {
+      expect(nextOutput).not.toContain(sharpMissingText)
+    })
+  } else {
+    it('should have sharp missing warning', () => {
+      expect(nextOutput).toContain(sharpMissingText)
+    })
+  }
 }
 
 describe('Image Optimizer', () => {
@@ -771,116 +894,24 @@ describe('Image Optimizer', () => {
     'image-optimization-test.vercel.app',
   ]
 
-  describe('dev support w/o next.config.js', () => {
-    const size = 384 // defaults defined in server/config.ts
-    beforeAll(async () => {
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-    })
-    afterAll(async () => {
-      await killApp(app)
-      await fs.remove(imagesDir)
-    })
-
-    runTests({ w: size, isDev: true, domains: [] })
-  })
-
-  describe('dev support with next.config.js', () => {
-    const size = 64
-    beforeAll(async () => {
-      const json = JSON.stringify({
-        images: {
-          deviceSizes: [largeSize],
-          imageSizes: [size],
-          domains,
-        },
-      })
-      nextConfig.replace('{ /* replaceme */ }', json)
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-    })
-    afterAll(async () => {
-      await killApp(app)
-      nextConfig.restore()
-      await fs.remove(imagesDir)
-    })
-
-    runTests({ w: size, isDev: true, domains })
-  })
-
-  describe('dev support for minimumCacheTTL', () => {
+  describe('Server support for minimumCacheTTL in next.config.js', () => {
     const size = 96 // defaults defined in server/config.ts
-    const ttl = 500
+    const ttl = 5 // super low ttl in seconds
     beforeAll(async () => {
       const json = JSON.stringify({
         images: {
           minimumCacheTTL: ttl,
         },
       })
+      nextOutput = ''
       nextConfig.replace('{ /* replaceme */ }', json)
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-    })
-    afterAll(async () => {
-      await killApp(app)
-      nextConfig.restore()
-      await fs.remove(imagesDir)
-    })
-
-    runTests({ w: size, isDev: true, ttl })
-  })
-
-  describe('Server support w/o next.config.js', () => {
-    const size = 384 // defaults defined in server/config.ts
-    beforeAll(async () => {
       await nextBuild(appDir)
       appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(async () => {
-      await killApp(app)
-      await fs.remove(imagesDir)
-    })
-
-    runTests({ w: size, isDev: false, domains: [] })
-  })
-
-  describe('Server support with next.config.js', () => {
-    const size = 128
-    beforeAll(async () => {
-      const json = JSON.stringify({
-        images: {
-          deviceSizes: [size, largeSize],
-          domains,
+      app = await nextStart(appDir, appPort, {
+        onStderr(msg) {
+          nextOutput += msg
         },
       })
-      nextConfig.replace('{ /* replaceme */ }', json)
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(async () => {
-      await killApp(app)
-      nextConfig.restore()
-      await fs.remove(imagesDir)
-    })
-
-    runTests({ w: size, isDev: false, domains })
-  })
-
-  describe('Server support for minimumCacheTTL', () => {
-    const size = 96 // defaults defined in server/config.ts
-    const ttl = 900000
-    beforeAll(async () => {
-      const json = JSON.stringify({
-        images: {
-          minimumCacheTTL: ttl,
-        },
-      })
-      nextConfig.replace('{ /* replaceme */ }', json)
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
     })
     afterAll(async () => {
       await killApp(app)
@@ -891,17 +922,27 @@ describe('Image Optimizer', () => {
     runTests({ w: size, isDev: false, ttl })
   })
 
-  describe('Serverless support with next.config.js', () => {
-    const size = 256
+  describe('Server support for headers in next.config.js', () => {
+    const size = 96 // defaults defined in server/config.ts
     beforeAll(async () => {
-      const json = JSON.stringify({
-        target: 'experimental-serverless-trace',
-        images: {
-          deviceSizes: [size, largeSize],
-          domains,
+      nextConfig.replace(
+        '{ /* replaceme */ }',
+        `{
+        async headers() {
+          return [
+            {
+              source: '/test.png',
+              headers: [
+                {
+                  key: 'Cache-Control',
+                  value: 'public, max-age=86400, must-revalidate',
+                },
+              ],
+            },
+          ]
         },
-      })
-      nextConfig.replace('{ /* replaceme */ }', json)
+      }`
+      )
       await nextBuild(appDir)
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
@@ -912,7 +953,31 @@ describe('Image Optimizer', () => {
       await fs.remove(imagesDir)
     })
 
-    runTests({ w: size, isDev: false, domains })
+    it('should set max-age header from upstream when matching next.config.js', async () => {
+      const query = { url: '/test.png', w: size, q: 75 }
+      const opts = { headers: { accept: 'image/webp' } }
+      const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+      expect(res.status).toBe(200)
+      expect(res.headers.get('Cache-Control')).toBe(
+        `public, max-age=86400, must-revalidate`
+      )
+      expect(res.headers.get('Content-Disposition')).toBe(
+        `inline; filename="test.webp"`
+      )
+    })
+
+    it('should not set max-age header when not matching next.config.js', async () => {
+      const query = { url: '/test.jpg', w: size, q: 75 }
+      const opts = { headers: { accept: 'image/webp' } }
+      const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+      expect(res.status).toBe(200)
+      expect(res.headers.get('Cache-Control')).toBe(
+        `public, max-age=0, must-revalidate`
+      )
+      expect(res.headers.get('Content-Disposition')).toBe(
+        `inline; filename="test.webp"`
+      )
+    })
   })
 
   describe('dev support next.config.js cloudinary loader', () => {
@@ -974,6 +1039,9 @@ describe('Image Optimizer', () => {
         `public, max-age=31536000, must-revalidate`
       )
       expect(res.headers.get('Vary')).toBe('Accept')
+      expect(res.headers.get('Content-Disposition')).toBe(
+        `inline; filename="next-js-bg.webp"`
+      )
       await expectWidth(res, 64)
     })
   })
@@ -1003,5 +1071,144 @@ describe('Image Optimizer', () => {
       expect(res.status).toBe(200)
       await expectWidth(res, 8)
     })
+  })
+
+  const setupTests = (isSharp = false) => {
+    describe('dev support w/o next.config.js', () => {
+      const size = 384 // defaults defined in server/config.ts
+      beforeAll(async () => {
+        nextOutput = ''
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort, {
+          onStderr(msg) {
+            nextOutput += msg
+          },
+          cwd: appDir,
+        })
+      })
+      afterAll(async () => {
+        await killApp(app)
+        await fs.remove(imagesDir)
+      })
+
+      runTests({ w: size, isDev: true, domains: [], isSharp })
+    })
+
+    describe('dev support with next.config.js', () => {
+      const size = 64
+      beforeAll(async () => {
+        const json = JSON.stringify({
+          images: {
+            deviceSizes: [largeSize],
+            imageSizes: [size],
+            domains,
+          },
+        })
+        nextOutput = ''
+        nextConfig.replace('{ /* replaceme */ }', json)
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort, {
+          onStderr(msg) {
+            nextOutput += msg
+          },
+          cwd: appDir,
+        })
+      })
+      afterAll(async () => {
+        await killApp(app)
+        nextConfig.restore()
+        await fs.remove(imagesDir)
+      })
+
+      runTests({ w: size, isDev: true, domains, isSharp })
+    })
+
+    describe('Server support w/o next.config.js', () => {
+      const size = 384 // defaults defined in server/config.ts
+      beforeAll(async () => {
+        nextOutput = ''
+        await nextBuild(appDir)
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort, {
+          onStderr(msg) {
+            nextOutput += msg
+          },
+          env: {
+            NEXT_SHARP_PATH: isSharp
+              ? require.resolve('sharp', {
+                  paths: [join(appDir, 'node_modules')],
+                })
+              : '',
+          },
+          cwd: appDir,
+        })
+      })
+      afterAll(async () => {
+        await killApp(app)
+        await fs.remove(imagesDir)
+      })
+
+      runTests({ w: size, isDev: false, domains: [], isSharp })
+    })
+
+    describe('Server support with next.config.js', () => {
+      const size = 128
+      beforeAll(async () => {
+        const json = JSON.stringify({
+          images: {
+            deviceSizes: [size, largeSize],
+            domains,
+          },
+        })
+        nextOutput = ''
+        nextConfig.replace('{ /* replaceme */ }', json)
+        await nextBuild(appDir)
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort, {
+          onStderr(msg) {
+            nextOutput += msg
+          },
+          env: {
+            NEXT_SHARP_PATH: isSharp
+              ? require.resolve('sharp', {
+                  paths: [join(appDir, 'node_modules')],
+                })
+              : '',
+          },
+          cwd: appDir,
+        })
+      })
+      afterAll(async () => {
+        await killApp(app)
+        nextConfig.restore()
+        await fs.remove(imagesDir)
+      })
+
+      runTests({ w: size, isDev: false, domains, isSharp })
+    })
+  }
+
+  describe('with squoosh', () => {
+    setupTests()
+  })
+
+  describe('with sharp', () => {
+    beforeAll(async () => {
+      await execa('yarn', ['init', '-y'], {
+        cwd: appDir,
+        stdio: 'inherit',
+      })
+      await execa('yarn', ['add', 'sharp'], {
+        cwd: appDir,
+        stdio: 'inherit',
+      })
+    })
+    afterAll(async () => {
+      await fs.remove(join(appDir, 'node_modules'))
+      await fs.remove(join(appDir, 'yarn.lock'))
+      await fs.remove(join(appDir, 'package.json'))
+    })
+
+    setupTests(true)
   })
 })

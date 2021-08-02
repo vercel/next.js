@@ -1404,6 +1404,7 @@ export default async function getBaseWebpackConfig(
       pageExtensions: config.pageExtensions,
       trailingSlash: config.trailingSlash,
       buildActivity: config.devIndicators.buildActivity,
+      productionBrowserSourceMaps: !!config.productionBrowserSourceMaps,
       plugins: config.experimental.plugins,
       reactStrictMode: config.reactStrictMode,
       reactMode: config.experimental.reactMode,

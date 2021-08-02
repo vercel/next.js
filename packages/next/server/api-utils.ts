@@ -41,7 +41,7 @@ export async function apiResolver(
     const externalResolver = config.api?.externalResolver || false
 
     // Parsing of cookies
-    setLazyProp({ req: apiReq }, 'cookies', getCookieParser(req))
+    setLazyProp({ req: apiReq }, 'cookies', getCookieParser(req.headers))
     // Parsing query string
     apiReq.query = query
     // Parsing preview data
@@ -185,14 +185,14 @@ function parseJson(str: string): object {
 }
 
 /**
- * Parse cookies from `req` header
+ * Parse cookies from the `headers` of request
  * @param req request object
  */
-export function getCookieParser(
-  req: IncomingMessage
-): () => NextApiRequestCookies {
+export function getCookieParser(headers: {
+  [key: string]: undefined | string | string[]
+}): () => NextApiRequestCookies {
   return function parseCookie(): NextApiRequestCookies {
-    const header: undefined | string | string[] = req.headers.cookie
+    const header: undefined | string | string[] = headers.cookie
 
     if (!header) {
       return {}
@@ -321,7 +321,7 @@ export function tryGetPreviewData(
     return (req as any)[SYMBOL_PREVIEW_DATA] as any
   }
 
-  const getCookies = getCookieParser(req)
+  const getCookies = getCookieParser(req.headers)
   let cookies: NextApiRequestCookies
   try {
     cookies = getCookies()

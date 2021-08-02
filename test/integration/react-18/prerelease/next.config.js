@@ -8,6 +8,7 @@ module.exports = {
     // Use react 18
     alias['react'] = require.resolve('react-18')
     alias['react-dom'] = require.resolve('react-dom-18')
+    alias['react-dom/server'] = require.resolve('react-dom-18/server')
 
     return config
   },

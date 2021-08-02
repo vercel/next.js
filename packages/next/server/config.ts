@@ -2,7 +2,6 @@ import chalk from 'chalk'
 import findUp from 'next/dist/compiled/find-up'
 import { basename, extname } from 'path'
 import * as Log from '../build/output/log'
-import { hasNextSupport } from '../telemetry/ci-info'
 import { CONFIG_FILE, PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import { execOnce } from '../shared/lib/utils'
 import {
@@ -13,8 +12,9 @@ import {
 import { loadWebpackHook } from './config-utils'
 import { ImageConfig, imageConfigDefault, VALID_LOADERS } from './image-config'
 import { loadEnvConfig } from '@next/env'
+import { hasNextSupport } from '../telemetry/ci-info'
 
-export { DomainLocales, NextConfig, normalizeConfig } from './config-shared'
+export { DomainLocale, NextConfig, normalizeConfig } from './config-shared'
 
 const targets = ['server', 'serverless', 'experimental-serverless-trace']
 
@@ -320,6 +320,12 @@ function assignDefaults(userConfig: { [key: string]: any }) {
       )
     }
 
+    if (i18n.locales.length > 100) {
+      throw new Error(
+        `Received ${i18n.locales.length} i18n.locales items which exceeds the max of 100, please reduce the number of items to continue.\nSee more info here: https://nextjs.org/docs/messages/invalid-i18n-config`
+      )
+    }
+
     const defaultLocaleType = typeof i18n.defaultLocale
 
     if (!i18n.defaultLocale || defaultLocaleType !== 'string') {
@@ -339,6 +345,19 @@ function assignDefaults(userConfig: { [key: string]: any }) {
         if (!item || typeof item !== 'object') return true
         if (!item.defaultLocale) return true
         if (!item.domain || typeof item.domain !== 'string') return true
+
+        const defaultLocaleDuplicate = i18n.domains?.find(
+          (altItem) =>
+            altItem.defaultLocale === item.defaultLocale &&
+            altItem.domain !== item.domain
+        )
+
+        if (defaultLocaleDuplicate) {
+          console.warn(
+            `Both ${item.domain} and ${defaultLocaleDuplicate.domain} configured the defaultLocale ${item.defaultLocale} but only one can. Change one item's default locale to continue`
+          )
+          return true
+        }
 
         let hasInvalidLocale = false
 
@@ -469,7 +488,7 @@ export default async function loadConfig(
           : canonicalBase) || ''
     }
 
-    if (hasNextSupport) {
+    if (process.env.NEXT_PRIVATE_TARGET || hasNextSupport) {
       userConfig.target = process.env.NEXT_PRIVATE_TARGET || 'server'
     }
 
