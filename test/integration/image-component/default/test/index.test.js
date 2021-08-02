@@ -220,7 +220,7 @@ function runTests(mode) {
       )
       await check(
         () => browser.eval(`document.getElementById("msg4").textContent`),
-        'loaded img4 with dimensions 20x20'
+        'loaded img4 with dimensions 21x21'
       )
     } finally {
       if (browser) {
