@@ -134,12 +134,14 @@
       "disable_editing": false,
       "appearance": null,
       "accept_restrictions": null,
-      "publication_models" : {
-        "items" : [{
-            "id" : "7214e365-1b4c-4de3-8412-e311250fb4da",
-            "body" : "Author"
-        }],
-        "total" : 1
+      "publication_models": {
+        "items": [
+          {
+            "id": "7214e365-1b4c-4de3-8412-e311250fb4da",
+            "body": "Author"
+          }
+        ],
+        "total": 1
       }
     },
     {
