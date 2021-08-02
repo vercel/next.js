@@ -6,20 +6,54 @@ const path = require('path')
 // eslint-disable-next-line import/no-extraneous-dependencies
 const transform = require('@swc/core').transform
 
+// SWC doesn't allow setting `sourceFileName` yet so we have to manually edit the sourcemap to the correct input file path
+function updateSourceMapSources(map, sourceFileName) {
+  map.sources = [sourceFileName]
+  return map
+}
+
 module.exports = function (task) {
   // eslint-disable-next-line require-yield
   task.plugin('swc', {}, function* (
     file,
     serverOrClient,
-    { stripExtension, dev } = {}
+    { stripExtension } = {}
   ) {
     // Don't compile .d.ts
     if (file.base.endsWith('.d.ts')) return
 
-    const options = {
-      filename: path.join(file.dir, file.base),
-      sourceMaps: true,
+    const isClient = serverOrClient === 'client'
 
+    const filePath = path.join(file.dir, file.base)
+    const fullFilePath = path.join(__dirname, filePath)
+    const distFilePath = path.dirname(path.join(__dirname, 'dist', filePath))
+
+    const swcClientOptions = {
+      module: {
+        type: 'commonjs',
+      },
+      jsc: {
+        loose: true,
+
+        target: 'es2016',
+        parser: {
+          syntax: 'typescript',
+          dynamicImport: true,
+          tsx: file.base.endsWith('.tsx'),
+        },
+        transform: {
+          react: {
+            pragma: 'React.createElement',
+            pragmaFrag: 'React.Fragment',
+            throwIfNamespace: true,
+            development: false,
+            useBuiltins: true,
+          },
+        },
+      },
+    }
+
+    const swcServerOptions = {
       module: {
         type: 'commonjs',
       },
@@ -46,6 +80,15 @@ module.exports = function (task) {
           },
         },
       },
+    }
+
+    const swcOptions = isClient ? swcClientOptions : swcServerOptions
+
+    const options = {
+      filename: path.join(file.dir, file.base),
+      sourceMaps: true,
+
+      ...swcOptions,
     }
 
     const output = yield transform(file.data.toString('utf-8'), options)
@@ -75,7 +118,14 @@ module.exports = function (task) {
       this._.files.push({
         base: map,
         dir: file.dir,
-        data: Buffer.from(output.map),
+        data: Buffer.from(
+          JSON.stringify(
+            updateSourceMapSources(
+              JSON.parse(output.map),
+              path.relative(distFilePath, fullFilePath)
+            )
+          )
+        ),
       })
     }
 
