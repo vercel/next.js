@@ -1,7 +1,7 @@
 const path = require('path')
 const fs = require('fs')
 const {
-  getUrlFromPagesDirectory,
+  getUrlFromPagesDirectories,
   normalizeURL,
   execOnce,
 } = require('../utils/url')
@@ -13,6 +13,10 @@ const pagesDirWarning = execOnce((pagesDirs) => {
   )
 })
 
+// Cache for fs.existsSync lookup.
+// Prevent multiple blocking IO requests that have already been calculated.
+const fsExistsSyncCache = {}
+
 module.exports = {
   meta: {
     docs: {
@@ -21,24 +25,44 @@ module.exports = {
       recommended: true,
     },
     fixable: null, // or "code" or "whitespace"
-    schema: ['pagesDirectory'],
+    schema: [
+      {
+        oneOf: [
+          {
+            type: 'string',
+          },
+          {
+            type: 'array',
+            uniqueItems: true,
+            items: {
+              type: 'string',
+            },
+          },
+        ],
+      },
+    ],
   },
 
   create: function (context) {
     const [customPagesDirectory] = context.options
     const pagesDirs = customPagesDirectory
-      ? [customPagesDirectory]
+      ? [customPagesDirectory].flat()
       : [
           path.join(context.getCwd(), 'pages'),
           path.join(context.getCwd(), 'src', 'pages'),
         ]
-    const pagesDir = pagesDirs.find((dir) => fs.existsSync(dir))
-    if (!pagesDir) {
+    const foundPagesDirs = pagesDirs.filter((dir) => {
+      if (fsExistsSyncCache[dir] === undefined) {
+        fsExistsSyncCache[dir] = fs.existsSync(dir)
+      }
+      return fsExistsSyncCache[dir]
+    })
+    if (foundPagesDirs.length === 0) {
       pagesDirWarning(pagesDirs)
       return {}
     }
 
-    const urls = getUrlFromPagesDirectory('/', pagesDir)
+    const urls = getUrlFromPagesDirectories('/', foundPagesDirs)
     return {
       JSXOpeningElement(node) {
         if (node.name.name !== 'a') {

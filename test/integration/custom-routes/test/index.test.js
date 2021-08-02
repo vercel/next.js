@@ -233,6 +233,34 @@ const runTests = (isDev = false) => {
     expect(res3location).toBe('/')
   })
 
+  it('should not match redirect for /_next', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/_next/has-redirect-5',
+      undefined,
+      {
+        headers: {
+          'x-test-next': 'true',
+        },
+        redirect: 'manual',
+      }
+    )
+    expect(res.status).toBe(404)
+
+    const res2 = await fetchViaHTTP(
+      appPort,
+      '/another/has-redirect-5',
+      undefined,
+      {
+        headers: {
+          'x-test-next': 'true',
+        },
+        redirect: 'manual',
+      }
+    )
+    expect(res2.status).toBe(307)
+  })
+
   it('should redirect successfully with permanent: false', async () => {
     const res = await fetchViaHTTP(appPort, '/redirect1', undefined, {
       redirect: 'manual',
@@ -618,7 +646,9 @@ const runTests = (isDev = false) => {
         },
       },
     ])
-    expect(await res.text()).toContain('hi from external')
+    const nextHost = `localhost:${appPort}`
+    const externalHost = `localhost:${externalServerPort}`
+    expect(await res.text()).toContain(`hi ${nextHost} from ${externalHost}`)
   })
 
   it('should support unnamed parameters correctly', async () => {
@@ -1116,7 +1146,7 @@ const runTests = (isDev = false) => {
           {
             destination: '/:lang/about',
             regex: normalizeRegEx(
-              '^\\/redirect\\/me\\/to-about(?:\\/([^\\/]+?))$'
+              '^(?!\\/_next)\\/redirect\\/me\\/to-about(?:\\/([^\\/]+?))(?:\\/)?$'
             ),
             source: '/redirect/me/to-about/:lang',
             statusCode: 307,
@@ -1125,78 +1155,84 @@ const runTests = (isDev = false) => {
             source: '/docs/router-status/:code',
             destination: '/docs/v2/network/status-codes#:code',
             statusCode: 301,
-            regex: normalizeRegEx('^\\/docs\\/router-status(?:\\/([^\\/]+?))$'),
+            regex: normalizeRegEx(
+              '^(?!\\/_next)\\/docs\\/router-status(?:\\/([^\\/]+?))(?:\\/)?$'
+            ),
           },
           {
             source: '/docs/github',
             destination: '/docs/v2/advanced/now-for-github',
             statusCode: 301,
-            regex: normalizeRegEx('^\\/docs\\/github$'),
+            regex: normalizeRegEx('^(?!\\/_next)\\/docs\\/github(?:\\/)?$'),
           },
           {
             source: '/docs/v2/advanced/:all(.*)',
             destination: '/docs/v2/more/:all',
             statusCode: 301,
-            regex: normalizeRegEx('^\\/docs\\/v2\\/advanced(?:\\/(.*))$'),
+            regex: normalizeRegEx(
+              '^(?!\\/_next)\\/docs\\/v2\\/advanced(?:\\/(.*))(?:\\/)?$'
+            ),
           },
           {
             source: '/hello/:id/another',
             destination: '/blog/:id',
             statusCode: 307,
-            regex: normalizeRegEx('^\\/hello(?:\\/([^\\/]+?))\\/another$'),
+            regex: normalizeRegEx(
+              '^(?!\\/_next)\\/hello(?:\\/([^\\/]+?))\\/another(?:\\/)?$'
+            ),
           },
           {
             source: '/redirect1',
             destination: '/',
             statusCode: 307,
-            regex: normalizeRegEx('^\\/redirect1$'),
+            regex: normalizeRegEx('^(?!\\/_next)\\/redirect1(?:\\/)?$'),
           },
           {
             source: '/redirect2',
             destination: '/',
             statusCode: 301,
-            regex: normalizeRegEx('^\\/redirect2$'),
+            regex: normalizeRegEx('^(?!\\/_next)\\/redirect2(?:\\/)?$'),
           },
           {
             source: '/redirect3',
             destination: '/another',
             statusCode: 302,
-            regex: normalizeRegEx('^\\/redirect3$'),
+            regex: normalizeRegEx('^(?!\\/_next)\\/redirect3(?:\\/)?$'),
           },
           {
             source: '/redirect4',
             destination: '/',
             statusCode: 308,
-            regex: normalizeRegEx('^\\/redirect4$'),
+            regex: normalizeRegEx('^(?!\\/_next)\\/redirect4(?:\\/)?$'),
           },
           {
             source: '/redir-chain1',
             destination: '/redir-chain2',
             statusCode: 301,
-            regex: normalizeRegEx('^\\/redir-chain1$'),
+            regex: normalizeRegEx('^(?!\\/_next)\\/redir-chain1(?:\\/)?$'),
           },
           {
             source: '/redir-chain2',
             destination: '/redir-chain3',
             statusCode: 302,
-            regex: normalizeRegEx('^\\/redir-chain2$'),
+            regex: normalizeRegEx('^(?!\\/_next)\\/redir-chain2(?:\\/)?$'),
           },
           {
             source: '/redir-chain3',
             destination: '/',
             statusCode: 303,
-            regex: normalizeRegEx('^\\/redir-chain3$'),
+            regex: normalizeRegEx('^(?!\\/_next)\\/redir-chain3(?:\\/)?$'),
           },
           {
             destination: 'https://google.com',
-            regex: normalizeRegEx('^\\/to-external$'),
+            regex: normalizeRegEx('^(?!\\/_next)\\/to-external(?:\\/)?$'),
             source: '/to-external',
             statusCode: 307,
           },
           {
             destination: '/with-params?first=:section&second=:name',
             regex: normalizeRegEx(
-              '^\\/query-redirect(?:\\/([^\\/]+?))(?:\\/([^\\/]+?))$'
+              '^(?!\\/_next)\\/query-redirect(?:\\/([^\\/]+?))(?:\\/([^\\/]+?))(?:\\/)?$'
             ),
             source: '/query-redirect/:section/:name',
             statusCode: 307,
@@ -1204,27 +1240,29 @@ const runTests = (isDev = false) => {
           {
             destination: '/got-unnamed',
             regex: normalizeRegEx(
-              '^\\/unnamed(?:\\/(first|second))(?:\\/(.*))$'
+              '^(?!\\/_next)\\/unnamed(?:\\/(first|second))(?:\\/(.*))(?:\\/)?$'
             ),
             source: '/unnamed/(first|second)/(.*)',
             statusCode: 307,
           },
           {
             destination: '/:0',
-            regex: normalizeRegEx('^\\/named-like-unnamed(?:\\/([^\\/]+?))$'),
+            regex: normalizeRegEx(
+              '^(?!\\/_next)\\/named-like-unnamed(?:\\/([^\\/]+?))(?:\\/)?$'
+            ),
             source: '/named-like-unnamed/:0',
             statusCode: 307,
           },
           {
             destination: '/thank-you-next',
-            regex: normalizeRegEx('^\\/redirect-override$'),
+            regex: normalizeRegEx('^(?!\\/_next)\\/redirect-override(?:\\/)?$'),
             source: '/redirect-override',
             statusCode: 307,
           },
           {
             destination: '/:first/:second',
             regex: normalizeRegEx(
-              '^\\/docs(?:\\/(integrations|now-cli))\\/v2(.*)$'
+              '^(?!\\/_next)\\/docs(?:\\/(integrations|now-cli))\\/v2(.*)(?:\\/)?$'
             ),
             source: '/docs/:first(integrations|now-cli)/v2:second(.*)',
             statusCode: 307,
@@ -1232,7 +1270,7 @@ const runTests = (isDev = false) => {
           {
             destination: '/somewhere',
             regex: normalizeRegEx(
-              '^\\/catchall-redirect(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?$'
+              '^(?!\\/_next)\\/catchall-redirect(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?(?:\\/)?$'
             ),
             source: '/catchall-redirect/:path*',
             statusCode: 307,
@@ -1240,14 +1278,18 @@ const runTests = (isDev = false) => {
           {
             destination:
               'https://authserver.example.com/set-password?returnUrl=https%3A%2F%2Fwww.example.com/login',
-            regex: normalizeRegEx('^\\/to-external-with-query$'),
+            regex: normalizeRegEx(
+              '^(?!\\/_next)\\/to-external-with-query(?:\\/)?$'
+            ),
             source: '/to-external-with-query',
             statusCode: 307,
           },
           {
             destination:
               'https://authserver.example.com/set-password?returnUrl=https://www.example.com/login',
-            regex: normalizeRegEx('^\\/to-external-with-query-2$'),
+            regex: normalizeRegEx(
+              '^(?!\\/_next)\\/to-external-with-query-2(?:\\/)?$'
+            ),
             source: '/to-external-with-query-2',
             statusCode: 307,
           },
@@ -1260,7 +1302,7 @@ const runTests = (isDev = false) => {
                 value: '(?<myHeader>.*)',
               },
             ],
-            regex: normalizeRegEx('^\\/has-redirect-1$'),
+            regex: normalizeRegEx('^(?!\\/_next)\\/has-redirect-1(?:\\/)?$'),
             source: '/has-redirect-1',
             statusCode: 307,
           },
@@ -1272,7 +1314,7 @@ const runTests = (isDev = false) => {
                 type: 'query',
               },
             ],
-            regex: normalizeRegEx('^\\/has-redirect-2$'),
+            regex: normalizeRegEx('^(?!\\/_next)\\/has-redirect-2(?:\\/)?$'),
             source: '/has-redirect-2',
             statusCode: 307,
           },
@@ -1285,7 +1327,7 @@ const runTests = (isDev = false) => {
                 value: 'true',
               },
             ],
-            regex: normalizeRegEx('^\\/has-redirect-3$'),
+            regex: normalizeRegEx('^(?!\\/_next)\\/has-redirect-3(?:\\/)?$'),
             source: '/has-redirect-3',
             statusCode: 307,
           },
@@ -1297,8 +1339,22 @@ const runTests = (isDev = false) => {
                 value: 'example.com',
               },
             ],
-            regex: normalizeRegEx('^\\/has-redirect-4$'),
+            regex: normalizeRegEx('^(?!\\/_next)\\/has-redirect-4(?:\\/)?$'),
             source: '/has-redirect-4',
+            statusCode: 307,
+          },
+          {
+            destination: '/somewhere',
+            has: [
+              {
+                key: 'x-test-next',
+                type: 'header',
+              },
+            ],
+            regex: normalizeRegEx(
+              '^(?!\\/_next)(?:\\/([^\\/]+?))\\/has-redirect-5(?:\\/)?$'
+            ),
+            source: '/:path/has-redirect-5',
             statusCode: 307,
           },
         ],
@@ -1314,7 +1370,7 @@ const runTests = (isDev = false) => {
                 value: 'hello again',
               },
             ],
-            regex: normalizeRegEx('^\\/add-header$'),
+            regex: normalizeRegEx('^\\/add-header(?:\\/)?$'),
             source: '/add-header',
           },
           {
@@ -1328,7 +1384,7 @@ const runTests = (isDev = false) => {
                 value: 'second',
               },
             ],
-            regex: normalizeRegEx('^\\/my-headers(?:\\/(.*))$'),
+            regex: normalizeRegEx('^\\/my-headers(?:\\/(.*))(?:\\/)?$'),
             source: '/my-headers/(.*)',
           },
           {
@@ -1383,7 +1439,9 @@ const runTests = (isDev = false) => {
                   "default-src 'self'; img-src *; media-src media1.com media2.com; script-src userscripts.example.com/:path",
               },
             ],
-            regex: normalizeRegEx('^\\/my-other-header(?:\\/([^\\/]+?))$'),
+            regex: normalizeRegEx(
+              '^\\/my-other-header(?:\\/([^\\/]+?))(?:\\/)?$'
+            ),
             source: '/my-other-header/:path',
           },
           {
@@ -1393,7 +1451,7 @@ const runTests = (isDev = false) => {
                 value: 'https://example.com',
               },
             ],
-            regex: normalizeRegEx('^\\/without-params\\/url$'),
+            regex: normalizeRegEx('^\\/without-params\\/url(?:\\/)?$'),
             source: '/without-params/url',
           },
           {
@@ -1404,7 +1462,7 @@ const runTests = (isDev = false) => {
               },
             ],
             regex: normalizeRegEx(
-              '^\\/with-params\\/url(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?$'
+              '^\\/with-params\\/url(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?(?:\\/)?$'
             ),
             source: '/with-params/url/:path*',
           },
@@ -1416,7 +1474,7 @@ const runTests = (isDev = false) => {
               },
             ],
             regex: normalizeRegEx(
-              '^\\/with-params\\/url2(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?$'
+              '^\\/with-params\\/url2(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?(?:\\/)?$'
             ),
             source: '/with-params/url2/:path*',
           },
@@ -1428,7 +1486,7 @@ const runTests = (isDev = false) => {
               },
             ],
             regex: normalizeRegEx(
-              '^(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?$'
+              '^(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?(?:\\/)?$'
             ),
             source: '/:path*',
           },
@@ -1443,7 +1501,7 @@ const runTests = (isDev = false) => {
                 value: 'end',
               },
             ],
-            regex: normalizeRegEx('^\\/named-pattern(?:\\/(.*))$'),
+            regex: normalizeRegEx('^\\/named-pattern(?:\\/(.*))(?:\\/)?$'),
             source: '/named-pattern/:path(.*)',
           },
           {
@@ -1454,7 +1512,7 @@ const runTests = (isDev = false) => {
               },
             ],
             regex: normalizeRegEx(
-              '^\\/catchall-header(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?$'
+              '^\\/catchall-header(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?(?:\\/)?$'
             ),
             source: '/catchall-header/:path*',
           },
@@ -1472,7 +1530,7 @@ const runTests = (isDev = false) => {
                 value: 'header',
               },
             ],
-            regex: normalizeRegEx('^\\/has-header-1$'),
+            regex: normalizeRegEx('^\\/has-header-1(?:\\/)?$'),
             source: '/has-header-1',
           },
           {
@@ -1488,7 +1546,7 @@ const runTests = (isDev = false) => {
                 value: 'value',
               },
             ],
-            regex: normalizeRegEx('^\\/has-header-2$'),
+            regex: normalizeRegEx('^\\/has-header-2(?:\\/)?$'),
             source: '/has-header-2',
           },
           {
@@ -1505,7 +1563,7 @@ const runTests = (isDev = false) => {
                 value: 'yuuuup',
               },
             ],
-            regex: normalizeRegEx('^\\/has-header-3$'),
+            regex: normalizeRegEx('^\\/has-header-3(?:\\/)?$'),
             source: '/has-header-3',
           },
           {
@@ -1521,7 +1579,7 @@ const runTests = (isDev = false) => {
                 value: 'yuuuup',
               },
             ],
-            regex: normalizeRegEx('^\\/has-header-4$'),
+            regex: normalizeRegEx('^\\/has-header-4(?:\\/)?$'),
             source: '/has-header-4',
           },
         ],
@@ -1535,13 +1593,13 @@ const runTests = (isDev = false) => {
                   type: 'query',
                 },
               ],
-              regex: normalizeRegEx('^\\/hello$'),
+              regex: normalizeRegEx('^\\/hello(?:\\/)?$'),
               source: '/hello',
             },
             {
               destination: '/blog/:path*',
               regex: normalizeRegEx(
-                '^\\/old-blog(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?$'
+                '^\\/old-blog(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?(?:\\/)?$'
               ),
               source: '/old-blog/:path*',
             },
@@ -1549,147 +1607,151 @@ const runTests = (isDev = false) => {
           afterFiles: [
             {
               destination: 'http://localhost:12233',
-              regex: normalizeRegEx('^\\/to-nowhere$'),
+              regex: normalizeRegEx('^\\/to-nowhere(?:\\/)?$'),
               source: '/to-nowhere',
             },
             {
               destination: '/auto-export/hello?rewrite=1',
-              regex: normalizeRegEx('^\\/rewriting-to-auto-export$'),
+              regex: normalizeRegEx('^\\/rewriting-to-auto-export(?:\\/)?$'),
               source: '/rewriting-to-auto-export',
             },
             {
               destination: '/auto-export/another?rewrite=1',
               regex: normalizeRegEx(
-                '^\\/rewriting-to-another-auto-export(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?$'
+                '^\\/rewriting-to-another-auto-export(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?(?:\\/)?$'
               ),
               source: '/rewriting-to-another-auto-export/:path*',
             },
             {
               destination: '/another/one',
-              regex: normalizeRegEx('^\\/to-another$'),
+              regex: normalizeRegEx('^\\/to-another(?:\\/)?$'),
               source: '/to-another',
             },
             {
               destination: '/404',
-              regex: '^\\/nav$',
+              regex: normalizeRegEx('^\\/nav(?:\\/)?$'),
               source: '/nav',
             },
             {
               source: '/hello-world',
               destination: '/static/hello.txt',
-              regex: normalizeRegEx('^\\/hello-world$'),
+              regex: normalizeRegEx('^\\/hello-world(?:\\/)?$'),
             },
             {
               source: '/',
               destination: '/another',
-              regex: normalizeRegEx('^\\/$'),
+              regex: normalizeRegEx('^\\/(?:\\/)?$'),
             },
             {
               source: '/another',
               destination: '/multi-rewrites',
-              regex: normalizeRegEx('^\\/another$'),
+              regex: normalizeRegEx('^\\/another(?:\\/)?$'),
             },
             {
               source: '/first',
               destination: '/hello',
-              regex: normalizeRegEx('^\\/first$'),
+              regex: normalizeRegEx('^\\/first(?:\\/)?$'),
             },
             {
               source: '/second',
               destination: '/hello-again',
-              regex: normalizeRegEx('^\\/second$'),
+              regex: normalizeRegEx('^\\/second(?:\\/)?$'),
             },
             {
               destination: '/hello',
-              regex: normalizeRegEx('^\\/to-hello$'),
+              regex: normalizeRegEx('^\\/to-hello(?:\\/)?$'),
               source: '/to-hello',
             },
             {
               destination: '/blog/post-2',
-              regex: normalizeRegEx('^\\/blog\\/post-1$'),
+              regex: normalizeRegEx('^\\/blog\\/post-1(?:\\/)?$'),
               source: '/blog/post-1',
             },
             {
               source: '/test/:path',
               destination: '/:path',
-              regex: normalizeRegEx('^\\/test(?:\\/([^\\/]+?))$'),
+              regex: normalizeRegEx('^\\/test(?:\\/([^\\/]+?))(?:\\/)?$'),
             },
             {
               source: '/test-overwrite/:something/:another',
               destination: '/params/this-should-be-the-value',
               regex: normalizeRegEx(
-                '^\\/test-overwrite(?:\\/([^\\/]+?))(?:\\/([^\\/]+?))$'
+                '^\\/test-overwrite(?:\\/([^\\/]+?))(?:\\/([^\\/]+?))(?:\\/)?$'
               ),
             },
             {
               source: '/params/:something',
               destination: '/with-params',
-              regex: normalizeRegEx('^\\/params(?:\\/([^\\/]+?))$'),
+              regex: normalizeRegEx('^\\/params(?:\\/([^\\/]+?))(?:\\/)?$'),
             },
             {
               destination: '/with-params?first=:section&second=:name',
               regex: normalizeRegEx(
-                '^\\/query-rewrite(?:\\/([^\\/]+?))(?:\\/([^\\/]+?))$'
+                '^\\/query-rewrite(?:\\/([^\\/]+?))(?:\\/([^\\/]+?))(?:\\/)?$'
               ),
               source: '/query-rewrite/:section/:name',
             },
             {
               destination: '/_next/:path*',
               regex: normalizeRegEx(
-                '^\\/hidden\\/_next(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?$'
+                '^\\/hidden\\/_next(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?(?:\\/)?$'
               ),
               source: '/hidden/_next/:path*',
             },
             {
               destination: `http://localhost:${externalServerPort}/:path*`,
               regex: normalizeRegEx(
-                '^\\/proxy-me(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?$'
+                '^\\/proxy-me(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?(?:\\/)?$'
               ),
               source: '/proxy-me/:path*',
             },
             {
               destination: '/api/hello',
-              regex: normalizeRegEx('^\\/api-hello$'),
+              regex: normalizeRegEx('^\\/api-hello(?:\\/)?$'),
               source: '/api-hello',
             },
             {
               destination: '/api/hello?name=:first*',
-              regex: normalizeRegEx('^\\/api-hello-regex(?:\\/(.*))$'),
+              regex: normalizeRegEx('^\\/api-hello-regex(?:\\/(.*))(?:\\/)?$'),
               source: '/api-hello-regex/:first(.*)',
             },
             {
               destination: '/api/hello?hello=:name',
-              regex: normalizeRegEx('^\\/api-hello-param(?:\\/([^\\/]+?))$'),
+              regex: normalizeRegEx(
+                '^\\/api-hello-param(?:\\/([^\\/]+?))(?:\\/)?$'
+              ),
               source: '/api-hello-param/:name',
             },
             {
               destination: '/api/dynamic/:name?hello=:name',
-              regex: normalizeRegEx('^\\/api-dynamic-param(?:\\/([^\\/]+?))$'),
+              regex: normalizeRegEx(
+                '^\\/api-dynamic-param(?:\\/([^\\/]+?))(?:\\/)?$'
+              ),
               source: '/api-dynamic-param/:name',
             },
             {
               destination: '/with-params',
-              regex: normalizeRegEx('^(?:\\/([^\\/]+?))\\/post-321$'),
+              regex: normalizeRegEx('^(?:\\/([^\\/]+?))\\/post-321(?:\\/)?$'),
               source: '/:path/post-321',
             },
             {
               destination: '/with-params',
               regex: normalizeRegEx(
-                '^\\/unnamed-params\\/nested(?:\\/(.*))(?:\\/([^\\/]+?))(?:\\/(.*))$'
+                '^\\/unnamed-params\\/nested(?:\\/(.*))(?:\\/([^\\/]+?))(?:\\/(.*))(?:\\/)?$'
               ),
               source: '/unnamed-params/nested/(.*)/:test/(.*)',
             },
             {
               destination: '/with-params',
               regex: normalizeRegEx(
-                '^\\/catchall-rewrite(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?$'
+                '^\\/catchall-rewrite(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?(?:\\/)?$'
               ),
               source: '/catchall-rewrite/:path*',
             },
             {
               destination: '/with-params?another=:path*',
               regex: normalizeRegEx(
-                '^\\/catchall-query(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?$'
+                '^\\/catchall-query(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?(?:\\/)?$'
               ),
               source: '/catchall-query/:path*',
             },
@@ -1702,7 +1764,7 @@ const runTests = (isDev = false) => {
                   value: '(?<myHeader>.*)',
                 },
               ],
-              regex: normalizeRegEx('^\\/has-rewrite-1$'),
+              regex: normalizeRegEx('^\\/has-rewrite-1(?:\\/)?$'),
               source: '/has-rewrite-1',
             },
             {
@@ -1713,7 +1775,7 @@ const runTests = (isDev = false) => {
                   type: 'query',
                 },
               ],
-              regex: normalizeRegEx('^\\/has-rewrite-2$'),
+              regex: normalizeRegEx('^\\/has-rewrite-2(?:\\/)?$'),
               source: '/has-rewrite-2',
             },
             {
@@ -1725,7 +1787,7 @@ const runTests = (isDev = false) => {
                   value: '(?<loggedIn>true)',
                 },
               ],
-              regex: normalizeRegEx('^\\/has-rewrite-3$'),
+              regex: normalizeRegEx('^\\/has-rewrite-3(?:\\/)?$'),
               source: '/has-rewrite-3',
             },
             {
@@ -1736,7 +1798,7 @@ const runTests = (isDev = false) => {
                   value: 'example.com',
                 },
               ],
-              regex: '^\\/has-rewrite-4$',
+              regex: normalizeRegEx('^\\/has-rewrite-4(?:\\/)?$'),
               source: '/has-rewrite-4',
             },
             {
@@ -1747,7 +1809,7 @@ const runTests = (isDev = false) => {
                   type: 'query',
                 },
               ],
-              regex: normalizeRegEx('^\\/has-rewrite-5$'),
+              regex: normalizeRegEx('^\\/has-rewrite-5(?:\\/)?$'),
               source: '/has-rewrite-5',
             },
             {
@@ -1759,7 +1821,7 @@ const runTests = (isDev = false) => {
                   value: 'with-params',
                 },
               ],
-              regex: normalizeRegEx('^\\/has-rewrite-6$'),
+              regex: normalizeRegEx('^\\/has-rewrite-6(?:\\/)?$'),
               source: '/has-rewrite-6',
             },
             {
@@ -1771,7 +1833,7 @@ const runTests = (isDev = false) => {
                   value: '(?<idk>with-params|hello)',
                 },
               ],
-              regex: normalizeRegEx('^\\/has-rewrite-7$'),
+              regex: normalizeRegEx('^\\/has-rewrite-7(?:\\/)?$'),
               source: '/has-rewrite-7',
             },
             {
@@ -1782,12 +1844,12 @@ const runTests = (isDev = false) => {
                   type: 'query',
                 },
               ],
-              regex: normalizeRegEx('^\\/has-rewrite-8$'),
+              regex: normalizeRegEx('^\\/has-rewrite-8(?:\\/)?$'),
               source: '/has-rewrite-8',
             },
             {
               destination: '/hello',
-              regex: normalizeRegEx('^\\/blog\\/about$'),
+              regex: normalizeRegEx('^\\/blog\\/about(?:\\/)?$'),
               source: '/blog/about',
             },
           ],
@@ -1871,7 +1933,9 @@ describe('Custom routes', () => {
     externalServerPort = await findPort()
     externalServer = http.createServer((req, res) => {
       externalServerHits.add(req.url)
-      res.end('hi from external')
+      const nextHost = req.headers['x-forwarded-host']
+      const externalHost = req.headers['host']
+      res.end(`hi ${nextHost} from ${externalHost}`)
     })
     await new Promise((resolve, reject) => {
       externalServer.listen(externalServerPort, (error) => {

@@ -46,6 +46,14 @@ const Lazy = () => {
         height={400}
         width={1900}
       ></Image>
+      <div style={{ height: '2000px' }}></div>
+      <Image
+        id="lazy-boundary"
+        src="lazy6.jpg"
+        height={400}
+        width={800}
+        lazyBoundary="0px 0px 500px 0px"
+      ></Image>
       <Link href="/missing-observer">
         <a id="observerlink">observer</a>
       </Link>

@@ -23,7 +23,10 @@ With `next/script`, you can define the `strategy` property and Next.js will o
 - `afterInteractive` (**default**): For scripts that can fetch and execute **after** the page is interactive, such as tag managers and analytics. These scripts are injected on the client-side and will run after hydration.
 - `lazyOnload` For scripts that can wait to load during idle time, such as chat support and social media widgets.
 
-> **Note:** These loading strategies work the same for inline scripts wrapped with `<Script>`. See the inline scripts example below.
+> **Note:**
+>
+> - `<Script>` supports inline scripts with `afterInteractive` and `lazyOnload` strategy.
+> - Inline scripts wrapped with `<Script>` _require an `id` attribute to be defined_ to track and optimize the script.
 
 ## Usage
 
@@ -46,7 +49,11 @@ export default function Home() {
 }
 ```
 
-With `next/script`, you no longer need to wrap scripts in `next/head`. Further, `next/script` should **not** be used in `pages/_document.js` as `next/script` has client-side functionality to ensure loading order. For example:
+Now, you use `next/script` in the body of your Next.js page. It has client-side functionality that decides when and how to load the remote script based on the `strategy`.
+
+> **Note:**
+>
+> - `next/script` **must not** be placed in either a `next/head` component or in `pages/_document.js`.
 
 ```js
 // After

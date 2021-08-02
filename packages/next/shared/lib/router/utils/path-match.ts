@@ -15,13 +15,19 @@ export const customRouteMatcherOptions: pathToRegexp.TokensToRegexpOptions &
 }
 
 export default (customRoute = false) => {
-  return (path: string) => {
+  return (path: string, regexModifier?: (regex: string) => string) => {
     const keys: pathToRegexp.Key[] = []
-    const matcherRegex = pathToRegexp.pathToRegexp(
+    let matcherRegex = pathToRegexp.pathToRegexp(
       path,
       keys,
       customRoute ? customRouteMatcherOptions : matcherOptions
     )
+
+    if (regexModifier) {
+      const regexSource = regexModifier(matcherRegex.source)
+      matcherRegex = new RegExp(regexSource, matcherRegex.flags)
+    }
+
     const matcher = pathToRegexp.regexpToFunction(matcherRegex, keys)
 
     return (pathname: string | null | undefined, params?: any) => {
