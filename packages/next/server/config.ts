@@ -30,7 +30,6 @@ const experimentalWarning = execOnce(() => {
 })
 
 function assignDefaults(userConfig: { [key: string]: any }) {
-  console.log('assignDefaults')
   if (typeof userConfig.exportTrailingSlash !== 'undefined') {
     console.warn(
       chalk.yellow.bold('Warning: ') +
@@ -308,6 +307,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
   }
 
   // TODO: Change defaultConfig type to NextConfigComplete
+  // so we don't need "!" here.
   setHttpAgentOptions(
     result.httpAgentOptions || defaultConfig.httpAgentOptions!
   )
