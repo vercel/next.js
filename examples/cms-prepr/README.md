@@ -63,7 +63,7 @@ Import the [`models/post.json`](models/post.json) file.
 
 Click on the Author field and select `Author` at the option `Publication model` and click **Save**.
 
-### Step 3. Set up environment variables
+### Step 3. Set up environment variables (for production)
 
 Copy the `.env.local.example` file in this directory to `.env.local` (which will be ignored by Git):
 
@@ -73,15 +73,17 @@ cp .env.local.example .env.local
 
 Inside your environment, navigate to **Settings > Development > Access Tokens**.
 
-Click **Add access token**, enter the name `Next.js Preview` and add the scope `graphql_preview` and click **Save**.
+Click **Add access token**, enter the name `Next.js Production` and add the scope `graphql_published` and click **Save**.
 
-Copy the generated access token and set the variable `PREPRIO_PREVIEW_TOKEN` in `.env.local`.
+Copy the generated access token and set the variable `PREPRIO_PRODUCTION_TOKEN` in `.env.local`.
+
+### Step 3.1 Set up environment variables (for preview)
 
 Go back to the Access token overview and click **Add access token**.
 
-Enter the name `Next.js Production` and add the scope `graphql_published` and click **Save**.
+Click **Add access token**, enter the name `Next.js Preview` and add the scope `graphql_preview` and click **Save**.
 
-Copy the generated access token and set the variable `PREPRIO_PRODUCTION_TOKEN` in `.env.local`.
+Copy the generated access token and set the variable `PREPRIO_PREVIEW_TOKEN` in `.env.local`.
 
 The `PREPRIO_PREVIEW_KEY` can be any random string (but avoid spaces), like a UUID`, this is used
 for [Preview Mode](https://nextjs.org/docs/advanced-features/preview-mode).
