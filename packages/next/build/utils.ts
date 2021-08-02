@@ -32,7 +32,7 @@ import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import * as Log from './output/log'
 import { loadComponents } from '../server/load-components'
 import { trace } from '../telemetry/trace'
-import { setHttpAgent } from '../server/config'
+import { setHttpAgentOptions } from '../server/config'
 import { NextConfigComplete } from '../server/config-shared'
 
 const fileGzipStats: { [k: string]: Promise<number> | undefined } = {}
@@ -836,7 +836,7 @@ export async function isPageStatic(
   return isPageStaticSpan.traceAsyncFn(async () => {
     try {
       require('../shared/lib/runtime-config').setConfig(runtimeEnvConfig)
-      setHttpAgent(httpAgentOptions)
+      setHttpAgentOptions(httpAgentOptions)
       const components = await loadComponents(distDir, page, serverless)
       const mod = components.ComponentMod
       const Comp = mod.default || mod

@@ -308,7 +308,9 @@ function assignDefaults(userConfig: { [key: string]: any }) {
   }
 
   // TODO: Change defaultConfig type to NextConfigComplete
-  setHttpAgent(result.httpAgentOptions || defaultConfig.httpAgentOptions!)
+  setHttpAgentOptions(
+    result.httpAgentOptions || defaultConfig.httpAgentOptions!
+  )
 
   if (result.i18n) {
     const { i18n } = result
@@ -524,7 +526,7 @@ export default async function loadConfig(
   }
 
   const completeConfig = defaultConfig as NextConfigComplete
-  setHttpAgent(completeConfig.httpAgentOptions)
+  setHttpAgentOptions(completeConfig.httpAgentOptions)
   return completeConfig
 }
 
@@ -534,7 +536,9 @@ export function isTargetLikeServerless(target: string) {
   return isServerless || isServerlessTrace
 }
 
-export function setHttpAgent(options: NextConfigComplete['httpAgentOptions']) {
+export function setHttpAgentOptions(
+  options: NextConfigComplete['httpAgentOptions']
+) {
   if ((global as any).__NEXT_HTTP_AGENT) {
     // We only need to assign once because we want
     // to resuse the same agent for all requests.

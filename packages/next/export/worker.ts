@@ -20,7 +20,7 @@ import { trace } from '../telemetry/trace'
 import { isInAmpMode } from '../shared/lib/amp'
 import { resultFromChunks, resultToChunks } from '../server/utils'
 import { NextConfigComplete } from '../server/config-shared'
-import { setHttpAgent } from '../server/config'
+import { setHttpAgentOptions } from '../server/config'
 
 const envConfig = require('../shared/lib/runtime-config')
 
@@ -108,7 +108,7 @@ export default async function exportPage({
   disableOptimizedLoading,
   httpAgentOptions,
 }: ExportPageInput): Promise<ExportPageResults> {
-  setHttpAgent(httpAgentOptions)
+  setHttpAgentOptions(httpAgentOptions)
   const exportPageSpan = trace('export-page-worker', parentSpanId)
 
   return exportPageSpan.traceAsyncFn(async () => {
