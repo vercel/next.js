@@ -176,6 +176,7 @@ export const getStaticProps = async () => ({
   props: {
     initialEntries: await listGuestbookEntries(),
   },
+  revalidate: 1,
 })
 
 export default Guestbook
