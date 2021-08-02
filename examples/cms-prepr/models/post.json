@@ -16,7 +16,7 @@
   "seo_score": false,
   "ab_testing": false,
   "versioning": false,
-  "slug": null,
+  "slug": "{title}",
   "for": null,
   "fields": [
     {
