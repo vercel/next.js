@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "react": "*",
+    "react-dom": "*"
+  }
+}
