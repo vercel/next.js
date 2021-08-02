@@ -13,8 +13,11 @@ import Router, {
   PrivateRouteInfo,
 } from '../shared/lib/router/router'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
-import * as querystring from '../shared/lib/router/utils/querystring'
-import * as envConfig from '../shared/lib/runtime-config'
+import {
+  urlQueryToSearchParams,
+  assign,
+} from '../shared/lib/router/utils/querystring'
+import { setConfig } from '../shared/lib/runtime-config'
 import { getURL, loadGetInitialProps, NEXT_DATA, ST } from '../shared/lib/utils'
 import { Portal } from './portal'
 import initHeadManager from './head-manager'
@@ -79,7 +82,7 @@ const prefix: string = assetPrefix || ''
 // So, this is how we do it in the client side at runtime
 __webpack_public_path__ = `${prefix}/_next/` //eslint-disable-line
 // Initialize next/config with the environment configuration
-envConfig.setConfig({
+setConfig({
   serverRuntimeConfig: {},
   publicRuntimeConfig: runtimeConfig || {},
 })
@@ -205,8 +208,8 @@ class Container extends React.Component<{
         router.pathname +
           '?' +
           String(
-            querystring.assign(
-              querystring.urlQueryToSearchParams(router.query),
+            assign(
+              urlQueryToSearchParams(router.query),
               new URLSearchParams(location.search)
             )
           ),
@@ -257,7 +260,7 @@ class Container extends React.Component<{
 export const emitter: MittEmitter<string> = mitt()
 let CachedComponent: React.ComponentType
 
-export default async (opts: { webpackHMR?: any } = {}) => {
+export async function initNext(opts: { webpackHMR?: any } = {}) {
   // This makes sure this specific lines are removed in production
   if (process.env.NODE_ENV === 'development') {
     webpackHMR = opts.webpackHMR
@@ -406,7 +409,7 @@ export default async (opts: { webpackHMR?: any } = {}) => {
     render(renderCtx)
     return emitter
   } else {
-    return { emitter, render, renderCtx }
+    return { emitter, renderCtx }
   }
 }
 
@@ -462,6 +465,14 @@ export function renderError(renderErrorProps: RenderErrorProps): Promise<any> {
   return pageLoader
     .loadPage('/_error')
     .then(({ page: ErrorComponent, styleSheets }) => {
+      return lastAppProps?.Component === ErrorComponent
+        ? import('../pages/_error').then((m) => ({
+            ErrorComponent: m.default as React.ComponentType<{}>,
+            styleSheets: [],
+          }))
+        : { ErrorComponent, styleSheets }
+    })
+    .then(({ ErrorComponent, styleSheets }) => {
       // In production we do a normal render with the `ErrorComponent` as component.
       // If we've gotten here upon initial render, we can use the props from the server.
       // Otherwise, we need to call `getInitialProps` on `App` before mounting.

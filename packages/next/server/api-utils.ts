@@ -41,7 +41,7 @@ export async function apiResolver(
     const externalResolver = config.api?.externalResolver || false
 
     // Parsing of cookies
-    setLazyProp({ req: apiReq }, 'cookies', getCookieParser(req))
+    setLazyProp({ req: apiReq }, 'cookies', getCookieParser(req.headers))
     // Parsing query string
     apiReq.query = query
     // Parsing preview data
@@ -63,6 +63,26 @@ export async function apiResolver(
       )
     }
 
+    let contentLength = 0
+    const writeData = apiRes.write
+    const endResponse = apiRes.end
+    apiRes.write = (...args: any[2]) => {
+      contentLength += Buffer.byteLength(args[0])
+      return writeData.apply(apiRes, args)
+    }
+    apiRes.end = (...args: any[2]) => {
+      if (args.length && typeof args[0] !== 'function') {
+        contentLength += Buffer.byteLength(args[0])
+      }
+
+      if (contentLength >= 4 * 1024 * 1024) {
+        console.warn(
+          `API response for ${req.url} exceeds 4MB. This will cause the request to fail in a future version. https://nextjs.org/docs/messages/api-routes-body-size-limit`
+        )
+      }
+
+      endResponse.apply(apiRes, args)
+    }
     apiRes.status = (statusCode) => sendStatusCode(apiRes, statusCode)
     apiRes.send = (data) => sendData(apiReq, apiRes, data)
     apiRes.json = (data) => sendJson(apiRes, data)
@@ -165,14 +185,14 @@ function parseJson(str: string): object {
 }
 
 /**
- * Parse cookies from `req` header
+ * Parse cookies from the `headers` of request
  * @param req request object
  */
-export function getCookieParser(
-  req: IncomingMessage
-): () => NextApiRequestCookies {
+export function getCookieParser(headers: {
+  [key: string]: undefined | string | string[]
+}): () => NextApiRequestCookies {
   return function parseCookie(): NextApiRequestCookies {
-    const header: undefined | string | string[] = req.headers.cookie
+    const header: undefined | string | string[] = headers.cookie
 
     if (!header) {
       return {}
@@ -217,7 +237,7 @@ export function redirect(
     )
   }
   res.writeHead(statusOrUrl, { Location: url })
-  res.write('')
+  res.write(url)
   res.end()
   return res
 }
@@ -301,7 +321,7 @@ export function tryGetPreviewData(
     return (req as any)[SYMBOL_PREVIEW_DATA] as any
   }
 
-  const getCookies = getCookieParser(req)
+  const getCookies = getCookieParser(req.headers)
   let cookies: NextApiRequestCookies
   try {
     cookies = getCookies()

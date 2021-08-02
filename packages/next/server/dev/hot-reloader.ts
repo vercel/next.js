@@ -24,8 +24,9 @@ import { isWriteable } from '../../build/is-writeable'
 import { ClientPagesLoaderOptions } from '../../build/webpack/loaders/next-client-pages-loader'
 import { stringify } from 'querystring'
 import { difference } from '../../build/utils'
-import { NextConfig } from '../config'
+import { NextConfigComplete } from '../config-shared'
 import { CustomRoutes } from '../../lib/load-custom-routes'
+import { DecodeError } from '../../shared/lib/utils'
 
 export async function renderScriptError(
   res: ServerResponse,
@@ -130,7 +131,7 @@ export default class HotReloader {
   private middlewares: any[]
   private pagesDir: string
   private webpackHotMiddleware: (NextHandleFunction & any) | null
-  private config: NextConfig
+  private config: NextConfigComplete
   private stats: webpack.Stats | null
   private serverStats: webpack.Stats | null
   private clientError: Error | null = null
@@ -153,7 +154,7 @@ export default class HotReloader {
       previewProps,
       rewrites,
     }: {
-      config: NextConfig
+      config: NextConfigComplete
       pagesDir: string
       buildId: string
       previewProps: __ApiPreviewProps
@@ -212,11 +213,7 @@ export default class HotReloader {
           .map((param) => decodeURIComponent(param))
           .join('/')}`
       } catch (_) {
-        const err: Error & { code?: string } = new Error(
-          'failed to decode param'
-        )
-        err.code = 'DECODE_FAILED'
-        throw err
+        throw new DecodeError('failed to decode param')
       }
 
       const page = denormalizePagePath(decodedPagePath)

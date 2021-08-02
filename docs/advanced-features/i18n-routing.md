@@ -281,3 +281,8 @@ export const getStaticPaths = ({ locales }) => {
   }
 }
 ```
+
+## Limits for the i18n config
+
+- `locales`: 100 total locales
+- `domains`: 100 total locale domain items

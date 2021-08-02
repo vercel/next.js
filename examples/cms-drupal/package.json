@@ -1,6 +1,5 @@
 {
-  "name": "cms-drupal",
-  "version": "1.0.0",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",
@@ -8,18 +7,16 @@
   },
   "dependencies": {
     "classnames": "2.3.1",
-    "date-fns": "2.21.3",
+    "date-fns": "2.22.1",
     "next": "latest",
     "next-drupal": "latest",
     "react": "17.0.2",
     "react-dom": "17.0.2"
   },
   "devDependencies": {
-    "autoprefixer": "10.2.5",
-    "postcss": "8.2.15",
-    "postcss-flexbugs-fixes": "5.0.2",
-    "postcss-preset-env": "6.7.0",
-    "tailwindcss": "2.1.2"
+    "autoprefixer": "10.2.6",
+    "postcss": "8.3.5",
+    "tailwindcss": "^2.2.4"
   },
   "license": "MIT"
 }
