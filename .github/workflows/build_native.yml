@@ -137,3 +137,16 @@ jobs:
         if: ${{ env.GITHUB_EVENT_NAME  == 'pull_request' }}
       - run: git diff --exit-code
         if: ${{ env.GITHUB_EVENT_NAME  == 'pull_request' }}
+
+  test:
+    runs-on: ubuntu-18.04
+
+    steps:
+      - name: Install
+        if: ${{ env.GITHUB_EVENT_NAME  == 'pull_request' }}
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly-2021-03-25
+          profile: minimal
+      - run: cd packages/next/build/swc && cargo test
+        if: ${{ env.GITHUB_EVENT_NAME  == 'pull_request' }}
