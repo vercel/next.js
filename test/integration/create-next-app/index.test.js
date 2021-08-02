@@ -110,13 +110,13 @@ describe('create next app', () => {
 
       expect(fs.existsSync(pkgJSONPath)).toBeTruthy()
       expect(
-        fs.existsSync(path.join(cwd, projectName, 'pages/index.tsx'))
+        fs.existsSync(path.join(cwd, projectName, 'src/pages/index.tsx'))
       ).toBeTruthy()
       expect(
-        fs.existsSync(path.join(cwd, projectName, 'pages/_app.tsx'))
+        fs.existsSync(path.join(cwd, projectName, 'src/pages/_app.tsx'))
       ).toBeTruthy()
       expect(
-        fs.existsSync(path.join(cwd, projectName, 'pages/api/hello.ts'))
+        fs.existsSync(path.join(cwd, projectName, 'src/pages/api/hello.ts'))
       ).toBeTruthy()
       expect(
         fs.existsSync(path.join(cwd, projectName, 'tsconfig.json'))
