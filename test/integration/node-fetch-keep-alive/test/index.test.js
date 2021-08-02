@@ -41,7 +41,7 @@ describe('node-fetch-keep-alive', () => {
     runTests()
   })
 
-  describe('server', () => {
+  describe('production', () => {
     beforeAll(async () => {
       mockServer = createServer((req, res) => {
         // we can test request headers by sending them
