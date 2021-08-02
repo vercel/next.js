@@ -1,4 +1,6 @@
 import { buildStaticPaths } from '../../build/utils'
+import { setHttpAgent } from '../config'
+import { NextConfigComplete } from '../config-shared'
 import { loadComponents } from '../load-components'
 import '../node-polyfill-fetch'
 
@@ -14,6 +16,7 @@ export async function loadStaticPaths(
   pathname: string,
   serverless: boolean,
   config: RuntimeConfig,
+  httpAgentOptions: NextConfigComplete['httpAgentOptions'],
   locales?: string[],
   defaultLocale?: string
 ) {
@@ -25,6 +28,7 @@ export async function loadStaticPaths(
 
   // update work memory runtime-config
   require('../../shared/lib/runtime-config').setConfig(config)
+  setHttpAgent(httpAgentOptions)
 
   const components = await loadComponents(distDir, pathname, serverless)
 

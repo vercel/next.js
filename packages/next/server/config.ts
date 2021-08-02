@@ -1,6 +1,8 @@
 import chalk from 'chalk'
 import findUp from 'next/dist/compiled/find-up'
 import { basename, extname } from 'path'
+import { Agent as HttpAgent } from 'http'
+import { Agent as HttpsAgent } from 'https'
 import * as Log from '../build/output/log'
 import { CONFIG_FILE, PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import { execOnce } from '../shared/lib/utils'
@@ -28,6 +30,7 @@ const experimentalWarning = execOnce(() => {
 })
 
 function assignDefaults(userConfig: { [key: string]: any }) {
+  console.log('assignDefaults')
   if (typeof userConfig.exportTrailingSlash !== 'undefined') {
     console.warn(
       chalk.yellow.bold('Warning: ') +
@@ -304,6 +307,9 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     }
   }
 
+  // TODO: Change defaultConfig type to NextConfigComplete
+  setHttpAgent(result.httpAgentOptions || defaultConfig.httpAgentOptions!)
+
   if (result.i18n) {
     const { i18n } = result
     const i18nType = typeof i18n
@@ -517,11 +523,28 @@ export default async function loadConfig(
     }
   }
 
-  return defaultConfig as NextConfigComplete
+  const completeConfig = defaultConfig as NextConfigComplete
+  setHttpAgent(completeConfig.httpAgentOptions)
+  return completeConfig
 }
 
 export function isTargetLikeServerless(target: string) {
   const isServerless = target === 'serverless'
   const isServerlessTrace = target === 'experimental-serverless-trace'
   return isServerless || isServerlessTrace
+}
+
+export function setHttpAgent(options: NextConfigComplete['httpAgentOptions']) {
+  if ((global as any).__NEXT_HTTP_AGENT) {
+    // We only need to assign once because we want
+    // to resuse the same agent for all requests.
+    return
+  }
+
+  if (!options) {
+    throw new Error('Expected config.httpAgentOptions to be an object')
+  }
+
+  ;(global as any).__NEXT_HTTP_AGENT = new HttpAgent(options)
+  ;(global as any).__NEXT_HTTPS_AGENT = new HttpsAgent(options)
 }
