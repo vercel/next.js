@@ -142,6 +142,8 @@ jobs:
     runs-on: ubuntu-18.04
 
     steps:
+      - uses: actions/checkout@v2
+        if: ${{ github.event_name  == 'pull_request' }}
       - name: Install
         if: ${{ github.event_name  == 'pull_request' }}
         uses: actions-rs/toolchain@v1
