@@ -14,9 +14,23 @@ description: Next.js supports TypeScript by default and has built-in types for p
 Next.js provides an integrated [TypeScript](https://www.typescriptlang.org/)
 experience out of the box, similar to an IDE.
 
-## `create-next-app` support
+## Type checking during `next build`
 
-You can create a TypeScript project with [`create-next-app`](https://nextjs.org/docs/api-reference/create-next-app) using the `--ts, --typescript` flag like so:
+`next build` will automatically type check your project while respecting most
+settings in your project's `tsconfig.json` such as `"include"`, `"exclude"`, and
+`"rootDir"`.
+
+Incremental type checking via `"incremental": true` is also supported, see
+[**Incremental type checking**](#incremental-type-checking) below.
+
+## Configuration
+
+You can create a new project with TypeScript support via `create-next-app` or
+add support to an existing project.
+
+### New projects
+
+You can create a TypeScript project with [`create-next-app`](/docs/api-reference/create-next-app) using the `--ts, --typescript` flag like so:
 
 ```
 npx create-next-app --ts
@@ -24,7 +38,11 @@ npx create-next-app --ts
 yarn create next-app --typescript
 ```
 
-## Existing projects
+For easier type checking, a TypeScript project created with `create-next-app`
+will be configured for a [`src/` directory
+structure](/docs/advanced-features/src-directory) by default.
+
+### Existing projects
 
 To get started in an existing project, create an empty `tsconfig.json` file in
 the root folder:
@@ -59,7 +77,9 @@ You're now ready to start converting files from `.js` to `.tsx` and leveraging t
 
 > Instead of editing `next-env.d.ts`, you can include additional types by adding a new file e.g. `additional.d.ts` and then referencing it in the [`include`](https://www.typescriptlang.org/tsconfig#include) array in your `tsconfig.json`.
 
-By default, Next.js will do type checking as part of `next build`. We recommend using code editor type checking during development.
+By default, Next.js will do type checking as part of `next build` according to
+settings in tsconfig.json. We recommend using code editor type checking during
+development.
 
 If you want to silence the error reports, refer to the documentation for [Ignoring TypeScript errors](/docs/api-reference/next.config.js/ignoring-typescript-errors.md).
 
@@ -140,7 +160,8 @@ export default MyApp
 
 ## Path aliases and baseUrl
 
-Next.js automatically supports the `tsconfig.json` `"paths"` and `"baseUrl"` options.
+Next.js automatically supports the `tsconfig.json` `"paths"`, `"baseUrl"`, and
+`"rootDir"` options.
 
 You can learn more about this feature on the [Module Path aliases documentation](/docs/advanced-features/module-path-aliases.md).
 
