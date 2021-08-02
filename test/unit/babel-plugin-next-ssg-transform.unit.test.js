@@ -25,8 +25,9 @@ const swc = async (code) => {
 describe('babel plugin (next-ssg-transform)', () => {
   describe('getStaticProps support', () => {
     it('errors for incorrect mix of functions', () => {
-      expect(() =>
-        swc(trim`
+      expect(
+        async () =>
+          await swc(trim`
           export function getStaticProps() {}
           export function getServerSideProps() {}
         `)
@@ -34,8 +35,9 @@ describe('babel plugin (next-ssg-transform)', () => {
         `You can not use getStaticProps or getStaticPaths with getServerSideProps. To use SSG, please remove getServerSideProps`
       )
 
-      expect(() =>
-        swc(trim`
+      expect(
+        async () =>
+          await swc(trim`
           export function getServerSideProps() {}
           export function getStaticProps() {}
         `)
@@ -43,8 +45,9 @@ describe('babel plugin (next-ssg-transform)', () => {
         `You can not use getStaticProps or getStaticPaths with getServerSideProps. To use SSG, please remove getServerSideProps`
       )
 
-      expect(() =>
-        swc(trim`
+      expect(
+        async () =>
+          await swc(trim`
           export function getStaticPaths() {}
           export function getServerSideProps() {}
         `)
@@ -52,8 +55,9 @@ describe('babel plugin (next-ssg-transform)', () => {
         `You can not use getStaticProps or getStaticPaths with getServerSideProps. To use SSG, please remove getServerSideProps`
       )
 
-      expect(() =>
-        swc(trim`
+      expect(
+        async () =>
+          await swc(trim`
           export function getServerSideProps() {}
           export function getStaticPaths() {}
         `)
