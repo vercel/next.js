@@ -212,7 +212,7 @@ function runTests(mode) {
       )
       await check(
         () => browser.eval(`document.getElementById("msg2").textContent`),
-        'loaded img2 with dimensions 200x200'
+        'loaded img2 with dimensions 400x400'
       )
       await check(
         () => browser.eval(`document.getElementById("msg3").textContent`),
