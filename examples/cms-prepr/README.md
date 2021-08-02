@@ -61,8 +61,6 @@ After that
 
 Import the [`models/post.json`](models/post.json) file.
 
-Click on the Author field and select `Author` at the option `Publication model` and click **Save**.
-
 ### Step 3. Set up environment variables (for production)
 
 Copy the `.env.local.example` file in this directory to `.env.local` (which will be ignored by Git):
