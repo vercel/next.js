@@ -29,6 +29,7 @@ DEALINGS IN THE SOFTWARE.
 use crate::{
     complete_output, get_compiler,
     hook_optimizer::hook_optimizer,
+    next_ssg::next_ssg,
     util::{CtxtExt, MapErr},
 };
 use anyhow::{bail, Error};
@@ -172,7 +173,7 @@ fn process_js_custom(
         }
     };
     let config = BuiltConfig {
-        pass: chain!(hook_optimizer(), config.pass),
+        pass: chain!(hook_optimizer(), next_ssg(), config.pass),
         syntax: config.syntax,
         target: config.target,
         minify: config.minify,
