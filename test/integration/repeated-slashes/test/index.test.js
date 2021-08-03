@@ -27,15 +27,15 @@ let app
 
 function runTests({ isDev = false, isExport = false, isPages404 = false }) {
   let notFoundContent = 'custom error'
-  let badRequestContent = 'custom error'
+  // let badRequestContent = 'custom error'
 
   if (isPages404) {
-    badRequestContent = 'Bad Request'
+    // badRequestContent = 'Bad Request'
     notFoundContent = 'custom 404'
   }
   if (isExport && isPages404) {
     notFoundContent = 'custom 404'
-    badRequestContent = 'custom 404'
+    // badRequestContent = 'custom 404'
   }
 
   const didNotReload = async (browser) => {
