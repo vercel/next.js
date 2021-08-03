@@ -202,6 +202,11 @@ The image position when using `layout="fill"`.
 
 A callback function that is invoked once the image is completely loaded and the [placeholder](#placeholder) has been removed.
 
+The `onLoadingComplete` function accepts one parameter, an object with the following properties:
+
+- [`naturalWidth`](https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement/naturalWidth)
+- [`naturalHeight`](https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement/naturalHeight)
+
 ### loading
 
 > **Attention**: This property is only meant for advanced usage. Switching an
