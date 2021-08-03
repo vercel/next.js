@@ -188,22 +188,39 @@ function runTests(mode) {
     try {
       browser = await webdriver(appPort, '/on-loading-complete')
 
+      await browser.eval(`document.getElementById("footer").scrollIntoView()`)
+
       await check(
         () => browser.eval(`document.getElementById("img1").src`),
         /test(.*)jpg/
       )
-
       await check(
         () => browser.eval(`document.getElementById("img2").src`),
         /test(.*).png/
       )
       await check(
+        () => browser.eval(`document.getElementById("img3").src`),
+        /test(.*)svg/
+      )
+      await check(
+        () => browser.eval(`document.getElementById("img4").src`),
+        /test(.*)ico/
+      )
+      await check(
         () => browser.eval(`document.getElementById("msg1").textContent`),
-        'loaded img1'
+        'loaded img1 with dimensions 128x128'
       )
       await check(
         () => browser.eval(`document.getElementById("msg2").textContent`),
-        'loaded img2'
+        'loaded img2 with dimensions 400x400'
+      )
+      await check(
+        () => browser.eval(`document.getElementById("msg3").textContent`),
+        'loaded img3 with dimensions 266x266'
+      )
+      await check(
+        () => browser.eval(`document.getElementById("msg4").textContent`),
+        'loaded img4 with dimensions 21x21'
       )
     } finally {
       if (browser) {
@@ -554,6 +571,18 @@ function runTests(mode) {
       expect(await hasRedbox(browser)).toBe(false)
       expect(warnings).toMatch(
         /Image with src (.*)jpg(.*) is smaller than 40x40. Consider removing(.*)/gm
+      )
+    })
+
+    it('should warn when style prop is used', async () => {
+      const browser = await webdriver(appPort, '/invalid-style')
+
+      const warnings = (await browser.log('browser'))
+        .map((log) => log.message)
+        .join('\n')
+      expect(await hasRedbox(browser)).toBe(false)
+      expect(warnings).toMatch(
+        /Image with src (.*)jpg(.*) is using unsupported \\"style\\" property(.*)/gm
       )
     })
   } else {

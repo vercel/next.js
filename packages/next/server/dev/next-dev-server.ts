@@ -48,12 +48,6 @@ import {
 } from '../load-components'
 import { DecodeError } from '../../shared/lib/utils'
 
-if (typeof React.Suspense === 'undefined') {
-  throw new Error(
-    `The version of React you are using is lower than the minimum required version needed for Next.js. Please upgrade "react" and "react-dom": "npm install react react-dom" https://nextjs.org/docs/messages/invalid-react-version`
-  )
-}
-
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: React.FunctionComponent
 const ReactDevOverlay = (props: any) => {
@@ -121,6 +115,7 @@ export default class DevServer extends Server {
       {
         maxRetries: 1,
         numWorkers: this.nextConfig.experimental.cpus,
+        enableWorkerThreads: this.nextConfig.experimental.workerThreads,
         forkOptions: {
           env: {
             ...process.env,
@@ -571,7 +566,11 @@ export default class DevServer extends Server {
     // from waiting on them for the page to load in dev mode
 
     const __getStaticPaths = async () => {
-      const { publicRuntimeConfig, serverRuntimeConfig } = this.nextConfig
+      const {
+        publicRuntimeConfig,
+        serverRuntimeConfig,
+        httpAgentOptions,
+      } = this.nextConfig
       const { locales, defaultLocale } = this.nextConfig.i18n || {}
 
       const paths = await this.staticPathsWorker.loadStaticPaths(
@@ -582,6 +581,7 @@ export default class DevServer extends Server {
           publicRuntimeConfig,
           serverRuntimeConfig,
         },
+        httpAgentOptions,
         locales,
         defaultLocale
       )
