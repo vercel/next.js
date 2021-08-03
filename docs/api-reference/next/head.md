@@ -61,3 +61,5 @@ In this case only the second `<meta property="og:title" />` is rendered. `meta` 
 
 `title`, `meta` or any other elements (e.g. `script`) need to be contained as **direct** children of the `Head` element,
 or wrapped into maximum one level of `<React.Fragment>` or arrays—otherwise the tags won't be correctly picked up on client-side navigations.
+
+> Instead of using a script tag within `next/head`, it might make more sense to use `next/script`. The [Next.js Script component](https://nextjs.org/docs/basic-features/script) enables developers to set the loading priority of third-party scripts to save developer time and improve loading performance. 
