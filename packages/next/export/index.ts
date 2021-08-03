@@ -570,6 +570,7 @@ export default async function exportApp(
             disableOptimizedLoading:
               nextConfig.experimental.disableOptimizedLoading,
             parentSpanId: pageExportSpan.id,
+            httpAgentOptions: nextConfig.httpAgentOptions,
           })
 
           for (const validation of result.ampValidations || []) {
