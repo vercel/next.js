@@ -743,6 +743,7 @@ export default async function build(
             distDir,
             isLikeServerless,
             runtimeEnvConfig,
+            config.httpAgentOptions,
             config.i18n?.locales,
             config.i18n?.defaultLocale
           )
@@ -812,6 +813,7 @@ export default async function build(
                     distDir,
                     isLikeServerless,
                     runtimeEnvConfig,
+                    config.httpAgentOptions,
                     config.i18n?.locales,
                     config.i18n?.defaultLocale,
                     isPageStaticSpan.id

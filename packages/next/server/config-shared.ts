@@ -76,7 +76,7 @@ export type NextConfig = { [key: string]: any } & {
   reactStrictMode?: boolean
   publicRuntimeConfig?: { [key: string]: any }
   serverRuntimeConfig?: { [key: string]: any }
-
+  httpAgentOptions?: { keepAlive?: boolean }
   future?: {
     /**
      * @deprecated this options was moved to the top level
@@ -153,6 +153,9 @@ export const defaultConfig: NextConfig = {
   serverRuntimeConfig: {},
   publicRuntimeConfig: {},
   reactStrictMode: false,
+  httpAgentOptions: {
+    keepAlive: true,
+  },
   experimental: {
     cpus: Math.max(
       1,

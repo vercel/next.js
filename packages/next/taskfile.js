@@ -861,7 +861,9 @@ export async function server(task, opts) {
 
 export async function nextbuild(task, opts) {
   await task
-    .source(opts.src || 'build/**/*.+(js|ts|tsx)')
+    .source(opts.src || 'build/**/*.+(js|ts|tsx)', {
+      ignore: '**/fixture/**',
+    })
     .swc('server', { dev: opts.dev })
     .target('dist/build')
   notify('Compiled build files')
