@@ -1,11 +1,8 @@
 import { GraphQLClient, gql } from 'graphql-request'
 
-const FAUNADB_GRAPHQL_ENDPOINT = 'https://graphql.fauna.com/graphql'
-const FAUNADB_SECRET = process.env.FAUNADB_SECRET
-
-const graphQLClient = new GraphQLClient(FAUNADB_GRAPHQL_ENDPOINT, {
+const graphQLClient = new GraphQLClient('https://graphql.fauna.com/graphql', {
   headers: {
-    authorization: `Bearer ${FAUNADB_SECRET}`,
+    authorization: `Bearer ${process.env.FAUNA_ADMIN_KEY}`,
   },
 })
 
