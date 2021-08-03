@@ -28,7 +28,6 @@ jobs:
       - name: Install
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable
           profile: minimal
 
       - name: Cache cargo registry
@@ -84,8 +83,6 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          override: true
-          toolchain: stable
           target: aarch64-apple-darwin
 
       - name: Install dependencies
