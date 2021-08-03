@@ -23,6 +23,7 @@ import {
   getLocationOrigin,
   getURL,
   loadGetInitialProps,
+  normalizeRepeatedSlashes,
   NextPageContext,
   ST,
   NEXT_DATA,
@@ -277,7 +278,7 @@ export function resolveHref(
   let urlAsString = typeof href === 'string' ? href : formatWithValidation(href)
 
   // repeated slashes and backslashes in the URL are considered
-  // a bad request and will never match a Next.js page/file
+  // invalid and will never match a Next.js page/file
   const urlProtoMatch = urlAsString.match(/^[a-zA-Z]{1,}:\/\//)
   const urlAsStringNoProto = urlProtoMatch
     ? urlAsString.substr(urlProtoMatch[0].length)
@@ -289,16 +290,7 @@ export function resolveHref(
     console.error(
       `Invalid href passed to next/router: ${urlAsString}, repeated forward-slashes (//) or backslashes \\ are not valid in the href`
     )
-
-    const urlNoQuery = urlParts[0]
-    const normalizedUrl =
-      urlNoQuery
-        // first we replace any non-encoded backslashes with forward
-        // then normalize repeated forward slashes
-        .replace(/\\/g, '/')
-        .replace(/\/\/+/g, '/') +
-      (urlParts[1] ? `?${urlParts.slice(1).join('?')}` : '')
-
+    const normalizedUrl = normalizeRepeatedSlashes(urlAsStringNoProto)
     urlAsString = (urlProtoMatch ? urlProtoMatch[0] : '') + normalizedUrl
   }
 
