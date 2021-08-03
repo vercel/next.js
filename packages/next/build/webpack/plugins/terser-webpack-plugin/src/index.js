@@ -226,7 +226,12 @@ export class TerserPlugin {
       }
 
       const limit = pLimit(
-        numberOfAssetsForMinify > 0 ? numberOfWorkers : Infinity
+        // When using the SWC minifier the limit will be handled by Node.js
+        this.options.swcMinify
+          ? Infinity
+          : numberOfAssetsForMinify > 0
+          ? numberOfWorkers
+          : Infinity
       )
       const scheduledTasks = []
 
@@ -236,7 +241,7 @@ export class TerserPlugin {
             const { name, inputSource, info, eTag } = asset
             let { output } = asset
 
-            const minifySpan = terserSpan.traceChild('minify-fs')
+            const minifySpan = terserSpan.traceChild('minify-js')
             minifySpan.setAttribute('name', name)
             minifySpan.setAttribute(
               'cache',
