@@ -153,7 +153,7 @@ const main = async () => {
 
   console.log('2. Created Fauna resources')
 
-  await fs.promises.writeFile('.env.local', `FAUNADB_SECRET=${secret}\n`)
+  await fs.promises.writeFile('.env.local', `FAUNADB_CLIENT_SECRET=${secret}\n`)
 
   console.log('3. Created .env.local file with secret')
 }

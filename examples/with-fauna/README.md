@@ -26,22 +26,15 @@ You can start with this template [using `create-next-app`](#using-create-next-ap
 
 To use a live Fauna database, create a database at [dashboard.fauna.com](https://dashboard.fauna.com/) and generate an admin token by going to the **Security** tab on the left and then click **New Key**. Give the new key a name and select the 'Admin' Role. Copy the token since the setup script will ask for it. Do not use it in the frontend, it has superpowers which you don't want to give to your users.
 
-The database can then be set up with the delivered setup by running:
+### Setting Up Your Schema
 
-```
-npm run setup
-# or using yarn
-yarn setup
-```
+The Next.js and Fauna example includes a setup script (`npm run setup`). After providing your admin token, the script will:
 
-This script will ask for the admin token. Once you provide it with a valid token, this is what the script automatically does for you:
+- **Import your GraphQL schema:** Fauna automatically sets up collections and indexes to support your queries. You can view these in your [project dashboard](https://dashboard.fauna.com/) under **GraphQL**.
+- **Create an index and function:** The script will create a GraphQL resolver that uses [User-defined functions](https://docs.fauna.com/fauna/current/api/graphql/functions?lang=javascript) based on a sorting index.
+- **Create a scoped token:** This token is for use on the client side. The admin key can be used on the server side.
 
-- **Import the GraphQL schema**, by importing a GraphQL schema in Fauna, Fauna automatically sets up collections and indexes to support your queries. This is now done for you with this script but can also be done from the [dashboard.fauna.com](https://dashboard.fauna.com/) UI by going to the GraphQL tab
-- **Create an index and UDF**, in order to implement custom sorting (by createdAt field), we need to create a GraphQL resolver that uses [UDF](https://docs.fauna.com/fauna/current/api/graphql/functions?lang=javascript) based on sorting index.
-- **Create a role suitable for the Client**, Fauna has a security system that allows you to define which resources can be accessed for a specific token. That's how we limit our clients powers, feel free to look at the scripts/setup.js script to see how we make roles and tokens.
-- **Create a token for that role**, this is the token to be used in the app.
-
-At the end, a `.env.local` [file](https://nextjs.org/docs/basic-features/environment-variables) will be created for you with the newly generated client token assigned to an environment variable.
+After the script completes, a `.env.local` [file](https://nextjs.org/docs/basic-features/environment-variables) will be created for you with the newly generated client token assigned to an Environment Variable.
 
 ### Run locally
 
@@ -49,14 +42,7 @@ Install packages, set up if needed, then run the development server:
 
 ```bash
 npm install
-# if you haven't run setup yet
-npm run setup
 npm run dev
-# or using yarn
-yarn
-# if you haven't run setup yet
-yarn setup
-yarn dev
 ```
 
 Your app should be up and running on [http://localhost:3000](http://localhost:3000)!
