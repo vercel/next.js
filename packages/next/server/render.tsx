@@ -1,7 +1,8 @@
 import { IncomingMessage, ServerResponse } from 'http'
 import { ParsedUrlQuery } from 'querystring'
+import { PassThrough } from 'stream'
 import React from 'react'
-import { renderToStaticMarkup, renderToString } from 'react-dom/server'
+import * as ReactDOMServer from 'react-dom/server'
 import { warn } from '../build/output/log'
 import { UnwrapPromise } from '../lib/coalesced-function'
 import {
@@ -43,6 +44,7 @@ import {
   loadGetInitialProps,
   NextComponentType,
   RenderPage,
+  RenderPageResult,
 } from '../shared/lib/utils'
 import {
   tryGetPreviewData,
@@ -264,7 +266,7 @@ function renderDocument(
 ): string {
   return (
     '<!DOCTYPE html>' +
-    renderToStaticMarkup(
+    ReactDOMServer.renderToStaticMarkup(
       <AmpStateContext.Provider value={ampState}>
         {Document.renderDocument(Document, {
           __NEXT_DATA__: {
@@ -409,6 +411,7 @@ export async function renderToHTML(
     previewProps,
     basePath,
     devOnlyCacheBusterQueryString,
+    concurrentFeatures,
   } = renderOpts
 
   const getFontDefinition = (url: string): string => {
@@ -992,11 +995,47 @@ export async function renderToHTML(
     }
   }
 
+  const nextExport =
+    !isSSG && (renderOpts.nextExport || (dev && (isAutoExport || isFallback)))
+  // TODO: Support SSR streaming of Suspense. For now, we fall back to the client.
+  const renderToString = (isSSG || nextExport) && concurrentFeatures
+      ? (element: React.ReactElement) =>
+          new Promise<string>((resolve, reject) => {
+            const stream = new PassThrough()
+            const buffers: Buffer[] = []
+            stream.on('data', (chunk) => {
+              buffers.push(chunk)
+            })
+            stream.once('end', () => {
+              resolve(Buffer.concat(buffers).toString('utf-8'))
+            })
+
+            const { startWriting } = (ReactDOMServer as any).pipeToNodeWritable(
+              element,
+              stream,
+              {
+                onError(err: Error) {
+                  reject(err)
+                },
+                onCompleteAll() {
+                  startWriting()
+                },
+              }
+            )
+          })
+          : ReactDOMServer.renderToString
+
   const renderPage: RenderPage = (
     options: ComponentsEnhancer = {}
-  ): { html: string; head: any } => {
+  ): RenderPageResult | Promise<RenderPageResult> => {
     if (ctx.err && ErrorDebug) {
-      return { html: renderToString(<ErrorDebug error={ctx.err} />), head }
+      const htmlOrPromise = renderToString(<ErrorDebug error={ctx.err} />)
+      return typeof htmlOrPromise === 'string'
+        ? { html: htmlOrPromise, head }
+        : htmlOrPromise.then((html) => ({
+            html,
+            head,
+          }))
     }
 
     if (dev && (props.router || props.Component)) {
@@ -1010,13 +1049,17 @@ export async function renderToHTML(
       Component: EnhancedComponent,
     } = enhanceComponents(options, App, Component)
 
-    const html = renderToString(
+    const htmlOrPromise = renderToString(
       <AppContainer>
         <EnhancedApp Component={EnhancedComponent} router={router} {...props} />
       </AppContainer>
     )
-
-    return { html, head }
+    return typeof htmlOrPromise === 'string'
+      ? { html: htmlOrPromise, head }
+      : htmlOrPromise.then((html) => ({
+          html,
+          head,
+        }))
   }
   const documentCtx = { ...ctx, renderPage }
   const docProps: DocumentInitialProps = await loadGetInitialProps(
@@ -1050,8 +1093,6 @@ export async function renderToHTML(
   const hybridAmp = ampState.hybrid
 
   const docComponentsRendered: DocumentProps['docComponentsRendered'] = {}
-  const nextExport =
-    !isSSG && (renderOpts.nextExport || (dev && (isAutoExport || isFallback)))
 
   let html = renderDocument(Document, {
     ...renderOpts,
