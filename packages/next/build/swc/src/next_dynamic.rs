@@ -5,7 +5,10 @@ use swc_ecmascript::ast::{
   ExprOrSuper, Ident, ImportDecl, ImportSpecifier, KeyValueProp, Lit, MemberExpr, ObjectLit, Prop,
   PropName, PropOrSpread, Str, StrKind,
 };
-use swc_ecmascript::utils::ident::{Id, IdentLike};
+use swc_ecmascript::utils::{
+  ident::{Id, IdentLike},
+  HANDLER,
+};
 use swc_ecmascript::visit::{Fold, FoldWith};
 
 pub fn next_dynamic(filename: FileName) -> impl Fold {
@@ -44,6 +47,23 @@ impl Fold for NextDynamicPatcher {
     if let ExprOrSuper::Expr(i) = &expr.callee {
       if let Expr::Ident(identifier) = &**i {
         if self.dynamic_bindings.contains(&identifier.to_id()) {
+          if expr.args.len() == 0 {
+            HANDLER.with(|handler| {
+              handler
+                .struct_span_err(
+                  identifier.span,
+                  "next/dynamic requires at least one argument",
+                )
+                .emit()
+            });
+          } else if expr.args.len() > 2 {
+            HANDLER.with(|handler| {
+              handler
+                .struct_span_err(identifier.span, "next/dynamic only accepts 2 arguments")
+                .emit()
+            });
+          }
+
           let mut import_specifier = None;
           if let Expr::Arrow(ArrowExpr {
             body: BlockStmtOrExpr::Expr(e),
@@ -55,6 +75,19 @@ impl Fold for NextDynamicPatcher {
                 import_specifier = Some(value.clone());
               }
             }
+          }
+
+          if let None = import_specifier {
+            HANDLER.with(|handler| {
+              handler
+                .struct_span_err(
+                  identifier.span,
+                  "First argument for next/dynamic must be an arrow function returning a dynamic \
+                   import call e.g. `dynamic(() => import('../some-component'))`
+                  ",
+                )
+                .emit()
+            });
           }
 
           // loadableGenerated: {
