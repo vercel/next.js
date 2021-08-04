@@ -190,6 +190,7 @@ export type RenderOptsPartial = {
   domainLocales?: DomainLocale[]
   disableOptimizedLoading?: boolean
   requireStaticHTML?: boolean
+  concurrentFeatures?: boolean
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
