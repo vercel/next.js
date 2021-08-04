@@ -63,6 +63,7 @@ import {
 } from '../lib/load-custom-routes'
 import { DomainLocale } from './config'
 import { RenderResult, resultFromChunks } from './utils'
+import { ClientFallbackError, SuspenseContext } from '../shared/lib/suspense-context'
 
 function noRouter() {
   const message =
@@ -630,8 +631,14 @@ export async function renderToHTML(
   let head: JSX.Element[] = defaultHead(inAmpMode)
 
   let scriptLoader: any = {}
+  const nextExport =
+    !isSSG && (renderOpts.nextExport || (dev && (isAutoExport || isFallback)))
+  const suspenseMode = (isSSG || nextExport)
+    ? 'STATIC'
+    : null
 
   const AppContainer = ({ children }: any) => (
+    <SuspenseContext.Provider value={suspenseMode}>
     <RouterContext.Provider value={router}>
       <AmpStateContext.Provider value={ampState}>
         <HeadManagerContext.Provider
@@ -654,6 +661,7 @@ export async function renderToHTML(
         </HeadManagerContext.Provider>
       </AmpStateContext.Provider>
     </RouterContext.Provider>
+    </SuspenseContext.Provider>
   )
 
   try {
@@ -995,10 +1003,8 @@ export async function renderToHTML(
     }
   }
 
-  const nextExport =
-    !isSSG && (renderOpts.nextExport || (dev && (isAutoExport || isFallback)))
   // TODO: Support SSR streaming of Suspense. For now, we fall back to the client.
-  const renderToString = (isSSG || nextExport) && concurrentFeatures
+  const renderToString = concurrentFeatures
       ? (element: React.ReactElement) =>
           new Promise<string>((resolve, reject) => {
             const stream = new PassThrough()
@@ -1010,12 +1016,15 @@ export async function renderToHTML(
               resolve(Buffer.concat(buffers).toString('utf-8'))
             })
 
-            const { startWriting } = (ReactDOMServer as any).pipeToNodeWritable(
+            const { abort, startWriting } = (ReactDOMServer as any).pipeToNodeWritable(
               element,
               stream,
               {
                 onError(err: Error) {
-                  reject(err)
+                  if (err !== ClientFallbackError) {
+                    abort()
+                    reject(err)
+                  }
                 },
                 onCompleteAll() {
                   startWriting()
@@ -1023,7 +1032,7 @@ export async function renderToHTML(
               }
             )
           })
-          : ReactDOMServer.renderToString
+      : ReactDOMServer.renderToString
 
   const renderPage: RenderPage = (
     options: ComponentsEnhancer = {}
