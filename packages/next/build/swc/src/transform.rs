@@ -32,6 +32,7 @@ use crate::{
     hook_optimizer::hook_optimizer,
     next_dynamic::next_dynamic,
     next_ssg::next_ssg,
+    styled_jsx::styled_jsx,
     util::{CtxtExt, MapErr},
 };
 use anyhow::{bail, Error};
@@ -180,6 +181,7 @@ fn process_js_custom(
             next_ssg(),
             amp_attributes(),
             next_dynamic(source.name.clone()),
+            styled_jsx(),
             config.pass
         ),
         syntax: config.syntax,
