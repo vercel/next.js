@@ -244,6 +244,14 @@ export async function ncc_cookie(task, opts) {
     .target('compiled/cookie')
 }
 // eslint-disable-next-line camelcase
+externals['cross-spawn'] = 'next/dist/compiled/cross-spawn'
+export async function ncc_cross_spawn(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('cross-spawn')))
+    .ncc({ packageName: 'cross-spawn', externals })
+    .target('compiled/cross-spawn')
+}
+// eslint-disable-next-line camelcase
 externals['css-loader'] = 'next/dist/compiled/css-loader'
 export async function ncc_css_loader(task, opts) {
   await task
@@ -754,6 +762,7 @@ export async function ncc(task, opts) {
         'ncc_conf',
         'ncc_content_type',
         'ncc_cookie',
+        'ncc_cross_spawn',
         'ncc_css_loader',
         'ncc_debug',
         'ncc_devalue',

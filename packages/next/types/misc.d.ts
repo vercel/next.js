@@ -95,6 +95,10 @@ declare module 'next/dist/compiled/cookie' {
   import m from 'cookie'
   export = m
 }
+declare module 'next/dist/compiled/cross-spawn' {
+  import m from 'cross-spawn'
+  export = m
+}
 declare module 'next/dist/compiled/debug' {
   import m from 'debug'
   export = m
