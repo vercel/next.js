@@ -56,12 +56,7 @@ export function matchHas(
         break
       }
       case 'query': {
-        // preserve initial encoding of query values
         value = query[key!]
-
-        if (initialQueryValues.includes(value || '')) {
-          value = encodeURIComponent(value!)
-        }
         break
       }
       case 'host': {
