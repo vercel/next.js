@@ -70,9 +70,21 @@ impl Fold for NextDynamicPatcher {
             ..
           }) = &*expr.args[0].expr
           {
-            if let Expr::Call(CallExpr { args: a, .. }) = &**e {
-              if let Expr::Lit(Lit::Str(Str { value, .. })) = &*a[0].expr {
-                import_specifier = Some(value.clone());
+            if let Expr::Call(CallExpr {
+              args: a, callee, ..
+            }) = &**e
+            {
+              if let ExprOrSuper::Expr(e) = callee {
+                if let Expr::Ident(Ident { sym, .. }) = &**e {
+                  if sym == "import" {
+                    if a.len() == 0 {
+                      // Do nothing, import_specifier will remain None
+                      // triggering error below
+                    } else if let Expr::Lit(Lit::Str(Str { value, .. })) = &*a[0].expr {
+                      import_specifier = Some(value.clone());
+                    }
+                  }
+                }
               }
             }
           }
@@ -82,9 +94,8 @@ impl Fold for NextDynamicPatcher {
               handler
                 .struct_span_err(
                   identifier.span,
-                  "First argument for next/dynamic must be an arrow function returning a dynamic \
-                   import call e.g. `dynamic(() => import('../some-component'))`
-                  ",
+                  "First argument for next/dynamic must be an arrow function returning a valid \
+                   dynamic import call e.g. `dynamic(() => import('../some-component'))`",
                 )
                 .emit()
             });
