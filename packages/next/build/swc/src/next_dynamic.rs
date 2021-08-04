@@ -56,8 +56,6 @@ impl Fold for NextDynamicPatcher {
             }
           }
 
-          let file_from = self.filename.clone().to_string() + " -> ";
-
           // loadableGenerated: {
           //   webpack: () => [require.resolveWeak('../components/hello')],
           //   modules:
@@ -88,11 +86,9 @@ impl Fold for NextDynamicPatcher {
                         }))),
                         args: vec![ExprOrSpread {
                           expr: Box::new(Expr::Lit(Lit::Str(Str {
-                            value: self.filename.clone().to_string().into(),
+                            value: self.filename.to_string().into(),
                             span: DUMMY_SP,
-                            kind: StrKind::Normal {
-                              contains_quote: false,
-                            },
+                            kind: StrKind::Synthesized {},
                             has_escape: false,
                           }))),
                           spread: None,
@@ -119,11 +115,9 @@ impl Fold for NextDynamicPatcher {
                       span: DUMMY_SP,
                       op: BinaryOp::Add,
                       left: Box::new(Expr::Lit(Lit::Str(Str {
-                        value: file_from.into(),
+                        value: format!("{} -> ", self.filename).into(),
                         span: DUMMY_SP,
-                        kind: StrKind::Normal {
-                          contains_quote: false,
-                        },
+                        kind: StrKind::Synthesized {},
                         has_escape: false,
                       }))),
                       right: Box::new(Expr::Lit(Lit::Str(Str {
