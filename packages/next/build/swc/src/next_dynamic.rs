@@ -1,23 +1,24 @@
-use swc_atoms::{js_word, JsWord};
+use swc_atoms::js_word;
 use swc_common::{FileName, DUMMY_SP};
 use swc_ecmascript::ast::{
   ArrayLit, ArrowExpr, BinExpr, BinaryOp, BlockStmtOrExpr, CallExpr, Expr, ExprOrSpread,
   ExprOrSuper, Ident, ImportDecl, ImportSpecifier, KeyValueProp, Lit, MemberExpr, ObjectLit, Prop,
   PropName, PropOrSpread, Str, StrKind,
 };
+use swc_ecmascript::utils::ident::{Id, IdentLike};
 use swc_ecmascript::visit::Fold;
 
 pub fn next_dynamic(filename: FileName) -> impl Fold {
   NextDynamicPatcher {
     filename,
-    dynamic_binding: js_word!(""),
+    dynamic_bindings: vec![],
   }
 }
 
 #[derive(Debug)]
 struct NextDynamicPatcher {
   filename: FileName,
-  dynamic_binding: JsWord,
+  dynamic_bindings: Vec<Id>,
 }
 
 impl Fold for NextDynamicPatcher {
@@ -30,7 +31,7 @@ impl Fold for NextDynamicPatcher {
     if &src.value == "next/dynamic" {
       for specifier in specifiers {
         if let ImportSpecifier::Default(default_specifier) = specifier {
-          self.dynamic_binding = default_specifier.local.sym.clone();
+          self.dynamic_bindings.push(default_specifier.local.to_id());
         }
       }
     }
@@ -40,8 +41,8 @@ impl Fold for NextDynamicPatcher {
 
   fn fold_call_expr(&mut self, mut expr: CallExpr) -> CallExpr {
     if let ExprOrSuper::Expr(i) = &expr.callee {
-      if let Expr::Ident(Ident { sym, .. }) = &**i {
-        if sym == &self.dynamic_binding {
+      if let Expr::Ident(identifier) = &**i {
+        if self.dynamic_bindings.contains(&identifier.to_id()) {
           let mut import_specifier = None;
           if let Expr::Arrow(ArrowExpr {
             body: BlockStmtOrExpr::Expr(e),
