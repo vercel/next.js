@@ -6,7 +6,7 @@ use swc_ecmascript::ast::{
   PropName, PropOrSpread, Str, StrKind,
 };
 use swc_ecmascript::utils::ident::{Id, IdentLike};
-use swc_ecmascript::visit::Fold;
+use swc_ecmascript::visit::{Fold, FoldWith};
 
 pub fn next_dynamic(filename: FileName) -> impl Fold {
   NextDynamicPatcher {
@@ -39,7 +39,8 @@ impl Fold for NextDynamicPatcher {
     decl
   }
 
-  fn fold_call_expr(&mut self, mut expr: CallExpr) -> CallExpr {
+  fn fold_call_expr(&mut self, expr: CallExpr) -> CallExpr {
+    let mut expr = expr.fold_children_with(self);
     if let ExprOrSuper::Expr(i) = &expr.callee {
       if let Expr::Ident(identifier) = &**i {
         if self.dynamic_bindings.contains(&identifier.to_id()) {
