@@ -7,6 +7,7 @@ import fs from 'fs-extra'
 import { join } from 'path'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
+import escapeRegex from 'escape-string-regexp'
 import {
   launchApp,
   killApp,
@@ -43,15 +44,19 @@ const runTests = (isDev = false) => {
     for (const expected of [
       {
         post: 'first',
+        slug: ['first'],
       },
       {
         post: 'hello%20world',
+        slug: ['hello world'],
       },
       {
         post: 'hello/world',
+        slug: ['hello', 'world'],
       },
       {
         post: 'hello%2fworld',
+        slug: ['hello', 'world'],
       },
     ]) {
       const { status = 200, post } = expected
@@ -68,8 +73,10 @@ const runTests = (isDev = false) => {
 
       if (status === 200) {
         const $ = cheerio.load(await res.text())
-        expect(JSON.parse($('#query').text())).toEqual({
-          post: decodeURIComponent(post),
+        expect(JSON.parse($('#props').text())).toEqual({
+          params: {
+            slug: expected.slug,
+          },
         })
       }
     }
@@ -1107,12 +1114,30 @@ const runTests = (isDev = false) => {
       ]) {
         route.regex = normalizeRegEx(route.regex)
       }
+      for (const route of manifest.dataRoutes) {
+        route.dataRouteRegex = normalizeRegEx(route.dataRouteRegex)
+      }
 
       expect(manifest).toEqual({
         version: 3,
         pages404: true,
         basePath: '',
-        dataRoutes: [],
+        dataRoutes: [
+          {
+            dataRouteRegex: normalizeRegEx(
+              `^/_next/data/${escapeRegex(
+                buildId
+              )}/blog\\-catchall/(.+?)\\.json$`
+            ),
+            namedDataRouteRegex: `^/_next/data/${escapeRegex(
+              buildId
+            )}/blog\\-catchall/(?<slug>.+?)\\.json$`,
+            page: '/blog-catchall/[...slug]',
+            routeKeys: {
+              slug: 'slug',
+            },
+          },
+        ],
         redirects: [
           {
             destination: '/:path+',
@@ -1817,7 +1842,7 @@ const runTests = (isDev = false) => {
               source: '/has-rewrite-7',
             },
             {
-              destination: '/blog/:post',
+              destination: '/blog-catchall/:post',
               has: [
                 {
                   key: 'post',
@@ -1866,6 +1891,14 @@ const runTests = (isDev = false) => {
             regex: normalizeRegEx('^\\/blog\\/([^\\/]+?)(?:\\/)?$'),
             routeKeys: {
               post: 'post',
+            },
+          },
+          {
+            namedRegex: '^/blog\\-catchall/(?<slug>.+?)(?:/)?$',
+            page: '/blog-catchall/[...slug]',
+            regex: normalizeRegEx('^\\/blog\\-catchall\\/(.+?)(?:\\/)?$'),
+            routeKeys: {
+              slug: 'slug',
             },
           },
         ],
