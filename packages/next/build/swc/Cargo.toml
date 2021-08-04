@@ -29,9 +29,9 @@ log = "0.4.14"
 [build-dependencies]
 napi-build = "1"
 
-[profile.release]
-lto = true
-
 [dev-dependencies]
 swc_ecma_transforms_testing = "0.24.0"
 testing = "0.12.0"
+
+[profile.release]
+lto = true
