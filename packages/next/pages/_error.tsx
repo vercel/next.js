@@ -58,7 +58,7 @@ export default class Error<P = {}> extends React.Component<P & ErrorProps> {
               ) : (
                 <>
                   Application error: a client-side exception has occurred (see
-                  the console for more information)
+                  the browser console for more information)
                 </>
               )}
               .
