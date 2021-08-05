@@ -15,7 +15,8 @@
       { "type": "user", "pattern": "devknoll" },
       { "type": "user", "pattern": "janicklas-ralph" },
       { "type": "user", "pattern": "atcastle" },
-      { "type": "user", "pattern": "Joonpark13" }
+      { "type": "user", "pattern": "kyliau" },
+      { "type": "user", "pattern": "kara" }
     ],
     "created-by: Next.js team": [
       { "type": "user", "pattern": "ijjk" },
