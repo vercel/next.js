@@ -1,5 +1,5 @@
 import path from 'path'
-import { promises, constants } from 'fs'
+import { promises, constants, Dirent, Stats } from 'fs'
 import { Sema } from 'next/dist/compiled/async-sema'
 
 const COPYFILE_EXCL = constants.COPYFILE_EXCL
@@ -23,9 +23,8 @@ export async function recursiveCopy(
 
   const sema = new Sema(concurrency)
 
-  async function _copy(item: string): Promise<void> {
+  async function _copy(item: string, stats: Stats | Dirent): Promise<void> {
     const target = item.replace(from, to)
-    const stats = await promises.stat(item)
 
     await sema.acquire()
 
@@ -39,8 +38,8 @@ export async function recursiveCopy(
         }
       }
       sema.release()
-      const files = await promises.readdir(item)
-      await Promise.all(files.map((file) => _copy(path.join(item, file))))
+      const files = await promises.readdir(item, { withFileTypes: true })
+      await Promise.all(files.map((file) => _copy(path.join(item, file.name), file)))
     } else if (
       stats.isFile() &&
       // before we send the path to filter
@@ -56,5 +55,5 @@ export async function recursiveCopy(
     }
   }
 
-  await _copy(from)
+  await _copy(from, await promises.stat(from))
 }
