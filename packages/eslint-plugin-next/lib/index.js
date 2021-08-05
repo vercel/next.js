@@ -14,6 +14,7 @@ module.exports = {
     'no-head-import-in-document': require('./rules/no-head-import-in-document'),
     'no-typos': require('./rules/no-typos'),
     'no-duplicate-head': require('./rules/no-duplicate-head'),
+    'no-server-modules-on-client-side': require('./rules/no-server-modules-on-client-side'),
   },
   configs: {
     recommended: {
@@ -33,6 +34,7 @@ module.exports = {
         '@next/next/no-head-import-in-document': 2,
         '@next/next/no-typos': 1,
         '@next/next/no-duplicate-head': 2,
+        '@next/next/no-server-modules-on-client-side': 1,
       },
     },
     'core-web-vitals': {
