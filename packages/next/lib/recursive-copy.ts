@@ -24,10 +24,15 @@ export async function recursiveCopy(
   const sema = new Sema(concurrency)
 
   // deep copy the file/directory
-  async function _copy(item: string, lstats: Stats | Dirent): Promise<void> {
+  async function _copy(item: string, lstats?: Stats | Dirent): Promise<void> {
     const target = item.replace(from, to)
 
     await sema.acquire()
+
+    if (!lstats) {
+      // after lock on first run
+      lstats = await promises.lstat(from)
+    }
 
     // readdir & lstat do not follow symbolic links
     // if part is a symbolic link, follow it with stat
@@ -65,8 +70,10 @@ export async function recursiveCopy(
         overwrite ? undefined : COPYFILE_EXCL
       )
       sema.release()
+    } else {
+      sema.release()
     }
   }
 
-  await _copy(from, await promises.lstat(from))
+  await _copy(from)
 }
