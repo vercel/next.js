@@ -39,7 +39,7 @@ const runTests = () => {
   it('should load 404 page correctly', async () => {
     const browser = await webdriver(appPort, '/non-existent')
     expect(await browser.elementByCss('h2').text()).toBe(
-      'Application error: a client-side exception has occurred (developer guidance).'
+      'Application error: a client-side exception has occurred (see the console for more information).'
     )
     expect(await browser.eval('window.uncaughtErrors')).toEqual([])
   })
@@ -74,7 +74,7 @@ const runTests = () => {
     await browser.waitForElementByCss('h2')
     expect(await browser.eval('window.beforeNav')).toBe(null)
     expect(await browser.elementByCss('h2').text()).toBe(
-      'Application error: a client-side exception has occurred (developer guidance).'
+      'Application error: a client-side exception has occurred (see the console for more information).'
     )
     expect(await browser.eval('window.uncaughtErrors')).toEqual([])
   })
