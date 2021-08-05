@@ -26,14 +26,6 @@ ruleTester.run('no-page-custom-font', rule, {
                 href="https://fonts.googleapis.com/css2?family=Krona+One&display=swap"
                 rel="stylesheet"
               />
-              <link
-                href={process.env.NEXT_PUBLIC_CANONICAL_URL}
-                rel="canonical"
-              />
-              <link
-                href={new URL("../public/favicon.ico", import.meta.url).toString()}
-                rel="icon"
-              />
             </Head>
           </Html>
         );
@@ -41,6 +33,25 @@ ruleTester.run('no-page-custom-font', rule, {
     }
     
     export default MyDocument;
+    `,
+    `import NextDocument, { Html, Head } from "next/document";
+
+    class Document extends NextDocument {
+      render() {
+        return (
+          <Html>
+            <Head>
+              <link
+                href="https://fonts.googleapis.com/css2?family=Krona+One&display=swap"
+                rel="stylesheet"
+              />
+            </Head>
+          </Html>
+        );
+      }
+    }
+    
+    export default Document;
     `,
   ],
 

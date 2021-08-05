@@ -588,7 +588,6 @@ export default function Image({
               }}
               alt=""
               aria-hidden={true}
-              role="presentation"
               src={`data:image/svg+xml;base64,${toBase64(sizerSvg)}`}
             />
           ) : null}
