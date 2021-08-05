@@ -1,18 +1,20 @@
 {
   "compilerOptions": {
-    "target": "es5",
+    "moduleResolution": "node",
+    // Allow all features in input.
+    "module": "esnext",
+    // Emit ES2015 over ES5 for smaller bundles.
+    "target": "es2015",
     "lib": ["dom", "dom.iterable", "esnext"],
+    "jsx": "preserve",
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
     "forceConsistentCasingInFileNames": true,
     "noEmit": true,
     "esModuleInterop": true,
-    "module": "esnext",
-    "moduleResolution": "node",
     "resolveJsonModule": true,
-    "isolatedModules": true,
-    "jsx": "preserve"
+    "isolatedModules": true
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx"],
   "exclude": ["node_modules"]
