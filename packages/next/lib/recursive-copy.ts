@@ -23,12 +23,23 @@ export async function recursiveCopy(
 
   const sema = new Sema(concurrency)
 
-  async function _copy(item: string, stats: Stats | Dirent): Promise<void> {
+  // deep copy the file/directory
+  async function _copy(item: string, lstats: Stats | Dirent): Promise<void> {
     const target = item.replace(from, to)
 
     await sema.acquire()
 
-    if (stats.isDirectory()) {
+    // readdir & lstat do not follow symbolic links
+    // if part is a symbolic link, follow it with stat
+    let isFile = lstats.isFile()
+    let isDirectory = lstats.isDirectory()
+    if (lstats.isSymbolicLink()) {
+      const stats = await promises.stat(item)
+      isFile = stats.isFile()
+      isDirectory = stats.isDirectory()
+    }
+
+    if (isDirectory) {
       try {
         await promises.mkdir(target)
       } catch (err) {
@@ -43,7 +54,7 @@ export async function recursiveCopy(
         files.map((file) => _copy(path.join(item, file.name), file))
       )
     } else if (
-      stats.isFile() &&
+      isFile &&
       // before we send the path to filter
       // we remove the base path (from) and replace \ by / (windows)
       filter(item.replace(from, '').replace(/\\/g, '/'))
@@ -57,5 +68,5 @@ export async function recursiveCopy(
     }
   }
 
-  await _copy(from, await promises.stat(from))
+  await _copy(from, await promises.lstat(from))
 }

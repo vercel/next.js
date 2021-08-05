@@ -53,8 +53,16 @@ export async function recursiveDelete(
     result.map(async (part: Dirent) => {
       const absolutePath = join(dir, part.name)
 
+      // readdir does not follow symbolic links
+      // if part is a symbolic link, follow it using stat
+      let isDirectory = part.isDirectory()
+      if (part.isSymbolicLink()) {
+        const stats = await promises.stat(absolutePath)
+        isDirectory = stats.isDirectory()
+      }
+
       const pp = join(previousPath, part.name)
-      if (part.isDirectory() && (!exclude || !exclude.test(pp))) {
+      if (isDirectory && (!exclude || !exclude.test(pp))) {
         await recursiveDelete(absolutePath, exclude, pp)
         return promises.rmdir(absolutePath)
       }
