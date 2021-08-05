@@ -41,7 +41,7 @@ export async function recursiveDelete(
 ): Promise<void> {
   let result
   try {
-    result = await promises.readdir(dir, { withFileTypes: true });
+    result = await promises.readdir(dir, { withFileTypes: true })
   } catch (e) {
     if (e.code === 'ENOENT') {
       return

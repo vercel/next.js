@@ -39,7 +39,9 @@ export async function recursiveCopy(
       }
       sema.release()
       const files = await promises.readdir(item, { withFileTypes: true })
-      await Promise.all(files.map((file) => _copy(path.join(item, file.name), file)))
+      await Promise.all(
+        files.map((file) => _copy(path.join(item, file.name), file))
+      )
     } else if (
       stats.isFile() &&
       // before we send the path to filter
