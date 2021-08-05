@@ -69,19 +69,21 @@ export async function imageOptimizer(
   }
 
   const { headers } = req
-  const { url, w, q } = parsedUrl.query
+  const { url: decodedUrl, w, q } = parsedUrl.query
   const mimeType = getSupportedMimeType(MODERN_TYPES, headers.accept)
   let href: string
 
-  if (!url) {
+  if (!decodedUrl) {
     res.statusCode = 400
     res.end('"url" parameter is required')
     return { finished: true }
-  } else if (Array.isArray(url)) {
+  } else if (Array.isArray(decodedUrl)) {
     res.statusCode = 400
     res.end('"url" parameter cannot be an array')
     return { finished: true }
   }
+
+  const url = encodeURI(decodedUrl)
 
   let isAbsolute: boolean
 
@@ -257,6 +259,9 @@ export async function imageOptimizer(
         mockRes.getHeaderNames = () => Object.keys(mockHeaders)
         mockRes.setHeader = (name: string, value: string | string[]) =>
           (mockHeaders[name.toLowerCase()] = value)
+        mockRes.removeHeader = (name: string) => {
+          delete mockHeaders[name.toLowerCase()]
+        }
         mockRes._implicitHeader = () => {}
         mockRes.connection = res.connection
         mockRes.finished = false

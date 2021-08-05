@@ -203,13 +203,12 @@ The following characters `(`, `)`, `{`, `}`, `:`, `*`, `+`, `?` are used for reg
 
 ```js
 module.exports = {
-  async redirects() {
+  async rewrites() {
     return [
       {
         // this will match `/english(default)/something` being requested
         source: '/english\\(default\\)/:slug',
         destination: '/en-us/:slug',
-        permanent: false,
       },
     ]
   },

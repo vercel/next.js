@@ -57,3 +57,23 @@ export const ESLINT_DEFAULT_DIRS = [
   'src/components',
   'src/lib',
 ]
+
+export const ESLINT_PROMPT_VALUES = [
+  {
+    title: 'Strict',
+    recommended: true,
+    config: {
+      extends: 'next/core-web-vitals',
+    },
+  },
+  {
+    title: 'Base',
+    config: {
+      extends: 'next',
+    },
+  },
+  {
+    title: 'Cancel',
+    config: null,
+  },
+]

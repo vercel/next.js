@@ -1,8 +1,11 @@
 import fs from 'fs-extra'
-import { join } from 'path'
+import os from 'os'
+import execa from 'execa'
+
+import { dirname, join } from 'path'
+
 import findUp from 'next/dist/compiled/find-up'
 import { nextBuild, nextLint } from 'next-test-utils'
-import { writeFile, readFile } from 'fs-extra'
 
 jest.setTimeout(1000 * 60 * 2)
 
@@ -24,25 +27,23 @@ const dirInvalidEslintVersion = join(__dirname, '../invalid-eslint-version')
 const dirMaxWarnings = join(__dirname, '../max-warnings')
 const dirEmptyDirectory = join(__dirname, '../empty-directory')
 const dirEslintIgnore = join(__dirname, '../eslint-ignore')
+const dirNoEslintPlugin = join(__dirname, '../no-eslint-plugin')
+const dirNoConfig = join(__dirname, '../no-config')
 
 describe('ESLint', () => {
   describe('Next Build', () => {
     test('first time setup', async () => {
-      const eslintrc = join(dirFirstTimeSetup, '.eslintrc')
-      await writeFile(eslintrc, '')
+      const eslintrcJson = join(dirFirstTimeSetup, '.eslintrc.json')
+      await fs.writeFile(eslintrcJson, '')
 
       const { stdout, stderr } = await nextBuild(dirFirstTimeSetup, [], {
         stdout: true,
         stderr: true,
       })
       const output = stdout + stderr
-      const eslintrcContent = await readFile(eslintrc, 'utf8')
 
       expect(output).toContain(
-        'We detected an empty ESLint configuration file (.eslintrc) and updated it for you to include the base Next.js ESLint configuration.'
-      )
-      expect(eslintrcContent.trim().replace(/\s/g, '')).toMatch(
-        '{"extends":"next"}'
+        'No ESLint configuration detected. Run next lint to begin setup'
       )
     })
 
@@ -131,39 +132,104 @@ describe('ESLint', () => {
       )
       expect(output).toContain('Compiled successfully')
     })
+
+    test('missing Next.js plugin', async () => {
+      const { stdout, stderr } = await nextBuild(dirNoEslintPlugin, [], {
+        stdout: true,
+        stderr: true,
+      })
+
+      const output = stdout + stderr
+      expect(output).toContain(
+        'The Next.js plugin was not detected in your ESLint configuration'
+      )
+    })
   })
 
   describe('Next Lint', () => {
-    test('first time setup', async () => {
-      const eslintrc = join(dirFirstTimeSetup, '.eslintrc')
-      await writeFile(eslintrc, '')
+    describe('First Time Setup ', () => {
+      async function nextLintTemp() {
+        const folder = join(
+          os.tmpdir(),
+          Math.random().toString(36).substring(2)
+        )
+        await fs.mkdirp(folder)
+        await fs.copy(dirNoConfig, folder)
 
-      const { stdout, stderr } = await nextLint(
-        ['--base-dir', dirFirstTimeSetup],
-        {
+        try {
+          const nextDir = dirname(require.resolve('next/package'))
+          const nextBin = join(nextDir, 'dist/bin/next')
+
+          const { stdout } = await execa('node', [
+            nextBin,
+            'lint',
+            folder,
+            '--strict',
+          ])
+
+          const pkgJson = JSON.parse(
+            await fs.readFile(join(folder, 'package.json'), 'utf8')
+          )
+          const eslintrcJson = JSON.parse(
+            await fs.readFile(join(folder, '.eslintrc.json'), 'utf8')
+          )
+
+          return { stdout, pkgJson, eslintrcJson }
+        } finally {
+          await fs.remove(folder)
+        }
+      }
+
+      test('show a prompt to set up ESLint if no configuration detected', async () => {
+        const eslintrcJson = join(dirFirstTimeSetup, '.eslintrc.json')
+        await fs.writeFile(eslintrcJson, '')
+
+        const { stdout, stderr } = await nextLint(dirFirstTimeSetup, [], {
           stdout: true,
           stderr: true,
-        }
-      )
-      const output = stdout + stderr
-      const eslintrcContent = await readFile(eslintrc, 'utf8')
+        })
+        const output = stdout + stderr
+        expect(output).toContain('How would you like to configure ESLint?')
 
-      expect(output).toContain(
-        'We detected an empty ESLint configuration file (.eslintrc) and updated it for you to include the base Next.js ESLint configuration.'
-      )
-      expect(eslintrcContent.trim().replace(/\s/g, '')).toMatch(
-        '{"extends":"next"}'
-      )
+        // Different options that can be selected
+        expect(output).toContain('Strict (recommended)')
+        expect(output).toContain('Base')
+        expect(output).toContain('Cancel')
+      })
+
+      test('installs eslint and eslint-config-next as devDependencies if missing', async () => {
+        const { stdout, pkgJson } = await nextLintTemp()
+
+        expect(stdout.replace(/(\r\n|\n|\r)/gm, '')).toContain(
+          'Installing devDependencies:- eslint- eslint-config-next'
+        )
+        expect(pkgJson.devDependencies).toHaveProperty('eslint')
+        expect(pkgJson.devDependencies).toHaveProperty('eslint-config-next')
+      })
+
+      test('creates .eslintrc.json file with a default configuration', async () => {
+        const { stdout, eslintrcJson } = await nextLintTemp()
+
+        expect(stdout).toContain(
+          'We created the .eslintrc.json file for you and included your selected configuration'
+        )
+        expect(eslintrcJson).toMatchObject({ extends: 'next/core-web-vitals' })
+      })
+
+      test('shows a successful message when completed', async () => {
+        const { stdout, eslintrcJson } = await nextLintTemp()
+
+        expect(stdout).toContain(
+          'ESLint has successfully been configured. Run next lint again to view warnings and errors'
+        )
+      })
     })
 
     test('shows warnings and errors', async () => {
-      const { stdout, stderr } = await nextLint(
-        ['--base-dir', dirCustomConfig],
-        {
-          stdout: true,
-          stderr: true,
-        }
-      )
+      const { stdout, stderr } = await nextLint(dirCustomConfig, [], {
+        stdout: true,
+        stderr: true,
+      })
 
       const output = stdout + stderr
       expect(output).toContain(
@@ -228,13 +294,13 @@ describe('ESLint', () => {
     })
 
     test('success message when no warnings or errors', async () => {
-      const { stdout, stderr } = await nextLint(
-        ['--base-dir', dirFirstTimeSetup],
-        {
-          stdout: true,
-          stderr: true,
-        }
-      )
+      const eslintrcJson = join(dirFirstTimeSetup, '.eslintrc.json')
+      await fs.writeFile(eslintrcJson, '{ "extends": "next", "root": true }')
+
+      const { stdout, stderr } = await nextLint(dirFirstTimeSetup, [], {
+        stdout: true,
+        stderr: true,
+      })
 
       const output = stdout + stderr
       expect(output).toContain('No ESLint warnings or errors')
@@ -261,17 +327,14 @@ describe('ESLint', () => {
           await fs.move(eslintrcFile, `${eslintrcFile}.original`)
         }
 
-        const { stdout, stderr } = await nextLint(
-          ['--base-dir', dirConfigInPackageJson],
-          {
-            stdout: true,
-            stderr: true,
-          }
-        )
+        const { stdout, stderr } = await nextLint(dirConfigInPackageJson, [], {
+          stdout: true,
+          stderr: true,
+        })
 
         const output = stdout + stderr
         expect(output).not.toContain(
-          'We created the .eslintrc file for you and included the base Next.js ESLint configuration'
+          'We created the .eslintrc file for you and included your selected configuration'
         )
       } finally {
         // Restore original .eslintrc file
@@ -282,13 +345,10 @@ describe('ESLint', () => {
     })
 
     test('quiet flag suppresses warnings and only reports errors', async () => {
-      const { stdout, stderr } = await nextLint(
-        ['--base-dir', dirCustomConfig, '--quiet'],
-        {
-          stdout: true,
-          stderr: true,
-        }
-      )
+      const { stdout, stderr } = await nextLint(dirCustomConfig, ['--quiet'], {
+        stdout: true,
+        stderr: true,
+      })
 
       const output = stdout + stderr
       expect(output).toContain(
@@ -316,7 +376,8 @@ describe('ESLint', () => {
 
     test('max warnings flag errors when warnings exceed threshold', async () => {
       const { stdout, stderr } = await nextLint(
-        ['--base-dir', dirMaxWarnings, '--max-warnings', 1],
+        dirMaxWarnings,
+        ['--max-warnings', 1],
         {
           stdout: true,
           stderr: true,
@@ -334,7 +395,8 @@ describe('ESLint', () => {
 
     test('max warnings flag does not error when warnings do not exceed threshold', async () => {
       const { stdout, stderr } = await nextLint(
-        ['--base-dir', dirMaxWarnings, '--max-warnings', 2],
+        dirMaxWarnings,
+        ['--max-warnings', 2],
         {
           stdout: true,
           stderr: true,
@@ -366,24 +428,6 @@ describe('ESLint', () => {
       )
       expect(stdout).toContain('<script src="https://example.com" />')
       expect(stdout).toContain('2 warnings found')
-    })
-
-    test('custom directories', async () => {
-      const { stdout, stderr } = await nextLint(
-        ['--base-dir', dirCustomDirectories, 'custom'],
-        {
-          stdout: true,
-          stderr: true,
-        }
-      )
-
-      const output = stdout + stderr
-      expect(output).toContain(
-        'Warning: External synchronous scripts are forbidden'
-      )
-      expect(output).not.toContain(
-        'Error: Comments inside children section of tag should be placed inside braces'
-      )
     })
   })
 })
