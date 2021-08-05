@@ -1,4 +1,4 @@
-export interface Group {
+interface Group {
   pos: number
   repeat: boolean
   optional: boolean
@@ -22,17 +22,8 @@ function parseParameter(param: string) {
   return { key: param, repeat, optional }
 }
 
-export function getRouteRegex(
-  normalizedRoute: string
-): {
-  re: RegExp
-  namedRegex?: string
-  routeKeys?: { [named: string]: string }
-  groups: { [groupName: string]: Group }
-} {
-  const segments = (normalizedRoute.replace(/\/$/, '') || '/')
-    .slice(1)
-    .split('/')
+export function getParametrizedRoute(route: string) {
+  const segments = (route.replace(/\/$/, '') || '/').slice(1).split('/')
 
   const groups: { [groupName: string]: Group } = {}
   let groupIndex = 1
@@ -107,15 +98,39 @@ export function getRouteRegex(
       .join('')
 
     return {
-      re: new RegExp(`^${parameterizedRoute}(?:/)?$`),
+      parameterizedRoute,
+      namedParameterizedRoute,
       groups,
       routeKeys,
-      namedRegex: `^${namedParameterizedRoute}(?:/)?$`,
     }
   }
 
   return {
-    re: new RegExp(`^${parameterizedRoute}(?:/)?$`),
+    parameterizedRoute,
     groups,
+  }
+}
+
+export interface RouteRegex {
+  groups: { [groupName: string]: Group }
+  namedRegex?: string
+  re: RegExp
+  routeKeys?: { [named: string]: string }
+}
+
+export function getRouteRegex(normalizedRoute: string): RouteRegex {
+  const result = getParametrizedRoute(normalizedRoute)
+  if ('routeKeys' in result) {
+    return {
+      re: new RegExp(`^${result.parameterizedRoute}(?:/)?$`),
+      groups: result.groups,
+      routeKeys: result.routeKeys,
+      namedRegex: `^${result.namedParameterizedRoute}(?:/)?$`,
+    }
+  }
+
+  return {
+    re: new RegExp(`^${result.parameterizedRoute}(?:/)?$`),
+    groups: result.groups,
   }
 }

@@ -28,15 +28,18 @@ const eslintOptions = (args: arg.Spec) => ({
     args['--report-unused-disable-directives'] || null,
   cache: args['--cache'] ?? false,
   cacheLocation: args['--cache-location'] || '.eslintcache',
-  errorOnUnmatchedPattern: !Boolean(args['--no-error-on-unmatched-pattern']),
+  errorOnUnmatchedPattern: args['--error-on-unmatched-pattern']
+    ? Boolean(args['--error-on-unmatched-pattern'])
+    : false,
 })
 
-const nextLint: cliCommand = (argv) => {
+const nextLint: cliCommand = async (argv) => {
   const validArgs: arg.Spec = {
     // Types
     '--help': Boolean,
     '--base-dir': String,
     '--dir': [String],
+    '--strict': Boolean,
 
     // Aliases
     '-h': '--help',
@@ -60,10 +63,12 @@ const nextLint: cliCommand = (argv) => {
     '--report-unused-disable-directives': String,
     '--cache': Boolean,
     '--cache-location': String,
-    '--no-error-on-unmatched-pattern': Boolean,
+    '--error-on-unmatched-pattern': Boolean,
+    '--format': String,
 
     // Aliases
     '-c': '--config',
+    '-f': '--format',
   }
 
   let args: arg.Result<arg.Spec>
@@ -96,6 +101,9 @@ const nextLint: cliCommand = (argv) => {
           --ext [String]                 Specify JavaScript file extensions - default: .js, .jsx, .ts, .tsx
           --resolve-plugins-relative-to path::String  A folder where plugins should be resolved from, CWD by default
 
+        Initial setup:
+          --strict                       Creates an .eslintrc.json file using the Next.js strict configuration (only possible if no .eslintrc.json file is present)
+
         Specifying rules:
           --rulesdir [path::String]      Use additional rules from this directory
 
@@ -110,6 +118,9 @@ const nextLint: cliCommand = (argv) => {
         Handling warnings:
           --quiet                        Report errors only - default: false
           --max-warnings Int             Number of warnings to trigger nonzero exit code - default: -1
+        
+        Output:
+          -f, --format String            Use a specific output format - default: Next.js custom formatter
 
         Inline configuration comments:
           --no-inline-config             Prevent comments from changing config or rules
@@ -120,7 +131,7 @@ const nextLint: cliCommand = (argv) => {
           --cache-location path::String  Path to the cache file or directory - default: .eslintcache
         
         Miscellaneous:
-          --no-error-on-unmatched-pattern  Prevent errors when pattern is unmatched - default: false
+          --error-on-unmatched-pattern   Show errors when any file patterns are unmatched - default: false
           `,
       0
     )
@@ -133,7 +144,9 @@ const nextLint: cliCommand = (argv) => {
     printAndExit(`> No such directory exists as the project root: ${baseDir}`)
   }
 
-  const dirs: string[] = args['--dir']
+  const conf = await loadConfig(PHASE_PRODUCTION_BUILD, baseDir)
+
+  const dirs: string[] = args['--dir'] ?? conf.eslint?.dirs
   const lintDirs = (dirs ?? ESLINT_DEFAULT_DIRS).reduce(
     (res: string[], d: string) => {
       const currDir = join(baseDir, d)
@@ -146,6 +159,8 @@ const nextLint: cliCommand = (argv) => {
 
   const reportErrorsOnly = Boolean(args['--quiet'])
   const maxWarnings = args['--max-warnings'] ?? -1
+  const formatter = args['--format'] || null
+  const strict = Boolean(args['--strict'])
 
   runLintCheck(
     baseDir,
@@ -153,14 +168,15 @@ const nextLint: cliCommand = (argv) => {
     false,
     eslintOptions(args),
     reportErrorsOnly,
-    maxWarnings
+    maxWarnings,
+    formatter,
+    strict
   )
     .then(async (lintResults) => {
       const lintOutput =
         typeof lintResults === 'string' ? lintResults : lintResults?.output
 
       if (typeof lintResults !== 'string' && lintResults?.eventInfo) {
-        const conf = await loadConfig(PHASE_PRODUCTION_BUILD, baseDir)
         const telemetry = new Telemetry({
           distDir: join(baseDir, conf.distDir),
         })
@@ -183,7 +199,7 @@ const nextLint: cliCommand = (argv) => {
 
       if (lintOutput) {
         console.log(lintOutput)
-      } else {
+      } else if (lintResults && !lintOutput) {
         console.log(chalk.green('✔ No ESLint warnings or errors'))
       }
     })

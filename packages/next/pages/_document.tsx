@@ -1,4 +1,3 @@
-import PropTypes from 'prop-types'
 import React, { Component, ReactElement, ReactNode, useContext } from 'react'
 import flush from 'styled-jsx/server'
 import {
@@ -233,11 +232,6 @@ export class Head extends Component<
     >
 > {
   static contextType = DocumentComponentContext
-
-  static propTypes = {
-    nonce: PropTypes.string,
-    crossOrigin: PropTypes.string,
-  }
 
   context!: React.ContextType<typeof DocumentComponentContext>
 
@@ -756,11 +750,6 @@ export function Main() {
 
 export class NextScript extends Component<OriginProps> {
   static contextType = DocumentComponentContext
-
-  static propTypes = {
-    nonce: PropTypes.string,
-    crossOrigin: PropTypes.string,
-  }
 
   context!: React.ContextType<typeof DocumentComponentContext>
 

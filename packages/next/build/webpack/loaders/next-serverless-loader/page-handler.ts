@@ -11,6 +11,7 @@ import { setLazyProp, getCookieParser } from '../../../../server/api-utils'
 import { getRedirectStatus } from '../../../../lib/load-custom-routes'
 import getRouteNoAssetPath from '../../../../shared/lib/router/utils/get-route-from-asset-path'
 import { PERMANENT_REDIRECT_STATUS } from '../../../../shared/lib/constants'
+import { resultToChunks } from '../../../../server/utils'
 
 export function getPageHandler(ctx: ServerlessHandlerCtx) {
   const {
@@ -98,7 +99,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
 
     let hasValidParams = true
 
-    setLazyProp({ req: req as any }, 'cookies', getCookieParser(req))
+    setLazyProp({ req: req as any }, 'cookies', getCookieParser(req.headers))
 
     const options = {
       App,
@@ -333,11 +334,11 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
                 defaultLocale: i18n?.defaultLocale,
               })
             )
-
+            const html = result2 ? (await resultToChunks(result2)).join('') : ''
             sendPayload(
               req,
               res,
-              result2,
+              html,
               'html',
               {
                 generateEtags,
@@ -401,7 +402,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
       }
 
       if (renderMode) return { html: result, renderOpts }
-      return result
+      return result ? (await resultToChunks(result)).join('') : null
     } catch (err) {
       if (!parsedUrl!) {
         parsedUrl = parseUrl(req.url!, true)
@@ -463,7 +464,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
           err: res.statusCode === 404 ? undefined : err,
         })
       )
-      return result2
+      return result2 ? (await resultToChunks(result2)).join('') : null
     }
   }
 

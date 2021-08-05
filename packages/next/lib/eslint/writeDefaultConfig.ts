@@ -2,83 +2,65 @@ import { promises as fs } from 'fs'
 import chalk from 'chalk'
 import os from 'os'
 import path from 'path'
-
 import * as CommentJson from 'next/dist/compiled/comment-json'
+import { ConfigAvailable } from './hasEslintConfiguration'
+
+import * as Log from '../../build/output/log'
 
 export async function writeDefaultConfig(
+  baseDir: string,
+  { exists, emptyEslintrc, emptyPkgJsonConfig }: ConfigAvailable,
+  selectedConfig: any,
   eslintrcFile: string | null,
   pkgJsonPath: string | null,
   packageJsonConfig: { eslintConfig: any } | null
 ) {
-  const defaultConfig = {
-    extends: 'next',
-  }
+  if (!exists && emptyEslintrc && eslintrcFile) {
+    const ext = path.extname(eslintrcFile)
 
-  if (eslintrcFile) {
-    const content = await fs.readFile(eslintrcFile, { encoding: 'utf8' }).then(
-      (txt) => txt.trim().replace(/\n/g, ''),
-      () => null
-    )
+    let newFileContent
+    if (ext === '.yaml' || ext === '.yml') {
+      newFileContent = "extends: 'next'"
+    } else {
+      newFileContent = CommentJson.stringify(selectedConfig, null, 2)
 
-    if (
-      content === '' ||
-      content === '{}' ||
-      content === '---' ||
-      content === 'module.exports = {}'
-    ) {
-      const ext = path.extname(eslintrcFile)
-
-      let newFileContent
-      if (ext === '.yaml' || ext === '.yml') {
-        newFileContent = "extends: 'next'"
-      } else {
-        newFileContent = CommentJson.stringify(defaultConfig, null, 2)
-
-        if (ext === '.js') {
-          newFileContent = 'module.exports = ' + newFileContent
-        }
+      if (ext === '.js') {
+        newFileContent = 'module.exports = ' + newFileContent
       }
-
-      await fs.writeFile(eslintrcFile, newFileContent + os.EOL)
-
-      console.log(
-        chalk.green(
-          `We detected an empty ESLint configuration file (${chalk.bold(
-            path.basename(eslintrcFile)
-          )}) and updated it for you to include the base Next.js ESLint configuration.`
-        )
-      )
     }
-  } else if (packageJsonConfig?.eslintConfig) {
-    // Creates .eslintrc only if package.json's eslintConfig field is empty
-    if (Object.entries(packageJsonConfig?.eslintConfig).length === 0) {
-      packageJsonConfig.eslintConfig = defaultConfig
 
-      if (pkgJsonPath)
-        await fs.writeFile(
-          pkgJsonPath,
-          CommentJson.stringify(packageJsonConfig, null, 2) + os.EOL
-        )
+    await fs.writeFile(eslintrcFile, newFileContent + os.EOL)
 
-      console.log(
-        chalk.green(
-          `We detected an empty ${chalk.bold(
-            'eslintConfig'
-          )} field in package.json and updated it for you to include the base Next.js ESLint configuration.`
-        )
+    Log.info(
+      `We detected an empty ESLint configuration file (${chalk.bold(
+        path.basename(eslintrcFile)
+      )}) and updated it for you!`
+    )
+  } else if (!exists && emptyPkgJsonConfig && packageJsonConfig) {
+    packageJsonConfig.eslintConfig = selectedConfig
+
+    if (pkgJsonPath)
+      await fs.writeFile(
+        pkgJsonPath,
+        CommentJson.stringify(packageJsonConfig, null, 2) + os.EOL
       )
-    }
-  } else {
+
+    Log.info(
+      `We detected an empty ${chalk.bold(
+        'eslintConfig'
+      )} field in package.json and updated it for you!`
+    )
+  } else if (!exists) {
     await fs.writeFile(
-      '.eslintrc.json',
-      CommentJson.stringify(defaultConfig, null, 2) + os.EOL
+      path.join(baseDir, '.eslintrc.json'),
+      CommentJson.stringify(selectedConfig, null, 2) + os.EOL
     )
 
     console.log(
       chalk.green(
         `We created the ${chalk.bold(
           '.eslintrc.json'
-        )} file for you and included the base Next.js ESLint configuration.`
+        )} file for you and included your selected configuration.`
       )
     )
   }

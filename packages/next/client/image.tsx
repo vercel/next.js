@@ -50,6 +50,11 @@ type LayoutValue = typeof VALID_LAYOUT_VALUES[number]
 
 type PlaceholderValue = 'blur' | 'empty'
 
+type OnLoadingComplete = (result: {
+  naturalWidth: number
+  naturalHeight: number
+}) => void
+
 type ImgElementStyle = NonNullable<JSX.IntrinsicElements['img']['style']>
 
 interface StaticImageData {
@@ -97,12 +102,13 @@ export type ImageProps = Omit<
   quality?: number | string
   priority?: boolean
   loading?: LoadingValue
+  lazyBoundary?: string
   placeholder?: PlaceholderValue
   blurDataURL?: string
   unoptimized?: boolean
   objectFit?: ImgElementStyle['objectFit']
   objectPosition?: ImgElementStyle['objectPosition']
-  onLoadingComplete?: () => void
+  onLoadingComplete?: OnLoadingComplete
 }
 
 const {
@@ -248,7 +254,7 @@ function handleLoading(
   img: HTMLImageElement | null,
   src: string,
   placeholder: PlaceholderValue,
-  onLoadingComplete?: () => void
+  onLoadingComplete?: OnLoadingComplete
 ) {
   if (!img) {
     return
@@ -264,7 +270,10 @@ function handleLoading(
         }
         loadedImageURLs.add(src)
         if (onLoadingComplete) {
-          onLoadingComplete()
+          const { naturalWidth, naturalHeight } = img
+          // Pass back read-only primitive values but not the
+          // underlying DOM element because it could be misused.
+          onLoadingComplete({ naturalWidth, naturalHeight })
         }
       })
     }
@@ -285,6 +294,7 @@ export default function Image({
   unoptimized = false,
   priority = false,
   loading,
+  lazyBoundary = '200px',
   className,
   quality,
   width,
@@ -415,6 +425,11 @@ export default function Image({
         `Image with src "${src}" is using unsupported "ref" property. Consider using the "onLoadingComplete" property instead.`
       )
     }
+    if ('style' in rest) {
+      console.warn(
+        `Image with src "${src}" is using unsupported "style" property. Please use the "className" property instead.`
+      )
+    }
     const rand = Math.floor(Math.random() * 1000) + 100
     if (
       !unoptimized &&
@@ -428,7 +443,7 @@ export default function Image({
   }
 
   const [setRef, isIntersected] = useIntersection<HTMLImageElement>({
-    rootMargin: '200px',
+    rootMargin: lazyBoundary,
     disabled: !isLazy,
   })
   const isVisible = !isLazy || isIntersected
@@ -458,16 +473,16 @@ export default function Image({
 
     objectFit,
     objectPosition,
-
-    ...(placeholder === 'blur'
+  }
+  const blurStyle =
+    placeholder === 'blur'
       ? {
           filter: 'blur(20px)',
           backgroundSize: objectFit || 'cover',
           backgroundImage: `url("${blurDataURL}")`,
           backgroundPosition: objectPosition || '0% 0%',
         }
-      : undefined),
-  }
+      : {}
   if (layout === 'fill') {
     // <Image src="i.png" layout="fill" />
     wrapperStyle = {
@@ -573,7 +588,6 @@ export default function Image({
               }}
               alt=""
               aria-hidden={true}
-              role="presentation"
               src={`data:image/svg+xml;base64,${toBase64(sizerSvg)}`}
             />
           ) : null}
@@ -607,7 +621,7 @@ export default function Image({
           setRef(img)
           handleLoading(img, srcString, placeholder, onLoadingComplete)
         }}
-        style={imgStyle}
+        style={{ ...imgStyle, ...blurStyle }}
       />
       {priority ? (
         // Note how we omit the `href` attribute, as it would only be relevant
