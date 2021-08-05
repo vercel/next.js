@@ -15,7 +15,6 @@ import {
   getPageFileFromPagesManifest,
   getPagesManifest,
   updatePagesManifest,
-  check,
 } from 'next-test-utils'
 
 jest.setTimeout(1000 * 60 * 2)
@@ -244,11 +243,6 @@ describe('500 Page Support', () => {
     try {
       const browser = await webdriver(appPort, '/err?hello=world')
       const initialTitle = await browser.eval('document.title')
-
-      await check(async () => {
-        const query = await browser.eval(`window.next.router.query`)
-        return query.hello === 'world' ? 'success' : 'not yet'
-      }, 'success')
 
       const currentTitle = await browser.eval('document.title')
 
