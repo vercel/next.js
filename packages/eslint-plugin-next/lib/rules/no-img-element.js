@@ -1,3 +1,5 @@
+const NodeAttributes = require('../utils/nodeAttributes.js')
+
 module.exports = {
   meta: {
     docs: {
@@ -16,6 +18,11 @@ module.exports = {
         }
 
         if (node.attributes.length === 0) {
+          return
+        }
+        
+        const attributes = new NodeAttributes(node)
+        if (attributes.has('src') && attributes.value('src').endsWith('.svg')) {
           return
         }
 
