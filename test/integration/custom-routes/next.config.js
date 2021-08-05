@@ -198,7 +198,7 @@ module.exports = {
               key: 'post',
             },
           ],
-          destination: '/blog/:post',
+          destination: '/blog-catchall/:post',
         },
         {
           source: '/blog/about',

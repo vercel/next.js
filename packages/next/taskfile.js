@@ -196,6 +196,14 @@ export async function ncc_ci_info(task, opts) {
     .ncc({ packageName: 'ci-info', externals })
     .target('compiled/ci-info')
 }
+// eslint-disable-next-line camelcase
+externals['cli-select'] = 'next/dist/compiled/cli-select'
+export async function ncc_cli_select(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('cli-select')))
+    .ncc({ packageName: 'cli-select', externals })
+    .target('compiled/cli-select')
+}
 externals['comment-json'] = 'next/dist/compiled/comment-json'
 export async function ncc_comment_json(task, opts) {
   await task
@@ -234,6 +242,14 @@ export async function ncc_cookie(task, opts) {
     .source(opts.src || relative(__dirname, require.resolve('cookie')))
     .ncc({ packageName: 'cookie', externals })
     .target('compiled/cookie')
+}
+// eslint-disable-next-line camelcase
+externals['cross-spawn'] = 'next/dist/compiled/cross-spawn'
+export async function ncc_cross_spawn(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('cross-spawn')))
+    .ncc({ packageName: 'cross-spawn', externals })
+    .target('compiled/cross-spawn')
 }
 // eslint-disable-next-line camelcase
 externals['css-loader'] = 'next/dist/compiled/css-loader'
@@ -614,14 +630,14 @@ export async function ncc_webpack_sources(task, opts) {
     .target('compiled/webpack-sources')
 }
 // eslint-disable-next-line camelcase
-externals['webpack-sources2'] = 'next/dist/compiled/webpack-sources2'
-export async function ncc_webpack_sources2(task, opts) {
+externals['webpack-sources3'] = 'next/dist/compiled/webpack-sources3'
+export async function ncc_webpack_sources3(task, opts) {
   await task
     .source(
-      opts.src || relative(__dirname, bundleRequire.resolve('webpack-sources2'))
+      opts.src || relative(__dirname, bundleRequire.resolve('webpack-sources3'))
     )
-    .ncc({ packageName: 'webpack-sources2', externals, target: 'es5' })
-    .target('compiled/webpack-sources2')
+    .ncc({ packageName: 'webpack-sources3', externals, target: 'es5' })
+    .target('compiled/webpack-sources3')
 }
 // eslint-disable-next-line camelcase
 externals['mini-css-extract-plugin'] =
@@ -685,7 +701,7 @@ export async function ncc_webpack_bundle5(task, opts) {
       externals: {
         ...externals,
         'schema-utils': 'next/dist/compiled/schema-utils3',
-        'webpack-sources': 'next/dist/compiled/webpack-sources2',
+        'webpack-sources': 'next/dist/compiled/webpack-sources3',
       },
       minify: false,
       target: 'es5',
@@ -740,11 +756,13 @@ export async function ncc(task, opts) {
         'ncc_bfj',
         'ncc_cacache',
         'ncc_ci_info',
+        'ncc_cli_select',
         'ncc_comment_json',
         'ncc_compression',
         'ncc_conf',
         'ncc_content_type',
         'ncc_cookie',
+        'ncc_cross_spawn',
         'ncc_css_loader',
         'ncc_debug',
         'ncc_devalue',
@@ -789,7 +807,7 @@ export async function ncc(task, opts) {
         'ncc_webpack_bundle5',
         'ncc_webpack_bundle_packages',
         'ncc_webpack_sources',
-        'ncc_webpack_sources2',
+        'ncc_webpack_sources3',
         'ncc_mini_css_extract_plugin',
       ],
       opts
@@ -852,7 +870,9 @@ export async function server(task, opts) {
 
 export async function nextbuild(task, opts) {
   await task
-    .source(opts.src || 'build/**/*.+(js|ts|tsx)')
+    .source(opts.src || 'build/**/*.+(js|ts|tsx)', {
+      ignore: '**/fixture/**',
+    })
     .swc('server', { dev: opts.dev })
     .target('dist/build')
   notify('Compiled build files')

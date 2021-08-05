@@ -328,6 +328,20 @@ export function isResSent(res: ServerResponse) {
   return res.finished || res.headersSent
 }
 
+export function normalizeRepeatedSlashes(url: string) {
+  const urlParts = url.split('?')
+  const urlNoQuery = urlParts[0]
+
+  return (
+    urlNoQuery
+      // first we replace any non-encoded backslashes with forward
+      // then normalize repeated forward slashes
+      .replace(/\\/g, '/')
+      .replace(/\/\/+/g, '/') +
+    (urlParts[1] ? `?${urlParts.slice(1).join('?')}` : '')
+  )
+}
+
 export async function loadGetInitialProps<
   C extends BaseContext,
   IP = {},
