@@ -662,6 +662,8 @@ export default async function build(
     const serverPropsPages = new Set<string>()
     const additionalSsgPaths = new Map<string, Array<string>>()
     const additionalSsgPathsEncoded = new Map<string, Array<string>>()
+    const pageTraceIncludes = new Map<string, Array<string>>()
+    const pageTraceExcludes = new Map<string, Array<string>>()
     const pageInfos = new Map<string, PageInfo>()
     const pagesManifest = JSON.parse(
       await promises.readFile(manifestPath, 'utf8')
@@ -820,6 +822,11 @@ export default async function build(
                   )
                 })
 
+                if (config.experimental.nftTracing) {
+                  pageTraceIncludes.set(page, workerResult.traceIncludes || [])
+                  pageTraceExcludes.set(page, workerResult.traceExcludes || [])
+                }
+
                 if (
                   workerResult.isStatic === false &&
                   (workerResult.isHybridAmp || workerResult.isAmpOnly)
@@ -956,6 +963,63 @@ export default async function build(
           )
         )
       )
+    }
+
+    if (config.experimental.nftTracing) {
+      const globOrig = require('next/dist/compiled/glob') as typeof import('next/dist/compiled/glob')
+      const glob = (pattern: string): Promise<string[]> => {
+        return new Promise((resolve, reject) => {
+          globOrig(pattern, { cwd: dir }, (err, files) => {
+            if (err) {
+              return reject(err)
+            }
+            resolve(files)
+          })
+        })
+      }
+
+      for (const page of pageKeys) {
+        const includeGlobs = pageTraceIncludes.get(page)
+        const excludeGlobs = pageTraceExcludes.get(page)
+
+        if (!includeGlobs?.length && !excludeGlobs?.length) {
+          continue
+        }
+
+        const traceFile = path.join(
+          distDir,
+          'server/pages',
+          `${page}.js.nft.json`
+        )
+        const traceContent = JSON.parse(
+          await promises.readFile(traceFile, 'utf8')
+        )
+        let includes: string[] = []
+        let excludes: string[] = []
+
+        if (includeGlobs?.length) {
+          for (const includeGlob of includeGlobs) {
+            includes.push(...(await glob(includeGlob)))
+          }
+        }
+
+        if (excludeGlobs?.length) {
+          for (const excludeGlob of excludeGlobs) {
+            excludes.push(...(await glob(excludeGlob)))
+          }
+        }
+
+        const combined = new Set([...traceContent.files, ...includes])
+        excludes.forEach((file) => combined.delete(file))
+
+        await promises.writeFile(
+          traceFile,
+          JSON.stringify({
+            version: traceContent.version,
+            files: [...combined],
+          })
+        )
+      }
     }
 
     if (serverPropsPages.size > 0 || ssgPages.size > 0) {

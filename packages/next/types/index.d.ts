@@ -80,6 +80,8 @@ export type PageConfig = {
   env?: Array<string>
   unstable_runtimeJS?: false
   unstable_JsPreload?: false
+  unstable_includeFiles?: false
+  unstable_excludeFiles?: false
 }
 
 export {

@@ -1246,7 +1246,8 @@ export default async function getBaseWebpackConfig(
           pagesDir,
         }),
       !isServer && new DropClientPage(),
-      !isLikeServerless &&
+      config.experimental.nftTracing &&
+        !isLikeServerless &&
         isServer &&
         !dev &&
         isWebpack5 &&

@@ -199,14 +199,19 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
               //   )
               //   continue
               // }
+              const collectDependencies = (mod: any) => {
+                if (!mod || !mod.dependencies) return
 
-              for (const dep of entryMod.dependencies) {
-                const depMod = getModuleFromDependency(compilation, dep)
+                for (const dep of mod.dependencies) {
+                  const depMod = getModuleFromDependency(compilation, dep)
 
-                if (depMod?.resource) {
-                  depModMap.set(depMod.resource, depMod)
+                  if (depMod?.resource && !depModMap.get(depMod.resource)) {
+                    depModMap.set(depMod.resource, depMod)
+                    collectDependencies(depMod)
+                  }
                 }
               }
+              collectDependencies(entryMod)
 
               const toTrace: string[] = [entry, ...depModMap.keys()]
 

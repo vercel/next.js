@@ -831,6 +831,8 @@ export async function isPageStatic(
   encodedPrerenderRoutes?: string[]
   prerenderFallback?: boolean | 'blocking'
   isNextImageImported?: boolean
+  traceIncludes?: string[]
+  traceExcludes?: string[]
 }> {
   const isPageStaticSpan = trace('is-page-static-utils', parentId)
   return isPageStaticSpan.traceAsyncFn(async () => {
@@ -936,6 +938,8 @@ export async function isPageStatic(
         hasStaticProps,
         hasServerProps,
         isNextImageImported,
+        traceIncludes: config.unstable_includeFiles || [],
+        traceExcludes: config.unstable_excludeFiles || [],
       }
     } catch (err) {
       if (err.code === 'MODULE_NOT_FOUND') return {}
