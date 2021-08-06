@@ -4,16 +4,16 @@ description: Learn about authentication patterns in Next.js apps and explore a f
 
 # Authentication
 
-Authentication verifies who a user is, while authorization controls what a user can access. Next.js supports authentication patterns for both [Pages](/docs/basic-features/pages) and [API Routes](/docs/api-routes). This page will go through each case so that you can choose based on your constraints.
+Authentication verifies who a user is, while authorization controls what a user can access. Next.js supports authentication patterns for both [Pages](/docs/basic-features/pages.md) and [API Routes](/docs/api-routes/introduction.md). This page will go through each case so that you can choose based on your constraints.
 
 ## Authenticating Pages
 
-The first step to adding authentication to your page is identifying the [data-fetching strategy](/docs/basic-features/data-fetching.md) you want. We can then determine which authentication providers support this pattern. There are two main patterns:
+The first step to adding authentication to your page is to identify the [data-fetching strategy](/docs/basic-features/data-fetching.md) you want. We can then determine which authentication providers support this strategy. The authentication patterns for each strategy are:
 
-- Use [static generation (recommended)](/docs/basic-features/pages.md#static-generation-recommended) to server-render a loading state, followed by fetching the user data client-side. Additional navigations using [`next/link`](/docs/api-reference/next/link.md) or [`next/router`](/docs/api-reference/next/router.md) will not re-render this loading state.
-- Fetch user data [server-side](/docs/basic-features/pages.md#server-side-rendering) to eliminate the flash of loading state.
+- Use [static generation (recommended)](/docs/basic-features/pages.md#static-generation-recommended) to server-render a loading state, followed by fetching the user data and authenticated content client-side. Additional navigations using [`next/link`](/docs/api-reference/next/link.md) or [`next/router`](/docs/api-reference/next/router.md) will not need to re-fetch user data.
+- Fetch user data and authenticated content [server-side](/docs/basic-features/pages.md#server-side-rendering) to eliminate the flash of loading state.
 
-### Authenticating Statically Generated Pages
+### Statically Generated Pages
 
 Next.js automatically determines that a page is static if there are no blocking data requirements. This means the absence of [`getServerSideProps`](/docs/basic-features/data-fetching.md#getserversideprops-server-side-rendering) and `getInitialProps` in the page. Instead, your page can render a loading state from the server, followed by fetching the user client-side.
 
@@ -50,7 +50,7 @@ export default Profile
 
 You can view this [example in action](https://next-with-iron-session.vercel.app/). Check out the [`with-iron-session`](https://github.com/vercel/next.js/tree/canary/examples/with-iron-session) example to see how it works.
 
-### Authenticating Server-Rendered Pages
+### Server-Rendered Pages
 
 If you export an `async` function called [`getServerSideProps`](/docs/basic-features/data-fetching.md#getserversideprops-server-side-rendering) from a page, Next.js will pre-render this page on each request using the data returned by `getServerSideProps`.
 
@@ -102,6 +102,8 @@ export default Profile
 ```
 
 An advantage of this pattern is preventing a flash of unauthenticated content before redirecting. It's important to note fetching user data in `getServerSideProps` will block rendering until the request to your authentication provider resolves. To prevent creating a bottleneck and decreasing your TTFB ([Time to First Byte](https://web.dev/time-to-first-byte/)), you should ensure your authentication lookup is fast. Otherwise, consider [static generation](#authenticating-statically-generated-pages).
+
+## Authenticating API Routes
 
 ## Authentication Providers
 
