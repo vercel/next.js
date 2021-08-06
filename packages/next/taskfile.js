@@ -328,6 +328,14 @@ export async function ncc_fresh(task, opts) {
     .target('compiled/fresh')
 }
 // eslint-disable-next-line camelcase
+externals['glob'] = 'next/dist/compiled/glob'
+export async function ncc_glob(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('glob')))
+    .ncc({ packageName: 'glob', externals })
+    .target('compiled/glob')
+}
+// eslint-disable-next-line camelcase
 externals['gzip-size'] = 'next/dist/compiled/gzip-size'
 export async function ncc_gzip_size(task, opts) {
   await task
@@ -821,6 +829,7 @@ export async function ncc(task, opts) {
         'ncc_find_cache_dir',
         'ncc_find_up',
         'ncc_fresh',
+        'ncc_glob',
         'ncc_gzip_size',
         'ncc_http_proxy',
         'ncc_ignore_loader',
