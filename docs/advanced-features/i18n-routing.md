@@ -52,6 +52,9 @@ module.exports = {
       {
         domain: 'example.fr',
         defaultLocale: 'fr',
+        // an optional http field can also be used to test
+        // locale domains locally with http instead of https
+        http: true,
       },
     ],
   },
@@ -278,3 +281,8 @@ export const getStaticPaths = ({ locales }) => {
   }
 }
 ```
+
+## Limits for the i18n config
+
+- `locales`: 100 total locales
+- `domains`: 100 total locale domain items

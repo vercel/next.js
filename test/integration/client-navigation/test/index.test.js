@@ -25,47 +25,27 @@ describe('Client Navigation', () => {
     context.server = await launchApp(join(__dirname, '../'), context.appPort, {
       env: { __NEXT_TEST_WITH_DEVTOOL: 1 },
     })
-
-    const prerender = [
-      '/async-props',
-      '/default-head',
-      '/empty-get-initial-props',
-      '/error',
-      '/finish-response',
-      '/head',
-      '/json',
-      '/link',
-      '/stateless',
-      '/fragment-syntax',
-      '/custom-extension',
-      '/styled-jsx',
-      '/styled-jsx-external',
-      '/with-cdm',
-      '/url-prop',
-      '/url-prop-override',
-
-      '/dynamic/ssr',
-      '/dynamic/[slug]/route',
-
-      '/nav',
-      '/nav/about',
-      '/nav/on-click',
-      '/nav/querystring',
-      '/nav/self-reload',
-      '/nav/hash-changes',
-      '/nav/shallow-routing',
-      '/nav/redirect',
-      '/nav/as-path',
-      '/nav/as-path-using-router',
-      '/nav/url-prop-change',
-
-      '/nested-cdm',
-    ]
-    await Promise.all(
-      prerender.map((route) => renderViaHTTP(context.appPort, route))
-    )
   })
   afterAll(() => killApp(context.server))
+
+  it('should not reload when visiting /_error directly', async () => {
+    const { status } = await fetchViaHTTP(context.appPort, '/_error')
+    const browser = await webdriver(context.appPort, '/_error')
+
+    await browser.eval('window.hello = true')
+
+    // wait on-demand-entries timeout since it can trigger
+    // reloading non-stop
+    for (let i = 0; i < 15; i++) {
+      expect(await browser.eval('window.hello')).toBe(true)
+      await waitFor(1000)
+    }
+    const html = await browser.eval('document.documentElement.innerHTML')
+
+    expect(status).toBe(404)
+    expect(html).toContain('This page could not be found')
+    expect(html).toContain('404')
+  })
 
   describe('with <Link/>', () => {
     it('should navigate the page', async () => {
@@ -166,30 +146,6 @@ describe('Client Navigation', () => {
         'hello'
       )
       expect(await browser.eval(() => window._didNotNavigate)).toBe(true)
-    })
-  })
-
-  describe('With url property', () => {
-    it('Should keep immutable pathname, asPath and query', async () => {
-      const browser = await webdriver(context.appPort, '/nav/url-prop-change')
-      await browser.elementByCss('#add-query').click()
-      const urlResult = await browser.elementByCss('#url-result').text()
-      const previousUrlResult = await browser
-        .elementByCss('#previous-url-result')
-        .text()
-
-      expect(JSON.parse(urlResult)).toMatchObject({
-        query: { added: 'yes' },
-        pathname: '/nav/url-prop-change',
-        asPath: '/nav/url-prop-change?added=yes',
-      })
-      expect(JSON.parse(previousUrlResult)).toMatchObject({
-        query: {},
-        pathname: '/nav/url-prop-change',
-        asPath: '/nav/url-prop-change',
-      })
-
-      await browser.close()
     })
   })
 
@@ -905,6 +861,22 @@ describe('Client Navigation', () => {
 
       expect(newScrollPosition3).toBe(0)
     })
+  })
+
+  it('should scroll to top when the scroll option is set to true', async () => {
+    const browser = await webdriver(context.appPort, '/nav/shallow-routing')
+    await browser.eval(() =>
+      document.querySelector('#increaseWithScroll').scrollIntoView()
+    )
+    const scrollPosition = await browser.eval('window.pageYOffset')
+
+    expect(scrollPosition).toBeGreaterThan(3000)
+
+    await browser.elementByCss('#increaseWithScroll').click()
+    await check(async () => {
+      const newScrollPosition = await browser.eval('window.pageYOffset')
+      return newScrollPosition === 0 ? 'success' : 'fail'
+    }, 'success')
   })
 
   describe('with URL objects', () => {

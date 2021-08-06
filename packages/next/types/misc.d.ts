@@ -3,8 +3,7 @@ declare module 'next/dist/compiled/babel/plugin-transform-modules-commonjs'
 declare module 'next/dist/compiled/babel/plugin-syntax-jsx'
 declare module 'browserslist'
 declare module 'cssnano-simple' {
-  import { OldPlugin } from 'postcss'
-  const cssnanoSimple: OldPlugin<{}>
+  const cssnanoSimple: any
   export = cssnanoSimple
 }
 declare module 'styled-jsx/server'
@@ -76,6 +75,10 @@ declare module 'next/dist/compiled/ci-info' {
   import m from 'ci-info'
   export = m
 }
+declare module 'next/dist/compiled/cli-select' {
+  import m from 'cli-select'
+  export = m
+}
 declare module 'next/dist/compiled/compression' {
   import m from 'compression'
   export = m
@@ -90,6 +93,10 @@ declare module 'next/dist/compiled/content-type' {
 }
 declare module 'next/dist/compiled/cookie' {
   import m from 'cookie'
+  export = m
+}
+declare module 'next/dist/compiled/cross-spawn' {
+  import m from 'cross-spawn'
   export = m
 }
 declare module 'next/dist/compiled/debug' {

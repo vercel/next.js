@@ -1,8 +1,21 @@
 # Example application using [`next-iron-session`](https://github.com/vvo/next-iron-session)
 
+---
+
+<p align="center"><b>Online demo at <a href="https://next-iron-session.vercel.app/">https://next-iron-session.vercel.app/</a> 👀</b></p>
+
+---
+
 This example creates an authentication system that uses a **signed and encrypted cookie to store session data**. It relies on [`next-iron-session`](https://github.com/vvo/next-iron-session).
 
 It uses current best practices for authentication in the Next.js ecosystem.
+
+On the next-iron-session repository (https://github.com/vvo/next-iron-session) you'll find:
+
+- full API documentation and explanations on how it works
+- [TypeScript example](https://github.com/vvo/next-iron-session/tree/master/examples/next-typescript)
+- [JavaScript example](https://github.com/vvo/next-iron-session/tree/master/examples/next.js)
+- [Express.js example](https://github.com/vvo/next-iron-session/tree/master/examples/express)
 
 **Features:**
 
@@ -15,13 +28,13 @@ It uses current best practices for authentication in the Next.js ecosystem.
 [`next-iron-session`](https://github.com/vvo/next-iron-session) also supports:
 
 - Express / Connect middlewares
-- Multiple encryption keys (password) to allow for seamless updates or just password rotation
+- Multiple encryption keys (passwords) to allow for seamless updates or just password rotation
 
----
+## Preview
 
-<p align="center"><b>Online demo at <a href="https://next-iron-session.vercel.app/">https://next-iron-session.vercel.app/</a> 👀</b></p>
+Preview the example live on [StackBlitz](http://stackblitz.com/):
 
----
+[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-iron-session)
 
 ## Deploy your own
 

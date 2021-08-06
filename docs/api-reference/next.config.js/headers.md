@@ -4,8 +4,6 @@ description: Add custom HTTP headers to your Next.js app.
 
 # Headers
 
-> This feature was introduced in [Next.js 9.5](https://nextjs.org/blog/next-9-5) and up. If you’re using older versions of Next.js, please upgrade before trying it out.
-
 <details open>
   <summary><b>Examples</b></summary>
   <ul>
@@ -16,9 +14,10 @@ description: Add custom HTTP headers to your Next.js app.
 <details>
   <summary><b>Version History</b></summary>
 
-| Version   | Changes      |
-| --------- | ------------ |
-| `v10.2.0` | `has` added. |
+| Version   | Changes        |
+| --------- | -------------- |
+| `v10.2.0` | `has` added.   |
+| `v9.5.0`  | Headers added. |
 
 </details>
 
@@ -167,13 +166,17 @@ The following characters `(`, `)`, `{`, `}`, `:`, `*`, `+`, `?` are used for reg
 
 ```js
 module.exports = {
-  async redirects() {
+  async headers() {
     return [
       {
         // this will match `/english(default)/something` being requested
         source: '/english\\(default\\)/:slug',
-        destination: '/en-us/:slug',
-        permanent: false,
+        headers: [
+          {
+            key: 'x-header',
+            value: 'value',
+          },
+        ],
       },
     ]
   },
@@ -374,3 +377,14 @@ module.exports = {
 ### Cache-Control
 
 Cache-Control headers set in next.config.js will be overwritten in production to ensure that static assets can be cached effectively. If you need to revalidate the cache of a page that has been [statically generated](https://nextjs.org/docs/basic-features/pages#static-generation-recommended), you can do so by setting `revalidate` in the page's [`getStaticProps`](https://nextjs.org/docs/basic-features/data-fetching#getstaticprops-static-generation) function.
+
+## Related
+
+For more information, we recommend the following sections:
+
+<div class="card">
+  <a href="/docs/advanced-features/security-headers.md">
+    <b>Security Headers:</b>
+    <small>Improve the security of your Next.js application by add HTTP response headers.</small>
+  </a>
+</div>

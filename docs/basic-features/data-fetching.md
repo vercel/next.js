@@ -72,8 +72,8 @@ The `context` parameter is an object containing the following keys:
 
 `getStaticProps` should return an object with:
 
-- `props` - A **required** object with the props that will be received by the page component. It should be a [serializable object](https://en.wikipedia.org/wiki/Serialization)
-- `revalidate` - An **optional** amount in seconds after which a page re-generation can occur. More on [Incremental Static Regeneration](#incremental-static-regeneration)
+- `props` - An **optional** object with the props that will be received by the page component. It should be a [serializable object](https://en.wikipedia.org/wiki/Serialization)
+- `revalidate` - An **optional** amount in seconds after which a page re-generation can occur. Defaults to `false`. When `revalidate` is `false` it means that there is no revalidation, so the page will be cached as built until your next build. More on [Incremental Static Regeneration](#incremental-static-regeneration)
 - `notFound` - An **optional** boolean value to allow the page to return a 404 status and page. Below is an example of how it works:
 
   ```js
@@ -134,7 +134,7 @@ The `context` parameter is an object containing the following keys:
 >
 > Fetching from an external API is fine!
 
-### Simple Example
+### Example
 
 Here’s an example which uses `getStaticProps` to fetch a list of blog posts from a CMS (content management system). This example is also in the [Pages documentation](/docs/basic-features/pages.md).
 
@@ -222,20 +222,27 @@ export default Blog
 
 ### Incremental Static Regeneration
 
-> This feature was introduced in [Next.js 9.5](https://nextjs.org/blog/next-9-5#stable-incremental-static-regeneration) and up. If you’re using older versions of Next.js, please upgrade before trying Incremental Static Regeneration.
-
 <details open>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="https://reactions-demo.vercel.app/">Static Reactions Demo</a></li>
+    <li><a href="https://nextjs.org/commerce">Next.js Commerce</a></li>
+    <li><a href="https://reactions-demo.vercel.app/">GitHub Reactions Demo</a></li>
+    <li><a href="https://static-tweet.vercel.app/">Static Tweet Demo</a></li>
   </ul>
 </details>
 
-With [`getStaticProps`](#getstaticprops-static-generation) you don't have to stop relying on dynamic content, as **static content can also be dynamic**. Incremental Static Regeneration allows you to update _existing_ pages by re-rendering them in the background as traffic comes in.
+<details>
+  <summary><b>Version History</b></summary>
 
-Inspired by [stale-while-revalidate](https://tools.ietf.org/html/rfc5861), background regeneration ensures traffic is served uninterruptedly, always from static storage, and the newly built page is pushed only after it's done generating.
+| Version  | Changes          |
+| -------- | ---------------- |
+| `v9.5.0` | Base Path added. |
 
-Consider our previous [`getStaticProps` example](#simple-example), but now with regeneration enabled:
+</details>
+
+Next.js allows you to create or update static pages _after_ you’ve built your site. Incremental Static Regeneration (ISR) enables you to use static-generation on a per-page basis, **without needing to rebuild the entire site**. With ISR, you can retain the benefits of static while scaling to millions of pages.
+
+Consider our previous [`getStaticProps` example](#simple-example), but now with Incremental Static Regeneration enabled through the `revalidate` property:
 
 ```jsx
 function Blog({ posts }) {
@@ -261,25 +268,42 @@ export async function getStaticProps() {
     },
     // Next.js will attempt to re-generate the page:
     // - When a request comes in
-    // - At most once every second
-    revalidate: 1, // In seconds
+    // - At most once every 10 seconds
+    revalidate: 10, // In seconds
   }
+}
+
+// This function gets called at build time on server-side.
+// It may be called again, on a serverless function, if
+// the path has not been generated.
+export async function getStaticPaths() {
+  const res = await fetch('https://.../posts')
+  const posts = await res.json()
+
+  // Get the paths we want to pre-render based on posts
+  const paths = posts.map((post) => ({
+    params: { id: post.id },
+  }))
+
+  // We'll pre-render only these paths at build time.
+  // { fallback: blocking } will server-render pages
+  // on-demand if the path doesn't exist.
+  return { paths, fallback: 'blocking' }
 }
 
 export default Blog
 ```
 
-Now the list of blog posts will be revalidated once per second; if you add a new blog post it will be available almost immediately, without having to re-build your app or make a new deployment.
+When a request is made to a page that was pre-rendered at build time, it will initially show the cached page.
 
-This works perfectly with [`fallback: true`](#fallback-true). Because now you can have a list of posts that's always up to date with the latest posts, and have a [blog post page](#fallback-pages) that generates blog posts on-demand, no matter how many posts you add or update.
+- Any requests to the page after the initial request and before 10 seconds are also cached and instantaneous.
+- After the 10-second window, the next request will still show the cached (stale) page
+- Next.js triggers a regeneration of the page in the background.
+- Once the page has been successfully generated, Next.js will invalidate the cache and show the updated product page. If the background regeneration fails, the old page will stay unaltered.
 
-#### Static content at scale
+When a request is made to a path that hasn’t been generated, Next.js will server-render the page on the first request. Future requests will serve the static file from the cache.
 
-Unlike traditional SSR, [Incremental Static Regeneration](#incremental-static-regeneration) ensures you retain the benefits of static:
-
-- No spikes in latency. Pages are served consistently fast
-- Pages never go offline. If the background page re-generation fails, the old page remains unaltered
-- Low database and backend load. Pages are re-computed at most once concurrently
+To learn how to persist the cache globally and handle rollbacks, learn more about [Incremental Static Regeneration](https://vercel.com/docs/next.js/incremental-static-regeneration).
 
 ### Reading files: Use `process.cwd()`
 
@@ -489,7 +513,7 @@ If `fallback` is `true`, then the behavior of `getStaticProps` changes:
 - The paths that have not been generated at build time will **not** result in a 404 page. Instead, Next.js will serve a “fallback” version of the page on the first request to such a path (see [“Fallback pages”](#fallback-pages) below for details).
 - In the background, Next.js will statically generate the requested path HTML and JSON. This includes running `getStaticProps`.
 - When that’s done, the browser receives the JSON for the generated path. This will be used to automatically render the page with the required props. From the user’s perspective, the page will be swapped from the fallback page to the full page.
-- At the same time, Next.js adds this path to the list of pre-rendered pages. Subsequent requests to the same path will serve the generated page, just like other pages pre-rendered at build time.
+- At the same time, Next.js adds this path to the list of pre-rendered pages. Subsequent requests to the same path will serve the generated page, like other pages pre-rendered at build time.
 
 > `fallback: true` is not supported when using [`next export`](/docs/advanced-features/static-html-export.md).
 
@@ -567,7 +591,7 @@ If `fallback` is `'blocking'`, new paths not returned by `getStaticPaths` will w
 - The paths returned from `getStaticPaths` will be rendered to HTML at build time by `getStaticProps`.
 - The paths that have not been generated at build time will **not** result in a 404 page. Instead, Next.js will SSR on the first request and return the generated HTML.
 - When that’s done, the browser receives the HTML for the generated path. From the user’s perspective, it will transition from "the browser is requesting the page" to "the full page is loaded". There is no flash of loading/fallback state.
-- At the same time, Next.js adds this path to the list of pre-rendered pages. Subsequent requests to the same path will serve the generated page, just like other pages pre-rendered at build time.
+- At the same time, Next.js adds this path to the list of pre-rendered pages. Subsequent requests to the same path will serve the generated page, like other pages pre-rendered at build time.
 
 `fallback: 'blocking'` will not _update_ generated pages by default. To update generated pages, use [Incremental Static Regeneration](#incremental-static-regeneration) in conjunction with `fallback: 'blocking'`.
 
@@ -648,7 +672,7 @@ The `context` parameter is an object containing the following keys:
 
 `getServerSideProps` should return an object with:
 
-- `props` - A **required** object with the props that will be received by the page component. It should be a [serializable object](https://en.wikipedia.org/wiki/Serialization)
+- `props` - An **optional** object with the props that will be received by the page component. It should be a [serializable object](https://en.wikipedia.org/wiki/Serialization)
 - `notFound` - An **optional** boolean value to allow the page to return a 404 status and page. Below is an example of how it works:
 
   ```js
@@ -703,7 +727,7 @@ The `context` parameter is an object containing the following keys:
 >
 > Fetching from an external API is fine!
 
-### Simple example
+### Example
 
 Here’s an example which uses `getServerSideProps` to fetch data at request time and pre-renders it. This example is also in the [Pages documentation](/docs/basic-features/pages.md).
 
@@ -801,8 +825,10 @@ The team behind Next.js has created a React hook for data fetching called [**SWR
 ```jsx
 import useSWR from 'swr'
 
+const fetcher = (url) => fetch(url).then((res) => res.json())
+
 function Profile() {
-  const { data, error } = useSWR('/api/user', fetch)
+  const { data, error } = useSWR('/api/user', fetcher)
 
   if (error) return <div>failed to load</div>
   if (!data) return <div>loading...</div>

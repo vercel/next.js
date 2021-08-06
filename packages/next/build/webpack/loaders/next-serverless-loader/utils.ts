@@ -2,27 +2,27 @@ import { IncomingMessage, ServerResponse } from 'http'
 import { format as formatUrl, UrlWithParsedQuery, parse as parseUrl } from 'url'
 import { parse as parseQs, ParsedUrlQuery } from 'querystring'
 import { Rewrite } from '../../../../lib/load-custom-routes'
-import { normalizeLocalePath } from '../../../../next-server/lib/i18n/normalize-locale-path'
-import pathMatch from '../../../../next-server/lib/router/utils/path-match'
-import { getRouteRegex } from '../../../../next-server/lib/router/utils/route-regex'
-import { getRouteMatcher } from '../../../../next-server/lib/router/utils/route-matcher'
+import { normalizeLocalePath } from '../../../../shared/lib/i18n/normalize-locale-path'
+import pathMatch from '../../../../shared/lib/router/utils/path-match'
+import { getRouteRegex } from '../../../../shared/lib/router/utils/route-regex'
+import { getRouteMatcher } from '../../../../shared/lib/router/utils/route-matcher'
 import prepareDestination, {
   matchHas,
-} from '../../../../next-server/lib/router/utils/prepare-destination'
-import { __ApiPreviewProps } from '../../../../next-server/server/api-utils'
-import { BuildManifest } from '../../../../next-server/server/get-page-files'
+} from '../../../../shared/lib/router/utils/prepare-destination'
+import { __ApiPreviewProps } from '../../../../server/api-utils'
+import { BuildManifest } from '../../../../server/get-page-files'
 import {
   GetServerSideProps,
   GetStaticPaths,
   GetStaticProps,
 } from '../../../../types'
 import accept from '@hapi/accept'
-import { detectLocaleCookie } from '../../../../next-server/lib/i18n/detect-locale-cookie'
-import { detectDomainLocale } from '../../../../next-server/lib/i18n/detect-domain-locale'
-import { denormalizePagePath } from '../../../../next-server/server/denormalize-page-path'
+import { detectLocaleCookie } from '../../../../shared/lib/i18n/detect-locale-cookie'
+import { detectDomainLocale } from '../../../../shared/lib/i18n/detect-domain-locale'
+import { denormalizePagePath } from '../../../../server/denormalize-page-path'
 import cookie from 'next/dist/compiled/cookie'
-import { TEMPORARY_REDIRECT_STATUS } from '../../../../next-server/lib/constants'
-import { NextConfig } from '../../../../next-server/server/config'
+import { TEMPORARY_REDIRECT_STATUS } from '../../../../shared/lib/constants'
+import { NextConfig } from '../../../../server/config'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -249,14 +249,17 @@ export function getUtils({
         let paramValue: string
 
         if (Array.isArray(params[param])) {
-          paramValue = (params[param] as string[]).join('/')
+          paramValue = (params[param] as string[])
+            .map((v) => v && encodeURIComponent(v))
+            .join('/')
         } else {
-          paramValue = params[param] as string
+          paramValue =
+            params[param] && encodeURIComponent(params[param] as string)
         }
 
         pathname =
           pathname.substr(0, paramIdx) +
-          encodeURI(paramValue || '') +
+          (paramValue || '') +
           pathname.substr(paramIdx + builtParam.length)
       }
     }
@@ -280,7 +283,7 @@ export function getUtils({
 
   function normalizeDynamicRouteParams(params: ParsedUrlQuery) {
     let hasValidParams = true
-    if (!defaultRouteRegex) return { params, hasValidParams }
+    if (!defaultRouteRegex) return { params, hasValidParams: false }
 
     params = Object.keys(defaultRouteRegex.groups).reduce((prev, key) => {
       let value: string | string[] | undefined = params[key]
@@ -288,9 +291,15 @@ export function getUtils({
       // if the value matches the default value we can't rely
       // on the parsed params, this is used to signal if we need
       // to parse x-now-route-matches or not
-      const isDefaultValue = Array.isArray(value)
-        ? value.every((val, idx) => val === defaultRouteMatches![key][idx])
-        : value === defaultRouteMatches![key]
+      const defaultValue = defaultRouteMatches![key]
+
+      const isDefaultValue = Array.isArray(defaultValue)
+        ? defaultValue.some((defaultVal) => {
+            return Array.isArray(value)
+              ? value.some((val) => val.includes(defaultVal))
+              : value?.includes(defaultVal)
+          })
+        : value?.includes(defaultValue as string)
 
       if (isDefaultValue || typeof value === 'undefined') {
         hasValidParams = false
@@ -345,10 +354,15 @@ export function getUtils({
 
     let defaultLocale = i18n.defaultLocale
     let detectedLocale = detectLocaleCookie(req, i18n.locales)
-    let acceptPreferredLocale =
-      i18n.localeDetection !== false
-        ? accept.language(req.headers['accept-language'], i18n.locales)
-        : detectedLocale
+    let acceptPreferredLocale
+    try {
+      acceptPreferredLocale =
+        i18n.localeDetection !== false
+          ? accept.language(req.headers['accept-language'], i18n.locales)
+          : detectedLocale
+    } catch (_) {
+      acceptPreferredLocale = detectedLocale
+    }
 
     const { host } = req.headers || {}
     // remove port from host and remove port if present

@@ -228,6 +228,10 @@ const expectedManifestRoutes = () => ({
   },
 })
 
+function isCachingHeader(cacheControl) {
+  return !cacheControl || !/no-store/.test(cacheControl)
+}
+
 const navigateTest = (dev = false) => {
   it('should navigate between pages successfully', async () => {
     const toBuild = [
@@ -974,18 +978,20 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
 
     it('should always call getStaticProps without caching in dev', async () => {
       const initialRes = await fetchViaHTTP(appPort, '/something')
-      expect(initialRes.headers.get('cache-control')).toBeFalsy()
+      expect(isCachingHeader(initialRes.headers.get('cache-control'))).toBe(
+        false
+      )
       const initialHtml = await initialRes.text()
       expect(initialHtml).toMatch(/hello.*?world/)
 
       const newRes = await fetchViaHTTP(appPort, '/something')
-      expect(newRes.headers.get('cache-control')).toBeFalsy()
+      expect(isCachingHeader(newRes.headers.get('cache-control'))).toBe(false)
       const newHtml = await newRes.text()
       expect(newHtml).toMatch(/hello.*?world/)
       expect(initialHtml !== newHtml).toBe(true)
 
       const newerRes = await fetchViaHTTP(appPort, '/something')
-      expect(newerRes.headers.get('cache-control')).toBeFalsy()
+      expect(isCachingHeader(newerRes.headers.get('cache-control'))).toBe(false)
       const newerHtml = await newerRes.text()
       expect(newerHtml).toMatch(/hello.*?world/)
       expect(newHtml !== newerHtml).toBe(true)
@@ -1640,6 +1646,7 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
 
       it('should handle revalidating HTML correctly', async () => {
         const route = '/blog/post-2/comment-2'
+        await renderViaHTTP(appPort, route)
         const initialHtml = await renderViaHTTP(appPort, route)
         expect(initialHtml).toMatch(/Post:.*?post-2/)
         expect(initialHtml).toMatch(/Comment:.*?comment-2/)

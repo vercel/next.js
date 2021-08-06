@@ -4,8 +4,6 @@ description: Add redirects to your Next.js app.
 
 # Redirects
 
-> This feature was introduced in [Next.js 9.5](https://nextjs.org/blog/next-9-5) and up. If you’re using older versions of Next.js, please upgrade before trying it out.
-
 <details open>
   <summary><b>Examples</b></summary>
   <ul>
@@ -16,9 +14,10 @@ description: Add redirects to your Next.js app.
 <details>
   <summary><b>Version History</b></summary>
 
-| Version   | Changes      |
-| --------- | ------------ |
-| `v10.2.0` | `has` added. |
+| Version   | Changes          |
+| --------- | ---------------- |
+| `v10.2.0` | `has` added.     |
+| `v9.5.0`  | Redirects added. |
 
 </details>
 
@@ -52,6 +51,18 @@ module.exports = {
 - `has` is an array of [has objects](#header-cookie-and-query-matching) with the `type`, `key` and `value` properties.
 
 Redirects are checked before the filesystem which includes pages and `/public` files.
+
+When a redirect is applied, any query values provided in the request will be passed through to the redirect destination. For example, see the following redirect configuration:
+
+```js
+{
+  source: '/old-blog/:path*',
+  destination: '/blog/:path*',
+  permanent: false
+}
+```
+
+When `/old-blog/post-1?hello=world` is requested, the client will be redirected to `/blog/post-1?hello=world`.
 
 ## Path Matching
 
@@ -141,7 +152,7 @@ module.exports = {
       // if the header `x-redirect-me` is present,
       // this redirect will be applied
       {
-        source: '/:path*',
+        source: '/:path((?!another-page$).*)',
         has: [
           {
             type: 'header',
@@ -171,12 +182,12 @@ module.exports = {
           },
         ],
         permanent: false,
-        destination: '/:path*/:page',
+        destination: '/another/:path*',
       },
       // if the header `x-authorized` is present and
       // contains a matching value, this redirect will be applied
       {
-        source: '/:path*',
+        source: '/',
         has: [
           {
             type: 'header',
@@ -190,7 +201,7 @@ module.exports = {
       // if the host is `example.com`,
       // this redirect will be applied
       {
-        source: '/:path*',
+        source: '/:path((?!another-page$).*)',,
         has: [
           {
             type: 'host',

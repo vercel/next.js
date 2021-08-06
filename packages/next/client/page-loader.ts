@@ -4,12 +4,13 @@ import {
   addBasePath,
   addLocale,
   interpolateAs,
-} from '../next-server/lib/router/router'
-import getAssetPathFromRoute from '../next-server/lib/router/utils/get-asset-path-from-route'
-import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
-import { parseRelativeUrl } from '../next-server/lib/router/utils/parse-relative-url'
+} from '../shared/lib/router/router'
+import getAssetPathFromRoute from '../shared/lib/router/utils/get-asset-path-from-route'
+import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
+import { parseRelativeUrl } from '../shared/lib/router/utils/parse-relative-url'
 import { removePathTrailingSlash } from './normalize-trailing-slash'
-import createRouteLoader, {
+import {
+  createRouteLoader,
   getClientBuildManifest,
   RouteLoader,
 } from './route-loader'

@@ -8,21 +8,24 @@ import { namedTypes } from 'ast-types'
 import {
   getFontDefinitionFromNetwork,
   FontManifest,
-} from '../../../next-server/server/font-utils'
+} from '../../../server/font-utils'
 import postcss from 'postcss'
 import minifier from 'cssnano-simple'
 import {
   FONT_MANIFEST,
   OPTIMIZED_FONT_PROVIDERS,
-} from '../../../next-server/lib/constants'
+} from '../../../shared/lib/constants'
 
 function minifyCss(css: string): Promise<string> {
   return postcss([
-    minifier({
-      excludeAll: true,
-      discardComments: true,
-      normalizeWhitespace: { exclude: false },
-    }),
+    minifier(
+      {
+        excludeAll: true,
+        discardComments: true,
+        normalizeWhitespace: { exclude: false },
+      },
+      postcss
+    ),
   ])
     .process(css, { from: undefined })
     .then((res) => res.css)
@@ -89,24 +92,32 @@ export class FontStylesheetGatheringPlugin {
             }
 
             // node.arguments[0] is the name of the tag and [1] are the props.
-            const propsNode = node.arguments[1] as namedTypes.ObjectExpression
+            const arg1 = node.arguments[1]
+
+            const propsNode =
+              arg1.type === 'ObjectExpression'
+                ? (arg1 as namedTypes.ObjectExpression)
+                : undefined
             const props: { [key: string]: string } = {}
-            propsNode.properties.forEach((prop) => {
-              if (prop.type !== 'Property') {
-                return
-              }
-              if (
-                prop.key.type === 'Identifier' &&
-                prop.value.type === 'Literal'
-              ) {
-                props[prop.key.name] = prop.value.value as string
-              }
-            })
+            if (propsNode) {
+              propsNode.properties.forEach((prop) => {
+                if (prop.type !== 'Property') {
+                  return
+                }
+                if (
+                  prop.key.type === 'Identifier' &&
+                  prop.value.type === 'Literal'
+                ) {
+                  props[prop.key.name] = prop.value.value as string
+                }
+              })
+            }
+
             if (
               !props.rel ||
               props.rel !== 'stylesheet' ||
               !props.href ||
-              !OPTIMIZED_FONT_PROVIDERS.some((url) =>
+              !OPTIMIZED_FONT_PROVIDERS.some(({ url }) =>
                 props.href.startsWith(url)
               )
             ) {
@@ -114,7 +125,19 @@ export class FontStylesheetGatheringPlugin {
             }
 
             this.gatheredStylesheets.push(props.href)
+
+            if (isWebpack5) {
+              const buildInfo = parser?.state?.module?.buildInfo
+
+              if (buildInfo) {
+                buildInfo.valueDependencies.set(
+                  FONT_MANIFEST,
+                  this.gatheredStylesheets
+                )
+              }
+            }
           }
+
           // React JSX transform:
           parser.hooks.call
             .for('_jsx')
@@ -161,8 +184,24 @@ export class FontStylesheetGatheringPlugin {
       }
       compilation.hooks.finishModules.tapAsync(
         this.constructor.name,
-        async (_: any, modulesFinished: Function) => {
-          const fontDefinitionPromises = this.gatheredStylesheets.map((url) =>
+        async (modules: any, modulesFinished: Function) => {
+          let fontStylesheets = this.gatheredStylesheets
+
+          if (isWebpack5) {
+            const fontUrls = new Set<string>()
+            modules.forEach((module: any) => {
+              const fontDependencies = module?.buildInfo?.valueDependencies?.get(
+                FONT_MANIFEST
+              )
+              if (fontDependencies) {
+                fontDependencies.forEach((v: string) => fontUrls.add(v))
+              }
+            })
+
+            fontStylesheets = Array.from(fontUrls)
+          }
+
+          const fontDefinitionPromises = fontStylesheets.map((url) =>
             getFontDefinitionFromNetwork(url)
           )
 
@@ -173,7 +212,7 @@ export class FontStylesheetGatheringPlugin {
             if (css) {
               const content = await minifyCss(css)
               this.manifestContent.push({
-                url: this.gatheredStylesheets[promiseIndex],
+                url: fontStylesheets[promiseIndex],
                 content,
               })
             }

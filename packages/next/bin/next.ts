@@ -20,6 +20,7 @@ const commands: { [command: string]: () => Promise<cliCommand> } = {
   start: () => import('../cli/next-start').then((i) => i.nextStart),
   export: () => import('../cli/next-export').then((i) => i.nextExport),
   dev: () => import('../cli/next-dev').then((i) => i.nextDev),
+  lint: () => import('../cli/next-lint').then((i) => i.nextLint),
   telemetry: () => import('../cli/next-telemetry').then((i) => i.nextTelemetry),
 }
 
@@ -92,16 +93,6 @@ if (process.env.NODE_ENV && !standardEnv.includes(process.env.NODE_ENV)) {
 
 ;(process.env as any).NODE_ENV = process.env.NODE_ENV || defaultEnv
 
-// this needs to come after we set the correct NODE_ENV or
-// else it might cause SSR to break
-const React = require('react')
-
-if (typeof React.Suspense === 'undefined') {
-  throw new Error(
-    `The version of React you are using is lower than the minimum required version needed for Next.js. Please upgrade "react" and "react-dom": "npm install react react-dom" https://nextjs.org/docs/messages/invalid-react-version`
-  )
-}
-
 // Make sure commands gracefully respect termination signals (e.g. from Docker)
 process.on('SIGTERM', () => process.exit(0))
 process.on('SIGINT', () => process.exit(0))
@@ -117,7 +108,7 @@ commands[command]()
   })
 
 if (command === 'dev') {
-  const { CONFIG_FILE } = require('../next-server/lib/constants')
+  const { CONFIG_FILE } = require('../shared/lib/constants')
   const { watchFile } = require('fs')
   watchFile(`${process.cwd()}/${CONFIG_FILE}`, (cur: any, prev: any) => {
     if (cur.size > 0 || prev.size > 0) {
