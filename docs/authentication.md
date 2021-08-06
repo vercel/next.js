@@ -105,11 +105,11 @@ An advantage of this pattern is preventing a flash of unauthenticated content be
 
 ## Authenticating API Routes
 
-API routes are typically authenticated using a secret stored in a cookie or delivered through the HTTP `Authorization` header.
+API routes are typically authenticated using a secret stored in a cookie or delivered through the `Authorization` header.
 
-Authentication providers offer helpers to verify this secret and return authenticated user data. These helpers are either in the form of middleware or a function.
+Authentication providers offer helpers to verify this secret and return authenticated user data to your API route.
 
-### Middleware
+Let's look at an example that uses middleware to decorate the request object with user data.
 
 ```js
 import { withSession } from '@clerk/next/api'
@@ -125,26 +125,11 @@ function handler(req, res) {
   res.end()
 }
 
+// Use middleware decorate `req` with `session`
 export default withSession(handler)
 ```
 
-### Function
-
-```js
-import { getSession } from '@clerk/next/api'
-
-export default function handler(req, res) {
-  const session = getSession(req)
-  if (session) {
-    // Signed in
-    console.log('User ID', session.userId)
-  } else {
-    // Signed out
-    res.status(401)
-  }
-  res.end()
-}
-```
+You can view this example [in action](#). Check out the [`clerk`](#) example to see how it works.
 
 ## Authentication Providers
 
