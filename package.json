@@ -47,7 +47,7 @@
     "@fullhuman/postcss-purgecss": "1.3.0",
     "@mdx-js/loader": "0.18.0",
     "@svgr/webpack": "5.5.0",
-    "@swc/core": "1.2.66",
+    "@swc/core": "1.2.74",
     "@testing-library/react": "11.2.5",
     "@types/cheerio": "0.22.16",
     "@types/fs-extra": "8.1.0",
