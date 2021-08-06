@@ -29,7 +29,10 @@ export default async function handler(req, res) {
   )
   res.setHeader(
     'Access-Control-Allow-Headers',
-    'Origin, X-Requested-With, Content-Type, Accept'
+    'Origin, X-Requested-With, Content-Type, Accept, Authorization'
+  )
+  res.setHeader(
+    'Access-Control-Allow-Methods', 'POST'
   )
   if (req.method === 'OPTIONS') {
     res.end()
