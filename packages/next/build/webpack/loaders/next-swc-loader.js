@@ -27,7 +27,7 @@ DEALINGS IN THE SOFTWARE.
 */
 
 import { getOptions } from 'next/dist/compiled/loader-utils'
-const { transform } = require('../../swc')
+import { transform } from '../../swc'
 import { trace } from '../../../telemetry/trace'
 
 function getSWCOptions({ isTypeScript, isServer, development }) {
