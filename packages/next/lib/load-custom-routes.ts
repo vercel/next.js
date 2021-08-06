@@ -131,6 +131,7 @@ function checkHeader(route: Header): string[] {
 type ParseAttemptResult = {
   error?: boolean
   tokens?: pathToRegexp.Token[]
+  regexStr?: string
 }
 
 function tryParsePath(route: string, handleUrl?: boolean): ParseAttemptResult {
@@ -147,7 +148,9 @@ function tryParsePath(route: string, handleUrl?: boolean): ParseAttemptResult {
 
     // Make sure we can parse the source properly
     result.tokens = pathToRegexp.parse(routePath)
-    pathToRegexp.tokensToRegexp(result.tokens)
+
+    const regex = pathToRegexp.tokensToRegexp(result.tokens)
+    result.regexStr = regex.source
   } catch (err) {
     // If there is an error show our error link but still show original error or a formatted one if we can
     const errMatches = err.message.match(/at (\d{0,})/)
@@ -328,11 +331,16 @@ function checkCustomRoutes(
     if (typeof route.source === 'string' && route.source.startsWith('/')) {
       // only show parse error if we didn't already show error
       // for not being a string
-      const { tokens, error } = tryParsePath(route.source)
+      const { tokens, error, regexStr } = tryParsePath(route.source)
 
       if (error) {
         invalidParts.push('`source` parse failed')
       }
+
+      if (regexStr && regexStr.length > 4096) {
+        invalidParts.push('`source` exceeds max built length of 4096')
+      }
+
       sourceTokens = tokens
     }
     const hasSegments = new Set<string>()
@@ -384,8 +392,13 @@ function checkCustomRoutes(
         } else {
           const {
             tokens: destTokens,
+            regexStr: destRegexStr,
             error: destinationParseFailed,
           } = tryParsePath((route as Rewrite).destination, true)
+
+          if (destRegexStr && destRegexStr.length > 4096) {
+            invalidParts.push('`destination` exceeds max built length of 4096')
+          }
 
           if (destinationParseFailed) {
             invalidParts.push('`destination` parse failed')
@@ -514,21 +527,23 @@ function processRoutes<T>(
     const destBasePath = srcBasePath && !isExternal ? srcBasePath : ''
 
     if (config.i18n && r.locale !== false) {
-      defaultLocales.forEach((item) => {
-        let destination
+      if (!isExternal) {
+        defaultLocales.forEach((item) => {
+          let destination
 
-        if (r.destination) {
-          destination = item.base
-            ? `${item.base}${destBasePath}${r.destination}`
-            : `${destBasePath}${r.destination}`
-        }
+          if (r.destination) {
+            destination = item.base
+              ? `${item.base}${destBasePath}${r.destination}`
+              : `${destBasePath}${r.destination}`
+          }
 
-        newRoutes.push({
-          ...r,
-          destination,
-          source: `${srcBasePath}/${item.locale}${r.source}`,
+          newRoutes.push({
+            ...r,
+            destination,
+            source: `${srcBasePath}/${item.locale}${r.source}`,
+          })
         })
-      })
+      }
 
       r.source = `/:nextInternalLocale(${config.i18n.locales
         .map((locale: string) => escapeStringRegexp(locale))
@@ -561,8 +576,13 @@ async function loadRedirects(config: NextConfig) {
     return []
   }
   let redirects = await config.redirects()
+  // check before we process the routes and after to ensure
+  // they are still valid
   checkCustomRoutes(redirects, 'redirect')
-  return processRoutes(redirects, config, 'redirect')
+
+  redirects = processRoutes(redirects, config, 'redirect')
+  checkCustomRoutes(redirects, 'redirect')
+  return redirects
 }
 
 async function loadRewrites(config: NextConfig) {
@@ -592,15 +612,24 @@ async function loadRewrites(config: NextConfig) {
   } else {
     afterFiles = _rewrites as any
   }
+  // check before we process the routes and after to ensure
+  // they are still valid
+  checkCustomRoutes(beforeFiles, 'rewrite')
+  checkCustomRoutes(afterFiles, 'rewrite')
+  checkCustomRoutes(fallback, 'rewrite')
+
+  beforeFiles = processRoutes(beforeFiles, config, 'rewrite')
+  afterFiles = processRoutes(afterFiles, config, 'rewrite')
+  fallback = processRoutes(fallback, config, 'rewrite')
 
   checkCustomRoutes(beforeFiles, 'rewrite')
   checkCustomRoutes(afterFiles, 'rewrite')
   checkCustomRoutes(fallback, 'rewrite')
 
   return {
-    beforeFiles: processRoutes(beforeFiles, config, 'rewrite'),
-    afterFiles: processRoutes(afterFiles, config, 'rewrite'),
-    fallback: processRoutes(fallback, config, 'rewrite'),
+    beforeFiles,
+    afterFiles,
+    fallback,
   }
 }
 
@@ -609,8 +638,13 @@ async function loadHeaders(config: NextConfig) {
     return []
   }
   let headers = await config.headers()
+  // check before we process the routes and after to ensure
+  // they are still valid
   checkCustomRoutes(headers, 'header')
-  return processRoutes(headers, config, 'header')
+
+  headers = processRoutes(headers, config, 'header')
+  checkCustomRoutes(headers, 'header')
+  return headers
 }
 
 export default async function loadCustomRoutes(

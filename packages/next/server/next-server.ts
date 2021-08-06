@@ -46,6 +46,7 @@ import {
   isResSent,
   NextApiRequest,
   NextApiResponse,
+  normalizeRepeatedSlashes,
 } from '../shared/lib/utils'
 import {
   apiResolver,
@@ -71,11 +72,16 @@ import Router, {
 import prepareDestination, {
   compileNonPath,
 } from '../shared/lib/router/utils/prepare-destination'
-import { sendPayload, setRevalidateHeaders } from './send-payload'
+import { sendRenderResult, setRevalidateHeaders } from './send-payload'
 import { serveStatic } from './serve-static'
 import { IncrementalCache } from './incremental-cache'
 import { execOnce } from '../shared/lib/utils'
-import { isBlockedPage } from './utils'
+import {
+  isBlockedPage,
+  RenderResult,
+  resultFromChunks,
+  resultToChunks,
+} from './utils'
 import { loadEnvConfig } from '@next/env'
 import './node-polyfill-fetch'
 import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
@@ -308,6 +314,18 @@ export default class Server {
     res: ServerResponse,
     parsedUrl?: UrlWithParsedQuery
   ): Promise<void> {
+    const urlParts = (req.url || '').split('?')
+    const urlNoQuery = urlParts[0]
+
+    if (urlNoQuery?.match(/(\\|\/\/)/)) {
+      const cleanUrl = normalizeRepeatedSlashes(req.url!)
+      res.setHeader('Location', cleanUrl)
+      res.setHeader('Refresh', `0;url=${cleanUrl}`)
+      res.statusCode = 308
+      res.end(cleanUrl)
+      return
+    }
+
     setLazyProp({ req: req as any }, 'cookies', getCookieParser(req.headers))
 
     // Parse url if parsedUrl not provided
@@ -806,7 +824,13 @@ export default class Server {
 
               parsedDestination.search = stringifyQuery(req, query)
 
-              const updatedDestination = formatUrl(parsedDestination)
+              let updatedDestination = formatUrl(parsedDestination)
+
+              if (updatedDestination.startsWith('/')) {
+                updatedDestination = normalizeRepeatedSlashes(
+                  updatedDestination
+                )
+              }
 
               res.setHeader('Location', updatedDestination)
               res.statusCode = getRedirectStatus(redirectRoute as Redirect)
@@ -817,7 +841,7 @@ export default class Server {
                 res.setHeader('Refresh', `0;url=${updatedDestination}`)
               }
 
-              res.end()
+              res.end(updatedDestination)
               return {
                 finished: true,
               }
@@ -1232,17 +1256,17 @@ export default class Server {
         // In dev, we should not cache pages for any reason.
         res.setHeader('Cache-Control', 'no-store, must-revalidate')
       }
-      return sendPayload(
+      return sendRenderResult({
         req,
         res,
-        body,
+        resultOrPayload: requireStaticHTML
+          ? (await resultToChunks(body)).join('')
+          : body,
         type,
-        {
-          generateEtags,
-          poweredByHeader,
-        },
-        revalidateOptions
-      )
+        generateEtags,
+        poweredByHeader,
+        options: revalidateOptions,
+      })
     }
   }
 
@@ -1262,7 +1286,11 @@ export default class Server {
         requireStaticHTML: true,
       },
     })
-    return payload ? payload.body : null
+    if (payload === null) {
+      return null
+    }
+    const chunks = await resultToChunks(payload.body)
+    return chunks.join('')
   }
 
   public async render(
@@ -1438,7 +1466,8 @@ export default class Server {
     if (typeof components.Component === 'string') {
       return {
         type: 'html',
-        body: components.Component,
+        // TODO: Static pages should be written as chunks
+        body: resultFromChunks([components.Component]),
       }
     }
 
@@ -1509,6 +1538,10 @@ export default class Server {
         redirect.destination = `${basePath}${redirect.destination}`
       }
 
+      if (redirect.destination.startsWith('/')) {
+        redirect.destination = normalizeRepeatedSlashes(redirect.destination)
+      }
+
       if (statusCode === PERMANENT_REDIRECT_STATUS) {
         res.setHeader('Refresh', `0;url=${redirect.destination}`)
       }
@@ -1562,17 +1595,16 @@ export default class Server {
         .join('/')
     }
 
-    const doRender: () => Promise<ResponseCacheEntry> = async () => {
+    const doRender: () => Promise<ResponseCacheEntry | null> = async () => {
       let pageData: any
-      let html: string | null
+      let body: RenderResult | null
       let sprRevalidate: number | false
       let isNotFound: boolean | undefined
       let isRedirect: boolean | undefined
 
-      let renderResult
       // handle serverless
       if (isLikeServerless) {
-        renderResult = await (components.Component as any).renderReqToHTML(
+        const renderResult = await (components.Component as any).renderReqToHTML(
           req,
           res,
           'passthrough',
@@ -1587,7 +1619,7 @@ export default class Server {
           }
         )
 
-        html = renderResult.html
+        body = renderResult.html
         pageData = renderResult.renderOpts.pageData
         sprRevalidate = renderResult.renderOpts.revalidate
         isNotFound = renderResult.renderOpts.isNotFound
@@ -1625,9 +1657,15 @@ export default class Server {
               : resolvedUrl,
         }
 
-        renderResult = await renderToHTML(req, res, pathname, query, renderOpts)
+        const renderResult = await renderToHTML(
+          req,
+          res,
+          pathname,
+          query,
+          renderOpts
+        )
 
-        html = renderResult
+        body = renderResult
         // TODO: change this to a different passing mechanism
         pageData = (renderOpts as any).pageData
         sprRevalidate = (renderOpts as any).revalidate
@@ -1641,7 +1679,10 @@ export default class Server {
       } else if (isRedirect) {
         value = { kind: 'REDIRECT', props: pageData }
       } else {
-        value = { kind: 'PAGE', html: html!, pageData }
+        if (!body) {
+          return null
+        }
+        value = { kind: 'PAGE', html: body, pageData }
       }
       return { revalidate: sprRevalidate, value }
     }
@@ -1708,7 +1749,7 @@ export default class Server {
               return {
                 value: {
                   kind: 'PAGE',
-                  html,
+                  html: resultFromChunks([html]),
                   pageData: {},
                 },
               }
@@ -1720,6 +1761,9 @@ export default class Server {
                 prepareServerlessUrl(req, query)
               }
               const result = await doRender()
+              if (!result) {
+                return null
+              }
               // Prevent caching this result
               delete result.revalidate
               return result
@@ -1728,6 +1772,9 @@ export default class Server {
         }
 
         const result = await doRender()
+        if (!result) {
+          return null
+        }
         return {
           ...result,
           revalidate:
@@ -1737,6 +1784,18 @@ export default class Server {
         }
       }
     )
+
+    if (!cacheEntry) {
+      if (ssgCacheKey) {
+        // A cache entry might not be generated if a response is written
+        // in `getInitialProps` or `getServerSideProps`, but those shouldn't
+        // have a cache key. If we do have a cache key but we don't end up
+        // with a cache entry, then either Next.js or the application has a
+        // bug that needs fixing.
+        throw new Error('invariant: cache entry required but not generated')
+      }
+      return null
+    }
 
     const { revalidate, value: cachedData } = cacheEntry
     const revalidateOptions: any =
@@ -1769,7 +1828,7 @@ export default class Server {
       if (isDataReq) {
         return {
           type: 'json',
-          body: JSON.stringify(cachedData.props),
+          body: resultFromChunks([JSON.stringify(cachedData.props)]),
           revalidateOptions,
         }
       } else {
@@ -1779,7 +1838,9 @@ export default class Server {
     } else {
       return {
         type: isDataReq ? 'json' : 'html',
-        body: isDataReq ? JSON.stringify(cachedData.pageData) : cachedData.html,
+        body: isDataReq
+          ? resultFromChunks([JSON.stringify(cachedData.pageData)])
+          : cachedData.html,
         revalidateOptions,
       }
     }
@@ -2013,7 +2074,7 @@ export default class Server {
       }
       return {
         type: 'html',
-        body: 'Internal Server Error',
+        body: resultFromChunks(['Internal Server Error']),
       }
     }
   }
@@ -2213,6 +2274,6 @@ export class WrappedBuildError extends Error {
 
 type ResponsePayload = {
   type: 'html' | 'json'
-  body: string
+  body: RenderResult
   revalidateOptions?: any
 }

@@ -1,7 +1,7 @@
 /* eslint-env jest */
 
 /* eslint-disable jest/no-identical-title */
-
+import url from 'url'
 import fs from 'fs-extra'
 import { join } from 'path'
 import {
@@ -22,19 +22,32 @@ let app
 const expectStatus = async (path) => {
   const containRegex = /(This page could not be found|Bad Request)/
   // test base mount point `public/`
-  const res = await fetchViaHTTP(appPort, path)
-  expect(res.status === 400 || res.status === 404).toBe(true)
-  expect(await res.text()).toMatch(containRegex)
+  const checkRes = async (res) => {
+    if (res.status === 308) {
+      const redirectDest = res.headers.get('location')
+      const parsedUrl = url.parse(redirectDest, true)
+      expect(parsedUrl.hostname).toBe('localhost')
+    } else {
+      expect(res.status === 400 || res.status === 404).toBe(true)
+      expect(await res.text()).toMatch(containRegex)
+    }
+  }
+  const res = await fetchViaHTTP(appPort, path, undefined, {
+    redirect: 'manual',
+  })
+  await checkRes(res)
 
   // test `/_next` mount point
-  const res2 = await fetchViaHTTP(appPort, `/_next/${path}`)
-  expect(res2.status === 400 || res2.status === 404).toBe(true)
-  expect(await res2.text()).toMatch(containRegex)
+  const res2 = await fetchViaHTTP(appPort, `/_next/${path}`, undefined, {
+    redirect: 'manual',
+  })
+  await checkRes(res2)
 
   // test `/static` mount point
-  const res3 = await fetchViaHTTP(appPort, `/static/${path}`)
-  expect(res3.status === 400 || res3.status === 404).toBe(true)
-  expect(await res3.text()).toMatch(containRegex)
+  const res3 = await fetchViaHTTP(appPort, `/static/${path}`, undefined, {
+    redirect: 'manual',
+  })
+  await checkRes(res3)
 }
 
 const runTests = () => {
