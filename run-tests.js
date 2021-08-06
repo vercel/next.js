@@ -1,7 +1,9 @@
 const path = require('path')
 const _glob = require('glob')
 const fs = require('fs').promises
-const fetch = require('node-fetch')
+const nodeFetch = require('node-fetch')
+const vercelFetch = require('@vercel/fetch')
+const fetch = vercelFetch(nodeFetch)
 const { promisify } = require('util')
 const { Sema } = require('async-sema')
 const { spawn, exec: execOrig } = require('child_process')
