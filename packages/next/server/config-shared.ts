@@ -86,6 +86,7 @@ export type NextConfig = { [key: string]: any } & {
   }
   experimental?: {
     swcMinify?: boolean
+    swcLoader?: boolean
     cpus?: number
     plugins?: boolean
     profiling?: boolean
@@ -158,6 +159,7 @@ export const defaultConfig: NextConfig = {
     keepAlive: true,
   },
   experimental: {
+    swcLoader: false,
     swcMinify: false,
     cpus: Math.max(
       1,
