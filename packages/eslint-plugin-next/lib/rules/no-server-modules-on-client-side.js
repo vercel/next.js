@@ -1,186 +1,25 @@
 const { builtinModules } = require('module')
+const {
+  isReactClassComponent,
+  isReactFunctionalComponent,
+} = require('../utils/reactComponents.js')
 
 const MODULES_TO_IGNORE = ['console']
 const NODE_BUILD_IN_MODULES = builtinModules.filter(
   (el) => !el.startsWith('_') && !MODULES_TO_IGNORE.includes(el)
 )
-// TODO: if defined in these methods then do not report
-const DATA_FETCHING_FUNCTION_NAMES = [
-  'getStaticProps',
-  'getStaticPaths',
-  'getServerSideProps',
-]
-const REACT_COMPONENT_TYPES = ['PureComponent', 'Component']
-const REACT_WRAPPER_FUNCTIONS = ['forwardRef', 'memo']
-const JSX_ELEMENTS = ['JSXElement', 'JSXFragment']
 
-const isJSX = (node) => node && JSX_ELEMENTS.includes(node.type)
-
-const isFirstLetterUpperCase = (str) => {
-  if (!str) {
-    return false
-  }
-  const firstLetter = str.charAt(0)
-  return firstLetter.toUpperCase() === firstLetter
-}
-
-const isReactClassComponent = (node) => {
-  const { superClass } = node
-  if (!superClass) {
-    return false
-  }
-
-  const classComponentRegExp = new RegExp(
-    `^(React\\.)?(PureComponent|Component)?$`
-  )
-  if (superClass.name) {
-    return classComponentRegExp.test(superClass.name)
-  }
-
-  if (
-    superClass.type === 'MemberExpression' &&
-    superClass.object.name === 'React' &&
-    REACT_COMPONENT_TYPES.includes(superClass.property.name)
-  ) {
-    return true
-  }
-
-  return false
-}
-
-const isReturningJSXOrNull = (node) => {
-  if (!node || !node.body || node.body.type !== 'BlockStatement') {
-    return false
-  }
-
-  const block = node.body
-  const statements = block.body
-  const returnStatement = statements.find((el) => el.type === 'ReturnStatement')
-  console.log({
-    returnStatement,
-  })
-  if (
-    !returnStatement ||
-    !returnStatement.argument ||
-    [
-      'ArrowFunctionExpression',
-      'FunctionExpression',
-      'FunctionDeclaration',
-    ].includes(returnStatement.argument.type)
-  ) {
-    return false
-  }
-
-  // like: return [<></>]
-  if (
-    returnStatement.argument.type === 'ArrayExpression' &&
-    returnStatement.argument.elements &&
-    returnStatement.argument.elements.length
-  ) {
-    return returnStatement.argument.elements.some(isJSX)
-  }
-
-  // like: return something ? <></> : <></>
-  if (returnStatement.argument.type === 'ConditionalExpression') {
-    return (
-      isJSX(returnStatement.argument.consequent) ||
-      isJSX(returnStatement.argument.alternate)
-    )
-  }
-
-  // like: return foo && <></>
-  if (returnStatement.argument.type === 'LogicalExpression') {
-    return (
-      isJSX(returnStatement.argument.left) ||
-      isJSX(returnStatement.argument.right)
-    )
-  }
-
-  // like: return null
-  // or: return <></>
-  return (
-    returnStatement.argument.type === 'NullLiteral' ||
-    (returnStatement.argument.type === 'Literal' &&
-      returnStatement.argument.value === null) ||
-    isJSX(returnStatement.argument)
-  )
-}
-
-const isReactFunctionalComponent = (node) => {
-  const isFunctionDeclarationComponent =
-    node.type === 'FunctionDeclaration' &&
-    node.id &&
-    isFirstLetterUpperCase(node.id.name)
-  const isFunctionExpressionComponent =
-    node.type === 'FunctionExpression' &&
-    node.parent &&
-    node.parent.type === 'VariableDeclarator' &&
-    isFirstLetterUpperCase(node.parent.id.name)
-  const isArrowFunctionExpressionComponent =
-    node.type === 'ArrowFunctionExpression' &&
-    node.parent &&
-    node.parent.type === 'VariableDeclarator' &&
-    isFirstLetterUpperCase(node.parent.id.name)
-
-  console.log({
-    isFunctionDeclarationComponent,
-    isFunctionExpressionComponent,
-    isArrowFunctionExpressionComponent,
-  })
-
-  if (
-    isFunctionDeclarationComponent ||
-    isFunctionExpressionComponent ||
-    isArrowFunctionExpressionComponent
-  ) {
-    return isReturningJSXOrNull(node)
-  }
-
-  console.log({
-    node,
-  })
-
-  const isFunctionNode =
-    node.type === 'FunctionDeclaration' ||
-    node.type === 'FunctionExpression' ||
-    node.type === 'ArrowFunctionExpression'
-  const isParentCallExpressionNode =
-    node.parent && node.parent.type === 'CallExpression'
-  const callee = node.parent && node.parent.callee
-  const isCalleOneOfReactWrappers =
-    callee &&
-    callee.type === 'MemberExpression' &&
-    callee.object.name === 'React' &&
-    REACT_WRAPPER_FUNCTIONS.includes(callee.property.name)
-  const isReactWrappedComponent =
-    isFunctionNode && isParentCallExpressionNode && isCalleOneOfReactWrappers
-
-  console.log({
-    isReactWrappedComponent,
-    isFunctionNode,
-    isParentCallExpressionNode,
-    isCalleOneOfReactWrappers,
-  })
-  if (isReactWrappedComponent) {
-    return isReturningJSXOrNull(node)
-  }
-
-  return false
-}
-
-const walkUpToFindParentComponent = (context) => {
+const walkUpToFindParentReactComponent = (context) => {
   let scope = context.getScope()
   while (scope) {
     const node = scope.block
-    console.log({ scope })
-    console.log(node.type)
-    console.log(isReactClassComponent(node))
-    if (isReactClassComponent(node) || isReactFunctionalComponent(node)) {
-      return node
-    }
 
     if (node.type === 'Program') {
       return null
+    }
+
+    if (isReactClassComponent(node) || isReactFunctionalComponent(node)) {
+      return node
     }
 
     scope = scope.upper
@@ -192,8 +31,12 @@ module.exports = {
   meta: {
     type: 'problem',
     docs: {
-      description: '',
+      description:
+        'Disallow using Node.js built in modules in client side code.',
       recommended: true,
+    },
+    messages: {
+      doNotCall: `Do not use {{name}} inside the react component.`,
     },
     schema: [
       {
@@ -212,9 +55,8 @@ module.exports = {
     ],
   },
   create: function (context) {
-    const filename = context.getFilename()
     // if is a file in the API folder then return
-    const isFileInApiFolder = filename.includes('pages/api')
+    const isFileInApiFolder = context.getFilename().includes('pages/api')
     if (isFileInApiFolder) {
       return {}
     }
@@ -224,11 +66,14 @@ module.exports = {
       ? new Set([...options.forbiddenImports, ...NODE_BUILD_IN_MODULES])
       : new Set([...NODE_BUILD_IN_MODULES])
 
-    // forbidden import specifiers like: import { foo } from ...
-    // import bar from ...
-    let forbiddenImportSpecifiers = []
+    // forbidden import specifiers
+    // like: import { foo } from ...
+    // like: import bar from ...
+    // the process module can be used without import statement
+    let forbiddenImportSpecifiers = ['process']
 
     return {
+      // to handle imports
       ImportDeclaration(node) {
         if (forbiddenImports.has(node.source.value)) {
           const importSpecifierNames = node.specifiers.map(
@@ -240,36 +85,71 @@ module.exports = {
           ]
         }
       },
+      // to handle require statements
       CallExpression(node) {
-        if (!forbiddenImportSpecifiers.length) {
+        const { callee, parent } = node
+        const isRequire =
+          callee && callee.type === 'Identifier' && callee.name === 'require'
+        const hasVariables = !!parent && parent.id
+        if (isRequire && hasVariables) {
+          // like: const fs = require('fs')
+          if (parent.id.type === 'Identifier') {
+            forbiddenImportSpecifiers = [
+              ...forbiddenImportSpecifiers,
+              parent.id.name,
+            ]
+          }
+          // like: const {spawn, exec} = require('child_process')
+          if (parent.id.type === 'ObjectPattern') {
+            const objectPropertyNames = parent.id.properties.map(
+              (objectProperty) => objectProperty.value.name
+            )
+            forbiddenImportSpecifiers = [
+              ...forbiddenImportSpecifiers,
+              ...objectPropertyNames,
+            ]
+          }
+        }
+      },
+      Identifier(node) {
+        const isParentMemberExpression =
+          node.parent && node.parent.type === 'MemberExpression'
+        const isProcessEnv =
+          isParentMemberExpression &&
+          node.parent.object.name === 'process' &&
+          node.parent.property.name === 'env'
+        if (isProcessEnv) {
           return
         }
 
-        const { callee } = node
-        let calleName
-        // like: bar()
-        if (callee.type === 'Identifier') {
-          // bar
-          calleName = callee.name
+        let fullName = node.name
+        // like: foo.BAR
+        if (isParentMemberExpression) {
+          fullName = `${node.parent.object.name}.${node.parent.property.name}`
+        }
+        // like: foo()
+        if (node.parent && node.parent.type === 'CallExpression') {
+          fullName = node.name
         }
 
-        // like: foo.bar()
-        if (callee.type === 'MemberExpression') {
-          // foo
-          calleName = callee.object.name
-        }
-
-        // if the calle name is not on the forbidden list
-        if (!forbiddenImportSpecifiers.includes(calleName)) {
+        // if the node name is not on the forbidden list
+        if (
+          !forbiddenImportSpecifiers.includes(node.name) ||
+          (isParentMemberExpression &&
+            !forbiddenImportSpecifiers.includes(node.parent.object.name))
+        ) {
           return
         }
 
         // find the closest parent component
-        const reactComponent = walkUpToFindParentComponent(context)
+        const reactComponent = walkUpToFindParentReactComponent(context)
         if (reactComponent) {
           context.report({
             node,
-            message: `Do not call ${calleName} from the react component.`,
+            messageId: 'doNotCall',
+            data: {
+              name: fullName,
+            },
           })
         }
       },
