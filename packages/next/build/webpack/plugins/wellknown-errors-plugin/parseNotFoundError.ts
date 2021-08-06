@@ -40,7 +40,7 @@ export async function getNotFoundError(
       chalk.red.bold('Module not found') +
       `: ${errorMessage}` +
       '\n' +
-      result.originalCodeFrame
+      (result.originalCodeFrame ?? '')
 
     return new SimpleWebpackError(
       `${chalk.cyan(fileName)}:${chalk.yellow(
