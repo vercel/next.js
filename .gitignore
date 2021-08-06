@@ -1,6 +1,7 @@
 # build output
 dist
 .next
+target
 
 # dependencies
 node_modules

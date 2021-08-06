@@ -376,6 +376,8 @@ export default async function exportApp(
       domainLocales: i18n?.domains,
       trailingSlash: nextConfig.trailingSlash,
       disableOptimizedLoading: nextConfig.experimental.disableOptimizedLoading,
+      // TODO: We should support dynamic HTML too
+      requireStaticHTML: true,
     }
 
     const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
@@ -568,6 +570,7 @@ export default async function exportApp(
             disableOptimizedLoading:
               nextConfig.experimental.disableOptimizedLoading,
             parentSpanId: pageExportSpan.id,
+            httpAgentOptions: nextConfig.httpAgentOptions,
           })
 
           for (const validation of result.ampValidations || []) {

@@ -22,8 +22,17 @@ export interface DomainLocale {
   locales?: string[]
 }
 
+export interface ESLintConfig {
+  /** Only run ESLint on these directories with `next lint` and `next build`. */
+  dirs?: string[]
+  /** Do not run ESLint during production builds (`next build`). */
+  ignoreDuringBuilds?: boolean
+}
+
 export type NextConfig = { [key: string]: any } & {
   i18n?: I18NConfig | null
+
+  eslint?: ESLintConfig
 
   headers?: () => Promise<Header[]>
   rewrites?: () => Promise<
@@ -45,7 +54,7 @@ export type NextConfig = { [key: string]: any } & {
   cleanDistDir?: boolean
   assetPrefix?: string
   useFileSystemPublicRoutes?: boolean
-  generateBuildId: () => string | null
+  generateBuildId?: () => string | null
   generateEtags?: boolean
   pageExtensions?: string[]
   compress?: boolean
@@ -67,7 +76,7 @@ export type NextConfig = { [key: string]: any } & {
   reactStrictMode?: boolean
   publicRuntimeConfig?: { [key: string]: any }
   serverRuntimeConfig?: { [key: string]: any }
-
+  httpAgentOptions?: { keepAlive?: boolean }
   future?: {
     /**
      * @deprecated this options was moved to the top level
@@ -76,10 +85,12 @@ export type NextConfig = { [key: string]: any } & {
     strictPostcssConfiguration?: boolean
   }
   experimental?: {
+    swcMinify?: boolean
+    swcLoader?: boolean
     cpus?: number
     plugins?: boolean
     profiling?: boolean
-    sprFlushToDisk?: boolean
+    isrFlushToDisk?: boolean
     reactMode?: 'legacy' | 'concurrent' | 'blocking'
     workerThreads?: boolean
     pageEnv?: boolean
@@ -144,7 +155,12 @@ export const defaultConfig: NextConfig = {
   serverRuntimeConfig: {},
   publicRuntimeConfig: {},
   reactStrictMode: false,
+  httpAgentOptions: {
+    keepAlive: true,
+  },
   experimental: {
+    swcLoader: false,
+    swcMinify: false,
     cpus: Math.max(
       1,
       (Number(process.env.CIRCLE_NODE_TOTAL) ||
@@ -152,7 +168,7 @@ export const defaultConfig: NextConfig = {
     ),
     plugins: false,
     profiling: false,
-    sprFlushToDisk: true,
+    isrFlushToDisk: true,
     workerThreads: false,
     pageEnv: false,
     optimizeImages: false,

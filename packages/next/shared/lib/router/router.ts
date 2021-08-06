@@ -23,6 +23,7 @@ import {
   getLocationOrigin,
   getURL,
   loadGetInitialProps,
+  normalizeRepeatedSlashes,
   NextPageContext,
   ST,
   NEXT_DATA,
@@ -102,9 +103,9 @@ export function getDomainLocale(
       }${locale === detectedDomain.defaultLocale ? '' : `/${locale}`}${path}`
     }
     return false
+  } else {
+    return false
   }
-
-  return false
 }
 
 export function addLocale(
@@ -274,8 +275,29 @@ export function resolveHref(
 ): string {
   // we use a dummy base url for relative urls
   let base: URL
-  const urlAsString =
-    typeof href === 'string' ? href : formatWithValidation(href)
+  let urlAsString = typeof href === 'string' ? href : formatWithValidation(href)
+
+  // repeated slashes and backslashes in the URL are considered
+  // invalid and will never match a Next.js page/file
+  const urlProtoMatch = urlAsString.match(/^[a-zA-Z]{1,}:\/\//)
+  const urlAsStringNoProto = urlProtoMatch
+    ? urlAsString.substr(urlProtoMatch[0].length)
+    : urlAsString
+
+  const urlParts = urlAsStringNoProto.split('?')
+
+  if ((urlParts[0] || '').match(/(\/\/|\\)/)) {
+    console.error(
+      `Invalid href passed to next/router: ${urlAsString}, repeated forward-slashes (//) or backslashes \\ are not valid in the href`
+    )
+    const normalizedUrl = normalizeRepeatedSlashes(urlAsStringNoProto)
+    urlAsString = (urlProtoMatch ? urlProtoMatch[0] : '') + normalizedUrl
+  }
+
+  // Return because it cannot be routed by the Next.js router
+  if (!isLocalURL(urlAsString)) {
+    return (resolveAs ? [urlAsString] : urlAsString) as string
+  }
 
   try {
     base = new URL(
@@ -285,10 +307,6 @@ export function resolveHref(
   } catch (_) {
     // fallback to / for invalid asPath values e.g. //
     base = new URL('/', 'http://n')
-  }
-  // Return because it cannot be routed by the Next.js router
-  if (!isLocalURL(urlAsString)) {
-    return (resolveAs ? [urlAsString] : urlAsString) as string
   }
   try {
     const finalUrl = new URL(urlAsString, base)
@@ -627,6 +645,7 @@ export default class Router implements BaseRouter {
     this.isReady = !!(
       self.__NEXT_DATA__.gssp ||
       self.__NEXT_DATA__.gip ||
+      (self.__NEXT_DATA__.appGip && !self.__NEXT_DATA__.gsp) ||
       (!autoExportDynamic &&
         !self.location.search &&
         !process.env.__NEXT_HAS_REWRITES)

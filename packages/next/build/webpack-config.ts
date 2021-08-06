@@ -295,22 +295,36 @@ export default async function getBaseWebpackConfig(
   const babelLoader = isWebpack5
     ? require.resolve('./babel/loader/index')
     : 'next-babel-loader'
+
+  const useSWCLoader = config.experimental.swcLoader && isWebpack5
+  if (useSWCLoader && babelConfigFile) {
+    Log.warn(
+      `experimental.swcLoader enabled. The custom Babel configuration will not be used.`
+    )
+  }
   const defaultLoaders = {
-    babel: {
-      loader: babelLoader,
-      options: {
-        configFile: babelConfigFile,
-        isServer,
-        distDir,
-        pagesDir,
-        cwd: dir,
-        // Webpack 5 has a built-in loader cache
-        cache: !isWebpack5,
-        development: dev,
-        hasReactRefresh,
-        hasJsxRuntime: true,
-      },
-    },
+    babel: useSWCLoader
+      ? {
+          loader: 'next-swc-loader',
+          options: {
+            isServer,
+          },
+        }
+      : {
+          loader: babelLoader,
+          options: {
+            configFile: babelConfigFile,
+            isServer,
+            distDir,
+            pagesDir,
+            cwd: dir,
+            // Webpack 5 has a built-in loader cache
+            cache: !isWebpack5,
+            development: dev,
+            hasReactRefresh,
+            hasJsxRuntime: true,
+          },
+        },
     // Backwards compat
     hotSelfAccept: {
       loader: 'noop-loader',
@@ -954,6 +968,7 @@ export default async function getBaseWebpackConfig(
           new TerserPlugin({
             cacheDir: path.join(distDir, 'cache', 'next-minifier'),
             parallel: config.experimental.cpus,
+            swcMinify: config.experimental.swcMinify,
             terserOptions,
           }).apply(compiler)
         },
@@ -1042,6 +1057,7 @@ export default async function getBaseWebpackConfig(
         'emit-file-loader',
         'error-loader',
         'next-babel-loader',
+        'next-swc-loader',
         'next-client-pages-loader',
         'next-image-loader',
         'next-serverless-loader',
@@ -1410,6 +1426,7 @@ export default async function getBaseWebpackConfig(
       pageExtensions: config.pageExtensions,
       trailingSlash: config.trailingSlash,
       buildActivity: config.devIndicators.buildActivity,
+      productionBrowserSourceMaps: !!config.productionBrowserSourceMaps,
       plugins: config.experimental.plugins,
       reactStrictMode: config.reactStrictMode,
       reactMode: config.experimental.reactMode,
