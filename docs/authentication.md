@@ -10,8 +10,8 @@ Authentication verifies who a user is, while authorization controls what a user 
 
 The first step to adding authentication to your page is to identify the [data-fetching strategy](/docs/basic-features/data-fetching.md) you want. We can then determine which authentication providers support this strategy. The authentication patterns for each strategy are:
 
-- Use [static generation (recommended)](/docs/basic-features/pages.md#static-generation-recommended) to server-render a loading state, followed by fetching the user data and authenticated content client-side. Additional navigations using [`next/link`](/docs/api-reference/next/link.md) or [`next/router`](/docs/api-reference/next/router.md) will not need to re-fetch user data.
-- Fetch user data and authenticated content [server-side](/docs/basic-features/pages.md#server-side-rendering) to eliminate the flash of loading state.
+- Use [static generation (recommended)](/docs/basic-features/pages.md#static-generation-recommended) to server-render a loading state, then fetch the user data and authenticated content client-side. Additional navigations using [`next/link`](/docs/api-reference/next/link.md) or [`next/router`](/docs/api-reference/next/router.md) will not need to re-fetch user data.
+- Fetch user data and authenticated content [server-side](/docs/basic-features/pages.md#server-side-rendering) to eliminate the initial flash of loading state.
 
 ### Statically Generated Pages
 
@@ -104,6 +104,47 @@ export default Profile
 An advantage of this pattern is preventing a flash of unauthenticated content before redirecting. It's important to note fetching user data in `getServerSideProps` will block rendering until the request to your authentication provider resolves. To prevent creating a bottleneck and decreasing your TTFB ([Time to First Byte](https://web.dev/time-to-first-byte/)), you should ensure your authentication lookup is fast. Otherwise, consider [static generation](#authenticating-statically-generated-pages).
 
 ## Authenticating API Routes
+
+API routes are typically authenticated using a secret stored in a cookie or delivered through the HTTP `Authorization` header.
+
+Authentication providers offer helpers to verify this secret and return authenticated user data. These helpers are either in the form of middleware or a function.
+
+### Middleware
+
+```js
+import { withSession } from '@clerk/next/api'
+
+function handler(req, res) {
+  if (req.session) {
+    // Signed in
+    console.log('User ID', req.session.userId)
+  } else {
+    // Signed out
+    res.status(401)
+  }
+  res.end()
+}
+
+export default withSession(handler)
+```
+
+### Function
+
+```js
+import { getSession } from '@clerk/next/api'
+
+export default function handler(req, res) {
+  const session = getSession(req)
+  if (session) {
+    // Signed in
+    console.log('User ID', session.userId)
+  } else {
+    // Signed out
+    res.status(401)
+  }
+  res.end()
+}
+```
 
 ## Authentication Providers
 
