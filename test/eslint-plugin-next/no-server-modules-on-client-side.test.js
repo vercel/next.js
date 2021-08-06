@@ -6,8 +6,6 @@ const NODE_MODULES = '../../node_modules'
 const BABEL_ESLINT = path.join(__dirname, NODE_MODULES, '@babel/eslint-parser')
 
 RuleTester.setDefaultConfig({
-  parser: ['@babel/eslint-parser'],
-  plugins: ['react', 'react-hooks', 'jest', 'import'],
   parserOptions: {
     ecmaVersion: 2020,
     requireConfigFile: false,
