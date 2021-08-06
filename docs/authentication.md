@@ -112,7 +112,7 @@ Authentication providers offer helpers to verify this secret and return authenti
 Let's look at an example that uses middleware to decorate the request object with user data.
 
 ```js
-import { withSession } from '@clerk/next/api'
+import { withSession } from '@clerk/nextjs/api'
 
 function handler(req, res) {
   if (req.session) {
