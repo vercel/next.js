@@ -4,14 +4,14 @@ description: Learn about authentication patterns in Next.js apps and explore a f
 
 # Authentication
 
-Authentication verifies who a user is, while authorization controls what a user can access. Next.js supports multiple authentication patterns, each designed for different use cases. This page will go through each case so that you can choose based on your constraints.
+Authentication verifies who a user is, while authorization controls what a user can access. Next.js supports authentication patterns for both [Pages](/docs/basic-features/pages) and [API Routes](/docs/api-routes). This page will go through each case so that you can choose based on your constraints.
 
-## Authentication Patterns
+## Authenticating Pages
 
-The first step to identifying which authentication pattern you need is understanding the [data-fetching strategy](/docs/basic-features/data-fetching.md) you want. We can then determine which authentication providers support this strategy. There are two main patterns:
+The first step to adding authentication to your page is identifying the [data-fetching strategy](/docs/basic-features/data-fetching.md) you want. We can then determine which authentication providers support this pattern. There are two main patterns:
 
-- Use [static generation](/docs/basic-features/pages.md#static-generation-recommended) to server-render a loading state, followed by fetching user data client-side.
-- Fetch user data [server-side](/docs/basic-features/pages.md#server-side-rendering) to eliminate a flash of unauthenticated content.
+- Use [static generation (recommended)](/docs/basic-features/pages.md#static-generation-recommended) to server-render a loading state, followed by fetching the user data client-side. Additional navigations using [`next/link`](/docs/api-reference/next/link.md) or [`next/router`](/docs/api-reference/next/router.md) will not re-render this loading state.
+- Fetch user data [server-side](/docs/basic-features/pages.md#server-side-rendering) to eliminate the flash of loading state.
 
 ### Authenticating Statically Generated Pages
 
