@@ -109,6 +109,18 @@ ruleTester.run('no-server-modules-on-client-side', rule, {
     {
       code: `
           import fs from 'fs';
+          const TestComponent = React.memo(() => {
+            useEffect(() => {
+              console.log('asd')
+            }, [])
+            const b = process.env.SOME_ENV
+            return <div>{b}</div>
+          })
+        `,
+    },
+    {
+      code: `
+          import fs from 'fs';
           export async function getStaticProps() {
             fs.readFileSync('/Users/joe/test.txt', 'utf8')
             return {
@@ -307,7 +319,7 @@ ruleTester.run('no-server-modules-on-client-side', rule, {
     {
       code: `
       const { spawn } = require('child_process')
-        const SlugPage5 = () => {
+        const TestComponent = () => {
           const a = () => {
             spawn('ls', ['-lh', '/usr'])
           }
@@ -323,7 +335,7 @@ ruleTester.run('no-server-modules-on-client-side', rule, {
     {
       code: `
         var cluster = require('cluster');
-        const SlugPage9 = () => {
+        const TestComponent = () => {
           const a = () => {
             cluster.fork()
           }
@@ -339,7 +351,7 @@ ruleTester.run('no-server-modules-on-client-side', rule, {
     {
       code: `
         import { spawn } from 'child_process'
-        const SlugPage5 = () => {
+        const TestComponent = () => {
           const a = () => {
             spawn('ls', ['-lh', '/usr']);
           }
