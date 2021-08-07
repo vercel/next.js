@@ -1,8 +1,26 @@
 import Chalk from 'chalk'
 import { SimpleWebpackError } from './simpleWebpackError'
 import { createOriginalStackFrame } from '@next/react-dev-overlay/lib/middleware'
+import { isWebpack5 } from 'next/dist/compiled/webpack/webpack'
+import path from 'path'
 
 const chalk = new Chalk.constructor({ enabled: true })
+
+function getModuleTrace(input: any, compilation: any) {
+  const visitedModules = new Set()
+  const moduleTrace = []
+  let current = input.module
+  while (current) {
+    if (visitedModules.has(current)) break // circular (technically impossible, but how knows)
+    visitedModules.add(current)
+    const origin = compilation.moduleGraph.getIssuer(current)
+    if (!origin) break
+    moduleTrace.push({ origin, module: current })
+    current = origin
+  }
+
+  return moduleTrace
+}
 
 export async function getNotFoundError(
   compilation: any,
@@ -36,11 +54,34 @@ export async function getNotFoundError(
       .replace(/ in '.*?'/, '')
       .replace(/Can't resolve '(.*)'/, `Can't resolve '${chalk.green('$1')}'`)
 
+    const importTrace = () => {
+      if (!isWebpack5) {
+        return ''
+      }
+
+      let importTraceLine = '\nImport trace for requested module:\n'
+      const moduleTrace = getModuleTrace(input, compilation)
+
+      for (const { origin } of moduleTrace) {
+        if (!origin.resource) {
+          continue
+        }
+        const filePath = path.relative(
+          compilation.options.context,
+          origin.resource
+        )
+        importTraceLine += `./${filePath}\n`
+      }
+
+      return importTraceLine
+    }
+
     const message =
       chalk.red.bold('Module not found') +
       `: ${errorMessage}` +
       '\n' +
-      (result.originalCodeFrame ?? '')
+      (result.originalCodeFrame ?? '') +
+      importTrace()
 
     return new SimpleWebpackError(
       `${chalk.cyan(fileName)}:${chalk.yellow(

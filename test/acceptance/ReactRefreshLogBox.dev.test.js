@@ -1634,3 +1634,51 @@ test('_document syntax error shows logbox', async () => {
   expect(await session.hasRedbox()).toBe(false)
   await cleanup()
 })
+
+test('Node.js builtins', async () => {
+  const [session, cleanup] = await sandbox(
+    undefined,
+    new Map([
+      [
+        'node_modules/my-package/index.js',
+        `
+          const dns = require('dns')
+          module.exports = dns
+        `,
+      ],
+      [
+        'node_modules/my-package/package.json',
+        `
+          {
+            "name": "my-package",
+            "version": "0.0.1"
+          }
+        `,
+      ],
+    ]),
+    undefined,
+    /ready - started server on/i
+  )
+
+  await session.patch(
+    'index.js',
+    `
+      import pkg from 'my-package'
+
+      export default function Hello() {
+        return (pkg ? <h1>Package loaded</h1> : <h1>Package did not load</h1>)
+      }
+    `
+  )
+  expect(await session.hasRedbox(true)).toBe(true)
+  expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+        "./node_modules/my-package/index.js:2:0
+        Module not found: Can't resolve 'dns'
+        
+        Import trace for requested module:
+        ./index.js
+        ./pages/index.js"
+  `)
+
+  await cleanup()
+})
