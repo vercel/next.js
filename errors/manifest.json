@@ -430,6 +430,10 @@
         {
           "title": "sharp-missing-in-production",
           "path": "/errors/sharp-missing-in-production.md"
+        },
+        {
+          "title": "no-server-modules-on-client-side",
+          "path": "/errors/no-server-modules-on-client-side.md"
         }
       ]
     }

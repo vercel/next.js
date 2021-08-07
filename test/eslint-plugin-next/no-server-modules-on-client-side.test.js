@@ -567,6 +567,22 @@ ruleTester.run('no-server-modules-on-client-side', rule, {
     },
     {
       code: `
+        import { promises as fs } from 'fs'
+        const TestComponent = (props) => {
+          useEffect(async () => {
+            const filenames = await fs.readdir(postsDirectory)
+          }, [])
+          return <>aasd</>
+        }
+      `,
+      errors: [
+        {
+          message: `Do not use fs.readdir inside the react component.`,
+        },
+      ],
+    },
+    {
+      code: `
           import lodash from 'lodash';
           const TestComponent = () => {
             const a = () => {
