@@ -40,7 +40,7 @@ ruleTester.run('no-server-modules-on-client-side', rule, {
     {
       code: `
           import fs from 'fs'
-          function asd () {
+          function util() {
             const data = fs.readFileSync('/Users/joe/test.txt', 'utf8')
           }
         `,
@@ -58,16 +58,15 @@ ruleTester.run('no-server-modules-on-client-side', rule, {
     {
       code: `
           import fs from 'fs';
-          const NotComponent = () => {
+          const NotComponent1 = () => {
             fs.readFileSync('/Users/joe/test.txt', 'utf8')
             return
           }
-        `,
-    },
-    {
-      code: `
-          import fs from 'fs';
-          function NotComponent() {
+          function NotComponent2() {
+            fs.readFileSync('/Users/joe/test.txt', 'utf8')
+            return
+          }
+          const NotComponent3 = function() {
             fs.readFileSync('/Users/joe/test.txt', 'utf8')
             return
           }
@@ -90,6 +89,20 @@ ruleTester.run('no-server-modules-on-client-side', rule, {
               console.log('asdas')
             }
             return <div>ads</div>
+          }
+        `,
+    },
+    {
+      code: `
+          import fs from 'fs';
+          class TestComponent extends React.Component {
+            componentDidMount() {
+              console.log('asd')
+            }
+            render() {
+              const b = process.env.SOME_ENV
+              return <div>{b}</div>
+            }
           }
         `,
     },
@@ -346,19 +359,6 @@ ruleTester.run('no-server-modules-on-client-side', rule, {
           useEffect(() => {
             fs.readFileSync('/Users/joe/test.txt', 'utf8')
           }, [])
-          return [<div>afsdfasd</div>]
-        }
-      `,
-      errors: [
-        {
-          message: `Do not use fs.readFileSync inside the react component.`,
-        },
-      ],
-    },
-    {
-      code: `
-        import fs from 'fs';
-        const TestComponent = () => {
           const b = () => {
             const a = () => {
               fs.readFileSync('/Users/joe/test.txt', 'utf8')
@@ -368,6 +368,9 @@ ruleTester.run('no-server-modules-on-client-side', rule, {
         }
       `,
       errors: [
+        {
+          message: `Do not use fs.readFileSync inside the react component.`,
+        },
         {
           message: `Do not use fs.readFileSync inside the react component.`,
         },
@@ -423,6 +426,22 @@ ruleTester.run('no-server-modules-on-client-side', rule, {
             return <div>ads</div>
           }
           return 123
+        }
+      `,
+      errors: [
+        {
+          message: `Do not use fs.readFileSync inside the react component.`,
+        },
+      ],
+    },
+    {
+      code: `
+        import fs from 'fs';
+        const TestComponent = () => {
+          const a = () => {
+            fs.readFileSync('/Users/joe/test.txt', 'utf8')
+          }
+          return '123'
         }
       `,
       errors: [
@@ -499,22 +518,6 @@ ruleTester.run('no-server-modules-on-client-side', rule, {
       code: `
         import fs from 'fs';
         const TestComponent = React.forwardRef((props, ref) => {
-          useEffect(() => {
-            fs.readFileSync('/Users/joe/test.txt', 'utf8')
-          }, [])
-          return <>aasd</>
-        })
-      `,
-      errors: [
-        {
-          message: `Do not use fs.readFileSync inside the react component.`,
-        },
-      ],
-    },
-    {
-      code: `
-        import fs from 'fs';
-        const TestComponent = React.forwardRef(function(props, ref){
           useEffect(() => {
             fs.readFileSync('/Users/joe/test.txt', 'utf8')
           }, [])
