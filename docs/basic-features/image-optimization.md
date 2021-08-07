@@ -23,7 +23,7 @@ Instead of optimizing images at build time, Next.js optimizes images on-demand, 
 
 Images are lazy loaded by default. That means your page speed isn't penalized for images outside the viewport. Images load as they are scrolled into viewport.
 
-Images are always rendered in such a way as to avoid [Cumulative Layout Shift](https://web.dev/cls/), a [Core Web Vital](https://web.dev/vitals/) that Google is going to [use in search ranking](https://webmasters.googleblog.com/2020/05/evaluating-page-experience.html).
+Images are always rendered in such a way as to avoid [Cumulative Layout Shift](https://web.dev/cls/), a [Core Web Vital](https://web.dev/vitals/) that Google [uses in search ranking](https://webmasters.googleblog.com/2020/05/evaluating-page-experience.html).
 
 ## Image Component
 
