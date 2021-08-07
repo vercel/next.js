@@ -81,7 +81,8 @@ export async function getNotFoundError(
       `: ${errorMessage}` +
       '\n' +
       (result.originalCodeFrame ?? '') +
-      importTrace()
+      importTrace() +
+      '\nhttps://nextjs.org/docs/messages/module-not-found'
 
     return new SimpleWebpackError(
       `${chalk.cyan(fileName)}:${chalk.yellow(
