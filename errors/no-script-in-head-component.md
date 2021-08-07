@@ -2,7 +2,7 @@
 
 ####
 
-The `next/script` component shouldn't be place inside the `next/head` component
+The `next/script` component shouldn't be placed inside the `next/head` component
 
 #### Possible Ways to Fix It
 

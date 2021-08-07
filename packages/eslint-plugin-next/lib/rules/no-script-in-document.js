@@ -3,7 +3,7 @@ const path = require('path')
 module.exports = {
   meta: {
     docs: {
-      description: 'Disallow importing next/script inside pages/document.js',
+      description: 'Disallow importing next/script inside pages/_document.js',
       recommended: true,
     },
   },
