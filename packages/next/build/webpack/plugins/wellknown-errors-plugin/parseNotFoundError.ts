@@ -6,7 +6,7 @@ import path from 'path'
 
 const chalk = new Chalk.constructor({ enabled: true })
 
-// Based on https://github.com/webpack/webpack/blob/main/lib/stats/DefaultStatsFactoryPlugin.js#L422-L431
+// Based on https://github.com/webpack/webpack/blob/fcdd04a833943394bbb0a9eeb54a962a24cc7e41/lib/stats/DefaultStatsFactoryPlugin.js#L422-L431
 /*
 Copyright JS Foundation and other contributors
 
