@@ -47,7 +47,7 @@ Use the provided [Strapi template Next example](https://github.com/strapi/strapi
 
 ```bash
 npx create-strapi-app my-project --template next-example --quickstart
-# or: yarn create strapi-app my-project next-example --quickstart
+# or: yarn create strapi-app my-project --template next-example --quickstart
 npm run develop # or: yarn develop
 ```
 

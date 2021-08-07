@@ -93,16 +93,6 @@ if (process.env.NODE_ENV && !standardEnv.includes(process.env.NODE_ENV)) {
 
 ;(process.env as any).NODE_ENV = process.env.NODE_ENV || defaultEnv
 
-// this needs to come after we set the correct NODE_ENV or
-// else it might cause SSR to break
-const React = require('react')
-
-if (typeof React.Suspense === 'undefined') {
-  throw new Error(
-    `The version of React you are using is lower than the minimum required version needed for Next.js. Please upgrade "react" and "react-dom": "npm install react react-dom" https://nextjs.org/docs/messages/invalid-react-version`
-  )
-}
-
 // Make sure commands gracefully respect termination signals (e.g. from Docker)
 process.on('SIGTERM', () => process.exit(0))
 process.on('SIGINT', () => process.exit(0))

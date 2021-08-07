@@ -1,4 +1,4 @@
-import { promises } from 'fs'
+import { Dirent, promises } from 'fs'
 import { join } from 'path'
 
 /**
@@ -16,21 +16,19 @@ export async function recursiveReadDir(
   arr: string[] = [],
   rootDir: string = dir
 ): Promise<string[]> {
-  const result = await promises.readdir(dir)
+  const result = await promises.readdir(dir, { withFileTypes: true })
 
   await Promise.all(
-    result.map(async (part: string) => {
-      const absolutePath = join(dir, part)
-      if (ignore && ignore.test(part)) return
+    result.map(async (part: Dirent) => {
+      const absolutePath = join(dir, part.name)
+      if (ignore && ignore.test(part.name)) return
 
-      const pathStat = await promises.stat(absolutePath)
-
-      if (pathStat.isDirectory()) {
+      if (part.isDirectory()) {
         await recursiveReadDir(absolutePath, filter, ignore, arr, rootDir)
         return
       }
 
-      if (!filter.test(part)) {
+      if (!filter.test(part.name)) {
         return
       }
 

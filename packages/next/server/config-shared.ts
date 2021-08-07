@@ -76,7 +76,7 @@ export type NextConfig = { [key: string]: any } & {
   reactStrictMode?: boolean
   publicRuntimeConfig?: { [key: string]: any }
   serverRuntimeConfig?: { [key: string]: any }
-
+  httpAgentOptions?: { keepAlive?: boolean }
   future?: {
     /**
      * @deprecated this options was moved to the top level
@@ -85,6 +85,8 @@ export type NextConfig = { [key: string]: any } & {
     strictPostcssConfiguration?: boolean
   }
   experimental?: {
+    swcMinify?: boolean
+    swcLoader?: boolean
     cpus?: number
     plugins?: boolean
     profiling?: boolean
@@ -153,7 +155,12 @@ export const defaultConfig: NextConfig = {
   serverRuntimeConfig: {},
   publicRuntimeConfig: {},
   reactStrictMode: false,
+  httpAgentOptions: {
+    keepAlive: true,
+  },
   experimental: {
+    swcLoader: false,
+    swcMinify: false,
     cpus: Math.max(
       1,
       (Number(process.env.CIRCLE_NODE_TOTAL) ||
