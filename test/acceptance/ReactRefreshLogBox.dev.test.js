@@ -730,7 +730,12 @@ test('Module not found', async () => {
     > 1 | import Comp from 'b'
       2 |       export default function Oops() {
       3 |         return (
-      4 |           <div>"
+      4 |           <div>
+    
+    Import trace for requested module:
+    ./pages/index.js
+
+    https://nextjs.org/docs/messages/module-not-found"
   `)
 
   await cleanup()
@@ -1677,7 +1682,9 @@ test('Node.js builtins', async () => {
         
         Import trace for requested module:
         ./index.js
-        ./pages/index.js"
+        ./pages/index.js
+        
+        https://nextjs.org/docs/messages/module-not-found"
   `)
 
   await cleanup()

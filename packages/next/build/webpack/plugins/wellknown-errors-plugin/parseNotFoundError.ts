@@ -97,7 +97,7 @@ export async function getNotFoundError(
         importTraceLine += `./${filePath}\n`
       }
 
-      return importTraceLine
+      return importTraceLine + '\n'
     }
 
     const message =
