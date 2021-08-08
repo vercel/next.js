@@ -100,11 +100,14 @@ export async function getNotFoundError(
       return importTraceLine + '\n'
     }
 
+    const frame = result.originalCodeFrame ?? ''
+
     const message =
       chalk.red.bold('Module not found') +
       `: ${errorMessage}` +
       '\n' +
-      (result.originalCodeFrame + '\n' ?? '') +
+      frame +
+      (frame !== '' ? '\n' : '') +
       importTrace() +
       '\nhttps://nextjs.org/docs/messages/module-not-found'
 
