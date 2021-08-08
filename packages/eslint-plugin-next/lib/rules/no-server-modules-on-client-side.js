@@ -90,17 +90,29 @@ module.exports = {
         const { callee, parent } = node
         const isRequire =
           callee && callee.type === 'Identifier' && callee.name === 'require'
-        const hasVariables = !!parent && parent.id
-        if (isRequire && hasVariables) {
+        const hasVariables = !!(parent && parent.id)
+        const hasModuleName =
+          node.arguments &&
+          node.arguments.length >= 1 &&
+          (node.arguments[0].type === 'Literal' ||
+            node.arguments[0].type === 'StringLiteral')
+        if (isRequire && hasVariables && hasModuleName) {
           // like: const fs = require('fs')
-          if (parent.id.type === 'Identifier') {
+          const moduleName = node.arguments[0].value
+          if (
+            parent.id.type === 'Identifier' &&
+            forbiddenImports.has(moduleName)
+          ) {
             forbiddenImportSpecifiers = [
               ...forbiddenImportSpecifiers,
               parent.id.name,
             ]
           }
           // like: const {spawn, exec} = require('child_process')
-          if (parent.id.type === 'ObjectPattern') {
+          if (
+            parent.id.type === 'ObjectPattern' &&
+            forbiddenImports.has(moduleName)
+          ) {
             const objectPropertyNames = parent.id.properties.map(
               (objectProperty) => objectProperty.value.name
             )
@@ -118,7 +130,11 @@ module.exports = {
           isParentMemberExpression &&
           node.parent.object.name === 'process' &&
           node.parent.property.name === 'env'
-        if (isProcessEnv) {
+        const isProcessBrowser =
+          isParentMemberExpression &&
+          node.parent.object.name === 'process' &&
+          node.parent.property.name === 'browser'
+        if (isProcessEnv || isProcessBrowser) {
           return
         }
 

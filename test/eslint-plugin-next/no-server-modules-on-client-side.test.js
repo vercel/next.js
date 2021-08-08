@@ -86,6 +86,16 @@ ruleTester.run('no-server-modules-on-client-side', rule, {
       code: `
           const TestComponent = () => {
             const a = () => {
+              console.log(process.browser)
+            }
+            return <div>asdas</div>
+          }
+        `,
+    },
+    {
+      code: `
+          const TestComponent = () => {
+            const a = () => {
               console.log('asdas')
             }
             return <div>ads</div>
@@ -102,6 +112,26 @@ ruleTester.run('no-server-modules-on-client-side', rule, {
             render() {
               const b = process.env.SOME_ENV
               return <div>{b}</div>
+            }
+          }
+        `,
+    },
+    {
+      code: `
+          const fetch = require('isomorphic-unfetch')
+          const React = require('react')
+          export default class extends React.Component {
+            static async getInitialProps() {
+              try {
+                const res = await fetch('')
+                const text = await res.text()
+                console.log(text)
+                return { text }
+              } catch (err) {
+              }
+            }
+            render() {
+              return <div>asdas</div>
             }
           }
         `,

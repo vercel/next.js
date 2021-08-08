@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-server-modules-on-client-side */
 import { Writable } from 'stream'
 import path from 'path'
 import crypto from 'crypto'
