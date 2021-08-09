@@ -4,8 +4,8 @@ module.exports = {
     '!**/*.d.ts',
     '!**/node_modules/**',
   ],
-  testPathIgnorePatterns: ['/node_modules/', '/.next/'],
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
+  testPathIgnorePatterns: ['<rootDir>/node_modules/', '<rootDir>/.next/'],
   transform: {
     '^.+\\.css$': '<rootDir>/config/jest/cssTransform.js',
     // Use babel-jest to transpile tests with the next/babel preset
