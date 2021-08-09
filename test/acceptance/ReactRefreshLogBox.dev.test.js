@@ -705,12 +705,14 @@ test('unterminated JSX', async () => {
   await cleanup()
 })
 
-test('Module not found', async () => {
-  const [session, cleanup] = await sandbox()
+// Module trace is only available with webpack 5
+if (!process.env.NEXT_PRIVATE_TEST_WEBPACK4_MODE) {
+  test('Module not found', async () => {
+    const [session, cleanup] = await sandbox()
 
-  await session.patch(
-    'index.js',
-    `import Comp from 'b'
+    await session.patch(
+      'index.js',
+      `import Comp from 'b'
       export default function Oops() {
         return (
           <div>
@@ -719,12 +721,12 @@ test('Module not found', async () => {
         )
       }
     `
-  )
+    )
 
-  expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox(true)).toBe(true)
 
-  const source = await session.getRedboxSource()
-  expect(source).toMatchInlineSnapshot(`
+    const source = await session.getRedboxSource()
+    expect(source).toMatchInlineSnapshot(`
     "./index.js:1:0
     Module not found: Can't resolve 'b'
     > 1 | import Comp from 'b'
@@ -738,9 +740,9 @@ test('Module not found', async () => {
     https://nextjs.org/docs/messages/module-not-found"
   `)
 
-  await cleanup()
-})
-
+    await cleanup()
+  })
+}
 test('conversion to class component (1)', async () => {
   const [session, cleanup] = await sandbox()
 
@@ -1640,43 +1642,45 @@ test('_document syntax error shows logbox', async () => {
   await cleanup()
 })
 
-test('Node.js builtins', async () => {
-  const [session, cleanup] = await sandbox(
-    undefined,
-    new Map([
-      [
-        'node_modules/my-package/index.js',
-        `
+// Module trace is only available with webpack 5
+if (!process.env.NEXT_PRIVATE_TEST_WEBPACK4_MODE) {
+  test('Node.js builtins', async () => {
+    const [session, cleanup] = await sandbox(
+      undefined,
+      new Map([
+        [
+          'node_modules/my-package/index.js',
+          `
           const dns = require('dns')
           module.exports = dns
         `,
-      ],
-      [
-        'node_modules/my-package/package.json',
-        `
+        ],
+        [
+          'node_modules/my-package/package.json',
+          `
           {
             "name": "my-package",
             "version": "0.0.1"
           }
         `,
-      ],
-    ]),
-    undefined,
-    /ready - started server on/i
-  )
+        ],
+      ]),
+      undefined,
+      /ready - started server on/i
+    )
 
-  await session.patch(
-    'index.js',
-    `
+    await session.patch(
+      'index.js',
+      `
       import pkg from 'my-package'
 
       export default function Hello() {
         return (pkg ? <h1>Package loaded</h1> : <h1>Package did not load</h1>)
       }
     `
-  )
-  expect(await session.hasRedbox(true)).toBe(true)
-  expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+    )
+    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
         "./node_modules/my-package/index.js:2:0
         Module not found: Can't resolve 'dns'
         
@@ -1687,5 +1691,6 @@ test('Node.js builtins', async () => {
         https://nextjs.org/docs/messages/module-not-found"
   `)
 
-  await cleanup()
-})
+    await cleanup()
+  })
+}
