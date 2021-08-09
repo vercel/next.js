@@ -73,6 +73,6 @@ module.exports = withMDX({
 })
 ```
 
-## Typescript
+## TypeScript
 
 Follow [this guide](https://mdxjs.com/advanced/typescript) from the MDX docs.
