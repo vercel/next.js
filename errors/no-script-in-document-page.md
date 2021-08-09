@@ -6,7 +6,7 @@ You can't use the `next/script` component inside the `_document.js` page. That's
 
 #### Possible Ways to Fix It
 
-If you want a global script, instead just use the `_app.js` page.
+If you want a global script, instead use the `_app.js` page.
 
 ```jsx
 import Script from 'next/script'
