@@ -1,7 +1,7 @@
 module.exports = {
   meta: {
     docs: {
-      description: 'Disallow using <title> with Head from next/document',
+      description: 'Disallow using next/script inside the next/head component',
       recommended: true,
     },
   },
