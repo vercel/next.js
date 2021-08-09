@@ -74,9 +74,14 @@ module.exports = function (task) {
 
     const swcOptions = isClient ? swcClientOptions : swcServerOptions
 
+    const filePath = path.join(file.dir, file.base)
+    const fullFilePath = path.join(__dirname, filePath)
+    const distFilePath = path.dirname(path.join(__dirname, 'dist', filePath))
+
     const options = {
       filename: path.join(file.dir, file.base),
       sourceMaps: true,
+      sourceFileName: path.relative(distFilePath, fullFilePath),
 
       ...swcOptions,
     }
