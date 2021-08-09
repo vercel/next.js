@@ -428,6 +428,10 @@
           "path": "/errors/page-data-collection-timeout.md"
         },
         {
+          "title": "sharp-missing-in-production",
+          "path": "/errors/sharp-missing-in-production.md"
+        },
+        {
           "title": "script-in-document-page",
           "path": "/errors/no-script-in-document-page.md"
         },

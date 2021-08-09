@@ -66,11 +66,13 @@ export default function Page() {
   }
 }
 
-Page.getLayout = (page) => (
-  <Layout>
-    <NestedLayout>{page}</NestedLayout>
-  </Layout>
-)
+Page.getLayout = function getLayout(page) {
+  return (
+    <Layout>
+      <NestedLayout>{page}</NestedLayout>
+    </Layout>
+  )
+}
 ```
 
 ```jsx
@@ -89,6 +91,55 @@ When navigating between pages, we want to *persist* page state (input values, 
 This layout pattern enables state persistence because the React component tree is maintained between page transitions. With the component tree, React can understand which elements have changed to preserve state.
 
 > **Note**: This process is called [reconciliation](https://reactjs.org/docs/reconciliation.html), which is how React understands which elements have changed.
+
+### With TypeScript
+
+When using TypeScript, you must first create a new type for your pages which includes a `getLayout` function. Then, you must create a new type for your `AppProps` which overrides the `Component` property to use the previously created type.
+
+```tsx
+// pages/index.tsx
+
+import type { ReactElement } from 'react'
+import Layout from '../components/layout'
+import NestedLayout from '../components/nested-layout'
+
+export default function Page() {
+  return {
+    /** Your content */
+  }
+}
+
+Page.getLayout = function getLayout(page: ReactElement) {
+  return (
+    <Layout>
+      <NestedLayout>{page}</NestedLayout>
+    </Layout>
+  )
+}
+```
+
+```tsx
+// pages/_app.tsx
+
+import type { ReactElement, ReactNode } from 'react'
+import type { NextPage } from 'next'
+import type { AppProps } from 'next/app'
+
+type NextPageWithLayout = NextPage & {
+  getLayout?: (page: ReactElement) => ReactNode
+}
+
+type AppPropsWithLayout = AppProps & {
+  Component: NextPageWithLayout
+}
+
+export default function MyApp({ Component, pageProps }: AppPropsWithLayout) {
+  // Use the layout defined at the page level, if available
+  const getLayout = Component.getLayout ?? ((page) => page)
+
+  return getLayout(<Component {...pageProps} />)
+}
+```
 
 ### Data Fetching
 

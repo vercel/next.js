@@ -102,13 +102,17 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
       logger(`Running initial build for ${dir}`)
       if (!actionInfo.skipClone) {
         let buildCommand = `cd ${dir}${
-          !statsConfig.skipInitialInstall ? ' && yarn install' : ''
+          !statsConfig.skipInitialInstall
+            ? ' && yarn install --network-timeout 1000000'
+            : ''
         }`
 
         if (statsConfig.initialBuildCommand) {
           buildCommand += ` && ${statsConfig.initialBuildCommand}`
         }
-        await exec(buildCommand)
+        // allow 5 minutes node_modules install + building all packages
+        // in case of noisy environment slowing down initial repo build
+        await exec(buildCommand, false, { timeout: 5 * 60 * 1000 })
       }
 
       logger(`Linking packages in ${dir}`)

@@ -23,7 +23,7 @@ Instead of optimizing images at build time, Next.js optimizes images on-demand, 
 
 Images are lazy loaded by default. That means your page speed isn't penalized for images outside the viewport. Images load as they are scrolled into viewport.
 
-Images are always rendered in such a way as to avoid [Cumulative Layout Shift](https://web.dev/cls/), a [Core Web Vital](https://web.dev/vitals/) that Google is going to [use in search ranking](https://webmasters.googleblog.com/2020/05/evaluating-page-experience.html).
+Images are always rendered in such a way as to avoid [Cumulative Layout Shift](https://web.dev/cls/), a [Core Web Vital](https://web.dev/vitals/) that Google [uses in search ranking](https://developers.google.com/search/blog/2020/05/evaluating-page-experience).
 
 ## Image Component
 
@@ -128,6 +128,8 @@ If you need a different provider, you can use the [`loader`](/docs/api-reference
 
 > The `next/image` component's default loader is not supported when using [`next export`](/docs/advanced-features/static-html-export.md). However, other loader options will work.
 
+> The `next/image` component's default loader uses the ['squoosh'](https://www.npmjs.com/package/@squoosh/lib) library for image resizing and optimization. This library is quick to install and suitable for a dev server environment. For a production environment, it is strongly recommended that you install the optional [`sharp`](https://www.npmjs.com/package/sharp) library by running `yarn add sharp` in your project directory. If sharp is already installed but can't be resolved you can manually pass the path to it via the `NEXT_SHARP_PATH` environment variable e.g. `NEXT_SHARP_PATH=/tmp/node_modules/sharp`
+
 ## Caching
 
 The following describes the caching algorithm for the default [loader](#loader). For all other loaders, please refer to your cloud provider's documentation.
@@ -176,7 +178,7 @@ module.exports = {
 
 ### Minimum Cache TTL
 
-You can configure the time to live (TTL) in seconds for cached optimized images. This will configure the server's image cache as well as the `Cache-Control` header sent to the browser. This is a global setting that will affect all images. In most cases, its better to use a [Static Image Import](#image-Imports) which will handle hashing file contents and caching the file. You can also configure the `Cache-Control` header on an individual upstream image instead.
+You can configure the time to live (TTL) in seconds for cached optimized images. In many cases, its better to use a [Static Image Import](#image-Imports) which will handle hashing file contents and caching the file forever.
 
 ```js
 module.exports = {
@@ -185,6 +187,8 @@ module.exports = {
   },
 }
 ```
+
+If you need to add a `Cache-Control` header for the browser (not recommended), you can configure [`headers`](/docs/api-reference/next.config.js/headers) on the upstream image e.g. `/some-asset.jpg` not `/_next/image` itself.
 
 ### Disable Static Imports
 

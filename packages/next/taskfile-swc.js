@@ -16,10 +16,34 @@ module.exports = function (task) {
     // Don't compile .d.ts
     if (file.base.endsWith('.d.ts')) return
 
-    const options = {
-      filename: path.join(file.dir, file.base),
-      sourceMaps: true,
+    const isClient = serverOrClient === 'client'
 
+    const swcClientOptions = {
+      module: {
+        type: 'commonjs',
+      },
+      jsc: {
+        loose: true,
+
+        target: 'es2016',
+        parser: {
+          syntax: 'typescript',
+          dynamicImport: true,
+          tsx: file.base.endsWith('.tsx'),
+        },
+        transform: {
+          react: {
+            pragma: 'React.createElement',
+            pragmaFrag: 'React.Fragment',
+            throwIfNamespace: true,
+            development: false,
+            useBuiltins: true,
+          },
+        },
+      },
+    }
+
+    const swcServerOptions = {
       module: {
         type: 'commonjs',
       },
@@ -46,6 +70,20 @@ module.exports = function (task) {
           },
         },
       },
+    }
+
+    const swcOptions = isClient ? swcClientOptions : swcServerOptions
+
+    const filePath = path.join(file.dir, file.base)
+    const fullFilePath = path.join(__dirname, filePath)
+    const distFilePath = path.dirname(path.join(__dirname, 'dist', filePath))
+
+    const options = {
+      filename: path.join(file.dir, file.base),
+      sourceMaps: true,
+      sourceFileName: path.relative(distFilePath, fullFilePath),
+
+      ...swcOptions,
     }
 
     const output = yield transform(file.data.toString('utf-8'), options)
