@@ -1,4 +1,4 @@
-# Cypress + Next.js
+# Next.js + Cypress
 
 This example shows how to configure Cypress to work with Next.js.
 
