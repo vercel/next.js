@@ -33,12 +33,9 @@ module.exports = {
         '@next/next/link-passhref': 1,
         '@next/next/no-document-import-in-page': 2,
         '@next/next/no-head-import-in-document': 2,
-<<<<<<< HEAD
         '@next/next/no-script-in-document': 2,
         '@next/next/no-script-in-head': 2,
-=======
         '@next/next/no-typos': 1,
->>>>>>> 331fed89f3f3959f89e8c9356adc631486ab398d
         '@next/next/no-duplicate-head': 2,
       },
     },
