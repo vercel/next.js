@@ -184,9 +184,9 @@ module.exports = {
 The plugin can be installed normally in your project without needing to run `next lint`:
 
 ```bash
-npm install --save-dev eslint-plugin-next
+npm install --save-dev @next/eslint-plugin-next
 # or
-yarn add --dev eslint-plugin-next
+yarn add --dev @next/eslint-plugin-next
 ```
 
 This eliminates the risk of collisions or errors that can occur due to importing the same plugin or parser across multiple configurations.
