@@ -607,6 +607,7 @@ export default function Image({
               loader,
             })}
             decoding="async"
+            data-nimg
             style={imgStyle}
             className={className}
           />
@@ -616,6 +617,7 @@ export default function Image({
         {...rest}
         {...imgAttributes}
         decoding="async"
+        data-nimg
         className={className}
         ref={(img) => {
           setRef(img)
