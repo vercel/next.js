@@ -1,6 +1,7 @@
 import os from 'os'
 import { Header, Redirect, Rewrite } from '../lib/load-custom-routes'
 import { ImageConfig, imageConfigDefault } from './image-config'
+import type webpack from 'webpack'
 
 type NoOptionals<T> = {
   [P in keyof T]-?: T[P]
@@ -47,6 +48,22 @@ export type NextConfig = { [key: string]: any } & {
 
   webpack5?: false
   excludeDefaultMomentLocales?: boolean
+
+  webpack?:
+    | ((
+        config: webpack.Configuration,
+        context: {
+          dir: string
+          dev: boolean
+          isServer: boolean
+          buildId: string
+          config: NextConfigComplete
+          defaultLoaders: { babel: webpack.RuleSetUseItem }
+          totalPages: number
+          webpack: typeof webpack
+        }
+      ) => webpack.Configuration)
+    | null
 
   trailingSlash?: boolean
   env?: { [key: string]: string }
