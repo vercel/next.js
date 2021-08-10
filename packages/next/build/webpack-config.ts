@@ -578,11 +578,12 @@ export default async function getBaseWebpackConfig(
           chunks: 'all',
           name: 'framework',
           test(module) {
-            if (!module.resource) {
+            const resource = module.nameForCondition()
+            if (!resource) {
               return false
             }
             return topLevelFrameworkPaths.some((packagePath) =>
-              module.resource.startsWith(packagePath)
+              resource.startsWith(packagePath)
             )
           },
           priority: 40,
