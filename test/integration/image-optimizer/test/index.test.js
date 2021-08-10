@@ -25,8 +25,8 @@ const largeSize = 1080 // defaults defined in server/config.ts
 let nextOutput
 let appPort
 let app
-
-const sharpMissingText = `For production Image Optimization with Next.js, the optional 'sharp' package is strongly recommended`
+const sharpRuntimeWarning = `For production Image Optimization with Next.js, the optional 'sharp' package is strongly recommended`
+const sharpBuildWarning = `The optional \`sharp\` package is strongly recommended for production Image Optimization`
 
 async function fsToJson(dir, output = {}) {
   const files = await fs.readdir(dir)
@@ -727,12 +727,20 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
   })
 
   if (isDev || isSharp) {
-    it('should not have sharp missing warning', () => {
-      expect(nextOutput).not.toContain(sharpMissingText)
+    it('should not have runtime sharp missing warning', () => {
+      expect(nextOutput).not.toContain(sharpRuntimeWarning)
+    })
+
+    it('should not have runtime sharp missing warning', () => {
+      expect(buildOutput).not.toContain(sharpBuildWarning)
     })
   } else {
-    it('should have sharp missing warning', () => {
-      expect(nextOutput).toContain(sharpMissingText)
+    it('should have runtime sharp missing warning', () => {
+      expect(nextOutput).toContain(sharpRuntimeWarning)
+    })
+
+    it('should have build time sharp missing warning', () => {
+      expect(buildOutput).toContain(sharpBuildWarning)
     })
   }
 }
@@ -911,7 +919,8 @@ describe('Image Optimizer', () => {
       })
       nextOutput = ''
       nextConfig.replace('{ /* replaceme */ }', json)
-      await nextBuild(appDir)
+      const out = await nextBuild(appDir, [], { stderr: true })
+      buildOutput = out.stderr
       appPort = await findPort()
       app = await nextStart(appDir, appPort, {
         onStderr(msg) {
@@ -949,7 +958,8 @@ describe('Image Optimizer', () => {
         },
       }`
       )
-      await nextBuild(appDir)
+      const out = await nextBuild(appDir, [], { stderr: true })
+      buildOutput = out.stderr
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
     })
@@ -1025,7 +1035,8 @@ describe('Image Optimizer', () => {
         },
       }`
       nextConfig.replace('{ /* replaceme */ }', newConfig)
-      await nextBuild(appDir)
+      const out = await nextBuild(appDir, [], { stderr: true })
+      buildOutput = out.stderr
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
     })
@@ -1133,7 +1144,8 @@ describe('Image Optimizer', () => {
       const size = 384 // defaults defined in server/config.ts
       beforeAll(async () => {
         nextOutput = ''
-        await nextBuild(appDir)
+        const out = await nextBuild(appDir, [], { stderr: true })
+        buildOutput = out.stderr
         appPort = await findPort()
         app = await nextStart(appDir, appPort, {
           onStderr(msg) {
@@ -1168,7 +1180,8 @@ describe('Image Optimizer', () => {
         })
         nextOutput = ''
         nextConfig.replace('{ /* replaceme */ }', json)
-        await nextBuild(appDir)
+        const out = await nextBuild(appDir, [], { stderr: true })
+        buildOutput = out.stderr
         appPort = await findPort()
         app = await nextStart(appDir, appPort, {
           onStderr(msg) {

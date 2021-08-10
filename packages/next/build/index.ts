@@ -930,6 +930,17 @@ export default async function build(
       return returnValue
     })
 
+    if (isNextImageImported) {
+      try {
+        require(process.env.NEXT_SHARP_PATH || 'sharp')
+      } catch (e) {
+        Log.warn(
+          `The optional \`sharp\` package is strongly recommended for production Image Optimization. Run \`yarn add sharp\`, and Next.js will use it automatically.\n` +
+            'Read more: https://nextjs.org/docs/messages/sharp-missing-in-production'
+        )
+      }
+    }
+
     if (customAppGetInitialProps) {
       console.warn(
         chalk.bold.yellow(`Warning: `) +
