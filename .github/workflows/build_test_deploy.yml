@@ -253,7 +253,7 @@ jobs:
 
       - run: ./scripts/publish-release.sh
 
-  prStats:
+  releaseStats:
     name: Release Stats
     runs-on: ubuntu-latest
     needs: [publishRelease]
