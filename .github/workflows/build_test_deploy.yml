@@ -336,13 +336,14 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: next-swc-binaries
-          path: packages/next/native
+          path: packages/next/native/next-swc.*.node
       - name: Clear the cargo caches
         run: |
           cargo install cargo-cache --no-default-features --features ci-autoclean
           cargo-cache
 
   test-native:
+    name: Unit Test Native Code
     runs-on: ubuntu-18.04
 
     steps:
