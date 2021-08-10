@@ -14,7 +14,7 @@
   "dependencies": {
     "glob": "7.1.7"
   },
-  "peerDependencies": {
+  "devDependencies": {
     "@types/eslint": "7.28.0"
   }
 }
