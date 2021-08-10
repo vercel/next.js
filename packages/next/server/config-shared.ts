@@ -88,6 +88,7 @@ export type NextConfig = { [key: string]: any } & {
     swcMinify?: boolean
     swcLoader?: boolean
     cpus?: number
+    sharedPool?: boolean
     plugins?: boolean
     profiling?: boolean
     isrFlushToDisk?: boolean
@@ -165,6 +166,7 @@ export const defaultConfig: NextConfig = {
       (Number(process.env.CIRCLE_NODE_TOTAL) ||
         (os.cpus() || { length: 1 }).length) - 1
     ),
+    sharedPool: false,
     plugins: false,
     profiling: false,
     isrFlushToDisk: true,

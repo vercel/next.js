@@ -91,8 +91,6 @@ import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { isWebpack5 } from 'next/dist/compiled/webpack/webpack'
 import { NextConfigComplete } from '../server/config-shared'
 
-const staticWorker = require.resolve('./worker')
-
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
   srcRoute: string | null
@@ -671,6 +669,10 @@ export default async function build(
     ) as BuildManifest
 
     const timeout = config.experimental.staticPageGenerationTimeout || 0
+    const sharedPool = config.experimental.sharedPool || false
+    const staticWorker = sharedPool
+      ? require.resolve('./worker')
+      : require.resolve('./utils')
     let infoPrinted = false
     const staticWorkers = new Worker(staticWorker, {
       timeout: timeout * 1000,
@@ -705,12 +707,14 @@ export default async function build(
       },
       numWorkers: config.experimental.cpus,
       enableWorkerThreads: config.experimental.workerThreads,
-      exposedMethods: [
-        'hasCustomGetInitialProps',
-        'isPageStatic',
-        'getNamedExports',
-        'exportPage',
-      ],
+      exposedMethods: sharedPool
+        ? [
+            'hasCustomGetInitialProps',
+            'isPageStatic',
+            'getNamedExports',
+            'exportPage',
+          ]
+        : ['hasCustomGetInitialProps', 'isPageStatic', 'getNamedExports'],
     }) as Worker &
       Pick<
         typeof import('./worker'),
@@ -943,6 +947,7 @@ export default async function build(
         hasNonStaticErrorPage: nonStaticErrorPage,
       }
 
+      if (!sharedPool) staticWorkers.end()
       return returnValue
     })
 
@@ -1107,10 +1112,14 @@ export default async function build(
           pages: combinedPages,
           outdir: path.join(distDir, 'export'),
           statusMessage: 'Generating static pages',
-          exportPageWorker: staticWorkers.exportPage.bind(staticWorkers),
-          endWorker: async () => {
-            await staticWorkers.end()
-          },
+          exportPageWorker: sharedPool
+            ? staticWorkers.exportPage.bind(staticWorkers)
+            : undefined,
+          endWorker: sharedPool
+            ? async () => {
+                await staticWorkers.end()
+              }
+            : undefined,
         }
         const exportConfig: any = {
           ...config,
