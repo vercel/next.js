@@ -1076,10 +1076,6 @@ export default async function getBaseWebpackConfig(
     },
     module: {
       rules: [
-        {
-          test: /\.(js|mjs|cjs)$/,
-          loader: require.resolve('./webpack/loaders/shebang-loader'),
-        },
         ...(isWebpack5
           ? [
               // TODO: FIXME: do NOT webpack 5 support with this

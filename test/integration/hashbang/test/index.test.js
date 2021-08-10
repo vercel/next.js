@@ -24,13 +24,11 @@ function runTests() {
       expect(html).toMatch('JS: 123')
     })
 
-    // eslint-disable-next-line
     it('should work for .mjs files', async () => {
       const html = await renderViaHTTP(appPort, '/')
       expect(html).toMatch('MJS: 456')
     })
 
-    // eslint-disable-next-line
     it('should work for .cjs files', async () => {
       const html = await renderViaHTTP(appPort, '/')
       expect(html).toMatch('CJS: 789')
