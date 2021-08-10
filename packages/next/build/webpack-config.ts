@@ -538,7 +538,12 @@ export default async function getBaseWebpackConfig(
     const packageJsonPath = require.resolve(`${name}/package.json`, {
       paths: [relativeToPath],
     })
-    return path.dirname(packageJsonPath)
+    // Include a trailing slash so that a `.startsWith(packagePath)` check avoids false positives
+    // when one package name starts with the full name of a different package.
+    // For example:
+    //   "node_modules/react-slider".startsWith("node_modules/react")  // true
+    //   "node_modules/react-slider".startsWith("node_modules/react/") // false
+    return path.join(packageJsonPath, '../')
   }
 
   // Packages which will be split into the 'framework' chunk.
