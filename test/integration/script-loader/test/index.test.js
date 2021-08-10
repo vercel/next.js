@@ -70,7 +70,9 @@ describe('Script Loader', () => {
       await waitFor(1000)
 
       const logs = await browser.log('browser')
-      const filteredLogs = logs.filter((log) => !log.message.includes('Failed to load resource'))
+      const filteredLogs = logs.filter(
+        (log) => !log.message.includes('Failed to load resource')
+      )
       expect(filteredLogs.length).toBe(0)
 
       async function test(id) {

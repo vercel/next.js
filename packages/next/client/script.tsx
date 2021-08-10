@@ -10,8 +10,8 @@ const LoadCache = new Set()
 export interface ScriptProps extends ScriptHTMLAttributes<HTMLScriptElement> {
   strategy?: 'afterInteractive' | 'lazyOnload' | 'beforeInteractive'
   id?: string
-  onLoad?: () => void
-  onError?: () => void
+  onLoad?: (e: any) => void
+  onError?: (e: any) => void
   children?: React.ReactNode
 }
 

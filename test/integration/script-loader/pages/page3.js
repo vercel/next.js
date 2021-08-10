@@ -16,11 +16,11 @@ const Page = () => {
         strategy="lazyOnload"
       ></Script>
       <Script
-        src="https://somebrokenlink.doesntexist"
+        src="https://example.com/doesntexist"
         strategy="lazyOnload"
         onError={(e) => {
-          console.log('error');
-          console.log(e);
+          console.log('error')
+          console.log(e)
         }}
       />
       <div>page3</div>
