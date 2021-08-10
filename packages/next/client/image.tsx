@@ -642,9 +642,9 @@ export default function Image({
             rel="preload"
             as="image"
             href={imgAttributes.srcSet ? undefined : imgAttributes.src}
-            // @ts-ignore: imagesrcset is not yet in the link element type
+            // @ts-ignore: imagesrcset is not yet in the link element type.
             imagesrcset={imgAttributes.srcSet}
-            // @ts-ignore: imagesizes is not yet in the link element type
+            // @ts-ignore: imagesizes is not yet in the link element type.
             imagesizes={imgAttributes.sizes}
           ></link>
         </Head>
