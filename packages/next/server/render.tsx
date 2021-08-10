@@ -63,10 +63,6 @@ import {
 } from '../lib/load-custom-routes'
 import { DomainLocale } from './config'
 import { RenderResult, resultFromChunks } from './utils'
-import {
-  ClientFallbackError,
-  SuspenseContext,
-} from '../shared/lib/suspense-context'
 
 function noRouter() {
   const message =
@@ -636,33 +632,30 @@ export async function renderToHTML(
   let scriptLoader: any = {}
   const nextExport =
     !isSSG && (renderOpts.nextExport || (dev && (isAutoExport || isFallback)))
-  const suspenseMode = isSSG || nextExport ? 'STATIC' : 'DYNAMIC'
 
   const AppContainer = ({ children }: any) => (
-    <SuspenseContext.Provider value={suspenseMode}>
-      <RouterContext.Provider value={router}>
-        <AmpStateContext.Provider value={ampState}>
-          <HeadManagerContext.Provider
-            value={{
-              updateHead: (state) => {
-                head = state
-              },
-              updateScripts: (scripts) => {
-                scriptLoader = scripts
-              },
-              scripts: {},
-              mountedInstances: new Set(),
-            }}
+    <RouterContext.Provider value={router}>
+      <AmpStateContext.Provider value={ampState}>
+        <HeadManagerContext.Provider
+          value={{
+            updateHead: (state) => {
+              head = state
+            },
+            updateScripts: (scripts) => {
+              scriptLoader = scripts
+            },
+            scripts: {},
+            mountedInstances: new Set(),
+          }}
+        >
+          <LoadableContext.Provider
+            value={(moduleName) => reactLoadableModules.push(moduleName)}
           >
-            <LoadableContext.Provider
-              value={(moduleName) => reactLoadableModules.push(moduleName)}
-            >
-              {children}
-            </LoadableContext.Provider>
-          </HeadManagerContext.Provider>
-        </AmpStateContext.Provider>
-      </RouterContext.Provider>
-    </SuspenseContext.Provider>
+            {children}
+          </LoadableContext.Provider>
+        </HeadManagerContext.Provider>
+      </AmpStateContext.Provider>
+    </RouterContext.Provider>
   )
 
   try {
@@ -1004,7 +997,7 @@ export async function renderToHTML(
     }
   }
 
-  // TODO: Support SSR streaming of Suspense. For now, we fall back to the client.
+  // TODO: Support SSR streaming of Suspense.
   const renderToString = concurrentFeatures
     ? (element: React.ReactElement) =>
         new Promise<string>((resolve, reject) => {
@@ -1022,10 +1015,8 @@ export async function renderToHTML(
             startWriting,
           } = (ReactDOMServer as any).pipeToNodeWritable(element, stream, {
             onError(err: Error) {
-              if (err !== ClientFallbackError) {
-                abort()
-                reject(err)
-              }
+              abort()
+              reject(err)
             },
             onCompleteAll() {
               startWriting()
