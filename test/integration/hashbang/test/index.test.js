@@ -38,7 +38,7 @@ function runTests() {
 
 const nextConfig = join(appDir, 'next.config.js')
 
-describe('Dynamic Routing', () => {
+describe('Hashbang', () => {
   describe('dev mode', () => {
     beforeAll(async () => {
       appPort = await findPort()
