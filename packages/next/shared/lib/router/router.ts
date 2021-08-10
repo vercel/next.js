@@ -103,9 +103,9 @@ export function getDomainLocale(
       }${locale === detectedDomain.defaultLocale ? '' : `/${locale}`}${path}`
     }
     return false
+  } else {
+    return false
   }
-
-  return false
 }
 
 export function addLocale(

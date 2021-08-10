@@ -27,117 +27,113 @@ DEALINGS IN THE SOFTWARE.
 */
 
 import { getOptions } from 'next/dist/compiled/loader-utils'
-const { transform, transformSync } = require('../../swc/core')
+import { transform } from '../../swc'
+import { trace } from '../../../telemetry/trace'
 
-function makeLoader() {
-  return function (source, inputSourceMap) {
-    // Make the loader async
-    const callback = this.async()
-    const filename = this.resourcePath
+function getSWCOptions({ isTypeScript, isServer, development }) {
+  const jsc = {
+    parser: {
+      syntax: isTypeScript ? 'typescript' : 'ecmascript',
+      dynamicImport: true,
+      [isTypeScript ? 'tsx' : 'jsx']: true,
+    },
 
-    let loaderOptions = getOptions(this) || {}
+    transform: {
+      react: {
+        runtime: 'automatic',
+        pragma: 'React.createElement',
+        pragmaFrag: 'React.Fragment',
+        throwIfNamespace: true,
+        development: development,
+        useBuiltins: true,
+      },
+    },
+  }
 
-    // Standardize on 'sourceMaps' as the key passed through to Webpack, so that
-    // users may safely use either one alongside our default use of
-    // 'this.sourceMap' below without getting error about conflicting aliases.
-    if (
-      Object.prototype.hasOwnProperty.call(loaderOptions, 'sourceMap') &&
-      !Object.prototype.hasOwnProperty.call(loaderOptions, 'sourceMaps')
-    ) {
-      loaderOptions = Object.assign({}, loaderOptions, {
-        sourceMaps: loaderOptions.sourceMap,
-      })
-      delete loaderOptions.sourceMap
+  if (isServer) {
+    return {
+      jsc,
+      env: {
+        targets: {
+          // Targets the current version of Node.js
+          node: process.versions.node,
+        },
+      },
     }
-
-    if (inputSourceMap) {
-      inputSourceMap = JSON.stringify(inputSourceMap)
-    }
-
-    const programmaticOptions = Object.assign({}, loaderOptions, {
-      filename,
-      inputSourceMap: inputSourceMap || undefined,
-
-      // Set the default sourcemap behavior based on Webpack's mapping flag,
-      // but allow users to override if they want.
-      sourceMaps:
-        loaderOptions.sourceMaps === undefined
-          ? this.sourceMap
-          : loaderOptions.sourceMaps,
-
-      // Ensure that Webpack will get a full absolute path in the sourcemap
-      // so that it can properly map the module back to its internal cached
-      // modules.
-      sourceFileName: filename,
-    })
-    if (!programmaticOptions.inputSourceMap) {
-      delete programmaticOptions.inputSourceMap
-    }
-
-    const sync = programmaticOptions.sync
-    const parseMap = programmaticOptions.parseMap
-
-    // Remove loader related options
-    delete programmaticOptions.sync
-    delete programmaticOptions.parseMap
-    delete programmaticOptions.customize
-    delete programmaticOptions.cacheDirectory
-    delete programmaticOptions.cacheIdentifier
-    delete programmaticOptions.cacheCompression
-    delete programmaticOptions.metadataSubscribers
-
-    // auto detect development mode
-    if (
-      this.mode &&
-      programmaticOptions.jsc &&
-      programmaticOptions.jsc.transform &&
-      programmaticOptions.jsc.transform.react &&
-      !Object.prototype.hasOwnProperty.call(
-        programmaticOptions.jsc.transform.react,
-        'development'
-      )
-    ) {
-      programmaticOptions.jsc.transform.react.development =
-        this.mode === 'development'
-    }
-
-    if (programmaticOptions.sourceMaps === 'inline') {
-      // Babel has this weird behavior where if you set "inline", we
-      // inline the sourcemap, and set 'result.map = null'. This results
-      // in bad behavior from Babel since the maps get put into the code,
-      // which Webpack does not expect, and because the map we return to
-      // Webpack is null, which is also bad. To avoid that, we override the
-      // behavior here so "inline" just behaves like 'true'.
-      programmaticOptions.sourceMaps = true
-    }
-
-    try {
-      if (sync) {
-        const output = transformSync(source, programmaticOptions)
-        callback(
-          null,
-          output.code,
-          parseMap ? JSON.parse(output.map) : output.map
-        )
-      } else {
-        transform(source, programmaticOptions).then(
-          (output) => {
-            callback(
-              null,
-              output.code,
-              parseMap ? JSON.parse(output.map) : output.map
-            )
-          },
-          (err) => {
-            callback(err)
-          }
-        )
-      }
-    } catch (e) {
-      callback(e)
-    }
+  } else {
+    // Matches default @babel/preset-env behavior
+    jsc.target = 'es5'
+    return { jsc }
   }
 }
 
-module.exports = makeLoader()
-module.exports.custom = makeLoader
+async function loaderTransform(parentTrace, source, inputSourceMap) {
+  // Make the loader async
+  const filename = this.resourcePath
+
+  const isTypeScript = filename.endsWith('.ts') || filename.endsWith('.tsx')
+
+  let loaderOptions = getOptions(this) || {}
+
+  const swcOptions = getSWCOptions({
+    isTypeScript,
+    isServer: loaderOptions.isServer,
+    development: this.mode === 'development',
+  })
+
+  const programmaticOptions = {
+    ...swcOptions,
+    filename,
+    inputSourceMap: inputSourceMap ? JSON.stringify(inputSourceMap) : undefined,
+
+    // Set the default sourcemap behavior based on Webpack's mapping flag,
+    sourceMaps: this.sourceMap,
+
+    // Ensure that Webpack will get a full absolute path in the sourcemap
+    // so that it can properly map the module back to its internal cached
+    // modules.
+    sourceFileName: filename,
+  }
+
+  if (!programmaticOptions.inputSourceMap) {
+    delete programmaticOptions.inputSourceMap
+  }
+
+  // auto detect development mode
+  if (
+    this.mode &&
+    programmaticOptions.jsc &&
+    programmaticOptions.jsc.transform &&
+    programmaticOptions.jsc.transform.react &&
+    !Object.prototype.hasOwnProperty.call(
+      programmaticOptions.jsc.transform.react,
+      'development'
+    )
+  ) {
+    programmaticOptions.jsc.transform.react.development =
+      this.mode === 'development'
+  }
+
+  const swcSpan = parentTrace.traceChild('next-swc-transform')
+  return swcSpan.traceAsyncFn(() =>
+    transform(source, programmaticOptions).then((output) => {
+      return [output.code, output.map ? JSON.parse(output.map) : undefined]
+    })
+  )
+}
+
+export default function swcLoader(inputSource, inputSourceMap) {
+  const loaderSpan = trace('next-swc-loader', this.currentTraceSpan?.id)
+  const callback = this.async()
+  loaderSpan
+    .traceAsyncFn(() =>
+      loaderTransform.call(this, loaderSpan, inputSource, inputSourceMap)
+    )
+    .then(
+      ([transformedSource, outputSourceMap]) =>
+        callback?.(null, transformedSource, outputSourceMap || inputSourceMap),
+      (err) => {
+        callback?.(err)
+      }
+    )
+}
