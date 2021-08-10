@@ -430,6 +430,14 @@
         {
           "title": "sharp-missing-in-production",
           "path": "/errors/sharp-missing-in-production.md"
+        },
+        {
+          "title": "max-custom-routes-reached",
+          "path": "/errors/max-custom-routes-reached.md"
+        },
+        {
+          "title": "module-not-found",
+          "path": "/errors/module-not-found.md"
         }
       ]
     }
