@@ -19,7 +19,7 @@ const processRootDir = (rootDir) => {
  * @param {import('eslint').Rule.RuleContext} context - ESLint rule context
  * @returns An array of root directories.
  */
-const getRootDir = (context) => {
+const getRootDirs = (context) => {
   let rootDirs = [context.getCwd()]
 
   /** @type {{rootDir?:string|string[]}|undefined} */
@@ -37,4 +37,4 @@ const getRootDir = (context) => {
   return rootDirs
 }
 
-module.exports = getRootDir
+module.exports = getRootDirs
