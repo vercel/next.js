@@ -1014,9 +1014,9 @@ export async function renderToHTML(
             abort,
             startWriting,
           } = (ReactDOMServer as any).pipeToNodeWritable(element, stream, {
-            onError(err: Error) {
+            onError(error: Error) {
               abort()
-              reject(err)
+              reject(error)
             },
             onCompleteAll() {
               startWriting()
