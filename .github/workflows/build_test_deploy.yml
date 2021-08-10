@@ -1,8 +1,7 @@
 on:
   push:
     branches: [canary]
-    tags:
-      - v*
+    tags: [v*]
   pull_request:
     types: [opened, synchronize]
 
@@ -245,6 +244,7 @@ jobs:
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
   publishRelease:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
     name: Potentially publish release
     runs-on: ubuntu-latest
     needs: [build, build-native]
@@ -260,9 +260,7 @@ jobs:
         with:
           name: next-swc-binaries
           path: packages/next/native
-        if: ${{ startsWith(github.ref, 'refs/tags/v') }}
       - run: ./scripts/prepublish-native.js
-        if: ${{ startsWith(github.ref, 'refs/tags/v') }}
       - run: ./scripts/publish-release.sh
 
   prStats:
@@ -334,7 +332,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: packages/next/native/**
-          key: next-swc-nightly-2021-03-25-${{ matrix.os }}-${{ matrix.target }}-${{ hashFiles('packages/next/build/swc/**') }}
+          key: next-swc-nightly-2021-03-25-${{ matrix.target }}-${{ hashFiles('packages/next/build/swc/**') }}
       - name: 'Build'
         if: steps.binary-cache.outputs.cache-hit != true
         run: yarn --cwd packages/next build-native --target ${{ matrix.target }}
