@@ -2,7 +2,7 @@ import React from 'react'
 import App from 'next/app'
 
 export default class MyApp extends App {
-  // find this
+  // replace with this
 
   static async getInitialProps({ ctx }) {
     const { query, pathname, asPath } = ctx
