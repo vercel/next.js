@@ -5,6 +5,8 @@
     "packages/*"
   ],
   "scripts": {
+    "clean": "yarn lerna clean -y && yarn lerna bootstrap && yarn lerna exec 'rm -rf ./dist'",
+    "build": "yarn prepublish",
     "lerna": "lerna",
     "dev": "lerna run dev --stream --parallel",
     "dev2": "while true; do yarn --check-files && yarn dev; done",
@@ -57,6 +59,7 @@
     "@types/string-hash": "1.1.1",
     "@typescript-eslint/eslint-plugin": "4.22.0",
     "@typescript-eslint/parser": "4.22.0",
+    "@vercel/fetch": "6.1.1",
     "@zeit/next-css": "1.0.2-canary.2",
     "@zeit/next-sass": "1.0.2-canary.2",
     "@zeit/next-typescript": "1.1.2-canary.0",
