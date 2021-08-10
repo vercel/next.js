@@ -1,6 +1,6 @@
 # Script component inside Head component
 
-####
+#### Why This Error Occurred
 
 The `next/script` component shouldn't be placed inside the `next/head` component
 
