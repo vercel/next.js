@@ -1,6 +1,6 @@
 {
   "name": "create-next-app",
-  "version": "10.0.8-canary.15",
+  "version": "11.0.2-canary.27",
   "keywords": [
     "react",
     "next",
@@ -43,11 +43,11 @@
     "prompts": "2.1.0",
     "rimraf": "3.0.0",
     "tar": "4.4.10",
-    "typescript": "3.8.3",
+    "typescript": "4.3.4",
     "update-check": "1.5.4",
     "validate-npm-package-name": "3.0.0"
   },
   "engines": {
-    "node": ">=10.13.0"
+    "node": ">=12.0.0"
   }
 }

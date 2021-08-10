@@ -3,7 +3,7 @@
 This is a full-stack TypeScript example using:
 
 - Frontend:
-  - Next.js and [SWR](https://github.com/zeit/swr)
+  - Next.js and [SWR](https://github.com/vercel/swr)
   - [react-stripe-js](https://github.com/stripe/react-stripe-js) for [Checkout](https://stripe.com/checkout) and [Elements](https://stripe.com/elements)
 - Backend
   - Next.js [API routes](https://nextjs.org/docs/api-routes/introduction)
@@ -11,7 +11,7 @@ This is a full-stack TypeScript example using:
 
 ## Demo
 
-- Live demo: https://nextjs-typescript-react-stripe-js.now.sh/
+- Live demo: https://nextjs-typescript-react-stripe-js.vercel.app/
 - CodeSandbox: https://codesandbox.io/s/github/stripe-samples/nextjs-typescript-react-stripe-js
 - Tutorial: https://dev.to/thorwebdev/type-safe-payments-with-next-js-typescript-and-stripe-4jo7
 
@@ -47,10 +47,10 @@ Once you have access to [the environment variables you'll need](#required-config
   - Custom Amount Donation with redirect to Stripe Checkout:
     - Frontend: [pages/donate-with-checkout.tsx](pages/donate-with-checkout.tsx)
     - Backend: [pages/api/checkout_sessions/](pages/api/checkout_sessions/)
-    - Checkout payment result page that uses [SWR](https://github.com/zeit/swr) hooks to fetch the CheckoutSession status from the API route: [pages/result.tsx](pages/result.tsx).
+    - Checkout payment result page that uses [SWR](https://github.com/vercel/swr) hooks to fetch the CheckoutSession status from the API route: [pages/result.tsx](pages/result.tsx).
 - Stripe Elements
   - Custom Amount Donation with Stripe Elements & PaymentIntents (no redirect):
-    - Frontend: [pages/donate-with-elements.tsx](pages/donate-with-checkout.tsx)
+    - Frontend: [pages/donate-with-elements.tsx](pages/donate-with-elements.tsx)
     - Backend: [pages/api/payment_intents/](pages/api/payment_intents/)
 - Webhook handling for [post-payment events](https://stripe.com/docs/payments/accept-a-payment#web-fulfillment)
   - By default Next.js API routes are same-origin only. To allow Stripe webhook event requests to reach our API route, we need to add `micro-cors` and [verify the webhook signature](https://stripe.com/docs/webhooks/signatures) of the event. All of this happens in [pages/api/webhooks/index.ts](pages/api/webhooks/index.ts).
@@ -110,7 +110,7 @@ The CLI will print a webhook secret key to the console. Set `STRIPE_WEBHOOK_SECR
 
 ### Setting up a live webhook endpoint
 
-After deploying, copy the deployment URL with the webhook path (`https://your-url.now.sh/api/webhooks`) and create a live webhook endpoint [in your Stripe dashboard](https://stripe.com/docs/webhooks/setup#configure-webhook-settings).
+After deploying, copy the deployment URL with the webhook path (`https://your-url.vercel.app/api/webhooks`) and create a live webhook endpoint [in your Stripe dashboard](https://stripe.com/docs/webhooks/setup#configure-webhook-settings).
 
 Once created, you can click to reveal your webhook's signing secret. Copy the webhook secret (`whsec_***`) and add it as a new environment variable in your [Vercel Dashboard](https://vercel.com/dashboard):
 

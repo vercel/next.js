@@ -46,6 +46,18 @@ For example, let's say you created a Next.js app to be served from `example.com`
 
 module.exports = {
   async rewrites() {
+    return {
+      // After checking all Next.js pages (including dynamic routes)
+      // and static files we proxy any other requests
+      fallback: [
+        {
+          source: '/:path*',
+          destination: `https://proxy.example.com/:path*`,
+        },
+      ],
+    }
+
+    // For versions of Next.js < v10.1 you can use a no-op rewrite instead
     return [
       // we need to define a no-op rewrite to trigger checking
       // all pages/static files before we attempt proxying
@@ -68,7 +80,7 @@ To learn more about rewrites, take a look at our [documentation](/docs/api-refer
 
 ### Micro-Frontends with Monorepos and Subdomains
 
-Next.js and [Vercel](https://vercel.com) make it easy to adopt [micro-frontends](https://martinfowler.com/articles/micro-frontends.html) and deploy as a [Monorepo](https://vercel.com/blog/monorepos). This allows you to use [subdomains](https://en.wikipedia.org/wiki/Subdomain) to adopt new applications incrementally. Some benefits of micro-frontends:
+Next.js and [Vercel](https://vercel.com) make it straightforward to adopt [micro-frontends](https://martinfowler.com/articles/micro-frontends.html) and deploy as a [Monorepo](https://vercel.com/blog/monorepos). This allows you to use [subdomains](https://en.wikipedia.org/wiki/Subdomain) to adopt new applications incrementally. Some benefits of micro-frontends:
 
 - Smaller, more cohesive and maintainable codebases.
 - More scalable organizations with decoupled, autonomous teams.

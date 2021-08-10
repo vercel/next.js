@@ -1,7 +1,5 @@
 {
-  "name": "with-next-offline",
-  "version": "1.0.0",
-  "main": "index.js",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",
@@ -11,8 +9,8 @@
   "dependencies": {
     "next": "canary",
     "next-offline": "4.0.6",
-    "react": "16.12.0",
-    "react-dom": "16.12.0"
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2"
   },
   "devDependencies": {
     "cross-env": "6.0.3"

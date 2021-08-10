@@ -36,6 +36,13 @@ function runTests() {
     expect(data).toEqual([{ title: 'Nextjs' }])
     killApp(server)
   })
+
+  it("should not throw if request's content-type is invalid", async () => {
+    await startServer()
+    const status = await makeRequestWithInvalidContentType()
+    expect(status).toBe(200)
+    killApp(server)
+  })
 }
 
 async function makeRequest() {
@@ -48,6 +55,18 @@ async function makeRequest() {
   }).then((res) => res.ok && res.json())
 
   return data
+}
+
+async function makeRequestWithInvalidContentType() {
+  const status = await fetchViaHTTP(appPort, '/api', null, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json;',
+    },
+    body: JSON.stringify([{ title: 'Nextjs' }]),
+  }).then((res) => res.status)
+
+  return status
 }
 
 const startServer = async (optEnv = {}, opts) => {

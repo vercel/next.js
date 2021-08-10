@@ -1,6 +1,5 @@
 {
-  "name": "with-deta-base",
-  "version": "1.0.0",
+  "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -9,8 +8,8 @@
   "dependencies": {
     "deta": "^0.0.8",
     "next": "latest",
-    "react": "17.0.1",
-    "react-dom": "17.0.1"
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2"
   },
   "license": "MIT"
 }

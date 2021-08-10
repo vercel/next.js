@@ -1,9 +1,9 @@
 # Contributing to Next.js
 
-Our Commitment to Open Source can be found [here](https://vercel.com/oss).
+Read about our [Commitment to Open Source](https://vercel.com/oss).
 
 1. [Fork](https://help.github.com/articles/fork-a-repo/) this repository to your own GitHub account and then [clone](https://help.github.com/articles/cloning-a-repository/) it to your local device.
-2. Create a new branch `git checkout -b MY_BRANCH_NAME`
+2. Create a new branch: `git checkout -b MY_BRANCH_NAME`
 3. Install yarn: `npm install -g yarn`
 4. Install the dependencies: `yarn`
 5. Run `yarn dev` to build and watch for code changes
@@ -12,7 +12,34 @@ Our Commitment to Open Source can be found [here](https://vercel.com/oss).
 
 > You may need to run `yarn types` again if your types get outdated.
 
-To contribute to [our examples](examples), take a look at the [“Adding examples” section](#adding-examples).
+To contribute to [our examples](examples), take a look at the [“Adding examples”
+section](#adding-examples).
+
+## Building
+
+You can build the project, including all type definitions, with:
+
+```bash
+yarn build
+# - or -
+yarn prepublish
+```
+
+If you need to clean the project for any reason, use `yarn clean`.
+
+## Adding warning/error descriptions
+
+In Next.js we have a system to add helpful links to warnings and errors.
+
+This allows for the logged message to be short while giving a broader description and instructions on how to solve the warning/error.
+
+In general all warnings and errors added should have these links attached.
+
+Below are the steps to add a new link:
+
+- Create a new markdown file under the `errors` directory based on `errors/template.md`: `cp errors/template.md errors/<error-file-name>.md`
+- Add the newly added file to `errors/manifest.json`
+- Add the following url to your warning/error: `https://nextjs.org/docs/messages/<file-path-without-dotmd>`. For example to link to `errors/api-routes-static-export.md` you use the url: `https://nextjs.org/docs/messages/api-routes-static-export`
 
 ## To run tests
 
@@ -21,6 +48,8 @@ Make sure you have `chromedriver` installed for your Chrome version. You can ins
 - `brew install --cask chromedriver` on Mac OS X
 - `chocolatey install chromedriver` on Windows
 - Or manually download the version that matches your installed chrome version (if there's no match, download a version under it, but not above) from the [chromedriver repo](https://chromedriver.storage.googleapis.com/index.html) and add the binary to `<next-repo>/node_modules/.bin`
+
+You may also have to [install Rust](https://www.rust-lang.org/tools/install) and build our native packages to see all tests pass locally. We check in binaries for the most common targets and those required for CI so that most people don't have to, but if you do not see a binary for your target in `packages/next/native`, you can build it by running `yarn --cwd packages/next build-native`. If you are working on the Rust code and you need to build the binaries for ci, you can manually trigger [the workflow](https://github.com/vercel/next.js/actions/workflows/build_native.yml) to build and commit with the "Run workflow" button.
 
 Running all tests:
 
@@ -46,7 +75,7 @@ Running a specific test suite inside of the `test/integration` directory:
 yarn testonly --testPathPattern "production"
 ```
 
-Running just one test in the `production` test suite:
+Running one test in the `production` test suite:
 
 ```sh
 yarn testonly --testPathPattern "production" -t "should allow etag header support"
@@ -78,6 +107,14 @@ EXAMPLE=./test/integration/basic
 ```
 
 ## Running your own app with locally compiled version of Next.js
+
+1. Move your app inside of the Next.js monorepo.
+
+2. Run with `yarn next-with-deps ./app-path-in-monorepo`
+
+This will use the version of `next` built inside of the Next.js monorepo and the main `yarn dev` monorepo command can be running to make changes to the local Next.js version at the same time (some changes might require re-running `yarn next-with-deps` to take affect).
+
+or
 
 1. In your app's `package.json`, replace:
 
@@ -124,11 +161,18 @@ When you add an example to the [examples](examples) directory, don’t forget to
 - To add additional installation instructions, please add it where appropriate.
 - To add additional notes, add `## Notes` section at the end.
 - Remove the `Deploy your own` section if your example can’t be immediately deployed to Vercel.
+- Remove the `Preview` section if the example doesn't work on [StackBlitz](http://stackblitz.com/) and file an issue [here](https://github.com/stackblitz/webcontainer-core).
 
 ````markdown
 # Example Name
 
 Description
+
+## Preview
+
+Preview the example live on [StackBlitz](http://stackblitz.com/):
+
+[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/DIRECTORY_NAME)
 
 ## Deploy your own
 
@@ -148,3 +192,7 @@ yarn create next-app --example DIRECTORY_NAME DIRECTORY_NAME-app
 
 Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 ````
+
+## Publishing
+
+Repository maintainers can use `yarn publish-canary` to publish a new version of all packages to npm.
