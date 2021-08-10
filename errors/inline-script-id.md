@@ -2,7 +2,7 @@
 
 ## Why This Error Occurred
 
-`next/script` components with inline content require an `id` attribute for deduplication.
+`next/script` components with inline content require an `id` attribute to be defined to track and optimize the script.
 
 ## Possible Ways to Fix It
 
