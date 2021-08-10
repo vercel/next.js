@@ -111,7 +111,6 @@ export type NextConfig = { [key: string]: any } & {
     craCompat?: boolean
     esmExternals?: boolean | 'loose'
     staticPageGenerationTimeout?: number
-    pageDataCollectionTimeout?: number
     isrMemoryCacheSize?: number
   }
 }
@@ -182,7 +181,6 @@ export const defaultConfig: NextConfig = {
     craCompat: false,
     esmExternals: false,
     staticPageGenerationTimeout: 60,
-    pageDataCollectionTimeout: 60,
     // default to 50MB limit
     isrMemoryCacheSize: 50 * 1024 * 1024,
   },
