@@ -1,4 +1,4 @@
-# Script component inside <Head></Head>
+# Script component inside Head component
 
 ####
 
@@ -45,4 +45,4 @@ export default function Index() {
 ### Useful links
 
 - [next/head](https://nextjs.org/docs/api-reference/next/head)
-- [next-script](https://nextjs.org/docs/basic-features/script#usage)
+- [next/script](https://nextjs.org/docs/basic-features/script#usage)
