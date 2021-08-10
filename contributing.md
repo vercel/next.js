@@ -58,7 +58,7 @@ If you need to clean the project for any reason, use `yarn clean`.
 Make sure you have `chromedriver` installed, and it should match your Chrome version.
 You can install it with:
 
-- `apt install chromium-chromedriver` on Ubuntu/Debian
+- `apt install chromedriver` on Ubuntu/Debian
 - `brew install --cask chromedriver` on Mac OS X
 - `chocolatey install chromedriver` on Windows
 
