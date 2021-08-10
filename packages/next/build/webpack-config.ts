@@ -1450,8 +1450,6 @@ export default async function getBaseWebpackConfig(
       //  - next.config.js keys that affect compilation
       version: `${process.env.__NEXT_VERSION}|${configVars}`,
       cacheDirectory: path.join(distDir, 'cache', 'webpack'),
-      // we assume that the CI already uses cache compression
-      compression: false,
     }
 
     // Adds `next.config.js` as a buildDependency when custom webpack config is provided
