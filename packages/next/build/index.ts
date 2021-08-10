@@ -935,7 +935,7 @@ export default async function build(
         require(process.env.NEXT_SHARP_PATH || 'sharp')
       } catch (e) {
         Log.warn(
-          'Detected `next/image` usage without `sharp` package. Please run `yarn add sharp`. Read more: https://nextjs.org/docs/messages/sharp-missing-in-production'
+          'Detected `next/image` usage without `sharp`. https://nextjs.org/docs/messages/sharp-missing-in-production'
         )
       }
     }

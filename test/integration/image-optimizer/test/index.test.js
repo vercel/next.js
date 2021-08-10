@@ -26,8 +26,7 @@ let nextOutput
 let appPort
 let app
 const sharpRuntimeWarning = `For production Image Optimization with Next.js, the optional 'sharp' package is strongly recommended`
-const sharpBuildWarning =
-  'Detected `next/image` usage without `sharp` package. Please run `yarn add sharp`.'
+const sharpBuildWarning = 'Detected `next/image` usage without `sharp`.'
 
 async function fsToJson(dir, output = {}) {
   const files = await fs.readdir(dir)
