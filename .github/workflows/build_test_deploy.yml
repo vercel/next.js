@@ -1,10 +1,10 @@
 on:
   push:
     branches: [canary]
+    tags:
+      - v*
   pull_request:
     types: [opened, synchronize]
-  tags:
-    - v*
 
 name: Build, test, and deploy
 
@@ -281,7 +281,6 @@ jobs:
           PR_STATS_COMMENT_TOKEN: ${{ secrets.PR_STATS_COMMENT_TOKEN }}
 
   build-native:
-    needs: build
     strategy:
       matrix:
         os: [ubuntu-18.04, macos-latest, windows-latest]
@@ -350,3 +349,15 @@ jobs:
         run: |
           cargo install cargo-cache --no-default-features --features ci-autoclean
           cargo-cache
+
+  test-native:
+    runs-on: ubuntu-18.04
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly-2021-03-25
+          profile: minimal
+      - run: cd packages/next/build/swc && cargo test
