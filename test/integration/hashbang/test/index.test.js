@@ -18,17 +18,17 @@ let appPort
 const appDir = join(__dirname, '../')
 
 function runTests() {
-  describe('first-line shebang (#!) parse', () => {
+  describe('first-line hashbang (#!) parse', () => {
     it('should work for .js files', async () => {
       const html = await renderViaHTTP(appPort, '/')
       expect(html).toMatch('JS: 123')
     })
 
     // eslint-disable-next-line
-    // it('should work for .mjs files', async () => {
-    //   const html = await renderViaHTTP(appPort, '/')
-    //   expect(html).toMatch('MJS: 456')
-    // })
+    it('should work for .mjs files', async () => {
+      const html = await renderViaHTTP(appPort, '/')
+      expect(html).toMatch('MJS: 456')
+    })
 
     // eslint-disable-next-line
     it('should work for .cjs files', async () => {
