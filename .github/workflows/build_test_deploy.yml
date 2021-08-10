@@ -3,6 +3,8 @@ on:
     branches: [canary]
   pull_request:
     types: [opened, synchronize]
+  tags:
+    - v*
 
 name: Build, test, and deploy
 
@@ -258,7 +260,9 @@ jobs:
         with:
           name: next-swc-binaries
           path: packages/next/native
-
+        if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+      - run: ./scripts/prepublish-native.js
+        if: ${{ startsWith(github.ref, 'refs/tags/v') }}
       - run: ./scripts/publish-release.sh
 
   prStats:
