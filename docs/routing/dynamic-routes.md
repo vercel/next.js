@@ -145,7 +145,7 @@ For more information on what to do next, we recommend the following sections:
 
 <div class="card">
   <a href="/docs/api-reference/next/link.md">
-    <b>next/Link:</b>
+    <b>next/link:</b>
     <small>Enable client-side transitions with next/link.</small>
   </a>
 </div>
