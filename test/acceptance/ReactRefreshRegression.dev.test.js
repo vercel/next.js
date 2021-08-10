@@ -274,9 +274,10 @@ test('shows an overlay for a server-side error', async () => {
 
   const source = await session.getRedboxSource()
   expect(source.split(/\r?\n/g).slice(2).join('\n')).toMatchInlineSnapshot(`
-    "> 1 | export default function () { throw new Error('boom'); }
-        |                                   ^"
-  `)
+"  1 | export default function () {
+> 2 |   throw new Error('boom');
+  3 | }"
+`)
 
   await cleanup()
 })
