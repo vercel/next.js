@@ -1,6 +1,7 @@
 on:
   push:
     branches: [canary]
+    tags: [v*]
   pull_request:
     types: [opened, synchronize]
 
@@ -45,7 +46,7 @@ jobs:
   checkPrecompiled:
     name: Check Pre-compiled
     runs-on: ubuntu-latest
-    needs: build
+    needs: [build, build-native]
     env:
       NEXT_TELEMETRY_DISABLED: 1
     steps:
@@ -55,6 +56,10 @@ jobs:
         with:
           path: ./*
           key: ${{ github.sha }}
+      - uses: actions/download-artifact@v2
+        with:
+          name: next-swc-binaries
+          path: packages/next/native
       - run: ./scripts/check-pre-compiled.sh
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
@@ -239,9 +244,10 @@ jobs:
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
   publishRelease:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
     name: Potentially publish release
     runs-on: ubuntu-latest
-    needs: build
+    needs: [build, build-native]
     env:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
     steps:
@@ -250,7 +256,11 @@ jobs:
         with:
           path: ./*
           key: ${{ github.sha }}
-
+      - uses: actions/download-artifact@v2
+        with:
+          name: next-swc-binaries
+          path: packages/next/native
+      - run: ./scripts/prepublish-native.js
       - run: ./scripts/publish-release.sh
 
   releaseStats:
@@ -267,3 +277,80 @@ jobs:
       - uses: ./.github/actions/next-stats-action
         env:
           PR_STATS_COMMENT_TOKEN: ${{ secrets.PR_STATS_COMMENT_TOKEN }}
+
+  build-native:
+    strategy:
+      matrix:
+        os: [ubuntu-18.04, macos-latest, windows-latest]
+        description: [default]
+        include:
+          - os: ubuntu-18.04
+            target: x86_64-unknown-linux-gnu
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+          - os: macos-latest
+            target: x86_64-apple-darwin
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            description: m1
+
+    name: next-swc - ${{ matrix.os }} - ${{ matrix.target }} - node@14
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup node
+        uses: actions/setup-node@v2
+        with:
+          node-version: 14
+          check-latest: true
+      - name: Install
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly-2021-03-25
+          target: ${{ matrix.target }}
+      - name: Cache cargo registry
+        uses: actions/cache@v1
+        with:
+          path: ~/.cargo/registry
+          key: stable-${{ matrix.os }}-node@14-cargo-registry-trimmed-${{ hashFiles('**/Cargo.lock') }}
+      - name: Cache cargo index
+        uses: actions/cache@v1
+        with:
+          path: ~/.cargo/git
+          key: stable-${{ matrix.os }}-node@14-cargo-index-trimmed-${{ hashFiles('**/Cargo.lock') }}
+      - name: Cache native binary
+        id: binary-cache
+        uses: actions/cache@v2
+        with:
+          path: packages/next/native/**
+          key: next-swc-nightly-2021-03-25-${{ matrix.target }}-${{ hashFiles('packages/next/build/swc/**') }}
+      - name: 'Build'
+        if: steps.binary-cache.outputs.cache-hit != true
+        run: yarn build-native --target ${{ matrix.target }}
+        env:
+          MACOSX_DEPLOYMENT_TARGET: '10.13'
+        working-directory: packages/next
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: next-swc-binaries
+          path: packages/next/native/next-swc.*.node
+      - name: Clear the cargo caches
+        run: |
+          cargo install cargo-cache --no-default-features --features ci-autoclean
+          cargo-cache
+
+  test-native:
+    name: Unit Test Native Code
+    runs-on: ubuntu-18.04
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly-2021-03-25
+          profile: minimal
+      - run: cd packages/next/build/swc && cargo test
