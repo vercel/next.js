@@ -57,13 +57,6 @@ type OnLoadingComplete = (result: {
 
 type ImgElementStyle = NonNullable<JSX.IntrinsicElements['img']['style']>
 
-interface StaticImageData {
-  src: string
-  height: number
-  width: number
-  blurDataURL?: string
-}
-
 interface StaticRequire {
   default: StaticImageData
 }
