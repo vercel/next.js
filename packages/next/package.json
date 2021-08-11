@@ -54,7 +54,7 @@
     "types": "tsc --declaration --emitDeclarationOnly --declarationDir dist",
     "typescript": "tsc --noEmit --declaration",
     "ncc-compiled": "ncc cache clean && taskr ncc",
-    "build-native": "npx -p @napi-rs/cli napi build --platform --release --cargo-cwd build/swc native"
+    "build-native": "napi build --platform --release --cargo-cwd build/swc native"
   },
   "taskr": {
     "requires": [
