@@ -41,6 +41,7 @@ jobs:
         with:
           path: ./*
           key: ${{ github.sha }}
+      - run: ./scripts/check-manifests.js
       - run: yarn lint
 
   checkPrecompiled:
