@@ -98,7 +98,7 @@ For more information on handling static assets please refer to the [Jest Docs](h
 setupFilesAfterEnv: ['<rootDir>/jest.setup.js']
 ```
 
-Then, inside a `jest.setup.js` file, add the following import:
+Then, inside `jest.setup.js`, add the following import:
 
 ```jsx
 // jest.setup.js
