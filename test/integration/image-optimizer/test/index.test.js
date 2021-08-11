@@ -23,6 +23,7 @@ const imagesDir = join(appDir, '.next', 'cache', 'images')
 const nextConfig = new File(join(appDir, 'next.config.js'))
 const largeSize = 1080 // defaults defined in server/config.ts
 let nextOutput
+let buildOutput
 let appPort
 let app
 const sharpRuntimeWarning = `For production Image Optimization with Next.js, the optional 'sharp' package is strongly recommended`
