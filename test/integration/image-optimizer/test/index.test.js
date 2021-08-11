@@ -727,20 +727,28 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
     expect(Object.keys(json1).length).toBe(1)
   })
 
-  if (isDev || isSharp) {
-    it('should not have runtime sharp missing warning', () => {
+  if (isDev) {
+    it('should not have runtime warning in dev', () => {
       expect(nextOutput).not.toContain(sharpRuntimeWarning)
     })
 
-    it('should not have runtime sharp missing warning', () => {
+    it('should not have build warning in dev', () => {
+      expect(buildOutput).not.toContain(sharpBuildWarning)
+    })
+  } else if (isSharp) {
+    it('should not have runtime warning when sharp is installed', () => {
+      expect(nextOutput).not.toContain(sharpRuntimeWarning)
+    })
+
+    it('should not have build warning when sharp is installed', () => {
       expect(buildOutput).not.toContain(sharpBuildWarning)
     })
   } else {
-    it('should have runtime sharp missing warning', () => {
+    it('should have runtime warning when sharp is not installed', () => {
       expect(nextOutput).toContain(sharpRuntimeWarning)
     })
 
-    it('should have build time sharp missing warning', () => {
+    it('should have build warning when sharp is not installed', () => {
       expect(buildOutput).toContain(sharpBuildWarning)
     })
   }
@@ -919,6 +927,7 @@ describe('Image Optimizer', () => {
         },
       })
       nextOutput = ''
+      buildOutput = ''
       nextConfig.replace('{ /* replaceme */ }', json)
       const out = await nextBuild(appDir, [], { stderr: true })
       buildOutput = out.stderr
@@ -1096,6 +1105,7 @@ describe('Image Optimizer', () => {
       const size = 384 // defaults defined in server/config.ts
       beforeAll(async () => {
         nextOutput = ''
+        buildOutput = ''
         appPort = await findPort()
         app = await launchApp(appDir, appPort, {
           onStderr(msg) {
@@ -1123,6 +1133,7 @@ describe('Image Optimizer', () => {
           },
         })
         nextOutput = ''
+        buildOutput = ''
         nextConfig.replace('{ /* replaceme */ }', json)
         appPort = await findPort()
         app = await launchApp(appDir, appPort, {
@@ -1145,6 +1156,7 @@ describe('Image Optimizer', () => {
       const size = 384 // defaults defined in server/config.ts
       beforeAll(async () => {
         nextOutput = ''
+        buildOutput = ''
         const out = await nextBuild(appDir, [], { stderr: true })
         buildOutput = out.stderr
         appPort = await findPort()
@@ -1180,6 +1192,7 @@ describe('Image Optimizer', () => {
           },
         })
         nextOutput = ''
+        buildOutput = ''
         nextConfig.replace('{ /* replaceme */ }', json)
         const out = await nextBuild(appDir, [], { stderr: true })
         buildOutput = out.stderr
