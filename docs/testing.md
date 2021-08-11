@@ -8,7 +8,7 @@
   </ul>
 </details>
 
-This page will go through how to set up Next.js with three commonly used testing tools: [Jest](https://jestjs.io/docs/tutorial-react), [React Testing Library](https://testing-library.com/docs/react-testing-library/intro/) and [Cypress](https://www.cypress.io/blog/2021/04/06/cypress-component-testing-react/).
+Learn how to set up Next.js with three commonly used testing tools: [Jest](https://jestjs.io/docs/tutorial-react), [React Testing Library](https://testing-library.com/docs/react-testing-library/intro/), and [Cypress](https://www.cypress.io/blog/2021/04/06/cypress-component-testing-react/).
 
 ## Jest and React Testing Library
 
