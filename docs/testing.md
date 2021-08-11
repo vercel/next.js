@@ -271,7 +271,7 @@ export default function About() {
 }
 ```
 
-Add a simple test to check your navigation is working correctly:
+Add a test to check your navigation is working correctly:
 
 ```jsx
 // cypress/integration/app.spec.js
