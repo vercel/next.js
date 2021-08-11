@@ -23,11 +23,10 @@ const imagesDir = join(appDir, '.next', 'cache', 'images')
 const nextConfig = new File(join(appDir, 'next.config.js'))
 const largeSize = 1080 // defaults defined in server/config.ts
 let nextOutput
-let buildOutput
 let appPort
 let app
-const sharpRuntimeWarning = `For production Image Optimization with Next.js, the optional 'sharp' package is strongly recommended`
-const sharpBuildWarning = 'Detected `next/image` usage without `sharp`.'
+
+const sharpMissingText = `For production Image Optimization with Next.js, the optional 'sharp' package is strongly recommended`
 
 async function fsToJson(dir, output = {}) {
   const files = await fs.readdir(dir)
@@ -727,29 +726,13 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
     expect(Object.keys(json1).length).toBe(1)
   })
 
-  if (isDev) {
-    it('should not have runtime warning in dev', () => {
-      expect(nextOutput).not.toContain(sharpRuntimeWarning)
-    })
-
-    it('should not have build warning in dev', () => {
-      expect(buildOutput).not.toContain(sharpBuildWarning)
-    })
-  } else if (isSharp) {
-    it('should not have runtime warning when sharp is installed', () => {
-      expect(nextOutput).not.toContain(sharpRuntimeWarning)
-    })
-
-    it('should not have build warning when sharp is installed', () => {
-      expect(buildOutput).not.toContain(sharpBuildWarning)
+  if (isDev || isSharp) {
+    it('should not have sharp missing warning', () => {
+      expect(nextOutput).not.toContain(sharpMissingText)
     })
   } else {
-    it('should have runtime warning when sharp is not installed', () => {
-      expect(nextOutput).toContain(sharpRuntimeWarning)
-    })
-
-    it('should have build warning when sharp is not installed', () => {
-      expect(buildOutput).toContain(sharpBuildWarning)
+    it('should have sharp missing warning', () => {
+      expect(nextOutput).toContain(sharpMissingText)
     })
   }
 }
@@ -927,10 +910,8 @@ describe('Image Optimizer', () => {
         },
       })
       nextOutput = ''
-      buildOutput = ''
       nextConfig.replace('{ /* replaceme */ }', json)
-      const out = await nextBuild(appDir, [], { stderr: true })
-      buildOutput = out.stderr
+      await nextBuild(appDir)
       appPort = await findPort()
       app = await nextStart(appDir, appPort, {
         onStderr(msg) {
@@ -968,8 +949,7 @@ describe('Image Optimizer', () => {
         },
       }`
       )
-      const out = await nextBuild(appDir, [], { stderr: true })
-      buildOutput = out.stderr
+      await nextBuild(appDir)
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
     })
@@ -1045,8 +1025,7 @@ describe('Image Optimizer', () => {
         },
       }`
       nextConfig.replace('{ /* replaceme */ }', newConfig)
-      const out = await nextBuild(appDir, [], { stderr: true })
-      buildOutput = out.stderr
+      await nextBuild(appDir)
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
     })
@@ -1105,7 +1084,6 @@ describe('Image Optimizer', () => {
       const size = 384 // defaults defined in server/config.ts
       beforeAll(async () => {
         nextOutput = ''
-        buildOutput = ''
         appPort = await findPort()
         app = await launchApp(appDir, appPort, {
           onStderr(msg) {
@@ -1133,7 +1111,6 @@ describe('Image Optimizer', () => {
           },
         })
         nextOutput = ''
-        buildOutput = ''
         nextConfig.replace('{ /* replaceme */ }', json)
         appPort = await findPort()
         app = await launchApp(appDir, appPort, {
@@ -1156,9 +1133,7 @@ describe('Image Optimizer', () => {
       const size = 384 // defaults defined in server/config.ts
       beforeAll(async () => {
         nextOutput = ''
-        buildOutput = ''
-        const out = await nextBuild(appDir, [], { stderr: true })
-        buildOutput = out.stderr
+        await nextBuild(appDir)
         appPort = await findPort()
         app = await nextStart(appDir, appPort, {
           onStderr(msg) {
@@ -1192,10 +1167,8 @@ describe('Image Optimizer', () => {
           },
         })
         nextOutput = ''
-        buildOutput = ''
         nextConfig.replace('{ /* replaceme */ }', json)
-        const out = await nextBuild(appDir, [], { stderr: true })
-        buildOutput = out.stderr
+        await nextBuild(appDir)
         appPort = await findPort()
         app = await nextStart(appDir, appPort, {
           onStderr(msg) {
