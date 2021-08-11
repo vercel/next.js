@@ -7,5 +7,14 @@
   "repository": {
     "url": "vercel/next.js",
     "directory": "packages/eslint-plugin-next"
+  },
+  "files": [
+    "lib"
+  ],
+  "dependencies": {
+    "glob": "7.1.7"
+  },
+  "devDependencies": {
+    "@types/eslint": "7.28.0"
   }
 }
