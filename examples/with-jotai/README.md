@@ -2,6 +2,9 @@
 
 This example shows how to integrate [Jotai](https://github.com/pmndrs/jotai) in Next.js.
 
+Jotai is primitive and flexible state management library for React. 
+Jotai is TypeScript oriented and aims to expose a minimalistic API for dealing with state in a data-flow graph way.
+
 Jotai uses the `useHydrateAtoms` hook to hydrate the value of an atom, for values that comes from the server. 
 
 ## Preview
