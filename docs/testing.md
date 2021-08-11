@@ -106,7 +106,7 @@ Then, inside `jest.setup.js`, add the following import:
 import '@testing-library/jest-dom/extend-expect'
 ```
 
-If you need to add more setup options before each test, it's common to add them to the jest.setup.js file above.
+If you need to add more setup options before each test, it's common to add them to the `jest.setup.js` file above.
 
 **Absolute Imports and Module Path Aliases**
 
