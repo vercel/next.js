@@ -41,7 +41,7 @@ export function updateUserByUsername(req, username, update) {
   return user
 }
 
-export function deleteUser(req, username) {
+export function deleteUser(req) {
   // Here you should delete the user in the database
   // await db.deleteUser(req.user)
   req.session.users = req.session.users.filter(
