@@ -328,7 +328,7 @@ jobs:
           path: packages/next/native/**
           key: next-swc-nightly-2021-03-25-${{ matrix.target }}-${{ hashFiles('packages/next/build/swc/**') }}
       - name: 'Build'
-        if: steps.binary-cache.outputs.cache-hit != true
+        if: steps.binary-cache.outputs.cache-hit != 'true'
         run: yarn build-native --target ${{ matrix.target }}
         env:
           MACOSX_DEPLOYMENT_TARGET: '10.13'
