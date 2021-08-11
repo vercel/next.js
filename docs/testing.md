@@ -147,7 +147,7 @@ Add the Jest executable in watch mode to the `package.json` scripts:
 }
 ```
 
-`jest --watch` will rerun tests when a file is changed. For more Jest CLI options, please refer to the [Jest Docs](https://jestjs.io/docs/cli#reference).
+`jest --watch` will re-run tests when a file is changed. For more Jest CLI options, please refer to the [Jest Docs](https://jestjs.io/docs/cli#reference).
 
 **Create your first tests**
 
