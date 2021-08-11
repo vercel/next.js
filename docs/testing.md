@@ -224,10 +224,10 @@ Add Cypress to the `package.json` scripts field:
 
 ```json
 "scripts": {
-	"dev": "next dev",
+  "dev": "next dev",
   "build": "next build",
   "start": "next start",
-	"cypress": "cypress open",
+  "cypress": "cypress open",
 }
 ```
 
