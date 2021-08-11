@@ -20,7 +20,7 @@ function collectPaths(routes, paths = []) {
 
 async function main() {
   const manifests = ['errors/manifest.json', 'docs/manifest.json']
-  let hadMissing = false
+  let hadError = false
 
   for (const manifest of manifests) {
     const dir = path.dirname(manifest)
@@ -38,15 +38,27 @@ async function main() {
     )
 
     if (missingFiles.length) {
-      hadMissing = true
+      hadError = true
       console.log(`Missing paths in ${manifest}:\n${missingFiles.join('\n')}`)
     } else {
       console.log(`No missing paths in ${manifest}`)
     }
+
+    for (const filePath of paths) {
+      if (
+        !(await fs.promises
+          .access(path.join(process.cwd(), filePath), fs.constants.F_OK)
+          .then(() => true)
+          .catch(() => false))
+      ) {
+        console.log('Could not find path:', filePath)
+        hadError = true
+      }
+    }
   }
 
-  if (hadMissing) {
-    throw new Error('missing manifest items detected see above')
+  if (hadError) {
+    throw new Error('missing/incorrect manifest items detected see above')
   }
 }
 
