@@ -140,10 +140,10 @@ Add the Jest executable in watch mode to the `package.json` scripts:
 
 ```jsx
 "scripts": {
-	"dev": "next dev",
+  "dev": "next dev",
   "build": "next build",
   "start": "next start",
-	"test": "jest --watch"
+  "test": "jest --watch"
 }
 ```
 
