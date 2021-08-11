@@ -766,7 +766,7 @@ function doRender(input: RenderRouteInfo): Promise<any> {
 
       // Force browser to recompute layout, which should prevent a flash of
       // unstyled content:
-      getComputedStyle(document.body, 'height')
+      getComputedStyle(document.body)
     }
 
     if (input.scroll) {
