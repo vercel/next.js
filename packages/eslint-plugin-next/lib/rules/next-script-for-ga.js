@@ -1,4 +1,4 @@
-const NodeAttributes = require('../utils/nodeAttributes.js')
+const NodeAttributes = require('../utils/node-attributes.js')
 
 const GA_URL = 'www.google-analytics.com/analytics.js'
 const ERROR_MSG =
@@ -39,9 +39,10 @@ module.exports = {
           attributes.has('dangerouslySetInnerHTML') &&
           attributes.value('dangerouslySetInnerHTML')[0]
         ) {
-          const htmlContent = attributes.value('dangerouslySetInnerHTML')[0]
-            .value.quasis[0].value.raw
-
+          const htmlContent =
+            attributes.value('dangerouslySetInnerHTML')[0].value.quasis &&
+            attributes.value('dangerouslySetInnerHTML')[0].value.quasis[0].value
+              .raw
           if (
             htmlContent &&
             htmlContent.includes('www.google-analytics.com/analytics.js')
