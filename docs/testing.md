@@ -151,7 +151,7 @@ Add the Jest executable in watch mode to the `package.json` scripts:
 
 **Create your first tests**
 
-After all the configuration, your project is now ready to run your tests. Follow Jests convention by adding your tests to the `__tests__` folder in your project's root directory.
+Your project is now ready to run tests. Follow Jests convention by adding tests to the `__tests__` folder in your project's root directory.
 
 For example, we can add a test to check if the `<Index />` component successfully renders a heading:
 
