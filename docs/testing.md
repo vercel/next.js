@@ -12,7 +12,7 @@ Learn how to set up Next.js with three commonly used testing tools: [Jest](https
 
 ## Jest and React Testing Library
 
-Jest and React Testing Library are used together to test React components.
+Jest and React Testing Library are frequently used together for Unit Testing.
 
 ### Quickstart
 
@@ -110,7 +110,7 @@ If you need to add more setup options before each test, it's common to add them 
 
 **Absolute Imports and Module Path Aliases**
 
-If your project is using [Module Path Aliases](https://nextjs.org/docs/advanced-features/module-path-aliases), you will need to configure Jest to resolve the imports. Considering the following paths:
+If your project is using [Module Path Aliases](https://nextjs.org/docs/advanced-features/module-path-aliases), you will need to configure Jest to resolve the imports by matching the paths option in the `jsconfig.json` file with the `moduleNameMapper` option in the `jest.config.js` file. For example:
 
 ```json
 // tsconfig.json or jsconfig.json
@@ -124,12 +124,9 @@ If your project is using [Module Path Aliases](https://nextjs.org/docs/advanced-
 }
 ```
 
-Update the Jest configuration file to match:
-
 ```jsx
 // jest.config.js
 moduleNameMapper: {
-	// ...
   '^@/components/(.*)$': '<rootDir>/components/$1',
 }
 ```
@@ -249,23 +246,21 @@ import Link from 'next/link'
 
 export default function Home() {
   return (
-    <div>
+    <nav>
       <Link href="/about">
         <a>About</a>
       </Link>
-    </div>
+    </nav>
   )
 }
 ```
 
 ```jsx
 // pages/about.js
-import Link from 'next/link'
-
 export default function About() {
   return (
     <div>
-      <h1>About page</h1>
+      <h1>About Page</h1>
     </div>
   )
 }
@@ -288,7 +283,7 @@ describe('Navigation', () => {
     cy.url().should('include', '/about')
 
     // The new page should contain an h1 with "About page"
-    cy.get('h1').contains('About page')
+    cy.get('h1').contains('About Page')
   })
 })
 ```
