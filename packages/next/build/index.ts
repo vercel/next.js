@@ -932,7 +932,13 @@ export default async function build(
 
     if (isNextImageImported) {
       try {
-        require(process.env.NEXT_SHARP_PATH || 'sharp')
+        if (process.env.NEXT_SHARP_PATH) {
+          require(process.env.NEXT_SHARP_PATH)
+        } else {
+          require.resolve('sharp', {
+            paths: [path.join(dir, 'node_modules')],
+          })
+        }
       } catch (e) {
         Log.warn(
           'Detected `next/image` usage without `sharp`. https://nextjs.org/docs/messages/sharp-missing-in-production'
