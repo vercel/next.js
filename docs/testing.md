@@ -86,7 +86,7 @@ These files aren't useful in tests but importing them may cause errors, so we wi
 module.exports = {};
 ```
 
-For more information on handling static assets please refer to the [Jest Docs](https://jestjs.io/docs/webpack#handling-static-assets).
+For more information on handling static assets, please refer to the [Jest Docs](https://jestjs.io/docs/webpack#handling-static-assets).
 
 **Extend Jest with custom matchers**
 
