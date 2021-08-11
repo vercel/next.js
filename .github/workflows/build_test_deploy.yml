@@ -40,6 +40,7 @@ jobs:
         with:
           path: ./*
           key: ${{ github.sha }}
+      - run: ./scripts/check-manifests.js
       - run: yarn lint
 
   checkPrecompiled:
@@ -253,7 +254,7 @@ jobs:
 
       - run: ./scripts/publish-release.sh
 
-  prStats:
+  releaseStats:
     name: Release Stats
     runs-on: ubuntu-latest
     needs: [publishRelease]
