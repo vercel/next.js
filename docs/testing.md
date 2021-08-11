@@ -174,7 +174,7 @@ describe('App', () => {
 })
 ```
 
-Add a [snapshot test](https://jestjs.io/docs/snapshot-testing) to keep track of any unexpected changes to your `<Index />` component:
+Optionally, add a [snapshot test](https://jestjs.io/docs/snapshot-testing) to keep track of any unexpected changes to your `<Index />` component:
 
 ```jsx
 // __tests__/snapshot.js
