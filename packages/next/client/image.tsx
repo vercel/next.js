@@ -348,6 +348,10 @@ export default function Image({
     unoptimized = true
     isLazy = false
   }
+  if (src.startsWith('blob:')) {
+    unoptimized = true
+    isLazy = false
+  }
   if (typeof window !== 'undefined' && loadedImageURLs.has(src)) {
     isLazy = false
   }
