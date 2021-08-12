@@ -45,21 +45,17 @@ function runTests() {
     expect(res.status).toBe(200)
   })
 
-  it('should load internal percent image', async () => {
-    const src = await browser
-      .elementById('internal-precent')
-      .getAttribute('src')
-    expect(src).toMatch('/_next/image?url=%2F50%25.jpg')
+  it('should load internal image with space', async () => {
+    const src = await browser.elementById('internal-space').getAttribute('src')
+    expect(src).toMatch('/_next/image?url=%2Fhello%2520world.jpg')
     const res = await fetch(src)
     expect(res.status).toBe(200)
   })
 
-  it('should load external percent image', async () => {
-    const src = await browser
-      .elementById('external-precent')
-      .getAttribute('src')
+  it('should load external image with space', async () => {
+    const src = await browser.elementById('external-space').getAttribute('src')
     expect(src).toMatch(
-      '/_next/image?url=https%3A%2F%2Fimage-optimization-test.vercel.app%2F50%25.jpg'
+      '/_next/image?url=https%3A%2F%2Fimage-optimization-test.vercel.app%2Fhello%2520world.jpg'
     )
     const res = await fetch(src)
     expect(res.status).toBe(200)

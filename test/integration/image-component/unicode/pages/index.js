@@ -14,10 +14,15 @@ const Page = () => {
         width={400}
         height={400}
       />
-      <Image id="internal-precent" src="/50%.jpg" width={200} height={200} />
       <Image
-        id="external-precent"
-        src="https://image-optimization-test.vercel.app/50%.jpg"
+        id="internal-space"
+        src="/hello%20world.jpg"
+        width={200}
+        height={200}
+      />
+      <Image
+        id="external-space"
+        src="https://image-optimization-test.vercel.app/hello%20world.jpg"
         width={200}
         height={200}
       />

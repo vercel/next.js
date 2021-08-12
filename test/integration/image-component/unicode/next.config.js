@@ -1,5 +1,8 @@
 module.exports = {
   images: {
-    domains: ['image-optimization-test.vercel.app'],
+    domains: [
+      'image-optimization-test.vercel.app',
+      'firebasestorage.googleapis.com',
+    ],
   },
 }
