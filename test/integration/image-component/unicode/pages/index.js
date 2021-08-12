@@ -14,6 +14,13 @@ const Page = () => {
         width={400}
         height={400}
       />
+      <Image id="internal-precent" src="/50%.jpg" width={200} height={200} />
+      <Image
+        id="external-precent"
+        src="https://image-optimization-test.vercel.app/50%.jpg"
+        width={200}
+        height={200}
+      />
     </div>
   )
 }
