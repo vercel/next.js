@@ -1,15 +1,15 @@
 {
-  "name": "next-swc-win32-x64-msvc",
+  "name": "@next/swc-darwin-x64",
   "version": "0.0.0",
   "os": [
-    "win32"
+    "darwin"
   ],
   "cpu": [
     "x64"
   ],
-  "main": "next-swc.win32-x64-msvc.node",
+  "main": "next-swc.darwin-x64.node",
   "files": [
-    "next-swc.win32-x64-msvc.node"
+    "next-swc.darwin-x64.node"
   ],
   "license": "MIT",
   "engines": {
