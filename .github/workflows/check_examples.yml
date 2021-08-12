@@ -1,7 +1,8 @@
-name: check-examples
+name: Check examples
 on: [push, pull_request]
 jobs:
   check-examples:
+    name: Check exampels
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
