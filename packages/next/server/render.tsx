@@ -307,6 +307,8 @@ function renderDocument(
     scriptLoader,
     locale,
     disableOptimizedLoading,
+    styles: docProps.styles,
+    head: docProps.head,
   }
   return (
     '<!DOCTYPE html>' +
@@ -1165,7 +1167,7 @@ export async function renderToHTML(
     docProps.html +
     html.substring(bodyRenderIdx + BODY_RENDER_TARGET.length)
 
-  if (inAmpMode && html) {
+  if (inAmpMode) {
     html = await optimizeAmp(html, renderOpts.ampOptimizerConfig)
     if (!renderOpts.ampSkipValidation && renderOpts.ampValidator) {
       await renderOpts.ampValidator(html, pathname)
