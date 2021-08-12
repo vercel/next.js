@@ -130,6 +130,7 @@ export type NextConfig = { [key: string]: any } & {
     staticPageGenerationTimeout?: number
     pageDataCollectionTimeout?: number
     isrMemoryCacheSize?: number
+    concurrentFeatures?: boolean
   }
 }
 
@@ -202,6 +203,7 @@ export const defaultConfig: NextConfig = {
     pageDataCollectionTimeout: 60,
     // default to 50MB limit
     isrMemoryCacheSize: 50 * 1024 * 1024,
+    concurrentFeatures: false,
   },
   future: {
     strictPostcssConfiguration: false,

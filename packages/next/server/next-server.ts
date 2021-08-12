@@ -181,6 +181,7 @@ export default class Server {
     defaultLocale?: string
     domainLocales?: DomainLocale[]
     distDir: string
+    concurrentFeatures?: boolean
   }
   private compression?: Middleware
   private incrementalCache: IncrementalCache
@@ -241,6 +242,7 @@ export default class Server {
         .disableOptimizedLoading,
       domainLocales: this.nextConfig.i18n?.domains,
       distDir: this.distDir,
+      concurrentFeatures: this.nextConfig.experimental.concurrentFeatures,
     }
 
     // Only the `publicRuntimeConfig` key is exposed to the client side
