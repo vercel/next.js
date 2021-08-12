@@ -31,6 +31,7 @@ const dirNoEslintPlugin = join(__dirname, '../no-eslint-plugin')
 const dirNoConfig = join(__dirname, '../no-config')
 const dirEslintCache = join(__dirname, '../eslint-cache')
 const dirEslintCacheCustomDir = join(__dirname, '../eslint-cache-custom-dir')
+const dirFileLinting = join(__dirname, '../file-linting')
 
 describe('ESLint', () => {
   describe('Next Build', () => {
@@ -506,6 +507,23 @@ describe('ESLint', () => {
       await nextLint(dirEslintCache, ['--cache-location', cacheFile])
 
       expect(fs.existsSync(cacheFile)).toBe(true)
+    })
+
+    test('file flag selectively lints files', async () => {
+      const { stdout, stderr } = await nextLint(
+        dirFileLinting,
+        ['--file', 'utils/bar.js'],
+        {
+          stdout: true,
+          stderr: true,
+        }
+      )
+
+      const output = stdout + stderr
+      expect(output).toContain(
+        'Error: Comments inside children section of tag should be placed inside braces'
+      )
+      expect(output).not.toContain('External synchronous scripts are forbidden')
     })
   })
 })
