@@ -1,0 +1,9 @@
+name: check-examples
+on: [push, pull_request]
+jobs:
+  check-examples:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Check examples
+        run: ./scripts/check-examples.sh
