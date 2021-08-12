@@ -1161,6 +1161,9 @@ export default class Server {
           let path = `/${pathParts.join('/')}`
 
           if (!publicFiles.has(path)) {
+            // In `next-dev-server.ts`, we ensure encoded paths match
+            // decoded paths on the filesystem. So we need do the
+            // opposite here: make sure decoded paths match encoded.
             path = encodeURI(path)
           }
 
