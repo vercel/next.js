@@ -12,7 +12,7 @@ const path = require('path')
 const bindings = loadBinding(
   path.join(__dirname, '../../../native'),
   'next-swc',
-  'next-swc'
+  '@next/swc'
 )
 
 async function transform(src, options) {
