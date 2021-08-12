@@ -8,6 +8,7 @@ import type { NextRouter } from './router/router'
 import type { ParsedUrlQuery } from 'querystring'
 import type { PreviewData } from 'next/types'
 import type { UrlObject } from 'url'
+import { createContext } from 'react'
 
 export type NextComponentType<
   C extends BaseContext = NextPageContext,
@@ -26,12 +27,7 @@ export type DocumentType = NextComponentType<
   DocumentContext,
   DocumentInitialProps,
   DocumentProps
-> & {
-  renderDocument(
-    Document: DocumentType,
-    props: DocumentProps
-  ): React.ReactElement
-}
+>
 
 export type AppType = NextComponentType<
   AppContextType,
@@ -188,7 +184,9 @@ export type DocumentInitialProps = RenderPageResult & {
   styles?: React.ReactElement[] | React.ReactFragment
 }
 
-export type DocumentProps = DocumentInitialProps & {
+export type DocumentProps = DocumentInitialProps & HtmlProps
+
+export type HtmlProps = {
   __NEXT_DATA__: NEXT_DATA
   dangerousAsPath: string
   docComponentsRendered: {
@@ -212,6 +210,8 @@ export type DocumentProps = DocumentInitialProps & {
   scriptLoader: { afterInteractive?: string[]; beforeInteractive?: any[] }
   locale?: string
   disableOptimizedLoading?: boolean
+  styles?: React.ReactElement[] | React.ReactFragment
+  head?: Array<JSX.Element | null>
 }
 
 /**
@@ -432,3 +432,8 @@ export const ST =
   typeof performance.measure === 'function'
 
 export class DecodeError extends Error {}
+
+export const HtmlContext = createContext<HtmlProps>(null as any)
+if (process.env.NODE_ENV !== 'production') {
+  HtmlContext.displayName = 'HtmlContext'
+}
