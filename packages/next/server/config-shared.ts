@@ -48,6 +48,22 @@ export type NextConfig = { [key: string]: any } & {
   webpack5?: false
   excludeDefaultMomentLocales?: boolean
 
+  webpack?:
+    | ((
+        config: any,
+        context: {
+          dir: string
+          dev: boolean
+          isServer: boolean
+          buildId: string
+          config: NextConfigComplete
+          defaultLoaders: { babel: any }
+          totalPages: number
+          webpack: any
+        }
+      ) => any)
+    | null
+
   trailingSlash?: boolean
   env?: { [key: string]: string }
   distDir?: string
@@ -58,6 +74,7 @@ export type NextConfig = { [key: string]: any } & {
   generateEtags?: boolean
   pageExtensions?: string[]
   compress?: boolean
+  poweredByHeader?: boolean
   images?: ImageConfig
   devIndicators?: {
     buildActivity?: boolean
@@ -113,6 +130,7 @@ export type NextConfig = { [key: string]: any } & {
     staticPageGenerationTimeout?: number
     pageDataCollectionTimeout?: number
     isrMemoryCacheSize?: number
+    concurrentFeatures?: boolean
   }
 }
 
@@ -185,6 +203,7 @@ export const defaultConfig: NextConfig = {
     pageDataCollectionTimeout: 60,
     // default to 50MB limit
     isrMemoryCacheSize: 50 * 1024 * 1024,
+    concurrentFeatures: false,
   },
   future: {
     strictPostcssConfiguration: false,
