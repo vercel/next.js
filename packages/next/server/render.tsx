@@ -39,6 +39,7 @@ import {
   DocumentInitialProps,
   DocumentProps,
   DocumentType,
+  HtmlContext,
   getDisplayName,
   isResSent,
   loadGetInitialProps,
@@ -63,7 +64,6 @@ import {
 } from '../lib/load-custom-routes'
 import { DomainLocale } from './config'
 import { RenderResult, resultFromChunks } from './utils'
-import { HtmlContext } from '../dist/server/document'
 
 function noRouter() {
   const message =
