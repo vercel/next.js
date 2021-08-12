@@ -6,6 +6,12 @@ function Home() {
     <>
       <h1>Image Optimizer Home</h1>
       <Image src={Logo} />
+      <Image src="/äöü.png" width={200} height={200} />
+      <Image
+        src="https://image-optimization-test.vercel.app/äöü.png"
+        width={200}
+        height={200}
+      />
     </>
   )
 }
