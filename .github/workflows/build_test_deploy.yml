@@ -60,7 +60,11 @@ jobs:
       - uses: actions/download-artifact@v2
         with:
           name: next-swc-binaries
-          path: packages/next/native
+          path: packages/next/build/swc/dist
+      # Only check linux build for now, mac builds can sometimes be different even with the same code
+      - run: |
+          mv ./packages/next/build/swc/dist/next-swc.linux-x64-gnu.node \
+            ./packages/next/native/next-swc.linux-x64-gnu.node
       - run: ./scripts/check-pre-compiled.sh
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
@@ -260,8 +264,8 @@ jobs:
       - uses: actions/download-artifact@v2
         with:
           name: next-swc-binaries
-          path: packages/next/native
-      - run: ./scripts/prepublish-native.js
+          path: packages/next/build/swc/dist
+      - run: ./scripts/publish-native.js $GITHUB_REF
       - run: ./scripts/publish-release.sh
 
   releaseStats:
@@ -325,10 +329,10 @@ jobs:
         id: binary-cache
         uses: actions/cache@v2
         with:
-          path: packages/next/native/**
+          path: packages/next/native/next-swc.*.node
           key: next-swc-nightly-2021-03-25-${{ matrix.target }}-${{ hashFiles('packages/next/build/swc/**') }}
       - name: 'Build'
-        if: steps.binary-cache.outputs.cache-hit != true
+        if: steps.binary-cache.outputs.cache-hit != 'true'
         run: yarn build-native --target ${{ matrix.target }}
         env:
           MACOSX_DEPLOYMENT_TARGET: '10.13'
