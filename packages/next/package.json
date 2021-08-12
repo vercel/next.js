@@ -10,6 +10,7 @@
   "types": "types/index.d.ts",
   "files": [
     "dist",
+    "native",
     "app.js",
     "app.d.ts",
     "babel.js",
