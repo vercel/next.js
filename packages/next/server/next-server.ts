@@ -1158,7 +1158,11 @@ export default class Server {
             pathParts.splice(0, basePathParts.length)
           }
 
-          const path = `/${pathParts.join('/')}`
+          let path = `/${pathParts.join('/')}`
+
+          if (!publicFiles.has(path)) {
+            path = encodeURI(path)
+          }
 
           if (publicFiles.has(path)) {
             await this.serveStatic(
