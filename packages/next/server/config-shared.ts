@@ -70,7 +70,7 @@ export type NextConfig = { [key: string]: any } & {
   cleanDistDir?: boolean
   assetPrefix?: string
   useFileSystemPublicRoutes?: boolean
-  generateBuildId?: () => string | null
+  generateBuildId?: () => string | null | Promise<string | null>
   generateEtags?: boolean
   pageExtensions?: string[]
   compress?: boolean
