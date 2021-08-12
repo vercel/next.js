@@ -8,6 +8,16 @@ on:
 name: Build, test, and deploy
 
 jobs:
+  check-examples:
+    name: Check examples
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install moreutils
+        run: sudo apt install moreutils
+      - name: Check examples
+        run: ./scripts/check-examples.sh
+
   build:
     runs-on: ubuntu-latest
     env:
