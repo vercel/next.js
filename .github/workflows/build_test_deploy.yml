@@ -265,6 +265,7 @@ jobs:
         with:
           name: next-swc-binaries
           path: packages/next/build/swc/dist
+      - run: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
       - run: ./scripts/publish-native.js $GITHUB_REF
       - run: ./scripts/publish-release.sh
 
