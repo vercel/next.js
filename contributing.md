@@ -34,8 +34,8 @@ To develop locally:
    ```
 6. In a new terminal, run `yarn types` to compile declaration files from
    TypeScript.
-  
-   *Note: You may need to repeat this step if your types get outdated.*
+
+   _Note: You may need to repeat this step if your types get outdated._
 
 For instructions on how to build a project with your local version of the CLI,
 see **[Developing with your local version of Next.js](#developing-with-your-local-version-of-nextjs)**
@@ -136,7 +136,7 @@ There are two options to develop with your local version of the codebase:
    with:
 
    ```json
-   "next": "/path/to/next.js/packages/next",
+   "next": "file:/path/to/next.js/packages/next",
    ```
 
 2. In your app's root directory, make sure to remove `next` from `node_modules` with:
@@ -173,8 +173,7 @@ or
 
 This will use the version of `next` built inside of the Next.js monorepo and the
 main `yarn dev` monorepo command can be running to make changes to the local
-Next.js version at the same time (some changes might require re-running `yarn
-next-with-deps` to take affect).
+Next.js version at the same time (some changes might require re-running `yarn next-with-deps` to take affect).
 
 ## Adding warning/error descriptions
 
@@ -188,14 +187,15 @@ Below are the steps to add a new link:
 
 1. Create a new markdown file under the `errors` directory based on
    `errors/template.md`:
-  
+
    ```shell
    cp errors/template.md errors/<error-file-name>.md
    ```
+
 2. Add the newly added file to `errors/manifest.json`
 3. Add the following url to your warning/error:
    `https://nextjs.org/docs/messages/<file-path-without-dotmd>`.
-   
+
    For example, to link to `errors/api-routes-static-export.md` you use the url:
    `https://nextjs.org/docs/messages/api-routes-static-export`
 
