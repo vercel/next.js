@@ -1,4 +1,4 @@
-export function onEdgeRequest(req, res, next) {
+export function middleware(req, res, next) {
   if (req.url.pathname === '/redirect-with-basepath' && !req.url.basePath) {
     res.redirect({ ...req.url, basePath: '/root' })
     return

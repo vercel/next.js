@@ -1,5 +1,7 @@
 /* eslint-env jest */
 
+jest.setTimeout(1000 * 60 * 2)
+
 import { fetchViaHTTP, findPort, killApp, launchApp } from 'next-test-utils'
 import { join } from 'path'
 import cheerio from 'cheerio'
@@ -8,7 +10,7 @@ import webdriver from 'next-webdriver'
 const context = {}
 context.appDir = join(__dirname, '../')
 
-describe('Edge middleware tests', () => {
+describe('Middleware base tests', () => {
   beforeAll(async () => {
     context.appPort = await findPort()
     context.app = await launchApp(context.appDir, context.appPort)

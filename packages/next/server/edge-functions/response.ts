@@ -292,9 +292,8 @@ export class EdgeResponse {
     }
 
     this.status(status)
-    this.location = this._formatUrl(
+    this.location =
       address === 'back' ? this.headers.get('Referrer') || '/' : address
-    )
     this.end()
   }
 
