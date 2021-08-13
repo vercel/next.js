@@ -105,9 +105,11 @@ You can use `cy.visit("/")` instead of `cy.visit("http://localhost:3000/")` if y
 
 ### Running your Cypress tests
 
-Because Cypress is testing a real Next.js application, it requires the Next.js server to be running prior to starting Cypress. Run `npm run dev` to start the development server then run `npm run cypress` in another terminal window to start Cypress.
+Since Cypress is testing a real Next.js application, it requires the Next.js server to be running prior to starting Cypress. We recommend running your tests against your production code to more closely resemble how your application will behave.
 
-Alternatively, you can install the `start-server-and-test` package and add it to the `package.json` scripts field: `"test": "start-server-and-test dev http://localhost:3000 cypress"` to start the Next.js development server when you run Cypress.
+Run `npm run build` and `npm run start`, then run `npm run cypress` in another terminal window to start Cypress.
+
+> **Note:** Alternatively, you can install the `start-server-and-test` package and add it to the `package.json` scripts field: `"test": "start-server-and-test start http://localhost:3000 cypress"` to start the Next.js production server in conjuction with Cypress. Remember to rebuild your application after new changes.
 
 ### Getting ready for Continuous Integration (CI)
 
@@ -120,8 +122,8 @@ You will have noticed that running Cypress so far has opened an interactive brow
   //...
   "cypress": "cypress open",
   "cypress:headless": "cypress run",
-  "e2e": "start-server-and-test dev http://localhost:3000 cypress",
-  "e2e:headless": "start-server-and-test dev http://localhost:3000 cypress:headless"
+  "e2e": "start-server-and-test start http://localhost:3000 cypress",
+  "e2e:headless": "start-server-and-test start http://localhost:3000 cypress:headless"
 }
 ```
 
