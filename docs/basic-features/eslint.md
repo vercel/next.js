@@ -100,6 +100,25 @@ Next.js provides an ESLint plugin, [`eslint-plugin-next`](https://www.npmjs.com/
 
 If you already have ESLint configured in your application, we recommend extending from this plugin directly instead of including `eslint-config-next` unless a few conditions are met. Refer to the [Recommended Plugin Ruleset](/docs/basic-features/eslint.md#recommended-plugin-ruleset) to learn more.
 
+### Custom Settings
+
+#### `rootDir`
+
+If you're using `eslint-plugin-next` in a project where Next.js isn't installed in your root directory (such as a monorepo), you can tell `eslint-plugin-next` where to find your Next.js application using the using the `settings` property in your `.eslintrc`:
+
+```json
+{
+  "extends": "next",
+  "settings": {
+    "next": {
+      "rootDir": "/packages/my-app/"
+    }
+  }
+}
+```
+
+We've designed `rootDir` to support a variety of configurations. The value can be a path (relative or absolute), a glob (i.e. `"/packages/*/"`), or an array of paths and/or globs.
+
 ## Linting Custom Directories
 
 By default, Next.js will run ESLint for all files in the `pages/`, `components/`, and `lib/` directories. However, you can specify which directories using the `dirs` option in the `eslint` config in `next.config.js` for production builds:
