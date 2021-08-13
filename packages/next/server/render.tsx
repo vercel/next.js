@@ -1344,11 +1344,7 @@ function multiplexResult(result: RenderResult): RenderResult {
           kind: 'FAILED',
           error,
         }
-        subscribers.forEach((subscriber) => {
-          try {
-            subscriber.error(error)
-          } catch {}
-        })
+        subscribers.forEach((subscriber) => subscriber.error(error))
         subscribers.clear()
       }
     },
@@ -1357,46 +1353,59 @@ function multiplexResult(result: RenderResult): RenderResult {
         streamResult = {
           kind: 'COMPLETE',
         }
-        subscribers.forEach((subscriber) => {
-          try {
-            subscriber.complete()
-          } catch {}
-        })
+        subscribers.forEach((subscriber) => subscriber.complete())
         subscribers.clear()
       }
     },
   })
 
-  return (subscriber) => {
+  return (innerSubscriber) => {
     let completed = false
+    const subscriber: Observer<string> = {
+      next(chunk) {
+        if (!completed) {
+          try {
+            innerSubscriber.next(chunk)
+          } catch (err) {
+            subscriber.error(err)
+          }
+        }
+      },
+      complete() {
+        if (!completed) {
+          try {
+            completed = true
+            innerSubscriber.complete()
+          } catch (err) {}
+        }
+      },
+      error(err) {
+        if (!completed) {
+          try {
+            completed = true
+            innerSubscriber.error(err)
+          } catch (err) {}
+        }
+      },
+    }
+
     process.nextTick(() => {
       for (const chunk of chunks) {
         if (completed) {
           return
         }
-        try {
-          subscriber.next(chunk)
-        } catch (err) {
-          if (!completed) {
-            completed = true
-            try {
-              subscriber.error(err)
-            } catch {}
-          }
-        }
+        subscriber.next(chunk)
       }
 
       if (!completed) {
         if (!streamResult) {
           subscribers.add(subscriber)
         } else {
-          try {
-            if (streamResult.kind === 'FAILED') {
-              subscriber.error(streamResult.error)
-            } else {
-              subscriber.complete()
-            }
-          } catch {}
+          if (streamResult.kind === 'FAILED') {
+            subscriber.error(streamResult.error)
+          } else {
+            subscriber.complete()
+          }
         }
       }
     })
