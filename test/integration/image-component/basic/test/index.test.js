@@ -406,20 +406,4 @@ describe('Image Component Tests', () => {
       )
     })
   })
-  describe('Blob URL Tests', () => {
-    beforeAll(async () => {
-      browser = await webdriver(appPort, '/blob')
-    })
-    afterAll(async () => {
-      browser = null
-    })
-    it('should render image with blob src', async () => {
-      expect(
-        await browser.elementById('blob-image').getAttribute('src')
-      ).toMatch(/^blob:/)
-      expect(
-        await browser.elementById('blob-image').getAttribute('srcset')
-      ).toBeFalsy()
-    })
-  })
 })
