@@ -998,7 +998,7 @@ export async function renderToHTML(
     disableOptimizedLoading,
   }
 
-  const doRender = async () => {
+  const renderDocument = async () => {
     if (Document.getInitialProps) {
       const renderPage: RenderPage = (
         options: ComponentsEnhancer = {}
@@ -1059,6 +1059,7 @@ export async function renderToHTML(
       }
     } else {
       const documentElement = (Document as any)()
+      // TODO: Render in serial until we support concurrent registries
       const bodyResult = await mutex(() =>
         renderToStream(
           ctx.err && ErrorDebug ? (
@@ -1078,8 +1079,8 @@ export async function renderToHTML(
     }
   }
 
-  const renderResult = await doRender()
-  if (!renderResult) {
+  const document = await renderDocument()
+  if (!document) {
     return null
   }
 
@@ -1094,7 +1095,7 @@ export async function renderToHTML(
     }
   }
 
-  const { documentElement, bodyResult } = renderResult
+  const { documentElement, bodyResult } = document
   const documentHTML = ReactDOMServer.renderToStaticMarkup(
     <AmpStateContext.Provider value={ampState}>
       <HtmlContext.Provider value={htmlProps}>
