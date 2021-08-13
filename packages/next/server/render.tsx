@@ -1068,6 +1068,8 @@ export async function renderToHTML(
     scriptLoader,
     locale,
     disableOptimizedLoading,
+    styles: docProps.styles,
+    head: docProps.head,
   }
   const documentHTML = ReactDOMServer.renderToStaticMarkup(
     <AmpStateContext.Provider value={ampState}>
