@@ -58,6 +58,7 @@ jobs:
           path: ./*
           key: ${{ github.sha }}
       - uses: actions/download-artifact@v2
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
           name: next-swc-binaries
           path: packages/next/build/swc/dist
