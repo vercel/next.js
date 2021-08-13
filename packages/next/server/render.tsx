@@ -3,6 +3,7 @@ import { ParsedUrlQuery } from 'querystring'
 import { PassThrough } from 'stream'
 import React from 'react'
 import * as ReactDOMServer from 'react-dom/server'
+import flush from 'styled-jsx/server'
 import { warn } from '../build/output/log'
 import { UnwrapPromise } from '../lib/coalesced-function'
 import {
@@ -930,13 +931,6 @@ export async function renderToHTML(
       })
     }).then(multiplexResult)
 
-  const renderToString = concurrentFeatures
-    ? async (element: React.ReactElement) => {
-        const result = await renderToStream(element)
-        return await resultsToString([result])
-      }
-    : ReactDOMServer.renderToString
-
   const dynamicImportsIds = new Set<string | number>()
   const dynamicImports = new Set<string>()
   const hybridAmp = ampState.hybrid
@@ -1005,68 +999,82 @@ export async function renderToHTML(
   }
 
   const doRender = async () => {
-    const renderPage: RenderPage = (
-      options: ComponentsEnhancer = {}
-    ): RenderPageResult | Promise<RenderPageResult> => {
-      if (ctx.err && ErrorDebug) {
-        const htmlOrPromise = renderToString(<ErrorDebug error={ctx.err} />)
-        return typeof htmlOrPromise === 'string'
-          ? { html: htmlOrPromise, head }
-          : htmlOrPromise.then((html) => ({
-              html,
-              head,
-            }))
-      }
-
-      if (dev && (props.router || props.Component)) {
-        throw new Error(
-          `'router' and 'Component' can not be returned in getInitialProps from _app.js https://nextjs.org/docs/messages/cant-override-next-props`
-        )
-      }
-
-      const {
-        App: EnhancedApp,
-        Component: EnhancedComponent,
-      } = enhanceComponents(options, App, Component)
-
-      const htmlOrPromise = renderToString(
-        <AppContainer>
-          <EnhancedApp
-            Component={EnhancedComponent}
-            router={router}
-            {...props}
-          />
-        </AppContainer>
-      )
-      return typeof htmlOrPromise === 'string'
-        ? { html: htmlOrPromise, head }
-        : htmlOrPromise.then((html) => ({
-            html,
+    if (Document.getInitialProps) {
+      const renderPage: RenderPage = (
+        options: ComponentsEnhancer = {}
+      ): RenderPageResult | Promise<RenderPageResult> => {
+        if (ctx.err && ErrorDebug) {
+          return {
+            html: ReactDOMServer.renderToString(<ErrorDebug error={ctx.err} />),
             head,
-          }))
-    }
-    const documentCtx = { ...ctx, renderPage }
-    const docProps: DocumentInitialProps = await loadGetInitialProps(
-      Document,
-      documentCtx
-    )
-    // the response might be finished on the getInitialProps call
-    if (isResSent(res) && !isSSG) return null
+          }
+        }
 
-    if (!docProps || typeof docProps.html !== 'string') {
-      const message = `"${getDisplayName(
-        Document
-      )}.getInitialProps()" should resolve to an object with a "html" prop set with a valid html string`
-      throw new Error(message)
-    }
+        if (dev && (props.router || props.Component)) {
+          throw new Error(
+            `'router' and 'Component' can not be returned in getInitialProps from _app.js https://nextjs.org/docs/messages/cant-override-next-props`
+          )
+        }
 
-    htmlProps.headTags = await headTags(documentCtx)
-    htmlProps.head = docProps.head
-    htmlProps.styles = docProps.styles
+        const {
+          App: EnhancedApp,
+          Component: EnhancedComponent,
+        } = enhanceComponents(options, App, Component)
 
-    return {
-      documentElement: <Document {...htmlProps} {...docProps} />,
-      bodyResult: resultFromChunks([docProps.html]),
+        return {
+          html: ReactDOMServer.renderToString(
+            <AppContainer>
+              <EnhancedApp
+                Component={EnhancedComponent}
+                router={router}
+                {...props}
+              />
+            </AppContainer>
+          ),
+          head,
+        }
+      }
+      const documentCtx = { ...ctx, renderPage }
+      const docProps: DocumentInitialProps = await loadGetInitialProps(
+        Document,
+        documentCtx
+      )
+      // the response might be finished on the getInitialProps call
+      if (isResSent(res) && !isSSG) return null
+
+      if (!docProps || typeof docProps.html !== 'string') {
+        const message = `"${getDisplayName(
+          Document
+        )}.getInitialProps()" should resolve to an object with a "html" prop set with a valid html string`
+        throw new Error(message)
+      }
+
+      htmlProps.headTags = await headTags(documentCtx)
+      htmlProps.head = docProps.head
+      htmlProps.styles = docProps.styles
+
+      return {
+        documentElement: <Document {...htmlProps} {...docProps} />,
+        bodyResult: resultFromChunks([docProps.html]),
+      }
+    } else {
+      const documentElement = (Document as any)()
+      const bodyResult = await mutex(() =>
+        renderToStream(
+          ctx.err && ErrorDebug ? (
+            <ErrorDebug error={ctx.err} />
+          ) : (
+            <AppContainer>
+              <App {...props} Component={Component} router={router} />
+            </AppContainer>
+          )
+        )
+      )
+
+      htmlProps.head = head
+      htmlProps.styles = [...flush()]
+
+      return { documentElement, bodyResult }
     }
   }
 
@@ -1322,6 +1330,14 @@ function multiplexResult(result: RenderResult): RenderResult {
     })
     return () => cleanup()
   }
+}
+
+let prevPromise = Promise.resolve()
+function mutex<T>(fn: () => Promise<T>): Promise<T> {
+  const toAwait = prevPromise
+  const toReturn = toAwait.then(() => fn())
+  prevPromise = toReturn.finally().then()
+  return toReturn
 }
 
 function errorToJSON(err: Error): Error {
