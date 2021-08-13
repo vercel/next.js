@@ -50,14 +50,12 @@ type LayoutValue = typeof VALID_LAYOUT_VALUES[number]
 
 type PlaceholderValue = 'blur' | 'empty'
 
-type ImgElementStyle = NonNullable<JSX.IntrinsicElements['img']['style']>
+type OnLoadingComplete = (result: {
+  naturalWidth: number
+  naturalHeight: number
+}) => void
 
-interface StaticImageData {
-  src: string
-  height: number
-  width: number
-  blurDataURL?: string
-}
+type ImgElementStyle = NonNullable<JSX.IntrinsicElements['img']['style']>
 
 interface StaticRequire {
   default: StaticImageData
@@ -103,7 +101,7 @@ export type ImageProps = Omit<
   unoptimized?: boolean
   objectFit?: ImgElementStyle['objectFit']
   objectPosition?: ImgElementStyle['objectPosition']
-  onLoadingComplete?: () => void
+  onLoadingComplete?: OnLoadingComplete
 }
 
 const {
@@ -249,7 +247,7 @@ function handleLoading(
   img: HTMLImageElement | null,
   src: string,
   placeholder: PlaceholderValue,
-  onLoadingComplete?: () => void
+  onLoadingComplete?: OnLoadingComplete
 ) {
   if (!img) {
     return
@@ -265,7 +263,10 @@ function handleLoading(
         }
         loadedImageURLs.add(src)
         if (onLoadingComplete) {
-          onLoadingComplete()
+          const { naturalWidth, naturalHeight } = img
+          // Pass back read-only primitive values but not the
+          // underlying DOM element because it could be misused.
+          onLoadingComplete({ naturalWidth, naturalHeight })
         }
       })
     }
@@ -580,7 +581,6 @@ export default function Image({
               }}
               alt=""
               aria-hidden={true}
-              role="presentation"
               src={`data:image/svg+xml;base64,${toBase64(sizerSvg)}`}
             />
           ) : null}
@@ -600,6 +600,7 @@ export default function Image({
               loader,
             })}
             decoding="async"
+            data-nimg
             style={imgStyle}
             className={className}
           />
@@ -609,6 +610,7 @@ export default function Image({
         {...rest}
         {...imgAttributes}
         decoding="async"
+        data-nimg
         className={className}
         ref={(img) => {
           setRef(img)
@@ -633,9 +635,9 @@ export default function Image({
             rel="preload"
             as="image"
             href={imgAttributes.srcSet ? undefined : imgAttributes.src}
-            // @ts-ignore: imagesrcset is not yet in the link element type
+            // @ts-ignore: imagesrcset is not yet in the link element type.
             imagesrcset={imgAttributes.srcSet}
-            // @ts-ignore: imagesizes is not yet in the link element type
+            // @ts-ignore: imagesizes is not yet in the link element type.
             imagesizes={imgAttributes.sizes}
           ></link>
         </Head>

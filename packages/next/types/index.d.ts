@@ -1,6 +1,7 @@
 /// <reference types="node" />
 /// <reference types="react" />
 /// <reference types="react-dom" />
+/// <reference types="styled-jsx" />
 
 import React from 'react'
 import { ParsedUrlQuery } from 'querystring'
@@ -38,12 +39,6 @@ declare module 'react' {
   // <link nonce=""> support
   interface LinkHTMLAttributes<T> extends HTMLAttributes<T> {
     nonce?: string
-  }
-
-  // <style jsx> and <style jsx global> support for styled-jsx
-  interface StyleHTMLAttributes<T> extends HTMLAttributes<T> {
-    jsx?: boolean
-    global?: boolean
   }
 }
 

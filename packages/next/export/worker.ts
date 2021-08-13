@@ -19,6 +19,8 @@ import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { trace } from '../telemetry/trace'
 import { isInAmpMode } from '../shared/lib/amp'
 import { resultFromChunks, resultToChunks } from '../server/utils'
+import { NextConfigComplete } from '../server/config-shared'
+import { setHttpAgentOptions } from '../server/config'
 
 const envConfig = require('../shared/lib/runtime-config')
 
@@ -55,6 +57,7 @@ interface ExportPageInput {
   optimizeCss: any
   disableOptimizedLoading: any
   parentSpanId: any
+  httpAgentOptions: NextConfigComplete['httpAgentOptions']
 }
 
 interface ExportPageResults {
@@ -103,7 +106,9 @@ export default async function exportPage({
   optimizeImages,
   optimizeCss,
   disableOptimizedLoading,
+  httpAgentOptions,
 }: ExportPageInput): Promise<ExportPageResults> {
+  setHttpAgentOptions(httpAgentOptions)
   const exportPageSpan = trace('export-page-worker', parentSpanId)
 
   return exportPageSpan.traceAsyncFn(async () => {

@@ -12,7 +12,20 @@ Read about our [Commitment to Open Source](https://vercel.com/oss).
 
 > You may need to run `yarn types` again if your types get outdated.
 
-To contribute to [our examples](examples), take a look at the [“Adding examples” section](#adding-examples).
+To contribute to [our examples](examples), take a look at the [“Adding examples”
+section](#adding-examples).
+
+## Building
+
+You can build the project, including all type definitions, with:
+
+```bash
+yarn build
+# - or -
+yarn prepublish
+```
+
+If you need to clean the project for any reason, use `yarn clean`.
 
 ## Adding warning/error descriptions
 
