@@ -937,73 +937,9 @@ export async function renderToHTML(
       }
     : ReactDOMServer.renderToString
 
-  const renderPage: RenderPage = (
-    options: ComponentsEnhancer = {}
-  ): RenderPageResult | Promise<RenderPageResult> => {
-    if (ctx.err && ErrorDebug) {
-      const htmlOrPromise = renderToString(<ErrorDebug error={ctx.err} />)
-      return typeof htmlOrPromise === 'string'
-        ? { html: htmlOrPromise, head }
-        : htmlOrPromise.then((html) => ({
-            html,
-            head,
-          }))
-    }
-
-    if (dev && (props.router || props.Component)) {
-      throw new Error(
-        `'router' and 'Component' can not be returned in getInitialProps from _app.js https://nextjs.org/docs/messages/cant-override-next-props`
-      )
-    }
-
-    const {
-      App: EnhancedApp,
-      Component: EnhancedComponent,
-    } = enhanceComponents(options, App, Component)
-
-    const htmlOrPromise = renderToString(
-      <AppContainer>
-        <EnhancedApp Component={EnhancedComponent} router={router} {...props} />
-      </AppContainer>
-    )
-    return typeof htmlOrPromise === 'string'
-      ? { html: htmlOrPromise, head }
-      : htmlOrPromise.then((html) => ({
-          html,
-          head,
-        }))
-  }
-  const documentCtx = { ...ctx, renderPage }
-  const docProps: DocumentInitialProps = await loadGetInitialProps(
-    Document,
-    documentCtx
-  )
-  // the response might be finished on the getInitialProps call
-  if (isResSent(res) && !isSSG) return null
-
-  if (!docProps || typeof docProps.html !== 'string') {
-    const message = `"${getDisplayName(
-      Document
-    )}.getInitialProps()" should resolve to an object with a "html" prop set with a valid html string`
-    throw new Error(message)
-  }
-
   const dynamicImportsIds = new Set<string | number>()
   const dynamicImports = new Set<string>()
-
-  for (const mod of reactLoadableModules) {
-    const manifestItem: ManifestItem = reactLoadableManifest[mod]
-
-    if (manifestItem) {
-      dynamicImportsIds.add(manifestItem.id)
-      manifestItem.files.forEach((item) => {
-        dynamicImports.add(item)
-      })
-    }
-  }
-
   const hybridAmp = ampState.hybrid
-
   const docComponentsRendered: DocumentProps['docComponentsRendered'] = {}
   const {
     assetPrefix,
@@ -1016,7 +952,7 @@ export async function renderToHTML(
     locales,
     runtimeConfig,
   } = renderOpts
-  const htmlProps = {
+  const htmlProps: any = {
     __NEXT_DATA__: {
       props, // The result of getInitialProps
       page: pathname, // The rendered page
@@ -1056,7 +992,6 @@ export async function renderToHTML(
     hybridAmp,
     dynamicImports: Array.from(dynamicImports),
     assetPrefix,
-    headTags: await headTags(documentCtx),
     // Only enabled in production as development mode has features relying on HMR (style injection for example)
     unstable_runtimeJS:
       process.env.NODE_ENV === 'production'
@@ -1067,13 +1002,95 @@ export async function renderToHTML(
     scriptLoader,
     locale,
     disableOptimizedLoading,
-    styles: docProps.styles,
-    head: docProps.head,
   }
+
+  const doRender = async () => {
+    const renderPage: RenderPage = (
+      options: ComponentsEnhancer = {}
+    ): RenderPageResult | Promise<RenderPageResult> => {
+      if (ctx.err && ErrorDebug) {
+        const htmlOrPromise = renderToString(<ErrorDebug error={ctx.err} />)
+        return typeof htmlOrPromise === 'string'
+          ? { html: htmlOrPromise, head }
+          : htmlOrPromise.then((html) => ({
+              html,
+              head,
+            }))
+      }
+
+      if (dev && (props.router || props.Component)) {
+        throw new Error(
+          `'router' and 'Component' can not be returned in getInitialProps from _app.js https://nextjs.org/docs/messages/cant-override-next-props`
+        )
+      }
+
+      const {
+        App: EnhancedApp,
+        Component: EnhancedComponent,
+      } = enhanceComponents(options, App, Component)
+
+      const htmlOrPromise = renderToString(
+        <AppContainer>
+          <EnhancedApp
+            Component={EnhancedComponent}
+            router={router}
+            {...props}
+          />
+        </AppContainer>
+      )
+      return typeof htmlOrPromise === 'string'
+        ? { html: htmlOrPromise, head }
+        : htmlOrPromise.then((html) => ({
+            html,
+            head,
+          }))
+    }
+    const documentCtx = { ...ctx, renderPage }
+    const docProps: DocumentInitialProps = await loadGetInitialProps(
+      Document,
+      documentCtx
+    )
+    // the response might be finished on the getInitialProps call
+    if (isResSent(res) && !isSSG) return null
+
+    if (!docProps || typeof docProps.html !== 'string') {
+      const message = `"${getDisplayName(
+        Document
+      )}.getInitialProps()" should resolve to an object with a "html" prop set with a valid html string`
+      throw new Error(message)
+    }
+
+    htmlProps.headTags = await headTags(documentCtx)
+    htmlProps.head = docProps.head
+    htmlProps.styles = docProps.styles
+
+    return {
+      documentElement: <Document {...htmlProps} {...docProps} />,
+      bodyResult: resultFromChunks([docProps.html]),
+    }
+  }
+
+  const renderResult = await doRender()
+  if (!renderResult) {
+    return null
+  }
+
+  for (const mod of reactLoadableModules) {
+    const manifestItem: ManifestItem = reactLoadableManifest[mod]
+
+    if (manifestItem) {
+      dynamicImportsIds.add(manifestItem.id)
+      manifestItem.files.forEach((item) => {
+        dynamicImports.add(item)
+      })
+    }
+  }
+
+  const { documentElement, bodyResult } = renderResult
   const documentHTML = ReactDOMServer.renderToStaticMarkup(
     <AmpStateContext.Provider value={ampState}>
       <HtmlContext.Provider value={htmlProps}>
-        <Document {...htmlProps} {...docProps} />
+        {documentElement}
       </HtmlContext.Provider>
     </AmpStateContext.Provider>
   )
@@ -1111,7 +1128,7 @@ export async function renderToHTML(
   if (inAmpMode) {
     results.push(resultFromChunks(['<!-- __NEXT_DATA__ -->']))
   }
-  results.push(resultFromChunks([docProps.html]))
+  results.push(bodyResult)
   results.push(
     resultFromChunks([
       documentHTML.substring(renderTargetIdx + BODY_RENDER_TARGET.length),
