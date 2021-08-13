@@ -316,7 +316,6 @@ function renderDocument(
     head: docProps.head,
   }
   return (
-    '<!DOCTYPE html>' +
     ReactDOMServer.renderToStaticMarkup(
       <AmpStateContext.Provider value={ampState}>
         <HtmlContext.Provider value={htmlProps}>
