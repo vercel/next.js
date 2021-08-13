@@ -63,7 +63,12 @@ import {
   Redirect,
 } from '../lib/load-custom-routes'
 import { DomainLocale } from './config'
-import { RenderResult, resultFromChunks, resultToChunks } from './utils'
+import {
+  Observer,
+  RenderResult,
+  resultFromChunks,
+  resultToChunks,
+} from './utils'
 
 function noRouter() {
   const message =
@@ -1002,32 +1007,48 @@ export async function renderToHTML(
     }
   }
 
-  // TODO: Support SSR streaming of Suspense.
-  const renderToString = concurrentFeatures
-    ? (element: React.ReactElement) =>
-        new Promise<string>((resolve, reject) => {
-          const stream = new PassThrough()
-          const buffers: Buffer[] = []
-          stream.on('data', (chunk) => {
-            buffers.push(chunk)
-          })
-          stream.once('end', () => {
-            resolve(Buffer.concat(buffers).toString('utf-8'))
-          })
+  const renderToStream = (element: React.ReactElement) =>
+    new Promise<RenderResult>((resolve, reject) => {
+      const stream = new PassThrough()
+      let resolved = false
 
-          const {
-            abort,
-            startWriting,
-          } = (ReactDOMServer as any).pipeToNodeWritable(element, stream, {
-            onError(error: Error) {
-              abort()
-              reject(error)
-            },
-            onCompleteAll() {
+      const {
+        abort,
+        startWriting,
+      } = (ReactDOMServer as any).pipeToNodeWritable(element, stream, {
+        onError(error: Error) {
+          if (!resolved) {
+            resolved = true
+            reject(error)
+          }
+          abort()
+        },
+        onCompleteAll() {
+          if (!resolved) {
+            resolved = true
+            resolve(({ complete, next }) => {
+              stream.on('data', (chunk) => {
+                next(chunk.toString('utf-8'))
+              })
+              stream.once('end', () => {
+                complete()
+              })
+
               startWriting()
-            },
-          })
-        })
+              return () => {
+                abort()
+              }
+            })
+          }
+        },
+      })
+    }).then(multiplexResult)
+
+  const renderToString = concurrentFeatures
+    ? async (element: React.ReactElement) => {
+        const result = await renderToStream(element)
+        return await resultsToString([result])
+      }
     : ReactDOMServer.renderToString
 
   const renderPage: RenderPage = (
@@ -1281,6 +1302,86 @@ function mergeResults(chunks: Array<RenderResult>): RenderResult {
         canceled = true
         unsubscribe()
       }
+    }
+  }
+}
+
+function multiplexResult(result: RenderResult): RenderResult {
+  const chunks: Array<string> = []
+  const subscribers: Set<Observer<string>> = new Set()
+  let streamResult:
+    | {
+        kind: 'COMPLETE'
+      }
+    | {
+        kind: 'FAILED'
+        error: Error
+      }
+    | null = null
+
+  result({
+    next(chunk) {
+      chunks.push(chunk)
+      subscribers.forEach((subscriber) => {
+        try {
+          subscriber.next(chunk)
+        } catch {}
+      })
+    },
+    error(error) {
+      if (!streamResult) {
+        streamResult = {
+          kind: 'FAILED',
+          error,
+        }
+        subscribers.forEach((subscriber) => {
+          try {
+            subscriber.error(error)
+          } catch {}
+        })
+        subscribers.clear()
+      }
+    },
+    complete() {
+      if (!streamResult) {
+        streamResult = {
+          kind: 'COMPLETE',
+        }
+        subscribers.forEach((subscriber) => {
+          try {
+            subscriber.complete()
+          } catch {}
+        })
+        subscribers.clear()
+      }
+    },
+  })
+
+  return (subscriber) => {
+    let completed = false
+    process.nextTick(() => {
+      for (const chunk of chunks) {
+        if (completed) {
+          return
+        }
+        subscriber.next(chunk)
+      }
+
+      if (!completed) {
+        if (!streamResult) {
+          subscribers.add(subscriber)
+        } else {
+          if (streamResult.kind === 'FAILED') {
+            subscriber.error(streamResult.error)
+          } else {
+            subscriber.complete()
+          }
+        }
+      }
+    })
+    return () => {
+      completed = true
+      subscribers.delete(subscriber)
     }
   }
 }
