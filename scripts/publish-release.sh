@@ -12,12 +12,10 @@ if [[ -z "$NPM_TOKEN" ]];then
   exit 0;
 fi
 
-echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
-
 if [[ $(git describe --exact-match 2> /dev/null || :) =~ -canary ]];
 then
   echo "Publishing canary"
-  yarn run lerna publish from-git --npm-tag canary --yes
+  yarn run lerna publish from-git --npm-tag canary --no-git-reset --yes
 
   # Make sure to exit script with code 1 if publish failed
   if [[ ! $? -eq 0 ]];then
@@ -29,7 +27,7 @@ fi
 
 if [[ ! $(git describe --exact-match 2> /dev/null || :) =~ -canary ]];then
   echo "Publishing stable"
-  yarn run lerna publish from-git --yes
+  yarn run lerna publish from-git --no-git-reset --yes
 
   # Make sure to exit script with code 1 if publish failed
   if [[ ! $? -eq 0 ]];then
