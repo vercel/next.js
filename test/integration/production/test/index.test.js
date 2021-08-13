@@ -919,7 +919,7 @@ describe('Production Usage', () => {
 
   it('should only have one DOCTYPE', async () => {
     const html = await renderViaHTTP(appPort, '/')
-    expect(html).toMatch(/^<\!DOCTYPE html><html/)
+    expect(html).toMatch(/^<!DOCTYPE html><html/)
   })
 
   if (global.browserName !== 'internet explorer') {
