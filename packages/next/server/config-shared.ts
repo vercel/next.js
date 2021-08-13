@@ -48,16 +48,33 @@ export type NextConfig = { [key: string]: any } & {
   webpack5?: false
   excludeDefaultMomentLocales?: boolean
 
+  webpack?:
+    | ((
+        config: any,
+        context: {
+          dir: string
+          dev: boolean
+          isServer: boolean
+          buildId: string
+          config: NextConfigComplete
+          defaultLoaders: { babel: any }
+          totalPages: number
+          webpack: any
+        }
+      ) => any)
+    | null
+
   trailingSlash?: boolean
   env?: { [key: string]: string }
   distDir?: string
   cleanDistDir?: boolean
   assetPrefix?: string
   useFileSystemPublicRoutes?: boolean
-  generateBuildId?: () => string | null
+  generateBuildId?: () => string | null | Promise<string | null>
   generateEtags?: boolean
   pageExtensions?: string[]
   compress?: boolean
+  poweredByHeader?: boolean
   images?: ImageConfig
   devIndicators?: {
     buildActivity?: boolean
@@ -88,6 +105,7 @@ export type NextConfig = { [key: string]: any } & {
     swcMinify?: boolean
     swcLoader?: boolean
     cpus?: number
+    sharedPool?: boolean
     plugins?: boolean
     profiling?: boolean
     isrFlushToDisk?: boolean
@@ -111,8 +129,8 @@ export type NextConfig = { [key: string]: any } & {
     craCompat?: boolean
     esmExternals?: boolean | 'loose'
     staticPageGenerationTimeout?: number
-    pageDataCollectionTimeout?: number
     isrMemoryCacheSize?: number
+    concurrentFeatures?: boolean
   }
 }
 
@@ -166,6 +184,7 @@ export const defaultConfig: NextConfig = {
       (Number(process.env.CIRCLE_NODE_TOTAL) ||
         (os.cpus() || { length: 1 }).length) - 1
     ),
+    sharedPool: false,
     plugins: false,
     profiling: false,
     isrFlushToDisk: true,
@@ -182,9 +201,9 @@ export const defaultConfig: NextConfig = {
     craCompat: false,
     esmExternals: false,
     staticPageGenerationTimeout: 60,
-    pageDataCollectionTimeout: 60,
     // default to 50MB limit
     isrMemoryCacheSize: 50 * 1024 * 1024,
+    concurrentFeatures: false,
   },
   future: {
     strictPostcssConfiguration: false,

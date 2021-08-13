@@ -1,7 +1,8 @@
 import { IncomingMessage, ServerResponse } from 'http'
 import { ParsedUrlQuery } from 'querystring'
+import { PassThrough } from 'stream'
 import React from 'react'
-import { renderToStaticMarkup, renderToString } from 'react-dom/server'
+import * as ReactDOMServer from 'react-dom/server'
 import { warn } from '../build/output/log'
 import { UnwrapPromise } from '../lib/coalesced-function'
 import {
@@ -19,7 +20,7 @@ import { GetServerSideProps, GetStaticProps, PreviewData } from '../types'
 import { isInAmpMode } from '../shared/lib/amp'
 import { AmpStateContext } from '../shared/lib/amp-context'
 import {
-  AMP_RENDER_TARGET,
+  BODY_RENDER_TARGET,
   SERVER_PROPS_ID,
   STATIC_PROPS_ID,
   STATIC_STATUS_PAGES,
@@ -38,11 +39,13 @@ import {
   DocumentInitialProps,
   DocumentProps,
   DocumentType,
+  HtmlContext,
   getDisplayName,
   isResSent,
   loadGetInitialProps,
   NextComponentType,
   RenderPage,
+  RenderPageResult,
 } from '../shared/lib/utils'
 import {
   tryGetPreviewData,
@@ -60,7 +63,12 @@ import {
   Redirect,
 } from '../lib/load-custom-routes'
 import { DomainLocale } from './config'
-import { RenderResult, resultFromChunks } from './utils'
+import {
+  Observer,
+  RenderResult,
+  resultFromChunks,
+  resultToChunks,
+} from './utils'
 
 function noRouter() {
   const message =
@@ -190,6 +198,7 @@ export type RenderOptsPartial = {
   domainLocales?: DomainLocale[]
   disableOptimizedLoading?: boolean
   requireStaticHTML?: boolean
+  concurrentFeatures?: boolean
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
@@ -261,54 +270,58 @@ function renderDocument(
     autoExport?: boolean
   }
 ): string {
+  const htmlProps = {
+    __NEXT_DATA__: {
+      props, // The result of getInitialProps
+      page: pathname, // The rendered page
+      query, // querystring parsed / passed by the user
+      buildId, // buildId is used to facilitate caching of page bundles, we send it to the client so that pageloader knows where to load bundles
+      assetPrefix: assetPrefix === '' ? undefined : assetPrefix, // send assetPrefix to the client side when configured, otherwise don't sent in the resulting HTML
+      runtimeConfig, // runtimeConfig if provided, otherwise don't sent in the resulting HTML
+      nextExport, // If this is a page exported by `next export`
+      autoExport, // If this is an auto exported page
+      isFallback,
+      dynamicIds:
+        dynamicImportsIds.length === 0 ? undefined : dynamicImportsIds,
+      err: err ? serializeError(dev, err) : undefined, // Error if one happened, otherwise don't sent in the resulting HTML
+      gsp, // whether the page is getStaticProps
+      gssp, // whether the page is getServerSideProps
+      customServer, // whether the user is using a custom server
+      gip, // whether the page has getInitialProps
+      appGip, // whether the _app has getInitialProps
+      locale,
+      locales,
+      defaultLocale,
+      domainLocales,
+      isPreview,
+    },
+    buildManifest,
+    docComponentsRendered,
+    dangerousAsPath,
+    canonicalBase,
+    ampPath,
+    inAmpMode,
+    isDevelopment: !!dev,
+    hybridAmp,
+    dynamicImports,
+    assetPrefix,
+    headTags,
+    unstable_runtimeJS,
+    unstable_JsPreload,
+    devOnlyCacheBusterQueryString,
+    scriptLoader,
+    locale,
+    disableOptimizedLoading,
+    styles: docProps.styles,
+    head: docProps.head,
+  }
   return (
     '<!DOCTYPE html>' +
-    renderToStaticMarkup(
+    ReactDOMServer.renderToStaticMarkup(
       <AmpStateContext.Provider value={ampState}>
-        {Document.renderDocument(Document, {
-          __NEXT_DATA__: {
-            props, // The result of getInitialProps
-            page: pathname, // The rendered page
-            query, // querystring parsed / passed by the user
-            buildId, // buildId is used to facilitate caching of page bundles, we send it to the client so that pageloader knows where to load bundles
-            assetPrefix: assetPrefix === '' ? undefined : assetPrefix, // send assetPrefix to the client side when configured, otherwise don't sent in the resulting HTML
-            runtimeConfig, // runtimeConfig if provided, otherwise don't sent in the resulting HTML
-            nextExport, // If this is a page exported by `next export`
-            autoExport, // If this is an auto exported page
-            isFallback,
-            dynamicIds:
-              dynamicImportsIds.length === 0 ? undefined : dynamicImportsIds,
-            err: err ? serializeError(dev, err) : undefined, // Error if one happened, otherwise don't sent in the resulting HTML
-            gsp, // whether the page is getStaticProps
-            gssp, // whether the page is getServerSideProps
-            customServer, // whether the user is using a custom server
-            gip, // whether the page has getInitialProps
-            appGip, // whether the _app has getInitialProps
-            locale,
-            locales,
-            defaultLocale,
-            domainLocales,
-            isPreview,
-          },
-          buildManifest,
-          docComponentsRendered,
-          dangerousAsPath,
-          canonicalBase,
-          ampPath,
-          inAmpMode,
-          isDevelopment: !!dev,
-          hybridAmp,
-          dynamicImports,
-          assetPrefix,
-          headTags,
-          unstable_runtimeJS,
-          unstable_JsPreload,
-          devOnlyCacheBusterQueryString,
-          scriptLoader,
-          locale,
-          disableOptimizedLoading,
-          ...docProps,
-        })}
+        <HtmlContext.Provider value={htmlProps}>
+          <Document {...htmlProps} {...docProps} />
+        </HtmlContext.Provider>
       </AmpStateContext.Provider>
     )
   )
@@ -408,6 +421,8 @@ export async function renderToHTML(
     previewProps,
     basePath,
     devOnlyCacheBusterQueryString,
+    requireStaticHTML,
+    concurrentFeatures,
   } = renderOpts
 
   const getFontDefinition = (url: string): string => {
@@ -626,6 +641,8 @@ export async function renderToHTML(
   let head: JSX.Element[] = defaultHead(inAmpMode)
 
   let scriptLoader: any = {}
+  const nextExport =
+    !isSSG && (renderOpts.nextExport || (dev && (isAutoExport || isFallback)))
 
   const AppContainer = ({ children }: any) => (
     <RouterContext.Provider value={router}>
@@ -991,11 +1008,70 @@ export async function renderToHTML(
     }
   }
 
+  const generateStaticHTML = requireStaticHTML || inAmpMode
+  const renderToStream = (element: React.ReactElement) =>
+    new Promise<RenderResult>((resolve, reject) => {
+      const stream = new PassThrough()
+      let resolved = false
+      const doResolve = () => {
+        if (!resolved) {
+          resolved = true
+          resolve(({ complete, next }) => {
+            stream.on('data', (chunk) => {
+              next(chunk.toString('utf-8'))
+            })
+            stream.once('end', () => {
+              complete()
+            })
+
+            startWriting()
+            return () => {
+              abort()
+            }
+          })
+        }
+      }
+
+      const {
+        abort,
+        startWriting,
+      } = (ReactDOMServer as any).pipeToNodeWritable(element, stream, {
+        onError(error: Error) {
+          if (!resolved) {
+            resolved = true
+            reject(error)
+          }
+          abort()
+        },
+        onReadyToStream() {
+          if (!generateStaticHTML) {
+            doResolve()
+          }
+        },
+        onCompleteAll() {
+          doResolve()
+        },
+      })
+    }).then(multiplexResult)
+
+  const renderToString = concurrentFeatures
+    ? async (element: React.ReactElement) => {
+        const result = await renderToStream(element)
+        return await resultsToString([result])
+      }
+    : ReactDOMServer.renderToString
+
   const renderPage: RenderPage = (
     options: ComponentsEnhancer = {}
-  ): { html: string; head: any } => {
+  ): RenderPageResult | Promise<RenderPageResult> => {
     if (ctx.err && ErrorDebug) {
-      return { html: renderToString(<ErrorDebug error={ctx.err} />), head }
+      const htmlOrPromise = renderToString(<ErrorDebug error={ctx.err} />)
+      return typeof htmlOrPromise === 'string'
+        ? { html: htmlOrPromise, head }
+        : htmlOrPromise.then((html) => ({
+            html,
+            head,
+          }))
     }
 
     if (dev && (props.router || props.Component)) {
@@ -1009,13 +1085,17 @@ export async function renderToHTML(
       Component: EnhancedComponent,
     } = enhanceComponents(options, App, Component)
 
-    const html = renderToString(
+    const htmlOrPromise = renderToString(
       <AppContainer>
         <EnhancedApp Component={EnhancedComponent} router={router} {...props} />
       </AppContainer>
     )
-
-    return { html, head }
+    return typeof htmlOrPromise === 'string'
+      ? { html: htmlOrPromise, head }
+      : htmlOrPromise.then((html) => ({
+          html,
+          head,
+        }))
   }
   const documentCtx = { ...ctx, renderPage }
   const docProps: DocumentInitialProps = await loadGetInitialProps(
@@ -1049,10 +1129,8 @@ export async function renderToHTML(
   const hybridAmp = ampState.hybrid
 
   const docComponentsRendered: DocumentProps['docComponentsRendered'] = {}
-  const nextExport =
-    !isSSG && (renderOpts.nextExport || (dev && (isAutoExport || isFallback)))
 
-  let html = renderDocument(Document, {
+  const documentHTML = renderDocument(Document, {
     ...renderOpts,
     canonicalBase:
       !renderOpts.ampPath && (req as any).__nextStrippedLocale
@@ -1113,55 +1191,210 @@ export async function renderToHTML(
     }
   }
 
-  if (inAmpMode && html) {
-    // inject HTML to AMP_RENDER_TARGET to allow rendering
-    // directly to body in AMP mode
-    const ampRenderIndex = html.indexOf(AMP_RENDER_TARGET)
-    html =
-      html.substring(0, ampRenderIndex) +
-      `<!-- __NEXT_DATA__ -->${docProps.html}` +
-      html.substring(ampRenderIndex + AMP_RENDER_TARGET.length)
-    html = await optimizeAmp(html, renderOpts.ampOptimizerConfig)
+  let results: Array<RenderResult> = []
+  const renderTargetIdx = documentHTML.indexOf(BODY_RENDER_TARGET)
+  results.push(
+    resultFromChunks([
+      '<!DOCTYPE html>' + documentHTML.substring(0, renderTargetIdx),
+    ])
+  )
+  if (inAmpMode) {
+    results.push(resultFromChunks(['<!-- __NEXT_DATA__ -->']))
+  }
+  results.push(resultFromChunks([docProps.html]))
+  results.push(
+    resultFromChunks([
+      documentHTML.substring(renderTargetIdx + BODY_RENDER_TARGET.length),
+    ])
+  )
 
-    if (!renderOpts.ampSkipValidation && renderOpts.ampValidator) {
-      await renderOpts.ampValidator(html, pathname)
+  const postProcessors: Array<((html: string) => Promise<string>) | null> = [
+    inAmpMode
+      ? async (html: string) => {
+          html = await optimizeAmp(html, renderOpts.ampOptimizerConfig)
+          if (!renderOpts.ampSkipValidation && renderOpts.ampValidator) {
+            await renderOpts.ampValidator(html, pathname)
+          }
+          return html
+        }
+      : null,
+    process.env.__NEXT_OPTIMIZE_FONTS || process.env.__NEXT_OPTIMIZE_IMAGES
+      ? async (html: string) => {
+          return await postProcess(
+            html,
+            { getFontDefinition },
+            {
+              optimizeFonts: renderOpts.optimizeFonts,
+              optimizeImages: renderOpts.optimizeImages,
+            }
+          )
+        }
+      : null,
+    renderOpts.optimizeCss
+      ? async (html: string) => {
+          // eslint-disable-next-line import/no-extraneous-dependencies
+          const Critters = require('critters')
+          const cssOptimizer = new Critters({
+            ssrMode: true,
+            reduceInlineStyles: false,
+            path: renderOpts.distDir,
+            publicPath: `${renderOpts.assetPrefix}/_next/`,
+            preload: 'media',
+            fonts: false,
+            ...renderOpts.optimizeCss,
+          })
+          return await cssOptimizer.process(html)
+        }
+      : null,
+    inAmpMode || hybridAmp
+      ? async (html: string) => {
+          return html.replace(/&amp;amp=1/g, '&amp=1')
+        }
+      : null,
+  ].filter(Boolean)
+
+  if (postProcessors.length > 0) {
+    let html = await resultsToString(results)
+    for (const postProcessor of postProcessors) {
+      if (postProcessor) {
+        html = await postProcessor(html)
+      }
+    }
+    results = [resultFromChunks([html])]
+  }
+
+  return mergeResults(results)
+}
+
+async function resultsToString(chunks: Array<RenderResult>): Promise<string> {
+  const result = await resultToChunks(mergeResults(chunks))
+  return result.join('')
+}
+
+function mergeResults(chunks: Array<RenderResult>): RenderResult {
+  return ({ next, complete, error }) => {
+    let idx = 0
+    let canceled = false
+    let unsubscribe = () => {}
+
+    const subscribeNext = () => {
+      if (canceled) {
+        return
+      }
+
+      if (idx < chunks.length) {
+        const result = chunks[idx++]
+        unsubscribe = result({
+          next,
+          complete() {
+            unsubscribe()
+            subscribeNext()
+          },
+          error(err) {
+            unsubscribe()
+            if (!canceled) {
+              canceled = true
+              error(err)
+            }
+          },
+        })
+      } else {
+        if (!canceled) {
+          canceled = true
+          complete()
+        }
+      }
+    }
+    subscribeNext()
+
+    return () => {
+      if (!canceled) {
+        canceled = true
+        unsubscribe()
+      }
     }
   }
+}
 
-  // Avoid postProcess if both flags are false
-  if (process.env.__NEXT_OPTIMIZE_FONTS || process.env.__NEXT_OPTIMIZE_IMAGES) {
-    html = await postProcess(
-      html,
-      { getFontDefinition },
-      {
-        optimizeFonts: renderOpts.optimizeFonts,
-        optimizeImages: renderOpts.optimizeImages,
+function multiplexResult(result: RenderResult): RenderResult {
+  const chunks: Array<string> = []
+  const subscribers: Set<Observer<string>> = new Set()
+  let terminator: ((subscriber: Observer<string>) => void) | null = null
+
+  result({
+    next(chunk) {
+      chunks.push(chunk)
+      subscribers.forEach((subscriber) => subscriber.next(chunk))
+    },
+    error(error) {
+      if (!terminator) {
+        terminator = (subscriber) => subscriber.error(error)
+        subscribers.forEach(terminator)
+        subscribers.clear()
       }
-    )
-  }
+    },
+    complete() {
+      if (!terminator) {
+        terminator = (subscriber) => subscriber.complete()
+        subscribers.forEach(terminator)
+        subscribers.clear()
+      }
+    },
+  })
 
-  if (renderOpts.optimizeCss) {
-    // eslint-disable-next-line import/no-extraneous-dependencies
-    const Critters = require('critters')
-    const cssOptimizer = new Critters({
-      ssrMode: true,
-      reduceInlineStyles: false,
-      path: renderOpts.distDir,
-      publicPath: `${renderOpts.assetPrefix}/_next/`,
-      preload: 'media',
-      fonts: false,
-      ...renderOpts.optimizeCss,
+  return (innerSubscriber) => {
+    let completed = false
+    let cleanup = () => {}
+    const subscriber: Observer<string> = {
+      next(chunk) {
+        if (!completed) {
+          try {
+            innerSubscriber.next(chunk)
+          } catch (err) {
+            subscriber.error(err)
+          }
+        }
+      },
+      complete() {
+        if (!completed) {
+          cleanup()
+          try {
+            innerSubscriber.complete()
+          } catch {}
+        }
+      },
+      error(err) {
+        if (!completed) {
+          cleanup()
+          try {
+            innerSubscriber.error(err)
+          } catch {}
+        }
+      },
+    }
+    cleanup = () => {
+      completed = true
+      subscribers.delete(subscriber)
+    }
+
+    process.nextTick(() => {
+      for (const chunk of chunks) {
+        if (completed) {
+          return
+        }
+        subscriber.next(chunk)
+      }
+
+      if (!completed) {
+        if (!terminator) {
+          subscribers.add(subscriber)
+        } else {
+          terminator(subscriber)
+        }
+      }
     })
-
-    html = await cssOptimizer.process(html)
+    return () => cleanup()
   }
-
-  if (inAmpMode || hybridAmp) {
-    // fix &amp being escaped for amphtml rel link
-    html = html.replace(/&amp;amp=1/g, '&amp=1')
-  }
-
-  return resultFromChunks([html])
 }
 
 function errorToJSON(err: Error): Error {

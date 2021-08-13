@@ -416,10 +416,6 @@
           "path": "/errors/import-esm-externals.md"
         },
         {
-          "title": "max-custom-routes-reached",
-          "path": "max-custom-routes-reached.md"
-        },
-        {
           "title": "static-page-generation-timeout",
           "path": "/errors/static-page-generation-timeout.md"
         },
@@ -438,6 +434,14 @@
         {
           "title": "script-in-head-component",
           "path": "/errors/no-script-in-head-component.md"
+        },
+        {
+          "title": "max-custom-routes-reached",
+          "path": "/errors/max-custom-routes-reached.md"
+        },
+        {
+          "title": "module-not-found",
+          "path": "/errors/module-not-found.md"
         }
       ]
     }

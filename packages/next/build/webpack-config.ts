@@ -769,9 +769,9 @@ export default async function getBaseWebpackConfig(
 
     if (isLocal) {
       // Makes sure dist/shared and dist/server are not bundled
-      // we need to process shared/lib/router/router so that
-      // the DefinePlugin can inject process.env values
-      const isNextExternal = /next[/\\]dist[/\\](shared|server)[/\\](?!lib[/\\]router[/\\]router)/.test(
+      // we need to process shared `router/router` and `dynamic`,
+      // so that the DefinePlugin can inject process.env values
+      const isNextExternal = /next[/\\]dist[/\\](shared|server)[/\\](?!lib[/\\](router[/\\]router|dynamic))/.test(
         res
       )
 
@@ -1185,6 +1185,9 @@ export default async function getBaseWebpackConfig(
           config.reactStrictMode
         ),
         'process.env.__NEXT_REACT_ROOT': JSON.stringify(hasReactRoot),
+        'process.env.__NEXT_CONCURRENT_FEATURES': JSON.stringify(
+          config.experimental.concurrentFeatures && hasReactRoot
+        ),
         'process.env.__NEXT_OPTIMIZE_FONTS': JSON.stringify(
           config.optimizeFonts && !dev
         ),
@@ -1446,8 +1449,6 @@ export default async function getBaseWebpackConfig(
       //  - next.config.js keys that affect compilation
       version: `${process.env.__NEXT_VERSION}|${configVars}`,
       cacheDirectory: path.join(distDir, 'cache', 'webpack'),
-      // we assume that the CI already uses cache compression
-      compression: false,
     }
 
     // Adds `next.config.js` as a buildDependency when custom webpack config is provided
