@@ -1178,6 +1178,14 @@ export async function renderToHTML(
   )
 
   const postProcessors: Array<((html: string) => Promise<string>) | null> = [
+    inAmpMode
+      ? async (html: string) => {
+          html = await optimizeAmp(html, renderOpts.ampOptimizerConfig)
+          if (!renderOpts.ampSkipValidation && renderOpts.ampValidator) {
+            return await renderOpts.ampValidator(html, pathname)
+          }
+        }
+      : null,
     process.env.__NEXT_OPTIMIZE_FONTS || process.env.__NEXT_OPTIMIZE_IMAGES
       ? async (html: string) => {
           return await postProcess(
