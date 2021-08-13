@@ -1374,18 +1374,29 @@ function multiplexResult(result: RenderResult): RenderResult {
         if (completed) {
           return
         }
-        subscriber.next(chunk)
+        try {
+          subscriber.next(chunk)
+        } catch (err) {
+          if (!completed) {
+            completed = true
+            try {
+              subscriber.error(err)
+            } catch {}
+          }
+        }
       }
 
       if (!completed) {
         if (!streamResult) {
           subscribers.add(subscriber)
         } else {
-          if (streamResult.kind === 'FAILED') {
-            subscriber.error(streamResult.error)
-          } else {
-            subscriber.complete()
-          }
+          try {
+            if (streamResult.kind === 'FAILED') {
+              subscriber.error(streamResult.error)
+            } else {
+              subscriber.complete()
+            }
+          } catch {}
         }
       }
     })

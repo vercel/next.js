@@ -21,7 +21,6 @@ export type Observer<T> = {
   error(error: Error): void
   complete(): void
 }
-// TODO: Consider just using an actual Observable here
 export type RenderResult = (observer: Observer<string>) => Disposable
 
 export function resultFromChunks(chunks: string[]): RenderResult {
