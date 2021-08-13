@@ -15,7 +15,7 @@ const cwd = process.cwd()
 
     // Copy binaries to package folders, update version, and publish
     let nativePackagesDir = path.join(cwd, 'packages/next/build/swc/npm')
-    let platforms = await (await readdir(nativePackagesDir)).filter(
+    let platforms = await readdir(nativePackagesDir).filter(
       (name) => name !== '.gitignore'
     )
     for (let platform of platforms) {
