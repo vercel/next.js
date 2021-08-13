@@ -380,6 +380,7 @@ export default async function exportApp(
       disableOptimizedLoading: nextConfig.experimental.disableOptimizedLoading,
       // TODO: We should support dynamic HTML too
       requireStaticHTML: true,
+      concurrentFeatures: nextConfig.experimental.concurrentFeatures,
     }
 
     const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
