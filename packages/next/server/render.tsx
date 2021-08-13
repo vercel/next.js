@@ -1360,7 +1360,7 @@ function multiplexResult(result: RenderResult): RenderResult {
           cleanup()
           try {
             innerSubscriber.complete()
-          } catch (err) {}
+          } catch {}
         }
       },
       error(err) {
@@ -1368,7 +1368,7 @@ function multiplexResult(result: RenderResult): RenderResult {
           cleanup()
           try {
             innerSubscriber.error(err)
-          } catch (err) {}
+          } catch {}
         }
       },
     }
