@@ -343,12 +343,8 @@ export default function Image({
 
   let isLazy =
     !priority && (loading === 'lazy' || typeof loading === 'undefined')
-  if (src.startsWith('data:')) {
+  if (src.startsWith('data:') || src.startsWith('blob:')) {
     // https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
-    unoptimized = true
-    isLazy = false
-  }
-  if (src.startsWith('blob:')) {
     unoptimized = true
     isLazy = false
   }
