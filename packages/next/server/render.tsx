@@ -20,7 +20,7 @@ import { GetServerSideProps, GetStaticProps, PreviewData } from '../types'
 import { isInAmpMode } from '../shared/lib/amp'
 import { AmpStateContext } from '../shared/lib/amp-context'
 import {
-  AMP_RENDER_TARGET,
+  BODY_RENDER_TARGET,
   SERVER_PROPS_ID,
   STATIC_PROPS_ID,
   STATIC_STATUS_PAGES,
@@ -39,6 +39,7 @@ import {
   DocumentInitialProps,
   DocumentProps,
   DocumentType,
+  HtmlContext,
   getDisplayName,
   isResSent,
   loadGetInitialProps,
@@ -264,54 +265,58 @@ function renderDocument(
     autoExport?: boolean
   }
 ): string {
+  const htmlProps = {
+    __NEXT_DATA__: {
+      props, // The result of getInitialProps
+      page: pathname, // The rendered page
+      query, // querystring parsed / passed by the user
+      buildId, // buildId is used to facilitate caching of page bundles, we send it to the client so that pageloader knows where to load bundles
+      assetPrefix: assetPrefix === '' ? undefined : assetPrefix, // send assetPrefix to the client side when configured, otherwise don't sent in the resulting HTML
+      runtimeConfig, // runtimeConfig if provided, otherwise don't sent in the resulting HTML
+      nextExport, // If this is a page exported by `next export`
+      autoExport, // If this is an auto exported page
+      isFallback,
+      dynamicIds:
+        dynamicImportsIds.length === 0 ? undefined : dynamicImportsIds,
+      err: err ? serializeError(dev, err) : undefined, // Error if one happened, otherwise don't sent in the resulting HTML
+      gsp, // whether the page is getStaticProps
+      gssp, // whether the page is getServerSideProps
+      customServer, // whether the user is using a custom server
+      gip, // whether the page has getInitialProps
+      appGip, // whether the _app has getInitialProps
+      locale,
+      locales,
+      defaultLocale,
+      domainLocales,
+      isPreview,
+    },
+    buildManifest,
+    docComponentsRendered,
+    dangerousAsPath,
+    canonicalBase,
+    ampPath,
+    inAmpMode,
+    isDevelopment: !!dev,
+    hybridAmp,
+    dynamicImports,
+    assetPrefix,
+    headTags,
+    unstable_runtimeJS,
+    unstable_JsPreload,
+    devOnlyCacheBusterQueryString,
+    scriptLoader,
+    locale,
+    disableOptimizedLoading,
+    styles: docProps.styles,
+    head: docProps.head,
+  }
   return (
     '<!DOCTYPE html>' +
     ReactDOMServer.renderToStaticMarkup(
       <AmpStateContext.Provider value={ampState}>
-        {Document.renderDocument(Document, {
-          __NEXT_DATA__: {
-            props, // The result of getInitialProps
-            page: pathname, // The rendered page
-            query, // querystring parsed / passed by the user
-            buildId, // buildId is used to facilitate caching of page bundles, we send it to the client so that pageloader knows where to load bundles
-            assetPrefix: assetPrefix === '' ? undefined : assetPrefix, // send assetPrefix to the client side when configured, otherwise don't sent in the resulting HTML
-            runtimeConfig, // runtimeConfig if provided, otherwise don't sent in the resulting HTML
-            nextExport, // If this is a page exported by `next export`
-            autoExport, // If this is an auto exported page
-            isFallback,
-            dynamicIds:
-              dynamicImportsIds.length === 0 ? undefined : dynamicImportsIds,
-            err: err ? serializeError(dev, err) : undefined, // Error if one happened, otherwise don't sent in the resulting HTML
-            gsp, // whether the page is getStaticProps
-            gssp, // whether the page is getServerSideProps
-            customServer, // whether the user is using a custom server
-            gip, // whether the page has getInitialProps
-            appGip, // whether the _app has getInitialProps
-            locale,
-            locales,
-            defaultLocale,
-            domainLocales,
-            isPreview,
-          },
-          buildManifest,
-          docComponentsRendered,
-          dangerousAsPath,
-          canonicalBase,
-          ampPath,
-          inAmpMode,
-          isDevelopment: !!dev,
-          hybridAmp,
-          dynamicImports,
-          assetPrefix,
-          headTags,
-          unstable_runtimeJS,
-          unstable_JsPreload,
-          devOnlyCacheBusterQueryString,
-          scriptLoader,
-          locale,
-          disableOptimizedLoading,
-          ...docProps,
-        })}
+        <HtmlContext.Provider value={htmlProps}>
+          <Document {...htmlProps} {...docProps} />
+        </HtmlContext.Provider>
       </AmpStateContext.Provider>
     )
   )
@@ -1155,16 +1160,15 @@ export async function renderToHTML(
     }
   }
 
-  if (inAmpMode && html) {
-    // inject HTML to AMP_RENDER_TARGET to allow rendering
-    // directly to body in AMP mode
-    const ampRenderIndex = html.indexOf(AMP_RENDER_TARGET)
-    html =
-      html.substring(0, ampRenderIndex) +
-      `<!-- __NEXT_DATA__ -->${docProps.html}` +
-      html.substring(ampRenderIndex + AMP_RENDER_TARGET.length)
-    html = await optimizeAmp(html, renderOpts.ampOptimizerConfig)
+  const bodyRenderIdx = html.indexOf(BODY_RENDER_TARGET)
+  html =
+    html.substring(0, bodyRenderIdx) +
+    (inAmpMode ? '<!-- __NEXT_DATA__ -->' : '') +
+    docProps.html +
+    html.substring(bodyRenderIdx + BODY_RENDER_TARGET.length)
 
+  if (inAmpMode) {
+    html = await optimizeAmp(html, renderOpts.ampOptimizerConfig)
     if (!renderOpts.ampSkipValidation && renderOpts.ampValidator) {
       await renderOpts.ampValidator(html, pathname)
     }
