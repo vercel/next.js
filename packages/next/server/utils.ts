@@ -16,12 +16,12 @@ export function cleanAmpPath(pathname: string): string {
 }
 
 export type Disposable = () => void
-// TODO: Consider just using an actual Observable here
-export type RenderResult = (observer: {
-  next(chunk: string): void
+export type Observer<T> = {
+  next(chunk: T): void
   error(error: Error): void
   complete(): void
-}) => Disposable
+}
+export type RenderResult = (observer: Observer<string>) => Disposable
 
 export function resultFromChunks(chunks: string[]): RenderResult {
   return ({ next, complete, error }) => {
