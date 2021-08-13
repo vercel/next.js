@@ -1361,6 +1361,7 @@ function multiplexResult(result: RenderResult): RenderResult {
 
   return (innerSubscriber) => {
     let completed = false
+    let cleanup = () => {}
     const subscriber: Observer<string> = {
       next(chunk) {
         if (!completed) {
@@ -1373,20 +1374,24 @@ function multiplexResult(result: RenderResult): RenderResult {
       },
       complete() {
         if (!completed) {
+          cleanup()
           try {
-            completed = true
             innerSubscriber.complete()
           } catch (err) {}
         }
       },
       error(err) {
         if (!completed) {
+          cleanup()
           try {
-            completed = true
             innerSubscriber.error(err)
           } catch (err) {}
         }
       },
+    }
+    cleanup = () => {
+      completed = true
+      subscribers.delete(subscriber)
     }
 
     process.nextTick(() => {
@@ -1409,10 +1414,7 @@ function multiplexResult(result: RenderResult): RenderResult {
         }
       }
     })
-    return () => {
-      completed = true
-      subscribers.delete(subscriber)
-    }
+    return () => cleanup()
   }
 }
 
