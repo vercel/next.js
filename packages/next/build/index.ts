@@ -91,8 +91,6 @@ import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { isWebpack5 } from 'next/dist/compiled/webpack/webpack'
 import { NextConfigComplete } from '../server/config-shared'
 
-const staticCheckWorker = require.resolve('./utils')
-
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
   srcRoute: string | null
@@ -670,6 +668,62 @@ export default async function build(
       await promises.readFile(buildManifestPath, 'utf8')
     ) as BuildManifest
 
+    const timeout = config.experimental.staticPageGenerationTimeout || 0
+    const sharedPool = config.experimental.sharedPool || false
+    const staticWorker = sharedPool
+      ? require.resolve('./worker')
+      : require.resolve('./utils')
+    let infoPrinted = false
+    const staticWorkers = new Worker(staticWorker, {
+      timeout: timeout * 1000,
+      onRestart: (method, [arg], attempts) => {
+        if (method === 'exportPage') {
+          const { path: pagePath } = arg
+          if (attempts >= 3) {
+            throw new Error(
+              `Static page generation for ${pagePath} is still timing out after 3 attempts. See more info here https://nextjs.org/docs/messages/static-page-generation-timeout`
+            )
+          }
+          Log.warn(
+            `Restarted static page genertion for ${pagePath} because it took more than ${timeout} seconds`
+          )
+        } else {
+          const pagePath = arg
+          if (attempts >= 2) {
+            throw new Error(
+              `Collecting page data for ${pagePath} is still timing out after 2 attempts. See more info here https://nextjs.org/docs/messages/page-data-collection-timeout`
+            )
+          }
+          Log.warn(
+            `Restarted collecting page data for ${pagePath} because it took more than ${timeout} seconds`
+          )
+        }
+        if (!infoPrinted) {
+          Log.warn(
+            'See more info here https://nextjs.org/docs/messages/static-page-generation-timeout'
+          )
+          infoPrinted = true
+        }
+      },
+      numWorkers: config.experimental.cpus,
+      enableWorkerThreads: config.experimental.workerThreads,
+      exposedMethods: sharedPool
+        ? [
+            'hasCustomGetInitialProps',
+            'isPageStatic',
+            'getNamedExports',
+            'exportPage',
+          ]
+        : ['hasCustomGetInitialProps', 'isPageStatic', 'getNamedExports'],
+    }) as Worker &
+      Pick<
+        typeof import('./worker'),
+        | 'hasCustomGetInitialProps'
+        | 'isPageStatic'
+        | 'getNamedExports'
+        | 'exportPage'
+      >
+
     const analysisBegin = process.hrtime()
 
     const staticCheckSpan = nextBuildSpan.traceChild('static-check')
@@ -682,39 +736,6 @@ export default async function build(
     } = await staticCheckSpan.traceAsyncFn(async () => {
       process.env.NEXT_PHASE = PHASE_PRODUCTION_BUILD
 
-      const timeout = config.experimental.pageDataCollectionTimeout || 0
-      let infoPrinted = false
-      const staticCheckWorkers = new Worker(staticCheckWorker, {
-        timeout: timeout * 1000,
-        onRestart: (_method, [pagePath], attempts) => {
-          if (attempts >= 2) {
-            throw new Error(
-              `Collecting page data for ${pagePath} is still timing out after 2 attempts. See more info here https://nextjs.org/docs/messages/page-data-collection-timeout`
-            )
-          }
-          Log.warn(
-            `Restarted collecting page data for ${pagePath} because it took more than ${timeout} seconds`
-          )
-          if (!infoPrinted) {
-            Log.warn(
-              'See more info here https://nextjs.org/docs/messages/page-data-collection-timeout'
-            )
-            infoPrinted = true
-          }
-        },
-        numWorkers: config.experimental.cpus,
-        enableWorkerThreads: config.experimental.workerThreads,
-        exposedMethods: [
-          'hasCustomGetInitialProps',
-          'isPageStatic',
-          'getNamedExports',
-        ],
-      }) as Worker &
-        Pick<
-          typeof import('./utils'),
-          'hasCustomGetInitialProps' | 'isPageStatic' | 'getNamedExports'
-        >
-
       const runtimeEnvConfig = {
         publicRuntimeConfig: config.publicRuntimeConfig,
         serverRuntimeConfig: config.serverRuntimeConfig,
@@ -726,7 +747,7 @@ export default async function build(
       const errorPageHasCustomGetInitialProps = nonStaticErrorPageSpan.traceAsyncFn(
         async () =>
           hasCustomErrorPage &&
-          (await staticCheckWorkers.hasCustomGetInitialProps(
+          (await staticWorkers.hasCustomGetInitialProps(
             '/_error',
             distDir,
             isLikeServerless,
@@ -738,7 +759,7 @@ export default async function build(
       const errorPageStaticResult = nonStaticErrorPageSpan.traceAsyncFn(
         async () =>
           hasCustomErrorPage &&
-          staticCheckWorkers.isPageStatic(
+          staticWorkers.isPageStatic(
             '/_error',
             distDir,
             isLikeServerless,
@@ -753,7 +774,7 @@ export default async function build(
       // from _error instead
       const appPageToCheck = isLikeServerless ? '/_error' : '/_app'
 
-      const customAppGetInitialPropsPromise = staticCheckWorkers.hasCustomGetInitialProps(
+      const customAppGetInitialPropsPromise = staticWorkers.hasCustomGetInitialProps(
         appPageToCheck,
         distDir,
         isLikeServerless,
@@ -761,7 +782,7 @@ export default async function build(
         true
       )
 
-      const namedExportsPromise = staticCheckWorkers.getNamedExports(
+      const namedExportsPromise = staticWorkers.getNamedExports(
         appPageToCheck,
         distDir,
         isLikeServerless,
@@ -808,7 +829,7 @@ export default async function build(
                   'is-page-static'
                 )
                 let workerResult = await isPageStaticSpan.traceAsyncFn(() => {
-                  return staticCheckWorkers.isPageStatic(
+                  return staticWorkers.isPageStatic(
                     page,
                     distDir,
                     isLikeServerless,
@@ -926,7 +947,7 @@ export default async function build(
         hasNonStaticErrorPage: nonStaticErrorPage,
       }
 
-      staticCheckWorkers.end()
+      if (!sharedPool) staticWorkers.end()
       return returnValue
     })
 
@@ -1082,7 +1103,8 @@ export default async function build(
           ssgPages,
           additionalSsgPaths
         )
-        const exportApp = require('../export').default
+        const exportApp: typeof import('../export').default = require('../export')
+          .default
         const exportOptions = {
           silent: false,
           buildExport: true,
@@ -1090,6 +1112,14 @@ export default async function build(
           pages: combinedPages,
           outdir: path.join(distDir, 'export'),
           statusMessage: 'Generating static pages',
+          exportPageWorker: sharedPool
+            ? staticWorkers.exportPage.bind(staticWorkers)
+            : undefined,
+          endWorker: sharedPool
+            ? async () => {
+                await staticWorkers.end()
+              }
+            : undefined,
         }
         const exportConfig: any = {
           ...config,
