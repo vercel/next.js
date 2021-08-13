@@ -8,7 +8,7 @@ import {
   BUILD_MANIFEST,
   CLIENT_STATIC_FILES_PATH,
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
-  CLIENT_STATIC_FILES_RUNTIME_POLYFILLS,
+  CLIENT_STATIC_FILES_RUNTIME_POLYFILLS_SYMBOL,
   CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
   CLIENT_STATIC_FILES_RUNTIME_AMP,
 } from '../../../shared/lib/constants'
@@ -146,9 +146,24 @@ export default class BuildManifestPlugin {
         getEntrypointFiles(entrypoints.get(CLIENT_STATIC_FILES_RUNTIME_MAIN))
       )
 
-      assetMap.polyfillFiles = getEntrypointFiles(
-        entrypoints.get(CLIENT_STATIC_FILES_RUNTIME_POLYFILLS)
-      ).filter((file) => !mainFiles.has(file))
+      const compilationAssets: {
+        name: string
+        source: typeof sources.RawSource
+        info: object
+      }[] = compilation.getAssets()
+
+      assetMap.polyfillFiles = compilationAssets
+        .filter((p) => {
+          // Ensure only .js files are passed through
+          if (!p.name.endsWith('.js')) {
+            return false
+          }
+
+          return (
+            p.info && CLIENT_STATIC_FILES_RUNTIME_POLYFILLS_SYMBOL in p.info
+          )
+        })
+        .map((v) => v.name)
 
       assetMap.devFiles = getEntrypointFiles(
         entrypoints.get(CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH)
@@ -160,7 +175,6 @@ export default class BuildManifestPlugin {
 
       const systemEntrypoints = new Set([
         CLIENT_STATIC_FILES_RUNTIME_MAIN,
-        CLIENT_STATIC_FILES_RUNTIME_POLYFILLS,
         CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
         CLIENT_STATIC_FILES_RUNTIME_AMP,
       ])
