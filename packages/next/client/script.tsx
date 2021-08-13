@@ -10,8 +10,8 @@ const LoadCache = new Set()
 export interface ScriptProps extends ScriptHTMLAttributes<HTMLScriptElement> {
   strategy?: 'afterInteractive' | 'lazyOnload' | 'beforeInteractive'
   id?: string
-  onLoad?: () => void
-  onError?: () => void
+  onLoad?: (e: any) => void
+  onError?: (e: any) => void
   children?: React.ReactNode
 }
 
@@ -56,18 +56,19 @@ const loadScript = (props: ScriptProps): void => {
   const el = document.createElement('script')
 
   const loadPromise = new Promise<void>((resolve, reject) => {
-    el.addEventListener('load', function () {
+    el.addEventListener('load', function (e) {
       resolve()
       if (onLoad) {
-        onLoad.call(this)
+        onLoad.call(this, e)
       }
     })
-    el.addEventListener('error', function () {
-      reject()
-      if (onError) {
-        onError()
-      }
+    el.addEventListener('error', function (e) {
+      reject(e)
     })
+  }).catch(function (e) {
+    if (onError) {
+      onError(e)
+    }
   })
 
   if (src) {

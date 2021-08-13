@@ -69,6 +69,12 @@ describe('Script Loader', () => {
       await browser.waitForElementByCss('#onload-div')
       await waitFor(1000)
 
+      const logs = await browser.log('browser')
+      const filteredLogs = logs.filter(
+        (log) => !log.message.includes('Failed to load resource')
+      )
+      expect(filteredLogs.length).toBe(0)
+
       async function test(id) {
         const script = await browser.elementById(id)
         const endScripts = await browser.elementsByCss(
