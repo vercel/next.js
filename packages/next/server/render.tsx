@@ -421,6 +421,7 @@ export async function renderToHTML(
     previewProps,
     basePath,
     devOnlyCacheBusterQueryString,
+    requireStaticHTML,
     concurrentFeatures,
   } = renderOpts
 
@@ -1007,10 +1008,29 @@ export async function renderToHTML(
     }
   }
 
+  const generateStaticHTML = requireStaticHTML || inAmpMode
   const renderToStream = (element: React.ReactElement) =>
     new Promise<RenderResult>((resolve, reject) => {
       const stream = new PassThrough()
       let resolved = false
+      const doResolve = () => {
+        if (!resolved) {
+          resolved = true
+          resolve(({ complete, next }) => {
+            stream.on('data', (chunk) => {
+              next(chunk.toString('utf-8'))
+            })
+            stream.once('end', () => {
+              complete()
+            })
+
+            startWriting()
+            return () => {
+              abort()
+            }
+          })
+        }
+      }
 
       const {
         abort,
@@ -1023,23 +1043,13 @@ export async function renderToHTML(
           }
           abort()
         },
-        onCompleteAll() {
-          if (!resolved) {
-            resolved = true
-            resolve(({ complete, next }) => {
-              stream.on('data', (chunk) => {
-                next(chunk.toString('utf-8'))
-              })
-              stream.once('end', () => {
-                complete()
-              })
-
-              startWriting()
-              return () => {
-                abort()
-              }
-            })
+        onReadyToStream() {
+          if (!generateStaticHTML) {
+            doResolve()
           }
+        },
+        onCompleteAll() {
+          doResolve()
         },
       })
     }).then(multiplexResult)
