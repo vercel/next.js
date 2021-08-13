@@ -63,7 +63,7 @@ import {
   Redirect,
 } from '../lib/load-custom-routes'
 import { DomainLocale } from './config'
-import { RenderResult, resultFromChunks } from './utils'
+import { RenderResult, resultFromChunks, resultToChunks } from './utils'
 
 function noRouter() {
   const message =
@@ -1099,7 +1099,7 @@ export async function renderToHTML(
 
   const docComponentsRendered: DocumentProps['docComponentsRendered'] = {}
 
-  let html = renderDocument(Document, {
+  const documentHTML = renderDocument(Document, {
     ...renderOpts,
     canonicalBase:
       !renderOpts.ampPath && (req as any).__nextStrippedLocale
@@ -1160,54 +1160,120 @@ export async function renderToHTML(
     }
   }
 
-  const bodyRenderIdx = html.indexOf(BODY_RENDER_TARGET)
-  html =
-    html.substring(0, bodyRenderIdx) +
-    (inAmpMode ? '<!-- __NEXT_DATA__ -->' : '') +
-    docProps.html +
-    html.substring(bodyRenderIdx + BODY_RENDER_TARGET.length)
-
+  let results: Array<RenderResult> = []
+  const renderTargetIdx = documentHTML.indexOf(BODY_RENDER_TARGET)
+  results.push(
+    resultFromChunks([
+      '<!DOCTYPE html>' + documentHTML.substring(0, renderTargetIdx),
+    ])
+  )
   if (inAmpMode) {
-    html = await optimizeAmp(html, renderOpts.ampOptimizerConfig)
-    if (!renderOpts.ampSkipValidation && renderOpts.ampValidator) {
-      await renderOpts.ampValidator(html, pathname)
+    results.push(resultFromChunks(['<!-- __NEXT_DATA__ -->']))
+  }
+  results.push(resultFromChunks([docProps.html]))
+  results.push(
+    resultFromChunks([
+      documentHTML.substring(renderTargetIdx + BODY_RENDER_TARGET.length),
+    ])
+  )
+
+  const postProcessors: Array<((html: string) => Promise<string>) | null> = [
+    process.env.__NEXT_OPTIMIZE_FONTS || process.env.__NEXT_OPTIMIZE_IMAGES
+      ? async (html: string) => {
+          return await postProcess(
+            html,
+            { getFontDefinition },
+            {
+              optimizeFonts: renderOpts.optimizeFonts,
+              optimizeImages: renderOpts.optimizeImages,
+            }
+          )
+        }
+      : null,
+    renderOpts.optimizeCss
+      ? async (html: string) => {
+          // eslint-disable-next-line import/no-extraneous-dependencies
+          const Critters = require('critters')
+          const cssOptimizer = new Critters({
+            ssrMode: true,
+            reduceInlineStyles: false,
+            path: renderOpts.distDir,
+            publicPath: `${renderOpts.assetPrefix}/_next/`,
+            preload: 'media',
+            fonts: false,
+            ...renderOpts.optimizeCss,
+          })
+          return await cssOptimizer.process(html)
+        }
+      : null,
+    inAmpMode || hybridAmp
+      ? async (html: string) => {
+          return html.replace(/&amp;amp=1/g, '&amp=1')
+        }
+      : null,
+  ].filter(Boolean)
+
+  if (postProcessors.length > 0) {
+    let html = await resultsToString(results)
+    for (const postProcessor of postProcessors) {
+      if (postProcessor) {
+        html = await postProcessor(html)
+      }
+    }
+    results = [resultFromChunks([html])]
+  }
+
+  return mergeResults(results)
+}
+
+async function resultsToString(chunks: Array<RenderResult>): Promise<string> {
+  const result = await resultToChunks(mergeResults(chunks))
+  return result.join('')
+}
+
+function mergeResults(chunks: Array<RenderResult>): RenderResult {
+  return ({ next, complete, error }) => {
+    let idx = 0
+    let canceled = false
+    let unsubscribe = () => {}
+
+    const subscribeNext = () => {
+      if (canceled) {
+        return
+      }
+
+      if (idx < chunks.length) {
+        const result = chunks[idx++]
+        unsubscribe = result({
+          next,
+          complete() {
+            unsubscribe()
+            subscribeNext()
+          },
+          error(err) {
+            unsubscribe()
+            if (!canceled) {
+              canceled = true
+              error(err)
+            }
+          },
+        })
+      } else {
+        if (!canceled) {
+          canceled = true
+          complete()
+        }
+      }
+    }
+    subscribeNext()
+
+    return () => {
+      if (!canceled) {
+        canceled = true
+        unsubscribe()
+      }
     }
   }
-
-  // Avoid postProcess if both flags are false
-  if (process.env.__NEXT_OPTIMIZE_FONTS || process.env.__NEXT_OPTIMIZE_IMAGES) {
-    html = await postProcess(
-      html,
-      { getFontDefinition },
-      {
-        optimizeFonts: renderOpts.optimizeFonts,
-        optimizeImages: renderOpts.optimizeImages,
-      }
-    )
-  }
-
-  if (renderOpts.optimizeCss) {
-    // eslint-disable-next-line import/no-extraneous-dependencies
-    const Critters = require('critters')
-    const cssOptimizer = new Critters({
-      ssrMode: true,
-      reduceInlineStyles: false,
-      path: renderOpts.distDir,
-      publicPath: `${renderOpts.assetPrefix}/_next/`,
-      preload: 'media',
-      fonts: false,
-      ...renderOpts.optimizeCss,
-    })
-
-    html = await cssOptimizer.process(html)
-  }
-
-  if (inAmpMode || hybridAmp) {
-    // fix &amp being escaped for amphtml rel link
-    html = html.replace(/&amp;amp=1/g, '&amp=1')
-  }
-
-  return resultFromChunks([html])
 }
 
 function errorToJSON(err: Error): Error {
