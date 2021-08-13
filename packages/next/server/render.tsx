@@ -315,14 +315,12 @@ function renderDocument(
     styles: docProps.styles,
     head: docProps.head,
   }
-  return (
-    ReactDOMServer.renderToStaticMarkup(
-      <AmpStateContext.Provider value={ampState}>
-        <HtmlContext.Provider value={htmlProps}>
-          <Document {...htmlProps} {...docProps} />
-        </HtmlContext.Provider>
-      </AmpStateContext.Provider>
-    )
+  return ReactDOMServer.renderToStaticMarkup(
+    <AmpStateContext.Provider value={ampState}>
+      <HtmlContext.Provider value={htmlProps}>
+        <Document {...htmlProps} {...docProps} />
+      </HtmlContext.Provider>
+    </AmpStateContext.Provider>
   )
 }
 
