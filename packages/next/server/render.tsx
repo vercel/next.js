@@ -1332,11 +1332,7 @@ function multiplexResult(result: RenderResult): RenderResult {
   result({
     next(chunk) {
       chunks.push(chunk)
-      subscribers.forEach((subscriber) => {
-        try {
-          subscriber.next(chunk)
-        } catch {}
-      })
+      subscribers.forEach((subscriber) => subscriber.next(chunk))
     },
     error(error) {
       if (!streamResult) {
