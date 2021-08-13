@@ -1319,15 +1319,7 @@ function mergeResults(chunks: Array<RenderResult>): RenderResult {
 function multiplexResult(result: RenderResult): RenderResult {
   const chunks: Array<string> = []
   const subscribers: Set<Observer<string>> = new Set()
-  let streamResult:
-    | {
-        kind: 'COMPLETE'
-      }
-    | {
-        kind: 'FAILED'
-        error: Error
-      }
-    | null = null
+  let terminator: ((subscriber: Observer<string>) => void) | null = null
 
   result({
     next(chunk) {
@@ -1335,21 +1327,16 @@ function multiplexResult(result: RenderResult): RenderResult {
       subscribers.forEach((subscriber) => subscriber.next(chunk))
     },
     error(error) {
-      if (!streamResult) {
-        streamResult = {
-          kind: 'FAILED',
-          error,
-        }
-        subscribers.forEach((subscriber) => subscriber.error(error))
+      if (!terminator) {
+        terminator = (subscriber) => subscriber.error(error)
+        subscribers.forEach(terminator)
         subscribers.clear()
       }
     },
     complete() {
-      if (!streamResult) {
-        streamResult = {
-          kind: 'COMPLETE',
-        }
-        subscribers.forEach((subscriber) => subscriber.complete())
+      if (!terminator) {
+        terminator = (subscriber) => subscriber.complete()
+        subscribers.forEach(terminator)
         subscribers.clear()
       }
     },
@@ -1399,14 +1386,10 @@ function multiplexResult(result: RenderResult): RenderResult {
       }
 
       if (!completed) {
-        if (!streamResult) {
+        if (!terminator) {
           subscribers.add(subscriber)
         } else {
-          if (streamResult.kind === 'FAILED') {
-            subscriber.error(streamResult.error)
-          } else {
-            subscriber.complete()
-          }
+          terminator(subscriber)
         }
       }
     })
