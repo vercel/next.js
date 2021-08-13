@@ -1182,8 +1182,9 @@ export async function renderToHTML(
       ? async (html: string) => {
           html = await optimizeAmp(html, renderOpts.ampOptimizerConfig)
           if (!renderOpts.ampSkipValidation && renderOpts.ampValidator) {
-            return await renderOpts.ampValidator(html, pathname)
+            await renderOpts.ampValidator(html, pathname)
           }
+          return html
         }
       : null,
     process.env.__NEXT_OPTIMIZE_FONTS || process.env.__NEXT_OPTIMIZE_IMAGES
