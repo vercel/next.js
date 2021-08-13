@@ -263,6 +263,10 @@ Other properties on the `<Image />` component will be passed to the underlying
 - `ref`. Use [`onLoadingComplete`](#onloadingcomplete) instead.
 - `decoding`. It is always `"async"`.
 
+## Styling
+
+To apply more advanced styles to the underlying `img` element pass the `className` prop to the `<Image />` component and then add use Next.js's [built-in CSS support](docs/basic-features/built-in-css-support) to style that class.
+
 ## Related
 
 For more information on what to do next, we recommend the following sections:
