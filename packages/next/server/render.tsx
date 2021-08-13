@@ -38,7 +38,6 @@ import {
   ComponentsEnhancer,
   DocumentInitialProps,
   DocumentProps,
-  DocumentType,
   HtmlContext,
   getDisplayName,
   isResSent,
@@ -1032,7 +1031,7 @@ export async function renderToHTML(
         dynamicImportsIds.size === 0
           ? undefined
           : Array.from(dynamicImportsIds),
-      err: err ? serializeError(dev, err) : undefined, // Error if one happened, otherwise don't sent in the resulting HTML
+      err: renderOpts.err ? serializeError(dev, renderOpts.err) : undefined, // Error if one happened, otherwise don't sent in the resulting HTML
       gsp: !!getStaticProps ? true : undefined, // whether the page is getStaticProps
       gssp: !!getServerSideProps ? true : undefined, // whether the page is getServerSideProps
       customServer, // whether the user is using a custom server
