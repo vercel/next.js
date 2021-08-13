@@ -213,6 +213,8 @@ const NODE_ESM_RESOLVE_OPTIONS = {
   fullySpecified: true,
 }
 
+let TSCONFIG_WARNED = false
+
 export default async function getBaseWebpackConfig(
   dir: string,
   {
@@ -398,7 +400,8 @@ export default async function getBaseWebpackConfig(
   let jsConfig
   // jsconfig is a subset of tsconfig
   if (useTypeScript) {
-    if (tsConfigName !== 'tsconfig.json') {
+    if (tsConfigName !== 'tsconfig.json' && TSCONFIG_WARNED === false) {
+      TSCONFIG_WARNED = true
       Log.warn(`Using custom tsconfig configuration file (${tsConfigName}).`)
     }
 
