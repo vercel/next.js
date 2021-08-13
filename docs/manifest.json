@@ -118,6 +118,10 @@
           "path": "/docs/authentication.md"
         },
         {
+          "title": "Testing",
+          "path": "/docs/testing.md"
+        },
+        {
           "title": "Advanced Features",
           "routes": [
             {

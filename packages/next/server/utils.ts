@@ -16,18 +16,40 @@ export function cleanAmpPath(pathname: string): string {
 }
 
 export type Disposable = () => void
-// TODO: Consider just using an actual Observable here
-export type RenderResult = (observer: {
-  next(chunk: string): void
+export type Observer<T> = {
+  next(chunk: T): void
   error(error: Error): void
   complete(): void
-}) => Disposable
+}
+export type RenderResult = (observer: Observer<string>) => Disposable
 
 export function resultFromChunks(chunks: string[]): RenderResult {
-  return ({ next, complete }) => {
-    chunks.forEach(next)
-    complete()
-    return () => {}
+  return ({ next, complete, error }) => {
+    let canceled = false
+    process.nextTick(() => {
+      try {
+        for (const chunk of chunks) {
+          if (canceled) {
+            return
+          }
+          next(chunk)
+        }
+      } catch (err) {
+        if (!canceled) {
+          canceled = true
+          error(err)
+        }
+      }
+
+      if (!canceled) {
+        canceled = true
+        complete()
+      }
+    })
+
+    return () => {
+      canceled = true
+    }
   }
 }
 
