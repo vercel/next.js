@@ -357,7 +357,7 @@ describe('CSS Support', () => {
       expect(stderr).toContain('Failed to compile')
       expect(stderr).toContain('styles/global.css')
       expect(stderr).toMatch(
-        /Please move all global CSS imports.*?pages(\/|\\)_app/
+        /Please move all first-party global CSS imports.*?pages(\/|\\)_app/
       )
       expect(stderr).toMatch(/Location:.*pages[\\/]index\.js/)
     })
@@ -407,7 +407,7 @@ describe('CSS Support', () => {
       expect(stderr).toContain('Failed to compile')
       expect(stderr).toContain('styles/global.css')
       expect(stderr).toMatch(
-        /Please move all global CSS imports.*?pages(\/|\\)_app/
+        /Please move all first-party global CSS imports.*?pages(\/|\\)_app/
       )
       expect(stderr).toMatch(/Location:.*pages[\\/]index\.js/)
     })
@@ -427,7 +427,7 @@ describe('CSS Support', () => {
       expect(code).not.toBe(0)
       expect(stderr).toContain('Failed to compile')
       expect(stderr).toContain('styles/global.css')
-      expect(stderr).toContain('Please move all global CSS imports')
+      expect(stderr).toContain('Please move all first-party global CSS imports')
       expect(stderr).toMatch(/Location:.*pages[\\/]index\.js/)
     })
   })
@@ -1509,7 +1509,7 @@ describe('CSS Support', () => {
           await browser.waitForElementByCss('#link-other').click()
           await check(
             () => browser.eval(`document.body.innerText`),
-            'Application error: a client-side exception has occurred (developer guidance).',
+            'Application error: a client-side exception has occurred (see the browser console for more information).',
             true
           )
 

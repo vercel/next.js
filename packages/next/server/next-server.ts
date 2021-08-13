@@ -46,6 +46,7 @@ import {
   isResSent,
   NextApiRequest,
   NextApiResponse,
+  normalizeRepeatedSlashes,
 } from '../shared/lib/utils'
 import {
   apiResolver,
@@ -54,7 +55,7 @@ import {
   tryGetPreviewData,
   __ApiPreviewProps,
 } from './api-utils'
-import { DomainLocales, isTargetLikeServerless, NextConfig } from './config'
+import { DomainLocale, isTargetLikeServerless, NextConfig } from './config'
 import pathMatch from '../shared/lib/router/utils/path-match'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
 import { loadComponents, LoadComponentsReturnType } from './load-components'
@@ -71,11 +72,16 @@ import Router, {
 import prepareDestination, {
   compileNonPath,
 } from '../shared/lib/router/utils/prepare-destination'
-import { sendPayload, setRevalidateHeaders } from './send-payload'
+import { sendRenderResult, setRevalidateHeaders } from './send-payload'
 import { serveStatic } from './serve-static'
 import { IncrementalCache } from './incremental-cache'
 import { execOnce } from '../shared/lib/utils'
-import { isBlockedPage } from './utils'
+import {
+  isBlockedPage,
+  RenderResult,
+  resultFromChunks,
+  resultToChunks,
+} from './utils'
 import { loadEnvConfig } from '@next/env'
 import './node-polyfill-fetch'
 import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
@@ -83,13 +89,10 @@ import { removePathTrailingSlash } from '../client/normalize-trailing-slash'
 import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-asset-path'
 import { FontManifest } from './font-utils'
 import { denormalizePagePath } from './denormalize-page-path'
-import accept from '@hapi/accept'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
-import { detectLocaleCookie } from '../shared/lib/i18n/detect-locale-cookie'
 import * as Log from '../build/output/log'
 import { imageOptimizer } from './image-optimizer'
 import { detectDomainLocale } from '../shared/lib/i18n/detect-domain-locale'
-import cookie from 'next/dist/compiled/cookie'
 import escapePathDelimiters from '../shared/lib/router/utils/escape-path-delimiters'
 import { getUtils } from '../build/webpack/loaders/next-serverless-loader/utils'
 import { PreviewData } from 'next/types'
@@ -98,6 +101,7 @@ import ResponseCache, {
   ResponseCacheValue,
 } from './response-cache'
 import { NextConfigComplete } from './config-shared'
+import { parseNextUrl } from '../shared/lib/router/utils/parse-next-url'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -134,6 +138,14 @@ export type ServerConstructor = {
   customServer?: boolean
 }
 
+type RequestContext = {
+  req: IncomingMessage
+  res: ServerResponse
+  pathname: string
+  query: ParsedUrlQuery
+  renderOpts: RenderOptsPartial
+}
+
 export default class Server {
   protected dir: string
   protected quiet: boolean
@@ -167,8 +179,9 @@ export default class Server {
     locale?: string
     locales?: string[]
     defaultLocale?: string
-    domainLocales?: DomainLocales
+    domainLocales?: DomainLocale[]
     distDir: string
+    concurrentFeatures?: boolean
   }
   private compression?: Middleware
   private incrementalCache: IncrementalCache
@@ -229,6 +242,7 @@ export default class Server {
         .disableOptimizedLoading,
       domainLocales: this.nextConfig.i18n?.domains,
       distDir: this.distDir,
+      concurrentFeatures: this.nextConfig.experimental.concurrentFeatures,
     }
 
     // Only the `publicRuntimeConfig` key is exposed to the client side
@@ -270,7 +284,8 @@ export default class Server {
         'pages'
       ),
       locales: this.nextConfig.i18n?.locales,
-      flushToDisk: !minimalMode && this.nextConfig.experimental.sprFlushToDisk,
+      max: this.nextConfig.experimental.isrMemoryCacheSize,
+      flushToDisk: !minimalMode && this.nextConfig.experimental.isrFlushToDisk,
     })
     this.responseCache = new ResponseCache(this.incrementalCache)
 
@@ -301,7 +316,19 @@ export default class Server {
     res: ServerResponse,
     parsedUrl?: UrlWithParsedQuery
   ): Promise<void> {
-    setLazyProp({ req: req as any }, 'cookies', getCookieParser(req))
+    const urlParts = (req.url || '').split('?')
+    const urlNoQuery = urlParts[0]
+
+    if (urlNoQuery?.match(/(\\|\/\/)/)) {
+      const cleanUrl = normalizeRepeatedSlashes(req.url!)
+      res.setHeader('Location', cleanUrl)
+      res.setHeader('Refresh', `0;url=${cleanUrl}`)
+      res.statusCode = 308
+      res.end(cleanUrl)
+      return
+    }
+
+    setLazyProp({ req: req as any }, 'cookies', getCookieParser(req.headers))
 
     // Parse url if parsedUrl not provided
     if (!parsedUrl || typeof parsedUrl !== 'object') {
@@ -316,9 +343,13 @@ export default class Server {
     }
     ;(req as any).__NEXT_INIT_QUERY = Object.assign({}, parsedUrl.query)
 
-    if (basePath && req.url?.startsWith(basePath)) {
-      // store original URL to allow checking if basePath was
-      // provided or not
+    const url = parseNextUrl({
+      headers: req.headers,
+      nextConfig: this.nextConfig,
+      url: req.url?.replace(/^\/+/, '/'),
+    })
+
+    if (url.basePath) {
       ;(req as any)._nextHadBasePath = true
       req.url = req.url!.replace(basePath, '') || '/'
     }
@@ -428,156 +459,34 @@ export default class Server {
       }`
     }
 
-    if (i18n) {
-      // get pathname from URL with basePath stripped for locale detection
-      let { pathname, ...parsed } = parseUrl(req.url || '/')
-      pathname = pathname || '/'
+    ;(req as any).__nextHadTrailingSlash = url.locale?.trailingSlash
+    if (url.locale?.domain) {
+      ;(req as any).__nextIsLocaleDomain = true
+    }
 
-      let defaultLocale = i18n.defaultLocale
-      let detectedLocale = detectLocaleCookie(req, i18n.locales)
-      let acceptPreferredLocale
-      try {
-        acceptPreferredLocale =
-          i18n.localeDetection !== false
-            ? accept.language(req.headers['accept-language'], i18n.locales)
-            : detectedLocale
-      } catch (_) {
-        acceptPreferredLocale = detectedLocale
+    if (url.locale?.path.detectedLocale) {
+      req.url = formatUrl(url)
+      ;(req as any).__nextStrippedLocale = true
+      if (url.pathname === '/api' || url.pathname.startsWith('/api/')) {
+        return this.render404(req, res, parsedUrl)
       }
-      const { host } = req?.headers || {}
-      // remove port from host if present
-      const hostname = host?.split(':')[0].toLowerCase()
+    }
 
-      const detectedDomain = detectDomainLocale(i18n.domains, hostname)
-      if (detectedDomain) {
-        defaultLocale = detectedDomain.defaultLocale
-        detectedLocale = defaultLocale
-        ;(req as any).__nextIsLocaleDomain = true
+    if (!this.minimalMode || !parsedUrl.query.__nextLocale) {
+      if (url?.locale?.locale) {
+        parsedUrl.query.__nextLocale = url.locale.locale
       }
+    }
 
-      // if not domain specific locale use accept-language preferred
-      detectedLocale = detectedLocale || acceptPreferredLocale
+    if (url?.locale?.defaultLocale) {
+      parsedUrl.query.__nextDefaultLocale = url.locale.defaultLocale
+    }
 
-      let localeDomainRedirect: string | undefined
-      ;(req as any).__nextHadTrailingSlash = pathname!.endsWith('/')
-
-      if (pathname === '/') {
-        ;(req as any).__nextHadTrailingSlash = this.nextConfig.trailingSlash
-      }
-      const localePathResult = normalizeLocalePath(pathname!, i18n.locales)
-
-      if (localePathResult.detectedLocale) {
-        detectedLocale = localePathResult.detectedLocale
-        req.url = formatUrl({
-          ...parsed,
-          pathname: localePathResult.pathname,
-        })
-        ;(req as any).__nextStrippedLocale = true
-
-        if (
-          localePathResult.pathname === '/api' ||
-          localePathResult.pathname.startsWith('/api/')
-        ) {
-          return this.render404(req, res, parsedUrl)
-        }
-      }
-
-      // If a detected locale is a domain specific locale and we aren't already
-      // on that domain and path prefix redirect to it to prevent duplicate
-      // content from multiple domains
-      if (detectedDomain && pathname === '/') {
-        const localeToCheck = acceptPreferredLocale
-        // const localeToCheck = localePathResult.detectedLocale
-        //   ? detectedLocale
-        //   : acceptPreferredLocale
-
-        const matchedDomain = detectDomainLocale(
-          i18n.domains,
-          undefined,
-          localeToCheck
-        )
-
-        if (
-          matchedDomain &&
-          (matchedDomain.domain !== detectedDomain.domain ||
-            localeToCheck !== matchedDomain.defaultLocale)
-        ) {
-          localeDomainRedirect = `http${matchedDomain.http ? '' : 's'}://${
-            matchedDomain.domain
-          }/${
-            localeToCheck === matchedDomain.defaultLocale ? '' : localeToCheck
-          }`
-        }
-      }
-
-      const denormalizedPagePath = denormalizePagePath(pathname || '/')
-      const detectedDefaultLocale =
-        !detectedLocale ||
-        detectedLocale.toLowerCase() === defaultLocale.toLowerCase()
-      const shouldStripDefaultLocale = false
-      // detectedDefaultLocale &&
-      // denormalizedPagePath.toLowerCase() ===
-      //   `/${i18n.defaultLocale.toLowerCase()}`
-
-      const shouldAddLocalePrefix =
-        !detectedDefaultLocale && denormalizedPagePath === '/'
-
-      detectedLocale = detectedLocale || i18n.defaultLocale
-
-      if (
-        i18n.localeDetection !== false &&
-        (localeDomainRedirect ||
-          shouldAddLocalePrefix ||
-          shouldStripDefaultLocale)
-      ) {
-        // set the NEXT_LOCALE cookie when a user visits the default locale
-        // with the locale prefix so that they aren't redirected back to
-        // their accept-language preferred locale
-        if (
-          shouldStripDefaultLocale &&
-          acceptPreferredLocale !== defaultLocale
-        ) {
-          const previous = res.getHeader('set-cookie')
-
-          res.setHeader('set-cookie', [
-            ...(typeof previous === 'string'
-              ? [previous]
-              : Array.isArray(previous)
-              ? previous
-              : []),
-            cookie.serialize('NEXT_LOCALE', defaultLocale, {
-              httpOnly: true,
-              path: '/',
-            }),
-          ])
-        }
-
-        res.setHeader(
-          'Location',
-          localeDomainRedirect
-            ? localeDomainRedirect
-            : formatUrl({
-                // make sure to include any query values when redirecting
-                ...parsed,
-                pathname: shouldStripDefaultLocale
-                  ? basePath || `/`
-                  : `${basePath || ''}/${detectedLocale}`,
-              })
-        )
-        res.statusCode = TEMPORARY_REDIRECT_STATUS
-        res.end()
-        return
-      }
-
-      parsedUrl.query.__nextDefaultLocale =
-        detectedDomain?.defaultLocale || i18n.defaultLocale
-
-      if (!this.minimalMode || !parsedUrl.query.__nextLocale) {
-        parsedUrl.query.__nextLocale =
-          localePathResult.detectedLocale ||
-          detectedDomain?.defaultLocale ||
-          defaultLocale
-      }
+    if (url.locale?.redirect) {
+      res.setHeader('Location', url.locale.redirect)
+      res.statusCode = TEMPORARY_REDIRECT_STATUS
+      res.end()
+      return
     }
 
     res.statusCode = 200
@@ -917,7 +826,13 @@ export default class Server {
 
               parsedDestination.search = stringifyQuery(req, query)
 
-              const updatedDestination = formatUrl(parsedDestination)
+              let updatedDestination = formatUrl(parsedDestination)
+
+              if (updatedDestination.startsWith('/')) {
+                updatedDestination = normalizeRepeatedSlashes(
+                  updatedDestination
+                )
+              }
 
               res.setHeader('Location', updatedDestination)
               res.statusCode = getRedirectStatus(redirectRoute as Redirect)
@@ -928,7 +843,7 @@ export default class Server {
                 res.setHeader('Refresh', `0;url=${updatedDestination}`)
               }
 
-              res.end()
+              res.end(updatedDestination)
               return {
                 finished: true,
               }
@@ -1243,7 +1158,14 @@ export default class Server {
             pathParts.splice(0, basePathParts.length)
           }
 
-          const path = `/${pathParts.join('/')}`
+          let path = `/${pathParts.join('/')}`
+
+          if (!publicFiles.has(path)) {
+            // In `next-dev-server.ts`, we ensure encoded paths match
+            // decoded paths on the filesystem. So we need do the
+            // opposite here: make sure decoded paths match encoded.
+            path = encodeURI(path)
+          }
 
           if (publicFiles.has(path)) {
             await this.serveStatic(
@@ -1313,29 +1235,71 @@ export default class Server {
     await this.render404(req, res, parsedUrl)
   }
 
-  protected async sendResponse(
-    req: IncomingMessage,
-    res: ServerResponse,
-    { type, body, revalidateOptions }: ResponsePayload
+  private async pipe(
+    fn: (ctx: RequestContext) => Promise<ResponsePayload | null>,
+    partialContext: {
+      req: IncomingMessage
+      res: ServerResponse
+      pathname: string
+      query: ParsedUrlQuery
+    }
   ): Promise<void> {
+    // TODO: Determine when dynamic HTML is allowed
+    const requireStaticHTML = true
+    const ctx = {
+      ...partialContext,
+      renderOpts: {
+        ...this.renderOpts,
+        requireStaticHTML,
+      },
+    } as const
+    const payload = await fn(ctx)
+    if (payload === null) {
+      return
+    }
+    const { req, res } = ctx
+    const { body, type, revalidateOptions } = payload
     if (!isResSent(res)) {
       const { generateEtags, poweredByHeader, dev } = this.renderOpts
       if (dev) {
         // In dev, we should not cache pages for any reason.
         res.setHeader('Cache-Control', 'no-store, must-revalidate')
       }
-      return sendPayload(
+      return sendRenderResult({
         req,
         res,
-        body,
+        resultOrPayload: requireStaticHTML
+          ? (await resultToChunks(body)).join('')
+          : body,
         type,
-        {
-          generateEtags,
-          poweredByHeader,
-        },
-        revalidateOptions
-      )
+        generateEtags,
+        poweredByHeader,
+        options: revalidateOptions,
+      })
     }
+  }
+
+  private async getStaticHTML(
+    fn: (ctx: RequestContext) => Promise<ResponsePayload | null>,
+    partialContext: {
+      req: IncomingMessage
+      res: ServerResponse
+      pathname: string
+      query: ParsedUrlQuery
+    }
+  ): Promise<string | null> {
+    const payload = await fn({
+      ...partialContext,
+      renderOpts: {
+        ...this.renderOpts,
+        requireStaticHTML: true,
+      },
+    })
+    if (payload === null) {
+      return null
+    }
+    const chunks = await resultToChunks(payload.body)
+    return chunks.join('')
   }
 
   public async render(
@@ -1385,13 +1349,12 @@ export default class Server {
       return this.render404(req, res, parsedUrl)
     }
 
-    const response = await this.renderToResponse(req, res, pathname, query)
-    // Request was ended by the user
-    if (response === null) {
-      return
-    }
-
-    return this.sendResponse(req, res, response)
+    return this.pipe((ctx) => this.renderToResponse(ctx), {
+      req,
+      res,
+      pathname,
+      query,
+    })
   }
 
   protected async findPageComponents(
@@ -1479,11 +1442,8 @@ export default class Server {
   }
 
   private async renderToResponseWithComponents(
-    req: IncomingMessage,
-    res: ServerResponse,
-    pathname: string,
-    { components, query }: FindComponentsResult,
-    opts: RenderOptsPartial
+    { req, res, pathname, renderOpts: opts }: RequestContext,
+    { components, query }: FindComponentsResult
   ): Promise<ResponsePayload | null> {
     const is404Page = pathname === '/404'
     const is500Page = pathname === '/500'
@@ -1515,7 +1475,8 @@ export default class Server {
     if (typeof components.Component === 'string') {
       return {
         type: 'html',
-        body: components.Component,
+        // TODO: Static pages should be written as chunks
+        body: resultFromChunks([components.Component]),
       }
     }
 
@@ -1586,6 +1547,10 @@ export default class Server {
         redirect.destination = `${basePath}${redirect.destination}`
       }
 
+      if (redirect.destination.startsWith('/')) {
+        redirect.destination = normalizeRepeatedSlashes(redirect.destination)
+      }
+
       if (statusCode === PERMANENT_REDIRECT_STATUS) {
         res.setHeader('Refresh', `0;url=${redirect.destination}`)
       }
@@ -1639,17 +1604,16 @@ export default class Server {
         .join('/')
     }
 
-    const doRender: () => Promise<ResponseCacheEntry> = async () => {
+    const doRender: () => Promise<ResponseCacheEntry | null> = async () => {
       let pageData: any
-      let html: string | null
+      let body: RenderResult | null
       let sprRevalidate: number | false
       let isNotFound: boolean | undefined
       let isRedirect: boolean | undefined
 
-      let renderResult
       // handle serverless
       if (isLikeServerless) {
-        renderResult = await (components.Component as any).renderReqToHTML(
+        const renderResult = await (components.Component as any).renderReqToHTML(
           req,
           res,
           'passthrough',
@@ -1664,7 +1628,7 @@ export default class Server {
           }
         )
 
-        html = renderResult.html
+        body = renderResult.html
         pageData = renderResult.renderOpts.pageData
         sprRevalidate = renderResult.renderOpts.revalidate
         isNotFound = renderResult.renderOpts.isNotFound
@@ -1702,9 +1666,15 @@ export default class Server {
               : resolvedUrl,
         }
 
-        renderResult = await renderToHTML(req, res, pathname, query, renderOpts)
+        const renderResult = await renderToHTML(
+          req,
+          res,
+          pathname,
+          query,
+          renderOpts
+        )
 
-        html = renderResult
+        body = renderResult
         // TODO: change this to a different passing mechanism
         pageData = (renderOpts as any).pageData
         sprRevalidate = (renderOpts as any).revalidate
@@ -1718,7 +1688,10 @@ export default class Server {
       } else if (isRedirect) {
         value = { kind: 'REDIRECT', props: pageData }
       } else {
-        value = { kind: 'PAGE', html: html!, pageData }
+        if (!body) {
+          return null
+        }
+        value = { kind: 'PAGE', html: body, pageData }
       }
       return { revalidate: sprRevalidate, value }
     }
@@ -1785,7 +1758,7 @@ export default class Server {
               return {
                 value: {
                   kind: 'PAGE',
-                  html,
+                  html: resultFromChunks([html]),
                   pageData: {},
                 },
               }
@@ -1797,6 +1770,9 @@ export default class Server {
                 prepareServerlessUrl(req, query)
               }
               const result = await doRender()
+              if (!result) {
+                return null
+              }
               // Prevent caching this result
               delete result.revalidate
               return result
@@ -1805,6 +1781,9 @@ export default class Server {
         }
 
         const result = await doRender()
+        if (!result) {
+          return null
+        }
         return {
           ...result,
           revalidate:
@@ -1814,6 +1793,18 @@ export default class Server {
         }
       }
     )
+
+    if (!cacheEntry) {
+      if (ssgCacheKey) {
+        // A cache entry might not be generated if a response is written
+        // in `getInitialProps` or `getServerSideProps`, but those shouldn't
+        // have a cache key. If we do have a cache key but we don't end up
+        // with a cache entry, then either Next.js or the application has a
+        // bug that needs fixing.
+        throw new Error('invariant: cache entry required but not generated')
+      }
+      return null
+    }
 
     const { revalidate, value: cachedData } = cacheEntry
     const revalidateOptions: any =
@@ -1846,7 +1837,7 @@ export default class Server {
       if (isDataReq) {
         return {
           type: 'json',
-          body: JSON.stringify(cachedData.props),
+          body: resultFromChunks([JSON.stringify(cachedData.props)]),
           revalidateOptions,
         }
       } else {
@@ -1856,18 +1847,18 @@ export default class Server {
     } else {
       return {
         type: isDataReq ? 'json' : 'html',
-        body: isDataReq ? JSON.stringify(cachedData.pageData) : cachedData.html,
+        body: isDataReq
+          ? resultFromChunks([JSON.stringify(cachedData.pageData)])
+          : cachedData.html,
         revalidateOptions,
       }
     }
   }
 
   private async renderToResponse(
-    req: IncomingMessage,
-    res: ServerResponse,
-    pathname: string,
-    query: ParsedUrlQuery = {}
+    ctx: RequestContext
   ): Promise<ResponsePayload | null> {
+    const { res, query, pathname } = ctx
     const bubbleNoFallback = !!query._nextBubbleNoFallback
     delete query._nextBubbleNoFallback
 
@@ -1875,13 +1866,7 @@ export default class Server {
       const result = await this.findPageComponents(pathname, query)
       if (result) {
         try {
-          return await this.renderToResponseWithComponents(
-            req,
-            res,
-            pathname,
-            result,
-            { ...this.renderOpts }
-          )
+          return await this.renderToResponseWithComponents(ctx, result)
         } catch (err) {
           const isNoFallbackError = err instanceof NoFallbackError
 
@@ -1906,11 +1891,15 @@ export default class Server {
           if (dynamicRouteResult) {
             try {
               return await this.renderToResponseWithComponents(
-                req,
-                res,
-                dynamicRoute.page,
-                dynamicRouteResult,
-                { ...this.renderOpts, params }
+                {
+                  ...ctx,
+                  pathname: dynamicRoute.page,
+                  renderOpts: {
+                    ...ctx.renderOpts,
+                    params,
+                  },
+                },
+                dynamicRouteResult
               )
             } catch (err) {
               const isNoFallbackError = err instanceof NoFallbackError
@@ -1931,17 +1920,14 @@ export default class Server {
       }
       if (err instanceof DecodeError) {
         res.statusCode = 400
-        return await this.renderErrorToResponse(err, req, res, pathname, query)
+        return await this.renderErrorToResponse(ctx, err)
       }
 
       res.statusCode = 500
       const isWrappedError = err instanceof WrappedBuildError
       const response = await this.renderErrorToResponse(
-        isWrappedError ? err.innerError : err,
-        req,
-        res,
-        pathname,
-        query
+        ctx,
+        isWrappedError ? err.innerError : err
       )
 
       if (!isWrappedError) {
@@ -1953,7 +1939,7 @@ export default class Server {
       return response
     }
     res.statusCode = 404
-    return this.renderErrorToResponse(null, req, res, pathname, query)
+    return this.renderErrorToResponse(ctx, null)
   }
 
   public async renderToHTML(
@@ -1962,8 +1948,12 @@ export default class Server {
     pathname: string,
     query: ParsedUrlQuery = {}
   ): Promise<string | null> {
-    const response = await this.renderToResponse(req, res, pathname, query)
-    return response ? response.body : null
+    return this.getStaticHTML((ctx) => this.renderToResponse(ctx), {
+      req,
+      res,
+      pathname,
+      query,
+    })
   }
 
   public async renderError(
@@ -1980,21 +1970,17 @@ export default class Server {
         'no-cache, no-store, max-age=0, must-revalidate'
       )
     }
-    const response = await this.renderErrorToResponse(
-      err,
-      req,
-      res,
-      pathname,
-      query
-    )
 
-    if (this.minimalMode && res.statusCode === 500) {
-      throw err
-    }
-    if (response === null) {
-      return
-    }
-    return this.sendResponse(req, res, response)
+    return this.pipe(
+      async (ctx) => {
+        const response = await this.renderErrorToResponse(ctx, err)
+        if (this.minimalMode && res.statusCode === 500) {
+          throw err
+        }
+        return response
+      },
+      { req, res, pathname, query }
+    )
   }
 
   private customErrorNo404Warn = execOnce(() => {
@@ -2007,12 +1993,10 @@ export default class Server {
   })
 
   private async renderErrorToResponse(
-    _err: Error | null,
-    req: IncomingMessage,
-    res: ServerResponse,
-    _pathname: string,
-    query: ParsedUrlQuery = {}
+    ctx: RequestContext,
+    _err: Error | null
   ): Promise<ResponsePayload | null> {
+    const { res, query } = ctx
     let err = _err
     if (this.renderOpts.dev && !err && res.statusCode === 500) {
       err = new Error(
@@ -2053,14 +2037,15 @@ export default class Server {
 
       try {
         return await this.renderToResponseWithComponents(
-          req,
-          res,
-          statusPage,
-          result!,
           {
-            ...this.renderOpts,
-            err,
-          }
+            ...ctx,
+            pathname: statusPage,
+            renderOpts: {
+              ...ctx.renderOpts,
+              err,
+            },
+          },
+          result!
         )
       } catch (maybeFallbackError) {
         if (maybeFallbackError instanceof NoFallbackError) {
@@ -2078,26 +2063,27 @@ export default class Server {
 
       if (fallbackComponents) {
         return this.renderToResponseWithComponents(
-          req,
-          res,
-          '/_error',
+          {
+            ...ctx,
+            pathname: '/_error',
+            renderOpts: {
+              ...ctx.renderOpts,
+              // We render `renderToHtmlError` here because `err` is
+              // already captured in the stacktrace.
+              err: isWrappedError
+                ? renderToHtmlError.innerError
+                : renderToHtmlError,
+            },
+          },
           {
             query,
             components: fallbackComponents,
-          },
-          {
-            ...this.renderOpts,
-            // We render `renderToHtmlError` here because `err` is
-            // already captured in the stacktrace.
-            err: isWrappedError
-              ? renderToHtmlError.innerError
-              : renderToHtmlError,
           }
         )
       }
       return {
         type: 'html',
-        body: 'Internal Server Error',
+        body: resultFromChunks(['Internal Server Error']),
       }
     }
   }
@@ -2109,14 +2095,12 @@ export default class Server {
     pathname: string,
     query: ParsedUrlQuery = {}
   ): Promise<string | null> {
-    const response = await this.renderErrorToResponse(
-      err,
+    return this.getStaticHTML((ctx) => this.renderErrorToResponse(ctx, err), {
       req,
       res,
       pathname,
-      query
-    )
-    return response ? response.body : null
+      query,
+    })
   }
 
   protected async getFallbackErrorComponents(): Promise<LoadComponentsReturnType | null> {
@@ -2139,6 +2123,7 @@ export default class Server {
       query.__nextDefaultLocale =
         query.__nextDefaultLocale || i18n.defaultLocale
     }
+
     res.statusCode = 404
     return this.renderError(null, req, res, pathname!, query, setHeaders)
   }
@@ -2298,6 +2283,6 @@ export class WrappedBuildError extends Error {
 
 type ResponsePayload = {
   type: 'html' | 'json'
-  body: string
+  body: RenderResult
   revalidateOptions?: any
 }

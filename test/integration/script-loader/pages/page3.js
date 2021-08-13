@@ -15,6 +15,14 @@ const Page = () => {
         src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js?a=scriptLazyOnload"
         strategy="lazyOnload"
       ></Script>
+      <Script
+        src="https://example.com/doesntexist"
+        strategy="lazyOnload"
+        onError={(e) => {
+          console.log('error')
+          console.log(e)
+        }}
+      />
       <div>page3</div>
     </div>
   )

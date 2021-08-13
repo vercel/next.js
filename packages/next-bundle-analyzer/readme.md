@@ -14,6 +14,8 @@ or
 yarn add @next/bundle-analyzer
 ```
 
+Note: if installing as a `devDependency` make sure to wrap the require in a `process.env` check as `next.config.js` is loaded during `next start` as well.
+
 ### Usage with environment variables
 
 Create a next.config.js (and make sure you have next-bundle-analyzer set up)

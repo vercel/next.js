@@ -44,7 +44,7 @@ cp .env.local.example .env.local
 
 Then, open `.env.local` and add the missing environment variables:
 
-- `NEXT_PUBLIC_AUTH0_DOMAIN` - Can be found in the Auth0 dashboard under `settings`.
+- `NEXT_PUBLIC_AUTH0_DOMAIN` - Can be found in the Auth0 dashboard under `settings`. (Should be prefixed with `https://`)
 - `NEXT_PUBLIC_AUTH0_CLIENT_ID` - Can be found in the Auth0 dashboard under `settings`.
 - `AUTH0_CLIENT_SECRET` - Can be found in the Auth0 dashboard under `settings`.
 - `NEXT_PUBLIC_BASE_URL` - The base url of the application.

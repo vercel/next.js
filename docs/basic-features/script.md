@@ -49,7 +49,11 @@ export default function Home() {
 }
 ```
 
-With `next/script`, you no longer need to wrap scripts in `next/head`. Further, `next/script` should **not** be used in `pages/_document.js` as `next/script` has client-side functionality to ensure loading order. For example:
+Now, you use `next/script` in the body of your Next.js page. It has client-side functionality that decides when and how to load the remote script based on the `strategy`.
+
+> **Note:**
+>
+> - `next/script` **must not** be placed in either a `next/head` component or in `pages/_document.js`.
 
 ```js
 // After

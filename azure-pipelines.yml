@@ -72,6 +72,8 @@ stages:
       - job: test_ie11
         pool:
           vmImage: 'windows-2019'
+        variables:
+          BROWSER_NAME: internet explorer
         steps:
           - checkout: none
           - task: NodeTool@0
@@ -86,7 +88,7 @@ stages:
               path: $(System.DefaultWorkingDirectory)
             displayName: Cache Build
           - script: |
-              yarn testie --forceExit test/integration/production/ test/integration/css-client-nav/ test/integration/rewrites-has-condition/
+              node run-tests.js -c 1 test/integration/production/test/index.test.js test/integration/css-client-nav/test/index.test.js test/integration/rewrites-has-condition/test/index.test.js
             displayName: 'Run tests'
 
       - job: test_unit

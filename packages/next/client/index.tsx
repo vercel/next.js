@@ -188,12 +188,7 @@ class Container extends React.Component<{
       // the asPath unexpectedly e.g. adding basePath when
       // it wasn't originally present
       page !== '/404' &&
-      !(
-        page === '/_error' &&
-        hydrateProps &&
-        hydrateProps.pageProps &&
-        hydrateProps.pageProps.statusCode === 404
-      ) &&
+      page !== '/_error' &&
       (isFallback ||
         (data.nextExport &&
           (isDynamicRoute(router.pathname) ||
@@ -462,6 +457,10 @@ export function renderError(renderErrorProps: RenderErrorProps): Promise<any> {
 
   // Make sure we log the error to the console, otherwise users can't track down issues.
   console.error(err)
+  console.error(
+    `A client-side exception has occurred, see here for more info: https://nextjs.org/docs/messages/client-side-exception-occurred`
+  )
+
   return pageLoader
     .loadPage('/_error')
     .then(({ page: ErrorComponent, styleSheets }) => {

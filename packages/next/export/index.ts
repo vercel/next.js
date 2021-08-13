@@ -137,6 +137,8 @@ interface ExportOptions {
   pages?: string[]
   buildExport?: boolean
   statusMessage?: string
+  exportPageWorker?: typeof import('./worker').default
+  endWorker?: () => Promise<void>
 }
 
 export default async function exportApp(
@@ -376,6 +378,8 @@ export default async function exportApp(
       domainLocales: i18n?.domains,
       trailingSlash: nextConfig.trailingSlash,
       disableOptimizedLoading: nextConfig.experimental.disableOptimizedLoading,
+      // TODO: We should support dynamic HTML too
+      requireStaticHTML: true,
     }
 
     const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
@@ -517,29 +521,40 @@ export default async function exportApp(
 
     const timeout = configuration?.experimental.staticPageGenerationTimeout || 0
     let infoPrinted = false
-    const worker = new Worker(require.resolve('./worker'), {
-      timeout: timeout * 1000,
-      onRestart: (_method, [{ path }], attempts) => {
-        if (attempts >= 3) {
-          throw new Error(
-            `Static page generation for ${path} is still timing out after 3 attempts. See more info here https://nextjs.org/docs/messages/static-page-generation-timeout`
-          )
-        }
-        Log.warn(
-          `Restarted static page genertion for ${path} because it took more than ${timeout} seconds`
-        )
-        if (!infoPrinted) {
+    let exportPage: typeof import('./worker').default
+    let endWorker: () => Promise<void>
+    if (options.exportPageWorker) {
+      exportPage = options.exportPageWorker
+      endWorker = options.endWorker || (() => Promise.resolve())
+    } else {
+      const worker = new Worker(require.resolve('./worker'), {
+        timeout: timeout * 1000,
+        onRestart: (_method, [{ path }], attempts) => {
+          if (attempts >= 3) {
+            throw new Error(
+              `Static page generation for ${path} is still timing out after 3 attempts. See more info here https://nextjs.org/docs/messages/static-page-generation-timeout`
+            )
+          }
           Log.warn(
-            'See more info here https://nextjs.org/docs/messages/static-page-generation-timeout'
+            `Restarted static page genertion for ${path} because it took more than ${timeout} seconds`
           )
-          infoPrinted = true
-        }
-      },
-      maxRetries: 0,
-      numWorkers: threads,
-      enableWorkerThreads: nextConfig.experimental.workerThreads,
-      exposedMethods: ['default'],
-    }) as Worker & typeof import('./worker')
+          if (!infoPrinted) {
+            Log.warn(
+              'See more info here https://nextjs.org/docs/messages/static-page-generation-timeout'
+            )
+            infoPrinted = true
+          }
+        },
+        maxRetries: 0,
+        numWorkers: threads,
+        enableWorkerThreads: nextConfig.experimental.workerThreads,
+        exposedMethods: ['default'],
+      }) as Worker & typeof import('./worker')
+      exportPage = worker.default.bind(worker)
+      endWorker = async () => {
+        await worker.end()
+      }
+    }
 
     let renderError = false
     const errorPaths: string[] = []
@@ -551,7 +566,7 @@ export default async function exportApp(
 
         return pageExportSpan.traceAsyncFn(async () => {
           const pathMap = exportPathMap[path]
-          const result = await worker.default({
+          const result = await exportPage({
             path,
             pathMap,
             distDir,
@@ -568,6 +583,7 @@ export default async function exportApp(
             disableOptimizedLoading:
               nextConfig.experimental.disableOptimizedLoading,
             parentSpanId: pageExportSpan.id,
+            httpAgentOptions: nextConfig.httpAgentOptions,
           })
 
           for (const validation of result.ampValidations || []) {
@@ -601,7 +617,7 @@ export default async function exportApp(
       })
     )
 
-    worker.end()
+    const endWorkerPromise = endWorker()
 
     // copy prerendered routes to outDir
     if (!options.buildExport && prerenderManifest) {
@@ -678,5 +694,7 @@ export default async function exportApp(
     if (telemetry) {
       await telemetry.flush()
     }
+
+    await endWorkerPromise
   })
 }
