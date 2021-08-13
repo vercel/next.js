@@ -19,7 +19,7 @@ import { getTypeScriptConfiguration } from '../lib/typescript/getTypeScriptConfi
 import {
   CLIENT_STATIC_FILES_RUNTIME_AMP,
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
-  CLIENT_STATIC_FILES_RUNTIME_POLYFILLS,
+  CLIENT_STATIC_FILES_RUNTIME_POLYFILLS_SYMBOL,
   CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
   CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
   REACT_LOADABLE_MANIFEST,
@@ -52,6 +52,7 @@ import WebpackConformancePlugin, {
 } from './webpack/plugins/webpack-conformance-plugin'
 import { WellKnownErrorsPlugin } from './webpack/plugins/wellknown-errors-plugin'
 import { regexLikeCss } from './webpack/config/blocks/css'
+import { CopyFilePlugin } from './webpack/plugins/copy-file-plugin'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 
@@ -378,10 +379,6 @@ export default async function getBaseWebpackConfig(
               )
             )
             .replace(/\\/g, '/'),
-        [CLIENT_STATIC_FILES_RUNTIME_POLYFILLS]: path.join(
-          NEXT_PROJECT_ROOT_DIST_CLIENT,
-          'polyfills.js'
-        ),
       } as ClientEntries)
     : undefined
 
@@ -1343,6 +1340,18 @@ export default async function getBaseWebpackConfig(
           ].filter(Boolean),
         }),
       new WellKnownErrorsPlugin(),
+      !isServer &&
+        new CopyFilePlugin({
+          filePath: require.resolve('./polyfills/polyfill-nomodule'),
+          cacheKey: process.env.__NEXT_VERSION as string,
+          name: `static/chunks/polyfills${dev ? '' : '-[hash]'}.js`,
+          minimize: false,
+          info: {
+            [CLIENT_STATIC_FILES_RUNTIME_POLYFILLS_SYMBOL]: 1,
+            // This file is already minified
+            minimized: true,
+          },
+        }),
     ].filter((Boolean as any) as ExcludesFalse),
   }
 
