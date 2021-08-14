@@ -58,6 +58,7 @@ jobs:
           path: ./*
           key: ${{ github.sha }}
       - uses: actions/download-artifact@v2
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
           name: next-swc-binaries
           path: packages/next/build/swc/dist
@@ -65,6 +66,7 @@ jobs:
       - run: |
           mv ./packages/next/build/swc/dist/next-swc.linux-x64-gnu.node \
             ./packages/next/native/next-swc.linux-x64-gnu.node
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
       - run: ./scripts/check-pre-compiled.sh
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
