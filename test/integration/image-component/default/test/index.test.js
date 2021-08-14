@@ -229,6 +229,26 @@ function runTests(mode) {
     }
   })
 
+  it('should work with image with blob src', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/blob')
+
+      await check(
+        () => browser.eval(`document.getElementById("blob-image").src`),
+        /^blob:/
+      )
+      await check(
+        () => browser.eval(`document.getElementById("blob-image").srcset`),
+        ''
+      )
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
+
   it('should work when using flexbox', async () => {
     let browser
     try {
