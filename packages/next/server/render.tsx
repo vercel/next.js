@@ -265,6 +265,7 @@ function checkRedirectValues(
 type DocumentResult = {
   bodyResult: RenderResult
   documentElement: (htmlProps: HtmlProps) => JSX.Element
+  headTags: unknown
   head: unknown
   styles: unknown
 }
@@ -1007,7 +1008,8 @@ export async function renderToHTML(
     return {
       bodyResult: resultFromChunks([docProps.html]),
       documentElement: (htmlProps) => <Document {...htmlProps} {...docProps} />,
-      head: allHeadTags,
+      head,
+      headTags: allHeadTags,
       styles: docProps.styles,
     }
   }
