@@ -442,6 +442,10 @@
         {
           "title": "module-not-found",
           "path": "/errors/module-not-found.md"
+        },
+        {
+          "title": "next-config-error",
+          "path": "/errors/next-config-error.md"
         }
       ]
     }
