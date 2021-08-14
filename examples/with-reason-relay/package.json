@@ -1,6 +1,5 @@
 {
   "private": true,
-  "license": "MIT",
   "scripts": {
     "dev": "next",
     "build": "bsb -make-world",

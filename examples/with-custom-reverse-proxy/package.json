@@ -1,6 +1,5 @@
 {
   "private": true,
-  "license": "MIT",
   "dependencies": {
     "express": "^4.15.3",
     "next": "latest",

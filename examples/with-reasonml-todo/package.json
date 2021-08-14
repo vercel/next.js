@@ -1,6 +1,5 @@
 {
   "private": true,
-  "license": "MIT",
   "scripts": {
     "dev": "concurrently \"bsb -clean-world -make-world -w\" \"next dev\"",
     "dev:reason": "bsb -clean-world -make-world -w",
