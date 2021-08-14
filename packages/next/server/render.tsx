@@ -40,6 +40,7 @@ import {
   DocumentInitialProps,
   DocumentProps,
   HtmlContext,
+  HtmlProps,
   getDisplayName,
   isResSent,
   loadGetInitialProps,
@@ -259,6 +260,13 @@ function checkRedirectValues(
         `See more info here: https://nextjs.org/docs/messages/invalid-redirect-gssp`
     )
   }
+}
+
+type DocumentResult = {
+  bodyResult: RenderResult
+  documentElement: (htmlProps: HtmlProps) => JSX.Element
+  head: unknown
+  styles: unknown
 }
 
 export async function renderToHTML(
@@ -931,6 +939,71 @@ export async function renderToHTML(
       })
     }).then(multiplexResult)
 
+  const renderDocument: () => Promise<DocumentResult | null> = async () => {
+    const renderPage: RenderPage = (
+      options: ComponentsEnhancer = {}
+    ): RenderPageResult | Promise<RenderPageResult> => {
+      if (ctx.err && ErrorDebug) {
+        return {
+          html: ReactDOMServer.renderToString(<ErrorDebug error={ctx.err} />),
+          head,
+        }
+      }
+
+      if (dev && (props.router || props.Component)) {
+        throw new Error(
+          `'router' and 'Component' can not be returned in getInitialProps from _app.js https://nextjs.org/docs/messages/cant-override-next-props`
+        )
+      }
+
+      const {
+        App: EnhancedApp,
+        Component: EnhancedComponent,
+      } = enhanceComponents(options, App, Component)
+
+      return {
+        html: ReactDOMServer.renderToString(
+          <AppContainer>
+            <EnhancedApp
+              Component={EnhancedComponent}
+              router={router}
+              {...props}
+            />
+          </AppContainer>
+        ),
+        head,
+      }
+    }
+    const documentCtx = { ...ctx, renderPage }
+    const docProps: DocumentInitialProps = await loadGetInitialProps(
+      Document,
+      documentCtx
+    )
+    // the response might be finished on the getInitialProps call
+    if (isResSent(res) && !isSSG) return null
+
+    if (!docProps || typeof docProps.html !== 'string') {
+      const message = `"${getDisplayName(
+        Document
+      )}.getInitialProps()" should resolve to an object with a "html" prop set with a valid html string`
+      throw new Error(message)
+    }
+
+    const allHeadTags = await headTags(documentCtx)
+
+    return {
+      bodyResult: resultFromChunks([docProps.html]),
+      documentElement: (htmlProps) => <Document {...htmlProps} {...docProps} />,
+      head: allHeadTags,
+      styles: docProps.styles,
+    }
+  }
+
+  const documentResult = await renderDocument()
+  if (!documentResult) {
+    return null
+  }
+
   const dynamicImportsIds = new Set<string | number>()
   const dynamicImports = new Set<string>()
   const hybridAmp = ampState.hybrid
@@ -996,95 +1069,8 @@ export async function renderToHTML(
     scriptLoader,
     locale,
     disableOptimizedLoading,
-  }
-
-  const renderDocument = async () => {
-    if (Document.getInitialProps) {
-      const renderPage: RenderPage = (
-        options: ComponentsEnhancer = {}
-      ): RenderPageResult | Promise<RenderPageResult> => {
-        if (ctx.err && ErrorDebug) {
-          return {
-            html: ReactDOMServer.renderToString(<ErrorDebug error={ctx.err} />),
-            head,
-          }
-        }
-
-        if (dev && (props.router || props.Component)) {
-          throw new Error(
-            `'router' and 'Component' can not be returned in getInitialProps from _app.js https://nextjs.org/docs/messages/cant-override-next-props`
-          )
-        }
-
-        const {
-          App: EnhancedApp,
-          Component: EnhancedComponent,
-        } = enhanceComponents(options, App, Component)
-
-        return {
-          html: ReactDOMServer.renderToString(
-            <AppContainer>
-              <EnhancedApp
-                Component={EnhancedComponent}
-                router={router}
-                {...props}
-              />
-            </AppContainer>
-          ),
-          head,
-        }
-      }
-      const documentCtx = { ...ctx, renderPage }
-      const docProps: DocumentInitialProps = await loadGetInitialProps(
-        Document,
-        documentCtx
-      )
-      // the response might be finished on the getInitialProps call
-      if (isResSent(res) && !isSSG) return null
-
-      if (!docProps || typeof docProps.html !== 'string') {
-        const message = `"${getDisplayName(
-          Document
-        )}.getInitialProps()" should resolve to an object with a "html" prop set with a valid html string`
-        throw new Error(message)
-      }
-
-      htmlProps.headTags = await headTags(documentCtx)
-      htmlProps.head = docProps.head
-      htmlProps.styles = docProps.styles
-
-      return {
-        documentElement: <Document {...htmlProps} {...docProps} />,
-        bodyResult: resultFromChunks([docProps.html]),
-      }
-    } else {
-      if (!concurrentFeatures) {
-        throw new Error('Function document components are experimental')
-      }
-      const documentElement = (Document as any)()
-      // TODO: Render in serial until we support concurrent registries
-      const bodyResult = await mutex(() =>
-        renderToStream(
-          ctx.err && ErrorDebug ? (
-            <ErrorDebug error={ctx.err} />
-          ) : (
-            <AppContainer>
-              <App {...props} Component={Component} router={router} />
-            </AppContainer>
-          )
-        )
-      )
-
-      htmlProps.head = head
-      htmlProps.styles = [...flush()]
-
-      return { documentElement, bodyResult }
-    }
-  }
-
-  const document = await renderDocument()
-  if (!document) {
-    return null
+    head: documentResult.head,
+    styles: documentResult.styles,
   }
 
   for (const mod of reactLoadableModules) {
@@ -1098,7 +1084,7 @@ export async function renderToHTML(
     }
   }
 
-  const { documentElement, bodyResult } = document
+  const documentElement = documentResult.documentElement(htmlProps)
   const documentHTML = ReactDOMServer.renderToStaticMarkup(
     <AmpStateContext.Provider value={ampState}>
       <HtmlContext.Provider value={htmlProps}>
@@ -1140,7 +1126,7 @@ export async function renderToHTML(
   if (inAmpMode) {
     results.push(resultFromChunks(['<!-- __NEXT_DATA__ -->']))
   }
-  results.push(bodyResult)
+  results.push(documentResult.bodyResult)
   results.push(
     resultFromChunks([
       documentHTML.substring(renderTargetIdx + BODY_RENDER_TARGET.length),
