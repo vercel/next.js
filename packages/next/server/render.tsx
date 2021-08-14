@@ -715,11 +715,6 @@ export async function renderToHTML(
         ;(data as any).revalidate = false
       }
 
-      // this must come after revalidate is attached
-      if ((renderOpts as any).isNotFound) {
-        return null
-      }
-
       props.pageProps = Object.assign(
         {},
         props.pageProps,
@@ -731,6 +726,11 @@ export async function renderToHTML(
       ;(renderOpts as any).revalidate =
         'revalidate' in data ? data.revalidate : undefined
       ;(renderOpts as any).pageData = props
+
+      // this must come after revalidate is added to renderOpts
+      if ((renderOpts as any).isNotFound) {
+        return null
+      }
     }
 
     if (getServerSideProps) {
