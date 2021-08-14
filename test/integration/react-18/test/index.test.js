@@ -12,9 +12,7 @@ import {
   nextStart,
   renderViaHTTP,
 } from 'next-test-utils'
-import blocking from './blocking'
 import concurrent from './concurrent'
-import basics from './basics'
 
 jest.setTimeout(1000 * 60 * 5)
 
@@ -80,14 +78,6 @@ describe('React 18 Support', () => {
       expect(output).not.toMatch(USING_CREATE_ROOT)
       expect(output).not.toMatch(UNSUPPORTED_PRERELEASE)
     })
-
-    it('suspense is not allowed in blocking rendering mode', async () => {
-      const appPort = await findPort()
-      const app = await launchApp(appDir, appPort)
-      const html = await renderViaHTTP(appPort, '/suspense/unwrapped')
-      await killApp(app)
-      expect(html).toContain(SUSPENSE_ERROR_MESSAGE)
-    })
   })
 
   describe('warns with stable supported version of react-dom', () => {
@@ -117,13 +107,6 @@ describe('React 18 Support', () => {
   })
 })
 
-describe('Basics', () => {
-  runTests('default setting with react 18', 'dev', (context) => basics(context))
-  runTests('default setting with react 18', 'prod', (context) =>
-    basics(context)
-  )
-})
-
 describe('Blocking mode', () => {
   beforeAll(() => {
     dynamicHello.replace('suspense = false', `suspense = true`)
@@ -132,13 +115,10 @@ describe('Blocking mode', () => {
     dynamicHello.restore()
   })
 
-  runTests('concurrentFeatures is disabled', 'dev', (context) =>
-    blocking(context, (p, q) => renderViaHTTP(context.appPort, p, q))
-  )
-
-  runTests('concurrentFeatures is disabled', 'prod', (context) =>
-    blocking(context, (p, q) => renderViaHTTP(context.appPort, p, q))
-  )
+  it('suspense is not allowed in blocking rendering mode (prod)', async () => {
+    const output = await getBuildOutput(appDir)
+    expect(output).toContain(SUSPENSE_ERROR_MESSAGE)
+  })
 })
 
 describe('Concurrent mode', () => {

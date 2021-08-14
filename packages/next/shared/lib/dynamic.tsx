@@ -114,15 +114,11 @@ export default function dynamic<P = {}>(
   loadableOptions = { ...loadableOptions, ...options }
 
   const suspenseOptions = loadableOptions as LoadableSuspenseOptions<P>
-  if (!process.env.__NEXT_CONCURRENT_FEATURES) {
-    // Error if react root is not enabled and `suspense` option is set to true
-    if (!process.env.__NEXT_REACT_ROOT && suspenseOptions.suspense) {
-      // TODO: add error doc when this feature is stable
-      throw new Error(
-        `Disallowed suspense option usage with next/dynamic in blocking mode`
-      )
-    }
-    suspenseOptions.suspense = false
+  if (!process.env.__NEXT_CONCURRENT_FEATURES && suspenseOptions.suspense) {
+    // TODO: add error doc when this feature is stable
+    throw new Error(
+      `Disallowed suspense option usage with next/dynamic in blocking mode`
+    )
   }
   if (suspenseOptions.suspense) {
     return loadableFn(suspenseOptions)
