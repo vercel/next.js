@@ -4,8 +4,8 @@ for folder in examples/* ; do
   if [ -f "$folder/package.json" ]; then
     cp -n packages/create-next-app/templates/default/gitignore $folder/.gitignore;
     cat $folder/package.json | jq '
-      .license = "MIT" |
-      .private = true
+      .private = true |
+      del(.license, .version, .name, .author, .description)
     ' | sponge $folder/package.json
   fi
   if [ -f "$folder/tsconfig.json" ]; then
