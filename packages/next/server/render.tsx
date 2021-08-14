@@ -1019,6 +1019,17 @@ export async function renderToHTML(
 
   const dynamicImportsIds = new Set<string | number>()
   const dynamicImports = new Set<string>()
+  for (const mod of reactLoadableModules) {
+    const manifestItem: ManifestItem = reactLoadableManifest[mod]
+
+    if (manifestItem) {
+      dynamicImportsIds.add(manifestItem.id)
+      manifestItem.files.forEach((item) => {
+        dynamicImports.add(item)
+      })
+    }
+  }
+
   const hybridAmp = ampState.hybrid
   const docComponentsRendered: DocumentProps['docComponentsRendered'] = {}
   const {
@@ -1084,17 +1095,6 @@ export async function renderToHTML(
     disableOptimizedLoading,
     head: documentResult.head,
     styles: documentResult.styles,
-  }
-
-  for (const mod of reactLoadableModules) {
-    const manifestItem: ManifestItem = reactLoadableManifest[mod]
-
-    if (manifestItem) {
-      dynamicImportsIds.add(manifestItem.id)
-      manifestItem.files.forEach((item) => {
-        dynamicImports.add(item)
-      })
-    }
   }
 
   const documentElement = documentResult.documentElement(htmlProps)
