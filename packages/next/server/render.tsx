@@ -939,15 +939,25 @@ export async function renderToHTML(
       })
     }).then(multiplexResult)
 
+  const renderToString = concurrentFeatures
+    ? async (element: React.ReactElement) => {
+        const result = await renderToStream(element)
+        return await resultsToString([result])
+      }
+    : ReactDOMServer.renderToString
+
   const renderDocument: () => Promise<DocumentResult | null> = async () => {
     const renderPage: RenderPage = (
       options: ComponentsEnhancer = {}
     ): RenderPageResult | Promise<RenderPageResult> => {
       if (ctx.err && ErrorDebug) {
-        return {
-          html: ReactDOMServer.renderToString(<ErrorDebug error={ctx.err} />),
-          head,
-        }
+        const htmlOrPromise = renderToString(<ErrorDebug error={ctx.err} />)
+        return typeof htmlOrPromise === 'string'
+          ? { html: htmlOrPromise, head }
+          : htmlOrPromise.then((html) => ({
+              html,
+              head,
+            }))
       }
 
       if (dev && (props.router || props.Component)) {
@@ -961,18 +971,21 @@ export async function renderToHTML(
         Component: EnhancedComponent,
       } = enhanceComponents(options, App, Component)
 
-      return {
-        html: ReactDOMServer.renderToString(
-          <AppContainer>
-            <EnhancedApp
-              Component={EnhancedComponent}
-              router={router}
-              {...props}
-            />
-          </AppContainer>
-        ),
-        head,
-      }
+      const htmlOrPromise = renderToString(
+        <AppContainer>
+          <EnhancedApp
+            Component={EnhancedComponent}
+            router={router}
+            {...props}
+          />
+        </AppContainer>
+      )
+      return typeof htmlOrPromise === 'string'
+        ? { html: htmlOrPromise, head }
+        : htmlOrPromise.then((html) => ({
+            html,
+            head,
+          }))
     }
     const documentCtx = { ...ctx, renderPage }
     const docProps: DocumentInitialProps = await loadGetInitialProps(
