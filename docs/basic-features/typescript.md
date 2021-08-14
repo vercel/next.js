@@ -33,6 +33,8 @@ the root folder:
 touch tsconfig.json
 ```
 
+You can also provide your own tsconfig file by setting `NEXT_CUSTOM_TSCONFIG="myFile.json"` in a .env file. Next.js will automatically use this tsconfig file.
+
 Next.js will automatically configure this file with default values. Providing your own `tsconfig.json` with custom [compiler options](https://www.typescriptlang.org/docs/handbook/compiler-options.html) is also supported.
 
 > Next.js uses Babel to handle TypeScript, which has some [caveats](https://babeljs.io/docs/en/babel-plugin-transform-typescript#caveats), and some [compiler options are handled differently](https://babeljs.io/docs/en/babel-plugin-transform-typescript#typescript-compiler-options).
