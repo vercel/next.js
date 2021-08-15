@@ -1,6 +1,7 @@
 import { TARGET, SpanId } from '../shared'
 import reportToConsole from './to-console'
 import reportToZipkin from './to-zipkin'
+import reportToJaeger from './to-jaeger'
 import reportToTelemetry from './to-telemetry'
 
 type Reporter = (
@@ -28,6 +29,8 @@ if (target === TARGET.CONSOLE) {
   report = reportToConsole
 } else if (target === TARGET.ZIPKIN) {
   report = reportToZipkin
+} else if (target === TARGET.JAEGER) {
+  report = reportToJaeger
 } else {
   report = reportToTelemetry
 }
