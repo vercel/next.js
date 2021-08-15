@@ -118,7 +118,12 @@ export function sendRenderResult({
     res.end(resultOrPayload as string)
   } else {
     ;(resultOrPayload as RenderResult)({
-      next: (chunk) => res.write(chunk),
+      next: (chunk) => {
+        res.write(chunk)
+        if (typeof (res as any).flush === 'function') {
+          ;(res as any).flush()
+        }
+      },
       error: (_) => res.end(),
       complete: () => res.end(),
     })
