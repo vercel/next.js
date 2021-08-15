@@ -7,6 +7,7 @@
     "type-check": "tsc"
   },
   "dependencies": {
+    "@babel/core": "^7.15.0",
     "next": "latest",
     "react": "^17.0.2",
     "react-dom": "^17.0.2"
