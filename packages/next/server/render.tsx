@@ -1016,9 +1016,6 @@ export async function renderToHTML(
         styles: docProps.styles,
       }
     } else {
-      if (!concurrentFeatures) {
-        throw new Error('Function document components are experimental')
-      }
       const documentElement = (Document as any)()
       // TODO: Render in serial until we support concurrent registries
       const bodyResult = await mutex(() =>

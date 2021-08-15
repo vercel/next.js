@@ -102,6 +102,7 @@ import ResponseCache, {
 } from './response-cache'
 import { NextConfigComplete } from './config-shared'
 import { parseNextUrl } from '../shared/lib/router/utils/parse-next-url'
+import isbot from 'isbot'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -1244,8 +1245,7 @@ export default class Server {
       query: ParsedUrlQuery
     }
   ): Promise<void> {
-    // TODO: Determine when dynamic HTML is allowed
-    const requireStaticHTML = true
+    const requireStaticHTML = isbot(partialContext.req.headers['user-agent'])
     const ctx = {
       ...partialContext,
       renderOpts: {
