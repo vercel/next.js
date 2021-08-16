@@ -78,6 +78,7 @@ jobs:
             ./packages/next/native/next-swc.linux-x64-gnu.node
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
       - run: ./scripts/check-pre-compiled.sh
+        env: NODE_OPTIONS='--max_old_space_size=4096'
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
   testUnit:
