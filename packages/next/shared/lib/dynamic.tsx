@@ -122,7 +122,6 @@ export default function dynamic<P = {}>(
         `Disallowed suspense option usage with next/dynamic in blocking mode`
       )
     }
-    suspenseOptions.suspense = false
   }
   if (suspenseOptions.suspense) {
     return loadableFn(suspenseOptions)
