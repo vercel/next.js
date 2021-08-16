@@ -99,7 +99,18 @@ export class ProfilingPlugin {
           return
         }
 
-        const span = trace('build-module', compilerSpan.id)
+        const moduleType = (() => {
+          if (!module.userRequest) {
+            return ''
+          }
+
+          return module.userRequest.split('.').pop()
+        })()
+
+        const span = trace(
+          `build-module${moduleType ? `-${moduleType}` : ''}`,
+          compilerSpan.id
+        )
         span.setAttribute('name', module.userRequest)
         spans.set(module, span)
       })
