@@ -95,3 +95,4 @@ export default Home
 
 - [Add analytics.js to Your Site](https://developers.google.com/analytics/devguides/collection/analyticsjs)
 - [Efficiently load third-party JavaScript](https://web.dev/efficiently-load-third-party-javascript/)
+- [next/script Documentation](https://nextjs.org/docs/basic-features/script)
