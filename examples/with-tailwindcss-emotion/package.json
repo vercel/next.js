@@ -20,6 +20,5 @@
     "postcss": "^8.3.5",
     "tailwindcss": "^2.2.4",
     "xwind": "0.8.0"
-  },
-  "license": "MIT"
+  }
 }
