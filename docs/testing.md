@@ -16,7 +16,7 @@ Cypress is a test runner used for **End-to-End (E2E)** and **Integration Testing
 
 ### Quickstart
 
-You can use `create-next-app` with the [with-cypress example](https://github.com/vercel/next.js/tree/canary/examples/with-jest) to quickly get started.
+You can use `create-next-app` with the [with-cypress example](https://github.com/vercel/next.js/tree/canary/examples/with-cypress) to quickly get started.
 
 ```bash
 npx create-next-app --example with-cypress with-cypress-app
