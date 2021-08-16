@@ -894,7 +894,8 @@ export async function renderToHTML(
     }
   }
 
-  const generateStaticHTML = requireStaticHTML || inAmpMode || !concurrentFeatures
+  const generateStaticHTML =
+    requireStaticHTML || inAmpMode || !concurrentFeatures
   const renderToStream = (element: React.ReactElement) =>
     new Promise<RenderResult>((resolve, reject) => {
       const stream = new PassThrough()
