@@ -139,7 +139,12 @@ export class IncrementalCache {
     // let's check the disk for seed data
     if (!data) {
       if (this.prerenderManifest.notFoundRoutes.includes(pathname)) {
-        return { revalidateAfter: false, value: null }
+        const now = Date.now()
+        const revalidateAfter = this.calculateRevalidate(pathname, now)
+        data = {
+          value: null,
+          revalidateAfter: revalidateAfter !== false ? now : false,
+        }
       }
 
       try {

@@ -1,8 +1,20 @@
 const NodeAttributes = require('../utils/node-attributes.js')
 
-const GA_URL = 'www.google-analytics.com/analytics.js'
+const SUPPORTED_SRCS = [
+  'www.google-analytics.com/analytics.js',
+  'www.googletagmanager.com/gtag/js',
+]
+const SUPPORTED_HTML_CONTENT_URLS = [
+  'www.google-analytics.com/analytics.js',
+  'www.googletagmanager.com/gtm.js',
+]
 const ERROR_MSG =
-  'Use the Script component for loading third party scripts. See: https://nextjs.org/docs/messages/next-script-for-ga.'
+  'Use the `next/script` component for loading third party scripts. See: https://nextjs.org/docs/messages/next-script-for-ga.'
+
+// Check if one of the items in the list is a substring of the passed string
+const containsStr = (str, strList) => {
+  return strList.some((s) => str.includes(s))
+}
 
 module.exports = {
   meta: {
@@ -23,10 +35,12 @@ module.exports = {
         }
         const attributes = new NodeAttributes(node)
 
-        // Check if the Alternative async tag is being used to add GA. https://developers.google.com/analytics/devguides/collection/analyticsjs#alternative_async_tag
+        // Check if the Alternative async tag is being used to add GA.
+        // https://developers.google.com/analytics/devguides/collection/analyticsjs#alternative_async_tag
+        // https://developers.google.com/analytics/devguides/collection/gtagjs
         if (
           typeof attributes.value('src') === 'string' &&
-          attributes.value('src').includes(GA_URL)
+          containsStr(attributes.value('src'), SUPPORTED_SRCS)
         ) {
           return context.report({
             node,
@@ -34,7 +48,9 @@ module.exports = {
           })
         }
 
-        // Check if inline script is being used to add GA. https://developers.google.com/analytics/devguides/collection/analyticsjs#the_google_analytics_tag
+        // Check if inline script is being used to add GA.
+        // https://developers.google.com/analytics/devguides/collection/analyticsjs#the_google_analytics_tag
+        // https://developers.google.com/tag-manager/quickstart
         if (
           attributes.has('dangerouslySetInnerHTML') &&
           attributes.value('dangerouslySetInnerHTML')[0]
@@ -45,7 +61,7 @@ module.exports = {
               .raw
           if (
             htmlContent &&
-            htmlContent.includes('www.google-analytics.com/analytics.js')
+            containsStr(htmlContent, SUPPORTED_HTML_CONTENT_URLS)
           ) {
             context.report({
               node,

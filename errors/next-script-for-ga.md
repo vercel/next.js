@@ -6,9 +6,40 @@ An inline script was used for Google analytics which might impact your webpage's
 
 ### Possible Ways to Fix It
 
-#### Script component
+#### Using gtag.js
 
-Use the Script component with the right loading strategy to defer loading of the script until necessary.
+If you are using the [gtag.js](https://developers.google.com/analytics/devguides/collection/gtagjs) to add analytics, use the `next/script` component with the right loading strategy to defer loading of the script until necessary.
+
+```jsx
+import Script from 'next/script'
+
+const Home = () => {
+  return (
+    <div class="container">
+      <!-- Global site tag (gtag.js) - Google Analytics -->
+      <Script
+        src="https://www.googletagmanager.com/gtag/js?id=GA_MEASUREMENT_ID"
+        strategy="lazyOnload"
+      ></Script>
+      <Script>
+        {`
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){window.dataLayer.push(arguments);}
+          gtag('js', new Date());
+
+          gtag('config', 'GA_MEASUREMENT_ID');
+        `}
+      </Script>
+    </div>
+  )
+}
+
+export default Home
+```
+
+#### Using analytics.js
+
+If you are using the [analytics.js](https://developers.google.com/analytics/devguides/collection/analyticsjs) to add analytics:
 
 ```jsx
 import Script from 'next/script'
