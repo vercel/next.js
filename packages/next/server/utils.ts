@@ -16,10 +16,6 @@ export function cleanAmpPath(pathname: string): string {
 }
 
 export type Disposable = () => void
-export type Subscription = {
-  unsubscribe: Disposable
-  closed: boolean
-}
 export type Observer<T> = {
   next(chunk: T): void
   error(error: Error): void
@@ -51,7 +47,6 @@ export function resultFromChunks(chunks: string[]): RenderResult {
         complete()
       }
     })
-
     return () => {
       canceled = true
     }
@@ -82,7 +77,7 @@ export function createObservable<T>(
         unsubscribe = null
       }
     }
-    const doEvent = (ev: () => void) => {
+    const run = (ev: () => void) => {
       if (!unsubscribe) {
         return
       }
@@ -90,26 +85,25 @@ export function createObservable<T>(
         ev()
       } catch (err) {
         if (!!unsubscribe) {
-          try {
-            observer.error(err)
-          } finally {
-            cleanup()
-          }
+          cleanup()
+          observer.error(err)
+        } else {
+          throw err
         }
       }
     }
     unsubscribe = observerable({
       next(chunk) {
-        doEvent(() => observer.next(chunk))
+        run(() => observer.next(chunk))
       },
       complete() {
-        doEvent(() => {
+        run(() => {
           cleanup()
           observer.complete()
         })
       },
       error(err) {
-        doEvent(() => {
+        run(() => {
           cleanup()
           observer.error(err)
         })

@@ -70,7 +70,6 @@ import {
   RenderResult,
   resultFromChunks,
   resultToChunks,
-  Subscription,
 } from './utils'
 
 function noRouter() {
@@ -1297,18 +1296,30 @@ function multiplexResult(result: RenderResult): RenderResult {
   result({
     next(chunk) {
       chunks.push(chunk)
-      subscribers.forEach((subscriber) => subscriber.next(chunk))
+      subscribers.forEach((subscriber) => {
+        try {
+          subscriber.next(chunk)
+        } catch {}
+      })
     },
     error(error) {
       if (!terminator) {
-        terminator = (subscriber) => subscriber.error(error)
+        terminator = (subscriber) => {
+          try {
+            subscriber.error(error)
+          } catch {}
+        }
         subscribers.forEach(terminator)
         subscribers.clear()
       }
     },
     complete() {
       if (!terminator) {
-        terminator = (subscriber) => subscriber.complete()
+        terminator = (subscriber) => {
+          try {
+            subscriber.complete()
+          } catch {}
+        }
         subscribers.forEach(terminator)
         subscribers.clear()
       }
