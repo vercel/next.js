@@ -23,9 +23,8 @@ const nodeArgs = ['-r', join(__dirname, 'require-hook.js')]
 const appDir = join(__dirname, '../app')
 const nextConfig = new File(join(appDir, 'next.config.js'))
 const dynamicHello = new File(join(appDir, 'components/dynamic-hello.js'))
+const unwrappedPage = new File(join(appDir, 'pages/suspense/unwrapped.js'))
 
-const SUSPENSE_ERROR_MESSAGE =
-  'Disallowed suspense option usage with next/dynamic'
 const UNSUPPORTED_PRERELEASE =
   "You are using an unsupported prerelease of 'react-dom'"
 const USING_CREATE_ROOT = 'Using the createRoot API for React'
@@ -81,12 +80,15 @@ describe('React 18 Support', () => {
       expect(output).not.toMatch(UNSUPPORTED_PRERELEASE)
     })
 
-    it('suspense is not allowed in blocking rendering mode', async () => {
-      const appPort = await findPort()
-      const app = await launchApp(appDir, appPort)
-      const html = await renderViaHTTP(appPort, '/suspense/unwrapped')
-      await killApp(app)
-      expect(html).toContain(SUSPENSE_ERROR_MESSAGE)
+    test('suspense is not allowed in blocking rendering mode (prod)', async () => {
+      const { stderr, code } = await nextBuild(appDir, [], {
+        nodeArgs,
+        stderr: true,
+      })
+      expect(code).toBe(1)
+      expect(stderr).toContain(
+        'Disallowed suspense option usage with next/dynamic'
+      )
     })
   })
 
@@ -118,10 +120,21 @@ describe('React 18 Support', () => {
 })
 
 describe('Basics', () => {
-  runTests('default setting with react 18', 'dev', (context) => basics(context))
-  runTests('default setting with react 18', 'prod', (context) =>
-    basics(context)
-  )
+  runTests('default setting with react 18', (context) => basics(context))
+
+  it('suspense is not allowed in blocking rendering mode (dev)', async () => {
+    // set dynamic.suspense = true but not wrapping with <Suspense>
+    unwrappedPage.replace('wrapped = true', 'wrapped = false')
+    const appPort = await findPort()
+    const app = await launchApp(appDir, appPort, { nodeArgs })
+    const html = await renderViaHTTP(appPort, '/suspense/unwrapped')
+    unwrappedPage.restore()
+    await killApp(app)
+    // expect(html).toContain('Disallowed suspense option usage with next/dynamic')
+    expect(html).toContain(
+      'A React component suspended while rendering, but no fallback UI was specified'
+    )
+  })
 })
 
 describe('Blocking mode', () => {
@@ -132,11 +145,7 @@ describe('Blocking mode', () => {
     dynamicHello.restore()
   })
 
-  runTests('concurrentFeatures is disabled', 'dev', (context) =>
-    blocking(context, (p, q) => renderViaHTTP(context.appPort, p, q))
-  )
-
-  runTests('concurrentFeatures is disabled', 'prod', (context) =>
+  runTests('concurrentFeatures is disabled', (context) =>
     blocking(context, (p, q) => renderViaHTTP(context.appPort, p, q))
   )
 })
@@ -156,15 +165,12 @@ describe('Concurrent mode', () => {
     dynamicHello.restore()
   })
 
-  runTests('concurrentFeatures is enabled', 'dev', (context) =>
-    concurrent(context, (p, q) => renderViaHTTP(context.appPort, p, q))
-  )
-  runTests('concurrentFeatures is enabled', 'prod', (context) =>
+  runTests('concurrentFeatures is enabled', (context) =>
     concurrent(context, (p, q) => renderViaHTTP(context.appPort, p, q))
   )
 })
 
-function runTests(name, mode, fn) {
+function runTest(mode, name, fn) {
   const context = { appDir }
   describe(`${name} (${mode})`, () => {
     beforeAll(async () => {
@@ -185,4 +191,9 @@ function runTests(name, mode, fn) {
     })
     fn(context)
   })
+}
+
+function runTests(name, fn) {
+  runTest('dev', name, fn)
+  runTest('prod', name, fn)
 }
