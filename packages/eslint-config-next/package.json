@@ -11,6 +11,7 @@
   "dependencies": {
     "@next/eslint-plugin-next": "11.1.1-canary.9",
     "@rushstack/eslint-patch": "^1.0.6",
+    "@typescript-eslint/eslint-plugin": "^4.20.0",
     "@typescript-eslint/parser": "^4.20.0",
     "eslint-import-resolver-node": "^0.3.4",
     "eslint-import-resolver-typescript": "^2.4.0",

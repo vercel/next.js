@@ -12,7 +12,7 @@ module.exports = {
     'plugin:react-hooks/recommended',
     'plugin:@next/next/recommended',
   ],
-  plugins: ['import', 'react', 'jsx-a11y'],
+  plugins: ['import', 'react', 'jsx-a11y', '@typescript-eslint'],
   rules: {
     'import/no-anonymous-default-export': 'warn',
     'react/react-in-jsx-scope': 'off',
@@ -29,6 +29,7 @@ module.exports = {
     'jsx-a11y/aria-unsupported-elements': 'warn',
     'jsx-a11y/role-has-required-aria-props': 'warn',
     'jsx-a11y/role-supports-aria-props': 'warn',
+    '@typescript-eslint/no-floating-promises': 'warn',
   },
   parser: './parser.js',
   parserOptions: {
