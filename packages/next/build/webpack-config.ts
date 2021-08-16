@@ -38,6 +38,7 @@ import BuildStatsPlugin from './webpack/plugins/build-stats-plugin'
 import ChunkNamesPlugin from './webpack/plugins/chunk-names-plugin'
 import { JsConfigPathsPlugin } from './webpack/plugins/jsconfig-paths-plugin'
 import { DropClientPage } from './webpack/plugins/next-drop-client-page-plugin'
+import { TraceEntryPointsPlugin } from './webpack/plugins/next-trace-entrypoints-plugin'
 import NextJsSsrImportPlugin from './webpack/plugins/nextjs-ssr-import'
 import NextJsSSRModuleCachePlugin from './webpack/plugins/nextjs-ssr-module-cache'
 import PagesManifestPlugin from './webpack/plugins/pages-manifest-plugin'
@@ -1245,6 +1246,12 @@ export default async function getBaseWebpackConfig(
           pagesDir,
         }),
       !isServer && new DropClientPage(),
+      config.experimental.nftTracing &&
+        !isLikeServerless &&
+        isServer &&
+        !dev &&
+        isWebpack5 &&
+        new TraceEntryPointsPlugin({ appDir: dir }),
       // Moment.js is an extremely popular library that bundles large locale files
       // by default due to how Webpack interprets its code. This is a practical
       // solution that requires the user to opt into importing specific locales.
