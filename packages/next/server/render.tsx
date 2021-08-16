@@ -912,6 +912,9 @@ export async function renderToHTML(
             })
 
             startWriting()
+            if (!concurrentFeatures) {
+              abort()
+            }
             return () => {
               abort()
             }
@@ -941,26 +944,16 @@ export async function renderToHTML(
       })
     }).then(multiplexResult)
 
-  const renderToString = concurrentFeatures
-    ? async (element: React.ReactElement) => {
-        const result = await renderToStream(element)
-        return await resultsToString([result])
-      }
-    : ReactDOMServer.renderToString
-
   const renderDocument: () => Promise<DocumentResult | null> = async () => {
     if (Document.getInitialProps) {
       const renderPage: RenderPage = (
         options: ComponentsEnhancer = {}
       ): RenderPageResult | Promise<RenderPageResult> => {
         if (ctx.err && ErrorDebug) {
-          const htmlOrPromise = renderToString(<ErrorDebug error={ctx.err} />)
-          return typeof htmlOrPromise === 'string'
-            ? { html: htmlOrPromise, head }
-            : htmlOrPromise.then((html) => ({
-                html,
-                head,
-              }))
+          const html = ReactDOMServer.renderToString(
+            <ErrorDebug error={ctx.err} />
+          )
+          return { head, html }
         }
 
         if (dev && (props.router || props.Component)) {
@@ -974,7 +967,7 @@ export async function renderToHTML(
           Component: EnhancedComponent,
         } = enhanceComponents(options, App, Component)
 
-        const htmlOrPromise = renderToString(
+        const html = ReactDOMServer.renderToString(
           <AppContainer>
             <EnhancedApp
               Component={EnhancedComponent}
@@ -983,12 +976,7 @@ export async function renderToHTML(
             />
           </AppContainer>
         )
-        return typeof htmlOrPromise === 'string'
-          ? { html: htmlOrPromise, head }
-          : htmlOrPromise.then((html) => ({
-              html,
-              head,
-            }))
+        return { head, html }
       }
       const documentCtx = { ...ctx, renderPage }
       const docProps: DocumentInitialProps = await loadGetInitialProps(
@@ -1018,16 +1006,13 @@ export async function renderToHTML(
       }
     } else {
       const documentElement = (Document as any)()
-      // TODO: Render in serial until we support concurrent registries
-      const bodyResult = await mutex(() =>
-        renderToStream(
-          ctx.err && ErrorDebug ? (
-            <ErrorDebug error={ctx.err} />
-          ) : (
-            <AppContainer>
-              <App {...props} Component={Component} router={router} />
-            </AppContainer>
-          )
+      const bodyResult = await renderToStream(
+        ctx.err && ErrorDebug ? (
+          <ErrorDebug error={ctx.err} />
+        ) : (
+          <AppContainer>
+            <App {...props} Component={Component} router={router} />
+          </AppContainer>
         )
       )
 
