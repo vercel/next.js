@@ -2,6 +2,9 @@ import retry from 'next/dist/compiled/async-retry'
 import { randomBytes } from 'crypto'
 import fetch from 'node-fetch'
 import * as Log from '../../../build/output/log'
+import util from 'util'
+// Jaeger uses Zipkin's reporting
+import { batcher } from './to-zipkin'
 
 let traceId = process.env.TRACE_ID
 let batch: ReturnType<typeof batcher> | undefined
@@ -16,32 +19,10 @@ const zipkinUrl = `http://${localEndpoint.ipv4}:${localEndpoint.port}`
 const jaegerWebUiUrl = `http://${localEndpoint.ipv4}:16686`
 const zipkinAPI = `${zipkinUrl}/api/v2/spans`
 
-type Event = {
-  traceId: string
-  parentId?: string
-  name: string
-  id: string
-  timestamp: number
-  duration: number
-  localEndpoint: typeof localEndpoint
-  tags?: Object
-}
-
-// Batch events as zipkin allows for multiple events to be sent in one go
-function batcher(reportEvents: (evts: Event[]) => void) {
-  const events: Event[] = []
-  let timeout: ReturnType<typeof setTimeout> | undefined
-  return (event: Event) => {
-    events.push(event)
-    // setTimeout is used instead of setInterval to ensure events sending does not block exiting the program
-    if (!timeout) {
-      timeout = setTimeout(() => {
-        reportEvents(events.slice())
-        events.length = 0
-        timeout = undefined
-      }, 1500)
-    }
-  }
+function logWebUrl() {
+  Log.info(
+    `Jaeger trace will be available on ${jaegerWebUiUrl}/trace/${traceId}`
+  )
 }
 
 const reportToLocalHost = (
@@ -54,15 +35,14 @@ const reportToLocalHost = (
 ) => {
   if (!traceId) {
     traceId = process.env.TRACE_ID = randomBytes(8).toString('hex')
-    Log.info(
-      `Jaeger trace will be available on ${jaegerWebUiUrl}/trace/${traceId}`
-    )
+    logWebUrl()
   }
 
   if (!batch) {
     batch = batcher((events) => {
+      console.log(util.inspect(events, { colors: true, maxArrayLength: null }))
       // Ensure ECONNRESET error is retried 3 times before erroring out
-      retry(
+      return retry(
         () =>
           // Send events to zipkin
           fetch(zipkinAPI, {
@@ -75,7 +55,7 @@ const reportToLocalHost = (
     })
   }
 
-  batch({
+  batch.report({
     traceId,
     parentId,
     name,
@@ -87,4 +67,8 @@ const reportToLocalHost = (
   })
 }
 
-export default reportToLocalHost
+export default {
+  flushAll: () =>
+    batch ? batch.flushAll().then(() => logWebUrl()) : undefined,
+  report: reportToLocalHost,
+}

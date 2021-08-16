@@ -73,7 +73,7 @@ import { generateBuildId } from './generate-build-id'
 import { isWriteable } from './is-writeable'
 import * as Log from './output/log'
 import createSpinner from './spinner'
-import { trace, setGlobal } from '../telemetry/trace'
+import { trace, flushAllTraces, setGlobal } from '../telemetry/trace'
 import {
   collectPages,
   detectConflictingPaths,
@@ -121,7 +121,7 @@ export default async function build(
 ): Promise<void> {
   const nextBuildSpan = trace('next-build')
 
-  return nextBuildSpan.traceAsyncFn(async () => {
+  const buildResult = await nextBuildSpan.traceAsyncFn(async () => {
     // attempt to load global env values so they are available in next.config.js
     const { loadedEnvFiles } = nextBuildSpan
       .traceChild('load-dotenv')
@@ -523,7 +523,8 @@ export default async function build(
         ignore: [] as string[],
       }))
 
-    const configs = await nextBuildSpan
+    const runWebpackSpan = nextBuildSpan.traceChild('run-webpack-compiler')
+    const configs = await runWebpackSpan
       .traceChild('generate-webpack-config')
       .traceAsyncFn(() =>
         Promise.all([
@@ -536,6 +537,7 @@ export default async function build(
             pagesDir,
             entrypoints: entrypoints.client,
             rewrites,
+            runWebpackSpan,
           }),
           getBaseWebpackConfig(dir, {
             buildId,
@@ -546,6 +548,7 @@ export default async function build(
             pagesDir,
             entrypoints: entrypoints.server,
             rewrites,
+            runWebpackSpan,
           }),
         ])
       )
@@ -567,24 +570,22 @@ export default async function build(
 
     let result: CompilerResult = { warnings: [], errors: [] }
     // We run client and server compilation separately to optimize for memory usage
-    await nextBuildSpan
-      .traceChild('run-webpack-compiler')
-      .traceAsyncFn(async () => {
-        const clientResult = await runCompiler(clientConfig)
-        // Fail build if clientResult contains errors
-        if (clientResult.errors.length > 0) {
-          result = {
-            warnings: [...clientResult.warnings],
-            errors: [...clientResult.errors],
-          }
-        } else {
-          const serverResult = await runCompiler(configs[1])
-          result = {
-            warnings: [...clientResult.warnings, ...serverResult.warnings],
-            errors: [...clientResult.errors, ...serverResult.errors],
-          }
+    await runWebpackSpan.traceAsyncFn(async () => {
+      const clientResult = await runCompiler(clientConfig)
+      // Fail build if clientResult contains errors
+      if (clientResult.errors.length > 0) {
+        result = {
+          warnings: [...clientResult.warnings],
+          errors: [...clientResult.errors],
         }
-      })
+      } else {
+        const serverResult = await runCompiler(configs[1])
+        result = {
+          warnings: [...clientResult.warnings, ...serverResult.warnings],
+          errors: [...clientResult.errors, ...serverResult.errors],
+        }
+      }
+    })
 
     const webpackBuildEnd = process.hrtime(webpackBuildStart)
     if (buildSpinner) {
@@ -1669,6 +1670,11 @@ export default async function build(
       .traceChild('telemetry-flush')
       .traceAsyncFn(() => telemetry.flush())
   })
+
+  // Ensure all traces are flushed before finishing the command
+  await flushAllTraces()
+
+  return buildResult
 }
 
 export type ClientSsgManifest = Set<string>
