@@ -21,7 +21,7 @@ import {
 } from 'next/constants'
 import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
 import fetch from 'node-fetch'
-import { join } from 'path'
+import { join, sep } from 'path'
 import dynamicImportTests from './dynamic'
 import processEnv from './process-env'
 import security from './security'
@@ -88,6 +88,51 @@ describe('Production Usage', () => {
   })
 
   if (!process.env.NEXT_PRIVATE_TEST_WEBPACK4_MODE) {
+    it('should output traces', async () => {
+      const checks = [
+        {
+          page: '/_app',
+          tests: [
+            /webpack-runtime\.js/,
+            /node_modules\/react\/index\.js/,
+            /node_modules\/react\/package\.json/,
+            /node_modules\/react\/cjs\/react\.production\.min\.js/,
+          ],
+          notTests: [/node_modules\/react\/cjs\/react\.development\.js/],
+        },
+        {
+          page: '/dynamic',
+          tests: [
+            /webpack-runtime\.js/,
+            /chunks\/.*?\.js/,
+            /node_modules\/react\/index\.js/,
+            /node_modules\/react\/package\.json/,
+            /node_modules\/react\/cjs\/react\.production\.min\.js/,
+          ],
+          notTests: [/node_modules\/react\/cjs\/react\.development\.js/],
+        },
+      ]
+
+      for (const check of checks) {
+        const contents = await fs.readFile(
+          join(appDir, '.next/server/pages/', check.page + '.js.nft.json'),
+          'utf8'
+        )
+        const { version, files } = JSON.parse(contents)
+        expect(version).toBe(1)
+
+        expect(
+          check.tests.every((item) => files.some((file) => item.test(file)))
+        ).toBe(true)
+
+        if (sep === '/') {
+          expect(
+            check.notTests.some((item) => files.some((file) => item.test(file)))
+          ).toBe(false)
+        }
+      }
+    })
+
     it('should not contain currentScript usage for publicPath', async () => {
       const globResult = await glob('webpack-*.js', {
         cwd: join(appDir, '.next/static/chunks'),

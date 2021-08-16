@@ -43,3 +43,4 @@ export const OPTIMIZED_FONT_PROVIDERS = [
   { url: 'https://use.typekit.net', preconnect: 'https://use.typekit.net' },
 ]
 export const STATIC_STATUS_PAGES = ['/500']
+export const TRACE_OUTPUT_VERSION = 1
