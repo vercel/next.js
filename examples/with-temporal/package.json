@@ -5,8 +5,8 @@
     "build": "next build",
     "start": "next start",
     "type-check": "tsc",
-    "build-temporal": "tsc --build temporal/src/worker/tsconfig.json",
-    "build-temporal.watch": "tsc --build --watch temporal/src/worker/tsconfig.json",
+    "build-worker": "tsc --build temporal/src/worker/tsconfig.json",
+    "build-worker.watch": "tsc --build --watch temporal/src/worker/tsconfig.json",
     "start-worker": "node temporal/lib/worker"
   },
   "dependencies": {

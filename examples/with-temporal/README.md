@@ -1,47 +1,51 @@
-# TypeScript Next.js example
+# Temporal Next.js example
 
-This is a really simple project that shows the usage of Next.js with TypeScript.
-
-## Preview
-
-Preview the example live on [StackBlitz](http://stackblitz.com/):
-
-[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-typescript)
+[Temporal](https://temporal.io/) is a runtime for orchestrating microservices or serverless functions. TODO
 
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
+### Web server
+
+The web server and `pages/api/` serverless functions can be deployed using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-typescript&project-name=with-typescript&repository-name=with-typescript)
 
-## How to use it?
+### Worker
+
+One or more instances of the worker (`temporal/src/worker/`) can be deployed to a PaaS (each worker is a long-running Node process, so it can't run on FaaS/serverless).
+
+### Temporal Server
+
+Temporal Server is a cluster of internal services, a database of record, and a search database. It can be [deployed](https://docs.temporal.io/docs/server/production-deployment) with a container orchestration service like Kubernetes or ECS.
+
+## How to use
 
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-typescript with-typescript-app
+npx create-next-app --example with-temporal next-temporal-app
 # or
-yarn create next-app --example with-typescript with-typescript-app
+yarn create next-app --example with-temporal next-temporal-app
 ```
 
-Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+The Temporal Node SDK requires [Node `>= 14`, `node-gyp`, and Temporal Server](https://docs.temporal.io/docs/node/getting-started#step-0-prerequisites). Once you have everything installed, you can develop locally with the below commands in four different shells:
 
-## Notes
+In the Temporal Server docker directory:
 
-This example shows how to integrate the TypeScript type system into Next.js. Since TypeScript is supported out of the box with Next.js, all we have to do is to install TypeScript.
-
-```
-npm install --save-dev typescript
+```bash
+docker-compose up
 ```
 
-To enable TypeScript's features, we install the type declarations for React and Node.
+In the root Next.js directory:
 
+```bash
+npm run dev
 ```
-npm install --save-dev @types/react @types/react-dom @types/node
+
+```bash
+npm run build-worker.watch
 ```
 
-When we run `next dev` the next time, Next.js will start looking for any `.ts` or `.tsx` files in our project and builds it. It even automatically creates a `tsconfig.json` file for our project with the recommended settings.
-
-Next.js has built-in TypeScript declarations, so we'll get autocompletion for Next.js' modules straight away.
-
-A `type-check` script is also added to `package.json`, which runs TypeScript's `tsc` CLI in `noEmit` mode to run type-checking separately. You can then include this, for example, in your `test` scripts.
+```bash
+npm run start-worker
+```
