@@ -104,21 +104,7 @@ export class ProfilingPlugin {
             return ''
           }
 
-          if (module.userRequest.endsWith('.css')) {
-            return 'css'
-          }
-
-          if (module.userRequest.endsWith('.js')) {
-            return 'js'
-          }
-
-          if (module.userRequest.endsWith('.ts')) {
-            return 'ts'
-          }
-
-          if (module.userRequest.endsWith('.tsx')) {
-            return 'tsx'
-          }
+          return module.userRequest.split('.').pop()
         })()
 
         const span = trace(
