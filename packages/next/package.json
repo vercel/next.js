@@ -136,7 +136,7 @@
     "@ampproject/toolbox-optimizer": "2.7.1-alpha.0",
     "@babel/code-frame": "7.12.11",
     "@babel/core": "7.15.0",
-    "@babel/eslint-parser": "7.15.0",
+    "@babel/eslint-parser": "7.13.14",
     "@babel/generator": "7.15.0",
     "@babel/plugin-proposal-class-properties": "7.14.5",
     "@babel/plugin-proposal-export-namespace-from": "7.14.5",
