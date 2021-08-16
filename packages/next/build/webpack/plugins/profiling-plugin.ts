@@ -79,6 +79,13 @@ export class ProfilingPlugin {
   }
 
   traceCompilationHooks(compiler: any) {
+    this.traceHookPair(
+      'webpack-emit',
+      compiler.hooks.emit,
+      compiler.hooks.afterEmit,
+      { parentSpan: () => this.runWebpackSpan }
+    )
+
     compiler.hooks.compilation.tap(pluginName, (compilation: any) => {
       compilation.hooks.buildModule.tap(pluginName, (module: any) => {
         const compilerSpan = spans.get(compiler)
