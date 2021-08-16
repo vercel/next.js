@@ -205,16 +205,15 @@ export function getClientBuildManifest(): Promise<ClientBuildManifest> {
     return Promise.resolve(self.__BUILD_MANIFEST)
   }
 
-  const onBuildManifest: Promise<ClientBuildManifest> = new Promise<
-    ClientBuildManifest
-  >((resolve) => {
-    // Mandatory because this is not concurrent safe:
-    const cb = self.__BUILD_MANIFEST_CB
-    self.__BUILD_MANIFEST_CB = () => {
-      resolve(self.__BUILD_MANIFEST!)
-      cb && cb()
-    }
-  })
+  const onBuildManifest: Promise<ClientBuildManifest> =
+    new Promise<ClientBuildManifest>((resolve) => {
+      // Mandatory because this is not concurrent safe:
+      const cb = self.__BUILD_MANIFEST_CB
+      self.__BUILD_MANIFEST_CB = () => {
+        resolve(self.__BUILD_MANIFEST!)
+        cb && cb()
+      }
+    })
 
   return resolvePromiseWithTimeout<ClientBuildManifest>(
     onBuildManifest,
@@ -257,16 +256,12 @@ function getFilesForRoute(
 }
 
 export function createRouteLoader(assetPrefix: string): RouteLoader {
-  const entrypoints: Map<
-    string,
-    Future<RouteEntrypoint> | RouteEntrypoint
-  > = new Map()
+  const entrypoints: Map<string, Future<RouteEntrypoint> | RouteEntrypoint> =
+    new Map()
   const loadedScripts: Map<string, Promise<unknown>> = new Map()
   const styleSheets: Map<string, Promise<RouteStyleSheet>> = new Map()
-  const routes: Map<
-    string,
-    Future<RouteLoaderEntry> | RouteLoaderEntry
-  > = new Map()
+  const routes: Map<string, Future<RouteLoaderEntry> | RouteLoaderEntry> =
+    new Map()
 
   function maybeExecuteScript(src: string): Promise<unknown> {
     let prom: Promise<unknown> | undefined = loadedScripts.get(src)

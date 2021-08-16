@@ -270,9 +270,8 @@ export default async function build(
       )
     const pageKeys = Object.keys(mappedPages)
     const conflictingPublicFiles: string[] = []
-    const hasCustomErrorPage: boolean = mappedPages['/_error'].startsWith(
-      'private-next-pages'
-    )
+    const hasCustomErrorPage: boolean =
+      mappedPages['/_error'].startsWith('private-next-pages')
     const hasPages404 = Boolean(
       mappedPages['/404'] &&
         mappedPages['/404'].startsWith('private-next-pages')
@@ -744,17 +743,18 @@ export default async function build(
       const nonStaticErrorPageSpan = staticCheckSpan.traceChild(
         'check-static-error-page'
       )
-      const errorPageHasCustomGetInitialProps = nonStaticErrorPageSpan.traceAsyncFn(
-        async () =>
-          hasCustomErrorPage &&
-          (await staticWorkers.hasCustomGetInitialProps(
-            '/_error',
-            distDir,
-            isLikeServerless,
-            runtimeEnvConfig,
-            false
-          ))
-      )
+      const errorPageHasCustomGetInitialProps =
+        nonStaticErrorPageSpan.traceAsyncFn(
+          async () =>
+            hasCustomErrorPage &&
+            (await staticWorkers.hasCustomGetInitialProps(
+              '/_error',
+              distDir,
+              isLikeServerless,
+              runtimeEnvConfig,
+              false
+            ))
+        )
 
       const errorPageStaticResult = nonStaticErrorPageSpan.traceAsyncFn(
         async () =>
@@ -774,13 +774,14 @@ export default async function build(
       // from _error instead
       const appPageToCheck = isLikeServerless ? '/_error' : '/_app'
 
-      const customAppGetInitialPropsPromise = staticWorkers.hasCustomGetInitialProps(
-        appPageToCheck,
-        distDir,
-        isLikeServerless,
-        runtimeEnvConfig,
-        true
-      )
+      const customAppGetInitialPropsPromise =
+        staticWorkers.hasCustomGetInitialProps(
+          appPageToCheck,
+          distDir,
+          isLikeServerless,
+          runtimeEnvConfig,
+          true
+        )
 
       const namedExportsPromise = staticWorkers.getNamedExports(
         appPageToCheck,
@@ -825,9 +826,8 @@ export default async function build(
 
             if (nonReservedPage) {
               try {
-                let isPageStaticSpan = checkPageSpan.traceChild(
-                  'is-page-static'
-                )
+                let isPageStaticSpan =
+                  checkPageSpan.traceChild('is-page-static')
                 let workerResult = await isPageStaticSpan.traceAsyncFn(() => {
                   return staticWorkers.isPageStatic(
                     page,
@@ -1103,8 +1103,8 @@ export default async function build(
           ssgPages,
           additionalSsgPaths
         )
-        const exportApp: typeof import('../export').default = require('../export')
-          .default
+        const exportApp: typeof import('../export').default =
+          require('../export').default
         const exportOptions = {
           silent: false,
           buildExport: true,
