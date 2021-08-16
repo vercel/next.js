@@ -16,15 +16,20 @@ export function cleanAmpPath(pathname: string): string {
 }
 
 export type Disposable = () => void
+export type Subscription = {
+  unsubscribe: Disposable
+  closed: boolean
+}
 export type Observer<T> = {
   next(chunk: T): void
   error(error: Error): void
   complete(): void
 }
-export type RenderResult = (observer: Observer<string>) => Disposable
+export type Observable<T> = (observer: Observer<T>) => Disposable
+export type RenderResult = Observable<string>
 
 export function resultFromChunks(chunks: string[]): RenderResult {
-  return ({ next, complete, error }) => {
+  return createObservable(({ next, complete, error }) => {
     let canceled = false
     process.nextTick(() => {
       try {
@@ -50,7 +55,7 @@ export function resultFromChunks(chunks: string[]): RenderResult {
     return () => {
       canceled = true
     }
-  }
+  })
 }
 
 export function resultToChunks(result: RenderResult): Promise<string[]> {
@@ -64,4 +69,52 @@ export function resultToChunks(result: RenderResult): Promise<string[]> {
       complete: () => resolve(chunks),
     })
   })
+}
+
+export function createObservable<T>(
+  observerable: Observable<T>
+): Observable<T> {
+  return (observer) => {
+    let unsubscribe: (() => void) | null = null
+    const cleanup = () => {
+      if (unsubscribe) {
+        unsubscribe()
+        unsubscribe = null
+      }
+    }
+    const doEvent = (ev: () => void) => {
+      if (!unsubscribe) {
+        return
+      }
+      try {
+        ev()
+      } catch (err) {
+        if (!!unsubscribe) {
+          try {
+            observer.error(err)
+          } finally {
+            cleanup()
+          }
+        }
+      }
+    }
+    unsubscribe = observerable({
+      next(chunk) {
+        doEvent(() => observer.next(chunk))
+      },
+      complete() {
+        doEvent(() => {
+          cleanup()
+          observer.complete()
+        })
+      },
+      error(err) {
+        doEvent(() => {
+          cleanup()
+          observer.error(err)
+        })
+      },
+    })
+    return cleanup
+  }
 }

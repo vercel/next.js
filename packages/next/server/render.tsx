@@ -65,10 +65,12 @@ import {
 } from '../lib/load-custom-routes'
 import { DomainLocale } from './config'
 import {
+  createObservable,
   Observer,
   RenderResult,
   resultFromChunks,
   resultToChunks,
+  Subscription,
 } from './utils'
 
 function noRouter() {
@@ -269,6 +271,8 @@ type DocumentResult = {
   head: unknown
   styles: unknown
 }
+
+let prevStreamPromise: Promise<void> = Promise.resolve()
 
 export async function renderToHTML(
   req: IncomingMessage,
@@ -896,53 +900,78 @@ export async function renderToHTML(
 
   const generateStaticHTML =
     requireStaticHTML || inAmpMode || !concurrentFeatures
-  const renderToStream = (element: React.ReactElement) =>
-    new Promise<RenderResult>((resolve, reject) => {
-      const stream = new PassThrough()
-      let resolved = false
-      const doResolve = () => {
-        if (!resolved) {
-          resolved = true
-          resolve(({ complete, next }) => {
-            stream.on('data', (chunk) => {
-              next(chunk.toString('utf-8'))
-            })
-            stream.once('end', () => {
-              complete()
-            })
+  const renderToStream = async (element: React.ReactElement) => {
+    const prevPromise = prevStreamPromise
+    let resolveStreamPromise = () => {}
+    prevStreamPromise = new Promise((resolver) => {
+      resolveStreamPromise = resolver
+    })
 
-            startWriting()
-            if (!concurrentFeatures) {
-              abort()
-            }
-            return () => {
-              abort()
-            }
-          })
-        }
-      }
-
-      const {
-        abort,
-        startWriting,
-      } = (ReactDOMServer as any).pipeToNodeWritable(element, stream, {
-        onError(error: Error) {
+    try {
+      await prevPromise
+      const stream = await new Promise<RenderResult>((resolve, reject) => {
+        const stream = new PassThrough()
+        let resolved = false
+        const doResolve = () => {
           if (!resolved) {
             resolved = true
-            reject(error)
+            resolve(
+              createObservable(({ complete, next }) => {
+                stream.on('data', (chunk) => {
+                  next(chunk.toString('utf-8'))
+                })
+                stream.once('end', () => {
+                  complete()
+                })
+
+                startWriting()
+                if (!concurrentFeatures) {
+                  abort()
+                }
+                return () => {
+                  abort()
+                }
+              })
+            )
           }
-          abort()
-        },
-        onReadyToStream() {
-          if (!generateStaticHTML) {
+        }
+
+        const {
+          abort,
+          startWriting,
+        } = (ReactDOMServer as any).pipeToNodeWritable(element, stream, {
+          onError(error: Error) {
+            if (!resolved) {
+              resolved = true
+              reject(error)
+            }
+            abort()
+          },
+          onReadyToStream() {
+            if (!generateStaticHTML) {
+              doResolve()
+            }
+          },
+          onCompleteAll() {
             doResolve()
-          }
-        },
-        onCompleteAll() {
-          doResolve()
-        },
+          },
+        })
       })
-    }).then(multiplexResult)
+
+      return multiplexResult(
+        createObservable((observer) => {
+          const unsubscribe = stream(observer)
+          return () => {
+            resolveStreamPromise()
+            unsubscribe()
+          }
+        })
+      )
+    } catch (err) {
+      resolveStreamPromise()
+      throw err
+    }
+  }
 
   const renderDocument: () => Promise<DocumentResult | null> = async () => {
     if (Document.getInitialProps) {
@@ -1229,48 +1258,35 @@ async function resultsToString(chunks: Array<RenderResult>): Promise<string> {
 }
 
 function mergeResults(chunks: Array<RenderResult>): RenderResult {
-  return ({ next, complete, error }) => {
+  return createObservable(({ next, complete, error }) => {
     let idx = 0
-    let canceled = false
-    let unsubscribe = () => {}
+    let unsubscribe: (() => void) | null = () => {}
 
     const subscribeNext = () => {
-      if (canceled) {
-        return
-      }
-
       if (idx < chunks.length) {
         const result = chunks[idx++]
         unsubscribe = result({
           next,
           complete() {
-            unsubscribe()
             subscribeNext()
           },
           error(err) {
-            unsubscribe()
-            if (!canceled) {
-              canceled = true
-              error(err)
-            }
+            error(err)
           },
         })
       } else {
-        if (!canceled) {
-          canceled = true
-          complete()
-        }
+        complete()
       }
     }
-    subscribeNext()
 
+    subscribeNext()
     return () => {
-      if (!canceled) {
-        canceled = true
+      if (unsubscribe) {
         unsubscribe()
+        unsubscribe = null
       }
     }
-  }
+  })
 }
 
 function multiplexResult(result: RenderResult): RenderResult {
@@ -1299,67 +1315,31 @@ function multiplexResult(result: RenderResult): RenderResult {
     },
   })
 
-  return (innerSubscriber) => {
-    let completed = false
-    let cleanup = () => {}
-    const subscriber: Observer<string> = {
-      next(chunk) {
-        if (!completed) {
-          try {
-            innerSubscriber.next(chunk)
-          } catch (err) {
-            subscriber.error(err)
-          }
-        }
-      },
-      complete() {
-        if (!completed) {
-          cleanup()
-          try {
-            innerSubscriber.complete()
-          } catch {}
-        }
-      },
-      error(err) {
-        if (!completed) {
-          cleanup()
-          try {
-            innerSubscriber.error(err)
-          } catch {}
-        }
-      },
-    }
-    cleanup = () => {
-      completed = true
-      subscribers.delete(subscriber)
+  return createObservable((innerSubscriber) => {
+    let cleanup: (() => void) | null = () => {
+      cleanup = null
+      subscribers.delete(innerSubscriber)
     }
 
     process.nextTick(() => {
       for (const chunk of chunks) {
-        if (completed) {
+        if (!cleanup) {
           return
         }
-        subscriber.next(chunk)
+        innerSubscriber.next(chunk)
       }
 
-      if (!completed) {
+      if (!cleanup) {
         if (!terminator) {
-          subscribers.add(subscriber)
+          subscribers.add(innerSubscriber)
         } else {
-          terminator(subscriber)
+          terminator(innerSubscriber)
         }
       }
     })
-    return () => cleanup()
-  }
-}
 
-let prevPromise = Promise.resolve()
-function mutex<T>(fn: () => Promise<T>): Promise<T> {
-  const toAwait = prevPromise
-  const toReturn = toAwait.then(() => fn())
-  prevPromise = toReturn.finally().then()
-  return toReturn
+    return cleanup
+  })
 }
 
 function errorToJSON(err: Error): Error {
