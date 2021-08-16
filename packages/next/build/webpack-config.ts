@@ -53,6 +53,7 @@ import WebpackConformancePlugin, {
 import { WellKnownErrorsPlugin } from './webpack/plugins/wellknown-errors-plugin'
 import { regexLikeCss } from './webpack/config/blocks/css'
 import { CopyFilePlugin } from './webpack/plugins/copy-file-plugin'
+import type { Span } from '../telemetry/trace'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 
@@ -227,6 +228,7 @@ export default async function getBaseWebpackConfig(
     entrypoints,
     rewrites,
     isDevFallback = false,
+    runWebpackSpan,
   }: {
     buildId: string
     config: NextConfigComplete
@@ -238,6 +240,7 @@ export default async function getBaseWebpackConfig(
     entrypoints: WebpackEntrypoints
     rewrites: CustomRoutes['rewrites']
     isDevFallback?: boolean
+    runWebpackSpan?: Span
   }
 ): Promise<webpack.Configuration> {
   const hasRewrites =
@@ -1297,7 +1300,7 @@ export default async function getBaseWebpackConfig(
         new BuildStatsPlugin({
           distDir,
         }),
-      new ProfilingPlugin(),
+      new ProfilingPlugin({ runWebpackSpan }),
       config.optimizeFonts &&
         !dev &&
         isServer &&

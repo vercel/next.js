@@ -30,12 +30,8 @@ export function batcher(reportEvents: (evts: Event[]) => Promise<void>) {
   const events: Event[] = []
   // Promise queue to ensure events are always sent on flushAll
   const queue = new Set()
-  let timeout: ReturnType<typeof setTimeout> | undefined
   return {
     flushAll: async () => {
-      if (timeout) {
-        clearTimeout(timeout)
-      }
       await Promise.all(queue)
       if (events.length > 0) {
         await reportEvents(events)
@@ -45,15 +41,11 @@ export function batcher(reportEvents: (evts: Event[]) => Promise<void>) {
     report: (event: Event) => {
       events.push(event)
 
-      // setTimeout is used instead of setInterval to ensure events sending does not block exiting the program
-      if (!timeout) {
-        timeout = setTimeout(() => {
-          const report = reportEvents(events.slice())
-          events.length = 0
-          queue.add(report)
-          report.then(() => queue.delete(report))
-          timeout = undefined
-        }, 1500)
+      if (events.length > 100) {
+        const report = reportEvents(events.slice())
+        events.length = 0
+        queue.add(report)
+        report.then(() => queue.delete(report))
       }
     },
   }

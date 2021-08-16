@@ -40,7 +40,7 @@ const reportToLocalHost = (
 
   if (!batch) {
     batch = batcher((events) => {
-      console.log(util.inspect(events, { colors: true, maxArrayLength: null }))
+      const eventsJson = JSON.stringify(events)
       // Ensure ECONNRESET error is retried 3 times before erroring out
       return retry(
         () =>
@@ -48,10 +48,20 @@ const reportToLocalHost = (
           fetch(zipkinAPI, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(events),
+            body: eventsJson,
           }),
         { minTimeout: 500, retries: 3, factor: 1 }
-      ).catch(console.log)
+      )
+        .then(async (res: any) => {
+          if (res.status !== 202) {
+            console.log({
+              status: res.status,
+              body: await res.text(),
+              events: eventsJson,
+            })
+          }
+        })
+        .catch(console.log)
     })
   }
 

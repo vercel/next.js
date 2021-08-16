@@ -60,7 +60,7 @@ export class Span {
   }
 
   setAttribute(key: string, value: any) {
-    this.attrs[key] = value
+    this.attrs[key] = String(value)
   }
 
   traceFn(fn: any) {
