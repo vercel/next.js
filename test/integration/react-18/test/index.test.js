@@ -120,9 +120,7 @@ describe('React 18 Support', () => {
 })
 
 describe('Basics', () => {
-  runTests('default setting with react 18', (context) =>
-    basics(context, (p, q) => renderViaHTTP(context.appPort, p, q))
-  )
+  runTests('default setting with react 18', (context) => basics(context))
 
   it('suspense is not allowed in blocking rendering mode (dev)', async () => {
     // set dynamic.suspense = true but not wrapping with <Suspense>

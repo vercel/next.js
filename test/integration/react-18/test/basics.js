@@ -2,9 +2,9 @@
 
 import webdriver from 'next-webdriver'
 import cheerio from 'cheerio'
-import { fetchViaHTTP, renderViaHTTP, File, findPort } from 'next-test-utils'
+import { fetchViaHTTP, renderViaHTTP } from 'next-test-utils'
 
-export default (context, render) => {
+export default (context) => {
   it('hydrates correctly for normal page', async () => {
     const browser = await webdriver(context.appPort, '/')
     expect(await browser.eval('window.didHydrate')).toBe(true)
