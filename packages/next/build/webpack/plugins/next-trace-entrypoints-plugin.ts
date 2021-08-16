@@ -27,10 +27,18 @@ function getModuleFromDependency(
 export class TraceEntryPointsPlugin implements webpack.Plugin {
   private appDir: string
   private entryTraces: Map<string, string[]>
+  private excludeFiles: string[]
 
-  constructor({ appDir }: { appDir: string }) {
+  constructor({
+    appDir,
+    excludeFiles,
+  }: {
+    appDir: string
+    excludeFiles?: string[]
+  }) {
     this.appDir = appDir
     this.entryTraces = new Map()
+    this.excludeFiles = excludeFiles || []
   }
 
   // Here we output all traced assets and webpack chunks to a
@@ -223,7 +231,7 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
                 readFile,
                 readlink,
                 stat,
-                ignore: TRACE_IGNORES,
+                ignore: [...TRACE_IGNORES, ...this.excludeFiles],
               })
 
               const tracedDeps: string[] = []
