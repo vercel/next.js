@@ -8,7 +8,7 @@ An inline script was used for Google analytics which might impact your webpage's
 
 #### Using gtag.js
 
-If you are using the [gtag.js](https://developers.google.com/analytics/devguides/collection/gtagjs) to add analytics, use the `next/script` component with the right loading strategy to defer loading of the script until necessary.
+If you are using the [gtag.js](https://developers.google.com/analytics/devguides/collection/gtagjs) script to add analytics, use the `next/script` component with the right loading strategy to defer loading of the script until necessary.
 
 ```jsx
 import Script from 'next/script'
@@ -39,7 +39,7 @@ export default Home
 
 #### Using analytics.js
 
-If you are using the [analytics.js](https://developers.google.com/analytics/devguides/collection/analyticsjs) to add analytics:
+If you are using the [analytics.js](https://developers.google.com/analytics/devguides/collection/analyticsjs) script to add analytics:
 
 ```jsx
 import Script from 'next/script'
