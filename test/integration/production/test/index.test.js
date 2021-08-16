@@ -962,6 +962,11 @@ describe('Production Usage', () => {
     expect(missing).toBe(false)
   })
 
+  it('should only have one DOCTYPE', async () => {
+    const html = await renderViaHTTP(appPort, '/')
+    expect(html).toMatch(/^<!DOCTYPE html><html/)
+  })
+
   if (global.browserName !== 'internet explorer') {
     it('should preserve query when hard navigating from page 404', async () => {
       const browser = await webdriver(appPort, '/')
