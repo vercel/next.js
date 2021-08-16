@@ -1177,7 +1177,7 @@ export async function renderToHTML(
 
   const postProcessors: Array<
     ((html: string) => Promise<string>) | null
-  > = (requireStaticHTML
+  > = (generateStaticHTML
     ? [
         inAmpMode
           ? async (html: string) => {
