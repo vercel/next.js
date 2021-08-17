@@ -691,7 +691,7 @@ test('unterminated JSX', async () => {
   const source = await session.getRedboxSource()
   expect(source).toMatchInlineSnapshot(`
     "./index.js:5:22
-    Syntax error: Unterminated JSX contents
+    Syntax error: Unterminated JSX contents.
 
       3 |         return (
       4 |           <div>
@@ -1550,7 +1550,7 @@ test('_app syntax error shows logbox', async () => {
       "./pages/_app.js:3:20
       Syntax error: Unexpected token
       
-        1 | 
+        1 |
         2 |           function MyApp({ Component, pageProps }) {
       > 3 |             return <<Component {...pageProps} />;
           |                     ^
@@ -1613,7 +1613,7 @@ test('_document syntax error shows logbox', async () => {
       Syntax error: Unexpected token
 
         2 |           import Document, { Html, Head, Main, NextScript } from 'next/document'
-        3 | 
+        3 |
       > 4 |           class MyDocument extends Document {{
           |                                              ^
         5 |             static async getInitialProps(ctx) {

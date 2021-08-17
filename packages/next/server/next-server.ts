@@ -238,8 +238,8 @@ export default class Server {
           : null,
       optimizeImages: !!this.nextConfig.experimental.optimizeImages,
       optimizeCss: this.nextConfig.experimental.optimizeCss,
-      disableOptimizedLoading: this.nextConfig.experimental
-        .disableOptimizedLoading,
+      disableOptimizedLoading:
+        this.nextConfig.experimental.disableOptimizedLoading,
       domainLocales: this.nextConfig.i18n?.domains,
       distDir: this.distDir,
       concurrentFeatures: this.nextConfig.experimental.concurrentFeatures,
@@ -360,9 +360,8 @@ export default class Server {
       typeof req.headers['x-matched-path'] === 'string'
     ) {
       const reqUrlIsDataUrl = req.url?.includes('/_next/data')
-      const matchedPathIsDataUrl = req.headers['x-matched-path']?.includes(
-        '/_next/data'
-      )
+      const matchedPathIsDataUrl =
+        req.headers['x-matched-path']?.includes('/_next/data')
       const isDataUrl = reqUrlIsDataUrl || matchedPathIsDataUrl
 
       let parsedPath = parseUrl(
@@ -829,9 +828,8 @@ export default class Server {
               let updatedDestination = formatUrl(parsedDestination)
 
               if (updatedDestination.startsWith('/')) {
-                updatedDestination = normalizeRepeatedSlashes(
-                  updatedDestination
-                )
+                updatedDestination =
+                  normalizeRepeatedSlashes(updatedDestination)
               }
 
               res.setHeader('Location', updatedDestination)
@@ -1416,9 +1414,7 @@ export default class Server {
     return null
   }
 
-  protected async getStaticPaths(
-    pathname: string
-  ): Promise<{
+  protected async getStaticPaths(pathname: string): Promise<{
     staticPaths: string[] | undefined
     fallbackMode: 'static' | 'blocking' | false
   }> {
@@ -1427,8 +1423,8 @@ export default class Server {
     const staticPaths = undefined
 
     // Read whether or not fallback should exist from the manifest.
-    const fallbackField = this.getPrerenderManifest().dynamicRoutes[pathname]
-      .fallback
+    const fallbackField =
+      this.getPrerenderManifest().dynamicRoutes[pathname].fallback
 
     return {
       staticPaths,
@@ -1613,20 +1609,17 @@ export default class Server {
 
       // handle serverless
       if (isLikeServerless) {
-        const renderResult = await (components.Component as any).renderReqToHTML(
-          req,
-          res,
-          'passthrough',
-          {
-            locale,
-            locales,
-            defaultLocale,
-            optimizeCss: this.renderOpts.optimizeCss,
-            distDir: this.distDir,
-            fontManifest: this.renderOpts.fontManifest,
-            domainLocales: this.renderOpts.domainLocales,
-          }
-        )
+        const renderResult = await (
+          components.Component as any
+        ).renderReqToHTML(req, res, 'passthrough', {
+          locale,
+          locales,
+          defaultLocale,
+          optimizeCss: this.renderOpts.optimizeCss,
+          distDir: this.distDir,
+          fontManifest: this.renderOpts.fontManifest,
+          domainLocales: this.renderOpts.domainLocales,
+        })
 
         body = renderResult.html
         pageData = renderResult.renderOpts.pageData
