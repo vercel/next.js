@@ -970,22 +970,6 @@ export default async function build(
       )
     }
 
-    if (!hasSsrAmpPages) {
-      requiredServerFiles.ignore.push(
-        path.relative(
-          dir,
-          path.join(
-            path.dirname(
-              require.resolve(
-                'next/dist/compiled/@ampproject/toolbox-optimizer'
-              )
-            ),
-            '**/*'
-          )
-        )
-      )
-    }
-
     if (config.experimental.nftTracing) {
       const globOrig = require('next/dist/compiled/glob') as typeof import('next/dist/compiled/glob')
       const glob = (pattern: string): Promise<string[]> => {
