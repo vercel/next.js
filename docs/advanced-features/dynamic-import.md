@@ -159,7 +159,7 @@ export default Home
 
 ## With suspense
 
-Option `suspense` let you to load component lazily as `React.lazy` and `<Suspense>` with React 18. Note that it only works on client side and server side will render `fallback` component yet. Fully SSR support in concurrent mode is working in progress.
+Option `suspense` allows you to lazy-load a component, similar to `React.lazy` and `<Suspense>` with React 18. Note that it only works on client-side or server-side with `fallback`. Full SSR support in concurrent mode is still a work-in-progress.
 
 ```jsx
 import dynamic from 'next/dynamic'
