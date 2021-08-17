@@ -110,8 +110,7 @@ const {
   loader: configLoader,
   path: configPath,
   domains: configDomains,
-} =
-  ((process.env.__NEXT_IMAGE_OPTS as any) as ImageConfig) || imageConfigDefault
+} = (process.env.__NEXT_IMAGE_OPTS as any as ImageConfig) || imageConfigDefault
 // sort smallest to largest
 const allSizes = [...configDeviceSizes, ...configImageSizes]
 configDeviceSizes.sort((a, b) => a - b)
@@ -546,8 +545,7 @@ export default function Image({
   }
 
   let imgAttributes: GenImgAttrsResult = {
-    src:
-      'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
+    src: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
     srcSet: undefined,
     sizes: undefined,
   }

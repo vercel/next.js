@@ -58,12 +58,13 @@ module.exports = {
 
     const rootDirs = getRootDir(context)
 
-    const pagesDirs = (customPagesDirectory
-      ? [customPagesDirectory]
-      : rootDirs.map((dir) => [
-          path.join(dir, 'pages'),
-          path.join(dir, 'src', 'pages'),
-        ])
+    const pagesDirs = (
+      customPagesDirectory
+        ? [customPagesDirectory]
+        : rootDirs.map((dir) => [
+            path.join(dir, 'pages'),
+            path.join(dir, 'src', 'pages'),
+          ])
     ).flat()
 
     const foundPagesDirs = pagesDirs.filter((dir) => {

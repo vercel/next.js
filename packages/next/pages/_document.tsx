@@ -224,11 +224,8 @@ export class Head extends Component<
   context!: React.ContextType<typeof HtmlContext>
 
   getCssLinks(files: DocumentFiles): JSX.Element[] | null {
-    const {
-      assetPrefix,
-      devOnlyCacheBusterQueryString,
-      dynamicImports,
-    } = this.context
+    const { assetPrefix, devOnlyCacheBusterQueryString, dynamicImports } =
+      this.context
     const cssFiles = files.allFiles.filter((f) => f.endsWith('.css'))
     const sharedFiles: Set<string> = new Set(files.sharedFiles)
 
@@ -299,11 +296,8 @@ export class Head extends Component<
   }
 
   getPreloadDynamicChunks() {
-    const {
-      dynamicImports,
-      assetPrefix,
-      devOnlyCacheBusterQueryString,
-    } = this.context
+    const { dynamicImports, assetPrefix, devOnlyCacheBusterQueryString } =
+      this.context
 
     return (
       dynamicImports
@@ -333,11 +327,8 @@ export class Head extends Component<
   }
 
   getPreloadMainLinks(files: DocumentFiles): JSX.Element[] | null {
-    const {
-      assetPrefix,
-      devOnlyCacheBusterQueryString,
-      scriptLoader,
-    } = this.context
+    const { assetPrefix, devOnlyCacheBusterQueryString, scriptLoader } =
+      this.context
     const preloadFiles = files.allFiles.filter((file: string) => {
       return file.endsWith('.js')
     })
