@@ -28,7 +28,6 @@ export function getCssModuleLoader(
     loader: require.resolve('next/dist/compiled/css-loader'),
     options: {
       importLoaders: 1 + preProcessors.length,
-      sourceMap: true,
       // Use CJS mode for backwards compatibility:
       esModule: false,
       url: cssFileResolve,
@@ -57,7 +56,6 @@ export function getCssModuleLoader(
     loader: require.resolve('next/dist/compiled/postcss-loader'),
     options: {
       postcssOptions: { plugins: postCssPlugins, config: false },
-      sourceMap: true,
     },
   })
 
