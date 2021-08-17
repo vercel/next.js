@@ -117,7 +117,7 @@ If you're using `eslint-plugin-next` in a project where Next.js isn't installed 
 }
 ```
 
-We've designed `rootDir` to support a variety of configurations. The value can be a path (relative or absolute), a glob (i.e. `"/packages/*/"`), or an array of paths and/or globs.
+`rootDir` can be a path (relative or absolute), a glob (i.e. `"/packages/*/"`), or an array of paths and/or globs.
 
 ## Linting Custom Directories
 
