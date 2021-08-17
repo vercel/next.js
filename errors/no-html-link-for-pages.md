@@ -48,7 +48,7 @@ This rule can normally locate your `pages` directory automatically.
 
 If you're working in a monorepo, we recommend configuring the [`rootDir`](https://nextjs.org/docs/basic-features/eslint.md#rootDir) setting in `eslint-plugin-next`, which this rule will use to locate your `pages` directory.
 
-In some cases you may also need to configure this rule directly by providing a `pages` directory. This can be a path, or an array of paths.
+In some cases, you may also need to configure this rule directly by providing a `pages` directory. This can be a path or an array of paths.
 
 ```json
 {
