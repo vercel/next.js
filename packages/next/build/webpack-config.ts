@@ -34,6 +34,7 @@ import { finalizeEntrypoint } from './entries'
 import * as Log from './output/log'
 import { build as buildConfiguration } from './webpack/config'
 import { __overrideCssConfiguration } from './webpack/config/blocks/css/overrideCssConfiguration'
+import EdgeFunctionPlugin from './webpack/plugins/edge-function-plugin'
 import MiddlewareManifestPlugin from './webpack/plugins/middleware-manifest-plugin'
 import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
 import BuildStatsPlugin from './webpack/plugins/build-stats-plugin'
@@ -1358,6 +1359,7 @@ export default async function getBaseWebpackConfig(
       isServer &&
         new PagesManifestPlugin({ serverless: isLikeServerless, dev }),
       isServer && new MiddlewareManifestPlugin({ dev }),
+      dev && isServer && new EdgeFunctionPlugin(),
       !isWebpack5 &&
         target === 'server' &&
         isServer &&
