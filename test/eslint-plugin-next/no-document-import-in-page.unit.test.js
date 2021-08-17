@@ -86,6 +86,13 @@ ruleTester.run('no-document-import-in-page', rule, {
     `,
       filename: 'pages/_document/index.tsx',
     },
+    {
+      code: `import Document from "next/document"
+
+      export const Test = () => <p>Test</p>
+      `,
+      filename: 'components/test.js',
+    },
   ],
   invalid: [
     {
