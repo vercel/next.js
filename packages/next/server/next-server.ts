@@ -80,6 +80,7 @@ import {
   isBlockedPage,
   RenderResult,
   resultFromChunks,
+  resultsToString,
   resultToChunks,
 } from './utils'
 import { loadEnvConfig } from '@next/env'
@@ -1267,7 +1268,7 @@ export default class Server {
         req,
         res,
         resultOrPayload: requireStaticHTML
-          ? (await resultToChunks(body)).join('')
+          ? await resultsToString([body])
           : body,
         type,
         generateEtags,
