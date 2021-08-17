@@ -1310,7 +1310,7 @@ export default async function getBaseWebpackConfig(
         new BuildStatsPlugin({
           distDir,
         }),
-      process.env.TRACE_TARGET && new ProfilingPlugin({ runWebpackSpan }),
+      new ProfilingPlugin({ runWebpackSpan }),
       config.optimizeFonts &&
         !dev &&
         isServer &&

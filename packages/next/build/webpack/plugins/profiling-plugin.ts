@@ -101,7 +101,7 @@ export class ProfilingPlugin {
           return module.userRequest.split('.').pop()
         })()
 
-        const issuerModule = compilation.moduleGraph.getIssuer(module)
+        const issuerModule = compilation?.moduleGraph?.getIssuer(module)
 
         const span = trace(
           `build-module${moduleType ? `-${moduleType}` : ''}`,
