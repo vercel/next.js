@@ -20,7 +20,7 @@ export async function writeAppTypeDeclarations(
     // If file already exists then preserve its line ending
     const lf = fileContent.indexOf('\n', /* skip first so we can lf - 1 */ 1)
 
-    if (lf != -1) {
+    if (lf !== -1) {
       if (fileContent[lf - 1] === '\r') {
         eol = '\r\n'
       } else {
