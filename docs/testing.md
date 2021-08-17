@@ -134,7 +134,7 @@ You can learn more about Cypress and Continuous Integration from these resources
 
 ## Jest and React Testing Library
 
-Jest and React Testing Library are frequently used together for Unit Testing.
+Jest and React Testing Library are frequently used together for **Unit Testing**.
 
 ### Quickstart
 
@@ -332,6 +332,6 @@ For more information on what to read next, we recommend:
 <div class="card">
   <a href="/docs/basic-features/environment-variables#test-environment-variable.md">
     <b>Test Environment Variables</b>
-    <small>Learn more test environments.</small>
+    <small>Learn more about the test environment.</small>
   </a>
 </div>
