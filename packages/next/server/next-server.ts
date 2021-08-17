@@ -80,7 +80,6 @@ import {
   isBlockedPage,
   RenderResult,
   resultsToString,
-  resultToChunks,
 } from './utils'
 import { loadEnvConfig } from '@next/env'
 import './node-polyfill-fetch'
@@ -1297,8 +1296,7 @@ export default class Server {
     if (payload === null) {
       return null
     }
-    const chunks = await resultToChunks(payload.body)
-    return chunks.join('')
+    return resultsToString([payload.body])
   }
 
   public async render(

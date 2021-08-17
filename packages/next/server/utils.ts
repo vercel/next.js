@@ -23,14 +23,6 @@ export function mergeResults(results: Array<RenderResult>): RenderResult {
   return Observable.prototype.concat.call(...results)
 }
 
-export async function resultToChunks(result: RenderResult): Promise<string[]> {
-  const chunks: string[] = []
-  await result.forEach((chunk) => {
-    chunks.push(chunk)
-  })
-  return chunks
-}
-
 export async function resultsToString(
   results: Array<RenderResult>
 ): Promise<string> {

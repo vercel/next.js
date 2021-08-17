@@ -117,9 +117,10 @@ export async function sendRenderResult({
   } else if (isPayload) {
     res.end(resultOrPayload as string)
   } else {
-    const maybeFlush = typeof (res as any).flush === 'function'
-      ? () => (res as any).flush()
-      : () => {}
+    const maybeFlush =
+      typeof (res as any).flush === 'function'
+        ? () => (res as any).flush()
+        : () => {}
     await (resultOrPayload as RenderResult).forEach((chunk) => {
       res.write(chunk)
       maybeFlush()
