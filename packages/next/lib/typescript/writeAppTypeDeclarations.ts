@@ -1,6 +1,7 @@
 import { promises as fs } from 'fs'
 import os from 'os'
 import path from 'path'
+import { fileExists } from '../file-exists'
 
 export async function writeAppTypeDeclarations(
   baseDir: string,
@@ -24,7 +25,10 @@ export async function writeAppTypeDeclarations(
     os.EOL
 
   // Avoids a write for read-only filesystems
-  if ((await fs.readFile(appTypeDeclarations, 'utf8')) === content) {
+  if (
+    (await fileExists(appTypeDeclarations)) &&
+    (await fs.readFile(appTypeDeclarations, 'utf8')) === content
+  ) {
     return
   }
 
