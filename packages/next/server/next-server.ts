@@ -79,7 +79,6 @@ import { execOnce } from '../shared/lib/utils'
 import {
   isBlockedPage,
   RenderResult,
-  resultFromChunks,
   resultsToString,
   resultToChunks,
 } from './utils'
@@ -103,6 +102,7 @@ import ResponseCache, {
 } from './response-cache'
 import { NextConfigComplete } from './config-shared'
 import { parseNextUrl } from '../shared/lib/router/utils/parse-next-url'
+import Observable from 'zen-observable'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -1473,7 +1473,7 @@ export default class Server {
       return {
         type: 'html',
         // TODO: Static pages should be written as chunks
-        body: resultFromChunks([components.Component]),
+        body: Observable.of(components.Component),
       }
     }
 
@@ -1752,7 +1752,7 @@ export default class Server {
               return {
                 value: {
                   kind: 'PAGE',
-                  html: resultFromChunks([html]),
+                  html: Observable.of(html),
                   pageData: {},
                 },
               }
@@ -1831,7 +1831,7 @@ export default class Server {
       if (isDataReq) {
         return {
           type: 'json',
-          body: resultFromChunks([JSON.stringify(cachedData.props)]),
+          body: Observable.of(JSON.stringify(cachedData.props)),
           revalidateOptions,
         }
       } else {
@@ -1842,7 +1842,7 @@ export default class Server {
       return {
         type: isDataReq ? 'json' : 'html',
         body: isDataReq
-          ? resultFromChunks([JSON.stringify(cachedData.pageData)])
+          ? Observable.of(JSON.stringify(cachedData.pageData))
           : cachedData.html,
         revalidateOptions,
       }
@@ -2077,7 +2077,7 @@ export default class Server {
       }
       return {
         type: 'html',
-        body: resultFromChunks(['Internal Server Error']),
+        body: Observable.of('Internal Server Error'),
       }
     }
   }
