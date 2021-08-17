@@ -104,7 +104,7 @@ If you already have ESLint configured in your application, we recommend extendin
 
 #### `rootDir`
 
-If you're using `eslint-plugin-next` in a project where Next.js isn't installed in your root directory (such as a monorepo), you can tell `eslint-plugin-next` where to find your Next.js application using the using the `settings` property in your `.eslintrc`:
+If you're using `eslint-plugin-next` in a project where Next.js isn't installed in your root directory (such as a monorepo), you can tell `eslint-plugin-next` where to find your Next.js application using the `settings` property in your `.eslintrc`:
 
 ```json
 {
