@@ -3,6 +3,7 @@
 export enum TARGET {
   CONSOLE = 'CONSOLE',
   ZIPKIN = 'ZIPKIN',
+  JAEGER = 'JAEGER',
   TELEMETRY = 'TELEMETRY',
 }
 

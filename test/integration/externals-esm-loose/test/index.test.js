@@ -24,7 +24,8 @@ describe('Valid resolve alias', () => {
   })
   afterAll(() => killApp(app))
 
-  const expected = /Hello <!-- -->World<!-- -->\+<!-- -->World<!-- -->\+<!-- -->World/
+  const expected =
+    /Hello <!-- -->World<!-- -->\+<!-- -->World<!-- -->\+<!-- -->World/
 
   it('should render the static page', async () => {
     const html = await renderViaHTTP(appPort, '/static')

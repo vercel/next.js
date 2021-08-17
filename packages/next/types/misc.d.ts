@@ -119,6 +119,10 @@ declare module 'next/dist/compiled/fresh' {
   import m from 'fresh'
   export = m
 }
+declare module 'next/dist/compiled/glob' {
+  import m from 'glob'
+  export = m
+}
 declare module 'next/dist/compiled/gzip-size' {
   import m from 'gzip-size'
   export = m
@@ -181,6 +185,10 @@ declare module 'next/dist/compiled/string-hash' {
 }
 declare module 'next/dist/compiled/strip-ansi' {
   import m from 'strip-ansi'
+  export = m
+}
+declare module 'next/dist/compiled/@vercel/nft' {
+  import m from '@vercel/nft'
   export = m
 }
 declare module 'next/dist/compiled/terser' {
