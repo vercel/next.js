@@ -582,6 +582,33 @@ function runTests(mode) {
       )
     })
 
+    it('should warn when img with layout=responsive is inside flex container', async () => {
+      const browser = await webdriver(appPort, '/layout-responsive-inside-flex')
+
+      const warnings = (await browser.log('browser'))
+        .map((log) => log.message)
+        .join('\n')
+      expect(await hasRedbox(browser)).toBe(false)
+      expect(warnings).toMatch(
+        /Image with src (.*)jpg(.*) may not render properly as a child of a flex container. Consider wrapping the image with a div to configure the width/gm
+      )
+    })
+
+    it('should warn when img with layout=fill is inside a container without position relative', async () => {
+      const browser = await webdriver(
+        appPort,
+        '/layout-fill-inside-nonrelative'
+      )
+
+      const warnings = (await browser.log('browser'))
+        .map((log) => log.message)
+        .join('\n')
+      expect(await hasRedbox(browser)).toBe(false)
+      expect(warnings).toMatch(
+        /Image with src (.*)jpg(.*) may not render properly with a parent using position:\"static\". Consider changing the parent style to position:\"relative\"/gm
+      )
+    })
+
     it('should warn when using a very small image with placeholder=blur', async () => {
       const browser = await webdriver(appPort, '/small-img-import')
 
