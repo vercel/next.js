@@ -57,13 +57,6 @@ type OnLoadingComplete = (result: {
 
 type ImgElementStyle = NonNullable<JSX.IntrinsicElements['img']['style']>
 
-interface StaticImageData {
-  src: string
-  height: number
-  width: number
-  blurDataURL?: string
-}
-
 interface StaticRequire {
   default: StaticImageData
 }
@@ -117,8 +110,7 @@ const {
   loader: configLoader,
   path: configPath,
   domains: configDomains,
-} =
-  ((process.env.__NEXT_IMAGE_OPTS as any) as ImageConfig) || imageConfigDefault
+} = (process.env.__NEXT_IMAGE_OPTS as any as ImageConfig) || imageConfigDefault
 // sort smallest to largest
 const allSizes = [...configDeviceSizes, ...configImageSizes]
 configDeviceSizes.sort((a, b) => a - b)
@@ -350,7 +342,7 @@ export default function Image({
 
   let isLazy =
     !priority && (loading === 'lazy' || typeof loading === 'undefined')
-  if (src.startsWith('data:')) {
+  if (src.startsWith('data:') || src.startsWith('blob:')) {
     // https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
     unoptimized = true
     isLazy = false
@@ -553,8 +545,7 @@ export default function Image({
   }
 
   let imgAttributes: GenImgAttrsResult = {
-    src:
-      'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
+    src: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
     srcSet: undefined,
     sizes: undefined,
   }
@@ -607,6 +598,7 @@ export default function Image({
               loader,
             })}
             decoding="async"
+            data-nimg
             style={imgStyle}
             className={className}
           />
@@ -616,6 +608,7 @@ export default function Image({
         {...rest}
         {...imgAttributes}
         decoding="async"
+        data-nimg
         className={className}
         ref={(img) => {
           setRef(img)
@@ -640,9 +633,9 @@ export default function Image({
             rel="preload"
             as="image"
             href={imgAttributes.srcSet ? undefined : imgAttributes.src}
-            // @ts-ignore: imagesrcset is not yet in the link element type
+            // @ts-ignore: imagesrcset is not yet in the link element type.
             imagesrcset={imgAttributes.srcSet}
-            // @ts-ignore: imagesizes is not yet in the link element type
+            // @ts-ignore: imagesizes is not yet in the link element type.
             imagesizes={imgAttributes.sizes}
           ></link>
         </Head>

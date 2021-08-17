@@ -14,6 +14,5 @@
     "redux": "4.0.5",
     "redux-devtools-extension": "2.13.8",
     "redux-thunk": "2.3.0"
-  },
-  "license": "MIT"
+  }
 }

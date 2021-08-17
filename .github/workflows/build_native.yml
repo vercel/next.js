@@ -1,154 +1,90 @@
-on:
-  workflow_dispatch:
-  pull_request:
-    types: [opened, synchronize]
-    paths:
-      - 'packages/next/build/swc/**'
+on: workflow_dispatch
 
 name: Build next-swc native binaries
 
 jobs:
-  build:
+  build-native:
     strategy:
       matrix:
         os: [ubuntu-18.04, macos-latest, windows-latest]
+        description: [default]
+        include:
+          - os: ubuntu-18.04
+            target: x86_64-unknown-linux-gnu
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+          - os: macos-latest
+            target: x86_64-apple-darwin
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            description: m1
 
-    name: stable - ${{ matrix.os }} - node@14
+    name: next-swc - ${{ matrix.os }} - ${{ matrix.target }} - node@14
     runs-on: ${{ matrix.os }}
 
     steps:
       - uses: actions/checkout@v2
-
       - name: Setup node
         uses: actions/setup-node@v2
         with:
           node-version: 14
           check-latest: true
-
       - name: Install
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable
           profile: minimal
-
+          toolchain: nightly-2021-03-25
+          target: ${{ matrix.target }}
       - name: Cache cargo registry
         uses: actions/cache@v1
         with:
           path: ~/.cargo/registry
           key: stable-${{ matrix.os }}-node@14-cargo-registry-trimmed-${{ hashFiles('**/Cargo.lock') }}
-
       - name: Cache cargo index
         uses: actions/cache@v1
         with:
           path: ~/.cargo/git
           key: stable-${{ matrix.os }}-node@14-cargo-index-trimmed-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Cache NPM dependencies
-        uses: actions/cache@v1
+      - name: Cache native binary
+        id: binary-cache
+        uses: actions/cache@v2
         with:
-          path: node_modules
-          key: npm-cache-${{ matrix.os }}-node@14-${{ hashFiles('yarn.lock') }}
-
-      - name: 'Install dependencies'
-        run: yarn install --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
-
+          path: packages/next/native/**
+          key: next-swc-nightly-2021-03-25-${{ matrix.target }}-${{ hashFiles('.github/workflows/build_native.yml', 'packages/next/build/swc/**') }}
+      - name: Cross build aarch64 setup
+        if: ${{ matrix.target == 'aarch64-apple-darwin' && steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
+        run: |
+          sudo rm -Rf /Library/Developer/CommandLineTools/SDKs/*;
+          export CC=$(xcrun -f clang);
+          export CXX=$(xcrun -f clang++);
+          SYSROOT=$(xcrun --sdk macosx --show-sdk-path);
+          export CFLAGS="-isysroot $SYSROOT -isystem $SYSROOT";
       - name: 'Build'
-        run: yarn --cwd packages/next build-native
+        if: steps.binary-cache.outputs.cache-hit != true
+        run: yarn build-native --target ${{ matrix.target }}
         env:
           MACOSX_DEPLOYMENT_TARGET: '10.13'
-
+        working-directory: packages/next
       - name: Upload artifact
         uses: actions/upload-artifact@v2
         with:
           name: next-swc-binaries
-          path: packages/next/native
-
+          path: packages/next/native/next-swc.*.node
       - name: Clear the cargo caches
         run: |
           cargo install cargo-cache --no-default-features --features ci-autoclean
           cargo-cache
-
-  build-apple-silicon:
-    name: stable - aarch64-apple-darwin - node@14
-    runs-on: macos-latest
-
-    steps:
-      - uses: actions/checkout@v2
-
-      - name: Setup node
-        uses: actions/setup-node@v2
-        with:
-          node-version: 14
-
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          override: true
-          toolchain: nightly-2021-03-25
-          target: aarch64-apple-darwin
-
-      - name: Install dependencies
-        run: yarn install --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
-
-      - name: Cross build aarch64
-        run: yarn --cwd packages/next build-native --target aarch64-apple-darwin
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v2
-        with:
-          name: next-swc-binaries
-          path: packages/next/native
-
-      - name: Clear the cargo caches
-        run: |
-          cargo install cargo-cache --no-default-features --features ci-autoclean
-          cargo-cache
-
   commit:
-    needs: [build, build-apple-silicon]
+    needs: build-native
     runs-on: ubuntu-18.04
 
     steps:
       - uses: actions/checkout@v2
-        if: ${{ github.event_name  == 'workflow_dispatch' }}
       - uses: actions/download-artifact@v2
         with:
           name: next-swc-binaries
           path: packages/next/native
-        if: ${{ github.event_name  == 'workflow_dispatch' }}
       - uses: EndBug/add-and-commit@v7
         with:
           add: 'packages/next/native --force'
           message: 'Build next-swc binaries'
-        if: ${{ github.event_name  == 'workflow_dispatch' }}
-
-  check:
-    needs: [build, build-apple-silicon]
-    runs-on: ubuntu-18.04
-
-    steps:
-      - uses: actions/checkout@v2
-        if: ${{ github.event_name  == 'pull_request' }}
-      - uses: actions/download-artifact@v2
-        with:
-          name: next-swc-binaries
-          path: packages/next/native
-        if: ${{ github.event_name  == 'pull_request' }}
-      - run: git diff --exit-code
-        if: ${{ github.event_name  == 'pull_request' }}
-
-  test:
-    runs-on: ubuntu-18.04
-
-    steps:
-      - uses: actions/checkout@v2
-        if: ${{ github.event_name  == 'pull_request' }}
-      - name: Install
-        if: ${{ github.event_name  == 'pull_request' }}
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: nightly-2021-03-25
-          profile: minimal
-      - run: cd packages/next/build/swc && cargo test
-        if: ${{ github.event_name  == 'pull_request' }}

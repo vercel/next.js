@@ -157,8 +157,10 @@ export default async function exportPage({
       }
 
       // Check if the page is a specified dynamic route
-      const nonLocalizedPath = normalizeLocalePath(path, renderOpts.locales)
-        .pathname
+      const nonLocalizedPath = normalizeLocalePath(
+        path,
+        renderOpts.locales
+      ).pathname
 
       if (isDynamic && page !== nonLocalizedPath) {
         params = getRouteMatcher(getRouteRegex(page))(updatedPath) || undefined
@@ -186,13 +188,13 @@ export default async function exportPage({
         getHeaderNames: () => [],
       }
 
-      const req = ({
+      const req = {
         url: updatedPath,
         ...headerMocks,
-      } as unknown) as IncomingMessage
-      const res = ({
+      } as unknown as IncomingMessage
+      const res = {
         ...headerMocks,
-      } as unknown) as ServerResponse
+      } as unknown as ServerResponse
 
       if (path === '/500' && page === '/_error') {
         res.statusCode = 500

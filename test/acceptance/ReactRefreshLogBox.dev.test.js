@@ -691,7 +691,7 @@ test('unterminated JSX', async () => {
   const source = await session.getRedboxSource()
   expect(source).toMatchInlineSnapshot(`
     "./index.js:5:22
-    Syntax error: Unterminated JSX contents
+    Syntax error: Unterminated JSX contents.
 
       3 |         return (
       4 |           <div>
@@ -705,12 +705,14 @@ test('unterminated JSX', async () => {
   await cleanup()
 })
 
-test('Module not found', async () => {
-  const [session, cleanup] = await sandbox()
+// Module trace is only available with webpack 5
+if (!process.env.NEXT_PRIVATE_TEST_WEBPACK4_MODE) {
+  test('Module not found', async () => {
+    const [session, cleanup] = await sandbox()
 
-  await session.patch(
-    'index.js',
-    `import Comp from 'b'
+    await session.patch(
+      'index.js',
+      `import Comp from 'b'
       export default function Oops() {
         return (
           <div>
@@ -719,23 +721,28 @@ test('Module not found', async () => {
         )
       }
     `
-  )
+    )
 
-  expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox(true)).toBe(true)
 
-  const source = await session.getRedboxSource()
-  expect(source).toMatchInlineSnapshot(`
+    const source = await session.getRedboxSource()
+    expect(source).toMatchInlineSnapshot(`
     "./index.js:1:0
     Module not found: Can't resolve 'b'
     > 1 | import Comp from 'b'
       2 |       export default function Oops() {
       3 |         return (
-      4 |           <div>"
+      4 |           <div>
+    
+    Import trace for requested module:
+    ./pages/index.js
+
+    https://nextjs.org/docs/messages/module-not-found"
   `)
 
-  await cleanup()
-})
-
+    await cleanup()
+  })
+}
 test('conversion to class component (1)', async () => {
   const [session, cleanup] = await sandbox()
 
@@ -1123,6 +1130,16 @@ test('<Link> with multiple children', async () => {
   expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
     `"Error: Multiple children were passed to <Link> with \`href\` of \`/\` but only one child is supported https://nextjs.org/docs/messages/link-multiple-children"`
   )
+  expect(
+    await session.evaluate(
+      () =>
+        document
+          .querySelector('body > nextjs-portal')
+          .shadowRoot.querySelector(
+            '#nextjs__container_errors_desc a:nth-of-type(1)'
+          ).href
+    )
+  ).toMatch('https://nextjs.org/docs/messages/link-multiple-children')
 
   await cleanup()
 })
@@ -1533,7 +1550,7 @@ test('_app syntax error shows logbox', async () => {
       "./pages/_app.js:3:20
       Syntax error: Unexpected token
       
-        1 | 
+        1 |
         2 |           function MyApp({ Component, pageProps }) {
       > 3 |             return <<Component {...pageProps} />;
           |                     ^
@@ -1596,7 +1613,7 @@ test('_document syntax error shows logbox', async () => {
       Syntax error: Unexpected token
 
         2 |           import Document, { Html, Head, Main, NextScript } from 'next/document'
-        3 | 
+        3 |
       > 4 |           class MyDocument extends Document {{
           |                                              ^
         5 |             static async getInitialProps(ctx) {
@@ -1634,3 +1651,56 @@ test('_document syntax error shows logbox', async () => {
   expect(await session.hasRedbox()).toBe(false)
   await cleanup()
 })
+
+// Module trace is only available with webpack 5
+if (!process.env.NEXT_PRIVATE_TEST_WEBPACK4_MODE) {
+  test('Node.js builtins', async () => {
+    const [session, cleanup] = await sandbox(
+      undefined,
+      new Map([
+        [
+          'node_modules/my-package/index.js',
+          `
+          const dns = require('dns')
+          module.exports = dns
+        `,
+        ],
+        [
+          'node_modules/my-package/package.json',
+          `
+          {
+            "name": "my-package",
+            "version": "0.0.1"
+          }
+        `,
+        ],
+      ]),
+      undefined,
+      /ready - started server on/i
+    )
+
+    await session.patch(
+      'index.js',
+      `
+      import pkg from 'my-package'
+
+      export default function Hello() {
+        return (pkg ? <h1>Package loaded</h1> : <h1>Package did not load</h1>)
+      }
+    `
+    )
+    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+        "./node_modules/my-package/index.js:2:0
+        Module not found: Can't resolve 'dns'
+        
+        Import trace for requested module:
+        ./index.js
+        ./pages/index.js
+        
+        https://nextjs.org/docs/messages/module-not-found"
+  `)
+
+    await cleanup()
+  })
+}

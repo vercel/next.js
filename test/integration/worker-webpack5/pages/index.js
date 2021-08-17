@@ -3,9 +3,8 @@ import { Expensive } from '../lib/sharedCode'
 
 export default function Home() {
   const [expensiveWebStatus, setExpensiveWebStatus] = React.useState('WAIT')
-  const [expensiveWorkerStatus, setExpensiveWorkerComplete] = React.useState(
-    'WAIT'
-  )
+  const [expensiveWorkerStatus, setExpensiveWorkerComplete] =
+    React.useState('WAIT')
   const worker = React.useRef()
 
   React.useEffect(() => {
