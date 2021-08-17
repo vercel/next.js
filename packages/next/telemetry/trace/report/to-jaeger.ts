@@ -2,7 +2,6 @@ import retry from 'next/dist/compiled/async-retry'
 import { randomBytes } from 'crypto'
 import fetch from 'node-fetch'
 import * as Log from '../../../build/output/log'
-import util from 'util'
 // Jaeger uses Zipkin's reporting
 import { batcher } from './to-zipkin'
 
