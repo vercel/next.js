@@ -130,6 +130,7 @@ You will have noticed that running Cypress so far has opened an interactive brow
 You can learn more about Cypress and Continuous Integration from these resources:
 
 - [Cypress Continuous Integration Docs](https://docs.cypress.io/guides/continuous-integration/introduction)
+- [Cypress GitHub Actions Guide](https://on.cypress.io/github-actions)
 - [Official Cypress Github Action](https://github.com/cypress-io/github-action)
 
 ## Jest and React Testing Library
