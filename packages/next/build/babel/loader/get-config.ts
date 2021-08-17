@@ -8,7 +8,8 @@ import { NextBabelLoaderOptions, NextJsLoaderContext } from './types'
 import { consumeIterator } from './util'
 import * as Log from '../../output/log'
 
-const nextDistPath = /(next[\\/]dist[\\/]shared[\\/]lib)|(next[\\/]dist[\\/]client)|(next[\\/]dist[\\/]pages)/
+const nextDistPath =
+  /(next[\\/]dist[\\/]shared[\\/]lib)|(next[\\/]dist[\\/]client)|(next[\\/]dist[\\/]pages)/
 
 /**
  * The properties defined here are the conditions with which subsets of inputs
@@ -66,12 +67,8 @@ function getPlugins(
   loaderOptions: NextBabelLoaderOptions,
   cacheCharacteristics: CharacteristicsGermaneToCaching
 ) {
-  const {
-    isServer,
-    isPageFile,
-    isNextDist,
-    hasModuleExports,
-  } = cacheCharacteristics
+  const { isServer, isPageFile, isNextDist, hasModuleExports } =
+    cacheCharacteristics
 
   const { hasReactRefresh, development } = loaderOptions
 
@@ -174,13 +171,8 @@ function getFreshConfig(
   filename: string,
   inputSourceMap?: object | null
 ) {
-  let {
-    isServer,
-    pagesDir,
-    development,
-    hasJsxRuntime,
-    configFile,
-  } = loaderOptions
+  let { isServer, pagesDir, development, hasJsxRuntime, configFile } =
+    loaderOptions
 
   let customConfig: any = configFile
     ? getCustomBabelConfig(configFile)
@@ -282,13 +274,8 @@ function getFreshConfig(
  * file attributes and Next.js compiler states: `CharacteristicsGermaneToCaching`.
  */
 function getCacheKey(cacheCharacteristics: CharacteristicsGermaneToCaching) {
-  const {
-    isServer,
-    isPageFile,
-    isNextDist,
-    hasModuleExports,
-    fileExt,
-  } = cacheCharacteristics
+  const { isServer, isPageFile, isNextDist, hasModuleExports, fileExt } =
+    cacheCharacteristics
 
   const flags =
     0 |

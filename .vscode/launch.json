@@ -27,12 +27,12 @@
       "outFiles": ["${workspaceFolder}/packages/next/dist/**/*"]
     },
     {
-      "name": "Launch app build trace",
+      "name": "Launch app build trace jaeger",
       "type": "node",
       "request": "launch",
       "cwd": "${workspaceFolder}",
       "runtimeExecutable": "yarn",
-      "runtimeArgs": ["run", "trace-debug", "build", "test/integration/basic"],
+      "runtimeArgs": ["run", "clean-trace-jaeger"],
       "skipFiles": ["<node_internals>/**"],
       "port": 9229,
       "outFiles": ["${workspaceFolder}/packages/next/dist/**/*"]

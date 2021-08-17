@@ -78,6 +78,8 @@ jobs:
             ./packages/next/native/next-swc.linux-x64-gnu.node
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
       - run: ./scripts/check-pre-compiled.sh
+        env:
+          NODE_OPTIONS: '--max_old_space_size=4096'
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
   testUnit:
@@ -352,7 +354,15 @@ jobs:
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         with:
           path: packages/next/native/next-swc.*.node
-          key: next-swc-nightly-2021-03-25-${{ matrix.target }}-${{ hashFiles('packages/next/build/swc/**') }}
+          key: next-swc-nightly-2021-03-25-${{ matrix.target }}-${{ hashFiles('.github/workflows/build_test_deploy.yml', 'packages/next/build/swc/**') }}
+      - name: Cross build aarch64 setup
+        if: ${{ matrix.target == 'aarch64-apple-darwin' && steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
+        run: |
+          sudo rm -Rf /Library/Developer/CommandLineTools/SDKs/*;
+          export CC=$(xcrun -f clang);
+          export CXX=$(xcrun -f clang++);
+          SYSROOT=$(xcrun --sdk macosx --show-sdk-path);
+          export CFLAGS="-isysroot $SYSROOT -isystem $SYSROOT";
       - name: 'Build'
         if: ${{ steps.binary-cache.outputs.cache-hit != 'true' && steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         run: yarn build-native --target ${{ matrix.target }}
