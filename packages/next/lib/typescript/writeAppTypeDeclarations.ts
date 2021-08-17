@@ -9,19 +9,24 @@ export async function writeAppTypeDeclarations(
   // Reference `next` types
   const appTypeDeclarations = path.join(baseDir, 'next-env.d.ts')
 
-  await fs.writeFile(
-    appTypeDeclarations,
+  const content =
     '/// <reference types="next" />' +
-      os.EOL +
-      '/// <reference types="next/types/global" />' +
-      os.EOL +
-      (imageImportsEnabled
-        ? '/// <reference types="next/image-types/global" />' + os.EOL
-        : '') +
-      os.EOL +
-      '// NOTE: This file should not be edited' +
-      os.EOL +
-      '// see https://nextjs.org/docs/basic-features/typescript for more information.' +
-      os.EOL
-  )
+    os.EOL +
+    '/// <reference types="next/types/global" />' +
+    os.EOL +
+    (imageImportsEnabled
+      ? '/// <reference types="next/image-types/global" />' + os.EOL
+      : '') +
+    os.EOL +
+    '// NOTE: This file should not be edited' +
+    os.EOL +
+    '// see https://nextjs.org/docs/basic-features/typescript for more information.' +
+    os.EOL
+
+  // Avoids a write for read-only filesystems
+  if ((await fs.readFile(appTypeDeclarations, 'utf8')) === content) {
+    return
+  }
+
+  await fs.writeFile(appTypeDeclarations, content)
 }
