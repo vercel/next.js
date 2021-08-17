@@ -117,10 +117,16 @@ export function sendRenderResult({
   } else if (isPayload) {
     res.end(resultOrPayload as string)
   } else {
-    ;(resultOrPayload as RenderResult)({
-      next: (chunk) => res.write(chunk),
-      error: (_) => res.end(),
-      complete: () => res.end(),
+    ;(resultOrPayload as RenderResult).subscribe({
+      next(chunk) {
+        res.write(chunk)
+      },
+      error() {
+        res.end()
+      },
+      complete() {
+        res.end()
+      },
     })
   }
 }
