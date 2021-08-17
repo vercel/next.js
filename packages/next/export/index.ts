@@ -654,9 +654,13 @@ export default async function exportApp(
 
           await promises.mkdir(dirname(htmlDest), { recursive: true })
           await promises.mkdir(dirname(jsonDest), { recursive: true })
+          // We have this dynamic routeName variable because '/' path returns as '/index'
+          const routeName = route === '/index' ? '/' : route;
+          // If the page is returning notFound: true, then we don't generate that page statically.
+          if (!prerenderManifest?.notFoundRoutes.includes(routeName)) {
           await promises.copyFile(`${orig}.html`, htmlDest)
           await promises.copyFile(`${orig}.json`, jsonDest)
-
+          }
           if (await exists(`${orig}.amp.html`)) {
             await promises.mkdir(dirname(ampHtmlDest), { recursive: true })
             await promises.copyFile(`${orig}.amp.html`, ampHtmlDest)
