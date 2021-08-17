@@ -19,7 +19,8 @@ jest.setTimeout(1000 * 60 * 2)
 const appDir = join(__dirname, '../')
 const pages404 = join(appDir, 'pages/404.js')
 const nextConfig = join(appDir, 'next.config.js')
-const gip404Err = /`pages\/404` can not have getInitialProps\/getServerSideProps/
+const gip404Err =
+  /`pages\/404` can not have getInitialProps\/getServerSideProps/
 
 let nextConfigContent
 let appPort

@@ -54,10 +54,8 @@ export default class NextJsSsrImportPlugin {
 
                 // Make sure even in windows, the path looks like in unix
                 // Node.js require system will convert it accordingly
-                const relativePathToBaseDirNormalized = relativePathToBaseDir.replace(
-                  /\\/g,
-                  '/'
-                )
+                const relativePathToBaseDirNormalized =
+                  relativePathToBaseDir.replace(/\\/g, '/')
                 return (webpack as any).Template.asString([
                   source,
                   '// The module cache',

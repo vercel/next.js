@@ -17,6 +17,5 @@
   },
   "devDependencies": {
     "serve": "^11.3.2"
-  },
-  "license": "MIT"
+  }
 }

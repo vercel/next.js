@@ -20,6 +20,5 @@
   },
   "devDependencies": {
     "@expo/next-adapter": "2.1.5"
-  },
-  "license": "MIT"
+  }
 }

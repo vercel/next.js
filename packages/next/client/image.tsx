@@ -110,8 +110,7 @@ const {
   loader: configLoader,
   path: configPath,
   domains: configDomains,
-} =
-  ((process.env.__NEXT_IMAGE_OPTS as any) as ImageConfig) || imageConfigDefault
+} = (process.env.__NEXT_IMAGE_OPTS as any as ImageConfig) || imageConfigDefault
 // sort smallest to largest
 const allSizes = [...configDeviceSizes, ...configImageSizes]
 configDeviceSizes.sort((a, b) => a - b)
@@ -343,7 +342,7 @@ export default function Image({
 
   let isLazy =
     !priority && (loading === 'lazy' || typeof loading === 'undefined')
-  if (src.startsWith('data:')) {
+  if (src.startsWith('data:') || src.startsWith('blob:')) {
     // https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
     unoptimized = true
     isLazy = false
@@ -546,8 +545,7 @@ export default function Image({
   }
 
   let imgAttributes: GenImgAttrsResult = {
-    src:
-      'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
+    src: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
     srcSet: undefined,
     sizes: undefined,
   }

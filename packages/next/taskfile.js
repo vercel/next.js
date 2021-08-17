@@ -1,6 +1,9 @@
+const fs = require('fs')
 // eslint-disable-next-line import/no-extraneous-dependencies
 const notifier = require('node-notifier')
-const { relative, basename, resolve } = require('path')
+// eslint-disable-next-line import/no-extraneous-dependencies
+const { nodeFileTrace } = require('@vercel/nft')
+const { join, relative, basename, resolve } = require('path')
 const { Module } = require('module')
 
 // Note:
@@ -325,6 +328,14 @@ export async function ncc_fresh(task, opts) {
     .target('compiled/fresh')
 }
 // eslint-disable-next-line camelcase
+externals['glob'] = 'next/dist/compiled/glob'
+export async function ncc_glob(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('glob')))
+    .ncc({ packageName: 'glob', externals })
+    .target('compiled/glob')
+}
+// eslint-disable-next-line camelcase
 externals['gzip-size'] = 'next/dist/compiled/gzip-size'
 export async function ncc_gzip_size(task, opts) {
   await task
@@ -590,6 +601,14 @@ export async function ncc_strip_ansi(task, opts) {
     .target('compiled/strip-ansi')
 }
 // eslint-disable-next-line camelcase
+externals['@vercel/nft'] = 'next/dist/compiled/@vercel/nft'
+export async function ncc_nft(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('@vercel/nft')))
+    .ncc({ packageName: '@vercel/nft', externals })
+    .target('compiled/@vercel/nft')
+}
+// eslint-disable-next-line camelcase
 externals['terser'] = 'next/dist/compiled/terser'
 export async function ncc_terser(task, opts) {
   await task
@@ -736,6 +755,45 @@ export async function precompile(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
+export async function trace_next_server(task) {
+  const { TRACE_OUTPUT_VERSION } = require('next/dist/shared/lib/constants')
+  const root = join(__dirname, '../../')
+
+  const result = await nodeFileTrace(
+    [require.resolve('next/dist/server/next-server')],
+    {
+      base: root,
+      processCwd: __dirname,
+      ignore: [
+        'packages/next/dist/compiled/webpack/(bundle4|bundle5).js',
+        'node_modules/react/**/*.development.js',
+        'node_modules/react-dom/**/*.development.js',
+        'node_modules/use-subscription/**/*.development.js',
+        'node_modules/next/dist/next-server/server/lib/squoosh/**/*.wasm',
+        'packages/next/dist/pages/**/*',
+      ],
+    }
+  )
+
+  const tracedDeps = []
+
+  for (const file of result.fileList) {
+    if (result.reasons[file].type === 'initial') {
+      continue
+    }
+    tracedDeps.push(join(root, file))
+  }
+
+  fs.writeFileSync(
+    join(__dirname, 'dist/server/next-server.nft.json'),
+    JSON.stringify({
+      version: TRACE_OUTPUT_VERSION,
+      files: tracedDeps,
+    })
+  )
+}
+
+// eslint-disable-next-line camelcase
 export async function copy_ncced(task) {
   // we don't ncc every time we build since these won't change
   // that often and can be committed to the repo saving build time
@@ -771,6 +829,7 @@ export async function ncc(task, opts) {
         'ncc_find_cache_dir',
         'ncc_find_up',
         'ncc_fresh',
+        'ncc_glob',
         'ncc_gzip_size',
         'ncc_http_proxy',
         'ncc_ignore_loader',
@@ -799,6 +858,7 @@ export async function ncc(task, opts) {
         'ncc_source_map',
         'ncc_string_hash',
         'ncc_strip_ansi',
+        'ncc_nft',
         'ncc_terser',
         'ncc_text_table',
         'ncc_unistore',
@@ -929,7 +989,7 @@ export async function telemetry(task, opts) {
 }
 
 export async function build(task, opts) {
-  await task.serial(['precompile', 'compile'], opts)
+  await task.serial(['precompile', 'compile', 'trace_next_server'], opts)
 }
 
 export default async function (task) {
