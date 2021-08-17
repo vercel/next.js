@@ -5,7 +5,7 @@ import img from '../public/test.jpg'
 const Page = () => {
   return (
     <div style={{ display: 'flex' }}>
-      <Image layout="responsive" src={img} />
+      <Image id="img" layout="responsive" src={img} />
     </div>
   )
 }

@@ -5,7 +5,7 @@ import img from '../public/test.jpg'
 const Page = () => {
   return (
     <div style={{ position: 'static' }}>
-      <Image layout="fill" src={img} />
+      <Image id="img" layout="fill" src={img} />
     </div>
   )
 }

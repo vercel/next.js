@@ -584,7 +584,7 @@ function runTests(mode) {
 
     it('should warn when img with layout=responsive is inside flex container', async () => {
       const browser = await webdriver(appPort, '/layout-responsive-inside-flex')
-
+      await browser.eval(`document.getElementById("img").scrollIntoView()`)
       const warnings = (await browser.log('browser'))
         .map((log) => log.message)
         .join('\n')
@@ -599,13 +599,13 @@ function runTests(mode) {
         appPort,
         '/layout-fill-inside-nonrelative'
       )
-
+      await browser.eval(`document.getElementById("img").scrollIntoView()`)
       const warnings = (await browser.log('browser'))
         .map((log) => log.message)
         .join('\n')
       expect(await hasRedbox(browser)).toBe(false)
       expect(warnings).toMatch(
-        /Image with src (.*)jpg(.*) may not render properly with a parent using position:\"static\". Consider changing the parent style to position:\"relative\"/gm
+        /Image with src (.*)jpg(.*) may not render properly with a parent using position:\\"static\\". Consider changing the parent style to position:\\"relative\\"/gm
       )
     })
 
