@@ -163,17 +163,13 @@ async function init(input) {
   }
   const imports = {}
   imports.wbg = {}
-  imports.wbg.__wbg_newwithownedu8clampedarrayandsh_787b2db8ea6bfd62 = function (
-    arg0,
-    arg1,
-    arg2,
-    arg3
-  ) {
-    var v0 = getClampedArrayU8FromWasm0(arg0, arg1).slice()
-    wasm.__wbindgen_free(arg0, arg1 * 1)
-    var ret = new ImageData(v0, arg2 >>> 0, arg3 >>> 0)
-    return addHeapObject(ret)
-  }
+  imports.wbg.__wbg_newwithownedu8clampedarrayandsh_787b2db8ea6bfd62 =
+    function (arg0, arg1, arg2, arg3) {
+      var v0 = getClampedArrayU8FromWasm0(arg0, arg1).slice()
+      wasm.__wbindgen_free(arg0, arg1 * 1)
+      var ret = new ImageData(v0, arg2 >>> 0, arg3 >>> 0)
+      return addHeapObject(ret)
+    }
   imports.wbg.__wbindgen_throw = function (arg0, arg1) {
     throw new Error(getStringFromWasm0(arg0, arg1))
   }

@@ -1029,10 +1029,9 @@ export async function renderToHTML(
         }
       }
 
-      const {
-        abort,
-        startWriting,
-      } = (ReactDOMServer as any).pipeToNodeWritable(element, stream, {
+      const { abort, startWriting } = (
+        ReactDOMServer as any
+      ).pipeToNodeWritable(element, stream, {
         onError(error: Error) {
           if (!resolved) {
             resolved = true
@@ -1077,10 +1076,8 @@ export async function renderToHTML(
       )
     }
 
-    const {
-      App: EnhancedApp,
-      Component: EnhancedComponent,
-    } = enhanceComponents(options, App, Component)
+    const { App: EnhancedApp, Component: EnhancedComponent } =
+      enhanceComponents(options, App, Component)
 
     const htmlOrPromise = renderToString(
       <AppContainer>
