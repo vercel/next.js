@@ -76,11 +76,7 @@ import { sendRenderResult, setRevalidateHeaders } from './send-payload'
 import { serveStatic } from './serve-static'
 import { IncrementalCache } from './incremental-cache'
 import { execOnce } from '../shared/lib/utils'
-import {
-  isBlockedPage,
-  RenderResult,
-  resultsToString,
-} from './utils'
+import { isBlockedPage, RenderResult, resultsToString } from './utils'
 import { loadEnvConfig } from '@next/env'
 import './node-polyfill-fetch'
 import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'

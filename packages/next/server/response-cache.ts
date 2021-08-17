@@ -1,5 +1,6 @@
+import Observable from 'zen-observable'
 import { IncrementalCache } from './incremental-cache'
-import { RenderResult, resultFromChunks, resultToChunks } from './utils'
+import { RenderResult, resultsToString } from './utils'
 
 interface CachedRedirectValue {
   kind: 'REDIRECT'
@@ -78,7 +79,7 @@ export default class ResponseCache {
               cachedResponse.value?.kind === 'PAGE'
                 ? {
                     kind: 'PAGE',
-                    html: resultFromChunks([cachedResponse.value.html]),
+                    html: Observable.of(cachedResponse.value.html),
                     pageData: cachedResponse.value.pageData,
                   }
                 : cachedResponse.value,
@@ -99,7 +100,7 @@ export default class ResponseCache {
             cacheEntry.value?.kind === 'PAGE'
               ? {
                   kind: 'PAGE',
-                  html: (await resultToChunks(cacheEntry.value.html)).join(''),
+                  html: await resultsToString([cacheEntry.value.html]),
                   pageData: cacheEntry.value.pageData,
                 }
               : cacheEntry.value,
