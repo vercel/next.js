@@ -1,4 +1,4 @@
-import Observable from 'zen-observable'
+import Observable from 'next/dist/compiled/zen-observable'
 import { IncrementalCache } from './incremental-cache'
 import { RenderResult, resultsToString } from './utils'
 
