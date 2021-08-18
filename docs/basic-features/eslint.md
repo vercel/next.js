@@ -121,7 +121,7 @@ If you're using `eslint-plugin-next` in a project where Next.js isn't installed 
 
 `rootDir` can be a path (relative or absolute), a glob (i.e. `"/packages/*/"`), or an array of paths and/or globs.
 
-## Linting Custom Directories
+## Linting Custom Directories and Files
 
 By default, Next.js will run ESLint for all files in the `pages/`, `components/`, and `lib/` directories. However, you can specify which directories using the `dirs` option in the `eslint` config in `next.config.js` for production builds:
 
@@ -133,10 +133,10 @@ module.exports = {
 }
 ```
 
-Similarly, the `--dir` flag can be used for `next lint`:
+Similarly, the `--dir` and `--file` flags can be used for `next lint` to lint specific directories and files:
 
 ```bash
-next lint --dir pages --dir utils
+next lint --dir pages --dir utils --file bar.js
 ```
 
 ## Caching
