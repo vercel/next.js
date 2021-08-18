@@ -152,6 +152,10 @@
           "path": "/errors/invalid-assetprefix.md"
         },
         {
+          "title": "invalid-dynamic-suspense",
+          "path": "/errors/invalid-dynamic-suspense.md"
+        },
+        {
           "title": "invalid-external-rewrite",
           "path": "/errors/invalid-external-rewrite.md"
         },

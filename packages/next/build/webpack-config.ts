@@ -421,6 +421,28 @@ export default async function getBaseWebpackConfig(
     resolvedBaseUrl = path.resolve(dir, jsConfig.compilerOptions.baseUrl)
   }
 
+  let customAppFile: string | null = await findPageFile(
+    pagesDir,
+    '/_app',
+    config.pageExtensions
+  )
+  let customAppFileExt = customAppFile ? path.extname(customAppFile) : null
+  if (customAppFile) {
+    customAppFile = path.resolve(path.join(pagesDir, customAppFile))
+  }
+
+  let customDocumentFile: string | null = await findPageFile(
+    pagesDir,
+    '/_document',
+    config.pageExtensions
+  )
+  let customDocumentFileExt = customDocumentFile
+    ? path.extname(customDocumentFile)
+    : null
+  if (customDocumentFile) {
+    customDocumentFile = path.resolve(path.join(pagesDir, customDocumentFile))
+  }
+
   function getReactProfilingInProduction() {
     if (reactProductionProfiling) {
       return {
@@ -462,6 +484,27 @@ export default async function getBaseWebpackConfig(
     ],
     alias: {
       next: NEXT_PROJECT_ROOT,
+
+      // fallback to default _app when custom is removed
+      ...(dev && customAppFileExt && isWebpack5
+        ? {
+            [`${PAGES_DIR_ALIAS}/_app${customAppFileExt}`]: [
+              path.join(pagesDir, `_app${customAppFileExt}`),
+              'next/dist/pages/_app.js',
+            ],
+          }
+        : {}),
+
+      // fallback to default _document when custom is removed
+      ...(dev && customDocumentFileExt && isWebpack5
+        ? {
+            [`${PAGES_DIR_ALIAS}/_document${customDocumentFileExt}`]: [
+              path.join(pagesDir, `_document${customDocumentFileExt}`),
+              'next/dist/pages/_document.js',
+            ],
+          }
+        : {}),
+
       [PAGES_DIR_ALIAS]: pagesDir,
       [DOT_NEXT_ALIAS]: distDir,
       ...getOptimizedAliases(isServer),
@@ -654,15 +697,6 @@ export default async function getBaseWebpackConfig(
   }
 
   const crossOrigin = config.crossOrigin
-
-  let customAppFile: string | null = await findPageFile(
-    pagesDir,
-    '/_app',
-    config.pageExtensions
-  )
-  if (customAppFile) {
-    customAppFile = path.resolve(path.join(pagesDir, customAppFile))
-  }
 
   const conformanceConfig = Object.assign(
     {
@@ -868,6 +902,7 @@ export default async function getBaseWebpackConfig(
   const emacsLockfilePattern = '**/.#*'
 
   let webpackConfig: webpack.Configuration = {
+    parallelism: Number(process.env.NEXT_WEBPACK_PARALLELISM) || undefined,
     externals: !isServer
       ? // make sure importing "next" is handled gracefully for client
         // bundles in case a user imported types and it wasn't removed
