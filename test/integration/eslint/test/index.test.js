@@ -509,10 +509,10 @@ describe('ESLint', () => {
       expect(fs.existsSync(cacheFile)).toBe(true)
     })
 
-    test('file flag selectively lints files', async () => {
+    test('file flag can selectively lint only a single file', async () => {
       const { stdout, stderr } = await nextLint(
         dirFileLinting,
-        ['--file', 'utils/bar.js'],
+        ['--file', 'utils/math.js'],
         {
           stdout: true,
           stderr: true,
@@ -520,9 +520,39 @@ describe('ESLint', () => {
       )
 
       const output = stdout + stderr
+
+      expect(output).toContain('utils/math.js')
       expect(output).toContain(
-        'Error: Comments inside children section of tag should be placed inside braces'
+        'Comments inside children section of tag should be placed inside braces'
       )
+
+      expect(output).not.toContain('pages/')
+      expect(output).not.toContain('External synchronous scripts are forbidden')
+    })
+
+    test('file flag can selectively lints multiple files', async () => {
+      const { stdout, stderr } = await nextLint(
+        dirFileLinting,
+        ['--file', 'utils/math.js', '--file', 'pages/bar.js'],
+        {
+          stdout: true,
+          stderr: true,
+        }
+      )
+
+      const output = stdout + stderr
+
+      expect(output).toContain('utils/math.js')
+      expect(output).toContain(
+        'Comments inside children section of tag should be placed inside braces'
+      )
+
+      expect(output).toContain('pages/bar.js')
+      expect(output).toContain(
+        "Do not use <img>. Use Image from 'next/image' instead"
+      )
+
+      expect(output).not.toContain('pages/index.js')
       expect(output).not.toContain('External synchronous scripts are forbidden')
     })
   })
