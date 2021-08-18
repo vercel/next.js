@@ -478,7 +478,7 @@ export default async function getBaseWebpackConfig(
       next: NEXT_PROJECT_ROOT,
 
       // fallback to default _app when custom is removed
-      ...(dev && customAppFileExt
+      ...(dev && customAppFileExt && isWebpack5
         ? {
             [`${PAGES_DIR_ALIAS}/_app${customAppFileExt}`]: [
               path.join(pagesDir, `_app${customAppFileExt}`),
@@ -488,7 +488,7 @@ export default async function getBaseWebpackConfig(
         : {}),
 
       // fallback to default _document when custom is removed
-      ...(dev && customDocumentFileExt
+      ...(dev && customDocumentFileExt && isWebpack5
         ? {
             [`${PAGES_DIR_ALIAS}/_document${customDocumentFileExt}`]: [
               path.join(pagesDir, `_document${customDocumentFileExt}`),
