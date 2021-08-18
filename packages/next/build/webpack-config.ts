@@ -894,6 +894,7 @@ export default async function getBaseWebpackConfig(
   const emacsLockfilePattern = '**/.#*'
 
   let webpackConfig: webpack.Configuration = {
+    parallelism: Number(process.env.NEXT_WEBPACK_PARALLELISM) || undefined,
     externals: !isServer
       ? // make sure importing "next" is handled gracefully for client
         // bundles in case a user imported types and it wasn't removed
