@@ -73,7 +73,7 @@ import { generateBuildId } from './generate-build-id'
 import { isWriteable } from './is-writeable'
 import * as Log from './output/log'
 import createSpinner from './spinner'
-import { trace, setGlobal } from '../telemetry/trace'
+import { trace, flushAllTraces, setGlobal } from '../telemetry/trace'
 import {
   collectPages,
   detectConflictingPaths,
@@ -121,7 +121,7 @@ export default async function build(
 ): Promise<void> {
   const nextBuildSpan = trace('next-build')
 
-  return nextBuildSpan.traceAsyncFn(async () => {
+  const buildResult = await nextBuildSpan.traceAsyncFn(async () => {
     // attempt to load global env values so they are available in next.config.js
     const { loadedEnvFiles } = nextBuildSpan
       .traceChild('load-dotenv')
@@ -270,9 +270,8 @@ export default async function build(
       )
     const pageKeys = Object.keys(mappedPages)
     const conflictingPublicFiles: string[] = []
-    const hasCustomErrorPage: boolean = mappedPages['/_error'].startsWith(
-      'private-next-pages'
-    )
+    const hasCustomErrorPage: boolean =
+      mappedPages['/_error'].startsWith('private-next-pages')
     const hasPages404 = Boolean(
       mappedPages['/404'] &&
         mappedPages['/404'].startsWith('private-next-pages')
@@ -523,7 +522,8 @@ export default async function build(
         ignore: [] as string[],
       }))
 
-    const configs = await nextBuildSpan
+    const runWebpackSpan = nextBuildSpan.traceChild('run-webpack-compiler')
+    const configs = await runWebpackSpan
       .traceChild('generate-webpack-config')
       .traceAsyncFn(() =>
         Promise.all([
@@ -536,6 +536,7 @@ export default async function build(
             pagesDir,
             entrypoints: entrypoints.client,
             rewrites,
+            runWebpackSpan,
           }),
           getBaseWebpackConfig(dir, {
             buildId,
@@ -546,6 +547,7 @@ export default async function build(
             pagesDir,
             entrypoints: entrypoints.server,
             rewrites,
+            runWebpackSpan,
           }),
         ])
       )
@@ -567,24 +569,22 @@ export default async function build(
 
     let result: CompilerResult = { warnings: [], errors: [] }
     // We run client and server compilation separately to optimize for memory usage
-    await nextBuildSpan
-      .traceChild('run-webpack-compiler')
-      .traceAsyncFn(async () => {
-        const clientResult = await runCompiler(clientConfig)
-        // Fail build if clientResult contains errors
-        if (clientResult.errors.length > 0) {
-          result = {
-            warnings: [...clientResult.warnings],
-            errors: [...clientResult.errors],
-          }
-        } else {
-          const serverResult = await runCompiler(configs[1])
-          result = {
-            warnings: [...clientResult.warnings, ...serverResult.warnings],
-            errors: [...clientResult.errors, ...serverResult.errors],
-          }
+    await runWebpackSpan.traceAsyncFn(async () => {
+      const clientResult = await runCompiler(clientConfig)
+      // Fail build if clientResult contains errors
+      if (clientResult.errors.length > 0) {
+        result = {
+          warnings: [...clientResult.warnings],
+          errors: [...clientResult.errors],
         }
-      })
+      } else {
+        const serverResult = await runCompiler(configs[1])
+        result = {
+          warnings: [...clientResult.warnings, ...serverResult.warnings],
+          errors: [...clientResult.errors, ...serverResult.errors],
+        }
+      }
+    })
 
     const webpackBuildEnd = process.hrtime(webpackBuildStart)
     if (buildSpinner) {
@@ -746,17 +746,18 @@ export default async function build(
       const nonStaticErrorPageSpan = staticCheckSpan.traceChild(
         'check-static-error-page'
       )
-      const errorPageHasCustomGetInitialProps = nonStaticErrorPageSpan.traceAsyncFn(
-        async () =>
-          hasCustomErrorPage &&
-          (await staticWorkers.hasCustomGetInitialProps(
-            '/_error',
-            distDir,
-            isLikeServerless,
-            runtimeEnvConfig,
-            false
-          ))
-      )
+      const errorPageHasCustomGetInitialProps =
+        nonStaticErrorPageSpan.traceAsyncFn(
+          async () =>
+            hasCustomErrorPage &&
+            (await staticWorkers.hasCustomGetInitialProps(
+              '/_error',
+              distDir,
+              isLikeServerless,
+              runtimeEnvConfig,
+              false
+            ))
+        )
 
       const errorPageStaticResult = nonStaticErrorPageSpan.traceAsyncFn(
         async () =>
@@ -776,13 +777,14 @@ export default async function build(
       // from _error instead
       const appPageToCheck = isLikeServerless ? '/_error' : '/_app'
 
-      const customAppGetInitialPropsPromise = staticWorkers.hasCustomGetInitialProps(
-        appPageToCheck,
-        distDir,
-        isLikeServerless,
-        runtimeEnvConfig,
-        true
-      )
+      const customAppGetInitialPropsPromise =
+        staticWorkers.hasCustomGetInitialProps(
+          appPageToCheck,
+          distDir,
+          isLikeServerless,
+          runtimeEnvConfig,
+          true
+        )
 
       const namedExportsPromise = staticWorkers.getNamedExports(
         appPageToCheck,
@@ -827,9 +829,8 @@ export default async function build(
 
             if (nonReservedPage) {
               try {
-                let isPageStaticSpan = checkPageSpan.traceChild(
-                  'is-page-static'
-                )
+                let isPageStaticSpan =
+                  checkPageSpan.traceChild('is-page-static')
                 let workerResult = await isPageStaticSpan.traceAsyncFn(() => {
                   return staticWorkers.isPageStatic(
                     page,
@@ -971,7 +972,8 @@ export default async function build(
     }
 
     if (config.experimental.nftTracing) {
-      const globOrig = require('next/dist/compiled/glob') as typeof import('next/dist/compiled/glob')
+      const globOrig =
+        require('next/dist/compiled/glob') as typeof import('next/dist/compiled/glob')
       const glob = (pattern: string): Promise<string[]> => {
         return new Promise((resolve, reject) => {
           globOrig(pattern, { cwd: dir }, (err, files) => {
@@ -1151,8 +1153,8 @@ export default async function build(
           ssgPages,
           additionalSsgPaths
         )
-        const exportApp: typeof import('../export').default = require('../export')
-          .default
+        const exportApp: typeof import('../export').default =
+          require('../export').default
         const exportOptions = {
           silent: false,
           buildExport: true,
@@ -1717,6 +1719,11 @@ export default async function build(
       .traceChild('telemetry-flush')
       .traceAsyncFn(() => telemetry.flush())
   })
+
+  // Ensure all traces are flushed before finishing the command
+  await flushAllTraces()
+
+  return buildResult
 }
 
 export type ClientSsgManifest = Set<string>

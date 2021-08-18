@@ -4,10 +4,8 @@ const getPort = require('get-port')
 const seleniumServer = require('selenium-standalone')
 const NodeEnvironment = require('jest-environment-node')
 
-const {
-  BROWSER_NAME: browserName = 'chrome',
-  SKIP_LOCAL_SELENIUM_SERVER,
-} = process.env
+const { BROWSER_NAME: browserName = 'chrome', SKIP_LOCAL_SELENIUM_SERVER } =
+  process.env
 
 const newTabPg = `
 <!DOCTYPE html>

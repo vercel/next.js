@@ -4,14 +4,17 @@ import reportToZipkin from './to-zipkin'
 import reportToJaeger from './to-jaeger'
 import reportToTelemetry from './to-telemetry'
 
-type Reporter = (
-  spanName: string,
-  duration: number,
-  timestamp: number,
-  id: SpanId,
-  parentId?: SpanId,
-  attrs?: Object
-) => void
+type Reporter = {
+  flushAll: () => Promise<void> | void
+  report: (
+    spanName: string,
+    duration: number,
+    timestamp: number,
+    id: SpanId,
+    parentId?: SpanId,
+    attrs?: Object
+  ) => void
+}
 
 const target =
   process.env.TRACE_TARGET && process.env.TRACE_TARGET in TARGET
@@ -24,13 +27,14 @@ if (process.env.TRACE_TARGET && !target) {
   )
 }
 
-export let report: Reporter
+export let reporter: Reporter
+
 if (target === TARGET.CONSOLE) {
-  report = reportToConsole
+  reporter = reportToConsole
 } else if (target === TARGET.ZIPKIN) {
-  report = reportToZipkin
+  reporter = reportToZipkin
 } else if (target === TARGET.JAEGER) {
-  report = reportToJaeger
+  reporter = reportToJaeger
 } else {
-  report = reportToTelemetry
+  reporter = reportToTelemetry
 }
