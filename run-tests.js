@@ -216,6 +216,7 @@ async function main() {
                   // reliable polling method.
                   CHOKIDAR_USEPOLLING: 'true',
                   CHOKIDAR_INTERVAL: 500,
+                  WATCHPACK_POLLING: 'true',
                 }
               : {}),
           },
