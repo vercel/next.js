@@ -570,7 +570,7 @@ export default async function build(
     let result: CompilerResult = { warnings: [], errors: [] }
     // We run client and server compilation separately to optimize for memory usage
     await runWebpackSpan.traceAsyncFn(async () => {
-      const clientResult = await runCompiler(clientConfig)
+      const clientResult = await runCompiler(clientConfig, { runWebpackSpan })
       // Fail build if clientResult contains errors
       if (clientResult.errors.length > 0) {
         result = {
@@ -578,7 +578,7 @@ export default async function build(
           errors: [...clientResult.errors],
         }
       } else {
-        const serverResult = await runCompiler(configs[1])
+        const serverResult = await runCompiler(configs[1], { runWebpackSpan })
         result = {
           warnings: [...clientResult.warnings, ...serverResult.warnings],
           errors: [...clientResult.errors, ...serverResult.errors],
