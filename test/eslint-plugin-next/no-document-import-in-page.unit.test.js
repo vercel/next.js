@@ -31,9 +31,9 @@ ruleTester.run('no-document-import-in-page', rule, {
       filename: 'pages/_document.js',
     },
     {
-      code: `import Document from "next/document"
+      code: `import NextDocument from "next/document"
 
-    export default class MyDocument extends Document {
+    export default class MyDocument extends NextDocument {
       render() {
         return (
           <Html>
@@ -57,6 +57,41 @@ ruleTester.run('no-document-import-in-page', rule, {
     }
     `,
       filename: 'pages/_document.page.tsx',
+    },
+    {
+      code: `import NDocument from "next/document"
+
+    export default class Document extends NDocument {
+      render() {
+        return (
+          <Html>
+          </Html>
+        );
+      }
+    }
+    `,
+      filename: 'pages/_document/index.js',
+    },
+    {
+      code: `import NDocument from "next/document"
+
+    export default class Document extends NDocument {
+      render() {
+        return (
+          <Html>
+          </Html>
+        );
+      }
+    }
+    `,
+      filename: 'pages/_document/index.tsx',
+    },
+    {
+      code: `import Document from "next/document"
+
+      export const Test = () => <p>Test</p>
+      `,
+      filename: 'components/test.js',
     },
   ],
   invalid: [

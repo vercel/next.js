@@ -1,8 +1,9 @@
 import chalk from 'chalk'
 import findUp from 'next/dist/compiled/find-up'
 import { basename, extname } from 'path'
+import { Agent as HttpAgent } from 'http'
+import { Agent as HttpsAgent } from 'https'
 import * as Log from '../build/output/log'
-import { hasNextSupport } from '../telemetry/ci-info'
 import { CONFIG_FILE, PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import { execOnce } from '../shared/lib/utils'
 import {
@@ -13,6 +14,7 @@ import {
 import { loadWebpackHook } from './config-utils'
 import { ImageConfig, imageConfigDefault, VALID_LOADERS } from './image-config'
 import { loadEnvConfig } from '@next/env'
+import { hasNextSupport } from '../telemetry/ci-info'
 
 export { DomainLocale, NextConfig, normalizeConfig } from './config-shared'
 
@@ -304,6 +306,12 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     }
   }
 
+  // TODO: Change defaultConfig type to NextConfigComplete
+  // so we don't need "!" here.
+  setHttpAgentOptions(
+    result.httpAgentOptions || defaultConfig.httpAgentOptions!
+  )
+
   if (result.i18n) {
     const { i18n } = result
     const i18nType = typeof i18n
@@ -459,7 +467,17 @@ export default async function loadConfig(
 
   // If config file was found
   if (path?.length) {
-    const userConfigModule = require(path)
+    let userConfigModule: any
+
+    try {
+      userConfigModule = require(path)
+    } catch (err) {
+      console.error(
+        chalk.red('Error:') +
+          ' failed to load next.config.js, see more info here https://nextjs.org/docs/messages/next-config-error'
+      )
+      throw err
+    }
     const userConfig = normalizeConfig(
       phase,
       userConfigModule.default || userConfigModule
@@ -488,7 +506,7 @@ export default async function loadConfig(
           : canonicalBase) || ''
     }
 
-    if (hasNextSupport) {
+    if (process.env.NEXT_PRIVATE_TARGET || hasNextSupport) {
       userConfig.target = process.env.NEXT_PRIVATE_TARGET || 'server'
     }
 
@@ -517,11 +535,30 @@ export default async function loadConfig(
     }
   }
 
-  return defaultConfig as NextConfigComplete
+  const completeConfig = defaultConfig as NextConfigComplete
+  setHttpAgentOptions(completeConfig.httpAgentOptions)
+  return completeConfig
 }
 
 export function isTargetLikeServerless(target: string) {
   const isServerless = target === 'serverless'
   const isServerlessTrace = target === 'experimental-serverless-trace'
   return isServerless || isServerlessTrace
+}
+
+export function setHttpAgentOptions(
+  options: NextConfigComplete['httpAgentOptions']
+) {
+  if ((global as any).__NEXT_HTTP_AGENT) {
+    // We only need to assign once because we want
+    // to resuse the same agent for all requests.
+    return
+  }
+
+  if (!options) {
+    throw new Error('Expected config.httpAgentOptions to be an object')
+  }
+
+  ;(global as any).__NEXT_HTTP_AGENT = new HttpAgent(options)
+  ;(global as any).__NEXT_HTTPS_AGENT = new HttpsAgent(options)
 }

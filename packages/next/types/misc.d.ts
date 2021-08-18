@@ -75,6 +75,10 @@ declare module 'next/dist/compiled/ci-info' {
   import m from 'ci-info'
   export = m
 }
+declare module 'next/dist/compiled/cli-select' {
+  import m from 'cli-select'
+  export = m
+}
 declare module 'next/dist/compiled/compression' {
   import m from 'compression'
   export = m
@@ -89,6 +93,10 @@ declare module 'next/dist/compiled/content-type' {
 }
 declare module 'next/dist/compiled/cookie' {
   import m from 'cookie'
+  export = m
+}
+declare module 'next/dist/compiled/cross-spawn' {
+  import m from 'cross-spawn'
   export = m
 }
 declare module 'next/dist/compiled/debug' {
@@ -109,6 +117,10 @@ declare module 'next/dist/compiled/find-up' {
 }
 declare module 'next/dist/compiled/fresh' {
   import m from 'fresh'
+  export = m
+}
+declare module 'next/dist/compiled/glob' {
+  import m from 'glob'
   export = m
 }
 declare module 'next/dist/compiled/gzip-size' {
@@ -175,6 +187,10 @@ declare module 'next/dist/compiled/strip-ansi' {
   import m from 'strip-ansi'
   export = m
 }
+declare module 'next/dist/compiled/@vercel/nft' {
+  import m from '@vercel/nft'
+  export = m
+}
 declare module 'next/dist/compiled/terser' {
   import m from 'terser'
   export = m
@@ -205,6 +221,10 @@ declare module 'next/dist/compiled/unistore' {
 }
 declare module 'next/dist/compiled/web-vitals' {
   import m from 'web-vitals'
+  export = m
+}
+declare module 'next/dist/compiled/zen-observable' {
+  import m from 'zen-observable'
   export = m
 }
 

@@ -188,22 +188,59 @@ function runTests(mode) {
     try {
       browser = await webdriver(appPort, '/on-loading-complete')
 
+      await browser.eval(`document.getElementById("footer").scrollIntoView()`)
+
       await check(
         () => browser.eval(`document.getElementById("img1").src`),
         /test(.*)jpg/
       )
-
       await check(
         () => browser.eval(`document.getElementById("img2").src`),
         /test(.*).png/
       )
       await check(
+        () => browser.eval(`document.getElementById("img3").src`),
+        /test(.*)svg/
+      )
+      await check(
+        () => browser.eval(`document.getElementById("img4").src`),
+        /test(.*)ico/
+      )
+      await check(
         () => browser.eval(`document.getElementById("msg1").textContent`),
-        'loaded img1'
+        'loaded img1 with dimensions 128x128'
       )
       await check(
         () => browser.eval(`document.getElementById("msg2").textContent`),
-        'loaded img2'
+        'loaded img2 with dimensions 400x400'
+      )
+      await check(
+        () => browser.eval(`document.getElementById("msg3").textContent`),
+        'loaded img3 with dimensions 266x266'
+      )
+      await check(
+        () => browser.eval(`document.getElementById("msg4").textContent`),
+        'loaded img4 with dimensions 21x21'
+      )
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
+
+  it('should work with image with blob src', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/blob')
+
+      await check(
+        () => browser.eval(`document.getElementById("blob-image").src`),
+        /^blob:/
+      )
+      await check(
+        () => browser.eval(`document.getElementById("blob-image").srcset`),
+        ''
       )
     } finally {
       if (browser) {
@@ -542,6 +579,33 @@ function runTests(mode) {
       expect(await hasRedbox(browser)).toBe(true)
       expect(await getRedboxHeader(browser)).toMatch(
         /Image with src "(.*)bmp" has "placeholder='blur'" property but is missing the "blurDataURL" property/
+      )
+    })
+
+    it('should warn when img with layout=responsive is inside flex container', async () => {
+      const browser = await webdriver(appPort, '/layout-responsive-inside-flex')
+      await browser.eval(`document.getElementById("img").scrollIntoView()`)
+      const warnings = (await browser.log('browser'))
+        .map((log) => log.message)
+        .join('\n')
+      expect(await hasRedbox(browser)).toBe(false)
+      expect(warnings).toMatch(
+        /Image with src (.*)jpg(.*) may not render properly as a child of a flex container. Consider wrapping the image with a div to configure the width/gm
+      )
+    })
+
+    it('should warn when img with layout=fill is inside a container without position relative', async () => {
+      const browser = await webdriver(
+        appPort,
+        '/layout-fill-inside-nonrelative'
+      )
+      await browser.eval(`document.getElementById("img").scrollIntoView()`)
+      const warnings = (await browser.log('browser'))
+        .map((log) => log.message)
+        .join('\n')
+      expect(await hasRedbox(browser)).toBe(false)
+      expect(warnings).toMatch(
+        /Image with src (.*)jpg(.*) may not render properly with a parent using position:\\"static\\". Consider changing the parent style to position:\\"relative\\"/gm
       )
     })
 

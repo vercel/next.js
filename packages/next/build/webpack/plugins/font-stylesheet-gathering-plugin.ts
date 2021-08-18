@@ -190,9 +190,8 @@ export class FontStylesheetGatheringPlugin {
           if (isWebpack5) {
             const fontUrls = new Set<string>()
             modules.forEach((module: any) => {
-              const fontDependencies = module?.buildInfo?.valueDependencies?.get(
-                FONT_MANIFEST
-              )
+              const fontDependencies =
+                module?.buildInfo?.valueDependencies?.get(FONT_MANIFEST)
               if (fontDependencies) {
                 fontDependencies.forEach((v: string) => fontUrls.add(v))
               }

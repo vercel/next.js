@@ -10,6 +10,7 @@ import {
   ParsedUrlQuery,
 } from 'querystring'
 import { format as formatUrl, parse as parseUrl, UrlWithParsedQuery } from 'url'
+import Observable from 'next/dist/compiled/zen-observable'
 import { PrerenderManifest } from '../build'
 import {
   getRedirectStatus,
@@ -46,6 +47,7 @@ import {
   isResSent,
   NextApiRequest,
   NextApiResponse,
+  normalizeRepeatedSlashes,
 } from '../shared/lib/utils'
 import {
   apiResolver,
@@ -75,12 +77,7 @@ import { sendRenderResult, setRevalidateHeaders } from './send-payload'
 import { serveStatic } from './serve-static'
 import { IncrementalCache } from './incremental-cache'
 import { execOnce } from '../shared/lib/utils'
-import {
-  isBlockedPage,
-  RenderResult,
-  resultFromChunks,
-  resultToChunks,
-} from './utils'
+import { isBlockedPage, RenderResult, resultsToString } from './utils'
 import { loadEnvConfig } from '@next/env'
 import './node-polyfill-fetch'
 import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
@@ -180,6 +177,7 @@ export default class Server {
     defaultLocale?: string
     domainLocales?: DomainLocale[]
     distDir: string
+    concurrentFeatures?: boolean
   }
   private compression?: Middleware
   private incrementalCache: IncrementalCache
@@ -236,10 +234,11 @@ export default class Server {
           : null,
       optimizeImages: !!this.nextConfig.experimental.optimizeImages,
       optimizeCss: this.nextConfig.experimental.optimizeCss,
-      disableOptimizedLoading: this.nextConfig.experimental
-        .disableOptimizedLoading,
+      disableOptimizedLoading:
+        this.nextConfig.experimental.disableOptimizedLoading,
       domainLocales: this.nextConfig.i18n?.domains,
       distDir: this.distDir,
+      concurrentFeatures: this.nextConfig.experimental.concurrentFeatures,
     }
 
     // Only the `publicRuntimeConfig` key is exposed to the client side
@@ -313,6 +312,18 @@ export default class Server {
     res: ServerResponse,
     parsedUrl?: UrlWithParsedQuery
   ): Promise<void> {
+    const urlParts = (req.url || '').split('?')
+    const urlNoQuery = urlParts[0]
+
+    if (urlNoQuery?.match(/(\\|\/\/)/)) {
+      const cleanUrl = normalizeRepeatedSlashes(req.url!)
+      res.setHeader('Location', cleanUrl)
+      res.setHeader('Refresh', `0;url=${cleanUrl}`)
+      res.statusCode = 308
+      res.end(cleanUrl)
+      return
+    }
+
     setLazyProp({ req: req as any }, 'cookies', getCookieParser(req.headers))
 
     // Parse url if parsedUrl not provided
@@ -345,9 +356,8 @@ export default class Server {
       typeof req.headers['x-matched-path'] === 'string'
     ) {
       const reqUrlIsDataUrl = req.url?.includes('/_next/data')
-      const matchedPathIsDataUrl = req.headers['x-matched-path']?.includes(
-        '/_next/data'
-      )
+      const matchedPathIsDataUrl =
+        req.headers['x-matched-path']?.includes('/_next/data')
       const isDataUrl = reqUrlIsDataUrl || matchedPathIsDataUrl
 
       let parsedPath = parseUrl(
@@ -811,7 +821,12 @@ export default class Server {
 
               parsedDestination.search = stringifyQuery(req, query)
 
-              const updatedDestination = formatUrl(parsedDestination)
+              let updatedDestination = formatUrl(parsedDestination)
+
+              if (updatedDestination.startsWith('/')) {
+                updatedDestination =
+                  normalizeRepeatedSlashes(updatedDestination)
+              }
 
               res.setHeader('Location', updatedDestination)
               res.statusCode = getRedirectStatus(redirectRoute as Redirect)
@@ -822,7 +837,7 @@ export default class Server {
                 res.setHeader('Refresh', `0;url=${updatedDestination}`)
               }
 
-              res.end()
+              res.end(updatedDestination)
               return {
                 finished: true,
               }
@@ -1137,7 +1152,14 @@ export default class Server {
             pathParts.splice(0, basePathParts.length)
           }
 
-          const path = `/${pathParts.join('/')}`
+          let path = `/${pathParts.join('/')}`
+
+          if (!publicFiles.has(path)) {
+            // In `next-dev-server.ts`, we ensure encoded paths match
+            // decoded paths on the filesystem. So we need do the
+            // opposite here: make sure decoded paths match encoded.
+            path = encodeURI(path)
+          }
 
           if (publicFiles.has(path)) {
             await this.serveStatic(
@@ -1241,7 +1263,7 @@ export default class Server {
         req,
         res,
         resultOrPayload: requireStaticHTML
-          ? (await resultToChunks(body)).join('')
+          ? await resultsToString([body])
           : body,
         type,
         generateEtags,
@@ -1270,8 +1292,7 @@ export default class Server {
     if (payload === null) {
       return null
     }
-    const chunks = await resultToChunks(payload.body)
-    return chunks.join('')
+    return resultsToString([payload.body])
   }
 
   public async render(
@@ -1388,9 +1409,7 @@ export default class Server {
     return null
   }
 
-  protected async getStaticPaths(
-    pathname: string
-  ): Promise<{
+  protected async getStaticPaths(pathname: string): Promise<{
     staticPaths: string[] | undefined
     fallbackMode: 'static' | 'blocking' | false
   }> {
@@ -1399,8 +1418,8 @@ export default class Server {
     const staticPaths = undefined
 
     // Read whether or not fallback should exist from the manifest.
-    const fallbackField = this.getPrerenderManifest().dynamicRoutes[pathname]
-      .fallback
+    const fallbackField =
+      this.getPrerenderManifest().dynamicRoutes[pathname].fallback
 
     return {
       staticPaths,
@@ -1448,7 +1467,7 @@ export default class Server {
       return {
         type: 'html',
         // TODO: Static pages should be written as chunks
-        body: resultFromChunks([components.Component]),
+        body: Observable.of(components.Component),
       }
     }
 
@@ -1519,6 +1538,10 @@ export default class Server {
         redirect.destination = `${basePath}${redirect.destination}`
       }
 
+      if (redirect.destination.startsWith('/')) {
+        redirect.destination = normalizeRepeatedSlashes(redirect.destination)
+      }
+
       if (statusCode === PERMANENT_REDIRECT_STATUS) {
         res.setHeader('Refresh', `0;url=${redirect.destination}`)
       }
@@ -1581,20 +1604,17 @@ export default class Server {
 
       // handle serverless
       if (isLikeServerless) {
-        const renderResult = await (components.Component as any).renderReqToHTML(
-          req,
-          res,
-          'passthrough',
-          {
-            locale,
-            locales,
-            defaultLocale,
-            optimizeCss: this.renderOpts.optimizeCss,
-            distDir: this.distDir,
-            fontManifest: this.renderOpts.fontManifest,
-            domainLocales: this.renderOpts.domainLocales,
-          }
-        )
+        const renderResult = await (
+          components.Component as any
+        ).renderReqToHTML(req, res, 'passthrough', {
+          locale,
+          locales,
+          defaultLocale,
+          optimizeCss: this.renderOpts.optimizeCss,
+          distDir: this.distDir,
+          fontManifest: this.renderOpts.fontManifest,
+          domainLocales: this.renderOpts.domainLocales,
+        })
 
         body = renderResult.html
         pageData = renderResult.renderOpts.pageData
@@ -1726,7 +1746,7 @@ export default class Server {
               return {
                 value: {
                   kind: 'PAGE',
-                  html: resultFromChunks([html]),
+                  html: Observable.of(html),
                   pageData: {},
                 },
               }
@@ -1805,7 +1825,7 @@ export default class Server {
       if (isDataReq) {
         return {
           type: 'json',
-          body: resultFromChunks([JSON.stringify(cachedData.props)]),
+          body: Observable.of(JSON.stringify(cachedData.props)),
           revalidateOptions,
         }
       } else {
@@ -1816,7 +1836,7 @@ export default class Server {
       return {
         type: isDataReq ? 'json' : 'html',
         body: isDataReq
-          ? resultFromChunks([JSON.stringify(cachedData.pageData)])
+          ? Observable.of(JSON.stringify(cachedData.pageData))
           : cachedData.html,
         revalidateOptions,
       }
@@ -2051,7 +2071,7 @@ export default class Server {
       }
       return {
         type: 'html',
-        body: resultFromChunks(['Internal Server Error']),
+        body: Observable.of('Internal Server Error'),
       }
     }
   }

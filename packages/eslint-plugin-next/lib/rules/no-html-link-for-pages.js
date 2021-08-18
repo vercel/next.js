@@ -1,5 +1,7 @@
+// @ts-check
 const path = require('path')
 const fs = require('fs')
+const getRootDir = require('../utils/get-root-dirs')
 const {
   getUrlFromPagesDirectories,
   normalizeURL,
@@ -20,7 +22,7 @@ const fsExistsSyncCache = {}
 module.exports = {
   meta: {
     docs: {
-      description: 'Prohibit full page refresh for nextjs pages',
+      description: 'Prohibit full page refresh for Next.js pages',
       category: 'HTML',
       recommended: true,
     },
@@ -43,14 +45,28 @@ module.exports = {
     ],
   },
 
+  /**
+   * Creates an ESLint rule listener.
+   *
+   * @param {import('eslint').Rule.RuleContext} context - ESLint rule context
+   * @returns {import('eslint').Rule.RuleListener} An ESLint rule listener
+   */
   create: function (context) {
-    const [customPagesDirectory] = context.options
-    const pagesDirs = customPagesDirectory
-      ? [customPagesDirectory].flat()
-      : [
-          path.join(context.getCwd(), 'pages'),
-          path.join(context.getCwd(), 'src', 'pages'),
-        ]
+    /** @type {(string|string[])[]} */
+    const ruleOptions = context.options
+    const [customPagesDirectory] = ruleOptions
+
+    const rootDirs = getRootDir(context)
+
+    const pagesDirs = (
+      customPagesDirectory
+        ? [customPagesDirectory]
+        : rootDirs.map((dir) => [
+            path.join(dir, 'pages'),
+            path.join(dir, 'src', 'pages'),
+          ])
+    ).flat()
+
     const foundPagesDirs = pagesDirs.filter((dir) => {
       if (fsExistsSyncCache[dir] === undefined) {
         fsExistsSyncCache[dir] = fs.existsSync(dir)

@@ -25,7 +25,8 @@ const runTests = () => {
   })
 }
 
-const customErrNo404Match = /You have added a custom \/_error page without a custom \/404 page/
+const customErrNo404Match =
+  /You have added a custom \/_error page without a custom \/404 page/
 
 describe('Custom _error', () => {
   describe('dev mode 1', () => {

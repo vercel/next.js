@@ -257,6 +257,9 @@ export async function imageOptimizer(
         mockRes.getHeaderNames = () => Object.keys(mockHeaders)
         mockRes.setHeader = (name: string, value: string | string[]) =>
           (mockHeaders[name.toLowerCase()] = value)
+        mockRes.removeHeader = (name: string) => {
+          delete mockHeaders[name.toLowerCase()]
+        }
         mockRes._implicitHeader = () => {}
         mockRes.connection = res.connection
         mockRes.finished = false

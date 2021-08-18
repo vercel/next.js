@@ -24,7 +24,7 @@ import {
   waitFor,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
-import { dirname, join } from 'path'
+import { dirname, join, sep } from 'path'
 
 jest.setTimeout(1000 * 60 * 2)
 const appDir = join(__dirname, '..')
@@ -1817,6 +1817,7 @@ describe('SSG Prerender', () => {
         onStderr: (msg) => {
           stderr += msg
         },
+        cwd: appDir,
       })
       buildId = 'development'
     })
@@ -1895,13 +1896,14 @@ describe('SSG Prerender', () => {
 
       nextConfig.replace('// target', `target: 'serverless',`)
       await fs.remove(join(appDir, '.next'))
-      await nextBuild(appDir)
+      await nextBuild(appDir, undefined, { cwd: appDir })
       stderr = ''
       appPort = await findPort()
       app = await nextStart(appDir, appPort, {
         onStderr: (msg) => {
           stderr += msg
         },
+        cwd: appDir,
       })
       distPagesDir = join(appDir, '.next/serverless/pages')
       buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
@@ -1942,7 +1944,10 @@ describe('SSG Prerender', () => {
       `
       )
       await fs.remove(join(appDir, '.next'))
-      const { stderr } = await nextBuild(appDir, [], { stderr: true })
+      const { stderr } = await nextBuild(appDir, [], {
+        stderr: true,
+        cwd: appDir,
+      })
       await fs.remove(brokenPage)
       expect(stderr).toContain(
         'Additional keys were returned from `getStaticProps`'
@@ -1960,7 +1965,10 @@ describe('SSG Prerender', () => {
       try {
         f.replace('paths: []', `paths: [{ params: { p: 'testing' } }]`)
 
-        const { stderr } = await nextBuild(appDir, [], { stderr: true })
+        const { stderr } = await nextBuild(appDir, [], {
+          stderr: true,
+          cwd: appDir,
+        })
         expect(stderr).toContain(
           'Error serializing `.time` returned from `getStaticProps` in "/non-json/[p]".'
         )
@@ -1985,6 +1993,7 @@ describe('SSG Prerender', () => {
           onStderr: (msg) => {
             stderr += msg
           },
+          cwd: appDir,
         })
       }
 
@@ -2008,7 +2017,7 @@ describe('SSG Prerender', () => {
         `
       )
       await fs.remove(join(appDir, '.next'))
-      await nextBuild(appDir)
+      await nextBuild(appDir, undefined, { cwd: appDir })
 
       distPagesDir = join(appDir, '.next/serverless/pages')
       buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
@@ -2030,7 +2039,10 @@ describe('SSG Prerender', () => {
     let buildOutput = ''
     beforeAll(async () => {
       await fs.remove(join(appDir, '.next'))
-      const { stdout } = await nextBuild(appDir, [], { stdout: true })
+      const { stdout } = await nextBuild(appDir, [], {
+        stdout: true,
+        cwd: appDir,
+      })
       buildOutput = stdout
 
       stderr = ''
@@ -2039,6 +2051,7 @@ describe('SSG Prerender', () => {
         onStderr: (msg) => {
           stderr += msg
         },
+        cwd: appDir,
       })
       buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
       // TODO: Don't rely on this path
@@ -2050,6 +2063,71 @@ describe('SSG Prerender', () => {
       expect(buildOutput).toMatch(/○ \/normal/)
       expect(buildOutput).toMatch(/● \/blog\/\[post\]/)
       expect(buildOutput).toMatch(/\+2 more paths/)
+    })
+
+    it('should output traces', async () => {
+      const checks = [
+        {
+          page: '/_app',
+          tests: [
+            /webpack-runtime\.js/,
+            /node_modules\/react\/index\.js/,
+            /node_modules\/react\/package\.json/,
+            /node_modules\/react\/cjs\/react\.production\.min\.js/,
+          ],
+          notTests: [/node_modules\/react\/cjs\/react\.development\.js/],
+        },
+        {
+          page: '/another',
+          tests: [
+            /webpack-runtime\.js/,
+            /chunks\/.*?\.js/,
+            /node_modules\/react\/index\.js/,
+            /node_modules\/react\/package\.json/,
+            /node_modules\/react\/cjs\/react\.production\.min\.js/,
+            /\/world.txt/,
+          ],
+          notTests: [
+            /node_modules\/react\/cjs\/react\.development\.js/,
+            /node_modules\/@firebase\/firestore\/.*?\.js/,
+            /\/server\.js/,
+          ],
+        },
+        {
+          page: '/blog/[post]',
+          tests: [
+            /webpack-runtime\.js/,
+            /chunks\/.*?\.js/,
+            /node_modules\/react\/index\.js/,
+            /node_modules\/react\/package\.json/,
+            /node_modules\/react\/cjs\/react\.production\.min\.js/,
+            /node_modules\/@firebase\/firestore\/.*?\.js/,
+          ],
+          notTests: [
+            /node_modules\/react\/cjs\/react\.development\.js/,
+            /\/world.txt/,
+          ],
+        },
+      ]
+
+      for (const check of checks) {
+        const contents = await fs.readFile(
+          join(appDir, '.next/server/pages/', check.page + '.js.nft.json'),
+          'utf8'
+        )
+        const { version, files } = JSON.parse(contents)
+        expect(version).toBe(1)
+
+        expect(
+          check.tests.every((item) => files.some((file) => item.test(file)))
+        ).toBe(true)
+
+        if (sep === '/') {
+          expect(
+            check.notTests.some((item) => files.some((file) => item.test(file)))
+          ).toBe(false)
+        }
+      }
     })
 
     runTests()
@@ -2122,8 +2200,8 @@ describe('SSG Prerender', () => {
         await fs.rename(pagePath, `${pagePath}.bak`)
       }
 
-      await nextBuild(appDir)
-      await nextExport(appDir, { outdir: exportDir })
+      await nextBuild(appDir, undefined, { cwd: appDir })
+      await nextExport(appDir, { outdir: exportDir, cwd: appDir })
       app = await startStaticServer(exportDir)
       appPort = app.address().port
       buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')

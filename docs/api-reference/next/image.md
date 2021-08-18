@@ -202,6 +202,11 @@ The image position when using `layout="fill"`.
 
 A callback function that is invoked once the image is completely loaded and the [placeholder](#placeholder) has been removed.
 
+The `onLoadingComplete` function accepts one parameter, an object with the following properties:
+
+- [`naturalWidth`](https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement/naturalWidth)
+- [`naturalHeight`](https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement/naturalHeight)
+
 ### loading
 
 > **Attention**: This property is only meant for advanced usage. Switching an
@@ -257,6 +262,14 @@ Other properties on the `<Image />` component will be passed to the underlying
   instead.
 - `ref`. Use [`onLoadingComplete`](#onloadingcomplete) instead.
 - `decoding`. It is always `"async"`.
+
+## Styling
+
+`next/image` wraps the `img` element with other `div` elements to maintain the aspect ratio of the image and prevent [Cumulative Layout Shift](https://vercel.com/blog/core-web-vitals#cumulative-layout-shift).
+
+To add styles to the underlying `img` element, pass the `className` prop to the `<Image />` component. Then, use Next.js' [built-in CSS support](/docs/basic-features/built-in-css-support.md) to add rules to that class.
+
+**Note:** If using [`layout="fill"`](/docs/api-reference/next/image.md#layout), ensure the parent element uses `position: relative`.
 
 ## Related
 

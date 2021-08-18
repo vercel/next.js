@@ -58,7 +58,7 @@ export function sendPayload(
   })
 }
 
-export function sendRenderResult({
+export async function sendRenderResult({
   req,
   res,
   resultOrPayload,
@@ -74,7 +74,7 @@ export function sendRenderResult({
   generateEtags: boolean
   poweredByHeader: boolean
   options?: PayloadOptions
-}): void {
+}): Promise<void> {
   if (isResSent(res)) {
     return
   }
@@ -117,11 +117,15 @@ export function sendRenderResult({
   } else if (isPayload) {
     res.end(resultOrPayload as string)
   } else {
-    ;(resultOrPayload as RenderResult)({
-      next: (chunk) => res.write(chunk),
-      error: (_) => res.end(),
-      complete: () => res.end(),
+    const maybeFlush =
+      typeof (res as any).flush === 'function'
+        ? () => (res as any).flush()
+        : () => {}
+    await (resultOrPayload as RenderResult).forEach((chunk) => {
+      res.write(chunk)
+      maybeFlush()
     })
+    res.end()
   }
 }
 

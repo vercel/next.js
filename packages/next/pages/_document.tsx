@@ -1,14 +1,15 @@
 import React, { Component, ReactElement, ReactNode, useContext } from 'react'
 import flush from 'styled-jsx/server'
 import {
-  AMP_RENDER_TARGET,
+  BODY_RENDER_TARGET,
   OPTIMIZED_FONT_PROVIDERS,
 } from '../shared/lib/constants'
-import { DocumentContext as DocumentComponentContext } from '../shared/lib/document-context'
 import {
   DocumentContext,
   DocumentInitialProps,
   DocumentProps,
+  HtmlContext,
+  HtmlProps,
 } from '../shared/lib/utils'
 import { BuildManifest, getPageFiles } from '../server/get-page-files'
 import { cleanAmpPath } from '../server/utils'
@@ -45,7 +46,7 @@ function getDocumentFiles(
   }
 }
 
-function getPolyfillScripts(context: DocumentProps, props: OriginProps) {
+function getPolyfillScripts(context: HtmlProps, props: OriginProps) {
   // polyfills.js has to be rendered as nomodule without async
   // It also has to be the first script to load
   const {
@@ -71,7 +72,7 @@ function getPolyfillScripts(context: DocumentProps, props: OriginProps) {
     ))
 }
 
-function getPreNextScripts(context: DocumentProps, props: OriginProps) {
+function getPreNextScripts(context: HtmlProps, props: OriginProps) {
   const { scriptLoader, disableOptimizedLoading } = context
 
   return (scriptLoader.beforeInteractive || []).map(
@@ -91,7 +92,7 @@ function getPreNextScripts(context: DocumentProps, props: OriginProps) {
 }
 
 function getDynamicChunks(
-  context: DocumentProps,
+  context: HtmlProps,
   props: OriginProps,
   files: DocumentFiles
 ) {
@@ -122,7 +123,7 @@ function getDynamicChunks(
 }
 
 function getScripts(
-  context: DocumentProps,
+  context: HtmlProps,
   props: OriginProps,
   files: DocumentFiles
 ) {
@@ -176,17 +177,6 @@ export default class Document<P = {}> extends Component<DocumentProps & P> {
     return { html, head, styles }
   }
 
-  static renderDocument<Y>(
-    DocumentComponent: new () => Document<Y>,
-    props: DocumentProps & Y
-  ): React.ReactElement {
-    return (
-      <DocumentComponentContext.Provider value={props}>
-        <DocumentComponent {...props} />
-      </DocumentComponentContext.Provider>
-    )
-  }
-
   render() {
     return (
       <Html>
@@ -206,9 +196,7 @@ export function Html(
     HTMLHtmlElement
   >
 ) {
-  const { inAmpMode, docComponentsRendered, locale } = useContext(
-    DocumentComponentContext
-  )
+  const { inAmpMode, docComponentsRendered, locale } = useContext(HtmlContext)
 
   docComponentsRendered.Html = true
 
@@ -231,16 +219,13 @@ export class Head extends Component<
       HTMLHeadElement
     >
 > {
-  static contextType = DocumentComponentContext
+  static contextType = HtmlContext
 
-  context!: React.ContextType<typeof DocumentComponentContext>
+  context!: React.ContextType<typeof HtmlContext>
 
   getCssLinks(files: DocumentFiles): JSX.Element[] | null {
-    const {
-      assetPrefix,
-      devOnlyCacheBusterQueryString,
-      dynamicImports,
-    } = this.context
+    const { assetPrefix, devOnlyCacheBusterQueryString, dynamicImports } =
+      this.context
     const cssFiles = files.allFiles.filter((f) => f.endsWith('.css'))
     const sharedFiles: Set<string> = new Set(files.sharedFiles)
 
@@ -311,11 +296,8 @@ export class Head extends Component<
   }
 
   getPreloadDynamicChunks() {
-    const {
-      dynamicImports,
-      assetPrefix,
-      devOnlyCacheBusterQueryString,
-    } = this.context
+    const { dynamicImports, assetPrefix, devOnlyCacheBusterQueryString } =
+      this.context
 
     return (
       dynamicImports
@@ -345,11 +327,8 @@ export class Head extends Component<
   }
 
   getPreloadMainLinks(files: DocumentFiles): JSX.Element[] | null {
-    const {
-      assetPrefix,
-      devOnlyCacheBusterQueryString,
-      scriptLoader,
-    } = this.context
+    const { assetPrefix, devOnlyCacheBusterQueryString, scriptLoader } =
+      this.context
     const preloadFiles = files.allFiles.filter((file: string) => {
       return file.endsWith('.js')
     })
@@ -738,20 +717,18 @@ export class Head extends Component<
 }
 
 export function Main() {
-  const { inAmpMode, html, docComponentsRendered } = useContext(
-    DocumentComponentContext
-  )
+  const { inAmpMode, docComponentsRendered } = useContext(HtmlContext)
 
   docComponentsRendered.Main = true
 
-  if (inAmpMode) return <>{AMP_RENDER_TARGET}</>
-  return <div id="__next" dangerouslySetInnerHTML={{ __html: html }} />
+  if (inAmpMode) return <>{BODY_RENDER_TARGET}</>
+  return <div id="__next">{BODY_RENDER_TARGET}</div>
 }
 
 export class NextScript extends Component<OriginProps> {
-  static contextType = DocumentComponentContext
+  static contextType = HtmlContext
 
-  context!: React.ContextType<typeof DocumentComponentContext>
+  context!: React.ContextType<typeof HtmlContext>
 
   // Source: https://gist.github.com/samthor/64b114e4a4f539915a95b91ffd340acc
   static safariNomoduleFix =
@@ -773,8 +750,8 @@ export class NextScript extends Component<OriginProps> {
     return getPolyfillScripts(this.context, this.props)
   }
 
-  static getInlineScriptSource(documentProps: Readonly<DocumentProps>): string {
-    const { __NEXT_DATA__ } = documentProps
+  static getInlineScriptSource(context: Readonly<HtmlProps>): string {
+    const { __NEXT_DATA__ } = context
     try {
       const data = JSON.stringify(__NEXT_DATA__)
       return htmlEscapeJsonString(data)
