@@ -10,7 +10,10 @@ const MAX_COMPRESSED_SIZE = 250 * 1000
 const MAX_UNCOMPRESSED_SIZE = 2.5 * 1000 * 1000
 
 // install next outside the monorepo for clean `node_modules`
-// to trace against
+// to trace against which helps ensure minimal trace is
+// produced.
+// react and react-dom need to be traced specific to installed
+// version so isn't pre-traced
 async function main() {
   const tmpdir = os.tmpdir()
   await execa('yarn', ['pack'], {

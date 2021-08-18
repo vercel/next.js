@@ -711,9 +711,8 @@ export default class Server {
               finished: true,
             }
           }
-          const {
-            imageOptimizer,
-          } = require('./image-optimizer') as typeof import('./image-optimizer')
+          const { imageOptimizer } =
+            require('./image-optimizer') as typeof import('./image-optimizer')
 
           return imageOptimizer(
             server,
