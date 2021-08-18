@@ -10,6 +10,7 @@ import {
   ParsedUrlQuery,
 } from 'querystring'
 import { format as formatUrl, parse as parseUrl, UrlWithParsedQuery } from 'url'
+import Observable from 'next/dist/compiled/zen-observable'
 import { PrerenderManifest } from '../build'
 import {
   getRedirectStatus,
@@ -97,7 +98,6 @@ import ResponseCache, {
 } from './response-cache'
 import { NextConfigComplete } from './config-shared'
 import { parseNextUrl } from '../shared/lib/router/utils/parse-next-url'
-import Observable from 'zen-observable'
 
 const getCustomRouteMatcher = pathMatch(true)
 

@@ -112,8 +112,7 @@
     "use-subscription": "1.5.1",
     "util": "0.12.4",
     "vm-browserify": "1.1.2",
-    "watchpack": "2.1.1",
-    "zen-observable": "0.8.15"
+    "watchpack": "2.1.1"
   },
   "peerDependencies": {
     "fibers": ">= 3.1.0",
@@ -250,7 +249,8 @@
     "unistore": "3.4.1",
     "web-vitals": "2.1.0",
     "webpack": "4.44.1",
-    "webpack-sources": "1.4.3"
+    "webpack-sources": "1.4.3",
+    "zen-observable": "0.8.15"
   },
   "engines": {
     "node": ">=12.0.0"

@@ -3,6 +3,7 @@ import { ParsedUrlQuery } from 'querystring'
 import { PassThrough } from 'stream'
 import React from 'react'
 import * as ReactDOMServer from 'react-dom/server'
+import Observable from 'next/dist/compiled/zen-observable'
 import { warn } from '../build/output/log'
 import { UnwrapPromise } from '../lib/coalesced-function'
 import {
@@ -64,7 +65,6 @@ import {
 } from '../lib/load-custom-routes'
 import { DomainLocale } from './config'
 import { mergeResults, RenderResult, resultsToString } from './utils'
-import Observable from 'zen-observable'
 
 function noRouter() {
   const message =

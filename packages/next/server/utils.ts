@@ -1,5 +1,5 @@
+import Observable from 'next/dist/compiled/zen-observable'
 import { BLOCKED_PAGES } from '../shared/lib/constants'
-import Observable from 'zen-observable'
 
 export function isBlockedPage(pathname: string): boolean {
   return BLOCKED_PAGES.includes(pathname)
@@ -27,7 +27,7 @@ export async function resultsToString(
   results: Array<RenderResult>
 ): Promise<string> {
   const chunks: string[] = []
-  await mergeResults(results).forEach((chunk) => {
+  await mergeResults(results).forEach((chunk: string) => {
     chunks.push(chunk)
   })
   return chunks.join('')
