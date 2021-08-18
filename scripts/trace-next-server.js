@@ -46,6 +46,10 @@ async function main() {
   await execa('yarn', ['install'], {
     cwd: workDir,
     stdio: ['ignore', 'inherit', 'inherit'],
+    env: {
+      ...process.env,
+      YARN_CACHE_FOLDER: path.join(workDir, '.yarn-cache'),
+    },
   })
 
   const nextServerPath = path.join(
