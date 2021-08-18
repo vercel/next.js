@@ -644,7 +644,9 @@ export async function ncc_web_vitals(task, opts) {
 externals['zen-observable'] = 'next/dist/compiled/zen-observable'
 export async function ncc_zen_observable(task, opts) {
   await task
-    .source(opts.src || relative(__dirname, require.resolve('zen-observable')))
+    .source(
+      opts.src || relative(__dirname, require.resolve('zen-observable/esm'))
+    )
     .ncc({ packageName: 'zen-observable', externals })
     .target('compiled/zen-observable')
 }
