@@ -9,42 +9,41 @@ const cwd = process.cwd()
 
 ;(async function () {
   try {
-    let version = JSON.parse(await readFile(path.join(cwd, 'lerna.json')))
-      .version
+    let version = JSON.parse(
+      await readFile(path.join(cwd, 'lerna.json'))
+    ).version
     let gitref = process.argv.slice(2)[0]
 
     // Copy binaries to package folders, update version, and publish
     let nativePackagesDir = path.join(cwd, 'packages/next/build/swc/npm')
-    let nativePackages = await readdir(nativePackagesDir)
-    for (let nativePackage of nativePackages) {
-      if (nativePackage === '.gitignore') {
-        continue
-      }
-      let binaryName = `next-swc.${nativePackage.substr(9)}.node`
+    let platforms = (await readdir(nativePackagesDir)).filter(
+      (name) => name !== '.gitignore'
+    )
+    for (let platform of platforms) {
+      let binaryName = `next-swc.${platform}.node`
       await copy(
         path.join(cwd, 'packages/next/build/swc/dist', binaryName),
-        path.join(nativePackagesDir, nativePackage, binaryName)
+        path.join(nativePackagesDir, platform, binaryName)
       )
       let pkg = JSON.parse(
-        await readFile(
-          path.join(nativePackagesDir, nativePackage, 'package.json')
-        )
+        await readFile(path.join(nativePackagesDir, platform, 'package.json'))
       )
       pkg.version = version
       await writeFile(
-        path.join(nativePackagesDir, nativePackage, 'package.json'),
+        path.join(nativePackagesDir, platform, 'package.json'),
         JSON.stringify(pkg, null, 2)
       )
       execSync(
-        `npm publish ${path.join(nativePackagesDir, nativePackage)}${
-          gitref.contains('canary') ? ' --tag canary' : ''
-        }`
+        `npm publish ${path.join(
+          nativePackagesDir,
+          platform
+        )} --access public ${gitref.includes('canary') ? ' --tag canary' : ''}`
       )
       // lerna publish in next step will fail if git status is not clean
       execSync(
         `git update-index --skip-worktree ${path.join(
           nativePackagesDir,
-          nativePackage,
+          platform,
           'package.json'
         )}`
       )
@@ -54,9 +53,9 @@ const cwd = process.cwd()
     let nextPkg = JSON.parse(
       await readFile(path.join(cwd, 'packages/next/package.json'))
     )
-    for (let name of nativePackages) {
+    for (let platform of platforms) {
       let optionalDependencies = nextPkg.optionalDependencies || {}
-      optionalDependencies[name] = version
+      optionalDependencies['@next/swc-' + platform] = version
       nextPkg.optionalDependencies = optionalDependencies
     }
     await writeFile(
