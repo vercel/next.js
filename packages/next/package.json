@@ -186,6 +186,7 @@
     "@types/text-table": "0.2.1",
     "@types/webpack": "5.28.0",
     "@types/webpack-sources": "0.1.5",
+    "@types/zen-observable": "0.8.3",
     "@vercel/ncc": "0.27.0",
     "@vercel/nft": "0.12.2",
     "amphtml-validator": "1.0.33",
@@ -249,7 +250,8 @@
     "unistore": "3.4.1",
     "web-vitals": "2.1.0",
     "webpack": "4.44.1",
-    "webpack-sources": "1.4.3"
+    "webpack-sources": "1.4.3",
+    "zen-observable": "0.8.15"
   },
   "engines": {
     "node": ">=12.0.0"
