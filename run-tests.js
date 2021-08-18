@@ -257,7 +257,7 @@ async function main() {
     for (let i = 0; i < NUM_RETRIES + 1; i++) {
       try {
         console.log(`Starting ${test} retry ${i}/${NUM_RETRIES}`)
-        const time = await runTest(test, true)
+        const time = await runTest(test, i > 0)
         timings.push({
           file: test,
           time,
@@ -306,7 +306,7 @@ async function main() {
       for (let i = 0; i < NUM_RETRIES + 1; i++) {
         try {
           console.log(`Starting ${test} retry ${i}/${NUM_RETRIES}`)
-          const time = await runTest(test, true)
+          const time = await runTest(test, i > 0)
           timings.push({
             file: test,
             time,
