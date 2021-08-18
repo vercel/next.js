@@ -266,3 +266,11 @@ declare module 'watchpack' {
 
   export default Watchpack
 }
+
+// https://github.com/DefinitelyTyped/DefinitelyTyped/pull/38694
+import 'react'
+declare module 'react' {
+  interface ImgHTMLAttributes<T> extends HTMLAttributes<T> {
+    loading?: 'auto' | 'eager' | 'lazy'
+  }
+}
