@@ -40,6 +40,11 @@ declare module 'react' {
   interface LinkHTMLAttributes<T> extends HTMLAttributes<T> {
     nonce?: string
   }
+
+  // <img loading="lazy"> support
+  interface ImgHTMLAttributes<T> extends HTMLAttributes<T> {
+    loading?: 'auto' | 'eager' | 'lazy'
+  }
 }
 
 export type Redirect =
@@ -80,6 +85,8 @@ export type PageConfig = {
   env?: Array<string>
   unstable_runtimeJS?: false
   unstable_JsPreload?: false
+  unstable_includeFiles?: string[]
+  unstable_excludeFiles?: string[]
 }
 
 export {

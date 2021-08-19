@@ -145,11 +145,19 @@
           "title": "incompatible-href-as",
           "path": "/errors/incompatible-href-as.md"
         },
+        {
+          "title": "inline-script-id",
+          "path": "/errors/inline-script-id.md"
+        },
         { "title": "install-sass", "path": "/errors/install-sass.md" },
         { "title": "install-sharp", "path": "/errors/install-sharp.md" },
         {
           "title": "invalid-assetprefix",
           "path": "/errors/invalid-assetprefix.md"
+        },
+        {
+          "title": "invalid-dynamic-suspense",
+          "path": "/errors/invalid-dynamic-suspense.md"
         },
         {
           "title": "invalid-external-rewrite",
@@ -428,12 +436,24 @@
           "path": "/errors/sharp-missing-in-production.md"
         },
         {
+          "title": "script-in-document-page",
+          "path": "/errors/no-script-in-document-page.md"
+        },
+        {
+          "title": "script-in-head-component",
+          "path": "/errors/no-script-in-head-component.md"
+        },
+        {
           "title": "max-custom-routes-reached",
           "path": "/errors/max-custom-routes-reached.md"
         },
         {
           "title": "module-not-found",
           "path": "/errors/module-not-found.md"
+        },
+        {
+          "title": "next-config-error",
+          "path": "/errors/next-config-error.md"
         }
       ]
     }

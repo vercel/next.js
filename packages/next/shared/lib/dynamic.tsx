@@ -119,10 +119,9 @@ export default function dynamic<P = {}>(
     if (!process.env.__NEXT_REACT_ROOT && suspenseOptions.suspense) {
       // TODO: add error doc when this feature is stable
       throw new Error(
-        `Disallowed suspense option usage with next/dynamic in blocking mode`
+        `Invalid suspense option usage in next/dynamic. Read more: https://nextjs.org/docs/messages/invalid-dynamic-suspense`
       )
     }
-    suspenseOptions.suspense = false
   }
   if (suspenseOptions.suspense) {
     return loadableFn(suspenseOptions)

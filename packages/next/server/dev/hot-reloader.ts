@@ -199,9 +199,8 @@ export default class HotReloader {
       parsedPageBundleUrl: UrlObject
     ): Promise<{ finished?: true }> => {
       const { pathname } = parsedPageBundleUrl
-      const params: { path: string[] } | null = matchNextPageBundleRequest(
-        pathname
-      )
+      const params: { path: string[] } | null =
+        matchNextPageBundleRequest(pathname)
       if (!params) {
         return {}
       }
@@ -262,7 +261,9 @@ export default class HotReloader {
 
     const pages = createPagesMapping(
       pagePaths.filter((i) => i !== null) as string[],
-      this.config.pageExtensions
+      this.config.pageExtensions,
+      this.isWebpack5,
+      true
     )
     const entrypoints = createEntrypoints(
       pages,
@@ -358,11 +359,8 @@ export default class HotReloader {
             if (isClientCompilation && page.match(API_ROUTE)) {
               return
             }
-            const {
-              serverBundlePath,
-              clientBundlePath,
-              absolutePagePath,
-            } = entries[page]
+            const { serverBundlePath, clientBundlePath, absolutePagePath } =
+              entries[page]
             const pageExists = await isWriteable(absolutePagePath)
             if (!pageExists) {
               // page was removed
@@ -399,25 +397,24 @@ export default class HotReloader {
     const prevClientPageHashes = new Map<string, string>()
     const prevServerPageHashes = new Map<string, string>()
 
-    const trackPageChanges = (
-      pageHashMap: Map<string, string>,
-      changedItems: Set<string>
-    ) => (stats: webpack.compilation.Compilation) => {
-      stats.entrypoints.forEach((entry, key) => {
-        if (key.startsWith('pages/')) {
-          entry.chunks.forEach((chunk: any) => {
-            if (chunk.id === key) {
-              const prevHash = pageHashMap.get(key)
+    const trackPageChanges =
+      (pageHashMap: Map<string, string>, changedItems: Set<string>) =>
+      (stats: webpack.compilation.Compilation) => {
+        stats.entrypoints.forEach((entry, key) => {
+          if (key.startsWith('pages/')) {
+            entry.chunks.forEach((chunk: any) => {
+              if (chunk.id === key) {
+                const prevHash = pageHashMap.get(key)
 
-              if (prevHash && prevHash !== chunk.hash) {
-                changedItems.add(key)
+                if (prevHash && prevHash !== chunk.hash) {
+                  changedItems.add(key)
+                }
+                pageHashMap.set(key, chunk.hash)
               }
-              pageHashMap.set(key, chunk.hash)
-            }
-          })
-        }
-      })
-    }
+            })
+          }
+        })
+      }
 
     multiCompiler.compilers[0].hooks.emit.tap(
       'NextjsHotReloaderForClient',

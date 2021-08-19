@@ -19,6 +19,5 @@
     "identity-obj-proxy": "^3.0.0",
     "jest": "^25.1.0",
     "react-test-renderer": "^17.0.2"
-  },
-  "license": "MIT"
+  }
 }

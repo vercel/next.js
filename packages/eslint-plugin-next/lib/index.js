@@ -12,8 +12,12 @@ module.exports = {
     'link-passhref': require('./rules/link-passhref'),
     'no-document-import-in-page': require('./rules/no-document-import-in-page'),
     'no-head-import-in-document': require('./rules/no-head-import-in-document'),
+    'no-script-in-document': require('./rules/no-script-in-document'),
+    'no-script-in-head': require('./rules/no-script-in-head'),
     'no-typos': require('./rules/no-typos'),
     'no-duplicate-head': require('./rules/no-duplicate-head'),
+    'inline-script-id': require('./rules/inline-script-id'),
+    'next-script-for-ga': require('./rules/next-script-for-ga'),
   },
   configs: {
     recommended: {
@@ -29,10 +33,14 @@ module.exports = {
         '@next/next/google-font-display': 1,
         '@next/next/google-font-preconnect': 1,
         '@next/next/link-passhref': 1,
+        '@next/next/next-script-for-ga': 1,
         '@next/next/no-document-import-in-page': 2,
         '@next/next/no-head-import-in-document': 2,
+        '@next/next/no-script-in-document': 2,
+        '@next/next/no-script-in-head': 2,
         '@next/next/no-typos': 1,
         '@next/next/no-duplicate-head': 2,
+        '@next/next/inline-script-id': 2,
       },
     },
     'core-web-vitals': {

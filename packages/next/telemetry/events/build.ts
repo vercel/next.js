@@ -1,4 +1,5 @@
-const REGEXP_DIRECTORY_DUNDER = /[\\/]__[^\\/]+(?<![\\/]__(?:tests|mocks))__[\\/]/i
+const REGEXP_DIRECTORY_DUNDER =
+  /[\\/]__[^\\/]+(?<![\\/]__(?:tests|mocks))__[\\/]/i
 const REGEXP_DIRECTORY_TESTS = /[\\/]__(tests|mocks)__[\\/]/i
 const REGEXP_FILE_TEST = /\.(?:spec|test)\.[^.]+$/i
 
@@ -11,9 +12,10 @@ type EventTypeCheckCompleted = {
   incremental?: boolean
 }
 
-export function eventTypeCheckCompleted(
-  event: EventTypeCheckCompleted
-): { eventName: string; payload: EventTypeCheckCompleted } {
+export function eventTypeCheckCompleted(event: EventTypeCheckCompleted): {
+  eventName: string
+  payload: EventTypeCheckCompleted
+} {
   return {
     eventName: EVENT_TYPE_CHECK_COMPLETED,
     payload: event,
@@ -32,9 +34,10 @@ export type EventLintCheckCompleted = {
   nextEslintPluginWarningsCount?: number
 }
 
-export function eventLintCheckCompleted(
-  event: EventLintCheckCompleted
-): { eventName: string; payload: EventLintCheckCompleted } {
+export function eventLintCheckCompleted(event: EventLintCheckCompleted): {
+  eventName: string
+  payload: EventLintCheckCompleted
+} {
   return {
     eventName: EVENT_LINT_CHECK_COMPLETED,
     payload: event,

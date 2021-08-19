@@ -2,7 +2,7 @@
   "dependencies": {
     "schema-utils3": "npm:schema-utils@3.0.0",
     "webpack-sources3": "npm:webpack-sources@3.2.0",
-    "webpack5": "npm:webpack@5.50.0"
+    "webpack5": "npm:webpack@5.51.1"
   },
   "resolutions": {
     "browserslist": "4.16.6",
