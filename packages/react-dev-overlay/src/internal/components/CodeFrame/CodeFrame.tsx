@@ -14,7 +14,7 @@ export const CodeFrame: React.FC<CodeFrameProps> = function CodeFrame({
   const formattedFrame = React.useMemo<string>(() => {
     const lines = codeFrame.split(/\r?\n/g)
     const prefixLength = lines
-      .map((line) => /^>? +\d+ +\| [ ]+/.exec(strip_ansi_1["default"](line))===null?null:/^>? +\d+ +\| ( *)/.exec(strip_ansi_1["default"](line)))
+      .map((line) => /^>? +\d+ +\| [ ]+/.exec(stripAnsi(line))===null?null:/^>? +\d+ +\| ( *)/.exec(stripAnsi(line)))
       .filter(Boolean)
       .map((v) => v!.pop()!)
       .reduce((c, n) => (isNaN(c) ? n.length : Math.min(c, n.length)), NaN)
