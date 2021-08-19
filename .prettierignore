@@ -3,6 +3,7 @@ node_modules
 **/_next/**
 **/dist/**
 packages/next/bundles/webpack/packages/*.runtime.js
+packages/next/build/swc/test/**
 packages/next/compiled/**
 packages/react-refresh-utils/**/*.js
 packages/react-refresh-utils/**/*.d.ts

@@ -52,46 +52,140 @@ impl Fold for StyledJSXTransformer {
     }
 
     if let JSXElementName::Ident(Ident { sym, .. }) = &el.name {
-      if sym != "style" && sym != "_JSXStyle" {
-        let mut class_name = self.class_name.clone().unwrap();
+      if sym != "style" && sym != "_JSXStyle" && !is_capitalized(sym as &str) {
+        let jsx_class_name = string_literal_expr(self.class_name.clone().unwrap().as_str());
+        let mut spreads = vec![];
+        let mut class_name_expr = None;
         let mut existing_index = None;
-        for i in 0..el.attrs.len() {
-          let attr = &el.attrs[i];
-          if let JSXAttrOrSpread::JSXAttr(JSXAttr {
-            name: JSXAttrName::Ident(Ident { sym, .. }),
-            value,
-            ..
-          }) = attr
-          {
-            if sym == "className" {
-              // TODO: handle maybe no value
-              class_name = combine_class_names(class_name, &value.as_ref().unwrap());
-              existing_index = Some(i);
-              break;
+        let mut remove_spread_index = None;
+        for i in (0..el.attrs.len()).rev() {
+          match &el.attrs[i] {
+            JSXAttrOrSpread::JSXAttr(JSXAttr {
+              name: JSXAttrName::Ident(Ident { sym, .. }),
+              value,
+              ..
+            }) => {
+              if sym == "className" {
+                // TODO: handle maybe no value
+                existing_index = Some(i);
+                class_name_expr = match value {
+                  Some(JSXAttrValue::Lit(str_lit)) => Some(Expr::Lit(str_lit.clone())),
+                  Some(JSXAttrValue::JSXExprContainer(JSXExprContainer {
+                    expr: JSXExpr::Expr(expr),
+                    ..
+                  })) => Some(*expr.clone()),
+                  None => None,
+                  _ => panic!("Not implemented"),
+                };
+                break;
+              }
             }
-          }
+            JSXAttrOrSpread::SpreadElement(SpreadElement { expr, .. }) => {
+              if let Expr::Object(ObjectLit { props, .. }) = &**expr {
+                let mut has_spread = false;
+                let mut has_class_name = false;
+                for j in 0..props.len() {
+                  if let PropOrSpread::Prop(prop) = &props[j] {
+                    if let Prop::KeyValue(KeyValueProp { key, value }) = &**prop {
+                      if let PropName::Ident(Ident { sym, .. }) = key {
+                        if sym == "className" {
+                          has_class_name = true;
+                          class_name_expr = Some(*value.clone());
+                          if props.len() == 1 {
+                            remove_spread_index = Some(i);
+                          }
+                        }
+                      }
+                    }
+                  } else {
+                    has_spread = true;
+                  }
+                }
+                if has_class_name {
+                  break;
+                }
+                if !has_spread {
+                  continue;
+                }
+              }
+
+              let valid_spread = match &**expr {
+                Expr::Member(_) => true,
+                Expr::Ident(_) => true,
+                _ => false,
+              };
+
+              if valid_spread {
+                let member_dot_name = Expr::Member(MemberExpr {
+                  obj: ExprOrSuper::Expr(Box::new(*expr.clone())),
+                  prop: Box::new(Expr::Ident(ident("className"))),
+                  span: DUMMY_SP,
+                  computed: false,
+                });
+                // `${name} && ${name}.className != null && ${name}.className`
+                spreads.push(and(
+                  and(
+                    *expr.clone(),
+                    not_eq(
+                      member_dot_name.clone(),
+                      Expr::Lit(Lit::Null(Null { span: DUMMY_SP })),
+                    ),
+                  ),
+                  member_dot_name.clone(),
+                ));
+              }
+            }
+            _ => panic!("Not implemented"),
+          };
         }
+
+        let spread_expr = match spreads.len() {
+          0 => None,
+          _ => Some(join_spreads(spreads)),
+        };
+
+        let class_name_expr = match class_name_expr {
+          Some(Expr::Tpl(_)) => Some(class_name_expr.unwrap()),
+          Some(Expr::Lit(Lit::Str(_))) => Some(class_name_expr.unwrap()),
+          None => None,
+          _ => Some(or(class_name_expr.unwrap(), string_literal_expr(""))),
+        };
+
+        let extra_class_name_expr = if spread_expr.is_some() && class_name_expr.is_some() {
+          Some(or(spread_expr.unwrap(), class_name_expr.unwrap()))
+        } else if spread_expr.is_some() {
+          Some(or(spread_expr.unwrap(), string_literal_expr("")))
+        } else if class_name_expr.is_some() {
+          class_name_expr
+        } else {
+          None
+        };
+
+        let new_class_name = if let Some(extra_class_name_expr) = extra_class_name_expr {
+          add(
+            add(jsx_class_name, string_literal_expr(" ")),
+            extra_class_name_expr,
+          )
+        } else {
+          jsx_class_name
+        };
 
         let class_name_attr = JSXAttrOrSpread::JSXAttr(JSXAttr {
           span: DUMMY_SP,
-          name: JSXAttrName::Ident(Ident {
+          name: JSXAttrName::Ident(ident("className")),
+          value: Some(JSXAttrValue::JSXExprContainer(JSXExprContainer {
+            expr: JSXExpr::Expr(Box::new(new_class_name)),
             span: DUMMY_SP,
-            sym: "className".into(),
-            optional: false,
-          }),
-          value: Some(JSXAttrValue::Lit(Lit::Str(Str {
-            value: class_name.into(),
-            span: DUMMY_SP,
-            kind: StrKind::Synthesized {},
-            has_escape: false,
-          }))),
+          })),
         });
 
-        if let Some(i) = existing_index {
-          el.attrs[i] = class_name_attr
-        } else {
-          el.attrs.push(class_name_attr);
+        if let Some(remove_spread_index) = remove_spread_index {
+          el.attrs.remove(remove_spread_index);
         }
+        if let Some(existing_index) = existing_index {
+          el.attrs.remove(existing_index);
+        }
+        el.attrs.push(class_name_attr);
       }
     }
 
@@ -221,12 +315,7 @@ fn replace_jsx_style(mut el: JSXElement, style_hash: String) -> JSXElementChild 
             optional: false,
           }),
           value: Some(JSXAttrValue::JSXExprContainer(JSXExprContainer {
-            expr: JSXExpr::Expr(Box::new(Expr::Lit(Lit::Str(Str {
-              value: style_hash.clone().into(),
-              span: DUMMY_SP,
-              kind: StrKind::Synthesized {},
-              has_escape: false,
-            })))),
+            expr: JSXExpr::Expr(Box::new(string_literal_expr(style_hash.clone().as_str()))),
             span: DUMMY_SP,
           })),
           span: DUMMY_SP,
@@ -237,12 +326,59 @@ fn replace_jsx_style(mut el: JSXElement, style_hash: String) -> JSXElementChild 
   JSXElementChild::JSXElement(Box::new(el))
 }
 
-fn combine_class_names(jsx_class_name: String, value: &JSXAttrValue) -> String {
-  match value {
-    JSXAttrValue::Lit(Lit::Str(Str { value, .. })) => {
-      format!("{} {}", jsx_class_name, value)
-    }
-    _ => panic!("Not implemented yet"),
+fn add(left: Expr, right: Expr) -> Expr {
+  binary_expr(BinaryOp::Add, left, right)
+}
+
+fn and(left: Expr, right: Expr) -> Expr {
+  binary_expr(BinaryOp::LogicalAnd, left, right)
+}
+
+fn or(left: Expr, right: Expr) -> Expr {
+  binary_expr(BinaryOp::LogicalOr, left, right)
+}
+
+fn not_eq(left: Expr, right: Expr) -> Expr {
+  binary_expr(BinaryOp::NotEq, left, right)
+}
+
+fn binary_expr(op: BinaryOp, left: Expr, right: Expr) -> Expr {
+  Expr::Bin(BinExpr {
+    op,
+    left: Box::new(left),
+    right: Box::new(right),
+    span: DUMMY_SP,
+  })
+}
+
+fn join_spreads(spreads: Vec<Expr>) -> Expr {
+  // TODO: make sure this won't panic
+  let mut new_expr = spreads[0].clone();
+  for i in 1..spreads.len() {
+    new_expr = Expr::Bin(BinExpr {
+      op: BinaryOp::LogicalOr,
+      left: Box::new(new_expr.clone()),
+      right: Box::new(spreads[i].clone()),
+      span: DUMMY_SP,
+    })
+  }
+  new_expr
+}
+
+fn string_literal_expr(str: &str) -> Expr {
+  Expr::Lit(Lit::Str(Str {
+    value: str.into(),
+    span: DUMMY_SP,
+    has_escape: false,
+    kind: StrKind::Synthesized {},
+  }))
+}
+
+fn ident(str: &str) -> Ident {
+  Ident {
+    sym: String::from(str).into(),
+    span: DUMMY_SP,
+    optional: false,
   }
 }
 
@@ -252,4 +388,8 @@ fn hash_string(str: &String) -> String {
   hasher.write(str.as_bytes());
   let hash_result = hasher.finish();
   format!("{:x}", hash_result)
+}
+
+fn is_capitalized(word: &str) -> bool {
+  word.chars().next().unwrap().is_uppercase()
 }
