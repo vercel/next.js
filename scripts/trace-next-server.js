@@ -29,7 +29,7 @@ async function main() {
   })
 
   console.log('using workdir', workDir)
-  console.log('using repoDir', repoDir)
+  console.log('using repodir', repoDir)
   await fs.ensureDir(workDir)
 
   const pkgPaths = await linkPackages(repoDir)
