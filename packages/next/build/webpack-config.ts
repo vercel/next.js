@@ -28,7 +28,6 @@ import {
 } from '../shared/lib/constants'
 import { execOnce } from '../shared/lib/utils'
 import { NextConfigComplete } from '../server/config-shared'
-import { findPageFile } from '../server/lib/find-page-file'
 import { WebpackEntrypoints } from './entries'
 import * as Log from './output/log'
 import { build as buildConfiguration } from './webpack/config'

@@ -1,5 +1,4 @@
 import curry from 'next/dist/compiled/lodash.curry'
-import path from 'path'
 import { webpack, isWebpack5 } from 'next/dist/compiled/webpack/webpack'
 import MiniCssExtractPlugin from '../../../plugins/mini-css-extract-plugin'
 import { loader, plugin } from '../../helpers'
