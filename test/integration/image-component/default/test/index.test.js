@@ -151,7 +151,7 @@ function runTests(mode) {
     const els = [].slice.apply($html('img'))
     expect(els.length).toBe(2)
 
-    const [noscriptEl, el] = els
+    const [el, noscriptEl] = els
     expect(noscriptEl.attribs.src).toBeDefined()
     expect(noscriptEl.attribs.srcset).toBeDefined()
 
