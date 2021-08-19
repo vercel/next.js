@@ -18,7 +18,7 @@ export async function build(
     isCraCompat,
   }: {
     rootDirectory: string
-    customAppFile: string | null
+    customAppFile: RegExp
     isDevelopment: boolean
     isServer: boolean
     assetPrefix: string

@@ -275,10 +275,7 @@ export const css = curry(async function css(
           use: {
             loader: 'error-loader',
             options: {
-              reason: getGlobalImportError(
-                ctx.customAppFile &&
-                  path.relative(ctx.rootDirectory, ctx.customAppFile)
-              ),
+              reason: getGlobalImportError(),
             },
           },
         },
