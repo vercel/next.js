@@ -145,6 +145,10 @@
           "title": "incompatible-href-as",
           "path": "/errors/incompatible-href-as.md"
         },
+        {
+          "title": "inline-script-id",
+          "path": "/errors/inline-script-id.md"
+        },
         { "title": "install-sass", "path": "/errors/install-sass.md" },
         { "title": "install-sharp", "path": "/errors/install-sharp.md" },
         {
