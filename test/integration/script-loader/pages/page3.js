@@ -3,7 +3,7 @@ import Script from 'next/script'
 const Page = () => {
   return (
     <div class="container">
-      <Script>
+      <Script id="inline-script">
         {`(window.onload = function () {
             const newDiv = document.createElement('div')
             newDiv.id = 'onload-div'
