@@ -198,9 +198,9 @@ const nextLint: cliCommand = async (argv) => {
       }
 
       if (lintOutput) {
-        console.log(lintOutput)
+        printAndExit(lintOutput, 0)
       } else if (lintResults && !lintOutput) {
-        console.log(chalk.green('✔ No ESLint warnings or errors'))
+        printAndExit(chalk.green('✔ No ESLint warnings or errors'), 0)
       }
     })
     .catch((err) => {
