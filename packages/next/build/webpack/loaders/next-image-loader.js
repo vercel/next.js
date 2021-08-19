@@ -1,6 +1,7 @@
 import loaderUtils from 'next/dist/compiled/loader-utils'
 import sizeOf from 'image-size'
 import { resizeImage } from '../../../server/image-optimizer'
+import path from 'path'
 
 const BLUR_IMG_SIZE = 8
 const BLUR_QUALITY = 70
@@ -65,7 +66,7 @@ function nextImageLoader(content) {
       .traceChild('image-data-stringify')
       .traceFn(() =>
         JSON.stringify({
-          src: outputPath,
+          src: path.join(assetPrefix || '',outputPath),
           height: imageSize.height,
           width: imageSize.width,
           blurDataURL,
