@@ -153,9 +153,8 @@ const nextLint: cliCommand = async (argv) => {
   const dirs: string[] = args['--dir'] ?? nextConfig.eslint?.dirs
   const filesToLint = [...(dirs ?? []), ...files]
 
-  const pathsToLint = (filesToLint.length
-    ? filesToLint
-    : ESLINT_DEFAULT_DIRS
+  const pathsToLint = (
+    filesToLint.length ? filesToLint : ESLINT_DEFAULT_DIRS
   ).reduce((res: string[], d: string) => {
     const currDir = join(baseDir, d)
     if (!existsSync(currDir)) return res
