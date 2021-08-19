@@ -245,6 +245,7 @@ function defaultImageLoader(loaderProps: ImageLoaderProps) {
 function handleLoading(
   img: HTMLImageElement | null,
   src: string,
+  layout: LayoutValue,
   placeholder: PlaceholderValue,
   onLoadingComplete?: OnLoadingComplete
 ) {
@@ -266,6 +267,18 @@ function handleLoading(
           // Pass back read-only primitive values but not the
           // underlying DOM element because it could be misused.
           onLoadingComplete({ naturalWidth, naturalHeight })
+        }
+        if (process.env.NODE_ENV !== 'production') {
+          const parent = img.parentElement?.parentElement?.style
+          if (layout === 'responsive' && parent?.display === 'flex') {
+            console.warn(
+              `Image with src "${src}" may not render properly as a child of a flex container. Consider wrapping the image with a div to configure the width.`
+            )
+          } else if (layout === 'fill' && parent?.position !== 'relative') {
+            console.warn(
+              `Image with src "${src}" may not render properly with a parent using position:"${parent?.position}". Consider changing the parent style to position:"relative" with a width and height.`
+            )
+          }
         }
       })
     }
@@ -584,26 +597,6 @@ export default function Image({
           ) : null}
         </div>
       ) : null}
-      {!isVisible && (
-        <noscript>
-          <img
-            {...rest}
-            {...generateImgAttrs({
-              src,
-              unoptimized,
-              layout,
-              width: widthInt,
-              quality: qualityInt,
-              sizes,
-              loader,
-            })}
-            decoding="async"
-            data-nimg
-            style={imgStyle}
-            className={className}
-          />
-        </noscript>
-      )}
       <img
         {...rest}
         {...imgAttributes}
@@ -612,10 +605,30 @@ export default function Image({
         className={className}
         ref={(img) => {
           setRef(img)
-          handleLoading(img, srcString, placeholder, onLoadingComplete)
+          handleLoading(img, srcString, layout, placeholder, onLoadingComplete)
         }}
         style={{ ...imgStyle, ...blurStyle }}
       />
+      <noscript>
+        <img
+          {...rest}
+          {...generateImgAttrs({
+            src,
+            unoptimized,
+            layout,
+            width: widthInt,
+            quality: qualityInt,
+            sizes,
+            loader,
+          })}
+          decoding="async"
+          data-nimg
+          style={imgStyle}
+          className={className}
+          loading={loading || 'lazy'}
+        />
+      </noscript>
+
       {priority ? (
         // Note how we omit the `href` attribute, as it would only be relevant
         // for browsers that do not support `imagesrcset`, and in those cases

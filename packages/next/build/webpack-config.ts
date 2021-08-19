@@ -28,7 +28,6 @@ import {
 } from '../shared/lib/constants'
 import { execOnce } from '../shared/lib/utils'
 import { NextConfigComplete } from '../server/config-shared'
-import { findPageFile } from '../server/lib/find-page-file'
 import { WebpackEntrypoints } from './entries'
 import * as Log from './output/log'
 import { build as buildConfiguration } from './webpack/config'
@@ -422,12 +421,43 @@ export default async function getBaseWebpackConfig(
     }
   }
 
+  // tell webpack where to look for _app and _document
+  // using aliases to allow falling back to the default
+  // version when removed or not present
   const clientResolveRewrites = require.resolve(
     '../shared/lib/router/utils/resolve-rewrites'
   )
   const clientResolveRewritesNoop = require.resolve(
     '../shared/lib/router/utils/resolve-rewrites-noop'
   )
+
+  const customAppAliases: { [key: string]: string[] } = {}
+  const customErrorAlias: { [key: string]: string[] } = {}
+  const customDocumentAliases: { [key: string]: string[] } = {}
+
+  if (dev && isWebpack5) {
+    customAppAliases[`${PAGES_DIR_ALIAS}/_app`] = [
+      ...config.pageExtensions.reduce((prev, ext) => {
+        prev.push(path.join(pagesDir, `_app.${ext}`))
+        return prev
+      }, [] as string[]),
+      'next/dist/pages/_app.js',
+    ]
+    customAppAliases[`${PAGES_DIR_ALIAS}/_error`] = [
+      ...config.pageExtensions.reduce((prev, ext) => {
+        prev.push(path.join(pagesDir, `_error.${ext}`))
+        return prev
+      }, [] as string[]),
+      'next/dist/pages/_error.js',
+    ]
+    customDocumentAliases[`${PAGES_DIR_ALIAS}/_document`] = [
+      ...config.pageExtensions.reduce((prev, ext) => {
+        prev.push(path.join(pagesDir, `_document.${ext}`))
+        return prev
+      }, [] as string[]),
+      'next/dist/pages/_document.js',
+    ]
+  }
 
   const resolveConfig = {
     // Disable .mjs for node_modules bundling
@@ -454,6 +484,11 @@ export default async function getBaseWebpackConfig(
     ],
     alias: {
       next: NEXT_PROJECT_ROOT,
+
+      ...customAppAliases,
+      ...customErrorAlias,
+      ...customDocumentAliases,
+
       [PAGES_DIR_ALIAS]: pagesDir,
       [DOT_NEXT_ALIAS]: distDir,
       ...getOptimizedAliases(isServer),
@@ -646,15 +681,6 @@ export default async function getBaseWebpackConfig(
   }
 
   const crossOrigin = config.crossOrigin
-
-  let customAppFile: string | null = await findPageFile(
-    pagesDir,
-    '/_app',
-    config.pageExtensions
-  )
-  if (customAppFile) {
-    customAppFile = path.resolve(path.join(pagesDir, customAppFile))
-  }
 
   const conformanceConfig = Object.assign(
     {
@@ -860,6 +886,7 @@ export default async function getBaseWebpackConfig(
   const emacsLockfilePattern = '**/.#*'
 
   let webpackConfig: webpack.Configuration = {
+    parallelism: Number(process.env.NEXT_WEBPACK_PARALLELISM) || undefined,
     externals: !isServer
       ? // make sure importing "next" is handled gracefully for client
         // bundles in case a user imported types and it wasn't removed
@@ -1532,7 +1559,7 @@ export default async function getBaseWebpackConfig(
 
   webpackConfig = await buildConfiguration(webpackConfig, {
     rootDirectory: dir,
-    customAppFile,
+    customAppFile: new RegExp(path.join(pagesDir, `_app`)),
     isDevelopment: dev,
     isServer,
     assetPrefix: config.assetPrefix || '',
