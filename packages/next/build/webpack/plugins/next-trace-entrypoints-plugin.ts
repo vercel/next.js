@@ -69,7 +69,9 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
       const traceOutputName = `${isWebpack5 ? '../' : ''}${
         entrypoint.name
       }.js.nft.json`
-      const traceOutputPath = nodePath.join(outputPath, traceOutputName)
+      const traceOutputPath = nodePath.dirname(
+        nodePath.join(outputPath, traceOutputName)
+      )
 
       assets[traceOutputName] = new sources.RawSource(
         JSON.stringify({
