@@ -18,7 +18,13 @@ module.exports = {
       JSXElement(node) {
         if (nextScriptImportName == null) return
 
-        if (node.openingElement?.name?.name !== nextScriptImportName) return
+        if (
+          node.openingElement &&
+          node.openingElement.name &&
+          node.openingElement.name.name !== nextScriptImportName
+        ) {
+          return
+        }
 
         const attributes = node.openingElement.attributes
 
