@@ -33,19 +33,24 @@ export type LoadableBaseOptions<P = {}> = LoadableGeneratedOptions & {
   ssr?: boolean
 }
 
+export type LoadableSuspenseOptions<P = {}> = {
+  loader: Loader<P>
+  suspense?: boolean
+}
+
 export type LoadableOptions<P = {}> = LoadableBaseOptions<P>
 
 export type DynamicOptions<P = {}> = LoadableBaseOptions<P>
 
 export type LoadableFn<P = {}> = (
-  opts: LoadableOptions<P>
+  opts: LoadableOptions<P> | LoadableSuspenseOptions<P>
 ) => React.ComponentType<P>
 
 export type LoadableComponent<P = {}> = React.ComponentType<P>
 
 export function noSSR<P = {}>(
   LoadableInitializer: LoadableFn<P>,
-  loadableOptions: LoadableOptions<P>
+  loadableOptions: LoadableBaseOptions<P>
 ): React.ComponentType<P> {
   // Removing webpack and modules means react-loadable won't try preloading
   delete loadableOptions.webpack
@@ -62,8 +67,6 @@ export function noSSR<P = {}>(
     <Loading error={null} isLoading pastDelay={false} timedOut={false} />
   )
 }
-
-// function dynamic<P = {}, O extends DynamicOptions>(options: O):
 
 export default function dynamic<P = {}>(
   dynamicOptions: DynamicOptions<P> | Loader<P>,
@@ -109,6 +112,20 @@ export default function dynamic<P = {}>(
 
   // Support for passing options, eg: dynamic(import('../hello-world'), {loading: () => <p>Loading something</p>})
   loadableOptions = { ...loadableOptions, ...options }
+
+  const suspenseOptions = loadableOptions as LoadableSuspenseOptions<P>
+  if (!process.env.__NEXT_CONCURRENT_FEATURES) {
+    // Error if react root is not enabled and `suspense` option is set to true
+    if (!process.env.__NEXT_REACT_ROOT && suspenseOptions.suspense) {
+      // TODO: add error doc when this feature is stable
+      throw new Error(
+        `Invalid suspense option usage in next/dynamic. Read more: https://nextjs.org/docs/messages/invalid-dynamic-suspense`
+      )
+    }
+  }
+  if (suspenseOptions.suspense) {
+    return loadableFn(suspenseOptions)
+  }
 
   // coming from build/babel/plugins/react-loadable-plugin.js
   if (loadableOptions.loadableGenerated) {

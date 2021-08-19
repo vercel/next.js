@@ -2,21 +2,28 @@
 
 import { join } from 'path'
 import fs from 'fs-extra'
-import webdriver from 'next-webdriver'
+
 import {
+  File,
   findPort,
   killApp,
   launchApp,
   nextBuild,
   nextStart,
+  renderViaHTTP,
 } from 'next-test-utils'
+import blocking from './blocking'
+import concurrent from './concurrent'
+import basics from './basics'
 
 jest.setTimeout(1000 * 60 * 5)
 
 // overrides react and react-dom to v18
 const nodeArgs = ['-r', join(__dirname, 'require-hook.js')]
-const dirSupported = join(__dirname, '../supported')
-const dirPrerelease = join(__dirname, '../prerelease')
+const appDir = join(__dirname, '../app')
+const nextConfig = new File(join(appDir, 'next.config.js'))
+const dynamicHello = new File(join(appDir, 'components/dynamic-hello.js'))
+const unwrappedPage = new File(join(appDir, 'pages/suspense/unwrapped.js'))
 
 const UNSUPPORTED_PRERELEASE =
   "You are using an unsupported prerelease of 'react-dom'"
@@ -52,54 +59,141 @@ async function getDevOutput(dir) {
 }
 
 describe('React 18 Support', () => {
-  describe('build', () => {
-    test('supported version of React', async () => {
-      const output = await getBuildOutput(dirSupported)
-      expect(output).not.toMatch(USING_CREATE_ROOT)
-      expect(output).not.toMatch(UNSUPPORTED_PRERELEASE)
-    })
-
-    test('prerelease version of React', async () => {
-      const output = await getBuildOutput(dirPrerelease)
-      expect(output).toMatch(USING_CREATE_ROOT)
-      expect(output).toMatch(UNSUPPORTED_PRERELEASE)
-    })
-  })
-
-  describe('dev', () => {
-    test('supported version of React', async () => {
-      let output = await getDevOutput(dirSupported)
-      expect(output).not.toMatch(USING_CREATE_ROOT)
-      expect(output).not.toMatch(UNSUPPORTED_PRERELEASE)
-    })
-
-    test('prerelease version of React', async () => {
-      let output = await getDevOutput(dirPrerelease)
-      expect(output).toMatch(USING_CREATE_ROOT)
-      expect(output).toMatch(UNSUPPORTED_PRERELEASE)
-    })
-  })
-
-  describe('hydration', () => {
-    const appDir = join(__dirname, '../prerelease')
-    let app
-    let appPort
+  describe('no warns with stable supported version of react-dom', () => {
     beforeAll(async () => {
-      await fs.remove(join(appDir, '.next'))
-      await nextBuild(appDir, [dirPrerelease], {
+      await fs.remove(join(appDir, 'node_modules'))
+      nextConfig.replace('reactRoot: true', '// reactRoot: true')
+    })
+    afterAll(() => {
+      nextConfig.replace('// reactRoot: true', 'reactRoot: true')
+    })
+
+    test('supported version of react in dev', async () => {
+      const output = await getDevOutput(appDir)
+      expect(output).not.toMatch(USING_CREATE_ROOT)
+      expect(output).not.toMatch(UNSUPPORTED_PRERELEASE)
+    })
+
+    test('supported version of react in build', async () => {
+      const output = await getBuildOutput(appDir)
+      expect(output).not.toMatch(USING_CREATE_ROOT)
+      expect(output).not.toMatch(UNSUPPORTED_PRERELEASE)
+    })
+
+    test('suspense is not allowed in blocking rendering mode (prod)', async () => {
+      const { stderr, code } = await nextBuild(appDir, [], {
         nodeArgs,
-        stdout: true,
         stderr: true,
       })
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort, { nodeArgs })
+      expect(code).toBe(1)
+      expect(stderr).toContain(
+        'Invalid suspense option usage in next/dynamic. Read more: https://nextjs.org/docs/messages/invalid-dynamic-suspense'
+      )
     })
-    afterAll(async () => {
-      await killApp(app)
+  })
+
+  describe('warns with stable supported version of react-dom', () => {
+    beforeAll(async () => {
+      const reactDomPkgPath = join(
+        appDir,
+        'node_modules/react-dom/package.json'
+      )
+      await fs.outputJson(reactDomPkgPath, {
+        name: 'react-dom',
+        version: '18.0.0-alpha-c76e4dbbc-20210722',
+      })
     })
-    it('hydrates correctly for normal page', async () => {
-      const browser = await webdriver(appPort, '/')
-      expect(await browser.eval('window.didHydrate')).toBe(true)
+    afterAll(async () => await fs.remove(join(appDir, 'node_modules')))
+
+    test('prerelease version of react in dev', async () => {
+      const output = await getDevOutput(appDir)
+      expect(output).toMatch(USING_CREATE_ROOT)
+      expect(output).toMatch(UNSUPPORTED_PRERELEASE)
+    })
+
+    test('prerelease version of react in build', async () => {
+      const output = await getBuildOutput(appDir)
+      expect(output).toMatch(USING_CREATE_ROOT)
+      expect(output).toMatch(UNSUPPORTED_PRERELEASE)
     })
   })
 })
+
+describe('Basics', () => {
+  runTests('default setting with react 18', (context) => basics(context))
+
+  it('suspense is not allowed in blocking rendering mode (dev)', async () => {
+    // set dynamic.suspense = true but not wrapping with <Suspense>
+    unwrappedPage.replace('wrapped = true', 'wrapped = false')
+    const appPort = await findPort()
+    const app = await launchApp(appDir, appPort, { nodeArgs })
+    const html = await renderViaHTTP(appPort, '/suspense/unwrapped')
+    unwrappedPage.restore()
+    await killApp(app)
+
+    expect(html).toContain(
+      'A React component suspended while rendering, but no fallback UI was specified'
+    )
+  })
+})
+
+describe('Blocking mode', () => {
+  beforeAll(() => {
+    dynamicHello.replace('suspense = false', `suspense = true`)
+  })
+  afterAll(() => {
+    dynamicHello.restore()
+  })
+
+  runTests('concurrentFeatures is disabled', (context) =>
+    blocking(context, (p, q) => renderViaHTTP(context.appPort, p, q))
+  )
+})
+
+describe('Concurrent mode', () => {
+  beforeAll(async () => {
+    nextConfig.replace(
+      '// concurrentFeatures: true',
+      'concurrentFeatures: true'
+    )
+    dynamicHello.replace('suspense = false', `suspense = true`)
+    // `noSSR` mode will be ignored by suspense
+    dynamicHello.replace('let ssr', `let ssr = false`)
+  })
+  afterAll(async () => {
+    nextConfig.restore()
+    dynamicHello.restore()
+  })
+
+  runTests('concurrentFeatures is enabled', (context) =>
+    concurrent(context, (p, q) => renderViaHTTP(context.appPort, p, q))
+  )
+})
+
+function runTest(mode, name, fn) {
+  const context = { appDir }
+  describe(`${name} (${mode})`, () => {
+    beforeAll(async () => {
+      context.appPort = await findPort()
+      if (mode === 'dev') {
+        context.server = await launchApp(context.appDir, context.appPort, {
+          nodeArgs,
+        })
+      } else {
+        await nextBuild(context.appDir, [], { nodeArgs })
+        context.server = await nextStart(context.appDir, context.appPort, {
+          nodeArgs,
+        })
+      }
+    })
+    afterAll(async () => {
+      await killApp(context.server)
+    })
+    fn(context)
+  })
+}
+
+function runTests(name, fn) {
+  runTest('dev', name, fn)
+  runTest('prod', name, fn)
+}

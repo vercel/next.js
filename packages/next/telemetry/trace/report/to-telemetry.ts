@@ -24,4 +24,7 @@ const reportToTelemetry = (spanName: string, duration: number) => {
   })
 }
 
-export default reportToTelemetry
+export default {
+  flushAll: () => {},
+  report: reportToTelemetry,
+}
