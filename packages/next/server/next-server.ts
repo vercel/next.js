@@ -87,7 +87,6 @@ import { FontManifest } from './font-utils'
 import { denormalizePagePath } from './denormalize-page-path'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import * as Log from '../build/output/log'
-import { imageOptimizer } from './image-optimizer'
 import { detectDomainLocale } from '../shared/lib/i18n/detect-domain-locale'
 import escapePathDelimiters from '../shared/lib/router/utils/escape-path-delimiters'
 import { getUtils } from '../build/webpack/loaders/next-serverless-loader/utils'
@@ -700,8 +699,18 @@ export default class Server {
         match: route('/_next/image'),
         type: 'route',
         name: '_next/image catchall',
-        fn: (req, res, _params, parsedUrl) =>
-          imageOptimizer(
+        fn: (req, res, _params, parsedUrl) => {
+          if (this.minimalMode) {
+            res.statusCode = 400
+            res.end('Bad Request')
+            return {
+              finished: true,
+            }
+          }
+          const { imageOptimizer } =
+            require('./image-optimizer') as typeof import('./image-optimizer')
+
+          return imageOptimizer(
             server,
             req,
             res,
@@ -709,7 +718,8 @@ export default class Server {
             server.nextConfig,
             server.distDir,
             this.renderOpts.dev
-          ),
+          )
+        },
       },
       {
         match: route('/_next/:path*'),
