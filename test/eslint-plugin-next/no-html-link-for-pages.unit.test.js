@@ -18,6 +18,18 @@ const linterConfig = {
     },
   },
 }
+const linterConfigWithMultipleDirectories = {
+  ...linterConfig,
+  rules: {
+    'no-html-link-for-pages': [
+      2,
+      [
+        path.join(__dirname, 'custom-pages'),
+        path.join(__dirname, 'custom-pages/list'),
+      ],
+    ],
+  },
+}
 
 linter.defineRules({
   'no-html-link-for-pages': rule,
@@ -105,6 +117,17 @@ describe('no-html-link-for-pages', function () {
     const report = linter.verify(validCode, linterConfig, {
       filename: 'foo.js',
     })
+    assert.deepEqual(report, [])
+  })
+
+  it('valid link element with multiple directories', function () {
+    const report = linter.verify(
+      validCode,
+      linterConfigWithMultipleDirectories,
+      {
+        filename: 'foo.js',
+      }
+    )
     assert.deepEqual(report, [])
   })
 

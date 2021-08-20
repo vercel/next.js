@@ -1,5 +1,6 @@
 // eslint-disable-next-line import/no-extraneous-dependencies
 const notifier = require('node-notifier')
+// eslint-disable-next-line import/no-extraneous-dependencies
 const { relative, basename, resolve } = require('path')
 const { Module } = require('module')
 
@@ -196,6 +197,14 @@ export async function ncc_ci_info(task, opts) {
     .ncc({ packageName: 'ci-info', externals })
     .target('compiled/ci-info')
 }
+// eslint-disable-next-line camelcase
+externals['cli-select'] = 'next/dist/compiled/cli-select'
+export async function ncc_cli_select(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('cli-select')))
+    .ncc({ packageName: 'cli-select', externals })
+    .target('compiled/cli-select')
+}
 externals['comment-json'] = 'next/dist/compiled/comment-json'
 export async function ncc_comment_json(task, opts) {
   await task
@@ -234,6 +243,14 @@ export async function ncc_cookie(task, opts) {
     .source(opts.src || relative(__dirname, require.resolve('cookie')))
     .ncc({ packageName: 'cookie', externals })
     .target('compiled/cookie')
+}
+// eslint-disable-next-line camelcase
+externals['cross-spawn'] = 'next/dist/compiled/cross-spawn'
+export async function ncc_cross_spawn(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('cross-spawn')))
+    .ncc({ packageName: 'cross-spawn', externals })
+    .target('compiled/cross-spawn')
 }
 // eslint-disable-next-line camelcase
 externals['css-loader'] = 'next/dist/compiled/css-loader'
@@ -307,6 +324,14 @@ export async function ncc_fresh(task, opts) {
     .source(opts.src || relative(__dirname, require.resolve('fresh')))
     .ncc({ packageName: 'fresh', externals })
     .target('compiled/fresh')
+}
+// eslint-disable-next-line camelcase
+externals['glob'] = 'next/dist/compiled/glob'
+export async function ncc_glob(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('glob')))
+    .ncc({ packageName: 'glob', externals })
+    .target('compiled/glob')
 }
 // eslint-disable-next-line camelcase
 externals['gzip-size'] = 'next/dist/compiled/gzip-size'
@@ -436,7 +461,13 @@ externals['postcss-loader'] = 'next/dist/compiled/postcss-loader'
 export async function ncc_postcss_loader(task, opts) {
   await task
     .source(opts.src || relative(__dirname, require.resolve('postcss-loader')))
-    .ncc({ packageName: 'postcss-loader', externals })
+    .ncc({
+      packageName: 'postcss-loader',
+      externals: {
+        ...externals,
+        'schema-utils': 'next/dist/compiled/schema-utils3',
+      },
+    })
     .target('compiled/postcss-loader')
 }
 // eslint-disable-next-line camelcase
@@ -568,6 +599,14 @@ export async function ncc_strip_ansi(task, opts) {
     .target('compiled/strip-ansi')
 }
 // eslint-disable-next-line camelcase
+externals['@vercel/nft'] = 'next/dist/compiled/@vercel/nft'
+export async function ncc_nft(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('@vercel/nft')))
+    .ncc({ packageName: '@vercel/nft', externals })
+    .target('compiled/@vercel/nft')
+}
+// eslint-disable-next-line camelcase
 externals['terser'] = 'next/dist/compiled/terser'
 export async function ncc_terser(task, opts) {
   await task
@@ -600,6 +639,16 @@ export async function ncc_web_vitals(task, opts) {
     .target('compiled/web-vitals')
 }
 // eslint-disable-next-line camelcase
+externals['zen-observable'] = 'next/dist/compiled/zen-observable'
+export async function ncc_zen_observable(task, opts) {
+  await task
+    .source(
+      opts.src || relative(__dirname, require.resolve('zen-observable/esm'))
+    )
+    .ncc({ packageName: 'zen-observable', externals })
+    .target('compiled/zen-observable')
+}
+// eslint-disable-next-line camelcase
 externals['webpack-sources'] = 'next/dist/compiled/webpack-sources'
 export async function ncc_webpack_sources(task, opts) {
   await task
@@ -608,14 +657,48 @@ export async function ncc_webpack_sources(task, opts) {
     .target('compiled/webpack-sources')
 }
 // eslint-disable-next-line camelcase
-externals['webpack-sources2'] = 'next/dist/compiled/webpack-sources2'
-export async function ncc_webpack_sources2(task, opts) {
+externals['webpack-sources3'] = 'next/dist/compiled/webpack-sources3'
+export async function ncc_webpack_sources3(task, opts) {
   await task
     .source(
-      opts.src || relative(__dirname, bundleRequire.resolve('webpack-sources2'))
+      opts.src || relative(__dirname, bundleRequire.resolve('webpack-sources3'))
     )
-    .ncc({ packageName: 'webpack-sources2', externals, target: 'es5' })
-    .target('compiled/webpack-sources2')
+    .ncc({ packageName: 'webpack-sources3', externals, target: 'es5' })
+    .target('compiled/webpack-sources3')
+}
+// eslint-disable-next-line camelcase
+externals['mini-css-extract-plugin'] =
+  'next/dist/compiled/mini-css-extract-plugin'
+export async function ncc_mini_css_extract_plugin(task, opts) {
+  await task
+    .source(
+      relative(
+        __dirname,
+        resolve(require.resolve('mini-css-extract-plugin'), '../index.js')
+      )
+    )
+    .ncc({
+      externals: {
+        ...externals,
+        './index': './index.js',
+        'schema-utils': 'next/dist/compiled/schema-utils3',
+      },
+    })
+    .target('compiled/mini-css-extract-plugin')
+  await task
+    .source(
+      opts.src ||
+        relative(__dirname, require.resolve('mini-css-extract-plugin'))
+    )
+    .ncc({
+      packageName: 'mini-css-extract-plugin',
+      externals: {
+        ...externals,
+        './index': './index.js',
+        'schema-utils': 'next/dist/compiled/schema-utils3',
+      },
+    })
+    .target('compiled/mini-css-extract-plugin')
 }
 
 // eslint-disable-next-line camelcase
@@ -645,7 +728,7 @@ export async function ncc_webpack_bundle5(task, opts) {
       externals: {
         ...externals,
         'schema-utils': 'next/dist/compiled/schema-utils3',
-        'webpack-sources': 'next/dist/compiled/webpack-sources2',
+        'webpack-sources': 'next/dist/compiled/webpack-sources3',
       },
       minify: false,
       target: 'es5',
@@ -654,7 +737,7 @@ export async function ncc_webpack_bundle5(task, opts) {
 }
 
 const webpackBundlePackages = {
-  webpack: 'next/dist/compiled/webpack/webpack',
+  webpack: 'next/dist/compiled/webpack/webpack-lib',
 }
 
 Object.assign(externals, webpackBundlePackages)
@@ -700,11 +783,13 @@ export async function ncc(task, opts) {
         'ncc_bfj',
         'ncc_cacache',
         'ncc_ci_info',
+        'ncc_cli_select',
         'ncc_comment_json',
         'ncc_compression',
         'ncc_conf',
         'ncc_content_type',
         'ncc_cookie',
+        'ncc_cross_spawn',
         'ncc_css_loader',
         'ncc_debug',
         'ncc_devalue',
@@ -713,6 +798,7 @@ export async function ncc(task, opts) {
         'ncc_find_cache_dir',
         'ncc_find_up',
         'ncc_fresh',
+        'ncc_glob',
         'ncc_gzip_size',
         'ncc_http_proxy',
         'ncc_ignore_loader',
@@ -741,15 +827,18 @@ export async function ncc(task, opts) {
         'ncc_source_map',
         'ncc_string_hash',
         'ncc_strip_ansi',
+        'ncc_nft',
         'ncc_terser',
         'ncc_text_table',
         'ncc_unistore',
         'ncc_web_vitals',
+        'ncc_zen_observable',
         'ncc_webpack_bundle4',
         'ncc_webpack_bundle5',
         'ncc_webpack_bundle_packages',
         'ncc_webpack_sources',
-        'ncc_webpack_sources2',
+        'ncc_webpack_sources3',
+        'ncc_mini_css_extract_plugin',
       ],
       opts
     )
@@ -767,8 +856,8 @@ export async function compile(task, opts) {
       'lib',
       'client',
       'telemetry',
-      'nextserver',
-      'nextserver_wasm',
+      'shared',
+      'server_wasm',
       // we compile this each time so that fresh runtime data is pulled
       // before each publish
       'ncc_amp_optimizer',
@@ -780,15 +869,15 @@ export async function compile(task, opts) {
 export async function bin(task, opts) {
   await task
     .source(opts.src || 'bin/*')
-    .babel('server', { stripExtension: true, dev: opts.dev })
+    .swc('server', { stripExtension: true, dev: opts.dev })
     .target('dist/bin', { mode: '0755' })
   notify('Compiled binaries')
 }
 
 export async function cli(task, opts) {
   await task
-    .source(opts.src || 'cli/**/*.+(js|ts|tsx)')
-    .babel('server', { dev: opts.dev })
+    .source('cli/**/*.+(js|ts|tsx)')
+    .swc('server', { dev: opts.dev })
     .target('dist/cli')
   notify('Compiled cli files')
 }
@@ -796,7 +885,7 @@ export async function cli(task, opts) {
 export async function lib(task, opts) {
   await task
     .source(opts.src || 'lib/**/*.+(js|ts|tsx)')
-    .babel('server', { dev: opts.dev })
+    .swc('server', { dev: opts.dev })
     .target('dist/lib')
   notify('Compiled lib files')
 }
@@ -804,15 +893,17 @@ export async function lib(task, opts) {
 export async function server(task, opts) {
   await task
     .source(opts.src || 'server/**/*.+(js|ts|tsx)')
-    .babel('server', { dev: opts.dev })
+    .swc('server', { dev: opts.dev })
     .target('dist/server')
   notify('Compiled server files')
 }
 
 export async function nextbuild(task, opts) {
   await task
-    .source(opts.src || 'build/**/*.+(js|ts|tsx)')
-    .babel('server', { dev: opts.dev })
+    .source(opts.src || 'build/**/*.+(js|ts|tsx)', {
+      ignore: '**/fixture/**',
+    })
+    .swc('server', { dev: opts.dev })
     .target('dist/build')
   notify('Compiled build files')
 }
@@ -820,7 +911,7 @@ export async function nextbuild(task, opts) {
 export async function client(task, opts) {
   await task
     .source(opts.src || 'client/**/*.+(js|ts|tsx)')
-    .babel('client', { dev: opts.dev })
+    .swc('client', { dev: opts.dev })
     .target('dist/client')
   notify('Compiled client files')
 }
@@ -829,7 +920,7 @@ export async function client(task, opts) {
 export async function nextbuildstatic(task, opts) {
   await task
     .source(opts.src || 'export/**/*.+(js|ts|tsx)')
-    .babel('server', { dev: opts.dev })
+    .swc('server', { dev: opts.dev })
     .target('dist/export')
   notify('Compiled export files')
 }
@@ -837,21 +928,21 @@ export async function nextbuildstatic(task, opts) {
 export async function pages_app(task, opts) {
   await task
     .source('pages/_app.tsx')
-    .babel('client', { dev: opts.dev })
+    .swc('client', { dev: opts.dev })
     .target('dist/pages')
 }
 
 export async function pages_error(task, opts) {
   await task
     .source('pages/_error.tsx')
-    .babel('client', { dev: opts.dev })
+    .swc('client', { dev: opts.dev })
     .target('dist/pages')
 }
 
 export async function pages_document(task, opts) {
   await task
     .source('pages/_document.tsx')
-    .babel('server', { dev: opts.dev })
+    .swc('server', { dev: opts.dev })
     .target('dist/pages')
 }
 
@@ -862,7 +953,7 @@ export async function pages(task, opts) {
 export async function telemetry(task, opts) {
   await task
     .source(opts.src || 'telemetry/**/*.+(js|ts|tsx)')
-    .babel('server', { dev: opts.dev })
+    .swc('server', { dev: opts.dev })
     .target('dist/telemetry')
   notify('Compiled telemetry files')
 }
@@ -884,22 +975,20 @@ export default async function (task) {
   await task.watch('lib/**/*.+(js|ts|tsx)', 'lib', opts)
   await task.watch('cli/**/*.+(js|ts|tsx)', 'cli', opts)
   await task.watch('telemetry/**/*.+(js|ts|tsx)', 'telemetry', opts)
-  await task.watch('next-server/**/*.+(js|ts|tsx)', 'nextserver', opts)
-  await task.watch('next-server/**/*.+(wasm)', 'nextserver_wasm', opts)
+  await task.watch('shared/**/*.+(js|ts|tsx)', 'shared', opts)
+  await task.watch('server/**/*.+(wasm)', 'server_wasm', opts)
 }
 
-export async function nextserver(task, opts) {
+export async function shared(task, opts) {
   await task
-    .source(opts.src || 'next-server/**/*.+(js|ts|tsx)')
-    .babel('server', { dev: opts.dev })
-    .target('dist/next-server')
-  notify('Compiled server files')
+    .source(opts.src || 'shared/**/*.+(js|ts|tsx)')
+    .swc('server', { dev: opts.dev })
+    .target('dist/shared')
+  notify('Compiled shared files')
 }
 
-export async function nextserver_wasm(task, opts) {
-  await task
-    .source(opts.src || 'next-server/**/*.+(wasm)')
-    .target('dist/next-server')
+export async function server_wasm(task, opts) {
+  await task.source(opts.src || 'server/**/*.+(wasm)').target('dist/server')
   notify('Moved server wasm files')
 }
 

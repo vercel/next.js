@@ -262,6 +262,8 @@ function runTests(dev = false) {
     })
 
     expect(res.status).toEqual(307)
+    const text = await res.text()
+    expect(text).toEqual('/login')
   })
 
   it('should redirect to login', async () => {
@@ -277,6 +279,8 @@ function runTests(dev = false) {
     })
 
     expect(res.status).toEqual(301)
+    const text = await res.text()
+    expect(text).toEqual('/login')
   })
 
   it('should return empty query object', async () => {
@@ -396,6 +400,20 @@ function runTests(dev = false) {
   it('should work with child_process correctly', async () => {
     const data = await renderViaHTTP(appPort, '/api/child-process')
     expect(data).toBe('hi')
+  })
+
+  it('should warn if response body is larger than 4MB', async () => {
+    let res = await fetchViaHTTP(appPort, '/api/large-response')
+    expect(res.ok).toBeTruthy()
+    expect(stderr).toContain(
+      'API response for /api/large-response exceeds 4MB. This will cause the request to fail in a future version.'
+    )
+
+    res = await fetchViaHTTP(appPort, '/api/large-chunked-response')
+    expect(res.ok).toBeTruthy()
+    expect(stderr).toContain(
+      'API response for /api/large-chunked-response exceeds 4MB. This will cause the request to fail in a future version.'
+    )
   })
 
   if (dev) {

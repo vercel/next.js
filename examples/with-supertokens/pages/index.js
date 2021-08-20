@@ -42,13 +42,15 @@ export default function Home(props) {
 function ProtectedPage({ userId }) {
   async function logoutClicked() {
     await ThirdPartyEmailPassword.signOut()
-    window.location.href = '/auth'
+    ThirdPartyEmailPassword.redirectToAuth()
   }
 
   async function fetchUserData() {
     const res = await fetch('/api/user')
-    const json = await res.json()
-    alert(JSON.stringify(json))
+    if (res.status === 200) {
+      const json = await res.json()
+      alert(JSON.stringify(json))
+    }
   }
 
   return (

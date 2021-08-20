@@ -25,7 +25,8 @@ function getError_NullConfig(pluginName: string) {
 }
 
 function isIgnoredPlugin(pluginPath: string): boolean {
-  const ignoredRegex = /(?:^|[\\/])(postcss-modules-values|postcss-modules-scope|postcss-modules-extract-imports|postcss-modules-local-by-default|postcss-modules)(?:[\\/]|$)/i
+  const ignoredRegex =
+    /(?:^|[\\/])(postcss-modules-values|postcss-modules-scope|postcss-modules-extract-imports|postcss-modules-local-by-default|postcss-modules)(?:[\\/]|$)/i
   const match = ignoredRegex.exec(pluginPath)
   if (match == null) {
     return false
@@ -40,6 +41,23 @@ function isIgnoredPlugin(pluginPath: string): boolean {
       'Read more: https://nextjs.org/docs/messages/postcss-ignored-plugin'
   )
   return true
+}
+
+const createLazyPostCssPlugin = (
+  fn: () => import('postcss').AcceptedPlugin
+): import('postcss').AcceptedPlugin => {
+  let result: any = undefined
+  const plugin = (...args: any[]) => {
+    if (result === undefined) result = fn() as any
+    if (result.postcss === true) {
+      return result(...args)
+    } else if (result.postcss) {
+      return result.postcss
+    }
+    return result
+  }
+  plugin.postcss = true
+  return plugin
 }
 
 async function loadPlugin(
@@ -60,13 +78,13 @@ async function loadPlugin(
   if (isIgnoredPlugin(pluginPath)) {
     return false
   } else if (options === true) {
-    return require(pluginPath)
+    return createLazyPostCssPlugin(() => require(pluginPath))
   } else {
     const keys = Object.keys(options)
     if (keys.length === 0) {
-      return require(pluginPath)
+      return createLazyPostCssPlugin(() => require(pluginPath))
     }
-    return require(pluginPath)(options)
+    return createLazyPostCssPlugin(() => require(pluginPath)(options))
   }
 }
 

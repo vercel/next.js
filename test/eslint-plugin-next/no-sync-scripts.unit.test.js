@@ -60,7 +60,7 @@ ruleTester.run('sync-scripts', rule, {
       errors: [
         {
           message:
-            'Synchronous scripts are forbidden. See: https://nextjs.org/docs/messages/no-sync-scripts.',
+            'External synchronous scripts are forbidden. See: https://nextjs.org/docs/messages/no-sync-scripts.',
           type: 'JSXOpeningElement',
         },
       ],
@@ -82,7 +82,7 @@ ruleTester.run('sync-scripts', rule, {
       errors: [
         {
           message:
-            'Synchronous scripts are forbidden. See: https://nextjs.org/docs/messages/no-sync-scripts.',
+            'External synchronous scripts are forbidden. See: https://nextjs.org/docs/messages/no-sync-scripts.',
           type: 'JSXOpeningElement',
         },
       ],

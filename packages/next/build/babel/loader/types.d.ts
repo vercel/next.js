@@ -11,7 +11,6 @@ export interface NextBabelLoaderOptions {
   isServer: boolean
   development: boolean
   pagesDir: string
-  presets: any[]
   sourceMaps?: any[]
   overrides: any
   caller: any

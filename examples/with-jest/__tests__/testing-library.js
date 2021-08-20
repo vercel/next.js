@@ -2,10 +2,14 @@ import React from 'react'
 import { render } from '@testing-library/react'
 import Index from '../pages/index'
 
-test('renders deploy link', () => {
-  const { getByText } = render(<Index />)
-  const linkElement = getByText(
-    /Instantly deploy your Next\.js site to a public URL with Vercel\./
-  )
-  expect(linkElement).toBeInTheDocument()
+describe('App', () => {
+  it('renders a heading', () => {
+    const { getByRole } = render(<Index />)
+
+    const heading = getByRole('heading', {
+      name: /welcome to next\.js!/i,
+    })
+
+    expect(heading).toBeInTheDocument()
+  })
 })

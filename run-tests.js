@@ -1,7 +1,9 @@
 const path = require('path')
 const _glob = require('glob')
 const fs = require('fs').promises
-const fetch = require('node-fetch')
+const nodeFetch = require('node-fetch')
+const vercelFetch = require('@vercel/fetch')
+const fetch = vercelFetch(nodeFetch)
 const { promisify } = require('util')
 const { Sema } = require('async-sema')
 const { spawn, exec: execOrig } = require('child_process')
@@ -19,6 +21,14 @@ const TIMINGS_API = `https://next-timings.jjsweb.site/api/timings`
 const UNIT_TEST_EXT = '.unit.test.js'
 const DEV_TEST_EXT = '.dev.test.js'
 const PROD_TEST_EXT = '.prod.test.js'
+
+const NON_CONCURRENT_TESTS = [
+  'test/integration/basic/test/index.test.js',
+  'test/acceptance/ReactRefresh.dev.test.js',
+  'test/acceptance/ReactRefreshLogBox.dev.test.js',
+  'test/acceptance/ReactRefreshRegression.dev.test.js',
+  'test/acceptance/ReactRefreshRequire.dev.test.js',
+]
 
 // which types we have configured to run separate
 const configuredTestTypes = [UNIT_TEST_EXT]
@@ -104,6 +114,7 @@ async function main() {
         }
       } catch (err) {
         console.log(`Failed to fetch timings data`, err)
+        process.exit(1)
       }
     }
   }
@@ -175,6 +186,7 @@ async function main() {
   const runTest = (test = '', usePolling) =>
     new Promise((resolve, reject) => {
       const start = new Date().getTime()
+      let outputChunks = []
       const child = spawn(
         'node',
         [
@@ -188,7 +200,7 @@ async function main() {
           test,
         ],
         {
-          stdio: 'inherit',
+          stdio: ['ignore', 'pipe', 'pipe'],
           env: {
             JEST_RETRY_TIMES: 0,
             ...process.env,
@@ -204,18 +216,87 @@ async function main() {
                   // reliable polling method.
                   CHOKIDAR_USEPOLLING: 'true',
                   CHOKIDAR_INTERVAL: 500,
+                  WATCHPACK_POLLING: 500,
                 }
               : {}),
           },
         }
       )
+      child.stdout.on('data', (chunk) => {
+        outputChunks.push(chunk)
+      })
+      child.stderr.on('data', (chunk) => {
+        outputChunks.push(chunk)
+      })
       children.add(child)
       child.on('exit', (code) => {
         children.delete(child)
-        if (code) reject(new Error(`failed with code: ${code}`))
+        if (code) {
+          outputChunks.forEach((chunk) => process.stdout.write(chunk))
+          reject(new Error(`failed with code: ${code}`))
+        }
         resolve(new Date().getTime() - start)
       })
     })
+
+  const nonConcurrentTestNames = []
+
+  testNames = testNames.filter((testName) => {
+    if (NON_CONCURRENT_TESTS.includes(testName)) {
+      nonConcurrentTestNames.push(testName)
+      return false
+    }
+    return true
+  })
+
+  // run non-concurrent test names separately and before
+  // concurrent ones
+  for (const test of nonConcurrentTestNames) {
+    let passed = false
+
+    for (let i = 0; i < NUM_RETRIES + 1; i++) {
+      try {
+        console.log(`Starting ${test} retry ${i}/${NUM_RETRIES}`)
+        const time = await runTest(test, i > 0)
+        timings.push({
+          file: test,
+          time,
+        })
+        passed = true
+        console.log(
+          `Finished ${test} on retry ${i}/${NUM_RETRIES} in ${time / 1000}s`
+        )
+        break
+      } catch (err) {
+        if (i < NUM_RETRIES) {
+          try {
+            const testDir = path.dirname(path.join(__dirname, test))
+            console.log('Cleaning test files at', testDir)
+            await exec(`git clean -fdx "${testDir}"`)
+            await exec(`git checkout "${testDir}"`)
+          } catch (err) {}
+        }
+      }
+    }
+    if (!passed) {
+      console.error(`${test} failed to pass within ${NUM_RETRIES} retries`)
+      children.forEach((child) => child.kill())
+
+      if (isTestJob) {
+        try {
+          const testsOutput = await fs.readFile(`${test}${RESULTS_EXT}`, 'utf8')
+          console.log(
+            `--test output start--`,
+            testsOutput,
+            `--test output end--`
+          )
+        } catch (err) {
+          console.log(`Failed to load test output`, err)
+        }
+      }
+      process.exit(1)
+    }
+  }
 
   await Promise.all(
     testNames.map(async (test) => {
@@ -224,12 +305,16 @@ async function main() {
 
       for (let i = 0; i < NUM_RETRIES + 1; i++) {
         try {
+          console.log(`Starting ${test} retry ${i}/${NUM_RETRIES}`)
           const time = await runTest(test, i > 0)
           timings.push({
             file: test,
             time,
           })
           passed = true
+          console.log(
+            `Finished ${test} on retry ${i}/${NUM_RETRIES} in ${time / 1000}s`
+          )
           break
         } catch (err) {
           if (i < NUM_RETRIES) {

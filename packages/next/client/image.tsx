@@ -1,13 +1,15 @@
 import React from 'react'
-import Head from '../next-server/lib/head'
-import { toBase64 } from '../next-server/lib/to-base-64'
+import Head from '../shared/lib/head'
+import { toBase64 } from '../shared/lib/to-base-64'
 import {
   ImageConfig,
   imageConfigDefault,
   LoaderValue,
   VALID_LOADERS,
-} from '../next-server/server/image-config'
+} from '../server/image-config'
 import { useIntersection } from './use-intersection'
+
+const loadedImageURLs = new Set<string>()
 
 if (typeof window === 'undefined') {
   ;(global as any).__NEXT_IMAGE_IMPORTED = true
@@ -30,10 +32,11 @@ const loaders = new Map<
   LoaderValue,
   (props: DefaultImageLoaderProps) => string
 >([
+  ['default', defaultLoader],
   ['imgix', imgixLoader],
   ['cloudinary', cloudinaryLoader],
   ['akamai', akamaiLoader],
-  ['default', defaultLoader],
+  ['custom', customLoader],
 ])
 
 const VALID_LAYOUT_VALUES = [
@@ -47,41 +50,59 @@ type LayoutValue = typeof VALID_LAYOUT_VALUES[number]
 
 type PlaceholderValue = 'blur' | 'empty'
 
+type OnLoadingComplete = (result: {
+  naturalWidth: number
+  naturalHeight: number
+}) => void
+
 type ImgElementStyle = NonNullable<JSX.IntrinsicElements['img']['style']>
+
+interface StaticRequire {
+  default: StaticImageData
+}
+
+type StaticImport = StaticRequire | StaticImageData
+
+function isStaticRequire(
+  src: StaticRequire | StaticImageData
+): src is StaticRequire {
+  return (src as StaticRequire).default !== undefined
+}
+
+function isStaticImageData(
+  src: StaticRequire | StaticImageData
+): src is StaticImageData {
+  return (src as StaticImageData).src !== undefined
+}
+
+function isStaticImport(src: string | StaticImport): src is StaticImport {
+  return (
+    typeof src === 'object' &&
+    (isStaticRequire(src as StaticImport) ||
+      isStaticImageData(src as StaticImport))
+  )
+}
 
 export type ImageProps = Omit<
   JSX.IntrinsicElements['img'],
   'src' | 'srcSet' | 'ref' | 'width' | 'height' | 'loading' | 'style'
 > & {
-  src: string
+  src: string | StaticImport
+  width?: number | string
+  height?: number | string
+  layout?: LayoutValue
   loader?: ImageLoader
   quality?: number | string
   priority?: boolean
   loading?: LoadingValue
+  lazyBoundary?: string
+  placeholder?: PlaceholderValue
+  blurDataURL?: string
   unoptimized?: boolean
   objectFit?: ImgElementStyle['objectFit']
   objectPosition?: ImgElementStyle['objectPosition']
-} & (
-    | {
-        width?: never
-        height?: never
-        /** @deprecated Use `layout="fill"` instead */
-        unsized: true
-      }
-    | { width?: never; height?: never; layout: 'fill' }
-    | {
-        width: number | string
-        height: number | string
-        layout?: Exclude<LayoutValue, 'fill'>
-      }
-  ) &
-  (
-    | {
-        placeholder?: Exclude<PlaceholderValue, 'blur'>
-        blurDataURL?: never
-      }
-    | { placeholder: 'blur'; blurDataURL: string }
-  )
+  onLoadingComplete?: OnLoadingComplete
+}
 
 const {
   deviceSizes: configDeviceSizes,
@@ -89,9 +110,7 @@ const {
   loader: configLoader,
   path: configPath,
   domains: configDomains,
-  enableBlurryPlaceholder: configEnableBlurryPlaceholder,
-} =
-  ((process.env.__NEXT_IMAGE_OPTS as any) as ImageConfig) || imageConfigDefault
+} = (process.env.__NEXT_IMAGE_OPTS as any as ImageConfig) || imageConfigDefault
 // sort smallest to largest
 const allSizes = [...configDeviceSizes, ...configImageSizes]
 configDeviceSizes.sort((a, b) => a - b)
@@ -223,21 +242,54 @@ function defaultImageLoader(loaderProps: ImageLoaderProps) {
 
 // See https://stackoverflow.com/q/39777833/266535 for why we use this ref
 // handler instead of the img's onLoad attribute.
-function removePlaceholder(
-  element: HTMLImageElement | null,
-  placeholder: PlaceholderValue
+function handleLoading(
+  img: HTMLImageElement | null,
+  src: string,
+  layout: LayoutValue,
+  placeholder: PlaceholderValue,
+  onLoadingComplete?: OnLoadingComplete
 ) {
-  if (placeholder === 'blur' && element) {
-    if (element.complete) {
-      // If the real image fails to load, this will still remove the placeholder.
-      // This is the desired behavior for now, and will be revisited when error
-      // handling is worked on for the image component itself.
-      element.style.backgroundImage = 'none'
-    } else {
-      element.onload = () => {
-        element.style.backgroundImage = 'none'
-      }
+  if (!img) {
+    return
+  }
+  const handleLoad = () => {
+    if (!img.src.startsWith('data:')) {
+      const p = 'decode' in img ? img.decode() : Promise.resolve()
+      p.catch(() => {}).then(() => {
+        if (placeholder === 'blur') {
+          img.style.filter = 'none'
+          img.style.backgroundSize = 'none'
+          img.style.backgroundImage = 'none'
+        }
+        loadedImageURLs.add(src)
+        if (onLoadingComplete) {
+          const { naturalWidth, naturalHeight } = img
+          // Pass back read-only primitive values but not the
+          // underlying DOM element because it could be misused.
+          onLoadingComplete({ naturalWidth, naturalHeight })
+        }
+        if (process.env.NODE_ENV !== 'production') {
+          const parent = img.parentElement?.parentElement?.style
+          if (layout === 'responsive' && parent?.display === 'flex') {
+            console.warn(
+              `Image with src "${src}" may not render properly as a child of a flex container. Consider wrapping the image with a div to configure the width.`
+            )
+          } else if (layout === 'fill' && parent?.position !== 'relative') {
+            console.warn(
+              `Image with src "${src}" may not render properly with a parent using position:"${parent?.position}". Consider changing the parent style to position:"relative" with a width and height.`
+            )
+          }
+        }
+      })
     }
+  }
+  if (img.complete) {
+    // If the real image fails to load, this will still remove the placeholder.
+    // This is the desired behavior for now, and will be revisited when error
+    // handling is worked on for the image component itself.
+    handleLoad()
+  } else {
+    img.onload = handleLoad
   }
 }
 
@@ -247,12 +299,14 @@ export default function Image({
   unoptimized = false,
   priority = false,
   loading,
+  lazyBoundary = '200px',
   className,
   quality,
   width,
   height,
   objectFit,
   objectPosition,
+  onLoadingComplete,
   loader = defaultImageLoader,
   placeholder = 'empty',
   blurDataURL,
@@ -260,12 +314,7 @@ export default function Image({
 }: ImageProps) {
   let rest: Partial<ImageProps> = all
   let layout: NonNullable<LayoutValue> = sizes ? 'responsive' : 'intrinsic'
-  let unsized = false
-  if ('unsized' in rest) {
-    unsized = Boolean(rest.unsized)
-    // Remove property so it's not spread into image:
-    delete rest['unsized']
-  } else if ('layout' in rest) {
+  if ('layout' in rest) {
     // Override default layout if the user specified one:
     if (rest.layout) layout = rest.layout
 
@@ -273,8 +322,46 @@ export default function Image({
     delete rest['layout']
   }
 
-  if (!configEnableBlurryPlaceholder) {
-    placeholder = 'empty'
+  let staticSrc = ''
+  if (isStaticImport(src)) {
+    const staticImageData = isStaticRequire(src) ? src.default : src
+
+    if (!staticImageData.src) {
+      throw new Error(
+        `An object should only be passed to the image component src parameter if it comes from a static image import. It must include src. Received ${JSON.stringify(
+          staticImageData
+        )}`
+      )
+    }
+    blurDataURL = blurDataURL || staticImageData.blurDataURL
+    staticSrc = staticImageData.src
+    if (!layout || layout !== 'fill') {
+      height = height || staticImageData.height
+      width = width || staticImageData.width
+      if (!staticImageData.height || !staticImageData.width) {
+        throw new Error(
+          `An object should only be passed to the image component src parameter if it comes from a static image import. It must include height and width. Received ${JSON.stringify(
+            staticImageData
+          )}`
+        )
+      }
+    }
+  }
+  src = typeof src === 'string' ? src : staticSrc
+
+  const widthInt = getInt(width)
+  const heightInt = getInt(height)
+  const qualityInt = getInt(quality)
+
+  let isLazy =
+    !priority && (loading === 'lazy' || typeof loading === 'undefined')
+  if (src.startsWith('data:') || src.startsWith('blob:')) {
+    // https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
+    unoptimized = true
+    isLazy = false
+  }
+  if (typeof window !== 'undefined' && loadedImageURLs.has(src)) {
+    isLazy = false
   }
 
   if (process.env.NODE_ENV !== 'production') {
@@ -292,6 +379,19 @@ export default function Image({
         ).join(',')}.`
       )
     }
+    if (
+      (typeof widthInt !== 'undefined' && isNaN(widthInt)) ||
+      (typeof heightInt !== 'undefined' && isNaN(heightInt))
+    ) {
+      throw new Error(
+        `Image with src "${src}" has invalid "width" or "height" property. These should be numeric values.`
+      )
+    }
+    if (layout === 'fill' && (width || height)) {
+      console.warn(
+        `Image with src "${src}" and "layout='fill'" has unused properties assigned. Please remove "width" and "height".`
+      )
+    }
     if (!VALID_LOADING_VALUES.includes(loading)) {
       throw new Error(
         `Image with src "${src}" has invalid "loading" property. Provided "${loading}" should be one of ${VALID_LOADING_VALUES.map(
@@ -304,36 +404,54 @@ export default function Image({
         `Image with src "${src}" has both "priority" and "loading='lazy'" properties. Only one should be used.`
       )
     }
-    if (unsized) {
-      throw new Error(
-        `Image with src "${src}" has deprecated "unsized" property, which was removed in favor of the "layout='fill'" property`
+    if (placeholder === 'blur') {
+      if (layout !== 'fill' && (widthInt || 0) * (heightInt || 0) < 1600) {
+        console.warn(
+          `Image with src "${src}" is smaller than 40x40. Consider removing the "placeholder='blur'" property to improve performance.`
+        )
+      }
+      if (!blurDataURL) {
+        const VALID_BLUR_EXT = ['jpeg', 'png', 'webp'] // should match next-image-loader
+
+        throw new Error(
+          `Image with src "${src}" has "placeholder='blur'" property but is missing the "blurDataURL" property.
+          Possible solutions:
+            - Add a "blurDataURL" property, the contents should be a small Data URL to represent the image
+            - Change the "src" property to a static import with one of the supported file types: ${VALID_BLUR_EXT.join(
+              ','
+            )}
+            - Remove the "placeholder" property, effectively no blur effect
+          Read more: https://nextjs.org/docs/messages/placeholder-blur-data-url`
+        )
+      }
+    }
+    if ('ref' in rest) {
+      console.warn(
+        `Image with src "${src}" is using unsupported "ref" property. Consider using the "onLoadingComplete" property instead.`
+      )
+    }
+    if ('style' in rest) {
+      console.warn(
+        `Image with src "${src}" is using unsupported "style" property. Please use the "className" property instead.`
+      )
+    }
+    const rand = Math.floor(Math.random() * 1000) + 100
+    if (
+      !unoptimized &&
+      !loader({ src, width: rand, quality: 75 }).includes(rand.toString())
+    ) {
+      console.warn(
+        `Image with src "${src}" has a "loader" property that does not implement width. Please implement it or use the "unoptimized" property instead.` +
+          `\nRead more: https://nextjs.org/docs/messages/next-image-missing-loader-width`
       )
     }
   }
 
-  let isLazy =
-    !priority && (loading === 'lazy' || typeof loading === 'undefined')
-  if (src && src.startsWith('data:')) {
-    // https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
-    unoptimized = true
-    isLazy = false
-  }
-
   const [setRef, isIntersected] = useIntersection<HTMLImageElement>({
-    rootMargin: '200px',
+    rootMargin: lazyBoundary,
     disabled: !isLazy,
   })
   const isVisible = !isLazy || isIntersected
-
-  const widthInt = getInt(width)
-  const heightInt = getInt(height)
-  const qualityInt = getInt(quality)
-
-  const MIN_IMG_SIZE_FOR_PLACEHOLDER = 5000
-  const tooSmallForBlurryPlaceholder =
-    widthInt && heightInt && widthInt * heightInt < MIN_IMG_SIZE_FOR_PLACEHOLDER
-  const shouldShowBlurryPlaceholder =
-    placeholder === 'blur' && !tooSmallForBlurryPlaceholder
 
   let wrapperStyle: JSX.IntrinsicElements['div']['style'] | undefined
   let sizerStyle: JSX.IntrinsicElements['div']['style'] | undefined
@@ -360,18 +478,34 @@ export default function Image({
 
     objectFit,
     objectPosition,
-
-    ...(shouldShowBlurryPlaceholder
-      ? {
-          backgroundSize: 'cover',
-          backgroundImage: `url("${blurDataURL}")`,
-        }
-      : undefined),
   }
-  if (
+  const blurStyle =
+    placeholder === 'blur'
+      ? {
+          filter: 'blur(20px)',
+          backgroundSize: objectFit || 'cover',
+          backgroundImage: `url("${blurDataURL}")`,
+          backgroundPosition: objectPosition || '0% 0%',
+        }
+      : {}
+  if (layout === 'fill') {
+    // <Image src="i.png" layout="fill" />
+    wrapperStyle = {
+      display: 'block',
+      overflow: 'hidden',
+
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      bottom: 0,
+      right: 0,
+
+      boxSizing: 'border-box',
+      margin: 0,
+    }
+  } else if (
     typeof widthInt !== 'undefined' &&
-    typeof heightInt !== 'undefined' &&
-    layout !== 'fill'
+    typeof heightInt !== 'undefined'
   ) {
     // <Image src="i.png" width="100" height="100" />
     const quotient = heightInt / widthInt
@@ -414,25 +548,6 @@ export default function Image({
         height: heightInt,
       }
     }
-  } else if (
-    typeof widthInt === 'undefined' &&
-    typeof heightInt === 'undefined' &&
-    layout === 'fill'
-  ) {
-    // <Image src="i.png" layout="fill" />
-    wrapperStyle = {
-      display: 'block',
-      overflow: 'hidden',
-
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      bottom: 0,
-      right: 0,
-
-      boxSizing: 'border-box',
-      margin: 0,
-    }
   } else {
     // <Image src="i.png" />
     if (process.env.NODE_ENV !== 'production') {
@@ -443,8 +558,7 @@ export default function Image({
   }
 
   let imgAttributes: GenImgAttrsResult = {
-    src:
-      'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
+    src: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
     srcSet: undefined,
     sizes: undefined,
   }
@@ -461,11 +575,8 @@ export default function Image({
     })
   }
 
-  if (unsized) {
-    wrapperStyle = undefined
-    sizerStyle = undefined
-    imgStyle = undefined
-  }
+  let srcString: string = src
+
   return (
     <div style={wrapperStyle}>
       {sizerStyle ? (
@@ -481,44 +592,43 @@ export default function Image({
               }}
               alt=""
               aria-hidden={true}
-              role="presentation"
               src={`data:image/svg+xml;base64,${toBase64(sizerSvg)}`}
             />
           ) : null}
         </div>
       ) : null}
-      {!isVisible && (
-        <noscript>
-          <img
-            {...rest}
-            {...generateImgAttrs({
-              src,
-              unoptimized,
-              layout,
-              width: widthInt,
-              quality: qualityInt,
-              sizes,
-              loader,
-            })}
-            src={src}
-            decoding="async"
-            sizes={sizes}
-            style={imgStyle}
-            className={className}
-          />
-        </noscript>
-      )}
       <img
         {...rest}
         {...imgAttributes}
         decoding="async"
+        data-nimg
         className={className}
-        ref={(element) => {
-          setRef(element)
-          removePlaceholder(element, placeholder)
+        ref={(img) => {
+          setRef(img)
+          handleLoading(img, srcString, layout, placeholder, onLoadingComplete)
         }}
-        style={imgStyle}
+        style={{ ...imgStyle, ...blurStyle }}
       />
+      <noscript>
+        <img
+          {...rest}
+          {...generateImgAttrs({
+            src,
+            unoptimized,
+            layout,
+            width: widthInt,
+            quality: qualityInt,
+            sizes,
+            loader,
+          })}
+          decoding="async"
+          data-nimg
+          style={imgStyle}
+          className={className}
+          loading={loading || 'lazy'}
+        />
+      </noscript>
+
       {priority ? (
         // Note how we omit the `href` attribute, as it would only be relevant
         // for browsers that do not support `imagesrcset`, and in those cases
@@ -536,9 +646,9 @@ export default function Image({
             rel="preload"
             as="image"
             href={imgAttributes.srcSet ? undefined : imgAttributes.src}
-            // @ts-ignore: imagesrcset is not yet in the link element type
+            // @ts-ignore: imagesrcset is not yet in the link element type.
             imagesrcset={imgAttributes.srcSet}
-            // @ts-ignore: imagesizes is not yet in the link element type
+            // @ts-ignore: imagesizes is not yet in the link element type.
             imagesizes={imgAttributes.sizes}
           ></link>
         </Head>
@@ -546,8 +656,6 @@ export default function Image({
     </div>
   )
 }
-
-//BUILT IN LOADERS
 
 function normalizeSrc(src: string): string {
   return src[0] === '/' ? src.slice(1) : src
@@ -559,17 +667,19 @@ function imgixLoader({
   width,
   quality,
 }: DefaultImageLoaderProps): string {
-  // Demo: https://static.imgix.net/daisy.png?format=auto&fit=max&w=300
-  const params = ['auto=format', 'fit=max', 'w=' + width]
-  let paramsString = ''
+  // Demo: https://static.imgix.net/daisy.png?auto=format&fit=max&w=300
+  const url = new URL(`${root}${normalizeSrc(src)}`)
+  const params = url.searchParams
+
+  params.set('auto', params.get('auto') || 'format')
+  params.set('fit', params.get('fit') || 'max')
+  params.set('w', params.get('w') || width.toString())
+
   if (quality) {
-    params.push('q=' + quality)
+    params.set('q', quality.toString())
   }
 
-  if (params.length) {
-    paramsString = '?' + params.join('&')
-  }
-  return `${root}${normalizeSrc(src)}${paramsString}`
+  return url.href
 }
 
 function akamaiLoader({ root, src, width }: DefaultImageLoaderProps): string {
@@ -586,6 +696,13 @@ function cloudinaryLoader({
   const params = ['f_auto', 'c_limit', 'w_' + width, 'q_' + (quality || 'auto')]
   let paramsString = params.join(',') + '/'
   return `${root}${paramsString}${normalizeSrc(src)}`
+}
+
+function customLoader({ src }: DefaultImageLoaderProps): string {
+  throw new Error(
+    `Image with src "${src}" is missing "loader" prop.` +
+      `\nRead more: https://nextjs.org/docs/messages/next-image-missing-loader`
+  )
 }
 
 function defaultLoader({
@@ -628,7 +745,10 @@ function defaultLoader({
         )
       }
 
-      if (!configDomains.includes(parsedSrc.hostname)) {
+      if (
+        process.env.NODE_ENV !== 'test' &&
+        !configDomains.includes(parsedSrc.hostname)
+      ) {
         throw new Error(
           `Invalid src prop (${src}) on \`next/image\`, hostname "${parsedSrc.hostname}" is not configured under images in your \`next.config.js\`\n` +
             `See more info: https://nextjs.org/docs/messages/next-image-unconfigured-host`

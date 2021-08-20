@@ -7,18 +7,18 @@ jest.setTimeout(1000 * 60 * 1)
 
 const appDir = path.join(__dirname, '../app')
 
-describe('externalize next/dist/next-server', () => {
+describe('externalize next/dist/shared', () => {
   beforeAll(async () => {
     await nextBuild(appDir)
   })
 
-  it('Does not bundle next/dist/next-server/lib/head.js in _error', async () => {
+  it('Does not bundle next/dist/shared/lib/head.js in _error', async () => {
     const content = readNextBuildServerPageFile(appDir, '/_error')
     expect(content).toMatch(
       new RegExp(
         '^' +
           escapeStringRegexp(
-            `module.exports = require("next/dist/next-server/lib/head.js");`
+            `module.exports = require("next/dist/shared/lib/head.js");`
           ) +
           ';?$',
         'm'

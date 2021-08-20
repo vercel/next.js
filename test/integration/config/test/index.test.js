@@ -19,8 +19,20 @@ jest.setTimeout(1000 * 60 * 5)
 
 describe('Configuration', () => {
   beforeAll(async () => {
+    context.output = ''
+
+    const handleOutput = (msg) => {
+      context.output += msg
+    }
+
     context.appPort = await findPort()
-    context.server = await launchApp(join(__dirname, '../'), context.appPort)
+    context.server = await launchApp(join(__dirname, '../'), context.appPort, {
+      env: {
+        NODE_OPTIONS: '--inspect',
+      },
+      onStdout: handleOutput,
+      onStderr: handleOutput,
+    })
 
     // pre-build all pages at the start
     await Promise.all([
@@ -39,6 +51,12 @@ describe('Configuration', () => {
     const html = await renderViaHTTP(context.appPort, path, query)
     return cheerio.load(html)
   }
+
+  it('should log webpack version correctly', async () => {
+    expect(context.output).toContain(
+      `Using webpack 4. Reason: webpack5 flag is set to false in next.config.js`
+    )
+  })
 
   it('should disable X-Powered-By header support', async () => {
     const url = `http://localhost:${context.appPort}/`

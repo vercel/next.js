@@ -1,9 +1,9 @@
-import Script from 'next/experimental-script'
+import Script from 'next/script'
 
 const Page = () => {
   return (
     <div class="container">
-      <Script>
+      <Script id="inline-script">
         {`(window.onload = function () {
             const newDiv = document.createElement('div')
             newDiv.id = 'onload-div'
@@ -11,10 +11,18 @@ const Page = () => {
           })`}
       </Script>
       <Script
-        id="scriptLazy"
-        src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js?a=scriptLazy"
-        strategy="lazy"
+        id="scriptLazyOnload"
+        src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js?a=scriptLazyOnload"
+        strategy="lazyOnload"
       ></Script>
+      <Script
+        src="https://example.com/doesntexist"
+        strategy="lazyOnload"
+        onError={(e) => {
+          console.log('error')
+          console.log(e)
+        }}
+      />
       <div>page3</div>
     </div>
   )

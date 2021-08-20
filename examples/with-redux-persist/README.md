@@ -4,6 +4,12 @@ This example shows how to integrate Redux with the power of Redux Persist in Nex
 
 With the advantage of having a global state for your app using `redux`. You'll also require some of your state values to be available offline. There comes `redux-persist` using which you can persist your states in browser's local storage. While there are various ways of persisting your states which you can always find in there [documentation](https://github.com/rt2zz/redux-persist/blob/master/README.md). This is an example of how you can integrate `redux-persist` with redux along with Next.js's universal rendering approach.
 
+## Preview
+
+Preview the example live on [StackBlitz](http://stackblitz.com/):
+
+[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-redux-persist)
+
 ## Deploy your own
 
 Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):

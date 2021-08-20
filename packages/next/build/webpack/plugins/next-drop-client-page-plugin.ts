@@ -1,6 +1,6 @@
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { isWebpack5 } from 'next/dist/compiled/webpack/webpack'
-import { STRING_LITERAL_DROP_BUNDLE } from '../../../next-server/lib/constants'
+import { STRING_LITERAL_DROP_BUNDLE } from '../../../shared/lib/constants'
 
 export const ampFirstEntryNamesMap: WeakMap<
   webpack.compilation.Compilation,
@@ -23,9 +23,8 @@ export class DropClientPage implements webpack.Plugin {
           for (const module of queue) {
             if (isWebpack5) {
               // @ts-ignore TODO: webpack 5 types
-              const incomingConnections = compilation.moduleGraph.getIncomingConnections(
-                module
-              )
+              const incomingConnections =
+                compilation.moduleGraph.getIncomingConnections(module)
 
               for (const incomingConnection of incomingConnections) {
                 if (!incomingConnection.originModule) return module

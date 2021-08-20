@@ -1,5 +1,5 @@
-const http = require('http')
-const fs = require('fs')
+import { createServer } from 'http'
+import { writeFileSync } from 'fs'
 
 const PORT = 9411
 const HOST = '0.0.0.0'
@@ -53,11 +53,11 @@ const main = () => {
 
   process.on('SIGINT', () => {
     console.log(`\nSaving to ${outFile}...`)
-    fs.writeFileSync(outFile, JSON.stringify(traces, null, 2))
+    writeFileSync(outFile, JSON.stringify(traces, null, 2))
     process.exit()
   })
 
-  const server = http.createServer(onRequest)
+  const server = createServer(onRequest)
   server.listen(PORT, HOST, onReady)
 }
 

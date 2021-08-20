@@ -6,8 +6,8 @@ import {
   requirePage,
   getPagePath,
   pageNotFoundError,
-} from 'next/dist/next-server/server/require'
-import { normalizePagePath } from 'next/dist/next-server/server/normalize-page-path'
+} from 'next/dist/server/require'
+import { normalizePagePath } from 'next/dist/server/normalize-page-path'
 
 const sep = '/'
 const distDir = join(__dirname, '_resolvedata')

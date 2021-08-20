@@ -111,5 +111,16 @@ export default function EvilPage(): JSX.Element {
         errorPage.restore()
       }
     })
+
+    it('should compile sync getStaticPaths & getStaticProps', async () => {
+      const page = new File(join(appDir, 'pages/ssg/[slug].tsx'))
+      try {
+        page.replace(/async \(/g, '(')
+        const output = await nextBuild(appDir, [], { stdout: true })
+        expect(output.stdout).toMatch(/Compiled successfully/)
+      } finally {
+        page.restore()
+      }
+    })
   })
 })

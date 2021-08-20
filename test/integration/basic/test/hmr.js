@@ -143,7 +143,7 @@ export default (context, renderViaHTTP) => {
       })
 
       // Added because of a regression in react-hot-loader, see issues: #4246 #4273
-      // Also: https://github.com/zeit/styled-jsx/issues/425
+      // Also: https://github.com/vercel/styled-jsx/issues/425
       it('should update styles correctly', async () => {
         let browser
         try {
@@ -180,7 +180,7 @@ export default (context, renderViaHTTP) => {
       })
 
       // Added because of a regression in react-hot-loader, see issues: #4246 #4273
-      // Also: https://github.com/zeit/styled-jsx/issues/425
+      // Also: https://github.com/vercel/styled-jsx/issues/425
       it('should update styles in a stateful component correctly', async () => {
         let browser
         const pagePath = join(
@@ -219,7 +219,7 @@ export default (context, renderViaHTTP) => {
       })
 
       // Added because of a regression in react-hot-loader, see issues: #4246 #4273
-      // Also: https://github.com/zeit/styled-jsx/issues/425
+      // Also: https://github.com/vercel/styled-jsx/issues/425
       it('should update styles in a dynamic component correctly', async () => {
         let browser = null
         let secondBrowser = null
@@ -248,9 +248,8 @@ export default (context, renderViaHTTP) => {
           expect(initialHtml.includes('100px')).toBeTruthy()
 
           const $initialHtml = cheerio.load(initialHtml)
-          const initialServerClassName = $initialHtml(
-            '#dynamic-component'
-          ).attr('class')
+          const initialServerClassName =
+            $initialHtml('#dynamic-component').attr('class')
 
           expect(initialClientClassName === initialServerClassName).toBeTruthy()
 
@@ -283,9 +282,8 @@ export default (context, renderViaHTTP) => {
           const editedHtml = await renderViaHTTP('/hmr/style-dynamic-component')
           expect(editedHtml.includes('200px')).toBeTruthy()
           const $editedHtml = cheerio.load(editedHtml)
-          const editedServerClassName = $editedHtml('#dynamic-component').attr(
-            'class'
-          )
+          const editedServerClassName =
+            $editedHtml('#dynamic-component').attr('class')
 
           expect(editedClientClassName === editedServerClassName).toBe(true)
         } finally {

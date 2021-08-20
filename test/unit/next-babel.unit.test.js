@@ -165,28 +165,6 @@ describe('next/babel', () => {
     })
   })
 
-  describe('experimental-modern-preset', () => {
-    it('should allow passing a custom Babel preset', () => {
-      const code = trim`
-        const [, b, c] = [...[1,2,3]];
-        ({a}) => a;
-      `
-      const output = babel(code, true, {
-        'preset-env': {
-          targets: {
-            esmodules: true,
-          },
-        },
-        // our modern preset is no preset at all
-        'experimental-modern-preset': () => ({}),
-      })
-
-      expect(output).toMatch(trim`
-        const[,b,c]=[...[1,2,3]];({a})=>a;
-      `)
-    })
-  })
-
   describe('respect preset-react runtime', () => {
     it('should allow forcing on automatic mode', () => {
       const code = trim`const a = ()=><a href="/">home</a>`

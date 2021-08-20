@@ -6,6 +6,10 @@ e2e-tests/**
 examples/with-eslint/**
 examples/with-typescript-eslint-jest/**
 examples/with-kea/**
+examples/with-custom-babel-config/**
+examples/with-flow/**
+examples/with-mobx-state-tree/**
+examples/with-mobx/**
 packages/next/bundles/webpack/packages/*.runtime.js
 packages/next/compiled/**/*
 packages/react-refresh-utils/**/*.js
@@ -18,6 +22,6 @@ packages/next-codemod/**/*.js
 packages/next-codemod/**/*.d.ts
 packages/next-env/**/*.d.ts
 packages/create-next-app/templates/**
-test/integration/async-modules/**
 test/integration/eslint/**
 test-timings.json
+packages/next/build/swc/tests/fixture/**

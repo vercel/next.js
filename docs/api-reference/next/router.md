@@ -49,6 +49,7 @@ The following is the definition of the `router` object returned by both [`useRou
 - `locale`: `String` - The active locale (if enabled).
 - `locales`: `String[]` - All supported locales (if enabled).
 - `defaultLocale`: `String` - The current default locale (if enabled).
+- `domainLocales`: `Array<{domain, defaultLocale, locales}>` - Any configured domain locales.
 - `isReady`: `boolean` - Whether the router fields are updated client-side and ready for use. Should only be used inside of `useEffect` methods and not for conditionally rendering on the server.
 - `isPreview`: `boolean` - Whether the application is currently in [preview mode](/docs/advanced-features/preview-mode.md).
 
@@ -111,6 +112,8 @@ export default function Page() {
   )
 }
 ```
+
+> **Note:** When navigating to the same page in Next.js, the page's state **will not** be reset by default, as the top-level React component is the same. You can manually ensure the state is updated using `useEffect`.
 
 Redirecting the user to `pages/login.js`, useful for pages behind [authentication](/docs/authentication):
 
@@ -339,7 +342,7 @@ You can listen to different events happening inside the Next.js Router. Here's a
 - `routeChangeComplete(url, { shallow })` - Fires when a route changed completely
 - `routeChangeError(err, url, { shallow })` - Fires when there's an error when changing routes, or a route load is cancelled
   - `err.cancelled` - Indicates if the navigation was cancelled
-- `beforeHistoryChange(url, { shallow })` - Fires just before changing the browser's history
+- `beforeHistoryChange(url, { shallow })` - Fires before changing the browser's history
 - `hashChangeStart(url, { shallow })` - Fires when the hash will change but not the page
 - `hashChangeComplete(url, { shallow })` - Fires when the hash has changed but not the page
 

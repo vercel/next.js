@@ -217,7 +217,7 @@ describe('CSS Modules: Importing Invalid Global CSS', () => {
     })
     expect(code).not.toBe(0)
     expect(stderr).toContain('Failed to compile')
-    expect(stderr).toContain('pages/styles.module.css')
+    expect(stderr).toContain('pages/styles.css')
     expect(stderr).toContain('Selector "a" is not pure')
   })
 })

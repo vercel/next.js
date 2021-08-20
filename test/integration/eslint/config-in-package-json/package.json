@@ -1,0 +1,6 @@
+{
+  "eslintConfig": {
+    "extends": "next",
+    "root": true
+  }
+}

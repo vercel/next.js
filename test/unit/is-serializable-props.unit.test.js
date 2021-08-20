@@ -5,15 +5,35 @@ describe('isSerializableProps', () => {
   it('handles null and undefined props', () => {
     expect(() => isSerializableProps('/', 'test', null))
       .toThrowErrorMatchingInlineSnapshot(`
-"Error serializing props returned from \`test\` in \\"/\\".
-Reason: Props must be returned as a plain object from test: \`{ props: { ... } }\`."
-`)
+      "Error serializing props returned from \`test\` in \\"/\\".
+      Reason: Props must be returned as a plain object from test: \`{ props: { ... } }\` (received: \`[object Null]\`)."
+    `)
 
     expect(() => isSerializableProps('/', 'test', undefined))
       .toThrowErrorMatchingInlineSnapshot(`
-"Error serializing props returned from \`test\` in \\"/\\".
-Reason: Props must be returned as a plain object from test: \`{ props: { ... } }\`."
-`)
+      "Error serializing props returned from \`test\` in \\"/\\".
+      Reason: Props must be returned as a plain object from test: \`{ props: { ... } }\` (received: \`[object Undefined]\`)."
+    `)
+  })
+
+  it('handles non-plain object props', () => {
+    expect(() => isSerializableProps('/', 'test', []))
+      .toThrowErrorMatchingInlineSnapshot(`
+      "Error serializing props returned from \`test\` in \\"/\\".
+      Reason: Props must be returned as a plain object from test: \`{ props: { ... } }\` (received: \`[object Array]\`)."
+    `)
+
+    expect(() => isSerializableProps('/', 'test', class Foobar {}))
+      .toThrowErrorMatchingInlineSnapshot(`
+      "Error serializing props returned from \`test\` in \\"/\\".
+      Reason: Props must be returned as a plain object from test: \`{ props: { ... } }\` (received: \`[object Function]\`)."
+    `)
+
+    expect(() => isSerializableProps('/', 'test', function Foobar() {}))
+      .toThrowErrorMatchingInlineSnapshot(`
+      "Error serializing props returned from \`test\` in \\"/\\".
+      Reason: Props must be returned as a plain object from test: \`{ props: { ... } }\` (received: \`[object Function]\`)."
+    `)
   })
 
   it('allows empty props', () => {
@@ -88,70 +108,70 @@ Reason: Props must be returned as a plain object from test: \`{ props: { ... } }
   it('disallows top-level non-serializable types', () => {
     expect(() => isSerializableProps('/', 'test', { toplevel: new Date() }))
       .toThrowErrorMatchingInlineSnapshot(`
-"Error serializing \`.toplevel\` returned from \`test\` in \\"/\\".
-Reason: \`object\` (\\"[object Date]\\") cannot be serialized as JSON. Please only return JSON serializable data types."
-`)
+      "Error serializing \`.toplevel\` returned from \`test\` in \\"/\\".
+      Reason: \`object\` (\\"[object Date]\\") cannot be serialized as JSON. Please only return JSON serializable data types."
+    `)
 
     expect(() => isSerializableProps('/', 'test', { toplevel: class A {} }))
       .toThrowErrorMatchingInlineSnapshot(`
-"Error serializing \`.toplevel\` returned from \`test\` in \\"/\\".
-Reason: \`function\` cannot be serialized as JSON. Please only return JSON serializable data types."
-`)
+      "Error serializing \`.toplevel\` returned from \`test\` in \\"/\\".
+      Reason: \`function\` cannot be serialized as JSON. Please only return JSON serializable data types."
+    `)
 
     expect(() => isSerializableProps('/', 'test', { toplevel: undefined }))
       .toThrowErrorMatchingInlineSnapshot(`
-"Error serializing \`.toplevel\` returned from \`test\` in \\"/\\".
-Reason: \`undefined\` cannot be serialized as JSON. Please use \`null\` or omit this value."
-`)
+      "Error serializing \`.toplevel\` returned from \`test\` in \\"/\\".
+      Reason: \`undefined\` cannot be serialized as JSON. Please use \`null\` or omit this value."
+    `)
 
     expect(() =>
       isSerializableProps('/', 'test', { toplevel: Symbol('FOOBAR') })
     ).toThrowErrorMatchingInlineSnapshot(`
-"Error serializing \`.toplevel\` returned from \`test\` in \\"/\\".
-Reason: \`symbol\` cannot be serialized as JSON. Please only return JSON serializable data types."
-`)
+      "Error serializing \`.toplevel\` returned from \`test\` in \\"/\\".
+      Reason: \`symbol\` cannot be serialized as JSON. Please only return JSON serializable data types."
+    `)
 
     expect(() => isSerializableProps('/', 'test', { toplevel: function () {} }))
       .toThrowErrorMatchingInlineSnapshot(`
-"Error serializing \`.toplevel\` returned from \`test\` in \\"/\\".
-Reason: \`function\` cannot be serialized as JSON. Please only return JSON serializable data types."
-`)
+      "Error serializing \`.toplevel\` returned from \`test\` in \\"/\\".
+      Reason: \`function\` cannot be serialized as JSON. Please only return JSON serializable data types."
+    `)
   })
 
   it('diallows nested non-serializable types', () => {
     expect(() =>
       isSerializableProps('/', 'test', { k: { a: [1, { n: new Date() }] } })
     ).toThrowErrorMatchingInlineSnapshot(`
-"Error serializing \`.k.a[1].n\` returned from \`test\` in \\"/\\".
-Reason: \`object\` (\\"[object Date]\\") cannot be serialized as JSON. Please only return JSON serializable data types."
-`)
+      "Error serializing \`.k.a[1].n\` returned from \`test\` in \\"/\\".
+      Reason: \`object\` (\\"[object Date]\\") cannot be serialized as JSON. Please only return JSON serializable data types."
+    `)
 
     expect(() =>
       isSerializableProps('/', 'test', { k: { a: [1, { n: class A {} }] } })
     ).toThrowErrorMatchingInlineSnapshot(`
-"Error serializing \`.k.a[1].n\` returned from \`test\` in \\"/\\".
-Reason: \`function\` cannot be serialized as JSON. Please only return JSON serializable data types."
-`)
+      "Error serializing \`.k.a[1].n\` returned from \`test\` in \\"/\\".
+      Reason: \`function\` cannot be serialized as JSON. Please only return JSON serializable data types."
+    `)
 
     expect(() => isSerializableProps('/', 'test', { k: { a: [1, undefined] } }))
       .toThrowErrorMatchingInlineSnapshot(`
-"Error serializing \`.k.a[1]\` returned from \`test\` in \\"/\\".
-Reason: \`undefined\` cannot be serialized as JSON. Please use \`null\` or omit this value."
-`)
+      "Error serializing \`.k.a[1]\` returned from \`test\` in \\"/\\".
+      Reason: \`undefined\` cannot be serialized as JSON. Please use \`null\` or omit this value."
+    `)
 
     expect(() =>
       isSerializableProps('/', 'test', { k: { n: Symbol('FOOBAR') } })
     ).toThrowErrorMatchingInlineSnapshot(`
-"Error serializing \`.k.n\` returned from \`test\` in \\"/\\".
-Reason: \`symbol\` cannot be serialized as JSON. Please only return JSON serializable data types."
-`)
+      "Error serializing \`.k.n\` returned from \`test\` in \\"/\\".
+      Reason: \`symbol\` cannot be serialized as JSON. Please only return JSON serializable data types."
+    `)
 
     expect(() =>
       isSerializableProps('/', 'test', { k: { a: [function () {}] } })
     ).toThrowErrorMatchingInlineSnapshot(`
-"Error serializing \`.k.a[0]\` returned from \`test\` in \\"/\\".
-Reason: \`function\` cannot be serialized as JSON. Please only return JSON serializable data types."
-`)
+      "Error serializing \`.k.a[0]\` returned from \`test\` in \\"/\\".
+      Reason: \`function\` cannot be serialized as JSON. Please only return JSON serializable data types."
+    `)
   })
 
   it('can handle obj circular refs', () => {
@@ -160,15 +180,15 @@ Reason: \`function\` cannot be serialized as JSON. Please only return JSON seria
 
     expect(() => isSerializableProps('/', 'test', obj))
       .toThrowErrorMatchingInlineSnapshot(`
-"Error serializing \`.child\` returned from \`test\` in \\"/\\".
-Reason: Circular references cannot be expressed in JSON (references: \`(self)\`)."
-`)
+      "Error serializing \`.child\` returned from \`test\` in \\"/\\".
+      Reason: Circular references cannot be expressed in JSON (references: \`(self)\`)."
+    `)
 
     expect(() => isSerializableProps('/', 'test', { k: [obj] }))
       .toThrowErrorMatchingInlineSnapshot(`
-"Error serializing \`.k[0].child\` returned from \`test\` in \\"/\\".
-Reason: Circular references cannot be expressed in JSON (references: \`.k[0]\`)."
-`)
+      "Error serializing \`.k[0].child\` returned from \`test\` in \\"/\\".
+      Reason: Circular references cannot be expressed in JSON (references: \`.k[0]\`)."
+    `)
   })
 
   it('can handle arr circular refs', () => {
@@ -177,15 +197,15 @@ Reason: Circular references cannot be expressed in JSON (references: \`.k[0]\`).
 
     expect(() => isSerializableProps('/', 'test', { arr }))
       .toThrowErrorMatchingInlineSnapshot(`
-"Error serializing \`.arr[2]\` returned from \`test\` in \\"/\\".
-Reason: Circular references cannot be expressed in JSON (references: \`.arr\`)."
-`)
+      "Error serializing \`.arr[2]\` returned from \`test\` in \\"/\\".
+      Reason: Circular references cannot be expressed in JSON (references: \`.arr\`)."
+    `)
 
     expect(() => isSerializableProps('/', 'test', { k: [{ arr }] }))
       .toThrowErrorMatchingInlineSnapshot(`
-"Error serializing \`.k[0].arr[2]\` returned from \`test\` in \\"/\\".
-Reason: Circular references cannot be expressed in JSON (references: \`.k[0].arr\`)."
-`)
+      "Error serializing \`.k[0].arr[2]\` returned from \`test\` in \\"/\\".
+      Reason: Circular references cannot be expressed in JSON (references: \`.k[0].arr\`)."
+    `)
   })
 
   it('can handle deep obj circular refs', () => {
@@ -194,9 +214,9 @@ Reason: Circular references cannot be expressed in JSON (references: \`.k[0].arr
 
     expect(() => isSerializableProps('/', 'test', obj))
       .toThrowErrorMatchingInlineSnapshot(`
-"Error serializing \`.leve1.level2.child\` returned from \`test\` in \\"/\\".
-Reason: Circular references cannot be expressed in JSON (references: \`(self)\`)."
-`)
+      "Error serializing \`.leve1.level2.child\` returned from \`test\` in \\"/\\".
+      Reason: Circular references cannot be expressed in JSON (references: \`(self)\`)."
+    `)
   })
 
   it('can handle deep obj circular refs (with arrays)', () => {
@@ -205,9 +225,9 @@ Reason: Circular references cannot be expressed in JSON (references: \`(self)\`)
 
     expect(() => isSerializableProps('/', 'test', obj))
       .toThrowErrorMatchingInlineSnapshot(`
-"Error serializing \`.leve1.level2.child[0].another[0]\` returned from \`test\` in \\"/\\".
-Reason: Circular references cannot be expressed in JSON (references: \`(self)\`)."
-`)
+      "Error serializing \`.leve1.level2.child[0].another[0]\` returned from \`test\` in \\"/\\".
+      Reason: Circular references cannot be expressed in JSON (references: \`(self)\`)."
+    `)
   })
 
   it('can handle deep arr circular refs', () => {
@@ -216,9 +236,9 @@ Reason: Circular references cannot be expressed in JSON (references: \`(self)\`)
 
     expect(() => isSerializableProps('/', 'test', { k: arr }))
       .toThrowErrorMatchingInlineSnapshot(`
-"Error serializing \`.k[3][1][2]\` returned from \`test\` in \\"/\\".
-Reason: Circular references cannot be expressed in JSON (references: \`.k\`)."
-`)
+      "Error serializing \`.k[3][1][2]\` returned from \`test\` in \\"/\\".
+      Reason: Circular references cannot be expressed in JSON (references: \`.k\`)."
+    `)
   })
 
   it('can handle deep arr circular refs (with objects)', () => {
@@ -227,9 +247,9 @@ Reason: Circular references cannot be expressed in JSON (references: \`.k\`)."
 
     expect(() => isSerializableProps('/', 'test', { k: arr }))
       .toThrowErrorMatchingInlineSnapshot(`
-"Error serializing \`.k[3][1].nested[2]\` returned from \`test\` in \\"/\\".
-Reason: Circular references cannot be expressed in JSON (references: \`.k\`)."
-`)
+      "Error serializing \`.k[3][1].nested[2]\` returned from \`test\` in \\"/\\".
+      Reason: Circular references cannot be expressed in JSON (references: \`.k\`)."
+    `)
   })
 
   it('allows multi object refs', () => {

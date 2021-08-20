@@ -1,5 +1,5 @@
 /* eslint-env jest */
-import { getSortedRoutes } from 'next/dist/next-server/lib/router/utils/sorted-routes'
+import { getSortedRoutes } from 'next/dist/shared/lib/router/utils/sorted-routes'
 
 describe('getSortedRoutes', () => {
   it('does not add extra routes', () => {

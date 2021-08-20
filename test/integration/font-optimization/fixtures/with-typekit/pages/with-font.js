@@ -8,7 +8,7 @@ const WithFont = () => {
         <link href="https://use.typekit.net/ucs7mcf.css" rel="stylesheet" />
       </Head>
 
-      <div>
+      <div id="with-font-container">
         Page with custom fonts
         <br />
         <br />

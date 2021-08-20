@@ -43,7 +43,7 @@ To run the unit tests for the components, run:
 npm test
 ```
 
-Need help? Check out our docs [here](https://stenciljs.com/docs/my-first-component).
+Need help? [Check out our docs](https://stenciljs.com/docs/my-first-component).
 
 ## Naming Components
 

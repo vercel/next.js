@@ -1,25 +1,20 @@
-import PropTypes from 'prop-types'
 import React, { Component, ReactElement, ReactNode, useContext } from 'react'
 import flush from 'styled-jsx/server'
 import {
-  AMP_RENDER_TARGET,
+  BODY_RENDER_TARGET,
   OPTIMIZED_FONT_PROVIDERS,
-} from '../next-server/lib/constants'
-import { DocumentContext as DocumentComponentContext } from '../next-server/lib/document-context'
+} from '../shared/lib/constants'
 import {
   DocumentContext,
   DocumentInitialProps,
   DocumentProps,
-} from '../next-server/lib/utils'
-import {
-  BuildManifest,
-  getPageFiles,
-} from '../next-server/server/get-page-files'
-import { cleanAmpPath } from '../next-server/server/utils'
+  HtmlContext,
+  HtmlProps,
+} from '../shared/lib/utils'
+import { BuildManifest, getPageFiles } from '../server/get-page-files'
+import { cleanAmpPath } from '../server/utils'
 import { htmlEscapeJsonString } from '../server/htmlescape'
-import Script, {
-  Props as ScriptLoaderProps,
-} from '../client/experimental-script'
+import Script, { ScriptProps } from '../client/script'
 
 export { DocumentContext, DocumentInitialProps, DocumentProps }
 
@@ -51,6 +46,116 @@ function getDocumentFiles(
   }
 }
 
+function getPolyfillScripts(context: HtmlProps, props: OriginProps) {
+  // polyfills.js has to be rendered as nomodule without async
+  // It also has to be the first script to load
+  const {
+    assetPrefix,
+    buildManifest,
+    devOnlyCacheBusterQueryString,
+    disableOptimizedLoading,
+  } = context
+
+  return buildManifest.polyfillFiles
+    .filter(
+      (polyfill) => polyfill.endsWith('.js') && !polyfill.endsWith('.module.js')
+    )
+    .map((polyfill) => (
+      <script
+        key={polyfill}
+        defer={!disableOptimizedLoading}
+        nonce={props.nonce}
+        crossOrigin={props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN}
+        noModule={true}
+        src={`${assetPrefix}/_next/${polyfill}${devOnlyCacheBusterQueryString}`}
+      />
+    ))
+}
+
+function getPreNextScripts(context: HtmlProps, props: OriginProps) {
+  const { scriptLoader, disableOptimizedLoading } = context
+
+  return (scriptLoader.beforeInteractive || []).map(
+    (file: ScriptProps, index: number) => {
+      const { strategy, ...scriptProps } = file
+      return (
+        <script
+          {...scriptProps}
+          key={scriptProps.src || index}
+          defer={!disableOptimizedLoading}
+          nonce={props.nonce}
+          crossOrigin={props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN}
+        />
+      )
+    }
+  )
+}
+
+function getDynamicChunks(
+  context: HtmlProps,
+  props: OriginProps,
+  files: DocumentFiles
+) {
+  const {
+    dynamicImports,
+    assetPrefix,
+    isDevelopment,
+    devOnlyCacheBusterQueryString,
+    disableOptimizedLoading,
+  } = context
+
+  return dynamicImports.map((file) => {
+    if (!file.endsWith('.js') || files.allFiles.includes(file)) return null
+
+    return (
+      <script
+        async={!isDevelopment && disableOptimizedLoading}
+        defer={!disableOptimizedLoading}
+        key={file}
+        src={`${assetPrefix}/_next/${encodeURI(
+          file
+        )}${devOnlyCacheBusterQueryString}`}
+        nonce={props.nonce}
+        crossOrigin={props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN}
+      />
+    )
+  })
+}
+
+function getScripts(
+  context: HtmlProps,
+  props: OriginProps,
+  files: DocumentFiles
+) {
+  const {
+    assetPrefix,
+    buildManifest,
+    isDevelopment,
+    devOnlyCacheBusterQueryString,
+    disableOptimizedLoading,
+  } = context
+
+  const normalScripts = files.allFiles.filter((file) => file.endsWith('.js'))
+  const lowPriorityScripts = buildManifest.lowPriorityFiles?.filter((file) =>
+    file.endsWith('.js')
+  )
+
+  return [...normalScripts, ...lowPriorityScripts].map((file) => {
+    return (
+      <script
+        key={file}
+        src={`${assetPrefix}/_next/${encodeURI(
+          file
+        )}${devOnlyCacheBusterQueryString}`}
+        nonce={props.nonce}
+        async={!isDevelopment && disableOptimizedLoading}
+        defer={!disableOptimizedLoading}
+        crossOrigin={props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN}
+      />
+    )
+  })
+}
+
 /**
  * `Document` component handles the initial `document` markup and renders only on the server side.
  * Commonly used for implementing server side rendering for `css-in-js` libraries.
@@ -72,17 +177,6 @@ export default class Document<P = {}> extends Component<DocumentProps & P> {
     return { html, head, styles }
   }
 
-  static renderDocument<Y>(
-    DocumentComponent: new () => Document<Y>,
-    props: DocumentProps & Y
-  ): React.ReactElement {
-    return (
-      <DocumentComponentContext.Provider value={props}>
-        <DocumentComponent {...props} />
-      </DocumentComponentContext.Provider>
-    )
-  }
-
   render() {
     return (
       <Html>
@@ -102,9 +196,7 @@ export function Html(
     HTMLHtmlElement
   >
 ) {
-  const { inAmpMode, docComponentsRendered, locale } = useContext(
-    DocumentComponentContext
-  )
+  const { inAmpMode, docComponentsRendered, locale } = useContext(HtmlContext)
 
   docComponentsRendered.Html = true
 
@@ -127,21 +219,13 @@ export class Head extends Component<
       HTMLHeadElement
     >
 > {
-  static contextType = DocumentComponentContext
+  static contextType = HtmlContext
 
-  static propTypes = {
-    nonce: PropTypes.string,
-    crossOrigin: PropTypes.string,
-  }
-
-  context!: React.ContextType<typeof DocumentComponentContext>
+  context!: React.ContextType<typeof HtmlContext>
 
   getCssLinks(files: DocumentFiles): JSX.Element[] | null {
-    const {
-      assetPrefix,
-      devOnlyCacheBusterQueryString,
-      dynamicImports,
-    } = this.context
+    const { assetPrefix, devOnlyCacheBusterQueryString, dynamicImports } =
+      this.context
     const cssFiles = files.allFiles.filter((f) => f.endsWith('.css'))
     const sharedFiles: Set<string> = new Set(files.sharedFiles)
 
@@ -212,11 +296,8 @@ export class Head extends Component<
   }
 
   getPreloadDynamicChunks() {
-    const {
-      dynamicImports,
-      assetPrefix,
-      devOnlyCacheBusterQueryString,
-    } = this.context
+    const { dynamicImports, assetPrefix, devOnlyCacheBusterQueryString } =
+      this.context
 
     return (
       dynamicImports
@@ -246,17 +327,14 @@ export class Head extends Component<
   }
 
   getPreloadMainLinks(files: DocumentFiles): JSX.Element[] | null {
-    const {
-      assetPrefix,
-      devOnlyCacheBusterQueryString,
-      scriptLoader,
-    } = this.context
+    const { assetPrefix, devOnlyCacheBusterQueryString, scriptLoader } =
+      this.context
     const preloadFiles = files.allFiles.filter((file: string) => {
       return file.endsWith('.js')
     })
 
     return [
-      ...(scriptLoader.eager || []).map((file) => (
+      ...(scriptLoader.beforeInteractive || []).map((file) => (
         <link
           key={file.src}
           nonce={this.props.nonce}
@@ -282,36 +360,44 @@ export class Head extends Component<
           }
         />
       )),
-      ...(scriptLoader.defer || []).map((file: string) => (
-        <link
-          key={file}
-          nonce={this.props.nonce}
-          rel="preload"
-          href={file}
-          as="script"
-          crossOrigin={
-            this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
-          }
-        />
-      )),
     ]
+  }
+
+  getDynamicChunks(files: DocumentFiles) {
+    return getDynamicChunks(this.context, this.props, files)
+  }
+
+  getPreNextScripts() {
+    return getPreNextScripts(this.context, this.props)
+  }
+
+  getScripts(files: DocumentFiles) {
+    return getScripts(this.context, this.props, files)
+  }
+
+  getPolyfillScripts() {
+    return getPolyfillScripts(this.context, this.props)
   }
 
   handleDocumentScriptLoaderItems(children: React.ReactNode): ReactNode[] {
     const { scriptLoader } = this.context
-    const scriptLoaderItems: ScriptLoaderProps[] = []
+    const scriptLoaderItems: ScriptProps[] = []
     const filteredChildren: ReactNode[] = []
 
     React.Children.forEach(children, (child: any) => {
       if (child.type === Script) {
-        if (child.props.strategy === 'eager') {
-          scriptLoader.eager = (scriptLoader.eager || []).concat([
+        if (child.props.strategy === 'beforeInteractive') {
+          scriptLoader.beforeInteractive = (
+            scriptLoader.beforeInteractive || []
+          ).concat([
             {
               ...child.props,
             },
           ])
           return
-        } else if (['lazy', 'defer'].includes(child.props.strategy)) {
+        } else if (
+          ['lazyOnload', 'afterInteractive'].includes(child.props.strategy)
+        ) {
           scriptLoaderItems.push(child.props)
           return
         }
@@ -330,7 +416,9 @@ export class Head extends Component<
       if (
         c.type === 'link' &&
         c.props['href'] &&
-        OPTIMIZED_FONT_PROVIDERS.some((url) => c.props['href'].startsWith(url))
+        OPTIMIZED_FONT_PROVIDERS.some(({ url }) =>
+          c.props['href'].startsWith(url)
+        )
       ) {
         const newProps = { ...(c.props || {}) }
         newProps['data-href'] = newProps['href']
@@ -355,9 +443,12 @@ export class Head extends Component<
       headTags,
       unstable_runtimeJS,
       unstable_JsPreload,
+      disableOptimizedLoading,
     } = this.context
+
     const disableRuntimeJS = unstable_runtimeJS === false
-    const disableJsPreload = unstable_JsPreload === false
+    const disableJsPreload =
+      unstable_JsPreload === false || !disableOptimizedLoading
 
     this.context.docComponentsRendered.Head = true
 
@@ -414,9 +505,7 @@ export class Head extends Component<
       children = this.makeStylesheetInert(children)
     }
 
-    if (process.env.__NEXT_SCRIPT_LOADER) {
-      children = this.handleDocumentScriptLoaderItems(children)
-    }
+    children = this.handleDocumentScriptLoaderItems(children)
 
     let hasAmphtmlRel = false
     let hasCanonicalRel = false
@@ -519,6 +608,9 @@ export class Head extends Component<
           </>
         )}
         {children}
+        {process.env.__NEXT_OPTIMIZE_FONTS && (
+          <meta name="next-font-preconnect" />
+        )}
         {head}
         <meta
           name="next-head-count"
@@ -584,12 +676,27 @@ export class Head extends Component<
             {!process.env.__NEXT_OPTIMIZE_CSS && (
               <noscript data-n-css={this.props.nonce ?? ''} />
             )}
+            {process.env.__NEXT_OPTIMIZE_IMAGES && (
+              <meta name="next-image-preload" />
+            )}
             {!disableRuntimeJS &&
               !disableJsPreload &&
               this.getPreloadDynamicChunks()}
             {!disableRuntimeJS &&
               !disableJsPreload &&
               this.getPreloadMainLinks(files)}
+            {!disableOptimizedLoading &&
+              !disableRuntimeJS &&
+              this.getPolyfillScripts()}
+            {!disableOptimizedLoading &&
+              !disableRuntimeJS &&
+              this.getPreNextScripts()}
+            {!disableOptimizedLoading &&
+              !disableRuntimeJS &&
+              this.getDynamicChunks(files)}
+            {!disableOptimizedLoading &&
+              !disableRuntimeJS &&
+              this.getScripts(files)}
             {process.env.__NEXT_OPTIMIZE_CSS && this.getCssLinks(files)}
             {process.env.__NEXT_OPTIMIZE_CSS && (
               <noscript data-n-css={this.props.nonce ?? ''} />
@@ -610,133 +717,41 @@ export class Head extends Component<
 }
 
 export function Main() {
-  const { inAmpMode, html, docComponentsRendered } = useContext(
-    DocumentComponentContext
-  )
+  const { inAmpMode, docComponentsRendered } = useContext(HtmlContext)
 
   docComponentsRendered.Main = true
 
-  if (inAmpMode) return <>{AMP_RENDER_TARGET}</>
-  return <div id="__next" dangerouslySetInnerHTML={{ __html: html }} />
+  if (inAmpMode) return <>{BODY_RENDER_TARGET}</>
+  return <div id="__next">{BODY_RENDER_TARGET}</div>
 }
 
 export class NextScript extends Component<OriginProps> {
-  static contextType = DocumentComponentContext
+  static contextType = HtmlContext
 
-  static propTypes = {
-    nonce: PropTypes.string,
-    crossOrigin: PropTypes.string,
-  }
-
-  context!: React.ContextType<typeof DocumentComponentContext>
+  context!: React.ContextType<typeof HtmlContext>
 
   // Source: https://gist.github.com/samthor/64b114e4a4f539915a95b91ffd340acc
   static safariNomoduleFix =
     '!function(){var e=document,t=e.createElement("script");if(!("noModule"in t)&&"onbeforeload"in t){var n=!1;e.addEventListener("beforeload",function(e){if(e.target===t)n=!0;else if(!e.target.hasAttribute("nomodule")||!n)return;e.preventDefault()},!0),t.type="module",t.src=".",e.head.appendChild(t),t.remove()}}();'
 
   getDynamicChunks(files: DocumentFiles) {
-    const {
-      dynamicImports,
-      assetPrefix,
-      isDevelopment,
-      devOnlyCacheBusterQueryString,
-    } = this.context
-
-    return dynamicImports.map((file) => {
-      if (!file.endsWith('.js') || files.allFiles.includes(file)) return null
-
-      return (
-        <script
-          async={!isDevelopment}
-          key={file}
-          src={`${assetPrefix}/_next/${encodeURI(
-            file
-          )}${devOnlyCacheBusterQueryString}`}
-          nonce={this.props.nonce}
-          crossOrigin={
-            this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
-          }
-        />
-      )
-    })
+    return getDynamicChunks(this.context, this.props, files)
   }
 
   getPreNextScripts() {
-    const { scriptLoader } = this.context
-
-    return (scriptLoader.eager || []).map((file: ScriptLoaderProps) => {
-      const { strategy, ...props } = file
-      return (
-        <script
-          {...props}
-          nonce={this.props.nonce}
-          crossOrigin={
-            this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
-          }
-        />
-      )
-    })
+    return getPreNextScripts(this.context, this.props)
   }
 
   getScripts(files: DocumentFiles) {
-    const {
-      assetPrefix,
-      buildManifest,
-      isDevelopment,
-      devOnlyCacheBusterQueryString,
-    } = this.context
-
-    const normalScripts = files.allFiles.filter((file) => file.endsWith('.js'))
-    const lowPriorityScripts = buildManifest.lowPriorityFiles?.filter((file) =>
-      file.endsWith('.js')
-    )
-
-    return [...normalScripts, ...lowPriorityScripts].map((file) => {
-      return (
-        <script
-          key={file}
-          src={`${assetPrefix}/_next/${encodeURI(
-            file
-          )}${devOnlyCacheBusterQueryString}`}
-          nonce={this.props.nonce}
-          async={!isDevelopment}
-          crossOrigin={
-            this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
-          }
-        />
-      )
-    })
+    return getScripts(this.context, this.props, files)
   }
 
   getPolyfillScripts() {
-    // polyfills.js has to be rendered as nomodule without async
-    // It also has to be the first script to load
-    const {
-      assetPrefix,
-      buildManifest,
-      devOnlyCacheBusterQueryString,
-    } = this.context
-
-    return buildManifest.polyfillFiles
-      .filter(
-        (polyfill) =>
-          polyfill.endsWith('.js') && !polyfill.endsWith('.module.js')
-      )
-      .map((polyfill) => (
-        <script
-          key={polyfill}
-          nonce={this.props.nonce}
-          crossOrigin={
-            this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
-          }
-          noModule={true}
-          src={`${assetPrefix}/_next/${polyfill}${devOnlyCacheBusterQueryString}`}
-        />
-      ))
+    return getPolyfillScripts(this.context, this.props)
   }
 
-  static getInlineScriptSource(documentProps: Readonly<DocumentProps>): string {
-    const { __NEXT_DATA__ } = documentProps
+  static getInlineScriptSource(context: Readonly<HtmlProps>): string {
+    const { __NEXT_DATA__ } = context
     try {
       const data = JSON.stringify(__NEXT_DATA__)
       return htmlEscapeJsonString(data)
@@ -758,6 +773,7 @@ export class NextScript extends Component<OriginProps> {
       unstable_runtimeJS,
       docComponentsRendered,
       devOnlyCacheBusterQueryString,
+      disableOptimizedLoading,
     } = this.context
     const disableRuntimeJS = unstable_runtimeJS === false
 
@@ -847,10 +863,16 @@ export class NextScript extends Component<OriginProps> {
             }}
           />
         )}
-        {!disableRuntimeJS && this.getPolyfillScripts()}
-        {!disableRuntimeJS && this.getPreNextScripts()}
-        {disableRuntimeJS ? null : this.getDynamicChunks(files)}
-        {disableRuntimeJS ? null : this.getScripts(files)}
+        {disableOptimizedLoading &&
+          !disableRuntimeJS &&
+          this.getPolyfillScripts()}
+        {disableOptimizedLoading &&
+          !disableRuntimeJS &&
+          this.getPreNextScripts()}
+        {disableOptimizedLoading &&
+          !disableRuntimeJS &&
+          this.getDynamicChunks(files)}
+        {disableOptimizedLoading && !disableRuntimeJS && this.getScripts(files)}
       </>
     )
   }

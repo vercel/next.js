@@ -1,3 +1,1 @@
-module.exports = {
-  experimental: { scriptLoader: true },
-}
+module.exports = {}

@@ -171,12 +171,12 @@ const customBabelLoader = babelLoader((babel) => {
         }
       }
 
-      // As next-server/lib has stateful modules we have to transpile commonjs
+      // As shared/lib has stateful modules we have to transpile commonjs
       options.overrides = [
         ...(options.overrides || []),
         {
           test: [
-            /next[\\/]dist[\\/]next-server[\\/]lib/,
+            /next[\\/]dist[\\/]shared[\\/]lib/,
             /next[\\/]dist[\\/]client/,
             /next[\\/]dist[\\/]pages/,
           ],

@@ -402,6 +402,8 @@ describe('AMP Usage', () => {
 
     it('should not reload unless the page is edited for an AMP page', async () => {
       let browser
+      const hmrTestPagePath = join(__dirname, '../', 'pages', 'hmr', 'test.js')
+      const originalContent = readFileSync(hmrTestPagePath, 'utf8')
       try {
         await renderViaHTTP(dynamicAppPort, '/hmr/test')
 
@@ -409,15 +411,7 @@ describe('AMP Usage', () => {
         await check(() => browser.elementByCss('p').text(), /I'm an AMP page!/)
 
         const origDate = await browser.elementByCss('span').text()
-        const hmrTestPagePath = join(
-          __dirname,
-          '../',
-          'pages',
-          'hmr',
-          'test.js'
-        )
 
-        const originalContent = readFileSync(hmrTestPagePath, 'utf8')
         const editedContent = originalContent.replace(
           `This is the hot AMP page.`,
           'replaced it!'
@@ -456,6 +450,7 @@ describe('AMP Usage', () => {
 
         await check(() => getBrowserBodyText(browser), /I'm an AMP page!/)
       } finally {
+        writeFileSync(hmrTestPagePath, originalContent, 'utf8')
         await browser.close()
       }
     })

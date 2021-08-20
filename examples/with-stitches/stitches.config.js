@@ -67,7 +67,7 @@ export const { css, styled, global, getCssString } = createCss({
     }),
   },
   media: {
-    bp1: '@media (min-width: 520px)',
-    bp2: '@media (min-width: 900px)',
+    bp1: '(min-width: 520px)',
+    bp2: '(min-width: 900px)',
   },
 })
