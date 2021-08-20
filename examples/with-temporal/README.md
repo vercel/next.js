@@ -14,11 +14,11 @@
 
 ## Starter project
 
-This is a starter project for creating resilient Next.js applications with [Temporal](https://temporal.io/). Whenever our [API routes](https://nextjs.org/docs/api-routes/introduction) need to do any of the below, we can greatly increase our code's fault tolerance by using Temporal:
+This is a starter project for creating resilient Next.js applications with [Temporal](https://temporal.io/). Whenever our [API routes](https://nextjs.org/docs/api-routes/introduction) need to do any of the following, we can greatly increase our code's fault tolerance by using Temporal:
 
-- Perform a series of network requests (to a database, another function, an internal service, or an external API), any of which may fail (Temporal will automatically set timeouts and retry, as well as remember the state of execution in the event of power loss)
-- Do something that takes longer than 5 or 30 seconds (Vercel's serverless function execution [time limit](https://vercel.com/docs/platform/limits) for Hobby or Enterprise accounts, respectively)
-- Do something after a certain amount of time, like an hour or a month (or periodically—once an hour, or once a month)
+- Perform a series of network requests (to a database, another function, an internal service, or an external API), any of which may fail. Temporal will automatically set timeouts and retry, as well as remember the state of execution in the event of power loss.
+- Long-running tasks
+- Cron jobs
 
 The starter project has this logic flow:
 
