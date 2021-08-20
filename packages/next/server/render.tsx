@@ -3,6 +3,7 @@ import { ParsedUrlQuery } from 'querystring'
 import { PassThrough } from 'stream'
 import React from 'react'
 import * as ReactDOMServer from 'react-dom/server'
+import Observable from 'next/dist/compiled/zen-observable'
 import { warn } from '../build/output/log'
 import { UnwrapPromise } from '../lib/coalesced-function'
 import {
@@ -63,12 +64,7 @@ import {
   Redirect,
 } from '../lib/load-custom-routes'
 import { DomainLocale } from './config'
-import {
-  Observer,
-  RenderResult,
-  resultFromChunks,
-  resultToChunks,
-} from './utils'
+import { mergeResults, RenderResult, resultsToString } from './utils'
 
 function noRouter() {
   const message =
@@ -966,7 +962,7 @@ export async function renderToHTML(
   // Avoid rendering page un-necessarily for getServerSideProps data request
   // and getServerSideProps/getStaticProps redirects
   if ((isDataReq && !isSSG) || (renderOpts as any).isRedirect) {
-    return resultFromChunks([JSON.stringify(props)])
+    return Observable.of(JSON.stringify(props))
   }
 
   // We don't call getStaticProps or getServerSideProps while generating
@@ -1013,19 +1009,22 @@ export async function renderToHTML(
       const doResolve = () => {
         if (!resolved) {
           resolved = true
-          resolve(({ complete, next }) => {
-            stream.on('data', (chunk) => {
-              next(chunk.toString('utf-8'))
-            })
-            stream.once('end', () => {
-              complete()
-            })
 
-            startWriting()
-            return () => {
-              abort()
-            }
-          })
+          resolve(
+            new Observable((observer) => {
+              stream.on('data', (chunk) => {
+                observer.next(chunk.toString('utf-8'))
+              })
+              stream.once('end', () => {
+                observer.complete()
+              })
+
+              startWriting()
+              return () => {
+                abort()
+              }
+            })
+          )
         }
       }
 
@@ -1188,18 +1187,18 @@ export async function renderToHTML(
   let results: Array<RenderResult> = []
   const renderTargetIdx = documentHTML.indexOf(BODY_RENDER_TARGET)
   results.push(
-    resultFromChunks([
-      '<!DOCTYPE html>' + documentHTML.substring(0, renderTargetIdx),
-    ])
+    Observable.of(
+      '<!DOCTYPE html>' + documentHTML.substring(0, renderTargetIdx)
+    )
   )
   if (inAmpMode) {
-    results.push(resultFromChunks(['<!-- __NEXT_DATA__ -->']))
+    results.push(Observable.of('<!-- __NEXT_DATA__ -->'))
   }
-  results.push(resultFromChunks([docProps.html]))
+  results.push(Observable.of(docProps.html))
   results.push(
-    resultFromChunks([
-      documentHTML.substring(renderTargetIdx + BODY_RENDER_TARGET.length),
-    ])
+    Observable.of(
+      documentHTML.substring(renderTargetIdx + BODY_RENDER_TARGET.length)
+    )
   )
 
   const postProcessors: Array<((html: string) => Promise<string>) | null> = [
@@ -1254,68 +1253,20 @@ export async function renderToHTML(
         html = await postProcessor(html)
       }
     }
-    results = [resultFromChunks([html])]
+    results = [Observable.of(html)]
   }
 
   return mergeResults(results)
 }
 
-async function resultsToString(chunks: Array<RenderResult>): Promise<string> {
-  const result = await resultToChunks(mergeResults(chunks))
-  return result.join('')
-}
-
-function mergeResults(chunks: Array<RenderResult>): RenderResult {
-  return ({ next, complete, error }) => {
-    let idx = 0
-    let canceled = false
-    let unsubscribe = () => {}
-
-    const subscribeNext = () => {
-      if (canceled) {
-        return
-      }
-
-      if (idx < chunks.length) {
-        const result = chunks[idx++]
-        unsubscribe = result({
-          next,
-          complete() {
-            unsubscribe()
-            subscribeNext()
-          },
-          error(err) {
-            unsubscribe()
-            if (!canceled) {
-              canceled = true
-              error(err)
-            }
-          },
-        })
-      } else {
-        if (!canceled) {
-          canceled = true
-          complete()
-        }
-      }
-    }
-    subscribeNext()
-
-    return () => {
-      if (!canceled) {
-        canceled = true
-        unsubscribe()
-      }
-    }
-  }
-}
-
 function multiplexResult(result: RenderResult): RenderResult {
   const chunks: Array<string> = []
-  const subscribers: Set<Observer<string>> = new Set()
-  let terminator: ((subscriber: Observer<string>) => void) | null = null
+  const subscribers: Set<ZenObservable.SubscriptionObserver<string>> = new Set()
+  let terminator:
+    | ((subscriber: ZenObservable.SubscriptionObserver<string>) => void)
+    | null = null
 
-  result({
+  result.subscribe({
     next(chunk) {
       chunks.push(chunk)
       subscribers.forEach((subscriber) => subscriber.next(chunk))
@@ -1336,59 +1287,24 @@ function multiplexResult(result: RenderResult): RenderResult {
     },
   })
 
-  return (innerSubscriber) => {
-    let completed = false
-    let cleanup = () => {}
-    const subscriber: Observer<string> = {
-      next(chunk) {
-        if (!completed) {
-          try {
-            innerSubscriber.next(chunk)
-          } catch (err) {
-            subscriber.error(err)
-          }
-        }
-      },
-      complete() {
-        if (!completed) {
-          cleanup()
-          try {
-            innerSubscriber.complete()
-          } catch {}
-        }
-      },
-      error(err) {
-        if (!completed) {
-          cleanup()
-          try {
-            innerSubscriber.error(err)
-          } catch {}
-        }
-      },
-    }
-    cleanup = () => {
-      completed = true
-      subscribers.delete(subscriber)
+  return new Observable((observer) => {
+    for (const chunk of chunks) {
+      if (observer.closed) {
+        return
+      }
+      observer.next(chunk)
     }
 
-    process.nextTick(() => {
-      for (const chunk of chunks) {
-        if (completed) {
-          return
-        }
-        subscriber.next(chunk)
-      }
+    if (terminator) {
+      terminator(observer)
+      return
+    }
 
-      if (!completed) {
-        if (!terminator) {
-          subscribers.add(subscriber)
-        } else {
-          terminator(subscriber)
-        }
-      }
-    })
-    return () => cleanup()
-  }
+    subscribers.add(observer)
+    return () => {
+      subscribers.delete(observer)
+    }
+  })
 }
 
 function errorToJSON(err: Error): Error {

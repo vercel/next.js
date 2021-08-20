@@ -3,7 +3,7 @@ import { NextConfigComplete } from '../../../server/config-shared'
 
 export type ConfigurationContext = {
   rootDirectory: string
-  customAppFile: string | null
+  customAppFile: RegExp
 
   isDevelopment: boolean
   isProduction: boolean

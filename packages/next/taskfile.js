@@ -1,9 +1,7 @@
-const fs = require('fs')
 // eslint-disable-next-line import/no-extraneous-dependencies
 const notifier = require('node-notifier')
 // eslint-disable-next-line import/no-extraneous-dependencies
-const { nodeFileTrace } = require('@vercel/nft')
-const { join, relative, basename, resolve } = require('path')
+const { relative, basename, resolve } = require('path')
 const { Module } = require('module')
 
 // Note:
@@ -641,6 +639,16 @@ export async function ncc_web_vitals(task, opts) {
     .target('compiled/web-vitals')
 }
 // eslint-disable-next-line camelcase
+externals['zen-observable'] = 'next/dist/compiled/zen-observable'
+export async function ncc_zen_observable(task, opts) {
+  await task
+    .source(
+      opts.src || relative(__dirname, require.resolve('zen-observable/esm'))
+    )
+    .ncc({ packageName: 'zen-observable', externals })
+    .target('compiled/zen-observable')
+}
+// eslint-disable-next-line camelcase
 externals['webpack-sources'] = 'next/dist/compiled/webpack-sources'
 export async function ncc_webpack_sources(task, opts) {
   await task
@@ -755,45 +763,6 @@ export async function precompile(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
-export async function trace_next_server(task) {
-  const { TRACE_OUTPUT_VERSION } = require('next/dist/shared/lib/constants')
-  const root = join(__dirname, '../../')
-
-  const result = await nodeFileTrace(
-    [require.resolve('next/dist/server/next-server')],
-    {
-      base: root,
-      processCwd: __dirname,
-      ignore: [
-        'packages/next/dist/compiled/webpack/(bundle4|bundle5).js',
-        'node_modules/react/**/*.development.js',
-        'node_modules/react-dom/**/*.development.js',
-        'node_modules/use-subscription/**/*.development.js',
-        'node_modules/next/dist/next-server/server/lib/squoosh/**/*.wasm',
-        'packages/next/dist/pages/**/*',
-      ],
-    }
-  )
-
-  const tracedDeps = []
-
-  for (const file of result.fileList) {
-    if (result.reasons[file].type === 'initial') {
-      continue
-    }
-    tracedDeps.push(join(root, file))
-  }
-
-  fs.writeFileSync(
-    join(__dirname, 'dist/server/next-server.nft.json'),
-    JSON.stringify({
-      version: TRACE_OUTPUT_VERSION,
-      files: tracedDeps,
-    })
-  )
-}
-
-// eslint-disable-next-line camelcase
 export async function copy_ncced(task) {
   // we don't ncc every time we build since these won't change
   // that often and can be committed to the repo saving build time
@@ -863,6 +832,7 @@ export async function ncc(task, opts) {
         'ncc_text_table',
         'ncc_unistore',
         'ncc_web_vitals',
+        'ncc_zen_observable',
         'ncc_webpack_bundle4',
         'ncc_webpack_bundle5',
         'ncc_webpack_bundle_packages',
@@ -989,7 +959,7 @@ export async function telemetry(task, opts) {
 }
 
 export async function build(task, opts) {
-  await task.serial(['precompile', 'compile', 'trace_next_server'], opts)
+  await task.serial(['precompile', 'compile'], opts)
 }
 
 export default async function (task) {

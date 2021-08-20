@@ -3,6 +3,7 @@ import { extname, join, dirname, sep } from 'path'
 import { renderToHTML } from '../server/render'
 import { promises } from 'fs'
 import AmpHtmlValidator from 'next/dist/compiled/amphtml-validator'
+import Observable from 'next/dist/compiled/zen-observable'
 import { loadComponents } from '../server/load-components'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
@@ -18,7 +19,7 @@ import { FontManifest } from '../server/font-utils'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { trace } from '../telemetry/trace'
 import { isInAmpMode } from '../shared/lib/amp'
-import { resultFromChunks, resultToChunks } from '../server/utils'
+import { resultsToString } from '../server/utils'
 import { NextConfigComplete } from '../server/config-shared'
 import { setHttpAgentOptions } from '../server/config'
 
@@ -274,7 +275,7 @@ export default async function exportPage({
 
         // if it was auto-exported the HTML is loaded here
         if (typeof mod === 'string') {
-          renderResult = resultFromChunks([mod])
+          renderResult = Observable.of(mod)
           queryWithAutoExportWarn()
         } else {
           // for non-dynamic SSG pages we should have already
@@ -352,7 +353,7 @@ export default async function exportPage({
         }
 
         if (typeof components.Component === 'string') {
-          renderResult = resultFromChunks([components.Component])
+          renderResult = Observable.of(components.Component)
           queryWithAutoExportWarn()
         } else {
           /**
@@ -417,8 +418,7 @@ export default async function exportPage({
         }
       }
 
-      const htmlChunks = renderResult ? await resultToChunks(renderResult) : []
-      const html = htmlChunks.join('')
+      const html = renderResult ? await resultsToString([renderResult]) : ''
       if (inAmpMode && !curRenderOpts.ampSkipValidation) {
         if (!results.ssgNotFound) {
           await validateAmp(html, path, curRenderOpts.ampValidatorPath)
@@ -460,8 +460,9 @@ export default async function exportPage({
             )
           }
 
-          const ampChunks = await resultToChunks(ampRenderResult)
-          const ampHtml = ampChunks.join('')
+          const ampHtml = ampRenderResult
+            ? await resultsToString([ampRenderResult])
+            : ''
           if (!curRenderOpts.ampSkipValidation) {
             await validateAmp(ampHtml, page + '?amp=1')
           }

@@ -19,7 +19,9 @@ export function setupPing(assetPrefix, pathnameFn, retry) {
   closePing()
 
   evtSource = getEventSourceWrapper({
-    path: `${assetPrefix}/_next/webpack-hmr?page=${currentPage}`,
+    path: `${assetPrefix}/_next/webpack-hmr?page=${encodeURIComponent(
+      currentPage
+    )}`,
     timeout: 5000,
   })
 
