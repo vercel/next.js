@@ -4,7 +4,7 @@ description: Learn how to add a sitemap to your Next.js project, along with a ro
 
 # Sitemaps
 
-To improve your Search Engine Optimization (SEO), you might want to add a sitemap or `robots.txt` file to your Next.js site.
+To improve your Search Engine Optimization (SEO), you might want to add a [sitemap](https://developers.google.com/search/docs/advanced/sitemaps/build-sitemap) or [`robots.txt`](https://developers.google.com/search/docs/advanced/robots/intro) file to your Next.js website.
 
 A **sitemap** defines the relationship between pages of your site. Search engines utilize
 this file to more accurately index your site. You can also provide additional information
@@ -14,7 +14,7 @@ A **robots.txt** file tells search engines which pages or files the crawler can 
 
 ## Static Sitemaps
 
-If your site does not update frequently, you might currently have a static sitemap.
+If your website does not update frequently, you can manually create a static sitemap.
 This is a basic `.xml` file defining the content of your site. Here's a simple example:
 
 ```xml
@@ -79,7 +79,7 @@ generate()
 
 > **Note:** This Node.js script is using [ES Modules](https://nodejs.org/api/esm.html), denoted by the `.mjs` extension. You could also write this script with [CommonJS](https://nodejs.org/api/modules.html#modules_modules_commonjs_modules) if you prefer.
 
-Finally, add `postbuild` script in your `package.json` to run this script after `next build` completes.
+Finally, add [`postbuild` script](https://docs.npmjs.com/cli/v7/using-npm/scripts#pre--post-scripts) in your `package.json` to run this script after `next build` completes.
 Your generated sitemap file gets created at `public/sitemap.xml`, which is then served as a [static file](/docs/basic-features/static-file-serving.md) at the root of your site.
 
 ```json
