@@ -1,18 +1,4 @@
-# Temporal Next.js example
-
-> “Temporal does to backend and infra what React did to frontend. If you're in the React world, you've forgotten about manually adding and removing DOM elements, updating attributes and their quirks, hooking up event listeners… It's not only been a boost in developer experience, but most importantly in consistency and reliability. In the backend world, this reliability problem is absurdly amplified as monoliths break into SaaS services, functions, containers… You have to carefully manage and create queues to capture each side effect, ensure everything gets retried, state is scattered all over the place. Temporal's engine is quite complex, much like React's, but the surface exposed to the developer is a beautiful "render()" function to organize your backend workflows.”
-> —[Guillermo Rauch](https://twitter.com/rauchg/status/1316808665370820609)
-
-**Table of Contents**
-
-- [Starter project](#starter-project)
-- [Deploy your own](#deploy-your-own)
-  - [Web server](#web-server)
-  - [Worker](#worker)
-  - [Temporal Server](#temporal-server)
-- [How to use](#how-to-use)
-
-## Starter project
+# Temporal + Next.js Example
 
 This is a starter project for creating resilient Next.js applications with [Temporal](https://temporal.io/). Whenever our [API routes](https://nextjs.org/docs/api-routes/introduction) need to do any of the following, we can greatly increase our code's fault tolerance by using Temporal:
 
