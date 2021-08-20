@@ -1,4 +1,4 @@
-// TODO: uncomment below
+// TODO
 // import React from 'react'
 
 // export default () => (

@@ -1,3 +1,4 @@
+// TODO: needs dynamic element
 import _JSXStyle from "styled-jsx/style";
 export default (()=>{
   const Element1 = "div";
@@ -55,7 +56,6 @@ export default (()=>{
       <div className="test" {...bar} className={"jsx-abb4c2202db1a207" + " " + (bar && bar.className != null && bar.className || props.className || "")}/>
       <div className="test" {...bar} className={"jsx-abb4c2202db1a207" + " " + (props.className || "")}/>
       <div {...bar()} className={"jsx-abb4c2202db1a207" + " " + "test"}/>
-      // TODO: uncomment below
       {}
       <_JSXStyle id={"abb4c2202db1a207"}>{"div { color: red }"}</_JSXStyle>
     </div>;

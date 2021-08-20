@@ -1,4 +1,4 @@
-// TODO
+// TODO: needs dynamic element
 // export default ({ level = 1 }) => {
 //   const Element = `h${level}`
 

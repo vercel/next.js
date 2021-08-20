@@ -1,4 +1,4 @@
-// TODO: uncomment below
+// TODO
 // const darken = c => c
 // const color = 'red'
 // const otherColor = 'green'

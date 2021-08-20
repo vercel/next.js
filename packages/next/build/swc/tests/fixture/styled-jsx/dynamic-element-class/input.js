@@ -1,4 +1,4 @@
-// TODO
+// TODO: needs dynamic element
 // export default class {
 //   render() {
 //     const Element = 'div'

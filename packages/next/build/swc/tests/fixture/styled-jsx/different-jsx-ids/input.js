@@ -1,4 +1,4 @@
-// TODO
+// TODO: needs dynamic
 // const color = 'red'
 // const otherColor = 'green'
 

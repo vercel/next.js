@@ -1,4 +1,4 @@
-// TODO
+// TODO: needs css
 // const Test = () => <style global jsx>{'p { color: red }'}</style>
 
 // export default () => (
