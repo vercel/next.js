@@ -194,32 +194,34 @@ impl Fold for StyledJSXTransformer {
 
   fn fold_module_items(&mut self, items: Vec<ModuleItem>) -> Vec<ModuleItem> {
     let mut items = items.fold_children_with(self);
-    prepend(
-      &mut items,
-      ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
-        asserts: None,
-        span: DUMMY_SP,
-        type_only: false,
-        specifiers: vec![ImportSpecifier::Default(ImportDefaultSpecifier {
-          local: Ident {
-            sym: "_JSXStyle".into(),
+    dbg!("HAS STYLED JSX", self.file_has_styled_jsx);
+    if self.file_has_styled_jsx {
+      prepend(
+        &mut items,
+        ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+          asserts: None,
+          span: DUMMY_SP,
+          type_only: false,
+          specifiers: vec![ImportSpecifier::Default(ImportDefaultSpecifier {
+            local: Ident {
+              sym: "_JSXStyle".into(),
+              span: DUMMY_SP,
+              optional: false,
+            },
             span: DUMMY_SP,
-            optional: false,
+          })],
+          src: Str {
+            has_escape: false,
+            kind: StrKind::Synthesized {},
+            span: DUMMY_SP,
+            value: "styled-jsx/style".into(),
           },
-          span: DUMMY_SP,
-        })],
-        src: Str {
-          has_escape: false,
-          kind: StrKind::Synthesized {},
-          span: DUMMY_SP,
-          value: "styled-jsx/style".into(),
-        },
-      })),
-    );
+        })),
+      );
+    }
     items
   }
 }
-
 fn is_styled_jsx(el: &JSXElement) -> bool {
   if let JSXElementName::Ident(Ident { sym, .. }) = &el.opening.name {
     if sym != "style" {
