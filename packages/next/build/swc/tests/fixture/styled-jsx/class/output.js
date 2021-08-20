@@ -1,3 +1,4 @@
+import _JSXStyle from "styled-jsx/style";
 export default class {
   render() {
       return <div className={"jsx-b3e1b6a7c9b96113"}>
@@ -10,4 +11,3 @@ export default class {
       </div>;
   }
 }
-import _JSXStyle from "styled-jsx/style";

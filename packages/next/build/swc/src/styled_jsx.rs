@@ -2,7 +2,7 @@ use std::collections::hash_map::DefaultHasher;
 use std::hash::Hasher;
 use swc_common::DUMMY_SP;
 use swc_ecmascript::ast::*;
-use swc_ecmascript::utils::HANDLER;
+use swc_ecmascript::utils::{prepend, HANDLER};
 use swc_ecmascript::visit::{Fold, FoldWith};
 
 pub fn styled_jsx() -> impl Fold {
@@ -192,35 +192,34 @@ impl Fold for StyledJSXTransformer {
     el
   }
 
-  fn fold_module(&mut self, module: Module) -> Module {
-    let mut module = module.fold_children_with(self);
-
-    if self.file_has_styled_jsx {
-      module
-        .body
-        .push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
-          asserts: None,
-          span: DUMMY_SP,
-          type_only: false,
-          specifiers: vec![ImportSpecifier::Default(ImportDefaultSpecifier {
-            local: Ident {
-              sym: "_JSXStyle".into(),
-              span: DUMMY_SP,
-              optional: false,
-            },
+  fn fold_module_items(&mut self, items: Vec<ModuleItem>) -> Vec<ModuleItem> {
+    let mut items = items.fold_children_with(self);
+    prepend(
+      &mut items,
+      ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+        asserts: None,
+        span: DUMMY_SP,
+        type_only: false,
+        specifiers: vec![ImportSpecifier::Default(ImportDefaultSpecifier {
+          local: Ident {
+            sym: "_JSXStyle".into(),
             span: DUMMY_SP,
-          })],
-          src: Str {
-            has_escape: false,
-            kind: StrKind::Synthesized {},
-            span: DUMMY_SP,
-            value: "styled-jsx/style".into(),
+            optional: false,
           },
-        })));
-    }
-    module
+          span: DUMMY_SP,
+        })],
+        src: Str {
+          has_escape: false,
+          kind: StrKind::Synthesized {},
+          span: DUMMY_SP,
+          value: "styled-jsx/style".into(),
+        },
+      })),
+    );
+    items
   }
 }
+
 fn is_styled_jsx(el: &JSXElement) -> bool {
   if let JSXElementName::Ident(Ident { sym, .. }) = &el.opening.name {
     if sym != "style" {

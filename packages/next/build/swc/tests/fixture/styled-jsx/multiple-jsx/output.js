@@ -1,3 +1,4 @@
+import _JSXStyle from "styled-jsx/style";
 const attrs = {
   id: "test"
 };
@@ -34,4 +35,3 @@ export default class {
       </div>;
   }
 }
-import _JSXStyle from "styled-jsx/style";
