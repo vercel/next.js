@@ -5,6 +5,8 @@ const fs = require('fs-extra')
 const prettyBytes = require('pretty-bytes')
 const gzipSize = require('next/dist/compiled/gzip-size')
 const { nodeFileTrace } = require('next/dist/compiled/@vercel/nft')
+const { linkPackages } =
+  require('../.github/actions/next-stats-action/src/prepare/repo-setup')()
 
 const MAX_COMPRESSED_SIZE = 250 * 1000
 const MAX_UNCOMPRESSED_SIZE = 2.5 * 1000 * 1000
@@ -16,26 +18,28 @@ const MAX_UNCOMPRESSED_SIZE = 2.5 * 1000 * 1000
 // version so isn't pre-traced
 async function main() {
   const tmpdir = os.tmpdir()
-  await execa('yarn', ['pack'], {
-    cwd: path.join(__dirname, '../packages/next'),
-    stdio: ['ignore', 'inherit', 'inherit'],
-  })
-  const packagePath = path.join(
-    __dirname,
-    `../packages/next/next-v${
-      require('../packages/next/package.json').version
-    }.tgz`
-  )
+  const origRepoDir = path.join(__dirname, '..')
+  const repoDir = path.join(tmpdir, `tmp-next-${Date.now()}`)
   const workDir = path.join(tmpdir, `trace-next-${Date.now()}`)
+
+  await fs.copy(origRepoDir, repoDir, {
+    filter: (item) => {
+      return !item.includes('node_modules')
+    },
+  })
+
   console.log('using workdir', workDir)
+  console.log('using repodir', repoDir)
   await fs.ensureDir(workDir)
+
+  const pkgPaths = await linkPackages(repoDir)
 
   await fs.writeFile(
     path.join(workDir, 'package.json'),
     JSON.stringify(
       {
         dependencies: {
-          next: packagePath,
+          next: pkgPaths.get('next'),
         },
         private: true,
       },
@@ -112,8 +116,8 @@ async function main() {
       version: 1,
     })
   )
-  await fs.unlink(packagePath)
   await fs.remove(workDir)
+  await fs.remove(repoDir)
 
   console.timeEnd(traceLabel)
 
