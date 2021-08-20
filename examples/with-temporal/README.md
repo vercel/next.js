@@ -37,7 +37,12 @@ Reserving 2 of item B102
 Charging user 123 for 2 of item B102
 ```
 
-The Workflow code is: `temporal/src/workflows/order.ts` and the Activites code is: `temporal/src/activities/{payment|inventory}.ts`.
+- The Workflow completes and Temporal Server sends the result back to the serverless function, which returns it to the client, which alerts the result.
+
+Here is the Temporal code:
+
+- The Workflow: `temporal/src/workflows/order.ts`
+- The Activites: `temporal/src/activities/{payment|inventory}.ts`
 
 ## Deploy your own
 
