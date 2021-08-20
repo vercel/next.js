@@ -210,7 +210,6 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
       )
     }
   }
-  const p = props.prefetch !== false
   const router = useRouter()
 
   const { href, as } = React.useMemo(() => {
@@ -261,8 +260,13 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
     },
     [childRef, setIntersectionRef]
   )
+
+  let configPrefetch = process.env.__NEXT_LINK_PREFETCH as boolean | undefined
+  if (props.prefetch !== undefined) {
+    configPrefetch = props.prefetch
+  }
   React.useEffect(() => {
-    const shouldPrefetch = isVisible && p && isLocalURL(href)
+    const shouldPrefetch = isVisible && configPrefetch && isLocalURL(href)
     const curLocale =
       typeof locale !== 'undefined' ? locale : router && router.locale
     const isPrefetched =
@@ -272,7 +276,7 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
         locale: curLocale,
       })
     }
-  }, [as, href, isVisible, locale, p, router])
+  }, [as, href, isVisible, locale, configPrefetch, router])
 
   const childProps: {
     onMouseEnter?: React.MouseEventHandler

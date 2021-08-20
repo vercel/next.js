@@ -82,6 +82,9 @@ export type NextConfig = { [key: string]: any } & {
   compress?: boolean
   poweredByHeader?: boolean
   images?: ImageConfig
+  link?: {
+    prefetchDefault?: boolean
+  }
   devIndicators?: {
     buildActivity?: boolean
   }
@@ -164,6 +167,9 @@ export const defaultConfig: NextConfig = {
   compress: true,
   analyticsId: process.env.VERCEL_ANALYTICS_ID || '',
   images: imageConfigDefault,
+  link: {
+    prefetchDefault: true,
+  },
   devIndicators: {
     buildActivity: true,
   },
