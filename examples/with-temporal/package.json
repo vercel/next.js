@@ -10,13 +10,13 @@
     "start-worker": "nodemon -w temporal/lib/ -x 'node temporal/lib/worker || (sleep 5; touch temporal/lib/worker/index.js)'"
   },
   "dependencies": {
-    "@babel/core": "^7.15.0",
     "next": "latest",
     "react": "^17.0.2",
     "react-dom": "^17.0.2",
     "temporalio": "^0.3.0"
   },
   "devDependencies": {
+    "@babel/core": "^7.15.0",
     "@tsconfig/node14": "^1.0.0",
     "@types/node": "^12.12.21",
     "@types/react": "^17.0.2",
