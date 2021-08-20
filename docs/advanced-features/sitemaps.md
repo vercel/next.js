@@ -147,6 +147,7 @@ class Sitemap extends React.Component {
     const posts = await request.json()
 
     res.setHeader('Content-Type', 'text/xml')
+    res.setHeader('Cache-Control', 'public, s-maxage=1200, stale-while-revalidate=600')
     res.write(createSitemap(posts))
     res.end()
   }
