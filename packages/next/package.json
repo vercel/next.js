@@ -40,6 +40,7 @@
     "router.d.ts",
     "amp.js",
     "amp.d.ts",
+    "index.d.ts",
     "types/index.d.ts",
     "types/global.d.ts",
     "image-types/global.d.ts"
