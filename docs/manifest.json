@@ -224,6 +224,10 @@
             {
               "title": "Security Headers",
               "path": "/docs/advanced-features/security-headers.md"
+            },
+            {
+              "title": "Sitemaps",
+              "path": "/docs/advanced-features/sitemaps.md"
             }
           ]
         },
