@@ -308,8 +308,7 @@ const initialData = {
     },
     {
       key: 'ecmnc',
-      text:
-        'Luke Skywalker has vanished. In his absence, the sinister FIRST ORDER has risen from the ashes of the Empire and will not rest until Skywalker, the last Jedi, has been destroyed.',
+      text: 'Luke Skywalker has vanished. In his absence, the sinister FIRST ORDER has risen from the ashes of the Empire and will not rest until Skywalker, the last Jedi, has been destroyed.',
       type: 'unstyled',
       depth: 0,
       inlineStyleRanges: [
@@ -330,8 +329,7 @@ const initialData = {
     },
     {
       key: '4481k',
-      text:
-        'With the support of the REPUBLIC, General Leia Organa leads a brave RESISTANCE. She is desperate to find her brother Luke and gain his help in restoring peace and justice to the galaxy.',
+      text: 'With the support of the REPUBLIC, General Leia Organa leads a brave RESISTANCE. She is desperate to find her brother Luke and gain his help in restoring peace and justice to the galaxy.',
       type: 'unstyled',
       depth: 0,
       inlineStyleRanges: [

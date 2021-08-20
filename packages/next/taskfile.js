@@ -1,5 +1,6 @@
 // eslint-disable-next-line import/no-extraneous-dependencies
 const notifier = require('node-notifier')
+// eslint-disable-next-line import/no-extraneous-dependencies
 const { relative, basename, resolve } = require('path')
 const { Module } = require('module')
 
@@ -325,6 +326,14 @@ export async function ncc_fresh(task, opts) {
     .target('compiled/fresh')
 }
 // eslint-disable-next-line camelcase
+externals['glob'] = 'next/dist/compiled/glob'
+export async function ncc_glob(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('glob')))
+    .ncc({ packageName: 'glob', externals })
+    .target('compiled/glob')
+}
+// eslint-disable-next-line camelcase
 externals['gzip-size'] = 'next/dist/compiled/gzip-size'
 export async function ncc_gzip_size(task, opts) {
   await task
@@ -590,6 +599,14 @@ export async function ncc_strip_ansi(task, opts) {
     .target('compiled/strip-ansi')
 }
 // eslint-disable-next-line camelcase
+externals['@vercel/nft'] = 'next/dist/compiled/@vercel/nft'
+export async function ncc_nft(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('@vercel/nft')))
+    .ncc({ packageName: '@vercel/nft', externals })
+    .target('compiled/@vercel/nft')
+}
+// eslint-disable-next-line camelcase
 externals['terser'] = 'next/dist/compiled/terser'
 export async function ncc_terser(task, opts) {
   await task
@@ -620,6 +637,16 @@ export async function ncc_web_vitals(task, opts) {
     .source(opts.src || relative(__dirname, require.resolve('web-vitals')))
     .ncc({ packageName: 'web-vitals', externals, target: 'es5' })
     .target('compiled/web-vitals')
+}
+// eslint-disable-next-line camelcase
+externals['zen-observable'] = 'next/dist/compiled/zen-observable'
+export async function ncc_zen_observable(task, opts) {
+  await task
+    .source(
+      opts.src || relative(__dirname, require.resolve('zen-observable/esm'))
+    )
+    .ncc({ packageName: 'zen-observable', externals })
+    .target('compiled/zen-observable')
 }
 // eslint-disable-next-line camelcase
 externals['webpack-sources'] = 'next/dist/compiled/webpack-sources'
@@ -771,6 +798,7 @@ export async function ncc(task, opts) {
         'ncc_find_cache_dir',
         'ncc_find_up',
         'ncc_fresh',
+        'ncc_glob',
         'ncc_gzip_size',
         'ncc_http_proxy',
         'ncc_ignore_loader',
@@ -799,10 +827,12 @@ export async function ncc(task, opts) {
         'ncc_source_map',
         'ncc_string_hash',
         'ncc_strip_ansi',
+        'ncc_nft',
         'ncc_terser',
         'ncc_text_table',
         'ncc_unistore',
         'ncc_web_vitals',
+        'ncc_zen_observable',
         'ncc_webpack_bundle4',
         'ncc_webpack_bundle5',
         'ncc_webpack_bundle_packages',

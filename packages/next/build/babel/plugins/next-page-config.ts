@@ -52,15 +52,15 @@ export default function nextPageConfig({
               ExportDeclaration(exportPath, exportState) {
                 if (
                   BabelTypes.isExportNamedDeclaration(exportPath) &&
-                  (exportPath.node as BabelTypes.ExportNamedDeclaration).specifiers?.some(
-                    (specifier) => {
-                      return (
-                        (t.isIdentifier(specifier.exported)
-                          ? specifier.exported.name
-                          : specifier.exported.value) === CONFIG_KEY
-                      )
-                    }
-                  ) &&
+                  (
+                    exportPath.node as BabelTypes.ExportNamedDeclaration
+                  ).specifiers?.some((specifier) => {
+                    return (
+                      (t.isIdentifier(specifier.exported)
+                        ? specifier.exported.name
+                        : specifier.exported.value) === CONFIG_KEY
+                    )
+                  }) &&
                   BabelTypes.isStringLiteral(
                     (exportPath.node as BabelTypes.ExportNamedDeclaration)
                       .source
@@ -88,9 +88,10 @@ export default function nextPageConfig({
 
                 const config: PageConfig = {}
                 const declarations: BabelTypes.VariableDeclarator[] = [
-                  ...((exportPath.node
-                    .declaration as BabelTypes.VariableDeclaration)
-                    ?.declarations || []),
+                  ...((
+                    exportPath.node
+                      .declaration as BabelTypes.VariableDeclaration
+                  )?.declarations || []),
                   exportPath.scope.getBinding(CONFIG_KEY)?.path
                     .node as BabelTypes.VariableDeclarator,
                 ].filter(Boolean)

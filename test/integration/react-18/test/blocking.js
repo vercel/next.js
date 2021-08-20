@@ -20,8 +20,6 @@ export default (context, render) => {
     const $ = await get$('/suspense/thrown')
     const html = $('body').html()
     expect(html).toContain('loading')
-    expect(
-      JSON.parse($('#__NEXT_DATA__').text()).dynamicIds
-    ).not.toBeUndefined()
+    expect(JSON.parse($('#__NEXT_DATA__').text()).dynamicIds).toBeUndefined()
   })
 }

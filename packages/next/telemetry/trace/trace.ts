@@ -1,6 +1,6 @@
 import { randomBytes } from 'crypto'
 import { SpanId } from './shared'
-import { report } from './report'
+import { reporter } from './report'
 
 const NUM_OF_MICROSEC_IN_SEC = BigInt('1000')
 
@@ -45,7 +45,7 @@ export class Span {
       throw new Error(`Duration is too long to express as float64: ${duration}`)
     }
     const timestamp = this._start / NUM_OF_MICROSEC_IN_SEC
-    report(
+    reporter.report(
       this.name,
       Number(duration),
       Number(timestamp),
@@ -60,7 +60,7 @@ export class Span {
   }
 
   setAttribute(key: string, value: any) {
-    this.attrs[key] = value
+    this.attrs[key] = String(value)
   }
 
   traceFn(fn: any) {
@@ -83,3 +83,5 @@ export class Span {
 export const trace = (name: string, parentId?: SpanId, attrs?: Object) => {
   return new Span(name, parentId, attrs)
 }
+
+export const flushAllTraces = () => reporter.flushAll()

@@ -17,20 +17,18 @@ async function nextBabelLoader(
     .traceFn(() => getOptions(this))
 
   const loaderSpanInner = parentTrace.traceChild('next-babel-turbo-transform')
-  const {
-    code: transformedSource,
-    map: outputSourceMap,
-  } = loaderSpanInner.traceFn(() =>
-    transform.call(
-      this,
-      inputSource,
-      inputSourceMap,
-      loaderOptions,
-      filename,
-      target,
-      loaderSpanInner
+  const { code: transformedSource, map: outputSourceMap } =
+    loaderSpanInner.traceFn(() =>
+      transform.call(
+        this,
+        inputSource,
+        inputSourceMap,
+        loaderOptions,
+        filename,
+        target,
+        loaderSpanInner
+      )
     )
-  )
 
   return [transformedSource, outputSourceMap]
 }
