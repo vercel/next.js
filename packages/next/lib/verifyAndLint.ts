@@ -9,6 +9,7 @@ import { CompileError } from './compile-error'
 
 export async function verifyAndLint(
   dir: string,
+  cacheLocation: string,
   configLintDirs: string[] | undefined,
   numWorkers: number | undefined,
   enableWorkerThreads: boolean | undefined,
@@ -35,7 +36,9 @@ export async function verifyAndLint(
       []
     )
 
-    const lintResults = await lintWorkers.runLintCheck(dir, lintDirs, true)
+    const lintResults = await lintWorkers.runLintCheck(dir, lintDirs, true, {
+      cacheLocation,
+    })
     const lintOutput =
       typeof lintResults === 'string' ? lintResults : lintResults?.output
 
