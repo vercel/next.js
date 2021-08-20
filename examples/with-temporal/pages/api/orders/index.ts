@@ -25,5 +25,5 @@ export default async function handler(
 
   // Execute the Order workflow and wait for it to finish
   const result = await example.execute(userId, itemId, quantity)
-  res.status(200).json({ result })
+  return res.status(200).json({ result })
 }
