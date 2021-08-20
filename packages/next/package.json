@@ -71,6 +71,7 @@
     "@next/react-dev-overlay": "11.1.1-canary.13",
     "@next/react-refresh-utils": "11.1.1-canary.13",
     "@node-rs/helper": "1.2.1",
+    "@squoosh/lib": "https://files-bv0n4hht4-uncurated-tests.vercel.app",
     "assert": "2.0.0",
     "ast-types": "0.13.2",
     "browserify-zlib": "0.2.0",

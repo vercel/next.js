@@ -1,7 +1,6 @@
 import { mediaType } from '@hapi/accept'
 import { createHash } from 'crypto'
 import { createReadStream, promises } from 'fs'
-import { getOrientation, Orientation } from 'get-orientation'
 import { IncomingMessage, ServerResponse } from 'http'
 // @ts-ignore no types for is-animated
 import isAnimated from 'next/dist/compiled/is-animated'
@@ -11,7 +10,8 @@ import nodeUrl, { UrlWithParsedQuery } from 'url'
 import { NextConfig } from './config-shared'
 import { fileExists } from '../lib/file-exists'
 import { ImageConfig, imageConfigDefault } from './image-config'
-import { processBuffer, Operation } from './lib/squoosh/main'
+// @ts-ignore no types for squoosh
+import { ImagePool } from '@squoosh/lib'
 import Server from './next-server'
 import { sendEtagResponse } from './send-payload'
 import { getContentType, getExtension } from './serve-static'
@@ -29,6 +29,7 @@ const ANIMATABLE_TYPES = [WEBP, PNG, GIF]
 const VECTOR_TYPES = [SVG]
 const BLUR_IMG_SIZE = 8 // should match `next-image-loader`
 const inflightRequests = new Map<string, Promise<undefined>>()
+const imagePool = new ImagePool(8)
 
 let sharp:
   | ((
@@ -379,47 +380,23 @@ export async function imageOptimizer(
         }
 
         // Begin Squoosh transformation logic
-        const orientation = await getOrientation(upstreamBuffer)
+        const image = imagePool.ingestImage(upstreamBuffer)
+        await image.decoded
+        await image.preprocess({ resize: { enabled: true, width } })
+        // TODO: rotate if necessary
 
-        const operations: Operation[] = []
-
-        if (orientation === Orientation.RIGHT_TOP) {
-          operations.push({ type: 'rotate', numRotations: 1 })
-        } else if (orientation === Orientation.BOTTOM_RIGHT) {
-          operations.push({ type: 'rotate', numRotations: 2 })
-        } else if (orientation === Orientation.LEFT_BOTTOM) {
-          operations.push({ type: 'rotate', numRotations: 3 })
-        } else {
-          // TODO: support more orientations
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
-          // const _: never = orientation
-        }
-
-        operations.push({ type: 'resize', width })
-
-        //if (contentType === AVIF) {
-        //} else
         if (contentType === WEBP) {
-          optimizedBuffer = await processBuffer(
-            upstreamBuffer,
-            operations,
-            'webp',
-            quality
-          )
+          await image.encode({ webp: { quality } })
+          const result = await image.encodedWith.webp
+          optimizedBuffer = Buffer.from(result.binary)
         } else if (contentType === PNG) {
-          optimizedBuffer = await processBuffer(
-            upstreamBuffer,
-            operations,
-            'png',
-            quality
-          )
+          await image.encode({ oxipng: {} })
+          const result = await image.encodedWith.oxipng
+          optimizedBuffer = Buffer.from(result.binary)
         } else if (contentType === JPEG) {
-          optimizedBuffer = await processBuffer(
-            upstreamBuffer,
-            operations,
-            'jpeg',
-            quality
-          )
+          await image.encode({ mozjpeg: { quality } })
+          const result = await image.encodedWith.mozjpeg
+          optimizedBuffer = Buffer.from(result.binary)
         }
 
         // End Squoosh transformation logic
@@ -446,6 +423,7 @@ export async function imageOptimizer(
         throw new Error('Unable to optimize buffer')
       }
     } catch (error) {
+      console.error(error)
       sendResponse(
         req,
         res,
@@ -659,16 +637,22 @@ export async function resizeImage(
     const buf = await transformer.toBuffer()
     return buf
   } else {
-    const resizeOperationOpts: Operation =
+    console.log('Calling resizeImage()')
+    const resize =
       dimension === 'width'
-        ? { type: 'resize', width: size }
-        : { type: 'resize', height: size }
-    const buf = await processBuffer(
-      content,
-      [resizeOperationOpts],
-      extension,
-      quality
-    )
+        ? { enabled: true, width: size }
+        : { enabled: true, height: size }
+    const image = imagePool.ingestImage(content)
+    await image.decoded
+    await image.preprocess({ resize })
+    // TODO: rotate if necessary
+
+    await image.encode({
+      webp: {
+        quality,
+      },
+    })
+    const buf = (await image.encodedWith.webp).binary
     return buf
   }
 }
