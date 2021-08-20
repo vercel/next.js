@@ -194,7 +194,6 @@ impl Fold for StyledJSXTransformer {
 
   fn fold_module_items(&mut self, items: Vec<ModuleItem>) -> Vec<ModuleItem> {
     let mut items = items.fold_children_with(self);
-    dbg!("HAS STYLED JSX", self.file_has_styled_jsx);
     if self.file_has_styled_jsx {
       prepend(
         &mut items,
@@ -266,8 +265,14 @@ fn get_jsx_style_info(el: &JSXElement) -> String {
   }) = child
   {
     let mut hasher = DefaultHasher::new();
-    if let Expr::Lit(Lit::Str(str)) = &**expr {
-      hasher.write(str.value.as_ref().as_bytes());
+    match &**expr {
+      Expr::Lit(Lit::Str(str_lit)) => hasher.write(str_lit.value.as_ref().as_bytes()),
+      Expr::Tpl(Tpl { exprs, quasis, .. }) => {
+        if exprs.len() == 0 {
+          hasher.write(quasis[0].raw.value.as_bytes())
+        }
+      }
+      _ => panic!("Not implemented"),
     }
     let result = hasher.finish();
     format!("{:x}", result)
