@@ -261,10 +261,8 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
     [childRef, setIntersectionRef]
   )
 
-  let configPrefetch = process.env.__NEXT_LINK_PREFETCH as boolean | undefined
-  if (props.prefetch !== undefined) {
-    configPrefetch = props.prefetch
-  }
+  let configPrefetch =
+    props.prefetch ?? (process.env.__NEXT_LINK_PREFETCH as boolean | undefined)
   React.useEffect(() => {
     const shouldPrefetch = isVisible && configPrefetch && isLocalURL(href)
     const curLocale =
