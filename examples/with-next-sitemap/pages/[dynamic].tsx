@@ -1,7 +1,7 @@
 import { GetStaticPaths, GetStaticProps } from 'next'
 import { useRouter } from 'next/router'
 
-const DynamicPage = () => {
+export default function DynamicPage() {
   const { query } = useRouter()
 
   return (
@@ -30,5 +30,3 @@ export const getStaticPaths: GetStaticPaths = async () => {
     fallback: false,
   }
 }
-
-export default DynamicPage
