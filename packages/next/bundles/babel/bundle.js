@@ -28,16 +28,16 @@ function coreLibPluginPass() {
   return require('@babel/core/lib/transformation/plugin-pass')
 }
 
-function eslintParser() {
-  return require('@babel/eslint-parser')
-}
-
 function traverse() {
   return require('@babel/traverse')
 }
 
 function generator() {
   return require('@babel/generator')
+}
+
+function eslintParser() {
+  return require('@babel/eslint-parser')
 }
 
 function pluginProposalClassProperties() {
@@ -104,8 +104,9 @@ module.exports = {
   coreLibNormalizeOpts,
   coreLibBlockHoistPlugin,
   coreLibPluginPass,
-  eslintParser,
   generator,
+  traverse,
+  eslintParser,
   pluginProposalClassProperties,
   pluginProposalExportNamespaceFrom,
   pluginProposalNumericSeparator,
@@ -120,5 +121,4 @@ module.exports = {
   presetEnv,
   presetReact,
   presetTypescript,
-  traverse,
 }
