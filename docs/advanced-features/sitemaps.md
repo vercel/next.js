@@ -4,6 +4,14 @@ description: Learn how to add a sitemap to your Next.js project, along with a ro
 
 # Sitemaps
 
+<details open>
+  <summary><b>Examples</b></summary>
+  <ul>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-sitemap">with-sitemap</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-next-sitemap">with-next-sitemap</a></li>
+  </ul>
+</details>
+
 To improve your Search Engine Optimization (SEO), you might want to add a [sitemap](https://developers.google.com/search/docs/advanced/sitemaps/build-sitemap) or [`robots.txt`](https://developers.google.com/search/docs/advanced/robots/intro) file to your Next.js website.
 
 A **sitemap** defines the relationship between pages of your site. Search engines utilize
@@ -103,28 +111,32 @@ but the idea is similar. To demonstrate, I've created an example using placehold
 First, create a new file at `pages/sitemap.xml.js`.
 
 ```js
-import React from 'react'
+export async function getServerSideProps({ res }) {
+  const request = await fetch(EXTERNAL_DATA_URL)
+  const posts = await request.json()
 
-class Sitemap extends React.Component {
-  static async getInitialProps({ res }) {
-    const request = await fetch(EXTERNAL_DATA_URL)
-    const posts = await request.json()
+  res.setHeader('Content-Type', 'text/xml')
+  res.setHeader(
+    'Cache-Control',
+    'public, s-maxage=1200, stale-while-revalidate=600'
+  )
+  res.write(createSitemap(posts))
+  res.end()
 
-    res.setHeader('Content-Type', 'text/xml')
-    res.write(createSitemap(posts))
-    res.end()
+  return {
+    props: {},
   }
 }
 
-export default Sitemap
+export default function Sitemap() {
+  return null
+}
 ```
 
 When the route `/sitemap.xml` is initially loaded, we will fetch posts from an external data source
 and then write an XML file as the response.
 
 ```js
-import React from 'react'
-
 const EXTERNAL_DATA_URL = 'https://jsonplaceholder.typicode.com/posts'
 
 const createSitemap = (posts) => `<?xml version="1.0" encoding="UTF-8"?>
@@ -140,20 +152,26 @@ const createSitemap = (posts) => `<?xml version="1.0" encoding="UTF-8"?>
           .join('')}
     </urlset>
     `
+export async function getServerSideProps({ res }) {
+  const request = await fetch(EXTERNAL_DATA_URL)
+  const posts = await request.json()
 
-class Sitemap extends React.Component {
-  static async getInitialProps({ res }) {
-    const request = await fetch(EXTERNAL_DATA_URL)
-    const posts = await request.json()
+  res.setHeader('Content-Type', 'text/xml')
+  res.setHeader(
+    'Cache-Control',
+    'public, s-maxage=1200, stale-while-revalidate=600'
+  )
+  res.write(createSitemap(posts))
+  res.end()
 
-    res.setHeader('Content-Type', 'text/xml')
-    res.setHeader('Cache-Control', 'public, s-maxage=1200, stale-while-revalidate=600')
-    res.write(createSitemap(posts))
-    res.end()
+  return {
+    props: {},
   }
 }
 
-export default Sitemap
+export default function Sitemap() {
+  return null
+}
 ```
 
 Here's a condensed example of the output.
