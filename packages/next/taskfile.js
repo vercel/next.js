@@ -152,8 +152,10 @@ const babelBundlePackages = {
   '@babel/preset-react': 'next/dist/compiled/@babel/preset-react',
   '@babel/preset-typescript': 'next/dist/compiled/@babel/preset-typescript',
   '@babel/eslint-parser': 'next/dist/compiled/@babel/eslint-parser',
-  'babel-plugin-transform-define': 'next/dist/compiled/babel-plugin-transform-define',
-  'babel-plugin-transform-react-remove-prop-types': 'next/dist/compiled/babel-plugin-transform-react-remove-prop-types'
+  'babel-plugin-transform-define':
+    'next/dist/compiled/babel-plugin-transform-define',
+  'babel-plugin-transform-react-remove-prop-types':
+    'next/dist/compiled/babel-plugin-transform-react-remove-prop-types',
 }
 
 Object.assign(externals, babelBundlePackages)
@@ -183,6 +185,9 @@ export async function ncc_babel_bundle_packages(task, opts) {
     '@babel/plugin-proposal-numeric-separator',
     '@babel/plugin-proposal-object-rest-spread',
     '@babel/plugin-syntax-bigint',
+    // import is handled weirdly in taskr so we need to
+    // trick it into not transforming it to a require
+    // eslint-disable-next-line no-useless-concat
     '@babel/plugin-syntax-dynamic-i' + 'mport',
     '@babel/plugin-syntax-jsx',
     '@babel/plugin-transform-modules-commonjs',
@@ -193,22 +198,22 @@ export async function ncc_babel_bundle_packages(task, opts) {
     'babel-plugin-transform-define',
     'babel-plugin-transform-react-remove-prop-types',
   ]
-  
+
   const bundleExternals = { ...externals }
   for (const pkg of Object.keys(babelBundlePackages)) {
     delete bundleExternals[pkg]
   }
-  
+
   for (const pkg of babelPackages) {
     await task
-    .source(opts.src || relative(__dirname, require.resolve(pkg)))
-    .ncc({
-      packageName: pkg,
-      externals: externals,
-    })
-    .target(`compiled/${pkg}`)
+      .source(opts.src || relative(__dirname, require.resolve(pkg)))
+      .ncc({
+        packageName: pkg,
+        externals: externals,
+      })
+      .target(`compiled/${pkg}`)
   }
-  
+
   await task
     .source(opts.src || 'bundles/babel/packages/*')
     .target('compiled/babel/')
