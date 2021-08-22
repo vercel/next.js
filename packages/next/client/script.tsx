@@ -35,6 +35,7 @@ const loadScript = (props: ScriptProps): void => {
     onLoad = () => {},
     dangerouslySetInnerHTML,
     children = '',
+    strategy = 'afterInteractive',
     onError,
   } = props
 
@@ -97,6 +98,8 @@ const loadScript = (props: ScriptProps): void => {
     const attr = DOMAttributeNames[k] || k.toLowerCase()
     el.setAttribute(attr, value)
   }
+
+  el.setAttribute('data-nscript', strategy)
 
   document.body.appendChild(el)
 }
