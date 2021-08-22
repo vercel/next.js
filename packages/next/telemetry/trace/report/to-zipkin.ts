@@ -42,8 +42,9 @@ export function batcher(reportEvents: (evts: Event[]) => Promise<void>) {
       events.push(event)
 
       if (events.length > 100) {
-        const report = reportEvents(events.slice())
+        const evts = events.slice()
         events.length = 0
+        const report = reportEvents(evts)
         queue.add(report)
         report.then(() => queue.delete(report))
       }

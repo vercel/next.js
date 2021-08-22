@@ -3,6 +3,7 @@ import reportToConsole from './to-console'
 import reportToZipkin from './to-zipkin'
 import reportToJaeger from './to-jaeger'
 import reportToTelemetry from './to-telemetry'
+import reportToJaegerJson from './to-jaeger-json'
 
 type Reporter = {
   flushAll: () => Promise<void> | void
@@ -33,6 +34,8 @@ if (target === TARGET.CONSOLE) {
   reporter = reportToConsole
 } else if (target === TARGET.ZIPKIN) {
   reporter = reportToZipkin
+} else if (target === TARGET.JAEGER_JSON) {
+  reporter = reportToJaegerJson
 } else if (target === TARGET.JAEGER) {
   reporter = reportToJaeger
 } else {
