@@ -3,7 +3,7 @@ import { randomBytes } from 'crypto'
 import fetch from 'node-fetch'
 import * as Log from '../../../build/output/log'
 
-let traceId = process.env.TRACE_ID
+let traceId: string
 let batch: ReturnType<typeof batcher> | undefined
 
 const localEndpoint = {
@@ -61,7 +61,7 @@ const reportToLocalHost = (
   attrs?: Object
 ) => {
   if (!traceId) {
-    traceId = process.env.TRACE_ID = randomBytes(8).toString('hex')
+    traceId = process.env.TRACE_ID || randomBytes(8).toString('hex')
     Log.info(
       `Zipkin trace will be available on ${zipkinUrl}/zipkin/traces/${traceId}`
     )

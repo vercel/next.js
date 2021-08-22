@@ -118,7 +118,7 @@ export default class BuildStatsPlugin {
       async (stats, callback) => {
         const compilerSpan = spans.get(compiler)
         try {
-          const writeStatsSpan = trace('NextJsBuildStats', compilerSpan?.id)
+          const writeStatsSpan = compilerSpan!.traceChild('NextJsBuildStats')
           await writeStatsSpan.traceAsyncFn(() => {
             return new Promise((resolve, reject) => {
               const statsJson = reduceSize(

@@ -1,10 +1,12 @@
 import { randomBytes } from 'crypto'
 import { batcher } from './to-zipkin'
+import { traceGlobals } from '../shared'
 import * as Log from '../../../build/output/log'
 import fs from 'fs'
+import path from 'path'
 
 let writeStream: fs.WriteStream
-let traceId = process.env.TRACE_ID
+let traceId: string
 let batch: ReturnType<typeof batcher> | undefined
 
 const localEndpoint = {
@@ -22,16 +24,25 @@ const reportToLocalHost = (
   attrs?: Object
 ) => {
   if (!traceId) {
-    traceId = process.env.TRACE_ID = randomBytes(8).toString('hex')
-  }
-  if (!writeStream) {
-    const file = `${process.cwd()}/jaeger-local-${traceId}`
-    writeStream = fs.createWriteStream(file, { flags: 'a', encoding: 'utf8' })
-    Log.info(`Trace available on ${file}`)
+    traceId = process.env.TRACE_ID || randomBytes(8).toString('hex')
   }
 
   if (!batch) {
     batch = batcher(async (events) => {
+      if (!writeStream) {
+        const distDir = traceGlobals.get('distDir')
+        if (!distDir) {
+          return
+        }
+        const tracesDir = path.join(distDir, 'traces')
+        await fs.promises.mkdir(tracesDir, { recursive: true })
+        const file = path.join(tracesDir, traceId)
+        writeStream = fs.createWriteStream(file, {
+          flags: 'a',
+          encoding: 'utf8',
+        })
+        Log.info(`Trace available on ${file}`)
+      }
       const eventsJson = JSON.stringify(events)
       try {
         await new Promise<void>((resolve, reject) => {
