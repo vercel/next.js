@@ -30,6 +30,12 @@ Here is the Temporal code:
 - The Workflow: `temporal/src/workflows/order.ts`
 - The Activites: `temporal/src/activities/{payment|inventory}.ts`
 
+There are three parts of this starter project that are left unimplemented:
+
+- Authentication (currently, the client sends their user ID in the authorization header): `pages/api/orders/index.ts`
+- Doing database queries to check and alter inventory levels: `temporal/src/activities/inventory.ts`
+- Communicating with a payments service (or function) to charge the user: `temporal/src/activities/payment.ts`
+
 ## Deploy your own
 
 ### Web server
