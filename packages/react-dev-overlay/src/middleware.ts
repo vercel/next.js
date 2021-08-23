@@ -231,7 +231,7 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
     const { pathname, query } = url.parse(req.url!, true)
 
     if (pathname === '/__nextjs_original-stack-frame') {
-      const frame = (query as unknown) as StackFrame & {
+      const frame = query as unknown as StackFrame & {
         isServerSide: 'true' | 'false'
       }
       if (
@@ -308,7 +308,7 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
         return res.end()
       }
     } else if (pathname === '/__nextjs_launch-editor') {
-      const frame = (query as unknown) as StackFrame
+      const frame = query as unknown as StackFrame
 
       const frameFile = frame.file?.toString() || null
       if (frameFile == null) {

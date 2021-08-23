@@ -8,9 +8,7 @@ export function pathify(path: string) {
 }
 
 export function instantiateEmscriptenWasm(
-  factory: (args: {
-    locateFile: () => string
-  }) => {
+  factory: (args: { locateFile: () => string }) => {
     decode?: (
       buffer: Buffer | Uint8Array,
       width: number,

@@ -467,7 +467,17 @@ export default async function loadConfig(
 
   // If config file was found
   if (path?.length) {
-    const userConfigModule = require(path)
+    let userConfigModule: any
+
+    try {
+      userConfigModule = require(path)
+    } catch (err) {
+      console.error(
+        chalk.red('Error:') +
+          ' failed to load next.config.js, see more info here https://nextjs.org/docs/messages/next-config-error'
+      )
+      throw err
+    }
     const userConfig = normalizeConfig(
       phase,
       userConfigModule.default || userConfigModule

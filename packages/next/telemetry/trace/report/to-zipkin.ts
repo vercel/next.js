@@ -26,19 +26,28 @@ type Event = {
 }
 
 // Batch events as zipkin allows for multiple events to be sent in one go
-function batcher(reportEvents: (evts: Event[]) => void) {
+export function batcher(reportEvents: (evts: Event[]) => Promise<void>) {
   const events: Event[] = []
-  let timeout: ReturnType<typeof setTimeout> | undefined
-  return (event: Event) => {
-    events.push(event)
-    // setTimeout is used instead of setInterval to ensure events sending does not block exiting the program
-    if (!timeout) {
-      timeout = setTimeout(() => {
-        reportEvents(events.slice())
+  // Promise queue to ensure events are always sent on flushAll
+  const queue = new Set()
+  return {
+    flushAll: async () => {
+      await Promise.all(queue)
+      if (events.length > 0) {
+        await reportEvents(events)
         events.length = 0
-        timeout = undefined
-      }, 1500)
-    }
+      }
+    },
+    report: (event: Event) => {
+      events.push(event)
+
+      if (events.length > 100) {
+        const report = reportEvents(events.slice())
+        events.length = 0
+        queue.add(report)
+        report.then(() => queue.delete(report))
+      }
+    },
   }
 }
 
@@ -60,7 +69,7 @@ const reportToLocalHost = (
   if (!batch) {
     batch = batcher((events) => {
       // Ensure ECONNRESET error is retried 3 times before erroring out
-      retry(
+      return retry(
         () =>
           // Send events to zipkin
           fetch(zipkinAPI, {
@@ -73,7 +82,7 @@ const reportToLocalHost = (
     })
   }
 
-  batch({
+  batch.report({
     traceId,
     parentId,
     name,
@@ -85,4 +94,7 @@ const reportToLocalHost = (
   })
 }
 
-export default reportToLocalHost
+export default {
+  flushAll: () => (batch ? batch.flushAll() : undefined),
+  report: reportToLocalHost,
+}

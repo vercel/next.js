@@ -42,12 +42,15 @@ describe('Script Loader', () => {
 
       async function test(id) {
         const script = await browser.elementById(id)
+        const dataAttr = await script.getAttribute('data-nscript')
         const endScripts = await browser.elementsByCss(
           `#__NEXT_DATA__ ~ #${id}`
         )
 
         // Renders script tag
         expect(script).toBeDefined()
+        expect(dataAttr).toBeDefined()
+
         // Script is inserted at the end
         expect(endScripts.length).toBe(1)
       }
@@ -69,14 +72,23 @@ describe('Script Loader', () => {
       await browser.waitForElementByCss('#onload-div')
       await waitFor(1000)
 
+      const logs = await browser.log('browser')
+      const filteredLogs = logs.filter(
+        (log) => !log.message.includes('Failed to load resource')
+      )
+      expect(filteredLogs.length).toBe(0)
+
       async function test(id) {
         const script = await browser.elementById(id)
+        const dataAttr = await script.getAttribute('data-nscript')
         const endScripts = await browser.elementsByCss(
           `#__NEXT_DATA__ ~ #${id}`
         )
 
         // Renders script tag
         expect(script).toBeDefined()
+        expect(dataAttr).toBeDefined()
+
         // Script is inserted at the end
         expect(endScripts.length).toBe(1)
       }
@@ -99,6 +111,7 @@ describe('Script Loader', () => {
 
       // Renders script tag
       expect(script.length).toBe(1)
+      expect(script.attr('data-nscript')).toBeDefined()
 
       // Script is inserted before NextScripts
       expect(

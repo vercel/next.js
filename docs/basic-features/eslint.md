@@ -94,11 +94,32 @@ Next.js provides an ESLint plugin, [`eslint-plugin-next`](https://www.npmjs.com/
 | ✔️  | [next/no-sync-scripts](https://nextjs.org/docs/messages/no-sync-scripts)                       | Forbid synchronous scripts                                                                                                   |
 | ✔️  | [next/no-title-in-document-head](https://nextjs.org/docs/messages/no-title-in-document-head)   | Disallow using &lt;title&gt; with Head from next/document                                                                    |
 | ✔️  | [next/no-unwanted-polyfillio](https://nextjs.org/docs/messages/no-unwanted-polyfillio)         | Prevent duplicate polyfills from Polyfill.io                                                                                 |
+| ✔️  | [next/inline-script-id](https://nextjs.org/docs/messages/inline-script-id)                     | Enforce id attribute on next/script components with inline content                                                           |
 | ✔️  | next/no-typos                                                                                  | Ensure no typos were made declaring [Next.js's data fetching function](https://nextjs.org/docs/basic-features/data-fetching) |
+| ✔️  | [next/next-script-for-ga](https://nextjs.org/docs/messages/next-script-for-ga)                 | Use the Script component to defer loading of the script until necessary.                                                     |
 
 - ✔: Enabled in the recommended configuration
 
 If you already have ESLint configured in your application, we recommend extending from this plugin directly instead of including `eslint-config-next` unless a few conditions are met. Refer to the [Recommended Plugin Ruleset](/docs/basic-features/eslint.md#recommended-plugin-ruleset) to learn more.
+
+### Custom Settings
+
+#### `rootDir`
+
+If you're using `eslint-plugin-next` in a project where Next.js isn't installed in your root directory (such as a monorepo), you can tell `eslint-plugin-next` where to find your Next.js application using the `settings` property in your `.eslintrc`:
+
+```json
+{
+  "extends": "next",
+  "settings": {
+    "next": {
+      "rootDir": "/packages/my-app/"
+    }
+  }
+}
+```
+
+`rootDir` can be a path (relative or absolute), a glob (i.e. `"/packages/*/"`), or an array of paths and/or globs.
 
 ## Linting Custom Directories
 
@@ -116,6 +137,14 @@ Similarly, the `--dir` flag can be used for `next lint`:
 
 ```bash
 next lint --dir pages --dir utils
+```
+
+## Caching
+
+To improve performance, information of files processed by ESLint are cached by default. This is stored in `.next/cache` or in your defined [build directory](/docs/api-reference/next.config.js/setting-a-custom-build-directory). If you include any ESLint rules that depend on more than the contents of a single source file and need to disable the cache, use the `--no-cache` flag with `next lint`.
+
+```bash
+next lint --no-cache
 ```
 
 ## Disabling Rules
