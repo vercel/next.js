@@ -1,4 +1,3 @@
-// TODO: needs dynamic element
 export default () => {
   const Element = 'div'
   return (
@@ -47,9 +46,9 @@ export default () => {
       <div className="test" {...{ className: props.className }} {...bar} />
       <div className="test" {...bar} {...{ className: props.className }} />
       <div className="test" {...bar()} />
-      {/* <Element />
+      <Element />
       <Element className="test" />
-      <Element {...props} /> */}
+      <Element {...props} />
       <style jsx>{'div { color: red }'}</style>
     </div>
   )

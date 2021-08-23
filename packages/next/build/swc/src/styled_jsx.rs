@@ -1,8 +1,8 @@
 use std::collections::hash_map::DefaultHasher;
 use std::hash::Hasher;
-use swc_common::DUMMY_SP;
+use swc_common::{collections::AHashSet, DUMMY_SP};
 use swc_ecmascript::ast::*;
-use swc_ecmascript::utils::{prepend, HANDLER};
+use swc_ecmascript::utils::{collect_decls, prepend, Id, HANDLER};
 use swc_ecmascript::visit::{Fold, FoldWith};
 
 pub fn styled_jsx() -> impl Fold {
@@ -14,6 +14,7 @@ struct StyledJSXTransformer {
   class_name: Option<String>,
   file_has_styled_jsx: bool,
   has_styled_jsx: bool,
+  scope_bindings: AHashSet<Id>,
 }
 
 impl Fold for StyledJSXTransformer {
@@ -51,8 +52,11 @@ impl Fold for StyledJSXTransformer {
       return el;
     }
 
-    if let JSXElementName::Ident(Ident { sym, .. }) = &el.name {
-      if sym != "style" && sym != "_JSXStyle" && !is_capitalized(sym as &str) {
+    if let JSXElementName::Ident(Ident { sym, span, .. }) = &el.name {
+      if sym != "style"
+        && sym != "_JSXStyle"
+        && (!is_capitalized(sym as &str) || self.scope_bindings.contains(&(sym.clone(), span.ctxt)))
+      {
         let jsx_class_name = string_literal_expr(self.class_name.clone().unwrap().as_str());
         let mut spreads = vec![];
         let mut class_name_expr = None;
@@ -219,6 +223,22 @@ impl Fold for StyledJSXTransformer {
       );
     }
     items
+  }
+
+  fn fold_function(&mut self, func: Function) -> Function {
+    let current_bindings = self.scope_bindings.clone();
+    self.scope_bindings = collect_decls(&func);
+    let func = func.fold_children_with(self);
+    self.scope_bindings = current_bindings;
+    func
+  }
+
+  fn fold_arrow_expr(&mut self, func: ArrowExpr) -> ArrowExpr {
+    let current_bindings = self.scope_bindings.clone();
+    self.scope_bindings = collect_decls(&func);
+    let func = func.fold_children_with(self);
+    self.scope_bindings = current_bindings;
+    func
   }
 }
 fn is_styled_jsx(el: &JSXElement) -> bool {
