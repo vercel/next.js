@@ -11,7 +11,7 @@ const IndexPage = () => (
         const newOrder = { itemId: 'B102', quantity: 2 }
         const response = await fetch('/api/orders', {
           method: 'POST',
-          headers: { Authorization: '123' },
+          headers: { Authorization: 'session-id-or-jwt' },
           body: JSON.stringify(newOrder),
         })
         const data: Data = await response.json()

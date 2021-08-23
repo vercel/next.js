@@ -6,6 +6,12 @@ export type Data = {
   result: string
 }
 
+function getUserId(token: string): string {
+  // TODO if the token is a JWT, decode & verify it. If it's a session ID,
+  // look up the user's ID in the session store.
+  return 'user-id-123'
+}
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<Data>
@@ -15,7 +21,7 @@ export default async function handler(
     return
   }
 
-  const userId: string = req.headers.authorization // FIXME insecure 😄
+  const userId: string = getUserId(req.headers.authorization)
   const { itemId, quantity } = JSON.parse(req.body)
 
   // Connect to our Temporal Server running locally in Docker
