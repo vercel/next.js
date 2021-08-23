@@ -344,6 +344,6 @@ For more information on what to read next, we recommend:
 <div class="card">
   <a href="/docs/basic-features/environment-variables#test-environment-variable.md">
     <b>Test Environment Variables</b>
-    <small>Learn more about the test environment.</small>
+    <small>Learn more about the test environment variables.</small>
   </a>
 </div>
