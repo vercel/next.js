@@ -4,9 +4,9 @@ import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
 import { recursiveCopy } from 'next/dist/lib/recursive-copy'
 import { join } from 'path'
 
-const resolveDataDir = join(__dirname, '..', 'isolated', '_resolvedata')
-const testResolveDataDir = join(__dirname, '..', 'isolated', 'test_resolvedata')
-const testpreservefileDir = join(__dirname, '..', 'isolated', 'preservefiles')
+const resolveDataDir = join(__dirname, 'isolated', '_resolvedata')
+const testResolveDataDir = join(__dirname, 'isolated', 'test_resolvedata')
+const testpreservefileDir = join(__dirname, 'isolated', 'preservefiles')
 
 describe('recursiveDelete', () => {
   it('should work', async () => {

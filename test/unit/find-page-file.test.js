@@ -4,7 +4,7 @@ import { normalizePagePath } from 'next/dist/server/normalize-page-path'
 
 import { join } from 'path'
 
-const resolveDataDir = join(__dirname, '..', 'isolated', '_resolvedata')
+const resolveDataDir = join(__dirname, 'isolated', '_resolvedata')
 const dirWithPages = join(resolveDataDir, 'readdir', 'pages')
 
 describe('findPageFile', () => {

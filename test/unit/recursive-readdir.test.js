@@ -3,7 +3,7 @@
 import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
 import { join } from 'path'
 
-const resolveDataDir = join(__dirname, '..', 'isolated', '_resolvedata')
+const resolveDataDir = join(__dirname, 'isolated', '_resolvedata')
 const dirWithPages = join(resolveDataDir, 'readdir', 'pages')
 jest.setTimeout(1000 * 60 * 5)
 

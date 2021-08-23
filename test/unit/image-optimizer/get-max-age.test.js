@@ -1,5 +1,5 @@
 /* eslint-env jest */
-import { getMaxAge } from '../../../../packages/next/dist/server/image-optimizer.js'
+import { getMaxAge } from 'next/dist/server/image-optimizer'
 
 describe('getMaxAge', () => {
   it('should return 0 when no cache-control provided', () => {
