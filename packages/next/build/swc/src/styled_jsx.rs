@@ -284,26 +284,38 @@ fn is_styled_jsx(el: &JSXElement) -> bool {
 }
 
 fn get_jsx_style_info(el: &JSXElement) -> String {
-  if el.children.len() != 1 {
+  let non_whitespace_children: &Vec<&JSXElementChild> = &el
+    .children
+    .iter()
+    .filter(|child| {
+      if let JSXElementChild::JSXText(txt) = child {
+        if txt.value.to_string().chars().all(char::is_whitespace) {
+          return false;
+        }
+      }
+      true
+    })
+    .collect();
+
+  if non_whitespace_children.len() != 1 {
     HANDLER.with(|handler| {
       handler
         .struct_span_err(
           el.span,
           &format!(
             "Expected one child under JSX style tag, but got {} (eg: <style jsx>{{`hi`}}</style>)",
-            el.children.len()
+            non_whitespace_children.len()
           ),
         )
         .emit()
     });
+    panic!("styled-jsx compilation error");
   }
-
-  let child = &el.children[0];
 
   if let JSXElementChild::JSXExprContainer(JSXExprContainer {
     expr: JSXExpr::Expr(expr),
     ..
-  }) = child
+  }) = non_whitespace_children[0]
   {
     let mut hasher = DefaultHasher::new();
     match &**expr {
@@ -316,20 +328,19 @@ fn get_jsx_style_info(el: &JSXElement) -> String {
       _ => panic!("Not implemented"),
     }
     let result = hasher.finish();
-    format!("{:x}", result)
-  } else {
-    // TODO: print the type that was found
-    HANDLER.with(|handler| {
-      handler
-        .struct_span_err(
-          el.span,
-          "Expected a child of type JSXExpressionContainer under JSX Style tag (eg: <style \
-           jsx>{{`hi`}}</style>)",
-        )
-        .emit()
-    });
-    panic!();
+    return format!("{:x}", result);
   }
+
+  HANDLER.with(|handler| {
+    handler
+      .struct_span_err(
+        el.span,
+        "Expected a single child of type JSXExpressionContainer under JSX Style tag (eg: <style \
+         jsx>{{`hi`}}</style>)",
+      )
+      .emit()
+  });
+  panic!("styled-jsx compilation error");
 }
 
 fn replace_jsx_style(mut el: JSXElement, style_hash: String) -> JSXElementChild {
