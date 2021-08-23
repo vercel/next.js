@@ -303,7 +303,7 @@ describe('App', () => {
 })
 ```
 
-> **Note**: The `@jest-environment jsdom` comment above configures the testing environment as `jsdom` inside test file because React Testing Library uses DOM elements like `document.body` which will not work in Jest's default `node` testing environment. Alternatively, you can also set the `jsdom` environment globally by adding the Jest configuration option: `"testEnvironment": "jsdom"` in `jest.config.js`.
+> **Note**: The `@jest-environment jsdom` comment above configures the testing environment as `jsdom` inside the test file because React Testing Library uses DOM elements like `document.body` which will not work in Jest's default `node` testing environment. Alternatively, you can also set the `jsdom` environment globally by adding the Jest configuration option: `"testEnvironment": "jsdom"` in `jest.config.js`.
 
 Optionally, add a [snapshot test](https://jestjs.io/docs/snapshot-testing) to keep track of any unexpected changes to your `<Index />` component:
 
