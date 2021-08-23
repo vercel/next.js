@@ -92,14 +92,12 @@ The `<Image />` component optionally accepts the following properties.
 
 The layout behavior of the image as the viewport changes size.
 
-| `layout`              | Behavior                                                 | `srcSet` (defaults)                  | `sizes` |
-| --------------------- | -------------------------------------------------------- | ------------------------------------ | ------- |
-| `fill`                | Grow in X and Y axes to fill container                   | `640w`, `750w`, ... `2048w`, `3840w` | `100vw` |
-| `fixed`               | Sized to `width` and `height` exactly                    | `1x`, `2x`                           | N/A     |
-| `intrinsic` (Default) | Scale *down* to fit width of container, up to image size | `1x`, `2x`                           | N/A     |
-| `responsive`          | Scale to fit width of container                          | `640w`, `750w`, ... `2048w`, `3840w` | `100vw` |
-
-> **Note:** `srcSet` is based on [deviceSizes](/docs/basic-features/image-optimization.md#device-sizes) and [imageSizes](/docs/basic-features/image-optimization.md#image-sizes) config.
+| `layout`              | Behavior                                                 | `srcSet`                                                                                                                                                                                        | `sizes` |
+| --------------------- | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
+| `fixed`               | Sized to `width` and `height` exactly                    | `1x`, `2x` (based on [imageSizes](/docs/basic-features/image-optimization.md#image-sizes))                                                                                                      | N/A     |
+| `intrinsic` (Default) | Scale *down* to fit width of container, up to image size | `1x`, `2x` (based on [imageSizes](/docs/basic-features/image-optimization.md#image-sizes))                                                                                                      | N/A     |
+| `responsive`          | Scale to fit width of container                          | `640w`, `750w`, ... `2048w`, `3840w` (based on [imageSizes](/docs/basic-features/image-optimization.md#image-sizes) and [deviceSizes](/docs/basic-features/image-optimization.md#device-sizes)) | `100vw` |
+| `fill`                | Grow in X and Y axes to fill container                   | `640w`, `750w`, ... `2048w`, `3840w` (based on [imageSizes](/docs/basic-features/image-optimization.md#image-sizes) and [deviceSizes](/docs/basic-features/image-optimization.md#device-sizes)) | `100vw` |
 
 - [Demo the `fixed` layout](https://image-component.nextjs.gallery/layout-fixed)
   - When `fixed`, the image dimensions will not change as the viewport changes (no responsiveness) similar to the native `img` element.
