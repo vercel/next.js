@@ -1,5 +1,5 @@
 ---
-description: Learn how to set up Next.js with three commonly used testing tools — Cypress, Jest and React Testing Library.
+description: Learn how to set up Next.js with three commonly used testing tools — Cypress, Jest, and React Testing Library.
 ---
 
 # Testing
