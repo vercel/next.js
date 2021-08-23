@@ -1,8 +1,6 @@
-const rule = require('@next/eslint-plugin-next/lib/rules/no-head-import-in-document')
-
-const RuleTester = require('eslint').RuleTester
-
-RuleTester.setDefaultConfig({
+import rule from '@next/eslint-plugin-next/lib/rules/no-head-import-in-document'
+import { RuleTester } from 'eslint'
+;(RuleTester as any).setDefaultConfig({
   parserOptions: {
     ecmaVersion: 2018,
     sourceType: 'module',
@@ -12,8 +10,8 @@ RuleTester.setDefaultConfig({
     },
   },
 })
+const ruleTester = new RuleTester()
 
-var ruleTester = new RuleTester()
 ruleTester.run('no-head-import-in-document', rule, {
   valid: [
     {

@@ -1,8 +1,6 @@
-const rule = require('@next/eslint-plugin-next/lib/rules/inline-script-id')
-
-const RuleTester = require('eslint').RuleTester
-
-RuleTester.setDefaultConfig({
+import rule from '@next/eslint-plugin-next/lib/rules/inline-script-id'
+import { RuleTester } from 'eslint'
+;(RuleTester as any).setDefaultConfig({
   parserOptions: {
     ecmaVersion: 2018,
     sourceType: 'module',

@@ -1,17 +1,11 @@
 /* eslint-env jest */
-function interopRequireDefault(mod) {
-  return mod.default || mod
-}
-
-const loader = interopRequireDefault(
-  require('next/dist/build/webpack/loaders/next-babel-loader')
-)
-const os = require('os')
-const path = require('path')
+import os from 'os'
+import path from 'path'
+import loader from 'next/dist/build/webpack/loaders/next-babel-loader'
 
 const dir = path.resolve(os.tmpdir())
 
-const babel = async (code, queryOpts = {}) => {
+const babel = async (code: string, queryOpts = {} as any) => {
   const {
     isServer = false,
     resourcePath = 'index.js',
@@ -19,7 +13,7 @@ const babel = async (code, queryOpts = {}) => {
   } = queryOpts
 
   let isAsync = false
-  return new Promise((resolve, reject) => {
+  return new Promise<string>((resolve, reject) => {
     function callback(err, content) {
       if (err) {
         reject(err)

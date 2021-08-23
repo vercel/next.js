@@ -25,6 +25,6 @@ describe('getDisplayName', () => {
     expect(getDisplayName(ComponentTwo)).toBe('CustomDisplayName')
     expect(getDisplayName(FunctionalComponent)).toBe('FunctionalComponent')
     expect(getDisplayName(() => null)).toBe('Unknown')
-    expect(getDisplayName('div')).toBe('div')
+    expect(getDisplayName('div' as any)).toBe('div')
   })
 })

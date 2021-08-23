@@ -1,7 +1,6 @@
-const rule = require('@next/eslint-plugin-next/lib/rules/google-font-preconnect')
-const RuleTester = require('eslint').RuleTester
-
-RuleTester.setDefaultConfig({
+import rule from '@next/eslint-plugin-next/lib/rules/google-font-preconnect'
+import { RuleTester } from 'eslint'
+;(RuleTester as any).setDefaultConfig({
   parserOptions: {
     ecmaVersion: 2020,
     sourceType: 'module',
@@ -11,8 +10,8 @@ RuleTester.setDefaultConfig({
     },
   },
 })
+const ruleTester = new RuleTester()
 
-var ruleTester = new RuleTester()
 ruleTester.run('google-font-preconnect', rule, {
   valid: [
     `export const Test = () => (

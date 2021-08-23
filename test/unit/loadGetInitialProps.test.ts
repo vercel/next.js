@@ -6,7 +6,7 @@ describe('loadGetInitialProps', () => {
     class TestComponent {
       getInitialProps() {}
     }
-    const rejectPromise = loadGetInitialProps(TestComponent, {})
+    const rejectPromise = loadGetInitialProps(TestComponent as any, {})
     const error = new Error(
       '"TestComponent.getInitialProps()" is defined as an instance method - visit https://nextjs.org/docs/messages/get-initial-props-as-an-instance-method for more information.'
     )
@@ -14,7 +14,7 @@ describe('loadGetInitialProps', () => {
   })
 
   it('should resolve to an empty object if getInitialProps is missing', async () => {
-    const result = await loadGetInitialProps(() => {}, {})
+    const result = await loadGetInitialProps((() => {}) as any, {})
     expect(result).toEqual({})
   })
 
@@ -24,7 +24,7 @@ describe('loadGetInitialProps', () => {
         return { foo: 1 }
       }
     }
-    const result = await loadGetInitialProps(TestComponent, {})
+    const result = await loadGetInitialProps(TestComponent as any, {})
     expect(result).toEqual({ foo: 1 })
   })
 
@@ -34,12 +34,12 @@ describe('loadGetInitialProps', () => {
         return 'invalidValue'
       }
     }
-    const ctx = {
+    const ctx: any = {
       res: {
         finished: true,
       },
     }
-    const result = await loadGetInitialProps(TestComponent, ctx)
+    const result = await loadGetInitialProps(TestComponent as any, ctx)
     expect(result).toBe('invalidValue')
   })
 
@@ -47,7 +47,7 @@ describe('loadGetInitialProps', () => {
     class TestComponent {
       static async getInitialProps() {}
     }
-    const rejectPromise = loadGetInitialProps(TestComponent, {})
+    const rejectPromise = loadGetInitialProps(TestComponent as any, {})
     const error = new Error(
       '"TestComponent.getInitialProps()" should resolve to an object. But found "undefined" instead.'
     )

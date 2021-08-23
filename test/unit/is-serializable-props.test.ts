@@ -175,7 +175,7 @@ describe('isSerializableProps', () => {
   })
 
   it('can handle obj circular refs', () => {
-    const obj = { foo: 'bar', test: true }
+    const obj: any = { foo: 'bar', test: true }
     obj.child = obj
 
     expect(() => isSerializableProps('/', 'test', obj))
@@ -192,7 +192,7 @@ describe('isSerializableProps', () => {
   })
 
   it('can handle arr circular refs', () => {
-    const arr = [{ foo: 'bar' }, true]
+    const arr: any = [{ foo: 'bar' }, true]
     arr.push(arr)
 
     expect(() => isSerializableProps('/', 'test', { arr }))
@@ -209,7 +209,7 @@ describe('isSerializableProps', () => {
   })
 
   it('can handle deep obj circular refs', () => {
-    const obj = { foo: 'bar', test: true, leve1: { level2: {} } }
+    const obj: any = { foo: 'bar', test: true, leve1: { level2: {} } }
     obj.leve1.level2.child = obj
 
     expect(() => isSerializableProps('/', 'test', obj))
@@ -220,7 +220,7 @@ describe('isSerializableProps', () => {
   })
 
   it('can handle deep obj circular refs (with arrays)', () => {
-    const obj = { foo: 'bar', test: true, leve1: { level2: {} } }
+    const obj: any = { foo: 'bar', test: true, leve1: { level2: {} } }
     obj.leve1.level2.child = [{ another: [obj] }]
 
     expect(() => isSerializableProps('/', 'test', obj))

@@ -4,7 +4,7 @@ import { parseRelativeUrl } from 'next/dist/shared/lib/router/utils/parse-relati
 // convenience function so tests can be aligned neatly
 // and easy to eyeball
 const check = (windowUrl, targetUrl, expected) => {
-  window.location = new URL(windowUrl)
+  window.location = new URL(windowUrl) as any
   if (typeof expected === 'string') {
     expect(() => parseRelativeUrl(targetUrl)).toThrow(expected)
   } else {
@@ -17,13 +17,13 @@ const check = (windowUrl, targetUrl, expected) => {
 
 describe('parseRelativeUrl', () => {
   beforeAll(() => {
-    global.window = {
+    ;(global as any).window = {
       location: {},
     }
   })
 
   afterAll(() => {
-    delete global.window
+    delete (global as any).window
   })
 
   it('should parse relative url', () => {

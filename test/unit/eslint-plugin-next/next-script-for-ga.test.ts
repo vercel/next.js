@@ -1,11 +1,6 @@
-const rule = require('@next/eslint-plugin-next/lib/rules/next-script-for-ga')
-
-const RuleTester = require('eslint').RuleTester
-
-const ERROR_MSG =
-  'Use the `next/script` component for loading third party scripts. See: https://nextjs.org/docs/messages/next-script-for-ga.'
-
-RuleTester.setDefaultConfig({
+import rule from '@next/eslint-plugin-next/lib/rules/next-script-for-ga'
+import { RuleTester } from 'eslint'
+;(RuleTester as any).setDefaultConfig({
   parserOptions: {
     ecmaVersion: 2018,
     sourceType: 'module',
@@ -16,7 +11,11 @@ RuleTester.setDefaultConfig({
   },
 })
 
-var ruleTester = new RuleTester()
+const ERROR_MSG =
+  'Use the `next/script` component for loading third party scripts. See: https://nextjs.org/docs/messages/next-script-for-ga.'
+
+const ruleTester = new RuleTester()
+
 ruleTester.run('sync-scripts', rule, {
   valid: [
     `import Script from 'next/script'

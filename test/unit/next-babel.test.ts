@@ -1,10 +1,10 @@
 /* eslint-env jest */
-import { transform } from '@babel/core'
+import { transformSync } from '@babel/core'
 
 const trim = (s) => s.join('\n').trim().replace(/^\s+/gm, '')
 
 const babel = (code, esm = false, presetOptions = {}, filename = 'noop.js') =>
-  transform(code, {
+  transformSync(code, {
     filename,
     presets: [[require('next/dist/build/babel/preset'), presetOptions]],
     babelrc: false,
@@ -16,7 +16,7 @@ const babel = (code, esm = false, presetOptions = {}, filename = 'noop.js') =>
       supportsStaticESM: esm,
       isDev: false,
     },
-  }).code
+  } as any).code
 
 describe('next/babel', () => {
   describe('jsx-pragma', () => {

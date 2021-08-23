@@ -1,11 +1,11 @@
 /* eslint-env jest */
-const rule = require('@next/eslint-plugin-next/lib/rules/no-html-link-for-pages')
-const { Linter } = require('eslint')
-const assert = require('assert')
-const path = require('path')
+import rule from '@next/eslint-plugin-next/lib/rules/no-html-link-for-pages'
+import { Linter } from 'eslint'
+import assert from 'assert'
+import path from 'path'
 
 const linter = new Linter({ cwd: __dirname })
-const linterConfig = {
+const linterConfig: any = {
   rules: {
     'no-html-link-for-pages': [2, path.join(__dirname, 'custom-pages')],
   },

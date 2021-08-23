@@ -9,7 +9,7 @@ describe('Rendering next/head', () => {
       React.createElement(
         React.Fragment,
         {},
-        React.createElement(Head, {}),
+        React.createElement(Head),
         React.createElement('p', {}, 'hello world')
       )
     )

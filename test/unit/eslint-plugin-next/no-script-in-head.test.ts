@@ -1,7 +1,6 @@
-const rule = require('@next/eslint-plugin-next/lib/rules/no-script-in-head.js')
-const RuleTester = require('eslint').RuleTester
-
-RuleTester.setDefaultConfig({
+import rule from '@next/eslint-plugin-next/lib/rules/no-script-in-head'
+import { RuleTester } from 'eslint'
+;(RuleTester as any).setDefaultConfig({
   parserOptions: {
     ecmaVersion: 2018,
     sourceType: 'module',
@@ -11,8 +10,8 @@ RuleTester.setDefaultConfig({
     },
   },
 })
+const ruleTester = new RuleTester()
 
-var ruleTester = new RuleTester()
 ruleTester.run('no-script-in-head', rule, {
   valid: [
     `import Script from "next/script";

@@ -1,8 +1,6 @@
-const rule = require('@next/eslint-plugin-next/lib/rules/no-typos')
-
-const RuleTester = require('eslint').RuleTester
-
-RuleTester.setDefaultConfig({
+import rule from '@next/eslint-plugin-next/lib/rules/no-typos'
+import { RuleTester } from 'eslint'
+;(RuleTester as any).setDefaultConfig({
   parserOptions: {
     ecmaVersion: 2018,
     sourceType: 'module',
@@ -13,7 +11,8 @@ RuleTester.setDefaultConfig({
   },
 })
 
-var ruleTester = new RuleTester()
+const ruleTester = new RuleTester()
+
 ruleTester.run('no-typos', rule, {
   valid: [
     `
