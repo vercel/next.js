@@ -1,4 +1,4 @@
-// TODO needs css
+// TODO
 // export default () => (
 //   <div>
 //     <p>test</p>
