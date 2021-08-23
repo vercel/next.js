@@ -94,15 +94,15 @@ The layout behavior of the image as the viewport changes size.
 
 | `layout`              | Behavior                                                 | `srcSet`                                                                                                                                                                                        | `sizes` |
 | --------------------- | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
+| `intrinsic` (default) | Scale *down* to fit width of container, up to image size | `1x`, `2x` (based on [imageSizes](/docs/basic-features/image-optimization.md#image-sizes))                                                                                                      | N/A     |
 | `fixed`               | Sized to `width` and `height` exactly                    | `1x`, `2x` (based on [imageSizes](/docs/basic-features/image-optimization.md#image-sizes))                                                                                                      | N/A     |
-| `intrinsic` (Default) | Scale *down* to fit width of container, up to image size | `1x`, `2x` (based on [imageSizes](/docs/basic-features/image-optimization.md#image-sizes))                                                                                                      | N/A     |
 | `responsive`          | Scale to fit width of container                          | `640w`, `750w`, ... `2048w`, `3840w` (based on [imageSizes](/docs/basic-features/image-optimization.md#image-sizes) and [deviceSizes](/docs/basic-features/image-optimization.md#device-sizes)) | `100vw` |
 | `fill`                | Grow in X and Y axes to fill container                   | `640w`, `750w`, ... `2048w`, `3840w` (based on [imageSizes](/docs/basic-features/image-optimization.md#image-sizes) and [deviceSizes](/docs/basic-features/image-optimization.md#device-sizes)) | `100vw` |
 
+- [Demo the `intrinsic` layout (default)](https://image-component.nextjs.gallery/layout-intrinsic)
+  - When `intrinsic`, the image will scale the dimensions down for smaller viewports, but maintain the original dimensions for larger viewports.
 - [Demo the `fixed` layout](https://image-component.nextjs.gallery/layout-fixed)
   - When `fixed`, the image dimensions will not change as the viewport changes (no responsiveness) similar to the native `img` element.
-- [Demo the `intrinsic` layout](https://image-component.nextjs.gallery/layout-intrinsic)
-  - When `intrinsic`, the image will scale the dimensions down for smaller viewports, but maintain the original dimensions for larger viewports.
 - [Demo the `responsive` layout](https://image-component.nextjs.gallery/layout-responsive)
   - When `responsive`, the image will scale the dimensions down for smaller viewports and scale up for larger viewports.
   - Ensure the parent element uses `display: block` in their stylesheet.
