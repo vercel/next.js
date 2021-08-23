@@ -42,12 +42,15 @@ describe('Script Loader', () => {
 
       async function test(id) {
         const script = await browser.elementById(id)
+        const dataAttr = await script.getAttribute('data-nscript')
         const endScripts = await browser.elementsByCss(
           `#__NEXT_DATA__ ~ #${id}`
         )
 
         // Renders script tag
         expect(script).toBeDefined()
+        expect(dataAttr).toBeDefined()
+
         // Script is inserted at the end
         expect(endScripts.length).toBe(1)
       }
@@ -77,12 +80,15 @@ describe('Script Loader', () => {
 
       async function test(id) {
         const script = await browser.elementById(id)
+        const dataAttr = await script.getAttribute('data-nscript')
         const endScripts = await browser.elementsByCss(
           `#__NEXT_DATA__ ~ #${id}`
         )
 
         // Renders script tag
         expect(script).toBeDefined()
+        expect(dataAttr).toBeDefined()
+
         // Script is inserted at the end
         expect(endScripts.length).toBe(1)
       }
@@ -105,6 +111,7 @@ describe('Script Loader', () => {
 
       // Renders script tag
       expect(script.length).toBe(1)
+      expect(script.attr('data-nscript')).toBeDefined()
 
       // Script is inserted before NextScripts
       expect(
