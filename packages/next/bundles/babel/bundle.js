@@ -28,10 +28,6 @@ function coreLibPluginPass() {
   return require('@babel/core/lib/transformation/plugin-pass')
 }
 
-function eslintParser() {
-  return require('@babel/eslint-parser')
-}
-
 function traverse() {
   return require('@babel/traverse')
 }
@@ -40,60 +36,64 @@ function generator() {
   return require('@babel/generator')
 }
 
+function eslintParser() {
+  return require('next/dist/compiled/babel-packages').eslintParser()
+}
+
 function pluginProposalClassProperties() {
-  return require('@babel/plugin-proposal-class-properties')
+  return require('next/dist/compiled/babel-packages').pluginProposalClassProperties()
 }
 
 function pluginProposalExportNamespaceFrom() {
-  return require('@babel/plugin-proposal-export-namespace-from')
+  return require('next/dist/compiled/babel-packages').pluginProposalExportNamespaceFrom()
 }
 
 function pluginProposalNumericSeparator() {
-  return require('@babel/plugin-proposal-numeric-separator')
+  return require('next/dist/compiled/babel-packages').pluginProposalNumericSeparator()
 }
 
 function pluginProposalObjectRestSpread() {
-  return require('@babel/plugin-proposal-object-rest-spread')
+  return require('next/dist/compiled/babel-packages').pluginProposalObjectRestSpread()
 }
 
 function pluginSyntaxBigint() {
-  return require('@babel/plugin-syntax-bigint')
+  return require('next/dist/compiled/babel-packages').pluginSyntaxBigint()
 }
 
 function pluginSyntaxDynamicImport() {
-  return require('@babel/plugin-syntax-dynamic-import')
+  return require('next/dist/compiled/babel-packages').pluginSyntaxDynamicImport()
 }
 
 function pluginSyntaxJsx() {
-  return require('@babel/plugin-syntax-jsx')
+  return require('next/dist/compiled/babel-packages').pluginSyntaxJsx()
 }
 
 function pluginTransformDefine() {
-  return require('babel-plugin-transform-define')
+  return require('next/dist/compiled/babel-packages').pluginTransformDefine()
 }
 
 function pluginTransformModulesCommonjs() {
-  return require('@babel/plugin-transform-modules-commonjs')
+  return require('next/dist/compiled/babel-packages').pluginTransformModulesCommonjs()
 }
 
 function pluginTransformReactRemovePropTypes() {
-  return require('babel-plugin-transform-react-remove-prop-types')
+  return require('next/dist/compiled/babel-packages').pluginTransformReactRemovePropTypes()
 }
 
 function pluginTransformRuntime() {
-  return require('@babel/plugin-transform-runtime')
+  return require('next/dist/compiled/babel-packages').pluginTransformRuntime()
 }
 
 function presetEnv() {
-  return require('@babel/preset-env')
+  return require('next/dist/compiled/babel-packages').presetEnv()
 }
 
 function presetReact() {
-  return require('@babel/preset-react')
+  return require('next/dist/compiled/babel-packages').presetReact()
 }
 
 function presetTypescript() {
-  return require('@babel/preset-typescript')
+  return require('next/dist/compiled/babel-packages').presetTypescript()
 }
 
 module.exports = {
@@ -104,8 +104,9 @@ module.exports = {
   coreLibNormalizeOpts,
   coreLibBlockHoistPlugin,
   coreLibPluginPass,
-  eslintParser,
   generator,
+  traverse,
+  eslintParser,
   pluginProposalClassProperties,
   pluginProposalExportNamespaceFrom,
   pluginProposalNumericSeparator,
@@ -120,5 +121,4 @@ module.exports = {
   presetEnv,
   presetReact,
   presetTypescript,
-  traverse,
 }
