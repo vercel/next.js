@@ -19,32 +19,29 @@ struct StyledJSXTransformer {
 
 impl Fold for StyledJSXTransformer {
   fn fold_jsx_element(&mut self, mut el: JSXElement) -> JSXElement {
-    if self.has_styled_jsx && !is_styled_jsx(&el) {
+    if self.has_styled_jsx {
       return el.fold_children_with(self);
     }
 
-    let mut style_hashes = vec![];
-    for i in 0..el.children.len() {
-      if let JSXElementChild::JSXElement(child_el) = &el.children[i] {
-        if is_styled_jsx(&child_el) {
-          self.file_has_styled_jsx = true;
-          self.has_styled_jsx = true;
-          let style_hash = get_jsx_style_info(&child_el);
-          style_hashes.push(style_hash.clone());
-          el.children[i] = replace_jsx_style(*child_el.clone(), hash_string(&style_hash));
-        }
-      }
-    }
-
-    if style_hashes.len() > 0 {
-      self.class_name = Some(format!("jsx-{}", hash_string(&style_hashes.join(","))));
-    }
-
+    el.children = self.process_children(el.children);
     let el = el.fold_children_with(self);
     self.has_styled_jsx = false;
     self.class_name = None;
 
     el
+  }
+
+  fn fold_jsx_fragment(&mut self, mut fragment: JSXFragment) -> JSXFragment {
+    if self.has_styled_jsx {
+      return fragment.fold_children_with(self);
+    }
+
+    fragment.children = self.process_children(fragment.children);
+    let fragment = fragment.fold_children_with(self);
+    self.has_styled_jsx = false;
+    self.class_name = None;
+
+    fragment
   }
 
   fn fold_jsx_opening_element(&mut self, mut el: JSXOpeningElement) -> JSXOpeningElement {
@@ -241,6 +238,30 @@ impl Fold for StyledJSXTransformer {
     func
   }
 }
+
+impl StyledJSXTransformer {
+  fn process_children(&mut self, mut children: Vec<JSXElementChild>) -> Vec<JSXElementChild> {
+    let mut style_hashes = vec![];
+    for i in 0..children.len() {
+      if let JSXElementChild::JSXElement(child_el) = &children[i] {
+        if is_styled_jsx(&child_el) {
+          self.file_has_styled_jsx = true;
+          self.has_styled_jsx = true;
+          let style_hash = get_jsx_style_info(&child_el);
+          style_hashes.push(style_hash.clone());
+          children[i] = replace_jsx_style(*child_el.clone(), hash_string(&style_hash));
+        }
+      }
+    }
+
+    if style_hashes.len() > 0 {
+      self.class_name = Some(format!("jsx-{}", hash_string(&style_hashes.join(","))));
+    }
+
+    children
+  }
+}
+
 fn is_styled_jsx(el: &JSXElement) -> bool {
   if let JSXElementName::Ident(Ident { sym, .. }) = &el.opening.name {
     if sym != "style" {
