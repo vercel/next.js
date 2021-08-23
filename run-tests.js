@@ -70,12 +70,12 @@ async function main() {
   }
 
   console.log('Running tests with concurrency:', concurrency)
-  let tests = process.argv.filter((arg) => arg.endsWith('.test.js'))
+  let tests = process.argv.filter((arg) => arg.match(/\.test\.(js|ts|tsx)/))
   let prevTimings
 
   if (tests.length === 0) {
     tests = (
-      await glob('**/*.test.js', {
+      await glob('**/*.test.{js,ts,tsx}', {
         nodir: true,
         cwd: path.join(__dirname, 'test'),
       })
