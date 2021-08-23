@@ -5,6 +5,10 @@
       "heading": true,
       "routes": [
         {
+          "title": "custom-document-image-import",
+          "path": "/errors/custom-document-image-import.md"
+        },
+        {
           "title": "404-get-initial-props",
           "path": "/errors/404-get-initial-props.md"
         },
