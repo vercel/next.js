@@ -21,7 +21,7 @@ type Event = {
   id: string
   timestamp: number
   duration: number
-  localEndpoint: typeof localEndpoint
+  localEndpoint?: typeof localEndpoint
   tags?: Object
 }
 

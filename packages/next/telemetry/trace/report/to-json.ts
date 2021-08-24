@@ -9,12 +9,6 @@ let writeStream: fs.WriteStream
 let traceId: string
 let batch: ReturnType<typeof batcher> | undefined
 
-const localEndpoint = {
-  serviceName: 'nextjs',
-  ipv4: '127.0.0.1',
-  port: 9411,
-}
-
 const reportToLocalHost = (
   name: string,
   duration: number,
@@ -41,7 +35,6 @@ const reportToLocalHost = (
           flags: 'a',
           encoding: 'utf8',
         })
-        Log.info(`Trace available on ${file}`)
       }
       const eventsJson = JSON.stringify(events)
       try {
@@ -63,7 +56,6 @@ const reportToLocalHost = (
     id,
     timestamp,
     duration,
-    localEndpoint,
     tags: attrs,
   })
 }
