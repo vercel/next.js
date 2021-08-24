@@ -1,4 +1,4 @@
-const couchbase = require('couchbase')
+import couchbase from 'couchbase'
 
 const COUCHBASE_USER = process.env.COUCHBASE_USER
 const COUCHBASE_PASSWORD = process.env.COUCHBASE_PASSWORD
