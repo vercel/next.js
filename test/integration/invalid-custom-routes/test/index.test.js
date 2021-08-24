@@ -38,7 +38,7 @@ const runTests = () => {
     const stderr = await getStderr()
 
     expect(stderr).toContain(
-      '`headers` field can not be empty for route {"source":"/:path*"'
+      '`headers` field cannot be empty for route {"source":"/:path*"'
     )
   })
 

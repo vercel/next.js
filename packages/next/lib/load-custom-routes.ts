@@ -109,7 +109,7 @@ function checkHeader(route: Header): string[] {
   if (!Array.isArray(route.headers)) {
     invalidParts.push('`headers` field must be an array')
   } else if (route.headers.length === 0) {
-    invalidParts.push('`headers` field can not be empty')
+    invalidParts.push('`headers` field cannot be empty')
   } else {
     for (const header of route.headers) {
       if (!header || typeof header !== 'object') {
