@@ -127,7 +127,6 @@ describe('Script Loader', () => {
     let browser
     try {
       browser = await webdriver(appPort, '/')
-      await waitFor(1000)
 
       // beforeInteractive scripts should load once
       let documentBIScripts = await browser.elementsByCss(
@@ -139,7 +138,6 @@ describe('Script Loader', () => {
       await browser.click('[href="/page1"]')
 
       await browser.waitForElementByCss('.container')
-      await waitFor(1000)
 
       const script = await browser.elementById('scriptBeforeInteractive')
 
