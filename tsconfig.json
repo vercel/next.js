@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "strict": false,
+    "noEmit": true,
+    "allowJs": true,
+    "jsx": "react",
+    "module": "esnext",
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "moduleResolution": "node",
+    "baseUrl": ".",
+    "paths": {
+      "next-test-utils": ["test/lib/next-test-utils"],
+      "amp-test-utils": ["test/lib/amp-test-utils"],
+      "next-webdriver": ["test/lib/next-webdriver"]
+    }
+  },
+  "include": ["test/**/*.test.ts", "test/**/*.test.tsx", "test/**/test/*"]
+}

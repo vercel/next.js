@@ -104,7 +104,7 @@ jobs:
           path: ./*
           key: ${{ github.sha }}
 
-      - run: node run-tests.js --timings --type unit -g 1/1
+      - run: node run-tests.js --type unit
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
   testIntegration:

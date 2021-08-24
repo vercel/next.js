@@ -1,5 +1,5 @@
 module.exports = {
-  testMatch: ['**/*.test.js'],
+  testMatch: ['**/*.test.js', '**/*.test.ts', '**/*.test.tsx'],
   verbose: true,
   rootDir: 'test',
   modulePaths: ['<rootDir>/lib'],
