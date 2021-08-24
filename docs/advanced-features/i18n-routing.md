@@ -254,7 +254,7 @@ export const getStaticPaths = ({ locales }) => {
 
 For automatically statically optimized and non-dynamic `getStaticProps` pages a version of the page will be generated for each locale. This is important to consider since it can increase build times depending on how many locales are configured and what data fetching is being done inside of `getStaticProps`.
 
-If you have 50 locales configured with 10 non-dynamic pages with `getStaticProps` this means `getStaticProps` will be called 500 times and 50 version of these 10 pages will be generated during each build.
+If you have 50 locales configured with 10 non-dynamic pages with `getStaticProps` this means `getStaticProps` will be called 500 times and 50 versions of these 10 pages will be generated during each build.
 
 To improve the performance of generating these pages during build time dynamic pages with `getStaticProps` and [a `fallback` mode](https://nextjs.org/docs/basic-features/data-fetching#fallback-true) can be leveraged instead. This allows you to return only the most popular paths and locales from `getStaticPaths` to prerender during the build and then lazily build the rest during runtime when they are requested.
 
