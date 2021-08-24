@@ -57,7 +57,7 @@ export default function Home({ isConnected }) {
 export async function getServerSideProps(context) {
   let connection = await connectToDatabase()
 
-  const { cluster, bucket, collection } = connection
+  const { collection } = connection
 
   // Check connection with a KV GET operation for a key that doesnt exist
   let isConnected = false
