@@ -1,6 +1,6 @@
 ## Example app using Couchbase
 
-[Couchbase](https://www.couchbase.com/) is The Modern Database for Enterprise Applications. This example will show you how to connect to and use Couchbase for your Next.js app.
+[Couchbase](https://www.couchbase.com/) is a modern database for enterprise applications. This example will show you how to connect to and use Couchbase in your Next.js app.
 
 If you want to learn more about Couchbase, visit the following pages:
 
