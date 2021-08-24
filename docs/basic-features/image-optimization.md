@@ -128,7 +128,7 @@ If you need a different provider, you can use the [`loader`](/docs/api-reference
 
 > The `next/image` component's default loader is not supported when using [`next export`](/docs/advanced-features/static-html-export.md). However, other loader options will work.
 
-> The `next/image` component's default loader uses [`squoosh`](https://www.npmjs.com/package/@squoosh/lib) because it is quick to install and suitable for a development environment. When using `next start` in your production environment, it is strongly recommended that you install [`sharp`](https://www.npmjs.com/package/sharp) by running `yarn add sharp` in your project directory. This is not necessary for Vercel deployments.
+> The `next/image` component's default loader uses [`squoosh`](https://www.npmjs.com/package/@squoosh/lib) because it is quick to install and suitable for a development environment. When using `next start` in your production environment, it is strongly recommended that you install [`sharp`](https://www.npmjs.com/package/sharp) by running `yarn add sharp` in your project directory. This is not necessary for Vercel deployments, as `sharp` is installed automatically.
 
 ## Caching
 
