@@ -3,8 +3,12 @@
     "module": "esnext",
     "target": "es6",
     "allowJs": true,
-    "baseUrl": "./lib",
-    "noEmit": true
-  },
-  "include": ["./**/*"]
+    "noEmit": true,
+    "baseUrl": "../",
+    "paths": {
+      "next-test-utils": ["./test/lib/next-test-utils"],
+      "amp-test-utils": ["./test/lib/amp-test-utils"],
+      "next-webdriver": ["./test/lib/next-webdriver"]
+    }
+  }
 }
