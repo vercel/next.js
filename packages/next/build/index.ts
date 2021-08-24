@@ -217,14 +217,15 @@ export default async function build(
     }
 
     const ignoreESLint = Boolean(config.eslint?.ignoreDuringBuilds)
-    const lintDirs = config.eslint?.dirs
+    const eslintCacheDir = path.join(cacheDir, 'eslint/')
     if (!ignoreESLint && runLint) {
       await nextBuildSpan
         .traceChild('verify-and-lint')
         .traceAsyncFn(async () => {
           await verifyAndLint(
             dir,
-            lintDirs,
+            eslintCacheDir,
+            config.eslint?.dirs,
             config.experimental.cpus,
             config.experimental.workerThreads,
             telemetry
