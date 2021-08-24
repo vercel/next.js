@@ -116,6 +116,7 @@ async function lint(
       baseConfig: {},
       errorOnUnmatchedPattern: false,
       extensions: ['.js', '.jsx', '.ts', '.tsx'],
+      cache: true,
       ...eslintOptions,
     }
 

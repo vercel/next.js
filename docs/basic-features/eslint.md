@@ -139,6 +139,14 @@ Similarly, the `--dir` flag can be used for `next lint`:
 next lint --dir pages --dir utils
 ```
 
+## Caching
+
+To improve performance, information of files processed by ESLint are cached by default. This is stored in `.next/cache` or in your defined [build directory](/docs/api-reference/next.config.js/setting-a-custom-build-directory). If you include any ESLint rules that depend on more than the contents of a single source file and need to disable the cache, use the `--no-cache` flag with `next lint`.
+
+```bash
+next lint --no-cache
+```
+
 ## Disabling Rules
 
 If you would like to modify or disable any rules provided by the supported plugins (`react`, `react-hooks`, `next`), you can directly change them using the `rules` property in your `.eslintrc`:

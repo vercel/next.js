@@ -5,6 +5,7 @@ export const HeadManagerContext: React.Context<{
   mountedInstances?: any
   updateScripts?: (state: any) => void
   scripts?: any
+  getIsSsr?: () => boolean
 }> = React.createContext({})
 
 if (process.env.NODE_ENV !== 'production') {
