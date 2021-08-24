@@ -1,9 +1,13 @@
 use std::collections::hash_map::DefaultHasher;
 use std::hash::Hasher;
-use swc_common::{collections::AHashSet, DUMMY_SP};
+use swc_common::{collections::AHashSet, Span, DUMMY_SP};
 use swc_ecmascript::ast::*;
 use swc_ecmascript::utils::{collect_decls, prepend, Id, HANDLER};
 use swc_ecmascript::visit::{Fold, FoldWith};
+
+use transform_css::transform_css;
+
+mod transform_css;
 
 pub fn styled_jsx() -> impl Fold {
   StyledJSXTransformer::default()
@@ -247,9 +251,9 @@ impl StyledJSXTransformer {
         if is_styled_jsx(&child_el) {
           self.file_has_styled_jsx = true;
           self.has_styled_jsx = true;
-          let style_hash = get_jsx_style_info(&child_el);
-          style_hashes.push(style_hash.clone());
-          children[i] = replace_jsx_style(*child_el.clone(), hash_string(&style_hash));
+          let style_info = get_jsx_style_info(&child_el);
+          style_hashes.push(style_info.hash.clone());
+          children[i] = replace_jsx_style(*child_el.clone(), style_info);
         }
       }
     }
@@ -283,7 +287,13 @@ fn is_styled_jsx(el: &JSXElement) -> bool {
   })
 }
 
-fn get_jsx_style_info(el: &JSXElement) -> String {
+pub struct JSXStyleInfo {
+  hash: String,
+  css: String,
+  css_span: Span,
+}
+
+fn get_jsx_style_info(el: &JSXElement) -> JSXStyleInfo {
   let non_whitespace_children: &Vec<&JSXElementChild> = &el
     .children
     .iter()
@@ -309,7 +319,7 @@ fn get_jsx_style_info(el: &JSXElement) -> String {
         )
         .emit()
     });
-    panic!("styled-jsx compilation error");
+    panic!("next-swc compilation error");
   }
 
   if let JSXElementChild::JSXExprContainer(JSXExprContainer {
@@ -318,17 +328,35 @@ fn get_jsx_style_info(el: &JSXElement) -> String {
   }) = non_whitespace_children[0]
   {
     let mut hasher = DefaultHasher::new();
+    let css: String;
+    let css_span: Span;
     match &**expr {
-      Expr::Lit(Lit::Str(str_lit)) => hasher.write(str_lit.value.as_ref().as_bytes()),
-      Expr::Tpl(Tpl { exprs, quasis, .. }) => {
+      Expr::Lit(Lit::Str(Str { value, span, .. })) => {
+        hasher.write(value.as_ref().as_bytes());
+        css = value.to_string().clone();
+        css_span = span.clone();
+      }
+      Expr::Tpl(Tpl {
+        exprs,
+        quasis,
+        span,
+      }) => {
         if exprs.len() == 0 {
-          hasher.write(quasis[0].raw.value.as_bytes())
+          hasher.write(quasis[0].raw.value.as_bytes());
+          css = quasis[0].raw.value.to_string();
+          css_span = span.clone();
+        } else {
+          panic!("Not implemented");
         }
       }
       _ => panic!("Not implemented"),
     }
     let result = hasher.finish();
-    return format!("{:x}", result);
+    return JSXStyleInfo {
+      hash: format!("{:x}", result),
+      css,
+      css_span,
+    };
   }
 
   HANDLER.with(|handler| {
@@ -340,15 +368,16 @@ fn get_jsx_style_info(el: &JSXElement) -> String {
       )
       .emit()
   });
-  panic!("styled-jsx compilation error");
+  panic!("next-swc compilation error");
 }
 
-fn replace_jsx_style(mut el: JSXElement, style_hash: String) -> JSXElementChild {
+fn replace_jsx_style(mut el: JSXElement, style_info: JSXStyleInfo) -> JSXElementChild {
   el.opening.name = JSXElementName::Ident(Ident {
     sym: "_JSXStyle".into(),
     span: DUMMY_SP,
     optional: false,
   });
+
   el.closing = if let Some(mut closing) = el.closing {
     closing.name = JSXElementName::Ident(Ident {
       sym: "_JSXStyle".into(),
@@ -359,6 +388,7 @@ fn replace_jsx_style(mut el: JSXElement, style_hash: String) -> JSXElementChild 
   } else {
     None
   };
+
   for i in 0..el.opening.attrs.len() {
     if let JSXAttrOrSpread::JSXAttr(JSXAttr {
       name: JSXAttrName::Ident(Ident { sym, .. }),
@@ -373,14 +403,23 @@ fn replace_jsx_style(mut el: JSXElement, style_hash: String) -> JSXElementChild 
             optional: false,
           }),
           value: Some(JSXAttrValue::JSXExprContainer(JSXExprContainer {
-            expr: JSXExpr::Expr(Box::new(string_literal_expr(style_hash.clone().as_str()))),
+            expr: JSXExpr::Expr(Box::new(string_literal_expr(
+              hash_string(&style_info.hash).clone().as_str(),
+            ))),
             span: DUMMY_SP,
           })),
           span: DUMMY_SP,
         });
+        break;
       }
     }
   }
+
+  el.children = vec![JSXElementChild::JSXExprContainer(JSXExprContainer {
+    expr: JSXExpr::Expr(Box::new(string_literal_expr(&transform_css(style_info)))),
+    span: DUMMY_SP,
+  })];
+
   JSXElementChild::JSXElement(Box::new(el))
 }
 
@@ -441,7 +480,7 @@ fn ident(str: &str) -> Ident {
 }
 
 // TODO: maybe use DJBHasher (need to implement)
-fn hash_string(str: &String) -> String {
+pub fn hash_string(str: &String) -> String {
   let mut hasher = DefaultHasher::new();
   hasher.write(str.as_bytes());
   let hash_result = hasher.finish();

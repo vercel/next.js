@@ -58,6 +58,6 @@ export default (()=>{
       <Element1 className={"jsx-abb4c2202db1a207"}/>
       <Element1 className={"jsx-abb4c2202db1a207" + " " + "test"}/>
       <Element1 {...props} className={"jsx-abb4c2202db1a207" + " " + (props && props.className != null && props.className || "")}/>
-      <_JSXStyle id={"abb4c2202db1a207"}>{"div { color: red }"}</_JSXStyle>
+      <_JSXStyle id={"abb4c2202db1a207"}>{"div.jsx-abb4c2202db1a207 {color:red}"}</_JSXStyle>
     </div>;
 });

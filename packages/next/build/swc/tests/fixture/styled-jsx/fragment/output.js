@@ -14,18 +14,7 @@ export default (()=><>
         <p className={"jsx-6dd5f97e085c0297"}>world</p>
       </React.Fragment>
     </>
-    <_JSXStyle id={"6dd5f97e085c0297"}>{`
-      p {
-        color: cyan;
-      }
-      .foo {
-        font-size: 18px;
-        color: hotpink;
-      }
-      #head {
-        text-decoration: underline;
-      }
-    `}</_JSXStyle>
+    <_JSXStyle id={"6dd5f97e085c0297"}>{"p.jsx-6dd5f97e085c0297 {color:cyan}\n.foo.jsx-6dd5f97e085c0297 {font-size:18px;\ncolor:hotpink}\n#head.jsx-6dd5f97e085c0297 {text-decoration:underline}"}</_JSXStyle>
   </>
 );
 function Component1() {
@@ -35,10 +24,6 @@ function Component1() {
 }
 function Component2() {
     return <div className={"jsx-678f41ca6d3b294b"}>
-      <_JSXStyle id={"678f41ca6d3b294b"}>{`
-        div {
-          color: red;
-        }
-      `}</_JSXStyle>
+      <_JSXStyle id={"678f41ca6d3b294b"}>{"div.jsx-678f41ca6d3b294b {color:red}"}</_JSXStyle>
     </div>;
 }

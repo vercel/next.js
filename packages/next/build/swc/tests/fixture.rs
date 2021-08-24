@@ -17,7 +17,7 @@ mod amp_attributes;
 mod next_dynamic;
 #[path = "../src/next_ssg.rs"]
 mod next_ssg;
-#[path = "../src/styled_jsx.rs"]
+#[path = "../src/styled_jsx/mod.rs"]
 mod styled_jsx;
 
 fn syntax() -> Syntax {
