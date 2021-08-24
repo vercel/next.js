@@ -59,8 +59,6 @@ if (target === TARGET.CONSOLE) {
   traceTargetReporter = reportToConsole
 } else if (target === TARGET.ZIPKIN) {
   traceTargetReporter = reportToZipkin
-} else if (target === TARGET.JAEGER_JSON) {
-  traceTargetReporter = reportToJson
 } else if (target === TARGET.JAEGER) {
   traceTargetReporter = reportToJaeger
 } else {

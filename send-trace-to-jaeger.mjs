@@ -10,6 +10,7 @@ const localEndpoint = {
   ipv4: '127.0.0.1',
   port: 9411,
 }
+
 // Jaeger supports Zipkin's reporting API
 const zipkinUrl = `http://${localEndpoint.ipv4}:${localEndpoint.port}`
 const jaegerWebUiUrl = `http://${localEndpoint.ipv4}:16686`
@@ -28,7 +29,10 @@ file.pipe(eventStream.split()).pipe(
       return cb(null, '')
     }
 
-    const eventsJson = JSON.parse(data)
+    const eventsJson = JSON.parse(data).map((item) => {
+      item.localEndpoint = localEndpoint
+      return item
+    })
     if (!loggedUrl) {
       logWebUrl(eventsJson[0].traceId)
       loggedUrl = true
@@ -39,7 +43,7 @@ file.pipe(eventStream.split()).pipe(
         fetch(zipkinAPI, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: data,
+          body: JSON.stringify(eventsJson),
         }),
       { minTimeout: 500, retries: 3, factor: 1 }
     )

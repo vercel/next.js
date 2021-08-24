@@ -1,7 +1,6 @@
 import { randomBytes } from 'crypto'
 import { batcher } from './to-zipkin'
 import { traceGlobals } from '../shared'
-import * as Log from '../../../build/output/log'
 import fs from 'fs'
 import path from 'path'
 
@@ -17,6 +16,11 @@ const reportToLocalHost = (
   parentId?: string,
   attrs?: Object
 ) => {
+  const distDir = traceGlobals.get('distDir')
+  if (!distDir) {
+    return
+  }
+
   if (!traceId) {
     traceId = process.env.TRACE_ID || randomBytes(8).toString('hex')
   }
@@ -24,13 +28,9 @@ const reportToLocalHost = (
   if (!batch) {
     batch = batcher(async (events) => {
       if (!writeStream) {
-        const distDir = traceGlobals.get('distDir')
-        if (!distDir) {
-          return
-        }
         const tracesDir = path.join(distDir, 'traces')
         await fs.promises.mkdir(tracesDir, { recursive: true })
-        const file = path.join(tracesDir, traceId)
+        const file = path.join(distDir, 'trace')
         writeStream = fs.createWriteStream(file, {
           flags: 'a',
           encoding: 'utf8',
