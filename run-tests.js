@@ -12,15 +12,11 @@ const glob = promisify(_glob)
 const exec = promisify(execOrig)
 
 const timings = []
-const NUM_RETRIES = 2
+const DEFAULT_NUM_RETRIES = 2
 const DEFAULT_CONCURRENCY = 2
 const RESULTS_EXT = `.results.json`
 const isTestJob = !!process.env.NEXT_TEST_JOB
 const TIMINGS_API = `https://next-timings.jjsweb.site/api/timings`
-
-const UNIT_TEST_EXT = '.unit.test.js'
-const DEV_TEST_EXT = '.dev.test.js'
-const PROD_TEST_EXT = '.prod.test.js'
 
 const NON_CONCURRENT_TESTS = [
   'test/integration/basic/test/index.test.js',
@@ -30,12 +26,17 @@ const NON_CONCURRENT_TESTS = [
   'test/acceptance/ReactRefreshRequire.dev.test.js',
 ]
 
+const testFilters = {
+  unit: 'unit/',
+}
+
 // which types we have configured to run separate
-const configuredTestTypes = [UNIT_TEST_EXT]
+const configuredTestTypes = Object.values(testFilters)
 
 async function main() {
+  let numRetries = DEFAULT_NUM_RETRIES
   let concurrencyIdx = process.argv.indexOf('-c')
-  const concurrency =
+  let concurrency =
     parseInt(process.argv[concurrencyIdx + 1], 10) || DEFAULT_CONCURRENCY
 
   const outputTimings = process.argv.indexOf('--timings') !== -1
@@ -50,15 +51,17 @@ async function main() {
   let filterTestsBy
 
   switch (testType) {
-    case 'unit':
-      filterTestsBy = UNIT_TEST_EXT
+    case 'unit': {
+      numRetries = 0
+      filterTestsBy = testFilters.unit
       break
-    case 'dev':
-      filterTestsBy = DEV_TEST_EXT
-      break
-    case 'production':
-      filterTestsBy = PROD_TEST_EXT
-      break
+    }
+    // case 'dev':
+    //   filterTestsBy = DEV_TEST_EXT
+    //   break
+    // case 'production':
+    //   filterTestsBy = PROD_TEST_EXT
+    //   break
     case 'all':
       filterTestsBy = 'none'
       break
@@ -67,22 +70,22 @@ async function main() {
   }
 
   console.log('Running tests with concurrency:', concurrency)
-  let tests = process.argv.filter((arg) => arg.endsWith('.test.js'))
+  let tests = process.argv.filter((arg) => arg.match(/\.test\.(js|ts|tsx)/))
   let prevTimings
 
   if (tests.length === 0) {
     tests = (
-      await glob('**/*.test.js', {
+      await glob('**/*.test.{js,ts,tsx}', {
         nodir: true,
         cwd: path.join(__dirname, 'test'),
       })
     ).filter((test) => {
-      // only include the specified type
       if (filterTestsBy) {
-        return filterTestsBy === 'none' ? true : test.endsWith(filterTestsBy)
-        // include all except the separately configured types
+        // only include the specified type
+        return filterTestsBy === 'none' ? true : test.startsWith(filterTestsBy)
       } else {
-        return !configuredTestTypes.some((type) => test.endsWith(type))
+        // include all except the separately configured types
+        return !configuredTestTypes.some((type) => test.startsWith(type))
       }
     })
 
@@ -183,7 +186,7 @@ async function main() {
   )
   const children = new Set()
 
-  const runTest = (test = '', usePolling) =>
+  const runTest = (test = '', usePolling, isFinalRun) =>
     new Promise((resolve, reject) => {
       const start = new Date().getTime()
       let outputChunks = []
@@ -232,7 +235,9 @@ async function main() {
       child.on('exit', (code) => {
         children.delete(child)
         if (code) {
-          outputChunks.forEach((chunk) => process.stdout.write(chunk))
+          if (isFinalRun) {
+            outputChunks.forEach((chunk) => process.stdout.write(chunk))
+          }
           reject(new Error(`failed with code: ${code}`))
         }
         resolve(new Date().getTime() - start)
@@ -254,21 +259,21 @@ async function main() {
   for (const test of nonConcurrentTestNames) {
     let passed = false
 
-    for (let i = 0; i < NUM_RETRIES + 1; i++) {
+    for (let i = 0; i < numRetries + 1; i++) {
       try {
-        console.log(`Starting ${test} retry ${i}/${NUM_RETRIES}`)
-        const time = await runTest(test, i > 0)
+        console.log(`Starting ${test} retry ${i}/${numRetries}`)
+        const time = await runTest(test, i > 0, i === numRetries)
         timings.push({
           file: test,
           time,
         })
         passed = true
         console.log(
-          `Finished ${test} on retry ${i}/${NUM_RETRIES} in ${time / 1000}s`
+          `Finished ${test} on retry ${i}/${numRetries} in ${time / 1000}s`
         )
         break
       } catch (err) {
-        if (i < NUM_RETRIES) {
+        if (i < numRetries) {
           try {
             const testDir = path.dirname(path.join(__dirname, test))
             console.log('Cleaning test files at', testDir)
@@ -279,7 +284,7 @@ async function main() {
       }
     }
     if (!passed) {
-      console.error(`${test} failed to pass within ${NUM_RETRIES} retries`)
+      console.error(`${test} failed to pass within ${numRetries} retries`)
       children.forEach((child) => child.kill())
 
       if (isTestJob) {
@@ -303,21 +308,21 @@ async function main() {
       await sema.acquire()
       let passed = false
 
-      for (let i = 0; i < NUM_RETRIES + 1; i++) {
+      for (let i = 0; i < numRetries + 1; i++) {
         try {
-          console.log(`Starting ${test} retry ${i}/${NUM_RETRIES}`)
-          const time = await runTest(test, i > 0)
+          console.log(`Starting ${test} retry ${i}/${numRetries}`)
+          const time = await runTest(test, i > 0, i === numRetries)
           timings.push({
             file: test,
             time,
           })
           passed = true
           console.log(
-            `Finished ${test} on retry ${i}/${NUM_RETRIES} in ${time / 1000}s`
+            `Finished ${test} on retry ${i}/${numRetries} in ${time / 1000}s`
           )
           break
         } catch (err) {
-          if (i < NUM_RETRIES) {
+          if (i < numRetries) {
             try {
               const testDir = path.dirname(path.join(__dirname, test))
               console.log('Cleaning test files at', testDir)
@@ -328,7 +333,7 @@ async function main() {
         }
       }
       if (!passed) {
-        console.error(`${test} failed to pass within ${NUM_RETRIES} retries`)
+        console.error(`${test} failed to pass within ${numRetries} retries`)
         children.forEach((child) => child.kill())
 
         if (isTestJob) {
