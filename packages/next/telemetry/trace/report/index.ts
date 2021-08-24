@@ -20,7 +20,7 @@ type Reporter = {
 class MultiReporter implements Reporter {
   private reporters: Reporter[] = []
 
-  constructor(reporters: any) {
+  constructor(reporters: Reporter[]) {
     this.reporters = reporters
   }
 
