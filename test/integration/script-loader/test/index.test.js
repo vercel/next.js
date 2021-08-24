@@ -127,6 +127,13 @@ describe('Script Loader', () => {
     let browser
     try {
       browser = await webdriver(appPort, '/')
+      await waitFor(1000)
+
+      // beforeInteractive scripts should load once
+      let documentBIScripts = await browser.elementsByCss(
+        '[src$="documentBeforeInteractive"]'
+      )
+      expect(documentBIScripts.length).toBe(1)
 
       await browser.waitForElementByCss('[href="/page1"]')
       await browser.click('[href="/page1"]')
@@ -135,6 +142,12 @@ describe('Script Loader', () => {
       await waitFor(1000)
 
       const script = await browser.elementById('scriptBeforeInteractive')
+
+      // Ensure beforeInteractive script isn't duplicated on navigation
+      documentBIScripts = await browser.elementsByCss(
+        '[src$="documentBeforeInteractive"]'
+      )
+      expect(documentBIScripts.length).toBe(1)
 
       // Renders script tag
       expect(script).toBeDefined()
