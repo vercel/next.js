@@ -291,9 +291,23 @@ pub struct JSXStyleInfo {
   hash: String,
   css: String,
   css_span: Span,
+  is_global: bool,
 }
 
 fn get_jsx_style_info(el: &JSXElement) -> JSXStyleInfo {
+  let is_global = el.opening.attrs.iter().any(|attr| {
+    if let JSXAttrOrSpread::JSXAttr(JSXAttr {
+      name: JSXAttrName::Ident(Ident { sym, .. }),
+      ..
+    }) = &attr
+    {
+      if sym == "global" {
+        return true;
+      }
+    }
+    false
+  });
+
   let non_whitespace_children: &Vec<&JSXElementChild> = &el
     .children
     .iter()
@@ -356,6 +370,7 @@ fn get_jsx_style_info(el: &JSXElement) -> JSXStyleInfo {
       hash: format!("{:x}", result),
       css,
       css_span,
+      is_global,
     };
   }
 
