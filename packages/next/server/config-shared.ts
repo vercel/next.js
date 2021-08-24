@@ -29,10 +29,16 @@ export interface ESLintConfig {
   ignoreDuringBuilds?: boolean
 }
 
+export interface TypeScriptConfig {
+  /** Do not run TypeScript during production builds (`next build`). */
+  ignoreBuildErrors?: boolean
+}
+
 export type NextConfig = { [key: string]: any } & {
   i18n?: I18NConfig | null
 
   eslint?: ESLintConfig
+  typescript?: TypeScriptConfig
 
   headers?: () => Promise<Header[]>
   rewrites?: () => Promise<
@@ -139,6 +145,12 @@ export const defaultConfig: NextConfig = {
   env: {},
   webpack: null,
   webpackDevMiddleware: null,
+  eslint: {
+    ignoreDuringBuilds: false,
+  },
+  typescript: {
+    ignoreBuildErrors: false,
+  },
   distDir: '.next',
   cleanDistDir: true,
   assetPrefix: '',
