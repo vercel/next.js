@@ -136,7 +136,6 @@ function Script(props: ScriptProps): JSX.Element | null {
     dangerouslySetInnerHTML,
     strategy = 'afterInteractive',
     onError,
-    id,
     ...restProps
   } = props
 
@@ -164,7 +163,7 @@ function Script(props: ScriptProps): JSX.Element | null {
       updateScripts(scripts)
     } else if (getIsSsr && getIsSsr()) {
       // Script has already loaded during SSR
-      LoadCache.add(id || src)
+      LoadCache.add(restProps.id || src)
     } else if (getIsSsr && !getIsSsr()) {
       loadScript(props)
     }
