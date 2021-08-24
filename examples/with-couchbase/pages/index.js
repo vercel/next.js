@@ -1,7 +1,7 @@
 import Head from 'next/head'
 import { connectToDatabase } from '../util/couchbase'
 
-export default function Home({ isConnected, rows }) {
+export default function Home({ isConnected }) {
   return (
     <div className="container">
       <Head>
@@ -25,8 +25,8 @@ export default function Home({ isConnected, rows }) {
             </h2>
             <em className="center">
               Note: if the database was recently started, you might have to
-              re-start the app (if using dev mode) or re-deploy to your
-              serverless environment for changes to take effect.
+              re-start the app (in dev mode) or re-deploy to your serverless
+              environment for changes to take effect.
             </em>
           </>
         )}
@@ -34,39 +34,6 @@ export default function Home({ isConnected, rows }) {
         <p className="description">
           Get started by editing <code>pages/index.js</code>
         </p>
-
-        <h2>Querying travel-sample to test connection:</h2>
-        {rows === null ? (
-          <em className="small center">
-            Note: you must have travel-sample data imported to your couchbase
-            instance and set the COUCHBASE_BUCKET properly for this to populate
-          </em>
-        ) : (
-          <></>
-        )}
-        <table style={{ textAlign: 'left', marginTop: '20px' }}>
-          <tr>
-            <th>Name</th>
-            <th>Country</th>
-            <th>Callsign</th>
-            <th>ICAO</th>
-            <th>ID</th>
-            <th>Type</th>
-          </tr>
-          {rows !== null &&
-            rows.map((item) => {
-              return (
-                <tr key={item['travel-sample'].id}>
-                  <td>{item['travel-sample'].name}</td>
-                  <td>{item['travel-sample'].country}</td>
-                  <td>{item['travel-sample'].callsign}</td>
-                  <td>{item['travel-sample'].icao}</td>
-                  <td>{item['travel-sample'].id}</td>
-                  <td>{item['travel-sample'].type}</td>
-                </tr>
-              )
-            })}
-        </table>
       </main>
 
       <footer>
@@ -281,19 +248,7 @@ export async function getServerSideProps(context) {
     // if the error message is anything OTHER THAN 'document not found', the connection is broken
   }
 
-  let result,
-    rows = null
-  if (isConnected && bucket._name === 'travel-sample') {
-    let qs = `SELECT * FROM \`travel-sample\` WHERE type = "airline" LIMIT 5;`
-    try {
-      result = await cluster.query(qs)
-      rows = result.rows
-    } catch (e) {
-      console.log('Error Querying: \n', e)
-    }
-  }
-
   return {
-    props: { isConnected, rows },
+    props: { isConnected },
   }
 }

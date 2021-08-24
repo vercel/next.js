@@ -40,9 +40,11 @@ Set up a Couchbase database either locally or with [Couchbase Cloud](https://clo
 
 Local installation can be accomplished through a variety of methods, but [Docker](https://docs.couchbase.com/server/current/install/getting-started-docker.html) is the simplest.
 
-After Couchbase is installed, set up a cluster using [this tutorial](https://docs.couchbase.com/server/current/manage/manage-nodes/create-cluster.html). - _NOTE:_ the **eventing** and **analytics** services can be unchecked if memory is a constraint (this is often the case with docker and other local installations).
+After Couchbase is installed, set up a cluster by following [this tutorial](https://docs.couchbase.com/server/current/manage/manage-nodes/create-cluster.html).
 
-A variety of sample buckets can be installed to get up and running with a data model quickly. We've built an example query based on the `travel-sample`. See [instructions on adding sample buckets](https://docs.couchbase.com/server/current/manage/manage-settings/install-sample-buckets.html) for more info.
+- _NOTE:_ the **eventing** and **analytics** services can be unchecked if memory is a constraint (this is often the case with docker and other local installations).
+
+A variety of sample buckets can be installed to get up and running with a data model quickly.
 
 ### Set up environment variables
 
@@ -76,8 +78,6 @@ You will either see a message stating "You are connected to Couchbase" or "You a
 
 When you are successfully connected, you can refer to the [Couchbase Node.js SDK docs](https://docs.couchbase.com/nodejs-sdk/current/hello-world/start-using-sdk.html) for further instructions on how to query your database.
 
-_NOTE_: this project is pre-populated with a test query. If you have loaded the `travel-sample` bucket, the query will run successfully, and you should see a list of airlines on the index page.
-
 ## Deploy on Vercel
 
 You can deploy this app to the cloud with [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
@@ -93,6 +93,3 @@ To deploy your local project to Vercel, push it to GitHub/GitLab/Bitbucket and [
 - For a cloud deployment on Vercel, the **Environment Variables** values will need to **correspond to a cloud instance of Couchbase** (localhost will **NOT** connect from a remote server such as Vercel). Find info on [getting started with Couchbase cloud](https://developer.couchbase.com/tutorial-cloud-getting-started/).
 
   - _Important:_ you will have to allowlist 0.0.0.0/0 as the IP address, since Vercel's serverless deployments use [dynamic IP addresses](https://vercel.com/docs/solutions/databases#allowing-&-blocking-ip-addresses)
-
-- This project is pre-populated with a test query on the `travel-sample` example bucket. If you have loaded the `travel-sample` bucket, the query will run successfully, and you should see a list of airlines on the index page.
-  - See notes on adding [sample buckets](https://docs.couchbase.com/server/current/manage/manage-settings/install-sample-buckets.html) for more info.
