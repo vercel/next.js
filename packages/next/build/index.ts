@@ -176,7 +176,7 @@ export default async function build(
       telemetry.record(events)
     )
 
-    const ignoreTypeScriptErrors = Boolean(config.typescript?.ignoreBuildErrors)
+    const ignoreTypeScriptErrors = Boolean(config.typescript.ignoreBuildErrors)
     const typeCheckStart = process.hrtime()
     const typeCheckingSpinner = createSpinner({
       prefixText: `${Log.prefixes.info} ${
@@ -216,15 +216,16 @@ export default async function build(
       typeCheckingSpinner.stopAndPersist()
     }
 
-    const ignoreESLint = Boolean(config.eslint?.ignoreDuringBuilds)
-    const lintDirs = config.eslint?.dirs
+    const ignoreESLint = Boolean(config.eslint.ignoreDuringBuilds)
+    const eslintCacheDir = path.join(cacheDir, 'eslint/')
     if (!ignoreESLint && runLint) {
       await nextBuildSpan
         .traceChild('verify-and-lint')
         .traceAsyncFn(async () => {
           await verifyAndLint(
             dir,
-            lintDirs,
+            eslintCacheDir,
+            config.eslint?.dirs,
             config.experimental.cpus,
             config.experimental.workerThreads,
             telemetry
