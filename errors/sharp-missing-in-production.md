@@ -2,7 +2,7 @@
 
 #### Why This Error Occurred
 
-The `next/image` component's default loader uses [`squoosh`](https://www.npmjs.com/package/@squoosh/lib) because it is quick to install and suitable for a development environment. For a production environment using `next start`, it is strongly recommended that you install [`sharp`](https://www.npmjs.com/package/sharp) by running `yarn add sharp` in your project directory.
+The `next/image` component's default loader uses [`squoosh`](https://www.npmjs.com/package/@squoosh/lib) because it is quick to install and suitable for a development environment. For a production environment using `next start`, it is strongly recommended you install [`sharp`](https://www.npmjs.com/package/sharp) by running `yarn add sharp` in your project directory.
 
 You are seeing this error because Image Optimization in production mode (`next start`) was detected.
 
