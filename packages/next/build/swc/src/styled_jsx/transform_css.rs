@@ -47,18 +47,21 @@ struct Namespacer {
 impl VisitMut for Namespacer {
   fn visit_mut_compound_selector(&mut self, node: &mut CompoundSelector) {
     let mut global_selector = None;
+    let mut pseudo_index = None;
     for i in 0..node.subclass_selectors.len() {
       let selector = &node.subclass_selectors[i];
       if let SubclassSelector::Pseudo(PseudoSelector { name, args, .. }) = selector {
         if &name.value == "global" {
           if args.tokens.len() != 1 {
-            panic!("Passing more than just type selector passed to global is not supported yet");
+            panic!("Passing something other than one type selector to global is not supported yet");
           }
           for token_and_span in &args.tokens {
             if let Token::Ident(ident) = &token_and_span.token {
               global_selector = Some(ident);
             }
           }
+        } else if let None = pseudo_index {
+          pseudo_index = Some(i);
         }
       }
     }
@@ -75,15 +78,20 @@ impl VisitMut for Namespacer {
       node.subclass_selectors.clear();
     } else if !self.is_global {
       // should this check come earlier?
-      node
-        .subclass_selectors
-        .push(SubclassSelector::Class(ClassSelector {
+      let insert_index = match pseudo_index {
+        None => node.subclass_selectors.len(),
+        Some(i) => i,
+      };
+      node.subclass_selectors.insert(
+        insert_index,
+        SubclassSelector::Class(ClassSelector {
           span: DUMMY_SP,
           text: Text {
             value: self.class_name.clone().into(),
             span: DUMMY_SP,
           },
-        }));
+        }),
+      );
     }
   }
 }

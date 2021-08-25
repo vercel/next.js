@@ -20,7 +20,7 @@ export default () => (
         color: blue;
       }
       
-      // TODO
+      // TODO need to support complex global args
       // :global(.foo + a) {
       //   color: red;
       // }
@@ -57,7 +57,7 @@ export default () => (
         margin: auto
       }
       
-      // TODO
+      // TODO need to support complex global args
       // p :global(span:not(.test)) {
       //   color: green
       // }
@@ -73,26 +73,25 @@ export default () => (
         animation: hahaha 1s, hehehe 2s;
       }
       
-      // TODO: class name needs to go before pseudos
-      // p:hover {
-      //   color: red;
-      // }
+      p:hover {
+        color: red;
+      }
       
-      // p::before {
-      //   color: red;
-      // }
+      p::before {
+        color: red;
+      }
       
-      // :hover {
-      //   color: red;
-      // }
+      :hover {
+        color: red;
+      }
       
-      // ::before {
-      //   color: red;
-      // }
+      ::before {
+        color: red;
+      }
       
-      // :hover p {
-      //   color: red;
-      // }
+      :hover p {
+        color: red;
+      }
       
       p + a {
         color: red;
@@ -156,12 +155,11 @@ export default () => (
         color: red;
       }
       
-      // TODO
-      // .a-selector:hover,
-      // .a-selector:focus
-      // {
-      //   outline: none;
-      // }
+      .a-selector:hover,
+      .a-selector:focus
+      {
+        outline: none;
+      }
       
       @media (min-width: 1px) and (max-width: 768px) {
         [class*='grid__col--'] {
