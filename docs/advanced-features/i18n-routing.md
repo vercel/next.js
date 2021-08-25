@@ -234,9 +234,9 @@ Next.js doesn't know about variants of a page so it's up to you to add the `href
 
 > Note that Internationalized Routing does not integrate with [`next export`](/docs/advanced-features/static-html-export.md) as `next export` does not leverage the Next.js routing layer. Hybrid Next.js applications that do not use `next export` are fully supported.
 
-### Dynamic getStaticProps Pages
+### Dynamic Routes and `getStaticProps` Pages
 
-For dynamic `getStaticProps` pages, any locale variants of the page that is desired to be prerendered needs to be returned from [`getStaticPaths`](/docs/basic-features/data-fetching.md#getstaticpaths-static-generation). Along with the `params` object that can be returned for the `paths`, you can also return a `locale` field specifying which locale you want to render. For example:
+For pages using `getStaticProps` with [Dynamic Routes](/docs/routing/dynamic-routes.md), all locale variants of the page desired to be prerendered need to be returned from [`getStaticPaths`](/docs/basic-features/data-fetching.md#getstaticpaths-static-generation). Along with the `params` object returned for `paths`, you can also return a `locale` field specifying which locale you want to render. For example:
 
 ```js
 // pages/blog/[slug].js
@@ -252,11 +252,11 @@ export const getStaticPaths = ({ locales }) => {
 }
 ```
 
-For automatically statically optimized and non-dynamic `getStaticProps` pages a version of the page will be generated for each locale. This is important to consider since it can increase build times depending on how many locales are configured and what data fetching is being done inside of `getStaticProps`.
+For [Automatically Statically Optimized](/docs/advanced-features/automatic-static-optimization.md) and non-dynamic `getStaticProps` pages, **a version of the page will be generated for each locale**. This is important to consider because it can increase build times depending on how many locales are configured inside `getStaticProps`.
 
-If you have 50 locales configured with 10 non-dynamic pages with `getStaticProps` this means `getStaticProps` will be called 500 times and 50 versions of these 10 pages will be generated during each build.
+For example, if you have 50 locales configured with 10 non-dynamic pages using `getStaticProps`, this means `getStaticProps` will be called 500 times. 50 versions of the 10 pages will be generated during each build.
 
-To improve the performance of generating these pages during build time dynamic pages with `getStaticProps` and [a `fallback` mode](https://nextjs.org/docs/basic-features/data-fetching#fallback-true) can be leveraged instead. This allows you to return only the most popular paths and locales from `getStaticPaths` to prerender during the build and then lazily build the rest during runtime when they are requested.
+To decrease the build time of dynamic pages with `getStaticProps`, use a [`fallback` mode](https://nextjs.org/docs/basic-features/data-fetching#fallback-true). This allows you to return only the most popular paths and locales from `getStaticPaths` for prerendering during the build. Then, Next.js will build the remaining pages at runtime as they are requested.
 
 ### Automatically Statically Optimized Pages
 
@@ -294,4 +294,4 @@ export async function getStaticProps({ locale }) {
 - `locales`: 100 total locales
 - `domains`: 100 total locale domain items
 
-> These limits are initial to provide a upper bound on how many locales should be configured to prevent performance impacts, we will re-visit these if they appear to be too low for valid use cases.
+> **Note:** These limits have been added initially to prevent potential [performance issues at build time](#dynamic-routes-and-getStaticProps-pages). We are continuing to evaluate if these limits are sufficient.
