@@ -5,7 +5,6 @@ import { Transform, TransformCallback } from 'stream'
 import bfj from 'next/dist/compiled/bfj'
 import { spans } from './profiling-plugin'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
-import { trace } from '../../../telemetry/trace'
 
 const STATS_VERSION = 0
 
