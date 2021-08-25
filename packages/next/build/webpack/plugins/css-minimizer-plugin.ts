@@ -71,9 +71,8 @@ export class CssMinimizerPlugin {
           },
           async (assets: any) => {
             const compilerSpan = spans.get(compiler)
-            const cssMinimizerSpan = trace(
-              'css-minimizer-plugin',
-              compilerSpan?.id
+            const cssMinimizerSpan = compilerSpan!.traceChild(
+              'css-minimizer-plugin'
             )
             cssMinimizerSpan.setAttribute('webpackVersion', 5)
 
@@ -83,7 +82,7 @@ export class CssMinimizerPlugin {
                 files
                   .filter((file) => CSS_REGEX.test(file))
                   .map(async (file) => {
-                    const assetSpan = trace('minify-css', cssMinimizerSpan.id)
+                    const assetSpan = cssMinimizerSpan.traceChild('minify-css')
                     assetSpan.setAttribute('file', file)
 
                     return assetSpan.traceAsyncFn(async () => {
