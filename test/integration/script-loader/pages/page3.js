@@ -4,11 +4,10 @@ const Page = () => {
   return (
     <div class="container">
       <Script id="inline-script">
-        {`(window.onload = function () {
-            const newDiv = document.createElement('div')
-            newDiv.id = 'onload-div'
-            document.querySelector('body').appendChild(newDiv)
-          })`}
+        {`const newDiv = document.createElement('div')
+          newDiv.id = 'onload-div'
+          document.querySelector('body').appendChild(newDiv)
+        `}
       </Script>
       <Script
         id="scriptLazyOnload"

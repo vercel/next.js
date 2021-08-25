@@ -258,6 +258,22 @@ export function sendData(
     return
   }
 
+  // strip irrelevant headers/body
+  if (res.statusCode === 204 || res.statusCode === 304) {
+    res.removeHeader('Content-Type')
+    res.removeHeader('Content-Length')
+    res.removeHeader('Transfer-Encoding')
+
+    if (process.env.NODE_ENV === 'development' && body) {
+      console.warn(
+        `A body was attempted to be set with a 204 statusCode for ${req.url}, this is invalid and the body was ignored.\n` +
+          `See more info here https://nextjs.org/docs/messages/invalid-api-status-body`
+      )
+    }
+    res.end()
+    return
+  }
+
   const contentType = res.getHeader('Content-Type')
 
   if (body instanceof Stream) {

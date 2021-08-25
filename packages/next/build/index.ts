@@ -130,11 +130,13 @@ export default async function build(
     const config: NextConfigComplete = await nextBuildSpan
       .traceChild('load-next-config')
       .traceAsyncFn(() => loadConfig(PHASE_PRODUCTION_BUILD, dir, conf))
+    const distDir = path.join(dir, config.distDir)
+    setGlobal('distDir', distDir)
+
     const { target } = config
     const buildId: string = await nextBuildSpan
       .traceChild('generate-buildid')
       .traceAsyncFn(() => generateBuildId(config.generateBuildId, nanoid))
-    const distDir = path.join(dir, config.distDir)
 
     const customRoutes: CustomRoutes = await nextBuildSpan
       .traceChild('load-custom-routes')
@@ -176,7 +178,7 @@ export default async function build(
       telemetry.record(events)
     )
 
-    const ignoreTypeScriptErrors = Boolean(config.typescript?.ignoreBuildErrors)
+    const ignoreTypeScriptErrors = Boolean(config.typescript.ignoreBuildErrors)
     const typeCheckStart = process.hrtime()
     const typeCheckingSpinner = createSpinner({
       prefixText: `${Log.prefixes.info} ${
@@ -216,7 +218,7 @@ export default async function build(
       typeCheckingSpinner.stopAndPersist()
     }
 
-    const ignoreESLint = Boolean(config.eslint?.ignoreDuringBuilds)
+    const ignoreESLint = Boolean(config.eslint.ignoreDuringBuilds)
     const eslintCacheDir = path.join(cacheDir, 'eslint/')
     if (!ignoreESLint && runLint) {
       await nextBuildSpan
