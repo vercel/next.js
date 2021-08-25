@@ -1,5 +1,4 @@
 import { getOptions } from 'next/dist/compiled/loader-utils'
-import { trace } from '../../../telemetry/trace'
 import { Span } from '../../../telemetry/trace'
 import transform from './transform'
 import { NextJsLoaderContext } from './types'
