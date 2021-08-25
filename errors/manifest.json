@@ -454,6 +454,10 @@
         {
           "title": "next-config-error",
           "path": "/errors/next-config-error.md"
+        },
+        {
+          "title": "invalid-api-status-body",
+          "path": "/errors/invalid-api-status-body.md"
         }
       ]
     }
