@@ -40,7 +40,7 @@ const nextBabelLoaderOuter = function nextBabelLoaderOuter(
 ) {
   const callback = this.async()
 
-  const loaderSpan = trace('next-babel-turbo-loader', this.currentTraceSpan?.id)
+  const loaderSpan = this.currentTraceSpan.traceChild('next-babel-turbo-loader')
   loaderSpan
     .traceAsyncFn(() =>
       nextBabelLoader.call(this, loaderSpan, inputSource, inputSourceMap)

@@ -242,7 +242,7 @@ export default async function getBaseWebpackConfig(
     entrypoints: WebpackEntrypoints
     rewrites: CustomRoutes['rewrites']
     isDevFallback?: boolean
-    runWebpackSpan?: Span
+    runWebpackSpan: Span
   }
 ): Promise<webpack.Configuration> {
   const hasRewrites =
