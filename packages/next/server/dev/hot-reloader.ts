@@ -27,6 +27,7 @@ import { difference } from '../../build/utils'
 import { NextConfigComplete } from '../config-shared'
 import { CustomRoutes } from '../../lib/load-custom-routes'
 import { DecodeError } from '../../shared/lib/utils'
+import { Span, trace } from '../../telemetry/trace'
 
 export async function renderScriptError(
   res: ServerResponse,
@@ -143,6 +144,7 @@ export default class HotReloader {
   private watcher: any
   private rewrites: CustomRoutes['rewrites']
   private fallbackWatcher: any
+  private hotReloaderSpan: Span
   public isWebpack5: any
 
   constructor(
@@ -174,6 +176,7 @@ export default class HotReloader {
     this.previewProps = previewProps
     this.rewrites = rewrites
     this.isWebpack5 = isWebpack5
+    this.hotReloaderSpan = trace('hot-reloader')
   }
 
   public async run(
@@ -283,6 +286,7 @@ export default class HotReloader {
         pagesDir: this.pagesDir,
         rewrites: this.rewrites,
         entrypoints: entrypoints.client,
+        runWebpackSpan: this.hotReloaderSpan,
       }),
       getBaseWebpackConfig(this.dir, {
         dev: true,
@@ -292,6 +296,7 @@ export default class HotReloader {
         pagesDir: this.pagesDir,
         rewrites: this.rewrites,
         entrypoints: entrypoints.server,
+        runWebpackSpan: this.hotReloaderSpan,
       }),
     ])
   }
@@ -300,6 +305,7 @@ export default class HotReloader {
     if (this.fallbackWatcher) return
 
     const fallbackConfig = await getBaseWebpackConfig(this.dir, {
+      runWebpackSpan: this.hotReloaderSpan,
       dev: true,
       isServer: false,
       config: this.config,
