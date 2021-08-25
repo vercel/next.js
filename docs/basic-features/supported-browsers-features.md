@@ -20,7 +20,7 @@ In addition, to reduce bundle size, Next.js will only load these polyfills for b
 
 ### Server-Side Polyfills
 
-In addition to `fetch()` on the client side, Next.js polyfills `fetch()` in the Node.js environment. You can use `fetch()` on your server code (such as `getStaticProps`) without using polyfills such as `isomorphic-unfetch` or `node-fetch`.
+In addition to `fetch()` on the client-side, Next.js polyfills `fetch()` in the Node.js environment. You can use `fetch()` in your server code (such as `getStaticProps`/`getServerSideProps`) without using polyfills such as `isomorphic-unfetch` or `node-fetch`.
 
 ### Custom Polyfills
 

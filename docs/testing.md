@@ -179,6 +179,7 @@ module.exports = {
     '^.+\\.(jpg|jpeg|png|gif|webp|svg)$': '<rootDir>/__mocks__/fileMock.js',
   },
   testPathIgnorePatterns: ['<rootDir>/node_modules/', '<rootDir>/.next/'],
+  testEnvironment: 'jsdom',
   transform: {
     // Use babel-jest to transpile tests with the next/babel preset
     // https://jestjs.io/docs/configuration#transform-objectstring-pathtotransformer--pathtotransformer-object
@@ -276,16 +277,16 @@ Your project is now ready to run tests. Follow Jests convention by adding tests 
 For example, we can add a test to check if the `<Index />` component successfully renders a heading:
 
 ```jsx
-// __tests__/testing-library.js
+// __tests__/index.test.jsx
 import React from 'react'
-import { render } from '@testing-library/react'
-import Index from '../pages/index'
+import { render, screen } from '@testing-library/react'
+import Home from '../pages/index'
 
-describe('App', () => {
+describe('Home', () => {
   it('renders a heading', () => {
-    const { getByRole } = render(<Index />)
+    render(<Home />)
 
-    const heading = getByRole('heading', {
+    const heading = screen.getByRole('heading', {
       name: /welcome to next\.js!/i,
     })
 
