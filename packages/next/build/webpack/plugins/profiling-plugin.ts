@@ -109,8 +109,10 @@ export class ProfilingPlugin {
         let span: Span
 
         const spanName = `build-module${moduleType ? `-${moduleType}` : ''}`
-        if (issuerModule) {
-          span = spans.get(issuerModule)!.traceChild(spanName)
+        const issuerSpan: Span | undefined =
+          issuerModule && spans.get(issuerModule)
+        if (issuerSpan) {
+          span = issuerSpan.traceChild(spanName)
         } else {
           span = compilerSpan.traceChild(spanName)
         }
