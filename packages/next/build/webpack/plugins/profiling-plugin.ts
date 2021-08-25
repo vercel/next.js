@@ -15,9 +15,9 @@ function getNormalModuleLoaderHook(compilation: any) {
 
 export class ProfilingPlugin {
   compiler: any
-  runWebpackSpan: Span | undefined
+  runWebpackSpan: Span
 
-  constructor({ runWebpackSpan }: { runWebpackSpan: Span | undefined }) {
+  constructor({ runWebpackSpan }: { runWebpackSpan: Span }) {
     this.runWebpackSpan = runWebpackSpan
   }
   apply(compiler: any) {
@@ -35,14 +35,17 @@ export class ProfilingPlugin {
       attrs,
       onSetSpan,
     }: {
-      parentSpan?: () => Span | undefined
+      parentSpan?: () => Span
       attrs?: any
       onSetSpan?: (span: Span) => void
     } = {}
   ) {
     let span: Span | undefined
     startHook.tap(pluginName, () => {
-      span = trace(spanName, parentSpan?.()?.id, attrs ? attrs() : attrs)
+      span = parentSpan
+        ? parentSpan().traceChild(spanName, attrs ? attrs() : attrs)
+        : trace(spanName, undefined, attrs ? attrs() : attrs)
+
       onSetSpan?.(span)
     })
     stopHook.tap(pluginName, () => {
@@ -103,10 +106,16 @@ export class ProfilingPlugin {
 
         const issuerModule = compilation?.moduleGraph?.getIssuer(module)
 
-        const span = trace(
-          `build-module${moduleType ? `-${moduleType}` : ''}`,
-          issuerModule ? spans.get(issuerModule)?.id : compilerSpan.id
-        )
+        let span: Span
+
+        const spanName = `build-module${moduleType ? `-${moduleType}` : ''}`
+        const issuerSpan: Span | undefined =
+          issuerModule && spans.get(issuerModule)
+        if (issuerSpan) {
+          span = issuerSpan.traceChild(spanName)
+        } else {
+          span = compilerSpan.traceChild(spanName)
+        }
         span.setAttribute('name', module.userRequest)
         spans.set(module, span)
       })
