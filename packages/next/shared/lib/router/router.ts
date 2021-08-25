@@ -42,23 +42,23 @@ declare global {
   }
 }
 
-interface RouteProperties {
+export interface RouteProperties {
   shallow: boolean
 }
 
-interface TransitionOptions {
+export interface TransitionOptions {
   shallow?: boolean
   locale?: string | false
   scroll?: boolean
 }
 
-interface NextHistoryState {
+export interface NextHistoryState {
   url: string
   as: string
   options: TransitionOptions
 }
 
-type HistoryState =
+export type HistoryState =
   | null
   | { __N: false }
   | ({ __N: true; idx: number } & NextHistoryState)
