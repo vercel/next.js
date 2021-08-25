@@ -13,8 +13,17 @@ pub fn styled_jsx() -> impl Fold {
   StyledJSXTransformer::default()
 }
 
+#[derive(Debug)]
+pub struct JSXStyleInfo {
+  hash: String,
+  css: String,
+  css_span: Span,
+  is_global: bool,
+}
+
 #[derive(Debug, Default)]
 struct StyledJSXTransformer {
+  styles: Vec<JSXStyleInfo>,
   class_name: Option<String>,
   file_has_styled_jsx: bool,
   has_styled_jsx: bool,
@@ -23,7 +32,9 @@ struct StyledJSXTransformer {
 
 impl Fold for StyledJSXTransformer {
   fn fold_jsx_element(&mut self, mut el: JSXElement) -> JSXElement {
-    if self.has_styled_jsx {
+    if self.has_styled_jsx && is_styled_jsx(&el) {
+      return self.replace_jsx_style(el);
+    } else if self.has_styled_jsx {
       return el.fold_children_with(self);
     }
 
@@ -253,7 +264,7 @@ impl StyledJSXTransformer {
           self.has_styled_jsx = true;
           let style_info = get_jsx_style_info(&child_el);
           style_hashes.push(style_info.hash.clone());
-          children[i] = replace_jsx_style(*child_el.clone(), style_info);
+          self.styles.insert(0, style_info);
         }
       }
     }
@@ -263,6 +274,59 @@ impl StyledJSXTransformer {
     }
 
     children
+  }
+
+  fn replace_jsx_style(&mut self, mut el: JSXElement) -> JSXElement {
+    let style_info = self.styles.pop().unwrap();
+
+    el.opening.name = JSXElementName::Ident(Ident {
+      sym: "_JSXStyle".into(),
+      span: DUMMY_SP,
+      optional: false,
+    });
+    el.closing = if let Some(mut closing) = el.closing {
+      closing.name = JSXElementName::Ident(Ident {
+        sym: "_JSXStyle".into(),
+        span: DUMMY_SP,
+        optional: false,
+      });
+      Some(closing)
+    } else {
+      None
+    };
+    for i in 0..el.opening.attrs.len() {
+      if let JSXAttrOrSpread::JSXAttr(JSXAttr {
+        name: JSXAttrName::Ident(Ident { sym, .. }),
+        ..
+      }) = &el.opening.attrs[i]
+      {
+        if sym == "jsx" {
+          el.opening.attrs[i] = JSXAttrOrSpread::JSXAttr(JSXAttr {
+            name: JSXAttrName::Ident(Ident {
+              sym: "id".into(),
+              span: DUMMY_SP,
+              optional: false,
+            }),
+            value: Some(JSXAttrValue::JSXExprContainer(JSXExprContainer {
+              expr: JSXExpr::Expr(Box::new(string_literal_expr(
+                hash_string(&style_info.hash).clone().as_str(),
+              ))),
+              span: DUMMY_SP,
+            })),
+            span: DUMMY_SP,
+          });
+          break;
+        }
+      }
+    }
+    el.children = vec![JSXElementChild::JSXExprContainer(JSXExprContainer {
+      expr: JSXExpr::Expr(Box::new(string_literal_expr(&transform_css(
+        style_info,
+        &self.class_name,
+      )))),
+      span: DUMMY_SP,
+    })];
+    el
   }
 }
 
@@ -285,13 +349,6 @@ fn is_styled_jsx(el: &JSXElement) -> bool {
     }
     false
   })
-}
-
-pub struct JSXStyleInfo {
-  hash: String,
-  css: String,
-  css_span: Span,
-  is_global: bool,
 }
 
 fn get_jsx_style_info(el: &JSXElement) -> JSXStyleInfo {
@@ -384,58 +441,6 @@ fn get_jsx_style_info(el: &JSXElement) -> JSXStyleInfo {
       .emit()
   });
   panic!("next-swc compilation error");
-}
-
-fn replace_jsx_style(mut el: JSXElement, style_info: JSXStyleInfo) -> JSXElementChild {
-  el.opening.name = JSXElementName::Ident(Ident {
-    sym: "_JSXStyle".into(),
-    span: DUMMY_SP,
-    optional: false,
-  });
-
-  el.closing = if let Some(mut closing) = el.closing {
-    closing.name = JSXElementName::Ident(Ident {
-      sym: "_JSXStyle".into(),
-      span: DUMMY_SP,
-      optional: false,
-    });
-    Some(closing)
-  } else {
-    None
-  };
-
-  for i in 0..el.opening.attrs.len() {
-    if let JSXAttrOrSpread::JSXAttr(JSXAttr {
-      name: JSXAttrName::Ident(Ident { sym, .. }),
-      ..
-    }) = &el.opening.attrs[i]
-    {
-      if sym == "jsx" {
-        el.opening.attrs[i] = JSXAttrOrSpread::JSXAttr(JSXAttr {
-          name: JSXAttrName::Ident(Ident {
-            sym: "id".into(),
-            span: DUMMY_SP,
-            optional: false,
-          }),
-          value: Some(JSXAttrValue::JSXExprContainer(JSXExprContainer {
-            expr: JSXExpr::Expr(Box::new(string_literal_expr(
-              hash_string(&style_info.hash).clone().as_str(),
-            ))),
-            span: DUMMY_SP,
-          })),
-          span: DUMMY_SP,
-        });
-        break;
-      }
-    }
-  }
-
-  el.children = vec![JSXElementChild::JSXExprContainer(JSXExprContainer {
-    expr: JSXExpr::Expr(Box::new(string_literal_expr(&transform_css(style_info)))),
-    span: DUMMY_SP,
-  })];
-
-  JSXElementChild::JSXElement(Box::new(el))
 }
 
 fn add(left: Expr, right: Expr) -> Expr {

@@ -10,7 +10,7 @@ use swc_stylis::prefixer::prefixer;
 
 use super::{hash_string, JSXStyleInfo};
 
-pub fn transform_css(style_info: JSXStyleInfo) -> String {
+pub fn transform_css(style_info: JSXStyleInfo, class_name: &Option<String>) -> String {
   let mut ss: Stylesheet = parse_str(
     &style_info.css,
     style_info.css_span.lo,
@@ -21,7 +21,10 @@ pub fn transform_css(style_info: JSXStyleInfo) -> String {
   )
   .unwrap();
   ss.visit_mut_with(&mut Namespacer {
-    class_name: format!("jsx-{}", &hash_string(&style_info.hash)),
+    class_name: match class_name {
+      Some(s) => s.clone(),
+      None => format!("jsx-{}", &hash_string(&style_info.hash)),
+    },
     is_global: style_info.is_global,
   });
 
