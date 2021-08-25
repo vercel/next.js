@@ -29,6 +29,8 @@ const dirEmptyDirectory = join(__dirname, '../empty-directory')
 const dirEslintIgnore = join(__dirname, '../eslint-ignore')
 const dirNoEslintPlugin = join(__dirname, '../no-eslint-plugin')
 const dirNoConfig = join(__dirname, '../no-config')
+const dirEslintCache = join(__dirname, '../eslint-cache')
+const dirEslintCacheCustomDir = join(__dirname, '../eslint-cache-custom-dir')
 
 describe('ESLint', () => {
   describe('Next Build', () => {
@@ -143,6 +145,35 @@ describe('ESLint', () => {
       expect(output).toContain(
         'The Next.js plugin was not detected in your ESLint configuration'
       )
+    })
+
+    test('eslint caching is enabled', async () => {
+      const cacheDir = join(dirEslintCache, '.next', 'cache')
+
+      await fs.remove(cacheDir)
+      await nextBuild(dirEslintCache, [])
+
+      const files = await fs.readdir(join(cacheDir, 'eslint/'))
+      const cacheExists = files.some((f) => /\.cache/.test(f))
+
+      expect(cacheExists).toBe(true)
+    })
+
+    test('eslint cache lives in the user defined build directory', async () => {
+      const oldCacheDir = join(dirEslintCacheCustomDir, '.next', 'cache')
+      const newCacheDir = join(dirEslintCacheCustomDir, 'build', 'cache')
+
+      await fs.remove(oldCacheDir)
+      await fs.remove(newCacheDir)
+
+      await nextBuild(dirEslintCacheCustomDir, [])
+
+      expect(fs.existsSync(oldCacheDir)).toBe(false)
+
+      const files = await fs.readdir(join(newCacheDir, 'eslint/'))
+      const cacheExists = files.some((f) => /\.cache/.test(f))
+
+      expect(cacheExists).toBe(true)
     })
   })
 
@@ -428,6 +459,53 @@ describe('ESLint', () => {
       )
       expect(stdout).toContain('<script src="https://example.com" />')
       expect(stdout).toContain('2 warnings found')
+    })
+
+    test('eslint caching is enabled by default', async () => {
+      const cacheDir = join(dirEslintCache, '.next', 'cache')
+
+      await fs.remove(cacheDir)
+      await nextLint(dirEslintCache, [])
+
+      const files = await fs.readdir(join(cacheDir, 'eslint/'))
+      const cacheExists = files.some((f) => /\.cache/.test(f))
+
+      expect(cacheExists).toBe(true)
+    })
+
+    test('eslint caching is disabled with the --no-cache flag', async () => {
+      const cacheDir = join(dirEslintCache, '.next', 'cache')
+
+      await fs.remove(cacheDir)
+      await nextLint(dirEslintCache, ['--no-cache'])
+
+      expect(fs.existsSync(join(cacheDir, 'eslint/'))).toBe(false)
+    })
+
+    test('the default eslint cache lives in the user defined build directory', async () => {
+      const oldCacheDir = join(dirEslintCacheCustomDir, '.next', 'cache')
+      const newCacheDir = join(dirEslintCacheCustomDir, 'build', 'cache')
+
+      await fs.remove(oldCacheDir)
+      await fs.remove(newCacheDir)
+
+      await nextLint(dirEslintCacheCustomDir, [])
+
+      expect(fs.existsSync(oldCacheDir)).toBe(false)
+
+      const files = await fs.readdir(join(newCacheDir, 'eslint/'))
+      const cacheExists = files.some((f) => /\.cache/.test(f))
+
+      expect(cacheExists).toBe(true)
+    })
+
+    test('the --cache-location flag allows the user to define a separate cache location', async () => {
+      const cacheFile = join(dirEslintCache, '.eslintcache')
+
+      await fs.remove(cacheFile)
+      await nextLint(dirEslintCache, ['--cache-location', cacheFile])
+
+      expect(fs.existsSync(cacheFile)).toBe(true)
     })
   })
 })
