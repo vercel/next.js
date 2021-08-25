@@ -255,7 +255,7 @@ impl Fold for StyledJSXTransformer {
 }
 
 impl StyledJSXTransformer {
-  fn process_children(&mut self, mut children: Vec<JSXElementChild>) -> Vec<JSXElementChild> {
+  fn process_children(&mut self, children: Vec<JSXElementChild>) -> Vec<JSXElementChild> {
     let mut style_hashes = vec![];
     for i in 0..children.len() {
       if let JSXElementChild::JSXElement(child_el) = &children[i] {

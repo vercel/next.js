@@ -110,15 +110,15 @@ export default () => (
       //   color: red;
       // }
       
-      // @keyframes hahaha {
-      //   from { top: 0 }
-      //   to { top: 100 }
-      // }
+      @keyframes hahaha {
+        from { top: 0 }
+        to { top: 100 }
+      }
       
-      // @keyframes hehehe {
-      //   from { left: 0 }
-      //   to { left: 100 }
-      // }
+      @keyframes hehehe {
+        from { left: 0 }
+        to { left: 100 }
+      }
       
       @media (min-width: 500px) {
         .test {
@@ -135,13 +135,13 @@ export default () => (
         */
       }
       
-      // .inline-flex {
-      //   display: inline-flex;
-      // }
+      .inline-flex {
+        display: inline-flex;
+      }
       
-      // .flex {
-      //   display: flex;
-      // }
+      .flex {
+        display: flex;
+      }
       
       .test {
         box-shadow: 0 0 10px black, inset 0 0 5px black

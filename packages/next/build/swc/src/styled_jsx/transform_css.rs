@@ -1,4 +1,4 @@
-use swc_common::{Span, DUMMY_SP};
+use swc_common::DUMMY_SP;
 use swc_css::ast::*;
 use swc_css::parser::{parse_str, parser::ParserConfig};
 use swc_css::visit::{VisitMut, VisitMutWith};
@@ -20,6 +20,8 @@ pub fn transform_css(style_info: JSXStyleInfo, class_name: &Option<String>) -> S
     },
   )
   .unwrap();
+  // ? Do we need to support optionally prefixing?
+  ss.visit_mut_with(&mut prefixer());
   ss.visit_mut_with(&mut Namespacer {
     class_name: match class_name {
       Some(s) => s.clone(),
