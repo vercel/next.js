@@ -3,7 +3,7 @@ import { randomBytes } from 'crypto'
 import fetch from 'node-fetch'
 import * as Log from '../../../build/output/log'
 
-let traceId = process.env.TRACE_ID
+let traceId: string
 let batch: ReturnType<typeof batcher> | undefined
 
 const localEndpoint = {
@@ -21,7 +21,7 @@ type Event = {
   id: string
   timestamp: number
   duration: number
-  localEndpoint: typeof localEndpoint
+  localEndpoint?: typeof localEndpoint
   tags?: Object
 }
 
@@ -42,8 +42,9 @@ export function batcher(reportEvents: (evts: Event[]) => Promise<void>) {
       events.push(event)
 
       if (events.length > 100) {
-        const report = reportEvents(events.slice())
+        const evts = events.slice()
         events.length = 0
+        const report = reportEvents(evts)
         queue.add(report)
         report.then(() => queue.delete(report))
       }
@@ -60,7 +61,7 @@ const reportToLocalHost = (
   attrs?: Object
 ) => {
   if (!traceId) {
-    traceId = process.env.TRACE_ID = randomBytes(8).toString('hex')
+    traceId = process.env.TRACE_ID || randomBytes(8).toString('hex')
     Log.info(
       `Zipkin trace will be available on ${zipkinUrl}/zipkin/traces/${traceId}`
     )
