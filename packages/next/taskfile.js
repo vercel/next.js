@@ -245,21 +245,6 @@ export async function ncc_cross_spawn(task, opts) {
     .target('compiled/cross-spawn')
 }
 // eslint-disable-next-line camelcase
-externals['css-loader'] = 'next/dist/compiled/css-loader'
-export async function ncc_css_loader(task, opts) {
-  await task
-    .source(opts.src || relative(__dirname, require.resolve('css-loader')))
-    .ncc({
-      packageName: 'css-loader',
-      externals: {
-        ...externals,
-        'schema-utils': 'next/dist/compiled/schema-utils',
-      },
-      target: 'es5',
-    })
-    .target('compiled/css-loader')
-}
-// eslint-disable-next-line camelcase
 externals['debug'] = 'next/dist/compiled/debug'
 export async function ncc_debug(task, opts) {
   await task
@@ -447,20 +432,6 @@ export async function ncc_postcss_flexbugs_fixes(task, opts) {
     )
     .ncc({ packageName: 'postcss-flexbugs-fixes', externals })
     .target('compiled/postcss-flexbugs-fixes')
-}
-// eslint-disable-next-line camelcase
-externals['postcss-loader'] = 'next/dist/compiled/postcss-loader'
-export async function ncc_postcss_loader(task, opts) {
-  await task
-    .source(opts.src || relative(__dirname, require.resolve('postcss-loader')))
-    .ncc({
-      packageName: 'postcss-loader',
-      externals: {
-        ...externals,
-        'schema-utils': 'next/dist/compiled/schema-utils3',
-      },
-    })
-    .target('compiled/postcss-loader')
 }
 // eslint-disable-next-line camelcase
 externals['postcss-preset-env'] = 'next/dist/compiled/postcss-preset-env'
@@ -781,7 +752,6 @@ export async function ncc(task, opts) {
         'ncc_content_type',
         'ncc_cookie',
         'ncc_cross_spawn',
-        'ncc_css_loader',
         'ncc_debug',
         'ncc_devalue',
         'ncc_escape_string_regexp',
@@ -805,7 +775,6 @@ export async function ncc(task, opts) {
         'ncc_neo_async',
         'ncc_ora',
         'ncc_postcss_flexbugs_fixes',
-        'ncc_postcss_loader',
         'ncc_postcss_preset_env',
         'ncc_postcss_scss',
         'ncc_recast',

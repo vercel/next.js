@@ -24,7 +24,7 @@ export function getGlobalCssLoader(
 
   // Resolve CSS `@import`s and `url()`s
   loaders.push({
-    loader: require.resolve('next/dist/compiled/css-loader'),
+    loader: require.resolve('../../../../loaders/css-loader/src'),
     options: {
       importLoaders: 1 + preProcessors.length,
       // Next.js controls CSS Modules eligibility:
@@ -37,7 +37,7 @@ export function getGlobalCssLoader(
 
   // Compile CSS
   loaders.push({
-    loader: require.resolve('next/dist/compiled/postcss-loader'),
+    loader: require.resolve('../../../../loaders/postcss-loader/src'),
     options: {
       postcssOptions: { plugins: postCssPlugins, config: false },
     },
