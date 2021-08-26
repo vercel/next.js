@@ -55,7 +55,7 @@ export function getCssModuleLoader(
   loaders.push({
     loader: require.resolve('../../../../loaders/postcss-loader/src'),
     options: {
-      postcssOptions: { plugins: postCssPlugins, config: false },
+      postcssOptions: { plugins: postCssPlugins },
     },
   })
 

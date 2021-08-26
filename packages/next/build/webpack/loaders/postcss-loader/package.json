@@ -1,9 +1,0 @@
-{
-  "name": "postcss-loader",
-  "license": "MIT",
-  "dependencies": {
-    "cosmiconfig": "^7.0.0",
-    "klona": "^2.0.4",
-    "semver": "^7.3.5"
-  }
-}

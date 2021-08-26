@@ -11,6 +11,7 @@ function generateStats(
   stat: webpack.Stats
 ): CompilerResult {
   const { errors, warnings } = stat.toJson('errors-warnings')
+  console.log({ errors })
   if (errors.length > 0) {
     result.errors.push(...errors)
   }

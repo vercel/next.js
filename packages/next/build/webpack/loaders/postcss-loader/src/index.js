@@ -1,11 +1,6 @@
 import Warning from './Warning'
 import SyntaxError from './Error'
-import {
-  getPostcssOptions,
-  exec,
-  normalizeSourceMap,
-  normalizeSourceMapAfterPostcss,
-} from './utils'
+import { normalizeSourceMap, normalizeSourceMapAfterPostcss } from './utils'
 import postcssFactory from 'postcss'
 
 /**
@@ -28,15 +23,17 @@ export default async function loader(content, sourceMap, meta) {
   loaderSpan
     .traceAsyncFn(async () => {
       const options = this.getOptions()
+      const file = this.resourcePath
 
       const useSourceMap =
         typeof options.sourceMap !== 'undefined'
           ? options.sourceMap
           : this.sourceMap
 
-      const { plugins, processOptions } = await loaderSpan
-        .traceChild('get-postcss-options')
-        .traceAsyncFn(() => getPostcssOptions(this, {}, options.postcssOptions))
+      const processOptions = {
+        from: file,
+        to: file,
+      }
 
       if (useSourceMap) {
         processOptions.map = {
@@ -59,18 +56,13 @@ export default async function loader(content, sourceMap, meta) {
         ;({ root } = meta.ast)
       }
 
-      if (!root && options.execute) {
-        // eslint-disable-next-line no-param-reassign
-        content = exec(content, this)
-      }
-
       let result
       let processor
 
       try {
         processor = loaderSpan
           .traceChild('postcss-factory')
-          .traceFn(() => postcssFactory(plugins))
+          .traceFn(() => postcssFactory(options.postcssOptions.plugins))
         result = await loaderSpan
           .traceChild('postcss-process')
           .traceAsyncFn(() =>
