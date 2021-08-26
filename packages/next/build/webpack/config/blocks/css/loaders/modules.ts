@@ -4,6 +4,7 @@ import { ConfigurationContext } from '../../../utils'
 import { getClientStyleLoader } from './client'
 import { cssFileResolve } from './file-resolve'
 import { getCssModuleLocalIdent } from './getCssModuleLocalIdent'
+import postcss from 'postcss'
 
 export function getCssModuleLoader(
   ctx: ConfigurationContext,
@@ -25,7 +26,7 @@ export function getCssModuleLoader(
 
   // Resolve CSS `@import`s and `url()`s
   loaders.push({
-    loader: require.resolve('../../../../loaders/css-loader/src'),
+    loader: require.resolve('css-loader'),
     options: {
       importLoaders: 1 + preProcessors.length,
       // Use CJS mode for backwards compatibility:
@@ -55,7 +56,7 @@ export function getCssModuleLoader(
   loaders.push({
     loader: require.resolve('../../../../loaders/postcss-loader/src'),
     options: {
-      postcssOptions: { plugins: postCssPlugins },
+      postcss: postcss(postCssPlugins),
     },
   })
 

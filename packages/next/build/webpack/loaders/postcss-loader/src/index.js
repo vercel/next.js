@@ -1,7 +1,6 @@
 import Warning from './Warning'
 import SyntaxError from './Error'
 import { normalizeSourceMap, normalizeSourceMapAfterPostcss } from './utils'
-import postcssFactory from 'postcss'
 
 /**
  * **PostCSS Loader**
@@ -57,16 +56,12 @@ export default async function loader(content, sourceMap, meta) {
       }
 
       let result
-      let processor
 
       try {
-        processor = loaderSpan
-          .traceChild('postcss-factory')
-          .traceFn(() => postcssFactory(options.postcssOptions.plugins))
         result = await loaderSpan
           .traceChild('postcss-process')
           .traceAsyncFn(() =>
-            processor.process(root || content, processOptions)
+            options.postcss.process(root || content, processOptions)
           )
       } catch (error) {
         if (error.file) {
@@ -130,7 +125,10 @@ export default async function loader(content, sourceMap, meta) {
       return [result.css, map, { ast }]
     })
     .then(
-      ([css, map, { ast }]) => callback?.(null, css, map, { ast }),
+      ([css, map, { ast }]) => {
+        console.log({ css })
+        callback?.(null, css, map, { ast })
+      },
       (err) => {
         callback?.(err)
       }

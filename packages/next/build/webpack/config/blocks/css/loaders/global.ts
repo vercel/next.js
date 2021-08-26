@@ -3,10 +3,11 @@ import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { ConfigurationContext } from '../../../utils'
 import { getClientStyleLoader } from './client'
 import { cssFileResolve } from './file-resolve'
+import postcss from 'postcss'
 
 export function getGlobalCssLoader(
   ctx: ConfigurationContext,
-  postCssPlugins: readonly AcceptedPlugin[],
+  postCssPlugins: AcceptedPlugin[],
   preProcessors: readonly webpack.RuleSetUseItem[] = []
 ): webpack.RuleSetUseItem[] {
   const loaders: webpack.RuleSetUseItem[] = []
@@ -24,7 +25,7 @@ export function getGlobalCssLoader(
 
   // Resolve CSS `@import`s and `url()`s
   loaders.push({
-    loader: require.resolve('../../../../loaders/css-loader/src'),
+    loader: require.resolve('css-loader'),
     options: {
       importLoaders: 1 + preProcessors.length,
       // Next.js controls CSS Modules eligibility:
@@ -39,7 +40,7 @@ export function getGlobalCssLoader(
   loaders.push({
     loader: require.resolve('../../../../loaders/postcss-loader/src'),
     options: {
-      postcssOptions: { plugins: postCssPlugins },
+      postcss: postcss(postCssPlugins),
     },
   })
 
