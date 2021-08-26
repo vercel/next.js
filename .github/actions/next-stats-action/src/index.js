@@ -110,7 +110,9 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
         if (statsConfig.initialBuildCommand) {
           buildCommand += ` && ${statsConfig.initialBuildCommand}`
         }
-        await exec(buildCommand)
+        // allow 5 minutes node_modules install + building all packages
+        // in case of noisy environment slowing down initial repo build
+        await exec(buildCommand, false, { timeout: 5 * 60 * 1000 })
       }
 
       logger(`Linking packages in ${dir}`)

@@ -5,7 +5,6 @@ import { Transform, TransformCallback } from 'stream'
 import bfj from 'next/dist/compiled/bfj'
 import { spans } from './profiling-plugin'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
-import { trace } from '../../../telemetry/trace'
 
 const STATS_VERSION = 0
 
@@ -118,7 +117,7 @@ export default class BuildStatsPlugin {
       async (stats, callback) => {
         const compilerSpan = spans.get(compiler)
         try {
-          const writeStatsSpan = trace('NextJsBuildStats', compilerSpan?.id)
+          const writeStatsSpan = compilerSpan!.traceChild('NextJsBuildStats')
           await writeStatsSpan.traceAsyncFn(() => {
             return new Promise((resolve, reject) => {
               const statsJson = reduceSize(

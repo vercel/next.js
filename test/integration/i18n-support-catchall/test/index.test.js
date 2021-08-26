@@ -291,7 +291,7 @@ describe('i18n Support Root Catch-all', () => {
         headers: {
           'x-vercel-id': 'hi',
           'x-now-route-matches': qs.stringify({
-            '1': 'nl-NL',
+            1: 'nl-NL',
           }),
         },
         redirect: 'manual',

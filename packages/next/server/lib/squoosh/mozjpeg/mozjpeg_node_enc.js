@@ -736,9 +736,10 @@ var Module = (function () {
             " args!');\n}\n"
           y && (n += 'var destructors = [];\n')
           var T = y ? 'destructors' : 'null'
-          z = 'throwBindingError invoker fn runDestructors retType classParam'.split(
-            ' '
-          )
+          z =
+            'throwBindingError invoker fn runDestructors retType classParam'.split(
+              ' '
+            )
           l = [W, l, g, Ka, k[0], k[1]]
           x &&
             (n += 'var thisWired = classParam.toWireType(' + T + ', this);\n')
@@ -889,24 +890,26 @@ var Module = (function () {
               e instanceof Uint8ClampedArray ||
               e instanceof Int8Array ||
               W('Cannot pass non-string to std::string')
-            var m = (c && g
-                ? function () {
-                    for (var n = 0, l = 0; l < e.length; ++l) {
-                      var p = e.charCodeAt(l)
-                      55296 <= p &&
-                        57343 >= p &&
-                        (p =
-                          (65536 + ((p & 1023) << 10)) |
-                          (e.charCodeAt(++l) & 1023))
-                      127 >= p
-                        ? ++n
-                        : (n = 2047 >= p ? n + 2 : 65535 >= p ? n + 3 : n + 4)
+            var m = (
+                c && g
+                  ? function () {
+                      for (var n = 0, l = 0; l < e.length; ++l) {
+                        var p = e.charCodeAt(l)
+                        55296 <= p &&
+                          57343 >= p &&
+                          (p =
+                            (65536 + ((p & 1023) << 10)) |
+                            (e.charCodeAt(++l) & 1023))
+                        127 >= p
+                          ? ++n
+                          : (n = 2047 >= p ? n + 2 : 65535 >= p ? n + 3 : n + 4)
+                      }
+                      return n
                     }
-                    return n
-                  }
-                : function () {
-                    return e.length
-                  })(),
+                  : function () {
+                      return e.length
+                    }
+              )(),
               h = sb(4 + m + 1)
             I[h >> 2] = m
             if (c && g) pa(e, h + 4, m + 1)
@@ -1175,13 +1178,14 @@ var Module = (function () {
           'function' !== typeof fetch
           ? c(b)
           : fetch(M, { credentials: 'same-origin' }).then(function (e) {
-              return WebAssembly.instantiateStreaming(e, d).then(b, function (
-                g
-              ) {
-                v('wasm streaming compile failed: ' + g)
-                v('falling back to ArrayBuffer instantiation')
-                return c(b)
-              })
+              return WebAssembly.instantiateStreaming(e, d).then(
+                b,
+                function (g) {
+                  v('wasm streaming compile failed: ' + g)
+                  v('falling back to ArrayBuffer instantiation')
+                  return c(b)
+                }
+              )
             })
       })().catch(ba)
       return {}

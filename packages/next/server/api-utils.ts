@@ -258,6 +258,22 @@ export function sendData(
     return
   }
 
+  // strip irrelevant headers/body
+  if (res.statusCode === 204 || res.statusCode === 304) {
+    res.removeHeader('Content-Type')
+    res.removeHeader('Content-Length')
+    res.removeHeader('Transfer-Encoding')
+
+    if (process.env.NODE_ENV === 'development' && body) {
+      console.warn(
+        `A body was attempted to be set with a 204 statusCode for ${req.url}, this is invalid and the body was ignored.\n` +
+          `See more info here https://nextjs.org/docs/messages/invalid-api-status-body`
+      )
+    }
+    res.end()
+    return
+  }
+
   const contentType = res.getHeader('Content-Type')
 
   if (body instanceof Stream) {
@@ -352,7 +368,8 @@ export function tryGetPreviewData(
 
   const tokenPreviewData = cookies[COOKIE_NAME_PRERENDER_DATA]
 
-  const jsonwebtoken = require('next/dist/compiled/jsonwebtoken') as typeof import('jsonwebtoken')
+  const jsonwebtoken =
+    require('next/dist/compiled/jsonwebtoken') as typeof import('jsonwebtoken')
   let encryptedPreviewData: {
     data: string
   }
@@ -407,7 +424,8 @@ function setPreviewData<T>(
     throw new Error('invariant: invalid previewModeSigningKey')
   }
 
-  const jsonwebtoken = require('next/dist/compiled/jsonwebtoken') as typeof import('jsonwebtoken')
+  const jsonwebtoken =
+    require('next/dist/compiled/jsonwebtoken') as typeof import('jsonwebtoken')
 
   const payload = jsonwebtoken.sign(
     {
@@ -433,9 +451,8 @@ function setPreviewData<T>(
     )
   }
 
-  const {
-    serialize,
-  } = require('next/dist/compiled/cookie') as typeof import('cookie')
+  const { serialize } =
+    require('next/dist/compiled/cookie') as typeof import('cookie')
   const previous = res.getHeader('Set-Cookie')
   res.setHeader(`Set-Cookie`, [
     ...(typeof previous === 'string'
@@ -470,9 +487,8 @@ function clearPreviewData<T>(res: NextApiResponse<T>): NextApiResponse<T> {
     return res
   }
 
-  const {
-    serialize,
-  } = require('next/dist/compiled/cookie') as typeof import('cookie')
+  const { serialize } =
+    require('next/dist/compiled/cookie') as typeof import('cookie')
   const previous = res.getHeader('Set-Cookie')
   res.setHeader(`Set-Cookie`, [
     ...(typeof previous === 'string'

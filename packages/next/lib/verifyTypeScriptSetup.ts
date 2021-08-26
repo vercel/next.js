@@ -13,6 +13,13 @@ import { getTypeScriptIntent } from './typescript/getTypeScriptIntent'
 import { TypeCheckResult } from './typescript/runTypeCheck'
 import { writeAppTypeDeclarations } from './typescript/writeAppTypeDeclarations'
 import { writeConfigurationDefaults } from './typescript/writeConfigurationDefaults'
+import { missingDepsError } from './typescript/missingDependencyError'
+
+const requiredPackages = [
+  { file: 'typescript', pkg: 'typescript' },
+  { file: '@types/react/index.d.ts', pkg: '@types/react' },
+  { file: '@types/node/index.d.ts', pkg: '@types/node' },
+]
 
 export async function verifyTypeScriptSetup(
   dir: string,
@@ -29,14 +36,16 @@ export async function verifyTypeScriptSetup(
     if (!intent) {
       return { version: null }
     }
-    const firstTimeSetup = intent.firstTimeSetup
 
     // Ensure TypeScript and necessary `@types/*` are installed:
     const deps: NecessaryDependencies = await hasNecessaryDependencies(
       dir,
-      !!intent,
-      false
+      requiredPackages
     )
+
+    if (deps.missing?.length > 0) {
+      missingDepsError(dir, deps.missing)
+    }
 
     // Load TypeScript after we're sure it exists:
     const ts = (await import(
@@ -50,7 +59,7 @@ export async function verifyTypeScriptSetup(
     }
 
     // Reconfigure (or create) the user's `tsconfig.json` for them:
-    await writeConfigurationDefaults(ts, tsConfigPath, firstTimeSetup)
+    await writeConfigurationDefaults(ts, tsConfigPath, intent.firstTimeSetup)
     // Write out the necessary `next-env.d.ts` file to correctly register
     // Next.js' types:
     await writeAppTypeDeclarations(dir, imageImportsEnabled)

@@ -152,35 +152,6 @@ function appendScript(
 // We wait for pages to be built in dev before we start the route transition
 // timeout to prevent an un-necessary hard navigation in development.
 let devBuildPromise: Promise<void> | undefined
-let devBuildResolve: (() => void) | undefined
-
-if (process.env.NODE_ENV === 'development') {
-  const { addMessageListener } = require('./dev/error-overlay/eventsource')
-
-  addMessageListener((event: any) => {
-    // This is the heartbeat event
-    if (event.data === '\uD83D\uDC93') {
-      return
-    }
-
-    const obj =
-      typeof event === 'string' ? { action: event } : JSON.parse(event.data)
-
-    switch (obj.action) {
-      case 'built':
-      case 'sync':
-        if (devBuildResolve) {
-          devBuildResolve()
-          devBuildResolve = undefined
-        }
-
-        break
-
-      default:
-        break
-    }
-  })
-}
 
 // Resolve a promise that times out after given amount of milliseconds.
 function resolvePromiseWithTimeout<T>(
@@ -234,16 +205,15 @@ export function getClientBuildManifest(): Promise<ClientBuildManifest> {
     return Promise.resolve(self.__BUILD_MANIFEST)
   }
 
-  const onBuildManifest: Promise<ClientBuildManifest> = new Promise<
-    ClientBuildManifest
-  >((resolve) => {
-    // Mandatory because this is not concurrent safe:
-    const cb = self.__BUILD_MANIFEST_CB
-    self.__BUILD_MANIFEST_CB = () => {
-      resolve(self.__BUILD_MANIFEST!)
-      cb && cb()
-    }
-  })
+  const onBuildManifest: Promise<ClientBuildManifest> =
+    new Promise<ClientBuildManifest>((resolve) => {
+      // Mandatory because this is not concurrent safe:
+      const cb = self.__BUILD_MANIFEST_CB
+      self.__BUILD_MANIFEST_CB = () => {
+        resolve(self.__BUILD_MANIFEST!)
+        cb && cb()
+      }
+    })
 
   return resolvePromiseWithTimeout<ClientBuildManifest>(
     onBuildManifest,
@@ -286,16 +256,12 @@ function getFilesForRoute(
 }
 
 export function createRouteLoader(assetPrefix: string): RouteLoader {
-  const entrypoints: Map<
-    string,
-    Future<RouteEntrypoint> | RouteEntrypoint
-  > = new Map()
+  const entrypoints: Map<string, Future<RouteEntrypoint> | RouteEntrypoint> =
+    new Map()
   const loadedScripts: Map<string, Promise<unknown>> = new Map()
   const styleSheets: Map<string, Promise<RouteStyleSheet>> = new Map()
-  const routes: Map<
-    string,
-    Future<RouteLoaderEntry> | RouteLoaderEntry
-  > = new Map()
+  const routes: Map<string, Future<RouteLoaderEntry> | RouteLoaderEntry> =
+    new Map()
 
   function maybeExecuteScript(src: string): Promise<unknown> {
     let prom: Promise<unknown> | undefined = loadedScripts.get(src)
@@ -356,28 +322,34 @@ export function createRouteLoader(assetPrefix: string): RouteLoader {
     },
     loadRoute(route: string, prefetch?: boolean) {
       return withFuture<RouteLoaderEntry>(route, routes, () => {
+        const routeFilesPromise = getFilesForRoute(assetPrefix, route)
+          .then(({ scripts, css }) => {
+            return Promise.all([
+              entrypoints.has(route)
+                ? []
+                : Promise.all(scripts.map(maybeExecuteScript)),
+              Promise.all(css.map(fetchStyleSheet)),
+            ] as const)
+          })
+          .then((res) => {
+            return this.whenEntrypoint(route).then((entrypoint) => ({
+              entrypoint,
+              styles: res[1],
+            }))
+          })
+
         if (process.env.NODE_ENV === 'development') {
           devBuildPromise = new Promise<void>((resolve) => {
-            devBuildResolve = resolve
+            if (routeFilesPromise) {
+              return routeFilesPromise.finally(() => {
+                resolve()
+              })
+            }
           })
         }
 
         return resolvePromiseWithTimeout(
-          getFilesForRoute(assetPrefix, route)
-            .then(({ scripts, css }) => {
-              return Promise.all([
-                entrypoints.has(route)
-                  ? []
-                  : Promise.all(scripts.map(maybeExecuteScript)),
-                Promise.all(css.map(fetchStyleSheet)),
-              ] as const)
-            })
-            .then((res) => {
-              return this.whenEntrypoint(route).then((entrypoint) => ({
-                entrypoint,
-                styles: res[1],
-              }))
-            }),
+          routeFilesPromise,
           MS_MAX_IDLE_DELAY,
           markAssetError(new Error(`Route did not complete loading: ${route}`))
         )

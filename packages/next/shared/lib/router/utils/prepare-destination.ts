@@ -30,16 +30,6 @@ export function matchHas(
   query: Params
 ): false | Params {
   const params: Params = {}
-  let initialQueryValues: string[] = []
-
-  if (typeof window === 'undefined') {
-    initialQueryValues = Object.values((req as any).__NEXT_INIT_QUERY)
-  }
-  if (typeof window !== 'undefined') {
-    initialQueryValues = Array.from(
-      new URLSearchParams(location.search).values()
-    )
-  }
 
   const allMatch = has.every((hasItem) => {
     let value: undefined | string
@@ -56,12 +46,7 @@ export function matchHas(
         break
       }
       case 'query': {
-        // preserve initial encoding of query values
         value = query[key!]
-
-        if (initialQueryValues.includes(value || '')) {
-          value = encodeURIComponent(value!)
-        }
         break
       }
       case 'host': {

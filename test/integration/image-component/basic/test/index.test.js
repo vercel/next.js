@@ -205,6 +205,32 @@ function lazyLoadingTests() {
       await browser.elementById('eager-loading').getAttribute('srcset')
     ).toBeTruthy()
   })
+
+  it('should load the sixth image, which has lazyBoundary property after scrolling down', async () => {
+    expect(await browser.elementById('lazy-boundary').getAttribute('src')).toBe(
+      emptyImage
+    )
+    expect(
+      await browser.elementById('lazy-boundary').getAttribute('srcset')
+    ).toBeFalsy()
+    let viewportHeight = await browser.eval(`window.innerHeight`)
+    let topOfBottomImage = await browser.eval(
+      `document.getElementById('lazy-boundary').parentElement.offsetTop`
+    )
+    let buffer = 500
+    await browser.eval(
+      `window.scrollTo(0, ${topOfBottomImage - (viewportHeight + buffer)})`
+    )
+    await waitFor(200)
+    expect(await browser.elementById('lazy-boundary').getAttribute('src')).toBe(
+      'https://example.com/myaccount/lazy6.jpg?auto=format&fit=max&w=1600'
+    )
+    expect(
+      await browser.elementById('lazy-boundary').getAttribute('srcset')
+    ).toBe(
+      'https://example.com/myaccount/lazy6.jpg?auto=format&fit=max&w=1024 1x, https://example.com/myaccount/lazy6.jpg?auto=format&fit=max&w=1600 2x'
+    )
+  })
 }
 
 async function hasPreloadLinkMatchingUrl(url) {
@@ -281,6 +307,14 @@ describe('Image Component Tests', () => {
     })
     it('should not create any preload tags higher up the page than CSS preload tags', async () => {
       expect(await hasImagePreloadBeforeCSSPreload()).toBe(false)
+    })
+    it('should add data-nimg data attribute based on layout', async () => {
+      expect(
+        await browser.elementById('image-with-sizes').getAttribute('data-nimg')
+      ).toBe('responsive')
+      expect(
+        await browser.elementById('basic-image').getAttribute('data-nimg')
+      ).toBe('intrinsic')
     })
   })
   describe('Client-side Image Component Tests', () => {
