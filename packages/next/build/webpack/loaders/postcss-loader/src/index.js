@@ -126,7 +126,6 @@ export default async function loader(content, sourceMap, meta) {
     })
     .then(
       ([css, map, { ast }]) => {
-        console.log({ css })
         callback?.(null, css, map, { ast })
       },
       (err) => {
