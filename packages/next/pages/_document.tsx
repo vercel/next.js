@@ -425,7 +425,6 @@ export class Head extends Component<
         newProps['data-href'] = newProps['href']
         newProps['href'] = undefined
         return React.cloneElement(c, newProps)
-        //  &&
       } else if (
         c.props &&
         c.props['children'] &&

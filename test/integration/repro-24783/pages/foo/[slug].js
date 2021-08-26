@@ -1,6 +1,4 @@
-import { GetStaticPaths, GetStaticProps } from 'next'
-
-export const getStaticPaths: GetStaticPaths = () => {
+export const getStaticPaths = () => {
   return {
     // `true` also works, but `false` does not, since it causes a 404
     fallback: 'blocking',
@@ -8,7 +6,7 @@ export const getStaticPaths: GetStaticPaths = () => {
   }
 }
 
-export const getStaticProps: GetStaticProps = async () => {
+export const getStaticProps = async () => {
   return {
     props: {},
   }
