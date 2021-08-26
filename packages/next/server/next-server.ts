@@ -1067,7 +1067,7 @@ export default class Server {
    * @param res http response
    * @param pathname path of request
    */
-  protected async handleApiRequest(
+  private async handleApiRequest(
     req: IncomingMessage,
     res: ServerResponse,
     pathname: string,
