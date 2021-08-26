@@ -25,7 +25,7 @@ export function getGlobalCssLoader(
 
   // Resolve CSS `@import`s and `url()`s
   loaders.push({
-    loader: require.resolve('css-loader'),
+    loader: require.resolve('../../../../loaders/css-loader/src'),
     options: {
       importLoaders: 1 + preProcessors.length,
       // Next.js controls CSS Modules eligibility:

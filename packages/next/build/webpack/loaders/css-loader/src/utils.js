@@ -5,288 +5,39 @@
 import { fileURLToPath } from 'url'
 import path from 'path'
 
+import { urlToRequest, interpolateName } from 'loader-utils'
+import cssesc from 'cssesc'
 import modulesValues from 'postcss-modules-values'
 import localByDefault from 'postcss-modules-local-by-default'
 import extractImports from 'postcss-modules-extract-imports'
 import modulesScope from 'postcss-modules-scope'
+import camelCase from 'camelcase'
 
-const WEBPACK_IGNORE_COMMENT_REGEXP = /webpackIgnore:(\s+)?(true|false)/
-
-const matchRelativePath = /^\.\.?[/\\]/
-
-function isAbsolutePath(str) {
-  return path.posix.isAbsolute(str) || path.win32.isAbsolute(str)
-}
-
-function isRelativePath(str) {
-  return matchRelativePath.test(str)
-}
-
-function stringifyRequest(loaderContext, request) {
-  const splitted = request.split('!')
-  const { context } = loaderContext
-
-  return JSON.stringify(
-    splitted
-      .map((part) => {
-        // First, separate singlePath from query, because the query might contain paths again
-        const splittedPart = part.match(/^(.*?)(\?.*)/)
-        const query = splittedPart ? splittedPart[2] : ''
-        let singlePath = splittedPart ? splittedPart[1] : part
-
-        if (isAbsolutePath(singlePath) && context) {
-          singlePath = path.relative(context, singlePath)
-
-          if (isAbsolutePath(singlePath)) {
-            // If singlePath still matches an absolute path, singlePath was on a different drive than context.
-            // In this case, we leave the path platform-specific without replacing any separators.
-            // @see https://github.com/webpack/loader-utils/pull/14
-            return singlePath + query
-          }
-
-          if (isRelativePath(singlePath) === false) {
-            // Ensure that the relative path starts at least with ./ otherwise it would be a request into the modules directory (like node_modules).
-            singlePath = `./${singlePath}`
-          }
-        }
-
-        return singlePath.replace(/\\/g, '/') + query
-      })
-      .join('!')
-  )
-}
-
-// We can't use path.win32.isAbsolute because it also matches paths starting with a forward slash
-const IS_NATIVE_WIN32_PATH = /^[a-z]:[/\\]|^\\\\/i
-const IS_MODULE_REQUEST = /^[^?]*~/
-
-function urlToRequest(url, root) {
-  let request
-
-  if (IS_NATIVE_WIN32_PATH.test(url)) {
-    // absolute windows path, keep it
-    request = url
-  } else if (typeof root !== 'undefined' && /^\//.test(url)) {
-    request = root + url
-  } else if (/^\.\.?\//.test(url)) {
-    // A relative url stays
-    request = url
-  } else {
-    // every other url is threaded like a relative url
-    request = `./${url}`
-  }
-
-  // A `~` makes the url an module
-  if (IS_MODULE_REQUEST.test(request)) {
-    request = request.replace(IS_MODULE_REQUEST, '')
-  }
-
-  return request
-}
-
-// eslint-disable-next-line no-useless-escape
-const regexSingleEscape = /[ -,.\/:-@[\]\^`{-~]/
-const regexExcessiveSpaces = /(^|\\+)?(\\[A-F0-9]{1,6})\x20(?![a-fA-F0-9\x20])/g
-
-const preserveCamelCase = (string) => {
-  let result = string
-  let isLastCharLower = false
-  let isLastCharUpper = false
-  let isLastLastCharUpper = false
-
-  for (let i = 0; i < result.length; i++) {
-    const character = result[i]
-
-    if (isLastCharLower && /[\p{Lu}]/u.test(character)) {
-      result = `${result.slice(0, i)}-${result.slice(i)}`
-      isLastCharLower = false
-      isLastLastCharUpper = isLastCharUpper
-      isLastCharUpper = true
-      i += 1
-    } else if (
-      isLastCharUpper &&
-      isLastLastCharUpper &&
-      /[\p{Ll}]/u.test(character)
-    ) {
-      result = `${result.slice(0, i - 1)}-${result.slice(i - 1)}`
-      isLastLastCharUpper = isLastCharUpper
-      isLastCharUpper = false
-      isLastCharLower = true
-    } else {
-      isLastCharLower =
-        character.toLowerCase() === character &&
-        character.toUpperCase() !== character
-      isLastLastCharUpper = isLastCharUpper
-      isLastCharUpper =
-        character.toUpperCase() === character &&
-        character.toLowerCase() !== character
-    }
-  }
-
-  return result
-}
-
-function camelCase(input) {
-  let result = input.trim()
-
-  if (result.length === 0) {
-    return ''
-  }
-
-  if (result.length === 1) {
-    return result.toLowerCase()
-  }
-
-  const hasUpperCase = result !== result.toLowerCase()
-
-  if (hasUpperCase) {
-    result = preserveCamelCase(result)
-  }
-
-  return result
-    .replace(/^[_.\- ]+/, '')
-    .toLowerCase()
-    .replace(/[_.\- ]+([\p{Alpha}\p{N}_]|$)/gu, (_, p1) => p1.toUpperCase())
-    .replace(/\d+([\p{Alpha}\p{N}_]|$)/gu, (m) => m.toUpperCase())
-}
-
-function escape(string) {
-  let output = ''
-  let counter = 0
-
-  while (counter < string.length) {
-    // eslint-disable-next-line no-plusplus
-    const character = string.charAt(counter++)
-
-    let value
-
-    // eslint-disable-next-line no-control-regex
-    if (/[\t\n\f\r\x0B]/.test(character)) {
-      const codePoint = character.charCodeAt()
-
-      value = `\\${codePoint.toString(16).toUpperCase()} `
-    } else if (character === '\\' || regexSingleEscape.test(character)) {
-      value = `\\${character}`
-    } else {
-      value = character
-    }
-
-    output += value
-  }
-
-  const firstChar = string.charAt(0)
-
-  if (/^-[-\d]/.test(output)) {
-    output = `\\-${output.slice(1)}`
-  } else if (/\d/.test(firstChar)) {
-    output = `\\3${firstChar} ${output.slice(1)}`
-  }
-
-  // Remove spaces after `\HEX` escapes that are not followed by a hex digit,
-  // since they’re redundant. Note that this is only possible if the escape
-  // sequence isn’t preceded by an odd number of backslashes.
-  output = output.replace(regexExcessiveSpaces, ($0, $1, $2) => {
-    if ($1 && $1.length % 2) {
-      // It’s not safe to remove the space, so don’t.
-      return $0
-    }
-
-    // Strip the space.
-    return ($1 || '') + $2
-  })
-
-  return output
-}
-
-function gobbleHex(str) {
-  const lower = str.toLowerCase()
-  let hex = ''
-  let spaceTerminated = false
-
-  // eslint-disable-next-line no-undefined
-  for (let i = 0; i < 6 && lower[i] !== undefined; i++) {
-    const code = lower.charCodeAt(i)
-    // check to see if we are dealing with a valid hex char [a-f|0-9]
-    const valid = (code >= 97 && code <= 102) || (code >= 48 && code <= 57)
-    // https://drafts.csswg.org/css-syntax/#consume-escaped-code-point
-    spaceTerminated = code === 32
-
-    if (!valid) {
-      break
-    }
-
-    hex += lower[i]
-  }
-
-  if (hex.length === 0) {
-    // eslint-disable-next-line no-undefined
-    return undefined
-  }
-
-  const codePoint = parseInt(hex, 16)
-
-  const isSurrogate = codePoint >= 0xd800 && codePoint <= 0xdfff
-  // Add special case for
-  // "If this number is zero, or is for a surrogate, or is greater than the maximum allowed code point"
-  // https://drafts.csswg.org/css-syntax/#maximum-allowed-code-point
-  if (isSurrogate || codePoint === 0x0000 || codePoint > 0x10ffff) {
-    return ['\uFFFD', hex.length + (spaceTerminated ? 1 : 0)]
-  }
-
-  return [
-    String.fromCodePoint(codePoint),
-    hex.length + (spaceTerminated ? 1 : 0),
-  ]
-}
-
-const CONTAINS_ESCAPE = /\\/
+const whitespace = '[\\x20\\t\\r\\n\\f]'
+const unescapeRegExp = new RegExp(
+  `\\\\([\\da-f]{1,6}${whitespace}?|(${whitespace})|.)`,
+  'ig'
+)
+const matchNativeWin32Path = /^[A-Z]:[/\\]|^\\\\/i
 
 function unescape(str) {
-  const needToProcess = CONTAINS_ESCAPE.test(str)
+  return str.replace(unescapeRegExp, (_, escaped, escapedWhitespace) => {
+    const high = `0x${escaped}` - 0x10000
 
-  if (!needToProcess) {
-    return str
-  }
-
-  let ret = ''
-
-  for (let i = 0; i < str.length; i++) {
-    if (str[i] === '\\') {
-      const gobbled = gobbleHex(str.slice(i + 1, i + 7))
-
-      // eslint-disable-next-line no-undefined
-      if (gobbled !== undefined) {
-        ret += gobbled[0]
-        i += gobbled[1]
-
-        // eslint-disable-next-line no-continue
-        continue
-      }
-
-      // Retain a pair of \\ if double escaped `\\\\`
-      // https://github.com/postcss/postcss-selector-parser/commit/268c9a7656fb53f543dc620aa5b73a30ec3ff20e
-      if (str[i + 1] === '\\') {
-        ret += '\\'
-        i += 1
-
-        // eslint-disable-next-line no-continue
-        continue
-      }
-
-      // if \\ is at the end of the string retain it
-      // https://github.com/postcss/postcss-selector-parser/commit/01a6b346e3612ce1ab20219acc26abdc259ccefb
-      if (str.length === i + 1) {
-        ret += str[i]
-      }
-
-      // eslint-disable-next-line no-continue
-      continue
-    }
-
-    ret += str[i]
-  }
-
-  return ret
+    /* eslint-disable line-comment-position */
+    // NaN means non-codepoint
+    // Workaround erroneous numeric interpretation of +"0x"
+    // eslint-disable-next-line no-self-compare
+    return high !== high || escapedWhitespace
+      ? escaped
+      : high < 0
+      ? // BMP codepoint
+        String.fromCharCode(high + 0x10000)
+      : // Supplemental Plane codepoint (surrogate pair)
+        // eslint-disable-next-line no-bitwise
+        String.fromCharCode((high >> 10) | 0xd800, (high & 0x3ff) | 0xdc00)
+    /* eslint-enable line-comment-position */
+  })
 }
 
 function normalizePath(file) {
@@ -298,179 +49,54 @@ const filenameReservedRegex = /[<>:"/\\|?*]/g
 // eslint-disable-next-line no-control-regex
 const reControlChars = /[\u0000-\u001f\u0080-\u009f]/g
 
-function escapeLocalIdent(localident) {
-  // TODO simplify in the next major release
-  return escape(
-    localident
-      // For `[hash]` placeholder
-      .replace(/^((-?[0-9])|--)/, '_$1')
-      .replace(filenameReservedRegex, '-')
-      .replace(reControlChars, '-')
-      .replace(/\./g, '-')
-  )
-}
-
 function defaultGetLocalIdent(
   loaderContext,
   localIdentName,
   localName,
   options
 ) {
-  let relativeMatchResource = ''
-
-  // eslint-disable-next-line no-underscore-dangle
-  if (loaderContext._module && loaderContext._module.matchResource) {
-    relativeMatchResource = `${normalizePath(
-      // eslint-disable-next-line no-underscore-dangle
-      path.relative(options.context, loaderContext._module.matchResource)
-    )}\x00`
-  }
-
-  const relativeResourcePath = normalizePath(
-    path.relative(options.context, loaderContext.resourcePath)
-  )
+  const { context, hashPrefix } = options
+  const { resourcePath } = loaderContext
+  const request = normalizePath(path.relative(context, resourcePath))
 
   // eslint-disable-next-line no-param-reassign
-  options.content = `${relativeMatchResource}${relativeResourcePath}\x00${localName}`
+  options.content = `${hashPrefix + request}\x00${unescape(localName)}`
 
-  let { hashFunction, hashDigest, hashDigestLength } = options
-  const mathes = localIdentName.match(
-    /\[(?:([^:\]]+):)?(?:(hash|contenthash|fullhash))(?::([a-z]+\d*))?(?::(\d+))?\]/i
-  )
-
-  if (mathes) {
-    const hashName = mathes[2] || hashFunction
-
-    hashFunction = mathes[1] || hashFunction
-    hashDigest = mathes[3] || hashDigest
-    hashDigestLength = mathes[4] || hashDigestLength
-
-    // `hash` and `contenthash` are same in `loader-utils` context
-    // let's keep `hash` for backward compatibility
-
-    // eslint-disable-next-line no-param-reassign
-    localIdentName = localIdentName.replace(
-      /\[(?:([^:\]]+):)?(?:hash|contenthash|fullhash)(?::([a-z]+\d*))?(?::(\d+))?\]/gi,
-      () => (hashName === 'fullhash' ? '[fullhash]' : '[contenthash]')
-    )
-  }
-
-  // eslint-disable-next-line no-underscore-dangle
-  const hash = loaderContext._compiler.webpack.util.createHash(hashFunction)
-  const { hashSalt } = options
-
-  if (hashSalt) {
-    hash.update(hashSalt)
-  }
-
-  hash.update(options.content)
-
-  const localIdentHash = hash
-    .digest(hashDigest)
-    .slice(0, hashDigestLength)
-    .replace(/[/+]/g, '_')
-    .replace(/^\d/g, '_')
-
-  // TODO need improve on webpack side, we should allow to pass hash/contentHash without chunk property, also `data` for `getPath` should be looks good without chunk property
-  const ext = path.extname(loaderContext.resourcePath)
-  const base = path.basename(loaderContext.resourcePath)
-  const name = base.slice(0, base.length - ext.length)
-  const data = {
-    filename: path.relative(options.context, loaderContext.resourcePath),
-    contentHash: localIdentHash,
-    chunk: {
-      name,
-      hash: localIdentHash,
-      contentHash: localIdentHash,
-    },
-  }
-
-  // eslint-disable-next-line no-underscore-dangle
-  let result = loaderContext._compilation.getPath(localIdentName, data)
-
-  if (options.regExp) {
-    const match = loaderContext.resourcePath.match(options.regExp)
-
-    if (match) {
-      match.forEach((matched, i) => {
-        result = result.replace(new RegExp(`\\[${i}\\]`, 'ig'), matched)
-      })
-    }
-  }
-
-  return result
+  // Using `[path]` placeholder outputs `/` we need escape their
+  // Also directories can contains invalid characters for css we need escape their too
+  return cssesc(
+    interpolateName(loaderContext, localIdentName, options)
+      // For `[hash]` placeholder
+      .replace(/^((-?[0-9])|--)/, '_$1')
+      .replace(filenameReservedRegex, '-')
+      .replace(reControlChars, '-')
+      .replace(/\./g, '-'),
+    { isIdentifier: true }
+  ).replace(/\\\[local\\]/gi, localName)
 }
-
-function fixedEncodeURIComponent(str) {
-  return str.replace(/[!'()*]/g, (c) => `%${c.charCodeAt(0).toString(16)}`)
-}
-
-function isDataUrl(url) {
-  if (/^data:/i.test(url)) {
-    return true
-  }
-
-  return false
-}
-
-const NATIVE_WIN32_PATH = /^[A-Z]:[/\\]|^\\\\/i
 
 function normalizeUrl(url, isStringValue) {
   let normalizedUrl = url
-    .replace(/^( |\t\n|\r\n|\r|\f)*/g, '')
-    .replace(/( |\t\n|\r\n|\r|\f)*$/g, '')
 
   if (isStringValue && /\\(\n|\r\n|\r|\f)/.test(normalizedUrl)) {
     normalizedUrl = normalizedUrl.replace(/\\(\n|\r\n|\r|\f)/g, '')
   }
 
-  if (NATIVE_WIN32_PATH.test(url)) {
-    try {
-      normalizedUrl = decodeURI(normalizedUrl)
-    } catch (error) {
-      // Ignore
-    }
-
-    return normalizedUrl
+  if (matchNativeWin32Path.test(url)) {
+    return decodeURIComponent(normalizedUrl)
   }
 
-  normalizedUrl = unescape(normalizedUrl)
-
-  if (isDataUrl(url)) {
-    // Todo fixedEncodeURIComponent is workaround. Webpack resolver shouldn't handle "!" in dataURL
-    return fixedEncodeURIComponent(normalizedUrl)
-  }
-
-  try {
-    normalizedUrl = decodeURI(normalizedUrl)
-  } catch (error) {
-    // Ignore
-  }
-
-  return normalizedUrl
+  return decodeURIComponent(unescape(normalizedUrl))
 }
 
-function requestify(url, rootContext, needToResolveURL = true) {
-  if (needToResolveURL) {
-    if (/^file:/i.test(url)) {
-      return fileURLToPath(url)
-    }
-
-    return url.charAt(0) === '/'
-      ? urlToRequest(url, rootContext)
-      : urlToRequest(url)
+function requestify(url, rootContext) {
+  if (/^file:/i.test(url)) {
+    return fileURLToPath(url)
   }
 
-  if (url.charAt(0) === '/' || /^file:/i.test(url)) {
-    return url
-  }
-
-  // A `~` makes the url an module
-  if (IS_MODULE_REQUEST.test(url)) {
-    return url.replace(IS_MODULE_REQUEST, '')
-  }
-
-  return url
+  return url.charAt(0) === '/'
+    ? urlToRequest(url, rootContext)
+    : urlToRequest(url)
 }
 
 function getFilter(filter, resourcePath) {
@@ -483,120 +109,78 @@ function getFilter(filter, resourcePath) {
   }
 }
 
-function getValidLocalName(localName, exportLocalsConvention) {
-  const result = exportLocalsConvention(localName)
-
-  return Array.isArray(result) ? result[0] : result
-}
-
-const IS_MODULES = /\.module(s)?\.\w+$/i
-const IS_ICSS = /\.icss\.\w+$/i
+const moduleRegExp = /\.module\.\w+$/i
 
 function getModulesOptions(rawOptions, loaderContext) {
-  if (typeof rawOptions.modules === 'boolean' && rawOptions.modules === false) {
+  const { resourcePath } = loaderContext
+
+  if (typeof rawOptions.modules === 'undefined') {
+    const isModules = moduleRegExp.test(resourcePath)
+
+    if (!isModules) {
+      return false
+    }
+  } else if (
+    typeof rawOptions.modules === 'boolean' &&
+    rawOptions.modules === false
+  ) {
     return false
   }
 
-  const resourcePath =
-    // eslint-disable-next-line no-underscore-dangle
-    (loaderContext._module && loaderContext._module.matchResource) ||
-    loaderContext.resourcePath
-
-  let auto
-  let rawModulesOptions
-
-  if (typeof rawOptions.modules === 'undefined') {
-    rawModulesOptions = {}
-    auto = true
-  } else if (typeof rawOptions.modules === 'boolean') {
-    rawModulesOptions = {}
-  } else if (typeof rawOptions.modules === 'string') {
-    rawModulesOptions = { mode: rawOptions.modules }
-  } else {
-    rawModulesOptions = rawOptions.modules
-    ;({ auto } = rawModulesOptions)
-  }
-
-  // eslint-disable-next-line no-underscore-dangle
-  const { outputOptions } = loaderContext._compilation
-  const modulesOptions = {
-    auto,
+  let modulesOptions = {
+    compileType: rawOptions.icss ? 'icss' : 'module',
+    auto: true,
     mode: 'local',
     exportGlobals: false,
     localIdentName: '[hash:base64]',
     localIdentContext: loaderContext.rootContext,
-    localIdentHashSalt: outputOptions.hashSalt,
-    localIdentHashFunction: outputOptions.hashFunction,
-    localIdentHashDigest: outputOptions.hashDigest,
-    localIdentHashDigestLength: outputOptions.hashDigestLength,
+    localIdentHashPrefix: '',
     // eslint-disable-next-line no-undefined
     localIdentRegExp: undefined,
-    // eslint-disable-next-line no-undefined
-    getLocalIdent: undefined,
+    getLocalIdent: defaultGetLocalIdent,
     namedExport: false,
-    exportLocalsConvention:
-      rawModulesOptions.namedExport === true &&
-      typeof rawModulesOptions.exportLocalsConvention === 'undefined'
-        ? 'camelCaseOnly'
-        : 'asIs',
+    exportLocalsConvention: 'asIs',
     exportOnlyLocals: false,
-    ...rawModulesOptions,
   }
 
-  let exportLocalsConventionType
+  if (
+    typeof rawOptions.modules === 'boolean' ||
+    typeof rawOptions.modules === 'string'
+  ) {
+    modulesOptions.mode =
+      typeof rawOptions.modules === 'string' ? rawOptions.modules : 'local'
+  } else {
+    if (rawOptions.modules) {
+      if (typeof rawOptions.modules.auto === 'boolean') {
+        const isModules =
+          rawOptions.modules.auto && moduleRegExp.test(resourcePath)
 
-  if (typeof modulesOptions.exportLocalsConvention === 'string') {
-    exportLocalsConventionType = modulesOptions.exportLocalsConvention
+        if (!isModules) {
+          return false
+        }
+      } else if (rawOptions.modules.auto instanceof RegExp) {
+        const isModules = rawOptions.modules.auto.test(resourcePath)
 
-    modulesOptions.exportLocalsConvention = (name) => {
-      switch (exportLocalsConventionType) {
-        case 'camelCase': {
-          return [name, camelCase(name)]
+        if (!isModules) {
+          return false
         }
-        case 'camelCaseOnly': {
-          return camelCase(name)
+      } else if (typeof rawOptions.modules.auto === 'function') {
+        const isModule = rawOptions.modules.auto(resourcePath)
+
+        if (!isModule) {
+          return false
         }
-        case 'dashes': {
-          return [name, dashesCamelCase(name)]
-        }
-        case 'dashesOnly': {
-          return dashesCamelCase(name)
-        }
-        case 'asIs':
-        default:
-          return name
       }
-    }
-  }
 
-  if (typeof modulesOptions.auto === 'boolean') {
-    const isModules = modulesOptions.auto && IS_MODULES.test(resourcePath)
-
-    let isIcss
-
-    if (!isModules) {
-      isIcss = IS_ICSS.test(resourcePath)
-
-      if (isIcss) {
-        modulesOptions.mode = 'icss'
+      if (
+        rawOptions.modules.namedExport === true &&
+        typeof rawOptions.modules.exportLocalsConvention === 'undefined'
+      ) {
+        modulesOptions.exportLocalsConvention = 'camelCaseOnly'
       }
     }
 
-    if (!isModules && !isIcss) {
-      return false
-    }
-  } else if (modulesOptions.auto instanceof RegExp) {
-    const isModules = modulesOptions.auto.test(resourcePath)
-
-    if (!isModules) {
-      return false
-    }
-  } else if (typeof modulesOptions.auto === 'function') {
-    const isModule = modulesOptions.auto(resourcePath)
-
-    if (!isModule) {
-      return false
-    }
+    modulesOptions = { ...modulesOptions, ...(rawOptions.modules || {}) }
   }
 
   if (typeof modulesOptions.mode === 'function') {
@@ -610,13 +194,9 @@ function getModulesOptions(rawOptions, loaderContext) {
       )
     }
 
-    if (
-      typeof exportLocalsConventionType === 'string' &&
-      exportLocalsConventionType !== 'camelCaseOnly' &&
-      exportLocalsConventionType !== 'dashesOnly'
-    ) {
+    if (modulesOptions.exportLocalsConvention !== 'camelCaseOnly') {
       throw new Error(
-        'The "modules.namedExport" option requires the "modules.exportLocalsConvention" option to be "camelCaseOnly" or "dashesOnly"'
+        'The "modules.namedExport" option requires the "modules.exportLocalsConvention" option to be "camelCaseOnly"'
       )
     }
   }
@@ -625,12 +205,22 @@ function getModulesOptions(rawOptions, loaderContext) {
 }
 
 function normalizeOptions(rawOptions, loaderContext) {
+  if (rawOptions.icss) {
+    loaderContext.emitWarning(
+      new Error(
+        'The "icss" option is deprecated, use "modules.compileType: "icss"" instead'
+      )
+    )
+  }
+
   const modulesOptions = getModulesOptions(rawOptions, loaderContext)
 
   return {
     url: typeof rawOptions.url === 'undefined' ? true : rawOptions.url,
     import: typeof rawOptions.import === 'undefined' ? true : rawOptions.import,
     modules: modulesOptions,
+    // TODO remove in the next major release
+    icss: typeof rawOptions.icss === 'undefined' ? false : rawOptions.icss,
     sourceMap:
       typeof rawOptions.sourceMap === 'boolean'
         ? rawOptions.sourceMap
@@ -669,15 +259,11 @@ function shouldUseURLPlugin(options) {
 }
 
 function shouldUseModulesPlugins(options) {
-  if (typeof options.modules === 'boolean' && options.modules === false) {
-    return false
-  }
-
-  return options.modules.mode !== 'icss'
+  return options.modules.compileType === 'module'
 }
 
 function shouldUseIcssPlugin(options) {
-  return Boolean(options.modules)
+  return options.icss === true || Boolean(options.modules)
 }
 
 function getModulesPlugins(options, loaderContext) {
@@ -686,10 +272,7 @@ function getModulesPlugins(options, loaderContext) {
     getLocalIdent,
     localIdentName,
     localIdentContext,
-    localIdentHashSalt,
-    localIdentHashFunction,
-    localIdentHashDigest,
-    localIdentHashDigestLength,
+    localIdentHashPrefix,
     localIdentRegExp,
   } = options.modules
 
@@ -702,48 +285,11 @@ function getModulesPlugins(options, loaderContext) {
       extractImports(),
       modulesScope({
         generateScopedName(exportName) {
-          let localIdent
-
-          if (typeof getLocalIdent !== 'undefined') {
-            localIdent = getLocalIdent(
-              loaderContext,
-              localIdentName,
-              unescape(exportName),
-              {
-                context: localIdentContext,
-                hashSalt: localIdentHashSalt,
-                hashFunction: localIdentHashFunction,
-                hashDigest: localIdentHashDigest,
-                hashDigestLength: localIdentHashDigestLength,
-                regExp: localIdentRegExp,
-              }
-            )
-          }
-
-          // A null/undefined value signals that we should invoke the default
-          // getLocalIdent method.
-          if (typeof localIdent === 'undefined' || localIdent === null) {
-            localIdent = defaultGetLocalIdent(
-              loaderContext,
-              localIdentName,
-              unescape(exportName),
-              {
-                context: localIdentContext,
-                hashSalt: localIdentHashSalt,
-                hashFunction: localIdentHashFunction,
-                hashDigest: localIdentHashDigest,
-                hashDigestLength: localIdentHashDigestLength,
-                regExp: localIdentRegExp,
-              }
-            )
-
-            return escapeLocalIdent(localIdent).replace(
-              /\\\[local\\]/gi,
-              exportName
-            )
-          }
-
-          return escapeLocalIdent(localIdent)
+          return getLocalIdent(loaderContext, localIdentName, exportName, {
+            context: localIdentContext,
+            hashPrefix: localIdentHashPrefix,
+            regExp: localIdentRegExp,
+          })
         },
         exportGlobals: options.modules.exportGlobals,
       }),
@@ -755,6 +301,7 @@ function getModulesPlugins(options, loaderContext) {
   return plugins
 }
 
+const IS_NATIVE_WIN32_PATH = /^[a-z]:[/\\]|^\\\\/i
 const ABSOLUTE_SCHEME = /^[a-z0-9+\-.]+:/i
 
 function getURLType(source) {
@@ -846,7 +393,7 @@ function getImportCode(imports, options) {
   let code = ''
 
   for (const item of imports) {
-    const { importName, url, icss, type } = item
+    const { importName, url, icss } = item
 
     if (options.esModule) {
       if (icss && options.modules.namedExport) {
@@ -854,10 +401,7 @@ function getImportCode(imports, options) {
           options.modules.exportOnlyLocals ? '' : `${importName}, `
         }* as ${importName}_NAMED___ from ${url};\n`
       } else {
-        code +=
-          type === 'url'
-            ? `var ${importName} = new URL(${url}, import.meta.url);\n`
-            : `import ${importName} from ${url};\n`
+        code += `import ${importName} from ${url};\n`
       }
     } else {
       code += `var ${importName} = require(${url});\n`
@@ -893,7 +437,7 @@ function normalizeSourceMapForRuntime(map, loaderContext) {
         path.relative(loaderContext.rootContext, absoluteSource)
       )
 
-      return `webpack://./${contextifyPath}`
+      return `webpack://${contextifyPath}`
     })
   }
 
@@ -910,12 +454,7 @@ function getModuleCode(result, api, replacements, options, loaderContext) {
     : ''
 
   let code = JSON.stringify(result.css)
-
-  let beforeCode = `var ___CSS_LOADER_EXPORT___ = ___CSS_LOADER_API_IMPORT___(${
-    options.sourceMap
-      ? '___CSS_LOADER_API_SOURCEMAP_IMPORT___'
-      : 'function(i){return i[1]}'
-  });\n`
+  let beforeCode = `var ___CSS_LOADER_EXPORT___ = ___CSS_LOADER_API_IMPORT___(${options.sourceMap});\n`
 
   for (const item of api) {
     const { url, media, dedupe } = item
@@ -936,10 +475,7 @@ function getModuleCode(result, api, replacements, options, loaderContext) {
       code = code.replace(new RegExp(replacementName, 'g'), () =>
         options.modules.namedExport
           ? `" + ${importName}_NAMED___[${JSON.stringify(
-              getValidLocalName(
-                localName,
-                options.modules.exportLocalsConvention
-              )
+              camelCase(localName)
             )}] + "`
           : `" + ${importName}.locals[${JSON.stringify(localName)}] + "`
       )
@@ -968,39 +504,59 @@ function dashesCamelCase(str) {
   )
 }
 
-function getExportCode(exports, replacements, needToUseIcssPlugin, options) {
+function getExportCode(exports, replacements, options) {
   let code = '// Exports\n'
-
-  if (!needToUseIcssPlugin) {
-    code += `${
-      options.esModule ? 'export default' : 'module.exports ='
-    } ___CSS_LOADER_EXPORT___;\n`
-
-    return code
-  }
-
   let localsCode = ''
 
-  const addExportToLocalsCode = (names, value) => {
-    const normalizedNames = Array.isArray(names)
-      ? new Set(names)
-      : new Set([names])
-
-    for (const name of normalizedNames) {
-      if (options.modules.namedExport) {
-        localsCode += `export var ${name} = ${JSON.stringify(value)};\n`
-      } else {
-        if (localsCode) {
-          localsCode += `,\n`
-        }
-
-        localsCode += `\t${JSON.stringify(name)}: ${JSON.stringify(value)}`
+  const addExportToLocalsCode = (name, value) => {
+    if (options.modules.namedExport) {
+      localsCode += `export const ${camelCase(name)} = ${JSON.stringify(
+        value
+      )};\n`
+    } else {
+      if (localsCode) {
+        localsCode += `,\n`
       }
+
+      localsCode += `\t${JSON.stringify(name)}: ${JSON.stringify(value)}`
     }
   }
 
   for (const { name, value } of exports) {
-    addExportToLocalsCode(options.modules.exportLocalsConvention(name), value)
+    switch (options.modules.exportLocalsConvention) {
+      case 'camelCase': {
+        addExportToLocalsCode(name, value)
+
+        const modifiedName = camelCase(name)
+
+        if (modifiedName !== name) {
+          addExportToLocalsCode(modifiedName, value)
+        }
+        break
+      }
+      case 'camelCaseOnly': {
+        addExportToLocalsCode(camelCase(name), value)
+        break
+      }
+      case 'dashes': {
+        addExportToLocalsCode(name, value)
+
+        const modifiedName = dashesCamelCase(name)
+
+        if (modifiedName !== name) {
+          addExportToLocalsCode(modifiedName, value)
+        }
+        break
+      }
+      case 'dashesOnly': {
+        addExportToLocalsCode(dashesCamelCase(name), value)
+        break
+      }
+      case 'asIs':
+      default:
+        addExportToLocalsCode(name, value)
+        break
+    }
   }
 
   for (const item of replacements) {
@@ -1012,7 +568,7 @@ function getExportCode(exports, replacements, needToUseIcssPlugin, options) {
       localsCode = localsCode.replace(new RegExp(replacementName, 'g'), () => {
         if (options.modules.namedExport) {
           return `" + ${importName}_NAMED___[${JSON.stringify(
-            getValidLocalName(localName, options.modules.exportLocalsConvention)
+            camelCase(localName)
           )}] + "`
         } else if (options.modules.exportOnlyLocals) {
           return `" + ${importName}[${JSON.stringify(localName)}] + "`
@@ -1038,11 +594,11 @@ function getExportCode(exports, replacements, needToUseIcssPlugin, options) {
     return code
   }
 
-  code += options.modules.namedExport
-    ? localsCode
-    : `___CSS_LOADER_EXPORT___.locals = {${
-        localsCode ? `\n${localsCode}\n` : ''
-      }};\n`
+  if (localsCode) {
+    code += options.modules.namedExport
+      ? localsCode
+      : `___CSS_LOADER_EXPORT___.locals = {\n${localsCode}\n};\n`
+  }
 
   code += `${
     options.esModule ? 'export default' : 'module.exports ='
@@ -1053,7 +609,9 @@ function getExportCode(exports, replacements, needToUseIcssPlugin, options) {
 
 async function resolveRequests(resolve, context, possibleRequests) {
   return resolve(context, possibleRequests[0])
-    .then((result) => result)
+    .then((result) => {
+      return result
+    })
     .catch((error) => {
       const [, ...tailPossibleRequests] = possibleRequests
 
@@ -1077,7 +635,7 @@ function isUrlRequestable(url) {
   }
 
   // Absolute URLs
-  if (/^[a-z][a-z0-9+.-]*:/i.test(url) && !NATIVE_WIN32_PATH.test(url)) {
+  if (/^[a-z][a-z0-9+.-]*:/i.test(url) && !matchNativeWin32Path.test(url)) {
     return false
   }
 
@@ -1091,14 +649,6 @@ function isUrlRequestable(url) {
 
 function sort(a, b) {
   return a.index - b.index
-}
-
-function combineRequests(preRequest, url) {
-  const idx = url.indexOf('!=!')
-
-  return idx !== -1
-    ? url.slice(0, idx + 3) + preRequest + url.slice(idx + 3)
-    : preRequest + url
 }
 
 export {
@@ -1120,9 +670,4 @@ export {
   resolveRequests,
   isUrlRequestable,
   sort,
-  WEBPACK_IGNORE_COMMENT_REGEXP,
-  combineRequests,
-  camelCase,
-  stringifyRequest,
-  isDataUrl,
 }

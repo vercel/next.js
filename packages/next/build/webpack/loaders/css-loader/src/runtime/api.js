@@ -4,13 +4,13 @@
 */
 // css base code, injected by the css-loader
 // eslint-disable-next-line func-names
-module.exports = function (cssWithMappingToString) {
+module.exports = function (useSourceMap) {
   const list = []
 
   // return the list of modules as css string
   list.toString = function toString() {
     return this.map((item) => {
-      const content = cssWithMappingToString(item)
+      const content = cssWithMappingToString(item, useSourceMap)
 
       if (item[2]) {
         return `@media ${item[2]} {${content}}`
@@ -62,4 +62,34 @@ module.exports = function (cssWithMappingToString) {
   }
 
   return list
+}
+
+function cssWithMappingToString(item, useSourceMap) {
+  const content = item[1] || ''
+  // eslint-disable-next-line prefer-destructuring
+  const cssMapping = item[3]
+
+  if (!cssMapping) {
+    return content
+  }
+
+  if (useSourceMap && typeof btoa === 'function') {
+    const sourceMapping = toComment(cssMapping)
+    const sourceURLs = cssMapping.sources.map(
+      (source) => `/*# sourceURL=${cssMapping.sourceRoot || ''}${source} */`
+    )
+
+    return [content].concat(sourceURLs).concat([sourceMapping]).join('\n')
+  }
+
+  return [content].join('\n')
+}
+
+// Adapted from convert-source-map (MIT)
+function toComment(sourceMap) {
+  // eslint-disable-next-line no-undef
+  const base64 = btoa(unescape(encodeURIComponent(JSON.stringify(sourceMap))))
+  const data = `sourceMappingURL=data:application/json;charset=utf-8;base64,${base64}`
+
+  return `/*# ${data} */`
 }

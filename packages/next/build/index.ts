@@ -178,62 +178,62 @@ export default async function build(
       telemetry.record(events)
     )
 
-    const ignoreTypeScriptErrors = Boolean(config.typescript.ignoreBuildErrors)
-    const typeCheckStart = process.hrtime()
-    const typeCheckingSpinner = createSpinner({
-      prefixText: `${Log.prefixes.info} ${
-        ignoreTypeScriptErrors
-          ? 'Skipping validation of types'
-          : 'Checking validity of types'
-      }`,
-    })
+    // const ignoreTypeScriptErrors = Boolean(config.typescript.ignoreBuildErrors)
+    // const typeCheckStart = process.hrtime()
+    // const typeCheckingSpinner = createSpinner({
+    //   prefixText: `${Log.prefixes.info} ${
+    //     ignoreTypeScriptErrors
+    //       ? 'Skipping validation of types'
+    //       : 'Checking validity of types'
+    //   }`,
+    // })
 
-    const verifyResult = await nextBuildSpan
-      .traceChild('verify-typescript-setup')
-      .traceAsyncFn(() =>
-        verifyTypeScriptSetup(
-          dir,
-          pagesDir,
-          !ignoreTypeScriptErrors,
-          !config.images.disableStaticImages,
-          cacheDir
-        )
-      )
+    // const verifyResult = await nextBuildSpan
+    //   .traceChild('verify-typescript-setup')
+    //   .traceAsyncFn(() =>
+    //     verifyTypeScriptSetup(
+    //       dir,
+    //       pagesDir,
+    //       !ignoreTypeScriptErrors,
+    //       !config.images.disableStaticImages,
+    //       cacheDir
+    //     )
+    //   )
 
-    const typeCheckEnd = process.hrtime(typeCheckStart)
+    // const typeCheckEnd = process.hrtime(typeCheckStart)
 
-    if (!ignoreTypeScriptErrors) {
-      telemetry.record(
-        eventTypeCheckCompleted({
-          durationInSeconds: typeCheckEnd[0],
-          typescriptVersion: verifyResult.version,
-          inputFilesCount: verifyResult.result?.inputFilesCount,
-          totalFilesCount: verifyResult.result?.totalFilesCount,
-          incremental: verifyResult.result?.incremental,
-        })
-      )
-    }
+    // if (!ignoreTypeScriptErrors) {
+    //   telemetry.record(
+    //     eventTypeCheckCompleted({
+    //       durationInSeconds: typeCheckEnd[0],
+    //       typescriptVersion: verifyResult.version,
+    //       inputFilesCount: verifyResult.result?.inputFilesCount,
+    //       totalFilesCount: verifyResult.result?.totalFilesCount,
+    //       incremental: verifyResult.result?.incremental,
+    //     })
+    //   )
+    // }
 
-    if (typeCheckingSpinner) {
-      typeCheckingSpinner.stopAndPersist()
-    }
+    // if (typeCheckingSpinner) {
+    //   typeCheckingSpinner.stopAndPersist()
+    // }
 
-    const ignoreESLint = Boolean(config.eslint.ignoreDuringBuilds)
-    const eslintCacheDir = path.join(cacheDir, 'eslint/')
-    if (!ignoreESLint && runLint) {
-      await nextBuildSpan
-        .traceChild('verify-and-lint')
-        .traceAsyncFn(async () => {
-          await verifyAndLint(
-            dir,
-            eslintCacheDir,
-            config.eslint?.dirs,
-            config.experimental.cpus,
-            config.experimental.workerThreads,
-            telemetry
-          )
-        })
-    }
+    // const ignoreESLint = Boolean(config.eslint.ignoreDuringBuilds)
+    // const eslintCacheDir = path.join(cacheDir, 'eslint/')
+    // if (!ignoreESLint && runLint) {
+    //   await nextBuildSpan
+    //     .traceChild('verify-and-lint')
+    //     .traceAsyncFn(async () => {
+    //       await verifyAndLint(
+    //         dir,
+    //         eslintCacheDir,
+    //         config.eslint?.dirs,
+    //         config.experimental.cpus,
+    //         config.experimental.workerThreads,
+    //         telemetry
+    //       )
+    //     })
+    // }
 
     const buildSpinner = createSpinner({
       prefixText: `${Log.prefixes.info} Creating an optimized production build`,

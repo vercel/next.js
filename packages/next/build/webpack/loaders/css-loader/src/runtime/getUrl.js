@@ -4,12 +4,12 @@ module.exports = (url, options) => {
     options = {}
   }
 
-  if (!url) {
+  // eslint-disable-next-line no-underscore-dangle, no-param-reassign
+  url = url && url.__esModule ? url.default : url
+
+  if (typeof url !== 'string') {
     return url
   }
-
-  // eslint-disable-next-line no-underscore-dangle, no-param-reassign
-  url = String(url.__esModule ? url.default : url)
 
   // If url is already wrapped in quotes, remove them
   if (/^['"].*['"]$/.test(url)) {
@@ -24,7 +24,7 @@ module.exports = (url, options) => {
 
   // Should url be wrapped?
   // See https://drafts.csswg.org/css-values-3/#urls
-  if (/["'() \t\n]|(%20)/.test(url) || options.needQuotes) {
+  if (/["'() \t\n]/.test(url) || options.needQuotes) {
     return `"${url.replace(/"/g, '\\"').replace(/\n/g, '\\n')}"`
   }
 

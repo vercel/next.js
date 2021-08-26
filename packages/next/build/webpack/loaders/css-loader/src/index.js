@@ -2,7 +2,7 @@
   MIT License http://www.opensource.org/licenses/mit-license.php
   Author Tobias Koppers @sokra
 */
-
+import { getOptions, stringifyRequest } from 'loader-utils'
 import postcss from 'postcss'
 
 import CssSyntaxError from './CssSyntaxError'
@@ -22,209 +22,172 @@ import {
   getModulesPlugins,
   normalizeSourceMap,
   sort,
-  combineRequests,
-  stringifyRequest,
 } from './utils'
 
 export default async function loader(content, map, meta) {
-  const loaderSpan = this.currentTraceSpan.traceChild('css-loader')
+  const rawOptions = getOptions(this)
+
+  const plugins = []
   const callback = this.async()
 
-  loaderSpan
-    .traceAsyncFn(async () => {
-      const rawOptions = this.getOptions()
-      const plugins = []
+  let options
 
-      const options = normalizeOptions(rawOptions, this)
+  try {
+    options = normalizeOptions(rawOptions, this)
+  } catch (error) {
+    callback(error)
 
-      const replacements = []
-      const exports = []
+    return
+  }
 
-      if (shouldUseModulesPlugins(options)) {
-        plugins.push(...getModulesPlugins(options, this))
-      }
+  const replacements = []
+  const exports = []
 
-      const importPluginImports = []
-      const importPluginApi = []
+  if (shouldUseModulesPlugins(options)) {
+    plugins.push(...getModulesPlugins(options, this))
+  }
 
-      if (shouldUseImportPlugin(options)) {
-        const resolver = this.getResolve({
-          dependencyType: 'css',
-          conditionNames: ['style'],
-          mainFields: ['css', 'style', 'main', '...'],
-          mainFiles: ['index', '...'],
-          extensions: ['.css', '...'],
-          preferRelative: true,
-        })
+  const importPluginImports = []
+  const importPluginApi = []
 
-        plugins.push(
-          importParser({
-            imports: importPluginImports,
-            api: importPluginApi,
-            context: this.context,
-            rootContext: this.rootContext,
-            resourcePath: this.resourcePath,
-            filter: getFilter(options.import.filter, this.resourcePath),
-            resolver,
-            urlHandler: (url) =>
-              stringifyRequest(
-                this,
-                combineRequests(
-                  getPreRequester(this)(options.importLoaders),
-                  url
-                )
-              ),
-          })
-        )
-      }
-
-      const urlPluginImports = []
-
-      if (shouldUseURLPlugin(options)) {
-        const needToResolveURL = !options.esModule
-        const isSupportDataURLInNewURL =
-          options.esModule && Boolean('fsStartTime' in this._compiler)
-
-        plugins.push(
-          urlParser({
-            imports: urlPluginImports,
-            replacements,
-            context: this.context,
-            rootContext: this.rootContext,
-            filter: getFilter(options.url.filter, this.resourcePath),
-            needToResolveURL,
-            resolver: needToResolveURL
-              ? this.getResolve({ mainFiles: [], extensions: [] })
-              : // eslint-disable-next-line no-undefined
-                undefined,
-            urlHandler: (url) => stringifyRequest(this, url),
-            // Support data urls as input in new URL added in webpack@5.38.0
-            isSupportDataURLInNewURL,
-          })
-        )
-      }
-
-      const icssPluginImports = []
-      const icssPluginApi = []
-
-      const needToUseIcssPlugin = shouldUseIcssPlugin(options)
-
-      if (needToUseIcssPlugin) {
-        const icssResolver = this.getResolve({
-          dependencyType: 'icss',
-          conditionNames: ['style'],
-          extensions: ['...'],
-          mainFields: ['css', 'style', 'main', '...'],
-          mainFiles: ['index', '...'],
-          preferRelative: true,
-        })
-
-        plugins.push(
-          icssParser({
-            imports: icssPluginImports,
-            api: icssPluginApi,
-            replacements,
-            exports,
-            context: this.context,
-            rootContext: this.rootContext,
-            resolver: icssResolver,
-            urlHandler: (url) =>
-              stringifyRequest(
-                this,
-                combineRequests(
-                  getPreRequester(this)(options.importLoaders),
-                  url
-                )
-              ),
-          })
-        )
-      }
-
-      // Reuse CSS AST (PostCSS AST e.g 'postcss-loader') to avoid reparsing
-      if (meta) {
-        const { ast } = meta
-
-        if (ast && ast.type === 'postcss') {
-          // eslint-disable-next-line no-param-reassign
-          content = ast.root
-        }
-      }
-
-      const { resourcePath } = this
-
-      let result
-
-      try {
-        result = await postcss(plugins).process(content, {
-          hideNothingWarning: true,
-          from: resourcePath,
-          to: resourcePath,
-          map: options.sourceMap
-            ? {
-                prev: map ? normalizeSourceMap(map, resourcePath) : null,
-                inline: false,
-                annotation: false,
-              }
-            : false,
-        })
-      } catch (error) {
-        if (error.file) {
-          this.addDependency(error.file)
-        }
-
-        throw error.name === 'CssSyntaxError'
-          ? new CssSyntaxError(error)
-          : error
-      }
-
-      for (const warning of result.warnings()) {
-        this.emitWarning(new Warning(warning))
-      }
-
-      const imports = []
-        .concat(icssPluginImports.sort(sort))
-        .concat(importPluginImports.sort(sort))
-        .concat(urlPluginImports.sort(sort))
-      const api = []
-        .concat(importPluginApi.sort(sort))
-        .concat(icssPluginApi.sort(sort))
-
-      if (options.modules.exportOnlyLocals !== true) {
-        imports.unshift({
-          type: 'api_import',
-          importName: '___CSS_LOADER_API_IMPORT___',
-          url: stringifyRequest(this, require.resolve('./runtime/api')),
-        })
-
-        if (options.sourceMap) {
-          imports.unshift({
-            type: 'api_sourcemap_import',
-            importName: '___CSS_LOADER_API_SOURCEMAP_IMPORT___',
-            url: stringifyRequest(
-              this,
-              require.resolve('./runtime/cssWithMappingToString')
-            ),
-          })
-        }
-      }
-
-      const importCode = getImportCode(imports, options)
-
-      let moduleCode = getModuleCode(result, api, replacements, options, this)
-
-      const exportCode = getExportCode(
-        exports,
-        replacements,
-        needToUseIcssPlugin,
-        options
-      )
-
-      return `${importCode}${moduleCode}${exportCode}`
+  if (shouldUseImportPlugin(options)) {
+    const resolver = this.getResolve({
+      conditionNames: ['style'],
+      extensions: ['.css'],
+      mainFields: ['css', 'style', 'main', '...'],
+      mainFiles: ['index', '...'],
+      restrictions: [/\.css$/i],
     })
-    .then(
-      (code) => callback?.(null, code),
-      (err) => {
-        callback?.(err)
-      }
+
+    plugins.push(
+      importParser({
+        imports: importPluginImports,
+        api: importPluginApi,
+        context: this.context,
+        rootContext: this.rootContext,
+        filter: getFilter(options.import, this.resourcePath),
+        resolver,
+        urlHandler: (url) =>
+          stringifyRequest(
+            this,
+            getPreRequester(this)(options.importLoaders) + url
+          ),
+      })
     )
+  }
+
+  const urlPluginImports = []
+
+  if (shouldUseURLPlugin(options)) {
+    const urlResolver = this.getResolve({
+      conditionNames: ['asset'],
+      mainFields: ['asset'],
+      mainFiles: [],
+      extensions: [],
+    })
+
+    plugins.push(
+      urlParser({
+        imports: urlPluginImports,
+        replacements,
+        context: this.context,
+        rootContext: this.rootContext,
+        filter: getFilter(options.url, this.resourcePath),
+        resolver: urlResolver,
+        urlHandler: (url) => stringifyRequest(this, url),
+      })
+    )
+  }
+
+  const icssPluginImports = []
+  const icssPluginApi = []
+
+  if (shouldUseIcssPlugin(options)) {
+    const icssResolver = this.getResolve({
+      conditionNames: ['style'],
+      extensions: [],
+      mainFields: ['css', 'style', 'main', '...'],
+      mainFiles: ['index', '...'],
+    })
+
+    plugins.push(
+      icssParser({
+        imports: icssPluginImports,
+        api: icssPluginApi,
+        replacements,
+        exports,
+        context: this.context,
+        rootContext: this.rootContext,
+        resolver: icssResolver,
+        urlHandler: (url) =>
+          stringifyRequest(
+            this,
+            getPreRequester(this)(options.importLoaders) + url
+          ),
+      })
+    )
+  }
+
+  // Reuse CSS AST (PostCSS AST e.g 'postcss-loader') to avoid reparsing
+  if (meta) {
+    const { ast } = meta
+
+    if (ast && ast.type === 'postcss') {
+      // eslint-disable-next-line no-param-reassign
+      content = ast.root
+    }
+  }
+
+  const { resourcePath } = this
+
+  let result
+
+  try {
+    result = await postcss(plugins).process(content, {
+      from: resourcePath,
+      to: resourcePath,
+      map: options.sourceMap
+        ? {
+            prev: map ? normalizeSourceMap(map, resourcePath) : null,
+            inline: false,
+            annotation: false,
+          }
+        : false,
+    })
+  } catch (error) {
+    if (error.file) {
+      this.addDependency(error.file)
+    }
+
+    callback(
+      error.name === 'CssSyntaxError' ? new CssSyntaxError(error) : error
+    )
+
+    return
+  }
+
+  for (const warning of result.warnings()) {
+    this.emitWarning(new Warning(warning))
+  }
+
+  const imports = []
+    .concat(icssPluginImports.sort(sort))
+    .concat(importPluginImports.sort(sort))
+    .concat(urlPluginImports.sort(sort))
+  const api = []
+    .concat(importPluginApi.sort(sort))
+    .concat(icssPluginApi.sort(sort))
+
+  if (options.modules.exportOnlyLocals !== true) {
+    imports.unshift({
+      importName: '___CSS_LOADER_API_IMPORT___',
+      url: stringifyRequest(this, require.resolve('./runtime/api')),
+    })
+  }
+
+  const importCode = getImportCode(imports, options)
+  const moduleCode = getModuleCode(result, api, replacements, options, this)
+  const exportCode = getExportCode(exports, replacements, options)
+
+  callback(null, `${importCode}${moduleCode}${exportCode}`)
 }

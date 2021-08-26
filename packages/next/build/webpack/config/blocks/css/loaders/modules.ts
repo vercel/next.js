@@ -26,7 +26,7 @@ export function getCssModuleLoader(
 
   // Resolve CSS `@import`s and `url()`s
   loaders.push({
-    loader: require.resolve('css-loader'),
+    loader: require.resolve('../../../../loaders/css-loader/src'),
     options: {
       importLoaders: 1 + preProcessors.length,
       // Use CJS mode for backwards compatibility:
