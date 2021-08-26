@@ -138,6 +138,10 @@ export function useRouter(): NextRouter {
 // -------------
 // (do not use following exports inside the app)
 
+// Reexport RouterContext for third party reuse
+// @see https://github.com/lifeiscontent/storybook-addon-next-router
+export { RouterContext }
+
 // Create a router and assign it as the singleton instance.
 // This is used in client side when we are initilizing the app.
 // This should **not** be used inside the server.
