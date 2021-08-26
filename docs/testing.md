@@ -280,7 +280,7 @@ Your project is now ready to run tests. Follow Jests convention by adding tests 
 For example, we can add a test to check if the `<Index />` component successfully renders a heading:
 
 ```jsx
-// __tests__/testing-library.js
+// __tests__/index.test.jsx
 
 /**
  * @jest-environment jsdom
