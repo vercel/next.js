@@ -5,7 +5,7 @@ function MyApp({ Component, pageProps }) {
   // Simple
   usePostHog('YOUR_API_KEY', { api_host: 'https://app.posthog.com' })
 
-  // Disable in development
+  // Disable tracking in development
   // usePostHog('YOUR_API_KEY', {
   //     api_host: 'https://app.posthog.com',
   //     loaded: (posthog) => {
