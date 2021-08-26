@@ -53,6 +53,7 @@ import {
   createOriginalStackFrame,
   getSourceById,
 } from '@next/react-dev-overlay/lib/middleware'
+import * as Log from '../../build/output/log'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: React.FunctionComponent
@@ -331,6 +332,13 @@ export default class DevServer extends Server {
     )
     // This is required by the tracing subsystem.
     setGlobal('telemetry', telemetry)
+
+    process.on('unhandledRejection', (reason) => {
+      this.logErrorWithOriginalStack(reason).catch(() => {})
+    })
+    process.on('uncaughtException', (err) => {
+      this.logErrorWithOriginalStack(err).catch(() => {})
+    })
   }
 
   protected async close(): Promise<void> {
@@ -442,64 +450,78 @@ export default class DevServer extends Server {
     } catch (err) {
       res.statusCode = 500
       try {
-        let usedOriginalStack = false
-        try {
-          const frames = parseStack(err.stack)
-          const frame = frames[0]
-
-          if (frame.lineNumber && frame?.file) {
-            const compilation = this.hotReloader?.serverStats?.compilation
-            const moduleId = frame.file!.replace(
-              /^(webpack-internal:\/\/\/|file:\/\/)/,
-              ''
-            )
-
-            const source = await getSourceById(
-              !!frame.file?.startsWith(sep) ||
-                !!frame.file?.startsWith('file:'),
-              moduleId,
-              compilation,
-              this.hotReloader!.isWebpack5
-            )
-
-            const originalFrame = await createOriginalStackFrame({
-              line: frame.lineNumber!,
-              column: frame.column,
-              source,
-              frame,
-              modulePath: moduleId,
-              rootDirectory: this.dir,
-            })
-
-            if (originalFrame) {
-              usedOriginalStack = true
-              const { originalCodeFrame, originalStackFrame } = originalFrame
-              const { file, lineNumber, column, methodName } =
-                originalStackFrame
-              console.error(
-                chalk.red('error') +
-                  ' - ' +
-                  `${file} (${lineNumber}:${column}) @ ${methodName}`
-              )
-              console.error(`${chalk.red(err.name)}: ${err.message}`)
-              console.error(originalCodeFrame)
-            }
-          }
-        } catch (_) {
-          // failed to load original source map, should we
-          // log this even though it's most likely unactionable
-          // for the user?
-        }
-
-        if (!usedOriginalStack) {
-          console.error(err)
-        }
+        this.logErrorWithOriginalStack(err).catch(() => {})
         return await this.renderError(err, req, res, pathname!, {
           __NEXT_PAGE: err?.page || pathname,
         })
       } catch (internalErr) {
         console.error(internalErr)
         res.end('Internal Server Error')
+      }
+    }
+  }
+
+  private async logErrorWithOriginalStack(
+    possibleError?: any,
+    type?: 'unhandledRejection' | 'uncaughtException'
+  ) {
+    let usedOriginalStack = false
+
+    if (possibleError?.name && possibleError?.stack && possibleError?.message) {
+      const err: Error & { stack: string } = possibleError
+      try {
+        const frames = parseStack(err.stack)
+        const frame = frames[0]
+
+        if (frame.lineNumber && frame?.file) {
+          const compilation = this.hotReloader?.serverStats?.compilation
+          const moduleId = frame.file!.replace(
+            /^(webpack-internal:\/\/\/|file:\/\/)/,
+            ''
+          )
+
+          const source = await getSourceById(
+            !!frame.file?.startsWith(sep) || !!frame.file?.startsWith('file:'),
+            moduleId,
+            compilation,
+            this.hotReloader!.isWebpack5
+          )
+
+          const originalFrame = await createOriginalStackFrame({
+            line: frame.lineNumber!,
+            column: frame.column,
+            source,
+            frame,
+            modulePath: moduleId,
+            rootDirectory: this.dir,
+          })
+
+          if (originalFrame) {
+            const { originalCodeFrame, originalStackFrame } = originalFrame
+            const { file, lineNumber, column, methodName } = originalStackFrame
+
+            console.error(
+              chalk.red('error') +
+                ' - ' +
+                `${file} (${lineNumber}:${column}) @ ${methodName}`
+            )
+            console.error(`${chalk.red(err.name)}: ${err.message}`)
+            console.error(originalCodeFrame)
+            usedOriginalStack = true
+          }
+        }
+      } catch (_) {
+        // failed to load original stack using source maps
+        // this un-actionable by users so we don't show the
+        // internal error and only show the provided stack
+      }
+    }
+
+    if (!usedOriginalStack) {
+      if (type) {
+        Log.error(`${type}:`, possibleError)
+      } else {
+        Log.error(possibleError)
       }
     }
   }

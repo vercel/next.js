@@ -198,4 +198,36 @@ describe('server-side dev errors', () => {
       await fs.writeFile(dynamicApiPage, content)
     }
   })
+
+  it('should show server-side error for uncaught rejection correctly', async () => {
+    const stderrIdx = stderr.length
+    await webdriver(appPort, '/uncaught-rejection')
+
+    await check(async () => {
+      const err = stderr.substr(stderrIdx)
+
+      return err.includes('pages/uncaught-rejection.js') &&
+        err.includes('7:19') &&
+        err.includes('getServerSideProps') &&
+        err.includes('catch this rejection')
+        ? 'success'
+        : err
+    }, 'success')
+  })
+
+  it('should show server-side error for uncaught exception correctly', async () => {
+    const stderrIdx = stderr.length
+    await webdriver(appPort, '/uncaught-exception')
+
+    await check(async () => {
+      const err = stderr.substr(stderrIdx)
+
+      return err.includes('pages/uncaught-exception.js') &&
+        err.includes('7:10') &&
+        err.includes('getServerSideProps') &&
+        err.includes('catch this exception')
+        ? 'success'
+        : err
+    }, 'success')
+  })
 })
