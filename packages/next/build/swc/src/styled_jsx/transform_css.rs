@@ -11,7 +11,11 @@ use swc_stylis::prefixer::prefixer;
 
 use super::{hash_string, string_literal_expr, JSXStyleInfo};
 
-pub fn transform_css(style_info: JSXStyleInfo, class_name: &Option<String>) -> Expr {
+pub fn transform_css(
+  style_info: JSXStyleInfo,
+  is_global: bool,
+  class_name: &Option<String>,
+) -> Expr {
   let mut ss: Stylesheet = parse_str(
     &style_info.css,
     style_info.css_span.lo,
@@ -28,7 +32,7 @@ pub fn transform_css(style_info: JSXStyleInfo, class_name: &Option<String>) -> E
       Some(s) => s.clone(),
       None => format!("jsx-{}", &hash_string(&style_info.hash)),
     },
-    is_global: style_info.is_global,
+    is_global,
     is_dynamic: style_info.is_dynamic,
   });
 

@@ -1,26 +1,19 @@
-use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash, Hasher};
-use swc_common::{collections::AHashSet, Span, DUMMY_SP};
+use swc_common::Span;
+use swc_common::{collections::AHashSet, DUMMY_SP};
 use swc_ecmascript::ast::*;
 use swc_ecmascript::utils::{collect_decls, prepend, Id, HANDLER};
 use swc_ecmascript::visit::{Fold, FoldWith};
 
+use external::external_styles;
 use transform_css::transform_css;
+use utils::*;
 
+mod external;
 mod transform_css;
+mod utils;
 
 pub fn styled_jsx() -> impl Fold {
   StyledJSXTransformer::default()
-}
-
-#[derive(Debug, Clone)]
-pub struct JSXStyleInfo {
-  hash: String,
-  css: String,
-  css_span: Span,
-  is_global: bool,
-  is_dynamic: bool,
-  expressions: Vec<Box<Expr>>,
 }
 
 #[derive(Debug, Default)]
@@ -31,6 +24,15 @@ struct StyledJSXTransformer {
   file_has_styled_jsx: bool,
   has_styled_jsx: bool,
   scope_bindings: AHashSet<Id>,
+}
+
+#[derive(Debug, Clone)]
+pub struct JSXStyleInfo {
+  hash: String,
+  css: String,
+  css_span: Span,
+  is_dynamic: bool,
+  expressions: Vec<Box<Expr>>,
 }
 
 impl Fold for StyledJSXTransformer {
@@ -252,104 +254,33 @@ impl Fold for StyledJSXTransformer {
     self.scope_bindings = current_bindings;
     func
   }
+
+  fn fold_program(&mut self, program: Program) -> Program {
+    let mut program = program.fold_children_with(self);
+    program = program.fold_with(&mut external_styles());
+    program
+  }
 }
 
 impl StyledJSXTransformer {
   fn check_children_for_jsx_styles(&mut self, children: &Vec<JSXElementChild>) {
-    let mut static_hashes = vec![];
-    let mut dynamic_styles = vec![];
+    let mut styles = vec![];
     for i in 0..children.len() {
       if let JSXElementChild::JSXElement(child_el) = &children[i] {
         if is_styled_jsx(&child_el) {
           self.file_has_styled_jsx = true;
           self.has_styled_jsx = true;
-          let style_info = get_jsx_style_info(&child_el);
-          if !style_info.is_dynamic {
-            static_hashes.push(style_info.hash.clone());
-          } else {
-            dynamic_styles.push(style_info.clone());
-          }
-          self.styles.insert(0, style_info);
+          let expr = get_style_expr(&child_el);
+          let style_info = get_jsx_style_info(expr);
+          styles.insert(0, style_info);
         }
       }
     }
 
-    if static_hashes.len() > 0 {
-      self.static_class_name = Some(format!("jsx-{}", hash_string(&static_hashes.join(","))));
-    }
-
-    let dynamic_class_name = match dynamic_styles.len() {
-      0 => None,
-      _ => Some(Expr::Call(CallExpr {
-        callee: ExprOrSuper::Expr(Box::new(Expr::Member(MemberExpr {
-          obj: ExprOrSuper::Expr(Box::new(Expr::Ident(Ident {
-            sym: "_JSXStyle".into(),
-            span: DUMMY_SP,
-            optional: false,
-          }))),
-          prop: Box::new(Expr::Ident(Ident {
-            sym: "dynamic".into(),
-            span: DUMMY_SP,
-            optional: false,
-          })),
-          span: DUMMY_SP,
-          computed: false,
-        }))),
-        args: dynamic_styles
-          .iter()
-          .map(|style_info| {
-            let hash_input = match &self.static_class_name {
-              Some(class_name) => format!("{}{}", style_info.hash, class_name),
-              None => style_info.hash.clone(),
-            };
-            ExprOrSpread {
-              expr: Box::new(Expr::Array(ArrayLit {
-                elems: vec![
-                  Some(ExprOrSpread {
-                    expr: Box::new(string_literal_expr(&hash_string(&hash_input))),
-                    spread: None,
-                  }),
-                  Some(ExprOrSpread {
-                    expr: Box::new(Expr::Array(ArrayLit {
-                      elems: style_info
-                        .expressions
-                        .iter()
-                        .map(|expression| {
-                          Some(ExprOrSpread {
-                            expr: expression.clone(),
-                            spread: None,
-                          })
-                        })
-                        .collect(),
-                      span: DUMMY_SP,
-                    })),
-                    spread: None,
-                  }),
-                ],
-                span: DUMMY_SP,
-              })),
-              spread: None,
-            }
-          })
-          .collect(),
-        span: DUMMY_SP,
-        type_args: None,
-      })),
-    };
-
-    let mut class_name_expr = match &self.static_class_name {
-      Some(class_name) => Some(string_literal_expr(&class_name)),
-      None => None,
-    };
-    if let Some(dynamic_class_name) = dynamic_class_name {
-      class_name_expr = match class_name_expr {
-        Some(class_name) => Some(add(class_name, dynamic_class_name)),
-        None => Some(dynamic_class_name),
-      };
-    };
-    if let Some(class_name_expr) = class_name_expr {
-      self.class_name = Some(class_name_expr);
-    }
+    let (static_class_name, class_name) = compute_class_names(&styles);
+    self.styles = styles;
+    self.static_class_name = static_class_name;
+    self.class_name = class_name;
   }
 
   fn replace_jsx_style(&mut self, mut el: JSXElement) -> JSXElement {
@@ -422,8 +353,24 @@ impl StyledJSXTransformer {
       }));
     }
 
+    let is_global = el.opening.attrs.iter().any(|attr| {
+      if let JSXAttrOrSpread::JSXAttr(JSXAttr {
+        name: JSXAttrName::Ident(Ident { sym, .. }),
+        ..
+      }) = &attr
+      {
+        if sym == "global" {
+          return true;
+        }
+      }
+      false
+    });
     el.children = vec![JSXElementChild::JSXExprContainer(JSXExprContainer {
-      expr: JSXExpr::Expr(Box::new(transform_css(style_info, &self.static_class_name))),
+      expr: JSXExpr::Expr(Box::new(transform_css(
+        style_info,
+        is_global,
+        &self.static_class_name,
+      ))),
       span: DUMMY_SP,
     })];
     el
@@ -457,20 +404,7 @@ fn is_styled_jsx(el: &JSXElement) -> bool {
   })
 }
 
-fn get_jsx_style_info(el: &JSXElement) -> JSXStyleInfo {
-  let is_global = el.opening.attrs.iter().any(|attr| {
-    if let JSXAttrOrSpread::JSXAttr(JSXAttr {
-      name: JSXAttrName::Ident(Ident { sym, .. }),
-      ..
-    }) = &attr
-    {
-      if sym == "global" {
-        return true;
-      }
-    }
-    false
-  });
-
+fn get_style_expr(el: &JSXElement) -> &Expr {
   let non_whitespace_children: &Vec<&JSXElementChild> = &el
     .children
     .iter()
@@ -504,57 +438,7 @@ fn get_jsx_style_info(el: &JSXElement) -> JSXStyleInfo {
     ..
   }) = non_whitespace_children[0]
   {
-    let mut hasher = DefaultHasher::new();
-    let css: String;
-    let css_span: Span;
-    let is_dynamic;
-    let mut expressions = vec![];
-    match &**expr {
-      Expr::Lit(Lit::Str(Str { value, span, .. })) => {
-        hasher.write(value.as_ref().as_bytes());
-        css = value.to_string().clone();
-        css_span = span.clone();
-        is_dynamic = false;
-      }
-      Expr::Tpl(Tpl {
-        exprs,
-        quasis,
-        span,
-      }) => {
-        if exprs.len() == 0 {
-          hasher.write(quasis[0].raw.value.as_bytes());
-          css = quasis[0].raw.value.to_string();
-          css_span = span.clone();
-          is_dynamic = false;
-        } else {
-          expr.clone().hash(&mut hasher);
-          let mut s = String::new();
-          for i in 0..quasis.len() {
-            let placeholder = if i == quasis.len() - 1 {
-              String::new()
-            } else {
-              String::from("__styled-jsx-placeholder__")
-            };
-            s = format!("{}{}{}", s, quasis[i].raw.value, placeholder)
-          }
-          css = String::from(s);
-          dbg!(&css);
-          css_span = span.clone();
-          is_dynamic = true;
-          expressions = exprs.clone();
-        }
-      }
-      _ => panic!("Not implemented"),
-    }
-
-    return JSXStyleInfo {
-      hash: format!("{:x}", hasher.finish()),
-      css,
-      css_span,
-      is_global,
-      is_dynamic,
-      expressions,
-    };
+    return &**expr;
   }
 
   HANDLER.with(|handler| {
@@ -569,31 +453,6 @@ fn get_jsx_style_info(el: &JSXElement) -> JSXStyleInfo {
   panic!("next-swc compilation error");
 }
 
-fn add(left: Expr, right: Expr) -> Expr {
-  binary_expr(BinaryOp::Add, left, right)
-}
-
-fn and(left: Expr, right: Expr) -> Expr {
-  binary_expr(BinaryOp::LogicalAnd, left, right)
-}
-
-fn or(left: Expr, right: Expr) -> Expr {
-  binary_expr(BinaryOp::LogicalOr, left, right)
-}
-
-fn not_eq(left: Expr, right: Expr) -> Expr {
-  binary_expr(BinaryOp::NotEq, left, right)
-}
-
-fn binary_expr(op: BinaryOp, left: Expr, right: Expr) -> Expr {
-  Expr::Bin(BinExpr {
-    op,
-    left: Box::new(left),
-    right: Box::new(right),
-    span: DUMMY_SP,
-  })
-}
-
 fn join_spreads(spreads: Vec<Expr>) -> Expr {
   // TODO: make sure this won't panic
   let mut new_expr = spreads[0].clone();
@@ -606,33 +465,4 @@ fn join_spreads(spreads: Vec<Expr>) -> Expr {
     })
   }
   new_expr
-}
-
-pub fn string_literal_expr(str: &str) -> Expr {
-  Expr::Lit(Lit::Str(Str {
-    value: str.into(),
-    span: DUMMY_SP,
-    has_escape: false,
-    kind: StrKind::Synthesized {},
-  }))
-}
-
-fn ident(str: &str) -> Ident {
-  Ident {
-    sym: String::from(str).into(),
-    span: DUMMY_SP,
-    optional: false,
-  }
-}
-
-// TODO: maybe use DJBHasher (need to implement)
-pub fn hash_string(str: &String) -> String {
-  let mut hasher = DefaultHasher::new();
-  hasher.write(str.as_bytes());
-  let hash_result = hasher.finish();
-  format!("{:x}", hash_result)
-}
-
-fn is_capitalized(word: &str) -> bool {
-  word.chars().next().unwrap().is_uppercase()
 }
