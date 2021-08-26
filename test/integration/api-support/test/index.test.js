@@ -109,14 +109,24 @@ function runTests(dev = false) {
     const res = await fetchViaHTTP(appPort, '/api/user-error', null, {})
     const text = await res.text()
     expect(res.status).toBe(500)
-    expect(text).toBe('Internal Server Error')
+
+    if (dev) {
+      expect(text).toContain('User error')
+    } else {
+      expect(text).toBe('Internal Server Error')
+    }
   })
 
   it('should throw Internal Server Error (async)', async () => {
     const res = await fetchViaHTTP(appPort, '/api/user-error-async', null, {})
     const text = await res.text()
     expect(res.status).toBe(500)
-    expect(text).toBe('Internal Server Error')
+
+    if (dev) {
+      expect(text).toContain('User error')
+    } else {
+      expect(text).toBe('Internal Server Error')
+    }
   })
 
   it('should parse JSON body', async () => {

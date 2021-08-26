@@ -455,11 +455,13 @@ export default class DevServer extends Server {
             )
 
             const source = await getSourceById(
-              !!frame.file?.startsWith('file:'),
+              !!frame.file?.startsWith(sep) ||
+                !!frame.file?.startsWith('file:'),
               moduleId,
               compilation,
               this.hotReloader!.isWebpack5
             )
+
             const originalFrame = await createOriginalStackFrame({
               line: frame.lineNumber!,
               column: frame.column,
