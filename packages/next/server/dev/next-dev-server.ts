@@ -334,10 +334,12 @@ export default class DevServer extends Server {
     setGlobal('telemetry', telemetry)
 
     process.on('unhandledRejection', (reason) => {
-      this.logErrorWithOriginalStack(reason).catch(() => {})
+      this.logErrorWithOriginalStack(reason, 'unhandledRejection').catch(
+        () => {}
+      )
     })
     process.on('uncaughtException', (err) => {
-      this.logErrorWithOriginalStack(err).catch(() => {})
+      this.logErrorWithOriginalStack(err, 'uncaughtException').catch(() => {})
     })
   }
 
