@@ -6,11 +6,12 @@ use swc_css_codegen::{
   writer::basic::{BasicCssWriter, BasicCssWriterConfig},
   CodegenConfig, Emit,
 };
+use swc_ecmascript::ast::{Expr, Str, StrKind, Tpl, TplElement};
 use swc_stylis::prefixer::prefixer;
 
-use super::{hash_string, JSXStyleInfo};
+use super::{hash_string, string_literal_expr, JSXStyleInfo};
 
-pub fn transform_css(style_info: JSXStyleInfo, class_name: &Option<String>) -> String {
+pub fn transform_css(style_info: JSXStyleInfo, class_name: &Option<String>) -> Expr {
   let mut ss: Stylesheet = parse_str(
     &style_info.css,
     style_info.css_span.lo,
@@ -28,6 +29,7 @@ pub fn transform_css(style_info: JSXStyleInfo, class_name: &Option<String>) -> S
       None => format!("jsx-{}", &hash_string(&style_info.hash)),
     },
     is_global: style_info.is_global,
+    is_dynamic: style_info.is_dynamic,
   });
 
   let mut s = String::new();
@@ -38,12 +40,40 @@ pub fn transform_css(style_info: JSXStyleInfo, class_name: &Option<String>) -> S
     gen.emit(&ss).unwrap();
   }
 
-  s
+  if style_info.expressions.len() == 0 {
+    return string_literal_expr(&s);
+  }
+
+  let parts: Vec<&str> = s.split("__styled-jsx-placeholder__").collect();
+  let mut final_expressions = vec![];
+  for i in 0..parts.len() - 1 {
+    final_expressions.push(&style_info.expressions[i]);
+  }
+
+  Expr::Tpl(Tpl {
+    quasis: parts
+      .iter()
+      .map(|quasi| TplElement {
+        cooked: None, // ? Do we need cooked as well
+        raw: Str {
+          value: String::from(*quasi).into(),
+          span: DUMMY_SP,
+          has_escape: false,
+          kind: StrKind::Synthesized {},
+        },
+        span: DUMMY_SP,
+        tail: false,
+      })
+      .collect(),
+    exprs: style_info.expressions,
+    span: DUMMY_SP,
+  })
 }
 
 struct Namespacer {
   class_name: String,
   is_global: bool,
+  is_dynamic: bool,
 }
 
 impl VisitMut for Namespacer {
@@ -79,7 +109,10 @@ impl VisitMut for Namespacer {
       });
       node.subclass_selectors.clear();
     } else if !self.is_global {
-      // should this check come earlier?
+      let subclass_selector = match self.is_dynamic {
+        true => "__jsx-style-dynamic-selector",
+        false => &self.class_name,
+      };
       let insert_index = match pseudo_index {
         None => node.subclass_selectors.len(),
         Some(i) => i,
@@ -89,7 +122,7 @@ impl VisitMut for Namespacer {
         SubclassSelector::Class(ClassSelector {
           span: DUMMY_SP,
           text: Text {
-            value: self.class_name.clone().into(),
+            value: subclass_selector.into(),
             span: DUMMY_SP,
           },
         }),
