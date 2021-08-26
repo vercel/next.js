@@ -1,5 +1,6 @@
 import crypto from 'crypto'
 import fs from 'fs'
+import chalk from 'chalk'
 import { IncomingMessage, ServerResponse } from 'http'
 import { Worker } from 'jest-worker'
 import AmpHtmlValidator from 'next/dist/compiled/amphtml-validator'
@@ -47,6 +48,11 @@ import {
   loadDefaultErrorComponents,
 } from '../load-components'
 import { DecodeError } from '../../shared/lib/utils'
+import { parseStack } from '@next/react-dev-overlay/lib/internal/helpers/parseStack'
+import {
+  createOriginalStackFrame,
+  getSourceById,
+} from '@next/react-dev-overlay/lib/middleware'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: React.FunctionComponent
@@ -431,8 +437,69 @@ export default class DevServer extends Server {
       // if they should match against the basePath or not
       parsedUrl.pathname = originalPathname
     }
+    try {
+      return await super.run(req, res, parsedUrl)
+    } catch (err) {
+      res.statusCode = 500
+      try {
+        let usedOriginalStack = false
+        try {
+          const frames = parseStack(err.stack)
+          const frame = frames[0]
 
-    return super.run(req, res, parsedUrl)
+          if (frame.lineNumber && frame?.file) {
+            const compilation = this.hotReloader?.serverStats?.compilation
+            const moduleId = frame.file!.replace(
+              /^(webpack-internal:\/\/\/|file:\/\/)/,
+              ''
+            )
+
+            const source = await getSourceById(
+              !!frame.file?.startsWith('file:'),
+              moduleId,
+              compilation,
+              this.hotReloader!.isWebpack5
+            )
+            const originalFrame = await createOriginalStackFrame({
+              line: frame.lineNumber!,
+              column: frame.column,
+              source,
+              frame,
+              modulePath: moduleId,
+              rootDirectory: this.dir,
+            })
+
+            if (originalFrame) {
+              usedOriginalStack = true
+              const { originalCodeFrame, originalStackFrame } = originalFrame
+              const { file, lineNumber, column, methodName } =
+                originalStackFrame
+              console.error(
+                chalk.red('error') +
+                  ' - ' +
+                  `${file} (${lineNumber}:${column}) @ ${methodName}`
+              )
+              console.error(`${chalk.red(err.name)}: ${err.message}`)
+              console.error(originalCodeFrame)
+            }
+          }
+        } catch (_) {
+          // failed to load original source map, should we
+          // log this even though it's most likely unactionable
+          // for the user?
+        }
+
+        if (!usedOriginalStack) {
+          console.error(err)
+        }
+        return await this.renderError(err, req, res, pathname!, {
+          __NEXT_PAGE: err?.page || pathname,
+        })
+      } catch (internalErr) {
+        console.error(internalErr)
+        res.end('Internal Server Error')
+      }
+    }
   }
 
   // override production loading of routes-manifest
