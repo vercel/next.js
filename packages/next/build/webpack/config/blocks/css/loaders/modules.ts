@@ -8,7 +8,7 @@ import postcss from 'postcss'
 
 export function getCssModuleLoader(
   ctx: ConfigurationContext,
-  postCssPlugins: readonly AcceptedPlugin[],
+  postCssPlugins: AcceptedPlugin[],
   preProcessors: readonly webpack.RuleSetUseItem[] = []
 ): webpack.RuleSetUseItem[] {
   const loaders: webpack.RuleSetUseItem[] = []
