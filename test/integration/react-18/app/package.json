@@ -1,0 +1,12 @@
+{
+  "scripts": {
+    "next": "node -r ../test/require-hook.js ../../../../packages/next/dist/bin/next",
+    "dev": "yarn next dev",
+    "build": "yarn next build",
+    "start": "yarn next start"
+  },
+  "dependencies": {
+    "react": "*",
+    "react-dom": "*"
+  }
+}

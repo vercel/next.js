@@ -169,6 +169,15 @@ export async function createApp({
       )
     }
 
+    // Copy default `next-env.d.ts` to any example that is typescript
+    const tsconfigPath = path.join(root, 'tsconfig.json')
+    if (fs.existsSync(tsconfigPath)) {
+      fs.copyFileSync(
+        path.join(__dirname, 'templates', 'typescript', 'next-env.d.ts'),
+        path.join(root, 'next-env.d.ts')
+      )
+    }
+
     console.log('Installing packages. This might take a couple of minutes.')
     console.log()
 

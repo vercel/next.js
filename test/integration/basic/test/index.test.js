@@ -3,13 +3,14 @@
 import { join } from 'path'
 import { renderViaHTTP, findPort, launchApp, killApp } from 'next-test-utils'
 
-// test suits
+// test suites
 import hmr from './hmr'
 import errorRecovery from './error-recovery'
 import dynamic from './dynamic'
 import processEnv from './process-env'
 import publicFolder from './public-folder'
 import security from './security'
+import developmentLogs from './development-logs'
 
 const context = {}
 jest.setTimeout(1000 * 60 * 5)
@@ -29,4 +30,5 @@ describe('Basic Features', () => {
   processEnv(context)
   publicFolder(context)
   security(context)
+  developmentLogs(context)
 })

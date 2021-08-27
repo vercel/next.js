@@ -20,6 +20,5 @@
   "devDependencies": {
     "firebase-functions-test": "^0.2.3",
     "firebase-tools": "^9.3.0"
-  },
-  "license": "MIT"
+  }
 }

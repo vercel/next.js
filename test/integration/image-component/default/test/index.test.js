@@ -151,7 +151,7 @@ function runTests(mode) {
     const els = [].slice.apply($html('img'))
     expect(els.length).toBe(2)
 
-    const [noscriptEl, el] = els
+    const [el, noscriptEl] = els
     expect(noscriptEl.attribs.src).toBeDefined()
     expect(noscriptEl.attribs.srcset).toBeDefined()
 
@@ -221,6 +221,26 @@ function runTests(mode) {
       await check(
         () => browser.eval(`document.getElementById("msg4").textContent`),
         'loaded img4 with dimensions 21x21'
+      )
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
+
+  it('should work with image with blob src', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/blob')
+
+      await check(
+        () => browser.eval(`document.getElementById("blob-image").src`),
+        /^blob:/
+      )
+      await check(
+        () => browser.eval(`document.getElementById("blob-image").srcset`),
+        ''
       )
     } finally {
       if (browser) {
@@ -559,6 +579,33 @@ function runTests(mode) {
       expect(await hasRedbox(browser)).toBe(true)
       expect(await getRedboxHeader(browser)).toMatch(
         /Image with src "(.*)bmp" has "placeholder='blur'" property but is missing the "blurDataURL" property/
+      )
+    })
+
+    it('should warn when img with layout=responsive is inside flex container', async () => {
+      const browser = await webdriver(appPort, '/layout-responsive-inside-flex')
+      await browser.eval(`document.getElementById("img").scrollIntoView()`)
+      const warnings = (await browser.log('browser'))
+        .map((log) => log.message)
+        .join('\n')
+      expect(await hasRedbox(browser)).toBe(false)
+      expect(warnings).toMatch(
+        /Image with src (.*)jpg(.*) may not render properly as a child of a flex container. Consider wrapping the image with a div to configure the width/gm
+      )
+    })
+
+    it('should warn when img with layout=fill is inside a container without position relative', async () => {
+      const browser = await webdriver(
+        appPort,
+        '/layout-fill-inside-nonrelative'
+      )
+      await browser.eval(`document.getElementById("img").scrollIntoView()`)
+      const warnings = (await browser.log('browser'))
+        .map((log) => log.message)
+        .join('\n')
+      expect(await hasRedbox(browser)).toBe(false)
+      expect(warnings).toMatch(
+        /Image with src (.*)jpg(.*) may not render properly with a parent using position:\\"static\\". Consider changing the parent style to position:\\"relative\\"/gm
       )
     })
 

@@ -28,7 +28,6 @@ DEALINGS IN THE SOFTWARE.
 
 import { getOptions } from 'next/dist/compiled/loader-utils'
 import { transform } from '../../swc'
-import { trace } from '../../../telemetry/trace'
 
 function getSWCOptions({ isTypeScript, isServer, development }) {
   const jsc = {
@@ -123,7 +122,7 @@ async function loaderTransform(parentTrace, source, inputSourceMap) {
 }
 
 export default function swcLoader(inputSource, inputSourceMap) {
-  const loaderSpan = trace('next-swc-loader', this.currentTraceSpan?.id)
+  const loaderSpan = this.currentTraceSpan.traceChild('next-swc-loader')
   const callback = this.async()
   loaderSpan
     .traceAsyncFn(() =>

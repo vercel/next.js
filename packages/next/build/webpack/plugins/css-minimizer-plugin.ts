@@ -36,7 +36,7 @@ export class CssMinimizerPlugin {
       // We don't actually add this parser to support Sass. It can also be used
       // for inline comment support. See the README:
       // https://github.com/postcss/postcss-scss/blob/master/README.md#2-inline-comments-for-postcss
-      parser: (postcssScss as any) as Parser,
+      parser: postcssScss as any as Parser,
     }
 
     let input: string
@@ -71,9 +71,8 @@ export class CssMinimizerPlugin {
           },
           async (assets: any) => {
             const compilerSpan = spans.get(compiler)
-            const cssMinimizerSpan = trace(
-              'css-minimizer-plugin',
-              compilerSpan?.id
+            const cssMinimizerSpan = compilerSpan!.traceChild(
+              'css-minimizer-plugin'
             )
             cssMinimizerSpan.setAttribute('webpackVersion', 5)
 
@@ -83,7 +82,7 @@ export class CssMinimizerPlugin {
                 files
                   .filter((file) => CSS_REGEX.test(file))
                   .map(async (file) => {
-                    const assetSpan = trace('minify-css', cssMinimizerSpan.id)
+                    const assetSpan = cssMinimizerSpan.traceChild('minify-css')
                     assetSpan.setAttribute('file', file)
 
                     return assetSpan.traceAsyncFn(async () => {
