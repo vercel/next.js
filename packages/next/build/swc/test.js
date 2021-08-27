@@ -1,3 +1,4 @@
+/* eslint-disable */
 const { transform } = require('../../dist/build/swc')
 const { transform: trnsfrm } = require('@babel/core')
 
