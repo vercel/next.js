@@ -32,7 +32,7 @@ module.exports = {
 
 Then rename your pages to have a file extension that includes `.page` (ex. rename `MyPage.tsx` to `MyPage.page.tsx`).
 
-> **Note**: As mentioned in the note above, make sure you also rename `_document.js`, `_app.js` as well as files under `pages/api/`.
+> **Note**: Make sure you also rename `_document.js`, `_app.js` as well as files under `pages/api/`.
 
 Without this config, Next.js assumes every tsx/ts/jsx/js file in the `pages` directory is a page or API route, and may expose unintended routes vulnerable to denial of service attacks, or throw an error like the following when building the production bundle:
 
