@@ -1,7 +1,7 @@
 import Warning from './Warning'
 import SyntaxError from './Error'
 import { normalizeSourceMap, normalizeSourceMapAfterPostcss } from './utils'
-import { getOptions, stringifyRequest } from 'next/dist/compiled/loader-utils'
+import { getOptions } from 'next/dist/compiled/loader-utils'
 
 /**
  * **PostCSS Loader**
