@@ -352,9 +352,9 @@ const runTests = (dev = false) => {
             )
             const editedClientClassName = await editedDiv.getAttribute('class')
             const editedFontSize = await editedDiv.getComputedCss('font-size')
-            const browserHtml = await secondBrowser
-              .elementByCss('html')
-              .getAttribute('innerHTML')
+            const browserHtml = await secondBrowser.eval(
+              'document.documentElement.innerHTML'
+            )
 
             expect(editedFontSize).toBe('200px')
             expect(browserHtml.includes('font-size:200px;')).toBe(true)

@@ -65,7 +65,7 @@ export class BrowserInterface {
   async getValue(): Promise<any> {}
   async getAttribute(name: string): Promise<any> {}
   async eval(snippet: string | Function): Promise<any> {}
-  async evalAsync(snippet: string | Function, chain?: boolean): Promise<any> {}
+  async evalAsync(snippet: string | Function): Promise<any> {}
   async text(): Promise<string> {
     return ''
   }

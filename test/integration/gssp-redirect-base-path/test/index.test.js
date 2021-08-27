@@ -200,7 +200,7 @@ const runTests = (isDev) => {
     )
 
     const initialHref = await browser.eval(() => window.initialHref)
-    expect(initialHref).toBe(null)
+    expect(initialHref).toBeFalsy()
 
     const curUrl = await browser.url()
     const { pathname } = url.parse(curUrl)
@@ -221,7 +221,7 @@ const runTests = (isDev) => {
     )
 
     const initialHref = await browser.eval(() => window.initialHref)
-    expect(initialHref).toBe(null)
+    expect(initialHref).toBeFalsy()
   })
 
   it('should apply redirect when fallback GSSP page is visited directly (external domain)', async () => {
@@ -238,7 +238,7 @@ const runTests = (isDev) => {
     )
 
     const initialHref = await browser.eval(() => window.initialHref)
-    expect(initialHref).toBe(null)
+    expect(initialHref).toBeFalsy()
 
     const res = await fetchViaHTTP(
       appPort,

@@ -83,7 +83,7 @@ describe('AMP Usage', () => {
 
         const result = await browser.eval('window.NAV_PAGE_LOADED')
 
-        expect(result).toBe(null)
+        expect(result).toBeFalsy()
       })
 
       it('should not output client pages for AMP only with config exported after declaration', async () => {
@@ -92,7 +92,7 @@ describe('AMP Usage', () => {
 
         const result = await browser.eval('window.NAV_PAGE_LOADED')
 
-        expect(result).toBe(null)
+        expect(result).toBeFalsy()
       })
 
       it('should add link preload for amp script', async () => {

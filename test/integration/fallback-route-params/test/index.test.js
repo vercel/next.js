@@ -32,7 +32,7 @@ const runTests = () => {
   it('should have correct fallback query (hydration)', async () => {
     const browser = await webdriver(appPort, '/second')
     const initialSlug = await browser.eval(() => window.initialSlug)
-    expect(initialSlug).toBe(null)
+    expect(initialSlug).toBeFalsy()
 
     await browser.waitForElementByCss('#query')
 

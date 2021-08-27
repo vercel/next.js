@@ -984,7 +984,7 @@ describe('Production Usage', () => {
         /page could not be found/
       )
 
-      expect(await browser.eval('window.beforeNav')).toBe(null)
+      expect(await browser.eval('window.beforeNav')).toBeFalsy()
       expect(await browser.eval('window.location.hash')).toBe('')
       expect(await browser.eval('window.location.search')).toBe('?hello=world')
       expect(await browser.eval('window.location.pathname')).toBe(

@@ -86,7 +86,7 @@ export default (context, render) => {
             .elementByCss('.dynamic-style')
             .getComputedCss('height')
           expect(height).toBe('200px')
-          expect(backgroundColor).toBe('rgba(0, 128, 0, 1)')
+          expect(backgroundColor).toMatch(/rgba?\(0, 128, 0/)
         } finally {
           if (browser) {
             await browser.close()
@@ -203,9 +203,7 @@ export default (context, render) => {
             context.appPort,
             '/dynamic/multiple-modules'
           )
-          const html = await browser
-            .elementByCss('html')
-            .getAttribute('innerHTML')
+          const html = await browser.eval('document.documentElement.innerHTML')
           expect(html).toMatch(/hello1\.js/)
           expect(html).not.toMatch(/hello2\.js/)
         } finally {

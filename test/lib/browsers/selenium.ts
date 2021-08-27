@@ -1,4 +1,6 @@
 import path from 'path'
+import resolveFrom from 'resolve-from'
+import { execSync } from 'child_process'
 import { Options as ChromeOptions } from 'selenium-webdriver/chrome'
 import { Options as SafariOptions } from 'selenium-webdriver/safari'
 import { Options as FireFoxOptions } from 'selenium-webdriver/firefox'
@@ -54,8 +56,19 @@ class Selenium extends BrowserInterface {
     const isBrowserStack = BROWSERSTACK
     const localSeleniumServer = SKIP_LOCAL_SELENIUM_SERVER !== 'true'
 
+    // install conditional packages globally so the entire
+    // monorepo doesn't need to rebuild when testing
+    let globalNodeModules: string
+
+    if (isBrowserStack || localSeleniumServer) {
+      globalNodeModules = execSync('npm root -g').toString().trim()
+    }
+
     if (isBrowserStack) {
-      const { Local } = require('browserstack-local')
+      const { Local } = require(resolveFrom(
+        globalNodeModules,
+        'browserstack-local'
+      ))
       browserStackLocal = new Local()
 
       const localBrowserStackOpts = {
@@ -114,7 +127,10 @@ class Selenium extends BrowserInterface {
       }
     } else if (localSeleniumServer) {
       console.log('Installing selenium server')
-      const seleniumServerMod = require('selenium-standalone')
+      const seleniumServerMod = require(resolveFrom(
+        globalNodeModules,
+        'selenium-standalone'
+      ))
 
       await new Promise<void>((resolve, reject) => {
         seleniumServerMod.install((err) => {
@@ -173,30 +189,31 @@ class Selenium extends BrowserInterface {
   }
 
   async loadPage(url: string, newPage?: boolean) {
-    const initialHandle = await browser.getWindowHandle()
+    if (this.browserName === 'chrome') {
+      const initialHandle = await browser.getWindowHandle()
 
-    if (newPage) {
-      if (this.browserName !== 'chrome') {
-        console.warn(
-          'Warning: creating new windows is only supported in chrome with selenium currently, this should only be needed when testing history length'
-        )
-      }
-      await browser.switchTo().newWindow('tab')
-      const newHandle = await browser.getWindowHandle()
+      if (newPage) {
+        await browser.switchTo().newWindow('tab')
+        const newHandle = await browser.getWindowHandle()
 
-      await browser.switchTo().window(initialHandle)
-      await browser.close()
-      await browser.switchTo().window(newHandle)
-    } else {
-      // clean-up extra windows created from links and such
-      for (const handle of await browser.getAllWindowHandles()) {
-        if (handle !== initialHandle) {
-          await browser.switchTo().window(handle)
-          await browser.close()
+        await browser.switchTo().window(initialHandle)
+        await browser.close()
+        await browser.switchTo().window(newHandle)
+      } else {
+        // clean-up extra windows created from links and such
+        for (const handle of await browser.getAllWindowHandles()) {
+          if (handle !== initialHandle) {
+            await browser.switchTo().window(handle)
+            await browser.close()
+          }
         }
+        await browser.switchTo().window(initialHandle)
+        await browser.get('about:blank')
       }
-      await browser.switchTo().window(initialHandle)
-      await browser.get('about:blank')
+    } else if (newPage) {
+      console.warn(
+        'Warning: creating new windows is only supported in chrome with selenium currently, this should only be needed when testing history length'
+      )
     }
     return browser.get(url)
   }
@@ -322,16 +339,14 @@ class Selenium extends BrowserInterface {
     if (typeof snippet === 'string' && !snippet.startsWith('return')) {
       snippet = `return ${snippet}`
     }
-    return this.chain(() => browser.executeScript(snippet))
+    return browser.executeScript(snippet)
   }
 
-  async evalAsync(snippet, chain = true) {
+  async evalAsync(snippet) {
     if (typeof snippet === 'string' && !snippet.startsWith('return')) {
       snippet = `return ${snippet}`
     }
-    return chain
-      ? this.chain(() => browser.executeAsyncScript(snippet))
-      : browser.executeAsyncScript(snippet)
+    return browser.executeAsyncScript(snippet)
   }
 
   async log() {

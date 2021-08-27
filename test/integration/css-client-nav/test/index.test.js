@@ -210,7 +210,7 @@ describe('CSS Module client-side navigation', () => {
 
         // the timeout should have been reached and we did a hard
         // navigation
-        expect(await browser.eval('window.beforeNav')).toBe(null)
+        expect(await browser.eval('window.beforeNav')).toBeFalsy()
       } finally {
         stallCss = false
         if (browser) {

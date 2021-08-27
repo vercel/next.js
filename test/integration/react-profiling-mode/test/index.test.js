@@ -26,7 +26,7 @@ describe('React Profiling Mode', () => {
       const browser = await webdriver(appPort, '/')
       const results = await browser.eval('window.profileResults')
 
-      expect(results).toBe(null)
+      expect(results).toBeFalsy()
     })
   })
 

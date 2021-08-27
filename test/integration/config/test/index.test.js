@@ -89,7 +89,7 @@ describe('Configuration', () => {
           browser
             .elementByCss('.hello-world')
             .getComputedCss('background-color'),
-        'rgba(0, 0, 255, 1)'
+        /rgba?\(0, 0, 255/
       )
     } finally {
       if (browser) {
@@ -191,20 +191,20 @@ describe('Configuration', () => {
       browser = await webdriver(context.appPort, '/webpack-css')
       await check(
         () => browser.elementByCss('.hello-world').getComputedCss('color'),
-        'rgba(255, 255, 0, 1)'
+        /rgba?\(255, 255, 0/
       )
 
       try {
         file.replace('yellow', 'red')
         await check(
           () => browser.elementByCss('.hello-world').getComputedCss('color'),
-          'rgba(255, 0, 0, 1)'
+          /rgba?\(255, 0, 0/
         )
       } finally {
         file.restore()
         await check(
           () => browser.elementByCss('.hello-world').getComputedCss('color'),
-          'rgba(255, 255, 0, 1)'
+          /rgba?\(255, 255, 0/
         )
       }
     } finally {

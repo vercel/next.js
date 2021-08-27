@@ -91,7 +91,7 @@ export default async function webdriver(
             callback()
           }
         }
-      }, false)
+      })
     }
 
     try {
