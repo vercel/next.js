@@ -40,7 +40,7 @@ describe('isEqualNode', () => {
     expect(isEqualNode(el1, el2)).toBe(false)
   })
 
-  it('Node should not equal node with differnt html attribute value', () => {
+  it('Node should not equal node with different html attribute value', () => {
     const el1 = createScriptElement({ src: '1.js' })
     const el2 = createScriptElement({ src: '2.js' })
     expect(isEqualNode(el1, el2)).toBe(false)
