@@ -25,7 +25,9 @@ export async function apiResolver(
   query: any,
   resolverModule: any,
   apiContext: __ApiPreviewProps,
-  propagateError: boolean
+  propagateError: boolean,
+  dev?: boolean,
+  page?: string
 ): Promise<void> {
   const apiReq = req as NextApiRequest
   const apiRes = res as NextApiResponse
@@ -117,6 +119,13 @@ export async function apiResolver(
     if (err instanceof ApiError) {
       sendError(apiRes, err.statusCode, err.message)
     } else {
+      if (dev) {
+        if (err) {
+          err.page = page
+        }
+        throw err
+      }
+
       console.error(err)
       if (propagateError) {
         throw err
