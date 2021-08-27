@@ -651,7 +651,16 @@ function sort(a, b) {
   return a.index - b.index
 }
 
+function isDataUrl(url) {
+  if (/^data:/i.test(url)) {
+    return true
+  }
+
+  return false
+}
+
 export {
+  isDataUrl,
   normalizeOptions,
   shouldUseModulesPlugins,
   shouldUseImportPlugin,
