@@ -152,6 +152,82 @@ pub fn compute_class_names(styles: &Vec<JSXStyleInfo>) -> (Option<String>, Optio
   (static_class_name, class_name)
 }
 
+pub fn make_styled_jsx_el(style_info: &JSXStyleInfo, css_expr: Expr) -> JSXElement {
+  let mut attrs = vec![JSXAttrOrSpread::JSXAttr(JSXAttr {
+    name: JSXAttrName::Ident(Ident {
+      sym: "id".into(),
+      span: DUMMY_SP,
+      optional: false,
+    }),
+    value: Some(JSXAttrValue::JSXExprContainer(JSXExprContainer {
+      expr: JSXExpr::Expr(Box::new(string_literal_expr(
+        hash_string(&style_info.hash).clone().as_str(),
+      ))),
+      span: DUMMY_SP,
+    })),
+    span: DUMMY_SP,
+  })];
+
+  if style_info.is_dynamic {
+    attrs.push(JSXAttrOrSpread::JSXAttr(JSXAttr {
+      name: JSXAttrName::Ident(Ident {
+        sym: "dynamic".into(),
+        span: DUMMY_SP,
+        optional: false,
+      }),
+      value: Some(JSXAttrValue::JSXExprContainer(JSXExprContainer {
+        expr: JSXExpr::Expr(Box::new(Expr::Array(ArrayLit {
+          elems: style_info
+            .expressions
+            .iter()
+            .map(|expression| {
+              Some(ExprOrSpread {
+                expr: expression.clone(),
+                spread: None,
+              })
+            })
+            .collect(),
+          span: DUMMY_SP,
+        }))),
+        span: DUMMY_SP,
+      })),
+      span: DUMMY_SP,
+    }));
+  }
+
+  let opening = JSXOpeningElement {
+    name: JSXElementName::Ident(Ident {
+      sym: "_JSXStyle".into(),
+      span: DUMMY_SP,
+      optional: false,
+    }),
+    attrs,
+    span: DUMMY_SP,
+    self_closing: false,
+    type_args: None,
+  };
+
+  let closing = Some(JSXClosingElement {
+    name: JSXElementName::Ident(Ident {
+      sym: "_JSXStyle".into(),
+      span: DUMMY_SP,
+      optional: false,
+    }),
+    span: DUMMY_SP,
+  });
+
+  let children = vec![JSXElementChild::JSXExprContainer(JSXExprContainer {
+    expr: JSXExpr::Expr(Box::new(css_expr)),
+    span: DUMMY_SP,
+  })];
+  JSXElement {
+    opening,
+    closing,
+    children,
+    span: DUMMY_SP,
+  }
+}
+
 // TODO: maybe use DJBHasher (need to implement)
 pub fn hash_string(str: &String) -> String {
   let mut hasher = DefaultHasher::new();

@@ -283,75 +283,8 @@ impl StyledJSXTransformer {
     self.class_name = class_name;
   }
 
-  fn replace_jsx_style(&mut self, mut el: JSXElement) -> JSXElement {
+  fn replace_jsx_style(&mut self, el: JSXElement) -> JSXElement {
     let style_info = self.styles.pop().unwrap();
-
-    el.opening.name = JSXElementName::Ident(Ident {
-      sym: "_JSXStyle".into(),
-      span: DUMMY_SP,
-      optional: false,
-    });
-    el.closing = if let Some(mut closing) = el.closing {
-      closing.name = JSXElementName::Ident(Ident {
-        sym: "_JSXStyle".into(),
-        span: DUMMY_SP,
-        optional: false,
-      });
-      Some(closing)
-    } else {
-      None
-    };
-    for i in 0..el.opening.attrs.len() {
-      if let JSXAttrOrSpread::JSXAttr(JSXAttr {
-        name: JSXAttrName::Ident(Ident { sym, .. }),
-        ..
-      }) = &el.opening.attrs[i]
-      {
-        if sym == "jsx" {
-          el.opening.attrs[i] = JSXAttrOrSpread::JSXAttr(JSXAttr {
-            name: JSXAttrName::Ident(Ident {
-              sym: "id".into(),
-              span: DUMMY_SP,
-              optional: false,
-            }),
-            value: Some(JSXAttrValue::JSXExprContainer(JSXExprContainer {
-              expr: JSXExpr::Expr(Box::new(string_literal_expr(
-                hash_string(&style_info.hash).clone().as_str(),
-              ))),
-              span: DUMMY_SP,
-            })),
-            span: DUMMY_SP,
-          });
-          break;
-        }
-      }
-    }
-    if style_info.is_dynamic {
-      el.opening.attrs.push(JSXAttrOrSpread::JSXAttr(JSXAttr {
-        name: JSXAttrName::Ident(Ident {
-          sym: "dynamic".into(),
-          span: DUMMY_SP,
-          optional: false,
-        }),
-        value: Some(JSXAttrValue::JSXExprContainer(JSXExprContainer {
-          expr: JSXExpr::Expr(Box::new(Expr::Array(ArrayLit {
-            elems: style_info
-              .expressions
-              .iter()
-              .map(|expression| {
-                Some(ExprOrSpread {
-                  expr: expression.clone(),
-                  spread: None,
-                })
-              })
-              .collect(),
-            span: DUMMY_SP,
-          }))),
-          span: DUMMY_SP,
-        })),
-        span: DUMMY_SP,
-      }));
-    }
 
     let is_global = el.opening.attrs.iter().any(|attr| {
       if let JSXAttrOrSpread::JSXAttr(JSXAttr {
@@ -365,15 +298,8 @@ impl StyledJSXTransformer {
       }
       false
     });
-    el.children = vec![JSXElementChild::JSXExprContainer(JSXExprContainer {
-      expr: JSXExpr::Expr(Box::new(transform_css(
-        style_info,
-        is_global,
-        &self.static_class_name,
-      ))),
-      span: DUMMY_SP,
-    })];
-    el
+    let css = transform_css(&style_info, is_global, &self.static_class_name);
+    make_styled_jsx_el(&style_info, css)
   }
 
   fn reset_styles_state(&mut self) {

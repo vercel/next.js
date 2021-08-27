@@ -12,7 +12,7 @@ use swc_stylis::prefixer::prefixer;
 use super::{hash_string, string_literal_expr, JSXStyleInfo};
 
 pub fn transform_css(
-  style_info: JSXStyleInfo,
+  style_info: &JSXStyleInfo,
   is_global: bool,
   class_name: &Option<String>,
 ) -> Expr {
@@ -69,7 +69,7 @@ pub fn transform_css(
         tail: false,
       })
       .collect(),
-    exprs: style_info.expressions,
+    exprs: style_info.expressions.clone(),
     span: DUMMY_SP,
   })
 }
