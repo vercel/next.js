@@ -26,16 +26,26 @@ if (typeof afterAll === 'function') {
   })
 }
 
+;(global as any).browserName = process.env.BROWSER_NAME || 'chrome'
+
 export default async function webdriver(
   appPort: string | number,
   url: string,
   waitHydration = true,
-  retryWaitHydration = false
+  retryWaitHydration = false,
+  requiresNewPage = false
 ): Promise<BrowserInterface> {
   let CurrentInterface: typeof BrowserInterface
+  const isBrowserStack = !!process.env.BROWSERSTACK
 
   // we import only the needed interface
-  if (process.env.USE_SELENIUM) {
+  if (
+    process.env.CHROME_BIN ||
+    process.env.BROWSERSTACK ||
+    process.env.LEGACY_SAFARI ||
+    process.env.BROWSER_NAME === 'internet explorer' ||
+    process.env.SKIP_LOCAL_SELENIUM_SERVER
+  ) {
     const browserMod = require('./browsers/selenium')
     CurrentInterface = browserMod.default
     browserQuit = browserMod.quit
@@ -48,13 +58,14 @@ export default async function webdriver(
   const browser = new CurrentInterface()
   await browser.setup(process.env.BROWSER_NAME || 'chrome')
 
-  const fullUrl = `http://${deviceIP}:${appPort}${url}`
+  const fullUrl = `http://${
+    isBrowserStack ? deviceIP : 'localhost'
+  }:${appPort}${url}`
+
   console.log(`\n> Loading browser with ${url}\n`)
 
-  await browser.loadPage(fullUrl)
+  await browser.loadPage(fullUrl, requiresNewPage)
   console.log(`\n> Loaded browser with ${url}\n`)
-
-  console.error('load', browser)
 
   // Wait for application to hydrate
   if (waitHydration) {
@@ -98,6 +109,5 @@ export default async function webdriver(
 
     console.log(`\n> Hydration complete for ${url}\n`)
   }
-  console.error('returning', browser)
   return browser
 }

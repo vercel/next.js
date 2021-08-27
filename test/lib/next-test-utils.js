@@ -475,7 +475,7 @@ export class File {
 
 export async function evaluate(browser, input) {
   if (typeof input === 'function') {
-    const result = await browser.executeScript(input)
+    const result = await browser.eval(input)
     await new Promise((resolve) => setTimeout(resolve, 30))
     return result
   } else {

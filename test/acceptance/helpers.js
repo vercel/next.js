@@ -51,7 +51,7 @@ export async function sandbox(
       },
       async patch(fileName, content) {
         // Register an event for HMR completion
-        await browser.executeScript(function () {
+        await browser.eval(function () {
           window.__HMR_STATE = 'pending'
 
           var timeout = setTimeout(() => {
@@ -66,12 +66,12 @@ export async function sandbox(
         await this.write(fileName, content)
 
         for (;;) {
-          const status = await browser.executeScript(() => window.__HMR_STATE)
+          const status = await browser.eval(() => window.__HMR_STATE)
           if (!status) {
             await new Promise((resolve) => setTimeout(resolve, 750))
 
             // Wait for application to re-hydrate:
-            await browser.executeAsyncScript(function () {
+            await browser.evalAsync(function () {
               var callback = arguments[arguments.length - 1]
               if (window.__NEXT_HYDRATED) {
                 callback()
@@ -111,7 +111,7 @@ export async function sandbox(
       async evaluate() {
         const input = arguments[0]
         if (typeof input === 'function') {
-          const result = await browser.executeScript(input)
+          const result = await browser.eval(input)
           await new Promise((resolve) => setTimeout(resolve, 30))
           return result
         } else {

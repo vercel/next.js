@@ -1,8 +1,8 @@
 import path from 'path'
-import { Builder, By, ThenableWebDriver, until } from 'selenium-webdriver'
 import { Options as ChromeOptions } from 'selenium-webdriver/chrome'
 import { Options as SafariOptions } from 'selenium-webdriver/safari'
 import { Options as FireFoxOptions } from 'selenium-webdriver/firefox'
+import { Builder, By, ThenableWebDriver, until } from 'selenium-webdriver'
 
 import { BrowserInterface } from './base'
 
@@ -34,6 +34,10 @@ export async function quit() {
     }),
   ])
   seleniumServer?.kill()
+
+  browser = undefined
+  browserStackLocal = undefined
+  seleniumServer = undefined
 }
 
 class Selenium extends BrowserInterface {
@@ -41,7 +45,7 @@ class Selenium extends BrowserInterface {
 
   async setup(browserName: string) {
     if (browser) return
-    browserName = browserName
+    this.browserName = browserName
 
     let capabilities = {}
     const isSafari = browserName === 'safari'
@@ -164,7 +168,36 @@ class Selenium extends BrowserInterface {
       .build()
   }
 
-  async loadPage(url) {
+  async get(url: string): Promise<void> {
+    return browser.get(url)
+  }
+
+  async loadPage(url: string, newPage?: boolean) {
+    const initialHandle = await browser.getWindowHandle()
+
+    if (newPage) {
+      if (this.browserName !== 'chrome') {
+        console.warn(
+          'Warning: creating new windows is only supported in chrome with selenium currently, this should only be needed when testing history length'
+        )
+      }
+      await browser.switchTo().newWindow('tab')
+      const newHandle = await browser.getWindowHandle()
+
+      await browser.switchTo().window(initialHandle)
+      await browser.close()
+      await browser.switchTo().window(newHandle)
+    } else {
+      // clean-up extra windows created from links and such
+      for (const handle of await browser.getAllWindowHandles()) {
+        if (handle !== initialHandle) {
+          await browser.switchTo().window(handle)
+          await browser.close()
+        }
+      }
+      await browser.switchTo().window(initialHandle)
+      await browser.get('about:blank')
+    }
     return browser.get(url)
   }
 
