@@ -14,7 +14,7 @@ module.exports = {
 }
 ```
 
-> **Note**: The default value of `pageExtensions` is [`['tsx', 'ts', 'jsx', 'js']`](https://github.com/vercel/next.js/blob/04f37d0978e5fc9939012c1d771ef4e6535e7787/packages/next/next-server/server/config-shared.ts#L43).
+> **Note**: The default value of `pageExtensions` is [`['tsx', 'ts', 'jsx', 'js']`](https://github.com/vercel/next.js/blob/f1dbc9260d48c7995f6c52f8fbcc65f08e627992/packages/next/server/config-shared.ts#L161).
 
 > **Note**: configuring `pageExtensions` also affects `_document.js`, `_app.js` as well as files under `pages/api/`. For example, setting `pageExtensions: ['page.tsx', 'page.ts']` means the following files: `_document.tsx`, `_app.tsx`, `pages/users.tsx` and `pages/api/users.ts` will have to be renamed to `_document.page.tsx`, `_app.page.tsx`, `pages/users.page.tsx` and `pages/api/users.page.ts` respectively.
 
