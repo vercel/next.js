@@ -822,10 +822,7 @@ export async function renderToHTML(
       ;(renderOpts as any).pageData = props
     }
   } catch (dataFetchError) {
-    if (isDataReq || !dev || !dataFetchError) throw dataFetchError
-    ctx.err = dataFetchError
-    renderOpts.err = dataFetchError
-    console.error(dataFetchError)
+    throw dataFetchError
   }
 
   if (
