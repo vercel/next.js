@@ -32,8 +32,8 @@ export const locales = [...nonDomainLocales, ...domainLocales]
 async function addDefaultLocaleCookie(browser) {
   // make sure default locale is used in case browser isn't set to
   // favor en-US by default, (we use all caps to ensure it's case-insensitive)
-  await browser.manage().addCookie({ name: 'NEXT_LOCALE', value: 'EN-US' })
-  await browser.get(browser.initUrl)
+  await browser.addCookie({ name: 'NEXT_LOCALE', value: 'EN-US' })
+  await browser.refresh()
 }
 
 export function runTests(ctx) {
@@ -2790,7 +2790,7 @@ export function runTests(ctx) {
 
     await checkIndexValues()
 
-    await browser.manage().deleteCookie('NEXT_LOCALE')
+    await browser.deleteCookie('NEXT_LOCALE')
   })
 
   it('should load getStaticProps fallback non-prerender page another locale correctly', async () => {
