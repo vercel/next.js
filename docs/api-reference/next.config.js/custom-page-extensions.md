@@ -42,7 +42,7 @@ Error: Build optimization failed: found pages without a React Component as defau
 pages/MyPage.generated
 pages/MyPage.test
 
-See https://err.sh/vercel/next.js/page-without-valid-component for more info.
+See https://nextjs.org/docs/messages/page-without-valid-component for more info.
 ```
 
 ## Related
