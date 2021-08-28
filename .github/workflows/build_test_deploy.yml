@@ -29,6 +29,10 @@ jobs:
         with:
           fetch-depth: 25
 
+      # https://github.com/actions/virtual-environments/issues/1187
+      - name: tune linux network
+        run: sudo ethtool -K eth0 tx off rx off
+
       - run: git fetch --depth=1 origin +refs/tags/*:refs/tags/*
       - run: yarn install --frozen-lockfile --check-files
       - run: node run-tests.js --timings --write-timings -g 1/1
@@ -61,6 +65,10 @@ jobs:
     env:
       NEXT_TELEMETRY_DISABLED: 1
     steps:
+      # https://github.com/actions/virtual-environments/issues/1187
+      - name: tune linux network
+        run: sudo ethtool -K eth0 tx off rx off
+
       - uses: actions/cache@v2
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         id: restore-build
@@ -96,7 +104,7 @@ jobs:
           path: ./*
           key: ${{ github.sha }}
 
-      - run: node run-tests.js --timings --type unit -g 1/1
+      - run: node run-tests.js --type unit
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
   testIntegration:
@@ -113,6 +121,11 @@ jobs:
         group: [1, 2, 3, 4, 5, 6]
     steps:
       - run: echo ${{needs.build.outputs.docsChange}}
+
+      # https://github.com/actions/virtual-environments/issues/1187
+      - name: tune linux network
+        run: sudo ethtool -K eth0 tx off rx off
+
       - uses: actions/cache@v2
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         id: restore-build
@@ -189,6 +202,10 @@ jobs:
       NEXT_PRIVATE_TEST_WEBPACK4_MODE: 1
 
     steps:
+      # https://github.com/actions/virtual-environments/issues/1187
+      - name: tune linux network
+        run: sudo ethtool -K eth0 tx off rx off
+
       - uses: actions/cache@v2
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         id: restore-build
@@ -229,6 +246,10 @@ jobs:
       BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
       BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
     steps:
+      # https://github.com/actions/virtual-environments/issues/1187
+      - name: tune linux network
+        run: sudo ethtool -K eth0 tx off rx off
+
       - uses: actions/cache@v2
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         id: restore-build
@@ -251,6 +272,10 @@ jobs:
       BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
       BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
     steps:
+      # https://github.com/actions/virtual-environments/issues/1187
+      - name: tune linux network
+        run: sudo ethtool -K eth0 tx off rx off
+
       - uses: actions/cache@v2
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         id: restore-build
@@ -268,6 +293,10 @@ jobs:
     env:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
     steps:
+      # https://github.com/actions/virtual-environments/issues/1187
+      - name: tune linux network
+        run: sudo ethtool -K eth0 tx off rx off
+
       - uses: actions/cache@v2
         id: restore-build
         with:
@@ -316,6 +345,17 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
+      # https://github.com/actions/virtual-environments/issues/1187
+      - name: tune linux network
+        run: sudo ethtool -K eth0 tx off rx off
+        if: ${{ matrix.os == 'ubuntu-18.04' }}
+      - name: tune windows network
+        run: Disable-NetAdapterChecksumOffload -Name * -TcpIPv4 -UdpIPv4 -TcpIPv6 -UdpIPv6
+        if: ${{ matrix.os == 'windows-latest' }}
+      - name: tune mac network
+        run: sudo sysctl -w net.link.generic.system.hwcksum_tx=0 && sudo sysctl -w net.link.generic.system.hwcksum_rx=0
+        if: ${{ matrix.os == 'macos-latest' }}
+
       - uses: actions/checkout@v2
         with:
           fetch-depth: 25
@@ -352,7 +392,15 @@ jobs:
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         with:
           path: packages/next/native/next-swc.*.node
-          key: next-swc-nightly-2021-03-25-${{ matrix.target }}-${{ hashFiles('packages/next/build/swc/**') }}
+          key: next-swc-nightly-2021-03-25-${{ matrix.target }}-${{ hashFiles('.github/workflows/build_test_deploy.yml', 'packages/next/build/swc/**') }}
+      - name: Cross build aarch64 setup
+        if: ${{ matrix.target == 'aarch64-apple-darwin' && steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
+        run: |
+          sudo rm -Rf /Library/Developer/CommandLineTools/SDKs/*;
+          export CC=$(xcrun -f clang);
+          export CXX=$(xcrun -f clang++);
+          SYSROOT=$(xcrun --sdk macosx --show-sdk-path);
+          export CFLAGS="-isysroot $SYSROOT -isystem $SYSROOT";
       - name: 'Build'
         if: ${{ steps.binary-cache.outputs.cache-hit != 'true' && steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         run: yarn build-native --target ${{ matrix.target }}

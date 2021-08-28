@@ -1,3 +1,7 @@
+---
+description: Learn how to set up Next.js with three commonly used testing tools — Cypress, Jest, and React Testing Library.
+---
+
 # Testing
 
 <details open>
@@ -16,7 +20,7 @@ Cypress is a test runner used for **End-to-End (E2E)** and **Integration Testing
 
 ### Quickstart
 
-You can use `create-next-app` with the [with-cypress example](https://github.com/vercel/next.js/tree/canary/examples/with-jest) to quickly get started.
+You can use `create-next-app` with the [with-cypress example](https://github.com/vercel/next.js/tree/canary/examples/with-cypress) to quickly get started.
 
 ```bash
 npx create-next-app --example with-cypress with-cypress-app
@@ -130,11 +134,12 @@ You will have noticed that running Cypress so far has opened an interactive brow
 You can learn more about Cypress and Continuous Integration from these resources:
 
 - [Cypress Continuous Integration Docs](https://docs.cypress.io/guides/continuous-integration/introduction)
+- [Cypress GitHub Actions Guide](https://on.cypress.io/github-actions)
 - [Official Cypress Github Action](https://github.com/cypress-io/github-action)
 
 ## Jest and React Testing Library
 
-Jest and React Testing Library are frequently used together for Unit Testing.
+Jest and React Testing Library are frequently used together for **Unit Testing**.
 
 ### Quickstart
 
@@ -166,21 +171,22 @@ module.exports = {
     '!**/node_modules/**',
   ],
   moduleNameMapper: {
-    // Handle CSS imports (with CSS modules)
-    // https://jestjs.io/docs/webpack#mocking-css-modules
+    /* Handle CSS imports (with CSS modules)
+    https://jestjs.io/docs/webpack#mocking-css-modules */
     '^.+\\.module\\.(css|sass|scss)$': 'identity-obj-proxy',
 
     // Handle CSS imports (without CSS modules)
     '^.+\\.(css|sass|scss)$': '<rootDir>/__mocks__/styleMock.js',
 
-    // Handle image imports
-    // https://jestjs.io/docs/webpack#handling-static-assets
-    '^.+\\.(jpg|jpeg|png|gif|webp|svg)$': `<rootDir>/__mocks__/fileMock.js`,
+    /* Handle image imports
+    https://jestjs.io/docs/webpack#handling-static-assets */
+    '^.+\\.(jpg|jpeg|png|gif|webp|svg)$': '<rootDir>/__mocks__/fileMock.js',
   },
   testPathIgnorePatterns: ['<rootDir>/node_modules/', '<rootDir>/.next/'],
+  testEnvironment: 'jsdom',
   transform: {
-    // Use babel-jest to transpile tests with the next/babel preset
-    // https://jestjs.io/docs/configuration#transform-objectstring-pathtotransformer--pathtotransformer-object
+    /* Use babel-jest to transpile tests with the next/babel preset
+    https://jestjs.io/docs/configuration#transform-objectstring-pathtotransformer--pathtotransformer-object */
     '^.+\\.(js|jsx|ts|tsx)$': ['babel-jest', { presets: ['next/babel'] }],
   },
   transformIgnorePatterns: [
@@ -275,16 +281,21 @@ Your project is now ready to run tests. Follow Jests convention by adding tests 
 For example, we can add a test to check if the `<Index />` component successfully renders a heading:
 
 ```jsx
-// __tests__/testing-library.js
+// __tests__/index.test.jsx
+
+/**
+ * @jest-environment jsdom
+ */
+
 import React from 'react'
-import { render } from '@testing-library/react'
-import Index from '../pages/index'
+import { render, screen } from '@testing-library/react'
+import Home from '../pages/index'
 
-describe('App', () => {
+describe('Home', () => {
   it('renders a heading', () => {
-    const { getByRole } = render(<Index />)
+    render(<Home />)
 
-    const heading = getByRole('heading', {
+    const heading = screen.getByRole('heading', {
       name: /welcome to next\.js!/i,
     })
 
@@ -292,6 +303,8 @@ describe('App', () => {
   })
 })
 ```
+
+> **Note**: The `@jest-environment jsdom` comment above configures the testing environment as `jsdom` inside the test file because React Testing Library uses DOM elements like `document.body` which will not work in Jest's default `node` testing environment. Alternatively, you can also set the `jsdom` environment globally by adding the Jest configuration option: `"testEnvironment": "jsdom"` in `jest.config.js`.
 
 Optionally, add a [snapshot test](https://jestjs.io/docs/snapshot-testing) to keep track of any unexpected changes to your `<Index />` component:
 
@@ -332,6 +345,6 @@ For more information on what to read next, we recommend:
 <div class="card">
   <a href="/docs/basic-features/environment-variables#test-environment-variable.md">
     <b>Test Environment Variables</b>
-    <small>Learn more test environments.</small>
+    <small>Learn more about the test environment variables.</small>
   </a>
 </div>

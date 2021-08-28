@@ -46,9 +46,8 @@ async function tryApplyUpdates() {
     const jsonData = await res.json()
     const curPage = page === '/' ? 'index' : page
     // webpack 5 uses an array instead
-    const pageUpdated = (Array.isArray(jsonData.c)
-      ? jsonData.c
-      : Object.keys(jsonData.c)
+    const pageUpdated = (
+      Array.isArray(jsonData.c) ? jsonData.c : Object.keys(jsonData.c)
     ).some((mod) => {
       return (
         mod.indexOf(
