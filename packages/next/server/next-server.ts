@@ -87,7 +87,6 @@ import { FontManifest } from './font-utils'
 import { denormalizePagePath } from './denormalize-page-path'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import * as Log from '../build/output/log'
-import { imageOptimizer } from './image-optimizer'
 import { detectDomainLocale } from '../shared/lib/i18n/detect-domain-locale'
 import escapePathDelimiters from '../shared/lib/router/utils/escape-path-delimiters'
 import { getUtils } from '../build/webpack/loaders/next-serverless-loader/utils'
@@ -488,7 +487,7 @@ export default class Server {
     try {
       return await this.run(req, res, parsedUrl)
     } catch (err) {
-      if (this.minimalMode) {
+      if (this.minimalMode || this.renderOpts.dev) {
         throw err
       }
       this.logError(err)
@@ -700,8 +699,18 @@ export default class Server {
         match: route('/_next/image'),
         type: 'route',
         name: '_next/image catchall',
-        fn: (req, res, _params, parsedUrl) =>
-          imageOptimizer(
+        fn: (req, res, _params, parsedUrl) => {
+          if (this.minimalMode) {
+            res.statusCode = 400
+            res.end('Bad Request')
+            return {
+              finished: true,
+            }
+          }
+          const { imageOptimizer } =
+            require('./image-optimizer') as typeof import('./image-optimizer')
+
+          return imageOptimizer(
             server,
             req,
             res,
@@ -709,7 +718,8 @@ export default class Server {
             server.nextConfig,
             server.distDir,
             this.renderOpts.dev
-          ),
+          )
+        },
       },
       {
         match: route('/_next/:path*'),
@@ -1115,7 +1125,9 @@ export default class Server {
       query,
       pageModule,
       this.renderOpts.previewProps,
-      this.minimalMode
+      this.minimalMode,
+      this.renderOpts.dev,
+      page
     )
     return true
   }
@@ -1847,6 +1859,7 @@ export default class Server {
     ctx: RequestContext
   ): Promise<ResponsePayload | null> {
     const { res, query, pathname } = ctx
+    let page = pathname
     const bubbleNoFallback = !!query._nextBubbleNoFallback
     delete query._nextBubbleNoFallback
 
@@ -1878,6 +1891,7 @@ export default class Server {
           )
           if (dynamicRouteResult) {
             try {
+              page = dynamicRoute.page
               return await this.renderToResponseWithComponents(
                 {
                   ...ctx,
@@ -1919,7 +1933,10 @@ export default class Server {
       )
 
       if (!isWrappedError) {
-        if (this.minimalMode) {
+        if (this.minimalMode || this.renderOpts.dev) {
+          if (err) {
+            err.page = page
+          }
           throw err
         }
         this.logError(err)

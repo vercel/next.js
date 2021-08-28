@@ -8,6 +8,7 @@ examples/with-typescript-eslint-jest/**
 examples/with-kea/**
 examples/with-custom-babel-config/**
 examples/with-flow/**
+examples/with-jest/**
 examples/with-mobx-state-tree/**
 examples/with-mobx/**
 packages/next/bundles/webpack/packages/*.runtime.js

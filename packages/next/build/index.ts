@@ -130,11 +130,13 @@ export default async function build(
     const config: NextConfigComplete = await nextBuildSpan
       .traceChild('load-next-config')
       .traceAsyncFn(() => loadConfig(PHASE_PRODUCTION_BUILD, dir, conf))
+    const distDir = path.join(dir, config.distDir)
+    setGlobal('distDir', distDir)
+
     const { target } = config
     const buildId: string = await nextBuildSpan
       .traceChild('generate-buildid')
       .traceAsyncFn(() => generateBuildId(config.generateBuildId, nanoid))
-    const distDir = path.join(dir, config.distDir)
 
     const customRoutes: CustomRoutes = await nextBuildSpan
       .traceChild('load-custom-routes')
@@ -176,7 +178,7 @@ export default async function build(
       telemetry.record(events)
     )
 
-    const ignoreTypeScriptErrors = Boolean(config.typescript?.ignoreBuildErrors)
+    const ignoreTypeScriptErrors = Boolean(config.typescript.ignoreBuildErrors)
     const typeCheckStart = process.hrtime()
     const typeCheckingSpinner = createSpinner({
       prefixText: `${Log.prefixes.info} ${
@@ -216,15 +218,16 @@ export default async function build(
       typeCheckingSpinner.stopAndPersist()
     }
 
-    const ignoreESLint = Boolean(config.eslint?.ignoreDuringBuilds)
-    const lintDirs = config.eslint?.dirs
+    const ignoreESLint = Boolean(config.eslint.ignoreDuringBuilds)
+    const eslintCacheDir = path.join(cacheDir, 'eslint/')
     if (!ignoreESLint && runLint) {
       await nextBuildSpan
         .traceChild('verify-and-lint')
         .traceAsyncFn(async () => {
           await verifyAndLint(
             dir,
-            lintDirs,
+            eslintCacheDir,
+            config.eslint?.dirs,
             config.experimental.cpus,
             config.experimental.workerThreads,
             telemetry
@@ -255,7 +258,9 @@ export default async function build(
 
     const mappedPages = nextBuildSpan
       .traceChild('create-pages-mapping')
-      .traceFn(() => createPagesMapping(pagePaths, config.pageExtensions))
+      .traceFn(() =>
+        createPagesMapping(pagePaths, config.pageExtensions, isWebpack5, false)
+      )
     const entrypoints = nextBuildSpan
       .traceChild('create-entrypoints')
       .traceFn(() =>
@@ -570,7 +575,7 @@ export default async function build(
     let result: CompilerResult = { warnings: [], errors: [] }
     // We run client and server compilation separately to optimize for memory usage
     await runWebpackSpan.traceAsyncFn(async () => {
-      const clientResult = await runCompiler(clientConfig)
+      const clientResult = await runCompiler(clientConfig, { runWebpackSpan })
       // Fail build if clientResult contains errors
       if (clientResult.errors.length > 0) {
         result = {
@@ -578,7 +583,7 @@ export default async function build(
           errors: [...clientResult.errors],
         }
       } else {
-        const serverResult = await runCompiler(configs[1])
+        const serverResult = await runCompiler(configs[1], { runWebpackSpan })
         result = {
           warnings: [...clientResult.warnings, ...serverResult.warnings],
           errors: [...clientResult.errors, ...serverResult.errors],

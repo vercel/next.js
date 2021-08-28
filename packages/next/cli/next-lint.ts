@@ -14,7 +14,7 @@ import { PHASE_PRODUCTION_BUILD } from '../shared/lib/constants'
 import { eventLintCheckCompleted } from '../telemetry/events'
 import { CompileError } from '../lib/compile-error'
 
-const eslintOptions = (args: arg.Spec) => ({
+const eslintOptions = (args: arg.Spec, defaultCacheLocation: string) => ({
   overrideConfigFile: args['--config'] || null,
   extensions: args['--ext'] ?? ['.js', '.jsx', '.ts', '.tsx'],
   resolvePluginsRelativeTo: args['--resolve-plugins-relative-to'] || null,
@@ -26,8 +26,8 @@ const eslintOptions = (args: arg.Spec) => ({
   allowInlineConfig: !Boolean(args['--no-inline-config']),
   reportUnusedDisableDirectives:
     args['--report-unused-disable-directives'] || null,
-  cache: args['--cache'] ?? false,
-  cacheLocation: args['--cache-location'] || '.eslintcache',
+  cache: !Boolean(args['--no-cache']),
+  cacheLocation: args['--cache-location'] || defaultCacheLocation,
   errorOnUnmatchedPattern: args['--error-on-unmatched-pattern']
     ? Boolean(args['--error-on-unmatched-pattern'])
     : false,
@@ -61,7 +61,8 @@ const nextLint: cliCommand = async (argv) => {
     '--max-warnings': Number,
     '--no-inline-config': Boolean,
     '--report-unused-disable-directives': String,
-    '--cache': Boolean,
+    '--cache': Boolean, // Although cache is enabled by default, this dummy flag still exists to not cause any breaking changes
+    '--no-cache': Boolean,
     '--cache-location': String,
     '--error-on-unmatched-pattern': Boolean,
     '--format': String,
@@ -127,7 +128,7 @@ const nextLint: cliCommand = async (argv) => {
           --report-unused-disable-directives  Adds reported errors for unused eslint-disable directives ("error" | "warn" | "off")
 
         Caching:
-          --cache                        Only check changed files - default: false
+          --no-cache                     Disable caching
           --cache-location path::String  Path to the cache file or directory - default: .eslintcache
         
         Miscellaneous:
@@ -144,9 +145,9 @@ const nextLint: cliCommand = async (argv) => {
     printAndExit(`> No such directory exists as the project root: ${baseDir}`)
   }
 
-  const conf = await loadConfig(PHASE_PRODUCTION_BUILD, baseDir)
+  const nextConfig = await loadConfig(PHASE_PRODUCTION_BUILD, baseDir)
 
-  const dirs: string[] = args['--dir'] ?? conf.eslint?.dirs
+  const dirs: string[] = args['--dir'] ?? nextConfig.eslint?.dirs
   const lintDirs = (dirs ?? ESLINT_DEFAULT_DIRS).reduce(
     (res: string[], d: string) => {
       const currDir = join(baseDir, d)
@@ -162,11 +163,14 @@ const nextLint: cliCommand = async (argv) => {
   const formatter = args['--format'] || null
   const strict = Boolean(args['--strict'])
 
+  const distDir = join(baseDir, nextConfig.distDir)
+  const defaultCacheLocation = join(distDir, 'cache', 'eslint/')
+
   runLintCheck(
     baseDir,
     lintDirs,
     false,
-    eslintOptions(args),
+    eslintOptions(args, defaultCacheLocation),
     reportErrorsOnly,
     maxWarnings,
     formatter,
@@ -178,7 +182,7 @@ const nextLint: cliCommand = async (argv) => {
 
       if (typeof lintResults !== 'string' && lintResults?.eventInfo) {
         const telemetry = new Telemetry({
-          distDir: join(baseDir, conf.distDir),
+          distDir,
         })
         telemetry.record(
           eventLintCheckCompleted({
@@ -198,9 +202,9 @@ const nextLint: cliCommand = async (argv) => {
       }
 
       if (lintOutput) {
-        console.log(lintOutput)
+        printAndExit(lintOutput, 0)
       } else if (lintResults && !lintOutput) {
-        console.log(chalk.green('✔ No ESLint warnings or errors'))
+        printAndExit(chalk.green('✔ No ESLint warnings or errors'), 0)
       }
     })
     .catch((err) => {
