@@ -619,7 +619,8 @@ export default async function getBaseWebpackConfig(
           chunks: 'all',
           name: 'framework',
           test(module) {
-            const resource = module.nameForCondition()
+            const resource =
+              module.nameForCondition && module.nameForCondition()
             if (!resource) {
               return false
             }
