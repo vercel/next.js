@@ -589,7 +589,6 @@ export default async function getBaseWebpackConfig(
     getPackagePath('react', dir),
     getPackagePath('react-dom', dir),
     getPackagePath('scheduler', require.resolve('react-dom', { paths: [dir] })),
-    getPackagePath('prop-types', require.resolve('next', { paths: [dir] })),
     getPackagePath(
       'use-subscription',
       require.resolve('next', { paths: [dir] })
