@@ -194,6 +194,7 @@ export async function imageOptimizer(
           const result = setResponseHeaders(
             req,
             res,
+            url,
             etag,
             maxAge,
             contentType,
@@ -256,6 +257,9 @@ export async function imageOptimizer(
         mockRes.getHeaderNames = () => Object.keys(mockHeaders)
         mockRes.setHeader = (name: string, value: string | string[]) =>
           (mockHeaders[name.toLowerCase()] = value)
+        mockRes.removeHeader = (name: string) => {
+          delete mockHeaders[name.toLowerCase()]
+        }
         mockRes._implicitHeader = () => {}
         mockRes.connection = res.connection
         mockRes.finished = false
@@ -310,6 +314,7 @@ export async function imageOptimizer(
         sendResponse(
           req,
           res,
+          url,
           maxAge,
           upstreamType,
           upstreamBuffer,
@@ -430,6 +435,7 @@ export async function imageOptimizer(
         sendResponse(
           req,
           res,
+          url,
           maxAge,
           contentType,
           optimizedBuffer,
@@ -443,6 +449,7 @@ export async function imageOptimizer(
       sendResponse(
         req,
         res,
+        url,
         maxAge,
         upstreamType,
         upstreamBuffer,
@@ -473,9 +480,25 @@ async function writeToCacheDir(
   await promises.writeFile(filename, buffer)
 }
 
+function getFileNameWithExtension(
+  url: string,
+  contentType: string | null
+): string | void {
+  const [urlWithoutQueryParams] = url.split('?')
+  const fileNameWithExtension = urlWithoutQueryParams.split('/').pop()
+  if (!contentType || !fileNameWithExtension) {
+    return
+  }
+
+  const [fileName] = fileNameWithExtension.split('.')
+  const extension = getExtension(contentType)
+  return `${fileName}.${extension}`
+}
+
 function setResponseHeaders(
   req: IncomingMessage,
   res: ServerResponse,
+  url: string,
   etag: string,
   maxAge: number,
   contentType: string | null,
@@ -496,12 +519,19 @@ function setResponseHeaders(
   if (contentType) {
     res.setHeader('Content-Type', contentType)
   }
+
+  const fileName = getFileNameWithExtension(url, contentType)
+  if (fileName) {
+    res.setHeader('Content-Disposition', `inline; filename="${fileName}"`)
+  }
+
   return { finished: false }
 }
 
 function sendResponse(
   req: IncomingMessage,
   res: ServerResponse,
+  url: string,
   maxAge: number,
   contentType: string | null,
   buffer: Buffer,
@@ -512,6 +542,7 @@ function sendResponse(
   const result = setResponseHeaders(
     req,
     res,
+    url,
     etag,
     maxAge,
     contentType,

@@ -1,16 +1,46 @@
 import { TARGET, SpanId } from '../shared'
 import reportToConsole from './to-console'
 import reportToZipkin from './to-zipkin'
+import reportToJaeger from './to-jaeger'
 import reportToTelemetry from './to-telemetry'
+import reportToJson from './to-json'
 
-type Reporter = (
-  spanName: string,
-  duration: number,
-  timestamp: number,
-  id: SpanId,
-  parentId?: SpanId,
-  attrs?: Object
-) => void
+type Reporter = {
+  flushAll: () => Promise<void> | void
+  report: (
+    spanName: string,
+    duration: number,
+    timestamp: number,
+    id: SpanId,
+    parentId?: SpanId,
+    attrs?: Object
+  ) => void
+}
+
+class MultiReporter implements Reporter {
+  private reporters: Reporter[] = []
+
+  constructor(reporters: Reporter[]) {
+    this.reporters = reporters
+  }
+
+  async flushAll() {
+    await Promise.all(this.reporters.map((reporter) => reporter.flushAll()))
+  }
+
+  report(
+    spanName: string,
+    duration: number,
+    timestamp: number,
+    id: SpanId,
+    parentId?: SpanId,
+    attrs?: Object
+  ) {
+    this.reporters.forEach((reporter) =>
+      reporter.report(spanName, duration, timestamp, id, parentId, attrs)
+    )
+  }
+}
 
 const target =
   process.env.TRACE_TARGET && process.env.TRACE_TARGET in TARGET
@@ -23,11 +53,17 @@ if (process.env.TRACE_TARGET && !target) {
   )
 }
 
-export let report: Reporter
+let traceTargetReporter: Reporter
+
 if (target === TARGET.CONSOLE) {
-  report = reportToConsole
+  traceTargetReporter = reportToConsole
 } else if (target === TARGET.ZIPKIN) {
-  report = reportToZipkin
+  traceTargetReporter = reportToZipkin
+} else if (target === TARGET.JAEGER) {
+  traceTargetReporter = reportToJaeger
 } else {
-  report = reportToTelemetry
+  traceTargetReporter = reportToTelemetry
 }
+
+// JSON is always reported to allow for diagnostics
+export const reporter = new MultiReporter([reportToJson, traceTargetReporter])

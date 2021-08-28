@@ -3,6 +3,7 @@ import { extname, join, dirname, sep } from 'path'
 import { renderToHTML } from '../server/render'
 import { promises } from 'fs'
 import AmpHtmlValidator from 'next/dist/compiled/amphtml-validator'
+import Observable from 'next/dist/compiled/zen-observable'
 import { loadComponents } from '../server/load-components'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
@@ -18,6 +19,9 @@ import { FontManifest } from '../server/font-utils'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { trace } from '../telemetry/trace'
 import { isInAmpMode } from '../shared/lib/amp'
+import { resultsToString } from '../server/utils'
+import { NextConfigComplete } from '../server/config-shared'
+import { setHttpAgentOptions } from '../server/config'
 
 const envConfig = require('../shared/lib/runtime-config')
 
@@ -54,6 +58,7 @@ interface ExportPageInput {
   optimizeCss: any
   disableOptimizedLoading: any
   parentSpanId: any
+  httpAgentOptions: NextConfigComplete['httpAgentOptions']
 }
 
 interface ExportPageResults {
@@ -102,7 +107,9 @@ export default async function exportPage({
   optimizeImages,
   optimizeCss,
   disableOptimizedLoading,
+  httpAgentOptions,
 }: ExportPageInput): Promise<ExportPageResults> {
+  setHttpAgentOptions(httpAgentOptions)
   const exportPageSpan = trace('export-page-worker', parentSpanId)
 
   return exportPageSpan.traceAsyncFn(async () => {
@@ -151,8 +158,10 @@ export default async function exportPage({
       }
 
       // Check if the page is a specified dynamic route
-      const nonLocalizedPath = normalizeLocalePath(path, renderOpts.locales)
-        .pathname
+      const nonLocalizedPath = normalizeLocalePath(
+        path,
+        renderOpts.locales
+      ).pathname
 
       if (isDynamic && page !== nonLocalizedPath) {
         params = getRouteMatcher(getRouteRegex(page))(updatedPath) || undefined
@@ -180,13 +189,13 @@ export default async function exportPage({
         getHeaderNames: () => [],
       }
 
-      const req = ({
+      const req = {
         url: updatedPath,
         ...headerMocks,
-      } as unknown) as IncomingMessage
-      const res = ({
+      } as unknown as IncomingMessage
+      const res = {
         ...headerMocks,
-      } as unknown) as ServerResponse
+      } as unknown as ServerResponse
 
       if (path === '/500' && page === '/_error') {
         res.statusCode = 500
@@ -226,7 +235,7 @@ export default async function exportPage({
       let htmlFilepath = join(outDir, htmlFilename)
 
       await promises.mkdir(baseDir, { recursive: true })
-      let html
+      let renderResult
       let curRenderOpts: RenderOpts = {}
       let renderMethod = renderToHTML
       let inAmpMode = false,
@@ -266,7 +275,7 @@ export default async function exportPage({
 
         // if it was auto-exported the HTML is loaded here
         if (typeof mod === 'string') {
-          html = mod
+          renderResult = Observable.of(mod)
           queryWithAutoExportWarn()
         } else {
           // for non-dynamic SSG pages we should have already
@@ -308,10 +317,10 @@ export default async function exportPage({
             params
           )
           curRenderOpts = (result as any).renderOpts || {}
-          html = (result as any).html
+          renderResult = (result as any).html
         }
 
-        if (!html && !(curRenderOpts as any).isNotFound) {
+        if (!renderResult && !(curRenderOpts as any).isNotFound) {
           throw new Error(`Failed to render serverless page`)
         }
       } else {
@@ -344,7 +353,7 @@ export default async function exportPage({
         }
 
         if (typeof components.Component === 'string') {
-          html = components.Component
+          renderResult = Observable.of(components.Component)
           queryWithAutoExportWarn()
         } else {
           /**
@@ -376,8 +385,14 @@ export default async function exportPage({
               : null,
             locale: locale as string,
           }
-          // @ts-ignore
-          html = await renderMethod(req, res, page, query, curRenderOpts)
+          renderResult = await renderMethod(
+            req,
+            res,
+            page,
+            query,
+            // @ts-ignore
+            curRenderOpts
+          )
         }
       }
       results.ssgNotFound = (curRenderOpts as any).isNotFound
@@ -403,6 +418,7 @@ export default async function exportPage({
         }
       }
 
+      const html = renderResult ? await resultsToString([renderResult]) : ''
       if (inAmpMode && !curRenderOpts.ampSkipValidation) {
         if (!results.ssgNotFound) {
           await validateAmp(html, path, curRenderOpts.ampValidatorPath)
@@ -420,11 +436,11 @@ export default async function exportPage({
           await promises.access(ampHtmlFilepath)
         } catch (_) {
           // make sure it doesn't exist from manual mapping
-          let ampHtml
+          let ampRenderResult
           if (serverless) {
             req.url += (req.url!.includes('?') ? '&' : '?') + 'amp=1'
             // @ts-ignore
-            ampHtml = (
+            ampRenderResult = (
               await (renderMethod as any)(
                 req,
                 res,
@@ -434,7 +450,7 @@ export default async function exportPage({
               )
             ).html
           } else {
-            ampHtml = await renderMethod(
+            ampRenderResult = await renderMethod(
               req,
               res,
               page,
@@ -444,6 +460,9 @@ export default async function exportPage({
             )
           }
 
+          const ampHtml = ampRenderResult
+            ? await resultsToString([ampRenderResult])
+            : ''
           if (!curRenderOpts.ampSkipValidation) {
             await validateAmp(ampHtml, page + '?amp=1')
           }

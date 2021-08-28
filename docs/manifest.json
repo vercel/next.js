@@ -118,6 +118,10 @@
           "path": "/docs/authentication.md"
         },
         {
+          "title": "Testing",
+          "path": "/docs/testing.md"
+        },
+        {
           "title": "Advanced Features",
           "routes": [
             {
@@ -347,6 +351,10 @@
             {
               "title": "Disabling ETag Generation",
               "path": "/docs/api-reference/next.config.js/disabling-etag-generation.md"
+            },
+            {
+              "title": "Disabling HTTP Keep-Alive",
+              "path": "/docs/api-reference/next.config.js/disabling-http-keep-alive.md"
             },
             {
               "title": "Setting a custom build directory",

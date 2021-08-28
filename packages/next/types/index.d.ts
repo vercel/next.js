@@ -1,6 +1,7 @@
 /// <reference types="node" />
 /// <reference types="react" />
 /// <reference types="react-dom" />
+/// <reference types="styled-jsx" />
 
 import React from 'react'
 import { ParsedUrlQuery } from 'querystring'
@@ -40,10 +41,9 @@ declare module 'react' {
     nonce?: string
   }
 
-  // <style jsx> and <style jsx global> support for styled-jsx
-  interface StyleHTMLAttributes<T> extends HTMLAttributes<T> {
-    jsx?: boolean
-    global?: boolean
+  // <img loading="lazy"> support
+  interface ImgHTMLAttributes<T> extends HTMLAttributes<T> {
+    loading?: 'auto' | 'eager' | 'lazy'
   }
 }
 
@@ -85,6 +85,8 @@ export type PageConfig = {
   env?: Array<string>
   unstable_runtimeJS?: false
   unstable_JsPreload?: false
+  unstable_includeFiles?: string[]
+  unstable_excludeFiles?: string[]
 }
 
 export {

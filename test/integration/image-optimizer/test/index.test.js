@@ -55,6 +55,12 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
     expect(await res.text()).toMatch(/Image Optimizer Home/m)
   })
 
+  it('should handle non-ascii characters in image url', async () => {
+    const query = { w, q: 90, url: '/äöü.png' }
+    const res = await fetchViaHTTP(appPort, '/_next/image', query, {})
+    expect(res.status).toBe(200)
+  })
+
   it('should maintain animated gif', async () => {
     const query = { w, q: 90, url: '/animated.gif' }
     const res = await fetchViaHTTP(appPort, '/_next/image', query, {})
@@ -65,6 +71,9 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
+    expect(res.headers.get('Content-Disposition')).toBe(
+      `inline; filename="animated.gif"`
+    )
     expect(isAnimated(await res.buffer())).toBe(true)
   })
 
@@ -78,6 +87,9 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
+    expect(res.headers.get('Content-Disposition')).toBe(
+      `inline; filename="animated.png"`
+    )
     expect(isAnimated(await res.buffer())).toBe(true)
   })
 
@@ -91,6 +103,9 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
+    expect(res.headers.get('Content-Disposition')).toBe(
+      `inline; filename="animated.webp"`
+    )
     expect(isAnimated(await res.buffer())).toBe(true)
   })
 
@@ -107,6 +122,9 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
     // compression
     expect(res.headers.get('Vary')).toMatch(/^Accept(,|$)/)
     expect(res.headers.get('etag')).toBeTruthy()
+    expect(res.headers.get('Content-Disposition')).toBe(
+      `inline; filename="test.svg"`
+    )
     const actual = await res.text()
     const expected = await fs.readFile(
       join(appDir, 'public', 'test.svg'),
@@ -116,7 +134,7 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
   })
 
   it('should maintain ico format', async () => {
-    const query = { w, q: 90, url: '/test.ico' }
+    const query = { w, q: 90, url: `/test.ico` }
     const opts = { headers: { accept: 'image/webp' } }
     const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
@@ -126,6 +144,9 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
     )
     expect(res.headers.get('Vary')).toMatch(/^Accept(,|$)/)
     expect(res.headers.get('etag')).toBeTruthy()
+    expect(res.headers.get('Content-Disposition')).toBe(
+      `inline; filename="test.ico"`
+    )
     const actual = await res.text()
     const expected = await fs.readFile(
       join(appDir, 'public', 'test.ico'),
@@ -147,6 +168,9 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
+    expect(res.headers.get('Content-Disposition')).toBe(
+      `inline; filename="test.jpeg"`
+    )
   })
 
   it('should maintain png format for old Safari', async () => {
@@ -162,6 +186,9 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
+    expect(res.headers.get('Content-Disposition')).toBe(
+      `inline; filename="test.png"`
+    )
   })
 
   it('should fail when url is missing', async () => {
@@ -260,6 +287,9 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
+    expect(res.headers.get('Content-Disposition')).toBe(
+      `inline; filename="test.webp"`
+    )
     await expectWidth(res, w)
   })
 
@@ -274,6 +304,9 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
+    expect(res.headers.get('Content-Disposition')).toBe(
+      `inline; filename="test.png"`
+    )
     await expectWidth(res, w)
   })
 
@@ -288,6 +321,9 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
+    expect(res.headers.get('Content-Disposition')).toBe(
+      `inline; filename="test.png"`
+    )
     await expectWidth(res, w)
   })
 
@@ -302,6 +338,9 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
+    expect(res.headers.get('Content-Disposition')).toBe(
+      `inline; filename="test.gif"`
+    )
     // FIXME: await expectWidth(res, w)
   })
 
@@ -316,6 +355,9 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
+    expect(res.headers.get('Content-Disposition')).toBe(
+      `inline; filename="test.tiff"`
+    )
     // FIXME: await expectWidth(res, w)
   })
 
@@ -332,6 +374,9 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
+    expect(res.headers.get('Content-Disposition')).toBe(
+      `inline; filename="test.webp"`
+    )
     await expectWidth(res, w)
   })
 
@@ -348,6 +393,9 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
       )
       expect(res.headers.get('Vary')).toBe('Accept')
       expect(res.headers.get('etag')).toBeTruthy()
+      expect(res.headers.get('Content-Disposition')).toBe(
+        `inline; filename="test.webp"`
+      )
       await expectWidth(res, w)
     })
 
@@ -369,6 +417,9 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
       )
       expect(res.headers.get('Vary')).toBe('Accept')
       expect(res.headers.get('etag')).toBeTruthy()
+      expect(res.headers.get('Content-Disposition')).toBe(
+        `inline; filename="png-as-octet-stream.webp"`
+      )
       await expectWidth(res, w)
     })
   }
@@ -412,12 +463,18 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
     const res1 = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res1.status).toBe(200)
     expect(res1.headers.get('Content-Type')).toBe('image/webp')
+    expect(res1.headers.get('Content-Disposition')).toBe(
+      `inline; filename="test.webp"`
+    )
     const json1 = await fsToJson(imagesDir)
     expect(Object.keys(json1).length).toBe(1)
 
     const res2 = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res2.status).toBe(200)
     expect(res2.headers.get('Content-Type')).toBe('image/webp')
+    expect(res2.headers.get('Content-Disposition')).toBe(
+      `inline; filename="test.webp"`
+    )
     const json2 = await fsToJson(imagesDir)
     expect(json2).toStrictEqual(json1)
 
@@ -427,6 +484,9 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
       const res3 = await fetchViaHTTP(appPort, '/_next/image', query, opts)
       expect(res3.status).toBe(200)
       expect(res3.headers.get('Content-Type')).toBe('image/webp')
+      expect(res3.headers.get('Content-Disposition')).toBe(
+        `inline; filename="test.webp"`
+      )
       const json3 = await fsToJson(imagesDir)
       expect(json3).not.toStrictEqual(json1)
       expect(Object.keys(json3).length).toBe(1)
@@ -442,12 +502,18 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
     const res1 = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res1.status).toBe(200)
     expect(res1.headers.get('Content-Type')).toBe('image/svg+xml')
+    expect(res1.headers.get('Content-Disposition')).toBe(
+      `inline; filename="test.svg"`
+    )
     const json1 = await fsToJson(imagesDir)
     expect(Object.keys(json1).length).toBe(1)
 
     const res2 = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res2.status).toBe(200)
     expect(res2.headers.get('Content-Type')).toBe('image/svg+xml')
+    expect(res2.headers.get('Content-Disposition')).toBe(
+      `inline; filename="test.svg"`
+    )
     const json2 = await fsToJson(imagesDir)
     expect(json2).toStrictEqual(json1)
   })
@@ -461,12 +527,18 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
     const res1 = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res1.status).toBe(200)
     expect(res1.headers.get('Content-Type')).toBe('image/gif')
+    expect(res1.headers.get('Content-Disposition')).toBe(
+      `inline; filename="animated.gif"`
+    )
     const json1 = await fsToJson(imagesDir)
     expect(Object.keys(json1).length).toBe(1)
 
     const res2 = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res2.status).toBe(200)
     expect(res2.headers.get('Content-Type')).toBe('image/gif')
+    expect(res2.headers.get('Content-Disposition')).toBe(
+      `inline; filename="animated.gif"`
+    )
     const json2 = await fsToJson(imagesDir)
     expect(json2).toStrictEqual(json1)
   })
@@ -484,6 +556,9 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
     expect(res1.headers.get('Vary')).toBe('Accept')
     const etag = res1.headers.get('Etag')
     expect(etag).toBeTruthy()
+    expect(res1.headers.get('Content-Disposition')).toBe(
+      `inline; filename="test.webp"`
+    )
     await expectWidth(res1, w)
 
     const opts2 = { headers: { accept: 'image/webp', 'if-none-match': etag } }
@@ -495,6 +570,7 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
       `public, max-age=0, must-revalidate`
     )
     expect(res2.headers.get('Vary')).toBe('Accept')
+    expect(res2.headers.get('Content-Disposition')).toBeFalsy()
     expect((await res2.buffer()).length).toBe(0)
 
     const query3 = { url: '/test.jpg', w, q: 25 }
@@ -507,6 +583,9 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
     expect(res3.headers.get('Vary')).toBe('Accept')
     expect(res3.headers.get('Etag')).toBeTruthy()
     expect(res3.headers.get('Etag')).not.toBe(etag)
+    expect(res3.headers.get('Content-Disposition')).toBe(
+      `inline; filename="test.webp"`
+    )
     await expectWidth(res3, w)
   })
 
@@ -526,6 +605,9 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
     // compression
     expect(res.headers.get('Vary')).toMatch(/^Accept(,|$)/)
     expect(res.headers.get('etag')).toBeTruthy()
+    expect(res.headers.get('Content-Disposition')).toBe(
+      `inline; filename="test.bmp"`
+    )
 
     const json2 = await fsToJson(imagesDir)
     expect(json2).toStrictEqual(json1)
@@ -542,6 +624,9 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
+    expect(res.headers.get('Content-Disposition')).toBe(
+      `inline; filename="test.webp"`
+    )
     await expectWidth(res, 400)
   })
 
@@ -560,6 +645,9 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
         `public, max-age=0, must-revalidate`
       )
       expect(res.headers.get('Vary')).toBe('Accept')
+      expect(res.headers.get('Content-Disposition')).toBe(
+        `inline; filename="grayscale.png"`
+      )
 
       const png = await res.buffer()
 
@@ -572,9 +660,9 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
 
   it('should set cache-control to immutable for static images', async () => {
     if (!isDev) {
+      const filename = 'test'
       const query = {
-        url:
-          '/_next/static/image/public/test.480a01e5ea850d0231aec0fa94bd23a0.jpg',
+        url: `/_next/static/image/public/${filename}.480a01e5ea850d0231aec0fa94bd23a0.jpg`,
         w,
         q: 100,
       }
@@ -586,6 +674,9 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
         'public, max-age=315360000, immutable'
       )
       expect(res1.headers.get('Vary')).toBe('Accept')
+      expect(res1.headers.get('Content-Disposition')).toBe(
+        `inline; filename="${filename}.webp"`
+      )
       await expectWidth(res1, w)
 
       // Ensure subsequent request also has immutable header
@@ -595,6 +686,9 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
         'public, max-age=315360000, immutable'
       )
       expect(res2.headers.get('Vary')).toBe('Accept')
+      expect(res2.headers.get('Content-Disposition')).toBe(
+        `inline; filename="${filename}.webp"`
+      )
       await expectWidth(res2, w)
     }
   })
@@ -618,7 +712,13 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
     expect(res1.status).toBe(200)
     expect(res2.status).toBe(200)
     expect(res1.headers.get('Content-Type')).toBe('image/webp')
+    expect(res1.headers.get('Content-Disposition')).toBe(
+      `inline; filename="test.webp"`
+    )
     expect(res2.headers.get('Content-Type')).toBe('image/webp')
+    expect(res2.headers.get('Content-Disposition')).toBe(
+      `inline; filename="test.webp"`
+    )
     await expectWidth(res1, w)
     await expectWidth(res2, w)
 
@@ -867,6 +967,9 @@ describe('Image Optimizer', () => {
       expect(res.headers.get('Cache-Control')).toBe(
         `public, max-age=86400, must-revalidate`
       )
+      expect(res.headers.get('Content-Disposition')).toBe(
+        `inline; filename="test.webp"`
+      )
     })
 
     it('should not set max-age header when not matching next.config.js', async () => {
@@ -876,6 +979,9 @@ describe('Image Optimizer', () => {
       expect(res.status).toBe(200)
       expect(res.headers.get('Cache-Control')).toBe(
         `public, max-age=0, must-revalidate`
+      )
+      expect(res.headers.get('Content-Disposition')).toBe(
+        `inline; filename="test.webp"`
       )
     })
   })
@@ -939,6 +1045,9 @@ describe('Image Optimizer', () => {
         `public, max-age=31536000, must-revalidate`
       )
       expect(res.headers.get('Vary')).toBe('Accept')
+      expect(res.headers.get('Content-Disposition')).toBe(
+        `inline; filename="next-js-bg.webp"`
+      )
       await expectWidth(res, 64)
     })
   })
