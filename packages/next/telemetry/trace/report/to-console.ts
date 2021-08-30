@@ -23,4 +23,7 @@ const reportToConsole = (
   console.log(`[trace] ${spanName} took ${duration} μs${parentStr}${attrsStr}`)
 }
 
-export default reportToConsole
+export default {
+  flushAll: () => {},
+  report: reportToConsole,
+}

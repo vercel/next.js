@@ -9,8 +9,9 @@ const cwd = process.cwd()
 
 ;(async function () {
   try {
-    let version = JSON.parse(await readFile(path.join(cwd, 'lerna.json')))
-      .version
+    let version = JSON.parse(
+      await readFile(path.join(cwd, 'lerna.json'))
+    ).version
     let gitref = process.argv.slice(2)[0]
 
     // Copy binaries to package folders, update version, and publish

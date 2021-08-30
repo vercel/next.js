@@ -13,6 +13,5 @@
     "react-with-direction": "^1.3.1",
     "react-with-styles": "^4.1.0",
     "react-with-styles-interface-aphrodite": "^6.0.1"
-  },
-  "license": "MIT"
+  }
 }

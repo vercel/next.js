@@ -111,7 +111,7 @@ stages:
               path: $(System.DefaultWorkingDirectory)
             displayName: Cache Build
           - script: |
-              node run-tests.js -g 1/1 --timings --azure --type unit
+              node run-tests.js --type unit
             displayName: 'Run tests'
       # TODO: investigate re-enabling when stability matches running in
       # tests in ubuntu environment

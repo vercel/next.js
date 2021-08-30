@@ -424,7 +424,7 @@ export async function getStaticPaths() {
     paths: [
       { params: { ... } } // See the "paths" section below
     ],
-    fallback: true or false // See the "fallback" section below
+    fallback: true, false, or 'blocking' // See the "fallback" section below
   };
 }
 ```

@@ -20,6 +20,5 @@
   "browser": {
     "fs": false,
     "path": false
-  },
-  "license": "MIT"
+  }
 }
