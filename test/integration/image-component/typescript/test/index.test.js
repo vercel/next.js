@@ -73,9 +73,7 @@ describe('TypeScript Image Component', () => {
 
     it('should print error when invalid Image usage', async () => {
       await renderViaHTTP(appPort, '/invalid', {})
-      expect(output).toMatch(
-        /must use "width" and "height" properties or "layout='fill'" property/
-      )
+      expect(output).toMatch(/Error: Image/)
     })
   })
 

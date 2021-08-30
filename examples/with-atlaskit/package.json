@@ -1,6 +1,4 @@
 {
-  "name": "with-atlaskit",
-  "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -20,6 +18,5 @@
   },
   "devDependencies": {
     "babel-plugin-styled-components": "^1.10.7"
-  },
-  "license": "MIT"
+  }
 }

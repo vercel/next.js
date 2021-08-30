@@ -37,7 +37,48 @@ async function addDefaultLocaleCookie(browser) {
 }
 
 export function runTests(ctx) {
-  it.only('should have domainLocales available on useRouter', async () => {
+  it('should redirect external domain correctly', async () => {
+    const res = await fetchViaHTTP(
+      ctx.appPort,
+      `${ctx.basePath || ''}/do/redirect-5`,
+      undefined,
+      {
+        headers: {
+          'accept-language': 'do',
+        },
+        redirect: 'manual',
+      }
+    )
+
+    expect(res.status).toBe(307)
+    expect(res.headers.get('location')).toBe('https://jobs.example.com/')
+
+    const res2 = await fetchViaHTTP(
+      ctx.appPort,
+      `${ctx.basePath || ''}/redirect-5`,
+      undefined,
+      {
+        redirect: 'manual',
+      }
+    )
+
+    expect(res2.status).toBe(307)
+    expect(res2.headers.get('location')).toBe('https://jobs.example.com/')
+
+    const res3 = await fetchViaHTTP(
+      ctx.appPort,
+      `${ctx.basePath || ''}/fr/redirect-5`,
+      undefined,
+      {
+        redirect: 'manual',
+      }
+    )
+
+    expect(res3.status).toBe(307)
+    expect(res3.headers.get('location')).toBe('https://jobs.example.com/')
+  })
+
+  it('should have domainLocales available on useRouter', async () => {
     const browser = await webdriver(ctx.appPort, `${ctx.basePath || '/'}`)
     expect(
       JSON.parse(await browser.elementByCss('#router-domain-locales').text())
@@ -1146,44 +1187,54 @@ export function runTests(ctx) {
     for (const locale of locales) {
       const res = await fetchViaHTTP(
         ctx.appPort,
-        `${ctx.basePath || ''}${
-          locale === 'en-US' ? '' : `/${locale}`
-        }/api/hello`,
+        `${ctx.basePath || ''}/${locale}/api/hello`,
         undefined,
         {
           redirect: 'manual',
         }
       )
 
-      const data = await res.json()
-      expect(data).toEqual({
-        hello: true,
-        query: {},
-      })
+      expect(res.status).toBe(404)
     }
+
+    const res = await fetchViaHTTP(
+      ctx.appPort,
+      `${ctx.basePath || ''}/api/hello`
+    )
+
+    const data = await res.json()
+    expect(data).toEqual({
+      hello: true,
+      query: {},
+    })
   })
 
   it('should visit dynamic API route directly correctly', async () => {
     for (const locale of locales) {
       const res = await fetchViaHTTP(
         ctx.appPort,
-        `${ctx.basePath || ''}${
-          locale === 'en-US' ? '' : `/${locale}`
-        }/api/post/first`,
+        `${ctx.basePath || ''}/${locale}/api/post/first`,
         undefined,
         {
           redirect: 'manual',
         }
       )
 
-      const data = await res.json()
-      expect(data).toEqual({
-        post: true,
-        query: {
-          slug: 'first',
-        },
-      })
+      expect(res.status).toBe(404)
     }
+
+    const res = await fetchViaHTTP(
+      ctx.appPort,
+      `${ctx.basePath || ''}/api/post/first`
+    )
+
+    const data = await res.json()
+    expect(data).toEqual({
+      post: true,
+      query: {
+        slug: 'first',
+      },
+    })
   })
 
   it('should rewrite to API route correctly', async () => {

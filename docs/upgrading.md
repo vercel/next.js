@@ -56,6 +56,18 @@ Example:
 PORT=4000 next start
 ```
 
+### `next.config.js` customization to import images
+
+Next.js 11 supports static image imports with `next/image`. This new feature relies on being able to process image imports. If you previously added the `next-images` or `next-optimized-images` packages you can either move to the new built-in support using `next/image` or disable the feature:
+
+```js
+module.exports = {
+  images: {
+    disableStaticImages: true,
+  },
+}
+```
+
 ### Remove `super.componentDidCatch()` from `pages/_app.js`
 
 The `next/app` component's `componentDidCatch` has been deprecated since Next.js 9 as it's no longer needed and has since been a no-op, in Next.js 11 it has been removed.
@@ -222,7 +234,7 @@ import { AppContext, AppInitialProps } from 'next/app'
 import { DocumentContext, DocumentInitialProps } from 'next/document'
 ```
 
-#### The `config` key is now a special export on a page
+#### The `config` key is now an export on a page
 
 You may no longer export a custom variable named `config` from a page (i.e. `export { config }` / `export const config ...`).
 This exported variable is now used to specify page-level Next.js configuration like Opt-in AMP and API Route features.

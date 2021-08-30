@@ -1,6 +1,5 @@
 {
-  "name": "with-reasonml",
-  "version": "1.0.0",
+  "private": true,
   "scripts": {
     "dev": "concurrently \"bsb -clean-world -make-world -w\" \"next dev\"",
     "dev:reason": "bsb -clean-world -make-world -w",
@@ -8,7 +7,6 @@
     "build": "bsb -clean-world -make-world && next build",
     "start": "next start"
   },
-  "license": "MIT",
   "dependencies": {
     "next": "latest",
     "next-transpile-modules": "^7.3.0",

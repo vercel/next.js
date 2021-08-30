@@ -16,6 +16,7 @@ description: Enable Image Optimization with the built-in Image component.
 
 | Version   | Changes                                                                                           |
 | --------- | ------------------------------------------------------------------------------------------------- |
+| `v11.1.0` | `onLoadingComplete` and `lazyBoundary` props added.                                               |
 | `v11.0.0` | `src` prop support for static import.<br/>`placeholder` prop added.<br/>`blurDataURL` prop added. |
 | `v10.0.5` | `loader` prop added.                                                                              |
 | `v10.0.1` | `layout` prop added.                                                                              |
@@ -89,27 +90,26 @@ The `<Image />` component optionally accepts the following properties.
 
 ### layout
 
-The layout behavior of the image as the viewport changes size. Defaults to
-`intrinsic`.
+The layout behavior of the image as the viewport changes size.
 
-When `fixed`, the image dimensions will not change as the viewport changes (no
-responsiveness) similar to the native `img` element.
+| `layout`              | Behavior                                                 | `srcSet`                                                                                                                                                                                        | `sizes` |
+| --------------------- | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
+| `intrinsic` (default) | Scale *down* to fit width of container, up to image size | `1x`, `2x` (based on [imageSizes](/docs/basic-features/image-optimization.md#image-sizes))                                                                                                      | N/A     |
+| `fixed`               | Sized to `width` and `height` exactly                    | `1x`, `2x` (based on [imageSizes](/docs/basic-features/image-optimization.md#image-sizes))                                                                                                      | N/A     |
+| `responsive`          | Scale to fit width of container                          | `640w`, `750w`, ... `2048w`, `3840w` (based on [imageSizes](/docs/basic-features/image-optimization.md#image-sizes) and [deviceSizes](/docs/basic-features/image-optimization.md#device-sizes)) | `100vw` |
+| `fill`                | Grow in X and Y axes to fill container                   | `640w`, `750w`, ... `2048w`, `3840w` (based on [imageSizes](/docs/basic-features/image-optimization.md#image-sizes) and [deviceSizes](/docs/basic-features/image-optimization.md#device-sizes)) | `100vw` |
 
-When `intrinsic`, the image will scale the dimensions down for smaller viewports
-but maintain the original dimensions for larger viewports.
-
-When `responsive`, the image will scale the dimensions down for smaller
-viewports and scale up for larger viewports.
-
-When `fill`, the image will stretch both width and height to the dimensions of
-the parent element, usually paired with the [`objectFit`](#objectFit) property.
-
-Try it out:
-
+- [Demo the `intrinsic` layout (default)](https://image-component.nextjs.gallery/layout-intrinsic)
+  - When `intrinsic`, the image will scale the dimensions down for smaller viewports, but maintain the original dimensions for larger viewports.
 - [Demo the `fixed` layout](https://image-component.nextjs.gallery/layout-fixed)
-- [Demo the `intrinsic` layout](https://image-component.nextjs.gallery/layout-intrinsic)
+  - When `fixed`, the image dimensions will not change as the viewport changes (no responsiveness) similar to the native `img` element.
 - [Demo the `responsive` layout](https://image-component.nextjs.gallery/layout-responsive)
+  - When `responsive`, the image will scale the dimensions down for smaller viewports and scale up for larger viewports.
+  - Ensure the parent element uses `display: block` in their stylesheet.
 - [Demo the `fill` layout](https://image-component.nextjs.gallery/layout-fill)
+  - When `fill`, the image will stretch both width and height to the dimensions of the parent element, provided the parent element is relative.
+  - This is usually paired with the [`objectFit`](#objectFit) property.
+  - Ensure the parent element has `position: relative` in their stylesheet.
 - [Demo background image](https://image-component.nextjs.gallery/background)
 
 ### loader
@@ -195,6 +195,15 @@ The image position when using `layout="fill"`.
 
 [Learn more](https://developer.mozilla.org/en-US/docs/Web/CSS/object-position)
 
+### onLoadingComplete
+
+A callback function that is invoked once the image is completely loaded and the [placeholder](#placeholder) has been removed.
+
+The `onLoadingComplete` function accepts one parameter, an object with the following properties:
+
+- [`naturalWidth`](https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement/naturalWidth)
+- [`naturalHeight`](https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement/naturalHeight)
+
 ### loading
 
 > **Attention**: This property is only meant for advanced usage. Switching an
@@ -228,6 +237,12 @@ Try it out:
 
 You can also [generate a solid color Data URL](https://png-pixel.com) to match the image.
 
+### lazyBoundary
+
+A string (with similar syntax to the margin property) that acts as the bounding box used to detect the intersection of the viewport with the image and trigger lazy [loading](#loading). Defaults to `"200px"`.
+
+[Learn more](https://developer.mozilla.org/en-US/docs/Web/API/IntersectionObserver/rootMargin)
+
 ### unoptimized
 
 When true, the source image will be served as-is instead of changing quality,
@@ -242,7 +257,16 @@ Other properties on the `<Image />` component will be passed to the underlying
 - `srcSet`. Use
   [Device Sizes](/docs/basic-features/image-optimization.md#device-sizes)
   instead.
+- `ref`. Use [`onLoadingComplete`](#onloadingcomplete) instead.
 - `decoding`. It is always `"async"`.
+
+## Styling
+
+`next/image` wraps the `img` element with other `div` elements to maintain the aspect ratio of the image and prevent [Cumulative Layout Shift](https://vercel.com/blog/core-web-vitals#cumulative-layout-shift).
+
+To add styles to the underlying `img` element, pass the `className` prop to the `<Image />` component. Then, use Next.js' [built-in CSS support](/docs/basic-features/built-in-css-support.md) to add rules to that class.
+
+**Note:** If using [`layout="fill"`](/docs/api-reference/next/image.md#layout), ensure the parent element uses `position: relative`.
 
 ## Related
 
