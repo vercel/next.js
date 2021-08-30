@@ -56,7 +56,7 @@ export class BrowserInterface {
   addCookie(opts: { name: string; value: string }): BrowserInterface {
     return this
   }
-  deleteCookie(name: string): BrowserInterface {
+  deleteCookies(): BrowserInterface {
     return this
   }
   async loadPage(url: string, newPage?: boolean): Promise<any> {}

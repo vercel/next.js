@@ -2790,7 +2790,7 @@ export function runTests(ctx) {
 
     await checkIndexValues()
 
-    await browser.deleteCookie('NEXT_LOCALE')
+    await browser.deleteCookies()
   })
 
   it('should load getStaticProps fallback non-prerender page another locale correctly', async () => {

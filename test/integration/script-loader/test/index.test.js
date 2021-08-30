@@ -74,7 +74,10 @@ describe('Script Loader', () => {
 
       const logs = await browser.log('browser')
       const filteredLogs = logs.filter(
-        (log) => !log.message.includes('Failed to load resource')
+        (log) =>
+          !log.message.includes('Failed to load resource') &&
+          !log.message === 'error' &&
+          !log.message === 'Event'
       )
       expect(filteredLogs.length).toBe(0)
 

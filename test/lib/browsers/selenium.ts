@@ -247,8 +247,8 @@ class Selenium extends BrowserInterface {
   addCookie(opts: { name: string; value: string }): BrowserInterface {
     return this.chain(() => browser.manage().addCookie(opts))
   }
-  deleteCookie(name: string): BrowserInterface {
-    return this.chain(() => browser.manage().deleteCookie(name))
+  deleteCookies(): BrowserInterface {
+    return this.chain(() => browser.manage().deleteAllCookies())
   }
 
   elementByCss(selector: string) {

@@ -137,7 +137,7 @@ jobs:
       - run: echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
-      - run: xvfb-run node run-tests.js --timings -g ${{ matrix.group }}/6 -c 3
+      - run: xvfb-run node run-tests.js --timings -g ${{ matrix.group }}/6
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
   testElectron:
@@ -233,7 +233,7 @@ jobs:
           key: ${{ github.sha }}
       - run: npm i -g playwright-firefox@1.14.1
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
-      - run: node run-tests.js -c 1 test/integration/production/test/index.test.js
+      - run: node run-tests.js test/integration/production/test/index.test.js
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
   testSafari:
@@ -257,7 +257,7 @@ jobs:
           key: ${{ github.sha }}
       - run: npm i -g playwright-webkit@1.14.1
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
-      - run: node run-tests.js -c 1 test/integration/production/test/index.test.js
+      - run: node run-tests.js test/integration/production/test/index.test.js
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
   testSafariOld:
@@ -287,7 +287,7 @@ jobs:
       - run: '[[ -z "$BROWSERSTACK_ACCESS_KEY" ]] && echo "Skipping for PR" || npm i -g browserstack-local@1.4.0'
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
-      - run: '[[ -z "$BROWSERSTACK_ACCESS_KEY" ]] && echo "Skipping for PR" || node run-tests.js -c 1 test/integration/production-nav/test/index.test.js'
+      - run: '[[ -z "$BROWSERSTACK_ACCESS_KEY" ]] && echo "Skipping for PR" || node run-tests.js test/integration/production-nav/test/index.test.js'
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
   publishRelease:

@@ -12,8 +12,8 @@ const glob = promisify(_glob)
 const exec = promisify(execOrig)
 
 const timings = []
-const DEFAULT_NUM_RETRIES = 2
-const DEFAULT_CONCURRENCY = 2
+const DEFAULT_NUM_RETRIES = 1
+const DEFAULT_CONCURRENCY = 1
 const RESULTS_EXT = `.results.json`
 const isTestJob = !!process.env.NEXT_TEST_JOB
 const TIMINGS_API = `https://next-timings.jjsweb.site/api/timings`
@@ -246,13 +246,15 @@ async function main() {
 
   const nonConcurrentTestNames = []
 
-  testNames = testNames.filter((testName) => {
-    if (NON_CONCURRENT_TESTS.includes(testName)) {
-      nonConcurrentTestNames.push(testName)
-      return false
-    }
-    return true
-  })
+  if (concurrency > 1) {
+    testNames = testNames.filter((testName) => {
+      if (NON_CONCURRENT_TESTS.includes(testName)) {
+        nonConcurrentTestNames.push(testName)
+        return false
+      }
+      return true
+    })
+  }
 
   // run non-concurrent test names separately and before
   // concurrent ones

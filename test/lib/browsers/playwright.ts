@@ -51,9 +51,17 @@ class Playwright extends BrowserInterface {
     pageLogs = []
 
     page.on('console', (msg) => {
+      console.log('browser log:', msg)
       pageLogs.push({ source: msg.type(), message: msg.text() })
     })
-    return page.goto(url)
+    page.on('crash', (page) => {
+      console.error('page crashed')
+    })
+    page.on('pageerror', (error) => {
+      console.error('page error', error)
+    })
+    await page.goto(url)
+    await page.waitForLoadState()
   }
 
   back(): BrowserInterface {
@@ -81,10 +89,18 @@ class Playwright extends BrowserInterface {
     return this.chain(() => page.setViewportSize({ width, height }))
   }
   addCookie(opts: { name: string; value: string }): BrowserInterface {
-    return this.chain(() => context.addCookies([opts]))
+    return this.chain(async () =>
+      context.addCookies([
+        {
+          path: '/',
+          domain: await page.evaluate('window.location.hostname'),
+          ...opts,
+        },
+      ])
+    )
   }
-  deleteCookie(name: string): BrowserInterface {
-    return this.chain(() => context.addCookies([{ name, value: '' }]))
+  deleteCookies(): BrowserInterface {
+    return this.chain(async () => context.clearCookies())
   }
 
   private wrapElement(el: ElementHandle, selector: string) {
@@ -168,17 +184,31 @@ class Playwright extends BrowserInterface {
   }
 
   elementsByCss(sel) {
-    return this.chain(() => page.$$(sel))
+    return this.chain(() =>
+      page.$$(sel).then((els) => {
+        return els.map((el) => {
+          const origGetAttribute = el.getAttribute.bind(el)
+          el.getAttribute = (name) => {
+            // ensure getAttribute defaults to empty string to
+            // match selenium
+            return origGetAttribute(name).then((val) => val || '')
+          }
+          return el
+        })
+      })
+    )
   }
 
   waitForElementByCss(selector, timeout) {
     return this.chain(() => {
-      return page.waitForSelector(selector, { timeout }).then(async (el) => {
-        // it seems selenium waits longer and tests rely on this behavior
-        // so we wait for the load event fire before returning
-        await page.waitForLoadState()
-        return this.wrapElement(el, selector)
-      })
+      return page
+        .waitForSelector(selector, { timeout, state: 'attached' })
+        .then(async (el) => {
+          // it seems selenium waits longer and tests rely on this behavior
+          // so we wait for the load event fire before returning
+          await page.waitForLoadState()
+          return this.wrapElement(el, selector)
+        })
     })
   }
 
@@ -194,7 +224,16 @@ class Playwright extends BrowserInterface {
   }
 
   async eval(snippet) {
-    return this.chain(() => page.evaluate(snippet).catch(() => null))
+    return page
+      .evaluate(snippet)
+      .catch((err) => {
+        console.error('eval error:', err)
+        return null
+      })
+      .then(async (val) => {
+        await page.waitForLoadState()
+        return val
+      })
   }
 
   async evalAsync(snippet) {
