@@ -11,7 +11,7 @@ import modulesValues from 'postcss-modules-values'
 import localByDefault from 'postcss-modules-local-by-default'
 import extractImports from 'postcss-modules-extract-imports'
 import modulesScope from 'postcss-modules-scope'
-import camelCase from 'camelcase'
+import camelCase from './camelcase'
 
 const whitespace = '[\\x20\\t\\r\\n\\f]'
 const unescapeRegExp = new RegExp(
