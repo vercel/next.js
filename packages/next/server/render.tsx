@@ -804,6 +804,10 @@ export async function renderToHTML(
         ;(renderOpts as any).isRedirect = true
       }
 
+      if ((data as any).props instanceof Promise) {
+        ;(data as any).props = await (data as any).props
+      }
+
       if (
         (dev || isBuildTimeSSG) &&
         !isSerializableProps(
@@ -822,10 +826,7 @@ export async function renderToHTML(
       ;(renderOpts as any).pageData = props
     }
   } catch (dataFetchError) {
-    if (isDataReq || !dev || !dataFetchError) throw dataFetchError
-    ctx.err = dataFetchError
-    renderOpts.err = dataFetchError
-    console.error(dataFetchError)
+    throw dataFetchError
   }
 
   if (

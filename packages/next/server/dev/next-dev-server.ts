@@ -1,5 +1,6 @@
 import crypto from 'crypto'
 import fs from 'fs'
+import chalk from 'chalk'
 import { IncomingMessage, ServerResponse } from 'http'
 import { Worker } from 'jest-worker'
 import AmpHtmlValidator from 'next/dist/compiled/amphtml-validator'
@@ -47,6 +48,12 @@ import {
   loadDefaultErrorComponents,
 } from '../load-components'
 import { DecodeError } from '../../shared/lib/utils'
+import { parseStack } from '@next/react-dev-overlay/lib/internal/helpers/parseStack'
+import {
+  createOriginalStackFrame,
+  getSourceById,
+} from '@next/react-dev-overlay/lib/middleware'
+import * as Log from '../../build/output/log'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: React.FunctionComponent
@@ -325,6 +332,15 @@ export default class DevServer extends Server {
     )
     // This is required by the tracing subsystem.
     setGlobal('telemetry', telemetry)
+
+    process.on('unhandledRejection', (reason) => {
+      this.logErrorWithOriginalStack(reason, 'unhandledRejection').catch(
+        () => {}
+      )
+    })
+    process.on('uncaughtException', (err) => {
+      this.logErrorWithOriginalStack(err, 'uncaughtException').catch(() => {})
+    })
   }
 
   protected async close(): Promise<void> {
@@ -431,8 +447,85 @@ export default class DevServer extends Server {
       // if they should match against the basePath or not
       parsedUrl.pathname = originalPathname
     }
+    try {
+      return await super.run(req, res, parsedUrl)
+    } catch (err) {
+      res.statusCode = 500
+      try {
+        this.logErrorWithOriginalStack(err).catch(() => {})
+        return await this.renderError(err, req, res, pathname!, {
+          __NEXT_PAGE: err?.page || pathname,
+        })
+      } catch (internalErr) {
+        console.error(internalErr)
+        res.end('Internal Server Error')
+      }
+    }
+  }
 
-    return super.run(req, res, parsedUrl)
+  private async logErrorWithOriginalStack(
+    possibleError?: any,
+    type?: 'unhandledRejection' | 'uncaughtException'
+  ) {
+    let usedOriginalStack = false
+
+    if (possibleError?.name && possibleError?.stack && possibleError?.message) {
+      const err: Error & { stack: string } = possibleError
+      try {
+        const frames = parseStack(err.stack)
+        const frame = frames[0]
+
+        if (frame.lineNumber && frame?.file) {
+          const compilation = this.hotReloader?.serverStats?.compilation
+          const moduleId = frame.file!.replace(
+            /^(webpack-internal:\/\/\/|file:\/\/)/,
+            ''
+          )
+
+          const source = await getSourceById(
+            !!frame.file?.startsWith(sep) || !!frame.file?.startsWith('file:'),
+            moduleId,
+            compilation,
+            this.hotReloader!.isWebpack5
+          )
+
+          const originalFrame = await createOriginalStackFrame({
+            line: frame.lineNumber!,
+            column: frame.column,
+            source,
+            frame,
+            modulePath: moduleId,
+            rootDirectory: this.dir,
+          })
+
+          if (originalFrame) {
+            const { originalCodeFrame, originalStackFrame } = originalFrame
+            const { file, lineNumber, column, methodName } = originalStackFrame
+
+            console.error(
+              chalk.red('error') +
+                ' - ' +
+                `${file} (${lineNumber}:${column}) @ ${methodName}`
+            )
+            console.error(`${chalk.red(err.name)}: ${err.message}`)
+            console.error(originalCodeFrame)
+            usedOriginalStack = true
+          }
+        }
+      } catch (_) {
+        // failed to load original stack using source maps
+        // this un-actionable by users so we don't show the
+        // internal error and only show the provided stack
+      }
+    }
+
+    if (!usedOriginalStack) {
+      if (type) {
+        Log.error(`${type}:`, possibleError)
+      } else {
+        Log.error(possibleError)
+      }
+    }
   }
 
   // override production loading of routes-manifest

@@ -138,6 +138,12 @@ const expectedManifestRoutes = () => [
   },
   {
     dataRouteRegex: normalizeRegEx(
+      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/promise.json$`
+    ),
+    page: '/promise',
+  },
+  {
+    dataRouteRegex: normalizeRegEx(
       `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/refresh.json$`
     ),
     page: '/refresh',
@@ -521,6 +527,11 @@ const runTests = (dev = false) => {
       await renderViaHTTP(appPort, `/_next/data/${buildId}/blog/post-1.json`)
     )
     expect(data.pageProps.post).toBe('post-1')
+  })
+
+  it('should return data correctly when props is a promise', async () => {
+    const html = await renderViaHTTP(appPort, `/promise`)
+    expect(html).toMatch(/hello.*?promise/)
   })
 
   it('should navigate to a normal page and back', async () => {
