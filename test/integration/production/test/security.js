@@ -1,4 +1,5 @@
 /* eslint-env jest */
+/* global browserName */
 import webdriver from 'next-webdriver'
 import { readFileSync } from 'fs'
 import url from 'url'
