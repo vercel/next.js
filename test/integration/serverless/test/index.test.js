@@ -16,7 +16,6 @@ import {
   getPageFileFromPagesManifest,
 } from 'next-test-utils'
 import qs from 'querystring'
-import path from 'path'
 import fetch from 'node-fetch'
 
 const appDir = join(__dirname, '../')
@@ -75,7 +74,7 @@ describe('Serverless', () => {
 
     // ensure top-level static does not exist (important for test)
     // we expect /public/static, though.
-    expect(existsSync(path.join(appDir, 'static'))).toBe(false)
+    expect(existsSync(join(appDir, 'static'))).toBe(false)
 
     const res = await fetchViaHTTP(appPort, '/static/404')
     expect(res.status).toBe(404)

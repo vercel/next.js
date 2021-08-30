@@ -1,17 +1,10 @@
 import Link from 'next/link'
 import fs from 'fs'
-import findUp from 'find-up'
+import path from 'path'
 
 export async function getStaticProps() {
   const text = fs
-    .readFileSync(
-      findUp.sync('world.txt', {
-        // prevent webpack from intercepting
-        // eslint-disable-next-line no-eval
-        cwd: eval(`__dirname`),
-      }),
-      'utf8'
-    )
+    .readFileSync(path.join(process.cwd(), 'world.txt'), 'utf8')
     .trim()
   return {
     props: {

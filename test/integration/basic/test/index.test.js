@@ -3,7 +3,7 @@
 import { join } from 'path'
 import { renderViaHTTP, findPort, launchApp, killApp } from 'next-test-utils'
 
-// test suits
+// test suites
 import hmr from './hmr'
 import errorRecovery from './error-recovery'
 import dynamic from './dynamic'

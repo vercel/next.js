@@ -13,6 +13,5 @@
   },
   "devDependencies": {
     "babel-plugin-react-native-web": "^0.13.14"
-  },
-  "license": "MIT"
+  }
 }
