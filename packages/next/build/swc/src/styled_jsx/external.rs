@@ -1,18 +1,34 @@
 use swc_common::DUMMY_SP;
 use swc_ecmascript::ast::*;
-use swc_ecmascript::utils::ident::{Id, IdentLike};
+use swc_ecmascript::utils::{
+  ident::{Id, IdentLike},
+  prepend,
+};
 use swc_ecmascript::visit::{Fold, FoldWith};
 
 use super::transform_css::transform_css;
 use super::utils::*;
 
-pub fn external_styles() -> impl 'static + Fold {
-  ExternalStyles::default()
+pub fn external_styles(
+  style_import_name: &String,
+  file_has_styled_jsx: bool,
+) -> impl 'static + Fold {
+  ExternalStyles {
+    style_import_name: style_import_name.to_string(),
+    external_bindings: vec![],
+    file_has_styled_jsx,
+    file_has_css_resolve: false,
+    external_hash: None,
+    add_hash: None,
+  }
 }
 
 #[derive(Default)]
 struct ExternalStyles {
   external_bindings: Vec<Id>,
+  style_import_name: String,
+  file_has_styled_jsx: bool,
+  file_has_css_resolve: bool,
   external_hash: Option<String>,
   add_hash: Option<(String, String)>,
 }
@@ -33,7 +49,7 @@ impl Fold for ExternalStyles {
           ImportSpecifier::Named(named_specifier) => {
             self.external_bindings.push(named_specifier.local.to_id())
           }
-          _ => panic!("Not implemented yet"),
+          _ => {}
         }
       }
     }
@@ -94,6 +110,13 @@ impl Fold for ExternalStyles {
       num_inserted = num_inserted + 1;
     }
 
+    if !self.file_has_styled_jsx && self.file_has_css_resolve {
+      prepend(
+        &mut new_items,
+        styled_jsx_import_decl(&self.style_import_name),
+      );
+    }
+
     new_items
   }
 
@@ -129,13 +152,17 @@ impl ExternalStyles {
   }
   fn process_tagged_template_expr(&mut self, tagged_tpl: TaggedTpl) -> Expr {
     let style_info = get_jsx_style_info(&Expr::Tpl(tagged_tpl.tpl.clone()));
+    self.external_hash = Some(style_info.hash.clone());
     let styles = vec![style_info];
-    let (static_class_name, class_name) = compute_class_names(&styles);
+    let (static_class_name, class_name) = compute_class_names(&styles, &self.style_import_name);
     let mut tag_opt = None;
     if let Expr::Ident(Ident { sym, .. }) = &*tagged_tpl.tag {
       tag_opt = Some(sym.to_string());
     }
     let tag = tag_opt.unwrap();
+    if tag == "resolve" {
+      self.file_has_css_resolve = true;
+    }
     let css = transform_css(&styles[0], tag == "global", &static_class_name);
     if tag == "resolve" {
       return Expr::Object(ObjectLit {
@@ -147,7 +174,9 @@ impl ExternalStyles {
               optional: false,
             }),
             value: Box::new(Expr::JSXElement(Box::new(make_styled_jsx_el(
-              &styles[0], css,
+              &styles[0],
+              css,
+              &self.style_import_name,
             )))),
           }))),
           PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
@@ -162,7 +191,6 @@ impl ExternalStyles {
         span: DUMMY_SP,
       });
     }
-    self.external_hash = Some(String::from("blah"));
     Expr::New(NewExpr {
       callee: Box::new(Expr::Ident(Ident {
         sym: "String".into(),

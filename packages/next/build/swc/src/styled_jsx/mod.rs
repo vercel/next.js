@@ -24,6 +24,7 @@ struct StyledJSXTransformer {
   file_has_styled_jsx: bool,
   has_styled_jsx: bool,
   scope_bindings: AHashSet<Id>,
+  style_import_name: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -69,7 +70,7 @@ impl Fold for StyledJSXTransformer {
 
     if let JSXElementName::Ident(Ident { sym, span, .. }) = &el.name {
       if sym != "style"
-        && sym != "_JSXStyle"
+        && sym != self.style_import_name.as_ref().unwrap()
         && (!is_capitalized(sym as &str) || self.scope_bindings.contains(&(sym.clone(), span.ctxt)))
       {
         let mut spreads = vec![];
@@ -211,29 +212,12 @@ impl Fold for StyledJSXTransformer {
   }
 
   fn fold_module_items(&mut self, items: Vec<ModuleItem>) -> Vec<ModuleItem> {
+    self.style_import_name = Some(get_usable_import_specifier(&items));
     let mut items = items.fold_children_with(self);
     if self.file_has_styled_jsx {
       prepend(
         &mut items,
-        ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
-          asserts: None,
-          span: DUMMY_SP,
-          type_only: false,
-          specifiers: vec![ImportSpecifier::Default(ImportDefaultSpecifier {
-            local: Ident {
-              sym: "_JSXStyle".into(),
-              span: DUMMY_SP,
-              optional: false,
-            },
-            span: DUMMY_SP,
-          })],
-          src: Str {
-            has_escape: false,
-            kind: StrKind::Synthesized {},
-            span: DUMMY_SP,
-            value: "styled-jsx/style".into(),
-          },
-        })),
+        styled_jsx_import_decl(self.style_import_name.as_ref().unwrap()),
       );
     }
     items
@@ -257,7 +241,10 @@ impl Fold for StyledJSXTransformer {
 
   fn fold_module(&mut self, module: Module) -> Module {
     let mut module = module.fold_children_with(self);
-    module = module.fold_with(&mut external_styles());
+    module = module.fold_with(&mut external_styles(
+      self.style_import_name.as_ref().unwrap(),
+      self.file_has_styled_jsx,
+    ));
     module
   }
 }
@@ -277,7 +264,8 @@ impl StyledJSXTransformer {
       }
     }
 
-    let (static_class_name, class_name) = compute_class_names(&styles);
+    let (static_class_name, class_name) =
+      compute_class_names(&styles, self.style_import_name.as_ref().unwrap());
     self.styles = styles;
     self.static_class_name = static_class_name;
     self.class_name = class_name;
@@ -299,7 +287,7 @@ impl StyledJSXTransformer {
       false
     });
     let css = transform_css(&style_info, is_global, &self.static_class_name);
-    make_styled_jsx_el(&style_info, css)
+    make_styled_jsx_el(&style_info, css, self.style_import_name.as_ref().unwrap())
   }
 
   fn reset_styles_state(&mut self) {

@@ -59,7 +59,10 @@ pub fn get_jsx_style_info(expr: &Expr) -> JSXStyleInfo {
   };
 }
 
-pub fn compute_class_names(styles: &Vec<JSXStyleInfo>) -> (Option<String>, Option<Expr>) {
+pub fn compute_class_names(
+  styles: &Vec<JSXStyleInfo>,
+  style_import_name: &String,
+) -> (Option<String>, Option<Expr>) {
   let mut static_class_name = None;
   let mut class_name = None;
   let mut static_hashes = vec![];
@@ -81,7 +84,7 @@ pub fn compute_class_names(styles: &Vec<JSXStyleInfo>) -> (Option<String>, Optio
     _ => Some(Expr::Call(CallExpr {
       callee: ExprOrSuper::Expr(Box::new(Expr::Member(MemberExpr {
         obj: ExprOrSuper::Expr(Box::new(Expr::Ident(Ident {
-          sym: "_JSXStyle".into(),
+          sym: style_import_name.to_string().into(),
           span: DUMMY_SP,
           optional: false,
         }))),
@@ -152,7 +155,11 @@ pub fn compute_class_names(styles: &Vec<JSXStyleInfo>) -> (Option<String>, Optio
   (static_class_name, class_name)
 }
 
-pub fn make_styled_jsx_el(style_info: &JSXStyleInfo, css_expr: Expr) -> JSXElement {
+pub fn make_styled_jsx_el(
+  style_info: &JSXStyleInfo,
+  css_expr: Expr,
+  style_import_name: &String,
+) -> JSXElement {
   let mut attrs = vec![JSXAttrOrSpread::JSXAttr(JSXAttr {
     name: JSXAttrName::Ident(Ident {
       sym: "id".into(),
@@ -197,7 +204,7 @@ pub fn make_styled_jsx_el(style_info: &JSXStyleInfo, css_expr: Expr) -> JSXEleme
 
   let opening = JSXOpeningElement {
     name: JSXElementName::Ident(Ident {
-      sym: "_JSXStyle".into(),
+      sym: style_import_name.to_string().into(),
       span: DUMMY_SP,
       optional: false,
     }),
@@ -209,7 +216,7 @@ pub fn make_styled_jsx_el(style_info: &JSXStyleInfo, css_expr: Expr) -> JSXEleme
 
   let closing = Some(JSXClosingElement {
     name: JSXElementName::Ident(Ident {
-      sym: "_JSXStyle".into(),
+      sym: style_import_name.to_string().into(),
       span: DUMMY_SP,
       optional: false,
     }),
@@ -226,6 +233,33 @@ pub fn make_styled_jsx_el(style_info: &JSXStyleInfo, css_expr: Expr) -> JSXEleme
     children,
     span: DUMMY_SP,
   }
+}
+
+pub fn get_usable_import_specifier(items: &Vec<ModuleItem>) -> String {
+  // TODO
+  String::from("_JSXStyle")
+}
+
+pub fn styled_jsx_import_decl(style_import_name: &String) -> ModuleItem {
+  ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+    asserts: None,
+    span: DUMMY_SP,
+    type_only: false,
+    specifiers: vec![ImportSpecifier::Default(ImportDefaultSpecifier {
+      local: Ident {
+        sym: String::from(style_import_name).into(),
+        span: DUMMY_SP,
+        optional: false,
+      },
+      span: DUMMY_SP,
+    })],
+    src: Str {
+      has_escape: false,
+      kind: StrKind::Synthesized {},
+      span: DUMMY_SP,
+      value: "styled-jsx/style".into(),
+    },
+  }))
 }
 
 // TODO: maybe use DJBHasher (need to implement)
