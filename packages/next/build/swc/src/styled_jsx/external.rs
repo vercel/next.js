@@ -13,6 +13,8 @@ pub fn external_styles() -> impl 'static + Fold {
 #[derive(Default)]
 struct ExternalStyles {
   external_bindings: Vec<Id>,
+  external_hash: Option<String>,
+  add_hash: Option<(String, String)>,
 }
 
 impl Fold for ExternalStyles {
@@ -45,7 +47,7 @@ impl Fold for ExternalStyles {
       Expr::TaggedTpl(tagged_tpl) => match &*tagged_tpl.tag {
         Expr::Ident(identifier) => {
           if self.external_bindings.contains(&identifier.to_id()) {
-            process_tagged_template_expr(tagged_tpl)
+            self.process_tagged_template_expr(tagged_tpl)
           } else {
             Expr::TaggedTpl(tagged_tpl)
           }
@@ -55,57 +57,149 @@ impl Fold for ExternalStyles {
       expr => expr,
     }
   }
+
+  fn fold_var_declarator(&mut self, declarator: VarDeclarator) -> VarDeclarator {
+    let declarator = declarator.fold_children_with(self);
+    if let Some(external_hash) = &self.external_hash {
+      match &declarator.name {
+        Pat::Ident(BindingIdent {
+          id: Ident { sym, .. },
+          ..
+        }) => {
+          self.add_hash = Some((sym.to_string(), external_hash.clone()));
+          self.external_hash = None;
+        }
+        _ => panic!("Not supported"),
+      }
+    }
+    declarator
+  }
+
+  fn fold_module_items(&mut self, items: Vec<ModuleItem>) -> Vec<ModuleItem> {
+    let mut add_hashes = vec![];
+    let mut new_items = vec![];
+    let mut i = 0;
+    for item in items {
+      new_items.push(item.fold_children_with(self));
+      if let Some(add_hash) = self.get_add_hash() {
+        add_hashes.push((i, add_hash));
+      }
+      i = i + 1;
+    }
+
+    let mut num_inserted = 0;
+    for (i, add_hash) in add_hashes {
+      let item = ModuleItem::Stmt(add_hash_statment(add_hash));
+      new_items.insert(i + 1 + num_inserted, item);
+      num_inserted = num_inserted + 1;
+    }
+
+    new_items
+  }
+
+  fn fold_block_stmt(&mut self, mut block: BlockStmt) -> BlockStmt {
+    let mut add_hashes = vec![];
+    let mut new_stmts = vec![];
+    let mut i = 0;
+    for stmt in block.stmts {
+      new_stmts.push(stmt.fold_children_with(self));
+      if let Some(add_hash) = self.get_add_hash() {
+        add_hashes.push((i, add_hash));
+      }
+      i = i + 1;
+    }
+
+    let mut num_inserted = 0;
+    for (i, add_hash) in add_hashes {
+      let item = add_hash_statment(add_hash);
+      new_stmts.insert(i + 1 + num_inserted, item);
+      num_inserted = num_inserted + 1;
+    }
+
+    block.stmts = new_stmts;
+    block
+  }
 }
 
-fn process_tagged_template_expr(tagged_tpl: TaggedTpl) -> Expr {
-  let style_info = get_jsx_style_info(&Expr::Tpl(tagged_tpl.tpl.clone()));
-  let styles = vec![style_info];
-  let (static_class_name, class_name) = compute_class_names(&styles);
-  let mut tag_opt = None;
-  if let Expr::Ident(Ident { sym, .. }) = &*tagged_tpl.tag {
-    tag_opt = Some(sym.to_string());
+impl ExternalStyles {
+  fn get_add_hash(&mut self) -> Option<(String, String)> {
+    let add_hash = self.add_hash.clone();
+    self.add_hash = None;
+    add_hash
   }
-  let tag = tag_opt.unwrap();
-
-  let css = transform_css(&styles[0], tag == "global", &static_class_name);
-
-  if tag == "resolve" {
-    return Expr::Object(ObjectLit {
-      props: vec![
-        PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
-          key: PropName::Ident(Ident {
-            sym: "styles".into(),
-            span: DUMMY_SP,
-            optional: false,
-          }),
-          value: Box::new(Expr::JSXElement(Box::new(make_styled_jsx_el(
-            &styles[0], css,
-          )))),
-        }))),
-        PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
-          key: PropName::Ident(Ident {
-            sym: "className".into(),
-            span: DUMMY_SP,
-            optional: false,
-          }),
-          value: Box::new(class_name.unwrap()),
-        }))),
-      ],
+  fn process_tagged_template_expr(&mut self, tagged_tpl: TaggedTpl) -> Expr {
+    let style_info = get_jsx_style_info(&Expr::Tpl(tagged_tpl.tpl.clone()));
+    let styles = vec![style_info];
+    let (static_class_name, class_name) = compute_class_names(&styles);
+    let mut tag_opt = None;
+    if let Expr::Ident(Ident { sym, .. }) = &*tagged_tpl.tag {
+      tag_opt = Some(sym.to_string());
+    }
+    let tag = tag_opt.unwrap();
+    let css = transform_css(&styles[0], tag == "global", &static_class_name);
+    if tag == "resolve" {
+      return Expr::Object(ObjectLit {
+        props: vec![
+          PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
+            key: PropName::Ident(Ident {
+              sym: "styles".into(),
+              span: DUMMY_SP,
+              optional: false,
+            }),
+            value: Box::new(Expr::JSXElement(Box::new(make_styled_jsx_el(
+              &styles[0], css,
+            )))),
+          }))),
+          PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
+            key: PropName::Ident(Ident {
+              sym: "className".into(),
+              span: DUMMY_SP,
+              optional: false,
+            }),
+            value: Box::new(class_name.unwrap()),
+          }))),
+        ],
+        span: DUMMY_SP,
+      });
+    }
+    self.external_hash = Some(String::from("blah"));
+    Expr::New(NewExpr {
+      callee: Box::new(Expr::Ident(Ident {
+        sym: "String".into(),
+        span: DUMMY_SP,
+        optional: false,
+      })),
+      args: Some(vec![ExprOrSpread {
+        expr: Box::new(css),
+        spread: None,
+      }]),
       span: DUMMY_SP,
-    });
+      type_args: None,
+    })
   }
+}
 
-  Expr::New(NewExpr {
-    callee: Box::new(Expr::Ident(Ident {
-      sym: "String".into(),
+fn add_hash_statment((ident, hash): (String, String)) -> Stmt {
+  Stmt::Expr(ExprStmt {
+    expr: Box::new(Expr::Assign(AssignExpr {
+      left: PatOrExpr::Expr(Box::new(Expr::Member(MemberExpr {
+        obj: ExprOrSuper::Expr(Box::new(Expr::Ident(Ident {
+          sym: ident.into(),
+          span: DUMMY_SP,
+          optional: false,
+        }))),
+        prop: Box::new(Expr::Ident(Ident {
+          sym: "__hash".into(),
+          span: DUMMY_SP,
+          optional: false,
+        })),
+        span: DUMMY_SP,
+        computed: false,
+      }))),
+      right: Box::new(string_literal_expr(&hash)),
+      op: AssignOp::Assign,
       span: DUMMY_SP,
-      optional: false,
     })),
-    args: Some(vec![ExprOrSpread {
-      expr: Box::new(css),
-      spread: None,
-    }]),
     span: DUMMY_SP,
-    type_args: None,
   })
 }

@@ -255,10 +255,10 @@ impl Fold for StyledJSXTransformer {
     func
   }
 
-  fn fold_program(&mut self, program: Program) -> Program {
-    let mut program = program.fold_children_with(self);
-    program = program.fold_with(&mut external_styles());
-    program
+  fn fold_module(&mut self, module: Module) -> Module {
+    let mut module = module.fold_children_with(self);
+    module = module.fold_with(&mut external_styles());
+    module
   }
 }
 
