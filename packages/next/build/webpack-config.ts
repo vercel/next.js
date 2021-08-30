@@ -173,20 +173,6 @@ export function attachReactRefresh(
   }
 }
 
-const WEBPACK_RESOLVE_OPTIONS = {
-  // This always uses commonjs resolving, assuming API is identical
-  // between ESM and CJS in a package
-  // Otherwise combined ESM+CJS packages will never be external
-  // as resolving mismatch would lead to opt-out from being external.
-  dependencyType: 'commonjs',
-  symlinks: true,
-}
-
-const WEBPACK_ESM_RESOLVE_OPTIONS = {
-  dependencyType: 'esm',
-  symlinks: true,
-}
-
 const NODE_RESOLVE_OPTIONS = {
   dependencyType: 'commonjs',
   modules: ['node_modules'],
@@ -194,7 +180,7 @@ const NODE_RESOLVE_OPTIONS = {
   fallback: false,
   exportsFields: ['exports'],
   importsFields: ['imports'],
-  conditionNames: ['node', 'require', 'module'],
+  conditionNames: ['node', 'require'],
   descriptionFiles: ['package.json'],
   extensions: ['.js', '.json', '.node'],
   enforceExtensions: false,
@@ -211,7 +197,7 @@ const NODE_RESOLVE_OPTIONS = {
 const NODE_ESM_RESOLVE_OPTIONS = {
   ...NODE_RESOLVE_OPTIONS,
   dependencyType: 'esm',
-  conditionNames: ['node', 'import', 'module'],
+  conditionNames: ['node', 'import'],
   fullySpecified: true,
 }
 
@@ -754,7 +740,7 @@ export default async function getBaseWebpackConfig(
     const preferEsm = esmExternals && isEsmRequested
 
     const resolve = getResolve(
-      preferEsm ? WEBPACK_ESM_RESOLVE_OPTIONS : WEBPACK_RESOLVE_OPTIONS
+      preferEsm ? NODE_ESM_RESOLVE_OPTIONS : NODE_RESOLVE_OPTIONS
     )
 
     // Resolve the import with the webpack provided context, this
@@ -772,7 +758,7 @@ export default async function getBaseWebpackConfig(
     // try the alternative resolving options.
     if (!res && (isEsmRequested || looseEsmExternals)) {
       const resolveAlternative = getResolve(
-        preferEsm ? WEBPACK_RESOLVE_OPTIONS : WEBPACK_ESM_RESOLVE_OPTIONS
+        preferEsm ? NODE_RESOLVE_OPTIONS : NODE_ESM_RESOLVE_OPTIONS
       )
       try {
         ;[res, isEsm] = await resolveAlternative(context, request)
