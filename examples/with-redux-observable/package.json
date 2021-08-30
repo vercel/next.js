@@ -15,6 +15,5 @@
     "redux-observable": "1.2.0",
     "rxjs": "6.5.5",
     "universal-rxjs-ajax": "2.0.4"
-  },
-  "license": "MIT"
+  }
 }

@@ -131,13 +131,14 @@ export default function Home() {
 ```js
 import Script from 'next/script'
 
-<Script strategy="lazyOnload">
+<Script id="show-banner" strategy="lazyOnload">
   {`document.getElementById('banner').removeClass('hidden')`}
 </Script>
 
 // or
 
 <Script
+  id="show-banner"
   dangerouslySetInnerHTML={{
     __html: `document.getElementById('banner').removeClass('hidden')`
   }}

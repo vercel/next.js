@@ -11,8 +11,8 @@ jest.setTimeout(1000 * 60 * 5)
 describe.skip('Profiling Usage', () => {
   beforeAll(async () => {
     // Delete file if it already exists
-    if (await fs.existsSync(profileEventsPath))
-      await fs.unlink(profileEventsPath, () => {
+    if (fs.existsSync(profileEventsPath))
+      fs.unlink(profileEventsPath, () => {
         console.log('Deleted Existing profile-events.json file')
       })
 

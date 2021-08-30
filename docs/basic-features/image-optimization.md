@@ -23,7 +23,7 @@ Instead of optimizing images at build time, Next.js optimizes images on-demand, 
 
 Images are lazy loaded by default. That means your page speed isn't penalized for images outside the viewport. Images load as they are scrolled into viewport.
 
-Images are always rendered in such a way as to avoid [Cumulative Layout Shift](https://web.dev/cls/), a [Core Web Vital](https://web.dev/vitals/) that Google is going to [use in search ranking](https://webmasters.googleblog.com/2020/05/evaluating-page-experience.html).
+Images are always rendered in such a way as to avoid [Cumulative Layout Shift](https://web.dev/cls/), a [Core Web Vital](https://web.dev/vitals/) that Google [uses in search ranking](https://developers.google.com/search/blog/2020/05/evaluating-page-experience).
 
 ## Image Component
 
@@ -128,7 +128,7 @@ If you need a different provider, you can use the [`loader`](/docs/api-reference
 
 > The `next/image` component's default loader is not supported when using [`next export`](/docs/advanced-features/static-html-export.md). However, other loader options will work.
 
-> The `next/image` component's default loader uses the ['squoosh'](https://www.npmjs.com/package/@squoosh/lib) library for image resizing and optimization. This library is quick to install and suitable for a dev server environment. For a production environment, it is strongly recommended that you install the optional [`sharp`](https://www.npmjs.com/package/sharp) library by running `yarn add sharp` in your project directory. If sharp is already installed but can't be resolved you can manually pass the path to it via the `NEXT_SHARP_PATH` environment variable e.g. `NEXT_SHARP_PATH=/tmp/node_modules/sharp`
+> The `next/image` component's default loader uses [`squoosh`](https://www.npmjs.com/package/@squoosh/lib) because it is quick to install and suitable for a development environment. When using `next start` in your production environment, it is strongly recommended that you install [`sharp`](https://www.npmjs.com/package/sharp) by running `yarn add sharp` in your project directory. This is not necessary for Vercel deployments, as `sharp` is installed automatically.
 
 ## Caching
 

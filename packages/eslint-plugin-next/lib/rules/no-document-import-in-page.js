@@ -1,5 +1,3 @@
-const path = require('path')
-
 module.exports = {
   meta: {
     docs: {
@@ -15,13 +13,10 @@ module.exports = {
           return
         }
 
-        const page = context.getFilename().split('pages')[1]
-        const { name, dir } = path.parse(page)
-        if (
-          !page ||
-          name.startsWith('_document') ||
-          (dir === '/_document' && name === 'index')
-        ) {
+        const paths = context.getFilename().split('pages')
+        const page = paths[paths.length - 1]
+
+        if (!page || page.startsWith('/_document')) {
           return
         }
 

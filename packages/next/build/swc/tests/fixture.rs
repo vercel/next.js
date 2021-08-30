@@ -1,7 +1,8 @@
 use self::amp_attributes::amp_attributes;
+use self::next_dynamic::next_dynamic;
 use self::next_ssg::next_ssg;
 use std::path::PathBuf;
-use swc_common::{chain, comments::SingleThreadedComments};
+use swc_common::{chain, comments::SingleThreadedComments, FileName};
 use swc_ecma_transforms_testing::{test, test_fixture};
 use swc_ecmascript::{
   parser::{EsConfig, Syntax},
@@ -11,12 +12,15 @@ use testing::fixture;
 
 #[path = "../src/amp_attributes.rs"]
 mod amp_attributes;
+#[path = "../src/next_dynamic.rs"]
+mod next_dynamic;
 #[path = "../src/next_ssg.rs"]
 mod next_ssg;
 
 fn syntax() -> Syntax {
   Syntax::Es(EsConfig {
     jsx: true,
+    dynamic_import: true,
     ..Default::default()
   })
 }
@@ -25,6 +29,21 @@ fn syntax() -> Syntax {
 fn amp_attributes_fixture(input: PathBuf) {
   let output = input.parent().unwrap().join("output.js");
   test_fixture(syntax(), &|_tr| amp_attributes(), &input, &output);
+}
+
+#[fixture("tests/fixture/next-dynamic/**/input.js")]
+fn next_dynamic_fixture(input: PathBuf) {
+  let output = input.parent().unwrap().join("output.js");
+  test_fixture(
+    syntax(),
+    &|_tr| {
+      next_dynamic(FileName::Real(PathBuf::from(
+        "/some-project/src/some-file.js",
+      )))
+    },
+    &input,
+    &output,
+  );
 }
 
 #[fixture("tests/fixture/ssg/**/input.js")]
