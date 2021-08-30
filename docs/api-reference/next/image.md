@@ -90,29 +90,26 @@ The `<Image />` component optionally accepts the following properties.
 
 ### layout
 
-The layout behavior of the image as the viewport changes size. Defaults to
-`intrinsic`.
+The layout behavior of the image as the viewport changes size.
 
-When `fixed`, the image dimensions will not change as the viewport changes (no
-responsiveness) similar to the native `img` element.
+| `layout`              | Behavior                                                 | `srcSet`                                                                                                                                                                                        | `sizes` |
+| --------------------- | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
+| `intrinsic` (default) | Scale *down* to fit width of container, up to image size | `1x`, `2x` (based on [imageSizes](/docs/basic-features/image-optimization.md#image-sizes))                                                                                                      | N/A     |
+| `fixed`               | Sized to `width` and `height` exactly                    | `1x`, `2x` (based on [imageSizes](/docs/basic-features/image-optimization.md#image-sizes))                                                                                                      | N/A     |
+| `responsive`          | Scale to fit width of container                          | `640w`, `750w`, ... `2048w`, `3840w` (based on [imageSizes](/docs/basic-features/image-optimization.md#image-sizes) and [deviceSizes](/docs/basic-features/image-optimization.md#device-sizes)) | `100vw` |
+| `fill`                | Grow in X and Y axes to fill container                   | `640w`, `750w`, ... `2048w`, `3840w` (based on [imageSizes](/docs/basic-features/image-optimization.md#image-sizes) and [deviceSizes](/docs/basic-features/image-optimization.md#device-sizes)) | `100vw` |
 
-When `intrinsic`, the image will scale the dimensions down for smaller viewports
-but maintain the original dimensions for larger viewports.
-
-When `responsive`, the image will scale the dimensions down for smaller
-viewports and scale up for larger viewports.
-Note: the responsive layout may not work correctly if the parent element uses a display value other than `block` such as `display: flex` or `display: grid`.
-
-When `fill`, the image will stretch both width and height to the dimensions of
-the parent element, provided the parent element is relative. This is usually paired with the [`objectFit`](#objectFit) property.
-Ensure the parent element has `position: relative` in their stylesheet.
-
-Try it out:
-
+- [Demo the `intrinsic` layout (default)](https://image-component.nextjs.gallery/layout-intrinsic)
+  - When `intrinsic`, the image will scale the dimensions down for smaller viewports, but maintain the original dimensions for larger viewports.
 - [Demo the `fixed` layout](https://image-component.nextjs.gallery/layout-fixed)
-- [Demo the `intrinsic` layout](https://image-component.nextjs.gallery/layout-intrinsic)
+  - When `fixed`, the image dimensions will not change as the viewport changes (no responsiveness) similar to the native `img` element.
 - [Demo the `responsive` layout](https://image-component.nextjs.gallery/layout-responsive)
+  - When `responsive`, the image will scale the dimensions down for smaller viewports and scale up for larger viewports.
+  - Ensure the parent element uses `display: block` in their stylesheet.
 - [Demo the `fill` layout](https://image-component.nextjs.gallery/layout-fill)
+  - When `fill`, the image will stretch both width and height to the dimensions of the parent element, provided the parent element is relative.
+  - This is usually paired with the [`objectFit`](#objectFit) property.
+  - Ensure the parent element has `position: relative` in their stylesheet.
 - [Demo background image](https://image-component.nextjs.gallery/background)
 
 ### loader

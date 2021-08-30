@@ -342,5 +342,24 @@ module.exports = (context) => {
       expect(pathname).toBe('/%2fexample.com')
       expect(hostname).not.toBe('example.com')
     })
+
+    it('should not execute script embedded inside svg image', async () => {
+      let browser
+      try {
+        browser = await webdriver(context.appPort, '/svg-image')
+        await browser.eval(`document.getElementById("img").scrollIntoView()`)
+        expect(await browser.elementById('img').getAttribute('src')).toContain(
+          'xss.svg'
+        )
+        expect(await browser.elementById('msg').text()).toBe('safe')
+        browser = await webdriver(
+          context.appPort,
+          '/_next/image?url=%2Fxss.svg&w=256&q=75'
+        )
+        expect(await browser.elementById('msg').text()).toBe('safe')
+      } finally {
+        if (browser) await browser.close()
+      }
+    })
   })
 }
