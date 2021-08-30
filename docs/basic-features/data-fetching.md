@@ -672,7 +672,7 @@ The `context` parameter is an object containing the following keys:
 
 `getServerSideProps` should return an object with:
 
-- `props` - An **optional** object with the props that will be received by the page component. It should be a [serializable object](https://en.wikipedia.org/wiki/Serialization)
+- `props` - An **optional** object with the props that will be received by the page component. It should be a [serializable object](https://en.wikipedia.org/wiki/Serialization) or a Promise that resolves to a serializable object.
 - `notFound` - An **optional** boolean value to allow the page to return a 404 status and page. Below is an example of how it works:
 
   ```js
