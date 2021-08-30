@@ -1,17 +1,10 @@
 {
-  "name": "css-loader",
-  "version": "4.3.0",
   "dependencies": {
-    "camelcase": "^6.0.0",
-    "cssesc": "^3.0.0",
     "icss-utils": "^4.1.1",
-    "loader-utils": "^2.0.0",
     "postcss-modules-extract-imports": "^2.0.0",
     "postcss-modules-local-by-default": "^3.0.3",
     "postcss-modules-scope": "^2.2.0",
     "postcss-modules-values": "^3.0.0",
-    "postcss-value-parser": "^4.1.0",
-    "schema-utils": "^2.7.1",
-    "semver": "^7.3.2"
+    "postcss-value-parser": "^4.1.0"
   }
 }

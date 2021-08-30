@@ -2,10 +2,8 @@
   MIT License http://www.opensource.org/licenses/mit-license.php
   Author Tobias Koppers @sokra
 */
-import { getOptions, stringifyRequest } from 'loader-utils'
+import { getOptions, stringifyRequest } from 'next/dist/compiled/loader-utils'
 import postcss from 'postcss'
-import postcssPkg from 'postcss/package.json'
-import { satisfies } from 'semver'
 
 import CssSyntaxError from './CssSyntaxError'
 import Warning from './Warning'
@@ -134,11 +132,7 @@ export default async function loader(content, map, meta) {
   if (meta) {
     const { ast } = meta
 
-    if (
-      ast &&
-      ast.type === 'postcss' &&
-      satisfies(ast.version, `^${postcssPkg.version}`)
-    ) {
+    if (ast && ast.type === 'postcss') {
       // eslint-disable-next-line no-param-reassign
       content = ast.root
     }

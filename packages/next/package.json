@@ -134,6 +134,12 @@
     }
   },
   "devDependencies": {
+    "icss-utils": "^4.1.1",
+    "postcss-modules-extract-imports": "^2.0.0",
+    "postcss-modules-local-by-default": "^3.0.3",
+    "postcss-modules-scope": "^2.2.0",
+    "postcss-modules-values": "^3.0.0",
+    "postcss-value-parser": "^4.1.0",
     "@ampproject/toolbox-optimizer": "2.7.1-alpha.0",
     "@babel/code-frame": "7.12.11",
     "@babel/core": "7.15.0",

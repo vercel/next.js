@@ -5,12 +5,11 @@
 import { fileURLToPath } from 'url'
 import path from 'path'
 
-import { urlToRequest, interpolateName } from 'loader-utils'
-import cssesc from 'cssesc'
-import modulesValues from 'postcss-modules-values'
-import localByDefault from 'postcss-modules-local-by-default'
-import extractImports from 'postcss-modules-extract-imports'
-import modulesScope from 'postcss-modules-scope'
+import { urlToRequest } from 'next/dist/compiled/loader-utils'
+import modulesValues from 'next/dist/compiled/postcss-modules-values'
+import localByDefault from 'next/dist/compiled/postcss-modules-local-by-default'
+import extractImports from 'next/dist/compiled/postcss-modules-extract-imports'
+import modulesScope from 'next/dist/compiled/postcss-modules-scope'
 import camelCase from './camelcase'
 
 const whitespace = '[\\x20\\t\\r\\n\\f]'
@@ -48,32 +47,6 @@ function normalizePath(file) {
 const filenameReservedRegex = /[<>:"/\\|?*]/g
 // eslint-disable-next-line no-control-regex
 const reControlChars = /[\u0000-\u001f\u0080-\u009f]/g
-
-function defaultGetLocalIdent(
-  loaderContext,
-  localIdentName,
-  localName,
-  options
-) {
-  const { context, hashPrefix } = options
-  const { resourcePath } = loaderContext
-  const request = normalizePath(path.relative(context, resourcePath))
-
-  // eslint-disable-next-line no-param-reassign
-  options.content = `${hashPrefix + request}\x00${unescape(localName)}`
-
-  // Using `[path]` placeholder outputs `/` we need escape their
-  // Also directories can contains invalid characters for css we need escape their too
-  return cssesc(
-    interpolateName(loaderContext, localIdentName, options)
-      // For `[hash]` placeholder
-      .replace(/^((-?[0-9])|--)/, '_$1')
-      .replace(filenameReservedRegex, '-')
-      .replace(reControlChars, '-')
-      .replace(/\./g, '-'),
-    { isIdentifier: true }
-  ).replace(/\\\[local\\]/gi, localName)
-}
 
 function normalizeUrl(url, isStringValue) {
   let normalizedUrl = url
@@ -137,7 +110,6 @@ function getModulesOptions(rawOptions, loaderContext) {
     localIdentHashPrefix: '',
     // eslint-disable-next-line no-undefined
     localIdentRegExp: undefined,
-    getLocalIdent: defaultGetLocalIdent,
     namedExport: false,
     exportLocalsConvention: 'asIs',
     exportOnlyLocals: false,
