@@ -1,5 +1,47 @@
 {
   "name": "css-loader",
+  "version": "4.3.0",
+  "description": "css loader module for webpack",
+  "license": "MIT",
+  "repository": "webpack-contrib/css-loader",
+  "author": "Tobias Koppers @sokra",
+  "homepage": "https://github.com/webpack-contrib/css-loader",
+  "bugs": "https://github.com/webpack-contrib/css-loader/issues",
+  "funding": {
+    "type": "opencollective",
+    "url": "https://opencollective.com/webpack"
+  },
+  "main": "dist/cjs.js",
+  "engines": {
+    "node": ">= 10.13.0"
+  },
+  "scripts": {
+    "start": "npm run build -- -w",
+    "clean": "del-cli dist",
+    "validate:runtime": "es-check es5 \"dist/runtime/**/*.js\"",
+    "prebuild": "npm run clean",
+    "build": "cross-env NODE_ENV=production babel src -d dist --copy-files",
+    "postbuild": "npm run validate:runtime",
+    "commitlint": "commitlint --from=master",
+    "security": "npm audit",
+    "lint:prettier": "prettier --list-different .",
+    "lint:js": "eslint --cache .",
+    "lint": "npm-run-all -l -p \"lint:**\"",
+    "test:only": "cross-env NODE_ENV=test jest",
+    "test:watch": "npm run test:only -- --watch",
+    "test:coverage": "npm run test:only -- --collectCoverageFrom=\"src/**/*.js\" --coverage",
+    "pretest": "npm run lint",
+    "test": "npm run test:coverage",
+    "prepare": "npm run build",
+    "release": "standard-version",
+    "defaults": "webpack-defaults"
+  },
+  "files": [
+    "dist"
+  ],
+  "peerDependencies": {
+    "webpack": "^4.27.0 || ^5.0.0"
+  },
   "dependencies": {
     "camelcase": "^6.0.0",
     "cssesc": "^3.0.0",
@@ -13,5 +55,50 @@
     "postcss-value-parser": "^4.1.0",
     "schema-utils": "^2.7.1",
     "semver": "^7.3.2"
-  }
+  },
+  "devDependencies": {
+    "@babel/cli": "^7.11.6",
+    "@babel/core": "^7.11.6",
+    "@babel/preset-env": "^7.11.5",
+    "@commitlint/cli": "^11.0.0",
+    "@commitlint/config-conventional": "^11.0.0",
+    "@webpack-contrib/defaults": "^6.3.0",
+    "@webpack-contrib/eslint-config-webpack": "^3.0.0",
+    "babel-jest": "^26.1.0",
+    "cross-env": "^7.0.2",
+    "del": "^5.1.0",
+    "del-cli": "^3.0.1",
+    "es-check": "^5.1.0",
+    "eslint": "^7.8.1",
+    "eslint-config-prettier": "^6.11.0",
+    "eslint-plugin-import": "^2.22.0",
+    "file-loader": "^6.1.0",
+    "husky": "^4.3.0",
+    "jest": "^26.4.2",
+    "less": "^3.12.2",
+    "less-loader": "^7.0.1",
+    "lint-staged": "^10.3.0",
+    "memfs": "^3.2.0",
+    "mini-css-extract-plugin": "^0.11.0",
+    "npm-run-all": "^4.1.5",
+    "postcss-loader": "^4.0.0",
+    "postcss-preset-env": "^6.7.0",
+    "prettier": "^2.1.1",
+    "sass": "^1.26.10",
+    "sass-loader": "^10.0.2",
+    "standard-version": "^9.0.0",
+    "strip-ansi": "^6.0.0",
+    "style-loader": "^1.2.1",
+    "stylus": "^0.54.8",
+    "stylus-loader": "^3.0.2",
+    "url-loader": "^4.1.0",
+    "webpack": "^4.44.1"
+  },
+  "keywords": [
+    "webpack",
+    "css",
+    "loader",
+    "url",
+    "import"
+  ]
 }
