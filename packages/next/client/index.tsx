@@ -156,6 +156,7 @@ window.__NEXT_P = []
 const headManager: {
   mountedInstances: Set<unknown>
   updateHead: (head: JSX.Element[]) => void
+  getIsSsr?: () => boolean
 } = initHeadManager()
 const appElement: HTMLElement | null = document.getElementById('__next')
 
@@ -163,6 +164,9 @@ let lastRenderReject: (() => void) | null
 let webpackHMR: any
 export let router: Router
 let CachedApp: AppComponent, onPerfEntry: (metric: any) => void
+headManager.getIsSsr = () => {
+  return router.isSsr
+}
 
 class Container extends React.Component<{
   fn: (err: Error, info?: any) => void

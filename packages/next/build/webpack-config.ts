@@ -240,7 +240,7 @@ export default async function getBaseWebpackConfig(
     entrypoints: WebpackEntrypoints
     rewrites: CustomRoutes['rewrites']
     isDevFallback?: boolean
-    runWebpackSpan?: Span
+    runWebpackSpan: Span
   }
 ): Promise<webpack.Configuration> {
   const hasRewrites =
@@ -742,7 +742,7 @@ export default async function getBaseWebpackConfig(
       }
 
       const notExternalModules =
-        /^(?:private-next-pages\/|next\/(?:dist\/pages\/|(?:app|document|link|image|constants)$)|string-hash$)/
+        /^(?:private-next-pages\/|next\/(?:dist\/pages\/|(?:app|document|link|image|constants|dynamic)$)|string-hash$)/
       if (notExternalModules.test(request)) {
         return
       }
@@ -1490,6 +1490,8 @@ export default async function getBaseWebpackConfig(
       reactProductionProfiling,
       webpack: !!config.webpack,
       hasRewrites,
+      reactRoot: config.experimental.reactRoot,
+      concurrentFeatures: config.experimental.concurrentFeatures,
     })
 
     const cache: any = {
