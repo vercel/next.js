@@ -45,6 +45,9 @@ const externals = {
   chalk: 'chalk',
   'node-fetch': 'node-fetch',
   postcss: 'postcss',
+  // Ensure latest version is used
+  'postcss-safe-parser': 'next/dist/compiled/postcss-safe-parser',
+  'cssnano-simple': 'next/dist/build/cssnano-simple',
 
   // webpack
   'node-libs-browser': 'node-libs-browser',
@@ -432,6 +435,15 @@ export async function ncc_postcss_flexbugs_fixes(task, opts) {
     )
     .ncc({ packageName: 'postcss-flexbugs-fixes', externals })
     .target('compiled/postcss-flexbugs-fixes')
+}
+// eslint-disable-next-line camelcase
+export async function ncc_postcss_safe_parser(task, opts) {
+  await task
+    .source(
+      opts.src || relative(__dirname, require.resolve('postcss-safe-parser'))
+    )
+    .ncc({ packageName: 'postcss-safe-parser', externals })
+    .target('compiled/postcss-safe-parser')
 }
 // eslint-disable-next-line camelcase
 externals['postcss-preset-env'] = 'next/dist/compiled/postcss-preset-env'
@@ -872,6 +884,7 @@ export async function ncc(task, opts) {
         'ncc_nanoid',
         'ncc_neo_async',
         'ncc_ora',
+        'ncc_postcss_safe_parser',
         'ncc_postcss_flexbugs_fixes',
         'ncc_postcss_preset_env',
         'ncc_postcss_scss',

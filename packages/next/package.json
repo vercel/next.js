@@ -236,6 +236,7 @@
     "postcss-modules-scope": "3.0.0",
     "postcss-modules-values": "4.0.0",
     "postcss-preset-env": "6.7.0",
+    "postcss-safe-parser": "6.0.0",
     "postcss-scss": "3.0.5",
     "postcss-value-parser": "4.1.0",
     "recast": "0.18.5",

@@ -15927,6 +15927,11 @@ postcss-safe-parser@4.0.2:
   dependencies:
     postcss "^7.0.26"
 
+postcss-safe-parser@6.0.0:
+  version "6.0.0"
+  resolved "https://registry.yarnpkg.com/postcss-safe-parser/-/postcss-safe-parser-6.0.0.tgz#bb4c29894171a94bc5c996b9a30317ef402adaa1"
+  integrity sha512-FARHN8pwH+WiS2OPCxJI8FuRJpTVnn6ZNFiqAM2aeW2LwTHWWmWgIyKC6cUo0L8aeKiF/14MNvnpls6R2PBeMQ==
+
 postcss-scss@3.0.5:
   version "3.0.5"
   resolved "https://registry.yarnpkg.com/postcss-scss/-/postcss-scss-3.0.5.tgz#bd484faf05890e48a6f5e097acb3d104cc7b9ac7"
