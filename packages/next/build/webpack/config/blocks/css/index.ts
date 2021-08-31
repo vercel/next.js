@@ -14,12 +14,27 @@ import { getPostCssPlugins } from './plugins'
 import postcss from 'postcss'
 
 // @ts-ignore backwards compat
-postcss.plugin = (name, initializer) => {
-  return (...args: any) => {
-    const transformer = initializer(...args)
+postcss.plugin = function plugin(name, initializer) {
+  function creator(...args: any) {
+    let transformer = initializer(...args)
     transformer.postcssPlugin = name
+    // transformer.postcssVersion = new Processor().version
     return transformer
   }
+
+  let cache: any
+  Object.defineProperty(creator, 'postcss', {
+    get() {
+      if (!cache) cache = creator()
+      return cache
+    },
+  })
+
+  creator.process = function (css: any, processOpts: any, pluginOpts: any) {
+    return postcss([creator(pluginOpts)]).process(css, processOpts)
+  }
+
+  return creator
 }
 
 // @ts-ignore backwards compat
