@@ -35,12 +35,12 @@ use crate::{
     styled_jsx::styled_jsx,
     util::{CtxtExt, MapErr},
 };
-use anyhow::{bail, Error};
+use anyhow::{bail, Context as _, Error};
 use napi::{CallContext, Env, JsBoolean, JsObject, JsString, Task};
 use std::sync::Arc;
 use swc::config::{BuiltConfig, Options};
-use swc::{Compiler, TransformOutput};
-use swc_common::{chain, comments::Comment, BytePos, FileName, SourceFile};
+use swc::{try_with_handler, Compiler, TransformOutput};
+use swc_common::{chain, comments::Comment, errors::Handler, BytePos, FileName, SourceFile};
 use swc_ecmascript::ast::Program;
 use swc_ecmascript::transforms::helpers::{self, Helpers};
 use swc_ecmascript::utils::HANDLER;
@@ -66,18 +66,21 @@ impl Task for TransformTask {
     type JsValue = JsObject;
 
     fn compute(&mut self) -> napi::Result<Self::Output> {
-        self.c
-            .run(|| match self.input {
+        try_with_handler(self.c.cm.clone(), |handler| {
+            self.c.run(|| match self.input {
                 Input::Program(ref s) => {
                     let program: Program =
                         serde_json::from_str(&s).expect("failed to deserialize Program");
                     // TODO: Source map
-                    self.c.process_js(program, &self.options)
+                    self.c.process_js(handler, program, &self.options)
                 }
-
-                Input::Source(ref s) => process_js_custom(&self.c, s.clone(), &self.options),
+                Input::Source(ref s) => {
+                    println!("GOT HERE");
+                    process_js_custom(&self.c, s.clone(), &self.options, &handler)
+                }
             })
-            .convert_err()
+        })
+        .convert_err()
     }
 
     fn resolve(self, env: Env, result: Self::Output) -> napi::Result<Self::JsValue> {
@@ -111,16 +114,20 @@ where
     let is_module = cx.get::<JsBoolean>(1)?;
     let options: Options = cx.get_deserialized(2)?;
 
-    let output = c.run(|| -> napi::Result<_> {
-        if is_module.get_value()? {
-            let program: Program =
-                serde_json::from_str(s.as_str()?).expect("failed to deserialize Program");
-            c.process_js(program, &options).convert_err()
-        } else {
-            let fm = op(&c, s.as_str()?.to_string(), &options).expect("failed to create fm");
-            c.process_js_file(fm, &options).convert_err()
-        }
-    })?;
+    let output = try_with_handler(c.cm.clone(), |handler| {
+        c.run(|| {
+            if is_module.get_value()? {
+                let program: Program =
+                    serde_json::from_str(s.as_str()?).context("failed to deserialize Program")?;
+                c.process_js(&handler, program, &options)
+            } else {
+                let fm =
+                    op(&c, s.as_str()?.to_string(), &options).context("failed to load file")?;
+                c.process_js_file(fm, &handler, &options)
+            }
+        })
+    })
+    .convert_err()?;
 
     complete_output(cx.env, output)
 }
@@ -167,8 +174,9 @@ fn process_js_custom(
     compiler: &Arc<Compiler>,
     source: Arc<SourceFile>,
     options: &Options,
+    handler: &Handler,
 ) -> Result<TransformOutput, Error> {
-    let config = compiler.run(|| compiler.config_for_file(options, &source.name))?;
+    let config = compiler.run(|| compiler.config_for_file(handler, options, &source.name))?;
     let config = match config {
         Some(v) => v,
         None => {
@@ -192,11 +200,14 @@ fn process_js_custom(
         input_source_map: config.input_source_map,
         is_module: config.is_module,
         output_path: config.output_path,
+        preserve_comments: config.preserve_comments,
+        source_file_name: config.source_file_name,
     };
     //let orig = compiler.get_orig_src_map(&source,
     // &options.config.input_source_map)?;
     let program = compiler.parse_js(
         source.clone(),
+        handler,
         config.target,
         config.syntax,
         config.is_module,
@@ -216,19 +227,30 @@ fn process_js_custom(
         }
         let mut pass = config.pass;
         let program = helpers::HELPERS.set(&Helpers::new(config.external_helpers), || {
-            HANDLER.set(&compiler.handler, || {
+            HANDLER.set(handler, || {
                 // Fold module
                 program.fold_with(&mut pass)
             })
         });
+        // let source_map_names = {
+        //     let mut v = IdentCollector {
+        //         names: Default::default(),
+        //     };
 
+        //     program.visit_with(&Invalid { span: DUMMY_SP }, &mut v);
+
+        //     v.names
+        // };
         compiler.print(
             &program,
+            config.source_file_name.as_deref(),
             config.output_path,
             config.target,
             config.source_maps,
+            &vec![],
             None, // TODO: figure out sourcemaps
             config.minify,
+            config.preserve_comments,
         )
     })
 }
