@@ -10,7 +10,7 @@ use swc_ecmascript::minifier::{
 use swc_ecmascript::utils::{collect_decls, prepend, Id, HANDLER};
 use swc_ecmascript::visit::{Fold, FoldWith};
 
-use external::external_styles;
+//use external::external_styles;
 use transform_css::transform_css;
 use utils::*;
 
@@ -24,12 +24,13 @@ pub fn styled_jsx() -> impl Fold {
 
 #[derive(Default)]
 struct StyledJSXTransformer {
-  styles: Vec<JSXStyleInfo>,
+  styles: Vec<JSXStyle>,
   static_class_name: Option<String>,
   class_name: Option<Expr>,
   file_has_styled_jsx: bool,
   has_styled_jsx: bool,
-  scope_bindings: AHashSet<Id>,
+  bindings: AHashSet<Id>,
+  nearest_scope_bindings: AHashSet<Id>,
   style_import_name: Option<String>,
   evaluator: Option<Evaluator>,
 }
@@ -41,6 +42,25 @@ pub struct JSXStyleInfo {
   css_span: Span,
   is_dynamic: bool,
   expressions: Vec<Box<Expr>>,
+}
+
+pub struct LocalStyle {
+  hash: String,
+  css: String,
+  css_span: Span,
+  is_dynamic: bool,
+  expressions: Vec<Box<Expr>>,
+}
+
+pub struct ExternalStyle {
+  expr: Expr,
+  identifier: Ident,
+  is_global: bool,
+}
+
+pub enum JSXStyle {
+  Local(LocalStyle),
+  External(ExternalStyle),
 }
 
 impl Fold for StyledJSXTransformer {
@@ -78,7 +98,10 @@ impl Fold for StyledJSXTransformer {
     if let JSXElementName::Ident(Ident { sym, span, .. }) = &el.name {
       if sym != "style"
         && sym != self.style_import_name.as_ref().unwrap()
-        && (!is_capitalized(sym as &str) || self.scope_bindings.contains(&(sym.clone(), span.ctxt)))
+        && (!is_capitalized(sym as &str)
+          || self
+            .nearest_scope_bindings
+            .contains(&(sym.clone(), span.ctxt)))
       {
         let mut spreads = vec![];
         let mut class_name_expr = None;
@@ -231,28 +254,29 @@ impl Fold for StyledJSXTransformer {
   }
 
   fn fold_function(&mut self, func: Function) -> Function {
-    let current_bindings = self.scope_bindings.clone();
-    self.scope_bindings = collect_decls(&func);
+    let nearest_scope_bindings = self.nearest_scope_bindings.clone();
+    self.nearest_scope_bindings = collect_decls(&func);
     let func = func.fold_children_with(self);
-    self.scope_bindings = current_bindings;
+    self.nearest_scope_bindings = nearest_scope_bindings;
     func
   }
 
   fn fold_arrow_expr(&mut self, func: ArrowExpr) -> ArrowExpr {
-    let current_bindings = self.scope_bindings.clone();
-    self.scope_bindings = collect_decls(&func);
+    let current_bindings = self.nearest_scope_bindings.clone();
+    self.nearest_scope_bindings = collect_decls(&func);
     let func = func.fold_children_with(self);
-    self.scope_bindings = current_bindings;
+    self.nearest_scope_bindings = current_bindings;
     func
   }
 
   fn fold_module(&mut self, module: Module) -> Module {
+    self.bindings = collect_decls(&module);
     self.evaluator = Some(Evaluator::new(module.clone(), Marks::new()));
     let mut module = module.fold_children_with(self);
-    module = module.fold_with(&mut external_styles(
-      self.style_import_name.as_ref().unwrap(),
-      self.file_has_styled_jsx,
-    ));
+    // module = module.fold_with(&mut external_styles(
+    //   self.style_import_name.as_ref().unwrap(),
+    //   self.file_has_styled_jsx,
+    // ));
     module
   }
 }
@@ -279,7 +303,7 @@ impl StyledJSXTransformer {
     self.class_name = class_name;
   }
 
-  fn get_jsx_style_info(&mut self, expr: &Expr) -> JSXStyleInfo {
+  fn get_jsx_style_info(&mut self, expr: &Expr) -> JSXStyle {
     let mut hasher = DefaultHasher::new();
     let css: String;
     let css_span: Span;
@@ -324,15 +348,31 @@ impl StyledJSXTransformer {
           expressions = exprs.clone();
         }
       }
-      _ => panic!("Not implemented"),
+      Expr::Ident(ident) => {
+        return JSXStyle::External(ExternalStyle {
+          expr: Expr::Member(MemberExpr {
+            obj: ExprOrSuper::Expr(Box::new(Expr::Ident(ident.clone()))),
+            prop: Box::new(Expr::Ident(Ident {
+              sym: "__hash".into(),
+              span: DUMMY_SP,
+              optional: false,
+            })),
+            computed: false,
+            span: DUMMY_SP,
+          }),
+          identifier: ident.clone(),
+          is_global: false, // TODO
+        });
+      }
+      _ => panic!("Not implemented"), // TODO: handle bad style input
     }
-    return JSXStyleInfo {
+    return JSXStyle::Local(LocalStyle {
       hash: format!("{:x}", hasher.finish()),
       css,
       css_span,
       is_dynamic,
       expressions,
-    };
+    });
   }
 
   fn replace_jsx_style(&mut self, el: JSXElement) -> JSXElement {
@@ -350,8 +390,16 @@ impl StyledJSXTransformer {
       }
       false
     });
-    let css = transform_css(&style_info, is_global, &self.static_class_name);
-    make_styled_jsx_el(&style_info, css, self.style_import_name.as_ref().unwrap())
+
+    match &style_info {
+      JSXStyle::Local(style_info) => {
+        let css = transform_css(&style_info, is_global, &self.static_class_name);
+        make_local_styled_jsx_el(&style_info, css, self.style_import_name.as_ref().unwrap())
+      }
+      JSXStyle::External(style) => {
+        make_external_styled_jsx_el(style, self.style_import_name.as_ref().unwrap())
+      }
+    }
   }
 
   fn reset_styles_state(&mut self) {

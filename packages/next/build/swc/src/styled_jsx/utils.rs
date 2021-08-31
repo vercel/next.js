@@ -4,7 +4,7 @@ use swc_common::Span;
 use swc_common::DUMMY_SP;
 use swc_ecmascript::ast::*;
 
-use super::JSXStyleInfo;
+use super::{ExternalStyle, JSXStyle, JSXStyleInfo, LocalStyle};
 
 pub fn get_jsx_style_info(expr: &Expr) -> JSXStyleInfo {
   let mut hasher = DefaultHasher::new();
@@ -59,20 +59,60 @@ pub fn get_jsx_style_info(expr: &Expr) -> JSXStyleInfo {
   };
 }
 
+fn tpl_element(value: &str) -> TplElement {
+  TplElement {
+    raw: Str {
+      value: value.into(),
+      span: DUMMY_SP,
+      kind: StrKind::Synthesized,
+      has_escape: false,
+    },
+    cooked: None,
+    span: DUMMY_SP,
+    tail: false,
+  }
+}
+
 pub fn compute_class_names(
-  styles: &Vec<JSXStyleInfo>,
+  styles: &Vec<JSXStyle>,
   style_import_name: &String,
 ) -> (Option<String>, Option<Expr>) {
   let mut static_class_name = None;
-  let mut class_name = None;
+  let mut external_jsx_id = None;
   let mut static_hashes = vec![];
   let mut dynamic_styles = vec![];
+  let mut external_styles = vec![];
   for style_info in styles {
-    if !style_info.is_dynamic {
-      static_hashes.push(style_info.hash.clone());
-    } else {
-      dynamic_styles.push(style_info.clone());
+    match &style_info {
+      JSXStyle::Local(style_info) => {
+        if !style_info.is_dynamic {
+          static_hashes.push(style_info.hash.clone());
+        } else {
+          dynamic_styles.push(style_info.clone());
+        }
+      }
+      JSXStyle::External(external) => {
+        if !external.is_global {
+          external_styles.push(external.expr.clone());
+        }
+      }
     }
+  }
+
+  if external_styles.len() > 0 {
+    let mut quasis = vec![tpl_element("jsx-")];
+    for _i in 1..external_styles.len() {
+      quasis.push(tpl_element(" jsx-"))
+    }
+    quasis.push(tpl_element(""));
+    external_jsx_id = Some(Expr::Tpl(Tpl {
+      quasis,
+      exprs: external_styles
+        .iter()
+        .map(|external| Box::new(external.clone()))
+        .collect(),
+      span: DUMMY_SP,
+    }));
   }
 
   if static_hashes.len() > 0 {
@@ -148,15 +188,147 @@ pub fn compute_class_names(
       None => Some(dynamic_class_name),
     };
   };
-  if let Some(class_name_expr) = class_name_expr {
-    class_name = Some(class_name_expr);
+  if let Some(external_jsx_id) = external_jsx_id {
+    class_name_expr = match class_name_expr {
+      Some(class_name) => Some(add(external_jsx_id, class_name)),
+      None => Some(external_jsx_id),
+    }
   }
 
-  (static_class_name, class_name)
+  (static_class_name, class_name_expr)
 }
 
 pub fn make_styled_jsx_el(
   style_info: &JSXStyleInfo,
+  css_expr: Expr,
+  style_import_name: &String,
+) -> JSXElement {
+  let mut attrs = vec![JSXAttrOrSpread::JSXAttr(JSXAttr {
+    name: JSXAttrName::Ident(Ident {
+      sym: "id".into(),
+      span: DUMMY_SP,
+      optional: false,
+    }),
+    value: Some(JSXAttrValue::JSXExprContainer(JSXExprContainer {
+      expr: JSXExpr::Expr(Box::new(string_literal_expr(
+        hash_string(&style_info.hash).clone().as_str(),
+      ))),
+      span: DUMMY_SP,
+    })),
+    span: DUMMY_SP,
+  })];
+
+  if style_info.is_dynamic {
+    attrs.push(JSXAttrOrSpread::JSXAttr(JSXAttr {
+      name: JSXAttrName::Ident(Ident {
+        sym: "dynamic".into(),
+        span: DUMMY_SP,
+        optional: false,
+      }),
+      value: Some(JSXAttrValue::JSXExprContainer(JSXExprContainer {
+        expr: JSXExpr::Expr(Box::new(Expr::Array(ArrayLit {
+          elems: style_info
+            .expressions
+            .iter()
+            .map(|expression| {
+              Some(ExprOrSpread {
+                expr: expression.clone(),
+                spread: None,
+              })
+            })
+            .collect(),
+          span: DUMMY_SP,
+        }))),
+        span: DUMMY_SP,
+      })),
+      span: DUMMY_SP,
+    }));
+  }
+
+  let opening = JSXOpeningElement {
+    name: JSXElementName::Ident(Ident {
+      sym: style_import_name.to_string().into(),
+      span: DUMMY_SP,
+      optional: false,
+    }),
+    attrs,
+    span: DUMMY_SP,
+    self_closing: false,
+    type_args: None,
+  };
+
+  let closing = Some(JSXClosingElement {
+    name: JSXElementName::Ident(Ident {
+      sym: style_import_name.to_string().into(),
+      span: DUMMY_SP,
+      optional: false,
+    }),
+    span: DUMMY_SP,
+  });
+
+  let children = vec![JSXElementChild::JSXExprContainer(JSXExprContainer {
+    expr: JSXExpr::Expr(Box::new(css_expr)),
+    span: DUMMY_SP,
+  })];
+  JSXElement {
+    opening,
+    closing,
+    children,
+    span: DUMMY_SP,
+  }
+}
+
+pub fn make_external_styled_jsx_el(
+  style: &ExternalStyle,
+  style_import_name: &String,
+) -> JSXElement {
+  let mut attrs = vec![JSXAttrOrSpread::JSXAttr(JSXAttr {
+    name: JSXAttrName::Ident(Ident {
+      sym: "id".into(),
+      span: DUMMY_SP,
+      optional: false,
+    }),
+    value: Some(JSXAttrValue::JSXExprContainer(JSXExprContainer {
+      expr: JSXExpr::Expr(Box::new(style.expr.clone())),
+      span: DUMMY_SP,
+    })),
+    span: DUMMY_SP,
+  })];
+  let opening = JSXOpeningElement {
+    name: JSXElementName::Ident(Ident {
+      sym: style_import_name.to_string().into(),
+      span: DUMMY_SP,
+      optional: false,
+    }),
+    attrs,
+    span: DUMMY_SP,
+    self_closing: false,
+    type_args: None,
+  };
+
+  let closing = Some(JSXClosingElement {
+    name: JSXElementName::Ident(Ident {
+      sym: style_import_name.to_string().into(),
+      span: DUMMY_SP,
+      optional: false,
+    }),
+    span: DUMMY_SP,
+  });
+
+  let children = vec![JSXElementChild::JSXExprContainer(JSXExprContainer {
+    expr: JSXExpr::Expr(Box::new(Expr::Ident(style.identifier.clone()))),
+    span: DUMMY_SP,
+  })];
+  JSXElement {
+    opening,
+    closing,
+    children,
+    span: DUMMY_SP,
+  }
+}
+
+pub fn make_local_styled_jsx_el(
+  style_info: &LocalStyle,
   css_expr: Expr,
   style_import_name: &String,
 ) -> JSXElement {

@@ -9,10 +9,10 @@ use swc_css_codegen::{
 use swc_ecmascript::ast::{Expr, Str, StrKind, Tpl, TplElement};
 use swc_stylis::prefixer::prefixer;
 
-use super::{hash_string, string_literal_expr, JSXStyleInfo};
+use super::{hash_string, string_literal_expr, LocalStyle};
 
 pub fn transform_css(
-  style_info: &JSXStyleInfo,
+  style_info: &LocalStyle,
   is_global: bool,
   class_name: &Option<String>,
 ) -> Expr {
