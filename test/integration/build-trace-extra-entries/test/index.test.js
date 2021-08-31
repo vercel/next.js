@@ -6,7 +6,6 @@ import { nextBuild } from 'next-test-utils'
 
 jest.setTimeout(1000 * 60)
 
-let appPort
 const appDir = join(__dirname, '..')
 
 describe('build trace with extra entries', () => {
