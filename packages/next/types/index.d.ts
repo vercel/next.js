@@ -99,7 +99,10 @@ export {
 
 export type PreviewData = string | false | object | undefined
 
-export type GetStaticPropsContext<Q extends ParsedUrlQuery = ParsedUrlQuery, P extends PreviewData = PreviewData> = {
+export type GetStaticPropsContext<
+  Q extends ParsedUrlQuery = ParsedUrlQuery,
+  P extends PreviewData = PreviewData
+> = {
   params?: Q
   preview?: boolean
   previewData?: P
@@ -143,7 +146,8 @@ export type GetStaticPaths<P extends ParsedUrlQuery = ParsedUrlQuery> = (
 ) => Promise<GetStaticPathsResult<P>> | GetStaticPathsResult<P>
 
 export type GetServerSidePropsContext<
-  Q extends ParsedUrlQuery = ParsedUrlQuery, P extends PreviewData = PreviewData
+  Q extends ParsedUrlQuery = ParsedUrlQuery,
+  P extends PreviewData = PreviewData
 > = {
   req: IncomingMessage & {
     cookies: NextApiRequestCookies
