@@ -1,5 +1,5 @@
 import React, { Component, ReactElement, ReactNode, useContext } from 'react'
-import flush from 'styled-jsx/server'
+import { useStyleRegistry } from 'styled-jsx'
 import {
   BODY_RENDER_TARGET,
   OPTIMIZED_FONT_PROVIDERS,
@@ -174,8 +174,7 @@ export default class Document<P = {}> extends Component<DocumentProps & P> {
     }
 
     const { html, head } = await ctx.renderPage({ enhanceApp })
-    const styles = [...flush()]
-    return { html, head, styles }
+    return { html, head }
   }
 
   render() {
@@ -210,6 +209,54 @@ export function Html(
         inAmpMode && process.env.NODE_ENV !== 'production' ? '' : undefined
       }
     />
+  )
+}
+
+function Styles() {
+  return useStyleRegistry().styles()
+}
+
+function AmpStyles({ inAmpMode }: { inAmpMode: boolean }) {
+  const styles = useStyleRegistry().styles()
+
+  // try to parse styles from fragment for backwards compat
+  const curStyles: React.ReactElement[] = Array.isArray(styles)
+    ? (styles as React.ReactElement[])
+    : []
+  if (
+    inAmpMode &&
+    styles &&
+    // @ts-ignore Property 'props' does not exist on type ReactElement
+    styles.props &&
+    // @ts-ignore Property 'props' does not exist on type ReactElement
+    Array.isArray(styles.props.children)
+  ) {
+    const hasStyles = (el: React.ReactElement) =>
+      el?.props?.dangerouslySetInnerHTML?.__html
+    // @ts-ignore Property 'props' does not exist on type ReactElement
+    styles.props.children.forEach((child: React.ReactElement) => {
+      if (Array.isArray(child)) {
+        child.forEach((el) => hasStyles(el) && curStyles.push(el))
+      } else if (hasStyles(child)) {
+        curStyles.push(child)
+      }
+    })
+  }
+
+  /* Add custom styles before AMP styles to prevent accidental overrides */
+  return (
+    styles && (
+      <style
+        amp-custom=""
+        dangerouslySetInnerHTML={{
+          __html: curStyles
+            .map((style) => style.props.dangerouslySetInnerHTML.__html)
+            .join('')
+            .replace(/\/\*# sourceMappingURL=.*\*\//g, '')
+            .replace(/\/\*@ sourceURL=.*?\*\//g, ''),
+        }}
+      />
+    )
   )
 }
 
@@ -434,7 +481,6 @@ export class Head extends Component<
 
   render() {
     const {
-      styles,
       ampPath,
       inAmpMode,
       hybridAmp,
@@ -555,30 +601,6 @@ export class Head extends Component<
       return child
     })
 
-    // try to parse styles from fragment for backwards compat
-    const curStyles: React.ReactElement[] = Array.isArray(styles)
-      ? (styles as React.ReactElement[])
-      : []
-    if (
-      inAmpMode &&
-      styles &&
-      // @ts-ignore Property 'props' does not exist on type ReactElement
-      styles.props &&
-      // @ts-ignore Property 'props' does not exist on type ReactElement
-      Array.isArray(styles.props.children)
-    ) {
-      const hasStyles = (el: React.ReactElement) =>
-        el?.props?.dangerouslySetInnerHTML?.__html
-      // @ts-ignore Property 'props' does not exist on type ReactElement
-      styles.props.children.forEach((child: React.ReactElement) => {
-        if (Array.isArray(child)) {
-          child.forEach((el) => hasStyles(el) && curStyles.push(el))
-        } else if (hasStyles(child)) {
-          curStyles.push(child)
-        }
-      })
-    }
-
     const files: DocumentFiles = getDocumentFiles(
       this.context.buildManifest,
       this.context.__NEXT_DATA__.page,
@@ -635,19 +657,7 @@ export class Head extends Component<
               as="script"
               href="https://cdn.ampproject.org/v0.js"
             />
-            {/* Add custom styles before AMP styles to prevent accidental overrides */}
-            {styles && (
-              <style
-                amp-custom=""
-                dangerouslySetInnerHTML={{
-                  __html: curStyles
-                    .map((style) => style.props.dangerouslySetInnerHTML.__html)
-                    .join('')
-                    .replace(/\/\*# sourceMappingURL=.*\*\//g, '')
-                    .replace(/\/\*@ sourceURL=.*?\*\//g, ''),
-                }}
-              />
-            )}
+            <AmpStyles inAmpMode={inAmpMode} />
             <style
               amp-boilerplate=""
               dangerouslySetInnerHTML={{
@@ -708,7 +718,7 @@ export class Head extends Component<
               // (by default, style-loader injects at the bottom of <head />)
               <noscript id="__next_css__DO_NOT_USE__" />
             )}
-            {styles || null}
+            <Styles />
           </>
         )}
         {React.createElement(React.Fragment, {}, ...(headTags || []))}

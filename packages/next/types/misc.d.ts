@@ -6,7 +6,6 @@ declare module 'cssnano-simple' {
   const cssnanoSimple: any
   export = cssnanoSimple
 }
-declare module 'styled-jsx/server'
 
 declare module 'next/dist/compiled/amphtml-validator' {
   import m from 'amphtml-validator'

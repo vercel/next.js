@@ -180,9 +180,7 @@ export type DocumentContext = NextPageContext & {
   renderPage: RenderPage
 }
 
-export type DocumentInitialProps = RenderPageResult & {
-  styles?: React.ReactElement[] | React.ReactFragment
-}
+export type DocumentInitialProps = RenderPageResult
 
 export type DocumentProps = DocumentInitialProps & HtmlProps
 
@@ -210,7 +208,6 @@ export type HtmlProps = {
   scriptLoader: { afterInteractive?: string[]; beforeInteractive?: any[] }
   locale?: string
   disableOptimizedLoading?: boolean
-  styles?: React.ReactElement[] | React.ReactFragment
   head?: Array<JSX.Element | null>
 }
 
