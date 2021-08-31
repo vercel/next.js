@@ -23,6 +23,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 // Derived from https://github.com/monperrus/crawler-user-agents to include
 // only RegEx patterns for performance & file size.
+//
+// Adds `node-fetch (Next.js)` for integration tests
 
 export default [
   /Googlebot\//,
@@ -542,4 +544,5 @@ export default [
   /e\.ventures Investment Crawler/,
   /evc-batch/,
   /PetalBot/,
+  /node-fetch \(Next\.js\)/,
 ]

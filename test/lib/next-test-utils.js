@@ -94,7 +94,14 @@ export function fetchViaHTTP(appPort, pathname, query, opts) {
   const url = `http://localhost:${appPort}${pathname}${
     typeof query === 'string' ? query : query ? `?${qs.stringify(query)}` : ''
   }`
-  return fetch(url, opts)
+  opts = opts ?? {}
+  return fetch(url, {
+    ...opts,
+    headers: {
+      'User-Agent': 'node-fetch (Next.js)',
+      ...(opts.headers ?? {}),
+    },
+  })
 }
 
 export function findPort() {

@@ -1,36 +1,61 @@
 /* eslint-env jest */
 
 import webdriver from 'next-webdriver'
-import cheerio from 'cheerio'
 import { check } from 'next-test-utils'
 
-export default (context, render) => {
-  async function get$(path, query) {
-    const html = await render(path, query)
-    return cheerio.load(html)
+export default (context) => {
+  async function renderAndCheck(path, cb) {
+    let browser
+    try {
+      browser = await webdriver(context.appPort, path)
+      await cb(browser)
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
   }
 
   it('should resolve suspense modules on server side if suspense', async () => {
-    const $ = await get$('/suspense/no-preload')
-    const nextData = JSON.parse($('#__NEXT_DATA__').text())
-    const content = $('#__next').text()
-    expect(content).toBe('barfoo')
-    expect(nextData.dynamicIds).toBeUndefined()
+    await renderAndCheck('/suspense/no-preload', async (browser) => {
+      await check(
+        () =>
+          typeof JSON.parse(browser.elementByCss('#__NEXT_DATA__').text())
+            .dynamicIds === 'undefined'
+            ? 'true'
+            : 'false',
+        /true/
+      )
+      await check(() => browser.elementByCss('#__next').text(), /barfoo/)
+    })
   })
 
   it('should resolve suspense on server side if not suspended on server', async () => {
-    const $ = await get$('/suspense/no-thrown')
-    const html = $('body').html()
-    // there might be html comments between text, test hello only
-    expect(html).toContain('hello')
-    expect(JSON.parse($('#__NEXT_DATA__').text()).dynamicIds).toBeUndefined()
+    await renderAndCheck('/suspense/no-thrown', async (browser) => {
+      await check(
+        () =>
+          typeof JSON.parse(browser.elementByCss('#__NEXT_DATA__').text())
+            .dynamicIds === 'undefined'
+            ? 'true'
+            : 'false',
+        /true/
+      )
+      await check(() => browser.elementByCss('body').text(), /hello/)
+    })
   })
 
   it('should resolve suspense on server side if suspended on server', async () => {
-    const $ = await get$('/suspense/thrown')
-    const html = $('body').html()
-    expect(html).toContain('hello')
-    expect(JSON.parse($('#__NEXT_DATA__').text()).dynamicIds).toBeUndefined()
+    await renderAndCheck('/suspense/thrown', async (browser) => {
+      await check(
+        () =>
+          typeof JSON.parse(browser.elementByCss('#__NEXT_DATA__').text())
+            .dynamicIds === 'undefined'
+            ? 'true'
+            : 'false',
+        /true/
+      )
+      await check(() => browser.elementByCss('body').text(), /hello/)
+    })
   })
 
   it('should hydrate suspenses on client side if suspended on server', async () => {
