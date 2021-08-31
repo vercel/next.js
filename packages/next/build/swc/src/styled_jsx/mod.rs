@@ -1,6 +1,12 @@
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
 use swc_common::Span;
 use swc_common::{collections::AHashSet, DUMMY_SP};
 use swc_ecmascript::ast::*;
+use swc_ecmascript::minifier::{
+  eval::{EvalResult, Evaluator},
+  marks::Marks,
+};
 use swc_ecmascript::utils::{collect_decls, prepend, Id, HANDLER};
 use swc_ecmascript::visit::{Fold, FoldWith};
 
@@ -16,7 +22,7 @@ pub fn styled_jsx() -> impl Fold {
   StyledJSXTransformer::default()
 }
 
-#[derive(Debug, Default)]
+#[derive(Default)]
 struct StyledJSXTransformer {
   styles: Vec<JSXStyleInfo>,
   static_class_name: Option<String>,
@@ -25,6 +31,7 @@ struct StyledJSXTransformer {
   has_styled_jsx: bool,
   scope_bindings: AHashSet<Id>,
   style_import_name: Option<String>,
+  evaluator: Option<Evaluator>,
 }
 
 #[derive(Debug, Clone)]
@@ -240,6 +247,7 @@ impl Fold for StyledJSXTransformer {
   }
 
   fn fold_module(&mut self, module: Module) -> Module {
+    self.evaluator = Some(Evaluator::new(module.clone(), Marks::new()));
     let mut module = module.fold_children_with(self);
     module = module.fold_with(&mut external_styles(
       self.style_import_name.as_ref().unwrap(),
@@ -258,7 +266,7 @@ impl StyledJSXTransformer {
           self.file_has_styled_jsx = true;
           self.has_styled_jsx = true;
           let expr = get_style_expr(&child_el);
-          let style_info = get_jsx_style_info(expr);
+          let style_info = self.get_jsx_style_info(expr);
           styles.insert(0, style_info);
         }
       }
@@ -269,6 +277,62 @@ impl StyledJSXTransformer {
     self.styles = styles;
     self.static_class_name = static_class_name;
     self.class_name = class_name;
+  }
+
+  fn get_jsx_style_info(&mut self, expr: &Expr) -> JSXStyleInfo {
+    let mut hasher = DefaultHasher::new();
+    let css: String;
+    let css_span: Span;
+    let is_dynamic;
+    let mut expressions = vec![];
+    match expr {
+      Expr::Lit(Lit::Str(Str { value, span, .. })) => {
+        hasher.write(value.as_ref().as_bytes());
+        css = value.to_string().clone();
+        css_span = span.clone();
+        is_dynamic = false;
+      }
+      Expr::Tpl(Tpl {
+        exprs,
+        quasis,
+        span,
+      }) => {
+        if exprs.len() == 0 {
+          hasher.write(quasis[0].raw.value.as_bytes());
+          css = quasis[0].raw.value.to_string();
+          css_span = span.clone();
+          is_dynamic = false;
+        } else {
+          expr.clone().hash(&mut hasher);
+          let mut s = String::new();
+          for i in 0..quasis.len() {
+            let placeholder = if i == quasis.len() - 1 {
+              String::new()
+            } else {
+              String::from("__styled-jsx-placeholder__")
+            };
+            s = format!("{}{}{}", s, quasis[i].raw.value, placeholder)
+          }
+          css = String::from(s);
+          css_span = span.clone();
+          let res = self.evaluator.as_mut().unwrap().eval(&expr);
+          is_dynamic = if let Some(EvalResult::Lit(_)) = res {
+            false
+          } else {
+            true
+          };
+          expressions = exprs.clone();
+        }
+      }
+      _ => panic!("Not implemented"),
+    }
+    return JSXStyleInfo {
+      hash: format!("{:x}", hasher.finish()),
+      css,
+      css_span,
+      is_dynamic,
+      expressions,
+    };
   }
 
   fn replace_jsx_style(&mut self, el: JSXElement) -> JSXElement {
