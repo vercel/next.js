@@ -104,7 +104,7 @@ export class Blah extends Head {
   render() {
     return (
       <div>
-        <a href='/list/blah'>Homepage</a>
+        <a href='/list/foo/bar'>Homepage</a>
         <h1>Hello title</h1>
       </div>
     );
@@ -163,7 +163,7 @@ describe('no-html-link-for-pages', function () {
     assert.notEqual(report, undefined, 'No lint errors found.')
     assert.equal(
       report.message,
-      "Do not use the HTML <a> tag to navigate to /list/blah/. Use Link from 'next/link' instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages."
+      "Do not use the HTML <a> tag to navigate to /list/goo/bar. Use Link from 'next/link' instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages."
     )
   })
 })
