@@ -125,13 +125,15 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
             compilation.entries.forEach((entry) => {
               const name = entry.name || entry.options?.name
 
-              if (name?.startsWith('pages/')) {
+              if (name?.replace(/\\/g, '/').startsWith('pages/')) {
                 for (const dep of entry.dependencies) {
                   if (!dep) continue
                   const entryMod = getModuleFromDependency(compilation, dep)
 
                   if (entryMod && entryMod.resource) {
-                    if (entryMod.resource.includes('pages/')) {
+                    if (
+                      entryMod.resource.replace(/\\/g, '/').includes('pages/')
+                    ) {
                       entryNameMap.set(entryMod.resource, name)
                       entryModMap.set(entryMod.resource, entryMod)
                     } else {
