@@ -649,32 +649,38 @@ describe('Production Usage', () => {
       expect(legacy).toMatch(`new static folder`)
     })
 
-    it('should reload the page on page script error', async () => {
-      const browser = await webdriver(appPort, '/counter')
-      const counter = await browser
-        .elementByCss('#increase')
-        .click()
-        .click()
-        .elementByCss('#counter')
-        .text()
-      expect(counter).toBe('Counter: 2')
+    // TODO: do we want to normalize this for firefox? It seems in
+    // the latest version of firefox the window state is not reset
+    // when navigating back from a hard navigation. This might be
+    // a bug as other browsers do not behave this way.
+    if (browserName !== 'firefox') {
+      it('should reload the page on page script error', async () => {
+        const browser = await webdriver(appPort, '/counter')
+        const counter = await browser
+          .elementByCss('#increase')
+          .click()
+          .click()
+          .elementByCss('#counter')
+          .text()
+        expect(counter).toBe('Counter: 2')
 
-      // When we go to the 404 page, it'll do a hard reload.
-      // So, it's possible for the front proxy to load a page from another zone.
-      // Since the page is reloaded, when we go back to the counter page again,
-      // previous counter value should be gone.
-      const counterAfter404Page = await browser
-        .elementByCss('#no-such-page')
-        .click()
-        .waitForElementByCss('h1')
-        .back()
-        .waitForElementByCss('#counter-page')
-        .elementByCss('#counter')
-        .text()
-      expect(counterAfter404Page).toBe('Counter: 0')
+        // When we go to the 404 page, it'll do a hard reload.
+        // So, it's possible for the front proxy to load a page from another zone.
+        // Since the page is reloaded, when we go back to the counter page again,
+        // previous counter value should be gone.
+        const counterAfter404Page = await browser
+          .elementByCss('#no-such-page')
+          .click()
+          .waitForElementByCss('h1')
+          .back()
+          .waitForElementByCss('#counter-page')
+          .elementByCss('#counter')
+          .text()
+        expect(counterAfter404Page).toBe('Counter: 0')
 
-      await browser.close()
-    })
+        await browser.close()
+      })
+    }
 
     it('should have default runtime values when not defined', async () => {
       const html = await renderViaHTTP(appPort, '/runtime-config')
