@@ -1,5 +1,5 @@
 import '../styles/globals.css'
-import { ClerkProvider, SignedIn, SignedOut } from '@clerk/clerk-react'
+import { ClerkProvider, SignedIn, SignedOut } from '@clerk/nextjs'
 import { useRouter } from 'next/router'
 import { useEffect } from 'react'
 import Layout from '../components/Layout'

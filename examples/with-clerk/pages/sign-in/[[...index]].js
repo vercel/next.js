@@ -1,4 +1,4 @@
-import { SignIn } from '@clerk/clerk-react'
+import { SignIn } from '@clerk/nextjs'
 
 const SignInPage = () => (
   <SignIn path="/sign-in" routing="path" signUpURL="/sign-up" />

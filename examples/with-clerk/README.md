@@ -22,6 +22,6 @@ yarn create next-app --example with-clerk with-clerk-app
 
 To learn more about Clerk.dev and Next.js, take a look at the following resources:
 
-- [Quick start](https://docs.clerk.dev/frontend/quick-starts/next.js)
+- [Quick start](https://docs.clerk.dev/get-started/nextjs)
 - [Clerk.dev Documentation](https://docs.clerk.dev/) - learn about Clerk.dev features and API.
 - [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
