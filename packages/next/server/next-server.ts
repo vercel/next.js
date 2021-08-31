@@ -97,6 +97,7 @@ import ResponseCache, {
 } from './response-cache'
 import { NextConfigComplete } from './config-shared'
 import { parseNextUrl } from '../shared/lib/router/utils/parse-next-url'
+import CRAWLER_USER_AGENTS from './lib/crawler-user-agents'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -1250,8 +1251,10 @@ export default class Server {
       query: ParsedUrlQuery
     }
   ): Promise<void> {
-    // TODO: Determine when dynamic HTML is allowed
-    const requireStaticHTML = true
+    const userAgent = partialContext.req.headers['user-agent']
+    const requireStaticHTML = userAgent
+      ? CRAWLER_USER_AGENTS.some((pattern) => pattern.test(userAgent))
+      : true
     const ctx = {
       ...partialContext,
       renderOpts: {
