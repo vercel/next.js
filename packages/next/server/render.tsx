@@ -804,6 +804,10 @@ export async function renderToHTML(
         ;(renderOpts as any).isRedirect = true
       }
 
+      if ((data as any).props instanceof Promise) {
+        ;(data as any).props = await (data as any).props
+      }
+
       if (
         (dev || isBuildTimeSSG) &&
         !isSerializableProps(
