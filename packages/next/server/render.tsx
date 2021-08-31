@@ -883,7 +883,8 @@ export async function renderToHTML(
     }
   }
 
-  const generateStaticHTML = requireStaticHTML || inAmpMode
+  const isLegacyDocument = !!Document.getInitialProps
+  const generateStaticHTML = requireStaticHTML || inAmpMode || isLegacyDocument
   const renderToStream = (element: React.ReactElement) =>
     new Promise<RenderResult>((resolve, reject) => {
       const stream = new PassThrough()
@@ -932,7 +933,7 @@ export async function renderToHTML(
     }).then(multiplexResult)
 
   const renderDocument = async () => {
-    if (Document.getInitialProps) {
+    if (isLegacyDocument) {
       const renderPage: RenderPage = (
         options: ComponentsEnhancer = {}
       ): RenderPageResult | Promise<RenderPageResult> => {
