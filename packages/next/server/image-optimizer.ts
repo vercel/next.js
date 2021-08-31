@@ -525,6 +525,8 @@ function setResponseHeaders(
     res.setHeader('Content-Disposition', `inline; filename="${fileName}"`)
   }
 
+  res.setHeader('Content-Security-Policy', `script-src 'none'; sandbox;`)
+
   return { finished: false }
 }
 

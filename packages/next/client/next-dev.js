@@ -59,6 +59,12 @@ initNext({ webpackHMR })
       } else if (event.data.indexOf('serverOnlyChanges') !== -1) {
         const { pages } = JSON.parse(event.data)
 
+        // Make sure to reload when the dev-overlay is showing for an
+        // API route
+        if (pages.includes(router.query.__NEXT_PAGE)) {
+          return window.location.reload()
+        }
+
         if (!router.clc && pages.includes(router.pathname)) {
           console.log('Refreshing page data due to server-side change')
 
