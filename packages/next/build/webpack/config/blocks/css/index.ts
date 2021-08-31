@@ -14,7 +14,7 @@ import { getPostCssPlugins } from './plugins'
 import postcss from 'postcss'
 
 // @ts-ignore backwards compat
-postcss.plugin = function plugin(name, initializer) {
+postcss.plugin = function postcssPlugin(name, initializer) {
   function creator(...args: any) {
     let transformer = initializer(...args)
     transformer.postcssPlugin = name

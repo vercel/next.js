@@ -43,11 +43,6 @@ function normalizePath(file) {
   return path.sep === '\\' ? file.replace(/\\/g, '/') : file
 }
 
-// eslint-disable-next-line no-control-regex
-const filenameReservedRegex = /[<>:"/\\|?*]/g
-// eslint-disable-next-line no-control-regex
-const reControlChars = /[\u0000-\u001f\u0080-\u009f]/g
-
 function normalizeUrl(url, isStringValue) {
   let normalizedUrl = url
 
