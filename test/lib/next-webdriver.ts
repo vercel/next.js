@@ -40,8 +40,6 @@ export default async function webdriver(
 
   // we import only the needed interface
   if (
-    process.env.CHROME_BIN ||
-    process.env.BROWSERSTACK ||
     process.env.LEGACY_SAFARI ||
     process.env.BROWSER_NAME === 'internet explorer' ||
     process.env.SKIP_LOCAL_SELENIUM_SERVER
@@ -56,7 +54,9 @@ export default async function webdriver(
   }
 
   const browser = new CurrentInterface()
-  await browser.setup(process.env.BROWSER_NAME || 'chrome')
+  const browserName = process.env.BROWSER_NAME || 'chrome'
+  await browser.setup(browserName)
+  ;(global as any).browserName = browserName
 
   const fullUrl = `http://${
     isBrowserStack ? deviceIP : 'localhost'
