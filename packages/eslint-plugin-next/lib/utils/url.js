@@ -42,7 +42,11 @@ function getUrlFromPagesDirectories(urlPrefix, directories) {
           (url) => `^${normalizeURL(url)}$`
         )
     )
-  ).map((urlReg) => new RegExp(urlReg))
+  ).map((urlReg) => {
+    // /foo/[bar] filees fails without this.
+    urlReg = urlReg.replace(/\[/g, "\\[");
+    new RegExp(urlReg)
+  })
 }
 
 // Cache for fs.readdirSync lookup.
