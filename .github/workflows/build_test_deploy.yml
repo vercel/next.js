@@ -133,6 +133,9 @@ jobs:
           path: ./*
           key: ${{ github.sha }}
 
+      - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
       # TODO: remove after we fix watchpack watching too much
       - run: echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
@@ -213,6 +216,9 @@ jobs:
           path: ./*
           key: ${{ github.sha }}
 
+      - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
       - run: xvfb-run node run-tests.js test/integration/{basic,fallback-modules,link-ref,production,async-modules,font-optimization,ssr-ctx}/test/index.test.js test/acceptance/*.test.js
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
@@ -231,7 +237,7 @@ jobs:
         with:
           path: ./*
           key: ${{ github.sha }}
-      - run: npm i -g playwright-firefox@1.14.1
+      - run: npm i -g playwright-firefox@1.14.1 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
       - run: node run-tests.js test/integration/production/test/index.test.js
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
@@ -255,7 +261,7 @@ jobs:
         with:
           path: ./*
           key: ${{ github.sha }}
-      - run: npm i -g playwright-webkit@1.14.1
+      - run: npm i -g playwright-webkit@1.14.1 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
       - run: node run-tests.js test/integration/production/test/index.test.js
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
