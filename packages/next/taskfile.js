@@ -1,8 +1,9 @@
 // eslint-disable-next-line import/no-extraneous-dependencies
 const notifier = require('node-notifier')
 // eslint-disable-next-line import/no-extraneous-dependencies
-const { relative, basename, resolve } = require('path')
+const { relative, basename, resolve, join } = require('path')
 const { Module } = require('module')
+const fs = require('fs')
 
 // Note:
 // "bundles" folder shadows main node_modules in workspace where all installs in
@@ -155,11 +156,14 @@ export async function ncc_babel_bundle_packages(task, opts) {
   await task
     .source(opts.src || 'bundles/babel/packages-bundle.js')
     .ncc({
-      packageName: `@babel/core`,
-      bundleName: 'babel-packages',
       externals: externals,
     })
     .target(`compiled/babel-packages`)
+
+  await fs.promises.writeFile(
+    join(__dirname, 'compiled/babel-packages/package.json'),
+    JSON.stringify({ name: 'babel-packages', main: './packages-bundle.js' })
+  )
 
   await task
     .source(opts.src || 'bundles/babel/packages/*')
