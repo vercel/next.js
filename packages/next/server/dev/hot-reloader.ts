@@ -134,7 +134,7 @@ export default class HotReloader {
   private webpackHotMiddleware: (NextHandleFunction & any) | null
   private config: NextConfigComplete
   private stats: webpack.Stats | null
-  private serverStats: webpack.Stats | null
+  public serverStats: webpack.Stats | null
   private clientError: Error | null = null
   private serverError: Error | null = null
   private serverPrevDocumentHash: string | null
