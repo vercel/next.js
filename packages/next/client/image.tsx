@@ -627,6 +627,7 @@ export default function Image({
           data-nimg={layout}
           style={imgStyle}
           className={className}
+          // @ts-ignore - TODO: upgrade to `@types/react@17`
           loading={loading || 'lazy'}
         />
       </noscript>
