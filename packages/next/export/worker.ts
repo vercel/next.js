@@ -274,7 +274,7 @@ export default async function exportPage({
 
         // if it was auto-exported the HTML is loaded here
         if (typeof mod === 'string') {
-          renderResult = new StaticRenderResult(mod)
+          renderResult = new StaticRenderResult([mod])
           queryWithAutoExportWarn()
         } else {
           // for non-dynamic SSG pages we should have already
@@ -352,7 +352,7 @@ export default async function exportPage({
         }
 
         if (typeof components.Component === 'string') {
-          renderResult = new StaticRenderResult(components.Component)
+          renderResult = new StaticRenderResult([components.Component])
           queryWithAutoExportWarn()
         } else {
           /**
