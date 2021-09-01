@@ -261,5 +261,14 @@
     "triples": {
       "defaults": true
     }
+  },
+  "resolutions": {
+    "@babel/core": "^7.15.0",
+    "@babel/generator": "^7.15.0",
+    "@babel/helper-compilation-targets": "^7.15.0",
+    "@babel/helper-module-transforms": "^7.15.0",
+    "@babel/parser": "^7.15.0",
+    "@babel/traverse": "^7.15.0",
+    "@babel/types": "^7.15.0"
   }
 }
