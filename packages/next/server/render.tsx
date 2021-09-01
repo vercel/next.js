@@ -929,17 +929,15 @@ export async function renderToHTML(
           doResolve()
         },
       })
+    }).then(async (observable) => {
+      if (generateStaticHTML) {
+        const chunks: string[] = []
+        await observable.forEach((chunk) => chunks.push(chunk))
+        return RenderResult.static(chunks)
+      } else {
+        return RenderResult.dynamic(multiplexObservable(observable))
+      }
     })
-      .then(multiplexObservable)
-      .then(async (observable) => {
-        if (generateStaticHTML) {
-          const chunks: string[] = []
-          await observable.forEach((chunk) => chunks.push(chunk))
-          return RenderResult.static(chunks)
-        } else {
-          return RenderResult.dynamic(observable)
-        }
-      })
 
   const renderDocument = async () => {
     if (Document.getInitialProps) {
