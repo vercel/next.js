@@ -161,7 +161,7 @@ export async function ncc_babel_bundle_packages(task, opts) {
     .target(`compiled/babel-packages`)
 
   await fs.promises.writeFile(
-    join(__dirname, 'dist/compiled/babel-packages/package.json'),
+    join(__dirname, 'compiled/babel-packages/package.json'),
     JSON.stringify({ name: 'babel-packages', main: './packages-bundle.js' })
   )
 
