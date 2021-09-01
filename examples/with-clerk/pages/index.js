@@ -178,14 +178,12 @@ const APIRequest = () => {
 // Footer component
 const Footer = () => (
   <footer className={styles.footer}>
-    <a
-      href="https://vercel.com?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-      target="_blank"
-      rel="noopener noreferrer"
-    >
-      Powered by{' '}
+    Powered by{' '}
+    <a href="https://clerk.dev" target="_blank">
       <img src="/clerk.svg" alt="Clerk.dev" className={styles.logo} />
-      +
+    </a>
+    +
+    <a href="https://nextjs.org/" target="_blank" rel="noopener noreferrer">
       <img src="/nextjs.svg" alt="Next.js" className={styles.logo} />
     </a>
   </footer>
