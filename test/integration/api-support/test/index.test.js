@@ -442,6 +442,11 @@ function runTests(dev = false) {
     expect(data).toBe('hi')
   })
 
+  it('should work with nullable payload', async () => {
+    const data = await renderViaHTTP(appPort, '/api/nullable-payload')
+    expect(data).toBe('')
+  })
+
   it('should warn if response body is larger than 4MB', async () => {
     let res = await fetchViaHTTP(appPort, '/api/large-response')
     expect(res.ok).toBeTruthy()
