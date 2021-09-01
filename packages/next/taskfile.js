@@ -1,9 +1,9 @@
 // eslint-disable-next-line import/no-extraneous-dependencies
-const fs = require('fs')
 const notifier = require('node-notifier')
 // eslint-disable-next-line import/no-extraneous-dependencies
 const { relative, basename, resolve, join } = require('path')
 const { Module } = require('module')
+const fs = require('fs')
 
 // Note:
 // "bundles" folder shadows main node_modules in workspace where all installs in
