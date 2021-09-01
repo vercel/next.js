@@ -114,22 +114,18 @@ Let's look at an example that uses middleware to decorate the request object wit
 ```js
 import { withSession } from '@clerk/nextjs/api'
 
-function handler(req, res) {
+// Use withSession to decorate `req` with a session object
+export default withSession((req, res) => {
+  res.statusCode = 200
   if (req.session) {
-    // Signed in
-    console.log('User ID', req.session.userId)
+    res.json({ id: req.session.userId })
   } else {
-    // Signed out
-    res.status(401)
+    res.json({ id: null })
   }
-  res.end()
-}
-
-// Use middleware decorate `req` with `session`
-export default withSession(handler)
+})
 ```
 
-You can view this example [in action](#). Check out the [`clerk`](#) example to see how it works.
+You can view this example [in action](https://clerk-nextjs-starter.vercel.app). Check out the [`with-clerk`](https://github.com/vercel/next.js/tree/canary/examples/with-clerk) example to see how it works.
 
 ## Authentication Providers
 
