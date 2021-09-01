@@ -358,7 +358,9 @@ impl Fold for StyledJSXTransformer {
           self.add_hash = None;
         }
       }
-      new_items.push(new_item);
+      if !is_styled_css_import(&new_item) {
+        new_items.push(new_item);
+      }
       if let Some(add_hash) = self.get_add_hash() {
         new_items.push(ModuleItem::Stmt(add_hash_statment(add_hash)));
         self.add_hash = None;
@@ -701,4 +703,17 @@ fn add_hash_statment((ident, hash): (String, String)) -> Stmt {
     })),
     span: DUMMY_SP,
   })
+}
+
+fn is_styled_css_import(item: &ModuleItem) -> bool {
+  if let ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+    src: Str { value, .. },
+    ..
+  })) = item
+  {
+    if value == "styled-jsx/css" {
+      return true;
+    }
+  }
+  false
 }
