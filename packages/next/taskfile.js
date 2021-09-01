@@ -116,6 +116,7 @@ const babelCorePackages = {
   'code-frame': 'next/dist/compiled/babel/code-frame',
   '@babel/generator': 'next/dist/compiled/babel/generator',
   '@babel/traverse': 'next/dist/compiled/babel/traverse',
+  '@babel/types': 'next/dist/compiled/babel/types',
   '@babel/core': 'next/dist/compiled/babel/core',
   '@babel/core/lib/config': 'next/dist/compiled/babel/core-lib-config',
   '@babel/core/lib/transformation/normalize-file':
