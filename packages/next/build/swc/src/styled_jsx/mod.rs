@@ -39,6 +39,7 @@ struct StyledJSXTransformer {
   file_has_css_resolve: bool,
   external_hash: Option<String>,
   add_hash: Option<(String, String)>,
+  add_default_decl: Option<(String, Expr)>,
   evaluator: Option<Evaluator>,
 }
 
@@ -295,23 +296,33 @@ impl Fold for StyledJSXTransformer {
     declarator
   }
 
+  fn fold_export_default_expr(&mut self, default_expr: ExportDefaultExpr) -> ExportDefaultExpr {
+    let default_expr = default_expr.fold_children_with(self);
+    if let Some(external_hash) = &self.external_hash {
+      let default_ident = "_defaultExport";
+      self.add_hash = Some((String::from(default_ident), external_hash.clone()));
+      self.external_hash = None;
+      self.add_default_decl = Some((String::from(default_ident), *default_expr.expr));
+      return ExportDefaultExpr {
+        expr: Box::new(Expr::Ident(Ident {
+          sym: default_ident.into(),
+          span: DUMMY_SP,
+          optional: false,
+        })),
+        span: DUMMY_SP,
+      };
+    }
+    default_expr
+  }
+
   fn fold_block_stmt(&mut self, mut block: BlockStmt) -> BlockStmt {
-    let mut add_hashes = vec![];
     let mut new_stmts = vec![];
-    let mut i = 0;
     for stmt in block.stmts {
       new_stmts.push(stmt.fold_children_with(self));
       if let Some(add_hash) = self.get_add_hash() {
-        add_hashes.push((i, add_hash));
+        new_stmts.push(add_hash_statment(add_hash));
+        self.add_hash = None;
       }
-      i = i + 1;
-    }
-
-    let mut num_inserted = 0;
-    for (i, add_hash) in add_hashes {
-      let item = add_hash_statment(add_hash);
-      new_stmts.insert(i + 1 + num_inserted, item);
-      num_inserted = num_inserted + 1;
     }
 
     block.stmts = new_stmts;
@@ -319,22 +330,39 @@ impl Fold for StyledJSXTransformer {
   }
 
   fn fold_module_items(&mut self, items: Vec<ModuleItem>) -> Vec<ModuleItem> {
-    let mut add_hashes = vec![];
     let mut new_items = vec![];
-    let mut i = 0;
     for item in items {
-      new_items.push(item.fold_children_with(self));
-      if let Some(add_hash) = self.get_add_hash() {
-        add_hashes.push((i, add_hash));
+      let new_item = item.fold_children_with(self);
+      if let Some((default_ident, default_expr)) = &self.add_default_decl {
+        new_items.push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(VarDecl {
+          kind: VarDeclKind::Const,
+          declare: false, // ? Is this right?
+          decls: vec![VarDeclarator {
+            name: Pat::Ident(BindingIdent {
+              id: Ident {
+                sym: default_ident.clone().into(),
+                span: DUMMY_SP,
+                optional: false,
+              },
+              type_ann: None,
+            }),
+            init: Some(Box::new(default_expr.clone())),
+            definite: false, // ? Is this right?
+            span: DUMMY_SP,
+          }],
+          span: DUMMY_SP,
+        }))));
+        self.add_default_decl = None;
+        if let Some(add_hash) = self.get_add_hash() {
+          new_items.push(ModuleItem::Stmt(add_hash_statment(add_hash)));
+          self.add_hash = None;
+        }
       }
-      i = i + 1;
-    }
-
-    let mut num_inserted = 0;
-    for (i, add_hash) in add_hashes {
-      let item = ModuleItem::Stmt(add_hash_statment(add_hash));
-      new_items.insert(i + 1 + num_inserted, item);
-      num_inserted = num_inserted + 1;
+      new_items.push(new_item);
+      if let Some(add_hash) = self.get_add_hash() {
+        new_items.push(ModuleItem::Stmt(add_hash_statment(add_hash)));
+        self.add_hash = None;
+      }
     }
 
     if self.file_has_styled_jsx || self.file_has_css_resolve {
@@ -511,6 +539,7 @@ impl StyledJSXTransformer {
       self.file_has_css_resolve = true;
     }
     let style = if let JSXStyle::Local(style) = &styles[0] {
+      self.external_hash = Some(style.hash.clone());
       style
     } else {
       panic!("Not expected"); // TODO: handle error
