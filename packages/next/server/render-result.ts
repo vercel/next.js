@@ -25,7 +25,9 @@ export default class RenderResult {
         'invariant: Dynamic results can not be made static. This is a bug in Next.js'
       )
     }
-    throw new Error()
+    const chunks: string[] = []
+    await this.#observable.forEach(chunk => chunks.push(chunk))
+    return chunks.join('')
   }
 
   static static(val: string[]): RenderResult {
