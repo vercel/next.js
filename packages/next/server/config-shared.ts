@@ -81,7 +81,7 @@ export type NextConfig = { [key: string]: any } & {
   pageExtensions?: string[]
   compress?: boolean
   poweredByHeader?: boolean
-  images?: ImageConfig
+  images?: Partial<ImageConfig>
   devIndicators?: {
     buildActivity?: boolean
   }
