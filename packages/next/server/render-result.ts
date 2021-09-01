@@ -45,6 +45,7 @@ export default class RenderResult {
     })
     // @ts-ignore
     const observable: Observable<string> = Observable.prototype.concat.call(
+      // @ts-ignore
       ...observables
     )
     return new RenderResult(observable, dynamic)
