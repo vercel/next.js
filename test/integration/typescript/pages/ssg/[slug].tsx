@@ -25,7 +25,7 @@ export const getStaticProps: GetStaticProps<Props, Params, PreviewData> =
     return {
       props: {
         data: params!.slug,
-        title: previewData!.title,
+        title: previewData?.title || 'default title',
       },
       revalidate: false,
     }

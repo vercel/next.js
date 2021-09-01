@@ -19,7 +19,7 @@ export const getServerSideProps: GetServerSideProps<
   PreviewData
 > = async ({ params, previewData }) => {
   return {
-    props: { data: params!.slug, title: previewData!.title },
+    props: { data: params!.slug, title: previewData?.title || 'default title' },
   }
 }
 
