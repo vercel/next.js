@@ -1,63 +1,9 @@
 use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash, Hasher};
-use swc_common::Span;
+use std::hash::Hasher;
 use swc_common::DUMMY_SP;
 use swc_ecmascript::ast::*;
 
-use super::{ExternalStyle, JSXStyle, JSXStyleInfo, LocalStyle};
-
-pub fn get_jsx_style_info(expr: &Expr) -> JSXStyleInfo {
-  let mut hasher = DefaultHasher::new();
-  let css: String;
-  let css_span: Span;
-  let is_dynamic;
-  let mut expressions = vec![];
-  match expr {
-    Expr::Lit(Lit::Str(Str { value, span, .. })) => {
-      hasher.write(value.as_ref().as_bytes());
-      css = value.to_string().clone();
-      css_span = span.clone();
-      is_dynamic = false;
-    }
-    Expr::Tpl(Tpl {
-      exprs,
-      quasis,
-      span,
-    }) => {
-      if exprs.len() == 0 {
-        hasher.write(quasis[0].raw.value.as_bytes());
-        css = quasis[0].raw.value.to_string();
-        css_span = span.clone();
-        is_dynamic = false;
-      } else {
-        expr.clone().hash(&mut hasher);
-        let mut s = String::new();
-        for i in 0..quasis.len() {
-          let placeholder = if i == quasis.len() - 1 {
-            String::new()
-          } else {
-            String::from("__styled-jsx-placeholder__")
-          };
-          s = format!("{}{}{}", s, quasis[i].raw.value, placeholder)
-        }
-        css = String::from(s);
-        dbg!(&css);
-        css_span = span.clone();
-        is_dynamic = true;
-        expressions = exprs.clone();
-      }
-    }
-    _ => panic!("Not implemented"),
-  }
-
-  return JSXStyleInfo {
-    hash: format!("{:x}", hasher.finish()),
-    css,
-    css_span,
-    is_dynamic,
-    expressions,
-  };
-}
+use super::{ExternalStyle, JSXStyle, LocalStyle};
 
 fn tpl_element(value: &str) -> TplElement {
   TplElement {
@@ -198,91 +144,11 @@ pub fn compute_class_names(
   (static_class_name, class_name_expr)
 }
 
-pub fn make_styled_jsx_el(
-  style_info: &JSXStyleInfo,
-  css_expr: Expr,
-  style_import_name: &String,
-) -> JSXElement {
-  let mut attrs = vec![JSXAttrOrSpread::JSXAttr(JSXAttr {
-    name: JSXAttrName::Ident(Ident {
-      sym: "id".into(),
-      span: DUMMY_SP,
-      optional: false,
-    }),
-    value: Some(JSXAttrValue::JSXExprContainer(JSXExprContainer {
-      expr: JSXExpr::Expr(Box::new(string_literal_expr(
-        hash_string(&style_info.hash).clone().as_str(),
-      ))),
-      span: DUMMY_SP,
-    })),
-    span: DUMMY_SP,
-  })];
-
-  if style_info.is_dynamic {
-    attrs.push(JSXAttrOrSpread::JSXAttr(JSXAttr {
-      name: JSXAttrName::Ident(Ident {
-        sym: "dynamic".into(),
-        span: DUMMY_SP,
-        optional: false,
-      }),
-      value: Some(JSXAttrValue::JSXExprContainer(JSXExprContainer {
-        expr: JSXExpr::Expr(Box::new(Expr::Array(ArrayLit {
-          elems: style_info
-            .expressions
-            .iter()
-            .map(|expression| {
-              Some(ExprOrSpread {
-                expr: expression.clone(),
-                spread: None,
-              })
-            })
-            .collect(),
-          span: DUMMY_SP,
-        }))),
-        span: DUMMY_SP,
-      })),
-      span: DUMMY_SP,
-    }));
-  }
-
-  let opening = JSXOpeningElement {
-    name: JSXElementName::Ident(Ident {
-      sym: style_import_name.to_string().into(),
-      span: DUMMY_SP,
-      optional: false,
-    }),
-    attrs,
-    span: DUMMY_SP,
-    self_closing: false,
-    type_args: None,
-  };
-
-  let closing = Some(JSXClosingElement {
-    name: JSXElementName::Ident(Ident {
-      sym: style_import_name.to_string().into(),
-      span: DUMMY_SP,
-      optional: false,
-    }),
-    span: DUMMY_SP,
-  });
-
-  let children = vec![JSXElementChild::JSXExprContainer(JSXExprContainer {
-    expr: JSXExpr::Expr(Box::new(css_expr)),
-    span: DUMMY_SP,
-  })];
-  JSXElement {
-    opening,
-    closing,
-    children,
-    span: DUMMY_SP,
-  }
-}
-
 pub fn make_external_styled_jsx_el(
   style: &ExternalStyle,
   style_import_name: &String,
 ) -> JSXElement {
-  let mut attrs = vec![JSXAttrOrSpread::JSXAttr(JSXAttr {
+  let attrs = vec![JSXAttrOrSpread::JSXAttr(JSXAttr {
     name: JSXAttrName::Ident(Ident {
       sym: "id".into(),
       span: DUMMY_SP,
@@ -407,7 +273,7 @@ pub fn make_local_styled_jsx_el(
   }
 }
 
-pub fn get_usable_import_specifier(items: &Vec<ModuleItem>) -> String {
+pub fn get_usable_import_specifier(_items: &Vec<ModuleItem>) -> String {
   // TODO
   String::from("_JSXStyle")
 }

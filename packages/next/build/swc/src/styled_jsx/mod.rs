@@ -7,14 +7,17 @@ use swc_ecmascript::minifier::{
   eval::{EvalResult, Evaluator},
   marks::Marks,
 };
-use swc_ecmascript::utils::{collect_decls, prepend, Id, HANDLER};
+use swc_ecmascript::utils::{
+  collect_decls,
+  ident::{Id, IdentLike},
+  prepend, HANDLER,
+};
 use swc_ecmascript::visit::{Fold, FoldWith};
 
 //use external::external_styles;
 use transform_css::transform_css;
 use utils::*;
 
-mod external;
 mod transform_css;
 mod utils;
 
@@ -32,16 +35,11 @@ struct StyledJSXTransformer {
   bindings: AHashSet<Id>,
   nearest_scope_bindings: AHashSet<Id>,
   style_import_name: Option<String>,
+  external_bindings: Vec<Id>,
+  file_has_css_resolve: bool,
+  external_hash: Option<String>,
+  add_hash: Option<(String, String)>,
   evaluator: Option<Evaluator>,
-}
-
-#[derive(Debug, Clone)]
-pub struct JSXStyleInfo {
-  hash: String,
-  css: String,
-  css_span: Span,
-  is_dynamic: bool,
-  expressions: Vec<Box<Expr>>,
 }
 
 pub struct LocalStyle {
@@ -241,16 +239,112 @@ impl Fold for StyledJSXTransformer {
     el
   }
 
+  fn fold_import_decl(&mut self, decl: ImportDecl) -> ImportDecl {
+    let ImportDecl {
+      ref src,
+      ref specifiers,
+      ..
+    } = decl;
+    if &src.value == "styled-jsx/css" {
+      for specifier in specifiers {
+        match specifier {
+          ImportSpecifier::Default(default_specifier) => {
+            self.external_bindings.push(default_specifier.local.to_id())
+          }
+          ImportSpecifier::Named(named_specifier) => {
+            self.external_bindings.push(named_specifier.local.to_id())
+          }
+          _ => {}
+        }
+      }
+    }
+
+    decl
+  }
+  fn fold_expr(&mut self, expr: Expr) -> Expr {
+    let expr = expr.fold_children_with(self);
+    match expr {
+      Expr::TaggedTpl(tagged_tpl) => match &*tagged_tpl.tag {
+        Expr::Ident(identifier) => {
+          if self.external_bindings.contains(&identifier.to_id()) {
+            self.process_tagged_template_expr(tagged_tpl)
+          } else {
+            Expr::TaggedTpl(tagged_tpl)
+          }
+        }
+        _ => Expr::TaggedTpl(tagged_tpl),
+      },
+      expr => expr,
+    }
+  }
+
+  fn fold_var_declarator(&mut self, declarator: VarDeclarator) -> VarDeclarator {
+    let declarator = declarator.fold_children_with(self);
+    if let Some(external_hash) = &self.external_hash {
+      match &declarator.name {
+        Pat::Ident(BindingIdent {
+          id: Ident { sym, .. },
+          ..
+        }) => {
+          self.add_hash = Some((sym.to_string(), external_hash.clone()));
+          self.external_hash = None;
+        }
+        _ => panic!("Not supported"),
+      }
+    }
+    declarator
+  }
+
+  fn fold_block_stmt(&mut self, mut block: BlockStmt) -> BlockStmt {
+    let mut add_hashes = vec![];
+    let mut new_stmts = vec![];
+    let mut i = 0;
+    for stmt in block.stmts {
+      new_stmts.push(stmt.fold_children_with(self));
+      if let Some(add_hash) = self.get_add_hash() {
+        add_hashes.push((i, add_hash));
+      }
+      i = i + 1;
+    }
+
+    let mut num_inserted = 0;
+    for (i, add_hash) in add_hashes {
+      let item = add_hash_statment(add_hash);
+      new_stmts.insert(i + 1 + num_inserted, item);
+      num_inserted = num_inserted + 1;
+    }
+
+    block.stmts = new_stmts;
+    block
+  }
+
   fn fold_module_items(&mut self, items: Vec<ModuleItem>) -> Vec<ModuleItem> {
-    self.style_import_name = Some(get_usable_import_specifier(&items));
-    let mut items = items.fold_children_with(self);
-    if self.file_has_styled_jsx {
+    let mut add_hashes = vec![];
+    let mut new_items = vec![];
+    let mut i = 0;
+    for item in items {
+      new_items.push(item.fold_children_with(self));
+      if let Some(add_hash) = self.get_add_hash() {
+        add_hashes.push((i, add_hash));
+      }
+      i = i + 1;
+    }
+
+    let mut num_inserted = 0;
+    for (i, add_hash) in add_hashes {
+      let item = ModuleItem::Stmt(add_hash_statment(add_hash));
+      new_items.insert(i + 1 + num_inserted, item);
+      num_inserted = num_inserted + 1;
+    }
+
+    if self.file_has_styled_jsx || self.file_has_css_resolve {
       prepend(
-        &mut items,
-        styled_jsx_import_decl(self.style_import_name.as_ref().unwrap()),
+        &mut new_items,
+        styled_jsx_import_decl(&self.style_import_name.as_ref().unwrap()),
       );
     }
-    items
+
+    new_items
   }
 
   fn fold_function(&mut self, func: Function) -> Function {
@@ -272,12 +366,8 @@ impl Fold for StyledJSXTransformer {
   fn fold_module(&mut self, module: Module) -> Module {
     self.bindings = collect_decls(&module);
     self.evaluator = Some(Evaluator::new(module.clone(), Marks::new()));
-    let mut module = module.fold_children_with(self);
-    // module = module.fold_with(&mut external_styles(
-    //   self.style_import_name.as_ref().unwrap(),
-    //   self.file_has_styled_jsx,
-    // ));
-    module
+    self.style_import_name = Some(get_usable_import_specifier(&module.body));
+    module.fold_children_with(self)
   }
 }
 
@@ -290,7 +380,7 @@ impl StyledJSXTransformer {
           self.file_has_styled_jsx = true;
           self.has_styled_jsx = true;
           let expr = get_style_expr(&child_el);
-          let style_info = self.get_jsx_style_info(expr);
+          let style_info = self.get_jsx_style(expr);
           styles.insert(0, style_info);
         }
       }
@@ -303,7 +393,7 @@ impl StyledJSXTransformer {
     self.class_name = class_name;
   }
 
-  fn get_jsx_style_info(&mut self, expr: &Expr) -> JSXStyle {
+  fn get_jsx_style(&mut self, expr: &Expr) -> JSXStyle {
     let mut hasher = DefaultHasher::new();
     let css: String;
     let css_span: Span;
@@ -402,6 +492,72 @@ impl StyledJSXTransformer {
     }
   }
 
+  fn get_add_hash(&mut self) -> Option<(String, String)> {
+    let add_hash = self.add_hash.clone();
+    self.add_hash = None;
+    add_hash
+  }
+  fn process_tagged_template_expr(&mut self, tagged_tpl: TaggedTpl) -> Expr {
+    let style = self.get_jsx_style(&Expr::Tpl(tagged_tpl.tpl.clone()));
+    let styles = vec![style];
+    let (static_class_name, class_name) =
+      compute_class_names(&styles, &self.style_import_name.as_ref().unwrap());
+    let mut tag_opt = None;
+    if let Expr::Ident(Ident { sym, .. }) = &*tagged_tpl.tag {
+      tag_opt = Some(sym.to_string());
+    }
+    let tag = tag_opt.unwrap();
+    if tag == "resolve" {
+      self.file_has_css_resolve = true;
+    }
+    let style = if let JSXStyle::Local(style) = &styles[0] {
+      style
+    } else {
+      panic!("Not expected"); // TODO: handle error
+    };
+    let css = transform_css(&style, tag == "global", &static_class_name);
+    if tag == "resolve" {
+      return Expr::Object(ObjectLit {
+        props: vec![
+          PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
+            key: PropName::Ident(Ident {
+              sym: "styles".into(),
+              span: DUMMY_SP,
+              optional: false,
+            }),
+            value: Box::new(Expr::JSXElement(Box::new(make_local_styled_jsx_el(
+              &style,
+              css,
+              &self.style_import_name.as_ref().unwrap(),
+            )))),
+          }))),
+          PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
+            key: PropName::Ident(Ident {
+              sym: "className".into(),
+              span: DUMMY_SP,
+              optional: false,
+            }),
+            value: Box::new(class_name.unwrap()),
+          }))),
+        ],
+        span: DUMMY_SP,
+      });
+    }
+    Expr::New(NewExpr {
+      callee: Box::new(Expr::Ident(Ident {
+        sym: "String".into(),
+        span: DUMMY_SP,
+        optional: false,
+      })),
+      args: Some(vec![ExprOrSpread {
+        expr: Box::new(css),
+        spread: None,
+      }]),
+      span: DUMMY_SP,
+      type_args: None,
+    })
+  }
+
   fn reset_styles_state(&mut self) {
     self.has_styled_jsx = false;
     self.static_class_name = None;
@@ -491,4 +647,29 @@ fn join_spreads(spreads: Vec<Expr>) -> Expr {
     })
   }
   new_expr
+}
+
+fn add_hash_statment((ident, hash): (String, String)) -> Stmt {
+  Stmt::Expr(ExprStmt {
+    expr: Box::new(Expr::Assign(AssignExpr {
+      left: PatOrExpr::Expr(Box::new(Expr::Member(MemberExpr {
+        obj: ExprOrSuper::Expr(Box::new(Expr::Ident(Ident {
+          sym: ident.into(),
+          span: DUMMY_SP,
+          optional: false,
+        }))),
+        prop: Box::new(Expr::Ident(Ident {
+          sym: "__hash".into(),
+          span: DUMMY_SP,
+          optional: false,
+        })),
+        span: DUMMY_SP,
+        computed: false,
+      }))),
+      right: Box::new(string_literal_expr(&hash)),
+      op: AssignOp::Assign,
+      span: DUMMY_SP,
+    })),
+    span: DUMMY_SP,
+  })
 }
