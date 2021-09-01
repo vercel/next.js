@@ -52,4 +52,10 @@ export default class RenderResult {
     )
     return new RenderResult(observable, dynamic)
   }
+
+  static empty(): RenderResult {
+    return EMPTY_RENDER_RESULT
+  }
 }
+
+const EMPTY_RENDER_RESULT = RenderResult.static([''])

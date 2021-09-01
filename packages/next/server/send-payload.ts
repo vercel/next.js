@@ -36,28 +36,6 @@ export function setRevalidateHeaders(
   }
 }
 
-export function sendPayload(
-  req: IncomingMessage,
-  res: ServerResponse,
-  payload: any,
-  type: 'html' | 'json',
-  {
-    generateEtags,
-    poweredByHeader,
-  }: { generateEtags: boolean; poweredByHeader: boolean },
-  options?: PayloadOptions
-): void {
-  sendRenderResult({
-    req,
-    res,
-    result: RenderResult.static([payload]),
-    type,
-    generateEtags,
-    poweredByHeader,
-    options,
-  })
-}
-
 export async function sendRenderResult({
   req,
   res,
