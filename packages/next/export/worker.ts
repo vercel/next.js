@@ -417,7 +417,7 @@ export default async function exportPage({
         }
       }
 
-      const html = renderResult ? await renderResult.toStaticString() : ''
+      const html = await (renderResult ?? RenderResult.empty()).toStaticString()
       if (inAmpMode && !curRenderOpts.ampSkipValidation) {
         if (!results.ssgNotFound) {
           await validateAmp(html, path, curRenderOpts.ampValidatorPath)
@@ -459,9 +459,9 @@ export default async function exportPage({
             )
           }
 
-          const ampHtml = ampRenderResult
-            ? await ampRenderResult.toStaticString()
-            : ''
+          const ampHtml = await (
+            ampRenderResult ?? RenderResult.empty()
+          ).toStaticString()
           if (!curRenderOpts.ampSkipValidation) {
             await validateAmp(ampHtml, page + '?amp=1')
           }

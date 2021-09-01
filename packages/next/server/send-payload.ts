@@ -61,7 +61,7 @@ export async function sendRenderResult({
     res.setHeader('X-Powered-By', 'Next.js')
   }
 
-  const payload = !result.isDynamic() ? await result.toStaticString() : null
+  const payload = result.isDynamic() ? null : await result.toStaticString()
 
   if (payload) {
     const etag = generateEtags ? generateETag(payload) : undefined
