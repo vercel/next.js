@@ -2,7 +2,11 @@ import { IncomingMessage, ServerResponse } from 'http'
 import { isResSent } from '../shared/lib/utils'
 import generateETag from 'etag'
 import fresh from 'next/dist/compiled/fresh'
-import RenderResult from './render-result'
+import {
+  DynamicRenderResult,
+  RenderResult,
+  StaticRenderResult,
+} from './render-result'
 
 export type PayloadOptions =
   | { private: true }
@@ -61,7 +65,8 @@ export async function sendRenderResult({
     res.setHeader('X-Powered-By', 'Next.js')
   }
 
-  const payload = result.isDynamic() ? null : await result.toStaticString()
+  const payload =
+    result instanceof StaticRenderResult ? result.toStaticString() : null
 
   if (payload) {
     const etag = generateEtags ? generateETag(payload) : undefined
@@ -90,6 +95,11 @@ export async function sendRenderResult({
   } else if (payload) {
     res.end(payload)
   } else {
+    if (!(result instanceof DynamicRenderResult)) {
+      throw new Error(
+        'invariant: Expected a dynamic result. This is a bug in Next.js'
+      )
+    }
     const maybeFlush =
       typeof (res as any).flush === 'function'
         ? () => (res as any).flush()

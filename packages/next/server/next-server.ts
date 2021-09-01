@@ -77,7 +77,7 @@ import { serveStatic } from './serve-static'
 import { IncrementalCache } from './incremental-cache'
 import { execOnce } from '../shared/lib/utils'
 import { isBlockedPage } from './utils'
-import RenderResult from './render-result'
+import { RenderResult, StaticRenderResult } from './render-result'
 import { loadEnvConfig } from '@next/env'
 import './node-polyfill-fetch'
 import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
@@ -1302,7 +1302,7 @@ export default class Server {
     if (payload === null) {
       return null
     }
-    return payload.body.toStaticString()
+    return StaticRenderResult.resultOrEmpty(payload.body).toStaticString()
   }
 
   public async render(
@@ -1477,7 +1477,7 @@ export default class Server {
       return {
         type: 'html',
         // TODO: Static pages should be serialized as RenderResult
-        body: RenderResult.static([components.Component]),
+        body: new StaticRenderResult([components.Component]),
       }
     }
 
@@ -1756,7 +1756,7 @@ export default class Server {
               return {
                 value: {
                   kind: 'PAGE',
-                  html: RenderResult.static([html]),
+                  html: new StaticRenderResult([html]),
                   pageData: {},
                 },
               }
@@ -1835,7 +1835,7 @@ export default class Server {
       if (isDataReq) {
         return {
           type: 'json',
-          body: RenderResult.static([JSON.stringify(cachedData.props)]),
+          body: new StaticRenderResult([JSON.stringify(cachedData.props)]),
           revalidateOptions,
         }
       } else {
@@ -1846,7 +1846,7 @@ export default class Server {
       return {
         type: isDataReq ? 'json' : 'html',
         body: isDataReq
-          ? RenderResult.static([JSON.stringify(cachedData.pageData)])
+          ? new StaticRenderResult([JSON.stringify(cachedData.pageData)])
           : cachedData.html,
         revalidateOptions,
       }
@@ -2086,7 +2086,7 @@ export default class Server {
       }
       return {
         type: 'html',
-        body: RenderResult.static(['Internal Server Error']),
+        body: new StaticRenderResult(['Internal Server Error']),
       }
     }
   }

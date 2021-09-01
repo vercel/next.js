@@ -11,7 +11,7 @@ import { setLazyProp, getCookieParser } from '../../../../server/api-utils'
 import { getRedirectStatus } from '../../../../lib/load-custom-routes'
 import getRouteNoAssetPath from '../../../../shared/lib/router/utils/get-route-from-asset-path'
 import { PERMANENT_REDIRECT_STATUS } from '../../../../shared/lib/constants'
-import RenderResult from '../../../../server/render-result'
+import { StaticRenderResult } from '../../../../server/render-result'
 
 export function getPageHandler(ctx: ServerlessHandlerCtx) {
   const {
@@ -338,7 +338,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
             sendRenderResult({
               req,
               res,
-              result: result2 ?? RenderResult.empty(),
+              result: StaticRenderResult.resultOrEmpty(result2),
               type: 'html',
               generateEtags,
               poweredByHeader,
@@ -378,8 +378,8 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
               req,
               res,
               result: _nextData
-                ? RenderResult.static([JSON.stringify(renderOpts.pageData)])
-                : result ?? RenderResult.empty(),
+                ? new StaticRenderResult([JSON.stringify(renderOpts.pageData)])
+                : StaticRenderResult.resultOrEmpty(result),
               type: _nextData ? 'json' : 'html',
               generateEtags,
               poweredByHeader,
@@ -400,7 +400,9 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
       }
 
       if (renderMode) return { html: result, renderOpts }
-      return result ? await result.toStaticString() : null
+      return result
+        ? StaticRenderResult.resultOrEmpty(result).toStaticString()
+        : null
     } catch (err) {
       if (!parsedUrl!) {
         parsedUrl = parseUrl(req.url!, true)
@@ -462,7 +464,9 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
           err: res.statusCode === 404 ? undefined : err,
         })
       )
-      return result2 ? await result2.toStaticString() : null
+      return result2
+        ? StaticRenderResult.resultOrEmpty(result2).toStaticString()
+        : null
     }
   }
 
@@ -475,7 +479,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
           sendRenderResult({
             req,
             res,
-            result: RenderResult.static([html as any]),
+            result: new StaticRenderResult([html as any]),
             type: 'html',
             generateEtags,
             poweredByHeader,

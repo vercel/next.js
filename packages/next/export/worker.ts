@@ -20,7 +20,7 @@ import { trace } from '../telemetry/trace'
 import { isInAmpMode } from '../shared/lib/amp'
 import { NextConfigComplete } from '../server/config-shared'
 import { setHttpAgentOptions } from '../server/config'
-import RenderResult from '../server/render-result'
+import { StaticRenderResult } from '../server/render-result'
 
 const envConfig = require('../shared/lib/runtime-config')
 
@@ -274,7 +274,7 @@ export default async function exportPage({
 
         // if it was auto-exported the HTML is loaded here
         if (typeof mod === 'string') {
-          renderResult = RenderResult.static([mod])
+          renderResult = new StaticRenderResult(mod)
           queryWithAutoExportWarn()
         } else {
           // for non-dynamic SSG pages we should have already
@@ -352,7 +352,7 @@ export default async function exportPage({
         }
 
         if (typeof components.Component === 'string') {
-          renderResult = RenderResult.static([components.Component])
+          renderResult = new StaticRenderResult(components.Component)
           queryWithAutoExportWarn()
         } else {
           /**
@@ -417,7 +417,8 @@ export default async function exportPage({
         }
       }
 
-      const html = await (renderResult ?? RenderResult.empty()).toStaticString()
+      const html =
+        StaticRenderResult.resultOrEmpty(renderResult).toStaticString()
       if (inAmpMode && !curRenderOpts.ampSkipValidation) {
         if (!results.ssgNotFound) {
           await validateAmp(html, path, curRenderOpts.ampValidatorPath)
@@ -459,9 +460,8 @@ export default async function exportPage({
             )
           }
 
-          const ampHtml = await (
-            ampRenderResult ?? RenderResult.empty()
-          ).toStaticString()
+          const ampHtml =
+            StaticRenderResult.resultOrEmpty(ampRenderResult).toStaticString()
           if (!curRenderOpts.ampSkipValidation) {
             await validateAmp(ampHtml, page + '?amp=1')
           }

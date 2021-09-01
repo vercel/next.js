@@ -65,7 +65,11 @@ import {
   Redirect,
 } from '../lib/load-custom-routes'
 import { DomainLocale } from './config'
-import RenderResult from './render-result'
+import {
+  DynamicRenderResult,
+  RenderResult,
+  StaticRenderResult,
+} from './render-result'
 
 function noRouter() {
   const message =
@@ -844,7 +848,7 @@ export async function renderToHTML(
   // Avoid rendering page un-necessarily for getServerSideProps data request
   // and getServerSideProps/getStaticProps redirects
   if ((isDataReq && !isSSG) || (renderOpts as any).isRedirect) {
-    return RenderResult.static([JSON.stringify(props)])
+    return new StaticRenderResult([JSON.stringify(props)])
   }
 
   // We don't call getStaticProps or getServerSideProps while generating
@@ -929,15 +933,7 @@ export async function renderToHTML(
           doResolve()
         },
       })
-    }).then(async (observable) => {
-      if (generateStaticHTML) {
-        const chunks: string[] = []
-        await observable.forEach((chunk) => chunks.push(chunk))
-        return RenderResult.static(chunks)
-      } else {
-        return RenderResult.dynamic(multiplexObservable(observable))
-      }
-    })
+    }).then(multiplexObservable)
 
   const renderDocument = async () => {
     if (Document.getInitialProps) {
@@ -987,7 +983,7 @@ export async function renderToHTML(
       }
 
       return {
-        bodyResult: RenderResult.static([docProps.html]),
+        bodyResult: Observable.of(docProps.html),
         documentElement: (htmlProps: HtmlProps) => (
           <Document {...htmlProps} {...docProps} />
         ),
@@ -1006,7 +1002,7 @@ export async function renderToHTML(
         )
       const bodyResult = concurrentFeatures
         ? await renderToStream(content)
-        : RenderResult.static([ReactDOMServer.renderToString(content)])
+        : Observable.of(ReactDOMServer.renderToString(content))
 
       return {
         bodyResult,
@@ -1137,21 +1133,21 @@ export async function renderToHTML(
     }
   }
 
-  let results: Array<RenderResult> = []
+  let results: Array<Observable<string>> = []
   const renderTargetIdx = documentHTML.indexOf(BODY_RENDER_TARGET)
   results.push(
-    RenderResult.static([
-      '<!DOCTYPE html>' + documentHTML.substring(0, renderTargetIdx),
-    ])
+    Observable.of(
+      '<!DOCTYPE html>' + documentHTML.substring(0, renderTargetIdx)
+    )
   )
   if (inAmpMode) {
-    results.push(RenderResult.static(['<!-- __NEXT_DATA__ -->']))
+    results.push(Observable.of('<!-- __NEXT_DATA__ -->'))
   }
   results.push(documentResult.bodyResult)
   results.push(
-    RenderResult.static([
-      documentHTML.substring(renderTargetIdx + BODY_RENDER_TARGET.length),
-    ])
+    Observable.of(
+      documentHTML.substring(renderTargetIdx + BODY_RENDER_TARGET.length)
+    )
   )
 
   const postProcessors: Array<((html: string) => Promise<string>) | null> = (
@@ -1205,16 +1201,34 @@ export async function renderToHTML(
   ).filter(Boolean)
 
   if (postProcessors.length > 0) {
-    let html = await RenderResult.concat(results).toStaticString()
+    let html = (await observableToChunks(concatObservables(results))).join('')
     for (const postProcessor of postProcessors) {
       if (postProcessor) {
         html = await postProcessor(html)
       }
     }
-    results = [RenderResult.static([html])]
+    results = [Observable.of(html)]
   }
 
-  return RenderResult.concat(results)
+  const result = concatObservables(results)
+  return generateStaticHTML
+    ? new StaticRenderResult(await observableToChunks(result))
+    : new DynamicRenderResult(result)
+}
+
+function concatObservables(
+  observables: Observable<string>[]
+): Observable<string> {
+  //       @ts-ignore
+  return Observable.prototype.concat.call(...observables)
+}
+
+async function observableToChunks(
+  observable: Observable<string>
+): Promise<string[]> {
+  const chunks: string[] = []
+  await observable.forEach((chunk) => chunks.push(chunk))
+  return chunks
 }
 
 function multiplexObservable(result: Observable<string>): Observable<string> {
