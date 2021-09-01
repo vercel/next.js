@@ -155,7 +155,10 @@ export async function ncc_babel_bundle_packages(task, opts) {
   await task
     .source(opts.src || 'bundles/babel/packages-bundle.js')
     .ncc({
-      packageName: `@babel/core`,
+      // note: this packageName can not be the name of
+      // an externals package or else it will not be
+      // externalized by ncc
+      packageName: `@babel/preset-env`,
       bundleName: 'babel-packages',
       externals: externals,
     })
