@@ -1,7 +1,8 @@
 // eslint-disable-next-line import/no-extraneous-dependencies
+const fs = require('fs')
 const notifier = require('node-notifier')
 // eslint-disable-next-line import/no-extraneous-dependencies
-const { relative, basename, resolve } = require('path')
+const { relative, basename, resolve, join } = require('path')
 const { Module } = require('module')
 
 // Note:
@@ -158,6 +159,11 @@ export async function ncc_babel_bundle_packages(task, opts) {
       externals: externals,
     })
     .target(`compiled/babel-packages`)
+
+  await fs.promises.writeFile(
+    join(__dirname, 'dist/compiled/babel-packages/package.json'),
+    JSON.stringify({ name: 'babel-packages', main: './packages-bundle.js' })
+  )
 
   await task
     .source(opts.src || 'bundles/babel/packages/*')
