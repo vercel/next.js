@@ -273,6 +273,20 @@ impl Fold for StyledJSXTransformer {
             Expr::TaggedTpl(tagged_tpl)
           }
         }
+        Expr::Member(MemberExpr {
+          obj: ExprOrSuper::Expr(boxed_ident),
+          ..
+        }) => {
+          if let Expr::Ident(identifier) = &**boxed_ident {
+            if self.external_bindings.contains(&identifier.to_id()) {
+              self.process_tagged_template_expr(tagged_tpl)
+            } else {
+              Expr::TaggedTpl(tagged_tpl)
+            }
+          } else {
+            Expr::TaggedTpl(tagged_tpl)
+          }
+        }
         _ => Expr::TaggedTpl(tagged_tpl),
       },
       expr => expr,
@@ -532,22 +546,30 @@ impl StyledJSXTransformer {
     let styles = vec![style];
     let (static_class_name, class_name) =
       compute_class_names(&styles, &self.style_import_name.as_ref().unwrap());
-    let mut tag_opt = None;
-    if let Expr::Ident(Ident { sym, .. }) = &*tagged_tpl.tag {
-      tag_opt = Some(sym.to_string());
-    }
-    let tag = tag_opt.unwrap();
-    if tag == "resolve" {
-      self.file_has_css_resolve = true;
-    }
+    let tag = match &*tagged_tpl.tag {
+      Expr::Ident(Ident { sym, .. }) => sym.to_string(),
+      Expr::Member(MemberExpr { prop, .. }) => {
+        if let Expr::Ident(Ident { sym, .. }) = &**prop {
+          sym.to_string()
+        } else {
+          panic!("Not expected");
+        }
+      }
+      _ => {
+        panic!("Not expected");
+      }
+    };
     let style = if let JSXStyle::Local(style) = &styles[0] {
-      self.external_hash = Some(style.hash.clone());
+      if (tag != "resolve") {
+        self.external_hash = Some(hash_string(&style.hash.clone()));
+      }
       style
     } else {
       panic!("Not expected"); // TODO: handle error
     };
     let css = transform_css(&style, tag == "global", &static_class_name);
     if tag == "resolve" {
+      self.file_has_css_resolve = true;
       return Expr::Object(ObjectLit {
         props: vec![
           PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
