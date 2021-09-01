@@ -40,6 +40,7 @@ import {
   ComponentsEnhancer,
   DocumentInitialProps,
   DocumentProps,
+  DocumentContext,
   HtmlContext,
   HtmlProps,
   getDisplayName,
@@ -482,6 +483,7 @@ export async function renderToHTML(
     isPreview,
     (req as any).__nextIsLocaleDomain
   )
+  const jsxStyleRegistry = createStyleRegistry()
   const ctx = {
     err,
     req: isAutoExport ? undefined : req,
@@ -499,7 +501,17 @@ export async function renderToHTML(
         </AppContainer>
       )
     },
-    jsxStyleRegistry: createStyleRegistry(),
+    defaultGetInitialProps: async (
+      docCtx: DocumentContext
+    ): Promise<DocumentInitialProps> => {
+      const enhanceApp = (AppComp: any) => {
+        return (props: any) => <AppComp {...props} />
+      }
+
+      const { html, head } = await docCtx.renderPage({ enhanceApp })
+      const styles = jsxStyleRegistry.styles()
+      return { html, head, styles }
+    },
   }
   let props: any
 
@@ -537,7 +549,7 @@ export async function renderToHTML(
           <LoadableContext.Provider
             value={(moduleName) => reactLoadableModules.push(moduleName)}
           >
-            <StyleRegistry registry={ctx.jsxStyleRegistry}>
+            <StyleRegistry registry={jsxStyleRegistry}>
               {children}
             </StyleRegistry>
           </LoadableContext.Provider>
@@ -1008,7 +1020,7 @@ export async function renderToHTML(
         documentElement: () => (Document as any)(),
         head,
         headTags: [],
-        styles: ctx.jsxStyleRegistry.styles(),
+        styles: jsxStyleRegistry.styles(),
       }
     }
   }

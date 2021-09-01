@@ -9,7 +9,6 @@ import type { ParsedUrlQuery } from 'querystring'
 import type { PreviewData } from 'next/types'
 import type { UrlObject } from 'url'
 import { createContext } from 'react'
-import { StyleRegistry } from 'styled-jsx'
 
 export type NextComponentType<
   C extends BaseContext = NextPageContext,
@@ -179,7 +178,7 @@ export type AppPropsType<
 
 export type DocumentContext = NextPageContext & {
   renderPage: RenderPage
-  jsxStyleRegistry: StyleRegistry
+  defaultGetInitialProps(ctx: DocumentContext): Promise<DocumentInitialProps>
 }
 
 export type DocumentInitialProps = RenderPageResult & {

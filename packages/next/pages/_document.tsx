@@ -165,16 +165,8 @@ export default class Document<P = {}> extends Component<DocumentProps & P> {
    * `getInitialProps` hook returns the context object with the addition of `renderPage`.
    * `renderPage` callback executes `React` rendering logic synchronously to support server-rendering wrappers
    */
-  static async getInitialProps(
-    ctx: DocumentContext
-  ): Promise<DocumentInitialProps> {
-    const enhanceApp = (App: any) => {
-      return (props: any) => <App {...props} />
-    }
-
-    const { html, head } = await ctx.renderPage({ enhanceApp })
-    const styles = ctx.jsxStyleRegistry.styles()
-    return { html, head, styles }
+  static getInitialProps(ctx: DocumentContext): Promise<DocumentInitialProps> {
+    return ctx.defaultGetInitialProps(ctx)
   }
 
   render() {
