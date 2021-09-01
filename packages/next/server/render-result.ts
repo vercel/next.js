@@ -33,7 +33,7 @@ export default class RenderResult {
   }
 
   static dynamic(observable: Observable<string>): RenderResult {
-    return new RenderResult(observable, false)
+    return new RenderResult(observable, true)
   }
 
   static concat(results: RenderResult[]): RenderResult {
