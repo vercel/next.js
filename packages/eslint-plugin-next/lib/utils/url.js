@@ -75,9 +75,6 @@ function parseUrlForPages(urlprefix, directory) {
     }
   })
   return res
-  // return res.map((expression) =>
-  //   expression.replace(/[|\\{}()[\]^$+*?.-]/g, '\\$&')
-  // )
 }
 
 /**
