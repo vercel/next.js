@@ -104,7 +104,7 @@ export class Blah extends Head {
   render() {
     return (
       <div>
-        <a href='/list/foo/bar'>Homepage</a>
+        <a href='/list/foo'>Homepage</a>
         <h1>Hello title</h1>
       </div>
     );
@@ -160,6 +160,7 @@ describe('no-html-link-for-pages', function () {
     const [report] = linter.verify(invalidDynamicCode, linterConfig, {
       filename: 'foo.js',
     })
+    console.log({ report })
     assert.notEqual(report, undefined, 'No lint errors found.')
     assert.equal(
       report.message,
