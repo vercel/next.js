@@ -26,7 +26,7 @@ export default class RenderResult {
       )
     }
     const chunks: string[] = []
-    await this.#observable.forEach(chunk => chunks.push(chunk))
+    await this.#observable.forEach((chunk) => chunks.push(chunk))
     return chunks.join('')
   }
 
