@@ -3,7 +3,6 @@ import { extname, join, dirname, sep } from 'path'
 import { renderToHTML } from '../server/render'
 import { promises } from 'fs'
 import AmpHtmlValidator from 'next/dist/compiled/amphtml-validator'
-import Observable from 'next/dist/compiled/zen-observable'
 import { loadComponents } from '../server/load-components'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
@@ -22,6 +21,7 @@ import { isInAmpMode } from '../shared/lib/amp'
 import { resultsToString } from '../server/utils'
 import { NextConfigComplete } from '../server/config-shared'
 import { setHttpAgentOptions } from '../server/config'
+import RenderResult from '../server/render-result'
 
 const envConfig = require('../shared/lib/runtime-config')
 
@@ -275,7 +275,7 @@ export default async function exportPage({
 
         // if it was auto-exported the HTML is loaded here
         if (typeof mod === 'string') {
-          renderResult = Observable.of(mod)
+          renderResult = RenderResult.static([mod])
           queryWithAutoExportWarn()
         } else {
           // for non-dynamic SSG pages we should have already
@@ -353,7 +353,7 @@ export default async function exportPage({
         }
 
         if (typeof components.Component === 'string') {
-          renderResult = Observable.of(components.Component)
+          renderResult = RenderResult.static([components.Component])
           queryWithAutoExportWarn()
         } else {
           /**

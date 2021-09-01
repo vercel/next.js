@@ -10,7 +10,6 @@ import {
   ParsedUrlQuery,
 } from 'querystring'
 import { format as formatUrl, parse as parseUrl, UrlWithParsedQuery } from 'url'
-import Observable from 'next/dist/compiled/zen-observable'
 import { PrerenderManifest } from '../build'
 import {
   getRedirectStatus,
@@ -77,7 +76,8 @@ import { sendRenderResult, setRevalidateHeaders } from './send-payload'
 import { serveStatic } from './serve-static'
 import { IncrementalCache } from './incremental-cache'
 import { execOnce } from '../shared/lib/utils'
-import { isBlockedPage, RenderResult, resultsToString } from './utils'
+import { isBlockedPage, resultsToString } from './utils'
+import RenderResult from './render-result'
 import { loadEnvConfig } from '@next/env'
 import './node-polyfill-fetch'
 import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
@@ -1274,9 +1274,7 @@ export default class Server {
       return sendRenderResult({
         req,
         res,
-        resultOrPayload: requireStaticHTML
-          ? await resultsToString([body])
-          : body,
+        result: body,
         type,
         generateEtags,
         poweredByHeader,
@@ -1304,7 +1302,7 @@ export default class Server {
     if (payload === null) {
       return null
     }
-    return resultsToString([payload.body])
+    return payload.body.toStaticString()
   }
 
   public async render(
@@ -1478,8 +1476,8 @@ export default class Server {
     if (typeof components.Component === 'string') {
       return {
         type: 'html',
-        // TODO: Static pages should be written as chunks
-        body: Observable.of(components.Component),
+        // TODO: Static pages should be serialized as RenderResult
+        body: RenderResult.static([components.Component]),
       }
     }
 
@@ -1758,7 +1756,7 @@ export default class Server {
               return {
                 value: {
                   kind: 'PAGE',
-                  html: Observable.of(html),
+                  html: RenderResult.static([html]),
                   pageData: {},
                 },
               }
@@ -1837,7 +1835,7 @@ export default class Server {
       if (isDataReq) {
         return {
           type: 'json',
-          body: Observable.of(JSON.stringify(cachedData.props)),
+          body: RenderResult.static([JSON.stringify(cachedData.props)]),
           revalidateOptions,
         }
       } else {
@@ -1848,7 +1846,7 @@ export default class Server {
       return {
         type: isDataReq ? 'json' : 'html',
         body: isDataReq
-          ? Observable.of(JSON.stringify(cachedData.pageData))
+          ? RenderResult.static([JSON.stringify(cachedData.pageData)])
           : cachedData.html,
         revalidateOptions,
       }
@@ -2088,7 +2086,7 @@ export default class Server {
       }
       return {
         type: 'html',
-        body: Observable.of('Internal Server Error'),
+        body: RenderResult.static(['Internal Server Error']),
       }
     }
   }
