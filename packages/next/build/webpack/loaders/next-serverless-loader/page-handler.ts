@@ -11,7 +11,6 @@ import { setLazyProp, getCookieParser } from '../../../../server/api-utils'
 import { getRedirectStatus } from '../../../../lib/load-custom-routes'
 import getRouteNoAssetPath from '../../../../shared/lib/router/utils/get-route-from-asset-path'
 import { PERMANENT_REDIRECT_STATUS } from '../../../../shared/lib/constants'
-import { resultsToString } from '../../../../server/utils'
 
 export function getPageHandler(ctx: ServerlessHandlerCtx) {
   const {
@@ -335,7 +334,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
                 defaultLocale: i18n?.defaultLocale,
               })
             )
-            const html = result2 ? await resultsToString([result2]) : ''
+            const html = result2 ? await result2.toStaticString() : ''
             sendPayload(
               req,
               res,
@@ -403,7 +402,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
       }
 
       if (renderMode) return { html: result, renderOpts }
-      return result ? await resultsToString([result]) : null
+      return result ? await result.toStaticString() : null
     } catch (err) {
       if (!parsedUrl!) {
         parsedUrl = parseUrl(req.url!, true)
@@ -465,7 +464,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
           err: res.statusCode === 404 ? undefined : err,
         })
       )
-      return result2 ? await resultsToString([result2]) : null
+      return result2 ? await result2.toStaticString() : null
     }
   }
 

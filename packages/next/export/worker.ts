@@ -18,7 +18,6 @@ import { FontManifest } from '../server/font-utils'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { trace } from '../telemetry/trace'
 import { isInAmpMode } from '../shared/lib/amp'
-import { resultsToString } from '../server/utils'
 import { NextConfigComplete } from '../server/config-shared'
 import { setHttpAgentOptions } from '../server/config'
 import RenderResult from '../server/render-result'
@@ -418,7 +417,7 @@ export default async function exportPage({
         }
       }
 
-      const html = renderResult ? await resultsToString([renderResult]) : ''
+      const html = renderResult ? await renderResult.toStaticString() : ''
       if (inAmpMode && !curRenderOpts.ampSkipValidation) {
         if (!results.ssgNotFound) {
           await validateAmp(html, path, curRenderOpts.ampValidatorPath)
@@ -461,7 +460,7 @@ export default async function exportPage({
           }
 
           const ampHtml = ampRenderResult
-            ? await resultsToString([ampRenderResult])
+            ? await ampRenderResult.toStaticString()
             : ''
           if (!curRenderOpts.ampSkipValidation) {
             await validateAmp(ampHtml, page + '?amp=1')
