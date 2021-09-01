@@ -3,6 +3,7 @@ import { ParsedUrlQuery } from 'querystring'
 import { PassThrough } from 'stream'
 import React from 'react'
 import * as ReactDOMServer from 'react-dom/server'
+import { StyleRegistry, createStyleRegistry } from 'styled-jsx'
 import Observable from 'next/dist/compiled/zen-observable'
 import { warn } from '../build/output/log'
 import { UnwrapPromise } from '../lib/coalesced-function'
@@ -65,7 +66,6 @@ import {
 } from '../lib/load-custom-routes'
 import { DomainLocale } from './config'
 import { mergeResults, RenderResult, resultsToString } from './utils'
-import { StyleRegistry } from 'styled-jsx'
 
 function noRouter() {
   const message =
@@ -499,6 +499,7 @@ export async function renderToHTML(
         </AppContainer>
       )
     },
+    jsxStyleRegistry: createStyleRegistry(),
   }
   let props: any
 
@@ -536,7 +537,9 @@ export async function renderToHTML(
           <LoadableContext.Provider
             value={(moduleName) => reactLoadableModules.push(moduleName)}
           >
-            <StyleRegistry>{children}</StyleRegistry>
+            <StyleRegistry registry={ctx.jsxStyleRegistry}>
+              {children}
+            </StyleRegistry>
           </LoadableContext.Provider>
         </HeadManagerContext.Provider>
       </AmpStateContext.Provider>
@@ -985,6 +988,7 @@ export async function renderToHTML(
         ),
         head: docProps.head,
         headTags: await headTags(documentCtx),
+        styles: docProps.styles,
       }
     } else {
       const content =
@@ -1004,6 +1008,7 @@ export async function renderToHTML(
         documentElement: () => (Document as any)(),
         head,
         headTags: [],
+        styles: ctx.jsxStyleRegistry.styles(),
       }
     }
   }
@@ -1092,7 +1097,8 @@ export async function renderToHTML(
     locale,
     disableOptimizedLoading,
     head: documentResult.head,
-    headTags: documentResult?.headTags,
+    headTags: documentResult.headTags,
+    styles: documentResult.styles,
   }
   const documentHTML = ReactDOMServer.renderToStaticMarkup(
     <AmpStateContext.Provider value={ampState}>

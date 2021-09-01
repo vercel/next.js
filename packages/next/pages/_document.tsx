@@ -174,7 +174,8 @@ export default class Document<P = {}> extends Component<DocumentProps & P> {
     }
 
     const { html, head } = await ctx.renderPage({ enhanceApp })
-    return { html, head }
+    const styles = ctx.jsxStyleRegistry.styles()
+    return { html, head, styles }
   }
 
   render() {
@@ -212,20 +213,27 @@ export function Html(
   )
 }
 
-function Styles() {
-  return useStyleRegistry().styles()
+function useStyles() {
+  const docStyles = useContext(HtmlContext)?.styles
+  const jsxStyles = useStyleRegistry().styles()
+
+  return docStyles || jsxStyles
 }
 
-function AmpStyles({ inAmpMode }: { inAmpMode: boolean }) {
-  const styles = useStyleRegistry().styles()
+function RawStyles() {
+  const styles = useStyles()
+  return <>{styles}</>
+}
+
+function AmpStyles() {
+  const styles = useStyles()
+  if (!styles) return null
 
   // try to parse styles from fragment for backwards compat
   const curStyles: React.ReactElement[] = Array.isArray(styles)
     ? (styles as React.ReactElement[])
     : []
   if (
-    inAmpMode &&
-    styles &&
     // @ts-ignore Property 'props' does not exist on type ReactElement
     styles.props &&
     // @ts-ignore Property 'props' does not exist on type ReactElement
@@ -245,18 +253,16 @@ function AmpStyles({ inAmpMode }: { inAmpMode: boolean }) {
 
   /* Add custom styles before AMP styles to prevent accidental overrides */
   return (
-    styles && (
-      <style
-        amp-custom=""
-        dangerouslySetInnerHTML={{
-          __html: curStyles
-            .map((style) => style.props.dangerouslySetInnerHTML.__html)
-            .join('')
-            .replace(/\/\*# sourceMappingURL=.*\*\//g, '')
-            .replace(/\/\*@ sourceURL=.*?\*\//g, ''),
-        }}
-      />
-    )
+    <style
+      amp-custom=""
+      dangerouslySetInnerHTML={{
+        __html: curStyles
+          .map((style) => style.props.dangerouslySetInnerHTML.__html)
+          .join('')
+          .replace(/\/\*# sourceMappingURL=.*\*\//g, '')
+          .replace(/\/\*@ sourceURL=.*?\*\//g, ''),
+      }}
+    />
   )
 }
 
@@ -657,7 +663,7 @@ export class Head extends Component<
               as="script"
               href="https://cdn.ampproject.org/v0.js"
             />
-            <AmpStyles inAmpMode={inAmpMode} />
+            <AmpStyles />
             <style
               amp-boilerplate=""
               dangerouslySetInnerHTML={{
@@ -718,7 +724,7 @@ export class Head extends Component<
               // (by default, style-loader injects at the bottom of <head />)
               <noscript id="__next_css__DO_NOT_USE__" />
             )}
-            <Styles />
+            <RawStyles />
           </>
         )}
         {React.createElement(React.Fragment, {}, ...(headTags || []))}

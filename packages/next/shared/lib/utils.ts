@@ -9,6 +9,7 @@ import type { ParsedUrlQuery } from 'querystring'
 import type { PreviewData } from 'next/types'
 import type { UrlObject } from 'url'
 import { createContext } from 'react'
+import { StyleRegistry } from 'styled-jsx'
 
 export type NextComponentType<
   C extends BaseContext = NextPageContext,
@@ -77,7 +78,7 @@ export type RenderPageResult = {
 
 export type RenderPage = (
   options?: ComponentsEnhancer
-) => RenderPageResult | Promise<RenderPageResult>
+) => DocumentInitialProps | Promise<DocumentInitialProps>
 
 export type BaseContext = {
   res?: ServerResponse
@@ -178,9 +179,12 @@ export type AppPropsType<
 
 export type DocumentContext = NextPageContext & {
   renderPage: RenderPage
+  jsxStyleRegistry: StyleRegistry
 }
 
-export type DocumentInitialProps = RenderPageResult
+export type DocumentInitialProps = RenderPageResult & {
+  styles?: React.ReactElement[] | React.ReactFragment
+}
 
 export type DocumentProps = DocumentInitialProps & HtmlProps
 
@@ -208,6 +212,7 @@ export type HtmlProps = {
   scriptLoader: { afterInteractive?: string[]; beforeInteractive?: any[] }
   locale?: string
   disableOptimizedLoading?: boolean
+  styles?: React.ReactElement[] | React.ReactFragment
   head?: Array<JSX.Element | null>
 }
 
