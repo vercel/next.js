@@ -2,7 +2,7 @@
 import '@next/polyfill-module'
 import React from 'react'
 import ReactDOM from 'react-dom'
-import { createStyleRegistry, StyleRegistry } from 'styled-jsx'
+import { StyleRegistry } from 'styled-jsx'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import mitt, { MittEmitter } from '../shared/lib/mitt'
 import { RouterContext } from '../shared/lib/router-context'
