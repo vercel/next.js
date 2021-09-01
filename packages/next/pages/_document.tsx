@@ -1,5 +1,4 @@
 import React, { Component, ReactElement, ReactNode, useContext } from 'react'
-import { useStyleRegistry } from 'styled-jsx'
 import {
   BODY_RENDER_TARGET,
   OPTIMIZED_FONT_PROVIDERS,
@@ -213,20 +212,11 @@ export function Html(
   )
 }
 
-function useStyles() {
-  const docStyles = useContext(HtmlContext)?.styles
-  const jsxStyles = useStyleRegistry().styles()
-
-  return docStyles || jsxStyles
-}
-
-function RawStyles() {
-  const styles = useStyles()
-  return <>{styles}</>
-}
-
-function AmpStyles() {
-  const styles = useStyles()
+function AmpStyles({
+  styles,
+}: {
+  styles?: React.ReactElement[] | React.ReactFragment
+}) {
   if (!styles) return null
 
   // try to parse styles from fragment for backwards compat
@@ -487,6 +477,7 @@ export class Head extends Component<
 
   render() {
     const {
+      styles,
       ampPath,
       inAmpMode,
       hybridAmp,
@@ -663,7 +654,7 @@ export class Head extends Component<
               as="script"
               href="https://cdn.ampproject.org/v0.js"
             />
-            <AmpStyles />
+            <AmpStyles styles={styles} />
             <style
               amp-boilerplate=""
               dangerouslySetInnerHTML={{
@@ -724,7 +715,7 @@ export class Head extends Component<
               // (by default, style-loader injects at the bottom of <head />)
               <noscript id="__next_css__DO_NOT_USE__" />
             )}
-            <RawStyles />
+            {styles || null}
           </>
         )}
         {React.createElement(React.Fragment, {}, ...(headTags || []))}
