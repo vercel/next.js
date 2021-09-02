@@ -49,13 +49,20 @@ const nextStart: cliCommand = (argv) => {
   }
 
   const dir = resolve(args._[0] || '.')
-  const port =
+  let port: number =
     args['--port'] || (process.env.PORT && parseInt(process.env.PORT)) || 3000
   const host = args['--hostname'] || '0.0.0.0'
-  const appUrl = `http://${host === '0.0.0.0' ? 'localhost' : host}:${port}`
+
+  if (process.env.__NEXT_RAND_PORT) {
+    port = 0
+  }
+
   startServer({ dir }, port, host)
-    .then(async (app) => {
-      Log.ready(`started server on ${host}:${port}, url: ${appUrl}`)
+    .then(async ({ app, actualPort }) => {
+      const appUrl = `http://${
+        host === '0.0.0.0' ? 'localhost' : host
+      }:${actualPort}`
+      Log.ready(`started server on ${host}:${actualPort}, url: ${appUrl}`)
       await app.prepare()
     })
     .catch((err) => {
