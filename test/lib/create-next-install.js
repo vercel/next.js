@@ -11,11 +11,13 @@ export async function createNextInstall(dependencies) {
   const installDir = path.join(tmpDir, `next-install-${Date.now()}`)
   const tmpRepoDir = path.join(tmpDir, `next-repo-${Date.now()}`)
 
-  await fs.copy(origRepoDir, tmpRepoDir, {
-    filter: (item) => {
-      return !item.includes('node_modules')
-    },
-  })
+  for (const item of ['package.json', 'yarn.lock', 'packages']) {
+    await fs.copy(path.join(origRepoDir, item), path.join(tmpRepoDir, item), {
+      filter: (item) => {
+        return !item.includes('node_modules')
+      },
+    })
+  }
   const pkgPaths = await linkPackages(tmpRepoDir)
 
   await fs.ensureDir(installDir)
