@@ -45,7 +45,10 @@ const externals = {
 
   chalk: 'chalk',
   'node-fetch': 'node-fetch',
-  // postcss: 'postcss',
+  postcss: 'postcss',
+  // Ensure latest version is used
+  'postcss-safe-parser': 'next/dist/compiled/postcss-safe-parser',
+  'cssnano-simple': 'next/dist/build/cssnano-simple',
 
   // webpack
   'node-libs-browser': 'node-libs-browser',
@@ -250,21 +253,6 @@ export async function ncc_cross_spawn(task, opts) {
     .target('compiled/cross-spawn')
 }
 // eslint-disable-next-line camelcase
-externals['css-loader'] = 'next/dist/compiled/css-loader'
-export async function ncc_css_loader(task, opts) {
-  await task
-    .source(opts.src || relative(__dirname, require.resolve('css-loader')))
-    .ncc({
-      packageName: 'css-loader',
-      externals: {
-        ...externals,
-        'schema-utils': 'next/dist/compiled/schema-utils',
-      },
-      target: 'es5',
-    })
-    .target('compiled/css-loader')
-}
-// eslint-disable-next-line camelcase
 externals['debug'] = 'next/dist/compiled/debug'
 export async function ncc_debug(task, opts) {
   await task
@@ -454,18 +442,13 @@ export async function ncc_postcss_flexbugs_fixes(task, opts) {
     .target('compiled/postcss-flexbugs-fixes')
 }
 // eslint-disable-next-line camelcase
-externals['postcss-loader'] = 'next/dist/compiled/postcss-loader'
-export async function ncc_postcss_loader(task, opts) {
+export async function ncc_postcss_safe_parser(task, opts) {
   await task
-    .source(opts.src || relative(__dirname, require.resolve('postcss-loader')))
-    .ncc({
-      packageName: 'postcss-loader',
-      externals: {
-        ...externals,
-        'schema-utils': 'next/dist/compiled/schema-utils3',
-      },
-    })
-    .target('compiled/postcss-loader')
+    .source(
+      opts.src || relative(__dirname, require.resolve('postcss-safe-parser'))
+    )
+    .ncc({ packageName: 'postcss-safe-parser', externals })
+    .target('compiled/postcss-safe-parser')
 }
 // eslint-disable-next-line camelcase
 externals['postcss-preset-env'] = 'next/dist/compiled/postcss-preset-env'
@@ -485,12 +468,110 @@ export async function ncc_postcss_scss(task, opts) {
     .ncc({
       packageName: 'postcss-scss',
       externals: {
-        postcss: 'postcss',
         'postcss/lib/parser': 'postcss/lib/parser',
         ...externals,
       },
     })
     .target('compiled/postcss-scss')
+}
+// eslint-disable-next-line camelcase
+externals['postcss-modules-extract-imports'] =
+  'next/dist/compiled/postcss-modules-extract-imports'
+export async function ncc_postcss_modules_extract_imports(task, opts) {
+  await task
+    .source(
+      opts.src ||
+        relative(__dirname, require.resolve('postcss-modules-extract-imports'))
+    )
+    .ncc({
+      packageName: 'postcss-modules-extract-imports',
+      externals: {
+        'postcss/lib/parser': 'postcss/lib/parser',
+        ...externals,
+      },
+    })
+    .target('compiled/postcss-modules-extract-imports')
+}
+// eslint-disable-next-line camelcase
+externals['postcss-modules-local-by-default'] =
+  'next/dist/compiled/postcss-modules-local-by-default'
+export async function ncc_postcss_modules_local_by_default(task, opts) {
+  await task
+    .source(
+      opts.src ||
+        relative(__dirname, require.resolve('postcss-modules-local-by-default'))
+    )
+    .ncc({
+      packageName: 'postcss-modules-local-by-default',
+      externals: {
+        'postcss/lib/parser': 'postcss/lib/parser',
+        ...externals,
+      },
+    })
+    .target('compiled/postcss-modules-local-by-default')
+}
+// eslint-disable-next-line camelcase
+externals['postcss-modules-scope'] = 'next/dist/compiled/postcss-modules-scope'
+export async function ncc_postcss_modules_scope(task, opts) {
+  await task
+    .source(
+      opts.src || relative(__dirname, require.resolve('postcss-modules-scope'))
+    )
+    .ncc({
+      packageName: 'postcss-modules-scope',
+      externals: {
+        'postcss/lib/parser': 'postcss/lib/parser',
+        ...externals,
+      },
+    })
+    .target('compiled/postcss-modules-scope')
+}
+// eslint-disable-next-line camelcase
+externals['postcss-modules-values'] =
+  'next/dist/compiled/postcss-modules-values'
+export async function ncc_postcss_modules_values(task, opts) {
+  await task
+    .source(
+      opts.src || relative(__dirname, require.resolve('postcss-modules-values'))
+    )
+    .ncc({
+      packageName: 'postcss-modules-values',
+      externals: {
+        'postcss/lib/parser': 'postcss/lib/parser',
+        ...externals,
+      },
+    })
+    .target('compiled/postcss-modules-values')
+}
+// eslint-disable-next-line camelcase
+externals['postcss-value-parser'] = 'next/dist/compiled/postcss-value-parser'
+export async function ncc_postcss_value_parser(task, opts) {
+  await task
+    .source(
+      opts.src || relative(__dirname, require.resolve('postcss-value-parser'))
+    )
+    .ncc({
+      packageName: 'postcss-value-parser',
+      externals: {
+        'postcss/lib/parser': 'postcss/lib/parser',
+        ...externals,
+      },
+    })
+    .target('compiled/postcss-value-parser')
+}
+// eslint-disable-next-line camelcase
+externals['icss-utils'] = 'next/dist/compiled/icss-utils'
+export async function ncc_icss_utils(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('icss-utils')))
+    .ncc({
+      packageName: 'icss-utils',
+      externals: {
+        'postcss/lib/parser': 'postcss/lib/parser',
+        ...externals,
+      },
+    })
+    .target('compiled/icss-utils')
 }
 // eslint-disable-next-line camelcase
 externals['recast'] = 'next/dist/compiled/recast'
@@ -786,7 +867,6 @@ export async function ncc(task, opts) {
         'ncc_content_type',
         'ncc_cookie',
         'ncc_cross_spawn',
-        'ncc_css_loader',
         'ncc_debug',
         'ncc_devalue',
         'ncc_escape_string_regexp',
@@ -809,10 +889,16 @@ export async function ncc(task, opts) {
         'ncc_nanoid',
         'ncc_neo_async',
         'ncc_ora',
+        'ncc_postcss_safe_parser',
         'ncc_postcss_flexbugs_fixes',
-        'ncc_postcss_loader',
         'ncc_postcss_preset_env',
         'ncc_postcss_scss',
+        'ncc_postcss_modules_extract_imports',
+        'ncc_postcss_modules_local_by_default',
+        'ncc_postcss_modules_scope',
+        'ncc_postcss_modules_values',
+        'ncc_postcss_value_parser',
+        'ncc_icss_utils',
         'ncc_recast',
         'ncc_resolve_url_loader',
         'ncc_sass_loader',
