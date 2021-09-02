@@ -80,11 +80,13 @@ const EntryForm = ({ onSubmit: onSubmitProp }) => {
       })
   }
 
-  const makeOnChange = (fieldName) => ({ target: { value } }) =>
-    setValues({
-      ...values,
-      [fieldName]: value,
-    })
+  const makeOnChange =
+    (fieldName) =>
+    ({ target: { value } }) =>
+      setValues({
+        ...values,
+        [fieldName]: value,
+      })
 
   const inputClasses = cn(
     'block py-2 bg-white dark:bg-gray-800',

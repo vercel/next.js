@@ -1,10 +1,9 @@
-const fs = require('fs')
 // eslint-disable-next-line import/no-extraneous-dependencies
 const notifier = require('node-notifier')
 // eslint-disable-next-line import/no-extraneous-dependencies
-const { nodeFileTrace } = require('@vercel/nft')
-const { join, relative, basename, resolve } = require('path')
+const { relative, basename, resolve, join } = require('path')
 const { Module } = require('module')
+const fs = require('fs')
 
 // Note:
 // "bundles" folder shadows main node_modules in workspace where all installs in
@@ -114,10 +113,32 @@ export async function ncc_async_sema(task, opts) {
     .target('compiled/async-sema')
 }
 
+const babelCorePackages = {
+  'code-frame': 'next/dist/compiled/babel/code-frame',
+  '@babel/generator': 'next/dist/compiled/babel/generator',
+  '@babel/traverse': 'next/dist/compiled/babel/traverse',
+  '@babel/types': 'next/dist/compiled/babel/types',
+  '@babel/core': 'next/dist/compiled/babel/core',
+  '@babel/core/lib/config': 'next/dist/compiled/babel/core-lib-config',
+  '@babel/core/lib/transformation/normalize-file':
+    'next/dist/compiled/babel/core-lib-normalize-config',
+  '@babel/core/lib/transformation/normalize-opts':
+    'next/dist/compiled/babel/core-lib-normalize-opts',
+  '@babel/core/lib/transformation/block-hoist-plugin':
+    'next/dist/compiled/babel/core-lib-block-hoisting-plugin',
+  '@babel/core/lib/transformation/plugin-pass':
+    'next/dist/compiled/babel/core-lib-plugin-pass',
+}
+
+Object.assign(externals, babelCorePackages)
+
 // eslint-disable-next-line camelcase
 export async function ncc_babel_bundle(task, opts) {
-  const bundleExternals = { ...externals }
-  for (const pkg of Object.keys(babelBundlePackages)) {
+  const bundleExternals = {
+    ...externals,
+    'next/dist/compiled/babel-packages': 'next/dist/compiled/babel-packages',
+  }
+  for (const pkg of Object.keys(babelCorePackages)) {
     delete bundleExternals[pkg]
   }
   await task
@@ -130,49 +151,23 @@ export async function ncc_babel_bundle(task, opts) {
     .target('compiled/babel')
 }
 
-const babelBundlePackages = {
-  'code-frame': 'next/dist/compiled/babel/code-frame',
-  '@babel/generator': 'next/dist/compiled/babel/generator',
-  '@babel/traverse': 'next/dist/compiled/babel/traverse',
-  '@babel/core': 'next/dist/compiled/babel/core',
-  '@babel/core/lib/config': 'next/dist/compiled/babel/core-lib-config',
-  '@babel/core/lib/transformation/normalize-file':
-    'next/dist/compiled/babel/core-lib-normalize-config',
-  '@babel/core/lib/transformation/normalize-opts':
-    'next/dist/compiled/babel/core-lib-normalize-opts',
-  '@babel/core/lib/transformation/block-hoist-plugin':
-    'next/dist/compiled/babel/core-lib-block-hoisting-plugin',
-  '@babel/core/lib/transformation/plugin-pass':
-    'next/dist/compiled/babel/core-lib-plugin-pass',
-  '@babel/plugin-proposal-class-properties':
-    'next/dist/compiled/babel/plugin-proposal-class-properties',
-  '@babel/plugin-proposal-export-namespace-from':
-    'next/dist/compiled/babel/plugin-proposal-export-namespace-from',
-  '@babel/plugin-proposal-numeric-separator':
-    'next/dist/compiled/babel/plugin-proposal-numeric-separator',
-  '@babel/plugin-proposal-object-rest-spread':
-    'next/dist/compiled/babel/plugin-proposal-object-rest-spread',
-  '@babel/plugin-syntax-bigint':
-    'next/dist/compiled/babel/plugin-syntax-bigint',
-  '@babel/plugin-syntax-dynamic-import':
-    'next/dist/compiled/babel/plugin-syntax-dynamic-import',
-  '@babel/plugin-syntax-jsx': 'next/dist/compiled/babel/plugin-syntax-jsx',
-  '@babel/plugin-transform-modules-commonjs':
-    'next/dist/compiled/babel/plugin-transform-modules-commonjs',
-  '@babel/plugin-transform-runtime':
-    'next/dist/compiled/babel/plugin-transform-runtime',
-  '@babel/preset-env': 'next/dist/compiled/babel/preset-env',
-  '@babel/preset-react': 'next/dist/compiled/babel/preset-react',
-  '@babel/preset-typescript': 'next/dist/compiled/babel/preset-typescript',
-  '@babel/eslint-parser': 'next/dist/compiled/babel/eslint-parser',
-}
-
-Object.assign(externals, babelBundlePackages)
-
+// eslint-disable-next-line camelcase
 export async function ncc_babel_bundle_packages(task, opts) {
   await task
+    .source(opts.src || 'bundles/babel/packages-bundle.js')
+    .ncc({
+      externals: externals,
+    })
+    .target(`compiled/babel-packages`)
+
+  await fs.promises.writeFile(
+    join(__dirname, 'compiled/babel-packages/package.json'),
+    JSON.stringify({ name: 'babel-packages', main: './packages-bundle.js' })
+  )
+
+  await task
     .source(opts.src || 'bundles/babel/packages/*')
-    .target('compiled/babel/')
+    .target('compiled/babel')
 }
 
 // eslint-disable-next-line camelcase
@@ -641,6 +636,16 @@ export async function ncc_web_vitals(task, opts) {
     .target('compiled/web-vitals')
 }
 // eslint-disable-next-line camelcase
+externals['zen-observable'] = 'next/dist/compiled/zen-observable'
+export async function ncc_zen_observable(task, opts) {
+  await task
+    .source(
+      opts.src || relative(__dirname, require.resolve('zen-observable/esm'))
+    )
+    .ncc({ packageName: 'zen-observable', externals })
+    .target('compiled/zen-observable')
+}
+// eslint-disable-next-line camelcase
 externals['webpack-sources'] = 'next/dist/compiled/webpack-sources'
 export async function ncc_webpack_sources(task, opts) {
   await task
@@ -755,45 +760,6 @@ export async function precompile(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
-export async function trace_next_server(task) {
-  const { TRACE_OUTPUT_VERSION } = require('next/dist/shared/lib/constants')
-  const root = join(__dirname, '../../')
-
-  const result = await nodeFileTrace(
-    [require.resolve('next/dist/server/next-server')],
-    {
-      base: root,
-      processCwd: __dirname,
-      ignore: [
-        'packages/next/dist/compiled/webpack/(bundle4|bundle5).js',
-        'node_modules/react/**/*.development.js',
-        'node_modules/react-dom/**/*.development.js',
-        'node_modules/use-subscription/**/*.development.js',
-        'node_modules/next/dist/next-server/server/lib/squoosh/**/*.wasm',
-        'packages/next/dist/pages/**/*',
-      ],
-    }
-  )
-
-  const tracedDeps = []
-
-  for (const file of result.fileList) {
-    if (result.reasons[file].type === 'initial') {
-      continue
-    }
-    tracedDeps.push(join(root, file))
-  }
-
-  fs.writeFileSync(
-    join(__dirname, 'dist/server/next-server.nft.json'),
-    JSON.stringify({
-      version: TRACE_OUTPUT_VERSION,
-      files: tracedDeps,
-    })
-  )
-}
-
-// eslint-disable-next-line camelcase
 export async function copy_ncced(task) {
   // we don't ncc every time we build since these won't change
   // that often and can be committed to the repo saving build time
@@ -810,7 +776,6 @@ export async function ncc(task, opts) {
         'ncc_async_retry',
         'ncc_async_sema',
         'ncc_babel_bundle',
-        'ncc_babel_bundle_packages',
         'ncc_bfj',
         'ncc_cacache',
         'ncc_ci_info',
@@ -863,6 +828,7 @@ export async function ncc(task, opts) {
         'ncc_text_table',
         'ncc_unistore',
         'ncc_web_vitals',
+        'ncc_zen_observable',
         'ncc_webpack_bundle4',
         'ncc_webpack_bundle5',
         'ncc_webpack_bundle_packages',
@@ -872,6 +838,7 @@ export async function ncc(task, opts) {
       ],
       opts
     )
+  await task.parallel(['ncc_babel_bundle_packages'], opts)
 }
 
 export async function compile(task, opts) {
@@ -989,7 +956,7 @@ export async function telemetry(task, opts) {
 }
 
 export async function build(task, opts) {
-  await task.serial(['precompile', 'compile', 'trace_next_server'], opts)
+  await task.serial(['precompile', 'compile'], opts)
 }
 
 export default async function (task) {

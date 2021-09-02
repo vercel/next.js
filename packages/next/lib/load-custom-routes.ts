@@ -82,9 +82,10 @@ export function modifyRouteRegex(regex: string, restrictedPaths?: string[]) {
   return regex
 }
 
-function checkRedirect(
-  route: Redirect
-): { invalidParts: string[]; hadInvalidStatus: boolean } {
+function checkRedirect(route: Redirect): {
+  invalidParts: string[]
+  hadInvalidStatus: boolean
+} {
   const invalidParts: string[] = []
   let hadInvalidStatus: boolean = false
 
@@ -107,6 +108,8 @@ function checkHeader(route: Header): string[] {
 
   if (!Array.isArray(route.headers)) {
     invalidParts.push('`headers` field must be an array')
+  } else if (route.headers.length === 0) {
+    invalidParts.push('`headers` field cannot be empty')
   } else {
     for (const header of route.headers) {
       if (!header || typeof header !== 'object') {
@@ -494,7 +497,7 @@ function processRoutes<T>(
   config: NextConfig,
   type: 'redirect' | 'rewrite' | 'header'
 ): T {
-  const _routes = (routes as any) as Array<{
+  const _routes = routes as any as Array<{
     source: string
     locale?: false
     basePath?: false
@@ -568,7 +571,7 @@ function processRoutes<T>(
     }
     newRoutes.push(r)
   }
-  return (newRoutes as any) as T
+  return newRoutes as any as T
 }
 
 async function loadRedirects(config: NextConfig) {
