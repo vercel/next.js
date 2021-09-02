@@ -48,10 +48,13 @@ pub fn transform_css(
     return string_literal_expr(&s);
   }
 
-  let parts: Vec<&str> = s.split("__styled-jsx-placeholder__").collect();
+  let mut parts: Vec<&str> = s.split("__styled-jsx-placeholder__").collect();
   let mut final_expressions = vec![];
-  for i in 0..parts.len() - 1 {
-    final_expressions.push(&style_info.expressions[i]);
+  for i in 1..parts.len() {
+    let expression_index = parts[i].chars().nth(0).unwrap().to_digit(10).unwrap() as usize;
+    final_expressions.push(style_info.expressions[expression_index].clone());
+    let substr = &parts[i][1..];
+    parts[i] = substr;
   }
 
   Expr::Tpl(Tpl {
@@ -69,7 +72,7 @@ pub fn transform_css(
         tail: false,
       })
       .collect(),
-    exprs: style_info.expressions.clone(),
+    exprs: final_expressions,
     span: DUMMY_SP,
   })
 }

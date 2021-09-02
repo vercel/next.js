@@ -1,7 +1,6 @@
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
-use swc_common::Span;
-use swc_common::{collections::AHashSet, DUMMY_SP};
+use swc_common::{collections::AHashSet, Span, DUMMY_SP};
 use swc_ecmascript::ast::*;
 use swc_ecmascript::minifier::{
   eval::{EvalResult, Evaluator},
@@ -467,7 +466,7 @@ impl StyledJSXTransformer {
             let placeholder = if i == quasis.len() - 1 {
               String::new()
             } else {
-              String::from("__styled-jsx-placeholder__")
+              format!("__styled-jsx-placeholder__{}", i)
             };
             s = format!("{}{}{}", s, quasis[i].raw.value, placeholder)
           }
@@ -500,6 +499,7 @@ impl StyledJSXTransformer {
       }
       _ => panic!("Not implemented"), // TODO: handle bad style input
     }
+
     return JSXStyle::Local(LocalStyle {
       hash: format!("{:x}", hasher.finish()),
       css,
@@ -560,7 +560,7 @@ impl StyledJSXTransformer {
       }
     };
     let style = if let JSXStyle::Local(style) = &styles[0] {
-      if (tag != "resolve") {
+      if tag != "resolve" {
         self.external_hash = Some(hash_string(&style.hash.clone()));
       }
       style
