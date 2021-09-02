@@ -13,7 +13,6 @@ import security from './security'
 import developmentLogs from './development-logs'
 
 const context = {}
-jest.setTimeout(1000 * 60 * 5)
 
 describe('Basic Features', () => {
   beforeAll(async () => {

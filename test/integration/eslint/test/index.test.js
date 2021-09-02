@@ -7,8 +7,6 @@ import { dirname, join } from 'path'
 import findUp from 'next/dist/compiled/find-up'
 import { nextBuild, nextLint } from 'next-test-utils'
 
-jest.setTimeout(1000 * 60 * 2)
-
 const dirFirstTimeSetup = join(__dirname, '../first-time-setup')
 const dirCustomConfig = join(__dirname, '../custom-config')
 const dirWebVitalsConfig = join(__dirname, '../config-core-web-vitals')

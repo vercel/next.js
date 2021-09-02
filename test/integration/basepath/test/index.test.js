@@ -29,8 +29,6 @@ import webdriver from 'next-webdriver'
 import { join, resolve } from 'path'
 import url from 'url'
 
-jest.setTimeout(1000 * 60 * 2)
-
 const appDir = join(__dirname, '..')
 
 let externalApp

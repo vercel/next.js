@@ -1,5 +1,6 @@
 module.exports = {
   testMatch: ['**/*.test.js', '**/*.test.ts', '**/*.test.tsx'],
+  setupFilesAfterEnv: ['<rootDir>/jest-setup-after-env.ts'],
   verbose: true,
   rootDir: 'test',
   modulePaths: ['<rootDir>/lib'],

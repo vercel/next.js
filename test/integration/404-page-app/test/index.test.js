@@ -13,8 +13,6 @@ import {
 import webdriver from 'next-webdriver'
 import cheerio from 'cheerio'
 
-jest.setTimeout(1000 * 60 * 2)
-
 const appDir = join(__dirname, '../')
 const gip404Err =
   /`pages\/404` can not have getInitialProps\/getServerSideProps/

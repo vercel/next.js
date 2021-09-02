@@ -17,7 +17,6 @@ import { join } from 'path'
 import renderingSuite from './rendering'
 
 const context = {}
-jest.setTimeout(1000 * 60 * 5)
 
 describe('Client Navigation', () => {
   beforeAll(async () => {

@@ -11,8 +11,6 @@ import webdriver from 'next-webdriver'
 import { join } from 'path'
 import { readFile } from 'fs-extra'
 
-jest.setTimeout(1000 * 60 * 5)
-
 const appDir = join(__dirname, '../')
 let appPort
 let server

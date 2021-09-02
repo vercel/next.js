@@ -17,8 +17,6 @@ import webdriver from 'next-webdriver'
 import { join } from 'path'
 import { existsSync } from 'fs'
 
-jest.setTimeout(1000 * 80)
-
 const appDir = join(__dirname, '../')
 
 let appPort

@@ -15,7 +15,6 @@ import {
   File,
 } from 'next-test-utils'
 
-jest.setTimeout(1000 * 60 * 2)
 const appDir = join(__dirname, '..')
 const nextConfig = new File(join(appDir, 'next.config.js'))
 

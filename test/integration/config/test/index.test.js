@@ -15,7 +15,6 @@ import fetch from 'node-fetch'
 import { join } from 'path'
 
 const context = {}
-jest.setTimeout(1000 * 60 * 5)
 
 describe('Configuration', () => {
   beforeAll(async () => {

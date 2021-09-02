@@ -11,8 +11,6 @@ import webdriver from 'next-webdriver'
 //import fetch from 'node-fetch'
 import { join } from 'path'
 
-jest.setTimeout(1000 * 60)
-
 const appDir = join(__dirname, '../')
 
 let appPort

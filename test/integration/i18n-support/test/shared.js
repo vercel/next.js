@@ -15,8 +15,6 @@ import {
   check,
 } from 'next-test-utils'
 
-jest.setTimeout(1000 * 60 * 2)
-
 const domainLocales = ['go', 'go-BE', 'do', 'do-BE']
 export const nonDomainLocales = [
   'en-US',
