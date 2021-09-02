@@ -63,13 +63,13 @@ export class NextInstance {
 
     for (const filename of Object.keys(this.files)) {
       const item = this.files[filename]
-      const outputFilename = path.join(this.testDir, filename)
+      const outputfilename = path.join(this.testDir, filename)
 
       if (typeof item === 'string') {
-        await fs.ensureDir(path.dirname(outputFilename))
-        await fs.writeFile(outputFilename, item)
+        await fs.ensureDir(path.dirname(outputfilename))
+        await fs.writeFile(outputfilename, item)
       } else {
-        await fs.copy(item.fsPath, outputFilename)
+        await fs.copy(item.fsPath, outputfilename)
       }
     }
     console.log(`Test directory created at ${this.testDir}`)
@@ -137,8 +137,21 @@ export class NextInstance {
     return ''
   }
 
-  public async patchFile(fileName: string, content: string): Promise<void> {}
-  public async deleteFile(fileName: string) {}
+  public async readFile(filename: string): Promise<string> {
+    throw new Error('readFile is only allowed in dev mode')
+  }
+  public async patchFile(filename: string, content: string): Promise<void> {
+    throw new Error('patchFile is only allowed in dev mode')
+  }
+  public async renameFile(
+    filename: string,
+    newFilename: string
+  ): Promise<void> {
+    throw new Error('renameFile is only allowed in dev mode')
+  }
+  public async deleteFile(filename: string) {
+    throw new Error('deleteFile is only allowed in dev mode')
+  }
 
   public on(event: Event, cb: (...args: any[]) => any) {
     if (!this.events[event]) {

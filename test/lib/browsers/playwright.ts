@@ -33,7 +33,7 @@ class Playwright extends BrowserInterface {
     } else if (browserName === 'firefox') {
       browser = await firefox.launch({ headless })
     } else {
-      browser = await chromium.launch({ headless })
+      browser = await chromium.launch({ headless, devtools: !headless })
     }
   }
 

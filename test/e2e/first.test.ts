@@ -12,6 +12,6 @@ describe('should set-up next', () => {
   afterAll(() => next.destroy())
 
   it('should work', async () => {
-    console.log(next.url())
+    console.log(next.url, next.appPort)
   })
 })

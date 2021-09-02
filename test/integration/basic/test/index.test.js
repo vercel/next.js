@@ -1,11 +1,9 @@
 /* eslint-env jest */
 
 import { join } from 'path'
-import { renderViaHTTP, findPort, launchApp, killApp } from 'next-test-utils'
+import { findPort, launchApp, killApp } from 'next-test-utils'
 
 // test suites
-import hmr from './hmr'
-import errorRecovery from './error-recovery'
 import processEnv from './process-env'
 import publicFolder from './public-folder'
 import security from './security'
@@ -22,8 +20,6 @@ describe('Basic Features', () => {
   })
   afterAll(() => killApp(context.server))
 
-  hmr(context, (p, q) => renderViaHTTP(context.appPort, p, q))
-  errorRecovery(context, (p, q) => renderViaHTTP(context.appPort, p, q))
   processEnv(context)
   publicFolder(context)
   security(context)

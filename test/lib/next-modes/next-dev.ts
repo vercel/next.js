@@ -1,9 +1,29 @@
+import path from 'path'
+import fs from 'fs-extra'
 import { spawn } from 'child_process'
 import { NextInstance } from './base'
 
 export class NextDevInstance extends NextInstance {
   public get buildId() {
     return 'development'
+  }
+
+  public async readFile(filename: string) {
+    return fs.readFile(path.join(this.testDir, filename), 'utf8')
+  }
+  public async patchFile(filename: string, content: string) {
+    const outputPath = path.join(this.testDir, filename)
+    await fs.ensureDir(path.dirname(outputPath))
+    return fs.writeFile(outputPath, content)
+  }
+  public async renameFile(filename: string, newFilename: string) {
+    return fs.rename(
+      path.join(this.testDir, filename),
+      path.join(this.testDir, newFilename)
+    )
+  }
+  public async deleteFile(filename: string) {
+    return fs.remove(path.join(this.testDir, filename))
   }
 
   public async setup() {
@@ -25,6 +45,7 @@ export class NextDevInstance extends NextInstance {
         NODE_ENV: '',
         __NEXT_TEST_MODE: '1',
         __NEXT_RAND_PORT: '1',
+        __NEXT_TEST_WITH_DEVTOOL: '1',
       },
     })
 
