@@ -1,12 +1,14 @@
 import os from 'os'
 import { Header, Redirect, Rewrite } from '../lib/load-custom-routes'
-import { ImageConfig, imageConfigDefault } from './image-config'
+import {
+  ImageConfig,
+  ImageConfigComplete,
+  imageConfigDefault,
+} from './image-config'
 
-type NoOptionals<T> = {
-  [P in keyof T]-?: T[P]
+export interface NextConfigComplete extends Required<NextConfig> {
+  images: ImageConfigComplete
 }
-
-export type NextConfigComplete = NoOptionals<NextConfig>
 
 export interface I18NConfig {
   defaultLocale: string
@@ -81,7 +83,7 @@ export type NextConfig = { [key: string]: any } & {
   pageExtensions?: string[]
   compress?: boolean
   poweredByHeader?: boolean
-  images?: Partial<ImageConfig>
+  images?: ImageConfig
   devIndicators?: {
     buildActivity?: boolean
   }
