@@ -8,7 +8,9 @@
       "packages/react-dev-overlay/**",
       "packages/react-refresh-utils/**",
       "packages/next-codemod/**",
-      "packages/eslint-plugin-next/**"
+      "packages/eslint-plugin-next/**",
+      "packages/eslint-config-next/**",
+      "packages/next-env/**"
     ],
     "created-by: Chrome Aurora": [
       { "type": "user", "pattern": "spanicker" },
