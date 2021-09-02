@@ -29,6 +29,20 @@ ruleTester.run('no-document-import-in-page', rule, {
       filename: 'pages/_document.js',
     },
     {
+      code: `import Document from "next/document"
+
+    export default class MyDocument extends Document {
+      render() {
+        return (
+          <Html>
+          </Html>
+        );
+      }
+    }
+    `,
+      filename: 'pages\\_document.js',
+    },
+    {
       code: `import NextDocument from "next/document"
 
     export default class MyDocument extends NextDocument {
@@ -120,6 +134,20 @@ ruleTester.run('no-document-import-in-page', rule, {
       export const Test = () => <p>Test</p>
       `,
       filename: 'pages/test.js',
+      errors: [
+        {
+          message:
+            'next/document should not be imported outside of pages/_document.js. See https://nextjs.org/docs/messages/no-document-import-in-page.',
+          type: 'ImportDeclaration',
+        },
+      ],
+    },
+    {
+      code: `import Document from "next/document"
+
+      export const Test = () => <p>Test</p>
+      `,
+      filename: 'pages\\test.js',
       errors: [
         {
           message:
