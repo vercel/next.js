@@ -28,8 +28,7 @@ const reportToLocalHost = (
   if (!batch) {
     batch = batcher(async (events) => {
       if (!writeStream) {
-        const tracesDir = path.join(distDir, 'traces')
-        await fs.promises.mkdir(tracesDir, { recursive: true })
+        await fs.promises.mkdir(distDir, { recursive: true })
         const file = path.join(distDir, 'trace')
         writeStream = fs.createWriteStream(file, {
           flags: 'a',
