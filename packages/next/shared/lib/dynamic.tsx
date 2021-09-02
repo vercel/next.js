@@ -114,7 +114,9 @@ export default function dynamic<P = {}>(
   // Support for passing options, eg: dynamic(import('../hello-world'), {loading: () => <p>Loading something</p>})
   loadableOptions = { ...loadableOptions, ...options }
 
-  const suspenseOptions = loadableOptions as LoadableSuspenseOptions
+  const suspenseOptions = loadableOptions as LoadableSuspenseOptions & {
+    loader: Loader<P>
+  }
   if (!process.env.__NEXT_CONCURRENT_FEATURES) {
     // Error if react root is not enabled and `suspense` option is set to true
     if (!process.env.__NEXT_REACT_ROOT && suspenseOptions.suspense) {
