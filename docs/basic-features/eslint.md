@@ -94,6 +94,7 @@ Next.js provides an ESLint plugin, [`eslint-plugin-next`](https://www.npmjs.com/
 | ✔️  | [next/no-sync-scripts](https://nextjs.org/docs/messages/no-sync-scripts)                       | Forbid synchronous scripts                                                                                                   |
 | ✔️  | [next/no-title-in-document-head](https://nextjs.org/docs/messages/no-title-in-document-head)   | Disallow using &lt;title&gt; with Head from next/document                                                                    |
 | ✔️  | [next/no-unwanted-polyfillio](https://nextjs.org/docs/messages/no-unwanted-polyfillio)         | Prevent duplicate polyfills from Polyfill.io                                                                                 |
+| ✔️  | [next/inline-script-id](https://nextjs.org/docs/messages/inline-script-id)                     | Enforce id attribute on next/script components with inline content                                                           |
 | ✔️  | next/no-typos                                                                                  | Ensure no typos were made declaring [Next.js's data fetching function](https://nextjs.org/docs/basic-features/data-fetching) |
 | ✔️  | [next/next-script-for-ga](https://nextjs.org/docs/messages/next-script-for-ga)                 | Use the Script component to defer loading of the script until necessary.                                                     |
 
@@ -136,6 +137,14 @@ Similarly, the `--dir` flag can be used for `next lint`:
 
 ```bash
 next lint --dir pages --dir utils
+```
+
+## Caching
+
+To improve performance, information of files processed by ESLint are cached by default. This is stored in `.next/cache` or in your defined [build directory](/docs/api-reference/next.config.js/setting-a-custom-build-directory). If you include any ESLint rules that depend on more than the contents of a single source file and need to disable the cache, use the `--no-cache` flag with `next lint`.
+
+```bash
+next lint --no-cache
 ```
 
 ## Disabling Rules

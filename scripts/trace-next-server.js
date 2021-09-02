@@ -18,10 +18,18 @@ const MAX_UNCOMPRESSED_SIZE = 2.5 * 1000 * 1000
 // version so isn't pre-traced
 async function main() {
   const tmpdir = os.tmpdir()
-  const repoDir = path.join(__dirname, '..')
+  const origRepoDir = path.join(__dirname, '..')
+  const repoDir = path.join(tmpdir, `tmp-next-${Date.now()}`)
   const workDir = path.join(tmpdir, `trace-next-${Date.now()}`)
 
+  await fs.copy(origRepoDir, repoDir, {
+    filter: (item) => {
+      return !item.includes('node_modules')
+    },
+  })
+
   console.log('using workdir', workDir)
+  console.log('using repodir', repoDir)
   await fs.ensureDir(workDir)
 
   const pkgPaths = await linkPackages(repoDir)
@@ -46,16 +54,6 @@ async function main() {
       ...process.env,
       YARN_CACHE_FOLDER: path.join(workDir, '.yarn-cache'),
     },
-  })
-
-  // remove temporary package packs
-  pkgPaths.forEach((packagePath) => {
-    fs.unlinkSync(packagePath)
-  })
-  // remove changes to package.json files from packing
-  await execa('git', ['checkout', '.'], {
-    cwd: repoDir,
-    stdio: ['ignore', 'inherit', 'inherit'],
   })
 
   const nextServerPath = path.join(
@@ -119,6 +117,7 @@ async function main() {
     })
   )
   await fs.remove(workDir)
+  await fs.remove(repoDir)
 
   console.timeEnd(traceLabel)
 

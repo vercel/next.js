@@ -25,6 +25,23 @@ const writeConfig = async (routes, type = 'redirects') => {
 let getStderr
 
 const runTests = () => {
+  it('should error when empty headers array is present on header item', async () => {
+    await writeConfig(
+      [
+        {
+          source: `/:path*`,
+          headers: [],
+        },
+      ],
+      'headers'
+    )
+    const stderr = await getStderr()
+
+    expect(stderr).toContain(
+      '`headers` field cannot be empty for route {"source":"/:path*"'
+    )
+  })
+
   it('should error when source and destination length is exceeded', async () => {
     await writeConfig(
       [

@@ -76,13 +76,12 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
       assets[traceOutputName] = new sources.RawSource(
         JSON.stringify({
           version: TRACE_OUTPUT_VERSION,
-          files: [...entryFiles, ...this.entryTraces.get(entrypoint.name)!].map(
-            (file) => {
-              return nodePath
-                .relative(traceOutputPath, file)
-                .replace(/\\/g, '/')
-            }
-          ),
+          files: [
+            ...entryFiles,
+            ...(this.entryTraces.get(entrypoint.name) || []),
+          ].map((file) => {
+            return nodePath.relative(traceOutputPath, file).replace(/\\/g, '/')
+          }),
         })
       )
     }
@@ -118,6 +117,7 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
           // over the compilation modules list
           const entryNameMap = new Map<string, string>()
           const entryModMap = new Map<string, any>()
+          const additionalEntries = new Map<string, Map<string, any>>()
 
           try {
             const depModMap = new Map<string, any>()
@@ -125,15 +125,27 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
             compilation.entries.forEach((entry) => {
               const name = entry.name || entry.options?.name
 
-              if (name?.startsWith('pages/') && entry.dependencies[0]) {
-                const entryMod = getModuleFromDependency(
-                  compilation,
-                  entry.dependencies[0]
-                )
+              if (name?.replace(/\\/g, '/').startsWith('pages/')) {
+                for (const dep of entry.dependencies) {
+                  if (!dep) continue
+                  const entryMod = getModuleFromDependency(compilation, dep)
 
-                if (entryMod.resource) {
-                  entryNameMap.set(entryMod.resource, name)
-                  entryModMap.set(entryMod.resource, entryMod)
+                  if (entryMod && entryMod.resource) {
+                    if (
+                      entryMod.resource.replace(/\\/g, '/').includes('pages/')
+                    ) {
+                      entryNameMap.set(entryMod.resource, name)
+                      entryModMap.set(entryMod.resource, entryMod)
+                    } else {
+                      let curMap = additionalEntries.get(name)
+
+                      if (!curMap) {
+                        curMap = new Map()
+                        additionalEntries.set(name, curMap)
+                      }
+                      curMap.set(entryMod.resource, entryMod)
+                    }
+                  }
                 }
               }
             })
@@ -225,6 +237,13 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
 
               const toTrace: string[] = [entry, ...depModMap.keys()]
 
+              const entryName = entryNameMap.get(entry)!
+              const curExtraEntries = additionalEntries.get(entryName)
+
+              if (curExtraEntries) {
+                toTrace.push(...curExtraEntries.keys())
+              }
+
               const root = nodePath.parse(process.cwd()).root
               const result = await nodeFileTrace(toTrace, {
                 base: root,
@@ -249,7 +268,7 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
               //   version: TRACE_OUTPUT_VERSION,
               //   tracedDeps,
               // }
-              this.entryTraces.set(entryNameMap.get(entry)!, tracedDeps)
+              this.entryTraces.set(entryName, tracedDeps)
             }
 
             callback()

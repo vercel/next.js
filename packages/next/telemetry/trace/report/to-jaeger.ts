@@ -5,7 +5,7 @@ import * as Log from '../../../build/output/log'
 // Jaeger uses Zipkin's reporting
 import { batcher } from './to-zipkin'
 
-let traceId = process.env.TRACE_ID
+let traceId: string
 let batch: ReturnType<typeof batcher> | undefined
 
 const localEndpoint = {
@@ -33,7 +33,7 @@ const reportToLocalHost = (
   attrs?: Object
 ) => {
   if (!traceId) {
-    traceId = process.env.TRACE_ID = randomBytes(8).toString('hex')
+    traceId = process.env.TRACE_ID || randomBytes(8).toString('hex')
     logWebUrl()
   }
 
