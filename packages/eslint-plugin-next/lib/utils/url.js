@@ -42,7 +42,10 @@ function getUrlFromPagesDirectories(urlPrefix, directories) {
           (url) => `^${normalizeURL(url)}$`
         )
     )
-  ).map((urlReg) => new RegExp(urlReg))
+  ).map((urlReg) => {
+    urlReg = urlReg.replace(/\[.*\]/g, '.*')
+    return new RegExp(urlReg)
+  })
 }
 
 // Cache for fs.readdirSync lookup.
@@ -60,7 +63,6 @@ function parseUrlForPages(urlprefix, directory) {
   const res = []
   fsReadDirSyncCache[directory].forEach((fname) => {
     if (/(\.(j|t)sx?)$/.test(fname)) {
-      fname = fname.replace(/\[.*\]/g, '.*')
       if (/^index(\.(j|t)sx?)$/.test(fname)) {
         res.push(`${urlprefix}${fname.replace(/^index(\.(j|t)sx?)$/, '')}`)
       }
