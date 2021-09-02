@@ -13,7 +13,7 @@ import {
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 
-describe('should set-up next', () => {
+describe('basic HMR', () => {
   let next: NextInstance
 
   beforeAll(async () => {
