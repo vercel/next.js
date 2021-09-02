@@ -913,13 +913,7 @@ describe('Client Navigation', () => {
     })
 
     it('should work with the "replace" prop', async () => {
-      const browser = await webdriver(
-        context.appPort,
-        '/nav',
-        undefined,
-        undefined,
-        true
-      )
+      const browser = await webdriver(context.appPort, '/nav')
 
       let stackLength = await browser.eval('window.history.length')
 

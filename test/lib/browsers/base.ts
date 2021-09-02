@@ -59,7 +59,7 @@ export class BrowserInterface {
   deleteCookies(): BrowserInterface {
     return this
   }
-  async loadPage(url: string, newPage?: boolean): Promise<any> {}
+  async loadPage(url: string): Promise<any> {}
   async get(url: string): Promise<void> {}
 
   async getValue(): Promise<any> {}

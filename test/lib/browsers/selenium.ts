@@ -188,32 +188,28 @@ class Selenium extends BrowserInterface {
     return browser.get(url)
   }
 
-  async loadPage(url: string, newPage?: boolean) {
+  async loadPage(url: string) {
+    // in chrome we use a new tab for testing
     if (this.browserName === 'chrome') {
       const initialHandle = await browser.getWindowHandle()
 
-      if (newPage) {
-        await browser.switchTo().newWindow('tab')
-        const newHandle = await browser.getWindowHandle()
+      await browser.switchTo().newWindow('tab')
+      const newHandle = await browser.getWindowHandle()
 
-        await browser.switchTo().window(initialHandle)
-        await browser.close()
-        await browser.switchTo().window(newHandle)
-      } else {
-        // clean-up extra windows created from links and such
-        for (const handle of await browser.getAllWindowHandles()) {
-          if (handle !== initialHandle) {
-            await browser.switchTo().window(handle)
-            await browser.close()
-          }
+      await browser.switchTo().window(initialHandle)
+      await browser.close()
+      await browser.switchTo().window(newHandle)
+
+      // clean-up extra windows created from links and such
+      for (const handle of await browser.getAllWindowHandles()) {
+        if (handle !== newHandle) {
+          await browser.switchTo().window(handle)
+          await browser.close()
         }
-        await browser.switchTo().window(initialHandle)
-        await browser.get('about:blank')
       }
-    } else if (newPage) {
-      console.warn(
-        'Warning: creating new windows is only supported in chrome with selenium currently, this should only be needed when testing history length'
-      )
+      await browser.switchTo().window(newHandle)
+    } else {
+      await browser.get('about:blank')
     }
     return browser.get(url)
   }

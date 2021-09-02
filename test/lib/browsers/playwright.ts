@@ -41,7 +41,7 @@ class Playwright extends BrowserInterface {
     return page.goto(url) as any
   }
 
-  async loadPage(url: string, newPage?: boolean) {
+  async loadPage(url: string) {
     if (context) {
       await context.close()
       context = undefined

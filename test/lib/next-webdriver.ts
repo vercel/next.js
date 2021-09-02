@@ -2,18 +2,23 @@ import os from 'os'
 import { BrowserInterface } from './browsers/base'
 
 let deviceIP: string
-const nets = os.networkInterfaces()
-for (const key of Object.keys(nets)) {
-  let done = false
+const isBrowserStack = !!process.env.BROWSERSTACK
+;(global as any).browserName = process.env.BROWSER_NAME || 'chrome'
 
-  for (const item of nets[key]) {
-    if (item.family === 'IPv4' && !item.internal) {
-      deviceIP = item.address
-      done = true
-      break
+if (isBrowserStack) {
+  const nets = os.networkInterfaces()
+  for (const key of Object.keys(nets)) {
+    let done = false
+
+    for (const item of nets[key]) {
+      if (item.family === 'IPv4' && !item.internal) {
+        deviceIP = item.address
+        done = true
+        break
+      }
     }
+    if (done) break
   }
-  if (done) break
 }
 
 let browserQuit
@@ -26,17 +31,22 @@ if (typeof afterAll === 'function') {
   })
 }
 
-;(global as any).browserName = process.env.BROWSER_NAME || 'chrome'
-
+/**
+ *
+ * @param appPort can either be the port or the full URL
+ * @param url the path/query to append when using appPort
+ * @param waitHydration whether to wait for react hydration to finish
+ * @param retryWaitHydration allow retrying hydration wait if reload occurs
+ * @returns thenable browser instance
+ */
 export default async function webdriver(
-  appPort: string | number,
-  url: string,
+  appPortOrUrl: string | number,
+  url?: string,
   waitHydration = true,
   retryWaitHydration = false,
   requiresNewPage = false
 ): Promise<BrowserInterface> {
   let CurrentInterface: typeof BrowserInterface
-  const isBrowserStack = !!process.env.BROWSERSTACK
 
   // we import only the needed interface
   if (
@@ -58,18 +68,21 @@ export default async function webdriver(
   await browser.setup(browserName)
   ;(global as any).browserName = browserName
 
-  const fullUrl = `http://${
-    isBrowserStack ? deviceIP : 'localhost'
-  }:${appPort}${url}`
+  const fullUrl =
+    typeof appPortOrUrl === 'string' && appPortOrUrl.startsWith('http')
+      ? appPortOrUrl
+      : `http://${
+          isBrowserStack ? deviceIP : 'localhost'
+        }:${appPortOrUrl}${url}`
 
-  console.log(`\n> Loading browser with ${url}\n`)
+  console.log(`\n> Loading browser with ${fullUrl}\n`)
 
-  await browser.loadPage(fullUrl, requiresNewPage)
-  console.log(`\n> Loaded browser with ${url}\n`)
+  await browser.loadPage(fullUrl)
+  console.log(`\n> Loaded browser with ${fullUrl}\n`)
 
   // Wait for application to hydrate
   if (waitHydration) {
-    console.log(`\n> Waiting hydration for ${url}\n`)
+    console.log(`\n> Waiting hydration for ${fullUrl}\n`)
 
     const checkHydrated = async () => {
       await browser.evalAsync(function () {
@@ -107,7 +120,7 @@ export default async function webdriver(
       }
     }
 
-    console.log(`\n> Hydration complete for ${url}\n`)
+    console.log(`\n> Hydration complete for ${fullUrl}\n`)
   }
   return browser
 }
