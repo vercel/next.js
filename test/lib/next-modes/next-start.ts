@@ -1,12 +1,19 @@
+import path from 'path'
+import fs from 'fs-extra'
 import { spawn, SpawnOptions } from 'child_process'
 import { NextInstance } from './base'
 
 export class NextStartInstance extends NextInstance {
-  private _url: string
+  private _buildId: string
+
+  public get buildId() {
+    return this._buildId
+  }
 
   public async setup() {
     await super.createTestDir()
   }
+
   public async start() {
     if (this.childProcess) {
       throw new Error('next already started')
@@ -42,6 +49,13 @@ export class NextStartInstance extends NextInstance {
     )
     handleStdio()
 
+    this._buildId = (
+      await fs.readFile(
+        path.join(this.testDir, this.nextConfig.distDir || '.next', 'BUILD_ID'),
+        'utf8'
+      )
+    ).trim()
+
     await new Promise<void>((resolve, reject) => {
       this.childProcess.on('exit', (code) => {
         if (code) reject(new Error(`next build failed with code ${code}`))
@@ -63,9 +77,5 @@ export class NextStartInstance extends NextInstance {
       }
       this.on('stdout', readyCb)
     })
-  }
-
-  public url() {
-    return this._url
   }
 }

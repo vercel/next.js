@@ -1,13 +1,28 @@
-/* eslint-env jest */
-import webdriver from 'next-webdriver'
+import { join } from 'path'
 import cheerio from 'cheerio'
-import { check } from 'next-test-utils'
+import webdriver from 'next-webdriver'
+import { createNext, FileRef } from 'e2e-utils'
+import { renderViaHTTP, check } from 'next-test-utils'
+import { NextInstance } from 'test/lib/next-modes/base'
 
-export default (context, render) => {
-  async function get$(path, query) {
-    const html = await render(path, query)
+describe('basic next/dynamic usage', () => {
+  let next: NextInstance
+
+  beforeAll(async () => {
+    next = await createNext({
+      files: {
+        components: new FileRef(join(__dirname, 'next-dynamic/components')),
+        pages: new FileRef(join(__dirname, 'next-dynamic/pages')),
+      },
+    })
+  })
+  afterAll(() => next.destroy())
+
+  async function get$(path, query?: any) {
+    const html = await renderViaHTTP(next.appPort, path, query)
     return cheerio.load(html)
   }
+
   describe('Dynamic import', () => {
     describe('default behavior', () => {
       it('should render dynamic import components', async () => {
@@ -31,7 +46,7 @@ export default (context, render) => {
       it('should render even there are no physical chunk exists', async () => {
         let browser
         try {
-          browser = await webdriver(context.appPort, '/dynamic/no-chunk')
+          browser = await webdriver(next.appPort, '/dynamic/no-chunk')
           await check(
             () => browser.elementByCss('body').text(),
             /Welcome, normal/
@@ -50,7 +65,7 @@ export default (context, render) => {
       it('should hydrate nested chunks', async () => {
         let browser
         try {
-          browser = await webdriver(context.appPort, '/dynamic/nested')
+          browser = await webdriver(next.appPort, '/dynamic/nested')
           await check(() => browser.elementByCss('body').text(), /Nested 1/)
           await check(() => browser.elementByCss('body').text(), /Nested 2/)
           await check(
@@ -58,7 +73,7 @@ export default (context, render) => {
             /Browser hydrated/
           )
 
-          if (global.browserName === 'chrome') {
+          if ((global as any).browserName === 'chrome') {
             const logs = await browser.log('browser')
 
             logs.forEach((logItem) => {
@@ -77,7 +92,7 @@ export default (context, render) => {
       it('should render the component Head content', async () => {
         let browser
         try {
-          browser = await webdriver(context.appPort, '/dynamic/head')
+          browser = await webdriver(next.appPort, '/dynamic/head')
           await check(() => browser.elementByCss('body').text(), /test/)
           const backgroundColor = await browser
             .elementByCss('.dynamic-style')
@@ -104,7 +119,7 @@ export default (context, render) => {
       it('should render the component on client side', async () => {
         let browser
         try {
-          browser = await webdriver(context.appPort, '/dynamic/no-ssr')
+          browser = await webdriver(next.appPort, '/dynamic/no-ssr')
           await check(
             () => browser.elementByCss('body').text(),
             /Hello World 1/
@@ -127,7 +142,7 @@ export default (context, render) => {
       it('should render the component on client side', async () => {
         let browser
         try {
-          browser = await webdriver(context.appPort, '/dynamic/ssr-true')
+          browser = await webdriver(next.appPort, '/dynamic/ssr-true')
           await check(
             () => browser.elementByCss('body').text(),
             /Hello World 1/
@@ -150,7 +165,7 @@ export default (context, render) => {
       it('should render the component on client side', async () => {
         let browser
         try {
-          browser = await webdriver(context.appPort, '/dynamic/chunkfilename')
+          browser = await webdriver(next.appPort, '/dynamic/chunkfilename')
           await check(
             () => browser.elementByCss('body').text(),
             /test chunkfilename/
@@ -173,7 +188,7 @@ export default (context, render) => {
         let browser
         try {
           browser = await webdriver(
-            context.appPort,
+            next.appPort,
             '/dynamic/no-ssr-custom-loading'
           )
           await check(
@@ -199,10 +214,7 @@ export default (context, render) => {
       it('should only load the rendered module in the browser', async () => {
         let browser
         try {
-          browser = await webdriver(
-            context.appPort,
-            '/dynamic/multiple-modules'
-          )
+          browser = await webdriver(next.appPort, '/dynamic/multiple-modules')
           const html = await browser.eval('document.documentElement.innerHTML')
           expect(html).toMatch(/hello1\.js/)
           expect(html).not.toMatch(/hello2\.js/)
@@ -226,4 +238,4 @@ export default (context, render) => {
       })
     })
   })
-}
+})

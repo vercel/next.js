@@ -19,6 +19,8 @@ export class NextInstance {
   protected testDir: string
   protected isDestroyed: boolean
   protected childProcess: ChildProcess
+  protected _url: string
+  protected _parsedUrl: URL
 
   constructor({
     files,
@@ -120,10 +122,18 @@ export class NextInstance {
     this.emit('destroy', [])
   }
 
-  public url(): string {
-    return ''
+  public get url() {
+    return this._url
   }
-  public buildId(): string {
+
+  public get appPort() {
+    if (!this._parsedUrl) {
+      this._parsedUrl = new URL(this._url)
+    }
+    return this._parsedUrl.port
+  }
+
+  public get buildId(): string {
     return ''
   }
 

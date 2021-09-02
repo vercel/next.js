@@ -2,11 +2,14 @@ import { spawn } from 'child_process'
 import { NextInstance } from './base'
 
 export class NextDevInstance extends NextInstance {
-  private _url: string
+  public get buildId() {
+    return 'development'
+  }
 
   public async setup() {
     await super.createTestDir()
   }
+
   public async start() {
     if (this.childProcess) {
       throw new Error('next already started')
@@ -46,9 +49,5 @@ export class NextDevInstance extends NextInstance {
       }
       this.on('stdout', readyCb)
     })
-  }
-
-  public url() {
-    return this._url
   }
 }
