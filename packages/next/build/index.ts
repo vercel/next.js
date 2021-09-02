@@ -431,7 +431,9 @@ export default async function build(
       redirects: redirects.map((r: any) => buildCustomRoute(r, 'redirect')),
       headers: headers.map((r: any) => buildCustomRoute(r, 'header')),
       dynamicRoutes: getSortedRoutes(pageKeys)
-        .filter(isDynamicRoute)
+        .filter(
+          (page) => !isDynamicRoute(page) && !page.match(RESERVED_PAGE_REGEX)
+        )
         .map(pageToRoute),
       staticRoutes: getSortedRoutes(pageKeys)
         .filter(
@@ -1683,11 +1685,7 @@ export default async function build(
 
     const middlewareManifest: MiddlewareManifest = JSON.parse(
       await promises.readFile(
-        path.join(
-          distDir,
-          isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
-          MIDDLEWARE_MANIFEST
-        ),
+        path.join(distDir, SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
         'utf8'
       )
     )

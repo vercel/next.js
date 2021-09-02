@@ -8,7 +8,7 @@ import { normalizePagePath, normalizePathSep } from '../normalize-page-path'
 import { pageNotFoundError } from '../require'
 import { findPageFile } from '../lib/find-page-file'
 import getRouteFromEntrypoint from '../get-route-from-entrypoint'
-import { API_ROUTE } from '../../lib/constants'
+import { API_ROUTE, MIDDLEWARE_ROUTE } from '../../lib/constants'
 
 export const ADDED = Symbol('added')
 export const BUILDING = Symbol('building')
@@ -185,6 +185,7 @@ export default function onDemandEntryHandler(
       const normalizedPage = normalizePathSep(page)
 
       const isApiRoute = normalizedPage.match(API_ROUTE)
+      const isMiddleware = normalizedPage.match(MIDDLEWARE_ROUTE)
 
       let entriesChanged = false
       const addPageEntry = (type: 'client' | 'server') => {
@@ -223,13 +224,13 @@ export default function onDemandEntryHandler(
 
       const promise = isApiRoute
         ? addPageEntry('server')
-        : clientOnly
+        : clientOnly || isMiddleware
         ? addPageEntry('client')
         : Promise.all([addPageEntry('client'), addPageEntry('server')])
 
       if (entriesChanged) {
         Log.event(
-          isApiRoute
+          isApiRoute || isMiddleware
             ? `build page: ${normalizedPage} (server only)`
             : clientOnly
             ? `build page: ${normalizedPage} (client only)`

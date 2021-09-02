@@ -33,6 +33,7 @@ import { CustomRoutes } from '../../lib/load-custom-routes'
 import { DecodeError } from '../../shared/lib/utils'
 import { Span, trace } from '../../trace'
 import isError from '../../lib/is-error'
+import { clearSandboxCache } from '../edge-functions/sandbox'
 
 export async function renderScriptError(
   res: ServerResponse,
@@ -410,8 +411,10 @@ export default class HotReloader {
               isClientKey ? 'client'.length : 'server'.length
             )
             const isMiddleware = page.match(MIDDLEWARE_ROUTE)
-            const isServerOnly = page.match(API_ROUTE) || isMiddleware
-            if (isClientCompilation && isServerOnly) {
+            if (isClientCompilation && page.match(API_ROUTE)) {
+              return
+            }
+            if (!isClientCompilation && isMiddleware) {
               return
             }
             const { bundlePath, absolutePagePath } = entries[pageKey]
@@ -428,10 +431,15 @@ export default class HotReloader {
               absolutePagePath,
             }
 
-            if (!isClientCompilation && isMiddleware) {
+            if (isClientCompilation && isMiddleware) {
               entrypoints[bundlePath] = {
+                filename: 'server/[name].js',
                 import: `edge-function-loader?${stringify(pageLoaderOpts)}!`,
                 layer: 'edge',
+                library: {
+                  type: 'assign',
+                  name: ['_NEXT_ENTRIES', `edge_[name]`],
+                },
               }
             } else {
               entrypoints[bundlePath] = finalizeEntrypoint(
@@ -441,7 +449,7 @@ export default class HotReloader {
                   : absolutePagePath,
                 !isClientCompilation,
                 isWebpack5
-              )  
+              )
             }
           })
         )
@@ -521,6 +529,14 @@ export default class HotReloader {
               denormalizePagePath(pg.substr('pages'.length))
             ),
           })
+        }
+
+        const middlewareChanges = Array.from(changedClientPages).filter(
+          (name) => name.endsWith('_middleware')
+        )
+
+        if (middlewareChanges.length > 0) {
+          clearSandboxCache()
         }
 
         const { compilation } = stats

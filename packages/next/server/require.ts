@@ -79,12 +79,12 @@ export function requireFontManifest(distDir: string, serverless: boolean) {
   return fontManifest
 }
 
-export function getMiddlewarePath(params: {
+export function getMiddlewareInfo(params: {
   dev?: boolean
   distDir: string
   page: string
   serverless: boolean
-}): string {
+}): { name: string; paths: string[] } {
   const serverBuildPath = join(
     params.distDir,
     params.serverless && !params.dev ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY
@@ -103,10 +103,13 @@ export function getMiddlewarePath(params: {
     throw pageNotFoundError(params.page)
   }
 
-  let pagePath = middlewareManifest.middleware[page]
-  if (!pagePath) {
+  let pageInfo = middlewareManifest.middleware[page]
+  if (!pageInfo) {
     throw pageNotFoundError(page)
   }
 
-  return join(serverBuildPath, pagePath.file)
+  return {
+    name: pageInfo.name,
+    paths: pageInfo.files.map((file) => join(params.distDir, file)),
+  }
 }

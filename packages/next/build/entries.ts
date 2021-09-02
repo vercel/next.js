@@ -122,57 +122,63 @@ export function createEntrypoints(
 
     const isLikeServerless = isTargetLikeServerless(target)
 
-    if (isApiRoute && isLikeServerless) {
-      const serverlessLoaderOptions: ServerlessLoaderQuery = {
-        page,
-        absolutePagePath,
-        ...defaultServerlessOptions,
-      }
-      server[serverBundlePath] = `next-serverless-loader?${stringify(
-        serverlessLoaderOptions
-      )}!`
-    } else if (isApiRoute || target === 'server') {
-      server[serverBundlePath] = [absolutePagePath]
-    } else if (isLikeServerless && page !== '/_app' && page !== '/_document') {
-      const serverlessLoaderOptions: ServerlessLoaderQuery = {
-        page,
-        absolutePagePath,
-        ...defaultServerlessOptions,
-      }
-      server[serverBundlePath] = `next-serverless-loader?${stringify(
-        serverlessLoaderOptions
-      )}!`
-    }
-
     if (isMiddleware) {
       const loaderOpts: EdgeFunctionLoaderOptions = { absolutePagePath }
-      server[serverBundlePath] = {
+      client[clientBundlePath] = {
+        filename: 'server/[name].js',
         import: `edge-function-loader?${stringify(loaderOpts)}!`,
         layer: 'edge',
+        library: { name: ['_NEXT_ENTRIES', 'edge_[name]'], type: 'assign' },
       }
-    }
-
-    if (page === '/_document') {
-      return
-    }
-
-    if (!isApiRoute && !isMiddleware) {
-      const pageLoaderOpts: ClientPagesLoaderOptions = {
-        page,
-        absolutePagePath,
+    } else {
+      if (isApiRoute && isLikeServerless) {
+        const serverlessLoaderOptions: ServerlessLoaderQuery = {
+          page,
+          absolutePagePath,
+          ...defaultServerlessOptions,
+        }
+        server[serverBundlePath] = `next-serverless-loader?${stringify(
+          serverlessLoaderOptions
+        )}!`
+      } else if (isApiRoute || target === 'server') {
+        server[serverBundlePath] = [absolutePagePath]
+      } else if (
+        isLikeServerless &&
+        page !== '/_app' &&
+        page !== '/_document'
+      ) {
+        const serverlessLoaderOptions: ServerlessLoaderQuery = {
+          page,
+          absolutePagePath,
+          ...defaultServerlessOptions,
+        }
+        server[serverBundlePath] = `next-serverless-loader?${stringify(
+          serverlessLoaderOptions
+        )}!`
       }
-      const pageLoader = `next-client-pages-loader?${stringify(
-        pageLoaderOpts
-      )}!`
 
-      // Make sure next/router is a dependency of _app or else chunk splitting
-      // might cause the router to not be able to load causing hydration
-      // to fail
+      if (page === '/_document') {
+        return
+      }
 
-      client[clientBundlePath] =
-        page === '/_app'
-          ? [pageLoader, require.resolve('../client/router')]
-          : pageLoader
+      if (!isApiRoute) {
+        const pageLoaderOpts: ClientPagesLoaderOptions = {
+          page,
+          absolutePagePath,
+        }
+        const pageLoader = `next-client-pages-loader?${stringify(
+          pageLoaderOpts
+        )}!`
+
+        // Make sure next/router is a dependency of _app or else chunk splitting
+        // might cause the router to not be able to load causing hydration
+        // to fail
+
+        client[clientBundlePath] =
+          page === '/_app'
+            ? [pageLoader, require.resolve('../client/router')]
+            : pageLoader
+      }
     }
   })
 
@@ -214,12 +220,14 @@ export function finalizeEntrypoint(
         name !== 'polyfills' &&
         name !== 'main' &&
         name !== 'amp' &&
-        name !== 'react-refresh'
+        name !== 'react-refresh' &&
+        !name.endsWith('_middleware')
       ) {
         const dependOn =
           name.startsWith('pages/') && name !== 'pages/_app'
             ? 'pages/_app'
             : 'main'
+
         if (typeof value === 'object' && !Array.isArray(value)) {
           return {
             dependOn,

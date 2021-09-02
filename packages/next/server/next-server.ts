@@ -100,7 +100,7 @@ import ResponseCache, {
 import { NextConfigComplete } from './config-shared'
 import { parseNextUrl } from '../shared/lib/router/utils/parse-next-url'
 import isError from '../lib/is-error'
-import { getMiddlewarePath } from './require'
+import { getMiddlewareInfo } from './require'
 import { parseUrl as simpleParseUrl } from '../shared/lib/router/utils/parse-url'
 import { run } from './edge-functions/sandbox'
 import type { EdgeFunctionResult } from './edge-functions'
@@ -274,7 +274,7 @@ export default class Server {
     )
     const pagesManifestPath = join(this.serverBuildDir, PAGES_MANIFEST)
     const middlewareManifestPath = join(
-      this.serverBuildDir,
+      join(this.distDir, SERVER_DIRECTORY),
       MIDDLEWARE_MANIFEST
     )
 
@@ -578,12 +578,14 @@ export default class Server {
 
   protected async hasMiddleware(pathname: string): Promise<boolean> {
     try {
-      return !!getMiddlewarePath({
-        dev: this.renderOpts.dev,
-        distDir: this.distDir,
-        page: pathname,
-        serverless: this._isLikeServerless,
-      })
+      return (
+        getMiddlewareInfo({
+          dev: this.renderOpts.dev,
+          distDir: this.distDir,
+          page: pathname,
+          serverless: this._isLikeServerless,
+        }).paths.length > 0
+      )
     } catch (_) {}
 
     return false
@@ -624,10 +626,13 @@ export default class Server {
 
         await this.ensureMiddleware(middleware.page)
 
-        let builtPath: string
+        let middlewareInfo: {
+          name: string
+          paths: string[]
+        }
 
         try {
-          builtPath = getMiddlewarePath({
+          middlewareInfo = getMiddlewareInfo({
             dev: this.renderOpts.dev,
             distDir: this.distDir,
             page: middleware.page,
@@ -643,7 +648,8 @@ export default class Server {
         }
 
         result = await run({
-          path: builtPath,
+          name: middlewareInfo.name,
+          paths: middlewareInfo.paths,
           request: {
             headers: req.headers,
             method: req.method,

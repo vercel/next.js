@@ -322,6 +322,21 @@ export default async function getBaseWebpackConfig(
             hasJsxRuntime: true,
           },
         },
+    babelEdge: {
+      loader: babelLoader,
+      options: {
+        configFile: babelConfigFile,
+        isServer: true,
+        distDir,
+        pagesDir,
+        cwd: dir,
+        // Webpack 5 has a built-in loader cache
+        cache: !isWebpack5,
+        development: dev,
+        hasReactRefresh: false,
+        hasJsxRuntime: true,
+      },
+    },
     // Backwards compat
     hotSelfAccept: {
       loader: 'noop-loader',
@@ -572,13 +587,25 @@ export default async function getBaseWebpackConfig(
     )
   }
 
+  const splitChunksChunkFilter = (chunk: webpack.compilation.Chunk) =>
+    !/^(polyfills|main|pages\/_app|(.+\/)?_middleware)$/.test(chunk.name)
+
+  const middlewareCacheGroup = {
+    chunks: (chunk: webpack.compilation.Chunk) =>
+      /^(.+\/)?_middleware$/.test(chunk.name),
+    filename: 'server/edge-chunks/[name].js',
+    minChunks: 2,
+  }
+
   // Contains various versions of the Webpack SplitChunksPlugin used in different build types
   const splitChunksConfigs: {
     [propName: string]: webpack.Options.SplitChunksOptions | false
   } = {
     dev: {
+      chunks: isWebpack5 ? splitChunksChunkFilter : undefined,
       cacheGroups: {
         default: false,
+        middleware: middlewareCacheGroup,
         vendors: false,
       },
     },
@@ -587,12 +614,11 @@ export default async function getBaseWebpackConfig(
       // as we don't need a separate vendor chunk from that
       // and all other chunk depend on them so there is no
       // duplication that need to be pulled out.
-      chunks: isWebpack5
-        ? (chunk) => !/^(polyfills|main|pages\/_app)$/.test(chunk.name)
-        : 'all',
+      chunks: isWebpack5 ? splitChunksChunkFilter : 'all',
       cacheGroups: {
         framework: {
-          chunks: 'all',
+          chunks: (chunk: webpack.compilation.Chunk) =>
+            !/^(.+\/)?_middleware$/.test(chunk.name),
           name: 'framework',
           // This regex ignores nested copies of framework libraries so they're
           // bundled with their issuer.
@@ -668,6 +694,7 @@ export default async function getBaseWebpackConfig(
                 reuseExistingChunk: true,
               },
             }),
+        middleware: middlewareCacheGroup,
       },
       maxInitialRequests: 25,
       minSize: 20000,
@@ -892,16 +919,10 @@ export default async function getBaseWebpackConfig(
                 request,
                 dependencyType,
                 getResolve,
-                contextInfo,
               }: {
                 context: string
                 request: string
                 dependencyType: string
-                contextInfo: {
-                  compiler: string
-                  issuer: string
-                  issuerLayer: string | null
-                }
                 getResolve: (
                   options: any
                 ) => (
@@ -913,36 +934,26 @@ export default async function getBaseWebpackConfig(
                     resolveData?: { descriptionFileData?: { type?: any } }
                   ) => void
                 ) => void
-              }) => {
-                if (dev && contextInfo.issuerLayer === 'edge') {
-                  return Promise.resolve()
-                }
-
-                return handleExternals(
-                  context,
-                  request,
-                  dependencyType,
-                  (options) => {
-                    const resolveFunction = getResolve(options)
-                    return (resolveContext: string, requestToResolve: string) =>
-                      new Promise((resolve, reject) => {
-                        resolveFunction(
-                          resolveContext,
-                          requestToResolve,
-                          (err, result, resolveData) => {
-                            if (err) return reject(err)
-                            if (!result) return resolve([null, false])
-                            const isEsm = /\.js$/i.test(result)
-                              ? resolveData?.descriptionFileData?.type ===
-                                'module'
-                              : /\.mjs$/i.test(result)
-                            resolve([result, isEsm])
-                          }
-                        )
-                      })
-                  }
-                )
-              }
+              }) =>
+                handleExternals(context, request, dependencyType, (options) => {
+                  const resolveFunction = getResolve(options)
+                  return (resolveContext: string, requestToResolve: string) =>
+                    new Promise((resolve, reject) => {
+                      resolveFunction(
+                        resolveContext,
+                        requestToResolve,
+                        (err, result, resolveData) => {
+                          if (err) return reject(err)
+                          if (!result) return resolve([null, false])
+                          const isEsm = /\.js$/i.test(result)
+                            ? resolveData?.descriptionFileData?.type ===
+                              'module'
+                            : /\.mjs$/i.test(result)
+                          resolve([result, isEsm])
+                        }
+                      )
+                    })
+                })
             : (
                 context: string,
                 request: string,
@@ -982,8 +993,7 @@ export default async function getBaseWebpackConfig(
           ? ({
               filename: '[name].js',
               // allow to split entrypoints
-              chunks: ({ name }: any) =>
-                name.endsWith('_middleware') ? undefined : 'all',
+              chunks: ({ name }: any) => !name?.endsWith('_middleware'),
               // size of files is not so relevant for server build
               // we want to prefer deduplication to load less code
               minSize: 1000,
@@ -992,12 +1002,14 @@ export default async function getBaseWebpackConfig(
         : splitChunksConfig,
       runtimeChunk: isServer
         ? isWebpack5 && !isLikeServerless
-          ? {
-              name: ({ name }) =>
-                name.endsWith('_middleware') ? undefined : 'webpack-runtime',
-            }
+          ? { name: 'webpack-runtime' }
           : undefined
-        : { name: CLIENT_STATIC_FILES_RUNTIME_WEBPACK },
+        : {
+            name: ({ name }) =>
+              name.endsWith('_middleware')
+                ? '../../server/edge-runtime'
+                : CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
+          },
       minimize: !(dev || isServer),
       minimizer: [
         // Minify JavaScript
@@ -1151,6 +1163,11 @@ export default async function getBaseWebpackConfig(
                       url: true,
                     },
                     use: defaultLoaders.babel,
+                  },
+                  {
+                    ...codeCondition,
+                    issuerLayer: 'edge',
+                    use: defaultLoaders.babelEdge,
                   },
                   {
                     ...codeCondition,
@@ -1358,8 +1375,8 @@ export default async function getBaseWebpackConfig(
       isServerless && isServer && new ServerlessPlugin(),
       isServer &&
         new PagesManifestPlugin({ serverless: isLikeServerless, dev }),
-      isServer && new MiddlewareManifestPlugin({ dev }),
-      dev && isServer && new EdgeFunctionPlugin(),
+      !isServer && new MiddlewareManifestPlugin({ dev }),
+      dev && !isServer && new EdgeFunctionPlugin(),
       !isWebpack5 &&
         target === 'server' &&
         isServer &&
@@ -1427,8 +1444,8 @@ export default async function getBaseWebpackConfig(
     const webpack5Config = webpackConfig as webpack5.Configuration
 
     webpack5Config.experiments = {
+      cacheUnaffected: false, // Disabled for now due to a webpack bug
       layers: true,
-      cacheUnaffected: true,
     }
 
     webpack5Config.module!.parser = {
@@ -1440,6 +1457,10 @@ export default async function getBaseWebpackConfig(
       asset: {
         filename: 'static/media/[name].[hash:8][ext]',
       },
+    }
+
+    if (!isServer) {
+      webpack5Config.output!.enabledLibraryTypes = ['assign']
     }
 
     if (dev) {

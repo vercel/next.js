@@ -14,7 +14,8 @@ export interface MiddlewareManifest {
   sortedMiddleware: string[]
   middleware: {
     [page: string]: {
-      file: string
+      files: string[]
+      name: string
       page: string
       regexp: string
     }
@@ -45,40 +46,23 @@ export default class MiddlewareManifestPlugin {
 
       const files = entrypoint
         .getFiles()
-        .filter(
-          (file: string) =>
-            !file.includes('webpack-runtime') && file.endsWith('.js')
-        )
-
-      if (!isWebpack5 && files.length > 1) {
-        console.log(
-          `Found more than one file in server entrypoint ${entrypoint.name}`,
-          files
-        )
-        continue
-      }
+        .filter((file: string) => !file.endsWith('.hot-update.js'))
 
       middlewareManifest.middleware[location] = {
-        file: files[files.length - 1],
+        files,
+        name: entrypoint.name,
         page: location,
         regexp: getMiddlewareRegex(location).namedRegex!,
       }
-
-      if (isWebpack5 && !this.dev) {
-        middlewareManifest.middleware[location].file =
-          middlewareManifest.middleware[location].file.slice(3)
-      }
-
-      middlewareManifest.middleware[location].file =
-        middlewareManifest.middleware[location].file.replace(/\\/g, '/')
     }
 
     middlewareManifest.sortedMiddleware = getSortedRoutes(
       Object.keys(middlewareManifest.middleware)
     )
 
-    assets[`${isWebpack5 && !this.dev ? '../' : ''}` + MIDDLEWARE_MANIFEST] =
-      new sources.RawSource(JSON.stringify(middlewareManifest, null, 2))
+    assets[`server/${MIDDLEWARE_MANIFEST}`] = new sources.RawSource(
+      JSON.stringify(middlewareManifest, null, 2)
+    )
   }
 
   apply(compiler: webpack.Compiler) {
