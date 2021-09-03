@@ -19,7 +19,13 @@ import {
   assign,
 } from '../shared/lib/router/utils/querystring'
 import { setConfig } from '../shared/lib/runtime-config'
-import { getURL, loadGetInitialProps, NEXT_DATA, ST } from '../shared/lib/utils'
+import {
+  getURL,
+  loadGetInitialProps,
+  NextWebVitalsMetric,
+  NEXT_DATA,
+  ST,
+} from '../shared/lib/utils'
 import { Portal } from './portal'
 import initHeadManager from './head-manager'
 import PageLoader, { StyleSheetTuple } from './page-loader'
@@ -27,6 +33,7 @@ import measureWebVitals from './performance-relayer'
 import { RouteAnnouncer } from './route-announcer'
 import { createRouter, makePublicRouterInstance } from './router'
 import isError from '../lib/is-error'
+import { trackWebVitalMetric } from '../vitals/vitals'
 
 /// <reference types="react-dom/experimental" />
 
@@ -273,37 +280,38 @@ export async function initNext(opts: { webpackHMR?: any } = {}) {
 
     const { component: app, exports: mod } = appEntrypoint
     CachedApp = app as AppComponent
-    if (mod && mod.reportWebVitals) {
-      onPerfEntry = ({
-        id,
-        name,
-        startTime,
-        value,
-        duration,
-        entryType,
-        entries,
-      }): void => {
-        // Combines timestamp with random number for unique ID
-        const uniqueID: string = `${Date.now()}-${
-          Math.floor(Math.random() * (9e12 - 1)) + 1e12
-        }`
-        let perfStartEntry: string | undefined
+    const exportedReportWebVitals = mod && mod.reportWebVitals
+    onPerfEntry = ({
+      id,
+      name,
+      startTime,
+      value,
+      duration,
+      entryType,
+      entries,
+    }: any): void => {
+      // Combines timestamp with random number for unique ID
+      const uniqueID: string = `${Date.now()}-${
+        Math.floor(Math.random() * (9e12 - 1)) + 1e12
+      }`
+      let perfStartEntry: string | undefined
 
-        if (entries && entries.length) {
-          perfStartEntry = entries[0].startTime
-        }
-
-        mod.reportWebVitals({
-          id: id || uniqueID,
-          name,
-          startTime: startTime || perfStartEntry,
-          value: value == null ? duration : value,
-          label:
-            entryType === 'mark' || entryType === 'measure'
-              ? 'custom'
-              : 'web-vital',
-        })
+      if (entries && entries.length) {
+        perfStartEntry = entries[0].startTime
       }
+
+      const webVitals: NextWebVitalsMetric = {
+        id: id || uniqueID,
+        name,
+        startTime: startTime || perfStartEntry,
+        value: value == null ? duration : value,
+        label:
+          entryType === 'mark' || entryType === 'measure'
+            ? 'custom'
+            : 'web-vital',
+      }
+      exportedReportWebVitals?.(webVitals)
+      trackWebVitalMetric(webVitals)
     }
 
     const pageEntrypoint =
@@ -576,6 +584,7 @@ function markRenderComplete(): void {
       .getEntriesByName('Next.js-route-change-to-render')
       .forEach(onPerfEntry)
   }
+
   clearMarks()
   ;['Next.js-route-change-to-render', 'Next.js-render'].forEach((measure) =>
     performance.clearMeasures(measure)
