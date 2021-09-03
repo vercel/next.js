@@ -9,7 +9,7 @@ const moduleExports = {
   // Your existing module.exports
 }
 
-/** @type {import('@sentry/nextjs/dist/config/types').SentryWebpackPluginOptions} */
+/** @type {Partial<import('@sentry/nextjs/dist/config/types').SentryWebpackPluginOptions>} */
 const SentryWebpackPluginOptions = {
   // Additional config options for the Sentry Webpack plugin. Keep in mind that
   // the following options are set automatically, and overriding them is not
