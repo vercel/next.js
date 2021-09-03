@@ -219,7 +219,10 @@ jobs:
       - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
-      - run: xvfb-run node run-tests.js test/integration/{basic,fallback-modules,link-ref,production,async-modules,font-optimization,ssr-ctx}/test/index.test.js test/acceptance/*.test.js
+      - run: node run-tests.js --type development test/development/acceptance/*.test.ts test/development/basic/*.test.ts
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
+      - run: xvfb-run node run-tests.js test/integration/{fallback-modules,link-ref,production,async-modules,font-optimization,ssr-ctx}/test/index.test.js
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
   testFirefox:

@@ -1,5 +1,5 @@
 /* eslint-env jest */
-
+import fs from 'fs-extra'
 import assert from 'assert'
 import cheerio from 'cheerio'
 import {
