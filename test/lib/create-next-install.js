@@ -5,7 +5,7 @@ const fs = require('fs-extra')
 const { linkPackages } =
   require('../../.github/actions/next-stats-action/src/prepare/repo-setup')()
 
-export async function createNextInstall(dependencies) {
+async function createNextInstall(dependencies) {
   const tmpDir = await fs.realpath(process.env.NEXT_TEST_DIR || os.tmpdir())
   const origRepoDir = path.join(__dirname, '../../')
   const installDir = path.join(tmpDir, `next-install-${Date.now()}`)
@@ -46,4 +46,8 @@ export async function createNextInstall(dependencies) {
 
   await fs.remove(tmpRepoDir)
   return installDir
+}
+
+module.exports = {
+  createNextInstall,
 }

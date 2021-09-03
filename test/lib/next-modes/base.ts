@@ -107,18 +107,7 @@ export class NextInstance {
     }
     this.isDestroyed = true
     await this.stop()
-
-    if (this.dependencies || !process.env.NEXT_TEST_STARTER) {
-      await fs.remove(this.testDir)
-    } else {
-      const files = await fs.readdir(this.testDir)
-
-      for (const filename of files) {
-        if (!['node_modules', 'package.json', 'yarn.lock'].includes(filename)) {
-          await fs.remove(path.join(this.testDir, filename))
-        }
-      }
-    }
+    await fs.remove(this.testDir)
     this.emit('destroy', [])
   }
 
