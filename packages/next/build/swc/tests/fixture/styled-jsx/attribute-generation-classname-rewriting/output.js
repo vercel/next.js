@@ -1,7 +1,7 @@
 import _JSXStyle from "styled-jsx/style";
 export default (()=>{
-  const Element1 = "div";
-  return <div className={"jsx-abb4c2202db1a207"}>
+    const Element = "div";
+    return <div className={"jsx-abb4c2202db1a207"}>
       <div {...test.test} className={"jsx-abb4c2202db1a207" + " " + (test.test && test.test.className != null && test.test.className || "test")}/>
       <div {...test.test.test} className={"jsx-abb4c2202db1a207" + " " + (test.test.test && test.test.test.className != null && test.test.test.className || "test")}/>
       <div {...this.test.test} className={"jsx-abb4c2202db1a207" + " " + (this.test.test && this.test.test.className != null && this.test.test.className || "test")}/>
@@ -13,7 +13,7 @@ export default (()=>{
       <div className={"jsx-abb4c2202db1a207" + " " + ([
         "test",
         "test2"
-      ].join(" ") || "")}/>
+    ].join(" ") || "")}/>
       <div className={"jsx-abb4c2202db1a207" + " " + (true && "test" || "")}/>
       <div className={"jsx-abb4c2202db1a207" + " " + ((test ? "test" : null) || "")}/>
       <div className={"jsx-abb4c2202db1a207" + " " + (test || "")}/>
@@ -49,15 +49,15 @@ export default (()=>{
       <div {...bar} className={"jsx-abb4c2202db1a207" + " " + (bar && bar.className != null && bar.className || "foo")}/>
       <div {...{
         className: "foo"
-      }} {...bar} className={"jsx-abb4c2202db1a207" + " " + "test"}/>
+    }} {...bar} className={"jsx-abb4c2202db1a207" + " " + "test"}/>
       <div className="test" {...bar} className={"jsx-abb4c2202db1a207" + " " + (bar && bar.className != null && bar.className || "foo")}/>
       <div className="test" className={"jsx-abb4c2202db1a207" + " " + (props.className || "")}/>
       <div className="test" {...bar} className={"jsx-abb4c2202db1a207" + " " + (bar && bar.className != null && bar.className || props.className || "")}/>
       <div className="test" {...bar} className={"jsx-abb4c2202db1a207" + " " + (props.className || "")}/>
       <div {...bar()} className={"jsx-abb4c2202db1a207" + " " + "test"}/>
-      <Element1 className={"jsx-abb4c2202db1a207"}/>
-      <Element1 className={"jsx-abb4c2202db1a207" + " " + "test"}/>
-      <Element1 {...props} className={"jsx-abb4c2202db1a207" + " " + (props && props.className != null && props.className || "")}/>
+      <Element className={"jsx-abb4c2202db1a207"}/>
+      <Element className={"jsx-abb4c2202db1a207" + " " + "test"}/>
+      <Element {...props} className={"jsx-abb4c2202db1a207" + " " + (props && props.className != null && props.className || "")}/>
       <_JSXStyle id={"abb4c2202db1a207"}>{"div.jsx-abb4c2202db1a207 {color:red}"}</_JSXStyle>
     </div>;
 });

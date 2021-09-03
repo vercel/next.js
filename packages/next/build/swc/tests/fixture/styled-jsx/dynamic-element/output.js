@@ -1,10 +1,10 @@
 import _JSXStyle from "styled-jsx/style";
 export default (({ level =1  })=>{
-    const Element1 = `h${level}`;
-    return <Element1 className={"jsx-fca64cc3f069b519" + " " + "root"}>
+    const Element = `h${level}`;
+    return <Element className={"jsx-fca64cc3f069b519" + " " + "root"}>
       <p className={"jsx-fca64cc3f069b519"}>dynamic element</p>
       <_JSXStyle id={"fca64cc3f069b519"}>{".root.jsx-fca64cc3f069b519 {background:red}"}</_JSXStyle>
-    </Element1>;
+    </Element>;
 });
 export const TestLowerCase = ({ level =1  })=>{
     const element = `h${level}`;
