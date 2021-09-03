@@ -72,6 +72,15 @@ export class NextInstance {
         await fs.copy(item.fsPath, outputfilename)
       }
     }
+
+    if (this.nextConfig) {
+      await fs.writeFile(
+        path.join(this.testDir, 'next.config.js'),
+        // TODO: handle stringifying functions in next.config.js?
+        `module.exports = ${JSON.stringify(this.nextConfig, null, 2)}`
+      )
+    }
+
     console.log(`Test directory created at ${this.testDir}`)
   }
 
