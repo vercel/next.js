@@ -105,11 +105,6 @@ export default () => (
         color: red;
       }
       
-      // TODO: fails to parse
-      // p >> a {
-      //   color: red;
-      // }
-      
       @keyframes hahaha {
         from { top: 0 }
         to { top: 100 }

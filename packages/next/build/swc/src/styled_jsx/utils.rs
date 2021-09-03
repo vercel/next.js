@@ -22,7 +22,7 @@ fn tpl_element(value: &str) -> TplElement {
 pub fn compute_class_names(
   styles: &Vec<JSXStyle>,
   style_import_name: &String,
-) -> (Option<String>, Option<Expr>) {
+) -> (Option<String>, Expr) {
   let mut static_class_name = None;
   let mut external_jsx_id = None;
   let mut static_hashes = vec![];
@@ -124,22 +124,35 @@ pub fn compute_class_names(
     })),
   };
 
-  let mut class_name_expr = match &static_class_name {
-    Some(class_name) => Some(string_literal_expr(&class_name)),
-    None => None,
+  let class_name_expr = match (
+    static_class_name.clone(),
+    dynamic_class_name,
+    external_jsx_id,
+  ) {
+    (Some(static_class_name), Some(dynamic_class_name), Some(external_jsx_id)) => add(
+      add(
+        external_jsx_id,
+        string_literal_expr(&format!(" {} ", static_class_name)),
+      ),
+      dynamic_class_name,
+    ),
+    (Some(static_class_name), Some(dynamic_class_name), None) => add(
+      string_literal_expr(&format!("{} ", static_class_name)),
+      dynamic_class_name,
+    ),
+    (Some(static_class_name), None, Some(external_jsx_id)) => add(
+      string_literal_expr(&format!("{} ", static_class_name)),
+      external_jsx_id,
+    ),
+    (None, Some(dynamic_class_name), Some(external_jsx_id)) => add(
+      add(external_jsx_id, string_literal_expr(" ")),
+      dynamic_class_name,
+    ),
+    (Some(static_class_name), None, None) => string_literal_expr(&static_class_name),
+    (None, Some(dynamic_class_name), None) => dynamic_class_name,
+    (None, None, Some(external_jsx_id)) => external_jsx_id,
+    _ => panic!("Not Expected"),
   };
-  if let Some(dynamic_class_name) = dynamic_class_name {
-    class_name_expr = match class_name_expr {
-      Some(class_name) => Some(add(class_name, dynamic_class_name)),
-      None => Some(dynamic_class_name),
-    };
-  };
-  if let Some(external_jsx_id) = external_jsx_id {
-    class_name_expr = match class_name_expr {
-      Some(class_name) => Some(add(external_jsx_id, class_name)),
-      None => Some(external_jsx_id),
-    }
-  }
 
   (static_class_name, class_name_expr)
 }

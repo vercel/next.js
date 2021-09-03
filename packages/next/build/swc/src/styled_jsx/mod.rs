@@ -428,12 +428,13 @@ impl StyledJSXTransformer {
         }
       }
     }
-
-    let (static_class_name, class_name) =
-      compute_class_names(&styles, self.style_import_name.as_ref().unwrap());
-    self.styles = styles;
-    self.static_class_name = static_class_name;
-    self.class_name = class_name;
+    if self.has_styled_jsx {
+      let (static_class_name, class_name) =
+        compute_class_names(&styles, self.style_import_name.as_ref().unwrap());
+      self.styles = styles;
+      self.static_class_name = static_class_name;
+      self.class_name = Some(class_name);
+    }
   }
 
   fn get_jsx_style(&mut self, expr: &Expr) -> JSXStyle {
@@ -590,7 +591,7 @@ impl StyledJSXTransformer {
               span: DUMMY_SP,
               optional: false,
             }),
-            value: Box::new(class_name.unwrap()),
+            value: Box::new(class_name),
           }))),
         ],
         span: DUMMY_SP,
