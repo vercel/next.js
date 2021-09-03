@@ -16,7 +16,11 @@ module.exports = {
         const paths = context.getFilename().split('pages')
         const page = paths[paths.length - 1]
 
-        if (!page || page.startsWith('/_document')) {
+        if (
+          !page ||
+          page.startsWith('/_document') ||
+          page.startsWith('\\_document')
+        ) {
           return
         }
 
