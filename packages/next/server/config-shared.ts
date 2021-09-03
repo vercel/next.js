@@ -6,7 +6,7 @@ import {
   imageConfigDefault,
 } from './image-config'
 
-export interface NextConfigComplete extends Required<NextConfig> {
+export type NextConfigComplete = Required<NextConfig> & {
   images: ImageConfigComplete
 }
 
