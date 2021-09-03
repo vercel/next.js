@@ -48,8 +48,7 @@ async function main() {
   const groupArg = groupIdx !== -1 && process.argv[groupIdx + 1]
 
   const testTypeIdx = process.argv.indexOf('--type')
-  const testType = process.argv[testTypeIdx + 1]
-
+  const testType = testTypeIdx > -1 ? process.argv[testTypeIdx + 1] : undefined
   let filterTestsBy
 
   switch (testType) {
@@ -79,17 +78,6 @@ async function main() {
 
   console.log('Running tests with concurrency:', concurrency)
 
-  if (testType && testType !== 'unit') {
-    // for isolated next tests: e2e, dev, prod we create
-    // a starter Next.js install to re-use to speed up tests
-    // to avoid having to run yarn each time
-    console.log('Creating isolated Next.js install for isolated tests')
-    const testStarter = await createNextInstall({
-      react: 'latest',
-      'react-dom': 'latest',
-    })
-    process.env.NEXT_TEST_STARTER = testStarter
-  }
   let tests = process.argv.filter((arg) => arg.match(/\.test\.(js|ts|tsx)/))
   let prevTimings
 
@@ -198,6 +186,18 @@ async function main() {
     }
   }
   console.log('Running tests:', '\n', ...testNames.map((name) => `${name}\n`))
+
+  if (testType && testType !== 'unit') {
+    // for isolated next tests: e2e, dev, prod we create
+    // a starter Next.js install to re-use to speed up tests
+    // to avoid having to run yarn each time
+    console.log('Creating isolated Next.js install for isolated tests')
+    const testStarter = await createNextInstall({
+      react: 'latest',
+      'react-dom': 'latest',
+    })
+    process.env.NEXT_TEST_STARTER = testStarter
+  }
 
   const sema = new Sema(concurrency, { capacity: testNames.length })
   const jestPath = path.join(
