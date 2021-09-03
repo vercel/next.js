@@ -198,41 +198,40 @@ impl Fold for StyledJSXTransformer {
           _ => Some(or(class_name_expr.unwrap(), string_literal_expr(""))),
         };
 
-        let extra_class_name_expr = if spread_expr.is_some() && class_name_expr.is_some() {
-          Some(or(spread_expr.unwrap(), class_name_expr.unwrap()))
-        } else if spread_expr.is_some() {
-          Some(or(spread_expr.unwrap(), string_literal_expr("")))
-        } else if class_name_expr.is_some() {
-          class_name_expr
-        } else {
-          None
+        let extra_class_name_expr = match (spread_expr, class_name_expr) {
+          (Some(spread_expr), Some(class_name_expr)) => Some(or(spread_expr, class_name_expr)),
+          (Some(spread_expr), None) => Some(or(spread_expr, string_literal_expr(""))),
+          (None, Some(class_name_expr)) => Some(class_name_expr),
+          _ => None,
         };
 
-        let new_class_name = if let Some(extra_class_name_expr) = extra_class_name_expr {
-          add(
-            add(self.class_name.clone().unwrap(), string_literal_expr(" ")),
+        let new_class_name = match (extra_class_name_expr, &self.class_name) {
+          (Some(extra_class_name_expr), Some(class_name)) => Some(add(
+            add(class_name.clone(), string_literal_expr(" ")),
             extra_class_name_expr,
-          )
-        } else {
-          self.class_name.clone().unwrap()
+          )),
+          (Some(extra_class_name_expr), None) => Some(extra_class_name_expr),
+          (None, Some(class_name)) => Some(class_name.clone()),
+          _ => None,
         };
 
-        let class_name_attr = JSXAttrOrSpread::JSXAttr(JSXAttr {
-          span: DUMMY_SP,
-          name: JSXAttrName::Ident(ident("className")),
-          value: Some(JSXAttrValue::JSXExprContainer(JSXExprContainer {
-            expr: JSXExpr::Expr(Box::new(new_class_name)),
+        if let Some(new_class_name) = new_class_name {
+          let class_name_attr = JSXAttrOrSpread::JSXAttr(JSXAttr {
             span: DUMMY_SP,
-          })),
-        });
-
+            name: JSXAttrName::Ident(ident("className")),
+            value: Some(JSXAttrValue::JSXExprContainer(JSXExprContainer {
+              expr: JSXExpr::Expr(Box::new(new_class_name)),
+              span: DUMMY_SP,
+            })),
+          });
+          el.attrs.push(class_name_attr);
+        }
         if let Some(remove_spread_index) = remove_spread_index {
           el.attrs.remove(remove_spread_index);
         }
         if let Some(existing_index) = existing_index {
           el.attrs.remove(existing_index);
         }
-        el.attrs.push(class_name_attr);
       }
     }
 
@@ -423,7 +422,7 @@ impl StyledJSXTransformer {
           self.file_has_styled_jsx = true;
           self.has_styled_jsx = true;
           let expr = get_style_expr(&child_el);
-          let style_info = self.get_jsx_style(expr);
+          let style_info = self.get_jsx_style(expr, is_global(&child_el));
           styles.insert(0, style_info);
         }
       }
@@ -433,11 +432,11 @@ impl StyledJSXTransformer {
         compute_class_names(&styles, self.style_import_name.as_ref().unwrap());
       self.styles = styles;
       self.static_class_name = static_class_name;
-      self.class_name = Some(class_name);
+      self.class_name = class_name;
     }
   }
 
-  fn get_jsx_style(&mut self, expr: &Expr) -> JSXStyle {
+  fn get_jsx_style(&mut self, expr: &Expr, is_global_jsx_element: bool) -> JSXStyle {
     let mut hasher = DefaultHasher::new();
     let css: String;
     let css_span: Span;
@@ -495,7 +494,7 @@ impl StyledJSXTransformer {
             span: DUMMY_SP,
           }),
           identifier: ident.clone(),
-          is_global: false, // TODO
+          is_global: is_global_jsx_element,
         });
       }
       _ => panic!("Not implemented"), // TODO: handle bad style input
@@ -543,7 +542,7 @@ impl StyledJSXTransformer {
     add_hash
   }
   fn process_tagged_template_expr(&mut self, tagged_tpl: TaggedTpl) -> Expr {
-    let style = self.get_jsx_style(&Expr::Tpl(tagged_tpl.tpl.clone()));
+    let style = self.get_jsx_style(&Expr::Tpl(tagged_tpl.tpl.clone()), false);
     let styles = vec![style];
     let (static_class_name, class_name) =
       compute_class_names(&styles, &self.style_import_name.as_ref().unwrap());
@@ -591,7 +590,7 @@ impl StyledJSXTransformer {
               span: DUMMY_SP,
               optional: false,
             }),
-            value: Box::new(class_name),
+            value: Box::new(class_name.unwrap()),
           }))),
         ],
         span: DUMMY_SP,
@@ -633,6 +632,27 @@ fn is_styled_jsx(el: &JSXElement) -> bool {
     }) = &attr
     {
       if sym == "jsx" {
+        return true;
+      }
+    }
+    false
+  })
+}
+
+fn is_global(el: &JSXElement) -> bool {
+  if let JSXElementName::Ident(Ident { sym, .. }) = &el.opening.name {
+    if sym != "style" {
+      return false;
+    }
+  }
+
+  el.opening.attrs.iter().any(|attr| {
+    if let JSXAttrOrSpread::JSXAttr(JSXAttr {
+      name: JSXAttrName::Ident(Ident { sym, .. }),
+      ..
+    }) = &attr
+    {
+      if sym == "global" {
         return true;
       }
     }

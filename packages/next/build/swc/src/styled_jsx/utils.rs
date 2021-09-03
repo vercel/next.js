@@ -22,7 +22,7 @@ fn tpl_element(value: &str) -> TplElement {
 pub fn compute_class_names(
   styles: &Vec<JSXStyle>,
   style_import_name: &String,
-) -> (Option<String>, Expr) {
+) -> (Option<String>, Option<Expr>) {
   let mut static_class_name = None;
   let mut external_jsx_id = None;
   let mut static_hashes = vec![];
@@ -129,29 +129,29 @@ pub fn compute_class_names(
     dynamic_class_name,
     external_jsx_id,
   ) {
-    (Some(static_class_name), Some(dynamic_class_name), Some(external_jsx_id)) => add(
+    (Some(static_class_name), Some(dynamic_class_name), Some(external_jsx_id)) => Some(add(
       add(
         external_jsx_id,
         string_literal_expr(&format!(" {} ", static_class_name)),
       ),
       dynamic_class_name,
-    ),
-    (Some(static_class_name), Some(dynamic_class_name), None) => add(
+    )),
+    (Some(static_class_name), Some(dynamic_class_name), None) => Some(add(
       string_literal_expr(&format!("{} ", static_class_name)),
       dynamic_class_name,
-    ),
-    (Some(static_class_name), None, Some(external_jsx_id)) => add(
+    )),
+    (Some(static_class_name), None, Some(external_jsx_id)) => Some(add(
       string_literal_expr(&format!("{} ", static_class_name)),
       external_jsx_id,
-    ),
-    (None, Some(dynamic_class_name), Some(external_jsx_id)) => add(
+    )),
+    (None, Some(dynamic_class_name), Some(external_jsx_id)) => Some(add(
       add(external_jsx_id, string_literal_expr(" ")),
       dynamic_class_name,
-    ),
-    (Some(static_class_name), None, None) => string_literal_expr(&static_class_name),
-    (None, Some(dynamic_class_name), None) => dynamic_class_name,
-    (None, None, Some(external_jsx_id)) => external_jsx_id,
-    _ => panic!("Not Expected"),
+    )),
+    (Some(static_class_name), None, None) => Some(string_literal_expr(&static_class_name)),
+    (None, Some(dynamic_class_name), None) => Some(dynamic_class_name),
+    (None, None, Some(external_jsx_id)) => Some(external_jsx_id),
+    _ => None,
   };
 
   (static_class_name, class_name_expr)
