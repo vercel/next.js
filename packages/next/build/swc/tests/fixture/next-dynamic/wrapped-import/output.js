@@ -1,5 +1,5 @@
 import dynamic from "next/dynamic";
-const DynamicComponentWithCustomLoading = dynamic(()=>import("../components/hello")
+const DynamicComponent = dynamic(()=>handleImport(import("./components/hello"))
 , {
     loadableGenerated: {
         webpack: ()=>[
@@ -7,8 +7,10 @@ const DynamicComponentWithCustomLoading = dynamic(()=>import("../components/hell
             ]
         ,
         modules: [
-            "/some-project/src/some-file.js -> " + "../components/hello"
+            "/some-project/src/some-file.js -> " + "./components/hello"
         ]
     },
-    loading: ()=><p >...</p>
+    loading: ()=>null
+    ,
+    ssr: false
 });

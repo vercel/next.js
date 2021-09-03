@@ -15,6 +15,8 @@ pub fn next_dynamic(filename: FileName) -> impl Fold {
   NextDynamicPatcher {
     filename,
     dynamic_bindings: vec![],
+    is_next_dynamic_first_arg: false,
+    dynamically_imported_specifier: None,
   }
 }
 
@@ -22,6 +24,8 @@ pub fn next_dynamic(filename: FileName) -> impl Fold {
 struct NextDynamicPatcher {
   filename: FileName,
   dynamic_bindings: Vec<Id>,
+  is_next_dynamic_first_arg: bool,
+  dynamically_imported_specifier: Option<String>,
 }
 
 impl Fold for NextDynamicPatcher {
@@ -43,6 +47,18 @@ impl Fold for NextDynamicPatcher {
   }
 
   fn fold_call_expr(&mut self, expr: CallExpr) -> CallExpr {
+    if self.is_next_dynamic_first_arg {
+      if let ExprOrSuper::Expr(e) = &expr.callee {
+        if let Expr::Ident(Ident { sym, .. }) = &**e {
+          if sym == "import" {
+            if let Expr::Lit(Lit::Str(Str { value, .. })) = &*expr.args[0].expr {
+              self.dynamically_imported_specifier = Some(value.to_string());
+            }
+          }
+        }
+      }
+      return expr.fold_children_with(self);
+    }
     let mut expr = expr.fold_children_with(self);
     if let ExprOrSuper::Expr(i) = &expr.callee {
       if let Expr::Ident(identifier) = &**i {
@@ -64,32 +80,11 @@ impl Fold for NextDynamicPatcher {
             });
           }
 
-          let mut import_specifier = None;
-          if let Expr::Arrow(ArrowExpr {
-            body: BlockStmtOrExpr::Expr(e),
-            ..
-          }) = &*expr.args[0].expr
-          {
-            if let Expr::Call(CallExpr {
-              args: a, callee, ..
-            }) = &**e
-            {
-              if let ExprOrSuper::Expr(e) = callee {
-                if let Expr::Ident(Ident { sym, .. }) = &**e {
-                  if sym == "import" {
-                    if a.len() == 0 {
-                      // Do nothing, import_specifier will remain None
-                      // triggering error below
-                    } else if let Expr::Lit(Lit::Str(Str { value, .. })) = &*a[0].expr {
-                      import_specifier = Some(value.clone());
-                    }
-                  }
-                }
-              }
-            }
-          }
+          self.is_next_dynamic_first_arg = true;
+          expr.args[0].expr = expr.args[0].expr.clone().fold_with(self);
+          self.is_next_dynamic_first_arg = false;
 
-          if let None = import_specifier {
+          if let None = self.dynamically_imported_specifier {
             HANDLER.with(|handler| {
               handler
                 .struct_span_err(
@@ -99,6 +94,7 @@ impl Fold for NextDynamicPatcher {
                 )
                 .emit()
             });
+            panic!("Empty dynamic import");
           }
 
           // loadableGenerated: {
@@ -166,7 +162,12 @@ impl Fold for NextDynamicPatcher {
                         has_escape: false,
                       }))),
                       right: Box::new(Expr::Lit(Lit::Str(Str {
-                        value: import_specifier.unwrap(),
+                        value: self
+                          .dynamically_imported_specifier
+                          .as_ref()
+                          .unwrap()
+                          .clone()
+                          .into(),
                         span: DUMMY_SP,
                         kind: StrKind::Normal {
                           contains_quote: false,
@@ -205,7 +206,12 @@ impl Fold for NextDynamicPatcher {
             })),
           };
 
-          expr.args.push(second_arg);
+          if expr.args.len() == 2 {
+            expr.args[1] = second_arg;
+          } else {
+            expr.args.push(second_arg)
+          }
+          self.dynamically_imported_specifier = None;
         }
       }
     }

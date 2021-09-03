@@ -75,7 +75,6 @@ impl Task for TransformTask {
                     self.c.process_js(handler, program, &self.options)
                 }
                 Input::Source(ref s) => {
-                    println!("GOT HERE");
                     process_js_custom(&self.c, s.clone(), &self.options, &handler)
                 }
             })
