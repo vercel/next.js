@@ -13,7 +13,7 @@ module.exports = {
       if (isServer) {
         const curEntry = origEntries['pages/_app']
         origEntries['pages/_app'] = [
-          path.resolve('lib/get-data.js'),
+          path.join(__dirname, 'lib/get-data.js'),
           ...curEntry,
         ]
         console.log(origEntries)
