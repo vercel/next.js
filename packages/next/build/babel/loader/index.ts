@@ -2,6 +2,7 @@ import { getOptions } from 'next/dist/compiled/loader-utils'
 import { Span } from '../../../telemetry/trace'
 import transform from './transform'
 import { NextJsLoaderContext } from './types'
+import path from 'path'
 
 async function nextBabelLoader(
   this: NextJsLoaderContext,
@@ -10,6 +11,10 @@ async function nextBabelLoader(
   inputSourceMap: object | null | undefined
 ) {
   const filename = this.resourcePath
+  const rawFilename = path.join(
+    this.context,
+    this._injectModulePlugin.module.resourceResolveData.relativePath
+  )
   const target = this.target
   const loaderOptions = parentTrace
     .traceChild('get-options')
@@ -25,7 +30,8 @@ async function nextBabelLoader(
         loaderOptions,
         filename,
         target,
-        loaderSpanInner
+        loaderSpanInner,
+        rawFilename
       )
     )
 

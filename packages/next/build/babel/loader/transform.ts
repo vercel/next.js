@@ -76,7 +76,8 @@ export default function transform(
   loaderOptions: any,
   filename: string,
   target: string,
-  parentSpan: Span
+  parentSpan: Span,
+  rawFilename: string
 ) {
   const getConfigSpan = parentSpan.traceChild('babel-turbo-get-config')
   const babelConfig = getConfig.call(this, {
@@ -85,6 +86,7 @@ export default function transform(
     inputSourceMap,
     target,
     filename,
+    rawFilename,
   })
   getConfigSpan.stop()
 

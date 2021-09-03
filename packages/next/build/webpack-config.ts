@@ -44,6 +44,7 @@ import PagesManifestPlugin from './webpack/plugins/pages-manifest-plugin'
 import { ProfilingPlugin } from './webpack/plugins/profiling-plugin'
 import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
 import { ServerlessPlugin } from './webpack/plugins/serverless-plugin'
+import { InjectModulePlugin } from './webpack/plugins/inject-module-plugin'
 import WebpackConformancePlugin, {
   DuplicatePolyfillsConformanceCheck,
   GranularChunksConformanceCheck,
@@ -1376,6 +1377,7 @@ export default async function getBaseWebpackConfig(
             minimized: true,
           },
         }),
+      new InjectModulePlugin(),
     ].filter(Boolean as any as ExcludesFalse),
   }
 
