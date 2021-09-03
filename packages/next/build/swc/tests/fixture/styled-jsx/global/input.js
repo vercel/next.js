@@ -1,4 +1,3 @@
-// TODO
 const Test = () => (
   <div>
     <style jsx global>{`

@@ -1,4 +1,3 @@
-// TODO
 import css from 'styled-jsx/css'
 
 export default ({ children }) => (
