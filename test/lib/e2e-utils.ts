@@ -81,6 +81,7 @@ export async function createNext(opts: {
     [name: string]: string
   }
   nextConfig?: NextConfig
+  skipStart?: boolean
 }): Promise<NextInstance> {
   if (nextInstance) {
     throw new Error(`createNext called without destroying previous instance`)
@@ -102,6 +103,9 @@ export async function createNext(opts: {
   })
 
   await nextInstance.setup()
-  await nextInstance.start()
+
+  if (!opts.skipStart) {
+    await nextInstance.start()
+  }
   return nextInstance!
 }

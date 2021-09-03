@@ -71,6 +71,7 @@ export class NextStartInstance extends NextInstance {
       const readyCb = (msg) => {
         if (msg.includes('started server on') && msg.includes('url:')) {
           this._url = msg.split('url: ').pop().trim()
+          this._parsedUrl = new URL(this._url)
           this.off('stdout', readyCb)
           resolve()
         }

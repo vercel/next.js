@@ -75,6 +75,19 @@ export class NextInstance {
     console.log(`Test directory created at ${this.testDir}`)
   }
 
+  public async clean() {
+    if (this.childProcess) {
+      throw new Error(`stop() must be called before cleaning`)
+    }
+
+    const keptFiles = ['node_modules', 'package.json', 'yarn.lock']
+    for (const file of await fs.readdir(this.testDir)) {
+      if (!keptFiles.includes(file)) {
+        await fs.remove(path.join(this.testDir, file))
+      }
+    }
+  }
+
   public async setup(): Promise<void> {}
   public async start(): Promise<void> {}
   public async stop(): Promise<void> {
@@ -106,9 +119,9 @@ export class NextInstance {
       throw new Error(`next instance already destroyed`)
     }
     this.isDestroyed = true
+    this.emit('destroy', [])
     await this.stop()
     await fs.remove(this.testDir)
-    this.emit('destroy', [])
   }
 
   public get url() {
@@ -116,9 +129,6 @@ export class NextInstance {
   }
 
   public get appPort() {
-    if (!this._parsedUrl) {
-      this._parsedUrl = new URL(this._url)
-    }
     return this._parsedUrl.port
   }
 

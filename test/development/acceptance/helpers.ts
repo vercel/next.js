@@ -1,83 +1,62 @@
-import * as fs from 'fs-extra'
-import { nanoid } from 'nanoid'
-import { findPort, killApp, launchApp } from 'next-test-utils'
 import webdriver from 'next-webdriver'
-import path from 'path'
-
-const rootSandboxDirectory = path.join(__dirname, '__tmp__')
+import { NextInstance } from 'test/lib/next-modes/base'
 
 export async function sandbox(
-  id = nanoid(),
-  initialFiles = new Map(),
-  defaultFiles = true,
-  readyLog
+  next: NextInstance,
+  initialFiles?: Map<string, string>,
+  defaultFiles = true
 ) {
-  const sandboxDirectory = path.join(rootSandboxDirectory, id)
-
-  const pagesDirectory = path.join(sandboxDirectory, 'pages')
-  await fs.remove(sandboxDirectory)
-  await fs.mkdirp(pagesDirectory)
-
   if (defaultFiles) {
-    await fs.writeFile(
-      path.join(pagesDirectory, 'index.js'),
+    await next.patchFile(
+      'pages/index.js',
       `export { default } from '../index';`
     )
-    await fs.writeFile(
-      path.join(sandboxDirectory, 'index.js'),
-      `export default () => 'new sandbox';`
-    )
-  }
-  for (const [k, v] of initialFiles.entries()) {
-    await fs.mkdirp(path.dirname(path.join(sandboxDirectory, k)))
-    await fs.writeFile(path.join(sandboxDirectory, k), v)
+    await next.patchFile('index.js', `export default () => 'new sandbox';`)
   }
 
-  const appPort = await findPort()
-  const app = await launchApp(sandboxDirectory, appPort, {
-    env: { __NEXT_TEST_WITH_DEVTOOL: 1 },
-    bootupMarker: readyLog,
-  })
-  const browser = await webdriver(appPort, '/')
-  return [
-    {
-      sandboxDirectory,
-      async write(fileName, content) {
+  if (initialFiles) {
+    for (const [k, v] of initialFiles.entries()) {
+      await next.patchFile(k, v)
+    }
+  }
+  await next.stop()
+  await next.start()
+  const browser = await webdriver(next.appPort, '/')
+  return {
+    session: {
+      async write(filename, content) {
         // Update the file on filesystem
-        const fullFileName = path.join(sandboxDirectory, fileName)
-        const dir = path.dirname(fullFileName)
-        await fs.mkdirp(dir)
-        await fs.writeFile(fullFileName, content)
+        await next.patchFile(filename, content)
       },
-      async patch(fileName, content) {
+      async patch(filename, content) {
         // Register an event for HMR completion
         await browser.eval(function () {
-          window.__HMR_STATE = 'pending'
+          ;(window as any).__HMR_STATE = 'pending'
 
           var timeout = setTimeout(() => {
-            window.__HMR_STATE = 'timeout'
+            ;(window as any).__HMR_STATE = 'timeout'
           }, 30 * 1000)
-          window.__NEXT_HMR_CB = function () {
+          ;(window as any).__NEXT_HMR_CB = function () {
             clearTimeout(timeout)
-            window.__HMR_STATE = 'success'
+            ;(window as any).__HMR_STATE = 'success'
           }
         })
 
-        await this.write(fileName, content)
+        await this.write(filename, content)
 
         for (;;) {
-          const status = await browser.eval(() => window.__HMR_STATE)
+          const status = await browser.eval(() => (window as any).__HMR_STATE)
           if (!status) {
             await new Promise((resolve) => setTimeout(resolve, 750))
 
             // Wait for application to re-hydrate:
             await browser.evalAsync(function () {
               var callback = arguments[arguments.length - 1]
-              if (window.__NEXT_HYDRATED) {
+              if ((window as any).__NEXT_HYDRATED) {
                 callback()
               } else {
                 var timeout = setTimeout(callback, 30 * 1000)
-                window.__NEXT_HYDRATED_CB = function () {
+                ;(window as any).__NEXT_HYDRATED_CB = function () {
                   clearTimeout(timeout)
                   callback()
                 }
@@ -104,14 +83,12 @@ export async function sandbox(
         await new Promise((resolve) => setTimeout(resolve, 750))
         return true
       },
-      async remove(fileName) {
-        const fullFileName = path.join(sandboxDirectory, fileName)
-        await fs.remove(fullFileName)
+      async remove(filename) {
+        await next.deleteFile(filename)
       },
-      async evaluate() {
-        const input = arguments[0]
-        if (typeof input === 'function') {
-          const result = await browser.eval(input)
+      async evaluate(snippet: () => any) {
+        if (typeof snippet === 'function') {
+          const result = await browser.eval(snippet)
           await new Promise((resolve) => setTimeout(resolve, 30))
           return result
         } else {
@@ -197,12 +174,10 @@ export async function sandbox(
         return source
       },
     },
-    function cleanup() {
-      async function _cleanup() {
-        await browser.close()
-        await killApp(app)
-      }
-      _cleanup().catch(() => {})
+    async cleanup() {
+      await browser.close()
+      await next.stop()
+      await next.clean()
     },
-  ]
+  }
 }

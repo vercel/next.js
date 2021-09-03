@@ -241,12 +241,12 @@ async function main() {
         }
       )
       child.stdout.on('data', (chunk) => {
-        // outputChunks.push(chunk)
-        process.stdout.write(chunk)
+        outputChunks.push(chunk)
+        // process.stdout.write(chunk)
       })
       child.stderr.on('data', (chunk) => {
-        // outputChunks.push(chunk)
-        process.stderr.write(chunk)
+        outputChunks.push(chunk)
+        // process.stderr.write(chunk)
       })
       children.add(child)
       child.on('exit', (code) => {

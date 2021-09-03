@@ -1,0 +1,71 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`ReactRefreshLogBox <Link> component props errors 2`] = `
+"Error: Failed prop type: The prop \`scroll\` expects a \`boolean\` in \`<Link>\`, but got \`string\` instead.
+Open your browser's console to view the Component stack trace."
+`;
+
+exports[`ReactRefreshLogBox <Link> component props errors 3`] = `
+"Error: Failed prop type: The prop \`href\` expects a \`string\` or \`object\` in \`<Link>\`, but got \`boolean\` instead.
+Open your browser's console to view the Component stack trace."
+`;
+
+exports[`ReactRefreshLogBox _app syntax error shows logbox 1`] = `
+"./pages/_app.js:3:22
+Syntax error: Unexpected token
+
+  1 |
+  2 |             function MyApp({ Component, pageProps }) {
+> 3 |               return <<Component {...pageProps} />;
+    |                       ^
+  4 |             }
+  5 |             export default MyApp
+  6 |"
+`;
+
+exports[`ReactRefreshLogBox _app top level error shows logbox 1`] = `
+"pages/_app.js (2:18) @ eval
+
+  1 | 
+> 2 |             throw new Error(\\"test\\");
+    |                  ^
+  3 |             function MyApp({ Component, pageProps }) {
+  4 |               return <Component {...pageProps} />;
+  5 |             }"
+`;
+
+exports[`ReactRefreshLogBox _document syntax error shows logbox 1`] = `
+"./pages/_document.js:4:47
+Syntax error: Unexpected token
+
+  2 |             import Document, { Html, Head, Main, NextScript } from 'next/document'
+  3 |
+> 4 |             class MyDocument extends Document {{
+    |                                                ^
+  5 |               static async getInitialProps(ctx) {
+  6 |                 const initialProps = await Document.getInitialProps(ctx)
+  7 |                 return { ...initialProps }"
+`;
+
+exports[`ReactRefreshLogBox _document top level error shows logbox 1`] = `
+"pages/_document.js (4:18) @ eval
+
+  2 |             import Document, { Html, Head, Main, NextScript } from 'next/document'
+  3 | 
+> 4 |             throw new Error(\\"test\\");
+    |                  ^
+  5 | 
+  6 |             class MyDocument extends Document {
+  7 |               static async getInitialProps(ctx) {"
+`;
+
+exports[`ReactRefreshLogBox Node.js builtins 1`] = `
+"./node_modules/my-package/index.js:2:0
+Module not found: Can't resolve 'dns'
+
+Import trace for requested module:
+./index.js
+./pages/index.js
+
+https://nextjs.org/docs/messages/module-not-found"
+`;
