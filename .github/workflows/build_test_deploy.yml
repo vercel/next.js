@@ -216,7 +216,7 @@ jobs:
           path: ./*
           key: ${{ github.sha }}
 
-      - run: docker run -it --rm --ipc=host -v $(pwd):/next.js mcr.microsoft.com/playwright:focal /bin/bash -c 'cd /next.js && node run-tests.js --type development test/development/acceptance/*.test.ts test/development/basic/*.test.ts && node run-tests.js test/integration/{fallback-modules,link-ref,production,async-modules,font-optimization,ssr-ctx}/test/index.test.js'
+      - run: docker run --ipc=host -v $(pwd):/next.js mcr.microsoft.com/playwright:focal /bin/bash -c 'cd /next.js && node run-tests.js --type development test/development/acceptance/*.test.ts test/development/basic/*.test.ts && node run-tests.js test/integration/{fallback-modules,link-ref,production,async-modules,font-optimization,ssr-ctx}/test/index.test.js'
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
   testFirefox:
