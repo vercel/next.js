@@ -11,6 +11,69 @@ import {
   getLocalModuleImportError,
 } from './messages'
 import { getPostCssPlugins } from './plugins'
+import postcss from 'postcss'
+
+// @ts-ignore backwards compat
+postcss.plugin = function postcssPlugin(name, initializer) {
+  function creator(...args: any) {
+    let transformer = initializer(...args)
+    transformer.postcssPlugin = name
+    // transformer.postcssVersion = new Processor().version
+    return transformer
+  }
+
+  let cache: any
+  Object.defineProperty(creator, 'postcss', {
+    get() {
+      if (!cache) cache = creator()
+      return cache
+    },
+  })
+
+  creator.process = function (css: any, processOpts: any, pluginOpts: any) {
+    return postcss([creator(pluginOpts)]).process(css, processOpts)
+  }
+
+  return creator
+}
+
+// @ts-ignore backwards compat
+postcss.vendor = {
+  /**
+   * Returns the vendor prefix extracted from an input string.
+   *
+   * @param {string} prop String with or without vendor prefix.
+   *
+   * @return {string} vendor prefix or empty string
+   *
+   * @example
+   * postcss.vendor.prefix('-moz-tab-size') //=> '-moz-'
+   * postcss.vendor.prefix('tab-size')      //=> ''
+   */
+  prefix: function prefix(prop: any) {
+    const match = prop.match(/^(-\w+-)/)
+
+    if (match) {
+      return match[0]
+    }
+
+    return ''
+  },
+
+  /**
+   * Returns the input string stripped of its vendor prefix.
+   *
+   * @param {string} prop String with or without vendor prefix.
+   *
+   * @return {string} String name without vendor prefixes.
+   *
+   * @example
+   * postcss.vendor.unprefixed('-moz-tab-size') //=> 'tab-size'
+   */
+  unprefixed: function unprefixed(prop: any) {
+    return prop.replace(/^-\w+-/, '')
+  },
+}
 
 // RegExps for all Style Sheet variants
 export const regexLikeCss = /\.(css|scss|sass)(\.webpack\[javascript\/auto\])?$/
