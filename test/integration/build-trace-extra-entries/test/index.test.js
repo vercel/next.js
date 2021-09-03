@@ -4,7 +4,7 @@ import fs from 'fs-extra'
 import { join } from 'path'
 import { nextBuild } from 'next-test-utils'
 
-const appDir = join(__dirname, '..')
+const appDir = join(__dirname, '../app')
 
 describe('build trace with extra entries', () => {
   it('should build and trace correctly', async () => {
@@ -26,5 +26,8 @@ describe('build trace with extra entries', () => {
     expect(
       indexTrace.files.some((file) => file.endsWith('hello.json'))
     ).toBeFalsy()
+    expect(
+      indexTrace.files.some((file) => file.includes('some-cms/index.js'))
+    ).toBe(true)
   })
 })
