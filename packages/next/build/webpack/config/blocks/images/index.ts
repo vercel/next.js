@@ -19,7 +19,7 @@ export const images = curry(async function images(
               reason: getCustomDocumentImageError(),
             },
           },
-          issuer: { and: [/pages[\\/]_document\./] },
+          issuer: /pages[\\/]_document\./,
         },
       ],
     }),
