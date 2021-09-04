@@ -1,3 +1,9 @@
+import {
+  getRedboxDescription,
+  getRedboxHeader,
+  getRedboxSource,
+  hasRedbox,
+} from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { NextInstance } from 'test/lib/next-modes/base'
 
@@ -6,6 +12,9 @@ export async function sandbox(
   initialFiles?: Map<string, string>,
   defaultFiles = true
 ) {
+  await next.stop()
+  await next.clean()
+
   if (defaultFiles) {
     await next.patchFile(
       'pages/index.js',
@@ -19,7 +28,6 @@ export async function sandbox(
       await next.patchFile(k, v)
     }
   }
-  await next.stop()
   await next.start()
   const browser = await webdriver(next.appPort, '/')
   return {
@@ -98,75 +106,14 @@ export async function sandbox(
         }
       },
       async hasRedbox(expected = false) {
-        let attempts = 3
-        do {
-          const has = await this.evaluate(() => {
-            return Boolean(
-              [].slice
-                .call(document.querySelectorAll('nextjs-portal'))
-                .find((p) =>
-                  p.shadowRoot.querySelector(
-                    '#nextjs__container_errors_label, #nextjs__container_build_error_label'
-                  )
-                )
-            )
-          })
-          if (has) {
-            return true
-          }
-          if (--attempts < 0) {
-            break
-          }
-
-          await new Promise((resolve) => setTimeout(resolve, 1000))
-        } while (expected)
-        return false
+        return hasRedbox(browser, expected)
       },
       async getRedboxDescription() {
-        return await this.evaluate(() => {
-          const portal = [].slice
-            .call(document.querySelectorAll('nextjs-portal'))
-            .find((p) =>
-              p.shadowRoot.querySelector('[data-nextjs-dialog-header]')
-            )
-          const root = portal.shadowRoot
-          return root
-            .querySelector('#nextjs__container_errors_desc')
-            .innerText.replace(/__WEBPACK_DEFAULT_EXPORT__/, 'Unknown')
-        })
+        return getRedboxDescription(browser)
       },
       async getRedboxSource(includeHeader = false) {
-        const header = includeHeader
-          ? await this.evaluate(() => {
-              const portal = [].slice
-                .call(document.querySelectorAll('nextjs-portal'))
-                .find((p) =>
-                  p.shadowRoot.querySelector('[data-nextjs-dialog-header]')
-                )
-              const root = portal.shadowRoot
-              return root
-                .querySelector('[data-nextjs-dialog-header]')
-                .innerText.replace(/__WEBPACK_DEFAULT_EXPORT__/, 'Unknown')
-            })
-          : ''
-
-        const source = await this.evaluate(() => {
-          const portal = [].slice
-            .call(document.querySelectorAll('nextjs-portal'))
-            .find((p) =>
-              p.shadowRoot.querySelector(
-                '#nextjs__container_errors_label, #nextjs__container_build_error_label'
-              )
-            )
-          const root = portal.shadowRoot
-          const frame = root.querySelector(
-            '[data-nextjs-codeframe], [data-nextjs-terminal]'
-          )
-          if (!frame) {
-            throw new Error(`No source found in redbox`)
-          }
-          return frame.innerText
-        })
+        const header = includeHeader ? await getRedboxHeader(browser) : ''
+        const source = await getRedboxSource(browser)
 
         if (includeHeader) {
           return `${header}\n\n${source}`
