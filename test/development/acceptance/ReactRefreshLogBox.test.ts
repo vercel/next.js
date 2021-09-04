@@ -2,6 +2,7 @@
 import { sandbox } from './helpers'
 import { createNext } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
+import { check } from 'next-test-utils'
 
 describe('ReactRefreshLogBox', () => {
   let next: NextInstance
@@ -63,9 +64,10 @@ describe('ReactRefreshLogBox', () => {
       `
     )
 
-    expect(
-      await session.evaluate(() => document.querySelector('p').textContent)
-    ).toBe('Count: 1')
+    await check(
+      () => session.evaluate(() => document.querySelector('p').textContent),
+      /Count: 1/
+    )
 
     expect(await session.hasRedbox()).toBe(false)
 
