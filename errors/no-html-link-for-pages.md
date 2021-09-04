@@ -40,6 +40,24 @@ function Home() {
 export default Home
 ```
 
+### Options
+
+#### `pagesDir`
+
+This rule can normally locate your `pages` directory automatically.
+
+If you're working in a monorepo, we recommend configuring the [`rootDir`](/docs/basic-features/eslint.md#rootDir) setting in `eslint-plugin-next`, which `pagesDir` will use to locate your `pages` directory.
+
+In some cases, you may also need to configure this rule directly by providing a `pages` directory. This can be a path or an array of paths.
+
+```json
+{
+  "rules": {
+    "@next/next/no-html-link-for-pages": ["error", "/my-app/pages/"]
+  }
+}
+```
+
 ### Useful Links
 
 - [next/link API Reference](https://nextjs.org/docs/api-reference/next/link)

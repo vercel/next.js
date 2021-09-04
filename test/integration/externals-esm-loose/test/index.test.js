@@ -15,7 +15,7 @@ const appDir = join(__dirname, '../')
 let appPort
 let app
 
-describe('Valid resolve alias', () => {
+describe("Handle ESM externals with esmExternals: 'loose'", () => {
   beforeAll(async () => {
     await fs.remove(join(appDir, '.next'))
     await nextBuild(appDir)
@@ -24,7 +24,8 @@ describe('Valid resolve alias', () => {
   })
   afterAll(() => killApp(app))
 
-  const expected = /Hello <!-- -->World<!-- -->\+<!-- -->World<!-- -->\+<!-- -->World/
+  const expected =
+    /Hello <!-- -->World<!-- -->\+<!-- -->World<!-- -->\+<!-- -->World/
 
   it('should render the static page', async () => {
     const html = await renderViaHTTP(appPort, '/static')

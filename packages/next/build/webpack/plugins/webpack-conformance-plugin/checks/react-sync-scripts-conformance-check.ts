@@ -26,7 +26,8 @@ export interface ReactSyncScriptsConformanceCheckOptions {
   AllowedSources?: String[]
 }
 export class ReactSyncScriptsConformanceCheck
-  implements IWebpackConformanceTest {
+  implements IWebpackConformanceTest
+{
   private allowedSources: String[] = []
   constructor({
     AllowedSources,
