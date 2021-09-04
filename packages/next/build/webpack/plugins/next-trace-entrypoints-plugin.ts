@@ -253,6 +253,7 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
                 readlink,
                 stat,
                 ignore: [...TRACE_IGNORES, ...this.excludeFiles],
+                mixedModules: true,
               })
 
               const tracedDeps: string[] = []
