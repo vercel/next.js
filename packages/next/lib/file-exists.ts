@@ -16,7 +16,7 @@ export async function fileExists(
     }
     return true
   } catch (err) {
-    if (err.code === 'ENOENT') {
+    if (err.code === 'ENOENT' || err.code === 'ENAMETOOLONG') {
       return false
     }
     throw err

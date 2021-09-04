@@ -4,7 +4,7 @@
 
 An `exportPathMap` path was matched to an API route. Statically exporting a Next.js application via `next export` disables API routes.
 
-This command is meant for static-only hosts, and is not necessary to make your application static. Pages in your application without server-side data dependencies will be automatically statically exported by `next build`, including pages powered by `getStaticProps`
+This command is meant for a static-only setup, and is not necessary to make your application static. Pages in your application without server-side data dependencies will be automatically statically exported by `next build`, including pages powered by `getStaticProps`
 
 #### Possible Ways to Fix It
 

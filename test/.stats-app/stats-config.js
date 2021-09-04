@@ -1,3 +1,12 @@
+const fs = require('fs')
+const path = require('path')
+// this page is conditionally added when not testing
+// in webpack 4 mode since it's not supported for webpack 4
+const imagePageData = fs.readFileSync(
+  path.join(__dirname, './image.js'),
+  'utf8'
+)
+
 const clientGlobs = [
   {
     name: 'Client Bundles (main, webpack, commons)',
@@ -12,11 +21,11 @@ const clientGlobs = [
   },
   {
     name: 'Client Pages',
-    globs: ['.next/static/*/pages/**/*', '.next/static/css/**/*'],
+    globs: ['.next/static/BUILD_ID/pages/**/*.js', '.next/static/css/**/*'],
   },
   {
     name: 'Client Build Manifests',
-    globs: ['.next/static/*/_buildManifest*'],
+    globs: ['.next/static/BUILD_ID/_buildManifest*'],
   },
   {
     name: 'Rendered Page Sizes',
@@ -26,19 +35,19 @@ const clientGlobs = [
 
 const renames = [
   {
-    srcGlob: '.next/static/*/pages',
+    srcGlob: '.next/static/chunks/pages',
     dest: '.next/static/BUILD_ID/pages',
   },
   {
-    srcGlob: '.next/static/*/pages/**/*',
+    srcGlob: '.next/static/BUILD_ID/pages/**/*.js',
     removeHash: true,
   },
   {
-    srcGlob: '.next/static/runtime/*',
+    srcGlob: '.next/static/runtime/*.js',
     removeHash: true,
   },
   {
-    srcGlob: '.next/static/chunks/*',
+    srcGlob: '.next/static/chunks/*.js',
     removeHash: true,
   },
   {
@@ -57,17 +66,18 @@ module.exports = {
   autoMergeMain: true,
   configs: [
     {
-      title: 'Default Server Mode',
+      title: 'Default Build',
       diff: 'onOutputChange',
       diffConfigFiles: [
+        {
+          path: 'pages/image.js',
+          content: imagePageData,
+        },
         {
           path: 'next.config.js',
           content: `
             module.exports = {
               generateBuildId: () => 'BUILD_ID',
-              future: {
-                webpack5: true
-              },
               webpack(config) {
                 config.optimization.minimize = false
                 config.optimization.minimizer = undefined
@@ -80,6 +90,10 @@ module.exports = {
       // renames to apply to make file names deterministic
       renames,
       configFiles: [
+        {
+          path: 'pages/image.js',
+          content: imagePageData,
+        },
         {
           path: 'next.config.js',
           content: `
@@ -107,29 +121,6 @@ module.exports = {
       },
     },
     {
-      title: 'Serverless Mode',
-      diff: false,
-      renames,
-      configFiles: [
-        {
-          path: 'next.config.js',
-          content: `
-            module.exports = {
-              generateBuildId: () => 'BUILD_ID',
-              target: 'serverless'
-            }
-          `,
-        },
-      ],
-      filesToTrack: [
-        ...clientGlobs,
-        {
-          name: 'Serverless bundles',
-          globs: ['.next/serverless/pages/**/*'],
-        },
-      ],
-    },
-    {
       title: 'Webpack 4 Mode',
       diff: 'onOutputChange',
       diffConfigFiles: [
@@ -138,9 +129,7 @@ module.exports = {
           content: `
             module.exports = {
               generateBuildId: () => 'BUILD_ID',
-              future: {
-                webpack5: false
-              },
+              webpack5: false,
               webpack(config) {
                 config.optimization.minimize = false
                 config.optimization.minimizer = undefined
@@ -157,9 +146,7 @@ module.exports = {
           content: `
             module.exports = {
               generateBuildId: () => 'BUILD_ID',
-              future: {
-                webpack5: false
-              }
+              webpack5: false
             }
           `,
         },

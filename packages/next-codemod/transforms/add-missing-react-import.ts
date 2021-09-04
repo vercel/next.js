@@ -1,4 +1,6 @@
-function addReactImport(j, root) {
+import { API, Collection, FileInfo, JSCodeshift, Options } from 'jscodeshift'
+
+function addReactImport(j: JSCodeshift, root: Collection) {
   // We create an import specifier, this is the value of an import, eg:
   // import React from 'react'
   // The specifier would be `React`
@@ -39,7 +41,11 @@ function addReactImport(j, root) {
   })
 }
 
-export default function transformer(file, api, options) {
+export default function transformer(
+  file: FileInfo,
+  api: API,
+  options: Options
+) {
   const j = api.jscodeshift
   const root = j(file.source)
 

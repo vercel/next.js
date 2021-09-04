@@ -19,16 +19,15 @@ import { getTypeScriptConfiguration } from '../lib/typescript/getTypeScriptConfi
 import {
   CLIENT_STATIC_FILES_RUNTIME_AMP,
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
-  CLIENT_STATIC_FILES_RUNTIME_POLYFILLS,
+  CLIENT_STATIC_FILES_RUNTIME_POLYFILLS_SYMBOL,
   CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
   CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
   REACT_LOADABLE_MANIFEST,
   SERVERLESS_DIRECTORY,
   SERVER_DIRECTORY,
-} from '../next-server/lib/constants'
-import { execOnce } from '../next-server/lib/utils'
-import { NextConfig } from '../next-server/server/config'
-import { findPageFile } from '../server/lib/find-page-file'
+} from '../shared/lib/constants'
+import { execOnce } from '../shared/lib/utils'
+import { NextConfigComplete } from '../server/config-shared'
 import { WebpackEntrypoints } from './entries'
 import * as Log from './output/log'
 import { build as buildConfiguration } from './webpack/config'
@@ -38,6 +37,7 @@ import BuildStatsPlugin from './webpack/plugins/build-stats-plugin'
 import ChunkNamesPlugin from './webpack/plugins/chunk-names-plugin'
 import { JsConfigPathsPlugin } from './webpack/plugins/jsconfig-paths-plugin'
 import { DropClientPage } from './webpack/plugins/next-drop-client-page-plugin'
+import { TraceEntryPointsPlugin } from './webpack/plugins/next-trace-entrypoints-plugin'
 import NextJsSsrImportPlugin from './webpack/plugins/nextjs-ssr-import'
 import NextJsSSRModuleCachePlugin from './webpack/plugins/nextjs-ssr-module-cache'
 import PagesManifestPlugin from './webpack/plugins/pages-manifest-plugin'
@@ -51,6 +51,9 @@ import WebpackConformancePlugin, {
   ReactSyncScriptsConformanceCheck,
 } from './webpack/plugins/webpack-conformance-plugin'
 import { WellKnownErrorsPlugin } from './webpack/plugins/wellknown-errors-plugin'
+import { regexLikeCss } from './webpack/config/blocks/css'
+import { CopyFilePlugin } from './webpack/plugins/copy-file-plugin'
+import type { Span } from '../telemetry/trace'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 
@@ -170,15 +173,6 @@ export function attachReactRefresh(
   }
 }
 
-const WEBPACK_RESOLVE_OPTIONS = {
-  // This always uses commonjs resolving, assuming API is identical
-  // between ESM and CJS in a package
-  // Otherwise combined ESM+CJS packages will never be external
-  // as resolving mismatch would lead to opt-out from being external.
-  dependencyType: 'commonjs',
-  symlinks: true,
-}
-
 const NODE_RESOLVE_OPTIONS = {
   dependencyType: 'commonjs',
   modules: ['node_modules'],
@@ -186,7 +180,7 @@ const NODE_RESOLVE_OPTIONS = {
   fallback: false,
   exportsFields: ['exports'],
   importsFields: ['imports'],
-  conditionNames: ['node', 'require', 'module'],
+  conditionNames: ['node', 'require'],
   descriptionFiles: ['package.json'],
   extensions: ['.js', '.json', '.node'],
   enforceExtensions: false,
@@ -198,6 +192,13 @@ const NODE_RESOLVE_OPTIONS = {
   preferRelative: false,
   preferAbsolute: false,
   restrictions: [],
+}
+
+const NODE_ESM_RESOLVE_OPTIONS = {
+  ...NODE_RESOLVE_OPTIONS,
+  dependencyType: 'esm',
+  conditionNames: ['node', 'import'],
+  fullySpecified: true,
 }
 
 export default async function getBaseWebpackConfig(
@@ -213,9 +214,10 @@ export default async function getBaseWebpackConfig(
     entrypoints,
     rewrites,
     isDevFallback = false,
+    runWebpackSpan,
   }: {
     buildId: string
-    config: NextConfig
+    config: NextConfigComplete
     dev?: boolean
     isServer?: boolean
     pagesDir: string
@@ -224,21 +226,38 @@ export default async function getBaseWebpackConfig(
     entrypoints: WebpackEntrypoints
     rewrites: CustomRoutes['rewrites']
     isDevFallback?: boolean
+    runWebpackSpan: Span
   }
 ): Promise<webpack.Configuration> {
   const hasRewrites =
     rewrites.beforeFiles.length > 0 ||
     rewrites.afterFiles.length > 0 ||
     rewrites.fallback.length > 0
-
-  const reactVersion = await getPackageVersion({ cwd: dir, name: 'react' })
   const hasReactRefresh: boolean = dev && !isServer
-  const hasJsxRuntime: boolean =
-    config.experimental.reactRoot ||
-    (Boolean(reactVersion) &&
-      // 17.0.0-rc.0 had a breaking change not compatible with Next.js, but was
-      // fixed in rc.1.
-      semver.gte(reactVersion!, '17.0.0-rc.1'))
+  const reactDomVersion = await getPackageVersion({
+    cwd: dir,
+    name: 'react-dom',
+  })
+  const hasReact18: boolean =
+    Boolean(reactDomVersion) &&
+    (semver.gte(reactDomVersion!, '18.0.0') ||
+      semver.coerce(reactDomVersion)?.version === '18.0.0')
+  const hasReactPrerelease =
+    Boolean(reactDomVersion) && semver.prerelease(reactDomVersion!) != null
+  const hasReactRoot: boolean = config.experimental.reactRoot || hasReact18
+
+  // Only inform during one of the builds
+  if (!isServer) {
+    if (hasReactRoot) {
+      Log.info('Using the createRoot API for React')
+    }
+    if (hasReactPrerelease) {
+      Log.warn(
+        `You are using an unsupported prerelease of 'react-dom' which may cause ` +
+          `unexpected or broken application behavior. Continue at your own risk.`
+      )
+    }
+  }
 
   const babelConfigFile = await [
     '.babelrc',
@@ -260,25 +279,41 @@ export default async function getBaseWebpackConfig(
 
   const distDir = path.join(dir, config.distDir)
 
-  const babelLoader = config.experimental.turboMode
+  // Webpack 5 can use the faster babel loader, webpack 5 has built-in caching for loaders
+  // For webpack 4 the old loader is used as it has external caching
+  const babelLoader = isWebpack5
     ? require.resolve('./babel/loader/index')
     : 'next-babel-loader'
+
+  const useSWCLoader = config.experimental.swcLoader && isWebpack5
+  if (useSWCLoader && babelConfigFile) {
+    Log.warn(
+      `experimental.swcLoader enabled. The custom Babel configuration will not be used.`
+    )
+  }
   const defaultLoaders = {
-    babel: {
-      loader: babelLoader,
-      options: {
-        configFile: babelConfigFile,
-        isServer,
-        distDir,
-        pagesDir,
-        cwd: dir,
-        // Webpack 5 has a built-in loader cache
-        cache: !isWebpack5,
-        development: dev,
-        hasReactRefresh,
-        hasJsxRuntime,
-      },
-    },
+    babel: useSWCLoader
+      ? {
+          loader: 'next-swc-loader',
+          options: {
+            isServer,
+          },
+        }
+      : {
+          loader: babelLoader,
+          options: {
+            configFile: babelConfigFile,
+            isServer,
+            distDir,
+            pagesDir,
+            cwd: dir,
+            // Webpack 5 has a built-in loader cache
+            cache: !isWebpack5,
+            development: dev,
+            hasReactRefresh,
+            hasJsxRuntime: true,
+          },
+        },
     // Backwards compat
     hotSelfAccept: {
       loader: 'noop-loader',
@@ -286,7 +321,7 @@ export default async function getBaseWebpackConfig(
   }
 
   const babelIncludeRegexes: RegExp[] = [
-    /next[\\/]dist[\\/]next-server[\\/]lib/,
+    /next[\\/]dist[\\/]shared[\\/]lib/,
     /next[\\/]dist[\\/]client/,
     /next[\\/]dist[\\/]pages/,
     /[\\/](strip-ansi|ansi-regex)[\\/]/,
@@ -333,10 +368,6 @@ export default async function getBaseWebpackConfig(
               )
             )
             .replace(/\\/g, '/'),
-        [CLIENT_STATIC_FILES_RUNTIME_POLYFILLS]: path.join(
-          NEXT_PROJECT_ROOT_DIST_CLIENT,
-          'polyfills.js'
-        ),
       } as ClientEntries)
     : undefined
 
@@ -376,12 +407,43 @@ export default async function getBaseWebpackConfig(
     }
   }
 
+  // tell webpack where to look for _app and _document
+  // using aliases to allow falling back to the default
+  // version when removed or not present
   const clientResolveRewrites = require.resolve(
-    '../next-server/lib/router/utils/resolve-rewrites'
+    '../shared/lib/router/utils/resolve-rewrites'
   )
   const clientResolveRewritesNoop = require.resolve(
-    '../next-server/lib/router/utils/resolve-rewrites-noop'
+    '../shared/lib/router/utils/resolve-rewrites-noop'
   )
+
+  const customAppAliases: { [key: string]: string[] } = {}
+  const customErrorAlias: { [key: string]: string[] } = {}
+  const customDocumentAliases: { [key: string]: string[] } = {}
+
+  if (dev && isWebpack5) {
+    customAppAliases[`${PAGES_DIR_ALIAS}/_app`] = [
+      ...config.pageExtensions.reduce((prev, ext) => {
+        prev.push(path.join(pagesDir, `_app.${ext}`))
+        return prev
+      }, [] as string[]),
+      'next/dist/pages/_app.js',
+    ]
+    customAppAliases[`${PAGES_DIR_ALIAS}/_error`] = [
+      ...config.pageExtensions.reduce((prev, ext) => {
+        prev.push(path.join(pagesDir, `_error.${ext}`))
+        return prev
+      }, [] as string[]),
+      'next/dist/pages/_error.js',
+    ]
+    customDocumentAliases[`${PAGES_DIR_ALIAS}/_document`] = [
+      ...config.pageExtensions.reduce((prev, ext) => {
+        prev.push(path.join(pagesDir, `_document.${ext}`))
+        return prev
+      }, [] as string[]),
+      'next/dist/pages/_document.js',
+    ]
+  }
 
   const resolveConfig = {
     // Disable .mjs for node_modules bundling
@@ -408,6 +470,11 @@ export default async function getBaseWebpackConfig(
     ],
     alias: {
       next: NEXT_PROJECT_ROOT,
+
+      ...customAppAliases,
+      ...customErrorAlias,
+      ...customDocumentAliases,
+
       [PAGES_DIR_ALIAS]: pagesDir,
       [DOT_NEXT_ALIAS]: distDir,
       ...getOptimizedAliases(isServer),
@@ -491,7 +558,7 @@ export default async function getBaseWebpackConfig(
 
   // Contains various versions of the Webpack SplitChunksPlugin used in different build types
   const splitChunksConfigs: {
-    [propName: string]: webpack.Options.SplitChunksOptions
+    [propName: string]: webpack.Options.SplitChunksOptions | false
   } = {
     dev: {
       cacheGroups: {
@@ -592,23 +659,14 @@ export default async function getBaseWebpackConfig(
   }
 
   // Select appropriate SplitChunksPlugin config for this build
-  let splitChunksConfig: webpack.Options.SplitChunksOptions
+  let splitChunksConfig: webpack.Options.SplitChunksOptions | false
   if (dev) {
-    splitChunksConfig = splitChunksConfigs.dev
+    splitChunksConfig = isWebpack5 ? false : splitChunksConfigs.dev
   } else {
     splitChunksConfig = splitChunksConfigs.prodGranular
   }
 
   const crossOrigin = config.crossOrigin
-
-  let customAppFile: string | null = await findPageFile(
-    pagesDir,
-    '/_app',
-    config.pageExtensions
-  )
-  if (customAppFile) {
-    customAppFile = path.resolve(path.join(pagesDir, customAppFile))
-  }
 
   const conformanceConfig = Object.assign(
     {
@@ -634,12 +692,19 @@ export default async function getBaseWebpackConfig(
     config.conformance
   )
 
+  const esmExternals = !!config.experimental?.esmExternals
+  const looseEsmExternals = config.experimental?.esmExternals === 'loose'
+
   async function handleExternals(
     context: string,
     request: string,
+    dependencyType: string,
     getResolve: (
       options: any
-    ) => (resolveContext: string, resolveRequest: string) => Promise<string>
+    ) => (
+      resolveContext: string,
+      resolveRequest: string
+    ) => Promise<[string | null, boolean]>
   ) {
     // We need to externalize internal requests for files intended to
     // not be bundled.
@@ -657,48 +722,73 @@ export default async function getBaseWebpackConfig(
     // are relative to requests we've already resolved here.
     // Absolute requires (require('/foo')) are extremely uncommon, but
     // also have no need for customization as they're already resolved.
-    if (isLocal) {
-      if (!/[/\\]next-server[/\\]/.test(request)) {
-        return
-      }
-    } else {
+    if (!isLocal) {
       if (/^(?:next$|react(?:$|\/))/.test(request)) {
         return `commonjs ${request}`
       }
 
-      const notExternalModules = /^(?:private-next-pages\/|next\/(?:dist\/pages\/|(?:app|document|link|image|constants)$)|string-hash$)/
+      const notExternalModules =
+        /^(?:private-next-pages\/|next\/(?:dist\/pages\/|(?:app|document|link|image|constants|dynamic)$)|string-hash$)/
       if (notExternalModules.test(request)) {
         return
       }
     }
 
-    const resolve = getResolve(WEBPACK_RESOLVE_OPTIONS)
+    // When in esm externals mode, and using import, we resolve with
+    // ESM resolving options.
+    const isEsmRequested = dependencyType === 'esm'
+    const preferEsm = esmExternals && isEsmRequested
+
+    const resolve = getResolve(
+      preferEsm ? NODE_ESM_RESOLVE_OPTIONS : NODE_RESOLVE_OPTIONS
+    )
 
     // Resolve the import with the webpack provided context, this
     // ensures we're resolving the correct version when multiple
     // exist.
-    let res: string
+    let res: string | null
+    let isEsm: boolean = false
     try {
-      res = await resolve(context, request)
+      ;[res, isEsm] = await resolve(context, request)
     } catch (err) {
-      // If the request cannot be resolved, we need to tell webpack to
-      // "bundle" it so that webpack shows an error (that it cannot be
-      // resolved).
-      return
+      res = null
     }
 
-    // Same as above, if the request cannot be resolved we need to have
+    // If resolving fails, and we can use an alternative way
+    // try the alternative resolving options.
+    if (!res && (isEsmRequested || looseEsmExternals)) {
+      const resolveAlternative = getResolve(
+        preferEsm ? NODE_RESOLVE_OPTIONS : NODE_ESM_RESOLVE_OPTIONS
+      )
+      try {
+        ;[res, isEsm] = await resolveAlternative(context, request)
+      } catch (err) {
+        res = null
+      }
+    }
+
+    // If the request cannot be resolved we need to have
     // webpack "bundle" it so it surfaces the not found error.
     if (!res) {
       return
     }
 
-    if (isLocal) {
-      // we need to process next-server/lib/router/router so that
-      // the DefinePlugin can inject process.env values
-      const isNextExternal = /next[/\\]dist[/\\]next-server[/\\](?!lib[/\\]router[/\\]router)/.test(
-        res
+    // ESM externals can only be imported (and not required).
+    // Make an exception in loose mode.
+    if (!isEsmRequested && isEsm && !looseEsmExternals) {
+      throw new Error(
+        `ESM packages (${request}) need to be imported. Use 'import' to reference the package instead. https://nextjs.org/docs/messages/import-esm-externals`
       )
+    }
+
+    if (isLocal) {
+      // Makes sure dist/shared and dist/server are not bundled
+      // we need to process shared `router/router` and `dynamic`,
+      // so that the DefinePlugin can inject process.env values
+      const isNextExternal =
+        /next[/\\]dist[/\\](shared|server)[/\\](?!lib[/\\](router[/\\]router|dynamic))/.test(
+          res
+        )
 
       if (isNextExternal) {
         // Generate Next.js external import
@@ -725,28 +815,32 @@ export default async function getBaseWebpackConfig(
     // package that'll be available at runtime. If it's not identical,
     // we need to bundle the code (even if it _should_ be external).
     let baseRes: string | null
+    let baseIsEsm: boolean
     try {
-      const baseResolve = getResolve(NODE_RESOLVE_OPTIONS)
-      baseRes = await baseResolve(dir, request)
+      const baseResolve = getResolve(
+        isEsm ? NODE_ESM_RESOLVE_OPTIONS : NODE_RESOLVE_OPTIONS
+      )
+      ;[baseRes, baseIsEsm] = await baseResolve(dir, request)
     } catch (err) {
       baseRes = null
+      baseIsEsm = false
     }
 
     // Same as above: if the package, when required from the root,
     // would be different from what the real resolution would use, we
     // cannot externalize it.
-    // if res or baseRes are symlinks they could point to the the same file,
-    // but the resolver will resolve symlinks so this is already handled
-    if (baseRes !== res) {
+    // if request is pointing to a symlink it could point to the the same file,
+    // the resolver will resolve symlinks so this is handled
+    if (baseRes !== res || isEsm !== baseIsEsm) {
       return
     }
 
+    const externalType = isEsm ? 'module' : 'commonjs'
+
     if (
-      res.match(
-        /next[/\\]dist[/\\]next-server[/\\](?!lib[/\\]router[/\\]router)/
-      )
+      res.match(/next[/\\]dist[/\\]shared[/\\](?!lib[/\\]router[/\\]router)/)
     ) {
-      return `commonjs ${request}`
+      return `${externalType} ${request}`
     }
 
     // Default pages have to be transpiled
@@ -769,7 +863,7 @@ export default async function getBaseWebpackConfig(
     // Anything else that is standard JavaScript within `node_modules`
     // can be externalized.
     if (/node_modules[/\\].*\.c?js$/.test(res)) {
-      return `commonjs ${request}`
+      return `${externalType} ${request}`
     }
 
     // Default behavior: bundle the code!
@@ -778,6 +872,7 @@ export default async function getBaseWebpackConfig(
   const emacsLockfilePattern = '**/.#*'
 
   let webpackConfig: webpack.Configuration = {
+    parallelism: Number(process.env.NEXT_WEBPACK_PARALLELISM) || undefined,
     externals: !isServer
       ? // make sure importing "next" is handled gracefully for client
         // bundles in case a user imported types and it wasn't removed
@@ -789,17 +884,43 @@ export default async function getBaseWebpackConfig(
             ? ({
                 context,
                 request,
+                dependencyType,
                 getResolve,
               }: {
                 context: string
                 request: string
+                dependencyType: string
                 getResolve: (
                   options: any
                 ) => (
                   resolveContext: string,
-                  resolveRequest: string
-                ) => Promise<string>
-              }) => handleExternals(context, request, getResolve)
+                  resolveRequest: string,
+                  callback: (
+                    err?: Error,
+                    result?: string,
+                    resolveData?: { descriptionFileData?: { type?: any } }
+                  ) => void
+                ) => void
+              }) =>
+                handleExternals(context, request, dependencyType, (options) => {
+                  const resolveFunction = getResolve(options)
+                  return (resolveContext: string, requestToResolve: string) =>
+                    new Promise((resolve, reject) => {
+                      resolveFunction(
+                        resolveContext,
+                        requestToResolve,
+                        (err, result, resolveData) => {
+                          if (err) return reject(err)
+                          if (!result) return resolve([null, false])
+                          const isEsm = /\.js$/i.test(result)
+                            ? resolveData?.descriptionFileData?.type ===
+                              'module'
+                            : /\.mjs$/i.test(result)
+                          resolve([result, isEsm])
+                        }
+                      )
+                    })
+                })
             : (
                 context: string,
                 request: string,
@@ -808,13 +929,15 @@ export default async function getBaseWebpackConfig(
                 handleExternals(
                   context,
                   request,
+                  'commonjs',
                   () => (resolveContext: string, requestToResolve: string) =>
                     new Promise((resolve) =>
-                      resolve(
+                      resolve([
                         require.resolve(requestToResolve, {
                           paths: [resolveContext],
-                        })
-                      )
+                        }),
+                        false,
+                      ])
                     )
                 ).then((result) => callback(undefined, result), callback),
         ]
@@ -833,7 +956,7 @@ export default async function getBaseWebpackConfig(
       checkWasmTypes: false,
       nodeEnv: false,
       splitChunks: isServer
-        ? isWebpack5
+        ? isWebpack5 && !dev
           ? ({
               filename: '[name].js',
               // allow to split entrypoints
@@ -860,6 +983,7 @@ export default async function getBaseWebpackConfig(
           new TerserPlugin({
             cacheDir: path.join(distDir, 'cache', 'next-minifier'),
             parallel: config.experimental.cpus,
+            swcMinify: config.experimental.swcMinify,
             terserOptions,
           }).apply(compiler)
         },
@@ -906,22 +1030,9 @@ export default async function getBaseWebpackConfig(
       ],
     },
     output: {
-      ...(isWebpack5
-        ? {
-            environment: {
-              arrowFunction: false,
-              bigIntLiteral: false,
-              const: false,
-              destructuring: false,
-              dynamicImport: false,
-              forOf: false,
-              module: false,
-            },
-          }
-        : {}),
       // we must set publicPath to an empty value to override the default of
       // auto which doesn't work in IE11
-      publicPath: '',
+      publicPath: `${config.assetPrefix || ''}/_next/`,
       path:
         isServer && isWebpack5 && !dev
           ? path.join(outputPath, 'chunks')
@@ -940,7 +1051,7 @@ export default async function getBaseWebpackConfig(
         ? 'static/webpack/[id].[fullhash].hot-update.js'
         : 'static/webpack/[id].[hash].hot-update.js',
       hotUpdateMainFilename: isWebpack5
-        ? 'static/webpack/[fullhash].hot-update.json'
+        ? 'static/webpack/[fullhash].[runtime].hot-update.json'
         : 'static/webpack/[hash].hot-update.json',
       // This saves chunks with the name given via `import()`
       chunkFilename: isServer
@@ -961,7 +1072,9 @@ export default async function getBaseWebpackConfig(
         'emit-file-loader',
         'error-loader',
         'next-babel-loader',
+        'next-swc-loader',
         'next-client-pages-loader',
+        'next-image-loader',
         'next-serverless-loader',
         'noop-loader',
         'next-style-loader',
@@ -1010,6 +1123,21 @@ export default async function getBaseWebpackConfig(
               ]
             : defaultLoaders.babel,
         },
+        ...(!config.images.disableStaticImages && isWebpack5
+          ? [
+              {
+                test: /\.(png|jpg|jpeg|gif|webp|ico|bmp|svg)$/i,
+                loader: 'next-image-loader',
+                issuer: { not: regexLikeCss },
+                dependency: { not: ['url'] },
+                options: {
+                  isServer,
+                  isDev: dev,
+                  assetPrefix: config.assetPrefix,
+                },
+              },
+            ]
+          : []),
       ].filter(Boolean),
     },
     plugins: [
@@ -1072,8 +1200,9 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_STRICT_MODE': JSON.stringify(
           config.reactStrictMode
         ),
-        'process.env.__NEXT_REACT_ROOT': JSON.stringify(
-          config.experimental.reactRoot
+        'process.env.__NEXT_REACT_ROOT': JSON.stringify(hasReactRoot),
+        'process.env.__NEXT_CONCURRENT_FEATURES': JSON.stringify(
+          config.experimental.concurrentFeatures && hasReactRoot
         ),
         'process.env.__NEXT_OPTIMIZE_FONTS': JSON.stringify(
           config.optimizeFonts && !dev
@@ -1083,9 +1212,6 @@ export default async function getBaseWebpackConfig(
         ),
         'process.env.__NEXT_OPTIMIZE_CSS': JSON.stringify(
           config.experimental.optimizeCss && !dev
-        ),
-        'process.env.__NEXT_SCRIPT_LOADER': JSON.stringify(
-          !!config.experimental.scriptLoader
         ),
         'process.env.__NEXT_SCROLL_RESTORATION': JSON.stringify(
           config.experimental.scrollRestoration
@@ -1101,7 +1227,6 @@ export default async function getBaseWebpackConfig(
                 domains: config.images.domains,
               }
             : {}),
-          enableBlurryPlaceholder: config.experimental.enableBlurryPlaceholder,
         }),
         'process.env.__NEXT_ROUTER_BASEPATH': JSON.stringify(config.basePath),
         'process.env.__NEXT_HAS_REWRITES': JSON.stringify(hasRewrites),
@@ -1139,11 +1264,17 @@ export default async function getBaseWebpackConfig(
           pagesDir,
         }),
       !isServer && new DropClientPage(),
+      config.experimental.nftTracing &&
+        !isLikeServerless &&
+        isServer &&
+        !dev &&
+        isWebpack5 &&
+        new TraceEntryPointsPlugin({ appDir: dir }),
       // Moment.js is an extremely popular library that bundles large locale files
       // by default due to how Webpack interprets its code. This is a practical
       // solution that requires the user to opt into importing specific locales.
       // https://github.com/jmblog/how-to-optimize-momentjs-with-webpack
-      config.future.excludeDefaultMomentLocales &&
+      config.excludeDefaultMomentLocales &&
         new webpack.IgnorePlugin({
           resourceRegExp: /^\.\/locale$/,
           contextRegExp: /moment$/,
@@ -1169,7 +1300,7 @@ export default async function getBaseWebpackConfig(
       !dev &&
         new webpack.IgnorePlugin({
           resourceRegExp: /react-is/,
-          contextRegExp: /(next-server|next)[\\/]dist[\\/]/,
+          contextRegExp: /next[\\/]dist[\\/]/,
         }),
       isServerless && isServer && new ServerlessPlugin(),
       isServer &&
@@ -1191,16 +1322,15 @@ export default async function getBaseWebpackConfig(
         new BuildStatsPlugin({
           distDir,
         }),
-      new ProfilingPlugin(),
+      new ProfilingPlugin({ runWebpackSpan }),
       config.optimizeFonts &&
         !dev &&
         isServer &&
         (function () {
-          const {
-            FontStylesheetGatheringPlugin,
-          } = require('./webpack/plugins/font-stylesheet-gathering-plugin') as {
-            FontStylesheetGatheringPlugin: typeof import('./webpack/plugins/font-stylesheet-gathering-plugin').FontStylesheetGatheringPlugin
-          }
+          const { FontStylesheetGatheringPlugin } =
+            require('./webpack/plugins/font-stylesheet-gathering-plugin') as {
+              FontStylesheetGatheringPlugin: typeof import('./webpack/plugins/font-stylesheet-gathering-plugin').FontStylesheetGatheringPlugin
+            }
           return new FontStylesheetGatheringPlugin({
             isLikeServerless,
           })
@@ -1234,7 +1364,19 @@ export default async function getBaseWebpackConfig(
           ].filter(Boolean),
         }),
       new WellKnownErrorsPlugin(),
-    ].filter((Boolean as any) as ExcludesFalse),
+      !isServer &&
+        new CopyFilePlugin({
+          filePath: require.resolve('./polyfills/polyfill-nomodule'),
+          cacheKey: process.env.__NEXT_VERSION as string,
+          name: `static/chunks/polyfills${dev ? '' : '-[hash]'}.js`,
+          minimize: false,
+          info: {
+            [CLIENT_STATIC_FILES_RUNTIME_POLYFILLS_SYMBOL]: 1,
+            // This file is already minified
+            minimized: true,
+          },
+        }),
+    ].filter(Boolean as any as ExcludesFalse),
   }
 
   // Support tsconfig and jsconfig baseUrl
@@ -1265,9 +1407,10 @@ export default async function getBaseWebpackConfig(
     // @ts-ignore webpack 5
     webpackConfig.snapshot = {}
     if (process.versions.pnp === '3') {
-      const match = /^(.+?)[\\/]cache[\\/]jest-worker-npm-[^\\/]+\.zip[\\/]node_modules[\\/]/.exec(
-        require.resolve('jest-worker')
-      )
+      const match =
+        /^(.+?)[\\/]cache[\\/]jest-worker-npm-[^\\/]+\.zip[\\/]node_modules[\\/]/.exec(
+          require.resolve('jest-worker')
+        )
       if (match) {
         // @ts-ignore webpack 5
         webpackConfig.snapshot.managedPaths = [
@@ -1284,17 +1427,19 @@ export default async function getBaseWebpackConfig(
       }
     }
     if (process.versions.pnp === '1') {
-      const match = /^(.+?[\\/]v4)[\\/]npm-jest-worker-[^\\/]+-[\da-f]{40}[\\/]node_modules[\\/]/.exec(
-        require.resolve('jest-worker')
-      )
+      const match =
+        /^(.+?[\\/]v4)[\\/]npm-jest-worker-[^\\/]+-[\da-f]{40}[\\/]node_modules[\\/]/.exec(
+          require.resolve('jest-worker')
+        )
       if (match) {
         // @ts-ignore webpack 5
         webpackConfig.snapshot.immutablePaths = [match[1]]
       }
     } else if (process.versions.pnp === '3') {
-      const match = /^(.+?)[\\/]jest-worker-npm-[^\\/]+\.zip[\\/]node_modules[\\/]/.exec(
-        require.resolve('jest-worker')
-      )
+      const match =
+        /^(.+?)[\\/]jest-worker-npm-[^\\/]+\.zip[\\/]node_modules[\\/]/.exec(
+          require.resolve('jest-worker')
+        )
       if (match) {
         // @ts-ignore webpack 5
         webpackConfig.snapshot.immutablePaths = [match[1]]
@@ -1314,6 +1459,7 @@ export default async function getBaseWebpackConfig(
       pageExtensions: config.pageExtensions,
       trailingSlash: config.trailingSlash,
       buildActivity: config.devIndicators.buildActivity,
+      productionBrowserSourceMaps: !!config.productionBrowserSourceMaps,
       plugins: config.experimental.plugins,
       reactStrictMode: config.reactStrictMode,
       reactMode: config.experimental.reactMode,
@@ -1323,13 +1469,15 @@ export default async function getBaseWebpackConfig(
       scrollRestoration: config.experimental.scrollRestoration,
       basePath: config.basePath,
       pageEnv: config.experimental.pageEnv,
-      excludeDefaultMomentLocales: config.future.excludeDefaultMomentLocales,
+      excludeDefaultMomentLocales: config.excludeDefaultMomentLocales,
       assetPrefix: config.assetPrefix,
       disableOptimizedLoading: config.experimental.disableOptimizedLoading,
       target,
       reactProductionProfiling,
       webpack: !!config.webpack,
       hasRewrites,
+      reactRoot: config.experimental.reactRoot,
+      concurrentFeatures: config.experimental.concurrentFeatures,
     })
 
     const cache: any = {
@@ -1351,15 +1499,12 @@ export default async function getBaseWebpackConfig(
     webpackConfig.cache = cache
 
     if (process.env.NEXT_WEBPACK_LOGGING) {
-      const logInfra = process.env.NEXT_WEBPACK_LOGGING.includes(
-        'infrastructure'
-      )
-      const logProfileClient = process.env.NEXT_WEBPACK_LOGGING.includes(
-        'profile-client'
-      )
-      const logProfileServer = process.env.NEXT_WEBPACK_LOGGING.includes(
-        'profile-server'
-      )
+      const logInfra =
+        process.env.NEXT_WEBPACK_LOGGING.includes('infrastructure')
+      const logProfileClient =
+        process.env.NEXT_WEBPACK_LOGGING.includes('profile-client')
+      const logProfileServer =
+        process.env.NEXT_WEBPACK_LOGGING.includes('profile-server')
       const logDefault = !logInfra && !logProfileClient && !logProfileServer
 
       if (logDefault || logInfra) {
@@ -1402,13 +1547,16 @@ export default async function getBaseWebpackConfig(
 
   webpackConfig = await buildConfiguration(webpackConfig, {
     rootDirectory: dir,
-    customAppFile,
+    customAppFile: new RegExp(
+      path.join(pagesDir, `_app`).replace(/\\/g, '(/|\\\\)')
+    ),
     isDevelopment: dev,
     isServer,
     assetPrefix: config.assetPrefix || '',
     sassOptions: config.sassOptions,
     productionBrowserSourceMaps: config.productionBrowserSourceMaps,
     future: config.future,
+    isCraCompat: config.experimental.craCompat,
   })
 
   let originalDevtool = webpackConfig.devtool
@@ -1441,6 +1589,92 @@ export default async function getBaseWebpackConfig(
         '> Promise returned in next config. https://nextjs.org/docs/messages/promise-in-next-config'
       )
     }
+  }
+
+  if (!config.images.disableStaticImages && isWebpack5) {
+    const rules = webpackConfig.module?.rules || []
+    const hasCustomSvg = rules.some(
+      (rule) =>
+        rule.loader !== 'next-image-loader' &&
+        'test' in rule &&
+        rule.test instanceof RegExp &&
+        rule.test.test('.svg')
+    )
+    const nextImageRule = rules.find(
+      (rule) => rule.loader === 'next-image-loader'
+    )
+    if (hasCustomSvg && nextImageRule) {
+      // Exclude svg if the user already defined it in custom
+      // webpack config such as `@svgr/webpack` plugin or
+      // the `babel-plugin-inline-react-svg` plugin.
+      nextImageRule.test = /\.(png|jpg|jpeg|gif|webp|ico|bmp)$/i
+    }
+  }
+
+  if (
+    config.experimental.craCompat &&
+    webpackConfig.module?.rules &&
+    webpackConfig.plugins
+  ) {
+    // CRA prevents loading all locales by default
+    // https://github.com/facebook/create-react-app/blob/fddce8a9e21bf68f37054586deb0c8636a45f50b/packages/react-scripts/config/webpack.config.js#L721
+    webpackConfig.plugins.push(
+      new webpack.IgnorePlugin(/^\.\/locale$/, /moment$/)
+    )
+
+    // CRA allows importing non-webpack handled files with file-loader
+    // these need to be the last rule to prevent catching other items
+    // https://github.com/facebook/create-react-app/blob/fddce8a9e21bf68f37054586deb0c8636a45f50b/packages/react-scripts/config/webpack.config.js#L594
+    const fileLoaderExclude = [/\.(js|mjs|jsx|ts|tsx|json)$/]
+    const fileLoader = isWebpack5
+      ? {
+          exclude: fileLoaderExclude,
+          issuer: fileLoaderExclude,
+          type: 'asset/resource',
+          generator: {
+            publicPath: '/_next/',
+            filename: 'static/media/[name].[hash:8].[ext]',
+          },
+        }
+      : {
+          loader: require.resolve('next/dist/compiled/file-loader'),
+          // Exclude `js` files to keep "css" loader working as it injects
+          // its runtime that would otherwise be processed through "file" loader.
+          // Also exclude `html` and `json` extensions so they get processed
+          // by webpacks internal loaders.
+          exclude: fileLoaderExclude,
+          issuer: fileLoaderExclude,
+          options: {
+            publicPath: '/_next/static/media',
+            outputPath: 'static/media',
+            name: '[name].[hash:8].[ext]',
+          },
+        }
+
+    const topRules = []
+    const innerRules = []
+
+    for (const rule of webpackConfig.module.rules) {
+      if (rule.resolve) {
+        topRules.push(rule)
+      } else {
+        if (
+          rule.oneOf &&
+          !(rule.test || rule.exclude || rule.resource || rule.issuer)
+        ) {
+          rule.oneOf.forEach((r) => innerRules.push(r))
+        } else {
+          innerRules.push(rule)
+        }
+      }
+    }
+
+    webpackConfig.module.rules = [
+      ...(topRules as any),
+      {
+        oneOf: [...innerRules, fileLoader],
+      },
+    ]
   }
 
   // Backwards compat with webpack-dev-middleware options object
@@ -1527,9 +1761,10 @@ export default async function getBaseWebpackConfig(
     }
     if (webpackConfig.optimization?.minimizer?.length) {
       // Disable CSS Minifier
-      webpackConfig.optimization.minimizer = webpackConfig.optimization.minimizer.filter(
-        (e) => (e as any).__next_css_remove !== true
-      )
+      webpackConfig.optimization.minimizer =
+        webpackConfig.optimization.minimizer.filter(
+          (e) => (e as any).__next_css_remove !== true
+        )
     }
   } else if (!config.future.strictPostcssConfiguration) {
     await __overrideCssConfiguration(dir, !dev, webpackConfig)
@@ -1569,93 +1804,94 @@ export default async function getBaseWebpackConfig(
 
   // Patch `@zeit/next-sass`, `@zeit/next-less`, `@zeit/next-stylus` for compatibility
   if (webpackConfig.module && Array.isArray(webpackConfig.module.rules)) {
-    ;[].forEach.call(webpackConfig.module.rules, function (
-      rule: webpack.RuleSetRule
-    ) {
-      if (!(rule.test instanceof RegExp && Array.isArray(rule.use))) {
-        return
-      }
-
-      const isSass =
-        rule.test.source === '\\.scss$' || rule.test.source === '\\.sass$'
-      const isLess = rule.test.source === '\\.less$'
-      const isCss = rule.test.source === '\\.css$'
-      const isStylus = rule.test.source === '\\.styl$'
-
-      // Check if the rule we're iterating over applies to Sass, Less, or CSS
-      if (!(isSass || isLess || isCss || isStylus)) {
-        return
-      }
-
-      ;[].forEach.call(rule.use, function (use: webpack.RuleSetUseItem) {
-        if (
-          !(
-            use &&
-            typeof use === 'object' &&
-            // Identify use statements only pertaining to `css-loader`
-            (use.loader === 'css-loader' ||
-              use.loader === 'css-loader/locals') &&
-            use.options &&
-            typeof use.options === 'object' &&
-            // The `minimize` property is a good heuristic that we need to
-            // perform this hack. The `minimize` property was only valid on
-            // old `css-loader` versions. Custom setups (that aren't next-sass,
-            // next-less or next-stylus) likely have the newer version.
-            // We still handle this gracefully below.
-            (Object.prototype.hasOwnProperty.call(use.options, 'minimize') ||
-              Object.prototype.hasOwnProperty.call(
-                use.options,
-                'exportOnlyLocals'
-              ))
-          )
-        ) {
+    ;[].forEach.call(
+      webpackConfig.module.rules,
+      function (rule: webpack.RuleSetRule) {
+        if (!(rule.test instanceof RegExp && Array.isArray(rule.use))) {
           return
         }
 
-        // Try to monkey patch within a try-catch. We shouldn't fail the build
-        // if we cannot pull this off.
-        // The user may not even be using the `next-sass` or `next-less` or
-        // `next-stylus` plugins.
-        // If it does work, great!
-        try {
-          // Resolve the version of `@zeit/next-css` as depended on by the Sass,
-          // Less or Stylus plugin.
-          const correctNextCss = require.resolve('@zeit/next-css', {
-            paths: [
-              isCss
-                ? // Resolve `@zeit/next-css` from the base directory
-                  dir
-                : // Else, resolve it from the specific plugins
-                  require.resolve(
-                    isSass
-                      ? '@zeit/next-sass'
-                      : isLess
-                      ? '@zeit/next-less'
-                      : isStylus
-                      ? '@zeit/next-stylus'
-                      : 'next'
-                  ),
-            ],
-          })
+        const isSass =
+          rule.test.source === '\\.scss$' || rule.test.source === '\\.sass$'
+        const isLess = rule.test.source === '\\.less$'
+        const isCss = rule.test.source === '\\.css$'
+        const isStylus = rule.test.source === '\\.styl$'
 
-          // If we found `@zeit/next-css` ...
-          if (correctNextCss) {
-            // ... resolve the version of `css-loader` shipped with that
-            // package instead of whichever was hoisted highest in your
-            // `node_modules` tree.
-            const correctCssLoader = require.resolve(use.loader, {
-              paths: [correctNextCss],
-            })
-            if (correctCssLoader) {
-              // We saved the user from a failed build!
-              use.loader = correctCssLoader
-            }
-          }
-        } catch (_) {
-          // The error is not required to be handled.
+        // Check if the rule we're iterating over applies to Sass, Less, or CSS
+        if (!(isSass || isLess || isCss || isStylus)) {
+          return
         }
-      })
-    })
+
+        ;[].forEach.call(rule.use, function (use: webpack.RuleSetUseItem) {
+          if (
+            !(
+              use &&
+              typeof use === 'object' &&
+              // Identify use statements only pertaining to `css-loader`
+              (use.loader === 'css-loader' ||
+                use.loader === 'css-loader/locals') &&
+              use.options &&
+              typeof use.options === 'object' &&
+              // The `minimize` property is a good heuristic that we need to
+              // perform this hack. The `minimize` property was only valid on
+              // old `css-loader` versions. Custom setups (that aren't next-sass,
+              // next-less or next-stylus) likely have the newer version.
+              // We still handle this gracefully below.
+              (Object.prototype.hasOwnProperty.call(use.options, 'minimize') ||
+                Object.prototype.hasOwnProperty.call(
+                  use.options,
+                  'exportOnlyLocals'
+                ))
+            )
+          ) {
+            return
+          }
+
+          // Try to monkey patch within a try-catch. We shouldn't fail the build
+          // if we cannot pull this off.
+          // The user may not even be using the `next-sass` or `next-less` or
+          // `next-stylus` plugins.
+          // If it does work, great!
+          try {
+            // Resolve the version of `@zeit/next-css` as depended on by the Sass,
+            // Less or Stylus plugin.
+            const correctNextCss = require.resolve('@zeit/next-css', {
+              paths: [
+                isCss
+                  ? // Resolve `@zeit/next-css` from the base directory
+                    dir
+                  : // Else, resolve it from the specific plugins
+                    require.resolve(
+                      isSass
+                        ? '@zeit/next-sass'
+                        : isLess
+                        ? '@zeit/next-less'
+                        : isStylus
+                        ? '@zeit/next-stylus'
+                        : 'next'
+                    ),
+              ],
+            })
+
+            // If we found `@zeit/next-css` ...
+            if (correctNextCss) {
+              // ... resolve the version of `css-loader` shipped with that
+              // package instead of whichever was hoisted highest in your
+              // `node_modules` tree.
+              const correctCssLoader = require.resolve(use.loader, {
+                paths: [correctNextCss],
+              })
+              if (correctCssLoader) {
+                // We saved the user from a failed build!
+                use.loader = correctCssLoader
+              }
+            }
+          } catch (_) {
+            // The error is not required to be handled.
+          }
+        })
+      }
+    )
   }
 
   // Backwards compat for `main.js` entry key

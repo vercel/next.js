@@ -89,7 +89,11 @@ export async function createApp({
         console.error(
           `Could not locate an example named ${chalk.red(
             `"${example}"`
-          )}. Please check your spelling and try again.`
+          )}. It could be due to the following:\n`,
+          `1. Your spelling of example ${chalk.red(
+            `"${example}"`
+          )} might be incorrect.\n`,
+          `2. You might not be connected to the internet.`
         )
         process.exit(1)
       }
@@ -165,6 +169,15 @@ export async function createApp({
       )
     }
 
+    // Copy default `next-env.d.ts` to any example that is typescript
+    const tsconfigPath = path.join(root, 'tsconfig.json')
+    if (fs.existsSync(tsconfigPath)) {
+      fs.copyFileSync(
+        path.join(__dirname, 'templates', 'typescript', 'next-env.d.ts'),
+        path.join(root, 'next-env.d.ts')
+      )
+    }
+
     console.log('Installing packages. This might take a couple of minutes.')
     console.log()
 
@@ -187,6 +200,7 @@ export async function createApp({
         dev: 'next dev',
         build: 'next build',
         start: 'next start',
+        lint: 'next lint',
       },
     }
     /**
@@ -207,12 +221,12 @@ export async function createApp({
     /**
      * Default devDependencies.
      */
-    const devDependencies = []
+    const devDependencies = ['eslint', 'eslint-config-next']
     /**
      * TypeScript projects will have type definitions and other devDependencies.
      */
     if (typescript) {
-      devDependencies.push('typescript', '@types/react')
+      devDependencies.push('typescript', '@types/react', '@types/node')
     }
     /**
      * Install package.json dependencies if they exist.
@@ -250,11 +264,12 @@ export async function createApp({
       cwd: path.join(__dirname, 'templates', template),
       rename: (name) => {
         switch (name) {
-          case 'gitignore': {
+          case 'gitignore':
+          case 'eslintrc.json': {
             return '.'.concat(name)
           }
           // README.md is ignored by webpack-asset-relocator-loader used by ncc:
-          // https://github.com/zeit/webpack-asset-relocator-loader/blob/e9308683d47ff507253e37c9bcbb99474603192b/src/asset-relocator.js#L227
+          // https://github.com/vercel/webpack-asset-relocator-loader/blob/e9308683d47ff507253e37c9bcbb99474603192b/src/asset-relocator.js#L227
           case 'README-template.md': {
             return 'README.md'
           }

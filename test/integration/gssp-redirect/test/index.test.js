@@ -110,6 +110,90 @@ const runTests = (isDev) => {
     expect(pathname).toBe('/gsp-blog/redirect-dest-_gsp-blog_first')
   })
 
+  it('should apply redirect when fallback blocking GSP page is visited directly (internal dynamic)', async () => {
+    const browser = await webdriver(
+      appPort,
+      '/gsp-blog-blocking/redirect-dest-_gsp-blog_first',
+      true,
+      true
+    )
+
+    await browser.waitForElementByCss('#gsp')
+
+    const props = JSON.parse(await browser.elementByCss('#props').text())
+    expect(props).toEqual({
+      params: {
+        post: 'first',
+      },
+    })
+    const initialHref = await browser.eval(() => window.initialHref)
+    const { pathname } = url.parse(initialHref)
+    expect(pathname).toBe('/gsp-blog/first')
+  })
+
+  it('should apply redirect when fallback blocking GSP page is visited directly (internal dynamic) second visit', async () => {
+    const browser = await webdriver(
+      appPort,
+      '/gsp-blog-blocking/redirect-dest-_gsp-blog_first',
+      true,
+      true
+    )
+
+    await browser.waitForElementByCss('#gsp')
+
+    const props = JSON.parse(await browser.elementByCss('#props').text())
+    expect(props).toEqual({
+      params: {
+        post: 'first',
+      },
+    })
+    const initialHref = await browser.eval(() => window.initialHref)
+    const { pathname } = url.parse(initialHref)
+    expect(pathname).toBe('/gsp-blog/first')
+  })
+
+  it('should apply redirect when fallback blocking GSP page is visited directly (internal dynamic) with revalidate', async () => {
+    const browser = await webdriver(
+      appPort,
+      '/gsp-blog-blocking/redirect-revalidate-dest-_gsp-blog_first',
+      true,
+      true
+    )
+
+    await browser.waitForElementByCss('#gsp')
+
+    const props = JSON.parse(await browser.elementByCss('#props').text())
+    expect(props).toEqual({
+      params: {
+        post: 'first',
+      },
+    })
+    const initialHref = await browser.eval(() => window.initialHref)
+    const { pathname } = url.parse(initialHref)
+    expect(pathname).toBe('/gsp-blog/first')
+  })
+
+  it('should apply redirect when fallback blocking GSP page is visited directly (internal dynamic) with revalidate second visit', async () => {
+    const browser = await webdriver(
+      appPort,
+      '/gsp-blog-blocking/redirect-revalidate-dest-_gsp-blog_first',
+      true,
+      true
+    )
+
+    await browser.waitForElementByCss('#gsp')
+
+    const props = JSON.parse(await browser.elementByCss('#props').text())
+    expect(props).toEqual({
+      params: {
+        post: 'first',
+      },
+    })
+    const initialHref = await browser.eval(() => window.initialHref)
+    const { pathname } = url.parse(initialHref)
+    expect(pathname).toBe('/gsp-blog/first')
+  })
+
   if (!isDev) {
     it('should apply redirect when fallback GSP page is visited directly (internal dynamic) 2nd visit', async () => {
       const browser = await webdriver(
@@ -435,15 +519,28 @@ describe('GS(S)P Redirect Support', () => {
   })
 
   describe('production mode', () => {
+    let output = ''
+
     beforeAll(async () => {
       await fs.remove(join(appDir, '.next'))
       await nextBuild(appDir)
       appPort = await findPort()
-      app = await nextStart(appDir, appPort)
+      app = await nextStart(appDir, appPort, {
+        onStdout(msg) {
+          output += msg
+        },
+        onStderr(msg) {
+          output += msg
+        },
+      })
     })
     afterAll(() => killApp(app))
 
     runTests()
+
+    it('should not have errors in output', async () => {
+      expect(output).not.toContain('Failed to update prerender files')
+    })
   })
 
   describe('serverless mode', () => {

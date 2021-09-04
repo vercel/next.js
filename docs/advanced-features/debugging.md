@@ -55,7 +55,7 @@ Create a file named `.vscode/launch.json` at the root of your project with this 
     {
       "type": "node",
       "request": "attach",
-      "name": "Launch Program",
+      "name": "Attach to application",
       "skipFiles": ["<node_internals>/**"],
       "port": 9229
     }
@@ -69,7 +69,7 @@ Now hit <kdb>F5</kbd> or select **Debug: Start Debugging** from the Command Pale
 
 Now you can use the [`debugger`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/debugger) statement to pause your backend or frontend code anytime you want to observe and debug your code more precisely.
 
-If you trigger the underlying code by refreshing the current page, clicking on a page link or fetching an API route, your code will be paused and the debugger window will pop up.
+If you trigger the underlying code by refreshing the current page, clicking on a page link or fetching an API route, your code will be paused and the debugger window will appear.
 
 To learn more on how to use a JavaScript debugger, take a look at the following documentation:
 

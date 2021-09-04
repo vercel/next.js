@@ -6,6 +6,12 @@ Next.js and Paste have built-in TypeScript declarations, so you'll get autocompl
 
 [`pages/_app.tsx`](pages/_app.tsx) is used to connect `Paste`'s Theme Provider so the pages can have app-wide styles.
 
+## Preview
+
+Preview the example live on [StackBlitz](http://stackblitz.com/):
+
+[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-paste-typescript)
+
 ## Deploy your own
 
 Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):

@@ -9,7 +9,7 @@ An HTML `<img>` element was used to display an image. For better performance and
 Import and use the `<Image />` component:
 
 ```jsx
-import { Image } from 'next/image'
+import Image from 'next/image'
 
 function Home() {
   return (

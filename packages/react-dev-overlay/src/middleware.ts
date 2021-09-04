@@ -177,52 +177,50 @@ export async function createOriginalStackFrame({
   }
 }
 
-function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
-  async function getSourceById(
-    isServerSide: boolean,
-    isFile: boolean,
-    id: string
-  ): Promise<Source> {
-    if (isFile) {
-      const fileContent: string | null = await fs
-        .readFile(id, 'utf-8')
-        .catch(() => null)
+export async function getSourceById(
+  isFile: boolean,
+  id: string,
+  compilation: any,
+  isWebpack5: boolean
+): Promise<Source> {
+  if (isFile) {
+    const fileContent: string | null = await fs
+      .readFile(id, 'utf-8')
+      .catch(() => null)
 
-      if (fileContent == null) {
-        return null
-      }
-
-      const map = getRawSourceMap(fileContent)
-      if (map == null) {
-        return null
-      }
-
-      return {
-        map() {
-          return map
-        },
-      }
+    if (fileContent == null) {
+      return null
     }
 
-    try {
-      const compilation = isServerSide
-        ? options.serverStats()?.compilation
-        : options.stats()?.compilation
-      if (compilation == null) {
-        return null
-      }
-
-      const module = [...compilation.modules].find(
-        (searchModule) =>
-          getModuleId(compilation, searchModule, options.isWebpack5) === id
-      )
-      return getModuleSource(compilation, module, options.isWebpack5)
-    } catch (err) {
-      console.error(`Failed to lookup module by ID ("${id}"):`, err)
+    const map = getRawSourceMap(fileContent)
+    if (map == null) {
       return null
+    }
+
+    return {
+      map() {
+        return map
+      },
     }
   }
 
+  try {
+    if (compilation == null) {
+      return null
+    }
+
+    const module = [...compilation.modules].find(
+      (searchModule) =>
+        getModuleId(compilation, searchModule, isWebpack5) === id
+    )
+    return getModuleSource(compilation, module, isWebpack5)
+  } catch (err) {
+    console.error(`Failed to lookup module by ID ("${id}"):`, err)
+    return null
+  }
+}
+
+function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
   return async function (
     req: IncomingMessage,
     res: ServerResponse,
@@ -231,7 +229,7 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
     const { pathname, query } = url.parse(req.url!, true)
 
     if (pathname === '/__nextjs_original-stack-frame') {
-      const frame = (query as unknown) as StackFrame & {
+      const frame = query as unknown as StackFrame & {
         isServerSide: 'true' | 'false'
       }
       if (
@@ -254,10 +252,15 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
 
       let source: Source
       try {
+        const compilation = isServerSide
+          ? options.serverStats()?.compilation
+          : options.stats()?.compilation
+
         source = await getSourceById(
-          isServerSide,
           frame.file.startsWith('file:'),
-          moduleId
+          moduleId,
+          compilation,
+          !!options.isWebpack5
         )
       } catch (err) {
         console.log('Failed to get source map:', err)
@@ -308,7 +311,7 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
         return res.end()
       }
     } else if (pathname === '/__nextjs_launch-editor') {
-      const frame = (query as unknown) as StackFrame
+      const frame = query as unknown as StackFrame
 
       const frameFile = frame.file?.toString() || null
       if (frameFile == null) {

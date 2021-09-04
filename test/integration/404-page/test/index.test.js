@@ -19,11 +19,15 @@ jest.setTimeout(1000 * 60 * 2)
 const appDir = join(__dirname, '../')
 const pages404 = join(appDir, 'pages/404.js')
 const nextConfig = join(appDir, 'next.config.js')
-const gip404Err = /`pages\/404` can not have getInitialProps\/getServerSideProps/
+const gip404Err =
+  /`pages\/404` can not have getInitialProps\/getServerSideProps/
 
 let nextConfigContent
 let appPort
 let app
+
+const getCacheHeader = async (port, pathname) =>
+  (await fetchViaHTTP(port, pathname)).headers.get('Cache-Control')
 
 const runTests = (mode = 'server') => {
   it('should use pages/404', async () => {
@@ -106,6 +110,72 @@ describe('404 Page Support', () => {
     })
 
     runTests('serverless')
+  })
+
+  it('should not cache for custom 404 page with gssp and revalidate disabled', async () => {
+    await fs.move(pages404, `${pages404}.bak`)
+    await fs.writeFile(
+      pages404,
+      `
+      const page = () => 'custom 404 page'
+      export async function getStaticProps() { return { props: {} } }
+      export default page
+    `
+    )
+    await nextBuild(appDir)
+    appPort = await findPort()
+    app = await nextStart(appDir, appPort)
+    const cache404 = await getCacheHeader(appPort, '/404')
+    const cacheNext = await getCacheHeader(appPort, '/_next/abc')
+    await fs.remove(pages404)
+    await fs.move(`${pages404}.bak`, pages404)
+    await killApp(app)
+
+    expect(cache404).toBe(
+      'private, no-cache, no-store, max-age=0, must-revalidate'
+    )
+    expect(cacheNext).toBe(
+      'private, no-cache, no-store, max-age=0, must-revalidate'
+    )
+  })
+
+  it('should not cache for custom 404 page with gssp and revalidate enabled', async () => {
+    await fs.move(pages404, `${pages404}.bak`)
+    await fs.writeFile(
+      pages404,
+      `
+      const page = () => 'custom 404 page'
+      export async function getStaticProps() { return { props: {}, revalidate: 1 } }
+      export default page
+    `
+    )
+    await nextBuild(appDir)
+    appPort = await findPort()
+    app = await nextStart(appDir, appPort)
+    const cache404 = await getCacheHeader(appPort, '/404')
+    const cacheNext = await getCacheHeader(appPort, '/_next/abc')
+    await fs.remove(pages404)
+    await fs.move(`${pages404}.bak`, pages404)
+    await killApp(app)
+
+    expect(cache404).toBe(
+      'private, no-cache, no-store, max-age=0, must-revalidate'
+    )
+    expect(cacheNext).toBe(
+      'private, no-cache, no-store, max-age=0, must-revalidate'
+    )
+  })
+
+  it('should not cache for custom 404 page without gssp', async () => {
+    await nextBuild(appDir)
+    appPort = await findPort()
+    app = await nextStart(appDir, appPort)
+    const cache404 = await getCacheHeader(appPort, '/404')
+    const cacheNext = await getCacheHeader(appPort, '/_next/abc')
+    await killApp(app)
+
+    expect(cache404).toBe(null)
+    expect(cacheNext).toBe('no-cache, no-store, max-age=0, must-revalidate')
   })
 
   it('falls back to _error correctly without pages/404', async () => {

@@ -26,7 +26,12 @@
 // can be found here:
 // https://github.com/facebook/create-react-app/blob/v3.4.1/packages/react-dev-utils/webpackHotDevClient.js
 
-import * as DevOverlay from '@next/react-dev-overlay/lib/client'
+import {
+  register,
+  onBuildError,
+  onBuildOk,
+  onRefresh,
+} from '@next/react-dev-overlay/lib/client'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { addMessageListener } from './eventsource'
 import formatWebpackMessages from './format-webpack-messages'
@@ -43,7 +48,7 @@ import formatWebpackMessages from './format-webpack-messages'
 let hadRuntimeError = false
 let customHmrEventHandler
 export default function connect() {
-  DevOverlay.register()
+  register()
 
   addMessageListener((event) => {
     // This is the heartbeat event
@@ -154,7 +159,7 @@ function handleErrors(errors) {
   })
 
   // Only show the first error.
-  DevOverlay.onBuildError(formatted.errors[0])
+  onBuildError(formatted.errors[0])
 
   // Also log them to the console.
   if (typeof console !== 'undefined' && typeof console.error === 'function') {
@@ -173,13 +178,21 @@ function handleErrors(errors) {
   }
 }
 
+let startLatency = undefined
+
 function onFastRefresh(hasUpdates) {
-  DevOverlay.onBuildOk()
+  onBuildOk()
   if (hasUpdates) {
-    DevOverlay.onRefresh()
+    onRefresh()
   }
 
-  console.log('[Fast Refresh] done')
+  if (startLatency) {
+    const latency = Date.now() - startLatency
+    console.log(`[Fast Refresh] done in ${latency}ms`)
+    if (self.__NEXT_HMR_LATENCY_CB) {
+      self.__NEXT_HMR_LATENCY_CB(latency)
+    }
+  }
 }
 
 // There is a newer version of the code available.
@@ -193,6 +206,7 @@ function processMessage(e) {
   const obj = JSON.parse(e.data)
   switch (obj.action) {
     case 'building': {
+      startLatency = Date.now()
       console.log('[Fast Refresh] rebuilding')
       break
     }

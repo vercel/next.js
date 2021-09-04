@@ -1,4 +1,4 @@
-const NodeAttributes = require('../utils/nodeAttributes.js')
+const NodeAttributes = require('../utils/node-attributes.js')
 
 module.exports = {
   meta: {
@@ -44,9 +44,7 @@ module.exports = {
 
         const hasAnchorChild = children.some(
           (attr) =>
-            attr.type === 'JSXElement' &&
-            attr.openingElement.name.name === 'a' &&
-            attr.closingElement.name.name === 'a'
+            attr.type === 'JSXElement' && attr.openingElement.name.name === 'a'
         )
 
         if (!hasAnchorChild && !hasPassHref) {
@@ -56,7 +54,7 @@ module.exports = {
               attributes.value('passHref') !== true
                 ? 'must be set to true'
                 : 'is missing'
-            }. See https://nextjs.org/docs/messages/link-passhref.`,
+            }. See https://nextjs.org/docs/messages/link-passhref`,
           })
         }
       },

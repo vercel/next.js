@@ -18,7 +18,7 @@ module.exports = function (context) {
         context.report({
           node,
           message:
-            'Synchronous scripts are forbidden. See: https://nextjs.org/docs/messages/no-sync-scripts.',
+            'External synchronous scripts are forbidden. See: https://nextjs.org/docs/messages/no-sync-scripts.',
         })
       }
     },

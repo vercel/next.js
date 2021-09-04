@@ -1,6 +1,5 @@
 {
-  "name": "with-storybook-styled-jsx-scss",
-  "version": "0.1.0",
+  "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -11,10 +10,9 @@
   },
   "dependencies": {
     "next": "^10.0.0",
-    "react": "17.0.1",
-    "react-dom": "17.0.1"
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2"
   },
-  "license": "MIT",
   "devDependencies": {
     "@babel/core": "^7.12.3",
     "@storybook/addon-actions": "^6.1.11",

@@ -4,8 +4,8 @@ import { realpathSync } from 'fs'
 import path from 'path'
 
 const originModules = [
-  require.resolve('../../../next-server/server/require'),
-  require.resolve('../../../next-server/server/load-components'),
+  require.resolve('../../../server/require'),
+  require.resolve('../../../server/load-components'),
 ]
 
 function deleteCache(filePath: string) {

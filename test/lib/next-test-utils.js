@@ -1,6 +1,12 @@
 import spawn from 'cross-spawn'
 import express from 'express'
-import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'fs'
+import {
+  existsSync,
+  readFileSync,
+  unlinkSync,
+  writeFileSync,
+  createReadStream,
+} from 'fs'
 import { writeFile } from 'fs-extra'
 import getPort from 'get-port'
 import http from 'http'
@@ -31,7 +37,10 @@ export function initNextServerScript(
   opts
 ) {
   return new Promise((resolve, reject) => {
-    const instance = spawn('node', ['--no-deprecation', scriptPath], { env })
+    const instance = spawn('node', ['--no-deprecation', scriptPath], {
+      env,
+      cwd: opts && opts.cwd,
+    })
 
     function handleStdout(data) {
       const message = data.toString()
@@ -83,7 +92,7 @@ export function renderViaHTTP(appPort, pathname, query, opts) {
 
 export function fetchViaHTTP(appPort, pathname, query, opts) {
   const url = `http://localhost:${appPort}${pathname}${
-    query ? `?${qs.stringify(query)}` : ''
+    typeof query === 'string' ? query : query ? `?${qs.stringify(query)}` : ''
   }`
   return fetch(url, opts)
 }
@@ -106,12 +115,16 @@ export function runNextCommand(argv, options = {}) {
 
   return new Promise((resolve, reject) => {
     console.log(`Running command "next ${argv.join(' ')}"`)
-    const instance = spawn('node', ['--no-deprecation', nextBin, ...argv], {
-      ...options.spawnOptions,
-      cwd,
-      env,
-      stdio: ['ignore', 'pipe', 'pipe'],
-    })
+    const instance = spawn(
+      'node',
+      [...(options.nodeArgs || []), '--no-deprecation', nextBin, ...argv],
+      {
+        ...options.spawnOptions,
+        cwd,
+        env,
+        stdio: ['ignore', 'pipe', 'pipe'],
+      }
+    )
 
     if (typeof options.instance === 'function') {
       options.instance(instance)
@@ -176,11 +189,16 @@ export function runNextCommandDev(argv, stdOut, opts = {}) {
     ...opts.env,
   }
 
+  const nodeArgs = opts.nodeArgs || []
   return new Promise((resolve, reject) => {
-    const instance = spawn('node', ['--no-deprecation', nextBin, ...argv], {
-      cwd,
-      env,
-    })
+    const instance = spawn(
+      'node',
+      [...nodeArgs, '--no-deprecation', nextBin, ...argv],
+      {
+        cwd,
+        env,
+      }
+    )
     let didResolve = false
 
     function handleStdout(data) {
@@ -252,6 +270,10 @@ export function nextExport(dir, { outdir }, opts = {}) {
 
 export function nextExportDefault(dir, opts = {}) {
   return runNextCommand(['export', dir], opts)
+}
+
+export function nextLint(dir, args = [], opts = {}) {
+  return runNextCommand(['lint', dir, ...args], opts)
 }
 
 export function nextStart(dir, port, opts = {}) {
@@ -350,10 +372,16 @@ export function waitFor(millis) {
   return new Promise((resolve) => setTimeout(resolve, millis))
 }
 
-export async function startStaticServer(dir) {
+export async function startStaticServer(dir, notFoundFile) {
   const app = express()
   const server = http.createServer(app)
   app.use(express.static(dir))
+
+  if (notFoundFile) {
+    app.use((req, res) => {
+      createReadStream(notFoundFile).pipe(res)
+    })
+  }
 
   await promiseCall(server, 'listen')
   return server
