@@ -1,22 +1,22 @@
-import { useRouter } from "next/router";
-import Link from "next/link";
-import { getPages, getPage } from "../lib/cms";
+import { useRouter } from 'next/router'
+import Link from 'next/link'
+import { getPages, getPage } from '../lib/cms'
 
 export default function Page({ links, page }) {
-  const { locales, locale, asPath } = useRouter();
+  const { locales, locale, asPath } = useRouter()
 
   return (
     <div className="container">
       <header>
         {locales.map((l) => (
           <Link key={`link-${l}`} locale={l} href="/">
-            <a className={l === locale ? "active" : undefined}>{l}</a>
+            <a className={l === locale ? 'active' : undefined}>{l}</a>
           </Link>
         ))}
         <hr />
         {links.map((link) => (
           <Link key={`link-${link.href}`} href={link.href}>
-            <a className={asPath === link.href ? "active" : undefined}>
+            <a className={asPath === link.href ? 'active' : undefined}>
               {link.label}
             </a>
           </Link>
@@ -49,26 +49,26 @@ export default function Page({ links, page }) {
         }
       `}</style>
     </div>
-  );
+  )
 }
 
 export async function getStaticProps({ locale, params: { slug } }) {
   const currentPage = await getPage({
-    slug: slug ? `/${slug.join("/")}` : "/",
+    slug: slug ? `/${slug.join('/')}` : '/',
     locale,
-  });
+  })
 
   const page = {
     slug: currentPage.slug[locale],
     title: currentPage.title[locale],
-  };
+  }
 
-  const pages = getPages({ locale });
+  const pages = getPages({ locale })
 
   const links = pages.map((page) => ({
     label: page.title[locale],
     href: page.slug[locale],
-  }));
+  }))
 
   return {
     props: {
@@ -76,28 +76,28 @@ export async function getStaticProps({ locale, params: { slug } }) {
       page,
     },
     notFound: !!!page,
-  };
+  }
 }
 
 export async function getStaticPaths({ locales }) {
-  const paths = [];
+  const paths = []
 
   locales.forEach((locale) => {
     getPages({ locale }).forEach((page) => {
-      const slug = page.slug[locale];
-      const [, ...slugParts] = slug.split("/");
+      const slug = page.slug[locale]
+      const [, ...slugParts] = slug.split('/')
 
       paths.push({
         locale,
         params: {
-          slug: slug === "/" ? null : slugParts,
+          slug: slug === '/' ? null : slugParts,
         },
-      });
-    });
-  });
+      })
+    })
+  })
 
   return {
     paths: paths,
     fallback: false,
-  };
+  }
 }
