@@ -145,6 +145,10 @@ import Script from 'next/script'
 />
 ```
 
+> **Note:**
+>
+> - `next/script` components with inline content require an `id` attribute to be defined to track and optimize the script.
+
 ### Forwarding Attributes
 
 ```js
