@@ -19,7 +19,7 @@ const Home = () => {
       <!-- Global site tag (gtag.js) - Google Analytics -->
       <Script
         src="https://www.googletagmanager.com/gtag/js?id=GA_MEASUREMENT_ID"
-        strategy="lazyOnload"
+        strategy="afterInteractive"
       />
       <Script id="google-analytics">
         {`
@@ -82,7 +82,7 @@ const Home = () => {
       </Script>
       <Script
         src="https://www.google-analytics.com/analytics.js"
-        strategy="lazyOnload"
+        strategy="afterInteractive"
       />
     </div>
   )
