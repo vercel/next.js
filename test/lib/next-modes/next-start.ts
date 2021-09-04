@@ -44,7 +44,7 @@ export class NextStartInstance extends NextInstance {
 
     this.childProcess = spawn(
       'node',
-      ['node_modules/.bin/next', 'build'],
+      ['node_modules/next/dist/bin/next', 'build'],
       spawnOpts
     )
     handleStdio()
@@ -64,7 +64,11 @@ export class NextStartInstance extends NextInstance {
     })
     // we don't use yarn next here as yarn detaches itself from the
     // child process making it harder to kill all processes
-    this.childProcess = spawn('node', ['node_modules/.bin/next'], spawnOpts)
+    this.childProcess = spawn(
+      'node',
+      ['node_modules/next/dist/bin/next'],
+      spawnOpts
+    )
     handleStdio()
 
     await new Promise<void>((resolve) => {

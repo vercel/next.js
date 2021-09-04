@@ -36,7 +36,7 @@ export class NextDevInstance extends NextInstance {
     }
     // we don't use yarn next here as yarn detaches itself from the
     // child process making it harder to kill all processes
-    this.childProcess = spawn('node', ['node_modules/.bin/next'], {
+    this.childProcess = spawn('node', ['node_modules/next/dist/bin/next'], {
       cwd: this.testDir,
       stdio: ['ignore', 'pipe', 'pipe'],
       shell: false,
