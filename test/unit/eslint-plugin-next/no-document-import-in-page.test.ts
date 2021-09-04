@@ -1,3 +1,5 @@
+import path from 'path'
+
 import rule from '@next/eslint-plugin-next/lib/rules/no-document-import-in-page'
 import { RuleTester } from 'eslint'
 ;(RuleTester as any).setDefaultConfig({
@@ -40,7 +42,7 @@ ruleTester.run('no-document-import-in-page', rule, {
       }
     }
     `,
-      filename: 'pages\\_document.js',
+      filename: `pages${path.sep}_document.js`,
     },
     {
       code: `import NextDocument from "next/document"
@@ -54,7 +56,7 @@ ruleTester.run('no-document-import-in-page', rule, {
       }
     }
     `,
-      filename: 'pages/_document.tsx',
+      filename: `pages${path.posix.sep}_document.tsx`,
     },
     {
       code: `import Document from "next/document"
@@ -147,7 +149,7 @@ ruleTester.run('no-document-import-in-page', rule, {
 
       export const Test = () => <p>Test</p>
       `,
-      filename: 'pages\\test.js',
+      filename: `pages${path.sep}test.js`,
       errors: [
         {
           message:
