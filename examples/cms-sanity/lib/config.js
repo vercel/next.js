@@ -6,4 +6,6 @@ export const sanityConfig = {
   // useCdn == true gives fast, cheap responses using a globally distributed cache.
   // Set this to false if your application require the freshest possible
   // data always (potentially slightly slower and a bit more expensive).
+  apiVersion: '2021-03-25',
+  // see https://www.sanity.io/docs/api-versioning for how versioning works
 }

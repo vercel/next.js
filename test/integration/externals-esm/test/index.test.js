@@ -15,7 +15,7 @@ const appDir = join(__dirname, '../')
 let appPort
 let app
 
-describe('Valid resolve alias', () => {
+describe('Handle ESM externals with esmExternals: true', () => {
   beforeAll(async () => {
     await fs.remove(join(appDir, '.next'))
     await nextBuild(appDir)

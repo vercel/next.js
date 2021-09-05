@@ -270,6 +270,10 @@
           "path": "/errors/next-image-unconfigured-host.md"
         },
         {
+          "title": "next-script-for-ga",
+          "path": "/errors/next-script-for-ga.md"
+        },
+        {
           "title": "next-start-serverless",
           "path": "/errors/next-start-serverless.md"
         },
