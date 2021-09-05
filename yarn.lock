@@ -7688,6 +7688,11 @@ cpy@7.3.0:
     globby "^9.2.0"
     nested-error-stacks "^2.1.0"
 
+crawler-user-agents@1.0.84:
+  version "1.0.84"
+  resolved "https://registry.yarnpkg.com/crawler-user-agents/-/crawler-user-agents-1.0.84.tgz#b225dca5d7a67d280678e945c96e77badc58656f"
+  integrity sha512-EeYQmI3c++XPMKb60p1zpFuLNrM/K/2ElhX/vN9KjTYc6r00QDSfX/NU6BXY79yUYUwG259DMC8NFrxpuureZQ==
+
 create-ecdh@^4.0.0:
   version "4.0.3"
   resolved "https://registry.yarnpkg.com/create-ecdh/-/create-ecdh-4.0.3.tgz#c9111b6f33045c4697f144787f9254cdc77c45ff"

@@ -1,0 +1,10 @@
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "target": "es2015",
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "downlevelIteration": true,
+    "preserveWatchOutput": true
+  }
+}

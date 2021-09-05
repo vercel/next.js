@@ -2,6 +2,7 @@ import compression from 'next/dist/compiled/compression'
 import fs from 'fs'
 import chalk from 'chalk'
 import { IncomingMessage, ServerResponse } from 'http'
+import { CRAWLER_PATTERN } from '@next/crawler-utils'
 import Proxy from 'next/dist/compiled/http-proxy'
 import { join, relative, resolve, sep } from 'path'
 import {
@@ -1250,12 +1251,14 @@ export default class Server {
       query: ParsedUrlQuery
     }
   ): Promise<void> {
+    const userAgent = partialContext.req.headers['user-agent']
     const ctx = {
       ...partialContext,
       renderOpts: {
         ...this.renderOpts,
-        // TODO: Determine when dynamic HTML is allowed
-        supportsDynamicHTML: false,
+        supportsDynamicHTML: userAgent
+          ? !CRAWLER_PATTERN.test(userAgent)
+          : false,
       },
     } as const
     const payload = await fn(ctx)

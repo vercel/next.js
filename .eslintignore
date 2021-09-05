@@ -26,3 +26,4 @@ packages/create-next-app/templates/**
 test/integration/eslint/**
 test-timings.json
 packages/next/build/swc/tests/fixture/**
+packages/next-crawler-utils/*

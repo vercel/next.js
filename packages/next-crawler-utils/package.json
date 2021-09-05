@@ -1,0 +1,23 @@
+{
+  "name": "@next/crawler-utils",
+  "version": "11.1.3-canary.9",
+  "main": "dist/index.js",
+  "license": "MIT",
+  "repository": {
+    "url": "vercel/next.js",
+    "directory": "packages/next-crawler-utils"
+  },
+  "files": [
+    "dist/index.d.ts",
+    "dist/index.js"
+  ],
+  "scripts": {
+    "prerelease": "rimraf ./dist/",
+    "release": "tsc -d -p tsconfig.json --outDir ./dist --declaration false && node dist/build.js > dist/index.ts && tsc -d dist/index.ts",
+    "prepublish": "yarn release"
+  },
+  "devDependencies": {
+    "crawler-user-agents": "1.0.84",
+    "rimraf": "3.0.0"
+  }
+}
