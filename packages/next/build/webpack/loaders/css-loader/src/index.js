@@ -6,7 +6,7 @@ import { getOptions, stringifyRequest } from 'next/dist/compiled/loader-utils'
 import postcss from 'postcss'
 
 import CssSyntaxError from './CssSyntaxError'
-import Warning from './Warning'
+import Warning from '../../postcss-loader/src/Warning'
 import { icssParser, importParser, urlParser } from './plugins'
 import {
   normalizeOptions,
