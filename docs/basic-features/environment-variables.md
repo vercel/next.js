@@ -15,14 +15,14 @@ description: Learn to add and access environment variables in your Next.js appli
 
 Next.js comes with built-in support for environment variables, which allows you to do the following:
 
-- [Use `.env.local` to load environment variables](#loading-environment-variables)
+- [Use `src/.env.local` to load environment variables](#loading-environment-variables)
 - [Expose environment variables to the browser by prefixing with `NEXT_PUBLIC_`](#exposing-environment-variables-to-the-browser)
 
 ## Loading Environment Variables
 
-Next.js has built-in support for loading environment variables from `.env.local` into `process.env`.
+Next.js has built-in support for loading environment variables from `src/.env.local` into `process.env`.
 
-An example `.env.local`:
+An example `src/.env.local`:
 
 ```bash
 DB_HOST=localhost
