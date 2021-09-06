@@ -54,6 +54,7 @@ export default async function loader(content, sourceMap, meta) {
       // Reuse PostCSS AST from other loaders
       if (meta && meta.ast && meta.ast.type === 'postcss') {
         ;({ root } = meta.ast)
+        loaderSpan.setAttribute('astUsed', 'true')
       }
 
       let result
