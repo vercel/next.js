@@ -1250,13 +1250,12 @@ export default class Server {
       query: ParsedUrlQuery
     }
   ): Promise<void> {
-    // TODO: Determine when dynamic HTML is allowed
-    const requireStaticHTML = true
     const ctx = {
       ...partialContext,
       renderOpts: {
         ...this.renderOpts,
-        requireStaticHTML,
+        // TODO: Determine when dynamic HTML is allowed
+        supportsDynamicHTML: false,
       },
     } as const
     const payload = await fn(ctx)
@@ -1296,16 +1295,11 @@ export default class Server {
       ...partialContext,
       renderOpts: {
         ...this.renderOpts,
-        requireStaticHTML: true,
+        supportsDynamicHTML: false,
       },
     })
     if (payload === null) {
       return null
-    }
-    if (payload.body.isDynamic()) {
-      throw new Error(
-        'invariant: expected a static result. This is a bug in Next.js'
-      )
     }
     return payload.body.toUnchunkedString()
   }
@@ -1490,6 +1484,17 @@ export default class Server {
       delete query.amp
     }
 
+    if (opts.supportsDynamicHTML === true) {
+      // Disable dynamic HTML in cases that we know it won't be generated,
+      // so that we can continue generating a cache key when possible.
+      opts.supportsDynamicHTML =
+        !isSSG &&
+        !isLikeServerless &&
+        !query.amp &&
+        !this.minimalMode &&
+        typeof components.Document.getInitialProps !== 'function'
+    }
+
     const locale = query.__nextLocale as string
     const defaultLocale = isSSG
       ? this.nextConfig.i18n?.defaultLocale
@@ -1574,7 +1579,7 @@ export default class Server {
     }
 
     let ssgCacheKey =
-      isPreviewMode || !isSSG || this.minimalMode
+      isPreviewMode || !isSSG || this.minimalMode || opts.supportsDynamicHTML
         ? null // Preview mode bypasses the cache
         : `${locale ? `/${locale}` : ''}${
             (pathname === '/' || resolvedUrlPathname === '/') && locale
