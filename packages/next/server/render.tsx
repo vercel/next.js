@@ -194,7 +194,7 @@ export type RenderOptsPartial = {
   defaultLocale?: string
   domainLocales?: DomainLocale[]
   disableOptimizedLoading?: boolean
-  requireStaticHTML?: boolean
+  supportsDynamicHTML?: boolean
   concurrentFeatures?: boolean
   customServer?: boolean
 }
@@ -295,7 +295,7 @@ export async function renderToHTML(
     previewProps,
     basePath,
     devOnlyCacheBusterQueryString,
-    requireStaticHTML,
+    supportsDynamicHTML,
     concurrentFeatures,
   } = renderOpts
 
@@ -883,7 +883,20 @@ export async function renderToHTML(
     }
   }
 
-  const generateStaticHTML = requireStaticHTML || inAmpMode
+  /**
+   * Rules of Static & Dynamic HTML:
+   *
+   *    1.) We must generate static HTML unless the caller explicitly opts
+   *        in to dynamic HTML support.
+   *
+   *    2.) If dynamic HTML support is requested, we must honor that request
+   *        or throw an error. It is the sole responsibility of the caller to
+   *        ensure they aren't e.g. requesting dynamic HTML for an AMP page.
+   *
+   * These rules help ensure that other existing features like request caching,
+   * coalescing, and ISR continue working as intended.
+   */
+  const generateStaticHTML = supportsDynamicHTML !== true
   const renderToStream = (element: React.ReactElement) =>
     new Promise<Observable<string>>((resolve, reject) => {
       const stream = new PassThrough()

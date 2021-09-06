@@ -116,7 +116,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
       previewProps: encodedPreviewProps,
       env: process.env,
       basePath,
-      requireStaticHTML: true, // Serverless target doesn't support streaming
+      supportsDynamicHTML: false, // Serverless target doesn't support streaming
       ..._renderOpts,
     }
     let _nextData = false
