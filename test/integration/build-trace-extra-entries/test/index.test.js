@@ -6,7 +6,7 @@ import { nextBuild } from 'next-test-utils'
 
 jest.setTimeout(1000 * 60)
 
-const appDir = join(__dirname, '..')
+const appDir = join(__dirname, '../app')
 
 describe('build trace with extra entries', () => {
   it('should build and trace correctly', async () => {
@@ -28,5 +28,8 @@ describe('build trace with extra entries', () => {
     expect(
       indexTrace.files.some((file) => file.endsWith('hello.json'))
     ).toBeFalsy()
+    expect(
+      indexTrace.files.some((file) => file.includes('some-cms/index.js'))
+    ).toBe(true)
   })
 })
