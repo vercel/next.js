@@ -94,10 +94,13 @@ export {
 
 export type PreviewData = string | false | object | undefined
 
-export type GetStaticPropsContext<Q extends ParsedUrlQuery = ParsedUrlQuery> = {
+export type GetStaticPropsContext<
+  Q extends ParsedUrlQuery = ParsedUrlQuery,
+  D extends PreviewData = PreviewData
+> = {
   params?: Q
   preview?: boolean
-  previewData?: PreviewData
+  previewData?: D
   locale?: string
   locales?: string[]
   defaultLocale?: string
@@ -110,9 +113,10 @@ export type GetStaticPropsResult<P> =
 
 export type GetStaticProps<
   P extends { [key: string]: any } = { [key: string]: any },
-  Q extends ParsedUrlQuery = ParsedUrlQuery
+  Q extends ParsedUrlQuery = ParsedUrlQuery,
+  D extends PreviewData = PreviewData
 > = (
-  context: GetStaticPropsContext<Q>
+  context: GetStaticPropsContext<Q, D>
 ) => Promise<GetStaticPropsResult<P>> | GetStaticPropsResult<P>
 
 export type InferGetStaticPropsType<T> = T extends GetStaticProps<infer P, any>
@@ -138,7 +142,8 @@ export type GetStaticPaths<P extends ParsedUrlQuery = ParsedUrlQuery> = (
 ) => Promise<GetStaticPathsResult<P>> | GetStaticPathsResult<P>
 
 export type GetServerSidePropsContext<
-  Q extends ParsedUrlQuery = ParsedUrlQuery
+  Q extends ParsedUrlQuery = ParsedUrlQuery,
+  D extends PreviewData = PreviewData
 > = {
   req: IncomingMessage & {
     cookies: NextApiRequestCookies
@@ -147,7 +152,7 @@ export type GetServerSidePropsContext<
   params?: Q
   query: ParsedUrlQuery
   preview?: boolean
-  previewData?: PreviewData
+  previewData?: D
   resolvedUrl: string
   locale?: string
   locales?: string[]
@@ -161,9 +166,10 @@ export type GetServerSidePropsResult<P> =
 
 export type GetServerSideProps<
   P extends { [key: string]: any } = { [key: string]: any },
-  Q extends ParsedUrlQuery = ParsedUrlQuery
+  Q extends ParsedUrlQuery = ParsedUrlQuery,
+  D extends PreviewData = PreviewData
 > = (
-  context: GetServerSidePropsContext<Q>
+  context: GetServerSidePropsContext<Q, D>
 ) => Promise<GetServerSidePropsResult<P>>
 
 export type InferGetServerSidePropsType<T> = T extends GetServerSideProps<
