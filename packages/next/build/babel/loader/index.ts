@@ -11,14 +11,14 @@ async function nextBabelLoader(
   inputSourceMap: object | null | undefined
 ) {
   const filename = this.resourcePath
-  const rawFilename = path.join(
-    this.context,
-    this._injectModulePlugin.module.resourceResolveData.relativePath
-  )
   const target = this.target
   const loaderOptions = parentTrace
     .traceChild('get-options')
     .traceFn(() => getOptions(this))
+  const rawFilename = path.join(
+    loaderOptions.cwd,
+    this._injectModulePlugin.module.resourceResolveData.relativePath
+  )
 
   const loaderSpanInner = parentTrace.traceChild('next-babel-turbo-transform')
   const { code: transformedSource, map: outputSourceMap } =

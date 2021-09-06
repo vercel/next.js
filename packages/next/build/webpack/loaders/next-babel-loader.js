@@ -80,12 +80,12 @@ const customBabelLoader = babelLoader((babel) => {
         },
       }
     ) {
-      const rawFilename = path.join(
-        this.context,
-        this._injectModulePlugin.module.resourceResolveData.relativePath
-      )
       const filename = this.resourcePath
       const options = Object.assign({}, cfg.options)
+      const rawFilename = path.join(
+        options.cwd,
+        this._injectModulePlugin.module.resourceResolveData.relativePath
+      )
       const isPageFile =
         filename.startsWith(pagesDir) || rawFilename.startsWith(pagesDir)
 
