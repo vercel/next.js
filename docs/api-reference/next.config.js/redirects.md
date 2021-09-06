@@ -208,6 +208,7 @@ module.exports = {
             value: 'example.com',
           },
         ],
+        permanent: false,
         destination: '/another-page',
       },
     ]
