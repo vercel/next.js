@@ -57,19 +57,19 @@ export const {
     },
   },
   utils: {
-    marginX: (config) => (value) => ({
+    marginX: (value) => ({
       marginLeft: value,
       marginRight: value,
     }),
-    marginY: (config) => (value) => ({
+    marginY: (value) => ({
       marginTop: value,
       marginBottom: value,
     }),
-    paddingX: (config) => (value) => ({
+    paddingX: (value) => ({
       paddingLeft: value,
       paddingRight: value,
     }),
-    paddingY: (config) => (value) => ({
+    paddingY: (value) => ({
       paddingTop: value,
       paddingBottom: value,
     }),
