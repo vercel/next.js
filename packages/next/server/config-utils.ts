@@ -1,7 +1,7 @@
 import path from 'path'
 import { Worker } from 'jest-worker'
 import * as Log from '../build/output/log'
-import { CheckReasons, CheckResult } from './config-utils-worker'
+import { CheckResult } from './config-utils-worker'
 import { install, shouldLoadWithWebpack5 } from './config-utils-worker'
 import { PHASE_PRODUCTION_SERVER } from '../shared/lib/constants'
 import { getNodeOptionsWithoutInspect } from './lib/utils'
