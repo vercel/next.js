@@ -44,11 +44,11 @@ export async function loadWebpackHook(phase: string, dir: string) {
     if (result.reason === 'future-flag') {
       usesRemovedFlag = true
     } else {
-      if (phase !== PHASE_PRODUCTION_SERVER) {
+      // Only when webpack 4 is used this message is shown
+      // TODO: Remove when webpack 4 is no longer supported
+      if (phase !== PHASE_PRODUCTION_SERVER && !result.enabled) {
         Log.info(
-          `Using webpack ${result.enabled ? '5' : '4'}. Reason: ${reasonMessage(
-            result.reason
-          )} https://nextjs.org/docs/messages/webpack5`
+          `Using webpack 4 in Next.js is deprecated. Please upgrade to using webpack 5: https://nextjs.org/docs/messages/webpack5`
         )
       }
     }
