@@ -8,19 +8,6 @@ import { getNodeOptionsWithoutInspect } from './lib/utils'
 
 export { install, shouldLoadWithWebpack5 }
 
-function reasonMessage(reason: CheckReasons) {
-  switch (reason) {
-    case 'default':
-      return 'Enabled by default'
-    case 'flag-disabled':
-      return 'webpack5 flag is set to false in next.config.js'
-    case 'test-mode':
-      return 'internal test mode'
-    default:
-      return ''
-  }
-}
-
 export async function loadWebpackHook(phase: string, dir: string) {
   let useWebpack5 = true
   let usesRemovedFlag = false
