@@ -781,12 +781,16 @@ export async function ncc_mini_css_extract_plugin(task, opts) {
 
 // eslint-disable-next-line camelcase
 export async function ncc_webpack_bundle4(task, opts) {
+  const webpackExternals = {
+    ...externals,
+  }
+  delete webpackExternals['webpack/lib/NormalModule']
   await task
     .source(opts.src || 'bundles/webpack/bundle4.js')
     .ncc({
       packageName: 'webpack',
       bundleName: 'webpack',
-      externals,
+      externals: webpackExternals,
       minify: false,
       target: 'es5',
     })
