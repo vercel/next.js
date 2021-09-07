@@ -1,3 +1,5 @@
+const path = require('path')
+
 module.exports = {
   meta: {
     docs: {
@@ -18,8 +20,8 @@ module.exports = {
 
         if (
           !page ||
-          page.startsWith('/_document') ||
-          page.startsWith('\\_document')
+          page.startsWith(`${path.sep}_document`) ||
+          page.startsWith(`${path.posix.sep}_document`)
         ) {
           return
         }
