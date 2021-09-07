@@ -368,6 +368,26 @@ export class Head extends Component<
     return getDynamicChunks(this.context, this.props, files)
   }
 
+  getInlineBeforeInteractiveScripts() {
+    const { scriptLoader, disableOptimizedLoading } = this.context
+    const { nonce, crossOrigin } = this.props
+
+    return (scriptLoader.inlineBeforeInteractive || []).map(
+      (file: ScriptProps, index: number) => {
+        const { strategy, ...scriptProps } = file
+        return (
+          <script
+            {...scriptProps}
+            key={scriptProps.id || index}
+            nonce={nonce}
+            data-nscript="inlineBeforeInteractive"
+            crossOrigin={crossOrigin || process.env.__NEXT_CROSS_ORIGIN}
+          />
+        )
+      }
+    )
+  }
+
   getPreNextScripts() {
     return getPreNextScripts(this.context, this.props)
   }
@@ -673,6 +693,7 @@ export class Head extends Component<
                 href={canonicalBase + getAmpPath(ampPath, dangerousAsPath)}
               />
             )}
+            {this.getInlineBeforeInteractiveScripts()}
             {!process.env.__NEXT_OPTIMIZE_CSS && this.getCssLinks(files)}
             {!process.env.__NEXT_OPTIMIZE_CSS && (
               <noscript data-n-css={this.props.nonce ?? ''} />

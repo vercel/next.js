@@ -8,7 +8,11 @@ const ScriptCache = new Map()
 const LoadCache = new Set()
 
 export interface ScriptProps extends ScriptHTMLAttributes<HTMLScriptElement> {
-  strategy?: 'afterInteractive' | 'lazyOnload' | 'beforeInteractive'
+  strategy?:
+    | 'afterInteractive'
+    | 'lazyOnload'
+    | 'beforeInteractive'
+    | 'inlineBeforeInteractive'
   id?: string
   onLoad?: (e: any) => void
   onError?: (e: any) => void
@@ -150,16 +154,30 @@ function Script(props: ScriptProps): JSX.Element | null {
     }
   }, [props, strategy])
 
-  if (strategy === 'beforeInteractive') {
+  if (
+    strategy === 'beforeInteractive' ||
+    strategy === 'inlineBeforeInteractive'
+  ) {
     if (updateScripts) {
-      scripts.beforeInteractive = (scripts.beforeInteractive || []).concat([
-        {
-          src,
-          onLoad,
-          onError,
-          ...restProps,
-        },
-      ])
+      if (strategy === 'beforeInteractive') {
+        scripts.beforeInteractive = (scripts.beforeInteractive || []).concat([
+          {
+            src,
+            onLoad,
+            onError,
+            ...restProps,
+          },
+        ])
+      } else {
+        scripts.inlineBeforeInteractive = (
+          scripts.inlineBeforeInteractive || []
+        ).concat([
+          {
+            dangerouslySetInnerHTML,
+            ...restProps,
+          },
+        ])
+      }
       updateScripts(scripts)
     } else if (getIsSsr && getIsSsr()) {
       // Script has already loaded during SSR

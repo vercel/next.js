@@ -123,6 +123,19 @@ describe('Script Loader', () => {
     test('documentBeforeInteractive')
   })
 
+  it('priority inlineBeforeInteractive', async () => {
+    const html = await renderViaHTTP(appPort, '/page5')
+    const $ = cheerio.load(html)
+
+    const script = $('#inline-before')
+    expect(script.length).toBe(1)
+
+    // Script is inserted before CSS
+    expect(
+      $(`#inline-before ~ link[href^="/_next/static/css"]`).length
+    ).toBeGreaterThan(0)
+  })
+
   it('priority beforeInteractive on navigate', async () => {
     let browser
     try {
