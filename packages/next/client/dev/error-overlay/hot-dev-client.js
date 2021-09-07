@@ -283,12 +283,14 @@ function tryApplyUpdates(onHotUpdateSuccess) {
   function handleApplyUpdates(err, updatedModules) {
     if (err || hadRuntimeError || !updatedModules) {
       if (err) {
-        onFullRefreshNeeded(err.message)
+        performFullRefresh(err)
       } else if (hadRuntimeError) {
-        onFullRefreshNeeded()
+        performFullRefresh()
       }
       return
     }
+
+    clearFullRefreshStorage()
 
     const hasUpdates = Boolean(updatedModules.length)
     if (typeof onHotUpdateSuccess === 'function') {
@@ -321,4 +323,27 @@ function tryApplyUpdates(onHotUpdateSuccess) {
       handleApplyUpdates(err, null)
     }
   )
+}
+
+const FULL_REFRESH_STORAGE_KEY = '_has_warned_about_full_refresh'
+
+function performFullRefresh(err) {
+  if (shouldWarnAboutFullRefresh()) {
+    sessionStorage.setItem(FULL_REFRESH_STORAGE_KEY, 'true')
+    onFullRefreshNeeded(err.message)
+  } else {
+    window.location.reload()
+  }
+}
+
+function shouldWarnAboutFullRefresh() {
+  return !process.env.__NEXT_TEST_MODE && !hasAlreadyWarnedAboutFullRefresh()
+}
+
+function hasAlreadyWarnedAboutFullRefresh() {
+  return sessionStorage.getItem(FULL_REFRESH_STORAGE_KEY) !== null
+}
+
+function clearFullRefreshStorage() {
+  sessionStorage.removeItem(FULL_REFRESH_STORAGE_KEY)
 }
