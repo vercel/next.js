@@ -2,6 +2,7 @@ import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { NextConfigComplete } from '../../../server/config-shared'
 import { base } from './blocks/base'
 import { css } from './blocks/css'
+import { images } from './blocks/images'
 import { ConfigurationContext, pipe } from './utils'
 
 export async function build(
@@ -46,6 +47,6 @@ export async function build(
     isCraCompat,
   }
 
-  const fn = pipe(base(ctx), css(ctx))
+  const fn = pipe(base(ctx), css(ctx), images(ctx))
   return fn(config)
 }
