@@ -52,6 +52,8 @@ function getSWCOptions({ isTypeScript, isServer, development }) {
   if (isServer) {
     return {
       jsc,
+      // Disables getStaticProps/getServerSideProps tree shaking on the server compilation
+      disableNextSsg: true,
       env: {
         targets: {
           // Targets the current version of Node.js
