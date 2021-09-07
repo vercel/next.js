@@ -50,7 +50,7 @@ async function processHTML(
   async function callMiddleWare(middleware: PostProcessMiddleware) {
     // let timer = Date.now()
     const inspectData = middleware.inspect(root, data)
-    document = await middleware.mutate(document, inspectData, data)
+    document = await middleware.mutate(root.toString(), inspectData, data)
     // timer = Date.now() - timer
     // if (timer > MIDDLEWARE_TIME_BUDGET) {
     // TODO: Identify a correct upper limit for the postprocess step
@@ -76,25 +76,28 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
     }
     const fontDefinitions: (string | undefined)[][] = []
     // collecting all the requested font definitions
-    originalDom
-      .querySelectorAll('link')
-      .filter(
-        (tag: HTMLElement) =>
-          tag.getAttribute('rel') === 'stylesheet' &&
-          tag.hasAttribute('data-href') &&
-          OPTIMIZED_FONT_PROVIDERS.some(({ url }) => {
-            const dataHref = tag.getAttribute('data-href')
-            return dataHref ? dataHref.startsWith(url) : false
-          })
-      )
-      .forEach((element: HTMLElement) => {
-        const url = element.getAttribute('data-href')
-        const nonce = element.getAttribute('nonce')
+    const fontNodes = originalDom.querySelectorAll('link').filter(
+      (tag: HTMLElement) =>
+        tag.getAttribute('rel') === 'stylesheet' &&
+        tag.hasAttribute('data-href') &&
+        OPTIMIZED_FONT_PROVIDERS.some(({ url }) => {
+          const dataHref = tag.getAttribute('data-href')
+          return dataHref ? dataHref.startsWith(url) : false
+        })
+    )
 
-        if (url) {
-          fontDefinitions.push([url, nonce])
-        }
-      })
+    fontNodes.forEach((element: HTMLElement) => {
+      const url = element.getAttribute('data-href')
+      const nonce = element.getAttribute('nonce')
+
+      if (url) {
+        fontDefinitions.push([url, nonce])
+      }
+    })
+
+    fontNodes.forEach((node) => {
+      node.remove()
+    })
 
     return fontDefinitions
   }
@@ -150,10 +153,7 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
       preconnectTag += `<link rel="preconnect" href="${url}" crossorigin />`
     })
 
-    result = result.replace(
-      '<meta name="next-font-preconnect"/>',
-      preconnectTag
-    )
+    result = result.replace('<meta name="next-font-preconnect">', preconnectTag)
 
     return result
   }
