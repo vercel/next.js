@@ -264,7 +264,7 @@ async function main() {
               if (!chunk) continue
 
               trimmedOutputSize += chunk.byteLength || chunk.length
-              trimmedOutput.splice(0, 0, chunk)
+              trimmedOutput.unshift(chunk)
 
               if (trimmedOutputSize > trimmedOutputLimit) {
                 break

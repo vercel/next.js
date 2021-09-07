@@ -145,7 +145,7 @@ export const setCookie = (
     options.maxAge /= 1000
   }
 
-  res.setHeader('Set-Cookie', serialize(name, String(stringValue), options))
+  res.setHeader('Set-Cookie', serialize(name, stringValue, options))
 }
 
 // pages/api/cookies.ts
