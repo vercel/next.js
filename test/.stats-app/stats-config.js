@@ -121,6 +121,69 @@ module.exports = {
       },
     },
     {
+      title: 'Default Build with SWC',
+      diff: 'onOutputChange',
+      diffConfigFiles: [
+        {
+          path: 'pages/image.js',
+          content: imagePageData,
+        },
+        {
+          path: 'next.config.js',
+          content: `
+            module.exports = {
+              generateBuildId: () => 'BUILD_ID',
+              experimental: {
+                swcLoader: true,
+                swcMinify: true,
+              },
+              webpack(config) {
+                config.optimization.minimize = false
+                config.optimization.minimizer = undefined
+                return config
+              }
+            }
+          `,
+        },
+      ],
+      // renames to apply to make file names deterministic
+      renames,
+      configFiles: [
+        {
+          path: 'pages/image.js',
+          content: imagePageData,
+        },
+        {
+          path: 'next.config.js',
+          content: `
+            module.exports = {
+              experimental: {
+                swcLoader: true,
+                swcMinify: true
+              },
+              generateBuildId: () => 'BUILD_ID'
+            }
+          `,
+        },
+      ],
+      filesToTrack: clientGlobs,
+      // will be output to fetched-pages/${pathname}.html
+      pagesToFetch: [
+        'http://localhost:$PORT/',
+        'http://localhost:$PORT/link',
+        'http://localhost:$PORT/withRouter',
+      ],
+      pagesToBench: [
+        'http://localhost:$PORT/',
+        'http://localhost:$PORT/error-in-render',
+      ],
+      benchOptions: {
+        reqTimeout: 60,
+        concurrency: 50,
+        numRequests: 2500,
+      },
+    },
+    {
       title: 'Webpack 4 Mode',
       diff: 'onOutputChange',
       diffConfigFiles: [
