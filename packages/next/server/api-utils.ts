@@ -69,12 +69,12 @@ export async function apiResolver(
     const writeData = apiRes.write
     const endResponse = apiRes.end
     apiRes.write = (...args: any[2]) => {
-      contentLength += Buffer.byteLength(args[0])
+      contentLength += Buffer.byteLength(args[0] || '')
       return writeData.apply(apiRes, args)
     }
     apiRes.end = (...args: any[2]) => {
       if (args.length && typeof args[0] !== 'function') {
-        contentLength += Buffer.byteLength(args[0])
+        contentLength += Buffer.byteLength(args[0] || '')
       }
 
       if (contentLength >= 4 * 1024 * 1024) {
