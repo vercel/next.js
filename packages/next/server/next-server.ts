@@ -1254,8 +1254,8 @@ export default class Server {
       ...partialContext,
       renderOpts: {
         ...this.renderOpts,
-        // TODO: Determine when dynamic HTML is allowed
-        supportsDynamicHTML: false,
+        // TODO: Disable dynamic HTML support for crawlers.
+        supportsDynamicHTML: true,
       },
     } as const
     const payload = await fn(ctx)
