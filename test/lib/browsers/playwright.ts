@@ -129,9 +129,7 @@ class Playwright extends BrowserInterface {
   }
 
   elementByCss(selector: string) {
-    return this.chain(() =>
-      page.$(selector).then((el) => this.wrapElement(el, selector))
-    )
+    return this.waitForElementByCss(selector)
   }
 
   elementById(sel) {
@@ -199,7 +197,7 @@ class Playwright extends BrowserInterface {
     )
   }
 
-  waitForElementByCss(selector, timeout) {
+  waitForElementByCss(selector, timeout?: number) {
     return this.chain(() => {
       return page
         .waitForSelector(selector, { timeout, state: 'attached' })
