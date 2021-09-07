@@ -130918,7 +130918,7 @@ module.exports = function () {
     ModuleFilenameHelpers: __webpack_require__(71474),
     GraphHelpers: __webpack_require__(32973),
     Module: __webpack_require__(75993),
-    NormalModule: __webpack_require__(14738),
+    NormalModule: __webpack_require__(25963),
     Dependency: __webpack_require__(57282),
     LibraryTemplatePlugin: __webpack_require__(65237),
     SingleEntryPlugin: __webpack_require__(19070),
@@ -131085,14 +131085,6 @@ module.exports = require("next/dist/compiled/terser");;
 
 "use strict";
 module.exports = require("next/dist/compiled/webpack-sources");;
-
-/***/ }),
-
-/***/ 14738:
-/***/ (function(module) {
-
-"use strict";
-module.exports = require("next/dist/compiled/webpack/NormalModule");;
 
 /***/ }),
 
