@@ -1,7 +1,6 @@
 /* eslint-env jest */
 
 import {
-  check,
   findPort,
   killApp,
   nextBuild,

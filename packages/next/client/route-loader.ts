@@ -60,8 +60,8 @@ function withFuture<T>(
   })
   map.set(key, (entry = { resolve: resolver!, future: prom }))
   return generator
-    ? // eslint-disable-next-line no-sequences
-      generator()
+    ? generator()
+        // eslint-disable-next-line no-sequences
         .then((value) => (resolver(value), value))
         .catch((err) => {
           map.delete(key)
