@@ -1255,9 +1255,7 @@ export default class Server {
       ...partialContext,
       renderOpts: {
         ...this.renderOpts,
-        supportsDynamicHTML: userAgent
-          ? !isBot(userAgent)
-          : false,
+        supportsDynamicHTML: userAgent ? !isBot(userAgent) : false,
       },
     } as const
     const payload = await fn(ctx)
