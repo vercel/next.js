@@ -14,3 +14,6 @@ export function cleanAmpPath(pathname: string): string {
   pathname = pathname.replace(/\?$/, '')
   return pathname
 }
+
+export const CRAWLER_PATTERN =
+  /Googlebot|Mediapartners-Google|AdsBot-Google|googleweblight|Storebot-Google|Bingbot|BingPreview|Slurp|DuckDuckBot|baiduspider|yandex|sogou|LinkedInBot|bitlybot|tumblr|vkShare|quora link preview|facebookexternalhit|facebookcatalog|Twitterbot|applebot|redditbot|Slackbot|Discordbot|WhatsApp|SkypeUriPreview/

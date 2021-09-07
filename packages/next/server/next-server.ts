@@ -76,7 +76,7 @@ import { sendRenderResult, setRevalidateHeaders } from './send-payload'
 import { serveStatic } from './serve-static'
 import { IncrementalCache } from './incremental-cache'
 import { execOnce } from '../shared/lib/utils'
-import { isBlockedPage } from './utils'
+import { isBlockedPage, CRAWLER_PATTERN } from './utils'
 import RenderResult from './render-result'
 import { loadEnvConfig } from '@next/env'
 import './node-polyfill-fetch'
@@ -1250,12 +1250,14 @@ export default class Server {
       query: ParsedUrlQuery
     }
   ): Promise<void> {
+    const userAgent = partialContext.req.headers['user-agent']
     const ctx = {
       ...partialContext,
       renderOpts: {
         ...this.renderOpts,
-        // TODO: Disable dynamic HTML support for crawlers.
-        supportsDynamicHTML: true,
+        supportsDynamicHTML: userAgent
+          ? !CRAWLER_PATTERN.test(userAgent)
+          : false,
       },
     } as const
     const payload = await fn(ctx)
