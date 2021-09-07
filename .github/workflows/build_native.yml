@@ -66,7 +66,7 @@ jobs:
           MACOSX_DEPLOYMENT_TARGET: '10.13'
         working-directory: packages/next
       - name: Upload artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v2.2.4
         with:
           name: next-swc-binaries
           path: packages/next/native/next-swc.*.node
@@ -80,7 +80,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/download-artifact@v2
+      - uses: actions/download-artifact@v2.0.10
         with:
           name: next-swc-binaries
           path: packages/next/native
