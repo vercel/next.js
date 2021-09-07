@@ -111,28 +111,23 @@ describe('Font Optimization', () => {
 
           const htmlWithoutFont = await renderViaHTTP(appPort, '/without-font')
 
-          const $2 = cheerio.load(htmlWithoutFont)
-
           expect(htmlWithoutFont).not.toMatch(withFontPattern)
         })
 
         it(`should inline the ${property} fonts for static pages`, async () => {
           const html = await renderViaHTTP(appPort, '/index')
-          const $ = cheerio.load(html)
           expect(await fsExists(builtPage('font-manifest.json'))).toBe(true)
           expect(html).toMatch(staticPattern)
         })
 
         it(`should inline the ${property} fonts for static pages with Next/Head`, async () => {
           const html = await renderViaHTTP(appPort, '/static-head')
-          const $ = cheerio.load(html)
           expect(await fsExists(builtPage('font-manifest.json'))).toBe(true)
           expect(html).toMatch(staticHeadPattern)
         })
 
         it(`should inline the ${property} fonts for SSR pages`, async () => {
           const html = await renderViaHTTP(appPort, '/stars')
-          const $ = cheerio.load(html)
           expect(await fsExists(builtPage('font-manifest.json'))).toBe(true)
           expect(html).toMatch(starsPattern)
         })
