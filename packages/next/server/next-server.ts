@@ -76,7 +76,7 @@ import { sendRenderResult, setRevalidateHeaders } from './send-payload'
 import { serveStatic } from './serve-static'
 import { IncrementalCache } from './incremental-cache'
 import { execOnce } from '../shared/lib/utils'
-import { isBlockedPage, CRAWLER_PATTERN } from './utils'
+import { isBlockedPage, isBot } from './utils'
 import RenderResult from './render-result'
 import { loadEnvConfig } from '@next/env'
 import './node-polyfill-fetch'
@@ -1256,7 +1256,7 @@ export default class Server {
       renderOpts: {
         ...this.renderOpts,
         supportsDynamicHTML: userAgent
-          ? !CRAWLER_PATTERN.test(userAgent)
+          ? !isBot(userAgent)
           : false,
       },
     } as const
