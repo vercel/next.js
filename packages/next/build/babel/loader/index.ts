@@ -17,7 +17,7 @@ async function nextBabelLoader(
     .traceFn(() => getOptions(this))
   const rawFilename = path.join(
     loaderOptions.cwd,
-    this._injectModulePlugin.module.resourceResolveData.relativePath
+    this._injectModulePlugin.module?.resourceResolveData?.relativePath
   )
 
   const loaderSpanInner = parentTrace.traceChild('next-babel-turbo-transform')
