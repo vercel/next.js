@@ -23,9 +23,8 @@ export class DropClientPage implements webpack.Plugin {
           for (const module of queue) {
             if (isWebpack5) {
               // @ts-ignore TODO: webpack 5 types
-              const incomingConnections = compilation.moduleGraph.getIncomingConnections(
-                module
-              )
+              const incomingConnections =
+                compilation.moduleGraph.getIncomingConnections(module)
 
               for (const incomingConnection of incomingConnections) {
                 if (!incomingConnection.originModule) return module

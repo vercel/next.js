@@ -64,7 +64,7 @@ function runTests(dev) {
     if (!dev) {
       // Ensure only `/blue` page's CSS is preloaded
       const serverCssPreloads = $('link[rel="preload"][as="style"]')
-      expect(serverCssPreloads.length).toBe(1)
+      expect(serverCssPreloads.length).toBe(2)
 
       const serverCssPrefetches = $('link[rel="prefetch"][as="style"]')
       expect(serverCssPrefetches.length).toBe(0)

@@ -46,6 +46,7 @@ import {
   isResSent,
   NextApiRequest,
   NextApiResponse,
+  normalizeRepeatedSlashes,
 } from '../shared/lib/utils'
 import {
   apiResolver,
@@ -75,12 +76,8 @@ import { sendRenderResult, setRevalidateHeaders } from './send-payload'
 import { serveStatic } from './serve-static'
 import { IncrementalCache } from './incremental-cache'
 import { execOnce } from '../shared/lib/utils'
-import {
-  isBlockedPage,
-  RenderResult,
-  resultFromChunks,
-  resultToChunks,
-} from './utils'
+import { isBlockedPage } from './utils'
+import RenderResult from './render-result'
 import { loadEnvConfig } from '@next/env'
 import './node-polyfill-fetch'
 import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
@@ -90,7 +87,6 @@ import { FontManifest } from './font-utils'
 import { denormalizePagePath } from './denormalize-page-path'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import * as Log from '../build/output/log'
-import { imageOptimizer } from './image-optimizer'
 import { detectDomainLocale } from '../shared/lib/i18n/detect-domain-locale'
 import escapePathDelimiters from '../shared/lib/router/utils/escape-path-delimiters'
 import { getUtils } from '../build/webpack/loaders/next-serverless-loader/utils'
@@ -180,6 +176,7 @@ export default class Server {
     defaultLocale?: string
     domainLocales?: DomainLocale[]
     distDir: string
+    concurrentFeatures?: boolean
   }
   private compression?: Middleware
   private incrementalCache: IncrementalCache
@@ -236,10 +233,11 @@ export default class Server {
           : null,
       optimizeImages: !!this.nextConfig.experimental.optimizeImages,
       optimizeCss: this.nextConfig.experimental.optimizeCss,
-      disableOptimizedLoading: this.nextConfig.experimental
-        .disableOptimizedLoading,
+      disableOptimizedLoading:
+        this.nextConfig.experimental.disableOptimizedLoading,
       domainLocales: this.nextConfig.i18n?.domains,
       distDir: this.distDir,
+      concurrentFeatures: this.nextConfig.experimental.concurrentFeatures,
     }
 
     // Only the `publicRuntimeConfig` key is exposed to the client side
@@ -313,6 +311,18 @@ export default class Server {
     res: ServerResponse,
     parsedUrl?: UrlWithParsedQuery
   ): Promise<void> {
+    const urlParts = (req.url || '').split('?')
+    const urlNoQuery = urlParts[0]
+
+    if (urlNoQuery?.match(/(\\|\/\/)/)) {
+      const cleanUrl = normalizeRepeatedSlashes(req.url!)
+      res.setHeader('Location', cleanUrl)
+      res.setHeader('Refresh', `0;url=${cleanUrl}`)
+      res.statusCode = 308
+      res.end(cleanUrl)
+      return
+    }
+
     setLazyProp({ req: req as any }, 'cookies', getCookieParser(req.headers))
 
     // Parse url if parsedUrl not provided
@@ -345,9 +355,8 @@ export default class Server {
       typeof req.headers['x-matched-path'] === 'string'
     ) {
       const reqUrlIsDataUrl = req.url?.includes('/_next/data')
-      const matchedPathIsDataUrl = req.headers['x-matched-path']?.includes(
-        '/_next/data'
-      )
+      const matchedPathIsDataUrl =
+        req.headers['x-matched-path']?.includes('/_next/data')
       const isDataUrl = reqUrlIsDataUrl || matchedPathIsDataUrl
 
       let parsedPath = parseUrl(
@@ -478,7 +487,7 @@ export default class Server {
     try {
       return await this.run(req, res, parsedUrl)
     } catch (err) {
-      if (this.minimalMode) {
+      if (this.minimalMode || this.renderOpts.dev) {
         throw err
       }
       this.logError(err)
@@ -690,8 +699,18 @@ export default class Server {
         match: route('/_next/image'),
         type: 'route',
         name: '_next/image catchall',
-        fn: (req, res, _params, parsedUrl) =>
-          imageOptimizer(
+        fn: (req, res, _params, parsedUrl) => {
+          if (this.minimalMode) {
+            res.statusCode = 400
+            res.end('Bad Request')
+            return {
+              finished: true,
+            }
+          }
+          const { imageOptimizer } =
+            require('./image-optimizer') as typeof import('./image-optimizer')
+
+          return imageOptimizer(
             server,
             req,
             res,
@@ -699,7 +718,8 @@ export default class Server {
             server.nextConfig,
             server.distDir,
             this.renderOpts.dev
-          ),
+          )
+        },
       },
       {
         match: route('/_next/:path*'),
@@ -811,7 +831,12 @@ export default class Server {
 
               parsedDestination.search = stringifyQuery(req, query)
 
-              const updatedDestination = formatUrl(parsedDestination)
+              let updatedDestination = formatUrl(parsedDestination)
+
+              if (updatedDestination.startsWith('/')) {
+                updatedDestination =
+                  normalizeRepeatedSlashes(updatedDestination)
+              }
 
               res.setHeader('Location', updatedDestination)
               res.statusCode = getRedirectStatus(redirectRoute as Redirect)
@@ -822,7 +847,7 @@ export default class Server {
                 res.setHeader('Refresh', `0;url=${updatedDestination}`)
               }
 
-              res.end()
+              res.end(updatedDestination)
               return {
                 finished: true,
               }
@@ -1100,7 +1125,9 @@ export default class Server {
       query,
       pageModule,
       this.renderOpts.previewProps,
-      this.minimalMode
+      this.minimalMode,
+      this.renderOpts.dev,
+      page
     )
     return true
   }
@@ -1137,7 +1164,14 @@ export default class Server {
             pathParts.splice(0, basePathParts.length)
           }
 
-          const path = `/${pathParts.join('/')}`
+          let path = `/${pathParts.join('/')}`
+
+          if (!publicFiles.has(path)) {
+            // In `next-dev-server.ts`, we ensure encoded paths match
+            // decoded paths on the filesystem. So we need do the
+            // opposite here: make sure decoded paths match encoded.
+            path = encodeURI(path)
+          }
 
           if (publicFiles.has(path)) {
             await this.serveStatic(
@@ -1216,13 +1250,12 @@ export default class Server {
       query: ParsedUrlQuery
     }
   ): Promise<void> {
-    // TODO: Determine when dynamic HTML is allowed
-    const requireStaticHTML = true
     const ctx = {
       ...partialContext,
       renderOpts: {
         ...this.renderOpts,
-        requireStaticHTML,
+        // TODO: Determine when dynamic HTML is allowed
+        supportsDynamicHTML: false,
       },
     } as const
     const payload = await fn(ctx)
@@ -1240,9 +1273,7 @@ export default class Server {
       return sendRenderResult({
         req,
         res,
-        resultOrPayload: requireStaticHTML
-          ? (await resultToChunks(body)).join('')
-          : body,
+        result: body,
         type,
         generateEtags,
         poweredByHeader,
@@ -1264,14 +1295,13 @@ export default class Server {
       ...partialContext,
       renderOpts: {
         ...this.renderOpts,
-        requireStaticHTML: true,
+        supportsDynamicHTML: false,
       },
     })
     if (payload === null) {
       return null
     }
-    const chunks = await resultToChunks(payload.body)
-    return chunks.join('')
+    return payload.body.toUnchunkedString()
   }
 
   public async render(
@@ -1388,9 +1418,7 @@ export default class Server {
     return null
   }
 
-  protected async getStaticPaths(
-    pathname: string
-  ): Promise<{
+  protected async getStaticPaths(pathname: string): Promise<{
     staticPaths: string[] | undefined
     fallbackMode: 'static' | 'blocking' | false
   }> {
@@ -1399,8 +1427,8 @@ export default class Server {
     const staticPaths = undefined
 
     // Read whether or not fallback should exist from the manifest.
-    const fallbackField = this.getPrerenderManifest().dynamicRoutes[pathname]
-      .fallback
+    const fallbackField =
+      this.getPrerenderManifest().dynamicRoutes[pathname].fallback
 
     return {
       staticPaths,
@@ -1447,13 +1475,24 @@ export default class Server {
     if (typeof components.Component === 'string') {
       return {
         type: 'html',
-        // TODO: Static pages should be written as chunks
-        body: resultFromChunks([components.Component]),
+        // TODO: Static pages should be serialized as RenderResult
+        body: RenderResult.fromStatic(components.Component),
       }
     }
 
     if (!query.amp) {
       delete query.amp
+    }
+
+    if (opts.supportsDynamicHTML === true) {
+      // Disable dynamic HTML in cases that we know it won't be generated,
+      // so that we can continue generating a cache key when possible.
+      opts.supportsDynamicHTML =
+        !isSSG &&
+        !isLikeServerless &&
+        !query.amp &&
+        !this.minimalMode &&
+        typeof components.Document.getInitialProps !== 'function'
     }
 
     const locale = query.__nextLocale as string
@@ -1519,6 +1558,10 @@ export default class Server {
         redirect.destination = `${basePath}${redirect.destination}`
       }
 
+      if (redirect.destination.startsWith('/')) {
+        redirect.destination = normalizeRepeatedSlashes(redirect.destination)
+      }
+
       if (statusCode === PERMANENT_REDIRECT_STATUS) {
         res.setHeader('Refresh', `0;url=${redirect.destination}`)
       }
@@ -1536,7 +1579,7 @@ export default class Server {
     }
 
     let ssgCacheKey =
-      isPreviewMode || !isSSG || this.minimalMode
+      isPreviewMode || !isSSG || this.minimalMode || opts.supportsDynamicHTML
         ? null // Preview mode bypasses the cache
         : `${locale ? `/${locale}` : ''}${
             (pathname === '/' || resolvedUrlPathname === '/') && locale
@@ -1581,20 +1624,17 @@ export default class Server {
 
       // handle serverless
       if (isLikeServerless) {
-        const renderResult = await (components.Component as any).renderReqToHTML(
-          req,
-          res,
-          'passthrough',
-          {
-            locale,
-            locales,
-            defaultLocale,
-            optimizeCss: this.renderOpts.optimizeCss,
-            distDir: this.distDir,
-            fontManifest: this.renderOpts.fontManifest,
-            domainLocales: this.renderOpts.domainLocales,
-          }
-        )
+        const renderResult = await (
+          components.Component as any
+        ).renderReqToHTML(req, res, 'passthrough', {
+          locale,
+          locales,
+          defaultLocale,
+          optimizeCss: this.renderOpts.optimizeCss,
+          distDir: this.distDir,
+          fontManifest: this.renderOpts.fontManifest,
+          domainLocales: this.renderOpts.domainLocales,
+        })
 
         body = renderResult.html
         pageData = renderResult.renderOpts.pageData
@@ -1726,7 +1766,7 @@ export default class Server {
               return {
                 value: {
                   kind: 'PAGE',
-                  html: resultFromChunks([html]),
+                  html: RenderResult.fromStatic(html),
                   pageData: {},
                 },
               }
@@ -1805,7 +1845,7 @@ export default class Server {
       if (isDataReq) {
         return {
           type: 'json',
-          body: resultFromChunks([JSON.stringify(cachedData.props)]),
+          body: RenderResult.fromStatic(JSON.stringify(cachedData.props)),
           revalidateOptions,
         }
       } else {
@@ -1816,7 +1856,7 @@ export default class Server {
       return {
         type: isDataReq ? 'json' : 'html',
         body: isDataReq
-          ? resultFromChunks([JSON.stringify(cachedData.pageData)])
+          ? RenderResult.fromStatic(JSON.stringify(cachedData.pageData))
           : cachedData.html,
         revalidateOptions,
       }
@@ -1827,6 +1867,7 @@ export default class Server {
     ctx: RequestContext
   ): Promise<ResponsePayload | null> {
     const { res, query, pathname } = ctx
+    let page = pathname
     const bubbleNoFallback = !!query._nextBubbleNoFallback
     delete query._nextBubbleNoFallback
 
@@ -1858,6 +1899,7 @@ export default class Server {
           )
           if (dynamicRouteResult) {
             try {
+              page = dynamicRoute.page
               return await this.renderToResponseWithComponents(
                 {
                   ...ctx,
@@ -1899,7 +1941,10 @@ export default class Server {
       )
 
       if (!isWrappedError) {
-        if (this.minimalMode) {
+        if (this.minimalMode || this.renderOpts.dev) {
+          if (err) {
+            err.page = page
+          }
           throw err
         }
         this.logError(err)
@@ -2051,7 +2096,7 @@ export default class Server {
       }
       return {
         type: 'html',
-        body: resultFromChunks(['Internal Server Error']),
+        body: RenderResult.fromStatic('Internal Server Error'),
       }
     }
   }

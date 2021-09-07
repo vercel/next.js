@@ -327,9 +327,8 @@ const runTests = (dev = false) => {
             expect(initialHtml.includes('100px')).toBeTruthy()
 
             const $initialHtml = cheerio.load(initialHtml)
-            const initialServerClassName = $initialHtml(
-              '#dynamic-component'
-            ).attr('class')
+            const initialServerClassName =
+              $initialHtml('#dynamic-component').attr('class')
 
             expect(
               initialClientClassName === initialServerClassName
@@ -367,9 +366,8 @@ const runTests = (dev = false) => {
             )
             expect(editedHtml.includes('200px')).toBeTruthy()
             const $editedHtml = cheerio.load(editedHtml)
-            const editedServerClassName = $editedHtml(
-              '#dynamic-component'
-            ).attr('class')
+            const editedServerClassName =
+              $editedHtml('#dynamic-component').attr('class')
 
             expect(editedClientClassName === editedServerClassName).toBe(true)
           } finally {

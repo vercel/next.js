@@ -308,6 +308,14 @@ describe('Image Component Tests', () => {
     it('should not create any preload tags higher up the page than CSS preload tags', async () => {
       expect(await hasImagePreloadBeforeCSSPreload()).toBe(false)
     })
+    it('should add data-nimg data attribute based on layout', async () => {
+      expect(
+        await browser.elementById('image-with-sizes').getAttribute('data-nimg')
+      ).toBe('responsive')
+      expect(
+        await browser.elementById('basic-image').getAttribute('data-nimg')
+      ).toBe('intrinsic')
+    })
   })
   describe('Client-side Image Component Tests', () => {
     beforeAll(async () => {

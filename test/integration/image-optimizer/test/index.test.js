@@ -55,6 +55,12 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
     expect(await res.text()).toMatch(/Image Optimizer Home/m)
   })
 
+  it('should handle non-ascii characters in image url', async () => {
+    const query = { w, q: 90, url: '/äöü.png' }
+    const res = await fetchViaHTTP(appPort, '/_next/image', query, {})
+    expect(res.status).toBe(200)
+  })
+
   it('should maintain animated gif', async () => {
     const query = { w, q: 90, url: '/animated.gif' }
     const res = await fetchViaHTTP(appPort, '/_next/image', query, {})
