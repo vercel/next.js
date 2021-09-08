@@ -66,6 +66,9 @@ export default function onDemandEntryHandler(
   }
 
   multiCompiler.hooks.done.tap('NextJsOnDemandEntries', (multiStats) => {
+    if (invalidator.rebuildAgain) {
+      return invalidator.doneBuilding()
+    }
     const [clientStats, serverStats] = multiStats.stats
     const pagePaths = new Set([
       ...getPagePathsFromEntrypoints(clientStats.compilation.entrypoints),
@@ -269,7 +272,7 @@ class Invalidator {
   private multiCompiler: webpack.MultiCompiler
   private watcher: any
   private building: boolean
-  private rebuildAgain: boolean
+  public rebuildAgain: boolean
 
   constructor(watcher: any, multiCompiler: webpack.MultiCompiler) {
     this.multiCompiler = multiCompiler
