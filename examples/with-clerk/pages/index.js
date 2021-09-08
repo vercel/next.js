@@ -179,7 +179,7 @@ const APIRequest = () => {
 const Footer = () => (
   <footer className={styles.footer}>
     Powered by{' '}
-    <a href="https://clerk.dev" target="_blank">
+    <a href="https://clerk.dev" target="_blank" rel="noopener noreferrer">
       <img src="/clerk.svg" alt="Clerk.dev" className={styles.logo} />
     </a>
     +
