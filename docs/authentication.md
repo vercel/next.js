@@ -112,20 +112,27 @@ Authentication providers offer helpers to verify this secret and return authenti
 Let's look at an example that uses middleware to decorate the request object with user data.
 
 ```js
-import { withSession } from '../lib/withSession'
+import withSession from '../../lib/session'
 
-// Use withSession to decorate `req` with a session object
-export default withSession((req, res) => {
-  res.statusCode = 200
-  if (req.session) {
-    res.json({ id: req.session.userId })
+export default withSession(async (req, res) => {
+  const user = req.session.get('user')
+
+  if (user) {
+    // in a real world application you might read the user id from the session and then do a database request
+    // to get more information on the user if needed
+    res.json({
+      isLoggedIn: true,
+      ...user,
+    })
   } else {
-    res.json({ id: null })
+    res.json({
+      isLoggedIn: false,
+    })
   }
 })
 ```
 
-You can view this example [in action](https://clerk-nextjs-example.vercel.app). Check out the [`with-clerk`](https://github.com/vercel/next.js/tree/canary/examples/with-clerk) example to see how it works.
+Check out the [`with-iron-session`](https://github.com/vercel/next.js/tree/canary/examples/with-iron-session) example to see how it works.
 
 ## Authentication Providers
 
