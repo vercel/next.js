@@ -99,7 +99,7 @@ export default class ResponseCache {
             cacheEntry.value?.kind === 'PAGE'
               ? {
                   kind: 'PAGE',
-                  html: await cacheEntry.value.html.toUnchunkedString(),
+                  html: cacheEntry.value.html.toUnchunkedString(),
                   pageData: cacheEntry.value.pageData,
                 }
               : cacheEntry.value,
