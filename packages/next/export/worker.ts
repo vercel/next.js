@@ -417,7 +417,7 @@ export default async function exportPage({
         }
       }
 
-      const html = renderResult ? await renderResult.toUnchunkedString() : ''
+      const html = renderResult ? renderResult.toUnchunkedString() : ''
       if (inAmpMode && !curRenderOpts.ampSkipValidation) {
         if (!results.ssgNotFound) {
           await validateAmp(html, path, curRenderOpts.ampValidatorPath)
@@ -460,7 +460,7 @@ export default async function exportPage({
           }
 
           const ampHtml = ampRenderResult
-            ? await ampRenderResult.toUnchunkedString()
+            ? ampRenderResult.toUnchunkedString()
             : ''
           if (!curRenderOpts.ampSkipValidation) {
             await validateAmp(ampHtml, page + '?amp=1')
