@@ -76,7 +76,7 @@ postcss.vendor = {
 }
 
 // RegExps for all Style Sheet variants
-export const regexLikeCss = /\.(css|scss|sass)(\.webpack\[javascript\/auto\])?$/
+export const regexLikeCss = /\.(css|scss|sass)$/
 
 // RegExps for Style Sheets
 const regexCssGlobal = /(?<!\.module)\.css$/
