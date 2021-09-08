@@ -74,10 +74,30 @@ export class NextInstance {
     }
 
     if (this.nextConfig) {
+      const functions = []
+
       await fs.writeFile(
         path.join(this.testDir, 'next.config.js'),
-        // TODO: handle stringifying functions in next.config.js?
-        `module.exports = ${JSON.stringify(this.nextConfig, null, 2)}`
+        'module.exports = ' +
+          JSON.stringify(
+            {
+              ...this.nextConfig,
+            } as NextConfig,
+            (key, val) => {
+              if (typeof val === 'function') {
+                functions.push(
+                  val
+                    .toString()
+                    .replace(new RegExp(`${val.name}[\\s]{0,}\\(`), 'function(')
+                )
+                return `__func_${functions.length - 1}`
+              }
+              return val
+            },
+            2
+          ).replace(/"__func_[\d]{1,}"/g, function (str) {
+            return functions.shift()
+          })
       )
     }
 
@@ -145,20 +165,23 @@ export class NextInstance {
     return ''
   }
 
-  public async readFile(filename: string): Promise<string> {
-    throw new Error('readFile is only allowed in dev mode')
+  // TODO: block these in deploy mode
+  public async readFile(filename: string) {
+    return fs.readFile(path.join(this.testDir, filename), 'utf8')
   }
-  public async patchFile(filename: string, content: string): Promise<void> {
-    throw new Error('patchFile is only allowed in dev mode')
+  public async patchFile(filename: string, content: string) {
+    const outputPath = path.join(this.testDir, filename)
+    await fs.ensureDir(path.dirname(outputPath))
+    return fs.writeFile(outputPath, content)
   }
-  public async renameFile(
-    filename: string,
-    newFilename: string
-  ): Promise<void> {
-    throw new Error('renameFile is only allowed in dev mode')
+  public async renameFile(filename: string, newFilename: string) {
+    return fs.rename(
+      path.join(this.testDir, filename),
+      path.join(this.testDir, newFilename)
+    )
   }
   public async deleteFile(filename: string) {
-    throw new Error('deleteFile is only allowed in dev mode')
+    return fs.remove(path.join(this.testDir, filename))
   }
 
   public on(event: Event, cb: (...args: any[]) => any) {

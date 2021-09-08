@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { useRouter } from 'next/router'
 
-export default () => (
+const Page = () => (
   <>
     <Link href={`${useRouter().basePath}/other-page`}>
       <a id="other-page-link">
@@ -10,3 +10,5 @@ export default () => (
     </Link>
   </>
 )
+
+export default Page

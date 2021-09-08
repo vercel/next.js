@@ -36,6 +36,12 @@ if (testModeFromFile === 'e2e') {
   testMode = 'start'
 }
 
+if (testMode === 'dev') {
+  ;(global as any).isDev = true
+} else if (testMode === 'deploy') {
+  ;(global as any).isDeploy = true
+}
+
 if (!testMode) {
   throw new Error(
     `No 'NEXT_TEST_MODE' set in environment, this is required for e2e-utils`

@@ -81,6 +81,23 @@ export function initNextServerScript(
   })
 }
 
+export function getFullUrl(appPortOrUrl, url, hostname) {
+  let fullUrl =
+    typeof appPortOrUrl === 'string' && appPortOrUrl.startsWith('http')
+      ? appPortOrUrl
+      : `http://${hostname ? hostname : 'localhost'}:${appPortOrUrl}${url}`
+
+  if (typeof appPortOrUrl === 'string' && url) {
+    const parsedUrl = new URL(fullUrl)
+    const parsedPathQuery = new URL(url, fullUrl)
+
+    parsedUrl.search = parsedPathQuery.search
+    parsedUrl.pathname = parsedPathQuery.pathname
+    fullUrl = parsedUrl.toString()
+  }
+  return fullUrl
+}
+
 export function renderViaAPI(app, pathname, query) {
   const url = `${pathname}${query ? `?${qs.stringify(query)}` : ''}`
   return app.renderToHTML({ url }, {}, pathname, query)
@@ -91,10 +108,10 @@ export function renderViaHTTP(appPort, pathname, query, opts) {
 }
 
 export function fetchViaHTTP(appPort, pathname, query, opts) {
-  const url = `http://localhost:${appPort}${pathname}${
+  const url = `${pathname}${
     typeof query === 'string' ? query : query ? `?${qs.stringify(query)}` : ''
   }`
-  return fetch(url, opts)
+  return fetch(getFullUrl(appPort, url), opts)
 }
 
 export function findPort() {

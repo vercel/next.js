@@ -314,7 +314,9 @@ class Selenium extends BrowserInterface {
   }
 
   elementsByCss(sel) {
-    return this.chain(() => browser.findElements(By.css(sel)))
+    return this.chain(() =>
+      browser.findElements(By.css(sel))
+    ) as any as BrowserInterface[]
   }
 
   waitForElementByCss(sel, timeout) {

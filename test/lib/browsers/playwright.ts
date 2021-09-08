@@ -60,8 +60,7 @@ class Playwright extends BrowserInterface {
     page.on('pageerror', (error) => {
       console.error('page error', error)
     })
-    await page.goto(url)
-    await page.waitForLoadState()
+    await page.goto(url, { waitUntil: 'load' })
   }
 
   back(): BrowserInterface {
@@ -194,7 +193,7 @@ class Playwright extends BrowserInterface {
           return el
         })
       })
-    )
+    ) as any as BrowserInterface[]
   }
 
   waitForElementByCss(selector, timeout?: number) {
@@ -240,7 +239,7 @@ class Playwright extends BrowserInterface {
     }
 
     if (snippet.includes(`var callback = arguments[arguments.length - 1]`)) {
-      snippet = `function() {
+      snippet = `(function() {
         return new Promise((resolve, reject) => {
           const origFunc = ${snippet}
           try {
@@ -249,7 +248,7 @@ class Playwright extends BrowserInterface {
             reject(err)
           }
         })
-      }`
+      })()`
     }
 
     return page.evaluate(snippet).catch(() => null)

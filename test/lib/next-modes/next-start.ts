@@ -49,24 +49,23 @@ export class NextStartInstance extends NextInstance {
     )
     handleStdio()
 
-    this._buildId = (
-      await fs.readFile(
-        path.join(this.testDir, this.nextConfig.distDir || '.next', 'BUILD_ID'),
-        'utf8'
-      )
-    ).trim()
-
     await new Promise<void>((resolve, reject) => {
       this.childProcess.on('exit', (code) => {
         if (code) reject(new Error(`next build failed with code ${code}`))
         resolve()
       })
     })
+    this._buildId = (
+      await fs.readFile(
+        path.join(this.testDir, this.nextConfig.distDir || '.next', 'BUILD_ID'),
+        'utf8'
+      )
+    ).trim()
     // we don't use yarn next here as yarn detaches itself from the
     // child process making it harder to kill all processes
     this.childProcess = spawn(
       'node',
-      ['node_modules/next/dist/bin/next'],
+      ['node_modules/next/dist/bin/next', 'start'],
       spawnOpts
     )
     handleStdio()

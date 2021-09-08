@@ -20,8 +20,8 @@ export class BrowserInterface {
   async close(): Promise<void> {}
   async quit(): Promise<void> {}
 
-  elementsByCss(selector: string): BrowserInterface {
-    return this
+  elementsByCss(selector: string): BrowserInterface[] {
+    return [this]
   }
   elementByCss(selector: string): BrowserInterface {
     return this
