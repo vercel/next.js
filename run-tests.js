@@ -236,7 +236,24 @@ async function main() {
         children.delete(child)
         if (code) {
           if (isFinalRun) {
-            outputChunks.forEach((chunk) => process.stdout.write(chunk))
+            // limit out to last 64kb so that we don't
+            // run out of log room in CI
+            let trimmedOutputSize = 0
+            const trimmedOutputLimit = 64 * 1024
+            const trimmedOutput = []
+
+            for (let i = outputChunks.length; i >= 0; i--) {
+              const chunk = outputChunks[i]
+              if (!chunk) continue
+
+              trimmedOutputSize += chunk.byteLength || chunk.length
+              trimmedOutput.unshift(chunk)
+
+              if (trimmedOutputSize > trimmedOutputLimit) {
+                break
+              }
+            }
+            trimmedOutput.forEach((chunk) => process.stdout.write(chunk))
           }
           reject(new Error(`failed with code: ${code}`))
         }

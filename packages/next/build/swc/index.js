@@ -67,5 +67,15 @@ function toBuffer(t) {
   return Buffer.from(JSON.stringify(t))
 }
 
+export async function minify(src, opts) {
+  return bindings.minify(src, toBuffer(opts ?? {}))
+}
+
+export function minifySync(src, opts) {
+  return bindings.minifySync(src, toBuffer(opts ?? {}))
+}
+
 module.exports.transform = transform
 module.exports.transformSync = transformSync
+module.exports.minify = minify
+module.exports.minifySync = minifySync
