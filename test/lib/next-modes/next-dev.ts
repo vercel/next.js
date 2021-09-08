@@ -1,5 +1,3 @@
-import path from 'path'
-import fs from 'fs-extra'
 import { spawn } from 'child_process'
 import { NextInstance } from './base'
 
