@@ -1,6 +1,8 @@
 import chalk from 'chalk'
 import findUp from 'next/dist/compiled/find-up'
 import { basename, extname } from 'path'
+import { Agent as HttpAgent } from 'http'
+import { Agent as HttpsAgent } from 'https'
 import * as Log from '../build/output/log'
 import { CONFIG_FILE, PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import { execOnce } from '../shared/lib/utils'
@@ -304,6 +306,12 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     }
   }
 
+  // TODO: Change defaultConfig type to NextConfigComplete
+  // so we don't need "!" here.
+  setHttpAgentOptions(
+    result.httpAgentOptions || defaultConfig.httpAgentOptions!
+  )
+
   if (result.i18n) {
     const { i18n } = result
     const i18nType = typeof i18n
@@ -321,8 +329,8 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     }
 
     if (i18n.locales.length > 100) {
-      throw new Error(
-        `Received ${i18n.locales.length} i18n.locales items which exceeds the max of 100, please reduce the number of items to continue.\nSee more info here: https://nextjs.org/docs/messages/invalid-i18n-config`
+      Log.warn(
+        `Received ${i18n.locales.length} i18n.locales items which exceeds the recommended max of 100.\nSee more info here: https://nextjs.org/docs/advanced-features/i18n-routing#how-does-this-work-with-static-generation`
       )
     }
 
@@ -459,7 +467,17 @@ export default async function loadConfig(
 
   // If config file was found
   if (path?.length) {
-    const userConfigModule = require(path)
+    let userConfigModule: any
+
+    try {
+      userConfigModule = require(path)
+    } catch (err) {
+      console.error(
+        chalk.red('Error:') +
+          ' failed to load next.config.js, see more info here https://nextjs.org/docs/messages/next-config-error'
+      )
+      throw err
+    }
     const userConfig = normalizeConfig(
       phase,
       userConfigModule.default || userConfigModule
@@ -517,11 +535,30 @@ export default async function loadConfig(
     }
   }
 
-  return defaultConfig as NextConfigComplete
+  const completeConfig = defaultConfig as NextConfigComplete
+  setHttpAgentOptions(completeConfig.httpAgentOptions)
+  return completeConfig
 }
 
 export function isTargetLikeServerless(target: string) {
   const isServerless = target === 'serverless'
   const isServerlessTrace = target === 'experimental-serverless-trace'
   return isServerless || isServerlessTrace
+}
+
+export function setHttpAgentOptions(
+  options: NextConfigComplete['httpAgentOptions']
+) {
+  if ((global as any).__NEXT_HTTP_AGENT) {
+    // We only need to assign once because we want
+    // to resuse the same agent for all requests.
+    return
+  }
+
+  if (!options) {
+    throw new Error('Expected config.httpAgentOptions to be an object')
+  }
+
+  ;(global as any).__NEXT_HTTP_AGENT = new HttpAgent(options)
+  ;(global as any).__NEXT_HTTPS_AGENT = new HttpsAgent(options)
 }

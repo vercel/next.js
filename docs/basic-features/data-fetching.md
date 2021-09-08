@@ -382,7 +382,7 @@ When a page with `getStaticProps` is pre-rendered at build time, in addition to 
 
 This JSON file will be used in client-side routing through `next/link` ([documentation](/docs/api-reference/next/link.md)) or `next/router` ([documentation](/docs/api-reference/next/router.md)). When you navigate to a page that’s pre-rendered using `getStaticProps`, Next.js fetches this JSON file (pre-computed at build time) and uses it as the props for the page component. This means that client-side page transitions will **not** call `getStaticProps` as only the exported JSON is used.
 
-When using Incremental Static Generation `getStaticProps` will be executed out of band to generate the JSON needed for client-side navigation. You may see this in the form of multiple requests being made for the same page, however, this is intended and has no impact on end-user performance
+When using Incremental Static Generation `getStaticProps` will be executed out of band to generate the JSON needed for client-side navigation. You may see this in the form of multiple requests being made for the same page, however, this is intended and has no impact on end-user performance.
 
 #### Only allowed in a page
 
@@ -424,7 +424,7 @@ export async function getStaticPaths() {
     paths: [
       { params: { ... } } // See the "paths" section below
     ],
-    fallback: true or false // See the "fallback" section below
+    fallback: true, false, or 'blocking' // See the "fallback" section below
   };
 }
 ```
@@ -672,7 +672,7 @@ The `context` parameter is an object containing the following keys:
 
 `getServerSideProps` should return an object with:
 
-- `props` - An **optional** object with the props that will be received by the page component. It should be a [serializable object](https://en.wikipedia.org/wiki/Serialization)
+- `props` - An **optional** object with the props that will be received by the page component. It should be a [serializable object](https://en.wikipedia.org/wiki/Serialization) or a Promise that resolves to a serializable object.
 - `notFound` - An **optional** boolean value to allow the page to return a 404 status and page. Below is an example of how it works:
 
   ```js

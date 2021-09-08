@@ -1,20 +1,25 @@
 /* eslint-env jest */
 
-import http from 'http'
+import os from 'os'
+import glob from 'glob'
 import fs from 'fs-extra'
-import { join } from 'path'
+import execa from 'execa'
 import cheerio from 'cheerio'
-import { nextServer } from 'next-test-utils'
+import { join, dirname, relative } from 'path'
+import { version } from 'next/package'
+import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
 import {
   fetchViaHTTP,
   findPort,
-  nextBuild,
+  initNextServerScript,
+  killApp,
   renderViaHTTP,
 } from 'next-test-utils'
 
 jest.setTimeout(1000 * 60 * 2)
 
-const appDir = join(__dirname, '..')
+const appDir = join(__dirname, '../app')
+const workDir = join(os.tmpdir(), `required-server-files-${Date.now()}`)
 let server
 let nextApp
 let appPort
@@ -24,59 +29,175 @@ let errors = []
 
 describe('Required Server Files', () => {
   beforeAll(async () => {
-    await fs.remove(join(appDir, '.next'))
-    await nextBuild(appDir, undefined, {
+    const nextServerTrace = await fs.readJSON(
+      require.resolve('next/dist/server/next-server') + '.nft.json'
+    )
+    const packageDir = dirname(require.resolve('next/package.json'))
+    await execa('yarn', ['pack'], {
+      cwd: packageDir,
+    })
+    const packagePath = join(packageDir, `next-v${version}.tgz`)
+
+    await fs.ensureDir(workDir)
+    await fs.writeFile(
+      join(workDir, 'package.json'),
+      JSON.stringify({
+        dependencies: {
+          next: packagePath,
+          react: 'latest',
+          'react-dom': 'latest',
+        },
+      })
+    )
+    await fs.copy(appDir, workDir)
+
+    await execa('yarn', ['install'], {
+      cwd: workDir,
+      stdio: ['ignore', 'inherit', 'inherit'],
       env: {
+        ...process.env,
+        YARN_CACHE_FOLDER: join(workDir, '.yarn-cache'),
+      },
+    })
+
+    await execa('yarn', ['next', 'build'], {
+      cwd: workDir,
+      stdio: ['ignore', 'inherit', 'inherit'],
+      env: {
+        ...process.env,
+        NODE_ENV: 'production',
         NOW_BUILDER: '1',
       },
     })
 
-    buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
+    buildId = await fs.readFile(join(workDir, '.next/BUILD_ID'), 'utf8')
     requiredFilesManifest = await fs.readJSON(
-      join(appDir, '.next/required-server-files.json')
+      join(workDir, '.next/required-server-files.json')
     )
 
-    let files = await fs.readdir(join(appDir, '.next'))
+    // react and react-dom need to be traced specific to version
+    // so isn't pre-traced
+    await fs.ensureDir(`${workDir}-react`)
+    await fs.writeFile(
+      join(`${workDir}-react/package.json`),
+      JSON.stringify({
+        dependencies: {
+          react: 'latest',
+          'react-dom': 'latest',
+        },
+      })
+    )
+    await execa('yarn', ['install'], {
+      cwd: `${workDir}-react`,
+      stdio: ['ignore', 'inherit', 'inherit'],
+      env: {
+        ...process.env,
+        YARN_CACHE_FOLDER: join(workDir, '.yarn'),
+      },
+    })
+    await fs.remove(packagePath)
+
+    const files = await recursiveReadDir(workDir, /.*/)
+
+    const pageTraceFiles = await glob.sync('**/*.nft.json', {
+      cwd: join(workDir, '.next/server/pages'),
+    })
+    const combinedTraces = new Set()
+
+    for (const file of pageTraceFiles) {
+      const filePath = join(workDir, '.next/server/pages', file)
+      const trace = await fs.readJSON(filePath)
+
+      trace.files.forEach((f) =>
+        combinedTraces.add(relative(workDir, join(dirname(filePath), f)))
+      )
+    }
 
     for (const file of files) {
+      const cleanFile = join('./', file)
       if (
-        file === 'server' ||
-        file === 'required-server-files.json' ||
-        requiredFilesManifest.files.includes(join('.next', file))
+        !nextServerTrace.files.includes(cleanFile) &&
+        file !== '/node_modules/next/dist/server/next-server.js' &&
+        !combinedTraces.has(cleanFile) &&
+        !requiredFilesManifest.files.includes(cleanFile) &&
+        !cleanFile.startsWith('.next/server') &&
+        cleanFile !== '.next/required-server-files.json'
       ) {
-        continue
+        await fs.remove(join(workDir, file))
       }
-      console.log('removing', join('.next', file))
-      await fs.remove(join(appDir, '.next', file))
     }
-    await fs.rename(join(appDir, 'pages'), join(appDir, 'pages-bak'))
 
-    nextApp = nextServer({
-      conf: {},
-      dir: appDir,
-      quiet: false,
-      minimalMode: true,
-    })
+    for (const file of await fs.readdir(`${workDir}-react/node_modules`)) {
+      await fs.copy(
+        join(`${workDir}-react/node_modules`, file),
+        join(workDir, 'node_modules', file)
+      )
+    }
+    await fs.remove(`${workDir}-react`)
+
+    async function startServer() {
+      const http = require('http')
+      const NextServer = require('next/dist/server/next-server').default
+
+      const appPort = process.env.PORT
+      nextApp = new NextServer({
+        conf: global.nextConfig,
+        dir: process.env.APP_DIR,
+        quiet: false,
+        minimalMode: true,
+      })
+
+      server = http.createServer(async (req, res) => {
+        try {
+          await nextApp.getRequestHandler()(req, res)
+        } catch (err) {
+          console.error('top-level', err)
+          res.statusCode = 500
+          res.end('error')
+        }
+      })
+      await new Promise((res, rej) => {
+        server.listen(appPort, (err) => (err ? rej(err) : res()))
+      })
+      console.log(`Listening at ::${appPort}`)
+    }
+
+    const serverPath = join(workDir, 'server.js')
+
+    await fs.writeFile(
+      serverPath,
+      'global.nextConfig = ' +
+        JSON.stringify(requiredFilesManifest.config) +
+        ';\n' +
+        startServer.toString() +
+        ';\n' +
+        `startServer().catch(console.error)`
+    )
+
     appPort = await findPort()
-
-    server = http.createServer(async (req, res) => {
-      try {
-        await nextApp.getRequestHandler()(req, res)
-      } catch (err) {
-        console.error('top-level', err)
-        errors.push(err)
-        res.statusCode = 500
-        res.end('error')
+    server = await initNextServerScript(
+      serverPath,
+      /Listening at/,
+      {
+        ...process.env,
+        NODE_ENV: 'production',
+        PORT: appPort,
+        APP_DIR: workDir,
+      },
+      undefined,
+      {
+        cwd: workDir,
+        onStderr(msg) {
+          if (msg.includes('top-level')) {
+            errors.push(msg)
+          }
+        },
       }
-    })
-    await new Promise((res, rej) => {
-      server.listen(appPort, (err) => (err ? rej(err) : res()))
-    })
-    console.log(`Listening at ::${appPort}`)
+    )
   })
   afterAll(async () => {
-    if (server) server.close()
-    await fs.rename(join(appDir, 'pages-bak'), join(appDir, 'pages'))
+    if (server) killApp(server)
+    await fs.remove(workDir)
   })
 
   it('should output required-server-files manifest correctly', async () => {
@@ -90,11 +211,9 @@ describe('Required Server Files', () => {
     expect(typeof requiredFilesManifest.appDir).toBe('string')
 
     for (const file of requiredFilesManifest.files) {
-      console.log('checking', file)
-      expect(await fs.exists(join(appDir, file))).toBe(true)
+      expect(await fs.exists(join(workDir, file))).toBe(true)
     }
-
-    expect(await fs.exists(join(appDir, '.next/server'))).toBe(true)
+    expect(await fs.exists(join(workDir, '.next/server'))).toBe(true)
   })
 
   it('should render SSR page correctly', async () => {
@@ -449,7 +568,7 @@ describe('Required Server Files', () => {
     expect(res.status).toBe(500)
     expect(await res.text()).toBe('error')
     expect(errors.length).toBe(1)
-    expect(errors[0].message).toContain('gip hit an oops')
+    expect(errors[0]).toContain('gip hit an oops')
   })
 
   it('should bubble error correctly for gssp page', async () => {
@@ -458,7 +577,7 @@ describe('Required Server Files', () => {
     expect(res.status).toBe(500)
     expect(await res.text()).toBe('error')
     expect(errors.length).toBe(1)
-    expect(errors[0].message).toContain('gssp hit an oops')
+    expect(errors[0]).toContain('gssp hit an oops')
   })
 
   it('should bubble error correctly for gsp page', async () => {
@@ -467,7 +586,7 @@ describe('Required Server Files', () => {
     expect(res.status).toBe(500)
     expect(await res.text()).toBe('error')
     expect(errors.length).toBe(1)
-    expect(errors[0].message).toContain('gsp hit an oops')
+    expect(errors[0]).toContain('gsp hit an oops')
   })
 
   it('should bubble error correctly for API page', async () => {
@@ -476,7 +595,7 @@ describe('Required Server Files', () => {
     expect(res.status).toBe(500)
     expect(await res.text()).toBe('error')
     expect(errors.length).toBe(1)
-    expect(errors[0].message).toContain('some error from /api/error')
+    expect(errors[0]).toContain('some error from /api/error')
   })
 
   it('should normalize optional values correctly for SSP page', async () => {

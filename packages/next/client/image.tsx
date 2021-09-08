@@ -50,14 +50,12 @@ type LayoutValue = typeof VALID_LAYOUT_VALUES[number]
 
 type PlaceholderValue = 'blur' | 'empty'
 
-type ImgElementStyle = NonNullable<JSX.IntrinsicElements['img']['style']>
+type OnLoadingComplete = (result: {
+  naturalWidth: number
+  naturalHeight: number
+}) => void
 
-interface StaticImageData {
-  src: string
-  height: number
-  width: number
-  blurDataURL?: string
-}
+type ImgElementStyle = NonNullable<JSX.IntrinsicElements['img']['style']>
 
 interface StaticRequire {
   default: StaticImageData
@@ -103,7 +101,7 @@ export type ImageProps = Omit<
   unoptimized?: boolean
   objectFit?: ImgElementStyle['objectFit']
   objectPosition?: ImgElementStyle['objectPosition']
-  onLoadingComplete?: () => void
+  onLoadingComplete?: OnLoadingComplete
 }
 
 const {
@@ -112,8 +110,7 @@ const {
   loader: configLoader,
   path: configPath,
   domains: configDomains,
-} =
-  ((process.env.__NEXT_IMAGE_OPTS as any) as ImageConfig) || imageConfigDefault
+} = (process.env.__NEXT_IMAGE_OPTS as any as ImageConfig) || imageConfigDefault
 // sort smallest to largest
 const allSizes = [...configDeviceSizes, ...configImageSizes]
 configDeviceSizes.sort((a, b) => a - b)
@@ -248,8 +245,9 @@ function defaultImageLoader(loaderProps: ImageLoaderProps) {
 function handleLoading(
   img: HTMLImageElement | null,
   src: string,
+  layout: LayoutValue,
   placeholder: PlaceholderValue,
-  onLoadingComplete?: () => void
+  onLoadingComplete?: OnLoadingComplete
 ) {
   if (!img) {
     return
@@ -265,7 +263,24 @@ function handleLoading(
         }
         loadedImageURLs.add(src)
         if (onLoadingComplete) {
-          onLoadingComplete()
+          const { naturalWidth, naturalHeight } = img
+          // Pass back read-only primitive values but not the
+          // underlying DOM element because it could be misused.
+          onLoadingComplete({ naturalWidth, naturalHeight })
+        }
+        if (process.env.NODE_ENV !== 'production') {
+          if (img.parentElement?.parentElement) {
+            const parent = getComputedStyle(img.parentElement.parentElement)
+            if (layout === 'responsive' && parent.display === 'flex') {
+              console.warn(
+                `Image with src "${src}" may not render properly as a child of a flex container. Consider wrapping the image with a div to configure the width.`
+              )
+            } else if (layout === 'fill' && parent.position !== 'relative') {
+              console.warn(
+                `Image with src "${src}" may not render properly with a parent using position:"${parent.position}". Consider changing the parent style to position:"relative" with a width and height.`
+              )
+            }
+          }
         }
       })
     }
@@ -342,7 +357,7 @@ export default function Image({
 
   let isLazy =
     !priority && (loading === 'lazy' || typeof loading === 'undefined')
-  if (src.startsWith('data:')) {
+  if (src.startsWith('data:') || src.startsWith('blob:')) {
     // https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
     unoptimized = true
     isLazy = false
@@ -545,8 +560,7 @@ export default function Image({
   }
 
   let imgAttributes: GenImgAttrsResult = {
-    src:
-      'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
+    src: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
     srcSet: undefined,
     sizes: undefined,
   }
@@ -580,42 +594,44 @@ export default function Image({
               }}
               alt=""
               aria-hidden={true}
-              role="presentation"
               src={`data:image/svg+xml;base64,${toBase64(sizerSvg)}`}
             />
           ) : null}
         </div>
       ) : null}
-      {!isVisible && (
-        <noscript>
-          <img
-            {...rest}
-            {...generateImgAttrs({
-              src,
-              unoptimized,
-              layout,
-              width: widthInt,
-              quality: qualityInt,
-              sizes,
-              loader,
-            })}
-            decoding="async"
-            style={imgStyle}
-            className={className}
-          />
-        </noscript>
-      )}
       <img
         {...rest}
         {...imgAttributes}
         decoding="async"
+        data-nimg={layout}
         className={className}
         ref={(img) => {
           setRef(img)
-          handleLoading(img, srcString, placeholder, onLoadingComplete)
+          handleLoading(img, srcString, layout, placeholder, onLoadingComplete)
         }}
         style={{ ...imgStyle, ...blurStyle }}
       />
+      <noscript>
+        <img
+          {...rest}
+          {...generateImgAttrs({
+            src,
+            unoptimized,
+            layout,
+            width: widthInt,
+            quality: qualityInt,
+            sizes,
+            loader,
+          })}
+          decoding="async"
+          data-nimg={layout}
+          style={imgStyle}
+          className={className}
+          // @ts-ignore - TODO: upgrade to `@types/react@17`
+          loading={loading || 'lazy'}
+        />
+      </noscript>
+
       {priority ? (
         // Note how we omit the `href` attribute, as it would only be relevant
         // for browsers that do not support `imagesrcset`, and in those cases
@@ -633,9 +649,9 @@ export default function Image({
             rel="preload"
             as="image"
             href={imgAttributes.srcSet ? undefined : imgAttributes.src}
-            // @ts-ignore: imagesrcset is not yet in the link element type
+            // @ts-ignore: imagesrcset is not yet in the link element type.
             imagesrcset={imgAttributes.srcSet}
-            // @ts-ignore: imagesizes is not yet in the link element type
+            // @ts-ignore: imagesizes is not yet in the link element type.
             imagesizes={imgAttributes.sizes}
           ></link>
         </Head>

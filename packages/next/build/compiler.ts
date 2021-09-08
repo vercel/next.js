@@ -1,4 +1,5 @@
 import { webpack } from 'next/dist/compiled/webpack/webpack'
+import { Span } from '../telemetry/trace'
 
 export type CompilerResult = {
   errors: string[]
@@ -35,16 +36,16 @@ function closeCompiler(compiler: webpack.Compiler | webpack.MultiCompiler) {
 }
 
 export function runCompiler(
-  config: webpack.Configuration | webpack.Configuration[]
+  config: webpack.Configuration,
+  { runWebpackSpan }: { runWebpackSpan: Span }
 ): Promise<CompilerResult> {
   return new Promise((resolve, reject) => {
     const compiler = webpack(config)
-    compiler.run(
-      (
-        err: Error,
-        statsOrMultiStats: { stats: webpack.Stats[] } | webpack.Stats
-      ) => {
-        closeCompiler(compiler).then(() => {
+    compiler.run((err: Error, stats: webpack.Stats) => {
+      const webpackCloseSpan = runWebpackSpan.traceChild('webpack-close')
+      webpackCloseSpan
+        .traceAsyncFn(() => closeCompiler(compiler))
+        .then(() => {
           if (err) {
             const reason = err?.toString()
             if (reason) {
@@ -53,21 +54,11 @@ export function runCompiler(
             return reject(err)
           }
 
-          if ('stats' in statsOrMultiStats) {
-            const result: CompilerResult = statsOrMultiStats.stats.reduce(
-              generateStats,
-              { errors: [], warnings: [] }
-            )
-            return resolve(result)
-          }
-
-          const result = generateStats(
-            { errors: [], warnings: [] },
-            statsOrMultiStats
-          )
+          const result = webpackCloseSpan
+            .traceChild('webpack-generate-error-stats')
+            .traceFn(() => generateStats({ errors: [], warnings: [] }, stats))
           return resolve(result)
         })
-      }
-    )
+    })
   })
 }

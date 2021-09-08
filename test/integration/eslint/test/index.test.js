@@ -1,8 +1,11 @@
 import fs from 'fs-extra'
-import { join } from 'path'
+import os from 'os'
+import execa from 'execa'
+
+import { dirname, join } from 'path'
+
 import findUp from 'next/dist/compiled/find-up'
 import { nextBuild, nextLint } from 'next-test-utils'
-import { writeFile, readFile } from 'fs-extra'
 
 jest.setTimeout(1000 * 60 * 2)
 
@@ -24,25 +27,26 @@ const dirInvalidEslintVersion = join(__dirname, '../invalid-eslint-version')
 const dirMaxWarnings = join(__dirname, '../max-warnings')
 const dirEmptyDirectory = join(__dirname, '../empty-directory')
 const dirEslintIgnore = join(__dirname, '../eslint-ignore')
+const dirNoEslintPlugin = join(__dirname, '../no-eslint-plugin')
+const dirNoConfig = join(__dirname, '../no-config')
+const dirEslintCache = join(__dirname, '../eslint-cache')
+const dirEslintCacheCustomDir = join(__dirname, '../eslint-cache-custom-dir')
+const dirFileLinting = join(__dirname, '../file-linting')
 
 describe('ESLint', () => {
   describe('Next Build', () => {
     test('first time setup', async () => {
-      const eslintrc = join(dirFirstTimeSetup, '.eslintrc')
-      await writeFile(eslintrc, '')
+      const eslintrcJson = join(dirFirstTimeSetup, '.eslintrc.json')
+      await fs.writeFile(eslintrcJson, '')
 
       const { stdout, stderr } = await nextBuild(dirFirstTimeSetup, [], {
         stdout: true,
         stderr: true,
       })
       const output = stdout + stderr
-      const eslintrcContent = await readFile(eslintrc, 'utf8')
 
       expect(output).toContain(
-        'We detected an empty ESLint configuration file (.eslintrc) and updated it for you to include the base Next.js ESLint configuration.'
-      )
-      expect(eslintrcContent.trim().replace(/\s/g, '')).toMatch(
-        '{"extends":"next"}'
+        'No ESLint configuration detected. Run next lint to begin setup'
       )
     })
 
@@ -131,26 +135,126 @@ describe('ESLint', () => {
       )
       expect(output).toContain('Compiled successfully')
     })
-  })
 
-  describe('Next Lint', () => {
-    test('first time setup', async () => {
-      const eslintrc = join(dirFirstTimeSetup, '.eslintrc')
-      await writeFile(eslintrc, '')
-
-      const { stdout, stderr } = await nextLint(dirFirstTimeSetup, [], {
+    test('missing Next.js plugin', async () => {
+      const { stdout, stderr } = await nextBuild(dirNoEslintPlugin, [], {
         stdout: true,
         stderr: true,
       })
-      const output = stdout + stderr
-      const eslintrcContent = await readFile(eslintrc, 'utf8')
 
+      const output = stdout + stderr
       expect(output).toContain(
-        'We detected an empty ESLint configuration file (.eslintrc) and updated it for you to include the base Next.js ESLint configuration.'
+        'The Next.js plugin was not detected in your ESLint configuration'
       )
-      expect(eslintrcContent.trim().replace(/\s/g, '')).toMatch(
-        '{"extends":"next"}'
-      )
+    })
+
+    test('eslint caching is enabled', async () => {
+      const cacheDir = join(dirEslintCache, '.next', 'cache')
+
+      await fs.remove(cacheDir)
+      await nextBuild(dirEslintCache, [])
+
+      const files = await fs.readdir(join(cacheDir, 'eslint/'))
+      const cacheExists = files.some((f) => /\.cache/.test(f))
+
+      expect(cacheExists).toBe(true)
+    })
+
+    test('eslint cache lives in the user defined build directory', async () => {
+      const oldCacheDir = join(dirEslintCacheCustomDir, '.next', 'cache')
+      const newCacheDir = join(dirEslintCacheCustomDir, 'build', 'cache')
+
+      await fs.remove(oldCacheDir)
+      await fs.remove(newCacheDir)
+
+      await nextBuild(dirEslintCacheCustomDir, [])
+
+      expect(fs.existsSync(oldCacheDir)).toBe(false)
+
+      const files = await fs.readdir(join(newCacheDir, 'eslint/'))
+      const cacheExists = files.some((f) => /\.cache/.test(f))
+
+      expect(cacheExists).toBe(true)
+    })
+  })
+
+  describe('Next Lint', () => {
+    describe('First Time Setup ', () => {
+      async function nextLintTemp() {
+        const folder = join(
+          os.tmpdir(),
+          Math.random().toString(36).substring(2)
+        )
+        await fs.mkdirp(folder)
+        await fs.copy(dirNoConfig, folder)
+
+        try {
+          const nextDir = dirname(require.resolve('next/package'))
+          const nextBin = join(nextDir, 'dist/bin/next')
+
+          const { stdout } = await execa('node', [
+            nextBin,
+            'lint',
+            folder,
+            '--strict',
+          ])
+
+          const pkgJson = JSON.parse(
+            await fs.readFile(join(folder, 'package.json'), 'utf8')
+          )
+          const eslintrcJson = JSON.parse(
+            await fs.readFile(join(folder, '.eslintrc.json'), 'utf8')
+          )
+
+          return { stdout, pkgJson, eslintrcJson }
+        } finally {
+          await fs.remove(folder)
+        }
+      }
+
+      test('show a prompt to set up ESLint if no configuration detected', async () => {
+        const eslintrcJson = join(dirFirstTimeSetup, '.eslintrc.json')
+        await fs.writeFile(eslintrcJson, '')
+
+        const { stdout, stderr } = await nextLint(dirFirstTimeSetup, [], {
+          stdout: true,
+          stderr: true,
+        })
+        const output = stdout + stderr
+        expect(output).toContain('How would you like to configure ESLint?')
+
+        // Different options that can be selected
+        expect(output).toContain('Strict (recommended)')
+        expect(output).toContain('Base')
+        expect(output).toContain('Cancel')
+      })
+
+      test('installs eslint and eslint-config-next as devDependencies if missing', async () => {
+        const { stdout, pkgJson } = await nextLintTemp()
+
+        expect(stdout.replace(/(\r\n|\n|\r)/gm, '')).toContain(
+          'Installing devDependencies:- eslint- eslint-config-next'
+        )
+        expect(pkgJson.devDependencies).toHaveProperty('eslint')
+        expect(pkgJson.devDependencies).toHaveProperty('eslint-config-next')
+      })
+
+      test('creates .eslintrc.json file with a default configuration', async () => {
+        const { stdout, eslintrcJson } = await nextLintTemp()
+
+        expect(stdout).toContain(
+          'We created the .eslintrc.json file for you and included your selected configuration'
+        )
+        expect(eslintrcJson).toMatchObject({ extends: 'next/core-web-vitals' })
+      })
+
+      test('shows a successful message when completed', async () => {
+        const { stdout, eslintrcJson } = await nextLintTemp()
+
+        expect(stdout).toContain(
+          'ESLint has successfully been configured. Run next lint again to view warnings and errors'
+        )
+      })
     })
 
     test('shows warnings and errors', async () => {
@@ -222,6 +326,9 @@ describe('ESLint', () => {
     })
 
     test('success message when no warnings or errors', async () => {
+      const eslintrcJson = join(dirFirstTimeSetup, '.eslintrc.json')
+      await fs.writeFile(eslintrcJson, '{ "extends": "next", "root": true }')
+
       const { stdout, stderr } = await nextLint(dirFirstTimeSetup, [], {
         stdout: true,
         stderr: true,
@@ -259,7 +366,7 @@ describe('ESLint', () => {
 
         const output = stdout + stderr
         expect(output).not.toContain(
-          'We created the .eslintrc file for you and included the base Next.js ESLint configuration'
+          'We created the .eslintrc file for you and included your selected configuration'
         )
       } finally {
         // Restore original .eslintrc file
@@ -353,6 +460,100 @@ describe('ESLint', () => {
       )
       expect(stdout).toContain('<script src="https://example.com" />')
       expect(stdout).toContain('2 warnings found')
+    })
+
+    test('eslint caching is enabled by default', async () => {
+      const cacheDir = join(dirEslintCache, '.next', 'cache')
+
+      await fs.remove(cacheDir)
+      await nextLint(dirEslintCache, [])
+
+      const files = await fs.readdir(join(cacheDir, 'eslint/'))
+      const cacheExists = files.some((f) => /\.cache/.test(f))
+
+      expect(cacheExists).toBe(true)
+    })
+
+    test('eslint caching is disabled with the --no-cache flag', async () => {
+      const cacheDir = join(dirEslintCache, '.next', 'cache')
+
+      await fs.remove(cacheDir)
+      await nextLint(dirEslintCache, ['--no-cache'])
+
+      expect(fs.existsSync(join(cacheDir, 'eslint/'))).toBe(false)
+    })
+
+    test('the default eslint cache lives in the user defined build directory', async () => {
+      const oldCacheDir = join(dirEslintCacheCustomDir, '.next', 'cache')
+      const newCacheDir = join(dirEslintCacheCustomDir, 'build', 'cache')
+
+      await fs.remove(oldCacheDir)
+      await fs.remove(newCacheDir)
+
+      await nextLint(dirEslintCacheCustomDir, [])
+
+      expect(fs.existsSync(oldCacheDir)).toBe(false)
+
+      const files = await fs.readdir(join(newCacheDir, 'eslint/'))
+      const cacheExists = files.some((f) => /\.cache/.test(f))
+
+      expect(cacheExists).toBe(true)
+    })
+
+    test('the --cache-location flag allows the user to define a separate cache location', async () => {
+      const cacheFile = join(dirEslintCache, '.eslintcache')
+
+      await fs.remove(cacheFile)
+      await nextLint(dirEslintCache, ['--cache-location', cacheFile])
+
+      expect(fs.existsSync(cacheFile)).toBe(true)
+    })
+
+    test('file flag can selectively lint only a single file', async () => {
+      const { stdout, stderr } = await nextLint(
+        dirFileLinting,
+        ['--file', 'utils/math.js'],
+        {
+          stdout: true,
+          stderr: true,
+        }
+      )
+
+      const output = stdout + stderr
+
+      expect(output).toContain('utils/math.js')
+      expect(output).toContain(
+        'Comments inside children section of tag should be placed inside braces'
+      )
+
+      expect(output).not.toContain('pages/')
+      expect(output).not.toContain('External synchronous scripts are forbidden')
+    })
+
+    test('file flag can selectively lints multiple files', async () => {
+      const { stdout, stderr } = await nextLint(
+        dirFileLinting,
+        ['--file', 'utils/math.js', '--file', 'pages/bar.js'],
+        {
+          stdout: true,
+          stderr: true,
+        }
+      )
+
+      const output = stdout + stderr
+
+      expect(output).toContain('utils/math.js')
+      expect(output).toContain(
+        'Comments inside children section of tag should be placed inside braces'
+      )
+
+      expect(output).toContain('pages/bar.js')
+      expect(output).toContain(
+        "Do not use <img>. Use Image from 'next/image' instead"
+      )
+
+      expect(output).not.toContain('pages/index.js')
+      expect(output).not.toContain('External synchronous scripts are forbidden')
     })
   })
 })

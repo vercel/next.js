@@ -1,6 +1,12 @@
 import spawn from 'cross-spawn'
 import express from 'express'
-import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'fs'
+import {
+  existsSync,
+  readFileSync,
+  unlinkSync,
+  writeFileSync,
+  createReadStream,
+} from 'fs'
 import { writeFile } from 'fs-extra'
 import getPort from 'get-port'
 import http from 'http'
@@ -31,7 +37,10 @@ export function initNextServerScript(
   opts
 ) {
   return new Promise((resolve, reject) => {
-    const instance = spawn('node', ['--no-deprecation', scriptPath], { env })
+    const instance = spawn('node', ['--no-deprecation', scriptPath], {
+      env,
+      cwd: opts && opts.cwd,
+    })
 
     function handleStdout(data) {
       const message = data.toString()
@@ -363,10 +372,16 @@ export function waitFor(millis) {
   return new Promise((resolve) => setTimeout(resolve, millis))
 }
 
-export async function startStaticServer(dir) {
+export async function startStaticServer(dir, notFoundFile) {
   const app = express()
   const server = http.createServer(app)
   app.use(express.static(dir))
+
+  if (notFoundFile) {
+    app.use((req, res) => {
+      createReadStream(notFoundFile).pipe(res)
+    })
+  }
 
   await promiseCall(server, 'listen')
   return server

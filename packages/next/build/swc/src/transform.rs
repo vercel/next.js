@@ -27,8 +27,11 @@ DEALINGS IN THE SOFTWARE.
 */
 
 use crate::{
+    amp_attributes::amp_attributes,
     complete_output, get_compiler,
     hook_optimizer::hook_optimizer,
+    next_dynamic::next_dynamic,
+    next_ssg::next_ssg,
     util::{CtxtExt, MapErr},
 };
 use anyhow::{bail, Error};
@@ -172,7 +175,13 @@ fn process_js_custom(
         }
     };
     let config = BuiltConfig {
-        pass: chain!(hook_optimizer(), config.pass),
+        pass: chain!(
+            hook_optimizer(),
+            next_ssg(),
+            amp_attributes(),
+            next_dynamic(source.name.clone()),
+            config.pass
+        ),
         syntax: config.syntax,
         target: config.target,
         minify: config.minify,
@@ -182,7 +191,8 @@ fn process_js_custom(
         is_module: config.is_module,
         output_path: config.output_path,
     };
-    //let orig = compiler.get_orig_src_map(&source, &options.config.input_source_map)?;
+    //let orig = compiler.get_orig_src_map(&source,
+    // &options.config.input_source_map)?;
     let program = compiler.parse_js(
         source.clone(),
         config.target,
