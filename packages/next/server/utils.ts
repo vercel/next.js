@@ -1,4 +1,3 @@
-import Observable from 'next/dist/compiled/zen-observable'
 import { BLOCKED_PAGES } from '../shared/lib/constants'
 
 export function isBlockedPage(pathname: string): boolean {
@@ -16,19 +15,8 @@ export function cleanAmpPath(pathname: string): string {
   return pathname
 }
 
-export type RenderResult = Observable<string>
-
-export function mergeResults(results: Array<RenderResult>): RenderResult {
-  // @ts-ignore
-  return Observable.prototype.concat.call(...results)
-}
-
-export async function resultsToString(
-  results: Array<RenderResult>
-): Promise<string> {
-  const chunks: string[] = []
-  await mergeResults(results).forEach((chunk: string) => {
-    chunks.push(chunk)
-  })
-  return chunks.join('')
+export function isBot(userAgent: string): boolean {
+  return /Googlebot|Mediapartners-Google|AdsBot-Google|googleweblight|Storebot-Google|Bingbot|BingPreview|Slurp|DuckDuckBot|baiduspider|yandex|sogou|LinkedInBot|bitlybot|tumblr|vkShare|quora link preview|facebookexternalhit|facebookcatalog|Twitterbot|applebot|redditbot|Slackbot|Discordbot|WhatsApp|SkypeUriPreview/i.test(
+    userAgent
+  )
 }

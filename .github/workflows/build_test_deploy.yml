@@ -291,7 +291,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build, build-native]
     env:
-      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN_ELEVATED }}
     steps:
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network
@@ -408,7 +408,7 @@ jobs:
           MACOSX_DEPLOYMENT_TARGET: '10.13'
         working-directory: packages/next
       - name: Upload artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v2.2.4
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         with:
           name: next-swc-binaries

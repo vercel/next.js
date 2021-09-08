@@ -31,6 +31,7 @@ const dirNoEslintPlugin = join(__dirname, '../no-eslint-plugin')
 const dirNoConfig = join(__dirname, '../no-config')
 const dirEslintCache = join(__dirname, '../eslint-cache')
 const dirEslintCacheCustomDir = join(__dirname, '../eslint-cache-custom-dir')
+const dirFileLinting = join(__dirname, '../file-linting')
 
 describe('ESLint', () => {
   describe('Next Build', () => {
@@ -506,6 +507,53 @@ describe('ESLint', () => {
       await nextLint(dirEslintCache, ['--cache-location', cacheFile])
 
       expect(fs.existsSync(cacheFile)).toBe(true)
+    })
+
+    test('file flag can selectively lint only a single file', async () => {
+      const { stdout, stderr } = await nextLint(
+        dirFileLinting,
+        ['--file', 'utils/math.js'],
+        {
+          stdout: true,
+          stderr: true,
+        }
+      )
+
+      const output = stdout + stderr
+
+      expect(output).toContain('utils/math.js')
+      expect(output).toContain(
+        'Comments inside children section of tag should be placed inside braces'
+      )
+
+      expect(output).not.toContain('pages/')
+      expect(output).not.toContain('External synchronous scripts are forbidden')
+    })
+
+    test('file flag can selectively lints multiple files', async () => {
+      const { stdout, stderr } = await nextLint(
+        dirFileLinting,
+        ['--file', 'utils/math.js', '--file', 'pages/bar.js'],
+        {
+          stdout: true,
+          stderr: true,
+        }
+      )
+
+      const output = stdout + stderr
+
+      expect(output).toContain('utils/math.js')
+      expect(output).toContain(
+        'Comments inside children section of tag should be placed inside braces'
+      )
+
+      expect(output).toContain('pages/bar.js')
+      expect(output).toContain(
+        "Do not use <img>. Use Image from 'next/image' instead"
+      )
+
+      expect(output).not.toContain('pages/index.js')
+      expect(output).not.toContain('External synchronous scripts are forbidden')
     })
   })
 })
