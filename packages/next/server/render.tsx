@@ -194,7 +194,7 @@ export type RenderOptsPartial = {
   defaultLocale?: string
   domainLocales?: DomainLocale[]
   disableOptimizedLoading?: boolean
-  requireStaticHTML?: boolean
+  supportsDynamicHTML?: boolean
   concurrentFeatures?: boolean
   customServer?: boolean
 }
@@ -295,7 +295,7 @@ export async function renderToHTML(
     previewProps,
     basePath,
     devOnlyCacheBusterQueryString,
-    requireStaticHTML,
+    supportsDynamicHTML,
     concurrentFeatures,
   } = renderOpts
 
@@ -883,7 +883,20 @@ export async function renderToHTML(
     }
   }
 
-  const generateStaticHTML = requireStaticHTML || inAmpMode
+  /**
+   * Rules of Static & Dynamic HTML:
+   *
+   *    1.) We must generate static HTML unless the caller explicitly opts
+   *        in to dynamic HTML support.
+   *
+   *    2.) If dynamic HTML support is requested, we must honor that request
+   *        or throw an error. It is the sole responsibility of the caller to
+   *        ensure they aren't e.g. requesting dynamic HTML for an AMP page.
+   *
+   * These rules help ensure that other existing features like request caching,
+   * coalescing, and ISR continue working as intended.
+   */
+  const generateStaticHTML = supportsDynamicHTML !== true
   const renderToStream = (element: React.ReactElement) =>
     new Promise<Observable<string>>((resolve, reject) => {
       const stream = new PassThrough()
@@ -929,7 +942,7 @@ export async function renderToHTML(
           doResolve()
         },
       })
-    }).then(multiplexObservable)
+    })
 
   const renderDocument = async () => {
     if (Document.getInitialProps) {
@@ -1201,8 +1214,9 @@ export async function renderToHTML(
   }
 
   return new RenderResult(
-    resultsToObservable(results),
-    generateStaticHTML === false
+    generateStaticHTML
+      ? (await observableToChunks(resultsToObservable(results))).join('')
+      : resultsToObservable(results)
   )
 }
 
@@ -1237,54 +1251,6 @@ async function observableToChunks(
   const chunks: string[] = []
   await observable.forEach((chunk) => chunks.push(chunk))
   return chunks
-}
-
-function multiplexObservable(result: Observable<string>): Observable<string> {
-  const chunks: Array<string> = []
-  const subscribers: Set<ZenObservable.SubscriptionObserver<string>> = new Set()
-  let terminator:
-    | ((subscriber: ZenObservable.SubscriptionObserver<string>) => void)
-    | null = null
-
-  result.subscribe({
-    next(chunk) {
-      chunks.push(chunk)
-      subscribers.forEach((subscriber) => subscriber.next(chunk))
-    },
-    error(error) {
-      if (!terminator) {
-        terminator = (subscriber) => subscriber.error(error)
-        subscribers.forEach(terminator)
-        subscribers.clear()
-      }
-    },
-    complete() {
-      if (!terminator) {
-        terminator = (subscriber) => subscriber.complete()
-        subscribers.forEach(terminator)
-        subscribers.clear()
-      }
-    },
-  })
-
-  return new Observable((observer) => {
-    for (const chunk of chunks) {
-      if (observer.closed) {
-        return
-      }
-      observer.next(chunk)
-    }
-
-    if (terminator) {
-      terminator(observer)
-      return
-    }
-
-    subscribers.add(observer)
-    return () => {
-      subscribers.delete(observer)
-    }
-  })
 }
 
 function errorToJSON(err: Error): Error {
