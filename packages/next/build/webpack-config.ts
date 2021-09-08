@@ -28,7 +28,7 @@ import {
 } from '../shared/lib/constants'
 import { execOnce } from '../shared/lib/utils'
 import { NextConfigComplete } from '../server/config-shared'
-import { WebpackEntrypoints } from './entries'
+import { finalizeEntrypoint, WebpackEntrypoints } from './entries'
 import * as Log from './output/log'
 import { build as buildConfiguration } from './webpack/config'
 import { __overrideCssConfiguration } from './webpack/config/blocks/css/overrideCssConfiguration'
@@ -939,9 +939,7 @@ export default async function getBaseWebpackConfig(
           : false
         : splitChunksConfig,
       runtimeChunk: isServer
-        ? isWebpack5 && !isLikeServerless
-          ? { name: 'webpack-runtime' }
-          : undefined
+        ? undefined
         : { name: CLIENT_STATIC_FILES_RUNTIME_WEBPACK },
       minimize: !(dev || isServer),
       minimizer: [
@@ -1073,10 +1071,18 @@ export default async function getBaseWebpackConfig(
                   fullySpecified: false,
                 },
               } as any,
+              {
+                test: /\.(js|cjs|mjs)$/,
+                issuerLayer: 'api',
+                parser: {
+                  // Switch back to normal URL handling
+                  url: true,
+                },
+              },
             ]
           : []),
         {
-          test: /\.(tsx|ts|js|mjs|jsx)$/,
+          test: /\.(tsx|ts|js|cjs|mjs|jsx)$/,
           ...(config.experimental.externalDir
             ? // Allowing importing TS/TSX files from outside of the root dir.
               {}
@@ -1087,12 +1093,35 @@ export default async function getBaseWebpackConfig(
             }
             return /node_modules/.test(excludePath)
           },
-          use: hasReactRefresh
-            ? [
-                require.resolve('@next/react-refresh-utils/loader'),
-                defaultLoaders.babel,
-              ]
-            : defaultLoaders.babel,
+          ...(isWebpack5
+            ? {
+                oneOf: [
+                  {
+                    issuerLayer: 'api',
+                    parser: {
+                      // Switch back to normal URL handling
+                      url: true,
+                    },
+                    use: defaultLoaders.babel,
+                  },
+                  {
+                    use: hasReactRefresh
+                      ? [
+                          require.resolve('@next/react-refresh-utils/loader'),
+                          defaultLoaders.babel,
+                        ]
+                      : defaultLoaders.babel,
+                  },
+                ],
+              }
+            : {
+                use: hasReactRefresh
+                  ? [
+                      require.resolve('@next/react-refresh-utils/loader'),
+                      defaultLoaders.babel,
+                    ]
+                  : defaultLoaders.babel,
+              }),
         },
         ...(!config.images.disableStaticImages && isWebpack5
           ? [
@@ -1337,6 +1366,21 @@ export default async function getBaseWebpackConfig(
     // futureEmitAssets is on by default in webpack 5
     delete webpackConfig.output?.futureEmitAssets
 
+    webpackConfig.experiments = {
+      layers: true,
+    }
+
+    webpackConfig.module!.parser = {
+      javascript: {
+        url: 'relative',
+      },
+    }
+    webpackConfig.module!.generator = {
+      asset: {
+        filename: 'static/media/[name].[hash:8][ext]',
+      },
+    }
+
     if (isServer && dev) {
       // Enable building of client compilation before server compilation in development
       // @ts-ignore dependencies exists
@@ -1574,10 +1618,6 @@ export default async function getBaseWebpackConfig(
           exclude: fileLoaderExclude,
           issuer: fileLoaderExclude,
           type: 'asset/resource',
-          generator: {
-            publicPath: '/_next/',
-            filename: 'static/media/[name].[hash:8].[ext]',
-          },
         }
       : {
           loader: require.resolve('next/dist/compiled/file-loader'),
@@ -1864,32 +1904,13 @@ export default async function getBaseWebpackConfig(
       }
       delete entry['main.js']
 
-      if (isWebpack5 && !isServer) {
-        for (const name of Object.keys(entry)) {
-          if (
-            name === 'polyfills' ||
-            name === 'main' ||
-            name === 'amp' ||
-            name === 'react-refresh'
-          )
-            continue
-          const dependOn =
-            name.startsWith('pages/') && name !== 'pages/_app'
-              ? 'pages/_app'
-              : 'main'
-          const old = entry[name]
-          if (typeof old === 'object' && !Array.isArray(old)) {
-            entry[name] = {
-              dependOn,
-              ...old,
-            }
-          } else {
-            entry[name] = {
-              import: old,
-              dependOn,
-            }
-          }
-        }
+      for (const name of Object.keys(entry)) {
+        entry[name] = finalizeEntrypoint(
+          name,
+          entry[name],
+          isServer,
+          isWebpack5
+        )
       }
 
       return entry
