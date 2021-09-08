@@ -221,6 +221,8 @@ class Playwright extends BrowserInterface {
   }
 
   async eval(snippet) {
+    // TODO: should this and evalAsync be chained? Might lead
+    // to bad chains
     return page
       .evaluate(snippet)
       .catch((err) => {
