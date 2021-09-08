@@ -52,9 +52,9 @@ export default Home
 
 ## Image Imports
 
-You can `import` images that live in your project. (Note that `require` is not supported—only `import`.)
+You can statically `import` images that live in your project. Dynamic `await import()` or `require()` are _not_ supported.
 
-With direct `import`s, `width`, `height`, and `blurDataURL` will be automatically provided to the image component. Alt text is still needed separately.
+With static `import`s, you only need to provide the `src` prop. The `width`, `height`, and `blurDataURL` props will automatically be populated. Alt text is still needed separately.
 
 ```js
 import Image from 'next/image'
@@ -70,8 +70,7 @@ function Home() {
         // width={500} automatically provided
         // height={500} automatically provided
         // blurDataURL="data:..." automatically provided
-        // Optionally allows to add a blurred version of the image while loading
-        // placeholder="blur"
+        // placeholder="blur" // Optional blur-up while loading
       />
       <p>Welcome to my homepage!</p>
     </>
@@ -79,7 +78,7 @@ function Home() {
 }
 ```
 
-For dynamic or remote images, you'll have to provide [`width`](/docs/api-reference/next/image#width), [`height`](/docs/api-reference/next/image#height) and [`blurDataURL`](/docs/api-reference/next/image#blurdataurl) manually.
+For remote images, you'll need to provide the [`width`](/docs/api-reference/next/image.md#width), [`height`](/docs/api-reference/next/image.md#height) and [`blurDataURL`](/docs/api-reference/next/image.md#blurdataurl) props manually.
 
 ## Properties
 

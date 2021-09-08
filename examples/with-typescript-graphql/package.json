@@ -28,12 +28,12 @@
     "@graphql-codegen/typescript-resolvers": "^1.17.8",
     "@types/react": "^16.9.46",
     "@types/react-dom": "^16.9.8",
-    "@types/react-test-renderer": "16.9.3",
+    "@types/react-test-renderer": "^17.0.1",
     "babel-jest": "26.3.0",
     "graphql-let": "0.x",
     "graphql-tag": "2.11.0",
     "jest": "26.4.0",
-    "react-test-renderer": "16.13.1",
+    "react-test-renderer": "^17.0.1",
     "typescript": "^3.9.7",
     "yaml-loader": "0.6.0"
   }
