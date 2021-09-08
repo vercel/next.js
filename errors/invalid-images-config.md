@@ -18,8 +18,12 @@ module.exports = {
     // limit of 50 domains values
     domains: [],
     path: '/_next/image',
-    // loader can be 'default', 'imgix', 'cloudinary', or 'akamai'
+    // loader can be 'default', 'imgix', 'cloudinary', 'akamai', or 'custom'
     loader: 'default',
+    // disable static imports for image files
+    disableStaticImages: false,
+    // minimumCacheTTL is in seconds, must be integer 0 or more
+    minimumCacheTTL: 60,
   },
 }
 ```

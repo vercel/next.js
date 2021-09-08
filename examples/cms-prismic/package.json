@@ -1,6 +1,5 @@
 {
-  "name": "cms-prismic",
-  "version": "1.0.0",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",
@@ -19,6 +18,5 @@
     "autoprefixer": "10.2.6",
     "postcss": "8.3.5",
     "tailwindcss": "^2.2.4"
-  },
-  "license": "MIT"
+  }
 }

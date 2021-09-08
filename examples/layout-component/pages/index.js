@@ -32,9 +32,11 @@ export default function Index() {
   )
 }
 
-Index.getLayout = (page) => (
-  <Layout>
-    <Sidebar />
-    {page}
-  </Layout>
-)
+Index.getLayout = function getLayout(page) {
+  return (
+    <Layout>
+      <Sidebar />
+      {page}
+    </Layout>
+  )
+}

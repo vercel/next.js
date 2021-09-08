@@ -23,7 +23,7 @@ Instead of optimizing images at build time, Next.js optimizes images on-demand, 
 
 Images are lazy loaded by default. That means your page speed isn't penalized for images outside the viewport. Images load as they are scrolled into viewport.
 
-Images are always rendered in such a way as to avoid [Cumulative Layout Shift](https://web.dev/cls/), a [Core Web Vital](https://web.dev/vitals/) that Google is going to [use in search ranking](https://webmasters.googleblog.com/2020/05/evaluating-page-experience.html).
+Images are always rendered in such a way as to avoid [Cumulative Layout Shift](https://web.dev/cls/), a [Core Web Vital](https://web.dev/vitals/) that Google [uses in search ranking](https://developers.google.com/search/blog/2020/05/evaluating-page-experience).
 
 ## Image Component
 
@@ -52,9 +52,9 @@ export default Home
 
 ## Image Imports
 
-You can `import` images that live in your project. (Note that `require` is not supported—only `import`.)
+You can statically `import` images that live in your project. Dynamic `await import()` or `require()` are _not_ supported.
 
-With direct `import`s, `width`, `height`, and `blurDataURL` will be automatically provided to the image component. Alt text is still needed separately.
+With static `import`s, you only need to provide the `src` prop. The `width`, `height`, and `blurDataURL` props will automatically be populated. Alt text is still needed separately.
 
 ```js
 import Image from 'next/image'
@@ -70,8 +70,7 @@ function Home() {
         // width={500} automatically provided
         // height={500} automatically provided
         // blurDataURL="data:..." automatically provided
-        // Optionally allows to add a blurred version of the image while loading
-        // placeholder="blur"
+        // placeholder="blur" // Optional blur-up while loading
       />
       <p>Welcome to my homepage!</p>
     </>
@@ -79,7 +78,7 @@ function Home() {
 }
 ```
 
-For dynamic or remote images, you'll have to provide [`width`](/docs/api-reference/next/image#width), [`height`](/docs/api-reference/next/image#height) and [`blurDataURL`](/docs/api-reference/next/image#blurdataurl) manually.
+For remote images, you'll need to provide the [`width`](/docs/api-reference/next/image.md#width), [`height`](/docs/api-reference/next/image.md#height) and [`blurDataURL`](/docs/api-reference/next/image.md#blurdataurl) props manually.
 
 ## Properties
 
@@ -128,6 +127,8 @@ If you need a different provider, you can use the [`loader`](/docs/api-reference
 
 > The `next/image` component's default loader is not supported when using [`next export`](/docs/advanced-features/static-html-export.md). However, other loader options will work.
 
+> The `next/image` component's default loader uses [`squoosh`](https://www.npmjs.com/package/@squoosh/lib) because it is quick to install and suitable for a development environment. When using `next start` in your production environment, it is strongly recommended that you install [`sharp`](https://www.npmjs.com/package/sharp) by running `yarn add sharp` in your project directory. This is not necessary for Vercel deployments, as `sharp` is installed automatically.
+
 ## Caching
 
 The following describes the caching algorithm for the default [loader](#loader). For all other loaders, please refer to your cloud provider's documentation.
@@ -136,9 +137,11 @@ Images are optimized dynamically upon request and stored in the `<distDir>/cache
 
 The expiration (or rather Max Age) is defined by the upstream server's `Cache-Control` header.
 
-If `s-maxage` is found in `Cache-Control`, it is used. If no `s-maxage` is found, then `max-age` is used. If no `max-age` is found, then 60 seconds is used.
+If `s-maxage` is found in `Cache-Control`, it is used. If no `s-maxage` is found, then `max-age` is used. If no `max-age` is found, then [`minimumCacheTTL`](#minimum-cache-ttl) is used.
 
-You can configure [`deviceSizes`](#device-sizes) and [`imageSizes`](#device-sizes) to reduce the total number of possible generated images.
+You can configure [`minimumCacheTTL`](#minimum-cache-ttl) to increase the cache duration when the upstream image does not include `max-age`.
+
+You can also configure [`deviceSizes`](#device-sizes) and [`imageSizes`](#device-sizes) to reduce the total number of possible generated images.
 
 ## Advanced
 
@@ -171,6 +174,20 @@ module.exports = {
   },
 }
 ```
+
+### Minimum Cache TTL
+
+You can configure the time to live (TTL) in seconds for cached optimized images. In many cases, its better to use a [Static Image Import](#image-Imports) which will handle hashing file contents and caching the file forever.
+
+```js
+module.exports = {
+  images: {
+    minimumCacheTTL: 60,
+  },
+}
+```
+
+If you need to add a `Cache-Control` header for the browser (not recommended), you can configure [`headers`](/docs/api-reference/next.config.js/headers) on the upstream image e.g. `/some-asset.jpg` not `/_next/image` itself.
 
 ### Disable Static Imports
 

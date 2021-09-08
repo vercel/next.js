@@ -1,8 +1,5 @@
 {
-  "name": "with-unsplash",
-  "version": "1.0.0",
-  "license": "MIT",
-  "description": "Using Next.js with Unsplash API",
+  "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",

@@ -169,6 +169,15 @@ export async function createApp({
       )
     }
 
+    // Copy default `next-env.d.ts` to any example that is typescript
+    const tsconfigPath = path.join(root, 'tsconfig.json')
+    if (fs.existsSync(tsconfigPath)) {
+      fs.copyFileSync(
+        path.join(__dirname, 'templates', 'typescript', 'next-env.d.ts'),
+        path.join(root, 'next-env.d.ts')
+      )
+    }
+
     console.log('Installing packages. This might take a couple of minutes.')
     console.log()
 
@@ -217,7 +226,7 @@ export async function createApp({
      * TypeScript projects will have type definitions and other devDependencies.
      */
     if (typescript) {
-      devDependencies.push('typescript', '@types/react')
+      devDependencies.push('typescript', '@types/react', '@types/node')
     }
     /**
      * Install package.json dependencies if they exist.
@@ -256,7 +265,7 @@ export async function createApp({
       rename: (name) => {
         switch (name) {
           case 'gitignore':
-          case 'eslintrc': {
+          case 'eslintrc.json': {
             return '.'.concat(name)
           }
           // README.md is ignored by webpack-asset-relocator-loader used by ncc:

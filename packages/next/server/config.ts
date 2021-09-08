@@ -1,16 +1,22 @@
 import chalk from 'chalk'
 import findUp from 'next/dist/compiled/find-up'
 import { basename, extname } from 'path'
+import { Agent as HttpAgent } from 'http'
+import { Agent as HttpsAgent } from 'https'
 import * as Log from '../build/output/log'
-import { hasNextSupport } from '../telemetry/ci-info'
 import { CONFIG_FILE, PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import { execOnce } from '../shared/lib/utils'
-import { defaultConfig, normalizeConfig } from './config-shared'
+import {
+  defaultConfig,
+  NextConfigComplete,
+  normalizeConfig,
+} from './config-shared'
 import { loadWebpackHook } from './config-utils'
 import { ImageConfig, imageConfigDefault, VALID_LOADERS } from './image-config'
 import { loadEnvConfig } from '@next/env'
+import { hasNextSupport } from '../telemetry/ci-info'
 
-export { DomainLocales, NextConfig, normalizeConfig } from './config-shared'
+export { DomainLocale, NextConfig, normalizeConfig } from './config-shared'
 
 const targets = ['server', 'serverless', 'experimental-serverless-trace']
 
@@ -168,7 +174,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
         result.assetPrefix = result.basePath
       }
 
-      if (result.amp.canonicalBase === '') {
+      if (result.amp?.canonicalBase === '') {
         result.amp.canonicalBase = result.basePath
       }
     }
@@ -287,7 +293,24 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     if (images.path === imageConfigDefault.path && result.basePath) {
       images.path = `${result.basePath}${images.path}`
     }
+
+    if (
+      images.minimumCacheTTL &&
+      (!Number.isInteger(images.minimumCacheTTL) || images.minimumCacheTTL < 0)
+    ) {
+      throw new Error(
+        `Specified images.minimumCacheTTL should be an integer 0 or more
+          ', '
+        )}), received  (${images.minimumCacheTTL}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
+      )
+    }
   }
+
+  // TODO: Change defaultConfig type to NextConfigComplete
+  // so we don't need "!" here.
+  setHttpAgentOptions(
+    result.httpAgentOptions || defaultConfig.httpAgentOptions!
+  )
 
   if (result.i18n) {
     const { i18n } = result
@@ -302,6 +325,12 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     if (!Array.isArray(i18n.locales)) {
       throw new Error(
         `Specified i18n.locales should be an Array received ${typeof i18n.locales}.\nSee more info here: https://nextjs.org/docs/messages/invalid-i18n-config`
+      )
+    }
+
+    if (i18n.locales.length > 100) {
+      Log.warn(
+        `Received ${i18n.locales.length} i18n.locales items which exceeds the recommended max of 100.\nSee more info here: https://nextjs.org/docs/advanced-features/i18n-routing#how-does-this-work-with-static-generation`
       )
     }
 
@@ -324,6 +353,19 @@ function assignDefaults(userConfig: { [key: string]: any }) {
         if (!item || typeof item !== 'object') return true
         if (!item.defaultLocale) return true
         if (!item.domain || typeof item.domain !== 'string') return true
+
+        const defaultLocaleDuplicate = i18n.domains?.find(
+          (altItem) =>
+            altItem.defaultLocale === item.defaultLocale &&
+            altItem.domain !== item.domain
+        )
+
+        if (defaultLocaleDuplicate) {
+          console.warn(
+            `Both ${item.domain} and ${defaultLocaleDuplicate.domain} configured the defaultLocale ${item.defaultLocale} but only one can. Change one item's default locale to continue`
+          )
+          return true
+        }
 
         let hasInvalidLocale = false
 
@@ -410,19 +452,32 @@ export default async function loadConfig(
   phase: string,
   dir: string,
   customConfig?: object | null
-) {
+): Promise<NextConfigComplete> {
   await loadEnvConfig(dir, phase === PHASE_DEVELOPMENT_SERVER, Log)
   await loadWebpackHook(phase, dir)
 
   if (customConfig) {
-    return assignDefaults({ configOrigin: 'server', ...customConfig })
+    return assignDefaults({
+      configOrigin: 'server',
+      ...customConfig,
+    }) as NextConfigComplete
   }
 
   const path = await findUp(CONFIG_FILE, { cwd: dir })
 
   // If config file was found
   if (path?.length) {
-    const userConfigModule = require(path)
+    let userConfigModule: any
+
+    try {
+      userConfigModule = require(path)
+    } catch (err) {
+      console.error(
+        chalk.red('Error:') +
+          ' failed to load next.config.js, see more info here https://nextjs.org/docs/messages/next-config-error'
+      )
+      throw err
+    }
     const userConfig = normalizeConfig(
       phase,
       userConfigModule.default || userConfigModule
@@ -451,7 +506,7 @@ export default async function loadConfig(
           : canonicalBase) || ''
     }
 
-    if (hasNextSupport) {
+    if (process.env.NEXT_PRIVATE_TARGET || hasNextSupport) {
       userConfig.target = process.env.NEXT_PRIVATE_TARGET || 'server'
     }
 
@@ -459,7 +514,7 @@ export default async function loadConfig(
       configOrigin: CONFIG_FILE,
       configFile: path,
       ...userConfig,
-    })
+    }) as NextConfigComplete
   } else {
     const configBaseName = basename(CONFIG_FILE, extname(CONFIG_FILE))
     const nonJsPath = findUp.sync(
@@ -480,11 +535,30 @@ export default async function loadConfig(
     }
   }
 
-  return defaultConfig
+  const completeConfig = defaultConfig as NextConfigComplete
+  setHttpAgentOptions(completeConfig.httpAgentOptions)
+  return completeConfig
 }
 
 export function isTargetLikeServerless(target: string) {
   const isServerless = target === 'serverless'
   const isServerlessTrace = target === 'experimental-serverless-trace'
   return isServerless || isServerlessTrace
+}
+
+export function setHttpAgentOptions(
+  options: NextConfigComplete['httpAgentOptions']
+) {
+  if ((global as any).__NEXT_HTTP_AGENT) {
+    // We only need to assign once because we want
+    // to resuse the same agent for all requests.
+    return
+  }
+
+  if (!options) {
+    throw new Error('Expected config.httpAgentOptions to be an object')
+  }
+
+  ;(global as any).__NEXT_HTTP_AGENT = new HttpAgent(options)
+  ;(global as any).__NEXT_HTTPS_AGENT = new HttpsAgent(options)
 }

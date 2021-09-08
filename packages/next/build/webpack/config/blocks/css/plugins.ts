@@ -25,7 +25,8 @@ function getError_NullConfig(pluginName: string) {
 }
 
 function isIgnoredPlugin(pluginPath: string): boolean {
-  const ignoredRegex = /(?:^|[\\/])(postcss-modules-values|postcss-modules-scope|postcss-modules-extract-imports|postcss-modules-local-by-default|postcss-modules)(?:[\\/]|$)/i
+  const ignoredRegex =
+    /(?:^|[\\/])(postcss-modules-values|postcss-modules-scope|postcss-modules-extract-imports|postcss-modules-local-by-default|postcss-modules)(?:[\\/]|$)/i
   const match = ignoredRegex.exec(pluginPath)
   if (match == null) {
     return false

@@ -25,7 +25,9 @@ export async function apiResolver(
   query: any,
   resolverModule: any,
   apiContext: __ApiPreviewProps,
-  propagateError: boolean
+  propagateError: boolean,
+  dev?: boolean,
+  page?: string
 ): Promise<void> {
   const apiReq = req as NextApiRequest
   const apiRes = res as NextApiResponse
@@ -41,7 +43,7 @@ export async function apiResolver(
     const externalResolver = config.api?.externalResolver || false
 
     // Parsing of cookies
-    setLazyProp({ req: apiReq }, 'cookies', getCookieParser(req))
+    setLazyProp({ req: apiReq }, 'cookies', getCookieParser(req.headers))
     // Parsing query string
     apiReq.query = query
     // Parsing preview data
@@ -67,12 +69,12 @@ export async function apiResolver(
     const writeData = apiRes.write
     const endResponse = apiRes.end
     apiRes.write = (...args: any[2]) => {
-      contentLength += Buffer.byteLength(args[0])
+      contentLength += Buffer.byteLength(args[0] || '')
       return writeData.apply(apiRes, args)
     }
     apiRes.end = (...args: any[2]) => {
       if (args.length && typeof args[0] !== 'function') {
-        contentLength += Buffer.byteLength(args[0])
+        contentLength += Buffer.byteLength(args[0] || '')
       }
 
       if (contentLength >= 4 * 1024 * 1024) {
@@ -117,6 +119,13 @@ export async function apiResolver(
     if (err instanceof ApiError) {
       sendError(apiRes, err.statusCode, err.message)
     } else {
+      if (dev) {
+        if (err) {
+          err.page = page
+        }
+        throw err
+      }
+
       console.error(err)
       if (propagateError) {
         throw err
@@ -185,14 +194,14 @@ function parseJson(str: string): object {
 }
 
 /**
- * Parse cookies from `req` header
+ * Parse cookies from the `headers` of request
  * @param req request object
  */
-export function getCookieParser(
-  req: IncomingMessage
-): () => NextApiRequestCookies {
+export function getCookieParser(headers: {
+  [key: string]: undefined | string | string[]
+}): () => NextApiRequestCookies {
   return function parseCookie(): NextApiRequestCookies {
-    const header: undefined | string | string[] = req.headers.cookie
+    const header: undefined | string | string[] = headers.cookie
 
     if (!header) {
       return {}
@@ -254,6 +263,22 @@ export function sendData(
   body: any
 ): void {
   if (body === null || body === undefined) {
+    res.end()
+    return
+  }
+
+  // strip irrelevant headers/body
+  if (res.statusCode === 204 || res.statusCode === 304) {
+    res.removeHeader('Content-Type')
+    res.removeHeader('Content-Length')
+    res.removeHeader('Transfer-Encoding')
+
+    if (process.env.NODE_ENV === 'development' && body) {
+      console.warn(
+        `A body was attempted to be set with a 204 statusCode for ${req.url}, this is invalid and the body was ignored.\n` +
+          `See more info here https://nextjs.org/docs/messages/invalid-api-status-body`
+      )
+    }
     res.end()
     return
   }
@@ -321,7 +346,7 @@ export function tryGetPreviewData(
     return (req as any)[SYMBOL_PREVIEW_DATA] as any
   }
 
-  const getCookies = getCookieParser(req)
+  const getCookies = getCookieParser(req.headers)
   let cookies: NextApiRequestCookies
   try {
     cookies = getCookies()
@@ -352,7 +377,8 @@ export function tryGetPreviewData(
 
   const tokenPreviewData = cookies[COOKIE_NAME_PRERENDER_DATA]
 
-  const jsonwebtoken = require('next/dist/compiled/jsonwebtoken') as typeof import('jsonwebtoken')
+  const jsonwebtoken =
+    require('next/dist/compiled/jsonwebtoken') as typeof import('jsonwebtoken')
   let encryptedPreviewData: {
     data: string
   }
@@ -407,7 +433,8 @@ function setPreviewData<T>(
     throw new Error('invariant: invalid previewModeSigningKey')
   }
 
-  const jsonwebtoken = require('next/dist/compiled/jsonwebtoken') as typeof import('jsonwebtoken')
+  const jsonwebtoken =
+    require('next/dist/compiled/jsonwebtoken') as typeof import('jsonwebtoken')
 
   const payload = jsonwebtoken.sign(
     {
@@ -433,9 +460,8 @@ function setPreviewData<T>(
     )
   }
 
-  const {
-    serialize,
-  } = require('next/dist/compiled/cookie') as typeof import('cookie')
+  const { serialize } =
+    require('next/dist/compiled/cookie') as typeof import('cookie')
   const previous = res.getHeader('Set-Cookie')
   res.setHeader(`Set-Cookie`, [
     ...(typeof previous === 'string'
@@ -470,9 +496,8 @@ function clearPreviewData<T>(res: NextApiResponse<T>): NextApiResponse<T> {
     return res
   }
 
-  const {
-    serialize,
-  } = require('next/dist/compiled/cookie') as typeof import('cookie')
+  const { serialize } =
+    require('next/dist/compiled/cookie') as typeof import('cookie')
   const previous = res.getHeader('Set-Cookie')
   res.setHeader(`Set-Cookie`, [
     ...(typeof previous === 'string'

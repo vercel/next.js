@@ -198,7 +198,7 @@ module.exports = {
               key: 'post',
             },
           ],
-          destination: '/blog/:post',
+          destination: '/blog-catchall/:post',
         },
         {
           source: '/blog/about',
@@ -376,6 +376,17 @@ module.exports = {
           },
         ],
         destination: '/another?host=1',
+        permanent: false,
+      },
+      {
+        source: '/:path/has-redirect-5',
+        has: [
+          {
+            type: 'header',
+            key: 'x-test-next',
+          },
+        ],
+        destination: '/somewhere',
         permanent: false,
       },
     ]

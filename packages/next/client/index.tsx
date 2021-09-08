@@ -13,8 +13,11 @@ import Router, {
   PrivateRouteInfo,
 } from '../shared/lib/router/router'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
-import * as querystring from '../shared/lib/router/utils/querystring'
-import * as envConfig from '../shared/lib/runtime-config'
+import {
+  urlQueryToSearchParams,
+  assign,
+} from '../shared/lib/router/utils/querystring'
+import { setConfig } from '../shared/lib/runtime-config'
 import { getURL, loadGetInitialProps, NEXT_DATA, ST } from '../shared/lib/utils'
 import { Portal } from './portal'
 import initHeadManager from './head-manager'
@@ -79,7 +82,7 @@ const prefix: string = assetPrefix || ''
 // So, this is how we do it in the client side at runtime
 __webpack_public_path__ = `${prefix}/_next/` //eslint-disable-line
 // Initialize next/config with the environment configuration
-envConfig.setConfig({
+setConfig({
   serverRuntimeConfig: {},
   publicRuntimeConfig: runtimeConfig || {},
 })
@@ -92,21 +95,17 @@ if (hasBasePath(asPath)) {
 }
 
 if (process.env.__NEXT_I18N_SUPPORT) {
-  const {
-    normalizeLocalePath,
-  } = require('../shared/lib/i18n/normalize-locale-path') as typeof import('../shared/lib/i18n/normalize-locale-path')
+  const { normalizeLocalePath } =
+    require('../shared/lib/i18n/normalize-locale-path') as typeof import('../shared/lib/i18n/normalize-locale-path')
 
-  const {
-    detectDomainLocale,
-  } = require('../shared/lib/i18n/detect-domain-locale') as typeof import('../shared/lib/i18n/detect-domain-locale')
+  const { detectDomainLocale } =
+    require('../shared/lib/i18n/detect-domain-locale') as typeof import('../shared/lib/i18n/detect-domain-locale')
 
-  const {
-    parseRelativeUrl,
-  } = require('../shared/lib/router/utils/parse-relative-url') as typeof import('../shared/lib/router/utils/parse-relative-url')
+  const { parseRelativeUrl } =
+    require('../shared/lib/router/utils/parse-relative-url') as typeof import('../shared/lib/router/utils/parse-relative-url')
 
-  const {
-    formatUrl,
-  } = require('../shared/lib/router/utils/format-url') as typeof import('../shared/lib/router/utils/format-url')
+  const { formatUrl } =
+    require('../shared/lib/router/utils/format-url') as typeof import('../shared/lib/router/utils/format-url')
 
   if (locales) {
     const parsedAs = parseRelativeUrl(asPath)
@@ -157,6 +156,7 @@ window.__NEXT_P = []
 const headManager: {
   mountedInstances: Set<unknown>
   updateHead: (head: JSX.Element[]) => void
+  getIsSsr?: () => boolean
 } = initHeadManager()
 const appElement: HTMLElement | null = document.getElementById('__next')
 
@@ -164,6 +164,9 @@ let lastRenderReject: (() => void) | null
 let webpackHMR: any
 export let router: Router
 let CachedApp: AppComponent, onPerfEntry: (metric: any) => void
+headManager.getIsSsr = () => {
+  return router.isSsr
+}
 
 class Container extends React.Component<{
   fn: (err: Error, info?: any) => void
@@ -185,12 +188,7 @@ class Container extends React.Component<{
       // the asPath unexpectedly e.g. adding basePath when
       // it wasn't originally present
       page !== '/404' &&
-      !(
-        page === '/_error' &&
-        hydrateProps &&
-        hydrateProps.pageProps &&
-        hydrateProps.pageProps.statusCode === 404
-      ) &&
+      page !== '/_error' &&
       (isFallback ||
         (data.nextExport &&
           (isDynamicRoute(router.pathname) ||
@@ -205,8 +203,8 @@ class Container extends React.Component<{
         router.pathname +
           '?' +
           String(
-            querystring.assign(
-              querystring.urlQueryToSearchParams(router.query),
+            assign(
+              urlQueryToSearchParams(router.query),
               new URLSearchParams(location.search)
             )
           ),
@@ -257,7 +255,7 @@ class Container extends React.Component<{
 export const emitter: MittEmitter<string> = mitt()
 let CachedComponent: React.ComponentType
 
-export default async (opts: { webpackHMR?: any } = {}) => {
+export async function initNext(opts: { webpackHMR?: any } = {}) {
   // This makes sure this specific lines are removed in production
   if (process.env.NODE_ENV === 'development') {
     webpackHMR = opts.webpackHMR
@@ -406,7 +404,7 @@ export default async (opts: { webpackHMR?: any } = {}) => {
     render(renderCtx)
     return emitter
   } else {
-    return { emitter, render, renderCtx }
+    return { emitter, renderCtx }
   }
 }
 
@@ -459,6 +457,10 @@ export function renderError(renderErrorProps: RenderErrorProps): Promise<any> {
 
   // Make sure we log the error to the console, otherwise users can't track down issues.
   console.error(err)
+  console.error(
+    `A client-side exception has occurred, see here for more info: https://nextjs.org/docs/messages/client-side-exception-occurred`
+  )
+
   return pageLoader
     .loadPage('/_error')
     .then(({ page: ErrorComponent, styleSheets }) => {
@@ -578,12 +580,9 @@ function markRenderComplete(): void {
 }
 
 function clearMarks(): void {
-  ;[
-    'beforeRender',
-    'afterHydrate',
-    'afterRender',
-    'routeChange',
-  ].forEach((mark) => performance.clearMarks(mark))
+  ;['beforeRender', 'afterHydrate', 'afterRender', 'routeChange'].forEach(
+    (mark) => performance.clearMarks(mark)
+  )
 }
 
 function AppContainer({
@@ -606,21 +605,21 @@ function AppContainer({
   )
 }
 
-const wrapApp = (App: AppComponent) => (
-  wrappedAppProps: Record<string, any>
-): JSX.Element => {
-  const appProps: AppProps = {
-    ...wrappedAppProps,
-    Component: CachedComponent,
-    err: hydrateErr,
-    router,
+const wrapApp =
+  (App: AppComponent) =>
+  (wrappedAppProps: Record<string, any>): JSX.Element => {
+    const appProps: AppProps = {
+      ...wrappedAppProps,
+      Component: CachedComponent,
+      err: hydrateErr,
+      router,
+    }
+    return (
+      <AppContainer>
+        <App {...appProps} />
+      </AppContainer>
+    )
   }
-  return (
-    <AppContainer>
-      <App {...appProps} />
-    </AppContainer>
-  )
-}
 
 let lastAppProps: AppProps
 function doRender(input: RenderRouteInfo): Promise<any> {
@@ -681,9 +680,8 @@ function doRender(input: RenderRouteInfo): Promise<any> {
     const noscript: Element | null = document.querySelector(
       'noscript[data-n-css]'
     )
-    const nonce: string | null | undefined = noscript?.getAttribute(
-      'data-n-css'
-    )
+    const nonce: string | null | undefined =
+      noscript?.getAttribute('data-n-css')
 
     styleSheets.forEach(({ href, text }: { href: string; text: any }) => {
       if (!currentHrefs.has(href)) {
@@ -714,9 +712,10 @@ function doRender(input: RenderRouteInfo): Promise<any> {
       !canceled
     ) {
       const desiredHrefs: Set<string> = new Set(styleSheets.map((s) => s.href))
-      const currentStyleTags: HTMLStyleElement[] = looseToArray<
-        HTMLStyleElement
-      >(document.querySelectorAll('style[data-n-href]'))
+      const currentStyleTags: HTMLStyleElement[] =
+        looseToArray<HTMLStyleElement>(
+          document.querySelectorAll('style[data-n-href]')
+        )
       const currentHrefs: string[] = currentStyleTags.map(
         (tag) => tag.getAttribute('data-n-href')!
       )
@@ -812,9 +811,10 @@ function Root({
 }>): React.ReactElement {
   // We use `useLayoutEffect` to guarantee the callbacks are executed
   // as soon as React flushes the update
-  React.useLayoutEffect(() => callbacks.forEach((callback) => callback()), [
-    callbacks,
-  ])
+  React.useLayoutEffect(
+    () => callbacks.forEach((callback) => callback()),
+    [callbacks]
+  )
   if (process.env.__NEXT_TEST_MODE) {
     // eslint-disable-next-line react-hooks/rules-of-hooks
     React.useEffect(() => {

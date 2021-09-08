@@ -151,7 +151,7 @@ function runTests(mode) {
     const els = [].slice.apply($html('img'))
     expect(els.length).toBe(2)
 
-    const [noscriptEl, el] = els
+    const [el, noscriptEl] = els
     expect(noscriptEl.attribs.src).toBeDefined()
     expect(noscriptEl.attribs.srcset).toBeDefined()
 
@@ -188,22 +188,59 @@ function runTests(mode) {
     try {
       browser = await webdriver(appPort, '/on-loading-complete')
 
+      await browser.eval(`document.getElementById("footer").scrollIntoView()`)
+
       await check(
         () => browser.eval(`document.getElementById("img1").src`),
         /test(.*)jpg/
       )
-
       await check(
         () => browser.eval(`document.getElementById("img2").src`),
         /test(.*).png/
       )
       await check(
+        () => browser.eval(`document.getElementById("img3").src`),
+        /test(.*)svg/
+      )
+      await check(
+        () => browser.eval(`document.getElementById("img4").src`),
+        /test(.*)ico/
+      )
+      await check(
         () => browser.eval(`document.getElementById("msg1").textContent`),
-        'loaded img1'
+        'loaded img1 with dimensions 128x128'
       )
       await check(
         () => browser.eval(`document.getElementById("msg2").textContent`),
-        'loaded img2'
+        'loaded img2 with dimensions 400x400'
+      )
+      await check(
+        () => browser.eval(`document.getElementById("msg3").textContent`),
+        'loaded img3 with dimensions 266x266'
+      )
+      await check(
+        () => browser.eval(`document.getElementById("msg4").textContent`),
+        'loaded img4 with dimensions 21x21'
+      )
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
+
+  it('should work with image with blob src', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/blob')
+
+      await check(
+        () => browser.eval(`document.getElementById("blob-image").src`),
+        /^blob:/
+      )
+      await check(
+        () => browser.eval(`document.getElementById("blob-image").srcset`),
+        ''
       )
     } finally {
       if (browser) {
@@ -545,6 +582,33 @@ function runTests(mode) {
       )
     })
 
+    it('should warn when img with layout=responsive is inside flex container', async () => {
+      const browser = await webdriver(appPort, '/layout-responsive-inside-flex')
+      await browser.eval(`document.getElementById("img").scrollIntoView()`)
+      const warnings = (await browser.log('browser'))
+        .map((log) => log.message)
+        .join('\n')
+      expect(await hasRedbox(browser)).toBe(false)
+      expect(warnings).toMatch(
+        /Image with src (.*)jpg(.*) may not render properly as a child of a flex container. Consider wrapping the image with a div to configure the width/gm
+      )
+    })
+
+    it('should warn when img with layout=fill is inside a container without position relative', async () => {
+      const browser = await webdriver(
+        appPort,
+        '/layout-fill-inside-nonrelative'
+      )
+      await browser.eval(`document.getElementById("img").scrollIntoView()`)
+      const warnings = (await browser.log('browser'))
+        .map((log) => log.message)
+        .join('\n')
+      expect(await hasRedbox(browser)).toBe(false)
+      expect(warnings).toMatch(
+        /Image with src (.*)jpg(.*) may not render properly with a parent using position:\\"static\\". Consider changing the parent style to position:\\"relative\\"/gm
+      )
+    })
+
     it('should warn when using a very small image with placeholder=blur', async () => {
       const browser = await webdriver(appPort, '/small-img-import')
 
@@ -554,6 +618,18 @@ function runTests(mode) {
       expect(await hasRedbox(browser)).toBe(false)
       expect(warnings).toMatch(
         /Image with src (.*)jpg(.*) is smaller than 40x40. Consider removing(.*)/gm
+      )
+    })
+
+    it('should warn when style prop is used', async () => {
+      const browser = await webdriver(appPort, '/invalid-style')
+
+      const warnings = (await browser.log('browser'))
+        .map((log) => log.message)
+        .join('\n')
+      expect(await hasRedbox(browser)).toBe(false)
+      expect(warnings).toMatch(
+        /Image with src (.*)jpg(.*) is using unsupported \\"style\\" property(.*)/gm
       )
     })
   } else {
@@ -673,6 +749,8 @@ describe('Image Component Tests', () => {
       const html = await renderViaHTTP(appPort, '/blurry-placeholder')
       const $html = cheerio.load(html)
 
+      $html('noscript > img').attr('id', 'unused')
+
       expect($html('#blurry-placeholder')[0].attribs.style).toContain(
         `background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'%3E%3Cfilter id='blur' filterUnits='userSpaceOnUse' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='20' edgeMode='duplicate' /%3E%3CfeComponentTransfer%3E%3CfeFuncA type='discrete' tableValues='1 1' /%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Cimage filter='url(%23blur)' href='data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMDAwMDAwQEBAQFBQUFBQcHBgYHBwsICQgJCAsRCwwLCwwLEQ8SDw4PEg8bFRMTFRsfGhkaHyYiIiYwLTA+PlT/wAALCAAKAAoBAREA/8QAMwABAQEAAAAAAAAAAAAAAAAAAAcJEAABAwUAAwAAAAAAAAAAAAAFAAYRAQMEEyEVMlH/2gAIAQEAAD8Az1bLPaxhiuk0QdeCOLDtHixN2dmd2bsc5FPX7VTREX//2Q==' x='0' y='0' height='100%25' width='100%25'/%3E%3C/svg%3E")`
       )
@@ -686,6 +764,18 @@ describe('Image Component Tests', () => {
       ).toContain(`background-position:center`)
 
       expect($html('#blurry-placeholder-with-lazy')[0].attribs.style).toContain(
+        `background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'%3E%3Cfilter id='blur' filterUnits='userSpaceOnUse' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='20' edgeMode='duplicate' /%3E%3CfeComponentTransfer%3E%3CfeFuncA type='discrete' tableValues='1 1' /%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Cimage filter='url(%23blur)' href='data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMDAwMDAwQEBAQFBQUFBQcHBgYHBwsICQgJCAsRCwwLCwwLEQ8SDw4PEg8bFRMTFRsfGhkaHyYiIiYwLTA+PlT/wAALCAAKAAoBAREA/8QAMwABAQEAAAAAAAAAAAAAAAAAAAcJEAABAwUAAwAAAAAAAAAAAAAFAAYRAQMEEyEVMlH/2gAIAQEAAD8Az1bLPaxhiuk0QdeCOLDtHixN2dmd2bsc5FPX7VTREX//2Q==' x='0' y='0' height='100%25' width='100%25'/%3E%3C/svg%3E")`
+      )
+    })
+
+    it('should not use blurry placeholder for <noscript> image', async () => {
+      const html = await renderViaHTTP(appPort, '/blurry-placeholder')
+      const $html = cheerio.load(html)
+      const style = $html('noscript > img')[0].attribs.style
+
+      expect(style).not.toContain(`background-position`)
+      expect(style).not.toContain(`background-size`)
+      expect(style).not.toContain(
         `background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'%3E%3Cfilter id='blur' filterUnits='userSpaceOnUse' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='20' edgeMode='duplicate' /%3E%3CfeComponentTransfer%3E%3CfeFuncA type='discrete' tableValues='1 1' /%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Cimage filter='url(%23blur)' href='data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMDAwMDAwQEBAQFBQUFBQcHBgYHBwsICQgJCAsRCwwLCwwLEQ8SDw4PEg8bFRMTFRsfGhkaHyYiIiYwLTA+PlT/wAALCAAKAAoBAREA/8QAMwABAQEAAAAAAAAAAAAAAAAAAAcJEAABAwUAAwAAAAAAAAAAAAAFAAYRAQMEEyEVMlH/2gAIAQEAAD8Az1bLPaxhiuk0QdeCOLDtHixN2dmd2bsc5FPX7VTREX//2Q==' x='0' y='0' height='100%25' width='100%25'/%3E%3C/svg%3E")`
       )
     })

@@ -81,7 +81,11 @@ Using GitHub's [actions/cache](https://github.com/actions/cache), add the follow
 uses: actions/cache@v2
 with:
   path: ${{ github.workspace }}/.next/cache
-  key: ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}
+  # Generate a new cache whenever packages or source files change.
+  key: ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}-${{ hashFiles('**.[jt]sx?') }}
+  # If source files changed but packages didn't, rebuild from a prior cache.
+  restore-keys: |
+    ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}-
 ```
 
 #### Bitbucket Pipelines

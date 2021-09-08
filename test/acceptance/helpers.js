@@ -182,9 +182,13 @@ export async function sandbox(
               )
             )
           const root = portal.shadowRoot
-          return root.querySelector(
+          const frame = root.querySelector(
             '[data-nextjs-codeframe], [data-nextjs-terminal]'
-          ).innerText
+          )
+          if (!frame) {
+            throw new Error(`No source found in redbox`)
+          }
+          return frame.innerText
         })
 
         if (includeHeader) {

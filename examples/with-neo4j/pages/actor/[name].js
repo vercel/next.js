@@ -29,7 +29,7 @@ export default function Actor() {
             <h2>Information</h2>
             <div>
               <strong>Born: </strong>
-              {data.actor.born.low}
+              {data.actor.born}
             </div>
           </div>
           <div className="movies">

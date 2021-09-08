@@ -37,6 +37,47 @@ async function addDefaultLocaleCookie(browser) {
 }
 
 export function runTests(ctx) {
+  it('should redirect external domain correctly', async () => {
+    const res = await fetchViaHTTP(
+      ctx.appPort,
+      `${ctx.basePath || ''}/do/redirect-5`,
+      undefined,
+      {
+        headers: {
+          'accept-language': 'do',
+        },
+        redirect: 'manual',
+      }
+    )
+
+    expect(res.status).toBe(307)
+    expect(res.headers.get('location')).toBe('https://jobs.example.com/')
+
+    const res2 = await fetchViaHTTP(
+      ctx.appPort,
+      `${ctx.basePath || ''}/redirect-5`,
+      undefined,
+      {
+        redirect: 'manual',
+      }
+    )
+
+    expect(res2.status).toBe(307)
+    expect(res2.headers.get('location')).toBe('https://jobs.example.com/')
+
+    const res3 = await fetchViaHTTP(
+      ctx.appPort,
+      `${ctx.basePath || ''}/fr/redirect-5`,
+      undefined,
+      {
+        redirect: 'manual',
+      }
+    )
+
+    expect(res3.status).toBe(307)
+    expect(res3.headers.get('location')).toBe('https://jobs.example.com/')
+  })
+
   it('should have domainLocales available on useRouter', async () => {
     const browser = await webdriver(ctx.appPort, `${ctx.basePath || '/'}`)
     expect(

@@ -24,6 +24,11 @@ module.exports = {
         img: ['Image'],
       },
     ],
+    'jsx-a11y/aria-props': 'warn',
+    'jsx-a11y/aria-proptypes': 'warn',
+    'jsx-a11y/aria-unsupported-elements': 'warn',
+    'jsx-a11y/role-has-required-aria-props': 'warn',
+    'jsx-a11y/role-supports-aria-props': 'warn',
   },
   parser: './parser.js',
   parserOptions: {
@@ -32,6 +37,10 @@ module.exports = {
     allowImportExportEverywhere: true,
     babelOptions: {
       presets: ['next/babel'],
+      caller: {
+        // Eslint supports top level await when a parser for it is included. We enable the parser by default for Babel.
+        supportsTopLevelAwait: true,
+      },
     },
   },
   overrides: [
@@ -62,5 +71,9 @@ module.exports = {
         alwaysTryTypes: true,
       },
     },
+  },
+  env: {
+    browser: true,
+    node: true,
   },
 }

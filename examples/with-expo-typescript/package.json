@@ -1,6 +1,5 @@
 {
-  "name": "with-expo-typescript",
-  "version": "1.0.0",
+  "private": true,
   "main": "node_modules/expo/AppEntry.js",
   "scripts": {
     "dev": "next",
@@ -30,6 +29,5 @@
     "@types/react-native": "0.62.10",
     "babel-preset-expo": "~8.1.0",
     "typescript": "4.0"
-  },
-  "license": "MIT"
+  }
 }

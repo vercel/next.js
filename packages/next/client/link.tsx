@@ -1,4 +1,4 @@
-import React, { Children, useEffect } from 'react'
+import React from 'react'
 import { UrlObject } from 'url'
 import {
   addBasePath,
@@ -232,17 +232,17 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
   let child: any
   if (process.env.NODE_ENV === 'development') {
     try {
-      child = Children.only(children)
+      child = React.Children.only(children)
     } catch (err) {
       throw new Error(
         `Multiple children were passed to <Link> with \`href\` of \`${props.href}\` but only one child is supported https://nextjs.org/docs/messages/link-multiple-children` +
           (typeof window !== 'undefined'
-            ? "\nOpen your browser's console to view the Component stack trace."
+            ? " \nOpen your browser's console to view the Component stack trace."
             : '')
       )
     }
   } else {
-    child = Children.only(children)
+    child = React.Children.only(children)
   }
   const childRef: any = child && typeof child === 'object' && child.ref
 
@@ -261,7 +261,7 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
     },
     [childRef, setIntersectionRef]
   )
-  useEffect(() => {
+  React.useEffect(() => {
     const shouldPrefetch = isVisible && p && isLocalURL(href)
     const curLocale =
       typeof locale !== 'undefined' ? locale : router && router.locale

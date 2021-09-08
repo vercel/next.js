@@ -24,9 +24,10 @@ import { isWriteable } from '../../build/is-writeable'
 import { ClientPagesLoaderOptions } from '../../build/webpack/loaders/next-client-pages-loader'
 import { stringify } from 'querystring'
 import { difference } from '../../build/utils'
-import { NextConfig } from '../config'
+import { NextConfigComplete } from '../config-shared'
 import { CustomRoutes } from '../../lib/load-custom-routes'
 import { DecodeError } from '../../shared/lib/utils'
+import { Span, trace } from '../../telemetry/trace'
 
 export async function renderScriptError(
   res: ServerResponse,
@@ -131,9 +132,9 @@ export default class HotReloader {
   private middlewares: any[]
   private pagesDir: string
   private webpackHotMiddleware: (NextHandleFunction & any) | null
-  private config: NextConfig
+  private config: NextConfigComplete
   private stats: webpack.Stats | null
-  private serverStats: webpack.Stats | null
+  public serverStats: webpack.Stats | null
   private clientError: Error | null = null
   private serverError: Error | null = null
   private serverPrevDocumentHash: string | null
@@ -143,6 +144,7 @@ export default class HotReloader {
   private watcher: any
   private rewrites: CustomRoutes['rewrites']
   private fallbackWatcher: any
+  private hotReloaderSpan: Span
   public isWebpack5: any
 
   constructor(
@@ -154,7 +156,7 @@ export default class HotReloader {
       previewProps,
       rewrites,
     }: {
-      config: NextConfig
+      config: NextConfigComplete
       pagesDir: string
       buildId: string
       previewProps: __ApiPreviewProps
@@ -174,6 +176,7 @@ export default class HotReloader {
     this.previewProps = previewProps
     this.rewrites = rewrites
     this.isWebpack5 = isWebpack5
+    this.hotReloaderSpan = trace('hot-reloader')
   }
 
   public async run(
@@ -199,9 +202,8 @@ export default class HotReloader {
       parsedPageBundleUrl: UrlObject
     ): Promise<{ finished?: true }> => {
       const { pathname } = parsedPageBundleUrl
-      const params: { path: string[] } | null = matchNextPageBundleRequest(
-        pathname
-      )
+      const params: { path: string[] } | null =
+        matchNextPageBundleRequest(pathname)
       if (!params) {
         return {}
       }
@@ -262,7 +264,9 @@ export default class HotReloader {
 
     const pages = createPagesMapping(
       pagePaths.filter((i) => i !== null) as string[],
-      this.config.pageExtensions
+      this.config.pageExtensions,
+      this.isWebpack5,
+      true
     )
     const entrypoints = createEntrypoints(
       pages,
@@ -282,6 +286,7 @@ export default class HotReloader {
         pagesDir: this.pagesDir,
         rewrites: this.rewrites,
         entrypoints: entrypoints.client,
+        runWebpackSpan: this.hotReloaderSpan,
       }),
       getBaseWebpackConfig(this.dir, {
         dev: true,
@@ -291,6 +296,7 @@ export default class HotReloader {
         pagesDir: this.pagesDir,
         rewrites: this.rewrites,
         entrypoints: entrypoints.server,
+        runWebpackSpan: this.hotReloaderSpan,
       }),
     ])
   }
@@ -299,6 +305,7 @@ export default class HotReloader {
     if (this.fallbackWatcher) return
 
     const fallbackConfig = await getBaseWebpackConfig(this.dir, {
+      runWebpackSpan: this.hotReloaderSpan,
       dev: true,
       isServer: false,
       config: this.config,
@@ -358,11 +365,8 @@ export default class HotReloader {
             if (isClientCompilation && page.match(API_ROUTE)) {
               return
             }
-            const {
-              serverBundlePath,
-              clientBundlePath,
-              absolutePagePath,
-            } = entries[page]
+            const { serverBundlePath, clientBundlePath, absolutePagePath } =
+              entries[page]
             const pageExists = await isWriteable(absolutePagePath)
             if (!pageExists) {
               // page was removed
@@ -399,25 +403,24 @@ export default class HotReloader {
     const prevClientPageHashes = new Map<string, string>()
     const prevServerPageHashes = new Map<string, string>()
 
-    const trackPageChanges = (
-      pageHashMap: Map<string, string>,
-      changedItems: Set<string>
-    ) => (stats: webpack.compilation.Compilation) => {
-      stats.entrypoints.forEach((entry, key) => {
-        if (key.startsWith('pages/')) {
-          entry.chunks.forEach((chunk: any) => {
-            if (chunk.id === key) {
-              const prevHash = pageHashMap.get(key)
+    const trackPageChanges =
+      (pageHashMap: Map<string, string>, changedItems: Set<string>) =>
+      (stats: webpack.compilation.Compilation) => {
+        stats.entrypoints.forEach((entry, key) => {
+          if (key.startsWith('pages/')) {
+            entry.chunks.forEach((chunk: any) => {
+              if (chunk.id === key) {
+                const prevHash = pageHashMap.get(key)
 
-              if (prevHash && prevHash !== chunk.hash) {
-                changedItems.add(key)
+                if (prevHash && prevHash !== chunk.hash) {
+                  changedItems.add(key)
+                }
+                pageHashMap.set(key, chunk.hash)
               }
-              pageHashMap.set(key, chunk.hash)
-            }
-          })
-        }
-      })
-    }
+            })
+          }
+        })
+      }
 
     multiCompiler.compilers[0].hooks.emit.tap(
       'NextjsHotReloaderForClient',

@@ -32,9 +32,11 @@ export default function About() {
   )
 }
 
-About.getLayout = (page) => (
-  <Layout>
-    <Sidebar />
-    {page}
-  </Layout>
-)
+About.getLayout = function getLayout(page) {
+  return (
+    <Layout>
+      <Sidebar />
+      {page}
+    </Layout>
+  )
+}
