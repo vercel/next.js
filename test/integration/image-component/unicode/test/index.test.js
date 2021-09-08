@@ -8,7 +8,7 @@ import {
   nextStart,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
-//import fetch from 'node-fetch'
+import fetch from 'node-fetch'
 import { join } from 'path'
 
 const appDir = join(__dirname, '../')
@@ -23,14 +23,16 @@ function runTests() {
     expect(src).toMatch(
       /_next%2Fstatic%2Fimage%2Fpublic%2F%C3%A4%C3%B6%C3%BC(.+)png/
     )
-    const res = await fetch(src)
+    const fullSrc = new URL(src, `http://localhost:${appPort}`)
+    const res = await fetch(fullSrc)
     expect(res.status).toBe(200)
   })
 
   it('should load internal unicode image', async () => {
     const src = await browser.elementById('internal').getAttribute('src')
     expect(src).toMatch('/_next/image?url=%2F%C3%A4%C3%B6%C3%BC.png')
-    const res = await fetch(src)
+    const fullSrc = new URL(src, `http://localhost:${appPort}`)
+    const res = await fetch(fullSrc)
     expect(res.status).toBe(200)
   })
 
@@ -39,14 +41,16 @@ function runTests() {
     expect(src).toMatch(
       '/_next/image?url=https%3A%2F%2Fimage-optimization-test.vercel.app%2F%C3%A4%C3%B6%C3%BC.png'
     )
-    const res = await fetch(src)
+    const fullSrc = new URL(src, `http://localhost:${appPort}`)
+    const res = await fetch(fullSrc)
     expect(res.status).toBe(200)
   })
 
   it('should load internal image with space', async () => {
     const src = await browser.elementById('internal-space').getAttribute('src')
     expect(src).toMatch('/_next/image?url=%2Fhello%2520world.jpg')
-    const res = await fetch(src)
+    const fullSrc = new URL(src, `http://localhost:${appPort}`)
+    const res = await fetch(fullSrc)
     expect(res.status).toBe(200)
   })
 
@@ -55,7 +59,8 @@ function runTests() {
     expect(src).toMatch(
       '/_next/image?url=https%3A%2F%2Fimage-optimization-test.vercel.app%2Fhello%2520world.jpg'
     )
-    const res = await fetch(src)
+    const fullSrc = new URL(src, `http://localhost:${appPort}`)
+    const res = await fetch(fullSrc)
     expect(res.status).toBe(200)
   })
 }
