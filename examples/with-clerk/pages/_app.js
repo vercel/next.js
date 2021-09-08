@@ -1,10 +1,10 @@
 import '../styles/globals.css'
 import { ClerkProvider, SignedIn, SignedOut } from '@clerk/nextjs'
 import { useRouter } from 'next/router'
-import { useEffect } from 'react'
 import Layout from '../components/Layout'
 import Head from 'next/head'
 import Script from 'next/script'
+import Link from 'next/link'
 
 /**
  * List pages you want to be publicly accessible, or leave empty if
@@ -16,14 +16,6 @@ import Script from 'next/script'
  */
 const publicPages = ['/', '/sign-in/[[...index]]', '/sign-up/[[...index]]']
 
-const RedirectToSignIn = () => {
-  const router = useRouter()
-  useEffect(() => {
-    router.push('/sign-in')
-  })
-  return null
-}
-
 const MyApp = ({ Component, pageProps }) => {
   const router = useRouter()
 
@@ -32,11 +24,7 @@ const MyApp = ({ Component, pageProps }) => {
    * Otherwise, use Clerk to require authentication.
    */
   return (
-    <ClerkProvider
-      frontendApi={process.env.NEXT_PUBLIC_CLERK_FRONTEND_API}
-      scriptUrl={process.env.NEXT_PUBLIC_CLERK_JS}
-      navigate={(to) => router.push(to)}
-    >
+    <ClerkProvider>
       <Head>
         <link
           href="https://cdn.jsdelivr.net/npm/prismjs@1/themes/prism.css"
@@ -54,7 +42,15 @@ const MyApp = ({ Component, pageProps }) => {
               <Component {...pageProps} />
             </SignedIn>
             <SignedOut>
-              <RedirectToSignIn />
+              <main>
+                <p>
+                  Please{' '}
+                  <Link href="/sign-in">
+                    <a>sign in</a>
+                  </Link>{' '}
+                  to access this page.
+                </p>
+              </main>
             </SignedOut>
           </>
         )}
