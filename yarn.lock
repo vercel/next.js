@@ -18589,10 +18589,10 @@ styled-jsx-plugin-postcss@3.0.2:
     postcss "^7.0.2"
     postcss-load-plugins "^2.3.0"
 
-"styled-jsx@npm:@huozhi/styled-jsx@5.0.0-alpha.6":
-  version "5.0.0-alpha.6"
-  resolved "https://registry.yarnpkg.com/@huozhi/styled-jsx/-/styled-jsx-5.0.0-alpha.6.tgz#9088ba222ecb6c683b332c88be593545d631af66"
-  integrity sha512-62rwXARsccguG0f58pIivrl0lEEXaSX3NLPRgp1D4tHXBKDNItzE/hd5K/T4AqWztFO9JmNjkReQHqyH7YUaPg==
+styled-jsx@5.0.0-beta.1:
+  version "5.0.0-beta.1"
+  resolved "https://registry.yarnpkg.com/styled-jsx/-/styled-jsx-5.0.0-beta.1.tgz#159e147ff77cdc7aff7631d248fad649b870b7cd"
+  integrity sha512-c8pkEyI4J2lNedm/kaurCU/4U+L7Z4XUSzXBXnf0voGFwERgO2LPcKg03oV8xUMdsy0T5ZZSvlMPbNSsSMAxkg==
   dependencies:
     "@babel/plugin-syntax-jsx" "7.14.5"
     "@babel/types" "7.15.0"
