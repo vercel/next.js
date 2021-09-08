@@ -125,7 +125,7 @@ export default withSession((req, res) => {
 })
 ```
 
-You can view this example [in action](https://clerk-nextjs-starter.vercel.app). Check out the [`with-clerk`](https://github.com/vercel/next.js/tree/canary/examples/with-clerk) example to see how it works.
+You can view this example [in action](https://clerk-nextjs-example.vercel.app). Check out the [`with-clerk`](https://github.com/vercel/next.js/tree/canary/examples/with-clerk) example to see how it works.
 
 ## Authentication Providers
 
