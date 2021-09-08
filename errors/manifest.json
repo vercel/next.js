@@ -5,6 +5,10 @@
       "heading": true,
       "routes": [
         {
+          "title": "custom-document-image-import",
+          "path": "/errors/custom-document-image-import.md"
+        },
+        {
           "title": "404-get-initial-props",
           "path": "/errors/404-get-initial-props.md"
         },
@@ -270,6 +274,10 @@
           "path": "/errors/next-image-unconfigured-host.md"
         },
         {
+          "title": "next-script-for-ga",
+          "path": "/errors/next-script-for-ga.md"
+        },
+        {
           "title": "next-start-serverless",
           "path": "/errors/next-start-serverless.md"
         },
@@ -454,6 +462,10 @@
         {
           "title": "next-config-error",
           "path": "/errors/next-config-error.md"
+        },
+        {
+          "title": "invalid-api-status-body",
+          "path": "/errors/invalid-api-status-body.md"
         }
       ]
     }
