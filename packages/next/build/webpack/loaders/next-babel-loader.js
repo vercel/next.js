@@ -84,7 +84,7 @@ const customBabelLoader = babelLoader((babel) => {
       const options = Object.assign({}, cfg.options)
       const rawFilename = path.join(
         options.cwd,
-        this._injectModulePlugin.module?.resourceResolveData?.relativePath
+        this._injectModulePlugin?.module?.resourceResolveData?.relativePath
       )
       const isPageFile =
         filename.startsWith(pagesDir) || rawFilename.startsWith(pagesDir)
