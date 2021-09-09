@@ -20,7 +20,6 @@ const appDir = join(__dirname, '../')
 function runTests() {
   it('should cancel slow page loads on re-navigation', async () => {
     const browser = await webdriver(appPort, '/')
-    await waitFor(5000)
 
     await browser.elementByCss('#link-1').click()
     await waitFor(3000)
