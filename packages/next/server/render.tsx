@@ -3,7 +3,7 @@ import { ParsedUrlQuery } from 'querystring'
 import { PassThrough } from 'stream'
 import React from 'react'
 import * as ReactDOMServer from 'react-dom/server'
-import flush from 'styled-jsx/server'
+import { StyleRegistry, createStyleRegistry } from 'styled-jsx'
 import Observable from 'next/dist/compiled/zen-observable'
 import { warn } from '../build/output/log'
 import { UnwrapPromise } from '../lib/coalesced-function'
@@ -40,6 +40,7 @@ import {
   ComponentsEnhancer,
   DocumentInitialProps,
   DocumentProps,
+  DocumentContext,
   HtmlContext,
   HtmlProps,
   getDisplayName,
@@ -482,6 +483,7 @@ export async function renderToHTML(
     isPreview,
     (req as any).__nextIsLocaleDomain
   )
+  const jsxStyleRegistry = createStyleRegistry()
   const ctx = {
     err,
     req: isAutoExport ? undefined : req,
@@ -498,6 +500,17 @@ export async function renderToHTML(
           <App {...props} Component={Component} router={router} />
         </AppContainer>
       )
+    },
+    defaultGetInitialProps: async (
+      docCtx: DocumentContext
+    ): Promise<DocumentInitialProps> => {
+      const enhanceApp = (AppComp: any) => {
+        return (props: any) => <AppComp {...props} />
+      }
+
+      const { html, head } = await docCtx.renderPage({ enhanceApp })
+      const styles = jsxStyleRegistry.styles()
+      return { html, head, styles }
     },
   }
   let props: any
@@ -536,7 +549,9 @@ export async function renderToHTML(
           <LoadableContext.Provider
             value={(moduleName) => reactLoadableModules.push(moduleName)}
           >
-            {children}
+            <StyleRegistry registry={jsxStyleRegistry}>
+              {children}
+            </StyleRegistry>
           </LoadableContext.Provider>
         </HeadManagerContext.Provider>
       </AmpStateContext.Provider>
@@ -1018,8 +1033,7 @@ export async function renderToHTML(
         documentElement: () => (Document as any)(),
         head,
         headTags: [],
-        // TODO: Experimental styled-jsx 5 support
-        styles: [...flush()],
+        styles: jsxStyleRegistry.styles(),
       }
     }
   }
@@ -1108,7 +1122,7 @@ export async function renderToHTML(
     locale,
     disableOptimizedLoading,
     head: documentResult.head,
-    headTags: documentResult?.headTags,
+    headTags: documentResult.headTags,
     styles: documentResult.styles,
   }
   const documentHTML = ReactDOMServer.renderToStaticMarkup(
