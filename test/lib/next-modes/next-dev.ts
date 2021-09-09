@@ -40,13 +40,17 @@ export class NextDevInstance extends NextInstance {
       this.emit('stderr', [msg])
     })
 
+    this.childProcess.on('close', (code) => {
+      if (code) {
+        throw new Error(`next dev exited unexpectedly with code ${code}`)
+      }
+    })
+
     await new Promise<void>((resolve) => {
       const readyCb = (msg) => {
         if (msg.includes('started server on') && msg.includes('url:')) {
           this._url = msg.split('url: ').pop().trim()
           this._parsedUrl = new URL(this._url)
-        }
-        if (msg.includes('compiled successfully')) {
           this.off('stdout', readyCb)
           resolve()
         }

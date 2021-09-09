@@ -189,7 +189,7 @@ describe('CSS Module client-side navigation', () => {
 
       try {
         browser = await webdriver(appPort, '/red')
-        browser.eval('window.beforeNav = "hello"')
+        await browser.eval('window.beforeNav = "hello"')
 
         const redColor = await browser.eval(
           `window.getComputedStyle(document.querySelector('#verify-red')).color`
