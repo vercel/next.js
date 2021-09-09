@@ -1,7 +1,7 @@
 import { IncomingMessage, ServerResponse } from 'http'
 import { parse as parseUrl, format as formatUrl, UrlWithParsedQuery } from 'url'
 import { DecodeError, isResSent } from '../../../../shared/lib/utils'
-import { sendPayload } from '../../../../server/send-payload'
+import { sendRenderResult } from '../../../../server/send-payload'
 import { getUtils, vercelHeader, ServerlessHandlerCtx } from './utils'
 
 import { renderToHTML } from '../../../../server/render'
@@ -11,7 +11,7 @@ import { setLazyProp, getCookieParser } from '../../../../server/api-utils'
 import { getRedirectStatus } from '../../../../lib/load-custom-routes'
 import getRouteNoAssetPath from '../../../../shared/lib/router/utils/get-route-from-asset-path'
 import { PERMANENT_REDIRECT_STATUS } from '../../../../shared/lib/constants'
-import { resultToChunks } from '../../../../server/utils'
+import RenderResult from '../../../../server/render-result'
 
 export function getPageHandler(ctx: ServerlessHandlerCtx) {
   const {
@@ -116,6 +116,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
       previewProps: encodedPreviewProps,
       env: process.env,
       basePath,
+      supportsDynamicHTML: false, // Serverless target doesn't support streaming
       ..._renderOpts,
     }
     let _nextData = false
@@ -334,22 +335,19 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
                 defaultLocale: i18n?.defaultLocale,
               })
             )
-            const html = result2 ? (await resultToChunks(result2)).join('') : ''
-            sendPayload(
+            sendRenderResult({
               req,
               res,
-              html,
-              'html',
-              {
-                generateEtags,
-                poweredByHeader,
-              },
-              {
+              result: result2 ?? RenderResult.empty,
+              type: 'html',
+              generateEtags,
+              poweredByHeader,
+              options: {
                 private: isPreviewMode || page === '/404',
                 stateful: !!getServerSideProps,
                 revalidate: renderOpts.revalidate,
-              }
-            )
+              },
+            })
             return null
           } else if (renderOpts.isRedirect && !_nextData) {
             const redirect = {
@@ -376,21 +374,21 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
             res.end()
             return null
           } else {
-            sendPayload(
+            sendRenderResult({
               req,
               res,
-              _nextData ? JSON.stringify(renderOpts.pageData) : result,
-              _nextData ? 'json' : 'html',
-              {
-                generateEtags,
-                poweredByHeader,
-              },
-              {
+              result: _nextData
+                ? RenderResult.fromStatic(JSON.stringify(renderOpts.pageData))
+                : result ?? RenderResult.empty,
+              type: _nextData ? 'json' : 'html',
+              generateEtags,
+              poweredByHeader,
+              options: {
                 private: isPreviewMode || renderOpts.is404Page,
                 stateful: !!getServerSideProps,
                 revalidate: renderOpts.revalidate,
-              }
-            )
+              },
+            })
             return null
           }
         }
@@ -402,7 +400,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
       }
 
       if (renderMode) return { html: result, renderOpts }
-      return result ? (await resultToChunks(result)).join('') : null
+      return result ? result.toUnchunkedString() : null
     } catch (err) {
       if (!parsedUrl!) {
         parsedUrl = parseUrl(req.url!, true)
@@ -464,7 +462,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
           err: res.statusCode === 404 ? undefined : err,
         })
       )
-      return result2 ? (await resultToChunks(result2)).join('') : null
+      return result2 ? result2.toUnchunkedString() : null
     }
   }
 
@@ -474,7 +472,11 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
       try {
         const html = await renderReqToHTML(req, res)
         if (html) {
-          sendPayload(req, res, html, 'html', {
+          sendRenderResult({
+            req,
+            res,
+            result: RenderResult.fromStatic(html as any),
+            type: 'html',
             generateEtags,
             poweredByHeader,
           })

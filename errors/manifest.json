@@ -5,6 +5,10 @@
       "heading": true,
       "routes": [
         {
+          "title": "custom-document-image-import",
+          "path": "/errors/custom-document-image-import.md"
+        },
+        {
           "title": "404-get-initial-props",
           "path": "/errors/404-get-initial-props.md"
         },
@@ -145,11 +149,19 @@
           "title": "incompatible-href-as",
           "path": "/errors/incompatible-href-as.md"
         },
+        {
+          "title": "inline-script-id",
+          "path": "/errors/inline-script-id.md"
+        },
         { "title": "install-sass", "path": "/errors/install-sass.md" },
         { "title": "install-sharp", "path": "/errors/install-sharp.md" },
         {
           "title": "invalid-assetprefix",
           "path": "/errors/invalid-assetprefix.md"
+        },
+        {
+          "title": "invalid-dynamic-suspense",
+          "path": "/errors/invalid-dynamic-suspense.md"
         },
         {
           "title": "invalid-external-rewrite",
@@ -260,6 +272,10 @@
         {
           "title": "next-image-unconfigured-host",
           "path": "/errors/next-image-unconfigured-host.md"
+        },
+        {
+          "title": "next-script-for-ga",
+          "path": "/errors/next-script-for-ga.md"
         },
         {
           "title": "next-start-serverless",
@@ -446,6 +462,10 @@
         {
           "title": "next-config-error",
           "path": "/errors/next-config-error.md"
+        },
+        {
+          "title": "invalid-api-status-body",
+          "path": "/errors/invalid-api-status-body.md"
         }
       ]
     }

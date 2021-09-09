@@ -378,8 +378,8 @@ export default async function exportApp(
       domainLocales: i18n?.domains,
       trailingSlash: nextConfig.trailingSlash,
       disableOptimizedLoading: nextConfig.experimental.disableOptimizedLoading,
-      // TODO: We should support dynamic HTML too
-      requireStaticHTML: true,
+      // Exported pages do not currently support dynamic HTML.
+      supportsDynamicHTML: false,
       concurrentFeatures: nextConfig.experimental.concurrentFeatures,
     }
 

@@ -28,7 +28,6 @@ import {
 } from '../shared/lib/constants'
 import { execOnce } from '../shared/lib/utils'
 import { NextConfigComplete } from '../server/config-shared'
-import { findPageFile } from '../server/lib/find-page-file'
 import { WebpackEntrypoints } from './entries'
 import * as Log from './output/log'
 import { build as buildConfiguration } from './webpack/config'
@@ -45,12 +44,6 @@ import PagesManifestPlugin from './webpack/plugins/pages-manifest-plugin'
 import { ProfilingPlugin } from './webpack/plugins/profiling-plugin'
 import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
 import { ServerlessPlugin } from './webpack/plugins/serverless-plugin'
-import WebpackConformancePlugin, {
-  DuplicatePolyfillsConformanceCheck,
-  GranularChunksConformanceCheck,
-  MinificationConformanceCheck,
-  ReactSyncScriptsConformanceCheck,
-} from './webpack/plugins/webpack-conformance-plugin'
 import { WellKnownErrorsPlugin } from './webpack/plugins/wellknown-errors-plugin'
 import { regexLikeCss } from './webpack/config/blocks/css'
 import { CopyFilePlugin } from './webpack/plugins/copy-file-plugin'
@@ -174,20 +167,6 @@ export function attachReactRefresh(
   }
 }
 
-const WEBPACK_RESOLVE_OPTIONS = {
-  // This always uses commonjs resolving, assuming API is identical
-  // between ESM and CJS in a package
-  // Otherwise combined ESM+CJS packages will never be external
-  // as resolving mismatch would lead to opt-out from being external.
-  dependencyType: 'commonjs',
-  symlinks: true,
-}
-
-const WEBPACK_ESM_RESOLVE_OPTIONS = {
-  dependencyType: 'esm',
-  symlinks: true,
-}
-
 const NODE_RESOLVE_OPTIONS = {
   dependencyType: 'commonjs',
   modules: ['node_modules'],
@@ -195,7 +174,7 @@ const NODE_RESOLVE_OPTIONS = {
   fallback: false,
   exportsFields: ['exports'],
   importsFields: ['imports'],
-  conditionNames: ['node', 'require', 'module'],
+  conditionNames: ['node', 'require'],
   descriptionFiles: ['package.json'],
   extensions: ['.js', '.json', '.node'],
   enforceExtensions: false,
@@ -212,7 +191,7 @@ const NODE_RESOLVE_OPTIONS = {
 const NODE_ESM_RESOLVE_OPTIONS = {
   ...NODE_RESOLVE_OPTIONS,
   dependencyType: 'esm',
-  conditionNames: ['node', 'import', 'module'],
+  conditionNames: ['node', 'import'],
   fullySpecified: true,
 }
 
@@ -241,7 +220,7 @@ export default async function getBaseWebpackConfig(
     entrypoints: WebpackEntrypoints
     rewrites: CustomRoutes['rewrites']
     isDevFallback?: boolean
-    runWebpackSpan?: Span
+    runWebpackSpan: Span
   }
 ): Promise<webpack.Configuration> {
   const hasRewrites =
@@ -422,12 +401,43 @@ export default async function getBaseWebpackConfig(
     }
   }
 
+  // tell webpack where to look for _app and _document
+  // using aliases to allow falling back to the default
+  // version when removed or not present
   const clientResolveRewrites = require.resolve(
     '../shared/lib/router/utils/resolve-rewrites'
   )
   const clientResolveRewritesNoop = require.resolve(
     '../shared/lib/router/utils/resolve-rewrites-noop'
   )
+
+  const customAppAliases: { [key: string]: string[] } = {}
+  const customErrorAlias: { [key: string]: string[] } = {}
+  const customDocumentAliases: { [key: string]: string[] } = {}
+
+  if (dev && isWebpack5) {
+    customAppAliases[`${PAGES_DIR_ALIAS}/_app`] = [
+      ...config.pageExtensions.reduce((prev, ext) => {
+        prev.push(path.join(pagesDir, `_app.${ext}`))
+        return prev
+      }, [] as string[]),
+      'next/dist/pages/_app.js',
+    ]
+    customAppAliases[`${PAGES_DIR_ALIAS}/_error`] = [
+      ...config.pageExtensions.reduce((prev, ext) => {
+        prev.push(path.join(pagesDir, `_error.${ext}`))
+        return prev
+      }, [] as string[]),
+      'next/dist/pages/_error.js',
+    ]
+    customDocumentAliases[`${PAGES_DIR_ALIAS}/_document`] = [
+      ...config.pageExtensions.reduce((prev, ext) => {
+        prev.push(path.join(pagesDir, `_document.${ext}`))
+        return prev
+      }, [] as string[]),
+      'next/dist/pages/_document.js',
+    ]
+  }
 
   const resolveConfig = {
     // Disable .mjs for node_modules bundling
@@ -454,6 +464,11 @@ export default async function getBaseWebpackConfig(
     ],
     alias: {
       next: NEXT_PROJECT_ROOT,
+
+      ...customAppAliases,
+      ...customErrorAlias,
+      ...customDocumentAliases,
+
       [PAGES_DIR_ALIAS]: pagesDir,
       [DOT_NEXT_ALIAS]: distDir,
       ...getOptimizedAliases(isServer),
@@ -647,39 +662,6 @@ export default async function getBaseWebpackConfig(
 
   const crossOrigin = config.crossOrigin
 
-  let customAppFile: string | null = await findPageFile(
-    pagesDir,
-    '/_app',
-    config.pageExtensions
-  )
-  if (customAppFile) {
-    customAppFile = path.resolve(path.join(pagesDir, customAppFile))
-  }
-
-  const conformanceConfig = Object.assign(
-    {
-      ReactSyncScriptsConformanceCheck: {
-        enabled: true,
-      },
-      MinificationConformanceCheck: {
-        enabled: true,
-      },
-      DuplicatePolyfillsConformanceCheck: {
-        enabled: true,
-        BlockedAPIToBePolyfilled: Object.assign(
-          [],
-          ['fetch'],
-          config.conformance?.DuplicatePolyfillsConformanceCheck
-            ?.BlockedAPIToBePolyfilled || []
-        ),
-      },
-      GranularChunksConformanceCheck: {
-        enabled: true,
-      },
-    },
-    config.conformance
-  )
-
   const esmExternals = !!config.experimental?.esmExternals
   const looseEsmExternals = config.experimental?.esmExternals === 'loose'
 
@@ -716,7 +698,7 @@ export default async function getBaseWebpackConfig(
       }
 
       const notExternalModules =
-        /^(?:private-next-pages\/|next\/(?:dist\/pages\/|(?:app|document|link|image|constants)$)|string-hash$)/
+        /^(?:private-next-pages\/|next\/(?:dist\/pages\/|(?:app|document|link|image|constants|dynamic)$)|string-hash$)/
       if (notExternalModules.test(request)) {
         return
       }
@@ -728,7 +710,7 @@ export default async function getBaseWebpackConfig(
     const preferEsm = esmExternals && isEsmRequested
 
     const resolve = getResolve(
-      preferEsm ? WEBPACK_ESM_RESOLVE_OPTIONS : WEBPACK_RESOLVE_OPTIONS
+      preferEsm ? NODE_ESM_RESOLVE_OPTIONS : NODE_RESOLVE_OPTIONS
     )
 
     // Resolve the import with the webpack provided context, this
@@ -746,7 +728,7 @@ export default async function getBaseWebpackConfig(
     // try the alternative resolving options.
     if (!res && (isEsmRequested || looseEsmExternals)) {
       const resolveAlternative = getResolve(
-        preferEsm ? WEBPACK_RESOLVE_OPTIONS : WEBPACK_ESM_RESOLVE_OPTIONS
+        preferEsm ? NODE_RESOLVE_OPTIONS : NODE_ESM_RESOLVE_OPTIONS
       )
       try {
         ;[res, isEsm] = await resolveAlternative(context, request)
@@ -860,6 +842,7 @@ export default async function getBaseWebpackConfig(
   const emacsLockfilePattern = '**/.#*'
 
   let webpackConfig: webpack.Configuration = {
+    parallelism: Number(process.env.NEXT_WEBPACK_PARALLELISM) || undefined,
     externals: !isServer
       ? // make sure importing "next" is handled gracefully for client
         // bundles in case a user imported types and it wasn't removed
@@ -1322,34 +1305,6 @@ export default async function getBaseWebpackConfig(
             isLikeServerless,
           })
         })(),
-      config.experimental.conformance &&
-        !isWebpack5 &&
-        !dev &&
-        new WebpackConformancePlugin({
-          tests: [
-            !isServer &&
-              conformanceConfig.MinificationConformanceCheck.enabled &&
-              new MinificationConformanceCheck(),
-            conformanceConfig.ReactSyncScriptsConformanceCheck.enabled &&
-              new ReactSyncScriptsConformanceCheck({
-                AllowedSources:
-                  conformanceConfig.ReactSyncScriptsConformanceCheck
-                    .allowedSources || [],
-              }),
-            !isServer &&
-              conformanceConfig.DuplicatePolyfillsConformanceCheck.enabled &&
-              new DuplicatePolyfillsConformanceCheck({
-                BlockedAPIToBePolyfilled:
-                  conformanceConfig.DuplicatePolyfillsConformanceCheck
-                    .BlockedAPIToBePolyfilled,
-              }),
-            !isServer &&
-              conformanceConfig.GranularChunksConformanceCheck.enabled &&
-              new GranularChunksConformanceCheck(
-                splitChunksConfigs.prodGranular
-              ),
-          ].filter(Boolean),
-        }),
       new WellKnownErrorsPlugin(),
       !isServer &&
         new CopyFilePlugin({
@@ -1463,6 +1418,8 @@ export default async function getBaseWebpackConfig(
       reactProductionProfiling,
       webpack: !!config.webpack,
       hasRewrites,
+      reactRoot: config.experimental.reactRoot,
+      concurrentFeatures: config.experimental.concurrentFeatures,
     })
 
     const cache: any = {
@@ -1532,7 +1489,9 @@ export default async function getBaseWebpackConfig(
 
   webpackConfig = await buildConfiguration(webpackConfig, {
     rootDirectory: dir,
-    customAppFile,
+    customAppFile: new RegExp(
+      path.join(pagesDir, `_app`).replace(/\\/g, '(/|\\\\)')
+    ),
     isDevelopment: dev,
     isServer,
     assetPrefix: config.assetPrefix || '',

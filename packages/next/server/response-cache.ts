@@ -1,5 +1,5 @@
 import { IncrementalCache } from './incremental-cache'
-import { RenderResult, resultFromChunks, resultToChunks } from './utils'
+import RenderResult from './render-result'
 
 interface CachedRedirectValue {
   kind: 'REDIRECT'
@@ -78,7 +78,7 @@ export default class ResponseCache {
               cachedResponse.value?.kind === 'PAGE'
                 ? {
                     kind: 'PAGE',
-                    html: resultFromChunks([cachedResponse.value.html]),
+                    html: RenderResult.fromStatic(cachedResponse.value.html),
                     pageData: cachedResponse.value.pageData,
                   }
                 : cachedResponse.value,
@@ -99,7 +99,7 @@ export default class ResponseCache {
             cacheEntry.value?.kind === 'PAGE'
               ? {
                   kind: 'PAGE',
-                  html: (await resultToChunks(cacheEntry.value.html)).join(''),
+                  html: cacheEntry.value.html.toUnchunkedString(),
                   pageData: cacheEntry.value.pageData,
                 }
               : cacheEntry.value,

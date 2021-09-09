@@ -2,6 +2,7 @@
 import '@next/polyfill-module'
 import React from 'react'
 import ReactDOM from 'react-dom'
+import { StyleRegistry } from 'styled-jsx'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import mitt, { MittEmitter } from '../shared/lib/mitt'
 import { RouterContext } from '../shared/lib/router-context'
@@ -156,6 +157,7 @@ window.__NEXT_P = []
 const headManager: {
   mountedInstances: Set<unknown>
   updateHead: (head: JSX.Element[]) => void
+  getIsSsr?: () => boolean
 } = initHeadManager()
 const appElement: HTMLElement | null = document.getElementById('__next')
 
@@ -163,6 +165,9 @@ let lastRenderReject: (() => void) | null
 let webpackHMR: any
 export let router: Router
 let CachedApp: AppComponent, onPerfEntry: (metric: any) => void
+headManager.getIsSsr = () => {
+  return router.isSsr
+}
 
 class Container extends React.Component<{
   fn: (err: Error, info?: any) => void
@@ -594,7 +599,7 @@ function AppContainer({
     >
       <RouterContext.Provider value={makePublicRouterInstance(router)}>
         <HeadManagerContext.Provider value={headManager}>
-          {children}
+          <StyleRegistry>{children}</StyleRegistry>
         </HeadManagerContext.Provider>
       </RouterContext.Provider>
     </Container>

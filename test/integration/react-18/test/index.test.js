@@ -11,6 +11,7 @@ import {
   nextBuild,
   nextStart,
   renderViaHTTP,
+  fetchViaHTTP,
 } from 'next-test-utils'
 import blocking from './blocking'
 import concurrent from './concurrent'
@@ -87,7 +88,7 @@ describe('React 18 Support', () => {
       })
       expect(code).toBe(1)
       expect(stderr).toContain(
-        'Disallowed suspense option usage with next/dynamic'
+        'Invalid suspense option usage in next/dynamic. Read more: https://nextjs.org/docs/messages/invalid-dynamic-suspense'
       )
     })
   })
@@ -130,7 +131,7 @@ describe('Basics', () => {
     const html = await renderViaHTTP(appPort, '/suspense/unwrapped')
     unwrappedPage.restore()
     await killApp(app)
-    // expect(html).toContain('Disallowed suspense option usage with next/dynamic')
+
     expect(html).toContain(
       'A React component suspended while rendering, but no fallback UI was specified'
     )
@@ -165,9 +166,28 @@ describe('Concurrent mode', () => {
     dynamicHello.restore()
   })
 
-  runTests('concurrentFeatures is enabled', (context) =>
+  runTests('concurrentFeatures is enabled', (context) => {
     concurrent(context, (p, q) => renderViaHTTP(context.appPort, p, q))
-  )
+
+    it('should stream to users', async () => {
+      const res = await fetchViaHTTP(context.appPort, '/ssr')
+      expect(res.headers.get('etag')).toBeNull()
+    })
+
+    it('should not stream to bots', async () => {
+      const res = await fetchViaHTTP(
+        context.appPort,
+        '/ssr',
+        {},
+        {
+          headers: {
+            'user-agent': 'Googlebot',
+          },
+        }
+      )
+      expect(res.headers.get('etag')).toBeDefined()
+    })
+  })
 })
 
 function runTest(mode, name, fn) {

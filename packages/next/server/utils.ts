@@ -15,53 +15,8 @@ export function cleanAmpPath(pathname: string): string {
   return pathname
 }
 
-export type Disposable = () => void
-export type Observer<T> = {
-  next(chunk: T): void
-  error(error: Error): void
-  complete(): void
-}
-export type RenderResult = (observer: Observer<string>) => Disposable
-
-export function resultFromChunks(chunks: string[]): RenderResult {
-  return ({ next, complete, error }) => {
-    let canceled = false
-    process.nextTick(() => {
-      try {
-        for (const chunk of chunks) {
-          if (canceled) {
-            return
-          }
-          next(chunk)
-        }
-      } catch (err) {
-        if (!canceled) {
-          canceled = true
-          error(err)
-        }
-      }
-
-      if (!canceled) {
-        canceled = true
-        complete()
-      }
-    })
-
-    return () => {
-      canceled = true
-    }
-  }
-}
-
-export function resultToChunks(result: RenderResult): Promise<string[]> {
-  return new Promise((resolve, reject) => {
-    const chunks: string[] = []
-    result({
-      next: (chunk) => {
-        chunks.push(chunk)
-      },
-      error: (error) => reject(error),
-      complete: () => resolve(chunks),
-    })
-  })
+export function isBot(userAgent: string): boolean {
+  return /Googlebot|Mediapartners-Google|AdsBot-Google|googleweblight|Storebot-Google|Bingbot|BingPreview|Slurp|DuckDuckBot|baiduspider|yandex|sogou|LinkedInBot|bitlybot|tumblr|vkShare|quora link preview|facebookexternalhit|facebookcatalog|Twitterbot|applebot|redditbot|Slackbot|Discordbot|WhatsApp|SkypeUriPreview/i.test(
+    userAgent
+  )
 }
