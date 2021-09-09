@@ -594,31 +594,6 @@ describe('ReactRefreshLogBox', () => {
   })
 
   // Module trace is only available with webpack 5
-  if (!process.env.NEXT_PRIVATE_TEST_WEBPACK4_MODE) {
-    test('Module not found', async () => {
-      const { session, cleanup } = await sandbox(next)
-
-      await session.patch(
-        'index.js',
-        `import Comp from 'b'
-        export default function Oops() {
-          return (
-            <div>
-              <Comp>lol</Comp>
-            </div>
-          )
-        }
-      `
-      )
-
-      expect(await session.hasRedbox(true)).toBe(true)
-
-      const source = await session.getRedboxSource()
-      expect(source).toMatchSnapshot()
-
-      await cleanup()
-    })
-  }
   test('conversion to class component (1)', async () => {
     const { session, cleanup } = await sandbox(next)
 
