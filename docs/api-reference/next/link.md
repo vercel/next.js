@@ -117,9 +117,9 @@ export default NavLink
 - If you’re using [emotion](https://emotion.sh/)’s JSX pragma feature (`@jsx jsx`), you must use `passHref` even if you use an `<a>` tag directly.
 - The component should support `onClick` property to trigger navigation correctly
 
-## If the child is a function component
+## If the child is a functional component
 
-If the child of `Link` is a function component, in addition to using `passHref`, you must wrap the component in [`React.forwardRef`](https://reactjs.org/docs/react-api.html#reactforwardref):
+If the child of `Link` is a functional component, in addition to using `passHref`, you must wrap the component in [`React.forwardRef`](https://reactjs.org/docs/react-api.html#reactforwardref):
 
 ```jsx
 import Link from 'next/link'
