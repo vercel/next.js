@@ -1011,7 +1011,7 @@ export async function renderToHTML(
         documentElement: (htmlProps: HtmlProps) => (
           <Document {...htmlProps} {...docProps} />
         ),
-        head: docProps.head,
+        head: docProps.head || head,
         headTags: await headTags(documentCtx),
         styles: docProps.styles,
       }
