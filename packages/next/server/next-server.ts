@@ -10,7 +10,6 @@ import {
   ParsedUrlQuery,
 } from 'querystring'
 import { format as formatUrl, parse as parseUrl, UrlWithParsedQuery } from 'url'
-import Observable from 'next/dist/compiled/zen-observable'
 import { PrerenderManifest } from '../build'
 import {
   getRedirectStatus,
@@ -77,7 +76,8 @@ import { sendRenderResult, setRevalidateHeaders } from './send-payload'
 import { serveStatic } from './serve-static'
 import { IncrementalCache } from './incremental-cache'
 import { execOnce } from '../shared/lib/utils'
-import { isBlockedPage, RenderResult, resultsToString } from './utils'
+import { isBlockedPage, isBot } from './utils'
+import RenderResult from './render-result'
 import { loadEnvConfig } from '@next/env'
 import './node-polyfill-fetch'
 import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
@@ -487,7 +487,7 @@ export default class Server {
     try {
       return await this.run(req, res, parsedUrl)
     } catch (err) {
-      if (this.minimalMode) {
+      if (this.minimalMode || this.renderOpts.dev) {
         throw err
       }
       this.logError(err)
@@ -1125,7 +1125,9 @@ export default class Server {
       query,
       pageModule,
       this.renderOpts.previewProps,
-      this.minimalMode
+      this.minimalMode,
+      this.renderOpts.dev,
+      page
     )
     return true
   }
@@ -1248,13 +1250,12 @@ export default class Server {
       query: ParsedUrlQuery
     }
   ): Promise<void> {
-    // TODO: Determine when dynamic HTML is allowed
-    const requireStaticHTML = true
+    const userAgent = partialContext.req.headers['user-agent']
     const ctx = {
       ...partialContext,
       renderOpts: {
         ...this.renderOpts,
-        requireStaticHTML,
+        supportsDynamicHTML: userAgent ? !isBot(userAgent) : false,
       },
     } as const
     const payload = await fn(ctx)
@@ -1272,9 +1273,7 @@ export default class Server {
       return sendRenderResult({
         req,
         res,
-        resultOrPayload: requireStaticHTML
-          ? await resultsToString([body])
-          : body,
+        result: body,
         type,
         generateEtags,
         poweredByHeader,
@@ -1296,13 +1295,13 @@ export default class Server {
       ...partialContext,
       renderOpts: {
         ...this.renderOpts,
-        requireStaticHTML: true,
+        supportsDynamicHTML: false,
       },
     })
     if (payload === null) {
       return null
     }
-    return resultsToString([payload.body])
+    return payload.body.toUnchunkedString()
   }
 
   public async render(
@@ -1476,13 +1475,24 @@ export default class Server {
     if (typeof components.Component === 'string') {
       return {
         type: 'html',
-        // TODO: Static pages should be written as chunks
-        body: Observable.of(components.Component),
+        // TODO: Static pages should be serialized as RenderResult
+        body: RenderResult.fromStatic(components.Component),
       }
     }
 
     if (!query.amp) {
       delete query.amp
+    }
+
+    if (opts.supportsDynamicHTML === true) {
+      // Disable dynamic HTML in cases that we know it won't be generated,
+      // so that we can continue generating a cache key when possible.
+      opts.supportsDynamicHTML =
+        !isSSG &&
+        !isLikeServerless &&
+        !query.amp &&
+        !this.minimalMode &&
+        typeof components.Document.getInitialProps !== 'function'
     }
 
     const locale = query.__nextLocale as string
@@ -1569,7 +1579,7 @@ export default class Server {
     }
 
     let ssgCacheKey =
-      isPreviewMode || !isSSG || this.minimalMode
+      isPreviewMode || !isSSG || this.minimalMode || opts.supportsDynamicHTML
         ? null // Preview mode bypasses the cache
         : `${locale ? `/${locale}` : ''}${
             (pathname === '/' || resolvedUrlPathname === '/') && locale
@@ -1756,7 +1766,7 @@ export default class Server {
               return {
                 value: {
                   kind: 'PAGE',
-                  html: Observable.of(html),
+                  html: RenderResult.fromStatic(html),
                   pageData: {},
                 },
               }
@@ -1835,7 +1845,7 @@ export default class Server {
       if (isDataReq) {
         return {
           type: 'json',
-          body: Observable.of(JSON.stringify(cachedData.props)),
+          body: RenderResult.fromStatic(JSON.stringify(cachedData.props)),
           revalidateOptions,
         }
       } else {
@@ -1846,7 +1856,7 @@ export default class Server {
       return {
         type: isDataReq ? 'json' : 'html',
         body: isDataReq
-          ? Observable.of(JSON.stringify(cachedData.pageData))
+          ? RenderResult.fromStatic(JSON.stringify(cachedData.pageData))
           : cachedData.html,
         revalidateOptions,
       }
@@ -1857,6 +1867,7 @@ export default class Server {
     ctx: RequestContext
   ): Promise<ResponsePayload | null> {
     const { res, query, pathname } = ctx
+    let page = pathname
     const bubbleNoFallback = !!query._nextBubbleNoFallback
     delete query._nextBubbleNoFallback
 
@@ -1888,6 +1899,7 @@ export default class Server {
           )
           if (dynamicRouteResult) {
             try {
+              page = dynamicRoute.page
               return await this.renderToResponseWithComponents(
                 {
                   ...ctx,
@@ -1929,7 +1941,10 @@ export default class Server {
       )
 
       if (!isWrappedError) {
-        if (this.minimalMode) {
+        if (this.minimalMode || this.renderOpts.dev) {
+          if (err) {
+            err.page = page
+          }
           throw err
         }
         this.logError(err)
@@ -2081,7 +2096,7 @@ export default class Server {
       }
       return {
         type: 'html',
-        body: Observable.of('Internal Server Error'),
+        body: RenderResult.fromStatic('Internal Server Error'),
       }
     }
   }

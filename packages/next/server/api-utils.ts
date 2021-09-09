@@ -25,7 +25,9 @@ export async function apiResolver(
   query: any,
   resolverModule: any,
   apiContext: __ApiPreviewProps,
-  propagateError: boolean
+  propagateError: boolean,
+  dev?: boolean,
+  page?: string
 ): Promise<void> {
   const apiReq = req as NextApiRequest
   const apiRes = res as NextApiResponse
@@ -67,12 +69,12 @@ export async function apiResolver(
     const writeData = apiRes.write
     const endResponse = apiRes.end
     apiRes.write = (...args: any[2]) => {
-      contentLength += Buffer.byteLength(args[0])
+      contentLength += Buffer.byteLength(args[0] || '')
       return writeData.apply(apiRes, args)
     }
     apiRes.end = (...args: any[2]) => {
       if (args.length && typeof args[0] !== 'function') {
-        contentLength += Buffer.byteLength(args[0])
+        contentLength += Buffer.byteLength(args[0] || '')
       }
 
       if (contentLength >= 4 * 1024 * 1024) {
@@ -117,6 +119,13 @@ export async function apiResolver(
     if (err instanceof ApiError) {
       sendError(apiRes, err.statusCode, err.message)
     } else {
+      if (dev) {
+        if (err) {
+          err.page = page
+        }
+        throw err
+      }
+
       console.error(err)
       if (propagateError) {
         throw err

@@ -78,7 +78,7 @@ describe('Production Usage', () => {
   })
 
   it('should contain generated page count in output', async () => {
-    const pageCount = process.env.NEXT_PRIVATE_TEST_WEBPACK4_MODE ? 37 : 38
+    const pageCount = process.env.NEXT_PRIVATE_TEST_WEBPACK4_MODE ? 38 : 39
     expect(output).toContain(`Generating static pages (0/${pageCount})`)
     expect(output).toContain(
       `Generating static pages (${pageCount}/${pageCount})`

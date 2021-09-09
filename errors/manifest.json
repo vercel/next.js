@@ -5,6 +5,10 @@
       "heading": true,
       "routes": [
         {
+          "title": "custom-document-image-import",
+          "path": "/errors/custom-document-image-import.md"
+        },
+        {
           "title": "404-get-initial-props",
           "path": "/errors/404-get-initial-props.md"
         },
@@ -268,6 +272,10 @@
         {
           "title": "next-image-unconfigured-host",
           "path": "/errors/next-image-unconfigured-host.md"
+        },
+        {
+          "title": "next-script-for-ga",
+          "path": "/errors/next-script-for-ga.md"
         },
         {
           "title": "next-start-serverless",
