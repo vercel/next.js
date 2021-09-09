@@ -9,7 +9,6 @@ import { pageNotFoundError } from '../require'
 import { findPageFile } from '../lib/find-page-file'
 import getRouteFromEntrypoint from '../get-route-from-entrypoint'
 
-export const ADDED = Symbol('added')
 export const BUILDING = Symbol('building')
 export const BUILT = Symbol('built')
 
@@ -18,7 +17,7 @@ export let entries: {
     serverBundlePath: string
     clientBundlePath: string
     absolutePagePath: string
-    status?: typeof ADDED | typeof BUILDING | typeof BUILT
+    status: typeof BUILDING | typeof BUILT
     lastActiveTime?: number
   }
 } = {}
@@ -41,7 +40,7 @@ export default function onDemandEntryHandler(
   const { compilers } = multiCompiler
   const invalidator = new Invalidator(watcher, multiCompiler)
 
-  let lastAccessPages = ['']
+  let lastAccessedPages = new Set([''])
   let doneCallbacks: EventEmitter | null = new EventEmitter()
 
   for (const compiler of compilers) {
@@ -91,7 +90,7 @@ export default function onDemandEntryHandler(
   })
 
   const disposeHandler = setInterval(function () {
-    disposeInactiveEntries(watcher, lastAccessPages, maxInactiveAge)
+    disposeInactiveEntries(watcher, lastAccessedPages, maxInactiveAge)
   }, 5000)
 
   disposeHandler.unref()
@@ -117,15 +116,16 @@ export default function onDemandEntryHandler(
     // We don't need to maintain active state of anything other than BUILT entries
     if (entryInfo.status !== BUILT) return
 
-    // If there's an entryInfo
-    if (!lastAccessPages.includes(page)) {
-      lastAccessPages.unshift(page)
+    // Move to or insert this page on the back
+    lastAccessedPages.delete(page)
+    lastAccessedPages.add(page)
 
-      // Maintain the buffer max length
-      if (lastAccessPages.length > pagesBufferLength) {
-        lastAccessPages.pop()
-      }
+    // Maintain the buffer max length
+    if (lastAccessedPages.size > pagesBufferLength) {
+      // delete the page on the front
+      lastAccessedPages.delete(lastAccessedPages.values().next().value)
     }
+
     entryInfo.lastActiveTime = Date.now()
     return toSend
   }
@@ -195,7 +195,7 @@ export default function onDemandEntryHandler(
           serverBundlePath,
           clientBundlePath,
           absolutePagePath,
-          status: ADDED,
+          status: BUILDING,
         }
         doneCallbacks!.once(normalizedPage, handleCallback)
 
@@ -232,7 +232,7 @@ export default function onDemandEntryHandler(
 
 function disposeInactiveEntries(
   watcher: any,
-  lastAccessPages: any,
+  lastAccessedPages: any,
   maxInactiveAge: number
 ) {
   const disposingPages: any = []
@@ -244,10 +244,10 @@ function disposeInactiveEntries(
     // We don't need to dispose those entries.
     if (status !== BUILT) return
 
-    // We should not build the last accessed page even we didn't get any pings
+    // We should not dispose the last accessed page even we didn't get any pings
     // Sometimes, it's possible our XHR ping to wait before completing other requests.
     // In that case, we should not dispose the current viewing page
-    if (lastAccessPages.includes(page)) return
+    if (lastAccessedPages.has(page)) return
 
     if (lastActiveTime && Date.now() - lastActiveTime > maxInactiveAge) {
       disposingPages.push(page)
