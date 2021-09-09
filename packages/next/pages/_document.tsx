@@ -369,7 +369,7 @@ export class Head extends Component<
   }
 
   getInlineBeforeInteractiveScripts() {
-    const { scriptLoader, disableOptimizedLoading } = this.context
+    const { scriptLoader } = this.context
     const { nonce, crossOrigin } = this.props
 
     return (scriptLoader.inlineBeforeInteractive || []).map(
