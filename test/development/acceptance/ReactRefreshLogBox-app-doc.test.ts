@@ -188,46 +188,4 @@ describe('ReactRefreshLogBox', () => {
     expect(await session.hasRedbox()).toBe(false)
     await cleanup()
   })
-
-  // Module trace is only available with webpack 5
-  if (!process.env.NEXT_PRIVATE_TEST_WEBPACK4_MODE) {
-    test('Node.js builtins', async () => {
-      const { session, cleanup } = await sandbox(
-        next,
-        new Map([
-          [
-            'node_modules/my-package/index.js',
-            `
-            const dns = require('dns')
-            module.exports = dns
-          `,
-          ],
-          [
-            'node_modules/my-package/package.json',
-            `
-            {
-              "name": "my-package",
-              "version": "0.0.1"
-            }
-          `,
-          ],
-        ])
-      )
-
-      await session.patch(
-        'index.js',
-        `
-        import pkg from 'my-package'
-
-        export default function Hello() {
-          return (pkg ? <h1>Package loaded</h1> : <h1>Package did not load</h1>)
-        }
-      `
-      )
-      expect(await session.hasRedbox(true)).toBe(true)
-      expect(await session.getRedboxSource()).toMatchSnapshot()
-
-      await cleanup()
-    })
-  }
 })

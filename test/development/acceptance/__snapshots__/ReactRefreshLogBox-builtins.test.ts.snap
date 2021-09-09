@@ -1,0 +1,12 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`ReactRefreshLogBox Node.js builtins 1`] = `
+"./node_modules/my-package/index.js:2:0
+Module not found: Can't resolve 'dns'
+
+Import trace for requested module:
+./index.js
+./pages/index.js
+
+https://nextjs.org/docs/messages/module-not-found"
+`;
