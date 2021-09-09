@@ -69,3 +69,25 @@ Import trace for requested module:
 
 https://nextjs.org/docs/messages/module-not-found"
 `;
+
+exports[`ReactRefreshLogBox Node.js builtins 2`] = `
+"./node_modules/my-package/index.js:2:0
+Module not found: Can't resolve 'dns'
+
+Import trace for requested module:
+./index.js
+./pages/index.js
+
+https://nextjs.org/docs/messages/module-not-found"
+`;
+
+exports[`ReactRefreshLogBox Node.js builtins 3`] = `
+"./node_modules/my-package/index.js:2:0
+Module not found: Can't resolve 'dns'
+
+Import trace for requested module:
+./index.js
+./pages/index.js
+
+https://nextjs.org/docs/messages/module-not-found"
+`;

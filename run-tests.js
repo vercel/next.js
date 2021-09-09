@@ -39,11 +39,13 @@ async function main() {
   let numRetries = DEFAULT_NUM_RETRIES
   let concurrencyIdx = process.argv.indexOf('-c')
   let concurrency =
-    parseInt(process.argv[concurrencyIdx + 1], 10) || DEFAULT_CONCURRENCY
+    (concurrencyIdx > -1 && parseInt(process.argv[concurrencyIdx + 1], 10)) ||
+    DEFAULT_CONCURRENCY
 
-  const outputTimings = process.argv.indexOf('--timings') !== -1
-  const writeTimings = process.argv.indexOf('--write-timings') !== -1
-  const isAzure = process.argv.indexOf('--azure') !== -1
+  const hideOutput = !process.argv.includes('--debug')
+  const outputTimings = process.argv.includes('--timings')
+  const writeTimings = process.argv.includes('--write-timings')
+  const isAzure = process.argv.includes('--azure')
   const groupIdx = process.argv.indexOf('-g')
   const groupArg = groupIdx !== -1 && process.argv[groupIdx + 1]
 
@@ -187,11 +189,15 @@ async function main() {
   }
   console.log('Running tests:', '\n', ...testNames.map((name) => `${name}\n`))
 
-  if (testType && testType !== 'unit') {
+  const hasIsolatedTests = testNames.some((test) => {
+    return configuredTestTypes.some((type) => test.startsWith(`test/${type}`))
+  })
+
+  if ((testType && testType !== 'unit') || hasIsolatedTests) {
     // for isolated next tests: e2e, dev, prod we create
     // a starter Next.js install to re-use to speed up tests
     // to avoid having to run yarn each time
-    console.log('Creating isolated Next.js install for isolated tests')
+    console.log('Creating Next.js install for isolated tests')
     const testStarter = await createNextInstall({
       react: 'latest',
       'react-dom': 'latest',
@@ -240,19 +246,22 @@ async function main() {
           },
         }
       )
-      child.stdout.on('data', (chunk) => {
-        outputChunks.push(chunk)
-        // process.stdout.write(chunk)
-      })
-      child.stderr.on('data', (chunk) => {
-        outputChunks.push(chunk)
-        // process.stderr.write(chunk)
-      })
+      const handleOutput = (chunk) => {
+        if (hideOutput) {
+          outputChunks.push(chunk)
+        } else {
+          process.stderr.write(chunk)
+        }
+      }
+      child.stdout.on('data', handleOutput)
+      child.stderr.on('data', handleOutput)
+
       children.add(child)
+
       child.on('exit', (code) => {
         children.delete(child)
         if (code) {
-          if (isFinalRun) {
+          if (isFinalRun && hideOutput) {
             // limit out to last 64kb so that we don't
             // run out of log room in CI
             let trimmedOutputSize = 0
