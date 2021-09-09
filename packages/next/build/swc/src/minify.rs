@@ -59,7 +59,7 @@ impl MinifyTarget {
         assert_eq!(
           codes.len(),
           1,
-          "swc.minify does not support concatting multiple files yet"
+          "swc.minify does not support concatenating multiple files yet"
         );
 
         let (filename, code) = codes.iter().next().unwrap();
