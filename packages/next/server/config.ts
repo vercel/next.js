@@ -181,7 +181,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
   }
 
   if (result?.images) {
-    const images: Partial<ImageConfig> = result.images
+    const images: ImageConfig = result.images
 
     if (typeof images !== 'object') {
       throw new Error(
