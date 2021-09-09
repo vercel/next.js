@@ -1,3 +1,3 @@
-// A default max-timeout of 90 seconds is allowed
+// A default max-timeout of 120 seconds is allowed
 // we should aim to bring this down though
-jest.setTimeout(90 * 1000)
+jest.setTimeout(120 * 1000)
