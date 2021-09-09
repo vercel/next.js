@@ -72,12 +72,14 @@ impl Fold for NextDynamicPatcher {
                 )
                 .emit()
             });
+            return expr;
           } else if expr.args.len() > 2 {
             HANDLER.with(|handler| {
               handler
                 .struct_span_err(identifier.span, "next/dynamic only accepts 2 arguments")
                 .emit()
             });
+            return expr;
           }
 
           self.is_next_dynamic_first_arg = true;
@@ -94,7 +96,7 @@ impl Fold for NextDynamicPatcher {
                 )
                 .emit()
             });
-            panic!("Empty dynamic import");
+            return expr;
           }
 
           // loadableGenerated: {
