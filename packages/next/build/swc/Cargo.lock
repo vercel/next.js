@@ -343,6 +343,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "easy-error"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "04cc9717c61d2908f50d16ebb5677c7e82ea2bdf7cb52f66b30fe079f3212e16"
+
+[[package]]
 name = "either"
 version = "1.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -712,6 +718,7 @@ version = "0.0.0"
 dependencies = [
  "anyhow",
  "backtrace",
+ "easy-error",
  "fxhash",
  "log",
  "napi",
@@ -1657,9 +1664,9 @@ dependencies = [
 
 [[package]]
 name = "swc_css"
-version = "0.5.0"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5f33ca530f8f7fa26d9f8951ba2d9f99c56538726b48071540b93c661ce8b120"
+checksum = "5b6136e8408f2991b4e7d2260da64edcd680feecb4fd0cfea392430b34a6f9ff"
 dependencies = [
  "swc_css_ast",
  "swc_css_codegen",
@@ -1683,9 +1690,9 @@ dependencies = [
 
 [[package]]
 name = "swc_css_codegen"
-version = "0.3.0"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6fb6d5a70ec5b107cf5ccf8c1f9e8c76084816510022450fd27ce74806e6a082"
+checksum = "cf323b2d07f777735cc3d34e31f2b6115d2d2f6ccb211afa519c99764a02e0c1"
 dependencies = [
  "auto_impl",
  "bitflags",
@@ -1710,9 +1717,9 @@ dependencies = [
 
 [[package]]
 name = "swc_css_parser"
-version = "0.5.0"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0fee1f5caa51697be4745143d763d985e5f5174d48823e8d606411575da4ebb2"
+checksum = "a038ae7c7d5215cc7156eaf00aad38a226d3eec553c1bafab91b0c9739b77468"
 dependencies = [
  "bitflags",
  "lexical",
@@ -2196,9 +2203,9 @@ dependencies = [
 
 [[package]]
 name = "swc_stylis"
-version = "0.2.0"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d50a5057e407fd21b4d914fd0ae34887c599de850855f345fff5c634e9ff46ee"
+checksum = "eee38c781219cf66533d27debde66f7054e07123e6e5fa860610135ed8a5e904"
 dependencies = [
  "swc_atoms",
  "swc_common",
