@@ -1,3 +1,4 @@
+use easy_error::Error;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use swc_common::{collections::AHashSet, Span, DUMMY_SP};
@@ -64,7 +65,10 @@ pub enum JSXStyle {
 impl Fold for StyledJSXTransformer {
   fn fold_jsx_element(&mut self, el: JSXElement) -> JSXElement {
     if self.has_styled_jsx && is_styled_jsx(&el) {
-      return self.replace_jsx_style(el);
+      match self.replace_jsx_style(&el) {
+        Ok(el) => return el,
+        Err(_) => return el.clone(),
+      }
     } else if self.has_styled_jsx {
       return el.fold_children_with(self);
     }
@@ -266,7 +270,10 @@ impl Fold for StyledJSXTransformer {
       Expr::TaggedTpl(tagged_tpl) => match &*tagged_tpl.tag {
         Expr::Ident(identifier) => {
           if self.external_bindings.contains(&identifier.to_id()) {
-            self.process_tagged_template_expr(tagged_tpl)
+            match self.process_tagged_template_expr(&tagged_tpl) {
+              Ok(expr) => expr,
+              Err(_) => Expr::TaggedTpl(tagged_tpl),
+            }
           } else {
             Expr::TaggedTpl(tagged_tpl)
           }
@@ -277,7 +284,10 @@ impl Fold for StyledJSXTransformer {
         }) => {
           if let Expr::Ident(identifier) = &**boxed_ident {
             if self.external_bindings.contains(&identifier.to_id()) {
-              self.process_tagged_template_expr(tagged_tpl)
+              match self.process_tagged_template_expr(&tagged_tpl) {
+                Ok(expr) => expr,
+                Err(_) => Expr::TaggedTpl(tagged_tpl),
+              }
             } else {
               Expr::TaggedTpl(tagged_tpl)
             }
@@ -509,7 +519,7 @@ impl StyledJSXTransformer {
     });
   }
 
-  fn replace_jsx_style(&mut self, el: JSXElement) -> JSXElement {
+  fn replace_jsx_style(&mut self, el: &JSXElement) -> Result<JSXElement, Error> {
     let style_info = self.styles.pop().unwrap();
 
     let is_global = el.opening.attrs.iter().any(|attr| {
@@ -527,12 +537,17 @@ impl StyledJSXTransformer {
 
     match &style_info {
       JSXStyle::Local(style_info) => {
-        let css = transform_css(&style_info, is_global, &self.static_class_name);
-        make_local_styled_jsx_el(&style_info, css, self.style_import_name.as_ref().unwrap())
+        let css = transform_css(&style_info, is_global, &self.static_class_name)?;
+        Ok(make_local_styled_jsx_el(
+          &style_info,
+          css,
+          self.style_import_name.as_ref().unwrap(),
+        ))
       }
-      JSXStyle::External(style) => {
-        make_external_styled_jsx_el(style, self.style_import_name.as_ref().unwrap())
-      }
+      JSXStyle::External(style) => Ok(make_external_styled_jsx_el(
+        style,
+        self.style_import_name.as_ref().unwrap(),
+      )),
     }
   }
 
@@ -541,7 +556,7 @@ impl StyledJSXTransformer {
     self.add_hash = None;
     add_hash
   }
-  fn process_tagged_template_expr(&mut self, tagged_tpl: TaggedTpl) -> Expr {
+  fn process_tagged_template_expr(&mut self, tagged_tpl: &TaggedTpl) -> Result<Expr, Error> {
     let style = self.get_jsx_style(&Expr::Tpl(tagged_tpl.tpl.clone()), false);
     let styles = vec![style];
     let (static_class_name, class_name) =
@@ -567,10 +582,10 @@ impl StyledJSXTransformer {
     } else {
       panic!("Not expected"); // TODO: handle error
     };
-    let css = transform_css(&style, tag == "global", &static_class_name);
+    let css = transform_css(&style, tag == "global", &static_class_name)?;
     if tag == "resolve" {
       self.file_has_css_resolve = true;
-      return Expr::Object(ObjectLit {
+      return Ok(Expr::Object(ObjectLit {
         props: vec![
           PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
             key: PropName::Ident(Ident {
@@ -594,9 +609,9 @@ impl StyledJSXTransformer {
           }))),
         ],
         span: DUMMY_SP,
-      });
+      }));
     }
-    Expr::New(NewExpr {
+    Ok(Expr::New(NewExpr {
       callee: Box::new(Expr::Ident(Ident {
         sym: "String".into(),
         span: DUMMY_SP,
@@ -608,7 +623,7 @@ impl StyledJSXTransformer {
       }]),
       span: DUMMY_SP,
       type_args: None,
-    })
+    }))
   }
 
   fn reset_styles_state(&mut self) {

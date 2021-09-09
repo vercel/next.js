@@ -1,30 +1,47 @@
+use easy_error::{bail, Error};
 use swc_common::DUMMY_SP;
 use swc_css::ast::*;
-use swc_css::parser::{parse_str, parser::ParserConfig};
+use swc_css::parser::{parse_str, parse_tokens, parser::ParserConfig};
 use swc_css::visit::{VisitMut, VisitMutWith};
 use swc_css_codegen::{
   writer::basic::{BasicCssWriter, BasicCssWriterConfig},
   CodegenConfig, Emit,
 };
 use swc_ecmascript::ast::{Expr, Str, StrKind, Tpl, TplElement};
+use swc_ecmascript::utils::HANDLER;
 use swc_stylis::prefixer::prefixer;
 
 use super::{hash_string, string_literal_expr, LocalStyle};
+
+type GenericError = Box<dyn std::error::Error + Send + Sync + 'static>;
 
 pub fn transform_css(
   style_info: &LocalStyle,
   is_global: bool,
   class_name: &Option<String>,
-) -> Expr {
-  let mut ss: Stylesheet = parse_str(
+) -> Result<Expr, Error> {
+  let result: Result<Stylesheet, _> = parse_str(
     &style_info.css,
     style_info.css_span.lo,
     style_info.css_span.hi,
     ParserConfig {
       parse_values: false,
     },
-  )
-  .unwrap();
+  );
+  let mut ss = match result {
+    Ok(ss) => ss,
+    Err(_) => {
+      HANDLER.with(|handler| {
+        handler
+          .struct_span_err(
+            style_info.css_span,
+            "Failed to parse css in styled jsx component",
+          )
+          .emit()
+      });
+      bail!("Failed to parse css");
+    }
+  };
   // ? Do we need to support optionally prefixing?
   ss.visit_mut_with(&mut prefixer());
   ss.visit_mut_with(&mut Namespacer {
@@ -45,7 +62,7 @@ pub fn transform_css(
   }
 
   if style_info.expressions.len() == 0 {
-    return string_literal_expr(&s);
+    return Ok(string_literal_expr(&s));
   }
 
   let mut parts: Vec<&str> = s.split("__styled-jsx-placeholder__").collect();
@@ -57,7 +74,7 @@ pub fn transform_css(
     parts[i] = substr;
   }
 
-  Expr::Tpl(Tpl {
+  Ok(Expr::Tpl(Tpl {
     quasis: parts
       .iter()
       .map(|quasi| TplElement {
@@ -74,7 +91,7 @@ pub fn transform_css(
       .collect(),
     exprs: final_expressions,
     span: DUMMY_SP,
-  })
+  }))
 }
 
 struct Namespacer {
@@ -92,7 +109,11 @@ impl VisitMut for Namespacer {
       if let SubclassSelector::Pseudo(PseudoSelector { name, args, .. }) = selector {
         if &name.value == "global" {
           if args.tokens.len() != 1 {
-            panic!("Passing something other than one type selector to global is not supported yet");
+            HANDLER.with(|handler| handler.struct_span_fatal(args.span, "WOOPS").emit());
+            // let x: Stylesheet = parse_tokens(&args, ParserConfig {
+            // parse_values: true }).unwrap(); dbg!(x);
+            // panic!("Passing something other than one type selector to global
+            // is not supported yet");
           }
           for token_and_span in &args.tokens {
             if let Token::Ident(ident) = &token_and_span.token {
