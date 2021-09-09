@@ -188,6 +188,12 @@ async function main() {
       testNames = testNames.splice(offset, numPerGroup)
     }
   }
+
+  if (testNames.length === 0) {
+    console.log('No tests found for', testType, 'exiting..')
+    return cleanUpAndExit(0)
+  }
+
   console.log('Running tests:', '\n', ...testNames.map((name) => `${name}\n`))
 
   const hasIsolatedTests = testNames.some((test) => {
