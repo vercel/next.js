@@ -190,7 +190,9 @@ async function main() {
   console.log('Running tests:', '\n', ...testNames.map((name) => `${name}\n`))
 
   const hasIsolatedTests = testNames.some((test) => {
-    return configuredTestTypes.some((type) => test.startsWith(`test/${type}`))
+    return configuredTestTypes.some(
+      (type) => type !== testFilters.unit && test.startsWith(`test/${type}`)
+    )
   })
 
   if ((testType && testType !== 'unit') || hasIsolatedTests) {
