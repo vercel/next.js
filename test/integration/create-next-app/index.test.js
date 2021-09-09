@@ -6,8 +6,8 @@ import path from 'path'
 
 const cli = require.resolve('create-next-app/dist/index.js')
 
-const exampleRepo = 'https://github.com/vercel/next-learn-starter/tree/master'
-const examplePath = 'navigate-between-pages-starter'
+const exampleRepo = 'https://github.com/vercel/next.js/tree/canary'
+const examplePath = 'examples/basic-css'
 
 jest.setTimeout(1000 * 60 * 5)
 
@@ -378,7 +378,7 @@ describe('create next app', () => {
           projectName,
           '--use-npm',
           '--example',
-          'https://github.com/vercel/next-learn-starter/tree/master/learn-starter',
+          `${exampleRepo}/${examplePath}`,
         ],
         { cwd }
       )
