@@ -20,7 +20,7 @@ let appInfo = {
 
 export let backendConfig = () => {
   return {
-    framework: "express",
+    framework: 'express',
     supertokens: {
       connectionURI: 'https://try.supertokens.io',
     },
