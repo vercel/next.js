@@ -9,7 +9,6 @@ import { join, dirname, relative } from 'path'
 import { version } from 'next/package'
 import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
 import {
-  check,
   fetchViaHTTP,
   findPort,
   initNextServerScript,
