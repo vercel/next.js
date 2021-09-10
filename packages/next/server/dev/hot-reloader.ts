@@ -27,7 +27,7 @@ import { difference } from '../../build/utils'
 import { NextConfigComplete } from '../config-shared'
 import { CustomRoutes } from '../../lib/load-custom-routes'
 import { DecodeError } from '../../shared/lib/utils'
-import { Span, trace } from '../../telemetry/trace'
+import { Span, trace } from '../../trace'
 
 export async function renderScriptError(
   res: ServerResponse,

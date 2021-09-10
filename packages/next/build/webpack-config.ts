@@ -47,7 +47,7 @@ import { ServerlessPlugin } from './webpack/plugins/serverless-plugin'
 import { WellKnownErrorsPlugin } from './webpack/plugins/wellknown-errors-plugin'
 import { regexLikeCss } from './webpack/config/blocks/css'
 import { CopyFilePlugin } from './webpack/plugins/copy-file-plugin'
-import type { Span } from '../telemetry/trace'
+import type { Span } from '../trace'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 

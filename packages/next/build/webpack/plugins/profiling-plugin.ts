@@ -1,5 +1,5 @@
 import { webpack, isWebpack5 } from 'next/dist/compiled/webpack/webpack'
-import { trace, Span } from '../../../telemetry/trace'
+import { trace, Span } from '../../../trace'
 
 const pluginName = 'ProfilingPlugin'
 export const spans = new WeakMap<any, Span>()

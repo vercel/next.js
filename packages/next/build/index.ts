@@ -73,7 +73,7 @@ import { generateBuildId } from './generate-build-id'
 import { isWriteable } from './is-writeable'
 import * as Log from './output/log'
 import createSpinner from './spinner'
-import { trace, flushAllTraces, setGlobal } from '../telemetry/trace'
+import { trace, flushAllTraces, setGlobal } from '../trace'
 import {
   collectPages,
   detectConflictingPaths,

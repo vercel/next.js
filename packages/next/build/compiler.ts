@@ -1,5 +1,5 @@
 import { webpack } from 'next/dist/compiled/webpack/webpack'
-import { Span } from '../telemetry/trace'
+import { Span } from '../trace'
 
 export type CompilerResult = {
   errors: string[]
