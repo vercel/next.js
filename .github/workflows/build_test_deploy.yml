@@ -408,7 +408,7 @@ jobs:
           MACOSX_DEPLOYMENT_TARGET: '10.13'
         working-directory: packages/next
       - name: Upload artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v2.2.4
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         with:
           name: next-swc-binaries

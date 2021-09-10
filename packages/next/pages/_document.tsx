@@ -1,5 +1,4 @@
 import React, { Component, ReactElement, ReactNode, useContext } from 'react'
-import flush from 'styled-jsx/server'
 import {
   BODY_RENDER_TARGET,
   OPTIMIZED_FONT_PROVIDERS,
@@ -166,16 +165,8 @@ export default class Document<P = {}> extends Component<DocumentProps & P> {
    * `getInitialProps` hook returns the context object with the addition of `renderPage`.
    * `renderPage` callback executes `React` rendering logic synchronously to support server-rendering wrappers
    */
-  static async getInitialProps(
-    ctx: DocumentContext
-  ): Promise<DocumentInitialProps> {
-    const enhanceApp = (App: any) => {
-      return (props: any) => <App {...props} />
-    }
-
-    const { html, head } = await ctx.renderPage({ enhanceApp })
-    const styles = [...flush()]
-    return { html, head, styles }
+  static getInitialProps(ctx: DocumentContext): Promise<DocumentInitialProps> {
+    return ctx.defaultGetInitialProps(ctx)
   }
 
   render() {
@@ -209,6 +200,50 @@ export function Html(
       data-ampdevmode={
         inAmpMode && process.env.NODE_ENV !== 'production' ? '' : undefined
       }
+    />
+  )
+}
+
+function AmpStyles({
+  styles,
+}: {
+  styles?: React.ReactElement[] | React.ReactFragment
+}) {
+  if (!styles) return null
+
+  // try to parse styles from fragment for backwards compat
+  const curStyles: React.ReactElement[] = Array.isArray(styles)
+    ? (styles as React.ReactElement[])
+    : []
+  if (
+    // @ts-ignore Property 'props' does not exist on type ReactElement
+    styles.props &&
+    // @ts-ignore Property 'props' does not exist on type ReactElement
+    Array.isArray(styles.props.children)
+  ) {
+    const hasStyles = (el: React.ReactElement) =>
+      el?.props?.dangerouslySetInnerHTML?.__html
+    // @ts-ignore Property 'props' does not exist on type ReactElement
+    styles.props.children.forEach((child: React.ReactElement) => {
+      if (Array.isArray(child)) {
+        child.forEach((el) => hasStyles(el) && curStyles.push(el))
+      } else if (hasStyles(child)) {
+        curStyles.push(child)
+      }
+    })
+  }
+
+  /* Add custom styles before AMP styles to prevent accidental overrides */
+  return (
+    <style
+      amp-custom=""
+      dangerouslySetInnerHTML={{
+        __html: curStyles
+          .map((style) => style.props.dangerouslySetInnerHTML.__html)
+          .join('')
+          .replace(/\/\*# sourceMappingURL=.*\*\//g, '')
+          .replace(/\/\*@ sourceURL=.*?\*\//g, ''),
+      }}
     />
   )
 }
@@ -555,30 +590,6 @@ export class Head extends Component<
       return child
     })
 
-    // try to parse styles from fragment for backwards compat
-    const curStyles: React.ReactElement[] = Array.isArray(styles)
-      ? (styles as React.ReactElement[])
-      : []
-    if (
-      inAmpMode &&
-      styles &&
-      // @ts-ignore Property 'props' does not exist on type ReactElement
-      styles.props &&
-      // @ts-ignore Property 'props' does not exist on type ReactElement
-      Array.isArray(styles.props.children)
-    ) {
-      const hasStyles = (el: React.ReactElement) =>
-        el?.props?.dangerouslySetInnerHTML?.__html
-      // @ts-ignore Property 'props' does not exist on type ReactElement
-      styles.props.children.forEach((child: React.ReactElement) => {
-        if (Array.isArray(child)) {
-          child.forEach((el) => hasStyles(el) && curStyles.push(el))
-        } else if (hasStyles(child)) {
-          curStyles.push(child)
-        }
-      })
-    }
-
     const files: DocumentFiles = getDocumentFiles(
       this.context.buildManifest,
       this.context.__NEXT_DATA__.page,
@@ -635,19 +646,7 @@ export class Head extends Component<
               as="script"
               href="https://cdn.ampproject.org/v0.js"
             />
-            {/* Add custom styles before AMP styles to prevent accidental overrides */}
-            {styles && (
-              <style
-                amp-custom=""
-                dangerouslySetInnerHTML={{
-                  __html: curStyles
-                    .map((style) => style.props.dangerouslySetInnerHTML.__html)
-                    .join('')
-                    .replace(/\/\*# sourceMappingURL=.*\*\//g, '')
-                    .replace(/\/\*@ sourceURL=.*?\*\//g, ''),
-                }}
-              />
-            )}
+            <AmpStyles styles={styles} />
             <style
               amp-boilerplate=""
               dangerouslySetInnerHTML={{
