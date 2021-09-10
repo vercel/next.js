@@ -1162,22 +1162,17 @@ export async function renderToHTML(
       : []
   ).filter(Boolean)
 
-  if (postProcessors.length > 0) {
+  if (generateStaticHTML || postProcessors.length > 0) {
     let html = await piperToString(chainPipers(pipers))
     for (const postProcessor of postProcessors) {
       if (postProcessor) {
         html = await postProcessor(html)
       }
     }
-    pipers.length = 1
-    pipers[0] = piperFromArray([html])
+    return new RenderResult(html)
   }
 
-  return new RenderResult(
-    generateStaticHTML
-      ? await piperToString(chainPipers(pipers))
-      : chainPipers(pipers)
-  )
+  return new RenderResult(chainPipers(pipers))
 }
 
 function errorToJSON(err: Error): Error {
@@ -1206,11 +1201,10 @@ function renderToStream(
 ): Promise<NodeWritablePiper> {
   return new Promise((resolve, reject) => {
     let underlyingStream: {
-      writable: Writable
-      flush: () => void
       resolve: (error?: Error) => void
+      writable: Writable
+      queuedCallbacks: Array<() => void>
     } | null = null
-    let queuedCallbacks: Array<() => void> = []
     const stream = new Writable({
       // Use the buffer from the underlying stream
       highWaterMark: 0,
@@ -1220,9 +1214,8 @@ function renderToStream(
             'invariant: write called without an underlying stream. This is a bug in Next.js'
           )
         }
-        const writable = underlyingStream.writable
-        if (!writable.write(chunk, encoding)) {
-          queuedCallbacks.push(() => callback())
+        if (!underlyingStream.writable.write(chunk, encoding)) {
+          underlyingStream.queuedCallbacks.push(() => callback())
         } else {
           callback()
         }
@@ -1236,17 +1229,16 @@ function renderToStream(
       }
       underlyingStream.resolve()
     })
-    stream.once('error', (error) => {
+    stream.once('error', (err) => {
       if (!underlyingStream) {
         throw new Error(
           'invariant: error called without an underlying stream. This is a bug in Next.js'
         )
       }
-      underlyingStream.resolve(error)
+      underlyingStream.resolve(err)
     })
     // React uses `flush` to prevent stream middleware like gzip from buffering to the
     // point of harming streaming performance, so we make sure to expose it and forward it.
-    //
     // See: https://github.com/reactwg/react-18/discussions/91
     Object.defineProperty(stream, 'flush', {
       value: () => {
@@ -1255,7 +1247,9 @@ function renderToStream(
             'invariant: flush called without an underlying stream. This is a bug in Next.js'
           )
         }
-        underlyingStream.flush()
+        if (typeof (underlyingStream.writable as any).flush === 'function') {
+          ;(underlyingStream.writable as any).flush()
+        }
       },
       enumerable: true,
     })
@@ -1266,23 +1260,19 @@ function renderToStream(
         resolved = true
         resolve((res, next) => {
           const drainHandler = () => {
-            const prevCallbacks = queuedCallbacks
-            queuedCallbacks = []
+            const prevCallbacks = underlyingStream!.queuedCallbacks
+            underlyingStream!.queuedCallbacks = []
             prevCallbacks.forEach((callback) => callback())
           }
           res.on('drain', drainHandler)
           underlyingStream = {
-            writable: res,
-            flush() {
-              if (typeof (res as any).flush === 'function') {
-                ;(res as any).flush()
-              }
-            },
-            resolve: (error) => {
+            resolve: (err) => {
               underlyingStream = null
               res.removeListener('drain', drainHandler)
-              next(error)
+              next(err)
             },
+            writable: res,
+            queuedCallbacks: [],
           }
           startWriting()
         })
