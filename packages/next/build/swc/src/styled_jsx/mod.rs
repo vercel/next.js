@@ -1,4 +1,4 @@
-use easy_error::Error;
+use easy_error::{bail, Error};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use swc_common::{collections::AHashSet, Span, DUMMY_SP};
@@ -468,12 +468,10 @@ impl StyledJSXTransformer {
         if let Expr::Ident(Ident { sym, .. }) = &**prop {
           sym.to_string()
         } else {
-          panic!("Not expected");
+          String::from("not_styled_jsx_tag")
         }
       }
-      _ => {
-        panic!("Not expected");
-      }
+      _ => String::from("not_styled_jsx_tag"),
     };
     let style = if let JSXStyle::Local(style) = &styles[0] {
       if tag != "resolve" {
@@ -481,7 +479,7 @@ impl StyledJSXTransformer {
       }
       style
     } else {
-      panic!("Not expected"); // TODO: handle error
+      bail!("This shouldn't happen, we already know that this is a template literal");
     };
     let css = transform_css(&style, tag == "global", &static_class_name)?;
     if tag == "resolve" {
@@ -602,7 +600,7 @@ fn get_style_expr(el: &JSXElement) -> &Expr {
         )
         .emit()
     });
-    panic!("next-swc compilation error");
+    panic!("styled-jsx style error");
   }
 
   if let JSXElementChild::JSXExprContainer(JSXExprContainer {
