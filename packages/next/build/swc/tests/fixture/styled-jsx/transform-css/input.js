@@ -20,10 +20,9 @@ export default () => (
         color: blue;
       }
       
-      // TODO need to support complex global args
-      // :global(.foo + a) {
-      //   color: red;
-      // }
+      :global(.foo + a) {
+        color: red;
+      }
       
       :global(body) {
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
@@ -57,10 +56,9 @@ export default () => (
         margin: auto
       }
       
-      // TODO need to support complex global args
-      // p :global(span:not(.test)) {
-      //   color: green
-      // }
+      p :global(span:not(.test)) {
+        color: green
+      }
       
       p, h1 {
         color: blue;

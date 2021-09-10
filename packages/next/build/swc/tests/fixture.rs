@@ -3,7 +3,7 @@ use self::next_dynamic::next_dynamic;
 use self::next_ssg::next_ssg;
 use self::styled_jsx::styled_jsx;
 use std::path::PathBuf;
-use swc_common::{chain, comments::SingleThreadedComments, FileName};
+use swc_common::{chain, comments::SingleThreadedComments, input::SourceFileInput, FileName, Span};
 use swc_ecma_transforms_testing::{test, test_fixture};
 use swc_ecmascript::{
   parser::{EsConfig, Syntax},

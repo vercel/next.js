@@ -1,5 +1,5 @@
 use easy_error::{bail, Error};
-use swc_common::DUMMY_SP;
+use swc_common::{source_map::Pos, BytePos, Span, SyntaxContext, DUMMY_SP};
 use swc_css::ast::*;
 use swc_css::parser::{parse_str, parse_tokens, parser::ParserConfig};
 use swc_css::visit::{VisitMut, VisitMutWith};
@@ -12,8 +12,6 @@ use swc_ecmascript::utils::HANDLER;
 use swc_stylis::prefixer::prefixer;
 
 use super::{hash_string, string_literal_expr, LocalStyle};
-
-type GenericError = Box<dyn std::error::Error + Send + Sync + 'static>;
 
 pub fn transform_css(
   style_info: &LocalStyle,
@@ -101,60 +99,158 @@ struct Namespacer {
 }
 
 impl VisitMut for Namespacer {
-  fn visit_mut_compound_selector(&mut self, node: &mut CompoundSelector) {
-    let mut global_selector = None;
+  fn visit_mut_complex_selector(&mut self, node: &mut ComplexSelector) {
+    let mut new_selectors = vec![];
+    for selector in &node.selectors {
+      let transformed_selectors = self.get_transformed_selectors(selector.clone());
+      new_selectors.extend(transformed_selectors);
+    }
+    node.selectors = new_selectors;
+  }
+}
+
+impl Namespacer {
+  fn get_transformed_selectors(&mut self, mut node: CompoundSelector) -> Vec<CompoundSelector> {
+    if self.is_global {
+      return vec![node];
+    }
+
     let mut pseudo_index = None;
     for i in 0..node.subclass_selectors.len() {
       let selector = &node.subclass_selectors[i];
       if let SubclassSelector::Pseudo(PseudoSelector { name, args, .. }) = selector {
+        // One off global selector
         if &name.value == "global" {
-          if args.tokens.len() != 1 {
-            HANDLER.with(|handler| handler.struct_span_fatal(args.span, "WOOPS").emit());
-            // let x: Stylesheet = parse_tokens(&args, ParserConfig {
-            // parse_values: true }).unwrap(); dbg!(x);
-            // panic!("Passing something other than one type selector to global
-            // is not supported yet");
-          }
-          for token_and_span in &args.tokens {
-            if let Token::Ident(ident) = &token_and_span.token {
-              global_selector = Some(ident);
-            }
-          }
-        } else if let None = pseudo_index {
+          let block_tokens = get_block_tokens(&args);
+          let mut args = args.clone();
+          args.tokens.extend(block_tokens);
+          let complex_selectors: Vec<ComplexSelector> = parse_tokens(
+            &args,
+            ParserConfig {
+              parse_values: false,
+            },
+          )
+          .unwrap();
+          return complex_selectors[0].selectors.clone();
+        } else if pseudo_index.is_none() {
           pseudo_index = Some(i);
         }
       }
     }
 
-    if let Some(selector) = global_selector {
-      node.type_selector = Some(NamespacedName {
-        name: Text {
-          value: selector.clone(),
+    let subclass_selector = match self.is_dynamic {
+      true => "__jsx-style-dynamic-selector",
+      false => &self.class_name,
+    };
+    let insert_index = match pseudo_index {
+      None => node.subclass_selectors.len(),
+      Some(i) => i,
+    };
+    node.subclass_selectors.insert(
+      insert_index,
+      SubclassSelector::Class(ClassSelector {
+        span: DUMMY_SP,
+        text: Text {
+          value: subclass_selector.into(),
           span: DUMMY_SP,
         },
-        prefix: None,
-        span: DUMMY_SP,
-      });
-      node.subclass_selectors.clear();
-    } else if !self.is_global {
-      let subclass_selector = match self.is_dynamic {
-        true => "__jsx-style-dynamic-selector",
-        false => &self.class_name,
-      };
-      let insert_index = match pseudo_index {
-        None => node.subclass_selectors.len(),
-        Some(i) => i,
-      };
-      node.subclass_selectors.insert(
-        insert_index,
-        SubclassSelector::Class(ClassSelector {
-          span: DUMMY_SP,
-          text: Text {
-            value: subclass_selector.into(),
-            span: DUMMY_SP,
-          },
-        }),
-      );
-    }
+      }),
+    );
+
+    vec![node]
   }
+}
+
+fn get_block_tokens(selector_tokens: &Tokens) -> Vec<TokenAndSpan> {
+  let start_pos = selector_tokens.span.hi.to_u32();
+  vec![
+    TokenAndSpan {
+      span: Span {
+        lo: BytePos(start_pos + 0),
+        hi: BytePos(start_pos + 1),
+        ctxt: SyntaxContext::empty(),
+      },
+      token: Token::WhiteSpace,
+    },
+    TokenAndSpan {
+      span: Span {
+        lo: BytePos(start_pos + 1),
+        hi: BytePos(start_pos + 2),
+        ctxt: SyntaxContext::empty(),
+      },
+      token: Token::LBrace,
+    },
+    TokenAndSpan {
+      span: Span {
+        lo: BytePos(start_pos + 2),
+        hi: BytePos(start_pos + 3),
+        ctxt: SyntaxContext::empty(),
+      },
+      token: Token::WhiteSpace,
+    },
+    TokenAndSpan {
+      span: Span {
+        lo: BytePos(start_pos + 3),
+        hi: BytePos(start_pos + 8),
+        ctxt: SyntaxContext::empty(),
+      },
+      token: Token::Ident("color".into()),
+    },
+    TokenAndSpan {
+      span: Span {
+        lo: BytePos(start_pos + 8),
+        hi: BytePos(start_pos + 9),
+        ctxt: SyntaxContext::empty(),
+      },
+      token: Token::Colon,
+    },
+    TokenAndSpan {
+      span: Span {
+        lo: BytePos(start_pos + 9),
+        hi: BytePos(start_pos + 10),
+        ctxt: SyntaxContext::empty(),
+      },
+      token: Token::WhiteSpace,
+    },
+    TokenAndSpan {
+      span: Span {
+        lo: BytePos(start_pos + 10),
+        hi: BytePos(start_pos + 13),
+        ctxt: SyntaxContext::empty(),
+      },
+      token: Token::Ident("red".into()),
+    },
+    TokenAndSpan {
+      span: Span {
+        lo: BytePos(start_pos + 13),
+        hi: BytePos(start_pos + 14),
+        ctxt: SyntaxContext::empty(),
+      },
+      token: Token::Semi,
+    },
+    TokenAndSpan {
+      span: Span {
+        lo: BytePos(start_pos + 14),
+        hi: BytePos(start_pos + 15),
+        ctxt: SyntaxContext::empty(),
+      },
+      token: Token::WhiteSpace,
+    },
+    TokenAndSpan {
+      span: Span {
+        lo: BytePos(start_pos + 15),
+        hi: BytePos(start_pos + 16),
+        ctxt: SyntaxContext::empty(),
+      },
+      token: Token::RBrace,
+    },
+    TokenAndSpan {
+      span: Span {
+        lo: BytePos(start_pos + 16),
+        hi: BytePos(start_pos + 17),
+        ctxt: SyntaxContext::empty(),
+      },
+      token: Token::WhiteSpace,
+    },
+  ]
 }
