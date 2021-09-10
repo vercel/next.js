@@ -201,13 +201,14 @@ module.exports = {
       // if the host is `example.com`,
       // this redirect will be applied
       {
-        source: '/:path((?!another-page$).*)',,
+        source: '/:path((?!another-page$).*)',
         has: [
           {
             type: 'host',
             value: 'example.com',
           },
         ],
+        permanent: false,
         destination: '/another-page',
       },
     ]

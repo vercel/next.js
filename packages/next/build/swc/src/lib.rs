@@ -42,6 +42,7 @@ use swc_common::{self, sync::Lazy, FilePathMapping, SourceMap};
 
 mod amp_attributes;
 mod hook_optimizer;
+mod minify;
 mod next_dynamic;
 pub mod next_ssg;
 mod styled_jsx;
@@ -65,6 +66,9 @@ fn init(mut exports: JsObject) -> napi::Result<()> {
 
     exports.create_named_method("transform", transform::transform)?;
     exports.create_named_method("transformSync", transform::transform_sync)?;
+
+    exports.create_named_method("minify", minify::minify)?;
+    exports.create_named_method("minifySync", minify::minify_sync)?;
 
     Ok(())
 }

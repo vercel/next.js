@@ -3,7 +3,7 @@ import { ParsedUrlQuery } from 'querystring'
 import { PassThrough } from 'stream'
 import React from 'react'
 import * as ReactDOMServer from 'react-dom/server'
-import flush from 'styled-jsx/server'
+import { StyleRegistry, createStyleRegistry } from 'styled-jsx'
 import Observable from 'next/dist/compiled/zen-observable'
 import { warn } from '../build/output/log'
 import { UnwrapPromise } from '../lib/coalesced-function'
@@ -40,6 +40,7 @@ import {
   ComponentsEnhancer,
   DocumentInitialProps,
   DocumentProps,
+  DocumentContext,
   HtmlContext,
   HtmlProps,
   getDisplayName,
@@ -65,7 +66,7 @@ import {
   Redirect,
 } from '../lib/load-custom-routes'
 import { DomainLocale } from './config'
-import { mergeResults, RenderResult, resultsToString } from './utils'
+import RenderResult from './render-result'
 
 function noRouter() {
   const message =
@@ -194,7 +195,7 @@ export type RenderOptsPartial = {
   defaultLocale?: string
   domainLocales?: DomainLocale[]
   disableOptimizedLoading?: boolean
-  requireStaticHTML?: boolean
+  supportsDynamicHTML?: boolean
   concurrentFeatures?: boolean
   customServer?: boolean
 }
@@ -295,7 +296,7 @@ export async function renderToHTML(
     previewProps,
     basePath,
     devOnlyCacheBusterQueryString,
-    requireStaticHTML,
+    supportsDynamicHTML,
     concurrentFeatures,
   } = renderOpts
 
@@ -482,6 +483,7 @@ export async function renderToHTML(
     isPreview,
     (req as any).__nextIsLocaleDomain
   )
+  const jsxStyleRegistry = createStyleRegistry()
   const ctx = {
     err,
     req: isAutoExport ? undefined : req,
@@ -498,6 +500,17 @@ export async function renderToHTML(
           <App {...props} Component={Component} router={router} />
         </AppContainer>
       )
+    },
+    defaultGetInitialProps: async (
+      docCtx: DocumentContext
+    ): Promise<DocumentInitialProps> => {
+      const enhanceApp = (AppComp: any) => {
+        return (props: any) => <AppComp {...props} />
+      }
+
+      const { html, head } = await docCtx.renderPage({ enhanceApp })
+      const styles = jsxStyleRegistry.styles()
+      return { html, head, styles }
     },
   }
   let props: any
@@ -536,7 +549,9 @@ export async function renderToHTML(
           <LoadableContext.Provider
             value={(moduleName) => reactLoadableModules.push(moduleName)}
           >
-            {children}
+            <StyleRegistry registry={jsxStyleRegistry}>
+              {children}
+            </StyleRegistry>
           </LoadableContext.Provider>
         </HeadManagerContext.Provider>
       </AmpStateContext.Provider>
@@ -844,7 +859,7 @@ export async function renderToHTML(
   // Avoid rendering page un-necessarily for getServerSideProps data request
   // and getServerSideProps/getStaticProps redirects
   if ((isDataReq && !isSSG) || (renderOpts as any).isRedirect) {
-    return Observable.of(JSON.stringify(props))
+    return RenderResult.fromStatic(JSON.stringify(props))
   }
 
   // We don't call getStaticProps or getServerSideProps while generating
@@ -883,9 +898,22 @@ export async function renderToHTML(
     }
   }
 
-  const generateStaticHTML = requireStaticHTML || inAmpMode
+  /**
+   * Rules of Static & Dynamic HTML:
+   *
+   *    1.) We must generate static HTML unless the caller explicitly opts
+   *        in to dynamic HTML support.
+   *
+   *    2.) If dynamic HTML support is requested, we must honor that request
+   *        or throw an error. It is the sole responsibility of the caller to
+   *        ensure they aren't e.g. requesting dynamic HTML for an AMP page.
+   *
+   * These rules help ensure that other existing features like request caching,
+   * coalescing, and ISR continue working as intended.
+   */
+  const generateStaticHTML = supportsDynamicHTML !== true
   const renderToStream = (element: React.ReactElement) =>
-    new Promise<RenderResult>((resolve, reject) => {
+    new Promise<Observable<string>>((resolve, reject) => {
       const stream = new PassThrough()
       let resolved = false
       const doResolve = () => {
@@ -929,7 +957,7 @@ export async function renderToHTML(
           doResolve()
         },
       })
-    }).then(multiplexResult)
+    })
 
   const renderDocument = async () => {
     if (Document.getInitialProps) {
@@ -1005,8 +1033,7 @@ export async function renderToHTML(
         documentElement: () => (Document as any)(),
         head,
         headTags: [],
-        // TODO: Experimental styled-jsx 5 support
-        styles: [...flush()],
+        styles: jsxStyleRegistry.styles(),
       }
     }
   }
@@ -1095,7 +1122,7 @@ export async function renderToHTML(
     locale,
     disableOptimizedLoading,
     head: documentResult.head,
-    headTags: documentResult?.headTags,
+    headTags: documentResult.headTags,
     styles: documentResult.styles,
   }
   const documentHTML = ReactDOMServer.renderToStaticMarkup(
@@ -1129,21 +1156,15 @@ export async function renderToHTML(
     }
   }
 
-  let results: Array<RenderResult> = []
+  let results: Array<string | Observable<string>> = []
   const renderTargetIdx = documentHTML.indexOf(BODY_RENDER_TARGET)
-  results.push(
-    Observable.of(
-      '<!DOCTYPE html>' + documentHTML.substring(0, renderTargetIdx)
-    )
-  )
+  results.push('<!DOCTYPE html>' + documentHTML.substring(0, renderTargetIdx))
   if (inAmpMode) {
-    results.push(Observable.of('<!-- __NEXT_DATA__ -->'))
+    results.push('<!-- __NEXT_DATA__ -->')
   }
   results.push(documentResult.bodyResult)
   results.push(
-    Observable.of(
-      documentHTML.substring(renderTargetIdx + BODY_RENDER_TARGET.length)
-    )
+    documentHTML.substring(renderTargetIdx + BODY_RENDER_TARGET.length)
   )
 
   const postProcessors: Array<((html: string) => Promise<string>) | null> = (
@@ -1197,64 +1218,53 @@ export async function renderToHTML(
   ).filter(Boolean)
 
   if (postProcessors.length > 0) {
-    let html = await resultsToString(results)
+    let html = (await observableToChunks(resultsToObservable(results))).join('')
     for (const postProcessor of postProcessors) {
       if (postProcessor) {
         html = await postProcessor(html)
       }
     }
-    results = [Observable.of(html)]
+    results = [html]
   }
 
-  return mergeResults(results)
+  return new RenderResult(
+    generateStaticHTML
+      ? (await observableToChunks(resultsToObservable(results))).join('')
+      : resultsToObservable(results)
+  )
 }
 
-function multiplexResult(result: RenderResult): RenderResult {
-  const chunks: Array<string> = []
-  const subscribers: Set<ZenObservable.SubscriptionObserver<string>> = new Set()
-  let terminator:
-    | ((subscriber: ZenObservable.SubscriptionObserver<string>) => void)
-    | null = null
+function resultsToObservable(
+  results: Array<string | Observable<string>>
+): Observable<string> {
+  const observables: Array<Observable<string>> = []
+  let stringBuffer: Array<string> | null = null
 
-  result.subscribe({
-    next(chunk) {
-      chunks.push(chunk)
-      subscribers.forEach((subscriber) => subscriber.next(chunk))
-    },
-    error(error) {
-      if (!terminator) {
-        terminator = (subscriber) => subscriber.error(error)
-        subscribers.forEach(terminator)
-        subscribers.clear()
+  for (const result of results) {
+    if (typeof result === 'string') {
+      stringBuffer = stringBuffer ?? []
+      stringBuffer.push(result)
+    } else {
+      if (stringBuffer) {
+        observables.push(Observable.from(stringBuffer))
+        stringBuffer = null
       }
-    },
-    complete() {
-      if (!terminator) {
-        terminator = (subscriber) => subscriber.complete()
-        subscribers.forEach(terminator)
-        subscribers.clear()
-      }
-    },
-  })
-
-  return new Observable((observer) => {
-    for (const chunk of chunks) {
-      if (observer.closed) {
-        return
-      }
-      observer.next(chunk)
+      observables.push(result)
     }
+  }
+  if (stringBuffer) {
+    observables.push(Observable.from(stringBuffer))
+  }
+  // @ts-ignore
+  return Observable.prototype.concat.call(...observables)
+}
 
-    if (terminator) {
-      terminator(observer)
-      return
-    }
-
-    subscribers.add(observer)
-    return () => {
-      subscribers.delete(observer)
-    }
-  })
+async function observableToChunks(
+  observable: Observable<string>
+): Promise<string[]> {
+  const chunks: string[] = []
+  await observable.forEach((chunk) => chunks.push(chunk))
+  return chunks
 }
 
 function errorToJSON(err: Error): Error {

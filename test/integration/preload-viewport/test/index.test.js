@@ -1,12 +1,14 @@
 /* eslint-env jest */
 
 import {
-  nextServer,
-  runNextCommand,
-  startApp,
-  stopApp,
+  findPort,
+  killApp,
+  nextBuild,
+  nextStart,
   waitFor,
 } from 'next-test-utils'
+import http from 'http'
+import httpProxy from 'http-proxy'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 import { readFile } from 'fs-extra'
@@ -14,24 +16,62 @@ import { readFile } from 'fs-extra'
 jest.setTimeout(1000 * 60 * 5)
 
 const appDir = join(__dirname, '../')
-let appPort
-let server
 let app
+let appPort
+let stallJs
+let proxyServer
 
 describe('Prefetching Links in viewport', () => {
   beforeAll(async () => {
-    await runNextCommand(['build', appDir])
+    await nextBuild(appDir)
+    const port = await findPort()
+    app = await nextStart(appDir, port)
+    appPort = await findPort()
 
-    app = nextServer({
-      dir: join(__dirname, '../'),
-      dev: false,
-      quiet: true,
+    const proxy = httpProxy.createProxyServer({
+      target: `http://localhost:${port}`,
     })
 
-    server = await startApp(app)
-    appPort = server.address().port
+    proxyServer = http.createServer(async (req, res) => {
+      if (stallJs && req.url.includes('chunks/pages/another')) {
+        console.log('stalling request for', req.url)
+        await new Promise((resolve) => setTimeout(resolve, 5 * 1000))
+      }
+      proxy.web(req, res)
+    })
+
+    proxy.on('error', (err) => {
+      console.warn('Failed to proxy', err)
+    })
+
+    await new Promise((resolve) => {
+      proxyServer.listen(appPort, () => resolve())
+    })
   })
-  afterAll(() => stopApp(server))
+  afterAll(async () => {
+    await killApp(app)
+    proxyServer.close()
+  })
+
+  it('should handle timed out prefetch correctly', async () => {
+    try {
+      stallJs = true
+      const browser = await webdriver(appPort, '/')
+
+      await browser.elementByCss('#scroll-to-another').click()
+      // wait for preload to timeout
+      await waitFor(6 * 1000)
+
+      await browser
+        .elementByCss('#link-another')
+        .click()
+        .waitForElementByCss('#another')
+
+      expect(await browser.elementByCss('#another').text()).toBe('Hello world')
+    } finally {
+      stallJs = false
+    }
+  })
 
   it('should prefetch with link in viewport onload', async () => {
     let browser
@@ -280,6 +320,7 @@ describe('Prefetching Links in viewport', () => {
 
     expect(await browser.eval('window.hadUnhandledReject')).toBeFalsy()
 
+    await browser.waitForElementByCss('#invalid-link')
     await browser.elementByCss('#invalid-link').moveTo()
     expect(await browser.eval('window.hadUnhandledReject')).toBeFalsy()
   })

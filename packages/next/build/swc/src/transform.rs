@@ -35,22 +35,17 @@ use crate::{
     styled_jsx::styled_jsx,
     util::{CtxtExt, MapErr},
 };
-use anyhow::{bail, Context as _, Error};
+use anyhow::{Context as _, Error};
 use napi::{CallContext, Env, JsBoolean, JsObject, JsString, Task};
 use std::sync::Arc;
-use swc::config::{BuiltConfig, Options};
-use swc::{try_with_handler, Compiler, TransformOutput};
-use swc_common::{chain, comments::Comment, errors::Handler, BytePos, FileName, SourceFile};
+use swc::{config::Options, try_with_handler, Compiler, TransformOutput};
+use swc_common::{chain, FileName, SourceFile};
 use swc_ecmascript::ast::Program;
-use swc_ecmascript::transforms::helpers::{self, Helpers};
-use swc_ecmascript::utils::HANDLER;
-use swc_ecmascript::visit::FoldWith;
+use swc_ecmascript::transforms::pass::noop;
 
 /// Input to transform
 #[derive(Debug)]
 pub enum Input {
-    /// json string
-    Program(String),
     /// Raw source code.
     Source(Arc<SourceFile>),
 }
@@ -68,14 +63,21 @@ impl Task for TransformTask {
     fn compute(&mut self) -> napi::Result<Self::Output> {
         try_with_handler(self.c.cm.clone(), |handler| {
             self.c.run(|| match self.input {
-                Input::Program(ref s) => {
-                    let program: Program =
-                        serde_json::from_str(&s).expect("failed to deserialize Program");
-                    // TODO: Source map
-                    self.c.process_js(handler, program, &self.options)
-                }
                 Input::Source(ref s) => {
-                    process_js_custom(&self.c, s.clone(), &self.options, &handler)
+                    let before_pass = chain!(
+                        hook_optimizer(),
+                        next_ssg(),
+                        amp_attributes(),
+                        next_dynamic(s.name.clone()),
+                        styled_jsx()
+                    );
+                    self.c.process_js_with_custom_pass(
+                        s.clone(),
+                        &handler,
+                        &self.options,
+                        before_pass,
+                        noop(),
+                    )
                 }
             })
         })
@@ -133,19 +135,15 @@ where
 
 #[js_function(4)]
 pub fn transform(cx: CallContext) -> napi::Result<JsObject> {
-    schedule_transform(cx, |c, src, is_module, options| {
-        let input = if is_module {
-            Input::Program(src)
-        } else {
-            Input::Source(c.cm.new_source_file(
-                if options.filename.is_empty() {
-                    FileName::Anon
-                } else {
-                    FileName::Real(options.filename.clone().into())
-                },
-                src,
-            ))
-        };
+    schedule_transform(cx, |c, src, _, options| {
+        let input = Input::Source(c.cm.new_source_file(
+            if options.filename.is_empty() {
+                FileName::Anon
+            } else {
+                FileName::Real(options.filename.clone().into())
+            },
+            src,
+        ));
 
         TransformTask {
             c: c.clone(),
@@ -166,90 +164,5 @@ pub fn transform_sync(cx: CallContext) -> napi::Result<JsObject> {
             },
             src,
         ))
-    })
-}
-
-fn process_js_custom(
-    compiler: &Arc<Compiler>,
-    source: Arc<SourceFile>,
-    options: &Options,
-    handler: &Handler,
-) -> Result<TransformOutput, Error> {
-    let config = compiler.run(|| compiler.config_for_file(handler, options, &source.name))?;
-    let config = match config {
-        Some(v) => v,
-        None => {
-            bail!("cannot process file because it's ignored by .swcrc")
-        }
-    };
-    let config = BuiltConfig {
-        pass: chain!(
-            hook_optimizer(),
-            next_ssg(),
-            amp_attributes(),
-            next_dynamic(source.name.clone()),
-            styled_jsx(),
-            config.pass
-        ),
-        syntax: config.syntax,
-        target: config.target,
-        minify: config.minify,
-        external_helpers: config.external_helpers,
-        source_maps: config.source_maps,
-        input_source_map: config.input_source_map,
-        is_module: config.is_module,
-        output_path: config.output_path,
-        preserve_comments: config.preserve_comments,
-        source_file_name: config.source_file_name,
-    };
-    //let orig = compiler.get_orig_src_map(&source,
-    // &options.config.input_source_map)?;
-    let program = compiler.parse_js(
-        source.clone(),
-        handler,
-        config.target,
-        config.syntax,
-        config.is_module,
-        true,
-    )?;
-
-    //compiler.process_js_inner(program, orig.as_ref(), config)
-
-    compiler.run(|| {
-        if config.minify {
-            let preserve_excl = |_: &BytePos, vc: &mut Vec<Comment>| -> bool {
-                vc.retain(|c: &Comment| c.text.starts_with("!"));
-                !vc.is_empty()
-            };
-            compiler.comments().leading.retain(preserve_excl);
-            compiler.comments().trailing.retain(preserve_excl);
-        }
-        let mut pass = config.pass;
-        let program = helpers::HELPERS.set(&Helpers::new(config.external_helpers), || {
-            HANDLER.set(handler, || {
-                // Fold module
-                program.fold_with(&mut pass)
-            })
-        });
-        // let source_map_names = {
-        //     let mut v = IdentCollector {
-        //         names: Default::default(),
-        //     };
-
-        //     program.visit_with(&Invalid { span: DUMMY_SP }, &mut v);
-
-        //     v.names
-        // };
-        compiler.print(
-            &program,
-            config.source_file_name.as_deref(),
-            config.output_path,
-            config.target,
-            config.source_maps,
-            &vec![],
-            None, // TODO: figure out sourcemaps
-            config.minify,
-            config.preserve_comments,
-        )
     })
 }
