@@ -216,6 +216,50 @@ describe('Required Server Files', () => {
     expect(await fs.exists(join(workDir, '.next/server'))).toBe(true)
   })
 
+  it('should set correct SWR headers with notFound gsp', async () => {
+    await fs.writeFile(join(workDir, 'data.txt'), 'show')
+
+    const res = await fetchViaHTTP(appPort, '/gsp', undefined, {
+      redirect: 'manual ',
+    })
+    expect(res.status).toBe(200)
+    expect(res.headers.get('cache-control')).toBe(
+      's-maxage=1, stale-while-revalidate'
+    )
+
+    await fs.writeFile(join(workDir, 'data.txt'), 'hide')
+
+    const res2 = await fetchViaHTTP(appPort, '/gsp', undefined, {
+      redirect: 'manual ',
+    })
+    expect(res2.status).toBe(404)
+    expect(res2.headers.get('cache-control')).toBe(
+      's-maxage=1, stale-while-revalidate'
+    )
+  })
+
+  it('should set correct SWR headers with notFound gssp', async () => {
+    await fs.writeFile(join(workDir, 'data.txt'), 'show')
+
+    const res = await fetchViaHTTP(appPort, '/gssp', undefined, {
+      redirect: 'manual ',
+    })
+    expect(res.status).toBe(200)
+    expect(res.headers.get('cache-control')).toBe(
+      's-maxage=1, stale-while-revalidate'
+    )
+
+    await fs.writeFile(join(workDir, 'data.txt'), 'hide')
+
+    const res2 = await fetchViaHTTP(appPort, '/gssp', undefined, {
+      redirect: 'manual ',
+    })
+    expect(res2.status).toBe(404)
+    expect(res2.headers.get('cache-control')).toBe(
+      's-maxage=1, stale-while-revalidate'
+    )
+  })
+
   it('should render SSR page correctly', async () => {
     const html = await renderViaHTTP(appPort, '/')
     const $ = cheerio.load(html)
