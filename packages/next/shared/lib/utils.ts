@@ -77,7 +77,7 @@ export type RenderPageResult = {
 
 export type RenderPage = (
   options?: ComponentsEnhancer
-) => RenderPageResult | Promise<RenderPageResult>
+) => DocumentInitialProps | Promise<DocumentInitialProps>
 
 export type BaseContext = {
   res?: ServerResponse
@@ -178,6 +178,7 @@ export type AppPropsType<
 
 export type DocumentContext = NextPageContext & {
   renderPage: RenderPage
+  defaultGetInitialProps(ctx: DocumentContext): Promise<DocumentInitialProps>
 }
 
 export type DocumentInitialProps = RenderPageResult & {

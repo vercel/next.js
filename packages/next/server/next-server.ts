@@ -76,7 +76,7 @@ import { sendRenderResult, setRevalidateHeaders } from './send-payload'
 import { serveStatic } from './serve-static'
 import { IncrementalCache } from './incremental-cache'
 import { execOnce } from '../shared/lib/utils'
-import { isBlockedPage } from './utils'
+import { isBlockedPage, isBot } from './utils'
 import RenderResult from './render-result'
 import { loadEnvConfig } from '@next/env'
 import './node-polyfill-fetch'
@@ -1250,12 +1250,12 @@ export default class Server {
       query: ParsedUrlQuery
     }
   ): Promise<void> {
+    const userAgent = partialContext.req.headers['user-agent']
     const ctx = {
       ...partialContext,
       renderOpts: {
         ...this.renderOpts,
-        // TODO: Determine when dynamic HTML is allowed
-        supportsDynamicHTML: false,
+        supportsDynamicHTML: userAgent ? !isBot(userAgent) : false,
       },
     } as const
     const payload = await fn(ctx)
@@ -1819,8 +1819,10 @@ export default class Server {
       typeof revalidate !== 'undefined' &&
       (!this.renderOpts.dev || (hasServerProps && !isDataReq))
         ? {
-            // When the page is 404 cache-control should not be added
-            private: isPreviewMode || is404Page,
+            // When the page is 404 cache-control should not be added unless
+            // we are rendering the 404 page for notFound: true which should
+            // cache according to revalidate correctly
+            private: isPreviewMode || (is404Page && cachedData),
             stateful: !isSSG,
             revalidate,
           }
@@ -1835,10 +1837,15 @@ export default class Server {
         res.end('{"notFound":true}')
         return null
       } else {
-        await this.render404(req, res, {
-          pathname,
-          query,
-        } as UrlWithParsedQuery)
+        await this.render404(
+          req,
+          res,
+          {
+            pathname,
+            query,
+          } as UrlWithParsedQuery,
+          false
+        )
         return null
       }
     } else if (cachedData.kind === 'REDIRECT') {
