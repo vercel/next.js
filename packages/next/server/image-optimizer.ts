@@ -490,7 +490,7 @@ function getFileNameWithExtension(
     return
   }
 
-  const [fileName] = fileNameWithExtension.split('.')
+  const fileName = fileNameWithExtension.split('.').slice(0, -1).join('.')
   const extension = getExtension(contentType)
   return `${fileName}.${extension}`
 }
