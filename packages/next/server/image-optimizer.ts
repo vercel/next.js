@@ -480,21 +480,6 @@ async function writeToCacheDir(
   await promises.writeFile(filename, buffer)
 }
 
-function getFileNameWithExtension(
-  url: string,
-  contentType: string | null
-): string | void {
-  const [urlWithoutQueryParams] = url.split('?')
-  const fileNameWithExtension = urlWithoutQueryParams.split('/').pop()
-  if (!contentType || !fileNameWithExtension) {
-    return
-  }
-
-  const fileName = fileNameWithExtension.split('.').slice(0, -1).join('.')
-  const extension = getExtension(contentType)
-  return `${fileName}.${extension}`
-}
-
 function setResponseHeaders(
   req: IncomingMessage,
   res: ServerResponse,
@@ -619,6 +604,21 @@ export function detectContentType(buffer: Buffer) {
     return SVG
   }
   return null
+}
+
+export function getFileNameWithExtension(
+  url: string,
+  contentType: string | null
+): string | void {
+  const [urlWithoutQueryParams] = url.split('?')
+  const fileNameWithExtension = urlWithoutQueryParams.split('/').pop()
+  if (!contentType || !fileNameWithExtension) {
+    return
+  }
+
+  const fileName = fileNameWithExtension.split('.').slice(0, -1).join('.')
+  const extension = getExtension(contentType)
+  return `${fileName}.${extension}`
 }
 
 export function getMaxAge(str: string | null): number {
