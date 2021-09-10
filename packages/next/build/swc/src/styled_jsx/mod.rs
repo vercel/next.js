@@ -117,7 +117,6 @@ impl Fold for StyledJSXTransformer {
               ..
             }) => {
               if sym == "className" {
-                // TODO: handle maybe no value
                 existing_index = Some(i);
                 class_name_expr = match value {
                   Some(JSXAttrValue::Lit(str_lit)) => Some(Expr::Lit(str_lit.clone())),
@@ -126,7 +125,7 @@ impl Fold for StyledJSXTransformer {
                     ..
                   })) => Some(*expr.clone()),
                   None => None,
-                  _ => panic!("Not implemented"),
+                  _ => None,
                 };
                 break;
               }
@@ -186,7 +185,7 @@ impl Fold for StyledJSXTransformer {
                 ));
               }
             }
-            _ => panic!("Not implemented"),
+            _ => {}
           };
         }
 
@@ -264,6 +263,7 @@ impl Fold for StyledJSXTransformer {
 
     decl
   }
+
   fn fold_expr(&mut self, expr: Expr) -> Expr {
     let expr = expr.fold_children_with(self);
     match expr {
@@ -312,7 +312,7 @@ impl Fold for StyledJSXTransformer {
           self.add_hash = Some((sym.to_string(), external_hash.clone()));
           self.external_hash = None;
         }
-        _ => panic!("Not supported"),
+        _ => {}
       }
     }
     declarator
@@ -556,6 +556,7 @@ impl StyledJSXTransformer {
     self.add_hash = None;
     add_hash
   }
+
   fn process_tagged_template_expr(&mut self, tagged_tpl: &TaggedTpl) -> Result<Expr, Error> {
     let style = self.get_jsx_style(&Expr::Tpl(tagged_tpl.tpl.clone()), false);
     let styles = vec![style];
@@ -725,7 +726,6 @@ fn get_style_expr(el: &JSXElement) -> &Expr {
 }
 
 fn join_spreads(spreads: Vec<Expr>) -> Expr {
-  // TODO: make sure this won't panic
   let mut new_expr = spreads[0].clone();
   for i in 1..spreads.len() {
     new_expr = Expr::Bin(BinExpr {
