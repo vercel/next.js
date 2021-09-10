@@ -1,8 +1,9 @@
 import http from 'http'
 import next from '../next'
+import { ServerConstructor } from '../next-server'
 
 export default async function start(
-  serverOptions: any,
+  serverOptions: ServerConstructor,
   port?: number,
   hostname?: string
 ) {

@@ -11,13 +11,6 @@ import {
 import { IncomingMessage, ServerResponse } from 'http'
 import { UrlWithParsedQuery } from 'url'
 
-type NextServerConstructor = ServerConstructor & {
-  /**
-   * Whether to launch Next.js in dev mode - @default false
-   */
-  dev?: boolean
-}
-
 let ServerImpl: typeof Server
 
 const getServerImpl = async () => {
@@ -31,9 +24,9 @@ export class NextServer {
   private server?: Server
   private reqHandlerPromise?: Promise<any>
   private preparedAssetPrefix?: string
-  options: NextServerConstructor
+  options: ServerConstructor
 
-  constructor(options: NextServerConstructor) {
+  constructor(options: ServerConstructor) {
     this.options = options
   }
 
@@ -103,7 +96,7 @@ export class NextServer {
   }
 
   private async createServer(
-    options: NextServerConstructor & {
+    options: ServerConstructor & {
       conf: NextConfig
       isNextDevCommand?: boolean
     }
@@ -154,7 +147,7 @@ export class NextServer {
 }
 
 // This file is used for when users run `require('next')`
-function createServer(options: NextServerConstructor): NextServer {
+function createServer(options: ServerConstructor): NextServer {
   const standardEnv = ['production', 'development', 'test']
 
   if (options == null) {
