@@ -20,7 +20,7 @@ Create a file named `.vscode/launch.json` at the root of your project with the f
       "name": "Next.js: debug server-side",
       "type": "node-terminal",
       "request": "launch",
-      "command": "next dev"
+      "command": "npm run dev"
     },
     {
       "name": "Next.js: debug client-side",
@@ -32,7 +32,7 @@ Create a file named `.vscode/launch.json` at the root of your project with the f
       "name": "Next.js: debug full stack",
       "type": "node-terminal",
       "request": "launch",
-      "command": "next dev",
+      "command": "npm run dev",
       "console": "integratedTerminal",
       "serverReadyAction": {
         "pattern": "started server on .+, url: (https?://.+)",
@@ -44,7 +44,7 @@ Create a file named `.vscode/launch.json` at the root of your project with the f
 }
 ```
 
-If you're using `npm run dev` or `yarn dev` (see [Getting Started](/docs/getting-started)), replace both instances of `next dev` above with `npm run dev` or `yarn dev`, whichever you're using. If you're changing the port number your application starts on (see [Next.js CLI: Development](/docs/api-reference/cli#development)), replace the `3000` in `http://localhost:3000` with the port you're using instead.
+`npm run dev` can be replaced with `yarn dev` if you're using Yarn. If you're [changing the port number](<(/docs/api-reference/cli#development)>) your application starts on, replace the `3000` in `http://localhost:3000` with the port you're using instead.
 
 Now go to the Debug panel (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>D</kbd> on Windows/Linux, <kbd>⇧</kbd>+<kbd>⌘</kbd>+<kbd>D</kbd> on macOS), select a launch configuration, then press <kbd>F5</kbd> or select **Debug: Start Debugging** from the Command Palette to start your debugging session.
 
