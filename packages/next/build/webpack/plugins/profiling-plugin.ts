@@ -44,7 +44,7 @@ export class ProfilingPlugin {
     startHook.tap(pluginName, () => {
       span = parentSpan
         ? parentSpan().traceChild(spanName, attrs ? attrs() : attrs)
-        : trace(spanName, undefined, attrs ? attrs() : attrs)
+        : this.runWebpackSpan.traceChild(spanName, attrs ? attrs() : attrs)
 
       onSetSpan?.(span)
     })
