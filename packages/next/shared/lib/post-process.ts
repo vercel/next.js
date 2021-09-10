@@ -141,6 +141,7 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
           `<style data-href="${url}"${nonceStr}>${fontContent}</style></head>`
         )
 
+        // Remove the invalid link tags from the resultant HTML.
         result = result.replace(element.outerHTML, '')
 
         const provider = OPTIMIZED_FONT_PROVIDERS.find((p) =>
