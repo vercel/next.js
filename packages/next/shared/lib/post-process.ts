@@ -25,6 +25,12 @@ type middlewareSignature = {
   condition: ((options: postProcessOptions) => boolean) | null
 }
 
+type fontDefinition = {
+  url: string,
+  nonce: string | undefined,
+  element: HTMLElement
+}
+
 const middlewareRegistry: Array<middlewareSignature> = []
 
 function registerPostProcessor(
@@ -74,7 +80,7 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
     if (!options.getFontDefinition) {
       return
     }
-    const fontDefinitions: (string | undefined)[][] = []
+    const fontDefinitions: (fontDefinition)[] = []
     // collecting all the requested font definitions
     originalDom
       .querySelectorAll('link')
@@ -92,7 +98,7 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
         const nonce = element.getAttribute('nonce')
 
         if (url) {
-          fontDefinitions.push([url, nonce])
+          fontDefinitions.push({url, nonce, element})
         }
       })
 
@@ -100,7 +106,7 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
   }
   mutate = async (
     markup: string,
-    fontDefinitions: string[][],
+    fontDefinitions: (fontDefinition)[],
     options: renderOptions
   ) => {
     let result = markup
@@ -111,7 +117,7 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
     }
 
     fontDefinitions.forEach((fontDef) => {
-      const [url, nonce] = fontDef
+      const {url, nonce, element} = fontDef
       const fallBackLinkTag = `<link rel="stylesheet" href="${url}"/>`
       if (
         result.indexOf(`<style data-href="${url}">`) > -1 ||
@@ -133,6 +139,11 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
         result = result.replace(
           '</head>',
           `<style data-href="${url}"${nonceStr}>${fontContent}</style></head>`
+        )
+
+        result = result.replace(
+          element.outerHTML,
+          ''
         )
 
         const provider = OPTIMIZED_FONT_PROVIDERS.find((p) =>

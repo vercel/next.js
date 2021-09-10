@@ -96,12 +96,10 @@ describe('Font Optimization', () => {
           const link = $(
             `link[rel="stylesheet"][data-href="${staticHeadFont}"]`
           )
-          const nonce = link.attr('nonce')
           const style = $(`style[data-href="${staticHeadFont}"]`)
           const styleNonce = style.attr('nonce')
 
-          expect(link).toBeDefined()
-          expect(nonce).toBe('VmVyY2Vs')
+          expect(link).toBeUndefined()
           expect(styleNonce).toBe('VmVyY2Vs')
         })
 
@@ -111,9 +109,7 @@ describe('Font Optimization', () => {
 
           const $ = cheerio.load(html)
 
-          expect($(`link[data-href="${withFont}"]`).attr().rel).toBe(
-            'stylesheet'
-          )
+          expect($(`link[data-href="${withFont}"]`)).toBeUndefined()
 
           expect(html).toMatch(withFontPattern)
 
@@ -121,7 +117,7 @@ describe('Font Optimization', () => {
 
           const $2 = cheerio.load(htmlWithoutFont)
 
-          expect($2(`link[data-href="${withFont}"]`).attr()).toBeUndefined()
+          expect($2(`link[data-href="${withFont}"]`)).toBeUndefined()
           expect(htmlWithoutFont).not.toMatch(withFontPattern)
         })
 
@@ -131,7 +127,7 @@ describe('Font Optimization', () => {
           expect(await fsExists(builtPage('font-manifest.json'))).toBe(true)
           expect(
             $(`link[rel=stylesheet][data-href="${staticFont}"]`).length
-          ).toBe(1)
+          ).toBe(0)
           expect(html).toMatch(staticPattern)
         })
 
@@ -141,7 +137,7 @@ describe('Font Optimization', () => {
           expect(await fsExists(builtPage('font-manifest.json'))).toBe(true)
           expect(
             $(`link[rel=stylesheet][data-href="${staticHeadFont}"]`).length
-          ).toBe(1)
+          ).toBe(0)
           expect(html).toMatch(staticHeadPattern)
         })
 
@@ -160,14 +156,14 @@ describe('Font Optimization', () => {
           const $ = cheerio.load(html)
           expect(
             $(`link[rel=preconnect][href="${preconnectUrl}"]`).length
-          ).toBe(1)
+          ).toBe(0)
         })
 
         it('should skip this optimization for AMP pages', async () => {
           const html = await renderViaHTTP(appPort, '/amp')
           const $ = cheerio.load(html)
           expect(await fsExists(builtPage('font-manifest.json'))).toBe(true)
-          expect($(`link[rel=stylesheet][href="${staticFont}"]`).length).toBe(1)
+          expect($(`link[rel=stylesheet][href="${staticFont}"]`).length).toBe(0)
           expect(html).not.toMatch(staticPattern)
         })
 
