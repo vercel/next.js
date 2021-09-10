@@ -1,5 +1,5 @@
 import { superTokensNextWrapper } from 'supertokens-node/nextjs'
-import { verifySession } from 'supertokens-node/recipe/session'
+import { verifySession } from 'supertokens-node/recipe/session/framework/express'
 import supertokens from 'supertokens-node'
 import * as SuperTokensConfig from '../../config/supertokensConfig'
 
