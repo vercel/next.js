@@ -68,11 +68,11 @@ function toBuffer(t) {
 }
 
 export async function minify(src, opts) {
-  return bindings.minify(src, toBuffer(opts ?? {}))
+  return bindings.minify(toBuffer(src), toBuffer(opts ?? {}))
 }
 
 export function minifySync(src, opts) {
-  return bindings.minifySync(src, toBuffer(opts ?? {}))
+  return bindings.minifySync(toBuffer(src), toBuffer(opts ?? {}))
 }
 
 module.exports.transform = transform
