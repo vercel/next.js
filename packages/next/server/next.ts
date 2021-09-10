@@ -157,7 +157,7 @@ function createServer(options: ServerConstructor): NextServer {
   }
 
   if (
-    !(options as any).isNextDevCommand &&
+    !options.isNextDevCommand &&
     process.env.NODE_ENV &&
     !standardEnv.includes(process.env.NODE_ENV)
   ) {

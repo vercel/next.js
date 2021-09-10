@@ -131,6 +131,7 @@ export type ServerConstructor = {
   conf?: NextConfig | null
   dev?: boolean
   customServer?: boolean
+  isNextDevCommand?: boolean
 }
 
 type RequestContext = {
