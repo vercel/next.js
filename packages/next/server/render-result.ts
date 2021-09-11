@@ -1,41 +1,41 @@
 import { ServerResponse } from 'http'
-import Observable from 'next/dist/compiled/zen-observable'
+import { Writable } from 'stream'
+
+export type NodeWritablePiper = (
+  res: Writable,
+  next: (err?: Error) => void
+) => void
 
 export default class RenderResult {
-  _response: string | Observable<string>
+  _result: string | NodeWritablePiper
 
-  constructor(response: string | Observable<string>) {
-    this._response = response
+  constructor(response: string | NodeWritablePiper) {
+    this._result = response
   }
 
   toUnchunkedString(): string {
-    if (typeof this._response !== 'string') {
+    if (typeof this._result !== 'string') {
       throw new Error(
         'invariant: dynamic responses cannot be unchunked. This is a bug in Next.js'
       )
     }
-    return this._response
+    return this._result
   }
 
-  async pipe(res: ServerResponse): Promise<void> {
-    if (typeof this._response === 'string') {
+  pipe(res: ServerResponse): Promise<void> {
+    if (typeof this._result === 'string') {
       throw new Error(
         'invariant: static responses cannot be piped. This is a bug in Next.js'
       )
     }
-    const maybeFlush =
-      typeof (res as any).flush === 'function'
-        ? () => (res as any).flush()
-        : () => {}
-    await this._response.forEach((chunk) => {
-      res.write(chunk)
-      maybeFlush()
+    const response = this._result
+    return new Promise((resolve, reject) => {
+      response(res, (err) => (err ? reject(err) : resolve()))
     })
-    res.end()
   }
 
   isDynamic(): boolean {
-    return typeof this._response !== 'string'
+    return typeof this._result !== 'string'
   }
 
   static fromStatic(value: string): RenderResult {
