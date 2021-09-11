@@ -575,24 +575,13 @@ export async function renderToHTML(
   if (isSSG && !isFallback) {
     let data: UnwrapPromise<ReturnType<GetStaticProps>>
 
-    try {
-      data = await getStaticProps!({
-        ...(pageIsDynamic ? { params: query as ParsedUrlQuery } : undefined),
-        ...(isPreview
-          ? { preview: true, previewData: previewData }
-          : undefined),
-        locales: renderOpts.locales,
-        locale: renderOpts.locale,
-        defaultLocale: renderOpts.defaultLocale,
-      })
-    } catch (staticPropsError) {
-      // remove not found error code to prevent triggering legacy
-      // 404 rendering
-      if (staticPropsError.code === 'ENOENT') {
-        delete staticPropsError.code
-      }
-      throw staticPropsError
-    }
+    data = await getStaticProps!({
+      ...(pageIsDynamic ? { params: query as ParsedUrlQuery } : undefined),
+      ...(isPreview ? { preview: true, previewData: previewData } : undefined),
+      locales: renderOpts.locales,
+      locale: renderOpts.locale,
+      defaultLocale: renderOpts.defaultLocale,
+    })
 
     if (data == null) {
       throw new Error(GSP_NO_RETURNED_VALUE)
@@ -742,30 +731,21 @@ export async function renderToHTML(
   if (getServerSideProps && !isFallback) {
     let data: UnwrapPromise<ReturnType<GetServerSideProps>>
 
-    try {
-      data = await getServerSideProps({
-        req: req as IncomingMessage & {
-          cookies: NextApiRequestCookies
-        },
-        res,
-        query,
-        resolvedUrl: renderOpts.resolvedUrl as string,
-        ...(pageIsDynamic ? { params: params as ParsedUrlQuery } : undefined),
-        ...(previewData !== false
-          ? { preview: true, previewData: previewData }
-          : undefined),
-        locales: renderOpts.locales,
-        locale: renderOpts.locale,
-        defaultLocale: renderOpts.defaultLocale,
-      })
-    } catch (serverSidePropsError) {
-      // remove not found error code to prevent triggering legacy
-      // 404 rendering
-      if (serverSidePropsError.code === 'ENOENT') {
-        delete serverSidePropsError.code
-      }
-      throw serverSidePropsError
-    }
+    data = await getServerSideProps({
+      req: req as IncomingMessage & {
+        cookies: NextApiRequestCookies
+      },
+      res,
+      query,
+      resolvedUrl: renderOpts.resolvedUrl as string,
+      ...(pageIsDynamic ? { params: params as ParsedUrlQuery } : undefined),
+      ...(previewData !== false
+        ? { preview: true, previewData: previewData }
+        : undefined),
+      locales: renderOpts.locales,
+      locale: renderOpts.locale,
+      defaultLocale: renderOpts.defaultLocale,
+    })
 
     if (data == null) {
       throw new Error(GSSP_NO_RETURNED_VALUE)

@@ -433,6 +433,7 @@ export const ST =
   typeof performance.measure === 'function'
 
 export class DecodeError extends Error {}
+export class PageNotFoundError extends Error {}
 
 export const HtmlContext = createContext<HtmlProps>(null as any)
 if (process.env.NODE_ENV !== 'production') {

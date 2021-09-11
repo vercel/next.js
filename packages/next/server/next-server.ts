@@ -47,6 +47,7 @@ import {
   NextApiRequest,
   NextApiResponse,
   normalizeRepeatedSlashes,
+  PageNotFoundError,
 } from '../shared/lib/utils'
 import {
   apiResolver,
@@ -1099,7 +1100,7 @@ export default class Server {
     try {
       builtPagePath = await this.getPagePath(page)
     } catch (err) {
-      if (err.code === 'ENOENT') {
+      if (err instanceof PageNotFoundError) {
         return false
       }
       throw err
@@ -1412,7 +1413,7 @@ export default class Server {
           },
         }
       } catch (err) {
-        if (err.code !== 'ENOENT') throw err
+        if (!(err instanceof PageNotFoundError)) throw err
       }
     }
     return null
@@ -2167,7 +2168,7 @@ export default class Server {
     try {
       await serveStatic(req, res, path)
     } catch (err) {
-      if (err.code === 'ENOENT' || err.statusCode === 404) {
+      if (err instanceof PageNotFoundError || err.statusCode === 404) {
         this.render404(req, res, parsedUrl)
       } else if (err.statusCode === 412) {
         res.statusCode = 412

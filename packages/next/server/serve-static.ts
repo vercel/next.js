@@ -1,5 +1,6 @@
 import { IncomingMessage, ServerResponse } from 'http'
 import send from 'next/dist/compiled/send'
+import { PageNotFoundError } from '../shared/lib/utils'
 
 export function serveStatic(
   req: IncomingMessage,
@@ -10,9 +11,7 @@ export function serveStatic(
     send(req, path)
       .on('directory', () => {
         // We don't allow directories to be read.
-        const err: any = new Error('No directory access')
-        err.code = 'ENOENT'
-        reject(err)
+        reject(new PageNotFoundError('No directory access'))
       })
       .on('error', reject)
       .pipe(res)

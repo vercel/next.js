@@ -26,7 +26,7 @@ import { stringify } from 'querystring'
 import { difference } from '../../build/utils'
 import { NextConfigComplete } from '../config-shared'
 import { CustomRoutes } from '../../lib/load-custom-routes'
-import { DecodeError } from '../../shared/lib/utils'
+import { DecodeError, PageNotFoundError } from '../../shared/lib/utils'
 import { Span, trace } from '../../trace'
 
 export async function renderScriptError(
@@ -40,7 +40,7 @@ export async function renderScriptError(
     'no-cache, no-store, max-age=0, must-revalidate'
   )
 
-  if ((error as any).code === 'ENOENT') {
+  if (error instanceof PageNotFoundError) {
     res.statusCode = 404
     res.end('404 - Not Found')
     return

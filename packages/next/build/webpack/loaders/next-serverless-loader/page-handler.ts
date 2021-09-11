@@ -1,6 +1,10 @@
 import { IncomingMessage, ServerResponse } from 'http'
 import { parse as parseUrl, format as formatUrl, UrlWithParsedQuery } from 'url'
-import { DecodeError, isResSent } from '../../../../shared/lib/utils'
+import {
+  DecodeError,
+  isResSent,
+  PageNotFoundError,
+} from '../../../../shared/lib/utils'
 import { sendRenderResult } from '../../../../server/send-payload'
 import { getUtils, vercelHeader, ServerlessHandlerCtx } from './utils'
 
@@ -406,7 +410,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
         parsedUrl = parseUrl(req.url!, true)
       }
 
-      if (err.code === 'ENOENT') {
+      if (err instanceof PageNotFoundError) {
         res.statusCode = 404
       } else if (err instanceof DecodeError) {
         res.statusCode = 400

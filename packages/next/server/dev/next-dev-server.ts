@@ -47,7 +47,7 @@ import {
   LoadComponentsReturnType,
   loadDefaultErrorComponents,
 } from '../load-components'
-import { DecodeError } from '../../shared/lib/utils'
+import { DecodeError, PageNotFoundError } from '../../shared/lib/utils'
 import { parseStack } from '@next/react-dev-overlay/lib/internal/helpers/parseStack'
 import {
   createOriginalStackFrame,
@@ -709,10 +709,10 @@ export default class DevServer extends Server {
       await this.hotReloader!.ensurePage(pathname)
       return super.findPageComponents(pathname, query, params)
     } catch (err) {
-      if ((err as any).code !== 'ENOENT') {
-        throw err
+      if (err instanceof PageNotFoundError) {
+        return null
       }
-      return null
+      throw err
     }
   }
 

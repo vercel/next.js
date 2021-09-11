@@ -9,11 +9,10 @@ import {
 import { normalizePagePath, denormalizePagePath } from './normalize-page-path'
 import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
+import { PageNotFoundError } from '../shared/lib/utils'
 
 export function pageNotFoundError(page: string): Error {
-  const err: any = new Error(`Cannot find module for page: ${page}`)
-  err.code = 'ENOENT'
-  return err
+  return new PageNotFoundError(`Cannot find module for page: ${page}`)
 }
 
 export function getPagePath(
