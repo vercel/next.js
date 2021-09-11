@@ -127,12 +127,14 @@ USER nextjs
 
 EXPOSE 3000
 
+ENV PORT 3000
+
 # Next.js collects completely anonymous telemetry data about general usage.
 # Learn more here: https://nextjs.org/telemetry
 # Uncomment the following line in case you want to disable telemetry.
 # ENV NEXT_TELEMETRY_DISABLED 1
 
-CMD ["yarn", "start"]
+CMD ["node_modules/.bin/next", "start"]
 ```
 
 Make sure to place this Dockerfile in the root folder of your project.
