@@ -262,7 +262,7 @@ Other properties on the `<Image />` component will be passed to the underlying
 
 ## Styling
 
-`next/image` wraps the `img` element with other `div` elements to maintain the aspect ratio of the image and prevent [Cumulative Layout Shift](https://vercel.com/blog/core-web-vitals#cumulative-layout-shift).
+`next/image` wraps the `img` element with a single `div` element to maintain the aspect ratio of the image and prevent [Cumulative Layout Shift](https://vercel.com/blog/core-web-vitals#cumulative-layout-shift).
 
 To add styles to the underlying `img` element, pass the `className` prop to the `<Image />` component. Then, use Next.js' [built-in CSS support](/docs/basic-features/built-in-css-support.md) to add rules to that class.
 
