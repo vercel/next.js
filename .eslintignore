@@ -26,3 +26,5 @@ packages/create-next-app/templates/**
 test/integration/eslint/**
 test-timings.json
 packages/next/build/swc/tests/fixture/**
+bench/nested-deps/pages/**
+bench/nested-deps/components/**
