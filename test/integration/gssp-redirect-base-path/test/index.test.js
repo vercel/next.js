@@ -204,7 +204,7 @@ const runTests = (isDev) => {
 
     const curUrl = await browser.url()
     const { pathname } = url.parse(curUrl)
-    expect(pathname).toBe('/missing')
+    expect(pathname).toBe('/docs/missing')
   })
 
   it('should apply redirect when fallback GSP page is visited directly (external domain)', async () => {

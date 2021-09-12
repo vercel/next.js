@@ -39,7 +39,7 @@ module.exports = {
 }
 ```
 
-You can [read more](https://nextjs.org/docs/advanced-features/customizing-postcss-config) about configuring PostCSS in Next.js [here](https://nextjs.org/docs/advanced-features/customizing-postcss-config).
+You can [read more about configuring PostCSS in Next.js here](https://nextjs.org/docs/advanced-features/customizing-postcss-config).
 
 #### Common Errors
 

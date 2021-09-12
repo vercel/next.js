@@ -6,11 +6,12 @@ class MyDocument extends Document {
   static async getInitialProps(context) {
     const renderPage = () =>
       context.renderPage({
-        enhanceApp: (App) => (props) => (
-          <StyletronProvider value={styletron}>
-            <App {...props} />
-          </StyletronProvider>
-        ),
+        enhanceApp: (App) => (props) =>
+          (
+            <StyletronProvider value={styletron}>
+              <App {...props} />
+            </StyletronProvider>
+          ),
       })
 
     const initialProps = await Document.getInitialProps({

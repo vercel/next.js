@@ -43,6 +43,7 @@ const hookPropertyMap = new Map(
     ],
     ['webpack/lib/GraphHelpers', 'next/dist/compiled/webpack/GraphHelpers'],
     ['webpack/lib/GraphHelpers.js', 'next/dist/compiled/webpack/GraphHelpers'],
+    ['webpack/lib/NormalModule', 'next/dist/compiled/webpack/NormalModule'],
     ['webpack-sources', 'next/dist/compiled/webpack/sources'],
     ['webpack-sources/lib', 'next/dist/compiled/webpack/sources'],
     ['webpack-sources/lib/index', 'next/dist/compiled/webpack/sources'],

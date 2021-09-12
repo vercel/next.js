@@ -54,6 +54,32 @@ afterAll(async () => {
 })
 
 const runTests = (dev = false) => {
+  it('should navigate back correctly to a dynamic route', async () => {
+    const browser = await webdriver(appPort, `${basePath}`)
+
+    expect(await browser.elementByCss('#index-page').text()).toContain(
+      'index page'
+    )
+
+    await browser.eval('window.beforeNav = 1')
+
+    await browser.eval('window.next.router.push("/catchall/first")')
+    await check(() => browser.elementByCss('p').text(), /first/)
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+
+    await browser.eval('window.next.router.push("/catchall/second")')
+    await check(() => browser.elementByCss('p').text(), /second/)
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+
+    await browser.eval('window.next.router.back()')
+    await check(() => browser.elementByCss('p').text(), /first/)
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+
+    await browser.eval('window.history.forward()')
+    await check(() => browser.elementByCss('p').text(), /second/)
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+  })
+
   if (dev) {
     describe('Hot Module Reloading', () => {
       describe('delete a page and add it back', () => {
@@ -193,7 +219,7 @@ const runTests = (dev = false) => {
         })
 
         // Added because of a regression in react-hot-loader, see issues: #4246 #4273
-        // Also: https://github.com/zeit/styled-jsx/issues/425
+        // Also: https://github.com/vercel/styled-jsx/issues/425
         it('should update styles correctly', async () => {
           let browser
           try {
@@ -232,7 +258,7 @@ const runTests = (dev = false) => {
         })
 
         // Added because of a regression in react-hot-loader, see issues: #4246 #4273
-        // Also: https://github.com/zeit/styled-jsx/issues/425
+        // Also: https://github.com/vercel/styled-jsx/issues/425
         it('should update styles in a stateful component correctly', async () => {
           let browser
           const pagePath = join(
@@ -271,7 +297,7 @@ const runTests = (dev = false) => {
         })
 
         // Added because of a regression in react-hot-loader, see issues: #4246 #4273
-        // Also: https://github.com/zeit/styled-jsx/issues/425
+        // Also: https://github.com/vercel/styled-jsx/issues/425
         it('should update styles in a dynamic component correctly', async () => {
           let browser = null
           let secondBrowser = null
@@ -301,9 +327,8 @@ const runTests = (dev = false) => {
             expect(initialHtml.includes('100px')).toBeTruthy()
 
             const $initialHtml = cheerio.load(initialHtml)
-            const initialServerClassName = $initialHtml(
-              '#dynamic-component'
-            ).attr('class')
+            const initialServerClassName =
+              $initialHtml('#dynamic-component').attr('class')
 
             expect(
               initialClientClassName === initialServerClassName
@@ -341,9 +366,8 @@ const runTests = (dev = false) => {
             )
             expect(editedHtml.includes('200px')).toBeTruthy()
             const $editedHtml = cheerio.load(editedHtml)
-            const editedServerClassName = $editedHtml(
-              '#dynamic-component'
-            ).attr('class')
+            const editedServerClassName =
+              $editedHtml('#dynamic-component').attr('class')
 
             expect(editedClientClassName === editedServerClassName).toBe(true)
           } finally {
@@ -574,7 +598,9 @@ const runTests = (dev = false) => {
     )
   })
 
-  it('should navigate back to a non-basepath 404 that starts with basepath', async () => {
+  // TODO: below test is incorrect and has been causing incorrect failures
+  // from the below check not being awaited
+  it.skip('should navigate back to a non-basepath 404 that starts with basepath', async () => {
     const browser = await webdriver(appPort, `${basePath}hello`)
     await browser.eval(() => (window.navigationMarker = true))
     await browser.eval(() => window.next.router.push('/hello'))

@@ -1,4 +1,4 @@
-const NodeAttributes = require('../utils/nodeAttributes.js')
+const NodeAttributes = require('../utils/node-attributes.js')
 
 module.exports = {
   meta: {
@@ -9,12 +9,15 @@ module.exports = {
     },
   },
   create: function (context) {
-    let documentImport = false
+    let documentImportName
     return {
       ImportDeclaration(node) {
         if (node.source.value === 'next/document') {
-          if (node.specifiers.some(({ local }) => local.name === 'Document')) {
-            documentImport = true
+          const documentImport = node.specifiers.find(
+            ({ type }) => type === 'ImportDefaultSpecifier'
+          )
+          if (documentImport && documentImport.local) {
+            documentImportName = documentImport.local.name
           }
         }
       },
@@ -25,10 +28,10 @@ module.exports = {
             (ancestorNode) =>
               ancestorNode.type === 'ClassDeclaration' &&
               ancestorNode.superClass &&
-              ancestorNode.superClass.name === 'Document'
+              ancestorNode.superClass.name === documentImportName
           )
 
-        if ((documentImport && documentClass) || node.name.name !== 'link') {
+        if (documentClass || node.name.name !== 'link') {
           return
         }
 
@@ -46,7 +49,7 @@ module.exports = {
           context.report({
             node,
             message:
-              'Custom fonts should be added at the document level. See https://nextjs.org/docs/messages/no-page-custom-font.',
+              'Custom fonts not added at the document level will only load for a single page. This is discouraged. See https://nextjs.org/docs/messages/no-page-custom-font.',
           })
         }
       },

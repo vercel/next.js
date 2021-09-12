@@ -23,10 +23,6 @@ In order to extend our usage of `webpack`, you can define a function that extend
 ```js
 module.exports = {
   webpack: (config, { buildId, dev, isServer, defaultLoaders, webpack }) => {
-    // Note: we provide webpack above so you should not `require` it
-    // Perform customizations to webpack config
-    config.plugins.push(new webpack.IgnorePlugin(/\/__tests__\//))
-
     // Important: return the modified config
     return config
   },

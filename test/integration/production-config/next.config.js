@@ -3,6 +3,8 @@ const withSass = require('@zeit/next-sass')
 const path = require('path')
 module.exports = withCSS(
   withSass({
+    // @zeit/next-sass is not supported with webpack 5
+    webpack5: false,
     env: {
       ...(process.env.ENABLE_ENV_FAIL_UNDERSCORE
         ? {

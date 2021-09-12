@@ -12,6 +12,12 @@ app as `process.env.RESTURL_SPEAKERS`.
 
 View the docs on [`next.config.js`](https://nextjs.org/docs/api-reference/next.config.js/introduction) for more information.
 
+## Preview
+
+Preview the example live on [StackBlitz](http://stackblitz.com/):
+
+[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-env-from-next-config-js)
+
 ## Deploy your own
 
 Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
@@ -33,7 +39,7 @@ Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&ut
 > ## Special note
 >
 > `next build` does a hard coded variable substitution into your JavaScript before the final bundle is created. This means
-> that if you change your environmental variables outside of your running app, such as in windows with `set` or lunix with `setenv`
+> that if you change your environmental variables outside of your running app, such as in windows with `set` or linux with `setenv`
 > those changes will not be reflected in your running application until a build happens again (with `next build`).
 
 ## Discussion regarding this example

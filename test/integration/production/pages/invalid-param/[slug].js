@@ -1,7 +1,7 @@
 import { useRouter } from 'next/router'
 
 export default function Page() {
-  return <p>hello {useRouter().query}</p>
+  return <p>hello {useRouter().query.slug}</p>
 }
 
 export const getServerSideProps = () => {

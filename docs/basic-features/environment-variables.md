@@ -16,7 +16,7 @@ description: Learn to add and access environment variables in your Next.js appli
 Next.js comes with built-in support for environment variables, which allows you to do the following:
 
 - [Use `.env.local` to load environment variables](#loading-environment-variables)
-- [Expose environment variables to the browser](#exposing-environment-variables-to-the-browser)
+- [Expose environment variables to the browser by prefixing with `NEXT_PUBLIC_`](#exposing-environment-variables-to-the-browser)
 
 ## Loading Environment Variables
 
@@ -78,7 +78,7 @@ export async function getStaticProps() {
 
 ## Exposing Environment Variables to the Browser
 
-By default all environment variables loaded through `.env.local` are only available in the Node.js environment, meaning they won't be exposed to the browser.
+By default environment variables are only available in the Node.js environment, meaning they won't be exposed to the browser.
 
 In order to expose a variable to the browser you have to prefix the variable with `NEXT_PUBLIC_`. For example:
 
@@ -110,7 +110,7 @@ Next.js allows you to set defaults in `.env` (all environments), `.env.developme
 
 `.env.local` always overrides the defaults set.
 
-> **Note**: `.env`, `.env.development`, and `.env.production` files should be included in your repository as they define defaults. **`.env*.local` should be added to `.gitignore`**, as those files are intended to be ignored. `.env.local` is where secrets can be stored.
+> **Note**: `.env`, `.env.development`, and `.env.production` files should be included in your repository as they define defaults. **`.env.*.local` should be added to `.gitignore`**, as those files are intended to be ignored. `.env.local` is where secrets can be stored.
 
 ## Environment Variables on Vercel
 

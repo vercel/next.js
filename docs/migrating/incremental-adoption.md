@@ -80,7 +80,7 @@ To learn more about rewrites, take a look at our [documentation](/docs/api-refer
 
 ### Micro-Frontends with Monorepos and Subdomains
 
-Next.js and [Vercel](https://vercel.com) make it easy to adopt [micro-frontends](https://martinfowler.com/articles/micro-frontends.html) and deploy as a [Monorepo](https://vercel.com/blog/monorepos). This allows you to use [subdomains](https://en.wikipedia.org/wiki/Subdomain) to adopt new applications incrementally. Some benefits of micro-frontends:
+Next.js and [Vercel](https://vercel.com) make it straightforward to adopt [micro-frontends](https://martinfowler.com/articles/micro-frontends.html) and deploy as a [Monorepo](https://vercel.com/blog/monorepos). This allows you to use [subdomains](https://en.wikipedia.org/wiki/Subdomain) to adopt new applications incrementally. Some benefits of micro-frontends:
 
 - Smaller, more cohesive and maintainable codebases.
 - More scalable organizations with decoupled, autonomous teams.

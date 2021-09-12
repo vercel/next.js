@@ -10,21 +10,81 @@ import {
   killApp,
   fetchViaHTTP,
   waitFor,
+  check,
 } from 'next-test-utils'
 
 jest.setTimeout(1000 * 60 * 2)
 const appDir = join(__dirname, '..')
+const dataFile = join(appDir, 'data.txt')
+
 let app
 let appPort
 
 const runTests = () => {
+  it('should revalidate page when notFund returned during build', async () => {
+    let res = await fetchViaHTTP(appPort, '/initial-not-found/first')
+    let $ = cheerio.load(await res.text())
+    expect(res.status).toBe(404)
+    expect($('#not-found').text()).toBe('404 page')
+
+    res = await fetchViaHTTP(appPort, '/initial-not-found/second')
+    $ = cheerio.load(await res.text())
+    expect(res.status).toBe(404)
+    expect($('#not-found').text()).toBe('404 page')
+
+    res = await fetchViaHTTP(appPort, '/initial-not-found')
+    $ = cheerio.load(await res.text())
+    expect(res.status).toBe(404)
+    expect($('#not-found').text()).toBe('404 page')
+
+    await fs.writeFile(dataFile, '200')
+
+    // wait for revalidation period
+    await waitFor(1500)
+    await fetchViaHTTP(appPort, '/initial-not-found/first')
+    await fetchViaHTTP(appPort, '/initial-not-found/second')
+    await fetchViaHTTP(appPort, '/initial-not-found')
+
+    // wait for revalidation to occur in background
+    try {
+      await check(async () => {
+        res = await fetchViaHTTP(appPort, '/initial-not-found/first')
+        $ = cheerio.load(await res.text())
+
+        return res.status === 200 && $('#data').text() === '200'
+          ? 'success'
+          : `${res.status} - ${$('#data').text()}`
+      }, 'success')
+
+      await check(async () => {
+        res = await fetchViaHTTP(appPort, '/initial-not-found/second')
+        $ = cheerio.load(await res.text())
+
+        return res.status === 200 && $('#data').text() === '200'
+          ? 'success'
+          : `${res.status} - ${$('#data').text()}`
+      }, 'success')
+
+      await check(async () => {
+        res = await fetchViaHTTP(appPort, '/initial-not-found')
+        $ = cheerio.load(await res.text())
+
+        return res.status === 200 && $('#data').text() === '200'
+          ? 'success'
+          : `${res.status} - ${$('#data').text()}`
+      }, 'success')
+    } finally {
+      await fs.writeFile(dataFile, '404')
+    }
+  })
+
   it('should revalidate after notFound is returned for fallback: blocking', async () => {
     let res = await fetchViaHTTP(appPort, '/fallback-blocking/hello')
     let $ = cheerio.load(await res.text())
 
-    expect(res.headers.get('cache-control')).toBe(
-      's-maxage=1, stale-while-revalidate'
-    )
+    const privateCache =
+      'private, no-cache, no-store, max-age=0, must-revalidate'
+    expect(res.headers.get('cache-control')).toBe(privateCache)
     expect(res.status).toBe(404)
     expect(JSON.parse($('#props').text()).notFound).toBe(true)
 
@@ -32,9 +92,7 @@ const runTests = () => {
     res = await fetchViaHTTP(appPort, '/fallback-blocking/hello')
     $ = cheerio.load(await res.text())
 
-    expect(res.headers.get('cache-control')).toBe(
-      's-maxage=1, stale-while-revalidate'
-    )
+    expect(res.headers.get('cache-control')).toBe(privateCache)
     expect(res.status).toBe(404)
     expect(JSON.parse($('#props').text()).notFound).toBe(true)
 
@@ -89,7 +147,7 @@ const runTests = () => {
     let $ = cheerio.load(await res.text())
 
     expect(res.headers.get('cache-control')).toBe(
-      's-maxage=1, stale-while-revalidate'
+      'private, no-cache, no-store, max-age=0, must-revalidate'
     )
     expect(res.status).toBe(404)
     expect(JSON.parse($('#props').text()).notFound).toBe(true)
@@ -140,9 +198,13 @@ describe('SSG notFound revalidate', () => {
   describe('production mode', () => {
     beforeAll(async () => {
       await fs.remove(join(appDir, '.next'))
-      await nextBuild(appDir)
+      await nextBuild(appDir, undefined, {
+        cwd: appDir,
+      })
       appPort = await findPort()
-      app = await nextStart(appDir, appPort)
+      app = await nextStart(appDir, appPort, {
+        cwd: appDir,
+      })
     })
     afterAll(() => killApp(app))
 

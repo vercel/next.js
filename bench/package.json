@@ -8,7 +8,7 @@
     "bench:recursive-copy": "node recursive-copy/run"
   },
   "dependencies": {
-    "fs-extra": "7.0.1",
-    "recursive-copy": "2.0.10"
+    "fs-extra": "10.0.0",
+    "recursive-copy": "2.0.11"
   }
 }

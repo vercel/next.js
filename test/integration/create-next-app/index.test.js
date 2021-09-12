@@ -6,8 +6,8 @@ import path from 'path'
 
 const cli = require.resolve('create-next-app/dist/index.js')
 
-const exampleRepo = 'https://github.com/vercel/next-learn-starter/tree/master'
-const examplePath = 'navigate-between-pages-starter'
+const exampleRepo = 'https://github.com/vercel/next.js/tree/canary'
+const examplePath = 'examples/basic-css'
 
 jest.setTimeout(1000 * 60 * 5)
 
@@ -17,7 +17,7 @@ async function usingTempDir(fn, options) {
   const folder = path.join(os.tmpdir(), Math.random().toString(36).substring(2))
   await fs.mkdirp(folder, options)
   try {
-    return await fn(folder)
+    await fn(folder)
   } finally {
     await fs.remove(folder)
   }
@@ -52,6 +52,12 @@ describe('create next app', () => {
         expect(
           fs.existsSync(path.join(cwd, projectName, 'pages/index.js'))
         ).toBeTruthy()
+        expect(
+          fs.existsSync(path.join(cwd, projectName, '.eslintrc.json'))
+        ).toBeTruthy()
+        expect(
+          fs.existsSync(path.join(cwd, projectName, 'node_modules/next'))
+        ).toBe(true)
       })
     })
   }
@@ -88,6 +94,9 @@ describe('create next app', () => {
       expect(
         fs.existsSync(path.join(cwd, projectName, '.gitignore'))
       ).toBeTruthy()
+      expect(
+        fs.existsSync(path.join(cwd, projectName, 'node_modules/next'))
+      ).toBe(true)
     })
   })
 
@@ -97,9 +106,9 @@ describe('create next app', () => {
       const res = await run([projectName, '--typescript'], { cwd })
       expect(res.exitCode).toBe(0)
 
-      expect(
-        fs.existsSync(path.join(cwd, projectName, 'package.json'))
-      ).toBeTruthy()
+      const pkgJSONPath = path.join(cwd, projectName, 'package.json')
+
+      expect(fs.existsSync(pkgJSONPath)).toBeTruthy()
       expect(
         fs.existsSync(path.join(cwd, projectName, 'pages/index.tsx'))
       ).toBeTruthy()
@@ -115,10 +124,31 @@ describe('create next app', () => {
       expect(
         fs.existsSync(path.join(cwd, projectName, 'next-env.d.ts'))
       ).toBeTruthy()
+      expect(
+        fs.existsSync(path.join(cwd, projectName, '.eslintrc.json'))
+      ).toBeTruthy()
+      expect(
+        fs.existsSync(path.join(cwd, projectName, 'node_modules/next'))
+      ).toBe(true)
       // check we copied default `.gitignore`
       expect(
         fs.existsSync(path.join(cwd, projectName, '.gitignore'))
       ).toBeTruthy()
+
+      // Assert for dependencies specific to the typescript template
+      const pkgJSON = require(pkgJSONPath)
+      expect(Object.keys(pkgJSON.dependencies)).toEqual([
+        'next',
+        'react',
+        'react-dom',
+      ])
+      expect(Object.keys(pkgJSON.devDependencies)).toEqual([
+        '@types/node',
+        '@types/react',
+        'eslint',
+        'eslint-config-next',
+        'typescript',
+      ])
     })
   })
 
@@ -142,6 +172,9 @@ describe('create next app', () => {
       expect(
         fs.existsSync(path.join(cwd, projectName, '.gitignore'))
       ).toBeTruthy()
+      expect(
+        fs.existsSync(path.join(cwd, projectName, 'node_modules/next'))
+      ).toBe(true)
     })
   })
 
@@ -165,6 +198,9 @@ describe('create next app', () => {
       expect(
         fs.existsSync(path.join(cwd, projectName, '.gitignore'))
       ).toBeTruthy()
+      expect(
+        fs.existsSync(path.join(cwd, projectName, 'node_modules/next'))
+      ).toBe(true)
     })
   })
 
@@ -194,6 +230,9 @@ describe('create next app', () => {
       expect(
         fs.existsSync(path.join(cwd, projectName, '.gitignore'))
       ).toBeTruthy()
+      expect(
+        fs.existsSync(path.join(cwd, projectName, 'node_modules/next'))
+      ).toBe(true)
     })
   })
 
@@ -212,7 +251,12 @@ describe('create next app', () => {
         )
         expect(res.exitCode).toBe(0)
 
-        const files = ['package.json', 'pages/index.js', '.gitignore']
+        const files = [
+          'package.json',
+          'pages/index.js',
+          '.gitignore',
+          '.eslintrc.json',
+        ]
         files.forEach((file) =>
           expect(fs.existsSync(path.join(cwd, projectName, file))).toBeTruthy()
         )
@@ -236,6 +280,9 @@ describe('create next app', () => {
       expect(
         fs.existsSync(path.join(cwd, projectName, '.gitignore'))
       ).toBeTruthy()
+      expect(
+        fs.existsSync(path.join(cwd, projectName, 'node_modules/next'))
+      ).toBe(true)
     })
   })
 
@@ -271,7 +318,13 @@ describe('create next app', () => {
       const res = await run(['.'], { cwd })
       expect(res.exitCode).toBe(0)
 
-      const files = ['package.json', 'pages/index.js', '.gitignore']
+      const files = [
+        'package.json',
+        'pages/index.js',
+        '.gitignore',
+        'node_modules/next',
+        '.eslintrc.json',
+      ]
       files.forEach((file) =>
         expect(fs.existsSync(path.join(cwd, file))).toBeTruthy()
       )
@@ -284,7 +337,13 @@ describe('create next app', () => {
       const res = await run([], { cwd, input: `${projectName}\n` })
       expect(res.exitCode).toBe(0)
 
-      const files = ['package.json', 'pages/index.js', '.gitignore']
+      const files = [
+        'package.json',
+        'pages/index.js',
+        '.gitignore',
+        'node_modules/next',
+        '.eslintrc.json',
+      ]
       files.forEach((file) =>
         expect(fs.existsSync(path.join(cwd, projectName, file))).toBeTruthy()
       )
@@ -301,7 +360,36 @@ describe('create next app', () => {
         'package.json',
         'pages/index.js',
         '.gitignore',
+        '.eslintrc.json',
         'package-lock.json',
+        'node_modules/next',
+      ]
+      files.forEach((file) =>
+        expect(fs.existsSync(path.join(cwd, projectName, file))).toBeTruthy()
+      )
+    })
+  })
+
+  it('should use npm as the package manager on supplying --use-npm with example', async () => {
+    await usingTempDir(async (cwd) => {
+      const projectName = 'use-npm'
+      const res = await run(
+        [
+          projectName,
+          '--use-npm',
+          '--example',
+          `${exampleRepo}/${examplePath}`,
+        ],
+        { cwd }
+      )
+      expect(res.exitCode).toBe(0)
+
+      const files = [
+        'package.json',
+        'pages/index.js',
+        '.gitignore',
+        'package-lock.json',
+        'node_modules/next',
       ]
       files.forEach((file) =>
         expect(fs.existsSync(path.join(cwd, projectName, file))).toBeTruthy()

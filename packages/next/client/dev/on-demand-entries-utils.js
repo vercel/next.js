@@ -19,7 +19,9 @@ export function setupPing(assetPrefix, pathnameFn, retry) {
   closePing()
 
   evtSource = getEventSourceWrapper({
-    path: `${assetPrefix}/_next/webpack-hmr?page=${currentPage}`,
+    path: `${assetPrefix}/_next/webpack-hmr?page=${encodeURIComponent(
+      currentPage
+    )}`,
     timeout: 5000,
   })
 
@@ -27,7 +29,10 @@ export function setupPing(assetPrefix, pathnameFn, retry) {
     if (event.data.indexOf('{') === -1) return
     try {
       const payload = JSON.parse(event.data)
-      if (payload.invalid) {
+      // don't attempt fetching the page if we're already showing
+      // the dev overlay as this can cause the error to be triggered
+      // repeatedly
+      if (payload.invalid && !self.__NEXT_DATA__.err) {
         // Payload can be invalid even if the page does not exist.
         // So, we need to make sure it exists before reloading.
         fetch(location.href, {

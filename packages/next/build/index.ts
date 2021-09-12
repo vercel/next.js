@@ -2,7 +2,7 @@ import { loadEnvConfig } from '@next/env'
 import chalk from 'chalk'
 import crypto from 'crypto'
 import { promises, writeFileSync } from 'fs'
-import { Worker } from 'jest-worker'
+import { Worker } from '../lib/worker'
 import devalue from 'next/dist/compiled/devalue'
 import escapeStringRegexp from 'next/dist/compiled/escape-string-regexp'
 import findUp from 'next/dist/compiled/find-up'
@@ -19,6 +19,7 @@ import { findPagesDir } from '../lib/find-pages-dir'
 import loadCustomRoutes, {
   CustomRoutes,
   getRedirectStatus,
+  modifyRouteRegex,
   normalizeRouteRegex,
   Redirect,
   Rewrite,
@@ -45,21 +46,18 @@ import {
   SERVER_DIRECTORY,
   SERVER_FILES_MANIFEST,
   STATIC_STATUS_PAGES,
-} from '../next-server/lib/constants'
+} from '../shared/lib/constants'
 import {
   getRouteRegex,
   getSortedRoutes,
   isDynamicRoute,
-} from '../next-server/lib/router/utils'
-import { __ApiPreviewProps } from '../next-server/server/api-utils'
-import loadConfig, {
-  isTargetLikeServerless,
-  NextConfig,
-} from '../next-server/server/config'
-import { BuildManifest } from '../next-server/server/get-page-files'
-import '../next-server/server/node-polyfill-fetch'
-import { normalizePagePath } from '../next-server/server/normalize-page-path'
-import { getPagePath } from '../next-server/server/require'
+} from '../shared/lib/router/utils'
+import { __ApiPreviewProps } from '../server/api-utils'
+import loadConfig, { isTargetLikeServerless } from '../server/config'
+import { BuildManifest } from '../server/get-page-files'
+import '../server/node-polyfill-fetch'
+import { normalizePagePath } from '../server/normalize-page-path'
+import { getPagePath } from '../server/require'
 import * as ciEnvironment from '../telemetry/ci-info'
 import {
   eventBuildCompleted,
@@ -75,7 +73,7 @@ import { generateBuildId } from './generate-build-id'
 import { isWriteable } from './is-writeable'
 import * as Log from './output/log'
 import createSpinner from './spinner'
-import { trace, setGlobal } from '../telemetry/trace'
+import { trace, flushAllTraces, setGlobal } from '../telemetry/trace'
 import {
   collectPages,
   detectConflictingPaths,
@@ -89,10 +87,9 @@ import {
 import getBaseWebpackConfig from './webpack-config'
 import { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
 import { writeBuildId } from './write-build-id'
-import { normalizeLocalePath } from '../next-server/lib/i18n/normalize-locale-path'
+import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { isWebpack5 } from 'next/dist/compiled/webpack/webpack'
-
-const staticCheckWorker = require.resolve('./utils')
+import { NextConfigComplete } from '../server/config-shared'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -119,24 +116,27 @@ export default async function build(
   dir: string,
   conf = null,
   reactProductionProfiling = false,
-  debugOutput = false
+  debugOutput = false,
+  runLint = true
 ): Promise<void> {
   const nextBuildSpan = trace('next-build')
 
-  return nextBuildSpan.traceAsyncFn(async () => {
+  const buildResult = await nextBuildSpan.traceAsyncFn(async () => {
     // attempt to load global env values so they are available in next.config.js
     const { loadedEnvFiles } = nextBuildSpan
       .traceChild('load-dotenv')
       .traceFn(() => loadEnvConfig(dir, false, Log))
 
-    const config: NextConfig = await nextBuildSpan
+    const config: NextConfigComplete = await nextBuildSpan
       .traceChild('load-next-config')
       .traceAsyncFn(() => loadConfig(PHASE_PRODUCTION_BUILD, dir, conf))
+    const distDir = path.join(dir, config.distDir)
+    setGlobal('distDir', distDir)
+
     const { target } = config
     const buildId: string = await nextBuildSpan
       .traceChild('generate-buildid')
       .traceAsyncFn(() => generateBuildId(config.generateBuildId, nanoid))
-    const distDir = path.join(dir, config.distDir)
 
     const customRoutes: CustomRoutes = await nextBuildSpan
       .traceChild('load-custom-routes')
@@ -178,7 +178,7 @@ export default async function build(
       telemetry.record(events)
     )
 
-    const ignoreTypeScriptErrors = Boolean(config.typescript?.ignoreBuildErrors)
+    const ignoreTypeScriptErrors = Boolean(config.typescript.ignoreBuildErrors)
     const typeCheckStart = process.hrtime()
     const typeCheckingSpinner = createSpinner({
       prefixText: `${Log.prefixes.info} ${
@@ -191,7 +191,13 @@ export default async function build(
     const verifyResult = await nextBuildSpan
       .traceChild('verify-typescript-setup')
       .traceAsyncFn(() =>
-        verifyTypeScriptSetup(dir, pagesDir, !ignoreTypeScriptErrors, cacheDir)
+        verifyTypeScriptSetup(
+          dir,
+          pagesDir,
+          !ignoreTypeScriptErrors,
+          !config.images.disableStaticImages,
+          cacheDir
+        )
       )
 
     const typeCheckEnd = process.hrtime(typeCheckStart)
@@ -212,15 +218,19 @@ export default async function build(
       typeCheckingSpinner.stopAndPersist()
     }
 
-    if (config.experimental.eslint) {
+    const ignoreESLint = Boolean(config.eslint.ignoreDuringBuilds)
+    const eslintCacheDir = path.join(cacheDir, 'eslint/')
+    if (!ignoreESLint && runLint) {
       await nextBuildSpan
         .traceChild('verify-and-lint')
         .traceAsyncFn(async () => {
           await verifyAndLint(
             dir,
-            pagesDir,
+            eslintCacheDir,
+            config.eslint?.dirs,
             config.experimental.cpus,
-            config.experimental.workerThreads
+            config.experimental.workerThreads,
+            telemetry
           )
         })
     }
@@ -248,7 +258,9 @@ export default async function build(
 
     const mappedPages = nextBuildSpan
       .traceChild('create-pages-mapping')
-      .traceFn(() => createPagesMapping(pagePaths, config.pageExtensions))
+      .traceFn(() =>
+        createPagesMapping(pagePaths, config.pageExtensions, isWebpack5, false)
+      )
     const entrypoints = nextBuildSpan
       .traceChild('create-entrypoints')
       .traceFn(() =>
@@ -263,9 +275,8 @@ export default async function build(
       )
     const pageKeys = Object.keys(mappedPages)
     const conflictingPublicFiles: string[] = []
-    const hasCustomErrorPage: boolean = mappedPages['/_error'].startsWith(
-      'private-next-pages'
-    )
+    const hasCustomErrorPage: boolean =
+      mappedPages['/_error'].startsWith('private-next-pages')
     const hasPages404 = Boolean(
       mappedPages['/404'] &&
         mappedPages['/404'].startsWith('private-next-pages')
@@ -322,6 +333,10 @@ export default async function build(
       )
     }
 
+    const restrictedRedirectPaths = ['/_next'].map((p) =>
+      config.basePath ? `${config.basePath}${p}` : p
+    )
+
     const buildCustomRoute = (
       r: {
         source: string
@@ -339,6 +354,14 @@ export default async function build(
         sensitive: false,
         delimiter: '/', // default is `/#?`, but Next does not pass query info
       })
+      let regexSource = routeRegex.source
+
+      if (!(r as any).internal) {
+        regexSource = modifyRouteRegex(
+          routeRegex.source,
+          type === 'redirect' ? restrictedRedirectPaths : undefined
+        )
+      }
 
       return {
         ...r,
@@ -348,7 +371,7 @@ export default async function build(
               permanent: undefined,
             }
           : {}),
-        regex: normalizeRouteRegex(routeRegex.source),
+        regex: normalizeRouteRegex(regexSource),
       }
     }
 
@@ -453,6 +476,10 @@ export default async function build(
       )
     }
 
+    if (config.cleanDistDir) {
+      await recursiveDelete(distDir, /^cache/)
+    }
+
     // We need to write the manifest with rewrites before build
     // so serverless can import the manifest
     await nextBuildSpan
@@ -500,7 +527,8 @@ export default async function build(
         ignore: [] as string[],
       }))
 
-    const configs = await nextBuildSpan
+    const runWebpackSpan = nextBuildSpan.traceChild('run-webpack-compiler')
+    const configs = await runWebpackSpan
       .traceChild('generate-webpack-config')
       .traceAsyncFn(() =>
         Promise.all([
@@ -513,6 +541,7 @@ export default async function build(
             pagesDir,
             entrypoints: entrypoints.client,
             rewrites,
+            runWebpackSpan,
           }),
           getBaseWebpackConfig(dir, {
             buildId,
@@ -523,6 +552,7 @@ export default async function build(
             pagesDir,
             entrypoints: entrypoints.server,
             rewrites,
+            runWebpackSpan,
           }),
         ])
       )
@@ -543,33 +573,23 @@ export default async function build(
     const webpackBuildStart = process.hrtime()
 
     let result: CompilerResult = { warnings: [], errors: [] }
-    // We run client and server compilation separately when configured for
-    // memory constraint and for serverless to be able to load manifests
-    // produced in the client build
-    if (isLikeServerless || config.experimental.serialWebpackBuild) {
-      await nextBuildSpan
-        .traceChild('run-webpack-compiler')
-        .traceAsyncFn(async () => {
-          const clientResult = await runCompiler(clientConfig)
-          // Fail build if clientResult contains errors
-          if (clientResult.errors.length > 0) {
-            result = {
-              warnings: [...clientResult.warnings],
-              errors: [...clientResult.errors],
-            }
-          } else {
-            const serverResult = await runCompiler(configs[1])
-            result = {
-              warnings: [...clientResult.warnings, ...serverResult.warnings],
-              errors: [...clientResult.errors, ...serverResult.errors],
-            }
-          }
-        })
-    } else {
-      result = await nextBuildSpan
-        .traceChild('run-webpack-compiler')
-        .traceAsyncFn(() => runCompiler(configs))
-    }
+    // We run client and server compilation separately to optimize for memory usage
+    await runWebpackSpan.traceAsyncFn(async () => {
+      const clientResult = await runCompiler(clientConfig, { runWebpackSpan })
+      // Fail build if clientResult contains errors
+      if (clientResult.errors.length > 0) {
+        result = {
+          warnings: [...clientResult.warnings],
+          errors: [...clientResult.errors],
+        }
+      } else {
+        const serverResult = await runCompiler(configs[1], { runWebpackSpan })
+        result = {
+          warnings: [...clientResult.warnings, ...serverResult.warnings],
+          errors: [...clientResult.errors, ...serverResult.errors],
+        }
+      }
+    })
 
     const webpackBuildEnd = process.hrtime(webpackBuildStart)
     if (buildSpinner) {
@@ -645,6 +665,8 @@ export default async function build(
     const serverPropsPages = new Set<string>()
     const additionalSsgPaths = new Map<string, Array<string>>()
     const additionalSsgPathsEncoded = new Map<string, Array<string>>()
+    const pageTraceIncludes = new Map<string, Array<string>>()
+    const pageTraceExcludes = new Map<string, Array<string>>()
     const pageInfos = new Map<string, PageInfo>()
     const pagesManifest = JSON.parse(
       await promises.readFile(manifestPath, 'utf8')
@@ -652,6 +674,62 @@ export default async function build(
     const buildManifest = JSON.parse(
       await promises.readFile(buildManifestPath, 'utf8')
     ) as BuildManifest
+
+    const timeout = config.experimental.staticPageGenerationTimeout || 0
+    const sharedPool = config.experimental.sharedPool || false
+    const staticWorker = sharedPool
+      ? require.resolve('./worker')
+      : require.resolve('./utils')
+    let infoPrinted = false
+    const staticWorkers = new Worker(staticWorker, {
+      timeout: timeout * 1000,
+      onRestart: (method, [arg], attempts) => {
+        if (method === 'exportPage') {
+          const { path: pagePath } = arg
+          if (attempts >= 3) {
+            throw new Error(
+              `Static page generation for ${pagePath} is still timing out after 3 attempts. See more info here https://nextjs.org/docs/messages/static-page-generation-timeout`
+            )
+          }
+          Log.warn(
+            `Restarted static page genertion for ${pagePath} because it took more than ${timeout} seconds`
+          )
+        } else {
+          const pagePath = arg
+          if (attempts >= 2) {
+            throw new Error(
+              `Collecting page data for ${pagePath} is still timing out after 2 attempts. See more info here https://nextjs.org/docs/messages/page-data-collection-timeout`
+            )
+          }
+          Log.warn(
+            `Restarted collecting page data for ${pagePath} because it took more than ${timeout} seconds`
+          )
+        }
+        if (!infoPrinted) {
+          Log.warn(
+            'See more info here https://nextjs.org/docs/messages/static-page-generation-timeout'
+          )
+          infoPrinted = true
+        }
+      },
+      numWorkers: config.experimental.cpus,
+      enableWorkerThreads: config.experimental.workerThreads,
+      exposedMethods: sharedPool
+        ? [
+            'hasCustomGetInitialProps',
+            'isPageStatic',
+            'getNamedExports',
+            'exportPage',
+          ]
+        : ['hasCustomGetInitialProps', 'isPageStatic', 'getNamedExports'],
+    }) as Worker &
+      Pick<
+        typeof import('./worker'),
+        | 'hasCustomGetInitialProps'
+        | 'isPageStatic'
+        | 'getNamedExports'
+        | 'exportPage'
+      >
 
     const analysisBegin = process.hrtime()
 
@@ -665,14 +743,6 @@ export default async function build(
     } = await staticCheckSpan.traceAsyncFn(async () => {
       process.env.NEXT_PHASE = PHASE_PRODUCTION_BUILD
 
-      const staticCheckWorkers = new Worker(staticCheckWorker, {
-        numWorkers: config.experimental.cpus,
-        enableWorkerThreads: config.experimental.workerThreads,
-      }) as Worker & typeof import('./utils')
-
-      staticCheckWorkers.getStdout().pipe(process.stdout)
-      staticCheckWorkers.getStderr().pipe(process.stderr)
-
       const runtimeEnvConfig = {
         publicRuntimeConfig: config.publicRuntimeConfig,
         serverRuntimeConfig: config.serverRuntimeConfig,
@@ -681,30 +751,47 @@ export default async function build(
       const nonStaticErrorPageSpan = staticCheckSpan.traceChild(
         'check-static-error-page'
       )
-      const nonStaticErrorPagePromise = nonStaticErrorPageSpan.traceAsyncFn(
+      const errorPageHasCustomGetInitialProps =
+        nonStaticErrorPageSpan.traceAsyncFn(
+          async () =>
+            hasCustomErrorPage &&
+            (await staticWorkers.hasCustomGetInitialProps(
+              '/_error',
+              distDir,
+              isLikeServerless,
+              runtimeEnvConfig,
+              false
+            ))
+        )
+
+      const errorPageStaticResult = nonStaticErrorPageSpan.traceAsyncFn(
         async () =>
           hasCustomErrorPage &&
-          (await staticCheckWorkers.hasCustomGetInitialProps(
+          staticWorkers.isPageStatic(
             '/_error',
             distDir,
             isLikeServerless,
             runtimeEnvConfig,
-            false
-          ))
+            config.httpAgentOptions,
+            config.i18n?.locales,
+            config.i18n?.defaultLocale
+          )
       )
+
       // we don't output _app in serverless mode so use _app export
       // from _error instead
       const appPageToCheck = isLikeServerless ? '/_error' : '/_app'
 
-      const customAppGetInitialPropsPromise = staticCheckWorkers.hasCustomGetInitialProps(
-        appPageToCheck,
-        distDir,
-        isLikeServerless,
-        runtimeEnvConfig,
-        true
-      )
+      const customAppGetInitialPropsPromise =
+        staticWorkers.hasCustomGetInitialProps(
+          appPageToCheck,
+          distDir,
+          isLikeServerless,
+          runtimeEnvConfig,
+          true
+        )
 
-      const namedExportsPromise = staticCheckWorkers.getNamedExports(
+      const namedExportsPromise = staticWorkers.getNamedExports(
         appPageToCheck,
         distDir,
         isLikeServerless,
@@ -747,20 +834,25 @@ export default async function build(
 
             if (nonReservedPage) {
               try {
-                let isPageStaticSpan = checkPageSpan.traceChild(
-                  'is-page-static'
-                )
+                let isPageStaticSpan =
+                  checkPageSpan.traceChild('is-page-static')
                 let workerResult = await isPageStaticSpan.traceAsyncFn(() => {
-                  return staticCheckWorkers.isPageStatic(
+                  return staticWorkers.isPageStatic(
                     page,
                     distDir,
                     isLikeServerless,
                     runtimeEnvConfig,
+                    config.httpAgentOptions,
                     config.i18n?.locales,
                     config.i18n?.defaultLocale,
                     isPageStaticSpan.id
                   )
                 })
+
+                if (config.experimental.nftTracing) {
+                  pageTraceIncludes.set(page, workerResult.traceIncludes || [])
+                  pageTraceExcludes.set(page, workerResult.traceExcludes || [])
+                }
 
                 if (
                   workerResult.isStatic === false &&
@@ -848,19 +940,27 @@ export default async function build(
               isHybridAmp,
               ssgPageRoutes,
               initialRevalidateSeconds: false,
+              pageDuration: undefined,
+              ssgPageDurations: undefined,
             })
           })
         })
       )
+
+      const errorPageResult = await errorPageStaticResult
+      const nonStaticErrorPage =
+        (await errorPageHasCustomGetInitialProps) ||
+        (errorPageResult && errorPageResult.hasServerProps)
+
       const returnValue = {
         customAppGetInitialProps: await customAppGetInitialPropsPromise,
         namedExports: await namedExportsPromise,
         isNextImageImported,
         hasSsrAmpPages,
-        hasNonStaticErrorPage: await nonStaticErrorPagePromise,
+        hasNonStaticErrorPage: nonStaticErrorPage,
       }
 
-      staticCheckWorkers.end()
+      if (!sharedPool) staticWorkers.end()
       return returnValue
     })
 
@@ -890,6 +990,64 @@ export default async function build(
           )
         )
       )
+    }
+
+    if (config.experimental.nftTracing) {
+      const globOrig =
+        require('next/dist/compiled/glob') as typeof import('next/dist/compiled/glob')
+      const glob = (pattern: string): Promise<string[]> => {
+        return new Promise((resolve, reject) => {
+          globOrig(pattern, { cwd: dir }, (err, files) => {
+            if (err) {
+              return reject(err)
+            }
+            resolve(files)
+          })
+        })
+      }
+
+      for (const page of pageKeys) {
+        const includeGlobs = pageTraceIncludes.get(page)
+        const excludeGlobs = pageTraceExcludes.get(page)
+
+        if (!includeGlobs?.length && !excludeGlobs?.length) {
+          continue
+        }
+
+        const traceFile = path.join(
+          distDir,
+          'server/pages',
+          `${page}.js.nft.json`
+        )
+        const traceContent = JSON.parse(
+          await promises.readFile(traceFile, 'utf8')
+        )
+        let includes: string[] = []
+        let excludes: string[] = []
+
+        if (includeGlobs?.length) {
+          for (const includeGlob of includeGlobs) {
+            includes.push(...(await glob(includeGlob)))
+          }
+        }
+
+        if (excludeGlobs?.length) {
+          for (const excludeGlob of excludeGlobs) {
+            excludes.push(...(await glob(excludeGlob)))
+          }
+        }
+
+        const combined = new Set([...traceContent.files, ...includes])
+        excludes.forEach((file) => combined.delete(file))
+
+        await promises.writeFile(
+          traceFile,
+          JSON.stringify({
+            version: traceContent.version,
+            files: [...combined],
+          })
+        )
+      }
     }
 
     if (serverPropsPages.size > 0 || ssgPages.size > 0) {
@@ -994,13 +1152,15 @@ export default async function build(
         mappedPages[page] && mappedPages[page].startsWith('private-next-pages')
     )
     usedStaticStatusPages.forEach((page) => {
-      if (!ssgPages.has(page)) {
+      if (!ssgPages.has(page) && !customAppGetInitialProps) {
         staticPages.add(page)
       }
     })
 
     const hasPages500 = usedStaticStatusPages.includes('/500')
-    const useDefaultStatic500 = !hasPages500 && !hasNonStaticErrorPage
+    const useDefaultStatic500 =
+      !hasPages500 && !hasNonStaticErrorPage && !customAppGetInitialProps
+
     const combinedPages = [...staticPages, ...ssgPages]
 
     if (combinedPages.length > 0 || useStatic404 || useDefaultStatic500) {
@@ -1014,7 +1174,8 @@ export default async function build(
           ssgPages,
           additionalSsgPaths
         )
-        const exportApp = require('../export').default
+        const exportApp: typeof import('../export').default =
+          require('../export').default
         const exportOptions = {
           silent: false,
           buildExport: true,
@@ -1022,10 +1183,19 @@ export default async function build(
           pages: combinedPages,
           outdir: path.join(distDir, 'export'),
           statusMessage: 'Generating static pages',
+          exportPageWorker: sharedPool
+            ? staticWorkers.exportPage.bind(staticWorkers)
+            : undefined,
+          endWorker: sharedPool
+            ? async () => {
+                await staticWorkers.end()
+              }
+            : undefined,
         }
         const exportConfig: any = {
           ...config,
           initialPageRevalidationMap: {},
+          pageDurationMap: {},
           ssgNotFoundPaths: [] as string[],
           // Default map will be the collection of automatic statically exported
           // pages and incremental pages.
@@ -1273,6 +1443,18 @@ export default async function build(
           const hasAmp = hybridAmpPages.has(page)
           const file = normalizePagePath(page)
 
+          const pageInfo = pageInfos.get(page)
+          const durationInfo = exportConfig.pageDurationMap[page]
+          if (pageInfo && durationInfo) {
+            // Set Build Duration
+            if (pageInfo.ssgPageRoutes) {
+              pageInfo.ssgPageDurations = pageInfo.ssgPageRoutes.map(
+                (pagePath) => durationInfo[pagePath]
+              )
+            }
+            pageInfo.pageDuration = durationInfo[page]
+          }
+
           // The dynamic version of SSG pages are only prerendered if the
           // fallback is enabled. Below, we handle the specific prerenders
           // of these.
@@ -1328,11 +1510,9 @@ export default async function build(
                 }
               }
               // Set Page Revalidation Interval
-              const pageInfo = pageInfos.get(page)
               if (pageInfo) {
                 pageInfo.initialRevalidateSeconds =
                   exportConfig.initialPageRevalidationMap[page]
-                pageInfos.set(page, pageInfo)
               }
             } else {
               // For a dynamic SSG page, we did not copy its data exports and only
@@ -1391,11 +1571,9 @@ export default async function build(
                 }
 
                 // Set route Revalidation Interval
-                const pageInfo = pageInfos.get(route)
                 if (pageInfo) {
                   pageInfo.initialRevalidateSeconds =
                     exportConfig.initialPageRevalidationMap[route]
-                  pageInfos.set(route, pageInfo)
                 }
               }
             }
@@ -1499,7 +1677,7 @@ export default async function build(
 
     const images = { ...config.images }
     const { deviceSizes, imageSizes } = images
-    images.sizes = [...deviceSizes, ...imageSizes]
+    ;(images as any).sizes = [...deviceSizes, ...imageSizes]
 
     await promises.writeFile(
       path.join(distDir, IMAGES_MANIFEST),
@@ -1562,6 +1740,11 @@ export default async function build(
       .traceChild('telemetry-flush')
       .traceAsyncFn(() => telemetry.flush())
   })
+
+  // Ensure all traces are flushed before finishing the command
+  await flushAllTraces()
+
+  return buildResult
 }
 
 export type ClientSsgManifest = Set<string>

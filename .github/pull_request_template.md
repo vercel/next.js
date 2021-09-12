@@ -8,6 +8,7 @@ Choose the right checklist for the change that you're making:
 
 - [ ] Related issues linked using `fixes #number`
 - [ ] Integration tests added
+- [ ] Errors have helpful link attached, see `contributing.md`
 
 ## Feature
 
@@ -16,6 +17,7 @@ Choose the right checklist for the change that you're making:
 - [ ] Integration tests added
 - [ ] Documentation added
 - [ ] Telemetry added. In case of a feature if it's used or not.
+- [ ] Errors have helpful link attached, see `contributing.md`
 
 ## Documentation / Examples
 
