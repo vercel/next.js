@@ -1,0 +1,9 @@
+.carouselItem {
+  background: gray;
+  height: 300px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: #ffffff;
+  font-size: 72px;
+}
