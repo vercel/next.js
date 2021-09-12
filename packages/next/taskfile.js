@@ -709,16 +709,6 @@ export async function ncc_web_vitals(task, opts) {
     .target('compiled/web-vitals')
 }
 // eslint-disable-next-line camelcase
-externals['zen-observable'] = 'next/dist/compiled/zen-observable'
-export async function ncc_zen_observable(task, opts) {
-  await task
-    .source(
-      opts.src || relative(__dirname, require.resolve('zen-observable/esm'))
-    )
-    .ncc({ packageName: 'zen-observable', externals })
-    .target('compiled/zen-observable')
-}
-// eslint-disable-next-line camelcase
 externals['webpack-sources'] = 'next/dist/compiled/webpack-sources'
 export async function ncc_webpack_sources(task, opts) {
   await task
@@ -910,7 +900,6 @@ export async function ncc(task, opts) {
         'ncc_text_table',
         'ncc_unistore',
         'ncc_web_vitals',
-        'ncc_zen_observable',
         'ncc_webpack_bundle4',
         'ncc_webpack_bundle5',
         'ncc_webpack_bundle_packages',
