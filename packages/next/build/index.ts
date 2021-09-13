@@ -73,7 +73,7 @@ import { generateBuildId } from './generate-build-id'
 import { isWriteable } from './is-writeable'
 import * as Log from './output/log'
 import createSpinner from './spinner'
-import { trace, flushAllTraces, setGlobal } from '../telemetry/trace'
+import { trace, flushAllTraces, setGlobal } from '../trace'
 import {
   collectPages,
   detectConflictingPaths,
@@ -1291,7 +1291,7 @@ export default async function build(
           },
         }
 
-        await exportApp(dir, exportOptions, exportConfig)
+        await exportApp(dir, exportOptions, nextBuildSpan, exportConfig)
 
         const postBuildSpinner = createSpinner({
           prefixText: `${Log.prefixes.info} Finalizing page optimization`,

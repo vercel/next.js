@@ -1,3 +1,4 @@
+import * as Log from '../../build/output/log'
 const idToName = new Map<string, string>()
 
 const reportToConsole = (
@@ -20,7 +21,9 @@ const reportToConsole = (
         .join(', ')}`
     : ''
 
-  console.log(`[trace] ${spanName} took ${duration} μs${parentStr}${attrsStr}`)
+  Log.trace(
+    `${spanName} took ${Number(duration) / 1000} ms${parentStr}${attrsStr}`
+  )
 }
 
 export default {
