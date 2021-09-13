@@ -149,6 +149,14 @@ const expectedManifestRoutes = () => [
   },
   {
     dataRouteRegex: normalizeRegEx(
+      `^\\/_next\\/data\\/${escapeRegex(
+        buildId
+      )}\\/promise\\/mutate-res-props.json$`
+    ),
+    page: '/promise/mutate-res-props',
+  },
+  {
+    dataRouteRegex: normalizeRegEx(
       `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/refresh.json$`
     ),
     page: '/refresh',
@@ -720,7 +728,14 @@ const runTests = (dev = false) => {
     it('should show error for accessing res after gssp returns', async () => {
       const html = await renderViaHTTP(appPort, '/promise/mutate-res')
       expect(html).toContain(
-        'Must not access ServerResponse after getServerSideProps() returns'
+        `You should not access 'res' after getServerSideProps resolves`
+      )
+    })
+
+    it('should show error for accessing res through props promise after gssp returns', async () => {
+      const html = await renderViaHTTP(appPort, '/promise/mutate-res-props')
+      expect(html).toContain(
+        `You should not access 'res' after getServerSideProps resolves`
       )
     })
   } else {

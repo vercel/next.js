@@ -745,11 +745,12 @@ export async function renderToHTML(
     let canAccessRes = true
     let resOrProxy = res
     if (process.env.NODE_ENV !== 'production') {
-      resOrProxy = new Proxy(res, {
-        get: function (obj: ServerResponse, prop: string, receiver: any) {
+      resOrProxy = new Proxy<ServerResponse>(res, {
+        get: function (obj, prop, receiver) {
           if (!canAccessRes) {
             throw new Error(
-              `Must not access ServerResponse after getServerSideProps() returns! https://nextjs.org/docs/messages/gssp-no-mutating-res`
+              `You should not access 'res' after getServerSideProps resolves.` +
+                `\nRead more: https://nextjs.org/docs/messages/gssp-no-mutating-res`
             )
           }
           return Reflect.get(obj, prop, receiver)
