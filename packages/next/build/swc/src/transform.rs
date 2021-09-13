@@ -37,7 +37,7 @@ use crate::{
 use anyhow::{Context as _, Error};
 use napi::{CallContext, Env, JsBoolean, JsObject, JsString, Task};
 use serde::Deserialize;
-use std::sync::Arc;
+use std::{path::PathBuf, sync::Arc};
 use swc::{try_with_handler, Compiler, TransformOutput};
 use swc_common::{chain, pass::Optional, FileName, SourceFile};
 use swc_ecmascript::ast::Program;
@@ -51,13 +51,16 @@ pub enum Input {
 }
 
 #[derive(Debug, Deserialize)]
-#[serde(deny_unknown_fields, rename_all = "camelCase")]
+#[serde(rename_all = "camelCase")]
 pub struct TransformOptions {
     #[serde(flatten)]
-    swc: swc::config::Options,
+    pub swc: swc::config::Options,
 
     #[serde(default)]
     pub disable_next_ssg: bool,
+
+    #[serde(default)]
+    pub pages_dir: Option<PathBuf>,
 }
 
 pub struct TransformTask {
@@ -78,7 +81,7 @@ impl Task for TransformTask {
                         hook_optimizer(),
                         Optional::new(next_ssg(), !self.options.disable_next_ssg),
                         amp_attributes(),
-                        next_dynamic(s.name.clone()),
+                        next_dynamic(s.name.clone(), self.options.pages_dir.clone()),
                     );
                     self.c.process_js_with_custom_pass(
                         s.clone(),
@@ -174,4 +177,13 @@ pub fn transform_sync(cx: CallContext) -> napi::Result<JsObject> {
             src,
         ))
     })
+}
+
+#[test]
+fn test_deser() {
+    const JSON_STR: &str = r#"{"jsc":{"parser":{"syntax":"ecmascript","dynamicImport":true,"jsx":true},"transform":{"react":{"runtime":"automatic","pragma":"React.createElement","pragmaFrag":"React.Fragment","throwIfNamespace":true,"development":false,"useBuiltins":true}},"target":"es5"},"filename":"/Users/timneutkens/projects/next.js/packages/next/dist/client/next.js","sourceMaps":false,"sourceFileName":"/Users/timneutkens/projects/next.js/packages/next/dist/client/next.js"}"#;
+
+    let tr: TransformOptions = serde_json::from_str(&JSON_STR).unwrap();
+
+    println!("{:#?}", tr);
 }
