@@ -37,7 +37,7 @@ use crate::{
 use anyhow::{Context as _, Error};
 use napi::{CallContext, Env, JsBoolean, JsObject, JsString, Task};
 use serde::Deserialize;
-use std::sync::Arc;
+use std::{path::PathBuf, sync::Arc};
 use swc::{try_with_handler, Compiler, TransformOutput};
 use swc_common::{chain, pass::Optional, FileName, SourceFile};
 use swc_ecmascript::ast::Program;
@@ -58,6 +58,9 @@ pub struct TransformOptions {
 
     #[serde(default)]
     pub disable_next_ssg: bool,
+
+    #[serde(default)]
+    pub pages_dir: PathBuf,
 }
 
 pub struct TransformTask {
