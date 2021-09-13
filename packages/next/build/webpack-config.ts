@@ -291,6 +291,7 @@ export default async function getBaseWebpackConfig(
           loader: 'next-swc-loader',
           options: {
             isServer,
+            pagesDir,
           },
         }
       : {
