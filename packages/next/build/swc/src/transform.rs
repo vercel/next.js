@@ -38,8 +38,8 @@ use anyhow::{Context as _, Error};
 use napi::{CallContext, Env, JsBoolean, JsObject, JsString, Task};
 use serde::Deserialize;
 use std::sync::Arc;
-use swc::{config::Options, try_with_handler, Compiler, TransformOutput};
-use swc_common::{chain, FileName, SourceFile};
+use swc::{try_with_handler, Compiler, TransformOutput};
+use swc_common::{chain, pass::Optional, FileName, SourceFile};
 use swc_ecmascript::ast::Program;
 use swc_ecmascript::transforms::pass::noop;
 
@@ -76,14 +76,14 @@ impl Task for TransformTask {
                 Input::Source(ref s) => {
                     let before_pass = chain!(
                         hook_optimizer(),
-                        next_ssg(),
+                        Optional::new(next_ssg(), !self.options.disable_next_ssg),
                         amp_attributes(),
                         next_dynamic(s.name.clone()),
                     );
                     self.c.process_js_with_custom_pass(
                         s.clone(),
                         &handler,
-                        &self.options,
+                        &self.options.swc,
                         before_pass,
                         noop(),
                     )
@@ -129,11 +129,11 @@ where
             if is_module.get_value()? {
                 let program: Program =
                     serde_json::from_str(s.as_str()?).context("failed to deserialize Program")?;
-                c.process_js(&handler, program, &options)
+                c.process_js(&handler, program, &options.swc)
             } else {
                 let fm =
                     op(&c, s.as_str()?.to_string(), &options).context("failed to load file")?;
-                c.process_js_file(fm, &handler, &options)
+                c.process_js_file(fm, &handler, &options.swc)
             }
         })
     })
@@ -146,10 +146,10 @@ where
 pub fn transform(cx: CallContext) -> napi::Result<JsObject> {
     schedule_transform(cx, |c, src, _, options| {
         let input = Input::Source(c.cm.new_source_file(
-            if options.filename.is_empty() {
+            if options.swc.filename.is_empty() {
                 FileName::Anon
             } else {
-                FileName::Real(options.filename.clone().into())
+                FileName::Real(options.swc.filename.clone().into())
             },
             src,
         ));
