@@ -142,11 +142,6 @@ describe('Font Optimization', () => {
         it(`should inline the ${property} fonts for SSR pages`, async () => {
           const html = await renderViaHTTP(appPort, '/stars')
           const $ = cheerio.load(html)
-          console.log('zzzz ', html)
-          console.log(
-            '1111111 ',
-            $(`link[rel=stylesheet][data-href="${starsFont}"]`)
-          )
           expect(await fsExists(builtPage('font-manifest.json'))).toBe(true)
           expect(
             $(`link[rel=stylesheet][data-href="${starsFont}"]`).length

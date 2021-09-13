@@ -46,7 +46,7 @@ async function processHTML(
   }
   const root: HTMLElement = parse(html)
   let document = html
-  console.log(html)
+
   // Calls the middleware, with some instrumentation and logging
   async function callMiddleWare(middleware: PostProcessMiddleware) {
     // let timer = Date.now()
@@ -111,8 +111,6 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
       return markup
     }
 
-    // console.log('2222222 ', fontDefinitions)
-
     fontDefinitions.forEach((fontDef) => {
       const [url, nonce] = fontDef
       const fallBackLinkTag = `<link rel="stylesheet" href="${url}"/>`
@@ -145,10 +143,7 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
         const fontRegex = new RegExp(
           `<link[^>]*data-href="${escapedUrl}"[^>]*\/>`
         )
-        // console.log('^^^^^^^ ', fontRegex)
-        // console.log('------- ', result)
         result = result.replace(fontRegex, '')
-        // console.log('======= ', result)
 
         const provider = OPTIMIZED_FONT_PROVIDERS.find((p) =>
           url.startsWith(p.url)
