@@ -56,22 +56,22 @@ describe('Font Optimization', () => {
       ],
       'https://fonts.gstatic.com',
     ],
-    // [
-    //   'typekit',
-    //   [
-    //     'https://use.typekit.net/plm1izr.css',
-    //     'https://use.typekit.net/erd0sed.css',
-    //     'https://use.typekit.net/ucs7mcf.css',
-    //     'https://use.typekit.net/ucs7mcf.css',
-    //   ],
-    //   [
-    //     /<style data-href="https:\/\/use.typekit.net\/plm1izr.css">.*<\/style>/,
-    //     /<style data-href="https:\/\/use.typekit.net\/erd0sed.css">.*<\/style>/,
-    //     /<style data-href="https:\/\/use.typekit.net\/ucs7mcf.css">.*<\/style>/,
-    //     /<style data-href="https:\/\/use.typekit.net\/ucs7mcf.css">.*<\/style>/,
-    //   ],
-    //   'https://use.typekit.net',
-    // ],
+    [
+      'typekit',
+      [
+        'https://use.typekit.net/plm1izr.css',
+        'https://use.typekit.net/erd0sed.css',
+        'https://use.typekit.net/ucs7mcf.css',
+        'https://use.typekit.net/ucs7mcf.css',
+      ],
+      [
+        /<style data-href="https:\/\/use.typekit.net\/plm1izr.css">.*<\/style>/,
+        /<style data-href="https:\/\/use.typekit.net\/erd0sed.css">.*<\/style>/,
+        /<style data-href="https:\/\/use.typekit.net\/ucs7mcf.css">.*<\/style>/,
+        /<style data-href="https:\/\/use.typekit.net\/ucs7mcf.css">.*<\/style>/,
+      ],
+      'https://use.typekit.net',
+    ],
   ])(
     'with-%s',
     (
@@ -93,9 +93,14 @@ describe('Font Optimization', () => {
           const $ = cheerio.load(html)
           expect(await fsExists(builtPage('font-manifest.json'))).toBe(true)
 
+          const link = $(
+            `link[rel="stylesheet"][data-href="${staticHeadFont}"]`
+          )
+
           const style = $(`style[data-href="${staticHeadFont}"]`)
           const styleNonce = style.attr('nonce')
 
+          expect(link.length).toBe(0)
           expect(styleNonce).toBe('VmVyY2Vs')
         })
 
@@ -105,30 +110,49 @@ describe('Font Optimization', () => {
 
           const $ = cheerio.load(html)
 
-          expect($(`link[data-href="${withFont}"]`)).toBeUndefined()
+          expect($(`link[data-href="${withFont}"]`).length).toBe(0)
 
           expect(html).toMatch(withFontPattern)
 
           const htmlWithoutFont = await renderViaHTTP(appPort, '/without-font')
+          const $2 = cheerio.load(htmlWithoutFont)
 
+          expect($2(`link[data-href="${withFont}"]`).length).toBe(0)
           expect(htmlWithoutFont).not.toMatch(withFontPattern)
         })
 
         it(`should inline the ${property} fonts for static pages`, async () => {
           const html = await renderViaHTTP(appPort, '/index')
+          const $ = cheerio.load(html)
           expect(await fsExists(builtPage('font-manifest.json'))).toBe(true)
+          expect(
+            $(`link[rel=stylesheet][data-href="${staticFont}"]`).length
+          ).toBe(0)
           expect(html).toMatch(staticPattern)
         })
 
         it(`should inline the ${property} fonts for static pages with Next/Head`, async () => {
           const html = await renderViaHTTP(appPort, '/static-head')
+          const $ = cheerio.load(html)
           expect(await fsExists(builtPage('font-manifest.json'))).toBe(true)
+          expect(
+            $(`link[rel=stylesheet][data-href="${staticHeadFont}"]`).length
+          ).toBe(0)
           expect(html).toMatch(staticHeadPattern)
         })
 
         it(`should inline the ${property} fonts for SSR pages`, async () => {
           const html = await renderViaHTTP(appPort, '/stars')
+          const $ = cheerio.load(html)
+          console.log('zzzz ', html)
+          console.log(
+            '1111111 ',
+            $(`link[rel=stylesheet][data-href="${starsFont}"]`)
+          )
           expect(await fsExists(builtPage('font-manifest.json'))).toBe(true)
+          expect(
+            $(`link[rel=stylesheet][data-href="${starsFont}"]`).length
+          ).toBe(0)
           expect(html).toMatch(starsPattern)
         })
 

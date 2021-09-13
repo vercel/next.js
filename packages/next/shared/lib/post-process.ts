@@ -46,11 +46,12 @@ async function processHTML(
   }
   const root: HTMLElement = parse(html)
   let document = html
+  console.log(html)
   // Calls the middleware, with some instrumentation and logging
   async function callMiddleWare(middleware: PostProcessMiddleware) {
     // let timer = Date.now()
     const inspectData = middleware.inspect(root, data)
-    document = await middleware.mutate(root.toString(), inspectData, data)
+    document = await middleware.mutate(document, inspectData, data)
     // timer = Date.now() - timer
     // if (timer > MIDDLEWARE_TIME_BUDGET) {
     // TODO: Identify a correct upper limit for the postprocess step
@@ -76,28 +77,25 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
     }
     const fontDefinitions: (string | undefined)[][] = []
     // collecting all the requested font definitions
-    const fontNodes = originalDom.querySelectorAll('link').filter(
-      (tag: HTMLElement) =>
-        tag.getAttribute('rel') === 'stylesheet' &&
-        tag.hasAttribute('data-href') &&
-        OPTIMIZED_FONT_PROVIDERS.some(({ url }) => {
-          const dataHref = tag.getAttribute('data-href')
-          return dataHref ? dataHref.startsWith(url) : false
-        })
-    )
+    originalDom
+      .querySelectorAll('link')
+      .filter(
+        (tag: HTMLElement) =>
+          tag.getAttribute('rel') === 'stylesheet' &&
+          tag.hasAttribute('data-href') &&
+          OPTIMIZED_FONT_PROVIDERS.some(({ url }) => {
+            const dataHref = tag.getAttribute('data-href')
+            return dataHref ? dataHref.startsWith(url) : false
+          })
+      )
+      .forEach((element: HTMLElement) => {
+        const url = element.getAttribute('data-href')
+        const nonce = element.getAttribute('nonce')
 
-    fontNodes.forEach((element: HTMLElement) => {
-      const url = element.getAttribute('data-href')
-      const nonce = element.getAttribute('nonce')
-
-      if (url) {
-        fontDefinitions.push([url, nonce])
-      }
-    })
-
-    fontNodes.forEach((node) => {
-      node.remove()
-    })
+        if (url) {
+          fontDefinitions.push([url, nonce])
+        }
+      })
 
     return fontDefinitions
   }
@@ -112,6 +110,8 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
     if (!options.getFontDefinition) {
       return markup
     }
+
+    // console.log('2222222 ', fontDefinitions)
 
     fontDefinitions.forEach((fontDef) => {
       const [url, nonce] = fontDef
@@ -138,6 +138,18 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
           `<style data-href="${url}"${nonceStr}>${fontContent}</style></head>`
         )
 
+        // Remove inert font tag
+        const escapedUrl = url
+          .replace(/&/g, '&amp;')
+          .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+        const fontRegex = new RegExp(
+          `<link[^>]*data-href="${escapedUrl}"[^>]*\/>`
+        )
+        // console.log('^^^^^^^ ', fontRegex)
+        // console.log('------- ', result)
+        result = result.replace(fontRegex, '')
+        // console.log('======= ', result)
+
         const provider = OPTIMIZED_FONT_PROVIDERS.find((p) =>
           url.startsWith(p.url)
         )
@@ -153,7 +165,10 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
       preconnectTag += `<link rel="preconnect" href="${url}" crossorigin />`
     })
 
-    result = result.replace('<meta name="next-font-preconnect">', preconnectTag)
+    result = result.replace(
+      '<meta name="next-font-preconnect"/>',
+      preconnectTag
+    )
 
     return result
   }
