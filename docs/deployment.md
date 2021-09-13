@@ -76,7 +76,7 @@ Next.js can be deployed to any hosting provider that supports Node.js. Make sure
 
 `next build` builds the production application in the `.next` folder. After building, `next start` starts a Node.js server that supports [hybrid pages](/docs/basic-features/pages.md), serving both statically generated and server-side rendered pages.
 
-If you are using [`next/image`](/docs/basic-features/image-optimization.md), consider adding Sharp for [Image Optimization](/docs/basic-features/image-optimization.md) in your production environment by running `npm install sharp` in your project directory.
+If you are using [`next/image`](/docs/basic-features/image-optimization.md), consider adding `sharp` for more performant [Image Optimization](/docs/basic-features/image-optimization.md) in your production environment by running `npm install sharp` in your project directory.
 
 ### Docker Image
 
