@@ -52,7 +52,7 @@ const generateImport = (componentName, requireString) =>
   )
 
 const validFirstChars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-const validOtherChars = 'abcdefghijklmnopqrstuvwxyz'
+const validOtherChars = validFirstChars.toLowerCase()
 function generateComponentName(seqGenerator, opts) {
   const numOtherChars = seqGenerator.intBetween(opts.minLen, opts.maxLen)
   const firstChar = validFirstChars[seqGenerator.range(validFirstChars.length)]
