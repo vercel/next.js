@@ -660,9 +660,9 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
 
   it('should set cache-control to immutable for static images', async () => {
     if (!isDev) {
-      const filename = 'test'
+      const filename = 'test.480a01e5ea850d0231aec0fa94bd23a0'
       const query = {
-        url: `/_next/static/image/public/${filename}.480a01e5ea850d0231aec0fa94bd23a0.jpg`,
+        url: `/_next/static/image/public/${filename}.jpg`,
         w,
         q: 100,
       }

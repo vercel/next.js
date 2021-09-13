@@ -616,7 +616,9 @@ export function getFileNameWithExtension(
     return
   }
 
-  const fileName = fileNameWithExtension.split('.').slice(0, -1).join('.')
+  const names = fileNameWithExtension.split('.')
+  const fileName = names.length > 1 ? names.slice(0, -1).join('.') : names[0]
+
   const extension = getExtension(contentType)
   return `${fileName}.${extension}`
 }
