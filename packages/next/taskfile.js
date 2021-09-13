@@ -574,14 +574,6 @@ export async function ncc_icss_utils(task, opts) {
     .target('compiled/icss-utils')
 }
 // eslint-disable-next-line camelcase
-externals['recast'] = 'next/dist/compiled/recast'
-export async function ncc_recast(task, opts) {
-  await task
-    .source(opts.src || relative(__dirname, require.resolve('recast')))
-    .ncc({ packageName: 'recast', externals })
-    .target('compiled/recast')
-}
-// eslint-disable-next-line camelcase
 externals['resolve-url-loader'] = 'next/dist/compiled/resolve-url-loader'
 export async function ncc_resolve_url_loader(task, opts) {
   await task
@@ -715,16 +707,6 @@ export async function ncc_web_vitals(task, opts) {
     .source(opts.src || relative(__dirname, require.resolve('web-vitals')))
     .ncc({ packageName: 'web-vitals', externals, target: 'es5' })
     .target('compiled/web-vitals')
-}
-// eslint-disable-next-line camelcase
-externals['zen-observable'] = 'next/dist/compiled/zen-observable'
-export async function ncc_zen_observable(task, opts) {
-  await task
-    .source(
-      opts.src || relative(__dirname, require.resolve('zen-observable/esm'))
-    )
-    .ncc({ packageName: 'zen-observable', externals })
-    .target('compiled/zen-observable')
 }
 // eslint-disable-next-line camelcase
 externals['webpack-sources'] = 'next/dist/compiled/webpack-sources'
@@ -904,7 +886,6 @@ export async function ncc(task, opts) {
         'ncc_postcss_modules_values',
         'ncc_postcss_value_parser',
         'ncc_icss_utils',
-        'ncc_recast',
         'ncc_resolve_url_loader',
         'ncc_sass_loader',
         'ncc_schema_utils',
@@ -919,7 +900,6 @@ export async function ncc(task, opts) {
         'ncc_text_table',
         'ncc_unistore',
         'ncc_web_vitals',
-        'ncc_zen_observable',
         'ncc_webpack_bundle4',
         'ncc_webpack_bundle5',
         'ncc_webpack_bundle_packages',
@@ -944,6 +924,7 @@ export async function compile(task, opts) {
       'lib',
       'client',
       'telemetry',
+      'trace',
       'shared',
       'server_wasm',
       // we compile this each time so that fresh runtime data is pulled
@@ -1046,6 +1027,14 @@ export async function telemetry(task, opts) {
   notify('Compiled telemetry files')
 }
 
+export async function trace(task, opts) {
+  await task
+    .source(opts.src || 'trace/**/*.+(js|ts|tsx)')
+    .swc('server', { dev: opts.dev })
+    .target('dist/trace')
+  notify('Compiled trace files')
+}
+
 export async function build(task, opts) {
   await task.serial(['precompile', 'compile'], opts)
 }
@@ -1063,6 +1052,7 @@ export default async function (task) {
   await task.watch('lib/**/*.+(js|ts|tsx)', 'lib', opts)
   await task.watch('cli/**/*.+(js|ts|tsx)', 'cli', opts)
   await task.watch('telemetry/**/*.+(js|ts|tsx)', 'telemetry', opts)
+  await task.watch('trace/**/*.+(js|ts|tsx)', 'trace', opts)
   await task.watch('shared/**/*.+(js|ts|tsx)', 'shared', opts)
   await task.watch('server/**/*.+(wasm)', 'server_wasm', opts)
 }

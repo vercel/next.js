@@ -15,8 +15,6 @@ import {
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 
-jest.setTimeout(1000 * 60 * 1)
-
 const fixturesDir = join(__dirname, '../../css-fixtures')
 
 describe('Basic CSS Module Support', () => {

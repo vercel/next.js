@@ -1,0 +1,155 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`ReactRefreshLogBox boundaries 1`] = `
+"FunctionDefault.js (1:50) @ FunctionDefault
+
+> 1 | export default function FunctionDefault() { throw new Error('no'); }
+    |                                                  ^"
+`;
+
+exports[`ReactRefreshLogBox conversion to class component (1) 1`] = `
+"Child.js (5:18) @ ClickCount.render
+
+  3 |   export default class ClickCount extends Component {
+  4 |     render() {
+> 5 |       throw new Error()
+    |            ^
+  6 |     }
+  7 |   }
+  8 | "
+`;
+
+exports[`ReactRefreshLogBox css syntax errors 1`] = `
+"./index.module.css:1:1
+Syntax error: Selector \\"button\\" is not pure (pure selectors must contain at least one local class or id)
+
+> 1 | button {}
+    | ^"
+`;
+
+exports[`ReactRefreshLogBox logbox: anchors links in error messages 1`] = `"Error: end http://nextjs.org"`;
+
+exports[`ReactRefreshLogBox logbox: anchors links in error messages 2`] = `"http://nextjs.org/"`;
+
+exports[`ReactRefreshLogBox logbox: anchors links in error messages 3`] = `"Error: http://nextjs.org start"`;
+
+exports[`ReactRefreshLogBox logbox: anchors links in error messages 4`] = `"http://nextjs.org/"`;
+
+exports[`ReactRefreshLogBox logbox: anchors links in error messages 5`] = `"Error: middle http://nextjs.org end"`;
+
+exports[`ReactRefreshLogBox logbox: anchors links in error messages 6`] = `"http://nextjs.org/"`;
+
+exports[`ReactRefreshLogBox logbox: anchors links in error messages 8`] = `"http://nextjs.org/"`;
+
+exports[`ReactRefreshLogBox logbox: anchors links in error messages 9`] = `"http://example.com/"`;
+
+exports[`ReactRefreshLogBox logbox: can recover from a component error 1`] = `
+"child.js (4:16) @ Child
+
+  2 |   // hello
+  3 |   export default function Child() {
+> 4 |     throw new Error('oops')
+    |          ^
+  5 |   }
+  6 | "
+`;
+
+exports[`ReactRefreshLogBox logbox: can recover from a event handler error 1`] = `
+"index.js (8:18) @ eval
+
+   6 | const increment = useCallback(() => {
+   7 |   setCount(c => c + 1)
+>  8 |   throw new Error('oops')
+     |        ^
+   9 | }, [setCount])
+  10 | return (
+  11 |   <main>"
+`;
+
+exports[`ReactRefreshLogBox logbox: can recover from a syntax error without losing state 1`] = `
+"./index.js:1:26
+Syntax error: Unexpected token, expected \\"jsxTagEnd\\"
+
+> 1 | export default () => <div/
+    |                           ^"
+`;
+
+exports[`ReactRefreshLogBox module init error not shown 1`] = `
+"index.js (4:14) @ eval
+
+  2 | // top offset for snapshot
+  3 | import * as React from 'react';
+> 4 | throw new Error('no')
+    |      ^
+  5 | class ClassDefault extends React.Component {
+  6 |   render() {
+  7 |     return <h1>Default Export</h1>;"
+`;
+
+exports[`ReactRefreshLogBox render error not shown right after syntax error 1`] = `
+"index.js (6:18) @ ClassDefault.render
+
+  4 | class ClassDefault extends React.Component {
+  5 |   render() {
+> 6 |     throw new Error('nooo');
+    |          ^
+  7 |     return <h1>Default Export</h1>;
+  8 |   }
+  9 | }"
+`;
+
+exports[`ReactRefreshLogBox stuck error 1`] = `
+"Foo.js (4:10) @ Foo
+
+  2 |   // intentionally skips export
+  3 |   export default function Foo() {
+> 4 |     return React.createElement('h1', null, 'Foo');
+    |    ^
+  5 |   }
+  6 | "
+`;
+
+exports[`ReactRefreshLogBox syntax > runtime error 1`] = `
+"index.js (6:16) @ eval
+
+  4 | setInterval(() => {
+  5 |   i++
+> 6 |   throw Error('no ' + i)
+    |        ^
+  7 | }, 1000)
+  8 | export default function FunctionNamed() {
+  9 |   return <div />"
+`;
+
+exports[`ReactRefreshLogBox syntax > runtime error 2`] = `
+"./index.js:8:49
+Syntax error: Unexpected token
+
+  6 |           throw Error('no ' + i)
+  7 |         }, 1000)
+> 8 |         export default function FunctionNamed() {
+    |                                                  ^"
+`;
+
+exports[`ReactRefreshLogBox syntax > runtime error 3`] = `
+"./index.js:8:49
+Syntax error: Unexpected token
+
+  6 |           throw Error('no ' + i)
+  7 |         }, 1000)
+> 8 |         export default function FunctionNamed() {
+    |                                                  ^"
+`;
+
+exports[`ReactRefreshLogBox unterminated JSX 1`] = `
+"./index.js:5:24
+Syntax error: Unterminated JSX contents.
+
+  3 |           return (
+  4 |             <div>
+> 5 |               <p>lol</p>
+    |                         ^
+  6 |             div
+  7 |           )
+  8 |         }"
+`;
