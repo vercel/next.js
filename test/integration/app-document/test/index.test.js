@@ -9,7 +9,7 @@ import {
   killApp,
 } from 'next-test-utils'
 
-// test suits
+// test suites
 import rendering from './rendering'
 import client from './client'
 import csp from './csp'
