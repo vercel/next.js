@@ -38,12 +38,7 @@ use backtrace::Backtrace;
 use napi::{CallContext, Env, JsObject, JsUndefined};
 use std::{env, panic::set_hook, sync::Arc};
 use swc::{Compiler, TransformOutput};
-use swc_common::{
-    self,
-    errors::{ColorConfig, Handler},
-    sync::Lazy,
-    FilePathMapping, SourceMap,
-};
+use swc_common::{self, sync::Lazy, FilePathMapping, SourceMap};
 
 mod amp_attributes;
 mod hook_optimizer;
@@ -55,14 +50,8 @@ mod util;
 
 static COMPILER: Lazy<Arc<Compiler>> = Lazy::new(|| {
     let cm = Arc::new(SourceMap::new(FilePathMapping::empty()));
-    let handler = Arc::new(Handler::with_tty_emitter(
-        ColorConfig::Always,
-        true,
-        false,
-        Some(cm.clone()),
-    ));
 
-    Arc::new(Compiler::new(cm.clone(), handler))
+    Arc::new(Compiler::new(cm.clone()))
 });
 
 #[module_exports]
