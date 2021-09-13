@@ -1,3 +1,4 @@
+import { clearSandboxCache } from '../../../server/edge-functions/sandbox'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { isWebpack5 } from 'next/dist/compiled/webpack/webpack'
 import { realpathSync } from 'fs'
@@ -51,6 +52,7 @@ export class NextJsRequireCacheHotReloader implements webpack.Plugin {
         (_file: any, { targetPath }: any) => {
           this.currentOutputPathsWebpack5.add(targetPath)
           deleteCache(targetPath)
+          clearSandboxCache(targetPath)
         }
       )
 

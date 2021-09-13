@@ -68,7 +68,10 @@ let cache:
     }
   | undefined
 
-export function clearSandboxCache() {
+export function clearSandboxCache(path: string) {
+  // clear cache when path is used by cached sandbox
+  if (cache === undefined) return
+  if (!cache.paths.has(path)) return
   cache = undefined
 }
 

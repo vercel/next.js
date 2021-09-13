@@ -33,7 +33,6 @@ import { CustomRoutes } from '../../lib/load-custom-routes'
 import { DecodeError } from '../../shared/lib/utils'
 import { Span, trace } from '../../trace'
 import isError from '../../lib/is-error'
-import { clearSandboxCache } from '../edge-functions/sandbox'
 
 export async function renderScriptError(
   res: ServerResponse,
@@ -470,14 +469,17 @@ export default class HotReloader {
     // the server file changes and trigger a reload for GS(S)P pages
     const changedClientPages = new Set<string>()
     const changedServerPages = new Set<string>()
+    const changedClientForServerPages = new Set<string>()
     const prevClientPageHashes = new Map<string, string>()
     const prevServerPageHashes = new Map<string, string>()
+    const prevClientForServerPageHashes = new Map<string, string>()
 
     const trackPageChanges =
       (pageHashMap: Map<string, string>, changedItems: Set<string>) =>
       (stats: webpack.compilation.Compilation) => {
         stats.entrypoints.forEach((entry, key) => {
           if (key.startsWith('pages/')) {
+            // TODO this doesn't handle on demand loaded chunks
             entry.chunks.forEach((chunk: any) => {
               if (chunk.id === key) {
                 const prevHash = pageHashMap.get(key)
@@ -492,6 +494,13 @@ export default class HotReloader {
         })
       }
 
+    multiCompiler.compilers[0].hooks.emit.tap(
+      'NextjsHotReloaderForClient',
+      trackPageChanges(
+        prevClientForServerPageHashes,
+        changedClientForServerPages
+      )
+    )
     multiCompiler.compilers[0].hooks.emit.tap(
       'NextjsHotReloaderForClient',
       trackPageChanges(prevClientPageHashes, changedClientPages)
@@ -509,6 +518,21 @@ export default class HotReloader {
         this.serverStats = null
       }
     )
+    multiCompiler.compilers[0].hooks.done.tap(
+      'NextjsHotReloaderForServer',
+      () => {
+        const middlewareChanges = Array.from(changedClientPages).filter(
+          (name) => name.endsWith('_middleware')
+        )
+        changedClientPages.clear()
+
+        if (middlewareChanges.length > 0) {
+          this.send({
+            event: 'middlewareChanges',
+          })
+        }
+      }
+    )
     multiCompiler.compilers[1].hooks.done.tap(
       'NextjsHotReloaderForServer',
       (stats) => {
@@ -517,9 +541,9 @@ export default class HotReloader {
 
         const serverOnlyChanges = difference<string>(
           changedServerPages,
-          changedClientPages
+          changedClientForServerPages
         )
-        changedClientPages.clear()
+        changedClientForServerPages.clear()
         changedServerPages.clear()
 
         if (serverOnlyChanges.length > 0) {
@@ -529,14 +553,6 @@ export default class HotReloader {
               denormalizePagePath(pg.substr('pages'.length))
             ),
           })
-        }
-
-        const middlewareChanges = Array.from(changedClientPages).filter(
-          (name) => name.endsWith('_middleware')
-        )
-
-        if (middlewareChanges.length > 0) {
-          clearSandboxCache()
         }
 
         const { compilation } = stats
