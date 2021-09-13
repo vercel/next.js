@@ -842,6 +842,20 @@ export default async function getBaseWebpackConfig(
 
   const emacsLockfilePattern = '**/.#*'
 
+  const codeCondition = {
+    test: /\.(tsx|ts|js|cjs|mjs|jsx)$/,
+    ...(config.experimental.externalDir
+      ? // Allowing importing TS/TSX files from outside of the root dir.
+        {}
+      : { include: [dir, ...babelIncludeRegexes] }),
+    exclude: (excludePath: string) => {
+      if (babelIncludeRegexes.some((r) => r.test(excludePath))) {
+        return false
+      }
+      return /node_modules/.test(excludePath)
+    },
+  }
+
   let webpackConfig: webpack.Configuration = {
     parallelism: Number(process.env.NEXT_WEBPACK_PARALLELISM) || undefined,
     externals: !isServer
@@ -1082,21 +1096,11 @@ export default async function getBaseWebpackConfig(
             ]
           : []),
         {
-          test: /\.(tsx|ts|js|cjs|mjs|jsx)$/,
-          ...(config.experimental.externalDir
-            ? // Allowing importing TS/TSX files from outside of the root dir.
-              {}
-            : { include: [dir, ...babelIncludeRegexes] }),
-          exclude: (excludePath: string) => {
-            if (babelIncludeRegexes.some((r) => r.test(excludePath))) {
-              return false
-            }
-            return /node_modules/.test(excludePath)
-          },
           ...(isWebpack5
             ? {
                 oneOf: [
                   {
+                    ...codeCondition,
                     issuerLayer: 'api',
                     parser: {
                       // Switch back to normal URL handling
@@ -1105,6 +1109,7 @@ export default async function getBaseWebpackConfig(
                     use: defaultLoaders.babel,
                   },
                   {
+                    ...codeCondition,
                     use: hasReactRefresh
                       ? [
                           require.resolve('@next/react-refresh-utils/loader'),
@@ -1115,6 +1120,7 @@ export default async function getBaseWebpackConfig(
                 ],
               }
             : {
+                ...codeCondition,
                 use: hasReactRefresh
                   ? [
                       require.resolve('@next/react-refresh-utils/loader'),
