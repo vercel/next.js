@@ -2,7 +2,7 @@ import { promises } from 'fs'
 import { join } from 'path'
 import {
   FONT_MANIFEST,
-  MIDDLEWARE_MANIFEST,
+  EDGE_MANIFEST,
   PAGES_MANIFEST,
   SERVER_DIRECTORY,
   SERVERLESS_DIRECTORY,
@@ -10,7 +10,7 @@ import {
 import { normalizePagePath, denormalizePagePath } from './normalize-page-path'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
-import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-manifest-plugin'
+import type { MiddlewareManifest } from '../build/webpack/plugins/edge-function-plugin'
 
 export function pageNotFoundError(page: string): Error {
   const err: any = new Error(`Cannot find module for page: ${page}`)
@@ -92,7 +92,7 @@ export function getMiddlewareInfo(params: {
 
   const middlewareManifest: MiddlewareManifest = require(join(
     serverBuildPath,
-    MIDDLEWARE_MANIFEST
+    EDGE_MANIFEST
   ))
 
   let page: string

@@ -46,7 +46,7 @@ import {
   SERVER_DIRECTORY,
   SERVER_FILES_MANIFEST,
   STATIC_STATUS_PAGES,
-  MIDDLEWARE_MANIFEST,
+  EDGE_MANIFEST,
 } from '../shared/lib/constants'
 import {
   getRouteRegex,
@@ -92,7 +92,7 @@ import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { isWebpack5 } from 'next/dist/compiled/webpack/webpack'
 import { NextConfigComplete } from '../server/config-shared'
 import isError from '../lib/is-error'
-import { MiddlewareManifest } from './webpack/plugins/middleware-manifest-plugin'
+import { MiddlewareManifest } from './webpack/plugins/edge-function-plugin'
 
 const RESERVED_PAGE_REGEX =
   /(^\/(_app|_error|_document|api(\/|$))|_middleware$)/
@@ -1685,7 +1685,7 @@ export default async function build(
 
     const middlewareManifest: MiddlewareManifest = JSON.parse(
       await promises.readFile(
-        path.join(distDir, SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
+        path.join(distDir, SERVER_DIRECTORY, EDGE_MANIFEST),
         'utf8'
       )
     )
@@ -1697,9 +1697,9 @@ export default async function build(
         buildId,
         '_middlewareManifest.js'
       ),
-      `self.__MIDDLEWARE_MANIFEST=${devalue(
+      `self.__EDGE_MANIFEST=${devalue(
         middlewareManifest.sortedMiddleware
-      )};self.__MIDDLEWARE_MANIFEST_CB&&self.__MIDDLEWARE_MANIFEST_CB()`
+      )};self.__EDGE_MANIFEST_CB&&self.__EDGE_MANIFEST_CB()`
     )
 
     const images = { ...config.images }

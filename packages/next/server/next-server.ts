@@ -33,7 +33,7 @@ import {
   SERVER_DIRECTORY,
   STATIC_STATUS_PAGES,
   TEMPORARY_REDIRECT_STATUS,
-  MIDDLEWARE_MANIFEST,
+  EDGE_MANIFEST,
 } from '../shared/lib/constants'
 import {
   getRouteMatcher,
@@ -104,7 +104,7 @@ import { getMiddlewareInfo } from './require'
 import { parseUrl as simpleParseUrl } from '../shared/lib/router/utils/parse-url'
 import { run } from './edge-functions/sandbox'
 import type { EdgeFunctionResult } from './edge-functions'
-import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-manifest-plugin'
+import type { MiddlewareManifest } from '../build/webpack/plugins/edge-function-plugin'
 import type { ParsedUrl } from '../shared/lib/router/utils/parse-url'
 import type { RequestData, ResponseData } from './edge-functions/types'
 
@@ -275,7 +275,7 @@ export default class Server {
     const pagesManifestPath = join(this.serverBuildDir, PAGES_MANIFEST)
     const middlewareManifestPath = join(
       join(this.distDir, SERVER_DIRECTORY),
-      MIDDLEWARE_MANIFEST
+      EDGE_MANIFEST
     )
 
     if (!dev) {
