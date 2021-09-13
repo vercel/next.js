@@ -1,5 +1,6 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
+use pathdiff::diff_paths;
 use swc_atoms::js_word;
 use swc_common::{FileName, DUMMY_SP};
 use swc_ecmascript::ast::{
@@ -175,7 +176,11 @@ impl Fold for NextDynamicPatcher {
                                             span: DUMMY_SP,
                                             op: BinaryOp::Add,
                                             left: Box::new(Expr::Lit(Lit::Str(Str {
-                                                value: format!("{} -> ", self.filename).into(),
+                                                value: format!(
+                                                    "{} -> ",
+                                                    rel_filename(&self.pages_dir, &self.filename)
+                                                )
+                                                .into(),
                                                 span: DUMMY_SP,
                                                 kind: StrKind::Synthesized {},
                                                 has_escape: false,
@@ -227,4 +232,22 @@ impl Fold for NextDynamicPatcher {
         }
         expr
     }
+}
+
+fn rel_filename(base: &Path, file: &FileName) -> String {
+    let file = match file {
+        FileName::Real(v) => v,
+        _ => {
+            return file.to_string();
+        }
+    };
+
+    let rel_path = diff_paths(&file, base);
+
+    let rel_path = match rel_path {
+        Some(v) => v,
+        None => return file.display().to_string(),
+    };
+
+    rel_path.display().to_string()
 }
