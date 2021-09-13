@@ -12,8 +12,6 @@ import {
   getRedboxSource,
 } from 'next-test-utils'
 
-jest.setTimeout(1000 * 60 * 2)
-
 const appDir = join(__dirname, '../')
 const gspPage = join(appDir, 'pages/gsp.js')
 const gsspPage = join(appDir, 'pages/gssp.js')

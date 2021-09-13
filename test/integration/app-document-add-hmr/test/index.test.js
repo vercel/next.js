@@ -5,8 +5,6 @@ import { join } from 'path'
 import webdriver from 'next-webdriver'
 import { killApp, findPort, launchApp, check } from 'next-test-utils'
 
-jest.setTimeout(1000 * 60 * 2)
-
 const appDir = join(__dirname, '../')
 const appPage = join(appDir, 'pages/_app.js')
 const indexPage = join(appDir, 'pages/index.js')
