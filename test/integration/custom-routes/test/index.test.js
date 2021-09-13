@@ -24,8 +24,6 @@ import {
   hasRedbox,
 } from 'next-test-utils'
 
-jest.setTimeout(1000 * 60 * 2)
-
 let appDir = join(__dirname, '..')
 const nextConfigPath = join(appDir, 'next.config.js')
 let externalServerHits = new Set()

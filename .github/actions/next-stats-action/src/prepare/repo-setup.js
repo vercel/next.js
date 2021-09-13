@@ -104,7 +104,7 @@ module.exports = (actionInfo) => {
       // to the correct versions
       for (const pkgName of pkgDatas.keys()) {
         const { pkg, pkgPath } = pkgDatas.get(pkgName)
-        await exec(`cd ${pkgPath} && yarn pack -f ${pkg}-packed.tgz`)
+        await exec(`cd ${pkgPath} && yarn pack -f ${pkg}-packed.tgz`, true)
       }
       return pkgPaths
     },

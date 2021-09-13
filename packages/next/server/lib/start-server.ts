@@ -19,5 +19,9 @@ export default async function start(
   })
   // It's up to caller to run `app.prepare()`, so it can notify that the server
   // is listening before starting any intensive operations.
-  return app
+  const addr = srv.address()
+  return {
+    app,
+    actualPort: addr && typeof addr === 'object' ? addr.port : port,
+  }
 }
