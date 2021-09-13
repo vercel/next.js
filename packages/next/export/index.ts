@@ -42,7 +42,7 @@ import { loadEnvConfig } from '@next/env'
 import { PrerenderManifest } from '../build'
 import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import { getPagePath } from '../server/require'
-import { Span, trace } from '../trace'
+import { Span } from '../trace'
 
 const exists = promisify(existsOrig)
 
