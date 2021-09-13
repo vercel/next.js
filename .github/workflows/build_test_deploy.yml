@@ -95,7 +95,6 @@ jobs:
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
-      HEADLESS: true
     steps:
       - uses: actions/cache@v2
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
@@ -107,6 +106,80 @@ jobs:
       - run: node run-tests.js --type unit
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
+  testDev:
+    name: Test Development
+    runs-on: ubuntu-latest
+    needs: build
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
+      NEXT_TEST_JOB: 1
+    steps:
+      - run: echo ${{needs.build.outputs.docsChange}}
+
+      # https://github.com/actions/virtual-environments/issues/1187
+      - name: tune linux network
+        run: sudo ethtool -K eth0 tx off rx off
+
+      - uses: actions/cache@v2
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        id: restore-build
+        with:
+          path: ./*
+          key: ${{ github.sha }}
+
+      - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
+      # TODO: remove after we fix watchpack watching too much
+      - run: echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
+      # docker run is used here to fix jest snapshots failing inside of the
+      # bare GitHub actions environment for the acceptance tests
+      - run: docker run --ipc=host -e NEXT_TEST_JOB=1 -e NEXT_TELEMETRY_DISABLED=1 -v $(pwd):/next.js mcr.microsoft.com/playwright:focal /bin/bash -c 'cd /next.js && node run-tests.js --type development'
+        name: Run test/development
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
+      - run: NEXT_TEST_MODE=dev node run-tests.js --type e2e
+        name: Run test/e2e (dev)
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
+  testProd:
+    name: Test Production
+    runs-on: ubuntu-latest
+    needs: build
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
+      NEXT_TEST_JOB: 1
+    steps:
+      - run: echo ${{needs.build.outputs.docsChange}}
+
+      # https://github.com/actions/virtual-environments/issues/1187
+      - name: tune linux network
+        run: sudo ethtool -K eth0 tx off rx off
+
+      - uses: actions/cache@v2
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        id: restore-build
+        with:
+          path: ./*
+          key: ${{ github.sha }}
+
+      - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
+      # TODO: remove after we fix watchpack watching too much
+      - run: echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
+      - run: node run-tests.js --type production
+        name: Run test/production
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
+      - run: NEXT_TEST_MODE=start node run-tests.js --type e2e
+        name: Run test/e2e (production)
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
   testIntegration:
     name: Test Integration
     runs-on: ubuntu-latest
@@ -114,7 +187,6 @@ jobs:
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
-      HEADLESS: true
     strategy:
       fail-fast: false
       matrix:
@@ -133,11 +205,14 @@ jobs:
           path: ./*
           key: ${{ github.sha }}
 
+      - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
       # TODO: remove after we fix watchpack watching too much
       - run: echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
-      - run: xvfb-run node run-tests.js --timings -g ${{ matrix.group }}/6 -c 3
+      - run: xvfb-run node run-tests.js --timings -g ${{ matrix.group }}/6
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
   testElectron:
@@ -147,7 +222,6 @@ jobs:
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
-      HEADLESS: true
       TEST_ELECTRON: 1
     steps:
       - uses: actions/cache@v2
@@ -187,7 +261,16 @@ jobs:
   testsPass:
     name: thank you, next
     runs-on: ubuntu-latest
-    needs: [lint, checkPrecompiled, testIntegration, testUnit, testYarnPnP]
+    needs:
+      [
+        lint,
+        checkPrecompiled,
+        testIntegration,
+        testUnit,
+        testYarnPnP,
+        testDev,
+        testProd,
+      ]
     steps:
       - run: exit 0
 
@@ -198,7 +281,6 @@ jobs:
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
-      HEADLESS: true
       NEXT_PRIVATE_TEST_WEBPACK4_MODE: 1
 
     steps:
@@ -213,7 +295,9 @@ jobs:
           path: ./*
           key: ${{ github.sha }}
 
-      - run: xvfb-run node run-tests.js test/integration/{basic,fallback-modules,link-ref,production,async-modules,font-optimization,ssr-ctx}/test/index.test.js test/acceptance/*.test.js
+      # docker run is used here to fix jest snapshots failing inside of the
+      # bare GitHub actions environment for the acceptance tests
+      - run: docker run --ipc=host -e NEXT_PRIVATE_TEST_WEBPACK4_MODE=1 -e NEXT_TEST_JOB=1 -e NEXT_TELEMETRY_DISABLED=1 -v $(pwd):/next.js mcr.microsoft.com/playwright:focal /bin/bash -c 'cd /next.js && node run-tests.js --type development test/development/acceptance/{ReactRefresh,ReactRefreshLogBox-app-doc,ReactRefreshLogBox-scss,ReactRefreshLogBox,ReactRefreshLogBoxMisc,ReactRefreshRegression,ReactRefreshRequire}.test.ts test/development/basic/*.test.ts && node run-tests.js test/integration/{fallback-modules,link-ref,production,async-modules,font-optimization,ssr-ctx}/test/index.test.js'
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
   testFirefox:
@@ -221,7 +305,6 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     env:
-      HEADLESS: true
       BROWSER_NAME: 'firefox'
       NEXT_TELEMETRY_DISABLED: 1
     steps:
@@ -231,7 +314,9 @@ jobs:
         with:
           path: ./*
           key: ${{ github.sha }}
-      - run: node run-tests.js -c 1 test/integration/production/test/index.test.js
+      - run: npx playwright install-deps && npx playwright install firefox
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+      - run: node run-tests.js test/integration/production/test/index.test.js
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
   testSafari:
@@ -256,6 +341,9 @@ jobs:
         with:
           path: ./*
           key: ${{ github.sha }}
+
+      # TODO: use macos runner so that we can use playwright to test against
+      # PRs instead of only running on canary?
       - run: '[[ -z "$BROWSERSTACK_ACCESS_KEY" ]] && echo "Skipping for PR" || node run-tests.js -c 1 test/integration/production/test/index.test.js'
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
@@ -282,7 +370,11 @@ jobs:
         with:
           path: ./*
           key: ${{ github.sha }}
-      - run: '[[ -z "$BROWSERSTACK_ACCESS_KEY" ]] && echo "Skipping for PR" || node run-tests.js -c 1 test/integration/production-nav/test/index.test.js'
+
+      - run: '[[ -z "$BROWSERSTACK_ACCESS_KEY" ]] && echo "Skipping for PR" || npm i -g browserstack-local@1.4.0'
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
+      - run: '[[ -z "$BROWSERSTACK_ACCESS_KEY" ]] && echo "Skipping for PR" || node run-tests.js test/integration/production-nav/test/index.test.js'
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
   publishRelease:
