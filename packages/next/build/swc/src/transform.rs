@@ -51,7 +51,7 @@ pub enum Input {
 }
 
 #[derive(Debug, Deserialize)]
-#[serde(deny_unknown_fields, rename_all = "camelCase")]
+#[serde(rename_all = "camelCase")]
 pub struct TransformOptions {
     #[serde(flatten)]
     swc: swc::config::Options,
@@ -81,7 +81,7 @@ impl Task for TransformTask {
                         hook_optimizer(),
                         Optional::new(next_ssg(), !self.options.disable_next_ssg),
                         amp_attributes(),
-                        next_dynamic(s.name.clone()),
+                        next_dynamic(s.name.clone(), self.options.pages_dir.clone()),
                     );
                     self.c.process_js_with_custom_pass(
                         s.clone(),
