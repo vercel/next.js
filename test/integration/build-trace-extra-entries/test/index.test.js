@@ -4,8 +4,6 @@ import fs from 'fs-extra'
 import { join } from 'path'
 import { nextBuild } from 'next-test-utils'
 
-jest.setTimeout(1000 * 60)
-
 const appDir = join(__dirname, '../app')
 
 describe('build trace with extra entries', () => {

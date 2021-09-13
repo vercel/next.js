@@ -5,8 +5,6 @@ import { readdir, readFile, remove } from 'fs-extra'
 import { nextBuild } from 'next-test-utils'
 import escapeStringRegexp from 'escape-string-regexp'
 
-jest.setTimeout(1000 * 60 * 1)
-
 const fixturesDir = join(__dirname, '../..', 'css-fixtures')
 
 describe('CSS Customization', () => {
