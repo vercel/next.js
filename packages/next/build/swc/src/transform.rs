@@ -60,7 +60,7 @@ pub struct TransformOptions {
     pub disable_next_ssg: bool,
 
     #[serde(default)]
-    pub pages_dir: PathBuf,
+    pub pages_dir: Option<PathBuf>,
 }
 
 pub struct TransformTask {

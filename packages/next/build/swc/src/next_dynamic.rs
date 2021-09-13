@@ -14,7 +14,7 @@ use swc_ecmascript::utils::{
 };
 use swc_ecmascript::visit::{Fold, FoldWith};
 
-pub fn next_dynamic(filename: FileName, pages_dir: PathBuf) -> impl Fold {
+pub fn next_dynamic(filename: FileName, pages_dir: Option<PathBuf>) -> impl Fold {
     NextDynamicPatcher {
         pages_dir,
         filename,
@@ -24,7 +24,7 @@ pub fn next_dynamic(filename: FileName, pages_dir: PathBuf) -> impl Fold {
 
 #[derive(Debug)]
 struct NextDynamicPatcher {
-    pages_dir: PathBuf,
+    pages_dir: Option<PathBuf>,
     filename: FileName,
     dynamic_bindings: Vec<Id>,
 }
@@ -178,7 +178,10 @@ impl Fold for NextDynamicPatcher {
                                             left: Box::new(Expr::Lit(Lit::Str(Str {
                                                 value: format!(
                                                     "{} -> ",
-                                                    rel_filename(&self.pages_dir, &self.filename)
+                                                    rel_filename(
+                                                        self.pages_dir.as_deref(),
+                                                        &self.filename
+                                                    )
                                                 )
                                                 .into(),
                                                 span: DUMMY_SP,
@@ -234,7 +237,12 @@ impl Fold for NextDynamicPatcher {
     }
 }
 
-fn rel_filename(base: &Path, file: &FileName) -> String {
+fn rel_filename(base: Option<&Path>, file: &FileName) -> String {
+    let base = match base {
+        Some(v) => v,
+        None => return file.to_string(),
+    };
+
     let file = match file {
         FileName::Real(v) => v,
         _ => {

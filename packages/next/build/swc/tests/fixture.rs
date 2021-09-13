@@ -39,7 +39,7 @@ fn next_dynamic_fixture(input: PathBuf) {
         &|_tr| {
             next_dynamic(
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
-                "/some-project/src".into(),
+                Some("/some-project/src".into()),
             )
         },
         &input,
