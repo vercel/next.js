@@ -17,6 +17,8 @@ jobs:
 
       - run: yarn upgrade react@next react-dom@next -W --dev
 
+      - run: node run-tests.js --timings --write-timings -g 1/1
+
       - uses: actions/cache@v2
         id: cache-build
         with:
