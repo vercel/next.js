@@ -1,6 +1,6 @@
 // import babel from 'next/dist/compiled/babel/core'
 import loaderUtils from 'next/dist/compiled/loader-utils'
-import { trace } from '../../../../../telemetry/trace'
+import { trace } from '../../../../../trace'
 import cache from './cache'
 import transform from './transform'
 

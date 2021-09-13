@@ -27,7 +27,7 @@ import { difference } from '../../build/utils'
 import { NextConfigComplete } from '../config-shared'
 import { CustomRoutes } from '../../lib/load-custom-routes'
 import { DecodeError } from '../../shared/lib/utils'
-import { Span, trace } from '../../telemetry/trace'
+import { Span, trace } from '../../trace'
 
 export async function renderScriptError(
   res: ServerResponse,
@@ -177,6 +177,9 @@ export default class HotReloader {
     this.rewrites = rewrites
     this.isWebpack5 = isWebpack5
     this.hotReloaderSpan = trace('hot-reloader')
+    // Ensure the hotReloaderSpan is flushed immediately as it's the parentSpan for all processing
+    // of the current `next dev` invocation.
+    this.hotReloaderSpan.stop()
   }
 
   public async run(

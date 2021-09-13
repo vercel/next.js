@@ -1,7 +1,7 @@
 import retry from 'next/dist/compiled/async-retry'
 import { randomBytes } from 'crypto'
 import fetch from 'node-fetch'
-import * as Log from '../../../build/output/log'
+import * as Log from '../../build/output/log'
 
 let traceId: string
 let batch: ReturnType<typeof batcher> | undefined
