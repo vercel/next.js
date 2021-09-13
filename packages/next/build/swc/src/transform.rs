@@ -36,9 +36,10 @@ use crate::{
 };
 use anyhow::{Context as _, Error};
 use napi::{CallContext, Env, JsBoolean, JsObject, JsString, Task};
+use serde::Deserialize;
 use std::sync::Arc;
-use swc::{config::Options, try_with_handler, Compiler, TransformOutput};
-use swc_common::{chain, FileName, SourceFile};
+use swc::{try_with_handler, Compiler, TransformOutput};
+use swc_common::{chain, pass::Optional, FileName, SourceFile};
 use swc_ecmascript::ast::Program;
 use swc_ecmascript::transforms::pass::noop;
 
@@ -49,10 +50,20 @@ pub enum Input {
     Source(Arc<SourceFile>),
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct TransformOptions {
+    #[serde(flatten)]
+    swc: swc::config::Options,
+
+    #[serde(default)]
+    pub disable_next_ssg: bool,
+}
+
 pub struct TransformTask {
     pub c: Arc<Compiler>,
     pub input: Input,
-    pub options: Options,
+    pub options: TransformOptions,
 }
 
 impl Task for TransformTask {
@@ -65,14 +76,14 @@ impl Task for TransformTask {
                 Input::Source(ref s) => {
                     let before_pass = chain!(
                         hook_optimizer(),
-                        next_ssg(),
+                        Optional::new(next_ssg(), !self.options.disable_next_ssg),
                         amp_attributes(),
                         next_dynamic(s.name.clone()),
                     );
                     self.c.process_js_with_custom_pass(
                         s.clone(),
                         &handler,
-                        &self.options,
+                        &self.options.swc,
                         before_pass,
                         noop(),
                     )
@@ -90,13 +101,13 @@ impl Task for TransformTask {
 /// returns `compiler, (src / path), options, plugin, callback`
 pub fn schedule_transform<F>(cx: CallContext, op: F) -> napi::Result<JsObject>
 where
-    F: FnOnce(&Arc<Compiler>, String, bool, Options) -> TransformTask,
+    F: FnOnce(&Arc<Compiler>, String, bool, TransformOptions) -> TransformTask,
 {
     let c = get_compiler(&cx);
 
     let s = cx.get::<JsString>(0)?.into_utf8()?.as_str()?.to_owned();
     let is_module = cx.get::<JsBoolean>(1)?;
-    let options: Options = cx.get_deserialized(2)?;
+    let options: TransformOptions = cx.get_deserialized(2)?;
 
     let task = op(&c, s, is_module.get_value()?, options);
 
@@ -105,24 +116,24 @@ where
 
 pub fn exec_transform<F>(cx: CallContext, op: F) -> napi::Result<JsObject>
 where
-    F: FnOnce(&Compiler, String, &Options) -> Result<Arc<SourceFile>, Error>,
+    F: FnOnce(&Compiler, String, &TransformOptions) -> Result<Arc<SourceFile>, Error>,
 {
     let c = get_compiler(&cx);
 
     let s = cx.get::<JsString>(0)?.into_utf8()?;
     let is_module = cx.get::<JsBoolean>(1)?;
-    let options: Options = cx.get_deserialized(2)?;
+    let options: TransformOptions = cx.get_deserialized(2)?;
 
     let output = try_with_handler(c.cm.clone(), |handler| {
         c.run(|| {
             if is_module.get_value()? {
                 let program: Program =
                     serde_json::from_str(s.as_str()?).context("failed to deserialize Program")?;
-                c.process_js(&handler, program, &options)
+                c.process_js(&handler, program, &options.swc)
             } else {
                 let fm =
                     op(&c, s.as_str()?.to_string(), &options).context("failed to load file")?;
-                c.process_js_file(fm, &handler, &options)
+                c.process_js_file(fm, &handler, &options.swc)
             }
         })
     })
@@ -135,10 +146,10 @@ where
 pub fn transform(cx: CallContext) -> napi::Result<JsObject> {
     schedule_transform(cx, |c, src, _, options| {
         let input = Input::Source(c.cm.new_source_file(
-            if options.filename.is_empty() {
+            if options.swc.filename.is_empty() {
                 FileName::Anon
             } else {
-                FileName::Real(options.filename.clone().into())
+                FileName::Real(options.swc.filename.clone().into())
             },
             src,
         ));
@@ -155,10 +166,10 @@ pub fn transform(cx: CallContext) -> napi::Result<JsObject> {
 pub fn transform_sync(cx: CallContext) -> napi::Result<JsObject> {
     exec_transform(cx, |c, src, options| {
         Ok(c.cm.new_source_file(
-            if options.filename.is_empty() {
+            if options.swc.filename.is_empty() {
                 FileName::Anon
             } else {
-                FileName::Real(options.filename.clone().into())
+                FileName::Real(options.swc.filename.clone().into())
             },
             src,
         ))
