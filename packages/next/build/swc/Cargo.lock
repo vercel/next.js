@@ -706,6 +706,7 @@ dependencies = [
  "napi-build",
  "napi-derive",
  "path-clean",
+ "pathdiff",
  "regex",
  "retain_mut",
  "serde",

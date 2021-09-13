@@ -1,10 +1,9 @@
 import { IncomingMessage, ServerResponse } from 'http'
 import { ParsedUrlQuery } from 'querystring'
-import { PassThrough } from 'stream'
+import { Writable } from 'stream'
 import React from 'react'
 import * as ReactDOMServer from 'react-dom/server'
 import { StyleRegistry, createStyleRegistry } from 'styled-jsx'
-import Observable from 'next/dist/compiled/zen-observable'
 import { warn } from '../build/output/log'
 import { UnwrapPromise } from '../lib/coalesced-function'
 import {
@@ -66,7 +65,7 @@ import {
   Redirect,
 } from '../lib/load-custom-routes'
 import { DomainLocale } from './config'
-import RenderResult from './render-result'
+import RenderResult, { NodeWritablePiper } from './render-result'
 
 function noRouter() {
   const message =
@@ -558,290 +557,278 @@ export async function renderToHTML(
     </RouterContext.Provider>
   )
 
-  try {
-    props = await loadGetInitialProps(App, {
-      AppTree: ctx.AppTree,
-      Component,
-      router,
-      ctx,
-    })
+  props = await loadGetInitialProps(App, {
+    AppTree: ctx.AppTree,
+    Component,
+    router,
+    ctx,
+  })
 
-    if ((isSSG || getServerSideProps) && isPreview) {
-      props.__N_PREVIEW = true
+  if ((isSSG || getServerSideProps) && isPreview) {
+    props.__N_PREVIEW = true
+  }
+
+  if (isSSG) {
+    props[STATIC_PROPS_ID] = true
+  }
+
+  if (isSSG && !isFallback) {
+    let data: UnwrapPromise<ReturnType<GetStaticProps>>
+
+    try {
+      data = await getStaticProps!({
+        ...(pageIsDynamic ? { params: query as ParsedUrlQuery } : undefined),
+        ...(isPreview
+          ? { preview: true, previewData: previewData }
+          : undefined),
+        locales: renderOpts.locales,
+        locale: renderOpts.locale,
+        defaultLocale: renderOpts.defaultLocale,
+      })
+    } catch (staticPropsError) {
+      // remove not found error code to prevent triggering legacy
+      // 404 rendering
+      if (staticPropsError.code === 'ENOENT') {
+        delete staticPropsError.code
+      }
+      throw staticPropsError
     }
 
-    if (isSSG) {
-      props[STATIC_PROPS_ID] = true
+    if (data == null) {
+      throw new Error(GSP_NO_RETURNED_VALUE)
     }
 
-    if (isSSG && !isFallback) {
-      let data: UnwrapPromise<ReturnType<GetStaticProps>>
+    const invalidKeys = Object.keys(data).filter(
+      (key) =>
+        key !== 'revalidate' &&
+        key !== 'props' &&
+        key !== 'redirect' &&
+        key !== 'notFound'
+    )
 
-      try {
-        data = await getStaticProps!({
-          ...(pageIsDynamic ? { params: query as ParsedUrlQuery } : undefined),
-          ...(isPreview
-            ? { preview: true, previewData: previewData }
-            : undefined),
-          locales: renderOpts.locales,
-          locale: renderOpts.locale,
-          defaultLocale: renderOpts.defaultLocale,
-        })
-      } catch (staticPropsError) {
-        // remove not found error code to prevent triggering legacy
-        // 404 rendering
-        if (staticPropsError.code === 'ENOENT') {
-          delete staticPropsError.code
-        }
-        throw staticPropsError
-      }
+    if (invalidKeys.includes('unstable_revalidate')) {
+      throw new Error(UNSTABLE_REVALIDATE_RENAME_ERROR)
+    }
 
-      if (data == null) {
-        throw new Error(GSP_NO_RETURNED_VALUE)
-      }
+    if (invalidKeys.length) {
+      throw new Error(invalidKeysMsg('getStaticProps', invalidKeys))
+    }
 
-      const invalidKeys = Object.keys(data).filter(
-        (key) =>
-          key !== 'revalidate' &&
-          key !== 'props' &&
-          key !== 'redirect' &&
-          key !== 'notFound'
-      )
-
-      if (invalidKeys.includes('unstable_revalidate')) {
-        throw new Error(UNSTABLE_REVALIDATE_RENAME_ERROR)
-      }
-
-      if (invalidKeys.length) {
-        throw new Error(invalidKeysMsg('getStaticProps', invalidKeys))
-      }
-
-      if (process.env.NODE_ENV !== 'production') {
-        if (
-          typeof (data as any).notFound !== 'undefined' &&
-          typeof (data as any).redirect !== 'undefined'
-        ) {
-          throw new Error(
-            `\`redirect\` and \`notFound\` can not both be returned from ${
-              isSSG ? 'getStaticProps' : 'getServerSideProps'
-            } at the same time. Page: ${pathname}\nSee more info here: https://nextjs.org/docs/messages/gssp-mixed-not-found-redirect`
-          )
-        }
-      }
-
-      if ('notFound' in data && data.notFound) {
-        if (pathname === '/404') {
-          throw new Error(
-            `The /404 page can not return notFound in "getStaticProps", please remove it to continue!`
-          )
-        }
-
-        ;(renderOpts as any).isNotFound = true
-      }
-
+    if (process.env.NODE_ENV !== 'production') {
       if (
-        'redirect' in data &&
-        data.redirect &&
-        typeof data.redirect === 'object'
+        typeof (data as any).notFound !== 'undefined' &&
+        typeof (data as any).redirect !== 'undefined'
       ) {
-        checkRedirectValues(data.redirect as Redirect, req, 'getStaticProps')
-
-        if (isBuildTimeSSG) {
-          throw new Error(
-            `\`redirect\` can not be returned from getStaticProps during prerendering (${req.url})\n` +
-              `See more info here: https://nextjs.org/docs/messages/gsp-redirect-during-prerender`
-          )
-        }
-
-        ;(data as any).props = {
-          __N_REDIRECT: data.redirect.destination,
-          __N_REDIRECT_STATUS: getRedirectStatus(data.redirect),
-        }
-        if (typeof data.redirect.basePath !== 'undefined') {
-          ;(data as any).props.__N_REDIRECT_BASE_PATH = data.redirect.basePath
-        }
-        ;(renderOpts as any).isRedirect = true
-      }
-
-      if (
-        (dev || isBuildTimeSSG) &&
-        !(renderOpts as any).isNotFound &&
-        !isSerializableProps(pathname, 'getStaticProps', (data as any).props)
-      ) {
-        // this fn should throw an error instead of ever returning `false`
         throw new Error(
-          'invariant: getStaticProps did not return valid props. Please report this.'
+          `\`redirect\` and \`notFound\` can not both be returned from ${
+            isSSG ? 'getStaticProps' : 'getServerSideProps'
+          } at the same time. Page: ${pathname}\nSee more info here: https://nextjs.org/docs/messages/gssp-mixed-not-found-redirect`
+        )
+      }
+    }
+
+    if ('notFound' in data && data.notFound) {
+      if (pathname === '/404') {
+        throw new Error(
+          `The /404 page can not return notFound in "getStaticProps", please remove it to continue!`
         )
       }
 
-      if ('revalidate' in data) {
-        if (typeof data.revalidate === 'number') {
-          if (!Number.isInteger(data.revalidate)) {
-            throw new Error(
-              `A page's revalidate option must be seconds expressed as a natural number for ${req.url}. Mixed numbers, such as '${data.revalidate}', cannot be used.` +
-                `\nTry changing the value to '${Math.ceil(
-                  data.revalidate
-                )}' or using \`Math.ceil()\` if you're computing the value.`
-            )
-          } else if (data.revalidate <= 0) {
-            throw new Error(
-              `A page's revalidate option can not be less than or equal to zero for ${req.url}. A revalidate option of zero means to revalidate after _every_ request, and implies stale data cannot be tolerated.` +
-                `\n\nTo never revalidate, you can set revalidate to \`false\` (only ran once at build-time).` +
-                `\nTo revalidate as soon as possible, you can set the value to \`1\`.`
-            )
-          } else if (data.revalidate > 31536000) {
-            // if it's greater than a year for some reason error
-            console.warn(
-              `Warning: A page's revalidate option was set to more than a year for ${req.url}. This may have been done in error.` +
-                `\nTo only run getStaticProps at build-time and not revalidate at runtime, you can set \`revalidate\` to \`false\`!`
-            )
-          }
-        } else if (data.revalidate === true) {
-          // When enabled, revalidate after 1 second. This value is optimal for
-          // the most up-to-date page possible, but without a 1-to-1
-          // request-refresh ratio.
-          data.revalidate = 1
-        } else if (
-          data.revalidate === false ||
-          typeof data.revalidate === 'undefined'
-        ) {
-          // By default, we never revalidate.
-          data.revalidate = false
-        } else {
+      ;(renderOpts as any).isNotFound = true
+    }
+
+    if (
+      'redirect' in data &&
+      data.redirect &&
+      typeof data.redirect === 'object'
+    ) {
+      checkRedirectValues(data.redirect as Redirect, req, 'getStaticProps')
+
+      if (isBuildTimeSSG) {
+        throw new Error(
+          `\`redirect\` can not be returned from getStaticProps during prerendering (${req.url})\n` +
+            `See more info here: https://nextjs.org/docs/messages/gsp-redirect-during-prerender`
+        )
+      }
+
+      ;(data as any).props = {
+        __N_REDIRECT: data.redirect.destination,
+        __N_REDIRECT_STATUS: getRedirectStatus(data.redirect),
+      }
+      if (typeof data.redirect.basePath !== 'undefined') {
+        ;(data as any).props.__N_REDIRECT_BASE_PATH = data.redirect.basePath
+      }
+      ;(renderOpts as any).isRedirect = true
+    }
+
+    if (
+      (dev || isBuildTimeSSG) &&
+      !(renderOpts as any).isNotFound &&
+      !isSerializableProps(pathname, 'getStaticProps', (data as any).props)
+    ) {
+      // this fn should throw an error instead of ever returning `false`
+      throw new Error(
+        'invariant: getStaticProps did not return valid props. Please report this.'
+      )
+    }
+
+    if ('revalidate' in data) {
+      if (typeof data.revalidate === 'number') {
+        if (!Number.isInteger(data.revalidate)) {
           throw new Error(
-            `A page's revalidate option must be seconds expressed as a natural number. Mixed numbers and strings cannot be used. Received '${JSON.stringify(
-              data.revalidate
-            )}' for ${req.url}`
+            `A page's revalidate option must be seconds expressed as a natural number for ${req.url}. Mixed numbers, such as '${data.revalidate}', cannot be used.` +
+              `\nTry changing the value to '${Math.ceil(
+                data.revalidate
+              )}' or using \`Math.ceil()\` if you're computing the value.`
+          )
+        } else if (data.revalidate <= 0) {
+          throw new Error(
+            `A page's revalidate option can not be less than or equal to zero for ${req.url}. A revalidate option of zero means to revalidate after _every_ request, and implies stale data cannot be tolerated.` +
+              `\n\nTo never revalidate, you can set revalidate to \`false\` (only ran once at build-time).` +
+              `\nTo revalidate as soon as possible, you can set the value to \`1\`.`
+          )
+        } else if (data.revalidate > 31536000) {
+          // if it's greater than a year for some reason error
+          console.warn(
+            `Warning: A page's revalidate option was set to more than a year for ${req.url}. This may have been done in error.` +
+              `\nTo only run getStaticProps at build-time and not revalidate at runtime, you can set \`revalidate\` to \`false\`!`
           )
         }
-      } else {
+      } else if (data.revalidate === true) {
+        // When enabled, revalidate after 1 second. This value is optimal for
+        // the most up-to-date page possible, but without a 1-to-1
+        // request-refresh ratio.
+        data.revalidate = 1
+      } else if (
+        data.revalidate === false ||
+        typeof data.revalidate === 'undefined'
+      ) {
         // By default, we never revalidate.
-        ;(data as any).revalidate = false
+        data.revalidate = false
+      } else {
+        throw new Error(
+          `A page's revalidate option must be seconds expressed as a natural number. Mixed numbers and strings cannot be used. Received '${JSON.stringify(
+            data.revalidate
+          )}' for ${req.url}`
+        )
       }
+    } else {
+      // By default, we never revalidate.
+      ;(data as any).revalidate = false
+    }
 
-      props.pageProps = Object.assign(
-        {},
-        props.pageProps,
-        'props' in data ? data.props : undefined
+    props.pageProps = Object.assign(
+      {},
+      props.pageProps,
+      'props' in data ? data.props : undefined
+    )
+
+    // pass up revalidate and props for export
+    // TODO: change this to a different passing mechanism
+    ;(renderOpts as any).revalidate =
+      'revalidate' in data ? data.revalidate : undefined
+    ;(renderOpts as any).pageData = props
+
+    // this must come after revalidate is added to renderOpts
+    if ((renderOpts as any).isNotFound) {
+      return null
+    }
+  }
+
+  if (getServerSideProps) {
+    props[SERVER_PROPS_ID] = true
+  }
+
+  if (getServerSideProps && !isFallback) {
+    let data: UnwrapPromise<ReturnType<GetServerSideProps>>
+
+    try {
+      data = await getServerSideProps({
+        req: req as IncomingMessage & {
+          cookies: NextApiRequestCookies
+        },
+        res,
+        query,
+        resolvedUrl: renderOpts.resolvedUrl as string,
+        ...(pageIsDynamic ? { params: params as ParsedUrlQuery } : undefined),
+        ...(previewData !== false
+          ? { preview: true, previewData: previewData }
+          : undefined),
+        locales: renderOpts.locales,
+        locale: renderOpts.locale,
+        defaultLocale: renderOpts.defaultLocale,
+      })
+    } catch (serverSidePropsError) {
+      // remove not found error code to prevent triggering legacy
+      // 404 rendering
+      if (serverSidePropsError.code === 'ENOENT') {
+        delete serverSidePropsError.code
+      }
+      throw serverSidePropsError
+    }
+
+    if (data == null) {
+      throw new Error(GSSP_NO_RETURNED_VALUE)
+    }
+
+    const invalidKeys = Object.keys(data).filter(
+      (key) => key !== 'props' && key !== 'redirect' && key !== 'notFound'
+    )
+
+    if ((data as any).unstable_notFound) {
+      throw new Error(
+        `unstable_notFound has been renamed to notFound, please update the field to continue. Page: ${pathname}`
       )
-
-      // pass up revalidate and props for export
-      // TODO: change this to a different passing mechanism
-      ;(renderOpts as any).revalidate =
-        'revalidate' in data ? data.revalidate : undefined
-      ;(renderOpts as any).pageData = props
-
-      // this must come after revalidate is added to renderOpts
-      if ((renderOpts as any).isNotFound) {
-        return null
-      }
     }
-
-    if (getServerSideProps) {
-      props[SERVER_PROPS_ID] = true
-    }
-
-    if (getServerSideProps && !isFallback) {
-      let data: UnwrapPromise<ReturnType<GetServerSideProps>>
-
-      try {
-        data = await getServerSideProps({
-          req: req as IncomingMessage & {
-            cookies: NextApiRequestCookies
-          },
-          res,
-          query,
-          resolvedUrl: renderOpts.resolvedUrl as string,
-          ...(pageIsDynamic ? { params: params as ParsedUrlQuery } : undefined),
-          ...(previewData !== false
-            ? { preview: true, previewData: previewData }
-            : undefined),
-          locales: renderOpts.locales,
-          locale: renderOpts.locale,
-          defaultLocale: renderOpts.defaultLocale,
-        })
-      } catch (serverSidePropsError) {
-        // remove not found error code to prevent triggering legacy
-        // 404 rendering
-        if (serverSidePropsError.code === 'ENOENT') {
-          delete serverSidePropsError.code
-        }
-        throw serverSidePropsError
-      }
-
-      if (data == null) {
-        throw new Error(GSSP_NO_RETURNED_VALUE)
-      }
-
-      const invalidKeys = Object.keys(data).filter(
-        (key) => key !== 'props' && key !== 'redirect' && key !== 'notFound'
+    if ((data as any).unstable_redirect) {
+      throw new Error(
+        `unstable_redirect has been renamed to redirect, please update the field to continue. Page: ${pathname}`
       )
-
-      if ((data as any).unstable_notFound) {
-        throw new Error(
-          `unstable_notFound has been renamed to notFound, please update the field to continue. Page: ${pathname}`
-        )
-      }
-      if ((data as any).unstable_redirect) {
-        throw new Error(
-          `unstable_redirect has been renamed to redirect, please update the field to continue. Page: ${pathname}`
-        )
-      }
-
-      if (invalidKeys.length) {
-        throw new Error(invalidKeysMsg('getServerSideProps', invalidKeys))
-      }
-
-      if ('notFound' in data && data.notFound) {
-        if (pathname === '/404') {
-          throw new Error(
-            `The /404 page can not return notFound in "getStaticProps", please remove it to continue!`
-          )
-        }
-
-        ;(renderOpts as any).isNotFound = true
-        return null
-      }
-
-      if ('redirect' in data && typeof data.redirect === 'object') {
-        checkRedirectValues(
-          data.redirect as Redirect,
-          req,
-          'getServerSideProps'
-        )
-        ;(data as any).props = {
-          __N_REDIRECT: data.redirect.destination,
-          __N_REDIRECT_STATUS: getRedirectStatus(data.redirect),
-        }
-        if (typeof data.redirect.basePath !== 'undefined') {
-          ;(data as any).props.__N_REDIRECT_BASE_PATH = data.redirect.basePath
-        }
-        ;(renderOpts as any).isRedirect = true
-      }
-
-      if ((data as any).props instanceof Promise) {
-        ;(data as any).props = await (data as any).props
-      }
-
-      if (
-        (dev || isBuildTimeSSG) &&
-        !isSerializableProps(
-          pathname,
-          'getServerSideProps',
-          (data as any).props
-        )
-      ) {
-        // this fn should throw an error instead of ever returning `false`
-        throw new Error(
-          'invariant: getServerSideProps did not return valid props. Please report this.'
-        )
-      }
-
-      props.pageProps = Object.assign({}, props.pageProps, (data as any).props)
-      ;(renderOpts as any).pageData = props
     }
-  } catch (dataFetchError) {
-    throw dataFetchError
+
+    if (invalidKeys.length) {
+      throw new Error(invalidKeysMsg('getServerSideProps', invalidKeys))
+    }
+
+    if ('notFound' in data && data.notFound) {
+      if (pathname === '/404') {
+        throw new Error(
+          `The /404 page can not return notFound in "getStaticProps", please remove it to continue!`
+        )
+      }
+
+      ;(renderOpts as any).isNotFound = true
+      return null
+    }
+
+    if ('redirect' in data && typeof data.redirect === 'object') {
+      checkRedirectValues(data.redirect as Redirect, req, 'getServerSideProps')
+      ;(data as any).props = {
+        __N_REDIRECT: data.redirect.destination,
+        __N_REDIRECT_STATUS: getRedirectStatus(data.redirect),
+      }
+      if (typeof data.redirect.basePath !== 'undefined') {
+        ;(data as any).props.__N_REDIRECT_BASE_PATH = data.redirect.basePath
+      }
+      ;(renderOpts as any).isRedirect = true
+    }
+
+    if ((data as any).props instanceof Promise) {
+      ;(data as any).props = await (data as any).props
+    }
+
+    if (
+      (dev || isBuildTimeSSG) &&
+      !isSerializableProps(pathname, 'getServerSideProps', (data as any).props)
+    ) {
+      // this fn should throw an error instead of ever returning `false`
+      throw new Error(
+        'invariant: getServerSideProps did not return valid props. Please report this.'
+      )
+    }
+
+    props.pageProps = Object.assign({}, props.pageProps, (data as any).props)
+    ;(renderOpts as any).pageData = props
   }
 
   if (
@@ -912,53 +899,6 @@ export async function renderToHTML(
    * coalescing, and ISR continue working as intended.
    */
   const generateStaticHTML = supportsDynamicHTML !== true
-  const renderToStream = (element: React.ReactElement) =>
-    new Promise<Observable<string>>((resolve, reject) => {
-      const stream = new PassThrough()
-      let resolved = false
-      const doResolve = () => {
-        if (!resolved) {
-          resolved = true
-
-          resolve(
-            new Observable((observer) => {
-              stream.on('data', (chunk) => {
-                observer.next(chunk.toString('utf-8'))
-              })
-              stream.once('end', () => {
-                observer.complete()
-              })
-
-              startWriting()
-              return () => {
-                abort()
-              }
-            })
-          )
-        }
-      }
-
-      const { abort, startWriting } = (
-        ReactDOMServer as any
-      ).pipeToNodeWritable(element, stream, {
-        onError(error: Error) {
-          if (!resolved) {
-            resolved = true
-            reject(error)
-          }
-          abort()
-        },
-        onReadyToStream() {
-          if (!generateStaticHTML) {
-            doResolve()
-          }
-        },
-        onCompleteAll() {
-          doResolve()
-        },
-      })
-    })
-
   const renderDocument = async () => {
     if (Document.getInitialProps) {
       const renderPage: RenderPage = (
@@ -1007,7 +947,7 @@ export async function renderToHTML(
       }
 
       return {
-        bodyResult: Observable.of(docProps.html),
+        bodyResult: piperFromArray([docProps.html]),
         documentElement: (htmlProps: HtmlProps) => (
           <Document {...htmlProps} {...docProps} />
         ),
@@ -1025,8 +965,8 @@ export async function renderToHTML(
           </AppContainer>
         )
       const bodyResult = concurrentFeatures
-        ? await renderToStream(content)
-        : Observable.of(ReactDOMServer.renderToString(content))
+        ? await renderToStream(content, generateStaticHTML)
+        : piperFromArray([ReactDOMServer.renderToString(content)])
 
       return {
         bodyResult,
@@ -1156,16 +1096,21 @@ export async function renderToHTML(
     }
   }
 
-  let results: Array<string | Observable<string>> = []
   const renderTargetIdx = documentHTML.indexOf(BODY_RENDER_TARGET)
-  results.push('<!DOCTYPE html>' + documentHTML.substring(0, renderTargetIdx))
+  const prefix: Array<string> = []
+  prefix.push('<!DOCTYPE html>')
+  prefix.push(documentHTML.substring(0, renderTargetIdx))
   if (inAmpMode) {
-    results.push('<!-- __NEXT_DATA__ -->')
+    prefix.push('<!-- __NEXT_DATA__ -->')
   }
-  results.push(documentResult.bodyResult)
-  results.push(
-    documentHTML.substring(renderTargetIdx + BODY_RENDER_TARGET.length)
-  )
+
+  let pipers: Array<NodeWritablePiper> = [
+    piperFromArray(prefix),
+    documentResult.bodyResult,
+    piperFromArray([
+      documentHTML.substring(renderTargetIdx + BODY_RENDER_TARGET.length),
+    ]),
+  ]
 
   const postProcessors: Array<((html: string) => Promise<string>) | null> = (
     generateStaticHTML
@@ -1217,54 +1162,17 @@ export async function renderToHTML(
       : []
   ).filter(Boolean)
 
-  if (postProcessors.length > 0) {
-    let html = (await observableToChunks(resultsToObservable(results))).join('')
+  if (generateStaticHTML || postProcessors.length > 0) {
+    let html = await piperToString(chainPipers(pipers))
     for (const postProcessor of postProcessors) {
       if (postProcessor) {
         html = await postProcessor(html)
       }
     }
-    results = [html]
+    return new RenderResult(html)
   }
 
-  return new RenderResult(
-    generateStaticHTML
-      ? (await observableToChunks(resultsToObservable(results))).join('')
-      : resultsToObservable(results)
-  )
-}
-
-function resultsToObservable(
-  results: Array<string | Observable<string>>
-): Observable<string> {
-  const observables: Array<Observable<string>> = []
-  let stringBuffer: Array<string> | null = null
-
-  for (const result of results) {
-    if (typeof result === 'string') {
-      stringBuffer = stringBuffer ?? []
-      stringBuffer.push(result)
-    } else {
-      if (stringBuffer) {
-        observables.push(Observable.from(stringBuffer))
-        stringBuffer = null
-      }
-      observables.push(result)
-    }
-  }
-  if (stringBuffer) {
-    observables.push(Observable.from(stringBuffer))
-  }
-  // @ts-ignore
-  return Observable.prototype.concat.call(...observables)
-}
-
-async function observableToChunks(
-  observable: Observable<string>
-): Promise<string[]> {
-  const chunks: string[] = []
-  await observable.forEach((chunk) => chunks.push(chunk))
-  return chunks
+  return new RenderResult(chainPipers(pipers))
 }
 
 function errorToJSON(err: Error): Error {
@@ -1285,4 +1193,156 @@ function serializeError(
     message: '500 - Internal Server Error.',
     statusCode: 500,
   }
+}
+
+function renderToStream(
+  element: React.ReactElement,
+  generateStaticHTML: boolean
+): Promise<NodeWritablePiper> {
+  return new Promise((resolve, reject) => {
+    let underlyingStream: {
+      resolve: (error?: Error) => void
+      writable: Writable
+      queuedCallbacks: Array<() => void>
+    } | null = null
+    const stream = new Writable({
+      // Use the buffer from the underlying stream
+      highWaterMark: 0,
+      write(chunk, encoding, callback) {
+        if (!underlyingStream) {
+          throw new Error(
+            'invariant: write called without an underlying stream. This is a bug in Next.js'
+          )
+        }
+        if (!underlyingStream.writable.write(chunk, encoding)) {
+          underlyingStream.queuedCallbacks.push(() => callback())
+        } else {
+          callback()
+        }
+      },
+    })
+    stream.once('finish', () => {
+      if (!underlyingStream) {
+        throw new Error(
+          'invariant: finish called without an underlying stream. This is a bug in Next.js'
+        )
+      }
+      underlyingStream.resolve()
+    })
+    stream.once('error', (err) => {
+      if (!underlyingStream) {
+        throw new Error(
+          'invariant: error called without an underlying stream. This is a bug in Next.js'
+        )
+      }
+      underlyingStream.resolve(err)
+    })
+    // React uses `flush` to prevent stream middleware like gzip from buffering to the
+    // point of harming streaming performance, so we make sure to expose it and forward it.
+    // See: https://github.com/reactwg/react-18/discussions/91
+    Object.defineProperty(stream, 'flush', {
+      value: () => {
+        if (!underlyingStream) {
+          throw new Error(
+            'invariant: flush called without an underlying stream. This is a bug in Next.js'
+          )
+        }
+        if (typeof (underlyingStream.writable as any).flush === 'function') {
+          ;(underlyingStream.writable as any).flush()
+        }
+      },
+      enumerable: true,
+    })
+
+    let resolved = false
+    const doResolve = () => {
+      if (!resolved) {
+        resolved = true
+        resolve((res, next) => {
+          const drainHandler = () => {
+            const prevCallbacks = underlyingStream!.queuedCallbacks
+            underlyingStream!.queuedCallbacks = []
+            prevCallbacks.forEach((callback) => callback())
+          }
+          res.on('drain', drainHandler)
+          underlyingStream = {
+            resolve: (err) => {
+              underlyingStream = null
+              res.removeListener('drain', drainHandler)
+              next(err)
+            },
+            writable: res,
+            queuedCallbacks: [],
+          }
+          startWriting()
+        })
+      }
+    }
+
+    const { abort, startWriting } = (ReactDOMServer as any).pipeToNodeWritable(
+      element,
+      stream,
+      {
+        onError(error: Error) {
+          if (!resolved) {
+            resolved = true
+            reject(error)
+          }
+          abort()
+        },
+        onReadyToStream() {
+          if (!generateStaticHTML) {
+            doResolve()
+          }
+        },
+        onCompleteAll() {
+          doResolve()
+        },
+      }
+    )
+  })
+}
+
+function chainPipers(pipers: NodeWritablePiper[]): NodeWritablePiper {
+  return pipers.reduceRight(
+    (lhs, rhs) => (res, next) => {
+      rhs(res, (err) => (err ? next(err) : lhs(res, next)))
+    },
+    (res, next) => {
+      res.end()
+      next()
+    }
+  )
+}
+
+function piperFromArray(chunks: string[]): NodeWritablePiper {
+  return (res, next) => {
+    if (typeof (res as any).cork === 'function') {
+      res.cork()
+    }
+    chunks.forEach((chunk) => res.write(chunk))
+    if (typeof (res as any).uncork === 'function') {
+      res.uncork()
+    }
+    next()
+  }
+}
+
+function piperToString(input: NodeWritablePiper): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const bufferedChunks: Buffer[] = []
+    const stream = new Writable({
+      writev(chunks, callback) {
+        chunks.forEach((chunk) => bufferedChunks.push(chunk.chunk))
+        callback()
+      },
+    })
+    input(stream, (err) => {
+      if (err) {
+        reject(err)
+      } else {
+        resolve(Buffer.concat(bufferedChunks).toString())
+      }
+    })
+  })
 }
