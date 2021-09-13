@@ -7,8 +7,6 @@ import { join } from 'path'
 const appDir = join(__dirname, '../')
 const context = {}
 
-jest.setTimeout(1000 * 60 * 2)
-
 describe('Web Workers with Fast Refresh', () => {
   beforeAll(async () => {
     context.appPort = await findPort()

@@ -17,8 +17,6 @@ const pnpmExecutable = path.join(
 const packagesDir = path.join(__dirname, '..', '..', '..', '..', 'packages')
 const appDir = path.join(__dirname, '..', 'app')
 
-jest.setTimeout(1000 * 60 * 5)
-
 const runNpm = (cwd, ...args) => execa('npm', [...args], { cwd })
 const runPnpm = (cwd, ...args) => execa(pnpmExecutable, [...args], { cwd })
 

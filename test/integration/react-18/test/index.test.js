@@ -17,8 +17,6 @@ import blocking from './blocking'
 import concurrent from './concurrent'
 import basics from './basics'
 
-jest.setTimeout(1000 * 60 * 5)
-
 // overrides react and react-dom to v18
 const nodeArgs = ['-r', join(__dirname, 'require-hook.js')]
 const appDir = join(__dirname, '../app')

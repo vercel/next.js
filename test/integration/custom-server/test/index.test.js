@@ -20,7 +20,6 @@ const indexPg = new File(join(appDir, 'pages/index.js'))
 
 let appPort
 let server
-jest.setTimeout(1000 * 60 * 2)
 
 const context = {}
 
