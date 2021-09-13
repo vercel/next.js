@@ -54,7 +54,7 @@ pub enum Input {
 #[serde(rename_all = "camelCase")]
 pub struct TransformOptions {
     #[serde(flatten)]
-    swc: swc::config::Options,
+    pub swc: swc::config::Options,
 
     #[serde(default)]
     pub disable_next_ssg: bool,
@@ -177,4 +177,13 @@ pub fn transform_sync(cx: CallContext) -> napi::Result<JsObject> {
             src,
         ))
     })
+}
+
+#[test]
+fn test_deser() {
+    const JSON_STR: &str = r#"{"jsc":{"parser":{"syntax":"ecmascript","dynamicImport":true,"jsx":true},"transform":{"react":{"runtime":"automatic","pragma":"React.createElement","pragmaFrag":"React.Fragment","throwIfNamespace":true,"development":false,"useBuiltins":true}},"target":"es5"},"filename":"/Users/timneutkens/projects/next.js/packages/next/dist/client/next.js","sourceMaps":false,"sourceFileName":"/Users/timneutkens/projects/next.js/packages/next/dist/client/next.js"}"#;
+
+    let tr: TransformOptions = serde_json::from_str(&JSON_STR).unwrap();
+
+    println!("{:#?}", tr);
 }
