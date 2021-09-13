@@ -1374,6 +1374,8 @@ export default async function getBaseWebpackConfig(
       isServerless && isServer && new ServerlessPlugin(),
       isServer &&
         new PagesManifestPlugin({ serverless: isLikeServerless, dev }),
+      // EdgeFunctionPlugin should be after DefinePlugin so  NEXT_PUBLIC_*
+      // replacement is done before its process.env.* handling
       !isServer && new EdgeFunctionPlugin({ dev }),
       !isWebpack5 &&
         target === 'server' &&
