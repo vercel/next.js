@@ -29,7 +29,13 @@ DEALINGS IN THE SOFTWARE.
 import { getOptions } from 'next/dist/compiled/loader-utils'
 import { transform } from '../../swc'
 
-function getSWCOptions({ isTypeScript, isServer, development, isPageFile }) {
+function getSWCOptions({
+  isTypeScript,
+  isServer,
+  development,
+  isPageFile,
+  pagesDir,
+}) {
   const jsc = {
     parser: {
       syntax: isTypeScript ? 'typescript' : 'ecmascript',
@@ -54,6 +60,7 @@ function getSWCOptions({ isTypeScript, isServer, development, isPageFile }) {
       jsc,
       // Disables getStaticProps/getServerSideProps tree shaking on the server compilation for pages
       disableNextSsg: true,
+      pagesDir,
       env: {
         targets: {
           // Targets the current version of Node.js
@@ -64,7 +71,11 @@ function getSWCOptions({ isTypeScript, isServer, development, isPageFile }) {
   } else {
     // Matches default @babel/preset-env behavior
     jsc.target = 'es5'
-    return { disableNextSsg: !isPageFile, jsc }
+    return {
+      disableNextSsg: !isPageFile,
+      pagesDir,
+      jsc,
+    }
   }
 }
 
@@ -80,6 +91,7 @@ async function loaderTransform(parentTrace, source, inputSourceMap) {
   const isPageFile = filename.startsWith(pagesDir)
 
   const swcOptions = getSWCOptions({
+    pagesDir,
     isTypeScript,
     isServer: isServer,
     isPageFile,

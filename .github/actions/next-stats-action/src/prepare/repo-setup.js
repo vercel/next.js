@@ -93,6 +93,10 @@ module.exports = (actionInfo) => {
           if (!pkgData.dependencies || !pkgData.dependencies[pkg]) continue
           pkgData.dependencies[pkg] = packedPkgPath
         }
+        // make sure native binaries are included in local linking
+        if (pkg === 'next') {
+          pkgData.files.push('native')
+        }
         await fs.writeFile(
           pkgDataPath,
           JSON.stringify(pkgData, null, 2),
