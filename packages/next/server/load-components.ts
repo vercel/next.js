@@ -56,7 +56,9 @@ export async function loadDefaultErrorComponents(distDir: string) {
 export async function loadComponents(
   distDir: string,
   pathname: string,
-  serverless: boolean
+  serverless: boolean,
+  buildManifestCached?: BuildManifest,
+  reactLoadableManifestCached?: ReactLoadableManifest
 ): Promise<LoadComponentsReturnType> {
   if (serverless) {
     const Component = await requirePage(pathname, distDir, serverless)
@@ -83,8 +85,9 @@ export async function loadComponents(
 
   const [buildManifest, reactLoadableManifest, Component, Document, App] =
     await Promise.all([
-      require(join(distDir, BUILD_MANIFEST)),
-      require(join(distDir, REACT_LOADABLE_MANIFEST)),
+      buildManifestCached || require(join(distDir, BUILD_MANIFEST)),
+      reactLoadableManifestCached ||
+        require(join(distDir, REACT_LOADABLE_MANIFEST)),
       interopDefault(ComponentMod),
       interopDefault(DocumentMod),
       interopDefault(AppMod),

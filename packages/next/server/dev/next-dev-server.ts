@@ -16,9 +16,11 @@ import { findPagesDir } from '../../lib/find-pages-dir'
 import loadCustomRoutes, { CustomRoutes } from '../../lib/load-custom-routes'
 import { verifyTypeScriptSetup } from '../../lib/verifyTypeScriptSetup'
 import {
+  BUILD_MANIFEST,
   PHASE_DEVELOPMENT_SERVER,
   CLIENT_STATIC_FILES_PATH,
   DEV_CLIENT_PAGES_MANIFEST,
+  REACT_LOADABLE_MANIFEST,
 } from '../../shared/lib/constants'
 import {
   getRouteMatcher,
@@ -69,7 +71,7 @@ export default class DevServer extends Server {
   private devReady: Promise<void>
   private setDevReady?: Function
   private webpackWatcher?: Watchpack | null
-  private hotReloader?: HotReloader
+  public hotReloader?: HotReloader
   private isCustomServer: boolean
   protected sortedRoutes?: string[]
 
@@ -661,6 +663,11 @@ export default class DevServer extends Server {
         this.nextConfig
       const { locales, defaultLocale } = this.nextConfig.i18n || {}
 
+      const buildManifestPath = pathJoin(this.distDir, BUILD_MANIFEST)
+      const reactLoadableManifestPath = pathJoin(
+        this.distDir,
+        REACT_LOADABLE_MANIFEST
+      )
       const paths = await this.staticPathsWorker.loadStaticPaths(
         this.distDir,
         pathname,
@@ -671,7 +678,13 @@ export default class DevServer extends Server {
         },
         httpAgentOptions,
         locales,
-        defaultLocale
+        defaultLocale,
+        this.hotReloader?.clientFileSystem.promises
+          .readFile(buildManifestPath, 'utf8')
+          .then(JSON.parse),
+        this.hotReloader?.clientFileSystem.promises
+          .readFile(reactLoadableManifestPath, 'utf8')
+          .then(JSON.parse)
       )
       return paths
     }

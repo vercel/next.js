@@ -22,12 +22,14 @@ import {
 } from '../lib/load-custom-routes'
 import {
   BUILD_ID_FILE,
+  BUILD_MANIFEST,
   CLIENT_PUBLIC_FILES_PATH,
   CLIENT_STATIC_FILES_PATH,
   CLIENT_STATIC_FILES_RUNTIME,
   PAGES_MANIFEST,
   PERMANENT_REDIRECT_STATUS,
   PRERENDER_MANIFEST,
+  REACT_LOADABLE_MANIFEST,
   ROUTES_MANIFEST,
   SERVERLESS_DIRECTORY,
   SERVER_DIRECTORY,
@@ -97,6 +99,7 @@ import ResponseCache, {
 } from './response-cache'
 import { NextConfigComplete } from './config-shared'
 import { parseNextUrl } from '../shared/lib/router/utils/parse-next-url'
+import type DevServer from './dev/next-dev-server'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -1379,12 +1382,24 @@ export default class Server {
       ]
     }
 
+    const hotReloader = (this as any as DevServer).hotReloader
+    const buildManifestPath = join(this.distDir, BUILD_MANIFEST)
+    const reactLoadableManifestPath = join(
+      this.distDir,
+      REACT_LOADABLE_MANIFEST
+    )
     for (const pagePath of paths) {
       try {
         const components = await loadComponents(
           this.distDir,
           pagePath!,
-          !this.renderOpts.dev && this._isLikeServerless
+          !this.renderOpts.dev && this._isLikeServerless,
+          hotReloader?.clientFileSystem.promises
+            .readFile(buildManifestPath, 'utf8')
+            .then(JSON.parse),
+          hotReloader?.clientFileSystem.promises
+            .readFile(reactLoadableManifestPath, 'utf8')
+            .then(JSON.parse)
         )
 
         if (
@@ -2165,7 +2180,14 @@ export default class Server {
     }
 
     try {
-      await serveStatic(req, res, path)
+      const { hotReloader } = this as any as DevServer
+      const fs =
+        req.url?.startsWith('/_next/static/') &&
+        this.renderOpts.dev &&
+        hotReloader?.clientFileSystem
+          ? hotReloader?.clientFileSystem
+          : require('fs')
+      await serveStatic(req, res, path, { fs })
     } catch (err) {
       if (err.code === 'ENOENT' || err.statusCode === 404) {
         this.render404(req, res, parsedUrl)

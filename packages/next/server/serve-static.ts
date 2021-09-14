@@ -4,10 +4,11 @@ import send from 'next/dist/compiled/send'
 export function serveStatic(
   req: IncomingMessage,
   res: ServerResponse,
-  path: string
+  path: string,
+  options: any
 ): Promise<void> {
   return new Promise((resolve, reject) => {
-    send(req, path)
+    send(req, path, options)
       .on('directory', () => {
         // We don't allow directories to be read.
         const err: any = new Error('No directory access')

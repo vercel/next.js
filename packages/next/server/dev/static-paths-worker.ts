@@ -18,7 +18,9 @@ export async function loadStaticPaths(
   config: RuntimeConfig,
   httpAgentOptions: NextConfigComplete['httpAgentOptions'],
   locales?: string[],
-  defaultLocale?: string
+  defaultLocale?: string,
+  buildManifest?: any,
+  reactLoadableManifest?: any
 ) {
   // we only want to use each worker once to prevent any invalid
   // caches
@@ -30,7 +32,13 @@ export async function loadStaticPaths(
   require('../../shared/lib/runtime-config').setConfig(config)
   setHttpAgentOptions(httpAgentOptions)
 
-  const components = await loadComponents(distDir, pathname, serverless)
+  const components = await loadComponents(
+    distDir,
+    pathname,
+    serverless,
+    buildManifest,
+    reactLoadableManifest
+  )
 
   if (!components.getStaticPaths) {
     // we shouldn't get to this point since the worker should

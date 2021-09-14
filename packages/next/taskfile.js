@@ -638,7 +638,10 @@ export async function ncc_semver(task, opts) {
 externals['send'] = 'next/dist/compiled/send'
 export async function ncc_send(task, opts) {
   await task
-    .source(opts.src || relative(__dirname, require.resolve('send')))
+    .source(
+      opts.src ||
+        relative(__dirname, require.resolve('./server/lib/send/index.js'))
+    )
     .ncc({ packageName: 'send', externals })
     .target('compiled/send')
 }

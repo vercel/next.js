@@ -1,6 +1,7 @@
 import { getOverlayMiddleware } from '@next/react-dev-overlay/lib/middleware'
 import { NextHandleFunction } from 'connect'
 import { IncomingMessage, ServerResponse } from 'http'
+import { createFsFromVolume, Volume } from 'memfs' // TODO: should this be compiled?
 import { WebpackHotMiddleware } from './hot-middleware'
 import { join } from 'path'
 import { UrlObject } from 'url'
@@ -146,6 +147,7 @@ export default class HotReloader {
   private fallbackWatcher: any
   private hotReloaderSpan: Span
   public isWebpack5: any
+  public clientFileSystem: any
 
   constructor(
     dir: string,
@@ -396,8 +398,17 @@ export default class HotReloader {
     }
 
     const multiCompiler = webpack(configs)
+    const [clientCompiler, serverCompiler] = multiCompiler.compilers
 
-    watchCompilers(multiCompiler.compilers[0], multiCompiler.compilers[1])
+    // https://webpack.js.org/api/node/#custom-file-systems
+    if (isWebpack5) {
+      const filesystem = createFsFromVolume(new Volume())
+      // @ts-ignore In the future, we to use webpack5 types here
+      clientCompiler.outputFileSystem = filesystem
+      this.clientFileSystem = filesystem
+    }
+
+    watchCompilers(clientCompiler, serverCompiler)
 
     // Watch for changes to client/server page files so we can tell when just
     // the server file changes and trigger a reload for GS(S)P pages
@@ -425,117 +436,111 @@ export default class HotReloader {
         })
       }
 
-    multiCompiler.compilers[0].hooks.emit.tap(
+    clientCompiler.hooks.emit.tap(
       'NextjsHotReloaderForClient',
       trackPageChanges(prevClientPageHashes, changedClientPages)
     )
-    multiCompiler.compilers[1].hooks.emit.tap(
+    serverCompiler.hooks.emit.tap(
       'NextjsHotReloaderForServer',
       trackPageChanges(prevServerPageHashes, changedServerPages)
     )
 
     // This plugin watches for changes to _document.js and notifies the client side that it should reload the page
-    multiCompiler.compilers[1].hooks.failed.tap(
+    serverCompiler.hooks.failed.tap(
       'NextjsHotReloaderForServer',
       (err: Error) => {
         this.serverError = err
         this.serverStats = null
       }
     )
-    multiCompiler.compilers[1].hooks.done.tap(
-      'NextjsHotReloaderForServer',
-      (stats) => {
-        this.serverError = null
-        this.serverStats = stats
+    serverCompiler.hooks.done.tap('NextjsHotReloaderForServer', (stats) => {
+      this.serverError = null
+      this.serverStats = stats
 
-        const serverOnlyChanges = difference<string>(
-          changedServerPages,
-          changedClientPages
-        )
-        changedClientPages.clear()
-        changedServerPages.clear()
+      const serverOnlyChanges = difference<string>(
+        changedServerPages,
+        changedClientPages
+      )
+      changedClientPages.clear()
+      changedServerPages.clear()
 
-        if (serverOnlyChanges.length > 0) {
-          this.send({
-            event: 'serverOnlyChanges',
-            pages: serverOnlyChanges.map((pg) =>
-              denormalizePagePath(pg.substr('pages'.length))
-            ),
-          })
-        }
-
-        const { compilation } = stats
-
-        // We only watch `_document` for changes on the server compilation
-        // the rest of the files will be triggered by the client compilation
-        const documentChunk = compilation.namedChunks.get('pages/_document')
-        // If the document chunk can't be found we do nothing
-        if (!documentChunk) {
-          console.warn('_document.js chunk not found')
-          return
-        }
-
-        // Initial value
-        if (this.serverPrevDocumentHash === null) {
-          this.serverPrevDocumentHash = documentChunk.hash
-          return
-        }
-
-        // If _document.js didn't change we don't trigger a reload
-        if (documentChunk.hash === this.serverPrevDocumentHash) {
-          return
-        }
-
-        // Notify reload to reload the page, as _document.js was changed (different hash)
-        this.send('reloadPage')
-        this.serverPrevDocumentHash = documentChunk.hash
+      if (serverOnlyChanges.length > 0) {
+        this.send({
+          event: 'serverOnlyChanges',
+          pages: serverOnlyChanges.map((pg) =>
+            denormalizePagePath(pg.substr('pages'.length))
+          ),
+        })
       }
-    )
 
-    multiCompiler.compilers[0].hooks.failed.tap(
+      const { compilation } = stats
+
+      // We only watch `_document` for changes on the server compilation
+      // the rest of the files will be triggered by the client compilation
+      const documentChunk = compilation.namedChunks.get('pages/_document')
+      // If the document chunk can't be found we do nothing
+      if (!documentChunk) {
+        console.warn('_document.js chunk not found')
+        return
+      }
+
+      // Initial value
+      if (this.serverPrevDocumentHash === null) {
+        this.serverPrevDocumentHash = documentChunk.hash
+        return
+      }
+
+      // If _document.js didn't change we don't trigger a reload
+      if (documentChunk.hash === this.serverPrevDocumentHash) {
+        return
+      }
+
+      // Notify reload to reload the page, as _document.js was changed (different hash)
+      this.send('reloadPage')
+      this.serverPrevDocumentHash = documentChunk.hash
+    })
+
+    clientCompiler.hooks.failed.tap(
       'NextjsHotReloaderForClient',
       (err: Error) => {
         this.clientError = err
         this.stats = null
       }
     )
-    multiCompiler.compilers[0].hooks.done.tap(
-      'NextjsHotReloaderForClient',
-      (stats) => {
-        this.clientError = null
-        this.stats = stats
+    clientCompiler.hooks.done.tap('NextjsHotReloaderForClient', (stats) => {
+      this.clientError = null
+      this.stats = stats
 
-        const { compilation } = stats
-        const chunkNames = new Set(
-          [...compilation.namedChunks.keys()].filter(
-            (name) => !!getRouteFromEntrypoint(name)
-          )
+      const { compilation } = stats
+      const chunkNames = new Set(
+        [...compilation.namedChunks.keys()].filter(
+          (name) => !!getRouteFromEntrypoint(name)
         )
+      )
 
-        if (this.prevChunkNames) {
-          // detect chunks which have to be replaced with a new template
-          // e.g, pages/index.js <-> pages/_error.js
-          const addedPages = diff(chunkNames, this.prevChunkNames!)
-          const removedPages = diff(this.prevChunkNames!, chunkNames)
+      if (this.prevChunkNames) {
+        // detect chunks which have to be replaced with a new template
+        // e.g, pages/index.js <-> pages/_error.js
+        const addedPages = diff(chunkNames, this.prevChunkNames!)
+        const removedPages = diff(this.prevChunkNames!, chunkNames)
 
-          if (addedPages.size > 0) {
-            for (const addedPage of addedPages) {
-              const page = getRouteFromEntrypoint(addedPage)
-              this.send('addedPage', page)
-            }
-          }
-
-          if (removedPages.size > 0) {
-            for (const removedPage of removedPages) {
-              const page = getRouteFromEntrypoint(removedPage)
-              this.send('removedPage', page)
-            }
+        if (addedPages.size > 0) {
+          for (const addedPage of addedPages) {
+            const page = getRouteFromEntrypoint(addedPage)
+            this.send('addedPage', page)
           }
         }
 
-        this.prevChunkNames = chunkNames
+        if (removedPages.size > 0) {
+          for (const removedPage of removedPages) {
+            const page = getRouteFromEntrypoint(removedPage)
+            this.send('removedPage', page)
+          }
+        }
       }
-    )
+
+      this.prevChunkNames = chunkNames
+    })
 
     this.webpackHotMiddleware = new WebpackHotMiddleware(
       multiCompiler.compilers
