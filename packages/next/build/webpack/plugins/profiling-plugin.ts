@@ -110,19 +110,6 @@ export class ProfilingPlugin {
     })
 
     compiler.hooks.compilation.tap(pluginName, (compilation: any) => {
-      // compilation.hooks.log.tap(pluginName, (name: any, entry: any) => {
-      //   if (entry.type === 'time') {
-      //     const compilerSpan = spans.get(compiler)!
-
-      //     // Ensure endTime is BigInt in microseconds
-      //     const endTime = process.hrtime.bigint()
-      //     const [label, hrtimeHigh, hrtimeLow] = entry.args
-      //     // console.log({ label, hrtimeHigh, hrtimeLow })
-      //     const duration = BigInt(String(hrtimeHigh) + String(hrtimeLow))
-      //     const startTime = endTime - duration
-      //     compilerSpan.manualTraceChild(name + '/' + label, startTime, endTime)
-      //   }
-      // })
       compilation.hooks.buildModule.tap(pluginName, (module: any) => {
         const compilerSpan = spans.get(compiler)
         if (!compilerSpan) {
