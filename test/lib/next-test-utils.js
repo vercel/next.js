@@ -528,9 +528,8 @@ export async function retry(fn, duration = 3000, interval = 500, description) {
 }
 
 export async function hasRedbox(browser, expected = true) {
-  let attempts = 30
-  do {
-    const has = await evaluate(browser, () => {
+  for (let i = 0; i < 30; i++) {
+    const result = await evaluate(browser, () => {
       return Boolean(
         [].slice
           .call(document.querySelectorAll('nextjs-portal'))
@@ -541,15 +540,12 @@ export async function hasRedbox(browser, expected = true) {
           )
       )
     })
-    if (has) {
-      return true
-    }
-    if (--attempts < 0) {
-      break
-    }
 
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-  } while (expected)
+    if (result === expected) {
+      return result
+    }
+    await waitFor(1000)
+  }
   return false
 }
 
