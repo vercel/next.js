@@ -143,6 +143,20 @@ const expectedManifestRoutes = () => [
   },
   {
     dataRouteRegex: normalizeRegEx(
+      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/promise\\/mutate-res.json$`
+    ),
+    page: '/promise/mutate-res',
+  },
+  {
+    dataRouteRegex: normalizeRegEx(
+      `^\\/_next\\/data\\/${escapeRegex(
+        buildId
+      )}\\/promise\\/mutate-res-props.json$`
+    ),
+    page: '/promise/mutate-res-props',
+  },
+  {
+    dataRouteRegex: normalizeRegEx(
       `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/refresh.json$`
     ),
     page: '/refresh',
@@ -710,6 +724,20 @@ const runTests = (dev = false) => {
         /Error serializing `.time` returned from `getServerSideProps`/
       )
     })
+
+    it('should show error for accessing res after gssp returns', async () => {
+      const html = await renderViaHTTP(appPort, '/promise/mutate-res')
+      expect(html).toContain(
+        `You should not access 'res' after getServerSideProps resolves`
+      )
+    })
+
+    it('should show error for accessing res through props promise after gssp returns', async () => {
+      const html = await renderViaHTTP(appPort, '/promise/mutate-res-props')
+      expect(html).toContain(
+        `You should not access 'res' after getServerSideProps resolves`
+      )
+    })
   } else {
     it('should not fetch data on mount', async () => {
       const browser = await webdriver(appPort, '/blog/post-100')
@@ -766,6 +794,11 @@ const runTests = (dev = false) => {
       const browser = await webdriver(appPort, '/')
       await browser.elementByCss('#non-json').click()
       await check(() => getBrowserBodyText(browser), /hello /)
+    })
+
+    it('should not show error for accessing res after gssp returns', async () => {
+      const html = await renderViaHTTP(appPort, '/promise/mutate-res')
+      expect(html).toMatch(/hello.*?res/)
     })
   }
 }

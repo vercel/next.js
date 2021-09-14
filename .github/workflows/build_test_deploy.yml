@@ -344,6 +344,9 @@ jobs:
 
       # TODO: use macos runner so that we can use playwright to test against
       # PRs instead of only running on canary?
+      - run: '[[ -z "$BROWSERSTACK_ACCESS_KEY" ]] && echo "Skipping for PR" || npm i -g browserstack-local@1.4.0'
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
       - run: '[[ -z "$BROWSERSTACK_ACCESS_KEY" ]] && echo "Skipping for PR" || node run-tests.js -c 1 test/integration/production/test/index.test.js'
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
@@ -425,12 +428,16 @@ jobs:
         include:
           - os: ubuntu-18.04
             target: x86_64-unknown-linux-gnu
+            name: linux-x64-gnu
           - os: windows-latest
             target: x86_64-pc-windows-msvc
+            name: win32-x64-msvc
           - os: macos-latest
             target: x86_64-apple-darwin
+            name: darwin-x64
           - os: macos-latest
             target: aarch64-apple-darwin
+            name: darwin-arm64
             description: m1
 
     name: next-swc - ${{ matrix.os }} - ${{ matrix.target }} - node@14
@@ -501,10 +508,9 @@ jobs:
         working-directory: packages/next
       - name: Upload artifact
         uses: actions/upload-artifact@v2.2.4
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         with:
           name: next-swc-binaries
-          path: packages/next/native/next-swc.*.node
+          path: packages/next/native/next-swc.${{ matrix.name }}.node
       - name: Clear the cargo caches
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         run: |
