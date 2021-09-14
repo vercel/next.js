@@ -742,12 +742,28 @@ export async function renderToHTML(
   if (getServerSideProps && !isFallback) {
     let data: UnwrapPromise<ReturnType<GetServerSideProps>>
 
+    let canAccessRes = true
+    let resOrProxy = res
+    if (process.env.NODE_ENV !== 'production') {
+      resOrProxy = new Proxy<ServerResponse>(res, {
+        get: function (obj, prop, receiver) {
+          if (!canAccessRes) {
+            throw new Error(
+              `You should not access 'res' after getServerSideProps resolves.` +
+                `\nRead more: https://nextjs.org/docs/messages/gssp-no-mutating-res`
+            )
+          }
+          return Reflect.get(obj, prop, receiver)
+        },
+      })
+    }
+
     try {
       data = await getServerSideProps({
         req: req as IncomingMessage & {
           cookies: NextApiRequestCookies
         },
-        res,
+        res: resOrProxy,
         query,
         resolvedUrl: renderOpts.resolvedUrl as string,
         ...(pageIsDynamic ? { params: params as ParsedUrlQuery } : undefined),
@@ -758,6 +774,7 @@ export async function renderToHTML(
         locale: renderOpts.locale,
         defaultLocale: renderOpts.defaultLocale,
       })
+      canAccessRes = false
     } catch (serverSidePropsError) {
       // remove not found error code to prevent triggering legacy
       // 404 rendering
