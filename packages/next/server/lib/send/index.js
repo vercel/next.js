@@ -94,14 +94,7 @@ function SendStream(req, path, options) {
   Stream.call(this)
 
   var opts = options || {}
-
-  if (opts.fs) {
-    console.log('Detected FS option')
-    this._fs = opts.fs
-  } else {
-    console.log('Using Node.js FS')
-    this._fs = require('fs')
-  }
+  this._fs = opts.fs
   this.options = opts
   this.path = path
   this.req = req
