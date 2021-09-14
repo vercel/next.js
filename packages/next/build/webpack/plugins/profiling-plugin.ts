@@ -110,7 +110,7 @@ export class ProfilingPlugin {
     })
 
     compiler.hooks.compilation.tap(pluginName, (compilation: any) => {
-      // compilation.hooks.log.tap('xxx', (name: any, entry: any) => {
+      // compilation.hooks.log.tap(pluginName, (name: any, entry: any) => {
       //   if (entry.type === 'time') {
       //     const compilerSpan = spans.get(compiler)!
 
