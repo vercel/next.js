@@ -67,7 +67,7 @@ impl Fold for StyledJSXTransformer {
     if self.has_styled_jsx && is_styled_jsx(&el) {
       match self.replace_jsx_style(&el) {
         Ok(el) => return el,
-        Err(_) => return el.clone(),
+        Err(_) => return el,
       }
     } else if self.has_styled_jsx {
       return el.fold_children_with(self);
@@ -100,7 +100,7 @@ impl Fold for StyledJSXTransformer {
     if let JSXElementName::Ident(Ident { sym, span, .. }) = &el.name {
       if sym != "style"
         && sym != self.style_import_name.as_ref().unwrap()
-        && (!is_capitalized(sym as &str)
+        && (!is_capitalized(&*sym)
           || self
             .nearest_scope_bindings
             .contains(&(sym.clone(), span.ctxt)))
@@ -203,14 +203,13 @@ impl Fold for StyledJSXTransformer {
 
   fn fold_var_declarator(&mut self, declarator: VarDeclarator) -> VarDeclarator {
     let declarator = declarator.fold_children_with(self);
-    if let Some(external_hash) = &self.external_hash {
+    if let Some(external_hash) = &self.external_hash.take() {
       match &declarator.name {
         Pat::Ident(BindingIdent {
           id: Ident { sym, .. },
           ..
         }) => {
           self.add_hash = Some((sym.to_string(), external_hash.clone()));
-          self.external_hash = None;
         }
         _ => {}
       }
@@ -220,10 +219,9 @@ impl Fold for StyledJSXTransformer {
 
   fn fold_export_default_expr(&mut self, default_expr: ExportDefaultExpr) -> ExportDefaultExpr {
     let default_expr = default_expr.fold_children_with(self);
-    if let Some(external_hash) = &self.external_hash {
+    if let Some(external_hash) = &self.external_hash.take() {
       let default_ident = "_defaultExport";
       self.add_hash = Some((String::from(default_ident), external_hash.clone()));
-      self.external_hash = None;
       self.add_default_decl = Some((String::from(default_ident), *default_expr.expr));
       return ExportDefaultExpr {
         expr: Box::new(Expr::Ident(Ident {
@@ -241,9 +239,8 @@ impl Fold for StyledJSXTransformer {
     let mut new_stmts = vec![];
     for stmt in block.stmts {
       new_stmts.push(stmt.fold_children_with(self));
-      if let Some(add_hash) = self.get_add_hash() {
+      if let Some(add_hash) = self.add_hash.take() {
         new_stmts.push(add_hash_statment(add_hash));
-        self.add_hash = None;
       }
     }
 
@@ -258,7 +255,7 @@ impl Fold for StyledJSXTransformer {
       if let Some((default_ident, default_expr)) = &self.add_default_decl {
         new_items.push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(VarDecl {
           kind: VarDeclKind::Const,
-          declare: false, // ? Is this right?
+          declare: false,
           decls: vec![VarDeclarator {
             name: Pat::Ident(BindingIdent {
               id: Ident {
@@ -269,23 +266,21 @@ impl Fold for StyledJSXTransformer {
               type_ann: None,
             }),
             init: Some(Box::new(default_expr.clone())),
-            definite: false, // ? Is this right?
+            definite: false,
             span: DUMMY_SP,
           }],
           span: DUMMY_SP,
         }))));
         self.add_default_decl = None;
-        if let Some(add_hash) = self.get_add_hash() {
+        if let Some(add_hash) = self.add_hash.take() {
           new_items.push(ModuleItem::Stmt(add_hash_statment(add_hash)));
-          self.add_hash = None;
         }
       }
       if !is_styled_css_import(&new_item) {
         new_items.push(new_item);
       }
-      if let Some(add_hash) = self.get_add_hash() {
+      if let Some(add_hash) = self.add_hash.take() {
         new_items.push(ModuleItem::Stmt(add_hash_statment(add_hash)));
-        self.add_hash = None;
       }
     }
 
@@ -364,7 +359,7 @@ impl StyledJSXTransformer {
         quasis,
         span,
       }) => {
-        if exprs.len() == 0 {
+        if exprs.is_empty() {
           hasher.write(quasis[0].raw.value.as_bytes());
           css = quasis[0].raw.value.to_string();
           css_span = span.clone();
@@ -381,7 +376,7 @@ impl StyledJSXTransformer {
             s = format!("{}{}{}", s, quasis[i].raw.value, placeholder)
           }
           css = String::from(s);
-          css_span = span.clone();
+          css_span = *span;
           let res = self.evaluator.as_mut().unwrap().eval(&expr);
           is_dynamic = if let Some(EvalResult::Lit(_)) = res {
             false
@@ -449,12 +444,6 @@ impl StyledJSXTransformer {
         self.style_import_name.as_ref().unwrap(),
       )),
     }
-  }
-
-  fn get_add_hash(&mut self) -> Option<(String, String)> {
-    let add_hash = self.add_hash.clone();
-    self.add_hash = None;
-    add_hash
   }
 
   fn process_tagged_template_expr(&mut self, tagged_tpl: &TaggedTpl) -> Result<Expr, Error> {
@@ -580,7 +569,7 @@ fn get_style_expr(el: &JSXElement) -> &Expr {
     .iter()
     .filter(|child| {
       if let JSXElementChild::JSXText(txt) = child {
-        if txt.value.to_string().chars().all(char::is_whitespace) {
+        if txt.value.chars().all(char::is_whitespace) {
           return false;
         }
       }
@@ -714,8 +703,7 @@ fn get_existing_class_name(el: &JSXOpeningElement) -> (Option<Expr>, Option<usiz
   };
 
   let class_name_expr = match class_name_expr {
-    Some(Expr::Tpl(_)) => Some(class_name_expr.unwrap()),
-    Some(Expr::Lit(Lit::Str(_))) => Some(class_name_expr.unwrap()),
+    Some(e @ Expr::Tpl(_) | e @ Expr::Lit(Lit::Str(_))) => Some(e),
     None => None,
     _ => Some(or(class_name_expr.unwrap(), string_literal_expr(""))),
   };
@@ -738,7 +726,7 @@ fn join_spreads(spreads: Vec<Expr>) -> Expr {
   let mut new_expr = spreads[0].clone();
   for i in 1..spreads.len() {
     new_expr = Expr::Bin(BinExpr {
-      op: BinaryOp::LogicalOr,
+      op: op!("||"),
       left: Box::new(new_expr.clone()),
       right: Box::new(spreads[i].clone()),
       span: DUMMY_SP,
@@ -765,7 +753,7 @@ fn add_hash_statment((ident, hash): (String, String)) -> Stmt {
         computed: false,
       }))),
       right: Box::new(string_literal_expr(&hash)),
-      op: AssignOp::Assign,
+      op: op!("="),
       span: DUMMY_SP,
     })),
     span: DUMMY_SP,
