@@ -1016,8 +1016,11 @@ export default class Router implements BaseRouter {
     // when rewritten to
     let pages: any, rewrites: any
     try {
-      pages = await this.pageLoader.getPageList()
-      ;({ __rewrites: rewrites } = await getClientBuildManifest())
+      ;[pages, { __rewrites: rewrites }] = await Promise.all([
+        this.pageLoader.getPageList(),
+        getClientBuildManifest(),
+        this.pageLoader.getMiddlewareList(),
+      ])
     } catch (err) {
       // If we fail to resolve the page list or client-build manifest, we must
       // do a server-side transition:
@@ -1743,7 +1746,11 @@ export default class Router implements BaseRouter {
       return { type: 'next' }
     }
 
-    const preflight = await this._getPreflightData(options.as, options.cache)
+    const preflight = await this._getPreflightData({
+      preflightHref: options.as,
+      shouldCache: options.cache,
+    })
+
     if (preflight.rewrite?.startsWith('/')) {
       const parsed = parseRelativeUrl(
         normalizeLocalePath(
@@ -1823,10 +1830,11 @@ export default class Router implements BaseRouter {
     }
   }
 
-  _getPreflightData(
-    preflightHref: string,
-    shouldCache: boolean = false
-  ): Promise<PreflightData> {
+  _getPreflightData(params: {
+    preflightHref: string
+    shouldCache?: boolean
+  }): Promise<PreflightData> {
+    const { preflightHref, shouldCache = false } = params
     const { href: cacheKey } = new URL(preflightHref, window.location.href)
 
     if (
@@ -1841,7 +1849,7 @@ export default class Router implements BaseRouter {
     return fetch(preflightHref, {
       method: 'HEAD',
       credentials: 'same-origin',
-      headers: { 'x-middleware-preflight': `${this.pageLoader.buildId}` },
+      headers: { 'x-middleware-preflight': '1' },
     })
       .then((res) => {
         if (!res.ok) {

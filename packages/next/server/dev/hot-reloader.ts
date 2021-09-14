@@ -307,7 +307,8 @@ export default class HotReloader {
             this.buildId,
             this.previewProps,
             this.config,
-            []
+            [],
+            this.isWebpack5
           )
         )
 
@@ -365,7 +366,8 @@ export default class HotReloader {
         this.buildId,
         this.previewProps,
         this.config,
-        []
+        [],
+        this.isWebpack5
       ).client,
     })
     const fallbackCompiler = webpack(fallbackConfig)
@@ -410,7 +412,7 @@ export default class HotReloader {
               isClientKey ? 'client'.length : 'server'.length
             )
             const isMiddleware = page.match(MIDDLEWARE_ROUTE)
-            if (isClientCompilation && page.match(API_ROUTE)) {
+            if (isClientCompilation && page.match(API_ROUTE) && !isMiddleware) {
               return
             }
             if (!isClientCompilation && isMiddleware) {

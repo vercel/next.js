@@ -33,7 +33,7 @@ import {
   SERVER_DIRECTORY,
   STATIC_STATUS_PAGES,
   TEMPORARY_REDIRECT_STATUS,
-  EDGE_MANIFEST,
+  MIDDLEWARE_MANIFEST,
 } from '../shared/lib/constants'
 import {
   getRouteMatcher,
@@ -275,7 +275,7 @@ export default class Server {
     const pagesManifestPath = join(this.serverBuildDir, PAGES_MANIFEST)
     const middlewareManifestPath = join(
       join(this.distDir, SERVER_DIRECTORY),
-      EDGE_MANIFEST
+      MIDDLEWARE_MANIFEST
     )
 
     if (!dev) {

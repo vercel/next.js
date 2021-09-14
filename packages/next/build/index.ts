@@ -13,6 +13,7 @@ import formatWebpackMessages from '../client/dev/error-overlay/format-webpack-me
 import {
   STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR,
   PUBLIC_DIR_MIDDLEWARE_CONFLICT,
+  MIDDLEWARE_ROUTE,
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
 import { findPagesDir } from '../lib/find-pages-dir'
@@ -46,7 +47,7 @@ import {
   SERVER_DIRECTORY,
   SERVER_FILES_MANIFEST,
   STATIC_STATUS_PAGES,
-  EDGE_MANIFEST,
+  MIDDLEWARE_MANIFEST,
 } from '../shared/lib/constants'
 import {
   getRouteRegex,
@@ -94,8 +95,7 @@ import { NextConfigComplete } from '../server/config-shared'
 import isError from '../lib/is-error'
 import { MiddlewareManifest } from './webpack/plugins/edge-function-plugin'
 
-const RESERVED_PAGE_REGEX =
-  /(^\/(_app|_error|_document|api(\/|$))|_middleware$)/
+const RESERVED_PAGE = /^\/(_app|_error|_document|api(\/|$))/
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -276,7 +276,8 @@ export default async function build(
           buildId,
           previewProps,
           config,
-          loadedEnvFiles
+          loadedEnvFiles,
+          isWebpack5
         )
       )
     const pageKeys = Object.keys(mappedPages)
@@ -431,13 +432,14 @@ export default async function build(
       redirects: redirects.map((r: any) => buildCustomRoute(r, 'redirect')),
       headers: headers.map((r: any) => buildCustomRoute(r, 'header')),
       dynamicRoutes: getSortedRoutes(pageKeys)
-        .filter(
-          (page) => !isDynamicRoute(page) && !page.match(RESERVED_PAGE_REGEX)
-        )
+        .filter((page) => isDynamicRoute(page) && !page.match(MIDDLEWARE_ROUTE))
         .map(pageToRoute),
       staticRoutes: getSortedRoutes(pageKeys)
         .filter(
-          (page) => !isDynamicRoute(page) && !page.match(RESERVED_PAGE_REGEX)
+          (page) =>
+            !isDynamicRoute(page) &&
+            !page.match(MIDDLEWARE_ROUTE) &&
+            !page.match(RESERVED_PAGE)
         )
         .map(pageToRoute),
       dataRoutes: [],
@@ -839,7 +841,7 @@ export default async function build(
             let isHybridAmp = false
             let ssgPageRoutes: string[] | null = null
 
-            if (!page.match(RESERVED_PAGE_REGEX)) {
+            if (!page.match(MIDDLEWARE_ROUTE) && !page.match(RESERVED_PAGE)) {
               try {
                 let isPageStaticSpan =
                   checkPageSpan.traceChild('is-page-static')
@@ -1685,7 +1687,7 @@ export default async function build(
 
     const middlewareManifest: MiddlewareManifest = JSON.parse(
       await promises.readFile(
-        path.join(distDir, SERVER_DIRECTORY, EDGE_MANIFEST),
+        path.join(distDir, SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
         'utf8'
       )
     )
@@ -1697,9 +1699,9 @@ export default async function build(
         buildId,
         '_middlewareManifest.js'
       ),
-      `self.__EDGE_MANIFEST=${devalue(
+      `self.__MIDDLEWARE_MANIFEST=${devalue(
         middlewareManifest.sortedMiddleware
-      )};self.__EDGE_MANIFEST_CB&&self.__EDGE_MANIFEST_CB()`
+      )};self.__MIDDLEWARE_MANIFEST_CB&&self.__MIDDLEWARE_MANIFEST_CB()`
     )
 
     const images = { ...config.images }

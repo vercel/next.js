@@ -4,7 +4,7 @@ export type EdgeFunctionLoaderOptions = {
   absolutePagePath: string
 }
 
-export default function nextEdgeLoader(this: any) {
+export default function edgeFunctionLoader(this: any) {
   const { absolutePagePath }: EdgeFunctionLoaderOptions =
     loaderUtils.getOptions(this)
   const stringifiedAbsolutePagePath = JSON.stringify(absolutePagePath)

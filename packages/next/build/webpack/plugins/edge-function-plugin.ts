@@ -3,9 +3,9 @@ import {
   isWebpack5,
   sources,
 } from 'next/dist/compiled/webpack/webpack'
-import { EDGE_MANIFEST } from '../../../shared/lib/constants'
 import { getMiddlewareRegex } from '../../../shared/lib/router/utils'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
+import { MIDDLEWARE_MANIFEST } from '../../../shared/lib/constants'
 
 const PLUGIN_NAME = 'EdgeFunctionPlugin'
 const MIDDLEWARE_FULL_ROUTE_REGEX = /^pages[/\\]?(.*)\/_middleware$/
@@ -67,7 +67,7 @@ export default class EdgeFunctionPlugin {
       Object.keys(middlewareManifest.middleware)
     )
 
-    assets[`server/${EDGE_MANIFEST}`] = new sources.RawSource(
+    assets[`server/${MIDDLEWARE_MANIFEST}`] = new sources.RawSource(
       JSON.stringify(middlewareManifest, null, 2)
     )
   }
@@ -82,6 +82,7 @@ export default class EdgeFunctionPlugin {
           compilation.hooks.finishModules.tap(PLUGIN_NAME, () => {
             const { moduleGraph } = compilation as any
             envPerRoute.clear()
+
             for (const [name, info] of compilation.entries) {
               if (name.endsWith('/_middleware')) {
                 const edgeEntries = new Set<webpack.Module>()
@@ -99,33 +100,24 @@ export default class EdgeFunctionPlugin {
 
                 const queue = new Set(edgeEntries)
                 for (const module of queue) {
-                  const buildInfo = (module as any).buildInfo
-                  if (buildInfo) {
-                    if (
-                      buildInfo.usingIndirectEval &&
-                      !(module as any).resource.includes('react.development') &&
-                      !(module as any).resource.includes(
-                        'react-dom-server.browser.development'
-                      )
-                    ) {
-                      // @ts-ignore TODO: Remove ignore when webpack 5 is stable
-                      const error = new webpack.WebpackError(
-                        `Running \`eval\` is not allowed in edge middleware ${name}`
-                      )
-                      error.module = module
-                      compilation.errors.push(error)
-                    }
+                  const { buildInfo } = module as any
+                  if (buildInfo?.usingIndirectEval) {
+                    // @ts-ignore TODO: Remove ignore when webpack 5 is stable
+                    const error = new webpack.WebpackError(
+                      `\`eval\` not allowed in Edge Middleware ${name}`
+                    )
+                    error.module = module
+                    compilation.warnings.push(error)
+                  }
 
-                    if (buildInfo.nextUsedEnvVars !== undefined) {
-                      for (const envName of buildInfo.nextUsedEnvVars) {
-                        env.add(envName)
-                      }
+                  if (buildInfo?.nextUsedEnvVars !== undefined) {
+                    for (const envName of buildInfo.nextUsedEnvVars) {
+                      env.add(envName)
                     }
                   }
 
-                  for (const connection of moduleGraph.getOutgoingConnections(
-                    module
-                  )) {
+                  const connections = moduleGraph.getOutgoingConnections(module)
+                  for (const connection of connections) {
                     if (connection.module) {
                       queue.add(connection.module)
                     }
@@ -203,6 +195,11 @@ export default class EdgeFunctionPlugin {
               this.createAssets(compilation, assets, envPerRoute)
             }
           )
+        } else {
+          // This is kept just for backwards compatibility on build
+          compiler.hooks.emit.tap('NextJsPagesManifest', (c: any) => {
+            this.createAssets(c, c.assets, new Map())
+          })
         }
       }
     )

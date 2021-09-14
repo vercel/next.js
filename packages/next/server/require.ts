@@ -2,7 +2,7 @@ import { promises } from 'fs'
 import { join } from 'path'
 import {
   FONT_MANIFEST,
-  EDGE_MANIFEST,
+  MIDDLEWARE_MANIFEST,
   PAGES_MANIFEST,
   SERVER_DIRECTORY,
   SERVERLESS_DIRECTORY,
@@ -92,7 +92,7 @@ export function getMiddlewareInfo(params: {
 
   const middlewareManifest: MiddlewareManifest = require(join(
     serverBuildPath,
-    EDGE_MANIFEST
+    MIDDLEWARE_MANIFEST
   ))
 
   let page: string

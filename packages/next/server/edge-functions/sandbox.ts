@@ -12,14 +12,6 @@ function btoa(str: string) {
   return Buffer.from(str, 'binary').toString('base64')
 }
 
-function log(...args: any[]) {
-  console.log(...args)
-}
-
-function logError(...args: any[]) {
-  console.error(...args)
-}
-
 class TextEncoderRuntime {
   encoder: TextEncoder
 
@@ -88,7 +80,16 @@ export async function run(params: {
       btoa,
       clearInterval,
       clearTimeout,
-      console: { log, error: logError },
+      console: {
+        assert: console.assert.bind(console),
+        error: console.error.bind(console),
+        info: console.info.bind(console),
+        log: console.log.bind(console),
+        time: console.time.bind(console),
+        timeEnd: console.timeEnd.bind(console),
+        timeLog: console.timeLog.bind(console),
+        warn: console.warn.bind(console),
+      },
       fetch,
       Headers,
       process: { env: { ...process.env } },

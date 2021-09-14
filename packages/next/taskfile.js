@@ -254,14 +254,6 @@ export async function ncc_devalue(task, opts) {
     .ncc({ packageName: 'devalue', externals })
     .target('compiled/devalue')
 }
-// eslint-disable-next-line camelcase
-externals['isbot'] = 'next/dist/compiled/isbot'
-export async function ncc_isbot(task, opts) {
-  await task
-    .source(opts.src || relative(__dirname, require.resolve('isbot')))
-    .ncc({ packageName: 'isbot', externals })
-    .target('compiled/isbot')
-}
 externals['escape-string-regexp'] = 'next/dist/compiled/escape-string-regexp'
 // eslint-disable-next-line camelcase
 export async function ncc_escape_string_regexp(task, opts) {
@@ -694,14 +686,6 @@ export async function ncc_text_table(task, opts) {
     .target('compiled/text-table')
 }
 // eslint-disable-next-line camelcase
-externals['ua-parser-js'] = 'next/dist/compiled/ua-parser-js'
-export async function ncc_ua_parser_js(task, opts) {
-  await task
-    .source(opts.src || relative(__dirname, require.resolve('ua-parser-js')))
-    .ncc({ packageName: 'ua-parser-js', externals })
-    .target('compiled/ua-parser-js')
-}
-// eslint-disable-next-line camelcase
 externals['unistore'] = 'next/dist/compiled/unistore'
 export async function ncc_unistore(task, opts) {
   await task
@@ -887,7 +871,6 @@ export async function ncc(task, opts) {
         'ncc_glob',
         'ncc_gzip_size',
         'ncc_http_proxy',
-        'ncc_isbot',
         'ncc_ignore_loader',
         'ncc_is_animated',
         'ncc_is_docker',
@@ -922,7 +905,6 @@ export async function ncc(task, opts) {
         'ncc_nft',
         'ncc_terser',
         'ncc_text_table',
-        'ncc_ua_parser_js',
         'ncc_unistore',
         'ncc_web_vitals',
         'ncc_webpack_bundle4',

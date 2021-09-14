@@ -1,9 +1,9 @@
 import type { RequestData } from './types'
 import type { ParsedNextUrl } from '../../shared/lib/router/utils/parse-next-url'
-import type { IResult as UAResult } from 'next/dist/compiled/ua-parser-js'
+import type { IResult as UAResult } from 'ua-parser-js'
 import cookie from 'next/dist/compiled/cookie'
-import parseUA from 'next/dist/compiled/ua-parser-js'
-import isBot from 'next/dist/compiled/isbot'
+import parseUA from 'ua-parser-js'
+import isBot from 'isbot'
 
 interface UserAgent extends UAResult {
   isBot: boolean
@@ -32,6 +32,10 @@ export class EdgeRequest {
 
   public get cookies() {
     return this._cookieParser()
+  }
+
+  public get preflight() {
+    return this.headers.get('x-middleware-preflight')
   }
 
   public get ua() {

@@ -76,7 +76,8 @@ export function createEntrypoints(
   buildId: string,
   previewMode: __ApiPreviewProps,
   config: NextConfigComplete,
-  loadedEnvFiles: LoadedEnvFiles
+  loadedEnvFiles: LoadedEnvFiles,
+  isWebpack5: boolean
 ): Entrypoints {
   const client: webpack5.EntryObject = {}
   const server: webpack5.EntryObject = {}
@@ -115,14 +116,18 @@ export function createEntrypoints(
     const absolutePagePath = pages[page]
     const bundleFile = normalizePagePath(page)
     const isApiRoute = page.match(API_ROUTE)
-    const isMiddleware = page.match(MIDDLEWARE_ROUTE)
 
     const clientBundlePath = posix.join('pages', bundleFile)
     const serverBundlePath = posix.join('pages', bundleFile)
 
     const isLikeServerless = isTargetLikeServerless(target)
 
-    if (isMiddleware) {
+    if (page.match(MIDDLEWARE_ROUTE)) {
+      if (!isWebpack5) {
+        console.error(`Middleware can be used only with Webpack5`)
+        process.exit(1)
+      }
+
       const loaderOpts: EdgeFunctionLoaderOptions = { absolutePagePath }
       client[clientBundlePath] = {
         filename: 'server/[name].js',
@@ -130,55 +135,52 @@ export function createEntrypoints(
         layer: 'edge',
         library: { name: ['_NEXT_ENTRIES', 'edge_[name]'], type: 'assign' },
       }
-    } else {
-      if (isApiRoute && isLikeServerless) {
-        const serverlessLoaderOptions: ServerlessLoaderQuery = {
-          page,
-          absolutePagePath,
-          ...defaultServerlessOptions,
-        }
-        server[serverBundlePath] = `next-serverless-loader?${stringify(
-          serverlessLoaderOptions
-        )}!`
-      } else if (isApiRoute || target === 'server') {
-        server[serverBundlePath] = [absolutePagePath]
-      } else if (
-        isLikeServerless &&
-        page !== '/_app' &&
-        page !== '/_document'
-      ) {
-        const serverlessLoaderOptions: ServerlessLoaderQuery = {
-          page,
-          absolutePagePath,
-          ...defaultServerlessOptions,
-        }
-        server[serverBundlePath] = `next-serverless-loader?${stringify(
-          serverlessLoaderOptions
-        )}!`
+      return
+    }
+
+    if (isApiRoute && isLikeServerless) {
+      const serverlessLoaderOptions: ServerlessLoaderQuery = {
+        page,
+        absolutePagePath,
+        ...defaultServerlessOptions,
       }
-
-      if (page === '/_document') {
-        return
+      server[serverBundlePath] = `next-serverless-loader?${stringify(
+        serverlessLoaderOptions
+      )}!`
+    } else if (isApiRoute || target === 'server') {
+      server[serverBundlePath] = [absolutePagePath]
+    } else if (isLikeServerless && page !== '/_app' && page !== '/_document') {
+      const serverlessLoaderOptions: ServerlessLoaderQuery = {
+        page,
+        absolutePagePath,
+        ...defaultServerlessOptions,
       }
+      server[serverBundlePath] = `next-serverless-loader?${stringify(
+        serverlessLoaderOptions
+      )}!`
+    }
 
-      if (!isApiRoute) {
-        const pageLoaderOpts: ClientPagesLoaderOptions = {
-          page,
-          absolutePagePath,
-        }
-        const pageLoader = `next-client-pages-loader?${stringify(
-          pageLoaderOpts
-        )}!`
+    if (page === '/_document') {
+      return
+    }
 
-        // Make sure next/router is a dependency of _app or else chunk splitting
-        // might cause the router to not be able to load causing hydration
-        // to fail
-
-        client[clientBundlePath] =
-          page === '/_app'
-            ? [pageLoader, require.resolve('../client/router')]
-            : pageLoader
+    if (!isApiRoute) {
+      const pageLoaderOpts: ClientPagesLoaderOptions = {
+        page,
+        absolutePagePath,
       }
+      const pageLoader = `next-client-pages-loader?${stringify(
+        pageLoaderOpts
+      )}!`
+
+      // Make sure next/router is a dependency of _app or else chunk splitting
+      // might cause the router to not be able to load causing hydration
+      // to fail
+
+      client[clientBundlePath] =
+        page === '/_app'
+          ? [pageLoader, require.resolve('../client/router')]
+          : pageLoader
     }
   })
 

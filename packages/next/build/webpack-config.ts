@@ -324,16 +324,16 @@ export default async function getBaseWebpackConfig(
     babelEdge: {
       loader: babelLoader,
       options: {
-        configFile: babelConfigFile,
-        isServer: true,
-        distDir,
-        pagesDir,
-        cwd: dir,
         // Webpack 5 has a built-in loader cache
         cache: !isWebpack5,
+        configFile: babelConfigFile,
+        cwd: dir,
         development: dev,
-        hasReactRefresh: false,
+        distDir,
         hasJsxRuntime: true,
+        hasReactRefresh: false,
+        isServer: true,
+        pagesDir,
       },
     },
     // Backwards compat
