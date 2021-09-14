@@ -146,7 +146,7 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
 
             // TODO: investigate allowing non-sync fs calls in node-file-trace
             // for better performance
-            const readFile = (path: string, span: Span) => {
+            const readFile = (path: string, _span: Span) => {
               // return span.traceChild('read-file', { path }).traceFn(() => {
               const mod = depModMap.get(path) || entryModMap.get(path)
 
@@ -168,7 +168,7 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
               }
               // })
             }
-            const readlink = (path: string, span: Span) => {
+            const readlink = (path: string, _span: Span) => {
               // return span.traceChild('read-link', { path }).traceFn(() => {
               try {
                 return compilation.inputFileSystem.readlinkSync(path)
@@ -184,7 +184,7 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
               }
               // })
             }
-            const stat = (path: string, span: Span) => {
+            const stat = (path: string, _span: Span) => {
               // return span.traceChild('stat', { path }).traceFn(() => {
               try {
                 return compilation.inputFileSystem.statSync(path)
