@@ -1,11 +1,11 @@
 import type { RequestData } from './types'
 import type { ParsedNextUrl } from '../../shared/lib/router/utils/parse-next-url'
-import type { IResult as UAResult } from 'ua-parser-js'
+import type { IResult } from 'next/dist/compiled/ua-parser-js'
 import cookie from 'next/dist/compiled/cookie'
-import parseUA from 'ua-parser-js'
-import isBot from 'isbot'
+import isbot from 'next/dist/compiled/@javivelasco/isbot'
+import parseua from 'next/dist/compiled/ua-parser-js'
 
-interface UserAgent extends UAResult {
+interface UserAgent extends IResult {
   isBot: boolean
 }
 export class EdgeRequest {
@@ -50,8 +50,8 @@ export class EdgeRequest {
     }
 
     this._parsedUA = {
-      ...parseUA(uaString),
-      isBot: isBot(uaString),
+      ...parseua(uaString),
+      isBot: isbot(uaString),
     }
 
     return this._parsedUA

@@ -1,6 +1,9 @@
 import type { EdgeFunctionResult } from './types'
 import type { RequestData, ResponseData } from './types'
-import { TransformStream, ReadableStream } from 'web-streams-polyfill/ponyfill'
+import { Crypto } from 'next/dist/compiled/@peculiar/webcrypto'
+import { ReadableStream } from 'next/dist/compiled/web-streams-polyfill'
+import { TransformStream } from 'next/dist/compiled/web-streams-polyfill'
+import { v4 as uuid } from 'next/dist/compiled/uuid'
 import { readFileSync } from 'fs'
 import vm from 'vm'
 
@@ -52,6 +55,12 @@ class TextDecoderRuntime {
   }
 }
 
+class WebCrypto extends Crypto {
+  randomUUID() {
+    return uuid()
+  }
+}
+
 let cache:
   | {
       context: { [key: string]: any }
@@ -90,6 +99,7 @@ export async function run(params: {
         timeLog: console.timeLog.bind(console),
         warn: console.warn.bind(console),
       },
+      crypto: new WebCrypto(),
       fetch,
       Headers,
       process: { env: { ...process.env } },
