@@ -141,7 +141,7 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
           .replace(/&/g, '&amp;')
           .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
         const fontRegex = new RegExp(
-          `<link[^>]*data-href="${escapedUrl}"[^>]*\/>`
+          `<link[^>]*data-href="${escapedUrl}"[^>]*/>`
         )
         result = result.replace(fontRegex, '')
 
