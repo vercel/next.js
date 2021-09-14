@@ -49,6 +49,7 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     needs: build
+    if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
     steps:
       - uses: actions/cache@v2
         id: restore-build
@@ -62,6 +63,7 @@ jobs:
     name: Check Pre-compiled
     runs-on: ubuntu-latest
     needs: [build, build-native]
+    if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
     env:
       NEXT_TELEMETRY_DISABLED: 1
     steps:
@@ -92,6 +94,7 @@ jobs:
     name: Test Unit
     runs-on: ubuntu-latest
     needs: build
+    if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
@@ -110,6 +113,7 @@ jobs:
     name: Test Development
     runs-on: ubuntu-latest
     needs: build
+    if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
@@ -148,6 +152,7 @@ jobs:
     name: Test Production
     runs-on: ubuntu-latest
     needs: build
+    if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
@@ -184,6 +189,7 @@ jobs:
     name: Test Integration
     runs-on: ubuntu-latest
     needs: build
+    if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
@@ -219,6 +225,7 @@ jobs:
     name: Test Electron
     runs-on: ubuntu-latest
     needs: build
+    if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
@@ -244,6 +251,7 @@ jobs:
   testYarnPnP:
     runs-on: ubuntu-latest
     needs: build
+    if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
     env:
       NODE_OPTIONS: '--unhandled-rejections=strict'
       YARN_COMPRESSION_LEVEL: '0'
@@ -261,6 +269,7 @@ jobs:
   testsPass:
     name: thank you, next
     runs-on: ubuntu-latest
+    if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
     needs:
       [
         lint,
@@ -278,6 +287,7 @@ jobs:
     name: Webpack 4 (Basic, Production, Acceptance)
     runs-on: ubuntu-latest
     needs: build
+    if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
@@ -304,6 +314,7 @@ jobs:
     name: Test Firefox (production)
     runs-on: ubuntu-latest
     needs: build
+    if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
     env:
       BROWSER_NAME: 'firefox'
       NEXT_TELEMETRY_DISABLED: 1
@@ -323,6 +334,7 @@ jobs:
     name: Test Safari (production)
     runs-on: ubuntu-latest
     needs: build
+    if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
     env:
       BROWSERSTACK: true
       BROWSER_NAME: 'safari'
@@ -354,6 +366,7 @@ jobs:
     name: Test Safari 10.1 (nav)
     runs-on: ubuntu-latest
     needs: [build, testSafari]
+    if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
     env:
       BROWSERSTACK: true
       LEGACY_SAFARI: true
@@ -520,6 +533,7 @@ jobs:
   test-native:
     name: Unit Test Native Code
     runs-on: ubuntu-18.04
+    if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
 
     steps:
       - uses: actions/checkout@v2
