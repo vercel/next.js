@@ -21,7 +21,7 @@ fn tpl_element(value: &str) -> TplElement {
 
 pub fn compute_class_names(
   styles: &Vec<JSXStyle>,
-  style_import_name: &String,
+  style_import_name: &str,
 ) -> (Option<String>, Option<Expr>) {
   let mut static_class_name = None;
   let mut external_jsx_id = None;
@@ -70,7 +70,7 @@ pub fn compute_class_names(
     _ => Some(Expr::Call(CallExpr {
       callee: ExprOrSuper::Expr(Box::new(Expr::Member(MemberExpr {
         obj: ExprOrSuper::Expr(Box::new(Expr::Ident(Ident {
-          sym: style_import_name.to_string().into(),
+          sym: style_import_name.into(),
           span: DUMMY_SP,
           optional: false,
         }))),
@@ -157,10 +157,7 @@ pub fn compute_class_names(
   (static_class_name, class_name_expr)
 }
 
-pub fn make_external_styled_jsx_el(
-  style: &ExternalStyle,
-  style_import_name: &String,
-) -> JSXElement {
+pub fn make_external_styled_jsx_el(style: &ExternalStyle, style_import_name: &str) -> JSXElement {
   let attrs = vec![JSXAttrOrSpread::JSXAttr(JSXAttr {
     name: JSXAttrName::Ident(Ident {
       sym: "id".into(),
@@ -175,7 +172,7 @@ pub fn make_external_styled_jsx_el(
   })];
   let opening = JSXOpeningElement {
     name: JSXElementName::Ident(Ident {
-      sym: style_import_name.to_string().into(),
+      sym: style_import_name.into(),
       span: DUMMY_SP,
       optional: false,
     }),
@@ -187,7 +184,7 @@ pub fn make_external_styled_jsx_el(
 
   let closing = Some(JSXClosingElement {
     name: JSXElementName::Ident(Ident {
-      sym: style_import_name.to_string().into(),
+      sym: style_import_name.into(),
       span: DUMMY_SP,
       optional: false,
     }),
@@ -209,7 +206,7 @@ pub fn make_external_styled_jsx_el(
 pub fn make_local_styled_jsx_el(
   style_info: &LocalStyle,
   css_expr: Expr,
-  style_import_name: &String,
+  style_import_name: &str,
 ) -> JSXElement {
   let mut attrs = vec![JSXAttrOrSpread::JSXAttr(JSXAttr {
     name: JSXAttrName::Ident(Ident {
@@ -219,7 +216,7 @@ pub fn make_local_styled_jsx_el(
     }),
     value: Some(JSXAttrValue::JSXExprContainer(JSXExprContainer {
       expr: JSXExpr::Expr(Box::new(string_literal_expr(
-        hash_string(&style_info.hash).clone().as_str(),
+        hash_string(&style_info.hash).as_str(),
       ))),
       span: DUMMY_SP,
     })),
@@ -255,7 +252,7 @@ pub fn make_local_styled_jsx_el(
 
   let opening = JSXOpeningElement {
     name: JSXElementName::Ident(Ident {
-      sym: style_import_name.to_string().into(),
+      sym: style_import_name.into(),
       span: DUMMY_SP,
       optional: false,
     }),
@@ -267,7 +264,7 @@ pub fn make_local_styled_jsx_el(
 
   let closing = Some(JSXClosingElement {
     name: JSXElementName::Ident(Ident {
-      sym: style_import_name.to_string().into(),
+      sym: style_import_name.into(),
       span: DUMMY_SP,
       optional: false,
     }),
@@ -291,14 +288,14 @@ pub fn get_usable_import_specifier(_items: &Vec<ModuleItem>) -> String {
   String::from("_JSXStyle")
 }
 
-pub fn styled_jsx_import_decl(style_import_name: &String) -> ModuleItem {
+pub fn styled_jsx_import_decl(style_import_name: &str) -> ModuleItem {
   ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
     asserts: None,
     span: DUMMY_SP,
     type_only: false,
     specifiers: vec![ImportSpecifier::Default(ImportDefaultSpecifier {
       local: Ident {
-        sym: String::from(style_import_name).into(),
+        sym: style_import_name.into(),
         span: DUMMY_SP,
         optional: false,
       },
@@ -332,7 +329,7 @@ pub fn string_literal_expr(str: &str) -> Expr {
 
 pub fn ident(str: &str) -> Ident {
   Ident {
-    sym: String::from(str).into(),
+    sym: str.into(),
     span: DUMMY_SP,
     optional: false,
   }

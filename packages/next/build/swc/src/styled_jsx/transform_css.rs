@@ -78,7 +78,7 @@ pub fn transform_css(
       .map(|quasi| TplElement {
         cooked: None, // ? Do we need cooked as well
         raw: Str {
-          value: String::from(*quasi).into(),
+          value: (*quasi).into(),
           span: DUMMY_SP,
           has_escape: false,
           kind: StrKind::Synthesized {},
@@ -116,8 +116,7 @@ impl Namespacer {
     }
 
     let mut pseudo_index = None;
-    for i in 0..node.subclass_selectors.len() {
-      let selector = &node.subclass_selectors[i];
+    for (i, selector) in node.subclass_selectors.iter().enumerate() {
       if let SubclassSelector::Pseudo(PseudoSelector { name, args, .. }) = selector {
         // One off global selector
         if &name.value == "global" {
