@@ -1,0 +1,10 @@
+{
+  "scripts": {
+    "prepare": "rm -rf components && node ./fuzzponent.js -d 2 -s 206 -o components",
+    "dev": "../../node_modules/.bin/next dev",
+    "build": "../../node_modules/.bin/next build",
+    "start": "../../node_modules/.bin/next start",
+    "dev-nocache": "rm -rf .next && yarn dev",
+    "build-nocache": "rm -rf .next && yarn build"
+  }
+}

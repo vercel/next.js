@@ -3,7 +3,7 @@
 import webdriver from 'next-webdriver'
 import { readFileSync } from 'fs'
 import url from 'url'
-import { join, resolve as resolvePath } from 'path'
+import { join } from 'path'
 import {
   renderViaHTTP,
   getBrowserBodyText,
@@ -88,8 +88,9 @@ module.exports = (context) => {
             `Found the user's home directory in: ${buildFile}, ${homeDir}\n\n${content}`
           )
         }
-
-        const checkPathProject = resolvePath(__dirname, ...Array(5).fill('..'))
+        // TODO: this checks the monorepo's path currently, we should check
+        // the Next.js apps directory instead once using isolated next
+        const checkPathProject = join(__dirname, ...Array(4).fill('..'))
         if (
           content.includes(checkPathProject) ||
           (process.platform.match(/win/) &&

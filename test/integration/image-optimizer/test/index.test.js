@@ -16,8 +16,6 @@ import {
 import isAnimated from 'next/dist/compiled/is-animated'
 import { join } from 'path'
 
-jest.setTimeout(1000 * 60 * 5)
-
 const appDir = join(__dirname, '../app')
 const imagesDir = join(appDir, '.next', 'cache', 'images')
 const nextConfig = new File(join(appDir, 'next.config.js'))
