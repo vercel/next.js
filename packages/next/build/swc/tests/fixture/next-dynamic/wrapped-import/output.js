@@ -7,7 +7,7 @@ const DynamicComponent = dynamic(()=>handleImport(import("./components/hello"))
             ]
         ,
         modules: [
-            "/some-project/src/some-file.js -> " + "./components/hello"
+            "some-file.js -> " + "./components/hello"
         ]
     },
     loading: ()=>null

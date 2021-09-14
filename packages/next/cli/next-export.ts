@@ -5,8 +5,10 @@ import arg from 'next/dist/compiled/arg/index.js'
 import exportApp from '../export'
 import { printAndExit } from '../server/lib/utils'
 import { cliCommand } from '../bin/next'
+import { trace } from '../trace'
 
 const nextExport: cliCommand = (argv) => {
+  const nextExportCliSpan = trace('next-export-cli')
   const validArgs: arg.Spec = {
     // Types
     '--help': Boolean,
@@ -60,11 +62,13 @@ const nextExport: cliCommand = (argv) => {
     outdir: args['--outdir'] ? resolve(args['--outdir']) : join(dir, 'out'),
   }
 
-  exportApp(dir, options)
+  exportApp(dir, options, nextExportCliSpan)
     .then(() => {
+      nextExportCliSpan.stop()
       printAndExit(`Export successful. Files written to ${options.outdir}`, 0)
     })
     .catch((err) => {
+      nextExportCliSpan.stop()
       printAndExit(err)
     })
 }

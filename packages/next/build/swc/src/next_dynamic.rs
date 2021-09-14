@@ -1,3 +1,6 @@
+use std::path::{Path, PathBuf};
+
+use pathdiff::diff_paths;
 use swc_atoms::js_word;
 use swc_common::{FileName, DUMMY_SP};
 use swc_ecmascript::ast::{
@@ -11,8 +14,9 @@ use swc_ecmascript::utils::{
 };
 use swc_ecmascript::visit::{Fold, FoldWith};
 
-pub fn next_dynamic(filename: FileName) -> impl Fold {
+pub fn next_dynamic(filename: FileName, pages_dir: Option<PathBuf>) -> impl Fold {
   NextDynamicPatcher {
+    pages_dir,
     filename,
     dynamic_bindings: vec![],
     is_next_dynamic_first_arg: false,
@@ -22,6 +26,7 @@ pub fn next_dynamic(filename: FileName) -> impl Fold {
 
 #[derive(Debug)]
 struct NextDynamicPatcher {
+  pages_dir: Option<PathBuf>,
   filename: FileName,
   dynamic_bindings: Vec<Id>,
   is_next_dynamic_first_arg: bool,
@@ -158,7 +163,11 @@ impl Fold for NextDynamicPatcher {
                       span: DUMMY_SP,
                       op: BinaryOp::Add,
                       left: Box::new(Expr::Lit(Lit::Str(Str {
-                        value: format!("{} -> ", self.filename).into(),
+                        value: format!(
+                          "{} -> ",
+                          rel_filename(self.pages_dir.as_deref(), &self.filename)
+                        )
+                        .into(),
                         span: DUMMY_SP,
                         kind: StrKind::Synthesized {},
                         has_escape: false,
@@ -219,4 +228,27 @@ impl Fold for NextDynamicPatcher {
     }
     expr
   }
+}
+
+fn rel_filename(base: Option<&Path>, file: &FileName) -> String {
+  let base = match base {
+    Some(v) => v,
+    None => return file.to_string(),
+  };
+
+  let file = match file {
+    FileName::Real(v) => v,
+    _ => {
+      return file.to_string();
+    }
+  };
+
+  let rel_path = diff_paths(&file, base);
+
+  let rel_path = match rel_path {
+    Some(v) => v,
+    None => return file.display().to_string(),
+  };
+
+  rel_path.display().to_string()
 }

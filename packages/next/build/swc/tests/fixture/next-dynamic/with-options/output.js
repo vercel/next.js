@@ -7,7 +7,7 @@ const DynamicComponentWithCustomLoading = dynamic(()=>import("../components/hell
             ]
         ,
         modules: [
-            "/some-project/src/some-file.js -> " + "../components/hello"
+            "some-file.js -> " + "../components/hello"
         ]
     },
     loading: ()=><p >...</p>
