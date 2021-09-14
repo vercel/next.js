@@ -12,8 +12,6 @@ import { join } from 'path'
 import pkg from 'next/package'
 import http from 'http'
 
-jest.setTimeout(1000 * 60 * 5)
-
 const dir = join(__dirname, '..')
 const dirDuplicateSass = join(__dirname, '../duplicate-sass')
 

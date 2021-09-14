@@ -924,6 +924,7 @@ export async function compile(task, opts) {
       'lib',
       'client',
       'telemetry',
+      'trace',
       'shared',
       'server_wasm',
       // we compile this each time so that fresh runtime data is pulled
@@ -1026,6 +1027,14 @@ export async function telemetry(task, opts) {
   notify('Compiled telemetry files')
 }
 
+export async function trace(task, opts) {
+  await task
+    .source(opts.src || 'trace/**/*.+(js|ts|tsx)')
+    .swc('server', { dev: opts.dev })
+    .target('dist/trace')
+  notify('Compiled trace files')
+}
+
 export async function build(task, opts) {
   await task.serial(['precompile', 'compile'], opts)
 }
@@ -1043,6 +1052,7 @@ export default async function (task) {
   await task.watch('lib/**/*.+(js|ts|tsx)', 'lib', opts)
   await task.watch('cli/**/*.+(js|ts|tsx)', 'cli', opts)
   await task.watch('telemetry/**/*.+(js|ts|tsx)', 'telemetry', opts)
+  await task.watch('trace/**/*.+(js|ts|tsx)', 'trace', opts)
   await task.watch('shared/**/*.+(js|ts|tsx)', 'shared', opts)
   await task.watch('server/**/*.+(wasm)', 'server_wasm', opts)
 }

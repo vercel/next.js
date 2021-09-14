@@ -1,0 +1,11 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`ReactRefreshLogBox <Link> component props errors 2`] = `
+"Error: Failed prop type: The prop \`scroll\` expects a \`boolean\` in \`<Link>\`, but got \`string\` instead.
+Open your browser's console to view the Component stack trace."
+`;
+
+exports[`ReactRefreshLogBox <Link> component props errors 3`] = `
+"Error: Failed prop type: The prop \`href\` expects a \`string\` or \`object\` in \`<Link>\`, but got \`boolean\` instead.
+Open your browser's console to view the Component stack trace."
+`;

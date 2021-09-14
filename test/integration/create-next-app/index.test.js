@@ -9,8 +9,6 @@ const cli = require.resolve('create-next-app/dist/index.js')
 const exampleRepo = 'https://github.com/vercel/next.js/tree/canary'
 const examplePath = 'examples/basic-css'
 
-jest.setTimeout(1000 * 60 * 5)
-
 const run = (args, options) => execa('node', [cli].concat(args), options)
 
 async function usingTempDir(fn, options) {

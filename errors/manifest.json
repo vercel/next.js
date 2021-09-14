@@ -139,6 +139,10 @@
           "title": "gssp-mixed-not-found-redirect",
           "path": "/errors/gssp-mixed-not-found-redirect.md"
         },
+        {
+          "title": "gssp-no-mutating-res",
+          "path": "/errors/gssp-no-mutating-res.md"
+        },
         { "title": "head-build-id", "path": "/errors/head-build-id.md" },
         {
           "title": "href-interpolation-failed",

@@ -16,8 +16,6 @@ import {
   renderViaHTTP,
 } from 'next-test-utils'
 
-jest.setTimeout(1000 * 60 * 2)
-
 const appDir = join(__dirname, '../app')
 const workDir = join(os.tmpdir(), `required-server-files-${Date.now()}`)
 let server
