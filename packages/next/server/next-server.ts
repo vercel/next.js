@@ -1715,7 +1715,10 @@ export default class Server {
           ? await this.getStaticPaths(pathname)
           : { staticPaths: undefined, fallbackMode: false }
 
-        if (isBot(req.headers['user-agent'] || '')) {
+        if (
+          fallbackMode === 'static' &&
+          isBot(req.headers['user-agent'] || '')
+        ) {
           fallbackMode = 'blocking'
         }
 
