@@ -94,7 +94,7 @@ function SendStream(req, path, options) {
   Stream.call(this)
 
   var opts = options || {}
-  this._fs = opts.fs
+  this.fs = opts.fs || require('fs')
   this.options = opts
   this.path = path
   this.req = req
@@ -629,7 +629,7 @@ SendStream.prototype.sendFile = function sendFile(path) {
   var i = 0
   var self = this
 
-  self._fs.stat(path, function onstat(err, stat) {
+  self.fs.stat(path, function onstat(err, stat) {
     if (
       err &&
       err.code === 'ENOENT' &&
@@ -652,7 +652,7 @@ SendStream.prototype.sendFile = function sendFile(path) {
 
     var p = path + '.' + self._extensions[i++]
 
-    self._fs.stat(p, function (err, stat) {
+    self.fs.stat(p, function (err, stat) {
       if (err) return next(err)
       if (stat.isDirectory()) return next()
       self.emit('file', p, stat)
@@ -679,7 +679,7 @@ SendStream.prototype.sendIndex = function sendIndex(path) {
 
     var p = join(path, self._index[i])
 
-    self._fs.stat(p, function (err, stat) {
+    self.fs.stat(p, function (err, stat) {
       if (err) return next(err)
       if (stat.isDirectory()) return next()
       self.emit('file', p, stat)
@@ -705,7 +705,7 @@ SendStream.prototype.stream = function stream(path, options) {
   var res = this.res
 
   // pipe
-  var stream = self._fs.createReadStream(path, options)
+  var stream = self.fs.createReadStream(path, options)
   this.emit('stream', stream)
   stream.pipe(res)
 

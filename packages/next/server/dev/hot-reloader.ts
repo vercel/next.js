@@ -403,7 +403,7 @@ export default class HotReloader {
     // https://webpack.js.org/api/node/#custom-file-systems
     if (isWebpack5) {
       const filesystem = createFsFromVolume(new Volume())
-      // @ts-ignore In the future, we to use webpack5 types here
+      // @ts-ignore In the future, use webpack5 types here
       clientCompiler.outputFileSystem = filesystem
       this.clientFileSystem = filesystem
     }

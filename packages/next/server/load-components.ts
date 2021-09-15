@@ -22,7 +22,7 @@ export type ManifestItem = {
   files: string[]
 }
 
-type ReactLoadableManifest = { [moduleId: string]: ManifestItem }
+export type ReactLoadableManifest = { [moduleId: string]: ManifestItem }
 
 export type LoadComponentsReturnType = {
   Component: React.ComponentType
@@ -57,8 +57,8 @@ export async function loadComponents(
   distDir: string,
   pathname: string,
   serverless: boolean,
-  buildManifestCached?: BuildManifest,
-  reactLoadableManifestCached?: ReactLoadableManifest
+  buildManifestCached?: Promise<BuildManifest>,
+  reactLoadableManifestCached?: Promise<ReactLoadableManifest>
 ): Promise<LoadComponentsReturnType> {
   if (serverless) {
     const Component = await requirePage(pathname, distDir, serverless)

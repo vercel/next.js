@@ -1,7 +1,8 @@
 import { buildStaticPaths } from '../../build/utils'
 import { setHttpAgentOptions } from '../config'
 import { NextConfigComplete } from '../config-shared'
-import { loadComponents } from '../load-components'
+import { BuildManifest } from '../get-page-files'
+import { loadComponents, ReactLoadableManifest } from '../load-components'
 import '../node-polyfill-fetch'
 
 type RuntimeConfig = any
@@ -19,8 +20,8 @@ export async function loadStaticPaths(
   httpAgentOptions: NextConfigComplete['httpAgentOptions'],
   locales?: string[],
   defaultLocale?: string,
-  buildManifest?: any,
-  reactLoadableManifest?: any
+  buildManifest?: Promise<BuildManifest>,
+  reactLoadableManifest?: Promise<ReactLoadableManifest>
 ) {
   // we only want to use each worker once to prevent any invalid
   // caches

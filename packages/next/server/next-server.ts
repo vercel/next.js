@@ -1382,24 +1382,23 @@ export default class Server {
       ]
     }
 
-    const hotReloader = (this as any as DevServer).hotReloader
-    const buildManifestPath = join(this.distDir, BUILD_MANIFEST)
-    const reactLoadableManifestPath = join(
-      this.distDir,
-      REACT_LOADABLE_MANIFEST
-    )
+    const { hotReloader } = this as any as DevServer
+    const buildManifest = hotReloader?.clientFileSystem.promises
+      .readFile(join(this.distDir, BUILD_MANIFEST), 'utf8')
+      .then(JSON.parse)
+
+    const reactLoadableManifest = hotReloader?.clientFileSystem.promises
+      .readFile(join(this.distDir, REACT_LOADABLE_MANIFEST), 'utf8')
+      .then(JSON.parse)
+
     for (const pagePath of paths) {
       try {
         const components = await loadComponents(
           this.distDir,
           pagePath!,
           !this.renderOpts.dev && this._isLikeServerless,
-          hotReloader?.clientFileSystem.promises
-            .readFile(buildManifestPath, 'utf8')
-            .then(JSON.parse),
-          hotReloader?.clientFileSystem.promises
-            .readFile(reactLoadableManifestPath, 'utf8')
-            .then(JSON.parse)
+          buildManifest,
+          reactLoadableManifest
         )
 
         if (

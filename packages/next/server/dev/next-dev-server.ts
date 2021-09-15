@@ -663,13 +663,17 @@ export default class DevServer extends Server {
         this.nextConfig
       const { locales, defaultLocale } = this.nextConfig.i18n || {}
 
-      const buildManifestPath = pathJoin(this.distDir, BUILD_MANIFEST)
-      const reactLoadableManifestPath = pathJoin(
-        this.distDir,
-        REACT_LOADABLE_MANIFEST
-      )
+      const { distDir, hotReloader } = this
+      const buildManifest = hotReloader?.clientFileSystem.promises
+        .readFile(pathJoin(distDir, BUILD_MANIFEST), 'utf8')
+        .then(JSON.parse)
+
+      const reactLoadableManifest = hotReloader?.clientFileSystem.promises
+        .readFile(pathJoin(distDir, REACT_LOADABLE_MANIFEST), 'utf8')
+        .then(JSON.parse)
+
       const paths = await this.staticPathsWorker.loadStaticPaths(
-        this.distDir,
+        distDir,
         pathname,
         !this.renderOpts.dev && this._isLikeServerless,
         {
@@ -679,12 +683,8 @@ export default class DevServer extends Server {
         httpAgentOptions,
         locales,
         defaultLocale,
-        this.hotReloader?.clientFileSystem.promises
-          .readFile(buildManifestPath, 'utf8')
-          .then(JSON.parse),
-        this.hotReloader?.clientFileSystem.promises
-          .readFile(reactLoadableManifestPath, 'utf8')
-          .then(JSON.parse)
+        buildManifest,
+        reactLoadableManifest
       )
       return paths
     }
