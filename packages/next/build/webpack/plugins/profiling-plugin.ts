@@ -104,10 +104,17 @@ export class ProfilingPlugin {
         webpackInvalidSpans.get(compiler) || this.runWebpackSpan,
     })
 
-    this.traceHookPair('make', compiler.hooks.make, compiler.hooks.finishMake, {
-      parentSpan: () =>
-        webpackInvalidSpans.get(compiler) || this.runWebpackSpan,
-    })
+    if (isWebpack5) {
+      this.traceHookPair(
+        'make',
+        compiler.hooks.make,
+        compiler.hooks.finishMake,
+        {
+          parentSpan: () =>
+            webpackInvalidSpans.get(compiler) || this.runWebpackSpan,
+        }
+      )
+    }
 
     compiler.hooks.compilation.tap(pluginName, (compilation: any) => {
       compilation.hooks.buildModule.tap(pluginName, (module: any) => {
