@@ -471,7 +471,7 @@ jobs:
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         with:
           profile: minimal
-          toolchain: nightly-2021-03-25
+          toolchain: nightly-2021-08-12
           target: ${{ matrix.target }}
       - name: Cache cargo registry
         uses: actions/cache@v1
@@ -491,7 +491,7 @@ jobs:
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         with:
           path: packages/next/native/next-swc.*.node
-          key: next-swc-nightly-2021-03-25-${{ matrix.target }}-${{ hashFiles('.github/workflows/build_test_deploy.yml', 'packages/next/build/swc/**') }}
+          key: next-swc-nightly-2021-08-12-${{ matrix.target }}-${{ hashFiles('.github/workflows/build_test_deploy.yml', 'packages/next/build/swc/**') }}
       - name: Cross build aarch64 setup
         if: ${{ matrix.target == 'aarch64-apple-darwin' && steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         run: |
@@ -531,7 +531,7 @@ jobs:
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly-2021-03-25
+          toolchain: nightly-2021-08-12
           profile: minimal
       - run: cd packages/next/build/swc && cargo test
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
