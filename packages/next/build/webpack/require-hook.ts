@@ -34,6 +34,30 @@ const hookPropertyMap = new Map(
       'next/dist/compiled/webpack/NodeTargetPlugin',
     ],
     [
+      'webpack/lib/node/NodeTemplatePlugin',
+      'next/dist/compiled/webpack/NodeTemplatePlugin',
+    ],
+    [
+      'webpack/lib/node/NodeTemplatePlugin.js',
+      'next/dist/compiled/webpack/NodeTemplatePlugin',
+    ],
+    [
+      'webpack/lib/LibraryTemplatePlugin',
+      'next/dist/compiled/webpack/LibraryTemplatePlugin',
+    ],
+    [
+      'webpack/lib/LibraryTemplatePlugin.js',
+      'next/dist/compiled/webpack/LibraryTemplatePlugin',
+    ],
+    [
+      'webpack/lib/SingleEntryPlugin',
+      'next/dist/compiled/webpack/SingleEntryPlugin',
+    ],
+    [
+      'webpack/lib/SingleEntryPlugin.js',
+      'next/dist/compiled/webpack/SingleEntryPlugin',
+    ],
+    [
       'webpack/lib/ModuleFilenameHelpers',
       'next/dist/compiled/webpack/ModuleFilenameHelpers',
     ],

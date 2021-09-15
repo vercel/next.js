@@ -8,7 +8,7 @@ import {
   RuntimeGlobals as WebpackRuntimeGlobals,
   // @ts-ignore exists in webpack 5
   compilation as WebpackCompilation,
-} from 'webpack'
+} from 'webpack4'
 
 // Shared between webpack 4 and 5:
 function injectRefreshFunctions(

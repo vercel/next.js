@@ -1,7 +1,7 @@
 import {
   // @ts-ignore exists in webpack 5
   loader,
-} from 'webpack'
+} from 'webpack4'
 import RefreshModuleRuntime from './internal/ReactRefreshModule.runtime'
 
 let refreshModuleRuntime = RefreshModuleRuntime.toString()

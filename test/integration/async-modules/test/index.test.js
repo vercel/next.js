@@ -14,9 +14,7 @@ import {
   File,
 } from 'next-test-utils'
 import { join } from 'path'
-import webpack from 'webpack'
 
-const isWebpack5 = parseInt(webpack.version) === 5
 let app
 let appPort
 const appDir = join(__dirname, '../')
@@ -101,7 +99,7 @@ function runTests(dev = false) {
   })
 }
 
-;(isWebpack5 ? describe : describe.skip)('Async modules', () => {
+describe('Async modules', () => {
   describe('dev mode', () => {
     beforeAll(async () => {
       appPort = await findPort()
