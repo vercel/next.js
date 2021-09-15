@@ -1,3 +1,4 @@
+import isError from '../lib/is-error'
 import { IncrementalCache } from './incremental-cache'
 import RenderResult from './render-result'
 
@@ -107,7 +108,7 @@ export default class ResponseCache {
           )
         }
       } catch (err) {
-        rejecter(err)
+        rejecter(isError(err) ? err : new Error(err + ''))
       } finally {
         if (key) {
           this.pendingResponses.delete(key)

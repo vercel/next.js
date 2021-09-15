@@ -28,6 +28,7 @@ import { NextConfigComplete } from '../config-shared'
 import { CustomRoutes } from '../../lib/load-custom-routes'
 import { DecodeError } from '../../shared/lib/utils'
 import { Span, trace } from '../../trace'
+import isError from '../../lib/is-error'
 
 export async function renderScriptError(
   res: ServerResponse,
@@ -227,7 +228,10 @@ export default class HotReloader {
         try {
           await this.ensurePage(page)
         } catch (error) {
-          await renderScriptError(pageBundleRes, error)
+          await renderScriptError(
+            pageBundleRes,
+            isError(error) ? error : new Error(error + '')
+          )
           return { finished: true }
         }
 

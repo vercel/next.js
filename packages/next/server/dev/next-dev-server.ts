@@ -54,6 +54,7 @@ import {
   getSourceById,
 } from '@next/react-dev-overlay/lib/middleware'
 import * as Log from '../../build/output/log'
+import isError from '../../lib/is-error'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: React.FunctionComponent
@@ -449,12 +450,13 @@ export default class DevServer extends Server {
     }
     try {
       return await super.run(req, res, parsedUrl)
-    } catch (err) {
+    } catch (error) {
       res.statusCode = 500
+      const err = isError(error) ? error : new Error(error + '')
       try {
         this.logErrorWithOriginalStack(err).catch(() => {})
         return await this.renderError(err, req, res, pathname!, {
-          __NEXT_PAGE: err?.page || pathname,
+          __NEXT_PAGE: (isError(err) && err?.page) || pathname || '',
         })
       } catch (internalErr) {
         console.error(internalErr)
@@ -470,9 +472,9 @@ export default class DevServer extends Server {
     let usedOriginalStack = false
 
     if (possibleError?.name && possibleError?.stack && possibleError?.message) {
-      const err: Error & { stack: string } = possibleError
+      const err: Error = possibleError
       try {
-        const frames = parseStack(err.stack)
+        const frames = parseStack(err.stack!)
         const frame = frames[0]
 
         if (frame.lineNumber && frame?.file) {
