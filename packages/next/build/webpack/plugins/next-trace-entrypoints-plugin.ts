@@ -13,6 +13,8 @@ const PLUGIN_NAME = 'TraceEntryPointsPlugin'
 const TRACE_IGNORES = [
   '**/*/node_modules/react/**/*.development.js',
   '**/*/node_modules/react-dom/**/*.development.js',
+  '**/*/next/dist/server/next.js',
+  '**/*/next/dist/bin/next',
 ]
 
 function getModuleFromDependency(
