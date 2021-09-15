@@ -77,13 +77,20 @@ describe('Prerender crawler handling', () => {
 
     for (const userAgent of userAgents) {
       console.log('checking', { userAgent })
-      const html = await renderViaHTTP(next.url, '/blog/test-2', undefined, {
-        headers: {
-          'user-agent': userAgent,
-        },
-      })
+      const uniqueSlug = `test-${Date.now()}${Math.random()}`
+
+      const html = await renderViaHTTP(
+        next.url,
+        `/blog/${uniqueSlug}`,
+        undefined,
+        {
+          headers: {
+            'user-agent': userAgent,
+          },
+        }
+      )
       expect(html).not.toContain('Loading...')
-      expect(html).toContain('test-2')
+      expect(html).toContain(uniqueSlug)
       expect(html).toContain('slug page')
     }
   })
