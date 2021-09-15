@@ -25,6 +25,7 @@ class Playwright extends BrowserInterface {
   private browserName: string
 
   async setup(browserName: string) {
+    if (browser) return
     this.browserName = browserName
     const headless = !!process.env.HEADLESS
 
@@ -35,6 +36,7 @@ class Playwright extends BrowserInterface {
     } else {
       browser = await chromium.launch({ headless, devtools: !headless })
     }
+    context = await browser.newContext()
   }
 
   async get(url: string): Promise<void> {
@@ -42,11 +44,10 @@ class Playwright extends BrowserInterface {
   }
 
   async loadPage(url: string) {
-    if (context) {
-      await context.close()
-      context = undefined
+    // clean-up existing pages
+    for (const oldPage of context.pages()) {
+      await oldPage.close()
     }
-    context = await browser.newContext()
     page = await context.newPage()
     pageLogs = []
 
