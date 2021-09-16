@@ -389,6 +389,17 @@ module.exports = {
         destination: '/somewhere',
         permanent: false,
       },
+      {
+        source: '/has-redirect-6',
+        has: [
+          {
+            type: 'host',
+            value: '(?<subdomain>.*)-test.example.com',
+          },
+        ],
+        destination: 'https://:subdomain.example.com/some-path/end?a=b',
+        permanent: false,
+      },
     ]
   },
 

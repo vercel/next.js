@@ -10,7 +10,6 @@ import {
   launchApp,
 } from 'next-test-utils'
 
-jest.setTimeout(1000 * 60 * 1)
 const appDir = join(__dirname, '..')
 let app
 let appPort
@@ -72,7 +71,7 @@ const runTests = () => {
 
     await browser.elementByCss('#to-404').click()
     await browser.waitForElementByCss('h2')
-    expect(await browser.eval('window.beforeNav')).toBe(null)
+    expect(await browser.eval('window.beforeNav')).toBeFalsy()
     expect(await browser.elementByCss('h2').text()).toBe(
       'Application error: a client-side exception has occurred (see the browser console for more information).'
     )

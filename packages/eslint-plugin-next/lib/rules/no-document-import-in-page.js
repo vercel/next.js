@@ -15,12 +15,13 @@ module.exports = {
           return
         }
 
-        const page = context.getFilename().split('pages')[1]
-        const { name, dir } = path.parse(page)
+        const paths = context.getFilename().split('pages')
+        const page = paths[paths.length - 1]
+
         if (
           !page ||
-          name.startsWith('_document') ||
-          (dir === '/_document' && name === 'index')
+          page.startsWith(`${path.sep}_document`) ||
+          page.startsWith(`${path.posix.sep}_document`)
         ) {
           return
         }

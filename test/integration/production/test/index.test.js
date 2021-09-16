@@ -21,7 +21,7 @@ import {
 } from 'next/constants'
 import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
 import fetch from 'node-fetch'
-import { join } from 'path'
+import { join, sep } from 'path'
 import dynamicImportTests from './dynamic'
 import processEnv from './process-env'
 import security from './security'
@@ -33,7 +33,6 @@ const appDir = join(__dirname, '../')
 let appPort
 let server
 let app
-jest.setTimeout(1000 * 60 * 5)
 
 const context = {}
 
@@ -78,7 +77,7 @@ describe('Production Usage', () => {
   })
 
   it('should contain generated page count in output', async () => {
-    const pageCount = process.env.NEXT_PRIVATE_TEST_WEBPACK4_MODE ? 37 : 38
+    const pageCount = process.env.NEXT_PRIVATE_TEST_WEBPACK4_MODE ? 38 : 39
     expect(output).toContain(`Generating static pages (0/${pageCount})`)
     expect(output).toContain(
       `Generating static pages (${pageCount}/${pageCount})`
@@ -88,6 +87,62 @@ describe('Production Usage', () => {
   })
 
   if (!process.env.NEXT_PRIVATE_TEST_WEBPACK4_MODE) {
+    it('should output traces', async () => {
+      const checks = [
+        {
+          page: '/_app',
+          tests: [
+            /webpack-runtime\.js/,
+            /node_modules\/react\/index\.js/,
+            /node_modules\/react\/package\.json/,
+            /node_modules\/react\/cjs\/react\.production\.min\.js/,
+          ],
+          notTests: [/node_modules\/react\/cjs\/react\.development\.js/],
+        },
+        {
+          page: '/dynamic',
+          tests: [
+            /webpack-runtime\.js/,
+            /chunks\/.*?\.js/,
+            /node_modules\/react\/index\.js/,
+            /node_modules\/react\/package\.json/,
+            /node_modules\/react\/cjs\/react\.production\.min\.js/,
+          ],
+          notTests: [/node_modules\/react\/cjs\/react\.development\.js/],
+        },
+        {
+          page: '/next-import',
+          tests: [
+            /webpack-runtime\.js/,
+            /chunks\/.*?\.js/,
+            /node_modules\/react\/index\.js/,
+            /node_modules\/react\/package\.json/,
+            /node_modules\/react\/cjs\/react\.production\.min\.js/,
+          ],
+          notTests: [/next\/dist\/server\/next\.js/, /next\/dist\/bin/],
+        },
+      ]
+
+      for (const check of checks) {
+        const contents = await fs.readFile(
+          join(appDir, '.next/server/pages/', check.page + '.js.nft.json'),
+          'utf8'
+        )
+        const { version, files } = JSON.parse(contents)
+        expect(version).toBe(1)
+
+        expect(
+          check.tests.every((item) => files.some((file) => item.test(file)))
+        ).toBe(true)
+
+        if (sep === '/') {
+          expect(
+            check.notTests.some((item) => files.some((file) => item.test(file)))
+          ).toBe(false)
+        }
+      }
+    })
+
     it('should not contain currentScript usage for publicPath', async () => {
       const globResult = await glob('webpack-*.js', {
         cwd: join(appDir, '.next/static/chunks'),
@@ -424,12 +479,13 @@ describe('Production Usage', () => {
     it('should set title by routeChangeComplete event', async () => {
       const browser = await webdriver(appPort, '/')
       await browser.eval(function setup() {
-        window.next.router.events.on('routeChangeComplete', function handler(
-          url
-        ) {
-          window.routeChangeTitle = document.title
-          window.routeChangeUrl = url
-        })
+        window.next.router.events.on(
+          'routeChangeComplete',
+          function handler(url) {
+            window.routeChangeTitle = document.title
+            window.routeChangeUrl = url
+          }
+        )
         window.next.router.push('/with-title')
       })
       await browser.waitForElementByCss('#with-title')
@@ -603,32 +659,38 @@ describe('Production Usage', () => {
       expect(legacy).toMatch(`new static folder`)
     })
 
-    it('should reload the page on page script error', async () => {
-      const browser = await webdriver(appPort, '/counter')
-      const counter = await browser
-        .elementByCss('#increase')
-        .click()
-        .click()
-        .elementByCss('#counter')
-        .text()
-      expect(counter).toBe('Counter: 2')
+    // TODO: do we want to normalize this for firefox? It seems in
+    // the latest version of firefox the window state is not reset
+    // when navigating back from a hard navigation. This might be
+    // a bug as other browsers do not behave this way.
+    if (browserName !== 'firefox') {
+      it('should reload the page on page script error', async () => {
+        const browser = await webdriver(appPort, '/counter')
+        const counter = await browser
+          .elementByCss('#increase')
+          .click()
+          .click()
+          .elementByCss('#counter')
+          .text()
+        expect(counter).toBe('Counter: 2')
 
-      // When we go to the 404 page, it'll do a hard reload.
-      // So, it's possible for the front proxy to load a page from another zone.
-      // Since the page is reloaded, when we go back to the counter page again,
-      // previous counter value should be gone.
-      const counterAfter404Page = await browser
-        .elementByCss('#no-such-page')
-        .click()
-        .waitForElementByCss('h1')
-        .back()
-        .waitForElementByCss('#counter-page')
-        .elementByCss('#counter')
-        .text()
-      expect(counterAfter404Page).toBe('Counter: 0')
+        // When we go to the 404 page, it'll do a hard reload.
+        // So, it's possible for the front proxy to load a page from another zone.
+        // Since the page is reloaded, when we go back to the counter page again,
+        // previous counter value should be gone.
+        const counterAfter404Page = await browser
+          .elementByCss('#no-such-page')
+          .click()
+          .waitForElementByCss('h1')
+          .back()
+          .waitForElementByCss('#counter-page')
+          .elementByCss('#counter')
+          .text()
+        expect(counterAfter404Page).toBe('Counter: 0')
 
-      await browser.close()
-    })
+        await browser.close()
+      })
+    }
 
     it('should have default runtime values when not defined', async () => {
       const html = await renderViaHTTP(appPort, '/runtime-config')
@@ -917,6 +979,11 @@ describe('Production Usage', () => {
     expect(missing).toBe(false)
   })
 
+  it('should only have one DOCTYPE', async () => {
+    const html = await renderViaHTTP(appPort, '/')
+    expect(html).toMatch(/^<!DOCTYPE html><html/)
+  })
+
   if (global.browserName !== 'internet explorer') {
     it('should preserve query when hard navigating from page 404', async () => {
       const browser = await webdriver(appPort, '/')
@@ -933,7 +1000,7 @@ describe('Production Usage', () => {
         /page could not be found/
       )
 
-      expect(await browser.eval('window.beforeNav')).toBe(null)
+      expect(await browser.eval('window.beforeNav')).toBeFalsy()
       expect(await browser.eval('window.location.hash')).toBe('')
       expect(await browser.eval('window.location.search')).toBe('?hello=world')
       expect(await browser.eval('window.location.pathname')).toBe(

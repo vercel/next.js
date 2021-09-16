@@ -59,7 +59,7 @@ For more information, see [Migrating from React Router](/docs/migrating/from-rea
 
 Next.js has built-in support for [CSS](/docs/basic-features/built-in-css-support.md), [Sass](/docs/basic-features/built-in-css-support.md#sass-support) and [CSS-in-JS](/docs/basic-features/built-in-css-support.md#css-in-js).
 
-With Create React App, you can import `.css` files directly inside React components. Next.js allows you to do the same, but requires these files to be [CSS Modules](/docs/basic-features/built-in-css-support.md). For global styles, you'll need a [custom `_app.js`](/docs/advanced-features/custom-app.md) to add a [global stylesheet](docs/basic-features/built-in-css-support.md#adding-a-global-stylesheet).
+With Create React App, you can import `.css` files directly inside React components. Next.js allows you to do the same, but requires these files to be [CSS Modules](/docs/basic-features/built-in-css-support.md). For global styles, you'll need a [custom `_app.js`](/docs/advanced-features/custom-app.md) to add a [global stylesheet](/docs/basic-features/built-in-css-support.md#adding-a-global-stylesheet).
 
 ## Safely Accessing Web APIs
 

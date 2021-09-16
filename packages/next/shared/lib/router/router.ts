@@ -13,6 +13,7 @@ import {
   markAssetError,
 } from '../../../client/route-loader'
 import { RouterEvent } from '../../../client/router'
+import isError from '../../../lib/is-error'
 import type { DomainLocale } from '../../../server/config'
 import { denormalizePagePath } from '../../../server/denormalize-page-path'
 import { normalizeLocalePath } from '../i18n/normalize-locale-path'
@@ -66,8 +67,8 @@ type HistoryState =
 let detectDomainLocale: typeof import('../i18n/detect-domain-locale').detectDomainLocale
 
 if (process.env.__NEXT_I18N_SUPPORT) {
-  detectDomainLocale = require('../i18n/detect-domain-locale')
-    .detectDomainLocale
+  detectDomainLocale =
+    require('../i18n/detect-domain-locale').detectDomainLocale
 }
 
 const basePath = (process.env.__NEXT_ROUTER_BASEPATH as string) || ''
@@ -341,9 +342,9 @@ export function resolveHref(
         ? finalUrl.href.slice(finalUrl.origin.length)
         : finalUrl.href
 
-    return (resolveAs
-      ? [resolvedHref, interpolatedAs || resolvedHref]
-      : resolvedHref) as string
+    return (
+      resolveAs ? [resolvedHref, interpolatedAs || resolvedHref] : resolvedHref
+    ) as string
   } catch (_) {
     return (resolveAs ? [urlAsString] : urlAsString) as string
   }
@@ -1226,7 +1227,7 @@ export default class Router implements BaseRouter {
 
       return true
     } catch (err) {
-      if (err.cancelled) {
+      if (isError(err) && err.cancelled) {
         return false
       }
       throw err
@@ -1259,7 +1260,7 @@ export default class Router implements BaseRouter {
           as,
           options,
           __N: true,
-          idx: this._idx = method !== 'pushState' ? this._idx : this._idx + 1,
+          idx: (this._idx = method !== 'pushState' ? this._idx : this._idx + 1),
         } as HistoryState,
         // Most browsers currently ignores this parameter, although they may use it in the future.
         // Passing the empty string here should be safe against future changes to the method.
@@ -1271,7 +1272,7 @@ export default class Router implements BaseRouter {
   }
 
   async handleRouteInfoError(
-    err: Error & { code: any; cancelled: boolean },
+    err: Error & { code?: any; cancelled?: boolean },
     pathname: string,
     query: ParsedUrlQuery,
     as: string,
@@ -1337,7 +1338,7 @@ export default class Router implements BaseRouter {
       return routeInfo
     } catch (routeInfoErr) {
       return this.handleRouteInfoError(
-        routeInfoErr,
+        isError(routeInfoErr) ? routeInfoErr : new Error(routeInfoErr + ''),
         pathname,
         query,
         as,
@@ -1356,9 +1357,8 @@ export default class Router implements BaseRouter {
     routeProps: RouteProperties
   ): Promise<PrivateRouteInfo> {
     try {
-      const existingRouteInfo: PrivateRouteInfo | undefined = this.components[
-        route
-      ]
+      const existingRouteInfo: PrivateRouteInfo | undefined =
+        this.components[route]
       if (routeProps.shallow && existingRouteInfo && this.route === route) {
         return existingRouteInfo
       }
@@ -1421,7 +1421,13 @@ export default class Router implements BaseRouter {
       this.components[route] = routeInfo
       return routeInfo
     } catch (err) {
-      return this.handleRouteInfoError(err, pathname, query, as, routeProps)
+      return this.handleRouteInfoError(
+        isError(err) ? err : new Error(err + ''),
+        pathname,
+        query,
+        as,
+        routeProps
+      )
     }
   }
 
@@ -1651,7 +1657,7 @@ export default class Router implements BaseRouter {
 
   _getServerData(dataHref: string): Promise<object> {
     const { href: resourceKey } = new URL(dataHref, window.location.href)
-    if (this.sdr[resourceKey]) {
+    if (this.sdr[resourceKey] !== undefined) {
       return this.sdr[resourceKey]
     }
     return (this.sdr[resourceKey] = fetchNextData(dataHref, this.isSsr)
