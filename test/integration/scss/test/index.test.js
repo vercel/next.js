@@ -17,8 +17,6 @@ import webdriver from 'next-webdriver'
 import { join } from 'path'
 import { quote as shellQuote } from 'shell-quote'
 
-jest.setTimeout(1000 * 60 * 2)
-
 const fixturesDir = join(__dirname, '../..', 'scss-fixtures')
 
 describe('SCSS Support', () => {

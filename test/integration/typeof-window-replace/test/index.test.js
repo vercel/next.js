@@ -4,8 +4,6 @@ import fs from 'fs-extra'
 import path from 'path'
 import { nextBuild } from 'next-test-utils'
 
-jest.setTimeout(1000 * 60 * 1)
-
 const appDir = path.join(__dirname, '../app')
 let buildManifest
 let pagesManifest

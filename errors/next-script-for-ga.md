@@ -19,9 +19,9 @@ const Home = () => {
       <!-- Global site tag (gtag.js) - Google Analytics -->
       <Script
         src="https://www.googletagmanager.com/gtag/js?id=GA_MEASUREMENT_ID"
-        strategy="lazyOnload"
+        strategy="afterInteractive"
       />
-      <Script id="google-analytics">
+      <Script id="google-analytics" strategy="afterInteractive">
         {`
           window.dataLayer = window.dataLayer || [];
           function gtag(){window.dataLayer.push(arguments);}
@@ -47,7 +47,7 @@ import Script from 'next/script'
 const Home = () => {
   return (
     <div class="container">
-      <Script id="google-analytics">
+      <Script id="google-analytics" strategy="afterInteractive">
         {`
           (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
           (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
@@ -73,7 +73,7 @@ import Script from 'next/script'
 const Home = () => {
   return (
     <div class="container">
-      <Script id="google-analytics">
+      <Script id="google-analytics" strategy="afterInteractive">
         {`
           window.ga=window.ga||function(){(ga.q=ga.q||[]).push(arguments)};ga.l=+new Date;
           ga('create', 'GOOGLE_ANALYTICS_ID', 'auto');
@@ -82,7 +82,7 @@ const Home = () => {
       </Script>
       <Script
         src="https://www.google-analytics.com/analytics.js"
-        strategy="lazyOnload"
+        strategy="afterInteractive"
       />
     </div>
   )

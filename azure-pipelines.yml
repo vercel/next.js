@@ -87,6 +87,11 @@ stages:
               key: $(Build.SourceVersion)
               path: $(System.DefaultWorkingDirectory)
             displayName: Cache Build
+
+          - script: |
+              npm i -g selenium-standalone@6.18.0
+            displayName: 'Install selenium node'
+
           - script: |
               node run-tests.js -c 1 test/integration/production/test/index.test.js test/integration/css-client-nav/test/index.test.js test/integration/rewrites-has-condition/test/index.test.js
             displayName: 'Run tests'

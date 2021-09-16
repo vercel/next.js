@@ -16,7 +16,7 @@ import { GetStaticProps } from '../types'
 import { requireFontManifest } from '../server/require'
 import { FontManifest } from '../server/font-utils'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
-import { trace } from '../telemetry/trace'
+import { trace } from '../trace'
 import { isInAmpMode } from '../shared/lib/amp'
 import { NextConfigComplete } from '../server/config-shared'
 import { setHttpAgentOptions } from '../server/config'
@@ -417,7 +417,7 @@ export default async function exportPage({
         }
       }
 
-      const html = renderResult ? await renderResult.toUnchunkedString() : ''
+      const html = renderResult ? renderResult.toUnchunkedString() : ''
       if (inAmpMode && !curRenderOpts.ampSkipValidation) {
         if (!results.ssgNotFound) {
           await validateAmp(html, path, curRenderOpts.ampValidatorPath)
@@ -460,7 +460,7 @@ export default async function exportPage({
           }
 
           const ampHtml = ampRenderResult
-            ? await ampRenderResult.toUnchunkedString()
+            ? ampRenderResult.toUnchunkedString()
             : ''
           if (!curRenderOpts.ampSkipValidation) {
             await validateAmp(ampHtml, page + '?amp=1')

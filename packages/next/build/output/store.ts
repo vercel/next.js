@@ -1,5 +1,6 @@
 import createStore from 'next/dist/compiled/unistore'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
+import { flushAllTraces } from '../../trace'
 
 import * as Log from './log'
 
@@ -88,4 +89,6 @@ store.subscribe((state) => {
   }
 
   Log.event('compiled successfully')
+  // Ensure traces are flushed after each compile in development mode
+  flushAllTraces()
 })
