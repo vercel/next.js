@@ -46,9 +46,6 @@ export class ProfilingPlugin {
     let span: Span | undefined
     startHook.tap(pluginName, (...params: any[]) => {
       const attributes = attrs ? attrs(...params) : attrs
-      if (spanName === 'webpack-invalidated' && attributes.name === 'client') {
-        debugger
-      }
       span = parentSpan
         ? parentSpan().traceChild(spanName, attributes)
         : this.runWebpackSpan.traceChild(spanName, attributes)
