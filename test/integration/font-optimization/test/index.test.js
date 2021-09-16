@@ -94,12 +94,11 @@ describe('Font Optimization', () => {
           const link = $(
             `link[rel="stylesheet"][data-href="${staticHeadFont}"]`
           )
-          const nonce = link.attr('nonce')
+
           const style = $(`style[data-href="${staticHeadFont}"]`)
           const styleNonce = style.attr('nonce')
 
-          expect(link).toBeDefined()
-          expect(nonce).toBe('VmVyY2Vs')
+          expect(link.length).toBe(0)
           expect(styleNonce).toBe('VmVyY2Vs')
         })
 
@@ -109,17 +108,14 @@ describe('Font Optimization', () => {
 
           const $ = cheerio.load(html)
 
-          expect($(`link[data-href="${withFont}"]`).attr().rel).toBe(
-            'stylesheet'
-          )
+          expect($(`link[data-href="${withFont}"]`).length).toBe(0)
 
           expect(html).toMatch(withFontPattern)
 
           const htmlWithoutFont = await renderViaHTTP(appPort, '/without-font')
-
           const $2 = cheerio.load(htmlWithoutFont)
 
-          expect($2(`link[data-href="${withFont}"]`).attr()).toBeUndefined()
+          expect($2(`link[data-href="${withFont}"]`).length).toBe(0)
           expect(htmlWithoutFont).not.toMatch(withFontPattern)
         })
 
@@ -129,7 +125,7 @@ describe('Font Optimization', () => {
           expect(await fsExists(builtPage('font-manifest.json'))).toBe(true)
           expect(
             $(`link[rel=stylesheet][data-href="${staticFont}"]`).length
-          ).toBe(1)
+          ).toBe(0)
           expect(html).toMatch(staticPattern)
         })
 
@@ -139,7 +135,7 @@ describe('Font Optimization', () => {
           expect(await fsExists(builtPage('font-manifest.json'))).toBe(true)
           expect(
             $(`link[rel=stylesheet][data-href="${staticHeadFont}"]`).length
-          ).toBe(1)
+          ).toBe(0)
           expect(html).toMatch(staticHeadPattern)
         })
 
@@ -149,7 +145,7 @@ describe('Font Optimization', () => {
           expect(await fsExists(builtPage('font-manifest.json'))).toBe(true)
           expect(
             $(`link[rel=stylesheet][data-href="${starsFont}"]`).length
-          ).toBe(1)
+          ).toBe(0)
           expect(html).toMatch(starsPattern)
         })
 

@@ -1,4 +1,5 @@
 use easy_error::{bail, Error};
+use std::panic;
 use swc_common::{source_map::Pos, BytePos, Span, SyntaxContext, DUMMY_SP};
 use swc_css::ast::*;
 use swc_css::parser::{parse_str, parse_tokens, parser::ParserConfig};
@@ -102,17 +103,32 @@ impl VisitMut for Namespacer {
   fn visit_mut_complex_selector(&mut self, node: &mut ComplexSelector) {
     let mut new_selectors = vec![];
     for selector in &node.selectors {
-      let transformed_selectors = self.get_transformed_selectors(selector.clone());
-      new_selectors.extend(transformed_selectors);
+      match self.get_transformed_selectors(selector.clone()) {
+        Ok(transformed_selectors) => new_selectors.extend(transformed_selectors),
+        Err(_) => {
+          HANDLER.with(|handler| {
+            handler
+              .struct_span_err(
+                selector.span,
+                "Failed to parse tokens inside one off global selector",
+              )
+              .emit()
+          });
+          new_selectors.push(selector.clone());
+        }
+      };
     }
     node.selectors = new_selectors;
   }
 }
 
 impl Namespacer {
-  fn get_transformed_selectors(&mut self, mut node: CompoundSelector) -> Vec<CompoundSelector> {
+  fn get_transformed_selectors(
+    &mut self,
+    mut node: CompoundSelector,
+  ) -> Result<Vec<CompoundSelector>, Error> {
     if self.is_global {
-      return vec![node];
+      return Ok(vec![node]);
     }
 
     let mut pseudo_index = None;
@@ -121,16 +137,31 @@ impl Namespacer {
         // One off global selector
         if &name.value == "global" {
           let block_tokens = get_block_tokens(&args);
+          let mut front_tokens = get_front_selector_tokens(&args);
           let mut args = args.clone();
-          args.tokens.extend(block_tokens);
-          let complex_selectors: Vec<ComplexSelector> = parse_tokens(
-            &args,
-            ParserConfig {
-              parse_values: false,
-            },
-          )
-          .unwrap();
-          return complex_selectors[0].selectors.clone();
+          front_tokens.extend(args.tokens);
+          front_tokens.extend(block_tokens);
+          args.tokens = front_tokens;
+          let complex_selectors = panic::catch_unwind(|| {
+            let x: Vec<ComplexSelector> = parse_tokens(
+              &args,
+              ParserConfig {
+                parse_values: false,
+              },
+            )
+            .unwrap();
+            return x;
+          });
+
+          return match complex_selectors {
+            Ok(complex_selectors) => Ok(
+              complex_selectors[0].selectors[1..]
+                .iter()
+                .cloned()
+                .collect(),
+            ),
+            Err(_) => bail!("Failed to transform one off global selector"),
+          };
         } else if pseudo_index.is_none() {
           pseudo_index = Some(i);
         }
@@ -156,8 +187,30 @@ impl Namespacer {
       }),
     );
 
-    vec![node]
+    Ok(vec![node])
   }
+}
+
+fn get_front_selector_tokens(selector_tokens: &Tokens) -> Vec<TokenAndSpan> {
+  let start_pos = selector_tokens.span.lo.to_u32() - 2;
+  vec![
+    TokenAndSpan {
+      span: Span {
+        lo: BytePos(start_pos + 0),
+        hi: BytePos(start_pos + 1),
+        ctxt: SyntaxContext::empty(),
+      },
+      token: Token::Ident("a".into()),
+    },
+    TokenAndSpan {
+      span: Span {
+        lo: BytePos(start_pos + 1),
+        hi: BytePos(start_pos + 2),
+        ctxt: SyntaxContext::empty(),
+      },
+      token: Token::WhiteSpace,
+    },
+  ]
 }
 
 fn get_block_tokens(selector_tokens: &Tokens) -> Vec<TokenAndSpan> {
