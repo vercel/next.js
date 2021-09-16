@@ -58,6 +58,54 @@ const hookPropertyMap = new Map(
       'next/dist/compiled/webpack/SingleEntryPlugin',
     ],
     [
+      'webpack/lib/optimize/LimitChunkCountPlugin',
+      'next/dist/compiled/webpack/LimitChunkCountPlugin',
+    ],
+    [
+      'webpack/lib/optimize/LimitChunkCountPlugin.js',
+      'next/dist/compiled/webpack/LimitChunkCountPlugin',
+    ],
+    [
+      'webpack/lib/webworker/WebWorkerTemplatePlugin',
+      'next/dist/compiled/webpack/WebWorkerTemplatePlugin',
+    ],
+    [
+      'webpack/lib/webworker/WebWorkerTemplatePlugin.js',
+      'next/dist/compiled/webpack/WebWorkerTemplatePlugin',
+    ],
+    [
+      'webpack/lib/ExternalsPlugin',
+      'next/dist/compiled/webpack/ExternalsPlugin',
+    ],
+    [
+      'webpack/lib/ExternalsPlugin.js',
+      'next/dist/compiled/webpack/ExternalsPlugin',
+    ],
+    [
+      'webpack/lib/web/FetchCompileWasmTemplatePlugin',
+      'next/dist/compiled/webpack/FetchCompileWasmTemplatePlugin',
+    ],
+    [
+      'webpack/lib/web/FetchCompileWasmTemplatePlugin.js',
+      'next/dist/compiled/webpack/FetchCompileWasmTemplatePlugin',
+    ],
+    [
+      'webpack/lib/web/FetchCompileWasmPlugin',
+      'next/dist/compiled/webpack/FetchCompileWasmPlugin',
+    ],
+    [
+      'webpack/lib/web/FetchCompileWasmPlugin.js',
+      'next/dist/compiled/webpack/FetchCompileWasmPlugin',
+    ],
+    [
+      'webpack/lib/web/FetchCompileAsyncWasmPlugin',
+      'next/dist/compiled/webpack/FetchCompileAsyncWasmPlugin',
+    ],
+    [
+      'webpack/lib/web/FetchCompileAsyncWasmPlugin.js',
+      'next/dist/compiled/webpack/FetchCompileAsyncWasmPlugin',
+    ],
+    [
       'webpack/lib/ModuleFilenameHelpers',
       'next/dist/compiled/webpack/ModuleFilenameHelpers',
     ],
