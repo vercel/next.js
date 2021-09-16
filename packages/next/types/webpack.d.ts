@@ -44,7 +44,11 @@ declare module 'webpack' {
   import webpack4 from 'webpack4'
   import webpack5 from 'webpack5'
   export type Compiler = webpack4.Compiler | webpack5.Compiler
+  export type Compilation =
+    | webpack4.compilation.Compilation
+    | webpack5.Compilation
   export type Stats = webpack4.Stats | webpack5.Stats
+  export { Template, RuntimeModule, RuntimeGlobals } from 'webpack5'
 }
 
 declare module 'webpack4' {

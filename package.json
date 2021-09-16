@@ -68,7 +68,7 @@
     "alex": "9.1.0",
     "amphtml-validator": "1.0.33",
     "async-sema": "3.0.1",
-    "browserslist": "^4.14.7",
+    "browserslist": "4.16.6",
     "cheerio": "0.22.0",
     "clone": "2.1.2",
     "cookie": "0.4.1",
