@@ -1711,9 +1711,16 @@ export default class Server {
         const isDynamicPathname = isDynamicRoute(pathname)
         const didRespond = hasResolved || isResSent(res)
 
-        const { staticPaths, fallbackMode } = hasStaticPaths
+        let { staticPaths, fallbackMode } = hasStaticPaths
           ? await this.getStaticPaths(pathname)
           : { staticPaths: undefined, fallbackMode: false }
+
+        if (
+          fallbackMode === 'static' &&
+          isBot(req.headers['user-agent'] || '')
+        ) {
+          fallbackMode = 'blocking'
+        }
 
         // When we did not respond from cache, we need to choose to block on
         // rendering or return a skeleton.
