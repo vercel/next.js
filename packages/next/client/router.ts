@@ -151,19 +151,19 @@ export function createRouter(...args: RouterArgs): Router {
 
 // This function is used to create the `withRouter` router instance
 export function makePublicRouterInstance(router: Router): NextRouter {
-  const _router = router as any
+  const scopedRouter = router as any
   const instance = {} as any
 
   for (const property of urlPropertyFields) {
-    if (typeof _router[property] === 'object') {
+    if (typeof scopedRouter[property] === 'object') {
       instance[property] = Object.assign(
-        Array.isArray(_router[property]) ? [] : {},
-        _router[property]
+        Array.isArray(scopedRouter[property]) ? [] : {},
+        scopedRouter[property]
       ) // makes sure query is not stateful
       continue
     }
 
-    instance[property] = _router[property]
+    instance[property] = scopedRouter[property]
   }
 
   // Events is a static property on the router, the router doesn't have to be initialized to use it
@@ -171,7 +171,7 @@ export function makePublicRouterInstance(router: Router): NextRouter {
 
   coreMethodFields.forEach((field) => {
     instance[field] = (...args: any[]) => {
-      return _router[field](...args)
+      return scopedRouter[field](...args)
     }
   })
 
