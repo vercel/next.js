@@ -6,6 +6,7 @@ const config: InitialOptionsTsJest = {
   transform: {
     '.+\\.(css|styl|less|sass|scss)$': 'jest-css-modules-transform',
   },
+  testEnvironment: 'jsdom',
   globals: {
     'ts-jest': {
       tsconfig: 'tsconfig.test.json',

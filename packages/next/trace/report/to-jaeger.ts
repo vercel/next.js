@@ -43,7 +43,7 @@ const reportToLocalHost = (
       // Ensure ECONNRESET error is retried 3 times before erroring out
       return retry(
         () =>
-          // Send events to zipkin
+          // Send events to jaeger's zipkin endpoint
           fetch(zipkinAPI, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
