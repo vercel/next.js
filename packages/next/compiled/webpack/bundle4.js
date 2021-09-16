@@ -112409,7 +112409,7 @@ module.exports = function () {
     Dependency: __webpack_require__(7550),
     LibraryTemplatePlugin: __webpack_require__(39960),
     SingleEntryPlugin: __webpack_require__(75462),
-    FetchCompileWasmTemplatePlugin: __webpack_require__(47842),
+    FetchCompileWasmTemplatePlugin: __webpack_require__(97599),
     LimitChunkCountPlugin: __webpack_require__(58772),
     WebWorkerTemplatePlugin: __webpack_require__(52102),
     ExternalsPlugin: __webpack_require__(46518),
@@ -112423,14 +112423,6 @@ module.exports = function () {
     },
   }
 }
-
-
-/***/ }),
-
-/***/ 47842:
-/***/ (function(module) {
-
-module.exports = eval("require")("webpack4/lib/FetchCompileWasmTemplatePlugin");
 
 
 /***/ }),

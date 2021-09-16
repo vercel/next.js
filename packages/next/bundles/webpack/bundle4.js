@@ -13,7 +13,7 @@ module.exports = function () {
     Dependency: require('webpack4/lib/Dependency'),
     LibraryTemplatePlugin: require('webpack4/lib/LibraryTemplatePlugin'),
     SingleEntryPlugin: require('webpack4/lib/SingleEntryPlugin'),
-    FetchCompileWasmTemplatePlugin: require('webpack4/lib/FetchCompileWasmTemplatePlugin'),
+    FetchCompileWasmTemplatePlugin: require('webpack4/lib/web/FetchCompileWasmTemplatePlugin'),
     LimitChunkCountPlugin: require('webpack4/lib/optimize/LimitChunkCountPlugin'),
     WebWorkerTemplatePlugin: require('webpack4/lib/webworker/WebWorkerTemplatePlugin'),
     ExternalsPlugin: require('webpack4/lib/ExternalsPlugin'),
