@@ -12,6 +12,7 @@ import {
   nextBuild,
   nextStart,
   File,
+  check,
 } from 'next-test-utils'
 import { join } from 'path'
 
@@ -81,7 +82,11 @@ function runTests(dev = false) {
     let browser
     try {
       browser = await webdriver(appPort, '/config')
-      expect(await browser.elementByCss('#amp-timeago').text()).not.toBe('fail')
+      await check(
+        () => browser.elementByCss('#amp-timeago').text(),
+        'just now',
+        true
+      )
     } finally {
       if (browser) await browser.close()
     }

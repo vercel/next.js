@@ -87,3 +87,6 @@ mod._resolveFilename = function (
   if (hookResolved) request = hookResolved
   return resolveFilename.call(mod, request, parent, isMain, options)
 }
+
+// Flag as module for typescript
+export {}
