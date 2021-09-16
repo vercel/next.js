@@ -1,4 +1,3 @@
-import isError from '../lib/is-error'
 import { IncrementalCache } from './incremental-cache'
 import RenderResult from './render-result'
 
