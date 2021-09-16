@@ -1,5 +1,5 @@
 import { loader } from 'next/dist/compiled/webpack/webpack'
-import { Span } from '../../../telemetry/trace'
+import { Span } from '../../../trace'
 import { InjectModulePluginContext } from '../../webpack/plugins/inject-module-plugin'
 
 export interface NextJsLoaderContext extends loader.LoaderContext {

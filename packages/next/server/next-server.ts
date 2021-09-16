@@ -1819,8 +1819,10 @@ export default class Server {
       typeof revalidate !== 'undefined' &&
       (!this.renderOpts.dev || (hasServerProps && !isDataReq))
         ? {
-            // When the page is 404 cache-control should not be added
-            private: isPreviewMode || is404Page,
+            // When the page is 404 cache-control should not be added unless
+            // we are rendering the 404 page for notFound: true which should
+            // cache according to revalidate correctly
+            private: isPreviewMode || (is404Page && cachedData),
             stateful: !isSSG,
             revalidate,
           }
@@ -1835,10 +1837,15 @@ export default class Server {
         res.end('{"notFound":true}')
         return null
       } else {
-        await this.render404(req, res, {
-          pathname,
-          query,
-        } as UrlWithParsedQuery)
+        await this.render404(
+          req,
+          res,
+          {
+            pathname,
+            query,
+          } as UrlWithParsedQuery,
+          false
+        )
         return null
       }
     } else if (cachedData.kind === 'REDIRECT') {

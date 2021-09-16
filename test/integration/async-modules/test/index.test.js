@@ -16,8 +16,6 @@ import {
 import { join } from 'path'
 import webpack from 'webpack'
 
-jest.setTimeout(1000 * 60 * 2)
-
 const isWebpack5 = parseInt(webpack.version) === 5
 let app
 let appPort

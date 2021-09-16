@@ -39,8 +39,6 @@ const doPing = (page) => {
   })
 }
 
-jest.setTimeout(1000 * 60 * 5)
-
 describe('On Demand Entries', () => {
   it('should pass', () => {})
   beforeAll(async () => {

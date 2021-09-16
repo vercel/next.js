@@ -48,7 +48,7 @@ import { WellKnownErrorsPlugin } from './webpack/plugins/wellknown-errors-plugin
 import { InjectModulePlugin } from './webpack/plugins/inject-module-plugin'
 import { regexLikeCss } from './webpack/config/blocks/css'
 import { CopyFilePlugin } from './webpack/plugins/copy-file-plugin'
-import type { Span } from '../telemetry/trace'
+import type { Span } from '../trace'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 
@@ -292,6 +292,7 @@ export default async function getBaseWebpackConfig(
           loader: 'next-swc-loader',
           options: {
             isServer,
+            pagesDir,
           },
         }
       : {

@@ -9,8 +9,6 @@ import {
   initNextServerScript,
 } from 'next-test-utils'
 
-jest.setTimeout(1000 * 60 * 2)
-
 const appDir = join(__dirname, '..')
 const warningText = `You are using a non-standard "NODE_ENV" value in your environment`
 
