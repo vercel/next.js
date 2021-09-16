@@ -1933,7 +1933,7 @@ export default class Server {
         }
       }
     } catch (error) {
-      const err = isError(error) ? error : new Error(error + '')
+      const err = isError(error) ? error : error ? new Error(error + '') : null
       if (err instanceof NoFallbackError && bubbleNoFallback) {
         throw err
       }
@@ -1954,7 +1954,7 @@ export default class Server {
           if (isError(err)) err.page = page
           throw err
         }
-        this.logError(err)
+        this.logError(err || new Error(error + ''))
       }
       return response
     }
@@ -2074,10 +2074,14 @@ export default class Server {
         throw maybeFallbackError
       }
     } catch (error) {
-      const renderToHtmlError = isError(error) ? error : new Error(error + '')
+      const renderToHtmlError = isError(error)
+        ? error
+        : error
+        ? new Error(error + '')
+        : null
       const isWrappedError = renderToHtmlError instanceof WrappedBuildError
       if (!isWrappedError) {
-        this.logError(renderToHtmlError)
+        this.logError(renderToHtmlError || new Error(error + ''))
       }
       res.statusCode = 500
       const fallbackComponents = await this.getFallbackErrorComponents()

@@ -452,7 +452,7 @@ export default class DevServer extends Server {
       return await super.run(req, res, parsedUrl)
     } catch (error) {
       res.statusCode = 500
-      const err = isError(error) ? error : new Error(error + '')
+      const err = isError(error) ? error : error ? new Error(error + '') : null
       try {
         this.logErrorWithOriginalStack(err).catch(() => {})
         return await this.renderError(err, req, res, pathname!, {
