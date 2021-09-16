@@ -66,6 +66,7 @@ import {
 } from '../lib/load-custom-routes'
 import { DomainLocale } from './config'
 import RenderResult, { NodeWritablePiper } from './render-result'
+import isError from '../lib/is-error'
 
 function noRouter() {
   const message =
@@ -585,10 +586,10 @@ export async function renderToHTML(
         locale: renderOpts.locale,
         defaultLocale: renderOpts.defaultLocale,
       })
-    } catch (staticPropsError) {
+    } catch (staticPropsError: any) {
       // remove not found error code to prevent triggering legacy
       // 404 rendering
-      if (staticPropsError.code === 'ENOENT') {
+      if (staticPropsError && staticPropsError.code === 'ENOENT') {
         delete staticPropsError.code
       }
       throw staticPropsError
@@ -775,10 +776,13 @@ export async function renderToHTML(
         defaultLocale: renderOpts.defaultLocale,
       })
       canAccessRes = false
-    } catch (serverSidePropsError) {
+    } catch (serverSidePropsError: any) {
       // remove not found error code to prevent triggering legacy
       // 404 rendering
-      if (serverSidePropsError.code === 'ENOENT') {
+      if (
+        isError(serverSidePropsError) &&
+        serverSidePropsError.code === 'ENOENT'
+      ) {
         delete serverSidePropsError.code
       }
       throw serverSidePropsError

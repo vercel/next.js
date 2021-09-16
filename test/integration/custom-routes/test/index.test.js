@@ -1028,6 +1028,30 @@ const runTests = (isDev = false) => {
     })
   })
 
+  it('should match has host redirect and insert in destination correctly', async () => {
+    const res1 = await fetchViaHTTP(appPort, '/has-redirect-6', undefined, {
+      redirect: 'manual',
+    })
+    expect(res1.status).toBe(404)
+
+    const res = await fetchViaHTTP(appPort, '/has-redirect-6', undefined, {
+      headers: {
+        host: 'hello-test.example.com',
+      },
+      redirect: 'manual',
+    })
+
+    expect(res.status).toBe(307)
+    const parsed = url.parse(res.headers.get('location'), true)
+
+    expect(parsed.protocol).toBe('https:')
+    expect(parsed.hostname).toBe('hello.example.com')
+    expect(parsed.pathname).toBe('/some-path/end')
+    expect(parsed.query).toEqual({
+      a: 'b',
+    })
+  })
+
   it('should match has header for header correctly', async () => {
     const res = await fetchViaHTTP(appPort, '/has-header-1', undefined, {
       headers: {
@@ -1358,6 +1382,18 @@ const runTests = (isDev = false) => {
               '^(?!\\/_next)(?:\\/([^\\/]+?))\\/has-redirect-5(?:\\/)?$'
             ),
             source: '/:path/has-redirect-5',
+            statusCode: 307,
+          },
+          {
+            destination: 'https://:subdomain.example.com/some-path/end?a=b',
+            has: [
+              {
+                type: 'host',
+                value: '(?<subdomain>.*)-test.example.com',
+              },
+            ],
+            regex: normalizeRegEx('^(?!\\/_next)\\/has-redirect-6(?:\\/)?$'),
+            source: '/has-redirect-6',
             statusCode: 307,
           },
         ],

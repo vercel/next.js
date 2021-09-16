@@ -6,6 +6,7 @@ import exportApp from '../export'
 import { printAndExit } from '../server/lib/utils'
 import { cliCommand } from '../bin/next'
 import { trace } from '../trace'
+import isError from '../lib/is-error'
 
 const nextExport: cliCommand = (argv) => {
   const nextExportCliSpan = trace('next-export-cli')
@@ -25,7 +26,7 @@ const nextExport: cliCommand = (argv) => {
   try {
     args = arg(validArgs, { argv })
   } catch (error) {
-    if (error.code === 'ARG_UNKNOWN_OPTION') {
+    if (isError(error) && error.code === 'ARG_UNKNOWN_OPTION') {
       return printAndExit(error.message, 1)
     }
     throw error

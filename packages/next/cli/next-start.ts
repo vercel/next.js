@@ -6,6 +6,7 @@ import startServer from '../server/lib/start-server'
 import { printAndExit } from '../server/lib/utils'
 import { cliCommand } from '../bin/next'
 import * as Log from '../build/output/log'
+import isError from '../lib/is-error'
 
 const nextStart: cliCommand = (argv) => {
   const validArgs: arg.Spec = {
@@ -23,7 +24,7 @@ const nextStart: cliCommand = (argv) => {
   try {
     args = arg(validArgs, { argv })
   } catch (error) {
-    if (error.code === 'ARG_UNKNOWN_OPTION') {
+    if (isError(error) && error.code === 'ARG_UNKNOWN_OPTION') {
       return printAndExit(error.message, 1)
     }
     throw error

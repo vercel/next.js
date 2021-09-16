@@ -23,22 +23,32 @@ export class Span {
 
   _start: bigint
 
-  constructor(name: string, parentId?: SpanId, attrs?: Object) {
+  constructor({
+    name,
+    parentId,
+    attrs,
+    startTime,
+  }: {
+    name: string
+    parentId?: SpanId
+    startTime?: bigint
+    attrs?: Object
+  }) {
     this.name = name
     this.parentId = parentId
     this.duration = null
     this.attrs = attrs ? { ...attrs } : {}
     this.status = SpanStatus.Started
     this.id = getId()
-    this._start = process.hrtime.bigint()
+    this._start = startTime || process.hrtime.bigint()
   }
 
   // Durations are reported as microseconds. This gives 1000x the precision
   // of something like Date.now(), which reports in milliseconds.
   // Additionally, ~285 years can be safely represented as microseconds as
   // a float64 in both JSON and JavaScript.
-  stop() {
-    const end: bigint = process.hrtime.bigint()
+  stop(stopTime?: bigint) {
+    const end: bigint = stopTime || process.hrtime.bigint()
     const duration = (end - this._start) / NUM_OF_MICROSEC_IN_SEC
     this.status = SpanStatus.Stopped
     if (duration > Number.MAX_SAFE_INTEGER) {
@@ -56,7 +66,17 @@ export class Span {
   }
 
   traceChild(name: string, attrs?: Object) {
-    return new Span(name, this.id, attrs)
+    return new Span({ name, parentId: this.id, attrs })
+  }
+
+  manualTraceChild(
+    name: string,
+    startTime: bigint,
+    stopTime: bigint,
+    attrs?: Object
+  ) {
+    const span = new Span({ name, parentId: this.id, attrs, startTime })
+    span.stop(stopTime)
   }
 
   setAttribute(key: string, value: any) {
@@ -81,7 +101,7 @@ export class Span {
 }
 
 export const trace = (name: string, parentId?: SpanId, attrs?: Object) => {
-  return new Span(name, parentId, attrs)
+  return new Span({ name, parentId, attrs })
 }
 
 export const flushAllTraces = () => reporter.flushAll()

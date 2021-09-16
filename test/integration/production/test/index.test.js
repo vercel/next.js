@@ -110,6 +110,17 @@ describe('Production Usage', () => {
           ],
           notTests: [/node_modules\/react\/cjs\/react\.development\.js/],
         },
+        {
+          page: '/next-import',
+          tests: [
+            /webpack-runtime\.js/,
+            /chunks\/.*?\.js/,
+            /node_modules\/react\/index\.js/,
+            /node_modules\/react\/package\.json/,
+            /node_modules\/react\/cjs\/react\.production\.min\.js/,
+          ],
+          notTests: [/next\/dist\/server\/next\.js/, /next\/dist\/bin/],
+        },
       ]
 
       for (const check of checks) {
