@@ -734,7 +734,12 @@ export default class DevServer extends Server {
     // Build the error page to ensure the fallback is built too.
     // TODO: See if this can be moved into hotReloader or removed.
     await this.hotReloader!.ensurePage('/_error')
-    return await loadDefaultErrorComponents(this.distDir)
+
+    const fs = this.hotReloader?.clientFileSystem || require('fs')
+    const fallbackPath = pathJoin(this.distDir, `fallback-${BUILD_MANIFEST}`)
+    const buildManifest = await fs.promises.readFile(fallbackPath, 'utf8')
+
+    return await loadDefaultErrorComponents(buildManifest)
   }
 
   protected setImmutableAssetCacheControl(res: ServerResponse): void {
