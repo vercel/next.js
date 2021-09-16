@@ -59,7 +59,12 @@ describe('Prerender crawler handling', () => {
   })
 
   it('should return fallback for non-crawler correctly', async () => {
-    const html = await renderViaHTTP(next.url, '/blog/test-1')
+    const html = await renderViaHTTP(next.url, '/blog/test-1', undefined, {
+      headers: {
+        'user-agent':
+          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/93.0.4577.82 Safari/537.36',
+      },
+    })
     expect(html).toContain('Loading...')
   })
 
