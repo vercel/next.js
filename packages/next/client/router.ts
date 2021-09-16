@@ -3,6 +3,7 @@ import React from 'react'
 import Router from '../shared/lib/router/router'
 import type { NextRouter } from '../shared/lib/router/router'
 import { RouterContext } from '../shared/lib/router-context'
+import isError from '../lib/is-error'
 
 type ClassArguments<T> = T extends new (...args: infer U) => any ? U : any
 
@@ -107,7 +108,9 @@ routerEvents.forEach((event) => {
           _singletonRouter[eventField](...args)
         } catch (err) {
           console.error(`Error when running the Router event: ${eventField}`)
-          console.error(`${err.message}\n${err.stack}`)
+          console.error(
+            isError(err) ? `${err.message}\n${err.stack}` : err + ''
+          )
         }
       }
     })

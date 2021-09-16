@@ -12,6 +12,7 @@ import { getRedirectStatus } from '../../../../lib/load-custom-routes'
 import getRouteNoAssetPath from '../../../../shared/lib/router/utils/get-route-from-asset-path'
 import { PERMANENT_REDIRECT_STATUS } from '../../../../shared/lib/constants'
 import RenderResult from '../../../../server/render-result'
+import isError from '../../../../lib/is-error'
 
 export function getPageHandler(ctx: ServerlessHandlerCtx) {
   const {
@@ -406,7 +407,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
         parsedUrl = parseUrl(req.url!, true)
       }
 
-      if (err.code === 'ENOENT') {
+      if (isError(err) && err.code === 'ENOENT') {
         res.statusCode = 404
       } else if (err instanceof DecodeError) {
         res.statusCode = 400

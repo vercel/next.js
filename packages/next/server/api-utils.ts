@@ -9,6 +9,7 @@ import { decryptWithSecret, encryptWithSecret } from './crypto-utils'
 import { interopDefault } from './load-components'
 import { sendEtagResponse } from './send-payload'
 import generateETag from 'etag'
+import isError from '../lib/is-error'
 
 export type NextApiRequestCookies = { [key: string]: string }
 export type NextApiRequestQuery = { [key: string]: string | string[] }
@@ -120,7 +121,7 @@ export async function apiResolver(
       sendError(apiRes, err.statusCode, err.message)
     } else {
       if (dev) {
-        if (err) {
+        if (isError(err)) {
           err.page = page
         }
         throw err
@@ -157,7 +158,7 @@ export async function parseBody(
   try {
     buffer = await getRawBody(req, { encoding, limit })
   } catch (e) {
-    if (e.type === 'entity.too.large') {
+    if (isError(e) && e.type === 'entity.too.large') {
       throw new ApiError(413, `Body exceeded ${limit} limit`)
     } else {
       throw new ApiError(400, 'Invalid body')

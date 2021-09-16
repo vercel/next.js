@@ -13,6 +13,7 @@ import {
   markAssetError,
 } from '../../../client/route-loader'
 import { RouterEvent } from '../../../client/router'
+import isError from '../../../lib/is-error'
 import type { DomainLocale } from '../../../server/config'
 import { denormalizePagePath } from '../../../server/denormalize-page-path'
 import { normalizeLocalePath } from '../i18n/normalize-locale-path'
@@ -1226,7 +1227,7 @@ export default class Router implements BaseRouter {
 
       return true
     } catch (err) {
-      if (err.cancelled) {
+      if (isError(err) && err.cancelled) {
         return false
       }
       throw err
@@ -1271,7 +1272,7 @@ export default class Router implements BaseRouter {
   }
 
   async handleRouteInfoError(
-    err: Error & { code: any; cancelled: boolean },
+    err: Error & { code?: any; cancelled?: boolean },
     pathname: string,
     query: ParsedUrlQuery,
     as: string,
@@ -1337,7 +1338,7 @@ export default class Router implements BaseRouter {
       return routeInfo
     } catch (routeInfoErr) {
       return this.handleRouteInfoError(
-        routeInfoErr,
+        isError(routeInfoErr) ? routeInfoErr : new Error(routeInfoErr + ''),
         pathname,
         query,
         as,
@@ -1420,7 +1421,13 @@ export default class Router implements BaseRouter {
       this.components[route] = routeInfo
       return routeInfo
     } catch (err) {
-      return this.handleRouteInfoError(err, pathname, query, as, routeProps)
+      return this.handleRouteInfoError(
+        isError(err) ? err : new Error(err + ''),
+        pathname,
+        query,
+        as,
+        routeProps
+      )
     }
   }
 
@@ -1650,7 +1657,7 @@ export default class Router implements BaseRouter {
 
   _getServerData(dataHref: string): Promise<object> {
     const { href: resourceKey } = new URL(dataHref, window.location.href)
-    if (this.sdr[resourceKey]) {
+    if (this.sdr[resourceKey] !== undefined) {
       return this.sdr[resourceKey]
     }
     return (this.sdr[resourceKey] = fetchNextData(dataHref, this.isSsr)
