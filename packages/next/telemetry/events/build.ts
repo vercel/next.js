@@ -1,3 +1,5 @@
+import { TelemetryPlugin } from '../../build/webpack/plugins/telemetry-plugin'
+
 const REGEXP_DIRECTORY_DUNDER =
   /[\\/]__[^\\/]+(?<![\\/]__(?:tests|mocks))__[\\/]/i
 const REGEXP_DIRECTORY_TESTS = /[\\/]__(tests|mocks)__[\\/]/i
@@ -116,4 +118,21 @@ export function eventBuildOptimize(
       ),
     },
   }
+}
+
+const EVENT_BUILD_FEATURE_USAGE = 'NEXT_BUILD_FEATURE_USAGE'
+type EventBuildFeatureUsage = {
+  featureName: string
+  invocationCount: number
+}
+export function eventBuildFeatureUsage(
+  telemetryPlugin: TelemetryPlugin
+): Array<{ eventName: string; payload: EventBuildFeatureUsage }> {
+  return telemetryPlugin.usages().map(({ featureName, invocationCount }) => ({
+    eventName: EVENT_BUILD_FEATURE_USAGE,
+    payload: {
+      featureName,
+      invocationCount,
+    },
+  }))
 }
