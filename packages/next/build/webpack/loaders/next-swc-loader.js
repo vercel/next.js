@@ -29,7 +29,17 @@ DEALINGS IN THE SOFTWARE.
 import { getOptions } from 'next/dist/compiled/loader-utils'
 import { transform } from '../../swc'
 
-function getSWCOptions({ isTypeScript, isServer, development, isPageFile }) {
+const nextDistPath =
+  /(next[\\/]dist[\\/]shared[\\/]lib)|(next[\\/]dist[\\/]client)|(next[\\/]dist[\\/]pages)/
+
+function getSWCOptions({
+  isTypeScript,
+  isServer,
+  development,
+  isPageFile,
+  pagesDir,
+  isNextDist,
+}) {
   const jsc = {
     parser: {
       syntax: isTypeScript ? 'typescript' : 'ecmascript',
@@ -54,6 +64,7 @@ function getSWCOptions({ isTypeScript, isServer, development, isPageFile }) {
       jsc,
       // Disables getStaticProps/getServerSideProps tree shaking on the server compilation for pages
       disableNextSsg: true,
+      pagesDir,
       env: {
         targets: {
           // Targets the current version of Node.js
@@ -64,7 +75,19 @@ function getSWCOptions({ isTypeScript, isServer, development, isPageFile }) {
   } else {
     // Matches default @babel/preset-env behavior
     jsc.target = 'es5'
-    return { disableNextSsg: !isPageFile, jsc }
+    return {
+      // Ensure Next.js internals are output as commonjs modules
+      ...(isNextDist
+        ? {
+            module: {
+              type: 'commonjs',
+            },
+          }
+        : {}),
+      disableNextSsg: !isPageFile,
+      pagesDir,
+      jsc,
+    }
   }
 }
 
@@ -79,11 +102,15 @@ async function loaderTransform(parentTrace, source, inputSourceMap) {
   const { isServer, pagesDir } = loaderOptions
   const isPageFile = filename.startsWith(pagesDir)
 
+  const isNextDist = nextDistPath.test(filename)
+
   const swcOptions = getSWCOptions({
+    pagesDir,
     isTypeScript,
     isServer: isServer,
     isPageFile,
     development: this.mode === 'development',
+    isNextDist,
   })
 
   const programmaticOptions = {
@@ -135,10 +162,11 @@ export default function swcLoader(inputSource, inputSourceMap) {
       loaderTransform.call(this, loaderSpan, inputSource, inputSourceMap)
     )
     .then(
-      ([transformedSource, outputSourceMap]) =>
-        callback?.(null, transformedSource, outputSourceMap || inputSourceMap),
+      ([transformedSource, outputSourceMap]) => {
+        callback(null, transformedSource, outputSourceMap || inputSourceMap)
+      },
       (err) => {
-        callback?.(err)
+        callback(err)
       }
     )
 }
