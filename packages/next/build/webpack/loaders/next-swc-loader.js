@@ -29,12 +29,16 @@ DEALINGS IN THE SOFTWARE.
 import { getOptions } from 'next/dist/compiled/loader-utils'
 import { transform } from '../../swc'
 
+const nextDistPath =
+  /(next[\\/]dist[\\/]shared[\\/]lib)|(next[\\/]dist[\\/]client)|(next[\\/]dist[\\/]pages)/
+
 function getSWCOptions({
   isTypeScript,
   isServer,
   development,
   isPageFile,
   pagesDir,
+  isNextDist,
 }) {
   const jsc = {
     parser: {
@@ -72,6 +76,14 @@ function getSWCOptions({
     // Matches default @babel/preset-env behavior
     jsc.target = 'es5'
     return {
+      // Ensure Next.js internals are output as commonjs modules
+      ...(isNextDist
+        ? {
+            module: {
+              type: 'commonjs',
+            },
+          }
+        : {}),
       disableNextSsg: !isPageFile,
       pagesDir,
       jsc,
@@ -90,12 +102,15 @@ async function loaderTransform(parentTrace, source, inputSourceMap) {
   const { isServer, pagesDir } = loaderOptions
   const isPageFile = filename.startsWith(pagesDir)
 
+  const isNextDist = nextDistPath.test(filename)
+
   const swcOptions = getSWCOptions({
     pagesDir,
     isTypeScript,
     isServer: isServer,
     isPageFile,
     development: this.mode === 'development',
+    isNextDist,
   })
 
   const programmaticOptions = {
@@ -147,10 +162,11 @@ export default function swcLoader(inputSource, inputSourceMap) {
       loaderTransform.call(this, loaderSpan, inputSource, inputSourceMap)
     )
     .then(
-      ([transformedSource, outputSourceMap]) =>
-        callback?.(null, transformedSource, outputSourceMap || inputSourceMap),
+      ([transformedSource, outputSourceMap]) => {
+        callback(null, transformedSource, outputSourceMap || inputSourceMap)
+      },
       (err) => {
-        callback?.(err)
+        callback(err)
       }
     )
 }
