@@ -15,7 +15,7 @@ async function nextBabelLoader(
   const loaderOptions = parentTrace
     .traceChild('get-options')
     .traceFn(() => getOptions(this))
-  const rawFilename = this._injectModulePlugin
+  const rawFilename = this._injectModulePlugin?.module?.resourceResolveData
     ? path.join(
         loaderOptions.cwd,
         this._injectModulePlugin?.module?.resourceResolveData?.relativePath

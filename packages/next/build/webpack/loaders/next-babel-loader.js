@@ -82,7 +82,7 @@ const customBabelLoader = babelLoader((babel) => {
     ) {
       const filename = this.resourcePath
       const options = Object.assign({}, cfg.options)
-      const rawFilename = this._injectModulePlugin
+      const rawFilename = this._injectModulePlugin?.module?.resourceResolveData
         ? path.join(
             options.cwd,
             this._injectModulePlugin?.module?.resourceResolveData?.relativePath
