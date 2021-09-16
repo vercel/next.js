@@ -66,6 +66,7 @@ import {
 } from '../lib/load-custom-routes'
 import { DomainLocale } from './config'
 import RenderResult, { NodeWritablePiper } from './render-result'
+import isError from '../lib/is-error'
 
 function noRouter() {
   const message =
@@ -778,7 +779,10 @@ export async function renderToHTML(
     } catch (serverSidePropsError: any) {
       // remove not found error code to prevent triggering legacy
       // 404 rendering
-      if (serverSidePropsError && serverSidePropsError.code === 'ENOENT') {
+      if (
+        isError(serverSidePropsError) &&
+        serverSidePropsError.code === 'ENOENT'
+      ) {
         delete serverSidePropsError.code
       }
       throw serverSidePropsError

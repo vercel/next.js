@@ -456,7 +456,7 @@ export default class DevServer extends Server {
       try {
         this.logErrorWithOriginalStack(err).catch(() => {})
         return await this.renderError(err, req, res, pathname!, {
-          __NEXT_PAGE: (isError(err) && err?.page) || pathname || '',
+          __NEXT_PAGE: (isError(err) && err.page) || pathname || '',
         })
       } catch (internalErr) {
         console.error(internalErr)
@@ -466,13 +466,12 @@ export default class DevServer extends Server {
   }
 
   private async logErrorWithOriginalStack(
-    possibleError?: any,
+    err?: unknown,
     type?: 'unhandledRejection' | 'uncaughtException'
   ) {
     let usedOriginalStack = false
 
-    if (possibleError?.name && possibleError?.stack && possibleError?.message) {
-      const err: Error = possibleError
+    if (isError(err) && err.name && err.stack && err.message) {
       try {
         const frames = parseStack(err.stack!)
         const frame = frames[0]
@@ -523,9 +522,9 @@ export default class DevServer extends Server {
 
     if (!usedOriginalStack) {
       if (type) {
-        Log.error(`${type}:`, possibleError)
+        Log.error(`${type}:`, err + '')
       } else {
-        Log.error(possibleError)
+        Log.error(err + '')
       }
     }
   }
