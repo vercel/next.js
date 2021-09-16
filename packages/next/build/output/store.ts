@@ -72,14 +72,15 @@ store.subscribe((state) => {
       }
     }
 
+    // Ensure traces are flushed after each compile in development mode
+    flushAllTraces()
     return
   }
 
   if (state.warnings) {
     Log.warn(state.warnings.join('\n\n'))
-    if (state.appUrl) {
-      Log.info(`ready on ${state.appUrl}`)
-    }
+    // Ensure traces are flushed after each compile in development mode
+    flushAllTraces()
     return
   }
 
