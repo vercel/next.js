@@ -120,7 +120,7 @@ A string that provides information about how wide the image will be at different
 
 `sizes` is important for performance when using `layout="responsive"` or `layout="fill"` with images that take up less than the full viewport width.
 
-For a simple example, if you are using `layout="fill"`, and you know the image will always be less than half the width of the viewport, include the `sizes="50vw"` property. Failing to do so will result in the image being erroneously sent at twice the necessary resolution.
+If you are using `layout="fill"` and the image will always be less than half the viewport width, include `sizes="50vw"`. Without `sizes`, the image will be sent at twice the necessary resolution, decreasing performance.
 
 [Learn more](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/img#attr-sizes).
 
@@ -131,9 +131,9 @@ The quality of the optimized image, an integer between `1` and `100` where `100`
 ### priority
 
 When true, the image will be considered high priority and
-[preload](https://web.dev/preload-responsive-images/). Lazy loading will also be automatically disabled for all priority images.
+[preload](https://web.dev/preload-responsive-images/). Lazy loading is automatically disabled for images using `priority`.
 
-You should use the `priority` attribute on any image which you suspect will be the [LCP element](https://web.dev/lcp/#what-elements-are-considered). It may be appropriate to have multiple priority images, as different images may be the LCP element for different viewport sizes.
+You should use the `priority` attribute on any image which you suspect will be the [Largest Contentful Paint (LCP) element](https://nextjs.org/learn/seo/web-performance/lcp). It may be appropriate to have multiple priority images, as different images may be the LCP element for different viewport sizes.
 
 Should only be used when the image is visible above the fold. Defaults to `false`.
 
@@ -141,7 +141,7 @@ Should only be used when the image is visible above the fold. Defaults to `false
 
 A placeholder to use while the image is loading. Possible values are `blur` or `empty`. Defaults to `empty`.
 
-When set to `blur`, the [`blurDataURL`](#blurdataurl) property will be used as the placeholder. If `src` is an object from a static import and the imported image is jpg, png, or webp, then `blurDataURL` will automatically be populated.
+When set to `blur`, the [`blurDataURL`](#blurdataurl) property will be used as the placeholder. If `src` is an object from a [static import](#local-images) and the imported image is `.jpg`, `.png`, or `.webp`, then `blurDataURL` will be automatically populated.
 
 For dynamic images, you must provide the [`blurDataURL`](#blurdataurl) property. Solutions such as [Plaiceholder](https://github.com/joe-bell/plaiceholder) can help with `base64` generation.
 
@@ -160,7 +160,7 @@ In some cases, you may need more advanced usage. The `<Image />` component optio
 
 Defines how the image will fit into its parent container when using `layout="fill"`. 
 
-This value is passed to the [object-fit CSS property](https://developer.mozilla.org/en-US/docs/Web/CSS/object-fit) applied to the image.
+This value is passed to the [object-fit CSS property](https://developer.mozilla.org/en-US/docs/Web/CSS/object-fit) for the `src` image.
 
 ### objectPosition
 
@@ -247,16 +247,17 @@ module.exports = {
   },
 }
 ```
+
 ### Built-in Loaders
 
 The following Image Optimization cloud providers are included:
 
+- Default: Works automatically with `next dev`, `next start`, or a custom server
 - [Vercel](https://vercel.com): Works automatically when you deploy on Vercel, no configuration necessary. [Learn more](https://vercel.com/docs/next.js/image-optimization)
 - [Imgix](https://www.imgix.com): `loader: 'imgix'`
 - [Cloudinary](https://cloudinary.com): `loader: 'cloudinary'`
 - [Akamai](https://www.akamai.com): `loader: 'akamai'`
 - Custom: `loader: 'custom'` use a custom cloud provider by implementing the [`loader`](/docs/api-reference/next/image.md#loader) prop on the `next/image` component
-- Default: Works automatically with `next dev`, `next start`, or a custom server
 
 If you need a different provider, you can use the [`loader`](/docs/api-reference/next/image.md#loader) prop with `next/image`.
 

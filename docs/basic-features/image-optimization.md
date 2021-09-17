@@ -27,11 +27,11 @@ To add an image to your application, import the [`next/image`](/docs/api-referen
 import Image from 'next/image'
 ```
 
-From there, the way you use the component will be slightly different depending on if you're including an image that lives locally in your project, or one from a remote server.
+Now, you can define the `src` for your image (either local or remote).
 
 ### Local Images
 
-You can save time by using a static `import` statement with images that live in your project:
+To use a local image, `import` your `.jpg`, `.png`, or `.webp` files:
 
 ```jsx
 import profilePic from '../public/me.png'
@@ -39,7 +39,7 @@ import profilePic from '../public/me.png'
 
 Dynamic `await import()` or `require()` are _not_ supported.
 
-The benefit to static `import`s is that several of the required props are taken care of for you. The `width`, `height`, and `blurDataURL` props will automatically be populated:
+Next.js will automatically determine the `width` and `height` or your image based on the imported file. These values are used to prevent [Cumulative Layout Shift](https://nextjs.org/learn/seo/web-performance/cls) while your image is loading.
 
 ```js
 import Image from 'next/image'
@@ -114,7 +114,7 @@ module.exports = {
 
 ## Image Sizing
 
-One of the ways that images most commonly hurt performance is through *layout shift*, where the image pushes other elements around on the page as it loads in. This performance problem is so annoying to users that it has it's own Core Web Vital, called [Cumulative Layout Shift](https://web.dev/cls/).  The way to avoid image-based layout shifts is to [always size your images](https://web.dev/optimize-cls/#images-without-dimensions). This allows the browser to reserve precisely enough space for the image before it loads.
+One of the ways that images most commonly hurt performance is through *layout shift*, where the image pushes other elements around on the page as it loads in. This performance problem is so annoying to users that it has its own Core Web Vital, called [Cumulative Layout Shift](https://web.dev/cls/).  The way to avoid image-based layout shifts is to [always size your images](https://web.dev/optimize-cls/#images-without-dimensions). This allows the browser to reserve precisely enough space for the image before it loads.
 
 Because `next/image` is designed to guarantee good performance results, it cannot be used in a way that will contribute to layout shift, and **must** be sized in one of three ways:
 1) Automatically, using a [static import](#local-images)
