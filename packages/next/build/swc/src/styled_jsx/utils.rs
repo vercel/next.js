@@ -29,12 +29,12 @@ pub fn compute_class_names(
   let mut dynamic_styles = vec![];
   let mut external_styles = vec![];
   for style_info in styles {
-    match &style_info {
+    match style_info {
       JSXStyle::Local(style_info) => {
         if !style_info.is_dynamic {
           static_hashes.push(style_info.hash.clone());
         } else {
-          dynamic_styles.push(style_info.clone());
+          dynamic_styles.push(style_info);
         }
       }
       JSXStyle::External(external) => {
