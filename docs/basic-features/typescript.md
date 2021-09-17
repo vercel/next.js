@@ -44,7 +44,7 @@ npm run dev
 
 # You'll see instructions like these:
 #
-# Please install typescript, @types/react, and @types/node by running:
+# Please install TypeScript, @types/react, and @types/node by running:
 #
 #         yarn add --dev typescript @types/react @types/node
 #
