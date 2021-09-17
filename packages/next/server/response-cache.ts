@@ -99,7 +99,7 @@ export default class ResponseCache {
             cacheEntry.value?.kind === 'PAGE'
               ? {
                   kind: 'PAGE',
-                  html: await cacheEntry.value.html.toUnchunkedString(),
+                  html: cacheEntry.value.html.toUnchunkedString(),
                   pageData: cacheEntry.value.pageData,
                 }
               : cacheEntry.value,
@@ -107,7 +107,7 @@ export default class ResponseCache {
           )
         }
       } catch (err) {
-        rejecter(err)
+        rejecter(err as Error)
       } finally {
         if (key) {
           this.pendingResponses.delete(key)

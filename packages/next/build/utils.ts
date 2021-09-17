@@ -31,9 +31,10 @@ import { UnwrapPromise } from '../lib/coalesced-function'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import * as Log from './output/log'
 import { loadComponents } from '../server/load-components'
-import { trace } from '../telemetry/trace'
+import { trace } from '../trace'
 import { setHttpAgentOptions } from '../server/config'
 import { NextConfigComplete } from '../server/config-shared'
+import isError from '../lib/is-error'
 
 const fileGzipStats: { [k: string]: Promise<number> | undefined } = {}
 const fsStatGzip = (file: string) => {
@@ -942,7 +943,7 @@ export async function isPageStatic(
         traceExcludes: config.unstable_excludeFiles || [],
       }
     } catch (err) {
-      if (err.code === 'MODULE_NOT_FOUND') return {}
+      if (isError(err) && err.code === 'MODULE_NOT_FOUND') return {}
       throw err
     }
   })

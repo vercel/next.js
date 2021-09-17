@@ -47,7 +47,8 @@ import { ServerlessPlugin } from './webpack/plugins/serverless-plugin'
 import { WellKnownErrorsPlugin } from './webpack/plugins/wellknown-errors-plugin'
 import { regexLikeCss } from './webpack/config/blocks/css'
 import { CopyFilePlugin } from './webpack/plugins/copy-file-plugin'
-import type { Span } from '../telemetry/trace'
+import type { Span } from '../trace'
+import isError from '../lib/is-error'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 
@@ -74,9 +75,15 @@ function parseJsonFile(filePath: string) {
   try {
     return JSON5.parse(contents)
   } catch (err) {
+    if (!isError(err)) throw err
     const codeFrame = codeFrameColumns(
       String(contents),
-      { start: { line: err.lineNumber, column: err.columnNumber } },
+      {
+        start: {
+          line: (err as Error & { lineNumber?: number }).lineNumber || 0,
+          column: (err as Error & { columnNumber?: number }).columnNumber || 0,
+        },
+      },
       { message: err.message, highlightCode: true }
     )
     throw new Error(`Failed to parse "${filePath}":\n${codeFrame}`)
@@ -291,6 +298,7 @@ export default async function getBaseWebpackConfig(
           loader: 'next-swc-loader',
           options: {
             isServer,
+            pagesDir,
           },
         }
       : {
