@@ -282,7 +282,7 @@ module.exports = {
 
 ### Device Sizes
 
-In some cases, where you know the expected device widths from the users of your website, you can specify a list of device width breakpoints using the `deviceSizes` property. These widths are used when the [`next/image`](/docs/api-reference/next/image.md) component uses `layout="responsive"` or `layout="fill"` so that the correct image is served for the device visiting your website.
+If you know the expected device widths of your users, you can specify a list of device width breakpoints using the `deviceSizes` property. These widths are used when the [`next/image`](/docs/api-reference/next/image.md) component uses `layout="responsive"` or `layout="fill"` to ensure the correct image is served for user's device.
 
 If no configuration is provided, the default below is used.
 
