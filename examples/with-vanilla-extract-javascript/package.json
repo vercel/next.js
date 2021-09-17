@@ -1,0 +1,16 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@vanilla-extract/babel-plugin": "^1.1.0",
+    "@vanilla-extract/css": "^1.6.0",
+    "@vanilla-extract/next-plugin": "^1.0.0",
+    "next": "^11.1.2",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2"
+  }
+}
