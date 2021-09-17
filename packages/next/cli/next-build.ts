@@ -6,6 +6,7 @@ import * as Log from '../build/output/log'
 import { cliCommand } from '../bin/next'
 import build from '../build'
 import { printAndExit } from '../server/lib/utils'
+import isError from '../lib/is-error'
 
 const nextBuild: cliCommand = (argv) => {
   const validArgs: arg.Spec = {
@@ -23,7 +24,7 @@ const nextBuild: cliCommand = (argv) => {
   try {
     args = arg(validArgs, { argv })
   } catch (error) {
-    if (error.code === 'ARG_UNKNOWN_OPTION') {
+    if (isError(error) && error.code === 'ARG_UNKNOWN_OPTION') {
       return printAndExit(error.message, 1)
     }
     throw error

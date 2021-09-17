@@ -76,7 +76,7 @@ import { sendRenderResult, setRevalidateHeaders } from './send-payload'
 import { serveStatic } from './serve-static'
 import { IncrementalCache } from './incremental-cache'
 import { execOnce } from '../shared/lib/utils'
-import { isBlockedPage } from './utils'
+import { isBlockedPage, isBot } from './utils'
 import RenderResult from './render-result'
 import { loadEnvConfig } from '@next/env'
 import './node-polyfill-fetch'
@@ -97,6 +97,7 @@ import ResponseCache, {
 } from './response-cache'
 import { NextConfigComplete } from './config-shared'
 import { parseNextUrl } from '../shared/lib/router/utils/parse-next-url'
+import isError from '../lib/is-error'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -490,7 +491,7 @@ export default class Server {
       if (this.minimalMode || this.renderOpts.dev) {
         throw err
       }
-      this.logError(err)
+      this.logError(isError(err) ? err : new Error(err + ''))
       res.statusCode = 500
       res.end('Internal Server Error')
     }
@@ -1099,7 +1100,7 @@ export default class Server {
     try {
       builtPagePath = await this.getPagePath(page)
     } catch (err) {
-      if (err.code === 'ENOENT') {
+      if (isError(err) && err.code === 'ENOENT') {
         return false
       }
       throw err
@@ -1250,12 +1251,12 @@ export default class Server {
       query: ParsedUrlQuery
     }
   ): Promise<void> {
+    const userAgent = partialContext.req.headers['user-agent']
     const ctx = {
       ...partialContext,
       renderOpts: {
         ...this.renderOpts,
-        // TODO: Determine when dynamic HTML is allowed
-        supportsDynamicHTML: false,
+        supportsDynamicHTML: userAgent ? !isBot(userAgent) : false,
       },
     } as const
     const payload = await fn(ctx)
@@ -1412,7 +1413,7 @@ export default class Server {
           },
         }
       } catch (err) {
-        if (err.code !== 'ENOENT') throw err
+        if (isError(err) && err.code !== 'ENOENT') throw err
       }
     }
     return null
@@ -1711,9 +1712,16 @@ export default class Server {
         const isDynamicPathname = isDynamicRoute(pathname)
         const didRespond = hasResolved || isResSent(res)
 
-        const { staticPaths, fallbackMode } = hasStaticPaths
+        let { staticPaths, fallbackMode } = hasStaticPaths
           ? await this.getStaticPaths(pathname)
           : { staticPaths: undefined, fallbackMode: false }
+
+        if (
+          fallbackMode === 'static' &&
+          isBot(req.headers['user-agent'] || '')
+        ) {
+          fallbackMode = 'blocking'
+        }
 
         // When we did not respond from cache, we need to choose to block on
         // rendering or return a skeleton.
@@ -1819,8 +1827,10 @@ export default class Server {
       typeof revalidate !== 'undefined' &&
       (!this.renderOpts.dev || (hasServerProps && !isDataReq))
         ? {
-            // When the page is 404 cache-control should not be added
-            private: isPreviewMode || is404Page,
+            // When the page is 404 cache-control should not be added unless
+            // we are rendering the 404 page for notFound: true which should
+            // cache according to revalidate correctly
+            private: isPreviewMode || (is404Page && cachedData),
             stateful: !isSSG,
             revalidate,
           }
@@ -1835,10 +1845,15 @@ export default class Server {
         res.end('{"notFound":true}')
         return null
       } else {
-        await this.render404(req, res, {
-          pathname,
-          query,
-        } as UrlWithParsedQuery)
+        await this.render404(
+          req,
+          res,
+          {
+            pathname,
+            query,
+          } as UrlWithParsedQuery,
+          false
+        )
         return null
       }
     } else if (cachedData.kind === 'REDIRECT') {
@@ -1924,7 +1939,8 @@ export default class Server {
           }
         }
       }
-    } catch (err) {
+    } catch (error) {
+      const err = isError(error) ? error : error ? new Error(error + '') : null
       if (err instanceof NoFallbackError && bubbleNoFallback) {
         throw err
       }
@@ -1937,17 +1953,15 @@ export default class Server {
       const isWrappedError = err instanceof WrappedBuildError
       const response = await this.renderErrorToResponse(
         ctx,
-        isWrappedError ? err.innerError : err
+        isWrappedError ? (err as WrappedBuildError).innerError : err
       )
 
       if (!isWrappedError) {
         if (this.minimalMode || this.renderOpts.dev) {
-          if (err) {
-            err.page = page
-          }
+          if (isError(err)) err.page = page
           throw err
         }
-        this.logError(err)
+        this.logError(err || new Error(error + ''))
       }
       return response
     }
@@ -2066,10 +2080,15 @@ export default class Server {
         }
         throw maybeFallbackError
       }
-    } catch (renderToHtmlError) {
+    } catch (error) {
+      const renderToHtmlError = isError(error)
+        ? error
+        : error
+        ? new Error(error + '')
+        : null
       const isWrappedError = renderToHtmlError instanceof WrappedBuildError
       if (!isWrappedError) {
-        this.logError(renderToHtmlError)
+        this.logError(renderToHtmlError || new Error(error + ''))
       }
       res.statusCode = 500
       const fallbackComponents = await this.getFallbackErrorComponents()
@@ -2159,7 +2178,9 @@ export default class Server {
 
     try {
       await serveStatic(req, res, path)
-    } catch (err) {
+    } catch (error) {
+      if (!isError(error)) throw error
+      const err = error as Error & { code?: string; statusCode?: number }
       if (err.code === 'ENOENT' || err.statusCode === 404) {
         this.render404(req, res, parsedUrl)
       } else if (err.statusCode === 412) {

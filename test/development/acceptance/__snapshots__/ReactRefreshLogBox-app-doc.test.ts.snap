@@ -1,0 +1,27 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`ReactRefreshLogBox _app syntax error shows logbox 1`] = `
+"./pages/_app.js:3:22
+Syntax error: Unexpected token
+
+  1 |
+  2 |             function MyApp({ Component, pageProps }) {
+> 3 |               return <<Component {...pageProps} />;
+    |                       ^
+  4 |             }
+  5 |             export default MyApp
+  6 |"
+`;
+
+exports[`ReactRefreshLogBox _document syntax error shows logbox 1`] = `
+"./pages/_document.js:4:47
+Syntax error: Unexpected token
+
+  2 |             import Document, { Html, Head, Main, NextScript } from 'next/document'
+  3 |
+> 4 |             class MyDocument extends Document {{
+    |                                                ^
+  5 |               static async getInitialProps(ctx) {
+  6 |                 const initialProps = await Document.getInitialProps(ctx)
+  7 |                 return { ...initialProps }"
+`;

@@ -1,5 +1,5 @@
 import { createHash } from 'crypto'
-import { trace } from '../../../../../telemetry/trace'
+import { trace } from '../../../../../trace'
 import transform from './transform'
 import cacache from 'next/dist/compiled/cacache'
 
