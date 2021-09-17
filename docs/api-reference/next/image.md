@@ -350,7 +350,7 @@ module.exports = {
 
 ## Related
 
-For a high level discussion of image component features and usage guides, see:
+For an overview of the Image component features and usage guidelines, see:
 
 <div class="card">
   <a href="/docs/basic-features/image-optimization.md">
