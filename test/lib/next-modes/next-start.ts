@@ -57,7 +57,11 @@ export class NextStartInstance extends NextInstance {
     })
     this._buildId = (
       await fs.readFile(
-        path.join(this.testDir, this.nextConfig.distDir || '.next', 'BUILD_ID'),
+        path.join(
+          this.testDir,
+          this.nextConfig?.distDir || '.next',
+          'BUILD_ID'
+        ),
         'utf8'
       )
     ).trim()

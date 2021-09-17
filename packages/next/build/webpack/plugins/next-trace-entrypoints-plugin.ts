@@ -8,6 +8,7 @@ import {
 import { TRACE_OUTPUT_VERSION } from '../../../shared/lib/constants'
 import { spans } from './profiling-plugin'
 import { Span } from '../../../trace'
+import isError from '../../../lib/is-error'
 
 const PLUGIN_NAME = 'TraceEntryPointsPlugin'
 const TRACE_IGNORES = [
@@ -163,7 +164,10 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
               try {
                 return compilation.inputFileSystem.readFileSync(path)
               } catch (e) {
-                if (e.code === 'ENOENT' || e.code === 'EISDIR') {
+                if (
+                  isError(e) &&
+                  (e.code === 'ENOENT' || e.code === 'EISDIR')
+                ) {
                   return null
                 }
                 throw e
@@ -176,13 +180,14 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
                 return compilation.inputFileSystem.readlinkSync(path)
               } catch (e) {
                 if (
-                  e.code !== 'EINVAL' &&
-                  e.code !== 'ENOENT' &&
-                  e.code !== 'UNKNOWN'
+                  isError(e) &&
+                  (e.code === 'EINVAL' ||
+                    e.code === 'ENOENT' ||
+                    e.code === 'UNKNOWN')
                 ) {
-                  throw e
+                  return null
                 }
-                return null
+                throw e
               }
               // })
             }
@@ -191,7 +196,7 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
               try {
                 return compilation.inputFileSystem.statSync(path)
               } catch (e) {
-                if (e.code === 'ENOENT') {
+                if (isError(e) && e.code === 'ENOENT') {
                   return null
                 }
                 throw e

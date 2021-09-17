@@ -21,6 +21,7 @@ import { isInAmpMode } from '../shared/lib/amp'
 import { NextConfigComplete } from '../server/config-shared'
 import { setHttpAgentOptions } from '../server/config'
 import RenderResult from '../server/render-result'
+import isError from '../lib/is-error'
 
 const envConfig = require('../shared/lib/runtime-config')
 
@@ -500,7 +501,7 @@ export default async function exportPage({
     } catch (error) {
       console.error(
         `\nError occurred prerendering page "${path}". Read more: https://nextjs.org/docs/messages/prerender-error\n` +
-          error.stack
+          (isError(error) ? error.stack : error)
       )
       results.error = true
     }
