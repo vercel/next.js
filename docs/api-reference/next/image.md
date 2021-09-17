@@ -322,7 +322,7 @@ The expiration (or rather Max Age) is defined by the upstream server's `Cache-Co
 - You can configure [`minimumCacheTTL`](#minimum-cache-ttl) to increase the cache duration when the upstream image does not include `max-age`.
 - You can also configure [`deviceSizes`](#device-sizes) and [`imageSizes`](#device-sizes) to reduce the total number of possible generated images.
 
-You can configure the time to live (TTL) in seconds for cached optimized images. In many cases, its better to use a [Static Image Import](/docs/basic-features/image-optimization.md#local-images) which will handle hashing file contents and caching the file forever.
+You can configure the Time to Live (TTL) in seconds for cached optimized images. In many cases, it's better to use a [Static Image Import](/docs/basic-features/image-optimization.md#local-images) which will handle hashing file contents and cache the image forever with a `Cache-Control` header of `immutable`.
 
 ```js
 module.exports = {
