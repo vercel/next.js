@@ -338,7 +338,7 @@ The default behavior allows you to import static files such as `import icon from
 
 In some cases, you may wish to disable this feature if it conflicts with other plugins that expect the import to behave differently.
 
-You can disable static image imports with the following configuration below.
+You can disable static image imports inside your `next.config.js`:
 
 ```js
 module.exports = {
