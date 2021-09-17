@@ -32,6 +32,7 @@ use crate::{
     hook_optimizer::hook_optimizer,
     next_dynamic::next_dynamic,
     next_ssg::next_ssg,
+    styled_jsx::styled_jsx,
     util::{CtxtExt, MapErr},
 };
 use anyhow::{Context as _, Error};
@@ -82,6 +83,7 @@ impl Task for TransformTask {
                         Optional::new(next_ssg(), !self.options.disable_next_ssg),
                         amp_attributes(),
                         next_dynamic(s.name.clone(), self.options.pages_dir.clone()),
+                        styled_jsx()
                     );
                     self.c.process_js_with_custom_pass(
                         s.clone(),

@@ -44,7 +44,7 @@ export async function verifyTypeScriptSetup(
     )
 
     if (deps.missing?.length > 0) {
-      missingDepsError(dir, deps.missing)
+      await missingDepsError(dir, deps.missing)
     }
 
     // Load TypeScript after we're sure it exists:

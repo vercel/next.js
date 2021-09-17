@@ -6,7 +6,13 @@ describe('should set-up next', () => {
 
   beforeAll(async () => {
     next = await createNext({
-      files: { 'pages/index.js': 'export default () => "hello" ' },
+      files: { 
+        'pages/index.js': `
+          export default function Page() { 
+            return <p>hello world</p>
+          } 
+        `
+      },
     })
   })
   afterAll(() => next.destroy())

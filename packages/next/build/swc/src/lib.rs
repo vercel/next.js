@@ -45,6 +45,7 @@ mod hook_optimizer;
 mod minify;
 mod next_dynamic;
 pub mod next_ssg;
+mod styled_jsx;
 mod transform;
 mod util;
 
