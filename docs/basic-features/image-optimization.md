@@ -11,7 +11,7 @@ description: Next.js supports built-in image optimization, as well as third part
   </ul>
 </details>
 
-The Next.js Image Component, [`next/image`](/docs/api-reference/next/image.md), is an extension of the HTML `<img>` element, evolved for the modern web. It includes a variety of built-in performance optimizations to help you achieve good [Core Web Vitals](https://web.dev/vitals/) scores. These scores are an important measurement of user experience on your website, and are [factored into Google's search rankings](https://developers.google.com/search/blog/2020/05/evaluating-page-experience).
+The Next.js Image Component, [`next/image`](/docs/api-reference/next/image.md), is an extension of the HTML `<img>` element, evolved for the modern web. It includes a variety of built-in performance optimizations to help you achieve good [Core Web Vitals](https://nextjs.org/learn/seo/web-performance). These scores are an important measurement of user experience on your website, and are [factored into Google's search rankings](https://nextjs.org/learn/seo/web-performance/seo-impact).
 
 Some of the optimizations built into the image component include:
 * Automatic `srcset` generation so you always send users correctly-sized images
