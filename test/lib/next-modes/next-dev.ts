@@ -41,6 +41,7 @@ export class NextDevInstance extends NextInstance {
     })
 
     this.childProcess.on('close', (code) => {
+      if (this.isStopping) return
       if (code) {
         throw new Error(`next dev exited unexpectedly with code ${code}`)
       }

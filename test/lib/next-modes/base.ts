@@ -17,6 +17,7 @@ export class NextInstance {
   protected dependencies?: { [name: string]: string }
   protected events: { [eventName: string]: Set<any> }
   protected testDir: string
+  protected isStopping: boolean
   protected isDestroyed: boolean
   protected childProcess: ChildProcess
   protected _url: string
@@ -40,6 +41,7 @@ export class NextInstance {
     this.nextConfig = nextConfig
     this.events = {}
     this.isDestroyed = false
+    this.isStopping = false
   }
 
   protected async createTestDir() {
@@ -120,6 +122,7 @@ export class NextInstance {
   public async setup(): Promise<void> {}
   public async start(): Promise<void> {}
   public async stop(): Promise<void> {
+    this.isStopping = true
     if (this.childProcess) {
       let exitResolve
       const exitPromise = new Promise((resolve) => {
