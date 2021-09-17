@@ -187,6 +187,21 @@ export async function createApp({
       )
     }
 
+    // Copy VS Code launch configurations if example doesn't include one
+    const vscodeLaunchPath = path.join(root, '.vscode', 'launch.json')
+    if (!fs.existsSync(vscodeLaunchPath)) {
+      fs.mkdirSync(path.join(root, '.vscode'))
+      fs.copyFileSync(
+        path.join(
+          __dirname,
+          'templates',
+          'vscode-launch-configs',
+          `launch-${displayedCommand}.json`
+        ),
+        vscodeLaunchPath
+      )
+    }
+
     console.log('Installing packages. This might take a couple of minutes.')
     console.log()
 
@@ -288,6 +303,19 @@ export async function createApp({
         }
       },
     })
+    /**
+     * Copy appropriate VS Code launch configuration file.
+     */
+    fs.mkdirSync(path.join(root, '.vscode'))
+    fs.copyFileSync(
+      path.join(
+        __dirname,
+        'templates',
+        'vscode-launch-configs',
+        `launch-${displayedCommand}.json`
+      ),
+      path.join(root, '.vscode', 'launch.json')
+    )
   }
 
   if (tryGitInit(root)) {
