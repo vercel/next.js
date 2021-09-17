@@ -1,6 +1,6 @@
 module.exports = {
   // target: 'experimental-serverless-trace',
-  webpack: (config, options) => {
+  webpack: (config) => {
     config.experiments = {
       topLevelAwait: true,
     }
