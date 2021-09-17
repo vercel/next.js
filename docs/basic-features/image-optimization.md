@@ -14,13 +14,10 @@ description: Next.js supports built-in image optimization, as well as third part
 The Next.js Image Component, [`next/image`](/docs/api-reference/next/image.md), is an extension of the HTML `<img>` element, evolved for the modern web. It includes a variety of built-in performance optimizations to help you achieve good [Core Web Vitals](https://nextjs.org/learn/seo/web-performance). These scores are an important measurement of user experience on your website, and are [factored into Google's search rankings](https://nextjs.org/learn/seo/web-performance/seo-impact).
 
 Some of the optimizations built into the image component include:
-* Automatic `srcset` generation so you always send users correctly-sized images
-* Support for sending modern image formats like [WebP](https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Image_types) to the browsers that support them
-* Layout shift prevention
-* Lazy-loading for offscreen images
-* Blurry placeholders
-* On-demand image resizing, even for images stored on remote servers
-
+* **Improved Performance:** Always send users correctly-sized images, using modern image formats.
+* **Visual Stability:** LPrrevent cumulative Layout Shift Automatically
+* **Faster Page Loads:** Images are only loaded when the enter the viewport, with optional blurry placeholders
+* **Asset Flexibility:** On-demand image resizing, even for images stored on remote servers
 
 ## Using the Image Component
 
@@ -93,7 +90,9 @@ export default function Home() {
 
 ### Loaders
 
-Note that in the example above, a relative URL (`"/me.png"`) is provided for a remote image. This is possible because of the `next/image` [loader](/docs/api-reference/next/image.md#loader) architecture. A loader is a function that takes the information you provide to the image component properties, and generates the URLs needed to serve optimized images. 
+Note that in the example above, a relative URL (`"/me.png"`) is provided for a remote image. This is possible because of the `next/image` [loader](/docs/api-reference/next/image.md#loader) architecture. 
+
+A loader is a function that generates the URLs for your image. It appends a root domain to your provided `src`, and generates multiple URLs to request the image at different sizes. These multiple URLs are used in the automatic [srcset](https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement/srcset) generation, so that visitors to your site will be served an image that is the right size for their viewport.
 
 The default loader for all new applications integrates with the Next.js Image Optimizer, which optimizes images from anywhere on the web, and then serves them directly from the Next.js web server. If you'd like to serve your images directly from a CDN or image server, you can use one of the [built-in loaders](/docs/api-reference/next/image.md#built-in-loaders) or write your own with just a few lines of JavaScript.
 

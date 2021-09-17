@@ -56,7 +56,7 @@ Required, except for statically imported images, or those with [`layout="fill"`]
 
 ## Optional Props
 
-The `<Image />` component accepts a number of additional properties beyond those which are required. This section describes the most commonly-used properties of the Image Component.
+The `<Image />` component accepts a number of additional properties beyond those which are required. This section describes the most commonly-used properties of the Image Component. Find details about more rarely-used properties in the [Advanced Props](#advanced-props) section.
 
 ### layout
 
@@ -67,7 +67,7 @@ The layout behavior of the image as the viewport changes size.
 | `intrinsic` (default) | Scale *down* to fit width of container, up to image size | `1x`, `2x` (based on [imageSizes](#image-sizes))                                                                                                      | N/A     |
 | `fixed`               | Sized to `width` and `height` exactly                    | `1x`, `2x` (based on [imageSizes](#image-sizes))                                                                                                      | N/A     |
 | `responsive`          | Scale to fit width of container                          | `640w`, `750w`, ... `2048w`, `3840w` (based on [imageSizes](#image-sizes) and [deviceSizes](#device-sizes)) | `100vw` |
-| `fill`                | Grow in X and Y axes to fill container                   | `640w`, `750w`, ... `2048w`, `3840w` (based on [imageSizes](#image-sizes) and [deviceSizes](#device-sizes)) | `100vw` |
+| `fill`                | Grow in both X and Y axes to fill container                   | `640w`, `750w`, ... `2048w`, `3840w` (based on [imageSizes](#image-sizes) and [deviceSizes](#device-sizes)) | `100vw` |
 
 - [Demo the `intrinsic` layout (default)](https://image-component.nextjs.gallery/layout-intrinsic)
   - When `intrinsic`, the image will scale the dimensions down for smaller viewports, but maintain the original dimensions for larger viewports.
@@ -166,7 +166,7 @@ This value is passed to the [object-fit CSS property](https://developer.mozilla.
 
 Defines how the image is positioned within its parent element when using `layout="fill"`.
 
-[Learn more](https://developer.mozilla.org/en-US/docs/Web/CSS/object-position)
+This value is passed to the [object-fit CSS property](https://developer.mozilla.org/en-US/docs/Web/CSS/object-position) applied to the image.
 
 ### onLoadingComplete
 
@@ -296,7 +296,9 @@ module.exports = {
 
 ### Image Sizes
 
-You can specify a list of image widths using the `imageSizes` property. These widths should be different (usually smaller) than the widths defined in `deviceSizes` because the arrays will be concatenated. These widths are used when the `next/image` component uses `layout="fixed"` or `layout="intrinsic"`.
+You can specify a list of image widths using the `imageSizes` property. These widths are concatenated with the array of [device sizes](#device-sizes) to form the full array of sizes used to generate image [srcset](https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement/srcset)s.
+
+The reason there are two seperate lists is that imageSizes is only used for images which provide a [`sizes`](#sizes) prop, which indicates that the image is less than the full width of the screen. **Therefore, the sizes in imageSizes should all be smaller than the smallest size in deviceSizes.**
 
 If no configuration is provided, the default below is used.
 
