@@ -73,7 +73,7 @@ To use a remote image, the `src` property should be a URL string, which can be [
 ```jsx
 import Image from 'next/image'
 
-function Home() {
+export default function Home() {
   return (
     <>
       <h1>My Homepage</h1>
