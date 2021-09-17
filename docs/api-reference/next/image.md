@@ -92,7 +92,7 @@ A `loader` is a function returning a URL string for the image, given the followi
 - [`width`](#width)
 - [`quality`](#quality)
 
-Here is an example of defining a custom loader and using it on an instance of the Image component:
+Here is an example of using a custom loader with `next/image`:
 
 ```js
 import Image from 'next/image'
