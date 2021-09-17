@@ -89,7 +89,7 @@ export default function Home() {
 }
 ```
 
->(For additional information about the sizing requirement in next/image, [see here](#image-sizing))
+> Learn more about the [sizing requirements](#image-sizing) in `next/image`.
 
 ### Loaders
 
