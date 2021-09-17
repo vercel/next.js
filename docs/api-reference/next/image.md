@@ -357,6 +357,6 @@ For an overview of the Image component features and usage guidelines, see:
 <div class="card">
   <a href="/docs/basic-features/image-optimization.md">
     <b>Images</b>
-    <small>Usage and featurer information for optimized Images in Next.js.</small>
+    <small>Learn how to display and optimize images with the Image component.</small>
   </a>
 </div>
