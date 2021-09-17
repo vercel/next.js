@@ -270,7 +270,7 @@ The following configuration is for advanced use cases and is usually not necessa
 
 ### Domains
 
-To protect your application from abuse, you must define a list of remote domains with images that you want to let the Next.jd Image Optimizer process. This is done in your `next.config` file, as shown below:
+To protect your application from abuse, you must define a list of image provider domains that you want to be served from the Next.js Image Optimization API. This is configured in your `next.config` file, as shown below:
 
 ```js
 module.exports = {
