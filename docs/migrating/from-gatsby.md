@@ -198,11 +198,16 @@ export default function Home() {
       <Image
         src={profilePic}
         alt="Picture of the author"
-        // width={500} automatically provided
-        // height={500} automatically provided
-        // blurDataURL="data:..." automatically provided
-        // Optionally allows to add a blurred version of the image while loading
-        // placeholder="blur"
+        // When "responsive", similar to "fluid" from Gatsby
+        // When "intrinsic", similar to "fluid" with maxWidth from Gatsby
+        // When "fixed", similar to "fixed" from Gatsby
+        layout="responsive"
+        // Optional, similar to "blur-up" from Gatsby
+        placeholder="blur"
+        // Optional, similar to "width" in Gatsby GraphQL
+        width={500}
+        // Optional, similar to "height" in Gatsby GraphQL
+        height={500}
       />
       <p>Welcome to my homepage!</p>
     </>
