@@ -5,9 +5,10 @@ const Home = () => {
     <main>
       <header className={`${themeClass}`}>
         <div className={`${header}`}>
-          <h1 className={`${headingOne}`}>
+            <h1 className={`${headingOne}`}>
               This is a very basic example of using vanilla-extract in javascript with next.js
-          </h1> </div>
+            </h1> 
+          </div>
       </header>
     </main>
   )

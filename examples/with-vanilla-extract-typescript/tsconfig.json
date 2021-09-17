@@ -3,7 +3,12 @@
     "target": "esnext",
     "module": "esnext",
     "jsx": "preserve",
-    "lib": ["dom", "es2017"],
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
+    "jsx": "preserve",
     "moduleResolution": "node",
     "strict": true,
     "allowSyntheticDefaultImports": true,
@@ -13,8 +18,20 @@
     "removeComments": false,
     "sourceMap": true,
     "resolveJsonModule": true,
-    "isolatedModules": true
+    "isolatedModules": true,
+    "allowJs": true,
+    "forceConsistentCasingInFileNames": true,
+    "incremental": true,
+    "noEmit": true,
+    "esModuleInterop": true
   },
-  "exclude":["node_modules"],
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.css.ts", "**/*.tsx"]
+  "exclude": [
+    "node_modules"
+  ],
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.css.ts",
+    "**/*.tsx"
+  ]
 }
