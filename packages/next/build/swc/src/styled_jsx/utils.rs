@@ -82,43 +82,49 @@ pub fn compute_class_names(
         span: DUMMY_SP,
         computed: false,
       }))),
-      args: dynamic_styles
-        .iter()
-        .map(|style_info| {
-          let hash_input = match &static_class_name {
-            Some(class_name) => format!("{}{}", style_info.hash, class_name),
-            None => style_info.hash.clone(),
-          };
-          ExprOrSpread {
-            expr: Box::new(Expr::Array(ArrayLit {
-              elems: vec![
-                Some(ExprOrSpread {
-                  expr: Box::new(string_literal_expr(&hash_string(&hash_input))),
-                  spread: None,
-                }),
-                Some(ExprOrSpread {
-                  expr: Box::new(Expr::Array(ArrayLit {
-                    elems: style_info
-                      .expressions
-                      .iter()
-                      .map(|expression| {
-                        Some(ExprOrSpread {
-                          expr: expression.clone(),
-                          spread: None,
-                        })
-                      })
-                      .collect(),
-                    span: DUMMY_SP,
-                  })),
-                  spread: None,
-                }),
-              ],
-              span: DUMMY_SP,
-            })),
-            spread: None,
-          }
-        })
-        .collect(),
+      args: vec![ExprOrSpread {
+        expr: Box::new(Expr::Array(ArrayLit {
+          elems: dynamic_styles
+            .iter()
+            .map(|style_info| {
+              let hash_input = match &static_class_name {
+                Some(class_name) => format!("{}{}", style_info.hash, class_name),
+                None => style_info.hash.clone(),
+              };
+              Some(ExprOrSpread {
+                expr: Box::new(Expr::Array(ArrayLit {
+                  elems: vec![
+                    Some(ExprOrSpread {
+                      expr: Box::new(string_literal_expr(&hash_string(&hash_input))),
+                      spread: None,
+                    }),
+                    Some(ExprOrSpread {
+                      expr: Box::new(Expr::Array(ArrayLit {
+                        elems: style_info
+                          .expressions
+                          .iter()
+                          .map(|expression| {
+                            Some(ExprOrSpread {
+                              expr: expression.clone(),
+                              spread: None,
+                            })
+                          })
+                          .collect(),
+                        span: DUMMY_SP,
+                      })),
+                      spread: None,
+                    }),
+                  ],
+                  span: DUMMY_SP,
+                })),
+                spread: None,
+              })
+            })
+            .collect(),
+          span: DUMMY_SP,
+        })),
+        spread: None,
+      }],
       span: DUMMY_SP,
       type_args: None,
     })),
