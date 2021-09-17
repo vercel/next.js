@@ -24,7 +24,7 @@ description: Enable Image Optimization with the built-in Image component.
 
 </details>
 
-> **Note: This is API documention for the Image Component and Image Optimization. For a feature overview and usage information for images in Next.js, please see [Images](/docs/basic-features/image-optimization.md).**
+> **Note: This is API documentation for the Image Component and Image Optimization. For a feature overview and usage information for images in Next.js, please see [Images](/docs/basic-features/image-optimization.md).**
 
 ## Required Props
 
