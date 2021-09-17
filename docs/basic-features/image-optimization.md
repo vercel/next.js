@@ -87,8 +87,6 @@ export default function Home() {
     </>
   )
 }
-
-export default Home
 ```
 
 >(For additional information about the sizing requirement in next/image, [see here](#image-sizing))
