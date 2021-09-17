@@ -86,7 +86,7 @@ The layout behavior of the image as the viewport changes size.
 
 A custom function used to resolve URLs. Setting the loader as a prop on the Image component overrides the default loader defined in the [`images` section of `next.config.js`](#set-default-loader).
 
-Defining a custom `loader` is simple. A loader function returns a URL string for the image, given the following parameters:
+A `loader` is a function returning a URL string for the image, given the following parameters:
 
 - [`src`](#src)
 - [`width`](#width)
