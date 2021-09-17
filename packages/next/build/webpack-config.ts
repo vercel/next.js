@@ -1349,6 +1349,12 @@ export default async function getBaseWebpackConfig(
       // @ts-ignore dependencies exists
       webpackConfig.dependencies = ['client']
     }
+    if (dev) {
+      // @ts-ignore unsafeCache exists
+      webpackConfig.module.unsafeCache = (module) =>
+        /[\\/]pages[\\/][^\\/]+(?:$|\?|#)/.test(module.resource)
+    }
+
     // webpack 5 no longer polyfills Node.js modules:
     if (webpackConfig.node) delete webpackConfig.node.setImmediate
 
