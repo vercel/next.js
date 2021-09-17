@@ -39,21 +39,24 @@ export class ProfilingPlugin {
     }: {
       parentSpan?: () => Span
       attrs?: any
-      onStart?: (span: Span) => void
+      onStart?: (span: Span, ...params: any[]) => void
       onStop?: () => void
     } = {}
   ) {
     let span: Span | undefined
-    startHook.tap(pluginName, (...params: any[]) => {
-      const name = typeof spanName === 'function' ? spanName() : spanName
-      const attributes = attrs ? attrs(...params) : attrs
-      span = parentSpan
-        ? parentSpan().traceChild(name, attributes)
-        : this.runWebpackSpan.traceChild(name, attributes)
+    startHook.tap(
+      { name: pluginName, stage: -Infinity },
+      (...params: any[]) => {
+        const name = typeof spanName === 'function' ? spanName() : spanName
+        const attributes = attrs ? attrs(...params) : attrs
+        span = parentSpan
+          ? parentSpan().traceChild(name, attributes)
+          : this.runWebpackSpan.traceChild(name, attributes)
 
-      if (onStart) onStart(span)
-    })
-    stopHook.tap(pluginName, () => {
+        if (onStart) onStart(span, ...params)
+      }
+    )
+    stopHook.tap({ name: pluginName, stage: Infinity }, () => {
       // `stopHook` may be triggered when `startHook` has not in cases
       // where `stopHook` is used as the terminating event for more
       // than one pair of hooks.
@@ -69,13 +72,13 @@ export class ProfilingPlugin {
   traceTopLevelHooks(compiler: any) {
     this.traceHookPair(
       'webpack-compilation',
-      isWebpack5 ? compiler.hooks.beforeCompile : compiler.hooks.compile,
+      compiler.hooks.make,
       isWebpack5 ? compiler.hooks.afterCompile : compiler.hooks.done,
       {
         parentSpan: () =>
           webpackInvalidSpans.get(compiler) || this.runWebpackSpan,
         attrs: () => ({ name: compiler.name }),
-        onStart: (span) => spans.set(compiler, span),
+        onStart: (span, compilation) => spans.set(compilation, span),
       }
     )
 
@@ -115,8 +118,8 @@ export class ProfilingPlugin {
 
     compiler.hooks.compilation.tap(pluginName, (compilation: any) => {
       compilation.hooks.buildModule.tap(pluginName, (module: any) => {
-        const compilerSpan = spans.get(compiler)
-        if (!compilerSpan) {
+        const compilationSpan = spans.get(compilation)
+        if (!compilationSpan) {
           return
         }
 
@@ -138,7 +141,7 @@ export class ProfilingPlugin {
         if (issuerSpan) {
           span = issuerSpan.traceChild(spanName)
         } else {
-          span = compilerSpan.traceChild(spanName)
+          span = compilationSpan.traceChild(spanName)
         }
         span.setAttribute('name', module.userRequest)
         spans.set(module, span)
