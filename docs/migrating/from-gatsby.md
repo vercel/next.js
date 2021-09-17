@@ -167,7 +167,7 @@ export function getAllPosts() {
 
 ## Image Component and Image Optimization
 
-Since version **10.0.0**, Next.js has a built-in [Image Component and Automatic Image Optimization](/docs/basic-features/image-optimization.md).
+Next.js has a built-in [Image Component and Automatic Image Optimization](/docs/basic-features/image-optimization.md).
 
 The Next.js Image Component, [`next/image`](/docs/api-reference/next/image.md), is an extension of the HTML `<img>` element, evolved for the modern web.
 
@@ -189,16 +189,20 @@ Instead, use the built-in [`next/image`](/docs/api-reference/next/image.md) comp
 
 ```jsx
 import Image from 'next/image'
+import profilePic from '../public/me.png'
 
-export default function Home() {
+function Home() {
   return (
     <>
       <h1>My Homepage</h1>
       <Image
-        src="/me.png"
+        src={profilePic}
         alt="Picture of the author"
-        width={500}
-        height={500}
+        // width={500} automatically provided
+        // height={500} automatically provided
+        // blurDataURL="data:..." automatically provided
+        // Optionally allows to add a blurred version of the image while loading
+        // placeholder="blur"
       />
       <p>Welcome to my homepage!</p>
     </>
