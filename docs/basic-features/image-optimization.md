@@ -11,9 +11,9 @@ description: Next.js supports built-in image optimization, as well as third part
   </ul>
 </details>
 
-The Next.js Image Component, [`next/image`](/docs/api-reference/next/image.md), is an extension of the HTML `<img>` element, evolved for the modern web. It includes a variety of built-in performance optimizations to help you achieve good [Core Web Vitals](https://nextjs.org/learn/seo/web-performance). These scores are an important measurement of user experience on your website, and are [factored into Google's search rankings](https://nextjs.org/learn/seo/web-performance/seo-impact).
+The Next.js Image component, [`next/image`](/docs/api-reference/next/image.md), is an extension of the HTML `<img>` element, evolved for the modern web. It includes a variety of built-in performance optimizations to help you achieve good [Core Web Vitals](https://nextjs.org/learn/seo/web-performance). These scores are an important measurement of user experience on your website, and are [factored into Google's search rankings](https://nextjs.org/learn/seo/web-performance/seo-impact).
 
-Some of the optimizations built into the image component include:
+Some of the optimizations built into the Image component include:
 * **Improved Performance:** Always send users correctly-sized images, using modern image formats.
 * **Visual Stability:** LPrrevent cumulative Layout Shift Automatically
 * **Faster Page Loads:** Images are only loaded when the enter the viewport, with optional blurry placeholders
@@ -141,15 +141,15 @@ If none of the suggested methods works for sizing your images, the `next/image` 
 
 ## Styling
 
-Styling the image component is not that different from styling a norrmal `<img>` element, but there are a few guidelines to keep in mind:
+Styling the Image component is not that different from styling a norrmal `<img>` element, but there are a few guidelines to keep in mind:
 
 **Pick the correct layout mode**
 
-The image component has several different [layout modes](/docs/api-reference/next/image.md#layout) that define how it is sized on the page. Familiarize yourself with the various modes, and consider experimenting with other modes if your styling isn't working as you think it should.
+The Image component has several different [layout modes](/docs/api-reference/next/image.md#layout) that define how it is sized on the page. Familiarize yourself with the various modes, and consider experimenting with other modes if your styling isn't working as you think it should.
 
 **Target the image with className, not based on DOM structure**
 
-The image component has a somewhat more complicated DOM structure than a standard `<img>`. Regardless of layout mode used, the inner `<img>` element will always be wrapped by exactly one `<div>`. It may have a sibling `<div>` for spacing, depending on layout. These additional `<div>`s are what allows us to provide the different layout modes, while ensuring no layout shift.
+The Image component has a somewhat more complicated DOM structure than a standard `<img>`. Regardless of layout mode used, the inner `<img>` element will always be wrapped by exactly one `<div>`. It may have a sibling `<div>` for spacing, depending on layout. These additional `<div>`s are what allows us to provide the different layout modes, while ensuring no layout shift.
 
 The easiest way to style the inner `<img>` rendered by the image element is to **apply a class to your images using the `className` property** on the Image element and then target that class with your styles. The value of className will be automatically applied to the underlying `<img>` element.
 
@@ -167,7 +167,7 @@ This is the default for `<div>` elements but should be specified otherwise.
 
 ### Styling Examples
 
-For examples of the Image Component used with the various fill modes, see the [Image Component Example App](https://image-component.nextjs.gallery/).
+For examples of the Image component used with the various fill modes, see the [Image component example app](https://image-component.nextjs.gallery/).
 
 
 ## Configuration

@@ -56,7 +56,7 @@ Required, except for statically imported images, or those with [`layout="fill"`]
 
 ## Optional Props
 
-The `<Image />` component accepts a number of additional properties beyond those which are required. This section describes the most commonly-used properties of the Image Component. Find details about more rarely-used properties in the [Advanced Props](#advanced-props) section.
+The `<Image />` component accepts a number of additional properties beyond those which are required. This section describes the most commonly-used properties of the Image component. Find details about more rarely-used properties in the [Advanced Props](#advanced-props) section.
 
 ### layout
 
