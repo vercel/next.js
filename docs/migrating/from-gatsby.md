@@ -191,7 +191,7 @@ Instead, use the built-in [`next/image`](/docs/api-reference/next/image.md) comp
 import Image from 'next/image'
 import profilePic from '../public/me.png'
 
-function Home() {
+export default function Home() {
   return (
     <>
       <h1>My Homepage</h1>
