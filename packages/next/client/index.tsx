@@ -26,6 +26,7 @@ import PageLoader, { StyleSheetTuple } from './page-loader'
 import measureWebVitals from './performance-relayer'
 import { RouteAnnouncer } from './route-announcer'
 import { createRouter, makePublicRouterInstance } from './router'
+import isError from '../lib/is-error'
 
 /// <reference types="react-dom/experimental" />
 
@@ -326,7 +327,7 @@ export async function initNext(opts: { webpackHMR?: any } = {}) {
     }
   } catch (error) {
     // This catches errors like throwing in the top level of a module
-    initialErr = error
+    initialErr = isError(error) ? error : new Error(error + '')
   }
 
   if (process.env.NODE_ENV === 'development') {
@@ -343,7 +344,7 @@ export async function initNext(opts: { webpackHMR?: any } = {}) {
             // not overridden when we re-throw it below.
             throw new Error(initialErr!.message)
           } catch (e) {
-            error = e
+            error = e as Error
           }
 
           error.name = initialErr!.name
@@ -417,9 +418,10 @@ export async function render(renderingProps: RenderRouteInfo): Promise<void> {
 
   try {
     await doRender(renderingProps)
-  } catch (renderErr) {
+  } catch (err) {
+    const renderErr = err instanceof Error ? err : new Error(err + '')
     // bubble up cancelation errors
-    if (renderErr.cancelled) {
+    if ((renderErr as Error & { cancelled?: boolean }).cancelled) {
       throw renderErr
     }
 

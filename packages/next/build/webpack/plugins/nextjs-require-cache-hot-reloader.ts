@@ -2,6 +2,7 @@ import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { isWebpack5 } from 'next/dist/compiled/webpack/webpack'
 import { realpathSync } from 'fs'
 import path from 'path'
+import isError from '../../../lib/is-error'
 
 const originModules = [
   require.resolve('../../../server/require'),
@@ -12,7 +13,7 @@ function deleteCache(filePath: string) {
   try {
     filePath = realpathSync(filePath)
   } catch (e) {
-    if (e.code !== 'ENOENT') throw e
+    if (isError(e) && e.code !== 'ENOENT') throw e
   }
   const module = require.cache[filePath]
   if (module) {
