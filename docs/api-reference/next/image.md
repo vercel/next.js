@@ -275,7 +275,7 @@ To protect your application from abuse, you must define a list of remote domains
 ```js
 module.exports = {
   images: {
-    domains: ['example.com', 'example2.com'],
+    domains: ['assets.acme.com'],
   },
 }
 ```
