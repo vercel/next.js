@@ -17,7 +17,7 @@ Preview the example live on [StackBlitz](http://stackblitz.com/):
 
 It only takes a few steps to create and deploy your own version of this example app. Before you begin, make sure you have [linked your Vercel account to GitHub](https://vercel.com/docs/personal-accounts/login-connections), and [set up a project in Sentry](https://docs.sentry.io/product/sentry-basics/guides/integrate-frontend/create-new-project/).
 
-### Deploy directly to Vercel
+### Option 1: Deploy directly to Vercel
 
 You can deploy a copy of this project directly to [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example).
 
@@ -25,7 +25,7 @@ You can deploy a copy of this project directly to [Vercel](https://vercel.com?ut
 
 This will clone this example to your GitHub org, create a linked project in Vercel, and prompt you to install the Vercel Sentry Integration. (You can read more about the integration [on Vercel](https://vercel.com/integrations/sentry) and in [the Sentry docs](https://docs.sentry.io/product/integrations/deployment/vercel/).)
 
-### Create locally before deploying
+### Option 2: Create locally before deploying
 
 Alternatively, you can create a copy of ths example app locally so you can configure and customize it before you deploy it.
 
