@@ -37,7 +37,10 @@ export function initNextServerScript(
   opts
 ) {
   return new Promise((resolve, reject) => {
-    const instance = spawn('node', ['--no-deprecation', scriptPath], { env })
+    const instance = spawn('node', ['--no-deprecation', scriptPath], {
+      env,
+      cwd: opts && opts.cwd,
+    })
 
     function handleStdout(data) {
       const message = data.toString()
@@ -78,6 +81,23 @@ export function initNextServerScript(
   })
 }
 
+export function getFullUrl(appPortOrUrl, url, hostname) {
+  let fullUrl =
+    typeof appPortOrUrl === 'string' && appPortOrUrl.startsWith('http')
+      ? appPortOrUrl
+      : `http://${hostname ? hostname : 'localhost'}:${appPortOrUrl}${url}`
+
+  if (typeof appPortOrUrl === 'string' && url) {
+    const parsedUrl = new URL(fullUrl)
+    const parsedPathQuery = new URL(url, fullUrl)
+
+    parsedUrl.search = parsedPathQuery.search
+    parsedUrl.pathname = parsedPathQuery.pathname
+    fullUrl = parsedUrl.toString()
+  }
+  return fullUrl
+}
+
 export function renderViaAPI(app, pathname, query) {
   const url = `${pathname}${query ? `?${qs.stringify(query)}` : ''}`
   return app.renderToHTML({ url }, {}, pathname, query)
@@ -88,10 +108,10 @@ export function renderViaHTTP(appPort, pathname, query, opts) {
 }
 
 export function fetchViaHTTP(appPort, pathname, query, opts) {
-  const url = `http://localhost:${appPort}${pathname}${
+  const url = `${pathname}${
     typeof query === 'string' ? query : query ? `?${qs.stringify(query)}` : ''
   }`
-  return fetch(url, opts)
+  return fetch(getFullUrl(appPort, url), opts)
 }
 
 export function findPort() {
@@ -472,7 +492,7 @@ export class File {
 
 export async function evaluate(browser, input) {
   if (typeof input === 'function') {
-    const result = await browser.executeScript(input)
+    const result = await browser.eval(input)
     await new Promise((resolve) => setTimeout(resolve, 30))
     return result
   } else {
@@ -570,6 +590,26 @@ export async function getRedboxSource(browser) {
     3000,
     500,
     'getRedboxSource'
+  )
+}
+
+export async function getRedboxDescription(browser) {
+  return retry(
+    () =>
+      evaluate(browser, () => {
+        const portal = [].slice
+          .call(document.querySelectorAll('nextjs-portal'))
+          .find((p) =>
+            p.shadowRoot.querySelector('[data-nextjs-dialog-header]')
+          )
+        const root = portal.shadowRoot
+        return root
+          .querySelector('#nextjs__container_errors_desc')
+          .innerText.replace(/__WEBPACK_DEFAULT_EXPORT__/, 'Unknown')
+      }),
+    3000,
+    500,
+    'getRedboxDescription'
   )
 }
 

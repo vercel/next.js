@@ -16,11 +16,12 @@ import { GetStaticProps } from '../types'
 import { requireFontManifest } from '../server/require'
 import { FontManifest } from '../server/font-utils'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
-import { trace } from '../telemetry/trace'
+import { trace } from '../trace'
 import { isInAmpMode } from '../shared/lib/amp'
-import { resultFromChunks, resultToChunks } from '../server/utils'
 import { NextConfigComplete } from '../server/config-shared'
 import { setHttpAgentOptions } from '../server/config'
+import RenderResult from '../server/render-result'
+import isError from '../lib/is-error'
 
 const envConfig = require('../shared/lib/runtime-config')
 
@@ -157,8 +158,10 @@ export default async function exportPage({
       }
 
       // Check if the page is a specified dynamic route
-      const nonLocalizedPath = normalizeLocalePath(path, renderOpts.locales)
-        .pathname
+      const nonLocalizedPath = normalizeLocalePath(
+        path,
+        renderOpts.locales
+      ).pathname
 
       if (isDynamic && page !== nonLocalizedPath) {
         params = getRouteMatcher(getRouteRegex(page))(updatedPath) || undefined
@@ -186,13 +189,13 @@ export default async function exportPage({
         getHeaderNames: () => [],
       }
 
-      const req = ({
+      const req = {
         url: updatedPath,
         ...headerMocks,
-      } as unknown) as IncomingMessage
-      const res = ({
+      } as unknown as IncomingMessage
+      const res = {
         ...headerMocks,
-      } as unknown) as ServerResponse
+      } as unknown as ServerResponse
 
       if (path === '/500' && page === '/_error') {
         res.statusCode = 500
@@ -272,7 +275,7 @@ export default async function exportPage({
 
         // if it was auto-exported the HTML is loaded here
         if (typeof mod === 'string') {
-          renderResult = resultFromChunks([mod])
+          renderResult = RenderResult.fromStatic(mod)
           queryWithAutoExportWarn()
         } else {
           // for non-dynamic SSG pages we should have already
@@ -350,7 +353,7 @@ export default async function exportPage({
         }
 
         if (typeof components.Component === 'string') {
-          renderResult = resultFromChunks([components.Component])
+          renderResult = RenderResult.fromStatic(components.Component)
           queryWithAutoExportWarn()
         } else {
           /**
@@ -415,8 +418,7 @@ export default async function exportPage({
         }
       }
 
-      const htmlChunks = renderResult ? await resultToChunks(renderResult) : []
-      const html = htmlChunks.join('')
+      const html = renderResult ? renderResult.toUnchunkedString() : ''
       if (inAmpMode && !curRenderOpts.ampSkipValidation) {
         if (!results.ssgNotFound) {
           await validateAmp(html, path, curRenderOpts.ampValidatorPath)
@@ -458,8 +460,9 @@ export default async function exportPage({
             )
           }
 
-          const ampChunks = await resultToChunks(ampRenderResult)
-          const ampHtml = ampChunks.join('')
+          const ampHtml = ampRenderResult
+            ? ampRenderResult.toUnchunkedString()
+            : ''
           if (!curRenderOpts.ampSkipValidation) {
             await validateAmp(ampHtml, page + '?amp=1')
           }
@@ -498,7 +501,7 @@ export default async function exportPage({
     } catch (error) {
       console.error(
         `\nError occurred prerendering page "${path}". Read more: https://nextjs.org/docs/messages/prerender-error\n` +
-          error.stack
+          (isError(error) ? error.stack : error)
       )
       results.error = true
     }

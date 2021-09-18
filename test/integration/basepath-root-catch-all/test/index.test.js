@@ -17,8 +17,6 @@ let buildId
 const appDir = join(__dirname, '..')
 const nextConfig = new File(join(appDir, 'next.config.js'))
 
-jest.setTimeout(1000 * 60 * 2)
-
 const runTests = () => {
   it('should use correct data URL for root catch-all', async () => {
     const browser = await webdriver(appPort, '/docs/hello')

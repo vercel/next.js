@@ -118,7 +118,6 @@ export async function getNotFoundError(
       message
     )
   } catch (err) {
-    console.log('Failed to parse source map:', err)
     // Don't fail on failure to resolve sourcemaps
     return input
   }

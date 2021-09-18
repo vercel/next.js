@@ -63,7 +63,7 @@ You can also use **Client-side Rendering** along with Static Generation or Serve
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-storyblok">Storyblok Example</a> (<a href="https://next-blog-storyblok.vercel.app/">Demo</a>)</li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-graphcms">GraphCMS Example</a> (<a href="https://next-blog-graphcms.vercel.app/">Demo</a>)</li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-kontent">Kontent Example</a> (<a href="https://next-blog-kontent.vercel.app/">Demo</a>)</li>
-    <li><a href="https://static-tweet.vercel.app/">Static Tweet Demo</a></li>
+    <li><a href="https://static-tweet.vercel.app/">Static Tweet (Demo)</a></li>
   </ul>
 </details>
 
@@ -205,7 +205,7 @@ We recommend using **Static Generation** (with and without data) whenever possib
 You can use Static Generation for many types of pages, including:
 
 - Marketing pages
-- Blog posts
+- Blog posts and portfolios
 - E-commerce product listings
 - Help and documentation
 

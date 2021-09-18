@@ -1,5 +1,4 @@
 {
-  "name": "with-jotai",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -17,6 +16,5 @@
     "eslint": "7.32.0",
     "eslint-config-next": "11.0.1",
     "typescript": "4.3.5"
-  },
-  "license": "MIT"
+  }
 }

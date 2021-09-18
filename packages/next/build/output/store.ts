@@ -1,5 +1,6 @@
 import createStore from 'next/dist/compiled/unistore'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
+import { flushAllTraces } from '../../trace'
 
 import * as Log from './log'
 
@@ -24,11 +25,11 @@ export const store = createStore<OutputState>({
 let lastStore: OutputState = { appUrl: null, bindAddr: null, bootstrap: true }
 function hasStoreChanged(nextStore: OutputState) {
   if (
-    ([
-      ...new Set([...Object.keys(lastStore), ...Object.keys(nextStore)]),
-    ] as Array<keyof OutputState>).every((key) =>
-      Object.is(lastStore[key], nextStore[key])
-    )
+    (
+      [
+        ...new Set([...Object.keys(lastStore), ...Object.keys(nextStore)]),
+      ] as Array<keyof OutputState>
+    ).every((key) => Object.is(lastStore[key], nextStore[key]))
   ) {
     return false
   }
@@ -71,14 +72,15 @@ store.subscribe((state) => {
       }
     }
 
+    // Ensure traces are flushed after each compile in development mode
+    flushAllTraces()
     return
   }
 
   if (state.warnings) {
     Log.warn(state.warnings.join('\n\n'))
-    if (state.appUrl) {
-      Log.info(`ready on ${state.appUrl}`)
-    }
+    // Ensure traces are flushed after each compile in development mode
+    flushAllTraces()
     return
   }
 
@@ -88,4 +90,6 @@ store.subscribe((state) => {
   }
 
   Log.event('compiled successfully')
+  // Ensure traces are flushed after each compile in development mode
+  flushAllTraces()
 })

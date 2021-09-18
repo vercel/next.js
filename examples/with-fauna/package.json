@@ -1,9 +1,5 @@
 {
   "private": true,
-  "name": "with-fauna",
-  "version": "1.0.0",
-  "license": "MIT",
-  "description": "Guestbook example with Next.js and Fauna.",
   "scripts": {
     "dev": "next",
     "build": "yarn setup && next build",
