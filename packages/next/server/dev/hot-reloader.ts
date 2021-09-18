@@ -5,7 +5,11 @@ import { WebpackHotMiddleware } from './hot-middleware'
 import { join } from 'path'
 import { UrlObject } from 'url'
 import { webpack, isWebpack5 } from 'next/dist/compiled/webpack/webpack'
-import { createEntrypoints, createPagesMapping } from '../../build/entries'
+import {
+  createEntrypoints,
+  createPagesMapping,
+  finalizeEntrypoint,
+} from '../../build/entries'
 import { watchCompilers } from '../../build/output'
 import getBaseWebpackConfig from '../../build/webpack-config'
 import { API_ROUTE } from '../../lib/constants'
@@ -27,7 +31,8 @@ import { difference } from '../../build/utils'
 import { NextConfigComplete } from '../config-shared'
 import { CustomRoutes } from '../../lib/load-custom-routes'
 import { DecodeError } from '../../shared/lib/utils'
-import { Span, trace } from '../../telemetry/trace'
+import { Span, trace } from '../../trace'
+import isError from '../../lib/is-error'
 
 export async function renderScriptError(
   res: ServerResponse,
@@ -177,6 +182,9 @@ export default class HotReloader {
     this.rewrites = rewrites
     this.isWebpack5 = isWebpack5
     this.hotReloaderSpan = trace('hot-reloader')
+    // Ensure the hotReloaderSpan is flushed immediately as it's the parentSpan for all processing
+    // of the current `next dev` invocation.
+    this.hotReloaderSpan.stop()
   }
 
   public async run(
@@ -224,7 +232,10 @@ export default class HotReloader {
         try {
           await this.ensurePage(page)
         } catch (error) {
-          await renderScriptError(pageBundleRes, error)
+          await renderScriptError(
+            pageBundleRes,
+            isError(error) ? error : new Error(error + '')
+          )
           return { finished: true }
         }
 
@@ -380,11 +391,17 @@ export default class HotReloader {
               absolutePagePath,
             }
 
-            entrypoints[
-              isClientCompilation ? clientBundlePath : serverBundlePath
-            ] = isClientCompilation
-              ? `next-client-pages-loader?${stringify(pageLoaderOpts)}!`
-              : absolutePagePath
+            const name = isClientCompilation
+              ? clientBundlePath
+              : serverBundlePath
+            entrypoints[name] = finalizeEntrypoint(
+              name,
+              isClientCompilation
+                ? `next-client-pages-loader?${stringify(pageLoaderOpts)}!`
+                : absolutePagePath,
+              !isClientCompilation,
+              isWebpack5
+            )
           })
         )
 

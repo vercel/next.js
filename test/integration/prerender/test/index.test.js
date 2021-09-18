@@ -26,7 +26,6 @@ import {
 import webdriver from 'next-webdriver'
 import { dirname, join, sep } from 'path'
 
-jest.setTimeout(1000 * 60 * 2)
 const appDir = join(__dirname, '..')
 const nextConfigPath = join(appDir, 'next.config.js')
 const indexPage = join(__dirname, '../pages/index.js')

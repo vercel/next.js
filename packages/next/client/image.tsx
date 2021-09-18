@@ -2,7 +2,7 @@ import React from 'react'
 import Head from '../shared/lib/head'
 import { toBase64 } from '../shared/lib/to-base-64'
 import {
-  ImageConfig,
+  ImageConfigComplete,
   imageConfigDefault,
   LoaderValue,
   VALID_LOADERS,
@@ -110,7 +110,8 @@ const {
   loader: configLoader,
   path: configPath,
   domains: configDomains,
-} = (process.env.__NEXT_IMAGE_OPTS as any as ImageConfig) || imageConfigDefault
+} = (process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete) ||
+imageConfigDefault
 // sort smallest to largest
 const allSizes = [...configDeviceSizes, ...configImageSizes]
 configDeviceSizes.sort((a, b) => a - b)

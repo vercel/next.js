@@ -121,7 +121,7 @@ If you're using `eslint-plugin-next` in a project where Next.js isn't installed 
 
 `rootDir` can be a path (relative or absolute), a glob (i.e. `"/packages/*/"`), or an array of paths and/or globs.
 
-## Linting Custom Directories
+## Linting Custom Directories and Files
 
 By default, Next.js will run ESLint for all files in the `pages/`, `components/`, and `lib/` directories. However, you can specify which directories using the `dirs` option in the `eslint` config in `next.config.js` for production builds:
 
@@ -133,10 +133,10 @@ module.exports = {
 }
 ```
 
-Similarly, the `--dir` flag can be used for `next lint`:
+Similarly, the `--dir` and `--file` flags can be used for `next lint` to lint specific directories and files:
 
 ```bash
-next lint --dir pages --dir utils
+next lint --dir pages --dir utils --file bar.js
 ```
 
 ## Caching
@@ -175,13 +175,28 @@ The `next/core-web-vitals` rule set is enabled when `next lint` is run for the f
 
 > The `next/core-web-vitals` entry point is automatically included for new applications built with [Create Next App](/docs/api-reference/create-next-app.md).
 
-## Usage with Prettier
+## Usage With Other Tools
+
+### Prettier
 
 ESLint also contains code formatting rules, which can conflict with your existing [Prettier](https://prettier.io/) setup. We recommend including [eslint-config-prettier](https://github.com/prettier/eslint-config-prettier) in your ESLint config to make ESLint and Prettier work together.
 
 ```json
 {
   "extends": ["next", "prettier"]
+}
+```
+
+### lint-staged
+
+If you would like to use `next lint` with [lint-staged](https://github.com/okonet/lint-staged) to run the linter on staged git files, you'll have to add the following to the `.lintstagedrc.js` file in the root of your project in order to specify usage of the `--file` flag.
+
+```js
+module.exports = {
+  '**/*.js?(x)': (filenames) =>
+    `next lint --fix --file ${filenames
+      .map((file) => file.split(process.cwd())[1])
+      .join(' --file ')}`,
 }
 ```
 
