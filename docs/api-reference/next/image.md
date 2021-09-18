@@ -166,7 +166,7 @@ This value is passed to the [object-fit CSS property](https://developer.mozilla.
 
 Defines how the image is positioned within its parent element when using `layout="fill"`.
 
-This value is passed to the [object-fit CSS property](https://developer.mozilla.org/en-US/docs/Web/CSS/object-position) applied to the image.
+This value is passed to the [object-position CSS property](https://developer.mozilla.org/en-US/docs/Web/CSS/object-position) applied to the image.
 
 ### onLoadingComplete
 
