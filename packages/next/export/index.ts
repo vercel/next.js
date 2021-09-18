@@ -627,6 +627,14 @@ export default async function exportApp(
         Object.keys(prerenderManifest.routes).map(async (route) => {
           const { srcRoute } = prerenderManifest!.routes[route]
           const pageName = srcRoute || route
+          route = normalizePagePath(route)
+
+          // returning notFound: true from getStaticProps will not
+          // output html/json files during the build
+          if (prerenderManifest!.notFoundRoutes.includes(route)) {
+            return
+          }
+
           const pagePath = getPagePath(pageName, distDir, isLikeServerless)
           const distPagesDir = join(
             pagePath,
@@ -638,7 +646,6 @@ export default async function exportApp(
               .map(() => '..')
               .join('/')
           )
-          route = normalizePagePath(route)
 
           const orig = join(distPagesDir, route)
           const htmlDest = join(
@@ -659,12 +666,8 @@ export default async function exportApp(
           const htmlSrc = `${orig}.html`
           const jsonSrc = `${orig}.json`
 
-          // returning notFound: true from getStaticProps will not
-          // output html/json files during the build
-          if (!prerenderManifest!.notFoundRoutes.includes(route)) {
-            await promises.copyFile(htmlSrc, htmlDest)
-            await promises.copyFile(jsonSrc, jsonDest)
-          }
+          await promises.copyFile(htmlSrc, htmlDest)
+          await promises.copyFile(jsonSrc, jsonDest)
 
           if (await exists(`${orig}.amp.html`)) {
             await promises.mkdir(dirname(ampHtmlDest), { recursive: true })
