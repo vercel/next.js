@@ -124,7 +124,7 @@ export default function (context) {
       await browser.close()
     })
 
-    it('should support client side naviagtion', async () => {
+    it('should support client side navigation', async () => {
       const browser = await webdriver(context.port, '/')
       const text = await browser
         .elementByCss('#counter')

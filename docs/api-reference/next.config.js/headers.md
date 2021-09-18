@@ -4,13 +4,21 @@ description: Add custom HTTP headers to your Next.js app.
 
 # Headers
 
-> This feature was introduced in [Next.js 9.5](https://nextjs.org/blog/next-9-5) and up. If you’re using older versions of Next.js, please upgrade before trying it out.
-
 <details open>
   <summary><b>Examples</b></summary>
   <ul>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/headers">Headers</a></li>
   </ul>
+</details>
+
+<details>
+  <summary><b>Version History</b></summary>
+
+| Version   | Changes        |
+| --------- | -------------- |
+| `v10.2.0` | `has` added.   |
+| `v9.5.0`  | Headers added. |
+
 </details>
 
 Headers allow you to set custom HTTP headers for an incoming request path.
@@ -158,13 +166,17 @@ The following characters `(`, `)`, `{`, `}`, `:`, `*`, `+`, `?` are used for reg
 
 ```js
 module.exports = {
-  async redirects() {
+  async headers() {
     return [
       {
         // this will match `/english(default)/something` being requested
         source: '/english\\(default\\)/:slug',
-        destination: '/en-us/:slug',
-        permanent: false,
+        headers: [
+          {
+            key: 'x-header',
+            value: 'value',
+          },
+        ],
       },
     ]
   },
@@ -172,8 +184,6 @@ module.exports = {
 ```
 
 ## Header, Cookie, and Query Matching
-
-Note: this feature is still experimental and not covered by semver and is to be used at your own risk until it is made stable.
 
 To only apply a header when either header, cookie, or query values also match the `has` field can be used. Both the `source` and all `has` items must match for the header to be applied.
 
@@ -367,3 +377,14 @@ module.exports = {
 ### Cache-Control
 
 Cache-Control headers set in next.config.js will be overwritten in production to ensure that static assets can be cached effectively. If you need to revalidate the cache of a page that has been [statically generated](https://nextjs.org/docs/basic-features/pages#static-generation-recommended), you can do so by setting `revalidate` in the page's [`getStaticProps`](https://nextjs.org/docs/basic-features/data-fetching#getstaticprops-static-generation) function.
+
+## Related
+
+For more information, we recommend the following sections:
+
+<div class="card">
+  <a href="/docs/advanced-features/security-headers.md">
+    <b>Security Headers:</b>
+    <small>Improve the security of your Next.js application by add HTTP response headers.</small>
+  </a>
+</div>

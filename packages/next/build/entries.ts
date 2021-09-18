@@ -2,14 +2,14 @@ import chalk from 'chalk'
 import { posix, join } from 'path'
 import { stringify } from 'querystring'
 import { API_ROUTE, DOT_NEXT_ALIAS, PAGES_DIR_ALIAS } from '../lib/constants'
-import { __ApiPreviewProps } from '../next-server/server/api-utils'
-import { isTargetLikeServerless } from '../next-server/server/config'
-import { normalizePagePath } from '../next-server/server/normalize-page-path'
+import { __ApiPreviewProps } from '../server/api-utils'
+import { isTargetLikeServerless } from '../server/config'
+import { normalizePagePath } from '../server/normalize-page-path'
 import { warn } from './output/log'
 import { ClientPagesLoaderOptions } from './webpack/loaders/next-client-pages-loader'
 import { ServerlessLoaderQuery } from './webpack/loaders/next-serverless-loader'
 import { LoadedEnvFiles } from '@next/env'
-import { NextConfig } from '../next-server/server/config'
+import { NextConfigComplete } from '../server/config-shared'
 
 type PagesMapping = {
   [page: string]: string
@@ -17,7 +17,9 @@ type PagesMapping = {
 
 export function createPagesMapping(
   pagePaths: string[],
-  extensions: string[]
+  extensions: string[],
+  isWebpack5: boolean,
+  isDev: boolean
 ): PagesMapping {
   const previousPages: PagesMapping = {}
   const pages: PagesMapping = pagePaths.reduce(
@@ -45,15 +47,31 @@ export function createPagesMapping(
     {}
   )
 
-  pages['/_app'] = pages['/_app'] || 'next/dist/pages/_app'
-  pages['/_error'] = pages['/_error'] || 'next/dist/pages/_error'
-  pages['/_document'] = pages['/_document'] || 'next/dist/pages/_document'
-
+  // we alias these in development and allow webpack to
+  // allow falling back to the correct source file so
+  // that HMR can work properly when a file is added/removed
+  if (isWebpack5 && isDev) {
+    pages['/_app'] = `${PAGES_DIR_ALIAS}/_app`
+    pages['/_error'] = `${PAGES_DIR_ALIAS}/_error`
+    pages['/_document'] = `${PAGES_DIR_ALIAS}/_document`
+  } else {
+    pages['/_app'] = pages['/_app'] || 'next/dist/pages/_app'
+    pages['/_error'] = pages['/_error'] || 'next/dist/pages/_error'
+    pages['/_document'] = pages['/_document'] || 'next/dist/pages/_document'
+  }
   return pages
 }
 
 export type WebpackEntrypoints = {
-  [bundle: string]: string | string[]
+  [bundle: string]:
+    | string
+    | string[]
+    | {
+        import: string | string[]
+        dependOn?: string | string[]
+        publicPath?: string
+        runtime?: string
+      }
 }
 
 type Entrypoints = {
@@ -66,7 +84,7 @@ export function createEntrypoints(
   target: 'server' | 'serverless' | 'experimental-serverless-trace',
   buildId: string,
   previewMode: __ApiPreviewProps,
-  config: NextConfig,
+  config: NextConfigComplete,
   loadedEnvFiles: LoadedEnvFiles
 ): Entrypoints {
   const client: WebpackEntrypoints = {}
@@ -84,9 +102,9 @@ export function createEntrypoints(
     distDir: DOT_NEXT_ALIAS,
     buildId,
     assetPrefix: config.assetPrefix,
-    generateEtags: config.generateEtags,
-    poweredByHeader: config.poweredByHeader,
-    canonicalBase: config.amp.canonicalBase,
+    generateEtags: config.generateEtags ? 'true' : '',
+    poweredByHeader: config.poweredByHeader ? 'true' : '',
+    canonicalBase: config.amp.canonicalBase || '',
     basePath: config.basePath,
     runtimeConfig: hasRuntimeConfig
       ? JSON.stringify({
@@ -162,4 +180,59 @@ export function createEntrypoints(
     client,
     server,
   }
+}
+
+export function finalizeEntrypoint(
+  name: string,
+  value: any,
+  isServer: boolean,
+  isWebpack5: boolean
+): any {
+  if (isWebpack5) {
+    if (isServer) {
+      const isApi = name.startsWith('pages/api/')
+      const runtime = isApi ? 'webpack-api-runtime' : 'webpack-runtime'
+      const layer = isApi ? 'api' : undefined
+      const publicPath = isApi ? '' : undefined
+      if (typeof value === 'object' && !Array.isArray(value)) {
+        return {
+          publicPath,
+          runtime,
+          layer,
+          ...value,
+        }
+      } else {
+        return {
+          import: value,
+          publicPath,
+          runtime,
+          layer,
+        }
+      }
+    } else {
+      if (
+        name !== 'polyfills' &&
+        name !== 'main' &&
+        name !== 'amp' &&
+        name !== 'react-refresh'
+      ) {
+        const dependOn =
+          name.startsWith('pages/') && name !== 'pages/_app'
+            ? 'pages/_app'
+            : 'main'
+        if (typeof value === 'object' && !Array.isArray(value)) {
+          return {
+            dependOn,
+            ...value,
+          }
+        } else {
+          return {
+            import: value,
+            dependOn,
+          }
+        }
+      }
+    }
+  }
+  return value
 }

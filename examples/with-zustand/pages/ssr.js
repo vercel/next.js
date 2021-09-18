@@ -14,6 +14,10 @@ export function getServerSideProps() {
   zustandStore.getState().tick(Date.now(), false)
 
   return {
-    props: { initialZustandState: JSON.stringify(zustandStore.getState()) },
+    props: {
+      // the "stringify and then parse again" piece is required as next.js
+      // isn't able to serialize it to JSON properly
+      initialZustandState: JSON.parse(JSON.stringify(zustandStore.getState())),
+    },
   }
 }

@@ -1,98 +1,74 @@
 # Sentry
 
-This is an example showing how to use [Sentry](https://sentry.io) to catch & report errors on both client + server side.
+This is an example showing how to use [Sentry](https://sentry.io) to catch and report errors on both the front and back ends, using the [official Sentry SDK for Next.js](https://docs.sentry.io/platforms/javascript/guides/nextjs/).
 
-- `_app.js` renders on both the server and client. It initializes Sentry to catch any unhandled exceptions
-- `_error.js` is rendered by Next.js while handling certain types of exceptions for you. It is overridden so those exceptions can be passed along to Sentry
-- Each API route also initializes Sentry, so it can work independently in the "serverless" build config
-- `next.config.js` enables source maps in production, uploads them to a new Sentry release, and swaps out `@sentry/node` for `@sentry/browser` when building the client bundle
+- `sentry.server.config.js` and `sentry.client.config.js` are used to configure and initialize Sentry
+- `next.config.js` automatically injects Sentry into your app using `withSentryConfig`
+- `_error.js` (which is rendered by Next.js when handling certain types of exceptions) is overridden so those exceptions can be passed along to Sentry
+- Each API route is handled with `withSentry`
+
+## Preview
+
+Preview the example live on [StackBlitz](http://stackblitz.com/):
+
+[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-sentry)
 
 ## Deploy your own
 
-Once you have access to your [Sentry DSN](#step-1-enable-error-tracking), deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
+It only takes a few steps to create and deploy your own version of this example app. Before you begin, make sure you have [linked your Vercel account to GitHub](https://vercel.com/docs/personal-accounts/login-connections), and [set up a project in Sentry](https://docs.sentry.io/product/sentry-basics/guides/integrate-frontend/create-new-project/).
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-sentry&project-name=with-sentry&repository-name=with-sentry&env=NEXT_PUBLIC_SENTRY_DSN&envDescription=DSN%20Key%20required%20by%20Sentry&envLink=https://github.com/vercel/next.js/tree/canary/examples/with-sentry%23step-1-enable-error-tracking)
+### Option 1: Deploy directly to Vercel
 
-## How To Use
+You can deploy a copy of this project directly to [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example).
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-sentry&project-name=nextjs-sentry-example&repository-name=nextjs-sentry-example&env=NEXT_PUBLIC_SENTRY_DSN&envDescription=DSN%20Key%20required%20by%20Sentry&envLink=https://github.com/vercel/next.js/tree/canary/examples/with-sentry%23step-1-enable-error-tracking)
+
+This will clone this example to your GitHub org, create a linked project in Vercel, and prompt you to install the Vercel Sentry Integration. (You can read more about the integration [on Vercel](https://vercel.com/integrations/sentry) and in [the Sentry docs](https://docs.sentry.io/product/integrations/deployment/vercel/).)
+
+### Option 2: Create locally before deploying
+
+Alternatively, you can create a copy of ths example app locally so you can configure and customize it before you deploy it.
+
+#### Create and configure your app
+
+To begin, execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npx](https://www.npmjs.com/package/npx) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), to create the app and install dependencies:
 
 ```bash
-npx create-next-app --example with-sentry with-sentry-app
+npx create-next-app --example with-sentry nextjs-sentry-example
 # or
-yarn create next-app --example with-sentry with-sentry-app
+yarn create next-app --example with-sentry nextjs-sentry-example
 ```
 
-## Configuration
-
-### Step 1. Enable error tracking
-
-Copy the `.env.local.example` file in this directory to `.env.local` (which will be ignored by Git):
+Next, run [`sentry-wizard`](https://docs.sentry.io/platforms/javascript/guides/nextjs/#configure), which will create and populate the settings files needed by `@sentry/nextjs` to initialize the SDK and upload source maps to Sentry:
 
 ```bash
-cp .env.local.example .env.local
+npx @sentry/wizard -i nextjs
 ```
 
-Next, Copy your Sentry DSN. You can get it from the settings of your project in **Client Keys (DSN)**. Then, copy the string labeled **DSN** and set it as the value for `NEXT_PUBLIC_SENTRY_DSN` inside `.env.local`
+Once the files are created, you can further configure your app by adding [SDK settings](https://docs.sentry.io/platforms/javascript/guides/nextjs/configuration/) to `sentry.server.config.js` and `sentry.client.config.js` and [`SentryWebpackPlugin` settings](https://github.com/getsentry/sentry-webpack-plugin#options) to `next.config.js`.
 
-> **Note:** Error tracking is disabled in development mode using the `NODE_ENV` environment variable. To change this behavior, remove the `enabled` property from the `Sentry.init()` call inside your `utils/sentry.js` file.
+(If you'd rather do the SDK set-up manually, [you can do that, too](https://docs.sentry.io/platforms/javascript/guides/nextjs/manual-setup/).)
 
-### Step 2. Run Next.js in development mode
+You should now be able to build and run your app locally, upload source maps, and send errors to Sentry. For more details, check out the [Sentry Next.js SDK docs](https://docs.sentry.io/platforms/javascript/guides/nextjs/).
+
+#### Deploy your app to Vercel
+
+Vercel reads you code from GitHub, so you first need to [create an empty GitHub repo](https://docs.github.com/en/get-started/quickstart/create-a-repo) for your project and then add it to your local repo [as a remote](https://docs.github.com/en/get-started/getting-started-with-git/about-remote-repositories):
 
 ```bash
-npm install
-npm run dev
-
-# or
-
-yarn install
-yarn dev
+git remote add origin https://github.com/<org>/<repo>.git
 ```
 
-Your app should be up and running on [http://localhost:3000](http://localhost:3000)! If it doesn't work, post on [GitHub discussions](https://github.com/vercel/next.js/discussions).
+Next, [create a project in Vercel](https://vercel.com/docs/projects/overview#creating-a-project) and [link it to your GitHub repo](https://vercel.com/docs/git#deploying-a-git-repository).
 
-### Step 3. Automatic sourcemap upload (optional)
+In order for Vercel to upload source maps to Sentry when building your app, it needs an auth token. To use the personal token set up by the wizard, add an [environment variable](https://vercel.com/docs/projects/environment-variables) to your Vercel project with the key `SENTRY_AUTH_TOKEN` and the value you'll find in `.sentryclirc` at the root level of your project. To use an org-wide token instead, set up the Vercel Sentry Integration. (You can read more about the integration [on Vercel](https://vercel.com/integrations/sentry) and in [the Sentry docs](https://docs.sentry.io/product/integrations/deployment/vercel/).)
 
-#### Using Vercel
+Finally, commit your app and push it to GitHub:
 
-You will need to install and configure the [Sentry Vercel integration](https://docs.sentry.io/workflow/integrations/vercel). After you've completed the project linking step, all the needed environment variables will be set in your Vercel project, with the exception of `NEXT_PUBLIC_SENTRY_SERVER_ROOT_DIR`, which should be set to `/var/task/`.
+```bash
+git add .
+git commit -m "initial commit"
+git push
+```
 
-> **Note:** A Vercel project connected to a [Git integration](https://vercel.com/docs/platform/deployments#git) is required before adding the Sentry integration.
-
-#### Without Using Vercel
-
-1. Set up the `NEXT_PUBLIC_SENTRY_DSN` environment variable as described above.
-2. Save your Sentry organization slug as the `SENTRY_ORG` environment variable and your project slug as the `SENTRY_PROJECT` environment variable in `.env.local`.
-3. Save your git provider's commit SHA as `VERCEL_GIT_COMMIT_SHA` environment variable in `.env.local`.
-4. Create an auth token in Sentry. The recommended way to do this is by creating a new internal integration for your organization. To do so, go into **Settings > Developer Settings > New internal integration**. After the integration is created, copy the Token.
-5. Save the token inside the `SENTRY_AUTH_TOKEN` environment variable in `.env.local`.
-6. Set `NEXT_PUBLIC_SENTRY_SERVER_ROOT_DIR` to the absolute path of the folder the Next.js app is running from
-
-> **Note:** Sourcemap upload is disabled in development mode using the `NODE_ENV` environment variable. To change this behavior, remove the `NODE_ENV === 'production'` check from your `next.config.js` file.
-
-## Other configuration options
-
-More configurations are available for the [Sentry webpack plugin](https://github.com/getsentry/sentry-webpack-plugin) using [Sentry Configuration variables](https://docs.sentry.io/cli/configuration/) for defining the releases/verbosity/etc.
-
-## Notes
-
-- By default, neither sourcemaps nor error tracking are enabled in development mode (see Configuration).
-- When enabled in development mode, error handling [works differently than in production](https://nextjs.org/docs/advanced-features/custom-error-page#customizing-the-error-page) as `_error.js` is never actually called.
-- The build output will contain warning about unhandled Promise rejections. This is caused by the test pages, and is expected. When deploying to Vercel, "Client Error 1" will actually be sent to Sentry during the build, while that test page is being statically rendered.
-- By default, source maps are uploaded to [sentry.io](https://sentry.io). If you're self-hosting Sentry, add `SENTRY_URL` to `.env` or `.env.locale` and set it to the base domain of your installation, which by default is `https://sentry.io/`.
-
-## Deploy on Vercel
-
-You can deploy this app to the cloud with [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
-
-#### Deploy Your Local Project
-
-To deploy your local project to Vercel, push it to GitHub/GitLab/Bitbucket and [import to Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example).
-
-**Important**: When you import your project on Vercel, make sure to click on **Environment Variables** and set them to match your `.env.local` file.
-
-#### Deploy from Our Template
-
-Alternatively, you can deploy using our template by clicking on the Deploy button below.
-
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-sentry&project-name=with-sentry&repository-name=with-sentry&env=NEXT_PUBLIC_SENTRY_DSN&envDescription=DSN%20Key%20required%20by%20Sentry&envLink=https://github.com/vercel/next.js/tree/canary/examples/with-sentry%23step-1-enable-error-tracking)
+This will trigger a deployment in Vercel. Head over to your [Vercel dashboard](https://vercel.com/dashboard) and click on your project and then "Visit" to see the results!

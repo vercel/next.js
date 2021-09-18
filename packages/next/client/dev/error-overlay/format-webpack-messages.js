@@ -21,13 +21,14 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
+import stripAnsi from 'next/dist/compiled/strip-ansi'
 // This file is based on https://github.com/facebook/create-react-app/blob/7b1a32be6ec9f99a6c9a3c66813f3ac09c4736b9/packages/react-dev-utils/formatWebpackMessages.js
 // It's been edited to remove chalk and CRA-specific logic
 
 const friendlySyntaxErrorLabel = 'Syntax error:'
 
 function isLikelyASyntaxError(message) {
-  return message.indexOf(friendlySyntaxErrorLabel) !== -1
+  return stripAnsi(message).indexOf(friendlySyntaxErrorLabel) !== -1
 }
 
 // Cleans up webpack error messages.
@@ -35,8 +36,8 @@ function formatMessage(message) {
   // TODO: Replace this once webpack 5 is stable
   if (typeof message === 'object' && message.message) {
     message =
-      (message.moduleName ? message.moduleName + '\n' : '') +
-      (message.file ? message.file + '\n' : '') +
+      (message.moduleName ? stripAnsi(message.moduleName) + '\n' : '') +
+      (message.file ? stripAnsi(message.file) + '\n' : '') +
       message.message
   }
   let lines = message.split('\n')
@@ -84,7 +85,7 @@ function formatMessage(message) {
     lines.splice(1, 1)
   }
   // Clean up file name
-  lines[0] = lines[0].replace(/^(.*) \d+:\d+-\d+$/, '$1')
+  lines[0] = lines[0].replace(/^(.*) \d+:\d+(?:-\d+)?$/, '$1')
 
   // Cleans up verbose "module not found" messages for files and packages.
   if (lines[1] && lines[1].indexOf('Module not found: ') === 0) {

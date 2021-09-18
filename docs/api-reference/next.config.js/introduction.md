@@ -11,22 +11,31 @@ For custom advanced behavior of Next.js, you can create a `next.config.js` in th
 Take a look at the following `next.config.js` example:
 
 ```js
-module.exports = {
+/**
+ * @type {import('next').NextConfig}
+ */
+const nextConfig = {
   /* config options here */
 }
+
+module.exports = nextConfig
 ```
 
 You can also use a function:
 
 ```js
 module.exports = (phase, { defaultConfig }) => {
-  return {
+  /**
+   * @type {import('next').NextConfig}
+   */
+  const nextConfig = {
     /* config options here */
   }
+  return nextConfig
 }
 ```
 
-`phase` is the current context in which the configuration is loaded. You can see the available phases [here](https://github.com/vercel/next.js/blob/canary/packages/next/next-server/lib/constants.ts#L1-L4). Phases can be imported from `next/constants`:
+`phase` is the current context in which the configuration is loaded. You can see the [available phases](https://github.com/vercel/next.js/blob/canary/packages/next/shared/lib/constants.ts#L1-L4). Phases can be imported from `next/constants`:
 
 ```js
 const { PHASE_DEVELOPMENT_SERVER } = require('next/constants')
@@ -44,7 +53,7 @@ module.exports = (phase, { defaultConfig }) => {
 }
 ```
 
-The commented lines are the place where you can put the configs allowed by `next.config.js`, which are defined [here](https://github.com/vercel/next.js/blob/canary/packages/next/next-server/server/config-shared.ts#L33).
+The commented lines are the place where you can put the configs allowed by `next.config.js`, which are [defined in this file](https://github.com/vercel/next.js/blob/canary/packages/next/server/config-shared.ts#L68).
 
 However, none of the configs are required, and it's not necessary to understand what each config does. Instead, search for the features you need to enable or modify in this section and they will show you what to do.
 

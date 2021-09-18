@@ -3,6 +3,8 @@ const withSass = require('@zeit/next-sass')
 const path = require('path')
 module.exports = withCSS(
   withSass({
+    // @zeit/next-sass is not supported with webpack 5
+    webpack5: false,
     onDemandEntries: {
       // Make sure entries are not getting disposed.
       maxInactiveAge: 1000 * 60 * 60,

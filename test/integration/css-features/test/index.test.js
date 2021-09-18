@@ -4,8 +4,6 @@ import { readdir, readFile, remove } from 'fs-extra'
 import { nextBuild } from 'next-test-utils'
 import { join } from 'path'
 
-jest.setTimeout(1000 * 60 * 1)
-
 const fixturesDir = join(__dirname, '../fixtures')
 
 describe('Browserslist: Old', () => {
@@ -217,7 +215,7 @@ describe('CSS Modules: Importing Invalid Global CSS', () => {
     })
     expect(code).not.toBe(0)
     expect(stderr).toContain('Failed to compile')
-    expect(stderr).toContain('pages/styles.module.css')
+    expect(stderr).toContain('pages/styles.css')
     expect(stderr).toContain('Selector "a" is not pure')
   })
 })

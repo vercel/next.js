@@ -15,12 +15,23 @@ import fetch from 'node-fetch'
 import { join } from 'path'
 
 const context = {}
-jest.setTimeout(1000 * 60 * 5)
 
 describe('Configuration', () => {
   beforeAll(async () => {
+    context.output = ''
+
+    const handleOutput = (msg) => {
+      context.output += msg
+    }
+
     context.appPort = await findPort()
-    context.server = await launchApp(join(__dirname, '../'), context.appPort)
+    context.server = await launchApp(join(__dirname, '../'), context.appPort, {
+      env: {
+        NODE_OPTIONS: '--inspect',
+      },
+      onStdout: handleOutput,
+      onStderr: handleOutput,
+    })
 
     // pre-build all pages at the start
     await Promise.all([
@@ -39,6 +50,12 @@ describe('Configuration', () => {
     const html = await renderViaHTTP(context.appPort, path, query)
     return cheerio.load(html)
   }
+
+  it('should log webpack version correctly', async () => {
+    expect(context.output).toContain(
+      `Using webpack 4 in Next.js is deprecated. Please upgrade to using webpack 5`
+    )
+  })
 
   it('should disable X-Powered-By header support', async () => {
     const url = `http://localhost:${context.appPort}/`
@@ -71,7 +88,7 @@ describe('Configuration', () => {
           browser
             .elementByCss('.hello-world')
             .getComputedCss('background-color'),
-        'rgba(0, 0, 255, 1)'
+        /rgba?\(0, 0, 255/
       )
     } finally {
       if (browser) {
@@ -173,20 +190,20 @@ describe('Configuration', () => {
       browser = await webdriver(context.appPort, '/webpack-css')
       await check(
         () => browser.elementByCss('.hello-world').getComputedCss('color'),
-        'rgba(255, 255, 0, 1)'
+        /rgba?\(255, 255, 0/
       )
 
       try {
         file.replace('yellow', 'red')
         await check(
           () => browser.elementByCss('.hello-world').getComputedCss('color'),
-          'rgba(255, 0, 0, 1)'
+          /rgba?\(255, 0, 0/
         )
       } finally {
         file.restore()
         await check(
           () => browser.elementByCss('.hello-world').getComputedCss('color'),
-          'rgba(255, 255, 0, 1)'
+          /rgba?\(255, 255, 0/
         )
       }
     } finally {

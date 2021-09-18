@@ -59,7 +59,7 @@ For more information, see [Migrating from React Router](/docs/migrating/from-rea
 
 Next.js has built-in support for [CSS](/docs/basic-features/built-in-css-support.md), [Sass](/docs/basic-features/built-in-css-support.md#sass-support) and [CSS-in-JS](/docs/basic-features/built-in-css-support.md#css-in-js).
 
-With Create React App, you can import `.css` files directly inside React components. Next.js allows you to do the same, but requires these files to be [CSS Modules](/docs/basic-features/built-in-css-support.md). For global styles, you'll need a [custom `_app.js`](/docs/advanced-features/custom-app.md) to add a [global stylesheet](docs/basic-features/built-in-css-support.md#adding-a-global-stylesheet).
+With Create React App, you can import `.css` files directly inside React components. Next.js allows you to do the same, but requires these files to be [CSS Modules](/docs/basic-features/built-in-css-support.md). For global styles, you'll need a [custom `_app.js`](/docs/advanced-features/custom-app.md) to add a [global stylesheet](/docs/basic-features/built-in-css-support.md#adding-a-global-stylesheet).
 
 ## Safely Accessing Web APIs
 
@@ -199,7 +199,7 @@ export default function SEO({ description, title, siteTitle }) {
 
 ## Single-Page App (SPA)
 
-If you want to move your existing Create React App to Next.js and keep a Single-Page App, you can move your old application's entry point to an [Optional Catch-All Route](/docs/routing/dynamic-routes.md#optional-catch-all-routes) named `pages/[[…app]].js`.
+If you want to move your existing Create React App to Next.js and keep a Single-Page App, you can move your old application's entry point to an [Optional Catch-All Route](/docs/routing/dynamic-routes.md#optional-catch-all-routes) named `pages/[[...app]].js`.
 
 ```jsx
 // pages/[[...app]].js
@@ -236,4 +236,4 @@ If you've ejected Create React App, here are some things to consider:
 
 ## Learn More
 
-You can learn more about Next.js by completing our [starter tutorial](https://nextjs.org/learn/basics/getting-started). If you have questions or if this guide didn't work for you, feel free to reach out to our community on [GitHub Discussions](https://github.com/vercel/next.js/discussions).
+You can learn more about Next.js by completing our [starter tutorial](https://nextjs.org/learn/basics/create-nextjs-app). If you have questions or if this guide didn't work for you, feel free to reach out to our community on [GitHub Discussions](https://github.com/vercel/next.js/discussions).

@@ -65,7 +65,7 @@ export default Home
 
 ## If the route has dynamic segments
 
-There is nothing special to do when linking to a [dynamic route](/docs/routing/dynamic-routes.md), including [catch all routes](/docs/routing/dynamic-routes.md#catch-all-routes), since Next.js 9.5.3 (for older versions check our [previous docs](https://nextjs.org/docs/tag/v9.5.2/api-reference/next/link#dynamic-routes)). However, it can become quite common and handy to use [interpolation](/docs/routing/introduction.md#linking-to-dynamic-paths) or an [URL Object](#with-url-object) to generate the link.
+There is nothing to do when linking to a [dynamic route](/docs/routing/dynamic-routes.md), including [catch all routes](/docs/routing/dynamic-routes.md#catch-all-routes), since Next.js 9.5.3 (for older versions check our [previous docs](https://nextjs.org/docs/tag/v9.5.2/api-reference/next/link#dynamic-routes)). However, it can become quite common and handy to use [interpolation](/docs/routing/introduction.md#linking-to-dynamic-paths) or an [URL Object](#with-url-object) to generate the link.
 
 For example, the dynamic route `pages/blog/[slug].js` will match the following link:
 
@@ -91,7 +91,7 @@ export default Posts
 
 ## If the child is a custom component that wraps an `<a>` tag
 
-If the child of `Link` is a custom component that wraps an `<a>` tag, you must add `passHref` to `Link`. This is necessary if you’re using libraries like [styled-components](https://styled-components.com/). Without this, the `<a>` tag will not have the `href` attribute, which might hurt your site’s SEO.
+If the child of `Link` is a custom component that wraps an `<a>` tag, you must add `passHref` to `Link`. This is necessary if you’re using libraries like [styled-components](https://styled-components.com/). Without this, the `<a>` tag will not have the `href` attribute, which hurts your site's accessibility and might affect SEO. If you're using [ESLint](/docs/basic-features/eslint.md#eslint-plugin), there is a built-in rule `next/link-passhref` to ensure correct usage of `passHref`.
 
 ```jsx
 import Link from 'next/link'
@@ -117,9 +117,9 @@ export default NavLink
 - If you’re using [emotion](https://emotion.sh/)’s JSX pragma feature (`@jsx jsx`), you must use `passHref` even if you use an `<a>` tag directly.
 - The component should support `onClick` property to trigger navigation correctly
 
-## If the child is a function component
+## If the child is a functional component
 
-If the child of `Link` is a function component, in addition to using `passHref`, you must wrap the component in [`React.forwardRef`](https://reactjs.org/docs/react-api.html#reactforwardref):
+If the child of `Link` is a functional component, in addition to using `passHref`, you must wrap the component in [`React.forwardRef`](https://reactjs.org/docs/react-api.html#reactforwardref):
 
 ```jsx
 import Link from 'next/link'

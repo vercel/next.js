@@ -1,8 +1,8 @@
 import { loader } from 'next/dist/compiled/webpack/webpack'
-import { Span } from '../../../telemetry/trace'
+import { Span } from '../../../trace'
 
 export interface NextJsLoaderContext extends loader.LoaderContext {
-  currentTraceSpan?: Span
+  currentTraceSpan: Span
 }
 
 export interface NextBabelLoaderOptions {
@@ -11,9 +11,9 @@ export interface NextBabelLoaderOptions {
   isServer: boolean
   development: boolean
   pagesDir: string
-  presets: any[]
   sourceMaps?: any[]
   overrides: any
   caller: any
-  babelrc: boolean
+  configFile: string | undefined
+  cwd: string
 }

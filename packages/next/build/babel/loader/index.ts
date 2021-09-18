@@ -1,7 +1,5 @@
-import { inspect } from 'util'
 import { getOptions } from 'next/dist/compiled/loader-utils'
-import { trace } from '../../../telemetry/trace'
-import { Span } from '../../../telemetry/trace'
+import { Span } from '../../../trace'
 import transform from './transform'
 import { NextJsLoaderContext } from './types'
 
@@ -18,20 +16,18 @@ async function nextBabelLoader(
     .traceFn(() => getOptions(this))
 
   const loaderSpanInner = parentTrace.traceChild('next-babel-turbo-transform')
-  const {
-    code: transformedSource,
-    map: outputSourceMap,
-  } = loaderSpanInner.traceFn(() =>
-    transform.call(
-      this,
-      inputSource,
-      inputSourceMap,
-      loaderOptions,
-      filename,
-      target,
-      loaderSpanInner
+  const { code: transformedSource, map: outputSourceMap } =
+    loaderSpanInner.traceFn(() =>
+      transform.call(
+        this,
+        inputSource,
+        inputSourceMap,
+        loaderOptions,
+        filename,
+        target,
+        loaderSpanInner
+      )
     )
-  )
 
   return [transformedSource, outputSourceMap]
 }
@@ -43,7 +39,7 @@ const nextBabelLoaderOuter = function nextBabelLoaderOuter(
 ) {
   const callback = this.async()
 
-  const loaderSpan = trace('next-babel-turbo-loader', this.currentTraceSpan?.id)
+  const loaderSpan = this.currentTraceSpan.traceChild('next-babel-turbo-loader')
   loaderSpan
     .traceAsyncFn(() =>
       nextBabelLoader.call(this, loaderSpan, inputSource, inputSourceMap)
@@ -52,9 +48,6 @@ const nextBabelLoaderOuter = function nextBabelLoaderOuter(
       ([transformedSource, outputSourceMap]) =>
         callback?.(null, transformedSource, outputSourceMap || inputSourceMap),
       (err) => {
-        console.error(
-          `Problem encountered in next-babel-turbo-loader. \n${inspect(err)}`
-        )
         callback?.(err)
       }
     )

@@ -1,4 +1,4 @@
-import * as Sentry from '@sentry/node'
+import * as Sentry from '@sentry/nextjs'
 
 const Test4 = () => <h1>SSR Test 4</h1>
 

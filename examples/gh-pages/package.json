@@ -1,6 +1,5 @@
 {
-  "name": "gh-pages",
-  "version": "1.0.0",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",
@@ -10,10 +9,9 @@
   },
   "dependencies": {
     "next": "latest",
-    "react": "^16.7.0",
-    "react-dom": "^16.7.0"
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2"
   },
-  "license": "MIT",
   "devDependencies": {
     "babel-plugin-transform-define": "^1.3.0"
   }

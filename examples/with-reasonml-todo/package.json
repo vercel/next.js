@@ -1,6 +1,5 @@
 {
-  "name": "with-reasonml-todo",
-  "version": "1.0.0",
+  "private": true,
   "scripts": {
     "dev": "concurrently \"bsb -clean-world -make-world -w\" \"next dev\"",
     "dev:reason": "bsb -clean-world -make-world -w",
@@ -8,12 +7,11 @@
     "build": "bsb -clean-world -make-world && next build",
     "start": "next start"
   },
-  "license": "MIT",
   "dependencies": {
     "next": "latest",
-    "next-transpile-modules": "^4.0.2",
-    "react": "^16.8.6",
-    "react-dom": "^16.8.6",
+    "next-transpile-modules": "^7.3.0",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
     "reason-react": "^0.7.0"
   },
   "devDependencies": {

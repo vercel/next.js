@@ -13,7 +13,6 @@ import {
   GSP_NO_RETURNED_VALUE,
   GSSP_NO_RETURNED_VALUE,
 } from '../../../../packages/next/dist/lib/constants'
-jest.setTimeout(1000 * 60 * 2)
 
 const appDir = join(__dirname, '..')
 const indexPage = join(appDir, 'pages/index.js')

@@ -15,7 +15,6 @@ import {
   File,
 } from 'next-test-utils'
 
-jest.setTimeout(1000 * 60 * 2)
 const appDir = join(__dirname, '..')
 const nextConfig = new File(join(appDir, 'next.config.js'))
 
@@ -200,11 +199,11 @@ const runTests = (isDev) => {
     )
 
     const initialHref = await browser.eval(() => window.initialHref)
-    expect(initialHref).toBe(null)
+    expect(initialHref).toBeFalsy()
 
     const curUrl = await browser.url()
     const { pathname } = url.parse(curUrl)
-    expect(pathname).toBe('/missing')
+    expect(pathname).toBe('/docs/missing')
   })
 
   it('should apply redirect when fallback GSP page is visited directly (external domain)', async () => {
@@ -221,7 +220,7 @@ const runTests = (isDev) => {
     )
 
     const initialHref = await browser.eval(() => window.initialHref)
-    expect(initialHref).toBe(null)
+    expect(initialHref).toBeFalsy()
   })
 
   it('should apply redirect when fallback GSSP page is visited directly (external domain)', async () => {
@@ -238,7 +237,7 @@ const runTests = (isDev) => {
     )
 
     const initialHref = await browser.eval(() => window.initialHref)
-    expect(initialHref).toBe(null)
+    expect(initialHref).toBeFalsy()
 
     const res = await fetchViaHTTP(
       appPort,

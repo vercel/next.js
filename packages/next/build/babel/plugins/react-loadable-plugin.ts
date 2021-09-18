@@ -76,9 +76,8 @@ export default function ({
 
           if (!callExpression.isCallExpression()) return
 
-          const callExpression_ = callExpression as NodePath<
-            BabelTypes.CallExpression
-          >
+          const callExpression_ =
+            callExpression as NodePath<BabelTypes.CallExpression>
 
           let args = callExpression_.get('arguments')
           if (args.length > 2) {
@@ -151,10 +150,12 @@ export default function ({
                 t.binaryExpression(
                   '+',
                   t.stringLiteral(
-                    relativePath(
-                      state.file.opts.caller.pagesDir,
-                      state.file.opts.filename
-                    ) + ' -> '
+                    (state.file.opts.caller?.pagesDir
+                      ? relativePath(
+                          state.file.opts.caller.pagesDir,
+                          state.file.opts.filename
+                        )
+                      : state.file.opts.filename) + ' -> '
                   ),
                   node
                 )

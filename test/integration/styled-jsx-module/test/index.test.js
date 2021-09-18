@@ -11,8 +11,6 @@ import {
   renderViaHTTP,
 } from 'next-test-utils'
 
-jest.setTimeout(1000 * 60 * 2)
-
 const appDir = join(__dirname, '../app')
 let appPort
 let app
@@ -43,7 +41,7 @@ function runTests() {
 
   it('should render styles during SSR (AMP)', async () => {
     const html = await renderViaHTTP(appPort, '/amp')
-    expect(html).toMatch(/color:.*?#0ff/)
+    expect(html).toMatch(/color:.*?cyan/)
   })
 }
 

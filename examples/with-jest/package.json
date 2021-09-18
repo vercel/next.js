@@ -1,8 +1,8 @@
 {
-  "name": "with-jest",
-  "version": "0.1.0",
+  "private": true,
   "scripts": {
     "dev": "next dev",
+    "lint": "next lint",
     "build": "next build",
     "start": "next start",
     "test": "jest --watch",
@@ -10,16 +10,19 @@
   },
   "dependencies": {
     "next": "latest",
-    "react": "16.12.0",
-    "react-dom": "16.12.0"
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2"
   },
   "devDependencies": {
-    "@testing-library/jest-dom": "^5.1.0",
-    "@testing-library/react": "^9.4.0",
-    "babel-jest": "^25.1.0",
-    "identity-obj-proxy": "^3.0.0",
-    "jest": "^25.1.0",
-    "react-test-renderer": "^16.12.0"
-  },
-  "license": "MIT"
+    "@testing-library/jest-dom": "5.14.1",
+    "@testing-library/react": "12.0.0",
+    "@testing-library/user-event": "13.2.1",
+    "babel-jest": "27.0.6",
+    "eslint": "7.32.0",
+    "eslint-config-next": "latest",
+    "eslint-plugin-testing-library": "4.11.0",
+    "identity-obj-proxy": "3.0.0",
+    "jest": "27.0.6",
+    "react-test-renderer": "17.0.2"
+  }
 }

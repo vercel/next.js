@@ -20,6 +20,7 @@ let appInfo = {
 
 export let backendConfig = () => {
   return {
+    framework: 'express',
     supertokens: {
       connectionURI: 'https://try.supertokens.io',
     },
@@ -49,7 +50,6 @@ export let backendConfig = () => {
 
 export let frontendConfig = () => {
   return {
-    useReactRouterDom: false,
     appInfo,
     recipeList: [
       ThirdPartyEmailPasswordReact.init({

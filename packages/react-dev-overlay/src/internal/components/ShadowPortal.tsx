@@ -11,7 +11,7 @@ export const ShadowPortal: React.FC<ShadowPortalProps> = function Portal({
   let mountNode = React.useRef<HTMLDivElement | null>(null)
   let portalNode = React.useRef<HTMLElement | null>(null)
   let shadowNode = React.useRef<ShadowRoot | null>(null)
-  let [, forceUpdate] = React.useState()
+  let [, forceUpdate] = React.useState<{} | undefined>()
 
   React.useLayoutEffect(() => {
     const ownerDocument = mountNode.current!.ownerDocument!

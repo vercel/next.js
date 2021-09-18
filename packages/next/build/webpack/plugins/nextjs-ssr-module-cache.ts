@@ -1,6 +1,6 @@
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import { join, relative, dirname } from 'path'
-import getRouteFromEntrypoint from '../../../next-server/server/get-route-from-entrypoint'
+import getRouteFromEntrypoint from '../../../server/get-route-from-entrypoint'
 const SSR_MODULE_CACHE_FILENAME = 'ssr-module-cache.js'
 
 // By default webpack keeps initialized modules per-module.
@@ -54,10 +54,8 @@ export default class NextJsSsrImportPlugin {
 
                 // Make sure even in windows, the path looks like in unix
                 // Node.js require system will convert it accordingly
-                const relativePathToBaseDirNormalized = relativePathToBaseDir.replace(
-                  /\\/g,
-                  '/'
-                )
+                const relativePathToBaseDirNormalized =
+                  relativePathToBaseDir.replace(/\\/g, '/')
                 return (webpack as any).Template.asString([
                   source,
                   '// The module cache',

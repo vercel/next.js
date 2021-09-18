@@ -10,7 +10,7 @@ Deploy the example using [Vercel](https://vercel.com):
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+- Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
 npx create-next-app --example with-supertokens with-supertokens-app
@@ -18,7 +18,13 @@ npx create-next-app --example with-supertokens with-supertokens-app
 yarn create next-app --example with-supertokens with-supertokens-app
 ```
 
+- Run `yarn install`
+
+- Run `npm run dev` to start the application on `http://localhost:3000`.
+
 ## Configuration
+
+> Until you do this, social login will not work. But you can still try out email password sign up / in.
 
 - Create a `.env.local` file and copy the content of `.env.local.example` into it:
 

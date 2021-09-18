@@ -19,7 +19,20 @@ const program = new Commander.Command(packageJson.name)
   .action((name) => {
     projectPath = name
   })
-  .option('--use-npm', 'Explicitly tell the CLI to bootstrap the app using npm')
+  .option(
+    '--ts, --typescript',
+    `
+
+  Initialize as a TypeScript project.
+`
+  )
+  .option(
+    '--use-npm',
+    `
+
+  Explicitly tell the CLI to bootstrap the app using npm
+`
+  )
   .option(
     '-e, --example [name]|[github-url]',
     `
@@ -113,6 +126,7 @@ async function run(): Promise<void> {
       useNpm: !!program.useNpm,
       example: example && example !== 'default' ? example : undefined,
       examplePath: program.examplePath,
+      typescript: program.typescript,
     })
   } catch (reason) {
     if (!(reason instanceof DownloadError)) {
@@ -131,7 +145,11 @@ async function run(): Promise<void> {
       throw reason
     }
 
-    await createApp({ appPath: resolvedProjectPath, useNpm: !!program.useNpm })
+    await createApp({
+      appPath: resolvedProjectPath,
+      useNpm: !!program.useNpm,
+      typescript: program.typescript,
+    })
   }
 }
 

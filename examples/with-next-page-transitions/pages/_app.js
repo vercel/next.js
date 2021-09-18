@@ -1,3 +1,4 @@
+import Head from 'next/head'
 import { PageTransition } from 'next-page-transitions'
 
 import Loader from '../components/Loader'
@@ -7,6 +8,9 @@ const TIMEOUT = 400
 function MyApp({ Component, pageProps }) {
   return (
     <>
+      <Head>
+        <meta name="viewport" content="initial-scale=1.0, width=device-width" />
+      </Head>
       <PageTransition
         timeout={TIMEOUT}
         classNames="page-transition"
