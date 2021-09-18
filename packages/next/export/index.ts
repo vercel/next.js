@@ -659,11 +659,9 @@ export default async function exportApp(
           const htmlSrc = `${orig}.html`
           const jsonSrc = `${orig}.json`
 
-          if (
-            !prerenderManifest!.notFoundRoutes.includes(route) ||
-            // returning notFound: true from getStaticProps will not output html/json
-            (await exists(htmlSrc))
-          ) {
+          // returning notFound: true from getStaticProps will not
+          // output html/json files during the build
+          if (!prerenderManifest!.notFoundRoutes.includes(route)) {
             await promises.copyFile(htmlSrc, htmlDest)
             await promises.copyFile(jsonSrc, jsonDest)
           }
