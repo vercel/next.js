@@ -56,6 +56,8 @@ You can statically `import` images that live in your project. Dynamic `await imp
 
 With static `import`s, you only need to provide the `src` prop. The `width`, `height`, and `blurDataURL` props will automatically be populated. Alt text is still needed separately.
 
+Note: image imports support is only available when leveraging webpack 5 in Next.js.
+
 ```js
 import Image from 'next/image'
 import profilePic from '../public/me.png'
