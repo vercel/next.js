@@ -1,6 +1,7 @@
 import { Dirent, promises } from 'fs'
 import { join } from 'path'
 import { promisify } from 'util'
+import isError from './is-error'
 
 const sleep = promisify(setTimeout)
 
@@ -8,18 +9,19 @@ const unlinkFile = async (p: string, t = 1): Promise<void> => {
   try {
     await promises.unlink(p)
   } catch (e) {
+    const code = isError(e) && e.code
     if (
-      (e.code === 'EBUSY' ||
-        e.code === 'ENOTEMPTY' ||
-        e.code === 'EPERM' ||
-        e.code === 'EMFILE') &&
+      (code === 'EBUSY' ||
+        code === 'ENOTEMPTY' ||
+        code === 'EPERM' ||
+        code === 'EMFILE') &&
       t < 3
     ) {
       await sleep(t * 100)
       return unlinkFile(p, t++)
     }
 
-    if (e.code === 'ENOENT') {
+    if (code === 'ENOENT') {
       return
     }
 
@@ -43,7 +45,7 @@ export async function recursiveDelete(
   try {
     result = await promises.readdir(dir, { withFileTypes: true })
   } catch (e) {
-    if (e.code === 'ENOENT') {
+    if (isError(e) && e.code === 'ENOENT') {
       return
     }
     throw e

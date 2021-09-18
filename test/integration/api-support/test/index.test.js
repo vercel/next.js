@@ -17,7 +17,6 @@ import {
 } from 'next-test-utils'
 import json from '../big.json'
 
-jest.setTimeout(1000 * 60 * 2)
 const appDir = join(__dirname, '../')
 const nextConfig = join(appDir, 'next.config.js')
 let appPort
@@ -109,14 +108,24 @@ function runTests(dev = false) {
     const res = await fetchViaHTTP(appPort, '/api/user-error', null, {})
     const text = await res.text()
     expect(res.status).toBe(500)
-    expect(text).toBe('Internal Server Error')
+
+    if (dev) {
+      expect(text).toContain('User error')
+    } else {
+      expect(text).toBe('Internal Server Error')
+    }
   })
 
   it('should throw Internal Server Error (async)', async () => {
     const res = await fetchViaHTTP(appPort, '/api/user-error-async', null, {})
     const text = await res.text()
     expect(res.status).toBe(500)
-    expect(text).toBe('Internal Server Error')
+
+    if (dev) {
+      expect(text).toContain('User error')
+    } else {
+      expect(text).toBe('Internal Server Error')
+    }
   })
 
   it('should parse JSON body', async () => {
@@ -430,6 +439,11 @@ function runTests(dev = false) {
   it('should work with child_process correctly', async () => {
     const data = await renderViaHTTP(appPort, '/api/child-process')
     expect(data).toBe('hi')
+  })
+
+  it('should work with nullable payload', async () => {
+    const data = await renderViaHTTP(appPort, '/api/nullable-payload')
+    expect(data).toBe('')
   })
 
   it('should warn if response body is larger than 4MB', async () => {

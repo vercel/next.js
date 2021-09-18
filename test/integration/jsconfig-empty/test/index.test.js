@@ -2,8 +2,6 @@
 import { nextBuild } from 'next-test-utils'
 import { join } from 'path'
 
-jest.setTimeout(1000 * 60 * 2)
-
 const appDir = join(__dirname, '..')
 
 describe('Empty JSConfig Support', () => {

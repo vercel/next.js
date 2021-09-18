@@ -42,7 +42,7 @@ import { loadEnvConfig } from '@next/env'
 import { PrerenderManifest } from '../build'
 import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import { getPagePath } from '../server/require'
-import { trace } from '../telemetry/trace'
+import { Span } from '../trace'
 
 const exists = promisify(existsOrig)
 
@@ -144,9 +144,10 @@ interface ExportOptions {
 export default async function exportApp(
   dir: string,
   options: ExportOptions,
+  span: Span,
   configuration?: NextConfigComplete
 ): Promise<void> {
-  const nextExportSpan = trace('next-export')
+  const nextExportSpan = span.traceChild('next-export')
 
   return nextExportSpan.traceAsyncFn(async () => {
     dir = resolve(dir)
@@ -378,8 +379,8 @@ export default async function exportApp(
       domainLocales: i18n?.domains,
       trailingSlash: nextConfig.trailingSlash,
       disableOptimizedLoading: nextConfig.experimental.disableOptimizedLoading,
-      // TODO: We should support dynamic HTML too
-      requireStaticHTML: true,
+      // Exported pages do not currently support dynamic HTML.
+      supportsDynamicHTML: false,
       concurrentFeatures: nextConfig.experimental.concurrentFeatures,
     }
 
@@ -626,6 +627,14 @@ export default async function exportApp(
         Object.keys(prerenderManifest.routes).map(async (route) => {
           const { srcRoute } = prerenderManifest!.routes[route]
           const pageName = srcRoute || route
+          route = normalizePagePath(route)
+
+          // returning notFound: true from getStaticProps will not
+          // output html/json files during the build
+          if (prerenderManifest!.notFoundRoutes.includes(route)) {
+            return
+          }
+
           const pagePath = getPagePath(pageName, distDir, isLikeServerless)
           const distPagesDir = join(
             pagePath,
@@ -637,7 +646,6 @@ export default async function exportApp(
               .map(() => '..')
               .join('/')
           )
-          route = normalizePagePath(route)
 
           const orig = join(distPagesDir, route)
           const htmlDest = join(
@@ -654,8 +662,12 @@ export default async function exportApp(
 
           await promises.mkdir(dirname(htmlDest), { recursive: true })
           await promises.mkdir(dirname(jsonDest), { recursive: true })
-          await promises.copyFile(`${orig}.html`, htmlDest)
-          await promises.copyFile(`${orig}.json`, jsonDest)
+
+          const htmlSrc = `${orig}.html`
+          const jsonSrc = `${orig}.json`
+
+          await promises.copyFile(htmlSrc, htmlDest)
+          await promises.copyFile(jsonSrc, jsonDest)
 
           if (await exists(`${orig}.amp.html`)) {
             await promises.mkdir(dirname(ampHtmlDest), { recursive: true })
