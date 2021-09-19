@@ -1,25 +1,12 @@
 import path from 'path'
 import { Worker } from 'jest-worker'
 import * as Log from '../build/output/log'
-import { CheckReasons, CheckResult } from './config-utils-worker'
+import { CheckResult } from './config-utils-worker'
 import { install, shouldLoadWithWebpack5 } from './config-utils-worker'
 import { PHASE_PRODUCTION_SERVER } from '../shared/lib/constants'
 import { getNodeOptionsWithoutInspect } from './lib/utils'
 
 export { install, shouldLoadWithWebpack5 }
-
-function reasonMessage(reason: CheckReasons) {
-  switch (reason) {
-    case 'default':
-      return 'Enabled by default'
-    case 'flag-disabled':
-      return 'webpack5 flag is set to false in next.config.js'
-    case 'test-mode':
-      return 'internal test mode'
-    default:
-      return ''
-  }
-}
 
 export async function loadWebpackHook(phase: string, dir: string) {
   let useWebpack5 = true
@@ -44,11 +31,11 @@ export async function loadWebpackHook(phase: string, dir: string) {
     if (result.reason === 'future-flag') {
       usesRemovedFlag = true
     } else {
-      if (phase !== PHASE_PRODUCTION_SERVER) {
+      // Only when webpack 4 is used this message is shown
+      // TODO: Remove when webpack 4 is no longer supported
+      if (phase !== PHASE_PRODUCTION_SERVER && !result.enabled) {
         Log.info(
-          `Using webpack ${result.enabled ? '5' : '4'}. Reason: ${reasonMessage(
-            result.reason
-          )} https://nextjs.org/docs/messages/webpack5`
+          `Using webpack 4 in Next.js is deprecated. Please upgrade to using webpack 5: https://nextjs.org/docs/messages/webpack5`
         )
       }
     }

@@ -1,6 +1,7 @@
 import { promises as fs } from 'fs'
 import chalk from 'chalk'
 import * as CommentJson from 'next/dist/compiled/comment-json'
+import semver from 'next/dist/compiled/semver'
 import os from 'os'
 import { getTypeScriptConfiguration } from './getTypeScriptConfiguration'
 
@@ -28,6 +29,9 @@ function getDesiredCompilerOptions(
     strict: { suggested: false },
     forceConsistentCasingInFileNames: { suggested: true },
     noEmit: { suggested: true },
+    ...(semver.gte(ts.version, '4.4.2')
+      ? { incremental: { suggested: true } }
+      : undefined),
 
     // These values are required and cannot be changed by the user
     // Keep this in sync with the webpack config

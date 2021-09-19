@@ -56,16 +56,9 @@ If you need to clean the project for any reason, use `yarn clean`.
 
 ## Testing
 
-Make sure you have `chromedriver` installed, and it should match your Chrome version.
-You can install it with:
+See the [testing readme](./test/readme.md) for information on writing tests.
 
-- `apt install chromedriver` on Ubuntu/Debian
-- `brew install --cask chromedriver` on Mac OS X
-- `chocolatey install chromedriver` on Windows
-
-- Or manually download the version that matches your installed chrome version (if there's no match, download a version under it, but not above) from the [chromedriver repo](https://chromedriver.storage.googleapis.com/index.html) and add the binary to `<next-repo>/node_modules/.bin`
-
-You may also have to [install Rust](https://www.rust-lang.org/tools/install) and build our native packages to see all tests pass locally. We check in binaries for the most common targets and those required for CI so that most people don't have to, but if you do not see a binary for your target in `packages/next/native`, you can build it by running `yarn --cwd packages/next build-native`. If you are working on the Rust code and you need to build the binaries for ci, you can manually trigger [the workflow](https://github.com/vercel/next.js/actions/workflows/build_native.yml) to build and commit with the "Run workflow" button.
+You may have to [install Rust](https://www.rust-lang.org/tools/install) and build our native packages to see all tests pass locally. We check in binaries for the most common targets and those required for CI so that most people don't have to, but if you do not see a binary for your target in `packages/next/native`, you can build it by running `yarn --cwd packages/next build-native`. If you are working on the Rust code and you need to build the binaries for ci, you can manually trigger [the workflow](https://github.com/vercel/next.js/actions/workflows/build_native.yml) to build and commit with the "Run workflow" button.
 
 ### Running tests
 
@@ -77,12 +70,6 @@ If you would like to run the tests in headless mode (with the browser windows hi
 
 ```sh
 yarn testheadless
-```
-
-If you would like to use a specific Chrome/Chromium binary to run tests you can specify it with
-
-```sh
-CHROME_BIN='path/to/chrome/bin' yarn testonly
 ```
 
 Running a specific test suite inside of the `test/integration` directory:
