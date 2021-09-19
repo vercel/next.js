@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { existsSync } from 'fs'
 import arg from 'next/dist/compiled/arg/index.js'
-import { resolve, join } from 'path'
+import { join } from 'path'
 import chalk from 'chalk'
 
 import { cliCommand } from '../bin/next'

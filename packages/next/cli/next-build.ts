@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 import { existsSync } from 'fs'
 import arg from 'next/dist/compiled/arg/index.js'
-import { resolve } from 'path'
 import * as Log from '../build/output/log'
 import { cliCommand } from '../bin/next'
 import build from '../build'

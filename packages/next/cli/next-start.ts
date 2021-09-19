@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 
-import { resolve } from 'path'
 import arg from 'next/dist/compiled/arg/index.js'
 import startServer from '../server/lib/start-server'
 import { printAndExit } from '../server/lib/utils'
