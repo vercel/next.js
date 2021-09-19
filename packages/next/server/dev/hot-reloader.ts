@@ -5,7 +5,11 @@ import { WebpackHotMiddleware } from './hot-middleware'
 import { join } from 'path'
 import { UrlObject } from 'url'
 import { webpack, isWebpack5 } from 'next/dist/compiled/webpack/webpack'
-import { createEntrypoints, createPagesMapping } from '../../build/entries'
+import {
+  createEntrypoints,
+  createPagesMapping,
+  finalizeEntrypoint,
+} from '../../build/entries'
 import { watchCompilers } from '../../build/output'
 import getBaseWebpackConfig from '../../build/webpack-config'
 import { API_ROUTE } from '../../lib/constants'
@@ -387,11 +391,17 @@ export default class HotReloader {
               absolutePagePath,
             }
 
-            entrypoints[
-              isClientCompilation ? clientBundlePath : serverBundlePath
-            ] = isClientCompilation
-              ? `next-client-pages-loader?${stringify(pageLoaderOpts)}!`
-              : absolutePagePath
+            const name = isClientCompilation
+              ? clientBundlePath
+              : serverBundlePath
+            entrypoints[name] = finalizeEntrypoint(
+              name,
+              isClientCompilation
+                ? `next-client-pages-loader?${stringify(pageLoaderOpts)}!`
+                : absolutePagePath,
+              !isClientCompilation,
+              isWebpack5
+            )
           })
         )
 
