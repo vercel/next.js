@@ -80,11 +80,15 @@ function buildCancellationError() {
 }
 
 function addPathPrefix(path: string, prefix?: string) {
-  return prefix && path.startsWith('/')
-    ? path === '/'
-      ? normalizePathTrailingSlash(prefix)
-      : `${prefix}${pathNoQueryHash(path) === '/' ? path.substring(1) : path}`
-    : path
+  if (!path.startsWith('/') || !prefix) {
+    return path
+  }
+  const pathname = pathNoQueryHash(path)
+
+  return (
+    normalizePathTrailingSlash(`${prefix}${pathname}`) +
+    path.substr(pathname.length)
+  )
 }
 
 export function getDomainLocale(
