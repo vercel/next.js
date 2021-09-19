@@ -7,6 +7,7 @@ import { cliCommand } from '../bin/next'
 import build from '../build'
 import { printAndExit } from '../server/lib/utils'
 import isError from '../lib/is-error'
+import { getProjectDir } from '../lib/get-project-dir'
 
 const nextBuild: cliCommand = (argv) => {
   const validArgs: arg.Spec = {
@@ -54,7 +55,7 @@ const nextBuild: cliCommand = (argv) => {
   if (args['--no-lint']) {
     Log.warn('Linting is disabled')
   }
-  const dir = resolve(args._[0] || '.')
+  const dir = getProjectDir(args._[0])
 
   // Check if the provided directory exists
   if (!existsSync(dir)) {

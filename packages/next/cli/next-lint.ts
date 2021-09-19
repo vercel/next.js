@@ -14,6 +14,7 @@ import { PHASE_PRODUCTION_BUILD } from '../shared/lib/constants'
 import { eventLintCheckCompleted } from '../telemetry/events'
 import { CompileError } from '../lib/compile-error'
 import isError from '../lib/is-error'
+import { getProjectDir } from '../lib/get-project-dir'
 
 const eslintOptions = (args: arg.Spec, defaultCacheLocation: string) => ({
   overrideConfigFile: args['--config'] || null,
@@ -141,7 +142,7 @@ const nextLint: cliCommand = async (argv) => {
     )
   }
 
-  const baseDir = resolve(args._[0] || '.')
+  const baseDir = getProjectDir(args._[0])
 
   // Check if the provided directory exists
   if (!existsSync(baseDir)) {
