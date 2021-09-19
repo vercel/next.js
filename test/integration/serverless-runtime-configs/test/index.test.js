@@ -15,7 +15,6 @@ import webdriver from 'next-webdriver'
 
 const appDir = join(__dirname, '../')
 const nextConfigPath = join(appDir, 'next.config.js')
-jest.setTimeout(1000 * 60 * 2)
 
 const cleanUp = () => fs.remove(nextConfigPath)
 

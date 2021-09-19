@@ -24,7 +24,6 @@ const chunksDir = join(appDir, '.next/static/chunks')
 let stderr = ''
 let appPort
 let app
-jest.setTimeout(1000 * 60 * 5)
 
 describe('Serverless', () => {
   beforeAll(async () => {

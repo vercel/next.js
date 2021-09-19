@@ -6,7 +6,6 @@ import {
   isWebpack5,
   sources,
 } from 'next/dist/compiled/webpack/webpack'
-import { trace } from '../../../telemetry/trace'
 import { spans } from './profiling-plugin'
 
 // https://github.com/NMFR/optimize-css-assets-webpack-plugin/blob/0a410a9bf28c7b0e81a3470a13748e68ca2f50aa/src/index.js#L20
@@ -116,9 +115,8 @@ export class CssMinimizerPlugin {
         'CssMinimizerPlugin',
         (chunks: webpack.compilation.Chunk[]) => {
           const compilerSpan = spans.get(compiler)
-          const cssMinimizerSpan = trace(
-            'css-minimizer-plugin',
-            compilerSpan?.id
+          const cssMinimizerSpan = compilerSpan!.traceChild(
+            'css-minimizer-plugin'
           )
           cssMinimizerSpan.setAttribute('webpackVersion', 4)
           cssMinimizerSpan.setAttribute('compilationName', compilation.name)
@@ -132,7 +130,7 @@ export class CssMinimizerPlugin {
                 )
                 .filter((entry) => CSS_REGEX.test(entry))
                 .map(async (file) => {
-                  const assetSpan = trace('minify-css', cssMinimizerSpan.id)
+                  const assetSpan = cssMinimizerSpan.traceChild('minify-css')
                   assetSpan.setAttribute('file', file)
 
                   return assetSpan.traceAsyncFn(async () => {

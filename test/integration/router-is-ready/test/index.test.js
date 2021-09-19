@@ -11,14 +11,12 @@ import {
   File,
 } from 'next-test-utils'
 
-jest.setTimeout(1000 * 60 * 1)
-
 let app
 let appPort
 const appDir = join(__dirname, '../')
 const invalidPage = new File(join(appDir, 'pages/invalid.js'))
 
-function runTests(isDev) {
+function runTests() {
   it('isReady should be true immediately for getInitialProps page', async () => {
     const browser = await webdriver(appPort, '/gip')
     expect(await browser.eval('window.isReadyValues')).toEqual([true])
@@ -81,7 +79,7 @@ describe('router.isReady', () => {
       invalidPage.restore()
     })
 
-    runTests(true)
+    runTests()
   })
 
   describe('production mode', () => {

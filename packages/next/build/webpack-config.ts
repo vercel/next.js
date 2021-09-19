@@ -28,7 +28,7 @@ import {
 } from '../shared/lib/constants'
 import { execOnce } from '../shared/lib/utils'
 import { NextConfigComplete } from '../server/config-shared'
-import { WebpackEntrypoints } from './entries'
+import { finalizeEntrypoint, WebpackEntrypoints } from './entries'
 import * as Log from './output/log'
 import { build as buildConfiguration } from './webpack/config'
 import { __overrideCssConfiguration } from './webpack/config/blocks/css/overrideCssConfiguration'
@@ -44,16 +44,11 @@ import PagesManifestPlugin from './webpack/plugins/pages-manifest-plugin'
 import { ProfilingPlugin } from './webpack/plugins/profiling-plugin'
 import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
 import { ServerlessPlugin } from './webpack/plugins/serverless-plugin'
-import WebpackConformancePlugin, {
-  DuplicatePolyfillsConformanceCheck,
-  GranularChunksConformanceCheck,
-  MinificationConformanceCheck,
-  ReactSyncScriptsConformanceCheck,
-} from './webpack/plugins/webpack-conformance-plugin'
 import { WellKnownErrorsPlugin } from './webpack/plugins/wellknown-errors-plugin'
 import { regexLikeCss } from './webpack/config/blocks/css'
 import { CopyFilePlugin } from './webpack/plugins/copy-file-plugin'
-import type { Span } from '../telemetry/trace'
+import type { Span } from '../trace'
+import isError from '../lib/is-error'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 
@@ -80,9 +75,15 @@ function parseJsonFile(filePath: string) {
   try {
     return JSON5.parse(contents)
   } catch (err) {
+    if (!isError(err)) throw err
     const codeFrame = codeFrameColumns(
       String(contents),
-      { start: { line: err.lineNumber, column: err.columnNumber } },
+      {
+        start: {
+          line: (err as Error & { lineNumber?: number }).lineNumber || 0,
+          column: (err as Error & { columnNumber?: number }).columnNumber || 0,
+        },
+      },
       { message: err.message, highlightCode: true }
     )
     throw new Error(`Failed to parse "${filePath}":\n${codeFrame}`)
@@ -173,20 +174,6 @@ export function attachReactRefresh(
   }
 }
 
-const WEBPACK_RESOLVE_OPTIONS = {
-  // This always uses commonjs resolving, assuming API is identical
-  // between ESM and CJS in a package
-  // Otherwise combined ESM+CJS packages will never be external
-  // as resolving mismatch would lead to opt-out from being external.
-  dependencyType: 'commonjs',
-  symlinks: true,
-}
-
-const WEBPACK_ESM_RESOLVE_OPTIONS = {
-  dependencyType: 'esm',
-  symlinks: true,
-}
-
 const NODE_RESOLVE_OPTIONS = {
   dependencyType: 'commonjs',
   modules: ['node_modules'],
@@ -194,7 +181,7 @@ const NODE_RESOLVE_OPTIONS = {
   fallback: false,
   exportsFields: ['exports'],
   importsFields: ['imports'],
-  conditionNames: ['node', 'require', 'module'],
+  conditionNames: ['node', 'require'],
   descriptionFiles: ['package.json'],
   extensions: ['.js', '.json', '.node'],
   enforceExtensions: false,
@@ -211,7 +198,7 @@ const NODE_RESOLVE_OPTIONS = {
 const NODE_ESM_RESOLVE_OPTIONS = {
   ...NODE_RESOLVE_OPTIONS,
   dependencyType: 'esm',
-  conditionNames: ['node', 'import', 'module'],
+  conditionNames: ['node', 'import'],
   fullySpecified: true,
 }
 
@@ -311,6 +298,7 @@ export default async function getBaseWebpackConfig(
           loader: 'next-swc-loader',
           options: {
             isServer,
+            pagesDir,
           },
         }
       : {
@@ -682,30 +670,6 @@ export default async function getBaseWebpackConfig(
 
   const crossOrigin = config.crossOrigin
 
-  const conformanceConfig = Object.assign(
-    {
-      ReactSyncScriptsConformanceCheck: {
-        enabled: true,
-      },
-      MinificationConformanceCheck: {
-        enabled: true,
-      },
-      DuplicatePolyfillsConformanceCheck: {
-        enabled: true,
-        BlockedAPIToBePolyfilled: Object.assign(
-          [],
-          ['fetch'],
-          config.conformance?.DuplicatePolyfillsConformanceCheck
-            ?.BlockedAPIToBePolyfilled || []
-        ),
-      },
-      GranularChunksConformanceCheck: {
-        enabled: true,
-      },
-    },
-    config.conformance
-  )
-
   const esmExternals = !!config.experimental?.esmExternals
   const looseEsmExternals = config.experimental?.esmExternals === 'loose'
 
@@ -754,7 +718,7 @@ export default async function getBaseWebpackConfig(
     const preferEsm = esmExternals && isEsmRequested
 
     const resolve = getResolve(
-      preferEsm ? WEBPACK_ESM_RESOLVE_OPTIONS : WEBPACK_RESOLVE_OPTIONS
+      preferEsm ? NODE_ESM_RESOLVE_OPTIONS : NODE_RESOLVE_OPTIONS
     )
 
     // Resolve the import with the webpack provided context, this
@@ -772,7 +736,7 @@ export default async function getBaseWebpackConfig(
     // try the alternative resolving options.
     if (!res && (isEsmRequested || looseEsmExternals)) {
       const resolveAlternative = getResolve(
-        preferEsm ? WEBPACK_RESOLVE_OPTIONS : WEBPACK_ESM_RESOLVE_OPTIONS
+        preferEsm ? NODE_RESOLVE_OPTIONS : NODE_ESM_RESOLVE_OPTIONS
       )
       try {
         ;[res, isEsm] = await resolveAlternative(context, request)
@@ -885,6 +849,20 @@ export default async function getBaseWebpackConfig(
 
   const emacsLockfilePattern = '**/.#*'
 
+  const codeCondition = {
+    test: /\.(tsx|ts|js|cjs|mjs|jsx)$/,
+    ...(config.experimental.externalDir
+      ? // Allowing importing TS/TSX files from outside of the root dir.
+        {}
+      : { include: [dir, ...babelIncludeRegexes] }),
+    exclude: (excludePath: string) => {
+      if (babelIncludeRegexes.some((r) => r.test(excludePath))) {
+        return false
+      }
+      return /node_modules/.test(excludePath)
+    },
+  }
+
   let webpackConfig: webpack.Configuration = {
     parallelism: Number(process.env.NEXT_WEBPACK_PARALLELISM) || undefined,
     externals: !isServer
@@ -982,9 +960,7 @@ export default async function getBaseWebpackConfig(
           : false
         : splitChunksConfig,
       runtimeChunk: isServer
-        ? isWebpack5 && !isLikeServerless
-          ? { name: 'webpack-runtime' }
-          : undefined
+        ? undefined
         : { name: CLIENT_STATIC_FILES_RUNTIME_WEBPACK },
       minimize: !(dev || isServer),
       minimizer: [
@@ -1116,26 +1092,49 @@ export default async function getBaseWebpackConfig(
                   fullySpecified: false,
                 },
               } as any,
+              {
+                test: /\.(js|cjs|mjs)$/,
+                issuerLayer: 'api',
+                parser: {
+                  // Switch back to normal URL handling
+                  url: true,
+                },
+              },
             ]
           : []),
         {
-          test: /\.(tsx|ts|js|mjs|jsx)$/,
-          ...(config.experimental.externalDir
-            ? // Allowing importing TS/TSX files from outside of the root dir.
-              {}
-            : { include: [dir, ...babelIncludeRegexes] }),
-          exclude: (excludePath: string) => {
-            if (babelIncludeRegexes.some((r) => r.test(excludePath))) {
-              return false
-            }
-            return /node_modules/.test(excludePath)
-          },
-          use: hasReactRefresh
-            ? [
-                require.resolve('@next/react-refresh-utils/loader'),
-                defaultLoaders.babel,
-              ]
-            : defaultLoaders.babel,
+          ...(isWebpack5
+            ? {
+                oneOf: [
+                  {
+                    ...codeCondition,
+                    issuerLayer: 'api',
+                    parser: {
+                      // Switch back to normal URL handling
+                      url: true,
+                    },
+                    use: defaultLoaders.babel,
+                  },
+                  {
+                    ...codeCondition,
+                    use: hasReactRefresh
+                      ? [
+                          require.resolve('@next/react-refresh-utils/loader'),
+                          defaultLoaders.babel,
+                        ]
+                      : defaultLoaders.babel,
+                  },
+                ],
+              }
+            : {
+                ...codeCondition,
+                use: hasReactRefresh
+                  ? [
+                      require.resolve('@next/react-refresh-utils/loader'),
+                      defaultLoaders.babel,
+                    ]
+                  : defaultLoaders.babel,
+              }),
         },
         ...(!config.images.disableStaticImages && isWebpack5
           ? [
@@ -1349,34 +1348,6 @@ export default async function getBaseWebpackConfig(
             isLikeServerless,
           })
         })(),
-      config.experimental.conformance &&
-        !isWebpack5 &&
-        !dev &&
-        new WebpackConformancePlugin({
-          tests: [
-            !isServer &&
-              conformanceConfig.MinificationConformanceCheck.enabled &&
-              new MinificationConformanceCheck(),
-            conformanceConfig.ReactSyncScriptsConformanceCheck.enabled &&
-              new ReactSyncScriptsConformanceCheck({
-                AllowedSources:
-                  conformanceConfig.ReactSyncScriptsConformanceCheck
-                    .allowedSources || [],
-              }),
-            !isServer &&
-              conformanceConfig.DuplicatePolyfillsConformanceCheck.enabled &&
-              new DuplicatePolyfillsConformanceCheck({
-                BlockedAPIToBePolyfilled:
-                  conformanceConfig.DuplicatePolyfillsConformanceCheck
-                    .BlockedAPIToBePolyfilled,
-              }),
-            !isServer &&
-              conformanceConfig.GranularChunksConformanceCheck.enabled &&
-              new GranularChunksConformanceCheck(
-                splitChunksConfigs.prodGranular
-              ),
-          ].filter(Boolean),
-        }),
       new WellKnownErrorsPlugin(),
       !isServer &&
         new CopyFilePlugin({
@@ -1407,6 +1378,21 @@ export default async function getBaseWebpackConfig(
   if (isWebpack5) {
     // futureEmitAssets is on by default in webpack 5
     delete webpackConfig.output?.futureEmitAssets
+
+    webpackConfig.experiments = {
+      layers: true,
+    }
+
+    webpackConfig.module!.parser = {
+      javascript: {
+        url: 'relative',
+      },
+    }
+    webpackConfig.module!.generator = {
+      asset: {
+        filename: 'static/media/[name].[hash:8][ext]',
+      },
+    }
 
     if (isServer && dev) {
       // Enable building of client compilation before server compilation in development
@@ -1561,7 +1547,9 @@ export default async function getBaseWebpackConfig(
 
   webpackConfig = await buildConfiguration(webpackConfig, {
     rootDirectory: dir,
-    customAppFile: new RegExp(path.join(pagesDir, `_app`)),
+    customAppFile: new RegExp(
+      path.join(pagesDir, `_app`).replace(/\\/g, '(/|\\\\)')
+    ),
     isDevelopment: dev,
     isServer,
     assetPrefix: config.assetPrefix || '',
@@ -1643,10 +1631,6 @@ export default async function getBaseWebpackConfig(
           exclude: fileLoaderExclude,
           issuer: fileLoaderExclude,
           type: 'asset/resource',
-          generator: {
-            publicPath: '/_next/',
-            filename: 'static/media/[name].[hash:8].[ext]',
-          },
         }
       : {
           loader: require.resolve('next/dist/compiled/file-loader'),
@@ -1933,32 +1917,13 @@ export default async function getBaseWebpackConfig(
       }
       delete entry['main.js']
 
-      if (isWebpack5 && !isServer) {
-        for (const name of Object.keys(entry)) {
-          if (
-            name === 'polyfills' ||
-            name === 'main' ||
-            name === 'amp' ||
-            name === 'react-refresh'
-          )
-            continue
-          const dependOn =
-            name.startsWith('pages/') && name !== 'pages/_app'
-              ? 'pages/_app'
-              : 'main'
-          const old = entry[name]
-          if (typeof old === 'object' && !Array.isArray(old)) {
-            entry[name] = {
-              dependOn,
-              ...old,
-            }
-          } else {
-            entry[name] = {
-              import: old,
-              dependOn,
-            }
-          }
-        }
+      for (const name of Object.keys(entry)) {
+        entry[name] = finalizeEntrypoint(
+          name,
+          entry[name],
+          isServer,
+          isWebpack5
+        )
       }
 
       return entry

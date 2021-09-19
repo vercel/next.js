@@ -4,74 +4,89 @@ description: Debug your Next.js app.
 
 # Debugging
 
-This documentation explains how you can debug your Next.js frontend and backend code with full source maps support using either the [Chrome DevTools](https://developers.google.com/web/tools/chrome-devtools) or the [VSCode debugger](https://code.visualstudio.com/docs/editor/debugging).
+This documentation explains how you can debug your Next.js frontend and backend code with full source maps support using either the [VS Code debugger](https://code.visualstudio.com/docs/editor/debugging) or [Chrome DevTools](https://developers.google.com/web/tools/chrome-devtools).
 
-It requires you to first launch your Next.js application in debug mode in one terminal and then connect an inspector (Chrome DevTools or VS Code) to it.
+Any debugger that can attach to Node.js can also be used to debug a Next.js application. You can find more details in the Node.js [Debugging Guide](https://nodejs.org/en/docs/guides/debugging-getting-started/).
 
-There might be more ways to debug a Next.js application since all it requires is to expose the Node.js debugger and start an inspector client. You can find more details in the [Node.js documentation](https://nodejs.org/en/docs/guides/debugging-getting-started/).
+## Debugging with VS Code
 
-## Step 1: Start Next.js in debug mode
-
-Next.js being a Node.js application, all we have to do is to pass down the [`--inspect`](https://nodejs.org/api/cli.html#cli_node_options_options) flag to the underlying Node.js process for it to start in debug mode.
-
-First, start Next.js with the inspect flag:
-
-```bash
-NODE_OPTIONS='--inspect' next dev
-```
-
-If you're using `npm run dev` or `yarn dev` (See: [Getting Started](/docs/getting-started.md)) then you should update the `dev` script on your `package.json`:
-
-```json
-"dev": "NODE_OPTIONS='--inspect' next dev"
-```
-
-The result of launching Next.js with the inspect flag looks like this:
-
-```bash
-Debugger listening on ws://127.0.0.1:9229/0cf90313-350d-4466-a748-cd60f4e47c95
-For help, see: https://nodejs.org/en/docs/inspector
-ready - started server on http://localhost:3000
-```
-
-> Be aware that using `NODE_OPTIONS='--inspect' npm run dev` or `NODE_OPTIONS='--inspect' yarn dev` won't work. This would try to start multiple debuggers on the same port: one for the npm/yarn process and one for Next.js. You would then get an error like `Starting inspector on 127.0.0.1:9229 failed: address already in use` in your console.
-
-## Step 2: Connect to the debugger
-
-### Using Chrome DevTools
-
-Once you open a new tab in Google Chrome and go to `chrome://inspect`, you should see your Next.js application inside the "Remote Target" section. Now click "inspect" to open a screen that will be your debugging environment from now on.
-
-### Using the Debugger in Visual Studio Code
-
-We will be using the [attach mode](https://code.visualstudio.com/docs/nodejs/nodejs-debugging#_setting-up-an-attach-configuration) of VS Code to attach the VS Code inspector to our running debugger started in step 1.
-
-Create a file named `.vscode/launch.json` at the root of your project with this content:
+Create a file named `.vscode/launch.json` at the root of your project with the following content:
 
 ```json
 {
   "version": "0.2.0",
   "configurations": [
     {
-      "type": "node",
-      "request": "attach",
-      "name": "Attach to application",
-      "skipFiles": ["<node_internals>/**"],
-      "port": 9229
+      "name": "Next.js: debug server-side",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npm run dev"
+    },
+    {
+      "name": "Next.js: debug client-side",
+      "type": "pwa-chrome",
+      "request": "launch",
+      "url": "http://localhost:3000"
+    },
+    {
+      "name": "Next.js: debug full stack",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npm run dev",
+      "console": "integratedTerminal",
+      "serverReadyAction": {
+        "pattern": "started server on .+, url: (https?://.+)",
+        "uriFormat": "%s",
+        "action": "debugWithChrome"
+      }
     }
   ]
 }
 ```
 
-Now hit <kdb>F5</kbd> or select **Debug: Start Debugging** from the Command Palette and you can start your debugging session.
+`npm run dev` can be replaced with `yarn dev` if you're using Yarn. If you're [changing the port number](<(/docs/api-reference/cli#development)>) your application starts on, replace the `3000` in `http://localhost:3000` with the port you're using instead.
 
-## Step 3: Put breakpoints and see what happens
+Now go to the Debug panel (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>D</kbd> on Windows/Linux, <kbd>⇧</kbd>+<kbd>⌘</kbd>+<kbd>D</kbd> on macOS), select a launch configuration, then press <kbd>F5</kbd> or select **Debug: Start Debugging** from the Command Palette to start your debugging session.
 
-Now you can use the [`debugger`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/debugger) statement to pause your backend or frontend code anytime you want to observe and debug your code more precisely.
+## Debugging with Chrome DevTools
 
-If you trigger the underlying code by refreshing the current page, clicking on a page link or fetching an API route, your code will be paused and the debugger window will appear.
+### Client-side code
 
-To learn more on how to use a JavaScript debugger, take a look at the following documentation:
+Start your development server as usual by running `next dev`, `npm run dev`, or `yarn dev`. Once the server starts, open `http://localhost:3000` (or your alternate URL) in Chrome. Next, open Chrome's Developer Tools (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>J</kbd> on Windows/Linux, <kbd>⌥</kbd>+<kbd>⌘</kbd>+<kbd>I</kbd> on macOS), then go to the **Sources** tab
 
-- [VS Code Node.js debugging: Breakpoints](https://code.visualstudio.com/docs/nodejs/nodejs-debugging#_breakpoints)
-- [Get Started with Debugging JavaScript in Chrome DevTools](https://developers.google.com/web/tools/chrome-devtools/javascript)
+Now, any time your client-side code reaches a [`debugger`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/debugger) statement, code execution will pause and that file will appear in the debug area. You can also press <kbd>Ctrl</kbd>+<kbd>P</kbd> on Windows/Linux or <kbd>⌘</kbd>+<kbd>P</kbd> on macOS to search for a file and set breakpoints manually. Note that when searching here, your source files will have paths starting with `webpack://_N_E/./`.
+
+### Server-side code
+
+To debug server-side Next.js code with Chrome DevTools, you need to pass the [`--inspect`](https://nodejs.org/api/cli.html#cli_inspect_host_port) flag to the underlying Node.js process:
+
+```bash
+NODE_OPTIONS='--inspect' next dev
+```
+
+If you're using `npm run dev` or `yarn dev` (see [Getting Started](/docs/getting-started)) then you should update the `dev` script on your `package.json`:
+
+```json
+"dev": "NODE_OPTIONS='--inspect' next dev"
+```
+
+Launching the Next.js dev server with the `--inspect` flag will look something like this:
+
+```shellsession
+Debugger listening on ws://127.0.0.1:9229/0cf90313-350d-4466-a748-cd60f4e47c95
+For help, see: https://nodejs.org/en/docs/inspector
+ready - started server on 0.0.0.0:3000, url: http://localhost:3000
+```
+
+> Be aware that running `NODE_OPTIONS='--inspect' npm run dev` or `NODE_OPTIONS='--inspect' yarn dev` won't work. This would try to start multiple debuggers on the same port: one for the npm/yarn process and one for Next.js. You would then get an error like `Starting inspector on 127.0.0.1:9229 failed: address already in use` in your console.
+
+Once the server starts, open a new tab in Chrome and visit `chrome://inspect`, where you should see your Next.js application inside the **Remote Target** section. Click **inspect** under your application to open a separate DevTools window, then go to the **Sources** tab.
+
+Debugging server-side code here works much like debugging client-side code with Chrome DevTools, except that when you search for files here with <kbd>Ctrl</kbd>+<kbd>P</kbd> or <kbd>⌘</kbd>+<kbd>P</kbd>, your source files will have paths starting with `webpack://{application-name}/./` (where `{application-name}` will be replaced with the name of your application according to your `package.json` file).
+
+## More information
+
+To learn more about how to use a JavaScript debugger, take a look at the following documentation:
+
+- [Node.js debugging in VS Code: Breakpoints](https://code.visualstudio.com/docs/nodejs/nodejs-debugging#_breakpoints)
+- [Chrome DevTools: Debug JavaScript](https://developers.google.com/web/tools/chrome-devtools/javascript)

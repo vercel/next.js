@@ -6,6 +6,7 @@ import { getCssError } from './parseCss'
 import { getScssError } from './parseScss'
 import { getNotFoundError } from './parseNotFoundError'
 import { SimpleWebpackError } from './simpleWebpackError'
+import isError from '../../../../lib/is-error'
 
 function getFileData(
   compilation: webpack.compilation.Compilation,
@@ -50,7 +51,7 @@ export async function getModuleBuildError(
       (input?.name === 'ModuleBuildError' ||
         input?.name === 'ModuleNotFoundError') &&
       Boolean(input.module) &&
-      input.error instanceof Error
+      isError(input.error)
     )
   ) {
     return false
