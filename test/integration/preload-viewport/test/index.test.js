@@ -339,6 +339,29 @@ describe('Prefetching Links in viewport', () => {
     expect(found).toBe(false)
   })
 
+  it('should not prefetch already loaded scripts', async () => {
+    const browser = await webdriver(appPort, '/')
+
+    const scriptSrcs = await browser.eval(`(function() {
+      return Array.from(document.querySelectorAll('script'))
+        .map(function(el) {
+          return el.src && new URL(el.src).pathname
+        }).filter(Boolean)
+    })()`)
+
+    await browser.eval('next.router.prefetch("/")')
+
+    const linkHrefs = await browser.eval(`(function() {
+      return Array.from(document.querySelectorAll('link'))
+        .map(function(el) {
+          return el.href && new URL(el.href).pathname
+        }).filter(Boolean)
+    })()`)
+
+    console.log({ linkHrefs, scriptSrcs })
+    expect(linkHrefs.some((href) => scriptSrcs.includes(href))).toBe(false)
+  })
+
   it('should not duplicate prefetches', async () => {
     const browser = await webdriver(appPort, '/multi-prefetch')
 
