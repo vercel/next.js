@@ -28,7 +28,7 @@ export class ProfilingPlugin {
   }
 
   traceHookPair(
-    spanName: string,
+    spanName: string | (() => string),
     startHook: any,
     stopHook: any,
     {
@@ -45,13 +45,11 @@ export class ProfilingPlugin {
   ) {
     let span: Span | undefined
     startHook.tap(pluginName, (...params: any[]) => {
+      const name = typeof spanName === 'function' ? spanName() : spanName
       const attributes = attrs ? attrs(...params) : attrs
-      if (spanName === 'webpack-invalidated' && attributes.name === 'client') {
-        debugger
-      }
       span = parentSpan
-        ? parentSpan().traceChild(spanName, attributes)
-        : this.runWebpackSpan.traceChild(spanName, attributes)
+        ? parentSpan().traceChild(name, attributes)
+        : this.runWebpackSpan.traceChild(name, attributes)
 
       if (onStart) onStart(span)
     })
@@ -83,14 +81,13 @@ export class ProfilingPlugin {
 
     if (compiler.options.mode === 'development') {
       this.traceHookPair(
-        'webpack-invalidated',
+        () => `webpack-invalidated-${compiler.name}`,
         compiler.hooks.invalid,
         compiler.hooks.done,
         {
           onStart: (span) => webpackInvalidSpans.set(compiler, span),
           onStop: () => webpackInvalidSpans.delete(compiler),
           attrs: (fileName: any) => ({
-            name: compiler.name,
             trigger: fileName || 'manual',
           }),
         }
