@@ -2,12 +2,11 @@
 
 #### Why This Error Occurred
 
-`getServerSideProps()` surfaces a `ServerResponse` object through the `res` property of its `context` arg. This object is not intended to be accessed or changed after `getServerSideProps()` resolves. 
+`getServerSideProps()` surfaces a `ServerResponse` object through the `res` property of its `context` arg. This object is not intended to be accessed or changed after `getServerSideProps()` resolves.
 
 This is because the framework tries to optimize when items like headers or status codes are flushed to the browser. If they are changed after `getServerSideProps()` completes, we can't guarantee that the changes will work.
 
 For this reason, accessing the object after this time is disallowed.
-
 
 #### Possible Ways to Fix It
 

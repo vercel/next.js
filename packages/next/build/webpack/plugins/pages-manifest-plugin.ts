@@ -35,7 +35,9 @@ export default class PagesManifestPlugin implements webpack.Plugin {
         .getFiles()
         .filter(
           (file: string) =>
-            !file.includes('webpack-runtime') && file.endsWith('.js')
+            !file.includes('webpack-runtime') &&
+            !file.includes('webpack-api-runtime') &&
+            file.endsWith('.js')
         )
 
       if (!isWebpack5 && files.length > 1) {

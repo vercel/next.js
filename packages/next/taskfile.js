@@ -760,16 +760,20 @@ export async function ncc_mini_css_extract_plugin(task, opts) {
 
 // eslint-disable-next-line camelcase
 export async function ncc_webpack_bundle4(task, opts) {
+  const bundleExternals = {
+    ...externals,
+    'schema-utils': externals['schema-utils2'],
+    'webpack-sources': externals['webpack-sources1'],
+  }
+  for (const pkg of Object.keys(webpackBundlePackages)) {
+    delete bundleExternals[pkg]
+  }
   await task
     .source(opts.src || 'bundles/webpack/bundle4.js')
     .ncc({
       packageName: 'webpack4',
       bundleName: 'webpack',
-      externals: {
-        ...externals,
-        'schema-utils': externals['schema-utils2'],
-        'webpack-sources': externals['webpack-sources1'],
-      },
+      externals: bundleExternals,
       minify: false,
       target: 'es5',
     })
@@ -778,6 +782,14 @@ export async function ncc_webpack_bundle4(task, opts) {
 
 // eslint-disable-next-line camelcase
 export async function ncc_webpack_bundle5(task, opts) {
+  const bundleExternals = {
+    ...externals,
+    'schema-utils': externals['schema-utils3'],
+    'webpack-sources': externals['webpack-sources3'],
+  }
+  for (const pkg of Object.keys(webpackBundlePackages)) {
+    delete bundleExternals[pkg]
+  }
   await task
     .source(opts.src || 'bundles/webpack/bundle5.js')
     .ncc({
@@ -786,11 +798,7 @@ export async function ncc_webpack_bundle5(task, opts) {
       customEmit(path) {
         if (path.endsWith('.runtime.js')) return `'./${basename(path)}'`
       },
-      externals: {
-        ...externals,
-        'schema-utils': externals['schema-utils3'],
-        'webpack-sources': externals['webpack-sources3'],
-      },
+      externals: bundleExternals,
       minify: false,
       target: 'es5',
     })
