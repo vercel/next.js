@@ -145,6 +145,9 @@ declare module 'webpack' {
       parallelism?: number
       /** Optimization options */
       optimization?: Options.Optimization
+      experiments?: {
+        layers: boolean
+      }
     }
 
     interface Entry {
@@ -293,6 +296,12 @@ declare module 'webpack' {
       strictExportPresence?: boolean
       /** An array of rules applied for modules. */
       rules: RuleSetRule[]
+      parser?: {
+        javascript?: any
+      }
+      generator?: {
+        asset?: any
+      }
     }
 
     interface Resolve {

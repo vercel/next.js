@@ -763,16 +763,18 @@ export async function ncc_mini_css_extract_plugin(task, opts) {
 
 // eslint-disable-next-line camelcase
 export async function ncc_webpack_bundle4(task, opts) {
-  const webpackExternals = {
+  const bundleExternals = {
     ...externals,
   }
-  delete webpackExternals['webpack/lib/NormalModule']
+  for (const pkg of Object.keys(webpackBundlePackages)) {
+    delete bundleExternals[pkg]
+  }
   await task
     .source(opts.src || 'bundles/webpack/bundle4.js')
     .ncc({
       packageName: 'webpack',
       bundleName: 'webpack',
-      externals: webpackExternals,
+      externals: bundleExternals,
       minify: false,
       target: 'es5',
     })
@@ -781,6 +783,12 @@ export async function ncc_webpack_bundle4(task, opts) {
 
 // eslint-disable-next-line camelcase
 export async function ncc_webpack_bundle5(task, opts) {
+  const bundleExternals = {
+    ...externals,
+  }
+  for (const pkg of Object.keys(webpackBundlePackages)) {
+    delete bundleExternals[pkg]
+  }
   await task
     .source(opts.src || 'bundles/webpack/bundle5.js')
     .ncc({
@@ -790,7 +798,7 @@ export async function ncc_webpack_bundle5(task, opts) {
         if (path.endsWith('.runtime.js')) return `'./${basename(path)}'`
       },
       externals: {
-        ...externals,
+        ...bundleExternals,
         'schema-utils': 'next/dist/compiled/schema-utils3',
         'webpack-sources': 'next/dist/compiled/webpack-sources3',
       },

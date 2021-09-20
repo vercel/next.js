@@ -167,7 +167,7 @@ export function getAllPosts() {
 
 ## Image Component and Image Optimization
 
-Since version **10.0.0**, Next.js has a built-in [Image Component and Automatic Image Optimization](/docs/basic-features/image-optimization.md).
+Next.js has a built-in [Image Component and Automatic Image Optimization](/docs/basic-features/image-optimization.md).
 
 The Next.js Image Component, [`next/image`](/docs/api-reference/next/image.md), is an extension of the HTML `<img>` element, evolved for the modern web.
 
@@ -189,15 +189,24 @@ Instead, use the built-in [`next/image`](/docs/api-reference/next/image.md) comp
 
 ```jsx
 import Image from 'next/image'
+import profilePic from '../public/me.png'
 
 export default function Home() {
   return (
     <>
       <h1>My Homepage</h1>
       <Image
-        src="/me.png"
+        src={profilePic}
         alt="Picture of the author"
+        // When "responsive", similar to "fluid" from Gatsby
+        // When "intrinsic", similar to "fluid" with maxWidth from Gatsby
+        // When "fixed", similar to "fixed" from Gatsby
+        layout="responsive"
+        // Optional, similar to "blur-up" from Gatsby
+        placeholder="blur"
+        // Optional, similar to "width" in Gatsby GraphQL
         width={500}
+        // Optional, similar to "height" in Gatsby GraphQL
         height={500}
       />
       <p>Welcome to my homepage!</p>

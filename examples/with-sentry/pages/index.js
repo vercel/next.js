@@ -18,8 +18,8 @@ const Index = () => (
     </p>
     <ol>
       <li>
-        API route exceptions (note that 1-3 are not expected to work if deployed
-        to Vercel yet)
+        API route exceptions (note that 1 and 2 are not expected to work if
+        deployed to Vercel yet)
       </li>
       <ol>
         <li>
