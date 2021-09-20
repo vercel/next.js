@@ -23,7 +23,6 @@ const appDir = join(__dirname, '../')
 let appPort
 let server
 let app
-jest.setTimeout(1000 * 60 * 5)
 
 const context = {}
 
@@ -83,7 +82,7 @@ describe('AMP Usage', () => {
 
         const result = await browser.eval('window.NAV_PAGE_LOADED')
 
-        expect(result).toBe(null)
+        expect(result).toBeFalsy()
       })
 
       it('should not output client pages for AMP only with config exported after declaration', async () => {
@@ -92,7 +91,7 @@ describe('AMP Usage', () => {
 
         const result = await browser.eval('window.NAV_PAGE_LOADED')
 
-        expect(result).toBe(null)
+        expect(result).toBeFalsy()
       })
 
       it('should add link preload for amp script', async () => {
@@ -232,7 +231,7 @@ describe('AMP Usage', () => {
         const html = await renderViaHTTP(appPort, '/styled?amp=1')
         const $ = cheerio.load(html)
         expect($('style[amp-custom]').first().text()).toMatch(
-          /div.jsx-\d+{color:red}span.jsx-\d+{color:#00f}body{background-color:green}/
+          /div.jsx-\d+{color:red}span.jsx-\d+{color:blue}body{background-color:green}/
         )
       })
 

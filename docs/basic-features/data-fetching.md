@@ -424,7 +424,7 @@ export async function getStaticPaths() {
     paths: [
       { params: { ... } } // See the "paths" section below
     ],
-    fallback: true or false // See the "fallback" section below
+    fallback: true, false, or 'blocking' // See the "fallback" section below
   };
 }
 ```
@@ -510,7 +510,7 @@ export default Post
 If `fallback` is `true`, then the behavior of `getStaticProps` changes:
 
 - The paths returned from `getStaticPaths` will be rendered to HTML at build time by `getStaticProps`.
-- The paths that have not been generated at build time will **not** result in a 404 page. Instead, Next.js will serve a “fallback” version of the page on the first request to such a path (see [“Fallback pages”](#fallback-pages) below for details).
+- The paths that have not been generated at build time will **not** result in a 404 page. Instead, Next.js will serve a “fallback” version of the page on the first request to such a path (see [“Fallback pages”](#fallback-pages) below for details). Note: this "fallback" version will not be served for crawlers like Google and instead will render the path in `blocking` mode.
 - In the background, Next.js will statically generate the requested path HTML and JSON. This includes running `getStaticProps`.
 - When that’s done, the browser receives the JSON for the generated path. This will be used to automatically render the page with the required props. From the user’s perspective, the page will be swapped from the fallback page to the full page.
 - At the same time, Next.js adds this path to the list of pre-rendered pages. Subsequent requests to the same path will serve the generated page, like other pages pre-rendered at build time.
@@ -672,7 +672,7 @@ The `context` parameter is an object containing the following keys:
 
 `getServerSideProps` should return an object with:
 
-- `props` - An **optional** object with the props that will be received by the page component. It should be a [serializable object](https://en.wikipedia.org/wiki/Serialization)
+- `props` - An **optional** object with the props that will be received by the page component. It should be a [serializable object](https://en.wikipedia.org/wiki/Serialization) or a Promise that resolves to a serializable object.
 - `notFound` - An **optional** boolean value to allow the page to return a 404 status and page. Below is an example of how it works:
 
   ```js

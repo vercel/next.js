@@ -1,12 +1,12 @@
 import chalk from 'chalk'
 
-export function getGlobalImportError(file: string | null) {
+export function getGlobalImportError() {
   return `Global CSS ${chalk.bold(
     'cannot'
   )} be imported from files other than your ${chalk.bold(
     'Custom <App>'
   )}. Due to the Global nature of stylesheets, and to avoid conflicts, Please move all first-party global CSS imports to ${chalk.cyan(
-    file ? file : 'pages/_app.js'
+    'pages/_app.js'
   )}. Or convert the import to Component-Level CSS (CSS Modules).\nRead more: https://nextjs.org/docs/messages/css-global`
 }
 
