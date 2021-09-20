@@ -27,6 +27,7 @@ describe('find config', () => {
       '// see https://nextjs.org/docs/basic-features/typescript for more information.' +
       eol
 
+    await fs.ensureDir(fixtureDir)
     await fs.writeFile(declarationFile, content)
 
     await writeAppTypeDeclarations(fixtureDir, imageImportsEnabled)
@@ -49,6 +50,7 @@ describe('find config', () => {
       '// see https://nextjs.org/docs/basic-features/typescript for more information.' +
       eol
 
+    await fs.ensureDir(fixtureDir)
     await fs.writeFile(declarationFile, content)
 
     await writeAppTypeDeclarations(fixtureDir, imageImportsEnabled)
@@ -71,6 +73,7 @@ describe('find config', () => {
       '// see https://nextjs.org/docs/basic-features/typescript for more information.' +
       eol
 
+    await fs.ensureDir(fixtureDir)
     await writeAppTypeDeclarations(fixtureDir, imageImportsEnabled)
     expect(await fs.readFile(declarationFile, 'utf8')).toBe(content)
   })
