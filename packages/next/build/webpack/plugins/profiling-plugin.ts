@@ -2,7 +2,11 @@ import { webpack, isWebpack5 } from 'next/dist/compiled/webpack/webpack'
 import { Span } from '../../../trace'
 
 const pluginName = 'ProfilingPlugin'
-export const spans = new WeakMap<any, Span>()
+export const spans = new WeakMap<webpack.compilation.Compilation, Span>()
+const moduleSpansByCompilation = new WeakMap<
+  webpack.compilation.Compilation,
+  WeakMap<webpack.Module, Span>
+>()
 export const webpackInvalidSpans = new WeakMap<any, Span>()
 
 function getNormalModuleLoaderHook(compilation: any) {
@@ -78,7 +82,10 @@ export class ProfilingPlugin {
         parentSpan: () =>
           webpackInvalidSpans.get(compiler) || this.runWebpackSpan,
         attrs: () => ({ name: compiler.name }),
-        onStart: (span, compilation) => spans.set(compilation, span),
+        onStart: (span, compilation) => {
+          spans.set(compilation, span)
+          moduleSpansByCompilation.set(compilation, new WeakMap())
+        },
       }
     )
 
@@ -137,7 +144,8 @@ export class ProfilingPlugin {
 
         const spanName = `build-module${moduleType ? `-${moduleType}` : ''}`
         const issuerSpan: Span | undefined =
-          issuerModule && spans.get(issuerModule)
+          issuerModule &&
+          moduleSpansByCompilation.get(compilation)?.get(issuerModule)
         if (issuerSpan) {
           span = issuerSpan.traceChild(spanName)
         } else {
@@ -150,7 +158,9 @@ export class ProfilingPlugin {
       getNormalModuleLoaderHook(compilation).tap(
         pluginName,
         (loaderContext: any, module: any) => {
-          const moduleSpan = spans.get(module)
+          const moduleSpan = moduleSpansByCompilation
+            .get(compilation)
+            ?.get(module)
           loaderContext.currentTraceSpan = moduleSpan
         }
       )
@@ -164,7 +174,7 @@ export class ProfilingPlugin {
           'webpack-compilation-seal',
           compilation.hooks.seal,
           compilation.hooks.afterSeal,
-          { parentSpan: () => spans.get(compiler)! }
+          { parentSpan: () => spans.get(compilation)! }
         )
 
         this.traceHookPair(
@@ -177,7 +187,7 @@ export class ProfilingPlugin {
                 request: entry.request,
               }
             },
-            parentSpan: () => spans.get(compiler)!,
+            parentSpan: () => spans.get(compilation)!,
           }
         )
       }
@@ -186,37 +196,37 @@ export class ProfilingPlugin {
         'webpack-compilation-chunk-graph',
         compilation.hooks.beforeChunks,
         compilation.hooks.afterChunks,
-        { parentSpan: () => spans.get(compiler)! }
+        { parentSpan: () => spans.get(compilation)! }
       )
       this.traceHookPair(
         'webpack-compilation-optimize',
         compilation.hooks.optimize,
         compilation.hooks.reviveModules,
-        { parentSpan: () => spans.get(compiler)! }
+        { parentSpan: () => spans.get(compilation)! }
       )
       this.traceHookPair(
         'webpack-compilation-optimize-modules',
         compilation.hooks.optimizeModules,
         compilation.hooks.afterOptimizeModules,
-        { parentSpan: () => spans.get(compiler)! }
+        { parentSpan: () => spans.get(compilation)! }
       )
       this.traceHookPair(
         'webpack-compilation-optimize-chunks',
         compilation.hooks.optimizeChunks,
         compilation.hooks.afterOptimizeChunks,
-        { parentSpan: () => spans.get(compiler)! }
+        { parentSpan: () => spans.get(compilation)! }
       )
       this.traceHookPair(
         'webpack-compilation-optimize-tree',
         compilation.hooks.optimizeTree,
         compilation.hooks.afterOptimizeTree,
-        { parentSpan: () => spans.get(compiler)! }
+        { parentSpan: () => spans.get(compilation)! }
       )
       this.traceHookPair(
         'webpack-compilation-hash',
         compilation.hooks.beforeHash,
         compilation.hooks.afterHash,
-        { parentSpan: () => spans.get(compiler)! }
+        { parentSpan: () => spans.get(compilation)! }
       )
     })
   }
