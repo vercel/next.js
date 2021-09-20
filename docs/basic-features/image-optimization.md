@@ -158,7 +158,7 @@ The easiest way to style the inner `<img>` rendered by the image element is to *
 
 This is necessary for the proper rendering of the image element in that layout mode.
 
-**When using `layout='intrinsic'`, the parent element must have `display: block`**
+**When using `layout='responsive'`, the parent element must have `display: block`**
 
 This is the default for `<div>` elements but should be specified otherwise.
 
