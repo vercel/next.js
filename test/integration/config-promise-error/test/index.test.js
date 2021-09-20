@@ -7,7 +7,7 @@ import { nextBuild } from 'next-test-utils'
 const appDir = join(__dirname, '..')
 
 describe('Promise in next config', () => {
-  afterAll(() => fs.remove(join(appDir, 'next.config.js')))
+  afterEach(() => fs.remove(join(appDir, 'next.config.js')))
 
   it('should throw error when a promise is return on config', async () => {
     fs.writeFile(
@@ -21,9 +21,12 @@ describe('Promise in next config', () => {
     `
     )
 
-    const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
+    const { stderr, stdout } = await nextBuild(appDir, undefined, {
+      stderr: true,
+      stdout: true,
+    })
 
-    expect(stderr).toMatch(
+    expect(stderr + stdout).toMatch(
       /Error: > Promise returned in next config\. https:\/\//
     )
   })
@@ -32,7 +35,6 @@ describe('Promise in next config', () => {
     fs.writeFile(
       join(appDir, 'next.config.js'),
       `
-      setTimeout(() => process.exit(0), 2 * 1000)
       module.exports = (phase, { isServer }) => {
         return {
           webpack: async (config) => {
@@ -43,7 +45,12 @@ describe('Promise in next config', () => {
     `
     )
 
-    const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
-    expect(stderr).toMatch(/> Promise returned in next config\. https:\/\//)
+    const { stderr, stdout } = await nextBuild(appDir, undefined, {
+      stderr: true,
+      stdout: true,
+    })
+    expect(stderr + stdout).toMatch(
+      /> Promise returned in next config\. https:\/\//
+    )
   })
 })
