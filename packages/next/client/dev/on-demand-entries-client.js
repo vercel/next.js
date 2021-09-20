@@ -9,7 +9,11 @@ export default async ({ assetPrefix }) => {
     )
   })
 
-  setupPing(assetPrefix, () => Router.pathname, currentPage)
+  setupPing(
+    assetPrefix,
+    () => Router.query.__NEXT_PAGE || Router.pathname,
+    currentPage
+  )
 
   // prevent HMR connection from being closed when running tests
   if (!process.env.__NEXT_TEST_MODE) {

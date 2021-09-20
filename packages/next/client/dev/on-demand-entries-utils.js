@@ -29,14 +29,28 @@ export function setupPing(assetPrefix, pathnameFn, retry) {
     if (event.data.indexOf('{') === -1) return
     try {
       const payload = JSON.parse(event.data)
-      if (payload.invalid) {
-        // Payload can be invalid even if the page does not exist.
-        // So, we need to make sure it exists before reloading.
+      // don't attempt fetching the page if we're already showing
+      // the dev overlay as this can cause the error to be triggered
+      // repeatedly
+      if (payload.invalid && !self.__NEXT_DATA__.err) {
+        // Payload can be invalid even if the page does exist.
+        // So, we check if it can be created.
         fetch(location.href, {
           credentials: 'same-origin',
         }).then((pageRes) => {
           if (pageRes.status === 200) {
+            // Page exists now, reload
             location.reload()
+          } else {
+            // Page doesn't exist
+            if (
+              self.__NEXT_DATA__.page === currentPage &&
+              currentPage !== '/_error'
+            ) {
+              // We are still on the page,
+              // reload to show 404 error page
+              location.reload()
+            }
           }
         })
       }

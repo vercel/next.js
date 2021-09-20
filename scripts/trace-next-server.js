@@ -21,10 +21,16 @@ async function main() {
   const origRepoDir = path.join(__dirname, '..')
   const repoDir = path.join(tmpdir, `tmp-next-${Date.now()}`)
   const workDir = path.join(tmpdir, `trace-next-${Date.now()}`)
+  const origTestDir = path.join(origRepoDir, 'test')
+  const dotDir = path.join(origRepoDir, './') + '.'
 
   await fs.copy(origRepoDir, repoDir, {
     filter: (item) => {
-      return !item.includes('node_modules')
+      return (
+        !item.startsWith(origTestDir) &&
+        !item.startsWith(dotDir) &&
+        !item.includes('node_modules')
+      )
     },
   })
 
@@ -88,7 +94,7 @@ async function main() {
     if (result.reasons[file].type === 'initial') {
       continue
     }
-    tracedDeps.add(file)
+    tracedDeps.add(file.replace(/\\/g, '/'))
     const stat = await fs.stat(path.join(workDir, file))
 
     if (stat.isFile()) {

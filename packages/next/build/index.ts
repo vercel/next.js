@@ -73,7 +73,7 @@ import { generateBuildId } from './generate-build-id'
 import { isWriteable } from './is-writeable'
 import * as Log from './output/log'
 import createSpinner from './spinner'
-import { trace, flushAllTraces, setGlobal } from '../telemetry/trace'
+import { trace, flushAllTraces, setGlobal } from '../trace'
 import {
   collectPages,
   detectConflictingPaths,
@@ -90,6 +90,7 @@ import { writeBuildId } from './write-build-id'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { isWebpack5 } from 'next/dist/compiled/webpack/webpack'
 import { NextConfigComplete } from '../server/config-shared'
+import isError from '../lib/is-error'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -130,11 +131,13 @@ export default async function build(
     const config: NextConfigComplete = await nextBuildSpan
       .traceChild('load-next-config')
       .traceAsyncFn(() => loadConfig(PHASE_PRODUCTION_BUILD, dir, conf))
+    const distDir = path.join(dir, config.distDir)
+    setGlobal('distDir', distDir)
+
     const { target } = config
     const buildId: string = await nextBuildSpan
       .traceChild('generate-buildid')
       .traceAsyncFn(() => generateBuildId(config.generateBuildId, nanoid))
-    const distDir = path.join(dir, config.distDir)
 
     const customRoutes: CustomRoutes = await nextBuildSpan
       .traceChild('load-custom-routes')
@@ -176,7 +179,7 @@ export default async function build(
       telemetry.record(events)
     )
 
-    const ignoreTypeScriptErrors = Boolean(config.typescript?.ignoreBuildErrors)
+    const ignoreTypeScriptErrors = Boolean(config.typescript.ignoreBuildErrors)
     const typeCheckStart = process.hrtime()
     const typeCheckingSpinner = createSpinner({
       prefixText: `${Log.prefixes.info} ${
@@ -216,15 +219,16 @@ export default async function build(
       typeCheckingSpinner.stopAndPersist()
     }
 
-    const ignoreESLint = Boolean(config.eslint?.ignoreDuringBuilds)
-    const lintDirs = config.eslint?.dirs
+    const ignoreESLint = Boolean(config.eslint.ignoreDuringBuilds)
+    const eslintCacheDir = path.join(cacheDir, 'eslint/')
     if (!ignoreESLint && runLint) {
       await nextBuildSpan
         .traceChild('verify-and-lint')
         .traceAsyncFn(async () => {
           await verifyAndLint(
             dir,
-            lintDirs,
+            eslintCacheDir,
+            config.eslint?.dirs,
             config.experimental.cpus,
             config.experimental.workerThreads,
             telemetry
@@ -460,7 +464,7 @@ export default async function build(
           await promises.mkdir(distDir, { recursive: true })
           return true
         } catch (err) {
-          if (err.code === 'EPERM') {
+          if (isError(err) && err.code === 'EPERM') {
             return false
           }
           throw err
@@ -924,7 +928,8 @@ export default async function build(
                   )
                 }
               } catch (err) {
-                if (err.message !== 'INVALID_DEFAULT_EXPORT') throw err
+                if (isError(err) && err.message !== 'INVALID_DEFAULT_EXPORT')
+                  throw err
                 invalidPages.add(page)
               }
             }
@@ -1288,7 +1293,7 @@ export default async function build(
           },
         }
 
-        await exportApp(dir, exportOptions, exportConfig)
+        await exportApp(dir, exportOptions, nextBuildSpan, exportConfig)
 
         const postBuildSpinner = createSpinner({
           prefixText: `${Log.prefixes.info} Finalizing page optimization`,

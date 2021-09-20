@@ -1,8 +1,9 @@
 import { webpack, isWebpack5 } from 'next/dist/compiled/webpack/webpack'
-import { trace, Span } from '../../../telemetry/trace'
+import { Span } from '../../../trace'
 
 const pluginName = 'ProfilingPlugin'
 export const spans = new WeakMap<any, Span>()
+export const webpackInvalidSpans = new WeakMap<any, Span>()
 
 function getNormalModuleLoaderHook(compilation: any) {
   if (isWebpack5) {
@@ -15,9 +16,9 @@ function getNormalModuleLoaderHook(compilation: any) {
 
 export class ProfilingPlugin {
   compiler: any
-  runWebpackSpan: Span | undefined
+  runWebpackSpan: Span
 
-  constructor({ runWebpackSpan }: { runWebpackSpan: Span | undefined }) {
+  constructor({ runWebpackSpan }: { runWebpackSpan: Span }) {
     this.runWebpackSpan = runWebpackSpan
   }
   apply(compiler: any) {
@@ -27,23 +28,30 @@ export class ProfilingPlugin {
   }
 
   traceHookPair(
-    spanName: string,
+    spanName: string | (() => string),
     startHook: any,
     stopHook: any,
     {
       parentSpan,
       attrs,
-      onSetSpan,
+      onStart,
+      onStop,
     }: {
-      parentSpan?: () => Span | undefined
+      parentSpan?: () => Span
       attrs?: any
-      onSetSpan?: (span: Span) => void
+      onStart?: (span: Span) => void
+      onStop?: () => void
     } = {}
   ) {
     let span: Span | undefined
-    startHook.tap(pluginName, () => {
-      span = trace(spanName, parentSpan?.()?.id, attrs ? attrs() : attrs)
-      onSetSpan?.(span)
+    startHook.tap(pluginName, (...params: any[]) => {
+      const name = typeof spanName === 'function' ? spanName() : spanName
+      const attributes = attrs ? attrs(...params) : attrs
+      span = parentSpan
+        ? parentSpan().traceChild(name, attributes)
+        : this.runWebpackSpan.traceChild(name, attributes)
+
+      if (onStart) onStart(span)
     })
     stopHook.tap(pluginName, () => {
       // `stopHook` may be triggered when `startHook` has not in cases
@@ -52,6 +60,8 @@ export class ProfilingPlugin {
       if (!span) {
         return
       }
+
+      if (onStop) onStop()
       span.stop()
     })
   }
@@ -62,29 +72,46 @@ export class ProfilingPlugin {
       isWebpack5 ? compiler.hooks.beforeCompile : compiler.hooks.compile,
       isWebpack5 ? compiler.hooks.afterCompile : compiler.hooks.done,
       {
-        parentSpan: () => this.runWebpackSpan,
+        parentSpan: () =>
+          webpackInvalidSpans.get(compiler) || this.runWebpackSpan,
         attrs: () => ({ name: compiler.name }),
-        onSetSpan: (span) => spans.set(compiler, span),
+        onStart: (span) => spans.set(compiler, span),
       }
     )
 
     if (compiler.options.mode === 'development') {
       this.traceHookPair(
-        'webpack-invalidated',
+        () => `webpack-invalidated-${compiler.name}`,
         compiler.hooks.invalid,
         compiler.hooks.done,
-        { attrs: () => ({ name: compiler.name }) }
+        {
+          onStart: (span) => webpackInvalidSpans.set(compiler, span),
+          onStop: () => webpackInvalidSpans.delete(compiler),
+          attrs: (fileName: any) => ({
+            trigger: fileName || 'manual',
+          }),
+        }
       )
     }
   }
 
   traceCompilationHooks(compiler: any) {
-    this.traceHookPair(
-      'webpack-emit',
-      compiler.hooks.emit,
-      compiler.hooks.afterEmit,
-      { parentSpan: () => this.runWebpackSpan }
-    )
+    this.traceHookPair('emit', compiler.hooks.emit, compiler.hooks.afterEmit, {
+      parentSpan: () =>
+        webpackInvalidSpans.get(compiler) || this.runWebpackSpan,
+    })
+
+    if (isWebpack5) {
+      this.traceHookPair(
+        'make',
+        compiler.hooks.make,
+        compiler.hooks.finishMake,
+        {
+          parentSpan: () =>
+            webpackInvalidSpans.get(compiler) || this.runWebpackSpan,
+        }
+      )
+    }
 
     compiler.hooks.compilation.tap(pluginName, (compilation: any) => {
       compilation.hooks.buildModule.tap(pluginName, (module: any) => {
@@ -103,10 +130,16 @@ export class ProfilingPlugin {
 
         const issuerModule = compilation?.moduleGraph?.getIssuer(module)
 
-        const span = trace(
-          `build-module${moduleType ? `-${moduleType}` : ''}`,
-          issuerModule ? spans.get(issuerModule)?.id : compilerSpan.id
-        )
+        let span: Span
+
+        const spanName = `build-module${moduleType ? `-${moduleType}` : ''}`
+        const issuerSpan: Span | undefined =
+          issuerModule && spans.get(issuerModule)
+        if (issuerSpan) {
+          span = issuerSpan.traceChild(spanName)
+        } else {
+          span = compilerSpan.traceChild(spanName)
+        }
         span.setAttribute('name', module.userRequest)
         spans.set(module, span)
       })
@@ -123,41 +156,64 @@ export class ProfilingPlugin {
         spans.get(module)?.stop()
       })
 
+      if (isWebpack5) {
+        this.traceHookPair(
+          'webpack-compilation-seal',
+          compilation.hooks.seal,
+          compilation.hooks.afterSeal,
+          { parentSpan: () => spans.get(compiler)! }
+        )
+
+        this.traceHookPair(
+          'add-entry',
+          compilation.hooks.addEntry,
+          compilation.hooks.afterSeal,
+          {
+            attrs: (entry: any) => {
+              return {
+                request: entry.request,
+              }
+            },
+            parentSpan: () => spans.get(compiler)!,
+          }
+        )
+      }
+
       this.traceHookPair(
         'webpack-compilation-chunk-graph',
         compilation.hooks.beforeChunks,
         compilation.hooks.afterChunks,
-        { parentSpan: () => this.runWebpackSpan }
+        { parentSpan: () => spans.get(compiler)! }
       )
       this.traceHookPair(
         'webpack-compilation-optimize',
         compilation.hooks.optimize,
         compilation.hooks.reviveModules,
-        { parentSpan: () => this.runWebpackSpan }
+        { parentSpan: () => spans.get(compiler)! }
       )
       this.traceHookPair(
         'webpack-compilation-optimize-modules',
         compilation.hooks.optimizeModules,
         compilation.hooks.afterOptimizeModules,
-        { parentSpan: () => this.runWebpackSpan }
+        { parentSpan: () => spans.get(compiler)! }
       )
       this.traceHookPair(
         'webpack-compilation-optimize-chunks',
         compilation.hooks.optimizeChunks,
         compilation.hooks.afterOptimizeChunks,
-        { parentSpan: () => this.runWebpackSpan }
+        { parentSpan: () => spans.get(compiler)! }
       )
       this.traceHookPair(
         'webpack-compilation-optimize-tree',
         compilation.hooks.optimizeTree,
         compilation.hooks.afterOptimizeTree,
-        { parentSpan: () => this.runWebpackSpan }
+        { parentSpan: () => spans.get(compiler)! }
       )
       this.traceHookPair(
         'webpack-compilation-hash',
         compilation.hooks.beforeHash,
         compilation.hooks.afterHash,
-        { parentSpan: () => this.runWebpackSpan }
+        { parentSpan: () => spans.get(compiler)! }
       )
     })
   }

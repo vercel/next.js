@@ -2,6 +2,7 @@
 import '@next/polyfill-module'
 import React from 'react'
 import ReactDOM from 'react-dom'
+import { StyleRegistry } from 'styled-jsx'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import mitt, { MittEmitter } from '../shared/lib/mitt'
 import { RouterContext } from '../shared/lib/router-context'
@@ -25,6 +26,7 @@ import PageLoader, { StyleSheetTuple } from './page-loader'
 import measureWebVitals from './performance-relayer'
 import { RouteAnnouncer } from './route-announcer'
 import { createRouter, makePublicRouterInstance } from './router'
+import isError from '../lib/is-error'
 
 /// <reference types="react-dom/experimental" />
 
@@ -156,6 +158,7 @@ window.__NEXT_P = []
 const headManager: {
   mountedInstances: Set<unknown>
   updateHead: (head: JSX.Element[]) => void
+  getIsSsr?: () => boolean
 } = initHeadManager()
 const appElement: HTMLElement | null = document.getElementById('__next')
 
@@ -163,6 +166,9 @@ let lastRenderReject: (() => void) | null
 let webpackHMR: any
 export let router: Router
 let CachedApp: AppComponent, onPerfEntry: (metric: any) => void
+headManager.getIsSsr = () => {
+  return router.isSsr
+}
 
 class Container extends React.Component<{
   fn: (err: Error, info?: any) => void
@@ -321,7 +327,7 @@ export async function initNext(opts: { webpackHMR?: any } = {}) {
     }
   } catch (error) {
     // This catches errors like throwing in the top level of a module
-    initialErr = error
+    initialErr = isError(error) ? error : new Error(error + '')
   }
 
   if (process.env.NODE_ENV === 'development') {
@@ -338,7 +344,7 @@ export async function initNext(opts: { webpackHMR?: any } = {}) {
             // not overridden when we re-throw it below.
             throw new Error(initialErr!.message)
           } catch (e) {
-            error = e
+            error = e as Error
           }
 
           error.name = initialErr!.name
@@ -412,9 +418,10 @@ export async function render(renderingProps: RenderRouteInfo): Promise<void> {
 
   try {
     await doRender(renderingProps)
-  } catch (renderErr) {
+  } catch (err) {
+    const renderErr = err instanceof Error ? err : new Error(err + '')
     // bubble up cancelation errors
-    if (renderErr.cancelled) {
+    if ((renderErr as Error & { cancelled?: boolean }).cancelled) {
       throw renderErr
     }
 
@@ -594,7 +601,7 @@ function AppContainer({
     >
       <RouterContext.Provider value={makePublicRouterInstance(router)}>
         <HeadManagerContext.Provider value={headManager}>
-          {children}
+          <StyleRegistry>{children}</StyleRegistry>
         </HeadManagerContext.Provider>
       </RouterContext.Provider>
     </Container>

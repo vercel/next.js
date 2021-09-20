@@ -60,8 +60,13 @@ function withFuture<T>(
   })
   map.set(key, (entry = { resolve: resolver!, future: prom }))
   return generator
-    ? // eslint-disable-next-line no-sequences
-      generator().then((value) => (resolver(value), value))
+    ? generator()
+        // eslint-disable-next-line no-sequences
+        .then((value) => (resolver(value), value))
+        .catch((err) => {
+          map.delete(key)
+          throw err
+        })
     : prom
 }
 
@@ -94,7 +99,11 @@ function prefetchViaDom(
   link?: HTMLLinkElement
 ): Promise<any> {
   return new Promise<void>((res, rej) => {
-    if (document.querySelector(`link[rel="prefetch"][href^="${href}"]`)) {
+    const selector = `
+      link[rel="prefetch"][href^="${href}"],
+      link[rel="preload"][href^="${href}"],
+      script[src^="${href}"]`
+    if (document.querySelector(selector)) {
       return res()
     }
 

@@ -5,7 +5,11 @@ import { WebpackHotMiddleware } from './hot-middleware'
 import { join } from 'path'
 import { UrlObject } from 'url'
 import { webpack, isWebpack5 } from 'next/dist/compiled/webpack/webpack'
-import { createEntrypoints, createPagesMapping } from '../../build/entries'
+import {
+  createEntrypoints,
+  createPagesMapping,
+  finalizeEntrypoint,
+} from '../../build/entries'
 import { watchCompilers } from '../../build/output'
 import getBaseWebpackConfig from '../../build/webpack-config'
 import { API_ROUTE } from '../../lib/constants'
@@ -27,6 +31,8 @@ import { difference } from '../../build/utils'
 import { NextConfigComplete } from '../config-shared'
 import { CustomRoutes } from '../../lib/load-custom-routes'
 import { DecodeError } from '../../shared/lib/utils'
+import { Span, trace } from '../../trace'
+import isError from '../../lib/is-error'
 
 export async function renderScriptError(
   res: ServerResponse,
@@ -133,7 +139,7 @@ export default class HotReloader {
   private webpackHotMiddleware: (NextHandleFunction & any) | null
   private config: NextConfigComplete
   private stats: webpack.Stats | null
-  private serverStats: webpack.Stats | null
+  public serverStats: webpack.Stats | null
   private clientError: Error | null = null
   private serverError: Error | null = null
   private serverPrevDocumentHash: string | null
@@ -143,6 +149,7 @@ export default class HotReloader {
   private watcher: any
   private rewrites: CustomRoutes['rewrites']
   private fallbackWatcher: any
+  private hotReloaderSpan: Span
   public isWebpack5: any
 
   constructor(
@@ -174,6 +181,10 @@ export default class HotReloader {
     this.previewProps = previewProps
     this.rewrites = rewrites
     this.isWebpack5 = isWebpack5
+    this.hotReloaderSpan = trace('hot-reloader')
+    // Ensure the hotReloaderSpan is flushed immediately as it's the parentSpan for all processing
+    // of the current `next dev` invocation.
+    this.hotReloaderSpan.stop()
   }
 
   public async run(
@@ -221,7 +232,10 @@ export default class HotReloader {
         try {
           await this.ensurePage(page)
         } catch (error) {
-          await renderScriptError(pageBundleRes, error)
+          await renderScriptError(
+            pageBundleRes,
+            isError(error) ? error : new Error(error + '')
+          )
           return { finished: true }
         }
 
@@ -283,6 +297,7 @@ export default class HotReloader {
         pagesDir: this.pagesDir,
         rewrites: this.rewrites,
         entrypoints: entrypoints.client,
+        runWebpackSpan: this.hotReloaderSpan,
       }),
       getBaseWebpackConfig(this.dir, {
         dev: true,
@@ -292,6 +307,7 @@ export default class HotReloader {
         pagesDir: this.pagesDir,
         rewrites: this.rewrites,
         entrypoints: entrypoints.server,
+        runWebpackSpan: this.hotReloaderSpan,
       }),
     ])
   }
@@ -300,6 +316,7 @@ export default class HotReloader {
     if (this.fallbackWatcher) return
 
     const fallbackConfig = await getBaseWebpackConfig(this.dir, {
+      runWebpackSpan: this.hotReloaderSpan,
       dev: true,
       isServer: false,
       config: this.config,
@@ -374,11 +391,17 @@ export default class HotReloader {
               absolutePagePath,
             }
 
-            entrypoints[
-              isClientCompilation ? clientBundlePath : serverBundlePath
-            ] = isClientCompilation
-              ? `next-client-pages-loader?${stringify(pageLoaderOpts)}!`
-              : absolutePagePath
+            const name = isClientCompilation
+              ? clientBundlePath
+              : serverBundlePath
+            entrypoints[name] = finalizeEntrypoint(
+              name,
+              isClientCompilation
+                ? `next-client-pages-loader?${stringify(pageLoaderOpts)}!`
+                : absolutePagePath,
+              !isClientCompilation,
+              isWebpack5
+            )
           })
         )
 
