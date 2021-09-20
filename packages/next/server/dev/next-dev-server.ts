@@ -663,18 +663,18 @@ export default class DevServer extends Server {
       const { publicRuntimeConfig, serverRuntimeConfig, httpAgentOptions } =
         this.nextConfig
       const { locales, defaultLocale } = this.nextConfig.i18n || {}
+      const filesystem = this.getClientFilesystem()
 
-      const { distDir, hotReloader } = this
-      const buildManifest = hotReloader?.clientFileSystem.promises
-        .readFile(pathJoin(distDir, BUILD_MANIFEST), 'utf8')
+      const buildManifest = filesystem.promises
+        .readFile(pathJoin(this.distDir, BUILD_MANIFEST), 'utf8')
         .then(JSON.parse)
 
-      const reactLoadableManifest = hotReloader?.clientFileSystem.promises
-        .readFile(pathJoin(distDir, REACT_LOADABLE_MANIFEST), 'utf8')
+      const reactLoadableManifest = filesystem.promises
+        .readFile(pathJoin(this.distDir, REACT_LOADABLE_MANIFEST), 'utf8')
         .then(JSON.parse)
 
       const paths = await this.staticPathsWorker.loadStaticPaths(
-        distDir,
+        this.distDir,
         pathname,
         !this.renderOpts.dev && this._isLikeServerless,
         {
@@ -736,9 +736,10 @@ export default class DevServer extends Server {
     // TODO: See if this can be moved into hotReloader or removed.
     await this.hotReloader!.ensurePage('/_error')
 
-    const fs = this.hotReloader?.clientFileSystem || require('fs')
+    const filesystem = this.getClientFilesystem()
     const fallbackPath = pathJoin(this.distDir, `fallback-${BUILD_MANIFEST}`)
-    const buildManifest = await fs.promises.readFile(fallbackPath, 'utf8')
+    const contents = await filesystem.promises.readFile(fallbackPath, 'utf8')
+    const buildManifest = JSON.parse(contents)
 
     return await loadDefaultErrorComponents(buildManifest)
   }
@@ -811,5 +812,9 @@ export default class DevServer extends Server {
     }
 
     return false
+  }
+
+  protected getClientFilesystem(): typeof import('fs') {
+    return this.hotReloader?.clientFileSystem || require('fs')
   }
 }

@@ -1383,12 +1383,12 @@ export default class Server {
       ]
     }
 
-    const { hotReloader } = this as any as DevServer
-    const buildManifest = hotReloader?.clientFileSystem.promises
+    const filesystem = this.getClientFilesystem()
+    const buildManifest = filesystem.promises
       .readFile(join(this.distDir, BUILD_MANIFEST), 'utf8')
       .then(JSON.parse)
 
-    const reactLoadableManifest = hotReloader?.clientFileSystem.promises
+    const reactLoadableManifest = filesystem.promises
       .readFile(join(this.distDir, REACT_LOADABLE_MANIFEST), 'utf8')
       .then(JSON.parse)
 
@@ -1454,6 +1454,12 @@ export default class Server {
           ? 'blocking'
           : false,
     }
+  }
+
+  protected getClientFilesystem(): typeof import('fs') {
+    // We override this in next-dev-server to use
+    // an in-memory filesystem.
+    return fs
   }
 
   private async renderToResponseWithComponents(
@@ -2191,14 +2197,11 @@ export default class Server {
     }
 
     try {
-      const { hotReloader } = this as any as DevServer
-      const fs =
-        req.url?.startsWith('/_next/static/') &&
-        this.renderOpts.dev &&
-        hotReloader?.clientFileSystem
-          ? hotReloader?.clientFileSystem
-          : require('fs')
-      await serveStatic(req, res, path, { fs })
+      const filesystem =
+        req.url?.startsWith('/_next/static/') && this.renderOpts.dev
+          ? this.getClientFilesystem()
+          : fs
+      await serveStatic(req, res, path, { fs: filesystem })
     } catch (error) {
       if (!isError(error)) throw error
       const err = error as Error & { code?: string; statusCode?: number }
