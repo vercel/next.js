@@ -120,7 +120,7 @@ One of the ways that images most commonly hurt performance is through *layout sh
 Because `next/image` is designed to guarantee good performance results, it cannot be used in a way that will contribute to layout shift, and **must** be sized in one of three ways:
 1) Automatically, using a [static import](#local-images)
 2) Explicitly, by including a `height` **and** `width` property
-3) By using the `fill` layout mode, which causes the image to expand to fill its parent element. 
+3) Implicitly, by using `layout="fill"` which causes the image to expand to fill its parent element. 
 
 >### What if I don't know the size of my images?
 >
