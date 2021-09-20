@@ -15,7 +15,7 @@ The Next.js Image component, [`next/image`](/docs/api-reference/next/image.md), 
 
 Some of the optimizations built into the Image component include:
 
-- **Improved Performance:** Always send users correctly sized images, using modern image formats.
+- **Improved Performance:** Always serve correctly sized image for each device, using modern image formats.
 - **Visual Stability:** Prevent [Cumulative Layout Shift](https://nextjs.org/learn/seo/web-performance/cls) automatically.
 - **Faster Page Loads:** Images are only loaded when they enter the viewport, with optional blurry placeholders
 - **Asset Flexibility:** On-demand image resizing, even for images stored on remote servers
