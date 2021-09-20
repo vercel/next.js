@@ -339,6 +339,7 @@ export default class HotReloader {
       ).client,
     })
     const fallbackCompiler = webpack(fallbackConfig)
+    fallbackCompiler.outputFileSystem = this.clientFileSystem
 
     this.fallbackWatcher = await new Promise((resolve) => {
       let bootedFallbackCompiler = false
