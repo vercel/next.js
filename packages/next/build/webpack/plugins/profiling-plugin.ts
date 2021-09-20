@@ -142,31 +142,32 @@ export class ProfilingPlugin {
 
         let span: Span
 
+        const moduleSpans = moduleSpansByCompilation.get(compilation)
         const spanName = `build-module${moduleType ? `-${moduleType}` : ''}`
         const issuerSpan: Span | undefined =
-          issuerModule &&
-          moduleSpansByCompilation.get(compilation)?.get(issuerModule)
+          issuerModule && moduleSpans?.get(issuerModule)
         if (issuerSpan) {
           span = issuerSpan.traceChild(spanName)
         } else {
           span = compilationSpan.traceChild(spanName)
         }
         span.setAttribute('name', module.userRequest)
-        spans.set(module, span)
+        moduleSpans!.set(module, span)
       })
 
       getNormalModuleLoaderHook(compilation).tap(
         pluginName,
         (loaderContext: any, module: any) => {
           const moduleSpan = moduleSpansByCompilation
-            .get(compilation)
-            ?.get(module)
+            .get(compilation)!
+            .get(module)
           loaderContext.currentTraceSpan = moduleSpan
         }
       )
 
       compilation.hooks.succeedModule.tap(pluginName, (module: any) => {
-        spans.get(module)?.stop()
+        const moduleSpans = moduleSpansByCompilation.get(compilation)
+        moduleSpans!.get(module)?.stop()
       })
 
       if (isWebpack5) {
