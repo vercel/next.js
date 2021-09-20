@@ -1052,6 +1052,25 @@ const runTests = (isDev = false) => {
     })
   })
 
+  it('should match has query redirect with duplicate query key', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/has-redirect-7',
+      '?hello=world&hello=another',
+      {
+        redirect: 'manual',
+      }
+    )
+    expect(res.status).toBe(307)
+    const parsed = url.parse(res.headers.get('location'), true)
+
+    expect(parsed.pathname).toBe('/somewhere')
+    expect(parsed.query).toEqual({
+      hello: ['world', 'another'],
+      value: 'another',
+    })
+  })
+
   it('should match has header for header correctly', async () => {
     const res = await fetchViaHTTP(appPort, '/has-header-1', undefined, {
       headers: {
@@ -1394,6 +1413,19 @@ const runTests = (isDev = false) => {
             ],
             regex: normalizeRegEx('^(?!\\/_next)\\/has-redirect-6(?:\\/)?$'),
             source: '/has-redirect-6',
+            statusCode: 307,
+          },
+          {
+            source: '/has-redirect-7',
+            regex: normalizeRegEx('^(?!\\/_next)\\/has-redirect-7(?:\\/)?$'),
+            has: [
+              {
+                type: 'query',
+                key: 'hello',
+                value: '(?<hello>.*)',
+              },
+            ],
+            destination: '/somewhere?value=:hello',
             statusCode: 307,
           },
         ],
