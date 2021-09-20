@@ -2,7 +2,10 @@ import { webpack, isWebpack5 } from 'next/dist/compiled/webpack/webpack'
 import { Span } from '../../../trace'
 
 const pluginName = 'ProfilingPlugin'
-export const spans = new WeakMap<webpack.compilation.Compilation, Span>()
+export const spans = new WeakMap<
+  webpack.compilation.Compilation | webpack.Compiler,
+  Span
+>()
 const moduleSpansByCompilation = new WeakMap<
   webpack.compilation.Compilation,
   WeakMap<webpack.Module, Span>
@@ -84,6 +87,7 @@ export class ProfilingPlugin {
         attrs: () => ({ name: compiler.name }),
         onStart: (span, compilation) => {
           spans.set(compilation, span)
+          spans.set(compiler, span)
           moduleSpansByCompilation.set(compilation, new WeakMap())
         },
       }
@@ -159,15 +163,14 @@ export class ProfilingPlugin {
         pluginName,
         (loaderContext: any, module: any) => {
           const moduleSpan = moduleSpansByCompilation
-            .get(compilation)!
-            .get(module)
+            .get(compilation)
+            ?.get(module)
           loaderContext.currentTraceSpan = moduleSpan
         }
       )
 
       compilation.hooks.succeedModule.tap(pluginName, (module: any) => {
-        const moduleSpans = moduleSpansByCompilation.get(compilation)
-        moduleSpans!.get(module)?.stop()
+        moduleSpansByCompilation?.get(compilation)?.get(module)?.stop()
       })
 
       if (isWebpack5) {
@@ -197,37 +200,37 @@ export class ProfilingPlugin {
         'webpack-compilation-chunk-graph',
         compilation.hooks.beforeChunks,
         compilation.hooks.afterChunks,
-        { parentSpan: () => spans.get(compilation)! }
+        { parentSpan: () => spans.get(compilation) || spans.get(compiler)! }
       )
       this.traceHookPair(
         'webpack-compilation-optimize',
         compilation.hooks.optimize,
         compilation.hooks.reviveModules,
-        { parentSpan: () => spans.get(compilation)! }
+        { parentSpan: () => spans.get(compilation) || spans.get(compiler)! }
       )
       this.traceHookPair(
         'webpack-compilation-optimize-modules',
         compilation.hooks.optimizeModules,
         compilation.hooks.afterOptimizeModules,
-        { parentSpan: () => spans.get(compilation)! }
+        { parentSpan: () => spans.get(compilation) || spans.get(compiler)! }
       )
       this.traceHookPair(
         'webpack-compilation-optimize-chunks',
         compilation.hooks.optimizeChunks,
         compilation.hooks.afterOptimizeChunks,
-        { parentSpan: () => spans.get(compilation)! }
+        { parentSpan: () => spans.get(compilation) || spans.get(compiler)! }
       )
       this.traceHookPair(
         'webpack-compilation-optimize-tree',
         compilation.hooks.optimizeTree,
         compilation.hooks.afterOptimizeTree,
-        { parentSpan: () => spans.get(compilation)! }
+        { parentSpan: () => spans.get(compilation) || spans.get(compiler)! }
       )
       this.traceHookPair(
         'webpack-compilation-hash',
         compilation.hooks.beforeHash,
         compilation.hooks.afterHash,
-        { parentSpan: () => spans.get(compilation)! }
+        { parentSpan: () => spans.get(compilation) || spans.get(compiler)! }
       )
     })
   }

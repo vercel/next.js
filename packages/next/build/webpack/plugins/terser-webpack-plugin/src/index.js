@@ -122,7 +122,7 @@ export class TerserPlugin {
     cache,
     { SourceMapSource, RawSource }
   ) {
-    const compilationSpan = spans.get(compilation)
+    const compilationSpan = spans.get(compilation) || spans.get(compiler)
     const terserSpan = compilationSpan.traceChild(
       'terser-webpack-plugin-optimize'
     )

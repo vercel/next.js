@@ -69,7 +69,8 @@ export class CssMinimizerPlugin {
             stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_SIZE,
           },
           async (assets: any) => {
-            const compilationSpan = spans.get(compilation)
+            const compilationSpan =
+              spans.get(compilation) || spans.get(compiler)
             const cssMinimizerSpan = compilationSpan!.traceChild(
               'css-minimizer-plugin'
             )
@@ -114,7 +115,7 @@ export class CssMinimizerPlugin {
       compilation.hooks.optimizeChunkAssets.tapPromise(
         'CssMinimizerPlugin',
         (chunks: webpack.compilation.Chunk[]) => {
-          const compilationSpan = spans.get(compilation)
+          const compilationSpan = spans.get(compilation) || spans.get(compiler)
           const cssMinimizerSpan = compilationSpan!.traceChild(
             'css-minimizer-plugin'
           )
