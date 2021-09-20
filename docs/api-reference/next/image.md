@@ -237,7 +237,7 @@ Other properties on the `<Image />` component will be passed to the underlying
 
 ### Set Default Loader
 
-If you want to use a cloud provider to optimize images instead of using the Next.js built-in Image Optimization, you can configure the loader and path prefix. This allows you to use relative urls for the Image `src` and automatically generate the correct absolute url for your provider.
+If you want to use a cloud provider to optimize images instead of using the Next.js built-in Image Optimization API, you can configure the `loader` and `path` prefix in your `next.config.js` file. This allows you to use relative urls for the Image `src` and automatically generate the correct absolute url for your provider.
 
 ```js
 module.exports = {
