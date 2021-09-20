@@ -79,7 +79,7 @@ export class ProfilingPlugin {
   traceTopLevelHooks(compiler: any) {
     this.traceHookPair(
       'webpack-compilation',
-      compiler.hooks.make,
+      compiler.hooks.compilation,
       isWebpack5 ? compiler.hooks.afterCompile : compiler.hooks.done,
       {
         parentSpan: () =>
