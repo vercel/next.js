@@ -13,7 +13,7 @@ export async function getStaticProps(ctx) {
 
 type AboutPageProps = InferGetStaticPropsType<typeof getStaticProps>
 
-export default function AboutPage({}: AboutPageProps) {
+export default function AboutPage(props: AboutPageProps) {
   const intl = useIntl()
   return (
     <Layout

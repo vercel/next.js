@@ -13,7 +13,7 @@ export async function getStaticProps(ctx) {
 
 type HomePageProps = InferGetStaticPropsType<typeof getStaticProps>
 
-export default function HomePage({}: HomePageProps) {
+export default function HomePage(props: HomePageProps) {
   const intl = useIntl()
   return (
     <Layout
