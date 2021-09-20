@@ -235,6 +235,18 @@ Other properties on the `<Image />` component will be passed to the underlying
 
 ## Configuration Options
 
+### Domains
+
+To protect your application from abuse, you must define a list of image provider domains that you want to be served from the Next.js Image Optimization API. This is configured in with the `domains` property in your `next.config.js` file, as shown below:
+
+```js
+module.exports = {
+  images: {
+    domains: ['assets.acme.com'],
+  },
+}
+```
+
 ### Loader Configuration
 
 If you want to use a cloud provider to optimize images instead of using the Next.js built-in Image Optimization API, you can configure the `loader` and `path` prefix in your `next.config.js` file. This allows you to use relative urls for the Image `src` and automatically generate the correct absolute url for your provider.
@@ -268,18 +280,6 @@ If you need a different provider, you can use the [`loader`](#loader) prop with 
 ## Advanced
 
 The following configuration is for advanced use cases and is usually not necessary. If you choose to configure the properties below, you will override any changes to the Next.js defaults in future updates.
-
-### Domains
-
-To protect your application from abuse, you must define a list of image provider domains that you want to be served from the Next.js Image Optimization API. This is configured in with the `domains` property in your `next.config.js` file, as shown below:
-
-```js
-module.exports = {
-  images: {
-    domains: ['assets.acme.com'],
-  },
-}
-```
 
 ### Device Sizes
 
