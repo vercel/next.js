@@ -103,7 +103,7 @@ Loaders can be defined per-image, or at the application level.
 
 Sometimes you may want to access a remote image, but still use the built-in Next.js Image Optimization API. To do this, simply leave the `loader` at it's default setting and enter an absolute url for the Image `src`.
 
-To protect your application from abuse, you must define a list of remote domains that you intend to access this way. This is done in your `next.config.js` file, as shown below:
+To protect your application from abuse, you must define a list of remote domains that you intend to access this way. This is configured in your `next.config.js` file, as shown below:
 
 ```js
 module.exports = {
