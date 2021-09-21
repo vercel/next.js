@@ -4,7 +4,10 @@ import { Transform, TransformCallback } from 'stream'
 // @ts-ignore no types package
 import bfj from 'next/dist/compiled/bfj'
 import { spans } from './profiling-plugin'
-import { webpack } from 'next/dist/compiled/webpack/webpack'
+import { isWebpack5 } from 'next/dist/compiled/webpack/webpack'
+import type webpack from 'webpack'
+import type webpack4 from 'webpack4'
+import type webpack5 from 'webpack5'
 
 const STATS_VERSION = 0
 
@@ -121,21 +124,29 @@ export default class BuildStatsPlugin {
           const writeStatsSpan = compilationSpan!.traceChild('NextJsBuildStats')
           await writeStatsSpan.traceAsyncFn(() => {
             return new Promise((resolve, reject) => {
+              const baseOptions = {
+                all: false,
+                cached: true,
+                reasons: true,
+                entrypoints: true,
+                chunks: true,
+                errors: false,
+                warnings: false,
+                maxModules: Infinity,
+                chunkModules: true,
+                modules: true,
+              }
               const statsJson = reduceSize(
-                stats.toJson({
-                  all: false,
-                  cached: true,
-                  reasons: true,
-                  entrypoints: true,
-                  chunks: true,
-                  errors: false,
-                  warnings: false,
-                  maxModules: Infinity,
-                  chunkModules: true,
-                  modules: true,
-                  // @ts-ignore this option exists
-                  ids: true,
-                })
+                isWebpack5
+                  ? (stats as webpack5.Stats).toJson({
+                      ...baseOptions,
+                      modulesSpace: Infinity,
+                      ids: true,
+                    })
+                  : (stats as webpack4.Stats).toJson({
+                      ...baseOptions,
+                      maxModules: Infinity,
+                    })
               )
               const fileStream = fs.createWriteStream(
                 path.join(this.distDir, 'next-stats.json'),

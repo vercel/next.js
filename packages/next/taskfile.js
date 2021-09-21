@@ -2,24 +2,7 @@
 const notifier = require('node-notifier')
 // eslint-disable-next-line import/no-extraneous-dependencies
 const { relative, basename, resolve, join } = require('path')
-const { Module } = require('module')
 const fs = require('fs')
-
-// Note:
-// "bundles" folder shadows main node_modules in workspace where all installs in
-// this shadow node_modules are alias installs only.
-// This is because Yarn alias installs have bugs with version deduping where
-// transitive versions are not resolved correctly - for example, webpack5
-// will end up resolving webpack-sources@1 instead of webpack-sources@2.
-// If/when this issue is fixed upstream in Yarn, this "shadowing" workaround can
-// then be removed to directly install the bundles/package.json packages into
-// the main package.json as normal devDependencies aliases.
-const m = new Module(resolve(__dirname, 'bundles', '_'))
-m.filename = m.id
-m.paths = Module._nodeModulePaths(m.id)
-const bundleRequire = m.require
-bundleRequire.resolve = (request, options) =>
-  Module._resolveFilename(request, m, false, options)
 
 export async function next__polyfill_nomodule(task, opts) {
   await task
@@ -286,7 +269,13 @@ externals['file-loader'] = 'next/dist/compiled/file-loader'
 export async function ncc_file_loader(task, opts) {
   await task
     .source(opts.src || relative(__dirname, require.resolve('file-loader')))
-    .ncc({ packageName: 'file-loader', externals })
+    .ncc({
+      packageName: 'file-loader',
+      externals: {
+        ...externals,
+        'schema-utils': externals['schema-utils2'],
+      },
+    })
     .target('compiled/file-loader')
 }
 // eslint-disable-next-line camelcase
@@ -600,32 +589,33 @@ export async function ncc_sass_loader(task, opts) {
       },
       externals: {
         ...externals,
-        'schema-utils': 'next/dist/compiled/schema-utils3',
+        'schema-utils': externals['schema-utils3'],
       },
       target: 'es5',
     })
     .target('compiled/sass-loader')
 }
 // eslint-disable-next-line camelcase
-externals['schema-utils'] = 'next/dist/compiled/schema-utils'
-export async function ncc_schema_utils(task, opts) {
+externals['schema-utils'] = 'MISSING_VERSION schema-utils version not specified'
+externals['schema-utils2'] = 'next/dist/compiled/schema-utils2'
+export async function ncc_schema_utils2(task, opts) {
   await task
-    .source(opts.src || relative(__dirname, require.resolve('schema-utils')))
+    .source(opts.src || relative(__dirname, require.resolve('schema-utils2')))
     .ncc({
       packageName: 'schema-utils',
+      bundleName: 'schema-utils2',
       externals,
     })
-    .target('compiled/schema-utils')
+    .target('compiled/schema-utils2')
 }
 // eslint-disable-next-line camelcase
 externals['schema-utils3'] = 'next/dist/compiled/schema-utils3'
 export async function ncc_schema_utils3(task, opts) {
   await task
-    .source(
-      opts.src || relative(__dirname, bundleRequire.resolve('schema-utils3'))
-    )
+    .source(opts.src || relative(__dirname, require.resolve('schema-utils3')))
     .ncc({
-      packageName: 'schema-utils3',
+      packageName: 'schema-utils',
+      bundleName: 'schema-utils3',
       externals,
     })
     .target('compiled/schema-utils3')
@@ -712,19 +702,22 @@ export async function ncc_web_vitals(task, opts) {
     .target('compiled/web-vitals')
 }
 // eslint-disable-next-line camelcase
-externals['webpack-sources'] = 'next/dist/compiled/webpack-sources'
-export async function ncc_webpack_sources(task, opts) {
+externals['webpack-sources'] = 'error webpack-sources version not specified'
+externals['webpack-sources1'] = 'next/dist/compiled/webpack-sources1'
+export async function ncc_webpack_sources1(task, opts) {
   await task
-    .source(opts.src || relative(__dirname, require.resolve('webpack-sources')))
-    .ncc({ packageName: 'webpack-sources', externals, target: 'es5' })
-    .target('compiled/webpack-sources')
+    .source(
+      opts.src || relative(__dirname, require.resolve('webpack-sources1'))
+    )
+    .ncc({ packageName: 'webpack-sources1', externals, target: 'es5' })
+    .target('compiled/webpack-sources1')
 }
 // eslint-disable-next-line camelcase
 externals['webpack-sources3'] = 'next/dist/compiled/webpack-sources3'
 export async function ncc_webpack_sources3(task, opts) {
   await task
     .source(
-      opts.src || relative(__dirname, bundleRequire.resolve('webpack-sources3'))
+      opts.src || relative(__dirname, require.resolve('webpack-sources3'))
     )
     .ncc({ packageName: 'webpack-sources3', externals, target: 'es5' })
     .target('compiled/webpack-sources3')
@@ -745,6 +738,7 @@ export async function ncc_mini_css_extract_plugin(task, opts) {
         ...externals,
         './index': './index.js',
         'schema-utils': 'next/dist/compiled/schema-utils3',
+        'webpack-sources': externals['webpack-sources1'],
       },
     })
     .target('compiled/mini-css-extract-plugin')
@@ -758,7 +752,7 @@ export async function ncc_mini_css_extract_plugin(task, opts) {
       externals: {
         ...externals,
         './index': './index.js',
-        'schema-utils': 'next/dist/compiled/schema-utils3',
+        'schema-utils': externals['schema-utils3'],
       },
     })
     .target('compiled/mini-css-extract-plugin')
@@ -768,6 +762,8 @@ export async function ncc_mini_css_extract_plugin(task, opts) {
 export async function ncc_webpack_bundle4(task, opts) {
   const bundleExternals = {
     ...externals,
+    'schema-utils': externals['schema-utils2'],
+    'webpack-sources': externals['webpack-sources1'],
   }
   for (const pkg of Object.keys(webpackBundlePackages)) {
     delete bundleExternals[pkg]
@@ -775,7 +771,7 @@ export async function ncc_webpack_bundle4(task, opts) {
   await task
     .source(opts.src || 'bundles/webpack/bundle4.js')
     .ncc({
-      packageName: 'webpack',
+      packageName: 'webpack4',
       bundleName: 'webpack',
       externals: bundleExternals,
       minify: false,
@@ -788,6 +784,8 @@ export async function ncc_webpack_bundle4(task, opts) {
 export async function ncc_webpack_bundle5(task, opts) {
   const bundleExternals = {
     ...externals,
+    'schema-utils': externals['schema-utils3'],
+    'webpack-sources': externals['webpack-sources3'],
   }
   for (const pkg of Object.keys(webpackBundlePackages)) {
     delete bundleExternals[pkg]
@@ -800,11 +798,7 @@ export async function ncc_webpack_bundle5(task, opts) {
       customEmit(path) {
         if (path.endsWith('.runtime.js')) return `'./${basename(path)}'`
       },
-      externals: {
-        ...bundleExternals,
-        'schema-utils': 'next/dist/compiled/schema-utils3',
-        'webpack-sources': 'next/dist/compiled/webpack-sources3',
-      },
+      externals: bundleExternals,
       minify: false,
       target: 'es5',
     })
@@ -814,6 +808,8 @@ export async function ncc_webpack_bundle5(task, opts) {
 const webpackBundlePackages = {
   webpack: 'next/dist/compiled/webpack/webpack-lib',
   'webpack/lib/NormalModule': 'next/dist/compiled/webpack/NormalModule',
+  'webpack/lib/node/NodeTargetPlugin':
+    'next/dist/compiled/webpack/NodeTargetPlugin',
 }
 
 Object.assign(externals, webpackBundlePackages)
@@ -899,7 +895,7 @@ export async function ncc(task, opts) {
         'ncc_icss_utils',
         'ncc_resolve_url_loader',
         'ncc_sass_loader',
-        'ncc_schema_utils',
+        'ncc_schema_utils2',
         'ncc_schema_utils3',
         'ncc_semver',
         'ncc_send',
@@ -914,7 +910,7 @@ export async function ncc(task, opts) {
         'ncc_webpack_bundle4',
         'ncc_webpack_bundle5',
         'ncc_webpack_bundle_packages',
-        'ncc_webpack_sources',
+        'ncc_webpack_sources1',
         'ncc_webpack_sources3',
         'ncc_mini_css_extract_plugin',
       ],
