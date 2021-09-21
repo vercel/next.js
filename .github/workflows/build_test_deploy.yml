@@ -97,6 +97,11 @@ jobs:
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
       - run: ./scripts/check-pre-compiled.sh
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+      - uses: EndBug/add-and-commit@v7
+        if: ${{ failure() }}
+        with:
+          add: 'packages/next/compiled packages/next/bundles --force'
+          message: 'Update precompiled'
 
   testUnit:
     name: Test Unit
