@@ -29,6 +29,7 @@ declare module 'next/dist/compiled/loader-utils'
 declare module 'next/dist/compiled/webpack/webpack' {
   import webpackSources from 'webpack-sources1'
   import webpack4, { loader } from 'webpack4'
+  export { NormalModule } from 'webpack'
   export let isWebpack5: boolean
   export function init(useWebpack5: boolean): void
   export let BasicEvaluatedExpression: any
@@ -47,8 +48,14 @@ declare module 'webpack' {
   export type Compilation =
     | webpack4.compilation.Compilation
     | webpack5.Compilation
+  export type Module = webpack4.Module | webpack5.Module
   export type Stats = webpack4.Stats | webpack5.Stats
-  export { Template, RuntimeModule, RuntimeGlobals } from 'webpack5'
+  export {
+    Template,
+    RuntimeModule,
+    RuntimeGlobals,
+    NormalModule,
+  } from 'webpack5'
 }
 
 declare module 'webpack4' {
