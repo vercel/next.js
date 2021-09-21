@@ -178,60 +178,6 @@ module.exports = JSON.parse("{\"title\":\"OccurrenceOrderModuleIdsPluginOptions\
 
 /***/ }),
 
-/***/ 48333:
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({
-  value: true
-}));
-exports.codeFrameFromAst = codeFrameFromAst;
-exports.codeFrameFromSource = codeFrameFromSource;
-
-var _wastPrinter = __webpack_require__(45378);
-
-function _typeof(obj) { if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") { _typeof = function _typeof(obj) { return typeof obj; }; } else { _typeof = function _typeof(obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }; } return _typeof(obj); }
-
-var SHOW_LINES_AROUND_POINTER = 5;
-
-function repeat(char, nb) {
-  return Array(nb).fill(char).join("");
-} // TODO(sven): allow arbitrary ast nodes
-
-
-function codeFrameFromAst(ast, loc) {
-  return codeFrameFromSource((0, _wastPrinter.print)(ast), loc);
-}
-
-function codeFrameFromSource(source, loc) {
-  var start = loc.start,
-      end = loc.end;
-  var length = 1;
-
-  if (_typeof(end) === "object") {
-    length = end.column - start.column + 1;
-  }
-
-  return source.split("\n").reduce(function (acc, line, lineNbr) {
-    if (Math.abs(start.line - lineNbr) < SHOW_LINES_AROUND_POINTER) {
-      acc += line + "\n";
-    } // Add a new line with the pointer padded left
-
-
-    if (lineNbr === start.line - 1) {
-      acc += repeat(" ", start.column - 1);
-      acc += repeat("^", length);
-      acc += "\n";
-    }
-
-    return acc;
-  }, "");
-}
-
-/***/ }),
-
 /***/ 38902:
 /***/ (function(__unused_webpack_module, exports) {
 
@@ -345,11696 +291,6 @@ function () {
 }();
 
 exports.FSM = FSM;
-
-/***/ }),
-
-/***/ 71234:
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({
-  value: true
-}));
-exports.moduleContextFromModuleAST = moduleContextFromModuleAST;
-exports.ModuleContext = void 0;
-
-var _ast = __webpack_require__(80412);
-
-function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
-function _defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } }
-
-function _createClass(Constructor, protoProps, staticProps) { if (protoProps) _defineProperties(Constructor.prototype, protoProps); if (staticProps) _defineProperties(Constructor, staticProps); return Constructor; }
-
-function moduleContextFromModuleAST(m) {
-  var moduleContext = new ModuleContext();
-
-  if (!(m.type === "Module")) {
-    throw new Error('m.type === "Module"' + " error: " + (undefined || "unknown"));
-  }
-
-  m.fields.forEach(function (field) {
-    switch (field.type) {
-      case "Start":
-        {
-          moduleContext.setStart(field.index);
-          break;
-        }
-
-      case "TypeInstruction":
-        {
-          moduleContext.addType(field);
-          break;
-        }
-
-      case "Func":
-        {
-          moduleContext.addFunction(field);
-          break;
-        }
-
-      case "Global":
-        {
-          moduleContext.defineGlobal(field);
-          break;
-        }
-
-      case "ModuleImport":
-        {
-          switch (field.descr.type) {
-            case "GlobalType":
-              {
-                moduleContext.importGlobal(field.descr.valtype, field.descr.mutability);
-                break;
-              }
-
-            case "Memory":
-              {
-                moduleContext.addMemory(field.descr.limits.min, field.descr.limits.max);
-                break;
-              }
-
-            case "FuncImportDescr":
-              {
-                moduleContext.importFunction(field.descr);
-                break;
-              }
-
-            case "Table":
-              {
-                // FIXME(sven): not implemented yet
-                break;
-              }
-
-            default:
-              throw new Error("Unsupported ModuleImport of type " + JSON.stringify(field.descr.type));
-          }
-
-          break;
-        }
-
-      case "Memory":
-        {
-          moduleContext.addMemory(field.limits.min, field.limits.max);
-          break;
-        }
-    }
-  });
-  return moduleContext;
-}
-/**
- * Module context for type checking
- */
-
-
-var ModuleContext =
-/*#__PURE__*/
-function () {
-  function ModuleContext() {
-    _classCallCheck(this, ModuleContext);
-
-    this.funcs = [];
-    this.funcsOffsetByIdentifier = [];
-    this.types = [];
-    this.globals = [];
-    this.globalsOffsetByIdentifier = [];
-    this.mems = []; // Current stack frame
-
-    this.locals = [];
-    this.labels = [];
-    this.return = [];
-    this.debugName = "unknown";
-    this.start = null;
-  }
-  /**
-   * Set start segment
-   */
-
-
-  _createClass(ModuleContext, [{
-    key: "setStart",
-    value: function setStart(index) {
-      this.start = index.value;
-    }
-    /**
-     * Get start function
-     */
-
-  }, {
-    key: "getStart",
-    value: function getStart() {
-      return this.start;
-    }
-    /**
-     * Reset the active stack frame
-     */
-
-  }, {
-    key: "newContext",
-    value: function newContext(debugName, expectedResult) {
-      this.locals = [];
-      this.labels = [expectedResult];
-      this.return = expectedResult;
-      this.debugName = debugName;
-    }
-    /**
-     * Functions
-     */
-
-  }, {
-    key: "addFunction",
-    value: function addFunction(func
-    /*: Func*/
-    ) {
-      // eslint-disable-next-line prefer-const
-      var _ref = func.signature || {},
-          _ref$params = _ref.params,
-          args = _ref$params === void 0 ? [] : _ref$params,
-          _ref$results = _ref.results,
-          result = _ref$results === void 0 ? [] : _ref$results;
-
-      args = args.map(function (arg) {
-        return arg.valtype;
-      });
-      this.funcs.push({
-        args: args,
-        result: result
-      });
-
-      if (typeof func.name !== "undefined") {
-        this.funcsOffsetByIdentifier[func.name.value] = this.funcs.length - 1;
-      }
-    }
-  }, {
-    key: "importFunction",
-    value: function importFunction(funcimport) {
-      if ((0, _ast.isSignature)(funcimport.signature)) {
-        // eslint-disable-next-line prefer-const
-        var _funcimport$signature = funcimport.signature,
-            args = _funcimport$signature.params,
-            result = _funcimport$signature.results;
-        args = args.map(function (arg) {
-          return arg.valtype;
-        });
-        this.funcs.push({
-          args: args,
-          result: result
-        });
-      } else {
-        if (!(0, _ast.isNumberLiteral)(funcimport.signature)) {
-          throw new Error('isNumberLiteral(funcimport.signature)' + " error: " + (undefined || "unknown"));
-        }
-
-        var typeId = funcimport.signature.value;
-
-        if (!this.hasType(typeId)) {
-          throw new Error('this.hasType(typeId)' + " error: " + (undefined || "unknown"));
-        }
-
-        var signature = this.getType(typeId);
-        this.funcs.push({
-          args: signature.params.map(function (arg) {
-            return arg.valtype;
-          }),
-          result: signature.results
-        });
-      }
-
-      if (typeof funcimport.id !== "undefined") {
-        // imports are first, we can assume their index in the array
-        this.funcsOffsetByIdentifier[funcimport.id.value] = this.funcs.length - 1;
-      }
-    }
-  }, {
-    key: "hasFunction",
-    value: function hasFunction(index) {
-      return typeof this.getFunction(index) !== "undefined";
-    }
-  }, {
-    key: "getFunction",
-    value: function getFunction(index) {
-      if (typeof index !== "number") {
-        throw new Error("getFunction only supported for number index");
-      }
-
-      return this.funcs[index];
-    }
-  }, {
-    key: "getFunctionOffsetByIdentifier",
-    value: function getFunctionOffsetByIdentifier(name) {
-      if (!(typeof name === "string")) {
-        throw new Error('typeof name === "string"' + " error: " + (undefined || "unknown"));
-      }
-
-      return this.funcsOffsetByIdentifier[name];
-    }
-    /**
-     * Labels
-     */
-
-  }, {
-    key: "addLabel",
-    value: function addLabel(result) {
-      this.labels.unshift(result);
-    }
-  }, {
-    key: "hasLabel",
-    value: function hasLabel(index) {
-      return this.labels.length > index && index >= 0;
-    }
-  }, {
-    key: "getLabel",
-    value: function getLabel(index) {
-      return this.labels[index];
-    }
-  }, {
-    key: "popLabel",
-    value: function popLabel() {
-      this.labels.shift();
-    }
-    /**
-     * Locals
-     */
-
-  }, {
-    key: "hasLocal",
-    value: function hasLocal(index) {
-      return typeof this.getLocal(index) !== "undefined";
-    }
-  }, {
-    key: "getLocal",
-    value: function getLocal(index) {
-      return this.locals[index];
-    }
-  }, {
-    key: "addLocal",
-    value: function addLocal(type) {
-      this.locals.push(type);
-    }
-    /**
-     * Types
-     */
-
-  }, {
-    key: "addType",
-    value: function addType(type) {
-      if (!(type.functype.type === "Signature")) {
-        throw new Error('type.functype.type === "Signature"' + " error: " + (undefined || "unknown"));
-      }
-
-      this.types.push(type.functype);
-    }
-  }, {
-    key: "hasType",
-    value: function hasType(index) {
-      return this.types[index] !== undefined;
-    }
-  }, {
-    key: "getType",
-    value: function getType(index) {
-      return this.types[index];
-    }
-    /**
-     * Globals
-     */
-
-  }, {
-    key: "hasGlobal",
-    value: function hasGlobal(index) {
-      return this.globals.length > index && index >= 0;
-    }
-  }, {
-    key: "getGlobal",
-    value: function getGlobal(index) {
-      return this.globals[index].type;
-    }
-  }, {
-    key: "getGlobalOffsetByIdentifier",
-    value: function getGlobalOffsetByIdentifier(name) {
-      if (!(typeof name === "string")) {
-        throw new Error('typeof name === "string"' + " error: " + (undefined || "unknown"));
-      }
-
-      return this.globalsOffsetByIdentifier[name];
-    }
-  }, {
-    key: "defineGlobal",
-    value: function defineGlobal(global
-    /*: Global*/
-    ) {
-      var type = global.globalType.valtype;
-      var mutability = global.globalType.mutability;
-      this.globals.push({
-        type: type,
-        mutability: mutability
-      });
-
-      if (typeof global.name !== "undefined") {
-        this.globalsOffsetByIdentifier[global.name.value] = this.globals.length - 1;
-      }
-    }
-  }, {
-    key: "importGlobal",
-    value: function importGlobal(type, mutability) {
-      this.globals.push({
-        type: type,
-        mutability: mutability
-      });
-    }
-  }, {
-    key: "isMutableGlobal",
-    value: function isMutableGlobal(index) {
-      return this.globals[index].mutability === "var";
-    }
-  }, {
-    key: "isImmutableGlobal",
-    value: function isImmutableGlobal(index) {
-      return this.globals[index].mutability === "const";
-    }
-    /**
-     * Memories
-     */
-
-  }, {
-    key: "hasMemory",
-    value: function hasMemory(index) {
-      return this.mems.length > index && index >= 0;
-    }
-  }, {
-    key: "addMemory",
-    value: function addMemory(min, max) {
-      this.mems.push({
-        min: min,
-        max: max
-      });
-    }
-  }, {
-    key: "getMemory",
-    value: function getMemory(index) {
-      return this.mems[index];
-    }
-  }]);
-
-  return ModuleContext;
-}();
-
-exports.ModuleContext = ModuleContext;
-
-/***/ }),
-
-/***/ 77065:
-/***/ (function(__unused_webpack_module, exports) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({
-  value: true
-}));
-exports.cloneNode = cloneNode;
-
-function cloneNode(n) {
-  // $FlowIgnore
-  var newObj = {};
-
-  for (var k in n) {
-    newObj[k] = n[k];
-  }
-
-  return newObj;
-}
-
-/***/ }),
-
-/***/ 80412:
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({
-  value: true
-}));
-var _exportNames = {
-  numberLiteralFromRaw: true,
-  withLoc: true,
-  withRaw: true,
-  funcParam: true,
-  indexLiteral: true,
-  memIndexLiteral: true,
-  instruction: true,
-  objectInstruction: true,
-  traverse: true,
-  signatures: true,
-  cloneNode: true
-};
-Object.defineProperty(exports, "numberLiteralFromRaw", ({
-  enumerable: true,
-  get: function get() {
-    return _nodeHelpers.numberLiteralFromRaw;
-  }
-}));
-Object.defineProperty(exports, "withLoc", ({
-  enumerable: true,
-  get: function get() {
-    return _nodeHelpers.withLoc;
-  }
-}));
-Object.defineProperty(exports, "withRaw", ({
-  enumerable: true,
-  get: function get() {
-    return _nodeHelpers.withRaw;
-  }
-}));
-Object.defineProperty(exports, "funcParam", ({
-  enumerable: true,
-  get: function get() {
-    return _nodeHelpers.funcParam;
-  }
-}));
-Object.defineProperty(exports, "indexLiteral", ({
-  enumerable: true,
-  get: function get() {
-    return _nodeHelpers.indexLiteral;
-  }
-}));
-Object.defineProperty(exports, "memIndexLiteral", ({
-  enumerable: true,
-  get: function get() {
-    return _nodeHelpers.memIndexLiteral;
-  }
-}));
-Object.defineProperty(exports, "instruction", ({
-  enumerable: true,
-  get: function get() {
-    return _nodeHelpers.instruction;
-  }
-}));
-Object.defineProperty(exports, "objectInstruction", ({
-  enumerable: true,
-  get: function get() {
-    return _nodeHelpers.objectInstruction;
-  }
-}));
-Object.defineProperty(exports, "traverse", ({
-  enumerable: true,
-  get: function get() {
-    return _traverse.traverse;
-  }
-}));
-Object.defineProperty(exports, "signatures", ({
-  enumerable: true,
-  get: function get() {
-    return _signatures.signatures;
-  }
-}));
-Object.defineProperty(exports, "cloneNode", ({
-  enumerable: true,
-  get: function get() {
-    return _clone.cloneNode;
-  }
-}));
-
-var _nodes = __webpack_require__(47518);
-
-Object.keys(_nodes).forEach(function (key) {
-  if (key === "default" || key === "__esModule") return;
-  if (Object.prototype.hasOwnProperty.call(_exportNames, key)) return;
-  Object.defineProperty(exports, key, {
-    enumerable: true,
-    get: function get() {
-      return _nodes[key];
-    }
-  });
-});
-
-var _nodeHelpers = __webpack_require__(13436);
-
-var _traverse = __webpack_require__(47293);
-
-var _signatures = __webpack_require__(13003);
-
-var _utils = __webpack_require__(89673);
-
-Object.keys(_utils).forEach(function (key) {
-  if (key === "default" || key === "__esModule") return;
-  if (Object.prototype.hasOwnProperty.call(_exportNames, key)) return;
-  Object.defineProperty(exports, key, {
-    enumerable: true,
-    get: function get() {
-      return _utils[key];
-    }
-  });
-});
-
-var _clone = __webpack_require__(77065);
-
-/***/ }),
-
-/***/ 13436:
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({
-  value: true
-}));
-exports.numberLiteralFromRaw = numberLiteralFromRaw;
-exports.instruction = instruction;
-exports.objectInstruction = objectInstruction;
-exports.withLoc = withLoc;
-exports.withRaw = withRaw;
-exports.funcParam = funcParam;
-exports.indexLiteral = indexLiteral;
-exports.memIndexLiteral = memIndexLiteral;
-
-var _wastParser = __webpack_require__(9016);
-
-var _nodes = __webpack_require__(47518);
-
-function numberLiteralFromRaw(rawValue) {
-  var instructionType = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : "i32";
-  var original = rawValue; // Remove numeric separators _
-
-  if (typeof rawValue === "string") {
-    rawValue = rawValue.replace(/_/g, "");
-  }
-
-  if (typeof rawValue === "number") {
-    return (0, _nodes.numberLiteral)(rawValue, String(original));
-  } else {
-    switch (instructionType) {
-      case "i32":
-        {
-          return (0, _nodes.numberLiteral)((0, _wastParser.parse32I)(rawValue), String(original));
-        }
-
-      case "u32":
-        {
-          return (0, _nodes.numberLiteral)((0, _wastParser.parseU32)(rawValue), String(original));
-        }
-
-      case "i64":
-        {
-          return (0, _nodes.longNumberLiteral)((0, _wastParser.parse64I)(rawValue), String(original));
-        }
-
-      case "f32":
-        {
-          return (0, _nodes.floatLiteral)((0, _wastParser.parse32F)(rawValue), (0, _wastParser.isNanLiteral)(rawValue), (0, _wastParser.isInfLiteral)(rawValue), String(original));
-        }
-      // f64
-
-      default:
-        {
-          return (0, _nodes.floatLiteral)((0, _wastParser.parse64F)(rawValue), (0, _wastParser.isNanLiteral)(rawValue), (0, _wastParser.isInfLiteral)(rawValue), String(original));
-        }
-    }
-  }
-}
-
-function instruction(id) {
-  var args = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : [];
-  var namedArgs = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : {};
-  return (0, _nodes.instr)(id, undefined, args, namedArgs);
-}
-
-function objectInstruction(id, object) {
-  var args = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : [];
-  var namedArgs = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : {};
-  return (0, _nodes.instr)(id, object, args, namedArgs);
-}
-/**
- * Decorators
- */
-
-
-function withLoc(n, end, start) {
-  var loc = {
-    start: start,
-    end: end
-  };
-  n.loc = loc;
-  return n;
-}
-
-function withRaw(n, raw) {
-  n.raw = raw;
-  return n;
-}
-
-function funcParam(valtype, id) {
-  return {
-    id: id,
-    valtype: valtype
-  };
-}
-
-function indexLiteral(value) {
-  // $FlowIgnore
-  var x = numberLiteralFromRaw(value, "u32");
-  return x;
-}
-
-function memIndexLiteral(value) {
-  // $FlowIgnore
-  var x = numberLiteralFromRaw(value, "u32");
-  return x;
-}
-
-/***/ }),
-
-/***/ 7544:
-/***/ (function(__unused_webpack_module, exports) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({
-  value: true
-}));
-exports.createPath = createPath;
-
-function _extends() { _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; }; return _extends.apply(this, arguments); }
-
-function findParent(_ref, cb) {
-  var parentPath = _ref.parentPath;
-
-  if (parentPath == null) {
-    throw new Error("node is root");
-  }
-
-  var currentPath = parentPath;
-
-  while (cb(currentPath) !== false) {
-    // Hit the root node, stop
-    // $FlowIgnore
-    if (currentPath.parentPath == null) {
-      return null;
-    } // $FlowIgnore
-
-
-    currentPath = currentPath.parentPath;
-  }
-
-  return currentPath.node;
-}
-
-function insertBefore(context, newNode) {
-  return insert(context, newNode);
-}
-
-function insertAfter(context, newNode) {
-  return insert(context, newNode, 1);
-}
-
-function insert(_ref2, newNode) {
-  var node = _ref2.node,
-      inList = _ref2.inList,
-      parentPath = _ref2.parentPath,
-      parentKey = _ref2.parentKey;
-  var indexOffset = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : 0;
-
-  if (!inList) {
-    throw new Error('inList' + " error: " + ("insert can only be used for nodes that are within lists" || 0));
-  }
-
-  if (!(parentPath != null)) {
-    throw new Error('parentPath != null' + " error: " + ("Can not remove root node" || 0));
-  }
-
-  // $FlowIgnore
-  var parentList = parentPath.node[parentKey];
-  var indexInList = parentList.findIndex(function (n) {
-    return n === node;
-  });
-  parentList.splice(indexInList + indexOffset, 0, newNode);
-}
-
-function remove(_ref3) {
-  var node = _ref3.node,
-      parentKey = _ref3.parentKey,
-      parentPath = _ref3.parentPath;
-
-  if (!(parentPath != null)) {
-    throw new Error('parentPath != null' + " error: " + ("Can not remove root node" || 0));
-  }
-
-  // $FlowIgnore
-  var parentNode = parentPath.node; // $FlowIgnore
-
-  var parentProperty = parentNode[parentKey];
-
-  if (Array.isArray(parentProperty)) {
-    // $FlowIgnore
-    parentNode[parentKey] = parentProperty.filter(function (n) {
-      return n !== node;
-    });
-  } else {
-    // $FlowIgnore
-    delete parentNode[parentKey];
-  }
-
-  node._deleted = true;
-}
-
-function stop(context) {
-  context.shouldStop = true;
-}
-
-function replaceWith(context, newNode) {
-  // $FlowIgnore
-  var parentNode = context.parentPath.node; // $FlowIgnore
-
-  var parentProperty = parentNode[context.parentKey];
-
-  if (Array.isArray(parentProperty)) {
-    var indexInList = parentProperty.findIndex(function (n) {
-      return n === context.node;
-    });
-    parentProperty.splice(indexInList, 1, newNode);
-  } else {
-    // $FlowIgnore
-    parentNode[context.parentKey] = newNode;
-  }
-
-  context.node._deleted = true;
-  context.node = newNode;
-} // bind the context to the first argument of node operations
-
-
-function bindNodeOperations(operations, context) {
-  var keys = Object.keys(operations);
-  var boundOperations = {};
-  keys.forEach(function (key) {
-    boundOperations[key] = operations[key].bind(null, context);
-  });
-  return boundOperations;
-}
-
-function createPathOperations(context) {
-  // $FlowIgnore
-  return bindNodeOperations({
-    findParent: findParent,
-    replaceWith: replaceWith,
-    remove: remove,
-    insertBefore: insertBefore,
-    insertAfter: insertAfter,
-    stop: stop
-  }, context);
-}
-
-function createPath(context) {
-  var path = _extends({}, context); // $FlowIgnore
-
-
-  Object.assign(path, createPathOperations(path)); // $FlowIgnore
-
-  return path;
-}
-
-/***/ }),
-
-/***/ 47518:
-/***/ (function(__unused_webpack_module, exports) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({
-  value: true
-}));
-exports.module = _module;
-exports.moduleMetadata = moduleMetadata;
-exports.moduleNameMetadata = moduleNameMetadata;
-exports.functionNameMetadata = functionNameMetadata;
-exports.localNameMetadata = localNameMetadata;
-exports.binaryModule = binaryModule;
-exports.quoteModule = quoteModule;
-exports.sectionMetadata = sectionMetadata;
-exports.producersSectionMetadata = producersSectionMetadata;
-exports.producerMetadata = producerMetadata;
-exports.producerMetadataVersionedName = producerMetadataVersionedName;
-exports.loopInstruction = loopInstruction;
-exports.instr = instr;
-exports.ifInstruction = ifInstruction;
-exports.stringLiteral = stringLiteral;
-exports.numberLiteral = numberLiteral;
-exports.longNumberLiteral = longNumberLiteral;
-exports.floatLiteral = floatLiteral;
-exports.elem = elem;
-exports.indexInFuncSection = indexInFuncSection;
-exports.valtypeLiteral = valtypeLiteral;
-exports.typeInstruction = typeInstruction;
-exports.start = start;
-exports.globalType = globalType;
-exports.leadingComment = leadingComment;
-exports.blockComment = blockComment;
-exports.data = data;
-exports.global = global;
-exports.table = table;
-exports.memory = memory;
-exports.funcImportDescr = funcImportDescr;
-exports.moduleImport = moduleImport;
-exports.moduleExportDescr = moduleExportDescr;
-exports.moduleExport = moduleExport;
-exports.limit = limit;
-exports.signature = signature;
-exports.program = program;
-exports.identifier = identifier;
-exports.blockInstruction = blockInstruction;
-exports.callInstruction = callInstruction;
-exports.callIndirectInstruction = callIndirectInstruction;
-exports.byteArray = byteArray;
-exports.func = func;
-exports.internalBrUnless = internalBrUnless;
-exports.internalGoto = internalGoto;
-exports.internalCallExtern = internalCallExtern;
-exports.internalEndAndReturn = internalEndAndReturn;
-exports.assertInternalCallExtern = exports.assertInternalGoto = exports.assertInternalBrUnless = exports.assertFunc = exports.assertByteArray = exports.assertCallIndirectInstruction = exports.assertCallInstruction = exports.assertBlockInstruction = exports.assertIdentifier = exports.assertProgram = exports.assertSignature = exports.assertLimit = exports.assertModuleExport = exports.assertModuleExportDescr = exports.assertModuleImport = exports.assertFuncImportDescr = exports.assertMemory = exports.assertTable = exports.assertGlobal = exports.assertData = exports.assertBlockComment = exports.assertLeadingComment = exports.assertGlobalType = exports.assertStart = exports.assertTypeInstruction = exports.assertValtypeLiteral = exports.assertIndexInFuncSection = exports.assertElem = exports.assertFloatLiteral = exports.assertLongNumberLiteral = exports.assertNumberLiteral = exports.assertStringLiteral = exports.assertIfInstruction = exports.assertInstr = exports.assertLoopInstruction = exports.assertProducerMetadataVersionedName = exports.assertProducerMetadata = exports.assertProducersSectionMetadata = exports.assertSectionMetadata = exports.assertQuoteModule = exports.assertBinaryModule = exports.assertLocalNameMetadata = exports.assertFunctionNameMetadata = exports.assertModuleNameMetadata = exports.assertModuleMetadata = exports.assertModule = exports.isIntrinsic = exports.isImportDescr = exports.isNumericLiteral = exports.isExpression = exports.isInstruction = exports.isBlock = exports.isNode = exports.isInternalEndAndReturn = exports.isInternalCallExtern = exports.isInternalGoto = exports.isInternalBrUnless = exports.isFunc = exports.isByteArray = exports.isCallIndirectInstruction = exports.isCallInstruction = exports.isBlockInstruction = exports.isIdentifier = exports.isProgram = exports.isSignature = exports.isLimit = exports.isModuleExport = exports.isModuleExportDescr = exports.isModuleImport = exports.isFuncImportDescr = exports.isMemory = exports.isTable = exports.isGlobal = exports.isData = exports.isBlockComment = exports.isLeadingComment = exports.isGlobalType = exports.isStart = exports.isTypeInstruction = exports.isValtypeLiteral = exports.isIndexInFuncSection = exports.isElem = exports.isFloatLiteral = exports.isLongNumberLiteral = exports.isNumberLiteral = exports.isStringLiteral = exports.isIfInstruction = exports.isInstr = exports.isLoopInstruction = exports.isProducerMetadataVersionedName = exports.isProducerMetadata = exports.isProducersSectionMetadata = exports.isSectionMetadata = exports.isQuoteModule = exports.isBinaryModule = exports.isLocalNameMetadata = exports.isFunctionNameMetadata = exports.isModuleNameMetadata = exports.isModuleMetadata = exports.isModule = void 0;
-exports.nodeAndUnionTypes = exports.unionTypesMap = exports.assertInternalEndAndReturn = void 0;
-
-function _typeof(obj) { if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") { _typeof = function _typeof(obj) { return typeof obj; }; } else { _typeof = function _typeof(obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }; } return _typeof(obj); }
-
-// THIS FILE IS AUTOGENERATED
-// see scripts/generateNodeUtils.js
-function isTypeOf(t) {
-  return function (n) {
-    return n.type === t;
-  };
-}
-
-function assertTypeOf(t) {
-  return function (n) {
-    return function () {
-      if (!(n.type === t)) {
-        throw new Error('n.type === t' + " error: " + (undefined || "unknown"));
-      }
-    }();
-  };
-}
-
-function _module(id, fields, metadata) {
-  if (id !== null && id !== undefined) {
-    if (!(typeof id === "string")) {
-      throw new Error('typeof id === "string"' + " error: " + ("Argument id must be of type string, given: " + _typeof(id) || 0));
-    }
-  }
-
-  if (!(_typeof(fields) === "object" && typeof fields.length !== "undefined")) {
-    throw new Error('typeof fields === "object" && typeof fields.length !== "undefined"' + " error: " + (undefined || "unknown"));
-  }
-
-  var node = {
-    type: "Module",
-    id: id,
-    fields: fields
-  };
-
-  if (typeof metadata !== "undefined") {
-    node.metadata = metadata;
-  }
-
-  return node;
-}
-
-function moduleMetadata(sections, functionNames, localNames, producers) {
-  if (!(_typeof(sections) === "object" && typeof sections.length !== "undefined")) {
-    throw new Error('typeof sections === "object" && typeof sections.length !== "undefined"' + " error: " + (undefined || "unknown"));
-  }
-
-  if (functionNames !== null && functionNames !== undefined) {
-    if (!(_typeof(functionNames) === "object" && typeof functionNames.length !== "undefined")) {
-      throw new Error('typeof functionNames === "object" && typeof functionNames.length !== "undefined"' + " error: " + (undefined || "unknown"));
-    }
-  }
-
-  if (localNames !== null && localNames !== undefined) {
-    if (!(_typeof(localNames) === "object" && typeof localNames.length !== "undefined")) {
-      throw new Error('typeof localNames === "object" && typeof localNames.length !== "undefined"' + " error: " + (undefined || "unknown"));
-    }
-  }
-
-  if (producers !== null && producers !== undefined) {
-    if (!(_typeof(producers) === "object" && typeof producers.length !== "undefined")) {
-      throw new Error('typeof producers === "object" && typeof producers.length !== "undefined"' + " error: " + (undefined || "unknown"));
-    }
-  }
-
-  var node = {
-    type: "ModuleMetadata",
-    sections: sections
-  };
-
-  if (typeof functionNames !== "undefined" && functionNames.length > 0) {
-    node.functionNames = functionNames;
-  }
-
-  if (typeof localNames !== "undefined" && localNames.length > 0) {
-    node.localNames = localNames;
-  }
-
-  if (typeof producers !== "undefined" && producers.length > 0) {
-    node.producers = producers;
-  }
-
-  return node;
-}
-
-function moduleNameMetadata(value) {
-  if (!(typeof value === "string")) {
-    throw new Error('typeof value === "string"' + " error: " + ("Argument value must be of type string, given: " + _typeof(value) || 0));
-  }
-
-  var node = {
-    type: "ModuleNameMetadata",
-    value: value
-  };
-  return node;
-}
-
-function functionNameMetadata(value, index) {
-  if (!(typeof value === "string")) {
-    throw new Error('typeof value === "string"' + " error: " + ("Argument value must be of type string, given: " + _typeof(value) || 0));
-  }
-
-  if (!(typeof index === "number")) {
-    throw new Error('typeof index === "number"' + " error: " + ("Argument index must be of type number, given: " + _typeof(index) || 0));
-  }
-
-  var node = {
-    type: "FunctionNameMetadata",
-    value: value,
-    index: index
-  };
-  return node;
-}
-
-function localNameMetadata(value, localIndex, functionIndex) {
-  if (!(typeof value === "string")) {
-    throw new Error('typeof value === "string"' + " error: " + ("Argument value must be of type string, given: " + _typeof(value) || 0));
-  }
-
-  if (!(typeof localIndex === "number")) {
-    throw new Error('typeof localIndex === "number"' + " error: " + ("Argument localIndex must be of type number, given: " + _typeof(localIndex) || 0));
-  }
-
-  if (!(typeof functionIndex === "number")) {
-    throw new Error('typeof functionIndex === "number"' + " error: " + ("Argument functionIndex must be of type number, given: " + _typeof(functionIndex) || 0));
-  }
-
-  var node = {
-    type: "LocalNameMetadata",
-    value: value,
-    localIndex: localIndex,
-    functionIndex: functionIndex
-  };
-  return node;
-}
-
-function binaryModule(id, blob) {
-  if (id !== null && id !== undefined) {
-    if (!(typeof id === "string")) {
-      throw new Error('typeof id === "string"' + " error: " + ("Argument id must be of type string, given: " + _typeof(id) || 0));
-    }
-  }
-
-  if (!(_typeof(blob) === "object" && typeof blob.length !== "undefined")) {
-    throw new Error('typeof blob === "object" && typeof blob.length !== "undefined"' + " error: " + (undefined || "unknown"));
-  }
-
-  var node = {
-    type: "BinaryModule",
-    id: id,
-    blob: blob
-  };
-  return node;
-}
-
-function quoteModule(id, string) {
-  if (id !== null && id !== undefined) {
-    if (!(typeof id === "string")) {
-      throw new Error('typeof id === "string"' + " error: " + ("Argument id must be of type string, given: " + _typeof(id) || 0));
-    }
-  }
-
-  if (!(_typeof(string) === "object" && typeof string.length !== "undefined")) {
-    throw new Error('typeof string === "object" && typeof string.length !== "undefined"' + " error: " + (undefined || "unknown"));
-  }
-
-  var node = {
-    type: "QuoteModule",
-    id: id,
-    string: string
-  };
-  return node;
-}
-
-function sectionMetadata(section, startOffset, size, vectorOfSize) {
-  if (!(typeof startOffset === "number")) {
-    throw new Error('typeof startOffset === "number"' + " error: " + ("Argument startOffset must be of type number, given: " + _typeof(startOffset) || 0));
-  }
-
-  var node = {
-    type: "SectionMetadata",
-    section: section,
-    startOffset: startOffset,
-    size: size,
-    vectorOfSize: vectorOfSize
-  };
-  return node;
-}
-
-function producersSectionMetadata(producers) {
-  if (!(_typeof(producers) === "object" && typeof producers.length !== "undefined")) {
-    throw new Error('typeof producers === "object" && typeof producers.length !== "undefined"' + " error: " + (undefined || "unknown"));
-  }
-
-  var node = {
-    type: "ProducersSectionMetadata",
-    producers: producers
-  };
-  return node;
-}
-
-function producerMetadata(language, processedBy, sdk) {
-  if (!(_typeof(language) === "object" && typeof language.length !== "undefined")) {
-    throw new Error('typeof language === "object" && typeof language.length !== "undefined"' + " error: " + (undefined || "unknown"));
-  }
-
-  if (!(_typeof(processedBy) === "object" && typeof processedBy.length !== "undefined")) {
-    throw new Error('typeof processedBy === "object" && typeof processedBy.length !== "undefined"' + " error: " + (undefined || "unknown"));
-  }
-
-  if (!(_typeof(sdk) === "object" && typeof sdk.length !== "undefined")) {
-    throw new Error('typeof sdk === "object" && typeof sdk.length !== "undefined"' + " error: " + (undefined || "unknown"));
-  }
-
-  var node = {
-    type: "ProducerMetadata",
-    language: language,
-    processedBy: processedBy,
-    sdk: sdk
-  };
-  return node;
-}
-
-function producerMetadataVersionedName(name, version) {
-  if (!(typeof name === "string")) {
-    throw new Error('typeof name === "string"' + " error: " + ("Argument name must be of type string, given: " + _typeof(name) || 0));
-  }
-
-  if (!(typeof version === "string")) {
-    throw new Error('typeof version === "string"' + " error: " + ("Argument version must be of type string, given: " + _typeof(version) || 0));
-  }
-
-  var node = {
-    type: "ProducerMetadataVersionedName",
-    name: name,
-    version: version
-  };
-  return node;
-}
-
-function loopInstruction(label, resulttype, instr) {
-  if (!(_typeof(instr) === "object" && typeof instr.length !== "undefined")) {
-    throw new Error('typeof instr === "object" && typeof instr.length !== "undefined"' + " error: " + (undefined || "unknown"));
-  }
-
-  var node = {
-    type: "LoopInstruction",
-    id: "loop",
-    label: label,
-    resulttype: resulttype,
-    instr: instr
-  };
-  return node;
-}
-
-function instr(id, object, args, namedArgs) {
-  if (!(typeof id === "string")) {
-    throw new Error('typeof id === "string"' + " error: " + ("Argument id must be of type string, given: " + _typeof(id) || 0));
-  }
-
-  if (!(_typeof(args) === "object" && typeof args.length !== "undefined")) {
-    throw new Error('typeof args === "object" && typeof args.length !== "undefined"' + " error: " + (undefined || "unknown"));
-  }
-
-  var node = {
-    type: "Instr",
-    id: id,
-    args: args
-  };
-
-  if (typeof object !== "undefined") {
-    node.object = object;
-  }
-
-  if (typeof namedArgs !== "undefined" && Object.keys(namedArgs).length !== 0) {
-    node.namedArgs = namedArgs;
-  }
-
-  return node;
-}
-
-function ifInstruction(testLabel, test, result, consequent, alternate) {
-  if (!(_typeof(test) === "object" && typeof test.length !== "undefined")) {
-    throw new Error('typeof test === "object" && typeof test.length !== "undefined"' + " error: " + (undefined || "unknown"));
-  }
-
-  if (!(_typeof(consequent) === "object" && typeof consequent.length !== "undefined")) {
-    throw new Error('typeof consequent === "object" && typeof consequent.length !== "undefined"' + " error: " + (undefined || "unknown"));
-  }
-
-  if (!(_typeof(alternate) === "object" && typeof alternate.length !== "undefined")) {
-    throw new Error('typeof alternate === "object" && typeof alternate.length !== "undefined"' + " error: " + (undefined || "unknown"));
-  }
-
-  var node = {
-    type: "IfInstruction",
-    id: "if",
-    testLabel: testLabel,
-    test: test,
-    result: result,
-    consequent: consequent,
-    alternate: alternate
-  };
-  return node;
-}
-
-function stringLiteral(value) {
-  if (!(typeof value === "string")) {
-    throw new Error('typeof value === "string"' + " error: " + ("Argument value must be of type string, given: " + _typeof(value) || 0));
-  }
-
-  var node = {
-    type: "StringLiteral",
-    value: value
-  };
-  return node;
-}
-
-function numberLiteral(value, raw) {
-  if (!(typeof value === "number")) {
-    throw new Error('typeof value === "number"' + " error: " + ("Argument value must be of type number, given: " + _typeof(value) || 0));
-  }
-
-  if (!(typeof raw === "string")) {
-    throw new Error('typeof raw === "string"' + " error: " + ("Argument raw must be of type string, given: " + _typeof(raw) || 0));
-  }
-
-  var node = {
-    type: "NumberLiteral",
-    value: value,
-    raw: raw
-  };
-  return node;
-}
-
-function longNumberLiteral(value, raw) {
-  if (!(typeof raw === "string")) {
-    throw new Error('typeof raw === "string"' + " error: " + ("Argument raw must be of type string, given: " + _typeof(raw) || 0));
-  }
-
-  var node = {
-    type: "LongNumberLiteral",
-    value: value,
-    raw: raw
-  };
-  return node;
-}
-
-function floatLiteral(value, nan, inf, raw) {
-  if (!(typeof value === "number")) {
-    throw new Error('typeof value === "number"' + " error: " + ("Argument value must be of type number, given: " + _typeof(value) || 0));
-  }
-
-  if (nan !== null && nan !== undefined) {
-    if (!(typeof nan === "boolean")) {
-      throw new Error('typeof nan === "boolean"' + " error: " + ("Argument nan must be of type boolean, given: " + _typeof(nan) || 0));
-    }
-  }
-
-  if (inf !== null && inf !== undefined) {
-    if (!(typeof inf === "boolean")) {
-      throw new Error('typeof inf === "boolean"' + " error: " + ("Argument inf must be of type boolean, given: " + _typeof(inf) || 0));
-    }
-  }
-
-  if (!(typeof raw === "string")) {
-    throw new Error('typeof raw === "string"' + " error: " + ("Argument raw must be of type string, given: " + _typeof(raw) || 0));
-  }
-
-  var node = {
-    type: "FloatLiteral",
-    value: value,
-    raw: raw
-  };
-
-  if (nan === true) {
-    node.nan = true;
-  }
-
-  if (inf === true) {
-    node.inf = true;
-  }
-
-  return node;
-}
-
-function elem(table, offset, funcs) {
-  if (!(_typeof(offset) === "object" && typeof offset.length !== "undefined")) {
-    throw new Error('typeof offset === "object" && typeof offset.length !== "undefined"' + " error: " + (undefined || "unknown"));
-  }
-
-  if (!(_typeof(funcs) === "object" && typeof funcs.length !== "undefined")) {
-    throw new Error('typeof funcs === "object" && typeof funcs.length !== "undefined"' + " error: " + (undefined || "unknown"));
-  }
-
-  var node = {
-    type: "Elem",
-    table: table,
-    offset: offset,
-    funcs: funcs
-  };
-  return node;
-}
-
-function indexInFuncSection(index) {
-  var node = {
-    type: "IndexInFuncSection",
-    index: index
-  };
-  return node;
-}
-
-function valtypeLiteral(name) {
-  var node = {
-    type: "ValtypeLiteral",
-    name: name
-  };
-  return node;
-}
-
-function typeInstruction(id, functype) {
-  var node = {
-    type: "TypeInstruction",
-    id: id,
-    functype: functype
-  };
-  return node;
-}
-
-function start(index) {
-  var node = {
-    type: "Start",
-    index: index
-  };
-  return node;
-}
-
-function globalType(valtype, mutability) {
-  var node = {
-    type: "GlobalType",
-    valtype: valtype,
-    mutability: mutability
-  };
-  return node;
-}
-
-function leadingComment(value) {
-  if (!(typeof value === "string")) {
-    throw new Error('typeof value === "string"' + " error: " + ("Argument value must be of type string, given: " + _typeof(value) || 0));
-  }
-
-  var node = {
-    type: "LeadingComment",
-    value: value
-  };
-  return node;
-}
-
-function blockComment(value) {
-  if (!(typeof value === "string")) {
-    throw new Error('typeof value === "string"' + " error: " + ("Argument value must be of type string, given: " + _typeof(value) || 0));
-  }
-
-  var node = {
-    type: "BlockComment",
-    value: value
-  };
-  return node;
-}
-
-function data(memoryIndex, offset, init) {
-  var node = {
-    type: "Data",
-    memoryIndex: memoryIndex,
-    offset: offset,
-    init: init
-  };
-  return node;
-}
-
-function global(globalType, init, name) {
-  if (!(_typeof(init) === "object" && typeof init.length !== "undefined")) {
-    throw new Error('typeof init === "object" && typeof init.length !== "undefined"' + " error: " + (undefined || "unknown"));
-  }
-
-  var node = {
-    type: "Global",
-    globalType: globalType,
-    init: init,
-    name: name
-  };
-  return node;
-}
-
-function table(elementType, limits, name, elements) {
-  if (!(limits.type === "Limit")) {
-    throw new Error('limits.type === "Limit"' + " error: " + ("Argument limits must be of type Limit, given: " + limits.type || 0));
-  }
-
-  if (elements !== null && elements !== undefined) {
-    if (!(_typeof(elements) === "object" && typeof elements.length !== "undefined")) {
-      throw new Error('typeof elements === "object" && typeof elements.length !== "undefined"' + " error: " + (undefined || "unknown"));
-    }
-  }
-
-  var node = {
-    type: "Table",
-    elementType: elementType,
-    limits: limits,
-    name: name
-  };
-
-  if (typeof elements !== "undefined" && elements.length > 0) {
-    node.elements = elements;
-  }
-
-  return node;
-}
-
-function memory(limits, id) {
-  var node = {
-    type: "Memory",
-    limits: limits,
-    id: id
-  };
-  return node;
-}
-
-function funcImportDescr(id, signature) {
-  var node = {
-    type: "FuncImportDescr",
-    id: id,
-    signature: signature
-  };
-  return node;
-}
-
-function moduleImport(module, name, descr) {
-  if (!(typeof module === "string")) {
-    throw new Error('typeof module === "string"' + " error: " + ("Argument module must be of type string, given: " + _typeof(module) || 0));
-  }
-
-  if (!(typeof name === "string")) {
-    throw new Error('typeof name === "string"' + " error: " + ("Argument name must be of type string, given: " + _typeof(name) || 0));
-  }
-
-  var node = {
-    type: "ModuleImport",
-    module: module,
-    name: name,
-    descr: descr
-  };
-  return node;
-}
-
-function moduleExportDescr(exportType, id) {
-  var node = {
-    type: "ModuleExportDescr",
-    exportType: exportType,
-    id: id
-  };
-  return node;
-}
-
-function moduleExport(name, descr) {
-  if (!(typeof name === "string")) {
-    throw new Error('typeof name === "string"' + " error: " + ("Argument name must be of type string, given: " + _typeof(name) || 0));
-  }
-
-  var node = {
-    type: "ModuleExport",
-    name: name,
-    descr: descr
-  };
-  return node;
-}
-
-function limit(min, max) {
-  if (!(typeof min === "number")) {
-    throw new Error('typeof min === "number"' + " error: " + ("Argument min must be of type number, given: " + _typeof(min) || 0));
-  }
-
-  if (max !== null && max !== undefined) {
-    if (!(typeof max === "number")) {
-      throw new Error('typeof max === "number"' + " error: " + ("Argument max must be of type number, given: " + _typeof(max) || 0));
-    }
-  }
-
-  var node = {
-    type: "Limit",
-    min: min
-  };
-
-  if (typeof max !== "undefined") {
-    node.max = max;
-  }
-
-  return node;
-}
-
-function signature(params, results) {
-  if (!(_typeof(params) === "object" && typeof params.length !== "undefined")) {
-    throw new Error('typeof params === "object" && typeof params.length !== "undefined"' + " error: " + (undefined || "unknown"));
-  }
-
-  if (!(_typeof(results) === "object" && typeof results.length !== "undefined")) {
-    throw new Error('typeof results === "object" && typeof results.length !== "undefined"' + " error: " + (undefined || "unknown"));
-  }
-
-  var node = {
-    type: "Signature",
-    params: params,
-    results: results
-  };
-  return node;
-}
-
-function program(body) {
-  if (!(_typeof(body) === "object" && typeof body.length !== "undefined")) {
-    throw new Error('typeof body === "object" && typeof body.length !== "undefined"' + " error: " + (undefined || "unknown"));
-  }
-
-  var node = {
-    type: "Program",
-    body: body
-  };
-  return node;
-}
-
-function identifier(value, raw) {
-  if (!(typeof value === "string")) {
-    throw new Error('typeof value === "string"' + " error: " + ("Argument value must be of type string, given: " + _typeof(value) || 0));
-  }
-
-  if (raw !== null && raw !== undefined) {
-    if (!(typeof raw === "string")) {
-      throw new Error('typeof raw === "string"' + " error: " + ("Argument raw must be of type string, given: " + _typeof(raw) || 0));
-    }
-  }
-
-  var node = {
-    type: "Identifier",
-    value: value
-  };
-
-  if (typeof raw !== "undefined") {
-    node.raw = raw;
-  }
-
-  return node;
-}
-
-function blockInstruction(label, instr, result) {
-  if (!(_typeof(instr) === "object" && typeof instr.length !== "undefined")) {
-    throw new Error('typeof instr === "object" && typeof instr.length !== "undefined"' + " error: " + (undefined || "unknown"));
-  }
-
-  var node = {
-    type: "BlockInstruction",
-    id: "block",
-    label: label,
-    instr: instr,
-    result: result
-  };
-  return node;
-}
-
-function callInstruction(index, instrArgs, numeric) {
-  if (instrArgs !== null && instrArgs !== undefined) {
-    if (!(_typeof(instrArgs) === "object" && typeof instrArgs.length !== "undefined")) {
-      throw new Error('typeof instrArgs === "object" && typeof instrArgs.length !== "undefined"' + " error: " + (undefined || "unknown"));
-    }
-  }
-
-  var node = {
-    type: "CallInstruction",
-    id: "call",
-    index: index
-  };
-
-  if (typeof instrArgs !== "undefined" && instrArgs.length > 0) {
-    node.instrArgs = instrArgs;
-  }
-
-  if (typeof numeric !== "undefined") {
-    node.numeric = numeric;
-  }
-
-  return node;
-}
-
-function callIndirectInstruction(signature, intrs) {
-  if (intrs !== null && intrs !== undefined) {
-    if (!(_typeof(intrs) === "object" && typeof intrs.length !== "undefined")) {
-      throw new Error('typeof intrs === "object" && typeof intrs.length !== "undefined"' + " error: " + (undefined || "unknown"));
-    }
-  }
-
-  var node = {
-    type: "CallIndirectInstruction",
-    id: "call_indirect",
-    signature: signature
-  };
-
-  if (typeof intrs !== "undefined" && intrs.length > 0) {
-    node.intrs = intrs;
-  }
-
-  return node;
-}
-
-function byteArray(values) {
-  if (!(_typeof(values) === "object" && typeof values.length !== "undefined")) {
-    throw new Error('typeof values === "object" && typeof values.length !== "undefined"' + " error: " + (undefined || "unknown"));
-  }
-
-  var node = {
-    type: "ByteArray",
-    values: values
-  };
-  return node;
-}
-
-function func(name, signature, body, isExternal, metadata) {
-  if (!(_typeof(body) === "object" && typeof body.length !== "undefined")) {
-    throw new Error('typeof body === "object" && typeof body.length !== "undefined"' + " error: " + (undefined || "unknown"));
-  }
-
-  if (isExternal !== null && isExternal !== undefined) {
-    if (!(typeof isExternal === "boolean")) {
-      throw new Error('typeof isExternal === "boolean"' + " error: " + ("Argument isExternal must be of type boolean, given: " + _typeof(isExternal) || 0));
-    }
-  }
-
-  var node = {
-    type: "Func",
-    name: name,
-    signature: signature,
-    body: body
-  };
-
-  if (isExternal === true) {
-    node.isExternal = true;
-  }
-
-  if (typeof metadata !== "undefined") {
-    node.metadata = metadata;
-  }
-
-  return node;
-}
-
-function internalBrUnless(target) {
-  if (!(typeof target === "number")) {
-    throw new Error('typeof target === "number"' + " error: " + ("Argument target must be of type number, given: " + _typeof(target) || 0));
-  }
-
-  var node = {
-    type: "InternalBrUnless",
-    target: target
-  };
-  return node;
-}
-
-function internalGoto(target) {
-  if (!(typeof target === "number")) {
-    throw new Error('typeof target === "number"' + " error: " + ("Argument target must be of type number, given: " + _typeof(target) || 0));
-  }
-
-  var node = {
-    type: "InternalGoto",
-    target: target
-  };
-  return node;
-}
-
-function internalCallExtern(target) {
-  if (!(typeof target === "number")) {
-    throw new Error('typeof target === "number"' + " error: " + ("Argument target must be of type number, given: " + _typeof(target) || 0));
-  }
-
-  var node = {
-    type: "InternalCallExtern",
-    target: target
-  };
-  return node;
-}
-
-function internalEndAndReturn() {
-  var node = {
-    type: "InternalEndAndReturn"
-  };
-  return node;
-}
-
-var isModule = isTypeOf("Module");
-exports.isModule = isModule;
-var isModuleMetadata = isTypeOf("ModuleMetadata");
-exports.isModuleMetadata = isModuleMetadata;
-var isModuleNameMetadata = isTypeOf("ModuleNameMetadata");
-exports.isModuleNameMetadata = isModuleNameMetadata;
-var isFunctionNameMetadata = isTypeOf("FunctionNameMetadata");
-exports.isFunctionNameMetadata = isFunctionNameMetadata;
-var isLocalNameMetadata = isTypeOf("LocalNameMetadata");
-exports.isLocalNameMetadata = isLocalNameMetadata;
-var isBinaryModule = isTypeOf("BinaryModule");
-exports.isBinaryModule = isBinaryModule;
-var isQuoteModule = isTypeOf("QuoteModule");
-exports.isQuoteModule = isQuoteModule;
-var isSectionMetadata = isTypeOf("SectionMetadata");
-exports.isSectionMetadata = isSectionMetadata;
-var isProducersSectionMetadata = isTypeOf("ProducersSectionMetadata");
-exports.isProducersSectionMetadata = isProducersSectionMetadata;
-var isProducerMetadata = isTypeOf("ProducerMetadata");
-exports.isProducerMetadata = isProducerMetadata;
-var isProducerMetadataVersionedName = isTypeOf("ProducerMetadataVersionedName");
-exports.isProducerMetadataVersionedName = isProducerMetadataVersionedName;
-var isLoopInstruction = isTypeOf("LoopInstruction");
-exports.isLoopInstruction = isLoopInstruction;
-var isInstr = isTypeOf("Instr");
-exports.isInstr = isInstr;
-var isIfInstruction = isTypeOf("IfInstruction");
-exports.isIfInstruction = isIfInstruction;
-var isStringLiteral = isTypeOf("StringLiteral");
-exports.isStringLiteral = isStringLiteral;
-var isNumberLiteral = isTypeOf("NumberLiteral");
-exports.isNumberLiteral = isNumberLiteral;
-var isLongNumberLiteral = isTypeOf("LongNumberLiteral");
-exports.isLongNumberLiteral = isLongNumberLiteral;
-var isFloatLiteral = isTypeOf("FloatLiteral");
-exports.isFloatLiteral = isFloatLiteral;
-var isElem = isTypeOf("Elem");
-exports.isElem = isElem;
-var isIndexInFuncSection = isTypeOf("IndexInFuncSection");
-exports.isIndexInFuncSection = isIndexInFuncSection;
-var isValtypeLiteral = isTypeOf("ValtypeLiteral");
-exports.isValtypeLiteral = isValtypeLiteral;
-var isTypeInstruction = isTypeOf("TypeInstruction");
-exports.isTypeInstruction = isTypeInstruction;
-var isStart = isTypeOf("Start");
-exports.isStart = isStart;
-var isGlobalType = isTypeOf("GlobalType");
-exports.isGlobalType = isGlobalType;
-var isLeadingComment = isTypeOf("LeadingComment");
-exports.isLeadingComment = isLeadingComment;
-var isBlockComment = isTypeOf("BlockComment");
-exports.isBlockComment = isBlockComment;
-var isData = isTypeOf("Data");
-exports.isData = isData;
-var isGlobal = isTypeOf("Global");
-exports.isGlobal = isGlobal;
-var isTable = isTypeOf("Table");
-exports.isTable = isTable;
-var isMemory = isTypeOf("Memory");
-exports.isMemory = isMemory;
-var isFuncImportDescr = isTypeOf("FuncImportDescr");
-exports.isFuncImportDescr = isFuncImportDescr;
-var isModuleImport = isTypeOf("ModuleImport");
-exports.isModuleImport = isModuleImport;
-var isModuleExportDescr = isTypeOf("ModuleExportDescr");
-exports.isModuleExportDescr = isModuleExportDescr;
-var isModuleExport = isTypeOf("ModuleExport");
-exports.isModuleExport = isModuleExport;
-var isLimit = isTypeOf("Limit");
-exports.isLimit = isLimit;
-var isSignature = isTypeOf("Signature");
-exports.isSignature = isSignature;
-var isProgram = isTypeOf("Program");
-exports.isProgram = isProgram;
-var isIdentifier = isTypeOf("Identifier");
-exports.isIdentifier = isIdentifier;
-var isBlockInstruction = isTypeOf("BlockInstruction");
-exports.isBlockInstruction = isBlockInstruction;
-var isCallInstruction = isTypeOf("CallInstruction");
-exports.isCallInstruction = isCallInstruction;
-var isCallIndirectInstruction = isTypeOf("CallIndirectInstruction");
-exports.isCallIndirectInstruction = isCallIndirectInstruction;
-var isByteArray = isTypeOf("ByteArray");
-exports.isByteArray = isByteArray;
-var isFunc = isTypeOf("Func");
-exports.isFunc = isFunc;
-var isInternalBrUnless = isTypeOf("InternalBrUnless");
-exports.isInternalBrUnless = isInternalBrUnless;
-var isInternalGoto = isTypeOf("InternalGoto");
-exports.isInternalGoto = isInternalGoto;
-var isInternalCallExtern = isTypeOf("InternalCallExtern");
-exports.isInternalCallExtern = isInternalCallExtern;
-var isInternalEndAndReturn = isTypeOf("InternalEndAndReturn");
-exports.isInternalEndAndReturn = isInternalEndAndReturn;
-
-var isNode = function isNode(node) {
-  return isModule(node) || isModuleMetadata(node) || isModuleNameMetadata(node) || isFunctionNameMetadata(node) || isLocalNameMetadata(node) || isBinaryModule(node) || isQuoteModule(node) || isSectionMetadata(node) || isProducersSectionMetadata(node) || isProducerMetadata(node) || isProducerMetadataVersionedName(node) || isLoopInstruction(node) || isInstr(node) || isIfInstruction(node) || isStringLiteral(node) || isNumberLiteral(node) || isLongNumberLiteral(node) || isFloatLiteral(node) || isElem(node) || isIndexInFuncSection(node) || isValtypeLiteral(node) || isTypeInstruction(node) || isStart(node) || isGlobalType(node) || isLeadingComment(node) || isBlockComment(node) || isData(node) || isGlobal(node) || isTable(node) || isMemory(node) || isFuncImportDescr(node) || isModuleImport(node) || isModuleExportDescr(node) || isModuleExport(node) || isLimit(node) || isSignature(node) || isProgram(node) || isIdentifier(node) || isBlockInstruction(node) || isCallInstruction(node) || isCallIndirectInstruction(node) || isByteArray(node) || isFunc(node) || isInternalBrUnless(node) || isInternalGoto(node) || isInternalCallExtern(node) || isInternalEndAndReturn(node);
-};
-
-exports.isNode = isNode;
-
-var isBlock = function isBlock(node) {
-  return isLoopInstruction(node) || isBlockInstruction(node) || isFunc(node);
-};
-
-exports.isBlock = isBlock;
-
-var isInstruction = function isInstruction(node) {
-  return isLoopInstruction(node) || isInstr(node) || isIfInstruction(node) || isTypeInstruction(node) || isBlockInstruction(node) || isCallInstruction(node) || isCallIndirectInstruction(node);
-};
-
-exports.isInstruction = isInstruction;
-
-var isExpression = function isExpression(node) {
-  return isInstr(node) || isStringLiteral(node) || isNumberLiteral(node) || isLongNumberLiteral(node) || isFloatLiteral(node) || isValtypeLiteral(node) || isIdentifier(node);
-};
-
-exports.isExpression = isExpression;
-
-var isNumericLiteral = function isNumericLiteral(node) {
-  return isNumberLiteral(node) || isLongNumberLiteral(node) || isFloatLiteral(node);
-};
-
-exports.isNumericLiteral = isNumericLiteral;
-
-var isImportDescr = function isImportDescr(node) {
-  return isGlobalType(node) || isTable(node) || isMemory(node) || isFuncImportDescr(node);
-};
-
-exports.isImportDescr = isImportDescr;
-
-var isIntrinsic = function isIntrinsic(node) {
-  return isInternalBrUnless(node) || isInternalGoto(node) || isInternalCallExtern(node) || isInternalEndAndReturn(node);
-};
-
-exports.isIntrinsic = isIntrinsic;
-var assertModule = assertTypeOf("Module");
-exports.assertModule = assertModule;
-var assertModuleMetadata = assertTypeOf("ModuleMetadata");
-exports.assertModuleMetadata = assertModuleMetadata;
-var assertModuleNameMetadata = assertTypeOf("ModuleNameMetadata");
-exports.assertModuleNameMetadata = assertModuleNameMetadata;
-var assertFunctionNameMetadata = assertTypeOf("FunctionNameMetadata");
-exports.assertFunctionNameMetadata = assertFunctionNameMetadata;
-var assertLocalNameMetadata = assertTypeOf("LocalNameMetadata");
-exports.assertLocalNameMetadata = assertLocalNameMetadata;
-var assertBinaryModule = assertTypeOf("BinaryModule");
-exports.assertBinaryModule = assertBinaryModule;
-var assertQuoteModule = assertTypeOf("QuoteModule");
-exports.assertQuoteModule = assertQuoteModule;
-var assertSectionMetadata = assertTypeOf("SectionMetadata");
-exports.assertSectionMetadata = assertSectionMetadata;
-var assertProducersSectionMetadata = assertTypeOf("ProducersSectionMetadata");
-exports.assertProducersSectionMetadata = assertProducersSectionMetadata;
-var assertProducerMetadata = assertTypeOf("ProducerMetadata");
-exports.assertProducerMetadata = assertProducerMetadata;
-var assertProducerMetadataVersionedName = assertTypeOf("ProducerMetadataVersionedName");
-exports.assertProducerMetadataVersionedName = assertProducerMetadataVersionedName;
-var assertLoopInstruction = assertTypeOf("LoopInstruction");
-exports.assertLoopInstruction = assertLoopInstruction;
-var assertInstr = assertTypeOf("Instr");
-exports.assertInstr = assertInstr;
-var assertIfInstruction = assertTypeOf("IfInstruction");
-exports.assertIfInstruction = assertIfInstruction;
-var assertStringLiteral = assertTypeOf("StringLiteral");
-exports.assertStringLiteral = assertStringLiteral;
-var assertNumberLiteral = assertTypeOf("NumberLiteral");
-exports.assertNumberLiteral = assertNumberLiteral;
-var assertLongNumberLiteral = assertTypeOf("LongNumberLiteral");
-exports.assertLongNumberLiteral = assertLongNumberLiteral;
-var assertFloatLiteral = assertTypeOf("FloatLiteral");
-exports.assertFloatLiteral = assertFloatLiteral;
-var assertElem = assertTypeOf("Elem");
-exports.assertElem = assertElem;
-var assertIndexInFuncSection = assertTypeOf("IndexInFuncSection");
-exports.assertIndexInFuncSection = assertIndexInFuncSection;
-var assertValtypeLiteral = assertTypeOf("ValtypeLiteral");
-exports.assertValtypeLiteral = assertValtypeLiteral;
-var assertTypeInstruction = assertTypeOf("TypeInstruction");
-exports.assertTypeInstruction = assertTypeInstruction;
-var assertStart = assertTypeOf("Start");
-exports.assertStart = assertStart;
-var assertGlobalType = assertTypeOf("GlobalType");
-exports.assertGlobalType = assertGlobalType;
-var assertLeadingComment = assertTypeOf("LeadingComment");
-exports.assertLeadingComment = assertLeadingComment;
-var assertBlockComment = assertTypeOf("BlockComment");
-exports.assertBlockComment = assertBlockComment;
-var assertData = assertTypeOf("Data");
-exports.assertData = assertData;
-var assertGlobal = assertTypeOf("Global");
-exports.assertGlobal = assertGlobal;
-var assertTable = assertTypeOf("Table");
-exports.assertTable = assertTable;
-var assertMemory = assertTypeOf("Memory");
-exports.assertMemory = assertMemory;
-var assertFuncImportDescr = assertTypeOf("FuncImportDescr");
-exports.assertFuncImportDescr = assertFuncImportDescr;
-var assertModuleImport = assertTypeOf("ModuleImport");
-exports.assertModuleImport = assertModuleImport;
-var assertModuleExportDescr = assertTypeOf("ModuleExportDescr");
-exports.assertModuleExportDescr = assertModuleExportDescr;
-var assertModuleExport = assertTypeOf("ModuleExport");
-exports.assertModuleExport = assertModuleExport;
-var assertLimit = assertTypeOf("Limit");
-exports.assertLimit = assertLimit;
-var assertSignature = assertTypeOf("Signature");
-exports.assertSignature = assertSignature;
-var assertProgram = assertTypeOf("Program");
-exports.assertProgram = assertProgram;
-var assertIdentifier = assertTypeOf("Identifier");
-exports.assertIdentifier = assertIdentifier;
-var assertBlockInstruction = assertTypeOf("BlockInstruction");
-exports.assertBlockInstruction = assertBlockInstruction;
-var assertCallInstruction = assertTypeOf("CallInstruction");
-exports.assertCallInstruction = assertCallInstruction;
-var assertCallIndirectInstruction = assertTypeOf("CallIndirectInstruction");
-exports.assertCallIndirectInstruction = assertCallIndirectInstruction;
-var assertByteArray = assertTypeOf("ByteArray");
-exports.assertByteArray = assertByteArray;
-var assertFunc = assertTypeOf("Func");
-exports.assertFunc = assertFunc;
-var assertInternalBrUnless = assertTypeOf("InternalBrUnless");
-exports.assertInternalBrUnless = assertInternalBrUnless;
-var assertInternalGoto = assertTypeOf("InternalGoto");
-exports.assertInternalGoto = assertInternalGoto;
-var assertInternalCallExtern = assertTypeOf("InternalCallExtern");
-exports.assertInternalCallExtern = assertInternalCallExtern;
-var assertInternalEndAndReturn = assertTypeOf("InternalEndAndReturn");
-exports.assertInternalEndAndReturn = assertInternalEndAndReturn;
-var unionTypesMap = {
-  Module: ["Node"],
-  ModuleMetadata: ["Node"],
-  ModuleNameMetadata: ["Node"],
-  FunctionNameMetadata: ["Node"],
-  LocalNameMetadata: ["Node"],
-  BinaryModule: ["Node"],
-  QuoteModule: ["Node"],
-  SectionMetadata: ["Node"],
-  ProducersSectionMetadata: ["Node"],
-  ProducerMetadata: ["Node"],
-  ProducerMetadataVersionedName: ["Node"],
-  LoopInstruction: ["Node", "Block", "Instruction"],
-  Instr: ["Node", "Expression", "Instruction"],
-  IfInstruction: ["Node", "Instruction"],
-  StringLiteral: ["Node", "Expression"],
-  NumberLiteral: ["Node", "NumericLiteral", "Expression"],
-  LongNumberLiteral: ["Node", "NumericLiteral", "Expression"],
-  FloatLiteral: ["Node", "NumericLiteral", "Expression"],
-  Elem: ["Node"],
-  IndexInFuncSection: ["Node"],
-  ValtypeLiteral: ["Node", "Expression"],
-  TypeInstruction: ["Node", "Instruction"],
-  Start: ["Node"],
-  GlobalType: ["Node", "ImportDescr"],
-  LeadingComment: ["Node"],
-  BlockComment: ["Node"],
-  Data: ["Node"],
-  Global: ["Node"],
-  Table: ["Node", "ImportDescr"],
-  Memory: ["Node", "ImportDescr"],
-  FuncImportDescr: ["Node", "ImportDescr"],
-  ModuleImport: ["Node"],
-  ModuleExportDescr: ["Node"],
-  ModuleExport: ["Node"],
-  Limit: ["Node"],
-  Signature: ["Node"],
-  Program: ["Node"],
-  Identifier: ["Node", "Expression"],
-  BlockInstruction: ["Node", "Block", "Instruction"],
-  CallInstruction: ["Node", "Instruction"],
-  CallIndirectInstruction: ["Node", "Instruction"],
-  ByteArray: ["Node"],
-  Func: ["Node", "Block"],
-  InternalBrUnless: ["Node", "Intrinsic"],
-  InternalGoto: ["Node", "Intrinsic"],
-  InternalCallExtern: ["Node", "Intrinsic"],
-  InternalEndAndReturn: ["Node", "Intrinsic"]
-};
-exports.unionTypesMap = unionTypesMap;
-var nodeAndUnionTypes = ["Module", "ModuleMetadata", "ModuleNameMetadata", "FunctionNameMetadata", "LocalNameMetadata", "BinaryModule", "QuoteModule", "SectionMetadata", "ProducersSectionMetadata", "ProducerMetadata", "ProducerMetadataVersionedName", "LoopInstruction", "Instr", "IfInstruction", "StringLiteral", "NumberLiteral", "LongNumberLiteral", "FloatLiteral", "Elem", "IndexInFuncSection", "ValtypeLiteral", "TypeInstruction", "Start", "GlobalType", "LeadingComment", "BlockComment", "Data", "Global", "Table", "Memory", "FuncImportDescr", "ModuleImport", "ModuleExportDescr", "ModuleExport", "Limit", "Signature", "Program", "Identifier", "BlockInstruction", "CallInstruction", "CallIndirectInstruction", "ByteArray", "Func", "InternalBrUnless", "InternalGoto", "InternalCallExtern", "InternalEndAndReturn", "Node", "Block", "Instruction", "Expression", "NumericLiteral", "ImportDescr", "Intrinsic"];
-exports.nodeAndUnionTypes = nodeAndUnionTypes;
-
-/***/ }),
-
-/***/ 13003:
-/***/ (function(__unused_webpack_module, exports) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({
-  value: true
-}));
-exports.signatures = void 0;
-
-function sign(input, output) {
-  return [input, output];
-}
-
-var u32 = "u32";
-var i32 = "i32";
-var i64 = "i64";
-var f32 = "f32";
-var f64 = "f64";
-
-var vector = function vector(t) {
-  var vecType = [t]; // $FlowIgnore
-
-  vecType.vector = true;
-  return vecType;
-};
-
-var controlInstructions = {
-  unreachable: sign([], []),
-  nop: sign([], []),
-  // block ?
-  // loop ?
-  // if ?
-  // if else ?
-  br: sign([u32], []),
-  br_if: sign([u32], []),
-  br_table: sign(vector(u32), []),
-  return: sign([], []),
-  call: sign([u32], []),
-  call_indirect: sign([u32], [])
-};
-var parametricInstructions = {
-  drop: sign([], []),
-  select: sign([], [])
-};
-var variableInstructions = {
-  get_local: sign([u32], []),
-  set_local: sign([u32], []),
-  tee_local: sign([u32], []),
-  get_global: sign([u32], []),
-  set_global: sign([u32], [])
-};
-var memoryInstructions = {
-  "i32.load": sign([u32, u32], [i32]),
-  "i64.load": sign([u32, u32], []),
-  "f32.load": sign([u32, u32], []),
-  "f64.load": sign([u32, u32], []),
-  "i32.load8_s": sign([u32, u32], [i32]),
-  "i32.load8_u": sign([u32, u32], [i32]),
-  "i32.load16_s": sign([u32, u32], [i32]),
-  "i32.load16_u": sign([u32, u32], [i32]),
-  "i64.load8_s": sign([u32, u32], [i64]),
-  "i64.load8_u": sign([u32, u32], [i64]),
-  "i64.load16_s": sign([u32, u32], [i64]),
-  "i64.load16_u": sign([u32, u32], [i64]),
-  "i64.load32_s": sign([u32, u32], [i64]),
-  "i64.load32_u": sign([u32, u32], [i64]),
-  "i32.store": sign([u32, u32], []),
-  "i64.store": sign([u32, u32], []),
-  "f32.store": sign([u32, u32], []),
-  "f64.store": sign([u32, u32], []),
-  "i32.store8": sign([u32, u32], []),
-  "i32.store16": sign([u32, u32], []),
-  "i64.store8": sign([u32, u32], []),
-  "i64.store16": sign([u32, u32], []),
-  "i64.store32": sign([u32, u32], []),
-  current_memory: sign([], []),
-  grow_memory: sign([], [])
-};
-var numericInstructions = {
-  "i32.const": sign([i32], [i32]),
-  "i64.const": sign([i64], [i64]),
-  "f32.const": sign([f32], [f32]),
-  "f64.const": sign([f64], [f64]),
-  "i32.eqz": sign([i32], [i32]),
-  "i32.eq": sign([i32, i32], [i32]),
-  "i32.ne": sign([i32, i32], [i32]),
-  "i32.lt_s": sign([i32, i32], [i32]),
-  "i32.lt_u": sign([i32, i32], [i32]),
-  "i32.gt_s": sign([i32, i32], [i32]),
-  "i32.gt_u": sign([i32, i32], [i32]),
-  "i32.le_s": sign([i32, i32], [i32]),
-  "i32.le_u": sign([i32, i32], [i32]),
-  "i32.ge_s": sign([i32, i32], [i32]),
-  "i32.ge_u": sign([i32, i32], [i32]),
-  "i64.eqz": sign([i64], [i64]),
-  "i64.eq": sign([i64, i64], [i32]),
-  "i64.ne": sign([i64, i64], [i32]),
-  "i64.lt_s": sign([i64, i64], [i32]),
-  "i64.lt_u": sign([i64, i64], [i32]),
-  "i64.gt_s": sign([i64, i64], [i32]),
-  "i64.gt_u": sign([i64, i64], [i32]),
-  "i64.le_s": sign([i64, i64], [i32]),
-  "i64.le_u": sign([i64, i64], [i32]),
-  "i64.ge_s": sign([i64, i64], [i32]),
-  "i64.ge_u": sign([i64, i64], [i32]),
-  "f32.eq": sign([f32, f32], [i32]),
-  "f32.ne": sign([f32, f32], [i32]),
-  "f32.lt": sign([f32, f32], [i32]),
-  "f32.gt": sign([f32, f32], [i32]),
-  "f32.le": sign([f32, f32], [i32]),
-  "f32.ge": sign([f32, f32], [i32]),
-  "f64.eq": sign([f64, f64], [i32]),
-  "f64.ne": sign([f64, f64], [i32]),
-  "f64.lt": sign([f64, f64], [i32]),
-  "f64.gt": sign([f64, f64], [i32]),
-  "f64.le": sign([f64, f64], [i32]),
-  "f64.ge": sign([f64, f64], [i32]),
-  "i32.clz": sign([i32], [i32]),
-  "i32.ctz": sign([i32], [i32]),
-  "i32.popcnt": sign([i32], [i32]),
-  "i32.add": sign([i32, i32], [i32]),
-  "i32.sub": sign([i32, i32], [i32]),
-  "i32.mul": sign([i32, i32], [i32]),
-  "i32.div_s": sign([i32, i32], [i32]),
-  "i32.div_u": sign([i32, i32], [i32]),
-  "i32.rem_s": sign([i32, i32], [i32]),
-  "i32.rem_u": sign([i32, i32], [i32]),
-  "i32.and": sign([i32, i32], [i32]),
-  "i32.or": sign([i32, i32], [i32]),
-  "i32.xor": sign([i32, i32], [i32]),
-  "i32.shl": sign([i32, i32], [i32]),
-  "i32.shr_s": sign([i32, i32], [i32]),
-  "i32.shr_u": sign([i32, i32], [i32]),
-  "i32.rotl": sign([i32, i32], [i32]),
-  "i32.rotr": sign([i32, i32], [i32]),
-  "i64.clz": sign([i64], [i64]),
-  "i64.ctz": sign([i64], [i64]),
-  "i64.popcnt": sign([i64], [i64]),
-  "i64.add": sign([i64, i64], [i64]),
-  "i64.sub": sign([i64, i64], [i64]),
-  "i64.mul": sign([i64, i64], [i64]),
-  "i64.div_s": sign([i64, i64], [i64]),
-  "i64.div_u": sign([i64, i64], [i64]),
-  "i64.rem_s": sign([i64, i64], [i64]),
-  "i64.rem_u": sign([i64, i64], [i64]),
-  "i64.and": sign([i64, i64], [i64]),
-  "i64.or": sign([i64, i64], [i64]),
-  "i64.xor": sign([i64, i64], [i64]),
-  "i64.shl": sign([i64, i64], [i64]),
-  "i64.shr_s": sign([i64, i64], [i64]),
-  "i64.shr_u": sign([i64, i64], [i64]),
-  "i64.rotl": sign([i64, i64], [i64]),
-  "i64.rotr": sign([i64, i64], [i64]),
-  "f32.abs": sign([f32], [f32]),
-  "f32.neg": sign([f32], [f32]),
-  "f32.ceil": sign([f32], [f32]),
-  "f32.floor": sign([f32], [f32]),
-  "f32.trunc": sign([f32], [f32]),
-  "f32.nearest": sign([f32], [f32]),
-  "f32.sqrt": sign([f32], [f32]),
-  "f32.add": sign([f32, f32], [f32]),
-  "f32.sub": sign([f32, f32], [f32]),
-  "f32.mul": sign([f32, f32], [f32]),
-  "f32.div": sign([f32, f32], [f32]),
-  "f32.min": sign([f32, f32], [f32]),
-  "f32.max": sign([f32, f32], [f32]),
-  "f32.copysign": sign([f32, f32], [f32]),
-  "f64.abs": sign([f64], [f64]),
-  "f64.neg": sign([f64], [f64]),
-  "f64.ceil": sign([f64], [f64]),
-  "f64.floor": sign([f64], [f64]),
-  "f64.trunc": sign([f64], [f64]),
-  "f64.nearest": sign([f64], [f64]),
-  "f64.sqrt": sign([f64], [f64]),
-  "f64.add": sign([f64, f64], [f64]),
-  "f64.sub": sign([f64, f64], [f64]),
-  "f64.mul": sign([f64, f64], [f64]),
-  "f64.div": sign([f64, f64], [f64]),
-  "f64.min": sign([f64, f64], [f64]),
-  "f64.max": sign([f64, f64], [f64]),
-  "f64.copysign": sign([f64, f64], [f64]),
-  "i32.wrap/i64": sign([i64], [i32]),
-  "i32.trunc_s/f32": sign([f32], [i32]),
-  "i32.trunc_u/f32": sign([f32], [i32]),
-  "i32.trunc_s/f64": sign([f32], [i32]),
-  "i32.trunc_u/f64": sign([f64], [i32]),
-  "i64.extend_s/i32": sign([i32], [i64]),
-  "i64.extend_u/i32": sign([i32], [i64]),
-  "i64.trunc_s/f32": sign([f32], [i64]),
-  "i64.trunc_u/f32": sign([f32], [i64]),
-  "i64.trunc_s/f64": sign([f64], [i64]),
-  "i64.trunc_u/f64": sign([f64], [i64]),
-  "f32.convert_s/i32": sign([i32], [f32]),
-  "f32.convert_u/i32": sign([i32], [f32]),
-  "f32.convert_s/i64": sign([i64], [f32]),
-  "f32.convert_u/i64": sign([i64], [f32]),
-  "f32.demote/f64": sign([f64], [f32]),
-  "f64.convert_s/i32": sign([i32], [f64]),
-  "f64.convert_u/i32": sign([i32], [f64]),
-  "f64.convert_s/i64": sign([i64], [f64]),
-  "f64.convert_u/i64": sign([i64], [f64]),
-  "f64.promote/f32": sign([f32], [f64]),
-  "i32.reinterpret/f32": sign([f32], [i32]),
-  "i64.reinterpret/f64": sign([f64], [i64]),
-  "f32.reinterpret/i32": sign([i32], [f32]),
-  "f64.reinterpret/i64": sign([i64], [f64])
-};
-var signatures = Object.assign({}, controlInstructions, parametricInstructions, variableInstructions, memoryInstructions, numericInstructions);
-exports.signatures = signatures;
-
-/***/ }),
-
-/***/ 47293:
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({
-  value: true
-}));
-exports.traverse = traverse;
-
-var _nodePath = __webpack_require__(7544);
-
-var _nodes = __webpack_require__(47518);
-
-// recursively walks the AST starting at the given node. The callback is invoked for
-// and object that has a 'type' property.
-function walk(context, callback) {
-  var stop = false;
-
-  function innerWalk(context, callback) {
-    if (stop) {
-      return;
-    }
-
-    var node = context.node;
-
-    if (node === undefined) {
-      console.warn("traversing with an empty context");
-      return;
-    }
-
-    if (node._deleted === true) {
-      return;
-    }
-
-    var path = (0, _nodePath.createPath)(context);
-    callback(node.type, path);
-
-    if (path.shouldStop) {
-      stop = true;
-      return;
-    }
-
-    Object.keys(node).forEach(function (prop) {
-      var value = node[prop];
-
-      if (value === null || value === undefined) {
-        return;
-      }
-
-      var valueAsArray = Array.isArray(value) ? value : [value];
-      valueAsArray.forEach(function (childNode) {
-        if (typeof childNode.type === "string") {
-          var childContext = {
-            node: childNode,
-            parentKey: prop,
-            parentPath: path,
-            shouldStop: false,
-            inList: Array.isArray(value)
-          };
-          innerWalk(childContext, callback);
-        }
-      });
-    });
-  }
-
-  innerWalk(context, callback);
-}
-
-var noop = function noop() {};
-
-function traverse(node, visitors) {
-  var before = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : noop;
-  var after = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : noop;
-  Object.keys(visitors).forEach(function (visitor) {
-    if (!_nodes.nodeAndUnionTypes.includes(visitor)) {
-      throw new Error("Unexpected visitor ".concat(visitor));
-    }
-  });
-  var context = {
-    node: node,
-    inList: false,
-    shouldStop: false,
-    parentPath: null,
-    parentKey: null
-  };
-  walk(context, function (type, path) {
-    if (typeof visitors[type] === "function") {
-      before(type, path);
-      visitors[type](path);
-      after(type, path);
-    }
-
-    var unionTypes = _nodes.unionTypesMap[type];
-
-    if (!unionTypes) {
-      throw new Error("Unexpected node type ".concat(type));
-    }
-
-    unionTypes.forEach(function (unionType) {
-      if (typeof visitors[unionType] === "function") {
-        before(unionType, path);
-        visitors[unionType](path);
-        after(unionType, path);
-      }
-    });
-  });
-}
-
-/***/ }),
-
-/***/ 89673:
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({
-  value: true
-}));
-exports.isAnonymous = isAnonymous;
-exports.getSectionMetadata = getSectionMetadata;
-exports.getSectionMetadatas = getSectionMetadatas;
-exports.sortSectionMetadata = sortSectionMetadata;
-exports.orderedInsertNode = orderedInsertNode;
-exports.assertHasLoc = assertHasLoc;
-exports.getEndOfSection = getEndOfSection;
-exports.shiftLoc = shiftLoc;
-exports.shiftSection = shiftSection;
-exports.signatureForOpcode = signatureForOpcode;
-exports.getUniqueNameGenerator = getUniqueNameGenerator;
-exports.getStartByteOffset = getStartByteOffset;
-exports.getEndByteOffset = getEndByteOffset;
-exports.getFunctionBeginingByteOffset = getFunctionBeginingByteOffset;
-exports.getEndBlockByteOffset = getEndBlockByteOffset;
-exports.getStartBlockByteOffset = getStartBlockByteOffset;
-
-var _signatures = __webpack_require__(13003);
-
-var _traverse = __webpack_require__(47293);
-
-var _helperWasmBytecode = _interopRequireWildcard(__webpack_require__(60436));
-
-function _interopRequireWildcard(obj) { if (obj && obj.__esModule) { return obj; } else { var newObj = {}; if (obj != null) { for (var key in obj) { if (Object.prototype.hasOwnProperty.call(obj, key)) { var desc = Object.defineProperty && Object.getOwnPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : {}; if (desc.get || desc.set) { Object.defineProperty(newObj, key, desc); } else { newObj[key] = obj[key]; } } } } newObj.default = obj; return newObj; } }
-
-function _sliceIterator(arr, i) { var _arr = []; var _n = true; var _d = false; var _e = undefined; try { for (var _i = arr[Symbol.iterator](), _s; !(_n = (_s = _i.next()).done); _n = true) { _arr.push(_s.value); if (i && _arr.length === i) break; } } catch (err) { _d = true; _e = err; } finally { try { if (!_n && _i["return"] != null) _i["return"](); } finally { if (_d) throw _e; } } return _arr; }
-
-function _slicedToArray(arr, i) { if (Array.isArray(arr)) { return arr; } else if (Symbol.iterator in Object(arr)) { return _sliceIterator(arr, i); } else { throw new TypeError("Invalid attempt to destructure non-iterable instance"); } }
-
-function _typeof(obj) { if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") { _typeof = function _typeof(obj) { return typeof obj; }; } else { _typeof = function _typeof(obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }; } return _typeof(obj); }
-
-function isAnonymous(ident) {
-  return ident.raw === "";
-}
-
-function getSectionMetadata(ast, name) {
-  var section;
-  (0, _traverse.traverse)(ast, {
-    SectionMetadata: function (_SectionMetadata) {
-      function SectionMetadata(_x) {
-        return _SectionMetadata.apply(this, arguments);
-      }
-
-      SectionMetadata.toString = function () {
-        return _SectionMetadata.toString();
-      };
-
-      return SectionMetadata;
-    }(function (_ref) {
-      var node = _ref.node;
-
-      if (node.section === name) {
-        section = node;
-      }
-    })
-  });
-  return section;
-}
-
-function getSectionMetadatas(ast, name) {
-  var sections = [];
-  (0, _traverse.traverse)(ast, {
-    SectionMetadata: function (_SectionMetadata2) {
-      function SectionMetadata(_x2) {
-        return _SectionMetadata2.apply(this, arguments);
-      }
-
-      SectionMetadata.toString = function () {
-        return _SectionMetadata2.toString();
-      };
-
-      return SectionMetadata;
-    }(function (_ref2) {
-      var node = _ref2.node;
-
-      if (node.section === name) {
-        sections.push(node);
-      }
-    })
-  });
-  return sections;
-}
-
-function sortSectionMetadata(m) {
-  if (m.metadata == null) {
-    console.warn("sortSectionMetadata: no metadata to sort");
-    return;
-  } // $FlowIgnore
-
-
-  m.metadata.sections.sort(function (a, b) {
-    var aId = _helperWasmBytecode.default.sections[a.section];
-    var bId = _helperWasmBytecode.default.sections[b.section];
-
-    if (typeof aId !== "number" || typeof bId !== "number") {
-      throw new Error("Section id not found");
-    }
-
-    return aId - bId;
-  });
-}
-
-function orderedInsertNode(m, n) {
-  assertHasLoc(n);
-  var didInsert = false;
-
-  if (n.type === "ModuleExport") {
-    m.fields.push(n);
-    return;
-  }
-
-  m.fields = m.fields.reduce(function (acc, field) {
-    var fieldEndCol = Infinity;
-
-    if (field.loc != null) {
-      // $FlowIgnore
-      fieldEndCol = field.loc.end.column;
-    } // $FlowIgnore: assertHasLoc ensures that
-
-
-    if (didInsert === false && n.loc.start.column < fieldEndCol) {
-      didInsert = true;
-      acc.push(n);
-    }
-
-    acc.push(field);
-    return acc;
-  }, []); // Handles empty modules or n is the last element
-
-  if (didInsert === false) {
-    m.fields.push(n);
-  }
-}
-
-function assertHasLoc(n) {
-  if (n.loc == null || n.loc.start == null || n.loc.end == null) {
-    throw new Error("Internal failure: node (".concat(JSON.stringify(n.type), ") has no location information"));
-  }
-}
-
-function getEndOfSection(s) {
-  assertHasLoc(s.size);
-  return s.startOffset + s.size.value + ( // $FlowIgnore
-  s.size.loc.end.column - s.size.loc.start.column);
-}
-
-function shiftLoc(node, delta) {
-  // $FlowIgnore
-  node.loc.start.column += delta; // $FlowIgnore
-
-  node.loc.end.column += delta;
-}
-
-function shiftSection(ast, node, delta) {
-  if (node.type !== "SectionMetadata") {
-    throw new Error("Can not shift node " + JSON.stringify(node.type));
-  }
-
-  node.startOffset += delta;
-
-  if (_typeof(node.size.loc) === "object") {
-    shiftLoc(node.size, delta);
-  } // Custom sections doesn't have vectorOfSize
-
-
-  if (_typeof(node.vectorOfSize) === "object" && _typeof(node.vectorOfSize.loc) === "object") {
-    shiftLoc(node.vectorOfSize, delta);
-  }
-
-  var sectionName = node.section; // shift node locations within that section
-
-  (0, _traverse.traverse)(ast, {
-    Node: function Node(_ref3) {
-      var node = _ref3.node;
-      var section = (0, _helperWasmBytecode.getSectionForNode)(node);
-
-      if (section === sectionName && _typeof(node.loc) === "object") {
-        shiftLoc(node, delta);
-      }
-    }
-  });
-}
-
-function signatureForOpcode(object, name) {
-  var opcodeName = name;
-
-  if (object !== undefined && object !== "") {
-    opcodeName = object + "." + name;
-  }
-
-  var sign = _signatures.signatures[opcodeName];
-
-  if (sign == undefined) {
-    // TODO: Uncomment this when br_table and others has been done
-    //throw new Error("Invalid opcode: "+opcodeName);
-    return [object, object];
-  }
-
-  return sign[0];
-}
-
-function getUniqueNameGenerator() {
-  var inc = {};
-  return function () {
-    var prefix = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : "temp";
-
-    if (!(prefix in inc)) {
-      inc[prefix] = 0;
-    } else {
-      inc[prefix] = inc[prefix] + 1;
-    }
-
-    return prefix + "_" + inc[prefix];
-  };
-}
-
-function getStartByteOffset(n) {
-  // $FlowIgnore
-  if (typeof n.loc === "undefined" || typeof n.loc.start === "undefined") {
-    throw new Error( // $FlowIgnore
-    "Can not get byte offset without loc informations, node: " + String(n.id));
-  }
-
-  return n.loc.start.column;
-}
-
-function getEndByteOffset(n) {
-  // $FlowIgnore
-  if (typeof n.loc === "undefined" || typeof n.loc.end === "undefined") {
-    throw new Error("Can not get byte offset without loc informations, node: " + n.type);
-  }
-
-  return n.loc.end.column;
-}
-
-function getFunctionBeginingByteOffset(n) {
-  if (!(n.body.length > 0)) {
-    throw new Error('n.body.length > 0' + " error: " + (undefined || "unknown"));
-  }
-
-  var _n$body = _slicedToArray(n.body, 1),
-      firstInstruction = _n$body[0];
-
-  return getStartByteOffset(firstInstruction);
-}
-
-function getEndBlockByteOffset(n) {
-  // $FlowIgnore
-  if (!(n.instr.length > 0 || n.body.length > 0)) {
-    throw new Error('n.instr.length > 0 || n.body.length > 0' + " error: " + (undefined || "unknown"));
-  }
-
-  var lastInstruction;
-
-  if (n.instr) {
-    // $FlowIgnore
-    lastInstruction = n.instr[n.instr.length - 1];
-  }
-
-  if (n.body) {
-    // $FlowIgnore
-    lastInstruction = n.body[n.body.length - 1];
-  }
-
-  if (!(_typeof(lastInstruction) === "object")) {
-    throw new Error('typeof lastInstruction === "object"' + " error: " + (undefined || "unknown"));
-  }
-
-  // $FlowIgnore
-  return getStartByteOffset(lastInstruction);
-}
-
-function getStartBlockByteOffset(n) {
-  // $FlowIgnore
-  if (!(n.instr.length > 0 || n.body.length > 0)) {
-    throw new Error('n.instr.length > 0 || n.body.length > 0' + " error: " + (undefined || "unknown"));
-  }
-
-  var fistInstruction;
-
-  if (n.instr) {
-    // $FlowIgnore
-    var _n$instr = _slicedToArray(n.instr, 1);
-
-    fistInstruction = _n$instr[0];
-  }
-
-  if (n.body) {
-    // $FlowIgnore
-    var _n$body2 = _slicedToArray(n.body, 1);
-
-    fistInstruction = _n$body2[0];
-  }
-
-  if (!(_typeof(fistInstruction) === "object")) {
-    throw new Error('typeof fistInstruction === "object"' + " error: " + (undefined || "unknown"));
-  }
-
-  // $FlowIgnore
-  return getStartByteOffset(fistInstruction);
-}
-
-/***/ }),
-
-/***/ 60436:
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({
-  value: true
-}));
-Object.defineProperty(exports, "getSectionForNode", ({
-  enumerable: true,
-  get: function get() {
-    return _section.getSectionForNode;
-  }
-}));
-exports.default = void 0;
-
-var _section = __webpack_require__(24883);
-
-var illegalop = "illegal";
-var magicModuleHeader = [0x00, 0x61, 0x73, 0x6d];
-var moduleVersion = [0x01, 0x00, 0x00, 0x00];
-
-function invertMap(obj) {
-  var keyModifierFn = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : function (k) {
-    return k;
-  };
-  var result = {};
-  var keys = Object.keys(obj);
-
-  for (var i = 0, length = keys.length; i < length; i++) {
-    result[keyModifierFn(obj[keys[i]])] = keys[i];
-  }
-
-  return result;
-}
-
-function createSymbolObject(name
-/*: string */
-, object
-/*: string */
-)
-/*: Symbol*/
-{
-  var numberOfArgs
-  /*: number*/
-  = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : 0;
-  return {
-    name: name,
-    object: object,
-    numberOfArgs: numberOfArgs
-  };
-}
-
-function createSymbol(name
-/*: string */
-)
-/*: Symbol*/
-{
-  var numberOfArgs
-  /*: number*/
-  = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 0;
-  return {
-    name: name,
-    numberOfArgs: numberOfArgs
-  };
-}
-
-var types = {
-  func: 0x60,
-  result: 0x40
-};
-var exportTypes = {
-  0x00: "Func",
-  0x01: "Table",
-  0x02: "Mem",
-  0x03: "Global"
-};
-var exportTypesByName = invertMap(exportTypes);
-var valtypes = {
-  0x7f: "i32",
-  0x7e: "i64",
-  0x7d: "f32",
-  0x7c: "f64",
-  0x7b: "v128"
-};
-var valtypesByString = invertMap(valtypes);
-var tableTypes = {
-  0x70: "anyfunc"
-};
-var blockTypes = Object.assign({}, valtypes, {
-  // https://webassembly.github.io/spec/core/binary/types.html#binary-blocktype
-  0x40: null,
-  // https://webassembly.github.io/spec/core/binary/types.html#binary-valtype
-  0x7f: "i32",
-  0x7e: "i64",
-  0x7d: "f32",
-  0x7c: "f64"
-});
-var globalTypes = {
-  0x00: "const",
-  0x01: "var"
-};
-var globalTypesByString = invertMap(globalTypes);
-var importTypes = {
-  0x00: "func",
-  0x01: "table",
-  0x02: "mem",
-  0x03: "global"
-};
-var sections = {
-  custom: 0,
-  type: 1,
-  import: 2,
-  func: 3,
-  table: 4,
-  memory: 5,
-  global: 6,
-  export: 7,
-  start: 8,
-  element: 9,
-  code: 10,
-  data: 11
-};
-var symbolsByByte = {
-  0x00: createSymbol("unreachable"),
-  0x01: createSymbol("nop"),
-  0x02: createSymbol("block"),
-  0x03: createSymbol("loop"),
-  0x04: createSymbol("if"),
-  0x05: createSymbol("else"),
-  0x06: illegalop,
-  0x07: illegalop,
-  0x08: illegalop,
-  0x09: illegalop,
-  0x0a: illegalop,
-  0x0b: createSymbol("end"),
-  0x0c: createSymbol("br", 1),
-  0x0d: createSymbol("br_if", 1),
-  0x0e: createSymbol("br_table"),
-  0x0f: createSymbol("return"),
-  0x10: createSymbol("call", 1),
-  0x11: createSymbol("call_indirect", 2),
-  0x12: illegalop,
-  0x13: illegalop,
-  0x14: illegalop,
-  0x15: illegalop,
-  0x16: illegalop,
-  0x17: illegalop,
-  0x18: illegalop,
-  0x19: illegalop,
-  0x1a: createSymbol("drop"),
-  0x1b: createSymbol("select"),
-  0x1c: illegalop,
-  0x1d: illegalop,
-  0x1e: illegalop,
-  0x1f: illegalop,
-  0x20: createSymbol("get_local", 1),
-  0x21: createSymbol("set_local", 1),
-  0x22: createSymbol("tee_local", 1),
-  0x23: createSymbol("get_global", 1),
-  0x24: createSymbol("set_global", 1),
-  0x25: illegalop,
-  0x26: illegalop,
-  0x27: illegalop,
-  0x28: createSymbolObject("load", "u32", 1),
-  0x29: createSymbolObject("load", "u64", 1),
-  0x2a: createSymbolObject("load", "f32", 1),
-  0x2b: createSymbolObject("load", "f64", 1),
-  0x2c: createSymbolObject("load8_s", "u32", 1),
-  0x2d: createSymbolObject("load8_u", "u32", 1),
-  0x2e: createSymbolObject("load16_s", "u32", 1),
-  0x2f: createSymbolObject("load16_u", "u32", 1),
-  0x30: createSymbolObject("load8_s", "u64", 1),
-  0x31: createSymbolObject("load8_u", "u64", 1),
-  0x32: createSymbolObject("load16_s", "u64", 1),
-  0x33: createSymbolObject("load16_u", "u64", 1),
-  0x34: createSymbolObject("load32_s", "u64", 1),
-  0x35: createSymbolObject("load32_u", "u64", 1),
-  0x36: createSymbolObject("store", "u32", 1),
-  0x37: createSymbolObject("store", "u64", 1),
-  0x38: createSymbolObject("store", "f32", 1),
-  0x39: createSymbolObject("store", "f64", 1),
-  0x3a: createSymbolObject("store8", "u32", 1),
-  0x3b: createSymbolObject("store16", "u32", 1),
-  0x3c: createSymbolObject("store8", "u64", 1),
-  0x3d: createSymbolObject("store16", "u64", 1),
-  0x3e: createSymbolObject("store32", "u64", 1),
-  0x3f: createSymbolObject("current_memory"),
-  0x40: createSymbolObject("grow_memory"),
-  0x41: createSymbolObject("const", "i32", 1),
-  0x42: createSymbolObject("const", "i64", 1),
-  0x43: createSymbolObject("const", "f32", 1),
-  0x44: createSymbolObject("const", "f64", 1),
-  0x45: createSymbolObject("eqz", "i32"),
-  0x46: createSymbolObject("eq", "i32"),
-  0x47: createSymbolObject("ne", "i32"),
-  0x48: createSymbolObject("lt_s", "i32"),
-  0x49: createSymbolObject("lt_u", "i32"),
-  0x4a: createSymbolObject("gt_s", "i32"),
-  0x4b: createSymbolObject("gt_u", "i32"),
-  0x4c: createSymbolObject("le_s", "i32"),
-  0x4d: createSymbolObject("le_u", "i32"),
-  0x4e: createSymbolObject("ge_s", "i32"),
-  0x4f: createSymbolObject("ge_u", "i32"),
-  0x50: createSymbolObject("eqz", "i64"),
-  0x51: createSymbolObject("eq", "i64"),
-  0x52: createSymbolObject("ne", "i64"),
-  0x53: createSymbolObject("lt_s", "i64"),
-  0x54: createSymbolObject("lt_u", "i64"),
-  0x55: createSymbolObject("gt_s", "i64"),
-  0x56: createSymbolObject("gt_u", "i64"),
-  0x57: createSymbolObject("le_s", "i64"),
-  0x58: createSymbolObject("le_u", "i64"),
-  0x59: createSymbolObject("ge_s", "i64"),
-  0x5a: createSymbolObject("ge_u", "i64"),
-  0x5b: createSymbolObject("eq", "f32"),
-  0x5c: createSymbolObject("ne", "f32"),
-  0x5d: createSymbolObject("lt", "f32"),
-  0x5e: createSymbolObject("gt", "f32"),
-  0x5f: createSymbolObject("le", "f32"),
-  0x60: createSymbolObject("ge", "f32"),
-  0x61: createSymbolObject("eq", "f64"),
-  0x62: createSymbolObject("ne", "f64"),
-  0x63: createSymbolObject("lt", "f64"),
-  0x64: createSymbolObject("gt", "f64"),
-  0x65: createSymbolObject("le", "f64"),
-  0x66: createSymbolObject("ge", "f64"),
-  0x67: createSymbolObject("clz", "i32"),
-  0x68: createSymbolObject("ctz", "i32"),
-  0x69: createSymbolObject("popcnt", "i32"),
-  0x6a: createSymbolObject("add", "i32"),
-  0x6b: createSymbolObject("sub", "i32"),
-  0x6c: createSymbolObject("mul", "i32"),
-  0x6d: createSymbolObject("div_s", "i32"),
-  0x6e: createSymbolObject("div_u", "i32"),
-  0x6f: createSymbolObject("rem_s", "i32"),
-  0x70: createSymbolObject("rem_u", "i32"),
-  0x71: createSymbolObject("and", "i32"),
-  0x72: createSymbolObject("or", "i32"),
-  0x73: createSymbolObject("xor", "i32"),
-  0x74: createSymbolObject("shl", "i32"),
-  0x75: createSymbolObject("shr_s", "i32"),
-  0x76: createSymbolObject("shr_u", "i32"),
-  0x77: createSymbolObject("rotl", "i32"),
-  0x78: createSymbolObject("rotr", "i32"),
-  0x79: createSymbolObject("clz", "i64"),
-  0x7a: createSymbolObject("ctz", "i64"),
-  0x7b: createSymbolObject("popcnt", "i64"),
-  0x7c: createSymbolObject("add", "i64"),
-  0x7d: createSymbolObject("sub", "i64"),
-  0x7e: createSymbolObject("mul", "i64"),
-  0x7f: createSymbolObject("div_s", "i64"),
-  0x80: createSymbolObject("div_u", "i64"),
-  0x81: createSymbolObject("rem_s", "i64"),
-  0x82: createSymbolObject("rem_u", "i64"),
-  0x83: createSymbolObject("and", "i64"),
-  0x84: createSymbolObject("or", "i64"),
-  0x85: createSymbolObject("xor", "i64"),
-  0x86: createSymbolObject("shl", "i64"),
-  0x87: createSymbolObject("shr_s", "i64"),
-  0x88: createSymbolObject("shr_u", "i64"),
-  0x89: createSymbolObject("rotl", "i64"),
-  0x8a: createSymbolObject("rotr", "i64"),
-  0x8b: createSymbolObject("abs", "f32"),
-  0x8c: createSymbolObject("neg", "f32"),
-  0x8d: createSymbolObject("ceil", "f32"),
-  0x8e: createSymbolObject("floor", "f32"),
-  0x8f: createSymbolObject("trunc", "f32"),
-  0x90: createSymbolObject("nearest", "f32"),
-  0x91: createSymbolObject("sqrt", "f32"),
-  0x92: createSymbolObject("add", "f32"),
-  0x93: createSymbolObject("sub", "f32"),
-  0x94: createSymbolObject("mul", "f32"),
-  0x95: createSymbolObject("div", "f32"),
-  0x96: createSymbolObject("min", "f32"),
-  0x97: createSymbolObject("max", "f32"),
-  0x98: createSymbolObject("copysign", "f32"),
-  0x99: createSymbolObject("abs", "f64"),
-  0x9a: createSymbolObject("neg", "f64"),
-  0x9b: createSymbolObject("ceil", "f64"),
-  0x9c: createSymbolObject("floor", "f64"),
-  0x9d: createSymbolObject("trunc", "f64"),
-  0x9e: createSymbolObject("nearest", "f64"),
-  0x9f: createSymbolObject("sqrt", "f64"),
-  0xa0: createSymbolObject("add", "f64"),
-  0xa1: createSymbolObject("sub", "f64"),
-  0xa2: createSymbolObject("mul", "f64"),
-  0xa3: createSymbolObject("div", "f64"),
-  0xa4: createSymbolObject("min", "f64"),
-  0xa5: createSymbolObject("max", "f64"),
-  0xa6: createSymbolObject("copysign", "f64"),
-  0xa7: createSymbolObject("wrap/i64", "i32"),
-  0xa8: createSymbolObject("trunc_s/f32", "i32"),
-  0xa9: createSymbolObject("trunc_u/f32", "i32"),
-  0xaa: createSymbolObject("trunc_s/f64", "i32"),
-  0xab: createSymbolObject("trunc_u/f64", "i32"),
-  0xac: createSymbolObject("extend_s/i32", "i64"),
-  0xad: createSymbolObject("extend_u/i32", "i64"),
-  0xae: createSymbolObject("trunc_s/f32", "i64"),
-  0xaf: createSymbolObject("trunc_u/f32", "i64"),
-  0xb0: createSymbolObject("trunc_s/f64", "i64"),
-  0xb1: createSymbolObject("trunc_u/f64", "i64"),
-  0xb2: createSymbolObject("convert_s/i32", "f32"),
-  0xb3: createSymbolObject("convert_u/i32", "f32"),
-  0xb4: createSymbolObject("convert_s/i64", "f32"),
-  0xb5: createSymbolObject("convert_u/i64", "f32"),
-  0xb6: createSymbolObject("demote/f64", "f32"),
-  0xb7: createSymbolObject("convert_s/i32", "f64"),
-  0xb8: createSymbolObject("convert_u/i32", "f64"),
-  0xb9: createSymbolObject("convert_s/i64", "f64"),
-  0xba: createSymbolObject("convert_u/i64", "f64"),
-  0xbb: createSymbolObject("promote/f32", "f64"),
-  0xbc: createSymbolObject("reinterpret/f32", "i32"),
-  0xbd: createSymbolObject("reinterpret/f64", "i64"),
-  0xbe: createSymbolObject("reinterpret/i32", "f32"),
-  0xbf: createSymbolObject("reinterpret/i64", "f64")
-};
-var symbolsByName = invertMap(symbolsByByte, function (obj) {
-  if (typeof obj.object === "string") {
-    return "".concat(obj.object, ".").concat(obj.name);
-  }
-
-  return obj.name;
-});
-var _default = {
-  symbolsByByte: symbolsByByte,
-  sections: sections,
-  magicModuleHeader: magicModuleHeader,
-  moduleVersion: moduleVersion,
-  types: types,
-  valtypes: valtypes,
-  exportTypes: exportTypes,
-  blockTypes: blockTypes,
-  tableTypes: tableTypes,
-  globalTypes: globalTypes,
-  importTypes: importTypes,
-  valtypesByString: valtypesByString,
-  globalTypesByString: globalTypesByString,
-  exportTypesByName: exportTypesByName,
-  symbolsByName: symbolsByName
-};
-exports.default = _default;
-
-/***/ }),
-
-/***/ 24883:
-/***/ (function(__unused_webpack_module, exports) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({
-  value: true
-}));
-exports.getSectionForNode = getSectionForNode;
-
-function getSectionForNode(n) {
-  switch (n.type) {
-    case "ModuleImport":
-      return "import";
-
-    case "CallInstruction":
-    case "CallIndirectInstruction":
-    case "Func":
-    case "Instr":
-      return "code";
-
-    case "ModuleExport":
-      return "export";
-
-    case "Start":
-      return "start";
-
-    case "TypeInstruction":
-      return "type";
-
-    case "IndexInFuncSection":
-      return "func";
-
-    case "Global":
-      return "global";
-    // No section
-
-    default:
-      return;
-  }
-}
-
-/***/ }),
-
-/***/ 68693:
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({
-  value: true
-}));
-exports.parse = parse;
-
-var _helperCodeFrame = __webpack_require__(48333);
-
-var t = _interopRequireWildcard(__webpack_require__(17373));
-
-var _numberLiterals = __webpack_require__(3425);
-
-var _stringLiterals = __webpack_require__(27481);
-
-var _tokenizer = __webpack_require__(57261);
-
-function _interopRequireWildcard(obj) { if (obj && obj.__esModule) { return obj; } else { var newObj = {}; if (obj != null) { for (var key in obj) { if (Object.prototype.hasOwnProperty.call(obj, key)) { var desc = Object.defineProperty && Object.getOwnPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : {}; if (desc.get || desc.set) { Object.defineProperty(newObj, key, desc); } else { newObj[key] = obj[key]; } } } } newObj.default = obj; return newObj; } }
-
-function _typeof(obj) { if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") { _typeof = function _typeof(obj) { return typeof obj; }; } else { _typeof = function _typeof(obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }; } return _typeof(obj); }
-
-function _toConsumableArray(arr) { if (Array.isArray(arr)) { for (var i = 0, arr2 = new Array(arr.length); i < arr.length; i++) { arr2[i] = arr[i]; } return arr2; } else { return Array.from(arr); } }
-
-function hasPlugin(name) {
-  if (name !== "wast") throw new Error("unknow plugin");
-  return true;
-}
-
-function isKeyword(token, id) {
-  return token.type === _tokenizer.tokens.keyword && token.value === id;
-}
-
-function tokenToString(token) {
-  if (token.type === "keyword") {
-    return "keyword (".concat(token.value, ")");
-  }
-
-  return token.type;
-}
-
-function identifierFromToken(token) {
-  var _token$loc = token.loc,
-      end = _token$loc.end,
-      start = _token$loc.start;
-  return t.withLoc(t.identifier(token.value), end, start);
-}
-
-function parse(tokensList, source) {
-  var current = 0;
-  var getUniqueName = t.getUniqueNameGenerator();
-  var state = {
-    registredExportedElements: []
-  }; // But this time we're going to use recursion instead of a `while` loop. So we
-  // define a `walk` function.
-
-  function walk() {
-    var token = tokensList[current];
-
-    function eatToken() {
-      token = tokensList[++current];
-    }
-
-    function getEndLoc() {
-      var currentToken = token;
-
-      if (typeof currentToken === "undefined") {
-        var lastToken = tokensList[tokensList.length - 1];
-        currentToken = lastToken;
-      }
-
-      return currentToken.loc.end;
-    }
-
-    function getStartLoc() {
-      return token.loc.start;
-    }
-
-    function eatTokenOfType(type) {
-      if (token.type !== type) {
-        throw new Error("\n" + (0, _helperCodeFrame.codeFrameFromSource)(source, token.loc) + "Assertion error: expected token of type " + type + ", given " + tokenToString(token));
-      }
-
-      eatToken();
-    }
-
-    function parseExportIndex(token) {
-      if (token.type === _tokenizer.tokens.identifier) {
-        var index = identifierFromToken(token);
-        eatToken();
-        return index;
-      } else if (token.type === _tokenizer.tokens.number) {
-        var _index = t.numberLiteralFromRaw(token.value);
-
-        eatToken();
-        return _index;
-      } else {
-        throw function () {
-          return new Error("\n" + (0, _helperCodeFrame.codeFrameFromSource)(source, token.loc) + "\n" + "unknown export index" + ", given " + tokenToString(token));
-        }();
-      }
-    }
-
-    function lookaheadAndCheck() {
-      var len = arguments.length;
-
-      for (var i = 0; i < len; i++) {
-        var tokenAhead = tokensList[current + i];
-        var expectedToken = i < 0 || arguments.length <= i ? undefined : arguments[i];
-
-        if (tokenAhead.type === "keyword") {
-          if (isKeyword(tokenAhead, expectedToken) === false) {
-            return false;
-          }
-        } else if (expectedToken !== tokenAhead.type) {
-          return false;
-        }
-      }
-
-      return true;
-    } // TODO(sven): there is probably a better way to do this
-    // can refactor it if it get out of hands
-
-
-    function maybeIgnoreComment() {
-      if (typeof token === "undefined") {
-        // Ignore
-        return;
-      }
-
-      while (token.type === _tokenizer.tokens.comment) {
-        eatToken();
-
-        if (typeof token === "undefined") {
-          // Hit the end
-          break;
-        }
-      }
-    }
-    /**
-     * Parses a memory instruction
-     *
-     * WAST:
-     *
-     * memory:  ( memory <name>? <memory_sig> )
-     *          ( memory <name>? ( export <string> ) <...> )
-     *          ( memory <name>? ( import <string> <string> ) <memory_sig> )
-     *          ( memory <name>? ( export <string> )* ( data <string>* )
-     * memory_sig: <nat> <nat>?
-     *
-     */
-
-
-    function parseMemory() {
-      var id = t.identifier(getUniqueName("memory"));
-      var limits = t.limit(0);
-
-      if (token.type === _tokenizer.tokens.string || token.type === _tokenizer.tokens.identifier) {
-        id = t.identifier(token.value);
-        eatToken();
-      } else {
-        id = t.withRaw(id, ""); // preserve anonymous
-      }
-      /**
-       * Maybe data
-       */
-
-
-      if (lookaheadAndCheck(_tokenizer.tokens.openParen, _tokenizer.keywords.data)) {
-        eatToken(); // (
-
-        eatToken(); // data
-        // TODO(sven): do something with the data collected here
-
-        var stringInitializer = token.value;
-        eatTokenOfType(_tokenizer.tokens.string); // Update limits accordingly
-
-        limits = t.limit(stringInitializer.length);
-        eatTokenOfType(_tokenizer.tokens.closeParen);
-      }
-      /**
-       * Maybe export
-       */
-
-
-      if (lookaheadAndCheck(_tokenizer.tokens.openParen, _tokenizer.keywords.export)) {
-        eatToken(); // (
-
-        eatToken(); // export
-
-        if (token.type !== _tokenizer.tokens.string) {
-          throw function () {
-            return new Error("\n" + (0, _helperCodeFrame.codeFrameFromSource)(source, token.loc) + "\n" + "Expected string in export" + ", given " + tokenToString(token));
-          }();
-        }
-
-        var _name = token.value;
-        eatToken();
-        state.registredExportedElements.push({
-          exportType: "Memory",
-          name: _name,
-          id: id
-        });
-        eatTokenOfType(_tokenizer.tokens.closeParen);
-      }
-      /**
-       * Memory signature
-       */
-
-
-      if (token.type === _tokenizer.tokens.number) {
-        limits = t.limit((0, _numberLiterals.parse32I)(token.value));
-        eatToken();
-
-        if (token.type === _tokenizer.tokens.number) {
-          limits.max = (0, _numberLiterals.parse32I)(token.value);
-          eatToken();
-        }
-      }
-
-      return t.memory(limits, id);
-    }
-    /**
-     * Parses a data section
-     * https://webassembly.github.io/spec/core/text/modules.html#data-segments
-     *
-     * WAST:
-     *
-     * data:  ( data <index>? <offset> <string> )
-     */
-
-
-    function parseData() {
-      // optional memory index
-      var memidx = 0;
-
-      if (token.type === _tokenizer.tokens.number) {
-        memidx = token.value;
-        eatTokenOfType(_tokenizer.tokens.number); // .
-      }
-
-      eatTokenOfType(_tokenizer.tokens.openParen);
-      var offset;
-
-      if (token.type === _tokenizer.tokens.valtype) {
-        eatTokenOfType(_tokenizer.tokens.valtype); // i32
-
-        eatTokenOfType(_tokenizer.tokens.dot); // .
-
-        if (token.value !== "const") {
-          throw new Error("constant expression required");
-        }
-
-        eatTokenOfType(_tokenizer.tokens.name); // const
-
-        var numberLiteral = t.numberLiteralFromRaw(token.value, "i32");
-        offset = t.objectInstruction("const", "i32", [numberLiteral]);
-        eatToken();
-        eatTokenOfType(_tokenizer.tokens.closeParen);
-      } else {
-        eatTokenOfType(_tokenizer.tokens.name); // get_global
-
-        var _numberLiteral = t.numberLiteralFromRaw(token.value, "i32");
-
-        offset = t.instruction("get_global", [_numberLiteral]);
-        eatToken();
-        eatTokenOfType(_tokenizer.tokens.closeParen);
-      }
-
-      var byteArray = (0, _stringLiterals.parseString)(token.value);
-      eatToken(); // "string"
-
-      return t.data(t.memIndexLiteral(memidx), offset, t.byteArray(byteArray));
-    }
-    /**
-     * Parses a table instruction
-     *
-     * WAST:
-     *
-     * table:   ( table <name>? <table_type> )
-     *          ( table <name>? ( export <string> ) <...> )
-     *          ( table <name>? ( import <string> <string> ) <table_type> )
-     *          ( table <name>? ( export <string> )* <elem_type> ( elem <var>* ) )
-     *
-     * table_type:  <nat> <nat>? <elem_type>
-     * elem_type: anyfunc
-     *
-     * elem:    ( elem <var>? (offset <instr>* ) <var>* )
-     *          ( elem <var>? <expr> <var>* )
-     */
-
-
-    function parseTable() {
-      var name = t.identifier(getUniqueName("table"));
-      var limit = t.limit(0);
-      var elemIndices = [];
-      var elemType = "anyfunc";
-
-      if (token.type === _tokenizer.tokens.string || token.type === _tokenizer.tokens.identifier) {
-        name = identifierFromToken(token);
-        eatToken();
-      } else {
-        name = t.withRaw(name, ""); // preserve anonymous
-      }
-
-      while (token.type !== _tokenizer.tokens.closeParen) {
-        /**
-         * Maybe export
-         */
-        if (lookaheadAndCheck(_tokenizer.tokens.openParen, _tokenizer.keywords.elem)) {
-          eatToken(); // (
-
-          eatToken(); // elem
-
-          while (token.type === _tokenizer.tokens.identifier) {
-            elemIndices.push(t.identifier(token.value));
-            eatToken();
-          }
-
-          eatTokenOfType(_tokenizer.tokens.closeParen);
-        } else if (lookaheadAndCheck(_tokenizer.tokens.openParen, _tokenizer.keywords.export)) {
-          eatToken(); // (
-
-          eatToken(); // export
-
-          if (token.type !== _tokenizer.tokens.string) {
-            throw function () {
-              return new Error("\n" + (0, _helperCodeFrame.codeFrameFromSource)(source, token.loc) + "\n" + "Expected string in export" + ", given " + tokenToString(token));
-            }();
-          }
-
-          var exportName = token.value;
-          eatToken();
-          state.registredExportedElements.push({
-            exportType: "Table",
-            name: exportName,
-            id: name
-          });
-          eatTokenOfType(_tokenizer.tokens.closeParen);
-        } else if (isKeyword(token, _tokenizer.keywords.anyfunc)) {
-          // It's the default value, we can ignore it
-          eatToken(); // anyfunc
-        } else if (token.type === _tokenizer.tokens.number) {
-          /**
-           * Table type
-           */
-          var min = parseInt(token.value);
-          eatToken();
-
-          if (token.type === _tokenizer.tokens.number) {
-            var max = parseInt(token.value);
-            eatToken();
-            limit = t.limit(min, max);
-          } else {
-            limit = t.limit(min);
-          }
-
-          eatToken();
-        } else {
-          throw function () {
-            return new Error("\n" + (0, _helperCodeFrame.codeFrameFromSource)(source, token.loc) + "\n" + "Unexpected token" + ", given " + tokenToString(token));
-          }();
-        }
-      }
-
-      if (elemIndices.length > 0) {
-        return t.table(elemType, limit, name, elemIndices);
-      } else {
-        return t.table(elemType, limit, name);
-      }
-    }
-    /**
-     * Parses an import statement
-     *
-     * WAST:
-     *
-     * import:  ( import <string> <string> <imkind> )
-     * imkind:  ( func <name>? <func_sig> )
-     *          ( global <name>? <global_sig> )
-     *          ( table <name>? <table_sig> )
-     *          ( memory <name>? <memory_sig> )
-     *
-     * global_sig: <type> | ( mut <type> )
-     */
-
-
-    function parseImport() {
-      if (token.type !== _tokenizer.tokens.string) {
-        throw new Error("Expected a string, " + token.type + " given.");
-      }
-
-      var moduleName = token.value;
-      eatToken();
-
-      if (token.type !== _tokenizer.tokens.string) {
-        throw new Error("Expected a string, " + token.type + " given.");
-      }
-
-      var name = token.value;
-      eatToken();
-      eatTokenOfType(_tokenizer.tokens.openParen);
-      var descr;
-
-      if (isKeyword(token, _tokenizer.keywords.func)) {
-        eatToken(); // keyword
-
-        var fnParams = [];
-        var fnResult = [];
-        var typeRef;
-        var fnName = t.identifier(getUniqueName("func"));
-
-        if (token.type === _tokenizer.tokens.identifier) {
-          fnName = identifierFromToken(token);
-          eatToken();
-        }
-
-        while (token.type === _tokenizer.tokens.openParen) {
-          eatToken();
-
-          if (lookaheadAndCheck(_tokenizer.keywords.type) === true) {
-            eatToken();
-            typeRef = parseTypeReference();
-          } else if (lookaheadAndCheck(_tokenizer.keywords.param) === true) {
-            eatToken();
-            fnParams.push.apply(fnParams, _toConsumableArray(parseFuncParam()));
-          } else if (lookaheadAndCheck(_tokenizer.keywords.result) === true) {
-            eatToken();
-            fnResult.push.apply(fnResult, _toConsumableArray(parseFuncResult()));
-          } else {
-            throw function () {
-              return new Error("\n" + (0, _helperCodeFrame.codeFrameFromSource)(source, token.loc) + "\n" + "Unexpected token in import of type" + ", given " + tokenToString(token));
-            }();
-          }
-
-          eatTokenOfType(_tokenizer.tokens.closeParen);
-        }
-
-        if (typeof fnName === "undefined") {
-          throw new Error("Imported function must have a name");
-        }
-
-        descr = t.funcImportDescr(fnName, typeRef !== undefined ? typeRef : t.signature(fnParams, fnResult));
-      } else if (isKeyword(token, _tokenizer.keywords.global)) {
-        eatToken(); // keyword
-
-        if (token.type === _tokenizer.tokens.openParen) {
-          eatToken(); // (
-
-          eatTokenOfType(_tokenizer.tokens.keyword); // mut keyword
-
-          var valtype = token.value;
-          eatToken();
-          descr = t.globalType(valtype, "var");
-          eatTokenOfType(_tokenizer.tokens.closeParen);
-        } else {
-          var _valtype = token.value;
-          eatTokenOfType(_tokenizer.tokens.valtype);
-          descr = t.globalType(_valtype, "const");
-        }
-      } else if (isKeyword(token, _tokenizer.keywords.memory) === true) {
-        eatToken(); // Keyword
-
-        descr = parseMemory();
-      } else if (isKeyword(token, _tokenizer.keywords.table) === true) {
-        eatToken(); // Keyword
-
-        descr = parseTable();
-      } else {
-        throw new Error("Unsupported import type: " + tokenToString(token));
-      }
-
-      eatTokenOfType(_tokenizer.tokens.closeParen);
-      return t.moduleImport(moduleName, name, descr);
-    }
-    /**
-     * Parses a block instruction
-     *
-     * WAST:
-     *
-     * expr: ( block <name>? <block_sig> <instr>* )
-     * instr: block <name>? <block_sig> <instr>* end <name>?
-     * block_sig : ( result <type>* )*
-     *
-     */
-
-
-    function parseBlock() {
-      var label = t.identifier(getUniqueName("block"));
-      var blockResult = null;
-      var instr = [];
-
-      if (token.type === _tokenizer.tokens.identifier) {
-        label = identifierFromToken(token);
-        eatToken();
-      } else {
-        label = t.withRaw(label, ""); // preserve anonymous
-      }
-
-      while (token.type === _tokenizer.tokens.openParen) {
-        eatToken();
-
-        if (lookaheadAndCheck(_tokenizer.keywords.result) === true) {
-          eatToken();
-          blockResult = token.value;
-          eatToken();
-        } else if (lookaheadAndCheck(_tokenizer.tokens.name) === true || lookaheadAndCheck(_tokenizer.tokens.valtype) === true || token.type === "keyword" // is any keyword
-        ) {
-            // Instruction
-            instr.push(parseFuncInstr());
-          } else {
-          throw function () {
-            return new Error("\n" + (0, _helperCodeFrame.codeFrameFromSource)(source, token.loc) + "\n" + "Unexpected token in block body of type" + ", given " + tokenToString(token));
-          }();
-        }
-
-        maybeIgnoreComment();
-        eatTokenOfType(_tokenizer.tokens.closeParen);
-      }
-
-      return t.blockInstruction(label, instr, blockResult);
-    }
-    /**
-     * Parses a if instruction
-     *
-     * WAST:
-     *
-     * expr:
-     * ( if <name>? <block_sig> ( then <instr>* ) ( else <instr>* )? )
-     * ( if <name>? <block_sig> <expr>+ ( then <instr>* ) ( else <instr>* )? )
-     *
-     * instr:
-     * if <name>? <block_sig> <instr>* end <name>?
-     * if <name>? <block_sig> <instr>* else <name>? <instr>* end <name>?
-     *
-     * block_sig : ( result <type>* )*
-     *
-     */
-
-
-    function parseIf() {
-      var blockResult = null;
-      var label = t.identifier(getUniqueName("if"));
-      var testInstrs = [];
-      var consequent = [];
-      var alternate = [];
-
-      if (token.type === _tokenizer.tokens.identifier) {
-        label = identifierFromToken(token);
-        eatToken();
-      } else {
-        label = t.withRaw(label, ""); // preserve anonymous
-      }
-
-      while (token.type === _tokenizer.tokens.openParen) {
-        eatToken(); // (
-
-        /**
-         * Block signature
-         */
-
-        if (isKeyword(token, _tokenizer.keywords.result) === true) {
-          eatToken();
-          blockResult = token.value;
-          eatTokenOfType(_tokenizer.tokens.valtype);
-          eatTokenOfType(_tokenizer.tokens.closeParen);
-          continue;
-        }
-        /**
-         * Then
-         */
-
-
-        if (isKeyword(token, _tokenizer.keywords.then) === true) {
-          eatToken(); // then
-
-          while (token.type === _tokenizer.tokens.openParen) {
-            eatToken(); // Instruction
-
-            if (lookaheadAndCheck(_tokenizer.tokens.name) === true || lookaheadAndCheck(_tokenizer.tokens.valtype) === true || token.type === "keyword" // is any keyword
-            ) {
-                consequent.push(parseFuncInstr());
-              } else {
-              throw function () {
-                return new Error("\n" + (0, _helperCodeFrame.codeFrameFromSource)(source, token.loc) + "\n" + "Unexpected token in consequent body of type" + ", given " + tokenToString(token));
-              }();
-            }
-
-            eatTokenOfType(_tokenizer.tokens.closeParen);
-          }
-
-          eatTokenOfType(_tokenizer.tokens.closeParen);
-          continue;
-        }
-        /**
-         * Alternate
-         */
-
-
-        if (isKeyword(token, _tokenizer.keywords.else)) {
-          eatToken(); // else
-
-          while (token.type === _tokenizer.tokens.openParen) {
-            eatToken(); // Instruction
-
-            if (lookaheadAndCheck(_tokenizer.tokens.name) === true || lookaheadAndCheck(_tokenizer.tokens.valtype) === true || token.type === "keyword" // is any keyword
-            ) {
-                alternate.push(parseFuncInstr());
-              } else {
-              throw function () {
-                return new Error("\n" + (0, _helperCodeFrame.codeFrameFromSource)(source, token.loc) + "\n" + "Unexpected token in alternate body of type" + ", given " + tokenToString(token));
-              }();
-            }
-
-            eatTokenOfType(_tokenizer.tokens.closeParen);
-          }
-
-          eatTokenOfType(_tokenizer.tokens.closeParen);
-          continue;
-        }
-        /**
-         * Test instruction
-         */
-
-
-        if (lookaheadAndCheck(_tokenizer.tokens.name) === true || lookaheadAndCheck(_tokenizer.tokens.valtype) === true || token.type === "keyword" // is any keyword
-        ) {
-            testInstrs.push(parseFuncInstr());
-            eatTokenOfType(_tokenizer.tokens.closeParen);
-            continue;
-          }
-
-        throw function () {
-          return new Error("\n" + (0, _helperCodeFrame.codeFrameFromSource)(source, token.loc) + "\n" + "Unexpected token in if body" + ", given " + tokenToString(token));
-        }();
-      }
-
-      return t.ifInstruction(label, testInstrs, blockResult, consequent, alternate);
-    }
-    /**
-     * Parses a loop instruction
-     *
-     * WAT:
-     *
-     * blockinstr :: 'loop' I:label rt:resulttype (in:instr*) 'end' id?
-     *
-     * WAST:
-     *
-     * instr     :: loop <name>? <block_sig> <instr>* end <name>?
-     * expr      :: ( loop <name>? <block_sig> <instr>* )
-     * block_sig :: ( result <type>* )*
-     *
-     */
-
-
-    function parseLoop() {
-      var label = t.identifier(getUniqueName("loop"));
-      var blockResult;
-      var instr = [];
-
-      if (token.type === _tokenizer.tokens.identifier) {
-        label = identifierFromToken(token);
-        eatToken();
-      } else {
-        label = t.withRaw(label, ""); // preserve anonymous
-      }
-
-      while (token.type === _tokenizer.tokens.openParen) {
-        eatToken();
-
-        if (lookaheadAndCheck(_tokenizer.keywords.result) === true) {
-          eatToken();
-          blockResult = token.value;
-          eatToken();
-        } else if (lookaheadAndCheck(_tokenizer.tokens.name) === true || lookaheadAndCheck(_tokenizer.tokens.valtype) === true || token.type === "keyword" // is any keyword
-        ) {
-            // Instruction
-            instr.push(parseFuncInstr());
-          } else {
-          throw function () {
-            return new Error("\n" + (0, _helperCodeFrame.codeFrameFromSource)(source, token.loc) + "\n" + "Unexpected token in loop body" + ", given " + tokenToString(token));
-          }();
-        }
-
-        eatTokenOfType(_tokenizer.tokens.closeParen);
-      }
-
-      return t.loopInstruction(label, blockResult, instr);
-    }
-
-    function parseCallIndirect() {
-      var typeRef;
-      var params = [];
-      var results = [];
-      var instrs = [];
-
-      while (token.type !== _tokenizer.tokens.closeParen) {
-        if (lookaheadAndCheck(_tokenizer.tokens.openParen, _tokenizer.keywords.type)) {
-          eatToken(); // (
-
-          eatToken(); // type
-
-          typeRef = parseTypeReference();
-        } else if (lookaheadAndCheck(_tokenizer.tokens.openParen, _tokenizer.keywords.param)) {
-          eatToken(); // (
-
-          eatToken(); // param
-
-          /**
-           * Params can be empty:
-           * (params)`
-           */
-
-          if (token.type !== _tokenizer.tokens.closeParen) {
-            params.push.apply(params, _toConsumableArray(parseFuncParam()));
-          }
-        } else if (lookaheadAndCheck(_tokenizer.tokens.openParen, _tokenizer.keywords.result)) {
-          eatToken(); // (
-
-          eatToken(); // result
-
-          /**
-           * Results can be empty:
-           * (result)`
-           */
-
-          if (token.type !== _tokenizer.tokens.closeParen) {
-            results.push.apply(results, _toConsumableArray(parseFuncResult()));
-          }
-        } else {
-          eatTokenOfType(_tokenizer.tokens.openParen);
-          instrs.push(parseFuncInstr());
-        }
-
-        eatTokenOfType(_tokenizer.tokens.closeParen);
-      }
-
-      return t.callIndirectInstruction(typeRef !== undefined ? typeRef : t.signature(params, results), instrs);
-    }
-    /**
-     * Parses an export instruction
-     *
-     * WAT:
-     *
-     * export:  ( export <string> <exkind> )
-     * exkind:  ( func <var> )
-     *          ( global <var> )
-     *          ( table <var> )
-     *          ( memory <var> )
-     * var:    <nat> | <name>
-     *
-     */
-
-
-    function parseExport() {
-      if (token.type !== _tokenizer.tokens.string) {
-        throw new Error("Expected string after export, got: " + token.type);
-      }
-
-      var name = token.value;
-      eatToken();
-      var moduleExportDescr = parseModuleExportDescr();
-      return t.moduleExport(name, moduleExportDescr);
-    }
-
-    function parseModuleExportDescr() {
-      var startLoc = getStartLoc();
-      var type = "";
-      var index;
-      eatTokenOfType(_tokenizer.tokens.openParen);
-
-      while (token.type !== _tokenizer.tokens.closeParen) {
-        if (isKeyword(token, _tokenizer.keywords.func)) {
-          type = "Func";
-          eatToken();
-          index = parseExportIndex(token);
-        } else if (isKeyword(token, _tokenizer.keywords.table)) {
-          type = "Table";
-          eatToken();
-          index = parseExportIndex(token);
-        } else if (isKeyword(token, _tokenizer.keywords.global)) {
-          type = "Global";
-          eatToken();
-          index = parseExportIndex(token);
-        } else if (isKeyword(token, _tokenizer.keywords.memory)) {
-          type = "Memory";
-          eatToken();
-          index = parseExportIndex(token);
-        }
-
-        eatToken();
-      }
-
-      if (type === "") {
-        throw new Error("Unknown export type");
-      }
-
-      if (index === undefined) {
-        throw new Error("Exported function must have a name");
-      }
-
-      var node = t.moduleExportDescr(type, index);
-      var endLoc = getEndLoc();
-      eatTokenOfType(_tokenizer.tokens.closeParen);
-      return t.withLoc(node, endLoc, startLoc);
-    }
-
-    function parseModule() {
-      var name = null;
-      var isBinary = false;
-      var isQuote = false;
-      var moduleFields = [];
-
-      if (token.type === _tokenizer.tokens.identifier) {
-        name = token.value;
-        eatToken();
-      }
-
-      if (hasPlugin("wast") && token.type === _tokenizer.tokens.name && token.value === "binary") {
-        eatToken();
-        isBinary = true;
-      }
-
-      if (hasPlugin("wast") && token.type === _tokenizer.tokens.name && token.value === "quote") {
-        eatToken();
-        isQuote = true;
-      }
-
-      if (isBinary === true) {
-        var blob = [];
-
-        while (token.type === _tokenizer.tokens.string) {
-          blob.push(token.value);
-          eatToken();
-          maybeIgnoreComment();
-        }
-
-        eatTokenOfType(_tokenizer.tokens.closeParen);
-        return t.binaryModule(name, blob);
-      }
-
-      if (isQuote === true) {
-        var string = [];
-
-        while (token.type === _tokenizer.tokens.string) {
-          string.push(token.value);
-          eatToken();
-        }
-
-        eatTokenOfType(_tokenizer.tokens.closeParen);
-        return t.quoteModule(name, string);
-      }
-
-      while (token.type !== _tokenizer.tokens.closeParen) {
-        moduleFields.push(walk());
-
-        if (state.registredExportedElements.length > 0) {
-          state.registredExportedElements.forEach(function (decl) {
-            moduleFields.push(t.moduleExport(decl.name, t.moduleExportDescr(decl.exportType, decl.id)));
-          });
-          state.registredExportedElements = [];
-        }
-
-        token = tokensList[current];
-      }
-
-      eatTokenOfType(_tokenizer.tokens.closeParen);
-      return t.module(name, moduleFields);
-    }
-    /**
-     * Parses the arguments of an instruction
-     */
-
-
-    function parseFuncInstrArguments(signature) {
-      var args = [];
-      var namedArgs = {};
-      var signaturePtr = 0;
-
-      while (token.type === _tokenizer.tokens.name || isKeyword(token, _tokenizer.keywords.offset)) {
-        var key = token.value;
-        eatToken();
-        eatTokenOfType(_tokenizer.tokens.equal);
-        var value = void 0;
-
-        if (token.type === _tokenizer.tokens.number) {
-          value = t.numberLiteralFromRaw(token.value);
-        } else {
-          throw new Error("Unexpected type for argument: " + token.type);
-        }
-
-        namedArgs[key] = value;
-        eatToken();
-      } // $FlowIgnore
-
-
-      var signatureLength = signature.vector ? Infinity : signature.length;
-
-      while (token.type !== _tokenizer.tokens.closeParen && ( // $FlowIgnore
-      token.type === _tokenizer.tokens.openParen || signaturePtr < signatureLength)) {
-        if (token.type === _tokenizer.tokens.identifier) {
-          args.push(t.identifier(token.value));
-          eatToken();
-        } else if (token.type === _tokenizer.tokens.valtype) {
-          // Handle locals
-          args.push(t.valtypeLiteral(token.value));
-          eatToken();
-        } else if (token.type === _tokenizer.tokens.string) {
-          args.push(t.stringLiteral(token.value));
-          eatToken();
-        } else if (token.type === _tokenizer.tokens.number) {
-          args.push( // TODO(sven): refactor the type signature handling
-          // https://github.com/xtuc/webassemblyjs/pull/129 is a good start
-          t.numberLiteralFromRaw(token.value, // $FlowIgnore
-          signature[signaturePtr] || "f64")); // $FlowIgnore
-
-          if (!signature.vector) {
-            ++signaturePtr;
-          }
-
-          eatToken();
-        } else if (token.type === _tokenizer.tokens.openParen) {
-          /**
-           * Maybe some nested instructions
-           */
-          eatToken(); // Instruction
-
-          if (lookaheadAndCheck(_tokenizer.tokens.name) === true || lookaheadAndCheck(_tokenizer.tokens.valtype) === true || token.type === "keyword" // is any keyword
-          ) {
-              // $FlowIgnore
-              args.push(parseFuncInstr());
-            } else {
-            throw function () {
-              return new Error("\n" + (0, _helperCodeFrame.codeFrameFromSource)(source, token.loc) + "\n" + "Unexpected token in nested instruction" + ", given " + tokenToString(token));
-            }();
-          }
-
-          if (token.type === _tokenizer.tokens.closeParen) {
-            eatToken();
-          }
-        } else {
-          throw function () {
-            return new Error("\n" + (0, _helperCodeFrame.codeFrameFromSource)(source, token.loc) + "\n" + "Unexpected token in instruction argument" + ", given " + tokenToString(token));
-          }();
-        }
-      }
-
-      return {
-        args: args,
-        namedArgs: namedArgs
-      };
-    }
-    /**
-     * Parses an instruction
-     *
-     * WAT:
-     *
-     * instr      :: plaininst
-     *               blockinstr
-     *
-     * blockinstr :: 'block' I:label rt:resulttype (in:instr*) 'end' id?
-     *               'loop' I:label rt:resulttype (in:instr*) 'end' id?
-     *               'if' I:label rt:resulttype (in:instr*) 'else' id? (in2:intr*) 'end' id?
-     *
-     * plaininst  :: 'unreachable'
-     *               'nop'
-     *               'br' l:labelidx
-     *               'br_if' l:labelidx
-     *               'br_table' l*:vec(labelidx) ln:labelidx
-     *               'return'
-     *               'call' x:funcidx
-     *               'call_indirect' x, I:typeuse
-     *
-     * WAST:
-     *
-     * instr:
-     *   <expr>
-     *   <op>
-     *   block <name>? <block_sig> <instr>* end <name>?
-     *   loop <name>? <block_sig> <instr>* end <name>?
-     *   if <name>? <block_sig> <instr>* end <name>?
-     *   if <name>? <block_sig> <instr>* else <name>? <instr>* end <name>?
-     *
-     * expr:
-     *   ( <op> )
-     *   ( <op> <expr>+ )
-     *   ( block <name>? <block_sig> <instr>* )
-     *   ( loop <name>? <block_sig> <instr>* )
-     *   ( if <name>? <block_sig> ( then <instr>* ) ( else <instr>* )? )
-     *   ( if <name>? <block_sig> <expr>+ ( then <instr>* ) ( else <instr>* )? )
-     *
-     * op:
-     *   unreachable
-     *   nop
-     *   br <var>
-     *   br_if <var>
-     *   br_table <var>+
-     *   return
-     *   call <var>
-     *   call_indirect <func_sig>
-     *   drop
-     *   select
-     *   get_local <var>
-     *   set_local <var>
-     *   tee_local <var>
-     *   get_global <var>
-     *   set_global <var>
-     *   <type>.load((8|16|32)_<sign>)? <offset>? <align>?
-     *   <type>.store(8|16|32)? <offset>? <align>?
-     *   current_memory
-     *   grow_memory
-     *   <type>.const <value>
-     *   <type>.<unop>
-     *   <type>.<binop>
-     *   <type>.<testop>
-     *   <type>.<relop>
-     *   <type>.<cvtop>/<type>
-     *
-     * func_type:   ( type <var> )? <param>* <result>*
-     */
-
-
-    function parseFuncInstr() {
-      var startLoc = getStartLoc();
-      maybeIgnoreComment();
-      /**
-       * A simple instruction
-       */
-
-      if (token.type === _tokenizer.tokens.name || token.type === _tokenizer.tokens.valtype) {
-        var _name2 = token.value;
-        var object;
-        eatToken();
-
-        if (token.type === _tokenizer.tokens.dot) {
-          object = _name2;
-          eatToken();
-
-          if (token.type !== _tokenizer.tokens.name) {
-            throw new TypeError("Unknown token: " + token.type + ", name expected");
-          }
-
-          _name2 = token.value;
-          eatToken();
-        }
-
-        if (token.type === _tokenizer.tokens.closeParen) {
-          var _endLoc = token.loc.end;
-
-          if (typeof object === "undefined") {
-            return t.withLoc(t.instruction(_name2), _endLoc, startLoc);
-          } else {
-            return t.withLoc(t.objectInstruction(_name2, object, []), _endLoc, startLoc);
-          }
-        }
-
-        var signature = t.signatureForOpcode(object || "", _name2);
-
-        var _parseFuncInstrArgume = parseFuncInstrArguments(signature),
-            _args = _parseFuncInstrArgume.args,
-            _namedArgs = _parseFuncInstrArgume.namedArgs;
-
-        var endLoc = token.loc.end;
-
-        if (typeof object === "undefined") {
-          return t.withLoc(t.instruction(_name2, _args, _namedArgs), endLoc, startLoc);
-        } else {
-          return t.withLoc(t.objectInstruction(_name2, object, _args, _namedArgs), endLoc, startLoc);
-        }
-      } else if (isKeyword(token, _tokenizer.keywords.loop)) {
-        /**
-         * Else a instruction with a keyword (loop or block)
-         */
-        eatToken(); // keyword
-
-        return parseLoop();
-      } else if (isKeyword(token, _tokenizer.keywords.block)) {
-        eatToken(); // keyword
-
-        return parseBlock();
-      } else if (isKeyword(token, _tokenizer.keywords.call_indirect)) {
-        eatToken(); // keyword
-
-        return parseCallIndirect();
-      } else if (isKeyword(token, _tokenizer.keywords.call)) {
-        eatToken(); // keyword
-
-        var index;
-
-        if (token.type === _tokenizer.tokens.identifier) {
-          index = identifierFromToken(token);
-          eatToken();
-        } else if (token.type === _tokenizer.tokens.number) {
-          index = t.indexLiteral(token.value);
-          eatToken();
-        }
-
-        var instrArgs = []; // Nested instruction
-
-        while (token.type === _tokenizer.tokens.openParen) {
-          eatToken();
-          instrArgs.push(parseFuncInstr());
-          eatTokenOfType(_tokenizer.tokens.closeParen);
-        }
-
-        if (typeof index === "undefined") {
-          throw new Error("Missing argument in call instruciton");
-        }
-
-        if (instrArgs.length > 0) {
-          return t.callInstruction(index, instrArgs);
-        } else {
-          return t.callInstruction(index);
-        }
-      } else if (isKeyword(token, _tokenizer.keywords.if)) {
-        eatToken(); // Keyword
-
-        return parseIf();
-      } else if (isKeyword(token, _tokenizer.keywords.module) && hasPlugin("wast")) {
-        eatToken(); // In WAST you can have a module as an instruction's argument
-        // we will cast it into a instruction to not break the flow
-        // $FlowIgnore
-
-        var module = parseModule();
-        return module;
-      } else {
-        throw function () {
-          return new Error("\n" + (0, _helperCodeFrame.codeFrameFromSource)(source, token.loc) + "\n" + "Unexpected instruction in function body" + ", given " + tokenToString(token));
-        }();
-      }
-    }
-    /*
-     * Parses a function
-     *
-     * WAT:
-     *
-     * functype :: ( 'func' t1:vec(param) t2:vec(result) )
-     * param    :: ( 'param' id? t:valtype )
-     * result   :: ( 'result' t:valtype )
-     *
-     * WAST:
-     *
-     * func     :: ( func <name>? <func_sig> <local>* <instr>* )
-     *             ( func <name>? ( export <string> ) <...> )
-     *             ( func <name>? ( import <string> <string> ) <func_sig> )
-     * func_sig :: ( type <var> )? <param>* <result>*
-     * param    :: ( param <type>* ) | ( param <name> <type> )
-     * result   :: ( result <type>* )
-     * local    :: ( local <type>* ) | ( local <name> <type> )
-     *
-     */
-
-
-    function parseFunc() {
-      var fnName = t.identifier(getUniqueName("func"));
-      var typeRef;
-      var fnBody = [];
-      var fnParams = [];
-      var fnResult = []; // name
-
-      if (token.type === _tokenizer.tokens.identifier) {
-        fnName = identifierFromToken(token);
-        eatToken();
-      } else {
-        fnName = t.withRaw(fnName, ""); // preserve anonymous
-      }
-
-      maybeIgnoreComment();
-
-      while (token.type === _tokenizer.tokens.openParen || token.type === _tokenizer.tokens.name || token.type === _tokenizer.tokens.valtype) {
-        // Instructions without parens
-        if (token.type === _tokenizer.tokens.name || token.type === _tokenizer.tokens.valtype) {
-          fnBody.push(parseFuncInstr());
-          continue;
-        }
-
-        eatToken();
-
-        if (lookaheadAndCheck(_tokenizer.keywords.param) === true) {
-          eatToken();
-          fnParams.push.apply(fnParams, _toConsumableArray(parseFuncParam()));
-        } else if (lookaheadAndCheck(_tokenizer.keywords.result) === true) {
-          eatToken();
-          fnResult.push.apply(fnResult, _toConsumableArray(parseFuncResult()));
-        } else if (lookaheadAndCheck(_tokenizer.keywords.export) === true) {
-          eatToken();
-          parseFuncExport(fnName);
-        } else if (lookaheadAndCheck(_tokenizer.keywords.type) === true) {
-          eatToken();
-          typeRef = parseTypeReference();
-        } else if (lookaheadAndCheck(_tokenizer.tokens.name) === true || lookaheadAndCheck(_tokenizer.tokens.valtype) === true || token.type === "keyword" // is any keyword
-        ) {
-            // Instruction
-            fnBody.push(parseFuncInstr());
-          } else {
-          throw function () {
-            return new Error("\n" + (0, _helperCodeFrame.codeFrameFromSource)(source, token.loc) + "\n" + "Unexpected token in func body" + ", given " + tokenToString(token));
-          }();
-        }
-
-        eatTokenOfType(_tokenizer.tokens.closeParen);
-      }
-
-      return t.func(fnName, typeRef !== undefined ? typeRef : t.signature(fnParams, fnResult), fnBody);
-    }
-    /**
-     * Parses shorthand export in func
-     *
-     * export :: ( export <string> )
-     */
-
-
-    function parseFuncExport(funcId) {
-      if (token.type !== _tokenizer.tokens.string) {
-        throw function () {
-          return new Error("\n" + (0, _helperCodeFrame.codeFrameFromSource)(source, token.loc) + "\n" + "Function export expected a string" + ", given " + tokenToString(token));
-        }();
-      }
-
-      var name = token.value;
-      eatToken();
-      /**
-       * Func export shorthand, we trait it as a syntaxic sugar.
-       * A export ModuleField will be added later.
-       *
-       * We give the anonymous function a generated name and export it.
-       */
-
-      var id = t.identifier(funcId.value);
-      state.registredExportedElements.push({
-        exportType: "Func",
-        name: name,
-        id: id
-      });
-    }
-    /**
-     * Parses a type instruction
-     *
-     * WAST:
-     *
-     * typedef: ( type <name>? ( func <param>* <result>* ) )
-     */
-
-
-    function parseType() {
-      var id;
-      var params = [];
-      var result = [];
-
-      if (token.type === _tokenizer.tokens.identifier) {
-        id = identifierFromToken(token);
-        eatToken();
-      }
-
-      if (lookaheadAndCheck(_tokenizer.tokens.openParen, _tokenizer.keywords.func)) {
-        eatToken(); // (
-
-        eatToken(); // func
-
-        if (token.type === _tokenizer.tokens.closeParen) {
-          eatToken(); // function with an empty signature, we can abort here
-
-          return t.typeInstruction(id, t.signature([], []));
-        }
-
-        if (lookaheadAndCheck(_tokenizer.tokens.openParen, _tokenizer.keywords.param)) {
-          eatToken(); // (
-
-          eatToken(); // param
-
-          params = parseFuncParam();
-          eatTokenOfType(_tokenizer.tokens.closeParen);
-        }
-
-        if (lookaheadAndCheck(_tokenizer.tokens.openParen, _tokenizer.keywords.result)) {
-          eatToken(); // (
-
-          eatToken(); // result
-
-          result = parseFuncResult();
-          eatTokenOfType(_tokenizer.tokens.closeParen);
-        }
-
-        eatTokenOfType(_tokenizer.tokens.closeParen);
-      }
-
-      return t.typeInstruction(id, t.signature(params, result));
-    }
-    /**
-     * Parses a function result
-     *
-     * WAST:
-     *
-     * result :: ( result <type>* )
-     */
-
-
-    function parseFuncResult() {
-      var results = [];
-
-      while (token.type !== _tokenizer.tokens.closeParen) {
-        if (token.type !== _tokenizer.tokens.valtype) {
-          throw function () {
-            return new Error("\n" + (0, _helperCodeFrame.codeFrameFromSource)(source, token.loc) + "\n" + "Unexpected token in func result" + ", given " + tokenToString(token));
-          }();
-        }
-
-        var valtype = token.value;
-        eatToken();
-        results.push(valtype);
-      }
-
-      return results;
-    }
-    /**
-     * Parses a type reference
-     *
-     */
-
-
-    function parseTypeReference() {
-      var ref;
-
-      if (token.type === _tokenizer.tokens.identifier) {
-        ref = identifierFromToken(token);
-        eatToken();
-      } else if (token.type === _tokenizer.tokens.number) {
-        ref = t.numberLiteralFromRaw(token.value);
-        eatToken();
-      }
-
-      return ref;
-    }
-    /**
-     * Parses a global instruction
-     *
-     * WAST:
-     *
-     * global:  ( global <name>? <global_sig> <instr>* )
-     *          ( global <name>? ( export <string> ) <...> )
-     *          ( global <name>? ( import <string> <string> ) <global_sig> )
-     *
-     * global_sig: <type> | ( mut <type> )
-     *
-     */
-
-
-    function parseGlobal() {
-      var name = t.identifier(getUniqueName("global"));
-      var type; // Keep informations in case of a shorthand import
-
-      var importing = null;
-      maybeIgnoreComment();
-
-      if (token.type === _tokenizer.tokens.identifier) {
-        name = identifierFromToken(token);
-        eatToken();
-      } else {
-        name = t.withRaw(name, ""); // preserve anonymous
-      }
-      /**
-       * maybe export
-       */
-
-
-      if (lookaheadAndCheck(_tokenizer.tokens.openParen, _tokenizer.keywords.export)) {
-        eatToken(); // (
-
-        eatToken(); // export
-
-        var exportName = token.value;
-        eatTokenOfType(_tokenizer.tokens.string);
-        state.registredExportedElements.push({
-          exportType: "Global",
-          name: exportName,
-          id: name
-        });
-        eatTokenOfType(_tokenizer.tokens.closeParen);
-      }
-      /**
-       * maybe import
-       */
-
-
-      if (lookaheadAndCheck(_tokenizer.tokens.openParen, _tokenizer.keywords.import)) {
-        eatToken(); // (
-
-        eatToken(); // import
-
-        var moduleName = token.value;
-        eatTokenOfType(_tokenizer.tokens.string);
-        var _name3 = token.value;
-        eatTokenOfType(_tokenizer.tokens.string);
-        importing = {
-          module: moduleName,
-          name: _name3,
-          descr: undefined
-        };
-        eatTokenOfType(_tokenizer.tokens.closeParen);
-      }
-      /**
-       * global_sig
-       */
-
-
-      if (token.type === _tokenizer.tokens.valtype) {
-        type = t.globalType(token.value, "const");
-        eatToken();
-      } else if (token.type === _tokenizer.tokens.openParen) {
-        eatToken(); // (
-
-        if (isKeyword(token, _tokenizer.keywords.mut) === false) {
-          throw function () {
-            return new Error("\n" + (0, _helperCodeFrame.codeFrameFromSource)(source, token.loc) + "\n" + "Unsupported global type, expected mut" + ", given " + tokenToString(token));
-          }();
-        }
-
-        eatToken(); // mut
-
-        type = t.globalType(token.value, "var");
-        eatToken();
-        eatTokenOfType(_tokenizer.tokens.closeParen);
-      }
-
-      if (type === undefined) {
-        throw function () {
-          return new Error("\n" + (0, _helperCodeFrame.codeFrameFromSource)(source, token.loc) + "\n" + "Could not determine global type" + ", given " + tokenToString(token));
-        }();
-      }
-
-      maybeIgnoreComment();
-      var init = [];
-
-      if (importing != null) {
-        importing.descr = type;
-        init.push(t.moduleImport(importing.module, importing.name, importing.descr));
-      }
-      /**
-       * instr*
-       */
-
-
-      while (token.type === _tokenizer.tokens.openParen) {
-        eatToken();
-        init.push(parseFuncInstr());
-        eatTokenOfType(_tokenizer.tokens.closeParen);
-      }
-
-      return t.global(type, init, name);
-    }
-    /**
-     * Parses a function param
-     *
-     * WAST:
-     *
-     * param    :: ( param <type>* ) | ( param <name> <type> )
-     */
-
-
-    function parseFuncParam() {
-      var params = [];
-      var id;
-      var valtype;
-
-      if (token.type === _tokenizer.tokens.identifier) {
-        id = token.value;
-        eatToken();
-      }
-
-      if (token.type === _tokenizer.tokens.valtype) {
-        valtype = token.value;
-        eatToken();
-        params.push({
-          id: id,
-          valtype: valtype
-        });
-        /**
-         * Shorthand notation for multiple anonymous parameters
-         * @see https://webassembly.github.io/spec/core/text/types.html#function-types
-         * @see https://github.com/xtuc/webassemblyjs/issues/6
-         */
-
-        if (id === undefined) {
-          while (token.type === _tokenizer.tokens.valtype) {
-            valtype = token.value;
-            eatToken();
-            params.push({
-              id: undefined,
-              valtype: valtype
-            });
-          }
-        }
-      } else {// ignore
-      }
-
-      return params;
-    }
-    /**
-     * Parses an element segments instruction
-     *
-     * WAST:
-     *
-     * elem:    ( elem <var>? (offset <instr>* ) <var>* )
-     *          ( elem <var>? <expr> <var>* )
-     *
-     * var:    <nat> | <name>
-     */
-
-
-    function parseElem() {
-      var tableIndex = t.indexLiteral(0);
-      var offset = [];
-      var funcs = [];
-
-      if (token.type === _tokenizer.tokens.identifier) {
-        tableIndex = identifierFromToken(token);
-        eatToken();
-      }
-
-      if (token.type === _tokenizer.tokens.number) {
-        tableIndex = t.indexLiteral(token.value);
-        eatToken();
-      }
-
-      while (token.type !== _tokenizer.tokens.closeParen) {
-        if (lookaheadAndCheck(_tokenizer.tokens.openParen, _tokenizer.keywords.offset)) {
-          eatToken(); // (
-
-          eatToken(); // offset
-
-          while (token.type !== _tokenizer.tokens.closeParen) {
-            eatTokenOfType(_tokenizer.tokens.openParen);
-            offset.push(parseFuncInstr());
-            eatTokenOfType(_tokenizer.tokens.closeParen);
-          }
-
-          eatTokenOfType(_tokenizer.tokens.closeParen);
-        } else if (token.type === _tokenizer.tokens.identifier) {
-          funcs.push(t.identifier(token.value));
-          eatToken();
-        } else if (token.type === _tokenizer.tokens.number) {
-          funcs.push(t.indexLiteral(token.value));
-          eatToken();
-        } else if (token.type === _tokenizer.tokens.openParen) {
-          eatToken(); // (
-
-          offset.push(parseFuncInstr());
-          eatTokenOfType(_tokenizer.tokens.closeParen);
-        } else {
-          throw function () {
-            return new Error("\n" + (0, _helperCodeFrame.codeFrameFromSource)(source, token.loc) + "\n" + "Unsupported token in elem" + ", given " + tokenToString(token));
-          }();
-        }
-      }
-
-      return t.elem(tableIndex, offset, funcs);
-    }
-    /**
-     * Parses the start instruction in a module
-     *
-     * WAST:
-     *
-     * start:   ( start <var> )
-     * var:    <nat> | <name>
-     *
-     * WAT:
-     * start ::= ‘(’ ‘start’  x:funcidx ‘)’
-     */
-
-
-    function parseStart() {
-      if (token.type === _tokenizer.tokens.identifier) {
-        var index = identifierFromToken(token);
-        eatToken();
-        return t.start(index);
-      }
-
-      if (token.type === _tokenizer.tokens.number) {
-        var _index2 = t.indexLiteral(token.value);
-
-        eatToken();
-        return t.start(_index2);
-      }
-
-      throw new Error("Unknown start, token: " + tokenToString(token));
-    }
-
-    if (token.type === _tokenizer.tokens.openParen) {
-      eatToken();
-      var startLoc = getStartLoc();
-
-      if (isKeyword(token, _tokenizer.keywords.export)) {
-        eatToken();
-        var node = parseExport();
-
-        var _endLoc2 = getEndLoc();
-
-        return t.withLoc(node, _endLoc2, startLoc);
-      }
-
-      if (isKeyword(token, _tokenizer.keywords.loop)) {
-        eatToken();
-
-        var _node = parseLoop();
-
-        var _endLoc3 = getEndLoc();
-
-        return t.withLoc(_node, _endLoc3, startLoc);
-      }
-
-      if (isKeyword(token, _tokenizer.keywords.func)) {
-        eatToken();
-
-        var _node2 = parseFunc();
-
-        var _endLoc4 = getEndLoc();
-
-        maybeIgnoreComment();
-        eatTokenOfType(_tokenizer.tokens.closeParen);
-        return t.withLoc(_node2, _endLoc4, startLoc);
-      }
-
-      if (isKeyword(token, _tokenizer.keywords.module)) {
-        eatToken();
-
-        var _node3 = parseModule();
-
-        var _endLoc5 = getEndLoc();
-
-        return t.withLoc(_node3, _endLoc5, startLoc);
-      }
-
-      if (isKeyword(token, _tokenizer.keywords.import)) {
-        eatToken();
-
-        var _node4 = parseImport();
-
-        var _endLoc6 = getEndLoc();
-
-        eatTokenOfType(_tokenizer.tokens.closeParen);
-        return t.withLoc(_node4, _endLoc6, startLoc);
-      }
-
-      if (isKeyword(token, _tokenizer.keywords.block)) {
-        eatToken();
-
-        var _node5 = parseBlock();
-
-        var _endLoc7 = getEndLoc();
-
-        eatTokenOfType(_tokenizer.tokens.closeParen);
-        return t.withLoc(_node5, _endLoc7, startLoc);
-      }
-
-      if (isKeyword(token, _tokenizer.keywords.memory)) {
-        eatToken();
-
-        var _node6 = parseMemory();
-
-        var _endLoc8 = getEndLoc();
-
-        eatTokenOfType(_tokenizer.tokens.closeParen);
-        return t.withLoc(_node6, _endLoc8, startLoc);
-      }
-
-      if (isKeyword(token, _tokenizer.keywords.data)) {
-        eatToken();
-
-        var _node7 = parseData();
-
-        var _endLoc9 = getEndLoc();
-
-        eatTokenOfType(_tokenizer.tokens.closeParen);
-        return t.withLoc(_node7, _endLoc9, startLoc);
-      }
-
-      if (isKeyword(token, _tokenizer.keywords.table)) {
-        eatToken();
-
-        var _node8 = parseTable();
-
-        var _endLoc10 = getEndLoc();
-
-        eatTokenOfType(_tokenizer.tokens.closeParen);
-        return t.withLoc(_node8, _endLoc10, startLoc);
-      }
-
-      if (isKeyword(token, _tokenizer.keywords.global)) {
-        eatToken();
-
-        var _node9 = parseGlobal();
-
-        var _endLoc11 = getEndLoc();
-
-        eatTokenOfType(_tokenizer.tokens.closeParen);
-        return t.withLoc(_node9, _endLoc11, startLoc);
-      }
-
-      if (isKeyword(token, _tokenizer.keywords.type)) {
-        eatToken();
-
-        var _node10 = parseType();
-
-        var _endLoc12 = getEndLoc();
-
-        eatTokenOfType(_tokenizer.tokens.closeParen);
-        return t.withLoc(_node10, _endLoc12, startLoc);
-      }
-
-      if (isKeyword(token, _tokenizer.keywords.start)) {
-        eatToken();
-
-        var _node11 = parseStart();
-
-        var _endLoc13 = getEndLoc();
-
-        eatTokenOfType(_tokenizer.tokens.closeParen);
-        return t.withLoc(_node11, _endLoc13, startLoc);
-      }
-
-      if (isKeyword(token, _tokenizer.keywords.elem)) {
-        eatToken();
-
-        var _node12 = parseElem();
-
-        var _endLoc14 = getEndLoc();
-
-        eatTokenOfType(_tokenizer.tokens.closeParen);
-        return t.withLoc(_node12, _endLoc14, startLoc);
-      }
-
-      var instruction = parseFuncInstr();
-      var endLoc = getEndLoc();
-      maybeIgnoreComment();
-
-      if (_typeof(instruction) === "object") {
-        if (typeof token !== "undefined") {
-          eatTokenOfType(_tokenizer.tokens.closeParen);
-        }
-
-        return t.withLoc(instruction, endLoc, startLoc);
-      }
-    }
-
-    if (token.type === _tokenizer.tokens.comment) {
-      var _startLoc = getStartLoc();
-
-      var builder = token.opts.type === "leading" ? t.leadingComment : t.blockComment;
-
-      var _node13 = builder(token.value);
-
-      eatToken(); // comment
-
-      var _endLoc15 = getEndLoc();
-
-      return t.withLoc(_node13, _endLoc15, _startLoc);
-    }
-
-    throw function () {
-      return new Error("\n" + (0, _helperCodeFrame.codeFrameFromSource)(source, token.loc) + "\n" + "Unknown token" + ", given " + tokenToString(token));
-    }();
-  }
-
-  var body = [];
-
-  while (current < tokensList.length) {
-    body.push(walk());
-  }
-
-  return t.program(body);
-}
-
-/***/ }),
-
-/***/ 9016:
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({
-  value: true
-}));
-var _exportNames = {
-  parse: true
-};
-exports.parse = parse;
-
-var parser = _interopRequireWildcard(__webpack_require__(68693));
-
-var _tokenizer = __webpack_require__(57261);
-
-var _numberLiterals = __webpack_require__(3425);
-
-Object.keys(_numberLiterals).forEach(function (key) {
-  if (key === "default" || key === "__esModule") return;
-  if (Object.prototype.hasOwnProperty.call(_exportNames, key)) return;
-  Object.defineProperty(exports, key, {
-    enumerable: true,
-    get: function get() {
-      return _numberLiterals[key];
-    }
-  });
-});
-
-function _interopRequireWildcard(obj) { if (obj && obj.__esModule) { return obj; } else { var newObj = {}; if (obj != null) { for (var key in obj) { if (Object.prototype.hasOwnProperty.call(obj, key)) { var desc = Object.defineProperty && Object.getOwnPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : {}; if (desc.get || desc.set) { Object.defineProperty(newObj, key, desc); } else { newObj[key] = obj[key]; } } } } newObj.default = obj; return newObj; } }
-
-function parse(source) {
-  var tokens = (0, _tokenizer.tokenize)(source); // We pass the source here to show code frames
-
-  var ast = parser.parse(tokens, source);
-  return ast;
-}
-
-/***/ }),
-
-/***/ 3425:
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({
-  value: true
-}));
-exports.parse32F = parse32F;
-exports.parse64F = parse64F;
-exports.parse32I = parse32I;
-exports.parseU32 = parseU32;
-exports.parse64I = parse64I;
-exports.isInfLiteral = isInfLiteral;
-exports.isNanLiteral = isNanLiteral;
-
-var _long = _interopRequireDefault(__webpack_require__(77960));
-
-var _floatingPointHexParser = _interopRequireDefault(__webpack_require__(54236));
-
-var _helperApiError = __webpack_require__(44706);
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-function parse32F(sourceString) {
-  if (isHexLiteral(sourceString)) {
-    return (0, _floatingPointHexParser.default)(sourceString);
-  }
-
-  if (isInfLiteral(sourceString)) {
-    return sourceString[0] === "-" ? -1 : 1;
-  }
-
-  if (isNanLiteral(sourceString)) {
-    return (sourceString[0] === "-" ? -1 : 1) * (sourceString.includes(":") ? parseInt(sourceString.substring(sourceString.indexOf(":") + 1), 16) : 0x400000);
-  }
-
-  return parseFloat(sourceString);
-}
-
-function parse64F(sourceString) {
-  if (isHexLiteral(sourceString)) {
-    return (0, _floatingPointHexParser.default)(sourceString);
-  }
-
-  if (isInfLiteral(sourceString)) {
-    return sourceString[0] === "-" ? -1 : 1;
-  }
-
-  if (isNanLiteral(sourceString)) {
-    return (sourceString[0] === "-" ? -1 : 1) * (sourceString.includes(":") ? parseInt(sourceString.substring(sourceString.indexOf(":") + 1), 16) : 0x8000000000000);
-  }
-
-  if (isHexLiteral(sourceString)) {
-    return (0, _floatingPointHexParser.default)(sourceString);
-  }
-
-  return parseFloat(sourceString);
-}
-
-function parse32I(sourceString) {
-  var value = 0;
-
-  if (isHexLiteral(sourceString)) {
-    value = ~~parseInt(sourceString, 16);
-  } else if (isDecimalExponentLiteral(sourceString)) {
-    throw new Error("This number literal format is yet to be implemented.");
-  } else {
-    value = parseInt(sourceString, 10);
-  }
-
-  return value;
-}
-
-function parseU32(sourceString) {
-  var value = parse32I(sourceString);
-
-  if (value < 0) {
-    throw new _helperApiError.CompileError("Illegal value for u32: " + sourceString);
-  }
-
-  return value;
-}
-
-function parse64I(sourceString) {
-  var long;
-
-  if (isHexLiteral(sourceString)) {
-    long = _long.default.fromString(sourceString, false, 16);
-  } else if (isDecimalExponentLiteral(sourceString)) {
-    throw new Error("This number literal format is yet to be implemented.");
-  } else {
-    long = _long.default.fromString(sourceString);
-  }
-
-  return {
-    high: long.high,
-    low: long.low
-  };
-}
-
-var NAN_WORD = /^\+?-?nan/;
-var INF_WORD = /^\+?-?inf/;
-
-function isInfLiteral(sourceString) {
-  return INF_WORD.test(sourceString.toLowerCase());
-}
-
-function isNanLiteral(sourceString) {
-  return NAN_WORD.test(sourceString.toLowerCase());
-}
-
-function isDecimalExponentLiteral(sourceString) {
-  return !isHexLiteral(sourceString) && sourceString.toUpperCase().includes("E");
-}
-
-function isHexLiteral(sourceString) {
-  return sourceString.substring(0, 2).toUpperCase() === "0X" || sourceString.substring(0, 3).toUpperCase() === "-0X";
-}
-
-/***/ }),
-
-/***/ 27481:
-/***/ (function(__unused_webpack_module, exports) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({
-  value: true
-}));
-exports.parseString = parseString;
-// string literal characters cannot contain control codes
-var CONTROL_CODES = [0, // null
-7, // bell
-8, // backspace
-9, // horizontal
-10, // line feed
-11, // vertical tab
-12, // form feed
-13, // carriage return
-26, // Control-Z
-27, // escape
-127 // delete
-]; // escaped sequences can either be a two character hex value, or one of the
-// following single character codes
-
-function decodeControlCharacter(char) {
-  switch (char) {
-    case "t":
-      return 0x09;
-
-    case "n":
-      return 0x0a;
-
-    case "r":
-      return 0x0d;
-
-    case '"':
-      return 0x22;
-
-    case "′":
-      return 0x27;
-
-    case "\\":
-      return 0x5c;
-  }
-
-  return -1;
-}
-
-var ESCAPE_CHAR = 92; // backslash
-
-var QUOTE_CHAR = 34; // backslash
-// parse string as per the spec:
-// https://webassembly.github.io/spec/core/multipage/text/values.html#text-string
-
-function parseString(value) {
-  var byteArray = [];
-  var index = 0;
-
-  while (index < value.length) {
-    var charCode = value.charCodeAt(index);
-
-    if (CONTROL_CODES.indexOf(charCode) !== -1) {
-      throw new Error("ASCII control characters are not permitted within string literals");
-    }
-
-    if (charCode === QUOTE_CHAR) {
-      throw new Error("quotes are not permitted within string literals");
-    }
-
-    if (charCode === ESCAPE_CHAR) {
-      var firstChar = value.substr(index + 1, 1);
-      var decodedControlChar = decodeControlCharacter(firstChar);
-
-      if (decodedControlChar !== -1) {
-        // single character escaped values, e.g. \r
-        byteArray.push(decodedControlChar);
-        index += 2;
-      } else {
-        // hex escaped values, e.g. \2a
-        var hexValue = value.substr(index + 1, 2);
-
-        if (!/^[0-9A-F]{2}$/i.test(hexValue)) {
-          throw new Error("invalid character encoding");
-        }
-
-        byteArray.push(parseInt(hexValue, 16));
-        index += 3;
-      }
-    } else {
-      // ASCII encoded values
-      byteArray.push(charCode);
-      index++;
-    }
-  }
-
-  return byteArray;
-}
-
-/***/ }),
-
-/***/ 57261:
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({
-  value: true
-}));
-exports.tokenize = tokenize;
-exports.tokens = exports.keywords = void 0;
-
-var _helperFsm = __webpack_require__(38902);
-
-var _helperCodeFrame = __webpack_require__(48333);
-
-// eslint-disable-next-line
-function getCodeFrame(source, line, column) {
-  var loc = {
-    start: {
-      line: line,
-      column: column
-    }
-  };
-  return "\n" + (0, _helperCodeFrame.codeFrameFromSource)(source, loc) + "\n";
-}
-
-var WHITESPACE = /\s/;
-var PARENS = /\(|\)/;
-var LETTERS = /[a-z0-9_/]/i;
-var idchar = /[a-z0-9!#$%&*+./:<=>?@\\[\]^_`|~-]/i;
-var valtypes = ["i32", "i64", "f32", "f64"];
-var NUMBERS = /[0-9|.|_]/;
-var NUMBER_KEYWORDS = /nan|inf/;
-
-function isNewLine(char) {
-  return char.charCodeAt(0) === 10 || char.charCodeAt(0) === 13;
-}
-
-function Token(type, value, start, end) {
-  var opts = arguments.length > 4 && arguments[4] !== undefined ? arguments[4] : {};
-  var token = {
-    type: type,
-    value: value,
-    loc: {
-      start: start,
-      end: end
-    }
-  };
-
-  if (Object.keys(opts).length > 0) {
-    // $FlowIgnore
-    token["opts"] = opts;
-  }
-
-  return token;
-}
-
-var tokenTypes = {
-  openParen: "openParen",
-  closeParen: "closeParen",
-  number: "number",
-  string: "string",
-  name: "name",
-  identifier: "identifier",
-  valtype: "valtype",
-  dot: "dot",
-  comment: "comment",
-  equal: "equal",
-  keyword: "keyword"
-};
-var keywords = {
-  module: "module",
-  func: "func",
-  param: "param",
-  result: "result",
-  export: "export",
-  loop: "loop",
-  block: "block",
-  if: "if",
-  then: "then",
-  else: "else",
-  call: "call",
-  call_indirect: "call_indirect",
-  import: "import",
-  memory: "memory",
-  table: "table",
-  global: "global",
-  anyfunc: "anyfunc",
-  mut: "mut",
-  data: "data",
-  type: "type",
-  elem: "elem",
-  start: "start",
-  offset: "offset"
-};
-exports.keywords = keywords;
-var NUMERIC_SEPARATOR = "_";
-/**
- * Build the FSM for number literals
- */
-
-var numberLiteralFSM = new _helperFsm.FSM({
-  START: [(0, _helperFsm.makeTransition)(/-|\+/, "AFTER_SIGN"), (0, _helperFsm.makeTransition)(/nan:0x/, "NAN_HEX", {
-    n: 6
-  }), (0, _helperFsm.makeTransition)(/nan|inf/, "STOP", {
-    n: 3
-  }), (0, _helperFsm.makeTransition)(/0x/, "HEX", {
-    n: 2
-  }), (0, _helperFsm.makeTransition)(/[0-9]/, "DEC"), (0, _helperFsm.makeTransition)(/\./, "DEC_FRAC")],
-  AFTER_SIGN: [(0, _helperFsm.makeTransition)(/nan:0x/, "NAN_HEX", {
-    n: 6
-  }), (0, _helperFsm.makeTransition)(/nan|inf/, "STOP", {
-    n: 3
-  }), (0, _helperFsm.makeTransition)(/0x/, "HEX", {
-    n: 2
-  }), (0, _helperFsm.makeTransition)(/[0-9]/, "DEC"), (0, _helperFsm.makeTransition)(/\./, "DEC_FRAC")],
-  DEC_FRAC: [(0, _helperFsm.makeTransition)(/[0-9]/, "DEC_FRAC", {
-    allowedSeparator: NUMERIC_SEPARATOR
-  }), (0, _helperFsm.makeTransition)(/e|E/, "DEC_SIGNED_EXP")],
-  DEC: [(0, _helperFsm.makeTransition)(/[0-9]/, "DEC", {
-    allowedSeparator: NUMERIC_SEPARATOR
-  }), (0, _helperFsm.makeTransition)(/\./, "DEC_FRAC"), (0, _helperFsm.makeTransition)(/e|E/, "DEC_SIGNED_EXP")],
-  DEC_SIGNED_EXP: [(0, _helperFsm.makeTransition)(/\+|-/, "DEC_EXP"), (0, _helperFsm.makeTransition)(/[0-9]/, "DEC_EXP")],
-  DEC_EXP: [(0, _helperFsm.makeTransition)(/[0-9]/, "DEC_EXP", {
-    allowedSeparator: NUMERIC_SEPARATOR
-  })],
-  HEX: [(0, _helperFsm.makeTransition)(/[0-9|A-F|a-f]/, "HEX", {
-    allowedSeparator: NUMERIC_SEPARATOR
-  }), (0, _helperFsm.makeTransition)(/\./, "HEX_FRAC"), (0, _helperFsm.makeTransition)(/p|P/, "HEX_SIGNED_EXP")],
-  HEX_FRAC: [(0, _helperFsm.makeTransition)(/[0-9|A-F|a-f]/, "HEX_FRAC", {
-    allowedSeparator: NUMERIC_SEPARATOR
-  }), (0, _helperFsm.makeTransition)(/p|P|/, "HEX_SIGNED_EXP")],
-  HEX_SIGNED_EXP: [(0, _helperFsm.makeTransition)(/[0-9|+|-]/, "HEX_EXP")],
-  HEX_EXP: [(0, _helperFsm.makeTransition)(/[0-9]/, "HEX_EXP", {
-    allowedSeparator: NUMERIC_SEPARATOR
-  })],
-  NAN_HEX: [(0, _helperFsm.makeTransition)(/[0-9|A-F|a-f]/, "NAN_HEX", {
-    allowedSeparator: NUMERIC_SEPARATOR
-  })],
-  STOP: []
-}, "START", "STOP");
-
-function tokenize(input) {
-  var current = 0;
-  var char = input[current]; // Used by SourceLocation
-
-  var column = 1;
-  var line = 1;
-  var tokens = [];
-  /**
-   * Creates a pushToken function for a given type
-   */
-
-  function pushToken(type) {
-    return function (v) {
-      var opts = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
-      var startColumn = opts.startColumn || column - String(v).length;
-      delete opts.startColumn;
-      var endColumn = opts.endColumn || startColumn + String(v).length - 1;
-      delete opts.endColumn;
-      var start = {
-        line: line,
-        column: startColumn
-      };
-      var end = {
-        line: line,
-        column: endColumn
-      };
-      tokens.push(Token(type, v, start, end, opts));
-    };
-  }
-  /**
-   * Functions to save newly encountered tokens
-   */
-
-
-  var pushCloseParenToken = pushToken(tokenTypes.closeParen);
-  var pushOpenParenToken = pushToken(tokenTypes.openParen);
-  var pushNumberToken = pushToken(tokenTypes.number);
-  var pushValtypeToken = pushToken(tokenTypes.valtype);
-  var pushNameToken = pushToken(tokenTypes.name);
-  var pushIdentifierToken = pushToken(tokenTypes.identifier);
-  var pushKeywordToken = pushToken(tokenTypes.keyword);
-  var pushDotToken = pushToken(tokenTypes.dot);
-  var pushStringToken = pushToken(tokenTypes.string);
-  var pushCommentToken = pushToken(tokenTypes.comment);
-  var pushEqualToken = pushToken(tokenTypes.equal);
-  /**
-   * Can be used to look at the next character(s).
-   *
-   * The default behavior `lookahead()` simply returns the next character without consuming it.
-   * Letters are always returned in lowercase.
-   *
-   * @param {number} length How many characters to query. Default = 1
-   * @param {number} offset How many characters to skip forward from current one. Default = 1
-   *
-   */
-
-  function lookahead() {
-    var length = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 1;
-    var offset = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 1;
-    return input.substring(current + offset, current + offset + length).toLowerCase();
-  }
-  /**
-   * Advances the cursor in the input by a certain amount
-   *
-   * @param {number} amount How many characters to consume. Default = 1
-   */
-
-
-  function eatCharacter() {
-    var amount = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 1;
-    column += amount;
-    current += amount;
-    char = input[current];
-  }
-
-  while (current < input.length) {
-    // ;;
-    if (char === ";" && lookahead() === ";") {
-      var startColumn = column;
-      eatCharacter(2);
-      var text = "";
-
-      while (!isNewLine(char)) {
-        text += char;
-        eatCharacter();
-
-        if (char === undefined) {
-          break;
-        }
-      }
-
-      var endColumn = column;
-      pushCommentToken(text, {
-        type: "leading",
-        startColumn: startColumn,
-        endColumn: endColumn
-      });
-      continue;
-    } // (;
-
-
-    if (char === "(" && lookahead() === ";") {
-      var _startColumn = column;
-      eatCharacter(2);
-      var _text = ""; // ;)
-
-      while (true) {
-        char = input[current];
-
-        if (char === ";" && lookahead() === ")") {
-          eatCharacter(2);
-          break;
-        }
-
-        _text += char;
-        eatCharacter();
-
-        if (isNewLine(char)) {
-          line++;
-          column = 0;
-        }
-      }
-
-      var _endColumn = column;
-      pushCommentToken(_text, {
-        type: "block",
-        startColumn: _startColumn,
-        endColumn: _endColumn
-      });
-      continue;
-    }
-
-    if (char === "(") {
-      pushOpenParenToken(char);
-      eatCharacter();
-      continue;
-    }
-
-    if (char === "=") {
-      pushEqualToken(char);
-      eatCharacter();
-      continue;
-    }
-
-    if (char === ")") {
-      pushCloseParenToken(char);
-      eatCharacter();
-      continue;
-    }
-
-    if (isNewLine(char)) {
-      line++;
-      eatCharacter();
-      column = 0;
-      continue;
-    }
-
-    if (WHITESPACE.test(char)) {
-      eatCharacter();
-      continue;
-    }
-
-    if (char === "$") {
-      var _startColumn2 = column;
-      eatCharacter();
-      var value = "";
-
-      while (idchar.test(char)) {
-        value += char;
-        eatCharacter();
-      }
-
-      var _endColumn2 = column;
-      pushIdentifierToken(value, {
-        startColumn: _startColumn2,
-        endColumn: _endColumn2
-      });
-      continue;
-    }
-
-    if (NUMBERS.test(char) || NUMBER_KEYWORDS.test(lookahead(3, 0)) || char === "-" || char === "+") {
-      var _startColumn3 = column;
-
-      var _value = numberLiteralFSM.run(input.slice(current));
-
-      if (_value === "") {
-        throw new Error(getCodeFrame(input, line, column) + "Unexpected character " + JSON.stringify(char));
-      }
-
-      pushNumberToken(_value, {
-        startColumn: _startColumn3
-      });
-      eatCharacter(_value.length);
-
-      if (char && !PARENS.test(char) && !WHITESPACE.test(char)) {
-        throw new Error(getCodeFrame(input, line, column) + "Unexpected character " + JSON.stringify(char));
-      }
-
-      continue;
-    }
-
-    if (char === '"') {
-      var _startColumn4 = column;
-      var _value2 = "";
-      eatCharacter(); // "
-
-      while (char !== '"') {
-        if (isNewLine(char)) {
-          throw new Error(getCodeFrame(input, line, column) + "Unexpected character " + JSON.stringify(char));
-        }
-
-        _value2 += char;
-        eatCharacter(); // char
-      }
-
-      eatCharacter(); // "
-
-      var _endColumn3 = column;
-      pushStringToken(_value2, {
-        startColumn: _startColumn4,
-        endColumn: _endColumn3
-      });
-      continue;
-    }
-
-    if (LETTERS.test(char)) {
-      var _value3 = "";
-      var _startColumn5 = column;
-
-      while (char && LETTERS.test(char)) {
-        _value3 += char;
-        eatCharacter();
-      }
-      /*
-       * Handle MemberAccess
-       */
-
-
-      if (char === ".") {
-        var dotStartColumn = column;
-
-        if (valtypes.indexOf(_value3) !== -1) {
-          pushValtypeToken(_value3, {
-            startColumn: _startColumn5
-          });
-        } else {
-          pushNameToken(_value3);
-        }
-
-        eatCharacter();
-        _value3 = "";
-        var nameStartColumn = column;
-
-        while (LETTERS.test(char)) {
-          _value3 += char;
-          eatCharacter();
-        }
-
-        pushDotToken(".", {
-          startColumn: dotStartColumn
-        });
-        pushNameToken(_value3, {
-          startColumn: nameStartColumn
-        });
-        continue;
-      }
-      /*
-       * Handle keywords
-       */
-      // $FlowIgnore
-
-
-      if (typeof keywords[_value3] === "string") {
-        pushKeywordToken(_value3, {
-          startColumn: _startColumn5
-        });
-        continue;
-      }
-      /*
-       * Handle types
-       */
-
-
-      if (valtypes.indexOf(_value3) !== -1) {
-        pushValtypeToken(_value3, {
-          startColumn: _startColumn5
-        });
-        continue;
-      }
-      /*
-       * Handle literals
-       */
-
-
-      pushNameToken(_value3, {
-        startColumn: _startColumn5
-      });
-      continue;
-    }
-
-    throw new Error(getCodeFrame(input, line, column) + "Unexpected character " + JSON.stringify(char));
-  }
-
-  return tokens;
-}
-
-var tokens = tokenTypes;
-exports.tokens = tokens;
-
-/***/ }),
-
-/***/ 64500:
-/***/ (function(__unused_webpack_module, exports) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({
-  value: true
-}));
-exports.cloneNode = cloneNode;
-
-function cloneNode(n) {
-  // $FlowIgnore
-  var newObj = {};
-
-  for (var k in n) {
-    newObj[k] = n[k];
-  }
-
-  return newObj;
-}
-
-/***/ }),
-
-/***/ 17373:
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({
-  value: true
-}));
-var _exportNames = {
-  numberLiteralFromRaw: true,
-  withLoc: true,
-  withRaw: true,
-  funcParam: true,
-  indexLiteral: true,
-  memIndexLiteral: true,
-  instruction: true,
-  objectInstruction: true,
-  traverse: true,
-  signatures: true,
-  cloneNode: true
-};
-Object.defineProperty(exports, "numberLiteralFromRaw", ({
-  enumerable: true,
-  get: function get() {
-    return _nodeHelpers.numberLiteralFromRaw;
-  }
-}));
-Object.defineProperty(exports, "withLoc", ({
-  enumerable: true,
-  get: function get() {
-    return _nodeHelpers.withLoc;
-  }
-}));
-Object.defineProperty(exports, "withRaw", ({
-  enumerable: true,
-  get: function get() {
-    return _nodeHelpers.withRaw;
-  }
-}));
-Object.defineProperty(exports, "funcParam", ({
-  enumerable: true,
-  get: function get() {
-    return _nodeHelpers.funcParam;
-  }
-}));
-Object.defineProperty(exports, "indexLiteral", ({
-  enumerable: true,
-  get: function get() {
-    return _nodeHelpers.indexLiteral;
-  }
-}));
-Object.defineProperty(exports, "memIndexLiteral", ({
-  enumerable: true,
-  get: function get() {
-    return _nodeHelpers.memIndexLiteral;
-  }
-}));
-Object.defineProperty(exports, "instruction", ({
-  enumerable: true,
-  get: function get() {
-    return _nodeHelpers.instruction;
-  }
-}));
-Object.defineProperty(exports, "objectInstruction", ({
-  enumerable: true,
-  get: function get() {
-    return _nodeHelpers.objectInstruction;
-  }
-}));
-Object.defineProperty(exports, "traverse", ({
-  enumerable: true,
-  get: function get() {
-    return _traverse.traverse;
-  }
-}));
-Object.defineProperty(exports, "signatures", ({
-  enumerable: true,
-  get: function get() {
-    return _signatures.signatures;
-  }
-}));
-Object.defineProperty(exports, "cloneNode", ({
-  enumerable: true,
-  get: function get() {
-    return _clone.cloneNode;
-  }
-}));
-
-var _nodes = __webpack_require__(53315);
-
-Object.keys(_nodes).forEach(function (key) {
-  if (key === "default" || key === "__esModule") return;
-  if (Object.prototype.hasOwnProperty.call(_exportNames, key)) return;
-  Object.defineProperty(exports, key, {
-    enumerable: true,
-    get: function get() {
-      return _nodes[key];
-    }
-  });
-});
-
-var _nodeHelpers = __webpack_require__(73846);
-
-var _traverse = __webpack_require__(9469);
-
-var _signatures = __webpack_require__(51085);
-
-var _utils = __webpack_require__(1562);
-
-Object.keys(_utils).forEach(function (key) {
-  if (key === "default" || key === "__esModule") return;
-  if (Object.prototype.hasOwnProperty.call(_exportNames, key)) return;
-  Object.defineProperty(exports, key, {
-    enumerable: true,
-    get: function get() {
-      return _utils[key];
-    }
-  });
-});
-
-var _clone = __webpack_require__(64500);
-
-/***/ }),
-
-/***/ 73846:
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({
-  value: true
-}));
-exports.numberLiteralFromRaw = numberLiteralFromRaw;
-exports.instruction = instruction;
-exports.objectInstruction = objectInstruction;
-exports.withLoc = withLoc;
-exports.withRaw = withRaw;
-exports.funcParam = funcParam;
-exports.indexLiteral = indexLiteral;
-exports.memIndexLiteral = memIndexLiteral;
-
-var _wastParser = __webpack_require__(9016);
-
-var _nodes = __webpack_require__(53315);
-
-function numberLiteralFromRaw(rawValue) {
-  var instructionType = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : "i32";
-  var original = rawValue; // Remove numeric separators _
-
-  if (typeof rawValue === "string") {
-    rawValue = rawValue.replace(/_/g, "");
-  }
-
-  if (typeof rawValue === "number") {
-    return (0, _nodes.numberLiteral)(rawValue, String(original));
-  } else {
-    switch (instructionType) {
-      case "i32":
-        {
-          return (0, _nodes.numberLiteral)((0, _wastParser.parse32I)(rawValue), String(original));
-        }
-
-      case "u32":
-        {
-          return (0, _nodes.numberLiteral)((0, _wastParser.parseU32)(rawValue), String(original));
-        }
-
-      case "i64":
-        {
-          return (0, _nodes.longNumberLiteral)((0, _wastParser.parse64I)(rawValue), String(original));
-        }
-
-      case "f32":
-        {
-          return (0, _nodes.floatLiteral)((0, _wastParser.parse32F)(rawValue), (0, _wastParser.isNanLiteral)(rawValue), (0, _wastParser.isInfLiteral)(rawValue), String(original));
-        }
-      // f64
-
-      default:
-        {
-          return (0, _nodes.floatLiteral)((0, _wastParser.parse64F)(rawValue), (0, _wastParser.isNanLiteral)(rawValue), (0, _wastParser.isInfLiteral)(rawValue), String(original));
-        }
-    }
-  }
-}
-
-function instruction(id) {
-  var args = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : [];
-  var namedArgs = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : {};
-  return (0, _nodes.instr)(id, undefined, args, namedArgs);
-}
-
-function objectInstruction(id, object) {
-  var args = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : [];
-  var namedArgs = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : {};
-  return (0, _nodes.instr)(id, object, args, namedArgs);
-}
-/**
- * Decorators
- */
-
-
-function withLoc(n, end, start) {
-  var loc = {
-    start: start,
-    end: end
-  };
-  n.loc = loc;
-  return n;
-}
-
-function withRaw(n, raw) {
-  n.raw = raw;
-  return n;
-}
-
-function funcParam(valtype, id) {
-  return {
-    id: id,
-    valtype: valtype
-  };
-}
-
-function indexLiteral(value) {
-  // $FlowIgnore
-  var x = numberLiteralFromRaw(value, "u32");
-  return x;
-}
-
-function memIndexLiteral(value) {
-  // $FlowIgnore
-  var x = numberLiteralFromRaw(value, "u32");
-  return x;
-}
-
-/***/ }),
-
-/***/ 39068:
-/***/ (function(__unused_webpack_module, exports) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({
-  value: true
-}));
-exports.createPath = createPath;
-
-function _extends() { _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; }; return _extends.apply(this, arguments); }
-
-function findParent(_ref, cb) {
-  var parentPath = _ref.parentPath;
-
-  if (parentPath == null) {
-    throw new Error("node is root");
-  }
-
-  var currentPath = parentPath;
-
-  while (cb(currentPath) !== false) {
-    // Hit the root node, stop
-    // $FlowIgnore
-    if (currentPath.parentPath == null) {
-      return null;
-    } // $FlowIgnore
-
-
-    currentPath = currentPath.parentPath;
-  }
-
-  return currentPath.node;
-}
-
-function insertBefore(context, newNode) {
-  return insert(context, newNode);
-}
-
-function insertAfter(context, newNode) {
-  return insert(context, newNode, 1);
-}
-
-function insert(_ref2, newNode) {
-  var node = _ref2.node,
-      inList = _ref2.inList,
-      parentPath = _ref2.parentPath,
-      parentKey = _ref2.parentKey;
-  var indexOffset = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : 0;
-
-  if (!inList) {
-    throw new Error('inList' + " error: " + ("insert can only be used for nodes that are within lists" || 0));
-  }
-
-  if (!(parentPath != null)) {
-    throw new Error('parentPath != null' + " error: " + ("Can not remove root node" || 0));
-  }
-
-  // $FlowIgnore
-  var parentList = parentPath.node[parentKey];
-  var indexInList = parentList.findIndex(function (n) {
-    return n === node;
-  });
-  parentList.splice(indexInList + indexOffset, 0, newNode);
-}
-
-function remove(_ref3) {
-  var node = _ref3.node,
-      parentKey = _ref3.parentKey,
-      parentPath = _ref3.parentPath;
-
-  if (!(parentPath != null)) {
-    throw new Error('parentPath != null' + " error: " + ("Can not remove root node" || 0));
-  }
-
-  // $FlowIgnore
-  var parentNode = parentPath.node; // $FlowIgnore
-
-  var parentProperty = parentNode[parentKey];
-
-  if (Array.isArray(parentProperty)) {
-    // $FlowIgnore
-    parentNode[parentKey] = parentProperty.filter(function (n) {
-      return n !== node;
-    });
-  } else {
-    // $FlowIgnore
-    delete parentNode[parentKey];
-  }
-
-  node._deleted = true;
-}
-
-function stop(context) {
-  context.shouldStop = true;
-}
-
-function replaceWith(context, newNode) {
-  // $FlowIgnore
-  var parentNode = context.parentPath.node; // $FlowIgnore
-
-  var parentProperty = parentNode[context.parentKey];
-
-  if (Array.isArray(parentProperty)) {
-    var indexInList = parentProperty.findIndex(function (n) {
-      return n === context.node;
-    });
-    parentProperty.splice(indexInList, 1, newNode);
-  } else {
-    // $FlowIgnore
-    parentNode[context.parentKey] = newNode;
-  }
-
-  context.node._deleted = true;
-  context.node = newNode;
-} // bind the context to the first argument of node operations
-
-
-function bindNodeOperations(operations, context) {
-  var keys = Object.keys(operations);
-  var boundOperations = {};
-  keys.forEach(function (key) {
-    boundOperations[key] = operations[key].bind(null, context);
-  });
-  return boundOperations;
-}
-
-function createPathOperations(context) {
-  // $FlowIgnore
-  return bindNodeOperations({
-    findParent: findParent,
-    replaceWith: replaceWith,
-    remove: remove,
-    insertBefore: insertBefore,
-    insertAfter: insertAfter,
-    stop: stop
-  }, context);
-}
-
-function createPath(context) {
-  var path = _extends({}, context); // $FlowIgnore
-
-
-  Object.assign(path, createPathOperations(path)); // $FlowIgnore
-
-  return path;
-}
-
-/***/ }),
-
-/***/ 53315:
-/***/ (function(__unused_webpack_module, exports) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({
-  value: true
-}));
-exports.module = _module;
-exports.moduleMetadata = moduleMetadata;
-exports.moduleNameMetadata = moduleNameMetadata;
-exports.functionNameMetadata = functionNameMetadata;
-exports.localNameMetadata = localNameMetadata;
-exports.binaryModule = binaryModule;
-exports.quoteModule = quoteModule;
-exports.sectionMetadata = sectionMetadata;
-exports.producersSectionMetadata = producersSectionMetadata;
-exports.producerMetadata = producerMetadata;
-exports.producerMetadataVersionedName = producerMetadataVersionedName;
-exports.loopInstruction = loopInstruction;
-exports.instr = instr;
-exports.ifInstruction = ifInstruction;
-exports.stringLiteral = stringLiteral;
-exports.numberLiteral = numberLiteral;
-exports.longNumberLiteral = longNumberLiteral;
-exports.floatLiteral = floatLiteral;
-exports.elem = elem;
-exports.indexInFuncSection = indexInFuncSection;
-exports.valtypeLiteral = valtypeLiteral;
-exports.typeInstruction = typeInstruction;
-exports.start = start;
-exports.globalType = globalType;
-exports.leadingComment = leadingComment;
-exports.blockComment = blockComment;
-exports.data = data;
-exports.global = global;
-exports.table = table;
-exports.memory = memory;
-exports.funcImportDescr = funcImportDescr;
-exports.moduleImport = moduleImport;
-exports.moduleExportDescr = moduleExportDescr;
-exports.moduleExport = moduleExport;
-exports.limit = limit;
-exports.signature = signature;
-exports.program = program;
-exports.identifier = identifier;
-exports.blockInstruction = blockInstruction;
-exports.callInstruction = callInstruction;
-exports.callIndirectInstruction = callIndirectInstruction;
-exports.byteArray = byteArray;
-exports.func = func;
-exports.internalBrUnless = internalBrUnless;
-exports.internalGoto = internalGoto;
-exports.internalCallExtern = internalCallExtern;
-exports.internalEndAndReturn = internalEndAndReturn;
-exports.assertInternalCallExtern = exports.assertInternalGoto = exports.assertInternalBrUnless = exports.assertFunc = exports.assertByteArray = exports.assertCallIndirectInstruction = exports.assertCallInstruction = exports.assertBlockInstruction = exports.assertIdentifier = exports.assertProgram = exports.assertSignature = exports.assertLimit = exports.assertModuleExport = exports.assertModuleExportDescr = exports.assertModuleImport = exports.assertFuncImportDescr = exports.assertMemory = exports.assertTable = exports.assertGlobal = exports.assertData = exports.assertBlockComment = exports.assertLeadingComment = exports.assertGlobalType = exports.assertStart = exports.assertTypeInstruction = exports.assertValtypeLiteral = exports.assertIndexInFuncSection = exports.assertElem = exports.assertFloatLiteral = exports.assertLongNumberLiteral = exports.assertNumberLiteral = exports.assertStringLiteral = exports.assertIfInstruction = exports.assertInstr = exports.assertLoopInstruction = exports.assertProducerMetadataVersionedName = exports.assertProducerMetadata = exports.assertProducersSectionMetadata = exports.assertSectionMetadata = exports.assertQuoteModule = exports.assertBinaryModule = exports.assertLocalNameMetadata = exports.assertFunctionNameMetadata = exports.assertModuleNameMetadata = exports.assertModuleMetadata = exports.assertModule = exports.isIntrinsic = exports.isImportDescr = exports.isNumericLiteral = exports.isExpression = exports.isInstruction = exports.isBlock = exports.isNode = exports.isInternalEndAndReturn = exports.isInternalCallExtern = exports.isInternalGoto = exports.isInternalBrUnless = exports.isFunc = exports.isByteArray = exports.isCallIndirectInstruction = exports.isCallInstruction = exports.isBlockInstruction = exports.isIdentifier = exports.isProgram = exports.isSignature = exports.isLimit = exports.isModuleExport = exports.isModuleExportDescr = exports.isModuleImport = exports.isFuncImportDescr = exports.isMemory = exports.isTable = exports.isGlobal = exports.isData = exports.isBlockComment = exports.isLeadingComment = exports.isGlobalType = exports.isStart = exports.isTypeInstruction = exports.isValtypeLiteral = exports.isIndexInFuncSection = exports.isElem = exports.isFloatLiteral = exports.isLongNumberLiteral = exports.isNumberLiteral = exports.isStringLiteral = exports.isIfInstruction = exports.isInstr = exports.isLoopInstruction = exports.isProducerMetadataVersionedName = exports.isProducerMetadata = exports.isProducersSectionMetadata = exports.isSectionMetadata = exports.isQuoteModule = exports.isBinaryModule = exports.isLocalNameMetadata = exports.isFunctionNameMetadata = exports.isModuleNameMetadata = exports.isModuleMetadata = exports.isModule = void 0;
-exports.nodeAndUnionTypes = exports.unionTypesMap = exports.assertInternalEndAndReturn = void 0;
-
-function _typeof(obj) { if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") { _typeof = function _typeof(obj) { return typeof obj; }; } else { _typeof = function _typeof(obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }; } return _typeof(obj); }
-
-// THIS FILE IS AUTOGENERATED
-// see scripts/generateNodeUtils.js
-function isTypeOf(t) {
-  return function (n) {
-    return n.type === t;
-  };
-}
-
-function assertTypeOf(t) {
-  return function (n) {
-    return function () {
-      if (!(n.type === t)) {
-        throw new Error('n.type === t' + " error: " + (undefined || "unknown"));
-      }
-    }();
-  };
-}
-
-function _module(id, fields, metadata) {
-  if (id !== null && id !== undefined) {
-    if (!(typeof id === "string")) {
-      throw new Error('typeof id === "string"' + " error: " + ("Argument id must be of type string, given: " + _typeof(id) || 0));
-    }
-  }
-
-  if (!(_typeof(fields) === "object" && typeof fields.length !== "undefined")) {
-    throw new Error('typeof fields === "object" && typeof fields.length !== "undefined"' + " error: " + (undefined || "unknown"));
-  }
-
-  var node = {
-    type: "Module",
-    id: id,
-    fields: fields
-  };
-
-  if (typeof metadata !== "undefined") {
-    node.metadata = metadata;
-  }
-
-  return node;
-}
-
-function moduleMetadata(sections, functionNames, localNames, producers) {
-  if (!(_typeof(sections) === "object" && typeof sections.length !== "undefined")) {
-    throw new Error('typeof sections === "object" && typeof sections.length !== "undefined"' + " error: " + (undefined || "unknown"));
-  }
-
-  if (functionNames !== null && functionNames !== undefined) {
-    if (!(_typeof(functionNames) === "object" && typeof functionNames.length !== "undefined")) {
-      throw new Error('typeof functionNames === "object" && typeof functionNames.length !== "undefined"' + " error: " + (undefined || "unknown"));
-    }
-  }
-
-  if (localNames !== null && localNames !== undefined) {
-    if (!(_typeof(localNames) === "object" && typeof localNames.length !== "undefined")) {
-      throw new Error('typeof localNames === "object" && typeof localNames.length !== "undefined"' + " error: " + (undefined || "unknown"));
-    }
-  }
-
-  if (producers !== null && producers !== undefined) {
-    if (!(_typeof(producers) === "object" && typeof producers.length !== "undefined")) {
-      throw new Error('typeof producers === "object" && typeof producers.length !== "undefined"' + " error: " + (undefined || "unknown"));
-    }
-  }
-
-  var node = {
-    type: "ModuleMetadata",
-    sections: sections
-  };
-
-  if (typeof functionNames !== "undefined" && functionNames.length > 0) {
-    node.functionNames = functionNames;
-  }
-
-  if (typeof localNames !== "undefined" && localNames.length > 0) {
-    node.localNames = localNames;
-  }
-
-  if (typeof producers !== "undefined" && producers.length > 0) {
-    node.producers = producers;
-  }
-
-  return node;
-}
-
-function moduleNameMetadata(value) {
-  if (!(typeof value === "string")) {
-    throw new Error('typeof value === "string"' + " error: " + ("Argument value must be of type string, given: " + _typeof(value) || 0));
-  }
-
-  var node = {
-    type: "ModuleNameMetadata",
-    value: value
-  };
-  return node;
-}
-
-function functionNameMetadata(value, index) {
-  if (!(typeof value === "string")) {
-    throw new Error('typeof value === "string"' + " error: " + ("Argument value must be of type string, given: " + _typeof(value) || 0));
-  }
-
-  if (!(typeof index === "number")) {
-    throw new Error('typeof index === "number"' + " error: " + ("Argument index must be of type number, given: " + _typeof(index) || 0));
-  }
-
-  var node = {
-    type: "FunctionNameMetadata",
-    value: value,
-    index: index
-  };
-  return node;
-}
-
-function localNameMetadata(value, localIndex, functionIndex) {
-  if (!(typeof value === "string")) {
-    throw new Error('typeof value === "string"' + " error: " + ("Argument value must be of type string, given: " + _typeof(value) || 0));
-  }
-
-  if (!(typeof localIndex === "number")) {
-    throw new Error('typeof localIndex === "number"' + " error: " + ("Argument localIndex must be of type number, given: " + _typeof(localIndex) || 0));
-  }
-
-  if (!(typeof functionIndex === "number")) {
-    throw new Error('typeof functionIndex === "number"' + " error: " + ("Argument functionIndex must be of type number, given: " + _typeof(functionIndex) || 0));
-  }
-
-  var node = {
-    type: "LocalNameMetadata",
-    value: value,
-    localIndex: localIndex,
-    functionIndex: functionIndex
-  };
-  return node;
-}
-
-function binaryModule(id, blob) {
-  if (id !== null && id !== undefined) {
-    if (!(typeof id === "string")) {
-      throw new Error('typeof id === "string"' + " error: " + ("Argument id must be of type string, given: " + _typeof(id) || 0));
-    }
-  }
-
-  if (!(_typeof(blob) === "object" && typeof blob.length !== "undefined")) {
-    throw new Error('typeof blob === "object" && typeof blob.length !== "undefined"' + " error: " + (undefined || "unknown"));
-  }
-
-  var node = {
-    type: "BinaryModule",
-    id: id,
-    blob: blob
-  };
-  return node;
-}
-
-function quoteModule(id, string) {
-  if (id !== null && id !== undefined) {
-    if (!(typeof id === "string")) {
-      throw new Error('typeof id === "string"' + " error: " + ("Argument id must be of type string, given: " + _typeof(id) || 0));
-    }
-  }
-
-  if (!(_typeof(string) === "object" && typeof string.length !== "undefined")) {
-    throw new Error('typeof string === "object" && typeof string.length !== "undefined"' + " error: " + (undefined || "unknown"));
-  }
-
-  var node = {
-    type: "QuoteModule",
-    id: id,
-    string: string
-  };
-  return node;
-}
-
-function sectionMetadata(section, startOffset, size, vectorOfSize) {
-  if (!(typeof startOffset === "number")) {
-    throw new Error('typeof startOffset === "number"' + " error: " + ("Argument startOffset must be of type number, given: " + _typeof(startOffset) || 0));
-  }
-
-  var node = {
-    type: "SectionMetadata",
-    section: section,
-    startOffset: startOffset,
-    size: size,
-    vectorOfSize: vectorOfSize
-  };
-  return node;
-}
-
-function producersSectionMetadata(producers) {
-  if (!(_typeof(producers) === "object" && typeof producers.length !== "undefined")) {
-    throw new Error('typeof producers === "object" && typeof producers.length !== "undefined"' + " error: " + (undefined || "unknown"));
-  }
-
-  var node = {
-    type: "ProducersSectionMetadata",
-    producers: producers
-  };
-  return node;
-}
-
-function producerMetadata(language, processedBy, sdk) {
-  if (!(_typeof(language) === "object" && typeof language.length !== "undefined")) {
-    throw new Error('typeof language === "object" && typeof language.length !== "undefined"' + " error: " + (undefined || "unknown"));
-  }
-
-  if (!(_typeof(processedBy) === "object" && typeof processedBy.length !== "undefined")) {
-    throw new Error('typeof processedBy === "object" && typeof processedBy.length !== "undefined"' + " error: " + (undefined || "unknown"));
-  }
-
-  if (!(_typeof(sdk) === "object" && typeof sdk.length !== "undefined")) {
-    throw new Error('typeof sdk === "object" && typeof sdk.length !== "undefined"' + " error: " + (undefined || "unknown"));
-  }
-
-  var node = {
-    type: "ProducerMetadata",
-    language: language,
-    processedBy: processedBy,
-    sdk: sdk
-  };
-  return node;
-}
-
-function producerMetadataVersionedName(name, version) {
-  if (!(typeof name === "string")) {
-    throw new Error('typeof name === "string"' + " error: " + ("Argument name must be of type string, given: " + _typeof(name) || 0));
-  }
-
-  if (!(typeof version === "string")) {
-    throw new Error('typeof version === "string"' + " error: " + ("Argument version must be of type string, given: " + _typeof(version) || 0));
-  }
-
-  var node = {
-    type: "ProducerMetadataVersionedName",
-    name: name,
-    version: version
-  };
-  return node;
-}
-
-function loopInstruction(label, resulttype, instr) {
-  if (!(_typeof(instr) === "object" && typeof instr.length !== "undefined")) {
-    throw new Error('typeof instr === "object" && typeof instr.length !== "undefined"' + " error: " + (undefined || "unknown"));
-  }
-
-  var node = {
-    type: "LoopInstruction",
-    id: "loop",
-    label: label,
-    resulttype: resulttype,
-    instr: instr
-  };
-  return node;
-}
-
-function instr(id, object, args, namedArgs) {
-  if (!(typeof id === "string")) {
-    throw new Error('typeof id === "string"' + " error: " + ("Argument id must be of type string, given: " + _typeof(id) || 0));
-  }
-
-  if (!(_typeof(args) === "object" && typeof args.length !== "undefined")) {
-    throw new Error('typeof args === "object" && typeof args.length !== "undefined"' + " error: " + (undefined || "unknown"));
-  }
-
-  var node = {
-    type: "Instr",
-    id: id,
-    args: args
-  };
-
-  if (typeof object !== "undefined") {
-    node.object = object;
-  }
-
-  if (typeof namedArgs !== "undefined" && Object.keys(namedArgs).length !== 0) {
-    node.namedArgs = namedArgs;
-  }
-
-  return node;
-}
-
-function ifInstruction(testLabel, test, result, consequent, alternate) {
-  if (!(_typeof(test) === "object" && typeof test.length !== "undefined")) {
-    throw new Error('typeof test === "object" && typeof test.length !== "undefined"' + " error: " + (undefined || "unknown"));
-  }
-
-  if (!(_typeof(consequent) === "object" && typeof consequent.length !== "undefined")) {
-    throw new Error('typeof consequent === "object" && typeof consequent.length !== "undefined"' + " error: " + (undefined || "unknown"));
-  }
-
-  if (!(_typeof(alternate) === "object" && typeof alternate.length !== "undefined")) {
-    throw new Error('typeof alternate === "object" && typeof alternate.length !== "undefined"' + " error: " + (undefined || "unknown"));
-  }
-
-  var node = {
-    type: "IfInstruction",
-    id: "if",
-    testLabel: testLabel,
-    test: test,
-    result: result,
-    consequent: consequent,
-    alternate: alternate
-  };
-  return node;
-}
-
-function stringLiteral(value) {
-  if (!(typeof value === "string")) {
-    throw new Error('typeof value === "string"' + " error: " + ("Argument value must be of type string, given: " + _typeof(value) || 0));
-  }
-
-  var node = {
-    type: "StringLiteral",
-    value: value
-  };
-  return node;
-}
-
-function numberLiteral(value, raw) {
-  if (!(typeof value === "number")) {
-    throw new Error('typeof value === "number"' + " error: " + ("Argument value must be of type number, given: " + _typeof(value) || 0));
-  }
-
-  if (!(typeof raw === "string")) {
-    throw new Error('typeof raw === "string"' + " error: " + ("Argument raw must be of type string, given: " + _typeof(raw) || 0));
-  }
-
-  var node = {
-    type: "NumberLiteral",
-    value: value,
-    raw: raw
-  };
-  return node;
-}
-
-function longNumberLiteral(value, raw) {
-  if (!(typeof raw === "string")) {
-    throw new Error('typeof raw === "string"' + " error: " + ("Argument raw must be of type string, given: " + _typeof(raw) || 0));
-  }
-
-  var node = {
-    type: "LongNumberLiteral",
-    value: value,
-    raw: raw
-  };
-  return node;
-}
-
-function floatLiteral(value, nan, inf, raw) {
-  if (!(typeof value === "number")) {
-    throw new Error('typeof value === "number"' + " error: " + ("Argument value must be of type number, given: " + _typeof(value) || 0));
-  }
-
-  if (nan !== null && nan !== undefined) {
-    if (!(typeof nan === "boolean")) {
-      throw new Error('typeof nan === "boolean"' + " error: " + ("Argument nan must be of type boolean, given: " + _typeof(nan) || 0));
-    }
-  }
-
-  if (inf !== null && inf !== undefined) {
-    if (!(typeof inf === "boolean")) {
-      throw new Error('typeof inf === "boolean"' + " error: " + ("Argument inf must be of type boolean, given: " + _typeof(inf) || 0));
-    }
-  }
-
-  if (!(typeof raw === "string")) {
-    throw new Error('typeof raw === "string"' + " error: " + ("Argument raw must be of type string, given: " + _typeof(raw) || 0));
-  }
-
-  var node = {
-    type: "FloatLiteral",
-    value: value,
-    raw: raw
-  };
-
-  if (nan === true) {
-    node.nan = true;
-  }
-
-  if (inf === true) {
-    node.inf = true;
-  }
-
-  return node;
-}
-
-function elem(table, offset, funcs) {
-  if (!(_typeof(offset) === "object" && typeof offset.length !== "undefined")) {
-    throw new Error('typeof offset === "object" && typeof offset.length !== "undefined"' + " error: " + (undefined || "unknown"));
-  }
-
-  if (!(_typeof(funcs) === "object" && typeof funcs.length !== "undefined")) {
-    throw new Error('typeof funcs === "object" && typeof funcs.length !== "undefined"' + " error: " + (undefined || "unknown"));
-  }
-
-  var node = {
-    type: "Elem",
-    table: table,
-    offset: offset,
-    funcs: funcs
-  };
-  return node;
-}
-
-function indexInFuncSection(index) {
-  var node = {
-    type: "IndexInFuncSection",
-    index: index
-  };
-  return node;
-}
-
-function valtypeLiteral(name) {
-  var node = {
-    type: "ValtypeLiteral",
-    name: name
-  };
-  return node;
-}
-
-function typeInstruction(id, functype) {
-  var node = {
-    type: "TypeInstruction",
-    id: id,
-    functype: functype
-  };
-  return node;
-}
-
-function start(index) {
-  var node = {
-    type: "Start",
-    index: index
-  };
-  return node;
-}
-
-function globalType(valtype, mutability) {
-  var node = {
-    type: "GlobalType",
-    valtype: valtype,
-    mutability: mutability
-  };
-  return node;
-}
-
-function leadingComment(value) {
-  if (!(typeof value === "string")) {
-    throw new Error('typeof value === "string"' + " error: " + ("Argument value must be of type string, given: " + _typeof(value) || 0));
-  }
-
-  var node = {
-    type: "LeadingComment",
-    value: value
-  };
-  return node;
-}
-
-function blockComment(value) {
-  if (!(typeof value === "string")) {
-    throw new Error('typeof value === "string"' + " error: " + ("Argument value must be of type string, given: " + _typeof(value) || 0));
-  }
-
-  var node = {
-    type: "BlockComment",
-    value: value
-  };
-  return node;
-}
-
-function data(memoryIndex, offset, init) {
-  var node = {
-    type: "Data",
-    memoryIndex: memoryIndex,
-    offset: offset,
-    init: init
-  };
-  return node;
-}
-
-function global(globalType, init, name) {
-  if (!(_typeof(init) === "object" && typeof init.length !== "undefined")) {
-    throw new Error('typeof init === "object" && typeof init.length !== "undefined"' + " error: " + (undefined || "unknown"));
-  }
-
-  var node = {
-    type: "Global",
-    globalType: globalType,
-    init: init,
-    name: name
-  };
-  return node;
-}
-
-function table(elementType, limits, name, elements) {
-  if (!(limits.type === "Limit")) {
-    throw new Error('limits.type === "Limit"' + " error: " + ("Argument limits must be of type Limit, given: " + limits.type || 0));
-  }
-
-  if (elements !== null && elements !== undefined) {
-    if (!(_typeof(elements) === "object" && typeof elements.length !== "undefined")) {
-      throw new Error('typeof elements === "object" && typeof elements.length !== "undefined"' + " error: " + (undefined || "unknown"));
-    }
-  }
-
-  var node = {
-    type: "Table",
-    elementType: elementType,
-    limits: limits,
-    name: name
-  };
-
-  if (typeof elements !== "undefined" && elements.length > 0) {
-    node.elements = elements;
-  }
-
-  return node;
-}
-
-function memory(limits, id) {
-  var node = {
-    type: "Memory",
-    limits: limits,
-    id: id
-  };
-  return node;
-}
-
-function funcImportDescr(id, signature) {
-  var node = {
-    type: "FuncImportDescr",
-    id: id,
-    signature: signature
-  };
-  return node;
-}
-
-function moduleImport(module, name, descr) {
-  if (!(typeof module === "string")) {
-    throw new Error('typeof module === "string"' + " error: " + ("Argument module must be of type string, given: " + _typeof(module) || 0));
-  }
-
-  if (!(typeof name === "string")) {
-    throw new Error('typeof name === "string"' + " error: " + ("Argument name must be of type string, given: " + _typeof(name) || 0));
-  }
-
-  var node = {
-    type: "ModuleImport",
-    module: module,
-    name: name,
-    descr: descr
-  };
-  return node;
-}
-
-function moduleExportDescr(exportType, id) {
-  var node = {
-    type: "ModuleExportDescr",
-    exportType: exportType,
-    id: id
-  };
-  return node;
-}
-
-function moduleExport(name, descr) {
-  if (!(typeof name === "string")) {
-    throw new Error('typeof name === "string"' + " error: " + ("Argument name must be of type string, given: " + _typeof(name) || 0));
-  }
-
-  var node = {
-    type: "ModuleExport",
-    name: name,
-    descr: descr
-  };
-  return node;
-}
-
-function limit(min, max) {
-  if (!(typeof min === "number")) {
-    throw new Error('typeof min === "number"' + " error: " + ("Argument min must be of type number, given: " + _typeof(min) || 0));
-  }
-
-  if (max !== null && max !== undefined) {
-    if (!(typeof max === "number")) {
-      throw new Error('typeof max === "number"' + " error: " + ("Argument max must be of type number, given: " + _typeof(max) || 0));
-    }
-  }
-
-  var node = {
-    type: "Limit",
-    min: min
-  };
-
-  if (typeof max !== "undefined") {
-    node.max = max;
-  }
-
-  return node;
-}
-
-function signature(params, results) {
-  if (!(_typeof(params) === "object" && typeof params.length !== "undefined")) {
-    throw new Error('typeof params === "object" && typeof params.length !== "undefined"' + " error: " + (undefined || "unknown"));
-  }
-
-  if (!(_typeof(results) === "object" && typeof results.length !== "undefined")) {
-    throw new Error('typeof results === "object" && typeof results.length !== "undefined"' + " error: " + (undefined || "unknown"));
-  }
-
-  var node = {
-    type: "Signature",
-    params: params,
-    results: results
-  };
-  return node;
-}
-
-function program(body) {
-  if (!(_typeof(body) === "object" && typeof body.length !== "undefined")) {
-    throw new Error('typeof body === "object" && typeof body.length !== "undefined"' + " error: " + (undefined || "unknown"));
-  }
-
-  var node = {
-    type: "Program",
-    body: body
-  };
-  return node;
-}
-
-function identifier(value, raw) {
-  if (!(typeof value === "string")) {
-    throw new Error('typeof value === "string"' + " error: " + ("Argument value must be of type string, given: " + _typeof(value) || 0));
-  }
-
-  if (raw !== null && raw !== undefined) {
-    if (!(typeof raw === "string")) {
-      throw new Error('typeof raw === "string"' + " error: " + ("Argument raw must be of type string, given: " + _typeof(raw) || 0));
-    }
-  }
-
-  var node = {
-    type: "Identifier",
-    value: value
-  };
-
-  if (typeof raw !== "undefined") {
-    node.raw = raw;
-  }
-
-  return node;
-}
-
-function blockInstruction(label, instr, result) {
-  if (!(_typeof(instr) === "object" && typeof instr.length !== "undefined")) {
-    throw new Error('typeof instr === "object" && typeof instr.length !== "undefined"' + " error: " + (undefined || "unknown"));
-  }
-
-  var node = {
-    type: "BlockInstruction",
-    id: "block",
-    label: label,
-    instr: instr,
-    result: result
-  };
-  return node;
-}
-
-function callInstruction(index, instrArgs, numeric) {
-  if (instrArgs !== null && instrArgs !== undefined) {
-    if (!(_typeof(instrArgs) === "object" && typeof instrArgs.length !== "undefined")) {
-      throw new Error('typeof instrArgs === "object" && typeof instrArgs.length !== "undefined"' + " error: " + (undefined || "unknown"));
-    }
-  }
-
-  var node = {
-    type: "CallInstruction",
-    id: "call",
-    index: index
-  };
-
-  if (typeof instrArgs !== "undefined" && instrArgs.length > 0) {
-    node.instrArgs = instrArgs;
-  }
-
-  if (typeof numeric !== "undefined") {
-    node.numeric = numeric;
-  }
-
-  return node;
-}
-
-function callIndirectInstruction(signature, intrs) {
-  if (intrs !== null && intrs !== undefined) {
-    if (!(_typeof(intrs) === "object" && typeof intrs.length !== "undefined")) {
-      throw new Error('typeof intrs === "object" && typeof intrs.length !== "undefined"' + " error: " + (undefined || "unknown"));
-    }
-  }
-
-  var node = {
-    type: "CallIndirectInstruction",
-    id: "call_indirect",
-    signature: signature
-  };
-
-  if (typeof intrs !== "undefined" && intrs.length > 0) {
-    node.intrs = intrs;
-  }
-
-  return node;
-}
-
-function byteArray(values) {
-  if (!(_typeof(values) === "object" && typeof values.length !== "undefined")) {
-    throw new Error('typeof values === "object" && typeof values.length !== "undefined"' + " error: " + (undefined || "unknown"));
-  }
-
-  var node = {
-    type: "ByteArray",
-    values: values
-  };
-  return node;
-}
-
-function func(name, signature, body, isExternal, metadata) {
-  if (!(_typeof(body) === "object" && typeof body.length !== "undefined")) {
-    throw new Error('typeof body === "object" && typeof body.length !== "undefined"' + " error: " + (undefined || "unknown"));
-  }
-
-  if (isExternal !== null && isExternal !== undefined) {
-    if (!(typeof isExternal === "boolean")) {
-      throw new Error('typeof isExternal === "boolean"' + " error: " + ("Argument isExternal must be of type boolean, given: " + _typeof(isExternal) || 0));
-    }
-  }
-
-  var node = {
-    type: "Func",
-    name: name,
-    signature: signature,
-    body: body
-  };
-
-  if (isExternal === true) {
-    node.isExternal = true;
-  }
-
-  if (typeof metadata !== "undefined") {
-    node.metadata = metadata;
-  }
-
-  return node;
-}
-
-function internalBrUnless(target) {
-  if (!(typeof target === "number")) {
-    throw new Error('typeof target === "number"' + " error: " + ("Argument target must be of type number, given: " + _typeof(target) || 0));
-  }
-
-  var node = {
-    type: "InternalBrUnless",
-    target: target
-  };
-  return node;
-}
-
-function internalGoto(target) {
-  if (!(typeof target === "number")) {
-    throw new Error('typeof target === "number"' + " error: " + ("Argument target must be of type number, given: " + _typeof(target) || 0));
-  }
-
-  var node = {
-    type: "InternalGoto",
-    target: target
-  };
-  return node;
-}
-
-function internalCallExtern(target) {
-  if (!(typeof target === "number")) {
-    throw new Error('typeof target === "number"' + " error: " + ("Argument target must be of type number, given: " + _typeof(target) || 0));
-  }
-
-  var node = {
-    type: "InternalCallExtern",
-    target: target
-  };
-  return node;
-}
-
-function internalEndAndReturn() {
-  var node = {
-    type: "InternalEndAndReturn"
-  };
-  return node;
-}
-
-var isModule = isTypeOf("Module");
-exports.isModule = isModule;
-var isModuleMetadata = isTypeOf("ModuleMetadata");
-exports.isModuleMetadata = isModuleMetadata;
-var isModuleNameMetadata = isTypeOf("ModuleNameMetadata");
-exports.isModuleNameMetadata = isModuleNameMetadata;
-var isFunctionNameMetadata = isTypeOf("FunctionNameMetadata");
-exports.isFunctionNameMetadata = isFunctionNameMetadata;
-var isLocalNameMetadata = isTypeOf("LocalNameMetadata");
-exports.isLocalNameMetadata = isLocalNameMetadata;
-var isBinaryModule = isTypeOf("BinaryModule");
-exports.isBinaryModule = isBinaryModule;
-var isQuoteModule = isTypeOf("QuoteModule");
-exports.isQuoteModule = isQuoteModule;
-var isSectionMetadata = isTypeOf("SectionMetadata");
-exports.isSectionMetadata = isSectionMetadata;
-var isProducersSectionMetadata = isTypeOf("ProducersSectionMetadata");
-exports.isProducersSectionMetadata = isProducersSectionMetadata;
-var isProducerMetadata = isTypeOf("ProducerMetadata");
-exports.isProducerMetadata = isProducerMetadata;
-var isProducerMetadataVersionedName = isTypeOf("ProducerMetadataVersionedName");
-exports.isProducerMetadataVersionedName = isProducerMetadataVersionedName;
-var isLoopInstruction = isTypeOf("LoopInstruction");
-exports.isLoopInstruction = isLoopInstruction;
-var isInstr = isTypeOf("Instr");
-exports.isInstr = isInstr;
-var isIfInstruction = isTypeOf("IfInstruction");
-exports.isIfInstruction = isIfInstruction;
-var isStringLiteral = isTypeOf("StringLiteral");
-exports.isStringLiteral = isStringLiteral;
-var isNumberLiteral = isTypeOf("NumberLiteral");
-exports.isNumberLiteral = isNumberLiteral;
-var isLongNumberLiteral = isTypeOf("LongNumberLiteral");
-exports.isLongNumberLiteral = isLongNumberLiteral;
-var isFloatLiteral = isTypeOf("FloatLiteral");
-exports.isFloatLiteral = isFloatLiteral;
-var isElem = isTypeOf("Elem");
-exports.isElem = isElem;
-var isIndexInFuncSection = isTypeOf("IndexInFuncSection");
-exports.isIndexInFuncSection = isIndexInFuncSection;
-var isValtypeLiteral = isTypeOf("ValtypeLiteral");
-exports.isValtypeLiteral = isValtypeLiteral;
-var isTypeInstruction = isTypeOf("TypeInstruction");
-exports.isTypeInstruction = isTypeInstruction;
-var isStart = isTypeOf("Start");
-exports.isStart = isStart;
-var isGlobalType = isTypeOf("GlobalType");
-exports.isGlobalType = isGlobalType;
-var isLeadingComment = isTypeOf("LeadingComment");
-exports.isLeadingComment = isLeadingComment;
-var isBlockComment = isTypeOf("BlockComment");
-exports.isBlockComment = isBlockComment;
-var isData = isTypeOf("Data");
-exports.isData = isData;
-var isGlobal = isTypeOf("Global");
-exports.isGlobal = isGlobal;
-var isTable = isTypeOf("Table");
-exports.isTable = isTable;
-var isMemory = isTypeOf("Memory");
-exports.isMemory = isMemory;
-var isFuncImportDescr = isTypeOf("FuncImportDescr");
-exports.isFuncImportDescr = isFuncImportDescr;
-var isModuleImport = isTypeOf("ModuleImport");
-exports.isModuleImport = isModuleImport;
-var isModuleExportDescr = isTypeOf("ModuleExportDescr");
-exports.isModuleExportDescr = isModuleExportDescr;
-var isModuleExport = isTypeOf("ModuleExport");
-exports.isModuleExport = isModuleExport;
-var isLimit = isTypeOf("Limit");
-exports.isLimit = isLimit;
-var isSignature = isTypeOf("Signature");
-exports.isSignature = isSignature;
-var isProgram = isTypeOf("Program");
-exports.isProgram = isProgram;
-var isIdentifier = isTypeOf("Identifier");
-exports.isIdentifier = isIdentifier;
-var isBlockInstruction = isTypeOf("BlockInstruction");
-exports.isBlockInstruction = isBlockInstruction;
-var isCallInstruction = isTypeOf("CallInstruction");
-exports.isCallInstruction = isCallInstruction;
-var isCallIndirectInstruction = isTypeOf("CallIndirectInstruction");
-exports.isCallIndirectInstruction = isCallIndirectInstruction;
-var isByteArray = isTypeOf("ByteArray");
-exports.isByteArray = isByteArray;
-var isFunc = isTypeOf("Func");
-exports.isFunc = isFunc;
-var isInternalBrUnless = isTypeOf("InternalBrUnless");
-exports.isInternalBrUnless = isInternalBrUnless;
-var isInternalGoto = isTypeOf("InternalGoto");
-exports.isInternalGoto = isInternalGoto;
-var isInternalCallExtern = isTypeOf("InternalCallExtern");
-exports.isInternalCallExtern = isInternalCallExtern;
-var isInternalEndAndReturn = isTypeOf("InternalEndAndReturn");
-exports.isInternalEndAndReturn = isInternalEndAndReturn;
-
-var isNode = function isNode(node) {
-  return isModule(node) || isModuleMetadata(node) || isModuleNameMetadata(node) || isFunctionNameMetadata(node) || isLocalNameMetadata(node) || isBinaryModule(node) || isQuoteModule(node) || isSectionMetadata(node) || isProducersSectionMetadata(node) || isProducerMetadata(node) || isProducerMetadataVersionedName(node) || isLoopInstruction(node) || isInstr(node) || isIfInstruction(node) || isStringLiteral(node) || isNumberLiteral(node) || isLongNumberLiteral(node) || isFloatLiteral(node) || isElem(node) || isIndexInFuncSection(node) || isValtypeLiteral(node) || isTypeInstruction(node) || isStart(node) || isGlobalType(node) || isLeadingComment(node) || isBlockComment(node) || isData(node) || isGlobal(node) || isTable(node) || isMemory(node) || isFuncImportDescr(node) || isModuleImport(node) || isModuleExportDescr(node) || isModuleExport(node) || isLimit(node) || isSignature(node) || isProgram(node) || isIdentifier(node) || isBlockInstruction(node) || isCallInstruction(node) || isCallIndirectInstruction(node) || isByteArray(node) || isFunc(node) || isInternalBrUnless(node) || isInternalGoto(node) || isInternalCallExtern(node) || isInternalEndAndReturn(node);
-};
-
-exports.isNode = isNode;
-
-var isBlock = function isBlock(node) {
-  return isLoopInstruction(node) || isBlockInstruction(node) || isFunc(node);
-};
-
-exports.isBlock = isBlock;
-
-var isInstruction = function isInstruction(node) {
-  return isLoopInstruction(node) || isInstr(node) || isIfInstruction(node) || isTypeInstruction(node) || isBlockInstruction(node) || isCallInstruction(node) || isCallIndirectInstruction(node);
-};
-
-exports.isInstruction = isInstruction;
-
-var isExpression = function isExpression(node) {
-  return isInstr(node) || isStringLiteral(node) || isNumberLiteral(node) || isLongNumberLiteral(node) || isFloatLiteral(node) || isValtypeLiteral(node) || isIdentifier(node);
-};
-
-exports.isExpression = isExpression;
-
-var isNumericLiteral = function isNumericLiteral(node) {
-  return isNumberLiteral(node) || isLongNumberLiteral(node) || isFloatLiteral(node);
-};
-
-exports.isNumericLiteral = isNumericLiteral;
-
-var isImportDescr = function isImportDescr(node) {
-  return isGlobalType(node) || isTable(node) || isMemory(node) || isFuncImportDescr(node);
-};
-
-exports.isImportDescr = isImportDescr;
-
-var isIntrinsic = function isIntrinsic(node) {
-  return isInternalBrUnless(node) || isInternalGoto(node) || isInternalCallExtern(node) || isInternalEndAndReturn(node);
-};
-
-exports.isIntrinsic = isIntrinsic;
-var assertModule = assertTypeOf("Module");
-exports.assertModule = assertModule;
-var assertModuleMetadata = assertTypeOf("ModuleMetadata");
-exports.assertModuleMetadata = assertModuleMetadata;
-var assertModuleNameMetadata = assertTypeOf("ModuleNameMetadata");
-exports.assertModuleNameMetadata = assertModuleNameMetadata;
-var assertFunctionNameMetadata = assertTypeOf("FunctionNameMetadata");
-exports.assertFunctionNameMetadata = assertFunctionNameMetadata;
-var assertLocalNameMetadata = assertTypeOf("LocalNameMetadata");
-exports.assertLocalNameMetadata = assertLocalNameMetadata;
-var assertBinaryModule = assertTypeOf("BinaryModule");
-exports.assertBinaryModule = assertBinaryModule;
-var assertQuoteModule = assertTypeOf("QuoteModule");
-exports.assertQuoteModule = assertQuoteModule;
-var assertSectionMetadata = assertTypeOf("SectionMetadata");
-exports.assertSectionMetadata = assertSectionMetadata;
-var assertProducersSectionMetadata = assertTypeOf("ProducersSectionMetadata");
-exports.assertProducersSectionMetadata = assertProducersSectionMetadata;
-var assertProducerMetadata = assertTypeOf("ProducerMetadata");
-exports.assertProducerMetadata = assertProducerMetadata;
-var assertProducerMetadataVersionedName = assertTypeOf("ProducerMetadataVersionedName");
-exports.assertProducerMetadataVersionedName = assertProducerMetadataVersionedName;
-var assertLoopInstruction = assertTypeOf("LoopInstruction");
-exports.assertLoopInstruction = assertLoopInstruction;
-var assertInstr = assertTypeOf("Instr");
-exports.assertInstr = assertInstr;
-var assertIfInstruction = assertTypeOf("IfInstruction");
-exports.assertIfInstruction = assertIfInstruction;
-var assertStringLiteral = assertTypeOf("StringLiteral");
-exports.assertStringLiteral = assertStringLiteral;
-var assertNumberLiteral = assertTypeOf("NumberLiteral");
-exports.assertNumberLiteral = assertNumberLiteral;
-var assertLongNumberLiteral = assertTypeOf("LongNumberLiteral");
-exports.assertLongNumberLiteral = assertLongNumberLiteral;
-var assertFloatLiteral = assertTypeOf("FloatLiteral");
-exports.assertFloatLiteral = assertFloatLiteral;
-var assertElem = assertTypeOf("Elem");
-exports.assertElem = assertElem;
-var assertIndexInFuncSection = assertTypeOf("IndexInFuncSection");
-exports.assertIndexInFuncSection = assertIndexInFuncSection;
-var assertValtypeLiteral = assertTypeOf("ValtypeLiteral");
-exports.assertValtypeLiteral = assertValtypeLiteral;
-var assertTypeInstruction = assertTypeOf("TypeInstruction");
-exports.assertTypeInstruction = assertTypeInstruction;
-var assertStart = assertTypeOf("Start");
-exports.assertStart = assertStart;
-var assertGlobalType = assertTypeOf("GlobalType");
-exports.assertGlobalType = assertGlobalType;
-var assertLeadingComment = assertTypeOf("LeadingComment");
-exports.assertLeadingComment = assertLeadingComment;
-var assertBlockComment = assertTypeOf("BlockComment");
-exports.assertBlockComment = assertBlockComment;
-var assertData = assertTypeOf("Data");
-exports.assertData = assertData;
-var assertGlobal = assertTypeOf("Global");
-exports.assertGlobal = assertGlobal;
-var assertTable = assertTypeOf("Table");
-exports.assertTable = assertTable;
-var assertMemory = assertTypeOf("Memory");
-exports.assertMemory = assertMemory;
-var assertFuncImportDescr = assertTypeOf("FuncImportDescr");
-exports.assertFuncImportDescr = assertFuncImportDescr;
-var assertModuleImport = assertTypeOf("ModuleImport");
-exports.assertModuleImport = assertModuleImport;
-var assertModuleExportDescr = assertTypeOf("ModuleExportDescr");
-exports.assertModuleExportDescr = assertModuleExportDescr;
-var assertModuleExport = assertTypeOf("ModuleExport");
-exports.assertModuleExport = assertModuleExport;
-var assertLimit = assertTypeOf("Limit");
-exports.assertLimit = assertLimit;
-var assertSignature = assertTypeOf("Signature");
-exports.assertSignature = assertSignature;
-var assertProgram = assertTypeOf("Program");
-exports.assertProgram = assertProgram;
-var assertIdentifier = assertTypeOf("Identifier");
-exports.assertIdentifier = assertIdentifier;
-var assertBlockInstruction = assertTypeOf("BlockInstruction");
-exports.assertBlockInstruction = assertBlockInstruction;
-var assertCallInstruction = assertTypeOf("CallInstruction");
-exports.assertCallInstruction = assertCallInstruction;
-var assertCallIndirectInstruction = assertTypeOf("CallIndirectInstruction");
-exports.assertCallIndirectInstruction = assertCallIndirectInstruction;
-var assertByteArray = assertTypeOf("ByteArray");
-exports.assertByteArray = assertByteArray;
-var assertFunc = assertTypeOf("Func");
-exports.assertFunc = assertFunc;
-var assertInternalBrUnless = assertTypeOf("InternalBrUnless");
-exports.assertInternalBrUnless = assertInternalBrUnless;
-var assertInternalGoto = assertTypeOf("InternalGoto");
-exports.assertInternalGoto = assertInternalGoto;
-var assertInternalCallExtern = assertTypeOf("InternalCallExtern");
-exports.assertInternalCallExtern = assertInternalCallExtern;
-var assertInternalEndAndReturn = assertTypeOf("InternalEndAndReturn");
-exports.assertInternalEndAndReturn = assertInternalEndAndReturn;
-var unionTypesMap = {
-  Module: ["Node"],
-  ModuleMetadata: ["Node"],
-  ModuleNameMetadata: ["Node"],
-  FunctionNameMetadata: ["Node"],
-  LocalNameMetadata: ["Node"],
-  BinaryModule: ["Node"],
-  QuoteModule: ["Node"],
-  SectionMetadata: ["Node"],
-  ProducersSectionMetadata: ["Node"],
-  ProducerMetadata: ["Node"],
-  ProducerMetadataVersionedName: ["Node"],
-  LoopInstruction: ["Node", "Block", "Instruction"],
-  Instr: ["Node", "Expression", "Instruction"],
-  IfInstruction: ["Node", "Instruction"],
-  StringLiteral: ["Node", "Expression"],
-  NumberLiteral: ["Node", "NumericLiteral", "Expression"],
-  LongNumberLiteral: ["Node", "NumericLiteral", "Expression"],
-  FloatLiteral: ["Node", "NumericLiteral", "Expression"],
-  Elem: ["Node"],
-  IndexInFuncSection: ["Node"],
-  ValtypeLiteral: ["Node", "Expression"],
-  TypeInstruction: ["Node", "Instruction"],
-  Start: ["Node"],
-  GlobalType: ["Node", "ImportDescr"],
-  LeadingComment: ["Node"],
-  BlockComment: ["Node"],
-  Data: ["Node"],
-  Global: ["Node"],
-  Table: ["Node", "ImportDescr"],
-  Memory: ["Node", "ImportDescr"],
-  FuncImportDescr: ["Node", "ImportDescr"],
-  ModuleImport: ["Node"],
-  ModuleExportDescr: ["Node"],
-  ModuleExport: ["Node"],
-  Limit: ["Node"],
-  Signature: ["Node"],
-  Program: ["Node"],
-  Identifier: ["Node", "Expression"],
-  BlockInstruction: ["Node", "Block", "Instruction"],
-  CallInstruction: ["Node", "Instruction"],
-  CallIndirectInstruction: ["Node", "Instruction"],
-  ByteArray: ["Node"],
-  Func: ["Node", "Block"],
-  InternalBrUnless: ["Node", "Intrinsic"],
-  InternalGoto: ["Node", "Intrinsic"],
-  InternalCallExtern: ["Node", "Intrinsic"],
-  InternalEndAndReturn: ["Node", "Intrinsic"]
-};
-exports.unionTypesMap = unionTypesMap;
-var nodeAndUnionTypes = ["Module", "ModuleMetadata", "ModuleNameMetadata", "FunctionNameMetadata", "LocalNameMetadata", "BinaryModule", "QuoteModule", "SectionMetadata", "ProducersSectionMetadata", "ProducerMetadata", "ProducerMetadataVersionedName", "LoopInstruction", "Instr", "IfInstruction", "StringLiteral", "NumberLiteral", "LongNumberLiteral", "FloatLiteral", "Elem", "IndexInFuncSection", "ValtypeLiteral", "TypeInstruction", "Start", "GlobalType", "LeadingComment", "BlockComment", "Data", "Global", "Table", "Memory", "FuncImportDescr", "ModuleImport", "ModuleExportDescr", "ModuleExport", "Limit", "Signature", "Program", "Identifier", "BlockInstruction", "CallInstruction", "CallIndirectInstruction", "ByteArray", "Func", "InternalBrUnless", "InternalGoto", "InternalCallExtern", "InternalEndAndReturn", "Node", "Block", "Instruction", "Expression", "NumericLiteral", "ImportDescr", "Intrinsic"];
-exports.nodeAndUnionTypes = nodeAndUnionTypes;
-
-/***/ }),
-
-/***/ 51085:
-/***/ (function(__unused_webpack_module, exports) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({
-  value: true
-}));
-exports.signatures = void 0;
-
-function sign(input, output) {
-  return [input, output];
-}
-
-var u32 = "u32";
-var i32 = "i32";
-var i64 = "i64";
-var f32 = "f32";
-var f64 = "f64";
-
-var vector = function vector(t) {
-  var vecType = [t]; // $FlowIgnore
-
-  vecType.vector = true;
-  return vecType;
-};
-
-var controlInstructions = {
-  unreachable: sign([], []),
-  nop: sign([], []),
-  // block ?
-  // loop ?
-  // if ?
-  // if else ?
-  br: sign([u32], []),
-  br_if: sign([u32], []),
-  br_table: sign(vector(u32), []),
-  return: sign([], []),
-  call: sign([u32], []),
-  call_indirect: sign([u32], [])
-};
-var parametricInstructions = {
-  drop: sign([], []),
-  select: sign([], [])
-};
-var variableInstructions = {
-  get_local: sign([u32], []),
-  set_local: sign([u32], []),
-  tee_local: sign([u32], []),
-  get_global: sign([u32], []),
-  set_global: sign([u32], [])
-};
-var memoryInstructions = {
-  "i32.load": sign([u32, u32], [i32]),
-  "i64.load": sign([u32, u32], []),
-  "f32.load": sign([u32, u32], []),
-  "f64.load": sign([u32, u32], []),
-  "i32.load8_s": sign([u32, u32], [i32]),
-  "i32.load8_u": sign([u32, u32], [i32]),
-  "i32.load16_s": sign([u32, u32], [i32]),
-  "i32.load16_u": sign([u32, u32], [i32]),
-  "i64.load8_s": sign([u32, u32], [i64]),
-  "i64.load8_u": sign([u32, u32], [i64]),
-  "i64.load16_s": sign([u32, u32], [i64]),
-  "i64.load16_u": sign([u32, u32], [i64]),
-  "i64.load32_s": sign([u32, u32], [i64]),
-  "i64.load32_u": sign([u32, u32], [i64]),
-  "i32.store": sign([u32, u32], []),
-  "i64.store": sign([u32, u32], []),
-  "f32.store": sign([u32, u32], []),
-  "f64.store": sign([u32, u32], []),
-  "i32.store8": sign([u32, u32], []),
-  "i32.store16": sign([u32, u32], []),
-  "i64.store8": sign([u32, u32], []),
-  "i64.store16": sign([u32, u32], []),
-  "i64.store32": sign([u32, u32], []),
-  current_memory: sign([], []),
-  grow_memory: sign([], [])
-};
-var numericInstructions = {
-  "i32.const": sign([i32], [i32]),
-  "i64.const": sign([i64], [i64]),
-  "f32.const": sign([f32], [f32]),
-  "f64.const": sign([f64], [f64]),
-  "i32.eqz": sign([i32], [i32]),
-  "i32.eq": sign([i32, i32], [i32]),
-  "i32.ne": sign([i32, i32], [i32]),
-  "i32.lt_s": sign([i32, i32], [i32]),
-  "i32.lt_u": sign([i32, i32], [i32]),
-  "i32.gt_s": sign([i32, i32], [i32]),
-  "i32.gt_u": sign([i32, i32], [i32]),
-  "i32.le_s": sign([i32, i32], [i32]),
-  "i32.le_u": sign([i32, i32], [i32]),
-  "i32.ge_s": sign([i32, i32], [i32]),
-  "i32.ge_u": sign([i32, i32], [i32]),
-  "i64.eqz": sign([i64], [i64]),
-  "i64.eq": sign([i64, i64], [i32]),
-  "i64.ne": sign([i64, i64], [i32]),
-  "i64.lt_s": sign([i64, i64], [i32]),
-  "i64.lt_u": sign([i64, i64], [i32]),
-  "i64.gt_s": sign([i64, i64], [i32]),
-  "i64.gt_u": sign([i64, i64], [i32]),
-  "i64.le_s": sign([i64, i64], [i32]),
-  "i64.le_u": sign([i64, i64], [i32]),
-  "i64.ge_s": sign([i64, i64], [i32]),
-  "i64.ge_u": sign([i64, i64], [i32]),
-  "f32.eq": sign([f32, f32], [i32]),
-  "f32.ne": sign([f32, f32], [i32]),
-  "f32.lt": sign([f32, f32], [i32]),
-  "f32.gt": sign([f32, f32], [i32]),
-  "f32.le": sign([f32, f32], [i32]),
-  "f32.ge": sign([f32, f32], [i32]),
-  "f64.eq": sign([f64, f64], [i32]),
-  "f64.ne": sign([f64, f64], [i32]),
-  "f64.lt": sign([f64, f64], [i32]),
-  "f64.gt": sign([f64, f64], [i32]),
-  "f64.le": sign([f64, f64], [i32]),
-  "f64.ge": sign([f64, f64], [i32]),
-  "i32.clz": sign([i32], [i32]),
-  "i32.ctz": sign([i32], [i32]),
-  "i32.popcnt": sign([i32], [i32]),
-  "i32.add": sign([i32, i32], [i32]),
-  "i32.sub": sign([i32, i32], [i32]),
-  "i32.mul": sign([i32, i32], [i32]),
-  "i32.div_s": sign([i32, i32], [i32]),
-  "i32.div_u": sign([i32, i32], [i32]),
-  "i32.rem_s": sign([i32, i32], [i32]),
-  "i32.rem_u": sign([i32, i32], [i32]),
-  "i32.and": sign([i32, i32], [i32]),
-  "i32.or": sign([i32, i32], [i32]),
-  "i32.xor": sign([i32, i32], [i32]),
-  "i32.shl": sign([i32, i32], [i32]),
-  "i32.shr_s": sign([i32, i32], [i32]),
-  "i32.shr_u": sign([i32, i32], [i32]),
-  "i32.rotl": sign([i32, i32], [i32]),
-  "i32.rotr": sign([i32, i32], [i32]),
-  "i64.clz": sign([i64], [i64]),
-  "i64.ctz": sign([i64], [i64]),
-  "i64.popcnt": sign([i64], [i64]),
-  "i64.add": sign([i64, i64], [i64]),
-  "i64.sub": sign([i64, i64], [i64]),
-  "i64.mul": sign([i64, i64], [i64]),
-  "i64.div_s": sign([i64, i64], [i64]),
-  "i64.div_u": sign([i64, i64], [i64]),
-  "i64.rem_s": sign([i64, i64], [i64]),
-  "i64.rem_u": sign([i64, i64], [i64]),
-  "i64.and": sign([i64, i64], [i64]),
-  "i64.or": sign([i64, i64], [i64]),
-  "i64.xor": sign([i64, i64], [i64]),
-  "i64.shl": sign([i64, i64], [i64]),
-  "i64.shr_s": sign([i64, i64], [i64]),
-  "i64.shr_u": sign([i64, i64], [i64]),
-  "i64.rotl": sign([i64, i64], [i64]),
-  "i64.rotr": sign([i64, i64], [i64]),
-  "f32.abs": sign([f32], [f32]),
-  "f32.neg": sign([f32], [f32]),
-  "f32.ceil": sign([f32], [f32]),
-  "f32.floor": sign([f32], [f32]),
-  "f32.trunc": sign([f32], [f32]),
-  "f32.nearest": sign([f32], [f32]),
-  "f32.sqrt": sign([f32], [f32]),
-  "f32.add": sign([f32, f32], [f32]),
-  "f32.sub": sign([f32, f32], [f32]),
-  "f32.mul": sign([f32, f32], [f32]),
-  "f32.div": sign([f32, f32], [f32]),
-  "f32.min": sign([f32, f32], [f32]),
-  "f32.max": sign([f32, f32], [f32]),
-  "f32.copysign": sign([f32, f32], [f32]),
-  "f64.abs": sign([f64], [f64]),
-  "f64.neg": sign([f64], [f64]),
-  "f64.ceil": sign([f64], [f64]),
-  "f64.floor": sign([f64], [f64]),
-  "f64.trunc": sign([f64], [f64]),
-  "f64.nearest": sign([f64], [f64]),
-  "f64.sqrt": sign([f64], [f64]),
-  "f64.add": sign([f64, f64], [f64]),
-  "f64.sub": sign([f64, f64], [f64]),
-  "f64.mul": sign([f64, f64], [f64]),
-  "f64.div": sign([f64, f64], [f64]),
-  "f64.min": sign([f64, f64], [f64]),
-  "f64.max": sign([f64, f64], [f64]),
-  "f64.copysign": sign([f64, f64], [f64]),
-  "i32.wrap/i64": sign([i64], [i32]),
-  "i32.trunc_s/f32": sign([f32], [i32]),
-  "i32.trunc_u/f32": sign([f32], [i32]),
-  "i32.trunc_s/f64": sign([f32], [i32]),
-  "i32.trunc_u/f64": sign([f64], [i32]),
-  "i64.extend_s/i32": sign([i32], [i64]),
-  "i64.extend_u/i32": sign([i32], [i64]),
-  "i64.trunc_s/f32": sign([f32], [i64]),
-  "i64.trunc_u/f32": sign([f32], [i64]),
-  "i64.trunc_s/f64": sign([f64], [i64]),
-  "i64.trunc_u/f64": sign([f64], [i64]),
-  "f32.convert_s/i32": sign([i32], [f32]),
-  "f32.convert_u/i32": sign([i32], [f32]),
-  "f32.convert_s/i64": sign([i64], [f32]),
-  "f32.convert_u/i64": sign([i64], [f32]),
-  "f32.demote/f64": sign([f64], [f32]),
-  "f64.convert_s/i32": sign([i32], [f64]),
-  "f64.convert_u/i32": sign([i32], [f64]),
-  "f64.convert_s/i64": sign([i64], [f64]),
-  "f64.convert_u/i64": sign([i64], [f64]),
-  "f64.promote/f32": sign([f32], [f64]),
-  "i32.reinterpret/f32": sign([f32], [i32]),
-  "i64.reinterpret/f64": sign([f64], [i64]),
-  "f32.reinterpret/i32": sign([i32], [f32]),
-  "f64.reinterpret/i64": sign([i64], [f64])
-};
-var signatures = Object.assign({}, controlInstructions, parametricInstructions, variableInstructions, memoryInstructions, numericInstructions);
-exports.signatures = signatures;
-
-/***/ }),
-
-/***/ 9469:
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({
-  value: true
-}));
-exports.traverse = traverse;
-
-var _nodePath = __webpack_require__(39068);
-
-var _nodes = __webpack_require__(53315);
-
-// recursively walks the AST starting at the given node. The callback is invoked for
-// and object that has a 'type' property.
-function walk(context, callback) {
-  var stop = false;
-
-  function innerWalk(context, callback) {
-    if (stop) {
-      return;
-    }
-
-    var node = context.node;
-
-    if (node === undefined) {
-      console.warn("traversing with an empty context");
-      return;
-    }
-
-    if (node._deleted === true) {
-      return;
-    }
-
-    var path = (0, _nodePath.createPath)(context);
-    callback(node.type, path);
-
-    if (path.shouldStop) {
-      stop = true;
-      return;
-    }
-
-    Object.keys(node).forEach(function (prop) {
-      var value = node[prop];
-
-      if (value === null || value === undefined) {
-        return;
-      }
-
-      var valueAsArray = Array.isArray(value) ? value : [value];
-      valueAsArray.forEach(function (childNode) {
-        if (typeof childNode.type === "string") {
-          var childContext = {
-            node: childNode,
-            parentKey: prop,
-            parentPath: path,
-            shouldStop: false,
-            inList: Array.isArray(value)
-          };
-          innerWalk(childContext, callback);
-        }
-      });
-    });
-  }
-
-  innerWalk(context, callback);
-}
-
-var noop = function noop() {};
-
-function traverse(node, visitors) {
-  var before = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : noop;
-  var after = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : noop;
-  Object.keys(visitors).forEach(function (visitor) {
-    if (!_nodes.nodeAndUnionTypes.includes(visitor)) {
-      throw new Error("Unexpected visitor ".concat(visitor));
-    }
-  });
-  var context = {
-    node: node,
-    inList: false,
-    shouldStop: false,
-    parentPath: null,
-    parentKey: null
-  };
-  walk(context, function (type, path) {
-    if (typeof visitors[type] === "function") {
-      before(type, path);
-      visitors[type](path);
-      after(type, path);
-    }
-
-    var unionTypes = _nodes.unionTypesMap[type];
-
-    if (!unionTypes) {
-      throw new Error("Unexpected node type ".concat(type));
-    }
-
-    unionTypes.forEach(function (unionType) {
-      if (typeof visitors[unionType] === "function") {
-        before(unionType, path);
-        visitors[unionType](path);
-        after(unionType, path);
-      }
-    });
-  });
-}
-
-/***/ }),
-
-/***/ 1562:
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({
-  value: true
-}));
-exports.isAnonymous = isAnonymous;
-exports.getSectionMetadata = getSectionMetadata;
-exports.getSectionMetadatas = getSectionMetadatas;
-exports.sortSectionMetadata = sortSectionMetadata;
-exports.orderedInsertNode = orderedInsertNode;
-exports.assertHasLoc = assertHasLoc;
-exports.getEndOfSection = getEndOfSection;
-exports.shiftLoc = shiftLoc;
-exports.shiftSection = shiftSection;
-exports.signatureForOpcode = signatureForOpcode;
-exports.getUniqueNameGenerator = getUniqueNameGenerator;
-exports.getStartByteOffset = getStartByteOffset;
-exports.getEndByteOffset = getEndByteOffset;
-exports.getFunctionBeginingByteOffset = getFunctionBeginingByteOffset;
-exports.getEndBlockByteOffset = getEndBlockByteOffset;
-exports.getStartBlockByteOffset = getStartBlockByteOffset;
-
-var _signatures = __webpack_require__(51085);
-
-var _traverse = __webpack_require__(9469);
-
-var _helperWasmBytecode = _interopRequireWildcard(__webpack_require__(51028));
-
-function _interopRequireWildcard(obj) { if (obj && obj.__esModule) { return obj; } else { var newObj = {}; if (obj != null) { for (var key in obj) { if (Object.prototype.hasOwnProperty.call(obj, key)) { var desc = Object.defineProperty && Object.getOwnPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : {}; if (desc.get || desc.set) { Object.defineProperty(newObj, key, desc); } else { newObj[key] = obj[key]; } } } } newObj.default = obj; return newObj; } }
-
-function _sliceIterator(arr, i) { var _arr = []; var _n = true; var _d = false; var _e = undefined; try { for (var _i = arr[Symbol.iterator](), _s; !(_n = (_s = _i.next()).done); _n = true) { _arr.push(_s.value); if (i && _arr.length === i) break; } } catch (err) { _d = true; _e = err; } finally { try { if (!_n && _i["return"] != null) _i["return"](); } finally { if (_d) throw _e; } } return _arr; }
-
-function _slicedToArray(arr, i) { if (Array.isArray(arr)) { return arr; } else if (Symbol.iterator in Object(arr)) { return _sliceIterator(arr, i); } else { throw new TypeError("Invalid attempt to destructure non-iterable instance"); } }
-
-function _typeof(obj) { if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") { _typeof = function _typeof(obj) { return typeof obj; }; } else { _typeof = function _typeof(obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }; } return _typeof(obj); }
-
-function isAnonymous(ident) {
-  return ident.raw === "";
-}
-
-function getSectionMetadata(ast, name) {
-  var section;
-  (0, _traverse.traverse)(ast, {
-    SectionMetadata: function (_SectionMetadata) {
-      function SectionMetadata(_x) {
-        return _SectionMetadata.apply(this, arguments);
-      }
-
-      SectionMetadata.toString = function () {
-        return _SectionMetadata.toString();
-      };
-
-      return SectionMetadata;
-    }(function (_ref) {
-      var node = _ref.node;
-
-      if (node.section === name) {
-        section = node;
-      }
-    })
-  });
-  return section;
-}
-
-function getSectionMetadatas(ast, name) {
-  var sections = [];
-  (0, _traverse.traverse)(ast, {
-    SectionMetadata: function (_SectionMetadata2) {
-      function SectionMetadata(_x2) {
-        return _SectionMetadata2.apply(this, arguments);
-      }
-
-      SectionMetadata.toString = function () {
-        return _SectionMetadata2.toString();
-      };
-
-      return SectionMetadata;
-    }(function (_ref2) {
-      var node = _ref2.node;
-
-      if (node.section === name) {
-        sections.push(node);
-      }
-    })
-  });
-  return sections;
-}
-
-function sortSectionMetadata(m) {
-  if (m.metadata == null) {
-    console.warn("sortSectionMetadata: no metadata to sort");
-    return;
-  } // $FlowIgnore
-
-
-  m.metadata.sections.sort(function (a, b) {
-    var aId = _helperWasmBytecode.default.sections[a.section];
-    var bId = _helperWasmBytecode.default.sections[b.section];
-
-    if (typeof aId !== "number" || typeof bId !== "number") {
-      throw new Error("Section id not found");
-    }
-
-    return aId - bId;
-  });
-}
-
-function orderedInsertNode(m, n) {
-  assertHasLoc(n);
-  var didInsert = false;
-
-  if (n.type === "ModuleExport") {
-    m.fields.push(n);
-    return;
-  }
-
-  m.fields = m.fields.reduce(function (acc, field) {
-    var fieldEndCol = Infinity;
-
-    if (field.loc != null) {
-      // $FlowIgnore
-      fieldEndCol = field.loc.end.column;
-    } // $FlowIgnore: assertHasLoc ensures that
-
-
-    if (didInsert === false && n.loc.start.column < fieldEndCol) {
-      didInsert = true;
-      acc.push(n);
-    }
-
-    acc.push(field);
-    return acc;
-  }, []); // Handles empty modules or n is the last element
-
-  if (didInsert === false) {
-    m.fields.push(n);
-  }
-}
-
-function assertHasLoc(n) {
-  if (n.loc == null || n.loc.start == null || n.loc.end == null) {
-    throw new Error("Internal failure: node (".concat(JSON.stringify(n.type), ") has no location information"));
-  }
-}
-
-function getEndOfSection(s) {
-  assertHasLoc(s.size);
-  return s.startOffset + s.size.value + ( // $FlowIgnore
-  s.size.loc.end.column - s.size.loc.start.column);
-}
-
-function shiftLoc(node, delta) {
-  // $FlowIgnore
-  node.loc.start.column += delta; // $FlowIgnore
-
-  node.loc.end.column += delta;
-}
-
-function shiftSection(ast, node, delta) {
-  if (node.type !== "SectionMetadata") {
-    throw new Error("Can not shift node " + JSON.stringify(node.type));
-  }
-
-  node.startOffset += delta;
-
-  if (_typeof(node.size.loc) === "object") {
-    shiftLoc(node.size, delta);
-  } // Custom sections doesn't have vectorOfSize
-
-
-  if (_typeof(node.vectorOfSize) === "object" && _typeof(node.vectorOfSize.loc) === "object") {
-    shiftLoc(node.vectorOfSize, delta);
-  }
-
-  var sectionName = node.section; // shift node locations within that section
-
-  (0, _traverse.traverse)(ast, {
-    Node: function Node(_ref3) {
-      var node = _ref3.node;
-      var section = (0, _helperWasmBytecode.getSectionForNode)(node);
-
-      if (section === sectionName && _typeof(node.loc) === "object") {
-        shiftLoc(node, delta);
-      }
-    }
-  });
-}
-
-function signatureForOpcode(object, name) {
-  var opcodeName = name;
-
-  if (object !== undefined && object !== "") {
-    opcodeName = object + "." + name;
-  }
-
-  var sign = _signatures.signatures[opcodeName];
-
-  if (sign == undefined) {
-    // TODO: Uncomment this when br_table and others has been done
-    //throw new Error("Invalid opcode: "+opcodeName);
-    return [object, object];
-  }
-
-  return sign[0];
-}
-
-function getUniqueNameGenerator() {
-  var inc = {};
-  return function () {
-    var prefix = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : "temp";
-
-    if (!(prefix in inc)) {
-      inc[prefix] = 0;
-    } else {
-      inc[prefix] = inc[prefix] + 1;
-    }
-
-    return prefix + "_" + inc[prefix];
-  };
-}
-
-function getStartByteOffset(n) {
-  // $FlowIgnore
-  if (typeof n.loc === "undefined" || typeof n.loc.start === "undefined") {
-    throw new Error( // $FlowIgnore
-    "Can not get byte offset without loc informations, node: " + String(n.id));
-  }
-
-  return n.loc.start.column;
-}
-
-function getEndByteOffset(n) {
-  // $FlowIgnore
-  if (typeof n.loc === "undefined" || typeof n.loc.end === "undefined") {
-    throw new Error("Can not get byte offset without loc informations, node: " + n.type);
-  }
-
-  return n.loc.end.column;
-}
-
-function getFunctionBeginingByteOffset(n) {
-  if (!(n.body.length > 0)) {
-    throw new Error('n.body.length > 0' + " error: " + (undefined || "unknown"));
-  }
-
-  var _n$body = _slicedToArray(n.body, 1),
-      firstInstruction = _n$body[0];
-
-  return getStartByteOffset(firstInstruction);
-}
-
-function getEndBlockByteOffset(n) {
-  // $FlowIgnore
-  if (!(n.instr.length > 0 || n.body.length > 0)) {
-    throw new Error('n.instr.length > 0 || n.body.length > 0' + " error: " + (undefined || "unknown"));
-  }
-
-  var lastInstruction;
-
-  if (n.instr) {
-    // $FlowIgnore
-    lastInstruction = n.instr[n.instr.length - 1];
-  }
-
-  if (n.body) {
-    // $FlowIgnore
-    lastInstruction = n.body[n.body.length - 1];
-  }
-
-  if (!(_typeof(lastInstruction) === "object")) {
-    throw new Error('typeof lastInstruction === "object"' + " error: " + (undefined || "unknown"));
-  }
-
-  // $FlowIgnore
-  return getStartByteOffset(lastInstruction);
-}
-
-function getStartBlockByteOffset(n) {
-  // $FlowIgnore
-  if (!(n.instr.length > 0 || n.body.length > 0)) {
-    throw new Error('n.instr.length > 0 || n.body.length > 0' + " error: " + (undefined || "unknown"));
-  }
-
-  var fistInstruction;
-
-  if (n.instr) {
-    // $FlowIgnore
-    var _n$instr = _slicedToArray(n.instr, 1);
-
-    fistInstruction = _n$instr[0];
-  }
-
-  if (n.body) {
-    // $FlowIgnore
-    var _n$body2 = _slicedToArray(n.body, 1);
-
-    fistInstruction = _n$body2[0];
-  }
-
-  if (!(_typeof(fistInstruction) === "object")) {
-    throw new Error('typeof fistInstruction === "object"' + " error: " + (undefined || "unknown"));
-  }
-
-  // $FlowIgnore
-  return getStartByteOffset(fistInstruction);
-}
-
-/***/ }),
-
-/***/ 54236:
-/***/ (function(__unused_webpack_module, exports) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({
-  value: true
-}));
-exports.default = parse;
-
-function parse(input) {
-  input = input.toUpperCase();
-  var splitIndex = input.indexOf("P");
-  var mantissa, exponent;
-
-  if (splitIndex !== -1) {
-    mantissa = input.substring(0, splitIndex);
-    exponent = parseInt(input.substring(splitIndex + 1));
-  } else {
-    mantissa = input;
-    exponent = 0;
-  }
-
-  var dotIndex = mantissa.indexOf(".");
-
-  if (dotIndex !== -1) {
-    var integerPart = parseInt(mantissa.substring(0, dotIndex), 16);
-    var sign = Math.sign(integerPart);
-    integerPart = sign * integerPart;
-    var fractionLength = mantissa.length - dotIndex - 1;
-    var fractionalPart = parseInt(mantissa.substring(dotIndex + 1), 16);
-    var fraction = fractionLength > 0 ? fractionalPart / Math.pow(16, fractionLength) : 0;
-
-    if (sign === 0) {
-      if (fraction === 0) {
-        mantissa = sign;
-      } else {
-        if (Object.is(sign, -0)) {
-          mantissa = -fraction;
-        } else {
-          mantissa = fraction;
-        }
-      }
-    } else {
-      mantissa = sign * (integerPart + fraction);
-    }
-  } else {
-    mantissa = parseInt(mantissa, 16);
-  }
-
-  return mantissa * (splitIndex !== -1 ? Math.pow(2, exponent) : 1);
-}
-
-/***/ }),
-
-/***/ 44706:
-/***/ (function(__unused_webpack_module, exports) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({
-  value: true
-}));
-exports.LinkError = exports.CompileError = exports.RuntimeError = void 0;
-
-function _typeof(obj) { if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") { _typeof = function _typeof(obj) { return typeof obj; }; } else { _typeof = function _typeof(obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }; } return _typeof(obj); }
-
-function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
-function _possibleConstructorReturn(self, call) { if (call && (_typeof(call) === "object" || typeof call === "function")) { return call; } if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return self; }
-
-function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function"); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
-
-var RuntimeError =
-/*#__PURE__*/
-function (_Error) {
-  _inherits(RuntimeError, _Error);
-
-  function RuntimeError() {
-    _classCallCheck(this, RuntimeError);
-
-    return _possibleConstructorReturn(this, (RuntimeError.__proto__ || Object.getPrototypeOf(RuntimeError)).apply(this, arguments));
-  }
-
-  return RuntimeError;
-}(Error);
-
-exports.RuntimeError = RuntimeError;
-
-var CompileError =
-/*#__PURE__*/
-function (_Error2) {
-  _inherits(CompileError, _Error2);
-
-  function CompileError() {
-    _classCallCheck(this, CompileError);
-
-    return _possibleConstructorReturn(this, (CompileError.__proto__ || Object.getPrototypeOf(CompileError)).apply(this, arguments));
-  }
-
-  return CompileError;
-}(Error);
-
-exports.CompileError = CompileError;
-
-var LinkError =
-/*#__PURE__*/
-function (_Error3) {
-  _inherits(LinkError, _Error3);
-
-  function LinkError() {
-    _classCallCheck(this, LinkError);
-
-    return _possibleConstructorReturn(this, (LinkError.__proto__ || Object.getPrototypeOf(LinkError)).apply(this, arguments));
-  }
-
-  return LinkError;
-}(Error);
-
-exports.LinkError = LinkError;
-
-/***/ }),
-
-/***/ 51028:
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({
-  value: true
-}));
-Object.defineProperty(exports, "getSectionForNode", ({
-  enumerable: true,
-  get: function get() {
-    return _section.getSectionForNode;
-  }
-}));
-exports.default = void 0;
-
-var _section = __webpack_require__(98933);
-
-var illegalop = "illegal";
-var magicModuleHeader = [0x00, 0x61, 0x73, 0x6d];
-var moduleVersion = [0x01, 0x00, 0x00, 0x00];
-
-function invertMap(obj) {
-  var keyModifierFn = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : function (k) {
-    return k;
-  };
-  var result = {};
-  var keys = Object.keys(obj);
-
-  for (var i = 0, length = keys.length; i < length; i++) {
-    result[keyModifierFn(obj[keys[i]])] = keys[i];
-  }
-
-  return result;
-}
-
-function createSymbolObject(name
-/*: string */
-, object
-/*: string */
-)
-/*: Symbol*/
-{
-  var numberOfArgs
-  /*: number*/
-  = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : 0;
-  return {
-    name: name,
-    object: object,
-    numberOfArgs: numberOfArgs
-  };
-}
-
-function createSymbol(name
-/*: string */
-)
-/*: Symbol*/
-{
-  var numberOfArgs
-  /*: number*/
-  = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 0;
-  return {
-    name: name,
-    numberOfArgs: numberOfArgs
-  };
-}
-
-var types = {
-  func: 0x60,
-  result: 0x40
-};
-var exportTypes = {
-  0x00: "Func",
-  0x01: "Table",
-  0x02: "Mem",
-  0x03: "Global"
-};
-var exportTypesByName = invertMap(exportTypes);
-var valtypes = {
-  0x7f: "i32",
-  0x7e: "i64",
-  0x7d: "f32",
-  0x7c: "f64",
-  0x7b: "v128"
-};
-var valtypesByString = invertMap(valtypes);
-var tableTypes = {
-  0x70: "anyfunc"
-};
-var blockTypes = Object.assign({}, valtypes, {
-  // https://webassembly.github.io/spec/core/binary/types.html#binary-blocktype
-  0x40: null,
-  // https://webassembly.github.io/spec/core/binary/types.html#binary-valtype
-  0x7f: "i32",
-  0x7e: "i64",
-  0x7d: "f32",
-  0x7c: "f64"
-});
-var globalTypes = {
-  0x00: "const",
-  0x01: "var"
-};
-var globalTypesByString = invertMap(globalTypes);
-var importTypes = {
-  0x00: "func",
-  0x01: "table",
-  0x02: "mem",
-  0x03: "global"
-};
-var sections = {
-  custom: 0,
-  type: 1,
-  import: 2,
-  func: 3,
-  table: 4,
-  memory: 5,
-  global: 6,
-  export: 7,
-  start: 8,
-  element: 9,
-  code: 10,
-  data: 11
-};
-var symbolsByByte = {
-  0x00: createSymbol("unreachable"),
-  0x01: createSymbol("nop"),
-  0x02: createSymbol("block"),
-  0x03: createSymbol("loop"),
-  0x04: createSymbol("if"),
-  0x05: createSymbol("else"),
-  0x06: illegalop,
-  0x07: illegalop,
-  0x08: illegalop,
-  0x09: illegalop,
-  0x0a: illegalop,
-  0x0b: createSymbol("end"),
-  0x0c: createSymbol("br", 1),
-  0x0d: createSymbol("br_if", 1),
-  0x0e: createSymbol("br_table"),
-  0x0f: createSymbol("return"),
-  0x10: createSymbol("call", 1),
-  0x11: createSymbol("call_indirect", 2),
-  0x12: illegalop,
-  0x13: illegalop,
-  0x14: illegalop,
-  0x15: illegalop,
-  0x16: illegalop,
-  0x17: illegalop,
-  0x18: illegalop,
-  0x19: illegalop,
-  0x1a: createSymbol("drop"),
-  0x1b: createSymbol("select"),
-  0x1c: illegalop,
-  0x1d: illegalop,
-  0x1e: illegalop,
-  0x1f: illegalop,
-  0x20: createSymbol("get_local", 1),
-  0x21: createSymbol("set_local", 1),
-  0x22: createSymbol("tee_local", 1),
-  0x23: createSymbol("get_global", 1),
-  0x24: createSymbol("set_global", 1),
-  0x25: illegalop,
-  0x26: illegalop,
-  0x27: illegalop,
-  0x28: createSymbolObject("load", "u32", 1),
-  0x29: createSymbolObject("load", "u64", 1),
-  0x2a: createSymbolObject("load", "f32", 1),
-  0x2b: createSymbolObject("load", "f64", 1),
-  0x2c: createSymbolObject("load8_s", "u32", 1),
-  0x2d: createSymbolObject("load8_u", "u32", 1),
-  0x2e: createSymbolObject("load16_s", "u32", 1),
-  0x2f: createSymbolObject("load16_u", "u32", 1),
-  0x30: createSymbolObject("load8_s", "u64", 1),
-  0x31: createSymbolObject("load8_u", "u64", 1),
-  0x32: createSymbolObject("load16_s", "u64", 1),
-  0x33: createSymbolObject("load16_u", "u64", 1),
-  0x34: createSymbolObject("load32_s", "u64", 1),
-  0x35: createSymbolObject("load32_u", "u64", 1),
-  0x36: createSymbolObject("store", "u32", 1),
-  0x37: createSymbolObject("store", "u64", 1),
-  0x38: createSymbolObject("store", "f32", 1),
-  0x39: createSymbolObject("store", "f64", 1),
-  0x3a: createSymbolObject("store8", "u32", 1),
-  0x3b: createSymbolObject("store16", "u32", 1),
-  0x3c: createSymbolObject("store8", "u64", 1),
-  0x3d: createSymbolObject("store16", "u64", 1),
-  0x3e: createSymbolObject("store32", "u64", 1),
-  0x3f: createSymbolObject("current_memory"),
-  0x40: createSymbolObject("grow_memory"),
-  0x41: createSymbolObject("const", "i32", 1),
-  0x42: createSymbolObject("const", "i64", 1),
-  0x43: createSymbolObject("const", "f32", 1),
-  0x44: createSymbolObject("const", "f64", 1),
-  0x45: createSymbolObject("eqz", "i32"),
-  0x46: createSymbolObject("eq", "i32"),
-  0x47: createSymbolObject("ne", "i32"),
-  0x48: createSymbolObject("lt_s", "i32"),
-  0x49: createSymbolObject("lt_u", "i32"),
-  0x4a: createSymbolObject("gt_s", "i32"),
-  0x4b: createSymbolObject("gt_u", "i32"),
-  0x4c: createSymbolObject("le_s", "i32"),
-  0x4d: createSymbolObject("le_u", "i32"),
-  0x4e: createSymbolObject("ge_s", "i32"),
-  0x4f: createSymbolObject("ge_u", "i32"),
-  0x50: createSymbolObject("eqz", "i64"),
-  0x51: createSymbolObject("eq", "i64"),
-  0x52: createSymbolObject("ne", "i64"),
-  0x53: createSymbolObject("lt_s", "i64"),
-  0x54: createSymbolObject("lt_u", "i64"),
-  0x55: createSymbolObject("gt_s", "i64"),
-  0x56: createSymbolObject("gt_u", "i64"),
-  0x57: createSymbolObject("le_s", "i64"),
-  0x58: createSymbolObject("le_u", "i64"),
-  0x59: createSymbolObject("ge_s", "i64"),
-  0x5a: createSymbolObject("ge_u", "i64"),
-  0x5b: createSymbolObject("eq", "f32"),
-  0x5c: createSymbolObject("ne", "f32"),
-  0x5d: createSymbolObject("lt", "f32"),
-  0x5e: createSymbolObject("gt", "f32"),
-  0x5f: createSymbolObject("le", "f32"),
-  0x60: createSymbolObject("ge", "f32"),
-  0x61: createSymbolObject("eq", "f64"),
-  0x62: createSymbolObject("ne", "f64"),
-  0x63: createSymbolObject("lt", "f64"),
-  0x64: createSymbolObject("gt", "f64"),
-  0x65: createSymbolObject("le", "f64"),
-  0x66: createSymbolObject("ge", "f64"),
-  0x67: createSymbolObject("clz", "i32"),
-  0x68: createSymbolObject("ctz", "i32"),
-  0x69: createSymbolObject("popcnt", "i32"),
-  0x6a: createSymbolObject("add", "i32"),
-  0x6b: createSymbolObject("sub", "i32"),
-  0x6c: createSymbolObject("mul", "i32"),
-  0x6d: createSymbolObject("div_s", "i32"),
-  0x6e: createSymbolObject("div_u", "i32"),
-  0x6f: createSymbolObject("rem_s", "i32"),
-  0x70: createSymbolObject("rem_u", "i32"),
-  0x71: createSymbolObject("and", "i32"),
-  0x72: createSymbolObject("or", "i32"),
-  0x73: createSymbolObject("xor", "i32"),
-  0x74: createSymbolObject("shl", "i32"),
-  0x75: createSymbolObject("shr_s", "i32"),
-  0x76: createSymbolObject("shr_u", "i32"),
-  0x77: createSymbolObject("rotl", "i32"),
-  0x78: createSymbolObject("rotr", "i32"),
-  0x79: createSymbolObject("clz", "i64"),
-  0x7a: createSymbolObject("ctz", "i64"),
-  0x7b: createSymbolObject("popcnt", "i64"),
-  0x7c: createSymbolObject("add", "i64"),
-  0x7d: createSymbolObject("sub", "i64"),
-  0x7e: createSymbolObject("mul", "i64"),
-  0x7f: createSymbolObject("div_s", "i64"),
-  0x80: createSymbolObject("div_u", "i64"),
-  0x81: createSymbolObject("rem_s", "i64"),
-  0x82: createSymbolObject("rem_u", "i64"),
-  0x83: createSymbolObject("and", "i64"),
-  0x84: createSymbolObject("or", "i64"),
-  0x85: createSymbolObject("xor", "i64"),
-  0x86: createSymbolObject("shl", "i64"),
-  0x87: createSymbolObject("shr_s", "i64"),
-  0x88: createSymbolObject("shr_u", "i64"),
-  0x89: createSymbolObject("rotl", "i64"),
-  0x8a: createSymbolObject("rotr", "i64"),
-  0x8b: createSymbolObject("abs", "f32"),
-  0x8c: createSymbolObject("neg", "f32"),
-  0x8d: createSymbolObject("ceil", "f32"),
-  0x8e: createSymbolObject("floor", "f32"),
-  0x8f: createSymbolObject("trunc", "f32"),
-  0x90: createSymbolObject("nearest", "f32"),
-  0x91: createSymbolObject("sqrt", "f32"),
-  0x92: createSymbolObject("add", "f32"),
-  0x93: createSymbolObject("sub", "f32"),
-  0x94: createSymbolObject("mul", "f32"),
-  0x95: createSymbolObject("div", "f32"),
-  0x96: createSymbolObject("min", "f32"),
-  0x97: createSymbolObject("max", "f32"),
-  0x98: createSymbolObject("copysign", "f32"),
-  0x99: createSymbolObject("abs", "f64"),
-  0x9a: createSymbolObject("neg", "f64"),
-  0x9b: createSymbolObject("ceil", "f64"),
-  0x9c: createSymbolObject("floor", "f64"),
-  0x9d: createSymbolObject("trunc", "f64"),
-  0x9e: createSymbolObject("nearest", "f64"),
-  0x9f: createSymbolObject("sqrt", "f64"),
-  0xa0: createSymbolObject("add", "f64"),
-  0xa1: createSymbolObject("sub", "f64"),
-  0xa2: createSymbolObject("mul", "f64"),
-  0xa3: createSymbolObject("div", "f64"),
-  0xa4: createSymbolObject("min", "f64"),
-  0xa5: createSymbolObject("max", "f64"),
-  0xa6: createSymbolObject("copysign", "f64"),
-  0xa7: createSymbolObject("wrap/i64", "i32"),
-  0xa8: createSymbolObject("trunc_s/f32", "i32"),
-  0xa9: createSymbolObject("trunc_u/f32", "i32"),
-  0xaa: createSymbolObject("trunc_s/f64", "i32"),
-  0xab: createSymbolObject("trunc_u/f64", "i32"),
-  0xac: createSymbolObject("extend_s/i32", "i64"),
-  0xad: createSymbolObject("extend_u/i32", "i64"),
-  0xae: createSymbolObject("trunc_s/f32", "i64"),
-  0xaf: createSymbolObject("trunc_u/f32", "i64"),
-  0xb0: createSymbolObject("trunc_s/f64", "i64"),
-  0xb1: createSymbolObject("trunc_u/f64", "i64"),
-  0xb2: createSymbolObject("convert_s/i32", "f32"),
-  0xb3: createSymbolObject("convert_u/i32", "f32"),
-  0xb4: createSymbolObject("convert_s/i64", "f32"),
-  0xb5: createSymbolObject("convert_u/i64", "f32"),
-  0xb6: createSymbolObject("demote/f64", "f32"),
-  0xb7: createSymbolObject("convert_s/i32", "f64"),
-  0xb8: createSymbolObject("convert_u/i32", "f64"),
-  0xb9: createSymbolObject("convert_s/i64", "f64"),
-  0xba: createSymbolObject("convert_u/i64", "f64"),
-  0xbb: createSymbolObject("promote/f32", "f64"),
-  0xbc: createSymbolObject("reinterpret/f32", "i32"),
-  0xbd: createSymbolObject("reinterpret/f64", "i64"),
-  0xbe: createSymbolObject("reinterpret/i32", "f32"),
-  0xbf: createSymbolObject("reinterpret/i64", "f64")
-};
-var symbolsByName = invertMap(symbolsByByte, function (obj) {
-  if (typeof obj.object === "string") {
-    return "".concat(obj.object, ".").concat(obj.name);
-  }
-
-  return obj.name;
-});
-var _default = {
-  symbolsByByte: symbolsByByte,
-  sections: sections,
-  magicModuleHeader: magicModuleHeader,
-  moduleVersion: moduleVersion,
-  types: types,
-  valtypes: valtypes,
-  exportTypes: exportTypes,
-  blockTypes: blockTypes,
-  tableTypes: tableTypes,
-  globalTypes: globalTypes,
-  importTypes: importTypes,
-  valtypesByString: valtypesByString,
-  globalTypesByString: globalTypesByString,
-  exportTypesByName: exportTypesByName,
-  symbolsByName: symbolsByName
-};
-exports.default = _default;
-
-/***/ }),
-
-/***/ 98933:
-/***/ (function(__unused_webpack_module, exports) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({
-  value: true
-}));
-exports.getSectionForNode = getSectionForNode;
-
-function getSectionForNode(n) {
-  switch (n.type) {
-    case "ModuleImport":
-      return "import";
-
-    case "CallInstruction":
-    case "CallIndirectInstruction":
-    case "Func":
-    case "Instr":
-      return "code";
-
-    case "ModuleExport":
-      return "export";
-
-    case "Start":
-      return "start";
-
-    case "TypeInstruction":
-      return "type";
-
-    case "IndexInFuncSection":
-      return "func";
-
-    case "Global":
-      return "global";
-    // No section
-
-    default:
-      return;
-  }
-}
-
-/***/ }),
-
-/***/ 45378:
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({
-  value: true
-}));
-exports.print = print;
-
-var _ast = __webpack_require__(37771);
-
-var _long = _interopRequireDefault(__webpack_require__(77960));
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-function _typeof(obj) { if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") { _typeof = function _typeof(obj) { return typeof obj; }; } else { _typeof = function _typeof(obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }; } return _typeof(obj); }
-
-function _sliceIterator(arr, i) { var _arr = []; var _n = true; var _d = false; var _e = undefined; try { for (var _i = arr[Symbol.iterator](), _s; !(_n = (_s = _i.next()).done); _n = true) { _arr.push(_s.value); if (i && _arr.length === i) break; } } catch (err) { _d = true; _e = err; } finally { try { if (!_n && _i["return"] != null) _i["return"](); } finally { if (_d) throw _e; } } return _arr; }
-
-function _slicedToArray(arr, i) { if (Array.isArray(arr)) { return arr; } else if (Symbol.iterator in Object(arr)) { return _sliceIterator(arr, i); } else { throw new TypeError("Invalid attempt to destructure non-iterable instance"); } }
-
-var compact = false;
-var space = " ";
-
-var quote = function quote(str) {
-  return "\"".concat(str, "\"");
-};
-
-function indent(nb) {
-  return Array(nb).fill(space + space).join("");
-} // TODO(sven): allow arbitrary ast nodes
-
-
-function print(n) {
-  if (n.type === "Program") {
-    return printProgram(n, 0);
-  } else {
-    throw new Error("Unsupported node in print of type: " + String(n.type));
-  }
-}
-
-function printProgram(n, depth) {
-  return n.body.reduce(function (acc, child) {
-    if (child.type === "Module") {
-      acc += printModule(child, depth + 1);
-    }
-
-    if (child.type === "Func") {
-      acc += printFunc(child, depth + 1);
-    }
-
-    if (child.type === "BlockComment") {
-      acc += printBlockComment(child);
-    }
-
-    if (child.type === "LeadingComment") {
-      acc += printLeadingComment(child);
-    }
-
-    if (compact === false) {
-      acc += "\n";
-    }
-
-    return acc;
-  }, "");
-}
-
-function printTypeInstruction(n) {
-  var out = "";
-  out += "(";
-  out += "type";
-  out += space;
-
-  if (n.id != null) {
-    out += printIndex(n.id);
-    out += space;
-  }
-
-  out += "(";
-  out += "func";
-  n.functype.params.forEach(function (param) {
-    out += space;
-    out += "(";
-    out += "param";
-    out += space;
-    out += printFuncParam(param);
-    out += ")";
-  });
-  n.functype.results.forEach(function (result) {
-    out += space;
-    out += "(";
-    out += "result";
-    out += space;
-    out += result;
-    out += ")";
-  });
-  out += ")"; // func
-
-  out += ")";
-  return out;
-}
-
-function printModule(n, depth) {
-  var out = "(";
-  out += "module";
-
-  if (typeof n.id === "string") {
-    out += space;
-    out += n.id;
-  }
-
-  if (compact === false) {
-    out += "\n";
-  } else {
-    out += space;
-  }
-
-  n.fields.forEach(function (field) {
-    if (compact === false) {
-      out += indent(depth);
-    }
-
-    switch (field.type) {
-      case "Func":
-        {
-          out += printFunc(field, depth + 1);
-          break;
-        }
-
-      case "TypeInstruction":
-        {
-          out += printTypeInstruction(field);
-          break;
-        }
-
-      case "Table":
-        {
-          out += printTable(field);
-          break;
-        }
-
-      case "Global":
-        {
-          out += printGlobal(field, depth + 1);
-          break;
-        }
-
-      case "ModuleExport":
-        {
-          out += printModuleExport(field);
-          break;
-        }
-
-      case "ModuleImport":
-        {
-          out += printModuleImport(field);
-          break;
-        }
-
-      case "Memory":
-        {
-          out += printMemory(field);
-          break;
-        }
-
-      case "BlockComment":
-        {
-          out += printBlockComment(field);
-          break;
-        }
-
-      case "LeadingComment":
-        {
-          out += printLeadingComment(field);
-          break;
-        }
-
-      case "Start":
-        {
-          out += printStart(field);
-          break;
-        }
-
-      case "Elem":
-        {
-          out += printElem(field, depth);
-          break;
-        }
-
-      case "Data":
-        {
-          out += printData(field, depth);
-          break;
-        }
-
-      default:
-        throw new Error("Unsupported node in printModule: " + String(field.type));
-    }
-
-    if (compact === false) {
-      out += "\n";
-    }
-  });
-  out += ")";
-  return out;
-}
-
-function printData(n, depth) {
-  var out = "";
-  out += "(";
-  out += "data";
-  out += space;
-  out += printIndex(n.memoryIndex);
-  out += space;
-  out += printInstruction(n.offset, depth);
-  out += space;
-  out += '"';
-  n.init.values.forEach(function (byte) {
-    // Avoid non-displayable characters
-    if (byte <= 31 || byte == 34 || byte == 92 || byte >= 127) {
-      out += "\\";
-      out += ("00" + byte.toString(16)).substr(-2);
-    } else if (byte > 255) {
-      throw new Error("Unsupported byte in data segment: " + byte);
-    } else {
-      out += String.fromCharCode(byte);
-    }
-  });
-  out += '"';
-  out += ")";
-  return out;
-}
-
-function printElem(n, depth) {
-  var out = "";
-  out += "(";
-  out += "elem";
-  out += space;
-  out += printIndex(n.table);
-
-  var _n$offset = _slicedToArray(n.offset, 1),
-      firstOffset = _n$offset[0];
-
-  out += space;
-  out += "(";
-  out += "offset";
-  out += space;
-  out += printInstruction(firstOffset, depth);
-  out += ")";
-  n.funcs.forEach(function (func) {
-    out += space;
-    out += printIndex(func);
-  });
-  out += ")";
-  return out;
-}
-
-function printStart(n) {
-  var out = "";
-  out += "(";
-  out += "start";
-  out += space;
-  out += printIndex(n.index);
-  out += ")";
-  return out;
-}
-
-function printLeadingComment(n) {
-  // Don't print leading comments in compact mode
-  if (compact === true) {
-    return "";
-  }
-
-  var out = "";
-  out += ";;";
-  out += n.value;
-  out += "\n";
-  return out;
-}
-
-function printBlockComment(n) {
-  // Don't print block comments in compact mode
-  if (compact === true) {
-    return "";
-  }
-
-  var out = "";
-  out += "(;";
-  out += n.value;
-  out += ";)";
-  out += "\n";
-  return out;
-}
-
-function printSignature(n) {
-  var out = "";
-  n.params.forEach(function (param) {
-    out += space;
-    out += "(";
-    out += "param";
-    out += space;
-    out += printFuncParam(param);
-    out += ")";
-  });
-  n.results.forEach(function (result) {
-    out += space;
-    out += "(";
-    out += "result";
-    out += space;
-    out += result;
-    out += ")";
-  });
-  return out;
-}
-
-function printModuleImportDescr(n) {
-  var out = "";
-
-  if (n.type === "FuncImportDescr") {
-    out += "(";
-    out += "func";
-
-    if ((0, _ast.isAnonymous)(n.id) === false) {
-      out += space;
-      out += printIdentifier(n.id);
-    }
-
-    out += printSignature(n.signature);
-    out += ")";
-  }
-
-  if (n.type === "GlobalType") {
-    out += "(";
-    out += "global";
-    out += space;
-    out += printGlobalType(n);
-    out += ")";
-  }
-
-  if (n.type === "Table") {
-    out += printTable(n);
-  }
-
-  return out;
-}
-
-function printModuleImport(n) {
-  var out = "";
-  out += "(";
-  out += "import";
-  out += space;
-  out += quote(n.module);
-  out += space;
-  out += quote(n.name);
-  out += space;
-  out += printModuleImportDescr(n.descr);
-  out += ")";
-  return out;
-}
-
-function printGlobalType(n) {
-  var out = "";
-
-  if (n.mutability === "var") {
-    out += "(";
-    out += "mut";
-    out += space;
-    out += n.valtype;
-    out += ")";
-  } else {
-    out += n.valtype;
-  }
-
-  return out;
-}
-
-function printGlobal(n, depth) {
-  var out = "";
-  out += "(";
-  out += "global";
-  out += space;
-
-  if (n.name != null && (0, _ast.isAnonymous)(n.name) === false) {
-    out += printIdentifier(n.name);
-    out += space;
-  }
-
-  out += printGlobalType(n.globalType);
-  out += space;
-  n.init.forEach(function (i) {
-    out += printInstruction(i, depth + 1);
-  });
-  out += ")";
-  return out;
-}
-
-function printTable(n) {
-  var out = "";
-  out += "(";
-  out += "table";
-  out += space;
-
-  if (n.name != null && (0, _ast.isAnonymous)(n.name) === false) {
-    out += printIdentifier(n.name);
-    out += space;
-  }
-
-  out += printLimit(n.limits);
-  out += space;
-  out += n.elementType;
-  out += ")";
-  return out;
-}
-
-function printFuncParam(n) {
-  var out = "";
-
-  if (typeof n.id === "string") {
-    out += "$" + n.id;
-    out += space;
-  }
-
-  out += n.valtype;
-  return out;
-}
-
-function printFunc(n, depth) {
-  var out = "";
-  out += "(";
-  out += "func";
-
-  if (n.name != null) {
-    if (n.name.type === "Identifier" && (0, _ast.isAnonymous)(n.name) === false) {
-      out += space;
-      out += printIdentifier(n.name);
-    }
-  }
-
-  if (n.signature.type === "Signature") {
-    out += printSignature(n.signature);
-  } else {
-    var index = n.signature;
-    out += space;
-    out += "(";
-    out += "type";
-    out += space;
-    out += printIndex(index);
-    out += ")";
-  }
-
-  if (n.body.length > 0) {
-    // func is empty since we ignore the default end instruction
-    if (n.body.length === 1 && n.body[0].id === "end") {
-      out += ")";
-      return out;
-    }
-
-    if (compact === false) {
-      out += "\n";
-    }
-
-    n.body.forEach(function (i) {
-      if (i.id !== "end") {
-        out += indent(depth);
-        out += printInstruction(i, depth);
-
-        if (compact === false) {
-          out += "\n";
-        }
-      }
-    });
-    out += indent(depth - 1) + ")";
-  } else {
-    out += ")";
-  }
-
-  return out;
-}
-
-function printInstruction(n, depth) {
-  switch (n.type) {
-    case "Instr":
-      // $FlowIgnore
-      return printGenericInstruction(n, depth + 1);
-
-    case "BlockInstruction":
-      // $FlowIgnore
-      return printBlockInstruction(n, depth + 1);
-
-    case "IfInstruction":
-      // $FlowIgnore
-      return printIfInstruction(n, depth + 1);
-
-    case "CallInstruction":
-      // $FlowIgnore
-      return printCallInstruction(n, depth + 1);
-
-    case "CallIndirectInstruction":
-      // $FlowIgnore
-      return printCallIndirectIntruction(n, depth + 1);
-
-    case "LoopInstruction":
-      // $FlowIgnore
-      return printLoopInstruction(n, depth + 1);
-
-    default:
-      throw new Error("Unsupported instruction: " + JSON.stringify(n.type));
-  }
-}
-
-function printCallIndirectIntruction(n, depth) {
-  var out = "";
-  out += "(";
-  out += "call_indirect";
-
-  if (n.signature.type === "Signature") {
-    out += printSignature(n.signature);
-  } else if (n.signature.type === "Identifier") {
-    out += space;
-    out += "(";
-    out += "type";
-    out += space;
-    out += printIdentifier(n.signature);
-    out += ")";
-  } else {
-    throw new Error("CallIndirectInstruction: unsupported signature " + JSON.stringify(n.signature.type));
-  }
-
-  out += space;
-
-  if (n.intrs != null) {
-    // $FlowIgnore
-    n.intrs.forEach(function (i, index) {
-      // $FlowIgnore
-      out += printInstruction(i, depth + 1); // $FlowIgnore
-
-      if (index !== n.intrs.length - 1) {
-        out += space;
-      }
-    });
-  }
-
-  out += ")";
-  return out;
-}
-
-function printLoopInstruction(n, depth) {
-  var out = "";
-  out += "(";
-  out += "loop";
-
-  if (n.label != null && (0, _ast.isAnonymous)(n.label) === false) {
-    out += space;
-    out += printIdentifier(n.label);
-  }
-
-  if (typeof n.resulttype === "string") {
-    out += space;
-    out += "(";
-    out += "result";
-    out += space;
-    out += n.resulttype;
-    out += ")";
-  }
-
-  if (n.instr.length > 0) {
-    n.instr.forEach(function (e) {
-      if (compact === false) {
-        out += "\n";
-      }
-
-      out += indent(depth);
-      out += printInstruction(e, depth + 1);
-    });
-
-    if (compact === false) {
-      out += "\n";
-      out += indent(depth - 1);
-    }
-  }
-
-  out += ")";
-  return out;
-}
-
-function printCallInstruction(n, depth) {
-  var out = "";
-  out += "(";
-  out += "call";
-  out += space;
-  out += printIndex(n.index);
-
-  if (_typeof(n.instrArgs) === "object") {
-    // $FlowIgnore
-    n.instrArgs.forEach(function (arg) {
-      out += space;
-      out += printFuncInstructionArg(arg, depth + 1);
-    });
-  }
-
-  out += ")";
-  return out;
-}
-
-function printIfInstruction(n, depth) {
-  var out = "";
-  out += "(";
-  out += "if";
-
-  if (n.testLabel != null && (0, _ast.isAnonymous)(n.testLabel) === false) {
-    out += space;
-    out += printIdentifier(n.testLabel);
-  }
-
-  if (typeof n.result === "string") {
-    out += space;
-    out += "(";
-    out += "result";
-    out += space;
-    out += n.result;
-    out += ")";
-  }
-
-  if (n.test.length > 0) {
-    out += space;
-    n.test.forEach(function (i) {
-      out += printInstruction(i, depth + 1);
-    });
-  }
-
-  if (n.consequent.length > 0) {
-    if (compact === false) {
-      out += "\n";
-    }
-
-    out += indent(depth);
-    out += "(";
-    out += "then";
-    depth++;
-    n.consequent.forEach(function (i) {
-      if (compact === false) {
-        out += "\n";
-      }
-
-      out += indent(depth);
-      out += printInstruction(i, depth + 1);
-    });
-    depth--;
-
-    if (compact === false) {
-      out += "\n";
-      out += indent(depth);
-    }
-
-    out += ")";
-  } else {
-    if (compact === false) {
-      out += "\n";
-      out += indent(depth);
-    }
-
-    out += "(";
-    out += "then";
-    out += ")";
-  }
-
-  if (n.alternate.length > 0) {
-    if (compact === false) {
-      out += "\n";
-    }
-
-    out += indent(depth);
-    out += "(";
-    out += "else";
-    depth++;
-    n.alternate.forEach(function (i) {
-      if (compact === false) {
-        out += "\n";
-      }
-
-      out += indent(depth);
-      out += printInstruction(i, depth + 1);
-    });
-    depth--;
-
-    if (compact === false) {
-      out += "\n";
-      out += indent(depth);
-    }
-
-    out += ")";
-  } else {
-    if (compact === false) {
-      out += "\n";
-      out += indent(depth);
-    }
-
-    out += "(";
-    out += "else";
-    out += ")";
-  }
-
-  if (compact === false) {
-    out += "\n";
-    out += indent(depth - 1);
-  }
-
-  out += ")";
-  return out;
-}
-
-function printBlockInstruction(n, depth) {
-  var out = "";
-  out += "(";
-  out += "block";
-
-  if (n.label != null && (0, _ast.isAnonymous)(n.label) === false) {
-    out += space;
-    out += printIdentifier(n.label);
-  }
-
-  if (typeof n.result === "string") {
-    out += space;
-    out += "(";
-    out += "result";
-    out += space;
-    out += n.result;
-    out += ")";
-  }
-
-  if (n.instr.length > 0) {
-    n.instr.forEach(function (i) {
-      if (compact === false) {
-        out += "\n";
-      }
-
-      out += indent(depth);
-      out += printInstruction(i, depth + 1);
-    });
-
-    if (compact === false) {
-      out += "\n";
-    }
-
-    out += indent(depth - 1);
-    out += ")";
-  } else {
-    out += ")";
-  }
-
-  return out;
-}
-
-function printGenericInstruction(n, depth) {
-  var out = "";
-  out += "(";
-
-  if (typeof n.object === "string") {
-    out += n.object;
-    out += ".";
-  }
-
-  out += n.id;
-  n.args.forEach(function (arg) {
-    out += space;
-    out += printFuncInstructionArg(arg, depth + 1);
-  });
-  out += ")";
-  return out;
-}
-
-function printLongNumberLiteral(n) {
-  if (typeof n.raw === "string") {
-    return n.raw;
-  }
-
-  var _n$value = n.value,
-      low = _n$value.low,
-      high = _n$value.high;
-  var v = new _long.default(low, high);
-  return v.toString();
-}
-
-function printFloatLiteral(n) {
-  if (typeof n.raw === "string") {
-    return n.raw;
-  }
-
-  return String(n.value);
-}
-
-function printFuncInstructionArg(n, depth) {
-  var out = "";
-
-  if (n.type === "NumberLiteral") {
-    out += printNumberLiteral(n);
-  }
-
-  if (n.type === "LongNumberLiteral") {
-    out += printLongNumberLiteral(n);
-  }
-
-  if (n.type === "Identifier" && (0, _ast.isAnonymous)(n) === false) {
-    out += printIdentifier(n);
-  }
-
-  if (n.type === "ValtypeLiteral") {
-    out += n.name;
-  }
-
-  if (n.type === "FloatLiteral") {
-    out += printFloatLiteral(n);
-  }
-
-  if ((0, _ast.isInstruction)(n)) {
-    out += printInstruction(n, depth + 1);
-  }
-
-  return out;
-}
-
-function printNumberLiteral(n) {
-  if (typeof n.raw === "string") {
-    return n.raw;
-  }
-
-  return String(n.value);
-}
-
-function printModuleExport(n) {
-  var out = "";
-  out += "(";
-  out += "export";
-  out += space;
-  out += quote(n.name);
-
-  if (n.descr.exportType === "Func") {
-    out += space;
-    out += "(";
-    out += "func";
-    out += space;
-    out += printIndex(n.descr.id);
-    out += ")";
-  } else if (n.descr.exportType === "Global") {
-    out += space;
-    out += "(";
-    out += "global";
-    out += space;
-    out += printIndex(n.descr.id);
-    out += ")";
-  } else if (n.descr.exportType === "Memory" || n.descr.exportType === "Mem") {
-    out += space;
-    out += "(";
-    out += "memory";
-    out += space;
-    out += printIndex(n.descr.id);
-    out += ")";
-  } else if (n.descr.exportType === "Table") {
-    out += space;
-    out += "(";
-    out += "table";
-    out += space;
-    out += printIndex(n.descr.id);
-    out += ")";
-  } else {
-    throw new Error("printModuleExport: unknown type: " + n.descr.exportType);
-  }
-
-  out += ")";
-  return out;
-}
-
-function printIdentifier(n) {
-  return "$" + n.value;
-}
-
-function printIndex(n) {
-  if (n.type === "Identifier") {
-    return printIdentifier(n);
-  } else if (n.type === "NumberLiteral") {
-    return printNumberLiteral(n);
-  } else {
-    throw new Error("Unsupported index: " + n.type);
-  }
-}
-
-function printMemory(n) {
-  var out = "";
-  out += "(";
-  out += "memory";
-
-  if (n.id != null) {
-    out += space;
-    out += printIndex(n.id);
-    out += space;
-  }
-
-  out += printLimit(n.limits);
-  out += ")";
-  return out;
-}
-
-function printLimit(n) {
-  var out = "";
-  out += n.min + "";
-
-  if (n.max != null) {
-    out += space;
-    out += String(n.max);
-  }
-
-  return out;
-}
-
-/***/ }),
-
-/***/ 21053:
-/***/ (function(__unused_webpack_module, exports) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({
-  value: true
-}));
-exports.cloneNode = cloneNode;
-
-function cloneNode(n) {
-  // $FlowIgnore
-  var newObj = {};
-
-  for (var k in n) {
-    newObj[k] = n[k];
-  }
-
-  return newObj;
-}
-
-/***/ }),
-
-/***/ 37771:
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({
-  value: true
-}));
-var _exportNames = {
-  numberLiteralFromRaw: true,
-  withLoc: true,
-  withRaw: true,
-  funcParam: true,
-  indexLiteral: true,
-  memIndexLiteral: true,
-  instruction: true,
-  objectInstruction: true,
-  traverse: true,
-  signatures: true,
-  cloneNode: true
-};
-Object.defineProperty(exports, "numberLiteralFromRaw", ({
-  enumerable: true,
-  get: function get() {
-    return _nodeHelpers.numberLiteralFromRaw;
-  }
-}));
-Object.defineProperty(exports, "withLoc", ({
-  enumerable: true,
-  get: function get() {
-    return _nodeHelpers.withLoc;
-  }
-}));
-Object.defineProperty(exports, "withRaw", ({
-  enumerable: true,
-  get: function get() {
-    return _nodeHelpers.withRaw;
-  }
-}));
-Object.defineProperty(exports, "funcParam", ({
-  enumerable: true,
-  get: function get() {
-    return _nodeHelpers.funcParam;
-  }
-}));
-Object.defineProperty(exports, "indexLiteral", ({
-  enumerable: true,
-  get: function get() {
-    return _nodeHelpers.indexLiteral;
-  }
-}));
-Object.defineProperty(exports, "memIndexLiteral", ({
-  enumerable: true,
-  get: function get() {
-    return _nodeHelpers.memIndexLiteral;
-  }
-}));
-Object.defineProperty(exports, "instruction", ({
-  enumerable: true,
-  get: function get() {
-    return _nodeHelpers.instruction;
-  }
-}));
-Object.defineProperty(exports, "objectInstruction", ({
-  enumerable: true,
-  get: function get() {
-    return _nodeHelpers.objectInstruction;
-  }
-}));
-Object.defineProperty(exports, "traverse", ({
-  enumerable: true,
-  get: function get() {
-    return _traverse.traverse;
-  }
-}));
-Object.defineProperty(exports, "signatures", ({
-  enumerable: true,
-  get: function get() {
-    return _signatures.signatures;
-  }
-}));
-Object.defineProperty(exports, "cloneNode", ({
-  enumerable: true,
-  get: function get() {
-    return _clone.cloneNode;
-  }
-}));
-
-var _nodes = __webpack_require__(85701);
-
-Object.keys(_nodes).forEach(function (key) {
-  if (key === "default" || key === "__esModule") return;
-  if (Object.prototype.hasOwnProperty.call(_exportNames, key)) return;
-  Object.defineProperty(exports, key, {
-    enumerable: true,
-    get: function get() {
-      return _nodes[key];
-    }
-  });
-});
-
-var _nodeHelpers = __webpack_require__(23599);
-
-var _traverse = __webpack_require__(56694);
-
-var _signatures = __webpack_require__(74127);
-
-var _utils = __webpack_require__(41618);
-
-Object.keys(_utils).forEach(function (key) {
-  if (key === "default" || key === "__esModule") return;
-  if (Object.prototype.hasOwnProperty.call(_exportNames, key)) return;
-  Object.defineProperty(exports, key, {
-    enumerable: true,
-    get: function get() {
-      return _utils[key];
-    }
-  });
-});
-
-var _clone = __webpack_require__(21053);
-
-/***/ }),
-
-/***/ 23599:
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({
-  value: true
-}));
-exports.numberLiteralFromRaw = numberLiteralFromRaw;
-exports.instruction = instruction;
-exports.objectInstruction = objectInstruction;
-exports.withLoc = withLoc;
-exports.withRaw = withRaw;
-exports.funcParam = funcParam;
-exports.indexLiteral = indexLiteral;
-exports.memIndexLiteral = memIndexLiteral;
-
-var _wastParser = __webpack_require__(9016);
-
-var _nodes = __webpack_require__(85701);
-
-function numberLiteralFromRaw(rawValue) {
-  var instructionType = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : "i32";
-  var original = rawValue; // Remove numeric separators _
-
-  if (typeof rawValue === "string") {
-    rawValue = rawValue.replace(/_/g, "");
-  }
-
-  if (typeof rawValue === "number") {
-    return (0, _nodes.numberLiteral)(rawValue, String(original));
-  } else {
-    switch (instructionType) {
-      case "i32":
-        {
-          return (0, _nodes.numberLiteral)((0, _wastParser.parse32I)(rawValue), String(original));
-        }
-
-      case "u32":
-        {
-          return (0, _nodes.numberLiteral)((0, _wastParser.parseU32)(rawValue), String(original));
-        }
-
-      case "i64":
-        {
-          return (0, _nodes.longNumberLiteral)((0, _wastParser.parse64I)(rawValue), String(original));
-        }
-
-      case "f32":
-        {
-          return (0, _nodes.floatLiteral)((0, _wastParser.parse32F)(rawValue), (0, _wastParser.isNanLiteral)(rawValue), (0, _wastParser.isInfLiteral)(rawValue), String(original));
-        }
-      // f64
-
-      default:
-        {
-          return (0, _nodes.floatLiteral)((0, _wastParser.parse64F)(rawValue), (0, _wastParser.isNanLiteral)(rawValue), (0, _wastParser.isInfLiteral)(rawValue), String(original));
-        }
-    }
-  }
-}
-
-function instruction(id) {
-  var args = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : [];
-  var namedArgs = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : {};
-  return (0, _nodes.instr)(id, undefined, args, namedArgs);
-}
-
-function objectInstruction(id, object) {
-  var args = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : [];
-  var namedArgs = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : {};
-  return (0, _nodes.instr)(id, object, args, namedArgs);
-}
-/**
- * Decorators
- */
-
-
-function withLoc(n, end, start) {
-  var loc = {
-    start: start,
-    end: end
-  };
-  n.loc = loc;
-  return n;
-}
-
-function withRaw(n, raw) {
-  n.raw = raw;
-  return n;
-}
-
-function funcParam(valtype, id) {
-  return {
-    id: id,
-    valtype: valtype
-  };
-}
-
-function indexLiteral(value) {
-  // $FlowIgnore
-  var x = numberLiteralFromRaw(value, "u32");
-  return x;
-}
-
-function memIndexLiteral(value) {
-  // $FlowIgnore
-  var x = numberLiteralFromRaw(value, "u32");
-  return x;
-}
-
-/***/ }),
-
-/***/ 43893:
-/***/ (function(__unused_webpack_module, exports) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({
-  value: true
-}));
-exports.createPath = createPath;
-
-function _extends() { _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; }; return _extends.apply(this, arguments); }
-
-function findParent(_ref, cb) {
-  var parentPath = _ref.parentPath;
-
-  if (parentPath == null) {
-    throw new Error("node is root");
-  }
-
-  var currentPath = parentPath;
-
-  while (cb(currentPath) !== false) {
-    // Hit the root node, stop
-    // $FlowIgnore
-    if (currentPath.parentPath == null) {
-      return null;
-    } // $FlowIgnore
-
-
-    currentPath = currentPath.parentPath;
-  }
-
-  return currentPath.node;
-}
-
-function insertBefore(context, newNode) {
-  return insert(context, newNode);
-}
-
-function insertAfter(context, newNode) {
-  return insert(context, newNode, 1);
-}
-
-function insert(_ref2, newNode) {
-  var node = _ref2.node,
-      inList = _ref2.inList,
-      parentPath = _ref2.parentPath,
-      parentKey = _ref2.parentKey;
-  var indexOffset = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : 0;
-
-  if (!inList) {
-    throw new Error('inList' + " error: " + ("insert can only be used for nodes that are within lists" || 0));
-  }
-
-  if (!(parentPath != null)) {
-    throw new Error('parentPath != null' + " error: " + ("Can not remove root node" || 0));
-  }
-
-  // $FlowIgnore
-  var parentList = parentPath.node[parentKey];
-  var indexInList = parentList.findIndex(function (n) {
-    return n === node;
-  });
-  parentList.splice(indexInList + indexOffset, 0, newNode);
-}
-
-function remove(_ref3) {
-  var node = _ref3.node,
-      parentKey = _ref3.parentKey,
-      parentPath = _ref3.parentPath;
-
-  if (!(parentPath != null)) {
-    throw new Error('parentPath != null' + " error: " + ("Can not remove root node" || 0));
-  }
-
-  // $FlowIgnore
-  var parentNode = parentPath.node; // $FlowIgnore
-
-  var parentProperty = parentNode[parentKey];
-
-  if (Array.isArray(parentProperty)) {
-    // $FlowIgnore
-    parentNode[parentKey] = parentProperty.filter(function (n) {
-      return n !== node;
-    });
-  } else {
-    // $FlowIgnore
-    delete parentNode[parentKey];
-  }
-
-  node._deleted = true;
-}
-
-function stop(context) {
-  context.shouldStop = true;
-}
-
-function replaceWith(context, newNode) {
-  // $FlowIgnore
-  var parentNode = context.parentPath.node; // $FlowIgnore
-
-  var parentProperty = parentNode[context.parentKey];
-
-  if (Array.isArray(parentProperty)) {
-    var indexInList = parentProperty.findIndex(function (n) {
-      return n === context.node;
-    });
-    parentProperty.splice(indexInList, 1, newNode);
-  } else {
-    // $FlowIgnore
-    parentNode[context.parentKey] = newNode;
-  }
-
-  context.node._deleted = true;
-  context.node = newNode;
-} // bind the context to the first argument of node operations
-
-
-function bindNodeOperations(operations, context) {
-  var keys = Object.keys(operations);
-  var boundOperations = {};
-  keys.forEach(function (key) {
-    boundOperations[key] = operations[key].bind(null, context);
-  });
-  return boundOperations;
-}
-
-function createPathOperations(context) {
-  // $FlowIgnore
-  return bindNodeOperations({
-    findParent: findParent,
-    replaceWith: replaceWith,
-    remove: remove,
-    insertBefore: insertBefore,
-    insertAfter: insertAfter,
-    stop: stop
-  }, context);
-}
-
-function createPath(context) {
-  var path = _extends({}, context); // $FlowIgnore
-
-
-  Object.assign(path, createPathOperations(path)); // $FlowIgnore
-
-  return path;
-}
-
-/***/ }),
-
-/***/ 85701:
-/***/ (function(__unused_webpack_module, exports) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({
-  value: true
-}));
-exports.module = _module;
-exports.moduleMetadata = moduleMetadata;
-exports.moduleNameMetadata = moduleNameMetadata;
-exports.functionNameMetadata = functionNameMetadata;
-exports.localNameMetadata = localNameMetadata;
-exports.binaryModule = binaryModule;
-exports.quoteModule = quoteModule;
-exports.sectionMetadata = sectionMetadata;
-exports.producersSectionMetadata = producersSectionMetadata;
-exports.producerMetadata = producerMetadata;
-exports.producerMetadataVersionedName = producerMetadataVersionedName;
-exports.loopInstruction = loopInstruction;
-exports.instr = instr;
-exports.ifInstruction = ifInstruction;
-exports.stringLiteral = stringLiteral;
-exports.numberLiteral = numberLiteral;
-exports.longNumberLiteral = longNumberLiteral;
-exports.floatLiteral = floatLiteral;
-exports.elem = elem;
-exports.indexInFuncSection = indexInFuncSection;
-exports.valtypeLiteral = valtypeLiteral;
-exports.typeInstruction = typeInstruction;
-exports.start = start;
-exports.globalType = globalType;
-exports.leadingComment = leadingComment;
-exports.blockComment = blockComment;
-exports.data = data;
-exports.global = global;
-exports.table = table;
-exports.memory = memory;
-exports.funcImportDescr = funcImportDescr;
-exports.moduleImport = moduleImport;
-exports.moduleExportDescr = moduleExportDescr;
-exports.moduleExport = moduleExport;
-exports.limit = limit;
-exports.signature = signature;
-exports.program = program;
-exports.identifier = identifier;
-exports.blockInstruction = blockInstruction;
-exports.callInstruction = callInstruction;
-exports.callIndirectInstruction = callIndirectInstruction;
-exports.byteArray = byteArray;
-exports.func = func;
-exports.internalBrUnless = internalBrUnless;
-exports.internalGoto = internalGoto;
-exports.internalCallExtern = internalCallExtern;
-exports.internalEndAndReturn = internalEndAndReturn;
-exports.assertInternalCallExtern = exports.assertInternalGoto = exports.assertInternalBrUnless = exports.assertFunc = exports.assertByteArray = exports.assertCallIndirectInstruction = exports.assertCallInstruction = exports.assertBlockInstruction = exports.assertIdentifier = exports.assertProgram = exports.assertSignature = exports.assertLimit = exports.assertModuleExport = exports.assertModuleExportDescr = exports.assertModuleImport = exports.assertFuncImportDescr = exports.assertMemory = exports.assertTable = exports.assertGlobal = exports.assertData = exports.assertBlockComment = exports.assertLeadingComment = exports.assertGlobalType = exports.assertStart = exports.assertTypeInstruction = exports.assertValtypeLiteral = exports.assertIndexInFuncSection = exports.assertElem = exports.assertFloatLiteral = exports.assertLongNumberLiteral = exports.assertNumberLiteral = exports.assertStringLiteral = exports.assertIfInstruction = exports.assertInstr = exports.assertLoopInstruction = exports.assertProducerMetadataVersionedName = exports.assertProducerMetadata = exports.assertProducersSectionMetadata = exports.assertSectionMetadata = exports.assertQuoteModule = exports.assertBinaryModule = exports.assertLocalNameMetadata = exports.assertFunctionNameMetadata = exports.assertModuleNameMetadata = exports.assertModuleMetadata = exports.assertModule = exports.isIntrinsic = exports.isImportDescr = exports.isNumericLiteral = exports.isExpression = exports.isInstruction = exports.isBlock = exports.isNode = exports.isInternalEndAndReturn = exports.isInternalCallExtern = exports.isInternalGoto = exports.isInternalBrUnless = exports.isFunc = exports.isByteArray = exports.isCallIndirectInstruction = exports.isCallInstruction = exports.isBlockInstruction = exports.isIdentifier = exports.isProgram = exports.isSignature = exports.isLimit = exports.isModuleExport = exports.isModuleExportDescr = exports.isModuleImport = exports.isFuncImportDescr = exports.isMemory = exports.isTable = exports.isGlobal = exports.isData = exports.isBlockComment = exports.isLeadingComment = exports.isGlobalType = exports.isStart = exports.isTypeInstruction = exports.isValtypeLiteral = exports.isIndexInFuncSection = exports.isElem = exports.isFloatLiteral = exports.isLongNumberLiteral = exports.isNumberLiteral = exports.isStringLiteral = exports.isIfInstruction = exports.isInstr = exports.isLoopInstruction = exports.isProducerMetadataVersionedName = exports.isProducerMetadata = exports.isProducersSectionMetadata = exports.isSectionMetadata = exports.isQuoteModule = exports.isBinaryModule = exports.isLocalNameMetadata = exports.isFunctionNameMetadata = exports.isModuleNameMetadata = exports.isModuleMetadata = exports.isModule = void 0;
-exports.nodeAndUnionTypes = exports.unionTypesMap = exports.assertInternalEndAndReturn = void 0;
-
-function _typeof(obj) { if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") { _typeof = function _typeof(obj) { return typeof obj; }; } else { _typeof = function _typeof(obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }; } return _typeof(obj); }
-
-// THIS FILE IS AUTOGENERATED
-// see scripts/generateNodeUtils.js
-function isTypeOf(t) {
-  return function (n) {
-    return n.type === t;
-  };
-}
-
-function assertTypeOf(t) {
-  return function (n) {
-    return function () {
-      if (!(n.type === t)) {
-        throw new Error('n.type === t' + " error: " + (undefined || "unknown"));
-      }
-    }();
-  };
-}
-
-function _module(id, fields, metadata) {
-  if (id !== null && id !== undefined) {
-    if (!(typeof id === "string")) {
-      throw new Error('typeof id === "string"' + " error: " + ("Argument id must be of type string, given: " + _typeof(id) || 0));
-    }
-  }
-
-  if (!(_typeof(fields) === "object" && typeof fields.length !== "undefined")) {
-    throw new Error('typeof fields === "object" && typeof fields.length !== "undefined"' + " error: " + (undefined || "unknown"));
-  }
-
-  var node = {
-    type: "Module",
-    id: id,
-    fields: fields
-  };
-
-  if (typeof metadata !== "undefined") {
-    node.metadata = metadata;
-  }
-
-  return node;
-}
-
-function moduleMetadata(sections, functionNames, localNames, producers) {
-  if (!(_typeof(sections) === "object" && typeof sections.length !== "undefined")) {
-    throw new Error('typeof sections === "object" && typeof sections.length !== "undefined"' + " error: " + (undefined || "unknown"));
-  }
-
-  if (functionNames !== null && functionNames !== undefined) {
-    if (!(_typeof(functionNames) === "object" && typeof functionNames.length !== "undefined")) {
-      throw new Error('typeof functionNames === "object" && typeof functionNames.length !== "undefined"' + " error: " + (undefined || "unknown"));
-    }
-  }
-
-  if (localNames !== null && localNames !== undefined) {
-    if (!(_typeof(localNames) === "object" && typeof localNames.length !== "undefined")) {
-      throw new Error('typeof localNames === "object" && typeof localNames.length !== "undefined"' + " error: " + (undefined || "unknown"));
-    }
-  }
-
-  if (producers !== null && producers !== undefined) {
-    if (!(_typeof(producers) === "object" && typeof producers.length !== "undefined")) {
-      throw new Error('typeof producers === "object" && typeof producers.length !== "undefined"' + " error: " + (undefined || "unknown"));
-    }
-  }
-
-  var node = {
-    type: "ModuleMetadata",
-    sections: sections
-  };
-
-  if (typeof functionNames !== "undefined" && functionNames.length > 0) {
-    node.functionNames = functionNames;
-  }
-
-  if (typeof localNames !== "undefined" && localNames.length > 0) {
-    node.localNames = localNames;
-  }
-
-  if (typeof producers !== "undefined" && producers.length > 0) {
-    node.producers = producers;
-  }
-
-  return node;
-}
-
-function moduleNameMetadata(value) {
-  if (!(typeof value === "string")) {
-    throw new Error('typeof value === "string"' + " error: " + ("Argument value must be of type string, given: " + _typeof(value) || 0));
-  }
-
-  var node = {
-    type: "ModuleNameMetadata",
-    value: value
-  };
-  return node;
-}
-
-function functionNameMetadata(value, index) {
-  if (!(typeof value === "string")) {
-    throw new Error('typeof value === "string"' + " error: " + ("Argument value must be of type string, given: " + _typeof(value) || 0));
-  }
-
-  if (!(typeof index === "number")) {
-    throw new Error('typeof index === "number"' + " error: " + ("Argument index must be of type number, given: " + _typeof(index) || 0));
-  }
-
-  var node = {
-    type: "FunctionNameMetadata",
-    value: value,
-    index: index
-  };
-  return node;
-}
-
-function localNameMetadata(value, localIndex, functionIndex) {
-  if (!(typeof value === "string")) {
-    throw new Error('typeof value === "string"' + " error: " + ("Argument value must be of type string, given: " + _typeof(value) || 0));
-  }
-
-  if (!(typeof localIndex === "number")) {
-    throw new Error('typeof localIndex === "number"' + " error: " + ("Argument localIndex must be of type number, given: " + _typeof(localIndex) || 0));
-  }
-
-  if (!(typeof functionIndex === "number")) {
-    throw new Error('typeof functionIndex === "number"' + " error: " + ("Argument functionIndex must be of type number, given: " + _typeof(functionIndex) || 0));
-  }
-
-  var node = {
-    type: "LocalNameMetadata",
-    value: value,
-    localIndex: localIndex,
-    functionIndex: functionIndex
-  };
-  return node;
-}
-
-function binaryModule(id, blob) {
-  if (id !== null && id !== undefined) {
-    if (!(typeof id === "string")) {
-      throw new Error('typeof id === "string"' + " error: " + ("Argument id must be of type string, given: " + _typeof(id) || 0));
-    }
-  }
-
-  if (!(_typeof(blob) === "object" && typeof blob.length !== "undefined")) {
-    throw new Error('typeof blob === "object" && typeof blob.length !== "undefined"' + " error: " + (undefined || "unknown"));
-  }
-
-  var node = {
-    type: "BinaryModule",
-    id: id,
-    blob: blob
-  };
-  return node;
-}
-
-function quoteModule(id, string) {
-  if (id !== null && id !== undefined) {
-    if (!(typeof id === "string")) {
-      throw new Error('typeof id === "string"' + " error: " + ("Argument id must be of type string, given: " + _typeof(id) || 0));
-    }
-  }
-
-  if (!(_typeof(string) === "object" && typeof string.length !== "undefined")) {
-    throw new Error('typeof string === "object" && typeof string.length !== "undefined"' + " error: " + (undefined || "unknown"));
-  }
-
-  var node = {
-    type: "QuoteModule",
-    id: id,
-    string: string
-  };
-  return node;
-}
-
-function sectionMetadata(section, startOffset, size, vectorOfSize) {
-  if (!(typeof startOffset === "number")) {
-    throw new Error('typeof startOffset === "number"' + " error: " + ("Argument startOffset must be of type number, given: " + _typeof(startOffset) || 0));
-  }
-
-  var node = {
-    type: "SectionMetadata",
-    section: section,
-    startOffset: startOffset,
-    size: size,
-    vectorOfSize: vectorOfSize
-  };
-  return node;
-}
-
-function producersSectionMetadata(producers) {
-  if (!(_typeof(producers) === "object" && typeof producers.length !== "undefined")) {
-    throw new Error('typeof producers === "object" && typeof producers.length !== "undefined"' + " error: " + (undefined || "unknown"));
-  }
-
-  var node = {
-    type: "ProducersSectionMetadata",
-    producers: producers
-  };
-  return node;
-}
-
-function producerMetadata(language, processedBy, sdk) {
-  if (!(_typeof(language) === "object" && typeof language.length !== "undefined")) {
-    throw new Error('typeof language === "object" && typeof language.length !== "undefined"' + " error: " + (undefined || "unknown"));
-  }
-
-  if (!(_typeof(processedBy) === "object" && typeof processedBy.length !== "undefined")) {
-    throw new Error('typeof processedBy === "object" && typeof processedBy.length !== "undefined"' + " error: " + (undefined || "unknown"));
-  }
-
-  if (!(_typeof(sdk) === "object" && typeof sdk.length !== "undefined")) {
-    throw new Error('typeof sdk === "object" && typeof sdk.length !== "undefined"' + " error: " + (undefined || "unknown"));
-  }
-
-  var node = {
-    type: "ProducerMetadata",
-    language: language,
-    processedBy: processedBy,
-    sdk: sdk
-  };
-  return node;
-}
-
-function producerMetadataVersionedName(name, version) {
-  if (!(typeof name === "string")) {
-    throw new Error('typeof name === "string"' + " error: " + ("Argument name must be of type string, given: " + _typeof(name) || 0));
-  }
-
-  if (!(typeof version === "string")) {
-    throw new Error('typeof version === "string"' + " error: " + ("Argument version must be of type string, given: " + _typeof(version) || 0));
-  }
-
-  var node = {
-    type: "ProducerMetadataVersionedName",
-    name: name,
-    version: version
-  };
-  return node;
-}
-
-function loopInstruction(label, resulttype, instr) {
-  if (!(_typeof(instr) === "object" && typeof instr.length !== "undefined")) {
-    throw new Error('typeof instr === "object" && typeof instr.length !== "undefined"' + " error: " + (undefined || "unknown"));
-  }
-
-  var node = {
-    type: "LoopInstruction",
-    id: "loop",
-    label: label,
-    resulttype: resulttype,
-    instr: instr
-  };
-  return node;
-}
-
-function instr(id, object, args, namedArgs) {
-  if (!(typeof id === "string")) {
-    throw new Error('typeof id === "string"' + " error: " + ("Argument id must be of type string, given: " + _typeof(id) || 0));
-  }
-
-  if (!(_typeof(args) === "object" && typeof args.length !== "undefined")) {
-    throw new Error('typeof args === "object" && typeof args.length !== "undefined"' + " error: " + (undefined || "unknown"));
-  }
-
-  var node = {
-    type: "Instr",
-    id: id,
-    args: args
-  };
-
-  if (typeof object !== "undefined") {
-    node.object = object;
-  }
-
-  if (typeof namedArgs !== "undefined" && Object.keys(namedArgs).length !== 0) {
-    node.namedArgs = namedArgs;
-  }
-
-  return node;
-}
-
-function ifInstruction(testLabel, test, result, consequent, alternate) {
-  if (!(_typeof(test) === "object" && typeof test.length !== "undefined")) {
-    throw new Error('typeof test === "object" && typeof test.length !== "undefined"' + " error: " + (undefined || "unknown"));
-  }
-
-  if (!(_typeof(consequent) === "object" && typeof consequent.length !== "undefined")) {
-    throw new Error('typeof consequent === "object" && typeof consequent.length !== "undefined"' + " error: " + (undefined || "unknown"));
-  }
-
-  if (!(_typeof(alternate) === "object" && typeof alternate.length !== "undefined")) {
-    throw new Error('typeof alternate === "object" && typeof alternate.length !== "undefined"' + " error: " + (undefined || "unknown"));
-  }
-
-  var node = {
-    type: "IfInstruction",
-    id: "if",
-    testLabel: testLabel,
-    test: test,
-    result: result,
-    consequent: consequent,
-    alternate: alternate
-  };
-  return node;
-}
-
-function stringLiteral(value) {
-  if (!(typeof value === "string")) {
-    throw new Error('typeof value === "string"' + " error: " + ("Argument value must be of type string, given: " + _typeof(value) || 0));
-  }
-
-  var node = {
-    type: "StringLiteral",
-    value: value
-  };
-  return node;
-}
-
-function numberLiteral(value, raw) {
-  if (!(typeof value === "number")) {
-    throw new Error('typeof value === "number"' + " error: " + ("Argument value must be of type number, given: " + _typeof(value) || 0));
-  }
-
-  if (!(typeof raw === "string")) {
-    throw new Error('typeof raw === "string"' + " error: " + ("Argument raw must be of type string, given: " + _typeof(raw) || 0));
-  }
-
-  var node = {
-    type: "NumberLiteral",
-    value: value,
-    raw: raw
-  };
-  return node;
-}
-
-function longNumberLiteral(value, raw) {
-  if (!(typeof raw === "string")) {
-    throw new Error('typeof raw === "string"' + " error: " + ("Argument raw must be of type string, given: " + _typeof(raw) || 0));
-  }
-
-  var node = {
-    type: "LongNumberLiteral",
-    value: value,
-    raw: raw
-  };
-  return node;
-}
-
-function floatLiteral(value, nan, inf, raw) {
-  if (!(typeof value === "number")) {
-    throw new Error('typeof value === "number"' + " error: " + ("Argument value must be of type number, given: " + _typeof(value) || 0));
-  }
-
-  if (nan !== null && nan !== undefined) {
-    if (!(typeof nan === "boolean")) {
-      throw new Error('typeof nan === "boolean"' + " error: " + ("Argument nan must be of type boolean, given: " + _typeof(nan) || 0));
-    }
-  }
-
-  if (inf !== null && inf !== undefined) {
-    if (!(typeof inf === "boolean")) {
-      throw new Error('typeof inf === "boolean"' + " error: " + ("Argument inf must be of type boolean, given: " + _typeof(inf) || 0));
-    }
-  }
-
-  if (!(typeof raw === "string")) {
-    throw new Error('typeof raw === "string"' + " error: " + ("Argument raw must be of type string, given: " + _typeof(raw) || 0));
-  }
-
-  var node = {
-    type: "FloatLiteral",
-    value: value,
-    raw: raw
-  };
-
-  if (nan === true) {
-    node.nan = true;
-  }
-
-  if (inf === true) {
-    node.inf = true;
-  }
-
-  return node;
-}
-
-function elem(table, offset, funcs) {
-  if (!(_typeof(offset) === "object" && typeof offset.length !== "undefined")) {
-    throw new Error('typeof offset === "object" && typeof offset.length !== "undefined"' + " error: " + (undefined || "unknown"));
-  }
-
-  if (!(_typeof(funcs) === "object" && typeof funcs.length !== "undefined")) {
-    throw new Error('typeof funcs === "object" && typeof funcs.length !== "undefined"' + " error: " + (undefined || "unknown"));
-  }
-
-  var node = {
-    type: "Elem",
-    table: table,
-    offset: offset,
-    funcs: funcs
-  };
-  return node;
-}
-
-function indexInFuncSection(index) {
-  var node = {
-    type: "IndexInFuncSection",
-    index: index
-  };
-  return node;
-}
-
-function valtypeLiteral(name) {
-  var node = {
-    type: "ValtypeLiteral",
-    name: name
-  };
-  return node;
-}
-
-function typeInstruction(id, functype) {
-  var node = {
-    type: "TypeInstruction",
-    id: id,
-    functype: functype
-  };
-  return node;
-}
-
-function start(index) {
-  var node = {
-    type: "Start",
-    index: index
-  };
-  return node;
-}
-
-function globalType(valtype, mutability) {
-  var node = {
-    type: "GlobalType",
-    valtype: valtype,
-    mutability: mutability
-  };
-  return node;
-}
-
-function leadingComment(value) {
-  if (!(typeof value === "string")) {
-    throw new Error('typeof value === "string"' + " error: " + ("Argument value must be of type string, given: " + _typeof(value) || 0));
-  }
-
-  var node = {
-    type: "LeadingComment",
-    value: value
-  };
-  return node;
-}
-
-function blockComment(value) {
-  if (!(typeof value === "string")) {
-    throw new Error('typeof value === "string"' + " error: " + ("Argument value must be of type string, given: " + _typeof(value) || 0));
-  }
-
-  var node = {
-    type: "BlockComment",
-    value: value
-  };
-  return node;
-}
-
-function data(memoryIndex, offset, init) {
-  var node = {
-    type: "Data",
-    memoryIndex: memoryIndex,
-    offset: offset,
-    init: init
-  };
-  return node;
-}
-
-function global(globalType, init, name) {
-  if (!(_typeof(init) === "object" && typeof init.length !== "undefined")) {
-    throw new Error('typeof init === "object" && typeof init.length !== "undefined"' + " error: " + (undefined || "unknown"));
-  }
-
-  var node = {
-    type: "Global",
-    globalType: globalType,
-    init: init,
-    name: name
-  };
-  return node;
-}
-
-function table(elementType, limits, name, elements) {
-  if (!(limits.type === "Limit")) {
-    throw new Error('limits.type === "Limit"' + " error: " + ("Argument limits must be of type Limit, given: " + limits.type || 0));
-  }
-
-  if (elements !== null && elements !== undefined) {
-    if (!(_typeof(elements) === "object" && typeof elements.length !== "undefined")) {
-      throw new Error('typeof elements === "object" && typeof elements.length !== "undefined"' + " error: " + (undefined || "unknown"));
-    }
-  }
-
-  var node = {
-    type: "Table",
-    elementType: elementType,
-    limits: limits,
-    name: name
-  };
-
-  if (typeof elements !== "undefined" && elements.length > 0) {
-    node.elements = elements;
-  }
-
-  return node;
-}
-
-function memory(limits, id) {
-  var node = {
-    type: "Memory",
-    limits: limits,
-    id: id
-  };
-  return node;
-}
-
-function funcImportDescr(id, signature) {
-  var node = {
-    type: "FuncImportDescr",
-    id: id,
-    signature: signature
-  };
-  return node;
-}
-
-function moduleImport(module, name, descr) {
-  if (!(typeof module === "string")) {
-    throw new Error('typeof module === "string"' + " error: " + ("Argument module must be of type string, given: " + _typeof(module) || 0));
-  }
-
-  if (!(typeof name === "string")) {
-    throw new Error('typeof name === "string"' + " error: " + ("Argument name must be of type string, given: " + _typeof(name) || 0));
-  }
-
-  var node = {
-    type: "ModuleImport",
-    module: module,
-    name: name,
-    descr: descr
-  };
-  return node;
-}
-
-function moduleExportDescr(exportType, id) {
-  var node = {
-    type: "ModuleExportDescr",
-    exportType: exportType,
-    id: id
-  };
-  return node;
-}
-
-function moduleExport(name, descr) {
-  if (!(typeof name === "string")) {
-    throw new Error('typeof name === "string"' + " error: " + ("Argument name must be of type string, given: " + _typeof(name) || 0));
-  }
-
-  var node = {
-    type: "ModuleExport",
-    name: name,
-    descr: descr
-  };
-  return node;
-}
-
-function limit(min, max) {
-  if (!(typeof min === "number")) {
-    throw new Error('typeof min === "number"' + " error: " + ("Argument min must be of type number, given: " + _typeof(min) || 0));
-  }
-
-  if (max !== null && max !== undefined) {
-    if (!(typeof max === "number")) {
-      throw new Error('typeof max === "number"' + " error: " + ("Argument max must be of type number, given: " + _typeof(max) || 0));
-    }
-  }
-
-  var node = {
-    type: "Limit",
-    min: min
-  };
-
-  if (typeof max !== "undefined") {
-    node.max = max;
-  }
-
-  return node;
-}
-
-function signature(params, results) {
-  if (!(_typeof(params) === "object" && typeof params.length !== "undefined")) {
-    throw new Error('typeof params === "object" && typeof params.length !== "undefined"' + " error: " + (undefined || "unknown"));
-  }
-
-  if (!(_typeof(results) === "object" && typeof results.length !== "undefined")) {
-    throw new Error('typeof results === "object" && typeof results.length !== "undefined"' + " error: " + (undefined || "unknown"));
-  }
-
-  var node = {
-    type: "Signature",
-    params: params,
-    results: results
-  };
-  return node;
-}
-
-function program(body) {
-  if (!(_typeof(body) === "object" && typeof body.length !== "undefined")) {
-    throw new Error('typeof body === "object" && typeof body.length !== "undefined"' + " error: " + (undefined || "unknown"));
-  }
-
-  var node = {
-    type: "Program",
-    body: body
-  };
-  return node;
-}
-
-function identifier(value, raw) {
-  if (!(typeof value === "string")) {
-    throw new Error('typeof value === "string"' + " error: " + ("Argument value must be of type string, given: " + _typeof(value) || 0));
-  }
-
-  if (raw !== null && raw !== undefined) {
-    if (!(typeof raw === "string")) {
-      throw new Error('typeof raw === "string"' + " error: " + ("Argument raw must be of type string, given: " + _typeof(raw) || 0));
-    }
-  }
-
-  var node = {
-    type: "Identifier",
-    value: value
-  };
-
-  if (typeof raw !== "undefined") {
-    node.raw = raw;
-  }
-
-  return node;
-}
-
-function blockInstruction(label, instr, result) {
-  if (!(_typeof(instr) === "object" && typeof instr.length !== "undefined")) {
-    throw new Error('typeof instr === "object" && typeof instr.length !== "undefined"' + " error: " + (undefined || "unknown"));
-  }
-
-  var node = {
-    type: "BlockInstruction",
-    id: "block",
-    label: label,
-    instr: instr,
-    result: result
-  };
-  return node;
-}
-
-function callInstruction(index, instrArgs, numeric) {
-  if (instrArgs !== null && instrArgs !== undefined) {
-    if (!(_typeof(instrArgs) === "object" && typeof instrArgs.length !== "undefined")) {
-      throw new Error('typeof instrArgs === "object" && typeof instrArgs.length !== "undefined"' + " error: " + (undefined || "unknown"));
-    }
-  }
-
-  var node = {
-    type: "CallInstruction",
-    id: "call",
-    index: index
-  };
-
-  if (typeof instrArgs !== "undefined" && instrArgs.length > 0) {
-    node.instrArgs = instrArgs;
-  }
-
-  if (typeof numeric !== "undefined") {
-    node.numeric = numeric;
-  }
-
-  return node;
-}
-
-function callIndirectInstruction(signature, intrs) {
-  if (intrs !== null && intrs !== undefined) {
-    if (!(_typeof(intrs) === "object" && typeof intrs.length !== "undefined")) {
-      throw new Error('typeof intrs === "object" && typeof intrs.length !== "undefined"' + " error: " + (undefined || "unknown"));
-    }
-  }
-
-  var node = {
-    type: "CallIndirectInstruction",
-    id: "call_indirect",
-    signature: signature
-  };
-
-  if (typeof intrs !== "undefined" && intrs.length > 0) {
-    node.intrs = intrs;
-  }
-
-  return node;
-}
-
-function byteArray(values) {
-  if (!(_typeof(values) === "object" && typeof values.length !== "undefined")) {
-    throw new Error('typeof values === "object" && typeof values.length !== "undefined"' + " error: " + (undefined || "unknown"));
-  }
-
-  var node = {
-    type: "ByteArray",
-    values: values
-  };
-  return node;
-}
-
-function func(name, signature, body, isExternal, metadata) {
-  if (!(_typeof(body) === "object" && typeof body.length !== "undefined")) {
-    throw new Error('typeof body === "object" && typeof body.length !== "undefined"' + " error: " + (undefined || "unknown"));
-  }
-
-  if (isExternal !== null && isExternal !== undefined) {
-    if (!(typeof isExternal === "boolean")) {
-      throw new Error('typeof isExternal === "boolean"' + " error: " + ("Argument isExternal must be of type boolean, given: " + _typeof(isExternal) || 0));
-    }
-  }
-
-  var node = {
-    type: "Func",
-    name: name,
-    signature: signature,
-    body: body
-  };
-
-  if (isExternal === true) {
-    node.isExternal = true;
-  }
-
-  if (typeof metadata !== "undefined") {
-    node.metadata = metadata;
-  }
-
-  return node;
-}
-
-function internalBrUnless(target) {
-  if (!(typeof target === "number")) {
-    throw new Error('typeof target === "number"' + " error: " + ("Argument target must be of type number, given: " + _typeof(target) || 0));
-  }
-
-  var node = {
-    type: "InternalBrUnless",
-    target: target
-  };
-  return node;
-}
-
-function internalGoto(target) {
-  if (!(typeof target === "number")) {
-    throw new Error('typeof target === "number"' + " error: " + ("Argument target must be of type number, given: " + _typeof(target) || 0));
-  }
-
-  var node = {
-    type: "InternalGoto",
-    target: target
-  };
-  return node;
-}
-
-function internalCallExtern(target) {
-  if (!(typeof target === "number")) {
-    throw new Error('typeof target === "number"' + " error: " + ("Argument target must be of type number, given: " + _typeof(target) || 0));
-  }
-
-  var node = {
-    type: "InternalCallExtern",
-    target: target
-  };
-  return node;
-}
-
-function internalEndAndReturn() {
-  var node = {
-    type: "InternalEndAndReturn"
-  };
-  return node;
-}
-
-var isModule = isTypeOf("Module");
-exports.isModule = isModule;
-var isModuleMetadata = isTypeOf("ModuleMetadata");
-exports.isModuleMetadata = isModuleMetadata;
-var isModuleNameMetadata = isTypeOf("ModuleNameMetadata");
-exports.isModuleNameMetadata = isModuleNameMetadata;
-var isFunctionNameMetadata = isTypeOf("FunctionNameMetadata");
-exports.isFunctionNameMetadata = isFunctionNameMetadata;
-var isLocalNameMetadata = isTypeOf("LocalNameMetadata");
-exports.isLocalNameMetadata = isLocalNameMetadata;
-var isBinaryModule = isTypeOf("BinaryModule");
-exports.isBinaryModule = isBinaryModule;
-var isQuoteModule = isTypeOf("QuoteModule");
-exports.isQuoteModule = isQuoteModule;
-var isSectionMetadata = isTypeOf("SectionMetadata");
-exports.isSectionMetadata = isSectionMetadata;
-var isProducersSectionMetadata = isTypeOf("ProducersSectionMetadata");
-exports.isProducersSectionMetadata = isProducersSectionMetadata;
-var isProducerMetadata = isTypeOf("ProducerMetadata");
-exports.isProducerMetadata = isProducerMetadata;
-var isProducerMetadataVersionedName = isTypeOf("ProducerMetadataVersionedName");
-exports.isProducerMetadataVersionedName = isProducerMetadataVersionedName;
-var isLoopInstruction = isTypeOf("LoopInstruction");
-exports.isLoopInstruction = isLoopInstruction;
-var isInstr = isTypeOf("Instr");
-exports.isInstr = isInstr;
-var isIfInstruction = isTypeOf("IfInstruction");
-exports.isIfInstruction = isIfInstruction;
-var isStringLiteral = isTypeOf("StringLiteral");
-exports.isStringLiteral = isStringLiteral;
-var isNumberLiteral = isTypeOf("NumberLiteral");
-exports.isNumberLiteral = isNumberLiteral;
-var isLongNumberLiteral = isTypeOf("LongNumberLiteral");
-exports.isLongNumberLiteral = isLongNumberLiteral;
-var isFloatLiteral = isTypeOf("FloatLiteral");
-exports.isFloatLiteral = isFloatLiteral;
-var isElem = isTypeOf("Elem");
-exports.isElem = isElem;
-var isIndexInFuncSection = isTypeOf("IndexInFuncSection");
-exports.isIndexInFuncSection = isIndexInFuncSection;
-var isValtypeLiteral = isTypeOf("ValtypeLiteral");
-exports.isValtypeLiteral = isValtypeLiteral;
-var isTypeInstruction = isTypeOf("TypeInstruction");
-exports.isTypeInstruction = isTypeInstruction;
-var isStart = isTypeOf("Start");
-exports.isStart = isStart;
-var isGlobalType = isTypeOf("GlobalType");
-exports.isGlobalType = isGlobalType;
-var isLeadingComment = isTypeOf("LeadingComment");
-exports.isLeadingComment = isLeadingComment;
-var isBlockComment = isTypeOf("BlockComment");
-exports.isBlockComment = isBlockComment;
-var isData = isTypeOf("Data");
-exports.isData = isData;
-var isGlobal = isTypeOf("Global");
-exports.isGlobal = isGlobal;
-var isTable = isTypeOf("Table");
-exports.isTable = isTable;
-var isMemory = isTypeOf("Memory");
-exports.isMemory = isMemory;
-var isFuncImportDescr = isTypeOf("FuncImportDescr");
-exports.isFuncImportDescr = isFuncImportDescr;
-var isModuleImport = isTypeOf("ModuleImport");
-exports.isModuleImport = isModuleImport;
-var isModuleExportDescr = isTypeOf("ModuleExportDescr");
-exports.isModuleExportDescr = isModuleExportDescr;
-var isModuleExport = isTypeOf("ModuleExport");
-exports.isModuleExport = isModuleExport;
-var isLimit = isTypeOf("Limit");
-exports.isLimit = isLimit;
-var isSignature = isTypeOf("Signature");
-exports.isSignature = isSignature;
-var isProgram = isTypeOf("Program");
-exports.isProgram = isProgram;
-var isIdentifier = isTypeOf("Identifier");
-exports.isIdentifier = isIdentifier;
-var isBlockInstruction = isTypeOf("BlockInstruction");
-exports.isBlockInstruction = isBlockInstruction;
-var isCallInstruction = isTypeOf("CallInstruction");
-exports.isCallInstruction = isCallInstruction;
-var isCallIndirectInstruction = isTypeOf("CallIndirectInstruction");
-exports.isCallIndirectInstruction = isCallIndirectInstruction;
-var isByteArray = isTypeOf("ByteArray");
-exports.isByteArray = isByteArray;
-var isFunc = isTypeOf("Func");
-exports.isFunc = isFunc;
-var isInternalBrUnless = isTypeOf("InternalBrUnless");
-exports.isInternalBrUnless = isInternalBrUnless;
-var isInternalGoto = isTypeOf("InternalGoto");
-exports.isInternalGoto = isInternalGoto;
-var isInternalCallExtern = isTypeOf("InternalCallExtern");
-exports.isInternalCallExtern = isInternalCallExtern;
-var isInternalEndAndReturn = isTypeOf("InternalEndAndReturn");
-exports.isInternalEndAndReturn = isInternalEndAndReturn;
-
-var isNode = function isNode(node) {
-  return isModule(node) || isModuleMetadata(node) || isModuleNameMetadata(node) || isFunctionNameMetadata(node) || isLocalNameMetadata(node) || isBinaryModule(node) || isQuoteModule(node) || isSectionMetadata(node) || isProducersSectionMetadata(node) || isProducerMetadata(node) || isProducerMetadataVersionedName(node) || isLoopInstruction(node) || isInstr(node) || isIfInstruction(node) || isStringLiteral(node) || isNumberLiteral(node) || isLongNumberLiteral(node) || isFloatLiteral(node) || isElem(node) || isIndexInFuncSection(node) || isValtypeLiteral(node) || isTypeInstruction(node) || isStart(node) || isGlobalType(node) || isLeadingComment(node) || isBlockComment(node) || isData(node) || isGlobal(node) || isTable(node) || isMemory(node) || isFuncImportDescr(node) || isModuleImport(node) || isModuleExportDescr(node) || isModuleExport(node) || isLimit(node) || isSignature(node) || isProgram(node) || isIdentifier(node) || isBlockInstruction(node) || isCallInstruction(node) || isCallIndirectInstruction(node) || isByteArray(node) || isFunc(node) || isInternalBrUnless(node) || isInternalGoto(node) || isInternalCallExtern(node) || isInternalEndAndReturn(node);
-};
-
-exports.isNode = isNode;
-
-var isBlock = function isBlock(node) {
-  return isLoopInstruction(node) || isBlockInstruction(node) || isFunc(node);
-};
-
-exports.isBlock = isBlock;
-
-var isInstruction = function isInstruction(node) {
-  return isLoopInstruction(node) || isInstr(node) || isIfInstruction(node) || isTypeInstruction(node) || isBlockInstruction(node) || isCallInstruction(node) || isCallIndirectInstruction(node);
-};
-
-exports.isInstruction = isInstruction;
-
-var isExpression = function isExpression(node) {
-  return isInstr(node) || isStringLiteral(node) || isNumberLiteral(node) || isLongNumberLiteral(node) || isFloatLiteral(node) || isValtypeLiteral(node) || isIdentifier(node);
-};
-
-exports.isExpression = isExpression;
-
-var isNumericLiteral = function isNumericLiteral(node) {
-  return isNumberLiteral(node) || isLongNumberLiteral(node) || isFloatLiteral(node);
-};
-
-exports.isNumericLiteral = isNumericLiteral;
-
-var isImportDescr = function isImportDescr(node) {
-  return isGlobalType(node) || isTable(node) || isMemory(node) || isFuncImportDescr(node);
-};
-
-exports.isImportDescr = isImportDescr;
-
-var isIntrinsic = function isIntrinsic(node) {
-  return isInternalBrUnless(node) || isInternalGoto(node) || isInternalCallExtern(node) || isInternalEndAndReturn(node);
-};
-
-exports.isIntrinsic = isIntrinsic;
-var assertModule = assertTypeOf("Module");
-exports.assertModule = assertModule;
-var assertModuleMetadata = assertTypeOf("ModuleMetadata");
-exports.assertModuleMetadata = assertModuleMetadata;
-var assertModuleNameMetadata = assertTypeOf("ModuleNameMetadata");
-exports.assertModuleNameMetadata = assertModuleNameMetadata;
-var assertFunctionNameMetadata = assertTypeOf("FunctionNameMetadata");
-exports.assertFunctionNameMetadata = assertFunctionNameMetadata;
-var assertLocalNameMetadata = assertTypeOf("LocalNameMetadata");
-exports.assertLocalNameMetadata = assertLocalNameMetadata;
-var assertBinaryModule = assertTypeOf("BinaryModule");
-exports.assertBinaryModule = assertBinaryModule;
-var assertQuoteModule = assertTypeOf("QuoteModule");
-exports.assertQuoteModule = assertQuoteModule;
-var assertSectionMetadata = assertTypeOf("SectionMetadata");
-exports.assertSectionMetadata = assertSectionMetadata;
-var assertProducersSectionMetadata = assertTypeOf("ProducersSectionMetadata");
-exports.assertProducersSectionMetadata = assertProducersSectionMetadata;
-var assertProducerMetadata = assertTypeOf("ProducerMetadata");
-exports.assertProducerMetadata = assertProducerMetadata;
-var assertProducerMetadataVersionedName = assertTypeOf("ProducerMetadataVersionedName");
-exports.assertProducerMetadataVersionedName = assertProducerMetadataVersionedName;
-var assertLoopInstruction = assertTypeOf("LoopInstruction");
-exports.assertLoopInstruction = assertLoopInstruction;
-var assertInstr = assertTypeOf("Instr");
-exports.assertInstr = assertInstr;
-var assertIfInstruction = assertTypeOf("IfInstruction");
-exports.assertIfInstruction = assertIfInstruction;
-var assertStringLiteral = assertTypeOf("StringLiteral");
-exports.assertStringLiteral = assertStringLiteral;
-var assertNumberLiteral = assertTypeOf("NumberLiteral");
-exports.assertNumberLiteral = assertNumberLiteral;
-var assertLongNumberLiteral = assertTypeOf("LongNumberLiteral");
-exports.assertLongNumberLiteral = assertLongNumberLiteral;
-var assertFloatLiteral = assertTypeOf("FloatLiteral");
-exports.assertFloatLiteral = assertFloatLiteral;
-var assertElem = assertTypeOf("Elem");
-exports.assertElem = assertElem;
-var assertIndexInFuncSection = assertTypeOf("IndexInFuncSection");
-exports.assertIndexInFuncSection = assertIndexInFuncSection;
-var assertValtypeLiteral = assertTypeOf("ValtypeLiteral");
-exports.assertValtypeLiteral = assertValtypeLiteral;
-var assertTypeInstruction = assertTypeOf("TypeInstruction");
-exports.assertTypeInstruction = assertTypeInstruction;
-var assertStart = assertTypeOf("Start");
-exports.assertStart = assertStart;
-var assertGlobalType = assertTypeOf("GlobalType");
-exports.assertGlobalType = assertGlobalType;
-var assertLeadingComment = assertTypeOf("LeadingComment");
-exports.assertLeadingComment = assertLeadingComment;
-var assertBlockComment = assertTypeOf("BlockComment");
-exports.assertBlockComment = assertBlockComment;
-var assertData = assertTypeOf("Data");
-exports.assertData = assertData;
-var assertGlobal = assertTypeOf("Global");
-exports.assertGlobal = assertGlobal;
-var assertTable = assertTypeOf("Table");
-exports.assertTable = assertTable;
-var assertMemory = assertTypeOf("Memory");
-exports.assertMemory = assertMemory;
-var assertFuncImportDescr = assertTypeOf("FuncImportDescr");
-exports.assertFuncImportDescr = assertFuncImportDescr;
-var assertModuleImport = assertTypeOf("ModuleImport");
-exports.assertModuleImport = assertModuleImport;
-var assertModuleExportDescr = assertTypeOf("ModuleExportDescr");
-exports.assertModuleExportDescr = assertModuleExportDescr;
-var assertModuleExport = assertTypeOf("ModuleExport");
-exports.assertModuleExport = assertModuleExport;
-var assertLimit = assertTypeOf("Limit");
-exports.assertLimit = assertLimit;
-var assertSignature = assertTypeOf("Signature");
-exports.assertSignature = assertSignature;
-var assertProgram = assertTypeOf("Program");
-exports.assertProgram = assertProgram;
-var assertIdentifier = assertTypeOf("Identifier");
-exports.assertIdentifier = assertIdentifier;
-var assertBlockInstruction = assertTypeOf("BlockInstruction");
-exports.assertBlockInstruction = assertBlockInstruction;
-var assertCallInstruction = assertTypeOf("CallInstruction");
-exports.assertCallInstruction = assertCallInstruction;
-var assertCallIndirectInstruction = assertTypeOf("CallIndirectInstruction");
-exports.assertCallIndirectInstruction = assertCallIndirectInstruction;
-var assertByteArray = assertTypeOf("ByteArray");
-exports.assertByteArray = assertByteArray;
-var assertFunc = assertTypeOf("Func");
-exports.assertFunc = assertFunc;
-var assertInternalBrUnless = assertTypeOf("InternalBrUnless");
-exports.assertInternalBrUnless = assertInternalBrUnless;
-var assertInternalGoto = assertTypeOf("InternalGoto");
-exports.assertInternalGoto = assertInternalGoto;
-var assertInternalCallExtern = assertTypeOf("InternalCallExtern");
-exports.assertInternalCallExtern = assertInternalCallExtern;
-var assertInternalEndAndReturn = assertTypeOf("InternalEndAndReturn");
-exports.assertInternalEndAndReturn = assertInternalEndAndReturn;
-var unionTypesMap = {
-  Module: ["Node"],
-  ModuleMetadata: ["Node"],
-  ModuleNameMetadata: ["Node"],
-  FunctionNameMetadata: ["Node"],
-  LocalNameMetadata: ["Node"],
-  BinaryModule: ["Node"],
-  QuoteModule: ["Node"],
-  SectionMetadata: ["Node"],
-  ProducersSectionMetadata: ["Node"],
-  ProducerMetadata: ["Node"],
-  ProducerMetadataVersionedName: ["Node"],
-  LoopInstruction: ["Node", "Block", "Instruction"],
-  Instr: ["Node", "Expression", "Instruction"],
-  IfInstruction: ["Node", "Instruction"],
-  StringLiteral: ["Node", "Expression"],
-  NumberLiteral: ["Node", "NumericLiteral", "Expression"],
-  LongNumberLiteral: ["Node", "NumericLiteral", "Expression"],
-  FloatLiteral: ["Node", "NumericLiteral", "Expression"],
-  Elem: ["Node"],
-  IndexInFuncSection: ["Node"],
-  ValtypeLiteral: ["Node", "Expression"],
-  TypeInstruction: ["Node", "Instruction"],
-  Start: ["Node"],
-  GlobalType: ["Node", "ImportDescr"],
-  LeadingComment: ["Node"],
-  BlockComment: ["Node"],
-  Data: ["Node"],
-  Global: ["Node"],
-  Table: ["Node", "ImportDescr"],
-  Memory: ["Node", "ImportDescr"],
-  FuncImportDescr: ["Node", "ImportDescr"],
-  ModuleImport: ["Node"],
-  ModuleExportDescr: ["Node"],
-  ModuleExport: ["Node"],
-  Limit: ["Node"],
-  Signature: ["Node"],
-  Program: ["Node"],
-  Identifier: ["Node", "Expression"],
-  BlockInstruction: ["Node", "Block", "Instruction"],
-  CallInstruction: ["Node", "Instruction"],
-  CallIndirectInstruction: ["Node", "Instruction"],
-  ByteArray: ["Node"],
-  Func: ["Node", "Block"],
-  InternalBrUnless: ["Node", "Intrinsic"],
-  InternalGoto: ["Node", "Intrinsic"],
-  InternalCallExtern: ["Node", "Intrinsic"],
-  InternalEndAndReturn: ["Node", "Intrinsic"]
-};
-exports.unionTypesMap = unionTypesMap;
-var nodeAndUnionTypes = ["Module", "ModuleMetadata", "ModuleNameMetadata", "FunctionNameMetadata", "LocalNameMetadata", "BinaryModule", "QuoteModule", "SectionMetadata", "ProducersSectionMetadata", "ProducerMetadata", "ProducerMetadataVersionedName", "LoopInstruction", "Instr", "IfInstruction", "StringLiteral", "NumberLiteral", "LongNumberLiteral", "FloatLiteral", "Elem", "IndexInFuncSection", "ValtypeLiteral", "TypeInstruction", "Start", "GlobalType", "LeadingComment", "BlockComment", "Data", "Global", "Table", "Memory", "FuncImportDescr", "ModuleImport", "ModuleExportDescr", "ModuleExport", "Limit", "Signature", "Program", "Identifier", "BlockInstruction", "CallInstruction", "CallIndirectInstruction", "ByteArray", "Func", "InternalBrUnless", "InternalGoto", "InternalCallExtern", "InternalEndAndReturn", "Node", "Block", "Instruction", "Expression", "NumericLiteral", "ImportDescr", "Intrinsic"];
-exports.nodeAndUnionTypes = nodeAndUnionTypes;
-
-/***/ }),
-
-/***/ 74127:
-/***/ (function(__unused_webpack_module, exports) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({
-  value: true
-}));
-exports.signatures = void 0;
-
-function sign(input, output) {
-  return [input, output];
-}
-
-var u32 = "u32";
-var i32 = "i32";
-var i64 = "i64";
-var f32 = "f32";
-var f64 = "f64";
-
-var vector = function vector(t) {
-  var vecType = [t]; // $FlowIgnore
-
-  vecType.vector = true;
-  return vecType;
-};
-
-var controlInstructions = {
-  unreachable: sign([], []),
-  nop: sign([], []),
-  // block ?
-  // loop ?
-  // if ?
-  // if else ?
-  br: sign([u32], []),
-  br_if: sign([u32], []),
-  br_table: sign(vector(u32), []),
-  return: sign([], []),
-  call: sign([u32], []),
-  call_indirect: sign([u32], [])
-};
-var parametricInstructions = {
-  drop: sign([], []),
-  select: sign([], [])
-};
-var variableInstructions = {
-  get_local: sign([u32], []),
-  set_local: sign([u32], []),
-  tee_local: sign([u32], []),
-  get_global: sign([u32], []),
-  set_global: sign([u32], [])
-};
-var memoryInstructions = {
-  "i32.load": sign([u32, u32], [i32]),
-  "i64.load": sign([u32, u32], []),
-  "f32.load": sign([u32, u32], []),
-  "f64.load": sign([u32, u32], []),
-  "i32.load8_s": sign([u32, u32], [i32]),
-  "i32.load8_u": sign([u32, u32], [i32]),
-  "i32.load16_s": sign([u32, u32], [i32]),
-  "i32.load16_u": sign([u32, u32], [i32]),
-  "i64.load8_s": sign([u32, u32], [i64]),
-  "i64.load8_u": sign([u32, u32], [i64]),
-  "i64.load16_s": sign([u32, u32], [i64]),
-  "i64.load16_u": sign([u32, u32], [i64]),
-  "i64.load32_s": sign([u32, u32], [i64]),
-  "i64.load32_u": sign([u32, u32], [i64]),
-  "i32.store": sign([u32, u32], []),
-  "i64.store": sign([u32, u32], []),
-  "f32.store": sign([u32, u32], []),
-  "f64.store": sign([u32, u32], []),
-  "i32.store8": sign([u32, u32], []),
-  "i32.store16": sign([u32, u32], []),
-  "i64.store8": sign([u32, u32], []),
-  "i64.store16": sign([u32, u32], []),
-  "i64.store32": sign([u32, u32], []),
-  current_memory: sign([], []),
-  grow_memory: sign([], [])
-};
-var numericInstructions = {
-  "i32.const": sign([i32], [i32]),
-  "i64.const": sign([i64], [i64]),
-  "f32.const": sign([f32], [f32]),
-  "f64.const": sign([f64], [f64]),
-  "i32.eqz": sign([i32], [i32]),
-  "i32.eq": sign([i32, i32], [i32]),
-  "i32.ne": sign([i32, i32], [i32]),
-  "i32.lt_s": sign([i32, i32], [i32]),
-  "i32.lt_u": sign([i32, i32], [i32]),
-  "i32.gt_s": sign([i32, i32], [i32]),
-  "i32.gt_u": sign([i32, i32], [i32]),
-  "i32.le_s": sign([i32, i32], [i32]),
-  "i32.le_u": sign([i32, i32], [i32]),
-  "i32.ge_s": sign([i32, i32], [i32]),
-  "i32.ge_u": sign([i32, i32], [i32]),
-  "i64.eqz": sign([i64], [i64]),
-  "i64.eq": sign([i64, i64], [i32]),
-  "i64.ne": sign([i64, i64], [i32]),
-  "i64.lt_s": sign([i64, i64], [i32]),
-  "i64.lt_u": sign([i64, i64], [i32]),
-  "i64.gt_s": sign([i64, i64], [i32]),
-  "i64.gt_u": sign([i64, i64], [i32]),
-  "i64.le_s": sign([i64, i64], [i32]),
-  "i64.le_u": sign([i64, i64], [i32]),
-  "i64.ge_s": sign([i64, i64], [i32]),
-  "i64.ge_u": sign([i64, i64], [i32]),
-  "f32.eq": sign([f32, f32], [i32]),
-  "f32.ne": sign([f32, f32], [i32]),
-  "f32.lt": sign([f32, f32], [i32]),
-  "f32.gt": sign([f32, f32], [i32]),
-  "f32.le": sign([f32, f32], [i32]),
-  "f32.ge": sign([f32, f32], [i32]),
-  "f64.eq": sign([f64, f64], [i32]),
-  "f64.ne": sign([f64, f64], [i32]),
-  "f64.lt": sign([f64, f64], [i32]),
-  "f64.gt": sign([f64, f64], [i32]),
-  "f64.le": sign([f64, f64], [i32]),
-  "f64.ge": sign([f64, f64], [i32]),
-  "i32.clz": sign([i32], [i32]),
-  "i32.ctz": sign([i32], [i32]),
-  "i32.popcnt": sign([i32], [i32]),
-  "i32.add": sign([i32, i32], [i32]),
-  "i32.sub": sign([i32, i32], [i32]),
-  "i32.mul": sign([i32, i32], [i32]),
-  "i32.div_s": sign([i32, i32], [i32]),
-  "i32.div_u": sign([i32, i32], [i32]),
-  "i32.rem_s": sign([i32, i32], [i32]),
-  "i32.rem_u": sign([i32, i32], [i32]),
-  "i32.and": sign([i32, i32], [i32]),
-  "i32.or": sign([i32, i32], [i32]),
-  "i32.xor": sign([i32, i32], [i32]),
-  "i32.shl": sign([i32, i32], [i32]),
-  "i32.shr_s": sign([i32, i32], [i32]),
-  "i32.shr_u": sign([i32, i32], [i32]),
-  "i32.rotl": sign([i32, i32], [i32]),
-  "i32.rotr": sign([i32, i32], [i32]),
-  "i64.clz": sign([i64], [i64]),
-  "i64.ctz": sign([i64], [i64]),
-  "i64.popcnt": sign([i64], [i64]),
-  "i64.add": sign([i64, i64], [i64]),
-  "i64.sub": sign([i64, i64], [i64]),
-  "i64.mul": sign([i64, i64], [i64]),
-  "i64.div_s": sign([i64, i64], [i64]),
-  "i64.div_u": sign([i64, i64], [i64]),
-  "i64.rem_s": sign([i64, i64], [i64]),
-  "i64.rem_u": sign([i64, i64], [i64]),
-  "i64.and": sign([i64, i64], [i64]),
-  "i64.or": sign([i64, i64], [i64]),
-  "i64.xor": sign([i64, i64], [i64]),
-  "i64.shl": sign([i64, i64], [i64]),
-  "i64.shr_s": sign([i64, i64], [i64]),
-  "i64.shr_u": sign([i64, i64], [i64]),
-  "i64.rotl": sign([i64, i64], [i64]),
-  "i64.rotr": sign([i64, i64], [i64]),
-  "f32.abs": sign([f32], [f32]),
-  "f32.neg": sign([f32], [f32]),
-  "f32.ceil": sign([f32], [f32]),
-  "f32.floor": sign([f32], [f32]),
-  "f32.trunc": sign([f32], [f32]),
-  "f32.nearest": sign([f32], [f32]),
-  "f32.sqrt": sign([f32], [f32]),
-  "f32.add": sign([f32, f32], [f32]),
-  "f32.sub": sign([f32, f32], [f32]),
-  "f32.mul": sign([f32, f32], [f32]),
-  "f32.div": sign([f32, f32], [f32]),
-  "f32.min": sign([f32, f32], [f32]),
-  "f32.max": sign([f32, f32], [f32]),
-  "f32.copysign": sign([f32, f32], [f32]),
-  "f64.abs": sign([f64], [f64]),
-  "f64.neg": sign([f64], [f64]),
-  "f64.ceil": sign([f64], [f64]),
-  "f64.floor": sign([f64], [f64]),
-  "f64.trunc": sign([f64], [f64]),
-  "f64.nearest": sign([f64], [f64]),
-  "f64.sqrt": sign([f64], [f64]),
-  "f64.add": sign([f64, f64], [f64]),
-  "f64.sub": sign([f64, f64], [f64]),
-  "f64.mul": sign([f64, f64], [f64]),
-  "f64.div": sign([f64, f64], [f64]),
-  "f64.min": sign([f64, f64], [f64]),
-  "f64.max": sign([f64, f64], [f64]),
-  "f64.copysign": sign([f64, f64], [f64]),
-  "i32.wrap/i64": sign([i64], [i32]),
-  "i32.trunc_s/f32": sign([f32], [i32]),
-  "i32.trunc_u/f32": sign([f32], [i32]),
-  "i32.trunc_s/f64": sign([f32], [i32]),
-  "i32.trunc_u/f64": sign([f64], [i32]),
-  "i64.extend_s/i32": sign([i32], [i64]),
-  "i64.extend_u/i32": sign([i32], [i64]),
-  "i64.trunc_s/f32": sign([f32], [i64]),
-  "i64.trunc_u/f32": sign([f32], [i64]),
-  "i64.trunc_s/f64": sign([f64], [i64]),
-  "i64.trunc_u/f64": sign([f64], [i64]),
-  "f32.convert_s/i32": sign([i32], [f32]),
-  "f32.convert_u/i32": sign([i32], [f32]),
-  "f32.convert_s/i64": sign([i64], [f32]),
-  "f32.convert_u/i64": sign([i64], [f32]),
-  "f32.demote/f64": sign([f64], [f32]),
-  "f64.convert_s/i32": sign([i32], [f64]),
-  "f64.convert_u/i32": sign([i32], [f64]),
-  "f64.convert_s/i64": sign([i64], [f64]),
-  "f64.convert_u/i64": sign([i64], [f64]),
-  "f64.promote/f32": sign([f32], [f64]),
-  "i32.reinterpret/f32": sign([f32], [i32]),
-  "i64.reinterpret/f64": sign([f64], [i64]),
-  "f32.reinterpret/i32": sign([i32], [f32]),
-  "f64.reinterpret/i64": sign([i64], [f64])
-};
-var signatures = Object.assign({}, controlInstructions, parametricInstructions, variableInstructions, memoryInstructions, numericInstructions);
-exports.signatures = signatures;
-
-/***/ }),
-
-/***/ 56694:
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({
-  value: true
-}));
-exports.traverse = traverse;
-
-var _nodePath = __webpack_require__(43893);
-
-var _nodes = __webpack_require__(85701);
-
-// recursively walks the AST starting at the given node. The callback is invoked for
-// and object that has a 'type' property.
-function walk(context, callback) {
-  var stop = false;
-
-  function innerWalk(context, callback) {
-    if (stop) {
-      return;
-    }
-
-    var node = context.node;
-
-    if (node === undefined) {
-      console.warn("traversing with an empty context");
-      return;
-    }
-
-    if (node._deleted === true) {
-      return;
-    }
-
-    var path = (0, _nodePath.createPath)(context);
-    callback(node.type, path);
-
-    if (path.shouldStop) {
-      stop = true;
-      return;
-    }
-
-    Object.keys(node).forEach(function (prop) {
-      var value = node[prop];
-
-      if (value === null || value === undefined) {
-        return;
-      }
-
-      var valueAsArray = Array.isArray(value) ? value : [value];
-      valueAsArray.forEach(function (childNode) {
-        if (typeof childNode.type === "string") {
-          var childContext = {
-            node: childNode,
-            parentKey: prop,
-            parentPath: path,
-            shouldStop: false,
-            inList: Array.isArray(value)
-          };
-          innerWalk(childContext, callback);
-        }
-      });
-    });
-  }
-
-  innerWalk(context, callback);
-}
-
-var noop = function noop() {};
-
-function traverse(node, visitors) {
-  var before = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : noop;
-  var after = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : noop;
-  Object.keys(visitors).forEach(function (visitor) {
-    if (!_nodes.nodeAndUnionTypes.includes(visitor)) {
-      throw new Error("Unexpected visitor ".concat(visitor));
-    }
-  });
-  var context = {
-    node: node,
-    inList: false,
-    shouldStop: false,
-    parentPath: null,
-    parentKey: null
-  };
-  walk(context, function (type, path) {
-    if (typeof visitors[type] === "function") {
-      before(type, path);
-      visitors[type](path);
-      after(type, path);
-    }
-
-    var unionTypes = _nodes.unionTypesMap[type];
-
-    if (!unionTypes) {
-      throw new Error("Unexpected node type ".concat(type));
-    }
-
-    unionTypes.forEach(function (unionType) {
-      if (typeof visitors[unionType] === "function") {
-        before(unionType, path);
-        visitors[unionType](path);
-        after(unionType, path);
-      }
-    });
-  });
-}
-
-/***/ }),
-
-/***/ 41618:
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({
-  value: true
-}));
-exports.isAnonymous = isAnonymous;
-exports.getSectionMetadata = getSectionMetadata;
-exports.getSectionMetadatas = getSectionMetadatas;
-exports.sortSectionMetadata = sortSectionMetadata;
-exports.orderedInsertNode = orderedInsertNode;
-exports.assertHasLoc = assertHasLoc;
-exports.getEndOfSection = getEndOfSection;
-exports.shiftLoc = shiftLoc;
-exports.shiftSection = shiftSection;
-exports.signatureForOpcode = signatureForOpcode;
-exports.getUniqueNameGenerator = getUniqueNameGenerator;
-exports.getStartByteOffset = getStartByteOffset;
-exports.getEndByteOffset = getEndByteOffset;
-exports.getFunctionBeginingByteOffset = getFunctionBeginingByteOffset;
-exports.getEndBlockByteOffset = getEndBlockByteOffset;
-exports.getStartBlockByteOffset = getStartBlockByteOffset;
-
-var _signatures = __webpack_require__(74127);
-
-var _traverse = __webpack_require__(56694);
-
-var _helperWasmBytecode = _interopRequireWildcard(__webpack_require__(24616));
-
-function _interopRequireWildcard(obj) { if (obj && obj.__esModule) { return obj; } else { var newObj = {}; if (obj != null) { for (var key in obj) { if (Object.prototype.hasOwnProperty.call(obj, key)) { var desc = Object.defineProperty && Object.getOwnPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : {}; if (desc.get || desc.set) { Object.defineProperty(newObj, key, desc); } else { newObj[key] = obj[key]; } } } } newObj.default = obj; return newObj; } }
-
-function _sliceIterator(arr, i) { var _arr = []; var _n = true; var _d = false; var _e = undefined; try { for (var _i = arr[Symbol.iterator](), _s; !(_n = (_s = _i.next()).done); _n = true) { _arr.push(_s.value); if (i && _arr.length === i) break; } } catch (err) { _d = true; _e = err; } finally { try { if (!_n && _i["return"] != null) _i["return"](); } finally { if (_d) throw _e; } } return _arr; }
-
-function _slicedToArray(arr, i) { if (Array.isArray(arr)) { return arr; } else if (Symbol.iterator in Object(arr)) { return _sliceIterator(arr, i); } else { throw new TypeError("Invalid attempt to destructure non-iterable instance"); } }
-
-function _typeof(obj) { if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") { _typeof = function _typeof(obj) { return typeof obj; }; } else { _typeof = function _typeof(obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }; } return _typeof(obj); }
-
-function isAnonymous(ident) {
-  return ident.raw === "";
-}
-
-function getSectionMetadata(ast, name) {
-  var section;
-  (0, _traverse.traverse)(ast, {
-    SectionMetadata: function (_SectionMetadata) {
-      function SectionMetadata(_x) {
-        return _SectionMetadata.apply(this, arguments);
-      }
-
-      SectionMetadata.toString = function () {
-        return _SectionMetadata.toString();
-      };
-
-      return SectionMetadata;
-    }(function (_ref) {
-      var node = _ref.node;
-
-      if (node.section === name) {
-        section = node;
-      }
-    })
-  });
-  return section;
-}
-
-function getSectionMetadatas(ast, name) {
-  var sections = [];
-  (0, _traverse.traverse)(ast, {
-    SectionMetadata: function (_SectionMetadata2) {
-      function SectionMetadata(_x2) {
-        return _SectionMetadata2.apply(this, arguments);
-      }
-
-      SectionMetadata.toString = function () {
-        return _SectionMetadata2.toString();
-      };
-
-      return SectionMetadata;
-    }(function (_ref2) {
-      var node = _ref2.node;
-
-      if (node.section === name) {
-        sections.push(node);
-      }
-    })
-  });
-  return sections;
-}
-
-function sortSectionMetadata(m) {
-  if (m.metadata == null) {
-    console.warn("sortSectionMetadata: no metadata to sort");
-    return;
-  } // $FlowIgnore
-
-
-  m.metadata.sections.sort(function (a, b) {
-    var aId = _helperWasmBytecode.default.sections[a.section];
-    var bId = _helperWasmBytecode.default.sections[b.section];
-
-    if (typeof aId !== "number" || typeof bId !== "number") {
-      throw new Error("Section id not found");
-    }
-
-    return aId - bId;
-  });
-}
-
-function orderedInsertNode(m, n) {
-  assertHasLoc(n);
-  var didInsert = false;
-
-  if (n.type === "ModuleExport") {
-    m.fields.push(n);
-    return;
-  }
-
-  m.fields = m.fields.reduce(function (acc, field) {
-    var fieldEndCol = Infinity;
-
-    if (field.loc != null) {
-      // $FlowIgnore
-      fieldEndCol = field.loc.end.column;
-    } // $FlowIgnore: assertHasLoc ensures that
-
-
-    if (didInsert === false && n.loc.start.column < fieldEndCol) {
-      didInsert = true;
-      acc.push(n);
-    }
-
-    acc.push(field);
-    return acc;
-  }, []); // Handles empty modules or n is the last element
-
-  if (didInsert === false) {
-    m.fields.push(n);
-  }
-}
-
-function assertHasLoc(n) {
-  if (n.loc == null || n.loc.start == null || n.loc.end == null) {
-    throw new Error("Internal failure: node (".concat(JSON.stringify(n.type), ") has no location information"));
-  }
-}
-
-function getEndOfSection(s) {
-  assertHasLoc(s.size);
-  return s.startOffset + s.size.value + ( // $FlowIgnore
-  s.size.loc.end.column - s.size.loc.start.column);
-}
-
-function shiftLoc(node, delta) {
-  // $FlowIgnore
-  node.loc.start.column += delta; // $FlowIgnore
-
-  node.loc.end.column += delta;
-}
-
-function shiftSection(ast, node, delta) {
-  if (node.type !== "SectionMetadata") {
-    throw new Error("Can not shift node " + JSON.stringify(node.type));
-  }
-
-  node.startOffset += delta;
-
-  if (_typeof(node.size.loc) === "object") {
-    shiftLoc(node.size, delta);
-  } // Custom sections doesn't have vectorOfSize
-
-
-  if (_typeof(node.vectorOfSize) === "object" && _typeof(node.vectorOfSize.loc) === "object") {
-    shiftLoc(node.vectorOfSize, delta);
-  }
-
-  var sectionName = node.section; // shift node locations within that section
-
-  (0, _traverse.traverse)(ast, {
-    Node: function Node(_ref3) {
-      var node = _ref3.node;
-      var section = (0, _helperWasmBytecode.getSectionForNode)(node);
-
-      if (section === sectionName && _typeof(node.loc) === "object") {
-        shiftLoc(node, delta);
-      }
-    }
-  });
-}
-
-function signatureForOpcode(object, name) {
-  var opcodeName = name;
-
-  if (object !== undefined && object !== "") {
-    opcodeName = object + "." + name;
-  }
-
-  var sign = _signatures.signatures[opcodeName];
-
-  if (sign == undefined) {
-    // TODO: Uncomment this when br_table and others has been done
-    //throw new Error("Invalid opcode: "+opcodeName);
-    return [object, object];
-  }
-
-  return sign[0];
-}
-
-function getUniqueNameGenerator() {
-  var inc = {};
-  return function () {
-    var prefix = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : "temp";
-
-    if (!(prefix in inc)) {
-      inc[prefix] = 0;
-    } else {
-      inc[prefix] = inc[prefix] + 1;
-    }
-
-    return prefix + "_" + inc[prefix];
-  };
-}
-
-function getStartByteOffset(n) {
-  // $FlowIgnore
-  if (typeof n.loc === "undefined" || typeof n.loc.start === "undefined") {
-    throw new Error( // $FlowIgnore
-    "Can not get byte offset without loc informations, node: " + String(n.id));
-  }
-
-  return n.loc.start.column;
-}
-
-function getEndByteOffset(n) {
-  // $FlowIgnore
-  if (typeof n.loc === "undefined" || typeof n.loc.end === "undefined") {
-    throw new Error("Can not get byte offset without loc informations, node: " + n.type);
-  }
-
-  return n.loc.end.column;
-}
-
-function getFunctionBeginingByteOffset(n) {
-  if (!(n.body.length > 0)) {
-    throw new Error('n.body.length > 0' + " error: " + (undefined || "unknown"));
-  }
-
-  var _n$body = _slicedToArray(n.body, 1),
-      firstInstruction = _n$body[0];
-
-  return getStartByteOffset(firstInstruction);
-}
-
-function getEndBlockByteOffset(n) {
-  // $FlowIgnore
-  if (!(n.instr.length > 0 || n.body.length > 0)) {
-    throw new Error('n.instr.length > 0 || n.body.length > 0' + " error: " + (undefined || "unknown"));
-  }
-
-  var lastInstruction;
-
-  if (n.instr) {
-    // $FlowIgnore
-    lastInstruction = n.instr[n.instr.length - 1];
-  }
-
-  if (n.body) {
-    // $FlowIgnore
-    lastInstruction = n.body[n.body.length - 1];
-  }
-
-  if (!(_typeof(lastInstruction) === "object")) {
-    throw new Error('typeof lastInstruction === "object"' + " error: " + (undefined || "unknown"));
-  }
-
-  // $FlowIgnore
-  return getStartByteOffset(lastInstruction);
-}
-
-function getStartBlockByteOffset(n) {
-  // $FlowIgnore
-  if (!(n.instr.length > 0 || n.body.length > 0)) {
-    throw new Error('n.instr.length > 0 || n.body.length > 0' + " error: " + (undefined || "unknown"));
-  }
-
-  var fistInstruction;
-
-  if (n.instr) {
-    // $FlowIgnore
-    var _n$instr = _slicedToArray(n.instr, 1);
-
-    fistInstruction = _n$instr[0];
-  }
-
-  if (n.body) {
-    // $FlowIgnore
-    var _n$body2 = _slicedToArray(n.body, 1);
-
-    fistInstruction = _n$body2[0];
-  }
-
-  if (!(_typeof(fistInstruction) === "object")) {
-    throw new Error('typeof fistInstruction === "object"' + " error: " + (undefined || "unknown"));
-  }
-
-  // $FlowIgnore
-  return getStartByteOffset(fistInstruction);
-}
-
-/***/ }),
-
-/***/ 24616:
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({
-  value: true
-}));
-Object.defineProperty(exports, "getSectionForNode", ({
-  enumerable: true,
-  get: function get() {
-    return _section.getSectionForNode;
-  }
-}));
-exports.default = void 0;
-
-var _section = __webpack_require__(37154);
-
-var illegalop = "illegal";
-var magicModuleHeader = [0x00, 0x61, 0x73, 0x6d];
-var moduleVersion = [0x01, 0x00, 0x00, 0x00];
-
-function invertMap(obj) {
-  var keyModifierFn = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : function (k) {
-    return k;
-  };
-  var result = {};
-  var keys = Object.keys(obj);
-
-  for (var i = 0, length = keys.length; i < length; i++) {
-    result[keyModifierFn(obj[keys[i]])] = keys[i];
-  }
-
-  return result;
-}
-
-function createSymbolObject(name
-/*: string */
-, object
-/*: string */
-)
-/*: Symbol*/
-{
-  var numberOfArgs
-  /*: number*/
-  = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : 0;
-  return {
-    name: name,
-    object: object,
-    numberOfArgs: numberOfArgs
-  };
-}
-
-function createSymbol(name
-/*: string */
-)
-/*: Symbol*/
-{
-  var numberOfArgs
-  /*: number*/
-  = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 0;
-  return {
-    name: name,
-    numberOfArgs: numberOfArgs
-  };
-}
-
-var types = {
-  func: 0x60,
-  result: 0x40
-};
-var exportTypes = {
-  0x00: "Func",
-  0x01: "Table",
-  0x02: "Mem",
-  0x03: "Global"
-};
-var exportTypesByName = invertMap(exportTypes);
-var valtypes = {
-  0x7f: "i32",
-  0x7e: "i64",
-  0x7d: "f32",
-  0x7c: "f64",
-  0x7b: "v128"
-};
-var valtypesByString = invertMap(valtypes);
-var tableTypes = {
-  0x70: "anyfunc"
-};
-var blockTypes = Object.assign({}, valtypes, {
-  // https://webassembly.github.io/spec/core/binary/types.html#binary-blocktype
-  0x40: null,
-  // https://webassembly.github.io/spec/core/binary/types.html#binary-valtype
-  0x7f: "i32",
-  0x7e: "i64",
-  0x7d: "f32",
-  0x7c: "f64"
-});
-var globalTypes = {
-  0x00: "const",
-  0x01: "var"
-};
-var globalTypesByString = invertMap(globalTypes);
-var importTypes = {
-  0x00: "func",
-  0x01: "table",
-  0x02: "mem",
-  0x03: "global"
-};
-var sections = {
-  custom: 0,
-  type: 1,
-  import: 2,
-  func: 3,
-  table: 4,
-  memory: 5,
-  global: 6,
-  export: 7,
-  start: 8,
-  element: 9,
-  code: 10,
-  data: 11
-};
-var symbolsByByte = {
-  0x00: createSymbol("unreachable"),
-  0x01: createSymbol("nop"),
-  0x02: createSymbol("block"),
-  0x03: createSymbol("loop"),
-  0x04: createSymbol("if"),
-  0x05: createSymbol("else"),
-  0x06: illegalop,
-  0x07: illegalop,
-  0x08: illegalop,
-  0x09: illegalop,
-  0x0a: illegalop,
-  0x0b: createSymbol("end"),
-  0x0c: createSymbol("br", 1),
-  0x0d: createSymbol("br_if", 1),
-  0x0e: createSymbol("br_table"),
-  0x0f: createSymbol("return"),
-  0x10: createSymbol("call", 1),
-  0x11: createSymbol("call_indirect", 2),
-  0x12: illegalop,
-  0x13: illegalop,
-  0x14: illegalop,
-  0x15: illegalop,
-  0x16: illegalop,
-  0x17: illegalop,
-  0x18: illegalop,
-  0x19: illegalop,
-  0x1a: createSymbol("drop"),
-  0x1b: createSymbol("select"),
-  0x1c: illegalop,
-  0x1d: illegalop,
-  0x1e: illegalop,
-  0x1f: illegalop,
-  0x20: createSymbol("get_local", 1),
-  0x21: createSymbol("set_local", 1),
-  0x22: createSymbol("tee_local", 1),
-  0x23: createSymbol("get_global", 1),
-  0x24: createSymbol("set_global", 1),
-  0x25: illegalop,
-  0x26: illegalop,
-  0x27: illegalop,
-  0x28: createSymbolObject("load", "u32", 1),
-  0x29: createSymbolObject("load", "u64", 1),
-  0x2a: createSymbolObject("load", "f32", 1),
-  0x2b: createSymbolObject("load", "f64", 1),
-  0x2c: createSymbolObject("load8_s", "u32", 1),
-  0x2d: createSymbolObject("load8_u", "u32", 1),
-  0x2e: createSymbolObject("load16_s", "u32", 1),
-  0x2f: createSymbolObject("load16_u", "u32", 1),
-  0x30: createSymbolObject("load8_s", "u64", 1),
-  0x31: createSymbolObject("load8_u", "u64", 1),
-  0x32: createSymbolObject("load16_s", "u64", 1),
-  0x33: createSymbolObject("load16_u", "u64", 1),
-  0x34: createSymbolObject("load32_s", "u64", 1),
-  0x35: createSymbolObject("load32_u", "u64", 1),
-  0x36: createSymbolObject("store", "u32", 1),
-  0x37: createSymbolObject("store", "u64", 1),
-  0x38: createSymbolObject("store", "f32", 1),
-  0x39: createSymbolObject("store", "f64", 1),
-  0x3a: createSymbolObject("store8", "u32", 1),
-  0x3b: createSymbolObject("store16", "u32", 1),
-  0x3c: createSymbolObject("store8", "u64", 1),
-  0x3d: createSymbolObject("store16", "u64", 1),
-  0x3e: createSymbolObject("store32", "u64", 1),
-  0x3f: createSymbolObject("current_memory"),
-  0x40: createSymbolObject("grow_memory"),
-  0x41: createSymbolObject("const", "i32", 1),
-  0x42: createSymbolObject("const", "i64", 1),
-  0x43: createSymbolObject("const", "f32", 1),
-  0x44: createSymbolObject("const", "f64", 1),
-  0x45: createSymbolObject("eqz", "i32"),
-  0x46: createSymbolObject("eq", "i32"),
-  0x47: createSymbolObject("ne", "i32"),
-  0x48: createSymbolObject("lt_s", "i32"),
-  0x49: createSymbolObject("lt_u", "i32"),
-  0x4a: createSymbolObject("gt_s", "i32"),
-  0x4b: createSymbolObject("gt_u", "i32"),
-  0x4c: createSymbolObject("le_s", "i32"),
-  0x4d: createSymbolObject("le_u", "i32"),
-  0x4e: createSymbolObject("ge_s", "i32"),
-  0x4f: createSymbolObject("ge_u", "i32"),
-  0x50: createSymbolObject("eqz", "i64"),
-  0x51: createSymbolObject("eq", "i64"),
-  0x52: createSymbolObject("ne", "i64"),
-  0x53: createSymbolObject("lt_s", "i64"),
-  0x54: createSymbolObject("lt_u", "i64"),
-  0x55: createSymbolObject("gt_s", "i64"),
-  0x56: createSymbolObject("gt_u", "i64"),
-  0x57: createSymbolObject("le_s", "i64"),
-  0x58: createSymbolObject("le_u", "i64"),
-  0x59: createSymbolObject("ge_s", "i64"),
-  0x5a: createSymbolObject("ge_u", "i64"),
-  0x5b: createSymbolObject("eq", "f32"),
-  0x5c: createSymbolObject("ne", "f32"),
-  0x5d: createSymbolObject("lt", "f32"),
-  0x5e: createSymbolObject("gt", "f32"),
-  0x5f: createSymbolObject("le", "f32"),
-  0x60: createSymbolObject("ge", "f32"),
-  0x61: createSymbolObject("eq", "f64"),
-  0x62: createSymbolObject("ne", "f64"),
-  0x63: createSymbolObject("lt", "f64"),
-  0x64: createSymbolObject("gt", "f64"),
-  0x65: createSymbolObject("le", "f64"),
-  0x66: createSymbolObject("ge", "f64"),
-  0x67: createSymbolObject("clz", "i32"),
-  0x68: createSymbolObject("ctz", "i32"),
-  0x69: createSymbolObject("popcnt", "i32"),
-  0x6a: createSymbolObject("add", "i32"),
-  0x6b: createSymbolObject("sub", "i32"),
-  0x6c: createSymbolObject("mul", "i32"),
-  0x6d: createSymbolObject("div_s", "i32"),
-  0x6e: createSymbolObject("div_u", "i32"),
-  0x6f: createSymbolObject("rem_s", "i32"),
-  0x70: createSymbolObject("rem_u", "i32"),
-  0x71: createSymbolObject("and", "i32"),
-  0x72: createSymbolObject("or", "i32"),
-  0x73: createSymbolObject("xor", "i32"),
-  0x74: createSymbolObject("shl", "i32"),
-  0x75: createSymbolObject("shr_s", "i32"),
-  0x76: createSymbolObject("shr_u", "i32"),
-  0x77: createSymbolObject("rotl", "i32"),
-  0x78: createSymbolObject("rotr", "i32"),
-  0x79: createSymbolObject("clz", "i64"),
-  0x7a: createSymbolObject("ctz", "i64"),
-  0x7b: createSymbolObject("popcnt", "i64"),
-  0x7c: createSymbolObject("add", "i64"),
-  0x7d: createSymbolObject("sub", "i64"),
-  0x7e: createSymbolObject("mul", "i64"),
-  0x7f: createSymbolObject("div_s", "i64"),
-  0x80: createSymbolObject("div_u", "i64"),
-  0x81: createSymbolObject("rem_s", "i64"),
-  0x82: createSymbolObject("rem_u", "i64"),
-  0x83: createSymbolObject("and", "i64"),
-  0x84: createSymbolObject("or", "i64"),
-  0x85: createSymbolObject("xor", "i64"),
-  0x86: createSymbolObject("shl", "i64"),
-  0x87: createSymbolObject("shr_s", "i64"),
-  0x88: createSymbolObject("shr_u", "i64"),
-  0x89: createSymbolObject("rotl", "i64"),
-  0x8a: createSymbolObject("rotr", "i64"),
-  0x8b: createSymbolObject("abs", "f32"),
-  0x8c: createSymbolObject("neg", "f32"),
-  0x8d: createSymbolObject("ceil", "f32"),
-  0x8e: createSymbolObject("floor", "f32"),
-  0x8f: createSymbolObject("trunc", "f32"),
-  0x90: createSymbolObject("nearest", "f32"),
-  0x91: createSymbolObject("sqrt", "f32"),
-  0x92: createSymbolObject("add", "f32"),
-  0x93: createSymbolObject("sub", "f32"),
-  0x94: createSymbolObject("mul", "f32"),
-  0x95: createSymbolObject("div", "f32"),
-  0x96: createSymbolObject("min", "f32"),
-  0x97: createSymbolObject("max", "f32"),
-  0x98: createSymbolObject("copysign", "f32"),
-  0x99: createSymbolObject("abs", "f64"),
-  0x9a: createSymbolObject("neg", "f64"),
-  0x9b: createSymbolObject("ceil", "f64"),
-  0x9c: createSymbolObject("floor", "f64"),
-  0x9d: createSymbolObject("trunc", "f64"),
-  0x9e: createSymbolObject("nearest", "f64"),
-  0x9f: createSymbolObject("sqrt", "f64"),
-  0xa0: createSymbolObject("add", "f64"),
-  0xa1: createSymbolObject("sub", "f64"),
-  0xa2: createSymbolObject("mul", "f64"),
-  0xa3: createSymbolObject("div", "f64"),
-  0xa4: createSymbolObject("min", "f64"),
-  0xa5: createSymbolObject("max", "f64"),
-  0xa6: createSymbolObject("copysign", "f64"),
-  0xa7: createSymbolObject("wrap/i64", "i32"),
-  0xa8: createSymbolObject("trunc_s/f32", "i32"),
-  0xa9: createSymbolObject("trunc_u/f32", "i32"),
-  0xaa: createSymbolObject("trunc_s/f64", "i32"),
-  0xab: createSymbolObject("trunc_u/f64", "i32"),
-  0xac: createSymbolObject("extend_s/i32", "i64"),
-  0xad: createSymbolObject("extend_u/i32", "i64"),
-  0xae: createSymbolObject("trunc_s/f32", "i64"),
-  0xaf: createSymbolObject("trunc_u/f32", "i64"),
-  0xb0: createSymbolObject("trunc_s/f64", "i64"),
-  0xb1: createSymbolObject("trunc_u/f64", "i64"),
-  0xb2: createSymbolObject("convert_s/i32", "f32"),
-  0xb3: createSymbolObject("convert_u/i32", "f32"),
-  0xb4: createSymbolObject("convert_s/i64", "f32"),
-  0xb5: createSymbolObject("convert_u/i64", "f32"),
-  0xb6: createSymbolObject("demote/f64", "f32"),
-  0xb7: createSymbolObject("convert_s/i32", "f64"),
-  0xb8: createSymbolObject("convert_u/i32", "f64"),
-  0xb9: createSymbolObject("convert_s/i64", "f64"),
-  0xba: createSymbolObject("convert_u/i64", "f64"),
-  0xbb: createSymbolObject("promote/f32", "f64"),
-  0xbc: createSymbolObject("reinterpret/f32", "i32"),
-  0xbd: createSymbolObject("reinterpret/f64", "i64"),
-  0xbe: createSymbolObject("reinterpret/i32", "f32"),
-  0xbf: createSymbolObject("reinterpret/i64", "f64")
-};
-var symbolsByName = invertMap(symbolsByByte, function (obj) {
-  if (typeof obj.object === "string") {
-    return "".concat(obj.object, ".").concat(obj.name);
-  }
-
-  return obj.name;
-});
-var _default = {
-  symbolsByByte: symbolsByByte,
-  sections: sections,
-  magicModuleHeader: magicModuleHeader,
-  moduleVersion: moduleVersion,
-  types: types,
-  valtypes: valtypes,
-  exportTypes: exportTypes,
-  blockTypes: blockTypes,
-  tableTypes: tableTypes,
-  globalTypes: globalTypes,
-  importTypes: importTypes,
-  valtypesByString: valtypesByString,
-  globalTypesByString: globalTypesByString,
-  exportTypesByName: exportTypesByName,
-  symbolsByName: symbolsByName
-};
-exports.default = _default;
-
-/***/ }),
-
-/***/ 37154:
-/***/ (function(__unused_webpack_module, exports) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", ({
-  value: true
-}));
-exports.getSectionForNode = getSectionForNode;
-
-function getSectionForNode(n) {
-  switch (n.type) {
-    case "ModuleImport":
-      return "import";
-
-    case "CallInstruction":
-    case "CallIndirectInstruction":
-    case "Func":
-    case "Instr":
-      return "code";
-
-    case "ModuleExport":
-      return "export";
-
-    case "Start":
-      return "start";
-
-    case "TypeInstruction":
-      return "type";
-
-    case "IndexInFuncSection":
-      return "func";
-
-    case "Global":
-      return "global";
-    // No section
-
-    default:
-      return;
-  }
-}
 
 /***/ }),
 
@@ -90791,7 +79047,7 @@ const { decode } = __webpack_require__(74416);
 const t = __webpack_require__(90310);
 const {
 	moduleContextFromModuleAST
-} = __webpack_require__(71234);
+} = __webpack_require__(1204);
 
 const WebAssemblyExportImportedDependency = __webpack_require__(10709);
 
@@ -91643,7 +79899,7 @@ const t = __webpack_require__(90310);
 const { decode } = __webpack_require__(74416);
 const {
 	moduleContextFromModuleAST
-} = __webpack_require__(71234);
+} = __webpack_require__(1204);
 
 const { Tapable } = __webpack_require__(92402);
 const WebAssemblyImportDependency = __webpack_require__(40485);
@@ -93625,7 +81881,7 @@ exports.funcParam = funcParam;
 exports.indexLiteral = indexLiteral;
 exports.memIndexLiteral = memIndexLiteral;
 
-var _wastParser = __webpack_require__(9016);
+var _wastParser = __webpack_require__(63379);
 
 var _nodes = __webpack_require__(9639);
 
@@ -95652,6 +83908,62 @@ function getStartBlockByteOffset(n) {
 
 /***/ }),
 
+/***/ 83226:
+/***/ (function(__unused_webpack_module, exports) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports.default = parse;
+
+function parse(input) {
+  input = input.toUpperCase();
+  var splitIndex = input.indexOf("P");
+  var mantissa, exponent;
+
+  if (splitIndex !== -1) {
+    mantissa = input.substring(0, splitIndex);
+    exponent = parseInt(input.substring(splitIndex + 1));
+  } else {
+    mantissa = input;
+    exponent = 0;
+  }
+
+  var dotIndex = mantissa.indexOf(".");
+
+  if (dotIndex !== -1) {
+    var integerPart = parseInt(mantissa.substring(0, dotIndex), 16);
+    var sign = Math.sign(integerPart);
+    integerPart = sign * integerPart;
+    var fractionLength = mantissa.length - dotIndex - 1;
+    var fractionalPart = parseInt(mantissa.substring(dotIndex + 1), 16);
+    var fraction = fractionLength > 0 ? fractionalPart / Math.pow(16, fractionLength) : 0;
+
+    if (sign === 0) {
+      if (fraction === 0) {
+        mantissa = sign;
+      } else {
+        if (Object.is(sign, -0)) {
+          mantissa = -fraction;
+        } else {
+          mantissa = fraction;
+        }
+      }
+    } else {
+      mantissa = sign * (integerPart + fraction);
+    }
+  } else {
+    mantissa = parseInt(mantissa, 16);
+  }
+
+  return mantissa * (splitIndex !== -1 ? Math.pow(2, exponent) : 1);
+}
+
+/***/ }),
+
 /***/ 39466:
 /***/ (function(__unused_webpack_module, exports) {
 
@@ -95803,6 +84115,456 @@ function fromHexdump(str) {
   }, []);
   return Buffer.from(bytes);
 }
+
+/***/ }),
+
+/***/ 49890:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports.codeFrameFromAst = codeFrameFromAst;
+exports.codeFrameFromSource = codeFrameFromSource;
+
+var _wastPrinter = __webpack_require__(24529);
+
+function _typeof(obj) { if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") { _typeof = function _typeof(obj) { return typeof obj; }; } else { _typeof = function _typeof(obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }; } return _typeof(obj); }
+
+var SHOW_LINES_AROUND_POINTER = 5;
+
+function repeat(char, nb) {
+  return Array(nb).fill(char).join("");
+} // TODO(sven): allow arbitrary ast nodes
+
+
+function codeFrameFromAst(ast, loc) {
+  return codeFrameFromSource((0, _wastPrinter.print)(ast), loc);
+}
+
+function codeFrameFromSource(source, loc) {
+  var start = loc.start,
+      end = loc.end;
+  var length = 1;
+
+  if (_typeof(end) === "object") {
+    length = end.column - start.column + 1;
+  }
+
+  return source.split("\n").reduce(function (acc, line, lineNbr) {
+    if (Math.abs(start.line - lineNbr) < SHOW_LINES_AROUND_POINTER) {
+      acc += line + "\n";
+    } // Add a new line with the pointer padded left
+
+
+    if (lineNbr === start.line - 1) {
+      acc += repeat(" ", start.column - 1);
+      acc += repeat("^", length);
+      acc += "\n";
+    }
+
+    return acc;
+  }, "");
+}
+
+/***/ }),
+
+/***/ 1204:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports.moduleContextFromModuleAST = moduleContextFromModuleAST;
+exports.ModuleContext = void 0;
+
+var _ast = __webpack_require__(90310);
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function _defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } }
+
+function _createClass(Constructor, protoProps, staticProps) { if (protoProps) _defineProperties(Constructor.prototype, protoProps); if (staticProps) _defineProperties(Constructor, staticProps); return Constructor; }
+
+function moduleContextFromModuleAST(m) {
+  var moduleContext = new ModuleContext();
+
+  if (!(m.type === "Module")) {
+    throw new Error('m.type === "Module"' + " error: " + (undefined || "unknown"));
+  }
+
+  m.fields.forEach(function (field) {
+    switch (field.type) {
+      case "Start":
+        {
+          moduleContext.setStart(field.index);
+          break;
+        }
+
+      case "TypeInstruction":
+        {
+          moduleContext.addType(field);
+          break;
+        }
+
+      case "Func":
+        {
+          moduleContext.addFunction(field);
+          break;
+        }
+
+      case "Global":
+        {
+          moduleContext.defineGlobal(field);
+          break;
+        }
+
+      case "ModuleImport":
+        {
+          switch (field.descr.type) {
+            case "GlobalType":
+              {
+                moduleContext.importGlobal(field.descr.valtype, field.descr.mutability);
+                break;
+              }
+
+            case "Memory":
+              {
+                moduleContext.addMemory(field.descr.limits.min, field.descr.limits.max);
+                break;
+              }
+
+            case "FuncImportDescr":
+              {
+                moduleContext.importFunction(field.descr);
+                break;
+              }
+
+            case "Table":
+              {
+                // FIXME(sven): not implemented yet
+                break;
+              }
+
+            default:
+              throw new Error("Unsupported ModuleImport of type " + JSON.stringify(field.descr.type));
+          }
+
+          break;
+        }
+
+      case "Memory":
+        {
+          moduleContext.addMemory(field.limits.min, field.limits.max);
+          break;
+        }
+    }
+  });
+  return moduleContext;
+}
+/**
+ * Module context for type checking
+ */
+
+
+var ModuleContext =
+/*#__PURE__*/
+function () {
+  function ModuleContext() {
+    _classCallCheck(this, ModuleContext);
+
+    this.funcs = [];
+    this.funcsOffsetByIdentifier = [];
+    this.types = [];
+    this.globals = [];
+    this.globalsOffsetByIdentifier = [];
+    this.mems = []; // Current stack frame
+
+    this.locals = [];
+    this.labels = [];
+    this.return = [];
+    this.debugName = "unknown";
+    this.start = null;
+  }
+  /**
+   * Set start segment
+   */
+
+
+  _createClass(ModuleContext, [{
+    key: "setStart",
+    value: function setStart(index) {
+      this.start = index.value;
+    }
+    /**
+     * Get start function
+     */
+
+  }, {
+    key: "getStart",
+    value: function getStart() {
+      return this.start;
+    }
+    /**
+     * Reset the active stack frame
+     */
+
+  }, {
+    key: "newContext",
+    value: function newContext(debugName, expectedResult) {
+      this.locals = [];
+      this.labels = [expectedResult];
+      this.return = expectedResult;
+      this.debugName = debugName;
+    }
+    /**
+     * Functions
+     */
+
+  }, {
+    key: "addFunction",
+    value: function addFunction(func
+    /*: Func*/
+    ) {
+      // eslint-disable-next-line prefer-const
+      var _ref = func.signature || {},
+          _ref$params = _ref.params,
+          args = _ref$params === void 0 ? [] : _ref$params,
+          _ref$results = _ref.results,
+          result = _ref$results === void 0 ? [] : _ref$results;
+
+      args = args.map(function (arg) {
+        return arg.valtype;
+      });
+      this.funcs.push({
+        args: args,
+        result: result
+      });
+
+      if (typeof func.name !== "undefined") {
+        this.funcsOffsetByIdentifier[func.name.value] = this.funcs.length - 1;
+      }
+    }
+  }, {
+    key: "importFunction",
+    value: function importFunction(funcimport) {
+      if ((0, _ast.isSignature)(funcimport.signature)) {
+        // eslint-disable-next-line prefer-const
+        var _funcimport$signature = funcimport.signature,
+            args = _funcimport$signature.params,
+            result = _funcimport$signature.results;
+        args = args.map(function (arg) {
+          return arg.valtype;
+        });
+        this.funcs.push({
+          args: args,
+          result: result
+        });
+      } else {
+        if (!(0, _ast.isNumberLiteral)(funcimport.signature)) {
+          throw new Error('isNumberLiteral(funcimport.signature)' + " error: " + (undefined || "unknown"));
+        }
+
+        var typeId = funcimport.signature.value;
+
+        if (!this.hasType(typeId)) {
+          throw new Error('this.hasType(typeId)' + " error: " + (undefined || "unknown"));
+        }
+
+        var signature = this.getType(typeId);
+        this.funcs.push({
+          args: signature.params.map(function (arg) {
+            return arg.valtype;
+          }),
+          result: signature.results
+        });
+      }
+
+      if (typeof funcimport.id !== "undefined") {
+        // imports are first, we can assume their index in the array
+        this.funcsOffsetByIdentifier[funcimport.id.value] = this.funcs.length - 1;
+      }
+    }
+  }, {
+    key: "hasFunction",
+    value: function hasFunction(index) {
+      return typeof this.getFunction(index) !== "undefined";
+    }
+  }, {
+    key: "getFunction",
+    value: function getFunction(index) {
+      if (typeof index !== "number") {
+        throw new Error("getFunction only supported for number index");
+      }
+
+      return this.funcs[index];
+    }
+  }, {
+    key: "getFunctionOffsetByIdentifier",
+    value: function getFunctionOffsetByIdentifier(name) {
+      if (!(typeof name === "string")) {
+        throw new Error('typeof name === "string"' + " error: " + (undefined || "unknown"));
+      }
+
+      return this.funcsOffsetByIdentifier[name];
+    }
+    /**
+     * Labels
+     */
+
+  }, {
+    key: "addLabel",
+    value: function addLabel(result) {
+      this.labels.unshift(result);
+    }
+  }, {
+    key: "hasLabel",
+    value: function hasLabel(index) {
+      return this.labels.length > index && index >= 0;
+    }
+  }, {
+    key: "getLabel",
+    value: function getLabel(index) {
+      return this.labels[index];
+    }
+  }, {
+    key: "popLabel",
+    value: function popLabel() {
+      this.labels.shift();
+    }
+    /**
+     * Locals
+     */
+
+  }, {
+    key: "hasLocal",
+    value: function hasLocal(index) {
+      return typeof this.getLocal(index) !== "undefined";
+    }
+  }, {
+    key: "getLocal",
+    value: function getLocal(index) {
+      return this.locals[index];
+    }
+  }, {
+    key: "addLocal",
+    value: function addLocal(type) {
+      this.locals.push(type);
+    }
+    /**
+     * Types
+     */
+
+  }, {
+    key: "addType",
+    value: function addType(type) {
+      if (!(type.functype.type === "Signature")) {
+        throw new Error('type.functype.type === "Signature"' + " error: " + (undefined || "unknown"));
+      }
+
+      this.types.push(type.functype);
+    }
+  }, {
+    key: "hasType",
+    value: function hasType(index) {
+      return this.types[index] !== undefined;
+    }
+  }, {
+    key: "getType",
+    value: function getType(index) {
+      return this.types[index];
+    }
+    /**
+     * Globals
+     */
+
+  }, {
+    key: "hasGlobal",
+    value: function hasGlobal(index) {
+      return this.globals.length > index && index >= 0;
+    }
+  }, {
+    key: "getGlobal",
+    value: function getGlobal(index) {
+      return this.globals[index].type;
+    }
+  }, {
+    key: "getGlobalOffsetByIdentifier",
+    value: function getGlobalOffsetByIdentifier(name) {
+      if (!(typeof name === "string")) {
+        throw new Error('typeof name === "string"' + " error: " + (undefined || "unknown"));
+      }
+
+      return this.globalsOffsetByIdentifier[name];
+    }
+  }, {
+    key: "defineGlobal",
+    value: function defineGlobal(global
+    /*: Global*/
+    ) {
+      var type = global.globalType.valtype;
+      var mutability = global.globalType.mutability;
+      this.globals.push({
+        type: type,
+        mutability: mutability
+      });
+
+      if (typeof global.name !== "undefined") {
+        this.globalsOffsetByIdentifier[global.name.value] = this.globals.length - 1;
+      }
+    }
+  }, {
+    key: "importGlobal",
+    value: function importGlobal(type, mutability) {
+      this.globals.push({
+        type: type,
+        mutability: mutability
+      });
+    }
+  }, {
+    key: "isMutableGlobal",
+    value: function isMutableGlobal(index) {
+      return this.globals[index].mutability === "var";
+    }
+  }, {
+    key: "isImmutableGlobal",
+    value: function isImmutableGlobal(index) {
+      return this.globals[index].mutability === "const";
+    }
+    /**
+     * Memories
+     */
+
+  }, {
+    key: "hasMemory",
+    value: function hasMemory(index) {
+      return this.mems.length > index && index >= 0;
+    }
+  }, {
+    key: "addMemory",
+    value: function addMemory(min, max) {
+      this.mems.push({
+        min: min,
+        max: max
+      });
+    }
+  }, {
+    key: "getMemory",
+    value: function getMemory(index) {
+      return this.mems[index];
+    }
+  }]);
+
+  return ModuleContext;
+}();
+
+exports.ModuleContext = ModuleContext;
 
 /***/ }),
 
@@ -100639,6 +89401,3420 @@ function decode(buf, customOpts) {
   }
 
   return ast;
+}
+
+/***/ }),
+
+/***/ 63184:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports.parse = parse;
+
+var _helperCodeFrame = __webpack_require__(49890);
+
+var t = _interopRequireWildcard(__webpack_require__(90310));
+
+var _numberLiterals = __webpack_require__(38594);
+
+var _stringLiterals = __webpack_require__(56005);
+
+var _tokenizer = __webpack_require__(28960);
+
+function _interopRequireWildcard(obj) { if (obj && obj.__esModule) { return obj; } else { var newObj = {}; if (obj != null) { for (var key in obj) { if (Object.prototype.hasOwnProperty.call(obj, key)) { var desc = Object.defineProperty && Object.getOwnPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : {}; if (desc.get || desc.set) { Object.defineProperty(newObj, key, desc); } else { newObj[key] = obj[key]; } } } } newObj.default = obj; return newObj; } }
+
+function _typeof(obj) { if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") { _typeof = function _typeof(obj) { return typeof obj; }; } else { _typeof = function _typeof(obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }; } return _typeof(obj); }
+
+function _toConsumableArray(arr) { if (Array.isArray(arr)) { for (var i = 0, arr2 = new Array(arr.length); i < arr.length; i++) { arr2[i] = arr[i]; } return arr2; } else { return Array.from(arr); } }
+
+function hasPlugin(name) {
+  if (name !== "wast") throw new Error("unknow plugin");
+  return true;
+}
+
+function isKeyword(token, id) {
+  return token.type === _tokenizer.tokens.keyword && token.value === id;
+}
+
+function tokenToString(token) {
+  if (token.type === "keyword") {
+    return "keyword (".concat(token.value, ")");
+  }
+
+  return token.type;
+}
+
+function identifierFromToken(token) {
+  var _token$loc = token.loc,
+      end = _token$loc.end,
+      start = _token$loc.start;
+  return t.withLoc(t.identifier(token.value), end, start);
+}
+
+function parse(tokensList, source) {
+  var current = 0;
+  var getUniqueName = t.getUniqueNameGenerator();
+  var state = {
+    registredExportedElements: []
+  }; // But this time we're going to use recursion instead of a `while` loop. So we
+  // define a `walk` function.
+
+  function walk() {
+    var token = tokensList[current];
+
+    function eatToken() {
+      token = tokensList[++current];
+    }
+
+    function getEndLoc() {
+      var currentToken = token;
+
+      if (typeof currentToken === "undefined") {
+        var lastToken = tokensList[tokensList.length - 1];
+        currentToken = lastToken;
+      }
+
+      return currentToken.loc.end;
+    }
+
+    function getStartLoc() {
+      return token.loc.start;
+    }
+
+    function eatTokenOfType(type) {
+      if (token.type !== type) {
+        throw new Error("\n" + (0, _helperCodeFrame.codeFrameFromSource)(source, token.loc) + "Assertion error: expected token of type " + type + ", given " + tokenToString(token));
+      }
+
+      eatToken();
+    }
+
+    function parseExportIndex(token) {
+      if (token.type === _tokenizer.tokens.identifier) {
+        var index = identifierFromToken(token);
+        eatToken();
+        return index;
+      } else if (token.type === _tokenizer.tokens.number) {
+        var _index = t.numberLiteralFromRaw(token.value);
+
+        eatToken();
+        return _index;
+      } else {
+        throw function () {
+          return new Error("\n" + (0, _helperCodeFrame.codeFrameFromSource)(source, token.loc) + "\n" + "unknown export index" + ", given " + tokenToString(token));
+        }();
+      }
+    }
+
+    function lookaheadAndCheck() {
+      var len = arguments.length;
+
+      for (var i = 0; i < len; i++) {
+        var tokenAhead = tokensList[current + i];
+        var expectedToken = i < 0 || arguments.length <= i ? undefined : arguments[i];
+
+        if (tokenAhead.type === "keyword") {
+          if (isKeyword(tokenAhead, expectedToken) === false) {
+            return false;
+          }
+        } else if (expectedToken !== tokenAhead.type) {
+          return false;
+        }
+      }
+
+      return true;
+    } // TODO(sven): there is probably a better way to do this
+    // can refactor it if it get out of hands
+
+
+    function maybeIgnoreComment() {
+      if (typeof token === "undefined") {
+        // Ignore
+        return;
+      }
+
+      while (token.type === _tokenizer.tokens.comment) {
+        eatToken();
+
+        if (typeof token === "undefined") {
+          // Hit the end
+          break;
+        }
+      }
+    }
+    /**
+     * Parses a memory instruction
+     *
+     * WAST:
+     *
+     * memory:  ( memory <name>? <memory_sig> )
+     *          ( memory <name>? ( export <string> ) <...> )
+     *          ( memory <name>? ( import <string> <string> ) <memory_sig> )
+     *          ( memory <name>? ( export <string> )* ( data <string>* )
+     * memory_sig: <nat> <nat>?
+     *
+     */
+
+
+    function parseMemory() {
+      var id = t.identifier(getUniqueName("memory"));
+      var limits = t.limit(0);
+
+      if (token.type === _tokenizer.tokens.string || token.type === _tokenizer.tokens.identifier) {
+        id = t.identifier(token.value);
+        eatToken();
+      } else {
+        id = t.withRaw(id, ""); // preserve anonymous
+      }
+      /**
+       * Maybe data
+       */
+
+
+      if (lookaheadAndCheck(_tokenizer.tokens.openParen, _tokenizer.keywords.data)) {
+        eatToken(); // (
+
+        eatToken(); // data
+        // TODO(sven): do something with the data collected here
+
+        var stringInitializer = token.value;
+        eatTokenOfType(_tokenizer.tokens.string); // Update limits accordingly
+
+        limits = t.limit(stringInitializer.length);
+        eatTokenOfType(_tokenizer.tokens.closeParen);
+      }
+      /**
+       * Maybe export
+       */
+
+
+      if (lookaheadAndCheck(_tokenizer.tokens.openParen, _tokenizer.keywords.export)) {
+        eatToken(); // (
+
+        eatToken(); // export
+
+        if (token.type !== _tokenizer.tokens.string) {
+          throw function () {
+            return new Error("\n" + (0, _helperCodeFrame.codeFrameFromSource)(source, token.loc) + "\n" + "Expected string in export" + ", given " + tokenToString(token));
+          }();
+        }
+
+        var _name = token.value;
+        eatToken();
+        state.registredExportedElements.push({
+          exportType: "Memory",
+          name: _name,
+          id: id
+        });
+        eatTokenOfType(_tokenizer.tokens.closeParen);
+      }
+      /**
+       * Memory signature
+       */
+
+
+      if (token.type === _tokenizer.tokens.number) {
+        limits = t.limit((0, _numberLiterals.parse32I)(token.value));
+        eatToken();
+
+        if (token.type === _tokenizer.tokens.number) {
+          limits.max = (0, _numberLiterals.parse32I)(token.value);
+          eatToken();
+        }
+      }
+
+      return t.memory(limits, id);
+    }
+    /**
+     * Parses a data section
+     * https://webassembly.github.io/spec/core/text/modules.html#data-segments
+     *
+     * WAST:
+     *
+     * data:  ( data <index>? <offset> <string> )
+     */
+
+
+    function parseData() {
+      // optional memory index
+      var memidx = 0;
+
+      if (token.type === _tokenizer.tokens.number) {
+        memidx = token.value;
+        eatTokenOfType(_tokenizer.tokens.number); // .
+      }
+
+      eatTokenOfType(_tokenizer.tokens.openParen);
+      var offset;
+
+      if (token.type === _tokenizer.tokens.valtype) {
+        eatTokenOfType(_tokenizer.tokens.valtype); // i32
+
+        eatTokenOfType(_tokenizer.tokens.dot); // .
+
+        if (token.value !== "const") {
+          throw new Error("constant expression required");
+        }
+
+        eatTokenOfType(_tokenizer.tokens.name); // const
+
+        var numberLiteral = t.numberLiteralFromRaw(token.value, "i32");
+        offset = t.objectInstruction("const", "i32", [numberLiteral]);
+        eatToken();
+        eatTokenOfType(_tokenizer.tokens.closeParen);
+      } else {
+        eatTokenOfType(_tokenizer.tokens.name); // get_global
+
+        var _numberLiteral = t.numberLiteralFromRaw(token.value, "i32");
+
+        offset = t.instruction("get_global", [_numberLiteral]);
+        eatToken();
+        eatTokenOfType(_tokenizer.tokens.closeParen);
+      }
+
+      var byteArray = (0, _stringLiterals.parseString)(token.value);
+      eatToken(); // "string"
+
+      return t.data(t.memIndexLiteral(memidx), offset, t.byteArray(byteArray));
+    }
+    /**
+     * Parses a table instruction
+     *
+     * WAST:
+     *
+     * table:   ( table <name>? <table_type> )
+     *          ( table <name>? ( export <string> ) <...> )
+     *          ( table <name>? ( import <string> <string> ) <table_type> )
+     *          ( table <name>? ( export <string> )* <elem_type> ( elem <var>* ) )
+     *
+     * table_type:  <nat> <nat>? <elem_type>
+     * elem_type: anyfunc
+     *
+     * elem:    ( elem <var>? (offset <instr>* ) <var>* )
+     *          ( elem <var>? <expr> <var>* )
+     */
+
+
+    function parseTable() {
+      var name = t.identifier(getUniqueName("table"));
+      var limit = t.limit(0);
+      var elemIndices = [];
+      var elemType = "anyfunc";
+
+      if (token.type === _tokenizer.tokens.string || token.type === _tokenizer.tokens.identifier) {
+        name = identifierFromToken(token);
+        eatToken();
+      } else {
+        name = t.withRaw(name, ""); // preserve anonymous
+      }
+
+      while (token.type !== _tokenizer.tokens.closeParen) {
+        /**
+         * Maybe export
+         */
+        if (lookaheadAndCheck(_tokenizer.tokens.openParen, _tokenizer.keywords.elem)) {
+          eatToken(); // (
+
+          eatToken(); // elem
+
+          while (token.type === _tokenizer.tokens.identifier) {
+            elemIndices.push(t.identifier(token.value));
+            eatToken();
+          }
+
+          eatTokenOfType(_tokenizer.tokens.closeParen);
+        } else if (lookaheadAndCheck(_tokenizer.tokens.openParen, _tokenizer.keywords.export)) {
+          eatToken(); // (
+
+          eatToken(); // export
+
+          if (token.type !== _tokenizer.tokens.string) {
+            throw function () {
+              return new Error("\n" + (0, _helperCodeFrame.codeFrameFromSource)(source, token.loc) + "\n" + "Expected string in export" + ", given " + tokenToString(token));
+            }();
+          }
+
+          var exportName = token.value;
+          eatToken();
+          state.registredExportedElements.push({
+            exportType: "Table",
+            name: exportName,
+            id: name
+          });
+          eatTokenOfType(_tokenizer.tokens.closeParen);
+        } else if (isKeyword(token, _tokenizer.keywords.anyfunc)) {
+          // It's the default value, we can ignore it
+          eatToken(); // anyfunc
+        } else if (token.type === _tokenizer.tokens.number) {
+          /**
+           * Table type
+           */
+          var min = parseInt(token.value);
+          eatToken();
+
+          if (token.type === _tokenizer.tokens.number) {
+            var max = parseInt(token.value);
+            eatToken();
+            limit = t.limit(min, max);
+          } else {
+            limit = t.limit(min);
+          }
+
+          eatToken();
+        } else {
+          throw function () {
+            return new Error("\n" + (0, _helperCodeFrame.codeFrameFromSource)(source, token.loc) + "\n" + "Unexpected token" + ", given " + tokenToString(token));
+          }();
+        }
+      }
+
+      if (elemIndices.length > 0) {
+        return t.table(elemType, limit, name, elemIndices);
+      } else {
+        return t.table(elemType, limit, name);
+      }
+    }
+    /**
+     * Parses an import statement
+     *
+     * WAST:
+     *
+     * import:  ( import <string> <string> <imkind> )
+     * imkind:  ( func <name>? <func_sig> )
+     *          ( global <name>? <global_sig> )
+     *          ( table <name>? <table_sig> )
+     *          ( memory <name>? <memory_sig> )
+     *
+     * global_sig: <type> | ( mut <type> )
+     */
+
+
+    function parseImport() {
+      if (token.type !== _tokenizer.tokens.string) {
+        throw new Error("Expected a string, " + token.type + " given.");
+      }
+
+      var moduleName = token.value;
+      eatToken();
+
+      if (token.type !== _tokenizer.tokens.string) {
+        throw new Error("Expected a string, " + token.type + " given.");
+      }
+
+      var name = token.value;
+      eatToken();
+      eatTokenOfType(_tokenizer.tokens.openParen);
+      var descr;
+
+      if (isKeyword(token, _tokenizer.keywords.func)) {
+        eatToken(); // keyword
+
+        var fnParams = [];
+        var fnResult = [];
+        var typeRef;
+        var fnName = t.identifier(getUniqueName("func"));
+
+        if (token.type === _tokenizer.tokens.identifier) {
+          fnName = identifierFromToken(token);
+          eatToken();
+        }
+
+        while (token.type === _tokenizer.tokens.openParen) {
+          eatToken();
+
+          if (lookaheadAndCheck(_tokenizer.keywords.type) === true) {
+            eatToken();
+            typeRef = parseTypeReference();
+          } else if (lookaheadAndCheck(_tokenizer.keywords.param) === true) {
+            eatToken();
+            fnParams.push.apply(fnParams, _toConsumableArray(parseFuncParam()));
+          } else if (lookaheadAndCheck(_tokenizer.keywords.result) === true) {
+            eatToken();
+            fnResult.push.apply(fnResult, _toConsumableArray(parseFuncResult()));
+          } else {
+            throw function () {
+              return new Error("\n" + (0, _helperCodeFrame.codeFrameFromSource)(source, token.loc) + "\n" + "Unexpected token in import of type" + ", given " + tokenToString(token));
+            }();
+          }
+
+          eatTokenOfType(_tokenizer.tokens.closeParen);
+        }
+
+        if (typeof fnName === "undefined") {
+          throw new Error("Imported function must have a name");
+        }
+
+        descr = t.funcImportDescr(fnName, typeRef !== undefined ? typeRef : t.signature(fnParams, fnResult));
+      } else if (isKeyword(token, _tokenizer.keywords.global)) {
+        eatToken(); // keyword
+
+        if (token.type === _tokenizer.tokens.openParen) {
+          eatToken(); // (
+
+          eatTokenOfType(_tokenizer.tokens.keyword); // mut keyword
+
+          var valtype = token.value;
+          eatToken();
+          descr = t.globalType(valtype, "var");
+          eatTokenOfType(_tokenizer.tokens.closeParen);
+        } else {
+          var _valtype = token.value;
+          eatTokenOfType(_tokenizer.tokens.valtype);
+          descr = t.globalType(_valtype, "const");
+        }
+      } else if (isKeyword(token, _tokenizer.keywords.memory) === true) {
+        eatToken(); // Keyword
+
+        descr = parseMemory();
+      } else if (isKeyword(token, _tokenizer.keywords.table) === true) {
+        eatToken(); // Keyword
+
+        descr = parseTable();
+      } else {
+        throw new Error("Unsupported import type: " + tokenToString(token));
+      }
+
+      eatTokenOfType(_tokenizer.tokens.closeParen);
+      return t.moduleImport(moduleName, name, descr);
+    }
+    /**
+     * Parses a block instruction
+     *
+     * WAST:
+     *
+     * expr: ( block <name>? <block_sig> <instr>* )
+     * instr: block <name>? <block_sig> <instr>* end <name>?
+     * block_sig : ( result <type>* )*
+     *
+     */
+
+
+    function parseBlock() {
+      var label = t.identifier(getUniqueName("block"));
+      var blockResult = null;
+      var instr = [];
+
+      if (token.type === _tokenizer.tokens.identifier) {
+        label = identifierFromToken(token);
+        eatToken();
+      } else {
+        label = t.withRaw(label, ""); // preserve anonymous
+      }
+
+      while (token.type === _tokenizer.tokens.openParen) {
+        eatToken();
+
+        if (lookaheadAndCheck(_tokenizer.keywords.result) === true) {
+          eatToken();
+          blockResult = token.value;
+          eatToken();
+        } else if (lookaheadAndCheck(_tokenizer.tokens.name) === true || lookaheadAndCheck(_tokenizer.tokens.valtype) === true || token.type === "keyword" // is any keyword
+        ) {
+            // Instruction
+            instr.push(parseFuncInstr());
+          } else {
+          throw function () {
+            return new Error("\n" + (0, _helperCodeFrame.codeFrameFromSource)(source, token.loc) + "\n" + "Unexpected token in block body of type" + ", given " + tokenToString(token));
+          }();
+        }
+
+        maybeIgnoreComment();
+        eatTokenOfType(_tokenizer.tokens.closeParen);
+      }
+
+      return t.blockInstruction(label, instr, blockResult);
+    }
+    /**
+     * Parses a if instruction
+     *
+     * WAST:
+     *
+     * expr:
+     * ( if <name>? <block_sig> ( then <instr>* ) ( else <instr>* )? )
+     * ( if <name>? <block_sig> <expr>+ ( then <instr>* ) ( else <instr>* )? )
+     *
+     * instr:
+     * if <name>? <block_sig> <instr>* end <name>?
+     * if <name>? <block_sig> <instr>* else <name>? <instr>* end <name>?
+     *
+     * block_sig : ( result <type>* )*
+     *
+     */
+
+
+    function parseIf() {
+      var blockResult = null;
+      var label = t.identifier(getUniqueName("if"));
+      var testInstrs = [];
+      var consequent = [];
+      var alternate = [];
+
+      if (token.type === _tokenizer.tokens.identifier) {
+        label = identifierFromToken(token);
+        eatToken();
+      } else {
+        label = t.withRaw(label, ""); // preserve anonymous
+      }
+
+      while (token.type === _tokenizer.tokens.openParen) {
+        eatToken(); // (
+
+        /**
+         * Block signature
+         */
+
+        if (isKeyword(token, _tokenizer.keywords.result) === true) {
+          eatToken();
+          blockResult = token.value;
+          eatTokenOfType(_tokenizer.tokens.valtype);
+          eatTokenOfType(_tokenizer.tokens.closeParen);
+          continue;
+        }
+        /**
+         * Then
+         */
+
+
+        if (isKeyword(token, _tokenizer.keywords.then) === true) {
+          eatToken(); // then
+
+          while (token.type === _tokenizer.tokens.openParen) {
+            eatToken(); // Instruction
+
+            if (lookaheadAndCheck(_tokenizer.tokens.name) === true || lookaheadAndCheck(_tokenizer.tokens.valtype) === true || token.type === "keyword" // is any keyword
+            ) {
+                consequent.push(parseFuncInstr());
+              } else {
+              throw function () {
+                return new Error("\n" + (0, _helperCodeFrame.codeFrameFromSource)(source, token.loc) + "\n" + "Unexpected token in consequent body of type" + ", given " + tokenToString(token));
+              }();
+            }
+
+            eatTokenOfType(_tokenizer.tokens.closeParen);
+          }
+
+          eatTokenOfType(_tokenizer.tokens.closeParen);
+          continue;
+        }
+        /**
+         * Alternate
+         */
+
+
+        if (isKeyword(token, _tokenizer.keywords.else)) {
+          eatToken(); // else
+
+          while (token.type === _tokenizer.tokens.openParen) {
+            eatToken(); // Instruction
+
+            if (lookaheadAndCheck(_tokenizer.tokens.name) === true || lookaheadAndCheck(_tokenizer.tokens.valtype) === true || token.type === "keyword" // is any keyword
+            ) {
+                alternate.push(parseFuncInstr());
+              } else {
+              throw function () {
+                return new Error("\n" + (0, _helperCodeFrame.codeFrameFromSource)(source, token.loc) + "\n" + "Unexpected token in alternate body of type" + ", given " + tokenToString(token));
+              }();
+            }
+
+            eatTokenOfType(_tokenizer.tokens.closeParen);
+          }
+
+          eatTokenOfType(_tokenizer.tokens.closeParen);
+          continue;
+        }
+        /**
+         * Test instruction
+         */
+
+
+        if (lookaheadAndCheck(_tokenizer.tokens.name) === true || lookaheadAndCheck(_tokenizer.tokens.valtype) === true || token.type === "keyword" // is any keyword
+        ) {
+            testInstrs.push(parseFuncInstr());
+            eatTokenOfType(_tokenizer.tokens.closeParen);
+            continue;
+          }
+
+        throw function () {
+          return new Error("\n" + (0, _helperCodeFrame.codeFrameFromSource)(source, token.loc) + "\n" + "Unexpected token in if body" + ", given " + tokenToString(token));
+        }();
+      }
+
+      return t.ifInstruction(label, testInstrs, blockResult, consequent, alternate);
+    }
+    /**
+     * Parses a loop instruction
+     *
+     * WAT:
+     *
+     * blockinstr :: 'loop' I:label rt:resulttype (in:instr*) 'end' id?
+     *
+     * WAST:
+     *
+     * instr     :: loop <name>? <block_sig> <instr>* end <name>?
+     * expr      :: ( loop <name>? <block_sig> <instr>* )
+     * block_sig :: ( result <type>* )*
+     *
+     */
+
+
+    function parseLoop() {
+      var label = t.identifier(getUniqueName("loop"));
+      var blockResult;
+      var instr = [];
+
+      if (token.type === _tokenizer.tokens.identifier) {
+        label = identifierFromToken(token);
+        eatToken();
+      } else {
+        label = t.withRaw(label, ""); // preserve anonymous
+      }
+
+      while (token.type === _tokenizer.tokens.openParen) {
+        eatToken();
+
+        if (lookaheadAndCheck(_tokenizer.keywords.result) === true) {
+          eatToken();
+          blockResult = token.value;
+          eatToken();
+        } else if (lookaheadAndCheck(_tokenizer.tokens.name) === true || lookaheadAndCheck(_tokenizer.tokens.valtype) === true || token.type === "keyword" // is any keyword
+        ) {
+            // Instruction
+            instr.push(parseFuncInstr());
+          } else {
+          throw function () {
+            return new Error("\n" + (0, _helperCodeFrame.codeFrameFromSource)(source, token.loc) + "\n" + "Unexpected token in loop body" + ", given " + tokenToString(token));
+          }();
+        }
+
+        eatTokenOfType(_tokenizer.tokens.closeParen);
+      }
+
+      return t.loopInstruction(label, blockResult, instr);
+    }
+
+    function parseCallIndirect() {
+      var typeRef;
+      var params = [];
+      var results = [];
+      var instrs = [];
+
+      while (token.type !== _tokenizer.tokens.closeParen) {
+        if (lookaheadAndCheck(_tokenizer.tokens.openParen, _tokenizer.keywords.type)) {
+          eatToken(); // (
+
+          eatToken(); // type
+
+          typeRef = parseTypeReference();
+        } else if (lookaheadAndCheck(_tokenizer.tokens.openParen, _tokenizer.keywords.param)) {
+          eatToken(); // (
+
+          eatToken(); // param
+
+          /**
+           * Params can be empty:
+           * (params)`
+           */
+
+          if (token.type !== _tokenizer.tokens.closeParen) {
+            params.push.apply(params, _toConsumableArray(parseFuncParam()));
+          }
+        } else if (lookaheadAndCheck(_tokenizer.tokens.openParen, _tokenizer.keywords.result)) {
+          eatToken(); // (
+
+          eatToken(); // result
+
+          /**
+           * Results can be empty:
+           * (result)`
+           */
+
+          if (token.type !== _tokenizer.tokens.closeParen) {
+            results.push.apply(results, _toConsumableArray(parseFuncResult()));
+          }
+        } else {
+          eatTokenOfType(_tokenizer.tokens.openParen);
+          instrs.push(parseFuncInstr());
+        }
+
+        eatTokenOfType(_tokenizer.tokens.closeParen);
+      }
+
+      return t.callIndirectInstruction(typeRef !== undefined ? typeRef : t.signature(params, results), instrs);
+    }
+    /**
+     * Parses an export instruction
+     *
+     * WAT:
+     *
+     * export:  ( export <string> <exkind> )
+     * exkind:  ( func <var> )
+     *          ( global <var> )
+     *          ( table <var> )
+     *          ( memory <var> )
+     * var:    <nat> | <name>
+     *
+     */
+
+
+    function parseExport() {
+      if (token.type !== _tokenizer.tokens.string) {
+        throw new Error("Expected string after export, got: " + token.type);
+      }
+
+      var name = token.value;
+      eatToken();
+      var moduleExportDescr = parseModuleExportDescr();
+      return t.moduleExport(name, moduleExportDescr);
+    }
+
+    function parseModuleExportDescr() {
+      var startLoc = getStartLoc();
+      var type = "";
+      var index;
+      eatTokenOfType(_tokenizer.tokens.openParen);
+
+      while (token.type !== _tokenizer.tokens.closeParen) {
+        if (isKeyword(token, _tokenizer.keywords.func)) {
+          type = "Func";
+          eatToken();
+          index = parseExportIndex(token);
+        } else if (isKeyword(token, _tokenizer.keywords.table)) {
+          type = "Table";
+          eatToken();
+          index = parseExportIndex(token);
+        } else if (isKeyword(token, _tokenizer.keywords.global)) {
+          type = "Global";
+          eatToken();
+          index = parseExportIndex(token);
+        } else if (isKeyword(token, _tokenizer.keywords.memory)) {
+          type = "Memory";
+          eatToken();
+          index = parseExportIndex(token);
+        }
+
+        eatToken();
+      }
+
+      if (type === "") {
+        throw new Error("Unknown export type");
+      }
+
+      if (index === undefined) {
+        throw new Error("Exported function must have a name");
+      }
+
+      var node = t.moduleExportDescr(type, index);
+      var endLoc = getEndLoc();
+      eatTokenOfType(_tokenizer.tokens.closeParen);
+      return t.withLoc(node, endLoc, startLoc);
+    }
+
+    function parseModule() {
+      var name = null;
+      var isBinary = false;
+      var isQuote = false;
+      var moduleFields = [];
+
+      if (token.type === _tokenizer.tokens.identifier) {
+        name = token.value;
+        eatToken();
+      }
+
+      if (hasPlugin("wast") && token.type === _tokenizer.tokens.name && token.value === "binary") {
+        eatToken();
+        isBinary = true;
+      }
+
+      if (hasPlugin("wast") && token.type === _tokenizer.tokens.name && token.value === "quote") {
+        eatToken();
+        isQuote = true;
+      }
+
+      if (isBinary === true) {
+        var blob = [];
+
+        while (token.type === _tokenizer.tokens.string) {
+          blob.push(token.value);
+          eatToken();
+          maybeIgnoreComment();
+        }
+
+        eatTokenOfType(_tokenizer.tokens.closeParen);
+        return t.binaryModule(name, blob);
+      }
+
+      if (isQuote === true) {
+        var string = [];
+
+        while (token.type === _tokenizer.tokens.string) {
+          string.push(token.value);
+          eatToken();
+        }
+
+        eatTokenOfType(_tokenizer.tokens.closeParen);
+        return t.quoteModule(name, string);
+      }
+
+      while (token.type !== _tokenizer.tokens.closeParen) {
+        moduleFields.push(walk());
+
+        if (state.registredExportedElements.length > 0) {
+          state.registredExportedElements.forEach(function (decl) {
+            moduleFields.push(t.moduleExport(decl.name, t.moduleExportDescr(decl.exportType, decl.id)));
+          });
+          state.registredExportedElements = [];
+        }
+
+        token = tokensList[current];
+      }
+
+      eatTokenOfType(_tokenizer.tokens.closeParen);
+      return t.module(name, moduleFields);
+    }
+    /**
+     * Parses the arguments of an instruction
+     */
+
+
+    function parseFuncInstrArguments(signature) {
+      var args = [];
+      var namedArgs = {};
+      var signaturePtr = 0;
+
+      while (token.type === _tokenizer.tokens.name || isKeyword(token, _tokenizer.keywords.offset)) {
+        var key = token.value;
+        eatToken();
+        eatTokenOfType(_tokenizer.tokens.equal);
+        var value = void 0;
+
+        if (token.type === _tokenizer.tokens.number) {
+          value = t.numberLiteralFromRaw(token.value);
+        } else {
+          throw new Error("Unexpected type for argument: " + token.type);
+        }
+
+        namedArgs[key] = value;
+        eatToken();
+      } // $FlowIgnore
+
+
+      var signatureLength = signature.vector ? Infinity : signature.length;
+
+      while (token.type !== _tokenizer.tokens.closeParen && ( // $FlowIgnore
+      token.type === _tokenizer.tokens.openParen || signaturePtr < signatureLength)) {
+        if (token.type === _tokenizer.tokens.identifier) {
+          args.push(t.identifier(token.value));
+          eatToken();
+        } else if (token.type === _tokenizer.tokens.valtype) {
+          // Handle locals
+          args.push(t.valtypeLiteral(token.value));
+          eatToken();
+        } else if (token.type === _tokenizer.tokens.string) {
+          args.push(t.stringLiteral(token.value));
+          eatToken();
+        } else if (token.type === _tokenizer.tokens.number) {
+          args.push( // TODO(sven): refactor the type signature handling
+          // https://github.com/xtuc/webassemblyjs/pull/129 is a good start
+          t.numberLiteralFromRaw(token.value, // $FlowIgnore
+          signature[signaturePtr] || "f64")); // $FlowIgnore
+
+          if (!signature.vector) {
+            ++signaturePtr;
+          }
+
+          eatToken();
+        } else if (token.type === _tokenizer.tokens.openParen) {
+          /**
+           * Maybe some nested instructions
+           */
+          eatToken(); // Instruction
+
+          if (lookaheadAndCheck(_tokenizer.tokens.name) === true || lookaheadAndCheck(_tokenizer.tokens.valtype) === true || token.type === "keyword" // is any keyword
+          ) {
+              // $FlowIgnore
+              args.push(parseFuncInstr());
+            } else {
+            throw function () {
+              return new Error("\n" + (0, _helperCodeFrame.codeFrameFromSource)(source, token.loc) + "\n" + "Unexpected token in nested instruction" + ", given " + tokenToString(token));
+            }();
+          }
+
+          if (token.type === _tokenizer.tokens.closeParen) {
+            eatToken();
+          }
+        } else {
+          throw function () {
+            return new Error("\n" + (0, _helperCodeFrame.codeFrameFromSource)(source, token.loc) + "\n" + "Unexpected token in instruction argument" + ", given " + tokenToString(token));
+          }();
+        }
+      }
+
+      return {
+        args: args,
+        namedArgs: namedArgs
+      };
+    }
+    /**
+     * Parses an instruction
+     *
+     * WAT:
+     *
+     * instr      :: plaininst
+     *               blockinstr
+     *
+     * blockinstr :: 'block' I:label rt:resulttype (in:instr*) 'end' id?
+     *               'loop' I:label rt:resulttype (in:instr*) 'end' id?
+     *               'if' I:label rt:resulttype (in:instr*) 'else' id? (in2:intr*) 'end' id?
+     *
+     * plaininst  :: 'unreachable'
+     *               'nop'
+     *               'br' l:labelidx
+     *               'br_if' l:labelidx
+     *               'br_table' l*:vec(labelidx) ln:labelidx
+     *               'return'
+     *               'call' x:funcidx
+     *               'call_indirect' x, I:typeuse
+     *
+     * WAST:
+     *
+     * instr:
+     *   <expr>
+     *   <op>
+     *   block <name>? <block_sig> <instr>* end <name>?
+     *   loop <name>? <block_sig> <instr>* end <name>?
+     *   if <name>? <block_sig> <instr>* end <name>?
+     *   if <name>? <block_sig> <instr>* else <name>? <instr>* end <name>?
+     *
+     * expr:
+     *   ( <op> )
+     *   ( <op> <expr>+ )
+     *   ( block <name>? <block_sig> <instr>* )
+     *   ( loop <name>? <block_sig> <instr>* )
+     *   ( if <name>? <block_sig> ( then <instr>* ) ( else <instr>* )? )
+     *   ( if <name>? <block_sig> <expr>+ ( then <instr>* ) ( else <instr>* )? )
+     *
+     * op:
+     *   unreachable
+     *   nop
+     *   br <var>
+     *   br_if <var>
+     *   br_table <var>+
+     *   return
+     *   call <var>
+     *   call_indirect <func_sig>
+     *   drop
+     *   select
+     *   get_local <var>
+     *   set_local <var>
+     *   tee_local <var>
+     *   get_global <var>
+     *   set_global <var>
+     *   <type>.load((8|16|32)_<sign>)? <offset>? <align>?
+     *   <type>.store(8|16|32)? <offset>? <align>?
+     *   current_memory
+     *   grow_memory
+     *   <type>.const <value>
+     *   <type>.<unop>
+     *   <type>.<binop>
+     *   <type>.<testop>
+     *   <type>.<relop>
+     *   <type>.<cvtop>/<type>
+     *
+     * func_type:   ( type <var> )? <param>* <result>*
+     */
+
+
+    function parseFuncInstr() {
+      var startLoc = getStartLoc();
+      maybeIgnoreComment();
+      /**
+       * A simple instruction
+       */
+
+      if (token.type === _tokenizer.tokens.name || token.type === _tokenizer.tokens.valtype) {
+        var _name2 = token.value;
+        var object;
+        eatToken();
+
+        if (token.type === _tokenizer.tokens.dot) {
+          object = _name2;
+          eatToken();
+
+          if (token.type !== _tokenizer.tokens.name) {
+            throw new TypeError("Unknown token: " + token.type + ", name expected");
+          }
+
+          _name2 = token.value;
+          eatToken();
+        }
+
+        if (token.type === _tokenizer.tokens.closeParen) {
+          var _endLoc = token.loc.end;
+
+          if (typeof object === "undefined") {
+            return t.withLoc(t.instruction(_name2), _endLoc, startLoc);
+          } else {
+            return t.withLoc(t.objectInstruction(_name2, object, []), _endLoc, startLoc);
+          }
+        }
+
+        var signature = t.signatureForOpcode(object || "", _name2);
+
+        var _parseFuncInstrArgume = parseFuncInstrArguments(signature),
+            _args = _parseFuncInstrArgume.args,
+            _namedArgs = _parseFuncInstrArgume.namedArgs;
+
+        var endLoc = token.loc.end;
+
+        if (typeof object === "undefined") {
+          return t.withLoc(t.instruction(_name2, _args, _namedArgs), endLoc, startLoc);
+        } else {
+          return t.withLoc(t.objectInstruction(_name2, object, _args, _namedArgs), endLoc, startLoc);
+        }
+      } else if (isKeyword(token, _tokenizer.keywords.loop)) {
+        /**
+         * Else a instruction with a keyword (loop or block)
+         */
+        eatToken(); // keyword
+
+        return parseLoop();
+      } else if (isKeyword(token, _tokenizer.keywords.block)) {
+        eatToken(); // keyword
+
+        return parseBlock();
+      } else if (isKeyword(token, _tokenizer.keywords.call_indirect)) {
+        eatToken(); // keyword
+
+        return parseCallIndirect();
+      } else if (isKeyword(token, _tokenizer.keywords.call)) {
+        eatToken(); // keyword
+
+        var index;
+
+        if (token.type === _tokenizer.tokens.identifier) {
+          index = identifierFromToken(token);
+          eatToken();
+        } else if (token.type === _tokenizer.tokens.number) {
+          index = t.indexLiteral(token.value);
+          eatToken();
+        }
+
+        var instrArgs = []; // Nested instruction
+
+        while (token.type === _tokenizer.tokens.openParen) {
+          eatToken();
+          instrArgs.push(parseFuncInstr());
+          eatTokenOfType(_tokenizer.tokens.closeParen);
+        }
+
+        if (typeof index === "undefined") {
+          throw new Error("Missing argument in call instruciton");
+        }
+
+        if (instrArgs.length > 0) {
+          return t.callInstruction(index, instrArgs);
+        } else {
+          return t.callInstruction(index);
+        }
+      } else if (isKeyword(token, _tokenizer.keywords.if)) {
+        eatToken(); // Keyword
+
+        return parseIf();
+      } else if (isKeyword(token, _tokenizer.keywords.module) && hasPlugin("wast")) {
+        eatToken(); // In WAST you can have a module as an instruction's argument
+        // we will cast it into a instruction to not break the flow
+        // $FlowIgnore
+
+        var module = parseModule();
+        return module;
+      } else {
+        throw function () {
+          return new Error("\n" + (0, _helperCodeFrame.codeFrameFromSource)(source, token.loc) + "\n" + "Unexpected instruction in function body" + ", given " + tokenToString(token));
+        }();
+      }
+    }
+    /*
+     * Parses a function
+     *
+     * WAT:
+     *
+     * functype :: ( 'func' t1:vec(param) t2:vec(result) )
+     * param    :: ( 'param' id? t:valtype )
+     * result   :: ( 'result' t:valtype )
+     *
+     * WAST:
+     *
+     * func     :: ( func <name>? <func_sig> <local>* <instr>* )
+     *             ( func <name>? ( export <string> ) <...> )
+     *             ( func <name>? ( import <string> <string> ) <func_sig> )
+     * func_sig :: ( type <var> )? <param>* <result>*
+     * param    :: ( param <type>* ) | ( param <name> <type> )
+     * result   :: ( result <type>* )
+     * local    :: ( local <type>* ) | ( local <name> <type> )
+     *
+     */
+
+
+    function parseFunc() {
+      var fnName = t.identifier(getUniqueName("func"));
+      var typeRef;
+      var fnBody = [];
+      var fnParams = [];
+      var fnResult = []; // name
+
+      if (token.type === _tokenizer.tokens.identifier) {
+        fnName = identifierFromToken(token);
+        eatToken();
+      } else {
+        fnName = t.withRaw(fnName, ""); // preserve anonymous
+      }
+
+      maybeIgnoreComment();
+
+      while (token.type === _tokenizer.tokens.openParen || token.type === _tokenizer.tokens.name || token.type === _tokenizer.tokens.valtype) {
+        // Instructions without parens
+        if (token.type === _tokenizer.tokens.name || token.type === _tokenizer.tokens.valtype) {
+          fnBody.push(parseFuncInstr());
+          continue;
+        }
+
+        eatToken();
+
+        if (lookaheadAndCheck(_tokenizer.keywords.param) === true) {
+          eatToken();
+          fnParams.push.apply(fnParams, _toConsumableArray(parseFuncParam()));
+        } else if (lookaheadAndCheck(_tokenizer.keywords.result) === true) {
+          eatToken();
+          fnResult.push.apply(fnResult, _toConsumableArray(parseFuncResult()));
+        } else if (lookaheadAndCheck(_tokenizer.keywords.export) === true) {
+          eatToken();
+          parseFuncExport(fnName);
+        } else if (lookaheadAndCheck(_tokenizer.keywords.type) === true) {
+          eatToken();
+          typeRef = parseTypeReference();
+        } else if (lookaheadAndCheck(_tokenizer.tokens.name) === true || lookaheadAndCheck(_tokenizer.tokens.valtype) === true || token.type === "keyword" // is any keyword
+        ) {
+            // Instruction
+            fnBody.push(parseFuncInstr());
+          } else {
+          throw function () {
+            return new Error("\n" + (0, _helperCodeFrame.codeFrameFromSource)(source, token.loc) + "\n" + "Unexpected token in func body" + ", given " + tokenToString(token));
+          }();
+        }
+
+        eatTokenOfType(_tokenizer.tokens.closeParen);
+      }
+
+      return t.func(fnName, typeRef !== undefined ? typeRef : t.signature(fnParams, fnResult), fnBody);
+    }
+    /**
+     * Parses shorthand export in func
+     *
+     * export :: ( export <string> )
+     */
+
+
+    function parseFuncExport(funcId) {
+      if (token.type !== _tokenizer.tokens.string) {
+        throw function () {
+          return new Error("\n" + (0, _helperCodeFrame.codeFrameFromSource)(source, token.loc) + "\n" + "Function export expected a string" + ", given " + tokenToString(token));
+        }();
+      }
+
+      var name = token.value;
+      eatToken();
+      /**
+       * Func export shorthand, we trait it as a syntaxic sugar.
+       * A export ModuleField will be added later.
+       *
+       * We give the anonymous function a generated name and export it.
+       */
+
+      var id = t.identifier(funcId.value);
+      state.registredExportedElements.push({
+        exportType: "Func",
+        name: name,
+        id: id
+      });
+    }
+    /**
+     * Parses a type instruction
+     *
+     * WAST:
+     *
+     * typedef: ( type <name>? ( func <param>* <result>* ) )
+     */
+
+
+    function parseType() {
+      var id;
+      var params = [];
+      var result = [];
+
+      if (token.type === _tokenizer.tokens.identifier) {
+        id = identifierFromToken(token);
+        eatToken();
+      }
+
+      if (lookaheadAndCheck(_tokenizer.tokens.openParen, _tokenizer.keywords.func)) {
+        eatToken(); // (
+
+        eatToken(); // func
+
+        if (token.type === _tokenizer.tokens.closeParen) {
+          eatToken(); // function with an empty signature, we can abort here
+
+          return t.typeInstruction(id, t.signature([], []));
+        }
+
+        if (lookaheadAndCheck(_tokenizer.tokens.openParen, _tokenizer.keywords.param)) {
+          eatToken(); // (
+
+          eatToken(); // param
+
+          params = parseFuncParam();
+          eatTokenOfType(_tokenizer.tokens.closeParen);
+        }
+
+        if (lookaheadAndCheck(_tokenizer.tokens.openParen, _tokenizer.keywords.result)) {
+          eatToken(); // (
+
+          eatToken(); // result
+
+          result = parseFuncResult();
+          eatTokenOfType(_tokenizer.tokens.closeParen);
+        }
+
+        eatTokenOfType(_tokenizer.tokens.closeParen);
+      }
+
+      return t.typeInstruction(id, t.signature(params, result));
+    }
+    /**
+     * Parses a function result
+     *
+     * WAST:
+     *
+     * result :: ( result <type>* )
+     */
+
+
+    function parseFuncResult() {
+      var results = [];
+
+      while (token.type !== _tokenizer.tokens.closeParen) {
+        if (token.type !== _tokenizer.tokens.valtype) {
+          throw function () {
+            return new Error("\n" + (0, _helperCodeFrame.codeFrameFromSource)(source, token.loc) + "\n" + "Unexpected token in func result" + ", given " + tokenToString(token));
+          }();
+        }
+
+        var valtype = token.value;
+        eatToken();
+        results.push(valtype);
+      }
+
+      return results;
+    }
+    /**
+     * Parses a type reference
+     *
+     */
+
+
+    function parseTypeReference() {
+      var ref;
+
+      if (token.type === _tokenizer.tokens.identifier) {
+        ref = identifierFromToken(token);
+        eatToken();
+      } else if (token.type === _tokenizer.tokens.number) {
+        ref = t.numberLiteralFromRaw(token.value);
+        eatToken();
+      }
+
+      return ref;
+    }
+    /**
+     * Parses a global instruction
+     *
+     * WAST:
+     *
+     * global:  ( global <name>? <global_sig> <instr>* )
+     *          ( global <name>? ( export <string> ) <...> )
+     *          ( global <name>? ( import <string> <string> ) <global_sig> )
+     *
+     * global_sig: <type> | ( mut <type> )
+     *
+     */
+
+
+    function parseGlobal() {
+      var name = t.identifier(getUniqueName("global"));
+      var type; // Keep informations in case of a shorthand import
+
+      var importing = null;
+      maybeIgnoreComment();
+
+      if (token.type === _tokenizer.tokens.identifier) {
+        name = identifierFromToken(token);
+        eatToken();
+      } else {
+        name = t.withRaw(name, ""); // preserve anonymous
+      }
+      /**
+       * maybe export
+       */
+
+
+      if (lookaheadAndCheck(_tokenizer.tokens.openParen, _tokenizer.keywords.export)) {
+        eatToken(); // (
+
+        eatToken(); // export
+
+        var exportName = token.value;
+        eatTokenOfType(_tokenizer.tokens.string);
+        state.registredExportedElements.push({
+          exportType: "Global",
+          name: exportName,
+          id: name
+        });
+        eatTokenOfType(_tokenizer.tokens.closeParen);
+      }
+      /**
+       * maybe import
+       */
+
+
+      if (lookaheadAndCheck(_tokenizer.tokens.openParen, _tokenizer.keywords.import)) {
+        eatToken(); // (
+
+        eatToken(); // import
+
+        var moduleName = token.value;
+        eatTokenOfType(_tokenizer.tokens.string);
+        var _name3 = token.value;
+        eatTokenOfType(_tokenizer.tokens.string);
+        importing = {
+          module: moduleName,
+          name: _name3,
+          descr: undefined
+        };
+        eatTokenOfType(_tokenizer.tokens.closeParen);
+      }
+      /**
+       * global_sig
+       */
+
+
+      if (token.type === _tokenizer.tokens.valtype) {
+        type = t.globalType(token.value, "const");
+        eatToken();
+      } else if (token.type === _tokenizer.tokens.openParen) {
+        eatToken(); // (
+
+        if (isKeyword(token, _tokenizer.keywords.mut) === false) {
+          throw function () {
+            return new Error("\n" + (0, _helperCodeFrame.codeFrameFromSource)(source, token.loc) + "\n" + "Unsupported global type, expected mut" + ", given " + tokenToString(token));
+          }();
+        }
+
+        eatToken(); // mut
+
+        type = t.globalType(token.value, "var");
+        eatToken();
+        eatTokenOfType(_tokenizer.tokens.closeParen);
+      }
+
+      if (type === undefined) {
+        throw function () {
+          return new Error("\n" + (0, _helperCodeFrame.codeFrameFromSource)(source, token.loc) + "\n" + "Could not determine global type" + ", given " + tokenToString(token));
+        }();
+      }
+
+      maybeIgnoreComment();
+      var init = [];
+
+      if (importing != null) {
+        importing.descr = type;
+        init.push(t.moduleImport(importing.module, importing.name, importing.descr));
+      }
+      /**
+       * instr*
+       */
+
+
+      while (token.type === _tokenizer.tokens.openParen) {
+        eatToken();
+        init.push(parseFuncInstr());
+        eatTokenOfType(_tokenizer.tokens.closeParen);
+      }
+
+      return t.global(type, init, name);
+    }
+    /**
+     * Parses a function param
+     *
+     * WAST:
+     *
+     * param    :: ( param <type>* ) | ( param <name> <type> )
+     */
+
+
+    function parseFuncParam() {
+      var params = [];
+      var id;
+      var valtype;
+
+      if (token.type === _tokenizer.tokens.identifier) {
+        id = token.value;
+        eatToken();
+      }
+
+      if (token.type === _tokenizer.tokens.valtype) {
+        valtype = token.value;
+        eatToken();
+        params.push({
+          id: id,
+          valtype: valtype
+        });
+        /**
+         * Shorthand notation for multiple anonymous parameters
+         * @see https://webassembly.github.io/spec/core/text/types.html#function-types
+         * @see https://github.com/xtuc/webassemblyjs/issues/6
+         */
+
+        if (id === undefined) {
+          while (token.type === _tokenizer.tokens.valtype) {
+            valtype = token.value;
+            eatToken();
+            params.push({
+              id: undefined,
+              valtype: valtype
+            });
+          }
+        }
+      } else {// ignore
+      }
+
+      return params;
+    }
+    /**
+     * Parses an element segments instruction
+     *
+     * WAST:
+     *
+     * elem:    ( elem <var>? (offset <instr>* ) <var>* )
+     *          ( elem <var>? <expr> <var>* )
+     *
+     * var:    <nat> | <name>
+     */
+
+
+    function parseElem() {
+      var tableIndex = t.indexLiteral(0);
+      var offset = [];
+      var funcs = [];
+
+      if (token.type === _tokenizer.tokens.identifier) {
+        tableIndex = identifierFromToken(token);
+        eatToken();
+      }
+
+      if (token.type === _tokenizer.tokens.number) {
+        tableIndex = t.indexLiteral(token.value);
+        eatToken();
+      }
+
+      while (token.type !== _tokenizer.tokens.closeParen) {
+        if (lookaheadAndCheck(_tokenizer.tokens.openParen, _tokenizer.keywords.offset)) {
+          eatToken(); // (
+
+          eatToken(); // offset
+
+          while (token.type !== _tokenizer.tokens.closeParen) {
+            eatTokenOfType(_tokenizer.tokens.openParen);
+            offset.push(parseFuncInstr());
+            eatTokenOfType(_tokenizer.tokens.closeParen);
+          }
+
+          eatTokenOfType(_tokenizer.tokens.closeParen);
+        } else if (token.type === _tokenizer.tokens.identifier) {
+          funcs.push(t.identifier(token.value));
+          eatToken();
+        } else if (token.type === _tokenizer.tokens.number) {
+          funcs.push(t.indexLiteral(token.value));
+          eatToken();
+        } else if (token.type === _tokenizer.tokens.openParen) {
+          eatToken(); // (
+
+          offset.push(parseFuncInstr());
+          eatTokenOfType(_tokenizer.tokens.closeParen);
+        } else {
+          throw function () {
+            return new Error("\n" + (0, _helperCodeFrame.codeFrameFromSource)(source, token.loc) + "\n" + "Unsupported token in elem" + ", given " + tokenToString(token));
+          }();
+        }
+      }
+
+      return t.elem(tableIndex, offset, funcs);
+    }
+    /**
+     * Parses the start instruction in a module
+     *
+     * WAST:
+     *
+     * start:   ( start <var> )
+     * var:    <nat> | <name>
+     *
+     * WAT:
+     * start ::= ‘(’ ‘start’  x:funcidx ‘)’
+     */
+
+
+    function parseStart() {
+      if (token.type === _tokenizer.tokens.identifier) {
+        var index = identifierFromToken(token);
+        eatToken();
+        return t.start(index);
+      }
+
+      if (token.type === _tokenizer.tokens.number) {
+        var _index2 = t.indexLiteral(token.value);
+
+        eatToken();
+        return t.start(_index2);
+      }
+
+      throw new Error("Unknown start, token: " + tokenToString(token));
+    }
+
+    if (token.type === _tokenizer.tokens.openParen) {
+      eatToken();
+      var startLoc = getStartLoc();
+
+      if (isKeyword(token, _tokenizer.keywords.export)) {
+        eatToken();
+        var node = parseExport();
+
+        var _endLoc2 = getEndLoc();
+
+        return t.withLoc(node, _endLoc2, startLoc);
+      }
+
+      if (isKeyword(token, _tokenizer.keywords.loop)) {
+        eatToken();
+
+        var _node = parseLoop();
+
+        var _endLoc3 = getEndLoc();
+
+        return t.withLoc(_node, _endLoc3, startLoc);
+      }
+
+      if (isKeyword(token, _tokenizer.keywords.func)) {
+        eatToken();
+
+        var _node2 = parseFunc();
+
+        var _endLoc4 = getEndLoc();
+
+        maybeIgnoreComment();
+        eatTokenOfType(_tokenizer.tokens.closeParen);
+        return t.withLoc(_node2, _endLoc4, startLoc);
+      }
+
+      if (isKeyword(token, _tokenizer.keywords.module)) {
+        eatToken();
+
+        var _node3 = parseModule();
+
+        var _endLoc5 = getEndLoc();
+
+        return t.withLoc(_node3, _endLoc5, startLoc);
+      }
+
+      if (isKeyword(token, _tokenizer.keywords.import)) {
+        eatToken();
+
+        var _node4 = parseImport();
+
+        var _endLoc6 = getEndLoc();
+
+        eatTokenOfType(_tokenizer.tokens.closeParen);
+        return t.withLoc(_node4, _endLoc6, startLoc);
+      }
+
+      if (isKeyword(token, _tokenizer.keywords.block)) {
+        eatToken();
+
+        var _node5 = parseBlock();
+
+        var _endLoc7 = getEndLoc();
+
+        eatTokenOfType(_tokenizer.tokens.closeParen);
+        return t.withLoc(_node5, _endLoc7, startLoc);
+      }
+
+      if (isKeyword(token, _tokenizer.keywords.memory)) {
+        eatToken();
+
+        var _node6 = parseMemory();
+
+        var _endLoc8 = getEndLoc();
+
+        eatTokenOfType(_tokenizer.tokens.closeParen);
+        return t.withLoc(_node6, _endLoc8, startLoc);
+      }
+
+      if (isKeyword(token, _tokenizer.keywords.data)) {
+        eatToken();
+
+        var _node7 = parseData();
+
+        var _endLoc9 = getEndLoc();
+
+        eatTokenOfType(_tokenizer.tokens.closeParen);
+        return t.withLoc(_node7, _endLoc9, startLoc);
+      }
+
+      if (isKeyword(token, _tokenizer.keywords.table)) {
+        eatToken();
+
+        var _node8 = parseTable();
+
+        var _endLoc10 = getEndLoc();
+
+        eatTokenOfType(_tokenizer.tokens.closeParen);
+        return t.withLoc(_node8, _endLoc10, startLoc);
+      }
+
+      if (isKeyword(token, _tokenizer.keywords.global)) {
+        eatToken();
+
+        var _node9 = parseGlobal();
+
+        var _endLoc11 = getEndLoc();
+
+        eatTokenOfType(_tokenizer.tokens.closeParen);
+        return t.withLoc(_node9, _endLoc11, startLoc);
+      }
+
+      if (isKeyword(token, _tokenizer.keywords.type)) {
+        eatToken();
+
+        var _node10 = parseType();
+
+        var _endLoc12 = getEndLoc();
+
+        eatTokenOfType(_tokenizer.tokens.closeParen);
+        return t.withLoc(_node10, _endLoc12, startLoc);
+      }
+
+      if (isKeyword(token, _tokenizer.keywords.start)) {
+        eatToken();
+
+        var _node11 = parseStart();
+
+        var _endLoc13 = getEndLoc();
+
+        eatTokenOfType(_tokenizer.tokens.closeParen);
+        return t.withLoc(_node11, _endLoc13, startLoc);
+      }
+
+      if (isKeyword(token, _tokenizer.keywords.elem)) {
+        eatToken();
+
+        var _node12 = parseElem();
+
+        var _endLoc14 = getEndLoc();
+
+        eatTokenOfType(_tokenizer.tokens.closeParen);
+        return t.withLoc(_node12, _endLoc14, startLoc);
+      }
+
+      var instruction = parseFuncInstr();
+      var endLoc = getEndLoc();
+      maybeIgnoreComment();
+
+      if (_typeof(instruction) === "object") {
+        if (typeof token !== "undefined") {
+          eatTokenOfType(_tokenizer.tokens.closeParen);
+        }
+
+        return t.withLoc(instruction, endLoc, startLoc);
+      }
+    }
+
+    if (token.type === _tokenizer.tokens.comment) {
+      var _startLoc = getStartLoc();
+
+      var builder = token.opts.type === "leading" ? t.leadingComment : t.blockComment;
+
+      var _node13 = builder(token.value);
+
+      eatToken(); // comment
+
+      var _endLoc15 = getEndLoc();
+
+      return t.withLoc(_node13, _endLoc15, _startLoc);
+    }
+
+    throw function () {
+      return new Error("\n" + (0, _helperCodeFrame.codeFrameFromSource)(source, token.loc) + "\n" + "Unknown token" + ", given " + tokenToString(token));
+    }();
+  }
+
+  var body = [];
+
+  while (current < tokensList.length) {
+    body.push(walk());
+  }
+
+  return t.program(body);
+}
+
+/***/ }),
+
+/***/ 63379:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+var _exportNames = {
+  parse: true
+};
+exports.parse = parse;
+
+var parser = _interopRequireWildcard(__webpack_require__(63184));
+
+var _tokenizer = __webpack_require__(28960);
+
+var _numberLiterals = __webpack_require__(38594);
+
+Object.keys(_numberLiterals).forEach(function (key) {
+  if (key === "default" || key === "__esModule") return;
+  if (Object.prototype.hasOwnProperty.call(_exportNames, key)) return;
+  Object.defineProperty(exports, key, {
+    enumerable: true,
+    get: function get() {
+      return _numberLiterals[key];
+    }
+  });
+});
+
+function _interopRequireWildcard(obj) { if (obj && obj.__esModule) { return obj; } else { var newObj = {}; if (obj != null) { for (var key in obj) { if (Object.prototype.hasOwnProperty.call(obj, key)) { var desc = Object.defineProperty && Object.getOwnPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : {}; if (desc.get || desc.set) { Object.defineProperty(newObj, key, desc); } else { newObj[key] = obj[key]; } } } } newObj.default = obj; return newObj; } }
+
+function parse(source) {
+  var tokens = (0, _tokenizer.tokenize)(source); // We pass the source here to show code frames
+
+  var ast = parser.parse(tokens, source);
+  return ast;
+}
+
+/***/ }),
+
+/***/ 38594:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports.parse32F = parse32F;
+exports.parse64F = parse64F;
+exports.parse32I = parse32I;
+exports.parseU32 = parseU32;
+exports.parse64I = parse64I;
+exports.isInfLiteral = isInfLiteral;
+exports.isNanLiteral = isNanLiteral;
+
+var _long = _interopRequireDefault(__webpack_require__(77960));
+
+var _floatingPointHexParser = _interopRequireDefault(__webpack_require__(83226));
+
+var _helperApiError = __webpack_require__(39466);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function parse32F(sourceString) {
+  if (isHexLiteral(sourceString)) {
+    return (0, _floatingPointHexParser.default)(sourceString);
+  }
+
+  if (isInfLiteral(sourceString)) {
+    return sourceString[0] === "-" ? -1 : 1;
+  }
+
+  if (isNanLiteral(sourceString)) {
+    return (sourceString[0] === "-" ? -1 : 1) * (sourceString.includes(":") ? parseInt(sourceString.substring(sourceString.indexOf(":") + 1), 16) : 0x400000);
+  }
+
+  return parseFloat(sourceString);
+}
+
+function parse64F(sourceString) {
+  if (isHexLiteral(sourceString)) {
+    return (0, _floatingPointHexParser.default)(sourceString);
+  }
+
+  if (isInfLiteral(sourceString)) {
+    return sourceString[0] === "-" ? -1 : 1;
+  }
+
+  if (isNanLiteral(sourceString)) {
+    return (sourceString[0] === "-" ? -1 : 1) * (sourceString.includes(":") ? parseInt(sourceString.substring(sourceString.indexOf(":") + 1), 16) : 0x8000000000000);
+  }
+
+  if (isHexLiteral(sourceString)) {
+    return (0, _floatingPointHexParser.default)(sourceString);
+  }
+
+  return parseFloat(sourceString);
+}
+
+function parse32I(sourceString) {
+  var value = 0;
+
+  if (isHexLiteral(sourceString)) {
+    value = ~~parseInt(sourceString, 16);
+  } else if (isDecimalExponentLiteral(sourceString)) {
+    throw new Error("This number literal format is yet to be implemented.");
+  } else {
+    value = parseInt(sourceString, 10);
+  }
+
+  return value;
+}
+
+function parseU32(sourceString) {
+  var value = parse32I(sourceString);
+
+  if (value < 0) {
+    throw new _helperApiError.CompileError("Illegal value for u32: " + sourceString);
+  }
+
+  return value;
+}
+
+function parse64I(sourceString) {
+  var long;
+
+  if (isHexLiteral(sourceString)) {
+    long = _long.default.fromString(sourceString, false, 16);
+  } else if (isDecimalExponentLiteral(sourceString)) {
+    throw new Error("This number literal format is yet to be implemented.");
+  } else {
+    long = _long.default.fromString(sourceString);
+  }
+
+  return {
+    high: long.high,
+    low: long.low
+  };
+}
+
+var NAN_WORD = /^\+?-?nan/;
+var INF_WORD = /^\+?-?inf/;
+
+function isInfLiteral(sourceString) {
+  return INF_WORD.test(sourceString.toLowerCase());
+}
+
+function isNanLiteral(sourceString) {
+  return NAN_WORD.test(sourceString.toLowerCase());
+}
+
+function isDecimalExponentLiteral(sourceString) {
+  return !isHexLiteral(sourceString) && sourceString.toUpperCase().includes("E");
+}
+
+function isHexLiteral(sourceString) {
+  return sourceString.substring(0, 2).toUpperCase() === "0X" || sourceString.substring(0, 3).toUpperCase() === "-0X";
+}
+
+/***/ }),
+
+/***/ 56005:
+/***/ (function(__unused_webpack_module, exports) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports.parseString = parseString;
+// string literal characters cannot contain control codes
+var CONTROL_CODES = [0, // null
+7, // bell
+8, // backspace
+9, // horizontal
+10, // line feed
+11, // vertical tab
+12, // form feed
+13, // carriage return
+26, // Control-Z
+27, // escape
+127 // delete
+]; // escaped sequences can either be a two character hex value, or one of the
+// following single character codes
+
+function decodeControlCharacter(char) {
+  switch (char) {
+    case "t":
+      return 0x09;
+
+    case "n":
+      return 0x0a;
+
+    case "r":
+      return 0x0d;
+
+    case '"':
+      return 0x22;
+
+    case "′":
+      return 0x27;
+
+    case "\\":
+      return 0x5c;
+  }
+
+  return -1;
+}
+
+var ESCAPE_CHAR = 92; // backslash
+
+var QUOTE_CHAR = 34; // backslash
+// parse string as per the spec:
+// https://webassembly.github.io/spec/core/multipage/text/values.html#text-string
+
+function parseString(value) {
+  var byteArray = [];
+  var index = 0;
+
+  while (index < value.length) {
+    var charCode = value.charCodeAt(index);
+
+    if (CONTROL_CODES.indexOf(charCode) !== -1) {
+      throw new Error("ASCII control characters are not permitted within string literals");
+    }
+
+    if (charCode === QUOTE_CHAR) {
+      throw new Error("quotes are not permitted within string literals");
+    }
+
+    if (charCode === ESCAPE_CHAR) {
+      var firstChar = value.substr(index + 1, 1);
+      var decodedControlChar = decodeControlCharacter(firstChar);
+
+      if (decodedControlChar !== -1) {
+        // single character escaped values, e.g. \r
+        byteArray.push(decodedControlChar);
+        index += 2;
+      } else {
+        // hex escaped values, e.g. \2a
+        var hexValue = value.substr(index + 1, 2);
+
+        if (!/^[0-9A-F]{2}$/i.test(hexValue)) {
+          throw new Error("invalid character encoding");
+        }
+
+        byteArray.push(parseInt(hexValue, 16));
+        index += 3;
+      }
+    } else {
+      // ASCII encoded values
+      byteArray.push(charCode);
+      index++;
+    }
+  }
+
+  return byteArray;
+}
+
+/***/ }),
+
+/***/ 28960:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports.tokenize = tokenize;
+exports.tokens = exports.keywords = void 0;
+
+var _helperFsm = __webpack_require__(38902);
+
+var _helperCodeFrame = __webpack_require__(49890);
+
+// eslint-disable-next-line
+function getCodeFrame(source, line, column) {
+  var loc = {
+    start: {
+      line: line,
+      column: column
+    }
+  };
+  return "\n" + (0, _helperCodeFrame.codeFrameFromSource)(source, loc) + "\n";
+}
+
+var WHITESPACE = /\s/;
+var PARENS = /\(|\)/;
+var LETTERS = /[a-z0-9_/]/i;
+var idchar = /[a-z0-9!#$%&*+./:<=>?@\\[\]^_`|~-]/i;
+var valtypes = ["i32", "i64", "f32", "f64"];
+var NUMBERS = /[0-9|.|_]/;
+var NUMBER_KEYWORDS = /nan|inf/;
+
+function isNewLine(char) {
+  return char.charCodeAt(0) === 10 || char.charCodeAt(0) === 13;
+}
+
+function Token(type, value, start, end) {
+  var opts = arguments.length > 4 && arguments[4] !== undefined ? arguments[4] : {};
+  var token = {
+    type: type,
+    value: value,
+    loc: {
+      start: start,
+      end: end
+    }
+  };
+
+  if (Object.keys(opts).length > 0) {
+    // $FlowIgnore
+    token["opts"] = opts;
+  }
+
+  return token;
+}
+
+var tokenTypes = {
+  openParen: "openParen",
+  closeParen: "closeParen",
+  number: "number",
+  string: "string",
+  name: "name",
+  identifier: "identifier",
+  valtype: "valtype",
+  dot: "dot",
+  comment: "comment",
+  equal: "equal",
+  keyword: "keyword"
+};
+var keywords = {
+  module: "module",
+  func: "func",
+  param: "param",
+  result: "result",
+  export: "export",
+  loop: "loop",
+  block: "block",
+  if: "if",
+  then: "then",
+  else: "else",
+  call: "call",
+  call_indirect: "call_indirect",
+  import: "import",
+  memory: "memory",
+  table: "table",
+  global: "global",
+  anyfunc: "anyfunc",
+  mut: "mut",
+  data: "data",
+  type: "type",
+  elem: "elem",
+  start: "start",
+  offset: "offset"
+};
+exports.keywords = keywords;
+var NUMERIC_SEPARATOR = "_";
+/**
+ * Build the FSM for number literals
+ */
+
+var numberLiteralFSM = new _helperFsm.FSM({
+  START: [(0, _helperFsm.makeTransition)(/-|\+/, "AFTER_SIGN"), (0, _helperFsm.makeTransition)(/nan:0x/, "NAN_HEX", {
+    n: 6
+  }), (0, _helperFsm.makeTransition)(/nan|inf/, "STOP", {
+    n: 3
+  }), (0, _helperFsm.makeTransition)(/0x/, "HEX", {
+    n: 2
+  }), (0, _helperFsm.makeTransition)(/[0-9]/, "DEC"), (0, _helperFsm.makeTransition)(/\./, "DEC_FRAC")],
+  AFTER_SIGN: [(0, _helperFsm.makeTransition)(/nan:0x/, "NAN_HEX", {
+    n: 6
+  }), (0, _helperFsm.makeTransition)(/nan|inf/, "STOP", {
+    n: 3
+  }), (0, _helperFsm.makeTransition)(/0x/, "HEX", {
+    n: 2
+  }), (0, _helperFsm.makeTransition)(/[0-9]/, "DEC"), (0, _helperFsm.makeTransition)(/\./, "DEC_FRAC")],
+  DEC_FRAC: [(0, _helperFsm.makeTransition)(/[0-9]/, "DEC_FRAC", {
+    allowedSeparator: NUMERIC_SEPARATOR
+  }), (0, _helperFsm.makeTransition)(/e|E/, "DEC_SIGNED_EXP")],
+  DEC: [(0, _helperFsm.makeTransition)(/[0-9]/, "DEC", {
+    allowedSeparator: NUMERIC_SEPARATOR
+  }), (0, _helperFsm.makeTransition)(/\./, "DEC_FRAC"), (0, _helperFsm.makeTransition)(/e|E/, "DEC_SIGNED_EXP")],
+  DEC_SIGNED_EXP: [(0, _helperFsm.makeTransition)(/\+|-/, "DEC_EXP"), (0, _helperFsm.makeTransition)(/[0-9]/, "DEC_EXP")],
+  DEC_EXP: [(0, _helperFsm.makeTransition)(/[0-9]/, "DEC_EXP", {
+    allowedSeparator: NUMERIC_SEPARATOR
+  })],
+  HEX: [(0, _helperFsm.makeTransition)(/[0-9|A-F|a-f]/, "HEX", {
+    allowedSeparator: NUMERIC_SEPARATOR
+  }), (0, _helperFsm.makeTransition)(/\./, "HEX_FRAC"), (0, _helperFsm.makeTransition)(/p|P/, "HEX_SIGNED_EXP")],
+  HEX_FRAC: [(0, _helperFsm.makeTransition)(/[0-9|A-F|a-f]/, "HEX_FRAC", {
+    allowedSeparator: NUMERIC_SEPARATOR
+  }), (0, _helperFsm.makeTransition)(/p|P|/, "HEX_SIGNED_EXP")],
+  HEX_SIGNED_EXP: [(0, _helperFsm.makeTransition)(/[0-9|+|-]/, "HEX_EXP")],
+  HEX_EXP: [(0, _helperFsm.makeTransition)(/[0-9]/, "HEX_EXP", {
+    allowedSeparator: NUMERIC_SEPARATOR
+  })],
+  NAN_HEX: [(0, _helperFsm.makeTransition)(/[0-9|A-F|a-f]/, "NAN_HEX", {
+    allowedSeparator: NUMERIC_SEPARATOR
+  })],
+  STOP: []
+}, "START", "STOP");
+
+function tokenize(input) {
+  var current = 0;
+  var char = input[current]; // Used by SourceLocation
+
+  var column = 1;
+  var line = 1;
+  var tokens = [];
+  /**
+   * Creates a pushToken function for a given type
+   */
+
+  function pushToken(type) {
+    return function (v) {
+      var opts = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
+      var startColumn = opts.startColumn || column - String(v).length;
+      delete opts.startColumn;
+      var endColumn = opts.endColumn || startColumn + String(v).length - 1;
+      delete opts.endColumn;
+      var start = {
+        line: line,
+        column: startColumn
+      };
+      var end = {
+        line: line,
+        column: endColumn
+      };
+      tokens.push(Token(type, v, start, end, opts));
+    };
+  }
+  /**
+   * Functions to save newly encountered tokens
+   */
+
+
+  var pushCloseParenToken = pushToken(tokenTypes.closeParen);
+  var pushOpenParenToken = pushToken(tokenTypes.openParen);
+  var pushNumberToken = pushToken(tokenTypes.number);
+  var pushValtypeToken = pushToken(tokenTypes.valtype);
+  var pushNameToken = pushToken(tokenTypes.name);
+  var pushIdentifierToken = pushToken(tokenTypes.identifier);
+  var pushKeywordToken = pushToken(tokenTypes.keyword);
+  var pushDotToken = pushToken(tokenTypes.dot);
+  var pushStringToken = pushToken(tokenTypes.string);
+  var pushCommentToken = pushToken(tokenTypes.comment);
+  var pushEqualToken = pushToken(tokenTypes.equal);
+  /**
+   * Can be used to look at the next character(s).
+   *
+   * The default behavior `lookahead()` simply returns the next character without consuming it.
+   * Letters are always returned in lowercase.
+   *
+   * @param {number} length How many characters to query. Default = 1
+   * @param {number} offset How many characters to skip forward from current one. Default = 1
+   *
+   */
+
+  function lookahead() {
+    var length = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 1;
+    var offset = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 1;
+    return input.substring(current + offset, current + offset + length).toLowerCase();
+  }
+  /**
+   * Advances the cursor in the input by a certain amount
+   *
+   * @param {number} amount How many characters to consume. Default = 1
+   */
+
+
+  function eatCharacter() {
+    var amount = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 1;
+    column += amount;
+    current += amount;
+    char = input[current];
+  }
+
+  while (current < input.length) {
+    // ;;
+    if (char === ";" && lookahead() === ";") {
+      var startColumn = column;
+      eatCharacter(2);
+      var text = "";
+
+      while (!isNewLine(char)) {
+        text += char;
+        eatCharacter();
+
+        if (char === undefined) {
+          break;
+        }
+      }
+
+      var endColumn = column;
+      pushCommentToken(text, {
+        type: "leading",
+        startColumn: startColumn,
+        endColumn: endColumn
+      });
+      continue;
+    } // (;
+
+
+    if (char === "(" && lookahead() === ";") {
+      var _startColumn = column;
+      eatCharacter(2);
+      var _text = ""; // ;)
+
+      while (true) {
+        char = input[current];
+
+        if (char === ";" && lookahead() === ")") {
+          eatCharacter(2);
+          break;
+        }
+
+        _text += char;
+        eatCharacter();
+
+        if (isNewLine(char)) {
+          line++;
+          column = 0;
+        }
+      }
+
+      var _endColumn = column;
+      pushCommentToken(_text, {
+        type: "block",
+        startColumn: _startColumn,
+        endColumn: _endColumn
+      });
+      continue;
+    }
+
+    if (char === "(") {
+      pushOpenParenToken(char);
+      eatCharacter();
+      continue;
+    }
+
+    if (char === "=") {
+      pushEqualToken(char);
+      eatCharacter();
+      continue;
+    }
+
+    if (char === ")") {
+      pushCloseParenToken(char);
+      eatCharacter();
+      continue;
+    }
+
+    if (isNewLine(char)) {
+      line++;
+      eatCharacter();
+      column = 0;
+      continue;
+    }
+
+    if (WHITESPACE.test(char)) {
+      eatCharacter();
+      continue;
+    }
+
+    if (char === "$") {
+      var _startColumn2 = column;
+      eatCharacter();
+      var value = "";
+
+      while (idchar.test(char)) {
+        value += char;
+        eatCharacter();
+      }
+
+      var _endColumn2 = column;
+      pushIdentifierToken(value, {
+        startColumn: _startColumn2,
+        endColumn: _endColumn2
+      });
+      continue;
+    }
+
+    if (NUMBERS.test(char) || NUMBER_KEYWORDS.test(lookahead(3, 0)) || char === "-" || char === "+") {
+      var _startColumn3 = column;
+
+      var _value = numberLiteralFSM.run(input.slice(current));
+
+      if (_value === "") {
+        throw new Error(getCodeFrame(input, line, column) + "Unexpected character " + JSON.stringify(char));
+      }
+
+      pushNumberToken(_value, {
+        startColumn: _startColumn3
+      });
+      eatCharacter(_value.length);
+
+      if (char && !PARENS.test(char) && !WHITESPACE.test(char)) {
+        throw new Error(getCodeFrame(input, line, column) + "Unexpected character " + JSON.stringify(char));
+      }
+
+      continue;
+    }
+
+    if (char === '"') {
+      var _startColumn4 = column;
+      var _value2 = "";
+      eatCharacter(); // "
+
+      while (char !== '"') {
+        if (isNewLine(char)) {
+          throw new Error(getCodeFrame(input, line, column) + "Unexpected character " + JSON.stringify(char));
+        }
+
+        _value2 += char;
+        eatCharacter(); // char
+      }
+
+      eatCharacter(); // "
+
+      var _endColumn3 = column;
+      pushStringToken(_value2, {
+        startColumn: _startColumn4,
+        endColumn: _endColumn3
+      });
+      continue;
+    }
+
+    if (LETTERS.test(char)) {
+      var _value3 = "";
+      var _startColumn5 = column;
+
+      while (char && LETTERS.test(char)) {
+        _value3 += char;
+        eatCharacter();
+      }
+      /*
+       * Handle MemberAccess
+       */
+
+
+      if (char === ".") {
+        var dotStartColumn = column;
+
+        if (valtypes.indexOf(_value3) !== -1) {
+          pushValtypeToken(_value3, {
+            startColumn: _startColumn5
+          });
+        } else {
+          pushNameToken(_value3);
+        }
+
+        eatCharacter();
+        _value3 = "";
+        var nameStartColumn = column;
+
+        while (LETTERS.test(char)) {
+          _value3 += char;
+          eatCharacter();
+        }
+
+        pushDotToken(".", {
+          startColumn: dotStartColumn
+        });
+        pushNameToken(_value3, {
+          startColumn: nameStartColumn
+        });
+        continue;
+      }
+      /*
+       * Handle keywords
+       */
+      // $FlowIgnore
+
+
+      if (typeof keywords[_value3] === "string") {
+        pushKeywordToken(_value3, {
+          startColumn: _startColumn5
+        });
+        continue;
+      }
+      /*
+       * Handle types
+       */
+
+
+      if (valtypes.indexOf(_value3) !== -1) {
+        pushValtypeToken(_value3, {
+          startColumn: _startColumn5
+        });
+        continue;
+      }
+      /*
+       * Handle literals
+       */
+
+
+      pushNameToken(_value3, {
+        startColumn: _startColumn5
+      });
+      continue;
+    }
+
+    throw new Error(getCodeFrame(input, line, column) + "Unexpected character " + JSON.stringify(char));
+  }
+
+  return tokens;
+}
+
+var tokens = tokenTypes;
+exports.tokens = tokens;
+
+/***/ }),
+
+/***/ 24529:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", ({
+  value: true
+}));
+exports.print = print;
+
+var _ast = __webpack_require__(90310);
+
+var _long = _interopRequireDefault(__webpack_require__(77960));
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _typeof(obj) { if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") { _typeof = function _typeof(obj) { return typeof obj; }; } else { _typeof = function _typeof(obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }; } return _typeof(obj); }
+
+function _sliceIterator(arr, i) { var _arr = []; var _n = true; var _d = false; var _e = undefined; try { for (var _i = arr[Symbol.iterator](), _s; !(_n = (_s = _i.next()).done); _n = true) { _arr.push(_s.value); if (i && _arr.length === i) break; } } catch (err) { _d = true; _e = err; } finally { try { if (!_n && _i["return"] != null) _i["return"](); } finally { if (_d) throw _e; } } return _arr; }
+
+function _slicedToArray(arr, i) { if (Array.isArray(arr)) { return arr; } else if (Symbol.iterator in Object(arr)) { return _sliceIterator(arr, i); } else { throw new TypeError("Invalid attempt to destructure non-iterable instance"); } }
+
+var compact = false;
+var space = " ";
+
+var quote = function quote(str) {
+  return "\"".concat(str, "\"");
+};
+
+function indent(nb) {
+  return Array(nb).fill(space + space).join("");
+} // TODO(sven): allow arbitrary ast nodes
+
+
+function print(n) {
+  if (n.type === "Program") {
+    return printProgram(n, 0);
+  } else {
+    throw new Error("Unsupported node in print of type: " + String(n.type));
+  }
+}
+
+function printProgram(n, depth) {
+  return n.body.reduce(function (acc, child) {
+    if (child.type === "Module") {
+      acc += printModule(child, depth + 1);
+    }
+
+    if (child.type === "Func") {
+      acc += printFunc(child, depth + 1);
+    }
+
+    if (child.type === "BlockComment") {
+      acc += printBlockComment(child);
+    }
+
+    if (child.type === "LeadingComment") {
+      acc += printLeadingComment(child);
+    }
+
+    if (compact === false) {
+      acc += "\n";
+    }
+
+    return acc;
+  }, "");
+}
+
+function printTypeInstruction(n) {
+  var out = "";
+  out += "(";
+  out += "type";
+  out += space;
+
+  if (n.id != null) {
+    out += printIndex(n.id);
+    out += space;
+  }
+
+  out += "(";
+  out += "func";
+  n.functype.params.forEach(function (param) {
+    out += space;
+    out += "(";
+    out += "param";
+    out += space;
+    out += printFuncParam(param);
+    out += ")";
+  });
+  n.functype.results.forEach(function (result) {
+    out += space;
+    out += "(";
+    out += "result";
+    out += space;
+    out += result;
+    out += ")";
+  });
+  out += ")"; // func
+
+  out += ")";
+  return out;
+}
+
+function printModule(n, depth) {
+  var out = "(";
+  out += "module";
+
+  if (typeof n.id === "string") {
+    out += space;
+    out += n.id;
+  }
+
+  if (compact === false) {
+    out += "\n";
+  } else {
+    out += space;
+  }
+
+  n.fields.forEach(function (field) {
+    if (compact === false) {
+      out += indent(depth);
+    }
+
+    switch (field.type) {
+      case "Func":
+        {
+          out += printFunc(field, depth + 1);
+          break;
+        }
+
+      case "TypeInstruction":
+        {
+          out += printTypeInstruction(field);
+          break;
+        }
+
+      case "Table":
+        {
+          out += printTable(field);
+          break;
+        }
+
+      case "Global":
+        {
+          out += printGlobal(field, depth + 1);
+          break;
+        }
+
+      case "ModuleExport":
+        {
+          out += printModuleExport(field);
+          break;
+        }
+
+      case "ModuleImport":
+        {
+          out += printModuleImport(field);
+          break;
+        }
+
+      case "Memory":
+        {
+          out += printMemory(field);
+          break;
+        }
+
+      case "BlockComment":
+        {
+          out += printBlockComment(field);
+          break;
+        }
+
+      case "LeadingComment":
+        {
+          out += printLeadingComment(field);
+          break;
+        }
+
+      case "Start":
+        {
+          out += printStart(field);
+          break;
+        }
+
+      case "Elem":
+        {
+          out += printElem(field, depth);
+          break;
+        }
+
+      case "Data":
+        {
+          out += printData(field, depth);
+          break;
+        }
+
+      default:
+        throw new Error("Unsupported node in printModule: " + String(field.type));
+    }
+
+    if (compact === false) {
+      out += "\n";
+    }
+  });
+  out += ")";
+  return out;
+}
+
+function printData(n, depth) {
+  var out = "";
+  out += "(";
+  out += "data";
+  out += space;
+  out += printIndex(n.memoryIndex);
+  out += space;
+  out += printInstruction(n.offset, depth);
+  out += space;
+  out += '"';
+  n.init.values.forEach(function (byte) {
+    // Avoid non-displayable characters
+    if (byte <= 31 || byte == 34 || byte == 92 || byte >= 127) {
+      out += "\\";
+      out += ("00" + byte.toString(16)).substr(-2);
+    } else if (byte > 255) {
+      throw new Error("Unsupported byte in data segment: " + byte);
+    } else {
+      out += String.fromCharCode(byte);
+    }
+  });
+  out += '"';
+  out += ")";
+  return out;
+}
+
+function printElem(n, depth) {
+  var out = "";
+  out += "(";
+  out += "elem";
+  out += space;
+  out += printIndex(n.table);
+
+  var _n$offset = _slicedToArray(n.offset, 1),
+      firstOffset = _n$offset[0];
+
+  out += space;
+  out += "(";
+  out += "offset";
+  out += space;
+  out += printInstruction(firstOffset, depth);
+  out += ")";
+  n.funcs.forEach(function (func) {
+    out += space;
+    out += printIndex(func);
+  });
+  out += ")";
+  return out;
+}
+
+function printStart(n) {
+  var out = "";
+  out += "(";
+  out += "start";
+  out += space;
+  out += printIndex(n.index);
+  out += ")";
+  return out;
+}
+
+function printLeadingComment(n) {
+  // Don't print leading comments in compact mode
+  if (compact === true) {
+    return "";
+  }
+
+  var out = "";
+  out += ";;";
+  out += n.value;
+  out += "\n";
+  return out;
+}
+
+function printBlockComment(n) {
+  // Don't print block comments in compact mode
+  if (compact === true) {
+    return "";
+  }
+
+  var out = "";
+  out += "(;";
+  out += n.value;
+  out += ";)";
+  out += "\n";
+  return out;
+}
+
+function printSignature(n) {
+  var out = "";
+  n.params.forEach(function (param) {
+    out += space;
+    out += "(";
+    out += "param";
+    out += space;
+    out += printFuncParam(param);
+    out += ")";
+  });
+  n.results.forEach(function (result) {
+    out += space;
+    out += "(";
+    out += "result";
+    out += space;
+    out += result;
+    out += ")";
+  });
+  return out;
+}
+
+function printModuleImportDescr(n) {
+  var out = "";
+
+  if (n.type === "FuncImportDescr") {
+    out += "(";
+    out += "func";
+
+    if ((0, _ast.isAnonymous)(n.id) === false) {
+      out += space;
+      out += printIdentifier(n.id);
+    }
+
+    out += printSignature(n.signature);
+    out += ")";
+  }
+
+  if (n.type === "GlobalType") {
+    out += "(";
+    out += "global";
+    out += space;
+    out += printGlobalType(n);
+    out += ")";
+  }
+
+  if (n.type === "Table") {
+    out += printTable(n);
+  }
+
+  return out;
+}
+
+function printModuleImport(n) {
+  var out = "";
+  out += "(";
+  out += "import";
+  out += space;
+  out += quote(n.module);
+  out += space;
+  out += quote(n.name);
+  out += space;
+  out += printModuleImportDescr(n.descr);
+  out += ")";
+  return out;
+}
+
+function printGlobalType(n) {
+  var out = "";
+
+  if (n.mutability === "var") {
+    out += "(";
+    out += "mut";
+    out += space;
+    out += n.valtype;
+    out += ")";
+  } else {
+    out += n.valtype;
+  }
+
+  return out;
+}
+
+function printGlobal(n, depth) {
+  var out = "";
+  out += "(";
+  out += "global";
+  out += space;
+
+  if (n.name != null && (0, _ast.isAnonymous)(n.name) === false) {
+    out += printIdentifier(n.name);
+    out += space;
+  }
+
+  out += printGlobalType(n.globalType);
+  out += space;
+  n.init.forEach(function (i) {
+    out += printInstruction(i, depth + 1);
+  });
+  out += ")";
+  return out;
+}
+
+function printTable(n) {
+  var out = "";
+  out += "(";
+  out += "table";
+  out += space;
+
+  if (n.name != null && (0, _ast.isAnonymous)(n.name) === false) {
+    out += printIdentifier(n.name);
+    out += space;
+  }
+
+  out += printLimit(n.limits);
+  out += space;
+  out += n.elementType;
+  out += ")";
+  return out;
+}
+
+function printFuncParam(n) {
+  var out = "";
+
+  if (typeof n.id === "string") {
+    out += "$" + n.id;
+    out += space;
+  }
+
+  out += n.valtype;
+  return out;
+}
+
+function printFunc(n, depth) {
+  var out = "";
+  out += "(";
+  out += "func";
+
+  if (n.name != null) {
+    if (n.name.type === "Identifier" && (0, _ast.isAnonymous)(n.name) === false) {
+      out += space;
+      out += printIdentifier(n.name);
+    }
+  }
+
+  if (n.signature.type === "Signature") {
+    out += printSignature(n.signature);
+  } else {
+    var index = n.signature;
+    out += space;
+    out += "(";
+    out += "type";
+    out += space;
+    out += printIndex(index);
+    out += ")";
+  }
+
+  if (n.body.length > 0) {
+    // func is empty since we ignore the default end instruction
+    if (n.body.length === 1 && n.body[0].id === "end") {
+      out += ")";
+      return out;
+    }
+
+    if (compact === false) {
+      out += "\n";
+    }
+
+    n.body.forEach(function (i) {
+      if (i.id !== "end") {
+        out += indent(depth);
+        out += printInstruction(i, depth);
+
+        if (compact === false) {
+          out += "\n";
+        }
+      }
+    });
+    out += indent(depth - 1) + ")";
+  } else {
+    out += ")";
+  }
+
+  return out;
+}
+
+function printInstruction(n, depth) {
+  switch (n.type) {
+    case "Instr":
+      // $FlowIgnore
+      return printGenericInstruction(n, depth + 1);
+
+    case "BlockInstruction":
+      // $FlowIgnore
+      return printBlockInstruction(n, depth + 1);
+
+    case "IfInstruction":
+      // $FlowIgnore
+      return printIfInstruction(n, depth + 1);
+
+    case "CallInstruction":
+      // $FlowIgnore
+      return printCallInstruction(n, depth + 1);
+
+    case "CallIndirectInstruction":
+      // $FlowIgnore
+      return printCallIndirectIntruction(n, depth + 1);
+
+    case "LoopInstruction":
+      // $FlowIgnore
+      return printLoopInstruction(n, depth + 1);
+
+    default:
+      throw new Error("Unsupported instruction: " + JSON.stringify(n.type));
+  }
+}
+
+function printCallIndirectIntruction(n, depth) {
+  var out = "";
+  out += "(";
+  out += "call_indirect";
+
+  if (n.signature.type === "Signature") {
+    out += printSignature(n.signature);
+  } else if (n.signature.type === "Identifier") {
+    out += space;
+    out += "(";
+    out += "type";
+    out += space;
+    out += printIdentifier(n.signature);
+    out += ")";
+  } else {
+    throw new Error("CallIndirectInstruction: unsupported signature " + JSON.stringify(n.signature.type));
+  }
+
+  out += space;
+
+  if (n.intrs != null) {
+    // $FlowIgnore
+    n.intrs.forEach(function (i, index) {
+      // $FlowIgnore
+      out += printInstruction(i, depth + 1); // $FlowIgnore
+
+      if (index !== n.intrs.length - 1) {
+        out += space;
+      }
+    });
+  }
+
+  out += ")";
+  return out;
+}
+
+function printLoopInstruction(n, depth) {
+  var out = "";
+  out += "(";
+  out += "loop";
+
+  if (n.label != null && (0, _ast.isAnonymous)(n.label) === false) {
+    out += space;
+    out += printIdentifier(n.label);
+  }
+
+  if (typeof n.resulttype === "string") {
+    out += space;
+    out += "(";
+    out += "result";
+    out += space;
+    out += n.resulttype;
+    out += ")";
+  }
+
+  if (n.instr.length > 0) {
+    n.instr.forEach(function (e) {
+      if (compact === false) {
+        out += "\n";
+      }
+
+      out += indent(depth);
+      out += printInstruction(e, depth + 1);
+    });
+
+    if (compact === false) {
+      out += "\n";
+      out += indent(depth - 1);
+    }
+  }
+
+  out += ")";
+  return out;
+}
+
+function printCallInstruction(n, depth) {
+  var out = "";
+  out += "(";
+  out += "call";
+  out += space;
+  out += printIndex(n.index);
+
+  if (_typeof(n.instrArgs) === "object") {
+    // $FlowIgnore
+    n.instrArgs.forEach(function (arg) {
+      out += space;
+      out += printFuncInstructionArg(arg, depth + 1);
+    });
+  }
+
+  out += ")";
+  return out;
+}
+
+function printIfInstruction(n, depth) {
+  var out = "";
+  out += "(";
+  out += "if";
+
+  if (n.testLabel != null && (0, _ast.isAnonymous)(n.testLabel) === false) {
+    out += space;
+    out += printIdentifier(n.testLabel);
+  }
+
+  if (typeof n.result === "string") {
+    out += space;
+    out += "(";
+    out += "result";
+    out += space;
+    out += n.result;
+    out += ")";
+  }
+
+  if (n.test.length > 0) {
+    out += space;
+    n.test.forEach(function (i) {
+      out += printInstruction(i, depth + 1);
+    });
+  }
+
+  if (n.consequent.length > 0) {
+    if (compact === false) {
+      out += "\n";
+    }
+
+    out += indent(depth);
+    out += "(";
+    out += "then";
+    depth++;
+    n.consequent.forEach(function (i) {
+      if (compact === false) {
+        out += "\n";
+      }
+
+      out += indent(depth);
+      out += printInstruction(i, depth + 1);
+    });
+    depth--;
+
+    if (compact === false) {
+      out += "\n";
+      out += indent(depth);
+    }
+
+    out += ")";
+  } else {
+    if (compact === false) {
+      out += "\n";
+      out += indent(depth);
+    }
+
+    out += "(";
+    out += "then";
+    out += ")";
+  }
+
+  if (n.alternate.length > 0) {
+    if (compact === false) {
+      out += "\n";
+    }
+
+    out += indent(depth);
+    out += "(";
+    out += "else";
+    depth++;
+    n.alternate.forEach(function (i) {
+      if (compact === false) {
+        out += "\n";
+      }
+
+      out += indent(depth);
+      out += printInstruction(i, depth + 1);
+    });
+    depth--;
+
+    if (compact === false) {
+      out += "\n";
+      out += indent(depth);
+    }
+
+    out += ")";
+  } else {
+    if (compact === false) {
+      out += "\n";
+      out += indent(depth);
+    }
+
+    out += "(";
+    out += "else";
+    out += ")";
+  }
+
+  if (compact === false) {
+    out += "\n";
+    out += indent(depth - 1);
+  }
+
+  out += ")";
+  return out;
+}
+
+function printBlockInstruction(n, depth) {
+  var out = "";
+  out += "(";
+  out += "block";
+
+  if (n.label != null && (0, _ast.isAnonymous)(n.label) === false) {
+    out += space;
+    out += printIdentifier(n.label);
+  }
+
+  if (typeof n.result === "string") {
+    out += space;
+    out += "(";
+    out += "result";
+    out += space;
+    out += n.result;
+    out += ")";
+  }
+
+  if (n.instr.length > 0) {
+    n.instr.forEach(function (i) {
+      if (compact === false) {
+        out += "\n";
+      }
+
+      out += indent(depth);
+      out += printInstruction(i, depth + 1);
+    });
+
+    if (compact === false) {
+      out += "\n";
+    }
+
+    out += indent(depth - 1);
+    out += ")";
+  } else {
+    out += ")";
+  }
+
+  return out;
+}
+
+function printGenericInstruction(n, depth) {
+  var out = "";
+  out += "(";
+
+  if (typeof n.object === "string") {
+    out += n.object;
+    out += ".";
+  }
+
+  out += n.id;
+  n.args.forEach(function (arg) {
+    out += space;
+    out += printFuncInstructionArg(arg, depth + 1);
+  });
+  out += ")";
+  return out;
+}
+
+function printLongNumberLiteral(n) {
+  if (typeof n.raw === "string") {
+    return n.raw;
+  }
+
+  var _n$value = n.value,
+      low = _n$value.low,
+      high = _n$value.high;
+  var v = new _long.default(low, high);
+  return v.toString();
+}
+
+function printFloatLiteral(n) {
+  if (typeof n.raw === "string") {
+    return n.raw;
+  }
+
+  return String(n.value);
+}
+
+function printFuncInstructionArg(n, depth) {
+  var out = "";
+
+  if (n.type === "NumberLiteral") {
+    out += printNumberLiteral(n);
+  }
+
+  if (n.type === "LongNumberLiteral") {
+    out += printLongNumberLiteral(n);
+  }
+
+  if (n.type === "Identifier" && (0, _ast.isAnonymous)(n) === false) {
+    out += printIdentifier(n);
+  }
+
+  if (n.type === "ValtypeLiteral") {
+    out += n.name;
+  }
+
+  if (n.type === "FloatLiteral") {
+    out += printFloatLiteral(n);
+  }
+
+  if ((0, _ast.isInstruction)(n)) {
+    out += printInstruction(n, depth + 1);
+  }
+
+  return out;
+}
+
+function printNumberLiteral(n) {
+  if (typeof n.raw === "string") {
+    return n.raw;
+  }
+
+  return String(n.value);
+}
+
+function printModuleExport(n) {
+  var out = "";
+  out += "(";
+  out += "export";
+  out += space;
+  out += quote(n.name);
+
+  if (n.descr.exportType === "Func") {
+    out += space;
+    out += "(";
+    out += "func";
+    out += space;
+    out += printIndex(n.descr.id);
+    out += ")";
+  } else if (n.descr.exportType === "Global") {
+    out += space;
+    out += "(";
+    out += "global";
+    out += space;
+    out += printIndex(n.descr.id);
+    out += ")";
+  } else if (n.descr.exportType === "Memory" || n.descr.exportType === "Mem") {
+    out += space;
+    out += "(";
+    out += "memory";
+    out += space;
+    out += printIndex(n.descr.id);
+    out += ")";
+  } else if (n.descr.exportType === "Table") {
+    out += space;
+    out += "(";
+    out += "table";
+    out += space;
+    out += printIndex(n.descr.id);
+    out += ")";
+  } else {
+    throw new Error("printModuleExport: unknown type: " + n.descr.exportType);
+  }
+
+  out += ")";
+  return out;
+}
+
+function printIdentifier(n) {
+  return "$" + n.value;
+}
+
+function printIndex(n) {
+  if (n.type === "Identifier") {
+    return printIdentifier(n);
+  } else if (n.type === "NumberLiteral") {
+    return printNumberLiteral(n);
+  } else {
+    throw new Error("Unsupported index: " + n.type);
+  }
+}
+
+function printMemory(n) {
+  var out = "";
+  out += "(";
+  out += "memory";
+
+  if (n.id != null) {
+    out += space;
+    out += printIndex(n.id);
+    out += space;
+  }
+
+  out += printLimit(n.limits);
+  out += ")";
+  return out;
+}
+
+function printLimit(n) {
+  var out = "";
+  out += n.min + "";
+
+  if (n.max != null) {
+    out += space;
+    out += String(n.max);
+  }
+
+  return out;
 }
 
 /***/ }),
