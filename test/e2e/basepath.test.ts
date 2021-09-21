@@ -136,7 +136,7 @@ describe('basePath', () => {
     })
 
     if (!dev) {
-      if (!(global as any).isDeploy) {
+      if (!(global as any).isNextDeploy) {
         it('should add basePath to routes-manifest', async () => {
           const routesManifest = JSON.parse(
             await next.readFile('.next/routes-manifest.json')
@@ -487,7 +487,7 @@ describe('basePath', () => {
       )
     })
 
-    if (!(global as any).isDeploy) {
+    if (!(global as any).isNextDeploy) {
       it('should navigate an absolute local url with basePath', async () => {
         const browser = await webdriver(
           next.url,
@@ -843,5 +843,5 @@ describe('basePath', () => {
       }
     })
   }
-  runTests((global as any).isDev)
+  runTests((global as any).isNextDev)
 })

@@ -42,9 +42,11 @@ if (testModeFromFile === 'e2e') {
 }
 
 if (testMode === 'dev') {
-  ;(global as any).isDev = true
+  ;(global as any).isNextDev = true
 } else if (testMode === 'deploy') {
-  ;(global as any).isDeploy = true
+  ;(global as any).isNextDeploy = true
+} else {
+  ;(global as any).isNextStart = true
 }
 
 if (!testMode) {
