@@ -25,7 +25,7 @@ const testModeFromFile = testFolderModes.find((mode) =>
 if (testModeFromFile === 'e2e') {
   const validE2EModes = ['dev', 'start', 'deploy']
 
-  if (!process.env.NEXT_TEST_JOB) {
+  if (!process.env.NEXT_TEST_JOB && !testMode) {
     console.warn('Warn: no NEXT_TEST_MODE set, using default of start')
     testMode = 'start'
   }
@@ -42,9 +42,11 @@ if (testModeFromFile === 'e2e') {
 }
 
 if (testMode === 'dev') {
-  ;(global as any).isDev = true
+  ;(global as any).isNextDev = true
 } else if (testMode === 'deploy') {
-  ;(global as any).isDeploy = true
+  ;(global as any).isNextDeploy = true
+} else {
+  ;(global as any).isNextStart = true
 }
 
 if (!testMode) {

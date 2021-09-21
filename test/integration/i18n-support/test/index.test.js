@@ -76,6 +76,17 @@ describe('i18n Support', () => {
     })
 
     runTests(ctx)
+
+    it('should have pre-rendered /500 correctly', async () => {
+      for (const locale of locales) {
+        const content = await fs.readFile(
+          join(appDir, '.next/server/pages/', locale, '500.html'),
+          'utf8'
+        )
+        expect(content).toContain('500')
+        expect(content).toMatch(/internal server error/i)
+      }
+    })
   })
 
   describe('serverless mode', () => {

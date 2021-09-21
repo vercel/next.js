@@ -1,23 +1,36 @@
-/* eslint-env jest */
-
-import fs from 'fs-extra'
-import { join, sep } from 'path'
+import path from 'path'
+import { createNext, FileRef } from 'e2e-utils'
+import { NextInstance } from 'test/lib/next-modes/base'
 import webdriver from 'next-webdriver'
-import {
-  findPort,
-  killApp,
-  launchApp,
-  nextBuild,
-  nextStart,
-} from 'next-test-utils'
 
-let app
-let appPort
-const appDir = join(__dirname, '..')
+describe('prerender native module', () => {
+  let next: NextInstance
 
-const runTests = () => {
+  beforeAll(async () => {
+    next = await createNext({
+      files: {
+        pages: new FileRef(
+          path.join(__dirname, 'prerender-native-module/pages')
+        ),
+        'data.sqlite': new FileRef(
+          path.join(__dirname, 'prerender-native-module/data.sqlite')
+        ),
+      },
+      dependencies: {
+        sqlite: '4.0.22',
+        sqlite3: '5.0.2',
+      },
+      nextConfig: {
+        experimental: {
+          nftTracing: true,
+        },
+      },
+    })
+  })
+  afterAll(() => next.destroy())
+
   it('should render index correctly', async () => {
-    const browser = await webdriver(appPort, '/')
+    const browser = await webdriver(next.url, '/')
     expect(await browser.elementByCss('#index').text()).toBe('index page')
     expect(JSON.parse(await browser.elementByCss('#props').text())).toEqual({
       index: true,
@@ -25,7 +38,7 @@ const runTests = () => {
   })
 
   it('should render /blog/first correctly', async () => {
-    const browser = await webdriver(appPort, '/blog/first')
+    const browser = await webdriver(next.url, '/blog/first')
 
     expect(await browser.elementByCss('#blog').text()).toBe('blog page')
     expect(JSON.parse(await browser.elementByCss('#props').text())).toEqual({
@@ -39,7 +52,7 @@ const runTests = () => {
   })
 
   it('should render /blog/second correctly', async () => {
-    const browser = await webdriver(appPort, '/blog/second')
+    const browser = await webdriver(next.url, '/blog/second')
     await browser.waitForElementByCss('#blog')
 
     expect(await browser.elementByCss('#blog').text()).toBe('blog page')
@@ -52,26 +65,8 @@ const runTests = () => {
       ],
     })
   })
-}
 
-describe('Prerender native module', () => {
-  describe('production', () => {
-    beforeAll(async () => {
-      const result = await nextBuild(appDir, undefined, {
-        cwd: appDir,
-        stderr: true,
-        stdout: true,
-      })
-
-      if (result.code !== 0) {
-        console.error(result)
-        throw new Error(`Failed to build, exited with code ${result.code}`)
-      }
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort, { cwd: appDir })
-    })
-    afterAll(() => killApp(app))
-
+  if ((global as any).isNextStart) {
     it('should output traces', async () => {
       const checks = [
         {
@@ -101,9 +96,8 @@ describe('Prerender native module', () => {
       ]
 
       for (const check of checks) {
-        const contents = await fs.readFile(
-          join(appDir, '.next/server/pages/', check.page + '.js.nft.json'),
-          'utf8'
+        const contents = await next.readFile(
+          path.join('.next/server/pages/', check.page + '.js.nft.json')
         )
         const { version, files } = JSON.parse(contents)
         expect(version).toBe(1)
@@ -112,24 +106,12 @@ describe('Prerender native module', () => {
           check.tests.every((item) => files.some((file) => item.test(file)))
         ).toBe(true)
 
-        if (sep === '/') {
+        if (path.sep === '/') {
           expect(
             check.notTests.some((item) => files.some((file) => item.test(file)))
           ).toBe(false)
         }
       }
     })
-
-    runTests()
-  })
-
-  describe('dev', () => {
-    beforeAll(async () => {
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort, { cwd: appDir })
-    })
-    afterAll(() => killApp(app))
-
-    runTests()
-  })
+  }
 })

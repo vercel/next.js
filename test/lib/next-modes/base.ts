@@ -165,6 +165,10 @@ export class NextInstance {
     return ''
   }
 
+  public get cliOutput(): string {
+    return ''
+  }
+
   // TODO: block these in deploy mode
   public async readFile(filename: string) {
     return fs.readFile(path.join(this.testDir, filename), 'utf8')

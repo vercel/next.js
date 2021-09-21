@@ -13,7 +13,7 @@ import {
   waitFor,
 } from 'next-test-utils'
 
-describe('should set-up next', () => {
+describe('basePath', () => {
   let next: NextInstance
   const basePath = '/docs'
 
@@ -136,7 +136,7 @@ describe('should set-up next', () => {
     })
 
     if (!dev) {
-      if (!(global as any).isDeploy) {
+      if (!(global as any).isNextDeploy) {
         it('should add basePath to routes-manifest', async () => {
           const routesManifest = JSON.parse(
             await next.readFile('.next/routes-manifest.json')
@@ -487,7 +487,7 @@ describe('should set-up next', () => {
       )
     })
 
-    if (!(global as any).isDeploy) {
+    if (!(global as any).isNextDeploy) {
       it('should navigate an absolute local url with basePath', async () => {
         const browser = await webdriver(
           next.url,
@@ -784,7 +784,7 @@ describe('should set-up next', () => {
         await new Promise((resolve, reject) => {
           // Timeout of EventSource created in setupPing()
           // (on-demand-entries-utils.js) is 5000 ms (see #13132, #13560)
-          setTimeout(resolve, 10000)
+          setTimeout(resolve, dev ? 10000 : 1000)
         })
         expect(await browser.eval('window.itdidnotrefresh')).toBe('hello')
 
@@ -810,7 +810,7 @@ describe('should set-up next', () => {
         await new Promise((resolve, reject) => {
           // Timeout of EventSource created in setupPing()
           // (on-demand-entries-utils.js) is 5000 ms (see #13132, #13560)
-          setTimeout(resolve, 10000)
+          setTimeout(resolve, dev ? 10000 : 1000)
         })
         expect(await browser.eval('window.itdidnotrefresh')).toBe('hello')
 
@@ -843,5 +843,5 @@ describe('should set-up next', () => {
       }
     })
   }
-  runTests((global as any).isDev)
+  runTests((global as any).isNextDev)
 })
