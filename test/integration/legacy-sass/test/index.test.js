@@ -9,8 +9,6 @@ import { version } from 'webpack'
 
 const isWebpack5 = parseInt(version) === 5
 
-jest.setTimeout(1000 * 60 * 1)
-
 const appDir = join(__dirname, '../')
 
 // TODO: Make legacy Sass support work with webpack 5

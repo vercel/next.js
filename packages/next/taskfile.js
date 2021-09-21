@@ -89,7 +89,7 @@ export async function ncc_amp_optimizer(task, opts) {
     .target('dist/compiled/@ampproject/toolbox-optimizer')
 }
 // eslint-disable-next-line camelcase
-externals['arg'] = 'distcompiled/arg'
+externals['arg'] = 'next/dist/compiled/arg'
 export async function ncc_arg(task, opts) {
   await task
     .source(opts.src || relative(__dirname, require.resolve('arg')))
@@ -763,16 +763,18 @@ export async function ncc_mini_css_extract_plugin(task, opts) {
 
 // eslint-disable-next-line camelcase
 export async function ncc_webpack_bundle4(task, opts) {
-  const webpackExternals = {
+  const bundleExternals = {
     ...externals,
   }
-  delete webpackExternals['webpack/lib/NormalModule']
+  for (const pkg of Object.keys(webpackBundlePackages)) {
+    delete bundleExternals[pkg]
+  }
   await task
     .source(opts.src || 'bundles/webpack/bundle4.js')
     .ncc({
       packageName: 'webpack',
       bundleName: 'webpack',
-      externals: webpackExternals,
+      externals: bundleExternals,
       minify: false,
       target: 'es5',
     })
@@ -781,6 +783,12 @@ export async function ncc_webpack_bundle4(task, opts) {
 
 // eslint-disable-next-line camelcase
 export async function ncc_webpack_bundle5(task, opts) {
+  const bundleExternals = {
+    ...externals,
+  }
+  for (const pkg of Object.keys(webpackBundlePackages)) {
+    delete bundleExternals[pkg]
+  }
   await task
     .source(opts.src || 'bundles/webpack/bundle5.js')
     .ncc({
@@ -790,7 +798,7 @@ export async function ncc_webpack_bundle5(task, opts) {
         if (path.endsWith('.runtime.js')) return `'./${basename(path)}'`
       },
       externals: {
-        ...externals,
+        ...bundleExternals,
         'schema-utils': 'next/dist/compiled/schema-utils3',
         'webpack-sources': 'next/dist/compiled/webpack-sources3',
       },
@@ -924,6 +932,7 @@ export async function compile(task, opts) {
       'lib',
       'client',
       'telemetry',
+      'trace',
       'shared',
       'server_wasm',
       // we compile this each time so that fresh runtime data is pulled
@@ -1026,6 +1035,14 @@ export async function telemetry(task, opts) {
   notify('Compiled telemetry files')
 }
 
+export async function trace(task, opts) {
+  await task
+    .source(opts.src || 'trace/**/*.+(js|ts|tsx)')
+    .swc('server', { dev: opts.dev })
+    .target('dist/trace')
+  notify('Compiled trace files')
+}
+
 export async function build(task, opts) {
   await task.serial(['precompile', 'compile'], opts)
 }
@@ -1043,6 +1060,7 @@ export default async function (task) {
   await task.watch('lib/**/*.+(js|ts|tsx)', 'lib', opts)
   await task.watch('cli/**/*.+(js|ts|tsx)', 'cli', opts)
   await task.watch('telemetry/**/*.+(js|ts|tsx)', 'telemetry', opts)
+  await task.watch('trace/**/*.+(js|ts|tsx)', 'trace', opts)
   await task.watch('shared/**/*.+(js|ts|tsx)', 'shared', opts)
   await task.watch('server/**/*.+(wasm)', 'server_wasm', opts)
 }
