@@ -183,8 +183,7 @@
     "@types/send": "0.14.4",
     "@types/styled-jsx": "2.2.8",
     "@types/text-table": "0.2.1",
-    "@types/webpack": "5.28.0",
-    "@types/webpack-sources": "0.1.5",
+    "@types/webpack-sources1": "npm:@types/webpack-sources@0.1.5",
     "@vercel/ncc": "0.27.0",
     "@vercel/nft": "0.12.2",
     "amphtml-validator": "1.0.33",
@@ -238,7 +237,8 @@
     "postcss-value-parser": "4.1.0",
     "resolve-url-loader": "3.1.2",
     "sass-loader": "10.2.0",
-    "schema-utils": "2.7.1",
+    "schema-utils2": "npm:schema-utils@2.7.1",
+    "schema-utils3": "npm:schema-utils@3.0.0",
     "semver": "7.3.2",
     "send": "0.17.1",
     "source-map": "0.6.1",
@@ -249,8 +249,14 @@
     "text-table": "0.2.0",
     "unistore": "3.4.1",
     "web-vitals": "2.1.0",
-    "webpack": "4.44.1",
-    "webpack-sources": "1.4.3"
+    "webpack4": "npm:webpack@4.44.1",
+    "webpack5": "npm:webpack@5.53.0",
+    "webpack-sources1": "npm:webpack-sources@1.4.3",
+    "webpack-sources3": "npm:webpack-sources@3.2.0"
+  },
+  "resolutions": {
+    "browserslist": "4.16.6",
+    "caniuse-lite": "1.0.30001228"
   },
   "engines": {
     "node": ">=12.0.0"

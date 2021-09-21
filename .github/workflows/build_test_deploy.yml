@@ -53,7 +53,9 @@ jobs:
       - uses: actions/cache@v2
         id: cache-build
         with:
-          path: ./*
+          path: |
+            ./*
+            !./.git
           key: ${{ github.sha }}
 
   lint:
@@ -63,7 +65,9 @@ jobs:
       - uses: actions/cache@v2
         id: restore-build
         with:
-          path: ./*
+          path: |
+            ./*
+            !./.git
           key: ${{ github.sha }}
       - run: ./scripts/check-manifests.js
       - run: yarn lint
@@ -75,28 +79,43 @@ jobs:
     env:
       NEXT_TELEMETRY_DISABLED: 1
     steps:
+      - uses: actions/checkout@v2
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         run: sudo ethtool -K eth0 tx off rx off
 
       - uses: actions/cache@v2
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         id: restore-build
         with:
-          path: ./*
+          path: |
+            ./*
+            !./.git
           key: ${{ github.sha }}
+
       - uses: actions/download-artifact@v2
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
           name: next-swc-binaries
           path: packages/next/build/swc/dist
+
       # Only check linux build for now, mac builds can sometimes be different even with the same code
       - run: |
           mv ./packages/next/build/swc/dist/next-swc.linux-x64-gnu.node \
             ./packages/next/native/next-swc.linux-x64-gnu.node
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
       - run: ./scripts/check-pre-compiled.sh
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
+      - uses: EndBug/add-and-commit@v7
+        if: ${{ failure() }}
+        with:
+          add: 'packages/next/compiled packages/next/bundles --force'
+          message: '⚙ Update compiled files'
 
   testUnit:
     name: Test Unit
@@ -110,7 +129,9 @@ jobs:
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         id: restore-build
         with:
-          path: ./*
+          path: |
+            ./*
+            !./.git
           key: ${{ github.sha }}
 
       - run: node run-tests.js --type unit
@@ -134,7 +155,9 @@ jobs:
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         id: restore-build
         with:
-          path: ./*
+          path: |
+            ./*
+            !./.git
           key: ${{ github.sha }}
 
       - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
@@ -170,7 +193,9 @@ jobs:
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         id: restore-build
         with:
-          path: ./*
+          path: |
+            ./*
+            !./.git
           key: ${{ github.sha }}
 
       - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
@@ -210,7 +235,9 @@ jobs:
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         id: restore-build
         with:
-          path: ./*
+          path: |
+            ./*
+            !./.git
           key: ${{ github.sha }}
 
       - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
@@ -236,7 +263,9 @@ jobs:
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         id: restore-build
         with:
-          path: ./*
+          path: |
+            ./*
+            !./.git
           key: ${{ github.sha }}
 
       # TODO: remove after we fix watchpack watching too much
@@ -260,7 +289,9 @@ jobs:
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         id: restore-build
         with:
-          path: ./*
+          path: |
+            ./*
+            !./.git
           key: ${{ github.sha }}
 
       - run: bash ./scripts/test-pnp.sh
@@ -272,6 +303,8 @@ jobs:
     needs:
       [
         lint,
+        check-examples,
+        test-native,
         checkPrecompiled,
         testIntegration,
         testUnit,
@@ -300,7 +333,9 @@ jobs:
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         id: restore-build
         with:
-          path: ./*
+          path: |
+            ./*
+            !./.git
           key: ${{ github.sha }}
 
       - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
@@ -321,7 +356,9 @@ jobs:
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         id: restore-build
         with:
-          path: ./*
+          path: |
+            ./*
+            !./.git
           key: ${{ github.sha }}
       - run: npx playwright install-deps && npx playwright install firefox
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
@@ -348,7 +385,9 @@ jobs:
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         id: restore-build
         with:
-          path: ./*
+          path: |
+            ./*
+            !./.git
           key: ${{ github.sha }}
 
       # TODO: use macos runner so that we can use playwright to test against
@@ -380,7 +419,9 @@ jobs:
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         id: restore-build
         with:
-          path: ./*
+          path: |
+            ./*
+            !./.git
           key: ${{ github.sha }}
 
       - run: '[[ -z "$BROWSERSTACK_ACCESS_KEY" ]] && echo "Skipping for PR" || npm i -g browserstack-local@1.4.0'
@@ -404,7 +445,9 @@ jobs:
       - uses: actions/cache@v2
         id: restore-build
         with:
-          path: ./*
+          path: |
+            ./*
+            !./.git
           key: ${{ github.sha }}
       - uses: actions/download-artifact@v2
         with:
@@ -422,7 +465,9 @@ jobs:
       - uses: actions/cache@v2
         id: restore-build
         with:
-          path: ./*
+          path: |
+            ./*
+            !./.git
           key: ${{ github.sha }}
       - run: ./scripts/release-stats.sh
       - uses: ./.github/actions/next-stats-action
