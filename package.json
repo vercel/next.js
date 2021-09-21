@@ -132,8 +132,6 @@
     "seedrandom": "3.0.5",
     "selenium-webdriver": "4.0.0-beta.4",
     "shell-quote": "1.7.2",
-    "sqlite": "4.0.22",
-    "sqlite3": "5.0.2",
     "styled-jsx-plugin-postcss": "3.0.2",
     "tailwindcss": "1.1.3",
     "taskr": "1.1.0",
