@@ -1,5 +1,6 @@
 {
   "name": "nextjs-project",
+  "version": "0.0.0",
   "private": true,
   "workspaces": [
     "packages/*"
@@ -64,6 +65,9 @@
     "@zeit/next-css": "1.0.2-canary.2",
     "@zeit/next-sass": "1.0.2-canary.2",
     "@zeit/next-typescript": "1.1.2-canary.0",
+    "@webassemblyjs/ast": "1.11.1",
+    "@webassemblyjs/wasm-edit": "1.11.1",
+    "@webassemblyjs/wasm-parser": "1.11.1",
     "abort-controller": "3.0.0",
     "alex": "9.1.0",
     "amphtml-validator": "1.0.33",
