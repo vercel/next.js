@@ -255,8 +255,10 @@ export default async function exportPage({
           },
         })
         const {
-          Component: mod,
+          Component,
+          ComponentMod,
           getServerSideProps,
+          getStaticProps,
           pageConfig,
         } = await loadComponents(distDir, page, serverless)
         const ampState = {
@@ -274,25 +276,22 @@ export default async function exportPage({
         }
 
         // if it was auto-exported the HTML is loaded here
-        if (typeof mod === 'string') {
-          renderResult = RenderResult.fromStatic(mod)
+        if (typeof Component === 'string') {
+          renderResult = RenderResult.fromStatic(Component)
           queryWithAutoExportWarn()
         } else {
           // for non-dynamic SSG pages we should have already
           // prerendered the file
-          if (renderedDuringBuild((mod as ComponentModule).getStaticProps))
+          if (renderedDuringBuild(getStaticProps))
             return { ...results, duration: Date.now() - start }
 
-          if (
-            (mod as ComponentModule).getStaticProps &&
-            !htmlFilepath.endsWith('.html')
-          ) {
+          if (getStaticProps && !htmlFilepath.endsWith('.html')) {
             // make sure it ends with .html if the name contains a dot
             htmlFilename += '.html'
             htmlFilepath += '.html'
           }
 
-          renderMethod = (mod as ComponentModule).renderReqToHTML
+          renderMethod = (ComponentMod as ComponentModule).renderReqToHTML
           const result = await renderMethod(
             req,
             res,
