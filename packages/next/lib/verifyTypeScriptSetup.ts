@@ -28,7 +28,7 @@ export async function verifyTypeScriptSetup(
   imageImportsEnabled: boolean,
   cacheDir?: string
 ): Promise<{ result?: TypeCheckResult; version: string | null }> {
-  const tsConfigName = process.env.NEXT_CUSTOM_TSCONFIG ?? 'tsconfig.json'
+  const tsConfigName = process.env.NEXT_TSCONFIG_PATH ?? 'tsconfig.json'
   const tsConfigPath = path.join(dir, tsConfigName)
 
   try {

@@ -33,7 +33,7 @@ the root folder:
 touch tsconfig.json
 ```
 
-You can also provide your own tsconfig file by setting `NEXT_CUSTOM_TSCONFIG="myFile.json"` in a .env file. Next.js will automatically use this tsconfig file.
+You can also provide a relative path to a tsconfig file by setting the `NEXT_TSCONFIG_PATH` [Environment Variable](/docs/basic-features/environment-variables). For example, `NEXT_TSCONFIG_PATH="example.tsconfig.json"`
 
 Next.js will automatically configure this file with default values. Providing your own `tsconfig.json` with custom [compiler options](https://www.typescriptlang.org/docs/handbook/compiler-options.html) is also supported.
 
