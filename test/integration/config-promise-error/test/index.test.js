@@ -3,7 +3,6 @@
 import { join } from 'path'
 import { runNextCommand, findPort, File } from 'next-test-utils'
 
-jest.setTimeout(1000 * 30)
 const configFile = new File(join(__dirname, '../next.config.js'))
 
 describe('Promise in next config', () => {

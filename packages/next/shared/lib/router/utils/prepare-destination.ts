@@ -66,15 +66,19 @@ export function matchHas(
       return true
     } else if (value) {
       const matcher = new RegExp(`^${hasItem.value}$`)
-      const matches = value.match(matcher)
+      const matches = Array.isArray(value)
+        ? value.slice(-1)[0].match(matcher)
+        : value.match(matcher)
 
       if (matches) {
-        if (matches.groups) {
-          Object.keys(matches.groups).forEach((groupKey) => {
-            params[groupKey] = matches.groups![groupKey]
-          })
-        } else if (hasItem.type === 'host' && matches[0]) {
-          params.host = matches[0]
+        if (Array.isArray(matches)) {
+          if (matches.groups) {
+            Object.keys(matches.groups).forEach((groupKey) => {
+              params[groupKey] = matches.groups![groupKey]
+            })
+          } else if (hasItem.type === 'host' && matches[0]) {
+            params.host = matches[0]
+          }
         }
         return true
       }
@@ -125,6 +129,11 @@ export function compileNonPath(value: string, params: Params): string {
     .substr(1)
 }
 
+const escapeSegment = (str: string, segmentName: string) =>
+  str.replace(new RegExp(`:${segmentName}`, 'g'), `__ESC_COLON_${segmentName}`)
+
+const unescapeSegments = (str: string) => str.replace(/__ESC_COLON_/gi, ':')
+
 export default function prepareDestination(
   destination: string,
   params: Params,
@@ -137,17 +146,29 @@ export default function prepareDestination(
   delete query.__nextLocale
   delete query.__nextDefaultLocale
 
-  const parsedDestination = parseUrl(destination)
+  let escapedDestination = destination
+
+  for (const param of Object.keys({ ...params, ...query })) {
+    escapedDestination = escapeSegment(escapedDestination, param)
+  }
+
+  const parsedDestination = parseUrl(escapedDestination)
   const destQuery = parsedDestination.query
-  const destPath = `${parsedDestination.pathname!}${
-    parsedDestination.hash || ''
-  }`
+  const destPath = unescapeSegments(
+    `${parsedDestination.pathname!}${parsedDestination.hash || ''}`
+  )
+  const destHostname = unescapeSegments(parsedDestination.hostname || '')
   const destPathParamKeys: pathToRegexp.Key[] = []
+  const destHostnameParamKeys: pathToRegexp.Key[] = []
   pathToRegexp.pathToRegexp(destPath, destPathParamKeys)
+  pathToRegexp.pathToRegexp(destHostname, destHostnameParamKeys)
 
-  const destPathParams = destPathParamKeys.map((key) => key.name)
+  const destParams: (string | number)[] = []
 
-  let destinationCompiler = pathToRegexp.compile(
+  destPathParamKeys.forEach((key) => destParams.push(key.name))
+  destHostnameParamKeys.forEach((key) => destParams.push(key.name))
+
+  const destPathCompiler = pathToRegexp.compile(
     destPath,
     // we don't validate while compiling the destination since we should
     // have already validated before we got to this point and validating
@@ -157,6 +178,9 @@ export default function prepareDestination(
     // params from a separate path-regex into another
     { validate: false }
   )
+  const destHostnameCompiler = pathToRegexp.compile(destHostname, {
+    validate: false,
+  })
   let newUrl
 
   // update any params in query values
@@ -164,9 +188,11 @@ export default function prepareDestination(
     // the value needs to start with a forward-slash to be compiled
     // correctly
     if (Array.isArray(strOrArray)) {
-      destQuery[key] = strOrArray.map((value) => compileNonPath(value, params))
+      destQuery[key] = strOrArray.map((value) =>
+        compileNonPath(unescapeSegments(value), params)
+      )
     } else {
-      destQuery[key] = compileNonPath(strOrArray, params)
+      destQuery[key] = compileNonPath(unescapeSegments(strOrArray), params)
     }
   }
 
@@ -181,7 +207,7 @@ export default function prepareDestination(
 
   if (
     appendParamsToQuery &&
-    !paramKeys.some((key) => destPathParams.includes(key))
+    !paramKeys.some((key) => destParams.includes(key))
   ) {
     for (const key of paramKeys) {
       if (!(key in destQuery)) {
@@ -191,14 +217,19 @@ export default function prepareDestination(
   }
 
   try {
-    newUrl = destinationCompiler(params)
+    newUrl = destPathCompiler(params)
 
     const [pathname, hash] = newUrl.split('#')
+    parsedDestination.hostname = destHostnameCompiler(params)
     parsedDestination.pathname = pathname
     parsedDestination.hash = `${hash ? '#' : ''}${hash || ''}`
     delete (parsedDestination as any).search
   } catch (err) {
-    if (err.message.match(/Expected .*? to not repeat, but got an array/)) {
+    if (
+      (err as Error).message.match(
+        /Expected .*? to not repeat, but got an array/
+      )
+    ) {
       throw new Error(
         `To use a multi-match in the destination you must add \`*\` at the end of the param name to signify it should repeat. https://nextjs.org/docs/messages/invalid-multi-match`
       )

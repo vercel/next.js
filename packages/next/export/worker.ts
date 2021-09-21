@@ -16,11 +16,12 @@ import { GetStaticProps } from '../types'
 import { requireFontManifest } from '../server/require'
 import { FontManifest } from '../server/font-utils'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
-import { trace } from '../telemetry/trace'
+import { trace } from '../trace'
 import { isInAmpMode } from '../shared/lib/amp'
 import { NextConfigComplete } from '../server/config-shared'
 import { setHttpAgentOptions } from '../server/config'
 import RenderResult from '../server/render-result'
+import isError from '../lib/is-error'
 
 const envConfig = require('../shared/lib/runtime-config')
 
@@ -417,7 +418,7 @@ export default async function exportPage({
         }
       }
 
-      const html = renderResult ? await renderResult.toUnchunkedString() : ''
+      const html = renderResult ? renderResult.toUnchunkedString() : ''
       if (inAmpMode && !curRenderOpts.ampSkipValidation) {
         if (!results.ssgNotFound) {
           await validateAmp(html, path, curRenderOpts.ampValidatorPath)
@@ -460,7 +461,7 @@ export default async function exportPage({
           }
 
           const ampHtml = ampRenderResult
-            ? await ampRenderResult.toUnchunkedString()
+            ? ampRenderResult.toUnchunkedString()
             : ''
           if (!curRenderOpts.ampSkipValidation) {
             await validateAmp(ampHtml, page + '?amp=1')
@@ -500,7 +501,7 @@ export default async function exportPage({
     } catch (error) {
       console.error(
         `\nError occurred prerendering page "${path}". Read more: https://nextjs.org/docs/messages/prerender-error\n` +
-          error.stack
+          (isError(error) ? error.stack : error)
       )
       results.error = true
     }

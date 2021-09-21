@@ -402,7 +402,10 @@ impl Fold for NextSsg {
             _ => true,
         });
 
-        if !self.state.done && !self.state.should_run_again {
+        if !self.state.done
+            && !self.state.should_run_again
+            && (self.state.is_prerenderer || self.state.is_server_props)
+        {
             self.state.done = true;
 
             if items.iter().any(|s| s.is_module_decl()) {

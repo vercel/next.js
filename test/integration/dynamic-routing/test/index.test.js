@@ -21,8 +21,6 @@ import {
 import cheerio from 'cheerio'
 import escapeRegex from 'escape-string-regexp'
 
-jest.setTimeout(1000 * 60 * 2)
-
 let app
 let appPort
 let buildId

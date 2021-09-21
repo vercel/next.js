@@ -17,8 +17,6 @@ import webdriver from 'next-webdriver'
 import { join } from 'path'
 import { existsSync } from 'fs'
 
-jest.setTimeout(1000 * 80)
-
 const appDir = join(__dirname, '../')
 
 let appPort
@@ -29,7 +27,7 @@ async function hasImageMatchingUrl(browser, url) {
   let foundMatch = false
   for (const link of links) {
     const src = await link.getAttribute('src')
-    if (src === url) {
+    if (new URL(src, `http://localhost:${appPort}`).toString() === url) {
       foundMatch = true
       break
     }
@@ -61,7 +59,7 @@ async function getComputedStyle(browser, id, prop) {
 async function getSrc(browser, id) {
   const src = await browser.elementById(id).getAttribute('src')
   if (src) {
-    const url = new URL(src)
+    const url = new URL(src, `http://localhost:${appPort}`)
     return url.href.slice(url.origin.length)
   }
 }
@@ -127,7 +125,7 @@ function runTests(mode) {
       }
       expect(entries).toEqual([
         {
-          imagesizes: null,
+          imagesizes: '',
           imagesrcset:
             '/_next/image?url=%2Ftest.jpg&w=640&q=75 1x, /_next/image?url=%2Ftest.jpg&w=828&q=75 2x',
         },
@@ -435,9 +433,13 @@ function runTests(mode) {
       expect(await getSrc(browser, id)).toBe(
         '/_next/image?url=%2Fwide.png&w=3840&q=75'
       )
-      expect(await browser.elementById(id).getAttribute('srcset')).toBe(
-        '/_next/image?url=%2Fwide.png&w=640&q=75 640w, /_next/image?url=%2Fwide.png&w=750&q=75 750w, /_next/image?url=%2Fwide.png&w=828&q=75 828w, /_next/image?url=%2Fwide.png&w=1080&q=75 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75 3840w'
-      )
+
+      await check(() => {
+        return browser.eval(
+          `document.querySelector('#${id}').getAttribute('srcset')`
+        )
+      }, '/_next/image?url=%2Fwide.png&w=640&q=75 640w, /_next/image?url=%2Fwide.png&w=750&q=75 750w, /_next/image?url=%2Fwide.png&w=828&q=75 828w, /_next/image?url=%2Fwide.png&w=1080&q=75 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75 3840w')
+
       expect(await browser.elementById(id).getAttribute('sizes')).toBe('100vw')
       expect(await getComputed(browser, id, 'width')).toBe(width)
       expect(await getComputed(browser, id, 'height')).toBe(height)
@@ -468,13 +470,18 @@ function runTests(mode) {
       expect(objectFit).toBe('cover')
       expect(objectPosition).toBe('left center')
       await browser.eval(`document.getElementById("fill3").scrollIntoView()`)
-      expect(await browser.elementById('fill3').getAttribute('srcset')).toBe(
-        '/_next/image?url=%2Fwide.png&w=256&q=75 256w, /_next/image?url=%2Fwide.png&w=384&q=75 384w, /_next/image?url=%2Fwide.png&w=640&q=75 640w, /_next/image?url=%2Fwide.png&w=750&q=75 750w, /_next/image?url=%2Fwide.png&w=828&q=75 828w, /_next/image?url=%2Fwide.png&w=1080&q=75 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75 3840w'
-      )
+      await check(() => {
+        return browser.eval(
+          `document.querySelector('#fill3').getAttribute('srcset')`
+        )
+      }, '/_next/image?url=%2Fwide.png&w=256&q=75 256w, /_next/image?url=%2Fwide.png&w=384&q=75 384w, /_next/image?url=%2Fwide.png&w=640&q=75 640w, /_next/image?url=%2Fwide.png&w=750&q=75 750w, /_next/image?url=%2Fwide.png&w=828&q=75 828w, /_next/image?url=%2Fwide.png&w=1080&q=75 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75 3840w')
+
       await browser.eval(`document.getElementById("fill4").scrollIntoView()`)
-      expect(await browser.elementById('fill4').getAttribute('srcset')).toBe(
-        '/_next/image?url=%2Fwide.png&w=16&q=75 16w, /_next/image?url=%2Fwide.png&w=32&q=75 32w, /_next/image?url=%2Fwide.png&w=48&q=75 48w, /_next/image?url=%2Fwide.png&w=64&q=75 64w, /_next/image?url=%2Fwide.png&w=96&q=75 96w, /_next/image?url=%2Fwide.png&w=128&q=75 128w, /_next/image?url=%2Fwide.png&w=256&q=75 256w, /_next/image?url=%2Fwide.png&w=384&q=75 384w, /_next/image?url=%2Fwide.png&w=640&q=75 640w, /_next/image?url=%2Fwide.png&w=750&q=75 750w, /_next/image?url=%2Fwide.png&w=828&q=75 828w, /_next/image?url=%2Fwide.png&w=1080&q=75 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75 3840w'
-      )
+      await check(() => {
+        return browser.eval(
+          `document.querySelector('#fill4').getAttribute('srcset')`
+        )
+      }, '/_next/image?url=%2Fwide.png&w=16&q=75 16w, /_next/image?url=%2Fwide.png&w=32&q=75 32w, /_next/image?url=%2Fwide.png&w=48&q=75 48w, /_next/image?url=%2Fwide.png&w=64&q=75 64w, /_next/image?url=%2Fwide.png&w=96&q=75 96w, /_next/image?url=%2Fwide.png&w=128&q=75 128w, /_next/image?url=%2Fwide.png&w=256&q=75 256w, /_next/image?url=%2Fwide.png&w=384&q=75 384w, /_next/image?url=%2Fwide.png&w=640&q=75 640w, /_next/image?url=%2Fwide.png&w=750&q=75 750w, /_next/image?url=%2Fwide.png&w=828&q=75 828w, /_next/image?url=%2Fwide.png&w=1080&q=75 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75 3840w')
     } finally {
       if (browser) {
         await browser.close()
@@ -585,13 +592,12 @@ function runTests(mode) {
     it('should warn when img with layout=responsive is inside flex container', async () => {
       const browser = await webdriver(appPort, '/layout-responsive-inside-flex')
       await browser.eval(`document.getElementById("img").scrollIntoView()`)
-      const warnings = (await browser.log('browser'))
-        .map((log) => log.message)
-        .join('\n')
+      await check(async () => {
+        return (await browser.log('browser'))
+          .map((log) => log.message)
+          .join('\n')
+      }, /Image with src (.*)jpg(.*) may not render properly as a child of a flex container. Consider wrapping the image with a div to configure the width/gm)
       expect(await hasRedbox(browser)).toBe(false)
-      expect(warnings).toMatch(
-        /Image with src (.*)jpg(.*) may not render properly as a child of a flex container. Consider wrapping the image with a div to configure the width/gm
-      )
     })
 
     it('should warn when img with layout=fill is inside a container without position relative', async () => {
@@ -600,13 +606,12 @@ function runTests(mode) {
         '/layout-fill-inside-nonrelative'
       )
       await browser.eval(`document.getElementById("img").scrollIntoView()`)
-      const warnings = (await browser.log('browser'))
-        .map((log) => log.message)
-        .join('\n')
+      await check(async () => {
+        return (await browser.log('browser'))
+          .map((log) => log.message)
+          .join('\n')
+      }, /Image with src (.*)jpg(.*) may not render properly with a parent using position:"static". Consider changing the parent style to position:"relative"/gm)
       expect(await hasRedbox(browser)).toBe(false)
-      expect(warnings).toMatch(
-        /Image with src (.*)jpg(.*) may not render properly with a parent using position:\\"static\\". Consider changing the parent style to position:\\"relative\\"/gm
-      )
     })
 
     it('should warn when using a very small image with placeholder=blur', async () => {
@@ -624,13 +629,13 @@ function runTests(mode) {
     it('should warn when style prop is used', async () => {
       const browser = await webdriver(appPort, '/invalid-style')
 
-      const warnings = (await browser.log('browser'))
-        .map((log) => log.message)
-        .join('\n')
+      await check(async () => {
+        return (await browser.log('browser'))
+          .map((log) => log.message)
+          .join('\n')
+      }, /Image with src (.*)jpg(.*) is using unsupported "style" property(.*)/gm)
+
       expect(await hasRedbox(browser)).toBe(false)
-      expect(warnings).toMatch(
-        /Image with src (.*)jpg(.*) is using unsupported \\"style\\" property(.*)/gm
-      )
     })
   } else {
     //server-only tests
