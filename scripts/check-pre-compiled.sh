@@ -10,6 +10,5 @@ yarn --cwd packages/next ncc-compiled
 if [[ ! -z $(git status -s) ]];then
   echo "Detected changes"
   git diff -a --stat
-  git diff -a --diff-filter=M | head -1000
   exit 1
 fi
