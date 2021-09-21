@@ -1132,13 +1132,16 @@ export default class Router implements BaseRouter {
 
       // handle redirect on client-transition
       if ((__N_SSG || __N_SSP) && props) {
-        if ((props as any).pageProps && (props as any).pageProps.__N_REDIRECT) {
-          const destination = (props as any).pageProps.__N_REDIRECT
+        if (props.pageProps && props.pageProps.__N_REDIRECT) {
+          const destination = props.pageProps.__N_REDIRECT
 
           // check if destination is internal (resolves to a page) and attempt
           // client-navigation if it is falling back to hard navigation if
           // it's not
-          if (destination.startsWith('/')) {
+          if (
+            destination.startsWith('/') &&
+            props.pageProps.__N_REDIRECT_BASE_PATH !== false
+          ) {
             const parsedHref = parseRelativeUrl(destination)
             parsedHref.pathname = resolveDynamicRoute(
               parsedHref.pathname,
