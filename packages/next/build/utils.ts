@@ -840,22 +840,25 @@ export async function isPageStatic(
     try {
       require('../shared/lib/runtime-config').setConfig(runtimeEnvConfig)
       setHttpAgentOptions(httpAgentOptions)
-      const components = await loadComponents(distDir, page, serverless)
-      const mod = components.ComponentMod
-      const Comp = mod.default || mod
+      const mod = await loadComponents(distDir, page, serverless)
+      const Comp = mod.Component
 
       if (!Comp || !isValidElementType(Comp) || typeof Comp === 'string') {
         throw new Error('INVALID_DEFAULT_EXPORT')
       }
 
       const hasGetInitialProps = !!(Comp as any).getInitialProps
-      const hasStaticProps = !!(await mod.getStaticProps)
-      const hasStaticPaths = !!(await mod.getStaticPaths)
-      const hasServerProps = !!(await mod.getServerSideProps)
-      const hasLegacyServerProps = !!(await mod.unstable_getServerProps)
-      const hasLegacyStaticProps = !!(await mod.unstable_getStaticProps)
-      const hasLegacyStaticPaths = !!(await mod.unstable_getStaticPaths)
-      const hasLegacyStaticParams = !!(await mod.unstable_getStaticParams)
+      const hasStaticProps = !!mod.getStaticProps
+      const hasStaticPaths = !!mod.getStaticPaths
+      const hasServerProps = !!mod.getServerSideProps
+      const hasLegacyServerProps = !!(await mod.ComponentMod
+        .unstable_getServerProps)
+      const hasLegacyStaticProps = !!(await mod.ComponentMod
+        .unstable_getStaticProps)
+      const hasLegacyStaticPaths = !!(await mod.ComponentMod
+        .unstable_getStaticPaths)
+      const hasLegacyStaticParams = !!(await mod.ComponentMod
+        .unstable_getStaticParams)
 
       if (hasLegacyStaticParams) {
         throw new Error(
@@ -921,14 +924,14 @@ export async function isPageStatic(
           encodedPaths: encodedPrerenderRoutes,
         } = await buildStaticPaths(
           page,
-          mod.getStaticPaths,
+          mod.getStaticPaths!,
           locales,
           defaultLocale
         ))
       }
 
       const isNextImageImported = (global as any).__NEXT_IMAGE_IMPORTED
-      const config: PageConfig = mod.config || {}
+      const config: PageConfig = mod.pageConfig
       return {
         isStatic: !hasStaticProps && !hasGetInitialProps && !hasServerProps,
         isHybridAmp: config.amp === 'hybrid',

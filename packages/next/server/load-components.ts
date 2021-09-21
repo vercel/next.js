@@ -26,7 +26,7 @@ export type ReactLoadableManifest = { [moduleId: string]: ManifestItem }
 
 export type LoadComponentsReturnType = {
   Component: React.ComponentType
-  pageConfig?: PageConfig
+  pageConfig: PageConfig
   buildManifest: BuildManifest
   reactLoadableManifest: ReactLoadableManifest
   Document: DocumentType
@@ -47,6 +47,7 @@ export async function loadDefaultErrorComponents(buildManifest: BuildManifest) {
     App,
     Document,
     Component,
+    pageConfig: {},
     buildManifest,
     reactLoadableManifest: {},
     ComponentMod,
@@ -61,13 +62,27 @@ export async function loadComponents(
   reactLoadableManifestCached?: Promise<ReactLoadableManifest>
 ): Promise<LoadComponentsReturnType> {
   if (serverless) {
-    const Component = await requirePage(pathname, distDir, serverless)
-    let { getStaticProps, getStaticPaths, getServerSideProps } = Component
+    const ComponentMod = await requirePage(pathname, distDir, serverless)
+    if (typeof ComponentMod === 'string') {
+      return {
+        Component: ComponentMod as any,
+        pageConfig: {},
+        ComponentMod,
+      } as LoadComponentsReturnType
+    }
 
+    let {
+      default: Component,
+      getStaticProps,
+      getStaticPaths,
+      getServerSideProps,
+    } = ComponentMod
+
+    Component = await Component
     getStaticProps = await getStaticProps
     getStaticPaths = await getStaticPaths
     getServerSideProps = await getServerSideProps
-    const pageConfig = (await Component.config) || {}
+    const pageConfig = (await ComponentMod.config) || {}
 
     return {
       Component,
@@ -75,7 +90,7 @@ export async function loadComponents(
       getStaticProps,
       getStaticPaths,
       getServerSideProps,
-      ComponentMod: Component,
+      ComponentMod,
     } as LoadComponentsReturnType
   }
 
