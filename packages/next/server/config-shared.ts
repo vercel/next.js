@@ -109,7 +109,7 @@ export type NextConfig = { [key: string]: any } & {
     webpack5?: false
     strictPostcssConfiguration?: boolean
   }
-  crossOrigin?: string
+  crossOrigin?: false | 'anonymous' | 'use-credentials'
   experimental?: {
     swcMinify?: boolean
     swcLoader?: boolean

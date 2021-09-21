@@ -10,35 +10,43 @@ const obj = {
     display: "block"
 };
 export default (({ display  })=><div className={"jsx-802e359ee0ab20c4 " + _JSXStyle.dynamic([
-        "76aa3eae4e21e4ca",
         [
-            display ? "block" : "none"
-        ]
-    ], [
-        "5ba905f763f40220",
+            "76aa3eae4e21e4ca",
+            [
+                display ? "block" : "none"
+            ]
+        ],
         [
-            darken(color) + 2
-        ]
-    ], [
-        "c4bb394aae9bd00b",
+            "5ba905f763f40220",
+            [
+                darken(color) + 2
+            ]
+        ],
         [
-            darken(color)
+            "c4bb394aae9bd00b",
+            [
+                darken(color)
+            ]
         ]
     ])}>
     <p className={"jsx-802e359ee0ab20c4 " + _JSXStyle.dynamic([
-        "76aa3eae4e21e4ca",
         [
-            display ? "block" : "none"
-        ]
-    ], [
-        "5ba905f763f40220",
+            "76aa3eae4e21e4ca",
+            [
+                display ? "block" : "none"
+            ]
+        ],
         [
-            darken(color) + 2
-        ]
-    ], [
-        "c4bb394aae9bd00b",
+            "5ba905f763f40220",
+            [
+                darken(color) + 2
+            ]
+        ],
         [
-            darken(color)
+            "c4bb394aae9bd00b",
+            [
+                darken(color)
+            ]
         ]
     ])}>test</p>
     <_JSXStyle id={"f3d3af42197b4734"}>{`p.${color}.jsx-802e359ee0ab20c4 {color:${otherColor};

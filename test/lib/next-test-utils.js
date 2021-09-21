@@ -10,9 +10,6 @@ import {
 import { writeFile } from 'fs-extra'
 import getPort from 'get-port'
 import http from 'http'
-// `next` here is the symlink in `test/node_modules/next` which points to the root directory.
-// This is done so that requiring from `next` works.
-// The reason we don't import the relative path `../../dist/<etc>` is that it would lead to inconsistent module singletons
 import server from 'next/dist/server/next'
 import _pkg from 'next/package.json'
 import fetch from 'node-fetch'
@@ -528,9 +525,8 @@ export async function retry(fn, duration = 3000, interval = 500, description) {
 }
 
 export async function hasRedbox(browser, expected = true) {
-  let attempts = 30
-  do {
-    const has = await evaluate(browser, () => {
+  for (let i = 0; i < 30; i++) {
+    const result = await evaluate(browser, () => {
       return Boolean(
         [].slice
           .call(document.querySelectorAll('nextjs-portal'))
@@ -541,15 +537,12 @@ export async function hasRedbox(browser, expected = true) {
           )
       )
     })
-    if (has) {
-      return true
-    }
-    if (--attempts < 0) {
-      break
-    }
 
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-  } while (expected)
+    if (result === expected) {
+      return result
+    }
+    await waitFor(1000)
+  }
   return false
 }
 
