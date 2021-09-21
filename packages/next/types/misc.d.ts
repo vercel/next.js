@@ -225,7 +225,7 @@ declare module 'next/dist/compiled/comment-json' {
 }
 
 declare module 'pnp-webpack-plugin' {
-  import webpack from 'webpack'
+  import webpack from 'webpack4'
 
   class PnpWebpackPlugin extends webpack.Plugin {}
 
