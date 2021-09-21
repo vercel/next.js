@@ -211,7 +211,7 @@ export type HtmlProps = {
   scriptLoader: {
     afterInteractive?: string[]
     beforeInteractive?: any[]
-    inlineBeforeInteractive?: any[]
+    dangerouslyRenderBlocking?: any[]
   }
   locale?: string
   disableOptimizedLoading?: boolean

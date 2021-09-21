@@ -404,19 +404,34 @@ export class Head extends Component<
     return getDynamicChunks(this.context, this.props, files)
   }
 
-  getInlineBeforeInteractiveScripts() {
+  getDangerouslyRenderBlockingScripts() {
     const { scriptLoader } = this.context
     const { nonce, crossOrigin } = this.props
 
-    return (scriptLoader.inlineBeforeInteractive || []).map(
+    return (scriptLoader.dangerouslyRenderBlocking || []).map(
       (file: ScriptProps, index: number) => {
-        const { strategy, ...scriptProps } = file
+        const { strategy, children, dangerouslySetInnerHTML, ...scriptProps } =
+          file
+        let html = ''
+
+        if (dangerouslySetInnerHTML && dangerouslySetInnerHTML.__html) {
+          html = dangerouslySetInnerHTML.__html
+        } else if (children) {
+          html =
+            typeof children === 'string'
+              ? children
+              : Array.isArray(children)
+              ? children.join('')
+              : ''
+        }
+
         return (
           <script
             {...scriptProps}
+            dangerouslySetInnerHTML={{ __html: html }}
             key={scriptProps.id || index}
             nonce={nonce}
-            data-nscript="inlineBeforeInteractive"
+            data-nscript="dangerouslyRenderBlocking"
             crossOrigin={crossOrigin || process.env.__NEXT_CROSS_ORIGIN}
           />
         )
@@ -693,7 +708,7 @@ export class Head extends Component<
                 href={canonicalBase + getAmpPath(ampPath, dangerousAsPath)}
               />
             )}
-            {this.getInlineBeforeInteractiveScripts()}
+            {this.getDangerouslyRenderBlockingScripts()}
             {!process.env.__NEXT_OPTIMIZE_CSS && this.getCssLinks(files)}
             {!process.env.__NEXT_OPTIMIZE_CSS && (
               <noscript data-n-css={this.props.nonce ?? ''} />

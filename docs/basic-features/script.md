@@ -19,7 +19,8 @@ Websites often need third parties for things like analytics, ads, customer suppo
 
 With `next/script`, you can define the `strategy` property and Next.js will optimize loading for the script:
 
-- `beforeInteractive`: For critical scripts that need to be fetched and executed **before** the page is interactive, such as bot detection and consent management. These scripts are injected into the initial HTML from the server and run before self-bundled JavaScript is executed.
+- `beforeInteractive`: For critical scripts that need to be fetched and executed **before** the page is interactive, such as bot detection and consent management. These scripts are injected into the initial HTML from the server and run before self-bundled JavaScript is executed. _Note: This strategy does not support inline scripts. Use `dangerouslyRenderBlocking` strategy instead._
+- `dangerouslyRenderBlocking`: For inline scripts that needs to be executed **before** the page is interactive. This executes the inline script as one of the first items of the page. _Note: Inline scripts added via this strategy hurt load performance and can quickly add up. Use this only when needed._
 - `afterInteractive` (**default**): For scripts that can fetch and execute **after** the page is interactive, such as tag managers and analytics. These scripts are injected on the client-side and will run after hydration.
 - `lazyOnload` For scripts that can wait to load during idle time, such as chat support and social media widgets.
 

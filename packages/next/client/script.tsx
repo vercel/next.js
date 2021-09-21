@@ -12,7 +12,7 @@ export interface ScriptProps extends ScriptHTMLAttributes<HTMLScriptElement> {
     | 'afterInteractive'
     | 'lazyOnload'
     | 'beforeInteractive'
-    | 'inlineBeforeInteractive'
+    | 'dangerouslyRenderBlocking'
   id?: string
   onLoad?: (e: any) => void
   onError?: (e: any) => void
@@ -156,7 +156,7 @@ function Script(props: ScriptProps): JSX.Element | null {
 
   if (
     strategy === 'beforeInteractive' ||
-    strategy === 'inlineBeforeInteractive'
+    strategy === 'dangerouslyRenderBlocking'
   ) {
     if (updateScripts) {
       if (strategy === 'beforeInteractive') {
@@ -169,8 +169,8 @@ function Script(props: ScriptProps): JSX.Element | null {
           },
         ])
       } else {
-        scripts.inlineBeforeInteractive = (
-          scripts.inlineBeforeInteractive || []
+        scripts.dangerouslyRenderBlocking = (
+          scripts.dangerouslyRenderBlocking || []
         ).concat([
           {
             dangerouslySetInnerHTML,

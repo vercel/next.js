@@ -7,9 +7,9 @@ const Page = () => {
       <Script id="inline-script">{`document.getElementById('text').textContent += 'abc'`}</Script>
       <Script
         id="inline-before"
-        strategy="inlineBeforeInteractive"
+        strategy="dangerouslyRenderBlocking"
         dangerouslySetInnerHTML={{
-          __html: `console.log('inlineBeforeInteractive')`,
+          __html: `console.log('dangerouslyRenderBlocking')`,
         }}
       ></Script>
       <div>page5</div>
