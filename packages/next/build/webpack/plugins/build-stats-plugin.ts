@@ -118,9 +118,10 @@ export default class BuildStatsPlugin {
     compiler.hooks.done.tapAsync(
       'NextJsBuildStats',
       async (stats, callback) => {
-        const compilerSpan = spans.get(compiler)
+        const compilationSpan =
+          spans.get(stats.compilation) || spans.get(compiler)
         try {
-          const writeStatsSpan = compilerSpan!.traceChild('NextJsBuildStats')
+          const writeStatsSpan = compilationSpan!.traceChild('NextJsBuildStats')
           await writeStatsSpan.traceAsyncFn(() => {
             return new Promise((resolve, reject) => {
               const baseOptions = {
