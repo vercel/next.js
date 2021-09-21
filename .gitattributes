@@ -1,1 +1,2 @@
-* text=auto eol=lf
+packages/next/bundles/** -text
+packages/next/compiled/** -text
