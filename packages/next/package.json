@@ -250,7 +250,7 @@
     "unistore": "3.4.1",
     "web-vitals": "2.1.0",
     "webpack4": "npm:webpack@4.44.1",
-    "webpack5": "npm:webpack@5.52.0",
+    "webpack5": "npm:webpack@5.53.0",
     "webpack-sources1": "npm:webpack-sources@1.4.3",
     "webpack-sources3": "npm:webpack-sources@3.2.0"
   },

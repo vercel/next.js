@@ -5,9 +5,14 @@ import { NextInstance } from './base'
 
 export class NextStartInstance extends NextInstance {
   private _buildId: string
+  private _cliOutput: string
 
   public get buildId() {
     return this._buildId
+  }
+
+  public get cliOutput() {
+    return this._cliOutput
   }
 
   public async setup() {
@@ -33,11 +38,13 @@ export class NextStartInstance extends NextInstance {
       this.childProcess.stdout.on('data', (chunk) => {
         const msg = chunk.toString()
         process.stdout.write(chunk)
+        this._cliOutput += msg
         this.emit('stdout', [msg])
       })
       this.childProcess.stderr.on('data', (chunk) => {
         const msg = chunk.toString()
         process.stderr.write(chunk)
+        this._cliOutput += msg
         this.emit('stderr', [msg])
       })
     }

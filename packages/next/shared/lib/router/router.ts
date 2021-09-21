@@ -80,11 +80,15 @@ function buildCancellationError() {
 }
 
 function addPathPrefix(path: string, prefix?: string) {
-  return prefix && path.startsWith('/')
-    ? path === '/'
-      ? normalizePathTrailingSlash(prefix)
-      : `${prefix}${pathNoQueryHash(path) === '/' ? path.substring(1) : path}`
-    : path
+  if (!path.startsWith('/') || !prefix) {
+    return path
+  }
+  const pathname = pathNoQueryHash(path)
+
+  return (
+    normalizePathTrailingSlash(`${prefix}${pathname}`) +
+    path.substr(pathname.length)
+  )
 }
 
 export function getDomainLocale(
@@ -829,7 +833,9 @@ export default class Router implements BaseRouter {
       return false
     }
     const shouldResolveHref =
-      url === as || (options as any)._h || (options as any)._shouldResolveHref
+      (options as any)._h ||
+      (options as any)._shouldResolveHref ||
+      pathNoQueryHash(url) === pathNoQueryHash(as)
 
     // for static pages with query params in the URL we delay
     // marking the router ready until after the query is updated
@@ -1126,13 +1132,16 @@ export default class Router implements BaseRouter {
 
       // handle redirect on client-transition
       if ((__N_SSG || __N_SSP) && props) {
-        if ((props as any).pageProps && (props as any).pageProps.__N_REDIRECT) {
-          const destination = (props as any).pageProps.__N_REDIRECT
+        if (props.pageProps && props.pageProps.__N_REDIRECT) {
+          const destination = props.pageProps.__N_REDIRECT
 
           // check if destination is internal (resolves to a page) and attempt
           // client-navigation if it is falling back to hard navigation if
           // it's not
-          if (destination.startsWith('/')) {
+          if (
+            destination.startsWith('/') &&
+            props.pageProps.__N_REDIRECT_BASE_PATH !== false
+          ) {
             const parsedHref = parseRelativeUrl(destination)
             parsedHref.pathname = resolveDynamicRoute(
               parsedHref.pathname,
