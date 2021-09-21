@@ -75,22 +75,26 @@ jobs:
     env:
       NEXT_TELEMETRY_DISABLED: 1
     steps:
-      - uses: actions/checkout@v2
-        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
-
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         run: sudo ethtool -K eth0 tx off rx off
 
+      - uses: actions/checkout@v2
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
+      - run: mv .git .git-bak
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
       - uses: actions/cache@v2
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         id: restore-build
         with:
-          path: |
-            ./*
-            !./.git
+          path: ./*
           key: ${{ github.sha }}
+
+      - run: rm -rf .git && mv .git-bak .git
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
       - uses: actions/download-artifact@v2
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
