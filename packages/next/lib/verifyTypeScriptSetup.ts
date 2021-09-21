@@ -14,6 +14,8 @@ import { TypeCheckResult } from './typescript/runTypeCheck'
 import { writeAppTypeDeclarations } from './typescript/writeAppTypeDeclarations'
 import { writeConfigurationDefaults } from './typescript/writeConfigurationDefaults'
 import { missingDepsError } from './typescript/missingDependencyError'
+import loadConfig from '../server/config'
+import { PHASE_PRODUCTION_BUILD } from '../shared/lib/constants'
 
 const requiredPackages = [
   { file: 'typescript', pkg: 'typescript' },
@@ -28,7 +30,8 @@ export async function verifyTypeScriptSetup(
   imageImportsEnabled: boolean,
   cacheDir?: string
 ): Promise<{ result?: TypeCheckResult; version: string | null }> {
-  const tsConfigName = process.env.NEXT_TSCONFIG_PATH ?? 'tsconfig.json'
+  const config = await loadConfig(PHASE_PRODUCTION_BUILD, dir)
+  const tsConfigName = config.typescript.tsconfigPath ?? 'tsconfig.json'
   const tsConfigPath = path.join(dir, tsConfigName)
 
   try {

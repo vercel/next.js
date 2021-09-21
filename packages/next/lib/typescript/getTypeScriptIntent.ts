@@ -1,5 +1,7 @@
 import { promises as fs } from 'fs'
 import path from 'path'
+import loadConfig from '../../server/config'
+import { PHASE_PRODUCTION_BUILD } from '../../shared/lib/constants'
 import { fileExists } from '../file-exists'
 import { recursiveReadDir } from '../recursive-readdir'
 
@@ -9,7 +11,8 @@ export async function getTypeScriptIntent(
   baseDir: string,
   pagesDir: string
 ): Promise<TypeScriptIntent | false> {
-  const tsConfigName = process.env.NEXT_TSCONFIG_PATH ?? 'tsconfig.json'
+  const config = await loadConfig(PHASE_PRODUCTION_BUILD, baseDir)
+  const tsConfigName = config.typescript.tsconfigPath ?? 'tsconfig.json'
   const tsConfigPath = path.join(baseDir, tsConfigName)
 
   // The integration turns on if we find a `tsconfig.json` in the user's
