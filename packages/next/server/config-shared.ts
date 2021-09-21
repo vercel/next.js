@@ -155,6 +155,7 @@ export const defaultConfig: NextConfig = {
   },
   typescript: {
     ignoreBuildErrors: false,
+    tsconfigPath: 'tsconfig.json',
   },
   distDir: '.next',
   cleanDistDir: true,

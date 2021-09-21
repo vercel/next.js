@@ -380,8 +380,8 @@ export default async function getBaseWebpackConfig(
     typeScriptPath = require.resolve('typescript', { paths: [dir] })
   } catch (_) {}
   const { tsconfigPath } = config.typescript
-  const tsConfigName = tsconfigPath ?? 'tsconfig.json'
-  const tsConfigPath = path.join(dir, tsConfigName)
+  const tsConfigName = tsconfigPath
+  const tsConfigPath = path.join(dir, tsConfigName!)
   const useTypeScript = Boolean(
     typeScriptPath && (await fileExists(tsConfigPath))
   )
@@ -391,7 +391,7 @@ export default async function getBaseWebpackConfig(
   if (useTypeScript) {
     if (tsConfigName !== 'tsconfig.json' && TSCONFIG_WARNED === false) {
       TSCONFIG_WARNED = true
-      Log.warn(`Using custom tsconfig configuration file (${tsConfigName}).`)
+      Log.info(`Using tsconfig file: ${tsConfigName}`)
     }
 
     const ts = (await import(typeScriptPath!)) as typeof import('typescript')

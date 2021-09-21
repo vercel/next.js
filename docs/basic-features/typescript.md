@@ -33,9 +33,9 @@ the root folder:
 touch tsconfig.json
 ```
 
-You can also provide a relative path to a tsconfig file by setting `typescript.tsconfigPath` inside your Next.js config.
-
 Next.js will automatically configure this file with default values. Providing your own `tsconfig.json` with custom [compiler options](https://www.typescriptlang.org/docs/handbook/compiler-options.html) is also supported.
+
+You can also provide a relative path to a tsconfig.json file by setting `typescript.tsconfigPath` prop inside your `next.config.js` file.
 
 > Next.js uses Babel to handle TypeScript, which has some [caveats](https://babeljs.io/docs/en/babel-plugin-transform-typescript#caveats), and some [compiler options are handled differently](https://babeljs.io/docs/en/babel-plugin-transform-typescript#typescript-compiler-options).
 

@@ -5,14 +5,16 @@ import { nextBuild } from 'next-test-utils'
 
 const appDir = join(__dirname, '..')
 
-const warnMessage = /Using custom tsconfig configuration file/
+const warnMessage = /Using tsconfig file:/
 
 describe('Custom TypeScript Config', () => {
   it('should warn when using custom typescript path', async () => {
-    const { stderr } = await nextBuild(appDir, [], {
-      stderr: true,
+    const { stdout } = await nextBuild(appDir, [], {
+      stdout: true,
     })
 
-    expect(stderr).toMatch(warnMessage)
+    console.log(stdout)
+
+    expect(stdout).toMatch(warnMessage)
   })
 })

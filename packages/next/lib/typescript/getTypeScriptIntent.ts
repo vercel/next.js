@@ -12,8 +12,8 @@ export async function getTypeScriptIntent(
   pagesDir: string
 ): Promise<TypeScriptIntent | false> {
   const config = await loadConfig(PHASE_PRODUCTION_BUILD, baseDir)
-  const tsConfigName = config.typescript.tsconfigPath ?? 'tsconfig.json'
-  const tsConfigPath = path.join(baseDir, tsConfigName)
+  const tsConfigName = config.typescript.tsconfigPath
+  const tsConfigPath = path.join(baseDir, tsConfigName!)
 
   // The integration turns on if we find a `tsconfig.json` in the user's
   // project.

@@ -31,8 +31,8 @@ export async function verifyTypeScriptSetup(
   cacheDir?: string
 ): Promise<{ result?: TypeCheckResult; version: string | null }> {
   const config = await loadConfig(PHASE_PRODUCTION_BUILD, dir)
-  const tsConfigName = config.typescript.tsconfigPath ?? 'tsconfig.json'
-  const tsConfigPath = path.join(dir, tsConfigName)
+  const tsConfigName = config.typescript.tsconfigPath
+  const tsConfigPath = path.join(dir, tsConfigName!)
 
   try {
     // Check if the project uses TypeScript:
