@@ -2,12 +2,18 @@ import { spawn } from 'child_process'
 import { NextInstance } from './base'
 
 export class NextDevInstance extends NextInstance {
+  private _cliOutput: string
+
   public get buildId() {
     return 'development'
   }
 
   public async setup() {
     await super.createTestDir()
+  }
+
+  public get cliOutput() {
+    return this._cliOutput || ''
   }
 
   public async start() {
@@ -32,11 +38,13 @@ export class NextDevInstance extends NextInstance {
     this.childProcess.stdout.on('data', (chunk) => {
       const msg = chunk.toString()
       process.stdout.write(chunk)
+      this._cliOutput += msg
       this.emit('stdout', [msg])
     })
     this.childProcess.stderr.on('data', (chunk) => {
       const msg = chunk.toString()
       process.stderr.write(chunk)
+      this._cliOutput += msg
       this.emit('stderr', [msg])
     })
 
