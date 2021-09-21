@@ -293,6 +293,11 @@ export function createRouteLoader(assetPrefix: string): RouteLoader {
       return prom
     }
 
+    // Skip fetch if it's already in the DOM:
+    if (document.querySelector(`link[href^="${href}"]`)) {
+      return Promise.resolve({ href, content: '' })
+    }
+
     styleSheets.set(
       href,
       (prom = fetch(href)
