@@ -146,7 +146,7 @@ jobs:
 
       # docker run is used here to fix jest snapshots failing inside of the
       # bare GitHub actions environment for the acceptance tests
-      - run: docker run --ipc=host -e NEXT_TEST_JOB=1 -e NEXT_TELEMETRY_DISABLED=1 -v $(pwd):/next.js mcr.microsoft.com/playwright:focal /bin/bash -c 'cd /next.js && node run-tests.js --type development'
+      - run: docker run --ipc=host -e NEXT_TEST_JOB=1 -e NEXT_TELEMETRY_DISABLED=1 -v $(pwd):/next.js mcr.microsoft.com/playwright:v1.15.0 /bin/bash -c 'cd /next.js && node run-tests.js --type development'
         name: Run test/development
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
@@ -307,7 +307,7 @@ jobs:
 
       # docker run is used here to fix jest snapshots failing inside of the
       # bare GitHub actions environment for the acceptance tests
-      - run: docker run --ipc=host -e NEXT_PRIVATE_TEST_WEBPACK4_MODE=1 -e NEXT_TEST_JOB=1 -e NEXT_TELEMETRY_DISABLED=1 -v $(pwd):/next.js mcr.microsoft.com/playwright:focal /bin/bash -c 'cd /next.js && node run-tests.js --type development test/development/acceptance/{ReactRefresh,ReactRefreshLogBox-app-doc,ReactRefreshLogBox-scss,ReactRefreshLogBox,ReactRefreshLogBoxMisc,ReactRefreshRegression,ReactRefreshRequire}.test.ts test/development/basic/*.test.ts && node run-tests.js test/integration/{fallback-modules,link-ref,production,async-modules,font-optimization,ssr-ctx}/test/index.test.js'
+      - run: docker run --ipc=host -e NEXT_PRIVATE_TEST_WEBPACK4_MODE=1 -e NEXT_TEST_JOB=1 -e NEXT_TELEMETRY_DISABLED=1 -v $(pwd):/next.js mcr.microsoft.com/playwright:v1.15.0 /bin/bash -c 'cd /next.js && node run-tests.js --type development test/development/acceptance/{ReactRefresh,ReactRefreshLogBox-app-doc,ReactRefreshLogBox-scss,ReactRefreshLogBox,ReactRefreshLogBoxMisc,ReactRefreshRegression,ReactRefreshRequire}.test.ts test/development/basic/*.test.ts && node run-tests.js test/integration/{fallback-modules,link-ref,production,async-modules,font-optimization,ssr-ctx}/test/index.test.js'
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
   testFirefox:
