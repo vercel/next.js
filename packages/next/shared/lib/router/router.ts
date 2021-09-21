@@ -13,6 +13,7 @@ import {
   markAssetError,
 } from '../../../client/route-loader'
 import { RouterEvent } from '../../../client/router'
+import isError from '../../../lib/is-error'
 import type { DomainLocale } from '../../../server/config'
 import { denormalizePagePath } from '../../../server/denormalize-page-path'
 import { normalizeLocalePath } from '../i18n/normalize-locale-path'
@@ -79,11 +80,15 @@ function buildCancellationError() {
 }
 
 function addPathPrefix(path: string, prefix?: string) {
-  return prefix && path.startsWith('/')
-    ? path === '/'
-      ? normalizePathTrailingSlash(prefix)
-      : `${prefix}${pathNoQueryHash(path) === '/' ? path.substring(1) : path}`
-    : path
+  if (!path.startsWith('/') || !prefix) {
+    return path
+  }
+  const pathname = pathNoQueryHash(path)
+
+  return (
+    normalizePathTrailingSlash(`${prefix}${pathname}`) +
+    path.substr(pathname.length)
+  )
 }
 
 export function getDomainLocale(
@@ -828,7 +833,9 @@ export default class Router implements BaseRouter {
       return false
     }
     const shouldResolveHref =
-      url === as || (options as any)._h || (options as any)._shouldResolveHref
+      (options as any)._h ||
+      (options as any)._shouldResolveHref ||
+      pathNoQueryHash(url) === pathNoQueryHash(as)
 
     // for static pages with query params in the URL we delay
     // marking the router ready until after the query is updated
@@ -1125,13 +1132,16 @@ export default class Router implements BaseRouter {
 
       // handle redirect on client-transition
       if ((__N_SSG || __N_SSP) && props) {
-        if ((props as any).pageProps && (props as any).pageProps.__N_REDIRECT) {
-          const destination = (props as any).pageProps.__N_REDIRECT
+        if (props.pageProps && props.pageProps.__N_REDIRECT) {
+          const destination = props.pageProps.__N_REDIRECT
 
           // check if destination is internal (resolves to a page) and attempt
           // client-navigation if it is falling back to hard navigation if
           // it's not
-          if (destination.startsWith('/')) {
+          if (
+            destination.startsWith('/') &&
+            props.pageProps.__N_REDIRECT_BASE_PATH !== false
+          ) {
             const parsedHref = parseRelativeUrl(destination)
             parsedHref.pathname = resolveDynamicRoute(
               parsedHref.pathname,
@@ -1226,7 +1236,7 @@ export default class Router implements BaseRouter {
 
       return true
     } catch (err) {
-      if (err.cancelled) {
+      if (isError(err) && err.cancelled) {
         return false
       }
       throw err
@@ -1271,7 +1281,7 @@ export default class Router implements BaseRouter {
   }
 
   async handleRouteInfoError(
-    err: Error & { code: any; cancelled: boolean },
+    err: Error & { code?: any; cancelled?: boolean },
     pathname: string,
     query: ParsedUrlQuery,
     as: string,
@@ -1337,7 +1347,7 @@ export default class Router implements BaseRouter {
       return routeInfo
     } catch (routeInfoErr) {
       return this.handleRouteInfoError(
-        routeInfoErr,
+        isError(routeInfoErr) ? routeInfoErr : new Error(routeInfoErr + ''),
         pathname,
         query,
         as,
@@ -1420,7 +1430,13 @@ export default class Router implements BaseRouter {
       this.components[route] = routeInfo
       return routeInfo
     } catch (err) {
-      return this.handleRouteInfoError(err, pathname, query, as, routeProps)
+      return this.handleRouteInfoError(
+        isError(err) ? err : new Error(err + ''),
+        pathname,
+        query,
+        as,
+        routeProps
+      )
     }
   }
 
@@ -1650,7 +1666,7 @@ export default class Router implements BaseRouter {
 
   _getServerData(dataHref: string): Promise<object> {
     const { href: resourceKey } = new URL(dataHref, window.location.href)
-    if (this.sdr[resourceKey]) {
+    if (this.sdr[resourceKey] !== undefined) {
       return this.sdr[resourceKey]
     }
     return (this.sdr[resourceKey] = fetchNextData(dataHref, this.isSsr)

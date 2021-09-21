@@ -109,6 +109,7 @@ export type NextConfig = { [key: string]: any } & {
     webpack5?: false
     strictPostcssConfiguration?: boolean
   }
+  crossOrigin?: string
   experimental?: {
     swcMinify?: boolean
     swcLoader?: boolean

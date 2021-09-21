@@ -99,7 +99,11 @@ function prefetchViaDom(
   link?: HTMLLinkElement
 ): Promise<any> {
   return new Promise<void>((res, rej) => {
-    if (document.querySelector(`link[rel="prefetch"][href^="${href}"]`)) {
+    const selector = `
+      link[rel="prefetch"][href^="${href}"],
+      link[rel="preload"][href^="${href}"],
+      script[src^="${href}"]`
+    if (document.querySelector(selector)) {
       return res()
     }
 

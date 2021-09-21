@@ -7,6 +7,7 @@ import { printAndExit } from '../server/lib/utils'
 import * as Log from '../build/output/log'
 import { startedDevelopmentServer } from '../build/output'
 import { cliCommand } from '../bin/next'
+import isError from '../lib/is-error'
 
 const nextDev: cliCommand = (argv) => {
   const validArgs: arg.Spec = {
@@ -24,7 +25,7 @@ const nextDev: cliCommand = (argv) => {
   try {
     args = arg(validArgs, { argv })
   } catch (error) {
-    if (error.code === 'ARG_UNKNOWN_OPTION') {
+    if (isError(error) && error.code === 'ARG_UNKNOWN_OPTION') {
       return printAndExit(error.message, 1)
     }
     throw error
@@ -71,19 +72,26 @@ const nextDev: cliCommand = (argv) => {
     }
   }
 
-  const port =
+  let port: number =
     args['--port'] || (process.env.PORT && parseInt(process.env.PORT)) || 3000
+
+  // we allow the server to use a random port while testing
+  // instead of attempting to find a random port and then hope
+  // it doesn't become occupied before we leverage it
+  if (process.env.__NEXT_RAND_PORT) {
+    port = 0
+  }
 
   // We do not set a default host value here to prevent breaking
   // some set-ups that rely on listening on other interfaces
   const host = args['--hostname']
-  const appUrl = `http://${
-    !host || host === '0.0.0.0' ? 'localhost' : host
-  }:${port}`
 
   startServer({ dir, dev: true, isNextDevCommand: true }, port, host)
-    .then(async (app) => {
-      startedDevelopmentServer(appUrl, `${host || '0.0.0.0'}:${port}`)
+    .then(async ({ app, actualPort }) => {
+      const appUrl = `http://${
+        !host || host === '0.0.0.0' ? 'localhost' : host
+      }:${actualPort}`
+      startedDevelopmentServer(appUrl, `${host || '0.0.0.0'}:${actualPort}`)
       // Start preflight after server is listening and ignore errors:
       preflight().catch(() => {})
       // Finalize server bootup:

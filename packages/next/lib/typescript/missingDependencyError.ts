@@ -5,7 +5,7 @@ import { MissingDependency } from '../has-necessary-dependencies'
 import { FatalError } from '../fatal-error'
 import { isYarn } from '../is-yarn'
 
-export function missingDepsError(
+export async function missingDepsError(
   dir: string,
   missingPackages: MissingDependency[]
 ) {
@@ -28,7 +28,7 @@ export function missingDepsError(
       chalk.bold(`Please install ${chalk.bold(packagesHuman)} by running:`) +
       '\n\n' +
       `\t${chalk.bold.cyan(
-        (isYarn(dir) ? 'yarn add --dev' : 'npm install --save-dev') +
+        ((await isYarn(dir)) ? 'yarn add --dev' : 'npm install --save-dev') +
           ' ' +
           packagesCli
       )}` +
