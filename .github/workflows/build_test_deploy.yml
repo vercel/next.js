@@ -84,6 +84,7 @@ jobs:
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
       - run: mv .git .git-bak
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
       - uses: actions/cache@v2
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
@@ -93,6 +94,7 @@ jobs:
           key: ${{ github.sha }}
 
       - run: rm -rf .git && mv .git-bak .git
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
       - uses: actions/download-artifact@v2
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
