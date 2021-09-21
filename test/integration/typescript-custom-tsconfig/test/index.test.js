@@ -13,8 +13,6 @@ describe('Custom TypeScript Config', () => {
       stdout: true,
     })
 
-    console.log(stdout)
-
     expect(stdout).toMatch(warnMessage)
   })
 })
