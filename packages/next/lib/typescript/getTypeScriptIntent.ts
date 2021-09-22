@@ -1,7 +1,6 @@
 import { promises as fs } from 'fs'
 import path from 'path'
-import loadConfig from '../../server/config'
-import { PHASE_PRODUCTION_BUILD } from '../../shared/lib/constants'
+import { NextConfigComplete } from '../../server/config-shared'
 import { fileExists } from '../file-exists'
 import { recursiveReadDir } from '../recursive-readdir'
 
@@ -9,9 +8,9 @@ export type TypeScriptIntent = { firstTimeSetup: boolean }
 
 export async function getTypeScriptIntent(
   baseDir: string,
-  pagesDir: string
+  pagesDir: string,
+  config: NextConfigComplete
 ): Promise<TypeScriptIntent | false> {
-  const config = await loadConfig(PHASE_PRODUCTION_BUILD, baseDir)
   const tsConfigName = config.typescript.tsconfigPath
   const tsConfigPath = path.join(baseDir, tsConfigName!)
 

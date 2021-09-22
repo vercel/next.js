@@ -14,8 +14,7 @@ import { TypeCheckResult } from './typescript/runTypeCheck'
 import { writeAppTypeDeclarations } from './typescript/writeAppTypeDeclarations'
 import { writeConfigurationDefaults } from './typescript/writeConfigurationDefaults'
 import { missingDepsError } from './typescript/missingDependencyError'
-import loadConfig from '../server/config'
-import { PHASE_PRODUCTION_BUILD } from '../shared/lib/constants'
+import { NextConfigComplete } from '../server/config-shared'
 
 const requiredPackages = [
   { file: 'typescript', pkg: 'typescript' },
@@ -28,15 +27,15 @@ export async function verifyTypeScriptSetup(
   pagesDir: string,
   typeCheckPreflight: boolean,
   imageImportsEnabled: boolean,
+  config: NextConfigComplete,
   cacheDir?: string
 ): Promise<{ result?: TypeCheckResult; version: string | null }> {
-  const config = await loadConfig(PHASE_PRODUCTION_BUILD, dir)
   const tsConfigName = config.typescript.tsconfigPath
   const tsConfigPath = path.join(dir, tsConfigName!)
 
   try {
     // Check if the project uses TypeScript:
-    const intent = await getTypeScriptIntent(dir, pagesDir)
+    const intent = await getTypeScriptIntent(dir, pagesDir, config)
     if (!intent) {
       return { version: null }
     }
