@@ -75,7 +75,7 @@ const runTests = () => {
   })
 }
 
-describe('Build Error Tests', () => {
+describe('Build Error Tests for basePath', () => {
   it('should throw build error when import statement is used with missing file', async () => {
     await indexPage.replace(
       '../public/foo/test-rect.jpg',
@@ -90,7 +90,7 @@ describe('Build Error Tests', () => {
     )
   })
 })
-describe('Static Image Component Tests', () => {
+describe('Static Image Component Tests for basePath', () => {
   beforeAll(async () => {
     await nextBuild(appDir)
     appPort = await findPort()
