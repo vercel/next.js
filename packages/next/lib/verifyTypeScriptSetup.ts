@@ -31,7 +31,7 @@ export async function verifyTypeScriptSetup(
   cacheDir?: string
 ): Promise<{ result?: TypeCheckResult; version: string | null }> {
   const tsConfigName = config.typescript.tsconfigPath
-  const tsConfigPath = path.join(dir, tsConfigName!)
+  const tsConfigPath = path.join(dir, tsConfigName)
 
   try {
     // Check if the project uses TypeScript:
