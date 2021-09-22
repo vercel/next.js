@@ -230,24 +230,19 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
                 //   )
                 //   continue
                 // }
-                const collectDependencies = (mod: any, span: Span) => {
-                  const childSpan = span.traceChild('collect-dependencies', {
-                    resource: mod.resource,
-                  })
-                  return childSpan.traceFn(() => {
-                    if (!mod || !mod.dependencies) return
+                const collectDependencies = (mod: any) => {
+                  if (!mod || !mod.dependencies) return
 
-                    for (const dep of mod.dependencies) {
-                      const depMod = getModuleFromDependency(compilation, dep)
+                  for (const dep of mod.dependencies) {
+                    const depMod = getModuleFromDependency(compilation, dep)
 
-                      if (depMod?.resource && !depModMap.get(depMod.resource)) {
-                        depModMap.set(depMod.resource, depMod)
-                        collectDependencies(depMod, childSpan)
-                      }
+                    if (depMod?.resource && !depModMap.get(depMod.resource)) {
+                      depModMap.set(depMod.resource, depMod)
+                      collectDependencies(depMod)
                     }
-                  })
+                  }
                 }
-                collectDependencies(entryMod, entrySpan)
+                collectDependencies(entryMod)
 
                 const toTrace: string[] = [entry, ...depModMap.keys()]
 
@@ -301,8 +296,8 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
   apply(compiler: webpack.Compiler) {
     if (isWebpack5) {
       compiler.hooks.compilation.tap(PLUGIN_NAME, (compilation) => {
-        const compilerSpan = spans.get(compiler)!
-        const traceEntrypointsPluginSpan = compilerSpan.traceChild(
+        const compilationSpan = spans.get(compilation) || spans.get(compiler)!
+        const traceEntrypointsPluginSpan = compilationSpan.traceChild(
           'next-trace-entrypoint-plugin'
         )
         traceEntrypointsPluginSpan.traceFn(() => {
@@ -327,8 +322,8 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
       })
     } else {
       compiler.hooks.emit.tap(PLUGIN_NAME, (compilation: any) => {
-        const compilerSpan = spans.get(compiler)!
-        const traceEntrypointsPluginSpan = compilerSpan.traceChild(
+        const compilationSpan = spans.get(compilation)! || spans.get(compiler)
+        const traceEntrypointsPluginSpan = compilationSpan.traceChild(
           'next-trace-entrypoint-plugin'
         )
         traceEntrypointsPluginSpan.traceFn(() => {
@@ -341,8 +336,8 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
       })
 
       compiler.hooks.compilation.tap(PLUGIN_NAME, (compilation) => {
-        const compilerSpan = spans.get(compiler)!
-        const traceEntrypointsPluginSpan = compilerSpan.traceChild(
+        const compilationSpan = spans.get(compilation)! || spans.get(compiler)
+        const traceEntrypointsPluginSpan = compilationSpan.traceChild(
           'next-trace-entrypoint-plugin'
         )
         traceEntrypointsPluginSpan.traceFn(() =>
