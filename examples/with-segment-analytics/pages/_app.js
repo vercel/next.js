@@ -13,7 +13,7 @@ function renderSnippet() {
     page: true,
   }
 
-  if (process.env.NEXT_PUBLIC_NODE_ENV === 'development') {
+  if (process.env.NODE_ENV === 'development') {
     return snippet.max(opts)
   }
 
