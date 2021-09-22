@@ -2,7 +2,7 @@ const path = require('path')
 
 module.exports = {
   experimental: {
-    nftTracing: true,
+    outputFileTracing: true,
   },
   webpack(cfg, { isServer }) {
     console.log(cfg.entry)
