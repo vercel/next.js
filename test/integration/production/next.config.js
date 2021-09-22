@@ -3,7 +3,7 @@ setInterval(() => {}, 250)
 
 module.exports = {
   experimental: {
-    nftTracing: true,
+    outputFileTracing: true,
   },
   onDemandEntries: {
     // Make sure entries are not getting disposed.

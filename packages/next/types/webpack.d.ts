@@ -27,20 +27,40 @@ declare module 'mini-css-extract-plugin'
 declare module 'next/dist/compiled/loader-utils'
 
 declare module 'next/dist/compiled/webpack/webpack' {
-  import webpackSources from 'webpack-sources'
-  import webpack, { loader } from 'webpack'
+  import webpackSources from 'webpack-sources1'
+  import webpack4, { loader } from 'webpack4'
+  export { NormalModule } from 'webpack'
   export let isWebpack5: boolean
   export function init(useWebpack5: boolean): void
   export let BasicEvaluatedExpression: any
   export let GraphHelpers: any
   export function onWebpackInit(cb: () => void): void
+  // TODO change this to webpack4 | webpack5
   export let sources: typeof webpackSources
-  export { webpack, loader }
+  // TODO change this to webpack
+  export { webpack4 as webpack, loader }
 }
 
 declare module 'webpack' {
+  import webpack4 from 'webpack4'
+  import webpack5 from 'webpack5'
+  export type Compiler = webpack4.Compiler | webpack5.Compiler
+  export type Compilation =
+    | webpack4.compilation.Compilation
+    | webpack5.Compilation
+  export type Module = webpack4.Module | webpack5.Module
+  export type Stats = webpack4.Stats | webpack5.Stats
+  export {
+    Template,
+    RuntimeModule,
+    RuntimeGlobals,
+    NormalModule,
+  } from 'webpack5'
+}
+
+declare module 'webpack4' {
   import { RawSourceMap } from 'source-map'
-  import { ConcatSource } from 'webpack-sources'
+  import { ConcatSource } from 'webpack-sources1'
 
   export = webpack
 

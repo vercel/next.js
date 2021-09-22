@@ -851,7 +851,7 @@ export default async function build(
                   )
                 })
 
-                if (config.experimental.nftTracing) {
+                if (config.experimental.outputFileTracing) {
                   pageTraceIncludes.set(page, workerResult.traceIncludes || [])
                   pageTraceExcludes.set(page, workerResult.traceExcludes || [])
                 }
@@ -995,7 +995,7 @@ export default async function build(
       )
     }
 
-    if (config.experimental.nftTracing) {
+    if (config.experimental.outputFileTracing) {
       const globOrig =
         require('next/dist/compiled/glob') as typeof import('next/dist/compiled/glob')
       const glob = (pattern: string): Promise<string[]> => {

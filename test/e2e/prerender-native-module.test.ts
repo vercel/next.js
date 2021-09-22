@@ -22,7 +22,7 @@ describe('prerender native module', () => {
       },
       nextConfig: {
         experimental: {
-          nftTracing: true,
+          outputFileTracing: true,
         },
       },
     })
