@@ -368,6 +368,23 @@ function runTests(dev) {
     }
   })
 
+  it('should navigate to a dynamic page with href with differing query and as correctly', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/')
+      await browser.eval('window.beforeNav = 1')
+      await browser.elementByCss('#view-post-1-hidden-query').click()
+      await browser.waitForElementByCss('#asdf')
+
+      expect(await browser.eval('window.beforeNav')).toBe(1)
+
+      const text = await browser.elementByCss('#asdf').text()
+      expect(text).toMatch(/this is.*?post-1/i)
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+
   it('should navigate to a dynamic page successfully no as', async () => {
     let browser
     try {
