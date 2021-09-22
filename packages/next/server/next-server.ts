@@ -1450,8 +1450,8 @@ export default class Server {
     const is500Page = pathname === '/500'
 
     const isLikeServerless =
-      typeof components.Component === 'object' &&
-      typeof (components.Component as any).renderReqToHTML === 'function'
+      typeof components.ComponentMod === 'object' &&
+      typeof (components.ComponentMod as any).renderReqToHTML === 'function'
     const isSSG = !!components.getStaticProps
     const hasServerProps = !!components.getServerSideProps
     const hasStaticPaths = !!components.getStaticPaths
@@ -1493,7 +1493,7 @@ export default class Server {
         !isLikeServerless &&
         !query.amp &&
         !this.minimalMode &&
-        typeof components.Document.getInitialProps !== 'function'
+        typeof components.Document?.getInitialProps !== 'function'
     }
 
     const locale = query.__nextLocale as string
@@ -1626,7 +1626,7 @@ export default class Server {
       // handle serverless
       if (isLikeServerless) {
         const renderResult = await (
-          components.Component as any
+          components.ComponentMod as any
         ).renderReqToHTML(req, res, 'passthrough', {
           locale,
           locales,

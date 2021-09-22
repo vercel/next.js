@@ -81,6 +81,13 @@ export class NextStartInstance extends NextInstance {
     )
     handleStdio()
 
+    this.childProcess.on('close', (code) => {
+      if (this.isStopping) return
+      if (code) {
+        throw new Error(`next start exited unexpectedly with code ${code}`)
+      }
+    })
+
     await new Promise<void>((resolve) => {
       const readyCb = (msg) => {
         if (msg.includes('started server on') && msg.includes('url:')) {
