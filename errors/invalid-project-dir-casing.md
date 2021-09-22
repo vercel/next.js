@@ -2,14 +2,15 @@
 
 #### Why This Error Occurred
 
-When starting Next.js the passed directory was in different casing than the casing the directory is actually in on the filesystem.
+When starting Next.js, the current directory is a different casing than the actual directory on your filesystem. This can cause files to resolve inconsistently.
 
-This can cause unexpected behavior from failing to resolve files consistently. This can occur when using powershell on Windows and making a typo in a directory's casing while navigating to a project.
+This can occur when using a case-insensitive filesystem. For example, opening PowerShell on Windows navigating to `cd path/to/myproject` instead of `cd path/to/MyProject`.
 
 #### Possible Ways to Fix It
 
-Ensure the actual casing for the directory is used when navigating/starting the Next.js project. Use a terminal other than Windows powershell.
+Ensure the casing for the current working directory matches the actual case of the real directory. Use a terminal that enforces case-sensitivity.
 
 ### Useful Links
 
 - [Next.js CLI documentation](https://nextjs.org/docs/api-reference/cli)
+- [Case sensitivity in filesystems](https://en.wikipedia.org/wiki/Case_sensitivity#In_filesystems)
