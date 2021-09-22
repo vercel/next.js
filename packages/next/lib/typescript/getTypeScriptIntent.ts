@@ -11,8 +11,7 @@ export async function getTypeScriptIntent(
   pagesDir: string,
   config: NextConfigComplete
 ): Promise<TypeScriptIntent | false> {
-  const tsConfigName = config.typescript.tsconfigPath
-  const tsConfigPath = path.join(baseDir, tsConfigName)
+  const tsConfigPath = path.join(baseDir, config.typescript.tsconfigPath)
 
   // The integration turns on if we find a `tsconfig.json` in the user's
   // project.

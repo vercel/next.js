@@ -26,12 +26,10 @@ export async function verifyTypeScriptSetup(
   dir: string,
   pagesDir: string,
   typeCheckPreflight: boolean,
-  imageImportsEnabled: boolean,
   config: NextConfigComplete,
   cacheDir?: string
 ): Promise<{ result?: TypeCheckResult; version: string | null }> {
-  const tsConfigName = config.typescript.tsconfigPath
-  const tsConfigPath = path.join(dir, tsConfigName)
+  const tsConfigPath = path.join(dir, config.typescript.tsconfigPath)
 
   try {
     // Check if the project uses TypeScript:
@@ -65,7 +63,7 @@ export async function verifyTypeScriptSetup(
     await writeConfigurationDefaults(ts, tsConfigPath, intent.firstTimeSetup)
     // Write out the necessary `next-env.d.ts` file to correctly register
     // Next.js' types:
-    await writeAppTypeDeclarations(dir, imageImportsEnabled)
+    await writeAppTypeDeclarations(dir, !config.images.disableStaticImages)
 
     let result
     if (typeCheckPreflight) {
