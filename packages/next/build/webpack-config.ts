@@ -1278,7 +1278,7 @@ export default async function getBaseWebpackConfig(
           pagesDir,
         }),
       !isServer && new DropClientPage(),
-      config.experimental.nftTracing &&
+      config.experimental.outputFileTracing &&
         !isLikeServerless &&
         isServer &&
         !dev &&
