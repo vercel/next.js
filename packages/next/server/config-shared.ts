@@ -8,6 +8,7 @@ import {
 
 export type NextConfigComplete = Required<NextConfig> & {
   images: ImageConfigComplete
+  typescript: Required<TypeScriptConfig>
 }
 
 export interface I18NConfig {
@@ -34,6 +35,8 @@ export interface ESLintConfig {
 export interface TypeScriptConfig {
   /** Do not run TypeScript during production builds (`next build`). */
   ignoreBuildErrors?: boolean
+  /** Relative path to a custom tsconfig file */
+  tsconfigPath?: string
 }
 
 export type NextConfig = { [key: string]: any } & {
@@ -153,6 +156,7 @@ export const defaultConfig: NextConfig = {
   },
   typescript: {
     ignoreBuildErrors: false,
+    tsconfigPath: 'tsconfig.json',
   },
   distDir: '.next',
   cleanDistDir: true,
