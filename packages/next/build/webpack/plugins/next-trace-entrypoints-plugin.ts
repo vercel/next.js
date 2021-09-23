@@ -1,14 +1,14 @@
 import nodePath from 'path'
+import { Span } from '../../../trace'
+import { spans } from './profiling-plugin'
+import isError from '../../../lib/is-error'
 import { nodeFileTrace } from 'next/dist/compiled/@vercel/nft'
+import { TRACE_OUTPUT_VERSION } from '../../../shared/lib/constants'
 import {
   webpack,
   isWebpack5,
   sources,
 } from 'next/dist/compiled/webpack/webpack'
-import { TRACE_OUTPUT_VERSION } from '../../../shared/lib/constants'
-import { spans } from './profiling-plugin'
-import { Span } from '../../../trace'
-import isError from '../../../lib/is-error'
 
 const PLUGIN_NAME = 'TraceEntryPointsPlugin'
 const TRACE_IGNORES = [
@@ -147,10 +147,9 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
               })
             })
 
-            // TODO: investigate allowing non-sync fs calls in node-file-trace
-            // for better performance
-            const readFile = (path: string, _span: Span) => {
-              // return span.traceChild('read-file', { path }).traceFn(() => {
+            const readFile = async (
+              path: string
+            ): Promise<Buffer | string | null> => {
               const mod = depModMap.get(path) || entryModMap.get(path)
 
               // map the transpiled source when available to avoid
@@ -162,7 +161,15 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
               }
 
               try {
-                return compilation.inputFileSystem.readFileSync(path)
+                return await new Promise((resolve, reject) => {
+                  ;(
+                    compilation.inputFileSystem
+                      .readFile as typeof import('fs').readFile
+                  )(path, (err, data) => {
+                    if (err) return reject(err)
+                    resolve(data)
+                  })
+                })
               } catch (e) {
                 if (
                   isError(e) &&
@@ -172,12 +179,18 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
                 }
                 throw e
               }
-              // })
             }
-            const readlink = (path: string, _span: Span) => {
-              // return span.traceChild('read-link', { path }).traceFn(() => {
+            const readlink = async (path: string): Promise<string | null> => {
               try {
-                return compilation.inputFileSystem.readlinkSync(path)
+                return await new Promise((resolve, reject) => {
+                  ;(
+                    compilation.inputFileSystem
+                      .readlink as typeof import('fs').readlink
+                  )(path, (err, link) => {
+                    if (err) return reject(err)
+                    resolve(link)
+                  })
+                })
               } catch (e) {
                 if (
                   isError(e) &&
@@ -189,19 +202,25 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
                 }
                 throw e
               }
-              // })
             }
-            const stat = (path: string, _span: Span) => {
-              // return span.traceChild('stat', { path }).traceFn(() => {
+            const stat = async (
+              path: string
+            ): Promise<import('fs').Stats | null> => {
               try {
-                return compilation.inputFileSystem.statSync(path)
+                return await new Promise((resolve, reject) => {
+                  ;(
+                    compilation.inputFileSystem.stat as typeof import('fs').stat
+                  )(path, (err, stats) => {
+                    if (err) return reject(err)
+                    resolve(stats)
+                  })
+                })
               } catch (e) {
                 if (isError(e) && e.code === 'ENOENT') {
                   return null
                 }
                 throw e
               }
-              // })
             }
 
             const nftCache = {}
@@ -260,9 +279,9 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
                     base: root,
                     cache: nftCache,
                     processCwd: this.appDir,
-                    readFile: (path) => readFile(path, fileTraceSpan),
-                    readlink: (path) => readlink(path, fileTraceSpan),
-                    stat: (path) => stat(path, fileTraceSpan),
+                    readFile,
+                    readlink,
+                    stat,
                     ignore: [...TRACE_IGNORES, ...this.excludeFiles],
                     mixedModules: true,
                   })

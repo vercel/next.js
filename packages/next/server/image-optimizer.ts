@@ -135,7 +135,9 @@ export async function imageOptimizer(
   }
 
   // Should match output from next-image-loader
-  const isStatic = url.startsWith('/_next/static/image')
+  const isStatic = url.startsWith(
+    `${nextConfig.basePath || ''}/_next/static/image`
+  )
 
   const width = parseInt(w, 10)
 
