@@ -1,6 +1,4 @@
 {
-  "name": "my-next-site",
-  "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -8,8 +6,8 @@
     "start": "next start"
   },
   "dependencies": {
-    "@formspree/react": "^2.2.3",
-    "next": "10.1.3",
+    "@formspree/react": "latest",
+    "next": "latest",
     "react": "17.0.2",
     "react-dom": "17.0.2"
   }
