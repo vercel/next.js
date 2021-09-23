@@ -1,10 +1,11 @@
 {
   "scripts": {
     "prepare": "rm -rf components && mkdir components && node ./fuzzponent.js -d 2 -s 206 -o components",
-    "dev": "../../node_modules/.bin/next dev",
-    "build": "../../node_modules/.bin/next build",
-    "start": "../../node_modules/.bin/next start",
+    "dev": "NEXT_PRIVATE_LOCAL_WEBPACK5=1 ../../node_modules/.bin/next dev",
+    "build": "NEXT_PRIVATE_LOCAL_WEBPACK5=1 ../../node_modules/.bin/next build",
+    "start": "NEXT_PRIVATE_LOCAL_WEBPACK5=1 ../../node_modules/.bin/next start",
     "dev-nocache": "rm -rf .next && yarn dev",
+    "dev-cpuprofile-nocache": "rm -rf .next && NEXT_PRIVATE_LOCAL_WEBPACK5=1 node --cpu-prof ../../node_modules/.bin/next",
     "build-nocache": "rm -rf .next && yarn build"
   }
 }
