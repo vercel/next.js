@@ -5,7 +5,11 @@ import { WebpackHotMiddleware } from './hot-middleware'
 import { join } from 'path'
 import { UrlObject } from 'url'
 import { webpack, isWebpack5 } from 'next/dist/compiled/webpack/webpack'
-import { createEntrypoints, createPagesMapping } from '../../build/entries'
+import {
+  createEntrypoints,
+  createPagesMapping,
+  finalizeEntrypoint,
+} from '../../build/entries'
 import { watchCompilers } from '../../build/output'
 import getBaseWebpackConfig from '../../build/webpack-config'
 import { API_ROUTE } from '../../lib/constants'
@@ -27,7 +31,8 @@ import { difference } from '../../build/utils'
 import { NextConfigComplete } from '../config-shared'
 import { CustomRoutes } from '../../lib/load-custom-routes'
 import { DecodeError } from '../../shared/lib/utils'
-import { Span, trace } from '../../telemetry/trace'
+import { Span, trace } from '../../trace'
+import isError from '../../lib/is-error'
 
 export async function renderScriptError(
   res: ServerResponse,
@@ -177,6 +182,9 @@ export default class HotReloader {
     this.rewrites = rewrites
     this.isWebpack5 = isWebpack5
     this.hotReloaderSpan = trace('hot-reloader')
+    // Ensure the hotReloaderSpan is flushed immediately as it's the parentSpan for all processing
+    // of the current `next dev` invocation.
+    this.hotReloaderSpan.stop()
   }
 
   public async run(
@@ -224,7 +232,10 @@ export default class HotReloader {
         try {
           await this.ensurePage(page)
         } catch (error) {
-          await renderScriptError(pageBundleRes, error)
+          await renderScriptError(
+            pageBundleRes,
+            isError(error) ? error : new Error(error + '')
+          )
           return { finished: true }
         }
 
@@ -252,53 +263,81 @@ export default class HotReloader {
     return { finished }
   }
 
-  private async clean(): Promise<void> {
-    return recursiveDelete(join(this.dir, this.config.distDir), /^cache/)
+  private async clean(span: Span): Promise<void> {
+    return span
+      .traceChild('clean')
+      .traceAsyncFn(() =>
+        recursiveDelete(join(this.dir, this.config.distDir), /^cache/)
+      )
   }
 
-  private async getWebpackConfig() {
-    const pagePaths = await Promise.all([
-      findPageFile(this.pagesDir, '/_app', this.config.pageExtensions),
-      findPageFile(this.pagesDir, '/_document', this.config.pageExtensions),
-    ])
+  private async getWebpackConfig(span: Span) {
+    const webpackConfigSpan = span.traceChild('get-webpack-config')
 
-    const pages = createPagesMapping(
-      pagePaths.filter((i) => i !== null) as string[],
-      this.config.pageExtensions,
-      this.isWebpack5,
-      true
-    )
-    const entrypoints = createEntrypoints(
-      pages,
-      'server',
-      this.buildId,
-      this.previewProps,
-      this.config,
-      []
-    )
+    return webpackConfigSpan.traceAsyncFn(async () => {
+      const pagePaths = await webpackConfigSpan
+        .traceChild('get-page-paths')
+        .traceAsyncFn(() =>
+          Promise.all([
+            findPageFile(this.pagesDir, '/_app', this.config.pageExtensions),
+            findPageFile(
+              this.pagesDir,
+              '/_document',
+              this.config.pageExtensions
+            ),
+          ])
+        )
 
-    return Promise.all([
-      getBaseWebpackConfig(this.dir, {
-        dev: true,
-        isServer: false,
-        config: this.config,
-        buildId: this.buildId,
-        pagesDir: this.pagesDir,
-        rewrites: this.rewrites,
-        entrypoints: entrypoints.client,
-        runWebpackSpan: this.hotReloaderSpan,
-      }),
-      getBaseWebpackConfig(this.dir, {
-        dev: true,
-        isServer: true,
-        config: this.config,
-        buildId: this.buildId,
-        pagesDir: this.pagesDir,
-        rewrites: this.rewrites,
-        entrypoints: entrypoints.server,
-        runWebpackSpan: this.hotReloaderSpan,
-      }),
-    ])
+      const pages = webpackConfigSpan
+        .traceChild('create-pages-mapping')
+        .traceFn(() =>
+          createPagesMapping(
+            pagePaths.filter((i) => i !== null) as string[],
+            this.config.pageExtensions,
+            this.isWebpack5,
+            true
+          )
+        )
+      const entrypoints = webpackConfigSpan
+        .traceChild('create-entrypoints')
+        .traceFn(() =>
+          createEntrypoints(
+            pages,
+            'server',
+            this.buildId,
+            this.previewProps,
+            this.config,
+            []
+          )
+        )
+
+      return webpackConfigSpan
+        .traceChild('generate-webpack-config')
+        .traceAsyncFn(() =>
+          Promise.all([
+            getBaseWebpackConfig(this.dir, {
+              dev: true,
+              isServer: false,
+              config: this.config,
+              buildId: this.buildId,
+              pagesDir: this.pagesDir,
+              rewrites: this.rewrites,
+              entrypoints: entrypoints.client,
+              runWebpackSpan: this.hotReloaderSpan,
+            }),
+            getBaseWebpackConfig(this.dir, {
+              dev: true,
+              isServer: true,
+              config: this.config,
+              buildId: this.buildId,
+              pagesDir: this.pagesDir,
+              rewrites: this.rewrites,
+              entrypoints: entrypoints.server,
+              runWebpackSpan: this.hotReloaderSpan,
+            }),
+          ])
+        )
+    })
   }
 
   public async buildFallbackError(): Promise<void> {
@@ -348,9 +387,12 @@ export default class HotReloader {
   }
 
   public async start(): Promise<void> {
-    await this.clean()
+    const startSpan = this.hotReloaderSpan.traceChild('start')
+    startSpan.stop() // Stop immediately to create an artificial parent span
 
-    const configs = await this.getWebpackConfig()
+    await this.clean(startSpan)
+
+    const configs = await this.getWebpackConfig(startSpan)
 
     for (const config of configs) {
       const defaultEntry = config.entry
@@ -380,11 +422,17 @@ export default class HotReloader {
               absolutePagePath,
             }
 
-            entrypoints[
-              isClientCompilation ? clientBundlePath : serverBundlePath
-            ] = isClientCompilation
-              ? `next-client-pages-loader?${stringify(pageLoaderOpts)}!`
-              : absolutePagePath
+            const name = isClientCompilation
+              ? clientBundlePath
+              : serverBundlePath
+            entrypoints[name] = finalizeEntrypoint(
+              name,
+              isClientCompilation
+                ? `next-client-pages-loader?${stringify(pageLoaderOpts)}!`
+                : absolutePagePath,
+              !isClientCompilation,
+              isWebpack5
+            )
           })
         )
 

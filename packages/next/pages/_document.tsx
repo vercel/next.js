@@ -14,6 +14,7 @@ import { BuildManifest, getPageFiles } from '../server/get-page-files'
 import { cleanAmpPath } from '../server/utils'
 import { htmlEscapeJsonString } from '../server/htmlescape'
 import Script, { ScriptProps } from '../client/script'
+import isError from '../lib/is-error'
 
 export { DocumentContext, DocumentInitialProps, DocumentProps }
 
@@ -756,7 +757,7 @@ export class NextScript extends Component<OriginProps> {
       const data = JSON.stringify(__NEXT_DATA__)
       return htmlEscapeJsonString(data)
     } catch (err) {
-      if (err.message.indexOf('circular structure')) {
+      if (isError(err) && err.message.indexOf('circular structure')) {
         throw new Error(
           `Circular structure in "getInitialProps" result of page "${__NEXT_DATA__.page}". https://nextjs.org/docs/messages/circular-structure`
         )

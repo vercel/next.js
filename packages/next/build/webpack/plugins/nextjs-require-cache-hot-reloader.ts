@@ -2,17 +2,20 @@ import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { isWebpack5 } from 'next/dist/compiled/webpack/webpack'
 import { realpathSync } from 'fs'
 import path from 'path'
+import isError from '../../../lib/is-error'
 
 const originModules = [
   require.resolve('../../../server/require'),
   require.resolve('../../../server/load-components'),
 ]
 
+const RUNTIME_NAMES = ['webpack-runtime', 'webpack-api-runtime']
+
 function deleteCache(filePath: string) {
   try {
     filePath = realpathSync(filePath)
   } catch (e) {
-    if (e.code !== 'ENOENT') throw e
+    if (isError(e) && e.code !== 'ENOENT') throw e
   }
   const module = require.cache[filePath]
   if (module) {
@@ -52,11 +55,13 @@ export class NextJsRequireCacheHotReloader implements webpack.Plugin {
       )
 
       compiler.hooks.afterEmit.tap(PLUGIN_NAME, (compilation) => {
-        const runtimeChunkPath = path.join(
-          compilation.outputOptions.path,
-          'webpack-runtime.js'
-        )
-        deleteCache(runtimeChunkPath)
+        RUNTIME_NAMES.forEach((name) => {
+          const runtimeChunkPath = path.join(
+            compilation.outputOptions.path,
+            `${name}.js`
+          )
+          deleteCache(runtimeChunkPath)
+        })
 
         // we need to make sure to clear all server entries from cache
         // since they can have a stale webpack-runtime cache
