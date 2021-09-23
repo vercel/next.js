@@ -290,7 +290,7 @@ export default class DevServer extends Server {
       this.dir,
       this.pagesDir!,
       false,
-      !this.nextConfig.images.disableStaticImages
+      this.nextConfig
     )
 
     this.customRoutes = await loadCustomRoutes(this.nextConfig)
