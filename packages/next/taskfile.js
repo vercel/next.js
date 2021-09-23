@@ -737,7 +737,7 @@ export async function ncc_mini_css_extract_plugin(task, opts) {
       externals: {
         ...externals,
         './index': './index.js',
-        'schema-utils': 'next/dist/compiled/schema-utils3',
+        'schema-utils': externals['schema-utils3'],
         'webpack-sources': externals['webpack-sources1'],
       },
     })
