@@ -196,6 +196,13 @@ function assignDefaults(userConfig: { [key: string]: any }) {
         )
       }
 
+      // static images are automatically prefixed with assetPrefix
+      // so we need to ensure _next/image allows downloading from
+      // this resource
+      if (config.assetPrefix?.startsWith('http')) {
+        images.domains.push(new URL(config.assetPrefix).hostname)
+      }
+
       if (images.domains.length > 50) {
         throw new Error(
           `Specified images.domains exceeds length of 50, received length (${images.domains.length}), please reduce the length of the array to continue.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`

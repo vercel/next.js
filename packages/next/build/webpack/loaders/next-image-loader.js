@@ -17,7 +17,7 @@ function nextImageLoader(content) {
       '/static/image/[path][name].[hash].[ext]',
       opts
     )
-    const outputPath = '/_next' + interpolatedName
+    const outputPath = assetPrefix + '/_next' + interpolatedName
 
     let extension = loaderUtils.interpolateName(this, '[ext]', opts)
     if (extension === 'jpg') {
@@ -32,7 +32,7 @@ function nextImageLoader(content) {
       if (isDev) {
         const prefix = 'http://localhost'
         const url = new URL('/_next/image', prefix)
-        url.searchParams.set('url', assetPrefix + outputPath)
+        url.searchParams.set('url', outputPath)
         url.searchParams.set('w', BLUR_IMG_SIZE)
         url.searchParams.set('q', BLUR_QUALITY)
         blurDataURL = url.href.slice(prefix.length)
