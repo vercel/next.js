@@ -1400,6 +1400,7 @@ export default async function getBaseWebpackConfig(
 
     webpack5Config.experiments = {
       layers: true,
+      cacheUnaffected: true,
     }
 
     webpack5Config.module!.parser = {
@@ -1416,6 +1417,12 @@ export default async function getBaseWebpackConfig(
     if (isServer && dev) {
       // Enable building of client compilation before server compilation in development
       webpack5Config.dependencies = ['client']
+    }
+
+    if (dev) {
+      // @ts-ignore unsafeCache exists
+      webpack5Config.module.unsafeCache = (module) =>
+        !/[\\/]pages[\\/][^\\/]+(?:$|\?|#)/.test(module.resource)
     }
 
     // Due to bundling of webpack the default values can't be correctly detected

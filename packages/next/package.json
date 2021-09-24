@@ -252,7 +252,7 @@
     "webpack-sources1": "npm:webpack-sources@1.4.3",
     "webpack-sources3": "npm:webpack-sources@3.2.0",
     "webpack4": "npm:webpack@4.44.1",
-    "webpack5": "npm:webpack@5.53.0"
+    "webpack5": "npm:webpack@5.54.0"
   },
   "resolutions": {
     "browserslist": "4.16.6",
