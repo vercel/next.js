@@ -90,15 +90,7 @@ export async function sendRenderResult({
   } else if (payload) {
     res.end(payload)
   } else {
-    const maybeFlush =
-      typeof (res as any).flush === 'function'
-        ? () => (res as any).flush()
-        : () => {}
-    await result.forEach((chunk) => {
-      res.write(chunk)
-      maybeFlush()
-    })
-    res.end()
+    await result.pipe(res)
   }
 }
 

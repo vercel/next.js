@@ -5,8 +5,6 @@ import { remove } from 'fs-extra'
 import { nextBuild } from 'next-test-utils'
 import { join } from 'path'
 
-jest.setTimeout(1000 * 60 * 2)
-
 const fixturesDir = join(__dirname, '..', 'fixtures')
 
 describe('Build Output', () => {

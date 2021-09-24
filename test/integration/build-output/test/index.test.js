@@ -6,8 +6,6 @@ import { nextBuild, File } from 'next-test-utils'
 import { join } from 'path'
 import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
 
-jest.setTimeout(1000 * 60 * 2)
-
 const fixturesDir = join(__dirname, '..', 'fixtures')
 
 const nextConfig = new File(join(fixturesDir, 'basic-app/next.config.js'))

@@ -11,7 +11,6 @@ import {
   launchApp,
 } from 'next-test-utils'
 
-jest.setTimeout(1000 * 60 * 2)
 const appDir = join(__dirname, '..')
 const page404 = join(appDir, 'pages/404.js')
 const nextConfig = join(appDir, 'next.config.js')
