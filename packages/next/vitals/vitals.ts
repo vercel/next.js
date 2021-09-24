@@ -10,7 +10,9 @@ export function trackWebVitalMetric(metric: NextWebVitalsMetric) {
   webVitalsCallbacks.forEach((callback) => callback(metric))
 }
 
-export function useWebVitalsReport(callback: ReportWebVitalsCallback) {
+export function useExperimentalWebVitalsReport(
+  callback: ReportWebVitalsCallback
+) {
   const metricIndexRef = useRef(0)
 
   useEffect(() => {

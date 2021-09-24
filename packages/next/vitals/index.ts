@@ -1,1 +1,1 @@
-export { useWebVitalsReport } from './vitals'
+export { useExperimentalWebVitalsReport } from './vitals'

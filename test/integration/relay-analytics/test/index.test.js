@@ -35,8 +35,8 @@ async function killServer() {
 describe('Analytics relayer with exported method', () => {
   beforeAll(async () => {
     // Keep app exported reporting and comment the hook one
-    indexPage.replace('///* useWebVitalsReport', '/*')
-    indexPage.replace('// useWebVitalsReport */', '*/')
+    indexPage.replace('///* useExperimentalWebVitalsReport', '/*')
+    indexPage.replace('// useExperimentalWebVitalsReport */', '*/')
     await buildApp()
   })
   afterAll(async () => {
