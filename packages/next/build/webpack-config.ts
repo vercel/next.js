@@ -1421,7 +1421,7 @@ export default async function getBaseWebpackConfig(
     if (dev) {
       // @ts-ignore unsafeCache exists
       webpack5Config.module.unsafeCache = (module) =>
-        /[\\/]pages[\\/][^\\/]+(?:$|\?|#)/.test(module.resource)
+        !/[\\/]pages[\\/][^\\/]+(?:$|\?|#)/.test(module.resource)
     }
 
     // Due to bundling of webpack the default values can't be correctly detected
