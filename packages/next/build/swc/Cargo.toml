@@ -1,3 +1,6 @@
+[workspace]
+members=["wasm"]
+
 [package]
 edition = "2018"
 name = "next-swc"
