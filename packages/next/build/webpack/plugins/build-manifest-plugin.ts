@@ -28,11 +28,12 @@ export type ClientBuildManifest = Record<string, string[]>
 // reduced version to send to the client.
 function generateClientManifest(
   compiler: any,
+  compilation: any,
   assetMap: BuildManifest,
   rewrites: CustomRoutes['rewrites']
 ): string {
-  const compilerSpan = spans.get(compiler)
-  const genClientManifestSpan = compilerSpan?.traceChild(
+  const compilationSpan = spans.get(compilation) || spans.get(compiler)
+  const genClientManifestSpan = compilationSpan?.traceChild(
     'NextJsBuildManifest-generateClientManifest'
   )
 
@@ -115,8 +116,8 @@ export default class BuildManifestPlugin {
   }
 
   createAssets(compiler: any, compilation: any, assets: any) {
-    const compilerSpan = spans.get(compiler)
-    const createAssetsSpan = compilerSpan?.traceChild(
+    const compilationSpan = spans.get(compilation) || spans.get(compiler)
+    const createAssetsSpan = compilationSpan?.traceChild(
       'NextJsBuildManifest-createassets'
     )
     return createAssetsSpan?.traceFn(() => {
@@ -230,6 +231,7 @@ export default class BuildManifestPlugin {
         assets[clientManifestPath] = new sources.RawSource(
           `self.__BUILD_MANIFEST = ${generateClientManifest(
             compiler,
+            compilation,
             assetMap,
             this.rewrites
           )};self.__BUILD_MANIFEST_CB && self.__BUILD_MANIFEST_CB()`

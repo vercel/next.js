@@ -5,6 +5,7 @@ import { readFileSync } from 'fs'
 import { codeFrameColumns } from 'next/dist/compiled/babel/code-frame'
 import semver from 'next/dist/compiled/semver'
 import { isWebpack5, webpack } from 'next/dist/compiled/webpack/webpack'
+import type webpack5 from 'webpack5'
 import path, { join as pathJoin, relative as relativePath } from 'path'
 import {
   DOT_NEXT_ALIAS,
@@ -28,7 +29,7 @@ import {
 } from '../shared/lib/constants'
 import { execOnce } from '../shared/lib/utils'
 import { NextConfigComplete } from '../server/config-shared'
-import { WebpackEntrypoints } from './entries'
+import { finalizeEntrypoint } from './entries'
 import * as Log from './output/log'
 import { build as buildConfiguration } from './webpack/config'
 import { __overrideCssConfiguration } from './webpack/config/blocks/css/overrideCssConfiguration'
@@ -174,7 +175,7 @@ export function attachReactRefresh(
   }
 }
 
-const NODE_RESOLVE_OPTIONS = {
+export const NODE_RESOLVE_OPTIONS = {
   dependencyType: 'commonjs',
   modules: ['node_modules'],
   alias: false,
@@ -195,12 +196,14 @@ const NODE_RESOLVE_OPTIONS = {
   restrictions: [],
 }
 
-const NODE_ESM_RESOLVE_OPTIONS = {
+export const NODE_ESM_RESOLVE_OPTIONS = {
   ...NODE_RESOLVE_OPTIONS,
   dependencyType: 'esm',
   conditionNames: ['node', 'import'],
   fullySpecified: true,
 }
+
+let TSCONFIG_WARNED = false
 
 export default async function getBaseWebpackConfig(
   dir: string,
@@ -224,7 +227,7 @@ export default async function getBaseWebpackConfig(
     pagesDir: string
     target?: string
     reactProductionProfiling?: boolean
-    entrypoints: WebpackEntrypoints
+    entrypoints: webpack5.EntryObject
     rewrites: CustomRoutes['rewrites']
     isDevFallback?: boolean
     runWebpackSpan: Span
@@ -377,7 +380,7 @@ export default async function getBaseWebpackConfig(
   try {
     typeScriptPath = require.resolve('typescript', { paths: [dir] })
   } catch (_) {}
-  const tsConfigPath = path.join(dir, 'tsconfig.json')
+  const tsConfigPath = path.join(dir, config.typescript.tsconfigPath)
   const useTypeScript = Boolean(
     typeScriptPath && (await fileExists(tsConfigPath))
   )
@@ -385,6 +388,14 @@ export default async function getBaseWebpackConfig(
   let jsConfig
   // jsconfig is a subset of tsconfig
   if (useTypeScript) {
+    if (
+      config.typescript.tsconfigPath !== 'tsconfig.json' &&
+      TSCONFIG_WARNED === false
+    ) {
+      TSCONFIG_WARNED = true
+      Log.info(`Using tsconfig file: ${config.typescript.tsconfigPath}`)
+    }
+
     const ts = (await import(typeScriptPath!)) as typeof import('typescript')
     const tsConfig = await getTypeScriptConfiguration(ts, tsConfigPath, true)
     jsConfig = { compilerOptions: tsConfig.options }
@@ -849,6 +860,20 @@ export default async function getBaseWebpackConfig(
 
   const emacsLockfilePattern = '**/.#*'
 
+  const codeCondition = {
+    test: /\.(tsx|ts|js|cjs|mjs|jsx)$/,
+    ...(config.experimental.externalDir
+      ? // Allowing importing TS/TSX files from outside of the root dir.
+        {}
+      : { include: [dir, ...babelIncludeRegexes] }),
+    exclude: (excludePath: string) => {
+      if (babelIncludeRegexes.some((r) => r.test(excludePath))) {
+        return false
+      }
+      return /node_modules/.test(excludePath)
+    },
+  }
+
   let webpackConfig: webpack.Configuration = {
     parallelism: Number(process.env.NEXT_WEBPACK_PARALLELISM) || undefined,
     externals: !isServer
@@ -946,9 +971,7 @@ export default async function getBaseWebpackConfig(
           : false
         : splitChunksConfig,
       runtimeChunk: isServer
-        ? isWebpack5 && !isLikeServerless
-          ? { name: 'webpack-runtime' }
-          : undefined
+        ? undefined
         : { name: CLIENT_STATIC_FILES_RUNTIME_WEBPACK },
       minimize: !(dev || isServer),
       minimizer: [
@@ -1080,26 +1103,49 @@ export default async function getBaseWebpackConfig(
                   fullySpecified: false,
                 },
               } as any,
+              {
+                test: /\.(js|cjs|mjs)$/,
+                issuerLayer: 'api',
+                parser: {
+                  // Switch back to normal URL handling
+                  url: true,
+                },
+              },
             ]
           : []),
         {
-          test: /\.(tsx|ts|js|mjs|jsx)$/,
-          ...(config.experimental.externalDir
-            ? // Allowing importing TS/TSX files from outside of the root dir.
-              {}
-            : { include: [dir, ...babelIncludeRegexes] }),
-          exclude: (excludePath: string) => {
-            if (babelIncludeRegexes.some((r) => r.test(excludePath))) {
-              return false
-            }
-            return /node_modules/.test(excludePath)
-          },
-          use: hasReactRefresh
-            ? [
-                require.resolve('@next/react-refresh-utils/loader'),
-                defaultLoaders.babel,
-              ]
-            : defaultLoaders.babel,
+          ...(isWebpack5
+            ? {
+                oneOf: [
+                  {
+                    ...codeCondition,
+                    issuerLayer: 'api',
+                    parser: {
+                      // Switch back to normal URL handling
+                      url: true,
+                    },
+                    use: defaultLoaders.babel,
+                  },
+                  {
+                    ...codeCondition,
+                    use: hasReactRefresh
+                      ? [
+                          require.resolve('@next/react-refresh-utils/loader'),
+                          defaultLoaders.babel,
+                        ]
+                      : defaultLoaders.babel,
+                  },
+                ],
+              }
+            : {
+                ...codeCondition,
+                use: hasReactRefresh
+                  ? [
+                      require.resolve('@next/react-refresh-utils/loader'),
+                      defaultLoaders.babel,
+                    ]
+                  : defaultLoaders.babel,
+              }),
         },
         ...(!config.images.disableStaticImages && isWebpack5
           ? [
@@ -1242,12 +1288,15 @@ export default async function getBaseWebpackConfig(
           pagesDir,
         }),
       !isServer && new DropClientPage(),
-      config.experimental.nftTracing &&
+      config.experimental.outputFileTracing &&
         !isLikeServerless &&
         isServer &&
         !dev &&
         isWebpack5 &&
-        new TraceEntryPointsPlugin({ appDir: dir }),
+        new TraceEntryPointsPlugin({
+          appDir: dir,
+          esmExternals: config.experimental.esmExternals,
+        }),
       // Moment.js is an extremely popular library that bundles large locale files
       // by default due to how Webpack interprets its code. This is a practical
       // solution that requires the user to opt into importing specific locales.
@@ -1344,26 +1393,41 @@ export default async function getBaseWebpackConfig(
     // futureEmitAssets is on by default in webpack 5
     delete webpackConfig.output?.futureEmitAssets
 
-    if (isServer && dev) {
-      // Enable building of client compilation before server compilation in development
-      // @ts-ignore dependencies exists
-      webpackConfig.dependencies = ['client']
-    }
     // webpack 5 no longer polyfills Node.js modules:
     if (webpackConfig.node) delete webpackConfig.node.setImmediate
 
+    const webpack5Config = webpackConfig as webpack5.Configuration
+
+    webpack5Config.experiments = {
+      layers: true,
+    }
+
+    webpack5Config.module!.parser = {
+      javascript: {
+        url: 'relative',
+      },
+    }
+    webpack5Config.module!.generator = {
+      asset: {
+        filename: 'static/media/[name].[hash:8][ext]',
+      },
+    }
+
+    if (isServer && dev) {
+      // Enable building of client compilation before server compilation in development
+      webpack5Config.dependencies = ['client']
+    }
+
     // Due to bundling of webpack the default values can't be correctly detected
     // This restores the webpack defaults
-    // @ts-ignore webpack 5
-    webpackConfig.snapshot = {}
+    webpack5Config.snapshot = {}
     if (process.versions.pnp === '3') {
       const match =
         /^(.+?)[\\/]cache[\\/]jest-worker-npm-[^\\/]+\.zip[\\/]node_modules[\\/]/.exec(
           require.resolve('jest-worker')
         )
       if (match) {
-        // @ts-ignore webpack 5
-        webpackConfig.snapshot.managedPaths = [
+        webpack5Config.snapshot.managedPaths = [
           path.resolve(match[1], 'unplugged'),
         ]
       }
@@ -1372,8 +1436,7 @@ export default async function getBaseWebpackConfig(
         require.resolve('jest-worker')
       )
       if (match) {
-        // @ts-ignore webpack 5
-        webpackConfig.snapshot.managedPaths = [match[1]]
+        webpack5Config.snapshot.managedPaths = [match[1]]
       }
     }
     if (process.versions.pnp === '1') {
@@ -1382,8 +1445,7 @@ export default async function getBaseWebpackConfig(
           require.resolve('jest-worker')
         )
       if (match) {
-        // @ts-ignore webpack 5
-        webpackConfig.snapshot.immutablePaths = [match[1]]
+        webpack5Config.snapshot.immutablePaths = [match[1]]
       }
     } else if (process.versions.pnp === '3') {
       const match =
@@ -1391,17 +1453,16 @@ export default async function getBaseWebpackConfig(
           require.resolve('jest-worker')
         )
       if (match) {
-        // @ts-ignore webpack 5
-        webpackConfig.snapshot.immutablePaths = [match[1]]
+        webpack5Config.snapshot.immutablePaths = [match[1]]
       }
     }
 
     if (dev) {
-      if (!webpackConfig.optimization) {
-        webpackConfig.optimization = {}
+      if (!webpack5Config.optimization) {
+        webpack5Config.optimization = {}
       }
-      webpackConfig.optimization.providedExports = false
-      webpackConfig.optimization.usedExports = false
+      webpack5Config.optimization.providedExports = false
+      webpack5Config.optimization.usedExports = false
     }
 
     const configVars = JSON.stringify({
@@ -1446,7 +1507,7 @@ export default async function getBaseWebpackConfig(
       }
     }
 
-    webpackConfig.cache = cache
+    webpack5Config.cache = cache
 
     if (process.env.NEXT_WEBPACK_LOGGING) {
       const logInfra =
@@ -1458,8 +1519,7 @@ export default async function getBaseWebpackConfig(
       const logDefault = !logInfra && !logProfileClient && !logProfileServer
 
       if (logDefault || logInfra) {
-        // @ts-ignore TODO: remove ignore when webpack 5 is stable
-        webpackConfig.infrastructureLogging = {
+        webpack5Config.infrastructureLogging = {
           level: 'verbose',
           debug: /FileSystemInfo/,
         }
@@ -1470,12 +1530,11 @@ export default async function getBaseWebpackConfig(
         (logProfileClient && !isServer) ||
         (logProfileServer && isServer)
       ) {
-        webpackConfig.plugins!.push((compiler: webpack.Compiler) => {
+        webpack5Config.plugins!.push((compiler: webpack5.Compiler) => {
           compiler.hooks.done.tap('next-webpack-logging', (stats) => {
             console.log(
               stats.toString({
                 colors: true,
-                // @ts-ignore TODO: remove ignore when webpack 5 is stable
                 logging: logDefault ? 'log' : 'verbose',
               })
             )
@@ -1484,13 +1543,14 @@ export default async function getBaseWebpackConfig(
       }
 
       if ((logProfileClient && !isServer) || (logProfileServer && isServer)) {
-        webpackConfig.plugins!.push(
-          new webpack.ProgressPlugin({
-            // @ts-ignore TODO: remove ignore when webpack 5 is stable
+        const ProgressPlugin =
+          webpack.ProgressPlugin as unknown as typeof webpack5.ProgressPlugin
+        webpack5Config.plugins!.push(
+          new ProgressPlugin({
             profile: true,
           })
         )
-        webpackConfig.profile = true
+        webpack5Config.profile = true
       }
     }
   }
@@ -1581,10 +1641,6 @@ export default async function getBaseWebpackConfig(
           exclude: fileLoaderExclude,
           issuer: fileLoaderExclude,
           type: 'asset/resource',
-          generator: {
-            publicPath: '/_next/',
-            filename: 'static/media/[name].[hash:8].[ext]',
-          },
         }
       : {
           loader: require.resolve('next/dist/compiled/file-loader'),
@@ -1851,7 +1907,7 @@ export default async function getBaseWebpackConfig(
   const originalEntry: any = webpackConfig.entry
   if (typeof originalEntry !== 'undefined') {
     const updatedEntry = async () => {
-      const entry: WebpackEntrypoints =
+      const entry: webpack5.EntryObject =
         typeof originalEntry === 'function'
           ? await originalEntry()
           : originalEntry
@@ -1871,32 +1927,13 @@ export default async function getBaseWebpackConfig(
       }
       delete entry['main.js']
 
-      if (isWebpack5 && !isServer) {
-        for (const name of Object.keys(entry)) {
-          if (
-            name === 'polyfills' ||
-            name === 'main' ||
-            name === 'amp' ||
-            name === 'react-refresh'
-          )
-            continue
-          const dependOn =
-            name.startsWith('pages/') && name !== 'pages/_app'
-              ? 'pages/_app'
-              : 'main'
-          const old = entry[name]
-          if (typeof old === 'object' && !Array.isArray(old)) {
-            entry[name] = {
-              dependOn,
-              ...old,
-            }
-          } else {
-            entry[name] = {
-              import: old,
-              dependOn,
-            }
-          }
-        }
+      for (const name of Object.keys(entry)) {
+        entry[name] = finalizeEntrypoint(
+          name,
+          entry[name],
+          isServer,
+          isWebpack5
+        )
       }
 
       return entry
