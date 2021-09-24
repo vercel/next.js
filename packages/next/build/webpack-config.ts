@@ -1419,6 +1419,12 @@ export default async function getBaseWebpackConfig(
       webpack5Config.dependencies = ['client']
     }
 
+    if (dev) {
+      // @ts-ignore unsafeCache exists
+      webpack5Config.module.unsafeCache = (module) =>
+        !/[\\/]pages[\\/][^\\/]+(?:$|\?|#)/.test(module.resource)
+    }
+
     // Due to bundling of webpack the default values can't be correctly detected
     // This restores the webpack defaults
     webpack5Config.snapshot = {}
