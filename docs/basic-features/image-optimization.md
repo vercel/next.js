@@ -152,7 +152,13 @@ The image component has several different [layout modes](/docs/api-reference/nex
 
 Regardless of the layout mode used, the Image component will have a consistent DOM structure of one `<img>` tag wrapped by exactly one `<div>`. For some modes, it may also have a sibling `<div>` for spacing. These additional `<div>` elements are critical to allow the component to prevent layout shifts.
 
-The easiest way to style the inner `<img>` rendered by the image element is to **apply a class to your images using the `className` property** on the Image element and then target that class with your styles. The value of className will be automatically applied to the underlying `<img>` element.
+The recommended way to style the inner `<img>` is to set the `className` prop on the Image component to the value of an imported [CSS Module](/docs/basic-features/built-in-css-support.md#adding-component-level-css). The value of `className` will be automatically applied to the underlying `<img>` element.
+
+Alternatively, you can import a [global stylesheet](/docs/basic-features/built-in-css-support#adding-a-global-stylesheet) and manually set the `className` prop to the same name used in the global stylesheet.
+
+You cannot use [styled-jsx](/basic-features/built-in-css-support.md#css-in-js) because its scoped to the current component.
+
+You cannot use the `style` prop because the `<Image>` component does not pass it through to the underlying `<img>`.
 
 **When using `layout='fill'`, the parent element must have `position: relative`**
 
