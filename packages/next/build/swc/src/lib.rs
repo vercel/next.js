@@ -40,12 +40,7 @@ use std::{env, panic::set_hook, sync::Arc};
 use swc::{Compiler, TransformOutput};
 use swc_common::{self, sync::Lazy, FilePathMapping, SourceMap};
 
-pub mod amp_attributes;
-pub mod hook_optimizer;
 mod minify;
-pub mod next_dynamic;
-pub mod next_ssg;
-pub mod styled_jsx;
 mod transform;
 mod util;
 
