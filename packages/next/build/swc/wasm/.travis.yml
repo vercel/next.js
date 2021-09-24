@@ -1,0 +1,68 @@
+language: rust
+sudo: false
+
+cache: cargo
+
+matrix:
+  include:
+    # Builds with wasm-pack.
+    - rust: beta
+      env: RUST_BACKTRACE=1
+      addons:
+        firefox: latest
+        chrome: stable
+      before_script:
+        - (test -x $HOME/.cargo/bin/cargo-install-update || cargo install cargo-update)
+        - (test -x $HOME/.cargo/bin/cargo-generate || cargo install --vers "^0.2" cargo-generate)
+        - cargo install-update -a
+        - curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh -s -- -f
+      script:
+        - cargo generate --git . --name testing
+        # Having a broken Cargo.toml (in that it has curlies in fields) anywhere
+        # in any of our parent dirs is problematic.
+        - mv Cargo.toml Cargo.toml.tmpl
+        - cd testing
+        - wasm-pack build
+        - wasm-pack test --chrome --firefox --headless
+
+    # Builds on nightly.
+    - rust: nightly
+      env: RUST_BACKTRACE=1
+      before_script:
+        - (test -x $HOME/.cargo/bin/cargo-install-update || cargo install cargo-update)
+        - (test -x $HOME/.cargo/bin/cargo-generate || cargo install --vers "^0.2" cargo-generate)
+        - cargo install-update -a
+        - rustup target add wasm32-unknown-unknown
+      script:
+        - cargo generate --git . --name testing
+        - mv Cargo.toml Cargo.toml.tmpl
+        - cd testing
+        - cargo check
+        - cargo check --target wasm32-unknown-unknown
+        - cargo check                                 --no-default-features
+        - cargo check --target wasm32-unknown-unknown --no-default-features
+        - cargo check                                 --no-default-features --features console_error_panic_hook
+        - cargo check --target wasm32-unknown-unknown --no-default-features --features console_error_panic_hook
+        - cargo check                                 --no-default-features --features "console_error_panic_hook wee_alloc"
+        - cargo check --target wasm32-unknown-unknown --no-default-features --features "console_error_panic_hook wee_alloc"
+
+    # Builds on beta.
+    - rust: beta
+      env: RUST_BACKTRACE=1
+      before_script:
+        - (test -x $HOME/.cargo/bin/cargo-install-update || cargo install cargo-update)
+        - (test -x $HOME/.cargo/bin/cargo-generate || cargo install --vers "^0.2" cargo-generate)
+        - cargo install-update -a
+        - rustup target add wasm32-unknown-unknown
+      script:
+        - cargo generate --git . --name testing
+        - mv Cargo.toml Cargo.toml.tmpl
+        - cd testing
+        - cargo check
+        - cargo check --target wasm32-unknown-unknown
+        - cargo check                                 --no-default-features
+        - cargo check --target wasm32-unknown-unknown --no-default-features
+        - cargo check                                 --no-default-features --features console_error_panic_hook
+        - cargo check --target wasm32-unknown-unknown --no-default-features --features console_error_panic_hook
+        # Note: no enabling the `wee_alloc` feature here because it requires
+        # nightly for now.

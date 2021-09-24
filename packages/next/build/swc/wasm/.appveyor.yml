@@ -1,0 +1,11 @@
+install:
+  - appveyor-retry appveyor DownloadFile https://win.rustup.rs/ -FileName rustup-init.exe
+  - if not defined RUSTFLAGS rustup-init.exe -y --default-host x86_64-pc-windows-msvc --default-toolchain nightly
+  - set PATH=%PATH%;C:\Users\appveyor\.cargo\bin
+  - rustc -V
+  - cargo -V
+
+build: false
+
+test_script:
+  - cargo test --locked
