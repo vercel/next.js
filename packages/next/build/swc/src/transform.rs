@@ -26,17 +26,15 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 */
 
-use crate::{
-    amp_attributes::amp_attributes,
-    complete_output, get_compiler,
-    hook_optimizer::hook_optimizer,
-    next_dynamic::next_dynamic,
-    next_ssg::next_ssg,
-    styled_jsx::styled_jsx,
-    util::{CtxtExt, MapErr},
-};
+use crate::util::{CtxtExt, MapErr};
+use crate::{complete_output, get_compiler};
 use anyhow::{Context as _, Error};
 use napi::{CallContext, Env, JsBoolean, JsObject, JsString, Task};
+use next_swc_core::amp_attributes::amp_attributes;
+use next_swc_core::hook_optimizer::hook_optimizer;
+use next_swc_core::next_dynamic::next_dynamic;
+use next_swc_core::next_ssg::next_ssg;
+use next_swc_core::styled_jsx::styled_jsx;
 use serde::Deserialize;
 use std::{path::PathBuf, sync::Arc};
 use swc::{try_with_handler, Compiler, TransformOutput};
