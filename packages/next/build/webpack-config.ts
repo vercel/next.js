@@ -1400,6 +1400,7 @@ export default async function getBaseWebpackConfig(
 
     webpack5Config.experiments = {
       layers: true,
+      cacheUnaffected: true,
     }
 
     webpack5Config.module!.parser = {
