@@ -120,7 +120,7 @@ A string that provides information about how wide the image will be at different
 
 `sizes` is important for performance when using `layout="responsive"` or `layout="fill"` with images that take up less than the full viewport width.
 
-If you are using `layout="fill"` and the image will always be less than half the viewport width, include `sizes="50vw"`. Without `sizes`, the image will be sent at twice the necessary resolution, decreasing performance.
+If you are using `layout="fill"` or `layout="responsive"` and the image will always be less than half the viewport width, include `sizes="50vw"`. Without `sizes`, the image will be sent at twice the necessary resolution, decreasing performance.
 
 [Learn more](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/img#attr-sizes).
 
@@ -249,7 +249,7 @@ module.exports = {
 
 ### Loader Configuration
 
-If you want to use a cloud provider to optimize images instead of using the Next.js built-in Image Optimization API, you can configure the `loader` and `path` prefix in your `next.config.js` file. This allows you to use relative urls for the Image `src` and automatically generate the correct absolute url for your provider.
+If you want to use a cloud provider to optimize images instead of using the Next.js built-in Image Optimization API, you can configure the `loader` and `path` prefix in your `next.config.js` file. This allows you to use relative URLs for the Image `src` and automatically generate the correct absolute URL for your provider.
 
 ```js
 module.exports = {

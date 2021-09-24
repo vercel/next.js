@@ -66,7 +66,7 @@ function Home() {
 
 ### Remote Images
 
-To use a remote image, the `src` property should be a URL string, which can be [relative](#loaders) or [absolute](#domains). Because Next.js does not have access to remote files during the build proccess, you'll need to provide the [`width`](/docs/api-reference/next/image.md#width), [`height`](/docs/api-reference/next/image.md#height) and optional [`blurDataURL`](/docs/api-reference/next/image.md#blurdataurl) props manually:
+To use a remote image, the `src` property should be a URL string, which can be [relative](#loaders) or [absolute](#domains). Because Next.js does not have access to remote files during the build process, you'll need to provide the [`width`](/docs/api-reference/next/image.md#width), [`height`](/docs/api-reference/next/image.md#height) and optional [`blurDataURL`](/docs/api-reference/next/image.md#blurdataurl) props manually:
 
 ```jsx
 import Image from 'next/image'
@@ -91,7 +91,7 @@ export default function Home() {
 
 ### Domains
 
-Sometimes you may want to access a remote image, but still use the built-in Next.js Image Optimization API. To do this, simply leave the `loader` at it's default setting and enter an absolute url for the Image `src`.
+Sometimes you may want to access a remote image, but still use the built-in Next.js Image Optimization API. To do this, simply leave the `loader` at its default setting and enter an absolute URL for the Image `src`.
 
 To protect your application from abuse, you must define a list of remote domains that you intend to access this way. This is configured in your `next.config.js` file, as shown below:
 
