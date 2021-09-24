@@ -27,3 +27,7 @@ fxhash = "0.2.1"
 retain_mut = "0.1.3"
 log = {version="0.4.14", features = ["release_max_level_off"] }
 pathdiff = "0.2.0"
+
+[dev-dependencies]
+swc_ecma_transforms_testing = "0.32"
+testing = "0.13"
