@@ -755,6 +755,7 @@ dependencies = [
  "napi",
  "napi-build",
  "napi-derive",
+ "next_swc_core",
  "path-clean",
  "pathdiff",
  "regex",
@@ -772,6 +773,32 @@ dependencies = [
  "swc_node_base",
  "swc_stylis",
  "testing",
+]
+
+[[package]]
+name = "next_swc_core"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "backtrace",
+ "easy-error",
+ "fxhash",
+ "log",
+ "path-clean",
+ "pathdiff",
+ "regex",
+ "retain_mut",
+ "serde",
+ "serde_json",
+ "swc",
+ "swc_atoms",
+ "swc_common",
+ "swc_css",
+ "swc_css_codegen",
+ "swc_ecma_preset_env",
+ "swc_ecmascript",
+ "swc_node_base",
+ "swc_stylis",
 ]
 
 [[package]]
