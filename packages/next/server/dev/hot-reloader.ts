@@ -263,53 +263,81 @@ export default class HotReloader {
     return { finished }
   }
 
-  private async clean(): Promise<void> {
-    return recursiveDelete(join(this.dir, this.config.distDir), /^cache/)
+  private async clean(span: Span): Promise<void> {
+    return span
+      .traceChild('clean')
+      .traceAsyncFn(() =>
+        recursiveDelete(join(this.dir, this.config.distDir), /^cache/)
+      )
   }
 
-  private async getWebpackConfig() {
-    const pagePaths = await Promise.all([
-      findPageFile(this.pagesDir, '/_app', this.config.pageExtensions),
-      findPageFile(this.pagesDir, '/_document', this.config.pageExtensions),
-    ])
+  private async getWebpackConfig(span: Span) {
+    const webpackConfigSpan = span.traceChild('get-webpack-config')
 
-    const pages = createPagesMapping(
-      pagePaths.filter((i) => i !== null) as string[],
-      this.config.pageExtensions,
-      this.isWebpack5,
-      true
-    )
-    const entrypoints = createEntrypoints(
-      pages,
-      'server',
-      this.buildId,
-      this.previewProps,
-      this.config,
-      []
-    )
+    return webpackConfigSpan.traceAsyncFn(async () => {
+      const pagePaths = await webpackConfigSpan
+        .traceChild('get-page-paths')
+        .traceAsyncFn(() =>
+          Promise.all([
+            findPageFile(this.pagesDir, '/_app', this.config.pageExtensions),
+            findPageFile(
+              this.pagesDir,
+              '/_document',
+              this.config.pageExtensions
+            ),
+          ])
+        )
 
-    return Promise.all([
-      getBaseWebpackConfig(this.dir, {
-        dev: true,
-        isServer: false,
-        config: this.config,
-        buildId: this.buildId,
-        pagesDir: this.pagesDir,
-        rewrites: this.rewrites,
-        entrypoints: entrypoints.client,
-        runWebpackSpan: this.hotReloaderSpan,
-      }),
-      getBaseWebpackConfig(this.dir, {
-        dev: true,
-        isServer: true,
-        config: this.config,
-        buildId: this.buildId,
-        pagesDir: this.pagesDir,
-        rewrites: this.rewrites,
-        entrypoints: entrypoints.server,
-        runWebpackSpan: this.hotReloaderSpan,
-      }),
-    ])
+      const pages = webpackConfigSpan
+        .traceChild('create-pages-mapping')
+        .traceFn(() =>
+          createPagesMapping(
+            pagePaths.filter((i) => i !== null) as string[],
+            this.config.pageExtensions,
+            this.isWebpack5,
+            true
+          )
+        )
+      const entrypoints = webpackConfigSpan
+        .traceChild('create-entrypoints')
+        .traceFn(() =>
+          createEntrypoints(
+            pages,
+            'server',
+            this.buildId,
+            this.previewProps,
+            this.config,
+            []
+          )
+        )
+
+      return webpackConfigSpan
+        .traceChild('generate-webpack-config')
+        .traceAsyncFn(() =>
+          Promise.all([
+            getBaseWebpackConfig(this.dir, {
+              dev: true,
+              isServer: false,
+              config: this.config,
+              buildId: this.buildId,
+              pagesDir: this.pagesDir,
+              rewrites: this.rewrites,
+              entrypoints: entrypoints.client,
+              runWebpackSpan: this.hotReloaderSpan,
+            }),
+            getBaseWebpackConfig(this.dir, {
+              dev: true,
+              isServer: true,
+              config: this.config,
+              buildId: this.buildId,
+              pagesDir: this.pagesDir,
+              rewrites: this.rewrites,
+              entrypoints: entrypoints.server,
+              runWebpackSpan: this.hotReloaderSpan,
+            }),
+          ])
+        )
+    })
   }
 
   public async buildFallbackError(): Promise<void> {
@@ -359,9 +387,12 @@ export default class HotReloader {
   }
 
   public async start(): Promise<void> {
-    await this.clean()
+    const startSpan = this.hotReloaderSpan.traceChild('start')
+    startSpan.stop() // Stop immediately to create an artificial parent span
 
-    const configs = await this.getWebpackConfig()
+    await this.clean(startSpan)
+
+    const configs = await this.getWebpackConfig(startSpan)
 
     for (const config of configs) {
       const defaultEntry = config.entry

@@ -16,9 +16,11 @@ foo.__hash = "e46da79e05d23fff";
     ]}>{`div.__jsx-style-dynamic-selector {color:${colors.green.light}}
 a.__jsx-style-dynamic-selector {color:red}`}</_JSXStyle>,
     className: _JSXStyle.dynamic([
-        "12e2c41a8d37fe78",
         [
-            colors.green.light
+            "12e2c41a8d37fe78",
+            [
+                colors.green.light
+            ]
         ]
     ])
 });
@@ -28,9 +30,11 @@ const b = {
     ]}>{`div.__jsx-style-dynamic-selector {color:${colors.green.light}}
 a.__jsx-style-dynamic-selector {color:red}`}</_JSXStyle>,
     className: _JSXStyle.dynamic([
-        "d5617758481f82cd",
         [
-            colors.green.light
+            "d5617758481f82cd",
+            [
+                colors.green.light
+            ]
         ]
     ])
 };
@@ -41,9 +45,11 @@ const dynamic = (colors)=>{
         ]}>{`div.__jsx-style-dynamic-selector {color:${colors.green.light}}
 a.__jsx-style-dynamic-selector {color:red}`}</_JSXStyle>,
         className: _JSXStyle.dynamic([
-            "a7ac579c753e9d90",
             [
-                colors.green.light
+                "a7ac579c753e9d90",
+                [
+                    colors.green.light
+                ]
             ]
         ])
     };

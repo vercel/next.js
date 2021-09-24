@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-import { resolve } from 'path'
 import arg from 'next/dist/compiled/arg/index.js'
 import { existsSync } from 'fs'
 import startServer from '../server/lib/start-server'
@@ -8,6 +7,7 @@ import * as Log from '../build/output/log'
 import { startedDevelopmentServer } from '../build/output'
 import { cliCommand } from '../bin/next'
 import isError from '../lib/is-error'
+import { getProjectDir } from '../lib/get-project-dir'
 
 const nextDev: cliCommand = (argv) => {
   const validArgs: arg.Spec = {
@@ -50,7 +50,7 @@ const nextDev: cliCommand = (argv) => {
     process.exit(0)
   }
 
-  const dir = resolve(args._[0] || '.')
+  const dir = getProjectDir(args._[0])
 
   // Check if pages dir exists and warn if not
   if (!existsSync(dir)) {
