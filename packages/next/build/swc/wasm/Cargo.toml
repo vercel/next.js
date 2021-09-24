@@ -31,6 +31,7 @@ swc = "0.51"
 next_swc_core = { path = "../core/" }
 serde = { version = "1.0.130", features = ["derive"] }
 once_cell = "1.8.0"
+anyhow = "1.0.44"
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3.13"
