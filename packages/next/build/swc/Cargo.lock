@@ -796,9 +796,11 @@ dependencies = [
  "swc_css",
  "swc_css_codegen",
  "swc_ecma_preset_env",
+ "swc_ecma_transforms_testing",
  "swc_ecmascript",
  "swc_node_base",
  "swc_stylis",
+ "testing",
 ]
 
 [[package]]
@@ -1433,18 +1435,18 @@ checksum = "388a1df253eca08550bef6c72392cfe7c30914bf41df5269b68cbd6ff8f570a3"
 
 [[package]]
 name = "serde"
-version = "1.0.127"
+version = "1.0.130"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f03b9878abf6d14e6779d3f24f07b2cfa90352cfec4acc5aab8f1ac7f146fae8"
+checksum = "f12d06de37cf59146fbdecab66aa99f9fe4f78722e3607577a5375d66bd0c913"
 dependencies = [
  "serde_derive",
 ]
 
 [[package]]
 name = "serde_derive"
-version = "1.0.127"
+version = "1.0.130"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a024926d3432516606328597e0f224a51355a493b49fdd67e9209187cbe55ecc"
+checksum = "d7bc1a1ab1961464eae040d96713baa5a724a8152c1222492465b54322ec508b"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2447,7 +2449,9 @@ name = "wasm"
 version = "0.1.0"
 dependencies = [
  "console_error_panic_hook",
- "next-swc",
+ "next_swc_core",
+ "once_cell",
+ "serde",
  "swc",
  "swc_atoms",
  "swc_common",
