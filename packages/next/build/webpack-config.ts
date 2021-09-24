@@ -175,7 +175,7 @@ export function attachReactRefresh(
   }
 }
 
-const NODE_RESOLVE_OPTIONS = {
+export const NODE_RESOLVE_OPTIONS = {
   dependencyType: 'commonjs',
   modules: ['node_modules'],
   alias: false,
@@ -196,7 +196,7 @@ const NODE_RESOLVE_OPTIONS = {
   restrictions: [],
 }
 
-const NODE_ESM_RESOLVE_OPTIONS = {
+export const NODE_ESM_RESOLVE_OPTIONS = {
   ...NODE_RESOLVE_OPTIONS,
   dependencyType: 'esm',
   conditionNames: ['node', 'import'],
@@ -1293,7 +1293,10 @@ export default async function getBaseWebpackConfig(
         isServer &&
         !dev &&
         isWebpack5 &&
-        new TraceEntryPointsPlugin({ appDir: dir }),
+        new TraceEntryPointsPlugin({
+          appDir: dir,
+          esmExternals: config.experimental.esmExternals,
+        }),
       // Moment.js is an extremely popular library that bundles large locale files
       // by default due to how Webpack interprets its code. This is a practical
       // solution that requires the user to opt into importing specific locales.
