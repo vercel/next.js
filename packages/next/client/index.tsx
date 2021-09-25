@@ -376,6 +376,13 @@ export async function initNext(opts: { webpackHMR?: any } = {}) {
     await window.__NEXT_PRELOADREADY(dynamicIds)
   }
 
+  if (process.env.__NEXT_IDLE_HYDRATION === 'true') {
+    const requestIdleCallback = require('./request-idle-callback')
+    await new Promise((resolve) => {
+      requestIdleCallback(resolve)
+    })
+  }
+
   router = createRouter(page, query, asPath, {
     initialProps: hydrateProps,
     pageLoader,
