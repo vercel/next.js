@@ -246,6 +246,8 @@ export default async function build(
       .traceChild('collect-pages')
       .traceAsyncFn(() => collectPages(pagesDir, config.pageExtensions))
 
+    // @Q _layout files collected successfully
+
     // needed for static exporting since we want to replace with HTML
     // files
     const allStaticPages = new Set<string>()
@@ -262,6 +264,9 @@ export default async function build(
       .traceFn(() =>
         createPagesMapping(pagePaths, config.pageExtensions, isWebpack5, false)
       )
+
+    // @Q Mapped pages includes our layout
+
     const entrypoints = nextBuildSpan
       .traceChild('create-entrypoints')
       .traceFn(() =>
@@ -274,6 +279,27 @@ export default async function build(
           loadedEnvFiles
         )
       )
+
+    // @Q This will likely need work
+    // entrypoints: {
+    //   client: {
+    //     'pages/_layout': 'next-client-pages-loader?page=%2F_layout&absolutePagePath=private-next-pages%2F_layout.js!',
+    //     'pages/index': 'next-client-pages-loader?page=%2F&absolutePagePath=private-next-pages%2Findex.js!',
+    //     'pages/_app': [
+    //       'next-client-pages-loader?page=%2F_app&absolutePagePath=next%2Fdist%2Fpages%2F_app!',
+    //       '/tmp/next-install-1632438289085/node_modules/next/dist/client/router.js'
+    //     ],
+    //     'pages/_error': 'next-client-pages-loader?page=%2F_error&absolutePagePath=next%2Fdist%2Fpages%2F_error!'
+    //   },
+    //   server: {
+    //     'pages/_layout': [ 'private-next-pages/_layout.js' ],
+    //     'pages/index': [ 'private-next-pages/index.js' ],
+    //     'pages/_app': [ 'next/dist/pages/_app' ],
+    //     'pages/_error': [ 'next/dist/pages/_error' ],
+    //     'pages/_document': [ 'next/dist/pages/_document' ]
+    //   }
+    // }
+
     const pageKeys = Object.keys(mappedPages)
     const conflictingPublicFiles: string[] = []
     const hasCustomErrorPage: boolean =
@@ -321,12 +347,15 @@ export default async function build(
       })
 
     const nestedReservedPages = pageKeys.filter((page) => {
+      // @Q For now only top level layout supported
       return (
-        page.match(/\/(_app|_document|_error)$/) && path.dirname(page) !== '/'
+        page.match(/\/(_layout|_app|_document|_error)$/) &&
+        path.dirname(page) !== '/'
       )
     })
 
     if (nestedReservedPages.length) {
+      // @Q Documentation would need updating
       Log.warn(
         `The following reserved Next.js pages were detected not directly under the pages directory:\n` +
           nestedReservedPages.join('\n') +
@@ -533,6 +562,7 @@ export default async function build(
       .traceChild('generate-webpack-config')
       .traceAsyncFn(() =>
         Promise.all([
+          // @Q Will need to update webpack config
           getBaseWebpackConfig(dir, {
             buildId,
             reactProductionProfiling,
@@ -830,7 +860,7 @@ export default async function build(
             let ssgPageRoutes: string[] | null = null
 
             const nonReservedPage = !page.match(
-              /^\/(_app|_error|_document|api(\/|$))/
+              /^\/(_layout|_app|_error|_document|api(\/|$))/
             )
 
             if (nonReservedPage) {
@@ -1176,6 +1206,9 @@ export default async function build(
           ssgPages,
           additionalSsgPaths
         )
+
+        console.log('COMBINED PAGES', combinedPages)
+
         const exportApp: typeof import('../export').default =
           require('../export').default
         const exportOptions = {

@@ -235,6 +235,8 @@ interface RouteFiles {
   scripts: string[]
   css: string[]
 }
+
+// @Q
 function getFilesForRoute(
   assetPrefix: string,
   route: string

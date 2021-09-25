@@ -48,6 +48,7 @@ function generateClientManifest(
     sortedPageKeys.forEach((page) => {
       const dependencies = assetMap.pages[page]
 
+      // @Q
       if (page === '/_app') return
       // Filter out dependencies in the _app entry, because those will have already
       // been loaded by the client prior to a navigation event

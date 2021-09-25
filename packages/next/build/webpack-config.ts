@@ -203,6 +203,7 @@ const NODE_ESM_RESOLVE_OPTIONS = {
   fullySpecified: true,
 }
 
+// @Q
 export default async function getBaseWebpackConfig(
   dir: string,
   {
@@ -410,6 +411,7 @@ export default async function getBaseWebpackConfig(
     }
   }
 
+  // @Q
   // tell webpack where to look for _app and _document
   // using aliases to allow falling back to the default
   // version when removed or not present
@@ -424,6 +426,7 @@ export default async function getBaseWebpackConfig(
   const customErrorAlias: { [key: string]: string[] } = {}
   const customDocumentAliases: { [key: string]: string[] } = {}
 
+  // @Q
   if (dev && isWebpack5) {
     customAppAliases[`${PAGES_DIR_ALIAS}/_app`] = [
       ...config.pageExtensions.reduce((prev, ext) => {
@@ -1544,6 +1547,7 @@ export default async function getBaseWebpackConfig(
 
   webpackConfig = await buildConfiguration(webpackConfig, {
     rootDirectory: dir,
+    // @Q
     customAppFile: new RegExp(
       path.join(pagesDir, `_app`).replace(/\\/g, '(/|\\\\)')
     ),

@@ -312,6 +312,10 @@ export default class Server {
     res: ServerResponse,
     parsedUrl?: UrlWithParsedQuery
   ): Promise<void> {
+    // @Q main server handler
+
+    console.log(req.url)
+
     const urlParts = (req.url || '').split('?')
     const urlNoQuery = urlParts[0]
 
@@ -486,6 +490,7 @@ export default class Server {
 
     res.statusCode = 200
     try {
+      // @Q Interesting part?
       return await this.run(req, res, parsedUrl)
     } catch (err) {
       if (this.minimalMode || this.renderOpts.dev) {
@@ -944,6 +949,7 @@ export default class Server {
       }
     }
 
+    // @Q does this render non-dynamic pages?
     const catchAllRoute: Route = {
       match: route('/:path*'),
       type: 'route',
@@ -1227,6 +1233,7 @@ export default class Server {
     this.handleCompression(req, res)
 
     try {
+      // @Q
       const matched = await this.router.execute(req, res, parsedUrl)
       if (matched) {
         return
@@ -1352,6 +1359,10 @@ export default class Server {
       return this.render404(req, res, parsedUrl)
     }
 
+    /**
+     * @Q this is where we are actually rendering
+     * For example pathname '/', '/favicon.ico'
+     */
     return this.pipe((ctx) => this.renderToResponse(ctx), {
       req,
       res,
@@ -1360,6 +1371,7 @@ export default class Server {
     })
   }
 
+  // @Q this seems to retrieve actual page data & HTML
   protected async findPageComponents(
     pathname: string,
     query: ParsedUrlQuery = {},
@@ -1382,6 +1394,7 @@ export default class Server {
 
     for (const pagePath of paths) {
       try {
+        // @Q this loads the actual Document, App, Component, getStaticProps...
         const components = await loadComponents(
           this.distDir,
           pagePath!,
@@ -1401,6 +1414,7 @@ export default class Server {
         return {
           components,
           query: {
+            // @Q
             ...(components.getStaticProps
               ? {
                   amp: query.amp,
@@ -1442,6 +1456,7 @@ export default class Server {
     }
   }
 
+  // @Q Server render, ssg, etc!
   private async renderToResponseWithComponents(
     { req, res, pathname, renderOpts: opts }: RequestContext,
     { components, query }: FindComponentsResult
@@ -1452,7 +1467,8 @@ export default class Server {
     const isLikeServerless =
       typeof components.ComponentMod === 'object' &&
       typeof (components.ComponentMod as any).renderReqToHTML === 'function'
-    const isSSG = !!components.getStaticProps
+    const isSSG =
+      !!components.getStaticProps || !!components.getStaticLayoutProps
     const hasServerProps = !!components.getServerSideProps
     const hasStaticPaths = !!components.getStaticPaths
     const hasGetInitialProps = !!(components.Component as any).getInitialProps
@@ -1594,6 +1610,7 @@ export default class Server {
       }`
     }
 
+    // @Q reuse cache for layout props?
     if (ssgCacheKey) {
       // we only encode path delimiters for path segments from
       // getStaticPaths so we need to attempt decoding the URL
@@ -1625,17 +1642,17 @@ export default class Server {
 
       // handle serverless
       if (isLikeServerless) {
-        const renderResult = await (
-          components.ComponentMod as any
-        ).renderReqToHTML(req, res, 'passthrough', {
-          locale,
-          locales,
-          defaultLocale,
-          optimizeCss: this.renderOpts.optimizeCss,
-          distDir: this.distDir,
-          fontManifest: this.renderOpts.fontManifest,
-          domainLocales: this.renderOpts.domainLocales,
-        })
+        const renderResult = await (components.ComponentMod as any)
+          // @Q
+          .renderReqToHTML(req, res, 'passthrough', {
+            locale,
+            locales,
+            defaultLocale,
+            optimizeCss: this.renderOpts.optimizeCss,
+            distDir: this.distDir,
+            fontManifest: this.renderOpts.fontManifest,
+            domainLocales: this.renderOpts.domainLocales,
+          })
 
         body = renderResult.html
         pageData = renderResult.renderOpts.pageData
@@ -1675,6 +1692,7 @@ export default class Server {
               : resolvedUrl,
         }
 
+        // @Q
         const renderResult = await renderToHTML(
           req,
           res,
@@ -1705,6 +1723,7 @@ export default class Server {
       return { revalidate: sprRevalidate, value }
     }
 
+    // @Q Response cache!
     const cacheEntry = await this.responseCache.get(
       ssgCacheKey,
       async (hasResolved) => {
@@ -1888,6 +1907,34 @@ export default class Server {
 
     try {
       const result = await this.findPageComponents(pathname, query)
+
+      // @Q Found where things are actually rendered finally!
+      // result = {
+      //   components: {
+      //     App: [class App extends C] {
+      //       origGetInitialProps: [Function: appGetInitialProps],
+      //       getInitialProps: [Function: appGetInitialProps]
+      //     },
+      //     Document: [class Document extends C],
+      //     Component: '<!DOCTYPE html><html><head><meta charSet="utf-8"/><meta name="viewport" content="width=device-width"/><meta name="next-head-count" content="2"/><noscript data-n-css=""></noscript><script defer="" nomodule="" src="/_next/static/chunks/polyfills-a40ef1678bae11e696dba45124eadd70.js"></script><script src="/_next/static/chunks/webpack-1a8a258926ecde76681b.js" defer=""></script><script src="/_next/static/chunks/framework-b97a0ed4f13ff8397343.js" defer=""></script><script src="/_next/static/chunks/main-12d011be83aebfa3fdd4.js" defer=""></script><script src="/_next/static/chunks/pages/_app-f4b4414c9a9be4b32b3c.js" defer=""></script><script src="/_next/static/chunks/pages/index-3da5df47de27747f2b74.js" defer=""></script><script src="/_next/static/1_ps4TPhnCMgw6gF1n-Uh/_buildManifest.js" defer=""></script><script src="/_next/static/1_ps4TPhnCMgw6gF1n-Uh/_ssgManifest.js" defer=""></script></head><body><div id="__next"><p id="page">hello world</p></div><script id="__NEXT_DATA__" type="application/json">{"props":{"pageProps":{}},"page":"/","query":{},"buildId":"1_ps4TPhnCMgw6gF1n-Uh","nextExport":true,"autoExport":true,"isFallback":false,"scriptLoader":[]}</script></body></html>',
+      //     buildManifest: {
+      //       polyfillFiles: [Array],
+      //       devFiles: [],
+      //       ampDevFiles: [],
+      //       lowPriorityFiles: [Array],
+      //       pages: [Object],
+      //       ampFirstPages: []
+      //     },
+      //     reactLoadableManifest: {},
+      //     pageConfig: {},
+      //     ComponentMod: '<!DOCTYPE html><html><head><meta charSet="utf-8"/><meta name="viewport" content="width=device-width"/><meta name="next-head-count" content="2"/><noscript data-n-css=""></noscript><script defer="" nomodule="" src="/_next/static/chunks/polyfills-a40ef1678bae11e696dba45124eadd70.js"></script><script src="/_next/static/chunks/webpack-1a8a258926ecde76681b.js" defer=""></script><script src="/_next/static/chunks/framework-b97a0ed4f13ff8397343.js" defer=""></script><script src="/_next/static/chunks/main-12d011be83aebfa3fdd4.js" defer=""></script><script src="/_next/static/chunks/pages/_app-f4b4414c9a9be4b32b3c.js" defer=""></script><script src="/_next/static/chunks/pages/index-3da5df47de27747f2b74.js" defer=""></script><script src="/_next/static/1_ps4TPhnCMgw6gF1n-Uh/_buildManifest.js" defer=""></script><script src="/_next/static/1_ps4TPhnCMgw6gF1n-Uh/_ssgManifest.js" defer=""></script></head><body><div id="__next"><p id="page">hello world</p></div><script id="__NEXT_DATA__" type="application/json">{"props":{"pageProps":{}},"page":"/","query":{},"buildId":"1_ps4TPhnCMgw6gF1n-Uh","nextExport":true,"autoExport":true,"isFallback":false,"scriptLoader":[]}</script></body></html>',
+      //     getServerSideProps: undefined,
+      //     getStaticProps: undefined,
+      //     getStaticPaths: undefined
+      //   },
+      //   query: {}
+      // }
+
       if (result) {
         try {
           return await this.renderToResponseWithComponents(ctx, result)

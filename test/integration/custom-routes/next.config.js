@@ -1,7 +1,7 @@
 module.exports = {
   // target: 'serverless',
   async rewrites() {
-    // no-rewrites comment
+    return []
     return {
       afterFiles: [
         ...(process.env.ADD_NOOP_REWRITE === 'true'
@@ -82,7 +82,7 @@ module.exports = {
         },
         {
           source: '/proxy-me/:path*',
-          destination: 'http://localhost:__EXTERNAL_PORT__/:path*',
+          destination: 'http://localhost:40211/:path*',
         },
         {
           source: '/api-hello',

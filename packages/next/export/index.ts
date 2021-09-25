@@ -239,7 +239,12 @@ export default async function exportApp(
         continue
       }
 
-      if (page === '/_document' || page === '/_app' || page === '/_error') {
+      if (
+        page === '/_document' ||
+        page === '/_app' ||
+        page === '/_layout' ||
+        page === '/_error'
+      ) {
         continue
       }
 
@@ -685,6 +690,8 @@ export default async function exportApp(
         `AMP Validation caused the export to fail. https://nextjs.org/docs/messages/amp-export-validation`
       )
     }
+
+    console.error(renderError)
 
     if (renderError) {
       throw new Error(

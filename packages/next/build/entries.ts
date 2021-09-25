@@ -48,6 +48,8 @@ export function createPagesMapping(
     {}
   )
 
+  // @Q This may need to be modified to make _layout work!
+
   // we alias these in development and allow webpack to
   // allow falling back to the correct source file so
   // that HMR can work properly when a file is added/removed
@@ -150,6 +152,8 @@ export function createEntrypoints(
         page,
         absolutePagePath,
       }
+
+      // @Q May need to look into this loader!
       const pageLoader = `next-client-pages-loader?${stringify(
         pageLoaderOpts
       )}!`
@@ -157,6 +161,8 @@ export function createEntrypoints(
       // Make sure next/router is a dependency of _app or else chunk splitting
       // might cause the router to not be able to load causing hydration
       // to fail
+
+      // @Q May need to add _layout as dependency of affected pages?
 
       client[clientBundlePath] =
         page === '/_app'

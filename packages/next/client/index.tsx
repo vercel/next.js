@@ -371,6 +371,7 @@ export async function initNext(opts: { webpackHMR?: any } = {}) {
   router = createRouter(page, query, asPath, {
     initialProps: hydrateProps,
     pageLoader,
+    // @Q
     App: CachedApp,
     Component: CachedComponent,
     wrapApp,

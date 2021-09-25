@@ -101,6 +101,8 @@ export class Span {
 }
 
 export const trace = (name: string, parentId?: SpanId, attrs?: Object) => {
+  // @Q
+  console.info(`Tracing ${name}`)
   return new Span({ name, parentId, attrs })
 }
 

@@ -259,6 +259,7 @@ function checkRedirectValues(
   }
 }
 
+// @Q Actual (non-serverless) SSR!
 export async function renderToHTML(
   req: IncomingMessage,
   res: ServerResponse,
@@ -280,6 +281,7 @@ export async function renderToHTML(
     err,
     dev = false,
     ampPath = '',
+    Layout,
     App,
     Document,
     pageConfig = {},
@@ -288,6 +290,7 @@ export async function renderToHTML(
     fontManifest,
     reactLoadableManifest,
     ErrorDebug,
+    getStaticLayoutProps,
     getStaticProps,
     getStaticPaths,
     getServerSideProps,
@@ -336,7 +339,8 @@ export async function renderToHTML(
   delete query.__nextLocale
   delete query.__nextDefaultLocale
 
-  const isSSG = !!getStaticProps
+  // @Q figure out better isSSG flag
+  const isSSG = !!getStaticProps /* || !!getStaticLayoutProps */
   const isBuildTimeSSG = isSSG && renderOpts.nextExport
   const defaultAppGetInitialProps =
     App.getInitialProps === (App as any).origGetInitialProps
@@ -484,6 +488,16 @@ export async function renderToHTML(
     (req as any).__nextIsLocaleDomain
   )
   const jsxStyleRegistry = createStyleRegistry()
+
+  function ComponentWithLayout(props: any) {
+    console.log('<ComponentWithLayout>')
+    return (
+      <Layout>
+        <Component {...props} />
+      </Layout>
+    )
+  }
+
   const ctx = {
     err,
     req: isAutoExport ? undefined : req,
@@ -494,10 +508,11 @@ export async function renderToHTML(
     locale: renderOpts.locale,
     locales: renderOpts.locales,
     defaultLocale: renderOpts.defaultLocale,
+    // @Q Add Layout here?
     AppTree: (props: any) => {
       return (
         <AppContainer>
-          <App {...props} Component={Component} router={router} />
+          <App {...props} Component={ComponentWithLayout} router={router} />
         </AppContainer>
       )
     },
@@ -558,6 +573,7 @@ export async function renderToHTML(
     </RouterContext.Provider>
   )
 
+  // @Q
   props = await loadGetInitialProps(App, {
     AppTree: ctx.AppTree,
     Component,
@@ -575,8 +591,24 @@ export async function renderToHTML(
 
   if (isSSG && !isFallback) {
     let data: UnwrapPromise<ReturnType<GetStaticProps>>
+    let layoutData: UnwrapPromise<ReturnType<GetStaticProps>> | undefined =
+      undefined
 
     try {
+      // @Q getStaticProps!
+      if (getStaticLayoutProps) {
+        layoutData = await getStaticLayoutProps!({
+          ...(pageIsDynamic ? { params: query as ParsedUrlQuery } : undefined),
+          ...(isPreview
+            ? { preview: true, previewData: previewData }
+            : undefined),
+          locales: renderOpts.locales,
+          locale: renderOpts.locale,
+          defaultLocale: renderOpts.defaultLocale,
+        })
+        console.log('LAYOUT DATA', layoutData)
+      }
+
       data = await getStaticProps!({
         ...(pageIsDynamic ? { params: query as ParsedUrlQuery } : undefined),
         ...(isPreview
@@ -723,6 +755,14 @@ export async function renderToHTML(
       props.pageProps,
       'props' in data ? data.props : undefined
     )
+
+    if (layoutData) {
+      props.layoutProps = Object.assign(
+        {},
+        props.layoutProps,
+        'props' in layoutData ? layoutData.props : undefined
+      )
+    }
 
     // pass up revalidate and props for export
     // TODO: change this to a different passing mechanism
@@ -939,7 +979,10 @@ export async function renderToHTML(
         }
 
         const { App: EnhancedApp, Component: EnhancedComponent } =
-          enhanceComponents(options, App, Component)
+          enhanceComponents(options, App, ComponentWithLayout)
+
+        // @Q
+        console.log('EnhancedApp?')
 
         const html = ReactDOMServer.renderToString(
           <AppContainer>
@@ -977,12 +1020,14 @@ export async function renderToHTML(
         styles: docProps.styles,
       }
     } else {
+      // @Q Actual SSR call (non getInitialProps)
+
       const content =
         ctx.err && ErrorDebug ? (
           <ErrorDebug error={ctx.err} />
         ) : (
           <AppContainer>
-            <App {...props} Component={Component} router={router} />
+            <App {...props} Component={ComponentWithLayout} router={router} />
           </AppContainer>
         )
       const bodyResult = concurrentFeatures
