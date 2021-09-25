@@ -3,6 +3,7 @@ export const VALID_LOADERS = [
   'imgix',
   'cloudinary',
   'akamai',
+  'cloudflare',
   'custom',
 ] as const
 

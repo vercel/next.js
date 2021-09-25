@@ -36,6 +36,7 @@ const loaders = new Map<
   ['imgix', imgixLoader],
   ['cloudinary', cloudinaryLoader],
   ['akamai', akamaiLoader],
+  ['cloudflare', cloudflareLoader],
   ['custom', customLoader],
 ])
 
@@ -688,6 +689,20 @@ function imgixLoader({
 
 function akamaiLoader({ root, src, width }: DefaultImageLoaderProps): string {
   return `${root}${normalizeSrc(src)}?imwidth=${width}`
+}
+
+function cloudflareLoader({
+  root = '',
+  src,
+  width,
+  quality,
+}: DefaultImageLoaderProps): string {
+  const params = [`width=${width}`]
+  if (quality) {
+    params.push(`quality=${quality}`)
+  }
+  const paramsString = params.join(',')
+  return `${root}/cdn-cgi/image/${paramsString}/${normalizeSrc(src)}`
 }
 
 function cloudinaryLoader({
