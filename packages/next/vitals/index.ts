@@ -1,0 +1,1 @@
+export { useExperimentalWebVitalsReport } from './vitals'

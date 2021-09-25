@@ -43,12 +43,14 @@ export type LoadComponentsReturnType = {
 export async function loadDefaultErrorComponents(distDir: string) {
   const Document = interopDefault(require('next/dist/pages/_document'))
   const App = interopDefault(require('next/dist/pages/_app'))
+  const Layout = interopDefault(require('next/dist/pages/_layout'))
   const ComponentMod = require('next/dist/pages/_error')
   const Component = interopDefault(ComponentMod)
 
   return {
     App,
     Document,
+    Layout,
     Component,
     pageConfig: {},
     buildManifest: require(join(distDir, `fallback-${BUILD_MANIFEST}`)),

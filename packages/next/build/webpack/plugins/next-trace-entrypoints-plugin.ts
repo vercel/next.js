@@ -9,6 +9,11 @@ import {
   isWebpack5,
   sources,
 } from 'next/dist/compiled/webpack/webpack'
+import {
+  NODE_ESM_RESOLVE_OPTIONS,
+  NODE_RESOLVE_OPTIONS,
+} from '../../webpack-config'
+import { NextConfigComplete } from '../../../server/config-shared'
 
 const PLUGIN_NAME = 'TraceEntryPointsPlugin'
 const TRACE_IGNORES = [
@@ -33,16 +38,20 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
   private appDir: string
   private entryTraces: Map<string, string[]>
   private excludeFiles: string[]
+  private esmExternals: NextConfigComplete['experimental']['esmExternals']
 
   constructor({
     appDir,
     excludeFiles,
+    esmExternals,
   }: {
     appDir: string
     excludeFiles?: string[]
+    esmExternals?: NextConfigComplete['experimental']['esmExternals']
   }) {
     this.appDir = appDir
     this.entryTraces = new Map()
+    this.esmExternals = esmExternals
     this.excludeFiles = excludeFiles || []
   }
 
@@ -99,7 +108,12 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
 
   tapfinishModules(
     compilation: webpack.compilation.Compilation,
-    traceEntrypointsPluginSpan: Span
+    traceEntrypointsPluginSpan: Span,
+    doResolve?: (
+      request: string,
+      context: string,
+      isEsm?: boolean
+    ) => Promise<string>
   ) {
     compilation.hooks.finishModules.tapAsync(
       PLUGIN_NAME,
@@ -282,6 +296,10 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
                     readFile,
                     readlink,
                     stat,
+                    resolve: doResolve
+                      ? (id, parent, _job, isCjs) =>
+                          doResolve(id, nodePath.dirname(parent), !isCjs)
+                      : undefined,
                     ignore: [...TRACE_IGNORES, ...this.excludeFiles],
                     mixedModules: true,
                   })
@@ -335,8 +353,88 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
               )
             }
           )
+          const resolver = compilation.resolverFactory.get('normal')
+          const looseEsmExternals = this.esmExternals === 'loose'
 
-          this.tapfinishModules(compilation, traceEntrypointsPluginSpan)
+          const doResolve = async (
+            request: string,
+            context: string,
+            isEsmRequested?: boolean
+          ): Promise<string> => {
+            const preferEsm = isEsmRequested && this.esmExternals
+            const curResolver = resolver.withOptions(
+              preferEsm ? NODE_ESM_RESOLVE_OPTIONS : NODE_RESOLVE_OPTIONS
+            )
+
+            let res: string = ''
+            try {
+              res = await new Promise((resolve, reject) => {
+                curResolver.resolve(
+                  {},
+                  context,
+                  request,
+                  {
+                    fileDependencies: compilation.fileDependencies,
+                    missingDependencies: compilation.missingDependencies,
+                    contextDependencies: compilation.contextDependencies,
+                  },
+                  (err: any, result: string) => {
+                    if (err) reject(err)
+                    else resolve(result)
+                  }
+                )
+              })
+            } catch (err) {
+              if (!(isEsmRequested && looseEsmExternals)) {
+                throw err
+              }
+              // continue to attempt alternative resolving
+            }
+
+            if (!res && isEsmRequested && looseEsmExternals) {
+              const altResolver = resolver.withOptions(
+                preferEsm ? NODE_RESOLVE_OPTIONS : NODE_ESM_RESOLVE_OPTIONS
+              )
+
+              res = await new Promise((resolve, reject) => {
+                altResolver.resolve(
+                  {},
+                  context,
+                  request,
+                  {
+                    fileDependencies: compilation.fileDependencies,
+                    missingDependencies: compilation.missingDependencies,
+                    contextDependencies: compilation.contextDependencies,
+                  },
+                  (err: any, result: string) => {
+                    if (err) reject(err)
+                    else resolve(result)
+                  }
+                )
+              })
+            }
+
+            if (!res) {
+              // we should not get here as one of the two above resolves should
+              // have thrown but this is here as a safeguard
+              throw new Error(
+                'invariant: failed to resolve ' +
+                  JSON.stringify({
+                    isEsmRequested,
+                    looseEsmExternals,
+                    request,
+                    res,
+                  })
+              )
+            }
+            return res
+          }
+
+          this.tapfinishModules(
+            compilation,
+            traceEntrypointsPluginSpan,
+            doResolve
+          )
         })
       })
     } else {

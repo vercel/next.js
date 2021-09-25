@@ -14,6 +14,7 @@ import { TypeCheckResult } from './typescript/runTypeCheck'
 import { writeAppTypeDeclarations } from './typescript/writeAppTypeDeclarations'
 import { writeConfigurationDefaults } from './typescript/writeConfigurationDefaults'
 import { missingDepsError } from './typescript/missingDependencyError'
+import { NextConfigComplete } from '../server/config-shared'
 
 const requiredPackages = [
   { file: 'typescript', pkg: 'typescript' },
@@ -25,14 +26,14 @@ export async function verifyTypeScriptSetup(
   dir: string,
   pagesDir: string,
   typeCheckPreflight: boolean,
-  imageImportsEnabled: boolean,
+  config: NextConfigComplete,
   cacheDir?: string
 ): Promise<{ result?: TypeCheckResult; version: string | null }> {
-  const tsConfigPath = path.join(dir, 'tsconfig.json')
+  const tsConfigPath = path.join(dir, config.typescript.tsconfigPath)
 
   try {
     // Check if the project uses TypeScript:
-    const intent = await getTypeScriptIntent(dir, pagesDir)
+    const intent = await getTypeScriptIntent(dir, pagesDir, config)
     if (!intent) {
       return { version: null }
     }
@@ -62,7 +63,7 @@ export async function verifyTypeScriptSetup(
     await writeConfigurationDefaults(ts, tsConfigPath, intent.firstTimeSetup)
     // Write out the necessary `next-env.d.ts` file to correctly register
     // Next.js' types:
-    await writeAppTypeDeclarations(dir, imageImportsEnabled)
+    await writeAppTypeDeclarations(dir, !config.images.disableStaticImages)
 
     let result
     if (typeCheckPreflight) {

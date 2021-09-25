@@ -196,7 +196,7 @@ export default async function build(
           dir,
           pagesDir,
           !ignoreTypeScriptErrors,
-          !config.images.disableStaticImages,
+          config,
           cacheDir
         )
       )
