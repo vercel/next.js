@@ -43,13 +43,19 @@ function generateClientManifest(
       __rewrites: rewrites as any,
     }
     const appDependencies = new Set(assetMap.pages['/_app'])
+    // const layoutDependencies = assetMap.pages['/_layout']
     const sortedPageKeys = getSortedRoutes(Object.keys(assetMap.pages))
 
     sortedPageKeys.forEach((page) => {
-      const dependencies = assetMap.pages[page]
+      if (page === '/_app') return
+
+      let dependencies = assetMap.pages[page]
+
+      // if (page !== '/_layout') {
+      //   dependencies = [...layoutDependencies, ...dependencies]
+      // }
 
       // @Q
-      if (page === '/_app') return
       // Filter out dependencies in the _app entry, because those will have already
       // been loaded by the client prior to a navigation event
       const filteredDeps = dependencies.filter(
@@ -58,6 +64,7 @@ function generateClientManifest(
 
       // The manifest can omit the page if it has no requirements
       if (filteredDeps.length) {
+        // console.log('DEPS', filteredDeps)
         clientManifest[page] = filteredDeps
       }
     })

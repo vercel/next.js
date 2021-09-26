@@ -440,6 +440,8 @@ export type PrivateRouteInfo =
   | CompletePrivateRouteInfo
 
 export type CompletePrivateRouteInfo = {
+  // @Q
+  Layout: ComponentType
   Component: ComponentType
   styleSheets: StyleSheetTuple[]
   __N_SSG?: boolean
@@ -449,7 +451,11 @@ export type CompletePrivateRouteInfo = {
   error?: any
 }
 
-export type AppProps = Pick<CompletePrivateRouteInfo, 'Component' | 'err'> & {
+// @Q
+export type AppProps = Pick<
+  CompletePrivateRouteInfo,
+  'Component' | 'Layout' | 'err'
+> & {
   router: Router
 } & Record<string, any>
 export type AppComponent = ComponentType<AppProps>
@@ -573,6 +579,7 @@ export default class Router implements BaseRouter {
       pageLoader,
       App,
       wrapApp,
+      Layout,
       Component,
       err,
       subscription,
@@ -587,6 +594,7 @@ export default class Router implements BaseRouter {
       initialProps: any
       pageLoader: any
       Component: ComponentType
+      Layout: ComponentType
       App: AppComponent
       wrapApp: (WrapAppComponent: AppComponent) => any
       err?: Error
@@ -608,6 +616,7 @@ export default class Router implements BaseRouter {
     // come again to the errored page.
     if (pathname !== '/_error') {
       this.components[this.route] = {
+        Layout,
         Component,
         initial: true,
         props: initialProps,
@@ -619,10 +628,20 @@ export default class Router implements BaseRouter {
 
     this.components['/_app'] = {
       Component: App as ComponentType,
+      // @Q
+      Layout: () => null,
       styleSheets: [
         /* /_app does not need its stylesheets managed */
       ],
     }
+
+    // @Q
+    // this.components['/_layout'] = {
+    //   Component: Layout,
+    //   styleSheets: [
+    //     /* /_layout ?? does not need its stylesheets managed */
+    //   ],
+    // }
 
     // Backwards compat for Router.router.events
     // TODO: Should be remove the following major version as it was never documented
@@ -1325,6 +1344,8 @@ export default class Router implements BaseRouter {
 
       const routeInfo: CompletePrivateRouteInfo = {
         props,
+        // @Q
+        Layout: () => 'ROUTE INFO TODO' as any,
         Component,
         styleSheets,
         err,
@@ -1376,9 +1397,12 @@ export default class Router implements BaseRouter {
         existingRouteInfo && 'initial' in existingRouteInfo
           ? undefined
           : existingRouteInfo
+      // @Q Layout loading for multi layouts?
       const routeInfo: CompletePrivateRouteInfo = cachedRouteInfo
         ? cachedRouteInfo
         : await this.fetchComponent(route).then((res) => ({
+            // @Q
+            Layout: () => 'FETCH LAYOUT TODO' as any,
             Component: res.page,
             styleSheets: res.styleSheets,
             __N_SSG: res.mod.__N_SSG,

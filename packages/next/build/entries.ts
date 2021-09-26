@@ -55,10 +55,12 @@ export function createPagesMapping(
   // that HMR can work properly when a file is added/removed
   if (isWebpack5 && isDev) {
     pages['/_app'] = `${PAGES_DIR_ALIAS}/_app`
+    pages['/_layout'] = `${PAGES_DIR_ALIAS}/_layout`
     pages['/_error'] = `${PAGES_DIR_ALIAS}/_error`
     pages['/_document'] = `${PAGES_DIR_ALIAS}/_document`
   } else {
     pages['/_app'] = pages['/_app'] || 'next/dist/pages/_app'
+    pages['/_layout'] = pages['/_layout'] || 'next/dist/pages/_layout' // @Q make default layout?
     pages['/_error'] = pages['/_error'] || 'next/dist/pages/_error'
     pages['/_document'] = pages['/_document'] || 'next/dist/pages/_document'
   }
@@ -131,7 +133,15 @@ export function createEntrypoints(
         serverlessLoaderOptions
       )}!`
     } else if (isApiRoute || target === 'server') {
-      server[serverBundlePath] = [absolutePagePath]
+      // @Q
+      if (['/_document', '/_app', '/_layout'].includes(page)) {
+        server[serverBundlePath] = [absolutePagePath]
+      } else {
+        server[serverBundlePath] = [
+          'private-next-pages/_layout.js',
+          absolutePagePath,
+        ]
+      }
     } else if (isLikeServerless && page !== '/_app' && page !== '/_document') {
       const serverlessLoaderOptions: ServerlessLoaderQuery = {
         page,
@@ -163,11 +173,19 @@ export function createEntrypoints(
       // to fail
 
       // @Q May need to add _layout as dependency of affected pages?
-
-      client[clientBundlePath] =
-        page === '/_app'
-          ? [pageLoader, require.resolve('../client/router')]
-          : pageLoader
+      if (page === '/_app') {
+        client[clientBundlePath] = [
+          pageLoader,
+          require.resolve('../client/router'),
+        ]
+      } else if (page === '/_layout') {
+        client[clientBundlePath] = pageLoader
+      } else {
+        client[clientBundlePath] = [
+          'next-client-pages-loader?page=%2F_layout&absolutePagePath=private-next-pages%2F_layout.js!',
+          pageLoader,
+        ]
+      }
     }
   })
 

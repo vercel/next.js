@@ -1,12 +1,7 @@
-import Link from 'next/link'
-
 export default function Page() {
   return (
     <div>
       <p id="page">hello world</p>
-      <Link href="/_layout">
-        <a>layout</a>
-      </Link>
     </div>
   )
 }

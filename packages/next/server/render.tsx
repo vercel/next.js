@@ -489,15 +489,6 @@ export async function renderToHTML(
   )
   const jsxStyleRegistry = createStyleRegistry()
 
-  function ComponentWithLayout(props: any) {
-    console.log('<ComponentWithLayout>')
-    return (
-      <Layout>
-        <Component {...props} />
-      </Layout>
-    )
-  }
-
   const ctx = {
     err,
     req: isAutoExport ? undefined : req,
@@ -512,7 +503,12 @@ export async function renderToHTML(
     AppTree: (props: any) => {
       return (
         <AppContainer>
-          <App {...props} Component={ComponentWithLayout} router={router} />
+          <App
+            {...props}
+            Component={Component}
+            Layout={Layout}
+            router={router}
+          />
         </AppContainer>
       )
     },
@@ -978,16 +974,15 @@ export async function renderToHTML(
           )
         }
 
+        // @Q Does Layout need to be supported in enhance API?
         const { App: EnhancedApp, Component: EnhancedComponent } =
-          enhanceComponents(options, App, ComponentWithLayout)
-
-        // @Q
-        console.log('EnhancedApp?')
+          enhanceComponents(options, App, Component)
 
         const html = ReactDOMServer.renderToString(
           <AppContainer>
             <EnhancedApp
               Component={EnhancedComponent}
+              Layout={Layout}
               router={router}
               {...props}
             />
@@ -1027,7 +1022,12 @@ export async function renderToHTML(
           <ErrorDebug error={ctx.err} />
         ) : (
           <AppContainer>
-            <App {...props} Component={ComponentWithLayout} router={router} />
+            <App
+              {...props}
+              Component={Component}
+              Layout={Layout}
+              router={router}
+            />
           </AppContainer>
         )
       const bodyResult = concurrentFeatures

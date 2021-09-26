@@ -14,7 +14,7 @@ export { NextWebVitalsMetric }
 
 export type AppContext = AppContextType<Router>
 
-export type AppProps<P = {}> = AppPropsType<Router, P>
+export type AppProps<P = {}, L = {}> = AppPropsType<Router, P, L>
 
 /**
  * `App` component is used for initialize of pages. It allows for overwriting and full control of the `page` initialization.
@@ -36,8 +36,17 @@ export default class App<P = {}, CP = {}, S = {}> extends React.Component<
   static getInitialProps = appGetInitialProps
 
   render() {
-    const { Component, pageProps } = this.props as AppProps<CP>
+    const {
+      Component,
+      pageProps,
+      Layout,
+      layoutProps = {},
+    } = this.props as AppProps<CP>
 
-    return <Component {...pageProps} />
+    return (
+      <Layout {...layoutProps}>
+        <Component {...pageProps} />
+      </Layout>
+    )
   }
 }

@@ -164,13 +164,16 @@ export type AppContextType<R extends NextRouter = NextRouter> = {
 
 export type AppInitialProps = {
   pageProps: any
+  layoutProps?: any
 }
 
 export type AppPropsType<
   R extends NextRouter = NextRouter,
-  P = {}
+  P = {},
+  L = {}
 > = AppInitialProps & {
   Component: NextComponentType<NextPageContext, any, P>
+  Layout: ComponentType<L>
   router: R
   __N_SSG?: boolean
   __N_SSP?: boolean

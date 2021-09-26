@@ -136,6 +136,8 @@ function getScripts(
     disableOptimizedLoading,
   } = context
 
+  console.log('BUILD MANIFEST', buildManifest)
+
   const normalScripts = files.allFiles.filter((file) => file.endsWith('.js'))
   const lowPriorityScripts = buildManifest.lowPriorityFiles?.filter((file) =>
     file.endsWith('.js')

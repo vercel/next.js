@@ -1,17 +1,16 @@
-function MyLayout({ children }) {
+function MyLayout({ children, title = 'Layout SSG Borked' }) {
   return (
     <div id="layout">
-      <h1>My Layout</h1>
+      <h1>{title}</h1>
       <main>{children}</main>
     </div>
   )
 }
 
 export async function getStaticProps(context) {
-  console.log('Fetching _layout props!')
   return {
     props: {
-      layouy: true,
+      title: 'My SSG Layout Title',
     },
     revalidate: 10,
   }

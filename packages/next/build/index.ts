@@ -280,6 +280,9 @@ export default async function build(
         )
       )
 
+    console.log(JSON.stringify({ mappedPages }, null, 2))
+    console.log(JSON.stringify({ entrypoints }, null, 2))
+
     // @Q This will likely need work
     // entrypoints: {
     //   client: {

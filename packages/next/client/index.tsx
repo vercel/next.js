@@ -1,6 +1,6 @@
 /* global location */
 import '@next/polyfill-module'
-import React from 'react'
+import React, { ComponentType } from 'react'
 import ReactDOM from 'react-dom'
 import { StyleRegistry } from 'styled-jsx'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
@@ -54,6 +54,7 @@ declare global {
 
 type RenderRouteInfo = PrivateRouteInfo & {
   App: AppComponent
+  Layout: ComponentType
   scroll?: { x: number; y: number } | null
 }
 type RenderErrorProps = Omit<RenderRouteInfo, 'Component' | 'styleSheets'>
@@ -262,6 +263,7 @@ class Container extends React.Component<{
 }
 
 export const emitter: MittEmitter<string> = mitt()
+let CachedLayout: React.ComponentType
 let CachedComponent: React.ComponentType
 
 export async function initNext(opts: { webpackHMR?: any } = {}) {
@@ -312,6 +314,27 @@ export async function initNext(opts: { webpackHMR?: any } = {}) {
       }
       exportedReportWebVitals?.(webVitals)
       trackWebVitalMetric(webVitals)
+    }
+
+    // @Q
+    const layoutEntrypoint = await pageLoader.routeLoader.whenEntrypoint(
+      '/_layout'
+    )
+    if ('error' in layoutEntrypoint) {
+      throw layoutEntrypoint.error
+    }
+
+    CachedLayout = layoutEntrypoint.component
+
+    console.log('ENTRYPOINT!', layoutEntrypoint)
+
+    if (process.env.NODE_ENV !== 'production') {
+      const { isValidElementType } = require('react-is')
+      if (!isValidElementType(CachedLayout)) {
+        throw new Error(
+          `The default export is not a React Component in page: "${page}"`
+        )
+      }
     }
 
     const pageEntrypoint =
@@ -381,6 +404,7 @@ export async function initNext(opts: { webpackHMR?: any } = {}) {
     pageLoader,
     // @Q
     App: CachedApp,
+    Layout: CachedLayout,
     Component: CachedComponent,
     wrapApp,
     err: initialErr,
@@ -389,7 +413,8 @@ export async function initNext(opts: { webpackHMR?: any } = {}) {
       render(
         Object.assign<
           {},
-          Omit<RenderRouteInfo, 'App' | 'scroll'>,
+          // @Q Figure this out
+          Omit<RenderRouteInfo, 'Layout' | 'App' | 'scroll'>,
           Pick<RenderRouteInfo, 'App' | 'scroll'>
         >({}, info, {
           App,
@@ -405,6 +430,7 @@ export async function initNext(opts: { webpackHMR?: any } = {}) {
 
   const renderCtx: RenderRouteInfo = {
     App: CachedApp,
+    Layout: CachedLayout,
     initial: true,
     Component: CachedComponent,
     props: hydrateProps,
@@ -461,6 +487,7 @@ export function renderError(renderErrorProps: RenderErrorProps): Promise<any> {
     // render itself.
     return doRender({
       App: () => null,
+      Layout: () => null,
       props: {},
       Component: () => null,
       styleSheets: [],
@@ -604,8 +631,8 @@ function AppContainer({
   return (
     <Container
       fn={(error) =>
-        renderError({ App: CachedApp, err: error }).catch((err) =>
-          console.error('Error rendering page: ', err)
+        renderError({ App: CachedApp, Layout: CachedLayout, err: error }).catch(
+          (err) => console.error('Error rendering page: ', err)
         )
       }
     >
@@ -623,6 +650,7 @@ const wrapApp =
   (wrappedAppProps: Record<string, any>): JSX.Element => {
     const appProps: AppProps = {
       ...wrappedAppProps,
+      Layout: CachedLayout,
       Component: CachedComponent,
       err: hydrateErr,
       router,
@@ -636,15 +664,17 @@ const wrapApp =
 
 let lastAppProps: AppProps
 function doRender(input: RenderRouteInfo): Promise<any> {
-  let { App, Component, props, err }: RenderRouteInfo = input
+  let { App, Layout, Component, props, err }: RenderRouteInfo = input
   let styleSheets: StyleSheetTuple[] | undefined =
     'initial' in input ? undefined : input.styleSheets
   Component = Component || lastAppProps.Component
+  Layout = Layout || lastAppProps.Layout
   props = props || lastAppProps.props
 
   const appProps: AppProps = {
     ...props,
     Component,
+    Layout,
     err,
     router,
   }
@@ -786,6 +816,7 @@ function doRender(input: RenderRouteInfo): Promise<any> {
 
   onStart()
 
+  // @Q
   const elem: JSX.Element = (
     <>
       <Head callback={onHeadCommit} />
