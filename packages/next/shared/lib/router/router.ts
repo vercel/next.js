@@ -636,12 +636,13 @@ export default class Router implements BaseRouter {
     }
 
     // @Q
-    // this.components['/_layout'] = {
-    //   Component: Layout,
-    //   styleSheets: [
-    //     /* /_layout ?? does not need its stylesheets managed */
-    //   ],
-    // }
+    this.components['/_layout'] = {
+      Layout: () => null,
+      Component: Layout,
+      styleSheets: [
+        /* /_layout ?? does not need its stylesheets managed */
+      ],
+    }
 
     // Backwards compat for Router.router.events
     // TODO: Should be remove the following major version as it was never documented
@@ -1345,7 +1346,7 @@ export default class Router implements BaseRouter {
       const routeInfo: CompletePrivateRouteInfo = {
         props,
         // @Q
-        Layout: () => 'ROUTE INFO TODO' as any,
+        Layout: this.components['/_layout'].Component,
         Component,
         styleSheets,
         err,
@@ -1402,7 +1403,7 @@ export default class Router implements BaseRouter {
         ? cachedRouteInfo
         : await this.fetchComponent(route).then((res) => ({
             // @Q
-            Layout: () => 'FETCH LAYOUT TODO' as any,
+            Layout: this.components['/_layout'].Component,
             Component: res.page,
             styleSheets: res.styleSheets,
             __N_SSG: res.mod.__N_SSG,

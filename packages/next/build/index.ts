@@ -280,9 +280,6 @@ export default async function build(
         )
       )
 
-    console.log(JSON.stringify({ mappedPages }, null, 2))
-    console.log(JSON.stringify({ entrypoints }, null, 2))
-
     // @Q This will likely need work
     // entrypoints: {
     //   client: {
@@ -1209,8 +1206,6 @@ export default async function build(
           ssgPages,
           additionalSsgPaths
         )
-
-        console.log('COMBINED PAGES', combinedPages)
 
         const exportApp: typeof import('../export').default =
           require('../export').default

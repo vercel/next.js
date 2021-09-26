@@ -51,11 +51,11 @@ function generateClientManifest(
 
       let dependencies = assetMap.pages[page]
 
+      // @Q
       // if (page !== '/_layout') {
       //   dependencies = [...layoutDependencies, ...dependencies]
       // }
 
-      // @Q
       // Filter out dependencies in the _app entry, because those will have already
       // been loaded by the client prior to a navigation event
       const filteredDeps = dependencies.filter(
@@ -64,7 +64,6 @@ function generateClientManifest(
 
       // The manifest can omit the page if it has no requirements
       if (filteredDeps.length) {
-        // console.log('DEPS', filteredDeps)
         clientManifest[page] = filteredDeps
       }
     })
@@ -188,6 +187,7 @@ export default class BuildManifestPlugin {
         CLIENT_STATIC_FILES_RUNTIME_AMP,
       ])
 
+      // @Q This actually retrieves the required chunks
       for (const entrypoint of compilation.entrypoints.values()) {
         if (systemEntrypoints.has(entrypoint.name)) continue
         const pagePath = getRouteFromEntrypoint(entrypoint.name)
