@@ -133,6 +133,7 @@ export function createEntrypoints(
         serverlessLoaderOptions
       )}!`
     } else if (isApiRoute || target === 'server') {
+      // server[serverBundlePath] = [absolutePagePath]
       // @Q
       if (['/_document', '/_app', '/_layout'].includes(page)) {
         server[serverBundlePath] = [absolutePagePath]
@@ -178,6 +179,9 @@ export function createEntrypoints(
           pageLoader,
           require.resolve('../client/router'),
         ]
+        // } else {
+        //   client[clientBundlePath] = pageLoader
+        // }
       } else if (page === '/_layout') {
         client[clientBundlePath] = pageLoader
       } else {

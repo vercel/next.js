@@ -45,6 +45,7 @@ struct State {
 impl State {
     fn is_data_identifier(&mut self, i: &Ident) -> bool {
         let ssg_exports = &[
+            "getStaticLayoutProps",
             "getStaticProps",
             "getStaticPaths",
             "getServerSideProps",

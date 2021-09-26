@@ -1,3 +1,5 @@
+import next from 'next'
+
 function MyLayout({ children, title = 'Layout SSG Borked' }) {
   return (
     <div id="layout">
@@ -7,7 +9,8 @@ function MyLayout({ children, title = 'Layout SSG Borked' }) {
   )
 }
 
-export async function getStaticProps(context) {
+export async function getStaticLayoutProps(context) {
+  console.log(next)
   return {
     props: {
       title: 'My SSG Layout Title',

@@ -1467,8 +1467,9 @@ export default class Server {
     const isLikeServerless =
       typeof components.ComponentMod === 'object' &&
       typeof (components.ComponentMod as any).renderReqToHTML === 'function'
+    // @Q
     const isSSG =
-      !!components.getStaticProps || !!components.getStaticLayoutProps
+      !!components.getStaticProps /* || !!components.getStaticLayoutProps */
     const hasServerProps = !!components.getServerSideProps
     const hasStaticPaths = !!components.getStaticPaths
     const hasGetInitialProps = !!(components.Component as any).getInitialProps

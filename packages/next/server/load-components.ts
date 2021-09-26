@@ -124,7 +124,7 @@ export async function loadComponents(
   ])
 
   const { getServerSideProps, getStaticProps, getStaticPaths } = ComponentMod
-  const { getStaticProps: getStaticLayoutProps } = LayoutMod
+  const { getStaticLayoutProps } = LayoutMod
 
   return {
     App,

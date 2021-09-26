@@ -6,11 +6,13 @@ import {
 import { SERVER_PROPS_SSG_CONFLICT } from '../../../lib/constants'
 import { SERVER_PROPS_ID, STATIC_PROPS_ID } from '../../../shared/lib/constants'
 
+export const EXPORT_NAME_GET_STATIC_LAYOUT_PROPS = 'getStaticLayoutProps'
 export const EXPORT_NAME_GET_STATIC_PROPS = 'getStaticProps'
 export const EXPORT_NAME_GET_STATIC_PATHS = 'getStaticPaths'
 export const EXPORT_NAME_GET_SERVER_PROPS = 'getServerSideProps'
 
 const ssgExports = new Set([
+  EXPORT_NAME_GET_STATIC_LAYOUT_PROPS,
   EXPORT_NAME_GET_STATIC_PROPS,
   EXPORT_NAME_GET_STATIC_PATHS,
   EXPORT_NAME_GET_SERVER_PROPS,
