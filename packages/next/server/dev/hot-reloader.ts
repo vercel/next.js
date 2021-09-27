@@ -412,7 +412,7 @@ export default class HotReloader {
         const entrypoints = await defaultEntry(...args)
 
         const isClientCompilation = config.name === 'client'
-        // const isFlightCompilation = config.name === 'flight'
+        const isFlightCompilation = config.name === 'flight'
 
         await Promise.all(
           Object.keys(entries).map(async (page) => {

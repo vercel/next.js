@@ -1,7 +1,7 @@
 module.exports = {
   experimental: {
     reactRoot: true,
-    // concurrentFeatures: true,
+    concurrentFeatures: true,
   },
   webpack(config) {
     const { alias } = config.resolve

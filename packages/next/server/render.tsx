@@ -3,6 +3,7 @@ import { ParsedUrlQuery } from 'querystring'
 import { Writable } from 'stream'
 import React from 'react'
 import * as ReactDOMServer from 'react-dom/server'
+import * as React18DOMServer from 'react-dom-18/server'
 import { StyleRegistry, createStyleRegistry } from 'styled-jsx'
 import { warn } from '../build/output/log'
 import { UnwrapPromise } from '../lib/coalesced-function'
@@ -985,6 +986,7 @@ export async function renderToHTML(
             <App {...props} Component={Component} router={router} />
           </AppContainer>
         )
+
       const bodyResult = concurrentFeatures
         ? await renderToStream(content, generateStaticHTML)
         : piperFromArray([ReactDOMServer.renderToString(content)])
@@ -1300,27 +1302,25 @@ function renderToStream(
       }
     }
 
-    const { abort, startWriting } = (ReactDOMServer as any).pipeToNodeWritable(
-      element,
-      stream,
-      {
-        onError(error: Error) {
-          if (!resolved) {
-            resolved = true
-            reject(error)
-          }
-          abort()
-        },
-        onReadyToStream() {
-          if (!generateStaticHTML) {
-            doResolve()
-          }
-        },
-        onCompleteAll() {
+    const { abort, startWriting } = (
+      React18DOMServer as any
+    ).pipeToNodeWritable(element, stream, {
+      onError(error: Error) {
+        if (!resolved) {
+          resolved = true
+          reject(error)
+        }
+        abort()
+      },
+      onReadyToStream() {
+        if (!generateStaticHTML) {
           doResolve()
-        },
-      }
-    )
+        }
+      },
+      onCompleteAll() {
+        doResolve()
+      },
+    })
   })
 }
 

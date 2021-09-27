@@ -48,8 +48,15 @@ export default class PagesManifestPlugin implements webpack.Plugin {
         continue
       }
 
+      // TODO: make this more elegant
+      let filename = files[files.length - 1]
+      if (filename.endsWith('.flight.js')) {
+        filename = filename.replace('.flight.js', '.js')
+        // continue
+      }
+
       // Write filename, replace any backslashes in path (on windows) with forwardslashes for cross-platform consistency.
-      pages[pagePath] = files[files.length - 1]
+      pages[pagePath] = filename
 
       if (isWebpack5 && !this.dev) {
         pages[pagePath] = pages[pagePath].slice(3)
@@ -57,8 +64,11 @@ export default class PagesManifestPlugin implements webpack.Plugin {
       pages[pagePath] = pages[pagePath].replace(/\\/g, '/')
     }
 
-    assets[`${isWebpack5 && !this.dev ? '../' : ''}` + PAGES_MANIFEST] =
-      new sources.RawSource(JSON.stringify(pages, null, 2))
+    const pagesManifestPath =
+      `${isWebpack5 && !this.dev ? '../' : ''}` + PAGES_MANIFEST
+    assets[pagesManifestPath] = new sources.RawSource(
+      JSON.stringify(pages, null, 2)
+    )
   }
 
   apply(compiler: webpack.Compiler): void {

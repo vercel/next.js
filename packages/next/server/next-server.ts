@@ -10,6 +10,9 @@ import {
   ParsedUrlQuery,
 } from 'querystring'
 import { format as formatUrl, parse as parseUrl, UrlWithParsedQuery } from 'url'
+import * as React from 'react'
+import * as React18 from 'react-18'
+import { createFromReadableStream } from 'react-server-dom-webpack'
 import { PrerenderManifest } from '../build'
 import {
   getRedirectStatus,
@@ -1700,6 +1703,60 @@ export default class Server {
           query: origQuery,
         })
 
+        const isFlight = pathname.endsWith('.server')
+        function createResponseCache() {
+          return new Map<string, any>()
+        }
+
+        // TODO: unstable_getCacheForType
+        const cache = createResponseCache()
+
+        if (isFlight) {
+          let done = false
+          const flightResponse = this.flightWorker.render(
+            this.distDir,
+            pathname,
+            query
+          )
+
+          const reader = {
+            read() {
+              if (done) {
+                return Promise.resolve({ done })
+              }
+
+              return flightResponse.then((result) => {
+                done = true
+                return {
+                  done: false,
+                  value: new TextEncoder().encode(result),
+                }
+              })
+            },
+          }
+          const readableStream = {
+            getReader: () => reader,
+          }
+          const Wrapper = () => {
+            let response = cache.get('/')
+            if (!response) {
+              response = createFromReadableStream(readableStream)
+              cache.set('/', response)
+            }
+
+            return response.readRoot()
+          }
+
+          // Replace the component with Suspense boundary.
+          components.Component = () => {
+            return React18.createElement(
+              React18.Suspense,
+              { fallback: null },
+              React18.createElement(Wrapper)
+            )
+          }
+        }
+
         const renderOpts: RenderOpts = {
           ...components,
           ...opts,
@@ -1934,7 +1991,6 @@ export default class Server {
     delete query._nextBubbleNoFallback
 
     const isFlightRequest = query._nextFlightReq
-
     console.log({ isFlightRequest, page })
     if (isFlightRequest) {
       const result = await this.flightWorker.render(
