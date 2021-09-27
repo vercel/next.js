@@ -1157,6 +1157,7 @@ export default async function getBaseWebpackConfig(
                 options: {
                   isServer,
                   isDev: dev,
+                  basePath: config.basePath,
                   assetPrefix: config.assetPrefix,
                 },
               },
