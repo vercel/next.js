@@ -3,6 +3,7 @@ import '@next/polyfill-module'
 import React from 'react'
 import ReactDOM from 'react-dom'
 import { StyleRegistry } from 'styled-jsx'
+import { createFromFetch } from 'react-server-dom-webpack'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import mitt, { MittEmitter } from '../shared/lib/mitt'
 import { RouterContext } from '../shared/lib/router-context'
@@ -25,7 +26,7 @@ import initHeadManager from './head-manager'
 import PageLoader, { StyleSheetTuple } from './page-loader'
 import measureWebVitals from './performance-relayer'
 import { RouteAnnouncer } from './route-announcer'
-import { createRouter, makePublicRouterInstance } from './router'
+import { createRouter, makePublicRouterInstance, useRouter } from './router'
 import isError from '../lib/is-error'
 
 /// <reference types="react-dom/experimental" />
@@ -775,6 +776,39 @@ function doRender(input: RenderRouteInfo): Promise<any> {
   }
 
   onStart()
+
+  // Replace the component with Suspense boundary.
+  function createResponseCache() {
+    return new Map<string, any>()
+  }
+  // TODO: use unstable_getCacheForType
+  const cache = createResponseCache()
+
+  const Wrapper = ({ route }: { route: string }) => {
+    let response = cache.get(route)
+    if (!response) {
+      response = createFromFetch(
+        fetch('/_next/flight/development' + route + '.json')
+      )
+      cache.set(route, response)
+    }
+    return response.readRoot()
+  }
+
+  appProps.Component = (props) => {
+    const { route } = useRouter()
+    const isServerComponent = route.endsWith('.server')
+
+    if (!isServerComponent) {
+      return <Component {...props} />
+    }
+
+    return (
+      <React.Suspense fallback={null}>
+        <Wrapper route={route} />
+      </React.Suspense>
+    )
+  }
 
   const elem: JSX.Element = (
     <>

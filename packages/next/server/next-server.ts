@@ -1704,14 +1704,12 @@ export default class Server {
         })
 
         const isFlight = pathname.endsWith('.server')
-        function createResponseCache() {
-          return new Map<string, any>()
-        }
-
-        // TODO: unstable_getCacheForType
-        const cache = createResponseCache()
-
         if (isFlight) {
+          console.log('[debug] Flight rendering path', pathname)
+
+          // TODO: unstable_getCacheForType
+          const cache = new Map<string, any>()
+
           let done = false
           const flightResponse = this.flightWorker.render(
             this.distDir,
@@ -1738,10 +1736,10 @@ export default class Server {
             getReader: () => reader,
           }
           const Wrapper = () => {
-            let response = cache.get('/')
+            let response = cache.get(pathname)
             if (!response) {
               response = createFromReadableStream(readableStream)
-              cache.set('/', response)
+              cache.set(pathname, response)
             }
 
             return response.readRoot()
