@@ -1717,6 +1717,7 @@ export default class Server {
             query
           )
 
+          ;(globalThis as any).__webpack_chunk_load__ = () => Promise.resolve()
           const reader = {
             read() {
               if (done) {
@@ -1724,6 +1725,7 @@ export default class Server {
               }
 
               return flightResponse.then((result) => {
+                debugger
                 done = true
                 return {
                   done: false,

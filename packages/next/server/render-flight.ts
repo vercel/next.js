@@ -61,11 +61,11 @@ export async function render(
     },
   })
 
-  console.log(JSON.stringify(reactFlightManifest, null, 2))
+  // console.log(JSON.stringify(reactFlightManifest, null, 2))
 
   pipeToNodeWritable((Component as any)(), writable, reactFlightManifest)
 
   console.log('[debug] render-flight:', pathname)
 
-  return await p
+  return p
 }

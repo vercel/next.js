@@ -166,7 +166,7 @@ export class ReactFlightManifestPlugin {
           compilation.chunkGroups.forEach((chunkGroup: any) => {
             const chunkIds = chunkGroup.chunks.map((c: any) => c.id)
 
-            function recordModule(id: any, mod: any) {
+            function recordModule(chunk: any, mod: any) {
               // TODO: Hook into deps instead of the target module.
               // That way we know by the type of dep whether to include.
               // It also resolves conflicts when the same module is in multiple chunks.
@@ -174,14 +174,14 @@ export class ReactFlightManifestPlugin {
                 return
               }
               const moduleExports: any = {}
-              // console.log(compilation.moduleGraph.getExportsInfo(mod))
 
+              console.log(mod.request, mod.userRequest)
               ;['', '*']
-                .concat(/*mod.buildMeta.providedExports*/ 'default')
+                .concat(/*mod.buildMeta.exportsType*/ 'default')
                 .forEach((name) => {
                   moduleExports[name] = {
-                    id: id,
-                    chunks: chunkIds,
+                    id: './components/foo.client.js',
+                    chunks: chunk.ids,
                     name: name,
                   }
                 })
@@ -192,12 +192,11 @@ export class ReactFlightManifestPlugin {
               const chunkModules =
                 compilation.chunkGraph.getChunkModulesIterable(chunk)
               for (const mod of chunkModules) {
-                const moduleId = compilation.chunkGraph.getModuleId(chunk)
-                recordModule(moduleId, mod)
+                recordModule(chunk, mod)
                 // If this is a concatenation, register each child to the parent ID.
                 if (mod.modules) {
                   mod.modules.forEach((concatenatedMod: any) => {
-                    recordModule(moduleId, concatenatedMod)
+                    recordModule(chunk, concatenatedMod)
                   })
                 }
               }
