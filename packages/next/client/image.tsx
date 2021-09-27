@@ -595,7 +595,7 @@ export default function Image({
                 border: 'none',
                 padding: 0,
               }}
-              alt=""
+              alt={rest.alt || ''}
               aria-hidden={true}
               src={`data:image/svg+xml;base64,${toBase64(sizerSvg)}`}
             />
