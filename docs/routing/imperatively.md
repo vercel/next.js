@@ -22,7 +22,9 @@ export default function ReadMore() {
   const router = useRouter()
 
   return (
-    <button onClick={() => router.push('/about')}>Click here to read more</button>
+    <button onClick={() => router.push('/about')}>
+      Click here to read more
+    </button>
   )
 }
 ```
