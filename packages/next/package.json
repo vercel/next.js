@@ -91,6 +91,7 @@
     "image-size": "1.0.0",
     "jest-worker": "27.0.0-next.5",
     "native-url": "0.3.4",
+    "neo-async": "2.6.2",
     "node-fetch": "2.6.1",
     "node-html-parser": "1.4.9",
     "node-libs-browser": "^2.2.1",

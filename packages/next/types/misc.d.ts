@@ -6,6 +6,7 @@ declare module 'react-server-dom-webpack/writer.node.server'
 declare module 'react-server-dom-webpack'
 declare module 'react-dom-18/server'
 declare module 'react-18'
+declare module 'neo-async'
 
 declare module 'cssnano-simple' {
   const cssnanoSimple: any

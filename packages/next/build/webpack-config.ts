@@ -48,6 +48,7 @@ import { ServerlessPlugin } from './webpack/plugins/serverless-plugin'
 import { WellKnownErrorsPlugin } from './webpack/plugins/wellknown-errors-plugin'
 import { regexLikeCss } from './webpack/config/blocks/css'
 import { CopyFilePlugin } from './webpack/plugins/copy-file-plugin'
+import { ReactFlightManifestPlugin } from './webpack/plugins/react-flight-manifest-plugin'
 import type { Span } from '../trace'
 import isError from '../lib/is-error'
 
@@ -1398,6 +1399,7 @@ export default async function getBaseWebpackConfig(
             minimized: true,
           },
         }),
+      !isServer && new ReactFlightManifestPlugin({ isServer: false, dev }),
     ].filter(Boolean as any as ExcludesFalse),
   }
 

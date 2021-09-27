@@ -1,6 +1,7 @@
 import {
   BUILD_MANIFEST,
   REACT_LOADABLE_MANIFEST,
+  REACT_FLIGHT_MANIFEST,
 } from '../shared/lib/constants'
 import { join } from 'path'
 import { requirePage } from './require'
@@ -29,6 +30,7 @@ export type LoadComponentsReturnType = {
   pageConfig: PageConfig
   buildManifest: BuildManifest
   reactLoadableManifest: ReactLoadableManifest
+  reactFlightManifest?: any
   Document: DocumentType
   App: AppType
   getStaticProps?: GetStaticProps
@@ -102,14 +104,21 @@ export async function loadComponents(
     isFlight
   )
 
-  const [buildManifest, reactLoadableManifest, Component, Document, App] =
-    await Promise.all([
-      require(join(distDir, BUILD_MANIFEST)),
-      require(join(distDir, REACT_LOADABLE_MANIFEST)),
-      interopDefault(ComponentMod),
-      interopDefault(DocumentMod),
-      interopDefault(AppMod),
-    ])
+  const [
+    buildManifest,
+    reactLoadableManifest,
+    reactFlightManifest,
+    Component,
+    Document,
+    App,
+  ] = await Promise.all([
+    require(join(distDir, BUILD_MANIFEST)),
+    require(join(distDir, REACT_LOADABLE_MANIFEST)),
+    isFlight ? require(join(distDir, REACT_FLIGHT_MANIFEST)) : null,
+    interopDefault(ComponentMod),
+    interopDefault(DocumentMod),
+    interopDefault(AppMod),
+  ])
 
   const { getServerSideProps, getStaticProps, getStaticPaths } = ComponentMod
 
@@ -119,6 +128,7 @@ export async function loadComponents(
     Component,
     buildManifest,
     reactLoadableManifest,
+    reactFlightManifest,
     pageConfig: ComponentMod.config || {},
     ComponentMod,
     getServerSideProps,

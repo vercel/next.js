@@ -38,7 +38,12 @@ export async function render(
   pathname: string,
   query: any
 ): Promise<string> {
-  const components = await loadComponents(distDir, pathname, false, true)
+  const { Component, reactFlightManifest } = await loadComponents(
+    distDir,
+    pathname,
+    false,
+    true
+  )
 
   let res = ''
   let resolve: (s: string) => void
@@ -56,7 +61,9 @@ export async function render(
     },
   })
 
-  pipeToNodeWritable((components.Component as any)(), writable, {})
+  console.log(JSON.stringify(reactFlightManifest, null, 2))
+
+  pipeToNodeWritable((Component as any)(), writable, reactFlightManifest)
 
   console.log('[debug] render-flight:', pathname)
 
