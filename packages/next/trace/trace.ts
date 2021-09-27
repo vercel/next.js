@@ -1,4 +1,5 @@
 import { customAlphabet } from 'next/dist/compiled/nanoid/index.cjs'
+import { SpanId } from './shared'
 import { reporter } from './report'
 
 const NUM_OF_MICROSEC_IN_SEC = BigInt('1000')
