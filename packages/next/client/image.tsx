@@ -10,6 +10,8 @@ import {
 import { useIntersection } from './use-intersection'
 
 const loadedImageURLs = new Set<string>()
+const emptyDataURL =
+  'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
 
 if (typeof window === 'undefined') {
   ;(global as any).__NEXT_IMAGE_IMPORTED = true
@@ -254,7 +256,7 @@ function handleLoading(
     return
   }
   const handleLoad = () => {
-    if (!img.src.startsWith('data:')) {
+    if (img.src !== emptyDataURL) {
       const p = 'decode' in img ? img.decode() : Promise.resolve()
       p.catch(() => {}).then(() => {
         if (placeholder === 'blur') {
@@ -561,7 +563,7 @@ export default function Image({
   }
 
   let imgAttributes: GenImgAttrsResult = {
-    src: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
+    src: emptyDataURL,
     srcSet: undefined,
     sizes: undefined,
   }
