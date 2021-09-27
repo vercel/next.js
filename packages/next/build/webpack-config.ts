@@ -175,7 +175,7 @@ export function attachReactRefresh(
   }
 }
 
-const NODE_RESOLVE_OPTIONS = {
+export const NODE_RESOLVE_OPTIONS = {
   dependencyType: 'commonjs',
   modules: ['node_modules'],
   alias: false,
@@ -196,12 +196,14 @@ const NODE_RESOLVE_OPTIONS = {
   restrictions: [],
 }
 
-const NODE_ESM_RESOLVE_OPTIONS = {
+export const NODE_ESM_RESOLVE_OPTIONS = {
   ...NODE_RESOLVE_OPTIONS,
   dependencyType: 'esm',
   conditionNames: ['node', 'import'],
   fullySpecified: true,
 }
+
+let TSCONFIG_WARNED = false
 
 export default async function getBaseWebpackConfig(
   dir: string,
@@ -378,7 +380,7 @@ export default async function getBaseWebpackConfig(
   try {
     typeScriptPath = require.resolve('typescript', { paths: [dir] })
   } catch (_) {}
-  const tsConfigPath = path.join(dir, 'tsconfig.json')
+  const tsConfigPath = path.join(dir, config.typescript.tsconfigPath)
   const useTypeScript = Boolean(
     typeScriptPath && (await fileExists(tsConfigPath))
   )
@@ -386,6 +388,14 @@ export default async function getBaseWebpackConfig(
   let jsConfig
   // jsconfig is a subset of tsconfig
   if (useTypeScript) {
+    if (
+      config.typescript.tsconfigPath !== 'tsconfig.json' &&
+      TSCONFIG_WARNED === false
+    ) {
+      TSCONFIG_WARNED = true
+      Log.info(`Using tsconfig file: ${config.typescript.tsconfigPath}`)
+    }
+
     const ts = (await import(typeScriptPath!)) as typeof import('typescript')
     const tsConfig = await getTypeScriptConfiguration(ts, tsConfigPath, true)
     jsConfig = { compilerOptions: tsConfig.options }
@@ -1283,7 +1293,10 @@ export default async function getBaseWebpackConfig(
         isServer &&
         !dev &&
         isWebpack5 &&
-        new TraceEntryPointsPlugin({ appDir: dir }),
+        new TraceEntryPointsPlugin({
+          appDir: dir,
+          esmExternals: config.experimental.esmExternals,
+        }),
       // Moment.js is an extremely popular library that bundles large locale files
       // by default due to how Webpack interprets its code. This is a practical
       // solution that requires the user to opt into importing specific locales.
@@ -1387,6 +1400,7 @@ export default async function getBaseWebpackConfig(
 
     webpack5Config.experiments = {
       layers: true,
+      cacheUnaffected: true,
     }
 
     webpack5Config.module!.parser = {
@@ -1403,6 +1417,12 @@ export default async function getBaseWebpackConfig(
     if (isServer && dev) {
       // Enable building of client compilation before server compilation in development
       webpack5Config.dependencies = ['client']
+    }
+
+    if (dev) {
+      // @ts-ignore unsafeCache exists
+      webpack5Config.module.unsafeCache = (module) =>
+        !/[\\/]pages[\\/][^\\/]+(?:$|\?|#)/.test(module.resource)
     }
 
     // Due to bundling of webpack the default values can't be correctly detected
