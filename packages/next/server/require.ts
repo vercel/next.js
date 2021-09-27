@@ -21,7 +21,8 @@ export function getPagePath(
   distDir: string,
   serverless: boolean,
   dev?: boolean,
-  locales?: string[]
+  locales?: string[],
+  isFlight?: boolean
 ): string {
   const serverBuildPath = join(
     distDir,
@@ -53,15 +54,29 @@ export function getPagePath(
   if (!pagePath) {
     throw pageNotFoundError(page)
   }
+
+  // TODO: make this more elegant.
+  if (isFlight && !pagePath.includes('.flight.')) {
+    pagePath = pagePath.replace(/\.js$/, '.flight.js')
+  }
+
   return join(serverBuildPath, pagePath)
 }
 
 export function requirePage(
   page: string,
   distDir: string,
-  serverless: boolean
+  serverless: boolean,
+  isFlight?: boolean
 ): any {
-  const pagePath = getPagePath(page, distDir, serverless)
+  const pagePath = getPagePath(
+    page,
+    distDir,
+    serverless,
+    undefined,
+    undefined,
+    isFlight
+  )
   if (pagePath.endsWith('.html')) {
     return promises.readFile(pagePath, 'utf8')
   }

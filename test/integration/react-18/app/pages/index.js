@@ -1,7 +1,7 @@
 import ReactDOM from 'react-dom'
 
-import Foo from '../components/foo.client'
-// import Foo from '../components/foo'
+// import Foo from '../components/foo.client'
+import Foo from '../components/foo'
 
 export default function Index() {
   if (typeof window !== 'undefined') {

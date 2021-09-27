@@ -98,6 +98,7 @@ import ResponseCache, {
 import { NextConfigComplete } from './config-shared'
 import { parseNextUrl } from '../shared/lib/router/utils/parse-next-url'
 import isError from '../lib/is-error'
+import { Worker } from '../lib/worker'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -185,6 +186,8 @@ export default class Server {
   protected router: Router
   protected dynamicRoutes?: DynamicRoutes
   protected customRoutes: CustomRoutes
+  protected flightWorker: Worker &
+    Pick<typeof import('./render-flight'), 'render'>
 
   public constructor({
     dir = '.',
@@ -285,6 +288,8 @@ export default class Server {
     })
     this.responseCache = new ResponseCache(this.incrementalCache)
 
+    this.flightWorker = this.createFlightWorker()
+
     /**
      * This sets environment variable to be used at the time of SSR by head.tsx.
      * Using this from process.env allows targeting both serverless and SSR by calling
@@ -305,6 +310,13 @@ export default class Server {
   public logError(err: Error): void {
     if (this.quiet) return
     console.error(err)
+  }
+
+  private createFlightWorker() {
+    return new Worker(require.resolve('./render-flight'), {
+      enableWorkerThreads: true, // config.experimental.workerThreads,
+      exposedMethods: ['render'],
+    }) as Worker & Pick<typeof import('./render-flight'), 'render'>
   }
 
   private async handleRequest(
@@ -1924,6 +1936,14 @@ export default class Server {
     const isFlightRequest = query._nextFlightReq
 
     console.log({ isFlightRequest, page })
+    if (isFlightRequest) {
+      const result = await this.flightWorker.render(
+        this.distDir,
+        pathname,
+        query
+      )
+      return { type: 'html', body: RenderResult.fromStatic(result) }
+    }
 
     try {
       const result = await this.findPageComponents(pathname, query)
