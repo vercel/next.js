@@ -2,6 +2,7 @@ import chalk from 'chalk'
 import { posix, join } from 'path'
 import { stringify } from 'querystring'
 import { API_ROUTE, DOT_NEXT_ALIAS, PAGES_DIR_ALIAS } from '../lib/constants'
+import { getOxfordCommaList } from '../lib/oxford-comma-list'
 import { __ApiPreviewProps } from '../server/api-utils'
 import { isTargetLikeServerless } from '../server/config'
 import { normalizePagePath } from '../server/normalize-page-path'
@@ -22,30 +23,53 @@ export function createPagesMapping(
   isWebpack5: boolean,
   isDev: boolean
 ): PagesMapping {
-  const previousPages: PagesMapping = {}
-  const pages: PagesMapping = pagePaths.reduce(
-    (result: PagesMapping, pagePath): PagesMapping => {
-      let page = `${pagePath
-        .replace(new RegExp(`\\.+(${extensions.join('|')})$`), '')
-        .replace(/\\/g, '/')}`.replace(/\/index$/, '')
+  const pageKeyToPagePaths: {
+    [pageKey: string]: string[]
+  } = {}
 
-      const pageKey = page === '' ? '/' : page
+  for (const pagePath of pagePaths) {
+    const page = `${pagePath
+      .replace(
+        new RegExp(`\\.(${extensions.join('|').replace(/\./g, '\\.')})$`),
+        ''
+      )
+      .replace(/\\/g, '/')}`.replace(/\/index$/, '')
 
-      if (pageKey in result) {
+    const pageKey = page === '' ? '/' : page
+
+    ;(pageKeyToPagePaths[pageKey] ||= []).push(pagePath)
+  }
+
+  const pages = Object.entries(pageKeyToPagePaths).reduce(
+    (result, [pageKey, paths]) => {
+      let pickPagePath = paths[0]
+
+      if (paths.length > 1) {
+        // find the pagePath with the file extension appearing first in `extensions`
+        outer: for (const ext of extensions) {
+          const extRegexp = new RegExp(`\\.${ext.replace(/\./g, '\\.')}$`)
+          for (const pagePath of paths) {
+            if (extRegexp.test(pagePath)) {
+              pickPagePath = pagePath
+              break outer
+            }
+          }
+        }
+
         warn(
-          `Duplicate page detected. ${chalk.cyan(
-            join('pages', previousPages[pageKey])
-          )} and ${chalk.cyan(
-            join('pages', pagePath)
-          )} both resolve to ${chalk.cyan(pageKey)}.`
+          `Duplicate page detected. ${getOxfordCommaList(
+            paths.map((p) => chalk.cyan(join('pages', p)))
+          )} all resolve to ${chalk.cyan(pageKey)}. Using: ${chalk.cyan(
+            join('pages', pickPagePath)
+          )}.`
         )
-      } else {
-        previousPages[pageKey] = pagePath
       }
-      result[pageKey] = join(PAGES_DIR_ALIAS, pagePath).replace(/\\/g, '/')
+
+      result[pageKey] = join(PAGES_DIR_ALIAS, pickPagePath).replace(/\\/g, '/')
+
       return result
     },
-    {}
+    {} as PagesMapping
   )
 
   // we alias these in development and allow webpack to

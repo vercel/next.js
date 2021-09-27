@@ -4,6 +4,7 @@ import { warn } from '../../build/output/log'
 import { promises } from 'fs'
 import { denormalizePagePath } from '../normalize-page-path'
 import { fileExists } from '../../lib/file-exists'
+import { getOxfordCommaList } from '../../lib/oxford-comma-list'
 
 async function isTrueCasePagePath(pagePath: string, pagesDir: string) {
   const pageSegments = normalize(pagePath).split(pathSeparator).filter(Boolean)
@@ -53,11 +54,11 @@ export async function findPageFile(
 
   if (foundPagePaths.length > 1) {
     warn(
-      `Duplicate page detected. ${chalk.cyan(
+      `Duplicate page detected. ${getOxfordCommaList(
+        foundPagePaths.map((p) => chalk.cyan(join('pages', p)))
+      )} all resolve to ${chalk.cyan(normalizedPagePath)}. Using: ${chalk.cyan(
         join('pages', foundPagePaths[0])
-      )} and ${chalk.cyan(
-        join('pages', foundPagePaths[1])
-      )} both resolve to ${chalk.cyan(normalizedPagePath)}.`
+      )}.`
     )
   }
 
