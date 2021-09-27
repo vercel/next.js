@@ -10,6 +10,7 @@ export type ConfigurationContext = {
 
   isServer: boolean
   isClient: boolean
+  isFlight: boolean
 
   assetPrefix: string
 

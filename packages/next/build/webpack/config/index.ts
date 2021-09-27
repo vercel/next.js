@@ -12,6 +12,7 @@ export async function build(
     customAppFile,
     isDevelopment,
     isServer,
+    isFlight,
     assetPrefix,
     sassOptions,
     productionBrowserSourceMaps,
@@ -22,6 +23,7 @@ export async function build(
     customAppFile: RegExp
     isDevelopment: boolean
     isServer: boolean
+    isFlight: boolean
     assetPrefix: string
     sassOptions: any
     productionBrowserSourceMaps: boolean
@@ -35,6 +37,7 @@ export async function build(
     isDevelopment,
     isProduction: !isDevelopment,
     isServer,
+    isFlight,
     isClient: !isServer,
     assetPrefix: assetPrefix
       ? assetPrefix.endsWith('/')

@@ -10,7 +10,7 @@ export const base = curry(function base(
   config: webpack.Configuration
 ) {
   config.mode = ctx.isDevelopment ? 'development' : 'production'
-  config.name = ctx.isServer ? 'server' : 'client'
+  config.name = ctx.isServer ? (ctx.isFlight ? 'flight' : 'server') : 'client'
   if (isWebpack5) {
     // @ts-ignore TODO webpack 5 typings
     config.target = ctx.isServer ? 'node12.17' : ['web', 'es5']

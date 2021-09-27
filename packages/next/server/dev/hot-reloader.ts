@@ -335,6 +335,17 @@ export default class HotReloader {
               entrypoints: entrypoints.server,
               runWebpackSpan: this.hotReloaderSpan,
             }),
+            getBaseWebpackConfig(this.dir, {
+              dev: true,
+              isServer: true,
+              isFlight: true,
+              config: this.config,
+              buildId: this.buildId,
+              pagesDir: this.pagesDir,
+              rewrites: this.rewrites,
+              entrypoints: entrypoints.server,
+              runWebpackSpan: this.hotReloaderSpan,
+            }),
           ])
         )
     })
@@ -401,6 +412,7 @@ export default class HotReloader {
         const entrypoints = await defaultEntry(...args)
 
         const isClientCompilation = config.name === 'client'
+        // const isFlightCompilation = config.name === 'flight'
 
         await Promise.all(
           Object.keys(entries).map(async (page) => {

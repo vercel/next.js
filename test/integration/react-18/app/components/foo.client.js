@@ -1,0 +1,7 @@
+import { useState } from 'react'
+
+export default function Foo() {
+  const [cnt, setCnt] = useState(0)
+
+  return <button onClick={() => setCnt(cnt + 1)}>{cnt}</button>
+}

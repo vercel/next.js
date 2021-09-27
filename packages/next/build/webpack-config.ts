@@ -212,6 +212,7 @@ export default async function getBaseWebpackConfig(
     config,
     dev = false,
     isServer = false,
+    isFlight = false,
     pagesDir,
     target = 'server',
     reactProductionProfiling = false,
@@ -224,6 +225,7 @@ export default async function getBaseWebpackConfig(
     config: NextConfigComplete
     dev?: boolean
     isServer?: boolean
+    isFlight?: boolean
     pagesDir: string
     target?: string
     reactProductionProfiling?: boolean
@@ -261,6 +263,10 @@ export default async function getBaseWebpackConfig(
           `unexpected or broken application behavior. Continue at your own risk.`
       )
     }
+  }
+
+  if (isFlight) {
+    Log.info('Using Flight loader')
   }
 
   const babelConfigFile = await [
@@ -961,7 +967,7 @@ export default async function getBaseWebpackConfig(
       splitChunks: isServer
         ? isWebpack5 && !dev
           ? ({
-              filename: '[name].js',
+              filename: isFlight ? '[name].flight.js' : '[name].js',
               // allow to split entrypoints
               chunks: 'all',
               // size of files is not so relevant for server build
@@ -1041,7 +1047,11 @@ export default async function getBaseWebpackConfig(
       // On the server we don't use hashes
       filename: isServer
         ? isWebpack5 && !dev
-          ? '../[name].js'
+          ? isFlight
+            ? '../[name].flight.js'
+            : '../[name].js'
+          : isFlight
+          ? '[name].flight.js'
           : '[name].js'
         : `static/chunks/${isDevFallback ? 'fallback/' : ''}[name]${
             dev ? '' : isWebpack5 ? '-[contenthash]' : '-[chunkhash]'
@@ -1056,7 +1066,9 @@ export default async function getBaseWebpackConfig(
         : 'static/webpack/[hash].hot-update.json',
       // This saves chunks with the name given via `import()`
       chunkFilename: isServer
-        ? '[name].js'
+        ? isFlight
+          ? '[name].flight.js'
+          : '[name].js'
         : `static/chunks/${isDevFallback ? 'fallback/' : ''}${
             dev ? '[name]' : '[name].[contenthash]'
           }.js`,
@@ -1079,6 +1091,7 @@ export default async function getBaseWebpackConfig(
         'next-serverless-loader',
         'noop-loader',
         'next-style-loader',
+        'next-react-flight-loader',
       ].reduce((alias, loader) => {
         // using multiple aliases to replace `resolveLoader.modules`
         alias[loader] = path.join(__dirname, 'webpack', 'loaders', loader)
@@ -1109,6 +1122,16 @@ export default async function getBaseWebpackConfig(
                 parser: {
                   // Switch back to normal URL handling
                   url: true,
+                },
+              },
+            ]
+          : []),
+        ...(isFlight
+          ? [
+              {
+                test: /\.client\.(js|ts)x?$/,
+                use: {
+                  loader: 'next-react-flight-loader',
                 },
               },
             ]
@@ -1484,6 +1507,7 @@ export default async function getBaseWebpackConfig(
       assetPrefix: config.assetPrefix,
       disableOptimizedLoading: config.experimental.disableOptimizedLoading,
       target,
+      isFlight,
       reactProductionProfiling,
       webpack: !!config.webpack,
       hasRewrites,
@@ -1562,6 +1586,7 @@ export default async function getBaseWebpackConfig(
     ),
     isDevelopment: dev,
     isServer,
+    isFlight,
     assetPrefix: config.assetPrefix || '',
     sassOptions: config.sassOptions,
     productionBrowserSourceMaps: config.productionBrowserSourceMaps,

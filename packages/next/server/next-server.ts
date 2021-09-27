@@ -697,6 +697,40 @@ export default class Server {
         },
       },
       {
+        match: route('/_next/flight/:path*'),
+        type: 'route',
+        name: '_next/flight catchall',
+        fn: async (req, res, params, _parsedUrl) => {
+          // Make sure to 404 for /_next/data/ itself and
+          // we also want to 404 if the buildId isn't correct
+          if (!params.path || params.path[0] !== this.buildId) {
+            await this.render404(req, res, _parsedUrl)
+            return {
+              finished: true,
+            }
+          }
+          // remove buildId from URL
+          params.path.shift()
+
+          // re-create page's pathname
+          let pathname = `/${params.path.join('/')}`
+          pathname = getRouteFromAssetPath(pathname, '.json')
+
+          const parsedUrl = parseUrl(pathname, true)
+
+          await this.render(
+            req,
+            res,
+            pathname,
+            { ..._parsedUrl.query, _nextFlightReq: '1' },
+            parsedUrl
+          )
+          return {
+            finished: true,
+          }
+        },
+      },
+      {
         match: route('/_next/image'),
         type: 'route',
         name: '_next/image catchall',
@@ -1337,6 +1371,7 @@ export default class Server {
     if (
       !this.minimalMode &&
       !query._nextDataReq &&
+      !query._nextFlightReq &&
       (url.match(/^\/_next\//) ||
         (this.hasStaticDir && url.match(/^\/static\//)))
     ) {
@@ -1885,6 +1920,10 @@ export default class Server {
     let page = pathname
     const bubbleNoFallback = !!query._nextBubbleNoFallback
     delete query._nextBubbleNoFallback
+
+    const isFlightRequest = query._nextFlightReq
+
+    console.log({ isFlightRequest, page })
 
     try {
       const result = await this.findPageComponents(pathname, query)

@@ -192,6 +192,7 @@ export function ampValidation(
 export function watchCompilers(
   client: import('webpack').Compiler,
   server: import('webpack').Compiler
+  // flight?: import('webpack').Compiler
 ) {
   if (previousClient === client && previousServer === server) {
     return
