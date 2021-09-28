@@ -159,15 +159,19 @@ export class JsConfigPathsPlugin implements webpack.ResolvePlugin {
     const target = resolver.ensureHook('resolve')
     resolver
       .getHook('described-resolve')
-      .tapPromise(
+      .tapAsync(
         'JsConfigPathsPlugin',
-        async (request: any, resolveContext: any) => {
+        (
+          request: any,
+          resolveContext: any,
+          callback: (err?: any, result?: any) => void
+        ) => {
           const moduleName = request.request
 
           // Exclude node_modules from paths support (speeds up resolving)
           if (request.path.match(NODE_MODULES_REGEX)) {
             log('skipping request as it is inside node_modules %s', moduleName)
-            return
+            return callback()
           }
 
           if (
@@ -175,12 +179,12 @@ export class JsConfigPathsPlugin implements webpack.ResolvePlugin {
             (process.platform === 'win32' && path.win32.isAbsolute(moduleName))
           ) {
             log('skipping request as it is an absolute path %s', moduleName)
-            return
+            return callback()
           }
 
           if (pathIsRelative(moduleName)) {
             log('skipping request as it is a relative path %s', moduleName)
-            return
+            return callback()
           }
 
           // log('starting to resolve request %s', moduleName)
@@ -189,7 +193,7 @@ export class JsConfigPathsPlugin implements webpack.ResolvePlugin {
           const matchedPattern = matchPatternOrExact(pathsKeys, moduleName)
           if (!matchedPattern) {
             log('moduleName did not match any paths pattern %s', moduleName)
-            return
+            return callback()
           }
 
           const matchedStar = isString(matchedPattern)
@@ -201,40 +205,42 @@ export class JsConfigPathsPlugin implements webpack.ResolvePlugin {
 
           let triedPaths = []
 
-          for (const subst of paths[matchedPatternText]) {
+          const possiblePaths = paths[matchedPatternText]
+          // Use callbacks instead of async/await to support synchronous resolvers
+          const resolvePathsRecursively = (
+            index: number,
+            resolveCallback: (err: any, result: any) => void
+          ): void => {
+            if (index >= possiblePaths.length) {
+              return resolveCallback(null, undefined)
+            }
+            const subst = possiblePaths[index]
             const curPath = matchedStar
               ? subst.replace('*', matchedStar)
               : subst
-
             // Ensure .d.ts is not matched
             if (curPath.endsWith('.d.ts')) {
-              continue
+              return resolvePathsRecursively(index + 1, resolveCallback)
             }
-
             const candidate = path.join(baseDirectory, curPath)
-            const [err, result] = await new Promise((resolve) => {
-              const obj = Object.assign({}, request, {
-                request: candidate,
-              })
-              resolver.doResolve(
-                target,
-                obj,
-                `Aliased with tsconfig.json or jsconfig.json ${matchedPatternText} to ${candidate}`,
-                resolveContext,
-                (resolverErr: any, resolverResult: any | undefined) => {
-                  resolve([resolverErr, resolverResult])
-                }
-              )
+            const obj = Object.assign({}, request, {
+              request: candidate,
             })
-
-            // There's multiple paths values possible, so we first have to iterate them all first before throwing an error
-            if (err || result === undefined) {
-              triedPaths.push(candidate)
-              continue
-            }
-
-            return result
+            resolver.doResolve(
+              target,
+              obj,
+              `Aliased with tsconfig.json or jsconfig.json ${matchedPatternText} to ${candidate}`,
+              resolveContext,
+              (resolverErr: any, resolverResult: any) => {
+                if (resolverErr || resolverResult === undefined) {
+                  triedPaths.push(candidate)
+                  return resolvePathsRecursively(index + 1, resolveCallback)
+                }
+                return resolveCallback(resolverErr, resolverResult)
+              }
+            )
           }
+          resolvePathsRecursively(0, callback)
         }
       )
   }
