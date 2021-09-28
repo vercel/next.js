@@ -1717,30 +1717,26 @@ export default class Server {
             query
           )
 
+          // No need to preload modules as they're already bundled.
           ;(globalThis as any).__webpack_chunk_load__ = () => Promise.resolve()
+
           const reader = {
             read() {
-              if (done) {
-                return Promise.resolve({ done })
-              }
-
-              return flightResponse.then((result) => {
-                debugger
-                done = true
-                return {
-                  done: false,
-                  value: new TextEncoder().encode(result),
-                }
-              })
+              return done
+                ? Promise.resolve({ done })
+                : flightResponse.then((result) => {
+                    done = true
+                    return {
+                      done: false,
+                      value: new TextEncoder().encode(result),
+                    }
+                  })
             },
-          }
-          const readableStream = {
-            getReader: () => reader,
           }
           const Wrapper = () => {
             let response = cache.get(pathname)
             if (!response) {
-              response = createFromReadableStream(readableStream)
+              response = createFromReadableStream({ getReader: () => reader })
               cache.set(pathname, response)
             }
 
@@ -1991,7 +1987,6 @@ export default class Server {
     delete query._nextBubbleNoFallback
 
     const isFlightRequest = query._nextFlightReq
-    console.log({ isFlightRequest, page })
     if (isFlightRequest) {
       const result = await this.flightWorker.render(
         this.distDir,
