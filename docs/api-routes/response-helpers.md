@@ -21,7 +21,7 @@ The following example sets the status code of the response to `200` (`OK`) and r
 
 ```js
 export default function handler(req, res) {
-  res.status(200).json({ name: 'John Doe' })
+  res.status(200).json({ message: 'Hello from Next.js!' })
 }
 ```
 
