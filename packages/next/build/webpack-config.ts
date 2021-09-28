@@ -1296,7 +1296,6 @@ export default async function getBaseWebpackConfig(
         isWebpack5 &&
         new TraceEntryPointsPlugin({
           appDir: dir,
-          esmExternals: config.experimental.esmExternals,
         }),
       // Moment.js is an extremely popular library that bundles large locale files
       // by default due to how Webpack interprets its code. This is a practical
