@@ -1705,8 +1705,6 @@ export default class Server {
 
         const isFlight = pathname.endsWith('.server')
         if (isFlight) {
-          console.log('[debug] Flight rendering path', pathname)
-
           // TODO: unstable_getCacheForType
           const cache = new Map<string, any>()
 

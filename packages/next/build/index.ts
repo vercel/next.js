@@ -555,6 +555,18 @@ export default async function build(
             rewrites,
             runWebpackSpan,
           }),
+          getBaseWebpackConfig(dir, {
+            buildId,
+            reactProductionProfiling,
+            isServer: true,
+            isFlight: true,
+            config,
+            target,
+            pagesDir,
+            entrypoints: entrypoints.server,
+            rewrites,
+            runWebpackSpan,
+          }),
         ])
       )
 
@@ -584,7 +596,10 @@ export default async function build(
           errors: [...clientResult.errors],
         }
       } else {
-        const serverResult = await runCompiler(configs[1], { runWebpackSpan })
+        const [serverResult] = await Promise.all([
+          runCompiler(configs[1], { runWebpackSpan }),
+          runCompiler(configs[2], { runWebpackSpan }),
+        ])
         result = {
           warnings: [...clientResult.warnings, ...serverResult.warnings],
           errors: [...clientResult.errors, ...serverResult.errors],

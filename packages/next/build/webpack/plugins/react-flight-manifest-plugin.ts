@@ -5,25 +5,9 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-import { join } from 'path'
-import { resolve } from 'url'
-
-import asyncLib from 'neo-async'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
-const { ModuleDependency, NullDependency } = (webpack as any).dependencies
 
 import { REACT_FLIGHT_MANIFEST } from '../../../shared/lib/constants'
-
-class ClientReferenceDependency extends (ModuleDependency as any) {
-  userRequest: any
-  constructor(request: any) {
-    super(request)
-  }
-
-  get type() {
-    return 'client-reference'
-  }
-}
 
 // This is the module that will be used to anchor all client references to.
 // I.e. it will have all the client files as async deps from this point on.
@@ -82,42 +66,16 @@ export class ReactFlightManifestPlugin {
   }
 
   apply(compiler: any) {
-    let resolvedClientReferences: any
-    const run = (params: any, callback: any) => {
-      // First we need to find all client files on the file system. We do this early so
-      // that we have them synchronously available later when we need them. This might
-      // not be needed anymore since we no longer need to compile the module itself in
-      // a special way. So it's probably better to do this lazily and in parallel with
-      // other compilation.
-      const contextResolver = compiler.resolverFactory.get('context', {})
-      this.resolveAllClientFiles(
-        compiler.context,
-        contextResolver,
-        compiler.inputFileSystem,
-        compiler.createContextModuleFactory(),
-        (err, resolvedClientRefs) => {
-          if (err) {
-            callback(err)
-            return
-          }
-          resolvedClientReferences = resolvedClientRefs
-          callback()
-        }
-      )
-    }
-
-    compiler.hooks.run.tapAsync(PLUGIN_NAME, run)
-    compiler.hooks.watchRun.tapAsync(PLUGIN_NAME, run)
     compiler.hooks.compilation.tap(
       PLUGIN_NAME,
       (compilation: any, { normalModuleFactory }: any) => {
         compilation.dependencyFactories.set(
-          ClientReferenceDependency,
+          (webpack as any).dependencies.ModuleDependency,
           normalModuleFactory
         )
         compilation.dependencyTemplates.set(
-          ClientReferenceDependency,
-          new NullDependency.Template()
+          (webpack as any).dependencies.ModuleDependency,
+          new (webpack as any).dependencies.NullDependency.Template()
         )
       }
     )
@@ -173,89 +131,9 @@ export class ReactFlightManifestPlugin {
             })
           })
           const output = JSON.stringify(json, null, 2)
-
-          const pagesManifestPath =
-            `${!this.dev ? '../' : ''}` + REACT_FLIGHT_MANIFEST
-          assets[pagesManifestPath] = new sources.RawSource(output)
+          assets[REACT_FLIGHT_MANIFEST] = new sources.RawSource(output)
         }
       )
     })
-  }
-
-  // This attempts to replicate the dynamic file path resolution used for other wildcard
-  // resolution in Webpack is using.
-  resolveAllClientFiles(
-    context: string,
-    contextResolver: any,
-    fs: any,
-    contextModuleFactory: any,
-    callback: (
-      err: null | Error,
-      result?: Readonly<ClientReferenceDependency[]>
-    ) => void
-  ) {
-    asyncLib.map(
-      this.clientReferences,
-      (
-        clientReferencePath: string | ClientReferenceSearchPath,
-        cb: (
-          err: null | Error,
-          result?: Readonly<ClientReferenceDependency[]>
-        ) => void
-      ): void => {
-        if (typeof clientReferencePath === 'string') {
-          cb(null, [new ClientReferenceDependency(clientReferencePath)])
-          return
-        }
-        const clientReferenceSearch: ClientReferenceSearchPath =
-          clientReferencePath
-        contextResolver.resolve(
-          {},
-          context,
-          clientReferencePath.directory,
-          {},
-          (err: any, resolvedDirectory: any) => {
-            if (err) return cb(err)
-            const options = {
-              resource: resolvedDirectory,
-              resourceFragment: '',
-              resourceQuery: '',
-              recursive:
-                clientReferenceSearch.recursive === undefined
-                  ? true
-                  : clientReferenceSearch.recursive,
-              regExp: clientReferenceSearch.include,
-              include: undefined,
-              exclude: clientReferenceSearch.exclude,
-            }
-            contextModuleFactory.resolveDependencies(
-              fs,
-              options,
-              (err2: null | Error, deps: any[]) => {
-                if (err2) return cb(err2)
-                const clientRefDeps = deps.map((dep) => {
-                  const request = join(resolvedDirectory, dep.request)
-                  const clientRefDep = new ClientReferenceDependency(request)
-                  clientRefDep.userRequest = dep.userRequest
-                  return clientRefDep
-                })
-                cb(null, clientRefDeps)
-              }
-            )
-          }
-        )
-      },
-      (
-        err: null | Error,
-        result: Readonly<Readonly<ClientReferenceDependency[]>[]>
-      ): void => {
-        if (err) return callback(err)
-        const flat: any = []
-        for (let i = 0; i < result.length; i++) {
-          flat.push.apply(flat, result[i])
-        }
-        callback(null, flat)
-      }
-    )
   }
 }

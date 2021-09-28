@@ -787,7 +787,7 @@ function doRender(input: RenderRouteInfo): Promise<any> {
   const Wrapper = ({ route }: { route: string }) => {
     let response = cache.get(route)
     if (!response) {
-      response = createFromFetch(fetch('/_next/flight/development' + route))
+      response = createFromFetch(fetch('/_next/flight/' + buildId + route))
       cache.set(route, response)
     }
     return response.readRoot()

@@ -57,7 +57,9 @@ export function getPagePath(
 
   // TODO: make this more elegant.
   if (isFlight && !pagePath.includes('.flight.')) {
-    pagePath = pagePath.replace(/\.js$/, '.flight.js')
+    pagePath = pagePath
+      .replace(/\.js$/, '.flight.js') // dev
+      .replace(/\.html$/, '.flight.js') // build
   }
 
   return join(serverBuildPath, pagePath)
