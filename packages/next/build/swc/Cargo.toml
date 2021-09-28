@@ -36,8 +36,8 @@ tracing = { version = "0.1.28", features = ["release_max_level_off"] }
 napi-build = "1"
 
 [dev-dependencies]
-swc_ecma_transforms_testing = "0.32"
-testing = "0.13"
+swc_ecma_transforms_testing = "0.34.0"
+testing = "0.14.0"
 
 [profile.release]
 lto = true
