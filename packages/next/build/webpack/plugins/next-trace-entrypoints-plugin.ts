@@ -1,14 +1,19 @@
 import nodePath from 'path'
+import { Span } from '../../../trace'
+import { spans } from './profiling-plugin'
+import isError from '../../../lib/is-error'
 import { nodeFileTrace } from 'next/dist/compiled/@vercel/nft'
+import { TRACE_OUTPUT_VERSION } from '../../../shared/lib/constants'
 import {
   webpack,
   isWebpack5,
   sources,
 } from 'next/dist/compiled/webpack/webpack'
-import { TRACE_OUTPUT_VERSION } from '../../../shared/lib/constants'
-import { spans } from './profiling-plugin'
-import { Span } from '../../../trace'
-import isError from '../../../lib/is-error'
+import {
+  NODE_ESM_RESOLVE_OPTIONS,
+  NODE_RESOLVE_OPTIONS,
+} from '../../webpack-config'
+import { NextConfigComplete } from '../../../server/config-shared'
 
 const PLUGIN_NAME = 'TraceEntryPointsPlugin'
 const TRACE_IGNORES = [
@@ -33,16 +38,20 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
   private appDir: string
   private entryTraces: Map<string, string[]>
   private excludeFiles: string[]
+  private esmExternals: NextConfigComplete['experimental']['esmExternals']
 
   constructor({
     appDir,
     excludeFiles,
+    esmExternals,
   }: {
     appDir: string
     excludeFiles?: string[]
+    esmExternals?: NextConfigComplete['experimental']['esmExternals']
   }) {
     this.appDir = appDir
     this.entryTraces = new Map()
+    this.esmExternals = esmExternals
     this.excludeFiles = excludeFiles || []
   }
 
@@ -99,7 +108,12 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
 
   tapfinishModules(
     compilation: webpack.compilation.Compilation,
-    traceEntrypointsPluginSpan: Span
+    traceEntrypointsPluginSpan: Span,
+    doResolve?: (
+      request: string,
+      context: string,
+      isEsm?: boolean
+    ) => Promise<string>
   ) {
     compilation.hooks.finishModules.tapAsync(
       PLUGIN_NAME,
@@ -147,10 +161,9 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
               })
             })
 
-            // TODO: investigate allowing non-sync fs calls in node-file-trace
-            // for better performance
-            const readFile = (path: string, _span: Span) => {
-              // return span.traceChild('read-file', { path }).traceFn(() => {
+            const readFile = async (
+              path: string
+            ): Promise<Buffer | string | null> => {
               const mod = depModMap.get(path) || entryModMap.get(path)
 
               // map the transpiled source when available to avoid
@@ -162,7 +175,15 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
               }
 
               try {
-                return compilation.inputFileSystem.readFileSync(path)
+                return await new Promise((resolve, reject) => {
+                  ;(
+                    compilation.inputFileSystem
+                      .readFile as typeof import('fs').readFile
+                  )(path, (err, data) => {
+                    if (err) return reject(err)
+                    resolve(data)
+                  })
+                })
               } catch (e) {
                 if (
                   isError(e) &&
@@ -172,12 +193,18 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
                 }
                 throw e
               }
-              // })
             }
-            const readlink = (path: string, _span: Span) => {
-              // return span.traceChild('read-link', { path }).traceFn(() => {
+            const readlink = async (path: string): Promise<string | null> => {
               try {
-                return compilation.inputFileSystem.readlinkSync(path)
+                return await new Promise((resolve, reject) => {
+                  ;(
+                    compilation.inputFileSystem
+                      .readlink as typeof import('fs').readlink
+                  )(path, (err, link) => {
+                    if (err) return reject(err)
+                    resolve(link)
+                  })
+                })
               } catch (e) {
                 if (
                   isError(e) &&
@@ -189,19 +216,25 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
                 }
                 throw e
               }
-              // })
             }
-            const stat = (path: string, _span: Span) => {
-              // return span.traceChild('stat', { path }).traceFn(() => {
+            const stat = async (
+              path: string
+            ): Promise<import('fs').Stats | null> => {
               try {
-                return compilation.inputFileSystem.statSync(path)
+                return await new Promise((resolve, reject) => {
+                  ;(
+                    compilation.inputFileSystem.stat as typeof import('fs').stat
+                  )(path, (err, stats) => {
+                    if (err) return reject(err)
+                    resolve(stats)
+                  })
+                })
               } catch (e) {
                 if (isError(e) && e.code === 'ENOENT') {
                   return null
                 }
                 throw e
               }
-              // })
             }
 
             const nftCache = {}
@@ -244,7 +277,7 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
                 }
                 collectDependencies(entryMod)
 
-                const toTrace: string[] = [entry, ...depModMap.keys()]
+                const toTrace: string[] = [entry]
 
                 const entryName = entryNameMap.get(entry)!
                 const curExtraEntries = additionalEntries.get(entryName)
@@ -260,9 +293,13 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
                     base: root,
                     cache: nftCache,
                     processCwd: this.appDir,
-                    readFile: (path) => readFile(path, fileTraceSpan),
-                    readlink: (path) => readlink(path, fileTraceSpan),
-                    stat: (path) => stat(path, fileTraceSpan),
+                    readFile,
+                    readlink,
+                    stat,
+                    resolve: doResolve
+                      ? (id, parent, _job, isCjs) =>
+                          doResolve(id, nodePath.dirname(parent), !isCjs)
+                      : undefined,
                     ignore: [...TRACE_IGNORES, ...this.excludeFiles],
                     mixedModules: true,
                   })
@@ -316,8 +353,88 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
               )
             }
           )
+          const resolver = compilation.resolverFactory.get('normal')
+          const looseEsmExternals = this.esmExternals === 'loose'
 
-          this.tapfinishModules(compilation, traceEntrypointsPluginSpan)
+          const doResolve = async (
+            request: string,
+            context: string,
+            isEsmRequested?: boolean
+          ): Promise<string> => {
+            const preferEsm = isEsmRequested && this.esmExternals
+            const curResolver = resolver.withOptions(
+              preferEsm ? NODE_ESM_RESOLVE_OPTIONS : NODE_RESOLVE_OPTIONS
+            )
+
+            let res: string = ''
+            try {
+              res = await new Promise((resolve, reject) => {
+                curResolver.resolve(
+                  {},
+                  context,
+                  request,
+                  {
+                    fileDependencies: compilation.fileDependencies,
+                    missingDependencies: compilation.missingDependencies,
+                    contextDependencies: compilation.contextDependencies,
+                  },
+                  (err: any, result: string) => {
+                    if (err) reject(err)
+                    else resolve(result)
+                  }
+                )
+              })
+            } catch (err) {
+              if (!(isEsmRequested && looseEsmExternals)) {
+                throw err
+              }
+              // continue to attempt alternative resolving
+            }
+
+            if (!res && isEsmRequested && looseEsmExternals) {
+              const altResolver = resolver.withOptions(
+                preferEsm ? NODE_RESOLVE_OPTIONS : NODE_ESM_RESOLVE_OPTIONS
+              )
+
+              res = await new Promise((resolve, reject) => {
+                altResolver.resolve(
+                  {},
+                  context,
+                  request,
+                  {
+                    fileDependencies: compilation.fileDependencies,
+                    missingDependencies: compilation.missingDependencies,
+                    contextDependencies: compilation.contextDependencies,
+                  },
+                  (err: any, result: string) => {
+                    if (err) reject(err)
+                    else resolve(result)
+                  }
+                )
+              })
+            }
+
+            if (!res) {
+              // we should not get here as one of the two above resolves should
+              // have thrown but this is here as a safeguard
+              throw new Error(
+                'invariant: failed to resolve ' +
+                  JSON.stringify({
+                    isEsmRequested,
+                    looseEsmExternals,
+                    request,
+                    res,
+                  })
+              )
+            }
+            return res
+          }
+
+          this.tapfinishModules(
+            compilation,
+            traceEntrypointsPluginSpan,
+            doResolve
+          )
         })
       })
     } else {

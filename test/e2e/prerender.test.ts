@@ -29,7 +29,7 @@ describe('Prerender', () => {
       },
       nextConfig: {
         experimental: {
-          nftTracing: true,
+          outputFileTracing: true,
         },
         async rewrites() {
           return [

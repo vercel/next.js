@@ -26,6 +26,9 @@ pub fn transform_css(
         ParserConfig {
             parse_values: false,
         },
+        // We ignore errors because we inject placeholders for expressions which is
+        // not a valid css.
+        &mut vec![],
     );
     let mut ss = match result {
         Ok(ss) => ss,
@@ -148,6 +151,8 @@ impl Namespacer {
                             ParserConfig {
                                 parse_values: false,
                             },
+                            // TODO(kdy1): We might be able to report syntax errors.
+                            &mut vec![],
                         )
                         .unwrap();
                         return x;

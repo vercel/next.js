@@ -90,7 +90,7 @@ struct Analyzer<'a> {
 
 impl Analyzer<'_> {
     fn add_ref(&mut self, id: Id) {
-        log::trace!("add_ref({}{:?}, data = {})", id.0, id.1, self.in_data_fn);
+        tracing::trace!("add_ref({}{:?}, data = {})", id.0, id.1, self.in_data_fn);
         if self.in_data_fn {
             self.state.refs_from_data_fn.insert(id);
         } else {
@@ -140,7 +140,7 @@ impl Fold for Analyzer<'_> {
         self.state.cur_declaring.insert(f.ident.to_id());
 
         self.in_data_fn |= self.state.is_data_identifier(&f.ident);
-        log::trace!(
+        tracing::trace!(
             "ssg: Handling `{}{:?}`; in_data_fn = {:?}",
             f.ident.sym,
             f.ident.span.ctxt,
@@ -282,7 +282,7 @@ impl NextSsg {
     where
         N: for<'aa> FoldWith<Analyzer<'aa>>,
     {
-        log::debug!("mark_as_candidate");
+        tracing::debug!("mark_as_candidate");
 
         // Analyzer never change `in_data_fn` to false, so all identifiers in `n` will
         // be marked as referenced from a data function.
@@ -329,7 +329,7 @@ impl Fold for NextSsg {
             | ImportSpecifier::Default(ImportDefaultSpecifier { local, .. })
             | ImportSpecifier::Namespace(ImportStarAsSpecifier { local, .. }) => {
                 if self.should_remove(local.to_id()) {
-                    log::trace!(
+                    tracing::trace!(
                         "Dropping import `{}{:?}` because it should be removed",
                         local.sym,
                         local.span.ctxt
@@ -347,7 +347,7 @@ impl Fold for NextSsg {
     }
 
     fn fold_module(&mut self, mut m: Module) -> Module {
-        log::info!("ssg: Start");
+        tracing::info!("ssg: Start");
         {
             // Fill the state.
             let mut v = Analyzer {
@@ -481,7 +481,7 @@ impl Fold for NextSsg {
             };
 
             if !preserve {
-                log::trace!("Dropping a export specifier because it's a data identifier");
+                tracing::trace!("Dropping a export specifier because it's a data identifier");
 
                 match s {
                     ExportSpecifier::Named(ExportNamedSpecifier { orig, .. }) => {
@@ -507,7 +507,7 @@ impl Fold for NextSsg {
                 Pat::Ident(name) => {
                     if self.should_remove(name.id.to_id()) {
                         self.state.should_run_again = true;
-                        log::trace!(
+                        tracing::trace!(
                             "Dropping var `{}{:?}` because it should be removed",
                             name.id.sym,
                             name.id.span.ctxt

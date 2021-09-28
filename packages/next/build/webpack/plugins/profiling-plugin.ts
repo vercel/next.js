@@ -179,19 +179,19 @@ export class ProfilingPlugin {
           { parentSpan: () => spans.get(compilation)! }
         )
 
-        this.traceHookPair(
-          'add-entry',
-          compilation.hooks.addEntry,
-          compilation.hooks.afterSeal,
-          {
-            attrs: (entry: any) => {
-              return {
-                request: entry.request,
-              }
-            },
-            parentSpan: () => spans.get(compilation)!,
+        compilation.hooks.addEntry.tap(pluginName, (entry: any) => {
+          const compilationSpan = spans.get(compilation)
+          if (!compilationSpan) {
+            return
           }
-        )
+          const addEntrySpan = compilationSpan.traceChild('add-entry')
+          addEntrySpan.setAttribute('request', entry.request)
+          spans.set(entry, addEntrySpan)
+        })
+
+        compilation.hooks.succeedEntry.tap(pluginName, (entry: any) => {
+          spans.get(entry)?.stop()
+        })
       }
 
       this.traceHookPair(
