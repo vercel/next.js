@@ -73,7 +73,7 @@ export default async function handler(req, res) {
     await handleFormInputAsync({ name, message })
     res.redirect(302, '/')
   } catch (err) {
-    res.status(400).send({ error: err.message })
+    res.status(500).send({ error: err.message })
   }
 }
 ```
