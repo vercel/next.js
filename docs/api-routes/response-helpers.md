@@ -4,7 +4,7 @@ description: API Routes include a set of Express.js-like methods for the respons
 
 # Response Helpers
 
-The HTTP Response object, (often abbreviated `res`) includes a set of Express.js-like helper methods to improve the developer experience and increase the speed of creating new API endpoints.
+The HTTP Response object, (often abbreviated as `res`) includes a set of Express.js-like helper methods to improve the developer experience and increase the speed of creating new API endpoints.
 
 The included helpers are:
 
@@ -86,11 +86,11 @@ You can make your response handlers more type-safe by importing the `NextApiRequ
 import type { NextApiRequest, NextApiResponse } from 'next'
 
 type ResponseData {
-  name: string
+  message: string
 }
 
 export default function handler(req: NextApiRequest, res: NextApiResponse<ResponseData>) => {
-  res.status(200).json({ name: 'John Doe' })
+  res.status(200).json({ message: 'Hello from Next.js!' })
 }
 ```
 
