@@ -1,7 +1,8 @@
 import { webpack } from 'next/dist/compiled/webpack/webpack'
-import { NextConfig } from '../../../next-server/server/config'
+import { NextConfigComplete } from '../../../server/config-shared'
 import { base } from './blocks/base'
 import { css } from './blocks/css'
+import { images } from './blocks/images'
 import { ConfigurationContext, pipe } from './utils'
 
 export async function build(
@@ -18,13 +19,13 @@ export async function build(
     isCraCompat,
   }: {
     rootDirectory: string
-    customAppFile: string | null
+    customAppFile: RegExp
     isDevelopment: boolean
     isServer: boolean
     assetPrefix: string
     sassOptions: any
     productionBrowserSourceMaps: boolean
-    future: NextConfig['future']
+    future: NextConfigComplete['future']
     isCraCompat?: boolean
   }
 ): Promise<webpack.Configuration> {
@@ -46,6 +47,6 @@ export async function build(
     isCraCompat,
   }
 
-  const fn = pipe(base(ctx), css(ctx))
+  const fn = pipe(base(ctx), css(ctx), images(ctx))
   return fn(config)
 }

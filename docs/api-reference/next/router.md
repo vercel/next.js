@@ -71,7 +71,7 @@ router.push(url, as, options)
 ```
 
 - `url` - The URL to navigate to
-- `as` - Optional decorator for the URL that will be shown in the browser. Before Next.js 9.5.3 this was used for dynamic routes, check our [previous docs](https://nextjs.org/docs/tag/v9.5.2/api-reference/next/link#dynamic-routes) to see how it worked
+- `as` - Optional decorator for the path that will be shown in the browser URL bar. Before Next.js 9.5.3 this was used for dynamic routes, check our [previous docs](https://nextjs.org/docs/tag/v9.5.2/api-reference/next/link#dynamic-routes) to see how it worked. Note: when this path differs from the one provided in `href` the previous `href`/`as` behavior is used as shown in the [previous docs](https://nextjs.org/docs/tag/v9.5.2/api-reference/next/link#dynamic-routes)
 - `options` - Optional object with the following configuration options:
   - `scroll` - Optional boolean, controls scrolling to the top of the page after navigation. Defaults to `true`
   - [`shallow`](/docs/routing/shallow-routing.md): Update the path of the current page without rerunning [`getStaticProps`](/docs/basic-features/data-fetching.md#getstaticprops-static-generation), [`getServerSideProps`](/docs/basic-features/data-fetching.md#getserversideprops-server-side-rendering) or [`getInitialProps`](/docs/api-reference/data-fetching/getInitialProps.md). Defaults to `false`
@@ -202,7 +202,7 @@ Prefetch pages for faster client-side transitions. This method is only useful fo
 router.prefetch(url, as)
 ```
 
-- `url` - The URL to prefetch, that is, a path with a matching page
+- `url` - The URL to prefetch, including explicit routes (e.g. `/dashboard`) and dynamic routes (e.g. `/product/[id]`)
 - `as` - Optional decorator for `url`. Before Next.js 9.5.3 this was used to prefetch dynamic routes, check our [previous docs](https://nextjs.org/docs/tag/v9.5.2/api-reference/next/link#dynamic-routes) to see how it worked
 
 #### Usage
@@ -342,7 +342,7 @@ You can listen to different events happening inside the Next.js Router. Here's a
 - `routeChangeComplete(url, { shallow })` - Fires when a route changed completely
 - `routeChangeError(err, url, { shallow })` - Fires when there's an error when changing routes, or a route load is cancelled
   - `err.cancelled` - Indicates if the navigation was cancelled
-- `beforeHistoryChange(url, { shallow })` - Fires just before changing the browser's history
+- `beforeHistoryChange(url, { shallow })` - Fires before changing the browser's history
 - `hashChangeStart(url, { shallow })` - Fires when the hash will change but not the page
 - `hashChangeComplete(url, { shallow })` - Fires when the hash has changed but not the page
 

@@ -12,8 +12,6 @@ import {
 import webdriver from 'next-webdriver'
 import cheerio from 'cheerio'
 
-jest.setTimeout(1000 * 60 * 5)
-
 let appDir = join(__dirname, '..')
 let server
 let appPort
@@ -42,14 +40,17 @@ describe('Script Loader', () => {
 
       async function test(id) {
         const script = await browser.elementById(id)
+        const dataAttr = await script.getAttribute('data-nscript')
         const endScripts = await browser.elementsByCss(
-          `#${id} ~ script[src^="/_next/static/"]`
+          `#__NEXT_DATA__ ~ #${id}`
         )
 
         // Renders script tag
         expect(script).toBeDefined()
+        expect(dataAttr).toBeDefined()
+
         // Script is inserted at the end
-        expect(endScripts.length).toBe(0)
+        expect(endScripts.length).toBe(1)
       }
 
       // afterInteractive script in page
@@ -69,16 +70,28 @@ describe('Script Loader', () => {
       await browser.waitForElementByCss('#onload-div')
       await waitFor(1000)
 
+      const logs = await browser.log('browser')
+      const filteredLogs = logs.filter(
+        (log) =>
+          !log.message.includes('Failed to load resource') &&
+          !log.message === 'error' &&
+          !log.message === 'Event'
+      )
+      expect(filteredLogs.length).toBe(0)
+
       async function test(id) {
         const script = await browser.elementById(id)
+        const dataAttr = await script.getAttribute('data-nscript')
         const endScripts = await browser.elementsByCss(
-          `#${id} ~ script[src^="/_next/static/"]`
+          `#__NEXT_DATA__ ~ #${id}`
         )
 
         // Renders script tag
         expect(script).toBeDefined()
+        expect(dataAttr).toBeDefined()
+
         // Script is inserted at the end
-        expect(endScripts.length).toBe(0)
+        expect(endScripts.length).toBe(1)
       }
 
       // lazyOnload script in page
@@ -99,6 +112,7 @@ describe('Script Loader', () => {
 
       // Renders script tag
       expect(script.length).toBe(1)
+      expect(script.attr('data-nscript')).toBeDefined()
 
       // Script is inserted before NextScripts
       expect(
@@ -110,6 +124,37 @@ describe('Script Loader', () => {
     test('documentBeforeInteractive')
   })
 
+  it('priority beforeInteractive on navigate', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/')
+
+      // beforeInteractive scripts should load once
+      let documentBIScripts = await browser.elementsByCss(
+        '[src$="documentBeforeInteractive"]'
+      )
+      expect(documentBIScripts.length).toBe(1)
+
+      await browser.waitForElementByCss('[href="/page1"]')
+      await browser.click('[href="/page1"]')
+
+      await browser.waitForElementByCss('.container')
+
+      const script = await browser.elementById('scriptBeforeInteractive')
+
+      // Ensure beforeInteractive script isn't duplicated on navigation
+      documentBIScripts = await browser.elementsByCss(
+        '[src$="documentBeforeInteractive"]'
+      )
+      expect(documentBIScripts.length).toBe(1)
+
+      // Renders script tag
+      expect(script).toBeDefined()
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+
   it('onload fires correctly', async () => {
     let browser
     try {
@@ -119,6 +164,30 @@ describe('Script Loader', () => {
       const text = await browser.elementById('text').text()
 
       expect(text).toBe('aaabbbccc')
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+
+  it('Does not duplicate inline scripts', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/')
+
+      // Navigate away and back to page
+      await browser.waitForElementByCss('[href="/page5"]')
+      await browser.click('[href="/page5"]')
+      await browser.waitForElementByCss('[href="/"]')
+      await browser.click('[href="/"]')
+      await browser.waitForElementByCss('[href="/page5"]')
+      await browser.click('[href="/page5"]')
+
+      await browser.waitForElementByCss('.container')
+      await waitFor(1000)
+
+      const text = await browser.elementById('text').text()
+
+      expect(text).toBe('abc')
     } finally {
       if (browser) await browser.close()
     }

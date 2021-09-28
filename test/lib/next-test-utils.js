@@ -1,12 +1,15 @@
 import spawn from 'cross-spawn'
 import express from 'express'
-import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'fs'
+import {
+  existsSync,
+  readFileSync,
+  unlinkSync,
+  writeFileSync,
+  createReadStream,
+} from 'fs'
 import { writeFile } from 'fs-extra'
 import getPort from 'get-port'
 import http from 'http'
-// `next` here is the symlink in `test/node_modules/next` which points to the root directory.
-// This is done so that requiring from `next` works.
-// The reason we don't import the relative path `../../dist/<etc>` is that it would lead to inconsistent module singletons
 import server from 'next/dist/server/next'
 import _pkg from 'next/package.json'
 import fetch from 'node-fetch'
@@ -31,7 +34,10 @@ export function initNextServerScript(
   opts
 ) {
   return new Promise((resolve, reject) => {
-    const instance = spawn('node', ['--no-deprecation', scriptPath], { env })
+    const instance = spawn('node', ['--no-deprecation', scriptPath], {
+      env,
+      cwd: opts && opts.cwd,
+    })
 
     function handleStdout(data) {
       const message = data.toString()
@@ -72,6 +78,23 @@ export function initNextServerScript(
   })
 }
 
+export function getFullUrl(appPortOrUrl, url, hostname) {
+  let fullUrl =
+    typeof appPortOrUrl === 'string' && appPortOrUrl.startsWith('http')
+      ? appPortOrUrl
+      : `http://${hostname ? hostname : 'localhost'}:${appPortOrUrl}${url}`
+
+  if (typeof appPortOrUrl === 'string' && url) {
+    const parsedUrl = new URL(fullUrl)
+    const parsedPathQuery = new URL(url, fullUrl)
+
+    parsedUrl.search = parsedPathQuery.search
+    parsedUrl.pathname = parsedPathQuery.pathname
+    fullUrl = parsedUrl.toString()
+  }
+  return fullUrl
+}
+
 export function renderViaAPI(app, pathname, query) {
   const url = `${pathname}${query ? `?${qs.stringify(query)}` : ''}`
   return app.renderToHTML({ url }, {}, pathname, query)
@@ -82,10 +105,10 @@ export function renderViaHTTP(appPort, pathname, query, opts) {
 }
 
 export function fetchViaHTTP(appPort, pathname, query, opts) {
-  const url = `http://localhost:${appPort}${pathname}${
+  const url = `${pathname}${
     typeof query === 'string' ? query : query ? `?${qs.stringify(query)}` : ''
   }`
-  return fetch(url, opts)
+  return fetch(getFullUrl(appPort, url), opts)
 }
 
 export function findPort() {
@@ -106,12 +129,16 @@ export function runNextCommand(argv, options = {}) {
 
   return new Promise((resolve, reject) => {
     console.log(`Running command "next ${argv.join(' ')}"`)
-    const instance = spawn('node', ['--no-deprecation', nextBin, ...argv], {
-      ...options.spawnOptions,
-      cwd,
-      env,
-      stdio: ['ignore', 'pipe', 'pipe'],
-    })
+    const instance = spawn(
+      'node',
+      [...(options.nodeArgs || []), '--no-deprecation', nextBin, ...argv],
+      {
+        ...options.spawnOptions,
+        cwd,
+        env,
+        stdio: ['ignore', 'pipe', 'pipe'],
+      }
+    )
 
     if (typeof options.instance === 'function') {
       options.instance(instance)
@@ -176,11 +203,16 @@ export function runNextCommandDev(argv, stdOut, opts = {}) {
     ...opts.env,
   }
 
+  const nodeArgs = opts.nodeArgs || []
   return new Promise((resolve, reject) => {
-    const instance = spawn('node', ['--no-deprecation', nextBin, ...argv], {
-      cwd,
-      env,
-    })
+    const instance = spawn(
+      'node',
+      [...nodeArgs, '--no-deprecation', nextBin, ...argv],
+      {
+        cwd,
+        env,
+      }
+    )
     let didResolve = false
 
     function handleStdout(data) {
@@ -354,10 +386,16 @@ export function waitFor(millis) {
   return new Promise((resolve) => setTimeout(resolve, millis))
 }
 
-export async function startStaticServer(dir) {
+export async function startStaticServer(dir, notFoundFile) {
   const app = express()
   const server = http.createServer(app)
   app.use(express.static(dir))
+
+  if (notFoundFile) {
+    app.use((req, res) => {
+      createReadStream(notFoundFile).pipe(res)
+    })
+  }
 
   await promiseCall(server, 'listen')
   return server
@@ -451,7 +489,7 @@ export class File {
 
 export async function evaluate(browser, input) {
   if (typeof input === 'function') {
-    const result = await browser.executeScript(input)
+    const result = await browser.eval(input)
     await new Promise((resolve) => setTimeout(resolve, 30))
     return result
   } else {
@@ -487,9 +525,8 @@ export async function retry(fn, duration = 3000, interval = 500, description) {
 }
 
 export async function hasRedbox(browser, expected = true) {
-  let attempts = 30
-  do {
-    const has = await evaluate(browser, () => {
+  for (let i = 0; i < 30; i++) {
+    const result = await evaluate(browser, () => {
       return Boolean(
         [].slice
           .call(document.querySelectorAll('nextjs-portal'))
@@ -500,15 +537,12 @@ export async function hasRedbox(browser, expected = true) {
           )
       )
     })
-    if (has) {
-      return true
-    }
-    if (--attempts < 0) {
-      break
-    }
 
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-  } while (expected)
+    if (result === expected) {
+      return result
+    }
+    await waitFor(1000)
+  }
   return false
 }
 
@@ -549,6 +583,26 @@ export async function getRedboxSource(browser) {
     3000,
     500,
     'getRedboxSource'
+  )
+}
+
+export async function getRedboxDescription(browser) {
+  return retry(
+    () =>
+      evaluate(browser, () => {
+        const portal = [].slice
+          .call(document.querySelectorAll('nextjs-portal'))
+          .find((p) =>
+            p.shadowRoot.querySelector('[data-nextjs-dialog-header]')
+          )
+        const root = portal.shadowRoot
+        return root
+          .querySelector('#nextjs__container_errors_desc')
+          .innerText.replace(/__WEBPACK_DEFAULT_EXPORT__/, 'Unknown')
+      }),
+    3000,
+    500,
+    'getRedboxDescription'
   )
 }
 

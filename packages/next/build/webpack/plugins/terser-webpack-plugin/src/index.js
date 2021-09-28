@@ -104,9 +104,10 @@ class Webpack4Cache {
 
 export class TerserPlugin {
   constructor(options = {}) {
-    const { cacheDir, terserOptions = {}, parallel } = options
+    const { cacheDir, terserOptions = {}, parallel, swcMinify } = options
 
     this.options = {
+      swcMinify,
       cacheDir,
       parallel,
       terserOptions,
@@ -121,8 +122,10 @@ export class TerserPlugin {
     cache,
     { SourceMapSource, RawSource }
   ) {
-    const compilerSpan = spans.get(compiler)
-    const terserSpan = compilerSpan.traceChild('terser-webpack-plugin-optimize')
+    const compilationSpan = spans.get(compilation) || spans.get(compiler)
+    const terserSpan = compilationSpan.traceChild(
+      'terser-webpack-plugin-optimize'
+    )
     terserSpan.setAttribute('webpackVersion', isWebpack5 ? 5 : 4)
     terserSpan.setAttribute('compilationName', compilation.name)
 
@@ -188,6 +191,22 @@ export class TerserPlugin {
 
       // eslint-disable-next-line consistent-return
       const getWorker = () => {
+        if (this.options.swcMinify) {
+          return {
+            minify: async (options) => {
+              const result = await require('../../../../swc').minify(
+                options.input,
+                {
+                  compress: true,
+                  mangle: true,
+                }
+              )
+
+              return result
+            },
+          }
+        }
+
         if (initializedWorker) {
           return initializedWorker
         }
@@ -204,7 +223,12 @@ export class TerserPlugin {
       }
 
       const limit = pLimit(
-        numberOfAssetsForMinify > 0 ? numberOfWorkers : Infinity
+        // When using the SWC minifier the limit will be handled by Node.js
+        this.options.swcMinify
+          ? Infinity
+          : numberOfAssetsForMinify > 0
+          ? numberOfWorkers
+          : Infinity
       )
       const scheduledTasks = []
 
@@ -214,7 +238,7 @@ export class TerserPlugin {
             const { name, inputSource, info, eTag } = asset
             let { output } = asset
 
-            const minifySpan = terserSpan.traceChild('minify-fs')
+            const minifySpan = terserSpan.traceChild('minify-js')
             minifySpan.setAttribute('name', name)
             minifySpan.setAttribute(
               'cache',
@@ -223,10 +247,8 @@ export class TerserPlugin {
 
             return minifySpan.traceAsyncFn(async () => {
               if (!output) {
-                const {
-                  source: sourceFromInputSource,
-                  map: inputSourceMap,
-                } = inputSource.sourceAndMap()
+                const { source: sourceFromInputSource, map: inputSourceMap } =
+                  inputSource.sourceAndMap()
 
                 const input = Buffer.isBuffer(sourceFromInputSource)
                   ? sourceFromInputSource.toString()
@@ -337,9 +359,10 @@ export class TerserPlugin {
       }
 
       if (isWebpack5) {
-        const JSModulesHooks = webpack.javascript.JavascriptModulesPlugin.getCompilationHooks(
-          compilation
-        )
+        const JSModulesHooks =
+          webpack.javascript.JavascriptModulesPlugin.getCompilationHooks(
+            compilation
+          )
         JSModulesHooks.chunkHash.tap(pluginName, (chunk, hash) => {
           if (!chunk.hasRuntime()) return
           return handleHashForChunk(hash, chunk)

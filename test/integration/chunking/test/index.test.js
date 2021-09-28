@@ -12,8 +12,6 @@ import {
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 
-jest.setTimeout(1000 * 60 * 1)
-
 const appDir = join(__dirname, '../')
 
 let chunks
@@ -84,7 +82,6 @@ describe('Chunking', () => {
 
   it('should execute the build manifest', async () => {
     const html = await renderViaHTTP(appPort, '/')
-    console.log(html)
     const $ = cheerio.load(html)
     expect(
       Array.from($('script'))

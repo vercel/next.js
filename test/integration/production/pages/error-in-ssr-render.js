@@ -6,6 +6,6 @@ export default class ErrorInRenderPage extends React.Component {
 
   // eslint-disable-next-line react/require-render-return
   render() {
-    throw new Error('An Expected error occured')
+    throw new Error('An Expected error occurred')
   }
 }

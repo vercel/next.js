@@ -1,6 +1,5 @@
 {
-  "name": "with-ant-design",
-  "version": "1.0.0",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",
@@ -21,6 +20,5 @@
   "browser": {
     "fs": false,
     "path": false
-  },
-  "license": "MIT"
+  }
 }

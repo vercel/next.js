@@ -1,7 +1,9 @@
+// @ts-check
 const path = require('path')
 const fs = require('fs')
+const getRootDir = require('../utils/get-root-dirs')
 const {
-  getUrlFromPagesDirectory,
+  getUrlFromPagesDirectories,
   normalizeURL,
   execOnce,
 } = require('../utils/url')
@@ -13,32 +15,70 @@ const pagesDirWarning = execOnce((pagesDirs) => {
   )
 })
 
+// Cache for fs.existsSync lookup.
+// Prevent multiple blocking IO requests that have already been calculated.
+const fsExistsSyncCache = {}
+
 module.exports = {
   meta: {
     docs: {
-      description: 'Prohibit full page refresh for nextjs pages',
+      description: 'Prohibit full page refresh for Next.js pages',
       category: 'HTML',
       recommended: true,
     },
     fixable: null, // or "code" or "whitespace"
-    schema: ['pagesDirectory'],
+    schema: [
+      {
+        oneOf: [
+          {
+            type: 'string',
+          },
+          {
+            type: 'array',
+            uniqueItems: true,
+            items: {
+              type: 'string',
+            },
+          },
+        ],
+      },
+    ],
   },
 
+  /**
+   * Creates an ESLint rule listener.
+   *
+   * @param {import('eslint').Rule.RuleContext} context - ESLint rule context
+   * @returns {import('eslint').Rule.RuleListener} An ESLint rule listener
+   */
   create: function (context) {
-    const [customPagesDirectory] = context.options
-    const pagesDirs = customPagesDirectory
-      ? [customPagesDirectory]
-      : [
-          path.join(context.getCwd(), 'pages'),
-          path.join(context.getCwd(), 'src', 'pages'),
-        ]
-    const pagesDir = pagesDirs.find((dir) => fs.existsSync(dir))
-    if (!pagesDir) {
+    /** @type {(string|string[])[]} */
+    const ruleOptions = context.options
+    const [customPagesDirectory] = ruleOptions
+
+    const rootDirs = getRootDir(context)
+
+    const pagesDirs = (
+      customPagesDirectory
+        ? [customPagesDirectory]
+        : rootDirs.map((dir) => [
+            path.join(dir, 'pages'),
+            path.join(dir, 'src', 'pages'),
+          ])
+    ).flat()
+
+    const foundPagesDirs = pagesDirs.filter((dir) => {
+      if (fsExistsSyncCache[dir] === undefined) {
+        fsExistsSyncCache[dir] = fs.existsSync(dir)
+      }
+      return fsExistsSyncCache[dir]
+    })
+    if (foundPagesDirs.length === 0) {
       pagesDirWarning(pagesDirs)
       return {}
     }
 
-    const urls = getUrlFromPagesDirectory('/', pagesDir)
+    const urls = getUrlFromPagesDirectories('/', foundPagesDirs)
     return {
       JSXOpeningElement(node) {
         if (node.name.name !== 'a') {

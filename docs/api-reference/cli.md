@@ -46,7 +46,7 @@ NODE_OPTIONS='--inspect' next
 - **Size** – The number of assets downloaded when navigating to the page client-side. The size for each route only includes its dependencies.
 - **First Load JS** – The number of assets downloaded when visiting the page from the server. The amount of JS shared by all is shown as a separate metric.
 
-The first load is colored green, yellow, or red. Aim for green for performant applications.
+The first load is indicated by green, yellow, or red. Aim for green for performant applications.
 
 You can enable production profiling for React with the `--profile` flag in `next build`. This requires [Next.js 9.5](https://nextjs.org/blog/next-9-5):
 

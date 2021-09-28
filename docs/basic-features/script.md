@@ -23,7 +23,10 @@ With `next/script`, you can define the `strategy` property and Next.js will o
 - `afterInteractive` (**default**): For scripts that can fetch and execute **after** the page is interactive, such as tag managers and analytics. These scripts are injected on the client-side and will run after hydration.
 - `lazyOnload` For scripts that can wait to load during idle time, such as chat support and social media widgets.
 
-> **Note:** These loading strategies work the same for inline scripts wrapped with `<Script>`. See the inline scripts example below.
+> **Note:**
+>
+> - `<Script>` supports inline scripts with `afterInteractive` and `lazyOnload` strategy.
+> - Inline scripts wrapped with `<Script>` _require an `id` attribute to be defined_ to track and optimize the script.
 
 ## Usage
 
@@ -35,7 +38,7 @@ Previously, you needed to define `script` tags inside the `Head` of your Next.js
 // pages/index.js
 import Head from 'next/head'
 
-function Home() {
+export default function Home() {
   return (
     <>
       <Head>
@@ -46,7 +49,11 @@ function Home() {
 }
 ```
 
-With `next/script`, you no longer need to wrap scripts in `next/head`. Further, `next/script` should **not** be used in `pages/_document.js` as `next/script` has client-side functionality to ensure loading order. For example:
+Now, you use `next/script` in the body of your Next.js page. It has client-side functionality that decides when and how to load the remote script based on the `strategy`.
+
+> **Note:**
+>
+> - `next/script` **must not** be placed in either a `next/head` component or in `pages/_document.js`.
 
 ```js
 // After
@@ -54,7 +61,7 @@ With `next/script`, you no longer need to wrap scripts in `next/head`. Further, 
 // pages/index.js
 import Script from 'next/script'
 
-function Home() {
+export default function Home() {
   return (
     <>
       <Script src="https://www.google-analytics.com/analytics.js" />
@@ -69,33 +76,54 @@ function Home() {
 
 ```js
 import Script from 'next/script'
-;<Script
-  src="https://polyfill.io/v3/polyfill.min.js?features=IntersectionObserverEntry%2CIntersectionObserver"
-  strategy="beforeInteractive"
-/>
+
+export default function Home() {
+  return (
+    <>
+      <Script
+        src="https://polyfill.io/v3/polyfill.min.js?features=IntersectionObserverEntry%2CIntersectionObserver"
+        strategy="beforeInteractive"
+      />
+    </>
+  )
+}
 ```
 
 ### Lazy-Loading
 
 ```js
 import Script from 'next/script'
-;<Script
-  src="https://connect.facebook.net/en_US/sdk.js"
-  strategy="lazyOnload"
-/>
+
+export default function Home() {
+  return (
+    <>
+      <Script
+        src="https://connect.facebook.net/en_US/sdk.js"
+        strategy="lazyOnload"
+      />
+    </>
+  )
+}
 ```
 
 ### Executing Code After Loading (`onLoad`)
 
 ```js
 import Script from 'next/script'
-;<Script
-  id="stripe-js"
-  src="https://js.stripe.com/v3/"
-  onLoad={() => {
-    this.setState({ stripe: window.Stripe('pk_test_12345') })
-  }}
-/>
+
+export default function Home() {
+  return (
+    <>
+      <Script
+        id="stripe-js"
+        src="https://js.stripe.com/v3/"
+        onLoad={() => {
+          this.setState({ stripe: window.Stripe('pk_test_12345') })
+        }}
+      />
+    </>
+  )
+}
 ```
 
 ### Inline Scripts
@@ -103,13 +131,14 @@ import Script from 'next/script'
 ```js
 import Script from 'next/script'
 
-<Script strategy="lazyOnload">
+<Script id="show-banner" strategy="lazyOnload">
   {`document.getElementById('banner').removeClass('hidden')`}
 </Script>
 
 // or
 
 <Script
+  id="show-banner"
   dangerouslySetInnerHTML={{
     __html: `document.getElementById('banner').removeClass('hidden')`
   }}
@@ -120,10 +149,17 @@ import Script from 'next/script'
 
 ```js
 import Script from 'next/script'
-;<Script
-  src="https://www.google-analytics.com/analytics.js"
-  id="analytics"
-  nonce="XUENAJFW"
-  data-test="analytics"
-/>
+
+export default function Home() {
+  return (
+    <>
+      <Script
+        src="https://www.google-analytics.com/analytics.js"
+        id="analytics"
+        nonce="XUENAJFW"
+        data-test="analytics"
+      />
+    </>
+  )
+}
 ```

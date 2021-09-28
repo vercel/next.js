@@ -3,8 +3,8 @@ import {
   isWebpack5,
   sources,
 } from 'next/dist/compiled/webpack/webpack'
-import { PAGES_MANIFEST } from '../../../next-server/lib/constants'
-import getRouteFromEntrypoint from '../../../next-server/server/get-route-from-entrypoint'
+import { PAGES_MANIFEST } from '../../../shared/lib/constants'
+import getRouteFromEntrypoint from '../../../server/get-route-from-entrypoint'
 
 export type PagesManifest = { [page: string]: string }
 
@@ -35,7 +35,9 @@ export default class PagesManifestPlugin implements webpack.Plugin {
         .getFiles()
         .filter(
           (file: string) =>
-            !file.includes('webpack-runtime') && file.endsWith('.js')
+            !file.includes('webpack-runtime') &&
+            !file.includes('webpack-api-runtime') &&
+            file.endsWith('.js')
         )
 
       if (!isWebpack5 && files.length > 1) {
@@ -55,9 +57,8 @@ export default class PagesManifestPlugin implements webpack.Plugin {
       pages[pagePath] = pages[pagePath].replace(/\\/g, '/')
     }
 
-    assets[
-      `${isWebpack5 && !this.dev ? '../' : ''}` + PAGES_MANIFEST
-    ] = new sources.RawSource(JSON.stringify(pages, null, 2))
+    assets[`${isWebpack5 && !this.dev ? '../' : ''}` + PAGES_MANIFEST] =
+      new sources.RawSource(JSON.stringify(pages, null, 2))
   }
 
   apply(compiler: webpack.Compiler): void {

@@ -35,6 +35,8 @@ touch tsconfig.json
 
 Next.js will automatically configure this file with default values. Providing your own `tsconfig.json` with custom [compiler options](https://www.typescriptlang.org/docs/handbook/compiler-options.html) is also supported.
 
+You can also provide a relative path to a tsconfig.json file by setting `typescript.tsconfigPath` prop inside your `next.config.js` file.
+
 > Next.js uses Babel to handle TypeScript, which has some [caveats](https://babeljs.io/docs/en/babel-plugin-transform-typescript#caveats), and some [compiler options are handled differently](https://babeljs.io/docs/en/babel-plugin-transform-typescript#typescript-compiler-options).
 
 Then, run `next` (normally `npm run dev` or `yarn dev`) and Next.js will guide you through the installation of the required packages to finish the setup:
@@ -44,7 +46,7 @@ npm run dev
 
 # You'll see instructions like these:
 #
-# Please install typescript, @types/react, and @types/node by running:
+# Please install TypeScript, @types/react, and @types/node by running:
 #
 #         yarn add --dev typescript @types/react @types/node
 #
@@ -53,9 +55,11 @@ npm run dev
 
 You're now ready to start converting files from `.js` to `.tsx` and leveraging the benefits of TypeScript!.
 
-> A file named `next-env.d.ts` will be created in the root of your project. This file ensures Next.js types are picked up by the TypeScript compiler. **You cannot remove it**, however, you can edit it (but you don't need to).
+> A file named `next-env.d.ts` will be created in the root of your project. This file ensures Next.js types are picked up by the TypeScript compiler. **You cannot remove it or edit it** as it can change at any time.
 
 > TypeScript `strict` mode is turned off by default. When you feel comfortable with TypeScript, it's recommended to turn it on in your `tsconfig.json`.
+
+> Instead of editing `next-env.d.ts`, you can include additional types by adding a new file e.g. `additional.d.ts` and then referencing it in the [`include`](https://www.typescriptlang.org/tsconfig#include) array in your `tsconfig.json`.
 
 By default, Next.js will do type checking as part of `next build`. We recommend using code editor type checking during development.
 
@@ -150,7 +154,7 @@ The `next.config.js` file must be a JavaScript file as it does not get parsed by
 // @ts-check
 
 /**
- * @type {import('next/dist/next-server/server/config').NextConfig}
+ * @type {import('next').NextConfig}
  **/
 const nextConfig = {
   /* config options here */

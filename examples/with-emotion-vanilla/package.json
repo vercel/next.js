@@ -1,12 +1,10 @@
 {
-  "name": "with-emotion-vanilla",
-  "version": "1.0.0",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",
     "start": "next start"
   },
-  "license": "MIT",
   "devDependencies": {
     "@emotion/babel-plugin": "11.0.0"
   },

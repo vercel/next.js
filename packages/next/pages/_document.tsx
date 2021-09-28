@@ -1,23 +1,20 @@
-import PropTypes from 'prop-types'
 import React, { Component, ReactElement, ReactNode, useContext } from 'react'
-import flush from 'styled-jsx/server'
 import {
-  AMP_RENDER_TARGET,
+  BODY_RENDER_TARGET,
   OPTIMIZED_FONT_PROVIDERS,
-} from '../next-server/lib/constants'
-import { DocumentContext as DocumentComponentContext } from '../next-server/lib/document-context'
+} from '../shared/lib/constants'
 import {
   DocumentContext,
   DocumentInitialProps,
   DocumentProps,
-} from '../next-server/lib/utils'
-import {
-  BuildManifest,
-  getPageFiles,
-} from '../next-server/server/get-page-files'
-import { cleanAmpPath } from '../next-server/server/utils'
+  HtmlContext,
+  HtmlProps,
+} from '../shared/lib/utils'
+import { BuildManifest, getPageFiles } from '../server/get-page-files'
+import { cleanAmpPath } from '../server/utils'
 import { htmlEscapeJsonString } from '../server/htmlescape'
-import Script, { Props as ScriptLoaderProps } from '../client/script'
+import Script, { ScriptProps } from '../client/script'
+import isError from '../lib/is-error'
 
 export { DocumentContext, DocumentInitialProps, DocumentProps }
 
@@ -49,7 +46,7 @@ function getDocumentFiles(
   }
 }
 
-function getPolyfillScripts(context: DocumentProps, props: OriginProps) {
+function getPolyfillScripts(context: HtmlProps, props: OriginProps) {
   // polyfills.js has to be rendered as nomodule without async
   // It also has to be the first script to load
   const {
@@ -75,17 +72,19 @@ function getPolyfillScripts(context: DocumentProps, props: OriginProps) {
     ))
 }
 
-function getPreNextScripts(context: DocumentProps, props: OriginProps) {
+function getPreNextScripts(context: HtmlProps, props: OriginProps) {
   const { scriptLoader, disableOptimizedLoading } = context
 
   return (scriptLoader.beforeInteractive || []).map(
-    (file: ScriptLoaderProps) => {
+    (file: ScriptProps, index: number) => {
       const { strategy, ...scriptProps } = file
       return (
         <script
           {...scriptProps}
+          key={scriptProps.src || index}
           defer={!disableOptimizedLoading}
           nonce={props.nonce}
+          data-nscript="beforeInteractive"
           crossOrigin={props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN}
         />
       )
@@ -94,7 +93,7 @@ function getPreNextScripts(context: DocumentProps, props: OriginProps) {
 }
 
 function getDynamicChunks(
-  context: DocumentProps,
+  context: HtmlProps,
   props: OriginProps,
   files: DocumentFiles
 ) {
@@ -125,7 +124,7 @@ function getDynamicChunks(
 }
 
 function getScripts(
-  context: DocumentProps,
+  context: HtmlProps,
   props: OriginProps,
   files: DocumentFiles
 ) {
@@ -167,27 +166,8 @@ export default class Document<P = {}> extends Component<DocumentProps & P> {
    * `getInitialProps` hook returns the context object with the addition of `renderPage`.
    * `renderPage` callback executes `React` rendering logic synchronously to support server-rendering wrappers
    */
-  static async getInitialProps(
-    ctx: DocumentContext
-  ): Promise<DocumentInitialProps> {
-    const enhanceApp = (App: any) => {
-      return (props: any) => <App {...props} />
-    }
-
-    const { html, head } = await ctx.renderPage({ enhanceApp })
-    const styles = [...flush()]
-    return { html, head, styles }
-  }
-
-  static renderDocument<Y>(
-    DocumentComponent: new () => Document<Y>,
-    props: DocumentProps & Y
-  ): React.ReactElement {
-    return (
-      <DocumentComponentContext.Provider value={props}>
-        <DocumentComponent {...props} />
-      </DocumentComponentContext.Provider>
-    )
+  static getInitialProps(ctx: DocumentContext): Promise<DocumentInitialProps> {
+    return ctx.defaultGetInitialProps(ctx)
   }
 
   render() {
@@ -209,9 +189,7 @@ export function Html(
     HTMLHtmlElement
   >
 ) {
-  const { inAmpMode, docComponentsRendered, locale } = useContext(
-    DocumentComponentContext
-  )
+  const { inAmpMode, docComponentsRendered, locale } = useContext(HtmlContext)
 
   docComponentsRendered.Html = true
 
@@ -227,6 +205,50 @@ export function Html(
   )
 }
 
+function AmpStyles({
+  styles,
+}: {
+  styles?: React.ReactElement[] | React.ReactFragment
+}) {
+  if (!styles) return null
+
+  // try to parse styles from fragment for backwards compat
+  const curStyles: React.ReactElement[] = Array.isArray(styles)
+    ? (styles as React.ReactElement[])
+    : []
+  if (
+    // @ts-ignore Property 'props' does not exist on type ReactElement
+    styles.props &&
+    // @ts-ignore Property 'props' does not exist on type ReactElement
+    Array.isArray(styles.props.children)
+  ) {
+    const hasStyles = (el: React.ReactElement) =>
+      el?.props?.dangerouslySetInnerHTML?.__html
+    // @ts-ignore Property 'props' does not exist on type ReactElement
+    styles.props.children.forEach((child: React.ReactElement) => {
+      if (Array.isArray(child)) {
+        child.forEach((el) => hasStyles(el) && curStyles.push(el))
+      } else if (hasStyles(child)) {
+        curStyles.push(child)
+      }
+    })
+  }
+
+  /* Add custom styles before AMP styles to prevent accidental overrides */
+  return (
+    <style
+      amp-custom=""
+      dangerouslySetInnerHTML={{
+        __html: curStyles
+          .map((style) => style.props.dangerouslySetInnerHTML.__html)
+          .join('')
+          .replace(/\/\*# sourceMappingURL=.*\*\//g, '')
+          .replace(/\/\*@ sourceURL=.*?\*\//g, ''),
+      }}
+    />
+  )
+}
+
 export class Head extends Component<
   OriginProps &
     React.DetailedHTMLProps<
@@ -234,21 +256,13 @@ export class Head extends Component<
       HTMLHeadElement
     >
 > {
-  static contextType = DocumentComponentContext
+  static contextType = HtmlContext
 
-  static propTypes = {
-    nonce: PropTypes.string,
-    crossOrigin: PropTypes.string,
-  }
-
-  context!: React.ContextType<typeof DocumentComponentContext>
+  context!: React.ContextType<typeof HtmlContext>
 
   getCssLinks(files: DocumentFiles): JSX.Element[] | null {
-    const {
-      assetPrefix,
-      devOnlyCacheBusterQueryString,
-      dynamicImports,
-    } = this.context
+    const { assetPrefix, devOnlyCacheBusterQueryString, dynamicImports } =
+      this.context
     const cssFiles = files.allFiles.filter((f) => f.endsWith('.css'))
     const sharedFiles: Set<string> = new Set(files.sharedFiles)
 
@@ -319,11 +333,8 @@ export class Head extends Component<
   }
 
   getPreloadDynamicChunks() {
-    const {
-      dynamicImports,
-      assetPrefix,
-      devOnlyCacheBusterQueryString,
-    } = this.context
+    const { dynamicImports, assetPrefix, devOnlyCacheBusterQueryString } =
+      this.context
 
     return (
       dynamicImports
@@ -353,11 +364,8 @@ export class Head extends Component<
   }
 
   getPreloadMainLinks(files: DocumentFiles): JSX.Element[] | null {
-    const {
-      assetPrefix,
-      devOnlyCacheBusterQueryString,
-      scriptLoader,
-    } = this.context
+    const { assetPrefix, devOnlyCacheBusterQueryString, scriptLoader } =
+      this.context
     const preloadFiles = files.allFiles.filter((file: string) => {
       return file.endsWith('.js')
     })
@@ -410,7 +418,7 @@ export class Head extends Component<
 
   handleDocumentScriptLoaderItems(children: React.ReactNode): ReactNode[] {
     const { scriptLoader } = this.context
-    const scriptLoaderItems: ScriptLoaderProps[] = []
+    const scriptLoaderItems: ScriptProps[] = []
     const filteredChildren: ReactNode[] = []
 
     React.Children.forEach(children, (child: any) => {
@@ -583,30 +591,6 @@ export class Head extends Component<
       return child
     })
 
-    // try to parse styles from fragment for backwards compat
-    const curStyles: React.ReactElement[] = Array.isArray(styles)
-      ? (styles as React.ReactElement[])
-      : []
-    if (
-      inAmpMode &&
-      styles &&
-      // @ts-ignore Property 'props' does not exist on type ReactElement
-      styles.props &&
-      // @ts-ignore Property 'props' does not exist on type ReactElement
-      Array.isArray(styles.props.children)
-    ) {
-      const hasStyles = (el: React.ReactElement) =>
-        el?.props?.dangerouslySetInnerHTML?.__html
-      // @ts-ignore Property 'props' does not exist on type ReactElement
-      styles.props.children.forEach((child: React.ReactElement) => {
-        if (Array.isArray(child)) {
-          child.forEach((el) => hasStyles(el) && curStyles.push(el))
-        } else if (hasStyles(child)) {
-          curStyles.push(child)
-        }
-      })
-    }
-
     const files: DocumentFiles = getDocumentFiles(
       this.context.buildManifest,
       this.context.__NEXT_DATA__.page,
@@ -663,19 +647,7 @@ export class Head extends Component<
               as="script"
               href="https://cdn.ampproject.org/v0.js"
             />
-            {/* Add custom styles before AMP styles to prevent accidental overrides */}
-            {styles && (
-              <style
-                amp-custom=""
-                dangerouslySetInnerHTML={{
-                  __html: curStyles
-                    .map((style) => style.props.dangerouslySetInnerHTML.__html)
-                    .join('')
-                    .replace(/\/\*# sourceMappingURL=.*\*\//g, '')
-                    .replace(/\/\*@ sourceURL=.*?\*\//g, ''),
-                }}
-              />
-            )}
+            <AmpStyles styles={styles} />
             <style
               amp-boilerplate=""
               dangerouslySetInnerHTML={{
@@ -746,25 +718,18 @@ export class Head extends Component<
 }
 
 export function Main() {
-  const { inAmpMode, html, docComponentsRendered } = useContext(
-    DocumentComponentContext
-  )
+  const { inAmpMode, docComponentsRendered } = useContext(HtmlContext)
 
   docComponentsRendered.Main = true
 
-  if (inAmpMode) return <>{AMP_RENDER_TARGET}</>
-  return <div id="__next" dangerouslySetInnerHTML={{ __html: html }} />
+  if (inAmpMode) return <>{BODY_RENDER_TARGET}</>
+  return <div id="__next">{BODY_RENDER_TARGET}</div>
 }
 
 export class NextScript extends Component<OriginProps> {
-  static contextType = DocumentComponentContext
+  static contextType = HtmlContext
 
-  static propTypes = {
-    nonce: PropTypes.string,
-    crossOrigin: PropTypes.string,
-  }
-
-  context!: React.ContextType<typeof DocumentComponentContext>
+  context!: React.ContextType<typeof HtmlContext>
 
   // Source: https://gist.github.com/samthor/64b114e4a4f539915a95b91ffd340acc
   static safariNomoduleFix =
@@ -786,13 +751,13 @@ export class NextScript extends Component<OriginProps> {
     return getPolyfillScripts(this.context, this.props)
   }
 
-  static getInlineScriptSource(documentProps: Readonly<DocumentProps>): string {
-    const { __NEXT_DATA__ } = documentProps
+  static getInlineScriptSource(context: Readonly<HtmlProps>): string {
+    const { __NEXT_DATA__ } = context
     try {
       const data = JSON.stringify(__NEXT_DATA__)
       return htmlEscapeJsonString(data)
     } catch (err) {
-      if (err.message.indexOf('circular structure')) {
+      if (isError(err) && err.message.indexOf('circular structure')) {
         throw new Error(
           `Circular structure in "getInitialProps" result of page "${__NEXT_DATA__.page}". https://nextjs.org/docs/messages/circular-structure`
         )

@@ -8,15 +8,15 @@ import {
   BUILD_MANIFEST,
   CLIENT_STATIC_FILES_PATH,
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
-  CLIENT_STATIC_FILES_RUNTIME_POLYFILLS,
+  CLIENT_STATIC_FILES_RUNTIME_POLYFILLS_SYMBOL,
   CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
   CLIENT_STATIC_FILES_RUNTIME_AMP,
-} from '../../../next-server/lib/constants'
-import { BuildManifest } from '../../../next-server/server/get-page-files'
-import getRouteFromEntrypoint from '../../../next-server/server/get-route-from-entrypoint'
+} from '../../../shared/lib/constants'
+import { BuildManifest } from '../../../server/get-page-files'
+import getRouteFromEntrypoint from '../../../server/get-route-from-entrypoint'
 import { ampFirstEntryNamesMap } from './next-drop-client-page-plugin'
 import { Rewrite } from '../../../lib/load-custom-routes'
-import { getSortedRoutes } from '../../../next-server/lib/router/utils'
+import { getSortedRoutes } from '../../../shared/lib/router/utils'
 import { spans } from './profiling-plugin'
 import { CustomRoutes } from '../../../lib/load-custom-routes'
 
@@ -28,11 +28,12 @@ export type ClientBuildManifest = Record<string, string[]>
 // reduced version to send to the client.
 function generateClientManifest(
   compiler: any,
+  compilation: any,
   assetMap: BuildManifest,
   rewrites: CustomRoutes['rewrites']
 ): string {
-  const compilerSpan = spans.get(compiler)
-  const genClientManifestSpan = compilerSpan?.traceChild(
+  const compilationSpan = spans.get(compilation) || spans.get(compiler)
+  const genClientManifestSpan = compilationSpan?.traceChild(
     'NextJsBuildManifest-generateClientManifest'
   )
 
@@ -115,8 +116,8 @@ export default class BuildManifestPlugin {
   }
 
   createAssets(compiler: any, compilation: any, assets: any) {
-    const compilerSpan = spans.get(compiler)
-    const createAssetsSpan = compilerSpan?.traceChild(
+    const compilationSpan = spans.get(compilation) || spans.get(compiler)
+    const createAssetsSpan = compilationSpan?.traceChild(
       'NextJsBuildManifest-createassets'
     )
     return createAssetsSpan?.traceFn(() => {
@@ -146,9 +147,24 @@ export default class BuildManifestPlugin {
         getEntrypointFiles(entrypoints.get(CLIENT_STATIC_FILES_RUNTIME_MAIN))
       )
 
-      assetMap.polyfillFiles = getEntrypointFiles(
-        entrypoints.get(CLIENT_STATIC_FILES_RUNTIME_POLYFILLS)
-      ).filter((file) => !mainFiles.has(file))
+      const compilationAssets: {
+        name: string
+        source: typeof sources.RawSource
+        info: object
+      }[] = compilation.getAssets()
+
+      assetMap.polyfillFiles = compilationAssets
+        .filter((p) => {
+          // Ensure only .js files are passed through
+          if (!p.name.endsWith('.js')) {
+            return false
+          }
+
+          return (
+            p.info && CLIENT_STATIC_FILES_RUNTIME_POLYFILLS_SYMBOL in p.info
+          )
+        })
+        .map((v) => v.name)
 
       assetMap.devFiles = getEntrypointFiles(
         entrypoints.get(CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH)
@@ -160,7 +176,6 @@ export default class BuildManifestPlugin {
 
       const systemEntrypoints = new Set([
         CLIENT_STATIC_FILES_RUNTIME_MAIN,
-        CLIENT_STATIC_FILES_RUNTIME_POLYFILLS,
         CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
         CLIENT_STATIC_FILES_RUNTIME_AMP,
       ])
@@ -216,6 +231,7 @@ export default class BuildManifestPlugin {
         assets[clientManifestPath] = new sources.RawSource(
           `self.__BUILD_MANIFEST = ${generateClientManifest(
             compiler,
+            compilation,
             assetMap,
             this.rewrites
           )};self.__BUILD_MANIFEST_CB && self.__BUILD_MANIFEST_CB()`

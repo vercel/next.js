@@ -1,6 +1,6 @@
 import { NextIntlProvider } from 'next-intl'
 
-export default function App({ Component, messages, pageProps }) {
+export default function App({ Component, pageProps }) {
   return (
     <NextIntlProvider
       // To achieve consistent date, time and number formatting

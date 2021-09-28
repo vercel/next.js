@@ -4,25 +4,27 @@ import {
   isWebpack5,
   sources,
 } from 'next/dist/compiled/webpack/webpack'
-import { namedTypes } from 'ast-types'
 import {
   getFontDefinitionFromNetwork,
   FontManifest,
-} from '../../../next-server/server/font-utils'
+} from '../../../server/font-utils'
 import postcss from 'postcss'
 import minifier from 'cssnano-simple'
 import {
   FONT_MANIFEST,
   OPTIMIZED_FONT_PROVIDERS,
-} from '../../../next-server/lib/constants'
+} from '../../../shared/lib/constants'
 
 function minifyCss(css: string): Promise<string> {
   return postcss([
-    minifier({
-      excludeAll: true,
-      discardComments: true,
-      normalizeWhitespace: { exclude: false },
-    }),
+    minifier(
+      {
+        excludeAll: true,
+        discardComments: true,
+        normalizeWhitespace: { exclude: false },
+      },
+      postcss
+    ),
   ])
     .process(css, { from: undefined })
     .then((res) => res.css)
@@ -58,7 +60,7 @@ export class FontStylesheetGatheringPlugin {
            */
           parser.hooks.evaluate
             .for('Identifier')
-            .tap(this.constructor.name, (node: namedTypes.Identifier) => {
+            .tap(this.constructor.name, (node: any) => {
               // We will only optimize fonts from first party code.
               if (parser?.state?.module?.resource.includes('node_modules')) {
                 return
@@ -79,7 +81,7 @@ export class FontStylesheetGatheringPlugin {
               return result
             })
 
-          const jsxNodeHandler = (node: namedTypes.CallExpression) => {
+          const jsxNodeHandler = (node: any) => {
             if (node.arguments.length !== 2) {
               // A font link tag has only two arguments rel=stylesheet and href='...'
               return
@@ -89,19 +91,25 @@ export class FontStylesheetGatheringPlugin {
             }
 
             // node.arguments[0] is the name of the tag and [1] are the props.
-            const propsNode = node.arguments[1] as namedTypes.ObjectExpression
+            const arg1 = node.arguments[1]
+
+            const propsNode =
+              arg1.type === 'ObjectExpression' ? (arg1 as any) : undefined
             const props: { [key: string]: string } = {}
-            propsNode.properties.forEach((prop) => {
-              if (prop.type !== 'Property') {
-                return
-              }
-              if (
-                prop.key.type === 'Identifier' &&
-                prop.value.type === 'Literal'
-              ) {
-                props[prop.key.name] = prop.value.value as string
-              }
-            })
+            if (propsNode) {
+              propsNode.properties.forEach((prop: any) => {
+                if (prop.type !== 'Property') {
+                  return
+                }
+                if (
+                  prop.key.type === 'Identifier' &&
+                  prop.value.type === 'Literal'
+                ) {
+                  props[prop.key.name] = prop.value.value as string
+                }
+              })
+            }
+
             if (
               !props.rel ||
               props.rel !== 'stylesheet' ||
@@ -179,9 +187,8 @@ export class FontStylesheetGatheringPlugin {
           if (isWebpack5) {
             const fontUrls = new Set<string>()
             modules.forEach((module: any) => {
-              const fontDependencies = module?.buildInfo?.valueDependencies?.get(
-                FONT_MANIFEST
-              )
+              const fontDependencies =
+                module?.buildInfo?.valueDependencies?.get(FONT_MANIFEST)
               if (fontDependencies) {
                 fontDependencies.forEach((v: string) => fontUrls.add(v))
               }
@@ -237,12 +244,12 @@ export class FontStylesheetGatheringPlugin {
   }
 }
 
-function isNodeCreatingLinkElement(node: namedTypes.CallExpression) {
-  const callee = node.callee as namedTypes.Identifier
+function isNodeCreatingLinkElement(node: any) {
+  const callee = node.callee as any
   if (callee.type !== 'Identifier') {
     return false
   }
-  const componentNode = node.arguments[0] as namedTypes.Literal
+  const componentNode = node.arguments[0] as any
   if (componentNode.type !== 'Literal') {
     return false
   }

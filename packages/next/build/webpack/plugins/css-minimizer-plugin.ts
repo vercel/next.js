@@ -6,7 +6,6 @@ import {
   isWebpack5,
   sources,
 } from 'next/dist/compiled/webpack/webpack'
-import { trace } from '../../../telemetry/trace'
 import { spans } from './profiling-plugin'
 
 // https://github.com/NMFR/optimize-css-assets-webpack-plugin/blob/0a410a9bf28c7b0e81a3470a13748e68ca2f50aa/src/index.js#L20
@@ -36,7 +35,7 @@ export class CssMinimizerPlugin {
       // We don't actually add this parser to support Sass. It can also be used
       // for inline comment support. See the README:
       // https://github.com/postcss/postcss-scss/blob/master/README.md#2-inline-comments-for-postcss
-      parser: (postcssScss as any) as Parser,
+      parser: postcssScss as any as Parser,
     }
 
     let input: string
@@ -48,7 +47,7 @@ export class CssMinimizerPlugin {
       input = asset.source()
     }
 
-    return postcss([cssnanoSimple])
+    return postcss([cssnanoSimple({}, postcss)])
       .process(input, postcssOptions)
       .then((res) => {
         if (res.map) {
@@ -70,10 +69,10 @@ export class CssMinimizerPlugin {
             stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_SIZE,
           },
           async (assets: any) => {
-            const compilerSpan = spans.get(compiler)
-            const cssMinimizerSpan = trace(
-              'css-minimizer-plugin',
-              compilerSpan?.id
+            const compilationSpan =
+              spans.get(compilation) || spans.get(compiler)
+            const cssMinimizerSpan = compilationSpan!.traceChild(
+              'css-minimizer-plugin'
             )
             cssMinimizerSpan.setAttribute('webpackVersion', 5)
 
@@ -83,7 +82,7 @@ export class CssMinimizerPlugin {
                 files
                   .filter((file) => CSS_REGEX.test(file))
                   .map(async (file) => {
-                    const assetSpan = trace('minify-css', cssMinimizerSpan.id)
+                    const assetSpan = cssMinimizerSpan.traceChild('minify-css')
                     assetSpan.setAttribute('file', file)
 
                     return assetSpan.traceAsyncFn(async () => {
@@ -116,10 +115,9 @@ export class CssMinimizerPlugin {
       compilation.hooks.optimizeChunkAssets.tapPromise(
         'CssMinimizerPlugin',
         (chunks: webpack.compilation.Chunk[]) => {
-          const compilerSpan = spans.get(compiler)
-          const cssMinimizerSpan = trace(
-            'css-minimizer-plugin',
-            compilerSpan?.id
+          const compilationSpan = spans.get(compilation) || spans.get(compiler)
+          const cssMinimizerSpan = compilationSpan!.traceChild(
+            'css-minimizer-plugin'
           )
           cssMinimizerSpan.setAttribute('webpackVersion', 4)
           cssMinimizerSpan.setAttribute('compilationName', compilation.name)
@@ -133,7 +131,7 @@ export class CssMinimizerPlugin {
                 )
                 .filter((entry) => CSS_REGEX.test(entry))
                 .map(async (file) => {
-                  const assetSpan = trace('minify-css', cssMinimizerSpan.id)
+                  const assetSpan = cssMinimizerSpan.traceChild('minify-css')
                   assetSpan.setAttribute('file', file)
 
                   return assetSpan.traceAsyncFn(async () => {
