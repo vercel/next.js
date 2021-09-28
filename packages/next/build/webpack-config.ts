@@ -1093,6 +1093,7 @@ export default async function getBaseWebpackConfig(
         'noop-loader',
         'next-style-loader',
         'next-react-flight-loader',
+        'next-react-flight-exclude-server-loader',
       ].reduce((alias, loader) => {
         // using multiple aliases to replace `resolveLoader.modules`
         alias[loader] = path.join(__dirname, 'webpack', 'loaders', loader)
@@ -1133,6 +1134,16 @@ export default async function getBaseWebpackConfig(
                 test: /\.client\.(js|ts)x?$/,
                 use: {
                   loader: 'next-react-flight-loader',
+                },
+              },
+            ]
+          : []),
+        ...(!isServer
+          ? [
+              {
+                test: /\.server\.(js|ts)x?$/,
+                use: {
+                  loader: 'next-react-flight-exclude-server-loader',
                 },
               },
             ]
