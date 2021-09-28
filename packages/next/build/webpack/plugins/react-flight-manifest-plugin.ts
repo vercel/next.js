@@ -6,12 +6,11 @@
  */
 
 import { join } from 'path'
-// import { pathToFileURL } from 'url'
+import { resolve } from 'url'
 
 import asyncLib from 'neo-async'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 const { ModuleDependency, NullDependency } = (webpack as any).dependencies
-const { AsyncDependenciesBlock, Template } = webpack as any
 
 import { REACT_FLIGHT_MANIFEST } from '../../../shared/lib/constants'
 
@@ -120,35 +119,6 @@ export class ReactFlightManifestPlugin {
           ClientReferenceDependency,
           new NullDependency.Template()
         )
-
-        // compilation.hooks.buildModule.tap(PLUGIN_NAME, (module: any) => {
-        //   // We need to add all client references as dependency of something in the graph so
-        //   // Webpack knows which entries need to know about the relevant chunks and include the
-        //   // map in their runtime. The things that actually resolves the dependency is the Flight
-        //   // client runtime. So we add them as a dependency of the Flight client runtime.
-        //   // Anything that imports the runtime will be made aware of these chunks.
-        //   // TODO: Warn if we don't find this file anywhere in the compilation.
-        //   // if (module.resource !== clientFileName) {
-        //   //   return;
-        //   // }
-        //   if (resolvedClientReferences) {
-        //     for (let i = 0; i < resolvedClientReferences.length; i++) {
-        //       const dep = resolvedClientReferences[i]
-        //       const chunkName = 'flight' // Template.toPath(dep.userRequest) // this.chunkName
-
-        //       const block = new AsyncDependenciesBlock(
-        //         {
-        //           name: chunkName,
-        //         },
-        //         module,
-        //         null,
-        //         dep.require
-        //       )
-        //       block.addDependency(dep)
-        //       module.addBlock(block)
-        //     }
-        //   }
-        // })
       }
     )
 
@@ -180,7 +150,7 @@ export class ReactFlightManifestPlugin {
                 )
                 .forEach((name) => {
                   moduleExports[name] = {
-                    id: './components/foo.client.js',
+                    id: compilation.chunkGraph.getModuleId(mod),
                     chunks: chunk.ids,
                     name: name,
                   }
