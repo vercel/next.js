@@ -720,7 +720,6 @@ dependencies = [
  "backtrace",
  "easy-error",
  "fxhash",
- "log",
  "napi",
  "napi-build",
  "napi-derive",
@@ -728,6 +727,7 @@ dependencies = [
  "pathdiff",
  "regex",
  "retain_mut",
+ "rustc-hash",
  "serde",
  "serde_json",
  "swc",
@@ -741,6 +741,7 @@ dependencies = [
  "swc_node_base",
  "swc_stylis",
  "testing",
+ "tracing",
 ]
 
 [[package]]

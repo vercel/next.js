@@ -27,8 +27,9 @@ swc_node_base = "0.3"
 swc_stylis = "0.5.0"
 fxhash = "0.2.1"
 retain_mut = "0.1.3"
-log = {version="0.4.14", features = ["release_max_level_off"] }
 pathdiff = "0.2.0"
+rustc-hash = "1.1.0"
+tracing = { version = "0.1.28", features = ["release_max_level_off"] }
 
 
 [build-dependencies]
