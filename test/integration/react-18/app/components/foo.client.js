@@ -5,7 +5,7 @@ export default function Foo() {
 
   return (
     <button onClick={() => setCnt(cnt + 1)}>
-      On the client with state and HMR: {cnt}
+      On the client with state and HMR, Foo: {cnt}
     </button>
   )
 }
