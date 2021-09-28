@@ -131,11 +131,10 @@ export class ReactFlightManifestPlugin {
           // if (module.resource !== clientFileName) {
           //   return;
           // }
-          // console.log(module.resource, resolvedClientReferences)
           if (resolvedClientReferences) {
             for (let i = 0; i < resolvedClientReferences.length; i++) {
               const dep = resolvedClientReferences[i]
-              const chunkName = 'index.server' // Template.toPath(dep.userRequest) // this.chunkName
+              const chunkName = 'flight' // Template.toPath(dep.userRequest) // this.chunkName
 
               const block = new AsyncDependenciesBlock(
                 {
@@ -164,8 +163,6 @@ export class ReactFlightManifestPlugin {
         (assets: any) => {
           const json: any = {}
           compilation.chunkGroups.forEach((chunkGroup: any) => {
-            const chunkIds = chunkGroup.chunks.map((c: any) => c.id)
-
             function recordModule(chunk: any, mod: any) {
               // TODO: Hook into deps instead of the target module.
               // That way we know by the type of dep whether to include.
@@ -175,9 +172,12 @@ export class ReactFlightManifestPlugin {
               }
               const moduleExports: any = {}
 
-              console.log(mod.request, mod.userRequest)
               ;['', '*']
-                .concat(/*mod.buildMeta.exportsType*/ 'default')
+                .concat(
+                  compilation.moduleGraph
+                    .getExportsInfo(mod)
+                    .getProvidedExports()
+                )
                 .forEach((name) => {
                   moduleExports[name] = {
                     id: './components/foo.client.js',

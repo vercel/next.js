@@ -1486,7 +1486,8 @@ export default async function getBaseWebpackConfig(
       if (!webpack5Config.optimization) {
         webpack5Config.optimization = {}
       }
-      webpack5Config.optimization.providedExports = false
+      // TODO: to make ReactFlightManifest work, we need to enable `providedExports`
+      // webpack5Config.optimization.providedExports = false
       webpack5Config.optimization.usedExports = false
     }
 

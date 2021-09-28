@@ -1,14 +1,13 @@
-import ReactDOM from 'react-dom'
-
-import Foo from '../components/foo.client'
+import Foo, { Foo2 } from '../components/foo.client'
 // import Foo from '../components/foo'
 
 export default function Index() {
   return (
     <div>
-      <p id="react-dom-version">ReactDOM.version: {ReactDOM.version}</p>
+      <h1>only running on the server</h1>
       <p>process.versions: {JSON.stringify(process.versions)}</p>
       <Foo />
+      <Foo2 />
     </div>
   )
 }
