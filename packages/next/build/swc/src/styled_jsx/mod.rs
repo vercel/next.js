@@ -64,16 +64,26 @@ pub enum JSXStyle {
 
 impl Fold for StyledJSXTransformer {
     fn fold_jsx_element(&mut self, el: JSXElement) -> JSXElement {
-        if self.has_styled_jsx && is_styled_jsx(&el) {
-            match self.replace_jsx_style(&el) {
-                Ok(el) => return el,
-                Err(_) => return el,
+        if is_styled_jsx(&el) {
+            let parent_has_styled_jsx = self.has_styled_jsx;
+            if !parent_has_styled_jsx {
+                self.check_for_jsx_styles(Some(&el), &el.children);
             }
-        } else if self.has_styled_jsx {
+            let el = match self.replace_jsx_style(&el) {
+                Ok(el) => el,
+                Err(_) => el,
+            };
+            if !parent_has_styled_jsx {
+                self.reset_styles_state();
+            }
+            return el;
+        }
+
+        if self.has_styled_jsx {
             return el.fold_children_with(self);
         }
 
-        self.check_children_for_jsx_styles(&el.children);
+        self.check_for_jsx_styles(None, &el.children);
         let el = el.fold_children_with(self);
         self.reset_styles_state();
 
@@ -85,7 +95,7 @@ impl Fold for StyledJSXTransformer {
             return fragment.fold_children_with(self);
         }
 
-        self.check_children_for_jsx_styles(&fragment.children);
+        self.check_for_jsx_styles(None, &fragment.children);
         let fragment = fragment.fold_children_with(self);
         self.reset_styles_state();
 
@@ -319,19 +329,28 @@ impl Fold for StyledJSXTransformer {
 }
 
 impl StyledJSXTransformer {
-    fn check_children_for_jsx_styles(&mut self, children: &Vec<JSXElementChild>) {
+    fn check_for_jsx_styles(&mut self, el: Option<&JSXElement>, children: &Vec<JSXElementChild>) {
         let mut styles = vec![];
-        for i in 0..children.len() {
-            if let JSXElementChild::JSXElement(child_el) = &children[i] {
-                if is_styled_jsx(&child_el) {
-                    self.file_has_styled_jsx = true;
-                    self.has_styled_jsx = true;
-                    let expr = get_style_expr(&child_el);
-                    let style_info = self.get_jsx_style(expr, is_global(&child_el));
-                    styles.insert(0, style_info);
+        let mut process_style = |el: &JSXElement| {
+            self.file_has_styled_jsx = true;
+            self.has_styled_jsx = true;
+            let expr = get_style_expr(el);
+            let style_info = self.get_jsx_style(expr, is_global(el));
+            styles.insert(0, style_info);
+        };
+
+        if el.is_some() && is_styled_jsx(el.unwrap()) {
+            process_style(el.unwrap());
+        } else {
+            for i in 0..children.len() {
+                if let JSXElementChild::JSXElement(child_el) = &children[i] {
+                    if is_styled_jsx(&child_el) {
+                        process_style(&child_el);
+                    }
                 }
             }
-        }
+        };
+
         if self.has_styled_jsx {
             let (static_class_name, class_name) =
                 compute_class_names(&styles, self.style_import_name.as_ref().unwrap());
@@ -518,6 +537,7 @@ impl StyledJSXTransformer {
         self.has_styled_jsx = false;
         self.static_class_name = None;
         self.class_name = None;
+        self.styles = vec![];
     }
 }
 
