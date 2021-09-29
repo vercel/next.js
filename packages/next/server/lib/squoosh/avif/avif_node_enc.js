@@ -78,6 +78,13 @@ var Module = (function () {
     if (Module['arguments']) arguments_ = Module['arguments']
     if (Module['thisProgram']) thisProgram = Module['thisProgram']
     if (Module['quit']) quit_ = Module['quit']
+    var tempRet0 = 0
+    var setTempRet0 = function (value) {
+      tempRet0 = value
+    }
+    var getTempRet0 = function () {
+      return tempRet0
+    }
     var wasmBinary
     if (Module['wasmBinary']) wasmBinary = Module['wasmBinary']
     var noExitRuntime = Module['noExitRuntime'] || true
@@ -93,6 +100,16 @@ var Module = (function () {
       }
     }
     var UTF8Decoder = new TextDecoder('utf8')
+    function UTF8ArrayToString(heap, idx, maxBytesToRead) {
+      var endIdx = idx + maxBytesToRead
+      var endPtr = idx
+      while (heap[endPtr] && !(endPtr >= endIdx)) ++endPtr
+      return UTF8Decoder.decode(
+        heap.subarray
+          ? heap.subarray(idx, endPtr)
+          : new Uint8Array(heap.slice(idx, endPtr))
+      )
+    }
     function UTF8ToString(ptr, maxBytesToRead) {
       if (!ptr) return ''
       var maxPtr = ptr + maxBytesToRead
@@ -341,13 +358,13 @@ var Module = (function () {
       return filename.startsWith(dataURIPrefix)
     }
     if (Module['locateFile']) {
-      var wasmBinaryFile = 'webp_node_enc.wasm'
+      var wasmBinaryFile = 'avif_node_enc.wasm'
       if (!isDataURI(wasmBinaryFile)) {
         wasmBinaryFile = locateFile(wasmBinaryFile)
       }
     } else {
       var wasmBinaryFile = new URL(
-        'webp_node_enc.wasm',
+        'avif_node_enc.wasm',
         import.meta.url
       ).toString()
     }
@@ -391,10 +408,10 @@ var Module = (function () {
       function receiveInstance(instance, module) {
         var exports = instance.exports
         Module['asm'] = exports
-        wasmMemory = Module['asm']['x']
+        wasmMemory = Module['asm']['P']
         updateGlobalBufferAndViews(wasmMemory.buffer)
-        wasmTable = Module['asm']['D']
-        addOnInit(Module['asm']['y'])
+        wasmTable = Module['asm']['Y']
+        addOnInit(Module['asm']['Q'])
         removeRunDependency('wasm-instantiate')
       }
       addRunDependency('wasm-instantiate')
@@ -467,6 +484,43 @@ var Module = (function () {
     function _atexit(func, arg) {}
     function ___cxa_thread_atexit(a0, a1) {
       return _atexit(a0, a1)
+    }
+    var SYSCALLS = {
+      mappings: {},
+      buffers: [null, [], []],
+      printChar: function (stream, curr) {
+        var buffer = SYSCALLS.buffers[stream]
+        if (curr === 0 || curr === 10) {
+          ;(stream === 1 ? out : err)(UTF8ArrayToString(buffer, 0))
+          buffer.length = 0
+        } else {
+          buffer.push(curr)
+        }
+      },
+      varargs: undefined,
+      get: function () {
+        SYSCALLS.varargs += 4
+        var ret = HEAP32[(SYSCALLS.varargs - 4) >> 2]
+        return ret
+      },
+      getStr: function (ptr) {
+        var ret = UTF8ToString(ptr)
+        return ret
+      },
+      get64: function (low, high) {
+        return low
+      },
+    }
+    function ___sys_fcntl64(fd, cmd, varargs) {
+      SYSCALLS.varargs = varargs
+      return 0
+    }
+    function ___sys_ioctl(fd, op, varargs) {
+      SYSCALLS.varargs = varargs
+      return 0
+    }
+    function ___sys_open(path, flags, varargs) {
+      SYSCALLS.varargs = varargs
     }
     var structRegistrations = {}
     function runDestructors(destructors) {
@@ -833,129 +887,6 @@ var Module = (function () {
         destructorFunction: null,
       })
     }
-    function ensureOverloadTable(proto, methodName, humanName) {
-      if (undefined === proto[methodName].overloadTable) {
-        var prevFunc = proto[methodName]
-        proto[methodName] = function () {
-          if (
-            !proto[methodName].overloadTable.hasOwnProperty(arguments.length)
-          ) {
-            throwBindingError(
-              "Function '" +
-                humanName +
-                "' called with an invalid number of arguments (" +
-                arguments.length +
-                ') - expects one of (' +
-                proto[methodName].overloadTable +
-                ')!'
-            )
-          }
-          return proto[methodName].overloadTable[arguments.length].apply(
-            this,
-            arguments
-          )
-        }
-        proto[methodName].overloadTable = []
-        proto[methodName].overloadTable[prevFunc.argCount] = prevFunc
-      }
-    }
-    function exposePublicSymbol(name, value, numArguments) {
-      if (Module.hasOwnProperty(name)) {
-        if (
-          undefined === numArguments ||
-          (undefined !== Module[name].overloadTable &&
-            undefined !== Module[name].overloadTable[numArguments])
-        ) {
-          throwBindingError("Cannot register public name '" + name + "' twice")
-        }
-        ensureOverloadTable(Module, name, name)
-        if (Module.hasOwnProperty(numArguments)) {
-          throwBindingError(
-            'Cannot register multiple overloads of a function with the same number of arguments (' +
-              numArguments +
-              ')!'
-          )
-        }
-        Module[name].overloadTable[numArguments] = value
-      } else {
-        Module[name] = value
-        if (undefined !== numArguments) {
-          Module[name].numArguments = numArguments
-        }
-      }
-    }
-    function enumReadValueFromPointer(name, shift, signed) {
-      switch (shift) {
-        case 0:
-          return function (pointer) {
-            var heap = signed ? HEAP8 : HEAPU8
-            return this['fromWireType'](heap[pointer])
-          }
-        case 1:
-          return function (pointer) {
-            var heap = signed ? HEAP16 : HEAPU16
-            return this['fromWireType'](heap[pointer >> 1])
-          }
-        case 2:
-          return function (pointer) {
-            var heap = signed ? HEAP32 : HEAPU32
-            return this['fromWireType'](heap[pointer >> 2])
-          }
-        default:
-          throw new TypeError('Unknown integer type: ' + name)
-      }
-    }
-    function __embind_register_enum(rawType, name, size, isSigned) {
-      var shift = getShiftFromSize(size)
-      name = readLatin1String(name)
-      function ctor() {}
-      ctor.values = {}
-      registerType(rawType, {
-        name: name,
-        constructor: ctor,
-        fromWireType: function (c) {
-          return this.constructor.values[c]
-        },
-        toWireType: function (destructors, c) {
-          return c.value
-        },
-        argPackAdvance: 8,
-        readValueFromPointer: enumReadValueFromPointer(name, shift, isSigned),
-        destructorFunction: null,
-      })
-      exposePublicSymbol(name, ctor)
-    }
-    function getTypeName(type) {
-      var ptr = ___getTypeName(type)
-      var rv = readLatin1String(ptr)
-      _free(ptr)
-      return rv
-    }
-    function requireRegisteredType(rawType, humanName) {
-      var impl = registeredTypes[rawType]
-      if (undefined === impl) {
-        throwBindingError(
-          humanName + ' has unknown type ' + getTypeName(rawType)
-        )
-      }
-      return impl
-    }
-    function __embind_register_enum_value(rawEnumType, name, enumValue) {
-      var enumType = requireRegisteredType(rawEnumType, 'enum')
-      name = readLatin1String(name)
-      var Enum = enumType.constructor
-      var Value = Object.create(enumType.constructor.prototype, {
-        value: { value: enumValue },
-        constructor: {
-          value: createNamedFunction(
-            enumType.name + '_' + name,
-            function () {}
-          ),
-        },
-      })
-      Enum.values[enumValue] = Value
-      Enum[name] = Value
-    }
     function _embind_repr(v) {
       if (v === null) {
         return 'null'
@@ -1143,6 +1074,57 @@ var Module = (function () {
       var invokerFunction = new_(Function, args1).apply(null, args2)
       return invokerFunction
     }
+    function ensureOverloadTable(proto, methodName, humanName) {
+      if (undefined === proto[methodName].overloadTable) {
+        var prevFunc = proto[methodName]
+        proto[methodName] = function () {
+          if (
+            !proto[methodName].overloadTable.hasOwnProperty(arguments.length)
+          ) {
+            throwBindingError(
+              "Function '" +
+                humanName +
+                "' called with an invalid number of arguments (" +
+                arguments.length +
+                ') - expects one of (' +
+                proto[methodName].overloadTable +
+                ')!'
+            )
+          }
+          return proto[methodName].overloadTable[arguments.length].apply(
+            this,
+            arguments
+          )
+        }
+        proto[methodName].overloadTable = []
+        proto[methodName].overloadTable[prevFunc.argCount] = prevFunc
+      }
+    }
+    function exposePublicSymbol(name, value, numArguments) {
+      if (Module.hasOwnProperty(name)) {
+        if (
+          undefined === numArguments ||
+          (undefined !== Module[name].overloadTable &&
+            undefined !== Module[name].overloadTable[numArguments])
+        ) {
+          throwBindingError("Cannot register public name '" + name + "' twice")
+        }
+        ensureOverloadTable(Module, name, name)
+        if (Module.hasOwnProperty(numArguments)) {
+          throwBindingError(
+            'Cannot register multiple overloads of a function with the same number of arguments (' +
+              numArguments +
+              ')!'
+          )
+        }
+        Module[name].overloadTable[numArguments] = value
+      } else {
+        Module[name] = value
+        if (undefined !== numArguments) {
+          Module[name].numArguments = numArguments
+        }
+      }
+    }
     function heap32VectorToArray(count, firstElement) {
       var array = []
       for (var i = 0; i < count; i++) {
@@ -1206,6 +1188,12 @@ var Module = (function () {
       return fp
     }
     var UnboundTypeError = undefined
+    function getTypeName(type) {
+      var ptr = ___getTypeName(type)
+      var rv = readLatin1String(ptr)
+      _free(ptr)
+      return rv
+    }
     function throwUnboundTypeError(message, types) {
       var unboundTypes = []
       var seen = {}
@@ -1622,6 +1610,15 @@ var Module = (function () {
         emval_handle_array[handle].refcount += 1
       }
     }
+    function requireRegisteredType(rawType, humanName) {
+      var impl = registeredTypes[rawType]
+      if (undefined === impl) {
+        throwBindingError(
+          humanName + ' has unknown type ' + getTypeName(rawType)
+        )
+      }
+      return impl
+    }
     function craftEmvalAllocator(argCount) {
       var argsList = ''
       for (var i = 0; i < argCount; ++i) {
@@ -1681,6 +1678,13 @@ var Module = (function () {
     function _abort() {
       abort()
     }
+    function _longjmp(env, value) {
+      _setThrew(env, value || 1)
+      throw 'longjmp'
+    }
+    function _emscripten_longjmp(a0, a1) {
+      return _longjmp(a0, a1)
+    }
     function _emscripten_memcpy_big(dest, src, num) {
       HEAPU8.copyWithin(dest, src, src + num)
     }
@@ -1715,6 +1719,42 @@ var Module = (function () {
       }
       return false
     }
+    function _fd_close(fd) {
+      return 0
+    }
+    function _fd_read(fd, iov, iovcnt, pnum) {
+      var stream = SYSCALLS.getStreamFromFD(fd)
+      var num = SYSCALLS.doReadv(stream, iov, iovcnt)
+      HEAP32[pnum >> 2] = num
+      return 0
+    }
+    function _fd_seek(fd, offset_low, offset_high, whence, newOffset) {}
+    function _fd_write(fd, iov, iovcnt, pnum) {
+      var num = 0
+      for (var i = 0; i < iovcnt; i++) {
+        var ptr = HEAP32[(iov + i * 8) >> 2]
+        var len = HEAP32[(iov + (i * 8 + 4)) >> 2]
+        for (var j = 0; j < len; j++) {
+          SYSCALLS.printChar(fd, HEAPU8[ptr + j])
+        }
+        num += len
+      }
+      HEAP32[pnum >> 2] = num
+      return 0
+    }
+    function _getTempRet0() {
+      return getTempRet0()
+    }
+    function _setTempRet0(val) {
+      setTempRet0(val)
+    }
+    function _time(ptr) {
+      var ret = (Date.now() / 1e3) | 0
+      if (ptr) {
+        HEAP32[ptr >> 2] = ret
+      }
+      return ret
+    }
     InternalError = Module['InternalError'] = extendError(
       Error,
       'InternalError'
@@ -1727,50 +1767,68 @@ var Module = (function () {
       'UnboundTypeError'
     )
     var asmLibraryArg = {
-      w: ___cxa_thread_atexit,
-      l: __embind_finalize_value_object,
-      p: __embind_register_bigint,
-      s: __embind_register_bool,
-      r: __embind_register_emval,
-      n: __embind_register_enum,
-      d: __embind_register_enum_value,
-      j: __embind_register_float,
-      h: __embind_register_function,
-      c: __embind_register_integer,
-      b: __embind_register_memory_view,
-      k: __embind_register_std_string,
-      g: __embind_register_std_wstring,
-      m: __embind_register_value_object,
-      a: __embind_register_value_object_field,
-      t: __embind_register_void,
-      f: __emval_decref,
-      v: __emval_get_global,
-      u: __emval_incref,
-      o: __emval_new,
-      i: _abort,
-      q: _emscripten_memcpy_big,
-      e: _emscripten_resize_heap,
+      O: ___cxa_thread_atexit,
+      r: ___sys_fcntl64,
+      G: ___sys_ioctl,
+      H: ___sys_open,
+      x: __embind_finalize_value_object,
+      B: __embind_register_bigint,
+      K: __embind_register_bool,
+      J: __embind_register_emval,
+      t: __embind_register_float,
+      w: __embind_register_function,
+      i: __embind_register_integer,
+      e: __embind_register_memory_view,
+      u: __embind_register_std_string,
+      o: __embind_register_std_wstring,
+      z: __embind_register_value_object,
+      g: __embind_register_value_object_field,
+      L: __embind_register_void,
+      j: __emval_decref,
+      N: __emval_get_global,
+      v: __emval_incref,
+      D: __emval_new,
+      f: _abort,
+      d: _emscripten_longjmp,
+      E: _emscripten_memcpy_big,
+      n: _emscripten_resize_heap,
+      s: _fd_close,
+      F: _fd_read,
+      A: _fd_seek,
+      I: _fd_write,
+      b: _getTempRet0,
+      l: invoke_iiiii,
+      p: invoke_iiiiiiiii,
+      q: invoke_iiiiiiiiii,
+      C: invoke_iiiiiiiiiiii,
+      y: invoke_ijiii,
+      m: invoke_vi,
+      h: invoke_vii,
+      c: invoke_viiii,
+      k: invoke_viiiiiiiiii,
+      a: _setTempRet0,
+      M: _time,
     }
     var asm = createWasm()
     var ___wasm_call_ctors = (Module['___wasm_call_ctors'] = function () {
       return (___wasm_call_ctors = Module['___wasm_call_ctors'] =
-        Module['asm']['y']).apply(null, arguments)
+        Module['asm']['Q']).apply(null, arguments)
     })
     var _malloc = (Module['_malloc'] = function () {
-      return (_malloc = Module['_malloc'] = Module['asm']['z']).apply(
+      return (_malloc = Module['_malloc'] = Module['asm']['R']).apply(
         null,
         arguments
       )
     })
     var _free = (Module['_free'] = function () {
-      return (_free = Module['_free'] = Module['asm']['A']).apply(
+      return (_free = Module['_free'] = Module['asm']['S']).apply(
         null,
         arguments
       )
     })
     var ___getTypeName = (Module['___getTypeName'] = function () {
       return (___getTypeName = Module['___getTypeName'] =
-        Module['asm']['B']).apply(null, arguments)
+        Module['asm']['T']).apply(null, arguments)
     })
     var ___embind_register_native_and_builtin_types = (Module[
       '___embind_register_native_and_builtin_types'
@@ -1778,8 +1836,183 @@ var Module = (function () {
       return (___embind_register_native_and_builtin_types = Module[
         '___embind_register_native_and_builtin_types'
       ] =
-        Module['asm']['C']).apply(null, arguments)
+        Module['asm']['U']).apply(null, arguments)
     })
+    var stackSave = (Module['stackSave'] = function () {
+      return (stackSave = Module['stackSave'] = Module['asm']['V']).apply(
+        null,
+        arguments
+      )
+    })
+    var stackRestore = (Module['stackRestore'] = function () {
+      return (stackRestore = Module['stackRestore'] = Module['asm']['W']).apply(
+        null,
+        arguments
+      )
+    })
+    var _setThrew = (Module['_setThrew'] = function () {
+      return (_setThrew = Module['_setThrew'] = Module['asm']['X']).apply(
+        null,
+        arguments
+      )
+    })
+    var dynCall_jiiiiiiiii = (Module['dynCall_jiiiiiiiii'] = function () {
+      return (dynCall_jiiiiiiiii = Module['dynCall_jiiiiiiiii'] =
+        Module['asm']['Z']).apply(null, arguments)
+    })
+    var dynCall_ijiii = (Module['dynCall_ijiii'] = function () {
+      return (dynCall_ijiii = Module['dynCall_ijiii'] =
+        Module['asm']['_']).apply(null, arguments)
+    })
+    var dynCall_jiji = (Module['dynCall_jiji'] = function () {
+      return (dynCall_jiji = Module['dynCall_jiji'] = Module['asm']['$']).apply(
+        null,
+        arguments
+      )
+    })
+    var dynCall_jiiiiiiii = (Module['dynCall_jiiiiiiii'] = function () {
+      return (dynCall_jiiiiiiii = Module['dynCall_jiiiiiiii'] =
+        Module['asm']['aa']).apply(null, arguments)
+    })
+    var dynCall_jiiiiii = (Module['dynCall_jiiiiii'] = function () {
+      return (dynCall_jiiiiii = Module['dynCall_jiiiiii'] =
+        Module['asm']['ba']).apply(null, arguments)
+    })
+    var dynCall_jiiiii = (Module['dynCall_jiiiii'] = function () {
+      return (dynCall_jiiiii = Module['dynCall_jiiiii'] =
+        Module['asm']['ca']).apply(null, arguments)
+    })
+    var dynCall_iiijii = (Module['dynCall_iiijii'] = function () {
+      return (dynCall_iiijii = Module['dynCall_iiijii'] =
+        Module['asm']['da']).apply(null, arguments)
+    })
+    function invoke_vi(index, a1) {
+      var sp = stackSave()
+      try {
+        wasmTable.get(index)(a1)
+      } catch (e) {
+        stackRestore(sp)
+        if (e !== e + 0 && e !== 'longjmp') throw e
+        _setThrew(1, 0)
+      }
+    }
+    function invoke_viiii(index, a1, a2, a3, a4) {
+      var sp = stackSave()
+      try {
+        wasmTable.get(index)(a1, a2, a3, a4)
+      } catch (e) {
+        stackRestore(sp)
+        if (e !== e + 0 && e !== 'longjmp') throw e
+        _setThrew(1, 0)
+      }
+    }
+    function invoke_vii(index, a1, a2) {
+      var sp = stackSave()
+      try {
+        wasmTable.get(index)(a1, a2)
+      } catch (e) {
+        stackRestore(sp)
+        if (e !== e + 0 && e !== 'longjmp') throw e
+        _setThrew(1, 0)
+      }
+    }
+    function invoke_iiiiiiiiii(index, a1, a2, a3, a4, a5, a6, a7, a8, a9) {
+      var sp = stackSave()
+      try {
+        return wasmTable.get(index)(a1, a2, a3, a4, a5, a6, a7, a8, a9)
+      } catch (e) {
+        stackRestore(sp)
+        if (e !== e + 0 && e !== 'longjmp') throw e
+        _setThrew(1, 0)
+      }
+    }
+    function invoke_iiiiiiiiiiii(
+      index,
+      a1,
+      a2,
+      a3,
+      a4,
+      a5,
+      a6,
+      a7,
+      a8,
+      a9,
+      a10,
+      a11
+    ) {
+      var sp = stackSave()
+      try {
+        return wasmTable.get(index)(
+          a1,
+          a2,
+          a3,
+          a4,
+          a5,
+          a6,
+          a7,
+          a8,
+          a9,
+          a10,
+          a11
+        )
+      } catch (e) {
+        stackRestore(sp)
+        if (e !== e + 0 && e !== 'longjmp') throw e
+        _setThrew(1, 0)
+      }
+    }
+    function invoke_iiiii(index, a1, a2, a3, a4) {
+      var sp = stackSave()
+      try {
+        return wasmTable.get(index)(a1, a2, a3, a4)
+      } catch (e) {
+        stackRestore(sp)
+        if (e !== e + 0 && e !== 'longjmp') throw e
+        _setThrew(1, 0)
+      }
+    }
+    function invoke_viiiiiiiiii(
+      index,
+      a1,
+      a2,
+      a3,
+      a4,
+      a5,
+      a6,
+      a7,
+      a8,
+      a9,
+      a10
+    ) {
+      var sp = stackSave()
+      try {
+        wasmTable.get(index)(a1, a2, a3, a4, a5, a6, a7, a8, a9, a10)
+      } catch (e) {
+        stackRestore(sp)
+        if (e !== e + 0 && e !== 'longjmp') throw e
+        _setThrew(1, 0)
+      }
+    }
+    function invoke_iiiiiiiii(index, a1, a2, a3, a4, a5, a6, a7, a8) {
+      var sp = stackSave()
+      try {
+        return wasmTable.get(index)(a1, a2, a3, a4, a5, a6, a7, a8)
+      } catch (e) {
+        stackRestore(sp)
+        if (e !== e + 0 && e !== 'longjmp') throw e
+        _setThrew(1, 0)
+      }
+    }
+    function invoke_ijiii(index, a1, a2, a3, a4, a5) {
+      var sp = stackSave()
+      try {
+        return dynCall_ijiii(index, a1, a2, a3, a4, a5)
+      } catch (e) {
+        stackRestore(sp)
+        if (e !== e + 0 && e !== 'longjmp') throw e
+        _setThrew(1, 0)
+      }
+    }
     var calledRun
     dependenciesFulfilled = function runCaller() {
       if (!calledRun) run()
