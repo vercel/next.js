@@ -127,6 +127,36 @@ export function patternText({ prefix, suffix }: Pattern): string {
   return `${prefix}*${suffix}`
 }
 
+/**
+ * Calls the iterator function for each entry of the array
+ * until the first result or error is reached
+ */
+function forEachBail<TEntry>(
+  array: TEntry[],
+  iterator: (
+    entry: TEntry,
+    entryCallback: (err: any, result: any) => void
+  ) => void,
+  callback: (err?: any, result?: any) => void
+): void {
+  if (array.length === 0) return callback()
+
+  let i = 0
+  const next = () => {
+    let loop: boolean | undefined = undefined
+    iterator(array[i++], (err, result) => {
+      if (err || result !== undefined || i >= array.length) {
+        return callback(err, result)
+      }
+      if (loop === false) while (next());
+      loop = true
+    })
+    if (!loop) loop = false
+    return loop
+  }
+  while (next());
+}
+
 const NODE_MODULES_REGEX = /node_modules/
 
 type Paths = { [match: string]: string[] }
@@ -205,42 +235,36 @@ export class JsConfigPathsPlugin implements webpack.ResolvePlugin {
 
           let triedPaths = []
 
-          const possiblePaths = paths[matchedPatternText]
-          // Use callbacks instead of async/await to support synchronous resolvers
-          const resolvePathsRecursively = (
-            index: number,
-            resolveCallback: (err: any, result: any) => void
-          ): void => {
-            if (index >= possiblePaths.length) {
-              return resolveCallback(null, undefined)
-            }
-            const subst = possiblePaths[index]
-            const curPath = matchedStar
-              ? subst.replace('*', matchedStar)
-              : subst
-            // Ensure .d.ts is not matched
-            if (curPath.endsWith('.d.ts')) {
-              return resolvePathsRecursively(index + 1, resolveCallback)
-            }
-            const candidate = path.join(baseDirectory, curPath)
-            const obj = Object.assign({}, request, {
-              request: candidate,
-            })
-            resolver.doResolve(
-              target,
-              obj,
-              `Aliased with tsconfig.json or jsconfig.json ${matchedPatternText} to ${candidate}`,
-              resolveContext,
-              (resolverErr: any, resolverResult: any) => {
-                if (resolverErr || resolverResult === undefined) {
-                  triedPaths.push(candidate)
-                  return resolvePathsRecursively(index + 1, resolveCallback)
-                }
-                return resolveCallback(resolverErr, resolverResult)
+          forEachBail(
+            paths[matchedPatternText],
+            (subst, pathCallback) => {
+              const curPath = matchedStar
+                ? subst.replace('*', matchedStar)
+                : subst
+              // Ensure .d.ts is not matched
+              if (curPath.endsWith('.d.ts')) {
+                return
               }
-            )
-          }
-          resolvePathsRecursively(0, callback)
+              const candidate = path.join(baseDirectory, curPath)
+              const obj = Object.assign({}, request, {
+                request: candidate,
+              })
+              resolver.doResolve(
+                target,
+                obj,
+                `Aliased with tsconfig.json or jsconfig.json ${matchedPatternText} to ${candidate}`,
+                resolveContext,
+                (resolverErr: any, resolverResult: any) => {
+                  if (resolverErr || resolverResult === undefined) {
+                    triedPaths.push(candidate)
+                    return
+                  }
+                  return pathCallback(resolverErr, resolverResult)
+                }
+              )
+            },
+            callback
+          )
         }
       )
   }
