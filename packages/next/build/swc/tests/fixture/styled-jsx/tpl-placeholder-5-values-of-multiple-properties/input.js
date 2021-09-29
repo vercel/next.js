@@ -4,11 +4,9 @@ export default class {
         <div>
           <p>test</p>
           <style jsx>{`
-            :global(.a):hover .b {
-              .item {
-                max-width: ${a ? '100%' : '200px'};
-                padding: ${b ? '0' : '8px 20px'};
-              }
+            .item {
+              max-width: ${a ? '100%' : '200px'};
+              padding: ${b ? '0' : '8px 20px'};
             }
           `}</style>
         </div>
