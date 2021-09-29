@@ -1497,6 +1497,8 @@ export default async function getBaseWebpackConfig(
       hasRewrites,
       reactRoot: config.experimental.reactRoot,
       concurrentFeatures: config.experimental.concurrentFeatures,
+      swcMinify: config.experimental.swcMinify,
+      swcLoader: config.experimental.swcLoader,
     })
 
     const cache: any = {
