@@ -1311,7 +1311,7 @@ function renderToStream(
           }
           abort()
         },
-        onReadyToStream() {
+        onCompleteShell() {
           if (!generateStaticHTML) {
             doResolve()
           }
