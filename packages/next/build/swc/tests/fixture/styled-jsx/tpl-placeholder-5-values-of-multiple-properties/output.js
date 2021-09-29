@@ -10,7 +10,6 @@ export default class {
                 ]
             ]
         ])}>
-
           <p className={_JSXStyle.dynamic([
             [
                 "e9f85ed5d171a7cb",
@@ -20,13 +19,11 @@ export default class {
                 ]
             ]
         ])}>test</p>
-
           <_JSXStyle id={"e9f85ed5d171a7cb"} dynamic={[
             a ? "100%" : "200px",
             b ? "0" : "8px 20px"
         ]}>{`.item.__jsx-style-dynamic-selector {max-width:${a ? "100%" : "200px"};
 padding:${b ? "0" : "8px 20px"}}`}</_JSXStyle>
-
         </div>;
     }
-};
+}
