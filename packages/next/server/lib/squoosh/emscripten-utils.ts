@@ -1,4 +1,4 @@
-import { fileURLToPath, URL } from 'url'
+import { fileURLToPath } from 'url'
 
 export function pathify(path: string): string {
   if (path.startsWith('file://')) {

@@ -118,12 +118,12 @@ export async function encodeAvif(
   const e = supportedFormats['avif']
   const m = await e.enc()
   await maybeDelay()
-  const min = e.autoOptimize.min
+  const val = e.autoOptimize.min
   const r = await m.encode(image.data, image.width, image.height, {
     ...e.defaultEncoderOptions,
     // Think of cqLevel as the "amount" of quantization (0 to 62),
     // so a lower value yields higher quality (0 to 100).
-    cqLevel: quality === 0 ? 62 : Math.round(62 - (quality / 100) * 62),
+    cqLevel: quality === 0 ? val : Math.round(val - (quality / 100) * val),
   })
   return Buffer.from(r)
 }

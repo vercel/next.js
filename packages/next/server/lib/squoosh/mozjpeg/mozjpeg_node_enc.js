@@ -1,3 +1,4 @@
+/* eslint-disable */
 var Module = (function () {
   return function (Module) {
     Module = Module || {}

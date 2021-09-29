@@ -70,18 +70,7 @@ export function optimise(data, level, interlace) {
 async function load(module, imports) {
   if (typeof Response === 'function' && module instanceof Response) {
     if (typeof WebAssembly.instantiateStreaming === 'function') {
-      try {
-        return await WebAssembly.instantiateStreaming(module, imports)
-      } catch (e) {
-        if (module.headers.get('Content-Type') != 'application/wasm') {
-          console.warn(
-            '`WebAssembly.instantiateStreaming` failed because your server does not serve wasm with `application/wasm` MIME type. Falling back to `WebAssembly.instantiate` which is slower. Original error:\n',
-            e
-          )
-        } else {
-          throw e
-        }
-      }
+      return await WebAssembly.instantiateStreaming(module, imports)
     }
 
     const bytes = await module.arrayBuffer()
