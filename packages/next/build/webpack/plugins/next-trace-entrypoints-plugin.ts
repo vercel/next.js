@@ -277,7 +277,7 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
                 }
                 collectDependencies(entryMod)
 
-                const toTrace: string[] = [entry, ...depModMap.keys()]
+                const toTrace: string[] = [entry]
 
                 const entryName = entryNameMap.get(entry)!
                 const curExtraEntries = additionalEntries.get(entryName)
