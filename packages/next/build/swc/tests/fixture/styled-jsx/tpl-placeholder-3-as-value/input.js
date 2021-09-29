@@ -6,8 +6,7 @@ export default class {
           <style jsx>{`
             @media only screen {
                 a {
-                    foo: ${input}%;
-                    bar: baz;
+                    color: ${a};
                 }
             }
           `}</style>
