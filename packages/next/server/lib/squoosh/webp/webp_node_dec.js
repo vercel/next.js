@@ -1,6 +1,4 @@
 var Module = (function () {
-  var _scriptDir = import.meta.url
-
   return function (Module) {
     Module = Module || {}
 
@@ -346,10 +344,7 @@ var Module = (function () {
         wasmBinaryFile = locateFile(wasmBinaryFile)
       }
     } else {
-      var wasmBinaryFile = new URL(
-        'webp_node_dec.wasm',
-        import.meta.url
-      ).toString()
+      throw new Error('invariant')
     }
     function getBinary(file) {
       try {
