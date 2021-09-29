@@ -32,8 +32,13 @@ pub fn transform_css(
     );
     let mut ss = match result {
         Ok(ss) => ss,
-        Err(_) => {
+        Err(err) => {
             HANDLER.with(|handler| {
+                // Print css parsing errors
+                err.to_diagnostics(&handler).emit();
+
+                // TODO(kdy1): We may print css so the user can see the error, and report it.
+
                 handler
                     .struct_span_err(
                         style_info.css_span,
