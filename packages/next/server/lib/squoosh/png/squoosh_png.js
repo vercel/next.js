@@ -154,9 +154,6 @@ async function load(module, imports) {
 }
 
 async function init(input) {
-  if (typeof input === 'undefined') {
-    input = new URL('squoosh_png_bg.wasm', import.meta.url)
-  }
   const imports = {}
   imports.wbg = {}
   imports.wbg.__wbg_newwithownedu8clampedarrayandsh_787b2db8ea6bfd62 =
@@ -187,3 +184,10 @@ async function init(input) {
 }
 
 export default init
+
+// Manually remove the wasm and memory references to trigger GC
+export function cleanup() {
+  wasm = null
+  cachegetUint8Memory0 = null
+  cachegetInt32Memory0 = null
+}

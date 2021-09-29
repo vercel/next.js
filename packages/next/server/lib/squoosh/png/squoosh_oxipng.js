@@ -98,9 +98,6 @@ async function load(module, imports) {
 }
 
 async function init(input) {
-  if (typeof input === 'undefined') {
-    input = new URL('squoosh_oxipng_bg.wasm', import.meta.url)
-  }
   const imports = {}
   imports.wbg = {}
   imports.wbg.__wbindgen_throw = function (arg0, arg1) {
@@ -124,3 +121,10 @@ async function init(input) {
 }
 
 export default init
+
+// Manually remove the wasm and memory references to trigger GC
+export function cleanup() {
+  wasm = null
+  cachegetUint8Memory0 = null
+  cachegetInt32Memory0 = null
+}
