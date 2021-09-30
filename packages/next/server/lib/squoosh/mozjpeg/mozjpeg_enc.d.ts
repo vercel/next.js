@@ -1,3 +1,4 @@
+// eslint-disable-next-line no-shadow
 export const enum MozJpegColorSpace {
   GRAYSCALE = 1,
   RGB,
