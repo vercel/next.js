@@ -15,12 +15,17 @@ function Header({ user, loading }) {
               <a>About</a>
             </Link>
           </li>
+          <li>
+            <Link href="/advanced/api-profile">
+              <a>API rendered profile (advanced)</a>
+            </Link>
+          </li>
           {!loading &&
             (user ? (
               <>
                 <li>
                   <Link href="/profile">
-                    <a>Client-rendered profile</a>
+                    <a>Client rendered profile</a>
                   </Link>
                 </li>
                 <li>
@@ -29,12 +34,12 @@ function Header({ user, loading }) {
                   </Link>
                 </li>
                 <li>
-                  <a href="/api/logout">Logout</a>
+                  <a href="/api/auth/logout">Logout</a>
                 </li>
               </>
             ) : (
               <li>
-                <a href="/api/login">Login</a>
+                <a href="/api/auth/login">Login</a>
               </li>
             ))}
         </ul>
@@ -58,8 +63,9 @@ function Header({ user, loading }) {
         }
         li {
           margin-right: 1rem;
+          padding-right: 2rem;
         }
-        li:nth-child(2) {
+        li:nth-child(3) {
           margin-right: auto;
         }
         a {
