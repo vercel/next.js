@@ -20,14 +20,27 @@ export function createPagesMapping(
   pagePaths: string[],
   extensions: string[],
   isWebpack5: boolean,
-  isDev: boolean
+  isDev: boolean,
+  allowServerComponents: boolean
 ): PagesMapping {
   const previousPages: PagesMapping = {}
   const pages: PagesMapping = pagePaths.reduce(
     (result: PagesMapping, pagePath): PagesMapping => {
-      let page = `${pagePath
-        .replace(new RegExp(`\\.+(${extensions.join('|')})$`), '')
-        .replace(/\\/g, '/')}`.replace(/\/index$/, '')
+      let page = pagePath.replace(
+        new RegExp(`\\.+(${extensions.join('|')})$`),
+        ''
+      )
+
+      if (allowServerComponents) {
+        page = page.replace(/\.server$/, '')
+        if (/\.client$/.test(page)) {
+          // Assume that if there's a Client Component, that there is
+          // a matching Server Component that will map to the page.
+          return result
+        }
+      }
+
+      page = page.replace(/\\/g, '/').replace(/\/index$/, '')
 
       const pageKey = page === '' ? '/' : page
 

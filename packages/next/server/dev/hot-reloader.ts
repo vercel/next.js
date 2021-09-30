@@ -295,7 +295,8 @@ export default class HotReloader {
             pagePaths.filter((i) => i !== null) as string[],
             this.config.pageExtensions,
             this.isWebpack5,
-            true
+            true,
+            this.config.experimental.serverComponents ?? false
           )
         )
       const entrypoints = webpackConfigSpan
