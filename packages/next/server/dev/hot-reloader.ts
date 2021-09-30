@@ -230,7 +230,7 @@ export default class HotReloader {
 
       if (page === '/_error' || BLOCKED_PAGES.indexOf(page) === -1) {
         try {
-          await this.ensurePage(page, true)
+          await this.ensurePage(page)
         } catch (error) {
           await renderScriptError(
             pageBundleRes,
@@ -404,31 +404,30 @@ export default class HotReloader {
         const isClientCompilation = config.name === 'client'
 
         await Promise.all(
-          Object.keys(entries).map(async (pageKey) => {
-            const isClientKey = pageKey.startsWith('client')
-            if (isClientKey !== isClientCompilation) return
-            const page = pageKey.slice(
-              isClientKey ? 'client'.length : 'server'.length
-            )
+          Object.keys(entries).map(async (page) => {
             if (isClientCompilation && page.match(API_ROUTE)) {
               return
             }
-            const { bundlePath, absolutePagePath } = entries[pageKey]
+            const { serverBundlePath, clientBundlePath, absolutePagePath } =
+              entries[page]
             const pageExists = await isWriteable(absolutePagePath)
             if (!pageExists) {
               // page was removed
-              delete entries[pageKey]
+              delete entries[page]
               return
             }
 
-            entries[pageKey].status = BUILDING
+            entries[page].status = BUILDING
             const pageLoaderOpts: ClientPagesLoaderOptions = {
               page,
               absolutePagePath,
             }
 
-            entrypoints[bundlePath] = finalizeEntrypoint(
-              bundlePath,
+            const name = isClientCompilation
+              ? clientBundlePath
+              : serverBundlePath
+            entrypoints[name] = finalizeEntrypoint(
+              name,
               isClientCompilation
                 ? `next-client-pages-loader?${stringify(pageLoaderOpts)}!`
                 : absolutePagePath,
@@ -441,10 +440,6 @@ export default class HotReloader {
         return entrypoints
       }
     }
-
-    // Enable building of client compilation before server compilation in development
-    // @ts-ignore webpack 5
-    configs.parallelism = 1
 
     const multiCompiler = webpack(configs)
 
@@ -615,7 +610,6 @@ export default class HotReloader {
         maxInactiveAge: number
         pagesBufferLength: number
       }),
-      allowServerComponents: this.config.experimental.serverComponents ?? false,
     })
 
     this.middlewares = [
@@ -689,18 +683,15 @@ export default class HotReloader {
     )
   }
 
-  public async ensurePage(page: string, clientOnly: boolean = false) {
+  public async ensurePage(page: string) {
     // Make sure we don't re-build or dispose prebuilt pages
     if (page !== '/_error' && BLOCKED_PAGES.indexOf(page) !== -1) {
       return
     }
-    const error = clientOnly
-      ? this.clientError
-      : this.serverError || this.clientError
-    if (error) {
-      return Promise.reject(error)
+    if (this.serverError || this.clientError) {
+      return Promise.reject(this.serverError || this.clientError)
     }
-    return this.onDemandEntries.ensurePage(page, clientOnly)
+    return this.onDemandEntries.ensurePage(page)
   }
 }
 
