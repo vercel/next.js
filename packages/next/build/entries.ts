@@ -23,27 +23,20 @@ export function createPagesMapping(
   isDev: boolean,
   allowServerComponents: boolean
 ): PagesMapping {
+  const pathTransforms: Array<(x: string) => string> = [
+    (x) => x.replace(new RegExp(`\\.+(${extensions.join('|')})$`), ''),
+    (x) => (allowServerComponents ? x.replace(/\.(client|server)$/, '') : x),
+    (x) => x.replace(/\\/g, '/'),
+    (x) => x.replace(/\/index$/, ''),
+    (x) => (x === '' ? '/' : x),
+  ]
   const previousPages: PagesMapping = {}
   const pages: PagesMapping = pagePaths.reduce(
     (result: PagesMapping, pagePath): PagesMapping => {
-      let page = pagePath.replace(
-        new RegExp(`\\.+(${extensions.join('|')})$`),
-        ''
+      const pageKey = pathTransforms.reduce(
+        (path, transform) => transform(path),
+        pagePath
       )
-
-      if (allowServerComponents) {
-        page = page.replace(/\.server$/, '')
-        if (/\.client$/.test(page)) {
-          // Assume that if there's a Client Component, that there is
-          // a matching Server Component that will map to the page.
-          return result
-        }
-      }
-
-      page = page.replace(/\\/g, '/').replace(/\/index$/, '')
-
-      const pageKey = page === '' ? '/' : page
-
       if (pageKey in result) {
         warn(
           `Duplicate page detected. ${chalk.cyan(
