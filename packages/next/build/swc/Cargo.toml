@@ -21,7 +21,7 @@ swc_atoms = "0.2"
 swc_common = { version = "0.13", features = ["concurrent", "sourcemap"] }
 swc_css = "0.8.2"
 swc_ecmascript = { version = "0.68", features = ["codegen", "minifier", "optimization", "parser", "react", "transforms", "typescript", "utils", "visit"] }
-swc_ecma_preset_env = "0.46.0"
+swc_ecma_preset_env = "0.47.0"
 swc_node_base = "0.4.0"
 swc_stylis = "0.5.0"
 fxhash = "0.2.1"
