@@ -9,7 +9,6 @@ import { pageNotFoundError } from '../require'
 import { findPageFile } from '../lib/find-page-file'
 import getRouteFromEntrypoint from '../get-route-from-entrypoint'
 import { API_ROUTE } from '../../lib/constants'
-import { createPagePathTransformer } from '../page-path'
 
 export const ADDED = Symbol('added')
 export const BUILDING = Symbol('building')
@@ -32,21 +31,15 @@ export default function onDemandEntryHandler(
     pageExtensions,
     maxInactiveAge,
     pagesBufferLength,
-    allowServerComponents,
   }: {
     pagesDir: string
     pageExtensions: string[]
     maxInactiveAge: number
     pagesBufferLength: number
-    allowServerComponents: boolean
   }
 ) {
   const { compilers } = multiCompiler
   const invalidator = new Invalidator(watcher, multiCompiler)
-  const getPageFromPath = createPagePathTransformer(
-    pageExtensions,
-    allowServerComponents
-  )
 
   let lastClientAccessPages = ['']
   let doneCallbacks: EventEmitter | null = new EventEmitter()
@@ -174,7 +167,14 @@ export default function onDemandEntryHandler(
         throw pageNotFoundError(normalizedPagePath)
       }
 
-      const pageUrl = getPageFromPath(pagePath)
+      let pageUrl = pagePath.replace(/\\/g, '/')
+
+      pageUrl = `${pageUrl[0] !== '/' ? '/' : ''}${pageUrl
+        .replace(new RegExp(`\\.+(?:${pageExtensions.join('|')})$`), '')
+        .replace(/\/index$/, '')}`
+
+      pageUrl = pageUrl === '' ? '/' : pageUrl
+
       const bundleFile = normalizePagePath(pageUrl)
       const bundlePath = posix.join('pages', bundleFile)
       const absolutePagePath = pagePath.startsWith('next/dist/pages')

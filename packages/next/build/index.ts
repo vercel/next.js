@@ -260,13 +260,7 @@ export default async function build(
     const mappedPages = nextBuildSpan
       .traceChild('create-pages-mapping')
       .traceFn(() =>
-        createPagesMapping(
-          pagePaths,
-          config.pageExtensions,
-          isWebpack5,
-          false,
-          config.experimental.serverComponents ?? false
-        )
+        createPagesMapping(pagePaths, config.pageExtensions, isWebpack5, false)
       )
     const entrypoints = nextBuildSpan
       .traceChild('create-entrypoints')
