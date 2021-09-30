@@ -183,7 +183,7 @@ export const preprocessors = {
         { numRotations }: RotateOptions
       ) => {
         const degrees = (numRotations * 90) % 360
-        const sameDimensions = degrees == 0 || degrees == 180
+        const sameDimensions = degrees === 0 || degrees === 180
         const size = width * height * 4
         const instance = (
           await WebAssembly.instantiate(await fsp.readFile(pathify(rotateWasm)))
@@ -296,6 +296,7 @@ export const codecs = {
   avif: {
     name: 'AVIF',
     extension: 'avif',
+    // eslint-disable-next-line no-control-regex
     detectors: [/^\x00\x00\x00 ftypavif\x00\x00\x00\x00/],
     dec: () =>
       instantiateEmscriptenWasm(avifDec as DecodeModuleFactory, avifDecWasm),
@@ -326,6 +327,7 @@ export const codecs = {
   oxipng: {
     name: 'OxiPNG',
     extension: 'png',
+    // eslint-disable-next-line no-control-regex
     detectors: [/^\x89PNG\x0D\x0A\x1A\x0A/],
     dec: async () => {
       await pngEncDecPromise
