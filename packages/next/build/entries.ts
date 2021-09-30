@@ -10,6 +10,7 @@ import { ClientPagesLoaderOptions } from './webpack/loaders/next-client-pages-lo
 import { ServerlessLoaderQuery } from './webpack/loaders/next-serverless-loader'
 import { LoadedEnvFiles } from '@next/env'
 import { NextConfigComplete } from '../server/config-shared'
+import type webpack5 from 'webpack5'
 
 type PagesMapping = {
   [page: string]: string
@@ -62,21 +63,9 @@ export function createPagesMapping(
   return pages
 }
 
-export type WebpackEntrypoints = {
-  [bundle: string]:
-    | string
-    | string[]
-    | {
-        import: string | string[]
-        dependOn?: string | string[]
-        publicPath?: string
-        runtime?: string
-      }
-}
-
 type Entrypoints = {
-  client: WebpackEntrypoints
-  server: WebpackEntrypoints
+  client: webpack5.EntryObject
+  server: webpack5.EntryObject
 }
 
 export function createEntrypoints(
@@ -87,8 +76,8 @@ export function createEntrypoints(
   config: NextConfigComplete,
   loadedEnvFiles: LoadedEnvFiles
 ): Entrypoints {
-  const client: WebpackEntrypoints = {}
-  const server: WebpackEntrypoints = {}
+  const client: webpack5.EntryObject = {}
+  const server: webpack5.EntryObject = {}
 
   const hasRuntimeConfig =
     Object.keys(config.publicRuntimeConfig).length > 0 ||

@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 
-import { resolve } from 'path'
 import arg from 'next/dist/compiled/arg/index.js'
 import startServer from '../server/lib/start-server'
 import { printAndExit } from '../server/lib/utils'
 import { cliCommand } from '../bin/next'
 import * as Log from '../build/output/log'
 import isError from '../lib/is-error'
+import { getProjectDir } from '../lib/get-project-dir'
 
 const nextStart: cliCommand = (argv) => {
   const validArgs: arg.Spec = {
@@ -49,7 +49,7 @@ const nextStart: cliCommand = (argv) => {
     process.exit(0)
   }
 
-  const dir = resolve(args._[0] || '.')
+  const dir = getProjectDir(args._[0])
   let port: number =
     args['--port'] || (process.env.PORT && parseInt(process.env.PORT)) || 3000
   const host = args['--hostname'] || '0.0.0.0'

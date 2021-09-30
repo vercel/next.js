@@ -1,13 +1,11 @@
-import { webpack, isWebpack5 } from 'next/dist/compiled/webpack/webpack'
+import { NormalModule, isWebpack5 } from 'next/dist/compiled/webpack/webpack'
 import { Span } from '../../../trace'
+import type webpack from 'webpack'
 
 const pluginName = 'ProfilingPlugin'
-export const spans = new WeakMap<
-  webpack.compilation.Compilation | webpack.Compiler,
-  Span
->()
+export const spans = new WeakMap<webpack.Compilation | webpack.Compiler, Span>()
 const moduleSpansByCompilation = new WeakMap<
-  webpack.compilation.Compilation,
+  webpack.Compilation,
   WeakMap<webpack.Module, Span>
 >()
 export const webpackInvalidSpans = new WeakMap<any, Span>()
@@ -15,7 +13,7 @@ export const webpackInvalidSpans = new WeakMap<any, Span>()
 function getNormalModuleLoaderHook(compilation: any) {
   if (isWebpack5) {
     // @ts-ignore TODO: Remove ignore when webpack 5 is stable
-    return webpack.NormalModule.getCompilationHooks(compilation).loader
+    return NormalModule.getCompilationHooks(compilation).loader
   }
 
   return compilation.hooks.normalModuleLoader
@@ -181,19 +179,19 @@ export class ProfilingPlugin {
           { parentSpan: () => spans.get(compilation)! }
         )
 
-        this.traceHookPair(
-          'add-entry',
-          compilation.hooks.addEntry,
-          compilation.hooks.afterSeal,
-          {
-            attrs: (entry: any) => {
-              return {
-                request: entry.request,
-              }
-            },
-            parentSpan: () => spans.get(compilation)!,
+        compilation.hooks.addEntry.tap(pluginName, (entry: any) => {
+          const compilationSpan = spans.get(compilation)
+          if (!compilationSpan) {
+            return
           }
-        )
+          const addEntrySpan = compilationSpan.traceChild('add-entry')
+          addEntrySpan.setAttribute('request', entry.request)
+          spans.set(entry, addEntrySpan)
+        })
+
+        compilation.hooks.succeedEntry.tap(pluginName, (entry: any) => {
+          spans.get(entry)?.stop()
+        })
       }
 
       this.traceHookPair(

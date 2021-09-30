@@ -12,11 +12,10 @@ import {
   nextBuild,
   nextStart,
   File,
+  check,
 } from 'next-test-utils'
 import { join } from 'path'
-import webpack from 'webpack'
 
-const isWebpack5 = parseInt(webpack.version) === 5
 let app
 let appPort
 const appDir = join(__dirname, '../')
@@ -83,7 +82,11 @@ function runTests(dev = false) {
     let browser
     try {
       browser = await webdriver(appPort, '/config')
-      expect(await browser.elementByCss('#amp-timeago').text()).not.toBe('fail')
+      await check(
+        () => browser.elementByCss('#amp-timeago').text(),
+        'just now',
+        true
+      )
     } finally {
       if (browser) await browser.close()
     }
@@ -101,7 +104,11 @@ function runTests(dev = false) {
   })
 }
 
-;(isWebpack5 ? describe : describe.skip)('Async modules', () => {
+describe('Async modules', () => {
+  if (process.env.NEXT_PRIVATE_TEST_WEBPACK4_MODE) {
+    it.skip("webpack 4 doesn't support top level await", () => {})
+    return
+  }
   describe('dev mode', () => {
     beforeAll(async () => {
       appPort = await findPort()

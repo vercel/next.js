@@ -1,7 +1,11 @@
+import path from 'path'
+import resolveFrom from 'resolve-from'
 import { spawn } from 'child_process'
 import { NextInstance } from './base'
 
 export class NextDevInstance extends NextInstance {
+  private _cliOutput: string
+
   public get buildId() {
     return 'development'
   }
@@ -10,13 +14,19 @@ export class NextDevInstance extends NextInstance {
     await super.createTestDir()
   }
 
+  public get cliOutput() {
+    return this._cliOutput || ''
+  }
+
   public async start() {
     if (this.childProcess) {
       throw new Error('next already started')
     }
     // we don't use yarn next here as yarn detaches itself from the
     // child process making it harder to kill all processes
-    this.childProcess = spawn('node', ['node_modules/next/dist/bin/next'], {
+    const nextDir = path.dirname(resolveFrom(this.testDir, 'next/package.json'))
+
+    this.childProcess = spawn('node', [path.join(nextDir, '/dist/bin/next')], {
       cwd: this.testDir,
       stdio: ['ignore', 'pipe', 'pipe'],
       shell: false,
@@ -32,15 +42,18 @@ export class NextDevInstance extends NextInstance {
     this.childProcess.stdout.on('data', (chunk) => {
       const msg = chunk.toString()
       process.stdout.write(chunk)
+      this._cliOutput += msg
       this.emit('stdout', [msg])
     })
     this.childProcess.stderr.on('data', (chunk) => {
       const msg = chunk.toString()
       process.stderr.write(chunk)
+      this._cliOutput += msg
       this.emit('stderr', [msg])
     })
 
     this.childProcess.on('close', (code) => {
+      if (this.isStopping) return
       if (code) {
         throw new Error(`next dev exited unexpectedly with code ${code}`)
       }
