@@ -1563,7 +1563,7 @@ export default async function getBaseWebpackConfig(
   webpackConfig = await buildConfiguration(webpackConfig, {
     rootDirectory: dir,
     customAppFile: new RegExp(
-      escapeRegExp(path.join(pagesDir, `_app`).replace(/\\/g, '(/|\\\\)'))
+      escapeRegExp(path.join(pagesDir, `_app`))
     ),
     isDevelopment: dev,
     isServer,
