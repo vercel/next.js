@@ -329,6 +329,7 @@ export default async function getBaseWebpackConfig(
     /next[\\/]dist[\\/]shared[\\/]lib/,
     /next[\\/]dist[\\/]client/,
     /next[\\/]dist[\\/]pages/,
+    /next[\\/]dist[\\/]vitals/,
     /[\\/](strip-ansi|ansi-regex)[\\/]/,
   ]
 
