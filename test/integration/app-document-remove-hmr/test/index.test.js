@@ -48,7 +48,7 @@ describe('_app removal HMR', () => {
 
       await check(async () => {
         const html = await browser.eval('document.documentElement.innerHTML')
-        return html.indexOf('index page updated') &&
+        return html.includes('index page updated') &&
           !html.includes('custom _app')
           ? 'success'
           : html
@@ -100,7 +100,7 @@ describe('_app removal HMR', () => {
 
       await check(async () => {
         const html = await browser.eval('document.documentElement.innerHTML')
-        return html.indexOf('index page updated') &&
+        return html.includes('index page updated') &&
           !html.includes('custom _document')
           ? 'success'
           : html

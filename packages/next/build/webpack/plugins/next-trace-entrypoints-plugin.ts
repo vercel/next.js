@@ -9,11 +9,6 @@ import {
   isWebpack5,
   sources,
 } from 'next/dist/compiled/webpack/webpack'
-import {
-  NODE_ESM_RESOLVE_OPTIONS,
-  NODE_RESOLVE_OPTIONS,
-} from '../../webpack-config'
-import { NextConfigComplete } from '../../../server/config-shared'
 
 const PLUGIN_NAME = 'TraceEntryPointsPlugin'
 const TRACE_IGNORES = [
@@ -38,20 +33,16 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
   private appDir: string
   private entryTraces: Map<string, string[]>
   private excludeFiles: string[]
-  private esmExternals: NextConfigComplete['experimental']['esmExternals']
 
   constructor({
     appDir,
     excludeFiles,
-    esmExternals,
   }: {
     appDir: string
     excludeFiles?: string[]
-    esmExternals?: NextConfigComplete['experimental']['esmExternals']
   }) {
     this.appDir = appDir
     this.entryTraces = new Map()
-    this.esmExternals = esmExternals
     this.excludeFiles = excludeFiles || []
   }
 
@@ -308,10 +299,18 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
                 const tracedDeps: string[] = []
 
                 for (const file of result.fileList) {
+                  // don't include the entry itself
                   if (result.reasons[file].type === 'initial') {
                     continue
                   }
-                  tracedDeps.push(nodePath.join(root, file))
+                  const filepath = nodePath.join(root, file)
+
+                  // don't include transpiled files as they are included
+                  // in the webpack output (e.g. chunks or the entry itself)
+                  if (depModMap.get(filepath)?.originalSource?.()) {
+                    continue
+                  }
+                  tracedDeps.push(filepath)
                 }
 
                 // entryMod.buildInfo.cachedNextEntryTrace = {
@@ -354,80 +353,32 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
             }
           )
           const resolver = compilation.resolverFactory.get('normal')
-          const looseEsmExternals = this.esmExternals === 'loose'
 
           const doResolve = async (
             request: string,
             context: string,
-            isEsmRequested?: boolean
+            _isEsmRequested?: boolean
           ): Promise<string> => {
-            const preferEsm = isEsmRequested && this.esmExternals
-            const curResolver = resolver.withOptions(
-              preferEsm ? NODE_ESM_RESOLVE_OPTIONS : NODE_RESOLVE_OPTIONS
-            )
+            return new Promise((resolve, reject) => {
+              resolver.resolve(
+                {},
+                context,
+                request,
+                {
+                  fileDependencies: compilation.fileDependencies,
+                  missingDependencies: compilation.missingDependencies,
+                  contextDependencies: compilation.contextDependencies,
+                },
+                (err: any, result: string) => {
+                  if (err) return reject(err)
 
-            let res: string = ''
-            try {
-              res = await new Promise((resolve, reject) => {
-                curResolver.resolve(
-                  {},
-                  context,
-                  request,
-                  {
-                    fileDependencies: compilation.fileDependencies,
-                    missingDependencies: compilation.missingDependencies,
-                    contextDependencies: compilation.contextDependencies,
-                  },
-                  (err: any, result: string) => {
-                    if (err) reject(err)
-                    else resolve(result)
+                  if (!result) {
+                    return reject(new Error('module not found'))
                   }
-                )
-              })
-            } catch (err) {
-              if (!(isEsmRequested && looseEsmExternals)) {
-                throw err
-              }
-              // continue to attempt alternative resolving
-            }
-
-            if (!res && isEsmRequested && looseEsmExternals) {
-              const altResolver = resolver.withOptions(
-                preferEsm ? NODE_RESOLVE_OPTIONS : NODE_ESM_RESOLVE_OPTIONS
+                  resolve(result)
+                }
               )
-
-              res = await new Promise((resolve, reject) => {
-                altResolver.resolve(
-                  {},
-                  context,
-                  request,
-                  {
-                    fileDependencies: compilation.fileDependencies,
-                    missingDependencies: compilation.missingDependencies,
-                    contextDependencies: compilation.contextDependencies,
-                  },
-                  (err: any, result: string) => {
-                    if (err) reject(err)
-                    else resolve(result)
-                  }
-                )
-              })
-            }
-
-            if (!res) {
-              // we should not get here as one of the two above resolves should
-              // have thrown but this is here as a safeguard
-              throw new Error(
-                'invariant: failed to resolve ' +
-                  JSON.stringify({
-                    isEsmRequested,
-                    looseEsmExternals,
-                    request,
-                    res,
-                  })
-              )
-            }
-            return res
+            })
           }
 
           this.tapfinishModules(
