@@ -9,6 +9,7 @@ import {
   isWebpack5,
   sources,
 } from 'next/dist/compiled/webpack/webpack'
+import { NODE_RESOLVE_OPTIONS } from '../../webpack-config'
 
 const PLUGIN_NAME = 'TraceEntryPointsPlugin'
 const TRACE_IGNORES = [
@@ -352,7 +353,12 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
               )
             }
           )
-          const resolver = compilation.resolverFactory.get('normal')
+          let resolver = compilation.resolverFactory.get('normal')
+
+          resolver = resolver.withOptions({
+            ...NODE_RESOLVE_OPTIONS,
+            extensions: undefined,
+          })
 
           const doResolve = async (
             request: string,
