@@ -7,7 +7,7 @@ import semver from 'next/dist/compiled/semver'
 import { isWebpack5, webpack } from 'next/dist/compiled/webpack/webpack'
 import type webpack5 from 'webpack5'
 import path, { join as pathJoin, relative as relativePath } from 'path'
-import escapeRegExp from 'next/dist/compiled/lodash.escaperegexp'
+import escapeRegExp from 'next/dist/compiled/escape-string-regexp'
 import {
   DOT_NEXT_ALIAS,
   NEXT_PROJECT_ROOT,
