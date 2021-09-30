@@ -7,6 +7,7 @@ import semver from 'next/dist/compiled/semver'
 import { isWebpack5, webpack } from 'next/dist/compiled/webpack/webpack'
 import type webpack5 from 'webpack5'
 import path, { join as pathJoin, relative as relativePath } from 'path'
+import escapeRegExp from 'next/dist/compiled/escape-string-regexp'
 import {
   DOT_NEXT_ALIAS,
   NEXT_PROJECT_ROOT,
@@ -1561,9 +1562,7 @@ export default async function getBaseWebpackConfig(
 
   webpackConfig = await buildConfiguration(webpackConfig, {
     rootDirectory: dir,
-    customAppFile: new RegExp(
-      path.join(pagesDir, `_app`).replace(/\\/g, '(/|\\\\)')
-    ),
+    customAppFile: new RegExp(escapeRegExp(path.join(pagesDir, `_app`))),
     isDevelopment: dev,
     isServer,
     assetPrefix: config.assetPrefix || '',
