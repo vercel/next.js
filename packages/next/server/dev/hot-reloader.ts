@@ -610,6 +610,7 @@ export default class HotReloader {
         maxInactiveAge: number
         pagesBufferLength: number
       }),
+      allowServerComponents: this.config.experimental.serverComponents ?? false,
     })
 
     this.middlewares = [
