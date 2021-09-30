@@ -92,18 +92,20 @@ export async function loadComponents(
     } as LoadComponentsReturnType
   }
 
-  const DocumentMod = await requirePage('/_document', distDir, serverless)
-  const AppMod = await requirePage('/_app', distDir, serverless)
-  const ComponentMod = await requirePage(pathname, distDir, serverless)
+  const [DocumentMod, AppMod, ComponentMod] = await Promise.all([
+    requirePage('/_document', distDir, serverless),
+    requirePage('/_app', distDir, serverless),
+    requirePage(pathname, distDir, serverless),
+  ])
 
-  const [buildManifest, reactLoadableManifest, Component, Document, App] =
-    await Promise.all([
-      require(join(distDir, BUILD_MANIFEST)),
-      require(join(distDir, REACT_LOADABLE_MANIFEST)),
-      interopDefault(ComponentMod),
-      interopDefault(DocumentMod),
-      interopDefault(AppMod),
-    ])
+  const [buildManifest, reactLoadableManifest] = await Promise.all([
+    require(join(distDir, BUILD_MANIFEST)),
+    require(join(distDir, REACT_LOADABLE_MANIFEST)),
+  ])
+
+  const Component = interopDefault(ComponentMod)
+  const Document = interopDefault(DocumentMod)
+  const App = interopDefault(AppMod)
 
   const { getServerSideProps, getStaticProps, getStaticPaths } = ComponentMod
 

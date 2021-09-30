@@ -8,6 +8,7 @@ import { normalizePagePath, normalizePathSep } from '../normalize-page-path'
 import { pageNotFoundError } from '../require'
 import { findPageFile } from '../lib/find-page-file'
 import getRouteFromEntrypoint from '../get-route-from-entrypoint'
+import { API_ROUTE } from '../../lib/constants'
 
 export const ADDED = Symbol('added')
 export const BUILDING = Symbol('building')
@@ -15,8 +16,7 @@ export const BUILT = Symbol('built')
 
 export let entries: {
   [page: string]: {
-    serverBundlePath: string
-    clientBundlePath: string
+    bundlePath: string
     absolutePagePath: string
     status?: typeof ADDED | typeof BUILDING | typeof BUILT
     lastActiveTime?: number
@@ -41,7 +41,7 @@ export default function onDemandEntryHandler(
   const { compilers } = multiCompiler
   const invalidator = new Invalidator(watcher, multiCompiler)
 
-  let lastAccessPages = ['']
+  let lastClientAccessPages = ['']
   let doneCallbacks: EventEmitter | null = new EventEmitter()
 
   for (const compiler of compilers) {
@@ -53,12 +53,15 @@ export default function onDemandEntryHandler(
     )
   }
 
-  function getPagePathsFromEntrypoints(entrypoints: any): string[] {
+  function getPagePathsFromEntrypoints(
+    type: string,
+    entrypoints: any
+  ): string[] {
     const pagePaths = []
     for (const entrypoint of entrypoints.values()) {
       const page = getRouteFromEntrypoint(entrypoint.name)
       if (page) {
-        pagePaths.push(page)
+        pagePaths.push(`${type}${page}`)
       }
     }
 
@@ -70,10 +73,16 @@ export default function onDemandEntryHandler(
       return invalidator.doneBuilding()
     }
     const [clientStats, serverStats] = multiStats.stats
-    const pagePaths = new Set([
-      ...getPagePathsFromEntrypoints(clientStats.compilation.entrypoints),
-      ...getPagePathsFromEntrypoints(serverStats.compilation.entrypoints),
-    ])
+    const pagePaths = [
+      ...getPagePathsFromEntrypoints(
+        'client',
+        clientStats.compilation.entrypoints
+      ),
+      ...getPagePathsFromEntrypoints(
+        'server',
+        serverStats.compilation.entrypoints
+      ),
+    ]
 
     for (const page of pagePaths) {
       const entry = entries[page]
@@ -86,7 +95,6 @@ export default function onDemandEntryHandler(
       }
 
       entry.status = BUILT
-      entry.lastActiveTime = Date.now()
       doneCallbacks!.emit(page)
     }
 
@@ -94,14 +102,15 @@ export default function onDemandEntryHandler(
   })
 
   const disposeHandler = setInterval(function () {
-    disposeInactiveEntries(watcher, lastAccessPages, maxInactiveAge)
+    disposeInactiveEntries(watcher, lastClientAccessPages, maxInactiveAge)
   }, 5000)
 
   disposeHandler.unref()
 
   function handlePing(pg: string) {
     const page = normalizePathSep(pg)
-    const entryInfo = entries[page]
+    const pageKey = `client${page}`
+    const entryInfo = entries[pageKey]
     let toSend
 
     // If there's no entry, it may have been invalidated and needs to be re-built.
@@ -121,12 +130,12 @@ export default function onDemandEntryHandler(
     if (entryInfo.status !== BUILT) return
 
     // If there's an entryInfo
-    if (!lastAccessPages.includes(page)) {
-      lastAccessPages.unshift(page)
+    if (!lastClientAccessPages.includes(pageKey)) {
+      lastClientAccessPages.unshift(pageKey)
 
       // Maintain the buffer max length
-      if (lastAccessPages.length > pagesBufferLength) {
-        lastAccessPages.pop()
+      if (lastClientAccessPages.length > pagesBufferLength) {
+        lastClientAccessPages.pop()
       }
     }
     entryInfo.lastActiveTime = Date.now()
@@ -134,7 +143,7 @@ export default function onDemandEntryHandler(
   }
 
   return {
-    async ensurePage(page: string) {
+    async ensurePage(page: string, clientOnly: boolean) {
       let normalizedPagePath: string
       try {
         normalizedPagePath = normalizePagePath(page)
@@ -167,48 +176,69 @@ export default function onDemandEntryHandler(
       pageUrl = pageUrl === '' ? '/' : pageUrl
 
       const bundleFile = normalizePagePath(pageUrl)
-      const serverBundlePath = posix.join('pages', bundleFile)
-      const clientBundlePath = posix.join('pages', bundleFile)
+      const bundlePath = posix.join('pages', bundleFile)
       const absolutePagePath = pagePath.startsWith('next/dist/pages')
         ? require.resolve(pagePath)
         : join(pagesDir, pagePath)
 
       page = posix.normalize(pageUrl)
+      const normalizedPage = normalizePathSep(page)
 
-      return new Promise<void>((resolve, reject) => {
-        // Makes sure the page that is being kept in on-demand-entries matches the webpack output
-        const normalizedPage = normalizePathSep(page)
-        const entryInfo = entries[normalizedPage]
+      const isApiRoute = normalizedPage.match(API_ROUTE)
 
-        if (entryInfo) {
-          if (entryInfo.status === BUILT) {
+      let entriesChanged = false
+      const addPageEntry = (type: 'client' | 'server') => {
+        return new Promise<void>((resolve, reject) => {
+          // Makes sure the page that is being kept in on-demand-entries matches the webpack output
+          const pageKey = `${type}${normalizedPage}`
+          const entryInfo = entries[pageKey]
+
+          if (entryInfo) {
+            entryInfo.lastActiveTime = Date.now()
+            if (entryInfo.status === BUILT) {
+              resolve()
+              return
+            }
+
+            doneCallbacks!.once(pageKey, handleCallback)
+            return
+          }
+
+          entriesChanged = true
+
+          entries[pageKey] = {
+            bundlePath,
+            absolutePagePath,
+            status: ADDED,
+            lastActiveTime: Date.now(),
+          }
+          doneCallbacks!.once(pageKey, handleCallback)
+
+          function handleCallback(err: Error) {
+            if (err) return reject(err)
             resolve()
-            return
           }
+        })
+      }
 
-          if (entryInfo.status === BUILDING) {
-            doneCallbacks!.once(normalizedPage, handleCallback)
-            return
-          }
-        }
+      const promise = isApiRoute
+        ? addPageEntry('server')
+        : clientOnly
+        ? addPageEntry('client')
+        : Promise.all([addPageEntry('client'), addPageEntry('server')])
 
-        Log.event(`build page: ${normalizedPage}`)
-
-        entries[normalizedPage] = {
-          serverBundlePath,
-          clientBundlePath,
-          absolutePagePath,
-          status: ADDED,
-        }
-        doneCallbacks!.once(normalizedPage, handleCallback)
-
+      if (entriesChanged) {
+        Log.event(
+          isApiRoute
+            ? `build page: ${normalizedPage} (server only)`
+            : clientOnly
+            ? `build page: ${normalizedPage} (client only)`
+            : `build page: ${normalizedPage}`
+        )
         invalidator.invalidate()
+      }
 
-        function handleCallback(err: Error) {
-          if (err) return reject(err)
-          resolve()
-        }
-      })
+      return promise
     },
 
     middleware(req: IncomingMessage, res: ServerResponse, next: Function) {
@@ -234,8 +264,8 @@ export default function onDemandEntryHandler(
 }
 
 function disposeInactiveEntries(
-  watcher: any,
-  lastAccessPages: any,
+  _watcher: any,
+  lastClientAccessPages: any,
   maxInactiveAge: number
 ) {
   const disposingPages: any = []
@@ -250,7 +280,7 @@ function disposeInactiveEntries(
     // We should not build the last accessed page even we didn't get any pings
     // Sometimes, it's possible our XHR ping to wait before completing other requests.
     // In that case, we should not dispose the current viewing page
-    if (lastAccessPages.includes(page)) return
+    if (lastClientAccessPages.includes(page)) return
 
     if (lastActiveTime && Date.now() - lastActiveTime > maxInactiveAge) {
       disposingPages.push(page)
@@ -262,7 +292,7 @@ function disposeInactiveEntries(
       delete entries[page]
     })
     // disposing inactive page(s)
-    watcher.invalidate()
+    // watcher.invalidate()
   }
 }
 

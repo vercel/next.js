@@ -1297,7 +1297,6 @@ export default async function getBaseWebpackConfig(
         isWebpack5 &&
         new TraceEntryPointsPlugin({
           appDir: dir,
-          esmExternals: config.experimental.esmExternals,
         }),
       // Moment.js is an extremely popular library that bundles large locale files
       // by default due to how Webpack interprets its code. This is a practical
@@ -1416,11 +1415,6 @@ export default async function getBaseWebpackConfig(
       },
     }
 
-    if (isServer && dev) {
-      // Enable building of client compilation before server compilation in development
-      webpack5Config.dependencies = ['client']
-    }
-
     if (dev) {
       // @ts-ignore unsafeCache exists
       webpack5Config.module.unsafeCache = (module) =>
@@ -1498,6 +1492,8 @@ export default async function getBaseWebpackConfig(
       hasRewrites,
       reactRoot: config.experimental.reactRoot,
       concurrentFeatures: config.experimental.concurrentFeatures,
+      swcMinify: config.experimental.swcMinify,
+      swcLoader: config.experimental.swcLoader,
     })
 
     const cache: any = {
