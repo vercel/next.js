@@ -1414,11 +1414,6 @@ export default async function getBaseWebpackConfig(
       },
     }
 
-    if (isServer && dev) {
-      // Enable building of client compilation before server compilation in development
-      webpack5Config.dependencies = ['client']
-    }
-
     if (dev) {
       // @ts-ignore unsafeCache exists
       webpack5Config.module.unsafeCache = (module) =>
