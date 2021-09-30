@@ -8,6 +8,7 @@ import { normalizePagePath, normalizePathSep } from '../normalize-page-path'
 import { pageNotFoundError } from '../require'
 import { findPageFile } from '../lib/find-page-file'
 import getRouteFromEntrypoint from '../get-route-from-entrypoint'
+import { API_ROUTE } from '../../lib/constants'
 
 export const ADDED = Symbol('added')
 export const BUILDING = Symbol('building')
@@ -183,6 +184,8 @@ export default function onDemandEntryHandler(
       page = posix.normalize(pageUrl)
       const normalizedPage = normalizePathSep(page)
 
+      const isApiRoute = normalizedPage.match(API_ROUTE)
+
       let entriesChanged = false
       const addPageEntry = (type: 'client' | 'server') => {
         return new Promise<void>((resolve, reject) => {
@@ -218,13 +221,17 @@ export default function onDemandEntryHandler(
         })
       }
 
-      const promise = clientOnly
+      const promise = isApiRoute
+        ? addPageEntry('server')
+        : clientOnly
         ? addPageEntry('client')
         : Promise.all([addPageEntry('client'), addPageEntry('server')])
 
       if (entriesChanged) {
         Log.event(
-          clientOnly
+          isApiRoute
+            ? `build page: ${normalizedPage} (server only)`
+            : clientOnly
             ? `build page: ${normalizedPage} (client only)`
             : `build page: ${normalizedPage}`
         )
