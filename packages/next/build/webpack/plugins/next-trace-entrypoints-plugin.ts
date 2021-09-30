@@ -9,6 +9,7 @@ import {
   isWebpack5,
   sources,
 } from 'next/dist/compiled/webpack/webpack'
+import { NODE_RESOLVE_OPTIONS } from '../../webpack-config'
 
 const PLUGIN_NAME = 'TraceEntryPointsPlugin'
 const TRACE_IGNORES = [
@@ -109,8 +110,9 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
     compilation.hooks.finishModules.tapAsync(
       PLUGIN_NAME,
       async (_stats: any, callback: any) => {
-        const finishModulesSpan =
-          traceEntrypointsPluginSpan.traceChild('finish-modules')
+        const finishModulesSpan = traceEntrypointsPluginSpan.traceChild(
+          'finish-modules'
+        )
         await finishModulesSpan
           .traceAsyncFn(async () => {
             // we create entry -> module maps so that we can
@@ -167,13 +169,14 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
 
               try {
                 return await new Promise((resolve, reject) => {
-                  ;(
-                    compilation.inputFileSystem
-                      .readFile as typeof import('fs').readFile
-                  )(path, (err, data) => {
-                    if (err) return reject(err)
-                    resolve(data)
-                  })
+                  ;(compilation.inputFileSystem
+                    .readFile as typeof import('fs').readFile)(
+                    path,
+                    (err, data) => {
+                      if (err) return reject(err)
+                      resolve(data)
+                    }
+                  )
                 })
               } catch (e) {
                 if (
@@ -188,13 +191,14 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
             const readlink = async (path: string): Promise<string | null> => {
               try {
                 return await new Promise((resolve, reject) => {
-                  ;(
-                    compilation.inputFileSystem
-                      .readlink as typeof import('fs').readlink
-                  )(path, (err, link) => {
-                    if (err) return reject(err)
-                    resolve(link)
-                  })
+                  ;(compilation.inputFileSystem
+                    .readlink as typeof import('fs').readlink)(
+                    path,
+                    (err, link) => {
+                      if (err) return reject(err)
+                      resolve(link)
+                    }
+                  )
                 })
               } catch (e) {
                 if (
@@ -213,9 +217,8 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
             ): Promise<import('fs').Stats | null> => {
               try {
                 return await new Promise((resolve, reject) => {
-                  ;(
-                    compilation.inputFileSystem.stat as typeof import('fs').stat
-                  )(path, (err, stats) => {
+                  ;(compilation.inputFileSystem
+                    .stat as typeof import('fs').stat)(path, (err, stats) => {
                     if (err) return reject(err)
                     resolve(stats)
                   })
@@ -352,7 +355,12 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
               )
             }
           )
-          const resolver = compilation.resolverFactory.get('normal')
+          let resolver = compilation.resolverFactory.get('normal')
+
+          resolver = resolver.withOptions({
+            ...NODE_RESOLVE_OPTIONS,
+            extensions: undefined,
+          })
 
           const doResolve = async (
             request: string,
