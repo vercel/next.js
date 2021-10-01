@@ -660,7 +660,7 @@ export async function getServerSideProps(context) {
 The `context` parameter is an object containing the following keys:
 
 - `params`: If this page uses a dynamic route, `params` contains the route parameters. If the page name is `[id].js` , then `params` will look like `{ id: ... }`. To learn more, take a look at the [Dynamic Routing documentation](/docs/routing/dynamic-routes.md).
-- `req`: [The HTTP IncomingMessage object](https://nodejs.org/api/http.html#http_class_http_incomingmessage).
+- `req`: [The HTTP IncomingMessage object](https://nodejs.org/api/http.html#http_class_http_incomingmessage), plus additional [built-in parsing helpers](#provided-req-middleware-in-getserversideprops).
 - `res`: [The HTTP response object](https://nodejs.org/api/http.html#http_class_http_serverresponse).
 - `query`: An object representing the query string.
 - `preview`: `preview` is `true` if the page is in the preview mode and `false` otherwise. See the [Preview Mode documentation](/docs/advanced-features/preview-mode.md).
@@ -726,6 +726,12 @@ The `context` parameter is an object containing the following keys:
 > You may need to slightly refactor your code for this approach.
 >
 > Fetching from an external API is fine!
+
+### Provided `req` middleware in `getServerSideProps`
+
+The `req` in the context passed to `getServerSideProps` provides built in middleware that parses the incoming request (req). That middleware is:
+
+- `req.cookies` - An object containing the cookies sent by the request. Defaults to `{}`
 
 ### Example
 

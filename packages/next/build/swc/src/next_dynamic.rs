@@ -92,15 +92,6 @@ impl Fold for NextDynamicPatcher {
           self.is_next_dynamic_first_arg = false;
 
           if let None = self.dynamically_imported_specifier {
-            HANDLER.with(|handler| {
-              handler
-                .struct_span_err(
-                  identifier.span,
-                  "First argument for next/dynamic must be an arrow function returning a valid \
-                   dynamic import call e.g. `dynamic(() => import('../some-component'))`",
-                )
-                .emit()
-            });
             return expr;
           }
 

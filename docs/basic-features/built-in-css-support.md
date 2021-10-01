@@ -196,6 +196,7 @@ module.exports = {
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-cxs">Cxs</a></li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-aphrodite">Aphrodite</a></li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-fela">Fela</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-stitches">Stitches</a></li>
   </ul>
 </details>
 

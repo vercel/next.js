@@ -1,3 +1,5 @@
+import path from 'path'
+import resolveFrom from 'resolve-from'
 import { spawn } from 'child_process'
 import { NextInstance } from './base'
 
@@ -22,7 +24,9 @@ export class NextDevInstance extends NextInstance {
     }
     // we don't use yarn next here as yarn detaches itself from the
     // child process making it harder to kill all processes
-    this.childProcess = spawn('node', ['node_modules/next/dist/bin/next'], {
+    const nextDir = path.dirname(resolveFrom(this.testDir, 'next/package.json'))
+
+    this.childProcess = spawn('node', [path.join(nextDir, '/dist/bin/next')], {
       cwd: this.testDir,
       stdio: ['ignore', 'pipe', 'pipe'],
       shell: false,
