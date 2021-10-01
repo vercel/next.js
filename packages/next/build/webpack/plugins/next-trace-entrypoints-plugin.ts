@@ -103,8 +103,8 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
     traceEntrypointsPluginSpan: Span,
     doResolve?: (
       request: string,
-      context: string,
-      isEsm?: boolean
+      parent: string,
+      job: import('@vercel/nft/out/node-file-trace').Job
     ) => Promise<string>
   ) {
     compilation.hooks.finishModules.tapAsync(
@@ -222,7 +222,10 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
                   })
                 })
               } catch (e) {
-                if (isError(e) && e.code === 'ENOENT') {
+                if (
+                  isError(e) &&
+                  (e.code === 'ENOENT' || e.code === 'ENOTDIR')
+                ) {
                   return null
                 }
                 throw e
@@ -289,8 +292,7 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
                     readlink,
                     stat,
                     resolve: doResolve
-                      ? (id, parent, _job, isCjs) =>
-                          doResolve(id, nodePath.dirname(parent), !isCjs)
+                      ? (id, parent, job, _isCjs) => doResolve(id, parent, job)
                       : undefined,
                     ignore: [...TRACE_IGNORES, ...this.excludeFiles],
                     mixedModules: true,
@@ -360,26 +362,69 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
             extensions: undefined,
           })
 
+          function getPkgName(name: string) {
+            const segments = name.split('/')
+            if (name[0] === '@' && segments.length > 1)
+              return segments.length > 1 ? segments.slice(0, 2).join('/') : null
+            return segments.length ? segments[0] : null
+          }
+
           const doResolve = async (
             request: string,
-            context: string,
-            _isEsmRequested?: boolean
+            parent: string,
+            job: import('@vercel/nft/out/node-file-trace').Job
           ): Promise<string> => {
             return new Promise((resolve, reject) => {
               resolver.resolve(
                 {},
-                context,
+                nodePath.dirname(parent),
                 request,
                 {
                   fileDependencies: compilation.fileDependencies,
                   missingDependencies: compilation.missingDependencies,
                   contextDependencies: compilation.contextDependencies,
                 },
-                (err: any, result: string) => {
+                async (err: any, result: string, context: any) => {
                   if (err) return reject(err)
 
                   if (!result) {
                     return reject(new Error('module not found'))
+                  }
+
+                  try {
+                    if (result.includes('node_modules')) {
+                      let requestPath = result
+
+                      if (
+                        !nodePath.isAbsolute(request) &&
+                        request.includes('/') &&
+                        context?.descriptionFileRoot
+                      ) {
+                        requestPath =
+                          context.descriptionFileRoot +
+                          request.substr(getPkgName(request)?.length || 0) +
+                          nodePath.sep +
+                          'package.json'
+                      }
+
+                      // the descriptionFileRoot is not set to the last used
+                      // package.json so we use nft's resolving for this
+                      // see test/integration/build-trace-extra-entries/app/node_modules/nested-structure for example
+                      const packageJsonResult = await job.getPjsonBoundary(
+                        requestPath
+                      )
+
+                      if (packageJsonResult) {
+                        await job.emitFile(
+                          packageJsonResult + nodePath.sep + 'package.json',
+                          'resolve',
+                          parent
+                        )
+                      }
+                    }
+                  } catch (_err) {
+                    // we failed to resolve the package.json boundary,
+                    // we don't block emitting the initial asset from this
                   }
                   resolve(result)
                 }
