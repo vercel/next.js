@@ -144,6 +144,7 @@ export type NextConfig = { [key: string]: any } & {
     isrMemoryCacheSize?: number
     outputFileTracing?: boolean
     concurrentFeatures?: boolean
+    serverComponents?: boolean
   }
 }
 
@@ -225,6 +226,7 @@ export const defaultConfig: NextConfig = {
     isrMemoryCacheSize: 50 * 1024 * 1024,
     outputFileTracing: false,
     concurrentFeatures: false,
+    serverComponents: false,
   },
   future: {
     strictPostcssConfiguration: false,
