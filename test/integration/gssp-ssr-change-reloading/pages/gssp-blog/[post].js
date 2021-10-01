@@ -8,7 +8,7 @@ export default function Gssp(props) {
 }
 
 export const getServerSideProps = ({ params }) => {
-  const count = 1
+  const count = 2
 
   return {
     props: {

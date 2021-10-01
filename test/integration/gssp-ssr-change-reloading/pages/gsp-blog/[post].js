@@ -14,7 +14,7 @@ export default function Gsp(props) {
 }
 
 export const getStaticProps = async ({ params }) => {
-  const count = 1
+  const count = 2
 
   if (params.post === 'second') {
     await new Promise((resolve) => setTimeout(resolve, 2000))
