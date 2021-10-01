@@ -10,7 +10,7 @@ function ApiProfile() {
 
   useEffect(() => {
     ;(async () => {
-      const res = await fetch('http://localhost:3000/api/protected-api')
+      const res = await fetch('/api/protected-api')
 
       const data = await res.json()
 
