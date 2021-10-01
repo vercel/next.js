@@ -50,12 +50,15 @@ export class NextInstance {
     }
     console.log(`Creating test directory with isolated next...`)
 
-    const tmpDir = process.env.NEXT_TEST_DIR || (await fs.realpath(os.tmpdir()))
+    const skipIsolatedNext = !!process.env.NEXT_SKIP_ISOLATE
+    const tmpDir = skipIsolatedNext
+      ? path.join(__dirname, '../../tmp')
+      : process.env.NEXT_TEST_DIR || (await fs.realpath(os.tmpdir()))
     this.testDir = path.join(tmpDir, `next-test-${Date.now()}`)
 
     if (process.env.NEXT_TEST_STARTER && !this.dependencies) {
       await fs.copy(process.env.NEXT_TEST_STARTER, this.testDir)
-    } else {
+    } else if (!skipIsolatedNext) {
       this.testDir = await createNextInstall({
         react: 'latest',
         'react-dom': 'latest',

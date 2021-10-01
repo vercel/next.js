@@ -1,5 +1,6 @@
 import path from 'path'
 import fs from 'fs-extra'
+import resolveFrom from 'resolve-from'
 import { spawn, SpawnOptions } from 'child_process'
 import { NextInstance } from './base'
 
@@ -48,10 +49,11 @@ export class NextStartInstance extends NextInstance {
         this.emit('stderr', [msg])
       })
     }
+    const nextDir = path.dirname(resolveFrom(this.testDir, 'next/package.json'))
 
     this.childProcess = spawn(
       'node',
-      ['node_modules/next/dist/bin/next', 'build'],
+      [path.join(nextDir, '/dist/bin/next'), 'build'],
       spawnOpts
     )
     handleStdio()
@@ -59,7 +61,7 @@ export class NextStartInstance extends NextInstance {
     await new Promise<void>((resolve, reject) => {
       this.childProcess.on('exit', (code) => {
         if (code) reject(new Error(`next build failed with code ${code}`))
-        resolve()
+        else resolve()
       })
     })
     this._buildId = (
@@ -76,7 +78,7 @@ export class NextStartInstance extends NextInstance {
     // child process making it harder to kill all processes
     this.childProcess = spawn(
       'node',
-      ['node_modules/next/dist/bin/next', 'start'],
+      [path.join(nextDir, '/dist/bin/next'), 'start'],
       spawnOpts
     )
     handleStdio()
