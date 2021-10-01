@@ -64,7 +64,7 @@
     ]
   },
   "dependencies": {
-    "@babel/runtime": "7.15.3",
+    "@babel/runtime": "7.15.4",
     "@hapi/accept": "5.0.2",
     "@next/env": "11.1.3-canary.41",
     "@next/polyfill-module": "11.1.3-canary.41",
