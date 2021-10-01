@@ -1,30 +1,20 @@
-import { getSession } from '@auth0/nextjs-auth0'
+import { withApiAuthRequired, getSession } from '@auth0/nextjs-auth0'
 
 // Serverless function
 // Protected API, requests to '/api/protected' without a valid session cookie will fail
 
-export default async function handle(req, res) {
-  const session = getSession(req, res)
-
-  if (!session) {
-    res.status(401)
-    res.json({
-      error: 'not_authenticated',
-      description:
-        'The user does not have an active session or is not authenticated',
-    })
-    res.end()
-  }
+async function handle(req, res) {
+  const { user } = getSession(req, res)
 
   try {
-    res.status(200)
-    res.json({
+    res.status(200).json({
       session: 'true',
-      id: session.user.sub,
-      nickname: session.user.nickname,
+      id: user.sub,
+      nickname: user.nickname,
     })
   } catch (e) {
-    res.status(500)
-    res.json({ error: 'Unable to fetch', description: e })
+    res.status(500).json({ error: 'Unable to fetch', description: e })
   }
 }
+
+export default withApiAuthRequired(handle)
