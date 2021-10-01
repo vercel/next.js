@@ -1,6 +1,7 @@
 use easy_error::{bail, Error};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
+use std::mem::take;
 use swc_common::{collections::AHashSet, Span, DUMMY_SP};
 use swc_ecmascript::ast::*;
 use swc_ecmascript::minifier::{
@@ -307,23 +308,20 @@ impl Fold for StyledJSXTransformer {
 
     fn fold_binding_ident(&mut self, node: BindingIdent) -> BindingIdent {
         if self.in_function_params {
-            self.nearest_scope_bindings
-                .insert((node.id.sym.clone(), node.id.span.ctxt));
+            self.nearest_scope_bindings.insert(node.id.to_id());
         }
         node
     }
 
     fn fold_assign_pat_prop(&mut self, node: AssignPatProp) -> AssignPatProp {
         if self.in_function_params {
-            self.nearest_scope_bindings
-                .insert((node.key.sym.clone(), node.key.span.ctxt));
+            self.nearest_scope_bindings.insert(node.key.to_id());
         }
         node
     }
 
     fn fold_function(&mut self, mut func: Function) -> Function {
-        let nearest_scope_bindings = self.nearest_scope_bindings.clone();
-        self.nearest_scope_bindings = Default::default();
+        let surrounding_scope_bindings = take(&mut self.nearest_scope_bindings);
         self.in_function_params = true;
         let mut new_params = vec![];
         for param in func.params {
@@ -333,12 +331,12 @@ impl Fold for StyledJSXTransformer {
         self.in_function_params = false;
         self.nearest_scope_bindings.extend(collect_decls(&func));
         func.body = func.body.fold_with(self);
-        self.nearest_scope_bindings = nearest_scope_bindings;
+        self.nearest_scope_bindings = surrounding_scope_bindings;
         func
     }
 
     fn fold_arrow_expr(&mut self, mut func: ArrowExpr) -> ArrowExpr {
-        let current_bindings = self.nearest_scope_bindings.clone();
+        let surrounding_scope_bindings = take(&mut self.nearest_scope_bindings);
         self.in_function_params = true;
         let mut new_params = vec![];
         for param in func.params {
@@ -348,7 +346,7 @@ impl Fold for StyledJSXTransformer {
         self.in_function_params = false;
         self.nearest_scope_bindings.extend(collect_decls(&func));
         func.body = func.body.fold_with(self);
-        self.nearest_scope_bindings = current_bindings;
+        self.nearest_scope_bindings = surrounding_scope_bindings;
         func
     }
 
