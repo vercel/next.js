@@ -1,5 +1,5 @@
 import _JSXStyle from "styled-jsx/style";
-const Test = ()=><style global jsx>{"p { color: red }"}</style>
+const Test = ()=><_JSXStyle id={"94239b6d6b42c9b5"}>{"p {color:red}"}</_JSXStyle>
 ;
 export default (()=><div className={"jsx-3822e6e1fb9fa41a"}>
     <p className={"jsx-3822e6e1fb9fa41a"}>test</p>
