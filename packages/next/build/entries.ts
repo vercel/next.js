@@ -10,6 +10,7 @@ import { ClientPagesLoaderOptions } from './webpack/loaders/next-client-pages-lo
 import { ServerlessLoaderQuery } from './webpack/loaders/next-serverless-loader'
 import { LoadedEnvFiles } from '@next/env'
 import { NextConfigComplete } from '../server/config-shared'
+import type webpack5 from 'webpack5'
 
 type PagesMapping = {
   [page: string]: string
@@ -62,19 +63,9 @@ export function createPagesMapping(
   return pages
 }
 
-export type WebpackEntrypoints = {
-  [bundle: string]:
-    | string
-    | string[]
-    | {
-        import: string | string[]
-        dependOn?: string | string[]
-      }
-}
-
 type Entrypoints = {
-  client: WebpackEntrypoints
-  server: WebpackEntrypoints
+  client: webpack5.EntryObject
+  server: webpack5.EntryObject
 }
 
 export function createEntrypoints(
@@ -85,8 +76,8 @@ export function createEntrypoints(
   config: NextConfigComplete,
   loadedEnvFiles: LoadedEnvFiles
 ): Entrypoints {
-  const client: WebpackEntrypoints = {}
-  const server: WebpackEntrypoints = {}
+  const client: webpack5.EntryObject = {}
+  const server: webpack5.EntryObject = {}
 
   const hasRuntimeConfig =
     Object.keys(config.publicRuntimeConfig).length > 0 ||
@@ -178,4 +169,59 @@ export function createEntrypoints(
     client,
     server,
   }
+}
+
+export function finalizeEntrypoint(
+  name: string,
+  value: any,
+  isServer: boolean,
+  isWebpack5: boolean
+): any {
+  if (isWebpack5) {
+    if (isServer) {
+      const isApi = name.startsWith('pages/api/')
+      const runtime = isApi ? 'webpack-api-runtime' : 'webpack-runtime'
+      const layer = isApi ? 'api' : undefined
+      const publicPath = isApi ? '' : undefined
+      if (typeof value === 'object' && !Array.isArray(value)) {
+        return {
+          publicPath,
+          runtime,
+          layer,
+          ...value,
+        }
+      } else {
+        return {
+          import: value,
+          publicPath,
+          runtime,
+          layer,
+        }
+      }
+    } else {
+      if (
+        name !== 'polyfills' &&
+        name !== 'main' &&
+        name !== 'amp' &&
+        name !== 'react-refresh'
+      ) {
+        const dependOn =
+          name.startsWith('pages/') && name !== 'pages/_app'
+            ? 'pages/_app'
+            : 'main'
+        if (typeof value === 'object' && !Array.isArray(value)) {
+          return {
+            dependOn,
+            ...value,
+          }
+        } else {
+          return {
+            import: value,
+            dependOn,
+          }
+        }
+      }
+    }
+  }
+  return value
 }

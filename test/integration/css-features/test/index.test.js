@@ -4,8 +4,6 @@ import { readdir, readFile, remove } from 'fs-extra'
 import { nextBuild } from 'next-test-utils'
 import { join } from 'path'
 
-jest.setTimeout(1000 * 60 * 1)
-
 const fixturesDir = join(__dirname, '../fixtures')
 
 describe('Browserslist: Old', () => {

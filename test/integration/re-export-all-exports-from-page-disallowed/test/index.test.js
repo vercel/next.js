@@ -4,8 +4,6 @@ import { join } from 'path'
 
 const appDir = join(__dirname, '..')
 
-jest.setTimeout(1000 * 60 * 2)
-
 describe('Re-export all exports from page is disallowed', () => {
   it('shows error when a page re-export all exports', async () => {
     const { code, stderr } = await nextBuild(appDir, undefined, {

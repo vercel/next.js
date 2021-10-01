@@ -4,7 +4,6 @@ import { remove } from 'fs-extra'
 import { File, nextBuild, waitFor } from 'next-test-utils'
 import { join } from 'path'
 
-jest.setTimeout(1000 * 60 * 1)
 const appDir = join(__dirname, '../')
 
 describe('Build warnings', () => {

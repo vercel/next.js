@@ -2,7 +2,7 @@ module.exports =
 /******/ (function() { // webpackBootstrap
 /******/ 	var __webpack_modules__ = ({
 
-/***/ 929:
+/***/ 560:
 /***/ (function(module) {
 
 /* globals __webpack_amd_options__ */
@@ -49,6 +49,6 @@ module.exports = __webpack_amd_options__;
 /******/ 	// module exports must be returned from runtime so entry inlining is disabled
 /******/ 	// startup
 /******/ 	// Load entry module and return exports
-/******/ 	return __nccwpck_require__(929);
+/******/ 	return __nccwpck_require__(560);
 /******/ })()
 ;
