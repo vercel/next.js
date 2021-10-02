@@ -21,7 +21,10 @@ if (!firebase.apps.length) {
   if (typeof window !== 'undefined') {
     // Enable analytics. https://firebase.google.com/docs/analytics/get-started
     if ('measurementId' in clientCredentials) {
-      firebase.analytics()
+      firebase.analytics
+        .isSupported()
+        .then((isSupported) => isSupported && firebase.analytics())
+        .catch((err) => console.error(err.message))
       firebase.performance()
     }
   }
