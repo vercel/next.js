@@ -51,9 +51,6 @@ export default class PagesManifestPlugin implements webpack.Plugin {
       // Write filename, replace any backslashes in path (on windows) with forwardslashes for cross-platform consistency.
       pages[pagePath] = files[files.length - 1]
 
-      if (isWebpack5 && !this.dev) {
-        pages[pagePath] = pages[pagePath].slice(3)
-      }
       pages[pagePath] = pages[pagePath].replace(/\\/g, '/')
     }
 
