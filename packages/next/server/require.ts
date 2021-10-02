@@ -1,3 +1,4 @@
+import { createContext, runInNewContext } from 'vm'
 import { promises } from 'fs'
 import { join } from 'path'
 import {
@@ -6,9 +7,31 @@ import {
   SERVERLESS_DIRECTORY,
   FONT_MANIFEST,
 } from '../shared/lib/constants'
+
 import { normalizePagePath, denormalizePagePath } from './normalize-page-path'
 import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
+
+/**
+ * `require(...)` a module within an isolated VM context, which prevents the
+ * module from sharing the same context as Next and potentially contaminating
+ * Next's own logic (i.e., by shimming globals).
+ *
+ * This should be used to load all React components for SSR.
+ * @see requirePage
+ *
+ * @see https://github.com/Agoric/dapp-card-store/issues/37
+ *
+ * @param specifier The module to load.
+ * @returns The loaded module.
+ */
+export function isolatedRequire(specifier: string) {
+  const sandbox = createContext({
+    require,
+  })
+
+  return runInNewContext(`require(${JSON.stringify(specifier)})`, sandbox)
+}
 
 export function pageNotFoundError(page: string): Error {
   const err: any = new Error(`Cannot find module for page: ${page}`)
@@ -65,7 +88,11 @@ export function requirePage(
   if (pagePath.endsWith('.html')) {
     return promises.readFile(pagePath, 'utf8')
   }
-  return require(pagePath)
+  /**
+   * Use isolated require() to avoid cross-module contamination with Next's own
+   * logic.
+   */
+  return isolatedRequire(pagePath)
 }
 
 export function requireFontManifest(distDir: string, serverless: boolean) {
