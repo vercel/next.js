@@ -57,8 +57,9 @@ export default class PagesManifestPlugin implements webpack.Plugin {
       pages[pagePath] = pages[pagePath].replace(/\\/g, '/')
     }
 
-    assets[`${isWebpack5 && !this.dev ? '../' : ''}` + PAGES_MANIFEST] =
-      new sources.RawSource(JSON.stringify(pages, null, 2))
+    assets[PAGES_MANIFEST] = new sources.RawSource(
+      JSON.stringify(pages, null, 2)
+    )
   }
 
   apply(compiler: webpack.Compiler): void {
