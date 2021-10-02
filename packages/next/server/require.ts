@@ -20,8 +20,6 @@ import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
  * This should be used to load all React components for SSR.
  * @see requirePage
  *
- * @see https://github.com/Agoric/dapp-card-store/issues/37
- *
  * @param specifier The module to load.
  * @returns The loaded module.
  */
