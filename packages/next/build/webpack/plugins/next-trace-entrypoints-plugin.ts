@@ -71,10 +71,10 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
         entryFiles.delete(
           nodePath.join(
             outputPath,
-            `${isWebpack5 ? '../' : ''}${entrypoint.name}.js`
+            `${isWebpack5 ? '' : ''}${entrypoint.name}.js`
           )
         )
-        const traceOutputName = `${isWebpack5 ? '../' : ''}${
+        const traceOutputName = `${isWebpack5 ? '' : ''}${
           entrypoint.name
         }.js.nft.json`
         const traceOutputPath = nodePath.dirname(
