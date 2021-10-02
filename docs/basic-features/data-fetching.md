@@ -66,7 +66,7 @@ The `context` parameter is an object containing the following keys:
 - `params` contains the route parameters for pages using dynamic routes. For example, if the page name is `[id].js` , then `params` will look like `{ id: ... }`. To learn more, take a look at the [Dynamic Routing documentation](/docs/routing/dynamic-routes.md). You should use this together with `getStaticPaths`, which we’ll explain later.
 - `preview` is `true` if the page is in the preview mode and `undefined` otherwise. See the [Preview Mode documentation](/docs/advanced-features/preview-mode.md).
 - `previewData` contains the preview data set by `setPreviewData`. See the [Preview Mode documentation](/docs/advanced-features/preview-mode.md).
-- `locale` contains the active locale (if you've enabled [Internationalized Routing](/docs/advanced-features/i18n-routing)).
+- `locale` contains the active locale (if you've enabled [Internationalized Routing](/docs/advanced-features/i18n-routing.md)).
 - `locales` contains all supported locales (if you've enabled Internationalized Routing).
 - `defaultLocale` contains the configured default locale (if you've enabled Internationalized Routing).
 
@@ -666,7 +666,7 @@ The `context` parameter is an object containing the following keys:
 - `preview`: `preview` is `true` if the page is in the preview mode and `false` otherwise. See the [Preview Mode documentation](/docs/advanced-features/preview-mode.md).
 - `previewData`: The preview data set by `setPreviewData`. See the [Preview Mode documentation](/docs/advanced-features/preview-mode.md).
 - `resolvedUrl`: A normalized version of the request URL that strips the `_next/data` prefix for client transitions and includes original query values.
-- `locale` contains the active locale (if you've enabled [Internationalized Routing](/docs/advanced-features/i18n-routing)).
+- `locale` contains the active locale (if you've enabled [Internationalized Routing](/docs/advanced-features/i18n-routing.md)).
 - `locales` contains all supported locales (if you've enabled Internationalized Routing).
 - `defaultLocale` contains the configured default locale (if you've enabled Internationalized Routing).
 
