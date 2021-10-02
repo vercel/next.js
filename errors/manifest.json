@@ -470,6 +470,10 @@
         {
           "title": "invalid-api-status-body",
           "path": "/errors/invalid-api-status-body.md"
+        },
+        {
+          "title": "invalid-project-dir-casing",
+          "path": "/errors/invalid-project-dir-casing.md"
         }
       ]
     }

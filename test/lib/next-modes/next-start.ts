@@ -1,13 +1,19 @@
 import path from 'path'
 import fs from 'fs-extra'
+import resolveFrom from 'resolve-from'
 import { spawn, SpawnOptions } from 'child_process'
 import { NextInstance } from './base'
 
 export class NextStartInstance extends NextInstance {
   private _buildId: string
+  private _cliOutput: string
 
   public get buildId() {
     return this._buildId
+  }
+
+  public get cliOutput() {
+    return this._cliOutput
   }
 
   public async setup() {
@@ -33,18 +39,21 @@ export class NextStartInstance extends NextInstance {
       this.childProcess.stdout.on('data', (chunk) => {
         const msg = chunk.toString()
         process.stdout.write(chunk)
+        this._cliOutput += msg
         this.emit('stdout', [msg])
       })
       this.childProcess.stderr.on('data', (chunk) => {
         const msg = chunk.toString()
         process.stderr.write(chunk)
+        this._cliOutput += msg
         this.emit('stderr', [msg])
       })
     }
+    const nextDir = path.dirname(resolveFrom(this.testDir, 'next/package.json'))
 
     this.childProcess = spawn(
       'node',
-      ['node_modules/next/dist/bin/next', 'build'],
+      [path.join(nextDir, '/dist/bin/next'), 'build'],
       spawnOpts
     )
     handleStdio()
@@ -52,12 +61,16 @@ export class NextStartInstance extends NextInstance {
     await new Promise<void>((resolve, reject) => {
       this.childProcess.on('exit', (code) => {
         if (code) reject(new Error(`next build failed with code ${code}`))
-        resolve()
+        else resolve()
       })
     })
     this._buildId = (
       await fs.readFile(
-        path.join(this.testDir, this.nextConfig.distDir || '.next', 'BUILD_ID'),
+        path.join(
+          this.testDir,
+          this.nextConfig?.distDir || '.next',
+          'BUILD_ID'
+        ),
         'utf8'
       )
     ).trim()
@@ -65,10 +78,17 @@ export class NextStartInstance extends NextInstance {
     // child process making it harder to kill all processes
     this.childProcess = spawn(
       'node',
-      ['node_modules/next/dist/bin/next', 'start'],
+      [path.join(nextDir, '/dist/bin/next'), 'start'],
       spawnOpts
     )
     handleStdio()
+
+    this.childProcess.on('close', (code) => {
+      if (this.isStopping) return
+      if (code) {
+        throw new Error(`next start exited unexpectedly with code ${code}`)
+      }
+    })
 
     await new Promise<void>((resolve) => {
       const readyCb = (msg) => {

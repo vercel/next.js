@@ -90,6 +90,7 @@ import { writeBuildId } from './write-build-id'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { isWebpack5 } from 'next/dist/compiled/webpack/webpack'
 import { NextConfigComplete } from '../server/config-shared'
+import isError from '../lib/is-error'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -195,7 +196,7 @@ export default async function build(
           dir,
           pagesDir,
           !ignoreTypeScriptErrors,
-          !config.images.disableStaticImages,
+          config,
           cacheDir
         )
       )
@@ -463,7 +464,7 @@ export default async function build(
           await promises.mkdir(distDir, { recursive: true })
           return true
         } catch (err) {
-          if (err.code === 'EPERM') {
+          if (isError(err) && err.code === 'EPERM') {
             return false
           }
           throw err
@@ -849,7 +850,7 @@ export default async function build(
                   )
                 })
 
-                if (config.experimental.nftTracing) {
+                if (config.experimental.outputFileTracing) {
                   pageTraceIncludes.set(page, workerResult.traceIncludes || [])
                   pageTraceExcludes.set(page, workerResult.traceExcludes || [])
                 }
@@ -927,7 +928,8 @@ export default async function build(
                   )
                 }
               } catch (err) {
-                if (err.message !== 'INVALID_DEFAULT_EXPORT') throw err
+                if (isError(err) && err.message !== 'INVALID_DEFAULT_EXPORT')
+                  throw err
                 invalidPages.add(page)
               }
             }
@@ -992,7 +994,7 @@ export default async function build(
       )
     }
 
-    if (config.experimental.nftTracing) {
+    if (config.experimental.outputFileTracing) {
       const globOrig =
         require('next/dist/compiled/glob') as typeof import('next/dist/compiled/glob')
       const glob = (pattern: string): Promise<string[]> => {
