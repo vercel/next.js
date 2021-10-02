@@ -1035,15 +1035,10 @@ export default async function getBaseWebpackConfig(
       // we must set publicPath to an empty value to override the default of
       // auto which doesn't work in IE11
       publicPath: `${config.assetPrefix || ''}/_next/`,
-      path:
-        isServer && isWebpack5 && !dev
-          ? path.join(outputPath, 'chunks')
-          : outputPath,
+      path: outputPath,
       // On the server we don't use hashes
       filename: isServer
-        ? isWebpack5 && !dev
-          ? '../[name].js'
-          : '[name].js'
+        ? '[name].js'
         : `static/chunks/${isDevFallback ? 'fallback/' : ''}[name]${
             dev ? '' : isWebpack5 ? '-[contenthash]' : '-[chunkhash]'
           }.js`,
@@ -1057,7 +1052,7 @@ export default async function getBaseWebpackConfig(
         : 'static/webpack/[hash].hot-update.json',
       // This saves chunks with the name given via `import()`
       chunkFilename: isServer
-        ? '[name].js'
+        ? 'chunks/[name].js'
         : `static/chunks/${isDevFallback ? 'fallback/' : ''}${
             dev ? '[name]' : '[name].[contenthash]'
           }.js`,
