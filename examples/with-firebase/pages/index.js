@@ -1,8 +1,8 @@
+import { getFirestore, setDoc, doc } from 'firebase/firestore'
 import Head from 'next/head'
 import Link from 'next/link'
 import { useEffect } from 'react'
 import { useUser } from '../context/userContext'
-import firebase from '../firebase/clientApp'
 
 export default function Home() {
   // Our custom hook to get context values
@@ -16,12 +16,14 @@ export default function Home() {
       console.log(user)
     }
     // You also have your firebase app initialized
-    console.log(firebase)
   }, [loadingUser, user])
 
   const createUser = async () => {
-    const db = firebase.firestore()
-    await db.collection('profile').doc(profile.username).set(profile)
+    const db = getFirestore()
+    await setDoc(doc(db, 'profile', profile.username), {
+      profile,
+    })
+
     alert('User created!!')
   }
 
