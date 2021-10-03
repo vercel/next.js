@@ -8,15 +8,15 @@
     "schema": "graphql get-schema -e dev"
   },
   "dependencies": {
-    "graphql": "^14.6.0",
+    "graphql": "^15.6.0",
     "next": "latest",
     "react": "^17.0.2",
     "react-dom": "^17.0.2",
-    "react-relay": "^9.0.0"
+    "react-relay": "^12.0.0"
   },
   "devDependencies": {
-    "babel-plugin-relay": "^9.0.0",
-    "graphql-cli": "^3.0.14",
-    "relay-compiler": "^9.0.0"
+    "babel-plugin-relay": "^12.0.0",
+    "graphql-cli": "^4.1.0",
+    "relay-compiler": "^12.0.0"
   }
 }
