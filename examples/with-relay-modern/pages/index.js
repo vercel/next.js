@@ -15,7 +15,7 @@ const Index = ({ viewer }) => (
 
 export async function getStaticProps() {
   const environment = initEnvironment()
-  const queryProps = await fetchQuery(environment, indexPageQuery)
+  const queryProps = await fetchQuery(environment, indexPageQuery).toPromise()
   const initialRecords = environment.getStore().getSource().toJSON()
 
   return {
