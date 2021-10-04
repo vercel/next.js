@@ -667,8 +667,8 @@ The `context` parameter is an object containing the following keys:
 - `previewData`: The preview data set by `setPreviewData`. See the [Preview Mode documentation](/docs/advanced-features/preview-mode.md).
 - `resolvedUrl`: A normalized version of the request URL that strips the `_next/data` prefix for client transitions and includes original query values.
 - `locale` contains the active locale (if you've enabled [Internationalized Routing](/docs/advanced-features/i18n-routing.md)).
-- `locales` contains all supported locales (if you've enabled Internationalized Routing).
-- `defaultLocale` contains the configured default locale (if you've enabled Internationalized Routing).
+- `locales` contains all supported locales (if you've enabled [Internationalized Routing](/docs/advanced-features/i18n-routing.md)).
+- `defaultLocale` contains the configured default locale (if you've enabled [Internationalized Routing](/docs/advanced-features/i18n-routing.md)).
 
 `getServerSideProps` should return an object with:
 
