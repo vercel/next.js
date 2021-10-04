@@ -1,6 +1,7 @@
 use easy_error::{bail, Error};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
+use std::mem::take;
 use swc_common::{collections::AHashSet, Span, DUMMY_SP};
 use swc_ecmascript::ast::*;
 use swc_ecmascript::minifier::{
@@ -40,6 +41,7 @@ struct StyledJSXTransformer {
     external_hash: Option<String>,
     add_hash: Option<(String, String)>,
     add_default_decl: Option<(String, Expr)>,
+    in_function_params: bool,
     evaluator: Option<Evaluator>,
 }
 
@@ -304,19 +306,47 @@ impl Fold for StyledJSXTransformer {
         new_items
     }
 
-    fn fold_function(&mut self, func: Function) -> Function {
-        let nearest_scope_bindings = self.nearest_scope_bindings.clone();
-        self.nearest_scope_bindings = collect_decls(&func);
-        let func = func.fold_children_with(self);
-        self.nearest_scope_bindings = nearest_scope_bindings;
+    fn fold_binding_ident(&mut self, node: BindingIdent) -> BindingIdent {
+        if self.in_function_params {
+            self.nearest_scope_bindings.insert(node.id.to_id());
+        }
+        node
+    }
+
+    fn fold_assign_pat_prop(&mut self, node: AssignPatProp) -> AssignPatProp {
+        if self.in_function_params {
+            self.nearest_scope_bindings.insert(node.key.to_id());
+        }
+        node
+    }
+
+    fn fold_function(&mut self, mut func: Function) -> Function {
+        let surrounding_scope_bindings = take(&mut self.nearest_scope_bindings);
+        self.in_function_params = true;
+        let mut new_params = vec![];
+        for param in func.params {
+            new_params.push(param.fold_with(self));
+        }
+        func.params = new_params;
+        self.in_function_params = false;
+        self.nearest_scope_bindings.extend(collect_decls(&func));
+        func.body = func.body.fold_with(self);
+        self.nearest_scope_bindings = surrounding_scope_bindings;
         func
     }
 
-    fn fold_arrow_expr(&mut self, func: ArrowExpr) -> ArrowExpr {
-        let current_bindings = self.nearest_scope_bindings.clone();
-        self.nearest_scope_bindings = collect_decls(&func);
-        let func = func.fold_children_with(self);
-        self.nearest_scope_bindings = current_bindings;
+    fn fold_arrow_expr(&mut self, mut func: ArrowExpr) -> ArrowExpr {
+        let surrounding_scope_bindings = take(&mut self.nearest_scope_bindings);
+        self.in_function_params = true;
+        let mut new_params = vec![];
+        for param in func.params {
+            new_params.push(param.fold_with(self));
+        }
+        func.params = new_params;
+        self.in_function_params = false;
+        self.nearest_scope_bindings.extend(collect_decls(&func));
+        func.body = func.body.fold_with(self);
+        self.nearest_scope_bindings = surrounding_scope_bindings;
         func
     }
 
