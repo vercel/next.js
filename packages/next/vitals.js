@@ -1,1 +1,4 @@
-module.exports = require('./dist/vitals/index')
+module.exports = {
+  useExperimentalWebVitalsReport: require('./dist/client/vitals')
+    .useExperimentalWebVitalsReport,
+}
