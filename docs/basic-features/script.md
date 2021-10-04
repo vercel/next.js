@@ -118,7 +118,7 @@ export default function Home() {
         id="stripe-js"
         src="https://js.stripe.com/v3/"
         onLoad={() => {
-          this.setState({ stripe: window.Stripe('pk_test_12345') })
+          setState({ stripe: window.Stripe('pk_test_12345') })
         }}
       />
     </>
