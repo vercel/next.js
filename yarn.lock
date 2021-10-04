@@ -2624,10 +2624,18 @@
   version "0.1.2"
   resolved "https://registry.yarnpkg.com/@istanbuljs/schema/-/schema-0.1.2.tgz#26520bf09abe4a5644cd5414e37125a8954241dd"
 
-"@javivelasco/isbot@3.3.2":
-  version "3.3.2"
-  resolved "https://registry.yarnpkg.com/@javivelasco/isbot/-/isbot-3.3.2.tgz#292380428c7a5c109d2cde71ffd7065e668a7dad"
-  integrity sha512-8/166Ak/bbI1dIM9eYn5CC5gzDOdfPf/1s0hKA+R9IH7svGRzoBUfl+OGvvSt5KQEAyJMzys+tR/uXD80jKCVw==
+"@javivelasco/formdata-node@4.2.4":
+  version "4.2.4"
+  resolved "https://registry.yarnpkg.com/@javivelasco/formdata-node/-/formdata-node-4.2.4.tgz#43aef972e25b2d4b52dfdcf53a8cf2dd68185fdd"
+  integrity sha512-zIJJApYYKpKaMKY+ebrYWotzYAK55WQGKOFcT1hnLVoL3ydxWqvcnLPicvEVp/n/268bmeHmCXYjAqNH9vFfsg==
+  dependencies:
+    node-domexception "1.0.0"
+    web-streams-polyfill "4.0.0-beta.1"
+
+"@javivelasco/isbot@3.3.3":
+  version "3.3.3"
+  resolved "https://registry.yarnpkg.com/@javivelasco/isbot/-/isbot-3.3.3.tgz#6b812ed8e309cabb226358ab5ddfcb8770add031"
+  integrity sha512-bjBLdbxGYqlhBDj491r5U+n7fZLFCXaKivn1OET+dGvh+CCPJBe7RIGapIAGqFo6gmXTcf5D17kEB5xpmT03Rw==
 
 "@jest/console@^27.0.6":
   version "27.0.6"
@@ -14073,6 +14081,11 @@ node-dir@^0.1.17:
   dependencies:
     minimatch "^3.0.2"
 
+node-domexception@1.0.0:
+  version "1.0.0"
+  resolved "https://registry.yarnpkg.com/node-domexception/-/node-domexception-1.0.0.tgz#6888db46a1f71c0b76b3f7555016b63fe64766e5"
+  integrity sha512-/jKZoMpw0F8GRwl4/eLROPA3cfcXtLApP0QzLmUT/HuPCZWyB7IY9ZrMeKw2O/nFIqPQB3PVM9aYm0F312AXDQ==
+
 node-emoji@^1.8.1:
   version "1.10.0"
   resolved "https://registry.yarnpkg.com/node-emoji/-/node-emoji-1.10.0.tgz#8886abd25d9c7bb61802a658523d1f8d2a89b2da"
@@ -19980,6 +19993,11 @@ web-streams-polyfill@3.0.3:
   version "3.0.3"
   resolved "https://registry.yarnpkg.com/web-streams-polyfill/-/web-streams-polyfill-3.0.3.tgz#f49e487eedeca47a207c1aee41ee5578f884b42f"
   integrity sha512-d2H/t0eqRNM4w2WvmTdoeIvzAUSpK7JmATB8Nr2lb7nQ9BTIJVjbQ/TRFVEh2gUH1HwclPdoPtfMoFfetXaZnA==
+
+web-streams-polyfill@4.0.0-beta.1:
+  version "4.0.0-beta.1"
+  resolved "https://registry.yarnpkg.com/web-streams-polyfill/-/web-streams-polyfill-4.0.0-beta.1.tgz#3b19b9817374b7cee06d374ba7eeb3aeb80e8c95"
+  integrity sha512-3ux37gEX670UUphBF9AMCq8XM6iQ8Ac6A+DSRRjDoRBm1ufCkaCDdNVbaqq60PsEkdNlLKrGtv/YBP4EJXqNtQ==
 
 web-vitals@2.1.0:
   version "2.1.0"

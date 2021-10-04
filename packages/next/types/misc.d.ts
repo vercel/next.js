@@ -190,6 +190,10 @@ declare module 'next/dist/compiled/@javivelasco/isbot' {
   import m from '@javivelasco/isbot'
   export = m
 }
+declare module 'next/dist/compiled/@javivelasco/formdata-node' {
+  import m from '@javivelasco/formdata-node'
+  export = m
+}
 declare module 'next/dist/compiled/@peculiar/webcrypto' {
   import m from '@peculiar/webcrypto'
   export = m

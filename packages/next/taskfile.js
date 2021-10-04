@@ -779,6 +779,14 @@ export async function ncc_isbot(task, opts) {
     .target('compiled/@javivelasco/isbot')
 }
 // eslint-disable-next-line camelcase
+externals['@javivelasco/formdata-node'] = 'next/dist/compiled/@javivelasco/formdata-node'
+export async function ncc_formdata_node(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('@javivelasco/formdata-node')))
+    .ncc({ packageName: '@javivelasco/formdata-node', externals })
+    .target('compiled/@javivelasco/formdata-node')
+}
+// eslint-disable-next-line camelcase
 externals['ua-parser-js'] = 'next/dist/compiled/ua-parser-js'
 export async function ncc_ua_parser_js(task, opts) {
   await task
@@ -963,6 +971,7 @@ export async function ncc(task, opts) {
         'ncc_ua_parser_js',
         'ncc_webcrypto',
         'ncc_uuid',
+        'ncc_formdata_node',
         'ncc_web_streams_polyfill',
         'ncc_mini_css_extract_plugin',
       ],
