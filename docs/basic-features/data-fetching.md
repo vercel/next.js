@@ -67,7 +67,7 @@ The `context` parameter is an object containing the following keys:
 - `preview` is `true` if the page is in the preview mode and `undefined` otherwise. See the [Preview Mode documentation](/docs/advanced-features/preview-mode.md).
 - `previewData` contains the preview data set by `setPreviewData`. See the [Preview Mode documentation](/docs/advanced-features/preview-mode.md).
 - `locale` contains the active locale (if you've enabled [Internationalized Routing](/docs/advanced-features/i18n-routing.md)).
-- `locales` contains all supported locales (if you've enabled Internationalized Routing).
+- `locales` contains all supported locales (if you've enabled [Internationalized Routing](/docs/advanced-features/i18n-routing.md)).
 - `defaultLocale` contains the configured default locale (if you've enabled Internationalized Routing).
 
 `getStaticProps` should return an object with:
