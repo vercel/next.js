@@ -50,8 +50,8 @@ class RotatingWriteStream {
     }
 
     if (!this.writeStream.write(data, 'utf8')) {
-      await new Promise<void>((resolve, reject) => {
-        this.writeStream.once('drain', resolve);
+      await new Promise<void>((resolve, _reject) => {
+        this.writeStream.once('drain', resolve)
       })
     }
   }
