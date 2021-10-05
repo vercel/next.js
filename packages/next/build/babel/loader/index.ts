@@ -2,6 +2,7 @@ import { getOptions } from 'next/dist/compiled/loader-utils'
 import { Span } from '../../../trace'
 import transform from './transform'
 import { NextJsLoaderContext } from './types'
+import path from 'path'
 
 async function nextBabelLoader(
   this: NextJsLoaderContext,
@@ -14,6 +15,12 @@ async function nextBabelLoader(
   const loaderOptions = parentTrace
     .traceChild('get-options')
     .traceFn(() => getOptions(this))
+  const rawFilename = this._injectModulePlugin?.module?.resourceResolveData
+    ? path.join(
+        loaderOptions.cwd,
+        this._injectModulePlugin?.module?.resourceResolveData?.relativePath
+      )
+    : ''
 
   const loaderSpanInner = parentTrace.traceChild('next-babel-turbo-transform')
   const { code: transformedSource, map: outputSourceMap } =
@@ -25,7 +32,8 @@ async function nextBabelLoader(
         loaderOptions,
         filename,
         target,
-        loaderSpanInner
+        loaderSpanInner,
+        rawFilename
       )
     )
 

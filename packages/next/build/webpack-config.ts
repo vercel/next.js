@@ -47,6 +47,7 @@ import { ProfilingPlugin } from './webpack/plugins/profiling-plugin'
 import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
 import { ServerlessPlugin } from './webpack/plugins/serverless-plugin'
 import { WellKnownErrorsPlugin } from './webpack/plugins/wellknown-errors-plugin'
+import { InjectModulePlugin } from './webpack/plugins/inject-module-plugin'
 import { regexLikeCss } from './webpack/config/blocks/css'
 import { CopyFilePlugin } from './webpack/plugins/copy-file-plugin'
 import type { Span } from '../trace'
@@ -1386,6 +1387,7 @@ export default async function getBaseWebpackConfig(
             minimized: true,
           },
         }),
+      new InjectModulePlugin(),
     ].filter(Boolean as any as ExcludesFalse),
   }
 

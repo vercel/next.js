@@ -1,8 +1,10 @@
 import { loader } from 'next/dist/compiled/webpack/webpack'
 import { Span } from '../../../trace'
+import { InjectModulePluginContext } from '../../webpack/plugins/inject-module-plugin'
 
 export interface NextJsLoaderContext extends loader.LoaderContext {
   currentTraceSpan: Span
+  _injectModulePlugin: InjectModulePluginContext
 }
 
 export interface NextBabelLoaderOptions {

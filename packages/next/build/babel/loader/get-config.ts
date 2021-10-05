@@ -42,10 +42,12 @@ const fileExtensionRegex = /\.([a-z]+)$/
 function getCacheCharacteristics(
   loaderOptions: NextBabelLoaderOptions,
   source: string,
-  filename: string
+  filename: string,
+  rawFilename: string
 ): CharacteristicsGermaneToCaching {
   const { isServer, pagesDir } = loaderOptions
-  const isPageFile = filename.startsWith(pagesDir)
+  const isPageFile =
+    filename.startsWith(pagesDir) || rawFilename.startsWith(pagesDir)
   const isNextDist = nextDistPath.test(filename)
   const hasModuleExports = source.indexOf('module.exports') !== -1
   const fileExt = fileExtensionRegex.exec(filename)?.[1] || 'unknown'
@@ -299,18 +301,21 @@ export default function getConfig(
     loaderOptions,
     filename,
     inputSourceMap,
+    rawFilename,
   }: {
     source: string
     loaderOptions: NextBabelLoaderOptions
     target: string
     filename: string
     inputSourceMap?: object | null
+    rawFilename: string
   }
 ): BabelConfig {
   const cacheCharacteristics = getCacheCharacteristics(
     loaderOptions,
     source,
-    filename
+    filename,
+    rawFilename
   )
 
   if (loaderOptions.configFile) {
