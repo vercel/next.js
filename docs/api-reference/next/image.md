@@ -237,7 +237,7 @@ Other properties on the `<Image />` component will be passed to the underlying
 
 ### Domains
 
-To protect your application from abuse, you must define a list of image provider domains that you want to be served from the Next.js Image Optimization API. This is configured in with the `domains` property in your `next.config.js` file, as shown below:
+To protect your application from bad actors, you must define a list of image provider domains that you want to be served from the Next.js Image Optimization API. This is configured in with the `domains` property in your `next.config.js` file, as shown below:
 
 ```js
 module.exports = {

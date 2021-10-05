@@ -91,9 +91,9 @@ export default function Home() {
 
 ### Domains
 
-Sometimes you may want to access a remote image, but still use the built-in Next.js Image Optimization API. To do this, simply leave the `loader` at its default setting and enter an absolute URL for the Image `src`.
+Sometimes you may want to access a remote image, but still use the built-in Next.js Image Optimization API. To do this, leave the `loader` at its default setting and enter an absolute URL for the Image `src`.
 
-To protect your application from abuse, you must define a list of remote domains that you intend to access this way. This is configured in your `next.config.js` file, as shown below:
+To protect your application from bad actors, you must define a list of remote domains that you intend to access this way. This is configured in your `next.config.js` file, as shown below:
 
 ```js
 module.exports = {
@@ -109,7 +109,7 @@ Note that in the [example earlier](#remote-images), a partial URL (`"/me.png"`) 
 
 A loader is a function that generates the URLs for your image. It appends a root domain to your provided `src`, and generates multiple URLs to request the image at different sizes. These multiple URLs are used in the automatic [srcset](https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement/srcset) generation, so that visitors to your site will be served an image that is the right size for their viewport.
 
-The default loader for Next.js applications uses the built-in Image Optimization API, which optimizes images from anywhere on the web, and then serves them directly from the Next.js web server. If you would like to serve your images directly from a CDN or image server, you can use one of the [built-in loaders](/docs/api-reference/next/image.md#built-in-loaders) or write your own with just a few lines of JavaScript.
+The default loader for Next.js applications uses the built-in Image Optimization API, which optimizes images from anywhere on the web, and then serves them directly from the Next.js web server. If you would like to serve your images directly from a CDN or image server, you can use one of the [built-in loaders](/docs/api-reference/next/image.md#built-in-loaders) or write your own with a few lines of JavaScript.
 
 Loaders can be defined per-image, or at the application level. 
 
