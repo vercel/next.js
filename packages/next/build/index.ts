@@ -132,6 +132,7 @@ export default async function build(
       .traceChild('load-next-config')
       .traceAsyncFn(() => loadConfig(PHASE_PRODUCTION_BUILD, dir, conf))
     const distDir = path.join(dir, config.distDir)
+    setGlobal('phase', PHASE_PRODUCTION_BUILD)
     setGlobal('distDir', distDir)
 
     const { target } = config

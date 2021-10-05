@@ -9,11 +9,7 @@ import {
   isWebpack5,
   sources,
 } from 'next/dist/compiled/webpack/webpack'
-import {
-  NODE_ESM_RESOLVE_OPTIONS,
-  NODE_RESOLVE_OPTIONS,
-} from '../../webpack-config'
-import { NextConfigComplete } from '../../../server/config-shared'
+import { NODE_RESOLVE_OPTIONS } from '../../webpack-config'
 
 const PLUGIN_NAME = 'TraceEntryPointsPlugin'
 const TRACE_IGNORES = [
@@ -38,20 +34,16 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
   private appDir: string
   private entryTraces: Map<string, string[]>
   private excludeFiles: string[]
-  private esmExternals: NextConfigComplete['experimental']['esmExternals']
 
   constructor({
     appDir,
     excludeFiles,
-    esmExternals,
   }: {
     appDir: string
     excludeFiles?: string[]
-    esmExternals?: NextConfigComplete['experimental']['esmExternals']
   }) {
     this.appDir = appDir
     this.entryTraces = new Map()
-    this.esmExternals = esmExternals
     this.excludeFiles = excludeFiles || []
   }
 
@@ -111,8 +103,8 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
     traceEntrypointsPluginSpan: Span,
     doResolve?: (
       request: string,
-      context: string,
-      isEsm?: boolean
+      parent: string,
+      job: import('@vercel/nft/out/node-file-trace').Job
     ) => Promise<string>
   ) {
     compilation.hooks.finishModules.tapAsync(
@@ -230,7 +222,10 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
                   })
                 })
               } catch (e) {
-                if (isError(e) && e.code === 'ENOENT') {
+                if (
+                  isError(e) &&
+                  (e.code === 'ENOENT' || e.code === 'ENOTDIR')
+                ) {
                   return null
                 }
                 throw e
@@ -297,8 +292,7 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
                     readlink,
                     stat,
                     resolve: doResolve
-                      ? (id, parent, _job, isCjs) =>
-                          doResolve(id, nodePath.dirname(parent), !isCjs)
+                      ? (id, parent, job, _isCjs) => doResolve(id, parent, job)
                       : undefined,
                     ignore: [...TRACE_IGNORES, ...this.excludeFiles],
                     mixedModules: true,
@@ -308,10 +302,12 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
                 const tracedDeps: string[] = []
 
                 for (const file of result.fileList) {
+                  // don't include the entry itself
                   if (result.reasons[file].type === 'initial') {
                     continue
                   }
-                  tracedDeps.push(nodePath.join(root, file))
+                  const filepath = nodePath.join(root, file)
+                  tracedDeps.push(filepath)
                 }
 
                 // entryMod.buildInfo.cachedNextEntryTrace = {
@@ -353,81 +349,81 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
               )
             }
           )
-          const resolver = compilation.resolverFactory.get('normal')
-          const looseEsmExternals = this.esmExternals === 'loose'
+          let resolver = compilation.resolverFactory.get('normal')
+
+          resolver = resolver.withOptions({
+            ...NODE_RESOLVE_OPTIONS,
+            extensions: undefined,
+          })
+
+          function getPkgName(name: string) {
+            const segments = name.split('/')
+            if (name[0] === '@' && segments.length > 1)
+              return segments.length > 1 ? segments.slice(0, 2).join('/') : null
+            return segments.length ? segments[0] : null
+          }
 
           const doResolve = async (
             request: string,
-            context: string,
-            isEsmRequested?: boolean
+            parent: string,
+            job: import('@vercel/nft/out/node-file-trace').Job
           ): Promise<string> => {
-            const preferEsm = isEsmRequested && this.esmExternals
-            const curResolver = resolver.withOptions(
-              preferEsm ? NODE_ESM_RESOLVE_OPTIONS : NODE_RESOLVE_OPTIONS
-            )
+            return new Promise((resolve, reject) => {
+              resolver.resolve(
+                {},
+                nodePath.dirname(parent),
+                request,
+                {
+                  fileDependencies: compilation.fileDependencies,
+                  missingDependencies: compilation.missingDependencies,
+                  contextDependencies: compilation.contextDependencies,
+                },
+                async (err: any, result: string, context: any) => {
+                  if (err) return reject(err)
 
-            let res: string = ''
-            try {
-              res = await new Promise((resolve, reject) => {
-                curResolver.resolve(
-                  {},
-                  context,
-                  request,
-                  {
-                    fileDependencies: compilation.fileDependencies,
-                    missingDependencies: compilation.missingDependencies,
-                    contextDependencies: compilation.contextDependencies,
-                  },
-                  (err: any, result: string) => {
-                    if (err) reject(err)
-                    else resolve(result)
+                  if (!result) {
+                    return reject(new Error('module not found'))
                   }
-                )
-              })
-            } catch (err) {
-              if (!(isEsmRequested && looseEsmExternals)) {
-                throw err
-              }
-              // continue to attempt alternative resolving
-            }
 
-            if (!res && isEsmRequested && looseEsmExternals) {
-              const altResolver = resolver.withOptions(
-                preferEsm ? NODE_RESOLVE_OPTIONS : NODE_ESM_RESOLVE_OPTIONS
-              )
+                  try {
+                    if (result.includes('node_modules')) {
+                      let requestPath = result
 
-              res = await new Promise((resolve, reject) => {
-                altResolver.resolve(
-                  {},
-                  context,
-                  request,
-                  {
-                    fileDependencies: compilation.fileDependencies,
-                    missingDependencies: compilation.missingDependencies,
-                    contextDependencies: compilation.contextDependencies,
-                  },
-                  (err: any, result: string) => {
-                    if (err) reject(err)
-                    else resolve(result)
+                      if (
+                        !nodePath.isAbsolute(request) &&
+                        request.includes('/') &&
+                        context?.descriptionFileRoot
+                      ) {
+                        requestPath =
+                          context.descriptionFileRoot +
+                          request.substr(getPkgName(request)?.length || 0) +
+                          nodePath.sep +
+                          'package.json'
+                      }
+
+                      // the descriptionFileRoot is not set to the last used
+                      // package.json so we use nft's resolving for this
+                      // see test/integration/build-trace-extra-entries/app/node_modules/nested-structure for example
+                      const packageJsonResult = await job.getPjsonBoundary(
+                        requestPath
+                      )
+
+                      if (packageJsonResult) {
+                        await job.emitFile(
+                          packageJsonResult + nodePath.sep + 'package.json',
+                          'resolve',
+                          parent
+                        )
+                      }
+                    }
+                  } catch (_err) {
+                    // we failed to resolve the package.json boundary,
+                    // we don't block emitting the initial asset from this
                   }
-                )
-              })
-            }
-
-            if (!res) {
-              // we should not get here as one of the two above resolves should
-              // have thrown but this is here as a safeguard
-              throw new Error(
-                'invariant: failed to resolve ' +
-                  JSON.stringify({
-                    isEsmRequested,
-                    looseEsmExternals,
-                    request,
-                    res,
-                  })
+                  resolve(result)
+                }
               )
-            }
-            return res
+            })
           }
 
           this.tapfinishModules(
