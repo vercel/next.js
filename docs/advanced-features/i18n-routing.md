@@ -204,7 +204,7 @@ export default function IndexPage(props) {
 }
 ```
 
-Note that to handle switching just the `locale` while preserving all routing information such as [dynamic route](/docs/routing/dynamic-routes.md) query values or hidden href query values, you can provide the `href` parameter as an object:
+Note that to handle switching only the `locale` while preserving all routing information such as [dynamic route](/docs/routing/dynamic-routes.md) query values or hidden href query values, you can provide the `href` parameter as an object:
 
 ```jsx
 import { useRouter } from 'next/router'
