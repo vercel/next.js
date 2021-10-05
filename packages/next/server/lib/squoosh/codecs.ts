@@ -65,19 +65,20 @@ const avifDecWasm = path.resolve(__dirname, './avif/avif_node_dec.wasm')
 // @ts-ignore
 import * as pngEncDec from './png/squoosh_png.js'
 const pngEncDecWasm = path.resolve(__dirname, './png/squoosh_png_bg.wasm')
-const pngEncDecPromise = pngEncDec.default(fsp.readFile(pathify(pngEncDecWasm)))
+const pngEncDecInit = () =>
+  pngEncDec.default(fsp.readFile(pathify(pngEncDecWasm)))
 
 // OxiPNG
 // @ts-ignore
 import * as oxipng from './png/squoosh_oxipng.js'
 const oxipngWasm = path.resolve(__dirname, './png/squoosh_oxipng_bg.wasm')
-const oxipngPromise = oxipng.default(fsp.readFile(pathify(oxipngWasm)))
+const oxipngInit = () => oxipng.default(fsp.readFile(pathify(oxipngWasm)))
 
 // Resize
 // @ts-ignore
 import * as resize from './resize/squoosh_resize.js'
 const resizeWasm = path.resolve(__dirname, './resize/squoosh_resize_bg.wasm')
-const resizePromise = resize.default(fsp.readFile(pathify(resizeWasm)))
+const resizeInit = () => resize.default(fsp.readFile(pathify(resizeWasm)))
 
 // rotate
 const rotateWasm = path.resolve(__dirname, './rotate/rotate.wasm')
@@ -135,7 +136,7 @@ export const preprocessors = {
     name: 'Resize',
     description: 'Resize the image before compressing',
     instantiate: async () => {
-      await resizePromise
+      await resizeInit()
       return (
         buffer: Uint8Array,
         input_width: number,
@@ -162,6 +163,7 @@ export const preprocessors = {
           width,
           height
         )
+        resize.cleanup()
         return imageData
       }
     },
@@ -330,17 +332,18 @@ export const codecs = {
     // eslint-disable-next-line no-control-regex
     detectors: [/^\x89PNG\x0D\x0A\x1A\x0A/],
     dec: async () => {
-      await pngEncDecPromise
+      await pngEncDecInit()
       return {
         decode: (buffer: Buffer | Uint8Array) => {
           const imageData = pngEncDec.decode(buffer)
+          pngEncDec.cleanup()
           return imageData
         },
       }
     },
     enc: async () => {
-      await pngEncDecPromise
-      await oxipngPromise
+      await pngEncDecInit()
+      await oxipngInit()
       return {
         encode: (
           buffer: Uint8ClampedArray | ArrayBuffer,
@@ -354,6 +357,7 @@ export const codecs = {
             height
           )
           const imageData = oxipng.optimise(simplePng, opts.level, false)
+          oxipng.cleanup()
           return imageData
         },
       }
