@@ -105,40 +105,41 @@ module.exports = {
 
 ### Loaders
 
-Note that in the [example earlier](#remote-images), a partial URL (`"/me.png"`) is provided for a remote image. This is possible because of the `next/image` [loader](/docs/api-reference/next/image.md#loader) architecture. 
+Note that in the [example earlier](#remote-images), a partial URL (`"/me.png"`) is provided for a remote image. This is possible because of the `next/image` [loader](/docs/api-reference/next/image.md#loader) architecture.
 
 A loader is a function that generates the URLs for your image. It appends a root domain to your provided `src`, and generates multiple URLs to request the image at different sizes. These multiple URLs are used in the automatic [srcset](https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement/srcset) generation, so that visitors to your site will be served an image that is the right size for their viewport.
 
 The default loader for Next.js applications uses the built-in Image Optimization API, which optimizes images from anywhere on the web, and then serves them directly from the Next.js web server. If you would like to serve your images directly from a CDN or image server, you can use one of the [built-in loaders](/docs/api-reference/next/image.md#built-in-loaders) or write your own with a few lines of JavaScript.
 
-Loaders can be defined per-image, or at the application level. 
+Loaders can be defined per-image, or at the application level.
 
 ## Image Sizing
 
-One of the ways that images most commonly hurt performance is through *layout shift*, where the image pushes other elements around on the page as it loads in. This performance problem is so annoying to users that it has its own Core Web Vital, called [Cumulative Layout Shift](https://web.dev/cls/).  The way to avoid image-based layout shifts is to [always size your images](https://web.dev/optimize-cls/#images-without-dimensions). This allows the browser to reserve precisely enough space for the image before it loads.
+One of the ways that images most commonly hurt performance is through _layout shift_, where the image pushes other elements around on the page as it loads in. This performance problem is so annoying to users that it has its own Core Web Vital, called [Cumulative Layout Shift](https://web.dev/cls/). The way to avoid image-based layout shifts is to [always size your images](https://web.dev/optimize-cls/#images-without-dimensions). This allows the browser to reserve precisely enough space for the image before it loads.
 
 Because `next/image` is designed to guarantee good performance results, it cannot be used in a way that will contribute to layout shift, and **must** be sized in one of three ways:
-1) Automatically, using a [static import](#local-images)
-2) Explicitly, by including a `height` **and** `width` property
-3) Implicitly, by using `layout="fill"` which causes the image to expand to fill its parent element. 
 
->### What if I don't know the size of my images?
->
->If you are accessing images from a source without knowledge of the images' sizes, there are several things you can do:
->
->**Use `layout='fill'`**
->
->The `fill` layout mode allows your image to be sized by its parent element. Consider using CSS to give the image's parent element space on the page, then using the [`objectFit property`](/docs/api-reference/next/image.md#objectfit) with `fill`, `contain`, or `cover`, along with the [`objectPosition property`](/docs/api-reference/next/image.md#objectposition) to define how the image should occupy that space. 
->
->**Normalize your images**
->
->If you're serving images from a source that you control, consider modifying your image pipeline to normalize the images to a specific size.
->
->**Modify your API calls**
->
->If your application is retrieving image URLs using an API call (such as to a CMS), you may be able to modify the API call to return the image dimensions along with the URL.
+1. Automatically, using a [static import](#local-images)
+2. Explicitly, by including a `height` **and** `width` property
+3. Implicitly, by using `layout="fill"` which causes the image to expand to fill its parent element.
 
-If none of the suggested methods works for sizing your images, the `next/image` component is designed to work well on a page alongside standard `<img>` elements. 
+> ### What if I don't know the size of my images?
+>
+> If you are accessing images from a source without knowledge of the images' sizes, there are several things you can do:
+>
+> **Use `layout='fill'`**
+>
+> The `fill` layout mode allows your image to be sized by its parent element. Consider using CSS to give the image's parent element space on the page, then using the [`objectFit property`](/docs/api-reference/next/image.md#objectfit) with `fill`, `contain`, or `cover`, along with the [`objectPosition property`](/docs/api-reference/next/image.md#objectposition) to define how the image should occupy that space.
+>
+> **Normalize your images**
+>
+> If you're serving images from a source that you control, consider modifying your image pipeline to normalize the images to a specific size.
+>
+> **Modify your API calls**
+>
+> If your application is retrieving image URLs using an API call (such as to a CMS), you may be able to modify the API call to return the image dimensions along with the URL.
+
+If none of the suggested methods works for sizing your images, the `next/image` component is designed to work well on a page alongside standard `<img>` elements.
 
 ## Styling
 
@@ -175,7 +176,6 @@ This is the default for `<div>` elements but should be specified otherwise.
 ### Styling Examples
 
 For examples of the Image component used with the various fill modes, see the [Image component example app](https://image-component.nextjs.gallery/).
-
 
 ## Configuration
 
