@@ -97,6 +97,7 @@ import ResponseCache, {
 } from './response-cache'
 import { NextConfigComplete } from './config-shared'
 import { parseNextUrl } from '../shared/lib/router/utils/parse-next-url'
+import isError from '../lib/is-error'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -490,7 +491,7 @@ export default class Server {
       if (this.minimalMode || this.renderOpts.dev) {
         throw err
       }
-      this.logError(err)
+      this.logError(isError(err) ? err : new Error(err + ''))
       res.statusCode = 500
       res.end('Internal Server Error')
     }
@@ -1099,7 +1100,7 @@ export default class Server {
     try {
       builtPagePath = await this.getPagePath(page)
     } catch (err) {
-      if (err.code === 'ENOENT') {
+      if (isError(err) && err.code === 'ENOENT') {
         return false
       }
       throw err
@@ -1412,7 +1413,7 @@ export default class Server {
           },
         }
       } catch (err) {
-        if (err.code !== 'ENOENT') throw err
+        if (isError(err) && err.code !== 'ENOENT') throw err
       }
     }
     return null
@@ -1449,8 +1450,8 @@ export default class Server {
     const is500Page = pathname === '/500'
 
     const isLikeServerless =
-      typeof components.Component === 'object' &&
-      typeof (components.Component as any).renderReqToHTML === 'function'
+      typeof components.ComponentMod === 'object' &&
+      typeof (components.ComponentMod as any).renderReqToHTML === 'function'
     const isSSG = !!components.getStaticProps
     const hasServerProps = !!components.getServerSideProps
     const hasStaticPaths = !!components.getStaticPaths
@@ -1492,7 +1493,7 @@ export default class Server {
         !isLikeServerless &&
         !query.amp &&
         !this.minimalMode &&
-        typeof components.Document.getInitialProps !== 'function'
+        typeof components.Document?.getInitialProps !== 'function'
     }
 
     const locale = query.__nextLocale as string
@@ -1625,7 +1626,7 @@ export default class Server {
       // handle serverless
       if (isLikeServerless) {
         const renderResult = await (
-          components.Component as any
+          components.ComponentMod as any
         ).renderReqToHTML(req, res, 'passthrough', {
           locale,
           locales,
@@ -1711,9 +1712,16 @@ export default class Server {
         const isDynamicPathname = isDynamicRoute(pathname)
         const didRespond = hasResolved || isResSent(res)
 
-        const { staticPaths, fallbackMode } = hasStaticPaths
+        let { staticPaths, fallbackMode } = hasStaticPaths
           ? await this.getStaticPaths(pathname)
           : { staticPaths: undefined, fallbackMode: false }
+
+        if (
+          fallbackMode === 'static' &&
+          isBot(req.headers['user-agent'] || '')
+        ) {
+          fallbackMode = 'blocking'
+        }
 
         // When we did not respond from cache, we need to choose to block on
         // rendering or return a skeleton.
@@ -1931,7 +1939,8 @@ export default class Server {
           }
         }
       }
-    } catch (err) {
+    } catch (error) {
+      const err = isError(error) ? error : error ? new Error(error + '') : null
       if (err instanceof NoFallbackError && bubbleNoFallback) {
         throw err
       }
@@ -1944,17 +1953,15 @@ export default class Server {
       const isWrappedError = err instanceof WrappedBuildError
       const response = await this.renderErrorToResponse(
         ctx,
-        isWrappedError ? err.innerError : err
+        isWrappedError ? (err as WrappedBuildError).innerError : err
       )
 
       if (!isWrappedError) {
         if (this.minimalMode || this.renderOpts.dev) {
-          if (err) {
-            err.page = page
-          }
+          if (isError(err)) err.page = page
           throw err
         }
-        this.logError(err)
+        this.logError(err || new Error(error + ''))
       }
       return response
     }
@@ -2073,10 +2080,15 @@ export default class Server {
         }
         throw maybeFallbackError
       }
-    } catch (renderToHtmlError) {
+    } catch (error) {
+      const renderToHtmlError = isError(error)
+        ? error
+        : error
+        ? new Error(error + '')
+        : null
       const isWrappedError = renderToHtmlError instanceof WrappedBuildError
       if (!isWrappedError) {
-        this.logError(renderToHtmlError)
+        this.logError(renderToHtmlError || new Error(error + ''))
       }
       res.statusCode = 500
       const fallbackComponents = await this.getFallbackErrorComponents()
@@ -2166,7 +2178,9 @@ export default class Server {
 
     try {
       await serveStatic(req, res, path)
-    } catch (err) {
+    } catch (error) {
+      if (!isError(error)) throw error
+      const err = error as Error & { code?: string; statusCode?: number }
       if (err.code === 'ENOENT' || err.statusCode === 404) {
         this.render404(req, res, parsedUrl)
       } else if (err.statusCode === 412) {

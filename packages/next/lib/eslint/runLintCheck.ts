@@ -18,6 +18,7 @@ import { isYarn } from '../is-yarn'
 
 import * as Log from '../../build/output/log'
 import { EventLintCheckCompleted } from '../../telemetry/events/build'
+import isError from '../is-error'
 
 type Config = {
   plugins: string[]
@@ -90,7 +91,7 @@ async function lint(
         `ESLint must be installed${
           lintDuringBuild ? ' in order to run during builds:' : ':'
         } ${chalk.bold.cyan(
-          isYarn(baseDir)
+          (await isYarn(baseDir))
             ? 'yarn add --dev eslint'
             : 'npm install --save-dev eslint'
         )}`
@@ -211,11 +212,13 @@ async function lint(
   } catch (err) {
     if (lintDuringBuild) {
       Log.error(
-        `ESLint: ${err.message ? err.message.replace(/\n/g, ' ') : err}`
+        `ESLint: ${
+          isError(err) && err.message ? err.message.replace(/\n/g, ' ') : err
+        }`
       )
       return null
     } else {
-      throw new Error(err)
+      throw new Error(err + '')
     }
   }
 }

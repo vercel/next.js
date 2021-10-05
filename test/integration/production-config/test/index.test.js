@@ -3,30 +3,25 @@
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 import {
-  nextServer,
+  nextStart,
   nextBuild,
-  startApp,
-  stopApp,
+  findPort,
+  killApp,
   runNextCommand,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
 
+let app
 let appPort
-let server
 
 describe('Production Config Usage', () => {
   beforeAll(async () => {
     await nextBuild(appDir)
-    const app = nextServer({
-      dir: join(__dirname, '../'),
-      dev: false,
-      quiet: true,
-    })
-    server = await startApp(app)
-    appPort = server.address().port
+    appPort = await findPort()
+    app = await nextStart(appDir, appPort)
   })
-  afterAll(() => stopApp(server))
+  afterAll(() => killApp(app))
 
   describe('with next-css', () => {
     it('should load styles', async () => {

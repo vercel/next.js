@@ -220,6 +220,14 @@ function runTests(mode) {
         () => browser.eval(`document.getElementById("msg4").textContent`),
         'loaded img4 with dimensions 21x21'
       )
+      await check(
+        () => browser.eval(`document.getElementById("msg5").textContent`),
+        'loaded img5 with dimensions 3x5'
+      )
+      await check(
+        () => browser.eval(`document.getElementById("msg6").textContent`),
+        'loaded img6 with dimensions 3x5'
+      )
     } finally {
       if (browser) {
         await browser.close()
