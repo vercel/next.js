@@ -179,7 +179,6 @@ export function attachReactRefresh(
 export const NODE_RESOLVE_OPTIONS = {
   dependencyType: 'commonjs',
   modules: ['node_modules'],
-  alias: false,
   fallback: false,
   exportsFields: ['exports'],
   importsFields: ['imports'],
@@ -197,11 +196,22 @@ export const NODE_RESOLVE_OPTIONS = {
   restrictions: [],
 }
 
+export const NODE_BASE_RESOLVE_OPTIONS = {
+  ...NODE_RESOLVE_OPTIONS,
+  alias: false,
+}
+
 export const NODE_ESM_RESOLVE_OPTIONS = {
   ...NODE_RESOLVE_OPTIONS,
+  alias: false,
   dependencyType: 'esm',
   conditionNames: ['node', 'import'],
   fullySpecified: true,
+}
+
+export const NODE_BASE_ESM_RESOLVE_OPTIONS = {
+  ...NODE_ESM_RESOLVE_OPTIONS,
+  alias: false,
 }
 
 let TSCONFIG_WARNED = false
@@ -808,7 +818,7 @@ export default async function getBaseWebpackConfig(
     let baseIsEsm: boolean
     try {
       const baseResolve = getResolve(
-        isEsm ? NODE_ESM_RESOLVE_OPTIONS : NODE_RESOLVE_OPTIONS
+        isEsm ? NODE_BASE_ESM_RESOLVE_OPTIONS : NODE_BASE_RESOLVE_OPTIONS
       )
       ;[baseRes, baseIsEsm] = await baseResolve(dir, request)
     } catch (err) {
