@@ -179,7 +179,7 @@ For examples of the Image component used with the various fill modes, see the [I
 
 ## Configuration
 
-The `next/image` component and Next.js Image Optimization API can be configured in the [`next.config.js` file](https://nextjs.org/docs/api-reference/next.config.js/introduction). These configurations allow you to [enable remote domains](/docs/api-reference/next/image.md#domains), [define custom image breakpoints](/docs/api-reference/next/image.md#device-sizes), [change caching behavior](/docs/api-reference/next/image.md#caching-behavior) and more.
+The `next/image` component and Next.js Image Optimization API can be configured in the [`next.config.js` file](/docs/api-reference/next.config.js/introduction.md). These configurations allow you to [enable remote domains](/docs/api-reference/next/image.md#domains), [define custom image breakpoints](/docs/api-reference/next/image.md#device-sizes), [change caching behavior](/docs/api-reference/next/image.md#caching-behavior) and more.
 
 [**Read the full image configuration documentation for more information.**](/docs/api-reference/next/image.md#configuration-options)
 
