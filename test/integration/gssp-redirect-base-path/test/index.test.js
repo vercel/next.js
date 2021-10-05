@@ -51,9 +51,18 @@ const runTests = (isDev) => {
     )
     expect(res.status).toBe(307)
 
-    const { pathname } = url.parse(res.headers.get('location'))
+    const parsedUrl = url.parse(res.headers.get('location'))
+    expect(parsedUrl.pathname).toBe(`/404`)
 
-    expect(pathname).toBe(`/404`)
+    const browser = await webdriver(appPort, `${basePath}`)
+    await browser.eval(`next.router.push('/gssp-blog/redirect-1-no-basepath-')`)
+    await check(
+      () => browser.eval('document.documentElement.innerHTML'),
+      /oops not found/
+    )
+
+    const parsedUrl2 = url.parse(await browser.eval('window.location.href'))
+    expect(parsedUrl2.pathname).toBe('/404')
   })
 
   it('should apply permanent redirect when visited directly for GSSP page', async () => {

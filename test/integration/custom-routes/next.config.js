@@ -400,6 +400,18 @@ module.exports = {
         destination: 'https://:subdomain.example.com/some-path/end?a=b',
         permanent: false,
       },
+      {
+        source: '/has-redirect-7',
+        has: [
+          {
+            type: 'query',
+            key: 'hello',
+            value: '(?<hello>.*)',
+          },
+        ],
+        destination: '/somewhere?value=:hello',
+        permanent: false,
+      },
     ]
   },
 

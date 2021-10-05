@@ -25,7 +25,7 @@ const testModeFromFile = testFolderModes.find((mode) =>
 if (testModeFromFile === 'e2e') {
   const validE2EModes = ['dev', 'start', 'deploy']
 
-  if (!process.env.NEXT_TEST_JOB) {
+  if (!process.env.NEXT_TEST_JOB && !testMode) {
     console.warn('Warn: no NEXT_TEST_MODE set, using default of start')
     testMode = 'start'
   }
@@ -42,9 +42,11 @@ if (testModeFromFile === 'e2e') {
 }
 
 if (testMode === 'dev') {
-  ;(global as any).isDev = true
+  ;(global as any).isNextDev = true
 } else if (testMode === 'deploy') {
-  ;(global as any).isDeploy = true
+  ;(global as any).isNextDeploy = true
+} else {
+  ;(global as any).isNextStart = true
 }
 
 if (!testMode) {
@@ -94,29 +96,37 @@ export async function createNext(opts: {
   nextConfig?: NextConfig
   skipStart?: boolean
 }): Promise<NextInstance> {
-  if (nextInstance) {
-    throw new Error(`createNext called without destroying previous instance`)
+  try {
+    if (nextInstance) {
+      throw new Error(`createNext called without destroying previous instance`)
+    }
+
+    if (testMode === 'dev') {
+      // next dev
+      nextInstance = new NextDevInstance(opts)
+    } else if (testMode === 'deploy') {
+      // Vercel
+      throw new Error('to-implement')
+    } else {
+      // next build + next start
+      nextInstance = new NextStartInstance(opts)
+    }
+
+    nextInstance.on('destroy', () => {
+      nextInstance = undefined
+    })
+
+    await nextInstance.setup()
+
+    if (!opts.skipStart) {
+      await nextInstance.start()
+    }
+    return nextInstance!
+  } catch (err) {
+    console.error('Failed to create next instance', err)
+    try {
+      await nextInstance.destroy()
+    } catch (_) {}
+    process.exit(1)
   }
-
-  if (testMode === 'dev') {
-    // next dev
-    nextInstance = new NextDevInstance(opts)
-  } else if (testMode === 'deploy') {
-    // Vercel
-    throw new Error('to-implement')
-  } else {
-    // next build + next start
-    nextInstance = new NextStartInstance(opts)
-  }
-
-  nextInstance.on('destroy', () => {
-    nextInstance = undefined
-  })
-
-  await nextInstance.setup()
-
-  if (!opts.skipStart) {
-    await nextInstance.start()
-  }
-  return nextInstance!
 }

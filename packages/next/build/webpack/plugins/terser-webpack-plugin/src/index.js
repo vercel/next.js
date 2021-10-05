@@ -122,8 +122,10 @@ export class TerserPlugin {
     cache,
     { SourceMapSource, RawSource }
   ) {
-    const compilerSpan = spans.get(compiler)
-    const terserSpan = compilerSpan.traceChild('terser-webpack-plugin-optimize')
+    const compilationSpan = spans.get(compilation) || spans.get(compiler)
+    const terserSpan = compilationSpan.traceChild(
+      'terser-webpack-plugin-optimize'
+    )
     terserSpan.setAttribute('webpackVersion', isWebpack5 ? 5 : 4)
     terserSpan.setAttribute('compilationName', compilation.name)
 

@@ -8,6 +8,7 @@ import {
 
 export type NextConfigComplete = Required<NextConfig> & {
   images: ImageConfigComplete
+  typescript: Required<TypeScriptConfig>
 }
 
 export interface I18NConfig {
@@ -34,6 +35,8 @@ export interface ESLintConfig {
 export interface TypeScriptConfig {
   /** Do not run TypeScript during production builds (`next build`). */
   ignoreBuildErrors?: boolean
+  /** Relative path to a custom tsconfig file */
+  tsconfigPath?: string
 }
 
 export type NextConfig = { [key: string]: any } & {
@@ -109,7 +112,7 @@ export type NextConfig = { [key: string]: any } & {
     webpack5?: false
     strictPostcssConfiguration?: boolean
   }
-  crossOrigin?: string
+  crossOrigin?: false | 'anonymous' | 'use-credentials'
   experimental?: {
     swcMinify?: boolean
     swcLoader?: boolean
@@ -139,8 +142,9 @@ export type NextConfig = { [key: string]: any } & {
     esmExternals?: boolean | 'loose'
     staticPageGenerationTimeout?: number
     isrMemoryCacheSize?: number
-    nftTracing?: boolean
+    outputFileTracing?: boolean
     concurrentFeatures?: boolean
+    serverComponents?: boolean
   }
 }
 
@@ -153,6 +157,7 @@ export const defaultConfig: NextConfig = {
   },
   typescript: {
     ignoreBuildErrors: false,
+    tsconfigPath: 'tsconfig.json',
   },
   distDir: '.next',
   cleanDistDir: true,
@@ -219,8 +224,9 @@ export const defaultConfig: NextConfig = {
     staticPageGenerationTimeout: 60,
     // default to 50MB limit
     isrMemoryCacheSize: 50 * 1024 * 1024,
-    nftTracing: false,
+    outputFileTracing: false,
     concurrentFeatures: false,
+    serverComponents: false,
   },
   future: {
     strictPostcssConfiguration: false,

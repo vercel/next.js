@@ -66,15 +66,19 @@ export function matchHas(
       return true
     } else if (value) {
       const matcher = new RegExp(`^${hasItem.value}$`)
-      const matches = value.match(matcher)
+      const matches = Array.isArray(value)
+        ? value.slice(-1)[0].match(matcher)
+        : value.match(matcher)
 
       if (matches) {
-        if (matches.groups) {
-          Object.keys(matches.groups).forEach((groupKey) => {
-            params[groupKey] = matches.groups![groupKey]
-          })
-        } else if (hasItem.type === 'host' && matches[0]) {
-          params.host = matches[0]
+        if (Array.isArray(matches)) {
+          if (matches.groups) {
+            Object.keys(matches.groups).forEach((groupKey) => {
+              params[groupKey] = matches.groups![groupKey]
+            })
+          } else if (hasItem.type === 'host' && matches[0]) {
+            params.host = matches[0]
+          }
         }
         return true
       }

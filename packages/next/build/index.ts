@@ -63,6 +63,7 @@ import {
   eventBuildCompleted,
   eventBuildOptimize,
   eventCliSession,
+  eventBuildFeatureUsage,
   eventNextPlugins,
   eventTypeCheckCompleted,
 } from '../telemetry/events'
@@ -91,6 +92,7 @@ import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { isWebpack5 } from 'next/dist/compiled/webpack/webpack'
 import { NextConfigComplete } from '../server/config-shared'
 import isError from '../lib/is-error'
+import { TelemetryPlugin } from './webpack/plugins/telemetry-plugin'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -132,6 +134,7 @@ export default async function build(
       .traceChild('load-next-config')
       .traceAsyncFn(() => loadConfig(PHASE_PRODUCTION_BUILD, dir, conf))
     const distDir = path.join(dir, config.distDir)
+    setGlobal('phase', PHASE_PRODUCTION_BUILD)
     setGlobal('distDir', distDir)
 
     const { target } = config
@@ -196,7 +199,7 @@ export default async function build(
           dir,
           pagesDir,
           !ignoreTypeScriptErrors,
-          !config.images.disableStaticImages,
+          config,
           cacheDir
         )
       )
@@ -850,7 +853,7 @@ export default async function build(
                   )
                 })
 
-                if (config.experimental.nftTracing) {
+                if (config.experimental.outputFileTracing) {
                   pageTraceIncludes.set(page, workerResult.traceIncludes || [])
                   pageTraceExcludes.set(page, workerResult.traceExcludes || [])
                 }
@@ -994,7 +997,7 @@ export default async function build(
       )
     }
 
-    if (config.experimental.nftTracing) {
+    if (config.experimental.outputFileTracing) {
       const globOrig =
         require('next/dist/compiled/glob') as typeof import('next/dist/compiled/glob')
       const glob = (pattern: string): Promise<string[]> => {
@@ -1618,6 +1621,12 @@ export default async function build(
       })
     )
 
+    const telemetryPlugin = clientConfig.plugins?.find(isTelemetryPlugin)
+    if (telemetryPlugin) {
+      const events = eventBuildFeatureUsage(telemetryPlugin)
+      telemetry.record(events)
+    }
+
     if (ssgPages.size > 0) {
       const finalDynamicRoutes: PrerenderManifest['dynamicRoutes'] = {}
       tbdPrerenderRoutes.forEach((tbdRoute) => {
@@ -1775,4 +1784,8 @@ function generateClientSsgManifest(
     path.join(distDir, CLIENT_STATIC_FILES_PATH, buildId, '_ssgManifest.js'),
     clientSsgManifestContent
   )
+}
+
+function isTelemetryPlugin(plugin: unknown): plugin is TelemetryPlugin {
+  return plugin instanceof TelemetryPlugin
 }
