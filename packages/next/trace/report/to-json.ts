@@ -49,15 +49,11 @@ class RotatingWriteStream {
       this.rotate()
     }
 
-    await new Promise<void>((resolve, reject) => {
-      this.writeStream.write(data, 'utf8', (err) => {
-        if (err) {
-          return reject(err)
-        }
-
-        resolve()
+    if (!this.writeStream.write(data, 'utf8')) {
+      await new Promise<void>((resolve, reject) => {
+        this.writeStream.once('drain', resolve);
       })
-    })
+    }
   }
 
   end(): void {
