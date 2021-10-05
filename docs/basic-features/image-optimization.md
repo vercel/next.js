@@ -11,50 +11,36 @@ description: Next.js supports built-in image optimization, as well as third part
   </ul>
 </details>
 
-Since version **10.0.0**, Next.js has a built-in Image Component and Automatic Image Optimization.
+The Next.js Image component, [`next/image`](/docs/api-reference/next/image.md), is an extension of the HTML `<img>` element, evolved for the modern web. It includes a variety of built-in performance optimizations to help you achieve good [Core Web Vitals](https://nextjs.org/learn/seo/web-performance). These scores are an important measurement of user experience on your website, and are [factored into Google's search rankings](https://nextjs.org/learn/seo/web-performance/seo-impact).
 
-The Next.js Image Component, [`next/image`](/docs/api-reference/next/image.md), is an extension of the HTML `<img>` element, evolved for the modern web.
+Some of the optimizations built into the Image component include:
 
-The Automatic Image Optimization allows for resizing, optimizing, and serving images in modern formats like [WebP](https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Image_types) when the browser supports it. This avoids shipping large images to devices with a smaller viewport. It also allows Next.js to automatically adopt future image formats and serve them to browsers that support those formats.
+- **Improved Performance:** Always serve correctly sized image for each device, using modern image formats.
+- **Visual Stability:** Prevent [Cumulative Layout Shift](https://nextjs.org/learn/seo/web-performance/cls) automatically.
+- **Faster Page Loads:** Images are only loaded when they enter the viewport, with optional blur-up placeholders
+- **Asset Flexibility:** On-demand image resizing, even for images stored on remote servers
 
-Automatic Image Optimization works with any image source. Even if the image is hosted by an external data source, like a CMS, it can still be optimized.
-
-Instead of optimizing images at build time, Next.js optimizes images on-demand, as users request them. Unlike static site generators and static-only solutions, your build times aren't increased, whether shipping 10 images or 10 million images.
-
-Images are lazy loaded by default. That means your page speed isn't penalized for images outside the viewport. Images load as they are scrolled into viewport.
-
-Images are always rendered in such a way as to avoid [Cumulative Layout Shift](https://web.dev/cls/), a [Core Web Vital](https://web.dev/vitals/) that Google [uses in search ranking](https://developers.google.com/search/blog/2020/05/evaluating-page-experience).
-
-## Image Component
+## Using the Image Component
 
 To add an image to your application, import the [`next/image`](/docs/api-reference/next/image.md) component:
 
 ```jsx
 import Image from 'next/image'
-
-function Home() {
-  return (
-    <>
-      <h1>My Homepage</h1>
-      <Image
-        src="/me.png"
-        alt="Picture of the author"
-        width={500}
-        height={500}
-      />
-      <p>Welcome to my homepage!</p>
-    </>
-  )
-}
-
-export default Home
 ```
 
-## Image Imports
+Now, you can define the `src` for your image (either local or remote).
 
-You can statically `import` images that live in your project. Dynamic `await import()` or `require()` are _not_ supported.
+### Local Images
 
-With static `import`s, you only need to provide the `src` prop. The `width`, `height`, and `blurDataURL` props will automatically be populated. Alt text is still needed separately.
+To use a local image, `import` your `.jpg`, `.png`, or `.webp` files:
+
+```jsx
+import profilePic from '../public/me.png'
+```
+
+Dynamic `await import()` or `require()` are _not_ supported. The `import` must be static. Also note that static image support requires Webpack 5, which is enabled by default in Next.js applications.
+
+Next.js will automatically determine the `width` and `height` or your image based on the imported file. These values are used to prevent [Cumulative Layout Shift](https://nextjs.org/learn/seo/web-performance/cls) while your image is loading.
 
 ```js
 import Image from 'next/image'
@@ -78,132 +64,124 @@ function Home() {
 }
 ```
 
-For remote images, you'll need to provide the [`width`](/docs/api-reference/next/image.md#width), [`height`](/docs/api-reference/next/image.md#height) and [`blurDataURL`](/docs/api-reference/next/image.md#blurdataurl) props manually.
+### Remote Images
 
-## Properties
+To use a remote image, the `src` property should be a URL string, which can be [relative](#loaders) or [absolute](#domains). Because Next.js does not have access to remote files during the build process, you'll need to provide the [`width`](/docs/api-reference/next/image.md#width), [`height`](/docs/api-reference/next/image.md#height) and optional [`blurDataURL`](/docs/api-reference/next/image.md#blurdataurl) props manually:
 
-[View all properties](/docs/api-reference/next/image.md) available to the `next/image` component.
+```jsx
+import Image from 'next/image'
 
-## Configuration
+export default function Home() {
+  return (
+    <>
+      <h1>My Homepage</h1>
+      <Image
+        src="/me.png"
+        alt="Picture of the author"
+        width={500}
+        height={500}
+      />
+      <p>Welcome to my homepage!</p>
+    </>
+  )
+}
+```
 
-In addition to [using properties](/docs/api-reference/next/image.md) available to the `next/image` component, you can optionally configure Image Optimization for more advanced use cases via `next.config.js`.
+> Learn more about the [sizing requirements](#image-sizing) in `next/image`.
 
 ### Domains
 
-To enable Image Optimization for images hosted on an external website, use an absolute url for the Image `src` and specify which
-`domains` are allowed to be optimized. This is needed to ensure that external urls can't be abused. When `loader` is set to an external image service, this option is ignored.
+Sometimes you may want to access a remote image, but still use the built-in Next.js Image Optimization API. To do this, leave the `loader` at its default setting and enter an absolute URL for the Image `src`.
+
+To protect your application from malicious users, you must define a list of remote domains that you intend to access this way. This is configured in your `next.config.js` file, as shown below:
 
 ```js
 module.exports = {
   images: {
-    domains: ['example.com'],
+    domains: ['example.com', 'example2.com'],
   },
 }
 ```
 
-### Loader
+### Loaders
 
-If you want to use a cloud provider to optimize images instead of using the Next.js' built-in Image Optimization, you can configure the loader and path prefix. This allows you to use relative urls for the Image `src` and automatically generate the correct absolute url for your provider.
+Note that in the [example earlier](#remote-images), a partial URL (`"/me.png"`) is provided for a remote image. This is possible because of the `next/image` [loader](/docs/api-reference/next/image.md#loader) architecture.
 
-```js
-module.exports = {
-  images: {
-    loader: 'imgix',
-    path: 'https://example.com/myaccount/',
-  },
-}
-```
+A loader is a function that generates the URLs for your image. It appends a root domain to your provided `src`, and generates multiple URLs to request the image at different sizes. These multiple URLs are used in the automatic [srcset](https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement/srcset) generation, so that visitors to your site will be served an image that is the right size for their viewport.
 
-The following Image Optimization cloud providers are included:
+The default loader for Next.js applications uses the built-in Image Optimization API, which optimizes images from anywhere on the web, and then serves them directly from the Next.js web server. If you would like to serve your images directly from a CDN or image server, you can use one of the [built-in loaders](/docs/api-reference/next/image.md#built-in-loaders) or write your own with a few lines of JavaScript.
 
-- [Vercel](https://vercel.com): Works automatically when you deploy on Vercel, no configuration necessary. [Learn more](https://vercel.com/docs/next.js/image-optimization)
-- [Imgix](https://www.imgix.com): `loader: 'imgix'`
-- [Cloudinary](https://cloudinary.com): `loader: 'cloudinary'`
-- [Akamai](https://www.akamai.com): `loader: 'akamai'`
-- Custom: `loader: 'custom'` use a custom cloud provider by implementing the [`loader`](/docs/api-reference/next/image.md#loader) prop on the `next/image` component
-- Default: Works automatically with `next dev`, `next start`, or a custom server
+Loaders can be defined per-image, or at the application level.
 
-If you need a different provider, you can use the [`loader`](/docs/api-reference/next/image.md#loader) prop with `next/image`.
+## Image Sizing
 
-> The `next/image` component's default loader is not supported when using [`next export`](/docs/advanced-features/static-html-export.md). However, other loader options will work.
+One of the ways that images most commonly hurt performance is through _layout shift_, where the image pushes other elements around on the page as it loads in. This performance problem is so annoying to users that it has its own Core Web Vital, called [Cumulative Layout Shift](https://web.dev/cls/). The way to avoid image-based layout shifts is to [always size your images](https://web.dev/optimize-cls/#images-without-dimensions). This allows the browser to reserve precisely enough space for the image before it loads.
 
-> The `next/image` component's default loader uses [`squoosh`](https://www.npmjs.com/package/@squoosh/lib) because it is quick to install and suitable for a development environment. When using `next start` in your production environment, it is strongly recommended that you install [`sharp`](https://www.npmjs.com/package/sharp) by running `yarn add sharp` in your project directory. This is not necessary for Vercel deployments, as `sharp` is installed automatically.
+Because `next/image` is designed to guarantee good performance results, it cannot be used in a way that will contribute to layout shift, and **must** be sized in one of three ways:
 
-## Caching
+1. Automatically, using a [static import](#local-images)
+2. Explicitly, by including a `height` **and** `width` property
+3. Implicitly, by using `layout="fill"` which causes the image to expand to fill its parent element.
 
-The following describes the caching algorithm for the default [loader](#loader). For all other loaders, please refer to your cloud provider's documentation.
+> ### What if I don't know the size of my images?
+>
+> If you are accessing images from a source without knowledge of the images' sizes, there are several things you can do:
+>
+> **Use `layout='fill'`**
+>
+> The `fill` layout mode allows your image to be sized by its parent element. Consider using CSS to give the image's parent element space on the page, then using the [`objectFit property`](/docs/api-reference/next/image.md#objectfit) with `fill`, `contain`, or `cover`, along with the [`objectPosition property`](/docs/api-reference/next/image.md#objectposition) to define how the image should occupy that space.
+>
+> **Normalize your images**
+>
+> If you're serving images from a source that you control, consider modifying your image pipeline to normalize the images to a specific size.
+>
+> **Modify your API calls**
+>
+> If your application is retrieving image URLs using an API call (such as to a CMS), you may be able to modify the API call to return the image dimensions along with the URL.
 
-Images are optimized dynamically upon request and stored in the `<distDir>/cache/images` directory. The optimized image file will be served for subsequent requests until the expiration is reached. When a request is made that matches a cached but expired file, the cached file is deleted before generating a new optimized image and caching the new file.
+If none of the suggested methods works for sizing your images, the `next/image` component is designed to work well on a page alongside standard `<img>` elements.
 
-The expiration (or rather Max Age) is defined by the upstream server's `Cache-Control` header.
+## Styling
 
-If `s-maxage` is found in `Cache-Control`, it is used. If no `s-maxage` is found, then `max-age` is used. If no `max-age` is found, then [`minimumCacheTTL`](#minimum-cache-ttl) is used.
+Styling the Image component is not that different from styling a normal `<img>` element, but there are a few guidelines to keep in mind:
 
-You can configure [`minimumCacheTTL`](#minimum-cache-ttl) to increase the cache duration when the upstream image does not include `max-age`.
+**Pick the correct layout mode**
 
-You can also configure [`deviceSizes`](#device-sizes) and [`imageSizes`](#device-sizes) to reduce the total number of possible generated images.
+The image component has several different [layout modes](/docs/api-reference/next/image.md#layout) that define how it is sized on the page. If the styling of your image isn't turning out the way you want, consider experimenting with other layout modes.
 
-## Advanced
+**Target the image with className, not based on DOM structure**
 
-The following configuration is for advanced use cases and is usually not necessary. If you choose to configure the properties below, you will override any changes to the Next.js defaults in future updates.
+Regardless of the layout mode used, the Image component will have a consistent DOM structure of one `<img>` tag wrapped by exactly one `<div>`. For some modes, it may also have a sibling `<div>` for spacing. These additional `<div>` elements are critical to allow the component to prevent layout shifts.
 
-### Device Sizes
+The recommended way to style the inner `<img>` is to set the `className` prop on the Image component to the value of an imported [CSS Module](/docs/basic-features/built-in-css-support.md#adding-component-level-css). The value of `className` will be automatically applied to the underlying `<img>` element.
 
-In some cases, where you know the expected device widths from the users of your website, you can specify a list of device width breakpoints using the `deviceSizes` property. These widths are used when the [`next/image`](/docs/api-reference/next/image.md) component uses `layout="responsive"` or `layout="fill"` so that the correct image is served for the device visiting your website.
+Alternatively, you can import a [global stylesheet](/docs/basic-features/built-in-css-support#adding-a-global-stylesheet) and manually set the `className` prop to the same name used in the global stylesheet.
 
-If no configuration is provided, the default below is used.
+You cannot use [styled-jsx](/basic-features/built-in-css-support.md#css-in-js) because its scoped to the current component.
 
-```js
-module.exports = {
-  images: {
-    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
-  },
-}
-```
+You cannot use the `style` prop because the `<Image>` component does not pass it through to the underlying `<img>`.
 
-### Image Sizes
+**When using `layout='fill'`, the parent element must have `position: relative`**
 
-You can specify a list of image widths using the `imageSizes` property. These widths should be different (usually smaller) than the widths defined in `deviceSizes` because the arrays will be concatenated. These widths are used when the [`next/image`](/docs/api-reference/next/image.md) component uses `layout="fixed"` or `layout="intrinsic"`.
+This is necessary for the proper rendering of the image element in that layout mode.
 
-If no configuration is provided, the default below is used.
+**When using `layout='responsive'`, the parent element must have `display: block`**
 
-```js
-module.exports = {
-  images: {
-    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
-  },
-}
-```
+This is the default for `<div>` elements but should be specified otherwise.
 
-### Minimum Cache TTL
+## Properties
 
-You can configure the time to live (TTL) in seconds for cached optimized images. In many cases, its better to use a [Static Image Import](#image-Imports) which will handle hashing file contents and caching the file forever.
+[**View all properties available to the `next/image` component.**](/docs/api-reference/next/image.md)
 
-```js
-module.exports = {
-  images: {
-    minimumCacheTTL: 60,
-  },
-}
-```
+### Styling Examples
 
-If you need to add a `Cache-Control` header for the browser (not recommended), you can configure [`headers`](/docs/api-reference/next.config.js/headers) on the upstream image e.g. `/some-asset.jpg` not `/_next/image` itself.
+For examples of the Image component used with the various fill modes, see the [Image component example app](https://image-component.nextjs.gallery/).
 
-### Disable Static Imports
+## Configuration
 
-The default behavior allows you to import static files such as `import icon from './icon.png` and then pass that to the `src` property.
+The `next/image` component and Next.js Image Optimization API can be configured in the [`next.config.js` file](/docs/api-reference/next.config.js/introduction.md). These configurations allow you to [enable remote domains](/docs/api-reference/next/image.md#domains), [define custom image breakpoints](/docs/api-reference/next/image.md#device-sizes), [change caching behavior](/docs/api-reference/next/image.md#caching-behavior) and more.
 
-In some cases, you may wish to disable this feature if it conflicts with other plugins that expect the import to behave differently.
-
-You can disable static image imports with the following configuration below.
-
-```js
-module.exports = {
-  images: {
-    disableStaticImages: true,
-  },
-}
-```
+[**Read the full image configuration documentation for more information.**](/docs/api-reference/next/image.md#configuration-options)
 
 ## Related
 
