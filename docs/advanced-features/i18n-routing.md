@@ -204,6 +204,30 @@ export default function IndexPage(props) {
 }
 ```
 
+Note that when using [dynamic routes](/docs/routing/dynamic-routes) you will need to pass the `href` argument of `router.push` as an object.
+```jsx
+import { useRouter } from 'next/router'
+
+export default function IndexPage(props) {
+  const router = useRouter()
+
+  return (
+    <div
+      onClick={() => {
+        router.push({
+          pathname: '/blog/[post]',
+          query: {
+            post: 'hello-world'
+          }
+        }, '/post/hello-world', { locale: 'fr' })
+      }}
+    >
+      to /fr/post/hello-world
+    </div>
+  )
+}
+```
+
 If you have a `href` that already includes the locale you can opt-out of automatically handling the locale prefixing:
 
 ```jsx
