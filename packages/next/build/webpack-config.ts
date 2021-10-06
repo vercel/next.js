@@ -292,7 +292,7 @@ export default async function getBaseWebpackConfig(
 
   const distDir = path.join(dir, config.distDir)
 
-  const useSWCLoader = config.experimental.swcLoader && isWebpack5
+  const useSWCLoader = config.experimental.swcLoader
   if (useSWCLoader && babelConfigFile) {
     Log.warn(
       `experimental.swcLoader enabled. The custom Babel configuration will not be used.`
@@ -315,8 +315,6 @@ export default async function getBaseWebpackConfig(
             distDir,
             pagesDir,
             cwd: dir,
-            // Webpack 5 has a built-in loader cache
-            cache: !isWebpack5,
             development: dev,
             hasReactRefresh,
             hasJsxRuntime: true,
@@ -434,7 +432,7 @@ export default async function getBaseWebpackConfig(
   const customErrorAlias: { [key: string]: string[] } = {}
   const customDocumentAliases: { [key: string]: string[] } = {}
 
-  if (dev && isWebpack5) {
+  if (dev) {
     customAppAliases[`${PAGES_DIR_ALIAS}/_app`] = [
       ...config.pageExtensions.reduce((prev, ext) => {
         prev.push(path.join(pagesDir, `_app.${ext}`))
@@ -497,7 +495,7 @@ export default async function getBaseWebpackConfig(
         : // With webpack 5 an alias can be pointed to false to noop
           false,
     },
-    ...(isWebpack5 && !isServer
+    ...(!isServer
       ? {
           // Full list of old polyfills is accessible here:
           // https://github.com/webpack/webpack/blob/2a0536cf510768111a3a6dceeb14cb79b9f59273/lib/ModuleNotFoundError.js#L13-L42
@@ -564,115 +562,71 @@ export default async function getBaseWebpackConfig(
     )
   }
 
-  // Contains various versions of the Webpack SplitChunksPlugin used in different build types
-  const splitChunksConfigs: {
-    [propName: string]: webpack.Options.SplitChunksOptions | false
-  } = {
-    dev: {
-      cacheGroups: {
-        default: false,
-        vendors: false,
-      },
-    },
-    prodGranular: {
-      // Keep main and _app chunks unsplitted in webpack 5
-      // as we don't need a separate vendor chunk from that
-      // and all other chunk depend on them so there is no
-      // duplication that need to be pulled out.
-      chunks: isWebpack5
-        ? (chunk) => !/^(polyfills|main|pages\/_app)$/.test(chunk.name)
-        : 'all',
-      cacheGroups: {
-        framework: {
-          chunks: 'all',
-          name: 'framework',
-          // This regex ignores nested copies of framework libraries so they're
-          // bundled with their issuer.
-          // https://github.com/vercel/next.js/pull/9012
-          test: /(?<!node_modules.*)[\\/]node_modules[\\/](react|react-dom|scheduler|prop-types|use-subscription)[\\/]/,
-          priority: 40,
-          // Don't let webpack eliminate this chunk (prevents this chunk from
-          // becoming a part of the commons chunk)
-          enforce: true,
-        },
-        lib: {
-          test(module: {
-            size: Function
-            nameForCondition: Function
-          }): boolean {
-            return (
-              module.size() > 160000 &&
-              /node_modules[/\\]/.test(module.nameForCondition() || '')
-            )
+  // Select appropriate SplitChunksPlugin config for this build
+  const splitChunksConfig: webpack.Options.SplitChunksOptions | false = dev
+    ? false
+    : {
+        // Keep main and _app chunks unsplitted in webpack 5
+        // as we don't need a separate vendor chunk from that
+        // and all other chunk depend on them so there is no
+        // duplication that need to be pulled out.
+        chunks: (chunk) => !/^(polyfills|main|pages\/_app)$/.test(chunk.name),
+        cacheGroups: {
+          framework: {
+            chunks: 'all',
+            name: 'framework',
+            // This regex ignores nested copies of framework libraries so they're
+            // bundled with their issuer.
+            // https://github.com/vercel/next.js/pull/9012
+            test: /(?<!node_modules.*)[\\/]node_modules[\\/](react|react-dom|scheduler|prop-types|use-subscription)[\\/]/,
+            priority: 40,
+            // Don't let webpack eliminate this chunk (prevents this chunk from
+            // becoming a part of the commons chunk)
+            enforce: true,
           },
-          name(module: {
-            type: string
-            libIdent?: Function
-            updateHash: (hash: crypto.Hash) => void
-          }): string {
-            const hash = crypto.createHash('sha1')
-            if (isModuleCSS(module)) {
-              module.updateHash(hash)
-            } else {
-              if (!module.libIdent) {
-                throw new Error(
-                  `Encountered unknown module type: ${module.type}. Please open an issue.`
-                )
+          lib: {
+            test(module: {
+              size: Function
+              nameForCondition: Function
+            }): boolean {
+              return (
+                module.size() > 160000 &&
+                /node_modules[/\\]/.test(module.nameForCondition() || '')
+              )
+            },
+            name(module: {
+              type: string
+              libIdent?: Function
+              updateHash: (hash: crypto.Hash) => void
+            }): string {
+              const hash = crypto.createHash('sha1')
+              if (isModuleCSS(module)) {
+                module.updateHash(hash)
+              } else {
+                if (!module.libIdent) {
+                  throw new Error(
+                    `Encountered unknown module type: ${module.type}. Please open an issue.`
+                  )
+                }
+
+                hash.update(module.libIdent({ context: dir }))
               }
 
-              hash.update(module.libIdent({ context: dir }))
-            }
-
-            return hash.digest('hex').substring(0, 8)
+              return hash.digest('hex').substring(0, 8)
+            },
+            priority: 30,
+            minChunks: 1,
+            reuseExistingChunk: true,
           },
-          priority: 30,
-          minChunks: 1,
-          reuseExistingChunk: true,
+          commons: {
+            name: 'commons',
+            minChunks: totalPages,
+            priority: 20,
+          },
         },
-        commons: {
-          name: 'commons',
-          minChunks: totalPages,
-          priority: 20,
-        },
-        ...(isWebpack5
-          ? undefined
-          : {
-              default: false,
-              vendors: false,
-              shared: {
-                name(module, chunks) {
-                  return (
-                    crypto
-                      .createHash('sha1')
-                      .update(
-                        chunks.reduce(
-                          (acc: string, chunk: webpack.compilation.Chunk) => {
-                            return acc + chunk.name
-                          },
-                          ''
-                        )
-                      )
-                      .digest('hex') + (isModuleCSS(module) ? '_CSS' : '')
-                  )
-                },
-                priority: 10,
-                minChunks: 2,
-                reuseExistingChunk: true,
-              },
-            }),
-      },
-      maxInitialRequests: 25,
-      minSize: 20000,
-    },
-  }
-
-  // Select appropriate SplitChunksPlugin config for this build
-  let splitChunksConfig: webpack.Options.SplitChunksOptions | false
-  if (dev) {
-    splitChunksConfig = isWebpack5 ? false : splitChunksConfigs.dev
-  } else {
-    splitChunksConfig = splitChunksConfigs.prodGranular
-  }
+        maxInitialRequests: 25,
+        minSize: 20000,
+      }
 
   const crossOrigin = config.crossOrigin
 
@@ -1870,12 +1824,7 @@ export default async function getBaseWebpackConfig(
       delete entry['main.js']
 
       for (const name of Object.keys(entry)) {
-        entry[name] = finalizeEntrypoint(
-          name,
-          entry[name],
-          isServer,
-          isWebpack5
-        )
+        entry[name] = finalizeEntrypoint(name, entry[name], isServer)
       }
 
       return entry
