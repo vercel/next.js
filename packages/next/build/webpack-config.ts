@@ -529,10 +529,7 @@ export default async function getBaseWebpackConfig(
         }
       : undefined),
     mainFields: isServer ? ['main', 'module'] : ['browser', 'module', 'main'],
-    plugins: isWebpack5
-      ? // webpack 5+ has the PnP resolver built-in by default:
-        []
-      : [require('pnp-webpack-plugin')],
+    plugins: [],
   }
 
   const terserOptions: any = {
@@ -1087,7 +1084,7 @@ export default async function getBaseWebpackConfig(
         'node_modules',
         ...nodePathList, // Support for NODE_PATH environment variable
       ],
-      plugins: isWebpack5 ? [] : [require('pnp-webpack-plugin')],
+      plugins: [],
     },
     module: {
       rules: [
