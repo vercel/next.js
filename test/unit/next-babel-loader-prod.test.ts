@@ -314,7 +314,7 @@ describe('next-babel-loader', () => {
         { resourcePath: pageFile, isServer: false }
       )
       expect(code).toContain(
-        `var __jsx = React.createElement;import \"core-js\";import { bar } from \"a\";import baz from \"b\";import * as React from \"react\";import { yeet } from \"c\";import baz3, { cats } from \"d\";import { c, d } from \"e\";import { e as ee } from \"f\";export var __N_SSG = true;export default function () {  return __jsx(\"div\", {    __self: this,    __source: {      fileName: _jsxFileName,      lineNumber: 1,      columnNumber: 326    }  }, cats + bar());}`
+        `var __jsx = React.createElement;import "core-js";import { bar } from "a";import baz from "b";import * as React from "react";import { yeet } from "c";import baz3, { cats } from "d";import { c, d } from "e";import { e as ee } from "f";export var __N_SSG = true;export default function () {  return __jsx("div", {    __self: this,    __source: {      fileName: _jsxFileName,      lineNumber: 1,      columnNumber: 326    }  }, cats + bar());}`
       )
     })
 

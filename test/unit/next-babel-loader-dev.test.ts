@@ -104,7 +104,7 @@ describe('next-babel-loader', () => {
       )
 
       expect(output).toContain(
-        `var __jsx = React.createElement;import React from \"react\";export var __N_SSG = true;export default function Home(_ref) {  var greeting = _ref.greeting;  return __jsx(\"h1\", {    __self: this,    __source: {      fileName: _jsxFileName,      lineNumber: 8,      columnNumber: 20    }  }, greeting);}_c = Home;var _c;$RefreshReg$(_c, \"Home\");`
+        `var __jsx = React.createElement;import React from "react";export var __N_SSG = true;export default function Home(_ref) {  var greeting = _ref.greeting;  return __jsx("h1", {    __self: this,    __source: {      fileName: _jsxFileName,      lineNumber: 8,      columnNumber: 20    }  }, greeting);}_c = Home;var _c;$RefreshReg$(_c, "Home");`
       )
     })
   })
