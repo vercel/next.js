@@ -1088,59 +1088,43 @@ export default async function getBaseWebpackConfig(
     },
     module: {
       rules: [
-        ...(isWebpack5
-          ? [
-              // TODO: FIXME: do NOT webpack 5 support with this
-              // x-ref: https://github.com/webpack/webpack/issues/11467
-              {
-                test: /\.m?js/,
-                resolve: {
-                  fullySpecified: false,
-                },
-              } as any,
-              {
-                test: /\.(js|cjs|mjs)$/,
-                issuerLayer: 'api',
-                parser: {
-                  // Switch back to normal URL handling
-                  url: true,
-                },
-              },
-            ]
-          : []),
+        // TODO: FIXME: do NOT webpack 5 support with this
+        // x-ref: https://github.com/webpack/webpack/issues/11467
         {
-          ...(isWebpack5
-            ? {
-                oneOf: [
-                  {
-                    ...codeCondition,
-                    issuerLayer: 'api',
-                    parser: {
-                      // Switch back to normal URL handling
-                      url: true,
-                    },
-                    use: defaultLoaders.babel,
-                  },
-                  {
-                    ...codeCondition,
-                    use: hasReactRefresh
-                      ? [
-                          require.resolve('@next/react-refresh-utils/loader'),
-                          defaultLoaders.babel,
-                        ]
-                      : defaultLoaders.babel,
-                  },
-                ],
-              }
-            : {
-                ...codeCondition,
-                use: hasReactRefresh
-                  ? [
-                      require.resolve('@next/react-refresh-utils/loader'),
-                      defaultLoaders.babel,
-                    ]
-                  : defaultLoaders.babel,
-              }),
+          test: /\.m?js/,
+          resolve: {
+            fullySpecified: false,
+          },
+        } as any,
+        {
+          test: /\.(js|cjs|mjs)$/,
+          issuerLayer: 'api',
+          parser: {
+            // Switch back to normal URL handling
+            url: true,
+          },
+        },
+        {
+          oneOf: [
+            {
+              ...codeCondition,
+              issuerLayer: 'api',
+              parser: {
+                // Switch back to normal URL handling
+                url: true,
+              },
+              use: defaultLoaders.babel,
+            },
+            {
+              ...codeCondition,
+              use: hasReactRefresh
+                ? [
+                    require.resolve('@next/react-refresh-utils/loader'),
+                    defaultLoaders.babel,
+                  ]
+                : defaultLoaders.babel,
+            },
+          ],
         },
         ...(!config.images.disableStaticImages && isWebpack5
           ? [
