@@ -431,8 +431,7 @@ export default class HotReloader {
               isClientCompilation
                 ? `next-client-pages-loader?${stringify(pageLoaderOpts)}!`
                 : absolutePagePath,
-              !isClientCompilation,
-              isWebpack5
+              !isClientCompilation
             )
           })
         )
