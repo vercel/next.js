@@ -81,6 +81,9 @@ var Module = (function () {
     var setTempRet0 = function (value) {
       tempRet0 = value
     }
+    var getTempRet0 = function () {
+      return tempRet0
+    }
     var wasmBinary
     if (Module['wasmBinary']) wasmBinary = Module['wasmBinary']
     var noExitRuntime = Module['noExitRuntime'] || true
@@ -243,12 +246,6 @@ var Module = (function () {
       }
       return len
     }
-    function writeAsciiToMemory(str, buffer, dontAddNull) {
-      for (var i = 0; i < str.length; ++i) {
-        HEAP8[buffer++ >> 0] = str.charCodeAt(i)
-      }
-      if (!dontAddNull) HEAP8[buffer >> 0] = 0
-    }
     function alignUp(x, multiple) {
       if (x % multiple > 0) {
         x += multiple - (x % multiple)
@@ -281,7 +278,6 @@ var Module = (function () {
     var __ATINIT__ = []
     var __ATPOSTRUN__ = []
     var runtimeInitialized = false
-    var runtimeExited = false
     function preRun() {
       if (Module['preRun']) {
         if (typeof Module['preRun'] == 'function')
@@ -295,9 +291,6 @@ var Module = (function () {
     function initRuntime() {
       runtimeInitialized = true
       callRuntimeCallbacks(__ATINIT__)
-    }
-    function exitRuntime() {
-      runtimeExited = true
     }
     function postRun() {
       if (Module['postRun']) {
@@ -364,7 +357,7 @@ var Module = (function () {
       return filename.startsWith(dataURIPrefix)
     }
     if (Module['locateFile']) {
-      var wasmBinaryFile = 'mozjpeg_node_dec.wasm'
+      var wasmBinaryFile = 'avif_node_dec.wasm'
       if (!isDataURI(wasmBinaryFile)) {
         wasmBinaryFile = locateFile(wasmBinaryFile)
       }
@@ -411,10 +404,10 @@ var Module = (function () {
       function receiveInstance(instance, module) {
         var exports = instance.exports
         Module['asm'] = exports
-        wasmMemory = Module['asm']['z']
+        wasmMemory = Module['asm']['C']
         updateGlobalBufferAndViews(wasmMemory.buffer)
-        wasmTable = Module['asm']['F']
-        addOnInit(Module['asm']['A'])
+        wasmTable = Module['asm']['L']
+        addOnInit(Module['asm']['D'])
         removeRunDependency('wasm-instantiate')
       }
       addRunDependency('wasm-instantiate')
@@ -483,10 +476,6 @@ var Module = (function () {
           func(callback.arg === undefined ? null : callback.arg)
         }
       }
-    }
-    var runtimeKeepaliveCounter = 0
-    function keepRuntimeAlive() {
-      return noExitRuntime || runtimeKeepaliveCounter > 0
     }
     function _atexit(func, arg) {}
     function ___cxa_thread_atexit(a0, a1) {
@@ -1525,6 +1514,13 @@ var Module = (function () {
     function _abort() {
       abort()
     }
+    function _longjmp(env, value) {
+      _setThrew(env, value || 1)
+      throw 'longjmp'
+    }
+    function _emscripten_longjmp(a0, a1) {
+      return _longjmp(a0, a1)
+    }
     function _emscripten_memcpy_big(dest, src, num) {
       HEAPU8.copyWithin(dest, src, src + num)
     }
@@ -1559,39 +1555,6 @@ var Module = (function () {
       }
       return false
     }
-    var ENV = {}
-    function getExecutableName() {
-      return thisProgram || './this.program'
-    }
-    function getEnvStrings() {
-      if (!getEnvStrings.strings) {
-        var lang =
-          (
-            (typeof navigator === 'object' &&
-              navigator.languages &&
-              navigator.languages[0]) ||
-            'C'
-          ).replace('-', '_') + '.UTF-8'
-        var env = {
-          USER: 'web_user',
-          LOGNAME: 'web_user',
-          PATH: '/',
-          PWD: '/',
-          HOME: '/home/web_user',
-          LANG: lang,
-          _: getExecutableName(),
-        }
-        for (var x in ENV) {
-          env[x] = ENV[x]
-        }
-        var strings = []
-        for (var x in env) {
-          strings.push(x + '=' + env[x])
-        }
-        getEnvStrings.strings = strings
-      }
-      return getEnvStrings.strings
-    }
     var SYSCALLS = {
       mappings: {},
       buffers: [null, [], []],
@@ -1618,29 +1581,6 @@ var Module = (function () {
         return low
       },
     }
-    function _environ_get(__environ, environ_buf) {
-      var bufSize = 0
-      getEnvStrings().forEach(function (string, i) {
-        var ptr = environ_buf + bufSize
-        HEAP32[(__environ + i * 4) >> 2] = ptr
-        writeAsciiToMemory(string, ptr)
-        bufSize += string.length + 1
-      })
-      return 0
-    }
-    function _environ_sizes_get(penviron_count, penviron_buf_size) {
-      var strings = getEnvStrings()
-      HEAP32[penviron_count >> 2] = strings.length
-      var bufSize = 0
-      strings.forEach(function (string) {
-        bufSize += string.length + 1
-      })
-      HEAP32[penviron_buf_size >> 2] = bufSize
-      return 0
-    }
-    function _exit(status) {
-      exit(status)
-    }
     function _fd_close(fd) {
       return 0
     }
@@ -1658,6 +1598,9 @@ var Module = (function () {
       HEAP32[pnum >> 2] = num
       return 0
     }
+    function _getTempRet0() {
+      return getTempRet0()
+    }
     function _setTempRet0(val) {
       setTempRet0(val)
     }
@@ -1673,52 +1616,55 @@ var Module = (function () {
       'UnboundTypeError'
     )
     var asmLibraryArg = {
-      e: ___cxa_thread_atexit,
-      q: __embind_register_bigint,
-      m: __embind_register_bool,
-      x: __embind_register_emval,
-      l: __embind_register_float,
-      o: __embind_register_function,
-      b: __embind_register_integer,
-      a: __embind_register_memory_view,
-      h: __embind_register_std_string,
-      g: __embind_register_std_wstring,
-      n: __embind_register_void,
-      c: __emval_decref,
-      d: __emval_get_global,
-      i: __emval_incref,
-      j: __emval_new,
-      k: _abort,
-      s: _emscripten_memcpy_big,
-      f: _emscripten_resize_heap,
-      t: _environ_get,
-      u: _environ_sizes_get,
-      y: _exit,
-      w: _fd_close,
-      p: _fd_seek,
-      v: _fd_write,
-      r: _setTempRet0,
+      j: ___cxa_thread_atexit,
+      v: __embind_register_bigint,
+      r: __embind_register_bool,
+      B: __embind_register_emval,
+      q: __embind_register_float,
+      t: __embind_register_function,
+      e: __embind_register_integer,
+      d: __embind_register_memory_view,
+      m: __embind_register_std_string,
+      l: __embind_register_std_wstring,
+      s: __embind_register_void,
+      h: __emval_decref,
+      i: __emval_get_global,
+      n: __emval_incref,
+      o: __emval_new,
+      a: _abort,
+      g: _emscripten_longjmp,
+      y: _emscripten_memcpy_big,
+      k: _emscripten_resize_heap,
+      A: _fd_close,
+      u: _fd_seek,
+      z: _fd_write,
+      b: _getTempRet0,
+      f: invoke_iii,
+      w: invoke_iiiii,
+      p: invoke_viiii,
+      x: invoke_viiiiiii,
+      c: _setTempRet0,
     }
     var asm = createWasm()
     var ___wasm_call_ctors = (Module['___wasm_call_ctors'] = function () {
       return (___wasm_call_ctors = Module['___wasm_call_ctors'] =
-        Module['asm']['A']).apply(null, arguments)
+        Module['asm']['D']).apply(null, arguments)
     })
     var _malloc = (Module['_malloc'] = function () {
-      return (_malloc = Module['_malloc'] = Module['asm']['B']).apply(
+      return (_malloc = Module['_malloc'] = Module['asm']['E']).apply(
         null,
         arguments
       )
     })
     var _free = (Module['_free'] = function () {
-      return (_free = Module['_free'] = Module['asm']['C']).apply(
+      return (_free = Module['_free'] = Module['asm']['F']).apply(
         null,
         arguments
       )
     })
     var ___getTypeName = (Module['___getTypeName'] = function () {
       return (___getTypeName = Module['___getTypeName'] =
-        Module['asm']['D']).apply(null, arguments)
+        Module['asm']['G']).apply(null, arguments)
     })
     var ___embind_register_native_and_builtin_types = (Module[
       '___embind_register_native_and_builtin_types'
@@ -1726,20 +1672,77 @@ var Module = (function () {
       return (___embind_register_native_and_builtin_types = Module[
         '___embind_register_native_and_builtin_types'
       ] =
-        Module['asm']['E']).apply(null, arguments)
+        Module['asm']['H']).apply(null, arguments)
     })
-    var dynCall_jiji = (Module['dynCall_jiji'] = function () {
-      return (dynCall_jiji = Module['dynCall_jiji'] = Module['asm']['G']).apply(
+    var stackSave = (Module['stackSave'] = function () {
+      return (stackSave = Module['stackSave'] = Module['asm']['I']).apply(
         null,
         arguments
       )
     })
-    var calledRun
-    function ExitStatus(status) {
-      this.name = 'ExitStatus'
-      this.message = 'Program terminated with exit(' + status + ')'
-      this.status = status
+    var stackRestore = (Module['stackRestore'] = function () {
+      return (stackRestore = Module['stackRestore'] = Module['asm']['J']).apply(
+        null,
+        arguments
+      )
+    })
+    var _setThrew = (Module['_setThrew'] = function () {
+      return (_setThrew = Module['_setThrew'] = Module['asm']['K']).apply(
+        null,
+        arguments
+      )
+    })
+    var dynCall_iiijii = (Module['dynCall_iiijii'] = function () {
+      return (dynCall_iiijii = Module['dynCall_iiijii'] =
+        Module['asm']['M']).apply(null, arguments)
+    })
+    var dynCall_jiji = (Module['dynCall_jiji'] = function () {
+      return (dynCall_jiji = Module['dynCall_jiji'] = Module['asm']['N']).apply(
+        null,
+        arguments
+      )
+    })
+    function invoke_viiiiiii(index, a1, a2, a3, a4, a5, a6, a7) {
+      var sp = stackSave()
+      try {
+        wasmTable.get(index)(a1, a2, a3, a4, a5, a6, a7)
+      } catch (e) {
+        stackRestore(sp)
+        if (e !== e + 0 && e !== 'longjmp') throw e
+        _setThrew(1, 0)
+      }
     }
+    function invoke_viiii(index, a1, a2, a3, a4) {
+      var sp = stackSave()
+      try {
+        wasmTable.get(index)(a1, a2, a3, a4)
+      } catch (e) {
+        stackRestore(sp)
+        if (e !== e + 0 && e !== 'longjmp') throw e
+        _setThrew(1, 0)
+      }
+    }
+    function invoke_iii(index, a1, a2) {
+      var sp = stackSave()
+      try {
+        return wasmTable.get(index)(a1, a2)
+      } catch (e) {
+        stackRestore(sp)
+        if (e !== e + 0 && e !== 'longjmp') throw e
+        _setThrew(1, 0)
+      }
+    }
+    function invoke_iiiii(index, a1, a2, a3, a4) {
+      var sp = stackSave()
+      try {
+        return wasmTable.get(index)(a1, a2, a3, a4)
+      } catch (e) {
+        stackRestore(sp)
+        if (e !== e + 0 && e !== 'longjmp') throw e
+        _setThrew(1, 0)
+      }
+    }
+    var calledRun
     dependenciesFulfilled = function runCaller() {
       if (!calledRun) run()
       if (!calledRun) dependenciesFulfilled = runCaller
@@ -1776,19 +1779,6 @@ var Module = (function () {
       }
     }
     Module['run'] = run
-    function exit(status, implicit) {
-      EXITSTATUS = status
-      if (implicit && keepRuntimeAlive() && status === 0) {
-        return
-      }
-      if (keepRuntimeAlive()) {
-      } else {
-        exitRuntime()
-        if (Module['onExit']) Module['onExit'](status)
-        ABORT = true
-      }
-      quit_(status, new ExitStatus(status))
-    }
     if (Module['preInit']) {
       if (typeof Module['preInit'] == 'function')
         Module['preInit'] = [Module['preInit']]

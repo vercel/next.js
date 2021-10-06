@@ -81,6 +81,9 @@ var Module = (function () {
     var setTempRet0 = function (value) {
       tempRet0 = value
     }
+    var getTempRet0 = function () {
+      return tempRet0
+    }
     var wasmBinary
     if (Module['wasmBinary']) wasmBinary = Module['wasmBinary']
     var noExitRuntime = Module['noExitRuntime'] || true
@@ -243,12 +246,6 @@ var Module = (function () {
       }
       return len
     }
-    function writeAsciiToMemory(str, buffer, dontAddNull) {
-      for (var i = 0; i < str.length; ++i) {
-        HEAP8[buffer++ >> 0] = str.charCodeAt(i)
-      }
-      if (!dontAddNull) HEAP8[buffer >> 0] = 0
-    }
     function alignUp(x, multiple) {
       if (x % multiple > 0) {
         x += multiple - (x % multiple)
@@ -281,7 +278,6 @@ var Module = (function () {
     var __ATINIT__ = []
     var __ATPOSTRUN__ = []
     var runtimeInitialized = false
-    var runtimeExited = false
     function preRun() {
       if (Module['preRun']) {
         if (typeof Module['preRun'] == 'function')
@@ -295,9 +291,6 @@ var Module = (function () {
     function initRuntime() {
       runtimeInitialized = true
       callRuntimeCallbacks(__ATINIT__)
-    }
-    function exitRuntime() {
-      runtimeExited = true
     }
     function postRun() {
       if (Module['postRun']) {
@@ -364,7 +357,7 @@ var Module = (function () {
       return filename.startsWith(dataURIPrefix)
     }
     if (Module['locateFile']) {
-      var wasmBinaryFile = 'mozjpeg_node_dec.wasm'
+      var wasmBinaryFile = 'avif_node_enc.wasm'
       if (!isDataURI(wasmBinaryFile)) {
         wasmBinaryFile = locateFile(wasmBinaryFile)
       }
@@ -411,10 +404,10 @@ var Module = (function () {
       function receiveInstance(instance, module) {
         var exports = instance.exports
         Module['asm'] = exports
-        wasmMemory = Module['asm']['z']
+        wasmMemory = Module['asm']['P']
         updateGlobalBufferAndViews(wasmMemory.buffer)
-        wasmTable = Module['asm']['F']
-        addOnInit(Module['asm']['A'])
+        wasmTable = Module['asm']['Y']
+        addOnInit(Module['asm']['Q'])
         removeRunDependency('wasm-instantiate')
       }
       addRunDependency('wasm-instantiate')
@@ -484,50 +477,57 @@ var Module = (function () {
         }
       }
     }
-    var runtimeKeepaliveCounter = 0
-    function keepRuntimeAlive() {
-      return noExitRuntime || runtimeKeepaliveCounter > 0
-    }
     function _atexit(func, arg) {}
     function ___cxa_thread_atexit(a0, a1) {
       return _atexit(a0, a1)
     }
-    function __embind_register_bigint(
-      primitiveType,
-      name,
-      size,
-      minRange,
-      maxRange
-    ) {}
-    function getShiftFromSize(size) {
-      switch (size) {
-        case 1:
-          return 0
-        case 2:
-          return 1
-        case 4:
-          return 2
-        case 8:
-          return 3
-        default:
-          throw new TypeError('Unknown type size: ' + size)
+    var SYSCALLS = {
+      mappings: {},
+      buffers: [null, [], []],
+      printChar: function (stream, curr) {
+        var buffer = SYSCALLS.buffers[stream]
+        if (curr === 0 || curr === 10) {
+          ;(stream === 1 ? out : err)(UTF8ArrayToString(buffer, 0))
+          buffer.length = 0
+        } else {
+          buffer.push(curr)
+        }
+      },
+      varargs: undefined,
+      get: function () {
+        SYSCALLS.varargs += 4
+        var ret = HEAP32[(SYSCALLS.varargs - 4) >> 2]
+        return ret
+      },
+      getStr: function (ptr) {
+        var ret = UTF8ToString(ptr)
+        return ret
+      },
+      get64: function (low, high) {
+        return low
+      },
+    }
+    function ___sys_fcntl64(fd, cmd, varargs) {
+      SYSCALLS.varargs = varargs
+      return 0
+    }
+    function ___sys_ioctl(fd, op, varargs) {
+      SYSCALLS.varargs = varargs
+      return 0
+    }
+    function ___sys_open(path, flags, varargs) {
+      SYSCALLS.varargs = varargs
+    }
+    var structRegistrations = {}
+    function runDestructors(destructors) {
+      while (destructors.length) {
+        var ptr = destructors.pop()
+        var del = destructors.pop()
+        del(ptr)
       }
     }
-    function embind_init_charCodes() {
-      var codes = new Array(256)
-      for (var i = 0; i < 256; ++i) {
-        codes[i] = String.fromCharCode(i)
-      }
-      embind_charCodes = codes
-    }
-    var embind_charCodes = undefined
-    function readLatin1String(ptr) {
-      var ret = ''
-      var c = ptr
-      while (HEAPU8[c]) {
-        ret += embind_charCodes[HEAPU8[c++]]
-      }
-      return ret
+    function simpleReadValueFromPointer(pointer) {
+      return this['fromWireType'](HEAPU32[pointer >> 2])
     }
     var awaitingDependencies = {}
     var registeredTypes = {}
@@ -579,10 +579,6 @@ var Module = (function () {
       }
       return errorClass
     }
-    var BindingError = undefined
-    function throwBindingError(message) {
-      throw new BindingError(message)
-    }
     var InternalError = undefined
     function throwInternalError(message) {
       throw new InternalError(message)
@@ -627,6 +623,126 @@ var Module = (function () {
       if (0 === unregisteredTypes.length) {
         onComplete(typeConverters)
       }
+    }
+    function __embind_finalize_value_object(structType) {
+      var reg = structRegistrations[structType]
+      delete structRegistrations[structType]
+      var rawConstructor = reg.rawConstructor
+      var rawDestructor = reg.rawDestructor
+      var fieldRecords = reg.fields
+      var fieldTypes = fieldRecords
+        .map(function (field) {
+          return field.getterReturnType
+        })
+        .concat(
+          fieldRecords.map(function (field) {
+            return field.setterArgumentType
+          })
+        )
+      whenDependentTypesAreResolved(
+        [structType],
+        fieldTypes,
+        function (fieldTypes) {
+          var fields = {}
+          fieldRecords.forEach(function (field, i) {
+            var fieldName = field.fieldName
+            var getterReturnType = fieldTypes[i]
+            var getter = field.getter
+            var getterContext = field.getterContext
+            var setterArgumentType = fieldTypes[i + fieldRecords.length]
+            var setter = field.setter
+            var setterContext = field.setterContext
+            fields[fieldName] = {
+              read: function (ptr) {
+                return getterReturnType['fromWireType'](
+                  getter(getterContext, ptr)
+                )
+              },
+              write: function (ptr, o) {
+                var destructors = []
+                setter(
+                  setterContext,
+                  ptr,
+                  setterArgumentType['toWireType'](destructors, o)
+                )
+                runDestructors(destructors)
+              },
+            }
+          })
+          return [
+            {
+              name: reg.name,
+              fromWireType: function (ptr) {
+                var rv = {}
+                for (var i in fields) {
+                  rv[i] = fields[i].read(ptr)
+                }
+                rawDestructor(ptr)
+                return rv
+              },
+              toWireType: function (destructors, o) {
+                for (var fieldName in fields) {
+                  if (!(fieldName in o)) {
+                    throw new TypeError('Missing field:  "' + fieldName + '"')
+                  }
+                }
+                var ptr = rawConstructor()
+                for (fieldName in fields) {
+                  fields[fieldName].write(ptr, o[fieldName])
+                }
+                if (destructors !== null) {
+                  destructors.push(rawDestructor, ptr)
+                }
+                return ptr
+              },
+              argPackAdvance: 8,
+              readValueFromPointer: simpleReadValueFromPointer,
+              destructorFunction: rawDestructor,
+            },
+          ]
+        }
+      )
+    }
+    function __embind_register_bigint(
+      primitiveType,
+      name,
+      size,
+      minRange,
+      maxRange
+    ) {}
+    function getShiftFromSize(size) {
+      switch (size) {
+        case 1:
+          return 0
+        case 2:
+          return 1
+        case 4:
+          return 2
+        case 8:
+          return 3
+        default:
+          throw new TypeError('Unknown type size: ' + size)
+      }
+    }
+    function embind_init_charCodes() {
+      var codes = new Array(256)
+      for (var i = 0; i < 256; ++i) {
+        codes[i] = String.fromCharCode(i)
+      }
+      embind_charCodes = codes
+    }
+    var embind_charCodes = undefined
+    function readLatin1String(ptr) {
+      var ret = ''
+      var c = ptr
+      while (HEAPU8[c]) {
+        ret += embind_charCodes[HEAPU8[c++]]
+      }
+      return ret
+    }
+    var BindingError = undefined
+    function throwBindingError(message) {
+      throw new BindingError(message)
     }
     function registerType(rawType, registeredInstance, options) {
       options = options || {}
@@ -750,9 +866,6 @@ var Module = (function () {
         }
       }
     }
-    function simpleReadValueFromPointer(pointer) {
-      return this['fromWireType'](HEAPU32[pointer >> 2])
-    }
     function __embind_register_emval(rawType, name) {
       name = readLatin1String(name)
       registerType(rawType, {
@@ -832,13 +945,6 @@ var Module = (function () {
       var obj = new dummy()
       var r = constructor.apply(obj, argumentList)
       return r instanceof Object ? r : obj
-    }
-    function runDestructors(destructors) {
-      while (destructors.length) {
-        var ptr = destructors.pop()
-        var del = destructors.pop()
-        del(ptr)
-      }
     }
     function craftInvokerFunction(
       humanName,
@@ -1413,6 +1519,49 @@ var Module = (function () {
         },
       })
     }
+    function __embind_register_value_object(
+      rawType,
+      name,
+      constructorSignature,
+      rawConstructor,
+      destructorSignature,
+      rawDestructor
+    ) {
+      structRegistrations[rawType] = {
+        name: readLatin1String(name),
+        rawConstructor: embind__requireFunction(
+          constructorSignature,
+          rawConstructor
+        ),
+        rawDestructor: embind__requireFunction(
+          destructorSignature,
+          rawDestructor
+        ),
+        fields: [],
+      }
+    }
+    function __embind_register_value_object_field(
+      structType,
+      fieldName,
+      getterReturnType,
+      getterSignature,
+      getter,
+      getterContext,
+      setterArgumentType,
+      setterSignature,
+      setter,
+      setterContext
+    ) {
+      structRegistrations[structType].fields.push({
+        fieldName: readLatin1String(fieldName),
+        getterReturnType: getterReturnType,
+        getter: embind__requireFunction(getterSignature, getter),
+        getterContext: getterContext,
+        setterArgumentType: setterArgumentType,
+        setter: embind__requireFunction(setterSignature, setter),
+        setterContext: setterContext,
+      })
+    }
     function __embind_register_void(rawType, name) {
       name = readLatin1String(name)
       registerType(rawType, {
@@ -1525,6 +1674,13 @@ var Module = (function () {
     function _abort() {
       abort()
     }
+    function _longjmp(env, value) {
+      _setThrew(env, value || 1)
+      throw 'longjmp'
+    }
+    function _emscripten_longjmp(a0, a1) {
+      return _longjmp(a0, a1)
+    }
     function _emscripten_memcpy_big(dest, src, num) {
       HEAPU8.copyWithin(dest, src, src + num)
     }
@@ -1559,89 +1715,13 @@ var Module = (function () {
       }
       return false
     }
-    var ENV = {}
-    function getExecutableName() {
-      return thisProgram || './this.program'
-    }
-    function getEnvStrings() {
-      if (!getEnvStrings.strings) {
-        var lang =
-          (
-            (typeof navigator === 'object' &&
-              navigator.languages &&
-              navigator.languages[0]) ||
-            'C'
-          ).replace('-', '_') + '.UTF-8'
-        var env = {
-          USER: 'web_user',
-          LOGNAME: 'web_user',
-          PATH: '/',
-          PWD: '/',
-          HOME: '/home/web_user',
-          LANG: lang,
-          _: getExecutableName(),
-        }
-        for (var x in ENV) {
-          env[x] = ENV[x]
-        }
-        var strings = []
-        for (var x in env) {
-          strings.push(x + '=' + env[x])
-        }
-        getEnvStrings.strings = strings
-      }
-      return getEnvStrings.strings
-    }
-    var SYSCALLS = {
-      mappings: {},
-      buffers: [null, [], []],
-      printChar: function (stream, curr) {
-        var buffer = SYSCALLS.buffers[stream]
-        if (curr === 0 || curr === 10) {
-          ;(stream === 1 ? out : err)(UTF8ArrayToString(buffer, 0))
-          buffer.length = 0
-        } else {
-          buffer.push(curr)
-        }
-      },
-      varargs: undefined,
-      get: function () {
-        SYSCALLS.varargs += 4
-        var ret = HEAP32[(SYSCALLS.varargs - 4) >> 2]
-        return ret
-      },
-      getStr: function (ptr) {
-        var ret = UTF8ToString(ptr)
-        return ret
-      },
-      get64: function (low, high) {
-        return low
-      },
-    }
-    function _environ_get(__environ, environ_buf) {
-      var bufSize = 0
-      getEnvStrings().forEach(function (string, i) {
-        var ptr = environ_buf + bufSize
-        HEAP32[(__environ + i * 4) >> 2] = ptr
-        writeAsciiToMemory(string, ptr)
-        bufSize += string.length + 1
-      })
-      return 0
-    }
-    function _environ_sizes_get(penviron_count, penviron_buf_size) {
-      var strings = getEnvStrings()
-      HEAP32[penviron_count >> 2] = strings.length
-      var bufSize = 0
-      strings.forEach(function (string) {
-        bufSize += string.length + 1
-      })
-      HEAP32[penviron_buf_size >> 2] = bufSize
-      return 0
-    }
-    function _exit(status) {
-      exit(status)
-    }
     function _fd_close(fd) {
+      return 0
+    }
+    function _fd_read(fd, iov, iovcnt, pnum) {
+      var stream = SYSCALLS.getStreamFromFD(fd)
+      var num = SYSCALLS.doReadv(stream, iov, iovcnt)
+      HEAP32[pnum >> 2] = num
       return 0
     }
     function _fd_seek(fd, offset_low, offset_high, whence, newOffset) {}
@@ -1658,67 +1738,93 @@ var Module = (function () {
       HEAP32[pnum >> 2] = num
       return 0
     }
+    function _getTempRet0() {
+      return getTempRet0()
+    }
     function _setTempRet0(val) {
       setTempRet0(val)
     }
-    embind_init_charCodes()
-    BindingError = Module['BindingError'] = extendError(Error, 'BindingError')
+    function _time(ptr) {
+      var ret = (Date.now() / 1e3) | 0
+      if (ptr) {
+        HEAP32[ptr >> 2] = ret
+      }
+      return ret
+    }
     InternalError = Module['InternalError'] = extendError(
       Error,
       'InternalError'
     )
+    embind_init_charCodes()
+    BindingError = Module['BindingError'] = extendError(Error, 'BindingError')
     init_emval()
     UnboundTypeError = Module['UnboundTypeError'] = extendError(
       Error,
       'UnboundTypeError'
     )
     var asmLibraryArg = {
-      e: ___cxa_thread_atexit,
-      q: __embind_register_bigint,
-      m: __embind_register_bool,
-      x: __embind_register_emval,
-      l: __embind_register_float,
-      o: __embind_register_function,
-      b: __embind_register_integer,
-      a: __embind_register_memory_view,
-      h: __embind_register_std_string,
-      g: __embind_register_std_wstring,
-      n: __embind_register_void,
-      c: __emval_decref,
-      d: __emval_get_global,
-      i: __emval_incref,
-      j: __emval_new,
-      k: _abort,
-      s: _emscripten_memcpy_big,
-      f: _emscripten_resize_heap,
-      t: _environ_get,
-      u: _environ_sizes_get,
-      y: _exit,
-      w: _fd_close,
-      p: _fd_seek,
-      v: _fd_write,
-      r: _setTempRet0,
+      O: ___cxa_thread_atexit,
+      r: ___sys_fcntl64,
+      G: ___sys_ioctl,
+      H: ___sys_open,
+      x: __embind_finalize_value_object,
+      B: __embind_register_bigint,
+      K: __embind_register_bool,
+      J: __embind_register_emval,
+      t: __embind_register_float,
+      w: __embind_register_function,
+      i: __embind_register_integer,
+      e: __embind_register_memory_view,
+      u: __embind_register_std_string,
+      o: __embind_register_std_wstring,
+      z: __embind_register_value_object,
+      g: __embind_register_value_object_field,
+      L: __embind_register_void,
+      j: __emval_decref,
+      N: __emval_get_global,
+      v: __emval_incref,
+      D: __emval_new,
+      f: _abort,
+      d: _emscripten_longjmp,
+      E: _emscripten_memcpy_big,
+      n: _emscripten_resize_heap,
+      s: _fd_close,
+      F: _fd_read,
+      A: _fd_seek,
+      I: _fd_write,
+      b: _getTempRet0,
+      l: invoke_iiiii,
+      p: invoke_iiiiiiiii,
+      q: invoke_iiiiiiiiii,
+      C: invoke_iiiiiiiiiiii,
+      y: invoke_ijiii,
+      m: invoke_vi,
+      h: invoke_vii,
+      c: invoke_viiii,
+      k: invoke_viiiiiiiiii,
+      a: _setTempRet0,
+      M: _time,
     }
     var asm = createWasm()
     var ___wasm_call_ctors = (Module['___wasm_call_ctors'] = function () {
       return (___wasm_call_ctors = Module['___wasm_call_ctors'] =
-        Module['asm']['A']).apply(null, arguments)
+        Module['asm']['Q']).apply(null, arguments)
     })
     var _malloc = (Module['_malloc'] = function () {
-      return (_malloc = Module['_malloc'] = Module['asm']['B']).apply(
+      return (_malloc = Module['_malloc'] = Module['asm']['R']).apply(
         null,
         arguments
       )
     })
     var _free = (Module['_free'] = function () {
-      return (_free = Module['_free'] = Module['asm']['C']).apply(
+      return (_free = Module['_free'] = Module['asm']['S']).apply(
         null,
         arguments
       )
     })
     var ___getTypeName = (Module['___getTypeName'] = function () {
       return (___getTypeName = Module['___getTypeName'] =
-        Module['asm']['D']).apply(null, arguments)
+        Module['asm']['T']).apply(null, arguments)
     })
     var ___embind_register_native_and_builtin_types = (Module[
       '___embind_register_native_and_builtin_types'
@@ -1726,20 +1832,184 @@ var Module = (function () {
       return (___embind_register_native_and_builtin_types = Module[
         '___embind_register_native_and_builtin_types'
       ] =
-        Module['asm']['E']).apply(null, arguments)
+        Module['asm']['U']).apply(null, arguments)
     })
-    var dynCall_jiji = (Module['dynCall_jiji'] = function () {
-      return (dynCall_jiji = Module['dynCall_jiji'] = Module['asm']['G']).apply(
+    var stackSave = (Module['stackSave'] = function () {
+      return (stackSave = Module['stackSave'] = Module['asm']['V']).apply(
         null,
         arguments
       )
     })
-    var calledRun
-    function ExitStatus(status) {
-      this.name = 'ExitStatus'
-      this.message = 'Program terminated with exit(' + status + ')'
-      this.status = status
+    var stackRestore = (Module['stackRestore'] = function () {
+      return (stackRestore = Module['stackRestore'] = Module['asm']['W']).apply(
+        null,
+        arguments
+      )
+    })
+    var _setThrew = (Module['_setThrew'] = function () {
+      return (_setThrew = Module['_setThrew'] = Module['asm']['X']).apply(
+        null,
+        arguments
+      )
+    })
+    var dynCall_jiiiiiiiii = (Module['dynCall_jiiiiiiiii'] = function () {
+      return (dynCall_jiiiiiiiii = Module['dynCall_jiiiiiiiii'] =
+        Module['asm']['Z']).apply(null, arguments)
+    })
+    var dynCall_ijiii = (Module['dynCall_ijiii'] = function () {
+      return (dynCall_ijiii = Module['dynCall_ijiii'] =
+        Module['asm']['_']).apply(null, arguments)
+    })
+    var dynCall_jiji = (Module['dynCall_jiji'] = function () {
+      return (dynCall_jiji = Module['dynCall_jiji'] = Module['asm']['$']).apply(
+        null,
+        arguments
+      )
+    })
+    var dynCall_jiiiiiiii = (Module['dynCall_jiiiiiiii'] = function () {
+      return (dynCall_jiiiiiiii = Module['dynCall_jiiiiiiii'] =
+        Module['asm']['aa']).apply(null, arguments)
+    })
+    var dynCall_jiiiiii = (Module['dynCall_jiiiiii'] = function () {
+      return (dynCall_jiiiiii = Module['dynCall_jiiiiii'] =
+        Module['asm']['ba']).apply(null, arguments)
+    })
+    var dynCall_jiiiii = (Module['dynCall_jiiiii'] = function () {
+      return (dynCall_jiiiii = Module['dynCall_jiiiii'] =
+        Module['asm']['ca']).apply(null, arguments)
+    })
+    var dynCall_iiijii = (Module['dynCall_iiijii'] = function () {
+      return (dynCall_iiijii = Module['dynCall_iiijii'] =
+        Module['asm']['da']).apply(null, arguments)
+    })
+    function invoke_vi(index, a1) {
+      var sp = stackSave()
+      try {
+        wasmTable.get(index)(a1)
+      } catch (e) {
+        stackRestore(sp)
+        if (e !== e + 0 && e !== 'longjmp') throw e
+        _setThrew(1, 0)
+      }
     }
+    function invoke_viiii(index, a1, a2, a3, a4) {
+      var sp = stackSave()
+      try {
+        wasmTable.get(index)(a1, a2, a3, a4)
+      } catch (e) {
+        stackRestore(sp)
+        if (e !== e + 0 && e !== 'longjmp') throw e
+        _setThrew(1, 0)
+      }
+    }
+    function invoke_vii(index, a1, a2) {
+      var sp = stackSave()
+      try {
+        wasmTable.get(index)(a1, a2)
+      } catch (e) {
+        stackRestore(sp)
+        if (e !== e + 0 && e !== 'longjmp') throw e
+        _setThrew(1, 0)
+      }
+    }
+    function invoke_iiiiiiiiii(index, a1, a2, a3, a4, a5, a6, a7, a8, a9) {
+      var sp = stackSave()
+      try {
+        return wasmTable.get(index)(a1, a2, a3, a4, a5, a6, a7, a8, a9)
+      } catch (e) {
+        stackRestore(sp)
+        if (e !== e + 0 && e !== 'longjmp') throw e
+        _setThrew(1, 0)
+      }
+    }
+    function invoke_iiiiiiiiiiii(
+      index,
+      a1,
+      a2,
+      a3,
+      a4,
+      a5,
+      a6,
+      a7,
+      a8,
+      a9,
+      a10,
+      a11
+    ) {
+      var sp = stackSave()
+      try {
+        return wasmTable.get(index)(
+          a1,
+          a2,
+          a3,
+          a4,
+          a5,
+          a6,
+          a7,
+          a8,
+          a9,
+          a10,
+          a11
+        )
+      } catch (e) {
+        stackRestore(sp)
+        if (e !== e + 0 && e !== 'longjmp') throw e
+        _setThrew(1, 0)
+      }
+    }
+    function invoke_iiiii(index, a1, a2, a3, a4) {
+      var sp = stackSave()
+      try {
+        return wasmTable.get(index)(a1, a2, a3, a4)
+      } catch (e) {
+        stackRestore(sp)
+        if (e !== e + 0 && e !== 'longjmp') throw e
+        _setThrew(1, 0)
+      }
+    }
+    function invoke_viiiiiiiiii(
+      index,
+      a1,
+      a2,
+      a3,
+      a4,
+      a5,
+      a6,
+      a7,
+      a8,
+      a9,
+      a10
+    ) {
+      var sp = stackSave()
+      try {
+        wasmTable.get(index)(a1, a2, a3, a4, a5, a6, a7, a8, a9, a10)
+      } catch (e) {
+        stackRestore(sp)
+        if (e !== e + 0 && e !== 'longjmp') throw e
+        _setThrew(1, 0)
+      }
+    }
+    function invoke_iiiiiiiii(index, a1, a2, a3, a4, a5, a6, a7, a8) {
+      var sp = stackSave()
+      try {
+        return wasmTable.get(index)(a1, a2, a3, a4, a5, a6, a7, a8)
+      } catch (e) {
+        stackRestore(sp)
+        if (e !== e + 0 && e !== 'longjmp') throw e
+        _setThrew(1, 0)
+      }
+    }
+    function invoke_ijiii(index, a1, a2, a3, a4, a5) {
+      var sp = stackSave()
+      try {
+        return dynCall_ijiii(index, a1, a2, a3, a4, a5)
+      } catch (e) {
+        stackRestore(sp)
+        if (e !== e + 0 && e !== 'longjmp') throw e
+        _setThrew(1, 0)
+      }
+    }
+    var calledRun
     dependenciesFulfilled = function runCaller() {
       if (!calledRun) run()
       if (!calledRun) dependenciesFulfilled = runCaller
@@ -1776,19 +2046,6 @@ var Module = (function () {
       }
     }
     Module['run'] = run
-    function exit(status, implicit) {
-      EXITSTATUS = status
-      if (implicit && keepRuntimeAlive() && status === 0) {
-        return
-      }
-      if (keepRuntimeAlive()) {
-      } else {
-        exitRuntime()
-        if (Module['onExit']) Module['onExit'](status)
-        ABORT = true
-      }
-      quit_(status, new ExitStatus(status))
-    }
     if (Module['preInit']) {
       if (typeof Module['preInit'] == 'function')
         Module['preInit'] = [Module['preInit']]
