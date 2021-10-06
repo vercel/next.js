@@ -4,7 +4,7 @@ import crypto from 'crypto'
 import { readFileSync } from 'fs'
 import { codeFrameColumns } from 'next/dist/compiled/babel/code-frame'
 import semver from 'next/dist/compiled/semver'
-import { isWebpack5, webpack } from 'next/dist/compiled/webpack/webpack'
+import { webpack } from 'next/dist/compiled/webpack/webpack'
 import type webpack5 from 'webpack5'
 import path, { join as pathJoin, relative as relativePath } from 'path'
 import escapeRegExp from 'next/dist/compiled/escape-string-regexp'
@@ -832,66 +832,45 @@ export default async function getBaseWebpackConfig(
         ['next']
       : !isServerless
       ? [
-          isWebpack5
-            ? ({
-                context,
-                request,
-                dependencyType,
-                getResolve,
-              }: {
-                context: string
-                request: string
-                dependencyType: string
-                getResolve: (
-                  options: any
-                ) => (
-                  resolveContext: string,
-                  resolveRequest: string,
-                  callback: (
-                    err?: Error,
-                    result?: string,
-                    resolveData?: { descriptionFileData?: { type?: any } }
-                  ) => void
-                ) => void
-              }) =>
-                handleExternals(context, request, dependencyType, (options) => {
-                  const resolveFunction = getResolve(options)
-                  return (resolveContext: string, requestToResolve: string) =>
-                    new Promise((resolve, reject) => {
-                      resolveFunction(
-                        resolveContext,
-                        requestToResolve,
-                        (err, result, resolveData) => {
-                          if (err) return reject(err)
-                          if (!result) return resolve([null, false])
-                          const isEsm = /\.js$/i.test(result)
-                            ? resolveData?.descriptionFileData?.type ===
-                              'module'
-                            : /\.mjs$/i.test(result)
-                          resolve([result, isEsm])
-                        }
-                      )
-                    })
+          ({
+            context,
+            request,
+            dependencyType,
+            getResolve,
+          }: {
+            context: string
+            request: string
+            dependencyType: string
+            getResolve: (
+              options: any
+            ) => (
+              resolveContext: string,
+              resolveRequest: string,
+              callback: (
+                err?: Error,
+                result?: string,
+                resolveData?: { descriptionFileData?: { type?: any } }
+              ) => void
+            ) => void
+          }) =>
+            handleExternals(context, request, dependencyType, (options) => {
+              const resolveFunction = getResolve(options)
+              return (resolveContext: string, requestToResolve: string) =>
+                new Promise((resolve, reject) => {
+                  resolveFunction(
+                    resolveContext,
+                    requestToResolve,
+                    (err, result, resolveData) => {
+                      if (err) return reject(err)
+                      if (!result) return resolve([null, false])
+                      const isEsm = /\.js$/i.test(result)
+                        ? resolveData?.descriptionFileData?.type === 'module'
+                        : /\.mjs$/i.test(result)
+                      resolve([result, isEsm])
+                    }
+                  )
                 })
-            : (
-                context: string,
-                request: string,
-                callback: (err?: Error, result?: string | undefined) => void
-              ) =>
-                handleExternals(
-                  context,
-                  request,
-                  'commonjs',
-                  () => (resolveContext: string, requestToResolve: string) =>
-                    new Promise((resolve) =>
-                      resolve([
-                        require.resolve(requestToResolve, {
-                          paths: [resolveContext],
-                        }),
-                        false,
-                      ])
-                    )
-                ).then((result) => callback(undefined, result), callback),
+            }),
         ]
       : [
           // When the 'serverless' target is used all node_modules will be compiled into the output bundles
@@ -903,13 +882,14 @@ export default async function getBaseWebpackConfig(
           ...(config.experimental.optimizeCss ? [] : ['critters']),
         ],
     optimization: {
-      // Webpack 5 uses a new property for the same functionality
-      ...(isWebpack5 ? { emitOnErrors: !dev } : { noEmitOnErrors: dev }),
+      // @ts-ignore: TODO remove ts-ignore when webpack 4 is removed
+      emitOnErrors: !dev,
       checkWasmTypes: false,
       nodeEnv: false,
       splitChunks: isServer
-        ? isWebpack5 && !dev
-          ? ({
+        ? dev
+          ? false
+          : ({
               filename: '[name].js',
               // allow to split entrypoints
               chunks: 'all',
@@ -917,7 +897,6 @@ export default async function getBaseWebpackConfig(
               // we want to prefer deduplication to load less code
               minSize: 1000,
             } as any)
-          : false
         : splitChunksConfig,
       runtimeChunk: isServer
         ? undefined
@@ -980,26 +959,20 @@ export default async function getBaseWebpackConfig(
       // we must set publicPath to an empty value to override the default of
       // auto which doesn't work in IE11
       publicPath: `${config.assetPrefix || ''}/_next/`,
-      path:
-        isServer && isWebpack5 && !dev
-          ? path.join(outputPath, 'chunks')
-          : outputPath,
+      path: isServer && !dev ? path.join(outputPath, 'chunks') : outputPath,
       // On the server we don't use hashes
       filename: isServer
-        ? isWebpack5 && !dev
+        ? !dev
           ? '../[name].js'
           : '[name].js'
         : `static/chunks/${isDevFallback ? 'fallback/' : ''}[name]${
-            dev ? '' : isWebpack5 ? '-[contenthash]' : '-[chunkhash]'
+            dev ? '' : '-[contenthash]'
           }.js`,
       library: isServer ? undefined : '_N_E',
       libraryTarget: isServer ? 'commonjs2' : 'assign',
-      hotUpdateChunkFilename: isWebpack5
-        ? 'static/webpack/[id].[fullhash].hot-update.js'
-        : 'static/webpack/[id].[hash].hot-update.js',
-      hotUpdateMainFilename: isWebpack5
-        ? 'static/webpack/[fullhash].[runtime].hot-update.json'
-        : 'static/webpack/[hash].hot-update.json',
+      hotUpdateChunkFilename: 'static/webpack/[id].[fullhash].hot-update.js',
+      hotUpdateMainFilename:
+        'static/webpack/[fullhash].[runtime].hot-update.json',
       // This saves chunks with the name given via `import()`
       chunkFilename: isServer
         ? '[name].js'
@@ -1075,7 +1048,7 @@ export default async function getBaseWebpackConfig(
             },
           ],
         },
-        ...(!config.images.disableStaticImages && isWebpack5
+        ...(!config.images.disableStaticImages
           ? [
               {
                 test: /\.(png|jpg|jpeg|gif|webp|ico|bmp|svg)$/i,
