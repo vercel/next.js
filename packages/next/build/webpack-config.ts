@@ -1267,7 +1267,7 @@ export default async function getBaseWebpackConfig(
             minimized: true,
           },
         }),
-      !dev && !isServer && isWebpack5 && new TelemetryPlugin(),
+      !dev && !isServer && new TelemetryPlugin(),
     ].filter(Boolean as any as ExcludesFalse),
   }
 
