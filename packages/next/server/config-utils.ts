@@ -8,7 +8,7 @@ export function loadWebpackHook() {
   }
   installed = true
 
-  initWebpack(true)
+  initWebpack()
 
   // hook the Node.js require so that webpack requires are
   // routed to the bundled and now initialized webpack version
