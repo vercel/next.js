@@ -304,33 +304,6 @@ jobs:
     steps:
       - run: exit 0
 
-  testLegacyWebpack:
-    name: Webpack 4 (Basic, Production, Acceptance)
-    runs-on: ubuntu-latest
-    needs: build
-    env:
-      NEXT_TELEMETRY_DISABLED: 1
-      NEXT_TEST_JOB: 1
-      NEXT_PRIVATE_TEST_WEBPACK4_MODE: 1
-
-    steps:
-      # https://github.com/actions/virtual-environments/issues/1187
-      - name: tune linux network
-        run: sudo ethtool -K eth0 tx off rx off
-
-      - uses: actions/cache@v2
-        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
-        id: restore-build
-        with:
-          path: ./*
-          key: ${{ github.sha }}
-
-      - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
-        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
-
-      - run: node run-tests.js test/development/acceptance/{ReactRefresh,ReactRefreshLogBox-app-doc,ReactRefreshLogBox-scss,ReactRefreshLogBox,ReactRefreshLogBoxMisc,ReactRefreshRegression,ReactRefreshRequire}.test.ts test/development/basic/*.test.ts && node run-tests.js test/integration/{fallback-modules,link-ref,production,async-modules,font-optimization,ssr-ctx}/test/index.test.js
-        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
-
   testFirefox:
     name: Test Firefox (production)
     runs-on: ubuntu-latest

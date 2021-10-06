@@ -174,51 +174,48 @@ export function createEntrypoints(
 export function finalizeEntrypoint(
   name: string,
   value: any,
-  isServer: boolean,
-  isWebpack5: boolean
+  isServer: boolean
 ): any {
-  if (isWebpack5) {
-    if (isServer) {
-      const isApi = name.startsWith('pages/api/')
-      const runtime = isApi ? 'webpack-api-runtime' : 'webpack-runtime'
-      const layer = isApi ? 'api' : undefined
-      const publicPath = isApi ? '' : undefined
+  if (isServer) {
+    const isApi = name.startsWith('pages/api/')
+    const runtime = isApi ? 'webpack-api-runtime' : 'webpack-runtime'
+    const layer = isApi ? 'api' : undefined
+    const publicPath = isApi ? '' : undefined
+    if (typeof value === 'object' && !Array.isArray(value)) {
+      return {
+        publicPath,
+        runtime,
+        layer,
+        ...value,
+      }
+    } else {
+      return {
+        import: value,
+        publicPath,
+        runtime,
+        layer,
+      }
+    }
+  } else {
+    if (
+      name !== 'polyfills' &&
+      name !== 'main' &&
+      name !== 'amp' &&
+      name !== 'react-refresh'
+    ) {
+      const dependOn =
+        name.startsWith('pages/') && name !== 'pages/_app'
+          ? 'pages/_app'
+          : 'main'
       if (typeof value === 'object' && !Array.isArray(value)) {
         return {
-          publicPath,
-          runtime,
-          layer,
+          dependOn,
           ...value,
         }
       } else {
         return {
           import: value,
-          publicPath,
-          runtime,
-          layer,
-        }
-      }
-    } else {
-      if (
-        name !== 'polyfills' &&
-        name !== 'main' &&
-        name !== 'amp' &&
-        name !== 'react-refresh'
-      ) {
-        const dependOn =
-          name.startsWith('pages/') && name !== 'pages/_app'
-            ? 'pages/_app'
-            : 'main'
-        if (typeof value === 'object' && !Array.isArray(value)) {
-          return {
-            dependOn,
-            ...value,
-          }
-        } else {
-          return {
-            import: value,
-            dependOn,
-          }
+          dependOn,
         }
       }
     }
