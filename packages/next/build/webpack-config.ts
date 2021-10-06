@@ -491,10 +491,15 @@ export default async function getBaseWebpackConfig(
       [DOT_NEXT_ALIAS]: distDir,
       ...getOptimizedAliases(isServer),
       ...getReactProfilingInProduction(),
-      [clientResolveRewrites]: hasRewrites
-        ? clientResolveRewrites
-        : // With webpack 5 an alias can be pointed to false to noop
-          false,
+
+      ...(!isServer
+        ? {
+            [clientResolveRewrites]: hasRewrites
+              ? clientResolveRewrites
+              : // With webpack 5 an alias can be pointed to false to noop
+                false,
+          }
+        : {}),
     },
     ...(!isServer
       ? {
