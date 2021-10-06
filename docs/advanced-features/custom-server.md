@@ -17,7 +17,7 @@ description: Start a Next.js app programmatically using a custom server.
 
 By default, Next.js includes its own server with `next start`. If you have an existing backend, you can still use it with Next.js (this is not a custom server). A custom Next.js server allows you to start a server 100% programmatically in order to use custom server patterns. Most of the time, you will not need this – but it's available for complete customization.
 
-> **Note:** A custom server **can not** be deployed on [Vercel](https://vercel.com/solutions/nextjs).
+> **Note:** A custom server **cannot** be deployed on [Vercel](https://vercel.com/solutions/nextjs).
 
 > Before deciding to use a custom server, please keep in mind that it should only be used when the integrated router of Next.js can't meet your app requirements. A custom server will remove important performance optimizations, like **serverless functions** and **[Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md).**
 
@@ -56,7 +56,7 @@ app.prepare().then(() => {
 
 > `server.js` doesn't go through babel or webpack. Make sure the syntax and sources this file requires are compatible with the current node version you are running.
 
-Then, to run the custom server you'll need to update the `scripts` in `package.json`, like so:
+To run the custom server you'll need to update the `scripts` in `package.json` like so:
 
 ```json
 "scripts": {
