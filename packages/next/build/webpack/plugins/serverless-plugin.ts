@@ -1,5 +1,4 @@
 import { webpack } from 'next/dist/compiled/webpack/webpack'
-import { GraphHelpers } from 'next/dist/compiled/webpack/webpack'
 
 /**
  * Makes sure there are no dynamic chunks when the target is serverless
