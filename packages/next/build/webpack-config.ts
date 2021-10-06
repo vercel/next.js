@@ -1004,9 +1004,6 @@ export default async function getBaseWebpackConfig(
       ],
     },
     context: dir,
-    node: {
-      setImmediate: false,
-    },
     // Kept as function to be backwards compatible
     // @ts-ignore TODO webpack 5 typings needed
     entry: async () => {
@@ -1057,7 +1054,6 @@ export default async function getBaseWebpackConfig(
           }.js`,
       strictModuleExceptionHandling: true,
       crossOriginLoading: crossOrigin,
-      futureEmitAssets: !dev,
       webassemblyModuleFilename: 'static/wasm/[modulehash].wasm',
     },
     performance: false,
@@ -1065,7 +1061,6 @@ export default async function getBaseWebpackConfig(
     resolveLoader: {
       // The loaders Next.js provides
       alias: [
-        'emit-file-loader',
         'error-loader',
         'next-babel-loader',
         'next-swc-loader',
@@ -1269,7 +1264,6 @@ export default async function getBaseWebpackConfig(
         !isLikeServerless &&
         isServer &&
         !dev &&
-        isWebpack5 &&
         new TraceEntryPointsPlugin({
           appDir: dir,
         }),
@@ -1359,173 +1353,164 @@ export default async function getBaseWebpackConfig(
     )
   }
 
-  if (isWebpack5) {
-    // futureEmitAssets is on by default in webpack 5
-    delete webpackConfig.output?.futureEmitAssets
+  const webpack5Config = webpackConfig as webpack5.Configuration
 
-    // webpack 5 no longer polyfills Node.js modules:
-    if (webpackConfig.node) delete webpackConfig.node.setImmediate
+  webpack5Config.experiments = {
+    layers: true,
+    cacheUnaffected: true,
+  }
 
-    const webpack5Config = webpackConfig as webpack5.Configuration
+  webpack5Config.module!.parser = {
+    javascript: {
+      url: 'relative',
+    },
+  }
+  webpack5Config.module!.generator = {
+    asset: {
+      filename: 'static/media/[name].[hash:8][ext]',
+    },
+  }
 
-    webpack5Config.experiments = {
-      layers: true,
-      cacheUnaffected: true,
-    }
+  if (dev) {
+    // @ts-ignore unsafeCache exists
+    webpack5Config.module.unsafeCache = (module) =>
+      !/[\\/]pages[\\/][^\\/]+(?:$|\?|#)/.test(module.resource)
+  }
 
-    webpack5Config.module!.parser = {
-      javascript: {
-        url: 'relative',
-      },
-    }
-    webpack5Config.module!.generator = {
-      asset: {
-        filename: 'static/media/[name].[hash:8][ext]',
-      },
-    }
-
-    if (dev) {
-      // @ts-ignore unsafeCache exists
-      webpack5Config.module.unsafeCache = (module) =>
-        !/[\\/]pages[\\/][^\\/]+(?:$|\?|#)/.test(module.resource)
-    }
-
-    // Due to bundling of webpack the default values can't be correctly detected
-    // This restores the webpack defaults
-    webpack5Config.snapshot = {}
-    if (process.versions.pnp === '3') {
-      const match =
-        /^(.+?)[\\/]cache[\\/]jest-worker-npm-[^\\/]+\.zip[\\/]node_modules[\\/]/.exec(
-          require.resolve('jest-worker')
-        )
-      if (match) {
-        webpack5Config.snapshot.managedPaths = [
-          path.resolve(match[1], 'unplugged'),
-        ]
-      }
-    } else {
-      const match = /^(.+?[\\/]node_modules)[\\/]/.exec(
+  // Due to bundling of webpack the default values can't be correctly detected
+  // This restores the webpack defaults
+  webpack5Config.snapshot = {}
+  if (process.versions.pnp === '3') {
+    const match =
+      /^(.+?)[\\/]cache[\\/]jest-worker-npm-[^\\/]+\.zip[\\/]node_modules[\\/]/.exec(
         require.resolve('jest-worker')
       )
-      if (match) {
-        webpack5Config.snapshot.managedPaths = [match[1]]
+    if (match) {
+      webpack5Config.snapshot.managedPaths = [
+        path.resolve(match[1], 'unplugged'),
+      ]
+    }
+  } else {
+    const match = /^(.+?[\\/]node_modules)[\\/]/.exec(
+      require.resolve('jest-worker')
+    )
+    if (match) {
+      webpack5Config.snapshot.managedPaths = [match[1]]
+    }
+  }
+  if (process.versions.pnp === '1') {
+    const match =
+      /^(.+?[\\/]v4)[\\/]npm-jest-worker-[^\\/]+-[\da-f]{40}[\\/]node_modules[\\/]/.exec(
+        require.resolve('jest-worker')
+      )
+    if (match) {
+      webpack5Config.snapshot.immutablePaths = [match[1]]
+    }
+  } else if (process.versions.pnp === '3') {
+    const match =
+      /^(.+?)[\\/]jest-worker-npm-[^\\/]+\.zip[\\/]node_modules[\\/]/.exec(
+        require.resolve('jest-worker')
+      )
+    if (match) {
+      webpack5Config.snapshot.immutablePaths = [match[1]]
+    }
+  }
+
+  if (dev) {
+    if (!webpack5Config.optimization) {
+      webpack5Config.optimization = {}
+    }
+    webpack5Config.optimization.providedExports = false
+    webpack5Config.optimization.usedExports = false
+  }
+
+  const configVars = JSON.stringify({
+    crossOrigin: config.crossOrigin,
+    pageExtensions: config.pageExtensions,
+    trailingSlash: config.trailingSlash,
+    buildActivity: config.devIndicators.buildActivity,
+    productionBrowserSourceMaps: !!config.productionBrowserSourceMaps,
+    plugins: config.experimental.plugins,
+    reactStrictMode: config.reactStrictMode,
+    reactMode: config.experimental.reactMode,
+    optimizeFonts: config.optimizeFonts,
+    optimizeImages: config.experimental.optimizeImages,
+    optimizeCss: config.experimental.optimizeCss,
+    scrollRestoration: config.experimental.scrollRestoration,
+    basePath: config.basePath,
+    pageEnv: config.experimental.pageEnv,
+    excludeDefaultMomentLocales: config.excludeDefaultMomentLocales,
+    assetPrefix: config.assetPrefix,
+    disableOptimizedLoading: config.experimental.disableOptimizedLoading,
+    target,
+    reactProductionProfiling,
+    webpack: !!config.webpack,
+    hasRewrites,
+    reactRoot: config.experimental.reactRoot,
+    concurrentFeatures: config.experimental.concurrentFeatures,
+    swcMinify: config.experimental.swcMinify,
+    swcLoader: config.experimental.swcLoader,
+  })
+
+  const cache: any = {
+    type: 'filesystem',
+    // Includes:
+    //  - Next.js version
+    //  - next.config.js keys that affect compilation
+    version: `${process.env.__NEXT_VERSION}|${configVars}`,
+    cacheDirectory: path.join(distDir, 'cache', 'webpack'),
+  }
+
+  // Adds `next.config.js` as a buildDependency when custom webpack config is provided
+  if (config.webpack && config.configFile) {
+    cache.buildDependencies = {
+      config: [config.configFile],
+    }
+  }
+
+  webpack5Config.cache = cache
+
+  if (process.env.NEXT_WEBPACK_LOGGING) {
+    const logInfra = process.env.NEXT_WEBPACK_LOGGING.includes('infrastructure')
+    const logProfileClient =
+      process.env.NEXT_WEBPACK_LOGGING.includes('profile-client')
+    const logProfileServer =
+      process.env.NEXT_WEBPACK_LOGGING.includes('profile-server')
+    const logDefault = !logInfra && !logProfileClient && !logProfileServer
+
+    if (logDefault || logInfra) {
+      webpack5Config.infrastructureLogging = {
+        level: 'verbose',
+        debug: /FileSystemInfo/,
       }
     }
-    if (process.versions.pnp === '1') {
-      const match =
-        /^(.+?[\\/]v4)[\\/]npm-jest-worker-[^\\/]+-[\da-f]{40}[\\/]node_modules[\\/]/.exec(
-          require.resolve('jest-worker')
-        )
-      if (match) {
-        webpack5Config.snapshot.immutablePaths = [match[1]]
-      }
-    } else if (process.versions.pnp === '3') {
-      const match =
-        /^(.+?)[\\/]jest-worker-npm-[^\\/]+\.zip[\\/]node_modules[\\/]/.exec(
-          require.resolve('jest-worker')
-        )
-      if (match) {
-        webpack5Config.snapshot.immutablePaths = [match[1]]
-      }
-    }
 
-    if (dev) {
-      if (!webpack5Config.optimization) {
-        webpack5Config.optimization = {}
-      }
-      webpack5Config.optimization.providedExports = false
-      webpack5Config.optimization.usedExports = false
-    }
-
-    const configVars = JSON.stringify({
-      crossOrigin: config.crossOrigin,
-      pageExtensions: config.pageExtensions,
-      trailingSlash: config.trailingSlash,
-      buildActivity: config.devIndicators.buildActivity,
-      productionBrowserSourceMaps: !!config.productionBrowserSourceMaps,
-      plugins: config.experimental.plugins,
-      reactStrictMode: config.reactStrictMode,
-      reactMode: config.experimental.reactMode,
-      optimizeFonts: config.optimizeFonts,
-      optimizeImages: config.experimental.optimizeImages,
-      optimizeCss: config.experimental.optimizeCss,
-      scrollRestoration: config.experimental.scrollRestoration,
-      basePath: config.basePath,
-      pageEnv: config.experimental.pageEnv,
-      excludeDefaultMomentLocales: config.excludeDefaultMomentLocales,
-      assetPrefix: config.assetPrefix,
-      disableOptimizedLoading: config.experimental.disableOptimizedLoading,
-      target,
-      reactProductionProfiling,
-      webpack: !!config.webpack,
-      hasRewrites,
-      reactRoot: config.experimental.reactRoot,
-      concurrentFeatures: config.experimental.concurrentFeatures,
-      swcMinify: config.experimental.swcMinify,
-      swcLoader: config.experimental.swcLoader,
-    })
-
-    const cache: any = {
-      type: 'filesystem',
-      // Includes:
-      //  - Next.js version
-      //  - next.config.js keys that affect compilation
-      version: `${process.env.__NEXT_VERSION}|${configVars}`,
-      cacheDirectory: path.join(distDir, 'cache', 'webpack'),
-    }
-
-    // Adds `next.config.js` as a buildDependency when custom webpack config is provided
-    if (config.webpack && config.configFile) {
-      cache.buildDependencies = {
-        config: [config.configFile],
-      }
-    }
-
-    webpack5Config.cache = cache
-
-    if (process.env.NEXT_WEBPACK_LOGGING) {
-      const logInfra =
-        process.env.NEXT_WEBPACK_LOGGING.includes('infrastructure')
-      const logProfileClient =
-        process.env.NEXT_WEBPACK_LOGGING.includes('profile-client')
-      const logProfileServer =
-        process.env.NEXT_WEBPACK_LOGGING.includes('profile-server')
-      const logDefault = !logInfra && !logProfileClient && !logProfileServer
-
-      if (logDefault || logInfra) {
-        webpack5Config.infrastructureLogging = {
-          level: 'verbose',
-          debug: /FileSystemInfo/,
-        }
-      }
-
-      if (
-        logDefault ||
-        (logProfileClient && !isServer) ||
-        (logProfileServer && isServer)
-      ) {
-        webpack5Config.plugins!.push((compiler: webpack5.Compiler) => {
-          compiler.hooks.done.tap('next-webpack-logging', (stats) => {
-            console.log(
-              stats.toString({
-                colors: true,
-                logging: logDefault ? 'log' : 'verbose',
-              })
-            )
-          })
+    if (
+      logDefault ||
+      (logProfileClient && !isServer) ||
+      (logProfileServer && isServer)
+    ) {
+      webpack5Config.plugins!.push((compiler: webpack5.Compiler) => {
+        compiler.hooks.done.tap('next-webpack-logging', (stats) => {
+          console.log(
+            stats.toString({
+              colors: true,
+              logging: logDefault ? 'log' : 'verbose',
+            })
+          )
         })
-      }
+      })
+    }
 
-      if ((logProfileClient && !isServer) || (logProfileServer && isServer)) {
-        const ProgressPlugin =
-          webpack.ProgressPlugin as unknown as typeof webpack5.ProgressPlugin
-        webpack5Config.plugins!.push(
-          new ProgressPlugin({
-            profile: true,
-          })
-        )
-        webpack5Config.profile = true
-      }
+    if ((logProfileClient && !isServer) || (logProfileServer && isServer)) {
+      const ProgressPlugin =
+        webpack.ProgressPlugin as unknown as typeof webpack5.ProgressPlugin
+      webpack5Config.plugins!.push(
+        new ProgressPlugin({
+          profile: true,
+        })
+      )
+      webpack5Config.profile = true
     }
   }
 
@@ -1573,7 +1558,7 @@ export default async function getBaseWebpackConfig(
     }
   }
 
-  if (!config.images.disableStaticImages && isWebpack5) {
+  if (!config.images.disableStaticImages) {
     const rules = webpackConfig.module?.rules || []
     const hasCustomSvg = rules.some(
       (rule) =>
@@ -1608,26 +1593,11 @@ export default async function getBaseWebpackConfig(
     // these need to be the last rule to prevent catching other items
     // https://github.com/facebook/create-react-app/blob/fddce8a9e21bf68f37054586deb0c8636a45f50b/packages/react-scripts/config/webpack.config.js#L594
     const fileLoaderExclude = [/\.(js|mjs|jsx|ts|tsx|json)$/]
-    const fileLoader = isWebpack5
-      ? {
-          exclude: fileLoaderExclude,
-          issuer: fileLoaderExclude,
-          type: 'asset/resource',
-        }
-      : {
-          loader: require.resolve('next/dist/compiled/file-loader'),
-          // Exclude `js` files to keep "css" loader working as it injects
-          // its runtime that would otherwise be processed through "file" loader.
-          // Also exclude `html` and `json` extensions so they get processed
-          // by webpacks internal loaders.
-          exclude: fileLoaderExclude,
-          issuer: fileLoaderExclude,
-          options: {
-            publicPath: '/_next/static/media',
-            outputPath: 'static/media',
-            name: '[name].[hash:8].[ext]',
-          },
-        }
+    const fileLoader = {
+      exclude: fileLoaderExclude,
+      issuer: fileLoaderExclude,
+      type: 'asset/resource',
+    }
 
     const topRules = []
     const innerRules = []
