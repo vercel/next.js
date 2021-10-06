@@ -36,12 +36,10 @@ import { build as buildConfiguration } from './webpack/config'
 import { __overrideCssConfiguration } from './webpack/config/blocks/css/overrideCssConfiguration'
 import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
 import BuildStatsPlugin from './webpack/plugins/build-stats-plugin'
-import ChunkNamesPlugin from './webpack/plugins/chunk-names-plugin'
 import { JsConfigPathsPlugin } from './webpack/plugins/jsconfig-paths-plugin'
 import { DropClientPage } from './webpack/plugins/next-drop-client-page-plugin'
 import { TraceEntryPointsPlugin } from './webpack/plugins/next-trace-entrypoints-plugin'
 import NextJsSsrImportPlugin from './webpack/plugins/nextjs-ssr-import'
-import NextJsSSRModuleCachePlugin from './webpack/plugins/nextjs-ssr-module-cache'
 import PagesManifestPlugin from './webpack/plugins/pages-manifest-plugin'
 import { ProfilingPlugin } from './webpack/plugins/profiling-plugin'
 import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
@@ -294,12 +292,6 @@ export default async function getBaseWebpackConfig(
 
   const distDir = path.join(dir, config.distDir)
 
-  // Webpack 5 can use the faster babel loader, webpack 5 has built-in caching for loaders
-  // For webpack 4 the old loader is used as it has external caching
-  const babelLoader = isWebpack5
-    ? require.resolve('./babel/loader/index')
-    : 'next-babel-loader'
-
   const useSWCLoader = config.experimental.swcLoader && isWebpack5
   if (useSWCLoader && babelConfigFile) {
     Log.warn(
@@ -316,7 +308,7 @@ export default async function getBaseWebpackConfig(
           },
         }
       : {
-          loader: babelLoader,
+          loader: require.resolve('./babel/loader/index'),
           options: {
             configFile: babelConfigFile,
             isServer,
@@ -437,9 +429,6 @@ export default async function getBaseWebpackConfig(
   const clientResolveRewrites = require.resolve(
     '../shared/lib/router/utils/resolve-rewrites'
   )
-  const clientResolveRewritesNoop = require.resolve(
-    '../shared/lib/router/utils/resolve-rewrites-noop'
-  )
 
   const customAppAliases: { [key: string]: string[] } = {}
   const customErrorAlias: { [key: string]: string[] } = {}
@@ -506,9 +495,7 @@ export default async function getBaseWebpackConfig(
       [clientResolveRewrites]: hasRewrites
         ? clientResolveRewrites
         : // With webpack 5 an alias can be pointed to false to noop
-        isWebpack5
-        ? false
-        : clientResolveRewritesNoop,
+          false,
     },
     ...(isWebpack5 && !isServer
       ? {
@@ -1333,8 +1320,6 @@ export default async function getBaseWebpackConfig(
             return devPlugins
           })()
         : []),
-      // Webpack 5 no longer requires this plugin in production:
-      !isWebpack5 && !dev && new webpack.HashedModuleIdsPlugin(),
       !dev &&
         new webpack.IgnorePlugin({
           resourceRegExp: /react-is/,
@@ -1343,10 +1328,6 @@ export default async function getBaseWebpackConfig(
       isServerless && isServer && new ServerlessPlugin(),
       isServer &&
         new PagesManifestPlugin({ serverless: isLikeServerless, dev }),
-      !isWebpack5 &&
-        target === 'server' &&
-        isServer &&
-        new NextJsSSRModuleCachePlugin({ outputPath }),
       isServer && new NextJsSsrImportPlugin(),
       !isServer &&
         new BuildManifestPlugin({
