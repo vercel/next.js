@@ -160,7 +160,7 @@ function waitFor(millis) {
 }
 
 async function main() {
-  await execSync('rm -rf .next')
+  await fs.remove('.next')
   const file = new File('pages/index.jsx')
   try {
     const instance = await runNextCommandDev(['dev', '--port', '3000'])
