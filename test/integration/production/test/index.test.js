@@ -133,6 +133,7 @@ describe('Production Usage', () => {
             /node_modules\/react\/cjs\/react\.production\.min\.js/,
             /next\/router\.js/,
             /next\/dist\/client\/router\.js/,
+            /next\/dist\/shared\/lib\/router\/utils\/resolve-rewrites\.js/,
           ],
           notTests: [/node_modules\/react\/cjs\/react\.development\.js/],
         },
