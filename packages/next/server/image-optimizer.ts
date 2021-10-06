@@ -17,14 +17,14 @@ import { sendEtagResponse } from './send-payload'
 import { getContentType, getExtension } from './serve-static'
 import chalk from 'chalk'
 
-//const AVIF = 'image/avif'
+const AVIF = 'image/avif'
 const WEBP = 'image/webp'
 const PNG = 'image/png'
 const JPEG = 'image/jpeg'
 const GIF = 'image/gif'
 const SVG = 'image/svg+xml'
 const CACHE_VERSION = 3
-const MODERN_TYPES = [/* AVIF, */ WEBP]
+const MODERN_TYPES = [AVIF, WEBP]
 const ANIMATABLE_TYPES = [WEBP, PNG, GIF]
 const VECTOR_TYPES = [SVG]
 const BLUR_IMG_SIZE = 8 // should match `next-image-loader`
@@ -359,7 +359,9 @@ export async function imageOptimizer(
           transformer.resize(width)
         }
 
-        if (contentType === WEBP) {
+        if (contentType === AVIF) {
+          transformer.avif({ quality })
+        } else if (contentType === WEBP) {
           transformer.webp({ quality })
         } else if (contentType === PNG) {
           transformer.png({ quality })
@@ -399,9 +401,14 @@ export async function imageOptimizer(
 
         operations.push({ type: 'resize', width })
 
-        //if (contentType === AVIF) {
-        //} else
-        if (contentType === WEBP) {
+        if (contentType === AVIF) {
+          optimizedBuffer = await processBuffer(
+            upstreamBuffer,
+            operations,
+            'avif',
+            quality
+          )
+        } else if (contentType === WEBP) {
           optimizedBuffer = await processBuffer(
             upstreamBuffer,
             operations,
@@ -620,6 +627,13 @@ export function detectContentType(buffer: Buffer) {
   if ([0x3c, 0x3f, 0x78, 0x6d, 0x6c].every((b, i) => buffer[i] === b)) {
     return SVG
   }
+  if (
+    [0, 0, 0, 0, 0x66, 0x74, 0x79, 0x70, 0x61, 0x76, 0x69, 0x66].every(
+      (b, i) => !b || buffer[i] === b
+    )
+  ) {
+    return AVIF
+  }
   return null
 }
 
@@ -642,13 +656,15 @@ export async function resizeImage(
   content: Buffer,
   dimension: 'width' | 'height',
   size: number,
-  extension: 'webp' | 'png' | 'jpeg',
+  extension: 'avif' | 'webp' | 'png' | 'jpeg',
   quality: number
 ): Promise<Buffer> {
   if (sharp) {
     const transformer = sharp(content)
 
-    if (extension === 'webp') {
+    if (extension === 'avif') {
+      transformer.avif({ quality })
+    } else if (extension === 'webp') {
       transformer.webp({ quality })
     } else if (extension === 'png') {
       transformer.png({ quality })

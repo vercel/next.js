@@ -359,10 +359,10 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
     // FIXME: await expectWidth(res, w)
   })
 
-  it('should resize relative url and Chrome accept header as webp', async () => {
+  it('should resize relative url and old Chrome accept header as webp', async () => {
     const query = { url: '/test.png', w, q: 80 }
     const opts = {
-      headers: { accept: 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8' },
+      headers: { accept: 'image/webp,image/apng,image/*,*/*;q=0.8' },
     }
     const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
@@ -374,6 +374,25 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
     expect(res.headers.get('etag')).toBeTruthy()
     expect(res.headers.get('Content-Disposition')).toBe(
       `inline; filename="test.webp"`
+    )
+    await expectWidth(res, w)
+  })
+
+  it('should resize relative url and new Chrome accept header as avif', async () => {
+    const query = { url: '/test.png', w, q: 80 }
+    const opts = {
+      headers: { accept: 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8' },
+    }
+    const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+    expect(res.status).toBe(200)
+    expect(res.headers.get('Content-Type')).toBe('image/avif')
+    expect(res.headers.get('Cache-Control')).toBe(
+      `public, max-age=0, must-revalidate`
+    )
+    expect(res.headers.get('Vary')).toBe('Accept')
+    expect(res.headers.get('etag')).toBeTruthy()
+    expect(res.headers.get('Content-Disposition')).toBe(
+      `inline; filename="test.avif"`
     )
     await expectWidth(res, w)
   })
