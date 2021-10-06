@@ -331,8 +331,8 @@ describe('Telemetry CLI', () => {
     expect(event1).toMatch(/"staticPropsPageCount": 2/)
     expect(event1).toMatch(/"serverPropsPageCount": 1/)
     expect(event1).toMatch(/"ssrPageCount": 1/)
-    expect(event1).toMatch(/"staticPageCount": 2/)
-    expect(event1).toMatch(/"totalPageCount": 6/)
+    expect(event1).toMatch(/"staticPageCount": 4/)
+    expect(event1).toMatch(/"totalPageCount": 8/)
   })
 
   it('detects isSrcDir dir correctly for `next dev`', async () => {
@@ -559,5 +559,22 @@ describe('Telemetry CLI', () => {
     expect(event1).toMatch(/"nextEslintPluginVersion": ".*?\..*?\..*?"/)
     expect(event1).toMatch(/"nextEslintPluginErrorsCount": \d{1,}/)
     expect(event1).toMatch(/"nextEslintPluginWarningsCount": \d{1,}/)
+  })
+
+  it('emits telemery for usage of image, script & dynamic', async () => {
+    const { stderr } = await nextBuild(appDir, [], {
+      stderr: true,
+      env: { NEXT_TELEMETRY_DEBUG: 1 },
+    })
+    const regex = /NEXT_BUILD_FEATURE_USAGE[\s\S]+?{([\s\S]+?)}/g
+    const image = regex.exec(stderr).pop()
+    expect(image).toContain(`"featureName": "next/image"`)
+    expect(image).toContain(`"invocationCount": 1`)
+    const script = regex.exec(stderr).pop()
+    expect(script).toContain(`"featureName": "next/script"`)
+    expect(script).toContain(`"invocationCount": 1`)
+    const dynamic = regex.exec(stderr).pop()
+    expect(dynamic).toContain(`"featureName": "next/dynamic"`)
+    expect(dynamic).toContain(`"invocationCount": 1`)
   })
 })

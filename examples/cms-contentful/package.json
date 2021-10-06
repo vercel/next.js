@@ -7,7 +7,7 @@
     "setup": "node ./contentful/setup.js $CONTENTFUL_SPACE_ID $CONTENTFUL_MANAGEMENT_TOKEN"
   },
   "dependencies": {
-    "@contentful/rich-text-react-renderer": "14.1.1",
+    "@contentful/rich-text-react-renderer": "^15.4.0",
     "classnames": "2.3.1",
     "date-fns": "2.22.1",
     "next": "latest",
