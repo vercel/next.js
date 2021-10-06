@@ -135,7 +135,10 @@ module.exports = {
               generateBuildId: () => 'BUILD_ID',
               experimental: {
                 swcLoader: true,
-                swcMinify: true,
+                swcMinify: ${
+                  // TODO: remove after stable release > 11.1.2
+                  process.env.STATS_IS_RELEASE ? 'false' : 'true'
+                },
               },
               webpack(config) {
                 config.optimization.minimize = false
@@ -159,7 +162,10 @@ module.exports = {
             module.exports = {
               experimental: {
                 swcLoader: true,
-                swcMinify: true
+                swcMinify: ${
+                  // TODO: remove after stable release > 11.1.2
+                  process.env.STATS_IS_RELEASE ? 'false' : 'true'
+                },
               },
               generateBuildId: () => 'BUILD_ID'
             }

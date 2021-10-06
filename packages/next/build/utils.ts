@@ -1054,7 +1054,7 @@ export function detectConflictingPaths(
     })
 
     Log.error(
-      'Conflicting paths returned from getStaticPaths, paths must unique per page.\n' +
+      'Conflicting paths returned from getStaticPaths, paths must be unique per page.\n' +
         'See more info here: https://nextjs.org/docs/messages/conflicting-ssg-paths\n\n' +
         conflictingPathsOutput
     )

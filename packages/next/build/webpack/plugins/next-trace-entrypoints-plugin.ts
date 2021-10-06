@@ -307,12 +307,6 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
                     continue
                   }
                   const filepath = nodePath.join(root, file)
-
-                  // don't include transpiled files as they are included
-                  // in the webpack output (e.g. chunks or the entry itself)
-                  if (depModMap.get(filepath)?.originalSource?.()) {
-                    continue
-                  }
                   tracedDeps.push(filepath)
                 }
 
