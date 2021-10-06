@@ -4,9 +4,7 @@ import { Transform, TransformCallback } from 'stream'
 // @ts-ignore no types package
 import bfj from 'next/dist/compiled/bfj'
 import { spans } from './profiling-plugin'
-import { isWebpack5 } from 'next/dist/compiled/webpack/webpack'
 import type webpack from 'webpack'
-import type webpack4 from 'webpack4'
 import type webpack5 from 'webpack5'
 
 const STATS_VERSION = 0
@@ -137,16 +135,11 @@ export default class BuildStatsPlugin {
                 modules: true,
               }
               const statsJson = reduceSize(
-                isWebpack5
-                  ? (stats as webpack5.Stats).toJson({
-                      ...baseOptions,
-                      modulesSpace: Infinity,
-                      ids: true,
-                    })
-                  : (stats as webpack4.Stats).toJson({
-                      ...baseOptions,
-                      maxModules: Infinity,
-                    })
+                (stats as webpack5.Stats).toJson({
+                  ...baseOptions,
+                  modulesSpace: Infinity,
+                  ids: true,
+                })
               )
               const fileStream = fs.createWriteStream(
                 path.join(this.distDir, 'next-stats.json'),
