@@ -184,7 +184,7 @@ async function main() {
     await waitFor(5000)
 
     await killApp(instance)
-    await execSync('rm -rf .next')
+    await fs.remove('.next')
   } finally {
     file.restore()
   }
