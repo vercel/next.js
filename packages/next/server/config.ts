@@ -313,6 +313,12 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     }
   }
 
+  if (result.webpack5 === false) {
+    throw new Error(
+      'Webpack 4 is no longer supported in Next.js. Please upgrade to webpack 5 by removing "webpack5: false" from next.config.js. https://nextjs.org/docs/messages/webpack5'
+    )
+  }
+
   if (result.experimental && 'nftTracing' in (result.experimental as any)) {
     // TODO: remove this warning and assignment when we leave experimental phase
     Log.warn(
@@ -481,7 +487,7 @@ export default async function loadConfig(
   customConfig?: object | null
 ): Promise<NextConfigComplete> {
   await loadEnvConfig(dir, phase === PHASE_DEVELOPMENT_SERVER, Log)
-  await loadWebpackHook(phase, dir)
+  await loadWebpackHook()
 
   if (customConfig) {
     return assignDefaults({

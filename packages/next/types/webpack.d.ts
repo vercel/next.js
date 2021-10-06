@@ -31,7 +31,7 @@ declare module 'next/dist/compiled/webpack/webpack' {
   import webpack4, { loader } from 'webpack4'
   export { NormalModule } from 'webpack'
   export let isWebpack5: boolean
-  export function init(useWebpack5: boolean): void
+  export function init(): void
   export let BasicEvaluatedExpression: any
   export let GraphHelpers: any
   export function onWebpackInit(cb: () => void): void
