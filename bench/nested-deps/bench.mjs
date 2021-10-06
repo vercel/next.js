@@ -1,6 +1,12 @@
-import { spawn, execSync } from 'child_process'
+import { spawn } from 'child_process'
 import fetch from 'node-fetch'
-import { existsSync, readFileSync, writeFileSync, unlinkSync } from 'fs'
+import {
+  existsSync,
+  readFileSync,
+  writeFileSync,
+  unlinkSync,
+  promises as fs,
+} from 'fs'
 import treeKill from 'tree-kill'
 
 async function killApp(instance) {
@@ -160,7 +166,7 @@ function waitFor(millis) {
 }
 
 async function main() {
-  await fs.remove('.next')
+  await fs.rmDir('.next', { recursive: true })
   const file = new File('pages/index.jsx')
   try {
     const instance = await runNextCommandDev(['dev', '--port', '3000'])
@@ -184,7 +190,7 @@ async function main() {
     await waitFor(5000)
 
     await killApp(instance)
-    await fs.remove('.next')
+    await fs.rmDir('.next', { recursive: true })
   } finally {
     file.restore()
   }
