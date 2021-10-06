@@ -204,6 +204,18 @@ export default function IndexPage(props) {
 }
 ```
 
+Note that to handle switching only the `locale` while preserving all routing information such as [dynamic route](/docs/routing/dynamic-routes.md) query values or hidden href query values, you can provide the `href` parameter as an object:
+
+```jsx
+import { useRouter } from 'next/router'
+const router = useRouter()
+const { pathname, asPath, query } = router
+// change just the locale and maintain all other route information including href's query
+router.push({ pathname, query }, asPath, { locale: nextLocale })
+```
+
+See [here](/docs/api-reference/next/router.md#with-url-object) for more information on the object structure for `router.push`.
+
 If you have a `href` that already includes the locale you can opt-out of automatically handling the locale prefixing:
 
 ```jsx

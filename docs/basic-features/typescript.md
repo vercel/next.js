@@ -19,7 +19,7 @@ experience out of the box, similar to an IDE.
 You can create a TypeScript project with [`create-next-app`](https://nextjs.org/docs/api-reference/create-next-app) using the `--ts, --typescript` flag like so:
 
 ```
-npx create-next-app --ts
+npx create-next-app@latest --ts
 # or
 yarn create next-app --typescript
 ```

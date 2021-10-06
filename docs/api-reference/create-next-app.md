@@ -7,7 +7,7 @@ description: Create Next.js apps in one command with create-next-app.
 The easiest way to get started with Next.js is by using `create-next-app`. This CLI tool enables you to quickly start building a new Next.js application, with everything set up for you. You can create a new app using the default Next.js template, or by using one of the [official Next.js examples](https://github.com/vercel/next.js/tree/canary/examples). To get started, use the following command:
 
 ```bash
-npx create-next-app
+npx create-next-app@latest
 # or
 yarn create next-app
 ```
@@ -15,7 +15,7 @@ yarn create next-app
 You can create a [TypeScript project](https://github.com/vercel/next.js/blob/canary/docs/basic-features/typescript.md) with the `--ts, --typescript` flag:
 
 ```bash
-npx create-next-app --ts
+npx create-next-app@latest --ts
 # or
 yarn create next-app --typescript
 ```
@@ -33,7 +33,7 @@ yarn create next-app --typescript
 
 `create-next-app` allows you to create a new Next.js app within seconds. It is officially maintained by the creators of Next.js, and includes a number of benefits:
 
-- **Interactive Experience**: Running `npx create-next-app` (with no arguments) launches an interactive experience that guides you through setting up a project.
+- **Interactive Experience**: Running `npx create-next-app@latest` (with no arguments) launches an interactive experience that guides you through setting up a project.
 - **Zero Dependencies**: Initializing a project is as quick as one second. Create Next App has zero dependencies.
 - **Offline Support**: Create Next App will automatically detect if you're offline and bootstrap your project using your local package cache.
 - **Support for Examples**: Create Next App can bootstrap your application using an example from the Next.js examples collection (e.g. `npx create-next-app --example api-routes`).

@@ -462,6 +462,16 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     }
   }
 
+  if (result.experimental?.serverComponents) {
+    const pageExtensions: string[] = []
+    ;(result.pageExtensions || []).forEach((ext) => {
+      pageExtensions.push(ext)
+      pageExtensions.push(`server.${ext}`)
+      pageExtensions.push(`client.${ext}`)
+    })
+    result.pageExtensions = pageExtensions
+  }
+
   return result
 }
 

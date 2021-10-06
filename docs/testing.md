@@ -23,7 +23,7 @@ Cypress is a test runner used for **End-to-End (E2E)** and **Integration Testing
 You can use `create-next-app` with the [with-cypress example](https://github.com/vercel/next.js/tree/canary/examples/with-cypress) to quickly get started.
 
 ```bash
-npx create-next-app --example with-cypress with-cypress-app
+npx create-next-app@latest --example with-cypress with-cypress-app
 ```
 
 ### Manual setup
@@ -146,7 +146,7 @@ Jest and React Testing Library are frequently used together for **Unit Testing**
 You can use `create-next-app` with the [with-jest example](https://github.com/vercel/next.js/tree/canary/examples/with-jest) to quickly get started with Jest and React Testing Library:
 
 ```bash
-npx create-next-app --example with-jest with-jest-app
+npx create-next-app@latest --example with-jest with-jest-app
 ```
 
 ### Manual setup

@@ -16,7 +16,7 @@ export class NextInstance {
   protected nextConfig?: NextConfig
   protected dependencies?: { [name: string]: string }
   protected events: { [eventName: string]: Set<any> }
-  protected testDir: string
+  public testDir: string
   protected isStopping: boolean
   protected isDestroyed: boolean
   protected childProcess: ChildProcess
@@ -156,7 +156,10 @@ export class NextInstance {
     this.isDestroyed = true
     this.emit('destroy', [])
     await this.stop()
-    await fs.remove(this.testDir)
+
+    if (!process.env.NEXT_TEST_SKIP_CLEANUP) {
+      await fs.remove(this.testDir)
+    }
   }
 
   public get url() {

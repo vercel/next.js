@@ -1,13 +1,9 @@
-/* eslint-env jest */
-
-import os from 'os'
 import glob from 'glob'
-import fs from 'fs-extra'
-import execa from 'execa'
+import _fs from 'fs-extra'
 import cheerio from 'cheerio'
-import { join, dirname, relative } from 'path'
-import { version } from 'next/package'
-import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
+import { join, dirname } from 'path'
+import { createNext, FileRef } from 'e2e-utils'
+import { NextInstance } from 'test/lib/next-modes/base'
 import {
   fetchViaHTTP,
   findPort,
@@ -16,131 +12,95 @@ import {
   renderViaHTTP,
 } from 'next-test-utils'
 
-const appDir = join(__dirname, '../app')
-const workDir = join(os.tmpdir(), `required-server-files-${Date.now()}`)
-let server
-let nextApp
-let appPort
-let buildId
-let requiredFilesManifest
-let errors = []
+describe('should set-up next', () => {
+  let next: NextInstance
+  let server
+  let appPort
+  let errors = []
+  let requiredFilesManifest
 
-describe('Required Server Files', () => {
   beforeAll(async () => {
-    const nextServerTrace = await fs.readJSON(
-      require.resolve('next/dist/server/next-server') + '.nft.json'
-    )
-    const packageDir = dirname(require.resolve('next/package.json'))
-    await execa('yarn', ['pack'], {
-      cwd: packageDir,
-    })
-    const packagePath = join(packageDir, `next-v${version}.tgz`)
-
-    await fs.ensureDir(workDir)
-    await fs.writeFile(
-      join(workDir, 'package.json'),
-      JSON.stringify({
-        dependencies: {
-          next: packagePath,
-          react: 'latest',
-          'react-dom': 'latest',
+    next = await createNext({
+      files: {
+        pages: new FileRef(join(__dirname, 'required-server-files/pages')),
+        lib: new FileRef(join(__dirname, 'required-server-files/lib')),
+        'data.txt': new FileRef(
+          join(__dirname, 'required-server-files/data.txt')
+        ),
+      },
+      nextConfig: {
+        experimental: {
+          outputFileTracing: true,
         },
-      })
-    )
-    await fs.copy(appDir, workDir)
-
-    await execa('yarn', ['install'], {
-      cwd: workDir,
-      stdio: ['ignore', 'inherit', 'inherit'],
-      env: {
-        ...process.env,
-        YARN_CACHE_FOLDER: join(workDir, '.yarn-cache'),
-      },
-    })
-
-    await execa('yarn', ['next', 'build'], {
-      cwd: workDir,
-      stdio: ['ignore', 'inherit', 'inherit'],
-      env: {
-        ...process.env,
-        NODE_ENV: 'production',
-        NOW_BUILDER: '1',
-      },
-    })
-
-    buildId = await fs.readFile(join(workDir, '.next/BUILD_ID'), 'utf8')
-    requiredFilesManifest = await fs.readJSON(
-      join(workDir, '.next/required-server-files.json')
-    )
-
-    // react and react-dom need to be traced specific to version
-    // so isn't pre-traced
-    await fs.ensureDir(`${workDir}-react`)
-    await fs.writeFile(
-      join(`${workDir}-react/package.json`),
-      JSON.stringify({
-        dependencies: {
-          react: 'latest',
-          'react-dom': 'latest',
+        eslint: {
+          ignoreDuringBuilds: true,
         },
-      })
-    )
-    await execa('yarn', ['install'], {
-      cwd: `${workDir}-react`,
-      stdio: ['ignore', 'inherit', 'inherit'],
-      env: {
-        ...process.env,
-        YARN_CACHE_FOLDER: join(workDir, '.yarn'),
+        async rewrites() {
+          return [
+            {
+              source: '/some-catch-all/:path*',
+              destination: '/',
+            },
+          ]
+        },
       },
     })
-    await fs.remove(packagePath)
+    await next.stop()
+    const keptFiles = new Set<string>()
+    const nextServerTrace = require('next/dist/server/next-server.js.nft.json')
 
-    const files = await recursiveReadDir(workDir, /.*/)
+    requiredFilesManifest = JSON.parse(
+      await next.readFile('.next/required-server-files.json')
+    )
+    requiredFilesManifest.files.forEach((file) => keptFiles.add(file))
 
-    const pageTraceFiles = await glob.sync('**/*.nft.json', {
-      cwd: join(workDir, '.next/server/pages'),
+    const pageTraceFiles = glob.sync('**/*.nft.json', {
+      cwd: join(next.testDir, '.next/server/pages'),
     })
-    const combinedTraces = new Set()
-
-    for (const file of pageTraceFiles) {
-      const filePath = join(workDir, '.next/server/pages', file)
-      const trace = await fs.readJSON(filePath)
-
-      trace.files.forEach((f) =>
-        combinedTraces.add(relative(workDir, join(dirname(filePath), f)))
+    for (const traceFile of pageTraceFiles) {
+      const pageDir = dirname(join('.next/server/pages', traceFile))
+      const trace = await _fs.readJSON(
+        join(next.testDir, '.next/server/pages', traceFile)
       )
-    }
+      keptFiles.add(
+        join('.next/server/pages', traceFile.replace('.nft.json', ''))
+      )
 
-    for (const file of files) {
-      const cleanFile = join('./', file)
-      if (
-        !nextServerTrace.files.includes(cleanFile) &&
-        file !== '/node_modules/next/dist/server/next-server.js' &&
-        !combinedTraces.has(cleanFile) &&
-        !requiredFilesManifest.files.includes(cleanFile) &&
-        !cleanFile.startsWith('.next/server') &&
-        cleanFile !== '.next/required-server-files.json'
-      ) {
-        await fs.remove(join(workDir, file))
+      for (const file of trace.files) {
+        keptFiles.add(join(pageDir, file))
       }
     }
 
-    for (const file of await fs.readdir(`${workDir}-react/node_modules`)) {
-      await fs.copy(
-        join(`${workDir}-react/node_modules`, file),
-        join(workDir, 'node_modules', file)
-      )
-    }
-    await fs.remove(`${workDir}-react`)
+    const allFiles = glob.sync('**/*', {
+      cwd: next.testDir,
+      dot: true,
+    })
 
-    async function startServer() {
+    for (const file of allFiles) {
+      const filePath = join(next.testDir, file)
+      if (
+        !keptFiles.has(file) &&
+        !(await _fs.stat(filePath).catch(() => null))?.isDirectory() &&
+        !nextServerTrace.files.includes(file) &&
+        !file.match(/node_modules\/(react|react-dom)\//) &&
+        file !== 'node_modules/next/dist/server/next-server.js'
+      ) {
+        await _fs.remove(filePath)
+      }
+    }
+    appPort = await findPort()
+
+    const testServer = join(next.testDir, 'server.js')
+    await _fs.writeFile(
+      testServer,
+      `
       const http = require('http')
       const NextServer = require('next/dist/server/next-server').default
+      const appPort = ${appPort}
 
-      const appPort = process.env.PORT
-      nextApp = new NextServer({
-        conf: global.nextConfig,
-        dir: process.env.APP_DIR,
+      const nextApp = new NextServer({
+        conf: ${JSON.stringify(requiredFilesManifest.config)},
+        dir: "${next.testDir}",
         quiet: false,
         minimalMode: true,
       })
@@ -154,37 +114,23 @@ describe('Required Server Files', () => {
           res.end('error')
         }
       })
-      await new Promise((res, rej) => {
-        server.listen(appPort, (err) => (err ? rej(err) : res()))
+      server.listen(appPort, (err) => {
+        if (err) throw err
+        console.log(\`Listening at ::${appPort}\`)
       })
-      console.log(`Listening at ::${appPort}`)
-    }
-
-    const serverPath = join(workDir, 'server.js')
-
-    await fs.writeFile(
-      serverPath,
-      'global.nextConfig = ' +
-        JSON.stringify(requiredFilesManifest.config) +
-        ';\n' +
-        startServer.toString() +
-        ';\n' +
-        `startServer().catch(console.error)`
+    `
     )
 
-    appPort = await findPort()
     server = await initNextServerScript(
-      serverPath,
+      testServer,
       /Listening at/,
       {
         ...process.env,
         NODE_ENV: 'production',
-        PORT: appPort,
-        APP_DIR: workDir,
       },
       undefined,
       {
-        cwd: workDir,
+        cwd: next.testDir,
         onStderr(msg) {
           if (msg.includes('top-level')) {
             errors.push(msg)
@@ -194,8 +140,8 @@ describe('Required Server Files', () => {
     )
   })
   afterAll(async () => {
-    if (server) killApp(server)
-    await fs.remove(workDir)
+    await next.destroy()
+    if (server) await killApp(server)
   })
 
   it('should output required-server-files manifest correctly', async () => {
@@ -207,15 +153,10 @@ describe('Required Server Files', () => {
     expect(typeof requiredFilesManifest.config.configFile).toBe('undefined')
     expect(typeof requiredFilesManifest.config.trailingSlash).toBe('boolean')
     expect(typeof requiredFilesManifest.appDir).toBe('string')
-
-    for (const file of requiredFilesManifest.files) {
-      expect(await fs.exists(join(workDir, file))).toBe(true)
-    }
-    expect(await fs.exists(join(workDir, '.next/server'))).toBe(true)
   })
 
   it('should set correct SWR headers with notFound gsp', async () => {
-    await fs.writeFile(join(workDir, 'data.txt'), 'show')
+    await next.patchFile('data.txt', 'show')
 
     const res = await fetchViaHTTP(appPort, '/gsp', undefined, {
       redirect: 'manual ',
@@ -225,7 +166,7 @@ describe('Required Server Files', () => {
       's-maxage=1, stale-while-revalidate'
     )
 
-    await fs.writeFile(join(workDir, 'data.txt'), 'hide')
+    await next.patchFile('data.txt', 'hide')
 
     const res2 = await fetchViaHTTP(appPort, '/gsp', undefined, {
       redirect: 'manual ',
@@ -237,7 +178,7 @@ describe('Required Server Files', () => {
   })
 
   it('should set correct SWR headers with notFound gssp', async () => {
-    await fs.writeFile(join(workDir, 'data.txt'), 'show')
+    await next.patchFile('data.txt', 'show')
 
     const res = await fetchViaHTTP(appPort, '/gssp', undefined, {
       redirect: 'manual ',
@@ -247,7 +188,7 @@ describe('Required Server Files', () => {
       's-maxage=1, stale-while-revalidate'
     )
 
-    await fs.writeFile(join(workDir, 'data.txt'), 'hide')
+    await next.patchFile('data.txt', 'hide')
 
     const res2 = await fetchViaHTTP(appPort, '/gssp', undefined, {
       redirect: 'manual ',
@@ -321,7 +262,10 @@ describe('Required Server Files', () => {
     expect(isNaN(data3.random)).toBe(false)
 
     const { pageProps: data4 } = JSON.parse(
-      await renderViaHTTP(appPort, `/_next/data/${buildId}/fallback/third.json`)
+      await renderViaHTTP(
+        appPort,
+        `/_next/data/${next.buildId}/fallback/third.json`
+      )
     )
     expect(data4.hello).toBe('world')
     expect(data4.slug).toBe('third')
@@ -425,7 +369,7 @@ describe('Required Server Files', () => {
   it('should return data correctly with x-matched-path', async () => {
     const res = await fetchViaHTTP(
       appPort,
-      `/_next/data/${buildId}/dynamic/first.json`,
+      `/_next/data/${next.buildId}/dynamic/first.json`,
       undefined,
       {
         headers: {
@@ -441,11 +385,11 @@ describe('Required Server Files', () => {
 
     const res2 = await fetchViaHTTP(
       appPort,
-      `/_next/data/${buildId}/fallback/[slug].json`,
+      `/_next/data/${next.buildId}/fallback/[slug].json`,
       undefined,
       {
         headers: {
-          'x-matched-path': `/_next/data/${buildId}/fallback/[slug].json`,
+          'x-matched-path': `/_next/data/${next.buildId}/fallback/[slug].json`,
           'x-now-route-matches': '1=second',
         },
       }
@@ -518,7 +462,7 @@ describe('Required Server Files', () => {
   it('should return data correctly with x-matched-path for optional catch-all route', async () => {
     const res = await fetchViaHTTP(
       appPort,
-      `/_next/data/${buildId}/catch-all.json`,
+      `/_next/data/${next.buildId}/catch-all.json`,
       undefined,
       {
         headers: {
@@ -534,11 +478,11 @@ describe('Required Server Files', () => {
 
     const res2 = await fetchViaHTTP(
       appPort,
-      `/_next/data/${buildId}/catch-all/[[...rest]].json`,
+      `/_next/data/${next.buildId}/catch-all/[[...rest]].json`,
       undefined,
       {
         headers: {
-          'x-matched-path': `/_next/data/${buildId}/catch-all/[[...rest]].json`,
+          'x-matched-path': `/_next/data/${next.buildId}/catch-all/[[...rest]].json`,
           'x-now-route-matches': '1=hello&rest=hello',
         },
       }
@@ -551,11 +495,11 @@ describe('Required Server Files', () => {
 
     const res3 = await fetchViaHTTP(
       appPort,
-      `/_next/data/${buildId}/catch-all/[[...rest]].json`,
+      `/_next/data/${next.buildId}/catch-all/[[...rest]].json`,
       undefined,
       {
         headers: {
-          'x-matched-path': `/_next/data/${buildId}/catch-all/[[...rest]].json`,
+          'x-matched-path': `/_next/data/${next.buildId}/catch-all/[[...rest]].json`,
           'x-now-route-matches': '1=hello/world&rest=hello/world',
         },
       }
