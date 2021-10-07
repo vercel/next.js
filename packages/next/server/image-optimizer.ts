@@ -24,7 +24,6 @@ const JPEG = 'image/jpeg'
 const GIF = 'image/gif'
 const SVG = 'image/svg+xml'
 const CACHE_VERSION = 3
-const MODERN_TYPES = [AVIF, WEBP]
 const ANIMATABLE_TYPES = [WEBP, PNG, GIF]
 const VECTOR_TYPES = [SVG]
 const BLUR_IMG_SIZE = 8 // should match `next-image-loader`
@@ -61,6 +60,7 @@ export async function imageOptimizer(
     domains = [],
     loader,
     minimumCacheTTL = 60,
+    formats = ['image/avif', 'image/webp'],
   } = imageData
 
   if (loader !== 'default') {
@@ -70,7 +70,7 @@ export async function imageOptimizer(
 
   const { headers } = req
   const { url, w, q } = parsedUrl.query
-  const mimeType = getSupportedMimeType(MODERN_TYPES, headers.accept)
+  const mimeType = getSupportedMimeType(formats, headers.accept)
   let href: string
 
   if (!url) {

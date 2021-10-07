@@ -394,7 +394,9 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
     expect(res.headers.get('Content-Disposition')).toBe(
       `inline; filename="test.avif"`
     )
-    await expectWidth(res, w)
+    // TODO: upgrade "image-size" to support avif
+    // See https://github.com/image-size/image-size/issues/348
+    //await expectWidth(res, w)
   })
 
   if (domains.includes('localhost')) {
@@ -905,6 +907,31 @@ describe('Image Optimizer', () => {
       await nextConfig.restore()
       expect(output).toMatch(
         /Error: Image with src "(.+)" is missing "loader" prop/
+      )
+    })
+
+    it('should error when images.formats contains invalid values', async () => {
+      await nextConfig.replace(
+        '{ /* replaceme */ }',
+        JSON.stringify({
+          images: {
+            formats: ['image/avif', 'jpeg'],
+          },
+        })
+      )
+      let stderr = ''
+
+      app = await launchApp(appDir, await findPort(), {
+        onStderr(msg) {
+          stderr += msg || ''
+        },
+      })
+      await waitFor(1000)
+      await killApp(app).catch(() => {})
+      await nextConfig.restore()
+
+      expect(stderr).toContain(
+        `Specified images.formats should be an Array of mime type strings, received invalid values (jpeg)`
       )
     })
   })
