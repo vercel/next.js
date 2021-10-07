@@ -127,7 +127,6 @@ export type NextConfig = { [key: string]: any } & {
     optimizeImages?: boolean
     optimizeCss?: boolean
     scrollRestoration?: boolean
-    stats?: boolean
     externalDir?: boolean
     conformance?: boolean
     amp?: {
@@ -213,7 +212,6 @@ export const defaultConfig: NextConfig = {
     optimizeImages: false,
     optimizeCss: false,
     scrollRestoration: false,
-    stats: false,
     externalDir: false,
     reactRoot: Number(process.env.NEXT_PRIVATE_REACT_ROOT) > 0,
     disableOptimizedLoading: false,
