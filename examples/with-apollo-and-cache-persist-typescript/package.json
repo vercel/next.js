@@ -9,9 +9,13 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@apollo/client": "^3.4.16",
+    "apollo3-cache-persist": "^0.13.0",
+    "deepmerge": "^4.2.2",
     "next": "11.1.2",
     "react": "17.0.2",
-    "react-dom": "17.0.2"
+    "react-dom": "17.0.2",
+    "react-use": "^17.3.1"
   },
   "devDependencies": {
     "@types/react": "17.0.27",
