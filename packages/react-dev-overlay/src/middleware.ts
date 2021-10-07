@@ -16,7 +16,6 @@ import { getRawSourceMap } from './internal/helpers/getRawSourceMap'
 import { launchEditor } from './internal/helpers/launchEditor'
 
 export type OverlayMiddlewareOptions = {
-  isWebpack5?: boolean
   rootDirectory: string
   stats(): webpack.Stats | null
   serverStats(): webpack.Stats | null
@@ -29,34 +28,17 @@ export type OriginalStackFrameResponse = {
 
 type Source = { map: () => RawSourceMap } | null
 
-function getModuleId(compilation: any, module: any, isWebpack5?: boolean) {
-  if (isWebpack5) {
-    return compilation.chunkGraph.getModuleId(module)
-  }
-
-  return module.id
+function getModuleId(compilation: any, module: any) {
+  return compilation.chunkGraph.getModuleId(module)
 }
 
-function getModuleSource(
-  compilation: any,
-  module: any,
-  isWebpack5?: boolean
-): any {
-  if (isWebpack5) {
-    return (
-      (module &&
-        compilation.codeGenerationResults
-          .get(module)
-          ?.sources.get('javascript')) ??
-      null
-    )
-  }
-
+function getModuleSource(compilation: any, module: any): any {
   return (
-    module?.source(
-      compilation.dependencyTemplates,
-      compilation.runtimeTemplate
-    ) ?? null
+    (module &&
+      compilation.codeGenerationResults
+        .get(module)
+        ?.sources.get('javascript')) ??
+    null
   )
 }
 
@@ -180,8 +162,7 @@ export async function createOriginalStackFrame({
 export async function getSourceById(
   isFile: boolean,
   id: string,
-  compilation: any,
-  isWebpack5: boolean
+  compilation: any
 ): Promise<Source> {
   if (isFile) {
     const fileContent: string | null = await fs
@@ -210,10 +191,9 @@ export async function getSourceById(
     }
 
     const module = [...compilation.modules].find(
-      (searchModule) =>
-        getModuleId(compilation, searchModule, isWebpack5) === id
+      (searchModule) => getModuleId(compilation, searchModule) === id
     )
-    return getModuleSource(compilation, module, isWebpack5)
+    return getModuleSource(compilation, module)
   } catch (err) {
     console.error(`Failed to lookup module by ID ("${id}"):`, err)
     return null
@@ -259,8 +239,7 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
         source = await getSourceById(
           frame.file.startsWith('file:'),
           moduleId,
-          compilation,
-          !!options.isWebpack5
+          compilation
         )
       } catch (err) {
         console.log('Failed to get source map:', err)
