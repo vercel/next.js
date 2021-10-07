@@ -16,6 +16,7 @@ description: Enable Image Optimization with the built-in Image component.
 
 | Version   | Changes                                                                                           |
 | --------- | ------------------------------------------------------------------------------------------------- |
+| `v12.0.0` | `formats` configuration added as well as AVIF support.                                            |
 | `v11.1.0` | `onLoadingComplete` and `lazyBoundary` props added.                                               |
 | `v11.0.0` | `src` prop support for static import.<br/>`placeholder` prop added.<br/>`blurDataURL` prop added. |
 | `v10.0.5` | `loader` prop added.                                                                              |
@@ -322,6 +323,7 @@ The expiration (or rather Max Age) is defined by the upstream server's `Cache-Co
 - If `s-maxage` is found in `Cache-Control`, it is used. If no `s-maxage` is found, then `max-age` is used. If no `max-age` is found, then [`minimumCacheTTL`](#minimum-cache-ttl) is used.
 - You can configure [`minimumCacheTTL`](#minimum-cache-ttl) to increase the cache duration when the upstream image does not include `max-age`.
 - You can also configure [`deviceSizes`](#device-sizes) and [`imageSizes`](#device-sizes) to reduce the total number of possible generated images.
+- You can also configure [formats](/docs/basic-features/image-optimization.md#acceptable-formats) to disable multiple formats in favor of a single image format.
 
 You can configure the Time to Live (TTL) in seconds for cached optimized images. In many cases, it's better to use a [Static Image Import](/docs/basic-features/image-optimization.md#local-images) which will automatically hash the file contents and cache the image forever with a `Cache-Control` header of `immutable`.
 
@@ -347,6 +349,20 @@ You can disable static image imports inside your `next.config.js`:
 module.exports = {
   images: {
     disableStaticImages: true,
+  },
+}
+```
+
+### Acceptable Formats
+
+The default [Image Optimization API](#loader-configuration) will automatically detect the browser's supported image formats via the request's `Accept` header.
+
+If no configuration is provided, the default below is used.
+
+```js
+module.exports = {
+  images: {
+    formats: ['image/avif', 'image/webp'],
   },
 }
 ```
