@@ -2,6 +2,7 @@ import { mediaType } from '@hapi/accept'
 import { createHash } from 'crypto'
 import { createReadStream, promises } from 'fs'
 import { getOrientation, Orientation } from 'get-orientation'
+import imageSizeOf from 'image-size'
 import { IncomingMessage, ServerResponse } from 'http'
 // @ts-ignore no types for is-animated
 import isAnimated from 'next/dist/compiled/is-animated'
@@ -11,7 +12,7 @@ import nodeUrl, { UrlWithParsedQuery } from 'url'
 import { NextConfig } from './config-shared'
 import { fileExists } from '../lib/file-exists'
 import { ImageConfig, imageConfigDefault } from './image-config'
-import { processBuffer, Operation } from './lib/squoosh/main'
+import { processBuffer, decodeBuffer, Operation } from './lib/squoosh/main'
 import Server from './next-server'
 import { sendEtagResponse } from './send-payload'
 import { getContentType, getExtension } from './serve-static'
@@ -665,6 +666,7 @@ export async function resizeImage(
   content: Buffer,
   dimension: 'width' | 'height',
   size: number,
+  // Should match VALID_BLUR_EXT
   extension: 'avif' | 'webp' | 'png' | 'jpeg',
   quality: number
 ): Promise<Buffer> {
@@ -709,4 +711,29 @@ export async function resizeImage(
     )
     return buf
   }
+}
+
+export async function getImageSize(
+  buffer: Buffer,
+  // Should match VALID_BLUR_EXT
+  extension: 'avif' | 'webp' | 'png' | 'jpeg'
+): Promise<{
+  width?: number
+  height?: number
+}> {
+  // TODO: upgrade "image-size" package to support AVIF
+  // See https://github.com/image-size/image-size/issues/348
+  if (extension === 'avif') {
+    if (sharp) {
+      const transformer = sharp(buffer)
+      const { width, height } = await transformer.metadata()
+      return { width, height }
+    } else {
+      const { width, height } = await decodeBuffer(buffer)
+      return { width, height }
+    }
+  }
+
+  const { width, height } = imageSizeOf(buffer)
+  return { width, height }
 }

@@ -395,7 +395,7 @@ function runTests({ w, isDev, domains = [], ttl, isSharp, isOutdatedSharp }) {
     expect(res.headers.get('Content-Disposition')).toBe(
       `inline; filename="test.avif"`
     )
-    // TODO: upgrade "image-size" to support avif
+    // TODO: upgrade "image-size" package to support AVIF
     // See https://github.com/image-size/image-size/issues/348
     //await expectWidth(res, w)
   })
