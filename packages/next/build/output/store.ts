@@ -38,6 +38,8 @@ function hasStoreChanged(nextStore: OutputState) {
   return true
 }
 
+let startTime = 0
+
 store.subscribe((state) => {
   if (!hasStoreChanged(state)) {
     return
@@ -52,6 +54,7 @@ store.subscribe((state) => {
 
   if (state.loading) {
     Log.wait('compiling...')
+    if (startTime === 0) startTime = Date.now()
     return
   }
 
@@ -77,6 +80,15 @@ store.subscribe((state) => {
     return
   }
 
+  let timeMessage = ''
+  if (startTime) {
+    const time = Date.now() - startTime
+    startTime = 0
+
+    timeMessage =
+      time > 2000 ? ` in ${Math.round(time / 100) / 10} s` : ` in ${time} ms`
+  }
+
   if (state.warnings) {
     Log.warn(state.warnings.join('\n\n'))
     // Ensure traces are flushed after each compile in development mode
@@ -85,11 +97,13 @@ store.subscribe((state) => {
   }
 
   if (state.typeChecking) {
-    Log.info('bundled successfully, waiting for typecheck results...')
+    Log.info(
+      `bundled successfully${timeMessage}, waiting for typecheck results...`
+    )
     return
   }
 
-  Log.event('compiled successfully')
+  Log.event(`compiled successfully${timeMessage}`)
   // Ensure traces are flushed after each compile in development mode
   flushAllTraces()
 })

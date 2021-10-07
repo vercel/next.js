@@ -2,12 +2,12 @@ use easy_error::{bail, Error};
 use std::panic;
 use swc_common::{source_map::Pos, BytePos, Span, SyntaxContext, DUMMY_SP};
 use swc_css::ast::*;
+use swc_css::codegen::{
+    writer::basic::{BasicCssWriter, BasicCssWriterConfig},
+    CodeGenerator, CodegenConfig, Emit,
+};
 use swc_css::parser::{parse_str, parse_tokens, parser::ParserConfig};
 use swc_css::visit::{VisitMut, VisitMutWith};
-use swc_css_codegen::{
-    writer::basic::{BasicCssWriter, BasicCssWriterConfig},
-    CodegenConfig, Emit,
-};
 use swc_ecmascript::ast::{Expr, Str, StrKind, Tpl, TplElement};
 use swc_ecmascript::utils::HANDLER;
 use swc_stylis::prefixer::prefixer;
@@ -26,11 +26,19 @@ pub fn transform_css(
         ParserConfig {
             parse_values: false,
         },
+        // We ignore errors because we inject placeholders for expressions which is
+        // not a valid css.
+        &mut vec![],
     );
     let mut ss = match result {
         Ok(ss) => ss,
-        Err(_) => {
+        Err(err) => {
             HANDLER.with(|handler| {
+                // Print css parsing errors
+                err.to_diagnostics(&handler).emit();
+
+                // TODO(kdy1): We may print css so the user can see the error, and report it.
+
                 handler
                     .struct_span_err(
                         style_info.css_span,
@@ -55,7 +63,7 @@ pub fn transform_css(
     let mut s = String::new();
     {
         let mut wr = BasicCssWriter::new(&mut s, BasicCssWriterConfig { indent: "  " });
-        let mut gen = swc_css_codegen::CodeGenerator::new(&mut wr, CodegenConfig { minify: true });
+        let mut gen = CodeGenerator::new(&mut wr, CodegenConfig { minify: true });
 
         gen.emit(&ss).unwrap();
     }
@@ -148,6 +156,8 @@ impl Namespacer {
                             ParserConfig {
                                 parse_values: false,
                             },
+                            // TODO(kdy1): We might be able to report syntax errors.
+                            &mut vec![],
                         )
                         .unwrap();
                         return x;

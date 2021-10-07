@@ -2,9 +2,9 @@
 
 #### Why This Message Occurred
 
-Next.js has adopted webpack 5 as the default for compilation, webpack 4 has been deprecated. We've spent a lot of effort into ensuring the transition from webpack 4 to 5 will be as smooth as possible.
+Next.js has adopted webpack 5 as the default for compilation. We've spent a lot of effort into ensuring the transition from webpack 4 to 5 will be as smooth as possible.
 
-Your application currently has webpack 5 disabled using the `webpack5: false` flag which will be removed in Next.js 12:
+Your application currently has webpack 5 disabled using the `webpack5: false` flag which has been removed in Next.js 12:
 
 ```js
 module.exports = {
@@ -28,10 +28,8 @@ In the past releases we have gradually rolled out webpack 5 to Next.js applicati
 
 - In Next.js 10.2 we automatically opted-in applications without custom webpack configuration in `next.config.js`
 - In Next.js 10.2 we automatically opted-in applications that do not have a `next.config.js`
-- In Next.js 11 webpack 5 was enabled by default for all applications. You can still opt-out and use webpack 4 to help with backwards compatibility using `webpack5: false` in `next.config.js`
-- In Next.js 11.2 webpack 4 was deprecated
-
-In Next.js 12 webpack 4 support will be removed.
+- In Next.js 11 webpack 5 was enabled by default for all applications. You could still opt-out and use webpack 4 to help with backwards compatibility using `webpack5: false` in `next.config.js`
+- In Next.js 12 webpack 4 support was removed.
 
 #### Custom webpack configuration
 
