@@ -214,7 +214,7 @@ These files aren't useful in tests but importing them may cause errors, so we wi
 module.exports = {};
 ```
 
-If you're running into the issue `` Failed to parse src "test-file-stub" on `next/image `` add a '/' to your fileMock.
+If you're running into the issue `"Failed to parse src "test-file-stub" on 'next/image'"`, add a '/' to your fileMock.
 
 ```json
 // __mocks__/fileMock.js
