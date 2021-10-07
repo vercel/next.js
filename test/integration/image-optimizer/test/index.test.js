@@ -25,6 +25,7 @@ let appPort
 let app
 
 const sharpMissingText = `For production Image Optimization with Next.js, the optional 'sharp' package is strongly recommended`
+const sharpOutdatedText = `Your installed version of the 'sharp' package does not support AVIF images. Run 'yarn add sharp@latest' to upgrade to the latest version`
 
 async function fsToJson(dir, output = {}) {
   const files = await fs.readdir(dir)
@@ -47,7 +48,7 @@ async function expectWidth(res, w) {
   expect(d.width).toBe(w)
 }
 
-function runTests({ w, isDev, domains = [], ttl, isSharp }) {
+function runTests({ w, isDev, domains = [], ttl, isSharp, isOutdatedSharp }) {
   it('should return home page', async () => {
     const res = await fetchViaHTTP(appPort, '/', null, {})
     expect(await res.text()).toMatch(/Image Optimizer Home/m)
@@ -397,6 +398,13 @@ function runTests({ w, isDev, domains = [], ttl, isSharp }) {
     // TODO: upgrade "image-size" to support avif
     // See https://github.com/image-size/image-size/issues/348
     //await expectWidth(res, w)
+
+    await waitFor(3000)
+    if (isSharp && isOutdatedSharp) {
+      expect(nextOutput).toContain(sharpOutdatedText)
+    } else {
+      expect(nextOutput).not.toContain(sharpOutdatedText)
+    }
   })
 
   if (domains.includes('localhost')) {
@@ -1123,7 +1131,7 @@ describe('Image Optimizer', () => {
     })
   })
 
-  const setupTests = (isSharp = false) => {
+  const setupTests = ({ isSharp = false, isOutdatedSharp = false }) => {
     describe('dev support w/o next.config.js', () => {
       const size = 384 // defaults defined in server/config.ts
       beforeAll(async () => {
@@ -1141,7 +1149,7 @@ describe('Image Optimizer', () => {
         await fs.remove(imagesDir)
       })
 
-      runTests({ w: size, isDev: true, domains: [], isSharp })
+      runTests({ w: size, isDev: true, domains: [], isSharp, isOutdatedSharp })
     })
 
     describe('dev support with next.config.js', () => {
@@ -1170,7 +1178,7 @@ describe('Image Optimizer', () => {
         await fs.remove(imagesDir)
       })
 
-      runTests({ w: size, isDev: true, domains, isSharp })
+      runTests({ w: size, isDev: true, domains, isSharp, isOutdatedSharp })
     })
 
     describe('Server support w/o next.config.js', () => {
@@ -1198,7 +1206,7 @@ describe('Image Optimizer', () => {
         await fs.remove(imagesDir)
       })
 
-      runTests({ w: size, isDev: false, domains: [], isSharp })
+      runTests({ w: size, isDev: false, domains: [], isSharp, isOutdatedSharp })
     })
 
     describe('Server support with next.config.js', () => {
@@ -1234,15 +1242,15 @@ describe('Image Optimizer', () => {
         await fs.remove(imagesDir)
       })
 
-      runTests({ w: size, isDev: false, domains, isSharp })
+      runTests({ w: size, isDev: false, domains, isSharp, isOutdatedSharp })
     })
   }
 
   describe('with squoosh', () => {
-    setupTests()
+    setupTests({ isSharp: false, isSharpOutdated: false })
   })
 
-  describe('with sharp', () => {
+  describe('with latest sharp', () => {
     beforeAll(async () => {
       await execa('yarn', ['init', '-y'], {
         cwd: appDir,
@@ -1259,6 +1267,26 @@ describe('Image Optimizer', () => {
       await fs.remove(join(appDir, 'package.json'))
     })
 
-    setupTests(true)
+    setupTests({ isSharp: true, isOutdatedSharp: false })
+  })
+
+  describe('with outdated sharp', () => {
+    beforeAll(async () => {
+      await execa('yarn', ['init', '-y'], {
+        cwd: appDir,
+        stdio: 'inherit',
+      })
+      await execa('yarn', ['add', 'sharp@0.26.3'], {
+        cwd: appDir,
+        stdio: 'inherit',
+      })
+    })
+    afterAll(async () => {
+      await fs.remove(join(appDir, 'node_modules'))
+      await fs.remove(join(appDir, 'yarn.lock'))
+      await fs.remove(join(appDir, 'package.json'))
+    })
+
+    setupTests({ isSharp: true, isOutdatedSharp: true })
   })
 })

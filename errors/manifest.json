@@ -448,6 +448,10 @@
           "path": "/errors/sharp-missing-in-production.md"
         },
         {
+          "title": "sharp-version-avif",
+          "path": "/errors/sharp-version-avif.md"
+        },
+        {
           "title": "script-in-document-page",
           "path": "/errors/no-script-in-document-page.md"
         },

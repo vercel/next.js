@@ -42,7 +42,7 @@ try {
   // Sharp not present on the server, Squoosh fallback will be used
 }
 
-let shouldShowSharpWarning = process.env.NODE_ENV === 'production'
+let showSharpMissingWarning = process.env.NODE_ENV === 'production'
 
 export async function imageOptimizer(
   server: Server,
@@ -360,7 +360,16 @@ export async function imageOptimizer(
         }
 
         if (contentType === AVIF) {
-          transformer.avif({ quality })
+          if (transformer.avif) {
+            transformer.avif({ quality })
+          } else {
+            console.warn(
+              chalk.yellow.bold('Warning: ') +
+                `Your installed version of the 'sharp' package does not support AVIF images. Run 'yarn add sharp@latest' to upgrade to the latest version.\n` +
+                'Read more: https://nextjs.org/docs/messages/sharp-version-avif'
+            )
+            transformer.webp({ quality })
+          }
         } else if (contentType === WEBP) {
           transformer.webp({ quality })
         } else if (contentType === PNG) {
@@ -373,13 +382,13 @@ export async function imageOptimizer(
         // End sharp transformation logic
       } else {
         // Show sharp warning in production once
-        if (shouldShowSharpWarning) {
+        if (showSharpMissingWarning) {
           console.warn(
             chalk.yellow.bold('Warning: ') +
               `For production Image Optimization with Next.js, the optional 'sharp' package is strongly recommended. Run 'yarn add sharp', and Next.js will use it automatically for Image Optimization.\n` +
               'Read more: https://nextjs.org/docs/messages/sharp-missing-in-production'
           )
-          shouldShowSharpWarning = false
+          showSharpMissingWarning = false
         }
 
         // Begin Squoosh transformation logic
@@ -663,7 +672,16 @@ export async function resizeImage(
     const transformer = sharp(content)
 
     if (extension === 'avif') {
-      transformer.avif({ quality })
+      if (transformer.avif) {
+        transformer.avif({ quality })
+      } else {
+        console.warn(
+          chalk.yellow.bold('Warning: ') +
+            `Your installed version of the 'sharp' package does not support AVIF images. Run 'yarn add sharp@latest' to upgrade to the latest version.\n` +
+            'Read more: https://nextjs.org/docs/messages/sharp-version-avif'
+        )
+        transformer.webp({ quality })
+      }
     } else if (extension === 'webp') {
       transformer.webp({ quality })
     } else if (extension === 'png') {
