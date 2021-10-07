@@ -13,20 +13,20 @@ const List: NextPage = () => {
     return <div>Loading...</div>
   }
 
-  if (launches.length === 0) {
-    return <div>No data</div>
-  }
-
   return (
     <>
       <button onClick={back}>Back</button>
-      <ul>
-        {Array.from(new Set(launches)).map(
-          ({ mission_name, mission_id, id }) => (
-            <li key={`${id}-${mission_id[0]}`}>{mission_name}</li>
-          )
-        )}
-      </ul>
+      {launches.length > 0 ? (
+        <ul>
+          {Array.from(new Set(launches)).map(
+            ({ mission_name, mission_id, id }) => (
+              <li key={`${id}-${mission_id[0]}`}>{mission_name}</li>
+            )
+          )}
+        </ul>
+      ) : (
+        <div>No data</div>
+      )}
     </>
   )
 }

@@ -35,7 +35,7 @@ function createApolloClient(cache?: ApolloCache<NormalizedCacheObject>) {
   return new ApolloClient({
     ssrMode: isServer(),
     link: new HttpLink({
-      uri: 'https://api.spacex.land/graphql',
+      uri: 'https://api.spacex.land/graphql', // Your API URL here
       credentials: 'same-origin',
     }),
     cache: cache || createCache(),
