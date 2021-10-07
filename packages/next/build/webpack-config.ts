@@ -305,6 +305,7 @@ export default async function getBaseWebpackConfig(
           options: {
             isServer,
             pagesDir,
+            plugins: config.experimental.swcPlugins,
           },
         }
       : {

@@ -116,6 +116,7 @@ export type NextConfig = { [key: string]: any } & {
   experimental?: {
     swcMinify?: boolean
     swcLoader?: boolean
+    swcPlugins?: any[]
     cpus?: number
     sharedPool?: boolean
     plugins?: boolean

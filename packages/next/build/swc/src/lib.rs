@@ -45,6 +45,7 @@ mod hook_optimizer;
 mod minify;
 mod next_dynamic;
 pub mod next_ssg;
+mod parse;
 mod styled_jsx;
 mod transform;
 mod util;
@@ -69,6 +70,9 @@ fn init(mut exports: JsObject) -> napi::Result<()> {
 
     exports.create_named_method("minify", minify::minify)?;
     exports.create_named_method("minifySync", minify::minify_sync)?;
+
+    exports.create_named_method("parse", parse::parse)?;
+    exports.create_named_method("parseSync", parse::parse_sync)?;
 
     Ok(())
 }

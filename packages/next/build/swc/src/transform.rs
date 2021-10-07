@@ -33,7 +33,7 @@ use crate::{
     next_dynamic::next_dynamic,
     next_ssg::next_ssg,
     styled_jsx::styled_jsx,
-    util::{CtxtExt, MapErr},
+    util::{deserialize_json, CtxtExt, MapErr},
 };
 use anyhow::{Context as _, Error};
 use napi::{CallContext, Env, JsBoolean, JsObject, JsString, Task};
@@ -47,6 +47,8 @@ use swc_ecmascript::transforms::pass::noop;
 /// Input to transform
 #[derive(Debug)]
 pub enum Input {
+    /// json string
+    Program(String),
     /// Raw source code.
     Source(Arc<SourceFile>),
 }
@@ -77,6 +79,13 @@ impl Task for TransformTask {
     fn compute(&mut self) -> napi::Result<Self::Output> {
         try_with_handler(self.c.cm.clone(), |handler| {
             self.c.run(|| match self.input {
+                Input::Program(ref s) => {
+                    let program: Program =
+                        deserialize_json(&s).expect("failed to deserialize Program");
+                    // TODO: Source map
+                    self.c.process_js(&handler, program, &self.options.swc)
+                }
+
                 Input::Source(ref s) => {
                     let before_pass = chain!(
                         hook_optimizer(),
@@ -149,15 +158,19 @@ where
 
 #[js_function(4)]
 pub fn transform(cx: CallContext) -> napi::Result<JsObject> {
-    schedule_transform(cx, |c, src, _, options| {
-        let input = Input::Source(c.cm.new_source_file(
-            if options.swc.filename.is_empty() {
-                FileName::Anon
-            } else {
-                FileName::Real(options.swc.filename.clone().into())
-            },
-            src,
-        ));
+    schedule_transform(cx, |c, src, is_module, options| {
+        let input = if is_module {
+            Input::Program(src)
+        } else {
+            Input::Source(c.cm.new_source_file(
+                if options.swc.filename.is_empty() {
+                    FileName::Anon
+                } else {
+                    FileName::Real(options.swc.filename.clone().into())
+                },
+                src,
+            ))
+        };
 
         TransformTask {
             c: c.clone(),

@@ -23,14 +23,21 @@ async function transform(src, options) {
     options.jsc.parser.syntax = options.jsc.parser.syntax ?? 'ecmascript'
   }
 
-  const { plugin, ...newOptions } = options
+  const { plugin, plugins, ...newOptions } = options
+  let newPlugin
 
   if (plugin) {
+    newPlugin = plugin
+  } else if (plugins) {
+    newPlugin = composePlugins(plugins)
+  }
+
+  if (newPlugin) {
     const m =
       typeof src === 'string'
-        ? await this.parse(src, options?.jsc?.parser)
+        ? await parse(src, options?.jsc?.parser, options.filename)
         : src
-    return this.transform(plugin(m), newOptions)
+    return transform(newPlugin(m), newOptions)
   }
 
   return bindings.transform(
@@ -48,12 +55,21 @@ function transformSync(src, options) {
     options.jsc.parser.syntax = options.jsc.parser.syntax ?? 'ecmascript'
   }
 
-  const { plugin, ...newOptions } = options
+  const { plugin, plugins, ...newOptions } = options
+  let newPlugin
 
   if (plugin) {
+    newPlugin = plugin
+  } else if (plugins) {
+    newPlugin = composePlugins(plugins)
+  }
+
+  if (newPlugin) {
     const m =
-      typeof src === 'string' ? this.parseSync(src, options?.jsc?.parser) : src
-    return this.transformSync(plugin(m), newOptions)
+      typeof src === 'string'
+        ? parseSync(src, options?.jsc?.parser, options.filename)
+        : src
+    return transformSync(newPlugin(m), newOptions)
   }
 
   return bindings.transformSync(
@@ -75,7 +91,34 @@ export function minifySync(src, opts) {
   return bindings.minifySync(toBuffer(src), toBuffer(opts ?? {}))
 }
 
+export async function parse(src, options, filename) {
+  options = options || { syntax: 'ecmascript' }
+  options.syntax = options.syntax || 'ecmascript'
+
+  const res = await bindings.parse(src, toBuffer(options), filename)
+  return JSON.parse(res)
+}
+
+export function parseSync(src, options, filename) {
+  options = options || { syntax: 'ecmascript' }
+  options.syntax = options.syntax || 'ecmascript'
+
+  return JSON.parse(bindings.parseSync(src, toBuffer(options), filename))
+}
+
+function composePlugins(ps) {
+  return (mod) => {
+    let m = mod
+    for (const p of ps) {
+      m = p(m)
+    }
+    return m
+  }
+}
+
 module.exports.transform = transform
 module.exports.transformSync = transformSync
 module.exports.minify = minify
 module.exports.minifySync = minifySync
+module.exports.parse = parse
+module.exports.parseSync = parseSync

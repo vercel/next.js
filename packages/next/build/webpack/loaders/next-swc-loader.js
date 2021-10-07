@@ -39,6 +39,7 @@ function getSWCOptions({
   isPageFile,
   pagesDir,
   isNextDist,
+  plugins,
 }) {
   const jsc = {
     parser: {
@@ -71,6 +72,7 @@ function getSWCOptions({
           node: process.versions.node,
         },
       },
+      plugins,
     }
   } else {
     // Matches default @babel/preset-env behavior
@@ -87,6 +89,7 @@ function getSWCOptions({
       disableNextSsg: !isPageFile,
       pagesDir,
       jsc,
+      plugins,
     }
   }
 }
@@ -99,7 +102,7 @@ async function loaderTransform(parentTrace, source, inputSourceMap) {
 
   let loaderOptions = getOptions(this) || {}
 
-  const { isServer, pagesDir } = loaderOptions
+  const { isServer, pagesDir, plugins } = loaderOptions
   const isPageFile = filename.startsWith(pagesDir)
 
   const isNextDist = nextDistPath.test(filename)
@@ -111,6 +114,7 @@ async function loaderTransform(parentTrace, source, inputSourceMap) {
     isPageFile,
     development: this.mode === 'development',
     isNextDist,
+    plugins,
   })
 
   const programmaticOptions = {
