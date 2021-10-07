@@ -35,7 +35,6 @@ import * as Log from './output/log'
 import { build as buildConfiguration } from './webpack/config'
 import { __overrideCssConfiguration } from './webpack/config/blocks/css/overrideCssConfiguration'
 import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
-import BuildStatsPlugin from './webpack/plugins/build-stats-plugin'
 import { JsConfigPathsPlugin } from './webpack/plugins/jsconfig-paths-plugin'
 import { DropClientPage } from './webpack/plugins/next-drop-client-page-plugin'
 import { TraceEntryPointsPlugin } from './webpack/plugins/next-trace-entrypoints-plugin'
@@ -321,10 +320,6 @@ export default async function getBaseWebpackConfig(
             hasJsxRuntime: true,
           },
         },
-    // Backwards compat
-    hotSelfAccept: {
-      loader: 'noop-loader',
-    },
   }
 
   const babelIncludeRegexes: RegExp[] = [
@@ -995,13 +990,12 @@ export default async function getBaseWebpackConfig(
       // The loaders Next.js provides
       alias: [
         'error-loader',
-        'next-babel-loader',
         'next-swc-loader',
         'next-client-pages-loader',
         'next-image-loader',
         'next-serverless-loader',
-        'noop-loader',
         'next-style-loader',
+        'noop-loader',
       ].reduce((alias, loader) => {
         // using multiple aliases to replace `resolveLoader.modules`
         alias[loader] = path.join(__dirname, 'webpack', 'loaders', loader)
@@ -1239,12 +1233,6 @@ export default async function getBaseWebpackConfig(
           buildId,
           rewrites,
           isDevFallback,
-        }),
-      !dev &&
-        !isServer &&
-        config.experimental.stats &&
-        new BuildStatsPlugin({
-          distDir,
         }),
       new ProfilingPlugin({ runWebpackSpan }),
       config.optimizeFonts &&

@@ -4,11 +4,7 @@ import { spans } from './profiling-plugin'
 import isError from '../../../lib/is-error'
 import { nodeFileTrace } from 'next/dist/compiled/@vercel/nft'
 import { TRACE_OUTPUT_VERSION } from '../../../shared/lib/constants'
-import {
-  webpack,
-  isWebpack5,
-  sources,
-} from 'next/dist/compiled/webpack/webpack'
+import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import { NODE_RESOLVE_OPTIONS } from '../../webpack-config'
 
 const PLUGIN_NAME = 'TraceEntryPointsPlugin'
@@ -23,11 +19,7 @@ function getModuleFromDependency(
   compilation: any,
   dep: any
 ): webpack.Module & { resource?: string } {
-  if (isWebpack5) {
-    return compilation.moduleGraph.getModule(dep)
-  }
-
-  return dep.module
+  return compilation.moduleGraph.getModule(dep)
 }
 
 export class TraceEntryPointsPlugin implements webpack.Plugin {
@@ -68,15 +60,8 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
           }
         }
         // don't include the entry itself in the trace
-        entryFiles.delete(
-          nodePath.join(
-            outputPath,
-            `${isWebpack5 ? '../' : ''}${entrypoint.name}.js`
-          )
-        )
-        const traceOutputName = `${isWebpack5 ? '../' : ''}${
-          entrypoint.name
-        }.js.nft.json`
+        entryFiles.delete(nodePath.join(outputPath, `../${entrypoint.name}.js`))
+        const traceOutputName = `../${entrypoint.name}.js.nft.json`
         const traceOutputPath = nodePath.dirname(
           nodePath.join(outputPath, traceOutputName)
         )
@@ -248,7 +233,6 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
 
                 // Use cached trace if available and trace version matches
                 // if (
-                //   isWebpack5 &&
                 //   cachedTraces &&
                 //   cachedTraces.version === TRACE_OUTPUT_VERSION
                 // ) {
@@ -327,136 +311,110 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
   }
 
   apply(compiler: webpack.Compiler) {
-    if (isWebpack5) {
-      compiler.hooks.compilation.tap(PLUGIN_NAME, (compilation) => {
-        const compilationSpan = spans.get(compilation) || spans.get(compiler)!
-        const traceEntrypointsPluginSpan = compilationSpan.traceChild(
-          'next-trace-entrypoint-plugin'
-        )
-        traceEntrypointsPluginSpan.traceFn(() => {
-          // @ts-ignore TODO: Remove ignore when webpack 5 is stable
-          compilation.hooks.processAssets.tap(
-            {
-              name: PLUGIN_NAME,
-              // @ts-ignore TODO: Remove ignore when webpack 5 is stable
-              stage: webpack.Compilation.PROCESS_ASSETS_STAGE_SUMMARIZE,
-            },
-            (assets: any) => {
-              this.createTraceAssets(
-                compilation,
-                assets,
-                traceEntrypointsPluginSpan
-              )
-            }
-          )
-          let resolver = compilation.resolverFactory.get('normal')
-
-          resolver = resolver.withOptions({
-            ...NODE_RESOLVE_OPTIONS,
-            extensions: undefined,
-          })
-
-          function getPkgName(name: string) {
-            const segments = name.split('/')
-            if (name[0] === '@' && segments.length > 1)
-              return segments.length > 1 ? segments.slice(0, 2).join('/') : null
-            return segments.length ? segments[0] : null
+    compiler.hooks.compilation.tap(PLUGIN_NAME, (compilation) => {
+      const compilationSpan = spans.get(compilation) || spans.get(compiler)!
+      const traceEntrypointsPluginSpan = compilationSpan.traceChild(
+        'next-trace-entrypoint-plugin'
+      )
+      traceEntrypointsPluginSpan.traceFn(() => {
+        // @ts-ignore TODO: Remove ignore when webpack 5 is stable
+        compilation.hooks.processAssets.tap(
+          {
+            name: PLUGIN_NAME,
+            // @ts-ignore TODO: Remove ignore when webpack 5 is stable
+            stage: webpack.Compilation.PROCESS_ASSETS_STAGE_SUMMARIZE,
+          },
+          (assets: any) => {
+            this.createTraceAssets(
+              compilation,
+              assets,
+              traceEntrypointsPluginSpan
+            )
           }
+        )
+        let resolver = compilation.resolverFactory.get('normal')
 
-          const doResolve = async (
-            request: string,
-            parent: string,
-            job: import('@vercel/nft/out/node-file-trace').Job
-          ): Promise<string> => {
-            return new Promise((resolve, reject) => {
-              resolver.resolve(
-                {},
-                nodePath.dirname(parent),
-                request,
-                {
-                  fileDependencies: compilation.fileDependencies,
-                  missingDependencies: compilation.missingDependencies,
-                  contextDependencies: compilation.contextDependencies,
-                },
-                async (err: any, result: string, context: any) => {
-                  if (err) return reject(err)
+        resolver = resolver.withOptions({
+          ...NODE_RESOLVE_OPTIONS,
+          extensions: undefined,
+        })
 
-                  if (!result) {
-                    return reject(new Error('module not found'))
-                  }
+        function getPkgName(name: string) {
+          const segments = name.split('/')
+          if (name[0] === '@' && segments.length > 1)
+            return segments.length > 1 ? segments.slice(0, 2).join('/') : null
+          return segments.length ? segments[0] : null
+        }
 
-                  try {
-                    if (result.includes('node_modules')) {
-                      let requestPath = result
+        const doResolve = async (
+          request: string,
+          parent: string,
+          job: import('@vercel/nft/out/node-file-trace').Job
+        ): Promise<string> => {
+          return new Promise((resolve, reject) => {
+            resolver.resolve(
+              {},
+              nodePath.dirname(parent),
+              request,
+              {
+                fileDependencies: compilation.fileDependencies,
+                missingDependencies: compilation.missingDependencies,
+                contextDependencies: compilation.contextDependencies,
+              },
+              async (err: any, result: string, context: any) => {
+                if (err) return reject(err)
 
-                      if (
-                        !nodePath.isAbsolute(request) &&
-                        request.includes('/') &&
-                        context?.descriptionFileRoot
-                      ) {
-                        requestPath =
-                          context.descriptionFileRoot +
-                          request.substr(getPkgName(request)?.length || 0) +
-                          nodePath.sep +
-                          'package.json'
-                      }
-
-                      // the descriptionFileRoot is not set to the last used
-                      // package.json so we use nft's resolving for this
-                      // see test/integration/build-trace-extra-entries/app/node_modules/nested-structure for example
-                      const packageJsonResult = await job.getPjsonBoundary(
-                        requestPath
-                      )
-
-                      if (packageJsonResult) {
-                        await job.emitFile(
-                          packageJsonResult + nodePath.sep + 'package.json',
-                          'resolve',
-                          parent
-                        )
-                      }
-                    }
-                  } catch (_err) {
-                    // we failed to resolve the package.json boundary,
-                    // we don't block emitting the initial asset from this
-                  }
-                  resolve(result)
+                if (!result) {
+                  return reject(new Error('module not found'))
                 }
-              )
-            })
-          }
 
-          this.tapfinishModules(
-            compilation,
-            traceEntrypointsPluginSpan,
-            doResolve
-          )
-        })
-      })
-    } else {
-      compiler.hooks.emit.tap(PLUGIN_NAME, (compilation: any) => {
-        const compilationSpan = spans.get(compilation)! || spans.get(compiler)
-        const traceEntrypointsPluginSpan = compilationSpan.traceChild(
-          'next-trace-entrypoint-plugin'
-        )
-        traceEntrypointsPluginSpan.traceFn(() => {
-          this.createTraceAssets(
-            compilation,
-            compilation.assets,
-            traceEntrypointsPluginSpan
-          )
-        })
-      })
+                try {
+                  if (result.includes('node_modules')) {
+                    let requestPath = result
 
-      compiler.hooks.compilation.tap(PLUGIN_NAME, (compilation) => {
-        const compilationSpan = spans.get(compilation)! || spans.get(compiler)
-        const traceEntrypointsPluginSpan = compilationSpan.traceChild(
-          'next-trace-entrypoint-plugin'
-        )
-        traceEntrypointsPluginSpan.traceFn(() =>
-          this.tapfinishModules(compilation, traceEntrypointsPluginSpan)
+                    if (
+                      !nodePath.isAbsolute(request) &&
+                      request.includes('/') &&
+                      context?.descriptionFileRoot
+                    ) {
+                      requestPath =
+                        context.descriptionFileRoot +
+                        request.substr(getPkgName(request)?.length || 0) +
+                        nodePath.sep +
+                        'package.json'
+                    }
+
+                    // the descriptionFileRoot is not set to the last used
+                    // package.json so we use nft's resolving for this
+                    // see test/integration/build-trace-extra-entries/app/node_modules/nested-structure for example
+                    const packageJsonResult = await job.getPjsonBoundary(
+                      requestPath
+                    )
+
+                    if (packageJsonResult) {
+                      await job.emitFile(
+                        packageJsonResult + nodePath.sep + 'package.json',
+                        'resolve',
+                        parent
+                      )
+                    }
+                  }
+                } catch (_err) {
+                  // we failed to resolve the package.json boundary,
+                  // we don't block emitting the initial asset from this
+                }
+                resolve(result)
+              }
+            )
+          })
+        }
+
+        this.tapfinishModules(
+          compilation,
+          traceEntrypointsPluginSpan,
+          doResolve
         )
       })
-    }
+    })
   }
 }

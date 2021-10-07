@@ -89,7 +89,6 @@ import getBaseWebpackConfig from './webpack-config'
 import { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
 import { writeBuildId } from './write-build-id'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
-import { isWebpack5 } from 'next/dist/compiled/webpack/webpack'
 import { NextConfigComplete } from '../server/config-shared'
 import isError from '../lib/is-error'
 import { TelemetryPlugin } from './webpack/plugins/telemetry-plugin'
@@ -170,7 +169,7 @@ export default async function build(
 
     telemetry.record(
       eventCliSession(PHASE_PRODUCTION_BUILD, dir, {
-        webpackVersion: isWebpack5 ? 5 : 4,
+        webpackVersion: 5,
         cliCommand: 'build',
         isSrcDir: path.relative(dir, pagesDir!).startsWith('src'),
         hasNowJson: !!(await findUp('now.json', { cwd: dir })),
@@ -263,7 +262,7 @@ export default async function build(
     const mappedPages = nextBuildSpan
       .traceChild('create-pages-mapping')
       .traceFn(() =>
-        createPagesMapping(pagePaths, config.pageExtensions, isWebpack5, false)
+        createPagesMapping(pagePaths, config.pageExtensions, false)
       )
     const entrypoints = nextBuildSpan
       .traceChild('create-entrypoints')
