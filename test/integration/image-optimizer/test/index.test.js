@@ -398,13 +398,6 @@ function runTests({ w, isDev, domains = [], ttl, isSharp, isOutdatedSharp }) {
     // TODO: upgrade "image-size" to support avif
     // See https://github.com/image-size/image-size/issues/348
     //await expectWidth(res, w)
-
-    await waitFor(3000)
-    if (isSharp && isOutdatedSharp) {
-      expect(nextOutput).toContain(sharpOutdatedText)
-    } else {
-      expect(nextOutput).not.toContain(sharpOutdatedText)
-    }
   })
 
   if (domains.includes('localhost')) {
@@ -760,6 +753,16 @@ function runTests({ w, isDev, domains = [], ttl, isSharp, isOutdatedSharp }) {
   } else {
     it('should have sharp missing warning', () => {
       expect(nextOutput).toContain(sharpMissingText)
+    })
+  }
+
+  if (isSharp && isOutdatedSharp) {
+    it('should have sharp outdated warning', () => {
+      expect(nextOutput).toContain(sharpOutdatedText)
+    })
+  } else {
+    it('should not have sharp outdated warning', () => {
+      expect(nextOutput).not.toContain(sharpOutdatedText)
     })
   }
 }
@@ -1141,6 +1144,11 @@ describe('Image Optimizer', () => {
           onStderr(msg) {
             nextOutput += msg
           },
+          env: {
+            NEXT_SHARP_PATH: isSharp
+              ? join(appDir, 'node_modules', 'sharp')
+              : '',
+          },
           cwd: appDir,
         })
       })
@@ -1169,6 +1177,11 @@ describe('Image Optimizer', () => {
           onStderr(msg) {
             nextOutput += msg
           },
+          env: {
+            NEXT_SHARP_PATH: isSharp
+              ? join(appDir, 'node_modules', 'sharp')
+              : '',
+          },
           cwd: appDir,
         })
       })
@@ -1193,9 +1206,7 @@ describe('Image Optimizer', () => {
           },
           env: {
             NEXT_SHARP_PATH: isSharp
-              ? require.resolve('sharp', {
-                  paths: [join(appDir, 'node_modules')],
-                })
+              ? join(appDir, 'node_modules', 'sharp')
               : '',
           },
           cwd: appDir,
@@ -1228,9 +1239,7 @@ describe('Image Optimizer', () => {
           },
           env: {
             NEXT_SHARP_PATH: isSharp
-              ? require.resolve('sharp', {
-                  paths: [join(appDir, 'node_modules')],
-                })
+              ? join(appDir, 'node_modules', 'sharp')
               : '',
           },
           cwd: appDir,
@@ -1247,7 +1256,7 @@ describe('Image Optimizer', () => {
   }
 
   describe('with squoosh', () => {
-    setupTests({ isSharp: false, isSharpOutdated: false })
+    setupTests({ isSharp: false, isOutdatedSharp: false })
   })
 
   describe('with latest sharp', () => {
