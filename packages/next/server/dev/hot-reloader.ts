@@ -4,7 +4,7 @@ import { IncomingMessage, ServerResponse } from 'http'
 import { WebpackHotMiddleware } from './hot-middleware'
 import { join } from 'path'
 import { UrlObject } from 'url'
-import { webpack, isWebpack5 } from 'next/dist/compiled/webpack/webpack'
+import { webpack } from 'next/dist/compiled/webpack/webpack'
 import {
   createEntrypoints,
   createPagesMapping,
@@ -150,7 +150,6 @@ export default class HotReloader {
   private rewrites: CustomRoutes['rewrites']
   private fallbackWatcher: any
   private hotReloaderSpan: Span
-  public isWebpack5: any
 
   constructor(
     dir: string,
@@ -180,7 +179,6 @@ export default class HotReloader {
     this.config = config
     this.previewProps = previewProps
     this.rewrites = rewrites
-    this.isWebpack5 = isWebpack5
     this.hotReloaderSpan = trace('hot-reloader')
     // Ensure the hotReloaderSpan is flushed immediately as it's the parentSpan for all processing
     // of the current `next dev` invocation.
@@ -294,7 +292,6 @@ export default class HotReloader {
           createPagesMapping(
             pagePaths.filter((i) => i !== null) as string[],
             this.config.pageExtensions,
-            this.isWebpack5,
             true
           )
         )
@@ -620,7 +617,6 @@ export default class HotReloader {
       this.onDemandEntries.middleware,
       this.webpackHotMiddleware.middleware,
       getOverlayMiddleware({
-        isWebpack5,
         rootDirectory: this.dir,
         stats: () => this.stats,
         serverStats: () => this.serverStats,

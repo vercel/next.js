@@ -1,5 +1,5 @@
 import curry from 'next/dist/compiled/lodash.curry'
-import { webpack, isWebpack5 } from 'next/dist/compiled/webpack/webpack'
+import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { ConfigurationContext } from '../utils'
 
 export const base = curry(function base(
@@ -8,12 +8,8 @@ export const base = curry(function base(
 ) {
   config.mode = ctx.isDevelopment ? 'development' : 'production'
   config.name = ctx.isServer ? 'server' : 'client'
-  if (isWebpack5) {
-    // @ts-ignore TODO webpack 5 typings
-    config.target = ctx.isServer ? 'node12.17' : ['web', 'es5']
-  } else {
-    config.target = ctx.isServer ? 'node' : 'web'
-  }
+  // @ts-ignore TODO webpack 5 typings
+  config.target = ctx.isServer ? 'node12.17' : ['web', 'es5']
 
   // Stop compilation early in a production build when an error is encountered.
   // This behavior isn't desirable in development due to how the HMR system
@@ -45,7 +41,7 @@ export const base = curry(function base(
   }
 
   // TODO: add codemod for "Should not import the named export" with JSON files
-  config.module.strictExportPresence = !isWebpack5
+  // config.module.strictExportPresence = !isWebpack5
 
   return config
 })
