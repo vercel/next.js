@@ -3,6 +3,7 @@ use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::mem::take;
 use swc_common::{collections::AHashSet, Span, DUMMY_SP};
+use swc_common::{Mark, SyntaxContext};
 use swc_ecmascript::ast::*;
 use swc_ecmascript::minifier::{
     eval::{EvalResult, Evaluator},
@@ -39,7 +40,7 @@ struct StyledJSXTransformer {
     external_bindings: Vec<Id>,
     file_has_css_resolve: bool,
     external_hash: Option<String>,
-    add_hash: Option<(String, String)>,
+    add_hash: Option<((String, SyntaxContext), String)>,
     add_default_decl: Option<(String, Expr)>,
     in_function_params: bool,
     evaluator: Option<Evaluator>,
@@ -218,10 +219,10 @@ impl Fold for StyledJSXTransformer {
         if let Some(external_hash) = &self.external_hash.take() {
             match &declarator.name {
                 Pat::Ident(BindingIdent {
-                    id: Ident { sym, .. },
+                    id: Ident { span, sym, .. },
                     ..
                 }) => {
-                    self.add_hash = Some((sym.to_string(), external_hash.clone()));
+                    self.add_hash = Some(((sym.to_string(), span.ctxt), external_hash.clone()));
                 }
                 _ => {}
             }
@@ -233,12 +234,20 @@ impl Fold for StyledJSXTransformer {
         let default_expr = default_expr.fold_children_with(self);
         if let Some(external_hash) = &self.external_hash.take() {
             let default_ident = "_defaultExport";
-            self.add_hash = Some((String::from(default_ident), external_hash.clone()));
+            // (JsWord, SyntaxContext) is core of the Identifier
+            let private_mark = Mark::fresh(Mark::root());
+            self.add_hash = Some((
+                (
+                    String::from(default_ident),
+                    SyntaxContext::empty().apply_mark(private_mark),
+                ),
+                external_hash.clone(),
+            ));
             self.add_default_decl = Some((String::from(default_ident), *default_expr.expr));
             return ExportDefaultExpr {
                 expr: Box::new(Expr::Ident(Ident {
                     sym: default_ident.into(),
-                    span: DUMMY_SP,
+                    span: DUMMY_SP.with_ctxt(SyntaxContext::empty().apply_mark(private_mark)),
                     optional: false,
                 })),
                 span: DUMMY_SP,
@@ -786,13 +795,13 @@ fn join_spreads(spreads: Vec<Expr>) -> Expr {
     new_expr
 }
 
-fn add_hash_statment((ident, hash): (String, String)) -> Stmt {
+fn add_hash_statment(((ident, ctxt), hash): ((String, SyntaxContext), String)) -> Stmt {
     Stmt::Expr(ExprStmt {
         expr: Box::new(Expr::Assign(AssignExpr {
             left: PatOrExpr::Expr(Box::new(Expr::Member(MemberExpr {
                 obj: ExprOrSuper::Expr(Box::new(Expr::Ident(Ident {
                     sym: ident.into(),
-                    span: DUMMY_SP,
+                    span: DUMMY_SP.with_ctxt(ctxt),
                     optional: false,
                 }))),
                 prop: Box::new(Expr::Ident(Ident {
