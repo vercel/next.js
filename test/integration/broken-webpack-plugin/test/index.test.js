@@ -2,7 +2,6 @@
 
 import { findPort, killApp, launchApp, renderViaHTTP } from 'next-test-utils'
 import { join } from 'path'
-import waitPort from 'wait-port'
 
 const appDir = join(__dirname, '../')
 
@@ -19,10 +18,6 @@ describe('Handles a broken webpack plugin (precompile)', () => {
       onStderr(text) {
         stderr += text
       },
-    })
-    await waitPort({
-      host: 'localhost',
-      port: appPort,
     })
   })
   afterAll(() => killApp(app))

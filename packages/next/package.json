@@ -240,7 +240,7 @@
     "send": "0.17.1",
     "source-map": "0.6.1",
     "string-hash": "1.1.3",
-    "strip-ansi": "6.0.0",
+    "strip-ansi": "7.0.1",
     "taskr": "1.1.0",
     "terser": "5.7.1",
     "text-table": "0.2.0",
@@ -253,7 +253,8 @@
   },
   "resolutions": {
     "browserslist": "4.16.6",
-    "caniuse-lite": "1.0.30001228"
+    "caniuse-lite": "1.0.30001228",
+    "strip-ansi": "^7.0.1"
   },
   "engines": {
     "node": ">=12.0.0"

@@ -48,6 +48,13 @@ const externals = {
   'terser-webpack-plugin':
     'next/dist/build/webpack/plugins/terser-webpack-plugin',
 }
+
+const builtIns = require('repl')._builtinLibs
+
+builtIns.forEach((pkg) => {
+  externals[`node:${pkg}`] = pkg
+})
+
 // eslint-disable-next-line camelcase
 externals['amphtml-validator'] = 'next/dist/compiled/amphtml-validator'
 export async function ncc_amphtml_validator(task, opts) {
