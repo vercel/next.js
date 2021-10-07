@@ -1,6 +1,6 @@
 # Next.js with Apollo Client and Apollo Cache Persist example
 
-This example shows how to integrate [Apollo GraphQL client](https://www.apollographql.com/docs/react) into Next.js application using TypeScript with addition of [Apollo Cache Persist](https://github.com/apollographql/apollo-cache-persist) package that enables client side persistance of queried data.
+This example is based on [with-apollo](https://github.com/vercel/next.js/tree/canary/examples/with-apollo) example and shows how to integrate [Apollo GraphQL client](https://www.apollographql.com/docs/react) into Next.js application using TypeScript with addition of [Apollo Cache Persist](https://github.com/apollographql/apollo-cache-persist) package that enables client side persistance of queried data.
 
 ## Preview
 
