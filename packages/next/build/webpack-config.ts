@@ -495,6 +495,8 @@ export default async function getBaseWebpackConfig(
                 false,
           }
         : {}),
+
+      'strip-ansi': require.resolve('next/dist/compiled/strip-ansi'),
     },
     ...(!isServer
       ? {

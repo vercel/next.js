@@ -408,9 +408,12 @@ export async function ncc_neo_async(task, opts) {
 // eslint-disable-next-line camelcase
 externals['ora'] = 'next/dist/compiled/ora'
 export async function ncc_ora(task, opts) {
+  const oraExternals = { ...externals }
+  delete oraExternals['strip-ansi']
+
   await task
     .source(opts.src || relative(__dirname, require.resolve('ora')))
-    .ncc({ packageName: 'ora', externals })
+    .ncc({ packageName: 'ora', externals: oraExternals })
     .target('compiled/ora')
 }
 // eslint-disable-next-line camelcase
