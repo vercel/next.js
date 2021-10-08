@@ -2,7 +2,9 @@ import { sandbox } from './helpers'
 import { createNext } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 
-describe('ReactRefreshLogBox', () => {
+// TODO: re-enable these tests after figuring out what is causing
+// them to be so unreliable in CI
+describe.skip('ReactRefreshLogBox', () => {
   let next: NextInstance
 
   beforeAll(async () => {

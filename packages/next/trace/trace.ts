@@ -1,10 +1,10 @@
-import { randomBytes } from 'crypto'
+import { customAlphabet } from 'next/dist/compiled/nanoid/index.cjs'
 import { SpanId } from './shared'
 import { reporter } from './report'
 
 const NUM_OF_MICROSEC_IN_SEC = BigInt('1000')
-
-const getId = () => randomBytes(8).toString('hex')
+const nanoid = customAlphabet('0123456789abcdefghijklmnopqrstuvwxyz', 8)
+const getId = () => Buffer.from(nanoid(), 'utf8').toString('hex')
 
 // eslint typescript has a bug with TS enums
 /* eslint-disable no-shadow */

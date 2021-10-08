@@ -3,10 +3,63 @@ import { batcher } from './to-zipkin'
 import { traceGlobals } from '../shared'
 import fs from 'fs'
 import path from 'path'
+import { PHASE_DEVELOPMENT_SERVER } from '../../shared/lib/constants'
 
-let writeStream: fs.WriteStream
+let writeStream: RotatingWriteStream
 let traceId: string
 let batch: ReturnType<typeof batcher> | undefined
+
+const writeStreamOptions = {
+  flags: 'a',
+  encoding: 'utf8',
+}
+class RotatingWriteStream {
+  file: string
+  writeStream!: fs.WriteStream
+  size: number
+  sizeLimit: number
+  isRotating: Promise<void> | undefined
+  constructor(file: string, sizeLimit: number) {
+    this.file = file
+    this.size = 0
+    this.sizeLimit = sizeLimit
+    this.createWriteStream()
+  }
+  private createWriteStream() {
+    this.writeStream = fs.createWriteStream(this.file, writeStreamOptions)
+  }
+  // Recreate the file
+  private rotate(): void {
+    this.end()
+    try {
+      fs.unlinkSync(this.file)
+    } catch (err: any) {
+      // It's fine if the file does not exist yet
+      if (err.code !== 'ENOENT') {
+        throw err
+      }
+    }
+    this.size = 0
+    this.createWriteStream()
+  }
+  async write(data: string): Promise<void> {
+    this.size += data.length
+
+    if (this.size > this.sizeLimit) {
+      this.rotate()
+    }
+
+    if (!this.writeStream.write(data, 'utf8')) {
+      await new Promise<void>((resolve, _reject) => {
+        this.writeStream.once('drain', resolve)
+      })
+    }
+  }
+
+  end(): void {
+    this.writeStream.end('', 'utf8')
+  }
+}
 
 const reportToLocalHost = (
   name: string,
@@ -17,7 +70,8 @@ const reportToLocalHost = (
   attrs?: Object
 ) => {
   const distDir = traceGlobals.get('distDir')
-  if (!distDir) {
+  const phase = traceGlobals.get('phase')
+  if (!distDir || !phase) {
     return
   }
 
@@ -30,18 +84,15 @@ const reportToLocalHost = (
       if (!writeStream) {
         await fs.promises.mkdir(distDir, { recursive: true })
         const file = path.join(distDir, 'trace')
-        writeStream = fs.createWriteStream(file, {
-          flags: 'a',
-          encoding: 'utf8',
-        })
+        writeStream = new RotatingWriteStream(
+          file,
+          // Development is limited to 50MB, production is unlimited
+          phase === PHASE_DEVELOPMENT_SERVER ? 52428800 : Infinity
+        )
       }
       const eventsJson = JSON.stringify(events)
       try {
-        await new Promise<void>((resolve, reject) => {
-          writeStream.write(eventsJson + '\n', 'utf8', (err) => {
-            err ? reject(err) : resolve()
-          })
-        })
+        await writeStream.write(eventsJson + '\n')
       } catch (err) {
         console.log(err)
       }
@@ -63,7 +114,11 @@ export default {
   flushAll: () =>
     batch
       ? batch.flushAll().then(() => {
-          writeStream.end('', 'utf8')
+          const phase = traceGlobals.get('phase')
+          // Only end writeStream when manually flushing in production
+          if (phase !== PHASE_DEVELOPMENT_SERVER) {
+            writeStream.end()
+          }
         })
       : undefined,
   report: reportToLocalHost,

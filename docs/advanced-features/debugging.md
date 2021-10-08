@@ -72,7 +72,7 @@ If you're using `npm run dev` or `yarn dev` (see [Getting Started](/docs/getting
 
 Launching the Next.js dev server with the `--inspect` flag will look something like this:
 
-```shellsession
+```bash
 Debugger listening on ws://127.0.0.1:9229/0cf90313-350d-4466-a748-cd60f4e47c95
 For help, see: https://nodejs.org/en/docs/inspector
 ready - started server on 0.0.0.0:3000, url: http://localhost:3000
