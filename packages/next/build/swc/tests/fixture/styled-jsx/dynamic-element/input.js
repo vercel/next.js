@@ -41,3 +41,16 @@ export const Test2 = () => {
     </Element2>
   )
 }
+
+export const Test3 = ({Component = 'div'}) => {
+  return (
+    <Component>
+      <p>dynamic element</p>
+        <style jsx>{`
+          .root {
+            background: red;
+          }
+        `}</style>
+    </Component>
+  );
+}

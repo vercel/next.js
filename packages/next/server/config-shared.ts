@@ -127,7 +127,6 @@ export type NextConfig = { [key: string]: any } & {
     optimizeImages?: boolean
     optimizeCss?: boolean
     scrollRestoration?: boolean
-    stats?: boolean
     externalDir?: boolean
     conformance?: boolean
     amp?: {
@@ -144,6 +143,7 @@ export type NextConfig = { [key: string]: any } & {
     isrMemoryCacheSize?: number
     outputFileTracing?: boolean
     concurrentFeatures?: boolean
+    serverComponents?: boolean
   }
 }
 
@@ -187,8 +187,7 @@ export const defaultConfig: NextConfig = {
   i18n: null,
   productionBrowserSourceMaps: false,
   optimizeFonts: true,
-  webpack5:
-    Number(process.env.NEXT_PRIVATE_TEST_WEBPACK4_MODE) > 0 ? false : undefined,
+  webpack5: undefined,
   excludeDefaultMomentLocales: true,
   serverRuntimeConfig: {},
   publicRuntimeConfig: {},
@@ -213,7 +212,6 @@ export const defaultConfig: NextConfig = {
     optimizeImages: false,
     optimizeCss: false,
     scrollRestoration: false,
-    stats: false,
     externalDir: false,
     reactRoot: Number(process.env.NEXT_PRIVATE_REACT_ROOT) > 0,
     disableOptimizedLoading: false,
@@ -225,6 +223,7 @@ export const defaultConfig: NextConfig = {
     isrMemoryCacheSize: 50 * 1024 * 1024,
     outputFileTracing: false,
     concurrentFeatures: false,
+    serverComponents: false,
   },
   future: {
     strictPostcssConfiguration: false,
