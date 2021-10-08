@@ -32,15 +32,15 @@ export default function Post({ post, morePosts, preview }) {
                 <title>
                   {post.title} | Next.js Blog Example with {CMS_NAME}
                 </title>
-                <meta property="og:image" content={post.coverImage.url} />
+                <meta property="og:image" content={`${process.env.NEXT_PUBLIC_DOTCMS_HOST}${post.image.idPath}`} />
               </Head>
               <PostHeader
                 title={post.title}
-                coverImage={post.coverImage}
-                date={post.date}
+                coverImage={post.image}
+                date={post.postingDate}
                 author={post.author}
               />
-              <PostBody content={post.content} />
+              <PostBody content={post.body} />
             </article>
             <SectionSeparator />
             {morePosts && morePosts.length > 0 && (
@@ -54,13 +54,13 @@ export default function Post({ post, morePosts, preview }) {
 }
 
 export async function getStaticProps({ params, preview = false }) {
-  // const data = await getPostAndMorePosts(params.slug, preview)
+  const data = await getPostAndMorePosts(params.slug, preview)
+  console.log(params)
 
   return {
     props: {
       preview,
-      post: {},
-      morePosts: null,
+      ...data,
     },
   }
 }
