@@ -494,22 +494,6 @@ export default class HotReloader {
         this.serverError = null
         this.serverStats = stats
 
-        const serverOnlyChanges = difference<string>(
-          changedServerPages,
-          changedClientPages
-        )
-        changedClientPages.clear()
-        changedServerPages.clear()
-
-        if (serverOnlyChanges.length > 0) {
-          this.send({
-            event: 'serverOnlyChanges',
-            pages: serverOnlyChanges.map((pg) =>
-              denormalizePagePath(pg.substr('pages'.length))
-            ),
-          })
-        }
-
         const { compilation } = stats
 
         // We only watch `_document` for changes on the server compilation
@@ -537,6 +521,23 @@ export default class HotReloader {
         this.serverPrevDocumentHash = documentChunk.hash
       }
     )
+    multiCompiler.hooks.done.tap('NextjsHotReloaderForServer', () => {
+      const serverOnlyChanges = difference<string>(
+        changedServerPages,
+        changedClientPages
+      )
+      changedClientPages.clear()
+      changedServerPages.clear()
+
+      if (serverOnlyChanges.length > 0) {
+        this.send({
+          event: 'serverOnlyChanges',
+          pages: serverOnlyChanges.map((pg) =>
+            denormalizePagePath(pg.substr('pages'.length))
+          ),
+        })
+      }
+    })
 
     multiCompiler.compilers[0].hooks.failed.tap(
       'NextjsHotReloaderForClient',
