@@ -8,7 +8,7 @@ import Header from '../../components/header'
 import PostHeader from '../../components/post-header'
 import SectionSeparator from '../../components/section-separator'
 import Layout from '../../components/layout'
-// import { getAllPostsWithSlug, getPostAndMorePosts } from '../../lib/api'
+import { getAllPostsWithSlug, getPostAndMorePosts } from '../../lib/api'
 import PostTitle from '../../components/post-title'
 import { CMS_NAME } from '../../lib/constants'
 
@@ -66,10 +66,10 @@ export async function getStaticProps({ params, preview = false }) {
 }
 
 export async function getStaticPaths() {
-  // const allPosts = await getAllPostsWithSlug()
+  const allPosts = await getAllPostsWithSlug()
   
   return {
-    paths: [],
+    paths: allPosts?.map((post) => `/posts/${post.urlTitle}`) || [],
     fallback: true,
   }
 }

@@ -12,6 +12,7 @@ export default function CoverImage({ title, url, slug }) {
         'hover:shadow-medium transition-shadow duration-200': slug,
       })}
       src={url}
+      objectFit="cover"
     />
   )
 

@@ -25,22 +25,52 @@ export async function getPreviewPostBySlug(slug) {
 }
 
 export async function getAllPostsWithSlug() {
-  // TODO: get all posts with slug
+  const entries = await fetchGraphQL(`
+    query getAllPostsWithSlug {
+      BlogCollection {
+        urlTitle
+      }
+    }
+  `);
+
+  if (entries.errors) {
+    console.error(entries.errors);
+
+    return []
+  }
+
+  return entries?.data?.BlogCollection ?? []
 }
 
 export async function getAllPostsForHome(preview) {
   const entries = await fetchGraphQL(`
-    query ContentAPI {
+    query getAllPostsForHome {
       BlogCollection {
         title
-        body
+        teaser
         postingDate
-        author
+        author {
+          firstName
+          lastName
+          profilePhoto {
+            idPath
+          }
+        }
+        urlTitle
+        image {
+          idPath
+        }
       }
     }
   `)
 
-  console.log(entries)
+  if (entries.errors) {
+    console.error(entries.errors);
+
+    return []
+  }
+
+  return entries?.data?.BlogCollection ?? []
 }
 
 export async function getPostAndMorePosts(slug, preview) {

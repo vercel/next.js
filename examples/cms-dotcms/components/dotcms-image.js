@@ -1,7 +1,7 @@
 import Image from 'next/image'
 
 const dotCmsLoader = ({ src, width }) => {
-  return `${process.env.NEXT_PUBLIC_DOTCMS_HOST}${src}?w=${width}`
+  return `${process.env.NEXT_PUBLIC_DOTCMS_HOST}/${src}?w=${width}`
 }
 
 const DotCmsImage = (props) => {
