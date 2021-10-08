@@ -125,7 +125,12 @@ impl Fold for NextDynamicPatcher {
                         }))),
                         args: vec![ExprOrSpread {
                           expr: Box::new(Expr::Lit(Lit::Str(Str {
-                            value: self.filename.to_string().into(),
+                            value: self
+                              .dynamically_imported_specifier
+                              .as_ref()
+                              .unwrap()
+                              .clone()
+                              .into(),
                             span: DUMMY_SP,
                             kind: StrKind::Synthesized {},
                             has_escape: false,

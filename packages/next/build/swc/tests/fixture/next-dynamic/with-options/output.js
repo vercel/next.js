@@ -3,7 +3,7 @@ const DynamicComponentWithCustomLoading = dynamic(()=>import("../components/hell
 , {
     loadableGenerated: {
         webpack: ()=>[
-                require.resolveWeak("/some-project/src/some-file.js")
+                require.resolveWeak("../components/hello")
             ]
         ,
         modules: [
