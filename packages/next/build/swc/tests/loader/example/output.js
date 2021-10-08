@@ -2,6 +2,11 @@ import other from 'other';
 function _arrayWithHoles(arr) {
     if (Array.isArray(arr)) return arr;
 }
+function _classCallCheck(instance, Constructor) {
+    if (!(instance instanceof Constructor)) {
+        throw new TypeError("Cannot call a class as a function");
+    }
+}
 function _iterableToArrayLimit(arr, i) {
     var _arr = [];
     var _n = true;
@@ -31,6 +36,10 @@ function _slicedToArray(arr, i) {
     return _arrayWithHoles(arr) || _iterableToArrayLimit(arr, i) || _nonIterableRest();
 }
 var _other = _slicedToArray(other, 1), foo = _other[0];
+var Foo = function Foo() {
+    "use strict";
+    _classCallCheck(this, Foo);
+};
 export var __N_SSG = true;
 export default function Home() {
     return(/*#__PURE__*/ React.createElement("div", null));
