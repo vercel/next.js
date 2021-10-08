@@ -1,0 +1,22 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "classnames": "2.3.1",
+    "cross-fetch": "3.1.4",
+    "date-fns": "2.25.0",
+    "dotcms": "0.0.18",
+    "next": "latest",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2"
+  },
+  "devDependencies": {
+    "autoprefixer": "10.3.7",
+    "postcss": "8.3.9",
+    "tailwindcss": "^2.2.16"
+  }
+}
