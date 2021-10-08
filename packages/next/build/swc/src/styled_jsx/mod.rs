@@ -1,7 +1,9 @@
 use easy_error::{bail, Error};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
+use std::mem::take;
 use swc_common::{collections::AHashSet, Span, DUMMY_SP};
+use swc_common::{Mark, SyntaxContext};
 use swc_ecmascript::ast::*;
 use swc_ecmascript::minifier::{
     eval::{EvalResult, Evaluator},
@@ -38,8 +40,9 @@ struct StyledJSXTransformer {
     external_bindings: Vec<Id>,
     file_has_css_resolve: bool,
     external_hash: Option<String>,
-    add_hash: Option<(String, String)>,
+    add_hash: Option<((String, SyntaxContext), String)>,
     add_default_decl: Option<(String, Expr)>,
+    in_function_params: bool,
     evaluator: Option<Evaluator>,
 }
 
@@ -64,16 +67,26 @@ pub enum JSXStyle {
 
 impl Fold for StyledJSXTransformer {
     fn fold_jsx_element(&mut self, el: JSXElement) -> JSXElement {
-        if self.has_styled_jsx && is_styled_jsx(&el) {
-            match self.replace_jsx_style(&el) {
-                Ok(el) => return el,
-                Err(_) => return el,
+        if is_styled_jsx(&el) {
+            let parent_has_styled_jsx = self.has_styled_jsx;
+            if !parent_has_styled_jsx {
+                self.check_for_jsx_styles(Some(&el), &el.children);
             }
-        } else if self.has_styled_jsx {
+            let el = match self.replace_jsx_style(&el) {
+                Ok(el) => el,
+                Err(_) => el,
+            };
+            if !parent_has_styled_jsx {
+                self.reset_styles_state();
+            }
+            return el;
+        }
+
+        if self.has_styled_jsx {
             return el.fold_children_with(self);
         }
 
-        self.check_children_for_jsx_styles(&el.children);
+        self.check_for_jsx_styles(None, &el.children);
         let el = el.fold_children_with(self);
         self.reset_styles_state();
 
@@ -85,7 +98,7 @@ impl Fold for StyledJSXTransformer {
             return fragment.fold_children_with(self);
         }
 
-        self.check_children_for_jsx_styles(&fragment.children);
+        self.check_for_jsx_styles(None, &fragment.children);
         let fragment = fragment.fold_children_with(self);
         self.reset_styles_state();
 
@@ -206,10 +219,10 @@ impl Fold for StyledJSXTransformer {
         if let Some(external_hash) = &self.external_hash.take() {
             match &declarator.name {
                 Pat::Ident(BindingIdent {
-                    id: Ident { sym, .. },
+                    id: Ident { span, sym, .. },
                     ..
                 }) => {
-                    self.add_hash = Some((sym.to_string(), external_hash.clone()));
+                    self.add_hash = Some(((sym.to_string(), span.ctxt), external_hash.clone()));
                 }
                 _ => {}
             }
@@ -221,12 +234,20 @@ impl Fold for StyledJSXTransformer {
         let default_expr = default_expr.fold_children_with(self);
         if let Some(external_hash) = &self.external_hash.take() {
             let default_ident = "_defaultExport";
-            self.add_hash = Some((String::from(default_ident), external_hash.clone()));
+            // (JsWord, SyntaxContext) is core of the Identifier
+            let private_mark = Mark::fresh(Mark::root());
+            self.add_hash = Some((
+                (
+                    String::from(default_ident),
+                    SyntaxContext::empty().apply_mark(private_mark),
+                ),
+                external_hash.clone(),
+            ));
             self.add_default_decl = Some((String::from(default_ident), *default_expr.expr));
             return ExportDefaultExpr {
                 expr: Box::new(Expr::Ident(Ident {
                     sym: default_ident.into(),
-                    span: DUMMY_SP,
+                    span: DUMMY_SP.with_ctxt(SyntaxContext::empty().apply_mark(private_mark)),
                     optional: false,
                 })),
                 span: DUMMY_SP,
@@ -294,19 +315,47 @@ impl Fold for StyledJSXTransformer {
         new_items
     }
 
-    fn fold_function(&mut self, func: Function) -> Function {
-        let nearest_scope_bindings = self.nearest_scope_bindings.clone();
-        self.nearest_scope_bindings = collect_decls(&func);
-        let func = func.fold_children_with(self);
-        self.nearest_scope_bindings = nearest_scope_bindings;
+    fn fold_binding_ident(&mut self, node: BindingIdent) -> BindingIdent {
+        if self.in_function_params {
+            self.nearest_scope_bindings.insert(node.id.to_id());
+        }
+        node
+    }
+
+    fn fold_assign_pat_prop(&mut self, node: AssignPatProp) -> AssignPatProp {
+        if self.in_function_params {
+            self.nearest_scope_bindings.insert(node.key.to_id());
+        }
+        node
+    }
+
+    fn fold_function(&mut self, mut func: Function) -> Function {
+        let surrounding_scope_bindings = take(&mut self.nearest_scope_bindings);
+        self.in_function_params = true;
+        let mut new_params = vec![];
+        for param in func.params {
+            new_params.push(param.fold_with(self));
+        }
+        func.params = new_params;
+        self.in_function_params = false;
+        self.nearest_scope_bindings.extend(collect_decls(&func));
+        func.body = func.body.fold_with(self);
+        self.nearest_scope_bindings = surrounding_scope_bindings;
         func
     }
 
-    fn fold_arrow_expr(&mut self, func: ArrowExpr) -> ArrowExpr {
-        let current_bindings = self.nearest_scope_bindings.clone();
-        self.nearest_scope_bindings = collect_decls(&func);
-        let func = func.fold_children_with(self);
-        self.nearest_scope_bindings = current_bindings;
+    fn fold_arrow_expr(&mut self, mut func: ArrowExpr) -> ArrowExpr {
+        let surrounding_scope_bindings = take(&mut self.nearest_scope_bindings);
+        self.in_function_params = true;
+        let mut new_params = vec![];
+        for param in func.params {
+            new_params.push(param.fold_with(self));
+        }
+        func.params = new_params;
+        self.in_function_params = false;
+        self.nearest_scope_bindings.extend(collect_decls(&func));
+        func.body = func.body.fold_with(self);
+        self.nearest_scope_bindings = surrounding_scope_bindings;
         func
     }
 
@@ -319,19 +368,28 @@ impl Fold for StyledJSXTransformer {
 }
 
 impl StyledJSXTransformer {
-    fn check_children_for_jsx_styles(&mut self, children: &Vec<JSXElementChild>) {
+    fn check_for_jsx_styles(&mut self, el: Option<&JSXElement>, children: &Vec<JSXElementChild>) {
         let mut styles = vec![];
-        for i in 0..children.len() {
-            if let JSXElementChild::JSXElement(child_el) = &children[i] {
-                if is_styled_jsx(&child_el) {
-                    self.file_has_styled_jsx = true;
-                    self.has_styled_jsx = true;
-                    let expr = get_style_expr(&child_el);
-                    let style_info = self.get_jsx_style(expr, is_global(&child_el));
-                    styles.insert(0, style_info);
+        let mut process_style = |el: &JSXElement| {
+            self.file_has_styled_jsx = true;
+            self.has_styled_jsx = true;
+            let expr = get_style_expr(el);
+            let style_info = self.get_jsx_style(expr, is_global(el));
+            styles.insert(0, style_info);
+        };
+
+        if el.is_some() && is_styled_jsx(el.unwrap()) {
+            process_style(el.unwrap());
+        } else {
+            for i in 0..children.len() {
+                if let JSXElementChild::JSXElement(child_el) = &children[i] {
+                    if is_styled_jsx(&child_el) {
+                        process_style(&child_el);
+                    }
                 }
             }
-        }
+        };
+
         if self.has_styled_jsx {
             let (static_class_name, class_name) =
                 compute_class_names(&styles, self.style_import_name.as_ref().unwrap());
@@ -518,6 +576,7 @@ impl StyledJSXTransformer {
         self.has_styled_jsx = false;
         self.static_class_name = None;
         self.class_name = None;
+        self.styles = vec![];
     }
 }
 
@@ -736,13 +795,13 @@ fn join_spreads(spreads: Vec<Expr>) -> Expr {
     new_expr
 }
 
-fn add_hash_statment((ident, hash): (String, String)) -> Stmt {
+fn add_hash_statment(((ident, ctxt), hash): ((String, SyntaxContext), String)) -> Stmt {
     Stmt::Expr(ExprStmt {
         expr: Box::new(Expr::Assign(AssignExpr {
             left: PatOrExpr::Expr(Box::new(Expr::Member(MemberExpr {
                 obj: ExprOrSuper::Expr(Box::new(Expr::Ident(Ident {
                     sym: ident.into(),
-                    span: DUMMY_SP,
+                    span: DUMMY_SP.with_ctxt(ctxt),
                     optional: false,
                 }))),
                 prop: Box::new(Expr::Ident(Ident {
