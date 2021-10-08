@@ -1,11 +1,3 @@
-// Dependencies
-import { initDotCMS } from 'dotcms';
-
-export const dotcms = initDotCMS({
-    host: process.env.NEXT_PUBLIC_DOTCMS_HOST,
-    token: process.env.DOTCMS_TOKEN,
-});
-
 async function fetchAPI(query, { variables, preview } = {}) {
   const res = await fetch(process.env.NEXT_PUBLIC_DOTCMS_HOST + '/api/v1/graphql', {
     method: 'POST',
