@@ -12,6 +12,10 @@ export async function getStaticProps() {
   rest
   bar
 }
+
+class Foo {}
+
+
 export default function Home() {
   return <div />
 }
