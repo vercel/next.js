@@ -12,10 +12,12 @@ async function fetchAPI(query, { variables, preview } = {}) {
   })
 
   const json = await res.json()
+
   if (json.errors) {
     console.error(json.errors)
     throw new Error('Failed to fetch API')
   }
+  
   return json.data
 }
 
@@ -31,12 +33,6 @@ export async function getAllPostsWithSlug() {
       }
     }
   `);
-
-  if (entries.errors) {
-    console.error(entries.errors);
-
-    return []
-  }
 
   return entries?.BlogCollection ?? []
 }
@@ -62,12 +58,6 @@ export async function getAllPostsForHome(preview) {
       }
     }
   `)
-
-  if (entries.errors) {
-    console.error(entries.errors);
-
-    return []
-  }
 
   return entries?.BlogCollection ?? []
 }
