@@ -19703,10 +19703,10 @@ webpack-sources@^3.2.0:
     watchpack "^1.7.4"
     webpack-sources "^1.4.1"
 
-"webpack5@npm:webpack@5.58.0":
-  version "5.58.0"
-  resolved "https://registry.yarnpkg.com/webpack/-/webpack-5.58.0.tgz#9ec621cf8534f23c25e779e7c35dfde1211d5ccb"
-  integrity sha512-xc2k5MLbR1iah24Z5xUm1nBh1PZXEdUnrX6YkTSOScq/VWbl5JCLREXJzGYqEAUbIO8tZI+Dzv82lGtnuUnVCQ==
+"webpack5@npm:webpack@5.58.1":
+  version "5.58.1"
+  resolved "https://registry.yarnpkg.com/webpack/-/webpack-5.58.1.tgz#df8aad72b617a9d0db8c89d4f410784ee93320d7"
+  integrity sha512-4Z/dmbTU+VmkCb2XNgW7wkE5TfEcSooclprn/UEuVeAkwHhn07OcgUsyaKHGtCY/VobjnsYBlyhKeMLiSoOqPg==
   dependencies:
     "@types/eslint-scope" "^3.7.0"
     "@types/estree" "^0.0.50"
