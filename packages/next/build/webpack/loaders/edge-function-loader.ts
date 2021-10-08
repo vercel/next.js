@@ -10,8 +10,10 @@ export default function edgeFunctionLoader(this: any) {
   const stringifiedAbsolutePagePath = JSON.stringify(absolutePagePath)
 
   return `
-        import { adapter } from 'next/dist/server/edge-functions'
-        
+        import { adapter } from 'next/dist/server/edge-functions-whatwg'
+        import { Request } from 'next/dist/server/edge-functions-whatwg'
+        import { Response } from 'next/dist/server/edge-functions-whatwg'
+
         var mod = require(${stringifiedAbsolutePagePath})
         var handler = mod.middleware || mod.default;
 
@@ -19,11 +21,14 @@ export default function edgeFunctionLoader(this: any) {
           throw new Error('Your Edge Function must export a \`middleware\` or a \`default\` function');
         }
 
-        export default function edgeFunction (opts) {
-            return adapter({
-                ...opts,
-                handler
-            })
+        export function edgeFunction(opts) {
+          return adapter({
+              ...opts,
+              handler
+          })
         }
+
+        export { Request }
+        export { Response }
     `
 }

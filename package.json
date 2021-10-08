@@ -12,6 +12,7 @@
     "dev": "lerna run dev --stream --parallel",
     "dev2": "while true; do yarn --check-files && yarn dev; done",
     "test-types": "yarn tsc",
+    "test": "yarn jest",
     "test-unit": "yarn jest test/unit/",
     "testonly": "yarn jest --runInBand",
     "testheadless": "cross-env HEADLESS=true yarn testonly",

@@ -1,17 +1,14 @@
-export function middleware(
-  req,
-  res,
-  next = () => {
-    return
-  }
-) {
-  res.setHeaders({
-    'req-url-basepath': req.url.basePath,
-    'req-url-pathname': req.url.pathname,
-    'req-url-params': JSON.stringify(req.url.params),
-    'req-url-page': req.url.page,
-    'req-url-query': req.url.query['foo'],
-    'req-url-locale': req.url.locale.locale,
-  })
-  next()
+export function middleware(event) {
+  event.respondWith(
+    new Response(null, {
+      headers: {
+        'req-url-basepath': event.request.next.url.basePath,
+        'req-url-pathname': event.request.next.url.pathname,
+        'req-url-params': JSON.stringify(event.request.next.page.params),
+        'req-url-page': event.request.next.page.name,
+        'req-url-query': event.request.next.url.searchParams.get('foo'),
+        'req-url-locale': event.request.next.url.locale,
+      },
+    })
+  )
 }

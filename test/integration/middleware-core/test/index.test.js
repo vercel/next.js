@@ -111,18 +111,6 @@ function rewriteTests(locale = '') {
     )
   })
 
-  it(`${locale} should rewrite to the first reroute (Vercel and not Github) `, async () => {
-    const res = await fetchViaHTTP(
-      context.appPort,
-      `${locale}/rewrites/rewrite-me-external-twice`
-    )
-    const html = await res.text()
-    const $ = cheerio.load(html)
-    expect($('head > title').text()).toBe(
-      'Develop. Preview. Ship. For the best frontend teams – Vercel'
-    )
-  })
-
   it(`${locale} should rewrite without hard navigation`, async () => {
     const browser = await webdriver(context.appPort, '/rewrites/')
     await browser.eval('window.__SAME_PAGE = true')
@@ -193,28 +181,6 @@ function redirectTests(locale = '') {
     expect($('.title').text()).toBe('Welcome to a new page')
   })
 
-  it(`${locale} should redirect only once to Google and not stream a response`, async () => {
-    const res = await fetchViaHTTP(
-      context.appPort,
-      `${locale}/redirects/redirect-to-google-stream`
-    )
-    const html = await res.text()
-    const $ = cheerio.load(html)
-    expect($('head > title').text()).toBe('Google')
-    expect(html).not.toBe('whoops!')
-  })
-
-  it(`${locale} should redirect only once to Google and not respond with body`, async () => {
-    const res = await fetchViaHTTP(
-      context.appPort,
-      `${locale}/redirects/redirect-to-google`
-    )
-    const html = await res.text()
-    const $ = cheerio.load(html)
-    expect($('head > title').text()).toBe('Google')
-    expect(html).not.toBe('whoops!')
-  })
-
   it(`${locale} should redirect (infinite-loop)`, async () => {
     await expect(
       fetchViaHTTP(context.appPort, `${locale}/redirects/infinite-loop`)
@@ -230,26 +196,6 @@ function responseTests(locale = '') {
     )
     const html = await res.text()
     expect(html).toBe('this is a streamed response')
-  })
-
-  it(`${locale} should only stream once`, async () => {
-    const res = await fetchViaHTTP(
-      context.appPort,
-      `${locale}/responses/stream-end-stream`
-    )
-    const html = await res.text()
-    expect(html).toBe('first stream')
-  })
-
-  it(`${locale} should stream a body and not have a certain header`, async () => {
-    const res = await fetchViaHTTP(
-      context.appPort,
-      `${locale}/responses/stream-header-end`
-    )
-    const html = await res.text()
-    expect(res.headers.get('x-machina')).not.toBe('hello')
-    expect(res.headers.get('x-pre-header')).toBe('1')
-    expect(html).toBe('hello world')
   })
 
   it(`${locale} should respond with a body`, async () => {
@@ -301,17 +247,6 @@ function responseTests(locale = '') {
     )
   })
 
-  it(`${locale} should redirect only once to Google and not stream a response`, async () => {
-    const res = await fetchViaHTTP(
-      context.appPort,
-      `${locale}/responses/redirect-stream`
-    )
-    const html = await res.text()
-    const $ = cheerio.load(html)
-    expect($('head > title').text()).toBe('Google')
-    expect(html).not.toBe('whoops!')
-  })
-
   it(`${locale} should render the right content via SSR`, async () => {
     const res = await fetchViaHTTP(context.appPort, '/responses/')
     const html = await res.text()
@@ -334,36 +269,6 @@ function responseTests(locale = '') {
     )
     expect(res.headers.get('x-first-header')).toBe('valid')
     expect(res.headers.get('x-nested-header')).toBe('valid')
-  })
-
-  it(`${locale} should only recieve the first body`, async () => {
-    const res = await fetchViaHTTP(
-      context.appPort,
-      `${locale}/responses/body-end-header`
-    )
-    const html = await res.text()
-    expect(res.headers.get('x-late')).not.toBe('valid')
-    expect(html).toBe('hello world')
-  })
-
-  it(`${locale} should only recieve the first body`, async () => {
-    const res = await fetchViaHTTP(
-      context.appPort,
-      `${locale}/responses/body-end-body`
-    )
-    const html = await res.text()
-    expect(html).toBe('hello world')
-  })
-
-  it(`${locale} should redirect to Google and not send a body`, async () => {
-    const res = await fetchViaHTTP(
-      context.appPort,
-      `${locale}/responses/redirect-body`
-    )
-    const html = await res.text()
-    const $ = cheerio.load(html)
-    expect($('head > title').text()).toBe('Google')
-    expect(html).not.toBe('whoops!')
   })
 }
 

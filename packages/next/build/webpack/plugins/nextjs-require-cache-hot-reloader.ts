@@ -1,4 +1,4 @@
-import { clearSandboxCache } from '../../../server/edge-functions/sandbox'
+import { clearSandboxCache } from '../../../server/edge-functions-whatwg/sandbox'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { isWebpack5 } from 'next/dist/compiled/webpack/webpack'
 import { realpathSync } from 'fs'

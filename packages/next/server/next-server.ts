@@ -102,11 +102,12 @@ import { parseNextUrl } from '../shared/lib/router/utils/parse-next-url'
 import isError from '../lib/is-error'
 import { getMiddlewareInfo } from './require'
 import { parseUrl as simpleParseUrl } from '../shared/lib/router/utils/parse-url'
-import { run } from './edge-functions/sandbox'
-import type { EdgeFunctionResult } from './edge-functions'
+import { run } from './edge-functions-whatwg/sandbox'
+import type { EdgeFunctionResult } from './edge-functions-whatwg'
+import type { I18NConfig } from './config-shared'
 import type { MiddlewareManifest } from '../build/webpack/plugins/edge-function-plugin'
+import type { ParsedNextUrl } from '../shared/lib/router/utils/parse-next-url'
 import type { ParsedUrl } from '../shared/lib/router/utils/parse-url'
-import type { RequestData, ResponseData } from './edge-functions/types'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -594,22 +595,27 @@ export default class Server {
   protected async ensureMiddleware(_pathname: string) {}
 
   protected async runMiddleware(params: {
-    request: RequestData
-    response?: ResponseData
-    prevCalls?: number
+    parsedUrl: ParsedNextUrl
+    request: {
+      headers: { [key: string]: string | string[] | undefined }
+      method: string
+      nextConfig?: {
+        basePath?: string
+        i18n?: I18NConfig | null
+        trailingSlash?: boolean
+      }
+      url: string
+    }
   }): Promise<EdgeFunctionResult> {
-    const req = params.request
-    const res = params.response
-    const url = { ...req.url }
-
-    if (await this.hasPage(req.url.pathname)) {
-      url.page = req.url.pathname
+    const page: { name?: string; params?: { [key: string]: string } } = {}
+    if (await this.hasPage(params.parsedUrl.pathname)) {
+      page.name = params.parsedUrl.pathname
     } else if (this.dynamicRoutes) {
       for (const dynamicRoute of this.dynamicRoutes) {
-        const matchParams = dynamicRoute.match(req.url.pathname)
+        const matchParams = dynamicRoute.match(params.parsedUrl.pathname)
         if (matchParams) {
-          url.page = dynamicRoute.page
-          url.params = matchParams
+          page.name = dynamicRoute.page
+          page.params = matchParams
           break
         }
       }
@@ -618,7 +624,7 @@ export default class Server {
     let result: EdgeFunctionResult | undefined
 
     for (const middleware of this.middleware || []) {
-      if (middleware.match(url.pathname)) {
+      if (middleware.match(params.parsedUrl.pathname)) {
         if (!(await this.hasMiddleware(middleware.page))) {
           console.warn(`The Edge Function for ${middleware.page} was not found`)
           continue
@@ -651,21 +657,24 @@ export default class Server {
           name: middlewareInfo.name,
           paths: middlewareInfo.paths,
           request: {
-            headers: req.headers,
-            method: req.method,
-            url,
-          },
-          response: {
-            headers: result?.response.headers || res?.headers,
+            headers: params.request.headers,
+            method: params.request.method,
+            nextConfig: params.request.nextConfig,
+            url: params.request.url,
+            page: page,
           },
         })
 
-        result.promise.catch((error) => {
+        result.waitUntil.catch((error) => {
           console.error(`Error after middleware response:`)
           console.error(error)
         })
 
-        if (result.response.headers.has('x-middleware-effect')) {
+        if (
+          result.response.headers.has('Location') ||
+          result.response.headers.has('x-middleware-rewrite') ||
+          result.response.body
+        ) {
           break
         }
       }
@@ -1092,14 +1101,19 @@ export default class Server {
         match: route('/:path*'),
         type: 'route',
         name: 'middleware catchall',
-        fn: async (req, res, _params, parsed) => {
-          const url = parseNextUrl({
+        fn: async (req, res, _params, _parsed) => {
+          const fullUrl = (req as any).__NEXT_INIT_URL
+          const parsedUrl = parseNextUrl({
+            url: fullUrl,
             headers: req.headers,
-            nextConfig: this.nextConfig,
-            url: (req as any).__NEXT_INIT_URL,
+            nextConfig: {
+              basePath: this.nextConfig.basePath,
+              i18n: this.nextConfig.i18n,
+              trailingSlash: this.nextConfig.trailingSlash,
+            },
           })
 
-          if (!this.middleware?.some((m) => m.match(url.pathname))) {
+          if (!this.middleware?.some((m) => m.match(parsedUrl.pathname))) {
             return { finished: false }
           }
 
@@ -1107,25 +1121,38 @@ export default class Server {
 
           try {
             result = await this.runMiddleware({
+              parsedUrl: parsedUrl,
               request: {
-                headers: new Headers(toWHATWGLikeHeaders(req.headers)),
+                headers: req.headers,
                 method: req.method || 'GET',
-                url,
+                nextConfig: {
+                  basePath: this.nextConfig.basePath,
+                  i18n: this.nextConfig.i18n,
+                  trailingSlash: this.nextConfig.trailingSlash,
+                },
+                url: fullUrl,
               },
             })
           } catch (err) {
             const error = isError(err) ? err : new Error(err + '')
             console.error(error)
             res.statusCode = 500
-            this.renderError(error, req, res, parsed.pathname || '')
+            this.renderError(error, req, res, parsedUrl.pathname || '')
             return { finished: true }
           }
 
           const preflight =
             req.method === 'HEAD' && req.headers['x-middleware-preflight']
 
+          if (result.response.body) {
+            res.setHeader('x-middleware-refresh', '1')
+          }
+
           for (const [key, value] of result.response.headers.entries()) {
-            if (preflight || !key.startsWith('x-middleware-')) {
+            if (preflight) {
+              const k = key === 'Location' ? 'x-middleware-redirect' : key
+              res.setHeader(k, value)
+            } else if (!key.startsWith('x-middleware-') && key !== 'Location') {
               res.setHeader(key, value)
             }
           }
@@ -1138,25 +1165,9 @@ export default class Server {
             }
           }
 
-          if (result.event === 'streaming') {
-            const reader = result.response.readable.getReader()
-            res.writeHead(result.response.statusCode)
-
-            while (true) {
-              let { value, done } = await reader.read()
-              if (done) break
-              res.write(value)
-            }
-
-            res.end()
-            return {
-              finished: true,
-            }
-          }
-
-          const location = result.response.headers.get('x-middleware-redirect')
+          const location = result.response.headers.get('Location')
           if (location) {
-            res.statusCode = result.response.statusCode
+            res.statusCode = result.response.status
             res.setHeader('Location', location)
             if (res.statusCode === 308) {
               res.setHeader('Refresh', `0;url=${location}`)
@@ -1183,16 +1194,21 @@ export default class Server {
               finished: false,
               pathname: rewriteParsed.pathname,
               query: {
-                ...url.query,
+                ...parsedUrl.query,
                 ...rewriteParsed.query,
               },
             }
           }
 
-          if (result.event === 'data') {
-            res.statusCode = result.response.statusCode
-            res.end(result.response.body)
-            return { finished: true }
+          if (result.response.body) {
+            res.writeHead(result.response.status)
+            for await (const chunk of result.response.body) {
+              res.write(chunk)
+            }
+            res.end()
+            return {
+              finished: true,
+            }
           }
 
           return {
@@ -2588,21 +2604,4 @@ type ResponsePayload = {
   type: 'html' | 'json'
   body: RenderResult
   revalidateOptions?: any
-}
-
-function toWHATWGLikeHeaders(iHeaders: {
-  [header: string]: number | string | string[] | undefined
-}) {
-  const headers: { [k: string]: string } = {}
-
-  for (let headerKey in iHeaders) {
-    const headerValue = iHeaders[headerKey]
-    if (Array.isArray(headerValue)) {
-      headers[headerKey] = headerValue.join('; ')
-    } else if (headerValue) {
-      headers[headerKey] = String(headerValue)
-    }
-  }
-
-  return headers
 }

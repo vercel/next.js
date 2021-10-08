@@ -1,80 +1,65 @@
-export function middleware(
-  req,
-  res,
-  next = () => {
-    return
-  }
-) {
-  // Redirect cleanly with url params
-  if (req.url.query['foo'] === 'bar') {
-    res.redirect('/redirects/new-home')
-    next()
+export function middleware(event) {
+  event.respondWith(handleRequest(event))
+}
+
+async function handleRequest(event) {
+  const { url } = event.request.next
+
+  if (url.searchParams.get('foo') === 'bar') {
+    url.pathname = '/redirects/new-home'
+    url.searchParams.delete('foo')
+    return Response.redirect(url)
   }
 
-  // Redirects to new home
-  if (req.url.pathname === '/redirects/old-home') {
-    res.redirect('/redirects/new-home')
-    next()
-  }
-
-  // Redirect and then send a body
-  if (req.url.pathname === '/redirects/redirect-to-google') {
-    res.redirect('https://google.com')
-    res.send('whoops!')
-    res.end()
-    next()
-  }
-
-  // Redirect and then stream a response
-  if (req.url.pathname === '/redirects/redirect-to-google-stream') {
-    res.redirect('https://google.com')
-    res.write('whoops!')
-    res.end()
-    next()
+  if (url.pathname === '/redirects/old-home') {
+    url.pathname = '/redirects/new-home'
+    return Response.redirect(url)
   }
 
   // Chained redirects
-  if (req.url.pathname === '/redirects/redirect-me-alot') {
-    res.redirect('/redirects/redirect-me-alot-2')
-    next()
+  if (url.pathname === '/redirects/redirect-me-alot') {
+    url.pathname = '/redirects/redirect-me-alot-2'
+    return Response.redirect(url)
   }
 
-  if (req.url.pathname === '/redirects/redirect-me-alot-2') {
-    res.redirect('/redirects/redirect-me-alot-3')
-    next()
-  }
-  if (req.url.pathname === '/redirects/redirect-me-alot-3') {
-    res.redirect('/redirects/redirect-me-alot-4')
-    next()
+  if (url.pathname === '/redirects/redirect-me-alot-2') {
+    url.pathname = '/redirects/redirect-me-alot-3'
+    return Response.redirect(url)
   }
 
-  if (req.url.pathname === '/redirects/redirect-me-alot-4') {
-    res.redirect('/redirects/redirect-me-alot-5')
-    next()
+  if (url.pathname === '/redirects/redirect-me-alot-3') {
+    url.pathname = '/redirects/redirect-me-alot-4'
+    return Response.redirect(url)
   }
 
-  if (req.url.pathname === '/redirects/redirect-me-alot-5') {
-    res.redirect('/redirects/redirect-me-alot-6')
-    next()
+  if (url.pathname === '/redirects/redirect-me-alot-4') {
+    url.pathname = '/redirects/redirect-me-alot-5'
+    return Response.redirect(url)
   }
-  if (req.url.pathname === '/redirects/redirect-me-alot-6') {
-    res.redirect('/redirects/redirect-me-alot-7')
-    next()
+
+  if (url.pathname === '/redirects/redirect-me-alot-5') {
+    url.pathname = '/redirects/redirect-me-alot-6'
+    return Response.redirect(url)
   }
-  if (req.url.pathname === '/redirects/redirect-me-alot-7') {
-    res.redirect('/redirects/new-home')
-    next()
+
+  if (url.pathname === '/redirects/redirect-me-alot-6') {
+    url.pathname = '/redirects/redirect-me-alot-7'
+    return Response.redirect(url)
+  }
+
+  if (url.pathname === '/redirects/redirect-me-alot-7') {
+    url.pathname = '/redirects/new-home'
+    return Response.redirect(url)
   }
 
   // Infinite loop
-  if (req.url.pathname === '/redirects/infinite-loop') {
-    res.redirect('/redirects/infinite-loop-1')
-    next()
-  }
-  if (req.url.pathname === '/redirects/infinite-loop-1') {
-    res.redirect('/redirects/infinite-loop')
-    next()
+  if (url.pathname === '/redirects/infinite-loop') {
+    url.pathname = '/redirects/infinite-loop-1'
+    return Response.redirect(url)
   }
 
-  next()
+  if (url.pathname === '/redirects/infinite-loop-1') {
+    url.pathname = '/redirects/infinite-loop'
+    return Response.redirect(url.pathname)
+  }
 }

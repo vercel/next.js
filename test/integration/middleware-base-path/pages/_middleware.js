@@ -1,13 +1,12 @@
-export function middleware(req, res, next) {
-  if (req.url.pathname === '/redirect-with-basepath' && !req.url.basePath) {
-    res.redirect({ ...req.url, basePath: '/root' })
-    return
+export function middleware(event) {
+  const { url } = event.request.next
+  if (url.pathname === '/redirect-with-basepath' && !url.basePath) {
+    url.basePath = '/root'
+    event.respondWith(Response.redirect(url))
   }
 
-  if (req.url.pathname === '/redirect-with-basepath') {
-    res.rewrite('/about')
-    return
+  if (url.pathname === '/redirect-with-basepath') {
+    url.pathname = '/about'
+    event.respondWith(Response.rewrite(url))
   }
-
-  next()
 }
