@@ -93,7 +93,7 @@ export async function getAllPostsForHome(preview) {
  */
 export async function getPostAndMorePosts(slug, preview) {
   const data = await fetchAPI(`
-    query PostBySlug($query: String!) {
+    query PostBySlug($query: String!, $morePostsQuery: String!) {
       post: BlogCollection(query: $query, limit: 1) {
         title
         urlTitle
@@ -111,7 +111,7 @@ export async function getPostAndMorePosts(slug, preview) {
         }
       }
       
-      morePosts: BlogCollection(limit: 2) {
+      morePosts: BlogCollection(query: $morePostsQuery, limit: 2) {
         title
         urlTitle
         body
@@ -130,7 +130,8 @@ export async function getPostAndMorePosts(slug, preview) {
     }
   `, {
     variables: {
-      query: `urlTitle:${slug}`,
+      query: `+Blog.urlTitle:${slug}`,
+      morePostsQuery: `-Blog.urlTitle:${slug}`,
     }
   })
 
