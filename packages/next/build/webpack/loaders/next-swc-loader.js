@@ -131,6 +131,7 @@ async function loaderTransform(parentTrace, source, inputSourceMap) {
 
     // Set the default sourcemap behavior based on Webpack's mapping flag,
     sourceMaps: this.sourceMap,
+    inlineSourcesContent: this.sourceMap,
 
     // Ensure that Webpack will get a full absolute path in the sourcemap
     // so that it can properly map the module back to its internal cached
