@@ -160,22 +160,6 @@ export async function ncc_babel_bundle_packages(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
-externals['bfj'] = 'next/dist/compiled/bfj'
-export async function ncc_bfj(task, opts) {
-  await task
-    .source(opts.src || relative(__dirname, require.resolve('bfj')))
-    .ncc({ packageName: 'bfj' })
-    .target('compiled/bfj')
-}
-// eslint-disable-next-line camelcase
-externals['cacache'] = 'next/dist/compiled/cacache'
-export async function ncc_cacache(task, opts) {
-  await task
-    .source(opts.src || relative(__dirname, require.resolve('cacache')))
-    .ncc({ packageName: 'cacache' })
-    .target('compiled/cacache')
-}
-// eslint-disable-next-line camelcase
 externals['ci-info'] = 'next/dist/compiled/ci-info'
 export async function ncc_ci_info(task, opts) {
   await task
@@ -759,28 +743,6 @@ export async function ncc_mini_css_extract_plugin(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
-export async function ncc_webpack_bundle4(task, opts) {
-  const bundleExternals = {
-    ...externals,
-    'schema-utils': externals['schema-utils2'],
-    'webpack-sources': externals['webpack-sources1'],
-  }
-  for (const pkg of Object.keys(webpackBundlePackages)) {
-    delete bundleExternals[pkg]
-  }
-  await task
-    .source(opts.src || 'bundles/webpack/bundle4.js')
-    .ncc({
-      packageName: 'webpack4',
-      bundleName: 'webpack',
-      externals: bundleExternals,
-      minify: false,
-      target: 'es5',
-    })
-    .target('compiled/webpack')
-}
-
-// eslint-disable-next-line camelcase
 export async function ncc_webpack_bundle5(task, opts) {
   const bundleExternals = {
     ...externals,
@@ -851,8 +813,6 @@ export async function ncc(task, opts) {
         'ncc_async_retry',
         'ncc_async_sema',
         'ncc_babel_bundle',
-        'ncc_bfj',
-        'ncc_cacache',
         'ncc_ci_info',
         'ncc_cli_select',
         'ncc_comment_json',
@@ -907,7 +867,6 @@ export async function ncc(task, opts) {
         'ncc_text_table',
         'ncc_unistore',
         'ncc_web_vitals',
-        'ncc_webpack_bundle4',
         'ncc_webpack_bundle5',
         'ncc_webpack_bundle_packages',
         'ncc_webpack_sources1',
