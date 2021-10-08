@@ -36,9 +36,11 @@ extern crate swc_node_base;
 
 use backtrace::Backtrace;
 use napi::{CallContext, Env, JsObject, JsUndefined};
-use std::{env, panic::set_hook, sync::Arc};
+use serde::Deserialize;
+use std::{env, panic::set_hook, path::PathBuf, sync::Arc};
 use swc::{Compiler, TransformOutput};
-use swc_common::{self, sync::Lazy, FilePathMapping, SourceMap};
+use swc_common::{self, chain, pass::Optional, sync::Lazy, FileName, FilePathMapping, SourceMap};
+use swc_ecmascript::visit::Fold;
 
 pub mod amp_attributes;
 pub mod hook_optimizer;
@@ -48,6 +50,29 @@ pub mod next_ssg;
 pub mod styled_jsx;
 mod transform;
 mod util;
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TransformOptions {
+    #[serde(flatten)]
+    pub swc: swc::config::Options,
+
+    #[serde(default)]
+    pub disable_next_ssg: bool,
+
+    #[serde(default)]
+    pub pages_dir: Option<PathBuf>,
+}
+
+pub fn custom_before_pass(name: &FileName, opts: &TransformOptions) -> impl Fold {
+    chain!(
+        hook_optimizer::hook_optimizer(),
+        Optional::new(next_ssg::next_ssg(), !opts.disable_next_ssg),
+        amp_attributes::amp_attributes(),
+        next_dynamic::next_dynamic(name.clone(), opts.pages_dir.clone()),
+        styled_jsx::styled_jsx()
+    )
+}
 
 static COMPILER: Lazy<Arc<Compiler>> = Lazy::new(|| {
     let cm = Arc::new(SourceMap::new(FilePathMapping::empty()));
