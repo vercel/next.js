@@ -26,7 +26,7 @@ function nextImageLoader(content) {
 
     const imageSizeSpan = imageLoaderSpan.traceChild('image-size-calculation')
     const imageSize = await imageSizeSpan.traceAsyncFn(() =>
-      getImageSize(content)
+      getImageSize(content, extension)
     )
     let blurDataURL
 
