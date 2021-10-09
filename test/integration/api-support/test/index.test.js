@@ -17,7 +17,6 @@ import {
 } from 'next-test-utils'
 import json from '../big.json'
 
-jest.setTimeout(1000 * 60 * 2)
 const appDir = join(__dirname, '../')
 const nextConfig = join(appDir, 'next.config.js')
 let appPort
@@ -26,6 +25,36 @@ let mode
 let app
 
 function runTests(dev = false) {
+  it('should handle 204 status correctly', async () => {
+    const res = await fetchViaHTTP(appPort, '/api/status-204', undefined, {
+      redirect: 'manual',
+    })
+    expect(res.status).toBe(204)
+    expect(res.headers.get('content-type')).toBe(null)
+    expect(res.headers.get('content-length')).toBe(null)
+    expect(res.headers.get('transfer-encoding')).toBe(null)
+
+    const stderrIdx = stderr.length
+    const res2 = await fetchViaHTTP(
+      appPort,
+      '/api/status-204',
+      { invalid: '1' },
+      {
+        redirect: 'manual',
+      }
+    )
+    expect(res2.status).toBe(204)
+    expect(res2.headers.get('content-type')).toBe(null)
+    expect(res2.headers.get('content-length')).toBe(null)
+    expect(res2.headers.get('transfer-encoding')).toBe(null)
+
+    if (dev) {
+      expect(stderr.substr(stderrIdx)).toContain(
+        'A body was attempted to be set with a 204 statusCode'
+      )
+    }
+  })
+
   it('should render page', async () => {
     const html = await renderViaHTTP(appPort, '/')
     expect(html).toMatch(/API - support/)
@@ -79,14 +108,24 @@ function runTests(dev = false) {
     const res = await fetchViaHTTP(appPort, '/api/user-error', null, {})
     const text = await res.text()
     expect(res.status).toBe(500)
-    expect(text).toBe('Internal Server Error')
+
+    if (dev) {
+      expect(text).toContain('User error')
+    } else {
+      expect(text).toBe('Internal Server Error')
+    }
   })
 
   it('should throw Internal Server Error (async)', async () => {
     const res = await fetchViaHTTP(appPort, '/api/user-error-async', null, {})
     const text = await res.text()
     expect(res.status).toBe(500)
-    expect(text).toBe('Internal Server Error')
+
+    if (dev) {
+      expect(text).toContain('User error')
+    } else {
+      expect(text).toBe('Internal Server Error')
+    }
   })
 
   it('should parse JSON body', async () => {
@@ -400,6 +439,11 @@ function runTests(dev = false) {
   it('should work with child_process correctly', async () => {
     const data = await renderViaHTTP(appPort, '/api/child-process')
     expect(data).toBe('hi')
+  })
+
+  it('should work with nullable payload', async () => {
+    const data = await renderViaHTTP(appPort, '/api/nullable-payload')
+    expect(data).toBe('')
   })
 
   it('should warn if response body is larger than 4MB', async () => {

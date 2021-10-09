@@ -10,6 +10,7 @@ import { ClientPagesLoaderOptions } from './webpack/loaders/next-client-pages-lo
 import { ServerlessLoaderQuery } from './webpack/loaders/next-serverless-loader'
 import { LoadedEnvFiles } from '@next/env'
 import { NextConfigComplete } from '../server/config-shared'
+import type webpack5 from 'webpack5'
 
 type PagesMapping = {
   [page: string]: string
@@ -17,7 +18,8 @@ type PagesMapping = {
 
 export function createPagesMapping(
   pagePaths: string[],
-  extensions: string[]
+  extensions: string[],
+  isDev: boolean
 ): PagesMapping {
   const previousPages: PagesMapping = {}
   const pages: PagesMapping = pagePaths.reduce(
@@ -45,26 +47,24 @@ export function createPagesMapping(
     {}
   )
 
-  pages['/_app'] = pages['/_app'] || 'next/dist/pages/_app'
-  pages['/_error'] = pages['/_error'] || 'next/dist/pages/_error'
-  pages['/_document'] = pages['/_document'] || 'next/dist/pages/_document'
-
+  // we alias these in development and allow webpack to
+  // allow falling back to the correct source file so
+  // that HMR can work properly when a file is added/removed
+  if (isDev) {
+    pages['/_app'] = `${PAGES_DIR_ALIAS}/_app`
+    pages['/_error'] = `${PAGES_DIR_ALIAS}/_error`
+    pages['/_document'] = `${PAGES_DIR_ALIAS}/_document`
+  } else {
+    pages['/_app'] = pages['/_app'] || 'next/dist/pages/_app'
+    pages['/_error'] = pages['/_error'] || 'next/dist/pages/_error'
+    pages['/_document'] = pages['/_document'] || 'next/dist/pages/_document'
+  }
   return pages
 }
 
-export type WebpackEntrypoints = {
-  [bundle: string]:
-    | string
-    | string[]
-    | {
-        import: string | string[]
-        dependOn?: string | string[]
-      }
-}
-
 type Entrypoints = {
-  client: WebpackEntrypoints
-  server: WebpackEntrypoints
+  client: webpack5.EntryObject
+  server: webpack5.EntryObject
 }
 
 export function createEntrypoints(
@@ -75,8 +75,8 @@ export function createEntrypoints(
   config: NextConfigComplete,
   loadedEnvFiles: LoadedEnvFiles
 ): Entrypoints {
-  const client: WebpackEntrypoints = {}
-  const server: WebpackEntrypoints = {}
+  const client: webpack5.EntryObject = {}
+  const server: webpack5.EntryObject = {}
 
   const hasRuntimeConfig =
     Object.keys(config.publicRuntimeConfig).length > 0 ||
@@ -91,7 +91,7 @@ export function createEntrypoints(
     buildId,
     assetPrefix: config.assetPrefix,
     generateEtags: config.generateEtags ? 'true' : '',
-    poweredByHeader: config.poweredByHeader,
+    poweredByHeader: config.poweredByHeader ? 'true' : '',
     canonicalBase: config.amp.canonicalBase || '',
     basePath: config.basePath,
     runtimeConfig: hasRuntimeConfig
@@ -168,4 +168,56 @@ export function createEntrypoints(
     client,
     server,
   }
+}
+
+export function finalizeEntrypoint(
+  name: string,
+  value: any,
+  isServer: boolean
+): any {
+  if (isServer) {
+    const isApi = name.startsWith('pages/api/')
+    const runtime = isApi ? 'webpack-api-runtime' : 'webpack-runtime'
+    const layer = isApi ? 'api' : undefined
+    const publicPath = isApi ? '' : undefined
+    if (typeof value === 'object' && !Array.isArray(value)) {
+      return {
+        publicPath,
+        runtime,
+        layer,
+        ...value,
+      }
+    } else {
+      return {
+        import: value,
+        publicPath,
+        runtime,
+        layer,
+      }
+    }
+  } else {
+    if (
+      name !== 'polyfills' &&
+      name !== 'main' &&
+      name !== 'amp' &&
+      name !== 'react-refresh'
+    ) {
+      const dependOn =
+        name.startsWith('pages/') && name !== 'pages/_app'
+          ? 'pages/_app'
+          : 'main'
+      if (typeof value === 'object' && !Array.isArray(value)) {
+        return {
+          dependOn,
+          ...value,
+        }
+      } else {
+        return {
+          import: value,
+          dependOn,
+        }
+      }
+    }
+  }
+  return value
 }

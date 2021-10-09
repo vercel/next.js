@@ -9,7 +9,8 @@ const VALID_BLUR_EXT = ['jpeg', 'png', 'webp']
 function nextImageLoader(content) {
   const imageLoaderSpan = this.currentTraceSpan.traceChild('next-image-loader')
   return imageLoaderSpan.traceAsyncFn(async () => {
-    const { isServer, isDev, assetPrefix } = loaderUtils.getOptions(this)
+    const { isServer, isDev, assetPrefix, basePath } =
+      loaderUtils.getOptions(this)
     const context = this.rootContext
     const opts = { context, content }
     const interpolatedName = loaderUtils.interpolateName(
@@ -17,7 +18,7 @@ function nextImageLoader(content) {
       '/static/image/[path][name].[hash].[ext]',
       opts
     )
-    const outputPath = '/_next' + interpolatedName
+    const outputPath = assetPrefix + '/_next' + interpolatedName
 
     let extension = loaderUtils.interpolateName(this, '[ext]', opts)
     if (extension === 'jpg') {
@@ -31,8 +32,8 @@ function nextImageLoader(content) {
     if (VALID_BLUR_EXT.includes(extension)) {
       if (isDev) {
         const prefix = 'http://localhost'
-        const url = new URL('/_next/image', prefix)
-        url.searchParams.set('url', assetPrefix + outputPath)
+        const url = new URL(`${basePath || ''}/_next/image`, prefix)
+        url.searchParams.set('url', outputPath)
         url.searchParams.set('w', BLUR_IMG_SIZE)
         url.searchParams.set('q', BLUR_QUALITY)
         blurDataURL = url.href.slice(prefix.length)

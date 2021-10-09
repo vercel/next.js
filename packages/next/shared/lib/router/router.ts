@@ -13,6 +13,7 @@ import {
   markAssetError,
 } from '../../../client/route-loader'
 import { RouterEvent } from '../../../client/router'
+import isError from '../../../lib/is-error'
 import type { DomainLocale } from '../../../server/config'
 import { denormalizePagePath } from '../../../server/denormalize-page-path'
 import { normalizeLocalePath } from '../i18n/normalize-locale-path'
@@ -23,6 +24,7 @@ import {
   getLocationOrigin,
   getURL,
   loadGetInitialProps,
+  normalizeRepeatedSlashes,
   NextPageContext,
   ST,
   NEXT_DATA,
@@ -65,8 +67,8 @@ type HistoryState =
 let detectDomainLocale: typeof import('../i18n/detect-domain-locale').detectDomainLocale
 
 if (process.env.__NEXT_I18N_SUPPORT) {
-  detectDomainLocale = require('../i18n/detect-domain-locale')
-    .detectDomainLocale
+  detectDomainLocale =
+    require('../i18n/detect-domain-locale').detectDomainLocale
 }
 
 const basePath = (process.env.__NEXT_ROUTER_BASEPATH as string) || ''
@@ -78,11 +80,15 @@ function buildCancellationError() {
 }
 
 function addPathPrefix(path: string, prefix?: string) {
-  return prefix && path.startsWith('/')
-    ? path === '/'
-      ? normalizePathTrailingSlash(prefix)
-      : `${prefix}${pathNoQueryHash(path) === '/' ? path.substring(1) : path}`
-    : path
+  if (!path.startsWith('/') || !prefix) {
+    return path
+  }
+  const pathname = pathNoQueryHash(path)
+
+  return (
+    normalizePathTrailingSlash(`${prefix}${pathname}`) +
+    path.substr(pathname.length)
+  )
 }
 
 export function getDomainLocale(
@@ -102,9 +108,9 @@ export function getDomainLocale(
       }${locale === detectedDomain.defaultLocale ? '' : `/${locale}`}${path}`
     }
     return false
+  } else {
+    return false
   }
-
-  return false
 }
 
 export function addLocale(
@@ -274,8 +280,29 @@ export function resolveHref(
 ): string {
   // we use a dummy base url for relative urls
   let base: URL
-  const urlAsString =
-    typeof href === 'string' ? href : formatWithValidation(href)
+  let urlAsString = typeof href === 'string' ? href : formatWithValidation(href)
+
+  // repeated slashes and backslashes in the URL are considered
+  // invalid and will never match a Next.js page/file
+  const urlProtoMatch = urlAsString.match(/^[a-zA-Z]{1,}:\/\//)
+  const urlAsStringNoProto = urlProtoMatch
+    ? urlAsString.substr(urlProtoMatch[0].length)
+    : urlAsString
+
+  const urlParts = urlAsStringNoProto.split('?')
+
+  if ((urlParts[0] || '').match(/(\/\/|\\)/)) {
+    console.error(
+      `Invalid href passed to next/router: ${urlAsString}, repeated forward-slashes (//) or backslashes \\ are not valid in the href`
+    )
+    const normalizedUrl = normalizeRepeatedSlashes(urlAsStringNoProto)
+    urlAsString = (urlProtoMatch ? urlProtoMatch[0] : '') + normalizedUrl
+  }
+
+  // Return because it cannot be routed by the Next.js router
+  if (!isLocalURL(urlAsString)) {
+    return (resolveAs ? [urlAsString] : urlAsString) as string
+  }
 
   try {
     base = new URL(
@@ -285,10 +312,6 @@ export function resolveHref(
   } catch (_) {
     // fallback to / for invalid asPath values e.g. //
     base = new URL('/', 'http://n')
-  }
-  // Return because it cannot be routed by the Next.js router
-  if (!isLocalURL(urlAsString)) {
-    return (resolveAs ? [urlAsString] : urlAsString) as string
   }
   try {
     const finalUrl = new URL(urlAsString, base)
@@ -323,9 +346,9 @@ export function resolveHref(
         ? finalUrl.href.slice(finalUrl.origin.length)
         : finalUrl.href
 
-    return (resolveAs
-      ? [resolvedHref, interpolatedAs || resolvedHref]
-      : resolvedHref) as string
+    return (
+      resolveAs ? [resolvedHref, interpolatedAs || resolvedHref] : resolvedHref
+    ) as string
   } catch (_) {
     return (resolveAs ? [urlAsString] : urlAsString) as string
   }
@@ -810,7 +833,9 @@ export default class Router implements BaseRouter {
       return false
     }
     const shouldResolveHref =
-      url === as || (options as any)._h || (options as any)._shouldResolveHref
+      (options as any)._h ||
+      (options as any)._shouldResolveHref ||
+      pathNoQueryHash(url) === pathNoQueryHash(as)
 
     // for static pages with query params in the URL we delay
     // marking the router ready until after the query is updated
@@ -1107,13 +1132,16 @@ export default class Router implements BaseRouter {
 
       // handle redirect on client-transition
       if ((__N_SSG || __N_SSP) && props) {
-        if ((props as any).pageProps && (props as any).pageProps.__N_REDIRECT) {
-          const destination = (props as any).pageProps.__N_REDIRECT
+        if (props.pageProps && props.pageProps.__N_REDIRECT) {
+          const destination = props.pageProps.__N_REDIRECT
 
           // check if destination is internal (resolves to a page) and attempt
           // client-navigation if it is falling back to hard navigation if
           // it's not
-          if (destination.startsWith('/')) {
+          if (
+            destination.startsWith('/') &&
+            props.pageProps.__N_REDIRECT_BASE_PATH !== false
+          ) {
             const parsedHref = parseRelativeUrl(destination)
             parsedHref.pathname = resolveDynamicRoute(
               parsedHref.pathname,
@@ -1208,7 +1236,7 @@ export default class Router implements BaseRouter {
 
       return true
     } catch (err) {
-      if (err.cancelled) {
+      if (isError(err) && err.cancelled) {
         return false
       }
       throw err
@@ -1241,7 +1269,7 @@ export default class Router implements BaseRouter {
           as,
           options,
           __N: true,
-          idx: this._idx = method !== 'pushState' ? this._idx : this._idx + 1,
+          idx: (this._idx = method !== 'pushState' ? this._idx : this._idx + 1),
         } as HistoryState,
         // Most browsers currently ignores this parameter, although they may use it in the future.
         // Passing the empty string here should be safe against future changes to the method.
@@ -1253,7 +1281,7 @@ export default class Router implements BaseRouter {
   }
 
   async handleRouteInfoError(
-    err: Error & { code: any; cancelled: boolean },
+    err: Error & { code?: any; cancelled?: boolean },
     pathname: string,
     query: ParsedUrlQuery,
     as: string,
@@ -1319,7 +1347,7 @@ export default class Router implements BaseRouter {
       return routeInfo
     } catch (routeInfoErr) {
       return this.handleRouteInfoError(
-        routeInfoErr,
+        isError(routeInfoErr) ? routeInfoErr : new Error(routeInfoErr + ''),
         pathname,
         query,
         as,
@@ -1338,9 +1366,8 @@ export default class Router implements BaseRouter {
     routeProps: RouteProperties
   ): Promise<PrivateRouteInfo> {
     try {
-      const existingRouteInfo: PrivateRouteInfo | undefined = this.components[
-        route
-      ]
+      const existingRouteInfo: PrivateRouteInfo | undefined =
+        this.components[route]
       if (routeProps.shallow && existingRouteInfo && this.route === route) {
         return existingRouteInfo
       }
@@ -1403,7 +1430,13 @@ export default class Router implements BaseRouter {
       this.components[route] = routeInfo
       return routeInfo
     } catch (err) {
-      return this.handleRouteInfoError(err, pathname, query, as, routeProps)
+      return this.handleRouteInfoError(
+        isError(err) ? err : new Error(err + ''),
+        pathname,
+        query,
+        as,
+        routeProps
+      )
     }
   }
 
@@ -1633,7 +1666,7 @@ export default class Router implements BaseRouter {
 
   _getServerData(dataHref: string): Promise<object> {
     const { href: resourceKey } = new URL(dataHref, window.location.href)
-    if (this.sdr[resourceKey]) {
+    if (this.sdr[resourceKey] !== undefined) {
       return this.sdr[resourceKey]
     }
     return (this.sdr[resourceKey] = fetchNextData(dataHref, this.isSsr)

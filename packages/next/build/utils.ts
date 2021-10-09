@@ -23,7 +23,7 @@ import { getRouteMatcher, getRouteRegex } from '../shared/lib/router/utils'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import escapePathDelimiters from '../shared/lib/router/utils/escape-path-delimiters'
 import { findPageFile } from '../server/lib/find-page-file'
-import { GetStaticPaths } from 'next/types'
+import { GetStaticPaths, PageConfig } from 'next/types'
 import { denormalizePagePath } from '../server/normalize-page-path'
 import { BuildManifest } from '../server/get-page-files'
 import { removePathTrailingSlash } from '../client/normalize-trailing-slash'
@@ -31,9 +31,10 @@ import { UnwrapPromise } from '../lib/coalesced-function'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import * as Log from './output/log'
 import { loadComponents } from '../server/load-components'
-import { trace } from '../telemetry/trace'
+import { trace } from '../trace'
 import { setHttpAgentOptions } from '../server/config'
 import { NextConfigComplete } from '../server/config-shared'
+import isError from '../lib/is-error'
 
 const fileGzipStats: { [k: string]: Promise<number> | undefined } = {}
 const fsStatGzip = (file: string) => {
@@ -831,28 +832,33 @@ export async function isPageStatic(
   encodedPrerenderRoutes?: string[]
   prerenderFallback?: boolean | 'blocking'
   isNextImageImported?: boolean
+  traceIncludes?: string[]
+  traceExcludes?: string[]
 }> {
   const isPageStaticSpan = trace('is-page-static-utils', parentId)
   return isPageStaticSpan.traceAsyncFn(async () => {
     try {
       require('../shared/lib/runtime-config').setConfig(runtimeEnvConfig)
       setHttpAgentOptions(httpAgentOptions)
-      const components = await loadComponents(distDir, page, serverless)
-      const mod = components.ComponentMod
-      const Comp = mod.default || mod
+      const mod = await loadComponents(distDir, page, serverless)
+      const Comp = mod.Component
 
       if (!Comp || !isValidElementType(Comp) || typeof Comp === 'string') {
         throw new Error('INVALID_DEFAULT_EXPORT')
       }
 
       const hasGetInitialProps = !!(Comp as any).getInitialProps
-      const hasStaticProps = !!(await mod.getStaticProps)
-      const hasStaticPaths = !!(await mod.getStaticPaths)
-      const hasServerProps = !!(await mod.getServerSideProps)
-      const hasLegacyServerProps = !!(await mod.unstable_getServerProps)
-      const hasLegacyStaticProps = !!(await mod.unstable_getStaticProps)
-      const hasLegacyStaticPaths = !!(await mod.unstable_getStaticPaths)
-      const hasLegacyStaticParams = !!(await mod.unstable_getStaticParams)
+      const hasStaticProps = !!mod.getStaticProps
+      const hasStaticPaths = !!mod.getStaticPaths
+      const hasServerProps = !!mod.getServerSideProps
+      const hasLegacyServerProps = !!(await mod.ComponentMod
+        .unstable_getServerProps)
+      const hasLegacyStaticProps = !!(await mod.ComponentMod
+        .unstable_getStaticProps)
+      const hasLegacyStaticPaths = !!(await mod.ComponentMod
+        .unstable_getStaticPaths)
+      const hasLegacyStaticParams = !!(await mod.ComponentMod
+        .unstable_getStaticParams)
 
       if (hasLegacyStaticParams) {
         throw new Error(
@@ -918,14 +924,14 @@ export async function isPageStatic(
           encodedPaths: encodedPrerenderRoutes,
         } = await buildStaticPaths(
           page,
-          mod.getStaticPaths,
+          mod.getStaticPaths!,
           locales,
           defaultLocale
         ))
       }
 
       const isNextImageImported = (global as any).__NEXT_IMAGE_IMPORTED
-      const config = mod.config || {}
+      const config: PageConfig = mod.pageConfig
       return {
         isStatic: !hasStaticProps && !hasGetInitialProps && !hasServerProps,
         isHybridAmp: config.amp === 'hybrid',
@@ -936,9 +942,11 @@ export async function isPageStatic(
         hasStaticProps,
         hasServerProps,
         isNextImageImported,
+        traceIncludes: config.unstable_includeFiles || [],
+        traceExcludes: config.unstable_excludeFiles || [],
       }
     } catch (err) {
-      if (err.code === 'MODULE_NOT_FOUND') return {}
+      if (isError(err) && err.code === 'MODULE_NOT_FOUND') return {}
       throw err
     }
   })
@@ -1046,7 +1054,7 @@ export function detectConflictingPaths(
     })
 
     Log.error(
-      'Conflicting paths returned from getStaticPaths, paths must unique per page.\n' +
+      'Conflicting paths returned from getStaticPaths, paths must be unique per page.\n' +
         'See more info here: https://nextjs.org/docs/messages/conflicting-ssg-paths\n\n' +
         conflictingPathsOutput
     )

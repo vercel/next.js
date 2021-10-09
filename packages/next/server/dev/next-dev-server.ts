@@ -1,5 +1,6 @@
 import crypto from 'crypto'
 import fs from 'fs'
+import chalk from 'chalk'
 import { IncomingMessage, ServerResponse } from 'http'
 import { Worker } from 'jest-worker'
 import AmpHtmlValidator from 'next/dist/compiled/amphtml-validator'
@@ -35,7 +36,7 @@ import { normalizePagePath } from '../normalize-page-path'
 import Router, { Params, route } from '../router'
 import { eventCliSession } from '../../telemetry/events'
 import { Telemetry } from '../../telemetry/storage'
-import { setGlobal } from '../../telemetry/trace'
+import { setGlobal } from '../../trace'
 import HotReloader from './hot-reloader'
 import { findPageFile } from '../lib/find-page-file'
 import { getNodeOptionsWithoutInspect } from '../lib/utils'
@@ -47,13 +48,20 @@ import {
   loadDefaultErrorComponents,
 } from '../load-components'
 import { DecodeError } from '../../shared/lib/utils'
+import { parseStack } from '@next/react-dev-overlay/lib/internal/helpers/parseStack'
+import {
+  createOriginalStackFrame,
+  getSourceById,
+} from '@next/react-dev-overlay/lib/middleware'
+import * as Log from '../../build/output/log'
+import isError from '../../lib/is-error'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: React.FunctionComponent
 const ReactDevOverlay = (props: any) => {
   if (ReactDevOverlayImpl === undefined) {
-    ReactDevOverlayImpl = require('@next/react-dev-overlay/lib/client')
-      .ReactDevOverlay
+    ReactDevOverlayImpl =
+      require('@next/react-dev-overlay/lib/client').ReactDevOverlay
   }
   return ReactDevOverlayImpl(props)
 }
@@ -278,11 +286,13 @@ export default class DevServer extends Server {
   }
 
   async prepare(): Promise<void> {
+    setGlobal('distDir', this.distDir)
+    setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
     await verifyTypeScriptSetup(
       this.dir,
       this.pagesDir!,
       false,
-      !this.nextConfig.images.disableStaticImages
+      this.nextConfig
     )
 
     this.customRoutes = await loadCustomRoutes(this.nextConfig)
@@ -316,7 +326,7 @@ export default class DevServer extends Server {
     const telemetry = new Telemetry({ distDir: this.distDir })
     telemetry.record(
       eventCliSession(PHASE_DEVELOPMENT_SERVER, this.distDir, {
-        webpackVersion: this.hotReloader.isWebpack5 ? 5 : 4,
+        webpackVersion: 5,
         cliCommand: 'dev',
         isSrcDir: relative(this.dir, this.pagesDir!).startsWith('src'),
         hasNowJson: !!(await findUp('now.json', { cwd: this.dir })),
@@ -325,6 +335,15 @@ export default class DevServer extends Server {
     )
     // This is required by the tracing subsystem.
     setGlobal('telemetry', telemetry)
+
+    process.on('unhandledRejection', (reason) => {
+      this.logErrorWithOriginalStack(reason, 'unhandledRejection').catch(
+        () => {}
+      )
+    })
+    process.on('uncaughtException', (err) => {
+      this.logErrorWithOriginalStack(err, 'uncaughtException').catch(() => {})
+    })
   }
 
   protected async close(): Promise<void> {
@@ -431,8 +450,84 @@ export default class DevServer extends Server {
       // if they should match against the basePath or not
       parsedUrl.pathname = originalPathname
     }
+    try {
+      return await super.run(req, res, parsedUrl)
+    } catch (error) {
+      res.statusCode = 500
+      const err = isError(error) ? error : error ? new Error(error + '') : null
+      try {
+        this.logErrorWithOriginalStack(err).catch(() => {})
+        return await this.renderError(err, req, res, pathname!, {
+          __NEXT_PAGE: (isError(err) && err.page) || pathname || '',
+        })
+      } catch (internalErr) {
+        console.error(internalErr)
+        res.end('Internal Server Error')
+      }
+    }
+  }
 
-    return super.run(req, res, parsedUrl)
+  private async logErrorWithOriginalStack(
+    err?: unknown,
+    type?: 'unhandledRejection' | 'uncaughtException'
+  ) {
+    let usedOriginalStack = false
+
+    if (isError(err) && err.name && err.stack && err.message) {
+      try {
+        const frames = parseStack(err.stack!)
+        const frame = frames[0]
+
+        if (frame.lineNumber && frame?.file) {
+          const compilation = this.hotReloader?.serverStats?.compilation
+          const moduleId = frame.file!.replace(
+            /^(webpack-internal:\/\/\/|file:\/\/)/,
+            ''
+          )
+
+          const source = await getSourceById(
+            !!frame.file?.startsWith(sep) || !!frame.file?.startsWith('file:'),
+            moduleId,
+            compilation
+          )
+
+          const originalFrame = await createOriginalStackFrame({
+            line: frame.lineNumber!,
+            column: frame.column,
+            source,
+            frame,
+            modulePath: moduleId,
+            rootDirectory: this.dir,
+          })
+
+          if (originalFrame) {
+            const { originalCodeFrame, originalStackFrame } = originalFrame
+            const { file, lineNumber, column, methodName } = originalStackFrame
+
+            console.error(
+              chalk.red('error') +
+                ' - ' +
+                `${file} (${lineNumber}:${column}) @ ${methodName}`
+            )
+            console.error(`${chalk.red(err.name)}: ${err.message}`)
+            console.error(originalCodeFrame)
+            usedOriginalStack = true
+          }
+        }
+      } catch (_) {
+        // failed to load original stack using source maps
+        // this un-actionable by users so we don't show the
+        // internal error and only show the provided stack
+      }
+    }
+
+    if (!usedOriginalStack) {
+      if (type) {
+        Log.error(`${type}:`, err + '')
+      } else {
+        Log.error(err + '')
+      }
+    }
   }
 
   // override production loading of routes-manifest
@@ -556,9 +651,7 @@ export default class DevServer extends Server {
     return !snippet.includes('data-amp-development-mode-only')
   }
 
-  protected async getStaticPaths(
-    pathname: string
-  ): Promise<{
+  protected async getStaticPaths(pathname: string): Promise<{
     staticPaths: string[] | undefined
     fallbackMode: false | 'static' | 'blocking'
   }> {
@@ -566,11 +659,8 @@ export default class DevServer extends Server {
     // from waiting on them for the page to load in dev mode
 
     const __getStaticPaths = async () => {
-      const {
-        publicRuntimeConfig,
-        serverRuntimeConfig,
-        httpAgentOptions,
-      } = this.nextConfig
+      const { publicRuntimeConfig, serverRuntimeConfig, httpAgentOptions } =
+        this.nextConfig
       const { locales, defaultLocale } = this.nextConfig.i18n || {}
 
       const paths = await this.staticPathsWorker.loadStaticPaths(

@@ -1,12 +1,15 @@
 import os from 'os'
 import { Header, Redirect, Rewrite } from '../lib/load-custom-routes'
-import { ImageConfig, imageConfigDefault } from './image-config'
+import {
+  ImageConfig,
+  ImageConfigComplete,
+  imageConfigDefault,
+} from './image-config'
 
-type NoOptionals<T> = {
-  [P in keyof T]-?: T[P]
+export type NextConfigComplete = Required<NextConfig> & {
+  images: ImageConfigComplete
+  typescript: Required<TypeScriptConfig>
 }
-
-export type NextConfigComplete = NoOptionals<NextConfig>
 
 export interface I18NConfig {
   defaultLocale: string
@@ -29,10 +32,18 @@ export interface ESLintConfig {
   ignoreDuringBuilds?: boolean
 }
 
+export interface TypeScriptConfig {
+  /** Do not run TypeScript during production builds (`next build`). */
+  ignoreBuildErrors?: boolean
+  /** Relative path to a custom tsconfig file */
+  tsconfigPath?: string
+}
+
 export type NextConfig = { [key: string]: any } & {
   i18n?: I18NConfig | null
 
   eslint?: ESLintConfig
+  typescript?: TypeScriptConfig
 
   headers?: () => Promise<Header[]>
   rewrites?: () => Promise<
@@ -48,16 +59,33 @@ export type NextConfig = { [key: string]: any } & {
   webpack5?: false
   excludeDefaultMomentLocales?: boolean
 
+  webpack?:
+    | ((
+        config: any,
+        context: {
+          dir: string
+          dev: boolean
+          isServer: boolean
+          buildId: string
+          config: NextConfigComplete
+          defaultLoaders: { babel: any }
+          totalPages: number
+          webpack: any
+        }
+      ) => any)
+    | null
+
   trailingSlash?: boolean
   env?: { [key: string]: string }
   distDir?: string
   cleanDistDir?: boolean
   assetPrefix?: string
   useFileSystemPublicRoutes?: boolean
-  generateBuildId?: () => string | null
+  generateBuildId?: () => string | null | Promise<string | null>
   generateEtags?: boolean
   pageExtensions?: string[]
   compress?: boolean
+  poweredByHeader?: boolean
   images?: ImageConfig
   devIndicators?: {
     buildActivity?: boolean
@@ -84,8 +112,12 @@ export type NextConfig = { [key: string]: any } & {
     webpack5?: false
     strictPostcssConfiguration?: boolean
   }
+  crossOrigin?: false | 'anonymous' | 'use-credentials'
   experimental?: {
+    swcMinify?: boolean
+    swcLoader?: boolean
     cpus?: number
+    sharedPool?: boolean
     plugins?: boolean
     profiling?: boolean
     isrFlushToDisk?: boolean
@@ -95,7 +127,6 @@ export type NextConfig = { [key: string]: any } & {
     optimizeImages?: boolean
     optimizeCss?: boolean
     scrollRestoration?: boolean
-    stats?: boolean
     externalDir?: boolean
     conformance?: boolean
     amp?: {
@@ -109,8 +140,10 @@ export type NextConfig = { [key: string]: any } & {
     craCompat?: boolean
     esmExternals?: boolean | 'loose'
     staticPageGenerationTimeout?: number
-    pageDataCollectionTimeout?: number
     isrMemoryCacheSize?: number
+    outputFileTracing?: boolean
+    concurrentFeatures?: boolean
+    serverComponents?: boolean
   }
 }
 
@@ -118,6 +151,13 @@ export const defaultConfig: NextConfig = {
   env: {},
   webpack: null,
   webpackDevMiddleware: null,
+  eslint: {
+    ignoreDuringBuilds: false,
+  },
+  typescript: {
+    ignoreBuildErrors: false,
+    tsconfigPath: 'tsconfig.json',
+  },
   distDir: '.next',
   cleanDistDir: true,
   assetPrefix: '',
@@ -147,8 +187,7 @@ export const defaultConfig: NextConfig = {
   i18n: null,
   productionBrowserSourceMaps: false,
   optimizeFonts: true,
-  webpack5:
-    Number(process.env.NEXT_PRIVATE_TEST_WEBPACK4_MODE) > 0 ? false : undefined,
+  webpack5: undefined,
   excludeDefaultMomentLocales: true,
   serverRuntimeConfig: {},
   publicRuntimeConfig: {},
@@ -157,11 +196,14 @@ export const defaultConfig: NextConfig = {
     keepAlive: true,
   },
   experimental: {
+    swcLoader: false,
+    swcMinify: false,
     cpus: Math.max(
       1,
       (Number(process.env.CIRCLE_NODE_TOTAL) ||
         (os.cpus() || { length: 1 }).length) - 1
     ),
+    sharedPool: false,
     plugins: false,
     profiling: false,
     isrFlushToDisk: true,
@@ -170,7 +212,6 @@ export const defaultConfig: NextConfig = {
     optimizeImages: false,
     optimizeCss: false,
     scrollRestoration: false,
-    stats: false,
     externalDir: false,
     reactRoot: Number(process.env.NEXT_PRIVATE_REACT_ROOT) > 0,
     disableOptimizedLoading: false,
@@ -178,9 +219,11 @@ export const defaultConfig: NextConfig = {
     craCompat: false,
     esmExternals: false,
     staticPageGenerationTimeout: 60,
-    pageDataCollectionTimeout: 60,
     // default to 50MB limit
     isrMemoryCacheSize: 50 * 1024 * 1024,
+    outputFileTracing: false,
+    concurrentFeatures: false,
+    serverComponents: false,
   },
   future: {
     strictPostcssConfiguration: false,

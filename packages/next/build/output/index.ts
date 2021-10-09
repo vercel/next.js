@@ -13,6 +13,7 @@ let previousClient: import('webpack').Compiler | null = null
 let previousServer: import('webpack').Compiler | null = null
 
 type CompilerDiagnostics = {
+  modules: number
   errors: string[] | null
   warnings: string[] | null
 }
@@ -36,29 +37,8 @@ export type AmpPageStatus = {
 type BuildStatusStore = {
   client: WebpackStatus
   server: WebpackStatus
+  trigger: string | undefined
   amp: AmpPageStatus
-}
-
-// eslint typescript has a bug with TS enums
-/* eslint-disable no-shadow */
-enum WebpackStatusPhase {
-  COMPILING = 1,
-  COMPILED_WITH_ERRORS = 2,
-  COMPILED_WITH_WARNINGS = 4,
-  COMPILED = 5,
-}
-
-function getWebpackStatusPhase(status: WebpackStatus): WebpackStatusPhase {
-  if (status.loading) {
-    return WebpackStatusPhase.COMPILING
-  }
-  if (status.errors) {
-    return WebpackStatusPhase.COMPILED_WITH_ERRORS
-  }
-  if (status.warnings) {
-    return WebpackStatusPhase.COMPILED_WITH_WARNINGS
-  }
-  return WebpackStatusPhase.COMPILED
 }
 
 export function formatAmpMessages(amp: AmpPageStatus) {
@@ -118,45 +98,66 @@ export function formatAmpMessages(amp: AmpPageStatus) {
 const buildStore = createStore<BuildStatusStore>()
 
 buildStore.subscribe((state) => {
-  const { amp, client, server } = state
-
-  const [{ status }] = [
-    { status: client, phase: getWebpackStatusPhase(client) },
-    { status: server, phase: getWebpackStatusPhase(server) },
-  ].sort((a, b) => a.phase.valueOf() - b.phase.valueOf())
+  const { amp, client, server, trigger } = state
 
   const { bootstrap: bootstrapping, appUrl } = consoleStore.getState()
-  if (bootstrapping && status.loading) {
+  if (bootstrapping && (client.loading || server.loading)) {
+    return
+  }
+
+  if (client.loading || server.loading) {
+    consoleStore.setState(
+      {
+        bootstrap: false,
+        appUrl: appUrl!,
+        loading: true,
+        trigger,
+      } as OutputState,
+      true
+    )
     return
   }
 
   let partialState: Partial<OutputState> = {
     bootstrap: false,
     appUrl: appUrl!,
+    loading: false,
+    typeChecking: false,
+    modules: client.modules + server.modules,
   }
-
-  if (status.loading) {
+  if (client.errors) {
+    // Show only client errors
     consoleStore.setState(
-      { ...partialState, loading: true } as OutputState,
+      {
+        ...partialState,
+        errors: client.errors,
+        warnings: null,
+      } as OutputState,
+      true
+    )
+  } else if (server.errors) {
+    // Show only server errors
+    consoleStore.setState(
+      {
+        ...partialState,
+        errors: server.errors,
+        warnings: null,
+      } as OutputState,
       true
     )
   } else {
-    let { errors, warnings } = status
-
-    if (errors == null) {
-      if (Object.keys(amp).length > 0) {
-        warnings = (warnings || []).concat(formatAmpMessages(amp) || [])
-        if (!warnings.length) warnings = null
-      }
-    }
+    // Show warnings from all of them
+    const warnings = [
+      ...(client.warnings || []),
+      ...(server.warnings || []),
+      ...((Object.keys(amp).length > 0 && formatAmpMessages(amp)) || []),
+    ]
 
     consoleStore.setState(
       {
         ...partialState,
-        loading: false,
-        typeChecking: false,
-        errors,
-        warnings,
+        errors: null,
+        warnings: warnings.length === 0 ? null : warnings,
       } as OutputState,
       true
     )
@@ -200,6 +201,7 @@ export function watchCompilers(
   buildStore.setState({
     client: { loading: true },
     server: { loading: true },
+    trigger: 'initial',
   })
 
   function tapCompiler(
@@ -213,7 +215,7 @@ export function watchCompilers(
 
     compiler.hooks.done.tap(
       `NextJsDone-${key}`,
-      (stats: import('webpack').Stats) => {
+      (stats: import('webpack5').Stats) => {
         buildStore.setState({ amp: {} })
 
         const { errors, warnings } = formatWebpackMessages(
@@ -225,6 +227,7 @@ export function watchCompilers(
 
         onEvent({
           loading: false,
+          modules: stats.compilation.modules.size,
           errors: hasErrors ? errors : null,
           warnings: hasWarnings ? warnings : null,
         })
@@ -232,13 +235,37 @@ export function watchCompilers(
     )
   }
 
-  tapCompiler('client', client, (status) =>
-    buildStore.setState({ client: status })
-  )
-  tapCompiler('server', server, (status) =>
-    buildStore.setState({ server: status })
-  )
+  tapCompiler('client', client, (status) => {
+    if (!status.loading && !buildStore.getState().server.loading) {
+      buildStore.setState({
+        client: status,
+        trigger: undefined,
+      })
+    } else {
+      buildStore.setState({
+        client: status,
+      })
+    }
+  })
+  tapCompiler('server', server, (status) => {
+    if (!status.loading && !buildStore.getState().client.loading) {
+      buildStore.setState({
+        server: status,
+        trigger: undefined,
+      })
+    } else {
+      buildStore.setState({
+        server: status,
+      })
+    }
+  })
 
   previousClient = client
   previousServer = server
+}
+
+export function reportTrigger(trigger: string) {
+  buildStore.setState({
+    trigger,
+  })
 }

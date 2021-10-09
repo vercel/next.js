@@ -12,7 +12,7 @@ const path = require('path')
 const bindings = loadBinding(
   path.join(__dirname, '../../../native'),
   'next-swc',
-  'next-swc'
+  '@next/swc'
 )
 
 async function transform(src, options) {
@@ -67,5 +67,15 @@ function toBuffer(t) {
   return Buffer.from(JSON.stringify(t))
 }
 
+export async function minify(src, opts) {
+  return bindings.minify(toBuffer(src), toBuffer(opts ?? {}))
+}
+
+export function minifySync(src, opts) {
+  return bindings.minifySync(toBuffer(src), toBuffer(opts ?? {}))
+}
+
 module.exports.transform = transform
 module.exports.transformSync = transformSync
+module.exports.minify = minify
+module.exports.minifySync = minifySync
