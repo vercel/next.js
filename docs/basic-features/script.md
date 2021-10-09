@@ -135,7 +135,7 @@ export default function Home() {
 import Script from 'next/script'
 
 <Script id="show-banner" strategy="lazyOnload">
-  {`document.getElementById('banner').removeClass('hidden')`}
+  {`document.getElementById('banner').classList.remove('hidden')`}
 </Script>
 
 // or
@@ -143,7 +143,7 @@ import Script from 'next/script'
 <Script
   id="show-banner"
   dangerouslySetInnerHTML={{
-    __html: `document.getElementById('banner').removeClass('hidden')`
+    __html: `document.getElementById('banner').classList.remove('hidden')`
   }}
 />
 ```
