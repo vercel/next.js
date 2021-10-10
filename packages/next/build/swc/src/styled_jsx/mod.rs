@@ -3,12 +3,12 @@ use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::mem::take;
 use swc_common::{collections::AHashSet, Span, DUMMY_SP};
-use swc_common::{Mark, SyntaxContext};
 use swc_ecmascript::ast::*;
 use swc_ecmascript::minifier::{
     eval::{EvalResult, Evaluator},
     marks::Marks,
 };
+use swc_ecmascript::utils::private_ident;
 use swc_ecmascript::utils::{
     collect_decls,
     ident::{Id, IdentLike},
@@ -40,8 +40,8 @@ struct StyledJSXTransformer {
     external_bindings: Vec<Id>,
     file_has_css_resolve: bool,
     external_hash: Option<String>,
-    add_hash: Option<((String, SyntaxContext), String)>,
-    add_default_decl: Option<(String, Expr)>,
+    add_hash: Option<(Id, String)>,
+    add_default_decl: Option<(Id, Expr)>,
     in_function_params: bool,
     evaluator: Option<Evaluator>,
 }
@@ -109,6 +109,8 @@ impl Fold for StyledJSXTransformer {
         if !self.has_styled_jsx {
             return el;
         }
+
+        el.attrs = el.attrs.fold_with(self);
 
         if let JSXElementName::Ident(Ident { sym, span, .. }) = &el.name {
             if sym != "style"
@@ -222,7 +224,7 @@ impl Fold for StyledJSXTransformer {
                     id: Ident { span, sym, .. },
                     ..
                 }) => {
-                    self.add_hash = Some(((sym.to_string(), span.ctxt), external_hash.clone()));
+                    self.add_hash = Some(((sym.clone(), span.ctxt), external_hash.clone()));
                 }
                 _ => {}
             }
@@ -233,23 +235,11 @@ impl Fold for StyledJSXTransformer {
     fn fold_export_default_expr(&mut self, default_expr: ExportDefaultExpr) -> ExportDefaultExpr {
         let default_expr = default_expr.fold_children_with(self);
         if let Some(external_hash) = &self.external_hash.take() {
-            let default_ident = "_defaultExport";
-            // (JsWord, SyntaxContext) is core of the Identifier
-            let private_mark = Mark::fresh(Mark::root());
-            self.add_hash = Some((
-                (
-                    String::from(default_ident),
-                    SyntaxContext::empty().apply_mark(private_mark),
-                ),
-                external_hash.clone(),
-            ));
-            self.add_default_decl = Some((String::from(default_ident), *default_expr.expr));
+            let default_ident = private_ident!("_defaultExport");
+            self.add_hash = Some((default_ident.to_id(), external_hash.clone()));
+            self.add_default_decl = Some((default_ident.to_id(), *default_expr.expr));
             return ExportDefaultExpr {
-                expr: Box::new(Expr::Ident(Ident {
-                    sym: default_ident.into(),
-                    span: DUMMY_SP.with_ctxt(SyntaxContext::empty().apply_mark(private_mark)),
-                    optional: false,
-                })),
+                expr: Box::new(Expr::Ident(default_ident)),
                 span: DUMMY_SP,
             };
         }
@@ -280,8 +270,8 @@ impl Fold for StyledJSXTransformer {
                     decls: vec![VarDeclarator {
                         name: Pat::Ident(BindingIdent {
                             id: Ident {
-                                sym: default_ident.clone().into(),
-                                span: DUMMY_SP,
+                                sym: default_ident.0.clone(),
+                                span: DUMMY_SP.with_ctxt(default_ident.1),
                                 optional: false,
                             },
                             type_ann: None,
@@ -795,13 +785,13 @@ fn join_spreads(spreads: Vec<Expr>) -> Expr {
     new_expr
 }
 
-fn add_hash_statment(((ident, ctxt), hash): ((String, SyntaxContext), String)) -> Stmt {
+fn add_hash_statment((id, hash): (Id, String)) -> Stmt {
     Stmt::Expr(ExprStmt {
         expr: Box::new(Expr::Assign(AssignExpr {
             left: PatOrExpr::Expr(Box::new(Expr::Member(MemberExpr {
                 obj: ExprOrSuper::Expr(Box::new(Expr::Ident(Ident {
-                    sym: ident.into(),
-                    span: DUMMY_SP.with_ctxt(ctxt),
+                    sym: id.0,
+                    span: DUMMY_SP.with_ctxt(id.1),
                     optional: false,
                 }))),
                 prop: Box::new(Expr::Ident(Ident {

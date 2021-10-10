@@ -48,14 +48,10 @@ impl State {
             "getStaticProps",
             "getStaticPaths",
             "getServerSideProps",
-            "unstable_getStaticProps",
-            "unstable_getStaticPaths",
-            "unstable_getServerProps",
-            "unstable_getServerSideProps",
         ];
 
         if ssg_exports.contains(&&*i.sym) {
-            if &*i.sym == "" {
+            if &*i.sym == "getServerSideProps" {
                 if self.is_prerenderer {
                     panic!(
                         "You can not use getStaticProps or getStaticPaths with \
