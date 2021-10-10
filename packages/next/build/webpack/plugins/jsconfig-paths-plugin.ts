@@ -135,7 +135,7 @@ function forEachBail<TEntry>(
   array: TEntry[],
   iterator: (
     entry: TEntry,
-    entryCallback: (err: any, result: any) => void
+    entryCallback: (err?: any, result?: any) => void
   ) => void,
   callback: (err?: any, result?: any) => void
 ): void {
@@ -243,7 +243,8 @@ export class JsConfigPathsPlugin implements webpack.ResolvePlugin {
                 : subst
               // Ensure .d.ts is not matched
               if (curPath.endsWith('.d.ts')) {
-                return
+                // try next path candidate
+                return pathCallback()
               }
               const candidate = path.join(baseDirectory, curPath)
               const obj = Object.assign({}, request, {
@@ -257,7 +258,8 @@ export class JsConfigPathsPlugin implements webpack.ResolvePlugin {
                 (resolverErr: any, resolverResult: any) => {
                   if (resolverErr || resolverResult === undefined) {
                     triedPaths.push(candidate)
-                    return
+                    // try next path candidate
+                    return pathCallback()
                   }
                   return pathCallback(resolverErr, resolverResult)
                 }
