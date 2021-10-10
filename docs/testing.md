@@ -324,7 +324,7 @@ it('renders homepage unchanged', () => {
 
 **Running your test suite**
 
-Run `npm run jest` to run your test suite. After your tests pass or fail, you will notice a list of interactive Jest commands that will be helpful as you add more tests.
+Run `npm run test` to run your test suite. After your tests pass or fail, you will notice a list of interactive Jest commands that will be helpful as you add more tests.
 
 For further reading, you may find these resources helpful:
 
