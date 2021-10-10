@@ -110,6 +110,8 @@ impl Fold for StyledJSXTransformer {
             return el;
         }
 
+        el.attrs = el.attrs.fold_with(self);
+
         if let JSXElementName::Ident(Ident { sym, span, .. }) = &el.name {
             if sym != "style"
                 && sym != self.style_import_name.as_ref().unwrap()
