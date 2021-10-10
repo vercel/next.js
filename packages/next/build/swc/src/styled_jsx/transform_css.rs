@@ -189,6 +189,7 @@ impl Namespacer {
             SubclassSelector::Class(ClassSelector {
                 span: DUMMY_SP,
                 text: Text {
+                    raw: subclass_selector.into(),
                     value: subclass_selector.into(),
                     span: DUMMY_SP,
                 },
@@ -208,7 +209,10 @@ fn get_front_selector_tokens(selector_tokens: &Tokens) -> Vec<TokenAndSpan> {
                 hi: BytePos(start_pos + 1),
                 ctxt: SyntaxContext::empty(),
             },
-            token: Token::Ident("a".into()),
+            token: Token::Ident {
+                raw: "a".into(),
+                value: "a".into(),
+            },
         },
         TokenAndSpan {
             span: Span {
@@ -254,7 +258,10 @@ fn get_block_tokens(selector_tokens: &Tokens) -> Vec<TokenAndSpan> {
                 hi: BytePos(start_pos + 8),
                 ctxt: SyntaxContext::empty(),
             },
-            token: Token::Ident("color".into()),
+            token: Token::Ident {
+                value: "color".into(),
+                raw: "color".into(),
+            },
         },
         TokenAndSpan {
             span: Span {
@@ -278,7 +285,10 @@ fn get_block_tokens(selector_tokens: &Tokens) -> Vec<TokenAndSpan> {
                 hi: BytePos(start_pos + 13),
                 ctxt: SyntaxContext::empty(),
             },
-            token: Token::Ident("red".into()),
+            token: Token::Ident {
+                value: "red".into(),
+                raw: "red".into(),
+            },
         },
         TokenAndSpan {
             span: Span {
