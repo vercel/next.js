@@ -2,7 +2,7 @@ import { getOverlayMiddleware } from '@next/react-dev-overlay/lib/middleware'
 import { NextHandleFunction } from 'connect'
 import { IncomingMessage, ServerResponse } from 'http'
 import { WebpackHotMiddleware } from './hot-middleware'
-import { join } from 'path'
+import { join, relative, isAbsolute } from 'path'
 import { UrlObject } from 'url'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import {
@@ -423,13 +423,22 @@ export default class HotReloader {
               absolutePagePath,
             }
 
-            entrypoints[bundlePath] = finalizeEntrypoint(
-              bundlePath,
-              isClientCompilation
-                ? `next-client-pages-loader?${stringify(pageLoaderOpts)}!`
-                : absolutePagePath,
-              !isClientCompilation
-            )
+            if (isClientCompilation) {
+              entrypoints[bundlePath] = finalizeEntrypoint(
+                bundlePath,
+                `next-client-pages-loader?${stringify(pageLoaderOpts)}!`,
+                false
+              )
+            } else {
+              let request = relative(config.context!, absolutePagePath)
+              if (!isAbsolute(request) && !request.startsWith('../'))
+                request = `./${request}`
+              entrypoints[bundlePath] = finalizeEntrypoint(
+                bundlePath,
+                request,
+                true
+              )
+            }
           })
         )
 
