@@ -20,6 +20,7 @@ export let entries: {
     absolutePagePath: string
     status?: typeof ADDED | typeof BUILDING | typeof BUILT
     lastActiveTime?: number
+    dispose?: boolean
   }
 } = {}
 
@@ -141,6 +142,7 @@ export default function onDemandEntryHandler(
       }
     }
     entryInfo.lastActiveTime = Date.now()
+    entryInfo.dispose = false
     return toSend
   }
 
@@ -197,6 +199,7 @@ export default function onDemandEntryHandler(
 
           if (entryInfo) {
             entryInfo.lastActiveTime = Date.now()
+            entryInfo.dispose = false
             if (entryInfo.status === BUILT) {
               resolve()
               return
@@ -213,6 +216,7 @@ export default function onDemandEntryHandler(
             absolutePagePath,
             status: ADDED,
             lastActiveTime: Date.now(),
+            dispose: false,
           }
           doneCallbacks!.once(pageKey, handleCallback)
 
@@ -273,10 +277,11 @@ function disposeInactiveEntries(
   lastClientAccessPages: any,
   maxInactiveAge: number
 ) {
-  const disposingPages: any = []
-
   Object.keys(entries).forEach((page) => {
-    const { lastActiveTime, status } = entries[page]
+    const { lastActiveTime, status, dispose } = entries[page]
+
+    // Skip pages already scheduled for disposing
+    if (dispose) return
 
     // This means this entry is currently building or just added
     // We don't need to dispose those entries.
@@ -288,17 +293,9 @@ function disposeInactiveEntries(
     if (lastClientAccessPages.includes(page)) return
 
     if (lastActiveTime && Date.now() - lastActiveTime > maxInactiveAge) {
-      disposingPages.push(page)
+      entries[page].dispose = true
     }
   })
-
-  if (disposingPages.length > 0) {
-    disposingPages.forEach((page: any) => {
-      delete entries[page]
-    })
-    // disposing inactive page(s)
-    // watcher.invalidate()
-  }
 }
 
 // Make sure only one invalidation happens at a time
