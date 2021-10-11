@@ -96,7 +96,7 @@ store.subscribe((state) => {
     startTime = 0
 
     timeMessage =
-      time > 2000 ? ` in ${Math.round(time / 100) / 10} s` : ` in ${time} ms`
+      time > 2000 ? ` in ${Math.round(time / 100) / 10}s` : ` in ${time} ms`
   }
 
   let modulesMessage = ''
