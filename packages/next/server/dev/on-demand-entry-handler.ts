@@ -2,13 +2,13 @@ import { EventEmitter } from 'events'
 import { IncomingMessage, ServerResponse } from 'http'
 import { join, posix } from 'path'
 import { parse } from 'url'
-import { webpack, isWebpack5 } from 'next/dist/compiled/webpack/webpack'
-import * as Log from '../../build/output/log'
+import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { normalizePagePath, normalizePathSep } from '../normalize-page-path'
 import { pageNotFoundError } from '../require'
 import { findPageFile } from '../lib/find-page-file'
 import getRouteFromEntrypoint from '../get-route-from-entrypoint'
 import { API_ROUTE } from '../../lib/constants'
+import { reportTrigger } from '../../build/output'
 
 export const ADDED = Symbol('added')
 export const BUILDING = Symbol('building')
@@ -228,12 +228,12 @@ export default function onDemandEntryHandler(
         : Promise.all([addPageEntry('client'), addPageEntry('server')])
 
       if (entriesChanged) {
-        Log.event(
+        reportTrigger(
           isApiRoute
-            ? `build page: ${normalizedPage} (server only)`
+            ? `${normalizedPage} (server only)`
             : clientOnly
-            ? `build page: ${normalizedPage} (client only)`
-            : `build page: ${normalizedPage}`
+            ? `${normalizedPage} (client only)`
+            : normalizedPage
         )
         invalidator.invalidate()
       }
@@ -323,14 +323,6 @@ class Invalidator {
     }
 
     this.building = true
-    if (!isWebpack5) {
-      // Work around a bug in webpack, calling `invalidate` on Watching.js
-      // doesn't trigger the invalid call used to keep track of the `.done` hook on multiCompiler
-      for (const compiler of this.multiCompiler.compilers) {
-        compiler.hooks.invalid.call()
-      }
-    }
-
     this.watcher.invalidate()
   }
 

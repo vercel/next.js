@@ -326,7 +326,7 @@ export default class DevServer extends Server {
     const telemetry = new Telemetry({ distDir: this.distDir })
     telemetry.record(
       eventCliSession(PHASE_DEVELOPMENT_SERVER, this.distDir, {
-        webpackVersion: this.hotReloader.isWebpack5 ? 5 : 4,
+        webpackVersion: 5,
         cliCommand: 'dev',
         isSrcDir: relative(this.dir, this.pagesDir!).startsWith('src'),
         hasNowJson: !!(await findUp('now.json', { cwd: this.dir })),
@@ -488,8 +488,7 @@ export default class DevServer extends Server {
           const source = await getSourceById(
             !!frame.file?.startsWith(sep) || !!frame.file?.startsWith('file:'),
             moduleId,
-            compilation,
-            this.hotReloader!.isWebpack5
+            compilation
           )
 
           const originalFrame = await createOriginalStackFrame({

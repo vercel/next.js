@@ -287,11 +287,12 @@ function assignDefaults(userConfig: { [key: string]: any }) {
       )
     }
 
-    // Append trailing slash for non-default loaders
+    // Append trailing slash for non-default loaders and when trailingSlash is set
     if (images.path) {
       if (
-        images.loader !== 'default' &&
-        images.path[images.path.length - 1] !== '/'
+        (images.loader !== 'default' &&
+          images.path[images.path.length - 1] !== '/') ||
+        result.trailingSlash
       ) {
         images.path += '/'
       }
@@ -311,6 +312,12 @@ function assignDefaults(userConfig: { [key: string]: any }) {
         )}), received  (${images.minimumCacheTTL}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
       )
     }
+  }
+
+  if (result.webpack5 === false) {
+    throw new Error(
+      'Webpack 4 is no longer supported in Next.js. Please upgrade to webpack 5 by removing "webpack5: false" from next.config.js. https://nextjs.org/docs/messages/webpack5'
+    )
   }
 
   if (result.experimental && 'nftTracing' in (result.experimental as any)) {
@@ -481,7 +488,7 @@ export default async function loadConfig(
   customConfig?: object | null
 ): Promise<NextConfigComplete> {
   await loadEnvConfig(dir, phase === PHASE_DEVELOPMENT_SERVER, Log)
-  await loadWebpackHook(phase, dir)
+  await loadWebpackHook()
 
   if (customConfig) {
     return assignDefaults({
