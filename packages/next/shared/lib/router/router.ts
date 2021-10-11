@@ -1366,24 +1366,26 @@ export default class Router implements BaseRouter {
     routeProps: RouteProperties
   ): Promise<PrivateRouteInfo> {
     try {
-      const existingRouteInfo: PrivateRouteInfo | undefined =
-        this.components[route]
-      if (routeProps.shallow && existingRouteInfo && this.route === route) {
-        return existingRouteInfo
-      }
+      let cachedRouteInfo: CompletePrivateRouteInfo | undefined = undefined
+      if (process.env.NODE_ENV !== 'development') {
+        const existingRouteInfo: PrivateRouteInfo | undefined =
+          this.components[route]
+        if (routeProps.shallow && existingRouteInfo && this.route === route) {
+          return existingRouteInfo
+        }
 
-      const cachedRouteInfo: CompletePrivateRouteInfo | undefined =
-        existingRouteInfo && 'initial' in existingRouteInfo
-          ? undefined
-          : existingRouteInfo
-      const routeInfo: CompletePrivateRouteInfo = cachedRouteInfo
-        ? cachedRouteInfo
-        : await this.fetchComponent(route).then((res) => ({
-            Component: res.page,
-            styleSheets: res.styleSheets,
-            __N_SSG: res.mod.__N_SSG,
-            __N_SSP: res.mod.__N_SSP,
-          }))
+        // can only use non-initial route info
+        if (existingRouteInfo && !('initial' in existingRouteInfo))
+          cachedRouteInfo = existingRouteInfo
+      }
+      const routeInfo: CompletePrivateRouteInfo =
+        cachedRouteInfo ||
+        (await this.fetchComponent(route).then((res) => ({
+          Component: res.page,
+          styleSheets: res.styleSheets,
+          __N_SSG: res.mod.__N_SSG,
+          __N_SSP: res.mod.__N_SSP,
+        })))
 
       const { Component, __N_SSG, __N_SSP } = routeInfo
 
