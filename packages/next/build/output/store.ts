@@ -14,6 +14,7 @@ export type OutputState =
       | {
           loading: false
           typeChecking: boolean
+          partial: 'client' | 'server' | undefined
           modules: number
           errors: string[] | null
           warnings: string[] | null
@@ -103,6 +104,11 @@ store.subscribe((state) => {
     modulesMessage = ` (${state.modules} modules)`
   }
 
+  let partialMessage = ''
+  if (state.partial) {
+    partialMessage = ` ${state.partial}`
+  }
+
   if (state.warnings) {
     Log.warn(state.warnings.join('\n\n'))
     // Ensure traces are flushed after each compile in development mode
@@ -112,12 +118,14 @@ store.subscribe((state) => {
 
   if (state.typeChecking) {
     Log.info(
-      `bundled successfully${timeMessage}${modulesMessage}, waiting for typecheck results...`
+      `bundled${partialMessage} successfully${timeMessage}${modulesMessage}, waiting for typecheck results...`
     )
     return
   }
 
-  Log.event(`compiled successfully${timeMessage}${modulesMessage}`)
+  Log.event(
+    `compiled${partialMessage} successfully${timeMessage}${modulesMessage}`
+  )
   // Ensure traces are flushed after each compile in development mode
   flushAllTraces()
 })
