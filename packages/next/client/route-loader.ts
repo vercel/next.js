@@ -273,18 +273,25 @@ export function createRouteLoader(assetPrefix: string): RouteLoader {
     new Map()
 
   function maybeExecuteScript(src: string): Promise<unknown> {
-    let prom: Promise<unknown> | undefined = loadedScripts.get(src)
-    if (prom) {
+    // With HMR we might need to "reload" scripts when they are
+    // disposed and readded. Executing scripts twice has no functional
+    // differences
+    if (process.env.NODE_ENV !== 'development') {
+      let prom: Promise<unknown> | undefined = loadedScripts.get(src)
+      if (prom) {
+        return prom
+      }
+
+      // Skip executing script if it's already in the DOM:
+      if (document.querySelector(`script[src^="${src}"]`)) {
+        return Promise.resolve()
+      }
+
+      loadedScripts.set(src, (prom = appendScript(src)))
       return prom
+    } else {
+      return appendScript(src)
     }
-
-    // Skip executing script if it's already in the DOM:
-    if (document.querySelector(`script[src^="${src}"]`)) {
-      return Promise.resolve()
-    }
-
-    loadedScripts.set(src, (prom = appendScript(src)))
-    return prom
   }
 
   function fetchStyleSheet(href: string): Promise<RouteStyleSheet> {
@@ -313,21 +320,37 @@ export function createRouteLoader(assetPrefix: string): RouteLoader {
     whenEntrypoint(route: string) {
       return withFuture(route, entrypoints)
     },
-    onEntrypoint(route: string, execute: () => unknown) {
-      Promise.resolve(execute)
-        .then((fn) => fn())
-        .then(
-          (exports: any) => ({
-            component: (exports && exports.default) || exports,
-            exports: exports,
-          }),
-          (err) => ({ error: err })
-        )
-        .then((input: RouteEntrypoint) => {
-          const old = entrypoints.get(route)
-          entrypoints.set(route, input)
-          if (old && 'resolve' in old) old.resolve(input)
-        })
+    onEntrypoint(route: string, execute: undefined | (() => unknown)) {
+      ;(execute
+        ? Promise.resolve()
+            .then(() => execute())
+            .then(
+              (exports: any) => ({
+                component: (exports && exports.default) || exports,
+                exports: exports,
+              }),
+              (err) => ({ error: err })
+            )
+        : Promise.resolve(undefined)
+      ).then((input: RouteEntrypoint | undefined) => {
+        const old = entrypoints.get(route)
+        if (old && 'resolve' in old) {
+          if (input) {
+            entrypoints.set(route, input)
+            old.resolve(input)
+          }
+        } else {
+          if (input) {
+            entrypoints.set(route, input)
+          } else {
+            entrypoints.delete(route)
+          }
+          // when this entrypoint has been resolved before
+          // the route is outdated and we want to invalidate
+          // this cache entry
+          routes.delete(route)
+        }
+      })
     },
     loadRoute(route: string, prefetch?: boolean) {
       return withFuture<RouteLoaderEntry>(route, routes, () => {
