@@ -102,9 +102,11 @@ export default function onDemandEntryHandler(
     invalidator.doneBuilding()
   })
 
+  const pingIntervalTime = Math.max(1000, Math.min(5000, maxInactiveAge))
+
   const disposeHandler = setInterval(function () {
     disposeInactiveEntries(watcher, lastClientAccessPages, maxInactiveAge)
-  }, 5000)
+  }, pingIntervalTime + 1000)
 
   disposeHandler.unref()
 
@@ -257,7 +259,10 @@ export default function onDemandEntryHandler(
         if (!data) return
         res.write('data: ' + JSON.stringify(data) + '\n\n')
       }
-      const pingInterval = setInterval(() => runPing(), 5000)
+      const pingInterval = setInterval(() => runPing(), pingIntervalTime)
+
+      // Run a ping now to make sure page is instantly flagged as active
+      setTimeout(() => runPing(), 0)
 
       req.on('close', () => {
         clearInterval(pingInterval)
