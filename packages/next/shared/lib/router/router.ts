@@ -1617,21 +1617,31 @@ export default class Router implements BaseRouter {
       cancelled = true
     })
 
-    const componentResult = await this.pageLoader.loadPage(route)
+    const handleCancelled = () => {
+      if (cancelled) {
+        const error: any = new Error(
+          `Abort fetching component for route: "${route}"`
+        )
+        error.cancelled = true
+        throw error
+      }
 
-    if (cancelled) {
-      const error: any = new Error(
-        `Abort fetching component for route: "${route}"`
-      )
-      error.cancelled = true
-      throw error
+      if (cancel === this.clc) {
+        this.clc = null
+      }
     }
 
-    if (cancel === this.clc) {
-      this.clc = null
-    }
+    try {
+      const componentResult = await this.pageLoader.loadPage(route)
 
-    return componentResult
+      handleCancelled()
+
+      return componentResult
+    } catch (err) {
+      handleCancelled()
+
+      throw err
+    }
   }
 
   _getData<T>(fn: () => Promise<T>): Promise<T> {
