@@ -140,7 +140,7 @@ You can learn more about Cypress and Continuous Integration from these resources
 
 ## Playwright
 
-Playwright is a testing framework which allows you to automate Chromium, Firefox, and WebKit with a single API. You can use it for writing **End-to-End (E2E)** and **Integration** tests across all platforms.
+Playwright is a testing framework that lets you automate Chromium, Firefox, and WebKit with a single API. You can use it to write **End-to-End (E2E)** and **Integration** tests across all platforms.
 
 ### Quickstart
 
@@ -201,7 +201,7 @@ export default function About() {
 }
 ```
 
-Add a test to check your navigation is working correctly:
+Add a test to verify that your navigation is working correctly:
 
 ```jsx
 // e2e/example.spec.ts
