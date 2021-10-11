@@ -180,10 +180,21 @@ impl Namespacer {
                     });
 
                     return match complex_selectors {
-                        Ok(complex_selectors) => Ok(complex_selectors[0].selectors[1..]
-                            .iter()
-                            .cloned()
-                            .collect()),
+                        Ok(complex_selectors) => {
+                            let mut v = complex_selectors[0].selectors[1..]
+                                .iter()
+                                .cloned()
+                                .collect::<Vec<_>>();
+
+                            v.iter_mut().for_each(|sel| {
+                                if i < node.subclass_selectors.len() {
+                                    sel.subclass_selectors
+                                        .extend(node.subclass_selectors[i + 1..].to_vec());
+                                }
+                            });
+
+                            Ok(v)
+                        }
                         Err(_) => bail!("Failed to transform one off global selector"),
                     };
                 } else if pseudo_index.is_none() {
