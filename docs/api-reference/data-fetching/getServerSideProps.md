@@ -1,5 +1,5 @@
 ---
-description: Fetch data at build time with `getStaticProps`.
+description: Fetch data on each request with `getServerSideProps`. Learn more about this API for data fetching in Next.js.
 ---
 
 # `getServerSideProps` (Server-side Rendering)
