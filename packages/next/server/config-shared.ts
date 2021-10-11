@@ -196,7 +196,7 @@ export const defaultConfig: NextConfig = {
     keepAlive: true,
   },
   experimental: {
-    swcLoader: false,
+    swcLoader: true,
     swcMinify: false,
     cpus: Math.max(
       1,
