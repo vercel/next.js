@@ -15,7 +15,11 @@
             },
             {
               "title": "Data Fetching",
-              "path": "/docs/basic-features/data-fetching.md"
+              "path": "/docs/basic-features/data-fetching.md",
+              "redirect": {
+                "destination": "/docs/basic-features/data-fetching/index.md",
+                "permanent": true
+              }
             },
             {
               "title": "Built-in CSS Support",
