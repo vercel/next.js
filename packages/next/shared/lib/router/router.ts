@@ -1366,17 +1366,21 @@ export default class Router implements BaseRouter {
     routeProps: RouteProperties
   ): Promise<PrivateRouteInfo> {
     try {
-      let cachedRouteInfo: CompletePrivateRouteInfo | undefined = undefined
-      if (process.env.NODE_ENV !== 'development') {
-        const existingRouteInfo: PrivateRouteInfo | undefined =
-          this.components[route]
-        if (routeProps.shallow && existingRouteInfo && this.route === route) {
-          return existingRouteInfo
-        }
+      const existingRouteInfo: PrivateRouteInfo | undefined =
+        this.components[route]
+      if (routeProps.shallow && existingRouteInfo && this.route === route) {
+        return existingRouteInfo
+      }
 
-        // can only use non-initial route info
-        if (existingRouteInfo && !('initial' in existingRouteInfo))
-          cachedRouteInfo = existingRouteInfo
+      let cachedRouteInfo: CompletePrivateRouteInfo | undefined = undefined
+      // can only use non-initial route info
+      // cannot reuse route info in development since it can change after HMR
+      if (
+        process.env.NODE_ENV !== 'development' &&
+        existingRouteInfo &&
+        !('initial' in existingRouteInfo)
+      ) {
+        cachedRouteInfo = existingRouteInfo
       }
       const routeInfo: CompletePrivateRouteInfo =
         cachedRouteInfo ||
