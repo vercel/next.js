@@ -937,7 +937,7 @@ export async function server(task, opts) {
 export async function nextbuild(task, opts) {
   await task
     .source(opts.src || 'build/**/*.+(js|ts|tsx)', {
-      ignore: '**/fixture/**',
+      ignore: ['**/fixture/**', '**/tests/**'],
     })
     .swc('server', { dev: opts.dev })
     .target('dist/build')

@@ -1393,25 +1393,29 @@ export default async function getBaseWebpackConfig(
   webpack5Config.cache = cache
 
   if (process.env.NEXT_WEBPACK_LOGGING) {
-    const logInfra = process.env.NEXT_WEBPACK_LOGGING.includes('infrastructure')
-    const logProfileClient =
+    const infra = process.env.NEXT_WEBPACK_LOGGING.includes('infrastructure')
+    const profileClient =
       process.env.NEXT_WEBPACK_LOGGING.includes('profile-client')
-    const logProfileServer =
+    const profileServer =
       process.env.NEXT_WEBPACK_LOGGING.includes('profile-server')
-    const logDefault = !logInfra && !logProfileClient && !logProfileServer
+    const summaryClient =
+      process.env.NEXT_WEBPACK_LOGGING.includes('summary-client')
+    const summaryServer =
+      process.env.NEXT_WEBPACK_LOGGING.includes('summary-server')
 
-    if (logDefault || logInfra) {
+    const profile = (profileClient && !isServer) || (profileServer && isServer)
+    const summary = (summaryClient && !isServer) || (summaryServer && isServer)
+
+    const logDefault = !infra && !profile && !summary
+
+    if (logDefault || infra) {
       webpack5Config.infrastructureLogging = {
         level: 'verbose',
         debug: /FileSystemInfo/,
       }
     }
 
-    if (
-      logDefault ||
-      (logProfileClient && !isServer) ||
-      (logProfileServer && isServer)
-    ) {
+    if (logDefault || profile) {
       webpack5Config.plugins!.push((compiler: webpack5.Compiler) => {
         compiler.hooks.done.tap('next-webpack-logging', (stats) => {
           console.log(
@@ -1422,9 +1426,21 @@ export default async function getBaseWebpackConfig(
           )
         })
       })
+    } else if (summary) {
+      webpack5Config.plugins!.push((compiler: webpack5.Compiler) => {
+        compiler.hooks.done.tap('next-webpack-logging', (stats) => {
+          console.log(
+            stats.toString({
+              preset: 'summary',
+              colors: true,
+              timings: true,
+            })
+          )
+        })
+      })
     }
 
-    if ((logProfileClient && !isServer) || (logProfileServer && isServer)) {
+    if (profile) {
       const ProgressPlugin =
         webpack.ProgressPlugin as unknown as typeof webpack5.ProgressPlugin
       webpack5Config.plugins!.push(

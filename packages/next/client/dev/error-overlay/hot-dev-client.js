@@ -275,6 +275,7 @@ function tryApplyUpdates(onHotUpdateSuccess) {
   }
 
   if (!isUpdateAvailable() || !canApplyUpdates()) {
+    onBuildOk()
     return
   }
 
@@ -306,8 +307,9 @@ function tryApplyUpdates(onHotUpdateSuccess) {
 
     if (isUpdateAvailable()) {
       // While we were updating, there was a new update! Do it again.
-      tryApplyUpdates(hasUpdates ? undefined : onHotUpdateSuccess)
+      tryApplyUpdates(hasUpdates ? onBuildOk : onHotUpdateSuccess)
     } else {
+      onBuildOk()
       if (process.env.__NEXT_TEST_MODE) {
         afterApplyUpdates(() => {
           if (self.__NEXT_HMR_CB) {
