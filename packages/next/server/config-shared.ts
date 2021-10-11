@@ -197,7 +197,7 @@ export const defaultConfig: NextConfig = {
   },
   experimental: {
     swcLoader: false,
-    swcMinify: false,
+    swcMinify: true,
     cpus: Math.max(
       1,
       (Number(process.env.CIRCLE_NODE_TOTAL) ||
