@@ -96,6 +96,9 @@ export function formatAmpMessages(amp: AmpPageStatus) {
 }
 
 const buildStore = createStore<BuildStatusStore>()
+let buildWasDone = false
+let clientWasLoading = true
+let serverWasLoading = true
 
 buildStore.subscribe((state) => {
   const { amp, client, server, trigger } = state
@@ -115,15 +118,28 @@ buildStore.subscribe((state) => {
       } as OutputState,
       true
     )
+    clientWasLoading = (!buildWasDone && clientWasLoading) || client.loading
+    serverWasLoading = (!buildWasDone && serverWasLoading) || server.loading
+    buildWasDone = false
     return
   }
+
+  buildWasDone = true
 
   let partialState: Partial<OutputState> = {
     bootstrap: false,
     appUrl: appUrl!,
     loading: false,
     typeChecking: false,
-    modules: client.modules + server.modules,
+    partial:
+      clientWasLoading && !serverWasLoading
+        ? 'client'
+        : serverWasLoading && !clientWasLoading
+        ? 'server'
+        : undefined,
+    modules:
+      (clientWasLoading ? client.modules : 0) +
+      (serverWasLoading ? server.modules : 0),
   }
   if (client.errors) {
     // Show only client errors
