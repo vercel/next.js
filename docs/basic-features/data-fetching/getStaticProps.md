@@ -60,7 +60,7 @@ export async function getStaticProps() {
 export default Blog
 ```
 
-The [`getStaticProps` API reference](/docs/api-reference/getstaticprops.md) covers all parameters and props that can be used with `getStaticProps`.
+The [`getStaticProps` API reference](/docs/api-reference/getStaticProps.md) covers all parameters and props that can be used with `getStaticProps`.
 
 ## Technical details
 
@@ -76,13 +76,13 @@ You should not fetch an **API route** from `getStaticProps` — instead, you can
 
 You can use the [next-code-elimination tool](https://next-code-elimination.vercel.app/) to verify what Next.js eliminates from the client-side bundle.
 
-### Statically Generates both HTML and JSON
+### Statically Generates both `HTML` and `JSON`
 
-When a page with `getStaticProps` is pre-rendered at build time, in addition to the page HTML file, Next.js generates a JSON file holding the result of running `getStaticProps`.
+When a page with `getStaticProps` is pre-rendered at build time, in addition to the page HTML file, Next.js generates a `JSON` file holding the result of running `getStaticProps`.
 
-This JSON file will be used in client-side routing through `next/link` ([documentation](/docs/api-reference/next/link.md)) or `next/router` ([documentation](/docs/api-reference/next/router.md)). When you navigate to a page that’s pre-rendered using `getStaticProps`, Next.js fetches this JSON file (pre-computed at build time) and uses it as the props for the page component. This means that client-side page transitions will **not** call `getStaticProps` as only the exported JSON is used.
+This `JSON` file will be used in client-side routing through [`next/link`](/docs/api-reference/next/link.md) or [`next/router`](/docs/api-reference/next/router.md). When you navigate to a page that’s pre-rendered using `getStaticProps`, Next.js fetches this `JSON` file (pre-computed at build time) and uses it as the props for the page component. This means that client-side page transitions will **not** call `getStaticProps` as only the exported `JSON` is used.
 
-When using Incremental Static Generation `getStaticProps` will be executed out of band to generate the JSON needed for client-side navigation. You may see this in the form of multiple requests being made for the same page, however, this is intended and has no impact on end-user performance
+When using Incremental Static Generation `getStaticProps` will be executed out of band to generate the `JSON` needed for client-side navigation. You may see this in the form of multiple requests being made for the same page, however, this is intended and has no impact on end-user performance
 
 ### Only allowed in a page
 

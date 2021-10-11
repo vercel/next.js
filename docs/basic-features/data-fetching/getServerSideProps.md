@@ -14,6 +14,8 @@ export async function getServerSideProps(context) {
 }
 ```
 
+The [`getServerSideProps` API reference](/docs/api-reference/getServerSideProps.md) covers all parameters and props that can be used with `getServerSideProps`.
+
 ### When should I use `getServerSideProps`?
 
 You should use `getServerSideProps` only if you need to pre-render a page whose data must be fetched at request time. Time to first byte (TTFB) will be slower than [`getStaticProps`](/docs/data-fetching/getstaticprops.md) because the server must compute the result on every request, and the result cannot be cached by a CDN without extra configuration.

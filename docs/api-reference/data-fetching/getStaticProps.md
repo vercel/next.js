@@ -39,9 +39,9 @@ The `fetch()` API _can_ be used to fetch external data, such as from a Content M
 
 The `context` parameter is an object containing the following keys:
 
-- `params` contains the route parameters for pages using dynamic routes. For example, if the page name is `[id].js` , then `params` will look like `{ id: ... }`. To learn more, take a look at the [Dynamic Routing documentation](/docs/routing/dynamic-routes.md). You should use this together with `getStaticPaths`, which we’ll explain later.
-- `preview` is `true` if the page is in the preview mode and `undefined` otherwise. See the [Preview Mode documentation](/docs/advanced-features/preview-mode.md).
-- `previewData` contains the preview data set by `setPreviewData`. See the [Preview Mode documentation](/docs/advanced-features/preview-mode.md).
+- `params` contains the route parameters for pages using [dynamic routes](/docs/routing/dynamic-routes.md). For example, if the page name is `[id].js` , then `params` will look like `{ id: ... }`. You should use this together with `getStaticPaths`, which we’ll explain later.
+- `preview` is `true` if the page is in the [Preview Mode](/docs/advanced-features/preview-mode.md) and `undefined` otherwise.
+- `previewData` contains the [preview](/docs/advanced-features/preview-mode.md) data set by `setPreviewData`.
 - `locale` contains the active locale (if enabled).
 - `locales` contains all supported locales (if enabled).
 - `defaultLocale` contains the configured default locale (if enabled).
@@ -86,7 +86,7 @@ export async function getStaticProps() {
 }
 ```
 
-More information is covered in [Incremental Static Regeneration](/docs/basic-features/data-fetching#incremental-static-regeneration)
+More information is covered in [Incremental Static Regeneration](/docs/basic-features/data-fetching/index#incremental-static-regeneration)
 
 ### `notFound`
 

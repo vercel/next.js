@@ -59,7 +59,7 @@ If `fallback` is `false`, then any paths not returned by `getStaticPaths` will r
 
 It is also useful when the new pages are not added often. If you add more items to the data source and need to render the new pages, you will need to run the build again.
 
-The following example pre-renders one blog post per page called `pages/posts/[id].js`. The list of blog posts will be fetched from a CMS and returned by `getStaticPaths`. Then, for each page, it fetches the post data from a CMS using [`getStaticProps`](/docs/api-reference/getstaticprops.md).
+The following example pre-renders one blog post per page called `pages/posts/[id].js`. The list of blog posts will be fetched from a CMS and returned by `getStaticPaths`. Then, for each page, it fetches the post data from a CMS using [`getStaticProps`](/docs/api-reference/getStaticProps.md).
 
 ```jsx
 // pages/posts/[id].js
@@ -127,11 +127,11 @@ Shortly after, `getStaticProps` finishes and the page will be rendered with the 
 
 This ensures that users always have a fast experience while preserving fast builds and the benefits of Static Generation.
 
-`fallback: true` will not _update_ generated pages, for that take a look at [Incremental Static Regeneration](#incremental-static-regeneration).
+`fallback: true` will not _update_ generated pages, for that take a look at [Incremental Static Regeneration](/docs/basic-features/data-fetching/index#incremental-static-regeneration).
 
 ### `fallback: 'blocking'`
 
-If `fallback` is `'blocking'`, new paths not returned by `getStaticPaths` will wait for the HTML to be generated, identical to SSR (hence why _blocking_), and then be cached for future requests so it only happens once per path.
+If `fallback` is `'blocking'`, new paths not returned by `getStaticPaths` will wait for the `HTML` to be generated, identical to SSR (hence why _blocking_), and then be cached for future requests so it only happens once per path.
 
 `getStaticProps` will behave as follows:
 
@@ -140,7 +140,7 @@ If `fallback` is `'blocking'`, new paths not returned by `getStaticPaths` will w
 - When complete, the browser receives the `HTML` for the generated path. From the user’s perspective, it will transition from "the browser is requesting the page" to "the full page is loaded". There is no flash of loading/fallback state.
 - At the same time, Next.js adds this path to the list of pre-rendered pages. Subsequent requests to the same path will serve the generated page, just like other pages pre-rendered at build time.
 
-`fallback: 'blocking'` will not _update_ generated pages by default. To update generated pages, use [Incremental Static Regeneration](#incremental-static-regeneration) in conjunction with `fallback: 'blocking'`.
+`fallback: 'blocking'` will not _update_ generated pages by default. To update generated pages, use [Incremental Static Regeneration](/docs/basic-features/data-fetching/index#incremental-static-regeneration) in conjunction with `fallback: 'blocking'`.
 
 > `fallback: 'blocking'` is not supported when using [`next export`](/docs/advanced-features/static-html-export.md).
 

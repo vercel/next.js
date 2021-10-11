@@ -34,9 +34,9 @@ It is recommended that you [read through the Pages documentation](/docs/basic-fe
 
 The three unique Next.js functions you can use to fetch data for pre-rendering are:
 
-- [`getStaticProps`](/docs/basic-features/data-fetching/getstaticprops.md) (Static Generation): Fetch data at **build time**.
-- [`getStaticPaths`](/docs/basic-features/data-fetching/getstaticpaths) (Static Generation): Specify [dynamic routes](/docs/routing/dynamic-routes.md) to pre-render pages based on data.
-- [`getServerSideProps`](/docs/basic-features/data-fetching/getserversideprops) (Server-side Rendering): Fetch data on **each request**.
+- [`getStaticProps`](/docs/basic-features/data-fetching/getStaticProps.md) (Static Generation): Fetch data at **build time**.
+- [`getStaticPaths`](/docs/basic-features/data-fetching/getStaticPaths.md) (Static Generation): Specify [dynamic routes](/docs/routing/dynamic-routes.md) to pre-render pages based on data.
+- [`getServerSideProps`](/docs/basic-features/data-fetching/getServerSideProps.md) (Server-side Rendering): Fetch data on **each request**.
 
 ## Incremental Static Regeneration
 
@@ -60,7 +60,7 @@ The three unique Next.js functions you can use to fetch data for pre-rendering a
 
 Next.js allows you to create or update static pages _after_ you’ve built your site. Incremental Static Regeneration (ISR) enables you to use static-generation on a per-page basis, **without needing to rebuild the entire site**. With ISR, you can retain the benefits of static while scaling to millions of pages.
 
-Consider our previous [`getStaticProps` example](#simple-example), but now with Incremental Static Regeneration enabled through the `revalidate` property:
+The following example shows how to use the `revalidate` property:
 
 ```jsx
 function Blog({ posts }) {

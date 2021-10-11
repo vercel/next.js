@@ -19,7 +19,21 @@
               "redirect": {
                 "destination": "/docs/basic-features/data-fetching/index.md",
                 "permanent": true
-              }
+              },
+              "routes": [
+                {
+                  "title": "getServerSideProps",
+                  "path": "/docs/basic-features/data-fetching/getServerSideProps.md"
+                },
+                {
+                  "title": "getStaticPaths",
+                  "path": "/docs/basic-features/data-fetching/getStaticPaths.md"
+                },
+                {
+                  "title": "getStaticProps",
+                  "path": "/docs/basic-features/data-fetching/getStaticProps.md"
+                }
+              ]
             },
             {
               "title": "Built-in CSS Support",
@@ -282,6 +296,18 @@
             {
               "title": "getInitialProps",
               "path": "/docs/api-reference/data-fetching/getInitialProps.md"
+            },
+            {
+              "title": "getServerSideProps",
+              "path": "/docs/api-reference/data-fetching/getServerSideProps.md"
+            },
+            {
+              "title": "getStaticPaths",
+              "path": "/docs/api-reference/data-fetching/getStaticPaths.md"
+            },
+            {
+              "title": "getStaticProps",
+              "path": "/docs/api-reference/data-fetching/getStaticProps.md"
             }
           ]
         },

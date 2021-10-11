@@ -31,7 +31,7 @@ You should use `getStaticPaths` if you’re statically pre-rendering pages that 
 
 When you use `getStaticProps` on a page with dynamic route parameters, you **must** use `getStaticPaths`.
 
-Note that you **cannot** use `getStaticPaths` with [`getServerSideProps`](/docs/data-fetching/getserversideprops.md).
+Note that you **cannot** use `getStaticPaths` with [`getServerSideProps`](/docs/data-fetching/getServerSideProps.md).
 
 ### Only runs at build time on server-side
 
