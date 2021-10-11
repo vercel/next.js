@@ -3,39 +3,25 @@
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 import {
-  nextServer,
+  nextStart,
   nextBuild,
-  startApp,
-  stopApp,
+  findPort,
+  killApp,
   runNextCommand,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
 
+let app
 let appPort
-let server
 
 describe('Production Config Usage', () => {
   beforeAll(async () => {
     await nextBuild(appDir)
-    const app = nextServer({
-      dir: join(__dirname, '../'),
-      dev: false,
-      quiet: true,
-    })
-    server = await startApp(app)
-    appPort = server.address().port
+    appPort = await findPort()
+    app = await nextStart(appDir, appPort)
   })
-  afterAll(() => stopApp(server))
-
-  describe('with next-css', () => {
-    it('should load styles', async () => {
-      // Try 3 times as the breaking happens intermittently
-      await testBrowser()
-      await testBrowser()
-      await testBrowser()
-    })
-  })
+  afterAll(() => killApp(app))
 
   describe('with generateBuildId', () => {
     it('should add the custom buildid', async () => {
@@ -81,13 +67,3 @@ describe('Production Config Usage', () => {
     })
   })
 })
-
-async function testBrowser() {
-  const browser = await webdriver(appPort, '/')
-  const element = await browser.elementByCss('#mounted')
-  const text = await element.text()
-  expect(text).toMatch(/ComponentDidMount executed on client\./)
-  expect(await element.getComputedCss('font-size')).toBe('40px')
-  expect(await element.getComputedCss('color')).toMatch(/rgba?\(255, 0, 0/)
-  await browser.close()
-}

@@ -80,11 +80,15 @@ function buildCancellationError() {
 }
 
 function addPathPrefix(path: string, prefix?: string) {
-  return prefix && path.startsWith('/')
-    ? path === '/'
-      ? normalizePathTrailingSlash(prefix)
-      : `${prefix}${pathNoQueryHash(path) === '/' ? path.substring(1) : path}`
-    : path
+  if (!path.startsWith('/') || !prefix) {
+    return path
+  }
+  const pathname = pathNoQueryHash(path)
+
+  return (
+    normalizePathTrailingSlash(`${prefix}${pathname}`) +
+    path.substr(pathname.length)
+  )
 }
 
 export function getDomainLocale(
@@ -829,7 +833,9 @@ export default class Router implements BaseRouter {
       return false
     }
     const shouldResolveHref =
-      url === as || (options as any)._h || (options as any)._shouldResolveHref
+      (options as any)._h ||
+      (options as any)._shouldResolveHref ||
+      pathNoQueryHash(url) === pathNoQueryHash(as)
 
     // for static pages with query params in the URL we delay
     // marking the router ready until after the query is updated
@@ -1126,13 +1132,16 @@ export default class Router implements BaseRouter {
 
       // handle redirect on client-transition
       if ((__N_SSG || __N_SSP) && props) {
-        if ((props as any).pageProps && (props as any).pageProps.__N_REDIRECT) {
-          const destination = (props as any).pageProps.__N_REDIRECT
+        if (props.pageProps && props.pageProps.__N_REDIRECT) {
+          const destination = props.pageProps.__N_REDIRECT
 
           // check if destination is internal (resolves to a page) and attempt
           // client-navigation if it is falling back to hard navigation if
           // it's not
-          if (destination.startsWith('/')) {
+          if (
+            destination.startsWith('/') &&
+            props.pageProps.__N_REDIRECT_BASE_PATH !== false
+          ) {
             const parsedHref = parseRelativeUrl(destination)
             parsedHref.pathname = resolveDynamicRoute(
               parsedHref.pathname,
@@ -1363,18 +1372,24 @@ export default class Router implements BaseRouter {
         return existingRouteInfo
       }
 
-      const cachedRouteInfo: CompletePrivateRouteInfo | undefined =
-        existingRouteInfo && 'initial' in existingRouteInfo
-          ? undefined
-          : existingRouteInfo
-      const routeInfo: CompletePrivateRouteInfo = cachedRouteInfo
-        ? cachedRouteInfo
-        : await this.fetchComponent(route).then((res) => ({
-            Component: res.page,
-            styleSheets: res.styleSheets,
-            __N_SSG: res.mod.__N_SSG,
-            __N_SSP: res.mod.__N_SSP,
-          }))
+      let cachedRouteInfo: CompletePrivateRouteInfo | undefined = undefined
+      // can only use non-initial route info
+      // cannot reuse route info in development since it can change after HMR
+      if (
+        process.env.NODE_ENV !== 'development' &&
+        existingRouteInfo &&
+        !('initial' in existingRouteInfo)
+      ) {
+        cachedRouteInfo = existingRouteInfo
+      }
+      const routeInfo: CompletePrivateRouteInfo =
+        cachedRouteInfo ||
+        (await this.fetchComponent(route).then((res) => ({
+          Component: res.page,
+          styleSheets: res.styleSheets,
+          __N_SSG: res.mod.__N_SSG,
+          __N_SSP: res.mod.__N_SSP,
+        })))
 
       const { Component, __N_SSG, __N_SSP } = routeInfo
 
@@ -1602,21 +1617,31 @@ export default class Router implements BaseRouter {
       cancelled = true
     })
 
-    const componentResult = await this.pageLoader.loadPage(route)
+    const handleCancelled = () => {
+      if (cancelled) {
+        const error: any = new Error(
+          `Abort fetching component for route: "${route}"`
+        )
+        error.cancelled = true
+        throw error
+      }
 
-    if (cancelled) {
-      const error: any = new Error(
-        `Abort fetching component for route: "${route}"`
-      )
-      error.cancelled = true
-      throw error
+      if (cancel === this.clc) {
+        this.clc = null
+      }
     }
 
-    if (cancel === this.clc) {
-      this.clc = null
-    }
+    try {
+      const componentResult = await this.pageLoader.loadPage(route)
 
-    return componentResult
+      handleCancelled()
+
+      return componentResult
+    } catch (err) {
+      handleCancelled()
+
+      throw err
+    }
   }
 
   _getData<T>(fn: () => Promise<T>): Promise<T> {

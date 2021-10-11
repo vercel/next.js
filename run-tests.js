@@ -17,7 +17,10 @@ const DEFAULT_NUM_RETRIES = os.platform() === 'win32' ? 2 : 1
 const DEFAULT_CONCURRENCY = 2
 const RESULTS_EXT = `.results.json`
 const isTestJob = !!process.env.NEXT_TEST_JOB
-const TIMINGS_API = `https://next-timings.jjsweb.site/api/timings`
+const TIMINGS_API = `https://api.github.com/gists/4500dd89ae2f5d70d9aaceb191f528d1`
+const TIMINGS_API_HEADERS = {
+  Accept: 'application/vnd.github.v3+json',
+}
 
 const testFilters = {
   unit: 'unit/',
@@ -36,6 +39,20 @@ const cleanUpAndExit = async (code) => {
   process.exit(code)
 }
 
+async function getTestTimings() {
+  const timingsRes = await fetch(TIMINGS_API, {
+    headers: {
+      ...TIMINGS_API_HEADERS,
+    },
+  })
+
+  if (!timingsRes.ok) {
+    throw new Error(`request status: ${timingsRes.status}`)
+  }
+  const timingsData = await timingsRes.json()
+  return JSON.parse(timingsData.files['test-timings.json'].content)
+}
+
 async function main() {
   let numRetries = DEFAULT_NUM_RETRIES
   let concurrencyIdx = process.argv.indexOf('-c')
@@ -46,7 +63,6 @@ async function main() {
   const hideOutput = !process.argv.includes('--debug')
   const outputTimings = process.argv.includes('--timings')
   const writeTimings = process.argv.includes('--write-timings')
-  const isAzure = process.argv.includes('--azure')
   const groupIdx = process.argv.indexOf('-g')
   const groupArg = groupIdx !== -1 && process.argv[groupIdx + 1]
 
@@ -110,14 +126,7 @@ async function main() {
         } catch (_) {}
 
         if (!prevTimings) {
-          const timingsRes = await fetch(
-            `${TIMINGS_API}?which=${isAzure ? 'azure' : 'actions'}`
-          )
-
-          if (!timingsRes.ok) {
-            throw new Error(`request status: ${timingsRes.status}`)
-          }
-          prevTimings = await timingsRes.json()
+          prevTimings = await getTestTimings()
           console.log('Fetched previous timings data successfully')
 
           if (writeTimings) {
@@ -147,10 +156,6 @@ async function main() {
     const groupParts = groupArg.split('/')
     const groupPos = parseInt(groupParts[0], 10)
     const groupTotal = parseInt(groupParts[1], 10)
-    const numPerGroup = Math.ceil(testNames.length / groupTotal)
-    let offset = groupPos === 1 ? 0 : (groupPos - 1) * numPerGroup - 1
-    // if there's an odd number of suites give the first group the extra
-    if (testNames.length % 2 !== 0 && groupPos !== 1) offset++
 
     if (prevTimings) {
       const groups = [[]]
@@ -185,7 +190,9 @@ async function main() {
         Math.round(groupTimes[curGroupIdx]) + 's'
       )
     } else {
-      testNames = testNames.splice(offset, numPerGroup)
+      const numPerGroup = Math.ceil(testNames.length / groupTotal)
+      let offset = (groupPos - 1) * numPerGroup
+      testNames = testNames.slice(offset, offset + numPerGroup)
     }
   }
 
@@ -296,8 +303,15 @@ async function main() {
       })
     })
 
+  const directorySemas = new Map()
+
   await Promise.all(
     testNames.map(async (test) => {
+      const dirName = path.dirname(test)
+      let dirSema = directorySemas.get(dirName)
+      if (dirSema === undefined)
+        directorySemas.set(dirName, (dirSema = new Sema(1)))
+      await dirSema.acquire()
       await sema.acquire()
       let passed = false
 
@@ -347,6 +361,7 @@ async function main() {
         cleanUpAndExit(1)
       }
       sema.release()
+      dirSema.release()
     })
   )
 
@@ -377,16 +392,32 @@ async function main() {
     // junitData += `</testsuites>`
     // console.log('output timing data to junit.xml')
 
-    if (prevTimings) {
+    if (prevTimings && process.env.TEST_TIMINGS_TOKEN) {
       try {
+        const newTimings = {
+          ...(await getTestTimings()),
+          ...curTimings,
+        }
+
+        for (const test of Object.keys(newTimings)) {
+          if (!(await fs.pathExists(path.join(__dirname, test)))) {
+            console.log('removing stale timing', test)
+            delete newTimings[test]
+          }
+        }
+
         const timingsRes = await fetch(TIMINGS_API, {
-          method: 'POST',
+          method: 'PATCH',
           headers: {
-            'content-type': 'application/json',
+            ...TIMINGS_API_HEADERS,
+            Authorization: `Bearer ${process.env.TEST_TIMINGS_TOKEN}`,
           },
           body: JSON.stringify({
-            timings: curTimings,
-            which: isAzure ? 'azure' : 'actions',
+            files: {
+              'test-timings.json': {
+                content: JSON.stringify(newTimings),
+              },
+            },
           }),
         })
 

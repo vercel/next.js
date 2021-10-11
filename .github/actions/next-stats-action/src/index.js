@@ -45,6 +45,10 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
       await checkoutRef(actionInfo.prRef, diffRepoDir)
     }
 
+    if (actionInfo.isRelease) {
+      process.env.STATS_IS_RELEASE = 'true'
+    }
+
     // load stats config from allowed locations
     const { statsConfig, relativeStatsAppDir } = loadStatsConfig()
 

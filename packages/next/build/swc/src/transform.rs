@@ -27,20 +27,15 @@ DEALINGS IN THE SOFTWARE.
 */
 
 use crate::{
-    amp_attributes::amp_attributes,
-    complete_output, get_compiler,
-    hook_optimizer::hook_optimizer,
-    next_dynamic::next_dynamic,
-    next_ssg::next_ssg,
-    styled_jsx::styled_jsx,
+    complete_output, custom_before_pass, get_compiler,
     util::{CtxtExt, MapErr},
+    TransformOptions,
 };
 use anyhow::{Context as _, Error};
 use napi::{CallContext, Env, JsBoolean, JsObject, JsString, Task};
-use serde::Deserialize;
-use std::{path::PathBuf, sync::Arc};
+use std::sync::Arc;
 use swc::{try_with_handler, Compiler, TransformOutput};
-use swc_common::{chain, pass::Optional, FileName, SourceFile};
+use swc_common::{FileName, SourceFile};
 use swc_ecmascript::ast::Program;
 use swc_ecmascript::transforms::pass::noop;
 
@@ -49,19 +44,6 @@ use swc_ecmascript::transforms::pass::noop;
 pub enum Input {
     /// Raw source code.
     Source(Arc<SourceFile>),
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct TransformOptions {
-    #[serde(flatten)]
-    pub swc: swc::config::Options,
-
-    #[serde(default)]
-    pub disable_next_ssg: bool,
-
-    #[serde(default)]
-    pub pages_dir: Option<PathBuf>,
 }
 
 pub struct TransformTask {
@@ -78,13 +60,7 @@ impl Task for TransformTask {
         try_with_handler(self.c.cm.clone(), |handler| {
             self.c.run(|| match self.input {
                 Input::Source(ref s) => {
-                    let before_pass = chain!(
-                        hook_optimizer(),
-                        Optional::new(next_ssg(), !self.options.disable_next_ssg),
-                        amp_attributes(),
-                        next_dynamic(s.name.clone(), self.options.pages_dir.clone()),
-                        styled_jsx()
-                    );
+                    let before_pass = custom_before_pass(&s.name, &self.options);
                     self.c.process_js_with_custom_pass(
                         s.clone(),
                         &handler,

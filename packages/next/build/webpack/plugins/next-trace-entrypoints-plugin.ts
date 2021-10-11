@@ -1,14 +1,11 @@
 import nodePath from 'path'
-import { nodeFileTrace } from 'next/dist/compiled/@vercel/nft'
-import {
-  webpack,
-  isWebpack5,
-  sources,
-} from 'next/dist/compiled/webpack/webpack'
-import { TRACE_OUTPUT_VERSION } from '../../../shared/lib/constants'
-import { spans } from './profiling-plugin'
 import { Span } from '../../../trace'
+import { spans } from './profiling-plugin'
 import isError from '../../../lib/is-error'
+import { nodeFileTrace } from 'next/dist/compiled/@vercel/nft'
+import { TRACE_OUTPUT_VERSION } from '../../../shared/lib/constants'
+import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
+import { NODE_RESOLVE_OPTIONS } from '../../webpack-config'
 
 const PLUGIN_NAME = 'TraceEntryPointsPlugin'
 const TRACE_IGNORES = [
@@ -22,11 +19,7 @@ function getModuleFromDependency(
   compilation: any,
   dep: any
 ): webpack.Module & { resource?: string } {
-  if (isWebpack5) {
-    return compilation.moduleGraph.getModule(dep)
-  }
-
-  return dep.module
+  return compilation.moduleGraph.getModule(dep)
 }
 
 export class TraceEntryPointsPlugin implements webpack.Plugin {
@@ -67,15 +60,8 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
           }
         }
         // don't include the entry itself in the trace
-        entryFiles.delete(
-          nodePath.join(
-            outputPath,
-            `${isWebpack5 ? '../' : ''}${entrypoint.name}.js`
-          )
-        )
-        const traceOutputName = `${isWebpack5 ? '../' : ''}${
-          entrypoint.name
-        }.js.nft.json`
+        entryFiles.delete(nodePath.join(outputPath, `../${entrypoint.name}.js`))
+        const traceOutputName = `../${entrypoint.name}.js.nft.json`
         const traceOutputPath = nodePath.dirname(
           nodePath.join(outputPath, traceOutputName)
         )
@@ -99,7 +85,12 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
 
   tapfinishModules(
     compilation: webpack.compilation.Compilation,
-    traceEntrypointsPluginSpan: Span
+    traceEntrypointsPluginSpan: Span,
+    doResolve?: (
+      request: string,
+      parent: string,
+      job: import('@vercel/nft/out/node-file-trace').Job
+    ) => Promise<string>
   ) {
     compilation.hooks.finishModules.tapAsync(
       PLUGIN_NAME,
@@ -147,10 +138,9 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
               })
             })
 
-            // TODO: investigate allowing non-sync fs calls in node-file-trace
-            // for better performance
-            const readFile = (path: string, _span: Span) => {
-              // return span.traceChild('read-file', { path }).traceFn(() => {
+            const readFile = async (
+              path: string
+            ): Promise<Buffer | string | null> => {
               const mod = depModMap.get(path) || entryModMap.get(path)
 
               // map the transpiled source when available to avoid
@@ -162,7 +152,15 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
               }
 
               try {
-                return compilation.inputFileSystem.readFileSync(path)
+                return await new Promise((resolve, reject) => {
+                  ;(
+                    compilation.inputFileSystem
+                      .readFile as typeof import('fs').readFile
+                  )(path, (err, data) => {
+                    if (err) return reject(err)
+                    resolve(data)
+                  })
+                })
               } catch (e) {
                 if (
                   isError(e) &&
@@ -172,12 +170,18 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
                 }
                 throw e
               }
-              // })
             }
-            const readlink = (path: string, _span: Span) => {
-              // return span.traceChild('read-link', { path }).traceFn(() => {
+            const readlink = async (path: string): Promise<string | null> => {
               try {
-                return compilation.inputFileSystem.readlinkSync(path)
+                return await new Promise((resolve, reject) => {
+                  ;(
+                    compilation.inputFileSystem
+                      .readlink as typeof import('fs').readlink
+                  )(path, (err, link) => {
+                    if (err) return reject(err)
+                    resolve(link)
+                  })
+                })
               } catch (e) {
                 if (
                   isError(e) &&
@@ -189,19 +193,28 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
                 }
                 throw e
               }
-              // })
             }
-            const stat = (path: string, _span: Span) => {
-              // return span.traceChild('stat', { path }).traceFn(() => {
+            const stat = async (
+              path: string
+            ): Promise<import('fs').Stats | null> => {
               try {
-                return compilation.inputFileSystem.statSync(path)
+                return await new Promise((resolve, reject) => {
+                  ;(
+                    compilation.inputFileSystem.stat as typeof import('fs').stat
+                  )(path, (err, stats) => {
+                    if (err) return reject(err)
+                    resolve(stats)
+                  })
+                })
               } catch (e) {
-                if (isError(e) && e.code === 'ENOENT') {
+                if (
+                  isError(e) &&
+                  (e.code === 'ENOENT' || e.code === 'ENOTDIR')
+                ) {
                   return null
                 }
                 throw e
               }
-              // })
             }
 
             const nftCache = {}
@@ -220,7 +233,6 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
 
                 // Use cached trace if available and trace version matches
                 // if (
-                //   isWebpack5 &&
                 //   cachedTraces &&
                 //   cachedTraces.version === TRACE_OUTPUT_VERSION
                 // ) {
@@ -230,26 +242,21 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
                 //   )
                 //   continue
                 // }
-                const collectDependencies = (mod: any, span: Span) => {
-                  const childSpan = span.traceChild('collect-dependencies', {
-                    resource: mod.resource,
-                  })
-                  return childSpan.traceFn(() => {
-                    if (!mod || !mod.dependencies) return
+                const collectDependencies = (mod: any) => {
+                  if (!mod || !mod.dependencies) return
 
-                    for (const dep of mod.dependencies) {
-                      const depMod = getModuleFromDependency(compilation, dep)
+                  for (const dep of mod.dependencies) {
+                    const depMod = getModuleFromDependency(compilation, dep)
 
-                      if (depMod?.resource && !depModMap.get(depMod.resource)) {
-                        depModMap.set(depMod.resource, depMod)
-                        collectDependencies(depMod, childSpan)
-                      }
+                    if (depMod?.resource && !depModMap.get(depMod.resource)) {
+                      depModMap.set(depMod.resource, depMod)
+                      collectDependencies(depMod)
                     }
-                  })
+                  }
                 }
-                collectDependencies(entryMod, entrySpan)
+                collectDependencies(entryMod)
 
-                const toTrace: string[] = [entry, ...depModMap.keys()]
+                const toTrace: string[] = [entry]
 
                 const entryName = entryNameMap.get(entry)!
                 const curExtraEntries = additionalEntries.get(entryName)
@@ -265,9 +272,12 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
                     base: root,
                     cache: nftCache,
                     processCwd: this.appDir,
-                    readFile: (path) => readFile(path, fileTraceSpan),
-                    readlink: (path) => readlink(path, fileTraceSpan),
-                    stat: (path) => stat(path, fileTraceSpan),
+                    readFile,
+                    readlink,
+                    stat,
+                    resolve: doResolve
+                      ? (id, parent, job, _isCjs) => doResolve(id, parent, job)
+                      : undefined,
                     ignore: [...TRACE_IGNORES, ...this.excludeFiles],
                     mixedModules: true,
                   })
@@ -276,10 +286,12 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
                 const tracedDeps: string[] = []
 
                 for (const file of result.fileList) {
+                  // don't include the entry itself
                   if (result.reasons[file].type === 'initial') {
                     continue
                   }
-                  tracedDeps.push(nodePath.join(root, file))
+                  const filepath = nodePath.join(root, file)
+                  tracedDeps.push(filepath)
                 }
 
                 // entryMod.buildInfo.cachedNextEntryTrace = {
@@ -299,56 +311,110 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
   }
 
   apply(compiler: webpack.Compiler) {
-    if (isWebpack5) {
-      compiler.hooks.compilation.tap(PLUGIN_NAME, (compilation) => {
-        const compilationSpan = spans.get(compilation) || spans.get(compiler)!
-        const traceEntrypointsPluginSpan = compilationSpan.traceChild(
-          'next-trace-entrypoint-plugin'
+    compiler.hooks.compilation.tap(PLUGIN_NAME, (compilation) => {
+      const compilationSpan = spans.get(compilation) || spans.get(compiler)!
+      const traceEntrypointsPluginSpan = compilationSpan.traceChild(
+        'next-trace-entrypoint-plugin'
+      )
+      traceEntrypointsPluginSpan.traceFn(() => {
+        // @ts-ignore TODO: Remove ignore when webpack 5 is stable
+        compilation.hooks.processAssets.tap(
+          {
+            name: PLUGIN_NAME,
+            // @ts-ignore TODO: Remove ignore when webpack 5 is stable
+            stage: webpack.Compilation.PROCESS_ASSETS_STAGE_SUMMARIZE,
+          },
+          (assets: any) => {
+            this.createTraceAssets(
+              compilation,
+              assets,
+              traceEntrypointsPluginSpan
+            )
+          }
         )
-        traceEntrypointsPluginSpan.traceFn(() => {
-          // @ts-ignore TODO: Remove ignore when webpack 5 is stable
-          compilation.hooks.processAssets.tap(
-            {
-              name: PLUGIN_NAME,
-              // @ts-ignore TODO: Remove ignore when webpack 5 is stable
-              stage: webpack.Compilation.PROCESS_ASSETS_STAGE_SUMMARIZE,
-            },
-            (assets: any) => {
-              this.createTraceAssets(
-                compilation,
-                assets,
-                traceEntrypointsPluginSpan
-              )
-            }
-          )
+        let resolver = compilation.resolverFactory.get('normal')
 
-          this.tapfinishModules(compilation, traceEntrypointsPluginSpan)
+        resolver = resolver.withOptions({
+          ...NODE_RESOLVE_OPTIONS,
+          extensions: undefined,
         })
-      })
-    } else {
-      compiler.hooks.emit.tap(PLUGIN_NAME, (compilation: any) => {
-        const compilationSpan = spans.get(compilation)! || spans.get(compiler)
-        const traceEntrypointsPluginSpan = compilationSpan.traceChild(
-          'next-trace-entrypoint-plugin'
-        )
-        traceEntrypointsPluginSpan.traceFn(() => {
-          this.createTraceAssets(
-            compilation,
-            compilation.assets,
-            traceEntrypointsPluginSpan
-          )
-        })
-      })
 
-      compiler.hooks.compilation.tap(PLUGIN_NAME, (compilation) => {
-        const compilationSpan = spans.get(compilation)! || spans.get(compiler)
-        const traceEntrypointsPluginSpan = compilationSpan.traceChild(
-          'next-trace-entrypoint-plugin'
-        )
-        traceEntrypointsPluginSpan.traceFn(() =>
-          this.tapfinishModules(compilation, traceEntrypointsPluginSpan)
+        function getPkgName(name: string) {
+          const segments = name.split('/')
+          if (name[0] === '@' && segments.length > 1)
+            return segments.length > 1 ? segments.slice(0, 2).join('/') : null
+          return segments.length ? segments[0] : null
+        }
+
+        const doResolve = async (
+          request: string,
+          parent: string,
+          job: import('@vercel/nft/out/node-file-trace').Job
+        ): Promise<string> => {
+          return new Promise((resolve, reject) => {
+            resolver.resolve(
+              {},
+              nodePath.dirname(parent),
+              request,
+              {
+                fileDependencies: compilation.fileDependencies,
+                missingDependencies: compilation.missingDependencies,
+                contextDependencies: compilation.contextDependencies,
+              },
+              async (err: any, result: string, context: any) => {
+                if (err) return reject(err)
+
+                if (!result) {
+                  return reject(new Error('module not found'))
+                }
+
+                try {
+                  if (result.includes('node_modules')) {
+                    let requestPath = result
+
+                    if (
+                      !nodePath.isAbsolute(request) &&
+                      request.includes('/') &&
+                      context?.descriptionFileRoot
+                    ) {
+                      requestPath =
+                        context.descriptionFileRoot +
+                        request.substr(getPkgName(request)?.length || 0) +
+                        nodePath.sep +
+                        'package.json'
+                    }
+
+                    // the descriptionFileRoot is not set to the last used
+                    // package.json so we use nft's resolving for this
+                    // see test/integration/build-trace-extra-entries/app/node_modules/nested-structure for example
+                    const packageJsonResult = await job.getPjsonBoundary(
+                      requestPath
+                    )
+
+                    if (packageJsonResult) {
+                      await job.emitFile(
+                        packageJsonResult + nodePath.sep + 'package.json',
+                        'resolve',
+                        parent
+                      )
+                    }
+                  }
+                } catch (_err) {
+                  // we failed to resolve the package.json boundary,
+                  // we don't block emitting the initial asset from this
+                }
+                resolve(result)
+              }
+            )
+          })
+        }
+
+        this.tapfinishModules(
+          compilation,
+          traceEntrypointsPluginSpan,
+          doResolve
         )
       })
-    }
+    })
   }
 }

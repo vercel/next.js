@@ -16,7 +16,8 @@ export class NextInstance {
   protected nextConfig?: NextConfig
   protected dependencies?: { [name: string]: string }
   protected events: { [eventName: string]: Set<any> }
-  protected testDir: string
+  public testDir: string
+  protected isStopping: boolean
   protected isDestroyed: boolean
   protected childProcess: ChildProcess
   protected _url: string
@@ -40,6 +41,7 @@ export class NextInstance {
     this.nextConfig = nextConfig
     this.events = {}
     this.isDestroyed = false
+    this.isStopping = false
   }
 
   protected async createTestDir() {
@@ -48,12 +50,15 @@ export class NextInstance {
     }
     console.log(`Creating test directory with isolated next...`)
 
-    const tmpDir = process.env.NEXT_TEST_DIR || (await fs.realpath(os.tmpdir()))
+    const skipIsolatedNext = !!process.env.NEXT_SKIP_ISOLATE
+    const tmpDir = skipIsolatedNext
+      ? path.join(__dirname, '../../tmp')
+      : process.env.NEXT_TEST_DIR || (await fs.realpath(os.tmpdir()))
     this.testDir = path.join(tmpDir, `next-test-${Date.now()}`)
 
     if (process.env.NEXT_TEST_STARTER && !this.dependencies) {
       await fs.copy(process.env.NEXT_TEST_STARTER, this.testDir)
-    } else {
+    } else if (!skipIsolatedNext) {
       this.testDir = await createNextInstall({
         react: 'latest',
         'react-dom': 'latest',
@@ -120,6 +125,7 @@ export class NextInstance {
   public async setup(): Promise<void> {}
   public async start(): Promise<void> {}
   public async stop(): Promise<void> {
+    this.isStopping = true
     if (this.childProcess) {
       let exitResolve
       const exitPromise = new Promise((resolve) => {
@@ -150,7 +156,10 @@ export class NextInstance {
     this.isDestroyed = true
     this.emit('destroy', [])
     await this.stop()
-    await fs.remove(this.testDir)
+
+    if (!process.env.NEXT_TEST_SKIP_CLEANUP) {
+      await fs.remove(this.testDir)
+    }
   }
 
   public get url() {
@@ -162,6 +171,10 @@ export class NextInstance {
   }
 
   public get buildId(): string {
+    return ''
+  }
+
+  public get cliOutput(): string {
     return ''
   }
 

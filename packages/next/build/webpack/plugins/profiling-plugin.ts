@@ -1,25 +1,14 @@
-import { webpack, isWebpack5 } from 'next/dist/compiled/webpack/webpack'
+import { NormalModule } from 'next/dist/compiled/webpack/webpack'
 import { Span } from '../../../trace'
+import type webpack from 'webpack'
 
 const pluginName = 'ProfilingPlugin'
-export const spans = new WeakMap<
-  webpack.compilation.Compilation | webpack.Compiler,
-  Span
->()
+export const spans = new WeakMap<webpack.Compilation | webpack.Compiler, Span>()
 const moduleSpansByCompilation = new WeakMap<
-  webpack.compilation.Compilation,
+  webpack.Compilation,
   WeakMap<webpack.Module, Span>
 >()
 export const webpackInvalidSpans = new WeakMap<any, Span>()
-
-function getNormalModuleLoaderHook(compilation: any) {
-  if (isWebpack5) {
-    // @ts-ignore TODO: Remove ignore when webpack 5 is stable
-    return webpack.NormalModule.getCompilationHooks(compilation).loader
-  }
-
-  return compilation.hooks.normalModuleLoader
-}
 
 export class ProfilingPlugin {
   compiler: any
@@ -80,7 +69,7 @@ export class ProfilingPlugin {
     this.traceHookPair(
       'webpack-compilation',
       compiler.hooks.compilation,
-      isWebpack5 ? compiler.hooks.afterCompile : compiler.hooks.done,
+      compiler.hooks.afterCompile,
       {
         parentSpan: () =>
           webpackInvalidSpans.get(compiler) || this.runWebpackSpan,
@@ -115,17 +104,10 @@ export class ProfilingPlugin {
         webpackInvalidSpans.get(compiler) || this.runWebpackSpan,
     })
 
-    if (isWebpack5) {
-      this.traceHookPair(
-        'make',
-        compiler.hooks.make,
-        compiler.hooks.finishMake,
-        {
-          parentSpan: () =>
-            webpackInvalidSpans.get(compiler) || this.runWebpackSpan,
-        }
-      )
-    }
+    this.traceHookPair('make', compiler.hooks.make, compiler.hooks.finishMake, {
+      parentSpan: () =>
+        webpackInvalidSpans.get(compiler) || this.runWebpackSpan,
+    })
 
     compiler.hooks.compilation.tap(pluginName, (compilation: any) => {
       compilation.hooks.buildModule.tap(pluginName, (module: any) => {
@@ -159,42 +141,54 @@ export class ProfilingPlugin {
         moduleSpans!.set(module, span)
       })
 
-      getNormalModuleLoaderHook(compilation).tap(
-        pluginName,
-        (loaderContext: any, module: any) => {
-          const moduleSpan = moduleSpansByCompilation
-            .get(compilation)
-            ?.get(module)
-          loaderContext.currentTraceSpan = moduleSpan
-        }
-      )
+      const moduleHooks = NormalModule.getCompilationHooks(compilation)
+      // @ts-ignore TODO: remove ignore when using webpack 5 types
+      moduleHooks.readResource.for(undefined).intercept({
+        register(tapInfo: any) {
+          const fn = tapInfo.fn
+          tapInfo.fn = (loaderContext: any, callback: any) => {
+            const moduleSpan =
+              loaderContext.currentTraceSpan.traceChild(`read-resource`)
+            fn(loaderContext, (err: any, result: any) => {
+              moduleSpan.stop()
+              callback(err, result)
+            })
+          }
+          return tapInfo
+        },
+      })
+
+      moduleHooks.loader.tap(pluginName, (loaderContext: any, module: any) => {
+        const moduleSpan = moduleSpansByCompilation
+          .get(compilation)
+          ?.get(module)
+        loaderContext.currentTraceSpan = moduleSpan
+      })
 
       compilation.hooks.succeedModule.tap(pluginName, (module: any) => {
         moduleSpansByCompilation?.get(compilation)?.get(module)?.stop()
       })
 
-      if (isWebpack5) {
-        this.traceHookPair(
-          'webpack-compilation-seal',
-          compilation.hooks.seal,
-          compilation.hooks.afterSeal,
-          { parentSpan: () => spans.get(compilation)! }
-        )
+      this.traceHookPair(
+        'webpack-compilation-seal',
+        compilation.hooks.seal,
+        compilation.hooks.afterSeal,
+        { parentSpan: () => spans.get(compilation)! }
+      )
 
-        this.traceHookPair(
-          'add-entry',
-          compilation.hooks.addEntry,
-          compilation.hooks.afterSeal,
-          {
-            attrs: (entry: any) => {
-              return {
-                request: entry.request,
-              }
-            },
-            parentSpan: () => spans.get(compilation)!,
-          }
-        )
-      }
+      compilation.hooks.addEntry.tap(pluginName, (entry: any) => {
+        const compilationSpan = spans.get(compilation)
+        if (!compilationSpan) {
+          return
+        }
+        const addEntrySpan = compilationSpan.traceChild('add-entry')
+        addEntrySpan.setAttribute('request', entry.request)
+        spans.set(entry, addEntrySpan)
+      })
+
+      compilation.hooks.succeedEntry.tap(pluginName, (entry: any) => {
+        spans.get(entry)?.stop()
+      })
 
       this.traceHookPair(
         'webpack-compilation-chunk-graph',
