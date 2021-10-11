@@ -8,6 +8,8 @@ export const VALID_LOADERS = [
 
 export type LoaderValue = typeof VALID_LOADERS[number]
 
+type ImageFormat = 'image/avif' | 'image/webp'
+
 export type ImageConfigComplete = {
   deviceSizes: number[]
   imageSizes: number[]
@@ -16,6 +18,7 @@ export type ImageConfigComplete = {
   domains?: string[]
   disableStaticImages?: boolean
   minimumCacheTTL?: number
+  formats?: ImageFormat[]
 }
 
 export type ImageConfig = Partial<ImageConfigComplete>
@@ -28,4 +31,5 @@ export const imageConfigDefault: ImageConfigComplete = {
   domains: [],
   disableStaticImages: false,
   minimumCacheTTL: 60,
+  formats: ['image/avif', 'image/webp'],
 }

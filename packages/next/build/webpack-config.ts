@@ -1051,7 +1051,7 @@ export default async function getBaseWebpackConfig(
         ...(!config.images.disableStaticImages
           ? [
               {
-                test: /\.(png|jpg|jpeg|gif|webp|ico|bmp|svg)$/i,
+                test: /\.(png|jpg|jpeg|gif|webp|avif|ico|bmp|svg)$/i,
                 loader: 'next-image-loader',
                 issuer: { not: regexLikeCss },
                 dependency: { not: ['url'] },
@@ -1512,7 +1512,7 @@ export default async function getBaseWebpackConfig(
       // Exclude svg if the user already defined it in custom
       // webpack config such as `@svgr/webpack` plugin or
       // the `babel-plugin-inline-react-svg` plugin.
-      nextImageRule.test = /\.(png|jpg|jpeg|gif|webp|ico|bmp)$/i
+      nextImageRule.test = /\.(png|jpg|jpeg|gif|webp|avif|ico|bmp)$/i
     }
   }
 
