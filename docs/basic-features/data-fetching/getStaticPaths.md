@@ -19,7 +19,7 @@ export async function getStaticPaths() {
 }
 ```
 
-The [`getStaticPaths` API reference](/docs/api-reference/getstaticpaths.md) covers all parameters and props that can be used with `getStaticPaths`.
+The [`getStaticPaths` API reference](/docs/api-reference/data-fetching/getStaticPaths.md) covers all parameters and props that can be used with `getStaticPaths`.
 
 ## When should I use `getStaticPaths`?
 
