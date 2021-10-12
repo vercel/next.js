@@ -134,6 +134,13 @@ export class TerserPlugin {
               const result = await require('../../../../swc').minify(
                 options.input,
                 {
+                  ...(options.inputSourceMap
+                    ? {
+                        sourceMap: {
+                          content: JSON.stringify(options.inputSourceMap),
+                        },
+                      }
+                    : {}),
                   compress: true,
                   mangle: true,
                 }

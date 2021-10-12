@@ -567,6 +567,7 @@ describe('Telemetry CLI', () => {
       env: { NEXT_TELEMETRY_DEBUG: 1 },
     })
     const regex = /NEXT_BUILD_FEATURE_USAGE[\s\S]+?{([\s\S]+?)}/g
+    regex.exec(stderr).pop() // optimizeCss
     const image = regex.exec(stderr).pop()
     expect(image).toContain(`"featureName": "next/image"`)
     expect(image).toContain(`"invocationCount": 1`)
@@ -576,5 +577,27 @@ describe('Telemetry CLI', () => {
     const dynamic = regex.exec(stderr).pop()
     expect(dynamic).toContain(`"featureName": "next/dynamic"`)
     expect(dynamic).toContain(`"invocationCount": 1`)
+  })
+
+  it('emits telemetry for usage of `optimizeCss`', async () => {
+    await fs.rename(
+      path.join(appDir, 'next.config.optimize-css'),
+      path.join(appDir, 'next.config.js')
+    )
+
+    const { stderr } = await nextBuild(appDir, [], {
+      stderr: true,
+      env: { NEXT_TELEMETRY_DEBUG: 1 },
+    })
+
+    await fs.rename(
+      path.join(appDir, 'next.config.js'),
+      path.join(appDir, 'next.config.optimize-css')
+    )
+
+    const regex = /NEXT_BUILD_FEATURE_USAGE[\s\S]+?{([\s\S]+?)}/g
+    const optimizeCss = regex.exec(stderr).pop()
+    expect(optimizeCss).toContain(`"featureName": "experimental/optimizeCss"`)
+    expect(optimizeCss).toContain(`"invocationCount": 1`)
   })
 })
