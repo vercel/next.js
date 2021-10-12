@@ -312,6 +312,32 @@ function assignDefaults(userConfig: { [key: string]: any }) {
         )}), received  (${images.minimumCacheTTL}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
       )
     }
+
+    if (images.formats) {
+      const { formats } = images
+      if (!Array.isArray(formats)) {
+        throw new Error(
+          `Specified images.formats should be an Array received ${typeof formats}.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
+        )
+      }
+      if (formats.length < 1 || formats.length > 2) {
+        throw new Error(
+          `Specified images.formats must be length 1 or 2, received length (${formats.length}), please reduce the length of the array to continue.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
+        )
+      }
+
+      const invalid = formats.filter((f) => {
+        return f !== 'image/avif' && f !== 'image/webp'
+      })
+
+      if (invalid.length > 0) {
+        throw new Error(
+          `Specified images.formats should be an Array of mime type strings, received invalid values (${invalid.join(
+            ', '
+          )}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
+        )
+      }
+    }
   }
 
   if (result.webpack5 === false) {

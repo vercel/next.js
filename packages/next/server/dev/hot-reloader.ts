@@ -409,10 +409,10 @@ export default class HotReloader {
             if (isClientCompilation && page.match(API_ROUTE)) {
               return
             }
-            const { bundlePath, absolutePagePath } = entries[pageKey]
-            const pageExists = await isWriteable(absolutePagePath)
+            const { bundlePath, absolutePagePath, dispose } = entries[pageKey]
+            const pageExists = !dispose && (await isWriteable(absolutePagePath))
             if (!pageExists) {
-              // page was removed
+              // page was removed or disposed
               delete entries[pageKey]
               return
             }
