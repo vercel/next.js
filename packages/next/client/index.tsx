@@ -33,7 +33,7 @@ import measureWebVitals from './performance-relayer'
 import { RouteAnnouncer } from './route-announcer'
 import { createRouter, makePublicRouterInstance } from './router'
 import isError from '../lib/is-error'
-import { trackWebVitalMetric } from '../vitals/vitals'
+import { trackWebVitalMetric } from './vitals'
 
 /// <reference types="react-dom/experimental" />
 
