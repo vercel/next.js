@@ -185,7 +185,7 @@ module.exports = {
 
 Next.js supports Sass variables exported from CSS Module files.
 
-For example, using exported `primaryColor` Sass variable:
+For example, using the exported `primaryColor` Sass variable:
 
 ```scss
 /* variables.module.scss */
