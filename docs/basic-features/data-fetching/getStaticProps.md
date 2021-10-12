@@ -21,7 +21,7 @@ You should use `getStaticProps` if:
 - The data required to render the page is available at build time ahead of a user’s request.
 - The data comes from a headless CMS.
 - The data can be publicly cached (not user-specific).
-- The page must be pre-rendered (for SEO) and be very fast — `getStaticProps` generates HTML and JSON files, both of which can be cached by a CDN for performance.
+- The page must be pre-rendered (for SEO) and be very fast — `getStaticProps` generates `HTML` and `JSON` files, both of which can be cached by a CDN for performance.
 
 ## Using `getStaticProps` to fetch data from a CMS
 
@@ -66,11 +66,11 @@ The [`getStaticProps` API reference](/docs/api-reference/data-fetching/getStatic
 
 ### Only runs at build time
 
-Because `getStaticProps` runs at build time, it does **not** receive data that’s only available during request time, such as query parameters or HTTP headers as it generates static HTML.
+Because `getStaticProps` runs at build time, it does **not** receive data that’s only available during request time, such as query parameters or `HTTP` headers as it generates static `HTML`.
 
 ### Write server-side code directly
 
-Note that `getStaticProps` runs only on the server-side. It will never be run on the client-side. It won’t even be included in the JS bundle for the browser. That means you can write code such as direct database queries without them being sent to browsers.
+Note that `getStaticProps` runs only on the server-side. It will never be run on the client-side. It won’t even be included in the `JS` bundle for the browser. That means you can write code such as direct database queries without them being sent to browsers.
 
 You should not fetch an **API route** from `getStaticProps` — instead, you can write the server-side code directly in `getStaticProps`.
 
@@ -78,7 +78,7 @@ You can use the [next-code-elimination tool](https://next-code-elimination.verce
 
 ### Statically Generates both `HTML` and `JSON`
 
-When a page with `getStaticProps` is pre-rendered at build time, in addition to the page HTML file, Next.js generates a `JSON` file holding the result of running `getStaticProps`.
+When a page with `getStaticProps` is pre-rendered at build time, in addition to the page `HTML` file, Next.js generates a `JSON` file holding the result of running `getStaticProps`.
 
 This `JSON` file will be used in client-side routing through [`next/link`](/docs/api-reference/next/link.md) or [`next/router`](/docs/api-reference/next/router.md). When you navigate to a page that’s pre-rendered using `getStaticProps`, Next.js fetches this `JSON` file (pre-computed at build time) and uses it as the props for the page component. This means that client-side page transitions will **not** call `getStaticProps` as only the exported `JSON` is used.
 
