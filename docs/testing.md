@@ -8,6 +8,7 @@ description: Learn how to set up Next.js with three commonly used testing tools 
   <summary><b>Examples</b></summary>
   <ul>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-cypress">Next.js with Cypress</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-playwright">Next.js with Playwright</a></li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-jest">Next.js with Jest and React Testing Library</a></li>
   </ul>
 </details>
@@ -136,6 +137,109 @@ You can learn more about Cypress and Continuous Integration from these resources
 - [Cypress Continuous Integration Docs](https://docs.cypress.io/guides/continuous-integration/introduction)
 - [Cypress GitHub Actions Guide](https://on.cypress.io/github-actions)
 - [Official Cypress Github Action](https://github.com/cypress-io/github-action)
+
+## Playwright
+
+Playwright is a testing framework that lets you automate Chromium, Firefox, and WebKit with a single API. You can use it to write **End-to-End (E2E)** and **Integration** tests across all platforms.
+
+### Quickstart
+
+The fastest way to get started, is to use `create-next-app` with the [with-playwright example](https://github.com/vercel/next.js/tree/canary/examples/with-playwright). This will create a Next.js project complete with Playwright all set up.
+
+```bash
+npx create-next-app@latest --example with-playwright with-playwright-app
+```
+
+### Manual setup
+
+You can also use `npm init playwright` to add Playwright to an existing `NPM` project.
+
+To manually get started with Playwright, install the `@playwright/test` package:
+
+```bash
+npm install --save-dev @playwright/test
+```
+
+Add Playwright to the `package.json` scripts field:
+
+```json
+"scripts": {
+  "dev": "next dev",
+  "build": "next build",
+  "start": "next start",
+  "test:e2e": "playwright test",
+}
+```
+
+### Creating your first Playwright end-to-end test
+
+Assuming the following two Next.js pages:
+
+```jsx
+// pages/index.js
+import Link from 'next/link'
+
+export default function Home() {
+  return (
+    <nav>
+      <Link href="/about">
+        <a>About</a>
+      </Link>
+    </nav>
+  )
+}
+```
+
+```jsx
+// pages/about.js
+export default function About() {
+  return (
+    <div>
+      <h1>About Page</h1>
+    </div>
+  )
+}
+```
+
+Add a test to verify that your navigation is working correctly:
+
+```jsx
+// e2e/example.spec.ts
+
+import { test, expect } from '@playwright/test'
+
+test('should navigate to the about page', async ({ page }) => {
+  // Start from the index page (the baseURL is set via the webServer in the playwright.config.ts)
+  await page.goto('http://localhost:3000/')
+  // Find an element with the text 'About Page' and click on it
+  await page.click('text=About Page')
+  // The new url should be "/about" (baseURL is used there)
+  await expect(page).toHaveURL('http://localhost:3000/about')
+  // The new page should contain an h1 with "About Page"
+  await expect(page.locator('h1')).toContainText('About Page')
+})
+```
+
+You can use `page.goto("/")` instead of `page.goto("http://localhost:3000/")`, if you add [`"baseURL": "http://localhost:3000"`](https://playwright.dev/docs/api/class-testoptions#test-options-base-url) to the `playwright.config.ts` configuration file.
+
+### Running your Playwright tests
+
+Since Playwright is testing a real Next.js application, it requires the Next.js server to be running prior to starting Playwright. It is recommend to run your tests against your production code to more closely resemble how your application will behave.
+
+Run `npm run build` and `npm run start`, then run `npm run test:e2e` in another terminal window to run the Playwright tests.
+
+> **Note:** Alternatively, you can use the [`webServer`](https://playwright.dev/docs/test-advanced#launching-a-development-web-server-during-the-tests) feature to let Playwright start the development server and wait until it's fully available.
+
+### Running Playwright on Continuous Integration (CI)
+
+Playwright will by default run your tests in the [headed mode](https://playwright.dev/docs/ci). To install all the Playwright dependencies, run `npx playwright install-deps`.
+
+You can learn more about Playwright and Continuous Integration from these resources:
+
+- [Getting started with Playwright](https://playwright.dev/docs/intro)
+- [Use a development server](https://playwright.dev/docs/test-advanced#launching-a-development-web-server-during-the-tests)
+- [Playwright on your CI provider](https://playwright.dev/docs/ci)
+- [Use a development server](https://playwright.dev/docs/test-advanced#launching-a-development-web-server-during-the-tests)
 
 ## Jest and React Testing Library
 
