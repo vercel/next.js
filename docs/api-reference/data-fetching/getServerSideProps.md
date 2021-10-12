@@ -2,7 +2,7 @@
 description: Fetch data on each request with `getServerSideProps`. Learn more about this API for data fetching in Next.js.
 ---
 
-# `getServerSideProps` (Server-side Rendering)
+# `getServerSideProps`
 
 <details>
   <summary><b>Version History</b></summary>
@@ -14,7 +14,7 @@ description: Fetch data on each request with `getServerSideProps`. Learn more ab
 
 </details>
 
-When exporting an `async` function called `getServerSideProps` from a page, Next.js will pre-render this page on each request using the data returned by `getServerSideProps`.
+When exporting an `async` function called `getServerSideProps` (server-side rendering) from a page, Next.js will pre-render this page on each request using the data returned by `getServerSideProps`.
 
 ```js
 export async function getServerSideProps(context) {

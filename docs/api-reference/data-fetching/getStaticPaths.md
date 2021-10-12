@@ -2,7 +2,7 @@
 description: Fetch data at build time with `getStaticProps`.
 ---
 
-# `getStaticPaths` (Static Generation)
+# `getStaticPaths`
 
 <details>
   <summary><b>Version History</b></summary>
@@ -14,7 +14,7 @@ description: Fetch data at build time with `getStaticProps`.
 
 </details>
 
-When exporting an `async` function called `getStaticPaths` from a page that uses dynamic routes, Next.js will statically pre-render all the paths specified by `getStaticPaths`.
+When exporting an `async` function called `getStaticPaths` (static generation) from a page that uses dynamic routes, Next.js will statically pre-render all the paths specified by `getStaticPaths`.
 
 ```jsx
 export async function getStaticPaths() {

@@ -2,7 +2,7 @@
 description: Fetch data at build time with `getStaticProps`.
 ---
 
-# `getStaticProps` (Static Generation)
+# `getStaticProps`
 
 <details>
   <summary><b>Version History</b></summary>
@@ -15,7 +15,7 @@ description: Fetch data at build time with `getStaticProps`.
 
 </details>
 
-Exporting an `async` function called `getStaticProps` will pre-render a page at build time using the props returned from the function:
+Exporting an `async` function called `getStaticProps` (static generation) will pre-render a page at build time using the props returned from the function:
 
 ```jsx
 export async function getStaticProps(context) {

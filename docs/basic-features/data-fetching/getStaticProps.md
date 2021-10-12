@@ -2,9 +2,9 @@
 description: Fetch data at build time with `getStaticProps` (Static Generation) API reference.
 ---
 
-# `getStaticProps` (Static Generation)
+# `getStaticProps`
 
-If you export an `async` function called `getStaticProps` from a page, Next.js will pre-render this page at build time using the props returned by `getStaticProps`.
+If you export an `async` function called `getStaticProps` (static generation) from a page, Next.js will pre-render this page at build time using the props returned by `getStaticProps`.
 
 ```jsx
 export async function getStaticProps(context) {
