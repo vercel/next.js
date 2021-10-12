@@ -31,6 +31,11 @@ function nextClientPagesLoader(this: any) {
         return require(${stringifiedPagePath});
       }
     ]);
+    if(module.hot) {
+      module.hot.dispose(function () {
+        window.__NEXT_P.push([${stringifiedPage}])
+      });
+    }
   `
   })
 }
