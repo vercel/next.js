@@ -2,9 +2,9 @@
 description: Fetch data at build time with `getStaticProps` API reference.
 ---
 
-# `getServerSideProps` (Server-side Rendering)
+# `getServerSideProps`
 
-If you export an `async` function called `getServerSideProps` from a page, Next.js will pre-render this page on each request using the data returned by `getServerSideProps`.
+If you export an `async` function called `getServerSideProps` (server-side rendering) from a page, Next.js will pre-render this page on each request using the data returned by `getServerSideProps`.
 
 ```js
 export async function getServerSideProps(context) {
@@ -16,13 +16,13 @@ export async function getServerSideProps(context) {
 
 The [`getServerSideProps` API reference](/docs/api-reference/getServerSideProps.md) covers all parameters and props that can be used with `getServerSideProps`.
 
-### When should I use `getServerSideProps`?
+## When should I use `getServerSideProps`?
 
 You should use `getServerSideProps` only if you need to pre-render a page whose data must be fetched at request time. Time to first byte (TTFB) will be slower than [`getStaticProps`](/docs/data-fetching/getstaticprops.md) because the server must compute the result on every request, and the result cannot be cached by a CDN without extra configuration.
 
 If you do not need to pre-render the data, then you should consider fetching data on the [client side](#fetching-data-on-the-client-side).
 
-### TypeScript: Use `GetServerSideProps`
+## TypeScript: Use `GetServerSideProps`
 
 For TypeScript, you can use the `GetServerSideProps` type from `next`:
 
@@ -59,9 +59,9 @@ function Page({ data }: InferGetServerSidePropsType<typeof getServerSideProps>) 
 export default Page
 ```
 
-### Technical details
+## Technical details
 
-#### Only runs on server-side
+### Only runs on server-side
 
 `getServerSideProps` only runs on server-side and never runs on the browser. If a page uses `getServerSideProps`, then:
 
@@ -70,7 +70,7 @@ export default Page
 
 You can use [this tool](https://next-code-elimination.vercel.app/) to verify what Next.js eliminates from the client-side bundle.
 
-#### Only allowed in a page
+### Only allowed in a page
 
 `getServerSideProps` can only be exported from a **page**. You can’t export it from non-page files.
 

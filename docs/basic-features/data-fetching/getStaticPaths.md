@@ -2,11 +2,11 @@
 description: Fetch data at build time with `getStaticProps` API reference.
 ---
 
-# `getStaticPaths` (Static Generation)
+# `getStaticPaths`
 
 If a page has [dynamic routes](/docs/routing/dynamic-routes.md) and uses `getStaticProps`, it needs to define a list of paths that have to be rendered to `HTML` at build time.
 
-When you export an `async` function called `getStaticPaths` from a page that uses dynamic routes, Next.js will statically pre-render all the paths specified by `getStaticPaths`.
+When you export an `async` function called `getStaticPaths` (static generation) from a page that uses dynamic routes, Next.js will statically pre-render all the paths specified by `getStaticPaths`.
 
 ```jsx
 export async function getStaticPaths() {
