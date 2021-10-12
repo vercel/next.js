@@ -15,15 +15,29 @@
             },
             {
               "title": "Data Fetching",
-              "path": "/docs/basic-features/data-fetching.md"
+              "path": "/docs/basic-features/data-fetching.md",
+              "redirect": {
+                "destination": "/docs/basic-features/data-fetching/data-fetching.md",
+                "permanent": true
+              },
+              "routes": [
+                {
+                  "title": "getServerSideProps",
+                  "path": "/docs/basic-features/data-fetching/getServerSideProps.md"
+                },
+                {
+                  "title": "getStaticPaths",
+                  "path": "/docs/basic-features/data-fetching/getStaticPaths.md"
+                },
+                {
+                  "title": "getStaticProps",
+                  "path": "/docs/basic-features/data-fetching/getStaticProps.md"
+                }
+              ]
             },
             {
               "title": "Built-in CSS Support",
               "path": "/docs/basic-features/built-in-css-support.md"
-            },
-            {
-              "title": "Layouts",
-              "path": "/docs/basic-features/layouts.md"
             },
             {
               "title": "Image Optimization",
@@ -32,10 +46,6 @@
             {
               "title": "Font Optimization",
               "path": "/docs/basic-features/font-optimization.md"
-            },
-            {
-              "title": "Script Optimization",
-              "path": "/docs/basic-features/script.md"
             },
             {
               "title": "Static File Serving",
@@ -60,6 +70,10 @@
             {
               "title": "Supported Browsers and Features",
               "path": "/docs/basic-features/supported-browsers-features.md"
+            },
+            {
+              "title": "Script",
+              "path": "/docs/basic-features/script.md"
             }
           ]
         },
@@ -106,20 +120,12 @@
           ]
         },
         {
-          "title": "Going to Production",
-          "path": "/docs/going-to-production.md"
-        },
-        {
           "title": "Deployment",
           "path": "/docs/deployment.md"
         },
         {
           "title": "Authentication",
           "path": "/docs/authentication.md"
-        },
-        {
-          "title": "Testing",
-          "path": "/docs/testing.md"
         },
         {
           "title": "Advanced Features",
@@ -290,6 +296,18 @@
             {
               "title": "getInitialProps",
               "path": "/docs/api-reference/data-fetching/getInitialProps.md"
+            },
+            {
+              "title": "getServerSideProps",
+              "path": "/docs/api-reference/data-fetching/getServerSideProps.md"
+            },
+            {
+              "title": "getStaticPaths",
+              "path": "/docs/api-reference/data-fetching/getStaticPaths.md"
+            },
+            {
+              "title": "getStaticProps",
+              "path": "/docs/api-reference/data-fetching/getStaticProps.md"
             }
           ]
         },
@@ -351,10 +369,6 @@
             {
               "title": "Disabling ETag Generation",
               "path": "/docs/api-reference/next.config.js/disabling-etag-generation.md"
-            },
-            {
-              "title": "Disabling HTTP Keep-Alive",
-              "path": "/docs/api-reference/next.config.js/disabling-http-keep-alive.md"
             },
             {
               "title": "Setting a custom build directory",
