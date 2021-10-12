@@ -22,6 +22,10 @@
               },
               "routes": [
                 {
+                  "title": "Data Fetching Overview",
+                  "path": "/docs/basic-features/data-fetching/data-fetching.md"
+                },
+                {
                   "title": "getServerSideProps",
                   "path": "/docs/basic-features/data-fetching/getServerSideProps.md"
                 },
