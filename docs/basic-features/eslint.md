@@ -181,7 +181,7 @@ The `next/core-web-vitals` rule set is enabled when `next lint` is run for the f
 
 ESLint also contains code formatting rules, which can conflict with your existing [Prettier](https://prettier.io/) setup. We recommend including [eslint-config-prettier](https://github.com/prettier/eslint-config-prettier) in your ESLint config to make ESLint and Prettier work together.
 
-Install the dependency:
+First, install the dependency:
 
 ```bash
 npm install --save-dev eslint-config-prettier
@@ -189,7 +189,7 @@ npm install --save-dev eslint-config-prettier
 yarn add --dev eslint-config-prettier
 ```
 
-Then add to your ESLint config:
+Then, add `prettier` to your existing ESLint config:
 
 ```json
 {
