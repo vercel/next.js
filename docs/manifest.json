@@ -22,7 +22,7 @@
               },
               "routes": [
                 {
-                  "title": "Data Fetching Overview",
+                  "title": "Overview",
                   "path": "/docs/basic-features/data-fetching/data-fetching.md"
                 },
                 {

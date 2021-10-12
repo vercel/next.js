@@ -2,7 +2,7 @@
 description: 'Data fetching in Next.js allows you to render your content in different ways, depending on your applications use case. These include pre-rendering with server-side rendering or static-site generation, and incremental static regeneration. Learn how to manage your application data in Next.js.'
 ---
 
-# Data Fetching
+# Data Fetching Overview
 
 <details>
   <summary><b>Examples</b></summary>
