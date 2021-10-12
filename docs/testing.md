@@ -144,7 +144,7 @@ Playwright is a testing framework that lets you automate Chromium, Firefox, and 
 
 ### Quickstart
 
-You can use `create-next-app` with the [with-playwright example](https://github.com/vercel/next.js/tree/canary/examples/with-playwright) to quickly get started.
+The fastest way to get started, is to use `create-next-app` with the [with-playwright example](https://github.com/vercel/next.js/tree/canary/examples/with-playwright). This will create a Next.js project complete with Playwright all set up.
 
 ```bash
 npx create-next-app@latest --example with-playwright with-playwright-app
@@ -152,7 +152,7 @@ npx create-next-app@latest --example with-playwright with-playwright-app
 
 ### Manual setup
 
-You can also use `npm init playwright` to add Playwright to an existing NPM project.
+You can also use `npm init playwright` to add Playwright to an existing `NPM` project.
 
 To manually get started with Playwright, install the `@playwright/test` package:
 
@@ -220,19 +220,19 @@ test('should navigate to the about page', async ({ page }) => {
 })
 ```
 
-You can use `page.goto("/")` instead of `page.goto("http://localhost:3000/")` if you add `"baseURL": "http://localhost:3000"` to the `playwright.config.ts` configuration file, see [here](https://playwright.dev/docs/api/class-testoptions#test-options-base-url).
+You can use `page.goto("/")` instead of `page.goto("http://localhost:3000/")`, if you add [`"baseURL": "http://localhost:3000"`](https://playwright.dev/docs/api/class-testoptions#test-options-base-url) to the `playwright.config.ts` configuration file.
 
 ### Running your Playwright tests
 
-Since Playwright is testing a real Next.js application, it requires the Next.js server to be running prior to starting Playwright. We recommend running your tests against your production code to more closely resemble how your application will behave.
+Since Playwright is testing a real Next.js application, it requires the Next.js server to be running prior to starting Playwright. It is recommend to run your tests against your production code to more closely resemble how your application will behave.
 
 Run `npm run build` and `npm run start`, then run `npm run test:e2e` in another terminal window to run the Playwright tests.
 
-> **Note:** Alternatively, you can use the `webServer` feature to let Playwright start the development server and wait until its fully available. See [here](https://playwright.dev/docs/test-advanced#launching-a-development-web-server-during-the-tests) for more information.
+> **Note:** Alternatively, you can use the [`webServer`](https://playwright.dev/docs/test-advanced#launching-a-development-web-server-during-the-tests) feature to let Playwright start the development server and wait until it's fully available.
 
 ### Running Playwright on Continuous Integration (CI)
 
-Playwright will by default run your tests in the headed mode. To install all the Playwright dependencies, run `npx playwright install-deps`. For common CI providers, see [here](https://playwright.dev/docs/ci) for receipts.
+Playwright will by default run your tests in the [headed mode](https://playwright.dev/docs/ci). To install all the Playwright dependencies, run `npx playwright install-deps`.
 
 You can learn more about Playwright and Continuous Integration from these resources:
 
