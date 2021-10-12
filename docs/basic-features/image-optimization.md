@@ -38,7 +38,7 @@ To use a local image, `import` your `.jpg`, `.png`, or `.webp` files:
 import profilePic from '../public/me.png'
 ```
 
-Dynamic `await import()` or `require()` are _not_ supported. The `import` must be static. Also note that static image support requires Webpack 5, which is enabled by default in Next.js applications.
+Dynamic `await import()` or `require()` are _not_ supported. The `import` must be static so it can be analyzed at build time.
 
 Next.js will automatically determine the `width` and `height` of your image based on the imported file. These values are used to prevent [Cumulative Layout Shift](https://nextjs.org/learn/seo/web-performance/cls) while your image is loading.
 
