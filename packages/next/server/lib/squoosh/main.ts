@@ -72,3 +72,9 @@ export async function processBuffer(
       throw Error(`Unsupported encoding format`)
   }
 }
+
+export async function decodeBuffer(buffer: Buffer) {
+  const worker: typeof import('./impl') = getWorker() as any
+  const imageData = await worker.decodeBuffer(buffer)
+  return imageData
+}

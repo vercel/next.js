@@ -1,7 +1,7 @@
-use self::amp_attributes::amp_attributes;
-use self::next_dynamic::next_dynamic;
-use self::next_ssg::next_ssg;
-use self::styled_jsx::styled_jsx;
+use next_swc::{
+    amp_attributes::amp_attributes, next_dynamic::next_dynamic, next_ssg::next_ssg,
+    styled_jsx::styled_jsx,
+};
 use std::path::PathBuf;
 use swc_common::{chain, comments::SingleThreadedComments, FileName, Mark};
 use swc_ecma_transforms_testing::{test, test_fixture};
@@ -10,15 +10,6 @@ use swc_ecmascript::{
     transforms::react::jsx,
 };
 use testing::fixture;
-
-#[path = "../src/amp_attributes.rs"]
-mod amp_attributes;
-#[path = "../src/next_dynamic.rs"]
-mod next_dynamic;
-#[path = "../src/next_ssg.rs"]
-mod next_ssg;
-#[path = "../src/styled_jsx/mod.rs"]
-mod styled_jsx;
 
 fn syntax() -> Syntax {
     Syntax::Es(EsConfig {

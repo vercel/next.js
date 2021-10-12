@@ -75,9 +75,9 @@ pub fn transform_css(
     let mut parts: Vec<&str> = s.split("__styled-jsx-placeholder__").collect();
     let mut final_expressions = vec![];
     for i in 1..parts.len() {
-        let expression_index = parts[i].chars().nth(0).unwrap().to_digit(10).unwrap() as usize;
+        let (num_len, expression_index) = read_number(&parts[i]);
         final_expressions.push(style_info.expressions[expression_index].clone());
-        let substr = &parts[i][1..];
+        let substr = &parts[i][num_len..];
         parts[i] = substr;
     }
 
@@ -99,6 +99,22 @@ pub fn transform_css(
         exprs: final_expressions,
         span: DUMMY_SP,
     }))
+}
+
+/// Returns `(length, value)`
+fn read_number(s: &str) -> (usize, usize) {
+    for (idx, c) in s.char_indices() {
+        if c.is_digit(10) {
+            continue;
+        }
+
+        // For 10, we reach here after `0`.
+        let value = s[0..idx].parse().expect("failed to parse");
+
+        return (idx, value);
+    }
+
+    unreachable!("read_number(`{}`) is invalid because it is empty", s)
 }
 
 struct Namespacer {
@@ -164,10 +180,21 @@ impl Namespacer {
                     });
 
                     return match complex_selectors {
-                        Ok(complex_selectors) => Ok(complex_selectors[0].selectors[1..]
-                            .iter()
-                            .cloned()
-                            .collect()),
+                        Ok(complex_selectors) => {
+                            let mut v = complex_selectors[0].selectors[1..]
+                                .iter()
+                                .cloned()
+                                .collect::<Vec<_>>();
+
+                            v.iter_mut().for_each(|sel| {
+                                if i < node.subclass_selectors.len() {
+                                    sel.subclass_selectors
+                                        .extend(node.subclass_selectors[i + 1..].to_vec());
+                                }
+                            });
+
+                            Ok(v)
+                        }
                         Err(_) => bail!("Failed to transform one off global selector"),
                     };
                 } else if pseudo_index.is_none() {
@@ -189,6 +216,7 @@ impl Namespacer {
             SubclassSelector::Class(ClassSelector {
                 span: DUMMY_SP,
                 text: Text {
+                    raw: subclass_selector.into(),
                     value: subclass_selector.into(),
                     span: DUMMY_SP,
                 },
@@ -208,7 +236,10 @@ fn get_front_selector_tokens(selector_tokens: &Tokens) -> Vec<TokenAndSpan> {
                 hi: BytePos(start_pos + 1),
                 ctxt: SyntaxContext::empty(),
             },
-            token: Token::Ident("a".into()),
+            token: Token::Ident {
+                raw: "a".into(),
+                value: "a".into(),
+            },
         },
         TokenAndSpan {
             span: Span {
@@ -254,7 +285,10 @@ fn get_block_tokens(selector_tokens: &Tokens) -> Vec<TokenAndSpan> {
                 hi: BytePos(start_pos + 8),
                 ctxt: SyntaxContext::empty(),
             },
-            token: Token::Ident("color".into()),
+            token: Token::Ident {
+                value: "color".into(),
+                raw: "color".into(),
+            },
         },
         TokenAndSpan {
             span: Span {
@@ -278,7 +312,10 @@ fn get_block_tokens(selector_tokens: &Tokens) -> Vec<TokenAndSpan> {
                 hi: BytePos(start_pos + 13),
                 ctxt: SyntaxContext::empty(),
             },
-            token: Token::Ident("red".into()),
+            token: Token::Ident {
+                value: "red".into(),
+                raw: "red".into(),
+            },
         },
         TokenAndSpan {
             span: Span {
