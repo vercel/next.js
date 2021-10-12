@@ -119,11 +119,11 @@ When a request is made to a page that was pre-rendered at build time, it will in
 
 When a request is made to a path that hasn’t been generated, Next.js will server-render the page on the first request. Future requests will serve the static file from the cache.
 
-To learn how to persist the cache globally and handle rollbacks, learn more about [Incremental Static Regeneration](https://vercel.com/docs/next.js/incremental-static-regeneration).
+[Incremental Static Regeneration](https://vercel.com/docs/next.js/incremental-static-regeneration) covers how to persist the cache globally and handle rollbacks.
 
 ## SWR
 
-The team behind Next.js has created a React hook for data fetching called [**SWR**](https://swr.vercel.app/). We highly recommend it if you’re fetching data on the client side. It handles caching, revalidation, focus tracking, refetching on interval, and more. And you can use it like so:
+The team behind Next.js has created a React hook for data fetching called [**SWR**](https://swr.vercel.app/). It is highly recommend if you are fetching data on the client side. It handles caching, revalidation, focus tracking, refetching on interval, and more.
 
 ```jsx
 import useSWR from 'swr'
