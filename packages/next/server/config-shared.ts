@@ -175,7 +175,7 @@ export const defaultConfig: NextConfig = {
     buildActivity: true,
   },
   onDemandEntries: {
-    maxInactiveAge: 60 * 1000,
+    maxInactiveAge: 15 * 1000,
     pagesBufferLength: 2,
   },
   amp: {

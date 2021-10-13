@@ -416,7 +416,7 @@ export default function Image({
         )
       }
       if (!blurDataURL) {
-        const VALID_BLUR_EXT = ['jpeg', 'png', 'webp'] // should match next-image-loader
+        const VALID_BLUR_EXT = ['jpeg', 'png', 'webp', 'avif'] // should match next-image-loader
 
         throw new Error(
           `Image with src "${src}" has "placeholder='blur'" property but is missing the "blurDataURL" property.

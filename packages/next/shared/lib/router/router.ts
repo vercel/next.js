@@ -1372,18 +1372,24 @@ export default class Router implements BaseRouter {
         return existingRouteInfo
       }
 
-      const cachedRouteInfo: CompletePrivateRouteInfo | undefined =
-        existingRouteInfo && 'initial' in existingRouteInfo
-          ? undefined
-          : existingRouteInfo
-      const routeInfo: CompletePrivateRouteInfo = cachedRouteInfo
-        ? cachedRouteInfo
-        : await this.fetchComponent(route).then((res) => ({
-            Component: res.page,
-            styleSheets: res.styleSheets,
-            __N_SSG: res.mod.__N_SSG,
-            __N_SSP: res.mod.__N_SSP,
-          }))
+      let cachedRouteInfo: CompletePrivateRouteInfo | undefined = undefined
+      // can only use non-initial route info
+      // cannot reuse route info in development since it can change after HMR
+      if (
+        process.env.NODE_ENV !== 'development' &&
+        existingRouteInfo &&
+        !('initial' in existingRouteInfo)
+      ) {
+        cachedRouteInfo = existingRouteInfo
+      }
+      const routeInfo: CompletePrivateRouteInfo =
+        cachedRouteInfo ||
+        (await this.fetchComponent(route).then((res) => ({
+          Component: res.page,
+          styleSheets: res.styleSheets,
+          __N_SSG: res.mod.__N_SSG,
+          __N_SSP: res.mod.__N_SSP,
+        })))
 
       const { Component, __N_SSG, __N_SSP } = routeInfo
 
@@ -1611,21 +1617,31 @@ export default class Router implements BaseRouter {
       cancelled = true
     })
 
-    const componentResult = await this.pageLoader.loadPage(route)
+    const handleCancelled = () => {
+      if (cancelled) {
+        const error: any = new Error(
+          `Abort fetching component for route: "${route}"`
+        )
+        error.cancelled = true
+        throw error
+      }
 
-    if (cancelled) {
-      const error: any = new Error(
-        `Abort fetching component for route: "${route}"`
-      )
-      error.cancelled = true
-      throw error
+      if (cancel === this.clc) {
+        this.clc = null
+      }
     }
 
-    if (cancel === this.clc) {
-      this.clc = null
-    }
+    try {
+      const componentResult = await this.pageLoader.loadPage(route)
 
-    return componentResult
+      handleCancelled()
+
+      return componentResult
+    } catch (err) {
+      handleCancelled()
+
+      throw err
+    }
   }
 
   _getData<T>(fn: () => Promise<T>): Promise<T> {
