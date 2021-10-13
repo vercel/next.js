@@ -642,7 +642,7 @@ export default class Server {
           params.path.shift()
 
           const lastParam = params.path[params.path.length - 1]
-          
+
           // show 404 if it doesn't end with .json
           if (typeof lastParam !== 'string' || !lastParam.endsWith('.json')) {
             await this.render404(req, res, _parsedUrl)
