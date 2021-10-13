@@ -818,6 +818,11 @@ describe('Prerender', () => {
       expect(html).toMatch(/This page could not be found/)
     })
 
+    it('should 404 for an invalid data url', async () => {
+      const res = await fetchViaHTTP(next.url, `/_next/data/${next.buildId}`)
+      expect(res.status).toBe(404)
+    })
+
     it('should allow rewriting to SSG page with fallback: false', async () => {
       const html = await renderViaHTTP(next.url, '/about')
       expect(html).toMatch(/About:.*?en/)

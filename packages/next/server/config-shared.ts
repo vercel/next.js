@@ -127,7 +127,6 @@ export type NextConfig = { [key: string]: any } & {
     optimizeImages?: boolean
     optimizeCss?: boolean
     scrollRestoration?: boolean
-    stats?: boolean
     externalDir?: boolean
     conformance?: boolean
     amp?: {
@@ -145,6 +144,7 @@ export type NextConfig = { [key: string]: any } & {
     outputFileTracing?: boolean
     concurrentFeatures?: boolean
     serverComponents?: boolean
+    fullySpecified?: boolean
   }
 }
 
@@ -176,7 +176,7 @@ export const defaultConfig: NextConfig = {
     buildActivity: true,
   },
   onDemandEntries: {
-    maxInactiveAge: 60 * 1000,
+    maxInactiveAge: 15 * 1000,
     pagesBufferLength: 2,
   },
   amp: {
@@ -213,7 +213,6 @@ export const defaultConfig: NextConfig = {
     optimizeImages: false,
     optimizeCss: false,
     scrollRestoration: false,
-    stats: false,
     externalDir: false,
     reactRoot: Number(process.env.NEXT_PRIVATE_REACT_ROOT) > 0,
     disableOptimizedLoading: false,
@@ -226,6 +225,7 @@ export const defaultConfig: NextConfig = {
     outputFileTracing: false,
     concurrentFeatures: false,
     serverComponents: false,
+    fullySpecified: false,
   },
   future: {
     strictPostcssConfiguration: false,

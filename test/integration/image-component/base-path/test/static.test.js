@@ -24,6 +24,7 @@ const runTests = (isDev = false) => {
     expect(await browser.elementById('basic-static')).toBeTruthy()
     expect(await browser.elementById('blur-png')).toBeTruthy()
     expect(await browser.elementById('blur-webp')).toBeTruthy()
+    expect(await browser.elementById('blur-avif')).toBeTruthy()
     expect(await browser.elementById('blur-jpg')).toBeTruthy()
     expect(await browser.elementById('static-svg')).toBeTruthy()
     expect(await browser.elementById('static-gif')).toBeTruthy()
