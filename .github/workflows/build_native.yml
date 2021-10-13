@@ -67,7 +67,7 @@ jobs:
       # We will not get exact match, but doc says
       # "If there are multiple partial matches for a restore key, the action returns the most recently created cache."
       # So we get latest cache
-      - name: Cache built files`
+      - name: Cache built files
         uses: actions/cache@v2
         with:
           path: ./packages/next/build/swc/target
