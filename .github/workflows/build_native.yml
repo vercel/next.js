@@ -1,6 +1,6 @@
 on: workflow_dispatch
 
-name: Build next-swc native binaries
+name: Build next-swc native binaries 
 
 jobs:
   build-native:
