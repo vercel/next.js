@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@next/eslint-plugin-next": "11.1.3-canary.65",
-    "@rushstack/eslint-patch": "^1.0.6",
+    "@rushstack/eslint-patch": "^1.0.8",
     "@typescript-eslint/parser": "^5.0.0",
     "eslint-import-resolver-node": "^0.3.4",
     "eslint-import-resolver-typescript": "^2.4.0",
