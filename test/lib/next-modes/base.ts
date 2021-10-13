@@ -16,7 +16,7 @@ export class NextInstance {
   protected nextConfig?: NextConfig
   protected dependencies?: { [name: string]: string }
   protected events: { [eventName: string]: Set<any> }
-  protected testDir: string
+  public testDir: string
   protected isStopping: boolean
   protected isDestroyed: boolean
   protected childProcess: ChildProcess
@@ -54,7 +54,10 @@ export class NextInstance {
     const tmpDir = skipIsolatedNext
       ? path.join(__dirname, '../../tmp')
       : process.env.NEXT_TEST_DIR || (await fs.realpath(os.tmpdir()))
-    this.testDir = path.join(tmpDir, `next-test-${Date.now()}`)
+    this.testDir = path.join(
+      tmpDir,
+      `next-test-${Date.now()}-${(Math.random() * 1000) | 0}`
+    )
 
     if (process.env.NEXT_TEST_STARTER && !this.dependencies) {
       await fs.copy(process.env.NEXT_TEST_STARTER, this.testDir)
@@ -156,7 +159,10 @@ export class NextInstance {
     this.isDestroyed = true
     this.emit('destroy', [])
     await this.stop()
-    await fs.remove(this.testDir)
+
+    if (!process.env.NEXT_TEST_SKIP_CLEANUP) {
+      await fs.remove(this.testDir)
+    }
   }
 
   public get url() {

@@ -12,7 +12,7 @@ export const images = curry(async function images(
     loader({
       oneOf: [
         {
-          test: /\.(png|jpg|jpeg|gif|webp|ico|bmp|svg)$/i,
+          test: /\.(png|jpg|jpeg|gif|webp|avif|ico|bmp|svg)$/i,
           use: {
             loader: 'error-loader',
             options: {

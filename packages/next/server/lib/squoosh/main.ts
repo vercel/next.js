@@ -11,7 +11,7 @@ type ResizeOperation = {
   type: 'resize'
 } & ({ width: number; height?: never } | { height: number; width?: never })
 export type Operation = RotateOperation | ResizeOperation
-export type Encoding = 'jpeg' | 'png' | 'webp'
+export type Encoding = 'jpeg' | 'png' | 'webp' | 'avif'
 
 const getWorker = execOnce(
   () =>
@@ -64,9 +64,17 @@ export async function processBuffer(
       return Buffer.from(await worker.encodeJpeg(imageData, { quality }))
     case 'webp':
       return Buffer.from(await worker.encodeWebp(imageData, { quality }))
+    case 'avif':
+      return Buffer.from(await worker.encodeAvif(imageData, { quality }))
     case 'png':
       return Buffer.from(await worker.encodePng(imageData))
     default:
       throw Error(`Unsupported encoding format`)
   }
+}
+
+export async function decodeBuffer(buffer: Buffer) {
+  const worker: typeof import('./impl') = getWorker() as any
+  const imageData = await worker.decodeBuffer(buffer)
+  return imageData
 }
