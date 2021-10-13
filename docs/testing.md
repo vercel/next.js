@@ -319,6 +319,14 @@ These files aren't useful in tests but importing them may cause errors, so we wi
 module.exports = {};
 ```
 
+If you're running into the issue `"Failed to parse src "test-file-stub" on 'next/image'"`, add a '/' to your fileMock.
+
+```json
+// __mocks__/fileMock.js
+
+(module.exports = "/test-file-stub")
+```
+
 For more information on handling static assets, please refer to the [Jest Docs](https://jestjs.io/docs/webpack#handling-static-assets).
 
 **Extend Jest with custom matchers**

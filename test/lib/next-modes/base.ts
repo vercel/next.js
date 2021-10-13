@@ -54,7 +54,10 @@ export class NextInstance {
     const tmpDir = skipIsolatedNext
       ? path.join(__dirname, '../../tmp')
       : process.env.NEXT_TEST_DIR || (await fs.realpath(os.tmpdir()))
-    this.testDir = path.join(tmpDir, `next-test-${Date.now()}`)
+    this.testDir = path.join(
+      tmpDir,
+      `next-test-${Date.now()}-${(Math.random() * 1000) | 0}`
+    )
 
     if (process.env.NEXT_TEST_STARTER && !this.dependencies) {
       await fs.copy(process.env.NEXT_TEST_STARTER, this.testDir)
