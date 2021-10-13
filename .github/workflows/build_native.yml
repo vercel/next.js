@@ -68,7 +68,7 @@ jobs:
       # "If there are multiple partial matches for a restore key, the action returns the most recently created cache."
       # So we get latest cache
       - name: Cache built files`
-        uses: actions/cache@v1
+        uses: actions/cache@v2
         with:
           path: ./packages/next/build/swc/target
           key: next-swc-cargo-cache-${{ matrix.os }}--${{ hashFiles('**/Cargo.lock') }}
