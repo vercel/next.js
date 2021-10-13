@@ -26,7 +26,7 @@ type Config = {
 }
 
 const requiredPackages = [
-  { file: 'eslint/lib/api.js', pkg: 'eslint' },
+  { file: 'eslint', pkg: 'eslint' },
   { file: 'eslint-config-next', pkg: 'eslint-config-next' },
 ]
 
