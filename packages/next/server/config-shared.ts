@@ -218,7 +218,7 @@ export const defaultConfig: NextConfig = {
     disableOptimizedLoading: false,
     gzipSize: true,
     craCompat: false,
-    esmExternals: false,
+    esmExternals: true,
     staticPageGenerationTimeout: 60,
     // default to 50MB limit
     isrMemoryCacheSize: 50 * 1024 * 1024,
