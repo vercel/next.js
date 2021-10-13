@@ -144,6 +144,7 @@ export type NextConfig = { [key: string]: any } & {
     outputFileTracing?: boolean
     concurrentFeatures?: boolean
     serverComponents?: boolean
+    fullySpecified?: boolean
   }
 }
 
@@ -224,6 +225,7 @@ export const defaultConfig: NextConfig = {
     outputFileTracing: false,
     concurrentFeatures: false,
     serverComponents: false,
+    fullySpecified: false,
   },
   future: {
     strictPostcssConfiguration: false,
