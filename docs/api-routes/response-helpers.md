@@ -4,7 +4,7 @@ description: API Routes include a set of Express.js-like methods for the respons
 
 # Response Helpers
 
-The HTTP Response object, (often abbreviated as `res`) includes a set of Express.js-like helper methods to improve the developer experience and increase the speed of creating new API endpoints.
+The [Server Response object](https://nodejs.org/api/http.html#http_class_http_serverresponse), (often abbreviated as `res`) includes a set of Express.js-like helper methods to improve the developer experience and increase the speed of creating new API endpoints.
 
 The included helpers are:
 
