@@ -20,7 +20,7 @@
     "eslint-plugin-react-hooks": "^4.2.0"
   },
   "peerDependencies": {
-    "eslint": "^7.23.0",
+    "eslint": "^8.0.0",
     "next": ">=10.2.0",
     "typescript": ">=3.3.1"
   },
