@@ -1052,9 +1052,9 @@ checksum = "dbf0c48bc1d91375ae5c3cd81e3722dff1abcf81a30960240640d223f59fe0e5"
 
 [[package]]
 name = "proc-macro2"
-version = "1.0.29"
+version = "1.0.30"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b9f5105d4fdaab20335ca9565e106a5d9b82b6219b5ba735731124ac6711d23d"
+checksum = "edc3358ebc67bc8b7fa0c007f945b0b18226f78437d61bec735a9eb96b61ee70"
 dependencies = [
  "unicode-xid",
 ]
@@ -1487,9 +1487,9 @@ dependencies = [
 
 [[package]]
 name = "sharded-slab"
-version = "0.1.3"
+version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "740223c51853f3145fe7c90360d2d4232f2b62e3449489c207eccde818979982"
+checksum = "900fba806f70c630b0a382d0d825e17a0f19fcd059a2ade1ff237bcddf446b31"
 dependencies = [
  "lazy_static",
 ]
@@ -1892,9 +1892,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_minifier"
-version = "0.37.3"
+version = "0.37.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c1976c7a8eebf619c8e4b922d969c06b77636f992ee3d438af0cca7a8b662846"
+checksum = "afa01fd8fa040620caaaa233ab0c2e890d74fc92a909fc7c891b0219e3ded955"
 dependencies = [
  "indexmap",
  "once_cell",
@@ -1985,9 +1985,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_transforms_base"
-version = "0.37.1"
+version = "0.37.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e5ab2108361a8bb8664951ae0f533fab36c609aa849143b3358e29ed33060bbe"
+checksum = "206bde3000947fcd740ae7975e69e73d058ab2064d4a35e8065e69c2654d8ecc"
 dependencies = [
  "once_cell",
  "phf",
@@ -2118,9 +2118,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_transforms_react"
-version = "0.48.1"
+version = "0.48.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4c30996f62170b3cad11ac85dc058c59655d66a6de134d3182e99324c903da58"
+checksum = "50bdcf437c5b3e849cf62c647c5127c6aea0d06c420cdfe6851b7df85debf63e"
 dependencies = [
  "ahash",
  "base64 0.13.0",
