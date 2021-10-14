@@ -419,9 +419,10 @@ export default class DevServer extends Server {
     return false
   }
 
-  private setupWebSocketHandler(server: HTTPServer) {
+  private setupWebSocketHandler(server?: HTTPServer, _req?: IncomingMessage) {
     if (!this.addedUpgradeListener) {
       this.addedUpgradeListener = true
+      server = server || (_req?.socket as any)?.server
 
       if (!server) {
         // this is very unlikely to happen but show an error in case
@@ -449,7 +450,7 @@ export default class DevServer extends Server {
     parsedUrl: UrlWithParsedQuery
   ): Promise<void> {
     await this.devReady
-    this.setupWebSocketHandler((req.socket as any)?.server)
+    this.setupWebSocketHandler(undefined, req)
 
     const { basePath } = this.nextConfig
     let originalPathname: string | null = null
