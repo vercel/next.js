@@ -1,7 +1,5 @@
 import { EventEmitter } from 'events'
-import { IncomingMessage, ServerResponse } from 'http'
 import { join, posix } from 'path'
-import { parse } from 'url'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { normalizePagePath, normalizePathSep } from '../normalize-page-path'
 import { pageNotFoundError } from '../require'
@@ -9,6 +7,7 @@ import { findPageFile } from '../lib/find-page-file'
 import getRouteFromEntrypoint from '../get-route-from-entrypoint'
 import { API_ROUTE } from '../../lib/constants'
 import { reportTrigger } from '../../build/output'
+import type ws from 'ws'
 
 export const ADDED = Symbol('added')
 export const BUILDING = Symbol('building')
@@ -247,27 +246,23 @@ export default function onDemandEntryHandler(
       return promise
     },
 
-    middleware(req: IncomingMessage, res: ServerResponse, next: Function) {
-      if (!req.url?.startsWith('/_next/webpack-hmr')) return next()
+    onHMR(client: ws) {
+      client.addEventListener('message', ({ data }) => {
+        data = typeof data !== 'string' ? data.toString() : data
+        try {
+          const parsedData = JSON.parse(data)
 
-      const { query } = parse(req.url!, true)
-      const page = query.page
-      if (!page) return next()
-
-      const runPing = () => {
-        const data = handlePing(query.page as string)
-        if (!data) return
-        res.write('data: ' + JSON.stringify(data) + '\n\n')
-      }
-      const pingInterval = setInterval(() => runPing(), pingIntervalTime)
-
-      // Run a ping now to make sure page is instantly flagged as active
-      setTimeout(() => runPing(), 0)
-
-      req.on('close', () => {
-        clearInterval(pingInterval)
+          if (parsedData.event === 'ping') {
+            const result = handlePing(parsedData.page)
+            client.send(
+              JSON.stringify({
+                ...result,
+                event: 'pong',
+              })
+            )
+          }
+        } catch (_) {}
       })
-      next()
     },
   }
 }
