@@ -1012,12 +1012,16 @@ export default async function getBaseWebpackConfig(
       rules: [
         // TODO: FIXME: do NOT webpack 5 support with this
         // x-ref: https://github.com/webpack/webpack/issues/11467
-        {
-          test: /\.m?js/,
-          resolve: {
-            fullySpecified: false,
-          },
-        } as any,
+        ...(!config.experimental.fullySpecified
+          ? [
+              {
+                test: /\.m?js/,
+                resolve: {
+                  fullySpecified: false,
+                },
+              } as any,
+            ]
+          : []),
         {
           test: /\.(js|cjs|mjs)$/,
           issuerLayer: 'api',

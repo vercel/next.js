@@ -18,7 +18,8 @@ class RotatingWriteStream {
   writeStream!: fs.WriteStream
   size: number
   sizeLimit: number
-  isRotating: Promise<void> | undefined
+  private rotatePromise: Promise<void> | undefined
+  private drainPromise: Promise<void> | undefined
   constructor(file: string, sizeLimit: number) {
     this.file = file
     this.size = 0
@@ -29,8 +30,8 @@ class RotatingWriteStream {
     this.writeStream = fs.createWriteStream(this.file, writeStreamOptions)
   }
   // Recreate the file
-  private rotate(): void {
-    this.end()
+  private async rotate() {
+    await this.end()
     try {
       fs.unlinkSync(this.file)
     } catch (err: any) {
@@ -41,23 +42,33 @@ class RotatingWriteStream {
     }
     this.size = 0
     this.createWriteStream()
+    this.rotatePromise = undefined
   }
   async write(data: string): Promise<void> {
-    this.size += data.length
+    if (this.rotatePromise) await this.rotatePromise
 
+    this.size += data.length
     if (this.size > this.sizeLimit) {
-      this.rotate()
+      await (this.rotatePromise = this.rotate())
     }
 
     if (!this.writeStream.write(data, 'utf8')) {
-      await new Promise<void>((resolve, _reject) => {
-        this.writeStream.once('drain', resolve)
-      })
+      if (this.drainPromise === undefined) {
+        this.drainPromise = new Promise<void>((resolve, _reject) => {
+          this.writeStream.once('drain', () => {
+            this.drainPromise = undefined
+            resolve()
+          })
+        })
+      }
+      await this.drainPromise
     }
   }
 
-  end(): void {
-    this.writeStream.end('', 'utf8')
+  end(): Promise<void> {
+    return new Promise((resolve) => {
+      this.writeStream.end(resolve)
+    })
   }
 }
 
