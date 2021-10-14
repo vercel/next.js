@@ -155,7 +155,7 @@ Do **not use `require()`** to import the PostCSS Plugins. Plugins must be provid
 >
 > ```js
 > module.exports = {
->   plugins: {
+>   plugins: [
 >     'postcss-flexbugs-fixes': {},
 >     'postcss-preset-env': {
 >       autoprefixer: {
@@ -167,5 +167,5 @@ Do **not use `require()`** to import the PostCSS Plugins. Plugins must be provid
 >       },
 >     },
 >   },
-> }
+> ]
 > ```
