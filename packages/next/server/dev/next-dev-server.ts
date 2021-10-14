@@ -449,7 +449,7 @@ export default class DevServer extends Server {
     parsedUrl: UrlWithParsedQuery
   ): Promise<void> {
     await this.devReady
-    this.setupWebSocketHandler((req.socket as any).server)
+    this.setupWebSocketHandler((req.socket as any)?.server)
 
     const { basePath } = this.nextConfig
     let originalPathname: string | null = null
