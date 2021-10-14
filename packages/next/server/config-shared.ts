@@ -144,6 +144,7 @@ export type NextConfig = { [key: string]: any } & {
     outputFileTracing?: boolean
     concurrentFeatures?: boolean
     serverComponents?: boolean
+    fullySpecified?: boolean
   }
 }
 
@@ -217,13 +218,14 @@ export const defaultConfig: NextConfig = {
     disableOptimizedLoading: false,
     gzipSize: true,
     craCompat: false,
-    esmExternals: false,
+    esmExternals: true,
     staticPageGenerationTimeout: 60,
     // default to 50MB limit
     isrMemoryCacheSize: 50 * 1024 * 1024,
     outputFileTracing: false,
     concurrentFeatures: false,
     serverComponents: false,
+    fullySpecified: false,
   },
   future: {
     strictPostcssConfiguration: false,
