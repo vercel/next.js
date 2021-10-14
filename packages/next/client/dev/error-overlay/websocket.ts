@@ -1,8 +1,8 @@
 let source: WebSocket
-const eventCallbacks: any = []
+const eventCallbacks: ((event: any) => void)[] = []
 let lastActivity = Date.now()
 
-export function addMessageListener(cb: any) {
+export function addMessageListener(cb: (event: any) => void) {
   eventCallbacks.push(cb)
 }
 
@@ -46,7 +46,7 @@ export function connectHMR(options: {
   function handleMessage(event: any) {
     lastActivity = Date.now()
 
-    eventCallbacks.forEach((cb: any) => {
+    eventCallbacks.forEach((cb) => {
       cb(event)
     })
   }
