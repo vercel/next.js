@@ -998,9 +998,9 @@ dependencies = [
 
 [[package]]
 name = "ppv-lite86"
-version = "0.2.10"
+version = "0.2.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ac74c624d6b2d21f425f752262f42188365d7b8ff1aff74c82e45136510a4857"
+checksum = "c3ca011bd0129ff4ae15cd04c4eef202cadf6c51c21e47aba319b4e0501db741"
 
 [[package]]
 name = "precomputed-hash"
@@ -1892,9 +1892,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_minifier"
-version = "0.38.0"
+version = "0.38.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "75097449a8568aae1d09499a4da320ccc1f9beb8e1e5887bd04ae01e62c68d6c"
+checksum = "cb48d4a35d61c06c0a43ed6bc9f277145aaa160aa08079ef75bdd70c6475d6e0"
 dependencies = [
  "indexmap",
  "once_cell",
@@ -1985,9 +1985,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_transforms_base"
-version = "0.37.4"
+version = "0.37.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "197de3e05e78f185441539d6cae01b5071b5c224cd2e68d4529c70ab9262ef90"
+checksum = "42433d575f4923d59e4dc28cd9ecc659fccceea9e03c3550edee0719c697e792"
 dependencies = [
  "once_cell",
  "phf",
@@ -2098,9 +2098,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_transforms_proposal"
-version = "0.46.0"
+version = "0.46.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cdb257ed97c73338e9776a0c1404bc55570d14e69d0b57f1030105630dd36a5a"
+checksum = "1ebdbf1f050e1d551f295668a47eb7ab0cbcb41e4e8318ffabc3d9935be00fbd"
 dependencies = [
  "either",
  "serde",
