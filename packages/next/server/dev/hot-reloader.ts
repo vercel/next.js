@@ -262,7 +262,7 @@ export default class HotReloader {
     return { finished }
   }
 
-  public onHMR(req: IncomingMessage, res: ServerResponse, head: Buffer) {
+  public onHMR(req: IncomingMessage, _res: ServerResponse, head: Buffer) {
     wsServer.handleUpgrade(req, req.socket, head, (client) => {
       this.webpackHotMiddleware?.onHMR(client)
       this.onDemandEntries?.onHMR(client)
