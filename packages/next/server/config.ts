@@ -530,7 +530,7 @@ export default async function loadConfig(
     let userConfigModule: any
 
     try {
-      userConfigModule = require(path)
+      userConfigModule = await import(path)
     } catch (err) {
       console.error(
         chalk.red('Error:') +
