@@ -183,6 +183,7 @@
     "@types/styled-jsx": "2.2.8",
     "@types/text-table": "0.2.1",
     "@types/webpack-sources1": "npm:@types/webpack-sources@0.1.5",
+    "@types/ws": "8.2.0",
     "@vercel/ncc": "0.27.0",
     "@vercel/nft": "0.16.1",
     "amphtml-validator": "1.0.33",
@@ -249,7 +250,8 @@
     "webpack-sources1": "npm:webpack-sources@1.4.3",
     "webpack-sources3": "npm:webpack-sources@3.2.0",
     "webpack4": "npm:webpack@4.44.1",
-    "webpack5": "npm:webpack@5.58.2"
+    "webpack5": "npm:webpack@5.58.2",
+    "ws": "8.2.3"
   },
   "resolutions": {
     "browserslist": "4.16.6",

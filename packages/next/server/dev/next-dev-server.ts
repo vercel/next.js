@@ -1,7 +1,7 @@
 import crypto from 'crypto'
 import fs from 'fs'
 import chalk from 'chalk'
-import { IncomingMessage, ServerResponse } from 'http'
+import { IncomingMessage, ServerResponse, Server as HTTPServer } from 'http'
 import { Worker } from 'jest-worker'
 import AmpHtmlValidator from 'next/dist/compiled/amphtml-validator'
 import findUp from 'next/dist/compiled/find-up'
@@ -73,6 +73,7 @@ export default class DevServer extends Server {
   private hotReloader?: HotReloader
   private isCustomServer: boolean
   protected sortedRoutes?: string[]
+  private addedUpgradeListener = false
 
   protected staticPathsWorker: import('jest-worker').Worker & {
     loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
@@ -82,6 +83,7 @@ export default class DevServer extends Server {
     options: ServerConstructor & {
       conf: NextConfig
       isNextDevCommand?: boolean
+      httpServer?: HTTPServer
     }
   ) {
     super({ ...options, dev: true })
@@ -116,6 +118,13 @@ export default class DevServer extends Server {
         `The static directory has been deprecated in favor of the public directory. https://nextjs.org/docs/messages/static-dir-deprecated`
       )
     }
+
+    // setup upgrade listener eagerly when we can otherwise
+    // it will be done on the first request via req.socket.server
+    if (options.httpServer) {
+      this.setupWebSocketHandler(options.httpServer)
+    }
+
     this.isCustomServer = !options.isNextDevCommand
     this.pagesDir = findPagesDir(this.dir)
     this.staticPathsWorker = new Worker(
@@ -410,12 +419,38 @@ export default class DevServer extends Server {
     return false
   }
 
+  private setupWebSocketHandler(server?: HTTPServer, _req?: IncomingMessage) {
+    if (!this.addedUpgradeListener) {
+      this.addedUpgradeListener = true
+      server = server || (_req?.socket as any)?.server
+
+      if (!server) {
+        // this is very unlikely to happen but show an error in case
+        // it does somehow
+        Log.error(
+          `Invalid IncomingMessage received, make sure http.createServer is being used to handle requests.`
+        )
+      } else {
+        server.on('upgrade', (req, socket, head) => {
+          if (
+            req.url?.startsWith(
+              `${this.nextConfig.basePath || ''}/_next/webpack-hmr`
+            )
+          ) {
+            this.hotReloader?.onHMR(req, socket, head)
+          }
+        })
+      }
+    }
+  }
+
   async run(
     req: IncomingMessage,
     res: ServerResponse,
     parsedUrl: UrlWithParsedQuery
   ): Promise<void> {
     await this.devReady
+    this.setupWebSocketHandler(undefined, req)
 
     const { basePath } = this.nextConfig
     let originalPathname: string | null = null
