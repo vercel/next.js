@@ -49,7 +49,7 @@
     "@mdx-js/loader": "0.18.0",
     "@svgr/webpack": "5.5.0",
     "@swc/cli": "0.1.49",
-    "@swc/core": "1.2.88",
+    "@swc/core": "1.2.97",
     "@swc/jest": "0.2.3",
     "@testing-library/react": "11.2.5",
     "@types/cheerio": "0.22.16",

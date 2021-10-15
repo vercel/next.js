@@ -16,12 +16,13 @@ import { NON_STANDARD_NODE_ENV } from '../lib/constants'
 const defaultCommand = 'dev'
 export type cliCommand = (argv?: string[]) => void
 const commands: { [command: string]: () => Promise<cliCommand> } = {
-  build: () => import('../cli/next-build').then((i) => i.nextBuild),
-  start: () => import('../cli/next-start').then((i) => i.nextStart),
-  export: () => import('../cli/next-export').then((i) => i.nextExport),
-  dev: () => import('../cli/next-dev').then((i) => i.nextDev),
-  lint: () => import('../cli/next-lint').then((i) => i.nextLint),
-  telemetry: () => import('../cli/next-telemetry').then((i) => i.nextTelemetry),
+  build: () => Promise.resolve(require('../cli/next-build').nextBuild),
+  start: () => Promise.resolve(require('../cli/next-start').nextStart),
+  export: () => Promise.resolve(require('../cli/next-export').nextExport),
+  dev: () => Promise.resolve(require('../cli/next-dev').nextDev),
+  lint: () => Promise.resolve(require('../cli/next-lint').nextLint),
+  telemetry: () =>
+    Promise.resolve(require('../cli/next-telemetry').nextTelemetry),
 }
 
 const args = arg(
