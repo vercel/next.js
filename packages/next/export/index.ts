@@ -538,7 +538,7 @@ export default async function exportApp(
             )
           }
           Log.warn(
-            `Restarted static page genertion for ${path} because it took more than ${timeout} seconds`
+            `Restarted static page generation for ${path} because it took more than ${timeout} seconds`
           )
           if (!infoPrinted) {
             Log.warn(
