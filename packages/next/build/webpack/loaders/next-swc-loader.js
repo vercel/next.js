@@ -73,7 +73,6 @@ function getSWCOptions({
         : {}),
       // Disables getStaticProps/getServerSideProps tree shaking on the server compilation for pages
       disableNextSsg: true,
-      allowWrongLineComments: true,
       pagesDir,
       env: {
         targets: {
