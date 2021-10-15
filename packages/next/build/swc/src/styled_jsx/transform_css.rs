@@ -25,6 +25,7 @@ pub fn transform_css(
         style_info.css_span.hi,
         ParserConfig {
             parse_values: false,
+            allow_wrong_line_comments: true,
         },
         // We ignore errors because we inject placeholders for expressions which is
         // not a valid css.
@@ -44,6 +45,7 @@ pub fn transform_css(
                         style_info.css_span,
                         "Failed to parse css in styled jsx component",
                     )
+                    .note(&format!("Input to the css parser is {}", style_info.css))
                     .emit()
             });
             bail!("Failed to parse css");
@@ -173,6 +175,7 @@ impl Namespacer {
                             &args,
                             ParserConfig {
                                 parse_values: false,
+                                allow_wrong_line_comments: true,
                             },
                             // TODO(kdy1): We might be able to report syntax errors.
                             &mut vec![],
