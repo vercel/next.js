@@ -327,6 +327,7 @@ pub fn hash_string(str: &String) -> String {
 }
 
 pub fn string_literal_expr(str: &str) -> Expr {
+    let str = str.replace("\\`", "`");
     Expr::Lit(Lit::Str(Str {
         value: str.into(),
         span: DUMMY_SP,
