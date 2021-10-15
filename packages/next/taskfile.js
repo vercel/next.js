@@ -782,6 +782,15 @@ export async function ncc_webpack_bundle_packages(task, opts) {
     .target('compiled/webpack/')
 }
 
+// eslint-disable-next-line camelcase
+externals['ws'] = 'next/dist/compiled/ws'
+export async function ncc_ws(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('ws')))
+    .ncc({ packageName: 'ws', externals })
+    .target('compiled/ws')
+}
+
 externals['path-to-regexp'] = 'next/dist/compiled/path-to-regexp'
 export async function path_to_regexp(task, opts) {
   await task
@@ -871,6 +880,7 @@ export async function ncc(task, opts) {
         'ncc_webpack_bundle_packages',
         'ncc_webpack_sources1',
         'ncc_webpack_sources3',
+        'ncc_ws',
         'ncc_mini_css_extract_plugin',
       ],
       opts

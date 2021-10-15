@@ -84,16 +84,18 @@ pub fn transform_css(
     Ok(Expr::Tpl(Tpl {
         quasis: parts
             .iter()
-            .map(|quasi| TplElement {
-                cooked: None, // ? Do we need cooked as well
-                raw: Str {
-                    value: quasi.replace('`', "\\`").into(),
+            .map(|quasi| {
+                TplElement {
+                    cooked: None, // ? Do we need cooked as well
+                    raw: Str {
+                        value: (*quasi).into(),
+                        span: DUMMY_SP,
+                        has_escape: false,
+                        kind: StrKind::Synthesized {},
+                    },
                     span: DUMMY_SP,
-                    has_escape: false,
-                    kind: StrKind::Synthesized {},
-                },
-                span: DUMMY_SP,
-                tail: false,
+                    tail: false,
+                }
             })
             .collect(),
         exprs: final_expressions,
