@@ -258,7 +258,7 @@
     "caniuse-lite": "1.0.30001228"
   },
   "engines": {
-    "node": ">=12.0.0"
+    "node": ">=12.22.0"
   },
   "napi": {
     "name": "next-swc",
