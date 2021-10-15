@@ -29,9 +29,9 @@ checksum = "f26201604c87b1e01bd3d98f8d5d9a8fcbb815e8cedb41ffccbeb4bf593a35fe"
 
 [[package]]
 name = "ahash"
-version = "0.7.5"
+version = "0.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "991984e3fd003e7ba02eb724f87a0f997b78677c46c0e91f8424ad7394c9886a"
+checksum = "fcb51a0695d8f838b1ee009b3fbf66bda078cd64590202a864a8f3e8c4315c47"
 dependencies = [
  "getrandom 0.2.3",
  "once_cell",
@@ -70,9 +70,9 @@ checksum = "23b62fc65de8e4e7f52534fb52b0f3ed04746ae267519eef2a83941e8085068b"
 
 [[package]]
 name = "ast_node"
-version = "0.7.3"
+version = "0.7.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f93f52ce8fac3d0e6720a92b0576d737c01b1b5db4dd786e962e5925f00bf755"
+checksum = "e96d5444b02f3080edac8a144f6baf29b2fb6ff589ad4311559731a7c7529381"
 dependencies = [
  "darling",
  "pmutil",
@@ -1823,9 +1823,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_codegen"
-version = "0.75.0"
+version = "0.75.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5f1e753868b75da17edfb44de0825933cdeef4e93ad8ee4b192722ba62182b3f"
+checksum = "7d2964cf7b95da20bce325204ba3ca658fa4a8eba329f420d450b924f07fbbc4"
 dependencies = [
  "bitflags",
  "memchr",
@@ -1920,9 +1920,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_parser"
-version = "0.73.12"
+version = "0.73.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "64a8f23e1b29aa6757a87739294b623ca3690907b80ba569ddf83ca700ac2db9"
+checksum = "bb14098c8e2c9678e2ec4324183a0e2508b26fcead24bfd7b1ee3c7a2af36cc7"
 dependencies = [
  "either",
  "enum_kind",
@@ -1935,6 +1935,7 @@ dependencies = [
  "swc_ecma_ast",
  "swc_ecma_visit",
  "tracing",
+ "typed-arena",
  "unicode-xid",
 ]
 
@@ -2018,9 +2019,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_transforms_compat"
-version = "0.43.0"
+version = "0.43.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9fb6f6e12949c310359c453e6b5f2b2ca47a4c547f2b7592d5fe79a8e5276e0d"
+checksum = "d77f5d1b842f96d6f8dacf8c3909b80722b647a93960bdbd99f54a5f07f3cccc"
 dependencies = [
  "ahash",
  "arrayvec",
@@ -2272,9 +2273,9 @@ dependencies = [
 
 [[package]]
 name = "swc_visit"
-version = "0.2.6"
+version = "0.2.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a423caa0b4585118164dbad8f1ad52b592a9a9370b25decc4d84c6b4309132c0"
+checksum = "e81dbab83f147db7d7de14e8d73ae939cbaed204ac8a907ca0a5e0cba6e091a9"
 dependencies = [
  "either",
  "swc_visit_macros",
@@ -2459,6 +2460,12 @@ dependencies = [
  "tracing-log",
  "tracing-serde",
 ]
+
+[[package]]
+name = "typed-arena"
+version = "2.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0685c84d5d54d1c26f7d3eb96cd41550adb97baed141a761cf335d3d33bcd0ae"
 
 [[package]]
 name = "typenum"
