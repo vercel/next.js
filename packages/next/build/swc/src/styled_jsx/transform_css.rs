@@ -44,6 +44,7 @@ pub fn transform_css(
                         style_info.css_span,
                         "Failed to parse css in styled jsx component",
                     )
+                    .note(&format!("Input to the css parser is {}", style_info.css))
                     .emit()
             });
             bail!("Failed to parse css");
