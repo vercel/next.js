@@ -104,7 +104,36 @@ export class Blah extends Head {
   render() {
     return (
       <div>
-        <a href='/list/blah'>Homepage</a>
+        <a href='/list/foo/bar'>Homepage</a>
+        <h1>Hello title</h1>
+      </div>
+    );
+  }
+}
+`
+const secondInvalidDynamicCode = `
+import Link from 'next/link';
+
+export class Blah extends Head {
+  render() {
+    return (
+      <div>
+        <a href='/list/foo/'>Homepage</a>
+        <h1>Hello title</h1>
+      </div>
+    );
+  }
+}
+`
+
+const thirdInvalidDynamicCode = `
+import Link from 'next/link';
+
+export class Blah extends Head {
+  render() {
+    return (
+      <div>
+        <a href='/list/lorem-ipsum/'>Homepage</a>
         <h1>Hello title</h1>
       </div>
     );
@@ -163,7 +192,27 @@ describe('no-html-link-for-pages', function () {
     assert.notEqual(report, undefined, 'No lint errors found.')
     assert.equal(
       report.message,
-      "Do not use the HTML <a> tag to navigate to /list/blah/. Use Link from 'next/link' instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages."
+      "Do not use the HTML <a> tag to navigate to /list/foo/bar/. Use Link from 'next/link' instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages."
+    )
+    const [secondReport] = linter.verify(
+      secondInvalidDynamicCode,
+      linterConfig,
+      {
+        filename: 'foo.js',
+      }
+    )
+    assert.notEqual(secondReport, undefined, 'No lint errors found.')
+    assert.equal(
+      secondReport.message,
+      "Do not use the HTML <a> tag to navigate to /list/foo/. Use Link from 'next/link' instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages."
+    )
+    const [thirdReport] = linter.verify(thirdInvalidDynamicCode, linterConfig, {
+      filename: 'foo.js',
+    })
+    assert.notEqual(thirdReport, undefined, 'No lint errors found.')
+    assert.equal(
+      thirdReport.message,
+      "Do not use the HTML <a> tag to navigate to /list/lorem-ipsum/. Use Link from 'next/link' instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages."
     )
   })
 })

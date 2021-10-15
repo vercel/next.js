@@ -181,7 +181,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
   }
 
   if (result?.images) {
-    const images: Partial<ImageConfig> = result.images
+    const images: ImageConfig = result.images
 
     if (typeof images !== 'object') {
       throw new Error(
@@ -194,6 +194,13 @@ function assignDefaults(userConfig: { [key: string]: any }) {
         throw new Error(
           `Specified images.domains should be an Array received ${typeof images.domains}.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
         )
+      }
+
+      // static images are automatically prefixed with assetPrefix
+      // so we need to ensure _next/image allows downloading from
+      // this resource
+      if (config.assetPrefix?.startsWith('http')) {
+        images.domains.push(new URL(config.assetPrefix).hostname)
       }
 
       if (images.domains.length > 50) {
@@ -280,11 +287,12 @@ function assignDefaults(userConfig: { [key: string]: any }) {
       )
     }
 
-    // Append trailing slash for non-default loaders
+    // Append trailing slash for non-default loaders and when trailingSlash is set
     if (images.path) {
       if (
-        images.loader !== 'default' &&
-        images.path[images.path.length - 1] !== '/'
+        (images.loader !== 'default' &&
+          images.path[images.path.length - 1] !== '/') ||
+        result.trailingSlash
       ) {
         images.path += '/'
       }
@@ -304,6 +312,48 @@ function assignDefaults(userConfig: { [key: string]: any }) {
         )}), received  (${images.minimumCacheTTL}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
       )
     }
+
+    if (images.formats) {
+      const { formats } = images
+      if (!Array.isArray(formats)) {
+        throw new Error(
+          `Specified images.formats should be an Array received ${typeof formats}.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
+        )
+      }
+      if (formats.length < 1 || formats.length > 2) {
+        throw new Error(
+          `Specified images.formats must be length 1 or 2, received length (${formats.length}), please reduce the length of the array to continue.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
+        )
+      }
+
+      const invalid = formats.filter((f) => {
+        return f !== 'image/avif' && f !== 'image/webp'
+      })
+
+      if (invalid.length > 0) {
+        throw new Error(
+          `Specified images.formats should be an Array of mime type strings, received invalid values (${invalid.join(
+            ', '
+          )}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
+        )
+      }
+    }
+  }
+
+  if (result.webpack5 === false) {
+    throw new Error(
+      'Webpack 4 is no longer supported in Next.js. Please upgrade to webpack 5 by removing "webpack5: false" from next.config.js. https://nextjs.org/docs/messages/webpack5'
+    )
+  }
+
+  if (result.experimental && 'nftTracing' in (result.experimental as any)) {
+    // TODO: remove this warning and assignment when we leave experimental phase
+    Log.warn(
+      `Experimental \`nftTracing\` has been renamed to \`outputFileTracing\`. Please update your next.config.js file accordingly.`
+    )
+    result.experimental.outputFileTracing = (
+      result.experimental as any
+    ).nftTracing
   }
 
   // TODO: Change defaultConfig type to NextConfigComplete
@@ -445,6 +495,16 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     }
   }
 
+  if (result.experimental?.serverComponents) {
+    const pageExtensions: string[] = []
+    ;(result.pageExtensions || []).forEach((ext) => {
+      pageExtensions.push(ext)
+      pageExtensions.push(`server.${ext}`)
+      pageExtensions.push(`client.${ext}`)
+    })
+    result.pageExtensions = pageExtensions
+  }
+
   return result
 }
 
@@ -454,7 +514,7 @@ export default async function loadConfig(
   customConfig?: object | null
 ): Promise<NextConfigComplete> {
   await loadEnvConfig(dir, phase === PHASE_DEVELOPMENT_SERVER, Log)
-  await loadWebpackHook(phase, dir)
+  await loadWebpackHook()
 
   if (customConfig) {
     return assignDefaults({

@@ -2,7 +2,7 @@ import React from 'react'
 import Head from '../shared/lib/head'
 import { toBase64 } from '../shared/lib/to-base-64'
 import {
-  ImageConfig,
+  ImageConfigComplete,
   imageConfigDefault,
   LoaderValue,
   VALID_LOADERS,
@@ -10,6 +10,8 @@ import {
 import { useIntersection } from './use-intersection'
 
 const loadedImageURLs = new Set<string>()
+const emptyDataURL =
+  'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
 
 if (typeof window === 'undefined') {
   ;(global as any).__NEXT_IMAGE_IMPORTED = true
@@ -110,7 +112,8 @@ const {
   loader: configLoader,
   path: configPath,
   domains: configDomains,
-} = (process.env.__NEXT_IMAGE_OPTS as any as ImageConfig) || imageConfigDefault
+} = (process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete) ||
+imageConfigDefault
 // sort smallest to largest
 const allSizes = [...configDeviceSizes, ...configImageSizes]
 configDeviceSizes.sort((a, b) => a - b)
@@ -253,7 +256,7 @@ function handleLoading(
     return
   }
   const handleLoad = () => {
-    if (!img.src.startsWith('data:')) {
+    if (img.src !== emptyDataURL) {
       const p = 'decode' in img ? img.decode() : Promise.resolve()
       p.catch(() => {}).then(() => {
         if (placeholder === 'blur') {
@@ -413,7 +416,7 @@ export default function Image({
         )
       }
       if (!blurDataURL) {
-        const VALID_BLUR_EXT = ['jpeg', 'png', 'webp'] // should match next-image-loader
+        const VALID_BLUR_EXT = ['jpeg', 'png', 'webp', 'avif'] // should match next-image-loader
 
         throw new Error(
           `Image with src "${src}" has "placeholder='blur'" property but is missing the "blurDataURL" property.
@@ -560,7 +563,7 @@ export default function Image({
   }
 
   let imgAttributes: GenImgAttrsResult = {
-    src: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
+    src: emptyDataURL,
     srcSet: undefined,
     sizes: undefined,
   }
@@ -627,6 +630,7 @@ export default function Image({
           data-nimg={layout}
           style={imgStyle}
           className={className}
+          // @ts-ignore - TODO: upgrade to `@types/react@17`
           loading={loading || 'lazy'}
         />
       </noscript>

@@ -1,13 +1,13 @@
 import { EventEmitter } from 'events'
-import { IncomingMessage, ServerResponse } from 'http'
 import { join, posix } from 'path'
-import { parse } from 'url'
-import { webpack, isWebpack5 } from 'next/dist/compiled/webpack/webpack'
-import * as Log from '../../build/output/log'
+import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { normalizePagePath, normalizePathSep } from '../normalize-page-path'
 import { pageNotFoundError } from '../require'
 import { findPageFile } from '../lib/find-page-file'
 import getRouteFromEntrypoint from '../get-route-from-entrypoint'
+import { API_ROUTE } from '../../lib/constants'
+import { reportTrigger } from '../../build/output'
+import type ws from 'ws'
 
 export const ADDED = Symbol('added')
 export const BUILDING = Symbol('building')
@@ -15,11 +15,11 @@ export const BUILT = Symbol('built')
 
 export let entries: {
   [page: string]: {
-    serverBundlePath: string
-    clientBundlePath: string
+    bundlePath: string
     absolutePagePath: string
     status?: typeof ADDED | typeof BUILDING | typeof BUILT
     lastActiveTime?: number
+    dispose?: boolean
   }
 } = {}
 
@@ -41,7 +41,7 @@ export default function onDemandEntryHandler(
   const { compilers } = multiCompiler
   const invalidator = new Invalidator(watcher, multiCompiler)
 
-  let lastAccessPages = ['']
+  let lastClientAccessPages = ['']
   let doneCallbacks: EventEmitter | null = new EventEmitter()
 
   for (const compiler of compilers) {
@@ -53,12 +53,15 @@ export default function onDemandEntryHandler(
     )
   }
 
-  function getPagePathsFromEntrypoints(entrypoints: any): string[] {
+  function getPagePathsFromEntrypoints(
+    type: string,
+    entrypoints: any
+  ): string[] {
     const pagePaths = []
     for (const entrypoint of entrypoints.values()) {
       const page = getRouteFromEntrypoint(entrypoint.name)
       if (page) {
-        pagePaths.push(page)
+        pagePaths.push(`${type}${page}`)
       }
     }
 
@@ -66,11 +69,20 @@ export default function onDemandEntryHandler(
   }
 
   multiCompiler.hooks.done.tap('NextJsOnDemandEntries', (multiStats) => {
+    if (invalidator.rebuildAgain) {
+      return invalidator.doneBuilding()
+    }
     const [clientStats, serverStats] = multiStats.stats
-    const pagePaths = new Set([
-      ...getPagePathsFromEntrypoints(clientStats.compilation.entrypoints),
-      ...getPagePathsFromEntrypoints(serverStats.compilation.entrypoints),
-    ])
+    const pagePaths = [
+      ...getPagePathsFromEntrypoints(
+        'client',
+        clientStats.compilation.entrypoints
+      ),
+      ...getPagePathsFromEntrypoints(
+        'server',
+        serverStats.compilation.entrypoints
+      ),
+    ]
 
     for (const page of pagePaths) {
       const entry = entries[page]
@@ -83,22 +95,24 @@ export default function onDemandEntryHandler(
       }
 
       entry.status = BUILT
-      entry.lastActiveTime = Date.now()
       doneCallbacks!.emit(page)
     }
 
     invalidator.doneBuilding()
   })
 
+  const pingIntervalTime = Math.max(1000, Math.min(5000, maxInactiveAge))
+
   const disposeHandler = setInterval(function () {
-    disposeInactiveEntries(watcher, lastAccessPages, maxInactiveAge)
-  }, 5000)
+    disposeInactiveEntries(watcher, lastClientAccessPages, maxInactiveAge)
+  }, pingIntervalTime + 1000)
 
   disposeHandler.unref()
 
   function handlePing(pg: string) {
     const page = normalizePathSep(pg)
-    const entryInfo = entries[page]
+    const pageKey = `client${page}`
+    const entryInfo = entries[pageKey]
     let toSend
 
     // If there's no entry, it may have been invalidated and needs to be re-built.
@@ -118,20 +132,21 @@ export default function onDemandEntryHandler(
     if (entryInfo.status !== BUILT) return
 
     // If there's an entryInfo
-    if (!lastAccessPages.includes(page)) {
-      lastAccessPages.unshift(page)
+    if (!lastClientAccessPages.includes(pageKey)) {
+      lastClientAccessPages.unshift(pageKey)
 
       // Maintain the buffer max length
-      if (lastAccessPages.length > pagesBufferLength) {
-        lastAccessPages.pop()
+      if (lastClientAccessPages.length > pagesBufferLength) {
+        lastClientAccessPages.pop()
       }
     }
     entryInfo.lastActiveTime = Date.now()
+    entryInfo.dispose = false
     return toSend
   }
 
   return {
-    async ensurePage(page: string) {
+    async ensurePage(page: string, clientOnly: boolean) {
       let normalizedPagePath: string
       try {
         normalizedPagePath = normalizePagePath(page)
@@ -164,81 +179,104 @@ export default function onDemandEntryHandler(
       pageUrl = pageUrl === '' ? '/' : pageUrl
 
       const bundleFile = normalizePagePath(pageUrl)
-      const serverBundlePath = posix.join('pages', bundleFile)
-      const clientBundlePath = posix.join('pages', bundleFile)
+      const bundlePath = posix.join('pages', bundleFile)
       const absolutePagePath = pagePath.startsWith('next/dist/pages')
         ? require.resolve(pagePath)
         : join(pagesDir, pagePath)
 
       page = posix.normalize(pageUrl)
+      const normalizedPage = normalizePathSep(page)
 
-      return new Promise<void>((resolve, reject) => {
-        // Makes sure the page that is being kept in on-demand-entries matches the webpack output
-        const normalizedPage = normalizePathSep(page)
-        const entryInfo = entries[normalizedPage]
+      const isApiRoute = normalizedPage.match(API_ROUTE)
 
-        if (entryInfo) {
-          if (entryInfo.status === BUILT) {
+      let entriesChanged = false
+      const addPageEntry = (type: 'client' | 'server') => {
+        return new Promise<void>((resolve, reject) => {
+          // Makes sure the page that is being kept in on-demand-entries matches the webpack output
+          const pageKey = `${type}${normalizedPage}`
+          const entryInfo = entries[pageKey]
+
+          if (entryInfo) {
+            entryInfo.lastActiveTime = Date.now()
+            entryInfo.dispose = false
+            if (entryInfo.status === BUILT) {
+              resolve()
+              return
+            }
+
+            doneCallbacks!.once(pageKey, handleCallback)
+            return
+          }
+
+          entriesChanged = true
+
+          entries[pageKey] = {
+            bundlePath,
+            absolutePagePath,
+            status: ADDED,
+            lastActiveTime: Date.now(),
+            dispose: false,
+          }
+          doneCallbacks!.once(pageKey, handleCallback)
+
+          function handleCallback(err: Error) {
+            if (err) return reject(err)
             resolve()
-            return
           }
+        })
+      }
 
-          if (entryInfo.status === BUILDING) {
-            doneCallbacks!.once(normalizedPage, handleCallback)
-            return
-          }
-        }
+      const promise = isApiRoute
+        ? addPageEntry('server')
+        : clientOnly
+        ? addPageEntry('client')
+        : Promise.all([addPageEntry('client'), addPageEntry('server')])
 
-        Log.event(`build page: ${normalizedPage}`)
-
-        entries[normalizedPage] = {
-          serverBundlePath,
-          clientBundlePath,
-          absolutePagePath,
-          status: ADDED,
-        }
-        doneCallbacks!.once(normalizedPage, handleCallback)
-
+      if (entriesChanged) {
+        reportTrigger(
+          isApiRoute
+            ? `${normalizedPage} (server only)`
+            : clientOnly
+            ? `${normalizedPage} (client only)`
+            : normalizedPage
+        )
         invalidator.invalidate()
+      }
 
-        function handleCallback(err: Error) {
-          if (err) return reject(err)
-          resolve()
-        }
-      })
+      return promise
     },
 
-    middleware(req: IncomingMessage, res: ServerResponse, next: Function) {
-      if (!req.url?.startsWith('/_next/webpack-hmr')) return next()
+    onHMR(client: ws) {
+      client.addEventListener('message', ({ data }) => {
+        data = typeof data !== 'string' ? data.toString() : data
+        try {
+          const parsedData = JSON.parse(data)
 
-      const { query } = parse(req.url!, true)
-      const page = query.page
-      if (!page) return next()
-
-      const runPing = () => {
-        const data = handlePing(query.page as string)
-        if (!data) return
-        res.write('data: ' + JSON.stringify(data) + '\n\n')
-      }
-      const pingInterval = setInterval(() => runPing(), 5000)
-
-      req.on('close', () => {
-        clearInterval(pingInterval)
+          if (parsedData.event === 'ping') {
+            const result = handlePing(parsedData.page)
+            client.send(
+              JSON.stringify({
+                ...result,
+                event: 'pong',
+              })
+            )
+          }
+        } catch (_) {}
       })
-      next()
     },
   }
 }
 
 function disposeInactiveEntries(
-  watcher: any,
-  lastAccessPages: any,
+  _watcher: any,
+  lastClientAccessPages: any,
   maxInactiveAge: number
 ) {
-  const disposingPages: any = []
-
   Object.keys(entries).forEach((page) => {
-    const { lastActiveTime, status } = entries[page]
+    const { lastActiveTime, status, dispose } = entries[page]
+
+    // Skip pages already scheduled for disposing
+    if (dispose) return
 
     // This means this entry is currently building or just added
     // We don't need to dispose those entries.
@@ -247,20 +285,12 @@ function disposeInactiveEntries(
     // We should not build the last accessed page even we didn't get any pings
     // Sometimes, it's possible our XHR ping to wait before completing other requests.
     // In that case, we should not dispose the current viewing page
-    if (lastAccessPages.includes(page)) return
+    if (lastClientAccessPages.includes(page)) return
 
     if (lastActiveTime && Date.now() - lastActiveTime > maxInactiveAge) {
-      disposingPages.push(page)
+      entries[page].dispose = true
     }
   })
-
-  if (disposingPages.length > 0) {
-    disposingPages.forEach((page: any) => {
-      delete entries[page]
-    })
-    // disposing inactive page(s)
-    watcher.invalidate()
-  }
 }
 
 // Make sure only one invalidation happens at a time
@@ -269,7 +299,7 @@ class Invalidator {
   private multiCompiler: webpack.MultiCompiler
   private watcher: any
   private building: boolean
-  private rebuildAgain: boolean
+  public rebuildAgain: boolean
 
   constructor(watcher: any, multiCompiler: webpack.MultiCompiler) {
     this.multiCompiler = multiCompiler
@@ -290,14 +320,6 @@ class Invalidator {
     }
 
     this.building = true
-    if (!isWebpack5) {
-      // Work around a bug in webpack, calling `invalidate` on Watching.js
-      // doesn't trigger the invalid call used to keep track of the `.done` hook on multiCompiler
-      for (const compiler of this.multiCompiler.compilers) {
-        compiler.hooks.invalid.call()
-      }
-    }
-
     this.watcher.invalidate()
   }
 

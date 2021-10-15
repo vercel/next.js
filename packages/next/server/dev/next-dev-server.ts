@@ -1,7 +1,7 @@
 import crypto from 'crypto'
 import fs from 'fs'
 import chalk from 'chalk'
-import { IncomingMessage, ServerResponse } from 'http'
+import { IncomingMessage, ServerResponse, Server as HTTPServer } from 'http'
 import { Worker } from 'jest-worker'
 import AmpHtmlValidator from 'next/dist/compiled/amphtml-validator'
 import findUp from 'next/dist/compiled/find-up'
@@ -36,7 +36,7 @@ import { normalizePagePath } from '../normalize-page-path'
 import Router, { Params, route } from '../router'
 import { eventCliSession } from '../../telemetry/events'
 import { Telemetry } from '../../telemetry/storage'
-import { setGlobal } from '../../telemetry/trace'
+import { setGlobal } from '../../trace'
 import HotReloader from './hot-reloader'
 import { findPageFile } from '../lib/find-page-file'
 import { getNodeOptionsWithoutInspect } from '../lib/utils'
@@ -54,6 +54,7 @@ import {
   getSourceById,
 } from '@next/react-dev-overlay/lib/middleware'
 import * as Log from '../../build/output/log'
+import isError from '../../lib/is-error'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: React.FunctionComponent
@@ -72,6 +73,7 @@ export default class DevServer extends Server {
   private hotReloader?: HotReloader
   private isCustomServer: boolean
   protected sortedRoutes?: string[]
+  private addedUpgradeListener = false
 
   protected staticPathsWorker: import('jest-worker').Worker & {
     loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
@@ -81,6 +83,7 @@ export default class DevServer extends Server {
     options: ServerConstructor & {
       conf: NextConfig
       isNextDevCommand?: boolean
+      httpServer?: HTTPServer
     }
   ) {
     super({ ...options, dev: true })
@@ -115,6 +118,13 @@ export default class DevServer extends Server {
         `The static directory has been deprecated in favor of the public directory. https://nextjs.org/docs/messages/static-dir-deprecated`
       )
     }
+
+    // setup upgrade listener eagerly when we can otherwise
+    // it will be done on the first request via req.socket.server
+    if (options.httpServer) {
+      this.setupWebSocketHandler(options.httpServer)
+    }
+
     this.isCustomServer = !options.isNextDevCommand
     this.pagesDir = findPagesDir(this.dir)
     this.staticPathsWorker = new Worker(
@@ -285,11 +295,13 @@ export default class DevServer extends Server {
   }
 
   async prepare(): Promise<void> {
+    setGlobal('distDir', this.distDir)
+    setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
     await verifyTypeScriptSetup(
       this.dir,
       this.pagesDir!,
       false,
-      !this.nextConfig.images.disableStaticImages
+      this.nextConfig
     )
 
     this.customRoutes = await loadCustomRoutes(this.nextConfig)
@@ -323,7 +335,7 @@ export default class DevServer extends Server {
     const telemetry = new Telemetry({ distDir: this.distDir })
     telemetry.record(
       eventCliSession(PHASE_DEVELOPMENT_SERVER, this.distDir, {
-        webpackVersion: this.hotReloader.isWebpack5 ? 5 : 4,
+        webpackVersion: 5,
         cliCommand: 'dev',
         isSrcDir: relative(this.dir, this.pagesDir!).startsWith('src'),
         hasNowJson: !!(await findUp('now.json', { cwd: this.dir })),
@@ -407,12 +419,38 @@ export default class DevServer extends Server {
     return false
   }
 
+  private setupWebSocketHandler(server?: HTTPServer, _req?: IncomingMessage) {
+    if (!this.addedUpgradeListener) {
+      this.addedUpgradeListener = true
+      server = server || (_req?.socket as any)?.server
+
+      if (!server) {
+        // this is very unlikely to happen but show an error in case
+        // it does somehow
+        Log.error(
+          `Invalid IncomingMessage received, make sure http.createServer is being used to handle requests.`
+        )
+      } else {
+        server.on('upgrade', (req, socket, head) => {
+          if (
+            req.url?.startsWith(
+              `${this.nextConfig.basePath || ''}/_next/webpack-hmr`
+            )
+          ) {
+            this.hotReloader?.onHMR(req, socket, head)
+          }
+        })
+      }
+    }
+  }
+
   async run(
     req: IncomingMessage,
     res: ServerResponse,
     parsedUrl: UrlWithParsedQuery
   ): Promise<void> {
     await this.devReady
+    this.setupWebSocketHandler(undefined, req)
 
     const { basePath } = this.nextConfig
     let originalPathname: string | null = null
@@ -449,12 +487,13 @@ export default class DevServer extends Server {
     }
     try {
       return await super.run(req, res, parsedUrl)
-    } catch (err) {
+    } catch (error) {
       res.statusCode = 500
+      const err = isError(error) ? error : error ? new Error(error + '') : null
       try {
         this.logErrorWithOriginalStack(err).catch(() => {})
         return await this.renderError(err, req, res, pathname!, {
-          __NEXT_PAGE: err?.page || pathname,
+          __NEXT_PAGE: (isError(err) && err.page) || pathname || '',
         })
       } catch (internalErr) {
         console.error(internalErr)
@@ -464,15 +503,14 @@ export default class DevServer extends Server {
   }
 
   private async logErrorWithOriginalStack(
-    possibleError?: any,
+    err?: unknown,
     type?: 'unhandledRejection' | 'uncaughtException'
   ) {
     let usedOriginalStack = false
 
-    if (possibleError?.name && possibleError?.stack && possibleError?.message) {
-      const err: Error & { stack: string } = possibleError
+    if (isError(err) && err.name && err.stack && err.message) {
       try {
-        const frames = parseStack(err.stack)
+        const frames = parseStack(err.stack!)
         const frame = frames[0]
 
         if (frame.lineNumber && frame?.file) {
@@ -485,8 +523,7 @@ export default class DevServer extends Server {
           const source = await getSourceById(
             !!frame.file?.startsWith(sep) || !!frame.file?.startsWith('file:'),
             moduleId,
-            compilation,
-            this.hotReloader!.isWebpack5
+            compilation
           )
 
           const originalFrame = await createOriginalStackFrame({
@@ -521,9 +558,9 @@ export default class DevServer extends Server {
 
     if (!usedOriginalStack) {
       if (type) {
-        Log.error(`${type}:`, possibleError)
+        Log.error(`${type}:`, err + '')
       } else {
-        Log.error(possibleError)
+        Log.error(err + '')
       }
     }
   }

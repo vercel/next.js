@@ -40,11 +40,6 @@ declare module 'react' {
   interface LinkHTMLAttributes<T> extends HTMLAttributes<T> {
     nonce?: string
   }
-
-  // <img loading="lazy"> support
-  interface ImgHTMLAttributes<T> extends HTMLAttributes<T> {
-    loading?: 'auto' | 'eager' | 'lazy'
-  }
 }
 
 export type Redirect =
@@ -99,10 +94,13 @@ export {
 
 export type PreviewData = string | false | object | undefined
 
-export type GetStaticPropsContext<Q extends ParsedUrlQuery = ParsedUrlQuery> = {
+export type GetStaticPropsContext<
+  Q extends ParsedUrlQuery = ParsedUrlQuery,
+  D extends PreviewData = PreviewData
+> = {
   params?: Q
   preview?: boolean
-  previewData?: PreviewData
+  previewData?: D
   locale?: string
   locales?: string[]
   defaultLocale?: string
@@ -111,13 +109,14 @@ export type GetStaticPropsContext<Q extends ParsedUrlQuery = ParsedUrlQuery> = {
 export type GetStaticPropsResult<P> =
   | { props: P; revalidate?: number | boolean }
   | { redirect: Redirect; revalidate?: number | boolean }
-  | { notFound: true }
+  | { notFound: true; revalidate?: number | boolean }
 
 export type GetStaticProps<
   P extends { [key: string]: any } = { [key: string]: any },
-  Q extends ParsedUrlQuery = ParsedUrlQuery
+  Q extends ParsedUrlQuery = ParsedUrlQuery,
+  D extends PreviewData = PreviewData
 > = (
-  context: GetStaticPropsContext<Q>
+  context: GetStaticPropsContext<Q, D>
 ) => Promise<GetStaticPropsResult<P>> | GetStaticPropsResult<P>
 
 export type InferGetStaticPropsType<T> = T extends GetStaticProps<infer P, any>
@@ -143,7 +142,8 @@ export type GetStaticPaths<P extends ParsedUrlQuery = ParsedUrlQuery> = (
 ) => Promise<GetStaticPathsResult<P>> | GetStaticPathsResult<P>
 
 export type GetServerSidePropsContext<
-  Q extends ParsedUrlQuery = ParsedUrlQuery
+  Q extends ParsedUrlQuery = ParsedUrlQuery,
+  D extends PreviewData = PreviewData
 > = {
   req: IncomingMessage & {
     cookies: NextApiRequestCookies
@@ -152,7 +152,7 @@ export type GetServerSidePropsContext<
   params?: Q
   query: ParsedUrlQuery
   preview?: boolean
-  previewData?: PreviewData
+  previewData?: D
   resolvedUrl: string
   locale?: string
   locales?: string[]
@@ -160,15 +160,16 @@ export type GetServerSidePropsContext<
 }
 
 export type GetServerSidePropsResult<P> =
-  | { props: P }
+  | { props: P | Promise<P> }
   | { redirect: Redirect }
   | { notFound: true }
 
 export type GetServerSideProps<
   P extends { [key: string]: any } = { [key: string]: any },
-  Q extends ParsedUrlQuery = ParsedUrlQuery
+  Q extends ParsedUrlQuery = ParsedUrlQuery,
+  D extends PreviewData = PreviewData
 > = (
-  context: GetServerSidePropsContext<Q>
+  context: GetServerSidePropsContext<Q, D>
 ) => Promise<GetServerSidePropsResult<P>>
 
 export type InferGetServerSidePropsType<T> = T extends GetServerSideProps<

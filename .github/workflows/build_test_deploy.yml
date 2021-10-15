@@ -1,7 +1,6 @@
 on:
   push:
     branches: [canary]
-    tags: [v*]
   pull_request:
     types: [opened, synchronize]
 
@@ -24,6 +23,7 @@ jobs:
       NEXT_TELEMETRY_DISABLED: 1
     outputs:
       docsChange: ${{ steps.docs-change.outputs.DOCS_CHANGE }}
+      isRelease: ${{ steps.check-release.outputs.IS_RELEASE }}
     steps:
       - uses: actions/checkout@v2
         with:
@@ -40,6 +40,16 @@ jobs:
         run: echo ::set-output name=DOCS_CHANGE::$(node skip-docs-change.js echo 'not-docs-only-change')
         id: docs-change
       - run: echo ${{steps.docs-change.outputs.DOCS_CHANGE}}
+      - run: git fetch --depth=1 origin +refs/tags/*:refs/tags/*
+      - run: git describe
+      - id: check-release
+        run: |
+          if [[ $(git describe --exact-match 2> /dev/null || :) = v* ]];
+            then
+              echo "::set-output name=IS_RELEASE::true"
+            else
+              echo "::set-output name=IS_RELEASE::false"
+          fi
       - uses: actions/cache@v2
         id: cache-build
         with:
@@ -67,7 +77,14 @@ jobs:
     steps:
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         run: sudo ethtool -K eth0 tx off rx off
+
+      - uses: actions/checkout@v2
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
+      - run: mv .git .git-bak
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
       - uses: actions/cache@v2
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
@@ -75,18 +92,30 @@ jobs:
         with:
           path: ./*
           key: ${{ github.sha }}
+
+      - run: rm -rf .git && mv .git-bak .git
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
       - uses: actions/download-artifact@v2
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
           name: next-swc-binaries
           path: packages/next/build/swc/dist
+
       # Only check linux build for now, mac builds can sometimes be different even with the same code
       - run: |
           mv ./packages/next/build/swc/dist/next-swc.linux-x64-gnu.node \
             ./packages/next/native/next-swc.linux-x64-gnu.node
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
       - run: ./scripts/check-pre-compiled.sh
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
+      - uses: EndBug/add-and-commit@v7
+        if: ${{ failure() }}
+        with:
+          add: 'packages/next/compiled packages/next/bundles --force'
+          message: '⚙ Update compiled files'
 
   testUnit:
     name: Test Unit
@@ -95,7 +124,6 @@ jobs:
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
-      HEADLESS: true
     steps:
       - uses: actions/cache@v2
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
@@ -107,6 +135,78 @@ jobs:
       - run: node run-tests.js --type unit
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
+  testDev:
+    name: Test Development
+    runs-on: ubuntu-latest
+    needs: build
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
+      NEXT_TEST_JOB: 1
+    steps:
+      - run: echo ${{needs.build.outputs.docsChange}}
+
+      # https://github.com/actions/virtual-environments/issues/1187
+      - name: tune linux network
+        run: sudo ethtool -K eth0 tx off rx off
+
+      - uses: actions/cache@v2
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        id: restore-build
+        with:
+          path: ./*
+          key: ${{ github.sha }}
+
+      - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
+      # TODO: remove after we fix watchpack watching too much
+      - run: echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
+      - run: node run-tests.js --type development
+        name: Run test/development
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
+      - run: NEXT_TEST_MODE=dev node run-tests.js --type e2e
+        name: Run test/e2e (dev)
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
+  testProd:
+    name: Test Production
+    runs-on: ubuntu-latest
+    needs: build
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
+      NEXT_TEST_JOB: 1
+    steps:
+      - run: echo ${{needs.build.outputs.docsChange}}
+
+      # https://github.com/actions/virtual-environments/issues/1187
+      - name: tune linux network
+        run: sudo ethtool -K eth0 tx off rx off
+
+      - uses: actions/cache@v2
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        id: restore-build
+        with:
+          path: ./*
+          key: ${{ github.sha }}
+
+      - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
+      # TODO: remove after we fix watchpack watching too much
+      - run: echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
+      - run: node run-tests.js --type production
+        name: Run test/production
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
+      - run: NEXT_TEST_MODE=start node run-tests.js --type e2e
+        name: Run test/e2e (production)
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
   testIntegration:
     name: Test Integration
     runs-on: ubuntu-latest
@@ -114,7 +214,7 @@ jobs:
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
-      HEADLESS: true
+      TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
     strategy:
       fail-fast: false
       matrix:
@@ -133,11 +233,14 @@ jobs:
           path: ./*
           key: ${{ github.sha }}
 
+      - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
       # TODO: remove after we fix watchpack watching too much
       - run: echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
-      - run: xvfb-run node run-tests.js --timings -g ${{ matrix.group }}/6 -c 3
+      - run: xvfb-run node run-tests.js --timings -g ${{ matrix.group }}/6
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
   testElectron:
@@ -147,7 +250,6 @@ jobs:
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
-      HEADLESS: true
       TEST_ELECTRON: 1
     steps:
       - uses: actions/cache@v2
@@ -187,41 +289,26 @@ jobs:
   testsPass:
     name: thank you, next
     runs-on: ubuntu-latest
-    needs: [lint, checkPrecompiled, testIntegration, testUnit, testYarnPnP]
+    needs:
+      [
+        lint,
+        check-examples,
+        test-native,
+        checkPrecompiled,
+        testIntegration,
+        testUnit,
+        testYarnPnP,
+        testDev,
+        testProd,
+      ]
     steps:
       - run: exit 0
-
-  testLegacyWebpack:
-    name: Webpack 4 (Basic, Production, Acceptance)
-    runs-on: ubuntu-latest
-    needs: build
-    env:
-      NEXT_TELEMETRY_DISABLED: 1
-      NEXT_TEST_JOB: 1
-      HEADLESS: true
-      NEXT_PRIVATE_TEST_WEBPACK4_MODE: 1
-
-    steps:
-      # https://github.com/actions/virtual-environments/issues/1187
-      - name: tune linux network
-        run: sudo ethtool -K eth0 tx off rx off
-
-      - uses: actions/cache@v2
-        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
-        id: restore-build
-        with:
-          path: ./*
-          key: ${{ github.sha }}
-
-      - run: xvfb-run node run-tests.js test/integration/{basic,fallback-modules,link-ref,production,async-modules,font-optimization,ssr-ctx}/test/index.test.js test/acceptance/*.test.js
-        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
   testFirefox:
     name: Test Firefox (production)
     runs-on: ubuntu-latest
     needs: build
     env:
-      HEADLESS: true
       BROWSER_NAME: 'firefox'
       NEXT_TELEMETRY_DISABLED: 1
     steps:
@@ -231,7 +318,9 @@ jobs:
         with:
           path: ./*
           key: ${{ github.sha }}
-      - run: node run-tests.js -c 1 test/integration/production/test/index.test.js
+      - run: npx playwright install-deps && npx playwright install firefox
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+      - run: node run-tests.js test/integration/production/test/index.test.js
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
   testSafari:
@@ -256,6 +345,12 @@ jobs:
         with:
           path: ./*
           key: ${{ github.sha }}
+
+      # TODO: use macos runner so that we can use playwright to test against
+      # PRs instead of only running on canary?
+      - run: '[[ -z "$BROWSERSTACK_ACCESS_KEY" ]] && echo "Skipping for PR" || npm i -g browserstack-local@1.4.0'
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
       - run: '[[ -z "$BROWSERSTACK_ACCESS_KEY" ]] && echo "Skipping for PR" || node run-tests.js -c 1 test/integration/production/test/index.test.js'
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
@@ -282,16 +377,20 @@ jobs:
         with:
           path: ./*
           key: ${{ github.sha }}
-      - run: '[[ -z "$BROWSERSTACK_ACCESS_KEY" ]] && echo "Skipping for PR" || node run-tests.js -c 1 test/integration/production-nav/test/index.test.js'
+
+      - run: '[[ -z "$BROWSERSTACK_ACCESS_KEY" ]] && echo "Skipping for PR" || npm i -g browserstack-local@1.4.0'
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
+      - run: '[[ -z "$BROWSERSTACK_ACCESS_KEY" ]] && echo "Skipping for PR" || node run-tests.js test/integration/production-nav/test/index.test.js'
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
   publishRelease:
-    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+    if: ${{ needs.build.outputs.isRelease == 'true' }}
     name: Potentially publish release
     runs-on: ubuntu-latest
     needs: [build, build-native]
     env:
-      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN_ELEVATED }}
     steps:
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network
@@ -333,12 +432,16 @@ jobs:
         include:
           - os: ubuntu-18.04
             target: x86_64-unknown-linux-gnu
+            name: linux-x64-gnu
           - os: windows-latest
             target: x86_64-pc-windows-msvc
+            name: win32-x64-msvc
           - os: macos-latest
             target: x86_64-apple-darwin
+            name: darwin-x64
           - os: macos-latest
             target: aarch64-apple-darwin
+            name: darwin-arm64
             description: m1
 
     name: next-swc - ${{ matrix.os }} - ${{ matrix.target }} - node@14
@@ -372,7 +475,7 @@ jobs:
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         with:
           profile: minimal
-          toolchain: nightly-2021-03-25
+          toolchain: nightly-2021-08-12
           target: ${{ matrix.target }}
       - name: Cache cargo registry
         uses: actions/cache@v1
@@ -392,7 +495,7 @@ jobs:
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         with:
           path: packages/next/native/next-swc.*.node
-          key: next-swc-nightly-2021-03-25-${{ matrix.target }}-${{ hashFiles('.github/workflows/build_test_deploy.yml', 'packages/next/build/swc/**') }}
+          key: next-swc-nightly-2021-08-12-${{ matrix.target }}-${{ hashFiles('.github/workflows/build_test_deploy.yml', 'packages/next/build/swc/**') }}
       - name: Cross build aarch64 setup
         if: ${{ matrix.target == 'aarch64-apple-darwin' && steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         run: |
@@ -401,6 +504,17 @@ jobs:
           export CXX=$(xcrun -f clang++);
           SYSROOT=$(xcrun --sdk macosx --show-sdk-path);
           export CFLAGS="-isysroot $SYSROOT -isystem $SYSROOT";
+      # We use restore-key to pick latest cache.
+      # We will not get exact match, but doc says
+      # "If there are multiple partial matches for a restore key, the action returns the most recently created cache."
+      # So we get latest cache
+      - name: Cache built files
+        uses: actions/cache@v2
+        with:
+          path: ./packages/next/build/swc/target
+          key: next-swc-cargo-cache-${{ matrix.os }}--${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            next-swc-cargo-cache-${{ matrix.os }}
       - name: 'Build'
         if: ${{ steps.binary-cache.outputs.cache-hit != 'true' && steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         run: yarn build-native --target ${{ matrix.target }}
@@ -408,11 +522,10 @@ jobs:
           MACOSX_DEPLOYMENT_TARGET: '10.13'
         working-directory: packages/next
       - name: Upload artifact
-        uses: actions/upload-artifact@v2
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
+        uses: actions/upload-artifact@v2.2.4
         with:
           name: next-swc-binaries
-          path: packages/next/native/next-swc.*.node
+          path: packages/next/native/next-swc.${{ matrix.name }}.node
       - name: Clear the cargo caches
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         run: |
@@ -433,7 +546,7 @@ jobs:
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly-2021-03-25
+          toolchain: nightly-2021-08-12
           profile: minimal
       - run: cd packages/next/build/swc && cargo test
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}

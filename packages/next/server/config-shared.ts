@@ -1,12 +1,15 @@
 import os from 'os'
 import { Header, Redirect, Rewrite } from '../lib/load-custom-routes'
-import { ImageConfig, imageConfigDefault } from './image-config'
+import {
+  ImageConfig,
+  ImageConfigComplete,
+  imageConfigDefault,
+} from './image-config'
 
-type NoOptionals<T> = {
-  [P in keyof T]-?: T[P]
+export type NextConfigComplete = Required<NextConfig> & {
+  images: ImageConfigComplete
+  typescript: Required<TypeScriptConfig>
 }
-
-export type NextConfigComplete = NoOptionals<NextConfig>
 
 export interface I18NConfig {
   defaultLocale: string
@@ -32,6 +35,8 @@ export interface ESLintConfig {
 export interface TypeScriptConfig {
   /** Do not run TypeScript during production builds (`next build`). */
   ignoreBuildErrors?: boolean
+  /** Relative path to a custom tsconfig file */
+  tsconfigPath?: string
 }
 
 export type NextConfig = { [key: string]: any } & {
@@ -107,6 +112,7 @@ export type NextConfig = { [key: string]: any } & {
     webpack5?: false
     strictPostcssConfiguration?: boolean
   }
+  crossOrigin?: false | 'anonymous' | 'use-credentials'
   experimental?: {
     swcMinify?: boolean
     swcLoader?: boolean
@@ -121,7 +127,6 @@ export type NextConfig = { [key: string]: any } & {
     optimizeImages?: boolean
     optimizeCss?: boolean
     scrollRestoration?: boolean
-    stats?: boolean
     externalDir?: boolean
     conformance?: boolean
     amp?: {
@@ -136,8 +141,10 @@ export type NextConfig = { [key: string]: any } & {
     esmExternals?: boolean | 'loose'
     staticPageGenerationTimeout?: number
     isrMemoryCacheSize?: number
-    nftTracing?: boolean
+    outputFileTracing?: boolean
     concurrentFeatures?: boolean
+    serverComponents?: boolean
+    fullySpecified?: boolean
   }
 }
 
@@ -150,6 +157,7 @@ export const defaultConfig: NextConfig = {
   },
   typescript: {
     ignoreBuildErrors: false,
+    tsconfigPath: 'tsconfig.json',
   },
   distDir: '.next',
   cleanDistDir: true,
@@ -168,7 +176,7 @@ export const defaultConfig: NextConfig = {
     buildActivity: true,
   },
   onDemandEntries: {
-    maxInactiveAge: 60 * 1000,
+    maxInactiveAge: 15 * 1000,
     pagesBufferLength: 2,
   },
   amp: {
@@ -180,8 +188,7 @@ export const defaultConfig: NextConfig = {
   i18n: null,
   productionBrowserSourceMaps: false,
   optimizeFonts: true,
-  webpack5:
-    Number(process.env.NEXT_PRIVATE_TEST_WEBPACK4_MODE) > 0 ? false : undefined,
+  webpack5: undefined,
   excludeDefaultMomentLocales: true,
   serverRuntimeConfig: {},
   publicRuntimeConfig: {},
@@ -206,18 +213,19 @@ export const defaultConfig: NextConfig = {
     optimizeImages: false,
     optimizeCss: false,
     scrollRestoration: false,
-    stats: false,
     externalDir: false,
     reactRoot: Number(process.env.NEXT_PRIVATE_REACT_ROOT) > 0,
     disableOptimizedLoading: false,
     gzipSize: true,
     craCompat: false,
-    esmExternals: false,
+    esmExternals: true,
     staticPageGenerationTimeout: 60,
     // default to 50MB limit
     isrMemoryCacheSize: 50 * 1024 * 1024,
-    nftTracing: false,
+    outputFileTracing: false,
     concurrentFeatures: false,
+    serverComponents: false,
+    fullySpecified: false,
   },
   future: {
     strictPostcssConfiguration: false,

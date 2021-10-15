@@ -1,10 +1,6 @@
 import { promises as fs } from 'fs'
 import loaderUtils from 'next/dist/compiled/loader-utils'
-import {
-  isWebpack5,
-  sources,
-  webpack,
-} from 'next/dist/compiled/webpack/webpack'
+import { sources, webpack } from 'next/dist/compiled/webpack/webpack'
 
 const PLUGIN_NAME = 'CopyFilePlugin'
 
@@ -34,19 +30,14 @@ export class CopyFilePlugin {
 
   apply(compiler: webpack.Compiler) {
     compiler.hooks.thisCompilation.tap(PLUGIN_NAME, (compilation: any) => {
-      const cache = isWebpack5 ? compilation.getCache('CopyFilePlugin') : null
-      const hook = isWebpack5
-        ? // @ts-ignore
-          compilation.hooks.processAssets
-        : compilation.hooks.additionalAssets
+      const cache = compilation.getCache('CopyFilePlugin')
+      const hook = compilation.hooks.processAssets
       hook.tapPromise(
-        isWebpack5
-          ? {
-              name: PLUGIN_NAME,
-              // @ts-ignore TODO: Remove ignore when webpack 5 is stable
-              stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
-            }
-          : PLUGIN_NAME,
+        {
+          name: PLUGIN_NAME,
+          // @ts-ignore TODO: Remove ignore when webpack 5 is stable
+          stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
+        },
         async () => {
           if (cache) {
             const cachedResult = await cache.getPromise(

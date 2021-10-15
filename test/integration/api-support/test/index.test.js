@@ -14,10 +14,10 @@ import {
   nextExport,
   getPageFileFromBuildManifest,
   getPageFileFromPagesManifest,
+  check,
 } from 'next-test-utils'
 import json from '../big.json'
 
-jest.setTimeout(1000 * 60 * 2)
 const appDir = join(__dirname, '../')
 const nextConfig = join(appDir, 'next.config.js')
 let appPort
@@ -442,6 +442,11 @@ function runTests(dev = false) {
     expect(data).toBe('hi')
   })
 
+  it('should work with nullable payload', async () => {
+    const data = await renderViaHTTP(appPort, '/api/nullable-payload')
+    expect(data).toBe('')
+  })
+
   it('should warn if response body is larger than 4MB', async () => {
     let res = await fetchViaHTTP(appPort, '/api/large-response')
     expect(res.ok).toBeTruthy()
@@ -475,8 +480,10 @@ function runTests(dev = false) {
       await fetchViaHTTP(appPort, '/api/test-no-end', undefined, {
         signal: controller.signal,
       }).catch(() => {})
-      expect(stderr).toContain(
-        `API resolved without sending a response for /api/test-no-end, this may result in stalled requests.`
+
+      await check(
+        () => stderr,
+        /API resolved without sending a response for \/api\/test-no-end, this may result in stalled requests/
       )
     })
 
