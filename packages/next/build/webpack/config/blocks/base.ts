@@ -9,7 +9,7 @@ export const base = curry(function base(
   config.mode = ctx.isDevelopment ? 'development' : 'production'
   config.name = ctx.isServer ? 'server' : 'client'
   // @ts-ignore TODO webpack 5 typings
-  config.target = ctx.isServer ? 'node12.17' : ['web', 'es5']
+  config.target = ctx.isServer ? 'node12.22' : ['web', 'es5']
 
   // Stop compilation early in a production build when an error is encountered.
   // This behavior isn't desirable in development due to how the HMR system
