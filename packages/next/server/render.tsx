@@ -1277,7 +1277,7 @@ function renderToStream(
     })
 
     let resolved = false
-    const doResolve = () => {
+    const doResolve = (startWriting: any) => {
       if (!resolved) {
         resolved = true
         resolve((res, next) => {
@@ -1314,11 +1314,11 @@ function renderToStream(
         },
         onCompleteShell() {
           if (!generateStaticHTML) {
-            doResolve()
+            doResolve(startWriting)
           }
         },
         onCompleteAll() {
-          doResolve()
+          doResolve(startWriting)
         },
       }
     )

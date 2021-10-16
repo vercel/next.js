@@ -9,6 +9,8 @@ import {
 export type NextConfigComplete = Required<NextConfig> & {
   images: ImageConfigComplete
   typescript: Required<TypeScriptConfig>
+  configOrigin?: string
+  configFile?: string
 }
 
 export interface I18NConfig {
