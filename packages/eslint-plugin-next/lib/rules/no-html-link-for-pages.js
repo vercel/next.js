@@ -25,6 +25,7 @@ module.exports = {
       description: 'Prohibit full page refresh for Next.js pages',
       category: 'HTML',
       recommended: true,
+      url: 'https://nextjs.org/docs/messages/no-html-link-for-pages',
     },
     fixable: null, // or "code" or "whitespace"
     schema: [
