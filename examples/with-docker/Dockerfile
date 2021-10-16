@@ -11,6 +11,12 @@ FROM node:14-alpine AS builder
 WORKDIR /app
 COPY . .
 COPY --from=deps /app/node_modules ./node_modules
+
+# Next.js collects completely anonymous telemetry data about general usage.
+# Learn more here: https://nextjs.org/telemetry
+# Uncomment the following line in case you want to disable telemetry during the build.
+# ENV NEXT_TELEMETRY_DISABLED 1
+
 RUN yarn build
 
 # Production image, copy all the files and run next
@@ -18,6 +24,8 @@ FROM node:14-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV production
+# Uncomment the following line in case you want to disable telemetry during the runtime.
+# ENV NEXT_TELEMETRY_DISABLED 1
 
 RUN addgroup -g 1001 -S nodejs
 RUN adduser -S nextjs -u 1001
@@ -33,9 +41,5 @@ USER nextjs
 
 EXPOSE 3000
 
-# Next.js collects completely anonymous telemetry data about general usage.
-# Learn more here: https://nextjs.org/telemetry
-# Uncomment the following line in case you want to disable telemetry.
-# ENV NEXT_TELEMETRY_DISABLED 1
 
 CMD ["yarn", "start"]
