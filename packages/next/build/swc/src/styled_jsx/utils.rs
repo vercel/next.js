@@ -1,7 +1,7 @@
 use std::collections::hash_map::DefaultHasher;
 use std::hash::Hasher;
 use swc_common::DUMMY_SP;
-use swc_ecmascript::ast::*;
+use swc_ecmascript::{ast::*, utils::drop_span};
 
 use super::{ExternalStyle, JSXStyle, LocalStyle};
 
@@ -39,7 +39,7 @@ pub fn compute_class_names(
             }
             JSXStyle::External(external) => {
                 if !external.is_global {
-                    external_styles.push(external.expr.clone());
+                    external_styles.push(drop_span(external.expr.clone()));
                 }
             }
         }
