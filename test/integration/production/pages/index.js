@@ -1,4 +1,7 @@
 import Link from 'next/link'
+import { nanoid } from 'nanoid'
+
+console.log(nanoid())
 
 export default () => (
   <div>
