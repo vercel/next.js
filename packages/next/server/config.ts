@@ -530,7 +530,8 @@ export default async function loadConfig(
     let userConfigModule: any
 
     try {
-      userConfigModule = await import(path)
+      // we must use file for absolute dynamic imports on Windows
+      userConfigModule = await import(`file://${path}`)
     } catch (err) {
       console.error(
         chalk.red('Error:') +

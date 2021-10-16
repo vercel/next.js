@@ -4,14 +4,14 @@ import cheerio from 'cheerio'
 import fs, { existsSync } from 'fs-extra'
 import globOriginal from 'glob'
 import {
-  nextServer,
   renderViaHTTP,
-  runNextCommand,
-  startApp,
-  stopApp,
   waitFor,
   getPageFileFromPagesManifest,
   check,
+  nextBuild,
+  nextStart,
+  findPort,
+  killApp,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import {
@@ -31,7 +31,6 @@ const glob = promisify(globOriginal)
 
 const appDir = join(__dirname, '../')
 let appPort
-let server
 let app
 
 const context = {}
@@ -39,28 +38,23 @@ const context = {}
 describe('Production Usage', () => {
   let output = ''
   beforeAll(async () => {
-    const result = await runNextCommand(['build', appDir], {
+    const result = await nextBuild(appDir, undefined, {
       stderr: true,
       stdout: true,
     })
 
-    app = nextServer({
-      dir: join(__dirname, '../'),
-      dev: false,
-      quiet: true,
-    })
+    appPort = await findPort()
+    context.appPort = appPort
+    app = await nextStart(appDir, appPort)
     output = (result.stderr || '') + (result.stdout || '')
     console.log(output)
 
     if (result.code !== 0) {
       throw new Error(`Failed to build, exited with code ${result.code}`)
     }
-
-    server = await startApp(app)
-    context.appPort = appPort = server.address().port
   })
   afterAll(async () => {
-    await stopApp(server)
+    await killApp(app)
   })
 
   it('should contain generated page count in output', async () => {
@@ -645,19 +639,8 @@ describe('Production Usage', () => {
 
   describe('Misc', () => {
     it('should handle already finished responses', async () => {
-      const res = {
-        finished: false,
-        end() {
-          this.finished = true
-        },
-      }
-      const html = await app.renderToHTML(
-        { method: 'GET' },
-        res,
-        '/finish-response',
-        {}
-      )
-      expect(html).toBeFalsy()
+      const html = await renderViaHTTP(appPort, '/finish-response')
+      expect(html).toBe('hi')
     })
 
     it('should allow to access /static/ and /_next/', async () => {
