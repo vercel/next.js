@@ -94,7 +94,12 @@ if (process.env.NODE_ENV && !standardEnv.includes(process.env.NODE_ENV)) {
 ;(process.env as any).NODE_ENV = process.env.NODE_ENV || defaultEnv
 
 // Make sure commands gracefully respect termination signals (e.g. from Docker)
-process.on('SIGTERM', () => process.exit(0))
+process.on('SIGTERM', () =>
+  setTimeout(
+    () => process.exit(0),
+    parseInt(process.env.NEXT_GRACEFUL_SHUTDOWN_TIMEOUT_MS || '0', 10)
+  )
+)
 process.on('SIGINT', () => process.exit(0))
 
 commands[command]()
