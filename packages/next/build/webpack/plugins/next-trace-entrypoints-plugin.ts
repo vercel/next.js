@@ -428,34 +428,41 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
                   }
 
                   try {
+                    // we need to collect all parent package.json's used
+                    // as webpack's resolve doesn't expose this and parent
+                    // package.json could be needed for resolving e.g. stylis
+                    // stylis/package.json -> stylis/dist/umd/package.json
                     if (result.includes('node_modules')) {
-                      let requestPath = result
+                      let requestPath = result.replace(/\\/g, '/')
 
                       if (
                         !nodePath.isAbsolute(request) &&
                         request.includes('/') &&
                         resContext?.descriptionFileRoot
                       ) {
-                        requestPath =
+                        requestPath = (
                           resContext.descriptionFileRoot +
                           request.substr(getPkgName(request)?.length || 0) +
                           nodePath.sep +
                           'package.json'
+                        ).replace(/\\/g, '/')
                       }
 
-                      // the descriptionFileRoot is not set to the last used
-                      // package.json so we use nft's resolving for this
-                      // see test/integration/build-trace-extra-entries/app/node_modules/nested-structure for example
-                      const packageJsonResult = await job.getPjsonBoundary(
-                        requestPath
-                      )
-
-                      if (packageJsonResult) {
-                        await job.emitFile(
-                          packageJsonResult + nodePath.sep + 'package.json',
-                          'resolve',
-                          parent
-                        )
+                      const rootSeparatorIndex = requestPath.indexOf('/')
+                      let separatorIndex: number
+                      while (
+                        (separatorIndex = requestPath.lastIndexOf('/')) >
+                        rootSeparatorIndex
+                      ) {
+                        requestPath = requestPath.substr(0, separatorIndex)
+                        const curPackageJsonPath = `${requestPath}/package.json`
+                        if (await job.isFile(curPackageJsonPath)) {
+                          await job.emitFile(
+                            curPackageJsonPath,
+                            'resolve',
+                            parent
+                          )
+                        }
                       }
                     }
                   } catch (_err) {
