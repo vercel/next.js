@@ -880,6 +880,14 @@ describe('Prerender', () => {
     })
 
     if ((global as any).isNextDev) {
+      it('should show warning when large amount of page data is returned', async () => {
+        await renderViaHTTP(next.url, '/large-page-data')
+        await check(
+          () => next.cliOutput,
+          /Warning: data for page: "\/large-page-data" is 128 kB, this amount of data can reduce performance/
+        )
+      })
+
       it('should not show warning from url prop being returned', async () => {
         const urlPropPage = 'pages/url-prop.js'
         await next.patchFile(
