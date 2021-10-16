@@ -137,6 +137,11 @@ describe('Prerender', () => {
       initialRevalidateSeconds: false,
       srcRoute: '/catchall-optional/[[...slug]]',
     },
+    '/large-page-data': {
+      dataRoute: `/_next/data/${next.buildId}/large-page-data.json`,
+      initialRevalidateSeconds: false,
+      srcRoute: null,
+    },
     '/another': {
       dataRoute: `/_next/data/${next.buildId}/another.json`,
       initialRevalidateSeconds: 1,
@@ -1393,6 +1398,12 @@ describe('Prerender', () => {
               routeKeys: {
                 lang: 'lang',
               },
+            },
+            {
+              dataRouteRegex: `^\\/_next\\/data\\/${escapeRegex(
+                next.buildId
+              )}\\/large-page-data.json$`,
+              page: '/large-page-data',
             },
             {
               namedDataRouteRegex: `^/_next/data/${escapeRegex(
