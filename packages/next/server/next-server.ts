@@ -641,8 +641,10 @@ export default class Server {
           // remove buildId from URL
           params.path.shift()
 
+          const lastParam = params.path[params.path.length - 1]
+
           // show 404 if it doesn't end with .json
-          if (!params.path[params.path.length - 1].endsWith('.json')) {
+          if (typeof lastParam !== 'string' || !lastParam.endsWith('.json')) {
             await this.render404(req, res, _parsedUrl)
             return {
               finished: true,

@@ -1,14 +1,13 @@
 import { EventEmitter } from 'events'
-import { IncomingMessage, ServerResponse } from 'http'
 import { join, posix } from 'path'
-import { parse } from 'url'
-import { webpack, isWebpack5 } from 'next/dist/compiled/webpack/webpack'
-import * as Log from '../../build/output/log'
+import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { normalizePagePath, normalizePathSep } from '../normalize-page-path'
 import { pageNotFoundError } from '../require'
 import { findPageFile } from '../lib/find-page-file'
 import getRouteFromEntrypoint from '../get-route-from-entrypoint'
 import { API_ROUTE } from '../../lib/constants'
+import { reportTrigger } from '../../build/output'
+import type ws from 'ws'
 
 export const ADDED = Symbol('added')
 export const BUILDING = Symbol('building')
@@ -20,6 +19,7 @@ export let entries: {
     absolutePagePath: string
     status?: typeof ADDED | typeof BUILDING | typeof BUILT
     lastActiveTime?: number
+    dispose?: boolean
   }
 } = {}
 
@@ -101,9 +101,11 @@ export default function onDemandEntryHandler(
     invalidator.doneBuilding()
   })
 
+  const pingIntervalTime = Math.max(1000, Math.min(5000, maxInactiveAge))
+
   const disposeHandler = setInterval(function () {
     disposeInactiveEntries(watcher, lastClientAccessPages, maxInactiveAge)
-  }, 5000)
+  }, pingIntervalTime + 1000)
 
   disposeHandler.unref()
 
@@ -139,6 +141,7 @@ export default function onDemandEntryHandler(
       }
     }
     entryInfo.lastActiveTime = Date.now()
+    entryInfo.dispose = false
     return toSend
   }
 
@@ -195,6 +198,7 @@ export default function onDemandEntryHandler(
 
           if (entryInfo) {
             entryInfo.lastActiveTime = Date.now()
+            entryInfo.dispose = false
             if (entryInfo.status === BUILT) {
               resolve()
               return
@@ -211,6 +215,7 @@ export default function onDemandEntryHandler(
             absolutePagePath,
             status: ADDED,
             lastActiveTime: Date.now(),
+            dispose: false,
           }
           doneCallbacks!.once(pageKey, handleCallback)
 
@@ -228,12 +233,12 @@ export default function onDemandEntryHandler(
         : Promise.all([addPageEntry('client'), addPageEntry('server')])
 
       if (entriesChanged) {
-        Log.event(
+        reportTrigger(
           isApiRoute
-            ? `build page: ${normalizedPage} (server only)`
+            ? `${normalizedPage} (server only)`
             : clientOnly
-            ? `build page: ${normalizedPage} (client only)`
-            : `build page: ${normalizedPage}`
+            ? `${normalizedPage} (client only)`
+            : normalizedPage
         )
         invalidator.invalidate()
       }
@@ -241,24 +246,23 @@ export default function onDemandEntryHandler(
       return promise
     },
 
-    middleware(req: IncomingMessage, res: ServerResponse, next: Function) {
-      if (!req.url?.startsWith('/_next/webpack-hmr')) return next()
+    onHMR(client: ws) {
+      client.addEventListener('message', ({ data }) => {
+        data = typeof data !== 'string' ? data.toString() : data
+        try {
+          const parsedData = JSON.parse(data)
 
-      const { query } = parse(req.url!, true)
-      const page = query.page
-      if (!page) return next()
-
-      const runPing = () => {
-        const data = handlePing(query.page as string)
-        if (!data) return
-        res.write('data: ' + JSON.stringify(data) + '\n\n')
-      }
-      const pingInterval = setInterval(() => runPing(), 5000)
-
-      req.on('close', () => {
-        clearInterval(pingInterval)
+          if (parsedData.event === 'ping') {
+            const result = handlePing(parsedData.page)
+            client.send(
+              JSON.stringify({
+                ...result,
+                event: 'pong',
+              })
+            )
+          }
+        } catch (_) {}
       })
-      next()
     },
   }
 }
@@ -268,10 +272,11 @@ function disposeInactiveEntries(
   lastClientAccessPages: any,
   maxInactiveAge: number
 ) {
-  const disposingPages: any = []
-
   Object.keys(entries).forEach((page) => {
-    const { lastActiveTime, status } = entries[page]
+    const { lastActiveTime, status, dispose } = entries[page]
+
+    // Skip pages already scheduled for disposing
+    if (dispose) return
 
     // This means this entry is currently building or just added
     // We don't need to dispose those entries.
@@ -283,17 +288,9 @@ function disposeInactiveEntries(
     if (lastClientAccessPages.includes(page)) return
 
     if (lastActiveTime && Date.now() - lastActiveTime > maxInactiveAge) {
-      disposingPages.push(page)
+      entries[page].dispose = true
     }
   })
-
-  if (disposingPages.length > 0) {
-    disposingPages.forEach((page: any) => {
-      delete entries[page]
-    })
-    // disposing inactive page(s)
-    // watcher.invalidate()
-  }
 }
 
 // Make sure only one invalidation happens at a time
@@ -323,14 +320,6 @@ class Invalidator {
     }
 
     this.building = true
-    if (!isWebpack5) {
-      // Work around a bug in webpack, calling `invalidate` on Watching.js
-      // doesn't trigger the invalid call used to keep track of the `.done` hook on multiCompiler
-      for (const compiler of this.multiCompiler.compilers) {
-        compiler.hooks.invalid.call()
-      }
-    }
-
     this.watcher.invalidate()
   }
 
