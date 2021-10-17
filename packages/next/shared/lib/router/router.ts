@@ -1164,23 +1164,26 @@ export default class Router implements BaseRouter {
 
         // handle SSG data 404
         if (props.notFound === SSG_DATA_NOT_FOUND) {
-          let notFoundRoute
-
           try {
-            await this.fetchComponent('/404')
-            notFoundRoute = '/404'
-          } catch (_) {
-            notFoundRoute = '/_error'
+            // Use the internal version so that we can
+            // handle any errors that occur.
+            routeInfo = await this.getRouteInfoInternal(
+              '/404',
+              '/404',
+              query,
+              as,
+              resolvedAs
+            )
+          } catch {
+            routeInfo = await this.getRouteInfo(
+              '/_error',
+              '/_error',
+              query,
+              as,
+              resolvedAs,
+              { shallow: false }
+            )
           }
-
-          routeInfo = await this.getRouteInfo(
-            notFoundRoute,
-            notFoundRoute,
-            query,
-            as,
-            resolvedAs,
-            { shallow: false }
-          )
         }
       }
 
@@ -1357,6 +1360,80 @@ export default class Router implements BaseRouter {
     }
   }
 
+  async getRouteInfoInternal(
+    route: string,
+    pathname: string,
+    query: any,
+    as: string,
+    resolvedAs: string
+  ): Promise<PrivateRouteInfo> {
+    const existingRouteInfo: PrivateRouteInfo | undefined =
+      this.components[route]
+    let cachedRouteInfo: CompletePrivateRouteInfo | undefined = undefined
+    // can only use non-initial route info
+    // cannot reuse route info in development since it can change after HMR
+    if (
+      process.env.NODE_ENV !== 'development' &&
+      existingRouteInfo &&
+      !('initial' in existingRouteInfo)
+    ) {
+      cachedRouteInfo = existingRouteInfo
+    }
+    const routeInfo: CompletePrivateRouteInfo =
+      cachedRouteInfo ||
+      (await this.fetchComponent(route).then((res) => ({
+        Component: res.page,
+        styleSheets: res.styleSheets,
+        __N_SSG: res.mod.__N_SSG,
+        __N_SSP: res.mod.__N_SSP,
+      })))
+
+    const { Component, __N_SSG, __N_SSP } = routeInfo
+
+    if (process.env.NODE_ENV !== 'production') {
+      const { isValidElementType } = require('react-is')
+      if (!isValidElementType(Component)) {
+        throw new Error(
+          `The default export is not a React Component in page: "${pathname}"`
+        )
+      }
+    }
+
+    let dataHref: string | undefined
+
+    if (__N_SSG || __N_SSP) {
+      dataHref = this.pageLoader.getDataHref(
+        formatWithValidation({ pathname, query }),
+        resolvedAs,
+        __N_SSG,
+        this.locale
+      )
+    }
+
+    const props = await this._getData<CompletePrivateRouteInfo>(() =>
+      __N_SSG
+        ? this._getStaticData(dataHref!)
+        : __N_SSP
+        ? this._getServerData(dataHref!)
+        : this.getInitialProps(
+            Component,
+            // we provide AppTree later so this needs to be `any`
+            {
+              pathname,
+              query,
+              asPath: as,
+              locale: this.locale,
+              locales: this.locales,
+              defaultLocale: this.defaultLocale,
+            } as any
+          )
+    )
+
+    routeInfo.props = props
+    this.components[route] = routeInfo
+    return routeInfo
+  }
+
   async getRouteInfo(
     route: string,
     pathname: string,
@@ -1371,70 +1448,7 @@ export default class Router implements BaseRouter {
       if (routeProps.shallow && existingRouteInfo && this.route === route) {
         return existingRouteInfo
       }
-
-      let cachedRouteInfo: CompletePrivateRouteInfo | undefined = undefined
-      // can only use non-initial route info
-      // cannot reuse route info in development since it can change after HMR
-      if (
-        process.env.NODE_ENV !== 'development' &&
-        existingRouteInfo &&
-        !('initial' in existingRouteInfo)
-      ) {
-        cachedRouteInfo = existingRouteInfo
-      }
-      const routeInfo: CompletePrivateRouteInfo =
-        cachedRouteInfo ||
-        (await this.fetchComponent(route).then((res) => ({
-          Component: res.page,
-          styleSheets: res.styleSheets,
-          __N_SSG: res.mod.__N_SSG,
-          __N_SSP: res.mod.__N_SSP,
-        })))
-
-      const { Component, __N_SSG, __N_SSP } = routeInfo
-
-      if (process.env.NODE_ENV !== 'production') {
-        const { isValidElementType } = require('react-is')
-        if (!isValidElementType(Component)) {
-          throw new Error(
-            `The default export is not a React Component in page: "${pathname}"`
-          )
-        }
-      }
-
-      let dataHref: string | undefined
-
-      if (__N_SSG || __N_SSP) {
-        dataHref = this.pageLoader.getDataHref(
-          formatWithValidation({ pathname, query }),
-          resolvedAs,
-          __N_SSG,
-          this.locale
-        )
-      }
-
-      const props = await this._getData<CompletePrivateRouteInfo>(() =>
-        __N_SSG
-          ? this._getStaticData(dataHref!)
-          : __N_SSP
-          ? this._getServerData(dataHref!)
-          : this.getInitialProps(
-              Component,
-              // we provide AppTree later so this needs to be `any`
-              {
-                pathname,
-                query,
-                asPath: as,
-                locale: this.locale,
-                locales: this.locales,
-                defaultLocale: this.defaultLocale,
-              } as any
-            )
-      )
-
-      routeInfo.props = props
-      this.components[route] = routeInfo
-      return routeInfo
+      return this.getRouteInfoInternal(route, pathname, query, as, resolvedAs)
     } catch (err) {
       return this.handleRouteInfoError(
         isError(err) ? err : new Error(err + ''),
