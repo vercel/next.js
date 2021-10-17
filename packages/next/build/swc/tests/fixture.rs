@@ -7,7 +7,7 @@ use swc_common::{chain, comments::SingleThreadedComments, FileName, Mark, Span, 
 use swc_ecma_transforms_testing::{test, test_fixture};
 use swc_ecmascript::{
     parser::{EsConfig, Syntax},
-    transforms::react::jsx,
+    transforms::{react::jsx, resolver},
     visit::as_folder,
 };
 use testing::fixture;
@@ -76,7 +76,12 @@ fn next_ssg_fixture(input: PathBuf) {
 #[fixture("tests/fixture/styled-jsx/**/input.js")]
 fn styled_jsx_fixture(input: PathBuf) {
     let output = input.parent().unwrap().join("output.js");
-    test_fixture(syntax(), &|_tr| styled_jsx(), &input, &output);
+    test_fixture(
+        syntax(),
+        &|_tr| chain!(resolver(), styled_jsx()),
+        &input,
+        &output,
+    );
 }
 
 pub struct DropSpan;
