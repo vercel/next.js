@@ -307,9 +307,10 @@ export default async function getBaseWebpackConfig(
   // looks there first.
   // https://github.com/babel/babel/blob/v7.15.8/packages/babel-core/src/config/files/configuration.ts#L101
   const packageJsonPath = path.join(dir, 'package.json')
-  const usingPackageJson = parseJsonFile(packageJsonPath).babel
-    ? packageJsonPath
-    : undefined
+  const usingPackageJson =
+    (await fileExists(packageJsonPath)) && parseJsonFile(packageJsonPath)?.babel
+      ? packageJsonPath
+      : undefined
 
   const babelConfigFile = await [
     '.babelrc',
