@@ -393,7 +393,9 @@ export default async function getBaseWebpackConfig(
       Log.info(`Using tsconfig file: ${config.typescript.tsconfigPath}`)
     }
 
-    const ts = (await import(typeScriptPath!)) as typeof import('typescript')
+    const ts = (await Promise.resolve(
+      require(typeScriptPath!)
+    )) as typeof import('typescript')
     const tsConfig = await getTypeScriptConfiguration(ts, tsConfigPath, true)
     jsConfig = { compilerOptions: tsConfig.options }
   }
