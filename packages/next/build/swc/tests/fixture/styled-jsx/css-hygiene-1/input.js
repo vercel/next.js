@@ -1,5 +1,7 @@
 import css from 'styled-jsx/css';
 
-export const cachedStyles = css`
+const cachedStyles = css`
   .btn {}
 `
+
+console.log(cachedStyles)
