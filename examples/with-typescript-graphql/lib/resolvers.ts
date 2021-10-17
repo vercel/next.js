@@ -1,23 +1,26 @@
-import { QueryResolvers, MutationResolvers } from './type-defs.graphqls'
-import { ResolverContext } from './apollo'
+import {
+  QueryResolvers,
+  MutationResolvers,
+} from 'graphql-let/__generated__/__types__';
+import { ResolverContext } from './apollo';
 
 const userProfile = {
   id: String(1),
   name: 'John Smith',
   status: 'cached',
-}
+};
 
 const Query: Required<QueryResolvers<ResolverContext>> = {
   viewer(_parent, _args, _context, _info) {
-    return userProfile
+    return userProfile;
   },
-}
+};
 
 const Mutation: Required<MutationResolvers<ResolverContext>> = {
   updateName(_parent, _args, _context, _info) {
-    userProfile.name = _args.name
-    return userProfile
+    userProfile.name = _args.name;
+    return userProfile;
   },
-}
+};
 
-export default { Query, Mutation }
+export default { Query, Mutation };
