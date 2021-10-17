@@ -38,7 +38,7 @@ a.__jsx-style-dynamic-selector {color:red}`}</_JSXStyle>,
         ]
     ])
 };
-const dynamic = (colors)=>{
+const dynamic1 = (colors)=>{
     const b = {
         styles: <_JSXStyle id={"79d79305fa1611e"} dynamic={[
             colors.green.light
