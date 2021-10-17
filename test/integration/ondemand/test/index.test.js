@@ -1,11 +1,9 @@
 /* eslint-env jest */
-
-import webdriver from 'next-webdriver'
+import WebSocket from 'ws'
 import { join } from 'path'
-import AbortController from 'abort-controller'
+import webdriver from 'next-webdriver'
 import {
   renderViaHTTP,
-  fetchViaHTTP,
   findPort,
   launchApp,
   killApp,
@@ -20,22 +18,9 @@ const appDir = join(__dirname, '../')
 const context = {}
 
 const doPing = (page) => {
-  const controller = new AbortController()
-  const signal = controller.signal
-  return fetchViaHTTP(
-    context.appPort,
-    '/_next/webpack-hmr',
-    { page },
-    { signal }
-  ).then((res) => {
-    res.body.on('data', (chunk) => {
-      try {
-        const payload = JSON.parse(chunk.toString().split('data:')[1])
-        if (payload.success || payload.invalid) {
-          controller.abort()
-        }
-      } catch (_) {}
-    })
+  return new Promise((resolve) => {
+    context.ws.onmessage = () => resolve()
+    context.ws.send(JSON.stringify({ event: 'ping', page }))
   })
 }
 
@@ -44,8 +29,17 @@ describe('On Demand Entries', () => {
   beforeAll(async () => {
     context.appPort = await findPort()
     context.server = await launchApp(appDir, context.appPort)
+
+    await new Promise((resolve) => {
+      context.ws = new WebSocket(
+        `ws://localhost:${context.appPort}/_next/webpack-hmr`
+      )
+      context.ws.on('open', () => resolve())
+      context.ws.on('error', console.error)
+    })
   })
   afterAll(() => {
+    context.ws.close()
     killApp(context.server)
   })
 
