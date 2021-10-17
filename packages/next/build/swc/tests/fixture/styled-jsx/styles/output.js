@@ -6,18 +6,18 @@ bar.__hash = "aaed0341accea8f";
 const baz = new String("div {font-size:3em}");
 baz.__hash = "aaed0341accea8f";
 const a = new String(`div {font-size:${size}em}`);
-a.__hash = "611c3773b76f8ea3";
+a.__hash = "f14cced97c082d2c";
 export const uh = bar;
-export const foo = new String(`div.jsx-e46da79e05d23fff {color:${color}}`);
-foo.__hash = "e46da79e05d23fff";
+export const foo = new String(`div.jsx-a0d126276b085021 {color:${color}}`);
+foo.__hash = "a0d126276b085021";
 ({
-    styles: <_JSXStyle id={"12e2c41a8d37fe78"} dynamic={[
+    styles: <_JSXStyle id={"47e08c293b53f262"} dynamic={[
         colors.green.light
     ]}>{`div.__jsx-style-dynamic-selector {color:${colors.green.light}}
 a.__jsx-style-dynamic-selector {color:red}`}</_JSXStyle>,
     className: _JSXStyle.dynamic([
         [
-            "12e2c41a8d37fe78",
+            "47e08c293b53f262",
             [
                 colors.green.light
             ]
@@ -25,13 +25,13 @@ a.__jsx-style-dynamic-selector {color:red}`}</_JSXStyle>,
     ])
 });
 const b = {
-    styles: <_JSXStyle id={"d5617758481f82cd"} dynamic={[
+    styles: <_JSXStyle id={"47e08c293b53f262"} dynamic={[
         colors.green.light
     ]}>{`div.__jsx-style-dynamic-selector {color:${colors.green.light}}
 a.__jsx-style-dynamic-selector {color:red}`}</_JSXStyle>,
     className: _JSXStyle.dynamic([
         [
-            "d5617758481f82cd",
+            "47e08c293b53f262",
             [
                 colors.green.light
             ]
@@ -40,13 +40,13 @@ a.__jsx-style-dynamic-selector {color:red}`}</_JSXStyle>,
 };
 const dynamic = (colors)=>{
     const b = {
-        styles: <_JSXStyle id={"a7ac579c753e9d90"} dynamic={[
+        styles: <_JSXStyle id={"79d79305fa1611e"} dynamic={[
             colors.green.light
         ]}>{`div.__jsx-style-dynamic-selector {color:${colors.green.light}}
 a.__jsx-style-dynamic-selector {color:red}`}</_JSXStyle>,
         className: _JSXStyle.dynamic([
             [
-                "a7ac579c753e9d90",
+                "79d79305fa1611e",
                 [
                     colors.green.light
                 ]
@@ -55,7 +55,7 @@ a.__jsx-style-dynamic-selector {color:red}`}</_JSXStyle>,
     };
 };
 export default {
-    styles: <_JSXStyle id={"e4642e4164827181"}>{`div.jsx-e4642e4164827181 {font-size:3em}
-p.jsx-e4642e4164827181 {color:${color}}`}</_JSXStyle>,
-    className: "jsx-e4642e4164827181"
+    styles: <_JSXStyle id={"d9cea503e39c5315"}>{`div.jsx-d9cea503e39c5315 {font-size:3em}
+p.jsx-d9cea503e39c5315 {color:${color}}`}</_JSXStyle>,
+    className: "jsx-d9cea503e39c5315"
 };

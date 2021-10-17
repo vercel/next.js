@@ -3,11 +3,12 @@ use next_swc::{
     styled_jsx::styled_jsx,
 };
 use std::path::PathBuf;
-use swc_common::{chain, comments::SingleThreadedComments, FileName, Mark};
+use swc_common::{chain, comments::SingleThreadedComments, FileName, Mark, Span, DUMMY_SP};
 use swc_ecma_transforms_testing::{test, test_fixture};
 use swc_ecmascript::{
     parser::{EsConfig, Syntax},
     transforms::react::jsx,
+    visit::as_folder,
 };
 use testing::fixture;
 
@@ -76,4 +77,23 @@ fn next_ssg_fixture(input: PathBuf) {
 fn styled_jsx_fixture(input: PathBuf) {
     let output = input.parent().unwrap().join("output.js");
     test_fixture(syntax(), &|_tr| styled_jsx(), &input, &output);
+}
+
+pub struct DropSpan;
+impl swc_ecmascript::visit::VisitMut for DropSpan {
+    fn visit_mut_span(&mut self, span: &mut Span) {
+        *span = DUMMY_SP
+    }
+}
+
+/// Hash of styled-jsx should not depend on the span of expressions.
+#[fixture("tests/fixture/styled-jsx/**/input.js")]
+fn styled_jsx_span_should_not_affect_hash(input: PathBuf) {
+    let output = input.parent().unwrap().join("output.js");
+    test_fixture(
+        syntax(),
+        &|_tr| chain!(as_folder(DropSpan), styled_jsx()),
+        &input,
+        &output,
+    );
 }

@@ -9,73 +9,91 @@ const animationName = "my-cool-animation";
 const obj = {
     display: "block"
 };
-export default (({ display  })=><div className={"jsx-802e359ee0ab20c4 " + _JSXStyle.dynamic([
+export default (({ display  })=><div className={"jsx-843124768056a74c " + _JSXStyle.dynamic([
         [
-            "76aa3eae4e21e4ca",
+            "a124d516c2c0707d",
             [
                 display ? "block" : "none"
             ]
         ],
         [
-            "5ba905f763f40220",
+            "108a316873f1c6fc",
             [
                 darken(color) + 2
             ]
         ],
         [
-            "c4bb394aae9bd00b",
+            "785cf5e120672da8",
             [
                 darken(color)
             ]
         ]
     ])}>
-    <p className={"jsx-802e359ee0ab20c4 " + _JSXStyle.dynamic([
+
+    <p className={"jsx-843124768056a74c " + _JSXStyle.dynamic([
         [
-            "76aa3eae4e21e4ca",
+            "a124d516c2c0707d",
             [
                 display ? "block" : "none"
             ]
         ],
         [
-            "5ba905f763f40220",
+            "108a316873f1c6fc",
             [
                 darken(color) + 2
             ]
         ],
         [
-            "c4bb394aae9bd00b",
+            "785cf5e120672da8",
             [
                 darken(color)
             ]
         ]
     ])}>test</p>
-    <_JSXStyle id={"f3d3af42197b4734"}>{`p.${color}.jsx-802e359ee0ab20c4 {color:${otherColor};
+
+    <_JSXStyle id={"5df43f2861c900e6"}>{`p.${color}.jsx-843124768056a74c {color:${otherColor};
 display:${obj.display}}`}</_JSXStyle>
-    <_JSXStyle id={"94239b6d6b42c9b5"}>{"p.jsx-802e359ee0ab20c4 {color:red}"}</_JSXStyle>
-    <_JSXStyle id={"32d670fe91cc2fa1"}>{`body {background:${color}}`}</_JSXStyle>
-    <_JSXStyle id={"3134af19d5bf663e"}>{`body {background:${color}}`}</_JSXStyle>
+
+    <_JSXStyle id={"94239b6d6b42c9b5"}>{"p.jsx-843124768056a74c {color:red}"}</_JSXStyle>
+
+    <_JSXStyle id={"a971cf00393d41be"}>{`body {background:${color}}`}</_JSXStyle>
+
+    <_JSXStyle id={"a971cf00393d41be"}>{`body {background:${color}}`}</_JSXStyle>
+
     // TODO: the next two should have the same hash
-    <_JSXStyle id={"8e512e75f8a7c096"}>{`p.jsx-802e359ee0ab20c4 {color:${color}}`}</_JSXStyle>
-    <_JSXStyle id={"c25992945d0883cd"}>{`p.jsx-802e359ee0ab20c4 {color:${color}}`}</_JSXStyle>
-    <_JSXStyle id={"2f77c12736da5e9e"} dynamic={[
+
+    <_JSXStyle id={"5cadd6714ea141b4"}>{`p.jsx-843124768056a74c {color:${color}}`}</_JSXStyle>
+
+    <_JSXStyle id={"5cadd6714ea141b4"}>{`p.jsx-843124768056a74c {color:${color}}`}</_JSXStyle>
+
+    <_JSXStyle id={"6b2c0e0cad82feb7"} dynamic={[
         darken(color)
     ]}>{`p.__jsx-style-dynamic-selector {color:${darken(color)}}`}</_JSXStyle>
-    <_JSXStyle id={"10454d61c818c6eb"} dynamic={[
+
+    <_JSXStyle id={"6468493b508fe311"} dynamic={[
         darken(color) + 2
     ]}>{`p.__jsx-style-dynamic-selector {color:${darken(color) + 2}}`}</_JSXStyle>
-    <_JSXStyle id={"281f7ed4d9150bac"}>{`@media (min-width:${mediumScreen}) {p.jsx-802e359ee0ab20c4 {color:green}
-p.jsx-802e359ee0ab20c4 {color:${`red`}}}
-p.jsx-802e359ee0ab20c4 {color:red}`}</_JSXStyle>
-    <_JSXStyle id={"d8950943ae4cf3dc"}>{`p.jsx-802e359ee0ab20c4 {-webkit-animation-duration:${animationDuration};
-animation-duration:${animationDuration}}`}</_JSXStyle>
-    <_JSXStyle id={"1ee00865f92bdbe7"}>{`p.jsx-802e359ee0ab20c4 {-webkit-animation:${animationDuration} forwards ${animationName};
-animation:${animationDuration} forwards ${animationName}}
-div.jsx-802e359ee0ab20c4 {background:${color}}`}</_JSXStyle>
 
-    <_JSXStyle id={"4925b8e0a7ab752a"} dynamic={[
+    <_JSXStyle id={"bb5a8a5ee5cd36db"}>{`@media (min-width:${mediumScreen}) {p.jsx-843124768056a74c {color:green}
+p.jsx-843124768056a74c {color:${`red`}}}
+p.jsx-843124768056a74c {color:red}`}</_JSXStyle>
+
+    <_JSXStyle id={"99746edba785c617"}>{`p.jsx-843124768056a74c {-webkit-animation-duration:${animationDuration};
+animation-duration:${animationDuration}}`}</_JSXStyle>
+
+    <_JSXStyle id={"62d69d091a270e9d"}>{`p.jsx-843124768056a74c {-webkit-animation:${animationDuration} forwards ${animationName};
+animation:${animationDuration} forwards ${animationName}}
+div.jsx-843124768056a74c {background:${color}}`}</_JSXStyle>
+
+
+
+    <_JSXStyle id={"50cfd39d2a258beb"} dynamic={[
         display ? "block" : "none"
     ]}>{`span.__jsx-style-dynamic-selector {display:${display ? "block" : "none"}}`}</_JSXStyle>
+
     // TODO: causes bad syntax
+
     {}
+
   </div>
 );
