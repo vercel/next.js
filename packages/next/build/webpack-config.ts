@@ -302,6 +302,15 @@ export default async function getBaseWebpackConfig(
     }
   }
 
+  // Check whether `package.json#babel` is defined or not and use `package.json`
+  // as the config file if it is, mimicking Babel's original behavior who also
+  // looks there first.
+  // https://github.com/babel/babel/blob/v7.15.8/packages/babel-core/src/config/files/configuration.ts#L101
+  const packageJsonPath = path.join(dir, 'package.json')
+  const usingPackageJson = parseJsonFile(packageJsonPath).babel
+    ? packageJsonPath
+    : undefined
+
   const babelConfigFile = await [
     '.babelrc',
     '.babelrc.json',
@@ -318,7 +327,7 @@ export default async function getBaseWebpackConfig(
       (await memo) ||
       ((await fileExists(configFilePath)) ? configFilePath : undefined)
     )
-  }, Promise.resolve(undefined))
+  }, Promise.resolve(usingPackageJson))
 
   const distDir = path.join(dir, config.distDir)
 

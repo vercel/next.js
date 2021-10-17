@@ -138,8 +138,16 @@ function getPlugins(
   ].filter(Boolean)
 }
 
+const isPackageJsonFile = /package\.json$/
 const isJsonFile = /\.(json|babelrc)$/
 const isJsFile = /\.js$/
+
+function parseJsonFile(filePath: string) {
+  const rawContent = readFileSync(filePath, 'utf8')
+  const parsedContent = JSON5.parse(rawContent)
+
+  return parsedContent
+}
 
 /**
  * While this function does block execution while reading from disk, it
@@ -148,9 +156,10 @@ const isJsFile = /\.js$/
  * be generated during compilation.
  */
 function getCustomBabelConfig(configFilePath: string) {
-  if (isJsonFile.exec(configFilePath)) {
-    const babelConfigRaw = readFileSync(configFilePath, 'utf8')
-    return JSON5.parse(babelConfigRaw)
+  if (isPackageJsonFile.exec(configFilePath)) {
+    return parseJsonFile(configFilePath).babel
+  } else if (isJsonFile.exec(configFilePath)) {
+    return parseJsonFile(configFilePath)
   } else if (isJsFile.exec(configFilePath)) {
     return require(configFilePath)
   }
