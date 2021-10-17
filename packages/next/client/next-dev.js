@@ -1,11 +1,10 @@
 /* globals __REPLACE_NOOP_IMPORT__ */
 import { initNext, version, router, emitter, render, renderError } from './'
-import EventSourcePolyfill from './dev/event-source-polyfill'
 import initOnDemandEntries from './dev/on-demand-entries-client'
 import initWebpackHMR from './dev/webpack-hot-middleware-client'
 import initializeBuildWatcher from './dev/dev-build-watcher'
 import { displayContent } from './dev/fouc'
-import { addMessageListener } from './dev/error-overlay/eventsource'
+import { connectHMR, addMessageListener } from './dev/error-overlay/websocket'
 import {
   assign,
   urlQueryToSearchParams,
@@ -18,17 +17,14 @@ import {
 // eslint-disable-next-line no-unused-expressions
 __REPLACE_NOOP_IMPORT__
 
-// Support EventSource on Internet Explorer 11
-if (!window.EventSource) {
-  window.EventSource = EventSourcePolyfill
-}
-
 const {
   __NEXT_DATA__: { assetPrefix },
 } = window
 
 const prefix = assetPrefix || ''
 const webpackHMR = initWebpackHMR()
+
+connectHMR({ path: `${prefix}/_next/webpack-hmr` })
 
 window.next = {
   version,
@@ -42,7 +38,7 @@ window.next = {
 }
 initNext({ webpackHMR })
   .then(({ renderCtx }) => {
-    initOnDemandEntries({ assetPrefix: prefix })
+    initOnDemandEntries()
 
     let buildIndicatorHandler = () => {}
 
@@ -88,7 +84,6 @@ initNext({ webpackHMR })
         }
       }
     }
-    devPagesManifestListener.unfiltered = true
     addMessageListener(devPagesManifestListener)
 
     if (process.env.__NEXT_BUILD_INDICATOR) {

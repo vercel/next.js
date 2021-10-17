@@ -1,12 +1,7 @@
 /* globals __webpack_hash__ */
-import EventSourcePolyfill from './event-source-polyfill'
-import { addMessageListener } from './error-overlay/eventsource'
-import { setupPing } from './on-demand-entries-utils'
 import { displayContent } from './fouc'
-
-if (!window.EventSource) {
-  window.EventSource = EventSourcePolyfill
-}
+import initOnDemandEntries from './on-demand-entries-client'
+import { addMessageListener, connectHMR } from './error-overlay/websocket'
 
 const data = JSON.parse(document.getElementById('__NEXT_DATA__').textContent)
 let { assetPrefix, page } = data
@@ -94,5 +89,6 @@ addMessageListener((event) => {
   }
 })
 
-setupPing(assetPrefix, () => page)
+connectHMR({ path: `${assetPrefix}/_next/webpack-hmr` })
 displayContent()
+initOnDemandEntries()

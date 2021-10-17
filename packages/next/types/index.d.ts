@@ -109,7 +109,7 @@ export type GetStaticPropsContext<
 export type GetStaticPropsResult<P> =
   | { props: P; revalidate?: number | boolean }
   | { redirect: Redirect; revalidate?: number | boolean }
-  | { notFound: true }
+  | { notFound: true; revalidate?: number | boolean }
 
 export type GetStaticProps<
   P extends { [key: string]: any } = { [key: string]: any },

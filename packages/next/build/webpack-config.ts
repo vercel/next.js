@@ -393,7 +393,9 @@ export default async function getBaseWebpackConfig(
       Log.info(`Using tsconfig file: ${config.typescript.tsconfigPath}`)
     }
 
-    const ts = (await import(typeScriptPath!)) as typeof import('typescript')
+    const ts = (await Promise.resolve(
+      require(typeScriptPath!)
+    )) as typeof import('typescript')
     const tsConfig = await getTypeScriptConfiguration(ts, tsConfigPath, true)
     jsConfig = { compilerOptions: tsConfig.options }
   }
@@ -1012,12 +1014,16 @@ export default async function getBaseWebpackConfig(
       rules: [
         // TODO: FIXME: do NOT webpack 5 support with this
         // x-ref: https://github.com/webpack/webpack/issues/11467
-        {
-          test: /\.m?js/,
-          resolve: {
-            fullySpecified: false,
-          },
-        } as any,
+        ...(!config.experimental.fullySpecified
+          ? [
+              {
+                test: /\.m?js/,
+                resolve: {
+                  fullySpecified: false,
+                },
+              } as any,
+            ]
+          : []),
         {
           test: /\.(js|cjs|mjs)$/,
           issuerLayer: 'api',
