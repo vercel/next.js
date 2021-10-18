@@ -183,7 +183,7 @@
     "@types/webpack-sources1": "npm:@types/webpack-sources@0.1.5",
     "@types/ws": "8.2.0",
     "@vercel/ncc": "0.27.0",
-    "@vercel/nft": "0.16.1",
+    "@vercel/nft": "0.17.0",
     "amphtml-validator": "1.0.33",
     "arg": "4.1.0",
     "async-retry": "1.2.3",

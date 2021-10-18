@@ -104,8 +104,13 @@ describe('Production Usage', () => {
           /next\/link\.js/,
           /next\/dist\/client\/link\.js/,
           /next\/dist\/shared\/lib\/router\/utils\/resolve-rewrites\.js/,
+          /node_modules\/nanoid\/index\.js/,
+          /node_modules\/nanoid\/url-alphabet\/index\.js/,
         ],
-        notTests: [/node_modules\/react\/cjs\/react\.development\.js/],
+        notTests: [
+          /node_modules\/react\/cjs\/react\.development\.js/,
+          /node_modules\/nanoid\/index\.cjs/,
+        ],
       },
       {
         page: '/counter',

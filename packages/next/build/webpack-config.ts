@@ -214,6 +214,9 @@ export const NODE_BASE_ESM_RESOLVE_OPTIONS = {
 
 let TSCONFIG_WARNED = false
 
+export const nextImageLoaderRegex =
+  /\.(png|jpg|jpeg|gif|webp|avif|ico|bmp|svg)$/i
+
 export default async function getBaseWebpackConfig(
   dir: string,
   {
@@ -1057,7 +1060,7 @@ export default async function getBaseWebpackConfig(
         ...(!config.images.disableStaticImages
           ? [
               {
-                test: /\.(png|jpg|jpeg|gif|webp|avif|ico|bmp|svg)$/i,
+                test: nextImageLoaderRegex,
                 loader: 'next-image-loader',
                 issuer: { not: regexLikeCss },
                 dependency: { not: ['url'] },
@@ -1199,6 +1202,8 @@ export default async function getBaseWebpackConfig(
         !dev &&
         new TraceEntryPointsPlugin({
           appDir: dir,
+          esmExternals: config.experimental.esmExternals,
+          staticImageImports: !config.images.disableStaticImages,
         }),
       // Moment.js is an extremely popular library that bundles large locale files
       // by default due to how Webpack interprets its code. This is a practical
