@@ -1499,17 +1499,15 @@ export default async function build(
                 for (const locale of i18n.locales) {
                   const localePage = `/${locale}${page === '/' ? '' : page}`
 
-                  if (!ssgNotFoundPaths.includes(localePage)) {
-                    finalPrerenderRoutes[localePage] = {
-                      initialRevalidateSeconds:
-                        exportConfig.initialPageRevalidationMap[localePage],
-                      srcRoute: null,
-                      dataRoute: path.posix.join(
-                        '/_next/data',
-                        buildId,
-                        `${file}.json`
-                      ),
-                    }
+                  finalPrerenderRoutes[localePage] = {
+                    initialRevalidateSeconds:
+                      exportConfig.initialPageRevalidationMap[localePage],
+                    srcRoute: null,
+                    dataRoute: path.posix.join(
+                      '/_next/data',
+                      buildId,
+                      `${file}.json`
+                    ),
                   }
                 }
               } else {
