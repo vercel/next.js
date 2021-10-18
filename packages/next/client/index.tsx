@@ -271,6 +271,7 @@ export async function initNext(opts: { webpackHMR?: any } = {}) {
   }
 
   let initialErr = hydrateErr
+  let styleSheets: StyleSheetTuple[]
 
   try {
     const appEntrypoint = await pageLoader.routeLoader.whenEntrypoint('/_app')
@@ -319,11 +320,12 @@ export async function initNext(opts: { webpackHMR?: any } = {}) {
       // error, so we need to skip waiting for the entrypoint.
       process.env.NODE_ENV === 'development' && hydrateErr
         ? { error: hydrateErr }
-        : await pageLoader.routeLoader.whenEntrypoint(page)
+        : await pageLoader.loadPage(page)
     if ('error' in pageEntrypoint) {
       throw pageEntrypoint.error
     }
-    CachedComponent = pageEntrypoint.component
+    CachedComponent = pageEntrypoint.page
+    styleSheets = pageEntrypoint.styleSheets
 
     if (process.env.NODE_ENV !== 'production') {
       const { isValidElementType } = require('react-is')
@@ -381,6 +383,7 @@ export async function initNext(opts: { webpackHMR?: any } = {}) {
     pageLoader,
     App: CachedApp,
     Component: CachedComponent,
+    styleSheets: styleSheets!,
     wrapApp,
     err: initialErr,
     isFallback: Boolean(isFallback),
@@ -406,6 +409,7 @@ export async function initNext(opts: { webpackHMR?: any } = {}) {
     App: CachedApp,
     initial: true,
     Component: CachedComponent,
+    styleSheets: styleSheets!,
     props: hydrateProps,
     err: initialErr,
   }

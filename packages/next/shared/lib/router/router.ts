@@ -436,7 +436,7 @@ export type PrefetchOptions = {
 }
 
 export type PrivateRouteInfo =
-  | (Omit<CompletePrivateRouteInfo, 'styleSheets'> & { initial: true })
+  | (CompletePrivateRouteInfo & { initial: true })
   | CompletePrivateRouteInfo
 
 export type CompletePrivateRouteInfo = {
@@ -574,6 +574,7 @@ export default class Router implements BaseRouter {
       App,
       wrapApp,
       Component,
+      styleSheets,
       err,
       subscription,
       isFallback,
@@ -587,6 +588,7 @@ export default class Router implements BaseRouter {
       initialProps: any
       pageLoader: any
       Component: ComponentType
+      styleSheets: StyleSheetTuple[]
       App: AppComponent
       wrapApp: (WrapAppComponent: AppComponent) => any
       err?: Error
@@ -609,6 +611,7 @@ export default class Router implements BaseRouter {
     if (pathname !== '/_error') {
       this.components[this.route] = {
         Component,
+        styleSheets,
         initial: true,
         props: initialProps,
         err,
