@@ -34,7 +34,7 @@ const externals = {
   'cssnano-simple': 'next/dist/build/cssnano-simple',
 
   // webpack
-  'node-libs-browser': 'node-libs-browser',
+  'node-libs-browser': 'next/dist/compiled/node-libs-browser',
 
   // sass-loader
   // (also responsible for these dependencies in package.json)
@@ -391,12 +391,30 @@ export async function ncc_nanoid(task, opts) {
     .target('compiled/nanoid')
 }
 // eslint-disable-next-line camelcase
+externals['native-url'] = 'next/dist/compiled/native-url'
+export async function ncc_native_url(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('native-url')))
+    .ncc({ packageName: 'native-url', externals })
+    .target('compiled/native-url')
+}
+// eslint-disable-next-line camelcase
 externals['neo-async'] = 'next/dist/compiled/neo-async'
 export async function ncc_neo_async(task, opts) {
   await task
     .source(opts.src || relative(__dirname, require.resolve('neo-async')))
     .ncc({ packageName: 'neo-async', externals })
     .target('compiled/neo-async')
+}
+// eslint-disable-next-line camelcase
+externals['node-libs-browser'] = 'next/dist/compiled/node-libs-browser'
+export async function ncc_node_libs_browser(task, opts) {
+  await task
+    .source(
+      opts.src || relative(__dirname, require.resolve('node-libs-browser'))
+    )
+    .ncc({ packageName: 'node-libs-browser', externals })
+    .target('compiled/node-libs-browser')
 }
 // eslint-disable-next-line camelcase
 externals['ora'] = 'next/dist/compiled/ora'
@@ -850,7 +868,9 @@ export async function ncc(task, opts) {
         'ncc_lodash_curry',
         'ncc_lru_cache',
         'ncc_nanoid',
+        'ncc_native_url',
         'ncc_neo_async',
+        'ncc_node_libs_browser',
         'ncc_ora',
         'ncc_postcss_safe_parser',
         'ncc_postcss_flexbugs_fixes',
