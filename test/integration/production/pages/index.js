@@ -1,7 +1,8 @@
 import Link from 'next/link'
-import { nanoid } from 'nanoid'
 
-console.log(nanoid())
+if (typeof window === 'undefined') {
+  import('nanoid').then((mod) => console.log(mod.nanoid()))
+}
 
 export default () => (
   <div>
