@@ -458,8 +458,8 @@ export default function Image({
   })
   const isVisible = !isLazy || isIntersected
 
-  let wrapperStyle: JSX.IntrinsicElements['div']['style'] | undefined
-  let sizerStyle: JSX.IntrinsicElements['div']['style'] | undefined
+  let wrapperStyle: JSX.IntrinsicElements['span']['style'] | undefined
+  let sizerStyle: JSX.IntrinsicElements['span']['style'] | undefined
   let sizerSvg: string | undefined
   let imgStyle: ImgElementStyle | undefined = {
     position: 'absolute',
@@ -537,17 +537,17 @@ export default function Image({
         margin: 0,
       }
       sizerStyle = {
-        boxSizing: 'border-box',
         display: 'block',
+        boxSizing: 'border-box',
         maxWidth: '100%',
       }
       sizerSvg = `<svg width="${widthInt}" height="${heightInt}" xmlns="http://www.w3.org/2000/svg" version="1.1"/>`
     } else if (layout === 'fixed') {
       // <Image src="i.png" width="100" height="100" layout="fixed" />
       wrapperStyle = {
+        display: 'inline-block',
         overflow: 'hidden',
         boxSizing: 'border-box',
-        display: 'inline-block',
         position: 'relative',
         width: widthInt,
         height: heightInt,
@@ -583,9 +583,9 @@ export default function Image({
   let srcString: string = src
 
   return (
-    <div style={wrapperStyle}>
+    <span style={wrapperStyle}>
       {sizerStyle ? (
-        <div style={sizerStyle}>
+        <span style={sizerStyle}>
           {sizerSvg ? (
             <img
               style={{
@@ -600,7 +600,7 @@ export default function Image({
               src={`data:image/svg+xml;base64,${toBase64(sizerSvg)}`}
             />
           ) : null}
-        </div>
+        </span>
       ) : null}
       <img
         {...rest}
@@ -659,7 +659,7 @@ export default function Image({
           ></link>
         </Head>
       ) : null}
-    </div>
+    </span>
   )
 }
 
