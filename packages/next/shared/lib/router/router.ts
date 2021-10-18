@@ -435,11 +435,7 @@ export type PrefetchOptions = {
   locale?: string | false
 }
 
-export type PrivateRouteInfo =
-  | (CompletePrivateRouteInfo & { initial: true })
-  | CompletePrivateRouteInfo
-
-export type CompletePrivateRouteInfo = {
+export type PrivateRouteInfo = {
   Component: ComponentType
   styleSheets: StyleSheetTuple[]
   __N_SSG?: boolean
@@ -447,9 +443,10 @@ export type CompletePrivateRouteInfo = {
   props?: Record<string, any>
   err?: Error
   error?: any
+  initial?: true
 }
 
-export type AppProps = Pick<CompletePrivateRouteInfo, 'Component' | 'err'> & {
+export type AppProps = Pick<PrivateRouteInfo, 'Component' | 'err'> & {
   router: Router
 } & Record<string, any>
 export type AppComponent = ComponentType<AppProps>
@@ -1290,7 +1287,7 @@ export default class Router implements BaseRouter {
     as: string,
     routeProps: RouteProperties,
     loadErrorFail?: boolean
-  ): Promise<CompletePrivateRouteInfo> {
+  ): Promise<PrivateRouteInfo> {
     if (err.cancelled) {
       // bubble up cancellation errors
       throw err
@@ -1326,7 +1323,7 @@ export default class Router implements BaseRouter {
         ))
       }
 
-      const routeInfo: CompletePrivateRouteInfo = {
+      const routeInfo: PrivateRouteInfo = {
         props,
         Component,
         styleSheets,
@@ -1375,7 +1372,7 @@ export default class Router implements BaseRouter {
         return existingRouteInfo
       }
 
-      let cachedRouteInfo: CompletePrivateRouteInfo | undefined = undefined
+      let cachedRouteInfo: PrivateRouteInfo | undefined = undefined
       // can only use non-initial route info
       // cannot reuse route info in development since it can change after HMR
       if (
@@ -1385,7 +1382,7 @@ export default class Router implements BaseRouter {
       ) {
         cachedRouteInfo = existingRouteInfo
       }
-      const routeInfo: CompletePrivateRouteInfo =
+      const routeInfo: PrivateRouteInfo =
         cachedRouteInfo ||
         (await this.fetchComponent(route).then((res) => ({
           Component: res.page,
@@ -1416,7 +1413,7 @@ export default class Router implements BaseRouter {
         )
       }
 
-      const props = await this._getData<CompletePrivateRouteInfo>(() =>
+      const props = await this._getData<PrivateRouteInfo>(() =>
         __N_SSG
           ? this._getStaticData(dataHref!)
           : __N_SSP
