@@ -9,7 +9,7 @@ The [Server Response object](https://nodejs.org/api/http.html#http_class_http_se
 The included helpers are:
 
 - `res.status(code)` - A function to set the status code. `code` must be a valid [HTTP status code](https://en.wikipedia.org/wiki/List_of_HTTP_status_codes)
-- `res.json(body)` - Sends a JSON response. `body` must be a [serialiazable object](https://developer.mozilla.org/en-US/docs/Glossary/Serialization)
+- `res.json(body)` - Sends a JSON response. `body` must be a [serializable object](https://developer.mozilla.org/en-US/docs/Glossary/Serialization)
 - `res.send(body)` - Sends the HTTP response. `body` can be a `string`, an `object` or a `Buffer`
 - `res.redirect([status,] path)` - Redirects to a specified path or URL. `status` must be a valid [HTTP status code](https://en.wikipedia.org/wiki/List_of_HTTP_status_codes). If not specified, `status` defaults to "307" "Temporary redirect".
 
@@ -27,7 +27,7 @@ export default function handler(req, res) {
 
 ## Sending a JSON response
 
-When sending a response back to the client you can send a JSON response, this must be a [serialiazable object](https://developer.mozilla.org/en-US/docs/Glossary/Serialization).
+When sending a response back to the client you can send a JSON response, this must be a [serializable object](https://developer.mozilla.org/en-US/docs/Glossary/Serialization).
 In a real world application you might want to let the client know the status of the request depending on the result of the requested endpoint.
 
 The following example sends a JSON response with the status code `200` (`OK`) and the result of the async operation. It's contained in a try catch block to handle any errors that may occur, with the appropriate status code and error message caught and sent back to the client:

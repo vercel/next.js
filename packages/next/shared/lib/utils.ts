@@ -187,6 +187,11 @@ export type DocumentInitialProps = RenderPageResult & {
 
 export type DocumentProps = DocumentInitialProps & HtmlProps
 
+export type MaybeDeferContentHook = (
+  name: string,
+  contentFn: () => JSX.Element
+) => [boolean, JSX.Element]
+
 export type HtmlProps = {
   __NEXT_DATA__: NEXT_DATA
   dangerousAsPath: string
@@ -213,6 +218,7 @@ export type HtmlProps = {
   disableOptimizedLoading?: boolean
   styles?: React.ReactElement[] | React.ReactFragment
   head?: Array<JSX.Element | null>
+  useMaybeDeferContent: MaybeDeferContentHook
 }
 
 /**

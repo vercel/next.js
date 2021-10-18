@@ -9,6 +9,8 @@ import {
 export type NextConfigComplete = Required<NextConfig> & {
   images: ImageConfigComplete
   typescript: Required<TypeScriptConfig>
+  configOrigin?: string
+  configFile?: string
 }
 
 export interface I18NConfig {
@@ -218,7 +220,7 @@ export const defaultConfig: NextConfig = {
     disableOptimizedLoading: false,
     gzipSize: true,
     craCompat: false,
-    esmExternals: false,
+    esmExternals: true,
     staticPageGenerationTimeout: 60,
     // default to 50MB limit
     isrMemoryCacheSize: 50 * 1024 * 1024,

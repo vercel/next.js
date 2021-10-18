@@ -1,5 +1,9 @@
 import Link from 'next/link'
 
+if (typeof window === 'undefined') {
+  import('nanoid').then((mod) => console.log(mod.nanoid()))
+}
+
 export default () => (
   <div>
     <Link href="/about">
