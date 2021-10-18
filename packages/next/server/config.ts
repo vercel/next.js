@@ -1,10 +1,10 @@
 import chalk from 'chalk'
 import findUp from 'next/dist/compiled/find-up'
-import { basename, extname } from 'path'
+import { basename, extname, relative } from 'path'
 import { Agent as HttpAgent } from 'http'
 import { Agent as HttpsAgent } from 'https'
 import * as Log from '../build/output/log'
-import { CONFIG_FILE, PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
+import { CONFIG_FILES, PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import { execOnce } from '../shared/lib/utils'
 import {
   defaultConfig,
@@ -312,6 +312,32 @@ function assignDefaults(userConfig: { [key: string]: any }) {
         )}), received  (${images.minimumCacheTTL}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
       )
     }
+
+    if (images.formats) {
+      const { formats } = images
+      if (!Array.isArray(formats)) {
+        throw new Error(
+          `Specified images.formats should be an Array received ${typeof formats}.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
+        )
+      }
+      if (formats.length < 1 || formats.length > 2) {
+        throw new Error(
+          `Specified images.formats must be length 1 or 2, received length (${formats.length}), please reduce the length of the array to continue.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
+        )
+      }
+
+      const invalid = formats.filter((f) => {
+        return f !== 'image/avif' && f !== 'image/webp'
+      })
+
+      if (invalid.length > 0) {
+        throw new Error(
+          `Specified images.formats should be an Array of mime type strings, received invalid values (${invalid.join(
+            ', '
+          )}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
+        )
+      }
+    }
   }
 
   if (result.webpack5 === false) {
@@ -497,14 +523,15 @@ export default async function loadConfig(
     }) as NextConfigComplete
   }
 
-  const path = await findUp(CONFIG_FILE, { cwd: dir })
+  const path = await findUp(CONFIG_FILES, { cwd: dir })
 
   // If config file was found
   if (path?.length) {
     let userConfigModule: any
 
     try {
-      userConfigModule = require(path)
+      // we must use file for absolute dynamic imports on Windows
+      userConfigModule = await import(`file://${path}`)
     } catch (err) {
       console.error(
         chalk.red('Error:') +
@@ -545,12 +572,12 @@ export default async function loadConfig(
     }
 
     return assignDefaults({
-      configOrigin: CONFIG_FILE,
+      configOrigin: relative(dir, path),
       configFile: path,
       ...userConfig,
     }) as NextConfigComplete
   } else {
-    const configBaseName = basename(CONFIG_FILE, extname(CONFIG_FILE))
+    const configBaseName = basename(CONFIG_FILES[0], extname(CONFIG_FILES[0]))
     const nonJsPath = findUp.sync(
       [
         `${configBaseName}.jsx`,
@@ -564,7 +591,7 @@ export default async function loadConfig(
       throw new Error(
         `Configuring Next.js via '${basename(
           nonJsPath
-        )}' is not supported. Please replace the file with 'next.config.js'.`
+        )}' is not supported. Please replace the file with 'next.config.js' or 'next.config.mjs'.`
       )
     }
   }

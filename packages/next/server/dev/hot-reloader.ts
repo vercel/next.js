@@ -1,8 +1,7 @@
 import { getOverlayMiddleware } from '@next/react-dev-overlay/lib/middleware'
-import { NextHandleFunction } from 'connect'
 import { IncomingMessage, ServerResponse } from 'http'
 import { WebpackHotMiddleware } from './hot-middleware'
-import { join } from 'path'
+import { join, relative, isAbsolute } from 'path'
 import { UrlObject } from 'url'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import {
@@ -33,6 +32,9 @@ import { CustomRoutes } from '../../lib/load-custom-routes'
 import { DecodeError } from '../../shared/lib/utils'
 import { Span, trace } from '../../trace'
 import isError from '../../lib/is-error'
+import ws from 'next/dist/compiled/ws'
+
+const wsServer = new ws.Server({ noServer: true })
 
 export async function renderScriptError(
   res: ServerResponse,
@@ -136,7 +138,7 @@ export default class HotReloader {
   private buildId: string
   private middlewares: any[]
   private pagesDir: string
-  private webpackHotMiddleware: (NextHandleFunction & any) | null
+  private webpackHotMiddleware?: WebpackHotMiddleware
   private config: NextConfigComplete
   private stats: webpack.Stats | null
   public serverStats: webpack.Stats | null
@@ -144,7 +146,7 @@ export default class HotReloader {
   private serverError: Error | null = null
   private serverPrevDocumentHash: string | null
   private prevChunkNames?: Set<any>
-  private onDemandEntries: any
+  private onDemandEntries?: ReturnType<typeof onDemandEntryHandler>
   private previewProps: __ApiPreviewProps
   private watcher: any
   private rewrites: CustomRoutes['rewrites']
@@ -171,7 +173,6 @@ export default class HotReloader {
     this.dir = dir
     this.middlewares = []
     this.pagesDir = pagesDir
-    this.webpackHotMiddleware = null
     this.stats = null
     this.serverStats = null
     this.serverPrevDocumentHash = null
@@ -259,6 +260,13 @@ export default class HotReloader {
     }
 
     return { finished }
+  }
+
+  public onHMR(req: IncomingMessage, _res: ServerResponse, head: Buffer) {
+    wsServer.handleUpgrade(req, req.socket, head, (client) => {
+      this.webpackHotMiddleware?.onHMR(client)
+      this.onDemandEntries?.onHMR(client)
+    })
   }
 
   private async clean(span: Span): Promise<void> {
@@ -409,10 +417,10 @@ export default class HotReloader {
             if (isClientCompilation && page.match(API_ROUTE)) {
               return
             }
-            const { bundlePath, absolutePagePath } = entries[pageKey]
-            const pageExists = await isWriteable(absolutePagePath)
+            const { bundlePath, absolutePagePath, dispose } = entries[pageKey]
+            const pageExists = !dispose && (await isWriteable(absolutePagePath))
             if (!pageExists) {
-              // page was removed
+              // page was removed or disposed
               delete entries[pageKey]
               return
             }
@@ -423,13 +431,22 @@ export default class HotReloader {
               absolutePagePath,
             }
 
-            entrypoints[bundlePath] = finalizeEntrypoint(
-              bundlePath,
-              isClientCompilation
-                ? `next-client-pages-loader?${stringify(pageLoaderOpts)}!`
-                : absolutePagePath,
-              !isClientCompilation
-            )
+            if (isClientCompilation) {
+              entrypoints[bundlePath] = finalizeEntrypoint(
+                bundlePath,
+                `next-client-pages-loader?${stringify(pageLoaderOpts)}!`,
+                false
+              )
+            } else {
+              let request = relative(config.context!, absolutePagePath)
+              if (!isAbsolute(request) && !request.startsWith('../'))
+                request = `./${request}`
+              entrypoints[bundlePath] = finalizeEntrypoint(
+                bundlePath,
+                request,
+                true
+              )
+            }
           })
         )
 
@@ -494,22 +511,6 @@ export default class HotReloader {
         this.serverError = null
         this.serverStats = stats
 
-        const serverOnlyChanges = difference<string>(
-          changedServerPages,
-          changedClientPages
-        )
-        changedClientPages.clear()
-        changedServerPages.clear()
-
-        if (serverOnlyChanges.length > 0) {
-          this.send({
-            event: 'serverOnlyChanges',
-            pages: serverOnlyChanges.map((pg) =>
-              denormalizePagePath(pg.substr('pages'.length))
-            ),
-          })
-        }
-
         const { compilation } = stats
 
         // We only watch `_document` for changes on the server compilation
@@ -537,6 +538,23 @@ export default class HotReloader {
         this.serverPrevDocumentHash = documentChunk.hash
       }
     )
+    multiCompiler.hooks.done.tap('NextjsHotReloaderForServer', () => {
+      const serverOnlyChanges = difference<string>(
+        changedServerPages,
+        changedClientPages
+      )
+      changedClientPages.clear()
+      changedServerPages.clear()
+
+      if (serverOnlyChanges.length > 0) {
+        this.send({
+          event: 'serverOnlyChanges',
+          pages: serverOnlyChanges.map((pg) =>
+            denormalizePagePath(pg.substr('pages'.length))
+          ),
+        })
+      }
+    })
 
     multiCompiler.compilers[0].hooks.failed.tap(
       'NextjsHotReloaderForClient',
@@ -613,9 +631,6 @@ export default class HotReloader {
     })
 
     this.middlewares = [
-      // must come before hotMiddleware
-      this.onDemandEntries.middleware,
-      this.webpackHotMiddleware.middleware,
       getOverlayMiddleware({
         rootDirectory: this.dir,
         stats: () => this.stats,
@@ -693,7 +708,7 @@ export default class HotReloader {
     if (error) {
       return Promise.reject(error)
     }
-    return this.onDemandEntries.ensurePage(page, clientOnly)
+    return this.onDemandEntries?.ensurePage(page, clientOnly) as any
   }
 }
 

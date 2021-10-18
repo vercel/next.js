@@ -393,7 +393,9 @@ export default async function getBaseWebpackConfig(
       Log.info(`Using tsconfig file: ${config.typescript.tsconfigPath}`)
     }
 
-    const ts = (await import(typeScriptPath!)) as typeof import('typescript')
+    const ts = (await Promise.resolve(
+      require(typeScriptPath!)
+    )) as typeof import('typescript')
     const tsConfig = await getTypeScriptConfiguration(ts, tsConfigPath, true)
     jsConfig = { compilerOptions: tsConfig.options }
   }
@@ -1012,12 +1014,16 @@ export default async function getBaseWebpackConfig(
       rules: [
         // TODO: FIXME: do NOT webpack 5 support with this
         // x-ref: https://github.com/webpack/webpack/issues/11467
-        {
-          test: /\.m?js/,
-          resolve: {
-            fullySpecified: false,
-          },
-        } as any,
+        ...(!config.experimental.fullySpecified
+          ? [
+              {
+                test: /\.m?js/,
+                resolve: {
+                  fullySpecified: false,
+                },
+              } as any,
+            ]
+          : []),
         {
           test: /\.(js|cjs|mjs)$/,
           issuerLayer: 'api',
@@ -1051,7 +1057,7 @@ export default async function getBaseWebpackConfig(
         ...(!config.images.disableStaticImages
           ? [
               {
-                test: /\.(png|jpg|jpeg|gif|webp|ico|bmp|svg)$/i,
+                test: /\.(png|jpg|jpeg|gif|webp|avif|ico|bmp|svg)$/i,
                 loader: 'next-image-loader',
                 issuer: { not: regexLikeCss },
                 dependency: { not: ['url'] },
@@ -1393,25 +1399,29 @@ export default async function getBaseWebpackConfig(
   webpack5Config.cache = cache
 
   if (process.env.NEXT_WEBPACK_LOGGING) {
-    const logInfra = process.env.NEXT_WEBPACK_LOGGING.includes('infrastructure')
-    const logProfileClient =
+    const infra = process.env.NEXT_WEBPACK_LOGGING.includes('infrastructure')
+    const profileClient =
       process.env.NEXT_WEBPACK_LOGGING.includes('profile-client')
-    const logProfileServer =
+    const profileServer =
       process.env.NEXT_WEBPACK_LOGGING.includes('profile-server')
-    const logDefault = !logInfra && !logProfileClient && !logProfileServer
+    const summaryClient =
+      process.env.NEXT_WEBPACK_LOGGING.includes('summary-client')
+    const summaryServer =
+      process.env.NEXT_WEBPACK_LOGGING.includes('summary-server')
 
-    if (logDefault || logInfra) {
+    const profile = (profileClient && !isServer) || (profileServer && isServer)
+    const summary = (summaryClient && !isServer) || (summaryServer && isServer)
+
+    const logDefault = !infra && !profile && !summary
+
+    if (logDefault || infra) {
       webpack5Config.infrastructureLogging = {
         level: 'verbose',
         debug: /FileSystemInfo/,
       }
     }
 
-    if (
-      logDefault ||
-      (logProfileClient && !isServer) ||
-      (logProfileServer && isServer)
-    ) {
+    if (logDefault || profile) {
       webpack5Config.plugins!.push((compiler: webpack5.Compiler) => {
         compiler.hooks.done.tap('next-webpack-logging', (stats) => {
           console.log(
@@ -1422,9 +1432,21 @@ export default async function getBaseWebpackConfig(
           )
         })
       })
+    } else if (summary) {
+      webpack5Config.plugins!.push((compiler: webpack5.Compiler) => {
+        compiler.hooks.done.tap('next-webpack-logging', (stats) => {
+          console.log(
+            stats.toString({
+              preset: 'summary',
+              colors: true,
+              timings: true,
+            })
+          )
+        })
+      })
     }
 
-    if ((logProfileClient && !isServer) || (logProfileServer && isServer)) {
+    if (profile) {
       const ProgressPlugin =
         webpack.ProgressPlugin as unknown as typeof webpack5.ProgressPlugin
       webpack5Config.plugins!.push(
@@ -1496,7 +1518,7 @@ export default async function getBaseWebpackConfig(
       // Exclude svg if the user already defined it in custom
       // webpack config such as `@svgr/webpack` plugin or
       // the `babel-plugin-inline-react-svg` plugin.
-      nextImageRule.test = /\.(png|jpg|jpeg|gif|webp|ico|bmp)$/i
+      nextImageRule.test = /\.(png|jpg|jpeg|gif|webp|avif|ico|bmp)$/i
     }
   }
 

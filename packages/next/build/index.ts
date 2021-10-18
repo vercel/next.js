@@ -66,6 +66,8 @@ import {
   eventBuildFeatureUsage,
   eventNextPlugins,
   eventTypeCheckCompleted,
+  EVENT_BUILD_FEATURE_USAGE,
+  EventBuildFeatureUsage,
 } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
 import { CompilerResult, runCompiler } from './compiler'
@@ -168,7 +170,7 @@ export default async function build(
     const hasPublicDir = await fileExists(publicDir)
 
     telemetry.record(
-      eventCliSession(PHASE_PRODUCTION_BUILD, dir, {
+      eventCliSession(dir, config, {
         webpackVersion: 5,
         cliCommand: 'build',
         isSrcDir: path.relative(dir, pagesDir!).startsWith('src'),
@@ -1136,6 +1138,15 @@ export default async function build(
         ...cssFilePaths.map((filePath) => path.join(config.distDir, filePath))
       )
     }
+
+    const optimizeCss: EventBuildFeatureUsage = {
+      featureName: 'experimental/optimizeCss',
+      invocationCount: config.experimental.optimizeCss ? 1 : 0,
+    }
+    telemetry.record({
+      eventName: EVENT_BUILD_FEATURE_USAGE,
+      payload: optimizeCss,
+    })
 
     await promises.writeFile(
       path.join(distDir, SERVER_FILES_MANIFEST),

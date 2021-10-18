@@ -23,20 +23,10 @@ async function transform(src, options) {
     options.jsc.parser.syntax = options.jsc.parser.syntax ?? 'ecmascript'
   }
 
-  const { plugin, ...newOptions } = options
-
-  if (plugin) {
-    const m =
-      typeof src === 'string'
-        ? await this.parse(src, options?.jsc?.parser)
-        : src
-    return this.transform(plugin(m), newOptions)
-  }
-
   return bindings.transform(
     isModule ? JSON.stringify(src) : src,
     isModule,
-    toBuffer(newOptions)
+    toBuffer(options)
   )
 }
 
@@ -48,18 +38,10 @@ function transformSync(src, options) {
     options.jsc.parser.syntax = options.jsc.parser.syntax ?? 'ecmascript'
   }
 
-  const { plugin, ...newOptions } = options
-
-  if (plugin) {
-    const m =
-      typeof src === 'string' ? this.parseSync(src, options?.jsc?.parser) : src
-    return this.transformSync(plugin(m), newOptions)
-  }
-
   return bindings.transformSync(
     isModule ? JSON.stringify(src) : src,
     isModule,
-    toBuffer(newOptions)
+    toBuffer(options)
   )
 }
 
