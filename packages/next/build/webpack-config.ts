@@ -125,7 +125,7 @@ function getOptimizedAliases(isServer: boolean): { [pkg: string]: string } {
       'object.assign/shim': path.join(shimAssign, 'shim.js'),
 
       // Replace: full URL polyfill with platform-based polyfill
-      url: require.resolve('native-url'),
+      url: require.resolve('next/dist/compiled/native-url'),
     }
   )
 }
