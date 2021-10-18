@@ -645,6 +645,19 @@ function runTests(mode) {
 
       expect(await hasRedbox(browser)).toBe(false)
     })
+
+    it('should not warn when Image is child of p', async () => {
+      const browser = await webdriver(appPort, '/inside-paragraph')
+
+      const warnings = (await browser.log('browser'))
+        .map((log) => log.message)
+        .join('\n')
+      expect(await hasRedbox(browser)).toBe(false)
+      expect(warnings).not.toMatch(
+        /Expected server HTML to contain a matching/gm
+      )
+      expect(warnings).not.toMatch(/cannot appear as a descendant/gm)
+    })
   } else {
     //server-only tests
     it('should not create an image folder in server/chunks', async () => {
