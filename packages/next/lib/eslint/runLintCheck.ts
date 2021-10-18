@@ -101,7 +101,7 @@ async function lint(
       return null
     }
 
-    const mod = await import(deps.resolved.get('eslint')!)
+    const mod = await Promise.resolve(require(deps.resolved.get('eslint')!))
 
     const { ESLint } = mod
     let eslintVersion = ESLint?.version ?? mod?.CLIEngine?.version
