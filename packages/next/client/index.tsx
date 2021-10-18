@@ -382,7 +382,7 @@ export async function initNext(opts: { webpackHMR?: any } = {}) {
     pageLoader,
     App: CachedApp,
     Component: CachedComponent,
-    styleSheets: styleSheets!,
+    styleSheets,
     wrapApp,
     err: initialErr,
     isFallback: Boolean(isFallback),
@@ -408,7 +408,7 @@ export async function initNext(opts: { webpackHMR?: any } = {}) {
     App: CachedApp,
     initial: true,
     Component: CachedComponent,
-    styleSheets: styleSheets!,
+    styleSheets,
     props: hydrateProps,
     err: initialErr,
   }
