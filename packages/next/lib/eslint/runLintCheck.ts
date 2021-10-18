@@ -40,7 +40,9 @@ async function cliPrompt() {
   )
 
   try {
-    const cliSelect = (await import('next/dist/compiled/cli-select')).default
+    const cliSelect = (
+      await Promise.resolve(require('next/dist/compiled/cli-select'))
+    ).default
     const { value } = await cliSelect({
       values: ESLINT_PROMPT_VALUES,
       valueRenderer: (
@@ -99,7 +101,7 @@ async function lint(
       return null
     }
 
-    const mod = await import(deps.resolved.get('eslint')!)
+    const mod = await Promise.resolve(require(deps.resolved.get('eslint')!))
 
     const { ESLint } = mod
     let eslintVersion = ESLint?.version ?? mod?.CLIEngine?.version

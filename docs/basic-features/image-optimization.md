@@ -151,7 +151,7 @@ The image component has several different [layout modes](/docs/api-reference/nex
 
 **Target the image with className, not based on DOM structure**
 
-Regardless of the layout mode used, the Image component will have a consistent DOM structure of one `<img>` tag wrapped by exactly one `<div>`. For some modes, it may also have a sibling `<div>` for spacing. These additional `<div>` elements are critical to allow the component to prevent layout shifts.
+Regardless of the layout mode used, the Image component will have a consistent DOM structure of one `<img>` tag wrapped by exactly one `<span>`. For some modes, it may also have a sibling `<span>` for spacing. These additional `<span>` elements are critical to allow the component to prevent layout shifts.
 
 The recommended way to style the inner `<img>` is to set the `className` prop on the Image component to the value of an imported [CSS Module](/docs/basic-features/built-in-css-support.md#adding-component-level-css). The value of `className` will be automatically applied to the underlying `<img>` element.
 

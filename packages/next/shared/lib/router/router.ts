@@ -1187,13 +1187,6 @@ export default class Router implements BaseRouter {
       Router.events.emit('beforeHistoryChange', as, routeProps)
       this.changeState(method, url, as, options)
 
-      if (process.env.NODE_ENV !== 'production') {
-        const appComp: any = this.components['/_app'].Component
-        ;(window as any).next.isPrerendered =
-          appComp.getInitialProps === appComp.origGetInitialProps &&
-          !(routeInfo.Component as any).getInitialProps
-      }
-
       if (
         (options as any)._h &&
         pathname === '/_error' &&
