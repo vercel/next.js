@@ -1085,6 +1085,7 @@ export async function renderToHTML(
     head: documentResult.head,
     headTags: documentResult.headTags,
     styles: documentResult.styles,
+    useMaybeDeferContent,
   }
   const documentHTML = ReactDOMServer.renderToStaticMarkup(
     <AmpStateContext.Provider value={ampState}>
@@ -1276,7 +1277,7 @@ function renderToStream(
     })
 
     let resolved = false
-    const doResolve = () => {
+    const doResolve = (startWriting: any) => {
       if (!resolved) {
         resolved = true
         resolve((res, next) => {
@@ -1313,11 +1314,11 @@ function renderToStream(
         },
         onCompleteShell() {
           if (!generateStaticHTML) {
-            doResolve()
+            doResolve(startWriting)
           }
         },
         onCompleteAll() {
-          doResolve()
+          doResolve(startWriting)
         },
       }
     )
@@ -1366,4 +1367,11 @@ function piperToString(input: NodeWritablePiper): Promise<string> {
       }
     })
   })
+}
+
+export function useMaybeDeferContent(
+  _name: string,
+  contentFn: () => JSX.Element
+): [boolean, JSX.Element] {
+  return [false, contentFn()]
 }

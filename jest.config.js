@@ -4,7 +4,7 @@ module.exports = {
   verbose: true,
   rootDir: 'test',
   modulePaths: ['<rootDir>/lib'],
-  transformIgnorePatterns: ['/node_modules/', '/next[/\\\\]dist/'],
+  transformIgnorePatterns: ['/node_modules/', '/next[/\\\\]dist/', '/.next/'],
   transform: {
     '.+\\.(t|j)sx?$': [
       // this matches our SWC options used in https://github.com/vercel/next.js/blob/canary/packages/next/taskfile-swc.js

@@ -218,6 +218,10 @@ declare module 'next/dist/compiled/web-vitals' {
   import m from 'web-vitals'
   export = m
 }
+declare module 'next/dist/compiled/ws' {
+  import m from 'ws'
+  export = m
+}
 
 declare module 'next/dist/compiled/comment-json' {
   import m from 'comment-json'
