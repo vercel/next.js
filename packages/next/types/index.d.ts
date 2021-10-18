@@ -25,9 +25,7 @@ import {
 import next from '../dist/server/next'
 
 // @ts-ignore This path is generated at build time and conflicts otherwise
-import { NextConfig as NextConfigType } from '../dist/server/config'
-
-export type NextConfig = NextConfigType
+export { NextConfig } from '../dist/server/config'
 
 // Extend the React types with missing properties
 declare module 'react' {
