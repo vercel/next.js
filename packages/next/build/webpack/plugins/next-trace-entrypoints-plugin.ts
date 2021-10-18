@@ -327,7 +327,11 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
                 for (const file of fileList!) {
                   const reason = reasons!.get(file)
 
-                  if (!reason || reason.type === 'initial' || !reason.parents) {
+                  if (
+                    !reason ||
+                    !reason.parents ||
+                    (reason.type === 'initial' && reason.parents.size === 0)
+                  ) {
                     continue
                   }
                   propagateToParents(reason.parents, file)
