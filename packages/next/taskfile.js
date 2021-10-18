@@ -392,7 +392,7 @@ export async function ncc_nanoid(task, opts) {
 }
 // eslint-disable-next-line camelcase
 externals['native-url'] = 'next/dist/compiled/native-url'
-export async function ncc_neo_async(task, opts) {
+export async function ncc_native_url(task, opts) {
   await task
     .source(opts.src || relative(__dirname, require.resolve('native-url')))
     .ncc({ packageName: 'native-url', externals })
@@ -868,6 +868,7 @@ export async function ncc(task, opts) {
         'ncc_lodash_curry',
         'ncc_lru_cache',
         'ncc_nanoid',
+        'ncc_native_url',
         'ncc_neo_async',
         'ncc_node_libs_browser',
         'ncc_ora',
