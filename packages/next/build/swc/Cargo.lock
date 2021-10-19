@@ -1575,9 +1575,9 @@ checksum = "6446ced80d6c486436db5c078dde11a9f73d42b57fb273121e160b84f63d894c"
 
 [[package]]
 name = "swc"
-version = "0.72.2"
+version = "0.73.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8724cfc40b905a8bb13809b725242022fd33fee62e679c7033ecc2a6a886a166"
+checksum = "7ed52025cf9dd4590b4fae41dbd12de9cc98a87aeb7cfcc2267a815133131a8e"
 dependencies = [
  "ahash",
  "anyhow",
