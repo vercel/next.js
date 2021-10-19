@@ -7,8 +7,10 @@
   },
   "dependencies": {
     "@apollo/client": "^3.0.2",
-    "apollo-server-micro": "^2.14.2",
-    "graphql": "^14.0.2",
+    "@graphql-tools/schema": "^8.3.0",
+    "apollo-server-express": "^3.4.0",
+    "express": "^4.17.1",
+    "graphql": "^15.6.1",
     "next": "latest",
     "prop-types": "^15.6.2",
     "react": "^17.0.2",

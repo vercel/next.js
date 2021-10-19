@@ -1,11 +1,27 @@
-import { ApolloServer } from 'apollo-server-micro'
+import { ApolloServer } from 'apollo-server-express'
 import { schema } from '../../apollo/schema'
+
+function runMiddleware(req, res, fn) {
+  return new Promise((resolve, reject) => {
+    fn(req, res, (result) => {
+      if (result instanceof Error) {
+        return reject(result)
+      }
+
+      return resolve(result)
+    })
+  })
+}
 
 const apolloServer = new ApolloServer({
   schema,
   context(ctx) {
     return ctx
   },
+})
+await apolloServer.start()
+const apolloMiddleware = apolloServer.getMiddleware({
+  path: '/api/graphql',
 })
 
 export const config = {
@@ -14,4 +30,6 @@ export const config = {
   },
 }
 
-export default apolloServer.createHandler({ path: '/api/graphql' })
+export default async function handler(req, res) {
+  await runMiddleware(req, res, apolloMiddleware)
+}

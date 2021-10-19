@@ -1,4 +1,4 @@
-import { ApolloServer, gql } from 'apollo-server-micro'
+import { ApolloServer, gql } from 'apollo-server-express'
 
 const typeDefs = gql`
   type Query {
@@ -17,29 +17,26 @@ const resolvers = {
   },
 }
 
-const apolloServer = new ApolloServer({ typeDefs, resolvers })
+function runMiddleware(req, res, fn) {
+  return new Promise((resolve, reject) => {
+    fn(req, res, (result) => {
+      if (result instanceof Error) {
+        return reject(result)
+      }
 
-const startServer = apolloServer.start()
+      return resolve(result)
+    })
+  })
+}
+
+const apolloServer = new ApolloServer({ typeDefs, resolvers })
+await apolloServer.start()
+const apolloMiddleware = apolloServer.getMiddleware({
+  path: '/api/graphql',
+})
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Credentials', 'true')
-  res.setHeader(
-    'Access-Control-Allow-Origin',
-    'https://studio.apollographql.com'
-  )
-  res.setHeader(
-    'Access-Control-Allow-Headers',
-    'Origin, X-Requested-With, Content-Type, Accept'
-  )
-  if (req.method === 'OPTIONS') {
-    res.end()
-    return false
-  }
-
-  await startServer
-  await apolloServer.createHandler({
-    path: '/api/graphql',
-  })(req, res)
+  await runMiddleware(req, res, apolloMiddleware)
 }
 
 export const config = {
