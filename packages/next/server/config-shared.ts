@@ -1,4 +1,5 @@
 import os from 'os'
+import type webpack5 from 'webpack5'
 import { Header, Redirect, Rewrite } from '../lib/load-custom-routes'
 import {
   ImageConfig,
@@ -147,6 +148,7 @@ export type NextConfig = { [key: string]: any } & {
     concurrentFeatures?: boolean
     serverComponents?: boolean
     fullySpecified?: boolean
+    urlImports?: NonNullable<webpack5.Configuration['experiments']>['buildHttp']
   }
 }
 
