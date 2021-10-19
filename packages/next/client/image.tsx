@@ -458,10 +458,19 @@ export default function Image({
   })
   const isVisible = !isLazy || isIntersected
 
-  let wrapperStyle: JSX.IntrinsicElements['span']['style'] | undefined
-  let sizerStyle: JSX.IntrinsicElements['span']['style'] | undefined
+  const wrapperStyle: JSX.IntrinsicElements['span']['style'] = {
+    all: 'initial',
+    boxSizing: 'border-box',
+    overflow: 'hidden',
+  }
+  const sizerStyle: JSX.IntrinsicElements['span']['style'] = {
+    all: 'initial',
+    boxSizing: 'border-box',
+    display: 'block',
+  }
+  let hasSizer = false
   let sizerSvg: string | undefined
-  let imgStyle: ImgElementStyle | undefined = {
+  const imgStyle: ImgElementStyle = {
     position: 'absolute',
     top: 0,
     left: 0,
@@ -495,19 +504,12 @@ export default function Image({
       : {}
   if (layout === 'fill') {
     // <Image src="i.png" layout="fill" />
-    wrapperStyle = {
-      display: 'block',
-      overflow: 'hidden',
-
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      bottom: 0,
-      right: 0,
-
-      boxSizing: 'border-box',
-      margin: 0,
-    }
+    wrapperStyle.display = 'block'
+    wrapperStyle.position = 'absolute'
+    wrapperStyle.top = 0
+    wrapperStyle.left = 0
+    wrapperStyle.bottom = 0
+    wrapperStyle.right = 0
   } else if (
     typeof widthInt !== 'undefined' &&
     typeof heightInt !== 'undefined'
@@ -517,41 +519,24 @@ export default function Image({
     const paddingTop = isNaN(quotient) ? '100%' : `${quotient * 100}%`
     if (layout === 'responsive') {
       // <Image src="i.png" width="100" height="100" layout="responsive" />
-      wrapperStyle = {
-        display: 'block',
-        overflow: 'hidden',
-        position: 'relative',
-
-        boxSizing: 'border-box',
-        margin: 0,
-      }
-      sizerStyle = { display: 'block', boxSizing: 'border-box', paddingTop }
+      wrapperStyle.display = 'block'
+      wrapperStyle.position = 'relative'
+      hasSizer = true
+      sizerStyle.paddingTop = paddingTop
     } else if (layout === 'intrinsic') {
       // <Image src="i.png" width="100" height="100" layout="intrinsic" />
-      wrapperStyle = {
-        display: 'inline-block',
-        maxWidth: '100%',
-        overflow: 'hidden',
-        position: 'relative',
-        boxSizing: 'border-box',
-        margin: 0,
-      }
-      sizerStyle = {
-        display: 'block',
-        boxSizing: 'border-box',
-        maxWidth: '100%',
-      }
+      wrapperStyle.display = 'inline-block'
+      wrapperStyle.position = 'relative'
+      wrapperStyle.maxWidth = '100%'
+      hasSizer = true
+      sizerStyle.maxWidth = '100%'
       sizerSvg = `<svg width="${widthInt}" height="${heightInt}" xmlns="http://www.w3.org/2000/svg" version="1.1"/>`
     } else if (layout === 'fixed') {
       // <Image src="i.png" width="100" height="100" layout="fixed" />
-      wrapperStyle = {
-        display: 'inline-block',
-        overflow: 'hidden',
-        boxSizing: 'border-box',
-        position: 'relative',
-        width: widthInt,
-        height: heightInt,
-      }
+      wrapperStyle.display = 'inline-block'
+      wrapperStyle.position = 'relative'
+      wrapperStyle.width = widthInt
+      wrapperStyle.height = heightInt
     }
   } else {
     // <Image src="i.png" />
@@ -584,11 +569,12 @@ export default function Image({
 
   return (
     <span style={wrapperStyle}>
-      {sizerStyle ? (
+      {hasSizer ? (
         <span style={sizerStyle}>
           {sizerSvg ? (
             <img
               style={{
+                all: 'initial',
                 maxWidth: '100%',
                 display: 'block',
                 margin: 0,
