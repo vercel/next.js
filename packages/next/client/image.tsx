@@ -498,15 +498,11 @@ export default function Image({
     wrapperStyle = {
       display: 'block',
       overflow: 'hidden',
-
       position: 'absolute',
       top: 0,
       left: 0,
       bottom: 0,
       right: 0,
-
-      boxSizing: 'border-box',
-      margin: 0,
     }
   } else if (
     typeof widthInt !== 'undefined' &&
@@ -521,11 +517,8 @@ export default function Image({
         display: 'block',
         overflow: 'hidden',
         position: 'relative',
-
-        boxSizing: 'border-box',
-        margin: 0,
       }
-      sizerStyle = { display: 'block', boxSizing: 'border-box', paddingTop }
+      sizerStyle = { paddingTop }
     } else if (layout === 'intrinsic') {
       // <Image src="i.png" width="100" height="100" layout="intrinsic" />
       wrapperStyle = {
@@ -533,21 +526,14 @@ export default function Image({
         maxWidth: '100%',
         overflow: 'hidden',
         position: 'relative',
-        boxSizing: 'border-box',
-        margin: 0,
       }
-      sizerStyle = {
-        display: 'block',
-        boxSizing: 'border-box',
-        maxWidth: '100%',
-      }
+      sizerStyle = { maxWidth: '100%' }
       sizerSvg = `<svg width="${widthInt}" height="${heightInt}" xmlns="http://www.w3.org/2000/svg" version="1.1"/>`
     } else if (layout === 'fixed') {
       // <Image src="i.png" width="100" height="100" layout="fixed" />
       wrapperStyle = {
         display: 'inline-block',
         overflow: 'hidden',
-        boxSizing: 'border-box',
         position: 'relative',
         width: widthInt,
         height: heightInt,
@@ -583,12 +569,20 @@ export default function Image({
   let srcString: string = src
 
   return (
-    <span style={wrapperStyle}>
+    <span style={{ all: 'initial', boxSizing: 'border-box', ...wrapperStyle }}>
       {sizerStyle ? (
-        <span style={sizerStyle}>
+        <span
+          style={{
+            all: 'initial',
+            boxSizing: 'border-box',
+            display: 'block',
+            ...sizerStyle,
+          }}
+        >
           {sizerSvg ? (
             <img
               style={{
+                all: 'initial',
                 maxWidth: '100%',
                 display: 'block',
                 margin: 0,
