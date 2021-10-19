@@ -204,7 +204,7 @@ If you would like to use `next lint` with [lint-staged](https://github.com/okone
 ```js
 module.exports = {
   '**/*.js?(x)': (filenames) =>
-    `next lint --fix --file ${filenames
+    `next lint --fix ${filenames
       .map((file) => file.split(process.cwd())[1])
       .join(' --file ')}`,
 }
