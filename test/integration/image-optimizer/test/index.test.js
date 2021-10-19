@@ -967,7 +967,7 @@ describe('Image Optimizer', () => {
       await nextConfig.restore()
 
       expect(stderr).toContain(
-        `Specified images.loader property (imgix) also requires images.path property to be assigned.`
+        `Specified images.loader property (imgix) also requires images.path property to be assigned to a URL prefix.`
       )
     })
   })
