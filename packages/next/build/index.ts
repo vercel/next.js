@@ -603,13 +603,13 @@ export default async function build(
 
     result = nextBuildSpan
       .traceChild('format-webpack-messages')
-      .traceFn(() => formatWebpackMessages(result))
+      .traceFn(() => formatWebpackMessages(result, true))
 
     if (result.errors.length > 0) {
-      // Only keep the first error. Others are often indicative
+      // Only keep the first few errors. Others are often indicative
       // of the same problem, but confuse the reader with noise.
-      if (result.errors.length > 1) {
-        result.errors.length = 1
+      if (result.errors.length > 5) {
+        result.errors.length = 5
       }
       const error = result.errors.join('\n\n')
 
@@ -638,7 +638,9 @@ export default async function build(
           '> webpack config.resolve.alias was incorrectly overridden. https://nextjs.org/docs/messages/invalid-resolve-alias'
         )
       }
-      throw new Error('> Build failed because of webpack errors')
+      const err = new Error('> Build failed because of webpack errors')
+      err.stack = ''
+      throw err
     } else {
       telemetry.record(
         eventBuildCompleted(pagePaths, {
