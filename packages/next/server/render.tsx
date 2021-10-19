@@ -1277,7 +1277,7 @@ function renderToStream(
     })
 
     let resolved = false
-    const doResolve = () => {
+    const doResolve = (startWriting: any) => {
       if (!resolved) {
         resolved = true
         resolve((res, next) => {
@@ -1301,9 +1301,8 @@ function renderToStream(
       }
     }
 
-    const { abort, startWriting } = (ReactDOMServer as any).pipeToNodeWritable(
+    const { abort, pipe } = (ReactDOMServer as any).renderToPipeableStream(
       element,
-      stream,
       {
         onError(error: Error) {
           if (!resolved) {
@@ -1314,11 +1313,11 @@ function renderToStream(
         },
         onCompleteShell() {
           if (!generateStaticHTML) {
-            doResolve()
+            doResolve(() => pipe(stream))
           }
         },
         onCompleteAll() {
-          doResolve()
+          doResolve(() => pipe(stream))
         },
       }
     )
