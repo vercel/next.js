@@ -699,6 +699,46 @@ function runTests(mode) {
     }
   })
 
+  it('should apply style inheritance for img elements but not wrapper elements', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/style-inheritance')
+
+      await browser.eval(
+        `document.querySelector("footer").scrollIntoView({behavior: "smooth"})`
+      )
+
+      const allImgs = await browser.eval(`
+        function foo() {
+          const imgs = document.querySelectorAll("img[id]");
+          for (let img of imgs) {
+            const br = window.getComputedStyle(img).getPropertyValue("border-radius");
+            if (!br) return 'no-border-radius';
+            if (br !== '100px') return br;
+          }
+          return true;
+        }()
+      `)
+      expect(allImgs).toBe(true)
+
+      const allSpans = await browser.eval(`
+        function foo() {
+          const spans = document.querySelectorAll("span");
+          for (let span of spans) {
+            const br = window.getComputedStyle(span).getPropertyValue("border-radius");
+            if (br && br !== '0px') return br;
+          }
+          return false;
+        }()
+      `)
+      expect(allSpans).toBe(false)
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
+
   // Tests that use the `unsized` attribute:
   if (mode !== 'dev') {
     it('should correctly rotate image', async () => {
