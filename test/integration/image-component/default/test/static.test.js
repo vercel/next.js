@@ -87,7 +87,7 @@ describe('Build Error Tests', () => {
     await indexPage.restore()
 
     expect(stderr).toContain(
-      "Error: Can't resolve '../public/foo/test-rect-broken.jpg"
+      "Module not found: Can't resolve '../public/foo/test-rect-broken.jpg"
     )
   })
 })

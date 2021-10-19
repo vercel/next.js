@@ -99,7 +99,7 @@ describe('Build Error Tests for basePath', () => {
     await indexPage.restore()
 
     expect(stderr).toContain(
-      "Error: Can't resolve '../public/foo/test-rect-broken.jpg"
+      "Module not found: Can't resolve '../public/foo/test-rect-broken.jpg"
     )
   })
 })
