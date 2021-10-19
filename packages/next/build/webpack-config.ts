@@ -125,7 +125,7 @@ function getOptimizedAliases(isServer: boolean): { [pkg: string]: string } {
       'object.assign/shim': path.join(shimAssign, 'shim.js'),
 
       // Replace: full URL polyfill with platform-based polyfill
-      url: require.resolve('native-url'),
+      url: require.resolve('next/dist/compiled/native-url'),
     }
   )
 }
@@ -213,6 +213,9 @@ export const NODE_BASE_ESM_RESOLVE_OPTIONS = {
 }
 
 let TSCONFIG_WARNED = false
+
+export const nextImageLoaderRegex =
+  /\.(png|jpg|jpeg|gif|webp|avif|ico|bmp|svg)$/i
 
 export default async function getBaseWebpackConfig(
   dir: string,
@@ -1057,7 +1060,7 @@ export default async function getBaseWebpackConfig(
         ...(!config.images.disableStaticImages
           ? [
               {
-                test: /\.(png|jpg|jpeg|gif|webp|avif|ico|bmp|svg)$/i,
+                test: nextImageLoaderRegex,
                 loader: 'next-image-loader',
                 issuer: { not: regexLikeCss },
                 dependency: { not: ['url'] },
@@ -1199,6 +1202,8 @@ export default async function getBaseWebpackConfig(
         !dev &&
         new TraceEntryPointsPlugin({
           appDir: dir,
+          esmExternals: config.experimental.esmExternals,
+          staticImageImports: !config.images.disableStaticImages,
         }),
       // Moment.js is an extremely popular library that bundles large locale files
       // by default due to how Webpack interprets its code. This is a practical
