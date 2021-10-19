@@ -57,19 +57,13 @@ function getSWCOptions({
         development: development,
         useBuiltins: true,
       },
-      optimizer: {
-        globals: {
-          vars: {
-            'process.env.NODE_ENV': development
-              ? '"development"'
-              : '"production"',
-            'process.browser': isServer ? 'false' : 'true',
-          },
-          typeofs: {
-            window: isServer ? 'undefined' : 'object',
-          },
-        },
-      },
+      // optimizer: {
+      //   globals: {
+      //     typeofs: {
+      //       window: isServer ? '"undefined"' : '"object"',
+      //     },
+      //   },
+      // },
     },
   }
 
