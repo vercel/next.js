@@ -40,6 +40,14 @@ async function usingTempDir(fn) {
  */
 async function pack(cwd, pkg) {
   const pkgDir = path.join(packagesDir, pkg)
+  const originalPkgPath = path.join(pkgDir, 'package.json')
+  const originalPkg = fs.readFileSync(originalPkgPath, 'utf-8')
+
+  if (pkg === 'next') {
+    const newPkg = { ...JSON.parse(originalPkg) }
+    newPkg.files.push('native/**/*')
+    fs.writeJsonSync(originalPkgPath, newPkg)
+  }
   const { stdout } = await runNpm(
     cwd,
     'pack',
@@ -47,6 +55,10 @@ async function pack(cwd, pkg) {
     path.join(packagesDir, pkg)
   )
   const tarballFilename = stdout.match(/.*\.tgz/)[0]
+
+  if (pkg === 'next') {
+    fs.writeFileSync(originalPkgPath, originalPkg)
+  }
 
   if (!tarballFilename) {
     throw new Error(
