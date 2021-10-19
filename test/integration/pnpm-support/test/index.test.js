@@ -18,7 +18,14 @@ const packagesDir = path.join(__dirname, '..', '..', '..', '..', 'packages')
 const appDir = path.join(__dirname, '..', 'app')
 
 const runNpm = (cwd, ...args) => execa('npm', [...args], { cwd })
-const runPnpm = (cwd, ...args) => execa(pnpmExecutable, [...args], { cwd })
+const runPnpm = async (cwd, ...args) => {
+  try {
+    await execa(pnpmExecutable, [...args], { cwd })
+  } catch (err) {
+    console.log({ stdout: err.stdout, stderr: err.stderr })
+    throw err
+  }
+}
 
 async function usingTempDir(fn) {
   const folder = path.join(os.tmpdir(), Math.random().toString(36).substring(2))
