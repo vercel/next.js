@@ -95,7 +95,7 @@ abstract class BaseBody implements Body {
     return this[INTERNALS].disturbed
   }
 
-  #_consume() {
+  _consume() {
     if (this[INTERNALS].disturbed) {
       return Promise.reject(
         new TypeError(
@@ -131,7 +131,7 @@ abstract class BaseBody implements Body {
   }
 
   async arrayBuffer() {
-    const buffer = await this.#_consume()
+    const buffer = await this._consume()
     const arrayBuffer = new ArrayBuffer(buffer.length)
     const view = new Uint8Array(arrayBuffer)
 
@@ -143,7 +143,7 @@ abstract class BaseBody implements Body {
   }
 
   async blob() {
-    const buffer = await this.#_consume()
+    const buffer = await this._consume()
     return new Blob([buffer])
   }
 
@@ -166,7 +166,7 @@ abstract class BaseBody implements Body {
 
   async text() {
     const decoder = new TextDecoder()
-    const buffer = await this.#_consume()
+    const buffer = await this._consume()
     return decoder.decode(buffer)
   }
 
