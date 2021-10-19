@@ -1,6 +1,7 @@
 import chalk from 'chalk'
 import findUp from 'next/dist/compiled/find-up'
 import { basename, extname, relative } from 'path'
+import { pathToFileURL } from 'url'
 import { Agent as HttpAgent } from 'http'
 import { Agent as HttpsAgent } from 'https'
 import * as Log from '../build/output/log'
@@ -530,8 +531,10 @@ export default async function loadConfig(
     let userConfigModule: any
 
     try {
-      // we must use file for absolute dynamic imports on Windows
-      userConfigModule = await import(`file://${path}`)
+      // `import()` expects url-encoded strings, so the path must be properly
+      // escaped and (especially on Windows) absolute paths must pe prefixed
+      // with the `file://` protocol
+      userConfigModule = await import(pathToFileURL(path).href)
     } catch (err) {
       console.error(
         chalk.red('Error:') +
