@@ -1301,9 +1301,8 @@ function renderToStream(
       }
     }
 
-    const { abort, startWriting } = (ReactDOMServer as any).pipeToNodeWritable(
+    const { abort, pipe } = (ReactDOMServer as any).renderToPipeableStream(
       element,
-      stream,
       {
         onError(error: Error) {
           if (!resolved) {
@@ -1314,11 +1313,11 @@ function renderToStream(
         },
         onCompleteShell() {
           if (!generateStaticHTML) {
-            doResolve(startWriting)
+            doResolve(() => pipe(stream))
           }
         },
         onCompleteAll() {
-          doResolve(startWriting)
+          doResolve(() => pipe(stream))
         },
       }
     )
