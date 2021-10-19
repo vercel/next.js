@@ -754,10 +754,11 @@ export default class DevServer extends Server {
   }
 
   protected async getFallbackErrorComponents(): Promise<LoadComponentsReturnType | null> {
-    await this.hotReloader!.buildFallbackError()
     // Build the error page to ensure the fallback is built too.
-    // TODO: See if this can be moved into hotReloader or removed.
-    await this.hotReloader!.ensurePage('/_error')
+    await Promise.all([
+      this.hotReloader!.ensurePage('/_fallback/_app', true),
+      this.hotReloader!.ensurePage('/_fallback/_error', true),
+    ])
     return await loadDefaultErrorComponents(this.distDir)
   }
 

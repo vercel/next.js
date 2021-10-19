@@ -16,6 +16,7 @@ export const BUILT = Symbol('built')
 export let entries: {
   [page: string]: {
     bundlePath: string
+    page: string
     absolutePagePath: string
     status?: typeof ADDED | typeof BUILDING | typeof BUILT
     lastActiveTime?: number
@@ -155,11 +156,18 @@ export default function onDemandEntryHandler(
         throw pageNotFoundError(page)
       }
 
-      let pagePath = await findPageFile(
-        pagesDir,
-        normalizedPagePath,
-        pageExtensions
-      )
+      let pagePath
+      let overridePage: string | undefined = undefined
+      if (page.startsWith('/_fallback/')) {
+        overridePage = page.slice('/_fallback'.length)
+        pagePath = `next/dist/pages${overridePage}`
+      } else {
+        pagePath = await findPageFile(
+          pagesDir,
+          normalizedPagePath,
+          pageExtensions
+        )
+      }
 
       // Default the /_error route to the Next.js provided default page
       if (page === '/_error' && pagePath === null) {
@@ -170,7 +178,7 @@ export default function onDemandEntryHandler(
         throw pageNotFoundError(normalizedPagePath)
       }
 
-      let pageUrl = pagePath.replace(/\\/g, '/')
+      let pageUrl = page.replace(/\\/g, '/')
 
       pageUrl = `${pageUrl[0] !== '/' ? '/' : ''}${pageUrl
         .replace(new RegExp(`\\.+(?:${pageExtensions.join('|')})$`), '')
@@ -212,6 +220,7 @@ export default function onDemandEntryHandler(
 
           entries[pageKey] = {
             bundlePath,
+            page: overridePage || page,
             absolutePagePath,
             status: ADDED,
             lastActiveTime: Date.now(),
@@ -243,7 +252,7 @@ export default function onDemandEntryHandler(
         invalidator.invalidate()
       }
 
-      return promise
+      await promise
     },
 
     onHMR(client: ws) {

@@ -43,12 +43,23 @@ export async function loadDefaultErrorComponents(distDir: string) {
   const ComponentMod = require('next/dist/pages/_error')
   const Component = interopDefault(ComponentMod)
 
+  const buildManifest: BuildManifest = require(join(distDir, BUILD_MANIFEST))
+
+  const fallbackBuildManifest = {
+    ...buildManifest,
+    lowPriorityFiles: [],
+    pages: {
+      '/_app': buildManifest.pages['/_fallback/_app'],
+      '/_error': buildManifest.pages['/_fallback/_error'],
+    },
+  }
+
   return {
     App,
     Document,
     Component,
     pageConfig: {},
-    buildManifest: require(join(distDir, `fallback-${BUILD_MANIFEST}`)),
+    buildManifest: fallbackBuildManifest,
     reactLoadableManifest: {},
     ComponentMod,
   }

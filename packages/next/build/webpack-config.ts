@@ -229,7 +229,6 @@ export default async function getBaseWebpackConfig(
     reactProductionProfiling = false,
     entrypoints,
     rewrites,
-    isDevFallback = false,
     runWebpackSpan,
   }: {
     buildId: string
@@ -241,7 +240,6 @@ export default async function getBaseWebpackConfig(
     reactProductionProfiling?: boolean
     entrypoints: webpack5.EntryObject
     rewrites: CustomRoutes['rewrites']
-    isDevFallback?: boolean
     runWebpackSpan: Span
   }
 ): Promise<webpack.Configuration> {
@@ -889,7 +887,7 @@ export default async function getBaseWebpackConfig(
         ],
     optimization: {
       // @ts-ignore: TODO remove ts-ignore when webpack 4 is removed
-      emitOnErrors: !dev,
+      emitOnErrors: true,
       checkWasmTypes: false,
       nodeEnv: false,
       splitChunks: isServer
@@ -971,9 +969,7 @@ export default async function getBaseWebpackConfig(
         ? !dev
           ? '../[name].js'
           : '[name].js'
-        : `static/chunks/${isDevFallback ? 'fallback/' : ''}[name]${
-            dev ? '' : '-[contenthash]'
-          }.js`,
+        : `static/chunks/[name]${dev ? '' : '-[contenthash]'}.js`,
       library: isServer ? undefined : '_N_E',
       libraryTarget: isServer ? 'commonjs2' : 'assign',
       hotUpdateChunkFilename: 'static/webpack/[id].[fullhash].hot-update.js',
@@ -982,9 +978,7 @@ export default async function getBaseWebpackConfig(
       // This saves chunks with the name given via `import()`
       chunkFilename: isServer
         ? '[name].js'
-        : `static/chunks/${isDevFallback ? 'fallback/' : ''}${
-            dev ? '[name]' : '[name].[contenthash]'
-          }.js`,
+        : `static/chunks/${dev ? '[name]' : '[name].[contenthash]'}.js`,
       strictModuleExceptionHandling: true,
       crossOriginLoading: crossOrigin,
       webassemblyModuleFilename: 'static/wasm/[modulehash].wasm',
@@ -1243,7 +1237,6 @@ export default async function getBaseWebpackConfig(
         new BuildManifestPlugin({
           buildId,
           rewrites,
-          isDevFallback,
         }),
       new ProfilingPlugin({ runWebpackSpan }),
       config.optimizeFonts &&

@@ -227,7 +227,7 @@ export default class HotReloader {
 
       const page = denormalizePagePath(decodedPagePath)
 
-      if (page === '/_error' || BLOCKED_PAGES.indexOf(page) === -1) {
+      if (page === '/_error' || !BLOCKED_PAGES.includes(page)) {
         try {
           await this.ensurePage(page, true)
         } catch (error) {
@@ -238,10 +238,14 @@ export default class HotReloader {
           return { finished: true }
         }
 
-        const errors = await this.getCompilationErrors(page)
-        if (errors.length > 0) {
-          await renderScriptError(pageBundleRes, errors[0], { verbose: false })
-          return { finished: true }
+        if (!page.startsWith('/_fallback/')) {
+          const errors = await this.getCompilationErrors(page)
+          if (errors.length > 0) {
+            await renderScriptError(pageBundleRes, errors[0], {
+              verbose: false,
+            })
+            return { finished: true }
+          }
         }
       }
 
@@ -345,52 +349,6 @@ export default class HotReloader {
     })
   }
 
-  public async buildFallbackError(): Promise<void> {
-    if (this.fallbackWatcher) return
-
-    const fallbackConfig = await getBaseWebpackConfig(this.dir, {
-      runWebpackSpan: this.hotReloaderSpan,
-      dev: true,
-      isServer: false,
-      config: this.config,
-      buildId: this.buildId,
-      pagesDir: this.pagesDir,
-      rewrites: {
-        beforeFiles: [],
-        afterFiles: [],
-        fallback: [],
-      },
-      isDevFallback: true,
-      entrypoints: createEntrypoints(
-        {
-          '/_app': 'next/dist/pages/_app',
-          '/_error': 'next/dist/pages/_error',
-        },
-        'server',
-        this.buildId,
-        this.previewProps,
-        this.config,
-        []
-      ).client,
-    })
-    const fallbackCompiler = webpack(fallbackConfig)
-
-    this.fallbackWatcher = await new Promise((resolve) => {
-      let bootedFallbackCompiler = false
-      fallbackCompiler.watch(
-        // @ts-ignore webpack supports an array of watchOptions when using a multiCompiler
-        fallbackConfig.watchOptions,
-        // Errors are handled separately
-        (_err: any) => {
-          if (!bootedFallbackCompiler) {
-            bootedFallbackCompiler = true
-            resolve(true)
-          }
-        }
-      )
-    })
-  }
-
   public async start(): Promise<void> {
     const startSpan = this.hotReloaderSpan.traceChild('start')
     startSpan.stop() // Stop immediately to create an artificial parent span
@@ -411,13 +369,11 @@ export default class HotReloader {
           Object.keys(entries).map(async (pageKey) => {
             const isClientKey = pageKey.startsWith('client')
             if (isClientKey !== isClientCompilation) return
-            const page = pageKey.slice(
-              isClientKey ? 'client'.length : 'server'.length
-            )
+            const { bundlePath, page, absolutePagePath, dispose } =
+              entries[pageKey]
             if (isClientCompilation && page.match(API_ROUTE)) {
               return
             }
-            const { bundlePath, absolutePagePath, dispose } = entries[pageKey]
             const pageExists = !dispose && (await isWriteable(absolutePagePath))
             if (!pageExists) {
               // page was removed or disposed
@@ -433,7 +389,7 @@ export default class HotReloader {
 
             if (isClientCompilation) {
               entrypoints[bundlePath] = finalizeEntrypoint(
-                bundlePath,
+                page,
                 `next-client-pages-loader?${stringify(pageLoaderOpts)}!`,
                 false
               )
@@ -441,11 +397,7 @@ export default class HotReloader {
               let request = relative(config.context!, absolutePagePath)
               if (!isAbsolute(request) && !request.startsWith('../'))
                 request = `./${request}`
-              entrypoints[bundlePath] = finalizeEntrypoint(
-                bundlePath,
-                request,
-                true
-              )
+              entrypoints[bundlePath] = finalizeEntrypoint(page, request, true)
             }
           })
         )
@@ -699,16 +651,16 @@ export default class HotReloader {
 
   public async ensurePage(page: string, clientOnly: boolean = false) {
     // Make sure we don't re-build or dispose prebuilt pages
-    if (page !== '/_error' && BLOCKED_PAGES.indexOf(page) !== -1) {
+    if (page !== '/_error' && BLOCKED_PAGES.includes(page)) {
       return
     }
     const error = clientOnly
       ? this.clientError
       : this.serverError || this.clientError
     if (error) {
-      return Promise.reject(error)
+      throw error
     }
-    return this.onDemandEntries?.ensurePage(page, clientOnly) as any
+    await this.onDemandEntries?.ensurePage(page, clientOnly)
   }
 }
 
