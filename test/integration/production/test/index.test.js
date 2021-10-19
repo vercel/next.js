@@ -58,7 +58,7 @@ describe('Production Usage', () => {
   })
 
   it('should contain generated page count in output', async () => {
-    const pageCount = 39
+    const pageCount = 40
     expect(output).toContain(`Generating static pages (0/${pageCount})`)
     expect(output).toContain(
       `Generating static pages (${pageCount}/${pageCount})`
@@ -76,6 +76,22 @@ describe('Production Usage', () => {
           /node_modules\/react\/index\.js/,
           /node_modules\/react\/package\.json/,
           /node_modules\/react\/cjs\/react\.production\.min\.js/,
+        ],
+        notTests: [/node_modules\/react\/cjs\/react\.development\.js/],
+      },
+      {
+        page: '/client-error',
+        tests: [
+          /webpack-runtime\.js/,
+          /chunks\/.*?\.js/,
+          /node_modules\/react\/index\.js/,
+          /node_modules\/react\/package\.json/,
+          /node_modules\/react\/cjs\/react\.production\.min\.js/,
+          /next\/link\.js/,
+          /next\/dist\/client\/link\.js/,
+          /next\/dist\/shared\/lib\/router\/utils\/resolve-rewrites\.js/,
+          /next\/dist\/pages\/_error\.js/,
+          /next\/error\.js/,
         ],
         notTests: [/node_modules\/react\/cjs\/react\.development\.js/],
       },
@@ -110,6 +126,8 @@ describe('Production Usage', () => {
         notTests: [
           /node_modules\/react\/cjs\/react\.development\.js/,
           /node_modules\/nanoid\/index\.cjs/,
+          /next\/dist\/pages\/_error\.js/,
+          /next\/error\.js/,
         ],
       },
       {
