@@ -264,8 +264,8 @@ describe('basic HMR', () => {
           )
 
           expect(editedFontSize).toBe('200px')
-          expect(browserHtml.includes('font-size:200px;')).toBe(true)
-          expect(browserHtml.includes('font-size:100px;')).toBe(false)
+          expect(browserHtml.includes('font-size:200px')).toBe(true)
+          expect(browserHtml.includes('font-size:100px')).toBe(false)
 
           const editedHtml = await renderViaHTTP(
             next.appPort,
