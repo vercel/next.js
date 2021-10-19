@@ -46,7 +46,7 @@ async function pack(cwd, pkg) {
   if (pkg === 'next') {
     const newPkg = { ...JSON.parse(originalPkg) }
     newPkg.files.push('native/**/*')
-    fs.writeJsonSync(originalPkgPath, newPkg)
+    fs.writeFileSync(originalPkgPath, JSON.stringify(newPkg))
   }
   const { stdout } = await runNpm(
     cwd,
