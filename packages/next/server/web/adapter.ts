@@ -10,8 +10,12 @@ export async function adapter(params: {
   handler: (event: NextFetchEvent) => void | Promise<void>
   request: RequestData
 }): Promise<FetchEventResult> {
+  const url = params.request.url.startsWith('/')
+    ? `https://${params.request.headers.host}${params.request.url}`
+    : params.request.url
+
   const event = new NextFetchEvent(
-    new NextRequest(params.request.url, {
+    new NextRequest(url, {
       geo: params.request.geo,
       headers: fromNodeHeaders(params.request.headers),
       ip: params.request.ip,

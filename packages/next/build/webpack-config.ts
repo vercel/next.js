@@ -592,7 +592,8 @@ export default async function getBaseWebpackConfig(
         // as we don't need a separate vendor chunk from that
         // and all other chunk depend on them so there is no
         // duplication that need to be pulled out.
-        chunks: (chunk) => !/^(polyfills|main|pages\/_app)$/.test(chunk.name),
+        chunks: (chunk) =>
+          !/^(polyfills|main|pages\/_app|\/_middleware)$/.test(chunk.name),
         cacheGroups: {
           framework: {
             chunks: (chunk: webpack.compilation.Chunk) =>
@@ -929,12 +930,7 @@ export default async function getBaseWebpackConfig(
         : splitChunksConfig,
       runtimeChunk: isServer
         ? undefined
-        : {
-            name: ({ name }) =>
-              name.match(MIDDLEWARE_ROUTE)
-                ? '../../server/middleware-runtime'
-                : CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
-          },
+        : { name: CLIENT_STATIC_FILES_RUNTIME_WEBPACK },
       minimize: !(dev || isServer),
       minimizer: [
         // Minify JavaScript
@@ -1860,7 +1856,11 @@ export default async function getBaseWebpackConfig(
       delete entry['main.js']
 
       for (const name of Object.keys(entry)) {
-        entry[name] = finalizeEntrypoint(name, entry[name], isServer)
+        entry[name] = finalizeEntrypoint({
+          value: entry[name],
+          isServer,
+          name,
+        })
       }
 
       return entry

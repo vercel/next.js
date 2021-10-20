@@ -438,30 +438,28 @@ export default class HotReloader {
             }
 
             if (isClientCompilation && isMiddleware) {
-              entrypoints[bundlePath] = {
-                filename: 'server/[name].js',
-                import: `next-middleware-loader?${stringify(pageLoaderOpts)}!`,
-                layer: 'middleware',
-                library: {
-                  name: ['_NEXT_ENTRIES', `middleware_[name]`],
-                  type: 'assign',
-                },
-              }
+              entrypoints[bundlePath] = finalizeEntrypoint({
+                name: bundlePath,
+                value: `next-middleware-loader?${stringify(pageLoaderOpts)}!`,
+                isServer: false,
+              })
             } else if (isClientCompilation) {
-              entrypoints[bundlePath] = finalizeEntrypoint(
-                bundlePath,
-                `next-client-pages-loader?${stringify(pageLoaderOpts)}!`,
-                false
-              )
+              entrypoints[bundlePath] = finalizeEntrypoint({
+                name: bundlePath,
+                value: `next-client-pages-loader?${stringify(pageLoaderOpts)}!`,
+                isServer: false,
+              })
             } else {
               let request = relative(config.context!, absolutePagePath)
-              if (!isAbsolute(request) && !request.startsWith('../'))
+              if (!isAbsolute(request) && !request.startsWith('../')) {
                 request = `./${request}`
-              entrypoints[bundlePath] = finalizeEntrypoint(
-                bundlePath,
-                request,
-                true
-              )
+              }
+
+              entrypoints[bundlePath] = finalizeEntrypoint({
+                name: bundlePath,
+                value: request,
+                isServer: true,
+              })
             }
           })
         )
@@ -482,10 +480,8 @@ export default class HotReloader {
     // the server file changes and trigger a reload for GS(S)P pages
     const changedClientPages = new Set<string>()
     const changedServerPages = new Set<string>()
-    const changedClientForServerPages = new Set<string>()
     const prevClientPageHashes = new Map<string, string>()
     const prevServerPageHashes = new Map<string, string>()
-    const prevClientForServerPageHashes = new Map<string, string>()
 
     const trackPageChanges =
       (pageHashMap: Map<string, string>, changedItems: Set<string>) =>
@@ -509,13 +505,6 @@ export default class HotReloader {
 
     multiCompiler.compilers[0].hooks.emit.tap(
       'NextjsHotReloaderForClient',
-      trackPageChanges(
-        prevClientForServerPageHashes,
-        changedClientForServerPages
-      )
-    )
-    multiCompiler.compilers[0].hooks.emit.tap(
-      'NextjsHotReloaderForClient',
       trackPageChanges(prevClientPageHashes, changedClientPages)
     )
     multiCompiler.compilers[1].hooks.emit.tap(
@@ -536,22 +525,6 @@ export default class HotReloader {
       (stats) => {
         this.serverError = null
         this.serverStats = stats
-
-        const serverOnlyChanges = difference<string>(
-          changedServerPages,
-          changedClientForServerPages
-        )
-        changedClientForServerPages.clear()
-        changedServerPages.clear()
-
-        if (serverOnlyChanges.length > 0) {
-          this.send({
-            event: 'serverOnlyChanges',
-            pages: serverOnlyChanges.map((pg) =>
-              denormalizePagePath(pg.substr('pages'.length))
-            ),
-          })
-        }
 
         const { compilation } = stats
 

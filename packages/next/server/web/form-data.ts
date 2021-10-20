@@ -5,6 +5,10 @@ const carriage = '\r\n'
 const dashes = '--'
 const carriageLength = 2
 
+function escape(str: string) {
+  return str.replace(/"/g, '\\"')
+}
+
 function getFooter(boundary: string) {
   return `${dashes}${boundary}${dashes}${carriage.repeat(2)}`
 }
@@ -12,10 +16,10 @@ function getFooter(boundary: string) {
 function getHeader(boundary: string, name: string, field: FormDataEntryValue) {
   let header = ''
   header += `${dashes}${boundary}${carriage}`
-  header += `Content-Disposition: form-data; name="${name}"`
+  header += `Content-Disposition: form-data; name="${escape(name)}"`
 
   if (isBlob(field)) {
-    header += `; filename="${field.name}"${carriage}`
+    header += `; filename="${escape(field.name)}"${carriage}`
     header += `Content-Type: ${field.type || 'application/octet-stream'}`
   }
 

@@ -1156,6 +1156,9 @@ export default class Server {
             }
           }
 
+          res.statusCode = result.response.status
+          res.statusMessage = result.response.statusText
+
           const location = result.response.headers.get('Location')
           if (location) {
             res.statusCode = result.response.status

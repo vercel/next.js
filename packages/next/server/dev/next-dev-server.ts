@@ -212,7 +212,7 @@ export default class DevServer extends Server {
     }
 
     const regexMiddleware = new RegExp(
-      `\\.*(_middleware.(?:${this.nextConfig.pageExtensions.join('|')}))$`
+      `/(_middleware.(?:${this.nextConfig.pageExtensions.join('|')}))$`
     )
 
     const regexPageExtension = new RegExp(
@@ -248,10 +248,12 @@ export default class DevServer extends Server {
           }
 
           if (regexMiddleware.test(fileName)) {
-            const location = relative(pagesDir!, fileName)
-              .replace(/\\+/g, '/')
-              .replace(regexMiddleware, '')
-            routedMiddleware.push(`/${location}`)
+            routedMiddleware.push(
+              `/${relative(pagesDir!, fileName)}`
+                .replace(/\\+/g, '')
+                .replace(/^\/+/g, '/')
+                .replace(regexMiddleware, '/')
+            )
             continue
           }
 
@@ -474,16 +476,12 @@ export default class DevServer extends Server {
   }): Promise<FetchEventResult | null> {
     try {
       const result = await super.runMiddleware(params)
-      result?.promise
-        .catch((error) =>
-          this.logErrorWithOriginalStack(error, 'unhandledRejection', 'client')
-        )
-        .catch(() => {})
-      result?.waitUntil
-        .catch((error) =>
-          this.logErrorWithOriginalStack(error, 'unhandledRejection', 'client')
-        )
-        .catch(() => {})
+      result?.promise.catch((error) =>
+        this.logErrorWithOriginalStack(error, 'unhandledRejection', 'client')
+      )
+      result?.waitUntil.catch((error) =>
+        this.logErrorWithOriginalStack(error, 'unhandledRejection', 'client')
+      )
       return result
     } catch (error) {
       this.logErrorWithOriginalStack(error, undefined, 'client')

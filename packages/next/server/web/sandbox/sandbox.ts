@@ -39,7 +39,7 @@ export async function run(params: {
 }): Promise<FetchEventResult> {
   if (cache === undefined) {
     const context: { [key: string]: any } = {
-      _NEXT_ENTRIES: {},
+      _ENTRIES: {},
       atob: polyfills.atob,
       Blob,
       btoa: polyfills.btoa,
@@ -70,7 +70,8 @@ export async function run(params: {
       URL,
       URLSearchParams,
     }
-    context.self = context;
+
+    context.self = context
 
     cache = {
       context,
@@ -107,7 +108,7 @@ export async function run(params: {
     }
   }
 
-  const entryPoint = cache.context._NEXT_ENTRIES[`middleware_${params.name}`]
+  const entryPoint = cache.context._ENTRIES[`middleware_${params.name}`]
   return entryPoint.default({ request: params.request })
 }
 
