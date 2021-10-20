@@ -101,10 +101,15 @@ export async function run(params: {
   for (const paramPath of params.paths) {
     if (!cache.paths.has(paramPath)) {
       const content = readFileSync(paramPath, 'utf-8')
-      vm.runInNewContext(content, cache.sandbox, {
-        filename: paramPath,
-      })
-      cache.paths.set(paramPath, content)
+      try {
+        vm.runInNewContext(content, cache.sandbox, {
+          filename: paramPath,
+        })
+        cache.paths.set(paramPath, content)
+      } catch (error) {
+        cache = undefined
+        throw error
+      }
     }
   }
 
