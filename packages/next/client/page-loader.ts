@@ -12,6 +12,7 @@ import { removePathTrailingSlash } from './normalize-trailing-slash'
 import {
   createRouteLoader,
   getClientBuildManifest,
+  getMiddlewareManifest,
   RouteLoader,
 } from './route-loader'
 
@@ -37,6 +38,7 @@ export default class PageLoader {
 
   private promisedSsgManifest?: Promise<ClientSsgManifest>
   private promisedDevPagesManifest?: Promise<any>
+  private promisedMiddlewareManifest?: Promise<string[]>
   public routeLoader: RouteLoader
 
   constructor(buildId: string, assetPrefix: string) {
@@ -78,6 +80,31 @@ export default class PageLoader {
             })
         }
         return this.promisedDevPagesManifest
+      }
+    }
+  }
+
+  getMiddlewareList(): Promise<string[]> {
+    if (process.env.NODE_ENV === 'production') {
+      return getMiddlewareManifest()
+    } else {
+      if ((window as any).__DEV_MIDDLEWARE_MANIFEST) {
+        return (window as any).__DEV_MIDDLEWARE_MANIFEST
+      } else {
+        if (!this.promisedMiddlewareManifest) {
+          this.promisedMiddlewareManifest = fetch(
+            `${this.assetPrefix}/_next/static/${this.buildId}/_devMiddlewareManifest.json`
+          )
+            .then((res) => res.json())
+            .then((manifest) => {
+              ;(window as any).__DEV_MIDDLEWARE_MANIFEST = manifest
+              return manifest
+            })
+            .catch((err) => {
+              console.log(`Failed to fetch _devMiddlewareManifest`, err)
+            })
+        }
+        return this.promisedMiddlewareManifest
       }
     }
   }

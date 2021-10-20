@@ -109,7 +109,7 @@ export type GetStaticPropsContext<
 export type GetStaticPropsResult<P> =
   | { props: P; revalidate?: number | boolean }
   | { redirect: Redirect; revalidate?: number | boolean }
-  | { notFound: true }
+  | { notFound: true; revalidate?: number | boolean }
 
 export type GetStaticProps<
   P extends { [key: string]: any } = { [key: string]: any },
@@ -182,5 +182,28 @@ export type InferGetServerSidePropsType<T> = T extends GetServerSideProps<
     ) => Promise<GetServerSidePropsResult<infer P>>
   ? P
   : never
+
+declare global {
+  interface Crypto {
+    readonly subtle: SubtleCrypto
+    getRandomValues<
+      T extends
+        | Int8Array
+        | Int16Array
+        | Int32Array
+        | Uint8Array
+        | Uint16Array
+        | Uint32Array
+        | Uint8ClampedArray
+        | Float32Array
+        | Float64Array
+        | DataView
+        | null
+    >(
+      array: T
+    ): T
+    randomUUID?(): string
+  }
+}
 
 export default next

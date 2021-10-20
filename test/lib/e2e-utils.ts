@@ -96,29 +96,37 @@ export async function createNext(opts: {
   nextConfig?: NextConfig
   skipStart?: boolean
 }): Promise<NextInstance> {
-  if (nextInstance) {
-    throw new Error(`createNext called without destroying previous instance`)
+  try {
+    if (nextInstance) {
+      throw new Error(`createNext called without destroying previous instance`)
+    }
+
+    if (testMode === 'dev') {
+      // next dev
+      nextInstance = new NextDevInstance(opts)
+    } else if (testMode === 'deploy') {
+      // Vercel
+      throw new Error('to-implement')
+    } else {
+      // next build + next start
+      nextInstance = new NextStartInstance(opts)
+    }
+
+    nextInstance.on('destroy', () => {
+      nextInstance = undefined
+    })
+
+    await nextInstance.setup()
+
+    if (!opts.skipStart) {
+      await nextInstance.start()
+    }
+    return nextInstance!
+  } catch (err) {
+    console.error('Failed to create next instance', err)
+    try {
+      await nextInstance.destroy()
+    } catch (_) {}
+    process.exit(1)
   }
-
-  if (testMode === 'dev') {
-    // next dev
-    nextInstance = new NextDevInstance(opts)
-  } else if (testMode === 'deploy') {
-    // Vercel
-    throw new Error('to-implement')
-  } else {
-    // next build + next start
-    nextInstance = new NextStartInstance(opts)
-  }
-
-  nextInstance.on('destroy', () => {
-    nextInstance = undefined
-  })
-
-  await nextInstance.setup()
-
-  if (!opts.skipStart) {
-    await nextInstance.start()
-  }
-  return nextInstance!
 }

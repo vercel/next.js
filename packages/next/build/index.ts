@@ -13,6 +13,7 @@ import formatWebpackMessages from '../client/dev/error-overlay/format-webpack-me
 import {
   STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR,
   PUBLIC_DIR_MIDDLEWARE_CONFLICT,
+  MIDDLEWARE_ROUTE,
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
 import { findPagesDir } from '../lib/find-pages-dir'
@@ -46,6 +47,7 @@ import {
   SERVER_DIRECTORY,
   SERVER_FILES_MANIFEST,
   STATIC_STATUS_PAGES,
+  MIDDLEWARE_MANIFEST,
 } from '../shared/lib/constants'
 import {
   getRouteRegex,
@@ -63,8 +65,11 @@ import {
   eventBuildCompleted,
   eventBuildOptimize,
   eventCliSession,
+  eventBuildFeatureUsage,
   eventNextPlugins,
   eventTypeCheckCompleted,
+  EVENT_BUILD_FEATURE_USAGE,
+  EventBuildFeatureUsage,
 } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
 import { CompilerResult, runCompiler } from './compiler'
@@ -88,9 +93,12 @@ import getBaseWebpackConfig from './webpack-config'
 import { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
 import { writeBuildId } from './write-build-id'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
-import { isWebpack5 } from 'next/dist/compiled/webpack/webpack'
 import { NextConfigComplete } from '../server/config-shared'
 import isError from '../lib/is-error'
+import { TelemetryPlugin } from './webpack/plugins/telemetry-plugin'
+import { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
+
+const RESERVED_PAGE = /^\/(_app|_error|_document|api(\/|$))/
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -132,6 +140,7 @@ export default async function build(
       .traceChild('load-next-config')
       .traceAsyncFn(() => loadConfig(PHASE_PRODUCTION_BUILD, dir, conf))
     const distDir = path.join(dir, config.distDir)
+    setGlobal('phase', PHASE_PRODUCTION_BUILD)
     setGlobal('distDir', distDir)
 
     const { target } = config
@@ -166,8 +175,8 @@ export default async function build(
     const hasPublicDir = await fileExists(publicDir)
 
     telemetry.record(
-      eventCliSession(PHASE_PRODUCTION_BUILD, dir, {
-        webpackVersion: isWebpack5 ? 5 : 4,
+      eventCliSession(dir, config, {
+        webpackVersion: 5,
         cliCommand: 'build',
         isSrcDir: path.relative(dir, pagesDir!).startsWith('src'),
         hasNowJson: !!(await findUp('now.json', { cwd: dir })),
@@ -260,7 +269,7 @@ export default async function build(
     const mappedPages = nextBuildSpan
       .traceChild('create-pages-mapping')
       .traceFn(() =>
-        createPagesMapping(pagePaths, config.pageExtensions, isWebpack5, false)
+        createPagesMapping(pagePaths, config.pageExtensions, false)
       )
     const entrypoints = nextBuildSpan
       .traceChild('create-entrypoints')
@@ -390,6 +399,12 @@ export default async function build(
             fallback: Array<ReturnType<typeof buildCustomRoute>>
           }
       headers: Array<ReturnType<typeof buildCustomRoute>>
+      staticRoutes: Array<{
+        page: string
+        regex: string
+        namedRegex?: string
+        routeKeys?: { [key: string]: string }
+      }>
       dynamicRoutes: Array<{
         page: string
         regex: string
@@ -420,16 +435,16 @@ export default async function build(
       redirects: redirects.map((r: any) => buildCustomRoute(r, 'redirect')),
       headers: headers.map((r: any) => buildCustomRoute(r, 'header')),
       dynamicRoutes: getSortedRoutes(pageKeys)
-        .filter(isDynamicRoute)
-        .map((page) => {
-          const routeRegex = getRouteRegex(page)
-          return {
-            page,
-            regex: normalizeRouteRegex(routeRegex.re.source),
-            routeKeys: routeRegex.routeKeys,
-            namedRegex: routeRegex.namedRegex,
-          }
-        }),
+        .filter((page) => isDynamicRoute(page) && !page.match(MIDDLEWARE_ROUTE))
+        .map(pageToRoute),
+      staticRoutes: getSortedRoutes(pageKeys)
+        .filter(
+          (page) =>
+            !isDynamicRoute(page) &&
+            !page.match(MIDDLEWARE_ROUTE) &&
+            !page.match(RESERVED_PAGE)
+        )
+        .map(pageToRoute),
       dataRoutes: [],
       i18n: config.i18n || undefined,
     }))
@@ -676,7 +691,7 @@ export default async function build(
       await promises.readFile(buildManifestPath, 'utf8')
     ) as BuildManifest
 
-    const timeout = config.experimental.staticPageGenerationTimeout || 0
+    const timeout = config.staticPageGenerationTimeout || 0
     const sharedPool = config.experimental.sharedPool || false
     const staticWorker = sharedPool
       ? require.resolve('./worker')
@@ -829,11 +844,7 @@ export default async function build(
             let isHybridAmp = false
             let ssgPageRoutes: string[] | null = null
 
-            const nonReservedPage = !page.match(
-              /^\/(_app|_error|_document|api(\/|$))/
-            )
-
-            if (nonReservedPage) {
+            if (!page.match(MIDDLEWARE_ROUTE) && !page.match(RESERVED_PAGE)) {
               try {
                 let isPageStaticSpan =
                   checkPageSpan.traceChild('is-page-static')
@@ -1134,6 +1145,15 @@ export default async function build(
         ...cssFilePaths.map((filePath) => path.join(config.distDir, filePath))
       )
     }
+
+    const optimizeCss: EventBuildFeatureUsage = {
+      featureName: 'experimental/optimizeCss',
+      invocationCount: config.experimental.optimizeCss ? 1 : 0,
+    }
+    telemetry.record({
+      eventName: EVENT_BUILD_FEATURE_USAGE,
+      payload: optimizeCss,
+    })
 
     await promises.writeFile(
       path.join(distDir, SERVER_FILES_MANIFEST),
@@ -1486,17 +1506,15 @@ export default async function build(
                 for (const locale of i18n.locales) {
                   const localePage = `/${locale}${page === '/' ? '' : page}`
 
-                  if (!ssgNotFoundPaths.includes(localePage)) {
-                    finalPrerenderRoutes[localePage] = {
-                      initialRevalidateSeconds:
-                        exportConfig.initialPageRevalidationMap[localePage],
-                      srcRoute: null,
-                      dataRoute: path.posix.join(
-                        '/_next/data',
-                        buildId,
-                        `${file}.json`
-                      ),
-                    }
+                  finalPrerenderRoutes[localePage] = {
+                    initialRevalidateSeconds:
+                      exportConfig.initialPageRevalidationMap[localePage],
+                    srcRoute: null,
+                    dataRoute: path.posix.join(
+                      '/_next/data',
+                      buildId,
+                      `${file}.json`
+                    ),
                   }
                 }
               } else {
@@ -1618,6 +1636,12 @@ export default async function build(
       })
     )
 
+    const telemetryPlugin = clientConfig.plugins?.find(isTelemetryPlugin)
+    if (telemetryPlugin) {
+      const events = eventBuildFeatureUsage(telemetryPlugin)
+      telemetry.record(events)
+    }
+
     if (ssgPages.size > 0) {
       const finalDynamicRoutes: PrerenderManifest['dynamicRoutes'] = {}
       tbdPrerenderRoutes.forEach((tbdRoute) => {
@@ -1676,6 +1700,25 @@ export default async function build(
         'utf8'
       )
     }
+
+    const middlewareManifest: MiddlewareManifest = JSON.parse(
+      await promises.readFile(
+        path.join(distDir, SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
+        'utf8'
+      )
+    )
+
+    await promises.writeFile(
+      path.join(
+        distDir,
+        CLIENT_STATIC_FILES_PATH,
+        buildId,
+        '_middlewareManifest.js'
+      ),
+      `self.__MIDDLEWARE_MANIFEST=${devalue(
+        middlewareManifest.sortedMiddleware
+      )};self.__MIDDLEWARE_MANIFEST_CB&&self.__MIDDLEWARE_MANIFEST_CB()`
+    )
 
     const images = { ...config.images }
     const { deviceSizes, imageSizes } = images
@@ -1775,4 +1818,18 @@ function generateClientSsgManifest(
     path.join(distDir, CLIENT_STATIC_FILES_PATH, buildId, '_ssgManifest.js'),
     clientSsgManifestContent
   )
+}
+
+function isTelemetryPlugin(plugin: unknown): plugin is TelemetryPlugin {
+  return plugin instanceof TelemetryPlugin
+}
+
+function pageToRoute(page: string) {
+  const routeRegex = getRouteRegex(page)
+  return {
+    page,
+    regex: normalizeRouteRegex(routeRegex.re.source),
+    routeKeys: routeRegex.routeKeys,
+    namedRegex: routeRegex.namedRegex,
+  }
 }

@@ -2,16 +2,19 @@ import chalk from 'chalk'
 import { posix, join } from 'path'
 import { stringify } from 'querystring'
 import { API_ROUTE, DOT_NEXT_ALIAS, PAGES_DIR_ALIAS } from '../lib/constants'
+import { MIDDLEWARE_ROUTE } from '../lib/constants'
 import { __ApiPreviewProps } from '../server/api-utils'
 import { isTargetLikeServerless } from '../server/config'
 import { normalizePagePath } from '../server/normalize-page-path'
 import { warn } from './output/log'
+import { MiddlewareLoaderOptions } from './webpack/loaders/next-middleware-loader'
 import { ClientPagesLoaderOptions } from './webpack/loaders/next-client-pages-loader'
 import { ServerlessLoaderQuery } from './webpack/loaders/next-serverless-loader'
 import { LoadedEnvFiles } from '@next/env'
 import { NextConfigComplete } from '../server/config-shared'
 import type webpack5 from 'webpack5'
 
+type ObjectValue<T> = T extends { [key: string]: infer V } ? V : never
 type PagesMapping = {
   [page: string]: string
 }
@@ -19,7 +22,6 @@ type PagesMapping = {
 export function createPagesMapping(
   pagePaths: string[],
   extensions: string[],
-  isWebpack5: boolean,
   isDev: boolean
 ): PagesMapping {
   const previousPages: PagesMapping = {}
@@ -51,7 +53,7 @@ export function createPagesMapping(
   // we alias these in development and allow webpack to
   // allow falling back to the correct source file so
   // that HMR can work properly when a file is added/removed
-  if (isWebpack5 && isDev) {
+  if (isDev) {
     pages['/_app'] = `${PAGES_DIR_ALIAS}/_app`
     pages['/_error'] = `${PAGES_DIR_ALIAS}/_error`
     pages['/_document'] = `${PAGES_DIR_ALIAS}/_document`
@@ -119,6 +121,18 @@ export function createEntrypoints(
 
     const isLikeServerless = isTargetLikeServerless(target)
 
+    if (page.match(MIDDLEWARE_ROUTE)) {
+      const loaderOpts: MiddlewareLoaderOptions = {
+        absolutePagePath: pages[page],
+        page,
+      }
+
+      client[clientBundlePath] = `next-middleware-loader?${stringify(
+        loaderOpts
+      )}!`
+      return
+    }
+
     if (isApiRoute && isLikeServerless) {
       const serverlessLoaderOptions: ServerlessLoaderQuery = {
         page,
@@ -171,57 +185,56 @@ export function createEntrypoints(
   }
 }
 
-export function finalizeEntrypoint(
-  name: string,
-  value: any,
-  isServer: boolean,
-  isWebpack5: boolean
-): any {
-  if (isWebpack5) {
-    if (isServer) {
-      const isApi = name.startsWith('pages/api/')
-      const runtime = isApi ? 'webpack-api-runtime' : 'webpack-runtime'
-      const layer = isApi ? 'api' : undefined
-      const publicPath = isApi ? '' : undefined
-      if (typeof value === 'object' && !Array.isArray(value)) {
-        return {
-          publicPath,
-          runtime,
-          layer,
-          ...value,
-        }
-      } else {
-        return {
-          import: value,
-          publicPath,
-          runtime,
-          layer,
-        }
-      }
-    } else {
-      if (
-        name !== 'polyfills' &&
-        name !== 'main' &&
-        name !== 'amp' &&
-        name !== 'react-refresh'
-      ) {
-        const dependOn =
-          name.startsWith('pages/') && name !== 'pages/_app'
-            ? 'pages/_app'
-            : 'main'
-        if (typeof value === 'object' && !Array.isArray(value)) {
-          return {
-            dependOn,
-            ...value,
-          }
-        } else {
-          return {
-            import: value,
-            dependOn,
-          }
-        }
-      }
+export function finalizeEntrypoint({
+  name,
+  value,
+  isServer,
+}: {
+  isServer: boolean
+  name: string
+  value: ObjectValue<webpack5.EntryObject>
+}): ObjectValue<webpack5.EntryObject> {
+  const entry =
+    typeof value !== 'object' || Array.isArray(value)
+      ? { import: value }
+      : value
+
+  if (isServer) {
+    const isApi = name.startsWith('pages/api/')
+    return {
+      publicPath: isApi ? '' : undefined,
+      runtime: isApi ? 'webpack-api-runtime' : 'webpack-runtime',
+      layer: isApi ? 'api' : undefined,
+      ...entry,
     }
   }
-  return value
+
+  if (name.match(MIDDLEWARE_ROUTE)) {
+    return {
+      filename: 'server/[name].js',
+      layer: 'middleware',
+      library: {
+        name: ['_ENTRIES', `middleware_[name]`],
+        type: 'assign',
+      },
+      ...entry,
+    }
+  }
+
+  if (
+    name !== 'polyfills' &&
+    name !== 'main' &&
+    name !== 'amp' &&
+    name !== 'react-refresh'
+  ) {
+    return {
+      dependOn:
+        name.startsWith('pages/') && name !== 'pages/_app'
+          ? 'pages/_app'
+          : 'main',
+      ...entry,
+    }
+  }
+
+  return entry
 }

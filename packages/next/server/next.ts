@@ -22,7 +22,7 @@ let ServerImpl: typeof Server
 
 const getServerImpl = async () => {
   if (ServerImpl === undefined)
-    ServerImpl = (await import('./next-server')).default
+    ServerImpl = (await Promise.resolve(require('./next-server'))).default
   return ServerImpl
 }
 

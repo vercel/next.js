@@ -1085,6 +1085,7 @@ export async function renderToHTML(
     head: documentResult.head,
     headTags: documentResult.headTags,
     styles: documentResult.styles,
+    useMaybeDeferContent,
   }
   const documentHTML = ReactDOMServer.renderToStaticMarkup(
     <AmpStateContext.Provider value={ampState}>
@@ -1196,9 +1197,13 @@ export async function renderToHTML(
   return new RenderResult(chainPipers(pipers))
 }
 
-function errorToJSON(err: Error): Error {
-  const { name, message, stack } = err
-  return { name, message, stack }
+function errorToJSON(err: Error) {
+  return {
+    name: err.name,
+    message: err.message,
+    stack: err.stack,
+    middleware: (err as any).middleware,
+  }
 }
 
 function serializeError(
@@ -1276,7 +1281,7 @@ function renderToStream(
     })
 
     let resolved = false
-    const doResolve = () => {
+    const doResolve = (startWriting: any) => {
       if (!resolved) {
         resolved = true
         resolve((res, next) => {
@@ -1300,9 +1305,8 @@ function renderToStream(
       }
     }
 
-    const { abort, startWriting } = (ReactDOMServer as any).pipeToNodeWritable(
+    const { abort, pipe } = (ReactDOMServer as any).renderToPipeableStream(
       element,
-      stream,
       {
         onError(error: Error) {
           if (!resolved) {
@@ -1311,13 +1315,13 @@ function renderToStream(
           }
           abort()
         },
-        onReadyToStream() {
+        onCompleteShell() {
           if (!generateStaticHTML) {
-            doResolve()
+            doResolve(() => pipe(stream))
           }
         },
         onCompleteAll() {
-          doResolve()
+          doResolve(() => pipe(stream))
         },
       }
     )
@@ -1366,4 +1370,11 @@ function piperToString(input: NodeWritablePiper): Promise<string> {
       }
     })
   })
+}
+
+export function useMaybeDeferContent(
+  _name: string,
+  contentFn: () => JSX.Element
+): [boolean, JSX.Element] {
+  return [false, contentFn()]
 }

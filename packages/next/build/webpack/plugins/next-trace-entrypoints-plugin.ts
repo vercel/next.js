@@ -2,13 +2,18 @@ import nodePath from 'path'
 import { Span } from '../../../trace'
 import { spans } from './profiling-plugin'
 import isError from '../../../lib/is-error'
-import { nodeFileTrace } from 'next/dist/compiled/@vercel/nft'
-import { TRACE_OUTPUT_VERSION } from '../../../shared/lib/constants'
 import {
-  webpack,
-  isWebpack5,
-  sources,
-} from 'next/dist/compiled/webpack/webpack'
+  nodeFileTrace,
+  NodeFileTraceReasons,
+} from 'next/dist/compiled/@vercel/nft'
+import { TRACE_OUTPUT_VERSION } from '../../../shared/lib/constants'
+import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
+import {
+  nextImageLoaderRegex,
+  NODE_ESM_RESOLVE_OPTIONS,
+  NODE_RESOLVE_OPTIONS,
+} from '../../webpack-config'
+import { NextConfigComplete } from '../../../server/config-shared'
 
 const PLUGIN_NAME = 'TraceEntryPointsPlugin'
 const TRACE_IGNORES = [
@@ -22,28 +27,36 @@ function getModuleFromDependency(
   compilation: any,
   dep: any
 ): webpack.Module & { resource?: string } {
-  if (isWebpack5) {
-    return compilation.moduleGraph.getModule(dep)
-  }
-
-  return dep.module
+  return compilation.moduleGraph.getModule(dep)
 }
 
 export class TraceEntryPointsPlugin implements webpack.Plugin {
   private appDir: string
-  private entryTraces: Map<string, string[]>
+  private entryTraces: Map<string, Set<string>>
   private excludeFiles: string[]
+  private esmExternals?: NextConfigComplete['experimental']['esmExternals']
+  private staticImageImports?: boolean
+  private externalDir?: boolean
 
   constructor({
     appDir,
     excludeFiles,
+    esmExternals,
+    staticImageImports,
+    externalDir,
   }: {
     appDir: string
     excludeFiles?: string[]
+    externalDir?: boolean
+    staticImageImports: boolean
+    esmExternals?: NextConfigComplete['experimental']['esmExternals']
   }) {
     this.appDir = appDir
     this.entryTraces = new Map()
+    this.externalDir = externalDir
+    this.esmExternals = esmExternals
     this.excludeFiles = excludeFiles || []
+    this.staticImageImports = staticImageImports
   }
 
   // Here we output all traced assets and webpack chunks to a
@@ -67,15 +80,8 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
           }
         }
         // don't include the entry itself in the trace
-        entryFiles.delete(
-          nodePath.join(
-            outputPath,
-            `${isWebpack5 ? '../' : ''}${entrypoint.name}.js`
-          )
-        )
-        const traceOutputName = `${isWebpack5 ? '../' : ''}${
-          entrypoint.name
-        }.js.nft.json`
+        entryFiles.delete(nodePath.join(outputPath, `../${entrypoint.name}.js`))
+        const traceOutputName = `../${entrypoint.name}.js.nft.json`
         const traceOutputPath = nodePath.dirname(
           nodePath.join(outputPath, traceOutputName)
         )
@@ -99,7 +105,13 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
 
   tapfinishModules(
     compilation: webpack.compilation.Compilation,
-    traceEntrypointsPluginSpan: Span
+    traceEntrypointsPluginSpan: Span,
+    doResolve?: (
+      request: string,
+      parent: string,
+      job: import('@vercel/nft/out/node-file-trace').Job,
+      isEsmRequested: boolean
+    ) => Promise<string>
   ) {
     compilation.hooks.finishModules.tapAsync(
       PLUGIN_NAME,
@@ -139,6 +151,7 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
                           curMap = new Map()
                           additionalEntries.set(name, curMap)
                         }
+                        depModMap.set(entryMod.resource, entryMod)
                         curMap.set(entryMod.resource, entryMod)
                       }
                     }
@@ -216,93 +229,141 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
                   })
                 })
               } catch (e) {
-                if (isError(e) && e.code === 'ENOENT') {
+                if (
+                  isError(e) &&
+                  (e.code === 'ENOENT' || e.code === 'ENOTDIR')
+                ) {
                   return null
                 }
                 throw e
               }
             }
 
-            const nftCache = {}
             const entryPaths = Array.from(entryModMap.keys())
 
-            for (const entry of entryPaths) {
-              const entrySpan = finishModulesSpan.traceChild('entry', { entry })
-              await entrySpan.traceAsyncFn(async () => {
-                depModMap.clear()
-                const entryMod = entryModMap.get(entry)
-                // TODO: investigate caching, will require ensuring no traced
-                // files in the cache have changed, we could potentially hash
-                // all traced files and only leverage the cache if the hashes
-                // match
-                // const cachedTraces = entryMod.buildInfo?.cachedNextEntryTrace
+            const collectDependencies = (mod: any) => {
+              if (!mod || !mod.dependencies) return
 
-                // Use cached trace if available and trace version matches
-                // if (
-                //   isWebpack5 &&
-                //   cachedTraces &&
-                //   cachedTraces.version === TRACE_OUTPUT_VERSION
-                // ) {
-                //   this.entryTraces.set(
-                //     entryNameMap.get(entry)!,
-                //     cachedTraces.tracedDeps
-                //   )
-                //   continue
-                // }
-                const collectDependencies = (mod: any) => {
-                  if (!mod || !mod.dependencies) return
+              for (const dep of mod.dependencies) {
+                const depMod = getModuleFromDependency(compilation, dep)
 
-                  for (const dep of mod.dependencies) {
-                    const depMod = getModuleFromDependency(compilation, dep)
+                if (depMod?.resource && !depModMap.get(depMod.resource)) {
+                  depModMap.set(depMod.resource, depMod)
+                  collectDependencies(depMod)
+                }
+              }
+            }
+            const entriesToTrace = [...entryPaths]
 
-                    if (depMod?.resource && !depModMap.get(depMod.resource)) {
-                      depModMap.set(depMod.resource, depMod)
-                      collectDependencies(depMod)
-                    }
+            entryPaths.forEach((entry) => {
+              collectDependencies(entryModMap.get(entry))
+              const entryName = entryNameMap.get(entry)!
+              const curExtraEntries = additionalEntries.get(entryName)
+
+              if (curExtraEntries) {
+                entriesToTrace.push(...curExtraEntries.keys())
+              }
+            })
+            let fileList: Set<string>
+            let reasons: NodeFileTraceReasons
+            const root = nodePath.parse(process.cwd()).root
+
+            await finishModulesSpan
+              .traceChild('node-file-trace', {
+                traceEntryCount: entriesToTrace.length + '',
+              })
+              .traceAsyncFn(async () => {
+                const result = await nodeFileTrace(entriesToTrace, {
+                  base: root,
+                  processCwd: this.appDir,
+                  readFile,
+                  readlink,
+                  stat,
+                  resolve: doResolve
+                    ? (id, parent, job, isCjs) =>
+                        // @ts-ignore
+                        doResolve(id, parent, job, !isCjs)
+                    : undefined,
+                  ignore: [...TRACE_IGNORES, ...this.excludeFiles],
+                  mixedModules: true,
+                })
+                // @ts-ignore
+                fileList = result.fileList
+                result.esmFileList.forEach((file) => fileList.add(file))
+                reasons = result.reasons
+              })
+
+            // this uses the reasons tree to collect files specific to a certain
+            // parent allowing us to not have to trace each parent separately
+            const parentFilesMap = new Map<string, Set<string>>()
+
+            function propagateToParents(
+              parents: Set<string>,
+              file: string,
+              seen = new Set<string>()
+            ) {
+              for (const parent of parents || []) {
+                if (!seen.has(parent)) {
+                  seen.add(parent)
+                  let parentFiles = parentFilesMap.get(parent)
+
+                  if (!parentFiles) {
+                    parentFiles = new Set()
+                    parentFilesMap.set(parent, parentFiles)
+                  }
+                  parentFiles.add(file)
+                  const parentReason = reasons.get(parent)
+
+                  if (parentReason?.parents) {
+                    propagateToParents(parentReason.parents, file, seen)
                   }
                 }
-                collectDependencies(entryMod)
+              }
+            }
 
-                const toTrace: string[] = [entry, ...depModMap.keys()]
+            await finishModulesSpan
+              .traceChild('collect-traced-files')
+              .traceAsyncFn(() => {
+                for (const file of fileList!) {
+                  const reason = reasons!.get(file)
 
-                const entryName = entryNameMap.get(entry)!
-                const curExtraEntries = additionalEntries.get(entryName)
-
-                if (curExtraEntries) {
-                  toTrace.push(...curExtraEntries.keys())
-                }
-
-                const root = nodePath.parse(process.cwd()).root
-                const fileTraceSpan = entrySpan.traceChild('node-file-trace')
-                const result = await fileTraceSpan.traceAsyncFn(() =>
-                  nodeFileTrace(toTrace, {
-                    base: root,
-                    cache: nftCache,
-                    processCwd: this.appDir,
-                    readFile,
-                    readlink,
-                    stat,
-                    ignore: [...TRACE_IGNORES, ...this.excludeFiles],
-                    mixedModules: true,
-                  })
-                )
-
-                const tracedDeps: string[] = []
-
-                for (const file of result.fileList) {
-                  if (result.reasons[file].type === 'initial') {
+                  if (
+                    !reason ||
+                    !reason.parents ||
+                    (reason.type === 'initial' && reason.parents.size === 0)
+                  ) {
                     continue
                   }
-                  tracedDeps.push(nodePath.join(root, file))
+                  propagateToParents(reason.parents, file)
                 }
 
-                // entryMod.buildInfo.cachedNextEntryTrace = {
-                //   version: TRACE_OUTPUT_VERSION,
-                //   tracedDeps,
-                // }
-                this.entryTraces.set(entryName, tracedDeps)
+                entryPaths.forEach((entry) => {
+                  const entryName = entryNameMap.get(entry)!
+                  const normalizedEntry = nodePath.relative(root, entry)
+                  const curExtraEntries = additionalEntries.get(entryName)
+                  const finalDeps = new Set<string>()
+
+                  parentFilesMap.get(normalizedEntry)?.forEach((dep) => {
+                    finalDeps.add(nodePath.join(root, dep))
+                  })
+
+                  if (curExtraEntries) {
+                    for (const extraEntry of curExtraEntries.keys()) {
+                      const normalizedExtraEntry = nodePath.relative(
+                        root,
+                        extraEntry
+                      )
+                      finalDeps.add(extraEntry)
+                      parentFilesMap
+                        .get(normalizedExtraEntry)
+                        ?.forEach((dep) => {
+                          finalDeps.add(nodePath.join(root, dep))
+                        })
+                    }
+                  }
+                  this.entryTraces.set(entryName, finalDeps)
+                })
               })
-            }
           })
           .then(
             () => callback(),
@@ -313,56 +374,168 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
   }
 
   apply(compiler: webpack.Compiler) {
-    if (isWebpack5) {
-      compiler.hooks.compilation.tap(PLUGIN_NAME, (compilation) => {
-        const compilationSpan = spans.get(compilation) || spans.get(compiler)!
-        const traceEntrypointsPluginSpan = compilationSpan.traceChild(
-          'next-trace-entrypoint-plugin'
+    compiler.hooks.compilation.tap(PLUGIN_NAME, (compilation) => {
+      const compilationSpan = spans.get(compilation) || spans.get(compiler)!
+      const traceEntrypointsPluginSpan = compilationSpan.traceChild(
+        'next-trace-entrypoint-plugin'
+      )
+      traceEntrypointsPluginSpan.traceFn(() => {
+        // @ts-ignore TODO: Remove ignore when webpack 5 is stable
+        compilation.hooks.processAssets.tap(
+          {
+            name: PLUGIN_NAME,
+            // @ts-ignore TODO: Remove ignore when webpack 5 is stable
+            stage: webpack.Compilation.PROCESS_ASSETS_STAGE_SUMMARIZE,
+          },
+          (assets: any) => {
+            this.createTraceAssets(
+              compilation,
+              assets,
+              traceEntrypointsPluginSpan
+            )
+          }
         )
-        traceEntrypointsPluginSpan.traceFn(() => {
-          // @ts-ignore TODO: Remove ignore when webpack 5 is stable
-          compilation.hooks.processAssets.tap(
-            {
-              name: PLUGIN_NAME,
-              // @ts-ignore TODO: Remove ignore when webpack 5 is stable
-              stage: webpack.Compilation.PROCESS_ASSETS_STAGE_SUMMARIZE,
-            },
-            (assets: any) => {
-              this.createTraceAssets(
-                compilation,
-                assets,
-                traceEntrypointsPluginSpan
+        let resolver = compilation.resolverFactory.get('normal')
+
+        function getPkgName(name: string) {
+          const segments = name.split('/')
+          if (name[0] === '@' && segments.length > 1)
+            return segments.length > 1 ? segments.slice(0, 2).join('/') : null
+          return segments.length ? segments[0] : null
+        }
+
+        const getResolve = (options: any) => {
+          const curResolver = resolver.withOptions(options)
+
+          return (
+            parent: string,
+            request: string,
+            job: import('@vercel/nft/out/node-file-trace').Job
+          ) =>
+            new Promise<string>((resolve, reject) => {
+              const context = nodePath.dirname(parent)
+
+              curResolver.resolve(
+                {},
+                context,
+                request,
+                {
+                  fileDependencies: compilation.fileDependencies,
+                  missingDependencies: compilation.missingDependencies,
+                  contextDependencies: compilation.contextDependencies,
+                },
+                async (err: any, result: string, resContext: any) => {
+                  if (err) return reject(err)
+
+                  if (!result) {
+                    return reject(new Error('module not found'))
+                  }
+
+                  try {
+                    // we need to collect all parent package.json's used
+                    // as webpack's resolve doesn't expose this and parent
+                    // package.json could be needed for resolving e.g. stylis
+                    // stylis/package.json -> stylis/dist/umd/package.json
+                    if (result.includes('node_modules')) {
+                      let requestPath = result.replace(/\\/g, '/')
+
+                      if (
+                        !nodePath.isAbsolute(request) &&
+                        request.includes('/') &&
+                        resContext?.descriptionFileRoot
+                      ) {
+                        requestPath = (
+                          resContext.descriptionFileRoot +
+                          request.substr(getPkgName(request)?.length || 0) +
+                          nodePath.sep +
+                          'package.json'
+                        ).replace(/\\/g, '/')
+                      }
+
+                      const rootSeparatorIndex = requestPath.indexOf('/')
+                      let separatorIndex: number
+                      while (
+                        (separatorIndex = requestPath.lastIndexOf('/')) >
+                        rootSeparatorIndex
+                      ) {
+                        requestPath = requestPath.substr(0, separatorIndex)
+                        const curPackageJsonPath = `${requestPath}/package.json`
+                        if (await job.isFile(curPackageJsonPath)) {
+                          await job.emitFile(
+                            curPackageJsonPath,
+                            'resolve',
+                            parent
+                          )
+                        }
+                      }
+                    }
+                  } catch (_err) {
+                    // we failed to resolve the package.json boundary,
+                    // we don't block emitting the initial asset from this
+                  }
+                  resolve(result)
+                }
               )
-            }
-          )
+            })
+        }
 
-          this.tapfinishModules(compilation, traceEntrypointsPluginSpan)
-        })
-      })
-    } else {
-      compiler.hooks.emit.tap(PLUGIN_NAME, (compilation: any) => {
-        const compilationSpan = spans.get(compilation)! || spans.get(compiler)
-        const traceEntrypointsPluginSpan = compilationSpan.traceChild(
-          'next-trace-entrypoint-plugin'
-        )
-        traceEntrypointsPluginSpan.traceFn(() => {
-          this.createTraceAssets(
-            compilation,
-            compilation.assets,
-            traceEntrypointsPluginSpan
-          )
-        })
-      })
+        const CJS_RESOLVE_OPTIONS = {
+          ...NODE_RESOLVE_OPTIONS,
+          extensions: undefined,
+        }
+        const ESM_RESOLVE_OPTIONS = {
+          ...NODE_ESM_RESOLVE_OPTIONS,
+          extensions: undefined,
+        }
 
-      compiler.hooks.compilation.tap(PLUGIN_NAME, (compilation) => {
-        const compilationSpan = spans.get(compilation)! || spans.get(compiler)
-        const traceEntrypointsPluginSpan = compilationSpan.traceChild(
-          'next-trace-entrypoint-plugin'
-        )
-        traceEntrypointsPluginSpan.traceFn(() =>
-          this.tapfinishModules(compilation, traceEntrypointsPluginSpan)
+        const doResolve = async (
+          request: string,
+          parent: string,
+          job: import('@vercel/nft/out/node-file-trace').Job,
+          isEsmRequested: boolean
+        ): Promise<string> => {
+          if (this.staticImageImports && nextImageLoaderRegex.test(request)) {
+            throw new Error(
+              `not resolving ${request} as this is handled by next-image-loader`
+            )
+          }
+          // When in esm externals mode, and using import, we resolve with
+          // ESM resolving options.
+          const esmExternals = this.esmExternals
+          const looseEsmExternals = this.esmExternals === 'loose'
+          const preferEsm = esmExternals && isEsmRequested
+          const resolve = getResolve(
+            preferEsm ? ESM_RESOLVE_OPTIONS : CJS_RESOLVE_OPTIONS
+          )
+          // Resolve the import with the webpack provided context, this
+          // ensures we're resolving the correct version when multiple
+          // exist.
+          let res: string = ''
+          try {
+            res = await resolve(parent, request, job)
+          } catch (_) {}
+
+          // If resolving fails, and we can use an alternative way
+          // try the alternative resolving options.
+          if (!res && (isEsmRequested || looseEsmExternals)) {
+            const resolveAlternative = getResolve(
+              preferEsm ? CJS_RESOLVE_OPTIONS : ESM_RESOLVE_OPTIONS
+            )
+            res = await resolveAlternative(parent, request, job)
+          }
+
+          if (!res) {
+            throw new Error(`failed to resolve ${request} from ${parent}`)
+          }
+          return res
+        }
+
+        this.tapfinishModules(
+          compilation,
+          traceEntrypointsPluginSpan,
+          doResolve
         )
       })
-    }
+    })
   }
 }

@@ -9,6 +9,8 @@ import {
 export type NextConfigComplete = Required<NextConfig> & {
   images: ImageConfigComplete
   typescript: Required<TypeScriptConfig>
+  configOrigin?: string
+  configFile?: string
 }
 
 export interface I18NConfig {
@@ -112,6 +114,7 @@ export type NextConfig = { [key: string]: any } & {
     webpack5?: false
     strictPostcssConfiguration?: boolean
   }
+  staticPageGenerationTimeout?: number
   crossOrigin?: false | 'anonymous' | 'use-credentials'
   experimental?: {
     swcMinify?: boolean
@@ -127,7 +130,6 @@ export type NextConfig = { [key: string]: any } & {
     optimizeImages?: boolean
     optimizeCss?: boolean
     scrollRestoration?: boolean
-    stats?: boolean
     externalDir?: boolean
     conformance?: boolean
     amp?: {
@@ -140,10 +142,11 @@ export type NextConfig = { [key: string]: any } & {
     gzipSize?: boolean
     craCompat?: boolean
     esmExternals?: boolean | 'loose'
-    staticPageGenerationTimeout?: number
     isrMemoryCacheSize?: number
     outputFileTracing?: boolean
     concurrentFeatures?: boolean
+    serverComponents?: boolean
+    fullySpecified?: boolean
   }
 }
 
@@ -175,7 +178,7 @@ export const defaultConfig: NextConfig = {
     buildActivity: true,
   },
   onDemandEntries: {
-    maxInactiveAge: 60 * 1000,
+    maxInactiveAge: 15 * 1000,
     pagesBufferLength: 2,
   },
   amp: {
@@ -187,8 +190,7 @@ export const defaultConfig: NextConfig = {
   i18n: null,
   productionBrowserSourceMaps: false,
   optimizeFonts: true,
-  webpack5:
-    Number(process.env.NEXT_PRIVATE_TEST_WEBPACK4_MODE) > 0 ? false : undefined,
+  webpack5: undefined,
   excludeDefaultMomentLocales: true,
   serverRuntimeConfig: {},
   publicRuntimeConfig: {},
@@ -196,6 +198,7 @@ export const defaultConfig: NextConfig = {
   httpAgentOptions: {
     keepAlive: true,
   },
+  staticPageGenerationTimeout: 60,
   experimental: {
     swcLoader: false,
     swcMinify: false,
@@ -204,7 +207,7 @@ export const defaultConfig: NextConfig = {
       (Number(process.env.CIRCLE_NODE_TOTAL) ||
         (os.cpus() || { length: 1 }).length) - 1
     ),
-    sharedPool: false,
+    sharedPool: true,
     plugins: false,
     profiling: false,
     isrFlushToDisk: true,
@@ -213,18 +216,18 @@ export const defaultConfig: NextConfig = {
     optimizeImages: false,
     optimizeCss: false,
     scrollRestoration: false,
-    stats: false,
     externalDir: false,
     reactRoot: Number(process.env.NEXT_PRIVATE_REACT_ROOT) > 0,
     disableOptimizedLoading: false,
     gzipSize: true,
     craCompat: false,
-    esmExternals: false,
-    staticPageGenerationTimeout: 60,
+    esmExternals: true,
     // default to 50MB limit
     isrMemoryCacheSize: 50 * 1024 * 1024,
     outputFileTracing: false,
     concurrentFeatures: false,
+    serverComponents: false,
+    fullySpecified: false,
   },
   future: {
     strictPostcssConfiguration: false,
