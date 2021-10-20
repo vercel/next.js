@@ -634,12 +634,14 @@ export default async function build(
         error.indexOf('private-next-pages') > -1 ||
         error.indexOf('__next_polyfill__') > -1
       ) {
-        throw new Error(
-          '> webpack config.resolve.alias was incorrectly overridden. https://nextjs.org/docs/messages/invalid-resolve-alias'
+        const err = new Error(
+          'webpack config.resolve.alias was incorrectly overridden. https://nextjs.org/docs/messages/invalid-resolve-alias'
         )
+        err.code = 'INVALID_RESOLVE_ALIAS'
+        throw err
       }
-      const err = new Error('> Build failed because of webpack errors')
-      err.stack = ''
+      const err = new Error('Build failed because of webpack errors')
+      err.code = 'WEBPACK_ERRORS'
       throw err
     } else {
       telemetry.record(
@@ -1120,7 +1122,7 @@ export default async function build(
       !customAppGetInitialProps && (!hasNonStaticErrorPage || hasPages404)
 
     if (invalidPages.size > 0) {
-      throw new Error(
+      const err = new Error(
         `Build optimization failed: found page${
           invalidPages.size === 1 ? '' : 's'
         } without a React Component as default export in \n${[...invalidPages]
@@ -1129,6 +1131,8 @@ export default async function build(
             '\n'
           )}\n\nSee https://nextjs.org/docs/messages/page-without-valid-component for more info.\n`
       )
+      err.code = 'BUILD_OPTIMIZATION_FAILED'
+      throw err
     }
 
     await writeBuildId(distDir, buildId)
