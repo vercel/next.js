@@ -16,7 +16,7 @@ import {
   GetStaticPaths,
   GetStaticProps,
 } from '../../../../types'
-import accept from '@hapi/accept'
+import { acceptLanguage } from '../../../../server/accept-header'
 import { detectLocaleCookie } from '../../../../shared/lib/i18n/detect-locale-cookie'
 import { detectDomainLocale } from '../../../../shared/lib/i18n/detect-domain-locale'
 import { denormalizePagePath } from '../../../../server/denormalize-page-path'
@@ -358,7 +358,7 @@ export function getUtils({
     try {
       acceptPreferredLocale =
         i18n.localeDetection !== false
-          ? accept.language(req.headers['accept-language'], i18n.locales)
+          ? acceptLanguage(req.headers['accept-language'], i18n.locales)
           : detectedLocale
     } catch (_) {
       acceptPreferredLocale = detectedLocale

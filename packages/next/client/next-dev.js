@@ -52,6 +52,8 @@ initNext({ webpackHMR })
           .catch((err) => {
             console.log(`Failed to fetch devPagesManifest`, err)
           })
+      } else if (event.data.indexOf('middlewareChanges') !== -1) {
+        return window.location.reload()
       } else if (event.data.indexOf('serverOnlyChanges') !== -1) {
         const { pages } = JSON.parse(event.data)
 
