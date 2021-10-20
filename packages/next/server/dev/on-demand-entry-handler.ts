@@ -170,7 +170,7 @@ export default function onDemandEntryHandler(
         throw pageNotFoundError(normalizedPagePath)
       }
 
-      let pageUrl = pagePath.replace(/\\/g, '/')
+      let pageUrl = page.replace(/\\/g, '/')
 
       pageUrl = `${pageUrl[0] !== '/' ? '/' : ''}${pageUrl
         .replace(new RegExp(`\\.+(?:${pageExtensions.join('|')})$`), '')
