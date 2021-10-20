@@ -209,7 +209,7 @@ describe('Production Usage', () => {
 
       expect(parsedData.vm).toBe(105)
       expect(parsedData.hash).toBe(
-        'b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9'
+        'a07a23e124ae01399e287505c2f7b2e69006540de08562de5ddd01fc7bbef3a5'
       )
       expect(parsedData.path).toBe('/hello/world/test.txt')
       expect(parsedData.buffer).toBe('hello world')
