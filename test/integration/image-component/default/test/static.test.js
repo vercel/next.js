@@ -89,6 +89,8 @@ describe('Build Error Tests', () => {
     expect(stderr).toContain(
       "Module not found: Can't resolve '../public/foo/test-rect-broken.jpg"
     )
+    // should contain the importing module
+    expect(stderr).toContain('./pages/index.js')
   })
 })
 describe('Static Image Component Tests', () => {
