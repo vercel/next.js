@@ -13,6 +13,7 @@ import {
   NEXT_PROJECT_ROOT,
   NEXT_PROJECT_ROOT_DIST_CLIENT,
   PAGES_DIR_ALIAS,
+  MIDDLEWARE_ROUTE,
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
 import { getPackageVersion } from '../lib/get-package-version'
@@ -34,6 +35,7 @@ import { finalizeEntrypoint } from './entries'
 import * as Log from './output/log'
 import { build as buildConfiguration } from './webpack/config'
 import { __overrideCssConfiguration } from './webpack/config/blocks/css/overrideCssConfiguration'
+import MiddlewarePlugin from './webpack/plugins/middleware-plugin'
 import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
 import { JsConfigPathsPlugin } from './webpack/plugins/jsconfig-paths-plugin'
 import { DropClientPage } from './webpack/plugins/next-drop-client-page-plugin'
@@ -323,6 +325,20 @@ export default async function getBaseWebpackConfig(
             hasJsxRuntime: true,
           },
         },
+    babelMiddleware: {
+      loader: require.resolve('./babel/loader/index'),
+      options: {
+        cache: false,
+        configFile: babelConfigFile,
+        cwd: dir,
+        development: dev,
+        distDir,
+        hasJsxRuntime: true,
+        hasReactRefresh: false,
+        isServer: true,
+        pagesDir,
+      },
+    },
   }
 
   const babelIncludeRegexes: RegExp[] = [
@@ -576,10 +592,12 @@ export default async function getBaseWebpackConfig(
         // as we don't need a separate vendor chunk from that
         // and all other chunk depend on them so there is no
         // duplication that need to be pulled out.
-        chunks: (chunk) => !/^(polyfills|main|pages\/_app)$/.test(chunk.name),
+        chunks: (chunk) =>
+          !/^(polyfills|main|pages\/_app|\/_middleware)$/.test(chunk.name),
         cacheGroups: {
           framework: {
-            chunks: 'all',
+            chunks: (chunk: webpack.compilation.Chunk) =>
+              !chunk.name?.match(MIDDLEWARE_ROUTE),
             name: 'framework',
             // This regex ignores nested copies of framework libraries so they're
             // bundled with their issuer.
@@ -628,6 +646,12 @@ export default async function getBaseWebpackConfig(
             name: 'commons',
             minChunks: totalPages,
             priority: 20,
+          },
+          middleware: {
+            chunks: (chunk: webpack.compilation.Chunk) =>
+              chunk.name?.match(MIDDLEWARE_ROUTE),
+            filename: 'server/middleware-chunks/[name].js',
+            minChunks: 2,
           },
         },
         maxInitialRequests: 25,
@@ -898,7 +922,7 @@ export default async function getBaseWebpackConfig(
           : ({
               filename: '[name].js',
               // allow to split entrypoints
-              chunks: 'all',
+              chunks: ({ name }: any) => !name?.match(MIDDLEWARE_ROUTE),
               // size of files is not so relevant for server build
               // we want to prefer deduplication to load less code
               minSize: 1000,
@@ -1001,6 +1025,7 @@ export default async function getBaseWebpackConfig(
         'next-serverless-loader',
         'next-style-loader',
         'noop-loader',
+        'next-middleware-loader',
       ].reduce((alias, loader) => {
         // using multiple aliases to replace `resolveLoader.modules`
         alias[loader] = path.join(__dirname, 'webpack', 'loaders', loader)
@@ -1045,6 +1070,11 @@ export default async function getBaseWebpackConfig(
                 url: true,
               },
               use: defaultLoaders.babel,
+            },
+            {
+              ...codeCondition,
+              issuerLayer: 'middleware',
+              use: defaultLoaders.babelMiddleware,
             },
             {
               ...codeCondition,
@@ -1238,6 +1268,9 @@ export default async function getBaseWebpackConfig(
       isServerless && isServer && new ServerlessPlugin(),
       isServer &&
         new PagesManifestPlugin({ serverless: isLikeServerless, dev }),
+      // MiddlewarePlugin should be after DefinePlugin so  NEXT_PUBLIC_*
+      // replacement is done before its process.env.* handling
+      !isServer && new MiddlewarePlugin({ dev }),
       isServer && new NextJsSsrImportPlugin(),
       !isServer &&
         new BuildManifestPlugin({
@@ -1302,6 +1335,10 @@ export default async function getBaseWebpackConfig(
     asset: {
       filename: 'static/media/[name].[hash:8][ext]',
     },
+  }
+
+  if (!isServer) {
+    webpack5Config.output!.enabledLibraryTypes = ['assign']
   }
 
   if (dev) {
@@ -1819,7 +1856,11 @@ export default async function getBaseWebpackConfig(
       delete entry['main.js']
 
       for (const name of Object.keys(entry)) {
-        entry[name] = finalizeEntrypoint(name, entry[name], isServer)
+        entry[name] = finalizeEntrypoint({
+          value: entry[name],
+          isServer,
+          name,
+        })
       }
 
       return entry
