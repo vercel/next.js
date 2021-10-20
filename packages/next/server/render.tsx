@@ -1197,9 +1197,13 @@ export async function renderToHTML(
   return new RenderResult(chainPipers(pipers))
 }
 
-function errorToJSON(err: Error): Error {
-  const { name, message, stack } = err
-  return { name, message, stack }
+function errorToJSON(err: Error) {
+  return {
+    name: err.name,
+    message: err.message,
+    stack: err.stack,
+    middleware: (err as any).middleware,
+  }
 }
 
 function serializeError(
