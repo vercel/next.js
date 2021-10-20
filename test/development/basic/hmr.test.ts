@@ -338,9 +338,7 @@ describe('basic HMR', () => {
         await next.patchFile(aboutPage, aboutContent.replace('</div>', 'div'))
 
         expect(await hasRedbox(browser)).toBe(true)
-        expect(await getRedboxSource(browser)).toMatch(
-          /Unterminated JSX contents/
-        )
+        expect(await getRedboxSource(browser)).toMatch(/Unexpected eof/)
 
         await next.patchFile(aboutPage, aboutContent)
 
@@ -377,9 +375,7 @@ describe('basic HMR', () => {
         browser = await webdriver(next.appPort, '/hmr/contact')
 
         expect(await hasRedbox(browser)).toBe(true)
-        expect(await getRedboxSource(browser)).toMatch(
-          /Unterminated JSX contents/
-        )
+        expect(await getRedboxSource(browser)).toMatch(/Unexpected eof/)
 
         await next.patchFile(aboutPage, aboutContent)
 
