@@ -70,9 +70,10 @@ const nextBuild: cliCommand = (argv) => {
   ).catch((err) => {
     console.error('')
     if (
-      err.code === 'INVALID_RESOLVE_ALIAS' ||
-      err.code === 'WEBPACK_ERRORS' ||
-      err.code === 'BUILD_OPTIMIZATION_FAILED'
+      isError(err) &&
+      (err.code === 'INVALID_RESOLVE_ALIAS' ||
+        err.code === 'WEBPACK_ERRORS' ||
+        err.code === 'BUILD_OPTIMIZATION_FAILED')
     ) {
       printAndExit(`> ${err.message}`)
     } else {

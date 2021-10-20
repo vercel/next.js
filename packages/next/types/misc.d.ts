@@ -261,7 +261,3 @@ declare module 'watchpack' {
 
   export default Watchpack
 }
-
-interface Error {
-  code?: string
-}

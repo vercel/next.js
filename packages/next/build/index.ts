@@ -92,7 +92,7 @@ import { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
 import { writeBuildId } from './write-build-id'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { NextConfigComplete } from '../server/config-shared'
-import isError from '../lib/is-error'
+import isError, { NextError } from '../lib/is-error'
 import { TelemetryPlugin } from './webpack/plugins/telemetry-plugin'
 
 export type SsgRoute = {
@@ -636,11 +636,13 @@ export default async function build(
       ) {
         const err = new Error(
           'webpack config.resolve.alias was incorrectly overridden. https://nextjs.org/docs/messages/invalid-resolve-alias'
-        )
+        ) as NextError
         err.code = 'INVALID_RESOLVE_ALIAS'
         throw err
       }
-      const err = new Error('Build failed because of webpack errors')
+      const err = new Error(
+        'Build failed because of webpack errors'
+      ) as NextError
       err.code = 'WEBPACK_ERRORS'
       throw err
     } else {
@@ -1130,7 +1132,7 @@ export default async function build(
           .join(
             '\n'
           )}\n\nSee https://nextjs.org/docs/messages/page-without-valid-component for more info.\n`
-      )
+      ) as NextError
       err.code = 'BUILD_OPTIMIZATION_FAILED'
       throw err
     }
