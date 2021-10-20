@@ -1708,7 +1708,7 @@ export default async function build(
       )
     )
 
-    writeFileSync(
+    await promises.writeFile(
       path.join(
         distDir,
         CLIENT_STATIC_FILES_PATH,
