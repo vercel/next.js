@@ -235,7 +235,10 @@ export function watchCompilers(
         buildStore.setState({ amp: {} })
 
         const { errors, warnings } = formatWebpackMessages(
-          stats.toJson({ all: false, warnings: true, errors: true })
+          stats.toJson({
+            preset: 'error-warnings',
+            moduleTrace: true,
+          })
         )
 
         const hasErrors = !!errors?.length
