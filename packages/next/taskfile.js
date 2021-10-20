@@ -759,6 +759,51 @@ export async function ncc_mini_css_extract_plugin(task, opts) {
     })
     .target('compiled/mini-css-extract-plugin')
 }
+// eslint-disable-next-line camelcase
+externals['web-streams-polyfill'] = 'next/dist/compiled/web-streams-polyfill'
+export async function ncc_web_streams_polyfill(task, opts) {
+  await task
+    .source(
+      opts.src ||
+        relative(__dirname, require.resolve('web-streams-polyfill/ponyfill'))
+    )
+    .ncc({ packageName: 'web-streams-polyfill', externals })
+    .target('compiled/web-streams-polyfill')
+}
+// eslint-disable-next-line camelcase
+externals['formdata-node'] = 'next/dist/compiled/formdata-node'
+export async function ncc_formdata_node(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('formdata-node')))
+    .ncc({ packageName: 'formdata-node', externals })
+    .target('compiled/formdata-node')
+}
+// eslint-disable-next-line camelcase
+externals['ua-parser-js'] = 'next/dist/compiled/ua-parser-js'
+export async function ncc_ua_parser_js(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('ua-parser-js')))
+    .ncc({ packageName: 'ua-parser-js', externals })
+    .target('compiled/ua-parser-js')
+}
+// eslint-disable-next-line camelcase
+externals['@peculiar/webcrypto'] = 'next/dist/compiled/@peculiar/webcrypto'
+export async function ncc_webcrypto(task, opts) {
+  await task
+    .source(
+      opts.src || relative(__dirname, require.resolve('@peculiar/webcrypto'))
+    )
+    .ncc({ packageName: '@peculiar/webcrypto', externals })
+    .target('compiled/@peculiar/webcrypto')
+}
+// eslint-disable-next-line camelcase
+externals['uuid'] = 'next/dist/compiled/uuid'
+export async function ncc_uuid(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('uuid')))
+    .ncc({ packageName: 'uuid', externals })
+    .target('compiled/uuid')
+}
 
 // eslint-disable-next-line camelcase
 export async function ncc_webpack_bundle5(task, opts) {
@@ -901,6 +946,11 @@ export async function ncc(task, opts) {
         'ncc_webpack_sources1',
         'ncc_webpack_sources3',
         'ncc_ws',
+        'ncc_ua_parser_js',
+        'ncc_webcrypto',
+        'ncc_uuid',
+        'ncc_formdata_node',
+        'ncc_web_streams_polyfill',
         'ncc_mini_css_extract_plugin',
       ],
       opts
