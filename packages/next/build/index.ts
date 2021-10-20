@@ -691,7 +691,7 @@ export default async function build(
       await promises.readFile(buildManifestPath, 'utf8')
     ) as BuildManifest
 
-    const timeout = config.experimental.staticPageGenerationTimeout || 0
+    const timeout = config.staticPageGenerationTimeout || 0
     const sharedPool = config.experimental.sharedPool || false
     const staticWorker = sharedPool
       ? require.resolve('./worker')
