@@ -5,7 +5,7 @@ import { normalizePagePath, normalizePathSep } from '../normalize-page-path'
 import { pageNotFoundError } from '../require'
 import { findPageFile } from '../lib/find-page-file'
 import getRouteFromEntrypoint from '../get-route-from-entrypoint'
-import { API_ROUTE } from '../../lib/constants'
+import { API_ROUTE, MIDDLEWARE_ROUTE } from '../../lib/constants'
 import { reportTrigger } from '../../build/output'
 import type ws from 'ws'
 
@@ -187,7 +187,8 @@ export default function onDemandEntryHandler(
       page = posix.normalize(pageUrl)
       const normalizedPage = normalizePathSep(page)
 
-      const isApiRoute = normalizedPage.match(API_ROUTE)
+      const isMiddleware = normalizedPage.match(MIDDLEWARE_ROUTE)
+      const isApiRoute = normalizedPage.match(API_ROUTE) && !isMiddleware
 
       let entriesChanged = false
       const addPageEntry = (type: 'client' | 'server') => {
@@ -228,13 +229,13 @@ export default function onDemandEntryHandler(
 
       const promise = isApiRoute
         ? addPageEntry('server')
-        : clientOnly
+        : clientOnly || isMiddleware
         ? addPageEntry('client')
         : Promise.all([addPageEntry('client'), addPageEntry('server')])
 
       if (entriesChanged) {
         reportTrigger(
-          isApiRoute
+          isApiRoute || isMiddleware
             ? `${normalizedPage} (server only)`
             : clientOnly
             ? `${normalizedPage} (client only)`
