@@ -1,12 +1,19 @@
 import { addMessageListener } from './error-overlay/websocket'
 
-export default function initializeBuildWatcher(toggleCallback) {
+export default function initializeBuildWatcher(
+  toggleCallback,
+  position = 'right'
+) {
   const shadowHost = document.createElement('div')
   shadowHost.id = '__next-build-watcher'
   // Make sure container is fixed and on a high zIndex so it shows
   shadowHost.style.position = 'fixed'
   shadowHost.style.bottom = '10px'
-  shadowHost.style.right = '20px'
+  if (position === 'left') {
+    shadowHost.style.left = '20px'
+  } else {
+    shadowHost.style.right = '20px'
+  }
   shadowHost.style.width = 0
   shadowHost.style.height = 0
   shadowHost.style.zIndex = 99999
