@@ -11,7 +11,6 @@ When restarted it will retry all uncompleted jobs, but if a job was unsuccessful
 - Make sure that there is no infinite loop during execution.
 - Make sure all Promises in `getStaticPaths` `resolve` or `reject` correctly.
 - Avoid very long timeouts for network requests.
-- Increase the timeout by changing the `experimental.pageDataCollectionTimeout` configuration option (default `60` in seconds).
 
 ### Useful Links
 
