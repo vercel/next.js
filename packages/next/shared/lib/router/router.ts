@@ -35,7 +35,7 @@ import { searchParamsToUrlQuery } from './utils/querystring'
 import resolveRewrites from './utils/resolve-rewrites'
 import { getRouteMatcher } from './utils/route-matcher'
 import { getRouteRegex } from './utils/route-regex'
-import { getMiddlewareRegex } from './utils'
+import { getMiddlewareRegex } from './utils/get-middleware-regex'
 
 declare global {
   interface Window {
