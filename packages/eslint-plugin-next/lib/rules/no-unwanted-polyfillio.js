@@ -69,6 +69,7 @@ module.exports = {
         'Prohibit unwanted features to be listed in Polyfill.io tag.',
       category: 'HTML',
       recommended: true,
+      url: 'https://nextjs.org/docs/messages/no-unwanted-polyfillio',
     },
     fixable: null, // or "code" or "whitespace"
   },

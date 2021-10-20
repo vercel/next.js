@@ -1,10 +1,11 @@
 import chalk from 'chalk'
 import findUp from 'next/dist/compiled/find-up'
-import { basename, extname } from 'path'
+import { basename, extname, relative } from 'path'
+import { pathToFileURL } from 'url'
 import { Agent as HttpAgent } from 'http'
 import { Agent as HttpsAgent } from 'https'
 import * as Log from '../build/output/log'
-import { CONFIG_FILE, PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
+import { CONFIG_FILES, PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import { execOnce } from '../shared/lib/utils'
 import {
   defaultConfig,
@@ -287,6 +288,16 @@ function assignDefaults(userConfig: { [key: string]: any }) {
       )
     }
 
+    if (
+      images.loader !== 'default' &&
+      images.loader !== 'custom' &&
+      !(images.path || '').startsWith('http')
+    ) {
+      throw new Error(
+        `Specified images.loader property (${images.loader}) also requires images.path property to be assigned to a URL prefix.\nSee more info here: https://nextjs.org/docs/api-reference/next/image#loader-configuration`
+      )
+    }
+
     // Append trailing slash for non-default loaders and when trailingSlash is set
     if (images.path) {
       if (
@@ -523,14 +534,17 @@ export default async function loadConfig(
     }) as NextConfigComplete
   }
 
-  const path = await findUp(CONFIG_FILE, { cwd: dir })
+  const path = await findUp(CONFIG_FILES, { cwd: dir })
 
   // If config file was found
   if (path?.length) {
     let userConfigModule: any
 
     try {
-      userConfigModule = require(path)
+      // `import()` expects url-encoded strings, so the path must be properly
+      // escaped and (especially on Windows) absolute paths must pe prefixed
+      // with the `file://` protocol
+      userConfigModule = await import(pathToFileURL(path).href)
     } catch (err) {
       console.error(
         chalk.red('Error:') +
@@ -571,12 +585,12 @@ export default async function loadConfig(
     }
 
     return assignDefaults({
-      configOrigin: CONFIG_FILE,
+      configOrigin: relative(dir, path),
       configFile: path,
       ...userConfig,
     }) as NextConfigComplete
   } else {
-    const configBaseName = basename(CONFIG_FILE, extname(CONFIG_FILE))
+    const configBaseName = basename(CONFIG_FILES[0], extname(CONFIG_FILES[0]))
     const nonJsPath = findUp.sync(
       [
         `${configBaseName}.jsx`,
@@ -590,7 +604,7 @@ export default async function loadConfig(
       throw new Error(
         `Configuring Next.js via '${basename(
           nonJsPath
-        )}' is not supported. Please replace the file with 'next.config.js'.`
+        )}' is not supported. Please replace the file with 'next.config.js' or 'next.config.mjs'.`
       )
     }
   }

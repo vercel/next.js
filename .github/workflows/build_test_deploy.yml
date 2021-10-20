@@ -504,6 +504,17 @@ jobs:
           export CXX=$(xcrun -f clang++);
           SYSROOT=$(xcrun --sdk macosx --show-sdk-path);
           export CFLAGS="-isysroot $SYSROOT -isystem $SYSROOT";
+      # We use restore-key to pick latest cache.
+      # We will not get exact match, but doc says
+      # "If there are multiple partial matches for a restore key, the action returns the most recently created cache."
+      # So we get latest cache
+      - name: Cache built files
+        uses: actions/cache@v2
+        with:
+          path: ./packages/next/build/swc/target
+          key: next-swc-cargo-cache-${{ matrix.os }}--${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            next-swc-cargo-cache-${{ matrix.os }}
       - name: 'Build'
         if: ${{ steps.binary-cache.outputs.cache-hit != 'true' && steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         run: yarn build-native --target ${{ matrix.target }}

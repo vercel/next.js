@@ -945,6 +945,31 @@ describe('Image Optimizer', () => {
         `Specified images.formats should be an Array of mime type strings, received invalid values (jpeg)`
       )
     })
+
+    it('should error when images.loader is assigned but images.path is not', async () => {
+      await nextConfig.replace(
+        '{ /* replaceme */ }',
+        JSON.stringify({
+          images: {
+            loader: 'imgix',
+          },
+        })
+      )
+      let stderr = ''
+
+      app = await launchApp(appDir, await findPort(), {
+        onStderr(msg) {
+          stderr += msg || ''
+        },
+      })
+      await waitFor(1000)
+      await killApp(app).catch(() => {})
+      await nextConfig.restore()
+
+      expect(stderr).toContain(
+        `Specified images.loader property (imgix) also requires images.path property to be assigned to a URL prefix.`
+      )
+    })
   })
 
   // domains for testing
