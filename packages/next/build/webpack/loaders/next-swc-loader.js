@@ -58,14 +58,14 @@ function getSWCOptions({
         useBuiltins: true,
         refresh: development && !isServer,
       },
-      // optimizer: {
-      //   simplify: true,
-      //   globals: {
-      //     typeofs: {
-      //       window: isServer ? 'undefined' : 'object',
-      //     },
-      //   },
-      // },
+      optimizer: {
+        simplify: false,
+        globals: {
+          typeofs: {
+            window: isServer ? 'undefined' : 'object',
+          },
+        },
+      },
     },
   }
 
