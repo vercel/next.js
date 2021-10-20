@@ -20,9 +20,46 @@ describe('findPageFile', () => {
     expect(result).toMatch(/^[\\/]nested[\\/]index\.js/)
   })
 
-  it('should prefer prefered.js before preferred/index.js', async () => {
+  it('should prefer prefered.js before prefered/index.js', async () => {
     const pagePath = normalizePagePath('/prefered')
     const result = await findPageFile(dirWithPages, pagePath, ['jsx', 'js'])
     expect(result).toMatch(/^[\\/]prefered\.js/)
+  })
+
+  it('should be able to resolve the pageKey: *.other', async () => {
+    const pagePath = normalizePagePath('/prefered.other')
+    const result = await findPageFile(dirWithPages, pagePath, ['jsx', 'js'])
+    expect(result).toMatch(/^[\\/]prefered\.other\.js/)
+  })
+
+  it('should prefer .js before .other.js', async () => {
+    const pagePath = normalizePagePath('/prefered')
+    const result = await findPageFile(dirWithPages, pagePath, [
+      'jsx',
+      'js',
+      'other.jsx',
+      'other.js',
+    ])
+    expect(result).toMatch(/^[\\/]prefered\.js/)
+  })
+
+  it('should prefer .other.js before .js', async () => {
+    const pagePath = normalizePagePath('/prefered')
+    const result = await findPageFile(dirWithPages, pagePath, [
+      'other.jsx',
+      'other.js',
+      'jsx',
+      'js',
+    ])
+    expect(result).toMatch(/^[\\/]prefered\.other\.js/)
+  })
+
+  it('should not match a different page extension', async () => {
+    const pagePath = normalizePagePath('/prefered')
+    const result = await findPageFile(dirWithPages, pagePath, [
+      'dne.jsx',
+      'dne.js',
+    ])
+    expect(result).toBe(null)
   })
 })
