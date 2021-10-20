@@ -1012,6 +1012,8 @@ export default async function getBaseWebpackConfig(
       strictModuleExceptionHandling: true,
       crossOriginLoading: crossOrigin,
       webassemblyModuleFilename: 'static/wasm/[modulehash].wasm',
+      hashFunction: 'xxhash64',
+      hashDigestLength: 16,
     },
     performance: false,
     resolve: resolveConfig,
