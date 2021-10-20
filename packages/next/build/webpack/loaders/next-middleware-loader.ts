@@ -8,12 +8,15 @@ export type MiddlewareLoaderOptions = {
 export default function middlewareLoader(this: any) {
   const { absolutePagePath, page }: MiddlewareLoaderOptions =
     loaderUtils.getOptions(this)
-  const stringifiedAbsolutePagePath = JSON.stringify(absolutePagePath)
+  const stringifiedPagePath = loaderUtils.stringifyRequest(
+    this,
+    absolutePagePath
+  )
 
   return `
         import { adapter } from 'next/dist/server/web/adapter'
 
-        var mod = require(${stringifiedAbsolutePagePath})
+        var mod = require(${stringifiedPagePath})
         var handler = mod.middleware || mod.default;
 
         if (typeof handler !== 'function') {

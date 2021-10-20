@@ -29,26 +29,26 @@ export class NextURL extends URL {
     redirect?: string
     trailingSlash?: boolean
   }
-  private options: Options
-  private url: URL
+  private _options: Options
+  private _url: URL
 
   constructor(url: string, options: Options = {}) {
     super(formatRelative(url))
-    this.options = options
+    this._options = options
     this._basePath = ''
-    this.url = formatRelative(url)
+    this._url = formatRelative(url)
     this.analyzeUrl()
   }
 
   get absolute() {
-    return this.url.hostname !== 'localhost'
+    return this._url.hostname !== 'localhost'
   }
 
   analyzeUrl() {
-    const { headers = {}, basePath, i18n } = this.options
+    const { headers = {}, basePath, i18n } = this._options
 
-    if (basePath && this.url.pathname.startsWith(basePath)) {
-      this.url.pathname = this.url.pathname.replace(basePath, '') || '/'
+    if (basePath && this._url.pathname.startsWith(basePath)) {
+      this._url.pathname = this._url.pathname.replace(basePath, '') || '/'
       this._basePath = basePath
     } else {
       this._basePath = ''
@@ -68,20 +68,20 @@ export class NextURL extends URL {
           i18n: i18n,
         },
         url: {
-          hostname: this.url.hostname || null,
-          pathname: this.url.pathname,
+          hostname: this._url.hostname || null,
+          pathname: this._url.pathname,
         },
       })
 
       if (this._locale?.path.detectedLocale) {
-        this.url.pathname = this._locale.path.pathname
+        this._url.pathname = this._locale.path.pathname
       }
     }
   }
 
   formatPathname() {
-    const { i18n } = this.options
-    let pathname = this.url.pathname
+    const { i18n } = this._options
+    let pathname = this._url.pathname
 
     if (this._locale?.locale && i18n?.defaultLocale !== this._locale?.locale) {
       pathname = `/${this._locale?.locale}${pathname}`
@@ -119,95 +119,95 @@ export class NextURL extends URL {
   }
 
   get searchParams() {
-    return this.url.searchParams
+    return this._url.searchParams
   }
 
   get host() {
-    return this.absolute ? this.url.host : ''
+    return this.absolute ? this._url.host : ''
   }
 
   set host(value: string) {
-    this.url.host = value
+    this._url.host = value
   }
 
   get hostname() {
-    return this.absolute ? this.url.hostname : ''
+    return this.absolute ? this._url.hostname : ''
   }
 
   set hostname(value: string) {
-    this.url.hostname = value || 'localhost'
+    this._url.hostname = value || 'localhost'
   }
 
   get port() {
-    return this.absolute ? this.url.port : ''
+    return this.absolute ? this._url.port : ''
   }
 
   set port(value: string) {
-    this.url.port = value
+    this._url.port = value
   }
 
   get protocol() {
-    return this.absolute ? this.url.protocol : ''
+    return this.absolute ? this._url.protocol : ''
   }
 
   set protocol(value: string) {
-    this.url.protocol = value
+    this._url.protocol = value
   }
 
   get href() {
     const pathname = this.formatPathname()
     return this.absolute
-      ? `${this.protocol}//${this.host}${pathname}${this.url.search}`
-      : `${pathname}${this.url.search}`
+      ? `${this.protocol}//${this.host}${pathname}${this._url.search}`
+      : `${pathname}${this._url.search}`
   }
 
   set href(url: string) {
-    this.url = formatRelative(url)
+    this._url = formatRelative(url)
     this.analyzeUrl()
   }
 
   get origin() {
-    return this.absolute ? this.url.origin : ''
+    return this.absolute ? this._url.origin : ''
   }
 
   get pathname() {
-    return this.url.pathname
+    return this._url.pathname
   }
 
   set pathname(value: string) {
-    this.url.pathname = value
+    this._url.pathname = value
   }
 
   get hash() {
-    return this.url.hash
+    return this._url.hash
   }
 
   set hash(value: string) {
-    this.url.hash = value
+    this._url.hash = value
   }
 
   get search() {
-    return this.url.search
+    return this._url.search
   }
 
   set search(value: string) {
-    this.url.search = value
+    this._url.search = value
   }
 
   get password() {
-    return this.url.password
+    return this._url.password
   }
 
   set password(value: string) {
-    this.url.password = value
+    this._url.password = value
   }
 
   get username() {
-    return this.url.username
+    return this._url.username
   }
 
   set username(value: string) {
-    this.url.username = value
+    this._url.username = value
   }
 
   get basePath() {

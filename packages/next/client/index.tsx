@@ -358,6 +358,8 @@ export async function initNext(opts: { webpackHMR?: any } = {}) {
           error.name = initialErr!.name
           error.stack = initialErr!.stack
 
+          // Errors from the middleware are reported as client-side errors
+          // since the middleware is compiled using the client compiler
           if ('middleware' in hydrateErr) {
             throw error
           }

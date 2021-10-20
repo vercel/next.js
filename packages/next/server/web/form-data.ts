@@ -2,7 +2,7 @@ import { isBlob } from './is'
 import { streamToIterator } from './utils'
 
 const carriage = '\r\n'
-const dashes = '-'.repeat(2)
+const dashes = '--'
 const carriageLength = 2
 
 function getFooter(boundary: string) {

@@ -1327,7 +1327,7 @@ export default async function getBaseWebpackConfig(
 
   webpack5Config.experiments = {
     layers: true,
-    cacheUnaffected: false, // Disabled for now due to a webpack bug
+    cacheUnaffected: true,
   }
 
   webpack5Config.module!.parser = {

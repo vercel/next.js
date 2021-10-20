@@ -1,6 +1,7 @@
 import { Crypto as WebCrypto } from 'next/dist/compiled/@peculiar/webcrypto'
 import { TransformStream } from 'next/dist/compiled/web-streams-polyfill'
 import { v4 as uuid } from 'next/dist/compiled/uuid'
+import crypto from 'crypto'
 
 export function atob(b64Encoded: string) {
   return Buffer.from(b64Encoded, 'base64').toString('binary')
@@ -54,9 +55,8 @@ export { TextDecoderRuntime as TextDecoder }
 export { TextEncoderRuntime as TextEncoder }
 
 export class Crypto extends WebCrypto {
-  randomUUID() {
-    return uuid()
-  }
+  // @ts-ignore Remove once types are updated and we deprecate node 12
+  randomUUID = crypto.randomUUID || uuid
 }
 
 export class ReadableStream<T> {

@@ -486,7 +486,7 @@ export default class DevServer extends Server {
         .catch(() => {})
       return result
     } catch (error) {
-      this.logErrorWithOriginalStack(error, undefined, 'client').catch(() => {})
+      this.logErrorWithOriginalStack(error, undefined, 'client')
       const err = isError(error) ? error : new Error(error + '')
       ;(err as any).middleware = true
       const { request, response, parsedUrl } = params

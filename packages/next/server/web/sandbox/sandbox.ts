@@ -25,10 +25,10 @@ const WEBPACK_HASH_REGEX =
  * hack ignores changes than only change the compilation hash. Instead it is
  * probably better to disable HMR for middleware entries.
  */
-export function clearSandboxCache(path: string, content: string) {
+export function clearSandboxCache(path: string, content: Buffer | string) {
   const prev = cache?.paths.get(path)?.replace(WEBPACK_HASH_REGEX, '')
   if (prev === undefined) return
-  if (prev === content.replace(WEBPACK_HASH_REGEX, '')) return
+  if (prev === content.toString().replace(WEBPACK_HASH_REGEX, '')) return
   cache = undefined
 }
 
@@ -70,6 +70,7 @@ export async function run(params: {
       URL,
       URLSearchParams,
     }
+    context.self = context;
 
     cache = {
       context,
@@ -77,10 +78,7 @@ export async function run(params: {
         [require.resolve('next/dist/compiled/cookie'), { exports: cookie }],
       ]),
       paths: new Map<string, string>(),
-      sandbox: vm.createContext({
-        ...context,
-        self: context,
-      }),
+      sandbox: vm.createContext(context),
     }
 
     loadDependencies(cache.sandbox, [
@@ -121,7 +119,6 @@ function loadDependencies(
     const mod = sandboxRequire(path, path)
     for (const mapKey of Object.keys(map)) {
       ctx[map[mapKey]] = mod[mapKey]
-      ctx.self[map[mapKey]] = mod[mapKey]
     }
   }
 }
