@@ -1087,6 +1087,20 @@ function runTests(dev) {
         basePath: '',
         headers: [],
         rewrites: [],
+        staticRoutes: [
+          {
+            namedRegex: '^/(?:/)?$',
+            page: '/',
+            regex: '^/(?:/)?$',
+            routeKeys: {},
+          },
+          {
+            namedRegex: '^/another(?:/)?$',
+            page: '/another',
+            regex: '^/another(?:/)?$',
+            routeKeys: {},
+          },
+        ],
         redirects: expect.arrayContaining([]),
         dataRoutes: [
           {

@@ -204,6 +204,13 @@ export default class BuildManifestPlugin {
         const ssgManifestPath = `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_ssgManifest.js`
         assetMap.lowPriorityFiles.push(ssgManifestPath)
         assets[ssgManifestPath] = new sources.RawSource(srcEmptySsgManifest)
+
+        const srcEmptyMiddlewareManifest = `self.__MIDDLEWARE_MANIFEST=new Set;self.__MIDDLEWARE_MANIFEST_CB&&self.__MIDDLEWARE_MANIFEST_CB()`
+        const middlewareManifestPath = `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_middlewareManifest.js`
+        assetMap.lowPriorityFiles.push(middlewareManifestPath)
+        assets[middlewareManifestPath] = new sources.RawSource(
+          srcEmptyMiddlewareManifest
+        )
       }
 
       assetMap.pages = Object.keys(assetMap.pages)

@@ -277,6 +277,8 @@ declare module 'webpack4' {
       futureEmitAssets?: boolean
       /** The filename of WebAssembly modules as relative path inside the `output.path` directory. */
       webassemblyModuleFilename?: string
+      /** Library types enabled */
+      enabledLibraryTypes?: string[]
     }
 
     type LibraryTarget =
