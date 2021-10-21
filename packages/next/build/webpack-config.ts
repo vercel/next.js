@@ -1326,6 +1326,19 @@ export default async function getBaseWebpackConfig(
   webpack5Config.experiments = {
     layers: true,
     cacheUnaffected: true,
+    buildHttp: Array.isArray(config.experimental.urlImports)
+      ? {
+          allowedUris: config.experimental.urlImports,
+          cacheLocation: path.join(dir, 'next.lock/data'),
+          lockfileLocation: path.join(dir, 'next.lock/lock.json'),
+        }
+      : config.experimental.urlImports
+      ? {
+          cacheLocation: path.join(dir, 'next.lock/data'),
+          lockfileLocation: path.join(dir, 'next.lock/lock.json'),
+          ...config.experimental.urlImports,
+        }
+      : undefined,
   }
 
   webpack5Config.module!.parser = {
