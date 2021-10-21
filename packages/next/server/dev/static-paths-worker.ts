@@ -44,6 +44,7 @@ export async function loadStaticPaths(
   return buildStaticPaths(
     pathname,
     components.getStaticPaths,
+    config.configFileName,
     locales,
     defaultLocale
   )
