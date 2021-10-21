@@ -12,6 +12,7 @@ export type NextConfigComplete = Required<NextConfig> & {
   typescript: Required<TypeScriptConfig>
   configOrigin?: string
   configFile?: string
+  configFileName: string
 }
 
 export interface I18NConfig {
