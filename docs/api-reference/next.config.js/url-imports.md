@@ -30,7 +30,7 @@ When using URL imports, Next.js will create a lockfile in the `next.lock` direct
 This directory is intended to be committed to git and should not be included in your `.gitignore` file.
 
 - When running `next dev`, Next.js will download and add all newly discovered URL Imports to your lockfile.
-- When running `next build`,  Next.js will use only the lockfile to build the application for production.
+- When running `next build`, Next.js will use only the lockfile to build the application for production.
 
 Typically, no network requests are needed and any outdated lockfile will cause the build to fail.
 One exception is resources that respond with `Cache-Control: no-cache`.
