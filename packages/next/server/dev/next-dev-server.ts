@@ -780,8 +780,12 @@ export default class DevServer extends Server {
     // from waiting on them for the page to load in dev mode
 
     const __getStaticPaths = async () => {
-      const { publicRuntimeConfig, serverRuntimeConfig, httpAgentOptions } =
-        this.nextConfig
+      const {
+        configFileName,
+        publicRuntimeConfig,
+        serverRuntimeConfig,
+        httpAgentOptions,
+      } = this.nextConfig
       const { locales, defaultLocale } = this.nextConfig.i18n || {}
 
       const paths = await this.staticPathsWorker.loadStaticPaths(
@@ -789,6 +793,7 @@ export default class DevServer extends Server {
         pathname,
         !this.renderOpts.dev && this._isLikeServerless,
         {
+          configFileName,
           publicRuntimeConfig,
           serverRuntimeConfig,
         },
