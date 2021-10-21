@@ -32,13 +32,25 @@ function isLikelyASyntaxError(message) {
 }
 
 // Cleans up webpack error messages.
-function formatMessage(message) {
+function formatMessage(message, verbose) {
   // TODO: Replace this once webpack 5 is stable
   if (typeof message === 'object' && message.message) {
     message =
       (message.moduleName ? stripAnsi(message.moduleName) + '\n' : '') +
       (message.file ? stripAnsi(message.file) + '\n' : '') +
-      message.message
+      message.message +
+      (message.details && verbose ? '\n' + message.details : '') +
+      (message.moduleTrace && verbose
+        ? '\n\nImport trace for requested module:' +
+          message.moduleTrace
+            .filter(
+              (trace) =>
+                !trace.originName.includes('next-client-pages-loader.js')
+            )
+            .map((trace) => `\n${trace.originName}`)
+            .join('')
+        : '') +
+      (message.stack && verbose ? '\n' + message.stack : '')
   }
   let lines = message.split('\n')
 
@@ -84,8 +96,6 @@ function formatMessage(message) {
   if (lines.length > 2 && lines[1].trim() === '') {
     lines.splice(1, 1)
   }
-  // Clean up file name
-  lines[0] = lines[0].replace(/^(.*) \d+:\d+(?:-\d+)?$/, '$1')
 
   // Cleans up verbose "module not found" messages for files and packages.
   if (lines[1] && lines[1].indexOf('Module not found: ') === 0) {
@@ -94,7 +104,7 @@ function formatMessage(message) {
       lines[1]
         .replace('Error: ', '')
         .replace('Module not found: Cannot find file:', 'Cannot find file:'),
-      ...lines.slice(2).filter((line) => line.indexOf(' @ ') !== 0),
+      ...lines.slice(2),
     ]
   }
 
@@ -132,17 +142,18 @@ function formatMessage(message) {
   return message.trim()
 }
 
-function formatWebpackMessages(json) {
+function formatWebpackMessages(json, verbose) {
   const formattedErrors = json.errors.map(function (message) {
-    return formatMessage(message, true)
+    return formatMessage(message, verbose)
   })
   const formattedWarnings = json.warnings.map(function (message) {
-    return formatMessage(message, false)
+    return formatMessage(message, verbose)
   })
   const result = { errors: formattedErrors, warnings: formattedWarnings }
-  if (result.errors.some(isLikelyASyntaxError)) {
+  if (!verbose && result.errors.some(isLikelyASyntaxError)) {
     // If there are any syntax errors, show just them.
     result.errors = result.errors.filter(isLikelyASyntaxError)
+    result.warnings = []
   }
   return result
 }

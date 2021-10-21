@@ -1968,6 +1968,56 @@ const runTests = (isDev = false) => {
             },
           },
         ],
+        staticRoutes: [
+          {
+            namedRegex: '^/auto\\-export/another(?:/)?$',
+            page: '/auto-export/another',
+            regex: '^/auto\\-export/another(?:/)?$',
+            routeKeys: {},
+          },
+          {
+            namedRegex: '^/docs/v2/more/now\\-for\\-github(?:/)?$',
+            page: '/docs/v2/more/now-for-github',
+            regex: '^/docs/v2/more/now\\-for\\-github(?:/)?$',
+            routeKeys: {},
+          },
+          {
+            namedRegex: '^/hello(?:/)?$',
+            page: '/hello',
+            regex: '^/hello(?:/)?$',
+            routeKeys: {},
+          },
+          {
+            namedRegex: '^/hello\\-again(?:/)?$',
+            page: '/hello-again',
+            regex: '^/hello\\-again(?:/)?$',
+            routeKeys: {},
+          },
+          {
+            namedRegex: '^/multi\\-rewrites(?:/)?$',
+            page: '/multi-rewrites',
+            regex: '^/multi\\-rewrites(?:/)?$',
+            routeKeys: {},
+          },
+          {
+            namedRegex: '^/nav(?:/)?$',
+            page: '/nav',
+            regex: '^/nav(?:/)?$',
+            routeKeys: {},
+          },
+          {
+            namedRegex: '^/redirect\\-override(?:/)?$',
+            page: '/redirect-override',
+            regex: '^/redirect\\-override(?:/)?$',
+            routeKeys: {},
+          },
+          {
+            namedRegex: '^/with\\-params(?:/)?$',
+            page: '/with-params',
+            regex: '^/with\\-params(?:/)?$',
+            routeKeys: {},
+          },
+        ],
       })
     })
 
