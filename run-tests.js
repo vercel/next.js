@@ -341,27 +341,24 @@ async function main() {
       }
       if (!passed) {
         console.error(`${test} failed to pass within ${numRetries} retries`)
-        // TODO: uncomment/do not land below change to canary
-        // Temporarily disable exiting on first failure
+        children.forEach((child) => child.kill())
 
-        // children.forEach((child) => child.kill())
-
-        // if (isTestJob) {
-        //   try {
-        //     const testsOutput = await fs.readFile(
-        //       `${test}${RESULTS_EXT}`,
-        //       'utf8'
-        //     )
-        //     console.log(
-        //       `--test output start--`,
-        //       testsOutput,
-        //       `--test output end--`
-        //     )
-        //   } catch (err) {
-        //     console.log(`Failed to load test output`, err)
-        //   }
-        // }
-        // cleanUpAndExit(1)
+        if (isTestJob) {
+          try {
+            const testsOutput = await fs.readFile(
+              `${test}${RESULTS_EXT}`,
+              'utf8'
+            )
+            console.log(
+              `--test output start--`,
+              testsOutput,
+              `--test output end--`
+            )
+          } catch (err) {
+            console.log(`Failed to load test output`, err)
+          }
+        }
+        cleanUpAndExit(1)
       }
       sema.release()
       dirSema.release()
