@@ -74,7 +74,7 @@ export class TerserPlugin {
     terserSpan.setAttribute('compilationName', compilation.name)
 
     return terserSpan.traceAsyncFn(async () => {
-      let webpackAsset: string
+      let webpackAsset = ''
       let hasMiddleware = false
       let numberOfAssetsForMinify = 0
       const assetsList = Object.keys(assets)
