@@ -759,6 +759,7 @@ export default async function build(
     } = await staticCheckSpan.traceAsyncFn(async () => {
       process.env.NEXT_PHASE = PHASE_PRODUCTION_BUILD
 
+      const configFileName = config.configFileName
       const runtimeEnvConfig = {
         publicRuntimeConfig: config.publicRuntimeConfig,
         serverRuntimeConfig: config.serverRuntimeConfig,
@@ -787,6 +788,7 @@ export default async function build(
             '/_error',
             distDir,
             isLikeServerless,
+            configFileName,
             runtimeEnvConfig,
             config.httpAgentOptions,
             config.i18n?.locales,
@@ -853,6 +855,7 @@ export default async function build(
                     page,
                     distDir,
                     isLikeServerless,
+                    configFileName,
                     runtimeEnvConfig,
                     config.httpAgentOptions,
                     config.i18n?.locales,
