@@ -8,6 +8,7 @@ import {
 import pLimit from 'p-limit'
 import { Worker } from 'jest-worker'
 import { spans } from '../../profiling-plugin'
+import { MIDDLEWARE_ROUTE } from '../../../../../lib/constants'
 
 function getEcmaVersion(environment) {
   // ES 6th
@@ -93,6 +94,12 @@ export class TerserPlugin {
             const res = compilation.getAsset(name)
             if (!res) {
               console.log(name)
+              return false
+            }
+
+            // don't minify _middleware if swcMinify is enabled
+            // as it can break in some cases
+            if (/_middleware\.js$/.test(name) && this.options.swcMinify) {
               return false
             }
 
