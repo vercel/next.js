@@ -8,6 +8,7 @@ import {
   findPort,
   killApp,
   launchApp,
+  check,
 } from 'next-test-utils'
 
 const appDir = path.join(__dirname, '..')
@@ -33,8 +34,8 @@ const runTests = () => {
 
   it('Refreshes query on mount', async () => {
     const browser = await webdriver(appPort, '/post-1')
+    await check(() => browser.eval('document.body.innerHTML'), /post.*post-1/)
     const html = await browser.eval('document.body.innerHTML')
-    expect(html).toMatch(/post.*post-1/)
     expect(html).toMatch(/nextExport/)
   })
 
