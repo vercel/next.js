@@ -22,6 +22,7 @@ import {
   initNextServerScript,
   nextExport,
   hasRedbox,
+  check,
 } from 'next-test-utils'
 
 let appDir = join(__dirname, '..')
@@ -2127,8 +2128,10 @@ describe('Custom routes', () => {
 
     it('should not error for no-op rewrite and auto export dynamic route', async () => {
       const browser = await webdriver(appPort, '/auto-export/my-slug')
-      const html = await browser.eval(() => document.documentElement.innerHTML)
-      expect(html).toContain(`auto-export my-slug`)
+      await check(
+        () => browser.eval(() => document.documentElement.innerHTML),
+        /auto-export my-slug/
+      )
     })
   })
 
