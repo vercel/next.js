@@ -20,7 +20,8 @@ const appDir = path.join(__dirname, '..', 'app')
 const runNpm = (cwd, ...args) => execa('npm', [...args], { cwd })
 const runPnpm = async (cwd, ...args) => {
   try {
-    await execa(pnpmExecutable, [...args], { cwd })
+    const result = await execa(pnpmExecutable, [...args], { cwd })
+    return result
   } catch (err) {
     console.log({ stdout: err.stdout, stderr: err.stderr })
     throw err
@@ -137,7 +138,7 @@ describe('pnpm support', () => {
       }
 
       const { stdout, stderr } = await runPnpm(tempAppDir, 'run', 'build')
-      console.log(stdout, stderr)
+      console.log({ stdout, stderr })
       expect(stdout).toMatch(/Compiled successfully/)
     })
   })
