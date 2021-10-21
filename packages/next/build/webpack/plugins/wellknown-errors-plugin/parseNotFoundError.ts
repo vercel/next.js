@@ -86,10 +86,9 @@ export async function getNotFoundError(
         if (!origin.resource) {
           continue
         }
-        const filePath = path.relative(
-          compilation.options.context,
-          origin.resource
-        )
+        const filePath = path
+          .relative(compilation.options.context, origin.resource)
+          .replace(/\\/g, '/')
         importTraceLine += `./${filePath}\n`
       }
 
