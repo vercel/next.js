@@ -8,6 +8,7 @@ import {
 import pLimit from 'p-limit'
 import { Worker } from 'jest-worker'
 import { spans } from '../../profiling-plugin'
+import { MIDDLEWARE_ROUTE } from '../../../../../lib/constants'
 
 function getEcmaVersion(environment) {
   // ES 6th
@@ -93,6 +94,12 @@ export class TerserPlugin {
             const res = compilation.getAsset(name)
             if (!res) {
               console.log(name)
+              return false
+            }
+
+            // don't minify _middleware as it can break in some cases
+            // and doesn't provide too much of a benefit as it's server-side
+            if (MIDDLEWARE_ROUTE.test(name.replace(/\.js$/, ''))) {
               return false
             }
 

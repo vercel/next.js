@@ -66,11 +66,11 @@ display:${obj.display}}`}</_JSXStyle>
 
     <_JSXStyle id={"5cadd6714ea141b4"}>{`p.jsx-843124768056a74c {color:${color}}`}</_JSXStyle>
 
-    <_JSXStyle id={"6b2c0e0cad82feb7"} dynamic={[
+    <_JSXStyle id={"785cf5e120672da8"} dynamic={[
         darken(color)
     ]}>{`p.__jsx-style-dynamic-selector {color:${darken(color)}}`}</_JSXStyle>
 
-    <_JSXStyle id={"6468493b508fe311"} dynamic={[
+    <_JSXStyle id={"108a316873f1c6fc"} dynamic={[
         darken(color) + 2
     ]}>{`p.__jsx-style-dynamic-selector {color:${darken(color) + 2}}`}</_JSXStyle>
 
@@ -87,7 +87,7 @@ div.jsx-843124768056a74c {background:${color}}`}</_JSXStyle>
 
 
 
-    <_JSXStyle id={"50cfd39d2a258beb"} dynamic={[
+    <_JSXStyle id={"a124d516c2c0707d"} dynamic={[
         display ? "block" : "none"
     ]}>{`span.__jsx-style-dynamic-selector {display:${display ? "block" : "none"}}`}</_JSXStyle>
 
