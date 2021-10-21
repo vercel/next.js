@@ -8,7 +8,6 @@ import {
 import pLimit from 'p-limit'
 import { Worker } from 'jest-worker'
 import { spans } from '../../profiling-plugin'
-import { MIDDLEWARE_ROUTE } from '../../../../../lib/constants'
 
 function getEcmaVersion(environment) {
   // ES 6th
@@ -75,6 +74,8 @@ export class TerserPlugin {
     terserSpan.setAttribute('compilationName', compilation.name)
 
     return terserSpan.traceAsyncFn(async () => {
+      let webpackAsset = ''
+      let hasMiddleware = false
       let numberOfAssetsForMinify = 0
       const assetsList = Object.keys(assets)
 
@@ -97,9 +98,15 @@ export class TerserPlugin {
               return false
             }
 
+            // remove below if we start minifying middleware chunks
+            if (name.startsWith('static/chunks/webpack-')) {
+              webpackAsset = name
+            }
+
             // don't minify _middleware as it can break in some cases
             // and doesn't provide too much of a benefit as it's server-side
-            if (MIDDLEWARE_ROUTE.test(name.replace(/\.js$/, ''))) {
+            if (name.match(/(middleware-chunks|_middleware\.js$)/)) {
+              hasMiddleware = true
               return false
             }
 
@@ -125,6 +132,17 @@ export class TerserPlugin {
             return { name, info, inputSource: source, output, eTag }
           })
       )
+
+      if (hasMiddleware && webpackAsset) {
+        // emit a separate un-minified version of the webpack
+        // runtime for the middleware
+        const asset = compilation.getAsset(webpackAsset)
+        compilation.emitAsset(
+          webpackAsset.replace('webpack-', 'webpack-middleware-'),
+          asset.source,
+          {}
+        )
+      }
 
       const numberOfWorkers = Math.min(
         numberOfAssetsForMinify,
