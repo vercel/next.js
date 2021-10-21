@@ -232,26 +232,31 @@ export function getClientBuildManifest(): Promise<ClientBuildManifest> {
     markAssetError(new Error('Failed to load client build manifest'))
   )
 }
+let _getMiddlewareManifest = () => Promise.resolve([])
 
-export function getMiddlewareManifest(): Promise<any> {
-  if (self.__MIDDLEWARE_MANIFEST) {
-    return Promise.resolve(self.__MIDDLEWARE_MANIFEST)
-  }
-
-  const onMiddlewareManifest: Promise<any> = new Promise<any>((resolve) => {
-    const cb = self.__MIDDLEWARE_MANIFEST_CB
-    self.__MIDDLEWARE_MANIFEST_CB = () => {
-      resolve(self.__MIDDLEWARE_MANIFEST!)
-      cb && cb()
+if (process.env.__NEXT_HAS_MIDDLEWARE) {
+  _getMiddlewareManifest = async () => {
+    if (self.__MIDDLEWARE_MANIFEST) {
+      return Promise.resolve(self.__MIDDLEWARE_MANIFEST)
     }
-  })
 
-  return resolvePromiseWithTimeout(
-    onMiddlewareManifest,
-    MS_MAX_IDLE_DELAY,
-    markAssetError(new Error('Failed to load client middleware manifest'))
-  )
+    const onMiddlewareManifest: Promise<any> = new Promise<any>((resolve) => {
+      const cb = self.__MIDDLEWARE_MANIFEST_CB
+      self.__MIDDLEWARE_MANIFEST_CB = () => {
+        resolve(self.__MIDDLEWARE_MANIFEST!)
+        cb && cb()
+      }
+    })
+
+    return resolvePromiseWithTimeout(
+      onMiddlewareManifest,
+      MS_MAX_IDLE_DELAY,
+      markAssetError(new Error('Failed to load client middleware manifest'))
+    )
+  }
 }
+
+export const getMiddlewareManifest = _getMiddlewareManifest
 
 interface RouteFiles {
   scripts: string[]
