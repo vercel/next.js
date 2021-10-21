@@ -56,6 +56,7 @@ function getSWCOptions({
         throwIfNamespace: true,
         development: development,
         useBuiltins: true,
+        refresh: development && !isServer,
       },
     },
   }

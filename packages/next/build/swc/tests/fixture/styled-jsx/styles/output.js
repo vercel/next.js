@@ -1,5 +1,5 @@
 import _JSXStyle from "styled-jsx/style";
-import colors, { size } from "./constants";
+import colors1, { size } from "./constants";
 const color = "red";
 const bar = new String("div.jsx-aaed0341accea8f {font-size:3em}");
 bar.__hash = "aaed0341accea8f";
@@ -12,33 +12,33 @@ export const foo = new String(`div.jsx-a0d126276b085021 {color:${color}}`);
 foo.__hash = "a0d126276b085021";
 ({
     styles: <_JSXStyle id={"47e08c293b53f262"} dynamic={[
-        colors.green.light
-    ]}>{`div.__jsx-style-dynamic-selector {color:${colors.green.light}}
+        colors1.green.light
+    ]}>{`div.__jsx-style-dynamic-selector {color:${colors1.green.light}}
 a.__jsx-style-dynamic-selector {color:red}`}</_JSXStyle>,
     className: _JSXStyle.dynamic([
         [
             "47e08c293b53f262",
             [
-                colors.green.light
+                colors1.green.light
             ]
         ]
     ])
 });
 const b = {
     styles: <_JSXStyle id={"47e08c293b53f262"} dynamic={[
-        colors.green.light
-    ]}>{`div.__jsx-style-dynamic-selector {color:${colors.green.light}}
+        colors1.green.light
+    ]}>{`div.__jsx-style-dynamic-selector {color:${colors1.green.light}}
 a.__jsx-style-dynamic-selector {color:red}`}</_JSXStyle>,
     className: _JSXStyle.dynamic([
         [
             "47e08c293b53f262",
             [
-                colors.green.light
+                colors1.green.light
             ]
         ]
     ])
 };
-const dynamic1 = (colors)=>{
+const dynamic = (colors)=>{
     const b = {
         styles: <_JSXStyle id={"79d79305fa1611e"} dynamic={[
             colors.green.light
