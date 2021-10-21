@@ -593,7 +593,8 @@ export default async function getBaseWebpackConfig(
         // and all other chunk depend on them so there is no
         // duplication that need to be pulled out.
         chunks: (chunk) =>
-          !/^(polyfills|main|pages\/_app|\/_middleware)$/.test(chunk.name),
+          !/^(polyfills|main|pages\/_app)$/.test(chunk.name) &&
+          !MIDDLEWARE_ROUTE.test(chunk.name),
         cacheGroups: {
           framework: {
             chunks: (chunk: webpack.compilation.Chunk) =>
@@ -652,6 +653,7 @@ export default async function getBaseWebpackConfig(
               chunk.name?.match(MIDDLEWARE_ROUTE),
             filename: 'server/middleware-chunks/[name].js',
             minChunks: 2,
+            enforce: true,
           },
         },
         maxInitialRequests: 25,
