@@ -97,9 +97,9 @@ export class TerserPlugin {
               return false
             }
 
-            // don't minify _middleware if swcMinify is enabled
-            // as it can break in some cases
-            if (/_middleware\.js$/.test(name) && this.options.swcMinify) {
+            // don't minify _middleware as it can break in some cases
+            // and doesn't provide too much of a benefit as it's server-side
+            if (/_middleware\.js$/.test(name)) {
               return false
             }
 
