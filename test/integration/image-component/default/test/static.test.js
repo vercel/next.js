@@ -91,6 +91,8 @@ describe('Build Error Tests', () => {
     )
     // should contain the importing module
     expect(stderr).toContain('./pages/static-img.js')
+    // should contain a import trace
+    expect(stderr).not.toContain('Import trace for requested module')
   })
 })
 describe('Static Image Component Tests', () => {

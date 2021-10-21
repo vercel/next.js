@@ -35,20 +35,19 @@ function isLikelyASyntaxError(message) {
 function formatMessage(message, verbose) {
   // TODO: Replace this once webpack 5 is stable
   if (typeof message === 'object' && message.message) {
+    const filteredModuleTrace =
+      message.moduleTrace &&
+      message.moduleTrace.filter(
+        (trace) => !trace.originName.includes('next-client-pages-loader.js')
+      )
     message =
       (message.moduleName ? stripAnsi(message.moduleName) + '\n' : '') +
       (message.file ? stripAnsi(message.file) + '\n' : '') +
       message.message +
       (message.details && verbose ? '\n' + message.details : '') +
-      (message.moduleTrace && verbose
+      (filteredModuleTrace && filteredModuleTrace.length && verbose
         ? '\n\nImport trace for requested module:' +
-          message.moduleTrace
-            .filter(
-              (trace) =>
-                !trace.originName.includes('next-client-pages-loader.js')
-            )
-            .map((trace) => `\n${trace.originName}`)
-            .join('')
+          filteredModuleTrace.map((trace) => `\n${trace.originName}`).join('')
         : '') +
       (message.stack && verbose ? '\n' + message.stack : '')
   }
