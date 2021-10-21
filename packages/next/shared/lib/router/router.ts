@@ -566,7 +566,7 @@ function fetchNextData(
       throw err
     })
     .then((data) => {
-      if (!persistCache) {
+      if (!persistCache || process.env.NODE_ENV !== 'production') {
         delete inflightCache[cacheKey]
       }
       return data
