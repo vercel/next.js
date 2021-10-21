@@ -1,5 +1,6 @@
 /* eslint-env jest */
 
+import fs from 'fs-extra'
 import { join } from 'path'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
@@ -47,6 +48,25 @@ describe('Middleware base tests', () => {
     responseTests('/fr')
     interfaceTests()
     interfaceTests('/fr')
+
+    it('should have correct files in manifest', async () => {
+      const manifest = await fs.readJSON(
+        join(context.appDir, '.next/server/middleware-manifest.json')
+      )
+      for (const key of Object.keys(manifest.middleware)) {
+        const middleware = manifest.middleware[key]
+        expect(
+          middleware.files.some((file) => file.includes('webpack-middleware'))
+        ).toBe(true)
+        expect(
+          middleware.files.filter(
+            (file) =>
+              file.startsWith('static/chunks/') &&
+              !file.startsWith('static/chunks/webpack-middleware')
+          ).length
+        ).toBe(0)
+      }
+    })
   })
 })
 
