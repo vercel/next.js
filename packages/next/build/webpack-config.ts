@@ -1012,6 +1012,8 @@ export default async function getBaseWebpackConfig(
       strictModuleExceptionHandling: true,
       crossOriginLoading: crossOrigin,
       webassemblyModuleFilename: 'static/wasm/[modulehash].wasm',
+      hashFunction: 'xxhash64',
+      hashDigestLength: 16,
     },
     performance: false,
     resolve: resolveConfig,
@@ -1324,6 +1326,19 @@ export default async function getBaseWebpackConfig(
   webpack5Config.experiments = {
     layers: true,
     cacheUnaffected: true,
+    buildHttp: Array.isArray(config.experimental.urlImports)
+      ? {
+          allowedUris: config.experimental.urlImports,
+          cacheLocation: path.join(dir, 'next.lock/data'),
+          lockfileLocation: path.join(dir, 'next.lock/lock.json'),
+        }
+      : config.experimental.urlImports
+      ? {
+          cacheLocation: path.join(dir, 'next.lock/data'),
+          lockfileLocation: path.join(dir, 'next.lock/lock.json'),
+          ...config.experimental.urlImports,
+        }
+      : undefined,
   }
 
   webpack5Config.module!.parser = {
@@ -1347,43 +1362,21 @@ export default async function getBaseWebpackConfig(
       !/[\\/]pages[\\/][^\\/]+(?:$|\?|#)/.test(module.resource)
   }
 
-  // Due to bundling of webpack the default values can't be correctly detected
-  // This restores the webpack defaults
+  // This enables managedPaths for all node_modules
+  // and also for the unplugged folder when using yarn pnp
+  // It also add the yarn cache to the immutable paths
   webpack5Config.snapshot = {}
   if (process.versions.pnp === '3') {
-    const match =
-      /^(.+?)[\\/]cache[\\/]jest-worker-npm-[^\\/]+\.zip[\\/]node_modules[\\/]/.exec(
-        require.resolve('jest-worker')
-      )
-    if (match) {
-      webpack5Config.snapshot.managedPaths = [
-        path.resolve(match[1], 'unplugged'),
-      ]
-    }
+    webpack5Config.snapshot.managedPaths = [
+      /^(.+?(?:[\\/]\.yarn[\\/]unplugged[\\/][^\\/]+)?[\\/]node_modules[\\/])/,
+    ]
   } else {
-    const match = /^(.+?[\\/]node_modules)[\\/]/.exec(
-      require.resolve('jest-worker')
-    )
-    if (match) {
-      webpack5Config.snapshot.managedPaths = [match[1]]
-    }
+    webpack5Config.snapshot.managedPaths = [/^(.+?[\\/]node_modules[\\/])/]
   }
-  if (process.versions.pnp === '1') {
-    const match =
-      /^(.+?[\\/]v4)[\\/]npm-jest-worker-[^\\/]+-[\da-f]{40}[\\/]node_modules[\\/]/.exec(
-        require.resolve('jest-worker')
-      )
-    if (match) {
-      webpack5Config.snapshot.immutablePaths = [match[1]]
-    }
-  } else if (process.versions.pnp === '3') {
-    const match =
-      /^(.+?)[\\/]jest-worker-npm-[^\\/]+\.zip[\\/]node_modules[\\/]/.exec(
-        require.resolve('jest-worker')
-      )
-    if (match) {
-      webpack5Config.snapshot.immutablePaths = [match[1]]
-    }
+  if (process.versions.pnp === '3') {
+    webpack5Config.snapshot.immutablePaths = [
+      /^(.+?[\\/]cache[\\/][^\\/]+\.zip[\\/]node_modules[\\/])/,
+    ]
   }
 
   if (dev) {
