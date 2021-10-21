@@ -46,6 +46,7 @@ async function processHTML(
   }
   const root: HTMLElement = parse(html)
   let document = html
+
   // Calls the middleware, with some instrumentation and logging
   async function callMiddleWare(middleware: PostProcessMiddleware) {
     // let timer = Date.now()
@@ -134,6 +135,15 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
           '</head>',
           `<style data-href="${url}"${nonceStr}>${fontContent}</style></head>`
         )
+
+        // Remove inert font tag
+        const escapedUrl = url
+          .replace(/&/g, '&amp;')
+          .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+        const fontRegex = new RegExp(
+          `<link[^>]*data-href="${escapedUrl}"[^>]*/>`
+        )
+        result = result.replace(fontRegex, '')
 
         const provider = OPTIMIZED_FONT_PROVIDERS.find((p) =>
           url.startsWith(p.url)

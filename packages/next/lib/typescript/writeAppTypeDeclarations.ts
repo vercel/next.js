@@ -1,6 +1,6 @@
-import { promises as fs } from 'fs'
 import os from 'os'
 import path from 'path'
+import { promises as fs } from 'fs'
 
 export async function writeAppTypeDeclarations(
   baseDir: string,
@@ -9,19 +9,41 @@ export async function writeAppTypeDeclarations(
   // Reference `next` types
   const appTypeDeclarations = path.join(baseDir, 'next-env.d.ts')
 
-  await fs.writeFile(
-    appTypeDeclarations,
+  // Defaults EOL to system default
+  let eol = os.EOL
+  let currentContent: string | undefined
+
+  try {
+    currentContent = await fs.readFile(appTypeDeclarations, 'utf8')
+    // If file already exists then preserve its line ending
+    const lf = currentContent.indexOf('\n', /* skip first so we can lf - 1 */ 1)
+
+    if (lf !== -1) {
+      if (currentContent[lf - 1] === '\r') {
+        eol = '\r\n'
+      } else {
+        eol = '\n'
+      }
+    }
+  } catch (err) {}
+
+  const content =
     '/// <reference types="next" />' +
-      os.EOL +
-      '/// <reference types="next/types/global" />' +
-      os.EOL +
-      (imageImportsEnabled
-        ? '/// <reference types="next/image-types/global" />' + os.EOL
-        : '') +
-      os.EOL +
-      '// NOTE: This file should not be edited' +
-      os.EOL +
-      '// see https://nextjs.org/docs/basic-features/typescript for more information.' +
-      os.EOL
-  )
+    eol +
+    '/// <reference types="next/types/global" />' +
+    eol +
+    (imageImportsEnabled
+      ? '/// <reference types="next/image-types/global" />' + eol
+      : '') +
+    eol +
+    '// NOTE: This file should not be edited' +
+    eol +
+    '// see https://nextjs.org/docs/basic-features/typescript for more information.' +
+    eol
+
+  // Avoids an un-necessary write on read-only fs
+  if (currentContent === content) {
+    return
+  }
+  await fs.writeFile(appTypeDeclarations, content)
 }

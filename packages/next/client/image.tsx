@@ -2,7 +2,7 @@ import React from 'react'
 import Head from '../shared/lib/head'
 import { toBase64 } from '../shared/lib/to-base-64'
 import {
-  ImageConfig,
+  ImageConfigComplete,
   imageConfigDefault,
   LoaderValue,
   VALID_LOADERS,
@@ -10,6 +10,8 @@ import {
 import { useIntersection } from './use-intersection'
 
 const loadedImageURLs = new Set<string>()
+const emptyDataURL =
+  'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
 
 if (typeof window === 'undefined') {
   ;(global as any).__NEXT_IMAGE_IMPORTED = true
@@ -56,13 +58,6 @@ type OnLoadingComplete = (result: {
 }) => void
 
 type ImgElementStyle = NonNullable<JSX.IntrinsicElements['img']['style']>
-
-interface StaticImageData {
-  src: string
-  height: number
-  width: number
-  blurDataURL?: string
-}
 
 interface StaticRequire {
   default: StaticImageData
@@ -117,8 +112,8 @@ const {
   loader: configLoader,
   path: configPath,
   domains: configDomains,
-} =
-  ((process.env.__NEXT_IMAGE_OPTS as any) as ImageConfig) || imageConfigDefault
+} = (process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete) ||
+imageConfigDefault
 // sort smallest to largest
 const allSizes = [...configDeviceSizes, ...configImageSizes]
 configDeviceSizes.sort((a, b) => a - b)
@@ -253,6 +248,7 @@ function defaultImageLoader(loaderProps: ImageLoaderProps) {
 function handleLoading(
   img: HTMLImageElement | null,
   src: string,
+  layout: LayoutValue,
   placeholder: PlaceholderValue,
   onLoadingComplete?: OnLoadingComplete
 ) {
@@ -260,7 +256,7 @@ function handleLoading(
     return
   }
   const handleLoad = () => {
-    if (!img.src.startsWith('data:')) {
+    if (img.src !== emptyDataURL) {
       const p = 'decode' in img ? img.decode() : Promise.resolve()
       p.catch(() => {}).then(() => {
         if (placeholder === 'blur') {
@@ -274,6 +270,20 @@ function handleLoading(
           // Pass back read-only primitive values but not the
           // underlying DOM element because it could be misused.
           onLoadingComplete({ naturalWidth, naturalHeight })
+        }
+        if (process.env.NODE_ENV !== 'production') {
+          if (img.parentElement?.parentElement) {
+            const parent = getComputedStyle(img.parentElement.parentElement)
+            if (layout === 'responsive' && parent.display === 'flex') {
+              console.warn(
+                `Image with src "${src}" may not render properly as a child of a flex container. Consider wrapping the image with a div to configure the width.`
+              )
+            } else if (layout === 'fill' && parent.position !== 'relative') {
+              console.warn(
+                `Image with src "${src}" may not render properly with a parent using position:"${parent.position}". Consider changing the parent style to position:"relative" with a width and height.`
+              )
+            }
+          }
         }
       })
     }
@@ -350,7 +360,7 @@ export default function Image({
 
   let isLazy =
     !priority && (loading === 'lazy' || typeof loading === 'undefined')
-  if (src.startsWith('data:')) {
+  if (src.startsWith('data:') || src.startsWith('blob:')) {
     // https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
     unoptimized = true
     isLazy = false
@@ -406,7 +416,7 @@ export default function Image({
         )
       }
       if (!blurDataURL) {
-        const VALID_BLUR_EXT = ['jpeg', 'png', 'webp'] // should match next-image-loader
+        const VALID_BLUR_EXT = ['jpeg', 'png', 'webp', 'avif'] // should match next-image-loader
 
         throw new Error(
           `Image with src "${src}" has "placeholder='blur'" property but is missing the "blurDataURL" property.
@@ -448,10 +458,19 @@ export default function Image({
   })
   const isVisible = !isLazy || isIntersected
 
-  let wrapperStyle: JSX.IntrinsicElements['div']['style'] | undefined
-  let sizerStyle: JSX.IntrinsicElements['div']['style'] | undefined
+  const wrapperStyle: JSX.IntrinsicElements['span']['style'] = {
+    all: 'initial',
+    boxSizing: 'border-box',
+    overflow: 'hidden',
+  }
+  const sizerStyle: JSX.IntrinsicElements['span']['style'] = {
+    all: 'initial',
+    boxSizing: 'border-box',
+    display: 'block',
+  }
+  let hasSizer = false
   let sizerSvg: string | undefined
-  let imgStyle: ImgElementStyle | undefined = {
+  const imgStyle: ImgElementStyle = {
     position: 'absolute',
     top: 0,
     left: 0,
@@ -485,19 +504,12 @@ export default function Image({
       : {}
   if (layout === 'fill') {
     // <Image src="i.png" layout="fill" />
-    wrapperStyle = {
-      display: 'block',
-      overflow: 'hidden',
-
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      bottom: 0,
-      right: 0,
-
-      boxSizing: 'border-box',
-      margin: 0,
-    }
+    wrapperStyle.display = 'block'
+    wrapperStyle.position = 'absolute'
+    wrapperStyle.top = 0
+    wrapperStyle.left = 0
+    wrapperStyle.bottom = 0
+    wrapperStyle.right = 0
   } else if (
     typeof widthInt !== 'undefined' &&
     typeof heightInt !== 'undefined'
@@ -507,41 +519,24 @@ export default function Image({
     const paddingTop = isNaN(quotient) ? '100%' : `${quotient * 100}%`
     if (layout === 'responsive') {
       // <Image src="i.png" width="100" height="100" layout="responsive" />
-      wrapperStyle = {
-        display: 'block',
-        overflow: 'hidden',
-        position: 'relative',
-
-        boxSizing: 'border-box',
-        margin: 0,
-      }
-      sizerStyle = { display: 'block', boxSizing: 'border-box', paddingTop }
+      wrapperStyle.display = 'block'
+      wrapperStyle.position = 'relative'
+      hasSizer = true
+      sizerStyle.paddingTop = paddingTop
     } else if (layout === 'intrinsic') {
       // <Image src="i.png" width="100" height="100" layout="intrinsic" />
-      wrapperStyle = {
-        display: 'inline-block',
-        maxWidth: '100%',
-        overflow: 'hidden',
-        position: 'relative',
-        boxSizing: 'border-box',
-        margin: 0,
-      }
-      sizerStyle = {
-        boxSizing: 'border-box',
-        display: 'block',
-        maxWidth: '100%',
-      }
+      wrapperStyle.display = 'inline-block'
+      wrapperStyle.position = 'relative'
+      wrapperStyle.maxWidth = '100%'
+      hasSizer = true
+      sizerStyle.maxWidth = '100%'
       sizerSvg = `<svg width="${widthInt}" height="${heightInt}" xmlns="http://www.w3.org/2000/svg" version="1.1"/>`
     } else if (layout === 'fixed') {
       // <Image src="i.png" width="100" height="100" layout="fixed" />
-      wrapperStyle = {
-        overflow: 'hidden',
-        boxSizing: 'border-box',
-        display: 'inline-block',
-        position: 'relative',
-        width: widthInt,
-        height: heightInt,
-      }
+      wrapperStyle.display = 'inline-block'
+      wrapperStyle.position = 'relative'
+      wrapperStyle.width = widthInt
+      wrapperStyle.height = heightInt
     }
   } else {
     // <Image src="i.png" />
@@ -553,8 +548,7 @@ export default function Image({
   }
 
   let imgAttributes: GenImgAttrsResult = {
-    src:
-      'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
+    src: emptyDataURL,
     srcSet: undefined,
     sizes: undefined,
   }
@@ -574,12 +568,13 @@ export default function Image({
   let srcString: string = src
 
   return (
-    <div style={wrapperStyle}>
-      {sizerStyle ? (
-        <div style={sizerStyle}>
+    <span style={wrapperStyle}>
+      {hasSizer ? (
+        <span style={sizerStyle}>
           {sizerSvg ? (
             <img
               style={{
+                all: 'initial',
                 maxWidth: '100%',
                 display: 'block',
                 margin: 0,
@@ -591,38 +586,41 @@ export default function Image({
               src={`data:image/svg+xml;base64,${toBase64(sizerSvg)}`}
             />
           ) : null}
-        </div>
+        </span>
       ) : null}
-      {!isVisible && (
-        <noscript>
-          <img
-            {...rest}
-            {...generateImgAttrs({
-              src,
-              unoptimized,
-              layout,
-              width: widthInt,
-              quality: qualityInt,
-              sizes,
-              loader,
-            })}
-            decoding="async"
-            style={imgStyle}
-            className={className}
-          />
-        </noscript>
-      )}
       <img
         {...rest}
         {...imgAttributes}
         decoding="async"
+        data-nimg={layout}
         className={className}
         ref={(img) => {
           setRef(img)
-          handleLoading(img, srcString, placeholder, onLoadingComplete)
+          handleLoading(img, srcString, layout, placeholder, onLoadingComplete)
         }}
         style={{ ...imgStyle, ...blurStyle }}
       />
+      <noscript>
+        <img
+          {...rest}
+          {...generateImgAttrs({
+            src,
+            unoptimized,
+            layout,
+            width: widthInt,
+            quality: qualityInt,
+            sizes,
+            loader,
+          })}
+          decoding="async"
+          data-nimg={layout}
+          style={imgStyle}
+          className={className}
+          // @ts-ignore - TODO: upgrade to `@types/react@17`
+          loading={loading || 'lazy'}
+        />
+      </noscript>
+
       {priority ? (
         // Note how we omit the `href` attribute, as it would only be relevant
         // for browsers that do not support `imagesrcset`, and in those cases
@@ -640,14 +638,14 @@ export default function Image({
             rel="preload"
             as="image"
             href={imgAttributes.srcSet ? undefined : imgAttributes.src}
-            // @ts-ignore: imagesrcset is not yet in the link element type
+            // @ts-ignore: imagesrcset is not yet in the link element type.
             imagesrcset={imgAttributes.srcSet}
-            // @ts-ignore: imagesizes is not yet in the link element type
+            // @ts-ignore: imagesizes is not yet in the link element type.
             imagesizes={imgAttributes.sizes}
           ></link>
         </Head>
       ) : null}
-    </div>
+    </span>
   )
 }
 

@@ -24,8 +24,6 @@ import {
   hasRedbox,
 } from 'next-test-utils'
 
-jest.setTimeout(1000 * 60 * 2)
-
 let appDir = join(__dirname, '..')
 const nextConfigPath = join(appDir, 'next.config.js')
 let externalServerHits = new Set()
@@ -1030,6 +1028,49 @@ const runTests = (isDev = false) => {
     })
   })
 
+  it('should match has host redirect and insert in destination correctly', async () => {
+    const res1 = await fetchViaHTTP(appPort, '/has-redirect-6', undefined, {
+      redirect: 'manual',
+    })
+    expect(res1.status).toBe(404)
+
+    const res = await fetchViaHTTP(appPort, '/has-redirect-6', undefined, {
+      headers: {
+        host: 'hello-test.example.com',
+      },
+      redirect: 'manual',
+    })
+
+    expect(res.status).toBe(307)
+    const parsed = url.parse(res.headers.get('location'), true)
+
+    expect(parsed.protocol).toBe('https:')
+    expect(parsed.hostname).toBe('hello.example.com')
+    expect(parsed.pathname).toBe('/some-path/end')
+    expect(parsed.query).toEqual({
+      a: 'b',
+    })
+  })
+
+  it('should match has query redirect with duplicate query key', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/has-redirect-7',
+      '?hello=world&hello=another',
+      {
+        redirect: 'manual',
+      }
+    )
+    expect(res.status).toBe(307)
+    const parsed = url.parse(res.headers.get('location'), true)
+
+    expect(parsed.pathname).toBe('/somewhere')
+    expect(parsed.query).toEqual({
+      hello: ['world', 'another'],
+      value: 'another',
+    })
+  })
+
   it('should match has header for header correctly', async () => {
     const res = await fetchViaHTTP(appPort, '/has-header-1', undefined, {
       headers: {
@@ -1360,6 +1401,31 @@ const runTests = (isDev = false) => {
               '^(?!\\/_next)(?:\\/([^\\/]+?))\\/has-redirect-5(?:\\/)?$'
             ),
             source: '/:path/has-redirect-5',
+            statusCode: 307,
+          },
+          {
+            destination: 'https://:subdomain.example.com/some-path/end?a=b',
+            has: [
+              {
+                type: 'host',
+                value: '(?<subdomain>.*)-test.example.com',
+              },
+            ],
+            regex: normalizeRegEx('^(?!\\/_next)\\/has-redirect-6(?:\\/)?$'),
+            source: '/has-redirect-6',
+            statusCode: 307,
+          },
+          {
+            source: '/has-redirect-7',
+            regex: normalizeRegEx('^(?!\\/_next)\\/has-redirect-7(?:\\/)?$'),
+            has: [
+              {
+                type: 'query',
+                key: 'hello',
+                value: '(?<hello>.*)',
+              },
+            ],
+            destination: '/somewhere?value=:hello',
             statusCode: 307,
           },
         ],
@@ -1900,6 +1966,56 @@ const runTests = (isDev = false) => {
             routeKeys: {
               slug: 'slug',
             },
+          },
+        ],
+        staticRoutes: [
+          {
+            namedRegex: '^/auto\\-export/another(?:/)?$',
+            page: '/auto-export/another',
+            regex: '^/auto\\-export/another(?:/)?$',
+            routeKeys: {},
+          },
+          {
+            namedRegex: '^/docs/v2/more/now\\-for\\-github(?:/)?$',
+            page: '/docs/v2/more/now-for-github',
+            regex: '^/docs/v2/more/now\\-for\\-github(?:/)?$',
+            routeKeys: {},
+          },
+          {
+            namedRegex: '^/hello(?:/)?$',
+            page: '/hello',
+            regex: '^/hello(?:/)?$',
+            routeKeys: {},
+          },
+          {
+            namedRegex: '^/hello\\-again(?:/)?$',
+            page: '/hello-again',
+            regex: '^/hello\\-again(?:/)?$',
+            routeKeys: {},
+          },
+          {
+            namedRegex: '^/multi\\-rewrites(?:/)?$',
+            page: '/multi-rewrites',
+            regex: '^/multi\\-rewrites(?:/)?$',
+            routeKeys: {},
+          },
+          {
+            namedRegex: '^/nav(?:/)?$',
+            page: '/nav',
+            regex: '^/nav(?:/)?$',
+            routeKeys: {},
+          },
+          {
+            namedRegex: '^/redirect\\-override(?:/)?$',
+            page: '/redirect-override',
+            regex: '^/redirect\\-override(?:/)?$',
+            routeKeys: {},
+          },
+          {
+            namedRegex: '^/with\\-params(?:/)?$',
+            page: '/with-params',
+            regex: '^/with\\-params(?:/)?$',
+            routeKeys: {},
           },
         ],
       })

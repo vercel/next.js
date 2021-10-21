@@ -66,12 +66,16 @@ function createLoadableComponent(loadFn, options) {
       timeout: null,
       webpack: null,
       modules: null,
+      suspense: false,
     },
     options
   )
 
-  let subscription = null
+  if (opts.suspense) {
+    opts.lazy = React.lazy(opts.loader)
+  }
 
+  let subscription = null
   function init() {
     if (!subscription) {
       const sub = new LoadableSubscription(loadFn, opts)
@@ -86,7 +90,7 @@ function createLoadableComponent(loadFn, options) {
   }
 
   // Server only
-  if (typeof window === 'undefined') {
+  if (typeof window === 'undefined' && !opts.suspense) {
     ALL_INITIALIZERS.push(init)
   }
 
@@ -95,7 +99,8 @@ function createLoadableComponent(loadFn, options) {
     !initialized &&
     typeof window !== 'undefined' &&
     typeof opts.webpack === 'function' &&
-    typeof require.resolveWeak === 'function'
+    typeof require.resolveWeak === 'function' &&
+    !opts.suspense
   ) {
     const moduleIds = opts.webpack()
     READY_INITIALIZERS.push((ids) => {
@@ -107,12 +112,11 @@ function createLoadableComponent(loadFn, options) {
     })
   }
 
-  const LoadableComponent = (props, ref) => {
+  function LoadableImpl(props, ref) {
     init()
 
     const context = React.useContext(LoadableContext)
     const state = useSubscription(subscription)
-
     React.useImperativeHandle(
       ref,
       () => ({
@@ -144,7 +148,12 @@ function createLoadableComponent(loadFn, options) {
     }, [props, state])
   }
 
-  LoadableComponent.preload = () => init()
+  function LazyImpl(props, ref) {
+    return React.createElement(opts.lazy, { ...props, ref })
+  }
+
+  const LoadableComponent = opts.suspense ? LazyImpl : LoadableImpl
+  LoadableComponent.preload = () => !opts.suspense && init()
   LoadableComponent.displayName = 'LoadableComponent'
 
   return React.forwardRef(LoadableComponent)

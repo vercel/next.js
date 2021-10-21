@@ -109,16 +109,19 @@ export default function Home() {
 ### Executing Code After Loading (`onLoad`)
 
 ```js
+import { useState } from 'react'
 import Script from 'next/script'
 
 export default function Home() {
+  const [stripe, setStripe] = useState(null)
+
   return (
     <>
       <Script
         id="stripe-js"
         src="https://js.stripe.com/v3/"
         onLoad={() => {
-          this.setState({ stripe: window.Stripe('pk_test_12345') })
+          setStripe({ stripe: window.Stripe('pk_test_12345') })
         }}
       />
     </>
@@ -131,15 +134,16 @@ export default function Home() {
 ```js
 import Script from 'next/script'
 
-<Script strategy="lazyOnload">
-  {`document.getElementById('banner').removeClass('hidden')`}
+<Script id="show-banner" strategy="lazyOnload">
+  {`document.getElementById('banner').classList.remove('hidden')`}
 </Script>
 
 // or
 
 <Script
+  id="show-banner"
   dangerouslySetInnerHTML={{
-    __html: `document.getElementById('banner').removeClass('hidden')`
+    __html: `document.getElementById('banner').classList.remove('hidden')`
   }}
 />
 ```

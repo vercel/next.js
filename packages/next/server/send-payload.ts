@@ -2,7 +2,7 @@ import { IncomingMessage, ServerResponse } from 'http'
 import { isResSent } from '../shared/lib/utils'
 import generateETag from 'etag'
 import fresh from 'next/dist/compiled/fresh'
-import { RenderResult } from './utils'
+import RenderResult from './render-result'
 
 export type PayloadOptions =
   | { private: true }
@@ -36,32 +36,10 @@ export function setRevalidateHeaders(
   }
 }
 
-export function sendPayload(
-  req: IncomingMessage,
-  res: ServerResponse,
-  payload: any,
-  type: 'html' | 'json',
-  {
-    generateEtags,
-    poweredByHeader,
-  }: { generateEtags: boolean; poweredByHeader: boolean },
-  options?: PayloadOptions
-): void {
-  sendRenderResult({
-    req,
-    res,
-    resultOrPayload: payload,
-    type,
-    generateEtags,
-    poweredByHeader,
-    options,
-  })
-}
-
-export function sendRenderResult({
+export async function sendRenderResult({
   req,
   res,
-  resultOrPayload,
+  result,
   type,
   generateEtags,
   poweredByHeader,
@@ -69,12 +47,12 @@ export function sendRenderResult({
 }: {
   req: IncomingMessage
   res: ServerResponse
-  resultOrPayload: RenderResult | string
+  result: RenderResult
   type: 'html' | 'json'
   generateEtags: boolean
   poweredByHeader: boolean
   options?: PayloadOptions
-}): void {
+}): Promise<void> {
   if (isResSent(res)) {
     return
   }
@@ -83,12 +61,10 @@ export function sendRenderResult({
     res.setHeader('X-Powered-By', 'Next.js')
   }
 
-  const isPayload = typeof resultOrPayload === 'string'
+  const payload = result.isDynamic() ? null : await result.toUnchunkedString()
 
-  if (isPayload) {
-    const etag = generateEtags
-      ? generateETag(resultOrPayload as string)
-      : undefined
+  if (payload) {
+    const etag = generateEtags ? generateETag(payload) : undefined
     if (sendEtagResponse(req, res, etag)) {
       return
     }
@@ -101,11 +77,8 @@ export function sendRenderResult({
     )
   }
 
-  if (isPayload) {
-    res.setHeader(
-      'Content-Length',
-      Buffer.byteLength(resultOrPayload as string)
-    )
+  if (payload) {
+    res.setHeader('Content-Length', Buffer.byteLength(payload))
   }
 
   if (options != null) {
@@ -114,14 +87,10 @@ export function sendRenderResult({
 
   if (req.method === 'HEAD') {
     res.end(null)
-  } else if (isPayload) {
-    res.end(resultOrPayload as string)
+  } else if (payload) {
+    res.end(payload)
   } else {
-    ;(resultOrPayload as RenderResult)({
-      next: (chunk) => res.write(chunk),
-      error: (_) => res.end(),
-      complete: () => res.end(),
-    })
+    await result.pipe(res)
   }
 }
 

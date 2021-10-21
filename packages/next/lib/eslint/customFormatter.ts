@@ -24,9 +24,10 @@ export interface LintResult {
   source?: string
 }
 
-function pluginCount(
-  messages: LintMessage[]
-): { nextPluginErrorCount: number; nextPluginWarningCount: number } {
+function pluginCount(messages: LintMessage[]): {
+  nextPluginErrorCount: number
+  nextPluginWarningCount: number
+} {
   let nextPluginWarningCount = 0
   let nextPluginErrorCount = 0
 

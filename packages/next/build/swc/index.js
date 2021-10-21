@@ -12,7 +12,7 @@ const path = require('path')
 const bindings = loadBinding(
   path.join(__dirname, '../../../native'),
   'next-swc',
-  'next-swc'
+  '@next/swc'
 )
 
 async function transform(src, options) {
@@ -23,20 +23,10 @@ async function transform(src, options) {
     options.jsc.parser.syntax = options.jsc.parser.syntax ?? 'ecmascript'
   }
 
-  const { plugin, ...newOptions } = options
-
-  if (plugin) {
-    const m =
-      typeof src === 'string'
-        ? await this.parse(src, options?.jsc?.parser)
-        : src
-    return this.transform(plugin(m), newOptions)
-  }
-
   return bindings.transform(
     isModule ? JSON.stringify(src) : src,
     isModule,
-    toBuffer(newOptions)
+    toBuffer(options)
   )
 }
 
@@ -48,18 +38,10 @@ function transformSync(src, options) {
     options.jsc.parser.syntax = options.jsc.parser.syntax ?? 'ecmascript'
   }
 
-  const { plugin, ...newOptions } = options
-
-  if (plugin) {
-    const m =
-      typeof src === 'string' ? this.parseSync(src, options?.jsc?.parser) : src
-    return this.transformSync(plugin(m), newOptions)
-  }
-
   return bindings.transformSync(
     isModule ? JSON.stringify(src) : src,
     isModule,
-    toBuffer(newOptions)
+    toBuffer(options)
   )
 }
 
@@ -67,5 +49,15 @@ function toBuffer(t) {
   return Buffer.from(JSON.stringify(t))
 }
 
+export async function minify(src, opts) {
+  return bindings.minify(toBuffer(src), toBuffer(opts ?? {}))
+}
+
+export function minifySync(src, opts) {
+  return bindings.minifySync(toBuffer(src), toBuffer(opts ?? {}))
+}
+
 module.exports.transform = transform
 module.exports.transformSync = transformSync
+module.exports.minify = minify
+module.exports.minifySync = minifySync

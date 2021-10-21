@@ -15,31 +15,8 @@ export function cleanAmpPath(pathname: string): string {
   return pathname
 }
 
-export type Disposable = () => void
-// TODO: Consider just using an actual Observable here
-export type RenderResult = (observer: {
-  next(chunk: string): void
-  error(error: Error): void
-  complete(): void
-}) => Disposable
-
-export function resultFromChunks(chunks: string[]): RenderResult {
-  return ({ next, complete }) => {
-    chunks.forEach(next)
-    complete()
-    return () => {}
-  }
-}
-
-export function resultToChunks(result: RenderResult): Promise<string[]> {
-  return new Promise((resolve, reject) => {
-    const chunks: string[] = []
-    result({
-      next: (chunk) => {
-        chunks.push(chunk)
-      },
-      error: (error) => reject(error),
-      complete: () => resolve(chunks),
-    })
-  })
+export function isBot(userAgent: string): boolean {
+  return /Googlebot|Mediapartners-Google|AdsBot-Google|googleweblight|Storebot-Google|Bingbot|BingPreview|Slurp|DuckDuckBot|baiduspider|yandex|sogou|LinkedInBot|bitlybot|tumblr|vkShare|quora link preview|facebookexternalhit|facebookcatalog|Twitterbot|applebot|redditbot|Slackbot|Discordbot|WhatsApp|SkypeUriPreview|ia_archiver/i.test(
+    userAgent
+  )
 }

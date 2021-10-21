@@ -1,14 +1,10 @@
 import devalue from 'next/dist/compiled/devalue'
-import {
-  webpack,
-  isWebpack5,
-  sources,
-} from 'next/dist/compiled/webpack/webpack'
+import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import {
   BUILD_MANIFEST,
   CLIENT_STATIC_FILES_PATH,
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
-  CLIENT_STATIC_FILES_RUNTIME_POLYFILLS,
+  CLIENT_STATIC_FILES_RUNTIME_POLYFILLS_SYMBOL,
   CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
   CLIENT_STATIC_FILES_RUNTIME_AMP,
 } from '../../../shared/lib/constants'
@@ -28,11 +24,12 @@ export type ClientBuildManifest = Record<string, string[]>
 // reduced version to send to the client.
 function generateClientManifest(
   compiler: any,
+  compilation: any,
   assetMap: BuildManifest,
   rewrites: CustomRoutes['rewrites']
 ): string {
-  const compilerSpan = spans.get(compiler)
-  const genClientManifestSpan = compilerSpan?.traceChild(
+  const compilationSpan = spans.get(compilation) || spans.get(compiler)
+  const genClientManifestSpan = compilationSpan?.traceChild(
     'NextJsBuildManifest-generateClientManifest'
   )
 
@@ -115,8 +112,8 @@ export default class BuildManifestPlugin {
   }
 
   createAssets(compiler: any, compilation: any, assets: any) {
-    const compilerSpan = spans.get(compiler)
-    const createAssetsSpan = compilerSpan?.traceChild(
+    const compilationSpan = spans.get(compilation) || spans.get(compiler)
+    const createAssetsSpan = compilationSpan?.traceChild(
       'NextJsBuildManifest-createassets'
     )
     return createAssetsSpan?.traceFn(() => {
@@ -146,9 +143,24 @@ export default class BuildManifestPlugin {
         getEntrypointFiles(entrypoints.get(CLIENT_STATIC_FILES_RUNTIME_MAIN))
       )
 
-      assetMap.polyfillFiles = getEntrypointFiles(
-        entrypoints.get(CLIENT_STATIC_FILES_RUNTIME_POLYFILLS)
-      ).filter((file) => !mainFiles.has(file))
+      const compilationAssets: {
+        name: string
+        source: typeof sources.RawSource
+        info: object
+      }[] = compilation.getAssets()
+
+      assetMap.polyfillFiles = compilationAssets
+        .filter((p) => {
+          // Ensure only .js files are passed through
+          if (!p.name.endsWith('.js')) {
+            return false
+          }
+
+          return (
+            p.info && CLIENT_STATIC_FILES_RUNTIME_POLYFILLS_SYMBOL in p.info
+          )
+        })
+        .map((v) => v.name)
 
       assetMap.devFiles = getEntrypointFiles(
         entrypoints.get(CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH)
@@ -160,7 +172,6 @@ export default class BuildManifestPlugin {
 
       const systemEntrypoints = new Set([
         CLIENT_STATIC_FILES_RUNTIME_MAIN,
-        CLIENT_STATIC_FILES_RUNTIME_POLYFILLS,
         CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
         CLIENT_STATIC_FILES_RUNTIME_AMP,
       ])
@@ -193,6 +204,13 @@ export default class BuildManifestPlugin {
         const ssgManifestPath = `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_ssgManifest.js`
         assetMap.lowPriorityFiles.push(ssgManifestPath)
         assets[ssgManifestPath] = new sources.RawSource(srcEmptySsgManifest)
+
+        const srcEmptyMiddlewareManifest = `self.__MIDDLEWARE_MANIFEST=new Set;self.__MIDDLEWARE_MANIFEST_CB&&self.__MIDDLEWARE_MANIFEST_CB()`
+        const middlewareManifestPath = `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_middlewareManifest.js`
+        assetMap.lowPriorityFiles.push(middlewareManifestPath)
+        assets[middlewareManifestPath] = new sources.RawSource(
+          srcEmptyMiddlewareManifest
+        )
       }
 
       assetMap.pages = Object.keys(assetMap.pages)
@@ -216,6 +234,7 @@ export default class BuildManifestPlugin {
         assets[clientManifestPath] = new sources.RawSource(
           `self.__BUILD_MANIFEST = ${generateClientManifest(
             compiler,
+            compilation,
             assetMap,
             this.rewrites
           )};self.__BUILD_MANIFEST_CB && self.__BUILD_MANIFEST_CB()`
@@ -227,25 +246,19 @@ export default class BuildManifestPlugin {
   }
 
   apply(compiler: webpack.Compiler) {
-    if (isWebpack5) {
-      compiler.hooks.make.tap('NextJsBuildManifest', (compilation) => {
-        // @ts-ignore TODO: Remove ignore when webpack 5 is stable
-        compilation.hooks.processAssets.tap(
-          {
-            name: 'NextJsBuildManifest',
-            // @ts-ignore TODO: Remove ignore when webpack 5 is stable
-            stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
-          },
-          (assets: any) => {
-            this.createAssets(compiler, compilation, assets)
-          }
-        )
-      })
-      return
-    }
-
-    compiler.hooks.emit.tap('NextJsBuildManifest', (compilation: any) => {
-      this.createAssets(compiler, compilation, compilation.assets)
+    compiler.hooks.make.tap('NextJsBuildManifest', (compilation) => {
+      // @ts-ignore TODO: Remove ignore when webpack 5 is stable
+      compilation.hooks.processAssets.tap(
+        {
+          name: 'NextJsBuildManifest',
+          // @ts-ignore TODO: Remove ignore when webpack 5 is stable
+          stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
+        },
+        (assets: any) => {
+          this.createAssets(compiler, compilation, assets)
+        }
+      )
     })
+    return
   }
 }

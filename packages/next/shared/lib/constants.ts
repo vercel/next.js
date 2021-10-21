@@ -11,17 +11,19 @@ export const ROUTES_MANIFEST = 'routes-manifest.json'
 export const IMAGES_MANIFEST = 'images-manifest.json'
 export const SERVER_FILES_MANIFEST = 'required-server-files.json'
 export const DEV_CLIENT_PAGES_MANIFEST = '_devPagesManifest.json'
+export const MIDDLEWARE_MANIFEST = 'middleware-manifest.json'
+export const DEV_MIDDLEWARE_MANIFEST = '_devMiddlewareManifest.json'
 export const REACT_LOADABLE_MANIFEST = 'react-loadable-manifest.json'
 export const FONT_MANIFEST = 'font-manifest.json'
 export const SERVER_DIRECTORY = 'server'
 export const SERVERLESS_DIRECTORY = 'serverless'
-export const CONFIG_FILE = 'next.config.js'
+export const CONFIG_FILES = ['next.config.js', 'next.config.mjs']
 export const BUILD_ID_FILE = 'BUILD_ID'
 export const BLOCKED_PAGES = ['/_document', '/_app', '/_error']
 export const CLIENT_PUBLIC_FILES_PATH = 'public'
 export const CLIENT_STATIC_FILES_PATH = 'static'
 export const CLIENT_STATIC_FILES_RUNTIME = 'runtime'
-export const AMP_RENDER_TARGET = '__NEXT_AMP_RENDER_TARGET__'
+export const BODY_RENDER_TARGET = '__NEXT_BODY_RENDER_TARGET__'
 export const STRING_LITERAL_DROP_BUNDLE = '__NEXT_DROP_CLIENT_FILE__'
 // static/runtime/main.js
 export const CLIENT_STATIC_FILES_RUNTIME_MAIN = `main`
@@ -32,7 +34,7 @@ export const CLIENT_STATIC_FILES_RUNTIME_AMP = `amp`
 // static/runtime/webpack.js
 export const CLIENT_STATIC_FILES_RUNTIME_WEBPACK = `webpack`
 // static/runtime/polyfills.js
-export const CLIENT_STATIC_FILES_RUNTIME_POLYFILLS = `polyfills`
+export const CLIENT_STATIC_FILES_RUNTIME_POLYFILLS_SYMBOL = Symbol(`polyfills`)
 export const TEMPORARY_REDIRECT_STATUS = 307
 export const PERMANENT_REDIRECT_STATUS = 308
 export const STATIC_PROPS_ID = '__N_SSG'
@@ -43,3 +45,4 @@ export const OPTIMIZED_FONT_PROVIDERS = [
   { url: 'https://use.typekit.net', preconnect: 'https://use.typekit.net' },
 ]
 export const STATIC_STATUS_PAGES = ['/500']
+export const TRACE_OUTPUT_VERSION = 1
