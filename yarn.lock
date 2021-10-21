@@ -15167,11 +15167,6 @@ pngjs@^5.0.0:
   resolved "https://registry.yarnpkg.com/pngjs/-/pngjs-5.0.0.tgz#e79dd2b215767fd9c04561c01236df960bce7fbb"
   integrity sha512-40QW5YalBNfQo5yRYmiw7Yz6TKKVr3h6970B2YE+3fQpsWcrbj1PzJgxeJ19DRQjhMbKPIuMY8rFaXc8moolVw==
 
-pnpm@6.17.2:
-  version "6.17.2"
-  resolved "https://registry.yarnpkg.com/pnpm/-/pnpm-6.17.2.tgz#6767c79a997f72769d73c1f88f4bc440a5e16f0d"
-  integrity sha512-hEoGmkr9Gwc2QG9zeRSaRraXCcnDY+7/xr+7B2tg9EXfKBnQZblx8KCa/PZ5iVp9o9aNFC7Qg8pGcaAlsgQGrQ==
-
 posix-character-classes@^0.1.0:
   version "0.1.1"
   resolved "https://registry.yarnpkg.com/posix-character-classes/-/posix-character-classes-0.1.1.tgz#01eac0fe3b5af71a2a6c02feabb8c1fef7e00eab"
