@@ -170,21 +170,25 @@ export default function onDemandEntryHandler(
         throw pageNotFoundError(normalizedPagePath)
       }
 
-      let pageUrl = pagePath.replace(/\\/g, '/')
+      let bundlePath: string
+      let absolutePagePath: string
+      if (pagePath.startsWith('next/dist/pages/')) {
+        bundlePath = page
+        absolutePagePath = require.resolve(pagePath)
+      } else {
+        let pageUrl = pagePath.replace(/\\/g, '/')
 
-      pageUrl = `${pageUrl[0] !== '/' ? '/' : ''}${pageUrl
-        .replace(new RegExp(`\\.+(?:${pageExtensions.join('|')})$`), '')
-        .replace(/\/index$/, '')}`
+        pageUrl = `${pageUrl[0] !== '/' ? '/' : ''}${pageUrl
+          .replace(new RegExp(`\\.+(?:${pageExtensions.join('|')})$`), '')
+          .replace(/\/index$/, '')}`
 
-      pageUrl = pageUrl === '' ? '/' : pageUrl
+        pageUrl = pageUrl === '' ? '/' : pageUrl
+        const bundleFile = normalizePagePath(pageUrl)
+        bundlePath = posix.join('pages', bundleFile)
+        absolutePagePath = join(pagesDir, pagePath)
+        page = posix.normalize(pageUrl)
+      }
 
-      const bundleFile = normalizePagePath(pageUrl)
-      const bundlePath = posix.join('pages', bundleFile)
-      const absolutePagePath = pagePath.startsWith('next/dist/pages')
-        ? require.resolve(pagePath)
-        : join(pagesDir, pagePath)
-
-      page = posix.normalize(pageUrl)
       const normalizedPage = normalizePathSep(page)
 
       const isMiddleware = normalizedPage.match(MIDDLEWARE_ROUTE)
@@ -194,7 +198,7 @@ export default function onDemandEntryHandler(
       const addPageEntry = (type: 'client' | 'server') => {
         return new Promise<void>((resolve, reject) => {
           // Makes sure the page that is being kept in on-demand-entries matches the webpack output
-          const pageKey = `${type}${normalizedPage}`
+          const pageKey = `${type}${page}`
           const entryInfo = entries[pageKey]
 
           if (entryInfo) {

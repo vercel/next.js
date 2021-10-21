@@ -78,17 +78,17 @@ export async function getNotFoundError(
       .replace(/Can't resolve '(.*)'/, `Can't resolve '${chalk.green('$1')}'`)
 
     const importTrace = () => {
-      let importTraceLine = '\nImport trace for requested module:\n'
       const moduleTrace = getModuleTrace(input, compilation)
+      if (moduleTrace.length === 0) return ''
 
+      let importTraceLine = '\nImport trace for requested module:\n'
       for (const { origin } of moduleTrace) {
         if (!origin.resource) {
           continue
         }
-        const filePath = path.relative(
-          compilation.options.context,
-          origin.resource
-        )
+        const filePath = path
+          .relative(compilation.options.context, origin.resource)
+          .replace(/\\/g, '/')
         importTraceLine += `./${filePath}\n`
       }
 
