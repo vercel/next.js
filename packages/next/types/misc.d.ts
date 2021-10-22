@@ -154,6 +154,10 @@ declare module 'next/dist/compiled/lru-cache' {
   import m from 'lru-cache'
   export = m
 }
+declare module 'next/dist/compiled/micromatch' {
+  import m from 'micromatch'
+  export = m
+}
 declare module 'next/dist/compiled/nanoid/index.cjs' {
   import m from 'nanoid'
   export = m
