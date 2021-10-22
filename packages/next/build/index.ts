@@ -284,6 +284,7 @@ export default async function build(
         )
       )
     const pageKeys = Object.keys(mappedPages)
+    const hasMiddleware = pageKeys.some((page) => MIDDLEWARE_ROUTE.test(page))
     const conflictingPublicFiles: string[] = []
     const hasCustomErrorPage: boolean =
       mappedPages['/_error'].startsWith('private-next-pages')
@@ -291,6 +292,15 @@ export default async function build(
       mappedPages['/404'] &&
         mappedPages['/404'].startsWith('private-next-pages')
     )
+
+    if (hasMiddleware) {
+      console.warn(
+        chalk.bold.yellow(`Warning: `) +
+          chalk.yellow(
+            `using beta Middleware (not covered by semver) - https://nextjs.org/docs/messages/beta-middleware`
+          )
+      )
+    }
 
     if (hasPublicDir) {
       const hasPublicUnderScoreNextDir = await fileExists(

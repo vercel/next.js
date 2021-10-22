@@ -594,12 +594,23 @@ export default class Server {
 
   protected async ensureMiddleware(_pathname: string) {}
 
+  private middlewareBetaWarning = execOnce(() => {
+    console.warn(
+      chalk.bold.yellow(`Warning: `) +
+        chalk.yellow(
+          `using beta Middleware (not covered by semver) - https://nextjs.org/docs/messages/beta-middleware`
+        )
+    )
+  })
+
   protected async runMiddleware(params: {
     request: IncomingMessage
     response: ServerResponse
     parsedUrl: ParsedNextUrl
     parsed: UrlWithParsedQuery
   }): Promise<FetchEventResult | null> {
+    this.middlewareBetaWarning()
+
     const page: { name?: string; params?: { [key: string]: string } } = {}
     if (await this.hasPage(params.parsedUrl.pathname)) {
       page.name = params.parsedUrl.pathname
