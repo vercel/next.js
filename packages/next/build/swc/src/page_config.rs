@@ -4,18 +4,19 @@ use swc_ecmascript::ast::*;
 use swc_ecmascript::utils::HANDLER;
 use swc_ecmascript::visit::{Fold, FoldWith};
 
-pub fn page_config(is_development: bool) -> impl Fold {
+pub fn page_config(is_development: bool, is_page_file: bool) -> impl Fold {
   PageConfig {
     is_development,
+    is_page_file,
     ..Default::default()
   }
 }
 
 pub fn page_config_test() -> impl Fold {
   PageConfig {
-    drop_bundle: false,
     in_test: true,
-    is_development: false,
+    is_page_file: true,
+    ..Default::default()
   }
 }
 
@@ -24,12 +25,7 @@ struct PageConfig {
   drop_bundle: bool,
   in_test: bool,
   is_development: bool,
-}
-
-fn handle_error(details: &str, span: Span) {
-  let message = format!("Invalid page config export found. {} \
-  See: https://nextjs.org/docs/messages/invalid-page-config", details);
-  HANDLER.with(|handler| handler.struct_span_err(span, &message).emit());
+  is_page_file: bool,
 }
 
 const STRING_LITERAL_DROP_BUNDLE: &str = "__NEXT_DROP_CLIENT_FILE__";
@@ -95,32 +91,32 @@ impl Fold for PageConfig {
                         PropName::Ident(ident) => {
                           if &ident.sym == "amp" {
                             if let Expr::Lit(Lit::Bool(Bool { value, .. })) = &*kv.value {
-                              if *value {
+                              if *value && self.is_page_file {
                                 self.drop_bundle = true;
                               }
                             } else if let Expr::Lit(Lit::Str(_)) = &*kv.value {
                               // Do not replace bundle
                             } else {
-                              handle_error("Invalid value found.", export.span);
+                              self.handle_error("Invalid value found.", export.span);
                             }
                           }
                         }
                         _ => {
-                          handle_error("Invalid property found.", export.span);
+                          self.handle_error("Invalid property found.", export.span);
                         }
                       }
                     } else {
-                      handle_error("Invalid property or value.", export.span);
+                      self.handle_error("Invalid property or value.", export.span);
                     }
                   } else {
-                    handle_error("Property spread is not allowed.", export.span);
+                    self.handle_error("Property spread is not allowed.", export.span);
                   }
                 }
               } else {
-                handle_error("Expected config to be an object.", export.span);
+                self.handle_error("Expected config to be an object.", export.span);
               }
             } else {
-              handle_error("Expected config to be an object.", export.span);
+              self.handle_error("Expected config to be an object.", export.span);
             }
           }
         }
@@ -137,15 +133,25 @@ impl Fold for PageConfig {
     match &specifier.exported {
       Some(ident) => {
         if &ident.sym == CONFIG_KEY {
-          handle_error("Config cannot be re-exported.", specifier.span)
+          self.handle_error("Config cannot be re-exported.", specifier.span)
         }
       }
       None => {
         if &specifier.orig.sym == CONFIG_KEY {
-          handle_error("Config cannot be re-exported.", specifier.span)
+          self.handle_error("Config cannot be re-exported.", specifier.span)
         }
       }
     }
     specifier
+  }
+}
+
+impl PageConfig {
+  fn handle_error(&mut self, details: &str, span: Span) {
+    if self.is_page_file {
+      let message = format!("Invalid page config export found. {} \
+      See: https://nextjs.org/docs/messages/invalid-page-config", details);
+      HANDLER.with(|handler| handler.struct_span_err(span, &message).emit());
+    }
   }
 }
