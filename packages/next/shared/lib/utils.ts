@@ -77,7 +77,7 @@ export type RenderPageResult = {
 
 export type RenderPage = (
   options?: ComponentsEnhancer
-) => RenderPageResult | Promise<RenderPageResult>
+) => DocumentInitialProps | Promise<DocumentInitialProps>
 
 export type BaseContext = {
   res?: ServerResponse
@@ -178,6 +178,7 @@ export type AppPropsType<
 
 export type DocumentContext = NextPageContext & {
   renderPage: RenderPage
+  defaultGetInitialProps(ctx: DocumentContext): Promise<DocumentInitialProps>
 }
 
 export type DocumentInitialProps = RenderPageResult & {
@@ -185,6 +186,11 @@ export type DocumentInitialProps = RenderPageResult & {
 }
 
 export type DocumentProps = DocumentInitialProps & HtmlProps
+
+export type MaybeDeferContentHook = (
+  name: string,
+  contentFn: () => JSX.Element
+) => [boolean, JSX.Element]
 
 export type HtmlProps = {
   __NEXT_DATA__: NEXT_DATA
@@ -212,6 +218,7 @@ export type HtmlProps = {
   disableOptimizedLoading?: boolean
   styles?: React.ReactElement[] | React.ReactFragment
   head?: Array<JSX.Element | null>
+  useMaybeDeferContent: MaybeDeferContentHook
 }
 
 /**

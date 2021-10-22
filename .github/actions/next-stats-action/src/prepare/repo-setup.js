@@ -73,6 +73,10 @@ module.exports = (actionInfo) => {
         const packedPkgPath = path.join(pkgPath, `${pkg}-packed.tgz`)
 
         const pkgDataPath = path.join(pkgPath, 'package.json')
+        if (!fs.existsSync(pkgDataPath)) {
+          console.log(`Skipping ${pkgDataPath}`)
+          continue
+        }
         const pkgData = require(pkgDataPath)
         const { name } = pkgData
         pkgDatas.set(name, {
@@ -93,6 +97,10 @@ module.exports = (actionInfo) => {
           if (!pkgData.dependencies || !pkgData.dependencies[pkg]) continue
           pkgData.dependencies[pkg] = packedPkgPath
         }
+        // make sure native binaries are included in local linking
+        if (pkg === 'next') {
+          pkgData.files.push('native')
+        }
         await fs.writeFile(
           pkgDataPath,
           JSON.stringify(pkgData, null, 2),
@@ -104,7 +112,7 @@ module.exports = (actionInfo) => {
       // to the correct versions
       for (const pkgName of pkgDatas.keys()) {
         const { pkg, pkgPath } = pkgDatas.get(pkgName)
-        await exec(`cd ${pkgPath} && yarn pack -f ${pkg}-packed.tgz`)
+        await exec(`cd ${pkgPath} && yarn pack -f ${pkg}-packed.tgz`, true)
       }
       return pkgPaths
     },

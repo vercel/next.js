@@ -13,8 +13,6 @@ import {
 import webdriver from 'next-webdriver'
 import cheerio from 'cheerio'
 
-jest.setTimeout(1000 * 60 * 2)
-
 const appDir = join(__dirname, '../')
 const gip404Err =
   /`pages\/404` can not have getInitialProps\/getServerSideProps/
@@ -43,7 +41,7 @@ describe('404 Page Support with _app', () => {
     it('should not output static 404 if _app has getInitialProps', async () => {
       const browser = await webdriver(appPort, '/404')
       const isAutoExported = await browser.eval('__NEXT_DATA__.autoExport')
-      expect(isAutoExported).toBe(null)
+      expect(isAutoExported).toBeFalsy()
     })
 
     it('specify to use the 404 page still in the routes-manifest', async () => {

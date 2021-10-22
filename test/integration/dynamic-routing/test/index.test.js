@@ -21,8 +21,6 @@ import {
 import cheerio from 'cheerio'
 import escapeRegex from 'escape-string-regexp'
 
-jest.setTimeout(1000 * 60 * 2)
-
 let app
 let appPort
 let buildId
@@ -359,6 +357,23 @@ function runTests(dev) {
       browser = await webdriver(appPort, '/')
       await browser.eval('window.beforeNav = 1')
       await browser.elementByCss('#view-post-1').click()
+      await browser.waitForElementByCss('#asdf')
+
+      expect(await browser.eval('window.beforeNav')).toBe(1)
+
+      const text = await browser.elementByCss('#asdf').text()
+      expect(text).toMatch(/this is.*?post-1/i)
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+
+  it('should navigate to a dynamic page with href with differing query and as correctly', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/')
+      await browser.eval('window.beforeNav = 1')
+      await browser.elementByCss('#view-post-1-hidden-query').click()
       await browser.waitForElementByCss('#asdf')
 
       expect(await browser.eval('window.beforeNav')).toBe(1)
@@ -1072,6 +1087,20 @@ function runTests(dev) {
         basePath: '',
         headers: [],
         rewrites: [],
+        staticRoutes: [
+          {
+            namedRegex: '^/(?:/)?$',
+            page: '/',
+            regex: '^/(?:/)?$',
+            routeKeys: {},
+          },
+          {
+            namedRegex: '^/another(?:/)?$',
+            page: '/another',
+            regex: '^/another(?:/)?$',
+            routeKeys: {},
+          },
+        ],
         redirects: expect.arrayContaining([]),
         dataRoutes: [
           {

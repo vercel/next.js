@@ -1,7 +1,6 @@
 import Chalk from 'chalk'
 import { SimpleWebpackError } from './simpleWebpackError'
 import { createOriginalStackFrame } from '@next/react-dev-overlay/lib/middleware'
-import { isWebpack5 } from 'next/dist/compiled/webpack/webpack'
 import path from 'path'
 
 const chalk = new Chalk.constructor({ enabled: true })
@@ -79,21 +78,17 @@ export async function getNotFoundError(
       .replace(/Can't resolve '(.*)'/, `Can't resolve '${chalk.green('$1')}'`)
 
     const importTrace = () => {
-      if (!isWebpack5) {
-        return ''
-      }
+      const moduleTrace = getModuleTrace(input, compilation)
+      if (moduleTrace.length === 0) return ''
 
       let importTraceLine = '\nImport trace for requested module:\n'
-      const moduleTrace = getModuleTrace(input, compilation)
-
       for (const { origin } of moduleTrace) {
         if (!origin.resource) {
           continue
         }
-        const filePath = path.relative(
-          compilation.options.context,
-          origin.resource
-        )
+        const filePath = path
+          .relative(compilation.options.context, origin.resource)
+          .replace(/\\/g, '/')
         importTraceLine += `./${filePath}\n`
       }
 
@@ -118,7 +113,6 @@ export async function getNotFoundError(
       message
     )
   } catch (err) {
-    console.log('Failed to parse source map:', err)
     // Don't fail on failure to resolve sourcemaps
     return input
   }

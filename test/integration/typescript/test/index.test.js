@@ -12,8 +12,6 @@ import {
   File,
 } from 'next-test-utils'
 
-jest.setTimeout(1000 * 60 * 2)
-
 const appDir = join(__dirname, '..')
 let appPort
 let app
@@ -98,6 +96,11 @@ export default function EvilPage(): JSX.Element {
     const output = await nextBuild(appDir, [], { stdout: true })
     expect(output.stdout).toMatch(/Compiled successfully/)
     expect(output.code).toBe(0)
+  })
+
+  it('should not inform when using default tsconfig path', async () => {
+    const output = await nextBuild(appDir, [], { stdout: true })
+    expect(output.stdout).not.toMatch(/Using tsconfig file:/)
   })
 
   describe('should compile with different types', () => {

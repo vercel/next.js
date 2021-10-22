@@ -2,6 +2,7 @@
 import '@next/polyfill-module'
 import React from 'react'
 import ReactDOM from 'react-dom'
+import { StyleRegistry } from 'styled-jsx'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import mitt, { MittEmitter } from '../shared/lib/mitt'
 import { RouterContext } from '../shared/lib/router-context'
@@ -18,13 +19,21 @@ import {
   assign,
 } from '../shared/lib/router/utils/querystring'
 import { setConfig } from '../shared/lib/runtime-config'
-import { getURL, loadGetInitialProps, NEXT_DATA, ST } from '../shared/lib/utils'
+import {
+  getURL,
+  loadGetInitialProps,
+  NextWebVitalsMetric,
+  NEXT_DATA,
+  ST,
+} from '../shared/lib/utils'
 import { Portal } from './portal'
 import initHeadManager from './head-manager'
 import PageLoader, { StyleSheetTuple } from './page-loader'
 import measureWebVitals from './performance-relayer'
 import { RouteAnnouncer } from './route-announcer'
 import { createRouter, makePublicRouterInstance } from './router'
+import isError from '../lib/is-error'
+import { trackWebVitalMetric } from './vitals'
 
 /// <reference types="react-dom/experimental" />
 
@@ -271,37 +280,38 @@ export async function initNext(opts: { webpackHMR?: any } = {}) {
 
     const { component: app, exports: mod } = appEntrypoint
     CachedApp = app as AppComponent
-    if (mod && mod.reportWebVitals) {
-      onPerfEntry = ({
-        id,
-        name,
-        startTime,
-        value,
-        duration,
-        entryType,
-        entries,
-      }): void => {
-        // Combines timestamp with random number for unique ID
-        const uniqueID: string = `${Date.now()}-${
-          Math.floor(Math.random() * (9e12 - 1)) + 1e12
-        }`
-        let perfStartEntry: string | undefined
+    const exportedReportWebVitals = mod && mod.reportWebVitals
+    onPerfEntry = ({
+      id,
+      name,
+      startTime,
+      value,
+      duration,
+      entryType,
+      entries,
+    }: any): void => {
+      // Combines timestamp with random number for unique ID
+      const uniqueID: string = `${Date.now()}-${
+        Math.floor(Math.random() * (9e12 - 1)) + 1e12
+      }`
+      let perfStartEntry: string | undefined
 
-        if (entries && entries.length) {
-          perfStartEntry = entries[0].startTime
-        }
-
-        mod.reportWebVitals({
-          id: id || uniqueID,
-          name,
-          startTime: startTime || perfStartEntry,
-          value: value == null ? duration : value,
-          label:
-            entryType === 'mark' || entryType === 'measure'
-              ? 'custom'
-              : 'web-vital',
-        })
+      if (entries && entries.length) {
+        perfStartEntry = entries[0].startTime
       }
+
+      const webVitals: NextWebVitalsMetric = {
+        id: id || uniqueID,
+        name,
+        startTime: startTime || perfStartEntry,
+        value: value == null ? duration : value,
+        label:
+          entryType === 'mark' || entryType === 'measure'
+            ? 'custom'
+            : 'web-vital',
+      }
+      exportedReportWebVitals?.(webVitals)
+      trackWebVitalMetric(webVitals)
     }
 
     const pageEntrypoint =
@@ -325,7 +335,7 @@ export async function initNext(opts: { webpackHMR?: any } = {}) {
     }
   } catch (error) {
     // This catches errors like throwing in the top level of a module
-    initialErr = error
+    initialErr = isError(error) ? error : new Error(error + '')
   }
 
   if (process.env.NODE_ENV === 'development') {
@@ -342,11 +352,17 @@ export async function initNext(opts: { webpackHMR?: any } = {}) {
             // not overridden when we re-throw it below.
             throw new Error(initialErr!.message)
           } catch (e) {
-            error = e
+            error = e as Error
           }
 
           error.name = initialErr!.name
           error.stack = initialErr!.stack
+
+          // Errors from the middleware are reported as client-side errors
+          // since the middleware is compiled using the client compiler
+          if ('middleware' in hydrateErr) {
+            throw error
+          }
 
           const node = getNodeError(error)
           throw node
@@ -416,9 +432,10 @@ export async function render(renderingProps: RenderRouteInfo): Promise<void> {
 
   try {
     await doRender(renderingProps)
-  } catch (renderErr) {
+  } catch (err) {
+    const renderErr = err instanceof Error ? err : new Error(err + '')
     // bubble up cancelation errors
-    if (renderErr.cancelled) {
+    if ((renderErr as Error & { cancelled?: boolean }).cancelled) {
       throw renderErr
     }
 
@@ -573,6 +590,7 @@ function markRenderComplete(): void {
       .getEntriesByName('Next.js-route-change-to-render')
       .forEach(onPerfEntry)
   }
+
   clearMarks()
   ;['Next.js-route-change-to-render', 'Next.js-render'].forEach((measure) =>
     performance.clearMeasures(measure)
@@ -598,7 +616,7 @@ function AppContainer({
     >
       <RouterContext.Provider value={makePublicRouterInstance(router)}>
         <HeadManagerContext.Provider value={headManager}>
-          {children}
+          <StyleRegistry>{children}</StyleRegistry>
         </HeadManagerContext.Provider>
       </RouterContext.Provider>
     </Container>
@@ -760,10 +778,6 @@ function doRender(input: RenderRouteInfo): Promise<any> {
       ).forEach((el) => {
         el.parentNode!.removeChild(el)
       })
-
-      // Force browser to recompute layout, which should prevent a flash of
-      // unstyled content:
-      getComputedStyle(document.body, 'height')
     }
 
     if (input.scroll) {

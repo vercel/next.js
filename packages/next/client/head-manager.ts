@@ -104,14 +104,20 @@ export default function initHeadManager(): {
             // If the font tag is loaded only on client navigation
             // it won't be inlined. In this case revert to the original behavior
             h.type === 'link' &&
-            h.props['data-optimized-fonts'] &&
-            !document.querySelector(
-              `style[data-href="${h.props['data-href']}"]`
-            )
+            h.props['data-optimized-fonts']
           ) {
-            h.props.href = h.props['data-href']
-            h.props['data-href'] = undefined
+            if (
+              document.querySelector(
+                `style[data-href="${h.props['data-href']}"]`
+              )
+            ) {
+              return
+            } else {
+              h.props.href = h.props['data-href']
+              h.props['data-href'] = undefined
+            }
           }
+
           const components = tags[h.type] || []
           components.push(h)
           tags[h.type] = components
