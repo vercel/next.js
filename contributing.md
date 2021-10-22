@@ -72,7 +72,7 @@ If you would like to run the tests in headless mode (with the browser windows hi
 yarn testheadless
 ```
 
-Running a specific test suite inside of the `test/integration` directory:
+Running a specific test suite (e.g. `production`) inside of the `test/integration` directory:
 
 ```sh
 yarn testonly --testPathPattern "production"
@@ -84,7 +84,21 @@ Running one test in the `production` test suite:
 yarn testonly --testPathPattern "production" -t "should allow etag header support"
 ```
 
-### Running the integration apps
+### Linting
+
+To check the formatting of your code:
+
+```sh
+yarn lint
+```
+
+If you get errors, you can fix them with:
+
+```sh
+yarn lint-fix
+```
+
+### Running the example apps
 
 Running examples can be done with:
 

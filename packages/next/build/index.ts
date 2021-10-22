@@ -94,7 +94,7 @@ import { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
 import { writeBuildId } from './write-build-id'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { NextConfigComplete } from '../server/config-shared'
-import isError from '../lib/is-error'
+import isError, { NextError } from '../lib/is-error'
 import { TelemetryPlugin } from './webpack/plugins/telemetry-plugin'
 import { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 
@@ -284,6 +284,7 @@ export default async function build(
         )
       )
     const pageKeys = Object.keys(mappedPages)
+    const hasMiddleware = pageKeys.some((page) => MIDDLEWARE_ROUTE.test(page))
     const conflictingPublicFiles: string[] = []
     const hasCustomErrorPage: boolean =
       mappedPages['/_error'].startsWith('private-next-pages')
@@ -291,6 +292,15 @@ export default async function build(
       mappedPages['/404'] &&
         mappedPages['/404'].startsWith('private-next-pages')
     )
+
+    if (hasMiddleware) {
+      console.warn(
+        chalk.bold.yellow(`Warning: `) +
+          chalk.yellow(
+            `using beta Middleware (not covered by semver) - https://nextjs.org/docs/messages/beta-middleware`
+          )
+      )
+    }
 
     if (hasPublicDir) {
       const hasPublicUnderScoreNextDir = await fileExists(
@@ -614,13 +624,13 @@ export default async function build(
 
     result = nextBuildSpan
       .traceChild('format-webpack-messages')
-      .traceFn(() => formatWebpackMessages(result))
+      .traceFn(() => formatWebpackMessages(result, true))
 
     if (result.errors.length > 0) {
-      // Only keep the first error. Others are often indicative
+      // Only keep the first few errors. Others are often indicative
       // of the same problem, but confuse the reader with noise.
-      if (result.errors.length > 1) {
-        result.errors.length = 1
+      if (result.errors.length > 5) {
+        result.errors.length = 5
       }
       const error = result.errors.join('\n\n')
 
@@ -645,11 +655,17 @@ export default async function build(
         error.indexOf('private-next-pages') > -1 ||
         error.indexOf('__next_polyfill__') > -1
       ) {
-        throw new Error(
-          '> webpack config.resolve.alias was incorrectly overridden. https://nextjs.org/docs/messages/invalid-resolve-alias'
-        )
+        const err = new Error(
+          'webpack config.resolve.alias was incorrectly overridden. https://nextjs.org/docs/messages/invalid-resolve-alias'
+        ) as NextError
+        err.code = 'INVALID_RESOLVE_ALIAS'
+        throw err
       }
-      throw new Error('> Build failed because of webpack errors')
+      const err = new Error(
+        'Build failed because of webpack errors'
+      ) as NextError
+      err.code = 'WEBPACK_ERRORS'
+      throw err
     } else {
       telemetry.record(
         eventBuildCompleted(pagePaths, {
@@ -759,10 +775,9 @@ export default async function build(
     } = await staticCheckSpan.traceAsyncFn(async () => {
       process.env.NEXT_PHASE = PHASE_PRODUCTION_BUILD
 
-      const runtimeEnvConfig = {
-        publicRuntimeConfig: config.publicRuntimeConfig,
-        serverRuntimeConfig: config.serverRuntimeConfig,
-      }
+      const { configFileName, publicRuntimeConfig, serverRuntimeConfig } =
+        config
+      const runtimeEnvConfig = { publicRuntimeConfig, serverRuntimeConfig }
 
       const nonStaticErrorPageSpan = staticCheckSpan.traceChild(
         'check-static-error-page'
@@ -787,6 +802,7 @@ export default async function build(
             '/_error',
             distDir,
             isLikeServerless,
+            configFileName,
             runtimeEnvConfig,
             config.httpAgentOptions,
             config.i18n?.locales,
@@ -853,6 +869,7 @@ export default async function build(
                     page,
                     distDir,
                     isLikeServerless,
+                    configFileName,
                     runtimeEnvConfig,
                     config.httpAgentOptions,
                     config.i18n?.locales,
@@ -1125,7 +1142,7 @@ export default async function build(
       !customAppGetInitialProps && (!hasNonStaticErrorPage || hasPages404)
 
     if (invalidPages.size > 0) {
-      throw new Error(
+      const err = new Error(
         `Build optimization failed: found page${
           invalidPages.size === 1 ? '' : 's'
         } without a React Component as default export in \n${[...invalidPages]
@@ -1133,7 +1150,9 @@ export default async function build(
           .join(
             '\n'
           )}\n\nSee https://nextjs.org/docs/messages/page-without-valid-component for more info.\n`
-      )
+      ) as NextError
+      err.code = 'BUILD_OPTIMIZATION_FAILED'
+      throw err
     }
 
     await writeBuildId(distDir, buildId)

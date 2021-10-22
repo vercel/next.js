@@ -50,6 +50,13 @@ export default class MiddlewarePlugin {
       const files = entrypoint
         .getFiles()
         .filter((file: string) => !file.endsWith('.hot-update.js'))
+        .map((file: string) =>
+          // we need to use the unminified version of the webpack runtime,
+          // remove if we do start minifying middleware chunks
+          file.startsWith('static/chunks/webpack-')
+            ? file.replace('webpack-', 'webpack-middleware-')
+            : file
+        )
 
       middlewareManifest.middleware[location] = {
         env: envPerRoute.get(entrypoint.name)!,
