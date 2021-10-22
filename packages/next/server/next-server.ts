@@ -281,7 +281,7 @@ export default class Server {
 
     if (!dev) {
       this.pagesManifest = require(pagesManifestPath)
-      if (!this.minimalMode && this.nextConfig.experimental.middleware) {
+      if (!this.minimalMode) {
         this.middlewareManifest = require(middlewareManifestPath)
       }
     }
@@ -569,9 +569,6 @@ export default class Server {
   }
 
   protected getMiddleware() {
-    if (!this.nextConfig.experimental.middleware) {
-      return []
-    }
     return Object.keys(this.middlewareManifest?.middleware || {}).map(
       (page) => ({
         match: getRouteMatcher(getMiddlewareRegex(page)),
@@ -597,12 +594,23 @@ export default class Server {
 
   protected async ensureMiddleware(_pathname: string) {}
 
+  private middlewareBetaWarning = execOnce(() => {
+    console.warn(
+      chalk.bold.yellow(`Warning: `) +
+        chalk.yellow(
+          `using beta Middleware (not covered by semver) - https://nextjs.org/docs/messages/beta-middleware`
+        )
+    )
+  })
+
   protected async runMiddleware(params: {
     request: IncomingMessage
     response: ServerResponse
     parsedUrl: ParsedNextUrl
     parsed: UrlWithParsedQuery
   }): Promise<FetchEventResult | null> {
+    this.middlewareBetaWarning()
+
     const page: { name?: string; params?: { [key: string]: string } } = {}
     if (await this.hasPage(params.parsedUrl.pathname)) {
       page.name = params.parsedUrl.pathname
@@ -1085,7 +1093,7 @@ export default class Server {
 
     let catchAllMiddleware: Route | undefined
 
-    if (!this.minimalMode && this.nextConfig.experimental.middleware) {
+    if (!this.minimalMode) {
       catchAllMiddleware = {
         match: route('/:path*'),
         type: 'route',

@@ -265,12 +265,10 @@ export default class DevServer extends Server {
           routedPages.push(pageName)
         }
 
-        if (this.nextConfig.experimental.middleware) {
-          this.middleware = getSortedRoutes(routedMiddleware).map((page) => ({
-            match: getRouteMatcher(getMiddlewareRegex(page)),
-            page,
-          }))
-        }
+        this.middleware = getSortedRoutes(routedMiddleware).map((page) => ({
+          match: getRouteMatcher(getMiddlewareRegex(page)),
+          page,
+        }))
 
         try {
           // we serve a separate manifest with all pages for the client in
@@ -693,27 +691,25 @@ export default class DevServer extends Server {
       },
     })
 
-    if (this.nextConfig.experimental.middleware) {
-      fsRoutes.unshift({
-        match: route(
-          `/_next/${CLIENT_STATIC_FILES_PATH}/${this.buildId}/${DEV_MIDDLEWARE_MANIFEST}`
-        ),
-        type: 'route',
-        name: `_next/${CLIENT_STATIC_FILES_PATH}/${this.buildId}/${DEV_MIDDLEWARE_MANIFEST}`,
-        fn: async (_req, res) => {
-          res.statusCode = 200
-          res.setHeader('Content-Type', 'application/json; charset=utf-8')
-          res.end(
-            JSON.stringify(
-              this.middleware?.map((middleware) => middleware.page) || []
-            )
+    fsRoutes.unshift({
+      match: route(
+        `/_next/${CLIENT_STATIC_FILES_PATH}/${this.buildId}/${DEV_MIDDLEWARE_MANIFEST}`
+      ),
+      type: 'route',
+      name: `_next/${CLIENT_STATIC_FILES_PATH}/${this.buildId}/${DEV_MIDDLEWARE_MANIFEST}`,
+      fn: async (_req, res) => {
+        res.statusCode = 200
+        res.setHeader('Content-Type', 'application/json; charset=utf-8')
+        res.end(
+          JSON.stringify(
+            this.middleware?.map((middleware) => middleware.page) || []
           )
-          return {
-            finished: true,
-          }
-        },
-      })
-    }
+        )
+        return {
+          finished: true,
+        }
+      },
+    })
 
     fsRoutes.push({
       match: route('/:path*'),
