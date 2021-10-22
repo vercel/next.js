@@ -57,7 +57,7 @@ export default function HomePage() {
 
 While `baseUrl` is useful you might want to add other aliases that don't match 1 on 1. For this TypeScript has the `"paths"` option.
 
-Using `"paths"` allows you to configure module aliases. For example `@/components/*` to `components/*`.
+Using `"paths"` allows you to configure module aliases. For example `@/*` to `components/*`.
 
 An example of this configuration:
 
@@ -67,7 +67,7 @@ An example of this configuration:
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@/components/*": ["components/*"]
+      "@/*": ["components/*"]
     }
   }
 }
@@ -82,7 +82,7 @@ export default function Button() {
 
 ```jsx
 // pages/index.js
-import Button from '@/components/button'
+import Button from '@/button'
 
 export default function HomePage() {
   return (
