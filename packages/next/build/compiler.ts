@@ -48,14 +48,16 @@ export function runCompiler(
       webpackCloseSpan
         .traceAsyncFn(() => closeCompiler(compiler))
         .then(() => {
-          if (!stats) throw new Error('No Stats from webpack')
           if (err) {
-            const reason = err?.stack ?? err?.toString()
+            const reason = err.stack ?? err.toString()
             if (reason) {
-              return resolve({ errors: [{ message: reason }], warnings: [] })
+              return resolve({
+                errors: [{ message: reason, details: (err as any).details }],
+                warnings: [],
+              })
             }
             return reject(err)
-          }
+          } else if (!stats) throw new Error('No Stats from webpack')
 
           const result = webpackCloseSpan
             .traceChild('webpack-generate-error-stats')
