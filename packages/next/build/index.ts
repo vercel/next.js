@@ -288,7 +288,7 @@ export default async function build(
 
     if (hasMiddleware && !config.experimental.middleware) {
       console.warn(
-        'Warning: detected _middleware page but the "experimental.middleware" config was not enabled. Please enable it in next.config.js'
+        `Warning: detected _middleware page but the "experimental.middleware" config was not enabled. Please enable it in ${config.configFileName}`
       )
     }
 
