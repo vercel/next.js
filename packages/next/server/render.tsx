@@ -21,7 +21,6 @@ import { GetServerSideProps, GetStaticProps, PreviewData } from '../types'
 import { isInAmpMode } from '../shared/lib/amp'
 import { AmpStateContext } from '../shared/lib/amp-context'
 import {
-  BODY_RENDER_TARGET,
   SERVER_PROPS_ID,
   STATIC_PROPS_ID,
   STATIC_STATUS_PAGES,
@@ -258,6 +257,8 @@ function checkRedirectValues(
     )
   }
 }
+
+const BODY_RENDER_TARGET = '__NEXT_BODY_RENDER_TARGET__'
 
 export async function renderToHTML(
   req: IncomingMessage,
@@ -968,30 +969,51 @@ export async function renderToHTML(
       }
 
       return {
-        bodyResult: piperFromArray([docProps.html]),
+        bodyResult: () => piperFromArray([docProps.html]),
         documentElement: (htmlProps: HtmlProps) => (
           <Document {...htmlProps} {...docProps} />
         ),
+        useMainContent: (fn?: (content: JSX.Element) => JSX.Element) => {
+          if (!fn) {
+            throw new Error(
+              'The `children` property is not supported by non-functional custom Document components'
+            )
+          }
+          return <>{BODY_RENDER_TARGET}</>
+        },
         head: docProps.head,
         headTags: await headTags(documentCtx),
         styles: docProps.styles,
       }
     } else {
-      const content =
-        ctx.err && ErrorDebug ? (
-          <ErrorDebug error={ctx.err} />
-        ) : (
-          <AppContainer>
-            <App {...props} Component={Component} router={router} />
-          </AppContainer>
-        )
-      const bodyResult = concurrentFeatures
-        ? await renderToStream(content, generateStaticHTML)
-        : piperFromArray([ReactDOMServer.renderToString(content)])
+      const contentWrappers: Array<(content: JSX.Element) => JSX.Element> = []
+      const bodyResult = async () => {
+        const initialContent =
+          ctx.err && ErrorDebug ? (
+            <ErrorDebug error={ctx.err} />
+          ) : (
+            <AppContainer>
+              <App {...props} Component={Component} router={router} />
+            </AppContainer>
+          )
+        const content = contentWrappers.reduce((content, fn) => {
+          return fn(content)
+        }, initialContent)
+
+        return concurrentFeatures
+          ? await renderToStream(content, generateStaticHTML)
+          : piperFromArray([ReactDOMServer.renderToString(content)])
+      }
 
       return {
         bodyResult,
         documentElement: () => (Document as any)(),
+        useMainContent: (fn?: (content: JSX.Element) => JSX.Element) => {
+          if (fn) {
+            contentWrappers.push(fn)
+          }
+          return <>{BODY_RENDER_TARGET}</>
+        },
         head,
         headTags: [],
         styles: jsxStyleRegistry.styles(),
@@ -1019,8 +1041,8 @@ export async function renderToHTML(
   }
 
   const hybridAmp = ampState.hybrid
-
   const docComponentsRendered: DocumentProps['docComponentsRendered'] = {}
+
   const {
     assetPrefix,
     buildId,
@@ -1085,6 +1107,7 @@ export async function renderToHTML(
     head: documentResult.head,
     headTags: documentResult.headTags,
     styles: documentResult.styles,
+    useMainContent: documentResult.useMainContent,
     useMaybeDeferContent,
   }
   const documentHTML = ReactDOMServer.renderToStaticMarkup(
@@ -1128,7 +1151,7 @@ export async function renderToHTML(
 
   let pipers: Array<NodeWritablePiper> = [
     piperFromArray(prefix),
-    documentResult.bodyResult,
+    await documentResult.bodyResult(),
     piperFromArray([
       documentHTML.substring(renderTargetIdx + BODY_RENDER_TARGET.length),
     ]),

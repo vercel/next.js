@@ -1,8 +1,5 @@
 import React, { Component, ReactElement, ReactNode, useContext } from 'react'
-import {
-  BODY_RENDER_TARGET,
-  OPTIMIZED_FONT_PROVIDERS,
-} from '../shared/lib/constants'
+import { OPTIMIZED_FONT_PROVIDERS } from '../shared/lib/constants'
 import {
   DocumentContext,
   DocumentInitialProps,
@@ -763,13 +760,18 @@ export class Head extends Component<
   }
 }
 
-export function Main() {
-  const { inAmpMode, docComponentsRendered } = useContext(HtmlContext)
-
+export function Main({
+  children,
+}: {
+  children?: (content: JSX.Element) => JSX.Element
+}) {
+  const { inAmpMode, docComponentsRendered, useMainContent } =
+    useContext(HtmlContext)
+  const content = useMainContent(children)
   docComponentsRendered.Main = true
 
-  if (inAmpMode) return <>{BODY_RENDER_TARGET}</>
-  return <div id="__next">{BODY_RENDER_TARGET}</div>
+  if (inAmpMode) return content
+  return <div id="__next">{content}</div>
 }
 
 export class NextScript extends Component<OriginProps> {
