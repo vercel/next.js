@@ -16,7 +16,7 @@ description: Enable Image Optimization with the built-in Image component.
 
 | Version   | Changes                                                                                           |
 | --------- | ------------------------------------------------------------------------------------------------- |
-| `v12.0.0` | `formats` configuration added.<br/>AVIF format added.<br/>Wrapper `<div>` changed to `<span>`.    |
+| `v12.0.0` | `formats` configuration added.<br/>AVIF support added.<br/>Wrapper `<div>` changed to `<span>`.   |
 | `v11.1.0` | `onLoadingComplete` and `lazyBoundary` props added.                                               |
 | `v11.0.0` | `src` prop support for static import.<br/>`placeholder` prop added.<br/>`blurDataURL` prop added. |
 | `v10.0.5` | `loader` prop added.                                                                              |
@@ -314,6 +314,34 @@ module.exports = {
 }
 ```
 
+### Acceptable Formats
+
+The default [Image Optimization API](#loader-configuration) will automatically detect the browser's supported image formats via the request's `Accept` header.
+
+If the `Accept` head matches more than one of the configured formats, the first match in the array is used. Therefore, the array order matters. If there is no match, the Image Optimization API will fallback to the original image's format.
+
+If no configuration is provided, the default below is used.
+
+```js
+module.exports = {
+  images: {
+    formats: ['image/webp'],
+  },
+}
+```
+
+You can enable AVIF support with the following configuration.
+
+```js
+module.exports = {
+  images: {
+    formats: ['image/avif', 'image/webp'],
+  },
+}
+```
+
+> Note: AVIF generally takes 20% longer to encode but it compresses 20% smaller compared to WebP. This means that the first time an image is requested, it will typically be slower and then subsequent requests that are cached will be faster.
+
 ## Caching Behavior
 
 The following describes the caching algorithm for the default [loader](#loader). For all other loaders, please refer to your cloud provider's documentation.
@@ -352,22 +380,6 @@ You can disable static image imports inside your `next.config.js`:
 module.exports = {
   images: {
     disableStaticImages: true,
-  },
-}
-```
-
-### Acceptable Formats
-
-The default [Image Optimization API](#loader-configuration) will automatically detect the browser's supported image formats via the request's `Accept` header.
-
-If the `Accept` matches more than one of the configured formats, the first match in the array is used. Therefore, the array order matters. If there is no match, the Image Optimization API will fallback to the original image's format.
-
-If no configuration is provided, the default below is used.
-
-```js
-module.exports = {
-  images: {
-    formats: ['image/avif', 'image/webp'],
   },
 }
 ```

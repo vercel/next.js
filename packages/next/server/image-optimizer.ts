@@ -61,7 +61,7 @@ export async function imageOptimizer(
     domains = [],
     loader,
     minimumCacheTTL = 60,
-    formats = ['image/avif', 'image/webp'],
+    formats = ['image/webp'],
   } = imageData
 
   if (loader !== 'default') {
