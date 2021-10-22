@@ -81,7 +81,7 @@ const runTests = (isDev = false) => {
     expect(html).toContain(
       `style="position:absolute;top:0;left:0;bottom:0;right:0;box-sizing:border-box;padding:0;border:none;margin:auto;display:block;width:0;height:0;min-width:100%;max-width:100%;min-height:100%;max-height:100%;filter:blur(20px);background-size:cover;background-image:url(${
         isDev
-          ? '&quot;/docs/_next/image?url=%2Fdocs%2F_next%2Fstatic%2Fmedia%2Ftest.eba16dd4cf631c11162a5e9faeb5415b.png&amp;w=8&amp;q=70&quot;'
+          ? '&quot;/docs/_next/image?url=%2Fdocs%2F_next%2Fstatic%2Fmedia%2Ftest.eba16dd4.png&amp;w=8&amp;q=70&quot;'
           : '&quot;data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAMAAAAICAAAAAAZhBqgAAAAJklEQVR42mNgkmBkYGXgZGBoY2Co/lPAcOf/dYaCzHwGEBAVEwUAZZIG0TbWicQAAAAASUVORK5CYII=&quot;'
       });background-position:0% 0%"`
     )
