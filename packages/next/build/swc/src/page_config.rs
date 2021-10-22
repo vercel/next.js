@@ -4,14 +4,18 @@ use swc_ecmascript::ast::*;
 use swc_ecmascript::utils::HANDLER;
 use swc_ecmascript::visit::{Fold, FoldWith};
 
-pub fn page_config() -> impl Fold {
-  PageConfig::default()
+pub fn page_config(is_development: bool) -> impl Fold {
+  PageConfig {
+    is_development,
+    ..Default::default()
+  }
 }
 
 pub fn page_config_test() -> impl Fold {
   PageConfig {
     drop_bundle: false,
     in_test: true,
+    is_development: false,
   }
 }
 
@@ -19,6 +23,7 @@ pub fn page_config_test() -> impl Fold {
 struct PageConfig {
   drop_bundle: bool,
   in_test: bool,
+  is_development: bool,
 }
 
 fn handle_error(details: &str, span: Span) {
@@ -35,7 +40,7 @@ impl Fold for PageConfig {
     let mut new_items = vec![];
     for item in items {
       new_items.push(item.fold_with(self));
-      if self.drop_bundle {
+      if !self.is_development && self.drop_bundle {
         let timestamp = match self.in_test {
           true => String::from("mock_timestamp"),
           false => Utc::now().timestamp().to_string(),
