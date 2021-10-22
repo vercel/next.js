@@ -1662,6 +1662,8 @@ export default async function build(
         rewritesWithHasCount: combinedRewrites.filter((r: any) => !!r.has)
           .length,
         redirectsWithHasCount: redirects.filter((r: any) => !!r.has).length,
+        middlewareCount: pageKeys.filter((page) => MIDDLEWARE_ROUTE.test(page))
+          .length,
       })
     )
 
