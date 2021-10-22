@@ -121,7 +121,7 @@ export function createEntrypoints(
 
     const isLikeServerless = isTargetLikeServerless(target)
 
-    if (page.match(MIDDLEWARE_ROUTE) && config.experimental.middleware) {
+    if (page.match(MIDDLEWARE_ROUTE)) {
       const loaderOpts: MiddlewareLoaderOptions = {
         absolutePagePath: pages[page],
         page,

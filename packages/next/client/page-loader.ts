@@ -85,31 +85,27 @@ export default class PageLoader {
   }
 
   getMiddlewareList(): Promise<string[]> {
-    if (process.env.__NEXT_HAS_MIDDLEWARE) {
-      if (process.env.NODE_ENV === 'production') {
-        return getMiddlewareManifest()
-      } else {
-        if ((window as any).__DEV_MIDDLEWARE_MANIFEST) {
-          return (window as any).__DEV_MIDDLEWARE_MANIFEST
-        } else {
-          if (!this.promisedMiddlewareManifest) {
-            this.promisedMiddlewareManifest = fetch(
-              `${this.assetPrefix}/_next/static/${this.buildId}/_devMiddlewareManifest.json`
-            )
-              .then((res) => res.json())
-              .then((manifest) => {
-                ;(window as any).__DEV_MIDDLEWARE_MANIFEST = manifest
-                return manifest
-              })
-              .catch((err) => {
-                console.log(`Failed to fetch _devMiddlewareManifest`, err)
-              })
-          }
-          return this.promisedMiddlewareManifest
-        }
-      }
+    if (process.env.NODE_ENV === 'production') {
+      return getMiddlewareManifest()
     } else {
-      return Promise.resolve([])
+      if ((window as any).__DEV_MIDDLEWARE_MANIFEST) {
+        return (window as any).__DEV_MIDDLEWARE_MANIFEST
+      } else {
+        if (!this.promisedMiddlewareManifest) {
+          this.promisedMiddlewareManifest = fetch(
+            `${this.assetPrefix}/_next/static/${this.buildId}/_devMiddlewareManifest.json`
+          )
+            .then((res) => res.json())
+            .then((manifest) => {
+              ;(window as any).__DEV_MIDDLEWARE_MANIFEST = manifest
+              return manifest
+            })
+            .catch((err) => {
+              console.log(`Failed to fetch _devMiddlewareManifest`, err)
+            })
+        }
+        return this.promisedMiddlewareManifest
+      }
     }
   }
 
