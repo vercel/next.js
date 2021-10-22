@@ -645,11 +645,24 @@ function runTests(mode) {
 
       expect(await hasRedbox(browser)).toBe(false)
     })
+
+    it('should not warn when Image is child of p', async () => {
+      const browser = await webdriver(appPort, '/inside-paragraph')
+
+      const warnings = (await browser.log('browser'))
+        .map((log) => log.message)
+        .join('\n')
+      expect(await hasRedbox(browser)).toBe(false)
+      expect(warnings).not.toMatch(
+        /Expected server HTML to contain a matching/gm
+      )
+      expect(warnings).not.toMatch(/cannot appear as a descendant/gm)
+    })
   } else {
     //server-only tests
     it('should not create an image folder in server/chunks', async () => {
       expect(
-        existsSync(join(appDir, '.next/server/chunks/static/image'))
+        existsSync(join(appDir, '.next/server/chunks/static/media'))
       ).toBeFalsy()
     })
   }
@@ -679,6 +692,46 @@ function runTests(mode) {
       const computedWidth = await getComputed(browser, id, 'width')
       const computedHeight = await getComputed(browser, id, 'height')
       expect(getRatio(computedWidth, computedHeight)).toBeCloseTo(1, 1)
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
+
+  it('should apply style inheritance for img elements but not wrapper elements', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/style-inheritance')
+
+      await browser.eval(
+        `document.querySelector("footer").scrollIntoView({behavior: "smooth"})`
+      )
+
+      const allImgs = await browser.eval(`
+        function foo() {
+          const imgs = document.querySelectorAll("img[id]");
+          for (let img of imgs) {
+            const br = window.getComputedStyle(img).getPropertyValue("border-radius");
+            if (!br) return 'no-border-radius';
+            if (br !== '100px') return br;
+          }
+          return true;
+        }()
+      `)
+      expect(allImgs).toBe(true)
+
+      const allSpans = await browser.eval(`
+        function foo() {
+          const spans = document.querySelectorAll("span");
+          for (let span of spans) {
+            const br = window.getComputedStyle(span).getPropertyValue("border-radius");
+            if (br && br !== '0px') return br;
+          }
+          return false;
+        }()
+      `)
+      expect(allSpans).toBe(false)
     } finally {
       if (browser) {
         await browser.close()

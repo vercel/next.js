@@ -485,6 +485,7 @@ impl StyledJSXTransformer {
                     &style_info,
                     css,
                     self.style_import_name.as_ref().unwrap(),
+                    self.static_class_name.as_ref(),
                 ))
             }
             JSXStyle::External(style) => Ok(make_external_styled_jsx_el(
@@ -533,6 +534,7 @@ impl StyledJSXTransformer {
                             &style,
                             css,
                             &self.style_import_name.as_ref().unwrap(),
+                            self.static_class_name.as_ref(),
                         )))),
                     }))),
                     PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {

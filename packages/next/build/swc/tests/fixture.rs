@@ -100,7 +100,7 @@ fn styled_jsx_span_should_not_affect_hash(input: PathBuf) {
         &|_tr| {
             // `resolver` uses `Mark` which is stored in a thread-local storage (namely
             // swc_common::GLOBALS), and this loop will make `Mark` to be different from the
-            // invokcation above.
+            // invocation above.
             //
             // 1000 is used because in future I (kdy1) may optimize logic of resolver.
             for _ in 0..1000 {

@@ -1,4 +1,4 @@
-import accept from '@hapi/accept'
+import { acceptLanguage } from '../../../server/accept-header'
 import { denormalizePagePath } from '../../../server/denormalize-page-path'
 import { detectDomainLocale } from './detect-domain-locale'
 import { formatUrl } from '../router/utils/format-url'
@@ -63,7 +63,7 @@ function getAcceptPreferredLocale(
   const value = headers?.['accept-language']
   if (i18n.localeDetection !== false && value && !Array.isArray(value)) {
     try {
-      return accept.language(value, i18n.locales)
+      return acceptLanguage(value, i18n.locales)
     } catch (err) {}
   }
 }

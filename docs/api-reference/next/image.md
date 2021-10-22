@@ -16,7 +16,7 @@ description: Enable Image Optimization with the built-in Image component.
 
 | Version   | Changes                                                                                           |
 | --------- | ------------------------------------------------------------------------------------------------- |
-| `v12.0.0` | `formats` configuration added as well as AVIF support.                                            |
+| `v12.0.0` | `formats` configuration added.<br/>AVIF format added.<br/>Wrapper `<div>` changed to `<span>`.    |
 | `v11.1.0` | `onLoadingComplete` and `lazyBoundary` props added.                                               |
 | `v11.0.0` | `src` prop support for static import.<br/>`placeholder` prop added.<br/>`blurDataURL` prop added. |
 | `v10.0.5` | `loader` prop added.                                                                              |
@@ -37,7 +37,7 @@ Must be one of the following:
 
 1. A [statically imported](/docs/basic-features/image-optimization.md#local-images) image file, or
 2. A path string. This can be either an absolute external URL,
-   or an internal path depending on the [loader](#loader).
+   or an internal path depending on the [loader](#loader) prop or [loader configuration](#loader-configuration).
 
 When using an external URL, you must add it to
 [domains](#domains) in
@@ -152,6 +152,7 @@ Try it out:
 
 - [Demo the `blur` placeholder](https://image-component.nextjs.gallery/placeholder)
 - [Demo the shimmer effect with `blurDataURL` prop](https://image-component.nextjs.gallery/shimmer)
+- [Demo the color effect with `blurDataURL` prop](https://image-component.nextjs.gallery/color)
 
 ## Advanced Props
 
@@ -208,6 +209,7 @@ Try it out:
 
 - [Demo the default `blurDataURL` prop](https://image-component.nextjs.gallery/placeholder)
 - [Demo the shimmer effect with `blurDataURL` prop](https://image-component.nextjs.gallery/shimmer)
+- [Demo the color effect with `blurDataURL` prop](https://image-component.nextjs.gallery/color)
 
 You can also [generate a solid color Data URL](https://png-pixel.com) to match the image.
 
@@ -250,7 +252,7 @@ module.exports = {
 
 ### Loader Configuration
 
-If you want to use a cloud provider to optimize images instead of using the Next.js built-in Image Optimization API, you can configure the `loader` and `path` prefix in your `next.config.js` file. This allows you to use relative URLs for the Image `src` and automatically generate the correct absolute URL for your provider.
+If you want to use a cloud provider to optimize images instead of using the Next.js built-in Image Optimization API, you can configure the `loader` and `path` prefix in your `next.config.js` file. This allows you to use relative URLs for the Image [`src`](#src) and automatically generate the correct absolute URL for your provider.
 
 ```js
 module.exports = {

@@ -682,7 +682,7 @@ function runTests({ w, isDev, domains = [], ttl, isSharp, isOutdatedSharp }) {
     if (!isDev) {
       const filename = 'test'
       const query = {
-        url: `/_next/static/image/public/${filename}.480a01e5ea850d0231aec0fa94bd23a0.jpg`,
+        url: `/_next/static/media/${filename}.480a01e5.jpg`,
         w,
         q: 100,
       }
@@ -943,6 +943,31 @@ describe('Image Optimizer', () => {
 
       expect(stderr).toContain(
         `Specified images.formats should be an Array of mime type strings, received invalid values (jpeg)`
+      )
+    })
+
+    it('should error when images.loader is assigned but images.path is not', async () => {
+      await nextConfig.replace(
+        '{ /* replaceme */ }',
+        JSON.stringify({
+          images: {
+            loader: 'imgix',
+          },
+        })
+      )
+      let stderr = ''
+
+      app = await launchApp(appDir, await findPort(), {
+        onStderr(msg) {
+          stderr += msg || ''
+        },
+      })
+      await waitFor(1000)
+      await killApp(app).catch(() => {})
+      await nextConfig.restore()
+
+      expect(stderr).toContain(
+        `Specified images.loader property (imgix) also requires images.path property to be assigned to a URL prefix.`
       )
     })
   })
