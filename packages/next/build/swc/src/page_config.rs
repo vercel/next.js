@@ -98,8 +98,10 @@ impl Fold for PageConfig {
                               if *value {
                                 self.drop_bundle = true;
                               }
+                            } else if let Expr::Lit(Lit::Str(_)) = &*kv.value {
+                              // Do not replace bundle
                             } else {
-                              handle_error("Invalid value found", export.span);
+                              handle_error("Invalid value found.", export.span);
                             }
                           }
                         }
