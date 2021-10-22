@@ -1,5 +1,6 @@
 /* eslint-env jest */
 /* global browserName */
+import os from 'os'
 import cheerio from 'cheerio'
 import fs, { existsSync } from 'fs-extra'
 import globOriginal from 'glob'
@@ -98,12 +99,15 @@ describe('Production Usage', () => {
         file.includes('next/dist/compiled/webpack/bundle5.js')
       )
     ).toBe(false)
-    expect(
-      serverTrace.files.some((file) => file.includes('node_modules/sharp'))
-    ).toBe(false)
-    expect(
-      serverTrace.files.some((file) => file.includes('react.development.js'))
-    ).toBe(false)
+
+    if (os.platform() !== 'win32') {
+      expect(
+        serverTrace.files.some((file) => file.includes('node_modules/sharp'))
+      ).toBe(false)
+      expect(
+        serverTrace.files.some((file) => file.includes('react.development.js'))
+      ).toBe(false)
+    }
 
     const checks = [
       {
