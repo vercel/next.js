@@ -450,6 +450,7 @@ describe('Telemetry CLI', () => {
     expect(event1).toMatch(/"headersCount": 1/)
     expect(event1).toMatch(/"rewritesCount": 2/)
     expect(event1).toMatch(/"redirectsCount": 1/)
+    expect(event1).toMatch(/"middlewareCount": 0/)
   })
 
   it('detects i18n and image configs for session start', async () => {
@@ -599,5 +600,32 @@ describe('Telemetry CLI', () => {
     const optimizeCss = regex.exec(stderr).pop()
     expect(optimizeCss).toContain(`"featureName": "experimental/optimizeCss"`)
     expect(optimizeCss).toContain(`"invocationCount": 1`)
+  })
+
+  it('emits telemetry for usage of _middleware', async () => {
+    await fs.writeFile(
+      path.join(appDir, 'pages/ssg/_middleware.js'),
+      `export function middleware (evt) {
+        evt.respondWith(new Response(null))
+      }`
+    )
+    await fs.writeFile(
+      path.join(appDir, 'pages/_middleware.js'),
+      `export function middleware (evt) {
+        evt.respondWith(new Response(null))
+      }`
+    )
+
+    const { stderr } = await nextBuild(appDir, [], {
+      stderr: true,
+      env: { NEXT_TELEMETRY_DEBUG: 1 },
+    })
+
+    await fs.remove(path.join(appDir, 'pages/ssg/_middleware.js'))
+    await fs.remove(path.join(appDir, 'pages/_middleware.js'))
+
+    const regex = /NEXT_BUILD_OPTIMIZED[\s\S]+?{([\s\S]+?)}/
+    const optimizedEvt = regex.exec(stderr).pop()
+    expect(optimizedEvt).toContain(`"middlewareCount": 2`)
   })
 })
