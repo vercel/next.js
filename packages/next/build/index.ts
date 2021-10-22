@@ -1070,15 +1070,14 @@ export default async function build(
         const combined = new Set([...traceContent.files, ...includes])
 
         if (excludeGlobs?.length) {
-          for (const excludeGlob of excludeGlobs) {
-            combined.forEach((file) => {
-              if (
-                isMatch(path.join(pageDir, file), path.join(dir, excludeGlob))
-              ) {
-                combined.delete(file)
-              }
-            })
-          }
+          const resolvedGlobs = excludeGlobs.map((exclude) =>
+            path.join(dir, exclude)
+          )
+          combined.forEach((file) => {
+            if (isMatch(path.join(pageDir, file), resolvedGlobs)) {
+              combined.delete(file)
+            }
+          })
         }
 
         await promises.writeFile(
