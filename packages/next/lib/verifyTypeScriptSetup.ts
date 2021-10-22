@@ -27,6 +27,7 @@ export async function verifyTypeScriptSetup(
   pagesDir: string,
   typeCheckPreflight: boolean,
   config: NextConfigComplete,
+  hasCustomSvgLoader: boolean,
   cacheDir?: string
 ): Promise<{ result?: TypeCheckResult; version: string | null }> {
   const tsConfigPath = path.join(dir, config.typescript.tsconfigPath)
@@ -63,7 +64,11 @@ export async function verifyTypeScriptSetup(
     await writeConfigurationDefaults(ts, tsConfigPath, intent.firstTimeSetup)
     // Write out the necessary `next-env.d.ts` file to correctly register
     // Next.js' types:
-    await writeAppTypeDeclarations(dir, !config.images.disableStaticImages)
+    await writeAppTypeDeclarations(
+      dir,
+      !config.images.disableStaticImages,
+      hasCustomSvgLoader
+    )
 
     let result
     if (typeCheckPreflight) {

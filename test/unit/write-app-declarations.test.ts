@@ -7,6 +7,7 @@ import { writeAppTypeDeclarations } from 'next/dist/lib/typescript/writeAppTypeD
 const fixtureDir = join(__dirname, 'fixtures/app-declarations')
 const declarationFile = join(fixtureDir, 'next-env.d.ts')
 const imageImportsEnabled = false
+const hasCustomSvgLoader = false
 
 describe('find config', () => {
   afterEach(() => fs.remove(declarationFile))
@@ -21,6 +22,9 @@ describe('find config', () => {
       (imageImportsEnabled
         ? '/// <reference types="next/image-types/global" />' + eol
         : '') +
+      (imageImportsEnabled && !hasCustomSvgLoader
+        ? '/// <reference types="next/image-types/global-svg" />' + eol
+        : '') +
       eol +
       '// NOTE: This file should not be edited' +
       eol +
@@ -30,7 +34,11 @@ describe('find config', () => {
     await fs.ensureDir(fixtureDir)
     await fs.writeFile(declarationFile, content)
 
-    await writeAppTypeDeclarations(fixtureDir, imageImportsEnabled)
+    await writeAppTypeDeclarations(
+      fixtureDir,
+      imageImportsEnabled,
+      hasCustomSvgLoader
+    )
     expect(await fs.readFile(declarationFile, 'utf8')).toBe(content)
   })
 
@@ -44,6 +52,9 @@ describe('find config', () => {
       (imageImportsEnabled
         ? '/// <reference types="next/image-types/global" />' + eol
         : '') +
+      (imageImportsEnabled && !hasCustomSvgLoader
+        ? '/// <reference types="next/image-types/global-svg" />' + eol
+        : '') +
       eol +
       '// NOTE: This file should not be edited' +
       eol +
@@ -53,7 +64,11 @@ describe('find config', () => {
     await fs.ensureDir(fixtureDir)
     await fs.writeFile(declarationFile, content)
 
-    await writeAppTypeDeclarations(fixtureDir, imageImportsEnabled)
+    await writeAppTypeDeclarations(
+      fixtureDir,
+      imageImportsEnabled,
+      hasCustomSvgLoader
+    )
     expect(await fs.readFile(declarationFile, 'utf8')).toBe(content)
   })
 
@@ -67,6 +82,9 @@ describe('find config', () => {
       (imageImportsEnabled
         ? '/// <reference types="next/image-types/global" />' + eol
         : '') +
+      (imageImportsEnabled && !hasCustomSvgLoader
+        ? '/// <reference types="next/image-types/global-svg" />' + eol
+        : '') +
       eol +
       '// NOTE: This file should not be edited' +
       eol +
@@ -74,7 +92,11 @@ describe('find config', () => {
       eol
 
     await fs.ensureDir(fixtureDir)
-    await writeAppTypeDeclarations(fixtureDir, imageImportsEnabled)
+    await writeAppTypeDeclarations(
+      fixtureDir,
+      imageImportsEnabled,
+      hasCustomSvgLoader
+    )
     expect(await fs.readFile(declarationFile, 'utf8')).toBe(content)
   })
 })

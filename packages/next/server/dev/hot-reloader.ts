@@ -10,7 +10,9 @@ import {
   finalizeEntrypoint,
 } from '../../build/entries'
 import { watchCompilers } from '../../build/output'
-import getBaseWebpackConfig from '../../build/webpack-config'
+import getBaseWebpackConfig, {
+  hasCustomSvgLoader,
+} from '../../build/webpack-config'
 import { API_ROUTE, MIDDLEWARE_ROUTE } from '../../lib/constants'
 import { recursiveDelete } from '../../lib/recursive-delete'
 import { BLOCKED_PAGES } from '../../shared/lib/constants'
@@ -33,6 +35,7 @@ import { DecodeError } from '../../shared/lib/utils'
 import { Span, trace } from '../../trace'
 import isError from '../../lib/is-error'
 import ws from 'next/dist/compiled/ws'
+import { verifyTypeScriptSetup } from '../../lib/verifyTypeScriptSetup'
 
 const wsServer = new ws.Server({ noServer: true })
 
@@ -398,6 +401,14 @@ export default class HotReloader {
     await this.clean(startSpan)
 
     const configs = await this.getWebpackConfig(startSpan)
+
+    await verifyTypeScriptSetup(
+      this.dir,
+      this.pagesDir!,
+      false,
+      this.config,
+      hasCustomSvgLoader(configs[0])
+    )
 
     for (const config of configs) {
       const defaultEntry = config.entry

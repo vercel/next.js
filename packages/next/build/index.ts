@@ -89,7 +89,7 @@ import {
   printTreeView,
   getCssFilePaths,
 } from './utils'
-import getBaseWebpackConfig from './webpack-config'
+import getBaseWebpackConfig, { hasCustomSvgLoader } from './webpack-config'
 import { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
 import { writeBuildId } from './write-build-id'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
@@ -188,65 +188,8 @@ export default async function build(
       telemetry.record(events)
     )
 
-    const ignoreTypeScriptErrors = Boolean(config.typescript.ignoreBuildErrors)
-    const typeCheckStart = process.hrtime()
-    const typeCheckingSpinner = createSpinner({
-      prefixText: `${Log.prefixes.info} ${
-        ignoreTypeScriptErrors
-          ? 'Skipping validation of types'
-          : 'Checking validity of types'
-      }`,
-    })
-
-    const verifyResult = await nextBuildSpan
-      .traceChild('verify-typescript-setup')
-      .traceAsyncFn(() =>
-        verifyTypeScriptSetup(
-          dir,
-          pagesDir,
-          !ignoreTypeScriptErrors,
-          config,
-          cacheDir
-        )
-      )
-
-    const typeCheckEnd = process.hrtime(typeCheckStart)
-
-    if (!ignoreTypeScriptErrors) {
-      telemetry.record(
-        eventTypeCheckCompleted({
-          durationInSeconds: typeCheckEnd[0],
-          typescriptVersion: verifyResult.version,
-          inputFilesCount: verifyResult.result?.inputFilesCount,
-          totalFilesCount: verifyResult.result?.totalFilesCount,
-          incremental: verifyResult.result?.incremental,
-        })
-      )
-    }
-
-    if (typeCheckingSpinner) {
-      typeCheckingSpinner.stopAndPersist()
-    }
-
-    const ignoreESLint = Boolean(config.eslint.ignoreDuringBuilds)
-    const eslintCacheDir = path.join(cacheDir, 'eslint/')
-    if (!ignoreESLint && runLint) {
-      await nextBuildSpan
-        .traceChild('verify-and-lint')
-        .traceAsyncFn(async () => {
-          await verifyAndLint(
-            dir,
-            eslintCacheDir,
-            config.eslint?.dirs,
-            config.experimental.cpus,
-            config.experimental.workerThreads,
-            telemetry
-          )
-        })
-    }
-
-    const buildSpinner = createSpinner({
-      prefixText: `${Log.prefixes.info} Creating an optimized production build`,
+    const configCheckSpinner = createSpinner({
+      prefixText: `${Log.prefixes.info} Checking build configuration`,
     })
 
     const isLikeServerless = isTargetLikeServerless(target)
@@ -596,7 +539,72 @@ export default async function build(
       )
     }
 
+    if (configCheckSpinner) {
+      configCheckSpinner.stopAndPersist()
+    }
+
+    const ignoreTypeScriptErrors = Boolean(config.typescript.ignoreBuildErrors)
+    const typeCheckStart = process.hrtime()
+    const typeCheckingSpinner = createSpinner({
+      prefixText: `${Log.prefixes.info} ${
+        ignoreTypeScriptErrors
+          ? 'Skipping validation of types'
+          : 'Checking validity of types'
+      }`,
+    })
+
+    const verifyResult = await nextBuildSpan
+      .traceChild('verify-typescript-setup')
+      .traceAsyncFn(() =>
+        verifyTypeScriptSetup(
+          dir,
+          pagesDir,
+          !ignoreTypeScriptErrors,
+          config,
+          hasCustomSvgLoader(clientConfig),
+          cacheDir
+        )
+      )
+
+    const typeCheckEnd = process.hrtime(typeCheckStart)
+
+    if (!ignoreTypeScriptErrors) {
+      telemetry.record(
+        eventTypeCheckCompleted({
+          durationInSeconds: typeCheckEnd[0],
+          typescriptVersion: verifyResult.version,
+          inputFilesCount: verifyResult.result?.inputFilesCount,
+          totalFilesCount: verifyResult.result?.totalFilesCount,
+          incremental: verifyResult.result?.incremental,
+        })
+      )
+    }
+
+    if (typeCheckingSpinner) {
+      typeCheckingSpinner.stopAndPersist()
+    }
+
+    const ignoreESLint = Boolean(config.eslint.ignoreDuringBuilds)
+    const eslintCacheDir = path.join(cacheDir, 'eslint/')
+    if (!ignoreESLint && runLint) {
+      await nextBuildSpan
+        .traceChild('verify-and-lint')
+        .traceAsyncFn(async () => {
+          await verifyAndLint(
+            dir,
+            eslintCacheDir,
+            config.eslint?.dirs,
+            config.experimental.cpus,
+            config.experimental.workerThreads,
+            telemetry
+          )
+        })
+    }
+
     const webpackBuildStart = process.hrtime()
+    const buildSpinner = createSpinner({
+      prefixText: `${Log.prefixes.info} Creating an optimized production build`,
+    })
 
     let result: CompilerResult = { warnings: [], errors: [] }
     // We run client and server compilation separately to optimize for memory usage

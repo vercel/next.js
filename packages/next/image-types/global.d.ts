@@ -14,36 +14,6 @@ declare module '*.png' {
   export default content
 }
 
-declare module '*.svg' {
-  /**
-   * By default, use `any` to avoid conflicts with
-   * `@svgr/webpack` plugin or
-   * `babel-plugin-inline-react-svg` plugin.
-   *
-   * If you are not using these plugins, you can override
-   * the default behavior using a code snippet inside your project
-   *
-   * // yourProject/src/global.d.ts
-   * declare module '*.svg' {
-   *   export interface OverrideDefaultTypeSettings {
-   *     useAny: false;
-   *   }
-   * }
-   */
-  interface DefaultTypeSettings {
-    useAny: true;
-  }
-
-  export interface OverrideDefaultTypeSettings {}
-
-  type TypeSettings = Omit<DefaultTypeSettings, keyof OverrideDefaultTypeSettings> & OverrideDefaultTypeSettings;
-  type ContentType = TypeSettings['useAny'] extends true ? any : StaticImageData;
-
-  const content: ContentType;
-
-  export default content
-}
-
 declare module '*.jpg' {
   const content: StaticImageData
 

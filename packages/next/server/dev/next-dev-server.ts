@@ -14,7 +14,6 @@ import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../../lib/constants'
 import { fileExists } from '../../lib/file-exists'
 import { findPagesDir } from '../../lib/find-pages-dir'
 import loadCustomRoutes, { CustomRoutes } from '../../lib/load-custom-routes'
-import { verifyTypeScriptSetup } from '../../lib/verifyTypeScriptSetup'
 import {
   PHASE_DEVELOPMENT_SERVER,
   CLIENT_STATIC_FILES_PATH,
@@ -321,12 +320,6 @@ export default class DevServer extends Server {
   async prepare(): Promise<void> {
     setGlobal('distDir', this.distDir)
     setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
-    await verifyTypeScriptSetup(
-      this.dir,
-      this.pagesDir!,
-      false,
-      this.nextConfig
-    )
 
     this.customRoutes = await loadCustomRoutes(this.nextConfig)
 

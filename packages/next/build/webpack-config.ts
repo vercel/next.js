@@ -176,6 +176,20 @@ export function attachReactRefresh(
   }
 }
 
+export function hasCustomSvgLoader(webpackConfig: webpack.Configuration) {
+  const rules = webpackConfig.module?.rules || []
+
+  const hasCustomSvg = rules.some(
+    (rule) =>
+      rule.loader !== 'next-image-loader' &&
+      'test' in rule &&
+      rule.test instanceof RegExp &&
+      rule.test.test('.svg')
+  )
+
+  return hasCustomSvg
+}
+
 export const NODE_RESOLVE_OPTIONS = {
   dependencyType: 'commonjs',
   modules: ['node_modules'],
@@ -1541,13 +1555,7 @@ export default async function getBaseWebpackConfig(
 
   if (!config.images.disableStaticImages) {
     const rules = webpackConfig.module?.rules || []
-    const hasCustomSvg = rules.some(
-      (rule) =>
-        rule.loader !== 'next-image-loader' &&
-        'test' in rule &&
-        rule.test instanceof RegExp &&
-        rule.test.test('.svg')
-    )
+    const hasCustomSvg = hasCustomSvgLoader(webpackConfig)
     const nextImageRule = rules.find(
       (rule) => rule.loader === 'next-image-loader'
     )

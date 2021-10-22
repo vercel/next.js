@@ -4,7 +4,8 @@ import { promises as fs } from 'fs'
 
 export async function writeAppTypeDeclarations(
   baseDir: string,
-  imageImportsEnabled: boolean
+  imageImportsEnabled: boolean,
+  hasCustomSvgLoader: boolean
 ): Promise<void> {
   // Reference `next` types
   const appTypeDeclarations = path.join(baseDir, 'next-env.d.ts')
@@ -34,6 +35,9 @@ export async function writeAppTypeDeclarations(
     eol +
     (imageImportsEnabled
       ? '/// <reference types="next/image-types/global" />' + eol
+      : '') +
+    (imageImportsEnabled && !hasCustomSvgLoader
+      ? '/// <reference types="next/image-types/global-svg" />' + eol
       : '') +
     eol +
     '// NOTE: This file should not be edited' +
