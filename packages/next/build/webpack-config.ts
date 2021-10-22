@@ -65,6 +65,8 @@ const devtoolRevertWarning = execOnce(
   }
 )
 
+let loggedSwcDisabled = false
+
 function parseJsonFile(filePath: string) {
   const JSON5 = require('next/dist/compiled/json5')
   const contents = readFileSync(filePath, 'utf8')
@@ -297,11 +299,15 @@ export default async function getBaseWebpackConfig(
 
   const distDir = path.join(dir, config.distDir)
 
-  const useSWCLoader = config.experimental.swcLoader
-  if (useSWCLoader && babelConfigFile) {
+  const useSWCLoader = config.experimental.swcLoader && !babelConfigFile
+  if (!loggedSwcDisabled && !useSWCLoader && babelConfigFile) {
     Log.warn(
-      `experimental.swcLoader enabled. The custom Babel configuration will not be used.`
+      `Disabled SWC because of custom Babel configuration "${path.relative(
+        dir,
+        babelConfigFile
+      )}" https://nextjs.org/docs/messages/swc-disabled`
     )
+    loggedSwcDisabled = true
   }
   const defaultLoaders = {
     babel: useSWCLoader
@@ -593,7 +599,8 @@ export default async function getBaseWebpackConfig(
         // and all other chunk depend on them so there is no
         // duplication that need to be pulled out.
         chunks: (chunk) =>
-          !/^(polyfills|main|pages\/_app|\/_middleware)$/.test(chunk.name),
+          !/^(polyfills|main|pages\/_app)$/.test(chunk.name) &&
+          !MIDDLEWARE_ROUTE.test(chunk.name),
         cacheGroups: {
           framework: {
             chunks: (chunk: webpack.compilation.Chunk) =>
@@ -652,6 +659,7 @@ export default async function getBaseWebpackConfig(
               chunk.name?.match(MIDDLEWARE_ROUTE),
             filename: 'server/middleware-chunks/[name].js',
             minChunks: 2,
+            enforce: true,
           },
         },
         maxInitialRequests: 25,
@@ -1128,7 +1136,7 @@ export default async function getBaseWebpackConfig(
         ...Object.keys(config.env).reduce((acc, key) => {
           if (/^(?:NODE_.+)|^(?:__.+)$/i.test(key)) {
             throw new Error(
-              `The key "${key}" under "env" in next.config.js is not allowed. https://nextjs.org/docs/messages/env-key-not-allowed`
+              `The key "${key}" under "env" in ${config.configFileName} is not allowed. https://nextjs.org/docs/messages/env-key-not-allowed`
             )
           }
 
@@ -1520,7 +1528,7 @@ export default async function getBaseWebpackConfig(
 
     if (!webpackConfig) {
       throw new Error(
-        'Webpack config is undefined. You may have forgot to return properly from within the "webpack" method of your next.config.js.\n' +
+        `Webpack config is undefined. You may have forgot to return properly from within the "webpack" method of your ${config.configFileName}.\n` +
           'See more info here https://nextjs.org/docs/messages/undefined-webpack-config'
       )
     }
@@ -1724,7 +1732,7 @@ export default async function getBaseWebpackConfig(
 
     if (foundTsRule) {
       console.warn(
-        '\n@zeit/next-typescript is no longer needed since Next.js has built-in support for TypeScript now. Please remove it from your next.config.js and your .babelrc\n'
+        `\n@zeit/next-typescript is no longer needed since Next.js has built-in support for TypeScript now. Please remove it from your ${config.configFileName} and your .babelrc\n`
       )
     }
   }

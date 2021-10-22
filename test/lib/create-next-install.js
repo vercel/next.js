@@ -18,7 +18,7 @@ async function createNextInstall(dependencies) {
           !item.includes('node_modules') &&
           !item.includes('.DS_Store') &&
           // Exclude Rust compilation files
-          !item.includes('next/build/swc/target')
+          !/next[\\/]build[\\/]swc[\\/]target/.test(item)
         )
       },
     })
