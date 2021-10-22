@@ -31,7 +31,7 @@ const experimentalWarning = execOnce(() => {
 })
 
 function assignDefaults(userConfig: { [key: string]: any }) {
-  const configFileName = userConfig.configFileName || 'next.config.js'
+  const configFileName = userConfig.configFileName
   if (typeof userConfig.exportTrailingSlash !== 'undefined') {
     console.warn(
       chalk.yellow.bold('Warning: ') +
@@ -528,9 +528,12 @@ export default async function loadConfig(
   await loadEnvConfig(dir, phase === PHASE_DEVELOPMENT_SERVER, Log)
   await loadWebpackHook()
 
+  let configFileName = 'next.config.js'
+
   if (customConfig) {
     return assignDefaults({
       configOrigin: 'server',
+      configFileName,
       ...customConfig,
     }) as NextConfigComplete
   }
@@ -539,7 +542,7 @@ export default async function loadConfig(
 
   // If config file was found
   if (path?.length) {
-    const configName = basename(path)
+    configFileName = basename(path)
     let userConfigModule: any
 
     try {
@@ -549,7 +552,7 @@ export default async function loadConfig(
       userConfigModule = await import(pathToFileURL(path).href)
     } catch (err) {
       Log.error(
-        `Failed to load ${configName}, see more info here https://nextjs.org/docs/messages/next-config-error`
+        `Failed to load ${configFileName}, see more info here https://nextjs.org/docs/messages/next-config-error`
       )
       throw err
     }
@@ -560,7 +563,7 @@ export default async function loadConfig(
 
     if (Object.keys(userConfig).length === 0) {
       Log.warn(
-        `Detected ${configName}, no exported configuration found. https://nextjs.org/docs/messages/empty-configuration`
+        `Detected ${configFileName}, no exported configuration found. https://nextjs.org/docs/messages/empty-configuration`
       )
     }
 
@@ -588,7 +591,7 @@ export default async function loadConfig(
     return assignDefaults({
       configOrigin: relative(dir, path),
       configFile: path,
-      configFileName: configName,
+      configFileName,
       ...userConfig,
     }) as NextConfigComplete
   } else {
@@ -612,6 +615,7 @@ export default async function loadConfig(
   }
 
   const completeConfig = defaultConfig as NextConfigComplete
+  completeConfig.configFileName = configFileName
   setHttpAgentOptions(completeConfig.httpAgentOptions)
   return completeConfig
 }
