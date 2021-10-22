@@ -1,7 +1,7 @@
 import Chalk from 'chalk'
 import { SimpleWebpackError } from './simpleWebpackError'
 import { createOriginalStackFrame } from '@next/react-dev-overlay/lib/middleware'
-import path from 'path'
+import type webpack5 from 'webpack5'
 
 const chalk = new Chalk.constructor({ enabled: true })
 
@@ -46,7 +46,7 @@ function getModuleTrace(input: any, compilation: any) {
 }
 
 export async function getNotFoundError(
-  compilation: any,
+  compilation: webpack5.Compilation,
   input: any,
   fileName: string
 ) {
@@ -64,7 +64,7 @@ export async function getNotFoundError(
       line: loc.start.line,
       column: loc.start.column,
       source: originalSource,
-      rootDirectory: compilation.options.context,
+      rootDirectory: compilation.options.context!,
       frame: {},
     })
 
@@ -79,20 +79,15 @@ export async function getNotFoundError(
 
     const importTrace = () => {
       const moduleTrace = getModuleTrace(input, compilation)
+        .map(({ origin }) =>
+          origin.readableIdentifier(compilation.requestShortener)
+        )
+        .filter((name) => name && !name.includes('next-client-pages-loader.js'))
       if (moduleTrace.length === 0) return ''
 
-      let importTraceLine = '\nImport trace for requested module:\n'
-      for (const { origin } of moduleTrace) {
-        if (!origin.resource) {
-          continue
-        }
-        const filePath = path
-          .relative(compilation.options.context, origin.resource)
-          .replace(/\\/g, '/')
-        importTraceLine += `./${filePath}\n`
-      }
-
-      return importTraceLine + '\n'
+      return `\nImport trace for requested module:\n${moduleTrace.join(
+        '\n'
+      )}\n\n`
     }
 
     const frame = result.originalCodeFrame ?? ''
