@@ -33,6 +33,7 @@ describe('basic HMR', () => {
         const newContactPagePath = join('pages', 'hmr', '_contact.js')
         let browser
         try {
+          const start = next.cliOutput.length
           browser = await webdriver(next.appPort, '/hmr/contact')
           const text = await browser.elementByCss('p').text()
           expect(text).toBe('This is the contact page.')
@@ -53,6 +54,12 @@ describe('basic HMR', () => {
             () => getBrowserBodyText(browser),
             /This is the contact page/
           )
+
+          expect(next.cliOutput.slice(start)).toContain('compiling...')
+          expect(next.cliOutput.slice(start)).toContain(
+            'compiling /hmr/contact...'
+          )
+          expect(next.cliOutput).toContain('compiling /_error...')
         } finally {
           if (browser) {
             await browser.close()
@@ -297,6 +304,7 @@ describe('basic HMR', () => {
       const newPage = join('pages', 'hmr', 'new-page.js')
 
       try {
+        const start = next.cliOutput.length
         browser = await webdriver(next.appPort, '/hmr/new-page')
 
         expect(await browser.elementByCss('body').text()).toMatch(
@@ -317,6 +325,11 @@ describe('basic HMR', () => {
           () => getBrowserBodyText(browser),
           /This page could not be found/
         )
+
+        expect(next.cliOutput.slice(start)).toContain(
+          'compiling /hmr/new-page...'
+        )
+        expect(next.cliOutput.slice(start)).toContain('compiling /_error...')
       } catch (err) {
         await next.deleteFile(newPage)
         throw err
@@ -332,6 +345,7 @@ describe('basic HMR', () => {
       const aboutPage = join('pages', 'hmr', 'about2.js')
       const aboutContent = await next.readFile(aboutPage)
       try {
+        const start = next.cliOutput.length
         browser = await webdriver(next.appPort, '/hmr/about2')
         await check(() => getBrowserBodyText(browser), /This is the about page/)
 
@@ -345,6 +359,10 @@ describe('basic HMR', () => {
         await next.patchFile(aboutPage, aboutContent)
 
         await check(() => getBrowserBodyText(browser), /This is the about page/)
+        expect(next.cliOutput.slice(start)).toContain(
+          'compiling /hmr/about2...'
+        )
+        expect(next.cliOutput).toContain('compiling /_error...')
       } catch (err) {
         await next.patchFile(aboutPage, aboutContent)
         if (browser) {

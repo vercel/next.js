@@ -13,6 +13,7 @@ import {
   NEXT_PROJECT_ROOT,
   NEXT_PROJECT_ROOT_DIST_CLIENT,
   PAGES_DIR_ALIAS,
+  MIDDLEWARE_ROUTE,
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
 import { getPackageVersion } from '../lib/get-package-version'
@@ -34,6 +35,7 @@ import { finalizeEntrypoint } from './entries'
 import * as Log from './output/log'
 import { build as buildConfiguration } from './webpack/config'
 import { __overrideCssConfiguration } from './webpack/config/blocks/css/overrideCssConfiguration'
+import MiddlewarePlugin from './webpack/plugins/middleware-plugin'
 import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
 import { JsConfigPathsPlugin } from './webpack/plugins/jsconfig-paths-plugin'
 import { DropClientPage } from './webpack/plugins/next-drop-client-page-plugin'
@@ -323,6 +325,20 @@ export default async function getBaseWebpackConfig(
             hasJsxRuntime: true,
           },
         },
+    babelMiddleware: {
+      loader: require.resolve('./babel/loader/index'),
+      options: {
+        cache: false,
+        configFile: babelConfigFile,
+        cwd: dir,
+        development: dev,
+        distDir,
+        hasJsxRuntime: true,
+        hasReactRefresh: false,
+        isServer: true,
+        pagesDir,
+      },
+    },
   }
 
   const babelIncludeRegexes: RegExp[] = [
@@ -576,10 +592,13 @@ export default async function getBaseWebpackConfig(
         // as we don't need a separate vendor chunk from that
         // and all other chunk depend on them so there is no
         // duplication that need to be pulled out.
-        chunks: (chunk) => !/^(polyfills|main|pages\/_app)$/.test(chunk.name),
+        chunks: (chunk) =>
+          !/^(polyfills|main|pages\/_app)$/.test(chunk.name) &&
+          !MIDDLEWARE_ROUTE.test(chunk.name),
         cacheGroups: {
           framework: {
-            chunks: 'all',
+            chunks: (chunk: webpack.compilation.Chunk) =>
+              !chunk.name?.match(MIDDLEWARE_ROUTE),
             name: 'framework',
             // This regex ignores nested copies of framework libraries so they're
             // bundled with their issuer.
@@ -628,6 +647,13 @@ export default async function getBaseWebpackConfig(
             name: 'commons',
             minChunks: totalPages,
             priority: 20,
+          },
+          middleware: {
+            chunks: (chunk: webpack.compilation.Chunk) =>
+              chunk.name?.match(MIDDLEWARE_ROUTE),
+            filename: 'server/middleware-chunks/[name].js',
+            minChunks: 2,
+            enforce: true,
           },
         },
         maxInitialRequests: 25,
@@ -898,7 +924,7 @@ export default async function getBaseWebpackConfig(
           : ({
               filename: '[name].js',
               // allow to split entrypoints
-              chunks: 'all',
+              chunks: ({ name }: any) => !name?.match(MIDDLEWARE_ROUTE),
               // size of files is not so relevant for server build
               // we want to prefer deduplication to load less code
               minSize: 1000,
@@ -988,6 +1014,8 @@ export default async function getBaseWebpackConfig(
       strictModuleExceptionHandling: true,
       crossOriginLoading: crossOrigin,
       webassemblyModuleFilename: 'static/wasm/[modulehash].wasm',
+      hashFunction: 'xxhash64',
+      hashDigestLength: 16,
     },
     performance: false,
     resolve: resolveConfig,
@@ -1001,6 +1029,7 @@ export default async function getBaseWebpackConfig(
         'next-serverless-loader',
         'next-style-loader',
         'noop-loader',
+        'next-middleware-loader',
       ].reduce((alias, loader) => {
         // using multiple aliases to replace `resolveLoader.modules`
         alias[loader] = path.join(__dirname, 'webpack', 'loaders', loader)
@@ -1045,6 +1074,11 @@ export default async function getBaseWebpackConfig(
                 url: true,
               },
               use: defaultLoaders.babel,
+            },
+            {
+              ...codeCondition,
+              issuerLayer: 'middleware',
+              use: defaultLoaders.babelMiddleware,
             },
             {
               ...codeCondition,
@@ -1096,7 +1130,7 @@ export default async function getBaseWebpackConfig(
         ...Object.keys(config.env).reduce((acc, key) => {
           if (/^(?:NODE_.+)|^(?:__.+)$/i.test(key)) {
             throw new Error(
-              `The key "${key}" under "env" in next.config.js is not allowed. https://nextjs.org/docs/messages/env-key-not-allowed`
+              `The key "${key}" under "env" in ${config.configFileName} is not allowed. https://nextjs.org/docs/messages/env-key-not-allowed`
             )
           }
 
@@ -1238,6 +1272,9 @@ export default async function getBaseWebpackConfig(
       isServerless && isServer && new ServerlessPlugin(),
       isServer &&
         new PagesManifestPlugin({ serverless: isLikeServerless, dev }),
+      // MiddlewarePlugin should be after DefinePlugin so  NEXT_PUBLIC_*
+      // replacement is done before its process.env.* handling
+      !isServer && new MiddlewarePlugin({ dev }),
       isServer && new NextJsSsrImportPlugin(),
       !isServer &&
         new BuildManifestPlugin({
@@ -1291,6 +1328,19 @@ export default async function getBaseWebpackConfig(
   webpack5Config.experiments = {
     layers: true,
     cacheUnaffected: true,
+    buildHttp: Array.isArray(config.experimental.urlImports)
+      ? {
+          allowedUris: config.experimental.urlImports,
+          cacheLocation: path.join(dir, 'next.lock/data'),
+          lockfileLocation: path.join(dir, 'next.lock/lock.json'),
+        }
+      : config.experimental.urlImports
+      ? {
+          cacheLocation: path.join(dir, 'next.lock/data'),
+          lockfileLocation: path.join(dir, 'next.lock/lock.json'),
+          ...config.experimental.urlImports,
+        }
+      : undefined,
   }
 
   webpack5Config.module!.parser = {
@@ -1304,49 +1354,31 @@ export default async function getBaseWebpackConfig(
     },
   }
 
+  if (!isServer) {
+    webpack5Config.output!.enabledLibraryTypes = ['assign']
+  }
+
   if (dev) {
     // @ts-ignore unsafeCache exists
     webpack5Config.module.unsafeCache = (module) =>
       !/[\\/]pages[\\/][^\\/]+(?:$|\?|#)/.test(module.resource)
   }
 
-  // Due to bundling of webpack the default values can't be correctly detected
-  // This restores the webpack defaults
+  // This enables managedPaths for all node_modules
+  // and also for the unplugged folder when using yarn pnp
+  // It also add the yarn cache to the immutable paths
   webpack5Config.snapshot = {}
   if (process.versions.pnp === '3') {
-    const match =
-      /^(.+?)[\\/]cache[\\/]jest-worker-npm-[^\\/]+\.zip[\\/]node_modules[\\/]/.exec(
-        require.resolve('jest-worker')
-      )
-    if (match) {
-      webpack5Config.snapshot.managedPaths = [
-        path.resolve(match[1], 'unplugged'),
-      ]
-    }
+    webpack5Config.snapshot.managedPaths = [
+      /^(.+?(?:[\\/]\.yarn[\\/]unplugged[\\/][^\\/]+)?[\\/]node_modules[\\/])/,
+    ]
   } else {
-    const match = /^(.+?[\\/]node_modules)[\\/]/.exec(
-      require.resolve('jest-worker')
-    )
-    if (match) {
-      webpack5Config.snapshot.managedPaths = [match[1]]
-    }
+    webpack5Config.snapshot.managedPaths = [/^(.+?[\\/]node_modules[\\/])/]
   }
-  if (process.versions.pnp === '1') {
-    const match =
-      /^(.+?[\\/]v4)[\\/]npm-jest-worker-[^\\/]+-[\da-f]{40}[\\/]node_modules[\\/]/.exec(
-        require.resolve('jest-worker')
-      )
-    if (match) {
-      webpack5Config.snapshot.immutablePaths = [match[1]]
-    }
-  } else if (process.versions.pnp === '3') {
-    const match =
-      /^(.+?)[\\/]jest-worker-npm-[^\\/]+\.zip[\\/]node_modules[\\/]/.exec(
-        require.resolve('jest-worker')
-      )
-    if (match) {
-      webpack5Config.snapshot.immutablePaths = [match[1]]
-    }
+  if (process.versions.pnp === '3') {
+    webpack5Config.snapshot.immutablePaths = [
+      /^(.+?[\\/]cache[\\/][^\\/]+\.zip[\\/]node_modules[\\/])/,
+    ]
   }
 
   if (dev) {
@@ -1490,7 +1522,7 @@ export default async function getBaseWebpackConfig(
 
     if (!webpackConfig) {
       throw new Error(
-        'Webpack config is undefined. You may have forgot to return properly from within the "webpack" method of your next.config.js.\n' +
+        `Webpack config is undefined. You may have forgot to return properly from within the "webpack" method of your ${config.configFileName}.\n` +
           'See more info here https://nextjs.org/docs/messages/undefined-webpack-config'
       )
     }
@@ -1694,7 +1726,7 @@ export default async function getBaseWebpackConfig(
 
     if (foundTsRule) {
       console.warn(
-        '\n@zeit/next-typescript is no longer needed since Next.js has built-in support for TypeScript now. Please remove it from your next.config.js and your .babelrc\n'
+        `\n@zeit/next-typescript is no longer needed since Next.js has built-in support for TypeScript now. Please remove it from your ${config.configFileName} and your .babelrc\n`
       )
     }
   }
@@ -1819,7 +1851,11 @@ export default async function getBaseWebpackConfig(
       delete entry['main.js']
 
       for (const name of Object.keys(entry)) {
-        entry[name] = finalizeEntrypoint(name, entry[name], isServer)
+        entry[name] = finalizeEntrypoint({
+          value: entry[name],
+          isServer,
+          name,
+        })
       }
 
       return entry
