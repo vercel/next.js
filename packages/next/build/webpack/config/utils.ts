@@ -17,6 +17,7 @@ export type ConfigurationContext = {
   productionBrowserSourceMaps: boolean
 
   future: NextConfigComplete['future']
+  experimental: NextConfigComplete['experimental']
 
   isCraCompat?: boolean
 }

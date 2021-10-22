@@ -361,15 +361,9 @@ export const css = curry(async function css(
               /\.json$/,
               /\.webpack\[[^\]]+\]$/,
             ],
-            use: {
-              // `file-loader` always emits a URL reference, where `url-loader`
-              // might inline the asset as a data URI
-              loader: require.resolve('next/dist/compiled/file-loader'),
-              options: {
-                // Hash the file for immutable cacheability
-                name: 'static/media/[name].[hash].[ext]',
-              },
-            },
+            // `asset/resource` always emits a URL reference, where `asset`
+            // might inline the asset as a data URI
+            type: 'asset/resource',
           },
         ],
       })

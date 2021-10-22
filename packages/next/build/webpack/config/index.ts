@@ -16,6 +16,7 @@ export async function build(
     sassOptions,
     productionBrowserSourceMaps,
     future,
+    experimental,
     isCraCompat,
   }: {
     rootDirectory: string
@@ -26,6 +27,7 @@ export async function build(
     sassOptions: any
     productionBrowserSourceMaps: boolean
     future: NextConfigComplete['future']
+    experimental: NextConfigComplete['experimental']
     isCraCompat?: boolean
   }
 ): Promise<webpack.Configuration> {
@@ -44,6 +46,7 @@ export async function build(
     sassOptions,
     productionBrowserSourceMaps,
     future,
+    experimental,
     isCraCompat,
   }
 

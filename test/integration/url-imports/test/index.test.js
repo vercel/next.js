@@ -55,7 +55,8 @@ describe(`Handle url imports`, () => {
       afterAll(async () => {
         await killApp(app)
       })
-      const expectedServer = /Hello <!-- -->42<!-- -->\+<!-- -->42/
+      const expectedServer =
+        /Hello <!-- -->42<!-- -->\+<!-- -->42<!-- -->\+<!-- -->\/_next\/static\/media\/vercel\.[0-9a-f]{8}\.png<!-- -->\+<!-- -->\/_next\/static\/media\/vercel\.[0-9a-f]{8}\.png/
       const expectedClient = new RegExp(
         expectedServer.source.replace(/<!-- -->/g, '')
       )
@@ -76,6 +77,37 @@ describe(`Handle url imports`, () => {
           }
         })
       }
+
+      it(`should render a static url image import`, async () => {
+        let browser
+        try {
+          browser = await webdriver(appPort, '/image')
+          await browser.waitForElementByCss('#static-image')
+          await check(
+            () => browser.elementByCss('#static-image').getAttribute('src'),
+            /^\/_next\/image\?url=%2F_next%2Fstatic%2Fmedia%2Fvercel\.[0-9a-f]{8}\.png&/
+          )
+        } finally {
+          await browser.close()
+        }
+      })
+
+      it(`should allow url import in css`, async () => {
+        let browser
+        try {
+          browser = await webdriver(appPort, '/css')
+          await browser.waitForElementByCss('#static-css')
+          await check(
+            () =>
+              browser
+                .elementByCss('#static-css')
+                .getComputedCss('background-image'),
+            /^url\("http:\/\/localhost:\d+\/_next\/static\/media\/vercel\.[0-9a-f]{8}\.png"\)$/
+          )
+        } finally {
+          await browser.close()
+        }
+      })
 
       it('should respond on value api', async () => {
         const data = await fetchViaHTTP(appPort, '/api/value').then(

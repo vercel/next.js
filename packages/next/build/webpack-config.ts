@@ -1504,6 +1504,7 @@ export default async function getBaseWebpackConfig(
     sassOptions: config.sassOptions,
     productionBrowserSourceMaps: config.productionBrowserSourceMaps,
     future: config.future,
+    experimental: config.experimental,
     isCraCompat: config.experimental.craCompat,
   })
 
