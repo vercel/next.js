@@ -974,7 +974,7 @@ export async function renderToHTML(
           <Document {...htmlProps} {...docProps} />
         ),
         useMainContent: (fn?: (content: JSX.Element) => JSX.Element) => {
-          if (!fn) {
+          if (fn) {
             throw new Error(
               'The `children` property is not supported by non-functional custom Document components'
             )
