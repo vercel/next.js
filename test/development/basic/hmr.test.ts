@@ -329,7 +329,7 @@ describe('basic HMR', () => {
         expect(next.cliOutput.slice(start)).toContain(
           'compiling /hmr/new-page...'
         )
-        expect(next.cliOutput.slice(start)).toContain('compiling /_error...')
+        expect(next.cliOutput).toContain('compiling /_error...')
       } catch (err) {
         await next.deleteFile(newPage)
         throw err

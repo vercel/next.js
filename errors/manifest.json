@@ -5,6 +5,10 @@
       "heading": true,
       "routes": [
         {
+          "title": "beta-middleware",
+          "path": "/errors/beta-middleware.md"
+        },
+        {
           "title": "custom-document-image-import",
           "path": "/errors/custom-document-image-import.md"
         },
