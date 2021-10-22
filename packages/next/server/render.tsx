@@ -996,8 +996,8 @@ export async function renderToHTML(
               <App {...props} Component={Component} router={router} />
             </AppContainer>
           )
-        const content = contentWrappers.reduce((content, fn) => {
-          return fn(content)
+        const content = contentWrappers.reduce((innerContent, fn) => {
+          return fn(innerContent)
         }, initialContent)
 
         return concurrentFeatures
