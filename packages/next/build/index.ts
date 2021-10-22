@@ -1182,7 +1182,9 @@ export default async function build(
             if (reason?.type === 'initial') {
               return
             }
-            tracedFiles.add(path.relative(distDir, path.join(root, file)))
+            tracedFiles.add(
+              path.relative(distDir, path.join(root, file)).replace(/\\/g, '/')
+            )
           })
 
           await promises.writeFile(
