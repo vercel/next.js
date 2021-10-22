@@ -22,6 +22,7 @@ import {
   initNextServerScript,
   nextExport,
   hasRedbox,
+  check,
 } from 'next-test-utils'
 
 let appDir = join(__dirname, '..')
@@ -156,8 +157,10 @@ const runTests = (isDev = false) => {
 
   it('should parse params correctly for rewrite to auto-export dynamic page', async () => {
     const browser = await webdriver(appPort, '/rewriting-to-auto-export')
-    const text = await browser.eval(() => document.documentElement.innerHTML)
-    expect(text).toContain('auto-export hello')
+    await check(
+      () => browser.eval(() => document.documentElement.innerHTML),
+      /auto-export hello/
+    )
     expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
       rewrite: '1',
       slug: 'hello',
@@ -2127,8 +2130,10 @@ describe('Custom routes', () => {
 
     it('should not error for no-op rewrite and auto export dynamic route', async () => {
       const browser = await webdriver(appPort, '/auto-export/my-slug')
-      const html = await browser.eval(() => document.documentElement.innerHTML)
-      expect(html).toContain(`auto-export my-slug`)
+      await check(
+        () => browser.eval(() => document.documentElement.innerHTML),
+        /auto-export my-slug/
+      )
     })
   })
 

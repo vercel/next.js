@@ -29,6 +29,14 @@ do
   cp -r "./examples/$testCase/." "./e2e-tests/$testCase"
   cd "./e2e-tests/$testCase"
 
+  # TODO: remove after able to load bindings with YarnPnP
+  if [ -f "next.config.js" ]; then
+    mv next.config.js next.config.bak.js
+    echo 'module.exports = { ...require("./next.config.bak.js"), experimental: { swcLoader: false } }' > next.config.js
+  else
+    echo 'module.exports = { experimental: { swcLoader: false } }' > next.config.js
+  fi
+
   touch yarn.lock
   yarn set version berry
 
