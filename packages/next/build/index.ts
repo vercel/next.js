@@ -765,11 +765,9 @@ export default async function build(
     } = await staticCheckSpan.traceAsyncFn(async () => {
       process.env.NEXT_PHASE = PHASE_PRODUCTION_BUILD
 
-      const configFileName = config.configFileName
-      const runtimeEnvConfig = {
-        publicRuntimeConfig: config.publicRuntimeConfig,
-        serverRuntimeConfig: config.serverRuntimeConfig,
-      }
+      const { configFileName, publicRuntimeConfig, serverRuntimeConfig } =
+        config
+      const runtimeEnvConfig = { publicRuntimeConfig, serverRuntimeConfig }
 
       const nonStaticErrorPageSpan = staticCheckSpan.traceChild(
         'check-static-error-page'
