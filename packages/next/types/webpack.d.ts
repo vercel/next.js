@@ -29,7 +29,7 @@ declare module 'next/dist/compiled/loader-utils'
 declare module 'next/dist/compiled/webpack/webpack' {
   import webpackSources from 'webpack-sources1'
   import webpack4, { loader } from 'webpack4'
-  export { NormalModule } from 'webpack'
+  export { NormalModule, WebpackError } from 'webpack'
   export function init(): void
   export let BasicEvaluatedExpression: any
   export let GraphHelpers: any
@@ -53,6 +53,7 @@ declare module 'webpack' {
     RuntimeModule,
     RuntimeGlobals,
     NormalModule,
+    WebpackError,
   } from 'webpack5'
 }
 
