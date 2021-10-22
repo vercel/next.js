@@ -119,6 +119,7 @@ export type NextConfig = { [key: string]: any } & {
   staticPageGenerationTimeout?: number
   crossOrigin?: false | 'anonymous' | 'use-credentials'
   experimental?: {
+    middleware?: boolean
     swcMinify?: boolean
     swcLoader?: boolean
     cpus?: number
@@ -203,6 +204,7 @@ export const defaultConfig: NextConfig = {
   },
   staticPageGenerationTimeout: 60,
   experimental: {
+    middleware: false,
     swcLoader: false,
     swcMinify: false,
     cpus: Math.max(

@@ -35,7 +35,13 @@ import { searchParamsToUrlQuery } from './utils/querystring'
 import resolveRewrites from './utils/resolve-rewrites'
 import { getRouteMatcher } from './utils/route-matcher'
 import { getRouteRegex } from './utils/route-regex'
-import { getMiddlewareRegex } from './utils/get-middleware-regex'
+
+let getMiddlewareRegex: typeof import('./utils/get-middleware-regex').getMiddlewareRegex
+
+if (process.env.__NEXT_HAS_MIDDLEWARE) {
+  getMiddlewareRegex =
+    require('./utils/get-middleware-regex').getMiddlewareRegex
+}
 
 declare global {
   interface Window {
@@ -1094,28 +1100,30 @@ export default class Router implements BaseRouter {
 
     resolvedAs = delLocale(delBasePath(resolvedAs), this.locale)
 
-    const effect = await this._preflightRequest({
-      as,
-      cache: process.env.NODE_ENV === 'production',
-      pages,
-      pathname,
-      query,
-    })
+    if (process.env.__NEXT_HAS_MIDDLEWARE) {
+      const effect = await this._preflightRequest({
+        as,
+        cache: process.env.NODE_ENV === 'production',
+        pages,
+        pathname,
+        query,
+      })
 
-    if (effect.type === 'rewrite') {
-      query = { ...query, ...effect.parsedAs.query }
-      resolvedAs = effect.asPath
-      pathname = effect.resolvedHref
-      parsed.pathname = effect.resolvedHref
-      url = formatWithValidation(parsed)
-    } else if (effect.type === 'redirect' && effect.newAs) {
-      return this.change(method, effect.newUrl, effect.newAs, options)
-    } else if (effect.type === 'redirect' && effect.destination) {
-      window.location.href = effect.destination
-      return new Promise(() => {})
-    } else if (effect.type === 'refresh') {
-      window.location.href = as
-      return new Promise(() => {})
+      if (effect.type === 'rewrite') {
+        query = { ...query, ...effect.parsedAs.query }
+        resolvedAs = effect.asPath
+        pathname = effect.resolvedHref
+        parsed.pathname = effect.resolvedHref
+        url = formatWithValidation(parsed)
+      } else if (effect.type === 'redirect' && effect.newAs) {
+        return this.change(method, effect.newUrl, effect.newAs, options)
+      } else if (effect.type === 'redirect' && effect.destination) {
+        window.location.href = effect.destination
+        return new Promise(() => {})
+      } else if (effect.type === 'refresh') {
+        window.location.href = as
+        return new Promise(() => {})
+      }
     }
 
     const route = removePathTrailingSlash(pathname)
@@ -1643,20 +1651,22 @@ export default class Router implements BaseRouter {
       return
     }
 
-    const effects = await this._preflightRequest({
-      as: asPath,
-      cache: true,
-      pages,
-      pathname,
-      query,
-    })
+    if (process.env.__NEXT_HAS_MIDDLEWARE) {
+      const effects = await this._preflightRequest({
+        as: asPath,
+        cache: true,
+        pages,
+        pathname,
+        query,
+      })
 
-    if (effects.type === 'rewrite') {
-      parsed.pathname = effects.resolvedHref
-      pathname = effects.resolvedHref
-      query = { ...query, ...effects.parsedAs.query }
-      resolvedAs = effects.asPath
-      url = formatWithValidation(parsed)
+      if (effects.type === 'rewrite') {
+        parsed.pathname = effects.resolvedHref
+        pathname = effects.resolvedHref
+        query = { ...query, ...effects.parsedAs.query }
+        resolvedAs = effects.asPath
+        url = formatWithValidation(parsed)
+      }
     }
 
     const route = removePathTrailingSlash(pathname)
@@ -1741,147 +1751,154 @@ export default class Router implements BaseRouter {
     pathname: string
     query: ParsedUrlQuery
   }): Promise<PreflightEffect> {
-    const cleanedAs = delLocale(
-      hasBasePath(options.as) ? delBasePath(options.as) : options.as,
-      this.locale
-    )
-
-    const fns: string[] = await this.pageLoader.getMiddlewareList()
-    const requiresPreflight = fns.some((middleware) => {
-      return getRouteMatcher(getMiddlewareRegex(middleware))(cleanedAs)
-    })
-
-    if (!requiresPreflight) {
-      return { type: 'next' }
-    }
-
-    const preflight = await this._getPreflightData({
-      preflightHref: options.as,
-      shouldCache: options.cache,
-    })
-
-    if (preflight.rewrite?.startsWith('/')) {
-      const parsed = parseRelativeUrl(
-        normalizeLocalePath(
-          hasBasePath(preflight.rewrite)
-            ? delBasePath(preflight.rewrite)
-            : preflight.rewrite,
-          this.locales
-        ).pathname
+    if (process.env.__NEXT_HAS_MIDDLEWARE) {
+      const cleanedAs = delLocale(
+        hasBasePath(options.as) ? delBasePath(options.as) : options.as,
+        this.locale
       )
 
-      const fsPathname = removePathTrailingSlash(parsed.pathname)
+      const fns: string[] = await this.pageLoader.getMiddlewareList()
+      const requiresPreflight = fns.some((middleware) => {
+        return getRouteMatcher(getMiddlewareRegex(middleware))(cleanedAs)
+      })
 
-      let matchedPage
-      let resolvedHref
-
-      if (options.pages.includes(fsPathname)) {
-        matchedPage = true
-        resolvedHref = fsPathname
-      } else {
-        resolvedHref = resolveDynamicRoute(fsPathname, options.pages)
-
-        if (
-          resolvedHref !== parsed.pathname &&
-          options.pages.includes(resolvedHref)
-        ) {
-          matchedPage = true
-        }
+      if (!requiresPreflight) {
+        return { type: 'next' }
       }
 
-      return {
-        type: 'rewrite',
-        asPath: parsed.pathname,
-        parsedAs: parsed,
-        matchedPage,
-        resolvedHref,
-      }
-    }
+      const preflight = await this._getPreflightData({
+        preflightHref: options.as,
+        shouldCache: options.cache,
+      })
 
-    if (preflight.redirect) {
-      if (preflight.redirect.startsWith('/')) {
-        const cleanRedirect = removePathTrailingSlash(
+      if (preflight.rewrite?.startsWith('/')) {
+        const parsed = parseRelativeUrl(
           normalizeLocalePath(
-            hasBasePath(preflight.redirect)
-              ? delBasePath(preflight.redirect)
-              : preflight.redirect,
+            hasBasePath(preflight.rewrite)
+              ? delBasePath(preflight.rewrite)
+              : preflight.rewrite,
             this.locales
           ).pathname
         )
 
-        const { url: newUrl, as: newAs } = prepareUrlAs(
-          this,
-          cleanRedirect,
-          cleanRedirect
-        )
+        const fsPathname = removePathTrailingSlash(parsed.pathname)
+
+        let matchedPage
+        let resolvedHref
+
+        if (options.pages.includes(fsPathname)) {
+          matchedPage = true
+          resolvedHref = fsPathname
+        } else {
+          resolvedHref = resolveDynamicRoute(fsPathname, options.pages)
+
+          if (
+            resolvedHref !== parsed.pathname &&
+            options.pages.includes(resolvedHref)
+          ) {
+            matchedPage = true
+          }
+        }
+
+        return {
+          type: 'rewrite',
+          asPath: parsed.pathname,
+          parsedAs: parsed,
+          matchedPage,
+          resolvedHref,
+        }
+      }
+
+      if (preflight.redirect) {
+        if (preflight.redirect.startsWith('/')) {
+          const cleanRedirect = removePathTrailingSlash(
+            normalizeLocalePath(
+              hasBasePath(preflight.redirect)
+                ? delBasePath(preflight.redirect)
+                : preflight.redirect,
+              this.locales
+            ).pathname
+          )
+
+          const { url: newUrl, as: newAs } = prepareUrlAs(
+            this,
+            cleanRedirect,
+            cleanRedirect
+          )
+
+          return {
+            type: 'redirect',
+            newUrl,
+            newAs,
+          }
+        }
 
         return {
           type: 'redirect',
-          newUrl,
-          newAs,
+          destination: preflight.redirect,
+        }
+      }
+
+      if (preflight.refresh) {
+        return {
+          type: 'refresh',
         }
       }
 
       return {
-        type: 'redirect',
-        destination: preflight.redirect,
+        type: 'next',
       }
     }
-
-    if (preflight.refresh) {
-      return {
-        type: 'refresh',
-      }
-    }
-
-    return {
-      type: 'next',
-    }
+    return { type: 'next' }
   }
 
   _getPreflightData(params: {
     preflightHref: string
     shouldCache?: boolean
   }): Promise<PreflightData> {
-    const { preflightHref, shouldCache = false } = params
-    const { href: cacheKey } = new URL(preflightHref, window.location.href)
+    if (process.env.__NEXT_HAS_MIDDLEWARE) {
+      const { preflightHref, shouldCache = false } = params
+      const { href: cacheKey } = new URL(preflightHref, window.location.href)
 
-    if (
-      process.env.NODE_ENV === 'production' &&
-      !this.isPreview &&
-      shouldCache &&
-      this.sde[cacheKey]
-    ) {
-      return Promise.resolve(this.sde[cacheKey])
+      if (
+        process.env.NODE_ENV === 'production' &&
+        !this.isPreview &&
+        shouldCache &&
+        this.sde[cacheKey]
+      ) {
+        return Promise.resolve(this.sde[cacheKey])
+      }
+
+      return fetch(preflightHref, {
+        method: 'HEAD',
+        credentials: 'same-origin',
+        headers: { 'x-middleware-preflight': '1' },
+      })
+        .then((res) => {
+          if (!res.ok) {
+            throw new Error(`Failed to preflight request`)
+          }
+
+          return {
+            redirect: res.headers.get('Location'),
+            refresh: res.headers.has('x-middleware-refresh'),
+            rewrite: res.headers.get('x-middleware-rewrite'),
+          }
+        })
+        .then((data) => {
+          if (shouldCache) {
+            this.sde[cacheKey] = data
+          }
+
+          return data
+        })
+        .catch((err) => {
+          delete this.sde[cacheKey]
+          throw err
+        })
+    } else {
+      return {} as any
     }
-
-    return fetch(preflightHref, {
-      method: 'HEAD',
-      credentials: 'same-origin',
-      headers: { 'x-middleware-preflight': '1' },
-    })
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error(`Failed to preflight request`)
-        }
-
-        return {
-          redirect: res.headers.get('Location'),
-          refresh: res.headers.has('x-middleware-refresh'),
-          rewrite: res.headers.get('x-middleware-rewrite'),
-        }
-      })
-      .then((data) => {
-        if (shouldCache) {
-          this.sde[cacheKey] = data
-        }
-
-        return data
-      })
-      .catch((err) => {
-        delete this.sde[cacheKey]
-        throw err
-      })
   }
 
   _getStaticData(dataHref: string): Promise<object> {

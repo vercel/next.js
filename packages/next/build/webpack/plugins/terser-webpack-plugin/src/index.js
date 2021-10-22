@@ -49,13 +49,20 @@ function buildError(error, file) {
 
 export class TerserPlugin {
   constructor(options = {}) {
-    const { cacheDir, terserOptions = {}, parallel, swcMinify } = options
+    const {
+      cacheDir,
+      terserOptions = {},
+      parallel,
+      swcMinify,
+      middlewareEnabled,
+    } = options
 
     this.options = {
       swcMinify,
       cacheDir,
       parallel,
       terserOptions,
+      middlewareEnabled,
     }
   }
 
@@ -99,15 +106,17 @@ export class TerserPlugin {
             }
 
             // remove below if we start minifying middleware chunks
-            if (name.startsWith('static/chunks/webpack-')) {
-              webpackAsset = name
-            }
+            if (this.options.middlewareEnabled) {
+              if (name.startsWith('static/chunks/webpack-')) {
+                webpackAsset = name
+              }
 
-            // don't minify _middleware as it can break in some cases
-            // and doesn't provide too much of a benefit as it's server-side
-            if (name.match(/(middleware-chunks|_middleware\.js$)/)) {
-              hasMiddleware = true
-              return false
+              // don't minify _middleware as it can break in some cases
+              // and doesn't provide too much of a benefit as it's server-side
+              if (name.match(/(middleware-chunks|_middleware\.js$)/)) {
+                hasMiddleware = true
+                return false
+              }
             }
 
             const { info } = res

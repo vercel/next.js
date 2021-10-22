@@ -281,7 +281,7 @@ export default class Server {
 
     if (!dev) {
       this.pagesManifest = require(pagesManifestPath)
-      if (!this.minimalMode) {
+      if (!this.minimalMode && this.nextConfig.experimental.middleware) {
         this.middlewareManifest = require(middlewareManifestPath)
       }
     }
@@ -569,6 +569,9 @@ export default class Server {
   }
 
   protected getMiddleware() {
+    if (!this.nextConfig.experimental.middleware) {
+      return []
+    }
     return Object.keys(this.middlewareManifest?.middleware || {}).map(
       (page) => ({
         match: getRouteMatcher(getMiddlewareRegex(page)),
@@ -1082,7 +1085,7 @@ export default class Server {
 
     let catchAllMiddleware: Route | undefined
 
-    if (!this.minimalMode) {
+    if (!this.minimalMode && this.nextConfig.experimental.middleware) {
       catchAllMiddleware = {
         match: route('/:path*'),
         type: 'route',

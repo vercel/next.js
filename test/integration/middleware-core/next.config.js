@@ -3,4 +3,7 @@ module.exports = {
     locales: ['en', 'fr', 'nl'],
     defaultLocale: 'en',
   },
+  experimental: {
+    middleware: true,
+  },
 }
