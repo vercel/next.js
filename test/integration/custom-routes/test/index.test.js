@@ -157,8 +157,10 @@ const runTests = (isDev = false) => {
 
   it('should parse params correctly for rewrite to auto-export dynamic page', async () => {
     const browser = await webdriver(appPort, '/rewriting-to-auto-export')
-    const text = await browser.eval(() => document.documentElement.innerHTML)
-    expect(text).toContain('auto-export hello')
+    await check(
+      () => browser.eval(() => document.documentElement.innerHTML),
+      /auto-export hello/
+    )
     expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
       rewrite: '1',
       slug: 'hello',
