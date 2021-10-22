@@ -1,6 +1,7 @@
 import { loadEnvConfig } from '@next/env'
 import chalk from 'chalk'
 import crypto from 'crypto'
+import { isMatch } from 'next/dist/compiled/micromatch'
 import { promises, writeFileSync } from 'fs'
 import { Worker } from '../lib/worker'
 import devalue from 'next/dist/compiled/devalue'
@@ -1036,9 +1037,10 @@ export default async function build(
         })
       }
 
-      for (const page of pageKeys) {
+      for (let page of pageKeys) {
         const includeGlobs = pageTraceIncludes.get(page)
         const excludeGlobs = pageTraceExcludes.get(page)
+        page = normalizePagePath(page)
 
         if (!includeGlobs?.length && !excludeGlobs?.length) {
           continue
@@ -1049,26 +1051,34 @@ export default async function build(
           'server/pages',
           `${page}.js.nft.json`
         )
+        const pageDir = path.dirname(traceFile)
         const traceContent = JSON.parse(
           await promises.readFile(traceFile, 'utf8')
         )
         let includes: string[] = []
-        let excludes: string[] = []
 
         if (includeGlobs?.length) {
           for (const includeGlob of includeGlobs) {
-            includes.push(...(await glob(includeGlob)))
+            const results = await glob(includeGlob)
+            includes.push(
+              ...results.map((file) => {
+                return path.relative(pageDir, path.join(dir, file))
+              })
+            )
           }
         }
+        const combined = new Set([...traceContent.files, ...includes])
 
         if (excludeGlobs?.length) {
-          for (const excludeGlob of excludeGlobs) {
-            excludes.push(...(await glob(excludeGlob)))
-          }
+          const resolvedGlobs = excludeGlobs.map((exclude) =>
+            path.join(dir, exclude)
+          )
+          combined.forEach((file) => {
+            if (isMatch(path.join(pageDir, file), resolvedGlobs)) {
+              combined.delete(file)
+            }
+          })
         }
-
-        const combined = new Set([...traceContent.files, ...includes])
-        excludes.forEach((file) => combined.delete(file))
 
         await promises.writeFile(
           traceFile,
