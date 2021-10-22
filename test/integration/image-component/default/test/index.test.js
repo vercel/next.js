@@ -662,7 +662,7 @@ function runTests(mode) {
     //server-only tests
     it('should not create an image folder in server/chunks', async () => {
       expect(
-        existsSync(join(appDir, '.next/server/chunks/static/image'))
+        existsSync(join(appDir, '.next/server/chunks/static/media'))
       ).toBeFalsy()
     })
   }

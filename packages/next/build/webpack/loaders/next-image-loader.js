@@ -14,7 +14,7 @@ function nextImageLoader(content) {
     const opts = { context, content }
     const interpolatedName = loaderUtils.interpolateName(
       this,
-      '/static/image/[path][name].[hash].[ext]',
+      '/static/media/[name].[hash:8].[ext]',
       opts
     )
     const outputPath = assetPrefix + '/_next' + interpolatedName
