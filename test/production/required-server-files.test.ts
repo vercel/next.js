@@ -81,7 +81,7 @@ describe('should set-up next', () => {
     })
 
     const nextServerTraceFiles = nextServerTrace.files.map((file) => {
-      return join(next.testDir, '.next/', file)
+      return join(next.testDir, '.next', file)
     })
 
     for (const file of allFiles) {
