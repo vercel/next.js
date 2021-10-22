@@ -2,6 +2,7 @@ import Chalk from 'chalk'
 import { SimpleWebpackError } from './simpleWebpackError'
 import { createOriginalStackFrame } from '@next/react-dev-overlay/lib/middleware'
 import path from 'path'
+import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 
 const chalk = new Chalk.constructor({ enabled: true })
 

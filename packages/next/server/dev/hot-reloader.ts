@@ -3,7 +3,7 @@ import { IncomingMessage, ServerResponse } from 'http'
 import { WebpackHotMiddleware } from './hot-middleware'
 import { join, relative, isAbsolute } from 'path'
 import { UrlObject } from 'url'
-import { webpack } from 'next/dist/compiled/webpack/webpack'
+import { webpack5 as webpack } from 'next/dist/compiled/webpack/webpack'
 import {
   createEntrypoints,
   createPagesMapping,
@@ -103,14 +103,14 @@ function findEntryModule(issuer: any): any {
   return issuer
 }
 
-function erroredPages(compilation: webpack.compilation.Compilation) {
+function erroredPages(compilation: webpack.Compilation) {
   const failedPages: { [page: string]: any[] } = {}
   for (const error of compilation.errors) {
-    if (!error.origin) {
+    if (!error.module) {
       continue
     }
 
-    const entryModule = findEntryModule(error.origin)
+    const entryModule = findEntryModule(error.module)
     const { name } = entryModule
     if (!name) {
       continue
@@ -373,7 +373,9 @@ export default class HotReloader {
         []
       ).client,
     })
-    const fallbackCompiler = webpack(fallbackConfig)
+    const fallbackCompiler = webpack(
+      fallbackConfig as unknown as webpack.Configuration
+    )
 
     this.fallbackWatcher = await new Promise((resolve) => {
       let bootedFallbackCompiler = false
@@ -472,7 +474,9 @@ export default class HotReloader {
     // @ts-ignore webpack 5
     configs.parallelism = 1
 
-    const multiCompiler = webpack(configs)
+    const multiCompiler = webpack(
+      configs as webpack.Configuration[]
+    ) as unknown as webpack.MultiCompiler
 
     watchCompilers(multiCompiler.compilers[0], multiCompiler.compilers[1])
 
@@ -485,7 +489,7 @@ export default class HotReloader {
 
     const trackPageChanges =
       (pageHashMap: Map<string, string>, changedItems: Set<string>) =>
-      (stats: webpack.compilation.Compilation) => {
+      (stats: webpack.Compilation) => {
         stats.entrypoints.forEach((entry, key) => {
           if (key.startsWith('pages/')) {
             // TODO this doesn't handle on demand loaded chunks
@@ -539,7 +543,7 @@ export default class HotReloader {
 
         // Initial value
         if (this.serverPrevDocumentHash === null) {
-          this.serverPrevDocumentHash = documentChunk.hash
+          this.serverPrevDocumentHash = documentChunk.hash || null
           return
         }
 
@@ -550,7 +554,7 @@ export default class HotReloader {
 
         // Notify reload to reload the page, as _document.js was changed (different hash)
         this.send('reloadPage')
-        this.serverPrevDocumentHash = documentChunk.hash
+        this.serverPrevDocumentHash = documentChunk.hash || null
       }
     )
     multiCompiler.hooks.done.tap('NextjsHotReloaderForServer', () => {

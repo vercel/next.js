@@ -1,4 +1,4 @@
-import { webpack } from 'next/dist/compiled/webpack/webpack'
+import type { webpack5 as webpack } from 'next/dist/compiled/webpack/webpack'
 import { getModuleBuildError } from './webpackModuleError'
 
 export class WellKnownErrorsPlugin {
@@ -15,7 +15,9 @@ export class WellKnownErrorsPlugin {
                     compilation,
                     err
                   )
-                  return moduleError === false ? err : moduleError
+                  return moduleError === false
+                    ? err
+                    : (moduleError as webpack.WebpackError)
                 } catch (e) {
                   console.log(e)
                   return err
