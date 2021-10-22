@@ -682,7 +682,7 @@ function runTests({ w, isDev, domains = [], ttl, isSharp, isOutdatedSharp }) {
     if (!isDev) {
       const filename = 'test'
       const query = {
-        url: `/_next/static/image/public/${filename}.480a01e5ea850d0231aec0fa94bd23a0.jpg`,
+        url: `/_next/static/media/${filename}.480a01e5.jpg`,
         w,
         q: 100,
       }
