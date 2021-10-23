@@ -113,6 +113,36 @@ The default loader for Next.js applications uses the built-in Image Optimization
 
 Loaders can be defined per-image, or at the application level.
 
+### Priority
+
+You should add the `priority` attribute to any image that you suspect will be the [Largest Contentful Paint (LCP) element](https://web.dev/lcp/#what-elements-are-considered). To find the LCP element, look for the largest image or text block visible within the viewport of the page (above-the-fold only).
+
+Adding this attribute allows Next.js to specially prioritize the image for loading (e.g. through preload tags or priority hints), leading to a meaningful boost in LCP.
+
+```jsx
+import Image from 'next/image'
+
+export default function Home() {
+  return (
+    <>
+      <h1>My Homepage</h1>
+      <Image
+        src="/me.png"
+        alt="Picture of the author"
+        width={500}
+        height={500}
+        priority
+      />
+      <p>Welcome to my homepage!</p>
+    </>
+  )
+}
+```
+
+Note: be selective about which images receive the `priority` attribute, as preloading resources are finite. Anything below-the-fold should not be considered.
+
+See more about priority [`in the API ref`](/docs/api-reference/next/image.md#priority).
+
 ## Image Sizing
 
 One of the ways that images most commonly hurt performance is through _layout shift_, where the image pushes other elements around on the page as it loads in. This performance problem is so annoying to users that it has its own Core Web Vital, called [Cumulative Layout Shift](https://web.dev/cls/). The way to avoid image-based layout shifts is to [always size your images](https://web.dev/optimize-cls/#images-without-dimensions). This allows the browser to reserve precisely enough space for the image before it loads.
