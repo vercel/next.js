@@ -127,7 +127,6 @@
     "nprogress": "0.2.0",
     "pixrem": "5.0.0",
     "playwright-chromium": "1.14.1",
-    "pnpm": "5.14.3",
     "postcss-nested": "4.2.1",
     "postcss-pseudoelements": "5.0.0",
     "postcss-short-size": "4.0.0",
