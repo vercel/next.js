@@ -459,14 +459,27 @@ export default function Image({
   const isVisible = !isLazy || isIntersected
 
   const wrapperStyle: JSX.IntrinsicElements['span']['style'] = {
-    all: 'initial',
-    boxSizing: 'border-box',
-    overflow: 'hidden',
-  }
-  const sizerStyle: JSX.IntrinsicElements['span']['style'] = {
-    all: 'initial',
     boxSizing: 'border-box',
     display: 'block',
+    overflow: 'hidden',
+    width: 'initial',
+    height: 'initial',
+    background: 'none',
+    opacity: 1,
+    border: 0,
+    margin: 0,
+    padding: 0,
+  }
+  const sizerStyle: JSX.IntrinsicElements['span']['style'] = {
+    boxSizing: 'border-box',
+    display: 'block',
+    width: 'initial',
+    height: 'initial',
+    background: 'none',
+    opacity: 1,
+    border: 0,
+    margin: 0,
+    padding: 0,
   }
   let hasSizer = false
   let sizerSvg: string | undefined
@@ -574,11 +587,14 @@ export default function Image({
           {sizerSvg ? (
             <img
               style={{
-                all: 'initial',
-                maxWidth: '100%',
                 display: 'block',
+                maxWidth: '100%',
+                width: 'initial',
+                height: 'initial',
+                background: 'none',
+                opacity: 1,
+                border: 0,
                 margin: 0,
-                border: 'none',
                 padding: 0,
               }}
               alt=""

@@ -47,6 +47,7 @@ pub mod hook_optimizer;
 pub mod minify;
 pub mod next_dynamic;
 pub mod next_ssg;
+pub mod page_config;
 pub mod styled_jsx;
 mod transform;
 mod util;
@@ -61,7 +62,13 @@ pub struct TransformOptions {
     pub disable_next_ssg: bool,
 
     #[serde(default)]
+    pub disable_page_config: bool,
+
+    #[serde(default)]
     pub pages_dir: Option<PathBuf>,
+
+    #[serde(default)]
+    pub is_development: bool,
 }
 
 pub fn custom_before_pass(name: &FileName, opts: &TransformOptions) -> impl Fold {
@@ -71,6 +78,10 @@ pub fn custom_before_pass(name: &FileName, opts: &TransformOptions) -> impl Fold
         Optional::new(next_ssg::next_ssg(), !opts.disable_next_ssg),
         amp_attributes::amp_attributes(),
         next_dynamic::next_dynamic(name.clone(), opts.pages_dir.clone()),
+        Optional::new(
+            page_config::page_config(opts.is_development),
+            !opts.disable_page_config
+        )
     )
 }
 

@@ -95,6 +95,7 @@ type EventBuildOptimized = {
   headersWithHasCount: number
   rewritesWithHasCount: number
   redirectsWithHasCount: number
+  middlewareCount: number
 }
 
 export function eventBuildOptimize(

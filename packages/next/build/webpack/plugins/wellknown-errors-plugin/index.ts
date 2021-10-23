@@ -8,19 +8,18 @@ export class WellKnownErrorsPlugin {
         'WellKnownErrorsPlugin',
         async () => {
           if (compilation.errors?.length) {
-            compilation.errors = await Promise.all(
-              compilation.errors.map(async (err) => {
+            await Promise.all(
+              compilation.errors.map(async (err, i) => {
                 try {
                   const moduleError = await getModuleBuildError(
                     compilation,
                     err
                   )
-                  return moduleError === false
-                    ? err
-                    : (moduleError as webpack.WebpackError)
+                  if (moduleError !== false) {
+                    compilation.errors[i] = moduleError
+                  }
                 } catch (e) {
                   console.log(e)
-                  return err
                 }
               })
             )
