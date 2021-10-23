@@ -59,7 +59,7 @@ describe('Production Usage', () => {
 
   it('should not show target deprecation warning', () => {
     expect(output).not.toContain(
-      'The `target` config has been deprecated and will be removed in a future version'
+      'The `target` config is deprecated and will be removed in a future version'
     )
   })
 

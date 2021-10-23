@@ -45,7 +45,7 @@ describe('Serverless', () => {
 
   it('should show target config deprecation warning', () => {
     expect(output).toContain(
-      'The `target` config has been deprecated and will be removed in a future version'
+      'The `target` config is deprecated and will be removed in a future version'
     )
   })
 
