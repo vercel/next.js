@@ -98,7 +98,7 @@ import { NextConfigComplete } from '../server/config-shared'
 import isError, { NextError } from '../lib/is-error'
 import { TelemetryPlugin } from './webpack/plugins/telemetry-plugin'
 import { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
-import { webpack5 as webpack } from 'next/dist/compiled/webpack/webpack'
+import type { webpack5 as webpack } from 'next/dist/compiled/webpack/webpack'
 
 const RESERVED_PAGE = /^\/(_app|_error|_document|api(\/|$))/
 

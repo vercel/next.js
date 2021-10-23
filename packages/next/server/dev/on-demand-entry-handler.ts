@@ -1,6 +1,6 @@
 import { EventEmitter } from 'events'
 import { join, posix } from 'path'
-import { webpack5 as webpack } from 'next/dist/compiled/webpack/webpack'
+import type { webpack5 as webpack } from 'next/dist/compiled/webpack/webpack'
 import { normalizePagePath, normalizePathSep } from '../normalize-page-path'
 import { pageNotFoundError } from '../require'
 import { findPageFile } from '../lib/find-page-file'

@@ -34,9 +34,8 @@ declare module 'next/dist/compiled/webpack/webpack' {
   export function init(): void
   export let BasicEvaluatedExpression: any
   export let GraphHelpers: any
-  // TODO change this to webpack4 | webpack5
   export let sources: typeof webpackSources
-  // TODO change this to webpack
+  // TODO change this to webpack5
   export { webpack4 as webpack, loader, webpack4, webpack5 }
 }
 

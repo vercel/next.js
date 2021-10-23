@@ -1,4 +1,4 @@
-import { webpack5 as webpack } from 'next/dist/compiled/webpack/webpack'
+import type { webpack5 as webpack } from 'next/dist/compiled/webpack/webpack'
 
 // This class creates a simplified webpack error that formats nicely based on
 // webpack's build in serializer.
