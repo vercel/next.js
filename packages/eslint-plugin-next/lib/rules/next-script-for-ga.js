@@ -22,6 +22,7 @@ module.exports = {
       description:
         'Prefer next script component when using the inline script for Google Analytics',
       recommended: true,
+      url: 'https://nextjs.org/docs/messages/next-script-for-ga',
     },
   },
   create: function (context) {

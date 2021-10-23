@@ -49,7 +49,7 @@
     "@mdx-js/loader": "0.18.0",
     "@svgr/webpack": "5.5.0",
     "@swc/cli": "0.1.49",
-    "@swc/core": "1.2.88",
+    "@swc/core": "1.2.97",
     "@swc/jest": "0.2.3",
     "@testing-library/react": "11.2.5",
     "@types/cheerio": "0.22.16",
@@ -127,7 +127,6 @@
     "nprogress": "0.2.0",
     "pixrem": "5.0.0",
     "playwright-chromium": "1.14.1",
-    "pnpm": "5.14.3",
     "postcss-nested": "4.2.1",
     "postcss-pseudoelements": "5.0.0",
     "postcss-short-size": "4.0.0",
@@ -161,7 +160,7 @@
   },
   "resolutions": {
     "browserslist": "4.16.6",
-    "caniuse-lite": "1.0.30001228"
+    "caniuse-lite": "1.0.30001271"
   },
   "engines": {
     "node": ">=12.22.0"

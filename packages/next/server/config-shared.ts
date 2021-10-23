@@ -1,4 +1,5 @@
 import os from 'os'
+import type webpack5 from 'webpack5'
 import { Header, Redirect, Rewrite } from '../lib/load-custom-routes'
 import {
   ImageConfig,
@@ -9,6 +10,9 @@ import {
 export type NextConfigComplete = Required<NextConfig> & {
   images: ImageConfigComplete
   typescript: Required<TypeScriptConfig>
+  configOrigin?: string
+  configFile?: string
+  configFileName: string
 }
 
 export interface I18NConfig {
@@ -112,6 +116,7 @@ export type NextConfig = { [key: string]: any } & {
     webpack5?: false
     strictPostcssConfiguration?: boolean
   }
+  staticPageGenerationTimeout?: number
   crossOrigin?: false | 'anonymous' | 'use-credentials'
   experimental?: {
     swcMinify?: boolean
@@ -139,12 +144,12 @@ export type NextConfig = { [key: string]: any } & {
     gzipSize?: boolean
     craCompat?: boolean
     esmExternals?: boolean | 'loose'
-    staticPageGenerationTimeout?: number
     isrMemoryCacheSize?: number
     outputFileTracing?: boolean
     concurrentFeatures?: boolean
     serverComponents?: boolean
     fullySpecified?: boolean
+    urlImports?: NonNullable<webpack5.Configuration['experiments']>['buildHttp']
   }
 }
 
@@ -196,15 +201,16 @@ export const defaultConfig: NextConfig = {
   httpAgentOptions: {
     keepAlive: true,
   },
+  staticPageGenerationTimeout: 60,
   experimental: {
-    swcLoader: false,
+    swcLoader: true,
     swcMinify: false,
     cpus: Math.max(
       1,
       (Number(process.env.CIRCLE_NODE_TOTAL) ||
         (os.cpus() || { length: 1 }).length) - 1
     ),
-    sharedPool: false,
+    sharedPool: true,
     plugins: false,
     profiling: false,
     isrFlushToDisk: true,
@@ -219,10 +225,9 @@ export const defaultConfig: NextConfig = {
     gzipSize: true,
     craCompat: false,
     esmExternals: true,
-    staticPageGenerationTimeout: 60,
     // default to 50MB limit
     isrMemoryCacheSize: 50 * 1024 * 1024,
-    outputFileTracing: false,
+    outputFileTracing: true,
     concurrentFeatures: false,
     serverComponents: false,
     fullySpecified: false,

@@ -1,24 +1,25 @@
-import { webpack } from 'next/dist/compiled/webpack/webpack'
+import type webpack5 from 'webpack5'
 import { getModuleBuildError } from './webpackModuleError'
 
 export class WellKnownErrorsPlugin {
-  apply(compiler: webpack.Compiler) {
+  apply(compiler: webpack5.Compiler) {
     compiler.hooks.compilation.tap('WellKnownErrorsPlugin', (compilation) => {
       compilation.hooks.afterSeal.tapPromise(
         'WellKnownErrorsPlugin',
         async () => {
           if (compilation.errors?.length) {
-            compilation.errors = await Promise.all(
-              compilation.errors.map(async (err) => {
+            await Promise.all(
+              compilation.errors.map(async (err, i) => {
                 try {
                   const moduleError = await getModuleBuildError(
                     compilation,
                     err
                   )
-                  return moduleError === false ? err : moduleError
+                  if (moduleError !== false) {
+                    compilation.errors[i] = moduleError
+                  }
                 } catch (e) {
                   console.log(e)
-                  return err
                 }
               })
             )

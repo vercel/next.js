@@ -58,7 +58,9 @@ const nextDev: cliCommand = (argv) => {
   }
 
   async function preflight() {
-    const { getPackageVersion } = await import('../lib/get-package-version')
+    const { getPackageVersion } = await Promise.resolve(
+      require('../lib/get-package-version')
+    )
     const [sassVersion, nodeSassVersion] = await Promise.all([
       getPackageVersion({ cwd: dir, name: 'sass' }),
       getPackageVersion({ cwd: dir, name: 'node-sass' }),

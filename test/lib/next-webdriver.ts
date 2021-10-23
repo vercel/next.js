@@ -95,6 +95,8 @@ export default async function webdriver(
           callback()
         }
 
+        // TODO: should we also ensure router.isReady is true
+        // by default before resolving?
         if ((window as any).__NEXT_HYDRATED) {
           console.log('Next.js page already hydrated')
           callback()
