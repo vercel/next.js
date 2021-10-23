@@ -1024,70 +1024,185 @@ export default async function build(
     }
 
     if (config.experimental.outputFileTracing) {
-      const globOrig =
-        require('next/dist/compiled/glob') as typeof import('next/dist/compiled/glob')
-      const glob = (pattern: string): Promise<string[]> => {
-        return new Promise((resolve, reject) => {
-          globOrig(pattern, { cwd: dir }, (err, files) => {
-            if (err) {
-              return reject(err)
-            }
-            resolve(files)
+      const { nodeFileTrace } =
+        require('next/dist/compiled/@vercel/nft') as typeof import('next/dist/compiled/@vercel/nft')
+
+      const includeExcludeSpan = nextBuildSpan.traceChild(
+        'apply-include-excludes'
+      )
+
+      await includeExcludeSpan.traceAsyncFn(async () => {
+        const globOrig =
+          require('next/dist/compiled/glob') as typeof import('next/dist/compiled/glob')
+        const glob = (pattern: string): Promise<string[]> => {
+          return new Promise((resolve, reject) => {
+            globOrig(pattern, { cwd: dir }, (err, files) => {
+              if (err) {
+                return reject(err)
+              }
+              resolve(files)
+            })
           })
-        })
-      }
-
-      for (let page of pageKeys) {
-        const includeGlobs = pageTraceIncludes.get(page)
-        const excludeGlobs = pageTraceExcludes.get(page)
-        page = normalizePagePath(page)
-
-        if (!includeGlobs?.length && !excludeGlobs?.length) {
-          continue
         }
 
-        const traceFile = path.join(
-          distDir,
-          'server/pages',
-          `${page}.js.nft.json`
-        )
-        const pageDir = path.dirname(traceFile)
-        const traceContent = JSON.parse(
-          await promises.readFile(traceFile, 'utf8')
-        )
-        let includes: string[] = []
+        for (let page of pageKeys) {
+          await includeExcludeSpan
+            .traceChild('include-exclude', { page })
+            .traceAsyncFn(async () => {
+              const includeGlobs = pageTraceIncludes.get(page)
+              const excludeGlobs = pageTraceExcludes.get(page)
+              page = normalizePagePath(page)
 
-        if (includeGlobs?.length) {
-          for (const includeGlob of includeGlobs) {
-            const results = await glob(includeGlob)
-            includes.push(
-              ...results.map((file) => {
-                return path.relative(pageDir, path.join(dir, file))
+              if (!includeGlobs?.length && !excludeGlobs?.length) {
+                return
+              }
+
+              const traceFile = path.join(
+                distDir,
+                'server/pages',
+                `${page}.js.nft.json`
+              )
+              const pageDir = path.dirname(traceFile)
+              const traceContent = JSON.parse(
+                await promises.readFile(traceFile, 'utf8')
+              )
+              let includes: string[] = []
+
+              if (includeGlobs?.length) {
+                for (const includeGlob of includeGlobs) {
+                  const results = await glob(includeGlob)
+                  includes.push(
+                    ...results.map((file) => {
+                      return path.relative(pageDir, path.join(dir, file))
+                    })
+                  )
+                }
+              }
+              const combined = new Set([...traceContent.files, ...includes])
+
+              if (excludeGlobs?.length) {
+                const resolvedGlobs = excludeGlobs.map((exclude) =>
+                  path.join(dir, exclude)
+                )
+                combined.forEach((file) => {
+                  if (isMatch(path.join(pageDir, file), resolvedGlobs)) {
+                    combined.delete(file)
+                  }
+                })
+              }
+
+              await promises.writeFile(
+                traceFile,
+                JSON.stringify({
+                  version: traceContent.version,
+                  files: [...combined],
+                })
+              )
+            })
+        }
+      })
+
+      // TODO: move this inside of webpack so it can be cached
+      // between builds. Should only need to be re-run on lockfile change
+      await nextBuildSpan
+        .traceChild('trace-next-server')
+        .traceAsyncFn(async () => {
+          let cacheKey: string | undefined
+          // consider all lockFiles in tree in case user accidentally
+          // has both package-lock.json and yarn.lock
+          const lockFiles: string[] = (
+            await Promise.all(
+              ['package-lock.json', 'yarn.lock', 'pnpm-lock.yaml'].map((file) =>
+                findUp(file, { cwd: dir })
+              )
+            )
+          ).filter(Boolean) as any // TypeScript doesn't like this filter
+
+          const nextServerTraceOutput = path.join(
+            distDir,
+            'next-server.js.nft.json'
+          )
+          const cachedTracePath = path.join(
+            distDir,
+            'cache/next-server.js.nft.json'
+          )
+
+          if (lockFiles.length > 0) {
+            const cacheHash = (
+              require('crypto') as typeof import('crypto')
+            ).createHash('sha256')
+
+            cacheHash.update(require('next/package').version)
+
+            await Promise.all(
+              lockFiles.map(async (lockFile) => {
+                cacheHash.update(await promises.readFile(lockFile))
               })
             )
+            cacheKey = cacheHash.digest('hex')
+
+            try {
+              const existingTrace = JSON.parse(
+                await promises.readFile(cachedTracePath, 'utf8')
+              )
+
+              if (existingTrace.cacheKey === cacheKey) {
+                await promises.copyFile(cachedTracePath, nextServerTraceOutput)
+                return
+              }
+            } catch (_) {}
           }
-        }
-        const combined = new Set([...traceContent.files, ...includes])
 
-        if (excludeGlobs?.length) {
-          const resolvedGlobs = excludeGlobs.map((exclude) =>
-            path.join(dir, exclude)
-          )
-          combined.forEach((file) => {
-            if (isMatch(path.join(pageDir, file), resolvedGlobs)) {
-              combined.delete(file)
+          const root = path.parse(dir).root
+          const serverResult = await nodeFileTrace(
+            [require.resolve('next/dist/server/next-server')],
+            {
+              base: root,
+              processCwd: dir,
+              ignore: [
+                '**/next/dist/pages/**/*',
+                '**/next/dist/server/image-optimizer.js',
+                '**/next/dist/compiled/@ampproject/toolbox-optimizer/**/*',
+                '**/next/dist/server/lib/squoosh/**/*.wasm',
+                '**/next/dist/compiled/webpack/(bundle4|bundle5).js',
+                '**/node_modules/react/**/*.development.js',
+                '**/node_modules/react-dom/**/*.development.js',
+                '**/node_modules/use-subscription/**/*.development.js',
+                '**/node_modules/sharp/**/*',
+                '**/node_modules/webpack5/**/*',
+              ],
             }
-          })
-        }
+          )
 
-        await promises.writeFile(
-          traceFile,
-          JSON.stringify({
-            version: traceContent.version,
-            files: [...combined],
+          const tracedFiles = new Set()
+
+          serverResult.fileList.forEach((file) => {
+            const reason = serverResult.reasons.get(file)
+
+            if (reason?.type === 'initial') {
+              return
+            }
+            tracedFiles.add(
+              path.relative(distDir, path.join(root, file)).replace(/\\/g, '/')
+            )
           })
-        )
-      }
+
+          await promises.writeFile(
+            nextServerTraceOutput,
+            JSON.stringify({
+              version: 1,
+              cacheKey,
+              files: [...tracedFiles],
+            } as {
+              version: number
+              files: string[]
+            })
+          )
+          await promises.unlink(cachedTracePath).catch(() => {})
+          await promises
+            .copyFile(nextServerTraceOutput, cachedTracePath)
+            .catch(() => {})
+        })
     }
 
     if (serverPropsPages.size > 0 || ssgPages.size > 0) {

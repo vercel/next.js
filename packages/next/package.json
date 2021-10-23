@@ -52,8 +52,7 @@
   "scripts": {
     "dev": "taskr",
     "release": "taskr release",
-    "prepublish": "npm run release && yarn types && yarn trace-server",
-    "trace-server": "node ../../scripts/trace-next-server.js",
+    "prepublish": "npm run release && yarn types",
     "types": "tsc --declaration --emitDeclarationOnly --declarationDir dist",
     "typescript": "tsc --noEmit --declaration",
     "ncc-compiled": "ncc cache clean && taskr ncc",
