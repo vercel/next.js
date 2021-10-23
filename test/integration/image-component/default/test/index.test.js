@@ -708,25 +708,25 @@ function runTests(mode) {
         `document.querySelector("footer").scrollIntoView({behavior: "smooth"})`
       )
 
-      const allImgs = await browser.eval(`
+      const imagesWithIds = await browser.eval(`
         function foo() {
           const imgs = document.querySelectorAll("img[id]");
           for (let img of imgs) {
             const br = window.getComputedStyle(img).getPropertyValue("border-radius");
             if (!br) return 'no-border-radius';
-            if (br !== '100px') return br;
+            if (br !== '139px') return br;
           }
           return true;
         }()
       `)
-      expect(allImgs).toBe(true)
+      expect(imagesWithIds).toBe(true)
 
       const allSpans = await browser.eval(`
         function foo() {
           const spans = document.querySelectorAll("span");
           for (let span of spans) {
-            const br = window.getComputedStyle(span).getPropertyValue("border-radius");
-            if (br && br !== '0px') return br;
+            const m = window.getComputedStyle(span).getPropertyValue("margin");
+            if (m && m !== '0px') return m;
           }
           return false;
         }()
