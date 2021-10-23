@@ -2,7 +2,7 @@
 
 #### Why This Error Occurred
 
-For one of your pages, a large amount of page data (>= 128KB) was returned which can negatively impact performance as the data needs to parsed on the client before a page can be hydrated.
+One of your pages includes a large amount of page data (>= 128KB). This can negatively impact performance since page data must be parsed by the client before the page is hydrated.
 
 #### Possible Ways to Fix It
 
@@ -10,4 +10,4 @@ Reduce the amount of data returned from `getStaticProps`, `getServerSideProps`, 
 
 ### Useful Links
 
-- [data-fetching documentation](https://nextjs.org/docs/basic-features/data-fetching)
+- [Data Fetching Documentation](https://nextjs.org/docs/basic-features/data-fetching)

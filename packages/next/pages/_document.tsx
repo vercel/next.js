@@ -807,7 +807,7 @@ export class NextScript extends Component<OriginProps> {
         const prettyBytes = require('../lib/pretty-bytes').default
         if (bytes > 128 * 1000) {
           console.warn(
-            `Warning: data for page: "${__NEXT_DATA__.page}" is ${prettyBytes(
+            `Warning: data for page "${__NEXT_DATA__.page}" is ${prettyBytes(
               bytes
             )}, this amount of data can reduce performance.\nSee more info here: https://nextjs.org/docs/messages/large-page-data`
           )
