@@ -74,6 +74,8 @@ function getSWCOptions({
         : {}),
       // Disables getStaticProps/getServerSideProps tree shaking on the server compilation for pages
       disableNextSsg: true,
+      disablePageConfig: true,
+      isDevelopment: development,
       pagesDir,
       env: {
         targets: {
@@ -95,6 +97,7 @@ function getSWCOptions({
           }
         : {}),
       disableNextSsg: !isPageFile,
+      isDevelopment: development,
       pagesDir,
       jsc,
     }
