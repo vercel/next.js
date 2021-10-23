@@ -23,6 +23,7 @@ module.exports = function (task) {
           ignoreDynamic: true,
         },
         jsc: {
+          externalHelpers: true,
           loose: true,
 
           target: 'es2016',
@@ -54,6 +55,7 @@ module.exports = function (task) {
           },
         },
         jsc: {
+          externalHelpers: true,
           loose: true,
 
           parser: {

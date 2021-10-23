@@ -4251,6 +4251,11 @@
     "@swc/core-win32-ia32-msvc" "1.2.97"
     "@swc/core-win32-x64-msvc" "1.2.97"
 
+"@swc/helpers@0.2.13":
+  version "0.2.13"
+  resolved "https://registry.yarnpkg.com/@swc/helpers/-/helpers-0.2.13.tgz#95d69aaed0998040d455832efbe1342ed79d0809"
+  integrity sha512-HxfZHtTgDlME7fH+KIwBrm1B1+2iB3UpbcSbPCZzDAHxZ3z+qfjflHverm33sXrdyQYx4s3J7r6ot76433mwEg==
+
 "@swc/jest@0.2.3":
   version "0.2.3"
   resolved "https://registry.yarnpkg.com/@swc/jest/-/jest-0.2.3.tgz#5c32aaa6298267a955d35eb67094edabd5db598f"

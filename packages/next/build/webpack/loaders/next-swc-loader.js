@@ -42,6 +42,7 @@ function getSWCOptions({
   isCommonJS,
 }) {
   const jsc = {
+    externalHelpers: true,
     parser: {
       syntax: isTypeScript ? 'typescript' : 'ecmascript',
       dynamicImport: true,
