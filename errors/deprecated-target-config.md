@@ -6,7 +6,7 @@ The `target` property in `next.config.js` has been deprecated. Please migrate to
 
 #### Possible Ways to Fix It
 
-For serverless cases, leverage the new output file traces or deploy your application somewhere where they are leveraged automatically.
+For serverless cases, leverage the new output file traces or deploy your application somewhere where they are leveraged automatically like [Vercel](https://vercel.com).
 
 ### Useful Links
 
