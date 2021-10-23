@@ -7,10 +7,8 @@ import {
   NodeFileTraceReasons,
 } from 'next/dist/compiled/@vercel/nft'
 import { TRACE_OUTPUT_VERSION } from '../../../shared/lib/constants'
-import {
-  webpack5 as webpack,
-  sources,
-} from 'next/dist/compiled/webpack/webpack'
+import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
+import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 import {
   nextImageLoaderRegex,
   NODE_ESM_RESOLVE_OPTIONS,
@@ -29,11 +27,11 @@ const TRACE_IGNORES = [
 function getModuleFromDependency(
   compilation: any,
   dep: any
-): webpack.Module & { resource?: string } {
+): webpack5.Module & { resource?: string } {
   return compilation.moduleGraph.getModule(dep)
 }
 
-export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
+export class TraceEntryPointsPlugin implements webpack5.WebpackPluginInstance {
   private appDir: string
   private entryTraces: Map<string, Set<string>>
   private excludeFiles: string[]
@@ -103,7 +101,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
   }
 
   tapfinishModules(
-    compilation: webpack.Compilation,
+    compilation: webpack5.Compilation,
     traceEntrypointsPluginSpan: Span,
     doResolve?: (
       request: string,
@@ -370,7 +368,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
     )
   }
 
-  apply(compiler: webpack.Compiler) {
+  apply(compiler: webpack5.Compiler) {
     compiler.hooks.compilation.tap(PLUGIN_NAME, (compilation) => {
       const compilationSpan = spans.get(compilation) || spans.get(compiler)!
       const traceEntrypointsPluginSpan = compilationSpan.traceChild(
