@@ -2,14 +2,10 @@
   display: flex;
 }
 
-.mainContainer {
-  border-radius: 75px;
-}
-
 .mainContainer span {
-  border-radius: 50px;
+  margin: 57px;
 }
 
 .mainContainer img {
-  border-radius: 100px;
+  border-radius: 139px;
 }
