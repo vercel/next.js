@@ -203,7 +203,7 @@ export const defaultConfig: NextConfig = {
   },
   staticPageGenerationTimeout: 60,
   experimental: {
-    swcLoader: false,
+    swcLoader: true,
     swcMinify: false,
     cpus: Math.max(
       1,

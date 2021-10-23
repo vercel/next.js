@@ -65,6 +65,8 @@ const devtoolRevertWarning = execOnce(
   }
 )
 
+let loggedSwcDisabled = false
+
 function parseJsonFile(filePath: string) {
   const JSON5 = require('next/dist/compiled/json5')
   const contents = readFileSync(filePath, 'utf8')
@@ -297,11 +299,15 @@ export default async function getBaseWebpackConfig(
 
   const distDir = path.join(dir, config.distDir)
 
-  const useSWCLoader = config.experimental.swcLoader
-  if (useSWCLoader && babelConfigFile) {
+  const useSWCLoader = config.experimental.swcLoader && !babelConfigFile
+  if (!loggedSwcDisabled && !useSWCLoader && babelConfigFile) {
     Log.warn(
-      `experimental.swcLoader enabled. The custom Babel configuration will not be used.`
+      `Disabled SWC because of custom Babel configuration "${path.relative(
+        dir,
+        babelConfigFile
+      )}" https://nextjs.org/docs/messages/swc-disabled`
     )
+    loggedSwcDisabled = true
   }
   const defaultLoaders = {
     babel: useSWCLoader
