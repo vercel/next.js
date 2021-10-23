@@ -68,6 +68,9 @@ pub struct TransformOptions {
     pub pages_dir: Option<PathBuf>,
 
     #[serde(default)]
+    pub is_page_file: bool,
+
+    #[serde(default)]
     pub is_development: bool,
 }
 
@@ -79,7 +82,7 @@ pub fn custom_before_pass(name: &FileName, opts: &TransformOptions) -> impl Fold
         amp_attributes::amp_attributes(),
         next_dynamic::next_dynamic(name.clone(), opts.pages_dir.clone()),
         Optional::new(
-            page_config::page_config(opts.is_development),
+            page_config::page_config(opts.is_development, opts.is_page_file),
             !opts.disable_page_config
         )
     )

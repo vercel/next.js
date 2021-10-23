@@ -58,6 +58,14 @@ function getSWCOptions({
         useBuiltins: true,
         refresh: development && !isServer,
       },
+      optimizer: {
+        simplify: false,
+        globals: {
+          typeofs: {
+            window: isServer ? 'undefined' : 'object',
+          },
+        },
+      },
     },
   }
 
@@ -77,6 +85,7 @@ function getSWCOptions({
       disablePageConfig: true,
       isDevelopment: development,
       pagesDir,
+      isPageFile,
       env: {
         targets: {
           // Targets the current version of Node.js
@@ -99,6 +108,7 @@ function getSWCOptions({
       disableNextSsg: !isPageFile,
       isDevelopment: development,
       pagesDir,
+      isPageFile,
       jsc,
     }
   }
