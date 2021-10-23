@@ -617,6 +617,7 @@ export async function getJsPageSizeInKb(
 export async function buildStaticPaths(
   page: string,
   getStaticPaths: GetStaticPaths,
+  configFileName: string,
   locales?: string[],
   defaultLocale?: string
 ): Promise<
@@ -788,7 +789,7 @@ export async function buildStaticPaths(
 
       if (entry.locale && !locales?.includes(entry.locale)) {
         throw new Error(
-          `Invalid locale returned from getStaticPaths for ${page}, the locale ${entry.locale} is not specified in next.config.js`
+          `Invalid locale returned from getStaticPaths for ${page}, the locale ${entry.locale} is not specified in ${configFileName}`
         )
       }
       const curLocale = entry.locale || defaultLocale || ''
@@ -817,6 +818,7 @@ export async function isPageStatic(
   page: string,
   distDir: string,
   serverless: boolean,
+  configFileName: string,
   runtimeEnvConfig: any,
   httpAgentOptions: NextConfigComplete['httpAgentOptions'],
   locales?: string[],
@@ -925,6 +927,7 @@ export async function isPageStatic(
         } = await buildStaticPaths(
           page,
           mod.getStaticPaths!,
+          configFileName,
           locales,
           defaultLocale
         ))

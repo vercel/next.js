@@ -95,6 +95,7 @@ type EventBuildOptimized = {
   headersWithHasCount: number
   rewritesWithHasCount: number
   redirectsWithHasCount: number
+  middlewareCount: number
 }
 
 export function eventBuildOptimize(
@@ -120,9 +121,13 @@ export function eventBuildOptimize(
   }
 }
 
-const EVENT_BUILD_FEATURE_USAGE = 'NEXT_BUILD_FEATURE_USAGE'
-type EventBuildFeatureUsage = {
-  featureName: string
+export const EVENT_BUILD_FEATURE_USAGE = 'NEXT_BUILD_FEATURE_USAGE'
+export type EventBuildFeatureUsage = {
+  featureName:
+    | 'next/image'
+    | 'next/script'
+    | 'next/dynamic'
+    | 'experimental/optimizeCss'
   invocationCount: number
 }
 export function eventBuildFeatureUsage(

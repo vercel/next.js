@@ -39,6 +39,7 @@ function getSWCOptions({
   isPageFile,
   pagesDir,
   isNextDist,
+  isCommonJS,
 }) {
   const jsc = {
     parser: {
@@ -55,6 +56,15 @@ function getSWCOptions({
         throwIfNamespace: true,
         development: development,
         useBuiltins: true,
+        refresh: development && !isServer,
+      },
+      optimizer: {
+        simplify: false,
+        globals: {
+          typeofs: {
+            window: isServer ? 'undefined' : 'object',
+          },
+        },
       },
     },
   }
@@ -62,9 +72,20 @@ function getSWCOptions({
   if (isServer) {
     return {
       jsc,
+      // Next.js dist intentionally does not have type: commonjs on server compilation
+      ...(isCommonJS
+        ? {
+            module: {
+              type: 'commonjs',
+            },
+          }
+        : {}),
       // Disables getStaticProps/getServerSideProps tree shaking on the server compilation for pages
       disableNextSsg: true,
+      disablePageConfig: true,
+      isDevelopment: development,
       pagesDir,
+      isPageFile,
       env: {
         targets: {
           // Targets the current version of Node.js
@@ -77,7 +98,7 @@ function getSWCOptions({
     jsc.target = 'es5'
     return {
       // Ensure Next.js internals are output as commonjs modules
-      ...(isNextDist
+      ...(isNextDist || isCommonJS
         ? {
             module: {
               type: 'commonjs',
@@ -85,7 +106,9 @@ function getSWCOptions({
           }
         : {}),
       disableNextSsg: !isPageFile,
+      isDevelopment: development,
       pagesDir,
+      isPageFile,
       jsc,
     }
   }
@@ -103,6 +126,7 @@ async function loaderTransform(parentTrace, source, inputSourceMap) {
   const isPageFile = filename.startsWith(pagesDir)
 
   const isNextDist = nextDistPath.test(filename)
+  const isCommonJS = source.indexOf('module.exports') !== -1
 
   const swcOptions = getSWCOptions({
     pagesDir,
@@ -111,6 +135,7 @@ async function loaderTransform(parentTrace, source, inputSourceMap) {
     isPageFile,
     development: this.mode === 'development',
     isNextDist,
+    isCommonJS,
   })
 
   const programmaticOptions = {
@@ -120,6 +145,7 @@ async function loaderTransform(parentTrace, source, inputSourceMap) {
 
     // Set the default sourcemap behavior based on Webpack's mapping flag,
     sourceMaps: this.sourceMap,
+    inlineSourcesContent: this.sourceMap,
 
     // Ensure that Webpack will get a full absolute path in the sourcemap
     // so that it can properly map the module back to its internal cached

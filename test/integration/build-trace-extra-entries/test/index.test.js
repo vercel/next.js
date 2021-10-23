@@ -25,16 +25,31 @@ describe('build trace with extra entries', () => {
     const anotherTrace = await fs.readJSON(
       join(appDir, '.next/server/pages/another.js.nft.json')
     )
+    const imageTrace = await fs.readJSON(
+      join(appDir, '.next/server/pages/image-import.js.nft.json')
+    )
 
     expect(appTrace.files.some((file) => file.endsWith('hello.json'))).toBe(
       true
     )
+    expect(
+      appTrace.files.some((file) => file.endsWith('lib/get-data.js'))
+    ).toBe(true)
     expect(
       indexTrace.files.some((file) => file.endsWith('hello.json'))
     ).toBeFalsy()
     expect(
       indexTrace.files.some((file) => file.includes('some-cms/index.js'))
     ).toBe(true)
+    expect(
+      indexTrace.files.some((file) => file === '../../../include-me/hello.txt')
+    ).toBe(true)
+    expect(
+      indexTrace.files.some((file) => file === '../../../include-me/second.txt')
+    ).toBe(true)
+    expect(indexTrace.files.some((file) => file.includes('exclude-me'))).toBe(
+      false
+    )
 
     expect(
       anotherTrace.files.some((file) =>
@@ -51,5 +66,11 @@ describe('build trace with extra entries', () => {
         file.includes('nested-structure/dist/constants.js')
       )
     ).toBe(true)
+    expect(
+      imageTrace.files.some((file) => file.includes('public/another.jpg'))
+    ).toBe(true)
+    expect(
+      imageTrace.files.some((file) => file.includes('public/test.jpg'))
+    ).toBe(false)
   })
 })

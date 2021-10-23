@@ -5,6 +5,10 @@
       "heading": true,
       "routes": [
         {
+          "title": "beta-middleware",
+          "path": "/errors/beta-middleware.md"
+        },
+        {
           "title": "custom-document-image-import",
           "path": "/errors/custom-document-image-import.md"
         },
@@ -448,6 +452,10 @@
           "path": "/errors/sharp-missing-in-production.md"
         },
         {
+          "title": "sharp-version-avif",
+          "path": "/errors/sharp-version-avif.md"
+        },
+        {
           "title": "script-in-document-page",
           "path": "/errors/no-script-in-document-page.md"
         },
@@ -474,6 +482,10 @@
         {
           "title": "invalid-project-dir-casing",
           "path": "/errors/invalid-project-dir-casing.md"
+        },
+        {
+          "title": "swc-disabled",
+          "path": "/errors/swc-disabled.md"
         }
       ]
     }

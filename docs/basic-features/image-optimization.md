@@ -38,7 +38,7 @@ To use a local image, `import` your `.jpg`, `.png`, or `.webp` files:
 import profilePic from '../public/me.png'
 ```
 
-Dynamic `await import()` or `require()` are _not_ supported. The `import` must be static. Also note that static image support requires Webpack 5, which is enabled by default in Next.js applications.
+Dynamic `await import()` or `require()` are _not_ supported. The `import` must be static so it can be analyzed at build time.
 
 Next.js will automatically determine the `width` and `height` of your image based on the imported file. These values are used to prevent [Cumulative Layout Shift](https://nextjs.org/learn/seo/web-performance/cls) while your image is loading.
 
@@ -151,7 +151,7 @@ The image component has several different [layout modes](/docs/api-reference/nex
 
 **Target the image with className, not based on DOM structure**
 
-Regardless of the layout mode used, the Image component will have a consistent DOM structure of one `<img>` tag wrapped by exactly one `<div>`. For some modes, it may also have a sibling `<div>` for spacing. These additional `<div>` elements are critical to allow the component to prevent layout shifts.
+Regardless of the layout mode used, the Image component will have a consistent DOM structure of one `<img>` tag wrapped by exactly one `<span>`. For some modes, it may also have a sibling `<span>` for spacing. These additional `<span>` elements are critical to allow the component to prevent layout shifts.
 
 The recommended way to style the inner `<img>` is to set the `className` prop on the Image component to the value of an imported [CSS Module](/docs/basic-features/built-in-css-support.md#adding-component-level-css). The value of `className` will be automatically applied to the underlying `<img>` element.
 

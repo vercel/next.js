@@ -6,6 +6,7 @@ module.exports = {
       description:
         'Disallow importing next/document outside of pages/document.js',
       recommended: true,
+      url: 'https://nextjs.org/docs/messages/no-document-import-in-page',
     },
   },
   create: function (context) {

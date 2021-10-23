@@ -16,6 +16,7 @@ description: Enable Image Optimization with the built-in Image component.
 
 | Version   | Changes                                                                                           |
 | --------- | ------------------------------------------------------------------------------------------------- |
+| `v12.0.0` | `formats` configuration added.<br/>AVIF support added.<br/>Wrapper `<div>` changed to `<span>`.   |
 | `v11.1.0` | `onLoadingComplete` and `lazyBoundary` props added.                                               |
 | `v11.0.0` | `src` prop support for static import.<br/>`placeholder` prop added.<br/>`blurDataURL` prop added. |
 | `v10.0.5` | `loader` prop added.                                                                              |
@@ -36,7 +37,7 @@ Must be one of the following:
 
 1. A [statically imported](/docs/basic-features/image-optimization.md#local-images) image file, or
 2. A path string. This can be either an absolute external URL,
-   or an internal path depending on the [loader](#loader).
+   or an internal path depending on the [loader](#loader) prop or [loader configuration](#loader-configuration).
 
 When using an external URL, you must add it to
 [domains](#domains) in
@@ -141,7 +142,7 @@ Should only be used when the image is visible above the fold. Defaults to `false
 
 A placeholder to use while the image is loading. Possible values are `blur` or `empty`. Defaults to `empty`.
 
-When `blur`, the [`blurDataURL`](#blurdataurl) property will be used as the placeholder. If `src` is an object from a [static import](#local-images) and the imported image is `.jpg`, `.png`, or `.webp`, then `blurDataURL` will be automatically populated.
+When `blur`, the [`blurDataURL`](#blurdataurl) property will be used as the placeholder. If `src` is an object from a [static import](#local-images) and the imported image is `.jpg`, `.png`, `.webp`, or `.avif`, then `blurDataURL` will be automatically populated.
 
 For dynamic images, you must provide the [`blurDataURL`](#blurdataurl) property. Solutions such as [Plaiceholder](https://github.com/joe-bell/plaiceholder) can help with `base64` generation.
 
@@ -151,6 +152,7 @@ Try it out:
 
 - [Demo the `blur` placeholder](https://image-component.nextjs.gallery/placeholder)
 - [Demo the shimmer effect with `blurDataURL` prop](https://image-component.nextjs.gallery/shimmer)
+- [Demo the color effect with `blurDataURL` prop](https://image-component.nextjs.gallery/color)
 
 ## Advanced Props
 
@@ -207,6 +209,7 @@ Try it out:
 
 - [Demo the default `blurDataURL` prop](https://image-component.nextjs.gallery/placeholder)
 - [Demo the shimmer effect with `blurDataURL` prop](https://image-component.nextjs.gallery/shimmer)
+- [Demo the color effect with `blurDataURL` prop](https://image-component.nextjs.gallery/color)
 
 You can also [generate a solid color Data URL](https://png-pixel.com) to match the image.
 
@@ -249,7 +252,7 @@ module.exports = {
 
 ### Loader Configuration
 
-If you want to use a cloud provider to optimize images instead of using the Next.js built-in Image Optimization API, you can configure the `loader` and `path` prefix in your `next.config.js` file. This allows you to use relative URLs for the Image `src` and automatically generate the correct absolute URL for your provider.
+If you want to use a cloud provider to optimize images instead of using the Next.js built-in Image Optimization API, you can configure the `loader` and `path` prefix in your `next.config.js` file. This allows you to use relative URLs for the Image [`src`](#src) and automatically generate the correct absolute URL for your provider.
 
 ```js
 module.exports = {
@@ -311,17 +314,47 @@ module.exports = {
 }
 ```
 
+### Acceptable Formats
+
+The default [Image Optimization API](#loader-configuration) will automatically detect the browser's supported image formats via the request's `Accept` header.
+
+If the `Accept` head matches more than one of the configured formats, the first match in the array is used. Therefore, the array order matters. If there is no match, the Image Optimization API will fallback to the original image's format.
+
+If no configuration is provided, the default below is used.
+
+```js
+module.exports = {
+  images: {
+    formats: ['image/webp'],
+  },
+}
+```
+
+You can enable AVIF support with the following configuration.
+
+```js
+module.exports = {
+  images: {
+    formats: ['image/avif', 'image/webp'],
+  },
+}
+```
+
+> Note: AVIF generally takes 20% longer to encode but it compresses 20% smaller compared to WebP. This means that the first time an image is requested, it will typically be slower and then subsequent requests that are cached will be faster.
+
 ## Caching Behavior
 
 The following describes the caching algorithm for the default [loader](#loader). For all other loaders, please refer to your cloud provider's documentation.
 
 Images are optimized dynamically upon request and stored in the `<distDir>/cache/images` directory. The optimized image file will be served for subsequent requests until the expiration is reached. When a request is made that matches a cached but expired file, the cached file is deleted before generating a new optimized image and caching the new file.
 
-The expiration (or rather Max Age) is defined by the upstream server's `Cache-Control` header.
+The expiration (or rather Max Age) is defined by either the [`minimumCacheTTL`](#minimum-cache-ttl) configuration or the upstream server's `Cache-Control` header, whichever is larger. Specifically, the `max-age` value of the `Cache-Control` header is used. If both `s-maxage` and `max-age` are found, then `s-maxage` is preferred.
 
-- If `s-maxage` is found in `Cache-Control`, it is used. If no `s-maxage` is found, then `max-age` is used. If no `max-age` is found, then [`minimumCacheTTL`](#minimum-cache-ttl) is used.
-- You can configure [`minimumCacheTTL`](#minimum-cache-ttl) to increase the cache duration when the upstream image does not include `max-age`.
-- You can also configure [`deviceSizes`](#device-sizes) and [`imageSizes`](#device-sizes) to reduce the total number of possible generated images.
+- You can configure [`minimumCacheTTL`](#minimum-cache-ttl) to increase the cache duration when the upstream image does not include `Cache-Control` header or the value is very low.
+- You can configure [`deviceSizes`](#device-sizes) and [`imageSizes`](#device-sizes) to reduce the total number of possible generated images.
+- You can configure [formats](/docs/basic-features/image-optimization.md#acceptable-formats) to disable multiple formats in favor of a single image format.
+
+### Minimum Cache TTL
 
 You can configure the Time to Live (TTL) in seconds for cached optimized images. In many cases, it's better to use a [Static Image Import](/docs/basic-features/image-optimization.md#local-images) which will automatically hash the file contents and cache the image forever with a `Cache-Control` header of `immutable`.
 

@@ -22,7 +22,7 @@
 // TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 // SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 import { webpack } from 'next/dist/compiled/webpack/webpack'
-import http from 'http'
+import type ws from 'ws'
 
 export class WebpackHotMiddleware {
   eventStream: EventStream
@@ -86,14 +86,10 @@ export class WebpackHotMiddleware {
     this.latestStats = statsResult
     this.publishStats('built', this.latestStats)
   }
-  middleware = (
-    req: http.IncomingMessage,
-    res: http.ServerResponse,
-    next: () => void
-  ) => {
-    if (this.closed) return next()
-    if (!req.url?.startsWith('/_next/webpack-hmr')) return next()
-    this.eventStream.handler(req, res)
+
+  onHMR = (client: ws) => {
+    if (this.closed) return
+    this.eventStream.handler(client)
     if (this.latestStats) {
       // Explicitly not passing in `log` fn as we don't want to log again on
       // the server
@@ -131,64 +127,34 @@ export class WebpackHotMiddleware {
 }
 
 class EventStream {
-  clients: Set<http.ServerResponse>
-  interval: NodeJS.Timeout
+  clients: Set<ws>
   constructor() {
     this.clients = new Set()
-
-    this.interval = setInterval(this.heartbeatTick, 2500).unref()
   }
 
-  heartbeatTick = () => {
-    this.everyClient((client) => {
-      client.write('data: \uD83D\uDC93\n\n')
-    })
-  }
-
-  everyClient(fn: (client: http.ServerResponse) => void) {
+  everyClient(fn: (client: ws) => void) {
     for (const client of this.clients) {
       fn(client)
     }
   }
 
   close() {
-    clearInterval(this.interval)
     this.everyClient((client) => {
-      if (!client.finished) client.end()
+      client.close()
     })
     this.clients.clear()
   }
 
-  handler(req: http.IncomingMessage, res: http.ServerResponse) {
-    const headers = {
-      'Access-Control-Allow-Origin': '*',
-      'Content-Type': 'text/event-stream;charset=utf-8',
-      'Cache-Control': 'no-cache, no-transform',
-      // While behind nginx, event stream should not be buffered:
-      // http://nginx.org/docs/http/ngx_http_proxy_module.html#proxy_buffering
-      'X-Accel-Buffering': 'no',
-    }
-
-    const isHttp1 = !(parseInt(req.httpVersion) >= 2)
-    if (isHttp1) {
-      req.socket.setKeepAlive(true)
-      Object.assign(headers, {
-        Connection: 'keep-alive',
-      })
-    }
-
-    res.writeHead(200, headers)
-    res.write('\n')
-    this.clients.add(res)
-    req.on('close', () => {
-      if (!res.finished) res.end()
-      this.clients.delete(res)
+  handler(client: ws) {
+    this.clients.add(client)
+    client.addEventListener('close', () => {
+      this.clients.delete(client)
     })
   }
 
   publish(payload: any) {
     this.everyClient((client) => {
-      client.write('data: ' + JSON.stringify(payload) + '\n\n')
+      client.send(JSON.stringify(payload))
     })
   }
 }

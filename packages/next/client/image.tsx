@@ -416,7 +416,7 @@ export default function Image({
         )
       }
       if (!blurDataURL) {
-        const VALID_BLUR_EXT = ['jpeg', 'png', 'webp'] // should match next-image-loader
+        const VALID_BLUR_EXT = ['jpeg', 'png', 'webp', 'avif'] // should match next-image-loader
 
         throw new Error(
           `Image with src "${src}" has "placeholder='blur'" property but is missing the "blurDataURL" property.
@@ -458,10 +458,32 @@ export default function Image({
   })
   const isVisible = !isLazy || isIntersected
 
-  let wrapperStyle: JSX.IntrinsicElements['div']['style'] | undefined
-  let sizerStyle: JSX.IntrinsicElements['div']['style'] | undefined
+  const wrapperStyle: JSX.IntrinsicElements['span']['style'] = {
+    boxSizing: 'border-box',
+    display: 'block',
+    overflow: 'hidden',
+    width: 'initial',
+    height: 'initial',
+    background: 'none',
+    opacity: 1,
+    border: 0,
+    margin: 0,
+    padding: 0,
+  }
+  const sizerStyle: JSX.IntrinsicElements['span']['style'] = {
+    boxSizing: 'border-box',
+    display: 'block',
+    width: 'initial',
+    height: 'initial',
+    background: 'none',
+    opacity: 1,
+    border: 0,
+    margin: 0,
+    padding: 0,
+  }
+  let hasSizer = false
   let sizerSvg: string | undefined
-  let imgStyle: ImgElementStyle | undefined = {
+  const imgStyle: ImgElementStyle = {
     position: 'absolute',
     top: 0,
     left: 0,
@@ -495,19 +517,12 @@ export default function Image({
       : {}
   if (layout === 'fill') {
     // <Image src="i.png" layout="fill" />
-    wrapperStyle = {
-      display: 'block',
-      overflow: 'hidden',
-
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      bottom: 0,
-      right: 0,
-
-      boxSizing: 'border-box',
-      margin: 0,
-    }
+    wrapperStyle.display = 'block'
+    wrapperStyle.position = 'absolute'
+    wrapperStyle.top = 0
+    wrapperStyle.left = 0
+    wrapperStyle.bottom = 0
+    wrapperStyle.right = 0
   } else if (
     typeof widthInt !== 'undefined' &&
     typeof heightInt !== 'undefined'
@@ -517,41 +532,24 @@ export default function Image({
     const paddingTop = isNaN(quotient) ? '100%' : `${quotient * 100}%`
     if (layout === 'responsive') {
       // <Image src="i.png" width="100" height="100" layout="responsive" />
-      wrapperStyle = {
-        display: 'block',
-        overflow: 'hidden',
-        position: 'relative',
-
-        boxSizing: 'border-box',
-        margin: 0,
-      }
-      sizerStyle = { display: 'block', boxSizing: 'border-box', paddingTop }
+      wrapperStyle.display = 'block'
+      wrapperStyle.position = 'relative'
+      hasSizer = true
+      sizerStyle.paddingTop = paddingTop
     } else if (layout === 'intrinsic') {
       // <Image src="i.png" width="100" height="100" layout="intrinsic" />
-      wrapperStyle = {
-        display: 'inline-block',
-        maxWidth: '100%',
-        overflow: 'hidden',
-        position: 'relative',
-        boxSizing: 'border-box',
-        margin: 0,
-      }
-      sizerStyle = {
-        boxSizing: 'border-box',
-        display: 'block',
-        maxWidth: '100%',
-      }
+      wrapperStyle.display = 'inline-block'
+      wrapperStyle.position = 'relative'
+      wrapperStyle.maxWidth = '100%'
+      hasSizer = true
+      sizerStyle.maxWidth = '100%'
       sizerSvg = `<svg width="${widthInt}" height="${heightInt}" xmlns="http://www.w3.org/2000/svg" version="1.1"/>`
     } else if (layout === 'fixed') {
       // <Image src="i.png" width="100" height="100" layout="fixed" />
-      wrapperStyle = {
-        overflow: 'hidden',
-        boxSizing: 'border-box',
-        display: 'inline-block',
-        position: 'relative',
-        width: widthInt,
-        height: heightInt,
-      }
+      wrapperStyle.display = 'inline-block'
+      wrapperStyle.position = 'relative'
+      wrapperStyle.width = widthInt
+      wrapperStyle.height = heightInt
     }
   } else {
     // <Image src="i.png" />
@@ -583,16 +581,20 @@ export default function Image({
   let srcString: string = src
 
   return (
-    <div style={wrapperStyle}>
-      {sizerStyle ? (
-        <div style={sizerStyle}>
+    <span style={wrapperStyle}>
+      {hasSizer ? (
+        <span style={sizerStyle}>
           {sizerSvg ? (
             <img
               style={{
-                maxWidth: '100%',
                 display: 'block',
+                maxWidth: '100%',
+                width: 'initial',
+                height: 'initial',
+                background: 'none',
+                opacity: 1,
+                border: 0,
                 margin: 0,
-                border: 'none',
                 padding: 0,
               }}
               alt=""
@@ -600,7 +602,7 @@ export default function Image({
               src={`data:image/svg+xml;base64,${toBase64(sizerSvg)}`}
             />
           ) : null}
-        </div>
+        </span>
       ) : null}
       <img
         {...rest}
@@ -659,7 +661,7 @@ export default function Image({
           ></link>
         </Head>
       ) : null}
-    </div>
+    </span>
   )
 }
 
