@@ -14,7 +14,12 @@ async function createNextInstall(dependencies) {
   for (const item of ['package.json', 'yarn.lock', 'packages']) {
     await fs.copy(path.join(origRepoDir, item), path.join(tmpRepoDir, item), {
       filter: (item) => {
-        return !item.includes('node_modules')
+        return (
+          !item.includes('node_modules') &&
+          !item.includes('.DS_Store') &&
+          // Exclude Rust compilation files
+          !/next[\\/]build[\\/]swc[\\/]target/.test(item)
+        )
       },
     })
   }

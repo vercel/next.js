@@ -876,8 +876,10 @@ function runTests(dev) {
     expect(html).toMatch(/onmpost:.*pending/)
 
     const browser = await webdriver(appPort, '/on-mount/post-1')
-    const text = await browser.eval(`document.body.innerHTML`)
-    expect(text).toMatch(/onmpost:.*post-1/)
+    await check(
+      () => browser.eval(`document.body.innerHTML`),
+      /onmpost:.*post-1/
+    )
   })
 
   it('should not have placeholder query values for SSS', async () => {
@@ -887,16 +889,19 @@ function runTests(dev) {
 
   it('should update with a hash in the URL', async () => {
     const browser = await webdriver(appPort, '/on-mount/post-1#abc')
-    const text = await browser.eval(`document.body.innerHTML`)
-    expect(text).toMatch(/onmpost:.*post-1/)
+    await check(
+      () => browser.eval(`document.body.innerHTML`),
+      /onmpost:.*post-1/
+    )
   })
 
   it('should scroll to a hash on mount', async () => {
     const browser = await webdriver(appPort, '/on-mount/post-1#item-400')
 
-    const text = await browser.eval(`document.body.innerHTML`)
-    expect(text).toMatch(/onmpost:.*post-1/)
-
+    await check(
+      () => browser.eval(`document.body.innerHTML`),
+      /onmpost:.*post-1/
+    )
     const scrollPosition = await browser.eval('window.pageYOffset')
     expect(scrollPosition).toBe(7232)
   })

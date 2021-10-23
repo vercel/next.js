@@ -268,8 +268,8 @@ describe('basic HMR', () => {
           )
 
           expect(editedFontSize).toBe('200px')
-          expect(browserHtml.includes('font-size:200px;')).toBe(true)
-          expect(browserHtml.includes('font-size:100px;')).toBe(false)
+          expect(browserHtml.includes('font-size:200px')).toBe(true)
+          expect(browserHtml.includes('font-size:100px')).toBe(false)
 
           const editedHtml = await renderViaHTTP(
             next.appPort,
@@ -352,9 +352,7 @@ describe('basic HMR', () => {
         await next.patchFile(aboutPage, aboutContent.replace('</div>', 'div'))
 
         expect(await hasRedbox(browser)).toBe(true)
-        expect(await getRedboxSource(browser)).toMatch(
-          /Unterminated JSX contents/
-        )
+        expect(await getRedboxSource(browser)).toMatch(/Unexpected eof/)
 
         await next.patchFile(aboutPage, aboutContent)
 
@@ -395,9 +393,7 @@ describe('basic HMR', () => {
         browser = await webdriver(next.appPort, '/hmr/contact')
 
         expect(await hasRedbox(browser)).toBe(true)
-        expect(await getRedboxSource(browser)).toMatch(
-          /Unterminated JSX contents/
-        )
+        expect(await getRedboxSource(browser)).toMatch(/Unexpected eof/)
 
         await next.patchFile(aboutPage, aboutContent)
 
