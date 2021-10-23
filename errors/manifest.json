@@ -9,6 +9,10 @@
           "path": "/errors/beta-middleware.md"
         },
         {
+          "title": "deprecated-target-config",
+          "path": "/errors/deprecated-target-config.md"
+        },
+        {
           "title": "custom-document-image-import",
           "path": "/errors/custom-document-image-import.md"
         },
