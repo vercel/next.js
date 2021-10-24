@@ -358,6 +358,12 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     )
   }
 
+  if (result.swcMinify) {
+    Log.warn(
+      'SWC minify beta enabled. nextjs.org/docs/messages/swc-minify-enabled'
+    )
+  }
+
   if (result.experimental && 'nftTracing' in (result.experimental as any)) {
     // TODO: remove this warning and assignment when we leave experimental phase
     Log.warn(
