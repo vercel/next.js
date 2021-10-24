@@ -17,11 +17,22 @@ jest.setTimeout(1000 * 60 * 2)
 const context = {}
 context.appDir = join(__dirname, '../')
 
+const middlewareWarning =
+  'Warning: using beta Middleware (not covered by semver)'
+
 describe('Middleware base tests', () => {
   describe('dev mode', () => {
+    let output = ''
     beforeAll(async () => {
       context.appPort = await findPort()
-      context.app = await launchApp(context.appDir, context.appPort)
+      context.app = await launchApp(context.appDir, context.appPort, {
+        onStdout(msg) {
+          output += msg
+        },
+        onStderr(msg) {
+          output += msg
+        },
+      })
     })
     afterAll(() => killApp(context.app))
     rewriteTests()
@@ -32,12 +43,31 @@ describe('Middleware base tests', () => {
     responseTests('/fr')
     interfaceTests()
     interfaceTests('/fr')
+
+    it('should have showed warning for middleware usage', () => {
+      expect(output).toContain(middlewareWarning)
+    })
   })
   describe('production mode', () => {
+    let buildOutput
+    let serverOutput
+
     beforeAll(async () => {
-      await nextBuild(context.appDir)
+      const res = await nextBuild(context.appDir, undefined, {
+        stderr: true,
+        stdout: true,
+      })
+      buildOutput = res.stdout + res.stderr
+
       context.appPort = await findPort()
-      context.app = await nextStart(context.appDir, context.appPort)
+      context.app = await nextStart(context.appDir, context.appPort, {
+        onStdout(msg) {
+          serverOutput += msg
+        },
+        onStderr(msg) {
+          serverOutput += msg
+        },
+      })
     })
     afterAll(() => killApp(context.app))
     rewriteTests()
@@ -48,6 +78,14 @@ describe('Middleware base tests', () => {
     responseTests('/fr')
     interfaceTests()
     interfaceTests('/fr')
+
+    it('should have middleware warning during build', () => {
+      expect(buildOutput).toContain(middlewareWarning)
+    })
+
+    it('should have middleware warning during start', () => {
+      expect(serverOutput).toContain(middlewareWarning)
+    })
 
     it('should have correct files in manifest', async () => {
       const manifest = await fs.readJSON(

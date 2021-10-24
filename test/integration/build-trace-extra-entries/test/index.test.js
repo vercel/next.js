@@ -41,6 +41,15 @@ describe('build trace with extra entries', () => {
     expect(
       indexTrace.files.some((file) => file.includes('some-cms/index.js'))
     ).toBe(true)
+    expect(
+      indexTrace.files.some((file) => file === '../../../include-me/hello.txt')
+    ).toBe(true)
+    expect(
+      indexTrace.files.some((file) => file === '../../../include-me/second.txt')
+    ).toBe(true)
+    expect(indexTrace.files.some((file) => file.includes('exclude-me'))).toBe(
+      false
+    )
 
     expect(
       anotherTrace.files.some((file) =>
