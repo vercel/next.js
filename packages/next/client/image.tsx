@@ -459,15 +459,15 @@ export default function Image({
     if (typeof window !== 'undefined' && !perfObserver) {
       perfObserver = new PerformanceObserver((entryList) => {
         for (const entry of entryList.getEntries()) {
-          // @ts-ignore - missing "LargestContentfulPaint" class with "url" prop
-          const entryUrl = entry.url as string
-          const lcpImage = allImgs.get(entryUrl)
+          // @ts-ignore - missing "LargestContentfulPaint" class with "element" prop
+          const imgSrc = entry?.element?.src || ''
+          const lcpImage = allImgs.get(imgSrc)
           if (
             lcpImage &&
             !lcpImage.priority &&
             lcpImage.placeholder !== 'blur' &&
-            !entryUrl.startsWith('data:') &&
-            !entryUrl.startsWith('blob:')
+            !lcpImage.src.startsWith('data:') &&
+            !lcpImage.src.startsWith('blob:')
           ) {
             // https://web.dev/lcp/#measure-lcp-in-javascript
             console.warn(
