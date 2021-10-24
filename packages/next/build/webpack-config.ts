@@ -317,7 +317,7 @@ export default async function getBaseWebpackConfig(
           options: {
             isServer: isMiddleware || isServer,
             pagesDir,
-            hasReactRefresh: isMiddleware ? false : hasReactRefresh,
+            hasReactRefresh: !isMiddleware && hasReactRefresh,
           },
         }
       : {
