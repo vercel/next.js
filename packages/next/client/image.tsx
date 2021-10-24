@@ -10,7 +10,10 @@ import {
 import { useIntersection } from './use-intersection'
 
 const loadedImageURLs = new Set<string>()
-const allImgs = new Map<string, { src: string; priority: boolean }>()
+const allImgs = new Map<
+  string,
+  { src: string; priority: boolean; placeholder: string }
+>()
 let perfObserver: PerformanceObserver | undefined
 const emptyDataURL =
   'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
@@ -462,6 +465,7 @@ export default function Image({
           if (
             lcpImage &&
             !lcpImage.priority &&
+            lcpImage.placeholder !== 'blur' &&
             !entryUrl.startsWith('data:') &&
             !entryUrl.startsWith('blob:')
           ) {
@@ -613,7 +617,7 @@ export default function Image({
       } catch (e) {
         fullUrl = new URL(imgAttributes.src, window.location.href)
       }
-      allImgs.set(fullUrl.href, { src, priority })
+      allImgs.set(fullUrl.href, { src, priority, placeholder })
     }
   }
 
