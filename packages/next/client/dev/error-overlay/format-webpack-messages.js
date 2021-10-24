@@ -38,7 +38,8 @@ function formatMessage(message, verbose) {
     const filteredModuleTrace =
       message.moduleTrace &&
       message.moduleTrace.filter(
-        (trace) => !trace.originName.includes('next-client-pages-loader.js')
+        (trace) =>
+          !/next-(middleware|client-pages)-loader\.js/.test(trace.originName)
       )
     message =
       (message.moduleName ? stripAnsi(message.moduleName) + '\n' : '') +
