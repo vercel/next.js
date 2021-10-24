@@ -9,6 +9,10 @@
           "path": "/errors/beta-middleware.md"
         },
         {
+          "title": "deprecated-target-config",
+          "path": "/errors/deprecated-target-config.md"
+        },
+        {
           "title": "custom-document-image-import",
           "path": "/errors/custom-document-image-import.md"
         },
@@ -482,6 +486,10 @@
         {
           "title": "invalid-project-dir-casing",
           "path": "/errors/invalid-project-dir-casing.md"
+        },
+        {
+          "title": "swc-disabled",
+          "path": "/errors/swc-disabled.md"
         }
       ]
     }
