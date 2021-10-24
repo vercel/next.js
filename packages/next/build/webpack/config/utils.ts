@@ -18,8 +18,6 @@ export type ConfigurationContext = {
 
   future: NextConfigComplete['future']
   experimental: NextConfigComplete['experimental']
-
-  isCraCompat?: boolean
 }
 
 export type ConfigurationFn = (

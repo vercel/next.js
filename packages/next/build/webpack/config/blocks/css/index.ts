@@ -260,7 +260,7 @@ export const css = curry(async function css(
             include: { and: [/node_modules/] },
             // Global CSS is only supported in the user's application, not in
             // node_modules.
-            issuer: ctx.isCraCompat
+            issuer: ctx.experimental.craCompat
               ? undefined
               : {
                   and: [ctx.rootDirectory],
@@ -309,7 +309,7 @@ export const css = curry(async function css(
   }
 
   // Throw an error for Global CSS used inside of `node_modules`
-  if (!ctx.isCraCompat) {
+  if (!ctx.experimental.craCompat) {
     fns.push(
       loader({
         oneOf: [

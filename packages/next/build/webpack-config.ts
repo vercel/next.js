@@ -1503,7 +1503,6 @@ export default async function getBaseWebpackConfig(
     productionBrowserSourceMaps: config.productionBrowserSourceMaps,
     future: config.future,
     experimental: config.experimental,
-    isCraCompat: config.experimental.craCompat,
   })
 
   // @ts-ignore Cache exists
