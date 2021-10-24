@@ -575,6 +575,13 @@ export default async function loadConfig(
       )
     }
 
+    if (userConfig.target && userConfig.target !== 'server') {
+      Log.warn(
+        'The `target` config is deprecated and will be removed in a future version.\n' +
+          'See more info here https://nextjs.org/docs/messages/deprecated-target-config'
+      )
+    }
+
     if (userConfig.amp?.canonicalBase) {
       const { canonicalBase } = userConfig.amp || ({} as any)
       userConfig.amp = userConfig.amp || {}
