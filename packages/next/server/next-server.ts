@@ -1,6 +1,5 @@
 import compression from 'next/dist/compiled/compression'
 import fs from 'fs'
-import chalk from 'chalk'
 import { IncomingMessage, ServerResponse } from 'http'
 import Proxy from 'next/dist/compiled/http-proxy'
 import { join, relative, resolve, sep } from 'path'
@@ -596,7 +595,7 @@ export default class Server {
 
   private middlewareBetaWarning = execOnce(() => {
     Log.warn(
-      `Middleware beta is not covered by semver - https://nextjs.org/docs/messages/beta-middleware`
+      `using beta Middleware (not covered by semver) - https://nextjs.org/docs/messages/beta-middleware`
     )
   })
 
