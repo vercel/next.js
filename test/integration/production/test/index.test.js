@@ -57,6 +57,12 @@ describe('Production Usage', () => {
     await killApp(app)
   })
 
+  it('should not show target deprecation warning', () => {
+    expect(output).not.toContain(
+      'The `target` config is deprecated and will be removed in a future version'
+    )
+  })
+
   it('should contain generated page count in output', async () => {
     const pageCount = 40
     expect(output).toContain(`Generating static pages (0/${pageCount})`)
