@@ -569,6 +569,7 @@ declare module 'webpack4' {
         | 'javascript/esm'
         | 'json'
         | 'webassembly/experimental'
+        | 'asset/resource'
       /**
        * Match the resource path of the module
        */

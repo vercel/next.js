@@ -207,7 +207,6 @@
     "debug": "4.1.1",
     "devalue": "2.0.1",
     "escape-string-regexp": "2.0.0",
-    "file-loader": "6.0.0",
     "find-cache-dir": "3.3.1",
     "find-up": "4.1.0",
     "formdata-node": "4.3.0",
