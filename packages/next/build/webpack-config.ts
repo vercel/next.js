@@ -316,6 +316,7 @@ export default async function getBaseWebpackConfig(
           options: {
             isServer,
             pagesDir,
+            hasReactRefresh,
           },
         }
       : {
