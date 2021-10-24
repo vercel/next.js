@@ -250,6 +250,7 @@ async function main() {
             ...process.env,
             // run tests in headless mode by default
             HEADLESS: 'true',
+            TRACE_PLAYWRIGHT: 'true',
             ...(usePolling
               ? {
                   // Events can be finicky in CI. This switches to a more
@@ -274,7 +275,7 @@ async function main() {
 
       children.add(child)
 
-      child.on('exit', (code) => {
+      child.on('exit', async (code) => {
         children.delete(child)
         if (code) {
           if (isFinalRun && hideOutput) {
@@ -297,8 +298,38 @@ async function main() {
             }
             trimmedOutput.forEach((chunk) => process.stdout.write(chunk))
           }
+          try {
+            const isolatedTestDir =
+              process.env.NEXT_TEST_DIR || (await fs.realpath(os.tmpdir()))
+            const traceFile = await glob('next-(install|test)-*/.next/trace', {
+              cwd: isolatedTestDir,
+              dot: true,
+            })
+
+            if (traceFile.length > 0) {
+              await fs.copy(
+                path.join(isolatedTestDir, traceFile.pop()),
+                path.join(
+                  __dirname,
+                  'test/traces',
+                  `${path.basename(test)}-next-trace`
+                )
+              )
+            }
+          } catch (err) {
+            console.error('failed to copy .next/trace')
+          }
           reject(new Error(`failed with code: ${code}`))
         }
+        await fs
+          .remove(
+            path.join(
+              __dirname,
+              'test/traces',
+              `playwright-trace-${path.basename(test)}.zip`
+            )
+          )
+          .catch(() => {})
         resolve(new Date().getTime() - start)
       })
     })

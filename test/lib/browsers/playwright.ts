@@ -8,13 +8,29 @@ import {
   Page,
   ElementHandle,
 } from 'playwright-chromium'
+import path from 'path'
 
 let page: Page
 let browser: Browser
 let context: BrowserContext
 let pageLogs: Array<{ source: string; message: string }> = []
 
+const tracePlaywright = process.env.TRACE_PLAYWRIGHT
+
 export async function quit() {
+  if (tracePlaywright) {
+    const { TEST_FILE_PATH } = process.env
+
+    const testName = TEST_FILE_PATH ? path.basename(TEST_FILE_PATH) : ''
+    const traceDir = path.join(__dirname, '../../traces')
+
+    await context.tracing
+      .stop({
+        path: path.join(traceDir, `playwright-trace-${testName}.zip`),
+      })
+      .catch(console.error)
+  }
+
   await context?.close()
   await browser?.close()
   context = undefined
@@ -37,6 +53,10 @@ class Playwright extends BrowserInterface {
       browser = await chromium.launch({ headless, devtools: !headless })
     }
     context = await browser.newContext()
+
+    if (tracePlaywright) {
+      await context.tracing.start({ screenshots: true, snapshots: true })
+    }
   }
 
   async get(url: string): Promise<void> {
@@ -61,6 +81,26 @@ class Playwright extends BrowserInterface {
     page.on('pageerror', (error) => {
       console.error('page error', error)
     })
+
+    if (tracePlaywright) {
+      page.on('websocket', (ws) => {
+        page
+          .evaluate(`console.log('connected to ws at ${ws.url()}')`)
+          .catch(() => {})
+        ws.on('close', () =>
+          page
+            .evaluate(`console.log('closed websocket ${ws.url()}')`)
+            .catch(() => {})
+        )
+        ws.on('framereceived', (frame) => {
+          if (!frame.payload.includes('pong')) {
+            page
+              .evaluate(`console.log('received ws message ${frame.payload}')`)
+              .catch(() => {})
+          }
+        })
+      })
+    }
     await page.goto(url, { waitUntil: 'load' })
   }
 
