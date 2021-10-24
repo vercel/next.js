@@ -10,6 +10,8 @@ import {
 import { useIntersection } from './use-intersection'
 
 const loadedImageURLs = new Set<string>()
+const allImgs = new Map<string, { src: string; priority: boolean }>()
+let perfObserver: PerformanceObserver | undefined
 const emptyDataURL =
   'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
 
@@ -450,6 +452,29 @@ export default function Image({
           `\nRead more: https://nextjs.org/docs/messages/next-image-missing-loader-width`
       )
     }
+
+    if (typeof window !== 'undefined' && !perfObserver) {
+      perfObserver = new PerformanceObserver((entryList) => {
+        for (const entry of entryList.getEntries()) {
+          // @ts-ignore - missing "LargestContentfulPaint" class with "url" prop
+          const entryUrl = entry.url as string
+          const lcpImage = allImgs.get(entryUrl)
+          if (
+            lcpImage &&
+            !lcpImage.priority &&
+            !entryUrl.startsWith('data:') &&
+            !entryUrl.startsWith('blob:')
+          ) {
+            // https://web.dev/lcp/#measure-lcp-in-javascript
+            console.warn(
+              `Image with src "${lcpImage.src}" was detected as the Largest Contentful Paint (LCP). Consider adding the "priority" property if its above the fold.` +
+                `\nRead more: https://nextjs.org/docs/api-reference/next/image#priority`
+            )
+          }
+        }
+      })
+      perfObserver.observe({ type: 'largest-contentful-paint', buffered: true })
+    }
   }
 
   const [setRef, isIntersected] = useIntersection<HTMLImageElement>({
@@ -579,6 +604,18 @@ export default function Image({
   }
 
   let srcString: string = src
+
+  if (process.env.NODE_ENV !== 'production') {
+    if (typeof window !== 'undefined') {
+      let fullUrl: URL
+      try {
+        fullUrl = new URL(imgAttributes.src)
+      } catch (e) {
+        fullUrl = new URL(imgAttributes.src, window.location.href)
+      }
+      allImgs.set(fullUrl.href, { src, priority })
+    }
+  }
 
   return (
     <span style={wrapperStyle}>
