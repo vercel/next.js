@@ -924,9 +924,8 @@ export default class Server {
     // values from rewrites/redirects
     const stringifyQuery = (req: IncomingMessage, query: ParsedUrlQuery) => {
       const initialQuery = (req as any).__NEXT_INIT_QUERY
-      const initialQueryValues: Array<string | string[]> = Object.values(
-        initialQuery
-      )
+      const initialQueryValues: Array<string | string[]> =
+        Object.values(initialQuery)
 
       return stringifyQs(query, undefined, undefined, {
         encodeURIComponent(value) {
