@@ -227,7 +227,7 @@ export const defaultConfig: NextConfig = {
     esmExternals: true,
     // default to 50MB limit
     isrMemoryCacheSize: 50 * 1024 * 1024,
-    outputFileTracing: false,
+    outputFileTracing: true,
     concurrentFeatures: false,
     serverComponents: false,
     fullySpecified: false,

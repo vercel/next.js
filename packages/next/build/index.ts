@@ -1178,11 +1178,6 @@ export default async function build(
           const tracedFiles = new Set()
 
           serverResult.fileList.forEach((file) => {
-            const reason = serverResult.reasons.get(file)
-
-            if (reason?.type === 'initial') {
-              return
-            }
             tracedFiles.add(
               path.relative(distDir, path.join(root, file)).replace(/\\/g, '/')
             )
