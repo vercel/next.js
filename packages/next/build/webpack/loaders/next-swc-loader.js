@@ -39,6 +39,7 @@ function getSWCOptions({
   isPageFile,
   pagesDir,
   isNextDist,
+  hasReactRefresh,
   isCommonJS,
 }) {
   const jsc = {
@@ -56,7 +57,7 @@ function getSWCOptions({
         throwIfNamespace: true,
         development: development,
         useBuiltins: true,
-        refresh: development && !isServer,
+        refresh: hasReactRefresh,
       },
       optimizer: {
         simplify: false,
@@ -122,7 +123,7 @@ async function loaderTransform(parentTrace, source, inputSourceMap) {
 
   let loaderOptions = getOptions(this) || {}
 
-  const { isServer, pagesDir } = loaderOptions
+  const { isServer, pagesDir, hasReactRefresh } = loaderOptions
   const isPageFile = filename.startsWith(pagesDir)
 
   const isNextDist = nextDistPath.test(filename)
@@ -136,6 +137,7 @@ async function loaderTransform(parentTrace, source, inputSourceMap) {
     development: this.mode === 'development',
     isNextDist,
     isCommonJS,
+    hasReactRefresh,
   })
 
   const programmaticOptions = {
