@@ -315,7 +315,7 @@ export default async function getBaseWebpackConfig(
       ? {
           loader: 'next-swc-loader',
           options: {
-            isServer: isMiddleware ? true : isServer,
+            isServer: isMiddleware || isServer,
             pagesDir,
             hasReactRefresh: isMiddleware ? false : hasReactRefresh,
           },
