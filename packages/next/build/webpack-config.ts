@@ -316,6 +316,7 @@ export default async function getBaseWebpackConfig(
           options: {
             isServer,
             pagesDir,
+            hasReactRefresh,
           },
         }
       : {
@@ -1512,6 +1513,11 @@ export default async function getBaseWebpackConfig(
     future: config.future,
     isCraCompat: config.experimental.craCompat,
   })
+
+  // @ts-ignore Cache exists
+  webpackConfig.cache.name = `${webpackConfig.name}-${webpackConfig.mode}${
+    isDevFallback ? '-fallback' : ''
+  }`
 
   let originalDevtool = webpackConfig.devtool
   if (typeof config.webpack === 'function') {
