@@ -1,6 +1,5 @@
 import compression from 'next/dist/compiled/compression'
 import fs from 'fs'
-import chalk from 'chalk'
 import { IncomingMessage, ServerResponse } from 'http'
 import Proxy from 'next/dist/compiled/http-proxy'
 import { join, relative, resolve, sep } from 'path'
@@ -595,11 +594,8 @@ export default class Server {
   protected async ensureMiddleware(_pathname: string) {}
 
   private middlewareBetaWarning = execOnce(() => {
-    console.warn(
-      chalk.bold.yellow(`Warning: `) +
-        chalk.yellow(
-          `using beta Middleware (not covered by semver) - https://nextjs.org/docs/messages/beta-middleware`
-        )
+    Log.warn(
+      `using beta Middleware (not covered by semver) - https://nextjs.org/docs/messages/beta-middleware`
     )
   })
 
@@ -2300,11 +2296,8 @@ export default class Server {
   }
 
   private customErrorNo404Warn = execOnce(() => {
-    console.warn(
-      chalk.bold.yellow(`Warning: `) +
-        chalk.yellow(
-          `You have added a custom /_error page without a custom /404 page. This prevents the 404 page from being auto statically optimized.\nSee here for info: https://nextjs.org/docs/messages/custom-error-no-custom-404`
-        )
+    Log.warn(
+      `You have added a custom /_error page without a custom /404 page. This prevents the 404 page from being auto statically optimized.\nSee here for info: https://nextjs.org/docs/messages/custom-error-no-custom-404`
     )
   })
 

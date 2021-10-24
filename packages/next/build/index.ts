@@ -296,11 +296,8 @@ export default async function build(
     )
 
     if (hasMiddleware) {
-      console.warn(
-        chalk.bold.yellow(`Warning: `) +
-          chalk.yellow(
-            `using beta Middleware (not covered by semver) - https://nextjs.org/docs/messages/beta-middleware`
-          )
+      Log.warn(
+        `using beta Middleware (not covered by semver) - https://nextjs.org/docs/messages/beta-middleware`
       )
     }
 
