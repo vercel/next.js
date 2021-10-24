@@ -467,7 +467,7 @@ export default function Image({
           ) {
             // https://web.dev/lcp/#measure-lcp-in-javascript
             console.warn(
-              `Image with src "${lcpImage.src}" was detected as the Largest Contentful Paint (LCP). Consider adding the "priority" property if its above the fold.` +
+              `Image with src "${lcpImage.src}" was detected as the Largest Contentful Paint (LCP). Please add the "priority" property if this image is above the fold.` +
                 `\nRead more: https://nextjs.org/docs/api-reference/next/image#priority`
             )
           }
