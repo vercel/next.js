@@ -309,8 +309,9 @@ export default async function getBaseWebpackConfig(
     )
     loggedSwcDisabled = true
   }
-  const defaultLoaders = {
-    babel: useSWCLoader
+
+  const getBabelOrSwcLoader = (isMiddleware: boolean) => {
+    return useSWCLoader
       ? {
           loader: 'next-swc-loader',
           options: {
@@ -323,29 +324,19 @@ export default async function getBaseWebpackConfig(
           loader: require.resolve('./babel/loader/index'),
           options: {
             configFile: babelConfigFile,
-            isServer,
+            isServer: isMiddleware ? true : isServer,
             distDir,
             pagesDir,
             cwd: dir,
             development: dev,
-            hasReactRefresh,
+            hasReactRefresh: isMiddleware ? false : hasReactRefresh,
             hasJsxRuntime: true,
           },
-        },
-    babelMiddleware: {
-      loader: require.resolve('./babel/loader/index'),
-      options: {
-        cache: false,
-        configFile: babelConfigFile,
-        cwd: dir,
-        development: dev,
-        distDir,
-        hasJsxRuntime: true,
-        hasReactRefresh: false,
-        isServer: true,
-        pagesDir,
-      },
-    },
+        }
+  }
+
+  const defaultLoaders = {
+    babel: getBabelOrSwcLoader(false),
   }
 
   const babelIncludeRegexes: RegExp[] = [
@@ -1085,7 +1076,7 @@ export default async function getBaseWebpackConfig(
             {
               ...codeCondition,
               issuerLayer: 'middleware',
-              use: defaultLoaders.babelMiddleware,
+              use: getBabelOrSwcLoader(true),
             },
             {
               ...codeCondition,
