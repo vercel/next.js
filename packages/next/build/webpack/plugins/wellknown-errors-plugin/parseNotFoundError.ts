@@ -82,7 +82,10 @@ export async function getNotFoundError(
         .map(({ origin }) =>
           origin.readableIdentifier(compilation.requestShortener)
         )
-        .filter((name) => name && !name.includes('next-client-pages-loader.js'))
+        .filter(
+          (name) =>
+            name && !/next-(middleware|client-pages)-loader\.js/.test(name)
+        )
       if (moduleTrace.length === 0) return ''
 
       return `\nImport trace for requested module:\n${moduleTrace.join(
