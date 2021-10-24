@@ -12,7 +12,7 @@ import { ClientPagesLoaderOptions } from './webpack/loaders/next-client-pages-lo
 import { ServerlessLoaderQuery } from './webpack/loaders/next-serverless-loader'
 import { LoadedEnvFiles } from '@next/env'
 import { NextConfigComplete } from '../server/config-shared'
-import type webpack5 from 'webpack5'
+import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 
 type ObjectValue<T> = T extends { [key: string]: infer V } ? V : never
 type PagesMapping = {

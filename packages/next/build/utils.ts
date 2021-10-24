@@ -150,6 +150,8 @@ export async function printTreeView(
     pageInfos
   )
 
+  const usedSymbols = new Set()
+
   const pageList = list
     .slice()
     .filter(
@@ -163,7 +165,7 @@ export async function printTreeView(
     .sort((a, b) => a.localeCompare(b))
 
   pageList.forEach((item, i, arr) => {
-    const symbol =
+    const border =
       i === 0
         ? arr.length === 1
           ? '─'
@@ -179,16 +181,22 @@ export async function printTreeView(
       (pageInfo?.pageDuration || 0) +
       (pageInfo?.ssgPageDurations?.reduce((a, b) => a + (b || 0), 0) || 0)
 
+    const symbol =
+      item === '/_app'
+        ? ' '
+        : item.endsWith('/_middleware')
+        ? 'ƒ'
+        : pageInfo?.static
+        ? '○'
+        : pageInfo?.isSsg
+        ? '●'
+        : 'λ'
+    usedSymbols.add(symbol)
+
+    if (pageInfo?.initialRevalidateSeconds) usedSymbols.add('ISR')
+
     messages.push([
-      `${symbol} ${
-        item === '/_app'
-          ? ' '
-          : pageInfo?.static
-          ? '○'
-          : pageInfo?.isSsg
-          ? '●'
-          : 'λ'
-      } ${
+      `${border} ${symbol} ${
         pageInfo?.initialRevalidateSeconds
           ? `${item} (ISR: ${pageInfo?.initialRevalidateSeconds} Seconds)`
           : item
@@ -341,33 +349,38 @@ export async function printTreeView(
   console.log(
     textTable(
       [
-        [
+        usedSymbols.has('ƒ') && [
+          'ƒ',
+          '(Middleware)',
+          `intercepts requests (uses ${chalk.cyan('_middleware')})`,
+        ],
+        usedSymbols.has('λ') && [
           'λ',
           serverless ? '(Lambda)' : '(Server)',
           `server-side renders at runtime (uses ${chalk.cyan(
             'getInitialProps'
           )} or ${chalk.cyan('getServerSideProps')})`,
         ],
-        [
+        usedSymbols.has('○') && [
           '○',
           '(Static)',
           'automatically rendered as static HTML (uses no initial props)',
         ],
-        [
+        usedSymbols.has('●') && [
           '●',
           '(SSG)',
           `automatically generated as static HTML + JSON (uses ${chalk.cyan(
             'getStaticProps'
           )})`,
         ],
-        [
+        usedSymbols.has('ISR') && [
           '',
           '(ISR)',
           `incremental static regeneration (uses revalidate in ${chalk.cyan(
             'getStaticProps'
           )})`,
         ],
-      ] as [string, string, string][],
+      ].filter((x) => x) as [string, string, string][],
       {
         align: ['l', 'l', 'l'],
         stringLength: (str) => stripAnsi(str).length,

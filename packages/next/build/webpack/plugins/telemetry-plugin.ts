@@ -1,4 +1,4 @@
-import type { Compiler, Compilation } from 'webpack'
+import type { webpack5 as webpack } from 'next/dist/compiled/webpack/webpack'
 
 type Feature = 'next/image' | 'next/script' | 'next/dynamic'
 
@@ -34,7 +34,7 @@ const FEATURE_MODULE_MAP: ReadonlyMap<Feature, string> = new Map([
  * certain features (e.g. next/image and next/script) and record how many times
  * they are imported.
  */
-export class TelemetryPlugin {
+export class TelemetryPlugin implements webpack.WebpackPluginInstance {
   private usageTracker = new Map<Feature, FeatureUsage>()
 
   constructor() {
@@ -46,13 +46,13 @@ export class TelemetryPlugin {
     }
   }
 
-  apply(compiler: Compiler): void {
+  apply(compiler: webpack.Compiler): void {
     compiler.hooks.make.tapAsync(
       TelemetryPlugin.name,
-      async (compilation: Compilation, callback: () => void) => {
+      async (compilation: webpack.Compilation, callback: () => void) => {
         compilation.hooks.finishModules.tapAsync(
           TelemetryPlugin.name,
-          async (modules: Set<Module>, modulesFinish: () => void) => {
+          async (modules: Iterable<Module>, modulesFinish: () => void) => {
             for (const module of modules) {
               const feature = findFeatureInModule(module)
               if (!feature) {
