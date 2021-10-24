@@ -98,6 +98,7 @@ import { NextConfigComplete } from '../server/config-shared'
 import isError, { NextError } from '../lib/is-error'
 import { TelemetryPlugin } from './webpack/plugins/telemetry-plugin'
 import { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
+import type { webpack5 as webpack } from 'next/dist/compiled/webpack/webpack'
 
 const RESERVED_PAGE = /^\/(_app|_error|_document|api(\/|$))/
 
@@ -1777,7 +1778,9 @@ export default async function build(
       })
     )
 
-    const telemetryPlugin = clientConfig.plugins?.find(isTelemetryPlugin)
+    const telemetryPlugin = (
+      clientConfig as webpack.Configuration
+    ).plugins?.find(isTelemetryPlugin)
     if (telemetryPlugin) {
       const events = eventBuildFeatureUsage(telemetryPlugin)
       telemetry.record(events)

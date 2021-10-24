@@ -5,7 +5,7 @@ import { readFileSync } from 'fs'
 import { codeFrameColumns } from 'next/dist/compiled/babel/code-frame'
 import semver from 'next/dist/compiled/semver'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
-import type webpack5 from 'webpack5'
+import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 import path, { join as pathJoin, relative as relativePath } from 'path'
 import escapeRegExp from 'next/dist/compiled/escape-string-regexp'
 import {
