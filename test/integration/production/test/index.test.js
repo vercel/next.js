@@ -58,7 +58,7 @@ describe('Production Usage', () => {
   })
 
   it('should contain generated page count in output', async () => {
-    const pageCount = 39
+    const pageCount = 40
     expect(output).toContain(`Generating static pages (0/${pageCount})`)
     expect(output).toContain(
       `Generating static pages (${pageCount}/${pageCount})`
@@ -68,6 +68,46 @@ describe('Production Usage', () => {
   })
 
   it('should output traces', async () => {
+    const serverTrace = await fs.readJSON(
+      join(appDir, '.next/next-server.js.nft.json')
+    )
+
+    expect(serverTrace.version).toBe(1)
+    expect(
+      serverTrace.files.some((file) =>
+        file.includes('next/dist/server/send-payload.js')
+      )
+    ).toBe(true)
+    expect(
+      serverTrace.files.some((file) =>
+        file.includes('next/dist/server/normalize-page-path.js')
+      )
+    ).toBe(true)
+    expect(
+      serverTrace.files.some((file) =>
+        file.includes('next/dist/server/render.js')
+      )
+    ).toBe(true)
+    expect(
+      serverTrace.files.some((file) =>
+        file.includes('next/dist/server/load-components.js')
+      )
+    ).toBe(true)
+
+    if (process.platform !== 'win32') {
+      expect(
+        serverTrace.files.some((file) =>
+          file.includes('next/dist/compiled/webpack/bundle5.js')
+        )
+      ).toBe(false)
+      expect(
+        serverTrace.files.some((file) => file.includes('node_modules/sharp'))
+      ).toBe(false)
+      expect(
+        serverTrace.files.some((file) => file.includes('react.development.js'))
+      ).toBe(false)
+    }
+
     const checks = [
       {
         page: '/_app',
@@ -76,6 +116,22 @@ describe('Production Usage', () => {
           /node_modules\/react\/index\.js/,
           /node_modules\/react\/package\.json/,
           /node_modules\/react\/cjs\/react\.production\.min\.js/,
+        ],
+        notTests: [/node_modules\/react\/cjs\/react\.development\.js/],
+      },
+      {
+        page: '/client-error',
+        tests: [
+          /webpack-runtime\.js/,
+          /chunks\/.*?\.js/,
+          /node_modules\/react\/index\.js/,
+          /node_modules\/react\/package\.json/,
+          /node_modules\/react\/cjs\/react\.production\.min\.js/,
+          /next\/link\.js/,
+          /next\/dist\/client\/link\.js/,
+          /next\/dist\/shared\/lib\/router\/utils\/resolve-rewrites\.js/,
+          /next\/dist\/pages\/_error\.js/,
+          /next\/error\.js/,
         ],
         notTests: [/node_modules\/react\/cjs\/react\.development\.js/],
       },
@@ -104,8 +160,15 @@ describe('Production Usage', () => {
           /next\/link\.js/,
           /next\/dist\/client\/link\.js/,
           /next\/dist\/shared\/lib\/router\/utils\/resolve-rewrites\.js/,
+          /node_modules\/nanoid\/index\.js/,
+          /node_modules\/nanoid\/url-alphabet\/index\.js/,
         ],
-        notTests: [/node_modules\/react\/cjs\/react\.development\.js/],
+        notTests: [
+          /node_modules\/react\/cjs\/react\.development\.js/,
+          /node_modules\/nanoid\/index\.cjs/,
+          /next\/dist\/pages\/_error\.js/,
+          /next\/error\.js/,
+        ],
       },
       {
         page: '/counter',

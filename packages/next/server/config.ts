@@ -1,6 +1,7 @@
 import chalk from 'chalk'
 import findUp from 'next/dist/compiled/find-up'
 import { basename, extname, relative } from 'path'
+import { pathToFileURL } from 'url'
 import { Agent as HttpAgent } from 'http'
 import { Agent as HttpsAgent } from 'https'
 import * as Log from '../build/output/log'
@@ -30,10 +31,11 @@ const experimentalWarning = execOnce(() => {
 })
 
 function assignDefaults(userConfig: { [key: string]: any }) {
+  const configFileName = userConfig.configFileName
   if (typeof userConfig.exportTrailingSlash !== 'undefined') {
     console.warn(
       chalk.yellow.bold('Warning: ') +
-        'The "exportTrailingSlash" option has been renamed to "trailingSlash". Please update your next.config.js.'
+        `The "exportTrailingSlash" option has been renamed to "trailingSlash". Please update your ${configFileName}.`
     )
     if (typeof userConfig.trailingSlash === 'undefined') {
       userConfig.trailingSlash = userConfig.exportTrailingSlash
@@ -44,7 +46,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
   if (typeof userConfig.experimental?.reactMode !== 'undefined') {
     console.warn(
       chalk.yellow.bold('Warning: ') +
-        'The experimental "reactMode" option has been replaced with "reactRoot". Please update your next.config.js.'
+        `The experimental "reactMode" option has been replaced with "reactRoot". Please update your ${configFileName}.`
     )
     if (typeof userConfig.experimental?.reactRoot === 'undefined') {
       userConfig.experimental.reactRoot = ['concurrent', 'blocking'].includes(
@@ -287,6 +289,16 @@ function assignDefaults(userConfig: { [key: string]: any }) {
       )
     }
 
+    if (
+      images.loader !== 'default' &&
+      images.loader !== 'custom' &&
+      !(images.path || '').startsWith('http')
+    ) {
+      throw new Error(
+        `Specified images.loader property (${images.loader}) also requires images.path property to be assigned to a URL prefix.\nSee more info here: https://nextjs.org/docs/api-reference/next/image#loader-configuration`
+      )
+    }
+
     // Append trailing slash for non-default loaders and when trailingSlash is set
     if (images.path) {
       if (
@@ -342,14 +354,14 @@ function assignDefaults(userConfig: { [key: string]: any }) {
 
   if (result.webpack5 === false) {
     throw new Error(
-      'Webpack 4 is no longer supported in Next.js. Please upgrade to webpack 5 by removing "webpack5: false" from next.config.js. https://nextjs.org/docs/messages/webpack5'
+      `Webpack 4 is no longer supported in Next.js. Please upgrade to webpack 5 by removing "webpack5: false" from ${configFileName}. https://nextjs.org/docs/messages/webpack5`
     )
   }
 
   if (result.experimental && 'nftTracing' in (result.experimental as any)) {
     // TODO: remove this warning and assignment when we leave experimental phase
     Log.warn(
-      `Experimental \`nftTracing\` has been renamed to \`outputFileTracing\`. Please update your next.config.js file accordingly.`
+      `Experimental \`nftTracing\` has been renamed to \`outputFileTracing\`. Please update your ${configFileName} file accordingly.`
     )
     result.experimental.outputFileTracing = (
       result.experimental as any
@@ -516,9 +528,12 @@ export default async function loadConfig(
   await loadEnvConfig(dir, phase === PHASE_DEVELOPMENT_SERVER, Log)
   await loadWebpackHook()
 
+  let configFileName = 'next.config.js'
+
   if (customConfig) {
     return assignDefaults({
       configOrigin: 'server',
+      configFileName,
       ...customConfig,
     }) as NextConfigComplete
   }
@@ -527,15 +542,17 @@ export default async function loadConfig(
 
   // If config file was found
   if (path?.length) {
+    configFileName = basename(path)
     let userConfigModule: any
 
     try {
-      // we must use file for absolute dynamic imports on Windows
-      userConfigModule = await import(`file://${path}`)
+      // `import()` expects url-encoded strings, so the path must be properly
+      // escaped and (especially on Windows) absolute paths must pe prefixed
+      // with the `file://` protocol
+      userConfigModule = await import(pathToFileURL(path).href)
     } catch (err) {
-      console.error(
-        chalk.red('Error:') +
-          ' failed to load next.config.js, see more info here https://nextjs.org/docs/messages/next-config-error'
+      Log.error(
+        `Failed to load ${configFileName}, see more info here https://nextjs.org/docs/messages/next-config-error`
       )
       throw err
     }
@@ -546,7 +563,7 @@ export default async function loadConfig(
 
     if (Object.keys(userConfig).length === 0) {
       Log.warn(
-        'Detected next.config.js, no exported configuration found. https://nextjs.org/docs/messages/empty-configuration'
+        `Detected ${configFileName}, no exported configuration found. https://nextjs.org/docs/messages/empty-configuration`
       )
     }
 
@@ -574,6 +591,7 @@ export default async function loadConfig(
     return assignDefaults({
       configOrigin: relative(dir, path),
       configFile: path,
+      configFileName,
       ...userConfig,
     }) as NextConfigComplete
   } else {
@@ -597,6 +615,7 @@ export default async function loadConfig(
   }
 
   const completeConfig = defaultConfig as NextConfigComplete
+  completeConfig.configFileName = configFileName
   setHttpAgentOptions(completeConfig.httpAgentOptions)
   return completeConfig
 }
