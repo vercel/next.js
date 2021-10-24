@@ -56,6 +56,15 @@ function getSWCOptions({
         throwIfNamespace: true,
         development: development,
         useBuiltins: true,
+        refresh: development && !isServer,
+      },
+      optimizer: {
+        simplify: false,
+        globals: {
+          typeofs: {
+            window: isServer ? 'undefined' : 'object',
+          },
+        },
       },
     },
   }
@@ -73,7 +82,10 @@ function getSWCOptions({
         : {}),
       // Disables getStaticProps/getServerSideProps tree shaking on the server compilation for pages
       disableNextSsg: true,
+      disablePageConfig: true,
+      isDevelopment: development,
       pagesDir,
+      isPageFile,
       env: {
         targets: {
           // Targets the current version of Node.js
@@ -94,7 +106,9 @@ function getSWCOptions({
           }
         : {}),
       disableNextSsg: !isPageFile,
+      isDevelopment: development,
       pagesDir,
+      isPageFile,
       jsc,
     }
   }

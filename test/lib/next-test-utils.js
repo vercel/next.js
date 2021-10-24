@@ -386,7 +386,7 @@ export function waitFor(millis) {
   return new Promise((resolve) => setTimeout(resolve, millis))
 }
 
-export async function startStaticServer(dir, notFoundFile) {
+export async function startStaticServer(dir, notFoundFile, fixedPort) {
   const app = express()
   const server = http.createServer(app)
   app.use(express.static(dir))
@@ -397,7 +397,7 @@ export async function startStaticServer(dir, notFoundFile) {
     })
   }
 
-  await promiseCall(server, 'listen')
+  await promiseCall(server, 'listen', fixedPort)
   return server
 }
 

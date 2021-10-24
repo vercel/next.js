@@ -68,6 +68,46 @@ describe('Production Usage', () => {
   })
 
   it('should output traces', async () => {
+    const serverTrace = await fs.readJSON(
+      join(appDir, '.next/next-server.js.nft.json')
+    )
+
+    expect(serverTrace.version).toBe(1)
+    expect(
+      serverTrace.files.some((file) =>
+        file.includes('next/dist/server/send-payload.js')
+      )
+    ).toBe(true)
+    expect(
+      serverTrace.files.some((file) =>
+        file.includes('next/dist/server/normalize-page-path.js')
+      )
+    ).toBe(true)
+    expect(
+      serverTrace.files.some((file) =>
+        file.includes('next/dist/server/render.js')
+      )
+    ).toBe(true)
+    expect(
+      serverTrace.files.some((file) =>
+        file.includes('next/dist/server/load-components.js')
+      )
+    ).toBe(true)
+
+    if (process.platform !== 'win32') {
+      expect(
+        serverTrace.files.some((file) =>
+          file.includes('next/dist/compiled/webpack/bundle5.js')
+        )
+      ).toBe(false)
+      expect(
+        serverTrace.files.some((file) => file.includes('node_modules/sharp'))
+      ).toBe(false)
+      expect(
+        serverTrace.files.some((file) => file.includes('react.development.js'))
+      ).toBe(false)
+    }
+
     const checks = [
       {
         page: '/_app',

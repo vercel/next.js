@@ -36,24 +36,20 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
   private excludeFiles: string[]
   private esmExternals?: NextConfigComplete['experimental']['esmExternals']
   private staticImageImports?: boolean
-  private externalDir?: boolean
 
   constructor({
     appDir,
     excludeFiles,
     esmExternals,
     staticImageImports,
-    externalDir,
   }: {
     appDir: string
     excludeFiles?: string[]
-    externalDir?: boolean
     staticImageImports: boolean
     esmExternals?: NextConfigComplete['experimental']['esmExternals']
   }) {
     this.appDir = appDir
     this.entryTraces = new Map()
-    this.externalDir = externalDir
     this.esmExternals = esmExternals
     this.excludeFiles = excludeFiles || []
     this.staticImageImports = staticImageImports

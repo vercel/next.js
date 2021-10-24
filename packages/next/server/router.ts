@@ -1,5 +1,6 @@
-import { IncomingMessage, ServerResponse } from 'http'
-import { UrlWithParsedQuery } from 'url'
+import type { IncomingMessage, ServerResponse } from 'http'
+import type { ParsedUrlQuery } from 'querystring'
+import type { UrlWithParsedQuery } from 'url'
 
 import pathMatch from '../shared/lib/router/utils/path-match'
 import { removePathTrailingSlash } from '../client/normalize-trailing-slash'
@@ -16,7 +17,7 @@ export type RouteMatch = (pathname: string | null | undefined) => false | Params
 type RouteResult = {
   finished: boolean
   pathname?: string
-  query?: { [k: string]: string }
+  query?: ParsedUrlQuery
 }
 
 export type Route = {
@@ -58,6 +59,7 @@ export default class Router {
     fallback: Route[]
   }
   catchAllRoute: Route
+  catchAllMiddleware?: Route
   pageChecker: PageChecker
   dynamicRoutes: DynamicRoutes
   useFileSystemPublicRoutes: boolean
@@ -74,6 +76,7 @@ export default class Router {
     },
     redirects = [],
     catchAllRoute,
+    catchAllMiddleware,
     dynamicRoutes = [],
     pageChecker,
     useFileSystemPublicRoutes,
@@ -89,6 +92,7 @@ export default class Router {
     }
     redirects: Route[]
     catchAllRoute: Route
+    catchAllMiddleware?: Route
     dynamicRoutes: DynamicRoutes | undefined
     pageChecker: PageChecker
     useFileSystemPublicRoutes: boolean
@@ -101,6 +105,7 @@ export default class Router {
     this.redirects = redirects
     this.pageChecker = pageChecker
     this.catchAllRoute = catchAllRoute
+    this.catchAllMiddleware = catchAllMiddleware
     this.dynamicRoutes = dynamicRoutes
     this.useFileSystemPublicRoutes = useFileSystemPublicRoutes
     this.locales = locales
@@ -197,6 +202,9 @@ export default class Router {
       ...this.headers,
       ...this.redirects,
       ...this.rewrites.beforeFiles,
+      ...(this.useFileSystemPublicRoutes && this.catchAllMiddleware
+        ? [this.catchAllMiddleware]
+        : []),
       ...this.fsRoutes,
       // We only check the catch-all route if public page routes hasn't been
       // disabled
@@ -268,7 +276,9 @@ export default class Router {
       const requireBasePath = testRoute.requireBasePath !== false
       const isCustomRoute = customRouteTypes.has(testRoute.type)
       const isPublicFolderCatchall = testRoute.name === 'public folder catchall'
-      const keepBasePath = isCustomRoute || isPublicFolderCatchall
+      const isMiddlewareCatchall = testRoute.name === 'middleware catchall'
+      const keepBasePath =
+        isCustomRoute || isPublicFolderCatchall || isMiddlewareCatchall
       const keepLocale = isCustomRoute
 
       const currentPathnameNoBasePath = replaceBasePath(
