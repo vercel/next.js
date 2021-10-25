@@ -91,7 +91,11 @@ export type NextConfig = { [key: string]: any } & {
   images?: ImageConfig
   devIndicators?: {
     buildActivity?: boolean
-    buildActivityPosition?: 'left' | 'right'
+    buildActivityPosition?:
+      | 'bottom-right'
+      | 'bottom-left'
+      | 'top-right'
+      | 'top-left'
   }
   onDemandEntries?: {
     maxInactiveAge?: number
@@ -177,7 +181,7 @@ export const defaultConfig: NextConfig = {
   images: imageConfigDefault,
   devIndicators: {
     buildActivity: true,
-    buildActivityPosition: 'right',
+    buildActivityPosition: 'bottom-right',
   },
   onDemandEntries: {
     maxInactiveAge: 15 * 1000,
