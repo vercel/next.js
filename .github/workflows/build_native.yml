@@ -73,7 +73,7 @@ jobs:
           path: ./packages/next/build/swc/target
           key: next-swc-cargo-cache-${{ matrix.os }}--${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
-            next-swc-cargo-cache-${{ matrix.os }}
+            next-swc-cargo-cache-${{ matrix.os }}-${{ matrix.target }}
       - name: 'Build'
         if: steps.binary-cache.outputs.cache-hit != true
         run: yarn build-native --target ${{ matrix.target }}
