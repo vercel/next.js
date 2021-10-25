@@ -61,7 +61,7 @@ class Playwright extends BrowserInterface {
         .stop({
           path: traceOutputPath,
         })
-        .catch(console.error)
+        .catch((err) => console.error('failed to write playwright trace', err))
     }
 
     // clean-up existing pages
