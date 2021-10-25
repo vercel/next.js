@@ -91,7 +91,7 @@ export class NextRequest extends Request {
   }
 }
 
-interface RequestInit extends globalThis.RequestInit {
+export interface RequestInit extends globalThis.RequestInit {
   geo?: {
     city?: string
     country?: string
