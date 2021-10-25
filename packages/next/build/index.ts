@@ -98,6 +98,7 @@ import { NextConfigComplete } from '../server/config-shared'
 import isError, { NextError } from '../lib/is-error'
 import { TelemetryPlugin } from './webpack/plugins/telemetry-plugin'
 import { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
+import type { webpack5 as webpack } from 'next/dist/compiled/webpack/webpack'
 
 const RESERVED_PAGE = /^\/(_app|_error|_document|api(\/|$))/
 
@@ -295,11 +296,8 @@ export default async function build(
     )
 
     if (hasMiddleware) {
-      console.warn(
-        chalk.bold.yellow(`Warning: `) +
-          chalk.yellow(
-            `using beta Middleware (not covered by semver) - https://nextjs.org/docs/messages/beta-middleware`
-          )
+      Log.warn(
+        `using beta Middleware (not covered by semver) - https://nextjs.org/docs/messages/beta-middleware`
       )
     }
 
@@ -1177,11 +1175,6 @@ export default async function build(
           const tracedFiles = new Set()
 
           serverResult.fileList.forEach((file) => {
-            const reason = serverResult.reasons.get(file)
-
-            if (reason?.type === 'initial') {
-              return
-            }
             tracedFiles.add(
               path.relative(distDir, path.join(root, file)).replace(/\\/g, '/')
             )
@@ -1782,7 +1775,9 @@ export default async function build(
       })
     )
 
-    const telemetryPlugin = clientConfig.plugins?.find(isTelemetryPlugin)
+    const telemetryPlugin = (
+      clientConfig as webpack.Configuration
+    ).plugins?.find(isTelemetryPlugin)
     if (telemetryPlugin) {
       const events = eventBuildFeatureUsage(telemetryPlugin)
       telemetry.record(events)

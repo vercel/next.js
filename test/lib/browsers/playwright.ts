@@ -1,4 +1,5 @@
 import { BrowserInterface } from './base'
+import fs from 'fs-extra'
 import {
   chromium,
   webkit,
@@ -8,11 +9,15 @@ import {
   Page,
   ElementHandle,
 } from 'playwright-chromium'
+import path from 'path'
 
 let page: Page
 let browser: Browser
 let context: BrowserContext
 let pageLogs: Array<{ source: string; message: string }> = []
+let traceStarted = false
+
+const tracePlaywright = process.env.TRACE_PLAYWRIGHT
 
 export async function quit() {
   await context?.close()
@@ -44,6 +49,24 @@ class Playwright extends BrowserInterface {
   }
 
   async loadPage(url: string) {
+    if (traceStarted) {
+      const traceDir = path.join(__dirname, '../../traces')
+      const traceOutputPath = path.join(
+        traceDir,
+        `${path
+          .relative(path.join(__dirname, '../../'), process.env.TEST_FILE_PATH)
+          .replace(/\//g, '-')}`,
+        `playwright-${encodeURIComponent(url)}-${Date.now()}.zip`
+      )
+
+      await fs.remove(traceOutputPath)
+      await context.tracing
+        .stop({
+          path: traceOutputPath,
+        })
+        .catch((err) => console.error('failed to write playwright trace', err))
+    }
+
     // clean-up existing pages
     for (const oldPage of context.pages()) {
       await oldPage.close()
@@ -61,6 +84,34 @@ class Playwright extends BrowserInterface {
     page.on('pageerror', (error) => {
       console.error('page error', error)
     })
+
+    if (tracePlaywright) {
+      page.on('websocket', (ws) => {
+        page
+          .evaluate(`console.log('connected to ws at ${ws.url()}')`)
+          .catch(() => {})
+        ws.on('close', () =>
+          page
+            .evaluate(`console.log('closed websocket ${ws.url()}')`)
+            .catch(() => {})
+        )
+        ws.on('framereceived', (frame) => {
+          if (!frame.payload.includes('pong')) {
+            page
+              .evaluate(`console.log('received ws message ${frame.payload}')`)
+              .catch(() => {})
+          }
+        })
+      })
+    }
+
+    if (tracePlaywright) {
+      await context.tracing.start({
+        screenshots: true,
+        snapshots: true,
+      })
+      traceStarted = true
+    }
     await page.goto(url, { waitUntil: 'load' })
   }
 

@@ -1,36 +1,36 @@
 import a from "other";
-function _arrayWithHoles(b) {
-    if (Array.isArray(b)) return b;
+function _arrayWithHoles(a) {
+    if (Array.isArray(a)) return a;
 }
-function _classCallCheck(c, d) {
-    if (!(c instanceof d)) throw new TypeError("Cannot call a class as a function");
+function _classCallCheck(a, b) {
+    if (!(a instanceof b)) throw new TypeError("Cannot call a class as a function");
 }
-function _iterableToArrayLimit(b, e) {
-    var f = [], g = !0, h = !1, i = void 0;
+function _iterableToArrayLimit(a, b) {
+    var c = [], d = !0, e = !1, f = void 0;
     try {
-        for(var j, k = b[Symbol.iterator](); !(g = (j = k.next()).done) && (f.push(j.value), !e || f.length !== e); g = !0);
-    } catch (l) {
-        h = !0, i = l;
+        for(var g, h = a[Symbol.iterator](); !(d = (g = h.next()).done) && (c.push(g.value), !b || c.length !== b); d = !0);
+    } catch (a) {
+        e = !0, f = a;
     } finally{
         try {
-            g || null == k.return || k.return();
+            d || null == h.return || h.return();
         } finally{
-            if (h) throw i;
+            if (e) throw f;
         }
     }
-    return f;
+    return c;
 }
 function _nonIterableRest() {
     throw new TypeError("Invalid attempt to destructure non-iterable instance");
 }
-function _slicedToArray(b, e) {
-    return _arrayWithHoles(b) || _iterableToArrayLimit(b, e) || _nonIterableRest();
+function _slicedToArray(a, b) {
+    return _arrayWithHoles(a) || _iterableToArrayLimit(a, b) || _nonIterableRest();
 }
 var foo = _slicedToArray(a, 1)[0], Foo = function() {
     "use strict";
     _classCallCheck(this, Foo);
 };
 export var __N_SSG = !0;
-export default function Home() {
+export default function a() {
     return React.createElement("div", null);
 };
