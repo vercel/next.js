@@ -361,7 +361,7 @@ jobs:
 
   build-freebsd:
     runs-on: macos-10.15
-    name: Build FreeBSD
+    name: next-swc - freebsd
     steps:
       - uses: actions/checkout@v2
       - name: Build
