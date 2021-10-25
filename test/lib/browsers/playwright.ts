@@ -1,4 +1,5 @@
 import { BrowserInterface } from './base'
+import fs from 'fs-extra'
 import {
   chromium,
   webkit,
@@ -14,23 +15,11 @@ let page: Page
 let browser: Browser
 let context: BrowserContext
 let pageLogs: Array<{ source: string; message: string }> = []
+let traceStarted = false
 
 const tracePlaywright = process.env.TRACE_PLAYWRIGHT
 
 export async function quit() {
-  if (tracePlaywright) {
-    const { TEST_FILE_PATH } = process.env
-
-    const testName = TEST_FILE_PATH ? path.basename(TEST_FILE_PATH) : ''
-    const traceDir = path.join(__dirname, '../../traces')
-
-    await context.tracing
-      .stop({
-        path: path.join(traceDir, `playwright-trace-${testName}.zip`),
-      })
-      .catch(console.error)
-  }
-
   await context?.close()
   await browser?.close()
   context = undefined
@@ -53,10 +42,6 @@ class Playwright extends BrowserInterface {
       browser = await chromium.launch({ headless, devtools: !headless })
     }
     context = await browser.newContext()
-
-    if (tracePlaywright) {
-      await context.tracing.start({ screenshots: true, snapshots: true })
-    }
   }
 
   async get(url: string): Promise<void> {
@@ -64,6 +49,21 @@ class Playwright extends BrowserInterface {
   }
 
   async loadPage(url: string) {
+    if (traceStarted) {
+      const traceDir = path.join(__dirname, '../../traces')
+      const traceOutputPath = path.join(
+        traceDir,
+        `playwright-${encodeURIComponent(url)}.zip`
+      )
+
+      await fs.remove(traceOutputPath)
+      await context.tracing
+        .stop({
+          path: traceOutputPath,
+        })
+        .catch(console.error)
+    }
+
     // clean-up existing pages
     for (const oldPage of context.pages()) {
       await oldPage.close()
@@ -100,6 +100,14 @@ class Playwright extends BrowserInterface {
           }
         })
       })
+    }
+
+    if (tracePlaywright) {
+      await context.tracing.start({
+        screenshots: true,
+        snapshots: true,
+      })
+      traceStarted = true
     }
     await page.goto(url, { waitUntil: 'load' })
   }
