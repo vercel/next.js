@@ -102,6 +102,7 @@ import isError from '../lib/is-error'
 import { getMiddlewareInfo } from './require'
 import { parseUrl as simpleParseUrl } from '../shared/lib/router/utils/parse-url'
 import { MIDDLEWARE_ROUTE } from '../lib/constants'
+import { NextResponse } from './web/spec-extension/response'
 import { run } from './web/sandbox'
 import type { FetchEventResult } from './web/types'
 import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
@@ -621,6 +622,9 @@ export default class Server {
       }
     }
 
+    const subreq = params.request.headers[`x-middleware-subrequest`]
+    const subrequests = typeof subreq === 'string' ? subreq.split(':') : []
+
     let result: FetchEventResult | null = null
 
     for (const middleware of this.middleware || []) {
@@ -638,6 +642,15 @@ export default class Server {
           page: middleware.page,
           serverless: this._isLikeServerless,
         })
+
+        if (subrequests.includes(middlewareInfo.name)) {
+          result = {
+            promise: Promise.resolve(),
+            response: NextResponse.next(),
+            waitUntil: Promise.resolve(),
+          }
+          continue
+        }
 
         result = await run({
           name: middlewareInfo.name,
