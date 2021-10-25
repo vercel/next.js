@@ -127,7 +127,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v2
         with:
-          name: bindings
+          name: next-swc-binaries
           path: packages/next/native/next-swc.*.node
 
   build-windows-aarch64:
@@ -157,7 +157,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v2
         with:
-          name: bindings
+          name: next-swc-binaries
           path: packages/next/native/next-swc.*.node
 
 
@@ -194,7 +194,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v2
         with:
-          name: bindings
+          name: next-swc-binaries
           path: packages/next/native/next-swc.*.node
 
 
@@ -238,7 +238,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v2
         with:
-          name: bindings
+          name: next-swc-binaries
           path: packages/next/native/next-swc.*.node
 
 
@@ -280,7 +280,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v2
         with:
-          name: bindings
+          name: next-swc-binaries
           path: packages/next/native/next-swc.*.node
 
 
@@ -324,7 +324,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v2
         with:
-          name: bindings
+          name: next-swc-binaries
           path: packages/next/native/next-swc.*.node
 
   build-android-aarch64:
@@ -356,7 +356,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v2
         with:
-          name: bindings
+          name: next-swc-binaries
           path: packages/next/native/next-swc.*.node
 
   build-freebsd:
@@ -408,7 +408,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v2
         with:
-          name: bindings
+          name: next-swc-binaries
           path: packages/next/native/next-swc.*.node
 
       
