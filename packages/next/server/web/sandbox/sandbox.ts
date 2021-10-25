@@ -59,13 +59,12 @@ export async function run(params: {
       crypto: new polyfills.Crypto(),
       fetch: (input: RequestInfo, init: RequestInit = {}) => {
         const url = getFetchURL(input, params.request.headers)
-        init.headers = getFetchHeaders(params.name, init)
         if (isRequestLike(input)) {
           return fetch(url, {
             ...init,
             headers: {
               ...Object.fromEntries(input.headers),
-              ...Object.fromEntries(init.headers),
+              ...Object.fromEntries(getFetchHeaders(params.name, init)),
             },
           })
         }
