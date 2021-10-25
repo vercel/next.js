@@ -103,6 +103,7 @@ import { getMiddlewareInfo } from './require'
 import { parseUrl as simpleParseUrl } from '../shared/lib/router/utils/parse-url'
 import { MIDDLEWARE_ROUTE } from '../lib/constants'
 import { NextResponse } from './web/spec-extension/response'
+import { setReadableStream } from './web/node-request'
 import { run } from './web/sandbox'
 import type { FetchEventResult } from './web/types'
 import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
@@ -331,6 +332,8 @@ export default class Server {
     res: ServerResponse,
     parsedUrl?: UrlWithParsedQuery
   ): Promise<void> {
+    req = setReadableStream(req)
+
     const urlParts = (req.url || '').split('?')
     const urlNoQuery = urlParts[0]
 
@@ -658,6 +661,7 @@ export default class Server {
           request: {
             headers: params.request.headers,
             method: params.request.method || 'GET',
+            body: (params.request as any).__readable || null,
             nextConfig: {
               basePath: this.nextConfig.basePath,
               i18n: this.nextConfig.i18n,
