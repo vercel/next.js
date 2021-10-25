@@ -118,9 +118,9 @@ export type NextConfig = { [key: string]: any } & {
   }
   staticPageGenerationTimeout?: number
   crossOrigin?: false | 'anonymous' | 'use-credentials'
+  swcMinify?: boolean
   experimental?: {
     swcMinify?: boolean
-    swcLoader?: boolean
     cpus?: number
     sharedPool?: boolean
     plugins?: boolean
@@ -202,9 +202,8 @@ export const defaultConfig: NextConfig = {
     keepAlive: true,
   },
   staticPageGenerationTimeout: 60,
+  swcMinify: false,
   experimental: {
-    swcLoader: true,
-    swcMinify: false,
     cpus: Math.max(
       1,
       (Number(process.env.CIRCLE_NODE_TOTAL) ||
