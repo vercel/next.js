@@ -529,6 +529,7 @@ jobs:
           MACOSX_DEPLOYMENT_TARGET: '10.13'
         working-directory: packages/next
       - name: Upload artifact
+        if: always()
         uses: actions/upload-artifact@v2.2.4
         with:
           name: next-swc-binaries
