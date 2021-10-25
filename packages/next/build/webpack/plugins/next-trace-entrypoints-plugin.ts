@@ -476,10 +476,12 @@ export class TraceEntryPointsPlugin implements webpack5.WebpackPluginInstance {
 
         const CJS_RESOLVE_OPTIONS = {
           ...NODE_RESOLVE_OPTIONS,
+          modules: undefined,
           extensions: undefined,
         }
         const ESM_RESOLVE_OPTIONS = {
           ...NODE_ESM_RESOLVE_OPTIONS,
+          modules: undefined,
           extensions: undefined,
         }
 
