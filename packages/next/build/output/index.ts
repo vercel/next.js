@@ -4,13 +4,14 @@ import textTable from 'next/dist/compiled/text-table'
 import createStore from 'next/dist/compiled/unistore'
 import formatWebpackMessages from '../../client/dev/error-overlay/format-webpack-messages'
 import { OutputState, store as consoleStore } from './store'
+import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 
 export function startedDevelopmentServer(appUrl: string, bindAddr: string) {
   consoleStore.setState({ appUrl, bindAddr })
 }
 
-let previousClient: import('webpack').Compiler | null = null
-let previousServer: import('webpack').Compiler | null = null
+let previousClient: webpack5.Compiler | null = null
+let previousServer: webpack5.Compiler | null = null
 
 type CompilerDiagnostics = {
   modules: number
@@ -207,8 +208,8 @@ export function ampValidation(
 }
 
 export function watchCompilers(
-  client: import('webpack').Compiler,
-  server: import('webpack').Compiler
+  client: webpack5.Compiler,
+  server: webpack5.Compiler
 ) {
   if (previousClient === client && previousServer === server) {
     return
@@ -229,29 +230,26 @@ export function watchCompilers(
       onEvent({ loading: true })
     })
 
-    compiler.hooks.done.tap(
-      `NextJsDone-${key}`,
-      (stats: import('webpack5').Stats) => {
-        buildStore.setState({ amp: {} })
+    compiler.hooks.done.tap(`NextJsDone-${key}`, (stats: webpack5.Stats) => {
+      buildStore.setState({ amp: {} })
 
-        const { errors, warnings } = formatWebpackMessages(
-          stats.toJson({
-            preset: 'error-warnings',
-            moduleTrace: true,
-          })
-        )
-
-        const hasErrors = !!errors?.length
-        const hasWarnings = !!warnings?.length
-
-        onEvent({
-          loading: false,
-          modules: stats.compilation.modules.size,
-          errors: hasErrors ? errors : null,
-          warnings: hasWarnings ? warnings : null,
+      const { errors, warnings } = formatWebpackMessages(
+        stats.toJson({
+          preset: 'error-warnings',
+          moduleTrace: true,
         })
-      }
-    )
+      )
+
+      const hasErrors = !!errors?.length
+      const hasWarnings = !!warnings?.length
+
+      onEvent({
+        loading: false,
+        modules: stats.compilation.modules.size,
+        errors: hasErrors ? errors : null,
+        warnings: hasWarnings ? warnings : null,
+      })
+    })
   }
 
   tapCompiler('client', client, (status) => {

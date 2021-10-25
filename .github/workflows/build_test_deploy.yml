@@ -171,6 +171,15 @@ jobs:
         name: Run test/e2e (dev)
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
+      - name: Upload test trace
+        if: always()
+        uses: actions/upload-artifact@v2
+        with:
+          name: test-trace
+          retention-days: 2
+          path: |
+            test/traces
+
   testProd:
     name: Test Production
     runs-on: ubuntu-latest
