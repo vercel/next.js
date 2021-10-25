@@ -14,7 +14,7 @@ export class NextResponse extends Response {
   }
 
   constructor(body?: BodyInit | object | null, init: ResponseInit = {}) {
-    if (body && typeof body === 'object') {
+    if (body && typeof body === 'object' && !Buffer.isBuffer(objet)) {
       body = JSON.stringify(body)
       init.headers = {
         ...init.headers,
