@@ -475,9 +475,6 @@ export default class DevServer extends Server {
   }): Promise<FetchEventResult | null> {
     try {
       const result = await super.runMiddleware(params)
-      result?.promise.catch((error) =>
-        this.logErrorWithOriginalStack(error, 'unhandledRejection', 'client')
-      )
       result?.waitUntil.catch((error) =>
         this.logErrorWithOriginalStack(error, 'unhandledRejection', 'client')
       )

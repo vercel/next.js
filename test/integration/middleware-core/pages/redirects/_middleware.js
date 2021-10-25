@@ -1,9 +1,5 @@
-export function middleware(event) {
-  event.respondWith(handleRequest(event))
-}
-
-async function handleRequest(event) {
-  const url = event.request.nextUrl
+export async function middleware(request) {
+  const url = request.nextUrl
 
   if (url.searchParams.get('foo') === 'bar') {
     url.pathname = '/redirects/new-home'
