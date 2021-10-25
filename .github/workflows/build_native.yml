@@ -128,7 +128,7 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: bindings
-          path: next-swc.*.node
+          path: packages/next/native/next-swc.*.node
 
   build-windows-aarch64:
     name: next-swc - windows-aarch64 - node@14
@@ -158,7 +158,7 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: bindings
-          path: next-swc.*.node
+          path: packages/next/native/next-swc.*.node
 
 
   build-linux-musl:
@@ -195,7 +195,7 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: bindings
-          path: next-swc.*.node
+          path: packages/next/native/next-swc.*.node
 
 
   build-linux-aarch64:
@@ -239,7 +239,7 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: bindings
-          path: next-swc.*.node
+          path: packages/next/native/next-swc.*.node
 
 
   build-linux-aarch64-musl:
@@ -281,7 +281,7 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: bindings
-          path: next-swc.*.node
+          path: packages/next/native/next-swc.*.node
 
 
   build-linux-arm7:
@@ -325,7 +325,7 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: bindings
-          path: next-swc.*.node
+          path: packages/next/native/next-swc.*.node
 
   build-android-aarch64:
     name: next-swc - Android - aarch64
@@ -409,7 +409,7 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: bindings
-          path: next-swc.*.node
+          path: packages/next/native/next-swc.*.node
 
       
   commit:
