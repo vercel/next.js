@@ -13,7 +13,15 @@ export class NextResponse extends Response {
     url?: NextURL
   }
 
-  constructor(body?: BodyInit | null, init: ResponseInit = {}) {
+  constructor(body?: BodyInit | object | null, init: ResponseInit = {}) {
+    if (typeof body === 'object') {
+      body = JSON.stringify(body)
+      init.headers = {
+        ...init.headers,
+        'content-type': 'application/json; charset=UTF-8',
+      }
+    }
+
     super(body, init)
 
     const cookieParser = () => {
