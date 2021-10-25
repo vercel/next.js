@@ -624,7 +624,7 @@ export default class Server {
 
     const subreq = params.request.headers[`x-middleware-subrequest`]
     const subrequests = typeof subreq === 'string' ? subreq.split(':') : []
-
+    const allHeaders = new Headers()
     let result: FetchEventResult | null = null
 
     for (const middleware of this.middleware || []) {
@@ -667,6 +667,10 @@ export default class Server {
           },
         })
 
+        for (let [key, value] of result.response.headers) {
+          allHeaders.set(key, value)
+        }
+
         if (!this.renderOpts.dev) {
           result.waitUntil.catch((error) => {
             console.error(`Uncaught: middleware waitUntil errored`, error)
@@ -681,6 +685,10 @@ export default class Server {
 
     if (!result) {
       this.render404(params.request, params.response, params.parsed)
+    } else {
+      for (let [key, value] of allHeaders) {
+        result.response.headers.set(key, value)
+      }
     }
 
     return result

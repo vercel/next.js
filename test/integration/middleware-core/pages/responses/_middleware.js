@@ -15,6 +15,11 @@ export async function middleware(request, ev) {
     next.headers.set('x-nested-header', 'valid')
   }
 
+  // Ensure deep can override top header
+  if (url.searchParams.get('override-me') === 'true') {
+    next.headers.set('x-override-me', 'top')
+  }
+
   // Sends a header
   if (url.pathname === '/responses/header') {
     next.headers.set('x-first-header', 'valid')
