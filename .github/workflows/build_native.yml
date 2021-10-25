@@ -119,9 +119,6 @@ jobs:
           override: true
           target: i686-pc-windows-msvc
 
-      - name: Install node dependencies
-        run: npm i
-
       - name: Build
         shell: bash
         run: yarn build-native --target i686-pc-windows-msvc
@@ -150,9 +147,6 @@ jobs:
           toolchain: nightly-2021-08-12
           override: true
           target: aarch64-pc-windows-msvc
-
-      - name: Install node dependencies
-        run: npm i
 
       - name: Build
         shell: bash
@@ -190,8 +184,6 @@ jobs:
         run: |
           docker pull ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
           docker tag ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine builder
-      - name: "Install dependencies"
-        run: npm i
 
       - name: "Build"
         run: |
@@ -236,24 +228,10 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu -y
-      - name: Install dependencies
-        run: npm i
 
       - name: Cross build aarch64
         run: yarn build-native --target aarch64-unknown-linux-gnu
 
-      - name: Run tests
-        uses: docker://multiarch/ubuntu-core:arm64-focal
-        with:
-          args: >
-            sh -c "
-              apt-get update && \
-              apt-get install -y ca-certificates gnupg2 curl && \
-              curl -sL https://deb.nodesource.com/setup_14.x | bash - && \
-              apt-get install -y nodejs && \
-              npm i && \
-              npm test
-            "
       - name: Upload artifact
         uses: actions/upload-artifact@v2
         with:
@@ -291,20 +269,10 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install gcc-aarch64-linux-gnu -y
-      - name: Install dependencies
-        run: npm i
 
       - name: Cross build aarch64
         run: yarn build-native --target aarch64-unknown-linux-musl
 
-      - name: Run tests
-        uses: docker://multiarch/alpine:aarch64-latest-stable
-        with:
-          args: >
-            sh -c "sed -i -e 's/v[[:digit:]]\..*\//edge\//g' /etc/apk/repositories && \
-              apk add nodejs npm && \
-              npm i && \
-              npm test
       - name: Upload artifact
         uses: actions/upload-artifact@v2
         with:
@@ -344,8 +312,6 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install gcc-arm-linux-gnueabihf -y
-      - name: Install dependencies
-        run: npm i
 
       - name: Cross build aarch64
         run: yarn build-native --target armv7-unknown-linux-gnueabihf
@@ -374,9 +340,6 @@ jobs:
           toolchain: nightly-2021-08-12
           override: true
           target: aarch64-linux-android
-
-      - name: Install node dependencies
-        run: npm i
 
       - name: Build
         shell: bash
@@ -426,10 +389,8 @@ jobs:
             whoami
             env
             freebsd-version
-            npm i
             cargo build --release -p node
             yarn build-native
-            npm test
             rm -rf node_modules
             rm -rf target
       - name: "List files"
