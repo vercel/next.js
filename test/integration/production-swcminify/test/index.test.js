@@ -35,7 +35,7 @@ let app
 
 const context = {}
 
-describe('Production Usage', () => {
+describe.skip('Production Usage with swcMinify', () => {
   let output = ''
   beforeAll(async () => {
     const result = await nextBuild(appDir, undefined, {
