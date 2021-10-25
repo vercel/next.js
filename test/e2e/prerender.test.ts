@@ -137,6 +137,11 @@ describe('Prerender', () => {
       initialRevalidateSeconds: false,
       srcRoute: '/catchall-optional/[[...slug]]',
     },
+    '/large-page-data': {
+      dataRoute: `/_next/data/${next.buildId}/large-page-data.json`,
+      initialRevalidateSeconds: false,
+      srcRoute: null,
+    },
     '/another': {
       dataRoute: `/_next/data/${next.buildId}/another.json`,
       initialRevalidateSeconds: 1,
@@ -880,6 +885,14 @@ describe('Prerender', () => {
     })
 
     if ((global as any).isNextDev) {
+      it('should show warning when large amount of page data is returned', async () => {
+        await renderViaHTTP(next.url, '/large-page-data')
+        await check(
+          () => next.cliOutput,
+          /Warning: data for page "\/large-page-data" is 128 kB, this amount of data can reduce performance/
+        )
+      })
+
       it('should not show warning from url prop being returned', async () => {
         const urlPropPage = 'pages/url-prop.js'
         await next.patchFile(
@@ -1385,6 +1398,12 @@ describe('Prerender', () => {
               routeKeys: {
                 lang: 'lang',
               },
+            },
+            {
+              dataRouteRegex: `^\\/_next\\/data\\/${escapeRegex(
+                next.buildId
+              )}\\/large-page-data.json$`,
+              page: '/large-page-data',
             },
             {
               namedDataRouteRegex: `^/_next/data/${escapeRegex(
