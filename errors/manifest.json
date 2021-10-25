@@ -21,6 +21,10 @@
           "path": "/errors/custom-document-image-import.md"
         },
         {
+          "title": "large-page-data",
+          "path": "/errors/large-page-data.md"
+        },
+        {
           "title": "404-get-initial-props",
           "path": "/errors/404-get-initial-props.md"
         },
