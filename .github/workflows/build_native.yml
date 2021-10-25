@@ -189,7 +189,7 @@ jobs:
 
       - name: "Build"
         run: |
-          docker run --rm -v $(pwd):/swc -w /swc builder sh -c "npm run build-native"
+          docker run --rm -v $(pwd)/packages/next/build/swc:/swc -w /swc builder sh -c "yarn build-native"
           
       - name: Upload artifact
         uses: actions/upload-artifact@v2
