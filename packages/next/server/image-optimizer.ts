@@ -1,4 +1,5 @@
 import { mediaType } from '@hapi/accept'
+import contentDisposition from 'content-disposition'
 import { createHash } from 'crypto'
 import { createReadStream, promises } from 'fs'
 import { getOrientation, Orientation } from 'get-orientation'
@@ -541,7 +542,10 @@ function setResponseHeaders(
 
   const fileName = getFileNameWithExtension(url, contentType)
   if (fileName) {
-    res.setHeader('Content-Disposition', `inline; filename="${fileName}"`)
+    res.setHeader(
+      'Content-Disposition',
+      contentDisposition(fileName, { type: 'inline' })
+    )
   }
 
   res.setHeader('Content-Security-Policy', `script-src 'none'; sandbox;`)
