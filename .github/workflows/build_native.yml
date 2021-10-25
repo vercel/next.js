@@ -95,10 +95,10 @@ jobs:
     runs-on: windows-latest
     env:
       CARGO_PROFILE_RELEASE_CODEGEN_UNITS: 32
-      CARGO_PROFILE_RELEASE_LTO: "false"
+      CARGO_PROFILE_RELEASE_LTO: 'false'
     steps:
       - uses: actions/checkout@v2
-      
+
       - name: Install node x86
         run: |
           choco install nodejs-lts --x86 -y --force
@@ -123,7 +123,7 @@ jobs:
         shell: bash
         run: yarn build-native --target i686-pc-windows-msvc
         working-directory: packages/next
-      
+
       - name: Upload artifact
         uses: actions/upload-artifact@v2
         with:
@@ -160,7 +160,6 @@ jobs:
           name: next-swc-binaries
           path: packages/next/native/next-swc.*.node
 
-
   build-linux-musl:
     name: next-swc - linux-musl - node@lts
     runs-on: ubuntu-latest
@@ -187,16 +186,15 @@ jobs:
           docker pull ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
           docker tag ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine builder
 
-      - name: "Build"
+      - name: 'Build'
         run: |
           docker run --rm -v $(pwd)/packages/next:/swc -w /swc builder sh -c "yarn build-native"
-          
+
       - name: Upload artifact
         uses: actions/upload-artifact@v2
         with:
           name: next-swc-binaries
           path: packages/next/native/next-swc.*.node
-
 
   build-linux-aarch64:
     name: next-swc - aarch64-unknown-linux-gnu - node@14
@@ -241,7 +239,6 @@ jobs:
           name: next-swc-binaries
           path: packages/next/native/next-swc.*.node
 
-
   build-linux-aarch64-musl:
     name: next-swc - aarch64-unknown-linux-musl - node@14
     runs-on: ubuntu-18.04
@@ -282,7 +279,6 @@ jobs:
         with:
           name: next-swc-binaries
           path: packages/next/native/next-swc.*.node
-
 
   build-linux-arm7:
     name: next-swc - arm7-unknown-linux-gnu - node@14
@@ -368,12 +364,12 @@ jobs:
         id: build
         uses: vmactions/freebsd-vm@v0.1.5
         env:
-          DEBUG: "napi:*"
+          DEBUG: 'napi:*'
           RUSTUP_HOME: /usr/local/rustup
           CARGO_HOME: /usr/local/cargo
           RUSTUP_IO_THREADS: 1
         with:
-          envs: "DEBUG RUSTUP_HOME CARGO_HOME RUSTUP_IO_THREADS"
+          envs: 'DEBUG RUSTUP_HOME CARGO_HOME RUSTUP_IO_THREADS'
           usesh: true
           mem: 6000
           prepare: |
@@ -402,7 +398,7 @@ jobs:
             rm -rf target
           working-directory: packages/next
 
-      - name: "List files"
+      - name: 'List files'
         run: ls -la
 
       - name: Upload artifact
@@ -411,9 +407,8 @@ jobs:
           name: next-swc-binaries
           path: packages/next/native/next-swc.*.node
 
-      
   commit:
-    needs: 
+    needs:
       - build-native
       - build-windows-i686
       - build-windows-aarch64
