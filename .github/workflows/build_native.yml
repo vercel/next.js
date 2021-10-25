@@ -357,7 +357,7 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: bindings
-          path: node-swc.*.node
+          path: packages/next/native/next-swc.*.node
 
   build-freebsd:
     runs-on: macos-10.15
