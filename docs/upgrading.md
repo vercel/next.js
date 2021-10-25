@@ -44,7 +44,7 @@ Minification using SWC is an opt-in flag to ensure it can be tested against more
 
 If your application has specific CSS targeting span, for example `.container span`, upgrading to Next.js 12 might incorrectly match the wrapping element inside the `<Image>` component. You can avoid this by restricting the selector to a specific class such as `.container span.item` and updating the relevant component with that className, such as `<span className="item" />`.
 
-If you application has specific CSS targeting the `next/image` `<div>` tag, for example `.container div`, it may not match anymore. You can update the selector `.container span`, or preferably, add a new `<div className="wrapper">` wrapping the `<Image>` component and target that instead such as `.container .wrapper`.
+If your application has specific CSS targeting the `next/image` `<div>` tag, for example `.container div`, it may not match anymore. You can update the selector `.container span`, or preferably, add a new `<div className="wrapper">` wrapping the `<Image>` component and target that instead such as `.container .wrapper`.
 
 The `className` prop is unchanged and will still be passed to the underlying `<img>` element.
 
@@ -160,7 +160,7 @@ The `modules` and `render` option for `next/dynamic` have been deprecated since 
 
 This option hasn't been mentioned in the documentation since Next.js 8 so it's less likely that your application is using it.
 
-If you application does use `modules` and `render` you can refer to [the documentation](https://nextjs.org/docs/messages/next-dynamic-modules).
+If your application does use `modules` and `render` you can refer to [the documentation](https://nextjs.org/docs/messages/next-dynamic-modules).
 
 ### Remove `Head.rewind`
 
