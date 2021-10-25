@@ -9,6 +9,10 @@
           "path": "/errors/beta-middleware.md"
         },
         {
+          "title": "failed-loading-swc",
+          "path": "/errors/failed-loading-swc.md"
+        },
+        {
           "title": "deprecated-target-config",
           "path": "/errors/deprecated-target-config.md"
         },
