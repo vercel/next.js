@@ -115,9 +115,19 @@ Loaders can be defined per-image, or at the application level.
 
 ### Priority
 
-You should add the `priority` attribute to any image that you suspect will be the [Largest Contentful Paint (LCP) element](https://web.dev/lcp/#what-elements-are-considered). To find the LCP element, look for the largest image or text block visible within the viewport of the page (above-the-fold only).
+You should add the `priority` attribute to the image that will be the [Largest Contentful Paint (LCP) element](https://web.dev/lcp/#what-elements-are-considered) for each page. Doing so allows Next.js to specially prioritize the image for loading (e.g. through preload tags or priority hints), leading to a meaningful boost in LCP.
 
-Adding this attribute allows Next.js to specially prioritize the image for loading (e.g. through preload tags or priority hints), leading to a meaningful boost in LCP.
+The LCP element is typically the largest image or text block visible within the viewport of the page. You can verify which element this is by running the following code in the console of your page and looking at the latest result:
+
+```javascript
+new PerformanceObserver((entryList) => {
+  for (const entry of entryList.getEntries()) {
+    console.log('LCP candidate:', entry.startTime, entry.element)
+  }
+}).observe({ type: 'largest-contentful-paint', buffered: true })
+```
+
+Once you've identified the LCP image, you can add the attribute like this:
 
 ```jsx
 import Image from 'next/image'
@@ -138,8 +148,6 @@ export default function Home() {
   )
 }
 ```
-
-Note: be selective about which images receive the `priority` attribute, as preloading resources are finite. Anything below-the-fold should not be considered.
 
 See more about priority [`in the API ref`](/docs/api-reference/next/image.md#priority).
 
