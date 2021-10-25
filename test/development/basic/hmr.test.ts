@@ -636,8 +636,6 @@ describe('basic HMR', () => {
         browser = await webdriver(next.appPort, '/hmr')
         await browser.elementByCss('#error-in-gip-link').click()
 
-        throw new Error('test error')
-
         expect(await hasRedbox(browser)).toBe(true)
         expect(await getRedboxHeader(browser)).toMatchInlineSnapshot(`
           " 1 of 1 unhandled error
