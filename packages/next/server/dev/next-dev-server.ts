@@ -212,7 +212,7 @@ export default class DevServer extends Server {
     }
 
     const regexMiddleware = new RegExp(
-      `/(_middleware.(?:${this.nextConfig.pageExtensions.join('|')}))$`
+      `[\\\\/](_middleware.(?:${this.nextConfig.pageExtensions.join('|')}))$`
     )
 
     const regexPageExtension = new RegExp(
@@ -249,8 +249,7 @@ export default class DevServer extends Server {
 
           if (regexMiddleware.test(fileName)) {
             routedMiddleware.push(
-              `/${relative(pagesDir!, fileName)}`
-                .replace(/\\+/g, '')
+              `/${relative(pagesDir!, fileName).replace(/\\+/g, '/')}`
                 .replace(/^\/+/g, '/')
                 .replace(regexMiddleware, '/')
             )
