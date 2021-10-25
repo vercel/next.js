@@ -298,9 +298,17 @@ async function main() {
             }
             trimmedOutput.forEach((chunk) => process.stdout.write(chunk))
           }
-          reject(new Error(`failed with code: ${code}`))
+          return reject(new Error(`failed with code: ${code}`))
         }
-        await fs.remove(path.join(__dirname, 'test/traces')).catch(() => {})
+        await fs
+          .remove(
+            path.join(
+              __dirname,
+              'test/traces',
+              path.relative(__dirname, test).replace(/\//g, '-')
+            )
+          )
+          .catch(() => {})
         resolve(new Date().getTime() - start)
       })
     })

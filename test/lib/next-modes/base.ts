@@ -166,8 +166,14 @@ export class NextInstance {
           path.join(this.testDir, '.next/trace'),
           path.join(
             __dirname,
-            'test/traces',
-            `${path.basename(process.env.TEST_FILE_PATH)}-next-trace`
+            '../../traces',
+            `${path
+              .relative(
+                path.join(__dirname, '../../'),
+                process.env.TEST_FILE_PATH
+              )
+              .replace(/\//g, '-')}`,
+            `next-trace`
           )
         )
         .catch(() => {})

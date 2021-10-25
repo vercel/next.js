@@ -53,6 +53,9 @@ class Playwright extends BrowserInterface {
       const traceDir = path.join(__dirname, '../../traces')
       const traceOutputPath = path.join(
         traceDir,
+        `${path
+          .relative(path.join(__dirname, '../../'), process.env.TEST_FILE_PATH)
+          .replace(/\//g, '-')}`,
         `playwright-${encodeURIComponent(url)}.zip`
       )
 

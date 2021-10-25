@@ -175,7 +175,8 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v2
         with:
-          name: dist-without-markdown
+          name: test-trace
+          retention-days: 2
           path: |
             test/traces
 
