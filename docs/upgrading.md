@@ -6,6 +6,10 @@ description: Learn how to upgrade Next.js.
 
 ## Upgrading from 11 to 12
 
+### Minimum Node.js version
+
+The minimum Node.js version has been bumped from 12.0.0 to 12.22.0 which is the first version of Node.js with native ES Modules support.
+
 ### SWC replacing Babel
 
 Next.js now uses Rust-based compiler [SWC](https://swc.rs/) to compile JavaScript/TypeScript. This new compiler is up to 17x faster than Babel when compiling individual files and up to 5x faster Fast Refresh.
