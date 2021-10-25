@@ -161,14 +161,16 @@ export class NextInstance {
     await this.stop()
 
     if (process.env.TRACE_PLAYWRIGHT) {
-      await fs.copy(
-        path.join(this.testDir, '.next/trace'),
-        path.join(
-          __dirname,
-          'test/traces',
-          `${path.basename(process.env.TEST_FILE_PATH)}-next-trace`
+      await fs
+        .copy(
+          path.join(this.testDir, '.next/trace'),
+          path.join(
+            __dirname,
+            'test/traces',
+            `${path.basename(process.env.TEST_FILE_PATH)}-next-trace`
+          )
         )
-      )
+        .catch(() => {})
     }
 
     if (!process.env.NEXT_TEST_SKIP_CLEANUP) {
