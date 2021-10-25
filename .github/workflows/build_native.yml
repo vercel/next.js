@@ -206,16 +206,107 @@ jobs:
     name: next-swc - aarch64-unknown-linux-gnu - node@14
     runs-on: ubuntu-18.04
     steps:
+      - run: docker run --rm --privileged multiarch/qemu-user-static:register --reset
+
       - uses: actions/checkout@v2
+
+      - name: Setup node
+        uses: actions/setup-node@v2
+        with:
+          node-version: 14
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          override: true
+          target: aarch64-unknown-linux-gnu
+
+      - name: Cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            target/
+          key: aarch64-linux-gnu-publish-integration
+
+      - name: Install cross compile toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu -y
+      - name: Install dependencies
+        run: npm i
+
+      - name: Cross build aarch64
+        run: yarn build-native --target aarch64-unknown-linux-gnu
+
+      - name: Run tests
+        uses: docker://multiarch/ubuntu-core:arm64-focal
+        with:
+          args: >
+            sh -c "
+              apt-get update && \
+              apt-get install -y ca-certificates gnupg2 curl && \
+              curl -sL https://deb.nodesource.com/setup_14.x | bash - && \
+              apt-get install -y nodejs && \
+              npm i && \
+              npm test
+            "
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: bindings
+          path: next-swc.*.node
 
 
   build-linux-aarch64-musl:
     name: next-swc - aarch64-unknown-linux-musl - node@14
     runs-on: ubuntu-18.04
     steps:
-      - run: docker run --rm --privileged multiarch/qemu-user-static:register --reset
-
       - uses: actions/checkout@v2
+
+      - name: Setup node
+        uses: actions/setup-node@v2
+        with:
+          node-version: 14
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          override: true
+          target: aarch64-unknown-linux-musl
+
+      - name: Cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            target/
+          key: aarch64-linux-musl-publish-integration
+
+      - name: Install cross compile toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install gcc-aarch64-linux-gnu -y
+      - name: Install dependencies
+        run: npm i
+
+      - name: Cross build aarch64
+        run: yarn build-native --target aarch64-unknown-linux-musl
+
+      - name: Run tests
+        uses: docker://multiarch/alpine:aarch64-latest-stable
+        with:
+          args: >
+            sh -c "sed -i -e 's/v[[:digit:]]\..*\//edge\//g' /etc/apk/repositories && \
+              apk add nodejs npm && \
+              npm i && \
+              npm test
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: bindings
+          path: next-swc.*.node
+
 
   build-linux-arm7:
     name: next-swc - arm7-unknown-linux-gnu - node@14
@@ -225,17 +316,125 @@ jobs:
 
       - uses: actions/checkout@v2
 
+      - name: Setup node
+        uses: actions/setup-node@v2
+        with:
+          node-version: 14
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          override: true
+          target: armv7-unknown-linux-gnueabihf
+
+      - name: Cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            target/
+          key: arm7-linux-gnu-publish-integration
+
+      - name: Install cross compile toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install gcc-arm-linux-gnueabihf -y
+      - name: Install dependencies
+        run: npm i
+
+      - name: Cross build aarch64
+        run: yarn build-native --target armv7-unknown-linux-gnueabihf
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: bindings
+          path: next-swc.*.node
+
   build-android-aarch64:
     name: next-swc - Android - aarch64
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v2
 
+      - name: Setup node
+        uses: actions/setup-node@v2
+        with:
+          node-version: 14
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          override: true
+          target: aarch64-linux-android
+
+      - name: Install node dependencies
+        run: npm i
+
+      - name: Build
+        shell: bash
+        run: |
+          export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/darwin-x86_64/bin/aarch64-linux-android24-clang"
+          yarn build-native --target aarch64-linux-android
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: bindings
+          path: node-swc.*.node
+
   build-freebsd:
     runs-on: macos-10.15
     name: Build FreeBSD
     steps:
       - uses: actions/checkout@v2
+      - name: Build
+        id: build
+        uses: vmactions/freebsd-vm@v0.1.5
+        env:
+          DEBUG: "napi:*"
+          RUSTUP_HOME: /usr/local/rustup
+          CARGO_HOME: /usr/local/cargo
+          RUSTUP_IO_THREADS: 1
+        with:
+          envs: "DEBUG RUSTUP_HOME CARGO_HOME RUSTUP_IO_THREADS"
+          usesh: true
+          mem: 6000
+          prepare: |
+            pkg install -y curl node14
+            curl -qL https://www.npmjs.com/install.sh | sh
+            npm install -g yarn
+            curl https://sh.rustup.rs -sSf --output rustup.sh
+            sh rustup.sh -y --profile minimal --default-toolchain stable
+            source /usr/local/cargo/env
+            echo "~~~~ rustc --version ~~~~"
+            rustc --version
+            echo "~~~~ node -v ~~~~"
+            node -v
+            echo "~~~~ yarn --version ~~~~"
+            yarn --version
+          run: |
+            export PATH="/usr/local/cargo/bin:$PATH"
+            pwd
+            ls -lah
+            whoami
+            env
+            freebsd-version
+            npm i
+            cargo build --release -p node
+            yarn build-native
+            npm test
+            rm -rf node_modules
+            rm -rf target
+      - name: "List files"
+        run: ls -la
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: bindings
+          path: next-swc.*.node
+
       
   commit:
     needs: 
