@@ -490,6 +490,10 @@
         {
           "title": "swc-disabled",
           "path": "/errors/swc-disabled.md"
+        },
+        {
+          "title": "swc-minify-enabled",
+          "path": "/errors/swc-minify-enabled.md"
         }
       ]
     }

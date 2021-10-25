@@ -299,7 +299,7 @@ export default async function getBaseWebpackConfig(
 
   const distDir = path.join(dir, config.distDir)
 
-  const useSWCLoader = config.experimental.swcLoader && !babelConfigFile
+  const useSWCLoader = !babelConfigFile
   if (!loggedSwcDisabled && !useSWCLoader && babelConfigFile) {
     Log.warn(
       `Disabled SWC because of custom Babel configuration "${path.relative(
@@ -942,7 +942,7 @@ export default async function getBaseWebpackConfig(
           new TerserPlugin({
             cacheDir: path.join(distDir, 'cache', 'next-minifier'),
             parallel: config.experimental.cpus,
-            swcMinify: config.experimental.swcMinify,
+            swcMinify: config.swcMinify,
             terserOptions,
           }).apply(compiler)
         },
@@ -1411,8 +1411,8 @@ export default async function getBaseWebpackConfig(
     hasRewrites,
     reactRoot: config.experimental.reactRoot,
     concurrentFeatures: config.experimental.concurrentFeatures,
-    swcMinify: config.experimental.swcMinify,
-    swcLoader: config.experimental.swcLoader,
+    swcMinify: config.swcMinify,
+    swcLoader: useSWCLoader,
   })
 
   const cache: any = {
