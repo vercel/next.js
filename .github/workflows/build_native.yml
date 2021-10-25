@@ -122,7 +122,8 @@ jobs:
       - name: Build
         shell: bash
         run: yarn build-native --target i686-pc-windows-msvc
-
+        working-directory: packages/next
+      
       - name: Upload artifact
         uses: actions/upload-artifact@v2
         with:
@@ -151,6 +152,7 @@ jobs:
       - name: Build
         shell: bash
         run: yarn build-native --target aarch64-pc-windows-msvc
+        working-directory: packages/next
 
       - name: Upload artifact
         uses: actions/upload-artifact@v2
@@ -231,6 +233,7 @@ jobs:
 
       - name: Cross build aarch64
         run: yarn build-native --target aarch64-unknown-linux-gnu
+        working-directory: packages/next
 
       - name: Upload artifact
         uses: actions/upload-artifact@v2
@@ -272,6 +275,7 @@ jobs:
 
       - name: Cross build aarch64
         run: yarn build-native --target aarch64-unknown-linux-musl
+        working-directory: packages/next
 
       - name: Upload artifact
         uses: actions/upload-artifact@v2
@@ -315,6 +319,7 @@ jobs:
 
       - name: Cross build aarch64
         run: yarn build-native --target armv7-unknown-linux-gnueabihf
+        working-directory: packages/next
 
       - name: Upload artifact
         uses: actions/upload-artifact@v2
@@ -346,6 +351,8 @@ jobs:
         run: |
           export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/darwin-x86_64/bin/aarch64-linux-android24-clang"
           yarn build-native --target aarch64-linux-android
+        working-directory: packages/next
+
       - name: Upload artifact
         uses: actions/upload-artifact@v2
         with:
@@ -393,6 +400,8 @@ jobs:
             yarn build-native
             rm -rf node_modules
             rm -rf target
+          working-directory: packages/next
+
       - name: "List files"
         run: ls -la
 
