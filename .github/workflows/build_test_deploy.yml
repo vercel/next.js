@@ -176,6 +176,7 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: test-trace
+          if-no-files-found: ignore
           retention-days: 2
           path: |
             test/traces
@@ -251,6 +252,16 @@ jobs:
 
       - run: xvfb-run node run-tests.js --timings -g ${{ matrix.group }}/6
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
+      - name: Upload test trace
+        if: always()
+        uses: actions/upload-artifact@v2
+        with:
+          name: test-trace
+          if-no-files-found: ignore
+          retention-days: 2
+          path: |
+            test/traces
 
   testElectron:
     name: Test Electron
