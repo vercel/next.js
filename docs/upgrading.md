@@ -12,7 +12,7 @@ Next.js now uses Rust-based compiler [SWC](https://swc.rs/) to compile JavaScrip
 
 Next.js provides full backwards compatibility with applications that have [custom Babel configuration](https://nextjs.org/docs/advanced-features/customizing-babel-config). All transformations that Next.js handles by default like styled-jsx and tree-shaking of `getStaticProps` / `getStaticPaths` / `getServerSideProps` have been ported to Rust.
 
-When an application has custom Babel configuration Next.js will automatically opt-out of using SWC for compiling JavaScript/Typescript and will fall back to using Babel in the same way that it was used in Next.js 11.
+When an application has a custom Babel configuration, Next.js will automatically opt-out of using SWC for compiling JavaScript/Typescript and will fall back to using Babel in the same way that it was used in Next.js 11.
 
 Many of the integrations with external libraries that currently require custom Babel transformations will be ported to Rust-based SWC transforms in the near future. These include but are not limited to:
 
@@ -20,11 +20,11 @@ Many of the integrations with external libraries that currently require custom B
 - Emotion
 - Relay
 
-In order to prioritize transforms that will help you adopt SWC please provide your `.babelrc` on [the feedback thread](https://github.com/vercel/next.js/discussions/30174).
+In order to prioritize transforms that will help you adopt SWC, please provide your `.babelrc` on [the feedback thread](https://github.com/vercel/next.js/discussions/30174).
 
 ### SWC replacing Terser for minification
 
-You can opt-in to replacing Terser with SWC for minifying JavaScript up to 7x faster using a flag in next.config.js:
+You can opt-in to replacing Terser with SWC for minifying JavaScript up to 7x faster using a flag in `next.config.js`:
 
 ```js
 module.exports = {
@@ -32,11 +32,19 @@ module.exports = {
 }
 ```
 
-Minification using SWC is an opt-in flag to ensure it can be tested against more real-world Next.js applications before it becomes the default in Next.js 12.1. If you have feedback about minificiation please leave it on [the feedback thread](https://github.com/vercel/next.js/discussions/30237).
+Minification using SWC is an opt-in flag to ensure it can be tested against more real-world Next.js applications before it becomes the default in Next.js 12.1. If you have feedback about minification, please leave it on [the feedback thread](https://github.com/vercel/next.js/discussions/30237).
 
 ### `next/image` changed wrapping element
 
-`next/image` now renders inside `<span>` instead of `<div>` based on feedback. If you application has specific styling targeting the `next/image` `<div>` tag make sure to update it to `<span>`.
+`next/image` now renders the `<img>` inside a `<span>` instead of `<div>`.
+
+If your application has specific CSS targeting span, for example `.container span`, upgrading to Next.js 12 might incorrectly match the wrapping element inside the `<Image>` component. You can avoid this by restricting the selector to a specific class such as `.container span.item` and updating the relevant component with that className, such as `<span className="item" />`.
+
+If you application has specific CSS targeting the `next/image` `<div>` tag, for example `.container div`, it may not match anymore. You can update the selector `.container span`, or preferably, add a new `<div className="wrapper">` wrapping the `<Image>` component and target that instead such as `.container .wrapper`.
+
+The `className` prop is unchanged and will still be passed to the underlying `<img>` element.
+
+See the [documentation](https://nextjs.org/docs/basic-features/image-optimization#styling) for more info.
 
 ### Webpack 4 support has been removed
 
