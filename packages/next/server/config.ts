@@ -358,6 +358,19 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     )
   }
 
+  if (result.experimental && 'swcMinify' in (result.experimental as any)) {
+    Log.warn(
+      `\`swcMinify\` has been moved out of \`experimental\`. Please update your ${configFileName} file accordingly.`
+    )
+    result.swcMinify = (result.experimental as any).swcMinify
+  }
+
+  if (result.swcMinify) {
+    Log.warn(
+      'SWC minify beta enabled. nextjs.org/docs/messages/swc-minify-enabled'
+    )
+  }
+
   if (result.experimental && 'nftTracing' in (result.experimental as any)) {
     // TODO: remove this warning and assignment when we leave experimental phase
     Log.warn(
@@ -572,6 +585,13 @@ export default async function loadConfig(
         `Specified target is invalid. Provided: "${
           userConfig.target
         }" should be one of ${targets.join(', ')}`
+      )
+    }
+
+    if (userConfig.target && userConfig.target !== 'server') {
+      Log.warn(
+        'The `target` config is deprecated and will be removed in a future version.\n' +
+          'See more info here https://nextjs.org/docs/messages/deprecated-target-config'
       )
     }
 

@@ -17,8 +17,7 @@ jest.setTimeout(1000 * 60 * 2)
 const context = {}
 context.appDir = join(__dirname, '../')
 
-const middlewareWarning =
-  'Warning: using beta Middleware (not covered by semver)'
+const middlewareWarning = 'using beta Middleware (not covered by semver)'
 
 describe('Middleware base tests', () => {
   describe('dev mode', () => {

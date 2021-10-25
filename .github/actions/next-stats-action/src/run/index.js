@@ -67,7 +67,7 @@ async function runConfigs(
         const results = await glob(rename.srcGlob, { cwd: statsAppDir })
         for (const result of results) {
           let dest = rename.removeHash
-            ? result.replace(/(\.|-)[0-9a-f]{20}(\.|-)/g, '$1HASH$2')
+            ? result.replace(/(\.|-)[0-9a-f]{16}(\.|-)/g, '$1HASH$2')
             : rename.dest
           if (result === dest) continue
           await fs.move(
