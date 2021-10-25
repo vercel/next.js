@@ -4,6 +4,46 @@ description: Learn how to upgrade Next.js.
 
 # Upgrade Guide
 
+## Upgrading from 11 to 12
+
+### SWC replacing Babel
+
+Next.js now uses Rust-based compiler [SWC](https://swc.rs/) to compile JavaScript/TypeScript. This new compiler is up to 17x faster than Babel when compiling individual files and up to 5x faster Fast Refresh.
+
+Next.js provides full backwards compatibility with applications that have [custom Babel configuration](https://nextjs.org/docs/advanced-features/customizing-babel-config). All transformations that Next.js handles by default like styled-jsx and tree-shaking of `getStaticProps` / `getStaticPaths` / `getServerSideProps` have been ported to Rust.
+
+When an application has custom Babel configuration Next.js will automatically opt-out of using SWC for compiling JavaScript/Typescript and will fall back to using Babel in the same way that it was used in Next.js 11.
+
+Many of the integrations with external libraries that currently require custom Babel transformations will be ported to Rust-based SWC transforms in the near future. These include but are not limited to:
+
+- Styled Components
+- Emotion
+- Relay
+
+In order to prioritize transforms that will help you adopt SWC please provide your `.babelrc` on [the feedback thread](https://github.com/vercel/next.js/discussions/30174).
+
+### `next/image` changed wrapping element
+
+`next/image` now renders inside `<span>` instead of `<div>` based on feedback. If you application has specific styling targeting the `next/image` `<div>` tag make sure to update it to `<span>`.
+
+### Webpack 4 support has been removed
+
+If you are already using webpack 5 you can skip this section.
+
+Next.js has adopted webpack 5 as the default for compilation in Next.js 11. As communicated in the [webpack 5 upgrading documentation](https://nextjs.org/docs/messages/webpack5) Next.js 12 removes support for webpack 4.
+
+If your application is still using webpack 4 using the opt-out flag you will now see an error linking to the [webpack 5 upgrading documentation](https://nextjs.org/docs/messages/webpack5).
+
+### `target` option deprecated
+
+If you do not have `target` in `next.config.js` you can skip this section.
+
+The target option has been deprecated in favor of built-in support for tracing what dependencies are needed to run a page.
+
+During `next build`, Next.js will automatically trace each page and its dependencies to determine all of the files that are needed for deploying a production version of your application.
+
+If you are currently using the `target` option set to `serverless` please read the [documentation on how to leverage the new output](https://nextjs.org/docs/advanced-features/output-file-tracing).
+
 ## Upgrading from version 10 to 11
 
 ### Upgrade React version to latest
