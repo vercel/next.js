@@ -115,6 +115,7 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
+          toolchain: nightly-2021-08-12
           override: true
           target: i686-pc-windows-msvc
 
@@ -146,6 +147,7 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
+          toolchain: nightly-2021-08-12
           override: true
           target: aarch64-pc-windows-msvc
 
@@ -219,6 +221,7 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
+          toolchain: nightly-2021-08-12
           override: true
           target: aarch64-unknown-linux-gnu
 
@@ -273,6 +276,7 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
+          toolchain: nightly-2021-08-12
           override: true
           target: aarch64-unknown-linux-musl
 
@@ -325,6 +329,7 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
+          toolchain: nightly-2021-08-12
           override: true
           target: armv7-unknown-linux-gnueabihf
 
@@ -366,6 +371,7 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
+          toolchain: nightly-2021-08-12
           override: true
           target: aarch64-linux-android
 
