@@ -38,6 +38,12 @@ module.exports = {
 
 Minification using SWC is an opt-in flag to ensure it can be tested against more real-world Next.js applications before it becomes the default in Next.js 12.1. If you have feedback about minification, please leave it on [the feedback thread](https://github.com/vercel/next.js/discussions/30237).
 
+### Improvements to styled-jsx CSS parsing
+
+On top of the Rust-based compiler we've implemented a new CSS parser based on the CSS parser that was used for the styled-jsx Babel transform. This new parser has improved handling of CSS and now errors when invalid CSS is used that would previously slip through and cause unexpected behavior.
+
+Because of this change invalid CSS will throw an error during development and `next build`. This change only affects styled-jsx usage.
+
 ### `next/image` changed wrapping element
 
 `next/image` now renders the `<img>` inside a `<span>` instead of `<div>`.
