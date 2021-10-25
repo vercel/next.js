@@ -98,18 +98,109 @@ jobs:
       CARGO_PROFILE_RELEASE_LTO: "false"
     steps:
       - uses: actions/checkout@v2
+      
+      - name: Install node x86
+        run: |
+          choco install nodejs-lts --x86 -y --force
+          refreshenv
+      - name: Set 32bit Node.js path
+        run: |
+          echo "C:\\Program Files (x86)\\nodejs" >> $GITHUB_PATH
+        shell: bash
+
+      - name: Node.js arch
+        run: node -e "console.log(process.arch)"
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          override: true
+          target: i686-pc-windows-msvc
+
+      - name: Install node dependencies
+        run: npm i
+
+      - name: Build
+        shell: bash
+        run: yarn build-native --target i686-pc-windows-msvc
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: bindings
+          path: next-swc.*.node
 
   build-windows-aarch64:
     name: next-swc - windows-aarch64 - node@14
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v2
-  
+
+      - name: Setup node
+        uses: actions/setup-node@v2
+        with:
+          node-version: 14
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          override: true
+          target: aarch64-pc-windows-msvc
+
+      - name: Install node dependencies
+        run: npm i
+
+      - name: Build
+        shell: bash
+        run: yarn build-native --target aarch64-pc-windows-msvc
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: bindings
+          path: next-swc.*.node
+
+
   build-linux-musl:
     name: next-swc - linux-musl - node@lts
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+
+      - name: Login to registry
+        run: |
+          docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD $DOCKER_REGISTRY_URL
+        env:
+          DOCKER_REGISTRY_URL: ghcr.io
+          DOCKER_USERNAME: ${{ github.actor }}
+          DOCKER_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            target/
+          key: linux-musl-publish-integration
+
+      - name: Pull docker image
+        run: |
+          docker pull ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
+          docker tag ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine builder
+      - name: "Install dependencies"
+        run: npm i
+
+      - name: "Build"
+        run: |
+          docker run --rm -v $(pwd):/swc -w /swc builder sh -c "npm run build-native"
+          
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: bindings
+          path: next-swc.*.node
+
 
   build-linux-aarch64:
     name: next-swc - aarch64-unknown-linux-gnu - node@14
