@@ -187,7 +187,7 @@ function getFetchHeaders(middleware: string, init: RequestInit) {
   const prevsub = headers.get(`x-middleware-subrequest`) || ''
   const value = prevsub.split(':').concat(middleware).join(':')
   headers.set(`x-middleware-subrequest`, value)
-  headers.set(`user-agent`, `Next.JS Middleware`)
+  headers.set(`user-agent`, `Next.js Middleware`)
   return headers
 }
 
