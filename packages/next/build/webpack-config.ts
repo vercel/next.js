@@ -543,6 +543,7 @@ export default async function getBaseWebpackConfig(
             util: require.resolve('util/'),
             vm: require.resolve('vm-browserify'),
             zlib: require.resolve('browserify-zlib'),
+            events: require.resolve('events'),
           },
         }
       : undefined),

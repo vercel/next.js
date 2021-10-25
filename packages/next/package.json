@@ -85,6 +85,7 @@
     "domain-browser": "4.19.0",
     "encoding": "0.1.13",
     "etag": "1.8.1",
+    "events": "3.3.0",
     "find-cache-dir": "3.3.1",
     "get-orientation": "1.1.2",
     "https-browserify": "1.0.0",
