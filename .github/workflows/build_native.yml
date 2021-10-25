@@ -73,7 +73,7 @@ jobs:
           path: ./packages/next/build/swc/target
           key: next-swc-cargo-cache-${{ matrix.os }}--${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
-            next-swc-cargo-cache-${{ matrix.os }}
+            next-swc-cargo-cache-${{ matrix.os }}-${{ matrix.target }}
       - name: 'Build'
         if: steps.binary-cache.outputs.cache-hit != true
         run: yarn build-native --target ${{ matrix.target }}
@@ -89,8 +89,340 @@ jobs:
         run: |
           cargo install cargo-cache --no-default-features --features ci-autoclean
           cargo-cache
+
+  build-windows-i686:
+    name: next-swc - windows-i686 - node@14
+    runs-on: windows-latest
+    env:
+      CARGO_PROFILE_RELEASE_CODEGEN_UNITS: 32
+      CARGO_PROFILE_RELEASE_LTO: "false"
+    steps:
+      - uses: actions/checkout@v2
+      
+      - name: Install node x86
+        run: |
+          choco install nodejs-lts --x86 -y --force
+          refreshenv
+      - name: Set 32bit Node.js path
+        run: |
+          echo "C:\\Program Files (x86)\\nodejs" >> $GITHUB_PATH
+        shell: bash
+
+      - name: Node.js arch
+        run: node -e "console.log(process.arch)"
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly-2021-08-12
+          override: true
+          target: i686-pc-windows-msvc
+
+      - name: Build
+        shell: bash
+        run: yarn build-native --target i686-pc-windows-msvc
+        working-directory: packages/next
+      
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: next-swc-binaries
+          path: packages/next/native/next-swc.*.node
+
+  build-windows-aarch64:
+    name: next-swc - windows-aarch64 - node@14
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Setup node
+        uses: actions/setup-node@v2
+        with:
+          node-version: 14
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly-2021-08-12
+          override: true
+          target: aarch64-pc-windows-msvc
+
+      - name: Build
+        shell: bash
+        run: yarn build-native --target aarch64-pc-windows-msvc
+        working-directory: packages/next
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: next-swc-binaries
+          path: packages/next/native/next-swc.*.node
+
+
+  build-linux-musl:
+    name: next-swc - linux-musl - node@lts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Login to registry
+        run: |
+          docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD $DOCKER_REGISTRY_URL
+        env:
+          DOCKER_REGISTRY_URL: ghcr.io
+          DOCKER_USERNAME: ${{ github.actor }}
+          DOCKER_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            target/
+          key: linux-musl-publish-integration
+
+      - name: Pull docker image
+        run: |
+          docker pull ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
+          docker tag ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine builder
+
+      - name: "Build"
+        run: |
+          docker run --rm -v $(pwd)/packages/next:/swc -w /swc builder sh -c "yarn build-native"
+          
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: next-swc-binaries
+          path: packages/next/native/next-swc.*.node
+
+
+  build-linux-aarch64:
+    name: next-swc - aarch64-unknown-linux-gnu - node@14
+    runs-on: ubuntu-18.04
+    steps:
+      - run: docker run --rm --privileged multiarch/qemu-user-static:register --reset
+
+      - uses: actions/checkout@v2
+
+      - name: Setup node
+        uses: actions/setup-node@v2
+        with:
+          node-version: 14
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly-2021-08-12
+          override: true
+          target: aarch64-unknown-linux-gnu
+
+      - name: Cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            target/
+          key: aarch64-linux-gnu-publish-integration
+
+      - name: Install cross compile toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu -y
+
+      - name: Cross build aarch64
+        run: yarn build-native --target aarch64-unknown-linux-gnu
+        working-directory: packages/next
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: next-swc-binaries
+          path: packages/next/native/next-swc.*.node
+
+
+  build-linux-aarch64-musl:
+    name: next-swc - aarch64-unknown-linux-musl - node@14
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Setup node
+        uses: actions/setup-node@v2
+        with:
+          node-version: 14
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly-2021-08-12
+          override: true
+          target: aarch64-unknown-linux-musl
+
+      - name: Cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            target/
+          key: aarch64-linux-musl-publish-integration
+
+      - name: Install cross compile toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install gcc-aarch64-linux-gnu -y
+
+      - name: Cross build aarch64
+        run: yarn build-native --target aarch64-unknown-linux-musl
+        working-directory: packages/next
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: next-swc-binaries
+          path: packages/next/native/next-swc.*.node
+
+
+  build-linux-arm7:
+    name: next-swc - arm7-unknown-linux-gnu - node@14
+    runs-on: ubuntu-18.04
+    steps:
+      - run: docker run --rm --privileged multiarch/qemu-user-static:register --reset
+
+      - uses: actions/checkout@v2
+
+      - name: Setup node
+        uses: actions/setup-node@v2
+        with:
+          node-version: 14
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly-2021-08-12
+          override: true
+          target: armv7-unknown-linux-gnueabihf
+
+      - name: Cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            target/
+          key: arm7-linux-gnu-publish-integration
+
+      - name: Install cross compile toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install gcc-arm-linux-gnueabihf -y
+
+      - name: Cross build aarch64
+        run: yarn build-native --target armv7-unknown-linux-gnueabihf
+        working-directory: packages/next
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: next-swc-binaries
+          path: packages/next/native/next-swc.*.node
+
+  build-android-aarch64:
+    name: next-swc - Android - aarch64
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Setup node
+        uses: actions/setup-node@v2
+        with:
+          node-version: 14
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly-2021-08-12
+          override: true
+          target: aarch64-linux-android
+
+      - name: Build
+        shell: bash
+        run: |
+          export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/darwin-x86_64/bin/aarch64-linux-android24-clang"
+          yarn build-native --target aarch64-linux-android
+        working-directory: packages/next
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: next-swc-binaries
+          path: packages/next/native/next-swc.*.node
+
+  build-freebsd:
+    runs-on: macos-10.15
+    name: next-swc - freebsd
+    steps:
+      - uses: actions/checkout@v2
+      - name: Build
+        id: build
+        uses: vmactions/freebsd-vm@v0.1.5
+        env:
+          DEBUG: "napi:*"
+          RUSTUP_HOME: /usr/local/rustup
+          CARGO_HOME: /usr/local/cargo
+          RUSTUP_IO_THREADS: 1
+        with:
+          envs: "DEBUG RUSTUP_HOME CARGO_HOME RUSTUP_IO_THREADS"
+          usesh: true
+          mem: 6000
+          prepare: |
+            pkg install -y curl node14
+            curl -qL https://www.npmjs.com/install.sh | sh
+            npm install -g yarn
+            curl https://sh.rustup.rs -sSf --output rustup.sh
+            sh rustup.sh -y --profile minimal --default-toolchain stable
+            source /usr/local/cargo/env
+            echo "~~~~ rustc --version ~~~~"
+            rustc --version
+            echo "~~~~ node -v ~~~~"
+            node -v
+            echo "~~~~ yarn --version ~~~~"
+            yarn --version
+          run: |
+            export PATH="/usr/local/cargo/bin:$PATH"
+            pwd
+            ls -lah
+            whoami
+            env
+            freebsd-version
+            cargo build --release -p next-swc
+            yarn build-native
+            rm -rf node_modules
+            rm -rf target
+          working-directory: packages/next
+
+      - name: "List files"
+        run: ls -la
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: next-swc-binaries
+          path: packages/next/native/next-swc.*.node
+
+      
   commit:
-    needs: build-native
+    needs: 
+      - build-native
+      - build-windows-i686
+      - build-windows-aarch64
+      - build-linux-musl
+      - build-linux-arm7
+      - build-linux-aarch64
+      - build-android-aarch64
+      - build-freebsd
+      - build-linux-aarch64-musl
     runs-on: ubuntu-18.04
 
     steps:
