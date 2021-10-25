@@ -16,6 +16,7 @@ export async function adapter(params: {
 
   const event = new NextFetchEvent(
     new NextRequest(url, {
+      body: params.request.body || null,
       geo: params.request.geo,
       headers: fromNodeHeaders(params.request.headers),
       ip: params.request.ip,

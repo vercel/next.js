@@ -5,6 +5,7 @@ export interface NodeHeaders {
 }
 
 export interface RequestData {
+  body?: ReadableStream | null
   geo?: {
     city?: string
     country?: string
