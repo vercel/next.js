@@ -89,8 +89,75 @@ jobs:
         run: |
           cargo install cargo-cache --no-default-features --features ci-autoclean
           cargo-cache
+
+  build-windows-i686:
+    name: next-swc - windows-i686 - node@14
+    runs-on: windows-latest
+    env:
+      CARGO_PROFILE_RELEASE_CODEGEN_UNITS: 32
+      CARGO_PROFILE_RELEASE_LTO: "false"
+    steps:
+      - uses: actions/checkout@v2
+
+  build-windows-aarch64:
+    name: next-swc - windows-aarch64 - node@14
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v2
+  
+  build-linux-musl:
+    name: next-swc - linux-musl - node@lts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+  build-linux-aarch64:
+    name: next-swc - aarch64-unknown-linux-gnu - node@14
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v2
+
+
+  build-linux-aarch64-musl:
+    name: next-swc - aarch64-unknown-linux-musl - node@14
+    runs-on: ubuntu-18.04
+    steps:
+      - run: docker run --rm --privileged multiarch/qemu-user-static:register --reset
+
+      - uses: actions/checkout@v2
+
+  build-linux-arm7:
+    name: next-swc - arm7-unknown-linux-gnu - node@14
+    runs-on: ubuntu-18.04
+    steps:
+      - run: docker run --rm --privileged multiarch/qemu-user-static:register --reset
+
+      - uses: actions/checkout@v2
+
+  build-android-aarch64:
+    name: next-swc - Android - aarch64
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v2
+
+  build-freebsd:
+    runs-on: macos-10.15
+    name: Build FreeBSD
+    steps:
+      - uses: actions/checkout@v2
+      
   commit:
-    needs: build-native
+    needs: 
+      - build-native
+      - build-windows-i686
+      - build-windows-aarch64
+      - build-linux-musl
+      - build-linux-arm7
+      - build-linux-aarch64
+      - build-apple-silicon
+      - build-android-aarch64
+      - build-freebsd
+      - build-linux-aarch64-musl
     runs-on: ubuntu-18.04
 
     steps:
