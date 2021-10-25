@@ -645,7 +645,6 @@ export default class Server {
 
         if (subrequests.includes(middlewareInfo.name)) {
           result = {
-            promise: Promise.resolve(),
             response: NextResponse.next(),
             waitUntil: Promise.resolve(),
           }
@@ -669,10 +668,6 @@ export default class Server {
         })
 
         if (!this.renderOpts.dev) {
-          result.promise.catch((error) => {
-            console.error(`Uncaught: middleware error after responding`, error)
-          })
-
           result.waitUntil.catch((error) => {
             console.error(`Uncaught: middleware waitUntil errored`, error)
           })

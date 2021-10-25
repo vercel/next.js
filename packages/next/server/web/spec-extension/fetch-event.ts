@@ -1,3 +1,4 @@
+import { DeprecationError } from '../error'
 import { FetchEvent } from '../spec-compliant/fetch-event'
 import { NextRequest } from './request'
 
@@ -6,5 +7,9 @@ export class NextFetchEvent extends FetchEvent {
   constructor(request: NextRequest) {
     super(request)
     this.request = request
+  }
+
+  respondWith() {
+    throw new DeprecationError()
   }
 }
