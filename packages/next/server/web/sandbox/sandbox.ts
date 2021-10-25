@@ -187,7 +187,7 @@ function getFetchHeaders(middleware: string, init: RequestInit) {
   const prevsub = headers.get(`x-middleware-subrequest`) || ''
   const value = prevsub.split(':').concat(middleware).join(':')
   headers.set(`x-middleware-subrequest`, value)
-  headers.set(`user-agent`, `Next.JS Middleware`)
+  headers.set(`user-agent`, `Next.js Middleware`)
   return headers
 }
 
@@ -195,7 +195,7 @@ function getFetchURL(input: RequestInfo, headers: NodeHeaders = {}): string {
   const initurl = isRequestLike(input) ? input.url : input
   if (initurl.startsWith('/')) {
     const host = headers.host?.toString()
-    const localhost = host === 'localhost' || host?.startsWith('localhost:')
+    const localhost = host === '127.0.0.1' || host === 'localhost' || host?.startsWith('localhost:')
     return `${localhost ? 'http' : 'https'}://${host}${initurl}`
   }
   return initurl
