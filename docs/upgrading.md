@@ -22,6 +22,18 @@ Many of the integrations with external libraries that currently require custom B
 
 In order to prioritize transforms that will help you adopt SWC please provide your `.babelrc` on [the feedback thread](https://github.com/vercel/next.js/discussions/30174).
 
+### SWC replacing Terser for minification
+
+You can opt-in to replacing Terser with SWC for minifying JavaScript up to 7x faster using a flag in next.config.js:
+
+```js
+module.exports = {
+  swcMinify: true,
+}
+```
+
+Minification using SWC is an opt-in flag to ensure it can be tested against more real-world Next.js applications before it becomes the default in Next.js 12.1. If you have feedback about minificiation please leave it on [the feedback thread](https://github.com/vercel/next.js/discussions/30237).
+
 ### `next/image` changed wrapping element
 
 `next/image` now renders inside `<span>` instead of `<div>` based on feedback. If you application has specific styling targeting the `next/image` `<div>` tag make sure to update it to `<span>`.
