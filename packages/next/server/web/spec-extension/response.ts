@@ -18,7 +18,7 @@ export class NextResponse extends Response {
       body = JSON.stringify(body)
       init.headers = {
         ...init.headers,
-        'content-type': 'application/json; charset=UTF-8',
+        'content-type': 'application/json; charset=utf-8',
       }
     }
 
