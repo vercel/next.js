@@ -10,15 +10,14 @@ export async function middleware(request, ev) {
   const encoder = new TextEncoder()
   const next = NextResponse.next()
 
-  // Sends a header
-  if (url.pathname === '/responses/header') {
-    next.headers.set('x-first-header', 'valid')
-    return next
-  }
-
   // Header based on query param
   if (url.searchParams.get('nested-header') === 'true') {
     next.headers.set('x-nested-header', 'valid')
+  }
+
+  // Sends a header
+  if (url.pathname === '/responses/header') {
+    next.headers.set('x-first-header', 'valid')
     return next
   }
 

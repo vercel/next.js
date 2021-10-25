@@ -309,6 +309,15 @@ function responseTests(locale = '') {
     expect($('.title').text()).toBe('Hello World')
   })
 
+  it(`${locale} should respond with 2 nested headers`, async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      `${locale}/responses/header?nested-header=true`
+    )
+    expect(res.headers.get('x-first-header')).toBe('valid')
+    expect(res.headers.get('x-nested-header')).toBe('valid')
+  })
+
   it(`${locale} should respond with a header`, async () => {
     const res = await fetchViaHTTP(
       context.appPort,
