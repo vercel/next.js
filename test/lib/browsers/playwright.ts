@@ -56,7 +56,7 @@ class Playwright extends BrowserInterface {
         `${path
           .relative(path.join(__dirname, '../../'), process.env.TEST_FILE_PATH)
           .replace(/\//g, '-')}`,
-        `playwright-${encodeURIComponent(url)}.zip`
+        `playwright-${encodeURIComponent(url)}-${Date.now()}.zip`
       )
 
       await fs.remove(traceOutputPath)

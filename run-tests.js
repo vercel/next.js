@@ -305,7 +305,9 @@ async function main() {
             path.join(
               __dirname,
               'test/traces',
-              path.relative(__dirname, test).replace(/\//g, '-')
+              path
+                .relative(path.join(__dirname, 'test'), test)
+                .replace(/\//g, '-')
             )
           )
           .catch(() => {})
