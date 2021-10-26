@@ -260,7 +260,7 @@ export const css = curry(async function css(
             include: { and: [/node_modules/] },
             // Global CSS is only supported in the user's application, not in
             // node_modules.
-            issuer: ctx.isCraCompat
+            issuer: ctx.experimental.craCompat
               ? undefined
               : {
                   and: [ctx.rootDirectory],
@@ -309,7 +309,7 @@ export const css = curry(async function css(
   }
 
   // Throw an error for Global CSS used inside of `node_modules`
-  if (!ctx.isCraCompat) {
+  if (!ctx.experimental.craCompat) {
     fns.push(
       loader({
         oneOf: [
@@ -361,15 +361,9 @@ export const css = curry(async function css(
               /\.json$/,
               /\.webpack\[[^\]]+\]$/,
             ],
-            use: {
-              // `file-loader` always emits a URL reference, where `url-loader`
-              // might inline the asset as a data URI
-              loader: require.resolve('next/dist/compiled/file-loader'),
-              options: {
-                // Hash the file for immutable cacheability
-                name: 'static/media/[name].[hash].[ext]',
-              },
-            },
+            // `asset/resource` always emits a URL reference, where `asset`
+            // might inline the asset as a data URI
+            type: 'asset/resource',
           },
         ],
       })

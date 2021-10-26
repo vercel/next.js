@@ -7,6 +7,7 @@ import {
   renderViaHTTP,
   findPort,
   launchApp,
+  nextBuild,
   killApp,
   check,
 } from 'next-test-utils'
@@ -76,6 +77,52 @@ describe('TypeScript Features', () => {
       )
       await fs.writeFile(basicPage, contents)
       expect(found).toBe(true)
+    })
+  })
+
+  describe('should build', () => {
+    beforeAll(async () => {
+      await nextBuild(appDir)
+    })
+    it('should trace correctly', async () => {
+      const singleAliasTrace = await fs.readJSON(
+        join(appDir, '.next/server/pages/single-alias.js.nft.json')
+      )
+      const wildcardAliasTrace = await fs.readJSON(
+        join(appDir, '.next/server/pages/wildcard-alias.js.nft.json')
+      )
+      const resolveOrderTrace = await fs.readJSON(
+        join(appDir, '.next/server/pages/resolve-order.js.nft.json')
+      )
+      const resolveFallbackTrace = await fs.readJSON(
+        join(appDir, '.next/server/pages/resolve-fallback.js.nft.json')
+      )
+      const basicAliasTrace = await fs.readJSON(
+        join(appDir, '.next/server/pages/basic-alias.js.nft.json')
+      )
+      expect(
+        singleAliasTrace.files.some((file) =>
+          file.includes('components/hello.js')
+        )
+      ).toBe(true)
+      expect(
+        wildcardAliasTrace.files.some((file) =>
+          file.includes('mypackage/myfile.js')
+        )
+      ).toBe(true)
+      expect(
+        resolveOrderTrace.files.some((file) => file.includes('lib/a/api.js'))
+      ).toBe(true)
+      expect(
+        resolveFallbackTrace.files.some((file) =>
+          file.includes('lib/b/b-only.js')
+        )
+      ).toBe(true)
+      expect(
+        basicAliasTrace.files.some((file) =>
+          file.includes('components/world.js')
+        )
+      ).toBe(true)
     })
   })
 })

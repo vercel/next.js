@@ -212,7 +212,7 @@ export default class DevServer extends Server {
     }
 
     const regexMiddleware = new RegExp(
-      `/(_middleware.(?:${this.nextConfig.pageExtensions.join('|')}))$`
+      `[\\\\/](_middleware.(?:${this.nextConfig.pageExtensions.join('|')}))$`
     )
 
     const regexPageExtension = new RegExp(
@@ -249,8 +249,7 @@ export default class DevServer extends Server {
 
           if (regexMiddleware.test(fileName)) {
             routedMiddleware.push(
-              `/${relative(pagesDir!, fileName)}`
-                .replace(/\\+/g, '')
+              `/${relative(pagesDir!, fileName).replace(/\\+/g, '/')}`
                 .replace(/^\/+/g, '/')
                 .replace(regexMiddleware, '/')
             )
@@ -476,9 +475,6 @@ export default class DevServer extends Server {
   }): Promise<FetchEventResult | null> {
     try {
       const result = await super.runMiddleware(params)
-      result?.promise.catch((error) =>
-        this.logErrorWithOriginalStack(error, 'unhandledRejection', 'client')
-      )
       result?.waitUntil.catch((error) =>
         this.logErrorWithOriginalStack(error, 'unhandledRejection', 'client')
       )
@@ -780,8 +776,12 @@ export default class DevServer extends Server {
     // from waiting on them for the page to load in dev mode
 
     const __getStaticPaths = async () => {
-      const { publicRuntimeConfig, serverRuntimeConfig, httpAgentOptions } =
-        this.nextConfig
+      const {
+        configFileName,
+        publicRuntimeConfig,
+        serverRuntimeConfig,
+        httpAgentOptions,
+      } = this.nextConfig
       const { locales, defaultLocale } = this.nextConfig.i18n || {}
 
       const paths = await this.staticPathsWorker.loadStaticPaths(
@@ -789,6 +789,7 @@ export default class DevServer extends Server {
         pathname,
         !this.renderOpts.dev && this._isLikeServerless,
         {
+          configFileName,
           publicRuntimeConfig,
           serverRuntimeConfig,
         },

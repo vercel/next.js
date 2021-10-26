@@ -106,6 +106,10 @@
           ]
         },
         {
+          "title": "Middleware",
+          "path": "/docs/middleware.md"
+        },
+        {
           "title": "Going to Production",
           "path": "/docs/going-to-production.md"
         },
@@ -222,6 +226,10 @@
               "path": "/docs/advanced-features/i18n-routing.md"
             },
             {
+              "title": "Output File Tracing",
+              "path": "/docs/advanced-features/output-file-tracing.md"
+            },
+            {
               "title": "Security Headers",
               "path": "/docs/advanced-features/security-headers.md"
             }
@@ -283,6 +291,14 @@
         {
           "title": "next/amp",
           "path": "/docs/api-reference/next/amp.md"
+        },
+        {
+          "title": "next/server",
+          "path": "/docs/api-reference/next/server.md"
+        },
+        {
+          "title": "Edge Runtime",
+          "path": "/docs/api-reference/edge-runtime.md"
         },
         {
           "title": "Data Fetching",

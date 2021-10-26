@@ -745,14 +745,20 @@ export async function renderToHTML(
 
     let canAccessRes = true
     let resOrProxy = res
+    let deferredContent = false
     if (process.env.NODE_ENV !== 'production') {
       resOrProxy = new Proxy<ServerResponse>(res, {
         get: function (obj, prop, receiver) {
           if (!canAccessRes) {
-            throw new Error(
+            const message =
               `You should not access 'res' after getServerSideProps resolves.` +
-                `\nRead more: https://nextjs.org/docs/messages/gssp-no-mutating-res`
-            )
+              `\nRead more: https://nextjs.org/docs/messages/gssp-no-mutating-res`
+
+            if (deferredContent) {
+              throw new Error(message)
+            } else {
+              warn(message)
+            }
           }
           return Reflect.get(obj, prop, receiver)
         },
@@ -790,6 +796,10 @@ export async function renderToHTML(
 
     if (data == null) {
       throw new Error(GSSP_NO_RETURNED_VALUE)
+    }
+
+    if ((data as any).props instanceof Promise) {
+      deferredContent = true
     }
 
     const invalidKeys = Object.keys(data).filter(
@@ -834,7 +844,7 @@ export async function renderToHTML(
       ;(renderOpts as any).isRedirect = true
     }
 
-    if ((data as any).props instanceof Promise) {
+    if (deferredContent) {
       ;(data as any).props = await (data as any).props
     }
 

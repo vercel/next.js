@@ -62,6 +62,10 @@ function requestify(url, rootContext) {
     return fileURLToPath(url)
   }
 
+  if (/^[a-z][a-z0-9+.-]*:/i.test(url)) {
+    return url
+  }
+
   return url.charAt(0) === '/'
     ? urlToRequest(url, rootContext)
     : urlToRequest(url)
@@ -602,8 +606,8 @@ function isUrlRequestable(url) {
   }
 
   // Absolute URLs
-  if (/^[a-z][a-z0-9+.-]*:/i.test(url) && !matchNativeWin32Path.test(url)) {
-    return false
+  if (/^[a-z][a-z0-9+.-]*:/i.test(url)) {
+    return true
   }
 
   // `#` URLs
