@@ -1357,7 +1357,6 @@ export default async function build(
       (page) =>
         mappedPages[page] && mappedPages[page].startsWith('private-next-pages')
     )
-
     usedStaticStatusPages.forEach((page) => {
       if (!ssgPages.has(page) && !customAppGetInitialProps) {
         staticPages.add(page)

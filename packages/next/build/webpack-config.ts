@@ -323,15 +323,20 @@ export default async function getBaseWebpackConfig(
 
   const distDir = path.join(dir, config.distDir)
 
-  const useSWCLoader = !babelConfigFile && !hasConcurrentFeatures
-  if (!loggedSwcDisabled && !useSWCLoader && babelConfigFile) {
-    Log.warn(
-      `Disabled SWC because of custom Babel configuration "${path.relative(
-        dir,
-        babelConfigFile
-      )}" https://nextjs.org/docs/messages/swc-disabled`
-    )
-    loggedSwcDisabled = true
+  let useSWCLoader = !babelConfigFile && !hasConcurrentFeatures
+
+  if (!loggedSwcDisabled && !useSWCLoader) {
+    if (babelConfigFile && hasConcurrentFeatures) {
+      Log.warn(
+        `Disabled SWC because of custom Babel configuration "${path.relative(
+          dir,
+          babelConfigFile
+        )}" https://nextjs.org/docs/messages/swc-disabled`
+      )
+      loggedSwcDisabled = true
+    } else if (hasConcurrentFeatures) {
+      Log.warn(`Disable SWC because of currentFeatures is enabled`)
+    }
   }
 
   const getBabelOrSwcLoader = (isMiddleware: boolean) => {
@@ -984,7 +989,7 @@ export default async function getBaseWebpackConfig(
             }
           : undefined
         : { name: CLIENT_STATIC_FILES_RUNTIME_WEBPACK },
-      minimize: !(dev || !targetWeb),
+      minimize: !dev && targetWeb,
       minimizer: [
         // Minify JavaScript
         (compiler: webpack.Compiler) => {

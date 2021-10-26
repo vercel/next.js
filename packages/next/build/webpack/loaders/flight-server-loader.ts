@@ -64,6 +64,8 @@ async function parseImportsInfo(
         lastIndex = node.source.end
         imports.push(`require('${importSource}')`)
         continue
+      default:
+        break
     }
   }
 

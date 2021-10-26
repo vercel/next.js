@@ -18,21 +18,10 @@ type ResolveFunction = (
   resolve: ResolveFunction
 ) => { url: string } | Promise<{ url: string }>
 
-type GetSourceContext = {
-  format: string
-}
-
-type GetSourceFunction = (
-  url: string,
-  context: GetSourceContext,
-  getSource: GetSourceFunction
-) => Promise<{ source: Source }>
-
 type TransformSourceFunction = (url: string, callback: () => void) => void
 
 type Source = string | ArrayBuffer | Uint8Array
 
-let stashedGetSource: null | GetSourceFunction = null
 let stashedResolve: null | ResolveFunction = null
 
 function addExportNames(names: string[], node: any) {
@@ -132,6 +121,8 @@ async function parseExportNamesInto(
           }
         }
         continue
+      default:
+        return
     }
   }
 }

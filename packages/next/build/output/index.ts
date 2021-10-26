@@ -102,6 +102,7 @@ const buildStore = createStore<BuildStatusStore>()
 let buildWasDone = false
 let clientWasLoading = true
 let serverWasLoading = true
+let serverWebWasLoading = false
 
 buildStore.subscribe((state) => {
   const { amp, client, server, serverWeb, trigger } = state
@@ -111,7 +112,7 @@ buildStore.subscribe((state) => {
     return
   }
 
-  if (client.loading || server.loading) {
+  if (client.loading || server.loading || serverWeb?.loading) {
     consoleStore.setState(
       {
         bootstrap: false,
@@ -123,6 +124,8 @@ buildStore.subscribe((state) => {
     )
     clientWasLoading = (!buildWasDone && clientWasLoading) || client.loading
     serverWasLoading = (!buildWasDone && serverWasLoading) || server.loading
+    serverWebWasLoading =
+      (!buildWasDone && serverWasLoading) || !!serverWeb?.loading
     buildWasDone = false
     return
   }
@@ -136,14 +139,17 @@ buildStore.subscribe((state) => {
     loading: false,
     typeChecking: false,
     partial:
-      clientWasLoading && !serverWasLoading
+      clientWasLoading && !serverWasLoading && !serverWebWasLoading
         ? 'client'
-        : serverWasLoading && !clientWasLoading
+        : serverWasLoading && !clientWasLoading && !serverWebWasLoading
         ? 'server'
+        : serverWebWasLoading && !clientWasLoading && !serverWasLoading
+        ? 'serverWeb'
         : undefined,
     modules:
       (clientWasLoading ? client.modules : 0) +
-      (serverWasLoading ? server.modules : 0),
+      (serverWasLoading ? server.modules : 0) +
+      (serverWebWasLoading ? serverWeb?.modules || 0 : 0),
   }
   if (client.errors) {
     // Show only client errors
@@ -175,8 +181,7 @@ buildStore.subscribe((state) => {
       } as OutputState,
       true
     )
-  }
-  {
+  } else {
     // Show warnings from all of them
     const warnings = [
       ...(client.warnings || []),
@@ -301,6 +306,7 @@ export function watchCompilers(
     tapCompiler('serverWeb', serverWeb, (status) => {
       buildStore.setState({
         serverWeb: status,
+        trigger: undefined,
       })
     })
   }
