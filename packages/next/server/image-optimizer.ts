@@ -61,7 +61,7 @@ export async function imageOptimizer(
     domains = [],
     loader,
     minimumCacheTTL = 60,
-    formats = ['image/avif', 'image/webp'],
+    formats = ['image/webp'],
   } = imageData
 
   if (loader !== 'default') {
@@ -137,7 +137,7 @@ export async function imageOptimizer(
 
   // Should match output from next-image-loader
   const isStatic = url.startsWith(
-    `${nextConfig.basePath || ''}/_next/static/image`
+    `${nextConfig.basePath || ''}/_next/static/media`
   )
 
   const width = parseInt(w, 10)

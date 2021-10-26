@@ -1,11 +1,11 @@
 import { EventEmitter } from 'events'
 import { join, posix } from 'path'
-import { webpack } from 'next/dist/compiled/webpack/webpack'
+import type { webpack5 as webpack } from 'next/dist/compiled/webpack/webpack'
 import { normalizePagePath, normalizePathSep } from '../normalize-page-path'
 import { pageNotFoundError } from '../require'
 import { findPageFile } from '../lib/find-page-file'
 import getRouteFromEntrypoint from '../get-route-from-entrypoint'
-import { API_ROUTE } from '../../lib/constants'
+import { API_ROUTE, MIDDLEWARE_ROUTE } from '../../lib/constants'
 import { reportTrigger } from '../../build/output'
 import type ws from 'ws'
 
@@ -47,7 +47,7 @@ export default function onDemandEntryHandler(
   for (const compiler of compilers) {
     compiler.hooks.make.tap(
       'NextJsOnDemandEntries',
-      (_compilation: webpack.compilation.Compilation) => {
+      (_compilation: webpack.Compilation) => {
         invalidator.startBuilding()
       }
     )
@@ -170,30 +170,35 @@ export default function onDemandEntryHandler(
         throw pageNotFoundError(normalizedPagePath)
       }
 
-      let pageUrl = pagePath.replace(/\\/g, '/')
+      let bundlePath: string
+      let absolutePagePath: string
+      if (pagePath.startsWith('next/dist/pages/')) {
+        bundlePath = page
+        absolutePagePath = require.resolve(pagePath)
+      } else {
+        let pageUrl = pagePath.replace(/\\/g, '/')
 
-      pageUrl = `${pageUrl[0] !== '/' ? '/' : ''}${pageUrl
-        .replace(new RegExp(`\\.+(?:${pageExtensions.join('|')})$`), '')
-        .replace(/\/index$/, '')}`
+        pageUrl = `${pageUrl[0] !== '/' ? '/' : ''}${pageUrl
+          .replace(new RegExp(`\\.+(?:${pageExtensions.join('|')})$`), '')
+          .replace(/\/index$/, '')}`
 
-      pageUrl = pageUrl === '' ? '/' : pageUrl
+        pageUrl = pageUrl === '' ? '/' : pageUrl
+        const bundleFile = normalizePagePath(pageUrl)
+        bundlePath = posix.join('pages', bundleFile)
+        absolutePagePath = join(pagesDir, pagePath)
+        page = posix.normalize(pageUrl)
+      }
 
-      const bundleFile = normalizePagePath(pageUrl)
-      const bundlePath = posix.join('pages', bundleFile)
-      const absolutePagePath = pagePath.startsWith('next/dist/pages')
-        ? require.resolve(pagePath)
-        : join(pagesDir, pagePath)
-
-      page = posix.normalize(pageUrl)
       const normalizedPage = normalizePathSep(page)
 
-      const isApiRoute = normalizedPage.match(API_ROUTE)
+      const isMiddleware = normalizedPage.match(MIDDLEWARE_ROUTE)
+      const isApiRoute = normalizedPage.match(API_ROUTE) && !isMiddleware
 
       let entriesChanged = false
       const addPageEntry = (type: 'client' | 'server') => {
         return new Promise<void>((resolve, reject) => {
           // Makes sure the page that is being kept in on-demand-entries matches the webpack output
-          const pageKey = `${type}${normalizedPage}`
+          const pageKey = `${type}${page}`
           const entryInfo = entries[pageKey]
 
           if (entryInfo) {
@@ -228,7 +233,7 @@ export default function onDemandEntryHandler(
 
       const promise = isApiRoute
         ? addPageEntry('server')
-        : clientOnly
+        : clientOnly || isMiddleware
         ? addPageEntry('client')
         : Promise.all([addPageEntry('client'), addPageEntry('server')])
 
@@ -236,7 +241,7 @@ export default function onDemandEntryHandler(
         reportTrigger(
           isApiRoute
             ? `${normalizedPage} (server only)`
-            : clientOnly
+            : clientOnly || isMiddleware
             ? `${normalizedPage} (client only)`
             : normalizedPage
         )

@@ -222,6 +222,10 @@
               "path": "/docs/advanced-features/i18n-routing.md"
             },
             {
+              "title": "Output File Tracing",
+              "path": "/docs/advanced-features/output-file-tracing.md"
+            },
+            {
               "title": "Security Headers",
               "path": "/docs/advanced-features/security-headers.md"
             }
@@ -387,6 +391,10 @@
             {
               "title": "React Strict Mode",
               "path": "/docs/api-reference/next.config.js/react-strict-mode.md"
+            },
+            {
+              "title": "URL Imports",
+              "path": "/docs/api-reference/next.config.js/url-imports.md"
             }
           ]
         }

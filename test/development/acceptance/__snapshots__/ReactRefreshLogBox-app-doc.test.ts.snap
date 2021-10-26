@@ -1,27 +1,33 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`ReactRefreshLogBox _app syntax error shows logbox 1`] = `
-"./pages/_app.js:3:22
-Syntax error: Unexpected token
+"./pages/_app.js
+Error: error: Expression expected
+ 
+  |
+3 |               return <<Component {...pageProps} />;
+  |                       ^
 
-  1 |
-  2 |             function MyApp({ Component, pageProps }) {
-> 3 |               return <<Component {...pageProps} />;
-    |                       ^
-  4 |             }
-  5 |             export default MyApp
-  6 |"
+error: Unexpected token \`jsx name (Component)\`. Expected this, import, async, function, [ for array literal, { for object literal, @ for decorator, function, class, null, true, false, number, bigint, string, regexp, \` for template literal, (, or an identifier
+ 
+  |
+3 |               return <<Component {...pageProps} />;
+  |                        ^^^^^^^^^
+
+Caused by:
+    0: failed to process js file
+    1: Syntax Error"
 `;
 
 exports[`ReactRefreshLogBox _document syntax error shows logbox 1`] = `
-"./pages/_document.js:4:47
-Syntax error: Unexpected token
+"./pages/_document.js
+Error: error: Unexpected token \`{\`. Expected identifier, string literal, numeric literal or [ for the computed key
+ 
+  |
+4 |             class MyDocument extends Document {{
+  |                                                ^
 
-  2 |             import Document, { Html, Head, Main, NextScript } from 'next/document'
-  3 |
-> 4 |             class MyDocument extends Document {{
-    |                                                ^
-  5 |               static async getInitialProps(ctx) {
-  6 |                 const initialProps = await Document.getInitialProps(ctx)
-  7 |                 return { ...initialProps }"
+Caused by:
+    0: failed to process js file
+    1: Syntax Error"
 `;

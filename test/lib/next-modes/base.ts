@@ -160,6 +160,25 @@ export class NextInstance {
     this.emit('destroy', [])
     await this.stop()
 
+    if (process.env.TRACE_PLAYWRIGHT) {
+      await fs
+        .copy(
+          path.join(this.testDir, '.next/trace'),
+          path.join(
+            __dirname,
+            '../../traces',
+            `${path
+              .relative(
+                path.join(__dirname, '../../'),
+                process.env.TEST_FILE_PATH
+              )
+              .replace(/\//g, '-')}`,
+            `next-trace`
+          )
+        )
+        .catch(() => {})
+    }
+
     if (!process.env.NEXT_TEST_SKIP_CLEANUP) {
       await fs.remove(this.testDir)
     }

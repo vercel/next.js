@@ -67,7 +67,7 @@ export const Test4 = ({ color  })=><div className={`jsx-${styles.__hash}` + " js
 
     <_JSXStyle id={"ceba8c9ce34e3d0c"}>{"p.jsx-ceba8c9ce34e3d0c {display:inline-block}"}</_JSXStyle>
 
-    <_JSXStyle id={"5cadd6714ea141b4"} dynamic={[
+    <_JSXStyle id={"8f336bc49da94d3f"} dynamic={[
         color
     ]}>{`p.__jsx-style-dynamic-selector {color:${color}}`}</_JSXStyle>
 
@@ -105,7 +105,7 @@ export const Test6 = ({ color  })=><div className={"jsx-ceba8c9ce34e3d0c " + _JS
 
     <_JSXStyle id={"ceba8c9ce34e3d0c"}>{"p.jsx-ceba8c9ce34e3d0c {display:inline-block}"}</_JSXStyle>
 
-    <_JSXStyle id={"5cadd6714ea141b4"} dynamic={[
+    <_JSXStyle id={"8f336bc49da94d3f"} dynamic={[
         color
     ]}>{`p.__jsx-style-dynamic-selector {color:${color}}`}</_JSXStyle>
 

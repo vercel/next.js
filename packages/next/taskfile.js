@@ -248,20 +248,7 @@ export async function ncc_escape_string_regexp(task, opts) {
     .ncc({ packageName: 'escape-string-regexp', externals })
     .target('compiled/escape-string-regexp')
 }
-// eslint-disable-next-line camelcase
-externals['file-loader'] = 'next/dist/compiled/file-loader'
-export async function ncc_file_loader(task, opts) {
-  await task
-    .source(opts.src || relative(__dirname, require.resolve('file-loader')))
-    .ncc({
-      packageName: 'file-loader',
-      externals: {
-        ...externals,
-        'schema-utils': externals['schema-utils2'],
-      },
-    })
-    .target('compiled/file-loader')
-}
+
 // eslint-disable-next-line camelcase
 externals['find-cache-dir'] = 'next/dist/compiled/find-cache-dir'
 export async function ncc_find_cache_dir(task, opts) {
@@ -724,6 +711,16 @@ export async function ncc_webpack_sources3(task, opts) {
     .ncc({ packageName: 'webpack-sources3', externals, target: 'es5' })
     .target('compiled/webpack-sources3')
 }
+
+// eslint-disable-next-line camelcase
+externals['micromatch'] = 'next/dist/compiled/micromatch'
+export async function ncc_minimatch(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('micromatch')))
+    .ncc({ packageName: 'micromatch', externals })
+    .target('compiled/micromatch')
+}
+
 // eslint-disable-next-line camelcase
 externals['mini-css-extract-plugin'] =
   'next/dist/compiled/mini-css-extract-plugin'
@@ -758,6 +755,51 @@ export async function ncc_mini_css_extract_plugin(task, opts) {
       },
     })
     .target('compiled/mini-css-extract-plugin')
+}
+// eslint-disable-next-line camelcase
+externals['web-streams-polyfill'] = 'next/dist/compiled/web-streams-polyfill'
+export async function ncc_web_streams_polyfill(task, opts) {
+  await task
+    .source(
+      opts.src ||
+        relative(__dirname, require.resolve('web-streams-polyfill/ponyfill'))
+    )
+    .ncc({ packageName: 'web-streams-polyfill', externals })
+    .target('compiled/web-streams-polyfill')
+}
+// eslint-disable-next-line camelcase
+externals['formdata-node'] = 'next/dist/compiled/formdata-node'
+export async function ncc_formdata_node(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('formdata-node')))
+    .ncc({ packageName: 'formdata-node', externals })
+    .target('compiled/formdata-node')
+}
+// eslint-disable-next-line camelcase
+externals['ua-parser-js'] = 'next/dist/compiled/ua-parser-js'
+export async function ncc_ua_parser_js(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('ua-parser-js')))
+    .ncc({ packageName: 'ua-parser-js', externals })
+    .target('compiled/ua-parser-js')
+}
+// eslint-disable-next-line camelcase
+externals['@peculiar/webcrypto'] = 'next/dist/compiled/@peculiar/webcrypto'
+export async function ncc_webcrypto(task, opts) {
+  await task
+    .source(
+      opts.src || relative(__dirname, require.resolve('@peculiar/webcrypto'))
+    )
+    .ncc({ packageName: '@peculiar/webcrypto', externals })
+    .target('compiled/@peculiar/webcrypto')
+}
+// eslint-disable-next-line camelcase
+externals['uuid'] = 'next/dist/compiled/uuid'
+export async function ncc_uuid(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('uuid')))
+    .ncc({ packageName: 'uuid', externals })
+    .target('compiled/uuid')
 }
 
 // eslint-disable-next-line camelcase
@@ -851,7 +893,6 @@ export async function ncc(task, opts) {
         'ncc_debug',
         'ncc_devalue',
         'ncc_escape_string_regexp',
-        'ncc_file_loader',
         'ncc_find_cache_dir',
         'ncc_find_up',
         'ncc_fresh',
@@ -901,6 +942,12 @@ export async function ncc(task, opts) {
         'ncc_webpack_sources1',
         'ncc_webpack_sources3',
         'ncc_ws',
+        'ncc_ua_parser_js',
+        'ncc_webcrypto',
+        'ncc_uuid',
+        'ncc_formdata_node',
+        'ncc_web_streams_polyfill',
+        'ncc_minimatch',
         'ncc_mini_css_extract_plugin',
       ],
       opts
