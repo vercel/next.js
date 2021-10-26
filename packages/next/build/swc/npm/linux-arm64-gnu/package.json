@@ -2,7 +2,7 @@
   "name": "@next/swc-linux-arm64-gnu",
   "version": "0.0.0",
   "os": [
-    "darwin"
+    "linux"
   ],
   "cpu": [
     "arm64"
