@@ -549,8 +549,7 @@ export default async function build(
           path.relative(distDir, manifestPath),
           BUILD_MANIFEST,
           PRERENDER_MANIFEST,
-          config.experimental.concurrentFeatures &&
-          config.experimental.serverComponents
+          hasServerComponents
             ? path.join(SERVER_DIRECTORY, MIDDLEWARE_FLIGHT_MANIFEST + '.js')
             : null,
           REACT_LOADABLE_MANIFEST,
