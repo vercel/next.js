@@ -329,11 +329,11 @@ function responseTests(locale = '') {
   it(`${locale} should respond with top level headers and override with deep headers`, async () => {
     const res = await fetchViaHTTP(
       context.appPort,
-      `${locale}/responses/deep?nested-header=true&override-me=true`
+      `${locale}/responses/deep?nested-header=true&append-me=true`
     )
     expect(res.headers.get('x-nested-header')).toBe('valid')
     expect(res.headers.get('x-deep-header')).toBe('valid')
-    expect(res.headers.get('x-override-me')).toBe('deep')
+    expect(res.headers.get('x-append-me')).toBe('top, deep')
   })
 }
 

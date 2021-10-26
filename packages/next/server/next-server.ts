@@ -668,7 +668,7 @@ export default class Server {
         })
 
         for (let [key, value] of result.response.headers) {
-          allHeaders.set(key, value)
+          allHeaders.append(key, value)
         }
 
         if (!this.renderOpts.dev) {

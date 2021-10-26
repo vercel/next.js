@@ -15,9 +15,9 @@ export async function middleware(request, ev) {
     next.headers.set('x-nested-header', 'valid')
   }
 
-  // Ensure deep can override top header
-  if (url.searchParams.get('override-me') === 'true') {
-    next.headers.set('x-override-me', 'top')
+  // Ensure deep can append to this value
+  if (url.searchParams.get('append-me') === 'true') {
+    next.headers.append('x-append-me', 'top')
   }
 
   // Sends a header
