@@ -364,7 +364,7 @@ export default class Server {
     const url = parseNextUrl({
       headers: req.headers,
       nextConfig: this.nextConfig,
-      url: req.url,
+      url: req.url?.replace(/^\/+/, '/'),
     })
 
     if (url.basePath) {
@@ -670,6 +670,7 @@ export default class Server {
             url: (params.request as any).__NEXT_INIT_URL,
             page: page,
           },
+          ssr: !!this.nextConfig.concurrentFeatures,
         })
 
         for (let [key, value] of result.response.headers) {
@@ -1141,13 +1142,13 @@ export default class Server {
               parsed: parsed,
             })
           } catch (err) {
-            const error = isError(err) ? err : new Error(err + '')
-            console.error(error)
             if (isError(err) && err.code === 'ENOENT') {
               await this.render404(req, res, parsed)
               return { finished: true }
             }
 
+            const error = isError(err) ? err : new Error(err + '')
+            console.error(error)
             res.statusCode = 500
             this.renderError(error, req, res, parsed.pathname || '')
             return { finished: true }
@@ -1723,7 +1724,7 @@ export default class Server {
           },
         }
       } catch (err) {
-        // if (isError(err) && err.code !== 'ENOENT') throw err
+        if (isError(err) && err.code !== 'ENOENT') throw err
       }
     }
     return null
@@ -2370,12 +2371,6 @@ export default class Server {
       }
 
       try {
-        if (!result) {
-          return {
-            type: 'html',
-            body: RenderResult.fromStatic('Internal Server Error'),
-          }
-        }
         return await this.renderToResponseWithComponents(
           {
             ...ctx,

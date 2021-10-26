@@ -304,7 +304,7 @@ export class TerserPlugin {
       if (
         compilation.name !== 'client' &&
         compilation.name !== 'server' &&
-        compilation.name !== 'flight'
+        compilation.name !== 'server-web'
       ) {
         return
       }

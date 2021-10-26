@@ -645,7 +645,7 @@ function createResponseCache() {
   return new Map<string, any>()
 }
 
-// FIXME: Use unstable_getCacheForType in experimental version of React
+// FIXME: Use unstable_getCacheForType in experimental version of React.
 const rscCache = createResponseCache()
 
 const RSCWrapper = ({

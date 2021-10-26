@@ -35,6 +35,7 @@ export async function run(params: {
   name: string
   paths: string[]
   request: RequestData
+  ssr: boolean
 }): Promise<FetchEventResult> {
   if (cache === undefined) {
     const context: { [key: string]: any } = {
@@ -126,17 +127,19 @@ export async function run(params: {
   }
 
   const entryPoint = cache.context._ENTRIES[`middleware_${params.name}`]
-  const rscManifest = cache.context._ENTRIES._middleware_rsc_manifest
 
-  if (rscManifest && entryPoint) {
+  if (params.ssr) {
+    const rscManifest = cache.context._ENTRIES._middleware_rsc_manifest
     cache = undefined
-    return entryPoint.default({
-      request: params.request,
-      rscManifest,
-    })
+
+    if (rscManifest && entryPoint) {
+      return entryPoint.default({
+        request: params.request,
+        rscManifest,
+      })
+    }
   }
 
-  cache = undefined
   return entryPoint.default({ request: params.request })
 }
 

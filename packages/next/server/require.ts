@@ -64,7 +64,7 @@ export function requirePage(
   distDir: string,
   serverless: boolean
 ): any {
-  const pagePath = getPagePath(page, distDir, serverless, undefined, undefined)
+  const pagePath = getPagePath(page, distDir, serverless)
   if (pagePath.endsWith('.html')) {
     return promises.readFile(pagePath, 'utf8')
   }

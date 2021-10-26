@@ -79,7 +79,6 @@ export default function middlewareRSCLoader(this: any) {
         ${
           isServerComponent
             ? `
-        // FIXME: pass router
         const renderFlight = props => renderToReadableStream(createElement(Page, props), rscManifest)
 
         let responseCache
@@ -138,7 +137,7 @@ export default function middlewareRSCLoader(this: any) {
           const renderOpts = {
             Component,
             pageConfig: config || {},
-            // FIXME: locales are not supported yet.
+            // Locales are not supported yet.
             // locales: i18n?.locales,
             // locale: detectedLocale,
             // defaultLocale,

@@ -1504,7 +1504,7 @@ export default class Router implements BaseRouter {
         })
       }
 
-      let props = await this._getData<CompletePrivateRouteInfo>(() =>
+      const props = await this._getData<CompletePrivateRouteInfo>(() =>
         __N_SSG || __N_SSP
           ? fetchNextData(
               dataHref!,
