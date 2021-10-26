@@ -1307,7 +1307,14 @@ export default async function getBaseWebpackConfig(
             minimized: true,
           },
         }),
-      !dev && !isServer && new TelemetryPlugin(),
+      !dev &&
+        !isServer &&
+        new TelemetryPlugin(
+          new Map([
+            ['swcLoader', useSWCLoader],
+            ['swcMinify', config.swcMinify],
+          ])
+        ),
     ].filter(Boolean as any as ExcludesFalse),
   }
 
