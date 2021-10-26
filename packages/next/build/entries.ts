@@ -283,8 +283,7 @@ export function finalizeEntrypoint({
     name !== 'polyfills' &&
     name !== 'main' &&
     name !== 'amp' &&
-    name !== 'react-refresh' &&
-    !isMiddleware
+    name !== 'react-refresh'
   ) {
     return {
       dependOn:

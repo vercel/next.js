@@ -1940,8 +1940,8 @@ export default class Router implements BaseRouter {
         }
 
         return {
+          redirect: res.headers.get('Location'),
           refresh: res.headers.has('x-middleware-refresh'),
-          redirect: res.headers.get('x-middleware-redirect'),
           rewrite: res.headers.get('x-middleware-rewrite'),
           ssr: !!res.headers.get('x-middleware-ssr'),
         }
