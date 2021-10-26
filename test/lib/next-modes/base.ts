@@ -54,7 +54,10 @@ export class NextInstance {
     const tmpDir = skipIsolatedNext
       ? path.join(__dirname, '../../tmp')
       : process.env.NEXT_TEST_DIR || (await fs.realpath(os.tmpdir()))
-    this.testDir = path.join(tmpDir, `next-test-${Date.now()}`)
+    this.testDir = path.join(
+      tmpDir,
+      `next-test-${Date.now()}-${(Math.random() * 1000) | 0}`
+    )
 
     if (process.env.NEXT_TEST_STARTER && !this.dependencies) {
       await fs.copy(process.env.NEXT_TEST_STARTER, this.testDir)
@@ -156,6 +159,25 @@ export class NextInstance {
     this.isDestroyed = true
     this.emit('destroy', [])
     await this.stop()
+
+    if (process.env.TRACE_PLAYWRIGHT) {
+      await fs
+        .copy(
+          path.join(this.testDir, '.next/trace'),
+          path.join(
+            __dirname,
+            '../../traces',
+            `${path
+              .relative(
+                path.join(__dirname, '../../'),
+                process.env.TEST_FILE_PATH
+              )
+              .replace(/\//g, '-')}`,
+            `next-trace`
+          )
+        )
+        .catch(() => {})
+    }
 
     if (!process.env.NEXT_TEST_SKIP_CLEANUP) {
       await fs.remove(this.testDir)

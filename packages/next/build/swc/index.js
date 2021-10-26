@@ -1,5 +1,6 @@
 const { loadBinding } = require('@node-rs/helper')
 const path = require('path')
+const Log = require('../output/log')
 
 /**
  * __dirname means load native addon from current dir
@@ -9,11 +10,24 @@ const path = require('path')
  * `loadBinding` helper will load `next-swc.[PLATFORM].node` from `__dirname` first
  * If failed to load addon, it will fallback to load from `next-swc-[PLATFORM]`
  */
-const bindings = loadBinding(
-  path.join(__dirname, '../../../native'),
-  'next-swc',
-  '@next/swc'
-)
+let bindings
+
+try {
+  bindings = loadBinding(
+    path.join(__dirname, '../../../native'),
+    'next-swc',
+    '@next/swc'
+  )
+} catch (err) {
+  // only log the original error message as the stack is not
+  // helpful to the user
+  console.error(err.message)
+
+  Log.error(
+    `failed to load SWC binary, see more info here: https://nextjs.org/docs/messages/failed-loading-swc`
+  )
+  process.exit(1)
+}
 
 async function transform(src, options) {
   const isModule = typeof src !== 'string'
@@ -23,20 +37,10 @@ async function transform(src, options) {
     options.jsc.parser.syntax = options.jsc.parser.syntax ?? 'ecmascript'
   }
 
-  const { plugin, ...newOptions } = options
-
-  if (plugin) {
-    const m =
-      typeof src === 'string'
-        ? await this.parse(src, options?.jsc?.parser)
-        : src
-    return this.transform(plugin(m), newOptions)
-  }
-
   return bindings.transform(
     isModule ? JSON.stringify(src) : src,
     isModule,
-    toBuffer(newOptions)
+    toBuffer(options)
   )
 }
 
@@ -48,18 +52,10 @@ function transformSync(src, options) {
     options.jsc.parser.syntax = options.jsc.parser.syntax ?? 'ecmascript'
   }
 
-  const { plugin, ...newOptions } = options
-
-  if (plugin) {
-    const m =
-      typeof src === 'string' ? this.parseSync(src, options?.jsc?.parser) : src
-    return this.transformSync(plugin(m), newOptions)
-  }
-
   return bindings.transformSync(
     isModule ? JSON.stringify(src) : src,
     isModule,
-    toBuffer(newOptions)
+    toBuffer(options)
   )
 }
 

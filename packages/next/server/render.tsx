@@ -745,14 +745,20 @@ export async function renderToHTML(
 
     let canAccessRes = true
     let resOrProxy = res
+    let deferredContent = false
     if (process.env.NODE_ENV !== 'production') {
       resOrProxy = new Proxy<ServerResponse>(res, {
         get: function (obj, prop, receiver) {
           if (!canAccessRes) {
-            throw new Error(
+            const message =
               `You should not access 'res' after getServerSideProps resolves.` +
-                `\nRead more: https://nextjs.org/docs/messages/gssp-no-mutating-res`
-            )
+              `\nRead more: https://nextjs.org/docs/messages/gssp-no-mutating-res`
+
+            if (deferredContent) {
+              throw new Error(message)
+            } else {
+              warn(message)
+            }
           }
           return Reflect.get(obj, prop, receiver)
         },
@@ -790,6 +796,10 @@ export async function renderToHTML(
 
     if (data == null) {
       throw new Error(GSSP_NO_RETURNED_VALUE)
+    }
+
+    if ((data as any).props instanceof Promise) {
+      deferredContent = true
     }
 
     const invalidKeys = Object.keys(data).filter(
@@ -834,7 +844,7 @@ export async function renderToHTML(
       ;(renderOpts as any).isRedirect = true
     }
 
-    if ((data as any).props instanceof Promise) {
+    if (deferredContent) {
       ;(data as any).props = await (data as any).props
     }
 
@@ -1085,6 +1095,7 @@ export async function renderToHTML(
     head: documentResult.head,
     headTags: documentResult.headTags,
     styles: documentResult.styles,
+    useMaybeDeferContent,
   }
   const documentHTML = ReactDOMServer.renderToStaticMarkup(
     <AmpStateContext.Provider value={ampState}>
@@ -1196,9 +1207,13 @@ export async function renderToHTML(
   return new RenderResult(chainPipers(pipers))
 }
 
-function errorToJSON(err: Error): Error {
-  const { name, message, stack } = err
-  return { name, message, stack }
+function errorToJSON(err: Error) {
+  return {
+    name: err.name,
+    message: err.message,
+    stack: err.stack,
+    middleware: (err as any).middleware,
+  }
 }
 
 function serializeError(
@@ -1276,7 +1291,7 @@ function renderToStream(
     })
 
     let resolved = false
-    const doResolve = () => {
+    const doResolve = (startWriting: any) => {
       if (!resolved) {
         resolved = true
         resolve((res, next) => {
@@ -1300,9 +1315,8 @@ function renderToStream(
       }
     }
 
-    const { abort, startWriting } = (ReactDOMServer as any).pipeToNodeWritable(
+    const { abort, pipe } = (ReactDOMServer as any).renderToPipeableStream(
       element,
-      stream,
       {
         onError(error: Error) {
           if (!resolved) {
@@ -1313,11 +1327,11 @@ function renderToStream(
         },
         onCompleteShell() {
           if (!generateStaticHTML) {
-            doResolve()
+            doResolve(() => pipe(stream))
           }
         },
         onCompleteAll() {
-          doResolve()
+          doResolve(() => pipe(stream))
         },
       }
     )
@@ -1366,4 +1380,11 @@ function piperToString(input: NodeWritablePiper): Promise<string> {
       }
     })
   })
+}
+
+export function useMaybeDeferContent(
+  _name: string,
+  contentFn: () => JSX.Element
+): [boolean, JSX.Element] {
+  return [false, contentFn()]
 }
