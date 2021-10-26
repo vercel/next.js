@@ -1138,7 +1138,7 @@ export default async function getBaseWebpackConfig(
               },
               {
                 test: (name: string) =>
-                  /next[\\/](dist[\\/]client[\\/])?(link|image)$/.test(name) ||
+                  /next[\\/](dist[\\/]client[\\/])?(link|image)/.test(name) ||
                   clientComponentsRegex.test(name),
                 use: {
                   loader: 'flight-client-loader',

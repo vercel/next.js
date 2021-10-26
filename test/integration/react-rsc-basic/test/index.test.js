@@ -4,22 +4,18 @@ import { join } from 'path'
 import fs from 'fs-extra'
 
 import {
-  // File,
   findPort,
   killApp,
   launchApp,
   nextBuild as _nextBuild,
   nextStart as _nextStart,
   renderViaHTTP,
-  // fetchViaHTTP,
   nextStart,
 } from 'next-test-utils'
 
-// overrides react and react-dom to v18
 const nodeArgs = ['-r', join(__dirname, '../../react-18/test/require-hook.js')]
 const appDir = join(__dirname, '../app')
 const distDir = join(__dirname, '../app/.next')
-// const nextConfig = new File(join(appDir, 'next.config.js'))
 
 async function nextBuild(dir) {
   return await _nextBuild(dir, [], {
@@ -48,8 +44,8 @@ async function nextDev(dir, port) {
 describe('RSC basic', () => {
   const context = { appDir }
   it('should warn user for experimental risk with server components', async () => {
-    const middlewareWarning = `Using the experimental web server runtime`
-    const rscWarning = `You have Server Components enabled. Continue at your own risk`
+    const middlewareWarning = `Using the experimental web runtime.`
+    const rscWarning = `You have experimental React Server Components enabled.`
     const { stdout } = await nextBuild(context.appDir)
     expect(stdout).toContain(rscWarning)
     expect(stdout).toContain(middlewareWarning)
@@ -62,7 +58,7 @@ describe('RSC prod', () => {
   beforeAll(async () => {
     context.appPort = await findPort()
     await nextBuild(context.appDir)
-    context.server = await nextStart(context.appDir, context.port)
+    context.server = await nextStart(context.appDir, context.appPort)
   })
   afterAll(async () => {
     await killApp(context.server)
