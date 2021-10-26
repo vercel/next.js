@@ -651,11 +651,11 @@ const rscCache = createResponseCache()
 const RSCWrapper = ({
   cacheKey,
   serialized,
-  fresh,
+  _fresh,
 }: {
   cacheKey: string
   serialized?: string
-  fresh?: boolean
+  _fresh?: boolean
 }) => {
   let response = rscCache.get(cacheKey)
 
@@ -685,13 +685,13 @@ const RSCWrapper = ({
 }
 
 const RSCComponent = (props: any) => {
-  const { asPath } = useRouter() as any
+  const { asPath: cacheKey } = useRouter() as any
   return (
     <React.Suspense fallback={null}>
       <RSCWrapper
-        cacheKey={asPath}
+        cacheKey={cacheKey}
         serialized={(props as any).__flight_serialized__}
-        fresh={(props as any).__flight_fresh__}
+        _fresh={(props as any).__flight_fresh__}
       />
     </React.Suspense>
   )

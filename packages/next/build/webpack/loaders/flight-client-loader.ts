@@ -62,6 +62,8 @@ function addExportNames(names: string[], node: any) {
     case 'ParenthesizedExpression':
       addExportNames(names, node.expression)
       return
+    default:
+      return
   }
 }
 
@@ -81,24 +83,6 @@ function resolveClientImport(
     )
   }
   return stashedResolve(specifier, { conditions, parentURL }, stashedResolve)
-}
-
-async function loadClientImport(
-  url: string,
-  loadModule: TransformSourceFunction
-): Promise<{ source: Source }> {
-  if (stashedGetSource === null) {
-    throw new Error(
-      'Expected getSource to have been called before transformSource'
-    )
-  }
-  const { source } = await stashedGetSource(
-    url,
-    { format: 'module' },
-    stashedGetSource
-  )
-
-  return { source: '' }
 }
 
 async function parseExportNamesInto(
@@ -123,10 +107,7 @@ async function parseExportNamesInto(
             node.source.value,
             parentURL
           )
-          const { source } = await loadClientImport(url, loadModule)
-          if (typeof source !== 'string') {
-            throw new Error('Expected the transformed source to be a string.')
-          }
+          const source = ''
           parseExportNamesInto(source, names, url, loadModule)
           continue
         }

@@ -65,7 +65,7 @@ export class FlightManifestPlugin {
     const json: any = {}
     const { clientComponentsRegex } = this
     compilation.chunkGroups.forEach((chunkGroup: any) => {
-      function recordModule(id: string, chunk: any, mod: any) {
+      function recordModule(id: string, _chunk: any, mod: any) {
         const resource = mod.resource?.replace(/\?flight$/, '')
 
         // TODO: Hook into deps instead of the target module.

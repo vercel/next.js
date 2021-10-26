@@ -33,7 +33,7 @@ import * as Log from './output/log'
 import { loadComponents } from '../server/load-components'
 import { trace } from '../trace'
 import { setHttpAgentOptions } from '../server/config'
-import { NextConfig, NextConfigComplete } from '../server/config-shared'
+import { NextConfigComplete } from '../server/config-shared'
 import isError from '../lib/is-error'
 
 const fileGzipStats: { [k: string]: Promise<number> | undefined } = {}

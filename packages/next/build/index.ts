@@ -896,7 +896,6 @@ export default async function build(
             let isHybridAmp = false
             let ssgPageRoutes: string[] | null = null
             let isMiddlewareRoute = !!page.match(MIDDLEWARE_ROUTE)
-            let webServerRuntime = !!config.experimental.concurrentFeatures
 
             if (
               !isMiddlewareRoute &&

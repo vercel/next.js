@@ -10,7 +10,6 @@ import {
   nextBuild as _nextBuild,
   nextStart as _nextStart,
   renderViaHTTP,
-  nextStart,
 } from 'next-test-utils'
 
 const nodeArgs = ['-r', join(__dirname, '../../react-18/test/require-hook.js')]
