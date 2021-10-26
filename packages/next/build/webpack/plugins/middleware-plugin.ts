@@ -18,7 +18,7 @@ export const ssrEntries = new Map<string, { requireFlightManifest: boolean }>()
 
 export interface MiddlewareManifest {
   version: 1
-  sortedMiddleware: string[]
+  sortedMiddleware: [string, boolean][]
   middleware: {
     [page: string]: {
       env: string[]
@@ -102,7 +102,12 @@ export default class MiddlewarePlugin {
 
     middlewareManifest.sortedMiddleware = getSortedRoutes(
       Object.keys(middlewareManifest.middleware)
-    )
+    ).map((key) => {
+      const ssrEntryInfo = ssrEntries.get(
+        middlewareManifest.middleware[key].name
+      )
+      return [key, !!ssrEntryInfo]
+    })
 
     assets[`server/${MIDDLEWARE_MANIFEST}`] = new sources.RawSource(
       JSON.stringify(middlewareManifest, null, 2)
