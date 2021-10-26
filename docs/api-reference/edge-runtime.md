@@ -38,6 +38,7 @@ The [Web Fetch API](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) 
 
 - [`TransformStream`](https://developer.mozilla.org/en-US/docs/Web/API/TransformStream): Consists of a pair of streams: a writable stream known as its writable side, and a readable stream, known as its readable side. Writes to the writable side, result in new data being made available for reading from the readable side. Support for web streams is quite limited at the moment, although it is more extended in the development environment.
 - [`ReadableStream`](https://developer.mozilla.org/en-US/docs/Web/API/ReadableStream): A readable stream of byte data.
+- [`WritableStream`](https://developer.mozilla.org/en-US/docs/Web/API/WritableStream): A standard abstraction for writing streaming data to a destination, known as a sink.
 
 **Timers**
 
