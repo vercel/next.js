@@ -11,7 +11,7 @@ import { NextResponse } from 'next/server'
 export function middleware(event) {
   if (event.request.nextUrl.pathname === '/blocked') {
     event.respondWith(
-      new Response(null, {
+      new NextResponse(null, {
         status: 403,
       })
     )
@@ -29,7 +29,7 @@ import { NextResponse } from 'next/server'
 
 export function middleware(request) {
   if (request.nextUrl.pathname === '/blocked') {
-    return new Response(null, {
+    return new NextResponse(null, {
       status: 403,
     })
   }
