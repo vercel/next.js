@@ -642,12 +642,16 @@ export default async function build(
           configs[2] && runCompiler(configs[2], { runWebpackSpan }),
         ])
         result = {
-          warnings: [...clientResult.warnings, ...serverResult.warnings].concat(
-            serverWebResult?.warnings || []
-          ),
-          errors: [...clientResult.errors, ...serverResult.errors].concat(
-            serverWebResult?.errors || []
-          ),
+          warnings: [
+            ...clientResult.warnings,
+            ...serverResult.warnings,
+            ...(serverWebResult?.warnings || []),
+          ],
+          errors: [
+            ...clientResult.errors,
+            ...serverResult.errors,
+            ...(serverWebResult?.errors || []),
+          ],
         }
       }
     })

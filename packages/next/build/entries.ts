@@ -156,7 +156,7 @@ export function createEntrypoints(
       ssrEntries.set(clientBundlePath, { requireFlightManifest: isFlight })
       serverWeb[serverBundlePath] = {
         filename: '[name].js',
-        import: `middleware-ssr-loader?${stringify({
+        import: `next-middleware-ssr-loader?${stringify({
           page,
           absolutePagePath,
           isServerComponent: isFlight,

@@ -508,7 +508,7 @@ export default class HotReloader {
               ) {
                 entrypoints[bundlePath] = {
                   filename: '[name].js',
-                  import: `middleware-ssr-loader?${stringify({
+                  import: `next-middleware-ssr-loader?${stringify({
                     page,
                     absolutePagePath,
                     isServerComponent,

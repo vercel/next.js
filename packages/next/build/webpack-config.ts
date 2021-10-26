@@ -323,20 +323,16 @@ export default async function getBaseWebpackConfig(
 
   const distDir = path.join(dir, config.distDir)
 
-  let useSWCLoader = !babelConfigFile && !hasConcurrentFeatures
+  let useSWCLoader = !babelConfigFile
 
-  if (!loggedSwcDisabled && !useSWCLoader) {
-    if (babelConfigFile && hasConcurrentFeatures) {
-      Log.warn(
-        `Disabled SWC because of custom Babel configuration "${path.relative(
-          dir,
-          babelConfigFile
-        )}" https://nextjs.org/docs/messages/swc-disabled`
-      )
-      loggedSwcDisabled = true
-    } else if (hasConcurrentFeatures) {
-      Log.warn(`Disable SWC because of currentFeatures is enabled`)
-    }
+  if (!loggedSwcDisabled && !useSWCLoader && babelConfigFile) {
+    Log.warn(
+      `Disabled SWC because of custom Babel configuration "${path.relative(
+        dir,
+        babelConfigFile
+      )}" https://nextjs.org/docs/messages/swc-disabled`
+    )
+    loggedSwcDisabled = true
   }
 
   const getBabelOrSwcLoader = (isMiddleware: boolean) => {
@@ -1087,11 +1083,11 @@ export default async function getBaseWebpackConfig(
         'next-image-loader',
         'next-serverless-loader',
         'next-style-loader',
-        'flight-client-loader',
-        'flight-server-loader',
+        'next-flight-client-loader',
+        'next-flight-server-loader',
         'noop-loader',
         'next-middleware-loader',
-        'middleware-ssr-loader',
+        'next-middleware-ssr-loader',
       ].reduce((alias, loader) => {
         // using multiple aliases to replace `resolveLoader.modules`
         alias[loader] = path.join(__dirname, 'webpack', 'loaders', loader)
@@ -1123,7 +1119,7 @@ export default async function getBaseWebpackConfig(
               {
                 test: serverComponentsRegex,
                 use: {
-                  loader: `flight-server-loader?${stringify({
+                  loader: `next-flight-server-loader?${stringify({
                     client: 1,
                     pageExtensions: JSON.stringify(rawPageExtensions),
                   })}`,
@@ -1136,7 +1132,7 @@ export default async function getBaseWebpackConfig(
               {
                 test: serverComponentsRegex,
                 use: {
-                  loader: `flight-server-loader?${stringify({
+                  loader: `next-flight-server-loader?${stringify({
                     pageExtensions: JSON.stringify(rawPageExtensions),
                   })}`,
                 },
@@ -1146,7 +1142,7 @@ export default async function getBaseWebpackConfig(
                   /next[\\/](dist[\\/]client[\\/])?(link|image)/.test(name) ||
                   clientComponentsRegex.test(name),
                 use: {
-                  loader: 'flight-client-loader',
+                  loader: 'next-flight-client-loader',
                 },
               },
             ]
