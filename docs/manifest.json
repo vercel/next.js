@@ -106,6 +106,10 @@
           ]
         },
         {
+          "title": "Middleware",
+          "path": "/docs/middleware.md"
+        },
+        {
           "title": "Going to Production",
           "path": "/docs/going-to-production.md"
         },
@@ -287,6 +291,14 @@
         {
           "title": "next/amp",
           "path": "/docs/api-reference/next/amp.md"
+        },
+        {
+          "title": "next/server",
+          "path": "/docs/api-reference/next/server.md"
+        },
+        {
+          "title": "Edge Runtime",
+          "path": "/docs/api-reference/next/edge-runtime.md"
         },
         {
           "title": "Data Fetching",
