@@ -851,7 +851,7 @@ jobs:
           key: next-swc-nightly-2021-08-12-linux-arm64-musl-${{ hashFiles('.github/workflows/build_test_deploy.yml', 'packages/next/build/swc/**') }}
 
       - name: Cross build aarch64
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
+        if: ${{ steps.binary-cache.outputs.cache-hit != 'true' && steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         run: yarn build-native --target aarch64-unknown-linux-musl
         working-directory: packages/next
 
