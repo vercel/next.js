@@ -1,6 +1,6 @@
 use next_swc::{
     amp_attributes::amp_attributes, next_dynamic::next_dynamic, next_ssg::next_ssg,
-    styled_jsx::styled_jsx,
+    page_config::page_config_test, styled_jsx::styled_jsx,
 };
 use std::path::PathBuf;
 use swc_common::{chain, comments::SingleThreadedComments, FileName, Mark, Span, DUMMY_SP};
@@ -100,7 +100,7 @@ fn styled_jsx_span_should_not_affect_hash(input: PathBuf) {
         &|_tr| {
             // `resolver` uses `Mark` which is stored in a thread-local storage (namely
             // swc_common::GLOBALS), and this loop will make `Mark` to be different from the
-            // invokcation above.
+            // invocation above.
             //
             // 1000 is used because in future I (kdy1) may optimize logic of resolver.
             for _ in 0..1000 {
@@ -112,4 +112,10 @@ fn styled_jsx_span_should_not_affect_hash(input: PathBuf) {
         &input,
         &output,
     );
+}
+
+#[fixture("tests/fixture/page-config/**/input.js")]
+fn page_config_fixture(input: PathBuf) {
+    let output = input.parent().unwrap().join("output.js");
+    test_fixture(syntax(), &|_tr| page_config_test(), &input, &output);
 }

@@ -29,26 +29,22 @@ declare module 'next/dist/compiled/loader-utils'
 declare module 'next/dist/compiled/webpack/webpack' {
   import webpackSources from 'webpack-sources1'
   import webpack4, { loader } from 'webpack4'
-  export { NormalModule } from 'webpack'
+  import webpack5 from 'webpack5'
+  export { NormalModule } from 'webpack5'
   export function init(): void
   export let BasicEvaluatedExpression: any
   export let GraphHelpers: any
-  // TODO change this to webpack4 | webpack5
   export let sources: typeof webpackSources
-  // TODO change this to webpack
-  export { webpack4 as webpack, loader }
+  // TODO change this to webpack5
+  export { webpack4 as webpack, loader, webpack4, webpack5 }
 }
 
 declare module 'webpack' {
-  import webpack4 from 'webpack4'
-  import webpack5 from 'webpack5'
-  export type Compiler = webpack4.Compiler | webpack5.Compiler
-  export type Compilation =
-    | webpack4.compilation.Compilation
-    | webpack5.Compilation
-  export type Module = webpack4.Module | webpack5.Module
-  export type Stats = webpack4.Stats | webpack5.Stats
   export {
+    Compiler,
+    Compilation,
+    Module,
+    Stats,
     Template,
     RuntimeModule,
     RuntimeGlobals,
@@ -277,6 +273,8 @@ declare module 'webpack4' {
       futureEmitAssets?: boolean
       /** The filename of WebAssembly modules as relative path inside the `output.path` directory. */
       webassemblyModuleFilename?: string
+      /** Library types enabled */
+      enabledLibraryTypes?: string[]
     }
 
     type LibraryTarget =
@@ -571,6 +569,7 @@ declare module 'webpack4' {
         | 'javascript/esm'
         | 'json'
         | 'webassembly/experimental'
+        | 'asset/resource'
       /**
        * Match the resource path of the module
        */
