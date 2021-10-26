@@ -3,7 +3,6 @@ import '@next/polyfill-module'
 import React from 'react'
 import ReactDOM from 'react-dom'
 import { StyleRegistry } from 'styled-jsx'
-import { createFromFetch } from 'react-server-dom-webpack'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import mitt, { MittEmitter } from '../shared/lib/mitt'
 import { RouterContext } from '../shared/lib/router-context'
@@ -658,6 +657,7 @@ const RSCWrapper = ({
   serialized?: string
   _fresh?: boolean
 }) => {
+  const { createFromFetch } = require('react-server-dom-webpack')
   let response = rscCache.get(cacheKey)
 
   // If there is no cache, or there is serialized data already
@@ -706,7 +706,7 @@ function doRender(input: RenderRouteInfo): Promise<any> {
   Component = Component || lastAppProps.Component
   props = props || lastAppProps.props
 
-  const isRSC = 'initial' in input ? !!rsc : !!__N_RSC
+  const isRSC = process.env.__NEXT_RSC && 'initial' in input ? !!rsc : !!__N_RSC
 
   const appProps: AppProps = {
     ...props,
