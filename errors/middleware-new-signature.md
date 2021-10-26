@@ -2,7 +2,7 @@
 
 #### Why This Error Occurred
 
-Your application is using a Middleware function and your are using its parameters as with the deprecated API.
+Your application is using a Middleware function that is using parameters from the deprecated API.
 
 ```typescript
 import { NextResponse } from 'next/server'
