@@ -642,10 +642,11 @@ const wrapApp =
   }
 
 function createResponseCache() {
-  return new Map<string, any>()
+  return process.env.__NEXT_RSC
+    ? new Map<string, any>()
+    : { get() {}, set() {} }
 }
 
-// FIXME: Use unstable_getCacheForType in experimental version of React.
 const rscCache = createResponseCache()
 
 const RSCWrapper = ({

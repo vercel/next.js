@@ -1252,6 +1252,7 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_CONCURRENT_FEATURES': JSON.stringify(
           hasConcurrentFeatures
         ),
+        'process.env.__NEXT_RSC': JSON.stringify(hasServerComponents),
         'process.env.__NEXT_OPTIMIZE_FONTS': JSON.stringify(
           config.optimizeFonts && !dev
         ),
@@ -1367,7 +1368,7 @@ export default async function getBaseWebpackConfig(
           buildId,
           rewrites,
           isDevFallback,
-          exportRuntime: hasConcurrentFeatures,
+          exportRuntime: hasServerComponents,
         }),
       new ProfilingPlugin({ runWebpackSpan }),
       config.optimizeFonts &&

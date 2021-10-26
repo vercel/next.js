@@ -16,8 +16,8 @@ function isNextComponent(importSource: string) {
 
 export function isImageImport(importSource: string) {
   // TODO: share extension with next/image
-  // TODO: add other static assets
-  return ['jpeg', 'png', 'webp', 'avif'].some((imageExt) =>
+  // TODO: add other static assets, jpeg -> jpg
+  return ['jpg', 'jpeg', 'png', 'webp', 'avif'].some((imageExt) =>
     importSource.endsWith('.' + imageExt)
   )
 }
