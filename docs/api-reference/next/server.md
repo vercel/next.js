@@ -4,70 +4,90 @@ description: Use Middleware to run code before a request is completed.
 
 # next/server
 
-The Middleware API is based upon the native [`FetchEvent`](https://developer.mozilla.org/en-US/docs/Web/API/FetchEvent/FetchEvent), [`Response`](https://developer.mozilla.org/en-US/docs/Web/API/Response), and [`Request`](https://developer.mozilla.org/en-US/docs/Web/API/Request) Web APIs.
+Middleware is created by using a `middleware` function that lives inside a `_middleware` file. The Middleware API is based upon the native [`FetchEvent`](https://developer.mozilla.org/en-US/docs/Web/API/FetchEvent), [`Response`](https://developer.mozilla.org/en-US/docs/Web/API/Response), and [`Request`](https://developer.mozilla.org/en-US/docs/Web/API/Request) objects.
 
-These native Web APIs are extended to give you more control over how you manipulate and configure a response, based on the incoming requests.
+These native Web API objects are extended to give you more control over how you manipulate and configure a response, based on the incoming requests.
+
+The function signature:
+
+```ts
+import type { NextFetchEvent } from 'next/server'
+import type { NextRequest } from 'next/server'
+
+export type Middleware = (
+  request: NextRequest,
+  event: NextFetchEvent
+) => Promise<Response | undefined> | Response | undefined
+```
+
+The function can be a default export and as such, does **not** have to be named `middleware`. Though this is a convention. Also note that you only need to make the function `async` if you are running asynchronous code.
 
 ## NextFetchEvent
 
-The `NextFetchEvent` API extends the native [`FetchEvent`](https://developer.mozilla.org/en-US/docs/Web/API/FetchEvent/FetchEvent) Web API, by including the [`request`](https://developer.mozilla.org/en-US/docs/Web/API/FetchEvent/request) property and and [`waitUntil()`](https://developer.mozilla.org/en-US/docs/Web/API/ExtendableEvent/waitUntil) method.
+The `NextFetchEvent` object extends the native [`FetchEvent`](https://developer.mozilla.org/en-US/docs/Web/API/FetchEvent) object, and includes the [`waitUntil()`](https://developer.mozilla.org/en-US/docs/Web/API/ExtendableEvent/waitUntil) method.
 
-`waitUntil()` is a method, accessible on `NextFetchEvent`, used to prolong the execution of the function _*after*_ a response has run. If you want to run additional code once a response has been run, you have to call `waitUntil()`, or [`NextResponse.next()`](#next-response).
+The `waitUntil()` method can be used to prolong the execution of the function, after the response has been sent. In practice this means that you can send a response, then continue the function execution if you have other background work to make.
 
-The event API is fully typed. To use the types, import from `next/server`.
+An example of _why_ you would use `waitUntil()` is integrations with logging tools such as [Sentry](https://sentry.io) or [DataDog](https://www.datadoghq.com). After the response has been sent, you can send logs of response times, errors, API call durations or overall performance metrics.
 
-```tsx
+The `event` object is fully typed and can be imported from `next/server`.
+
+```ts
 import { NextFetchEvent } from 'next/server'
 ```
 
-## NextRequest
+#### NextRequest
 
-The `NextRequest` API is an extension of the [`Request`](https://developer.mozilla.org/en-US/docs/Web/API/Request) Web API, with the following added methods and properties:
+The `NextRequest` object is an extension of the native [`Request`](https://developer.mozilla.org/en-US/docs/Web/API/Request) interface, with the following added methods and properties:
 
 - `cookies` - Has the cookies from the `Request`
-- `nextUrl` - Includes an extended, parsed, URL object that gives you access to individual values such as `pathname`. It also includes Next.js specific properties, such as `basePath`, `trailingSlash` and `i18n`
+- `nextUrl` - Includes an extended, parsed, URL object that gives you access to Next.js specific properties such as `pathname`, `basePath`, `trailingSlash` and `i18n`
 - `geo` - Has the geo location from the `Request`
+  - `geo.country` - The country code
   - `geo.region` - The region code
   - `geo.city` - The city
-  - `geo.country` - The country code
-  - `geo.longitude` - The longitude
   - `geo.latitude` - The latitude
-- `ip` - Has the IP address from the `Request`
+  - `geo.longitude` - The longitude
+- `ip` - Has the IP address of the `Request`
 - `ua` - Has the user agent
 
-You can use the `NextRequest` API as a direct replacement for the native `Request` Web API, giving you more control over how you manipulate the request.
+You can use the `NextRequest` object as a direct replacement for the native `Request` interface, giving you more control over how you manipulate the request.
 
-The request API is fully typed. To use the types, import from `next/server`.
+`NextRequest` is fully typed and can be imported from `next/server`.
 
-```tsx
+```ts
 import type { NextRequest } from 'next/server'
 ```
 
-## NextResponse
+#### NextResponse
 
-The `NextResponse` API is an extension of the [`Response`](https://developer.mozilla.org/en-US/docs/Web/API/Response) Web API, with the following added methods and properties:
+The `NextResponse` object is an extension of the native [`Response`](https://developer.mozilla.org/en-US/docs/Web/API/Response) interface, with the following added methods and properties:
 
-- `cookies` - Has the cookies from the `Response`
-- `clearCookies()` - Clear the cookies from the `Response`
-- `redirect()` - Redirect the `Response`
-- `rewrite()` - Rewrite the `Response`
-- `next()` - Continue the `middleware` function _*after*_ the response has resolved it's Promise
+- `cookies` - An object with the cookies in the `Response`
+- `redirect()` - Returns a `NextResponse` with a redirect set
+- `rewrite()` - Returns a `NextResponse` with a rewrite set
+- `next()` - Returns a `NextResponse` that will continue the middleware chain
 
-`NextResponse` can be used instead of the native `Response` Web API when creating a Promise inside of the `respondWith()` method.
+All methods above return a `NextResponse` object that only takes effect if it's returned in the middleware function.
 
-To use, import from `next/server`.
+`NextResponse` is fully typed and can be imported from `next/server`.
 
-```tsx
-import type { NextRequest } from 'next/server'
+```ts
+import { NextResponse } from 'next/server'
 ```
 
 ### Why does redirect use 307 and 308?
 
-When using `redirect()` you may notice that the status codes used are `307` for a temporary redirect, and `308` for a permanent redirect. While traditionally a `302` was used for a temporary redirect, and a `301` for a permanent redirect, many browsers changed the request type of the redirect, from a `POST` to `GET` request, regardless of the origins request type.
+When using `redirect()` you may notice that the status codes used are `307` for a temporary redirect, and `308` for a permanent redirect. While traditionally a `302` was used for a temporary redirect, and a `301` for a permanent redirect, many browsers changed the request method of the redirect, from a `POST` to `GET` request when using a `302`, regardless of the origins request method.
 
-Taking the following example of a redirect from `/users` to `/people`, if you make a `POST` request to `/users` to create a new user, and are conforming to a `302` temporary redirect, the request type will be changed from a `POST` to a `GET` request. This doesn't make sense, as to create a new user, you should be making a `POST` request to `/people`.
+Taking the following example of a redirect from `/users` to `/people`, if you make a `POST` request to `/users` to create a new user, and are conforming to a `302` temporary redirect, the request method will be changed from a `POST` to a `GET` request. This doesn't make sense, as to create a new user, you should be making a `POST` request to `/people`, and not a `GET` request.
 
-The introduction of the `307` status code means that the request type is preserved as `POST`.
+The introduction of the `307` status code means that the request method is preserved as `POST`.
+
+- `302` - Temporary redirect, will change the request method from `POST` to `GET`
+- `307` - Temporary redirect, will preserve the request method as `POST`
+
+The `redirect()` method uses a `307` by default, instead of a `302` temporary redirect, meaning your requests will _always_ be preserved as `POST` requests.
 
 ## Related
 
