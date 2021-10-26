@@ -85,7 +85,7 @@ export async function getNotFoundError(
         .filter(
           (name) =>
             name &&
-            !/next-(middleware|client-pages|(flight-(client|server)))-loader\.js/.test(
+            !/next-(middleware|client-pages|flight-(client|server))-loader\.js/.test(
               name
             )
         )
