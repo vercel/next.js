@@ -150,7 +150,7 @@ export default async function transformSource(
   )
 
   // next.js/packages/next/link.js
-  if (url.includes('next/link') || url.includes('next/image')) {
+  if (/[\\/]next[\\/](link|image)\.js$/.test(url)) {
     names.push('default')
   }
 
