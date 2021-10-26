@@ -8,15 +8,15 @@ Middleware enables you to use code over configuration. This gives you full flexi
 
 ## Usage
 
-1. Install the latest version of `next`:
+1. Install the latest version of Next.js:
 
 ```jsx
 npm install next@latest
 ```
 
-2. Next, create a `_middleware.ts` file under your `/pages` directory.
+2. Then, create a `_middleware.ts` file under your `/pages` directory.
 
-3. Finally, create a function in the `_middleware.ts` file.
+3. Finally, export a middleware function from the `_middleware.ts` file.
 
 ```jsx
 // pages/_middleware.ts
