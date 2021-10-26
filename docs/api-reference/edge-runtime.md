@@ -10,6 +10,12 @@ The Next.js Edge Runtime is based on standard Web APIs, which is used by [Middle
 
 The following APIs are available in the runtime:
 
+**Globals**
+
+- [`Request`](https://developer.mozilla.org/en-US/docs/Web/API/Request)
+- [`Response`](https://developer.mozilla.org/en-US/docs/Web/API/Response):
+- [`Blob`](https://developer.mozilla.org/en-US/docs/Web/API/Blob)
+
 **Base64**
 
 - [`atob`](https://developer.mozilla.org/en-US/docs/Web/API/atob): Decodes a string of data which has been encoded using base-64 encoding
@@ -31,6 +37,7 @@ The [Web Fetch API](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) 
 **Streams**
 
 - [`TransformStream`](https://developer.mozilla.org/en-US/docs/Web/API/TransformStream): Consists of a pair of streams: a writable stream known as its writable side, and a readable stream, known as its readable side. Writes to the writable side, result in new data being made available for reading from the readable side. Support for web streams is quite limited at the moment, although it is more extended in the development environment.
+- [`ReadableStream`](https://developer.mozilla.org/en-US/docs/Web/API/ReadableStream): A readable stream of byte data.
 
 **Timers**
 
@@ -66,14 +73,13 @@ The [Web Fetch API](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) 
 The Edge Runtime has some restrictions including:
 
 - Native Node.js APIs **are not supported**. For example, you can't read or write to the filesystem.
-- Node Modules _can_ be used, as long as they implement ES Modules and do not use any native Node.js APIs. For example, you could use the `path-to-regexp`.
+- Node Modules _can_ be used, as long as they implement ES Modules and do not use any native Node.js APIs.
 - Calling `require` directly is **not allowed**. Use ES Modules instead.
 
 The following JavaScript language features are disabled, and **will not work:**
 
 - [`eval`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/eval): Evaluates JavaScript code represented as a string
 - [`new Function(evalString)`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function): Creates a new function with the code provided as an argument
-- [`Date`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date): The Date object is a wrapper object allowing you to work with dates and times.
 
 The following Web APIs are currently not supported, but will be in the future:
 
