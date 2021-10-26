@@ -145,7 +145,9 @@ where
 
 #[js_function(4)]
 pub fn transform(cx: CallContext) -> napi::Result<JsObject> {
-    schedule_transform(cx, |c, src, _, options| {
+    schedule_transform(cx, |c, src, _, mut options| {
+        options.swc.swcrc = false;
+
         let input = Input::Source(c.cm.new_source_file(
             if options.swc.filename.is_empty() {
                 FileName::Anon
