@@ -84,7 +84,6 @@ import './node-polyfill-fetch'
 import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import { removePathTrailingSlash } from '../client/normalize-trailing-slash'
 import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-asset-path'
-import { FontManifest } from './font-utils'
 import { denormalizePagePath } from './denormalize-page-path'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import * as Log from '../build/output/log'
@@ -104,6 +103,7 @@ import { parseUrl as simpleParseUrl } from '../shared/lib/router/utils/parse-url
 import { MIDDLEWARE_ROUTE } from '../lib/constants'
 import { NextResponse } from './web/spec-extension/response'
 import { run } from './web/sandbox'
+import type { FontManifest } from './font-utils'
 import type { FetchEventResult } from './web/types'
 import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
 import type { ParsedNextUrl } from '../shared/lib/router/utils/parse-next-url'
@@ -125,6 +125,7 @@ export type FindComponentsResult = {
 interface RoutingItem {
   page: string
   match: ReturnType<typeof getRouteMatcher>
+  ssr?: boolean
 }
 
 export type ServerConstructor = {
@@ -569,15 +570,19 @@ export default class Server {
   }
 
   protected getMiddleware() {
-    return Object.keys(this.middlewareManifest?.middleware || {}).map(
-      (page) => ({
-        match: getRouteMatcher(getMiddlewareRegex(page)),
-        page,
-      })
-    )
+    const middleware = this.middlewareManifest?.middleware || {}
+    return Object.keys(middleware).map((page) => ({
+      match: getRouteMatcher(
+        getMiddlewareRegex(page, MIDDLEWARE_ROUTE.test(middleware[page].name))
+      ),
+      page,
+    }))
   }
 
-  protected async hasMiddleware(pathname: string): Promise<boolean> {
+  protected async hasMiddleware(
+    pathname: string,
+    _isSSR?: boolean
+  ): Promise<boolean> {
     try {
       return (
         getMiddlewareInfo({
@@ -592,7 +597,7 @@ export default class Server {
     return false
   }
 
-  protected async ensureMiddleware(_pathname: string) {}
+  protected async ensureMiddleware(_pathname: string, _isSSR?: boolean) {}
 
   private middlewareBetaWarning = execOnce(() => {
     Log.warn(
@@ -629,12 +634,12 @@ export default class Server {
 
     for (const middleware of this.middleware || []) {
       if (middleware.match(params.parsedUrl.pathname)) {
-        if (!(await this.hasMiddleware(middleware.page))) {
+        if (!(await this.hasMiddleware(middleware.page, middleware.ssr))) {
           console.warn(`The Edge Function for ${middleware.page} was not found`)
           continue
         }
 
-        await this.ensureMiddleware(middleware.page)
+        await this.ensureMiddleware(middleware.page, middleware.ssr)
 
         const middlewareInfo = getMiddlewareInfo({
           dev: this.renderOpts.dev,
@@ -665,6 +670,7 @@ export default class Server {
             url: (params.request as any).__NEXT_INIT_URL,
             page: page,
           },
+          ssr: !!this.nextConfig.experimental.concurrentFeatures,
         })
 
         for (let [key, value] of result.response.headers) {

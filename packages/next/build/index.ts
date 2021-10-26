@@ -42,6 +42,7 @@ import {
   PAGES_MANIFEST,
   PHASE_PRODUCTION_BUILD,
   PRERENDER_MANIFEST,
+  MIDDLEWARE_FLIGHT_MANIFEST,
   REACT_LOADABLE_MANIFEST,
   ROUTES_MANIFEST,
   SERVERLESS_DIRECTORY,
@@ -141,9 +142,14 @@ export default async function build(
     const config: NextConfigComplete = await nextBuildSpan
       .traceChild('load-next-config')
       .traceAsyncFn(() => loadConfig(PHASE_PRODUCTION_BUILD, dir, conf))
+
     const distDir = path.join(dir, config.distDir)
     setGlobal('phase', PHASE_PRODUCTION_BUILD)
     setGlobal('distDir', distDir)
+
+    const webServerRuntime = !!config.experimental.concurrentFeatures
+    const hasServerComponents =
+      webServerRuntime && !!config.experimental.serverComponents
 
     const { target } = config
     const buildId: string = await nextBuildSpan
@@ -256,7 +262,6 @@ export default async function build(
     const pagePaths: string[] = await nextBuildSpan
       .traceChild('collect-pages')
       .traceAsyncFn(() => collectPages(pagesDir, config.pageExtensions))
-
     // needed for static exporting since we want to replace with HTML
     // files
     const allStaticPages = new Set<string>()
@@ -271,8 +276,14 @@ export default async function build(
     const mappedPages = nextBuildSpan
       .traceChild('create-pages-mapping')
       .traceFn(() =>
-        createPagesMapping(pagePaths, config.pageExtensions, false)
+        createPagesMapping(
+          pagePaths,
+          config.pageExtensions,
+          false,
+          hasServerComponents
+        )
       )
+
     const entrypoints = nextBuildSpan
       .traceChild('create-entrypoints')
       .traceFn(() =>
@@ -538,6 +549,9 @@ export default async function build(
           path.relative(distDir, manifestPath),
           BUILD_MANIFEST,
           PRERENDER_MANIFEST,
+          hasServerComponents
+            ? path.join(SERVER_DIRECTORY, MIDDLEWARE_FLIGHT_MANIFEST + '.js')
+            : null,
           REACT_LOADABLE_MANIFEST,
           config.optimizeFonts
             ? path.join(
@@ -579,6 +593,20 @@ export default async function build(
             rewrites,
             runWebpackSpan,
           }),
+          webServerRuntime
+            ? getBaseWebpackConfig(dir, {
+                buildId,
+                reactProductionProfiling,
+                isServer: true,
+                webServerRuntime: true,
+                config,
+                target,
+                pagesDir,
+                entrypoints: entrypoints.serverWeb,
+                rewrites,
+                runWebpackSpan,
+              })
+            : null,
         ])
       )
 
@@ -609,9 +637,21 @@ export default async function build(
         }
       } else {
         const serverResult = await runCompiler(configs[1], { runWebpackSpan })
+        const serverWebResult = configs[2]
+          ? await runCompiler(configs[2], { runWebpackSpan })
+          : null
+
         result = {
-          warnings: [...clientResult.warnings, ...serverResult.warnings],
-          errors: [...clientResult.errors, ...serverResult.errors],
+          warnings: [
+            ...clientResult.warnings,
+            ...serverResult.warnings,
+            ...(serverWebResult?.warnings || []),
+          ],
+          errors: [
+            ...clientResult.errors,
+            ...serverResult.errors,
+            ...(serverWebResult?.errors || []),
+          ],
         }
       }
     })
@@ -839,6 +879,7 @@ export default async function build(
         distDir,
         config.experimental.gzipSize
       )
+
       await Promise.all(
         pageKeys.map(async (page) => {
           const checkPageSpan = staticCheckSpan.traceChild('check-page', {
@@ -858,8 +899,13 @@ export default async function build(
             let isStatic = false
             let isHybridAmp = false
             let ssgPageRoutes: string[] | null = null
+            let isMiddlewareRoute = !!page.match(MIDDLEWARE_ROUTE)
 
-            if (!page.match(MIDDLEWARE_ROUTE) && !page.match(RESERVED_PAGE)) {
+            if (
+              !isMiddlewareRoute &&
+              !page.match(RESERVED_PAGE) &&
+              !webServerRuntime
+            ) {
               try {
                 let isPageStaticSpan =
                   checkPageSpan.traceChild('is-page-static')
@@ -923,6 +969,7 @@ export default async function build(
                   serverPropsPages.add(page)
                 } else if (
                   workerResult.isStatic &&
+                  !workerResult.hasFlightData &&
                   (await customAppGetInitialPropsPromise) === false
                 ) {
                   staticPages.add(page)
@@ -966,6 +1013,10 @@ export default async function build(
               totalSize: allSize,
               static: isStatic,
               isSsg,
+              isWebSsr:
+                webServerRuntime &&
+                !isMiddlewareRoute &&
+                !page.match(RESERVED_PAGE),
               isHybridAmp,
               ssgPageRoutes,
               initialRevalidateSeconds: false,
@@ -1220,11 +1271,11 @@ export default async function build(
           const routeRegex = getRouteRegex(dataRoute.replace(/\.json$/, ''))
 
           dataRouteRegex = normalizeRouteRegex(
-            routeRegex.re.source.replace(/\(\?:\\\/\)\?\$$/, '\\.json$')
+            routeRegex.re.source.replace(/\(\?:\\\/\)\?\$$/, `\\.json$`)
           )
           namedDataRouteRegex = routeRegex.namedRegex!.replace(
             /\(\?:\/\)\?\$$/,
-            '\\.json$'
+            `\\.json$`
           )
           routeKeys = routeRegex.routeKeys
         } else {
