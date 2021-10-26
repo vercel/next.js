@@ -325,6 +325,17 @@ function responseTests(locale = '') {
     )
     expect(res.headers.get('x-first-header')).toBe('valid')
   })
+
+  it(`${locale} should respond with top level headers and append deep headers`, async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      `${locale}/responses/deep?nested-header=true&append-me=true&cookie-me=true`
+    )
+    expect(res.headers.get('x-nested-header')).toBe('valid')
+    expect(res.headers.get('x-deep-header')).toBe('valid')
+    expect(res.headers.get('x-append-me')).toBe('top, deep')
+    expect(res.headers.raw()['set-cookie']).toEqual(['chocochip', 'oatmeal'])
+  })
 }
 
 function interfaceTests(locale = '') {
