@@ -12,7 +12,7 @@ interface Params {
 }
 
 export function parseNextUrl({ headers, nextConfig, url = '/' }: Params) {
-  const urlParsed: ParsedNextUrl = parseUrl(url)
+  const urlParsed: ParsedNextUrl = parseUrl(url.replace(/^\/+/, '/'))
   const { basePath } = nextConfig
 
   if (basePath && urlParsed.pathname.startsWith(basePath)) {

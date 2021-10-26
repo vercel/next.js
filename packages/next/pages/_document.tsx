@@ -659,7 +659,9 @@ export class Head extends Component<
                 data-next-hide-fouc
                 data-ampdevmode={inAmpMode ? 'true' : undefined}
                 dangerouslySetInnerHTML={{
-                  __html: `body{display:none}`,
+                  // TODO: find a better way to do this.
+                  // __html: `body{display:none}`,
+                  __html: `body{}`,
                 }}
               />
               <noscript

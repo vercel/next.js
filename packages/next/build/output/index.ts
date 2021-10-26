@@ -12,6 +12,7 @@ export function startedDevelopmentServer(appUrl: string, bindAddr: string) {
 
 let previousClient: webpack5.Compiler | null = null
 let previousServer: webpack5.Compiler | null = null
+let previousServerWeb: webpack5.Compiler | null = null
 
 type CompilerDiagnostics = {
   modules: number
@@ -38,6 +39,7 @@ export type AmpPageStatus = {
 type BuildStatusStore = {
   client: WebpackStatus
   server: WebpackStatus
+  serverWeb?: WebpackStatus
   trigger: string | undefined
   amp: AmpPageStatus
 }
@@ -102,7 +104,7 @@ let clientWasLoading = true
 let serverWasLoading = true
 
 buildStore.subscribe((state) => {
-  const { amp, client, server, trigger } = state
+  const { amp, client, server, serverWeb, trigger } = state
 
   const { bootstrap: bootstrapping, appUrl } = consoleStore.getState()
   if (bootstrapping && (client.loading || server.loading)) {
@@ -124,6 +126,7 @@ buildStore.subscribe((state) => {
     buildWasDone = false
     return
   }
+  if (serverWeb?.loading) return
 
   buildWasDone = true
 
@@ -162,11 +165,23 @@ buildStore.subscribe((state) => {
       } as OutputState,
       true
     )
-  } else {
+  } else if (serverWeb && serverWeb.errors) {
+    // Show only serverWeb errors
+    consoleStore.setState(
+      {
+        ...partialState,
+        errors: serverWeb.errors,
+        warnings: null,
+      } as OutputState,
+      true
+    )
+  }
+  {
     // Show warnings from all of them
     const warnings = [
       ...(client.warnings || []),
       ...(server.warnings || []),
+      ...((serverWeb && serverWeb.warnings) || []),
       ...((Object.keys(amp).length > 0 && formatAmpMessages(amp)) || []),
     ]
 
@@ -209,15 +224,21 @@ export function ampValidation(
 
 export function watchCompilers(
   client: webpack5.Compiler,
-  server: webpack5.Compiler
+  server: webpack5.Compiler,
+  serverWeb: webpack5.Compiler
 ) {
-  if (previousClient === client && previousServer === server) {
+  if (
+    previousClient === client &&
+    previousServer === server &&
+    previousServerWeb === serverWeb
+  ) {
     return
   }
 
   buildStore.setState({
     client: { loading: true },
     server: { loading: true },
+    serverWeb: { loading: true },
     trigger: 'initial',
   })
 
@@ -276,9 +297,17 @@ export function watchCompilers(
       })
     }
   })
+  if (serverWeb) {
+    tapCompiler('serverWeb', serverWeb, (status) => {
+      buildStore.setState({
+        serverWeb: status,
+      })
+    })
+  }
 
   previousClient = client
   previousServer = server
+  previousServerWeb = serverWeb
 }
 
 export function reportTrigger(trigger: string) {

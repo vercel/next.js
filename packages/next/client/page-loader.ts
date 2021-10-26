@@ -38,7 +38,7 @@ export default class PageLoader {
 
   private promisedSsgManifest?: Promise<ClientSsgManifest>
   private promisedDevPagesManifest?: Promise<any>
-  private promisedMiddlewareManifest?: Promise<string[]>
+  private promisedMiddlewareManifest?: Promise<[string, boolean][]>
   public routeLoader: RouteLoader
 
   constructor(buildId: string, assetPrefix: string) {
@@ -84,7 +84,7 @@ export default class PageLoader {
     }
   }
 
-  getMiddlewareList(): Promise<string[]> {
+  getMiddlewareList(): Promise<[string, boolean][]> {
     if (process.env.NODE_ENV === 'production') {
       return getMiddlewareManifest()
     } else {
@@ -114,17 +114,26 @@ export default class PageLoader {
    * @param {string} asPath the URL as shown in browser (virtual path); used for dynamic routes
    * @returns {string}
    */
-  getDataHref(
-    href: string,
-    asPath: string,
-    ssg: boolean,
+  getDataHref({
+    href,
+    asPath,
+    ssg,
+    rsc,
+    locale,
+  }: {
+    href: string
+    asPath: string
+    ssg: boolean
+    rsc?: boolean
     locale?: string | false
-  ): string {
+  }): string {
     const { pathname: hrefPathname, query, search } = parseRelativeUrl(href)
     const { pathname: asPathname } = parseRelativeUrl(asPath)
     const route = normalizeRoute(hrefPathname)
 
     const getHrefForSlug = (path: string) => {
+      if (rsc) return path + '?__flight__'
+
       const dataRoute = getAssetPathFromRoute(
         removePathTrailingSlash(addLocale(path, locale)),
         '.json'

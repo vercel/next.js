@@ -55,6 +55,7 @@ export function getPagePath(
   if (!pagePath) {
     throw pageNotFoundError(page)
   }
+
   return join(serverBuildPath, pagePath)
 }
 
@@ -63,7 +64,7 @@ export function requirePage(
   distDir: string,
   serverless: boolean
 ): any {
-  const pagePath = getPagePath(page, distDir, serverless)
+  const pagePath = getPagePath(page, distDir, serverless, undefined, undefined)
   if (pagePath.endsWith('.html')) {
     return promises.readFile(pagePath, 'utf8')
   }

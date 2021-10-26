@@ -1,7 +1,6 @@
 import type { RequestData, FetchEventResult, NodeHeaders } from '../types'
 import { Blob, File, FormData } from 'next/dist/compiled/formdata-node'
 import { dirname } from 'path'
-import { ReadableStream } from 'next/dist/compiled/web-streams-polyfill'
 import { readFileSync } from 'fs'
 import { TransformStream } from 'next/dist/compiled/web-streams-polyfill'
 import * as polyfills from './polyfills'
@@ -74,7 +73,7 @@ export async function run(params: {
       File,
       FormData,
       process: { env: { ...process.env } },
-      ReadableStream,
+      ReadableStream: polyfills.ReadableStream,
       setInterval,
       setTimeout,
       TextDecoder: polyfills.TextDecoder,
@@ -127,6 +126,17 @@ export async function run(params: {
   }
 
   const entryPoint = cache.context._ENTRIES[`middleware_${params.name}`]
+  const rscManifest = cache.context._ENTRIES._middleware_rsc_manifest
+
+  if (rscManifest && entryPoint) {
+    cache = undefined
+    return entryPoint.default({
+      request: params.request,
+      rscManifest,
+    })
+  }
+
+  cache = undefined
   return entryPoint.default({ request: params.request })
 }
 

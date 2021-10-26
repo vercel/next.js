@@ -10,6 +10,8 @@ export type ConfigurationContext = {
 
   isServer: boolean
   isClient: boolean
+  webServerRuntime: boolean
+  targetWeb: boolean
 
   assetPrefix: string
 
