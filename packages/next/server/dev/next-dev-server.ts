@@ -212,7 +212,7 @@ export default class DevServer extends Server {
     }
 
     const regexMiddleware = new RegExp(
-      `/(_middleware.(?:${this.nextConfig.pageExtensions.join('|')}))$`
+      `[\\\\/](_middleware.(?:${this.nextConfig.pageExtensions.join('|')}))$`
     )
 
     const regexPageExtension = new RegExp(
@@ -242,6 +242,12 @@ export default class DevServer extends Server {
         const routedMiddleware = []
         const routedPages = []
         const knownFiles = wp.getTimeInfoEntries()
+        const ssrMiddleware = new Set<string>()
+        const isWebServerRuntime =
+          this.nextConfig.experimental.concurrentFeatures
+        const hasServerComponents =
+          isWebServerRuntime && this.nextConfig.experimental.serverComponents
+
         for (const [fileName, { accuracy }] of knownFiles) {
           if (accuracy === undefined || !regexPageExtension.test(fileName)) {
             continue
@@ -249,8 +255,7 @@ export default class DevServer extends Server {
 
           if (regexMiddleware.test(fileName)) {
             routedMiddleware.push(
-              `/${relative(pagesDir!, fileName)}`
-                .replace(/\\+/g, '')
+              `/${relative(pagesDir!, fileName).replace(/\\+/g, '/')}`
                 .replace(/^\/+/g, '/')
                 .replace(regexMiddleware, '/')
             )
@@ -262,12 +267,30 @@ export default class DevServer extends Server {
           pageName = pageName.replace(regexPageExtension, '')
           pageName = pageName.replace(/\/index$/, '') || '/'
 
+          if (hasServerComponents && pageName.endsWith('.server')) {
+            routedMiddleware.push(pageName)
+            ssrMiddleware.add(pageName)
+          } else if (
+            isWebServerRuntime &&
+            !(
+              pageName === '/_app' ||
+              pageName === '/_error' ||
+              pageName === '/_document'
+            )
+          ) {
+            routedMiddleware.push(pageName)
+            ssrMiddleware.add(pageName)
+          }
+
           routedPages.push(pageName)
         }
 
         this.middleware = getSortedRoutes(routedMiddleware).map((page) => ({
-          match: getRouteMatcher(getMiddlewareRegex(page)),
+          match: getRouteMatcher(
+            getMiddlewareRegex(page, !ssrMiddleware.has(page))
+          ),
           page,
+          ssr: ssrMiddleware.has(page),
         }))
 
         try {
@@ -476,9 +499,6 @@ export default class DevServer extends Server {
   }): Promise<FetchEventResult | null> {
     try {
       const result = await super.runMiddleware(params)
-      result?.promise.catch((error) =>
-        this.logErrorWithOriginalStack(error, 'unhandledRejection', 'client')
-      )
       result?.waitUntil.catch((error) =>
         this.logErrorWithOriginalStack(error, 'unhandledRejection', 'client')
       )
@@ -645,12 +665,17 @@ export default class DevServer extends Server {
     return []
   }
 
-  protected async hasMiddleware(pathname: string): Promise<boolean> {
-    return this.hasPage(getMiddlewareFilepath(pathname))
+  protected async hasMiddleware(
+    pathname: string,
+    isSSR?: boolean
+  ): Promise<boolean> {
+    return this.hasPage(isSSR ? pathname : getMiddlewareFilepath(pathname))
   }
 
-  protected async ensureMiddleware(pathname: string) {
-    return this.hotReloader!.ensurePage(getMiddlewareFilepath(pathname))
+  protected async ensureMiddleware(pathname: string, isSSR?: boolean) {
+    return this.hotReloader!.ensurePage(
+      isSSR ? pathname : getMiddlewareFilepath(pathname)
+    )
   }
 
   generateRoutes() {
@@ -702,7 +727,10 @@ export default class DevServer extends Server {
         res.setHeader('Content-Type', 'application/json; charset=utf-8')
         res.end(
           JSON.stringify(
-            this.middleware?.map((middleware) => middleware.page) || []
+            this.middleware?.map((middleware) => [
+              middleware.page,
+              !!middleware.ssr,
+            ]) || []
           )
         )
         return {

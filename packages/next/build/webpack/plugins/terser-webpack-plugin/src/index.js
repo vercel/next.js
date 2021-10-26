@@ -301,7 +301,11 @@ export class TerserPlugin {
 
     compiler.hooks.compilation.tap(pluginName, (compilation) => {
       // Don't run minifier against mini-css-extract-plugin
-      if (compilation.name !== 'client' && compilation.name !== 'server') {
+      if (
+        compilation.name !== 'client' &&
+        compilation.name !== 'server' &&
+        compilation.name !== 'server-web'
+      ) {
         return
       }
 

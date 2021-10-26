@@ -20,11 +20,6 @@ describe('prerender native module', () => {
         sqlite: '4.0.22',
         sqlite3: '5.0.2',
       },
-      nextConfig: {
-        experimental: {
-          outputFileTracing: true,
-        },
-      },
     })
   })
   afterAll(() => next.destroy())

@@ -2,6 +2,7 @@ import devalue from 'next/dist/compiled/devalue'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import {
   BUILD_MANIFEST,
+  MIDDLEWARE_BUILD_MANIFEST,
   CLIENT_STATIC_FILES_PATH,
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
   CLIENT_STATIC_FILES_RUNTIME_POLYFILLS_SYMBOL,
@@ -93,11 +94,13 @@ export default class BuildManifestPlugin {
   private buildId: string
   private rewrites: CustomRoutes['rewrites']
   private isDevFallback: boolean
+  private exportRuntime: boolean
 
   constructor(options: {
     buildId: string
     rewrites: CustomRoutes['rewrites']
     isDevFallback?: boolean
+    exportRuntime?: boolean
   }) {
     this.buildId = options.buildId
     this.isDevFallback = !!options.isDevFallback
@@ -109,6 +112,7 @@ export default class BuildManifestPlugin {
     this.rewrites.beforeFiles = options.rewrites.beforeFiles.map(processRoute)
     this.rewrites.afterFiles = options.rewrites.afterFiles.map(processRoute)
     this.rewrites.fallback = options.rewrites.fallback.map(processRoute)
+    this.exportRuntime = !!options.exportRuntime
   }
 
   createAssets(compiler: any, compilation: any, assets: any) {
@@ -227,6 +231,13 @@ export default class BuildManifestPlugin {
       assets[buildManifestName] = new sources.RawSource(
         JSON.stringify(assetMap, null, 2)
       )
+
+      if (this.exportRuntime) {
+        assets[`server/${MIDDLEWARE_BUILD_MANIFEST}.js`] =
+          new sources.RawSource(
+            `self.__BUILD_MANIFEST=${JSON.stringify(assetMap)}`
+          )
+      }
 
       if (!this.isDevFallback) {
         const clientManifestPath = `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_buildManifest.js`

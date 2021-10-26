@@ -39,7 +39,9 @@ function formatMessage(message, verbose) {
       message.moduleTrace &&
       message.moduleTrace.filter(
         (trace) =>
-          !/next-(middleware|client-pages)-loader\.js/.test(trace.originName)
+          !/next-(middleware|client-pages|flight-(client|server))-loader\.js/.test(
+            trace.originName
+          )
       )
     message =
       (message.moduleName ? stripAnsi(message.moduleName) + '\n' : '') +

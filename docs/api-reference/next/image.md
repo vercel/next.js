@@ -134,7 +134,7 @@ The quality of the optimized image, an integer between `1` and `100` where `100`
 When true, the image will be considered high priority and
 [preload](https://web.dev/preload-responsive-images/). Lazy loading is automatically disabled for images using `priority`.
 
-You should use the `priority` attribute on any image which you suspect will be the [Largest Contentful Paint (LCP) element](https://nextjs.org/learn/seo/web-performance/lcp). It may be appropriate to have multiple priority images, as different images may be the LCP element for different viewport sizes.
+You should use the `priority` property on any image detected as the [Largest Contentful Paint (LCP)](https://nextjs.org/learn/seo/web-performance/lcp) element. It may be appropriate to have multiple priority images, as different images may be the LCP element for different viewport sizes.
 
 Should only be used when the image is visible above the fold. Defaults to `false`.
 
