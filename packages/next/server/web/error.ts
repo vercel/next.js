@@ -6,7 +6,7 @@ export class DeprecationError extends Error {
     return new Response("Hello " + request.url)
   }
   
-  More: https://nextjs.org/docs/messages/middleware-new-signature
+  Read more: https://nextjs.org/docs/messages/middleware-new-signature
   `)
   }
 }
