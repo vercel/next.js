@@ -1229,7 +1229,7 @@ export default async function getBaseWebpackConfig(
           pagesDir,
         }),
       !isServer && new DropClientPage(),
-      config.experimental.outputFileTracing &&
+      config.outputFileTracing &&
         !isLikeServerless &&
         isServer &&
         !dev &&
