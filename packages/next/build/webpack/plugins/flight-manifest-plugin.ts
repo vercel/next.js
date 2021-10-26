@@ -103,16 +103,7 @@ export class FlightManifestPlugin {
         const chunkModules =
           compilation.chunkGraph.getChunkModulesIterable(chunk)
         for (const mod of chunkModules) {
-          let modId: string
-
-          const context = compiler.context
-          const nameForCondition = mod.nameForCondition()
-
-          if (nameForCondition && nameForCondition.startsWith(context)) {
-            modId = '.' + nameForCondition.slice(context.length)
-          } else {
-            modId = compilation.chunkGraph.getModuleId(mod)
-          }
+          let modId = compilation.chunkGraph.getModuleId(mod)
 
           // remove resource query on production
           if (typeof modId === 'string') {
