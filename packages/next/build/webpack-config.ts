@@ -1452,7 +1452,7 @@ export default async function getBaseWebpackConfig(
     },
   }
 
-  if (!isServer) {
+  if (targetWeb) {
     webpack5Config.output!.enabledLibraryTypes = ['assign']
   }
 
