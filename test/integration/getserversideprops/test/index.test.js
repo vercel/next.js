@@ -151,6 +151,14 @@ const expectedManifestRoutes = () => [
     dataRouteRegex: normalizeRegEx(
       `^\\/_next\\/data\\/${escapeRegex(
         buildId
+      )}\\/promise\\/mutate-res-no-streaming.json$`
+    ),
+    page: '/promise/mutate-res-no-streaming',
+  },
+  {
+    dataRouteRegex: normalizeRegEx(
+      `^\\/_next\\/data\\/${escapeRegex(
+        buildId
       )}\\/promise\\/mutate-res-props.json$`
     ),
     page: '/promise/mutate-res-props',
@@ -738,6 +746,19 @@ const runTests = (dev = false) => {
         `You should not access 'res' after getServerSideProps resolves`
       )
     })
+
+    it('should only warn for accessing res if not streaming', async () => {
+      const html = await renderViaHTTP(
+        appPort,
+        '/promise/mutate-res-no-streaming'
+      )
+      expect(html).not.toContain(
+        `You should not access 'res' after getServerSideProps resolves`
+      )
+      expect(stderr).toContain(
+        `You should not access 'res' after getServerSideProps resolves`
+      )
+    })
   } else {
     it('should not fetch data on mount', async () => {
       const browser = await webdriver(appPort, '/blog/post-100')
@@ -797,6 +818,11 @@ const runTests = (dev = false) => {
     })
 
     it('should not show error for accessing res after gssp returns', async () => {
+      const html = await renderViaHTTP(appPort, '/promise/mutate-res')
+      expect(html).toMatch(/hello.*?res/)
+    })
+
+    it('should not warn for accessing res after gssp returns', async () => {
       const html = await renderViaHTTP(appPort, '/promise/mutate-res')
       expect(html).toMatch(/hello.*?res/)
     })

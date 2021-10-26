@@ -20,25 +20,28 @@ export function notImplemented(name: string, method: string): any {
   )
 }
 
-export function fromNodeHeaders(object: NodeHeaders) {
-  const headers: { [k: string]: string } = {}
-  for (let headerKey in object) {
-    const headerValue = object[headerKey]
-    if (Array.isArray(headerValue)) {
-      headers[headerKey] = headerValue.join('; ')
-    } else if (headerValue) {
-      headers[headerKey] = String(headerValue)
+export function fromNodeHeaders(object: NodeHeaders): Headers {
+  const headers = new Headers()
+  for (let [key, value] of Object.entries(object)) {
+    const values = Array.isArray(value) ? value : [value]
+    for (let v of values) {
+      if (v !== undefined) {
+        headers.append(key, v)
+      }
     }
   }
   return headers
 }
 
 export function toNodeHeaders(headers?: Headers): NodeHeaders {
-  const object: NodeHeaders = {}
+  const result: NodeHeaders = {}
   if (headers) {
     for (const [key, value] of headers.entries()) {
-      object[key] = value.includes(';') ? value.split(';') : value
+      result[key] = value
+      if (key.toLowerCase() === 'set-cookie') {
+        result[key] = value.split(', ')
+      }
     }
   }
-  return object
+  return result
 }

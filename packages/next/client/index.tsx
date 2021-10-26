@@ -31,7 +31,7 @@ import initHeadManager from './head-manager'
 import PageLoader, { StyleSheetTuple } from './page-loader'
 import measureWebVitals from './performance-relayer'
 import { RouteAnnouncer } from './route-announcer'
-import { createRouter, makePublicRouterInstance } from './router'
+import { createRouter, makePublicRouterInstance, useRouter } from './router'
 import isError from '../lib/is-error'
 import { trackWebVitalMetric } from './vitals'
 
@@ -81,6 +81,7 @@ const {
   locales,
   domainLocales,
   isPreview,
+  rsc,
 } = data
 
 let { defaultLocale } = data
@@ -639,17 +640,78 @@ const wrapApp =
     )
   }
 
+let RSCComponent: (props: any) => JSX.Element
+if (process.env.__NEXT_RSC) {
+  function createResponseCache() {
+    return new Map<string, any>()
+  }
+
+  const rscCache = createResponseCache()
+
+  const RSCWrapper = ({
+    cacheKey,
+    serialized,
+    _fresh,
+  }: {
+    cacheKey: string
+    serialized?: string
+    _fresh?: boolean
+  }) => {
+    const { createFromFetch } = require('react-server-dom-webpack')
+    let response = rscCache.get(cacheKey)
+
+    // If there is no cache, or there is serialized data already
+    if (!response) {
+      response = createFromFetch(
+        serialized
+          ? (() => {
+              const t = new TransformStream()
+              t.writable.getWriter().write(new TextEncoder().encode(serialized))
+              return Promise.resolve({ body: t.readable })
+            })()
+          : (() => {
+              const search = location.search
+              const flightReqUrl =
+                location.pathname +
+                search +
+                (search ? '&__flight__' : '?__flight__')
+              return fetch(flightReqUrl)
+            })()
+      )
+      rscCache.set(cacheKey, response)
+    }
+
+    const root = response.readRoot()
+    return root
+  }
+
+  RSCComponent = (props: any) => {
+    const { asPath: cacheKey } = useRouter() as any
+    return (
+      <React.Suspense fallback={null}>
+        <RSCWrapper
+          cacheKey={cacheKey}
+          serialized={(props as any).__flight_serialized__}
+          _fresh={(props as any).__flight_fresh__}
+        />
+      </React.Suspense>
+    )
+  }
+}
+
 let lastAppProps: AppProps
 function doRender(input: RenderRouteInfo): Promise<any> {
-  let { App, Component, props, err }: RenderRouteInfo = input
+  let { App, Component, props, err, __N_RSC }: RenderRouteInfo = input
   let styleSheets: StyleSheetTuple[] | undefined =
     'initial' in input ? undefined : input.styleSheets
   Component = Component || lastAppProps.Component
   props = props || lastAppProps.props
 
+  const isRSC = process.env.__NEXT_RSC && 'initial' in input ? !!rsc : !!__N_RSC
+
   const appProps: AppProps = {
     ...props,
-    Component,
+    Component: isRSC ? RSCComponent : Component,
     err,
     router,
   }

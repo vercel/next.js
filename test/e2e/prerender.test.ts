@@ -28,9 +28,6 @@ describe('Prerender', () => {
         firebase: '7.14.5',
       },
       nextConfig: {
-        experimental: {
-          outputFileTracing: true,
-        },
         async rewrites() {
           return [
             {

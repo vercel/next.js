@@ -367,18 +367,8 @@ function assignDefaults(userConfig: { [key: string]: any }) {
 
   if (result.swcMinify) {
     Log.warn(
-      'SWC minify beta enabled. nextjs.org/docs/messages/swc-minify-enabled'
+      'SWC minify beta enabled. https://nextjs.org/docs/messages/swc-minify-enabled'
     )
-  }
-
-  if (result.experimental && 'nftTracing' in (result.experimental as any)) {
-    // TODO: remove this warning and assignment when we leave experimental phase
-    Log.warn(
-      `Experimental \`nftTracing\` has been renamed to \`outputFileTracing\`. Please update your ${configFileName} file accordingly.`
-    )
-    result.experimental.outputFileTracing = (
-      result.experimental as any
-    ).nftTracing
   }
 
   // TODO: Change defaultConfig type to NextConfigComplete

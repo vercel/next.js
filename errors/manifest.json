@@ -502,6 +502,10 @@
         {
           "title": "swc-minify-enabled",
           "path": "/errors/swc-minify-enabled.md"
+        },
+        {
+          "title": "middleware-new-signature",
+          "path": "/errors/middleware-new-signature.md"
         }
       ]
     }
