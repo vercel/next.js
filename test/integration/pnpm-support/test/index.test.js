@@ -6,16 +6,6 @@ import path from 'path'
 import { findPort, killProcess, renderViaHTTP, waitFor } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 
-const pnpmExecutable = path.join(
-  __dirname,
-  '..',
-  '..',
-  '..',
-  '..',
-  'node_modules',
-  '.bin',
-  'pnpm'
-)
 const packagesDir = path.join(__dirname, '..', '..', '..', '..', 'packages')
 
 const APP_DIRS = {
@@ -23,10 +13,8 @@ const APP_DIRS = {
   'app-multi-page': path.join(__dirname, '..', 'app-multi-page'),
 }
 
-jest.setTimeout(1000 * 60 * 5)
-
 const runNpm = (cwd, ...args) => execa('npm', [...args], { cwd })
-const runPnpm = (cwd, ...args) => execa(pnpmExecutable, [...args], { cwd })
+const runPnpm = (cwd, ...args) => execa('npx', ['pnpm', ...args], { cwd })
 
 async function usingTempDir(fn) {
   const folder = path.join(os.tmpdir(), Math.random().toString(36).substring(2))
@@ -114,7 +102,12 @@ async function usingPnpmCreateNextApp(appDir, fn) {
     )
 
     await runPnpm(tempAppDir, 'install')
-    await runPnpm(tempAppDir, 'add', nextTarballPath)
+    await runPnpm(tempAppDir, 'add', `next@${nextTarballPath}`)
+
+    await fs.copy(
+      path.join(__dirname, '../../../../packages/next/native'),
+      path.join(tempAppDir, 'node_modules/next/native')
+    )
 
     await fn(tempAppDir)
   })

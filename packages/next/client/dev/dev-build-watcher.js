@@ -1,4 +1,4 @@
-import { addMessageListener } from './error-overlay/eventsource'
+import { addMessageListener } from './error-overlay/websocket'
 
 export default function initializeBuildWatcher(toggleCallback) {
   const shadowHost = document.createElement('div')

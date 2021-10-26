@@ -6,7 +6,6 @@ declare module 'cssnano-simple' {
   const cssnanoSimple: any
   export = cssnanoSimple
 }
-declare module 'styled-jsx/server'
 
 declare module 'next/dist/compiled/amphtml-validator' {
   import m from 'amphtml-validator'
@@ -155,6 +154,10 @@ declare module 'next/dist/compiled/lru-cache' {
   import m from 'lru-cache'
   export = m
 }
+declare module 'next/dist/compiled/micromatch' {
+  import m from 'micromatch'
+  export = m
+}
 declare module 'next/dist/compiled/nanoid/index.cjs' {
   import m from 'nanoid'
   export = m
@@ -167,10 +170,6 @@ declare module 'next/dist/compiled/path-to-regexp' {
   import m from 'path-to-regexp'
   export = m
 }
-declare module 'next/dist/compiled/recast' {
-  import m from 'recast'
-  export = m
-}
 declare module 'next/dist/compiled/send' {
   import m from 'send'
   export = m
@@ -181,6 +180,26 @@ declare module 'next/dist/compiled/source-map' {
 }
 declare module 'next/dist/compiled/string-hash' {
   import m from 'string-hash'
+  export = m
+}
+declare module 'next/dist/compiled/web-streams-polyfill' {
+  import m from 'web-streams-polyfill/ponyfill'
+  export = m
+}
+declare module 'next/dist/compiled/ua-parser-js' {
+  import m from 'ua-parser-js'
+  export = m
+}
+declare module 'next/dist/compiled/formdata-node' {
+  import m from 'formdata-node'
+  export = m
+}
+declare module 'next/dist/compiled/@peculiar/webcrypto' {
+  import m from '@peculiar/webcrypto'
+  export = m
+}
+declare module 'next/dist/compiled/uuid' {
+  import m from 'uuid'
   export = m
 }
 declare module 'next/dist/compiled/strip-ansi' {
@@ -223,8 +242,8 @@ declare module 'next/dist/compiled/web-vitals' {
   import m from 'web-vitals'
   export = m
 }
-declare module 'next/dist/compiled/zen-observable' {
-  import m from 'zen-observable'
+declare module 'next/dist/compiled/ws' {
+  import m from 'ws'
   export = m
 }
 
@@ -234,7 +253,7 @@ declare module 'next/dist/compiled/comment-json' {
 }
 
 declare module 'pnp-webpack-plugin' {
-  import webpack from 'webpack'
+  import webpack from 'webpack4'
 
   class PnpWebpackPlugin extends webpack.Plugin {}
 

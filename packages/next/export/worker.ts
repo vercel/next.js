@@ -3,7 +3,6 @@ import { extname, join, dirname, sep } from 'path'
 import { renderToHTML } from '../server/render'
 import { promises } from 'fs'
 import AmpHtmlValidator from 'next/dist/compiled/amphtml-validator'
-import Observable from 'next/dist/compiled/zen-observable'
 import { loadComponents } from '../server/load-components'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
@@ -17,11 +16,12 @@ import { GetStaticProps } from '../types'
 import { requireFontManifest } from '../server/require'
 import { FontManifest } from '../server/font-utils'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
-import { trace } from '../telemetry/trace'
+import { trace } from '../trace'
 import { isInAmpMode } from '../shared/lib/amp'
-import { resultsToString } from '../server/utils'
 import { NextConfigComplete } from '../server/config-shared'
 import { setHttpAgentOptions } from '../server/config'
+import RenderResult from '../server/render-result'
+import isError from '../lib/is-error'
 
 const envConfig = require('../shared/lib/runtime-config')
 
@@ -197,7 +197,7 @@ export default async function exportPage({
         ...headerMocks,
       } as unknown as ServerResponse
 
-      if (path === '/500' && page === '/_error') {
+      if (updatedPath === '/500' && page === '/_error') {
         res.statusCode = 500
       }
 
@@ -255,8 +255,10 @@ export default async function exportPage({
           },
         })
         const {
-          Component: mod,
+          Component,
+          ComponentMod,
           getServerSideProps,
+          getStaticProps,
           pageConfig,
         } = await loadComponents(distDir, page, serverless)
         const ampState = {
@@ -274,25 +276,22 @@ export default async function exportPage({
         }
 
         // if it was auto-exported the HTML is loaded here
-        if (typeof mod === 'string') {
-          renderResult = Observable.of(mod)
+        if (typeof Component === 'string') {
+          renderResult = RenderResult.fromStatic(Component)
           queryWithAutoExportWarn()
         } else {
           // for non-dynamic SSG pages we should have already
           // prerendered the file
-          if (renderedDuringBuild((mod as ComponentModule).getStaticProps))
+          if (renderedDuringBuild(getStaticProps))
             return { ...results, duration: Date.now() - start }
 
-          if (
-            (mod as ComponentModule).getStaticProps &&
-            !htmlFilepath.endsWith('.html')
-          ) {
+          if (getStaticProps && !htmlFilepath.endsWith('.html')) {
             // make sure it ends with .html if the name contains a dot
             htmlFilename += '.html'
             htmlFilepath += '.html'
           }
 
-          renderMethod = (mod as ComponentModule).renderReqToHTML
+          renderMethod = (ComponentMod as ComponentModule).renderReqToHTML
           const result = await renderMethod(
             req,
             res,
@@ -353,7 +352,7 @@ export default async function exportPage({
         }
 
         if (typeof components.Component === 'string') {
-          renderResult = Observable.of(components.Component)
+          renderResult = RenderResult.fromStatic(components.Component)
           queryWithAutoExportWarn()
         } else {
           /**
@@ -418,7 +417,7 @@ export default async function exportPage({
         }
       }
 
-      const html = renderResult ? await resultsToString([renderResult]) : ''
+      const html = renderResult ? renderResult.toUnchunkedString() : ''
       if (inAmpMode && !curRenderOpts.ampSkipValidation) {
         if (!results.ssgNotFound) {
           await validateAmp(html, path, curRenderOpts.ampValidatorPath)
@@ -461,7 +460,7 @@ export default async function exportPage({
           }
 
           const ampHtml = ampRenderResult
-            ? await resultsToString([ampRenderResult])
+            ? ampRenderResult.toUnchunkedString()
             : ''
           if (!curRenderOpts.ampSkipValidation) {
             await validateAmp(ampHtml, page + '?amp=1')
@@ -501,7 +500,7 @@ export default async function exportPage({
     } catch (error) {
       console.error(
         `\nError occurred prerendering page "${path}". Read more: https://nextjs.org/docs/messages/prerender-error\n` +
-          error.stack
+          (isError(error) ? error.stack : error)
       )
       results.error = true
     }

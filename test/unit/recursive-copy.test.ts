@@ -10,8 +10,6 @@ const testDir = join(__dirname, 'recursive-folder-test')
 const srcDir = join(testDir, 'src')
 const destDir = join(testDir, 'dest')
 
-jest.setTimeout(1000 * 60 * 1)
-
 const setupTestDir = async (numFiles = 100) => {
   const paths = [
     '.hidden',

@@ -29,7 +29,19 @@ DEALINGS IN THE SOFTWARE.
 import { getOptions } from 'next/dist/compiled/loader-utils'
 import { transform } from '../../swc'
 
-function getSWCOptions({ isTypeScript, isServer, development }) {
+const nextDistPath =
+  /(next[\\/]dist[\\/]shared[\\/]lib)|(next[\\/]dist[\\/]client)|(next[\\/]dist[\\/]pages)/
+
+function getSWCOptions({
+  isTypeScript,
+  isServer,
+  development,
+  isPageFile,
+  pagesDir,
+  isNextDist,
+  hasReactRefresh,
+  isCommonJS,
+}) {
   const jsc = {
     parser: {
       syntax: isTypeScript ? 'typescript' : 'ecmascript',
@@ -45,6 +57,15 @@ function getSWCOptions({ isTypeScript, isServer, development }) {
         throwIfNamespace: true,
         development: development,
         useBuiltins: true,
+        refresh: hasReactRefresh,
+      },
+      optimizer: {
+        simplify: false,
+        globals: {
+          typeofs: {
+            window: isServer ? 'undefined' : 'object',
+          },
+        },
       },
     },
   }
@@ -52,6 +73,20 @@ function getSWCOptions({ isTypeScript, isServer, development }) {
   if (isServer) {
     return {
       jsc,
+      // Next.js dist intentionally does not have type: commonjs on server compilation
+      ...(isCommonJS
+        ? {
+            module: {
+              type: 'commonjs',
+            },
+          }
+        : {}),
+      // Disables getStaticProps/getServerSideProps tree shaking on the server compilation for pages
+      disableNextSsg: true,
+      disablePageConfig: true,
+      isDevelopment: development,
+      pagesDir,
+      isPageFile,
       env: {
         targets: {
           // Targets the current version of Node.js
@@ -62,7 +97,21 @@ function getSWCOptions({ isTypeScript, isServer, development }) {
   } else {
     // Matches default @babel/preset-env behavior
     jsc.target = 'es5'
-    return { jsc }
+    return {
+      // Ensure Next.js internals are output as commonjs modules
+      ...(isNextDist || isCommonJS
+        ? {
+            module: {
+              type: 'commonjs',
+            },
+          }
+        : {}),
+      disableNextSsg: !isPageFile,
+      isDevelopment: development,
+      pagesDir,
+      isPageFile,
+      jsc,
+    }
   }
 }
 
@@ -74,10 +123,21 @@ async function loaderTransform(parentTrace, source, inputSourceMap) {
 
   let loaderOptions = getOptions(this) || {}
 
+  const { isServer, pagesDir, hasReactRefresh } = loaderOptions
+  const isPageFile = filename.startsWith(pagesDir)
+
+  const isNextDist = nextDistPath.test(filename)
+  const isCommonJS = source.indexOf('module.exports') !== -1
+
   const swcOptions = getSWCOptions({
+    pagesDir,
     isTypeScript,
-    isServer: loaderOptions.isServer,
+    isServer: isServer,
+    isPageFile,
     development: this.mode === 'development',
+    isNextDist,
+    isCommonJS,
+    hasReactRefresh,
   })
 
   const programmaticOptions = {
@@ -87,6 +147,7 @@ async function loaderTransform(parentTrace, source, inputSourceMap) {
 
     // Set the default sourcemap behavior based on Webpack's mapping flag,
     sourceMaps: this.sourceMap,
+    inlineSourcesContent: this.sourceMap,
 
     // Ensure that Webpack will get a full absolute path in the sourcemap
     // so that it can properly map the module back to its internal cached
@@ -129,10 +190,11 @@ export default function swcLoader(inputSource, inputSourceMap) {
       loaderTransform.call(this, loaderSpan, inputSource, inputSourceMap)
     )
     .then(
-      ([transformedSource, outputSourceMap]) =>
-        callback?.(null, transformedSource, outputSourceMap || inputSourceMap),
+      ([transformedSource, outputSourceMap]) => {
+        callback(null, transformedSource, outputSourceMap || inputSourceMap)
+      },
       (err) => {
-        callback?.(err)
+        callback(err)
       }
     )
 }

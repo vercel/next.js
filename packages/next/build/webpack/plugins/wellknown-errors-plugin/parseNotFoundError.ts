@@ -1,8 +1,7 @@
 import Chalk from 'chalk'
 import { SimpleWebpackError } from './simpleWebpackError'
 import { createOriginalStackFrame } from '@next/react-dev-overlay/lib/middleware'
-import { isWebpack5 } from 'next/dist/compiled/webpack/webpack'
-import path from 'path'
+import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 
 const chalk = new Chalk.constructor({ enabled: true })
 
@@ -47,7 +46,7 @@ function getModuleTrace(input: any, compilation: any) {
 }
 
 export async function getNotFoundError(
-  compilation: any,
+  compilation: webpack5.Compilation,
   input: any,
   fileName: string
 ) {
@@ -65,7 +64,7 @@ export async function getNotFoundError(
       line: loc.start.line,
       column: loc.start.column,
       source: originalSource,
-      rootDirectory: compilation.options.context,
+      rootDirectory: compilation.options.context!,
       frame: {},
     })
 
@@ -79,25 +78,19 @@ export async function getNotFoundError(
       .replace(/Can't resolve '(.*)'/, `Can't resolve '${chalk.green('$1')}'`)
 
     const importTrace = () => {
-      if (!isWebpack5) {
-        return ''
-      }
-
-      let importTraceLine = '\nImport trace for requested module:\n'
       const moduleTrace = getModuleTrace(input, compilation)
-
-      for (const { origin } of moduleTrace) {
-        if (!origin.resource) {
-          continue
-        }
-        const filePath = path.relative(
-          compilation.options.context,
-          origin.resource
+        .map(({ origin }) =>
+          origin.readableIdentifier(compilation.requestShortener)
         )
-        importTraceLine += `./${filePath}\n`
-      }
+        .filter(
+          (name) =>
+            name && !/next-(middleware|client-pages)-loader\.js/.test(name)
+        )
+      if (moduleTrace.length === 0) return ''
 
-      return importTraceLine + '\n'
+      return `\nImport trace for requested module:\n${moduleTrace.join(
+        '\n'
+      )}\n\n`
     }
 
     const frame = result.originalCodeFrame ?? ''
@@ -118,7 +111,6 @@ export async function getNotFoundError(
       message
     )
   } catch (err) {
-    console.log('Failed to parse source map:', err)
     // Don't fail on failure to resolve sourcemaps
     return input
   }
