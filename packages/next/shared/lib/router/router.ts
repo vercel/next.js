@@ -1718,14 +1718,15 @@ export default class Router implements BaseRouter {
       this.pageLoader._isSsg(route).then((isSsg: boolean) => {
         return isSsg
           ? fetchNextData(
-              this.pageLoader.getDataHref(
-                url,
-                resolvedAs,
-                true,
-                typeof options.locale !== 'undefined'
-                  ? options.locale
-                  : this.locale
-              ),
+              this.pageLoader.getDataHref({
+                href: url,
+                asPath: resolvedAs,
+                ssg: true,
+                locale:
+                  typeof options.locale !== 'undefined'
+                    ? options.locale
+                    : this.locale,
+              }),
               false,
               false, // text
               this.sdc,
