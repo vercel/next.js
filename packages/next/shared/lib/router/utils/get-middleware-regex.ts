@@ -6,15 +6,15 @@ export function getMiddlewareRegex(
 ): RouteRegex {
   const result = getParametrizedRoute(normalizedRoute)
 
-  let catchAllRegex = catchAll ? '.*' : ''
+  let catchAllRegex = catchAll ? '(?!_next).*' : ''
   let catchAllGroupedRegex = catchAll ? '(?:(/.*)?)' : ''
 
   if ('routeKeys' in result) {
     if (result.parameterizedRoute === '/') {
       return {
         groups: {},
-        namedRegex: `^/(?!_next)${catchAllRegex}$`,
-        re: new RegExp(`^/(?!_next)${catchAllRegex}$`),
+        namedRegex: `^/${catchAllRegex}$`,
+        re: new RegExp(`^/${catchAllRegex}$`),
         routeKeys: {},
       }
     }

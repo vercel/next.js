@@ -637,10 +637,11 @@ export default async function build(
           errors: [...clientResult.errors],
         }
       } else {
-        const [serverResult, serverWebResult] = await Promise.all([
-          runCompiler(configs[1], { runWebpackSpan }),
-          configs[2] && runCompiler(configs[2], { runWebpackSpan }),
-        ])
+        const serverResult = await runCompiler(configs[1], { runWebpackSpan })
+        const serverWebResult = configs[2]
+          ? await runCompiler(configs[2], { runWebpackSpan })
+          : null
+
         result = {
           warnings: [
             ...clientResult.warnings,

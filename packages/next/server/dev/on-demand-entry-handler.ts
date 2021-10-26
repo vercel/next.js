@@ -248,8 +248,7 @@ export default function onDemandEntryHandler(
         ? addPageEntry('client')
         : Promise.all([
             addPageEntry('client'),
-            isServerWeb ? null : addPageEntry('server'),
-            isServerWeb ? addPageEntry('server-web') : null,
+            addPageEntry(isServerWeb ? 'server-web' : 'server'),
           ])
 
       if (entriesChanged) {

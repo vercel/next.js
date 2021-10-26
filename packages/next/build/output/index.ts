@@ -243,7 +243,7 @@ export function watchCompilers(
   buildStore.setState({
     client: { loading: true },
     server: { loading: true },
-    serverWeb: { loading: !!serverWeb },
+    serverWeb: serverWeb ? { loading: true } : undefined,
     trigger: 'initial',
   })
 

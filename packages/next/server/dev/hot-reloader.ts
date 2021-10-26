@@ -556,10 +556,8 @@ export default class HotReloader {
     // the server file changes and trigger a reload for GS(S)P pages
     const changedClientPages = new Set<string>()
     const changedServerPages = new Set<string>()
-    const changedClientForServerPages = new Set<string>()
     const prevClientPageHashes = new Map<string, string>()
     const prevServerPageHashes = new Map<string, string>()
-    const prevClientForServerPageHashes = new Map<string, string>()
 
     const trackPageChanges =
       (pageHashMap: Map<string, string>, changedItems: Set<string>) =>
@@ -583,13 +581,6 @@ export default class HotReloader {
 
     multiCompiler.compilers[0].hooks.emit.tap(
       'NextjsHotReloaderForClient',
-      trackPageChanges(
-        prevClientForServerPageHashes,
-        changedClientForServerPages
-      )
-    )
-    multiCompiler.compilers[0].hooks.emit.tap(
-      'NextjsHotReloaderForClient',
       trackPageChanges(prevClientPageHashes, changedClientPages)
     )
     multiCompiler.compilers[1].hooks.emit.tap(
@@ -605,44 +596,11 @@ export default class HotReloader {
         this.serverStats = null
       }
     )
-    multiCompiler.compilers[0].hooks.done.tap(
-      'NextjsHotReloaderForServer',
-      () => {
-        const middlewareChanges = Array.from(changedClientPages).filter(
-          (name) => {
-            return MIDDLEWARE_ROUTE.test(name)
-          }
-        )
-        changedClientPages.clear()
-
-        if (middlewareChanges.length > 0) {
-          this.send({
-            event: 'middlewareChanges',
-          })
-        }
-      }
-    )
     multiCompiler.compilers[1].hooks.done.tap(
       'NextjsHotReloaderForServer',
       (stats) => {
         this.serverError = null
         this.serverStats = stats
-
-        const serverOnlyChanges = difference<string>(
-          changedServerPages,
-          changedClientForServerPages
-        )
-        changedClientForServerPages.clear()
-        changedServerPages.clear()
-
-        if (serverOnlyChanges.length > 0) {
-          this.send({
-            event: 'serverOnlyChanges',
-            pages: serverOnlyChanges.map((pg) =>
-              denormalizePagePath(pg.substr('pages'.length))
-            ),
-          })
-        }
 
         const { compilation } = stats
 
