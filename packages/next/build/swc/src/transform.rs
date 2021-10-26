@@ -122,7 +122,8 @@ where
 
     let s = cx.get::<JsString>(0)?.into_utf8()?;
     let is_module = cx.get::<JsBoolean>(1)?;
-    let options: TransformOptions = cx.get_deserialized(2)?;
+    let mut options: TransformOptions = cx.get_deserialized(2)?;
+    options.swc.swcrc = false;
 
     let output = try_with_handler(c.cm.clone(), true, |handler| {
         c.run(|| {
