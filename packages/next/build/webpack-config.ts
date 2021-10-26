@@ -5,7 +5,7 @@ import { readFileSync } from 'fs'
 import { codeFrameColumns } from 'next/dist/compiled/babel/code-frame'
 import semver from 'next/dist/compiled/semver'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
-import type webpack5 from 'webpack5'
+import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 import path, { join as pathJoin, relative as relativePath } from 'path'
 import escapeRegExp from 'next/dist/compiled/escape-string-regexp'
 import {
@@ -64,6 +64,8 @@ const devtoolRevertWarning = execOnce(
     )
   }
 )
+
+let loggedSwcDisabled = false
 
 function parseJsonFile(filePath: string) {
   const JSON5 = require('next/dist/compiled/json5')
@@ -311,48 +313,44 @@ export default async function getBaseWebpackConfig(
 
   const distDir = path.join(dir, config.distDir)
 
-  const useSWCLoader = config.experimental.swcLoader
-  if (useSWCLoader && babelConfigFile) {
+  const useSWCLoader = !babelConfigFile
+  if (!loggedSwcDisabled && !useSWCLoader && babelConfigFile) {
     Log.warn(
-      `experimental.swcLoader enabled. The custom Babel configuration will not be used.`
+      `Disabled SWC because of custom Babel configuration "${path.relative(
+        dir,
+        babelConfigFile
+      )}" https://nextjs.org/docs/messages/swc-disabled`
     )
+    loggedSwcDisabled = true
   }
-  const defaultLoaders = {
-    babel: useSWCLoader
+
+  const getBabelOrSwcLoader = (isMiddleware: boolean) => {
+    return useSWCLoader
       ? {
           loader: 'next-swc-loader',
           options: {
-            isServer,
+            isServer: isMiddleware || isServer,
             pagesDir,
+            hasReactRefresh: !isMiddleware && hasReactRefresh,
           },
         }
       : {
           loader: require.resolve('./babel/loader/index'),
           options: {
             configFile: babelConfigFile,
-            isServer,
+            isServer: isMiddleware ? true : isServer,
             distDir,
             pagesDir,
             cwd: dir,
             development: dev,
-            hasReactRefresh,
+            hasReactRefresh: isMiddleware ? false : hasReactRefresh,
             hasJsxRuntime: true,
           },
-        },
-    babelMiddleware: {
-      loader: require.resolve('./babel/loader/index'),
-      options: {
-        cache: false,
-        configFile: babelConfigFile,
-        cwd: dir,
-        development: dev,
-        distDir,
-        hasJsxRuntime: true,
-        hasReactRefresh: false,
-        isServer: true,
-        pagesDir,
-      },
-    },
+        }
+  }
+
+  const defaultLoaders = {
+    babel: getBabelOrSwcLoader(false),
   }
 
   const babelIncludeRegexes: RegExp[] = [
@@ -559,6 +557,7 @@ export default async function getBaseWebpackConfig(
             util: require.resolve('util/'),
             vm: require.resolve('vm-browserify'),
             zlib: require.resolve('browserify-zlib'),
+            events: require.resolve('events'),
           },
         }
       : undefined),
@@ -958,7 +957,7 @@ export default async function getBaseWebpackConfig(
           new TerserPlugin({
             cacheDir: path.join(distDir, 'cache', 'next-minifier'),
             parallel: config.experimental.cpus,
-            swcMinify: config.experimental.swcMinify,
+            swcMinify: config.swcMinify,
             terserOptions,
           }).apply(compiler)
         },
@@ -1092,7 +1091,7 @@ export default async function getBaseWebpackConfig(
             {
               ...codeCondition,
               issuerLayer: 'middleware',
-              use: defaultLoaders.babelMiddleware,
+              use: getBabelOrSwcLoader(true),
             },
             {
               ...codeCondition,
@@ -1244,7 +1243,7 @@ export default async function getBaseWebpackConfig(
           pagesDir,
         }),
       !isServer && new DropClientPage(),
-      config.experimental.outputFileTracing &&
+      config.outputFileTracing &&
         !isLikeServerless &&
         isServer &&
         !dev &&
@@ -1322,7 +1321,14 @@ export default async function getBaseWebpackConfig(
             minimized: true,
           },
         }),
-      !dev && !isServer && new TelemetryPlugin(),
+      !dev &&
+        !isServer &&
+        new TelemetryPlugin(
+          new Map([
+            ['swcLoader', useSWCLoader],
+            ['swcMinify', config.swcMinify],
+          ])
+        ),
     ].filter(Boolean as any as ExcludesFalse),
   }
 
@@ -1427,8 +1433,8 @@ export default async function getBaseWebpackConfig(
     hasRewrites,
     reactRoot: config.experimental.reactRoot,
     concurrentFeatures: config.experimental.concurrentFeatures,
-    swcMinify: config.experimental.swcMinify,
-    swcLoader: config.experimental.swcLoader,
+    swcMinify: config.swcMinify,
+    swcLoader: useSWCLoader,
   })
 
   const cache: any = {
@@ -1518,8 +1524,13 @@ export default async function getBaseWebpackConfig(
     sassOptions: config.sassOptions,
     productionBrowserSourceMaps: config.productionBrowserSourceMaps,
     future: config.future,
-    isCraCompat: config.experimental.craCompat,
+    experimental: config.experimental,
   })
+
+  // @ts-ignore Cache exists
+  webpackConfig.cache.name = `${webpackConfig.name}-${webpackConfig.mode}${
+    isDevFallback ? '-fallback' : ''
+  }`
 
   let originalDevtool = webpackConfig.devtool
   if (typeof config.webpack === 'function') {

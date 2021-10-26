@@ -1,6 +1,5 @@
 import compression from 'next/dist/compiled/compression'
 import fs from 'fs'
-import chalk from 'chalk'
 import { IncomingMessage, ServerResponse } from 'http'
 import Proxy from 'next/dist/compiled/http-proxy'
 import { join, relative, resolve, sep } from 'path'
@@ -103,6 +102,7 @@ import isError from '../lib/is-error'
 import { getMiddlewareInfo } from './require'
 import { parseUrl as simpleParseUrl } from '../shared/lib/router/utils/parse-url'
 import { MIDDLEWARE_ROUTE } from '../lib/constants'
+import { NextResponse } from './web/spec-extension/response'
 import { run } from './web/sandbox'
 import type { FetchEventResult } from './web/types'
 import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
@@ -595,11 +595,8 @@ export default class Server {
   protected async ensureMiddleware(_pathname: string) {}
 
   private middlewareBetaWarning = execOnce(() => {
-    console.warn(
-      chalk.bold.yellow(`Warning: `) +
-        chalk.yellow(
-          `using beta Middleware (not covered by semver) - https://nextjs.org/docs/messages/beta-middleware`
-        )
+    Log.warn(
+      `using beta Middleware (not covered by semver) - https://nextjs.org/docs/messages/beta-middleware`
     )
   })
 
@@ -625,6 +622,9 @@ export default class Server {
       }
     }
 
+    const subreq = params.request.headers[`x-middleware-subrequest`]
+    const subrequests = typeof subreq === 'string' ? subreq.split(':') : []
+    const allHeaders = new Headers()
     let result: FetchEventResult | null = null
 
     for (const middleware of this.middleware || []) {
@@ -643,6 +643,14 @@ export default class Server {
           serverless: this._isLikeServerless,
         })
 
+        if (subrequests.includes(middlewareInfo.name)) {
+          result = {
+            response: NextResponse.next(),
+            waitUntil: Promise.resolve(),
+          }
+          continue
+        }
+
         result = await run({
           name: middlewareInfo.name,
           paths: middlewareInfo.paths,
@@ -659,11 +667,11 @@ export default class Server {
           },
         })
 
-        if (!this.renderOpts.dev) {
-          result.promise.catch((error) => {
-            console.error(`Uncaught: middleware error after responding`, error)
-          })
+        for (let [key, value] of result.response.headers) {
+          allHeaders.append(key, value)
+        }
 
+        if (!this.renderOpts.dev) {
           result.waitUntil.catch((error) => {
             console.error(`Uncaught: middleware waitUntil errored`, error)
           })
@@ -677,6 +685,10 @@ export default class Server {
 
     if (!result) {
       this.render404(params.request, params.response, params.parsed)
+    } else {
+      for (let [key, value] of allHeaders) {
+        result.response.headers.set(key, value)
+      }
     }
 
     return result
@@ -1152,7 +1164,11 @@ export default class Server {
 
           for (const [key, value] of result.response.headers.entries()) {
             if (key !== 'content-encoding') {
-              res.setHeader(key, value)
+              if (key.toLowerCase() === 'set-cookie') {
+                res.setHeader(key, value.split(', '))
+              } else {
+                res.setHeader(key, value)
+              }
             }
           }
 
@@ -2300,11 +2316,8 @@ export default class Server {
   }
 
   private customErrorNo404Warn = execOnce(() => {
-    console.warn(
-      chalk.bold.yellow(`Warning: `) +
-        chalk.yellow(
-          `You have added a custom /_error page without a custom /404 page. This prevents the 404 page from being auto statically optimized.\nSee here for info: https://nextjs.org/docs/messages/custom-error-no-custom-404`
-        )
+    Log.warn(
+      `You have added a custom /_error page without a custom /404 page. This prevents the 404 page from being auto statically optimized.\nSee here for info: https://nextjs.org/docs/messages/custom-error-no-custom-404`
     )
   })
 

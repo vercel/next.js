@@ -248,20 +248,7 @@ export async function ncc_escape_string_regexp(task, opts) {
     .ncc({ packageName: 'escape-string-regexp', externals })
     .target('compiled/escape-string-regexp')
 }
-// eslint-disable-next-line camelcase
-externals['file-loader'] = 'next/dist/compiled/file-loader'
-export async function ncc_file_loader(task, opts) {
-  await task
-    .source(opts.src || relative(__dirname, require.resolve('file-loader')))
-    .ncc({
-      packageName: 'file-loader',
-      externals: {
-        ...externals,
-        'schema-utils': externals['schema-utils2'],
-      },
-    })
-    .target('compiled/file-loader')
-}
+
 // eslint-disable-next-line camelcase
 externals['find-cache-dir'] = 'next/dist/compiled/find-cache-dir'
 export async function ncc_find_cache_dir(task, opts) {
@@ -724,6 +711,16 @@ export async function ncc_webpack_sources3(task, opts) {
     .ncc({ packageName: 'webpack-sources3', externals, target: 'es5' })
     .target('compiled/webpack-sources3')
 }
+
+// eslint-disable-next-line camelcase
+externals['micromatch'] = 'next/dist/compiled/micromatch'
+export async function ncc_minimatch(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('micromatch')))
+    .ncc({ packageName: 'micromatch', externals })
+    .target('compiled/micromatch')
+}
+
 // eslint-disable-next-line camelcase
 externals['mini-css-extract-plugin'] =
   'next/dist/compiled/mini-css-extract-plugin'
@@ -896,7 +893,6 @@ export async function ncc(task, opts) {
         'ncc_debug',
         'ncc_devalue',
         'ncc_escape_string_regexp',
-        'ncc_file_loader',
         'ncc_find_cache_dir',
         'ncc_find_up',
         'ncc_fresh',
@@ -951,6 +947,7 @@ export async function ncc(task, opts) {
         'ncc_uuid',
         'ncc_formdata_node',
         'ncc_web_streams_polyfill',
+        'ncc_minimatch',
         'ncc_mini_css_extract_plugin',
       ],
       opts

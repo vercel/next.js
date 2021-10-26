@@ -20,9 +20,7 @@ let browser
 function runTests() {
   it('should load static unicode image', async () => {
     const src = await browser.elementById('static').getAttribute('src')
-    expect(src).toMatch(
-      /_next%2Fstatic%2Fimage%2Fpublic%2F%C3%A4%C3%B6%C3%BC(.+)png/
-    )
+    expect(src).toMatch(/_next%2Fstatic%2Fmedia%2F%C3%A4%C3%B6%C3%BC(.+)png/)
     const fullSrc = new URL(src, `http://localhost:${appPort}`)
     const res = await fetch(fullSrc)
     expect(res.status).toBe(200)

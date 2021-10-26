@@ -543,17 +543,42 @@ function fetchRetry(url: string, attempts: number): Promise<any> {
   })
 }
 
-function fetchNextData(dataHref: string, isServerRender: boolean) {
-  return fetchRetry(dataHref, isServerRender ? 3 : 1).catch((err: Error) => {
-    // We should only trigger a server-side transition if this was caused
-    // on a client-side transition. Otherwise, we'd get into an infinite
-    // loop.
+function fetchNextData(
+  dataHref: string,
+  isServerRender: boolean,
+  inflightCache: NextDataCache,
+  persistCache: boolean
+) {
+  const { href: cacheKey } = new URL(dataHref, window.location.href)
 
-    if (!isServerRender) {
-      markAssetError(err)
-    }
-    throw err
-  })
+  if (inflightCache[cacheKey] !== undefined) {
+    return inflightCache[cacheKey]
+  }
+  return (inflightCache[cacheKey] = fetchRetry(dataHref, isServerRender ? 3 : 1)
+    .catch((err: Error) => {
+      // We should only trigger a server-side transition if this was caused
+      // on a client-side transition. Otherwise, we'd get into an infinite
+      // loop.
+
+      if (!isServerRender) {
+        markAssetError(err)
+      }
+      throw err
+    })
+    .then((data) => {
+      if (!persistCache || process.env.NODE_ENV !== 'production') {
+        delete inflightCache[cacheKey]
+      }
+      return data
+    })
+    .catch((err) => {
+      delete inflightCache[cacheKey]
+      throw err
+    }))
+}
+
+interface NextDataCache {
+  [asPath: string]: Promise<object>
 }
 
 export default class Router implements BaseRouter {
@@ -568,9 +593,9 @@ export default class Router implements BaseRouter {
    */
   components: { [pathname: string]: PrivateRouteInfo }
   // Static Data Cache
-  sdc: { [asPath: string]: object } = {}
+  sdc: NextDataCache = {}
   // In-flight Server Data Requests, for deduping
-  sdr: { [asPath: string]: Promise<object> } = {}
+  sdr: NextDataCache = {}
   // In-flight middleware preflight requests
   sde: { [asPath: string]: object } = {}
 
@@ -1466,10 +1491,13 @@ export default class Router implements BaseRouter {
       }
 
       const props = await this._getData<CompletePrivateRouteInfo>(() =>
-        __N_SSG
-          ? this._getStaticData(dataHref!)
-          : __N_SSP
-          ? this._getServerData(dataHref!)
+        __N_SSG || __N_SSP
+          ? fetchNextData(
+              dataHref!,
+              this.isSsr,
+              __N_SSG ? this.sdc : this.sdr,
+              !!__N_SSG
+            )
           : this.getInitialProps(
               Component,
               // we provide AppTree later so this needs to be `any`
@@ -1664,7 +1692,7 @@ export default class Router implements BaseRouter {
     await Promise.all([
       this.pageLoader._isSsg(route).then((isSsg: boolean) => {
         return isSsg
-          ? this._getStaticData(
+          ? fetchNextData(
               this.pageLoader.getDataHref(
                 url,
                 resolvedAs,
@@ -1672,7 +1700,10 @@ export default class Router implements BaseRouter {
                 typeof options.locale !== 'undefined'
                   ? options.locale
                   : this.locale
-              )
+              ),
+              false,
+              this.sdc,
+              true
             )
           : false
       }),
@@ -1882,37 +1913,6 @@ export default class Router implements BaseRouter {
         delete this.sde[cacheKey]
         throw err
       })
-  }
-
-  _getStaticData(dataHref: string): Promise<object> {
-    const { href: cacheKey } = new URL(dataHref, window.location.href)
-    if (
-      process.env.NODE_ENV === 'production' &&
-      !this.isPreview &&
-      this.sdc[cacheKey]
-    ) {
-      return Promise.resolve(this.sdc[cacheKey])
-    }
-    return fetchNextData(dataHref, this.isSsr).then((data) => {
-      this.sdc[cacheKey] = data
-      return data
-    })
-  }
-
-  _getServerData(dataHref: string): Promise<object> {
-    const { href: resourceKey } = new URL(dataHref, window.location.href)
-    if (this.sdr[resourceKey] !== undefined) {
-      return this.sdr[resourceKey]
-    }
-    return (this.sdr[resourceKey] = fetchNextData(dataHref, this.isSsr)
-      .then((data) => {
-        delete this.sdr[resourceKey]
-        return data
-      })
-      .catch((err) => {
-        delete this.sdr[resourceKey]
-        throw err
-      }))
   }
 
   getInitialProps(

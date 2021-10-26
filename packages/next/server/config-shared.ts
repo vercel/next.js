@@ -1,5 +1,5 @@
 import os from 'os'
-import type webpack5 from 'webpack5'
+import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 import { Header, Redirect, Rewrite } from '../lib/load-custom-routes'
 import {
   ImageConfig,
@@ -116,11 +116,12 @@ export type NextConfig = { [key: string]: any } & {
     webpack5?: false
     strictPostcssConfiguration?: boolean
   }
+  outputFileTracing?: boolean
   staticPageGenerationTimeout?: number
   crossOrigin?: false | 'anonymous' | 'use-credentials'
+  swcMinify?: boolean
   experimental?: {
     swcMinify?: boolean
-    swcLoader?: boolean
     cpus?: number
     sharedPool?: boolean
     plugins?: boolean
@@ -145,7 +146,6 @@ export type NextConfig = { [key: string]: any } & {
     craCompat?: boolean
     esmExternals?: boolean | 'loose'
     isrMemoryCacheSize?: number
-    outputFileTracing?: boolean
     concurrentFeatures?: boolean
     serverComponents?: boolean
     fullySpecified?: boolean
@@ -201,10 +201,10 @@ export const defaultConfig: NextConfig = {
   httpAgentOptions: {
     keepAlive: true,
   },
+  outputFileTracing: true,
   staticPageGenerationTimeout: 60,
+  swcMinify: false,
   experimental: {
-    swcLoader: false,
-    swcMinify: false,
     cpus: Math.max(
       1,
       (Number(process.env.CIRCLE_NODE_TOTAL) ||
@@ -227,7 +227,6 @@ export const defaultConfig: NextConfig = {
     esmExternals: true,
     // default to 50MB limit
     isrMemoryCacheSize: 50 * 1024 * 1024,
-    outputFileTracing: false,
     concurrentFeatures: false,
     serverComponents: false,
     fullySpecified: false,
