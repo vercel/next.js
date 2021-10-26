@@ -432,7 +432,9 @@ export class TraceEntryPointsPlugin implements webpack5.WebpackPluginInstance {
                     // package.json could be needed for resolving e.g. stylis
                     // stylis/package.json -> stylis/dist/umd/package.json
                     if (result.includes('node_modules')) {
-                      let requestPath = result.replace(/\\/g, '/')
+                      let requestPath = result
+                        .replace(/\\/g, '/')
+                        .replace(/\0/g, '')
 
                       if (
                         !nodePath.isAbsolute(request) &&
@@ -444,7 +446,9 @@ export class TraceEntryPointsPlugin implements webpack5.WebpackPluginInstance {
                           request.substr(getPkgName(request)?.length || 0) +
                           nodePath.sep +
                           'package.json'
-                        ).replace(/\\/g, '/')
+                        )
+                          .replace(/\\/g, '/')
+                          .replace(/\0/g, '')
                       }
 
                       const rootSeparatorIndex = requestPath.indexOf('/')
@@ -524,7 +528,7 @@ export class TraceEntryPointsPlugin implements webpack5.WebpackPluginInstance {
           if (!res) {
             throw new Error(`failed to resolve ${request} from ${parent}`)
           }
-          return res
+          return res.replace(/\0/g, '')
         }
 
         this.tapfinishModules(
