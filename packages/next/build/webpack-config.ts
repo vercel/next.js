@@ -1425,7 +1425,7 @@ export default async function getBaseWebpackConfig(
 
   webpack5Config.experiments = {
     layers: true,
-    cacheUnaffected: false, // Disabled for now due to a webpack bug
+    cacheUnaffected: true,
     buildHttp: Array.isArray(config.experimental.urlImports)
       ? {
           allowedUris: config.experimental.urlImports,
