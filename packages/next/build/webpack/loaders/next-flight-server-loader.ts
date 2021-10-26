@@ -58,11 +58,11 @@ async function parseImportsInfo(
             lastIndex,
             node.source.start - lastIndex
           )
-          transformedSource += `"${node.source.value}?flight"`
+          transformedSource += JSON.stringify(`${node.source.value}?flight`)
         }
 
         lastIndex = node.source.end
-        imports.push(`require('${importSource}')`)
+        imports.push(`require(${JSON.stringify(importSource)})`)
         continue
       default:
         break
