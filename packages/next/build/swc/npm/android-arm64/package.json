@@ -2,7 +2,7 @@
   "name": "@next/swc-android-arm64",
   "version": "0.0.0",
   "os": [
-    "darwin"
+    "android"
   ],
   "cpu": [
     "arm64"
