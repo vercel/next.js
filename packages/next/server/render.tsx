@@ -1,10 +1,9 @@
 import { IncomingMessage, ServerResponse } from 'http'
 import { ParsedUrlQuery } from 'querystring'
-import { Writable } from 'stream'
+import type { Writable as WritableType } from 'stream'
 import React from 'react'
 import * as ReactDOMServer from 'react-dom/server'
 import { StyleRegistry, createStyleRegistry } from 'styled-jsx'
-import { warn } from '../build/output/log'
 import { UnwrapPromise } from '../lib/coalesced-function'
 import {
   GSP_NO_RETURNED_VALUE,
@@ -30,7 +29,6 @@ import { defaultHead } from '../shared/lib/head'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import Loadable from '../shared/lib/loadable'
 import { LoadableContext } from '../shared/lib/loadable-context'
-import postProcess from '../shared/lib/post-process'
 import { RouterContext } from '../shared/lib/router-context'
 import { NextRouter } from '../shared/lib/router/router'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
@@ -49,16 +47,11 @@ import {
   RenderPage,
   RenderPageResult,
 } from '../shared/lib/utils'
-import {
-  tryGetPreviewData,
-  NextApiRequestCookies,
-  __ApiPreviewProps,
-} from './api-utils'
+import type { NextApiRequestCookies, __ApiPreviewProps } from './api-utils'
 import { denormalizePagePath } from './denormalize-page-path'
-import { FontManifest, getFontDefinitionFromManifest } from './font-utils'
-import { LoadComponentsReturnType, ManifestItem } from './load-components'
+import type { FontManifest } from './font-utils'
+import type { LoadComponentsReturnType, ManifestItem } from './load-components'
 import { normalizePagePath } from './normalize-page-path'
-import optimizeAmp from './optimize-amp'
 import {
   allowedStatusCodes,
   getRedirectStatus,
@@ -67,6 +60,27 @@ import {
 import { DomainLocale } from './config'
 import RenderResult, { NodeWritablePiper } from './render-result'
 import isError from '../lib/is-error'
+
+let Writable: typeof import('stream').Writable
+let Buffer: typeof import('buffer').Buffer
+let optimizeAmp: typeof import('./optimize-amp').default
+let getFontDefinitionFromManifest: typeof import('./font-utils').getFontDefinitionFromManifest
+let tryGetPreviewData: typeof import('./api-utils').tryGetPreviewData
+let warn: typeof import('../build/output/log').warn
+let postProcess: typeof import('../shared/lib/post-process').default
+
+if (!process.browser) {
+  Writable = require('stream').Writable
+  Buffer = require('buffer').Buffer
+  optimizeAmp = require('./optimize-amp').default
+  getFontDefinitionFromManifest =
+    require('./font-utils').getFontDefinitionFromManifest
+  tryGetPreviewData = require('./api-utils').tryGetPreviewData
+  warn = require('../build/output/log').warn
+  postProcess = require('../shared/lib/post-process').default
+} else {
+  warn = console.warn.bind(console)
+}
 
 function noRouter() {
   const message =
@@ -189,6 +203,7 @@ export type RenderOptsPartial = {
   devOnlyCacheBusterQueryString?: string
   resolvedUrl?: string
   resolvedAsPath?: string
+  renderServerComponent?: null | (() => Promise<string>)
   distDir?: string
   locale?: string
   locales?: string[]
@@ -291,6 +306,7 @@ export async function renderToHTML(
     getStaticProps,
     getStaticPaths,
     getServerSideProps,
+    renderServerComponent,
     isDataReq,
     params,
     previewProps,
@@ -342,6 +358,8 @@ export async function renderToHTML(
     App.getInitialProps === (App as any).origGetInitialProps
 
   const hasPageGetInitialProps = !!(Component as any).getInitialProps
+
+  const isRSC = !!renderServerComponent
 
   const pageIsDynamic = isDynamicRoute(pathname)
 
@@ -453,7 +471,7 @@ export async function renderToHTML(
   let isPreview
   let previewData: PreviewData
 
-  if ((isSSG || getServerSideProps) && !isFallback) {
+  if ((isSSG || getServerSideProps) && !isFallback && !process.browser) {
     // Reads of this are cached on the `req` object, so this should resolve
     // instantly. There's no need to pass this data down from a previous
     // invoke, where we'd have to consider server & serverless.
@@ -521,7 +539,8 @@ export async function renderToHTML(
     hybrid: pageConfig.amp === 'hybrid',
   }
 
-  const inAmpMode = isInAmpMode(ampState)
+  // Disable AMP under the web environment
+  const inAmpMode = !process.browser && isInAmpMode(ampState)
 
   const reactLoadableModules: string[] = []
 
@@ -745,14 +764,20 @@ export async function renderToHTML(
 
     let canAccessRes = true
     let resOrProxy = res
+    let deferredContent = false
     if (process.env.NODE_ENV !== 'production') {
       resOrProxy = new Proxy<ServerResponse>(res, {
         get: function (obj, prop, receiver) {
           if (!canAccessRes) {
-            throw new Error(
+            const message =
               `You should not access 'res' after getServerSideProps resolves.` +
-                `\nRead more: https://nextjs.org/docs/messages/gssp-no-mutating-res`
-            )
+              `\nRead more: https://nextjs.org/docs/messages/gssp-no-mutating-res`
+
+            if (deferredContent) {
+              throw new Error(message)
+            } else {
+              warn(message)
+            }
           }
           return Reflect.get(obj, prop, receiver)
         },
@@ -790,6 +815,10 @@ export async function renderToHTML(
 
     if (data == null) {
       throw new Error(GSSP_NO_RETURNED_VALUE)
+    }
+
+    if ((data as any).props instanceof Promise) {
+      deferredContent = true
     }
 
     const invalidKeys = Object.keys(data).filter(
@@ -834,7 +863,7 @@ export async function renderToHTML(
       ;(renderOpts as any).isRedirect = true
     }
 
-    if ((data as any).props instanceof Promise) {
+    if (deferredContent) {
       ;(data as any).props = await (data as any).props
     }
 
@@ -985,8 +1014,11 @@ export async function renderToHTML(
             <App {...props} Component={Component} router={router} />
           </AppContainer>
         )
+
       const bodyResult = concurrentFeatures
-        ? await renderToStream(content, generateStaticHTML)
+        ? process.browser
+          ? await renderToReadableStream(content)
+          : await renderToNodeStream(content, generateStaticHTML)
         : piperFromArray([ReactDOMServer.renderToString(content)])
 
       return {
@@ -1050,6 +1082,7 @@ export async function renderToHTML(
       err: renderOpts.err ? serializeError(dev, renderOpts.err) : undefined, // Error if one happened, otherwise don't sent in the resulting HTML
       gsp: !!getStaticProps ? true : undefined, // whether the page is getStaticProps
       gssp: !!getServerSideProps ? true : undefined, // whether the page is getServerSideProps
+      rsc: isRSC ? true : undefined, // whether the page is a server components page
       customServer, // whether the user is using a custom server
       gip: hasPageGetInitialProps ? true : undefined, // whether the page has getInitialProps
       appGip: !defaultAppGetInitialProps ? true : undefined, // whether the _app has getInitialProps
@@ -1146,8 +1179,9 @@ export async function renderToHTML(
                 return html
               }
             : null,
-          process.env.__NEXT_OPTIMIZE_FONTS ||
-          process.env.__NEXT_OPTIMIZE_IMAGES
+          !process.browser &&
+          (process.env.__NEXT_OPTIMIZE_FONTS ||
+            process.env.__NEXT_OPTIMIZE_IMAGES)
             ? async (html: string) => {
                 return await postProcess(
                   html,
@@ -1161,18 +1195,23 @@ export async function renderToHTML(
             : null,
           renderOpts.optimizeCss
             ? async (html: string) => {
-                // eslint-disable-next-line import/no-extraneous-dependencies
-                const Critters = require('critters')
-                const cssOptimizer = new Critters({
-                  ssrMode: true,
-                  reduceInlineStyles: false,
-                  path: renderOpts.distDir,
-                  publicPath: `${renderOpts.assetPrefix}/_next/`,
-                  preload: 'media',
-                  fonts: false,
-                  ...renderOpts.optimizeCss,
-                })
-                return await cssOptimizer.process(html)
+                if (process.browser) {
+                  // Have to disable critters under the web environment.
+                  return html
+                } else {
+                  // eslint-disable-next-line import/no-extraneous-dependencies
+                  const Critters = require('critters')
+                  const cssOptimizer = new Critters({
+                    ssrMode: true,
+                    reduceInlineStyles: false,
+                    path: renderOpts.distDir,
+                    publicPath: `${renderOpts.assetPrefix}/_next/`,
+                    preload: 'media',
+                    fonts: false,
+                    ...renderOpts.optimizeCss,
+                  })
+                  return await cssOptimizer.process(html)
+                }
               }
             : null,
           inAmpMode || hybridAmp
@@ -1197,9 +1236,13 @@ export async function renderToHTML(
   return new RenderResult(chainPipers(pipers))
 }
 
-function errorToJSON(err: Error): Error {
-  const { name, message, stack } = err
-  return { name, message, stack }
+function errorToJSON(err: Error) {
+  return {
+    name: err.name,
+    message: err.message,
+    stack: err.stack,
+    middleware: (err as any).middleware,
+  }
 }
 
 function serializeError(
@@ -1217,26 +1260,33 @@ function serializeError(
   }
 }
 
-function renderToStream(
+function renderToNodeStream(
   element: React.ReactElement,
   generateStaticHTML: boolean
 ): Promise<NodeWritablePiper> {
   return new Promise((resolve, reject) => {
     let underlyingStream: {
       resolve: (error?: Error) => void
-      writable: Writable
+      writable: WritableType
       queuedCallbacks: Array<() => void>
     } | null = null
+
     const stream = new Writable({
       // Use the buffer from the underlying stream
       highWaterMark: 0,
-      write(chunk, encoding, callback) {
+      writev(chunks, callback) {
+        let str = ''
+        for (let { chunk } of chunks) {
+          str += chunk.toString()
+        }
+
         if (!underlyingStream) {
           throw new Error(
             'invariant: write called without an underlying stream. This is a bug in Next.js'
           )
         }
-        if (!underlyingStream.writable.write(chunk, encoding)) {
+
+        if (!underlyingStream.writable.write(str)) {
           underlyingStream.queuedCallbacks.push(() => callback())
         } else {
           callback()
@@ -1277,7 +1327,7 @@ function renderToStream(
     })
 
     let resolved = false
-    const doResolve = () => {
+    const doResolve = (startWriting: any) => {
       if (!resolved) {
         resolved = true
         resolve((res, next) => {
@@ -1301,9 +1351,8 @@ function renderToStream(
       }
     }
 
-    const { abort, startWriting } = (ReactDOMServer as any).pipeToNodeWritable(
+    const { abort, pipe } = (ReactDOMServer as any).renderToPipeableStream(
       element,
-      stream,
       {
         onError(error: Error) {
           if (!resolved) {
@@ -1314,15 +1363,36 @@ function renderToStream(
         },
         onCompleteShell() {
           if (!generateStaticHTML) {
-            doResolve()
+            doResolve(() => pipe(stream))
           }
         },
         onCompleteAll() {
-          doResolve()
+          doResolve(() => pipe(stream))
         },
       }
     )
   })
+}
+
+function renderToReadableStream(
+  element: React.ReactElement
+): NodeWritablePiper {
+  return (res, next) => {
+    const readable = (ReactDOMServer as any).renderToReadableStream(element)
+    const reader = readable.getReader()
+    const decoder = new TextDecoder()
+    const process = () => {
+      reader.read().then(({ done, value }: any) => {
+        if (!done) {
+          res.write(typeof value === 'string' ? value : decoder.decode(value))
+          process()
+        } else {
+          next()
+        }
+      })
+    }
+    process()
+  }
 }
 
 function chainPipers(pipers: NodeWritablePiper[]): NodeWritablePiper {

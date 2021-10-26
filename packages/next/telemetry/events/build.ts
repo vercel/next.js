@@ -95,6 +95,7 @@ type EventBuildOptimized = {
   headersWithHasCount: number
   rewritesWithHasCount: number
   redirectsWithHasCount: number
+  middlewareCount: number
 }
 
 export function eventBuildOptimize(
@@ -127,6 +128,8 @@ export type EventBuildFeatureUsage = {
     | 'next/script'
     | 'next/dynamic'
     | 'experimental/optimizeCss'
+    | 'swcLoader'
+    | 'swcMinify'
   invocationCount: number
 }
 export function eventBuildFeatureUsage(

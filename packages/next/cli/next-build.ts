@@ -69,8 +69,17 @@ const nextBuild: cliCommand = (argv) => {
     !args['--no-lint']
   ).catch((err) => {
     console.error('')
-    console.error('> Build error occurred')
-    printAndExit(err)
+    if (
+      isError(err) &&
+      (err.code === 'INVALID_RESOLVE_ALIAS' ||
+        err.code === 'WEBPACK_ERRORS' ||
+        err.code === 'BUILD_OPTIMIZATION_FAILED')
+    ) {
+      printAndExit(`> ${err.message}`)
+    } else {
+      console.error('> Build error occurred')
+      printAndExit(err)
+    }
   })
 }
 

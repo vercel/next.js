@@ -1,14 +1,14 @@
 import { EventEmitter } from 'events'
-import { IncomingMessage, ServerResponse } from 'http'
 import { join, posix } from 'path'
-import { parse } from 'url'
-import { webpack } from 'next/dist/compiled/webpack/webpack'
+import type { webpack5 as webpack } from 'next/dist/compiled/webpack/webpack'
 import { normalizePagePath, normalizePathSep } from '../normalize-page-path'
 import { pageNotFoundError } from '../require'
 import { findPageFile } from '../lib/find-page-file'
 import getRouteFromEntrypoint from '../get-route-from-entrypoint'
-import { API_ROUTE } from '../../lib/constants'
+import { API_ROUTE, MIDDLEWARE_ROUTE } from '../../lib/constants'
 import { reportTrigger } from '../../build/output'
+import type ws from 'ws'
+import { NextConfigComplete } from '../config-shared'
 
 export const ADDED = Symbol('added')
 export const BUILDING = Symbol('building')
@@ -29,12 +29,12 @@ export default function onDemandEntryHandler(
   multiCompiler: webpack.MultiCompiler,
   {
     pagesDir,
-    pageExtensions,
+    nextConfig,
     maxInactiveAge,
     pagesBufferLength,
   }: {
     pagesDir: string
-    pageExtensions: string[]
+    nextConfig: NextConfigComplete
     maxInactiveAge: number
     pagesBufferLength: number
   }
@@ -48,7 +48,7 @@ export default function onDemandEntryHandler(
   for (const compiler of compilers) {
     compiler.hooks.make.tap(
       'NextJsOnDemandEntries',
-      (_compilation: webpack.compilation.Compilation) => {
+      (_compilation: webpack.Compilation) => {
         invalidator.startBuilding()
       }
     )
@@ -73,7 +73,7 @@ export default function onDemandEntryHandler(
     if (invalidator.rebuildAgain) {
       return invalidator.doneBuilding()
     }
-    const [clientStats, serverStats] = multiStats.stats
+    const [clientStats, serverStats, serverWebStats] = multiStats.stats
     const pagePaths = [
       ...getPagePathsFromEntrypoints(
         'client',
@@ -83,6 +83,12 @@ export default function onDemandEntryHandler(
         'server',
         serverStats.compilation.entrypoints
       ),
+      ...(serverWebStats
+        ? getPagePathsFromEntrypoints(
+            'server-web',
+            serverWebStats.compilation.entrypoints
+          )
+        : []),
     ]
 
     for (const page of pagePaths) {
@@ -159,7 +165,7 @@ export default function onDemandEntryHandler(
       let pagePath = await findPageFile(
         pagesDir,
         normalizedPagePath,
-        pageExtensions
+        nextConfig.pageExtensions
       )
 
       // Default the /_error route to the Next.js provided default page
@@ -171,30 +177,39 @@ export default function onDemandEntryHandler(
         throw pageNotFoundError(normalizedPagePath)
       }
 
-      let pageUrl = pagePath.replace(/\\/g, '/')
+      let bundlePath: string
+      let absolutePagePath: string
+      if (pagePath.startsWith('next/dist/pages/')) {
+        bundlePath = page
+        absolutePagePath = require.resolve(pagePath)
+      } else {
+        let pageUrl = pagePath.replace(/\\/g, '/')
 
-      pageUrl = `${pageUrl[0] !== '/' ? '/' : ''}${pageUrl
-        .replace(new RegExp(`\\.+(?:${pageExtensions.join('|')})$`), '')
-        .replace(/\/index$/, '')}`
+        pageUrl = `${pageUrl[0] !== '/' ? '/' : ''}${pageUrl
+          .replace(
+            new RegExp(`\\.+(?:${nextConfig.pageExtensions.join('|')})$`),
+            ''
+          )
+          .replace(/\/index$/, '')}`
 
-      pageUrl = pageUrl === '' ? '/' : pageUrl
+        pageUrl = pageUrl === '' ? '/' : pageUrl
+        const bundleFile = normalizePagePath(pageUrl)
+        bundlePath = posix.join('pages', bundleFile)
+        absolutePagePath = join(pagesDir, pagePath)
+        page = posix.normalize(pageUrl)
+      }
 
-      const bundleFile = normalizePagePath(pageUrl)
-      const bundlePath = posix.join('pages', bundleFile)
-      const absolutePagePath = pagePath.startsWith('next/dist/pages')
-        ? require.resolve(pagePath)
-        : join(pagesDir, pagePath)
-
-      page = posix.normalize(pageUrl)
       const normalizedPage = normalizePathSep(page)
 
-      const isApiRoute = normalizedPage.match(API_ROUTE)
+      const isMiddleware = normalizedPage.match(MIDDLEWARE_ROUTE)
+      const isApiRoute = normalizedPage.match(API_ROUTE) && !isMiddleware
+      const isServerWeb = !!nextConfig.experimental.concurrentFeatures
 
       let entriesChanged = false
-      const addPageEntry = (type: 'client' | 'server') => {
+      const addPageEntry = (type: 'client' | 'server' | 'server-web') => {
         return new Promise<void>((resolve, reject) => {
           // Makes sure the page that is being kept in on-demand-entries matches the webpack output
-          const pageKey = `${type}${normalizedPage}`
+          const pageKey = `${type}${page}`
           const entryInfo = entries[pageKey]
 
           if (entryInfo) {
@@ -229,15 +244,18 @@ export default function onDemandEntryHandler(
 
       const promise = isApiRoute
         ? addPageEntry('server')
-        : clientOnly
+        : clientOnly || isMiddleware
         ? addPageEntry('client')
-        : Promise.all([addPageEntry('client'), addPageEntry('server')])
+        : Promise.all([
+            addPageEntry('client'),
+            addPageEntry(isServerWeb ? 'server-web' : 'server'),
+          ])
 
       if (entriesChanged) {
         reportTrigger(
           isApiRoute
             ? `${normalizedPage} (server only)`
-            : clientOnly
+            : clientOnly || isMiddleware
             ? `${normalizedPage} (client only)`
             : normalizedPage
         )
@@ -247,27 +265,23 @@ export default function onDemandEntryHandler(
       return promise
     },
 
-    middleware(req: IncomingMessage, res: ServerResponse, next: Function) {
-      if (!req.url?.startsWith('/_next/webpack-hmr')) return next()
+    onHMR(client: ws) {
+      client.addEventListener('message', ({ data }) => {
+        data = typeof data !== 'string' ? data.toString() : data
+        try {
+          const parsedData = JSON.parse(data)
 
-      const { query } = parse(req.url!, true)
-      const page = query.page
-      if (!page) return next()
-
-      const runPing = () => {
-        const data = handlePing(query.page as string)
-        if (!data) return
-        res.write('data: ' + JSON.stringify(data) + '\n\n')
-      }
-      const pingInterval = setInterval(() => runPing(), pingIntervalTime)
-
-      // Run a ping now to make sure page is instantly flagged as active
-      setTimeout(() => runPing(), 0)
-
-      req.on('close', () => {
-        clearInterval(pingInterval)
+          if (parsedData.event === 'ping') {
+            const result = handlePing(parsedData.page)
+            client.send(
+              JSON.stringify({
+                ...result,
+                event: 'pong',
+              })
+            )
+          }
+        } catch (_) {}
       })
-      next()
     },
   }
 }

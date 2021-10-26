@@ -352,8 +352,10 @@ describe('basePath', () => {
 
     it('should update dynamic params after mount correctly', async () => {
       const browser = await webdriver(next.url, `${basePath}/hello-dynamic`)
-      const text = await browser.elementByCss('#slug').text()
-      expect(text).toContain('slug: hello-dynamic')
+      await check(
+        () => browser.elementByCss('#slug').text(),
+        /slug: hello-dynamic/
+      )
     })
 
     it('should navigate to index page with getStaticProps', async () => {
@@ -682,6 +684,10 @@ describe('basePath', () => {
     it('should use urls with basepath in router events', async () => {
       const browser = await webdriver(next.url, `${basePath}/hello`)
       try {
+        await check(
+          () => browser.eval('window.next.router.isReady ? "ready" : "no"'),
+          'ready'
+        )
         await browser.eval('window._clearEventLog()')
         await browser
           .elementByCss('#other-page-link')

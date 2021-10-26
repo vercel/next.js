@@ -1,5 +1,5 @@
 // We allow some additional attached properties for Errors
-interface NextError extends Error {
+export interface NextError extends Error {
   type?: string
   page?: string
   code?: string | number
