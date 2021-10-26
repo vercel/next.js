@@ -8,6 +8,7 @@ import getRouteFromEntrypoint from '../get-route-from-entrypoint'
 import { API_ROUTE, MIDDLEWARE_ROUTE } from '../../lib/constants'
 import { reportTrigger } from '../../build/output'
 import type ws from 'ws'
+import { NextConfigComplete } from '../config-shared'
 
 export const ADDED = Symbol('added')
 export const BUILDING = Symbol('building')
@@ -28,12 +29,12 @@ export default function onDemandEntryHandler(
   multiCompiler: webpack.MultiCompiler,
   {
     pagesDir,
-    pageExtensions,
+    nextConfig,
     maxInactiveAge,
     pagesBufferLength,
   }: {
     pagesDir: string
-    pageExtensions: string[]
+    nextConfig: NextConfigComplete
     maxInactiveAge: number
     pagesBufferLength: number
   }
@@ -72,7 +73,7 @@ export default function onDemandEntryHandler(
     if (invalidator.rebuildAgain) {
       return invalidator.doneBuilding()
     }
-    const [clientStats, serverStats] = multiStats.stats
+    const [clientStats, serverStats, serverWebStats] = multiStats.stats
     const pagePaths = [
       ...getPagePathsFromEntrypoints(
         'client',
@@ -82,6 +83,12 @@ export default function onDemandEntryHandler(
         'server',
         serverStats.compilation.entrypoints
       ),
+      ...(serverWebStats
+        ? getPagePathsFromEntrypoints(
+            'server-web',
+            serverWebStats.compilation.entrypoints
+          )
+        : []),
     ]
 
     for (const page of pagePaths) {
@@ -158,7 +165,7 @@ export default function onDemandEntryHandler(
       let pagePath = await findPageFile(
         pagesDir,
         normalizedPagePath,
-        pageExtensions
+        nextConfig.pageExtensions
       )
 
       // Default the /_error route to the Next.js provided default page
@@ -179,7 +186,10 @@ export default function onDemandEntryHandler(
         let pageUrl = pagePath.replace(/\\/g, '/')
 
         pageUrl = `${pageUrl[0] !== '/' ? '/' : ''}${pageUrl
-          .replace(new RegExp(`\\.+(?:${pageExtensions.join('|')})$`), '')
+          .replace(
+            new RegExp(`\\.+(?:${nextConfig.pageExtensions.join('|')})$`),
+            ''
+          )
           .replace(/\/index$/, '')}`
 
         pageUrl = pageUrl === '' ? '/' : pageUrl
@@ -193,9 +203,10 @@ export default function onDemandEntryHandler(
 
       const isMiddleware = normalizedPage.match(MIDDLEWARE_ROUTE)
       const isApiRoute = normalizedPage.match(API_ROUTE) && !isMiddleware
+      const isServerWeb = !!nextConfig.experimental.concurrentFeatures
 
       let entriesChanged = false
-      const addPageEntry = (type: 'client' | 'server') => {
+      const addPageEntry = (type: 'client' | 'server' | 'server-web') => {
         return new Promise<void>((resolve, reject) => {
           // Makes sure the page that is being kept in on-demand-entries matches the webpack output
           const pageKey = `${type}${page}`
@@ -235,7 +246,10 @@ export default function onDemandEntryHandler(
         ? addPageEntry('server')
         : clientOnly || isMiddleware
         ? addPageEntry('client')
-        : Promise.all([addPageEntry('client'), addPageEntry('server')])
+        : Promise.all([
+            addPageEntry('client'),
+            addPageEntry(isServerWeb ? 'server-web' : 'server'),
+          ])
 
       if (entriesChanged) {
         reportTrigger(
