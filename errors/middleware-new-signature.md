@@ -20,7 +20,7 @@ export function middleware(event) {
 
 #### Possible Ways to Fix It
 
-You can use the Middleware function with the most recent API:
+Update to use the new API for Middleware:
 
 ```typescript
 import { NextResponse } from 'next/server'
