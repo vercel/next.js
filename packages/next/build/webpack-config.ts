@@ -1972,6 +1972,7 @@ export default async function getBaseWebpackConfig(
           entry[name] = finalizeEntrypoint({
             value: entry[name],
             isServer,
+            isMiddleware: MIDDLEWARE_ROUTE.test(name),
             name,
           })
         }

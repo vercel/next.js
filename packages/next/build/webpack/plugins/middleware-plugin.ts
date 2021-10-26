@@ -87,7 +87,7 @@ export default class MiddlewarePlugin {
               // we need to use the unminified version of the webpack runtime,
               // remove if we do start minifying middleware chunks
               file.startsWith('static/chunks/webpack-')
-                ? file // file.replace('webpack-', 'webpack-middleware-')
+                ? file.replace('webpack-', 'webpack-middleware-')
                 : file
             )
 

@@ -263,17 +263,25 @@ export function finalizeEntrypoint({
     }
   }
 
-  if (isServerWeb || isMiddleware) {
-    const middlewareEntry = {
-      filename: isServerWeb ? name : 'server/[name].js',
-      layer: isServerWeb ? 'server-web' : 'middleware',
+  if (isServerWeb) {
+    const ssrMiddlewareEntry = {
       library: {
         name: ['_ENTRIES', `middleware_[name]`],
         type: 'assign',
       },
-      ...(!name.startsWith('pages/_') && {
-        runtime: MIDDLEWARE_SSR_RUNTIME_WEBPACK,
-      }),
+      runtime: MIDDLEWARE_SSR_RUNTIME_WEBPACK,
+      ...entry,
+    }
+    return ssrMiddlewareEntry
+  }
+  if (isMiddleware) {
+    const middlewareEntry = {
+      filename: 'server/[name].js',
+      layer: 'middleware',
+      library: {
+        name: ['_ENTRIES', `middleware_[name]`],
+        type: 'assign',
+      },
       ...entry,
     }
     return middlewareEntry
