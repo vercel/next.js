@@ -326,7 +326,7 @@ export default async function getBaseWebpackConfig(
 
   if (!loggedSwcDisabled && !useSWCLoader && babelConfigFile) {
     Log.warn(
-      `Disabled SWC because of custom Babel configuration "${path.relative(
+      `Disabled SWC as replacement for Babel because of custom Babel configuration "${path.relative(
         dir,
         babelConfigFile
       )}" https://nextjs.org/docs/messages/swc-disabled`
