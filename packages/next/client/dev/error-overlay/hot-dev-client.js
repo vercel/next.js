@@ -88,7 +88,7 @@ function clearOutdatedErrors() {
 function handleSuccess() {
   clearOutdatedErrors()
 
-  const isHotUpdate = !isFirstCompilation
+  const isHotUpdate = !isFirstCompilation || isUpdateAvailable()
   isFirstCompilation = false
   hasCompileErrors = false
 
