@@ -2,16 +2,22 @@ import chalk from 'chalk'
 import { posix, join } from 'path'
 import { stringify } from 'querystring'
 import { API_ROUTE, DOT_NEXT_ALIAS, PAGES_DIR_ALIAS } from '../lib/constants'
+import { MIDDLEWARE_ROUTE } from '../lib/constants'
 import { __ApiPreviewProps } from '../server/api-utils'
 import { isTargetLikeServerless } from '../server/config'
 import { normalizePagePath } from '../server/normalize-page-path'
 import { warn } from './output/log'
+import { MiddlewareLoaderOptions } from './webpack/loaders/next-middleware-loader'
 import { ClientPagesLoaderOptions } from './webpack/loaders/next-client-pages-loader'
 import { ServerlessLoaderQuery } from './webpack/loaders/next-serverless-loader'
 import { LoadedEnvFiles } from '@next/env'
 import { NextConfigComplete } from '../server/config-shared'
-import type webpack5 from 'webpack5'
+import { isFlightPage } from './utils'
+import { ssrEntries } from './webpack/plugins/middleware-plugin'
+import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
+import { MIDDLEWARE_SSR_RUNTIME_WEBPACK } from '../shared/lib/constants'
 
+type ObjectValue<T> = T extends { [key: string]: infer V } ? V : never
 type PagesMapping = {
   [page: string]: string
 }
@@ -19,14 +25,23 @@ type PagesMapping = {
 export function createPagesMapping(
   pagePaths: string[],
   extensions: string[],
-  isDev: boolean
+  isDev: boolean,
+  hasServerComponents: boolean
 ): PagesMapping {
   const previousPages: PagesMapping = {}
   const pages: PagesMapping = pagePaths.reduce(
     (result: PagesMapping, pagePath): PagesMapping => {
-      let page = `${pagePath
-        .replace(new RegExp(`\\.+(${extensions.join('|')})$`), '')
-        .replace(/\\/g, '/')}`.replace(/\/index$/, '')
+      let page = pagePath.replace(
+        new RegExp(`\\.+(${extensions.join('|')})$`),
+        ''
+      )
+      if (hasServerComponents && /\.client$/.test(page)) {
+        // Assume that if there's a Client Component, that there is
+        // a matching Server Component that will map to the page.
+        return result
+      }
+
+      page = page.replace(/\\/g, '/').replace(/\/index$/, '')
 
       const pageKey = page === '' ? '/' : page
 
@@ -65,6 +80,7 @@ export function createPagesMapping(
 type Entrypoints = {
   client: webpack5.EntryObject
   server: webpack5.EntryObject
+  serverWeb: webpack5.EntryObject
 }
 
 export function createEntrypoints(
@@ -77,6 +93,7 @@ export function createEntrypoints(
 ): Entrypoints {
   const client: webpack5.EntryObject = {}
   const server: webpack5.EntryObject = {}
+  const serverWeb: webpack5.EntryObject = {}
 
   const hasRuntimeConfig =
     Object.keys(config.publicRuntimeConfig).length > 0 ||
@@ -117,6 +134,41 @@ export function createEntrypoints(
     const serverBundlePath = posix.join('pages', bundleFile)
 
     const isLikeServerless = isTargetLikeServerless(target)
+    const isFlight = isFlightPage(config, absolutePagePath)
+    const webServerRuntime = !!config.experimental.concurrentFeatures
+
+    if (page.match(MIDDLEWARE_ROUTE)) {
+      const loaderOpts: MiddlewareLoaderOptions = {
+        absolutePagePath: pages[page],
+        page,
+      }
+
+      client[clientBundlePath] = `next-middleware-loader?${stringify(
+        loaderOpts
+      )}!`
+      return
+    }
+
+    if (
+      webServerRuntime &&
+      !(page === '/_app' || page === '/_error' || page === '/_document') &&
+      !isApiRoute
+    ) {
+      ssrEntries.set(clientBundlePath, { requireFlightManifest: isFlight })
+      serverWeb[serverBundlePath] = finalizeEntrypoint({
+        name: '[name].js',
+        value: `next-middleware-ssr-loader?${stringify({
+          page,
+          absolutePagePath,
+          isServerComponent: isFlight,
+          buildId,
+          basePath: config.basePath,
+          assetPrefix: config.assetPrefix,
+        } as any)}!`,
+        isServer: false,
+        isServerWeb: true,
+      })
+    }
 
     if (isApiRoute && isLikeServerless) {
       const serverlessLoaderOptions: ServerlessLoaderQuery = {
@@ -128,8 +180,20 @@ export function createEntrypoints(
         serverlessLoaderOptions
       )}!`
     } else if (isApiRoute || target === 'server') {
-      server[serverBundlePath] = [absolutePagePath]
-    } else if (isLikeServerless && page !== '/_app' && page !== '/_document') {
+      if (
+        !webServerRuntime ||
+        page === '/_document' ||
+        page === '/_app' ||
+        page === '/_error'
+      ) {
+        server[serverBundlePath] = [absolutePagePath]
+      }
+    } else if (
+      isLikeServerless &&
+      page !== '/_app' &&
+      page !== '/_document' &&
+      !webServerRuntime
+    ) {
       const serverlessLoaderOptions: ServerlessLoaderQuery = {
         page,
         absolutePagePath,
@@ -167,57 +231,76 @@ export function createEntrypoints(
   return {
     client,
     server,
+    serverWeb,
   }
 }
 
-export function finalizeEntrypoint(
-  name: string,
-  value: any,
+export function finalizeEntrypoint({
+  name,
+  value,
+  isServer,
+  isMiddleware,
+  isServerWeb,
+}: {
   isServer: boolean
-): any {
+  name: string
+  value: ObjectValue<webpack5.EntryObject>
+  isMiddleware?: boolean
+  isServerWeb?: boolean
+}): ObjectValue<webpack5.EntryObject> {
+  const entry =
+    typeof value !== 'object' || Array.isArray(value)
+      ? { import: value }
+      : value
+
   if (isServer) {
     const isApi = name.startsWith('pages/api/')
-    const runtime = isApi ? 'webpack-api-runtime' : 'webpack-runtime'
-    const layer = isApi ? 'api' : undefined
-    const publicPath = isApi ? '' : undefined
-    if (typeof value === 'object' && !Array.isArray(value)) {
-      return {
-        publicPath,
-        runtime,
-        layer,
-        ...value,
-      }
-    } else {
-      return {
-        import: value,
-        publicPath,
-        runtime,
-        layer,
-      }
-    }
-  } else {
-    if (
-      name !== 'polyfills' &&
-      name !== 'main' &&
-      name !== 'amp' &&
-      name !== 'react-refresh'
-    ) {
-      const dependOn =
-        name.startsWith('pages/') && name !== 'pages/_app'
-          ? 'pages/_app'
-          : 'main'
-      if (typeof value === 'object' && !Array.isArray(value)) {
-        return {
-          dependOn,
-          ...value,
-        }
-      } else {
-        return {
-          import: value,
-          dependOn,
-        }
-      }
+    return {
+      publicPath: isApi ? '' : undefined,
+      runtime: isApi ? 'webpack-api-runtime' : 'webpack-runtime',
+      layer: isApi ? 'api' : undefined,
+      ...entry,
     }
   }
-  return value
+
+  if (isServerWeb) {
+    const ssrMiddlewareEntry = {
+      library: {
+        name: ['_ENTRIES', `middleware_[name]`],
+        type: 'assign',
+      },
+      runtime: MIDDLEWARE_SSR_RUNTIME_WEBPACK,
+      ...entry,
+    }
+    return ssrMiddlewareEntry
+  }
+  if (isMiddleware) {
+    const middlewareEntry = {
+      filename: 'server/[name].js',
+      layer: 'middleware',
+      library: {
+        name: ['_ENTRIES', `middleware_[name]`],
+        type: 'assign',
+      },
+      ...entry,
+    }
+    return middlewareEntry
+  }
+
+  if (
+    name !== 'polyfills' &&
+    name !== 'main' &&
+    name !== 'amp' &&
+    name !== 'react-refresh'
+  ) {
+    return {
+      dependOn:
+        name.startsWith('pages/') && name !== 'pages/_app'
+          ? 'pages/_app'
+          : 'main',
+      ...entry,
+    }
+  }
+
+  return entry
 }

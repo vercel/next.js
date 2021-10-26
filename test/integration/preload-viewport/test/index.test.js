@@ -18,6 +18,7 @@ let app
 let appPort
 let stallJs
 let proxyServer
+let nextDataRequests = []
 
 describe('Prefetching Links in viewport', () => {
   beforeAll(async () => {
@@ -35,6 +36,9 @@ describe('Prefetching Links in viewport', () => {
         console.log('stalling request for', req.url)
         await new Promise((resolve) => setTimeout(resolve, 5 * 1000))
       }
+      if (req.url.startsWith('/_next/data')) {
+        nextDataRequests.push(req.url)
+      }
       proxy.web(req, res)
     })
 
@@ -49,6 +53,21 @@ describe('Prefetching Links in viewport', () => {
   afterAll(async () => {
     await killApp(app)
     proxyServer.close()
+  })
+
+  it('should de-dupe inflight SSG requests', async () => {
+    nextDataRequests = []
+    const browser = await webdriver(appPort, '/')
+    await browser.eval(function navigate() {
+      window.next.router.push('/ssg/slow')
+      window.next.router.push('/ssg/slow')
+      window.next.router.push('/ssg/slow')
+    })
+    await browser.waitForElementByCss('#content')
+    expect(
+      nextDataRequests.filter((reqUrl) => reqUrl.includes('/ssg/slow.json'))
+        .length
+    ).toBe(1)
   })
 
   it('should handle timed out prefetch correctly', async () => {
@@ -389,6 +408,7 @@ describe('Prefetching Links in viewport', () => {
       window.calledPrefetch = false
       window.next.router.prefetch = function() {
         window.calledPrefetch = true
+        return Promise.resolve()
       }
       window.next.router.push('/de-duped')
     })()`)
@@ -405,6 +425,7 @@ describe('Prefetching Links in viewport', () => {
       window.calledPrefetch = false
       window.next.router.prefetch = function() {
         window.calledPrefetch = true
+        return Promise.resolve()
       }
       window.next.router.push('/not-de-duped')
     })()`)
@@ -429,6 +450,7 @@ describe('Prefetching Links in viewport', () => {
         "/ssg/catch-all/[...slug]",
         "/ssg/dynamic-nested/[slug1]/[slug2]",
         "/ssg/dynamic/[slug]",
+        "/ssg/slow",
       ]
     `)
   })

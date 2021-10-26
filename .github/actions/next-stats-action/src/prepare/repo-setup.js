@@ -73,6 +73,10 @@ module.exports = (actionInfo) => {
         const packedPkgPath = path.join(pkgPath, `${pkg}-packed.tgz`)
 
         const pkgDataPath = path.join(pkgPath, 'package.json')
+        if (!fs.existsSync(pkgDataPath)) {
+          console.log(`Skipping ${pkgDataPath}`)
+          continue
+        }
         const pkgData = require(pkgDataPath)
         const { name } = pkgData
         pkgDatas.set(name, {

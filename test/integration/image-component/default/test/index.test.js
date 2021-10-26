@@ -135,6 +135,13 @@ function runTests(mode) {
             '/_next/image?url=%2Fwide.png&w=640&q=75 640w, /_next/image?url=%2Fwide.png&w=750&q=75 750w, /_next/image?url=%2Fwide.png&w=828&q=75 828w, /_next/image?url=%2Fwide.png&w=1080&q=75 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75 3840w',
         },
       ])
+
+      const warnings = (await browser.log('browser'))
+        .map((log) => log.message)
+        .join('\n')
+      expect(warnings).not.toMatch(
+        /was detected as the Largest Contentful Paint/gm
+      )
     } finally {
       if (browser) {
         await browser.close()
@@ -658,11 +665,40 @@ function runTests(mode) {
       )
       expect(warnings).not.toMatch(/cannot appear as a descendant/gm)
     })
+
+    it('should warn when priority prop is missing on LCP image', async () => {
+      let browser
+      try {
+        browser = await webdriver(appPort, '/priority-missing-warning')
+        // Wait for image to load:
+        await check(async () => {
+          const result = await browser.eval(
+            `document.getElementById('responsive').naturalWidth`
+          )
+          if (result < 1) {
+            throw new Error('Image not ready')
+          }
+          return 'done'
+        }, 'done')
+        await waitFor(1000)
+        const warnings = (await browser.log('browser'))
+          .map((log) => log.message)
+          .join('\n')
+        expect(await hasRedbox(browser)).toBe(false)
+        expect(warnings).toMatch(
+          /Image with src (.*)wide.png(.*) was detected as the Largest Contentful Paint/gm
+        )
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
+    })
   } else {
     //server-only tests
     it('should not create an image folder in server/chunks', async () => {
       expect(
-        existsSync(join(appDir, '.next/server/chunks/static/image'))
+        existsSync(join(appDir, '.next/server/chunks/static/media'))
       ).toBeFalsy()
     })
   }
@@ -692,6 +728,46 @@ function runTests(mode) {
       const computedWidth = await getComputed(browser, id, 'width')
       const computedHeight = await getComputed(browser, id, 'height')
       expect(getRatio(computedWidth, computedHeight)).toBeCloseTo(1, 1)
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
+
+  it('should apply style inheritance for img elements but not wrapper elements', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/style-inheritance')
+
+      await browser.eval(
+        `document.querySelector("footer").scrollIntoView({behavior: "smooth"})`
+      )
+
+      const imagesWithIds = await browser.eval(`
+        function foo() {
+          const imgs = document.querySelectorAll("img[id]");
+          for (let img of imgs) {
+            const br = window.getComputedStyle(img).getPropertyValue("border-radius");
+            if (!br) return 'no-border-radius';
+            if (br !== '139px') return br;
+          }
+          return true;
+        }()
+      `)
+      expect(imagesWithIds).toBe(true)
+
+      const allSpans = await browser.eval(`
+        function foo() {
+          const spans = document.querySelectorAll("span");
+          for (let span of spans) {
+            const m = window.getComputedStyle(span).getPropertyValue("margin");
+            if (m && m !== '0px') return m;
+          }
+          return false;
+        }()
+      `)
+      expect(allSpans).toBe(false)
     } finally {
       if (browser) {
         await browser.close()

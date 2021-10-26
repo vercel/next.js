@@ -801,6 +801,19 @@ export class NextScript extends Component<OriginProps> {
     const { __NEXT_DATA__ } = context
     try {
       const data = JSON.stringify(__NEXT_DATA__)
+
+      if (process.env.NODE_ENV === 'development') {
+        const bytes = Buffer.from(data).byteLength
+        const prettyBytes = require('../lib/pretty-bytes').default
+        if (bytes > 128 * 1000) {
+          console.warn(
+            `Warning: data for page "${__NEXT_DATA__.page}" is ${prettyBytes(
+              bytes
+            )}, this amount of data can reduce performance.\nSee more info here: https://nextjs.org/docs/messages/large-page-data`
+          )
+        }
+      }
+
       return htmlEscapeJsonString(data)
     } catch (err) {
       if (isError(err) && err.message.indexOf('circular structure')) {

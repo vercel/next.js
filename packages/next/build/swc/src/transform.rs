@@ -61,7 +61,7 @@ impl Task for TransformTask {
 
     fn compute(&mut self) -> napi::Result<Self::Output> {
         let res = catch_unwind(AssertUnwindSafe(|| {
-            try_with_handler(self.c.cm.clone(), |handler| {
+            try_with_handler(self.c.cm.clone(), true, |handler| {
                 self.c.run(|| match self.input {
                     Input::Source(ref s) => {
                         let before_pass = custom_before_pass(&s.name, &self.options);
@@ -124,7 +124,7 @@ where
     let is_module = cx.get::<JsBoolean>(1)?;
     let options: TransformOptions = cx.get_deserialized(2)?;
 
-    let output = try_with_handler(c.cm.clone(), |handler| {
+    let output = try_with_handler(c.cm.clone(), true, |handler| {
         c.run(|| {
             if is_module.get_value()? {
                 let program: Program =
