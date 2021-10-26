@@ -109,7 +109,7 @@ You can then import other server or client components from any server component.
 ```jsx
 // pages/home.server.js
 
-import React, { Suspense } from 'react
+import React, { Suspense } from 'react'
 
 import Profile from '../components/profile.server'
 import Content from '../components/content.client'
