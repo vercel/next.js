@@ -5,6 +5,7 @@ on:
 name: Generate Pull Request Stats
 
 jobs:
+  if: false
   stats:
     name: PR Stats
     runs-on: ubuntu-latest

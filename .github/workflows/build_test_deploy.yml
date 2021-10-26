@@ -1,8 +1,8 @@
 on:
   push:
     branches: [canary]
-  pull_request:
-    types: [opened, synchronize]
+  # pull_request:
+  #   types: [opened, synchronize]
 
 name: Build, test, and deploy
 

@@ -1,4 +1,6 @@
-on: workflow_dispatch
+on:
+  pull_request:
+    types: [opened, synchronize]
 
 name: Build next-swc native binaries
 
