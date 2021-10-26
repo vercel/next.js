@@ -2,10 +2,10 @@
   "name": "@next/swc-win32-ia32-msvc",
   "version": "0.0.0",
   "os": [
-    "darwin"
+    "win32"
   ],
   "cpu": [
-    "arm64"
+    "ia32"
   ],
   "main": "next-swc.win32-ia32-msvc.node",
   "files": [
