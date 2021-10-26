@@ -35,6 +35,7 @@ import {
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { addMessageListener } from './websocket'
 import formatWebpackMessages from './format-webpack-messages'
+import Router from 'next/router'
 
 // This alternative WebpackDevServer combines the functionality of:
 // https://github.com/webpack/webpack-dev-server/blob/webpack-1/client/index.js
@@ -88,7 +89,9 @@ function clearOutdatedErrors() {
 function handleSuccess() {
   clearOutdatedErrors()
 
-  const isHotUpdate = !isFirstCompilation
+  const isHotUpdate =
+    !isFirstCompilation ||
+    (Router.pathname !== '/_error' && isUpdateAvailable())
   isFirstCompilation = false
   hasCompileErrors = false
 
