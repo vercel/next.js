@@ -27,7 +27,6 @@ import {
   CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
   CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
   MIDDLEWARE_REACT_LOADABLE_MANIFEST,
-  MIDDLEWARE_SSR_RUNTIME_WEBPACK,
   REACT_LOADABLE_MANIFEST,
   SERVERLESS_DIRECTORY,
   SERVER_DIRECTORY,
@@ -975,15 +974,7 @@ export default async function getBaseWebpackConfig(
             } as any)
         : splitChunksConfig,
       runtimeChunk: isServer
-        ? webServerRuntime
-          ? {
-              name: ({ name }: any) => {
-                return !name.startsWith('pages/_')
-                  ? MIDDLEWARE_SSR_RUNTIME_WEBPACK
-                  : CLIENT_STATIC_FILES_RUNTIME_WEBPACK
-              },
-            }
-          : undefined
+        ? undefined
         : { name: CLIENT_STATIC_FILES_RUNTIME_WEBPACK },
       minimize: !dev && targetWeb,
       minimizer: [

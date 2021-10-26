@@ -15,6 +15,7 @@ import { NextConfigComplete } from '../server/config-shared'
 import { isFlightPage } from './utils'
 import { ssrEntries } from './webpack/plugins/middleware-plugin'
 import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
+import { MIDDLEWARE_SSR_RUNTIME_WEBPACK } from '../shared/lib/constants'
 
 type ObjectValue<T> = T extends { [key: string]: infer V } ? V : never
 type PagesMapping = {
@@ -154,9 +155,9 @@ export function createEntrypoints(
       !isApiRoute
     ) {
       ssrEntries.set(clientBundlePath, { requireFlightManifest: isFlight })
-      serverWeb[serverBundlePath] = {
-        filename: '[name].js',
-        import: `next-middleware-ssr-loader?${stringify({
+      serverWeb[serverBundlePath] = finalizeEntrypoint({
+        name: '[name].js',
+        value: `next-middleware-ssr-loader?${stringify({
           page,
           absolutePagePath,
           isServerComponent: isFlight,
@@ -164,13 +165,9 @@ export function createEntrypoints(
           basePath: config.basePath,
           assetPrefix: config.assetPrefix,
         } as any)}!`,
-
-        layer: 'server-web',
-        library: {
-          type: 'assign',
-          name: ['_ENTRIES', `middleware_[name]`],
-        },
-      }
+        isServer: false,
+        isServerWeb: true,
+      })
     }
 
     if (isApiRoute && isLikeServerless) {
@@ -242,10 +239,14 @@ export function finalizeEntrypoint({
   name,
   value,
   isServer,
+  isMiddleware,
+  isServerWeb,
 }: {
   isServer: boolean
   name: string
   value: ObjectValue<webpack5.EntryObject>
+  isMiddleware?: boolean
+  isServerWeb?: boolean
 }): ObjectValue<webpack5.EntryObject> {
   const entry =
     typeof value !== 'object' || Array.isArray(value)
@@ -262,19 +263,20 @@ export function finalizeEntrypoint({
     }
   }
 
-  const loaderValue = value as string
-  const hasMiddleware =
-    loaderValue.includes && loaderValue.includes('next-middleware-loader')
-  if (!!hasMiddleware) {
-    return {
-      filename: 'server/[name].js',
-      layer: 'middleware',
+  if (isServerWeb || isMiddleware) {
+    const middlewareEntry = {
+      filename: isServerWeb ? name : 'server/[name].js',
+      layer: isServerWeb ? 'server-web' : 'middleware',
       library: {
         name: ['_ENTRIES', `middleware_[name]`],
         type: 'assign',
       },
+      ...(!name.startsWith('pages/_') && {
+        runtime: MIDDLEWARE_SSR_RUNTIME_WEBPACK,
+      }),
       ...entry,
     }
+    return middlewareEntry
   }
 
   if (
@@ -282,7 +284,7 @@ export function finalizeEntrypoint({
     name !== 'main' &&
     name !== 'amp' &&
     name !== 'react-refresh' &&
-    !hasMiddleware
+    !isMiddleware
   ) {
     return {
       dependOn:

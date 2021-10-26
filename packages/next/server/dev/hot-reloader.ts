@@ -478,6 +478,7 @@ export default class HotReloader {
                 name: bundlePath,
                 value: `next-middleware-loader?${stringify(pageLoaderOpts)}!`,
                 isServer: false,
+                isMiddleware: true,
               })
             } else if (isClientCompilation) {
               entrypoints[bundlePath] = finalizeEntrypoint({
@@ -506,9 +507,9 @@ export default class HotReloader {
                   page === '/_document'
                 )
               ) {
-                entrypoints[bundlePath] = {
-                  filename: '[name].js',
-                  import: `next-middleware-ssr-loader?${stringify({
+                entrypoints[bundlePath] = finalizeEntrypoint({
+                  name: '[name].js',
+                  value: `next-middleware-ssr-loader?${stringify({
                     page,
                     absolutePagePath,
                     isServerComponent,
@@ -516,12 +517,9 @@ export default class HotReloader {
                     basePath: this.config.basePath,
                     assetPrefix: this.config.assetPrefix,
                   } as any)}!`,
-                  layer: 'server-web',
-                  library: {
-                    type: 'assign',
-                    name: ['_ENTRIES', `middleware_[name]`],
-                  },
-                }
+                  isServer: false,
+                  isServerWeb: true,
+                })
               }
             } else {
               let request = relative(config.context!, absolutePagePath)
