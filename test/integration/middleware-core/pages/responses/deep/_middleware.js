@@ -6,5 +6,8 @@ export async function middleware(request, _event) {
   if (request.nextUrl.searchParams.get('append-me') === 'true') {
     next.headers.append('x-append-me', 'deep')
   }
+  if (request.nextUrl.searchParams.get('cookie-me') === 'true') {
+    next.headers.append('set-cookie', 'oatmeal')
+  }
   return next
 }

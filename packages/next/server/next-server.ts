@@ -1164,7 +1164,11 @@ export default class Server {
 
           for (const [key, value] of result.response.headers.entries()) {
             if (key !== 'content-encoding') {
-              res.setHeader(key, value)
+              if (key.toLowerCase() === 'set-cookie') {
+                res.setHeader(key, value.split(', '))
+              } else {
+                res.setHeader(key, value)
+              }
             }
           }
 

@@ -20,6 +20,11 @@ export async function middleware(request, ev) {
     next.headers.append('x-append-me', 'top')
   }
 
+  // Ensure deep can append to this value
+  if (url.searchParams.get('cookie-me') === 'true') {
+    next.headers.append('set-cookie', 'chocochip')
+  }
+
   // Sends a header
   if (url.pathname === '/responses/header') {
     next.headers.set('x-first-header', 'valid')
