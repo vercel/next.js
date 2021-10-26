@@ -53,7 +53,7 @@ jobs:
         id: binary-cache
         uses: actions/cache@v2
         with:
-          path: packages/next/native/**
+          path: packages/next/native/next-swc.${{ matrix.name }}.node
           key: next-swc-nightly-2021-08-12-${{ matrix.target }}-${{ hashFiles('.github/workflows/build_native.yml', 'packages/next/build/swc/**') }}
       - name: Cross build aarch64 setup
         if: ${{ matrix.target == 'aarch64-apple-darwin' && steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
