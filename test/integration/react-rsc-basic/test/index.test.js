@@ -98,7 +98,8 @@ async function runTests(context) {
   it('should render the correct html', async () => {
     const homeHTML = await renderViaHTTP(context.appPort, '/')
     const linkHTML = await renderViaHTTP(context.appPort, '/next-api/link')
-    expect(homeHTML).toContain('thisistheindexpage')
+    expect(homeHTML).toContain('thisistheindexpage.server')
+    expect(homeHTML).toContain('foo.client')
     expect(linkHTML).toContain('go home')
   })
 }

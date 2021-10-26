@@ -122,7 +122,7 @@ async function parseExportNamesInto(
         }
         continue
       default:
-        return
+        break
     }
   }
 }
