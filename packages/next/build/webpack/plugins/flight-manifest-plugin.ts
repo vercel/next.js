@@ -81,7 +81,10 @@ export class FlightManifestPlugin {
         const exportsInfo = compilation.moduleGraph.getExportsInfo(mod)
         const providedExports = exportsInfo.getProvidedExports()
         const moduleExportedKeys = ['', '*'].concat(
-          providedExports === true ? 'default' : providedExports
+          // TODO: improve exports detection
+          providedExports === true || providedExports == null
+            ? 'default'
+            : providedExports
         )
 
         moduleExportedKeys.forEach((name) => {

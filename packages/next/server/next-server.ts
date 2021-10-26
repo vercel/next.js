@@ -670,7 +670,7 @@ export default class Server {
             url: (params.request as any).__NEXT_INIT_URL,
             page: page,
           },
-          ssr: !!this.nextConfig.concurrentFeatures,
+          ssr: !!this.nextConfig.experimental.concurrentFeatures,
         })
 
         for (let [key, value] of result.response.headers) {
