@@ -298,7 +298,7 @@
         },
         {
           "title": "Edge Runtime",
-          "path": "/docs/api-reference/next/edge-runtime.md"
+          "path": "/docs/api-reference/edge-runtime.md"
         },
         {
           "title": "Data Fetching",
