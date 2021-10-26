@@ -30,9 +30,6 @@ describe('should set-up next', () => {
         ),
       },
       nextConfig: {
-        experimental: {
-          outputFileTracing: true,
-        },
         eslint: {
           ignoreDuringBuilds: true,
         },

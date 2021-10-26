@@ -877,7 +877,7 @@ export default async function build(
                   )
                 })
 
-                if (config.experimental.outputFileTracing) {
+                if (config.outputFileTracing) {
                   pageTraceIncludes.set(page, workerResult.traceIncludes || [])
                   pageTraceExcludes.set(page, workerResult.traceExcludes || [])
                 }
@@ -1021,7 +1021,7 @@ export default async function build(
       )
     }
 
-    if (config.experimental.outputFileTracing) {
+    if (config.outputFileTracing) {
       const { nodeFileTrace } =
         require('next/dist/compiled/@vercel/nft') as typeof import('next/dist/compiled/@vercel/nft')
 
