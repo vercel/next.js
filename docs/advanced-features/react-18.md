@@ -65,7 +65,7 @@ React Server Components allow us to render everything, including the components 
 
 ### Enable React Server Components (Alpha)
 
-To use React Server Components, ensure you have React 18 installed. Then, turn on the `currentFeatures` and `serverComponents` options in `next.config.js`:
+To use React Server Components, ensure you have React 18 installed. Then, turn on the `concurrentFeatures` and `serverComponents` options in `next.config.js`:
 
 ```jsx
 // next.config.js
