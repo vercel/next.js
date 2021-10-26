@@ -569,6 +569,12 @@ describe('Telemetry CLI', () => {
     })
     const regex = /NEXT_BUILD_FEATURE_USAGE[\s\S]+?{([\s\S]+?)}/g
     regex.exec(stderr).pop() // optimizeCss
+    const swcLoader = regex.exec(stderr).pop()
+    expect(swcLoader).toContain(`"featureName": "swcLoader"`)
+    expect(swcLoader).toContain(`"invocationCount": 1`)
+    const swcMinify = regex.exec(stderr).pop()
+    expect(swcMinify).toContain(`"featureName": "swcMinify"`)
+    expect(swcMinify).toContain(`"invocationCount": 0`)
     const image = regex.exec(stderr).pop()
     expect(image).toContain(`"featureName": "next/image"`)
     expect(image).toContain(`"invocationCount": 1`)
