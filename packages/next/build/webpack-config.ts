@@ -1108,6 +1108,7 @@ export default async function getBaseWebpackConfig(
         ...(hasServerComponents && !isServer
           ? [
               {
+                ...codeCondition,
                 test: serverComponentsRegex,
                 use: {
                   loader: `next-flight-server-loader?${stringify({
@@ -1121,6 +1122,7 @@ export default async function getBaseWebpackConfig(
         ...(webServerRuntime && hasServerComponents
           ? [
               {
+                ...codeCondition,
                 test: serverComponentsRegex,
                 use: {
                   loader: `next-flight-server-loader?${stringify({
@@ -1129,9 +1131,14 @@ export default async function getBaseWebpackConfig(
                 },
               },
               {
-                test: (name: string) =>
-                  /next[\\/](dist[\\/]client[\\/])?(link|image)/.test(name) ||
-                  clientComponentsRegex.test(name),
+                ...codeCondition,
+                test: clientComponentsRegex,
+                use: {
+                  loader: 'next-flight-client-loader',
+                },
+              },
+              {
+                test: /next[\\/](dist[\\/]client[\\/])?(link|image)/,
                 use: {
                   loader: 'next-flight-client-loader',
                 },
