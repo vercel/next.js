@@ -581,6 +581,7 @@ jobs:
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
 
   build-windows-i686:
+    needs: build
     if: ${{ needs.build.outputs.isRelease == 'true' }}
     name: next-swc - windows-i686 - node@14
     runs-on: windows-latest
@@ -639,6 +640,7 @@ jobs:
           path: packages/next/native/next-swc.win32-ia32-msvc.node
 
   build-windows-aarch64:
+    needs: build
     if: ${{ needs.build.outputs.isRelease == 'true' }}
     name: next-swc - windows-aarch64 - node@14
     runs-on: windows-latest
@@ -685,6 +687,7 @@ jobs:
           path: packages/next/native/next-swc.win32-arm64-msvc.node
 
   build-linux-musl:
+    needs: build
     if: ${{ needs.build.outputs.isRelease == 'true' }}
     name: next-swc - linux-musl - node@lts
     runs-on: ubuntu-latest
@@ -738,6 +741,7 @@ jobs:
           path: packages/next/native/next-swc.linux-x64-musl.node
 
   build-linux-aarch64:
+    needs: build
     if: ${{ needs.build.outputs.isRelease == 'true' }}
     name: next-swc - aarch64-unknown-linux-gnu - node@14
     runs-on: ubuntu-18.04
@@ -799,6 +803,7 @@ jobs:
           path: packages/next/native/next-swc.linux-arm64-gnu.node
 
   build-linux-aarch64-musl:
+    needs: build
     if: ${{ needs.build.outputs.isRelease == 'true' }}
     name: next-swc - aarch64-unknown-linux-musl - node@14
     runs-on: ubuntu-18.04
@@ -858,6 +863,7 @@ jobs:
           path: packages/next/native/next-swc.linux-arm64-musl.node
 
   build-linux-arm7:
+    needs: build
     if: ${{ needs.build.outputs.isRelease == 'true' }}
     name: next-swc - arm7-unknown-linux-gnu - node@14
     runs-on: ubuntu-18.04
@@ -919,6 +925,7 @@ jobs:
           path: packages/next/native/next-swc.linux-arm-gnueabihf.node
 
   build-android-aarch64:
+    needs: build
     if: ${{ needs.build.outputs.isRelease == 'true' }}
     name: next-swc - Android - aarch64
     runs-on: macos-latest
