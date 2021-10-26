@@ -376,9 +376,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     Log.warn(
       `Experimental \`nftTracing\` has been renamed to \`outputFileTracing\`. Please update your ${configFileName} file accordingly.`
     )
-    result.experimental.outputFileTracing = (
-      result.experimental as any
-    ).nftTracing
+    result.outputFileTracing = (result.experimental as any).nftTracing
   }
 
   // TODO: Change defaultConfig type to NextConfigComplete

@@ -116,6 +116,7 @@ export type NextConfig = { [key: string]: any } & {
     webpack5?: false
     strictPostcssConfiguration?: boolean
   }
+  outputFileTracing?: boolean
   staticPageGenerationTimeout?: number
   crossOrigin?: false | 'anonymous' | 'use-credentials'
   swcMinify?: boolean
@@ -145,7 +146,6 @@ export type NextConfig = { [key: string]: any } & {
     craCompat?: boolean
     esmExternals?: boolean | 'loose'
     isrMemoryCacheSize?: number
-    outputFileTracing?: boolean
     concurrentFeatures?: boolean
     serverComponents?: boolean
     fullySpecified?: boolean
@@ -201,6 +201,7 @@ export const defaultConfig: NextConfig = {
   httpAgentOptions: {
     keepAlive: true,
   },
+  outputFileTracing: true,
   staticPageGenerationTimeout: 60,
   swcMinify: false,
   experimental: {
@@ -226,7 +227,6 @@ export const defaultConfig: NextConfig = {
     esmExternals: true,
     // default to 50MB limit
     isrMemoryCacheSize: 50 * 1024 * 1024,
-    outputFileTracing: true,
     concurrentFeatures: false,
     serverComponents: false,
     fullySpecified: false,
