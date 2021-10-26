@@ -1,6 +1,6 @@
 {
   "name": "@next/swc-android-arm64",
-  "version": "12.0.0",
+  "version": "0.0.0",
   "os": [
     "android"
   ],
