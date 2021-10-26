@@ -640,62 +640,63 @@ const wrapApp =
     )
   }
 
-function createResponseCache() {
-  return process.env.__NEXT_RSC
-    ? new Map<string, any>()
-    : { get() {}, set() {} }
-}
-
-const rscCache = createResponseCache()
-
-const RSCWrapper = ({
-  cacheKey,
-  serialized,
-  _fresh,
-}: {
-  cacheKey: string
-  serialized?: string
-  _fresh?: boolean
-}) => {
-  const { createFromFetch } = require('react-server-dom-webpack')
-  let response = rscCache.get(cacheKey)
-
-  // If there is no cache, or there is serialized data already
-  if (!response) {
-    response = createFromFetch(
-      serialized
-        ? (() => {
-            const t = new TransformStream()
-            t.writable.getWriter().write(new TextEncoder().encode(serialized))
-            return Promise.resolve({ body: t.readable })
-          })()
-        : (() => {
-            const search = location.search
-            const flightReqUrl =
-              location.pathname +
-              search +
-              (search ? '&__flight__' : '?__flight__')
-            return fetch(flightReqUrl)
-          })()
-    )
-    rscCache.set(cacheKey, response)
+let RSCComponent: (props: any) => JSX.Element
+if (process.env.__NEXT_RSC) {
+  function createResponseCache() {
+    return new Map<string, any>()
   }
 
-  const root = response.readRoot()
-  return root
-}
+  const rscCache = createResponseCache()
 
-const RSCComponent = (props: any) => {
-  const { asPath: cacheKey } = useRouter() as any
-  return (
-    <React.Suspense fallback={null}>
-      <RSCWrapper
-        cacheKey={cacheKey}
-        serialized={(props as any).__flight_serialized__}
-        _fresh={(props as any).__flight_fresh__}
-      />
-    </React.Suspense>
-  )
+  const RSCWrapper = ({
+    cacheKey,
+    serialized,
+    _fresh,
+  }: {
+    cacheKey: string
+    serialized?: string
+    _fresh?: boolean
+  }) => {
+    const { createFromFetch } = require('react-server-dom-webpack')
+    let response = rscCache.get(cacheKey)
+
+    // If there is no cache, or there is serialized data already
+    if (!response) {
+      response = createFromFetch(
+        serialized
+          ? (() => {
+              const t = new TransformStream()
+              t.writable.getWriter().write(new TextEncoder().encode(serialized))
+              return Promise.resolve({ body: t.readable })
+            })()
+          : (() => {
+              const search = location.search
+              const flightReqUrl =
+                location.pathname +
+                search +
+                (search ? '&__flight__' : '?__flight__')
+              return fetch(flightReqUrl)
+            })()
+      )
+      rscCache.set(cacheKey, response)
+    }
+
+    const root = response.readRoot()
+    return root
+  }
+
+  RSCComponent = (props: any) => {
+    const { asPath: cacheKey } = useRouter() as any
+    return (
+      <React.Suspense fallback={null}>
+        <RSCWrapper
+          cacheKey={cacheKey}
+          serialized={(props as any).__flight_serialized__}
+          _fresh={(props as any).__flight_fresh__}
+        />
+      </React.Suspense>
+    )
+  }
 }
 
 let lastAppProps: AppProps
