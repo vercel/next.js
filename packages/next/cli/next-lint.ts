@@ -30,6 +30,7 @@ const eslintOptions = (args: arg.Spec, defaultCacheLocation: string) => ({
     args['--report-unused-disable-directives'] || null,
   cache: !Boolean(args['--no-cache']),
   cacheLocation: args['--cache-location'] || defaultCacheLocation,
+  cacheStrategy: args['--cache-strategy'] || 'metadata',
   errorOnUnmatchedPattern: args['--error-on-unmatched-pattern']
     ? Boolean(args['--error-on-unmatched-pattern'])
     : false,
