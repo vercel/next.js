@@ -129,6 +129,7 @@ jobs:
             whoami
             env
             freebsd-version
+            cargo build --release -p next-swc
             yarn --cwd packages/next build-native
             rm -rf node_modules
             rm -rf target
