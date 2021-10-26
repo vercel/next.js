@@ -1,4 +1,4 @@
-## React 18
+# React 18
 
 [React 18](https://reactjs.org/blog/2021/06/08/the-plan-for-react-18.html) adds new features including, Suspense, automatic batching of updates, APIs like `startTransition`, and a new streaming API for server rendering with support for `React.lazy`.
 
@@ -22,13 +22,12 @@ To enable, use the experimental flag `concurrentFeatures: true`:
 
 ```jsx
 // next.config.js
-```
-
 module.exports = {
-experimental: {
-concurrentFeatures: true
+  experimental: {
+    concurrentFeatures: true,
+  },
 }
-}
+```
 
 Once enabled, you can use Suspense and SSR streaming for all pages. This also means that you can use Suspense-based data-fetching, `next/dynamic`, and React's built-in `React.lazy` with Suspense boundaries.
 
@@ -43,20 +42,20 @@ const Profile = dynamic(() => import('./profile'), { suspense: true })
 const Footer = lazy(() => import('./footer'))
 
 export default function Home() {
-	return (
-		<div>
+  return (
+    <div>
       <Suspense fallback={<Spinner />}>
         {/* A component that uses Suspense-based */}
         <Content />
       <Suspense>
-			<Suspense fallback={<Spinner />}>
-			  <Profile />
-			</Suspense>
-			<Suspense fallback={<Spinner />}>
-				<Footer />
-			</Suspense>
-		</div>
-	)
+      <Suspense fallback={<Spinner />}>
+        <Profile />
+      </Suspense>
+      <Suspense fallback={<Spinner />}>
+        <Footer />
+      </Suspense>
+    </div>
+  )
 }
 ```
 
@@ -116,21 +115,21 @@ import Profile from '../components/profile.server'
 import Content from '../components/content.client'
 
 export default function Home() {
-	return (
-		<div>
-			<h1>Welcome to React Server Components</h1>
-			<Suspense fallback={'Loading...'}>
-				<Profile />
-			</Suspense>
+  return (
+    <div>
+      <h1>Welcome to React Server Components</h1>
+      <Suspense fallback={'Loading...'}>
+        <Profile />
+      </Suspense>
       <Content/>
-		</div>
-	)
+    </div>
+  )
 }
 ```
 
 The `<Home>` and `<Profile>` components will always be server-side rendered and streamed to the client, and will not be included by the client runtime. However `<Content>` will still be hydrated on the client-side, like normal React components.
 
-To see a full example, check out [link to the demo and repository].
+To see a full example, check out [link to the demo and repository](https://github.com/vercel/next-rsc-demo).
 
 ## **Supported Next.js APIs**
 
