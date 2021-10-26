@@ -232,6 +232,10 @@
             {
               "title": "Security Headers",
               "path": "/docs/advanced-features/security-headers.md"
+            },
+            {
+              "title": "React 18",
+              "path": "/docs/advanced-features/react-18.md"
             }
           ]
         },
