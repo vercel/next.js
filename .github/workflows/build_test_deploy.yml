@@ -417,7 +417,6 @@ jobs:
       - build-linux-arm7
       - build-linux-aarch64
       - build-android-aarch64
-      - build-freebsd
       - build-linux-aarch64-musl
     env:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN_ELEVATED }}
