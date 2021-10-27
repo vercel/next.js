@@ -74,12 +74,12 @@ pub fn transform_css(
         return Ok(string_literal_expr(&s));
     }
 
-    let mut parts: Vec<&str> = s.split("__styled-jsx-placeholder__").collect();
+    let mut parts: Vec<&str> = s.split("__styled-jsx-placeholder-").collect();
     let mut final_expressions = vec![];
     for i in 1..parts.len() {
         let (num_len, expression_index) = read_number(&parts[i]);
         final_expressions.push(style_info.expressions[expression_index].clone());
-        let substr = &parts[i][num_len..];
+        let substr = &parts[i][(num_len + 2)..];
         parts[i] = substr;
     }
 
