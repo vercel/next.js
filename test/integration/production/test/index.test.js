@@ -57,6 +57,12 @@ describe('Production Usage', () => {
     await killApp(app)
   })
 
+  it('should not show target deprecation warning', () => {
+    expect(output).not.toContain(
+      'The `target` config is deprecated and will be removed in a future version'
+    )
+  })
+
   it('should contain generated page count in output', async () => {
     const pageCount = 40
     expect(output).toContain(`Generating static pages (0/${pageCount})`)
@@ -117,7 +123,7 @@ describe('Production Usage', () => {
           /node_modules\/react\/package\.json/,
           /node_modules\/react\/cjs\/react\.production\.min\.js/,
         ],
-        notTests: [/node_modules\/react\/cjs\/react\.development\.js/],
+        notTests: [/node_modules\/react\/cjs\/react\.development\.js/, /\0/],
       },
       {
         page: '/client-error',
@@ -133,7 +139,7 @@ describe('Production Usage', () => {
           /next\/dist\/pages\/_error\.js/,
           /next\/error\.js/,
         ],
-        notTests: [/node_modules\/react\/cjs\/react\.development\.js/],
+        notTests: [/node_modules\/react\/cjs\/react\.development\.js/, /\0/],
       },
       {
         page: '/dynamic',
@@ -147,7 +153,7 @@ describe('Production Usage', () => {
           /next\/dist\/client\/link\.js/,
           /next\/dist\/shared\/lib\/router\/utils\/resolve-rewrites\.js/,
         ],
-        notTests: [/node_modules\/react\/cjs\/react\.development\.js/],
+        notTests: [/node_modules\/react\/cjs\/react\.development\.js/, /\0/],
       },
       {
         page: '/index',
@@ -162,12 +168,14 @@ describe('Production Usage', () => {
           /next\/dist\/shared\/lib\/router\/utils\/resolve-rewrites\.js/,
           /node_modules\/nanoid\/index\.js/,
           /node_modules\/nanoid\/url-alphabet\/index\.js/,
+          /node_modules\/es5-ext\/array\/#\/clear\.js/,
         ],
         notTests: [
           /node_modules\/react\/cjs\/react\.development\.js/,
           /node_modules\/nanoid\/index\.cjs/,
           /next\/dist\/pages\/_error\.js/,
           /next\/error\.js/,
+          /\0/,
         ],
       },
       {
@@ -182,7 +190,7 @@ describe('Production Usage', () => {
           /next\/dist\/client\/router\.js/,
           /next\/dist\/shared\/lib\/router\/utils\/resolve-rewrites\.js/,
         ],
-        notTests: [/node_modules\/react\/cjs\/react\.development\.js/],
+        notTests: [/node_modules\/react\/cjs\/react\.development\.js/, /\0/],
       },
       {
         page: '/next-import',
@@ -196,7 +204,7 @@ describe('Production Usage', () => {
           /next\/dist\/client\/link\.js/,
           /next\/dist\/shared\/lib\/router\/utils\/resolve-rewrites\.js/,
         ],
-        notTests: [/next\/dist\/server\/next\.js/, /next\/dist\/bin/],
+        notTests: [/next\/dist\/server\/next\.js/, /next\/dist\/bin/, /\0/],
       },
     ]
 

@@ -8,6 +8,7 @@ import {
 } from 'next/dist/compiled/@vercel/nft'
 import { TRACE_OUTPUT_VERSION } from '../../../shared/lib/constants'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
+import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 import {
   nextImageLoaderRegex,
   NODE_ESM_RESOLVE_OPTIONS,
@@ -26,11 +27,11 @@ const TRACE_IGNORES = [
 function getModuleFromDependency(
   compilation: any,
   dep: any
-): webpack.Module & { resource?: string } {
+): webpack5.Module & { resource?: string } {
   return compilation.moduleGraph.getModule(dep)
 }
 
-export class TraceEntryPointsPlugin implements webpack.Plugin {
+export class TraceEntryPointsPlugin implements webpack5.WebpackPluginInstance {
   private appDir: string
   private entryTraces: Map<string, Set<string>>
   private excludeFiles: string[]
@@ -100,7 +101,7 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
   }
 
   tapfinishModules(
-    compilation: webpack.compilation.Compilation,
+    compilation: webpack5.Compilation,
     traceEntrypointsPluginSpan: Span,
     doResolve?: (
       request: string,
@@ -126,9 +127,7 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
             const depModMap = new Map<string, any>()
 
             finishModulesSpan.traceChild('get-entries').traceFn(() => {
-              compilation.entries.forEach((entry) => {
-                const name = entry.name || entry.options?.name
-
+              compilation.entries.forEach((entry, name) => {
                 if (name?.replace(/\\/g, '/').startsWith('pages/')) {
                   for (const dep of entry.dependencies) {
                     if (!dep) continue
@@ -369,7 +368,7 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
     )
   }
 
-  apply(compiler: webpack.Compiler) {
+  apply(compiler: webpack5.Compiler) {
     compiler.hooks.compilation.tap(PLUGIN_NAME, (compilation) => {
       const compilationSpan = spans.get(compilation) || spans.get(compiler)!
       const traceEntrypointsPluginSpan = compilationSpan.traceChild(
@@ -420,7 +419,7 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
                   missingDependencies: compilation.missingDependencies,
                   contextDependencies: compilation.contextDependencies,
                 },
-                async (err: any, result: string, resContext: any) => {
+                async (err: any, result?: string | false, resContext?: any) => {
                   if (err) return reject(err)
 
                   if (!result) {
@@ -433,7 +432,9 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
                     // package.json could be needed for resolving e.g. stylis
                     // stylis/package.json -> stylis/dist/umd/package.json
                     if (result.includes('node_modules')) {
-                      let requestPath = result.replace(/\\/g, '/')
+                      let requestPath = result
+                        .replace(/\\/g, '/')
+                        .replace(/\0/g, '')
 
                       if (
                         !nodePath.isAbsolute(request) &&
@@ -445,7 +446,9 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
                           request.substr(getPkgName(request)?.length || 0) +
                           nodePath.sep +
                           'package.json'
-                        ).replace(/\\/g, '/')
+                        )
+                          .replace(/\\/g, '/')
+                          .replace(/\0/g, '')
                       }
 
                       const rootSeparatorIndex = requestPath.indexOf('/')
@@ -477,10 +480,12 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
 
         const CJS_RESOLVE_OPTIONS = {
           ...NODE_RESOLVE_OPTIONS,
+          modules: undefined,
           extensions: undefined,
         }
         const ESM_RESOLVE_OPTIONS = {
           ...NODE_ESM_RESOLVE_OPTIONS,
+          modules: undefined,
           extensions: undefined,
         }
 
@@ -523,7 +528,7 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
           if (!res) {
             throw new Error(`failed to resolve ${request} from ${parent}`)
           }
-          return res
+          return res.replace(/\0/g, '')
         }
 
         this.tapfinishModules(

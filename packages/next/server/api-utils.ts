@@ -6,10 +6,10 @@ import { PageConfig, PreviewData } from 'next/types'
 import { Stream } from 'stream'
 import { isResSent, NextApiRequest, NextApiResponse } from '../shared/lib/utils'
 import { decryptWithSecret, encryptWithSecret } from './crypto-utils'
-import { interopDefault } from './load-components'
 import { sendEtagResponse } from './send-payload'
 import generateETag from 'etag'
 import isError from '../lib/is-error'
+import { interopDefault } from '../lib/interop-default'
 
 export type NextApiRequestCookies = { [key: string]: string }
 export type NextApiRequestQuery = { [key: string]: string | string[] }
