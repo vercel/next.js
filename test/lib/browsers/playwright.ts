@@ -15,7 +15,6 @@ let page: Page
 let browser: Browser
 let context: BrowserContext
 let pageLogs: Array<{ source: string; message: string }> = []
-let traceStarted = false
 
 const tracePlaywright = process.env.TRACE_PLAYWRIGHT
 
@@ -27,11 +26,10 @@ export async function quit() {
 }
 
 class Playwright extends BrowserInterface {
-  private browserName: string
+  private activeTrace?: string
 
   async setup(browserName: string) {
     if (browser) return
-    this.browserName = browserName
     const headless = !!process.env.HEADLESS
 
     if (browserName === 'safari') {
@@ -49,14 +47,14 @@ class Playwright extends BrowserInterface {
   }
 
   async loadPage(url: string) {
-    if (traceStarted) {
+    if (this.activeTrace) {
       const traceDir = path.join(__dirname, '../../traces')
       const traceOutputPath = path.join(
         traceDir,
         `${path
           .relative(path.join(__dirname, '../../'), process.env.TEST_FILE_PATH)
           .replace(/\//g, '-')}`,
-        `playwright-${encodeURIComponent(url)}-${Date.now()}.zip`
+        `playwright-${this.activeTrace}-${Date.now()}.zip`
       )
 
       await fs.remove(traceOutputPath)
@@ -110,7 +108,7 @@ class Playwright extends BrowserInterface {
         screenshots: true,
         snapshots: true,
       })
-      traceStarted = true
+      this.activeTrace = encodeURIComponent(url)
     }
     await page.goto(url, { waitUntil: 'load' })
   }
