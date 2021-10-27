@@ -1,6 +1,7 @@
 {
   "name": "react-server-dom-webpack",
   "main": "index.js",
+  "description": "react-server-dom-webpack@0.0.0-experimental-3c4c1c470-20211021",
   "license": "MIT",
   "exports": {
     ".": "./index.js",
