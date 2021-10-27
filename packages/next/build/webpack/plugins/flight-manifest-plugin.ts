@@ -56,12 +56,12 @@ export class FlightManifestPlugin {
           // @ts-ignore TODO: Remove ignore when webpack 5 is stable
           stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
         },
-        (assets: any) => this.createAsset(assets, compilation, compiler)
+        (assets: any) => this.createAsset(assets, compilation)
       )
     })
   }
 
-  createAsset(assets: any, compilation: any, compiler: any) {
+  createAsset(assets: any, compilation: any) {
     const json: any = {}
     const { clientComponentsRegex } = this
     compilation.chunkGroups.forEach((chunkGroup: any) => {

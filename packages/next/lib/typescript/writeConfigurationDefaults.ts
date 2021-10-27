@@ -117,6 +117,9 @@ export async function writeConfigurationDefaults(
     const check = desiredCompilerOptions[optionKey]
     if ('suggested' in check) {
       if (!(optionKey in tsOptions)) {
+        if (!userTsConfig.compilerOptions) {
+          userTsConfig.compilerOptions = {}
+        }
         userTsConfig.compilerOptions[optionKey] = check.suggested
         suggestedActions.push(
           chalk.cyan(optionKey) + ' was set to ' + chalk.bold(check.suggested)
@@ -131,6 +134,9 @@ export async function writeConfigurationDefaults(
           ? check.parsedValue === ev
           : check.value === ev)
       ) {
+        if (!userTsConfig.compilerOptions) {
+          userTsConfig.compilerOptions = {}
+        }
         userTsConfig.compilerOptions[optionKey] = check.value
         requiredActions.push(
           chalk.cyan(optionKey) +
