@@ -761,8 +761,6 @@ export default async function getBaseWebpackConfig(
         res = null
       }
 
-      console.log(`${request} = ${res} ${preferEsm}`)
-
       if (!res) {
         continue
       }
@@ -875,12 +873,10 @@ export default async function getBaseWebpackConfig(
     // Anything else that is standard JavaScript within `node_modules`
     // can be externalized.
     if (/node_modules[/\\].*\.[mc]?js$/.test(res)) {
-      console.log(`${externalType} ${request} = ${res}`)
       return `${externalType} ${request}`
     }
 
     // Default behavior: bundle the code!
-    console.log(`bundle ${res}`)
   }
 
   const emacsLockfilePattern = '**/.#*'
