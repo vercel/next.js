@@ -119,8 +119,6 @@ You should add the `priority` property to the image that will be the [Largest Co
 
 The LCP element is typically the largest image or text block visible within the viewport of the page. When you run `next dev`, you'll see a console warning if the LCP element is an `<Image>` without the `priority` property.
 
-````
-
 Once you've identified the LCP image, you can add the property like this:
 
 ```jsx
@@ -141,7 +139,7 @@ export default function Home() {
     </>
   )
 }
-````
+```
 
 See more about priority in the [`next/image` component documentation](/docs/api-reference/next/image.md#priority).
 
