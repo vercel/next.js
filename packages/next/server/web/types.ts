@@ -26,7 +26,6 @@ export interface RequestData {
 }
 
 export interface FetchEventResult {
-  promise: Promise<any>
   response: Response
   waitUntil: Promise<any>
 }

@@ -133,12 +133,12 @@ module.exports = {
           content: `
             module.exports = {
               generateBuildId: () => 'BUILD_ID',
+              swcMinify: ${
+                // TODO: remove after stable release > 11.1.2
+                process.env.STATS_IS_RELEASE ? 'false' : 'true'
+              },
               experimental: {
                 swcLoader: true,
-                swcMinify: ${
-                  // TODO: remove after stable release > 11.1.2
-                  process.env.STATS_IS_RELEASE ? 'false' : 'true'
-                },
               },
               webpack(config) {
                 config.optimization.minimize = false
@@ -160,12 +160,13 @@ module.exports = {
           path: 'next.config.js',
           content: `
             module.exports = {
+              swcMinify: ${
+                // TODO: remove after stable release > 11.1.2
+                process.env.STATS_IS_RELEASE ? 'false' : 'true'
+              },
               experimental: {
                 swcLoader: true,
-                swcMinify: ${
-                  // TODO: remove after stable release > 11.1.2
-                  process.env.STATS_IS_RELEASE ? 'false' : 'true'
-                },
+                
               },
               generateBuildId: () => 'BUILD_ID'
             }

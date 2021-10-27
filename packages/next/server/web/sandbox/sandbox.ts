@@ -1,7 +1,6 @@
-import type { RequestData, FetchEventResult } from '../types'
+import type { RequestData, FetchEventResult, NodeHeaders } from '../types'
 import { Blob, File, FormData } from 'next/dist/compiled/formdata-node'
 import { dirname } from 'path'
-import { ReadableStream } from 'next/dist/compiled/web-streams-polyfill'
 import { readFileSync } from 'fs'
 import { TransformStream } from 'next/dist/compiled/web-streams-polyfill'
 import * as polyfills from './polyfills'
@@ -36,6 +35,7 @@ export async function run(params: {
   name: string
   paths: string[]
   request: RequestData
+  ssr: boolean
 }): Promise<FetchEventResult> {
   if (cache === undefined) {
     const context: { [key: string]: any } = {
@@ -57,11 +57,24 @@ export async function run(params: {
       },
       Crypto: polyfills.Crypto,
       crypto: new polyfills.Crypto(),
-      fetch,
+      fetch: (input: RequestInfo, init: RequestInit = {}) => {
+        const url = getFetchURL(input, params.request.headers)
+        init.headers = getFetchHeaders(params.name, init)
+        if (isRequestLike(input)) {
+          return fetch(url, {
+            ...init,
+            headers: {
+              ...Object.fromEntries(input.headers),
+              ...Object.fromEntries(init.headers),
+            },
+          })
+        }
+        return fetch(url, init)
+      },
       File,
       FormData,
       process: { env: { ...process.env } },
-      ReadableStream,
+      ReadableStream: polyfills.ReadableStream,
       setInterval,
       setTimeout,
       TextDecoder: polyfills.TextDecoder,
@@ -114,6 +127,19 @@ export async function run(params: {
   }
 
   const entryPoint = cache.context._ENTRIES[`middleware_${params.name}`]
+
+  if (params.ssr) {
+    const rscManifest = cache.context._ENTRIES._middleware_rsc_manifest
+    cache = undefined
+
+    if (rscManifest && entryPoint) {
+      return entryPoint.default({
+        request: params.request,
+        rscManifest,
+      })
+    }
+  }
+
   return entryPoint.default({ request: params.request })
 }
 
@@ -167,4 +193,30 @@ function sandboxRequire(referrer: string, specifier: string) {
   }
   module.loaded = true
   return module.exports
+}
+
+function getFetchHeaders(middleware: string, init: RequestInit) {
+  const headers = new Headers(init.headers ?? {})
+  const prevsub = headers.get(`x-middleware-subrequest`) || ''
+  const value = prevsub.split(':').concat(middleware).join(':')
+  headers.set(`x-middleware-subrequest`, value)
+  headers.set(`user-agent`, `Next.js Middleware`)
+  return headers
+}
+
+function getFetchURL(input: RequestInfo, headers: NodeHeaders = {}): string {
+  const initurl = isRequestLike(input) ? input.url : input
+  if (initurl.startsWith('/')) {
+    const host = headers.host?.toString()
+    const localhost =
+      host === '127.0.0.1' ||
+      host === 'localhost' ||
+      host?.startsWith('localhost:')
+    return `${localhost ? 'http' : 'https'}://${host}${initurl}`
+  }
+  return initurl
+}
+
+function isRequestLike(obj: unknown): obj is Request {
+  return Boolean(obj && typeof obj === 'object' && 'url' in obj)
 }

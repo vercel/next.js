@@ -29,6 +29,9 @@ do
   cp -r "./examples/$testCase/." "./e2e-tests/$testCase"
   cd "./e2e-tests/$testCase"
 
+  # TODO: remove after able to load bindings with YarnPnP
+  echo '{"presets": ["next/babel"]}' > .babelrc
+
   touch yarn.lock
   yarn set version berry
 

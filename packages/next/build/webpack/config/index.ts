@@ -12,21 +12,25 @@ export async function build(
     customAppFile,
     isDevelopment,
     isServer,
+    webServerRuntime,
+    targetWeb,
     assetPrefix,
     sassOptions,
     productionBrowserSourceMaps,
     future,
-    isCraCompat,
+    experimental,
   }: {
     rootDirectory: string
     customAppFile: RegExp
     isDevelopment: boolean
     isServer: boolean
+    webServerRuntime: boolean
+    targetWeb: boolean
     assetPrefix: string
     sassOptions: any
     productionBrowserSourceMaps: boolean
     future: NextConfigComplete['future']
-    isCraCompat?: boolean
+    experimental: NextConfigComplete['experimental']
   }
 ): Promise<webpack.Configuration> {
   const ctx: ConfigurationContext = {
@@ -35,7 +39,9 @@ export async function build(
     isDevelopment,
     isProduction: !isDevelopment,
     isServer,
+    webServerRuntime,
     isClient: !isServer,
+    targetWeb,
     assetPrefix: assetPrefix
       ? assetPrefix.endsWith('/')
         ? assetPrefix.slice(0, -1)
@@ -44,7 +50,7 @@ export async function build(
     sassOptions,
     productionBrowserSourceMaps,
     future,
-    isCraCompat,
+    experimental,
   }
 
   const fn = pipe(base(ctx), css(ctx), images(ctx))
