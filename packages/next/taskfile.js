@@ -382,7 +382,7 @@ externals['native-url'] = 'next/dist/compiled/native-url'
 export async function ncc_native_url(task, opts) {
   await task
     .source(opts.src || relative(__dirname, require.resolve('native-url')))
-    .ncc({ packageName: 'native-url', externals })
+    .ncc({ packageName: 'native-url', externals, target: 'es5' })
     .target('compiled/native-url')
 }
 // eslint-disable-next-line camelcase
