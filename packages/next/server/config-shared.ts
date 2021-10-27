@@ -60,7 +60,6 @@ export type NextConfig = { [key: string]: any } & {
   >
   redirects?: () => Promise<Redirect[]>
 
-  webpack5?: false
   excludeDefaultMomentLocales?: boolean
 
   webpack?:
@@ -110,10 +109,6 @@ export type NextConfig = { [key: string]: any } & {
   serverRuntimeConfig?: { [key: string]: any }
   httpAgentOptions?: { keepAlive?: boolean }
   future?: {
-    /**
-     * @deprecated this options was moved to the top level
-     */
-    webpack5?: false
     strictPostcssConfiguration?: boolean
   }
   outputFileTracing?: boolean
@@ -193,7 +188,6 @@ export const defaultConfig: NextConfig = {
   i18n: null,
   productionBrowserSourceMaps: false,
   optimizeFonts: true,
-  webpack5: undefined,
   excludeDefaultMomentLocales: true,
   serverRuntimeConfig: {},
   publicRuntimeConfig: {},
