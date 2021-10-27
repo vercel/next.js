@@ -1,5 +1,7 @@
 # Sentry
 
+_Note: `@sentry/nextjs` is not yet guaranteed to be compatible with the newly-released Next.js 12. This example therefore uses Next.js 11._
+
 This is an example showing how to use [Sentry](https://sentry.io) to catch and report errors and monitor the performance of both the front and back ends, using the [official Sentry SDK for Next.js](https://docs.sentry.io/platforms/javascript/guides/nextjs/).
 
 - `sentry.server.config.js` and `sentry.client.config.js` are used to configure and initialize Sentry
