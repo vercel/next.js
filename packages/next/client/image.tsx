@@ -456,7 +456,11 @@ export default function Image({
       )
     }
 
-    if (typeof window !== 'undefined' && !perfObserver) {
+    if (
+      typeof window !== 'undefined' &&
+      !perfObserver &&
+      window.PerformanceObserver
+    ) {
       perfObserver = new PerformanceObserver((entryList) => {
         for (const entry of entryList.getEntries()) {
           // @ts-ignore - missing "LargestContentfulPaint" class with "element" prop
