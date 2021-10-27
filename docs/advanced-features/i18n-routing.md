@@ -104,6 +104,11 @@ module.exports = {
         defaultLocale: 'en-US',
       },
       {
+        // Note: subdomains must be included in the domain value to be matched
+        domain: 'www.example.com',
+        defaultLocale: 'en-US',
+      },
+      {
         domain: 'example.fr',
         defaultLocale: 'fr',
       },
@@ -122,6 +127,7 @@ module.exports = {
 For example if you have `pages/blog.js` the following urls will be available:
 
 - `example.com/blog`
+- `www.example.com/blog`
 - `example.fr/blog`
 - `example.nl/blog`
 - `example.nl/nl-BE/blog`
