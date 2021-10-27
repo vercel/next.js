@@ -203,7 +203,6 @@ export async function createApp({
      */
     const packageJson = {
       name: appName,
-      version: '0.1.0',
       private: true,
       scripts: {
         dev: 'next dev',
@@ -230,7 +229,7 @@ export async function createApp({
     /**
      * Default devDependencies.
      */
-    const devDependencies = ['eslint', 'eslint-config-next']
+    const devDependencies = ['eslint@7', 'eslint-config-next']
     /**
      * TypeScript projects will have type definitions and other devDependencies.
      */

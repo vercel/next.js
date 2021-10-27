@@ -1,6 +1,5 @@
 import compression from 'next/dist/compiled/compression'
 import fs from 'fs'
-import chalk from 'chalk'
 import { IncomingMessage, ServerResponse } from 'http'
 import Proxy from 'next/dist/compiled/http-proxy'
 import { join, relative, resolve, sep } from 'path'
@@ -33,12 +32,14 @@ import {
   SERVER_DIRECTORY,
   STATIC_STATUS_PAGES,
   TEMPORARY_REDIRECT_STATUS,
+  MIDDLEWARE_MANIFEST,
 } from '../shared/lib/constants'
 import {
   getRouteMatcher,
   getRouteRegex,
   getSortedRoutes,
   isDynamicRoute,
+  getMiddlewareRegex,
 } from '../shared/lib/router/utils'
 import * as envConfig from '../shared/lib/runtime-config'
 import {
@@ -83,7 +84,6 @@ import './node-polyfill-fetch'
 import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import { removePathTrailingSlash } from '../client/normalize-trailing-slash'
 import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-asset-path'
-import { FontManifest } from './font-utils'
 import { denormalizePagePath } from './denormalize-page-path'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import * as Log from '../build/output/log'
@@ -98,10 +98,20 @@ import ResponseCache, {
 import { NextConfigComplete } from './config-shared'
 import { parseNextUrl } from '../shared/lib/router/utils/parse-next-url'
 import isError from '../lib/is-error'
+import { getMiddlewareInfo } from './require'
+import { parseUrl as simpleParseUrl } from '../shared/lib/router/utils/parse-url'
+import { MIDDLEWARE_ROUTE } from '../lib/constants'
+import { NextResponse } from './web/spec-extension/response'
+import { run } from './web/sandbox'
+import type { FontManifest } from './font-utils'
+import type { FetchEventResult } from './web/types'
+import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
+import type { ParsedNextUrl } from '../shared/lib/router/utils/parse-next-url'
+import type { ParsedUrl } from '../shared/lib/router/utils/parse-url'
 
 const getCustomRouteMatcher = pathMatch(true)
 
-type Middleware = (
+type ExpressMiddleware = (
   req: IncomingMessage,
   res: ServerResponse,
   next: (err?: Error) => void
@@ -112,9 +122,10 @@ export type FindComponentsResult = {
   query: ParsedUrlQuery
 }
 
-type DynamicRouteItem = {
+interface RoutingItem {
   page: string
   match: ReturnType<typeof getRouteMatcher>
+  ssr?: boolean
 }
 
 export type ServerConstructor = {
@@ -179,12 +190,14 @@ export default class Server {
     distDir: string
     concurrentFeatures?: boolean
   }
-  private compression?: Middleware
+  private compression?: ExpressMiddleware
   private incrementalCache: IncrementalCache
   private responseCache: ResponseCache
   protected router: Router
   protected dynamicRoutes?: DynamicRoutes
   protected customRoutes: CustomRoutes
+  protected middlewareManifest?: MiddlewareManifest
+  protected middleware?: RoutingItem[]
 
   public constructor({
     dir = '.',
@@ -248,7 +261,7 @@ export default class Server {
     }
 
     if (compress && this.nextConfig.target === 'server') {
-      this.compression = compression() as Middleware
+      this.compression = compression() as ExpressMiddleware
     }
 
     // Initialize next/config with the environment configuration
@@ -262,9 +275,16 @@ export default class Server {
       this._isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY
     )
     const pagesManifestPath = join(this.serverBuildDir, PAGES_MANIFEST)
+    const middlewareManifestPath = join(
+      join(this.distDir, SERVER_DIRECTORY),
+      MIDDLEWARE_MANIFEST
+    )
 
     if (!dev) {
       this.pagesManifest = require(pagesManifestPath)
+      if (!this.minimalMode) {
+        this.middlewareManifest = require(middlewareManifestPath)
+      }
     }
 
     this.customRoutes = this.getCustomRoutes()
@@ -337,6 +357,8 @@ export default class Server {
     if (typeof parsedUrl.query === 'string') {
       parsedUrl.query = parseQs(parsedUrl.query)
     }
+
+    ;(req as any).__NEXT_INIT_URL = req.url
     ;(req as any).__NEXT_INIT_QUERY = Object.assign({}, parsedUrl.query)
 
     const url = parseNextUrl({
@@ -547,6 +569,137 @@ export default class Server {
     return this.getPrerenderManifest().preview
   }
 
+  protected getMiddleware() {
+    const middleware = this.middlewareManifest?.middleware || {}
+    return Object.keys(middleware).map((page) => ({
+      match: getRouteMatcher(
+        getMiddlewareRegex(page, MIDDLEWARE_ROUTE.test(middleware[page].name))
+      ),
+      page,
+    }))
+  }
+
+  protected async hasMiddleware(
+    pathname: string,
+    _isSSR?: boolean
+  ): Promise<boolean> {
+    try {
+      return (
+        getMiddlewareInfo({
+          dev: this.renderOpts.dev,
+          distDir: this.distDir,
+          page: pathname,
+          serverless: this._isLikeServerless,
+        }).paths.length > 0
+      )
+    } catch (_) {}
+
+    return false
+  }
+
+  protected async ensureMiddleware(_pathname: string, _isSSR?: boolean) {}
+
+  private middlewareBetaWarning = execOnce(() => {
+    Log.warn(
+      `using beta Middleware (not covered by semver) - https://nextjs.org/docs/messages/beta-middleware`
+    )
+  })
+
+  protected async runMiddleware(params: {
+    request: IncomingMessage
+    response: ServerResponse
+    parsedUrl: ParsedNextUrl
+    parsed: UrlWithParsedQuery
+  }): Promise<FetchEventResult | null> {
+    this.middlewareBetaWarning()
+
+    const page: { name?: string; params?: { [key: string]: string } } = {}
+    if (await this.hasPage(params.parsedUrl.pathname)) {
+      page.name = params.parsedUrl.pathname
+    } else if (this.dynamicRoutes) {
+      for (const dynamicRoute of this.dynamicRoutes) {
+        const matchParams = dynamicRoute.match(params.parsedUrl.pathname)
+        if (matchParams) {
+          page.name = dynamicRoute.page
+          page.params = matchParams
+          break
+        }
+      }
+    }
+
+    const subreq = params.request.headers[`x-middleware-subrequest`]
+    const subrequests = typeof subreq === 'string' ? subreq.split(':') : []
+    const allHeaders = new Headers()
+    let result: FetchEventResult | null = null
+
+    for (const middleware of this.middleware || []) {
+      if (middleware.match(params.parsedUrl.pathname)) {
+        if (!(await this.hasMiddleware(middleware.page, middleware.ssr))) {
+          console.warn(`The Edge Function for ${middleware.page} was not found`)
+          continue
+        }
+
+        await this.ensureMiddleware(middleware.page, middleware.ssr)
+
+        const middlewareInfo = getMiddlewareInfo({
+          dev: this.renderOpts.dev,
+          distDir: this.distDir,
+          page: middleware.page,
+          serverless: this._isLikeServerless,
+        })
+
+        if (subrequests.includes(middlewareInfo.name)) {
+          result = {
+            response: NextResponse.next(),
+            waitUntil: Promise.resolve(),
+          }
+          continue
+        }
+
+        result = await run({
+          name: middlewareInfo.name,
+          paths: middlewareInfo.paths,
+          request: {
+            headers: params.request.headers,
+            method: params.request.method || 'GET',
+            nextConfig: {
+              basePath: this.nextConfig.basePath,
+              i18n: this.nextConfig.i18n,
+              trailingSlash: this.nextConfig.trailingSlash,
+            },
+            url: (params.request as any).__NEXT_INIT_URL,
+            page: page,
+          },
+          ssr: !!this.nextConfig.experimental.concurrentFeatures,
+        })
+
+        for (let [key, value] of result.response.headers) {
+          allHeaders.append(key, value)
+        }
+
+        if (!this.renderOpts.dev) {
+          result.waitUntil.catch((error) => {
+            console.error(`Uncaught: middleware waitUntil errored`, error)
+          })
+        }
+
+        if (!result.response.headers.has('x-middleware-next')) {
+          break
+        }
+      }
+    }
+
+    if (!result) {
+      this.render404(params.request, params.response, params.parsed)
+    } else {
+      for (let [key, value] of allHeaders) {
+        result.response.headers.set(key, value)
+      }
+    }
+
+    return result
+  }
+
   protected generateRoutes(): {
     basePath: string
     headers: Route[]
@@ -558,6 +711,7 @@ export default class Server {
     fsRoutes: Route[]
     redirects: Route[]
     catchAllRoute: Route
+    catchAllMiddleware?: Route
     pageChecker: PageChecker
     useFileSystemPublicRoutes: boolean
     dynamicRoutes: DynamicRoutes | undefined
@@ -641,8 +795,10 @@ export default class Server {
           // remove buildId from URL
           params.path.shift()
 
+          const lastParam = params.path[params.path.length - 1]
+
           // show 404 if it doesn't end with .json
-          if (!params.path[params.path.length - 1].endsWith('.json')) {
+          if (typeof lastParam !== 'string' || !lastParam.endsWith('.json')) {
             await this.render404(req, res, _parsedUrl)
             return {
               finished: true,
@@ -808,6 +964,49 @@ export default class Server {
       })
     }
 
+    const proxyRequest = async (
+      req: IncomingMessage,
+      res: ServerResponse,
+      parsedUrl: ParsedUrl
+    ) => {
+      const { query } = parsedUrl
+      delete (parsedUrl as any).query
+      parsedUrl.search = stringifyQuery(req, query)
+
+      const target = formatUrl(parsedUrl)
+      const proxy = new Proxy({
+        target,
+        changeOrigin: true,
+        ignorePath: true,
+        xfwd: true,
+        proxyTimeout: 30_000, // limit proxying to 30 seconds
+      })
+
+      await new Promise((proxyResolve, proxyReject) => {
+        let finished = false
+
+        proxy.on('proxyReq', (proxyReq) => {
+          proxyReq.on('close', () => {
+            if (!finished) {
+              finished = true
+              proxyResolve(true)
+            }
+          })
+        })
+        proxy.on('error', (err) => {
+          if (!finished) {
+            finished = true
+            proxyReject(err)
+          }
+        })
+        proxy.web(req, res)
+      })
+
+      return {
+        finished: true,
+      }
+    }
+
     const redirects = this.minimalMode
       ? []
       : this.customRoutes.redirects.map((redirect) => {
@@ -874,43 +1073,9 @@ export default class Server {
 
           // external rewrite, proxy it
           if (parsedDestination.protocol) {
-            const { query } = parsedDestination
-            delete (parsedDestination as any).query
-            parsedDestination.search = stringifyQuery(req, query)
-
-            const target = formatUrl(parsedDestination)
-            const proxy = new Proxy({
-              target,
-              changeOrigin: true,
-              ignorePath: true,
-              xfwd: true,
-              proxyTimeout: 30_000, // limit proxying to 30 seconds
-            })
-
-            await new Promise((proxyResolve, proxyReject) => {
-              let finished = false
-
-              proxy.on('proxyReq', (proxyReq) => {
-                proxyReq.on('close', () => {
-                  if (!finished) {
-                    finished = true
-                    proxyResolve(true)
-                  }
-                })
-              })
-              proxy.on('error', (err) => {
-                if (!finished) {
-                  finished = true
-                  proxyReject(err)
-                }
-              })
-              proxy.web(req, res)
-            })
-
-            return {
-              finished: true,
-            }
+            return proxyRequest(req, res, parsedDestination)
           }
+
           ;(req as any)._nextRewroteUrl = newUrl
           ;(req as any)._nextDidRewrite =
             (req as any)._nextRewroteUrl !== req.url
@@ -944,6 +1109,141 @@ export default class Server {
       }
     }
 
+    let catchAllMiddleware: Route | undefined
+
+    if (!this.minimalMode) {
+      catchAllMiddleware = {
+        match: route('/:path*'),
+        type: 'route',
+        name: 'middleware catchall',
+        fn: async (req, res, _params, parsed) => {
+          const fullUrl = (req as any).__NEXT_INIT_URL
+          const parsedUrl = parseNextUrl({
+            url: fullUrl,
+            headers: req.headers,
+            nextConfig: {
+              basePath: this.nextConfig.basePath,
+              i18n: this.nextConfig.i18n,
+              trailingSlash: this.nextConfig.trailingSlash,
+            },
+          })
+
+          if (!this.middleware?.some((m) => m.match(parsedUrl.pathname))) {
+            return { finished: false }
+          }
+
+          let result: FetchEventResult | null = null
+
+          try {
+            result = await this.runMiddleware({
+              request: req,
+              response: res,
+              parsedUrl: parsedUrl,
+              parsed: parsed,
+            })
+          } catch (err) {
+            if (isError(err) && err.code === 'ENOENT') {
+              await this.render404(req, res, parsed)
+              return { finished: true }
+            }
+
+            const error = isError(err) ? err : new Error(err + '')
+            console.error(error)
+            res.statusCode = 500
+            this.renderError(error, req, res, parsed.pathname || '')
+            return { finished: true }
+          }
+
+          if (result === null) {
+            return { finished: true }
+          }
+
+          if (
+            !result.response.headers.has('x-middleware-rewrite') &&
+            !result.response.headers.has('x-middleware-next') &&
+            !result.response.headers.has('Location')
+          ) {
+            result.response.headers.set('x-middleware-refresh', '1')
+          }
+
+          result.response.headers.delete('x-middleware-next')
+
+          for (const [key, value] of result.response.headers.entries()) {
+            if (key !== 'content-encoding') {
+              if (key.toLowerCase() === 'set-cookie') {
+                res.setHeader(key, value.split(', '))
+              } else {
+                res.setHeader(key, value)
+              }
+            }
+          }
+
+          const preflight =
+            req.method === 'HEAD' && req.headers['x-middleware-preflight']
+
+          if (preflight) {
+            res.writeHead(200)
+            res.end()
+            return {
+              finished: true,
+            }
+          }
+
+          res.statusCode = result.response.status
+          res.statusMessage = result.response.statusText
+
+          const location = result.response.headers.get('Location')
+          if (location) {
+            res.statusCode = result.response.status
+            if (res.statusCode === 308) {
+              res.setHeader('Refresh', `0;url=${location}`)
+            }
+
+            res.end()
+            return {
+              finished: true,
+            }
+          }
+
+          if (result.response.headers.has('x-middleware-rewrite')) {
+            const rewrite = result.response.headers.get('x-middleware-rewrite')!
+            const rewriteParsed = simpleParseUrl(rewrite)
+            if (rewriteParsed.protocol) {
+              return proxyRequest(req, res, rewriteParsed)
+            }
+
+            ;(req as any)._nextRewroteUrl = rewrite
+            ;(req as any)._nextDidRewrite =
+              (req as any)._nextRewroteUrl !== req.url
+
+            return {
+              finished: false,
+              pathname: rewriteParsed.pathname,
+              query: {
+                ...parsedUrl.query,
+                ...rewriteParsed.query,
+              },
+            }
+          }
+
+          if (result.response.headers.has('x-middleware-refresh')) {
+            res.writeHead(result.response.status)
+            for await (const chunk of result.response.body || []) {
+              res.write(chunk)
+            }
+            res.end()
+            return {
+              finished: true,
+            }
+          }
+
+          return {
+            finished: false,
+          }
+        },
+      }
+    }
+
     const catchAllRoute: Route = {
       match: route('/:path*'),
       type: 'route',
@@ -969,6 +1269,13 @@ export default class Server {
           }
         }
         const bubbleNoFallback = !!query._nextBubbleNoFallback
+
+        if (pathname.match(MIDDLEWARE_ROUTE)) {
+          await this.render404(req, res, parsedUrl)
+          return {
+            finished: true,
+          }
+        }
 
         if (pathname === '/api' || pathname.startsWith('/api/')) {
           delete query._nextBubbleNoFallback
@@ -1005,6 +1312,9 @@ export default class Server {
 
     if (useFileSystemPublicRoutes) {
       this.dynamicRoutes = this.getDynamicRoutes()
+      if (!this.minimalMode) {
+        this.middleware = this.getMiddleware()
+      }
     }
 
     return {
@@ -1017,6 +1327,7 @@ export default class Server {
       },
       redirects,
       catchAllRoute,
+      catchAllMiddleware,
       useFileSystemPublicRoutes,
       dynamicRoutes: this.dynamicRoutes,
       basePath: this.nextConfig.basePath,
@@ -1193,7 +1504,7 @@ export default class Server {
     ]
   }
 
-  protected getDynamicRoutes(): Array<DynamicRouteItem> {
+  protected getDynamicRoutes(): Array<RoutingItem> {
     const addedPages = new Set<string>()
 
     return getSortedRoutes(
@@ -1210,7 +1521,7 @@ export default class Server {
           match: getRouteMatcher(getRouteRegex(page)),
         }
       })
-      .filter((item): item is DynamicRouteItem => Boolean(item))
+      .filter((item): item is RoutingItem => Boolean(item))
   }
 
   private handleCompression(req: IncomingMessage, res: ServerResponse): void {
@@ -2011,11 +2322,8 @@ export default class Server {
   }
 
   private customErrorNo404Warn = execOnce(() => {
-    console.warn(
-      chalk.bold.yellow(`Warning: `) +
-        chalk.yellow(
-          `You have added a custom /_error page without a custom /404 page. This prevents the 404 page from being auto statically optimized.\nSee here for info: https://nextjs.org/docs/messages/custom-error-no-custom-404`
-        )
+    Log.warn(
+      `You have added a custom /_error page without a custom /404 page. This prevents the 404 page from being auto statically optimized.\nSee here for info: https://nextjs.org/docs/messages/custom-error-no-custom-404`
     )
   })
 

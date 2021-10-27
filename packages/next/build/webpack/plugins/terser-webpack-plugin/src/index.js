@@ -74,6 +74,8 @@ export class TerserPlugin {
     terserSpan.setAttribute('compilationName', compilation.name)
 
     return terserSpan.traceAsyncFn(async () => {
+      let webpackAsset = ''
+      let hasMiddleware = false
       let numberOfAssetsForMinify = 0
       const assetsList = Object.keys(assets)
 
@@ -93,6 +95,18 @@ export class TerserPlugin {
             const res = compilation.getAsset(name)
             if (!res) {
               console.log(name)
+              return false
+            }
+
+            // remove below if we start minifying middleware chunks
+            if (name.startsWith('static/chunks/webpack-')) {
+              webpackAsset = name
+            }
+
+            // don't minify _middleware as it can break in some cases
+            // and doesn't provide too much of a benefit as it's server-side
+            if (name.match(/(middleware-chunks|_middleware\.js$)/)) {
+              hasMiddleware = true
               return false
             }
 
@@ -119,6 +133,17 @@ export class TerserPlugin {
           })
       )
 
+      if (hasMiddleware && webpackAsset) {
+        // emit a separate un-minified version of the webpack
+        // runtime for the middleware
+        const asset = compilation.getAsset(webpackAsset)
+        compilation.emitAsset(
+          webpackAsset.replace('webpack-', 'webpack-middleware-'),
+          asset.source,
+          {}
+        )
+      }
+
       const numberOfWorkers = Math.min(
         numberOfAssetsForMinify,
         optimizeOptions.availableNumberOfCores
@@ -134,6 +159,13 @@ export class TerserPlugin {
               const result = await require('../../../../swc').minify(
                 options.input,
                 {
+                  ...(options.inputSourceMap
+                    ? {
+                        sourceMap: {
+                          content: JSON.stringify(options.inputSourceMap),
+                        },
+                      }
+                    : {}),
                   compress: true,
                   mangle: true,
                 }
@@ -269,7 +301,11 @@ export class TerserPlugin {
 
     compiler.hooks.compilation.tap(pluginName, (compilation) => {
       // Don't run minifier against mini-css-extract-plugin
-      if (compilation.name !== 'client' && compilation.name !== 'server') {
+      if (
+        compilation.name !== 'client' &&
+        compilation.name !== 'server' &&
+        compilation.name !== 'server-web'
+      ) {
         return
       }
 

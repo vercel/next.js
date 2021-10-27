@@ -5,8 +5,24 @@
       "heading": true,
       "routes": [
         {
+          "title": "beta-middleware",
+          "path": "/errors/beta-middleware.md"
+        },
+        {
+          "title": "failed-loading-swc",
+          "path": "/errors/failed-loading-swc.md"
+        },
+        {
+          "title": "deprecated-target-config",
+          "path": "/errors/deprecated-target-config.md"
+        },
+        {
           "title": "custom-document-image-import",
           "path": "/errors/custom-document-image-import.md"
+        },
+        {
+          "title": "large-page-data",
+          "path": "/errors/large-page-data.md"
         },
         {
           "title": "404-get-initial-props",
@@ -448,6 +464,10 @@
           "path": "/errors/sharp-missing-in-production.md"
         },
         {
+          "title": "sharp-version-avif",
+          "path": "/errors/sharp-version-avif.md"
+        },
+        {
           "title": "script-in-document-page",
           "path": "/errors/no-script-in-document-page.md"
         },
@@ -474,6 +494,18 @@
         {
           "title": "invalid-project-dir-casing",
           "path": "/errors/invalid-project-dir-casing.md"
+        },
+        {
+          "title": "swc-disabled",
+          "path": "/errors/swc-disabled.md"
+        },
+        {
+          "title": "swc-minify-enabled",
+          "path": "/errors/swc-minify-enabled.md"
+        },
+        {
+          "title": "middleware-new-signature",
+          "path": "/errors/middleware-new-signature.md"
         }
       ]
     }

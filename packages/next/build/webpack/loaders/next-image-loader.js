@@ -1,10 +1,9 @@
 import loaderUtils from 'next/dist/compiled/loader-utils'
-import sizeOf from 'image-size'
-import { resizeImage } from '../../../server/image-optimizer'
+import { resizeImage, getImageSize } from '../../../server/image-optimizer'
 
 const BLUR_IMG_SIZE = 8
 const BLUR_QUALITY = 70
-const VALID_BLUR_EXT = ['jpeg', 'png', 'webp']
+const VALID_BLUR_EXT = ['jpeg', 'png', 'webp', 'avif'] // should match next/client/image.tsx
 
 function nextImageLoader(content) {
   const imageLoaderSpan = this.currentTraceSpan.traceChild('next-image-loader')
@@ -15,7 +14,7 @@ function nextImageLoader(content) {
     const opts = { context, content }
     const interpolatedName = loaderUtils.interpolateName(
       this,
-      '/static/image/[path][name].[hash].[ext]',
+      '/static/media/[name].[hash:8].[ext]',
       opts
     )
     const outputPath = assetPrefix + '/_next' + interpolatedName
@@ -26,7 +25,9 @@ function nextImageLoader(content) {
     }
 
     const imageSizeSpan = imageLoaderSpan.traceChild('image-size-calculation')
-    const imageSize = imageSizeSpan.traceFn(() => sizeOf(content))
+    const imageSize = await imageSizeSpan.traceAsyncFn(() =>
+      getImageSize(content, extension)
+    )
     let blurDataURL
 
     if (VALID_BLUR_EXT.includes(extension)) {

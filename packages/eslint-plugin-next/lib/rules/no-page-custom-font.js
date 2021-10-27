@@ -6,6 +6,7 @@ module.exports = {
       description:
         'Recommend adding custom font in a custom document and not in a specific page',
       recommended: true,
+      url: 'https://nextjs.org/docs/messages/no-page-custom-font',
     },
   },
   create: function (context) {
