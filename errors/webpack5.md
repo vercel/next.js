@@ -37,7 +37,7 @@ In case you do have custom webpack configuration, either through custom plugins 
 
 - When using `next-transpile-modules` make sure you use the latest version which includes [this patch](https://github.com/martpie/next-transpile-modules/pull/179)
 - When using `@zeit/next-css` / `@zeit/next-sass` make sure you use the [built-in CSS/Sass support](https://nextjs.org/docs/basic-features/built-in-css-support) instead
-- When using `@zeit/next-preact` use [this example](https://github.com/vercel/next-plugins/tree/master/packages/next-preact) instead
+- When using `@zeit/next-preact` use [this example](https://github.com/vercel/next.js/tree/canary/examples/using-preact) instead
 - When using `@zeit/next-source-maps` use the [built-in production Source Map support](https://nextjs.org/docs/advanced-features/source-maps)
 - When using webpack plugins make sure they're upgraded to the latest version, in most cases the latest version will include webpack 5 support. In some cases these upgraded webpack plugins will only support webpack 5.
 
