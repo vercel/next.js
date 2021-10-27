@@ -1,5 +1,4 @@
 import { mediaType } from '@hapi/accept'
-import ContentDisposition from 'next/dist/compiled/content-disposition'
 import { createHash } from 'crypto'
 import { createReadStream, promises } from 'fs'
 import { getOrientation, Orientation } from 'get-orientation'
@@ -7,6 +6,7 @@ import imageSizeOf from 'image-size'
 import { IncomingMessage, ServerResponse } from 'http'
 // @ts-ignore no types for is-animated
 import isAnimated from 'next/dist/compiled/is-animated'
+import contentDisposition from 'next/dist/compiled/content-disposition'
 import { join } from 'path'
 import Stream from 'stream'
 import nodeUrl, { UrlWithParsedQuery } from 'url'
@@ -544,7 +544,7 @@ function setResponseHeaders(
   if (fileName) {
     res.setHeader(
       'Content-Disposition',
-      ContentDisposition(fileName, { type: 'inline' })
+      contentDisposition(fileName, { type: 'inline' })
     )
   }
 
