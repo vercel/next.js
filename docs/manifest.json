@@ -241,7 +241,24 @@
         },
         {
           "title": "Upgrade Guide",
-          "path": "/docs/upgrading.md"
+          "routes": [
+            {
+              "title": "Upgrading from version 8 to 9",
+              "path": "/docs/upgrading/from-8-to-9.md"
+            },
+            {
+              "title": "Upgrading from version 9 to 10",
+              "path": "/docs/upgrading/from-9-to-10.md"
+            },
+            {
+              "title": "Upgrading from version 10 to 11",
+              "path": "/docs/upgrading/from-10-to-11.md"
+            },
+            {
+              "title": "Upgrading from version 11 to 12",
+              "path": "/docs/upgrading/from-11-to-12.md"
+            }
+          ]
         },
         {
           "title": "Migrating to Next.js",
