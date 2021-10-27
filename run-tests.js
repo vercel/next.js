@@ -251,15 +251,15 @@ async function main() {
             // run tests in headless mode by default
             HEADLESS: 'true',
             TRACE_PLAYWRIGHT: 'true',
-            ...(usePolling
-              ? {
-                  // Events can be finicky in CI. This switches to a more
-                  // reliable polling method.
-                  CHOKIDAR_USEPOLLING: 'true',
-                  CHOKIDAR_INTERVAL: 500,
-                  WATCHPACK_POLLING: 500,
-                }
-              : {}),
+            // ...(usePolling
+            //   ? {
+            //       // Events can be finicky in CI. This switches to a more
+            //       // reliable polling method.
+            //       CHOKIDAR_USEPOLLING: 'true',
+            //       CHOKIDAR_INTERVAL: 500,
+            //       WATCHPACK_POLLING: 500,
+            //     }
+            //   : {}),
           },
         }
       )
