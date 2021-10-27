@@ -741,34 +741,96 @@ export default async function getBaseWebpackConfig(
     // When in esm externals mode, and using import, we resolve with
     // ESM resolving options.
     const isEsmRequested = dependencyType === 'esm'
-    const preferEsm = esmExternals && isEsmRequested
 
-    const resolve = getResolve(
-      preferEsm ? NODE_ESM_RESOLVE_OPTIONS : NODE_RESOLVE_OPTIONS
-    )
-
-    // Resolve the import with the webpack provided context, this
-    // ensures we're resolving the correct version when multiple
-    // exist.
-    let res: string | null
+    let res: string | null = null
     let isEsm: boolean = false
-    try {
-      ;[res, isEsm] = await resolve(context, request)
-    } catch (err) {
-      res = null
-    }
 
-    // If resolving fails, and we can use an alternative way
-    // try the alternative resolving options.
-    if (!res && (isEsmRequested || looseEsmExternals)) {
-      const resolveAlternative = getResolve(
-        preferEsm ? NODE_RESOLVE_OPTIONS : NODE_ESM_RESOLVE_OPTIONS
+    let preferEsmOptions =
+      esmExternals && isEsmRequested ? [true, false] : [false]
+    for (const preferEsm of preferEsmOptions) {
+      const resolve = getResolve(
+        preferEsm ? NODE_ESM_RESOLVE_OPTIONS : NODE_RESOLVE_OPTIONS
       )
+
+      // Resolve the import with the webpack provided context, this
+      // ensures we're resolving the correct version when multiple
+      // exist.
       try {
-        ;[res, isEsm] = await resolveAlternative(context, request)
+        ;[res, isEsm] = await resolve(context, request)
       } catch (err) {
         res = null
       }
+
+      console.log(`${request} = ${res} ${preferEsm}`)
+
+      if (!res) {
+        continue
+      }
+
+      // ESM externals can only be imported (and not required).
+      // Make an exception in loose mode.
+      if (!isEsmRequested && isEsm && !looseEsmExternals) {
+        continue
+      }
+
+      if (isLocal) {
+        // Makes sure dist/shared and dist/server are not bundled
+        // we need to process shared `router/router` and `dynamic`,
+        // so that the DefinePlugin can inject process.env values
+        const isNextExternal =
+          /next[/\\]dist[/\\](shared|server)[/\\](?!lib[/\\](router[/\\]router|dynamic))/.test(
+            res
+          )
+
+        if (isNextExternal) {
+          // Generate Next.js external import
+          const externalRequest = path.posix.join(
+            'next',
+            'dist',
+            path
+              .relative(
+                // Root of Next.js package:
+                path.join(__dirname, '..'),
+                res
+              )
+              // Windows path normalization
+              .replace(/\\/g, '/')
+          )
+          return `commonjs ${externalRequest}`
+        } else {
+          // We don't want to retry local requests
+          // with other preferEsm options
+          return
+        }
+      }
+
+      // Bundled Node.js code is relocated without its node_modules tree.
+      // This means we need to make sure its request resolves to the same
+      // package that'll be available at runtime. If it's not identical,
+      // we need to bundle the code (even if it _should_ be external).
+      let baseRes: string | null
+      let baseIsEsm: boolean
+      try {
+        const baseResolve = getResolve(
+          isEsm ? NODE_BASE_ESM_RESOLVE_OPTIONS : NODE_BASE_RESOLVE_OPTIONS
+        )
+        ;[baseRes, baseIsEsm] = await baseResolve(dir, request)
+      } catch (err) {
+        baseRes = null
+        baseIsEsm = false
+      }
+
+      // Same as above: if the package, when required from the root,
+      // would be different from what the real resolution would use, we
+      // cannot externalize it.
+      // if request is pointing to a symlink it could point to the the same file,
+      // the resolver will resolve symlinks so this is handled
+      if (baseRes !== res || isEsm !== baseIsEsm) {
+        res = null
+        continue
+      }
+
+      break
     }
 
     // If the request cannot be resolved we need to have
@@ -783,60 +845,6 @@ export default async function getBaseWebpackConfig(
       throw new Error(
         `ESM packages (${request}) need to be imported. Use 'import' to reference the package instead. https://nextjs.org/docs/messages/import-esm-externals`
       )
-    }
-
-    if (isLocal) {
-      // Makes sure dist/shared and dist/server are not bundled
-      // we need to process shared `router/router` and `dynamic`,
-      // so that the DefinePlugin can inject process.env values
-      const isNextExternal =
-        /next[/\\]dist[/\\](shared|server)[/\\](?!lib[/\\](router[/\\]router|dynamic))/.test(
-          res
-        )
-
-      if (isNextExternal) {
-        // Generate Next.js external import
-        const externalRequest = path.posix.join(
-          'next',
-          'dist',
-          path
-            .relative(
-              // Root of Next.js package:
-              path.join(__dirname, '..'),
-              res
-            )
-            // Windows path normalization
-            .replace(/\\/g, '/')
-        )
-        return `commonjs ${externalRequest}`
-      } else {
-        return
-      }
-    }
-
-    // Bundled Node.js code is relocated without its node_modules tree.
-    // This means we need to make sure its request resolves to the same
-    // package that'll be available at runtime. If it's not identical,
-    // we need to bundle the code (even if it _should_ be external).
-    let baseRes: string | null
-    let baseIsEsm: boolean
-    try {
-      const baseResolve = getResolve(
-        isEsm ? NODE_BASE_ESM_RESOLVE_OPTIONS : NODE_BASE_RESOLVE_OPTIONS
-      )
-      ;[baseRes, baseIsEsm] = await baseResolve(dir, request)
-    } catch (err) {
-      baseRes = null
-      baseIsEsm = false
-    }
-
-    // Same as above: if the package, when required from the root,
-    // would be different from what the real resolution would use, we
-    // cannot externalize it.
-    // if request is pointing to a symlink it could point to the the same file,
-    // the resolver will resolve symlinks so this is handled
-    if (baseRes !== res || isEsm !== baseIsEsm) {
-      return
     }
 
     const externalType = isEsm ? 'module' : 'commonjs'
@@ -866,11 +874,13 @@ export default async function getBaseWebpackConfig(
 
     // Anything else that is standard JavaScript within `node_modules`
     // can be externalized.
-    if (/node_modules[/\\].*\.c?js$/.test(res)) {
+    if (/node_modules[/\\].*\.[mc]?js$/.test(res)) {
+      console.log(`${externalType} ${request} = ${res}`)
       return `${externalType} ${request}`
     }
 
     // Default behavior: bundle the code!
+    console.log(`bundle ${res}`)
   }
 
   const emacsLockfilePattern = '**/.#*'
