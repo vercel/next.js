@@ -228,7 +228,7 @@ async function main() {
   )
   const children = new Set()
 
-  const runTest = (test = '', usePolling, isFinalRun) =>
+  const runTest = (test = '', isFinalRun) =>
     new Promise((resolve, reject) => {
       const start = new Date().getTime()
       let outputChunks = []
@@ -250,16 +250,18 @@ async function main() {
             ...process.env,
             // run tests in headless mode by default
             HEADLESS: 'true',
-            TRACE_PLAYWRIGHT: 'true',
-            // ...(usePolling
-            //   ? {
-            //       // Events can be finicky in CI. This switches to a more
-            //       // reliable polling method.
-            //       CHOKIDAR_USEPOLLING: 'true',
-            //       CHOKIDAR_INTERVAL: 500,
-            //       WATCHPACK_POLLING: 500,
-            //     }
-            //   : {}),
+            ...(isFinalRun
+              ? {
+                  // only trace on final run as previous traces
+                  // are removed anyways
+                  TRACE_PLAYWRIGHT: 'true',
+                  // Events can be finicky in CI. This switches to a more
+                  // reliable polling method.
+                  // CHOKIDAR_USEPOLLING: 'true',
+                  // CHOKIDAR_INTERVAL: 500,
+                  // WATCHPACK_POLLING: 500,
+                }
+              : {}),
           },
         }
       )
@@ -330,7 +332,7 @@ async function main() {
       for (let i = 0; i < numRetries + 1; i++) {
         try {
           console.log(`Starting ${test} retry ${i}/${numRetries}`)
-          const time = await runTest(test, i > 0, i === numRetries)
+          const time = await runTest(test, i === numRetries)
           timings.push({
             file: test,
             time,
