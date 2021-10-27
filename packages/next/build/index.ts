@@ -1908,7 +1908,7 @@ export default async function build(
         '_middlewareManifest.js'
       ),
       `self.__MIDDLEWARE_MANIFEST=${devalue(
-        middlewareManifest.sortedMiddleware
+        middlewareManifest.clientInfo
       )};self.__MIDDLEWARE_MANIFEST_CB&&self.__MIDDLEWARE_MANIFEST_CB()`
     )
 
