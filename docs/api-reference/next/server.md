@@ -11,12 +11,14 @@ These native Web API objects are extended to give you more control over how you 
 The function signature:
 
 ```ts
-import type { NextRequest, NextFetchEvent } from 'next/server'
+import type { NextRequest, NextFetchEvent, NextResponse } from 'next/server'
+
+type Awaitable<T> = T | Promise<T>
 
 export type Middleware = (
   request: NextRequest,
   event: NextFetchEvent
-) => Promise<Response | undefined> | Response | undefined
+) => Awaitable<NextResponse | Response | undefined>
 ```
 
 The function can be a default export and as such, does **not** have to be named `middleware`. Though this is a convention. Also note that you only need to make the function `async` if you are running asynchronous code.
