@@ -549,6 +549,8 @@ describe('Production Usage', () => {
 
     it('should navigate to nested index via client side', async () => {
       const browser = await webdriver(appPort, '/another')
+      await browser.eval('window.beforeNav = 1')
+
       const text = await browser
         .elementByCss('a')
         .click()
@@ -557,6 +559,7 @@ describe('Production Usage', () => {
         .text()
 
       expect(text).toBe('Hello World')
+      expect(await browser.eval('window.beforeNav')).toBe(1)
       await browser.close()
     })
 
