@@ -902,10 +902,8 @@ export default async function getBaseWebpackConfig(
         // bundles in case a user imported types and it wasn't removed
         // TODO: should we warn/error for this instead?
         [
-          {
-            next: 'next',
-            ...(webServerRuntime ? { etag: '{}', chalk: '{}' } : {}),
-          },
+          'next',
+          ...(webServerRuntime ? [{ etag: '{}', chalk: '{}' }] : []),
         ]
       : !isServerless
       ? [
