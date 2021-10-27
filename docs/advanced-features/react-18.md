@@ -65,7 +65,7 @@ React Server Components allow us to render everything, including the components 
 
 ### Enable React Server Components (Alpha)
 
-To use React Server Components, ensure you have React 18 installed. Then, turn on the `currentFeatures` and `serverComponents` options in `next.config.js`:
+To use React Server Components, ensure you have React 18 installed. Then, turn on the `concurrentFeatures` and `serverComponents` options in `next.config.js`:
 
 ```jsx
 // next.config.js
@@ -109,7 +109,7 @@ You can then import other server or client components from any server component.
 ```jsx
 // pages/home.server.js
 
-import React, { Suspense } from 'react
+import React, { Suspense } from 'react'
 
 import Profile from '../components/profile.server'
 import Content from '../components/content.client'
@@ -121,7 +121,7 @@ export default function Home() {
       <Suspense fallback={'Loading...'}>
         <Profile />
       </Suspense>
-      <Content/>
+      <Content />
     </div>
   )
 }

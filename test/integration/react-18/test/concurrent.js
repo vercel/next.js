@@ -26,7 +26,7 @@ export default (context, _render) => {
     })
   })
 
-  it('should resolve suspense on server side if not suspended on server', async () => {
+  it.skip('should resolve suspense on server side if not suspended on server', async () => {
     await withBrowser('/suspense/no-thrown', async (browser) => {
       await check(
         () => browser.waitForElementByCss('#server-rendered').text(),
@@ -39,7 +39,7 @@ export default (context, _render) => {
     })
   })
 
-  it('should resolve suspense on server side if suspended on server', async () => {
+  it.skip('should resolve suspense on server side if suspended on server', async () => {
     await withBrowser('/suspense/thrown', async (browser) => {
       await check(
         () => browser.waitForElementByCss('#server-rendered').text(),

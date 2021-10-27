@@ -283,7 +283,11 @@ function handleLoading(
               console.warn(
                 `Image with src "${src}" may not render properly as a child of a flex container. Consider wrapping the image with a div to configure the width.`
               )
-            } else if (layout === 'fill' && parent.position !== 'relative') {
+            } else if (
+              layout === 'fill' &&
+              parent.position !== 'relative' &&
+              parent.position !== 'fixed'
+            ) {
               console.warn(
                 `Image with src "${src}" may not render properly with a parent using position:"${parent.position}". Consider changing the parent style to position:"relative" with a width and height.`
               )
@@ -456,7 +460,11 @@ export default function Image({
       )
     }
 
-    if (typeof window !== 'undefined' && !perfObserver) {
+    if (
+      typeof window !== 'undefined' &&
+      !perfObserver &&
+      window.PerformanceObserver
+    ) {
       perfObserver = new PerformanceObserver((entryList) => {
         for (const entry of entryList.getEntries()) {
           // @ts-ignore - missing "LargestContentfulPaint" class with "element" prop

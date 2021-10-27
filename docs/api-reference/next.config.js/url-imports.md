@@ -6,6 +6,9 @@ description: Configure Next.js to allow importing modules from external URLs.
 
 URL Imports are an experimental feature that allows you to import modules directly from external servers (instead of from the local disk).
 
+> **Warning**: This feature is experimental. Only use domains that you trust to download and execute on your machine. Please exercise
+> discretion, and caution until the feature is flagged as stable.
+
 To opt-in, add the allowed URL prefixes inside `next.config.js`:
 
 ```js
