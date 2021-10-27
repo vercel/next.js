@@ -2,8 +2,8 @@
 declare module 'next/dist/compiled/babel/plugin-transform-modules-commonjs'
 declare module 'next/dist/compiled/babel/plugin-syntax-jsx'
 declare module 'browserslist'
-declare module 'react-server-dom-webpack/writer.browser.server'
-declare module 'react-server-dom-webpack'
+declare module 'next/dist/compiled/react-server-dom-webpack/writer.browser.server'
+declare module 'next/dist/compiled/react-server-dom-webpack'
 
 declare module 'cssnano-simple' {
   const cssnanoSimple: any

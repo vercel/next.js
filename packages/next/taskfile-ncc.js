@@ -21,7 +21,7 @@ module.exports = function (task) {
       options.externals = { ...options.externals }
       delete options.externals[options.packageName]
     }
-    let precompiled = options.precompiled !== false
+    const precompiled = options.precompiled !== false
     delete options.precompiled
 
     return ncc(join(__dirname, file.dir, file.base), {
@@ -30,7 +30,7 @@ module.exports = function (task) {
       ...options,
     }).then(({ code, assets }) => {
       Object.keys(assets).forEach((key) => {
-        let data = assets[key].source
+        const data = assets[key].source
 
         this._.files.push({
           data,

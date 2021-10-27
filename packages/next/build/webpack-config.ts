@@ -130,6 +130,9 @@ function getOptimizedAliases(): { [pkg: string]: string } {
 
       // Replace: full URL polyfill with platform-based polyfill
       url: require.resolve('next/dist/compiled/native-url'),
+      'react-server-dom-webpack': require.resolve(
+        'next/dist/compiled/react-server-dom-webpack'
+      ),
     }
   )
 }

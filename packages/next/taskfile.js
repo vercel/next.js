@@ -949,6 +949,8 @@ export async function ncc(task, opts) {
         'ncc_web_streams_polyfill',
         'ncc_minimatch',
         'ncc_mini_css_extract_plugin',
+        'ncc_react_server_dom_webpack',
+        'ncc_react_server_dom_webpack_writer',
       ],
       opts
     )

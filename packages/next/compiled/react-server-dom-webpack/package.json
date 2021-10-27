@@ -1,0 +1,10 @@
+{
+  "name": "react-server-dom-webpack",
+  "main": "index.js",
+  "license": "MIT",
+  "exports": {
+    ".": "./index.js",
+    "./writer.browser.server": "./writer.browser.server.js"
+  }
+
+}
