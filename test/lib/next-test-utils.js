@@ -144,25 +144,37 @@ export function runNextCommand(argv, options = {}) {
       options.instance(instance)
     }
 
+    let mergedStdio = ''
+
     let stderrOutput = ''
     if (options.stderr) {
       instance.stderr.on('data', function (chunk) {
+        mergedStdio += chunk
         stderrOutput += chunk
 
         if (options.stderr === 'log') {
           console.log(chunk.toString())
         }
       })
+    } else {
+      instance.stderr.on('data', function (chunk) {
+        mergedStdio += chunk
+      })
     }
 
     let stdoutOutput = ''
     if (options.stdout) {
       instance.stdout.on('data', function (chunk) {
+        mergedStdio += chunk
         stdoutOutput += chunk
 
         if (options.stdout === 'log') {
           console.log(chunk.toString())
         }
+      })
+    } else {
+      instance.stdout.on('data', function (chunk) {
+        mergedStdio += chunk
       })
     }
 
@@ -173,7 +185,9 @@ export function runNextCommand(argv, options = {}) {
         !options.ignoreFail &&
         code !== 0
       ) {
-        return reject(new Error(`command failed with code ${code}`))
+        return reject(
+          new Error(`command failed with code ${code}\n${mergedStdio}`)
+        )
       }
 
       resolve({
@@ -386,7 +400,7 @@ export function waitFor(millis) {
   return new Promise((resolve) => setTimeout(resolve, millis))
 }
 
-export async function startStaticServer(dir, notFoundFile) {
+export async function startStaticServer(dir, notFoundFile, fixedPort) {
   const app = express()
   const server = http.createServer(app)
   app.use(express.static(dir))
@@ -397,7 +411,7 @@ export async function startStaticServer(dir, notFoundFile) {
     })
   }
 
-  await promiseCall(server, 'listen')
+  await promiseCall(server, 'listen', fixedPort)
   return server
 }
 

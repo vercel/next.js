@@ -4,21 +4,11 @@ import fs from 'fs-extra'
 import os from 'os'
 import path from 'path'
 
-const pnpmExecutable = path.join(
-  __dirname,
-  '..',
-  '..',
-  '..',
-  '..',
-  'node_modules',
-  '.bin',
-  'pnpm'
-)
 const packagesDir = path.join(__dirname, '..', '..', '..', '..', 'packages')
 const appDir = path.join(__dirname, '..', 'app')
 
 const runNpm = (cwd, ...args) => execa('npm', [...args], { cwd })
-const runPnpm = (cwd, ...args) => execa(pnpmExecutable, [...args], { cwd })
+const runPnpm = (cwd, ...args) => execa('npx', ['pnpm', ...args], { cwd })
 
 async function usingTempDir(fn) {
   const folder = path.join(os.tmpdir(), Math.random().toString(36).substring(2))
@@ -75,6 +65,7 @@ describe('pnpm support', () => {
     // To ensure that they are installed upon installing "next", a package.json "pnpm.overrides"
     // field is used to override these dependency paths at install time.
     await usingTempDir(async (tempDir) => {
+      console.error('using dir', tempDir)
       const nextTarballPath = await pack(tempDir, 'next')
       const dependencyTarballPaths = {
         '@next/env': await pack(tempDir, 'next-env'),
@@ -105,7 +96,12 @@ describe('pnpm support', () => {
       )
 
       await runPnpm(tempAppDir, 'install')
-      await runPnpm(tempAppDir, 'add', nextTarballPath)
+      await runPnpm(tempAppDir, 'add', `next@${nextTarballPath}`)
+
+      await fs.copy(
+        path.join(__dirname, '../../../../packages/next/native'),
+        path.join(tempAppDir, 'node_modules/next/native')
+      )
 
       expect(
         await fs.pathExists(path.join(tempAppDir, 'pnpm-lock.yaml'))
@@ -117,7 +113,7 @@ describe('pnpm support', () => {
         expect(packageJson.pnpm.overrides[dependency]).toMatch(/^file:/)
       }
 
-      const { stdout, stderr } = await runPnpm(tempAppDir, 'run', 'build')
+      const { stdout, stderr } = await runPnpm(tempAppDir, 'next', 'build')
       console.log(stdout, stderr)
       expect(stdout).toMatch(/Compiled successfully/)
     })
