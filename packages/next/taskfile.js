@@ -1,7 +1,7 @@
 // eslint-disable-next-line import/no-extraneous-dependencies
 const notifier = require('node-notifier')
 // eslint-disable-next-line import/no-extraneous-dependencies
-const { relative, basename, resolve, join } = require('path')
+const { relative, basename, resolve, join, dirname } = require('path')
 const fs = require('fs')
 
 export async function next__polyfill_nomodule(task, opts) {
@@ -555,6 +555,48 @@ export async function ncc_icss_utils(task, opts) {
     .target('compiled/icss-utils')
 }
 // eslint-disable-next-line camelcase
+export async function copy_react_server_dom_webpack(task, opts) {
+  await fs.promises.mkdir(
+    join(__dirname, 'compiled/react-server-dom-webpack'),
+    { recursive: true }
+  )
+  await fs.promises.writeFile(
+    join(__dirname, 'compiled/react-server-dom-webpack/package.json'),
+    JSON.stringify({ name: 'react-server-dom-webpack', main: './index.js' })
+  )
+  await task
+    .source(require.resolve('react-server-dom-webpack'))
+    .target('compiled/react-server-dom-webpack')
+
+  await task
+    .source(
+      join(
+        dirname(require.resolve('react-server-dom-webpack')),
+        'cjs/react-server-dom-webpack.*'
+      )
+    )
+    .target('compiled/react-server-dom-webpack/cjs')
+
+  await task
+    .source(
+      join(
+        dirname(require.resolve('react-server-dom-webpack')),
+        'cjs/react-server-dom-webpack-writer.browser.*'
+      )
+    )
+    .target('compiled/react-server-dom-webpack/cjs')
+
+  await task
+    .source(
+      join(
+        dirname(require.resolve('react-server-dom-webpack')),
+        'writer.browser.server.js'
+      )
+    )
+    .target('compiled/react-server-dom-webpack')
+}
+
+// eslint-disable-next-line camelcase
 externals['resolve-url-loader'] = 'next/dist/compiled/resolve-url-loader'
 export async function ncc_resolve_url_loader(task, opts) {
   await task
@@ -953,6 +995,7 @@ export async function ncc(task, opts) {
       opts
     )
   await task.parallel(['ncc_babel_bundle_packages'], opts)
+  await task.parallel(['copy_react_server_dom_webpack'])
 }
 
 export async function compile(task, opts) {
