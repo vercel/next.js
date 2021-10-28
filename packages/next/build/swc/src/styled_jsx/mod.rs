@@ -419,7 +419,7 @@ impl StyledJSXTransformer {
                         let placeholder = if i == quasis.len() - 1 {
                             String::new()
                         } else {
-                            format!("__styled-jsx-placeholder__{}", i)
+                            format!("__styled-jsx-placeholder-{}__", i)
                         };
                         s = format!("{}{}{}", s, quasis[i].raw.value, placeholder)
                     }
