@@ -1412,7 +1412,7 @@ export default async function getBaseWebpackConfig(
         new PagesManifestPlugin({ serverless: isLikeServerless, dev }),
       // MiddlewarePlugin should be after DefinePlugin so  NEXT_PUBLIC_*
       // replacement is done before its process.env.* handling
-      !isServer && new MiddlewarePlugin({ dev, hasServerComponents }),
+      !isServer && new MiddlewarePlugin({ dev }),
       isServer && new NextJsSsrImportPlugin(),
       !isServer &&
         new BuildManifestPlugin({
