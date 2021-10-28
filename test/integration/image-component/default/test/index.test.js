@@ -702,6 +702,27 @@ function runTests(mode) {
         }
       }
     })
+
+    it('should warn when loader is missing width', async () => {
+      const browser = await webdriver(appPort, '/invalid-loader')
+      await browser.eval(`document.querySelector("footer").scrollIntoView()`)
+      const warnings = (await browser.log('browser'))
+        .map((log) => log.message)
+        .join('\n')
+      expect(await hasRedbox(browser)).toBe(false)
+      expect(warnings).toMatch(
+        /Image with src (.*)png(.*) has a "loader" property that does not implement width/gm
+      )
+      expect(warnings).not.toMatch(
+        /Image with src (.*)jpg(.*) has a "loader" property that does not implement width/gm
+      )
+      expect(warnings).not.toMatch(
+        /Image with src (.*)webp(.*) has a "loader" property that does not implement width/gm
+      )
+      expect(warnings).not.toMatch(
+        /Image with src (.*)gif(.*) has a "loader" property that does not implement width/gm
+      )
+    })
   } else {
     //server-only tests
     it('should not create an image folder in server/chunks', async () => {
