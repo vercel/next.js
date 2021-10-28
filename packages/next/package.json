@@ -71,7 +71,7 @@
     "@next/polyfill-module": "12.0.2-canary.6",
     "@next/react-dev-overlay": "12.0.2-canary.6",
     "@next/react-refresh-utils": "12.0.2-canary.6",
-    "@node-rs/helper": "1.2.1",
+    "@napi-rs/triples": "1.0.3",
     "acorn": "8.5.0",
     "assert": "2.0.0",
     "browserify-zlib": "0.2.0",
