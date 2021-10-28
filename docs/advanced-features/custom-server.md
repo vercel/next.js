@@ -45,7 +45,7 @@ app.prepare().then(() => {
     } else if (pathname === '/b') {
       app.render(req, res, '/b', query)
     } else {
-      handle(req, res, parsedUrl)
+      return handle(req, res, parsedUrl)
     }
   }).listen(3000, (err) => {
     if (err) throw err
