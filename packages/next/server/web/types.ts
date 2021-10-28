@@ -1,6 +1,7 @@
 import type { I18NConfig } from '../config-shared'
 import type { NextRequest } from '../web/spec-extension/request'
 import type { NextFetchEvent } from '../web/spec-extension/fetch-event'
+import type { NextResponse } from './spec-extension/response'
 
 export interface NodeHeaders {
   [header: string]: string | string[] | undefined
@@ -32,7 +33,9 @@ export interface FetchEventResult {
   waitUntil: Promise<any>
 }
 
+type NextMiddlewareResult = NextResponse | Response | null
+
 export type NextMiddleware = (
   request: NextRequest,
   event: NextFetchEvent
-) => Promise<Response | null>
+) => NextMiddlewareResult | Promise<NextMiddlewareResult>

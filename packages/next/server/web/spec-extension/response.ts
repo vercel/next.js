@@ -63,7 +63,7 @@ export class NextResponse extends Response {
     return this.cookie(name, '', { expires: new Date(1), path: '/', ...opts })
   }
 
-  static redirect(url: string | NextURL, status = 302) {
+  static redirect(url: string | NextURL | URL, status = 302) {
     if (!REDIRECTS.has(status)) {
       throw new RangeError(
         'Failed to execute "redirect" on "response": Invalid status code'
