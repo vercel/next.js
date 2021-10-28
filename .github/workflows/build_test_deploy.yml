@@ -443,6 +443,8 @@ jobs:
           PR_STATS_COMMENT_TOKEN: ${{ secrets.PR_STATS_COMMENT_TOKEN }}
 
   build-native:
+    needs: build
+    if: ${{ needs.build.outputs.isRelease == 'true' }}
     strategy:
       matrix:
         os: [ubuntu-18.04, macos-latest, windows-latest]
@@ -535,7 +537,7 @@ jobs:
             next-swc-cargo-cache-${{ matrix.os }}
       - name: 'Build'
         if: ${{ steps.binary-cache.outputs.cache-hit != 'true' && steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
-        run: yarn build-native --target ${{ matrix.target }}
+        run: yarn build-native --release --target ${{ matrix.target }}
         env:
           MACOSX_DEPLOYMENT_TARGET: '10.13'
         working-directory: packages/next
@@ -618,7 +620,7 @@ jobs:
       - name: Build
         if: ${{ steps.binary-cache.outputs.cache-hit != 'true' && steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         shell: bash
-        run: yarn build-native --target i686-pc-windows-msvc
+        run: yarn build-native --release --target i686-pc-windows-msvc
         working-directory: packages/next
 
       - name: Upload artifact
@@ -665,7 +667,7 @@ jobs:
       - name: Build
         if: ${{ steps.binary-cache.outputs.cache-hit != 'true' && steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         shell: bash
-        run: yarn build-native --target aarch64-pc-windows-msvc
+        run: yarn build-native --release --target aarch64-pc-windows-msvc
         working-directory: packages/next
 
       - name: Upload artifact
@@ -721,7 +723,7 @@ jobs:
   #     - name: 'Build'
   #       if: ${{ steps.binary-cache.outputs.cache-hit != 'true' && steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
   #       run: |
-  #         docker run --rm -v $(pwd)/packages/next:/swc -w /swc builder sh -c "yarn build-native"
+  #         docker run --rm -v $(pwd)/packages/next:/swc -w /swc builder sh -c "yarn build-native --release"
 
   #     - name: Upload artifact
   #       if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
@@ -782,7 +784,7 @@ jobs:
 
       - name: Cross build aarch64
         if: ${{ steps.binary-cache.outputs.cache-hit != 'true' && steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
-        run: yarn build-native --target aarch64-unknown-linux-gnu
+        run: yarn build-native --release --target aarch64-unknown-linux-gnu
         working-directory: packages/next
 
       - name: Upload artifact
@@ -842,7 +844,7 @@ jobs:
 
       - name: Cross build aarch64
         if: ${{ steps.binary-cache.outputs.cache-hit != 'true' && steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
-        run: yarn build-native --target aarch64-unknown-linux-musl
+        run: yarn build-native --release --target aarch64-unknown-linux-musl
         working-directory: packages/next
 
       - name: Upload artifact
@@ -904,7 +906,7 @@ jobs:
 
       - name: Cross build aarch64
         if: ${{ steps.binary-cache.outputs.cache-hit != 'true' && steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
-        run: yarn build-native --target armv7-unknown-linux-gnueabihf
+        run: yarn build-native --release --target armv7-unknown-linux-gnueabihf
         working-directory: packages/next
 
       - name: Upload artifact
@@ -953,7 +955,7 @@ jobs:
         shell: bash
         run: |
           export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/darwin-x86_64/bin/aarch64-linux-android24-clang"
-          yarn build-native --target aarch64-linux-android
+          yarn build-native --release --target aarch64-linux-android
         working-directory: packages/next
 
       - name: Upload artifact
