@@ -123,7 +123,7 @@ jobs:
       - uses: actions/download-artifact@v2
         with:
           name: next-swc-dev-binary
-          path: packages/next/build/swc/native
+          path: packages/next/native
 
       - run: node run-tests.js --type unit
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
@@ -152,7 +152,7 @@ jobs:
       - uses: actions/download-artifact@v2
         with:
           name: next-swc-dev-binary
-          path: packages/next/build/swc/native
+          path: packages/next/native
 
       - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
@@ -203,7 +203,7 @@ jobs:
       - uses: actions/download-artifact@v2
         with:
           name: next-swc-dev-binary
-          path: packages/next/build/swc/native
+          path: packages/next/native
 
       - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
@@ -249,9 +249,7 @@ jobs:
       - uses: actions/download-artifact@v2
         with:
           name: next-swc-dev-binary
-          path: packages/next/build/swc/native
-
-      - run: ls packages/next/build/swc/native
+          path: packages/next/native
 
       - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
@@ -292,7 +290,7 @@ jobs:
       - uses: actions/download-artifact@v2
         with:
           name: next-swc-dev-binary
-          path: packages/next/build/swc/native
+          path: packages/next/native
 
       # TODO: remove after we fix watchpack watching too much
       - run: echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p
@@ -321,7 +319,7 @@ jobs:
       - uses: actions/download-artifact@v2
         with:
           name: next-swc-dev-binary
-          path: packages/next/build/swc/native
+          path: packages/next/native
 
       - run: bash ./scripts/test-pnp.sh
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
@@ -361,7 +359,7 @@ jobs:
       - uses: actions/download-artifact@v2
         with:
           name: next-swc-dev-binary
-          path: packages/next/build/swc/native
+          path: packages/next/native
       - run: npx playwright install-deps && npx playwright install firefox
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
       - run: node run-tests.js test/integration/production/test/index.test.js
@@ -393,7 +391,7 @@ jobs:
       - uses: actions/download-artifact@v2
         with:
           name: next-swc-dev-binary
-          path: packages/next/build/swc/native
+          path: packages/next/native
 
       # TODO: use macos runner so that we can use playwright to test against
       # PRs instead of only running on canary?
@@ -430,7 +428,7 @@ jobs:
       - uses: actions/download-artifact@v2
         with:
           name: next-swc-dev-binary
-          path: packages/next/build/swc/native
+          path: packages/next/native
 
       - run: '[[ -z "$BROWSERSTACK_ACCESS_KEY" ]] && echo "Skipping for PR" || npm i -g browserstack-local@1.4.0'
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
