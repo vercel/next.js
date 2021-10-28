@@ -199,14 +199,6 @@ export async function ncc_conf(task, opts) {
     .target('compiled/conf')
 }
 // eslint-disable-next-line camelcase
-externals['content-type'] = 'next/dist/compiled/content-type'
-export async function ncc_content_type(task, opts) {
-  await task
-    .source(opts.src || relative(__dirname, require.resolve('content-type')))
-    .ncc({ packageName: 'content-type', externals })
-    .target('compiled/content-type')
-}
-// eslint-disable-next-line camelcase
 externals['content-disposition'] = 'next/dist/compiled/content-disposition'
 export async function ncc_content_disposition(task, opts) {
   await task
@@ -215,6 +207,14 @@ export async function ncc_content_disposition(task, opts) {
     )
     .ncc({ packageName: 'content-disposition', externals })
     .target('compiled/content-disposition')
+}
+// eslint-disable-next-line camelcase
+externals['content-type'] = 'next/dist/compiled/content-type'
+export async function ncc_content_type(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('content-type')))
+    .ncc({ packageName: 'content-type', externals })
+    .target('compiled/content-type')
 }
 // eslint-disable-next-line camelcase
 externals['cookie'] = 'next/dist/compiled/cookie'
