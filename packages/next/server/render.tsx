@@ -60,6 +60,7 @@ import {
 import { DomainLocale } from './config'
 import RenderResult, { NodeWritablePiper } from './render-result'
 import isError from '../lib/is-error'
+import { generateMaybeDeferContentHook } from './use-maybe-defer-content'
 
 let Writable: typeof import('stream').Writable
 let Buffer: typeof import('buffer').Buffer
@@ -1118,7 +1119,8 @@ export async function renderToHTML(
     head: documentResult.head,
     headTags: documentResult.headTags,
     styles: documentResult.styles,
-    useMaybeDeferContent,
+    // TODO: allow actual content deferral when feature is completely implemented
+    useMaybeDeferContent: generateMaybeDeferContentHook(false),
   }
   const documentHTML = ReactDOMServer.renderToStaticMarkup(
     <AmpStateContext.Provider value={ampState}>
@@ -1437,11 +1439,4 @@ function piperToString(input: NodeWritablePiper): Promise<string> {
       }
     })
   })
-}
-
-export function useMaybeDeferContent(
-  _name: string,
-  contentFn: () => JSX.Element
-): [boolean, JSX.Element] {
-  return [false, contentFn()]
 }

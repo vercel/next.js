@@ -190,9 +190,8 @@ export type DocumentInitialProps = RenderPageResult & {
 export type DocumentProps = DocumentInitialProps & HtmlProps
 
 export type MaybeDeferContentHook = (
-  name: string,
   contentFn: () => JSX.Element
-) => [boolean, JSX.Element]
+) => JSX.Element
 
 export type HtmlProps = {
   __NEXT_DATA__: NEXT_DATA
