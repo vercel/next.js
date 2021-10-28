@@ -34,8 +34,8 @@ export default function middlewareRSCLoader(this: any) {
         ${
           isServerComponent
             ? `
-        import { renderToReadableStream } from 'react-server-dom-webpack/writer.browser.server'
-        import { createFromReadableStream } from 'react-server-dom-webpack'`
+        import { renderToReadableStream } from 'next/dist/compiled/react-server-dom-webpack/writer.browser.server'
+        import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack'`
             : ''
         }
 

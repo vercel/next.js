@@ -217,12 +217,24 @@ describe('Production Usage', () => {
       expect(version).toBe(1)
 
       expect(
-        check.tests.every((item) => files.some((file) => item.test(file)))
+        check.tests.every((item) => {
+          if (files.some((file) => item.test(file))) {
+            return true
+          }
+          console.error(`Failed to find ${item} in`, files)
+          return false
+        })
       ).toBe(true)
 
       if (sep === '/') {
         expect(
-          check.notTests.some((item) => files.some((file) => item.test(file)))
+          check.notTests.some((item) => {
+            if (files.some((file) => item.test(file))) {
+              console.error(`Found unexpected ${item} in`, files)
+              return true
+            }
+            return false
+          })
         ).toBe(false)
       }
     }
@@ -549,6 +561,8 @@ describe('Production Usage', () => {
 
     it('should navigate to nested index via client side', async () => {
       const browser = await webdriver(appPort, '/another')
+      await browser.eval('window.beforeNav = 1')
+
       const text = await browser
         .elementByCss('a')
         .click()
@@ -557,6 +571,7 @@ describe('Production Usage', () => {
         .text()
 
       expect(text).toBe('Hello World')
+      expect(await browser.eval('window.beforeNav')).toBe(1)
       await browser.close()
     })
 
