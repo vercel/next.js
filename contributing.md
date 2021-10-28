@@ -51,13 +51,13 @@ yarn build
 yarn prepublish
 ```
 
+By default the latest canary of the next-swc binaries will be installed and used. If you are actively working on Rust code or you need to test out the most recent Rust code that hasn't been published as a canary yet you can [install Rust](https://www.rust-lang.org/tools/install) and run `yarn --cwd packages/next build-native`.
+
 If you need to clean the project for any reason, use `yarn clean`.
 
 ## Testing
 
 See the [testing readme](./test/readme.md) for information on writing tests.
-
-You may have to [install Rust](https://www.rust-lang.org/tools/install) and build our native packages to see all tests pass locally. We check in binaries for the most common targets and those required for CI so that most people don't have to, but if you do not see a binary for your target in `packages/next/native`, you can build it by running `yarn --cwd packages/next build-native`. If you are working on the Rust code and you need to build the binaries for ci, you can manually trigger [the workflow](https://github.com/vercel/next.js/actions/workflows/build_native.yml) to build and commit with the "Run workflow" button.
 
 ### Running tests
 
