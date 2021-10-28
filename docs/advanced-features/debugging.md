@@ -84,6 +84,16 @@ Once the server starts, open a new tab in Chrome and visit `chrome://inspect`, w
 
 Debugging server-side code here works much like debugging client-side code with Chrome DevTools, except that when you search for files here with <kbd>Ctrl</kbd>+<kbd>P</kbd> or <kbd>⌘</kbd>+<kbd>P</kbd>, your source files will have paths starting with `webpack://{application-name}/./` (where `{application-name}` will be replaced with the name of your application according to your `package.json` file).
 
+### Debugging on Windows
+
+Windows users may run into an issue when using `NODE_OPTIONS='--inspect'` as that syntax is not supported on Windows platforms. To get around this, install the [`cross-env`](https://www.npmjs.com/package/cross-env) package as a development dependency (`--dev` with Yarn or `-D` for NPM) and replace the `dev` script with the following.
+
+```json
+"dev": "cross-env NODE_OPTIONS='--inspect' next dev",
+```
+
+`cross-env` will set the `NODE_OPTIONS` environment variable regardless of which platform you are on (including Mac, Linux, and Windows) and allow you to debug consistently across devices and operating systems.
+
 ## More information
 
 To learn more about how to use a JavaScript debugger, take a look at the following documentation:
