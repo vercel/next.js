@@ -108,7 +108,7 @@ jobs:
   testUnit:
     name: Test Unit
     runs-on: ubuntu-latest
-    needs: build
+    needs: [build, build-native-dev]
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
@@ -120,13 +120,18 @@ jobs:
           path: ./*
           key: ${{ github.sha }}
 
+      - uses: actions/download-artifact@v2
+        with:
+          name: next-swc-dev-binary
+          path: packages/next/build/swc/native
+
       - run: node run-tests.js --type unit
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
   testDev:
     name: Test Development
     runs-on: ubuntu-latest
-    needs: build
+    needs: [build, build-native-dev]
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
@@ -143,6 +148,11 @@ jobs:
         with:
           path: ./*
           key: ${{ github.sha }}
+
+      - uses: actions/download-artifact@v2
+        with:
+          name: next-swc-dev-binary
+          path: packages/next/build/swc/native
 
       - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
@@ -172,7 +182,7 @@ jobs:
   testProd:
     name: Test Production
     runs-on: ubuntu-latest
-    needs: build
+    needs: [build, build-native-dev]
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
@@ -189,6 +199,11 @@ jobs:
         with:
           path: ./*
           key: ${{ github.sha }}
+
+      - uses: actions/download-artifact@v2
+        with:
+          name: next-swc-dev-binary
+          path: packages/next/build/swc/native
 
       - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
@@ -208,7 +223,7 @@ jobs:
   testIntegration:
     name: Test Integration
     runs-on: ubuntu-latest
-    needs: build
+    needs: [build, build-native-dev]
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
@@ -230,6 +245,11 @@ jobs:
         with:
           path: ./*
           key: ${{ github.sha }}
+
+      - uses: actions/download-artifact@v2
+        with:
+          name: next-swc-dev-binary
+          path: packages/next/build/swc/native
 
       - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
@@ -254,7 +274,7 @@ jobs:
   testElectron:
     name: Test Electron
     runs-on: ubuntu-latest
-    needs: build
+    needs: [build, build-native-dev]
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
@@ -266,6 +286,11 @@ jobs:
         with:
           path: ./*
           key: ${{ github.sha }}
+
+      - uses: actions/download-artifact@v2
+        with:
+          name: next-swc-dev-binary
+          path: packages/next/build/swc/native
 
       # TODO: remove after we fix watchpack watching too much
       - run: echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p
@@ -279,7 +304,7 @@ jobs:
 
   testYarnPnP:
     runs-on: ubuntu-latest
-    needs: build
+    needs: [build, build-native-dev]
     env:
       NODE_OPTIONS: '--unhandled-rejections=strict'
       YARN_COMPRESSION_LEVEL: '0'
@@ -290,6 +315,11 @@ jobs:
         with:
           path: ./*
           key: ${{ github.sha }}
+
+      - uses: actions/download-artifact@v2
+        with:
+          name: next-swc-dev-binary
+          path: packages/next/build/swc/native
 
       - run: bash ./scripts/test-pnp.sh
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
@@ -315,7 +345,7 @@ jobs:
   testFirefox:
     name: Test Firefox (production)
     runs-on: ubuntu-latest
-    needs: build
+    needs: [build, build-native-dev]
     env:
       BROWSER_NAME: 'firefox'
       NEXT_TELEMETRY_DISABLED: 1
@@ -326,6 +356,10 @@ jobs:
         with:
           path: ./*
           key: ${{ github.sha }}
+      - uses: actions/download-artifact@v2
+        with:
+          name: next-swc-dev-binary
+          path: packages/next/build/swc/native
       - run: npx playwright install-deps && npx playwright install firefox
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
       - run: node run-tests.js test/integration/production/test/index.test.js
@@ -334,7 +368,7 @@ jobs:
   testSafari:
     name: Test Safari (production)
     runs-on: ubuntu-latest
-    needs: build
+    needs: [build, build-native-dev]
     env:
       BROWSERSTACK: true
       BROWSER_NAME: 'safari'
@@ -354,6 +388,11 @@ jobs:
           path: ./*
           key: ${{ github.sha }}
 
+      - uses: actions/download-artifact@v2
+        with:
+          name: next-swc-dev-binary
+          path: packages/next/build/swc/native
+
       # TODO: use macos runner so that we can use playwright to test against
       # PRs instead of only running on canary?
       - run: '[[ -z "$BROWSERSTACK_ACCESS_KEY" ]] && echo "Skipping for PR" || npm i -g browserstack-local@1.4.0'
@@ -365,7 +404,7 @@ jobs:
   testSafariOld:
     name: Test Safari 10.1 (nav)
     runs-on: ubuntu-latest
-    needs: [build, testSafari]
+    needs: [build, testSafari, build-native-dev]
     env:
       BROWSERSTACK: true
       LEGACY_SAFARI: true
@@ -385,6 +424,11 @@ jobs:
         with:
           path: ./*
           key: ${{ github.sha }}
+
+      - uses: actions/download-artifact@v2
+        with:
+          name: next-swc-dev-binary
+          path: packages/next/build/swc/native
 
       - run: '[[ -z "$BROWSERSTACK_ACCESS_KEY" ]] && echo "Skipping for PR" || npm i -g browserstack-local@1.4.0'
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
@@ -442,6 +486,108 @@ jobs:
         env:
           PR_STATS_COMMENT_TOKEN: ${{ secrets.PR_STATS_COMMENT_TOKEN }}
 
+  build-native-dev:
+    name: Build dev binary for tests
+    runs-on: ubuntu-18.04
+    steps:
+      # https://github.com/actions/virtual-environments/issues/1187
+      - name: tune linux network
+        run: sudo ethtool -K eth0 tx off rx off
+
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 25
+
+      - run: echo ::set-output name=DOCS_CHANGE::$(node skip-docs-change.js echo 'not-docs-only-change')
+        id: docs-change
+
+      - name: Setup node
+        uses: actions/setup-node@v2
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
+        with:
+          node-version: 14
+          check-latest: true
+
+      - name: Install
+        uses: actions-rs/toolchain@v1
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
+        with:
+          profile: minimal
+          toolchain: nightly-2021-08-12
+
+      - name: Cache cargo registry
+        uses: actions/cache@v1
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
+        with:
+          path: ~/.cargo/registry
+          key: stable-ubuntu-18.04-node@14-cargo-registry-trimmed-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo index
+        uses: actions/cache@v1
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
+        with:
+          path: ~/.cargo/git
+          key: stable-ubuntu-18.04-node@14-cargo-index-trimmed-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache native binary
+        id: binary-cache
+        uses: actions/cache@v2
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
+        with:
+          path: packages/next/native/next-swc.linux-x64-gnu.node
+          key: dev-next-swc-nightly-2021-08-12-linux-x64-gnu-${{ hashFiles('.github/workflows/build_test_deploy.yml', 'packages/next/build/swc/**') }}
+
+      # We use restore-key to pick latest cache.
+      # We will not get exact match, but doc says
+      # "If there are multiple partial matches for a restore key, the action returns the most recently created cache."
+      # So we get latest cache
+      - name: Cache built files
+        uses: actions/cache@v2
+        with:
+          path: ./packages/next/build/swc/target
+          key: next-swc-cargo-cache-ubuntu-18.04--${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            next-swc-cargo-cache-ubuntu-18.04
+
+      - name: Build
+        if: ${{ steps.binary-cache.outputs.cache-hit != 'true' && steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
+        run: yarn build-native
+        env:
+          MACOSX_DEPLOYMENT_TARGET: '10.13'
+        working-directory: packages/next
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2.2.4
+        with:
+          name: next-swc-dev-binary
+          path: packages/next/native/next-swc.linux-x64-gnu.node
+
+      - name: Clear the cargo caches
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
+        run: |
+          cargo install cargo-cache --no-default-features --features ci-autoclean
+          cargo-cache
+
+  test-native:
+    name: Unit Test Native Code
+    runs-on: ubuntu-18.04
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 25
+      - run: echo ::set-output name=DOCS_CHANGE::$(node skip-docs-change.js echo 'not-docs-only-change')
+        id: docs-change
+      - name: Install
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly-2021-08-12
+          profile: minimal
+      - run: cd packages/next/build/swc && cargo test
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
+
+  # Build binaries for publishing
   build-native:
     needs: build
     if: ${{ needs.build.outputs.isRelease == 'true' }}
@@ -551,25 +697,6 @@ jobs:
         run: |
           cargo install cargo-cache --no-default-features --features ci-autoclean
           cargo-cache
-
-  test-native:
-    name: Unit Test Native Code
-    runs-on: ubuntu-18.04
-
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          fetch-depth: 25
-      - run: echo ::set-output name=DOCS_CHANGE::$(node skip-docs-change.js echo 'not-docs-only-change')
-        id: docs-change
-      - name: Install
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: nightly-2021-08-12
-          profile: minimal
-      - run: cd packages/next/build/swc && cargo test
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
 
   build-windows-i686:
     needs: build
