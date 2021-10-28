@@ -450,9 +450,12 @@ export default function Image({
       )
     }
     const rand = Math.floor(Math.random() * 1000) + 100
+    const loadedUrl = loader({ src, width: rand, quality: 75 })
     if (
       !unoptimized &&
-      !loader({ src, width: rand, quality: 75 }).includes(rand.toString())
+      !loadedUrl.includes(rand.toString()) &&
+      !loadedUrl.includes('w=') &&
+      !loadedUrl.includes('width=')
     ) {
       console.warn(
         `Image with src "${src}" has a "loader" property that does not implement width. Please implement it or use the "unoptimized" property instead.` +
