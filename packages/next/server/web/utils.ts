@@ -39,7 +39,7 @@ export function toNodeHeaders(headers?: Headers): NodeHeaders {
     for (const [key, value] of headers.entries()) {
       result[key] = value
       if (key.toLowerCase() === 'set-cookie') {
-        result[key] = value.split(', ')
+        result[key] = splitCookiesString(value)
       }
     }
   }

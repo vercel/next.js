@@ -336,7 +336,10 @@ function responseTests(locale = '') {
     expect(res.headers.get('x-nested-header')).toBe('valid')
     expect(res.headers.get('x-deep-header')).toBe('valid')
     expect(res.headers.get('x-append-me')).toBe('top, deep')
-    expect(res.headers.raw()['set-cookie']).toEqual(['chocochip', 'oatmeal'])
+    expect(res.headers.raw()['set-cookie']).toEqual([
+      'bar=chocochip',
+      'foo=oatmeal',
+    ])
   })
 }
 
