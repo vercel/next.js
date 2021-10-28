@@ -413,7 +413,8 @@ jobs:
       - build-native
       - build-windows-i686
       - build-windows-aarch64
-      - build-linux-musl
+      # Temporarily disabled
+      # - build-linux-musl
       - build-linux-arm7
       - build-linux-aarch64
       - build-android-aarch64
@@ -685,60 +686,61 @@ jobs:
         with:
           name: next-swc-binaries
           path: packages/next/native/next-swc.win32-arm64-msvc.node
+  
+  # Temporarily disabled
+  # build-linux-musl:
+  #   needs: build
+  #   if: ${{ needs.build.outputs.isRelease == 'true' }}
+  #   name: next-swc - linux-musl - node@lts
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v2
 
-  build-linux-musl:
-    needs: build
-    if: ${{ needs.build.outputs.isRelease == 'true' }}
-    name: next-swc - linux-musl - node@lts
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
+  #     - run: echo ::set-output name=DOCS_CHANGE::$(node skip-docs-change.js echo 'not-docs-only-change')
+  #       id: docs-change
 
-      - run: echo ::set-output name=DOCS_CHANGE::$(node skip-docs-change.js echo 'not-docs-only-change')
-        id: docs-change
+  #     - name: Login to registry
+  #       if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
+  #       run: |
+  #         docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD $DOCKER_REGISTRY_URL
+  #       env:
+  #         DOCKER_REGISTRY_URL: ghcr.io
+  #         DOCKER_USERNAME: ${{ github.actor }}
+  #         DOCKER_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Login to registry
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
-        run: |
-          docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD $DOCKER_REGISTRY_URL
-        env:
-          DOCKER_REGISTRY_URL: ghcr.io
-          DOCKER_USERNAME: ${{ github.actor }}
-          DOCKER_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+  #     - name: Cache
+  #       if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
+  #       uses: actions/cache@v2
+  #       with:
+  #         path: |
+  #           target/
+  #         key: linux-musl-publish-integration
 
-      - name: Cache
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
-        uses: actions/cache@v2
-        with:
-          path: |
-            target/
-          key: linux-musl-publish-integration
+  #     - name: Pull docker image
+  #       if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
+  #       run: |
+  #         docker pull ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
+  #         docker tag ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine builder
 
-      - name: Pull docker image
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
-        run: |
-          docker pull ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
-          docker tag ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine builder
+  #     - name: Cache native binary
+  #       if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
+  #       id: binary-cache
+  #       uses: actions/cache@v2
+  #       with:
+  #         path: packages/next/native/next-swc.linux-x64-musl.node
+  #         key: next-swc-nightly-2021-08-12-linux-x64-musl-${{ hashFiles('.github/workflows/build_test_deploy.yml', 'packages/next/build/swc/**') }}
 
-      - name: Cache native binary
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
-        id: binary-cache
-        uses: actions/cache@v2
-        with:
-          path: packages/next/native/next-swc.linux-x64-musl.node
-          key: next-swc-nightly-2021-08-12-linux-x64-musl-${{ hashFiles('.github/workflows/build_test_deploy.yml', 'packages/next/build/swc/**') }}
+  #     - name: 'Build'
+  #       if: ${{ steps.binary-cache.outputs.cache-hit != 'true' && steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
+  #       run: |
+  #         docker run --rm -v $(pwd)/packages/next:/swc -w /swc builder sh -c "yarn build-native"
 
-      - name: 'Build'
-        if: ${{ steps.binary-cache.outputs.cache-hit != 'true' && steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
-        run: |
-          docker run --rm -v $(pwd)/packages/next:/swc -w /swc builder sh -c "yarn build-native"
-
-      - name: Upload artifact
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
-        uses: actions/upload-artifact@v2
-        with:
-          name: next-swc-binaries
-          path: packages/next/native/next-swc.linux-x64-musl.node
+  #     - name: Upload artifact
+  #       if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
+  #       uses: actions/upload-artifact@v2
+  #       with:
+  #         name: next-swc-binaries
+  #         path: packages/next/native/next-swc.linux-x64-musl.node
 
   build-linux-aarch64:
     needs: build
