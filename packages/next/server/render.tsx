@@ -1193,25 +1193,20 @@ export async function renderToHTML(
                 )
               }
             : null,
-          renderOpts.optimizeCss
+          !process.browser && renderOpts.optimizeCss
             ? async (html: string) => {
-                if (process.browser) {
-                  // Have to disable critters under the web environment.
-                  return html
-                } else {
-                  // eslint-disable-next-line import/no-extraneous-dependencies
-                  const Critters = require('critters')
-                  const cssOptimizer = new Critters({
-                    ssrMode: true,
-                    reduceInlineStyles: false,
-                    path: renderOpts.distDir,
-                    publicPath: `${renderOpts.assetPrefix}/_next/`,
-                    preload: 'media',
-                    fonts: false,
-                    ...renderOpts.optimizeCss,
-                  })
-                  return await cssOptimizer.process(html)
-                }
+                // eslint-disable-next-line import/no-extraneous-dependencies
+                const Critters = require('critters')
+                const cssOptimizer = new Critters({
+                  ssrMode: true,
+                  reduceInlineStyles: false,
+                  path: renderOpts.distDir,
+                  publicPath: `${renderOpts.assetPrefix}/_next/`,
+                  preload: 'media',
+                  fonts: false,
+                  ...renderOpts.optimizeCss,
+                })
+                return await cssOptimizer.process(html)
               }
             : null,
           inAmpMode || hybridAmp

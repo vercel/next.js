@@ -19,6 +19,11 @@ const cwd = process.cwd()
     let platforms = (await readdir(nativePackagesDir)).filter(
       (name) => !name.startsWith('.')
     )
+    const publishedPkgs = new Set()
+    // TODO: update to latest version where all pacakges were
+    // successfully published
+    const fallbackVersion = `12.0.1`
+
     for (let platform of platforms) {
       try {
         let binaryName = `next-swc.${platform}.node`
@@ -42,6 +47,7 @@ const cwd = process.cwd()
             gitref.includes('canary') ? ' --tag canary' : ''
           }`
         )
+        publishedPkgs.add(platform)
       } catch (err) {
         // don't block publishing other versions on single platform error
         console.error(`Failed to publish`, platform, err)
@@ -62,7 +68,11 @@ const cwd = process.cwd()
     )
     for (let platform of platforms) {
       let optionalDependencies = nextPkg.optionalDependencies || {}
-      optionalDependencies['@next/swc-' + platform] = version
+      optionalDependencies['@next/swc-' + platform] = publishedPkgs.has(
+        platform
+      )
+        ? version
+        : fallbackVersion
       nextPkg.optionalDependencies = optionalDependencies
     }
     await writeFile(
