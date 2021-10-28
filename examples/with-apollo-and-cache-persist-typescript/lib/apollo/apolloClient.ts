@@ -96,6 +96,20 @@ export function addApolloState<
   return pageProps
 }
 
+function mergeAndRestoreCache(
+  client: ApolloClient<NormalizedCacheObject>,
+  state: NormalizedCacheObject | undefined
+) {
+  if (!state) return
+
+  // Get existing cache, loaded during client side data fetching
+  const existingCache = client.extract()
+  // Merge the existing cache into data passed from getStaticProps/getServerSideProps
+  const data = mergeCache(state, existingCache)
+  // Restore the cache with the merged data
+  client.cache.restore(data)
+}
+
 export function useApollo(pageProps: Record<string, unknown>): {
   client: ApolloClient<NormalizedCacheObject> | undefined
   cachePersistor: CachePersistor<NormalizedCacheObject> | undefined
@@ -113,9 +127,6 @@ export function useApollo(pageProps: Record<string, unknown>): {
     async function init() {
       const cache = createCache()
 
-      // Initally restore the cache with data from SSR
-      if (state) cache.restore(state)
-
       const cachePersistor = new CachePersistor({
         cache,
         storage: new LocalStorageWrapper(window.localStorage),
@@ -123,17 +134,19 @@ export function useApollo(pageProps: Record<string, unknown>): {
         key: PERSISTOR_CACHE_KEY,
       })
 
-      // Trigger persist if there is any data from SSR to cache it
-      if (state) {
-        cachePersistor.trigger.fire()
-      }
-
       // Restore client side persisted data before letting the application to
       // run any queries
       await cachePersistor.restore()
 
+      const client = initializeApollo(cache)
+
+      mergeAndRestoreCache(client, state)
+
+      // Trigger persist to persist data from SSR
+      cachePersistor.persist()
+
       setCachePersistor(cachePersistor)
-      setClient(initializeApollo(cache))
+      setClient(client)
     }
 
     init()
@@ -142,17 +155,20 @@ export function useApollo(pageProps: Record<string, unknown>): {
   useEffect(() => {
     // If your page has Next.js data fetching methods that use Apollo Client, the initial state
     // gets hydrated here during page transitions
-    if (state && previousState && !isDeepEqual(state, previousState)) {
-      if (client && state) {
-        // Get existing cache, loaded during client side data fetching
-        const existingCache = client.extract()
-        // Merge the existing cache into data passed from getStaticProps/getServerSideProps
-        const data = mergeCache(state, existingCache)
-        // Restore the cache with the merged data
-        client.cache.restore(data)
+    if (
+      client &&
+      state &&
+      previousState &&
+      !isDeepEqual(state, previousState)
+    ) {
+      mergeAndRestoreCache(client, state)
+
+      if (cachePersistor) {
+        // Trigger persist to persist data from SSR
+        cachePersistor.persist()
       }
     }
-  }, [state, previousState, client])
+  }, [state, previousState, client, cachePersistor])
 
   return { client, cachePersistor }
 }
