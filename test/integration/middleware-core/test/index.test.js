@@ -115,6 +115,8 @@ function rewriteTests(locale = '') {
     )
     const html = await res.text()
     const $ = cheerio.load(html)
+    // Set-Cookie header with Expires should not be split into two
+    expect(res.headers.raw()['set-cookie']).toHaveLength(1)
     const bucket = getCookieFromResponse(res, 'bucket')
     const expectedText = bucket === 'a' ? 'Welcome Page A' : 'Welcome Page B'
     const browser = await webdriver(
