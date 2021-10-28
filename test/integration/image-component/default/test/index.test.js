@@ -705,6 +705,7 @@ function runTests(mode) {
 
     it('should warn when loader is missing width', async () => {
       const browser = await webdriver(appPort, '/invalid-loader')
+      await browser.eval(`document.querySelector("footer").scrollIntoView()`)
       const warnings = (await browser.log('browser'))
         .map((log) => log.message)
         .join('\n')
