@@ -103,7 +103,6 @@
     "raw-body": "2.4.1",
     "react-is": "17.0.2",
     "react-refresh": "0.8.3",
-    "react-server-dom-webpack": "0.0.0-experimental-3c4c1c470-20211021",
     "regenerator-runtime": "0.13.4",
     "stream-browserify": "3.0.0",
     "stream-http": "3.1.1",
@@ -114,8 +113,7 @@
     "use-subscription": "1.5.1",
     "util": "0.12.4",
     "vm-browserify": "1.1.2",
-    "watchpack": "2.1.1",
-    "web-streams-polyfill": "3.0.3"
+    "watchpack": "2.1.1"
   },
   "peerDependencies": {
     "fibers": ">= 3.1.0",
@@ -244,6 +242,7 @@
     "postcss-safe-parser": "6.0.0",
     "postcss-scss": "3.0.5",
     "postcss-value-parser": "4.1.0",
+    "react-server-dom-webpack": "0.0.0-experimental-3c4c1c470-20211021",
     "resolve-url-loader": "3.1.2",
     "sass-loader": "10.2.0",
     "schema-utils2": "npm:schema-utils@2.7.1",
