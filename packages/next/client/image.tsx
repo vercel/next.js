@@ -449,18 +449,20 @@ export default function Image({
         `Image with src "${src}" is using unsupported "style" property. Please use the "className" property instead.`
       )
     }
-    const rand = Math.floor(Math.random() * 1000) + 100
-    const loadedUrl = loader({ src, width: rand, quality: 75 })
-    if (
-      !unoptimized &&
-      !loadedUrl.includes(rand.toString()) &&
-      !loadedUrl.includes('w=') &&
-      !loadedUrl.includes('width=')
-    ) {
-      console.warn(
-        `Image with src "${src}" has a "loader" property that does not implement width. Please implement it or use the "unoptimized" property instead.` +
-          `\nRead more: https://nextjs.org/docs/messages/next-image-missing-loader-width`
-      )
+
+    if (!unoptimized) {
+      const rand = Math.floor(Math.random() * 1000) + 100
+      const url = loader({ src, width: rand, quality: 75 })
+      if (
+        !url.includes(rand.toString()) &&
+        !url.includes('w=') &&
+        !url.includes('width=')
+      ) {
+        console.warn(
+          `Image with src "${src}" has a "loader" property that does not implement width. Please implement it or use the "unoptimized" property instead.` +
+            `\nRead more: https://nextjs.org/docs/messages/next-image-missing-loader-width`
+        )
+      }
     }
 
     if (
