@@ -355,12 +355,17 @@ export default async function getBaseWebpackConfig(
     Boolean(reactDomVersion) && semver.prerelease(reactDomVersion!) != null
   const hasReactRoot: boolean = config.experimental.reactRoot || hasReact18
 
+  if (config.experimental.concurrentFeatures && !hasReactRoot) {
+    throw new Error(
+      'Flag `experimental.concurrentFeatures` requires install React 18 or enable `experimental.reactRoot`.'
+    )
+  }
   if (
     config.experimental.serverComponents &&
     !config.experimental.concurrentFeatures
   ) {
     throw new Error(
-      `Flag \`experimental.concurrentFeatures\` is required to be enabled along with \`experimental.serverComponents\`.`
+      'Flag `experimental.concurrentFeatures` is required to be enabled along with `experimental.serverComponents`.'
     )
   }
   const hasConcurrentFeatures =
