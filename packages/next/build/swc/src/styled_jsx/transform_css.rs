@@ -25,6 +25,7 @@ pub fn transform_css(
         style_info.css_span.hi,
         ParserConfig {
             parse_values: false,
+            allow_wrong_line_comments: true,
         },
         // We ignore errors because we inject placeholders for expressions which is
         // not a valid css.
@@ -44,6 +45,7 @@ pub fn transform_css(
                         style_info.css_span,
                         "Failed to parse css in styled jsx component",
                     )
+                    .note(&format!("Input to the css parser is {}", style_info.css))
                     .emit()
             });
             bail!("Failed to parse css");
@@ -72,28 +74,30 @@ pub fn transform_css(
         return Ok(string_literal_expr(&s));
     }
 
-    let mut parts: Vec<&str> = s.split("__styled-jsx-placeholder__").collect();
+    let mut parts: Vec<&str> = s.split("__styled-jsx-placeholder-").collect();
     let mut final_expressions = vec![];
     for i in 1..parts.len() {
         let (num_len, expression_index) = read_number(&parts[i]);
         final_expressions.push(style_info.expressions[expression_index].clone());
-        let substr = &parts[i][num_len..];
+        let substr = &parts[i][(num_len + 2)..];
         parts[i] = substr;
     }
 
     Ok(Expr::Tpl(Tpl {
         quasis: parts
             .iter()
-            .map(|quasi| TplElement {
-                cooked: None, // ? Do we need cooked as well
-                raw: Str {
-                    value: quasi.replace('`', "\\`").into(),
+            .map(|quasi| {
+                TplElement {
+                    cooked: None, // ? Do we need cooked as well
+                    raw: Str {
+                        value: (*quasi).into(),
+                        span: DUMMY_SP,
+                        has_escape: false,
+                        kind: StrKind::Synthesized {},
+                    },
                     span: DUMMY_SP,
-                    has_escape: false,
-                    kind: StrKind::Synthesized {},
-                },
-                span: DUMMY_SP,
-                tail: false,
+                    tail: false,
+                }
             })
             .collect(),
         exprs: final_expressions,
@@ -171,6 +175,7 @@ impl Namespacer {
                             &args,
                             ParserConfig {
                                 parse_values: false,
+                                allow_wrong_line_comments: true,
                             },
                             // TODO(kdy1): We might be able to report syntax errors.
                             &mut vec![],

@@ -12,6 +12,7 @@
     "dev": "lerna run dev --stream --parallel",
     "dev2": "while true; do yarn --check-files && yarn dev; done",
     "test-types": "yarn tsc",
+    "test": "yarn jest",
     "test-unit": "yarn jest test/unit/",
     "testonly": "yarn jest --runInBand",
     "testheadless": "cross-env HEADLESS=true yarn testonly",
@@ -49,7 +50,7 @@
     "@mdx-js/loader": "0.18.0",
     "@svgr/webpack": "5.5.0",
     "@swc/cli": "0.1.49",
-    "@swc/core": "1.2.88",
+    "@swc/core": "1.2.97",
     "@swc/jest": "0.2.3",
     "@testing-library/react": "11.2.5",
     "@types/cheerio": "0.22.16",
@@ -127,7 +128,6 @@
     "nprogress": "0.2.0",
     "pixrem": "5.0.0",
     "playwright-chromium": "1.14.1",
-    "pnpm": "5.14.3",
     "postcss-nested": "4.2.1",
     "postcss-pseudoelements": "5.0.0",
     "postcss-short-size": "4.0.0",
@@ -138,9 +138,9 @@
     "pretty-ms": "7.0.0",
     "random-seed": "0.3.0",
     "react": "17.0.2",
-    "react-18": "npm:react@next",
+    "react-18": "npm:react@18.0.0-alpha-3c4c1c470-20211021",
     "react-dom": "17.0.2",
-    "react-dom-18": "npm:react-dom@next",
+    "react-dom-18": "npm:react-dom@18.0.0-alpha-3c4c1c470-20211021",
     "react-ssr-prepass": "1.0.8",
     "release": "6.3.0",
     "request-promise-core": "1.1.2",
@@ -161,9 +161,9 @@
   },
   "resolutions": {
     "browserslist": "4.16.6",
-    "caniuse-lite": "1.0.30001228"
+    "caniuse-lite": "1.0.30001271"
   },
   "engines": {
-    "node": ">=12.0.0"
+    "node": ">=12.22.0"
   }
 }

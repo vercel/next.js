@@ -1,7 +1,7 @@
 module.exports = phase => {
   return {
     images: {
-      sizes: [64, 128, 256, 512, 1024],
+      imageSizes: [64, 128, 256, 512, 1024],
       domains: ['example.com'],
     },
     i18n: {

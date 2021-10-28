@@ -31,9 +31,12 @@ use crate::{
     util::{CtxtExt, MapErr},
     TransformOptions,
 };
-use anyhow::{Context as _, Error};
-use napi::{CallContext, Env, JsBoolean, JsObject, JsString, Task};
-use std::sync::Arc;
+use anyhow::{anyhow, Context as _, Error};
+use napi::{CallContext, Env, JsBoolean, JsObject, JsString, Status, Task};
+use std::{
+    panic::{catch_unwind, AssertUnwindSafe},
+    sync::Arc,
+};
 use swc::{try_with_handler, Compiler, TransformOutput};
 use swc_common::{FileName, SourceFile};
 use swc_ecmascript::ast::Program;
@@ -57,21 +60,37 @@ impl Task for TransformTask {
     type JsValue = JsObject;
 
     fn compute(&mut self) -> napi::Result<Self::Output> {
-        try_with_handler(self.c.cm.clone(), |handler| {
-            self.c.run(|| match self.input {
-                Input::Source(ref s) => {
-                    let before_pass = custom_before_pass(&s.name, &self.options);
-                    self.c.process_js_with_custom_pass(
-                        s.clone(),
-                        &handler,
-                        &self.options.swc,
-                        before_pass,
-                        noop(),
-                    )
-                }
+        let res = catch_unwind(AssertUnwindSafe(|| {
+            try_with_handler(self.c.cm.clone(), true, |handler| {
+                self.c.run(|| match self.input {
+                    Input::Source(ref s) => {
+                        let before_pass = custom_before_pass(&s.name, &self.options);
+                        self.c.process_js_with_custom_pass(
+                            s.clone(),
+                            &handler,
+                            &self.options.swc,
+                            before_pass,
+                            noop(),
+                        )
+                    }
+                })
             })
-        })
-        .convert_err()
+        }))
+        .map_err(|err| {
+            if let Some(s) = err.downcast_ref::<String>() {
+                anyhow!("failed to process {}", s)
+            } else {
+                anyhow!("failed to process")
+            }
+        });
+
+        match res {
+            Ok(res) => res.convert_err(),
+            Err(err) => Err(napi::Error::new(
+                Status::GenericFailure,
+                format!("{:?}", err),
+            )),
+        }
     }
 
     fn resolve(self, env: Env, result: Self::Output) -> napi::Result<Self::JsValue> {
@@ -103,9 +122,10 @@ where
 
     let s = cx.get::<JsString>(0)?.into_utf8()?;
     let is_module = cx.get::<JsBoolean>(1)?;
-    let options: TransformOptions = cx.get_deserialized(2)?;
+    let mut options: TransformOptions = cx.get_deserialized(2)?;
+    options.swc.swcrc = false;
 
-    let output = try_with_handler(c.cm.clone(), |handler| {
+    let output = try_with_handler(c.cm.clone(), true, |handler| {
         c.run(|| {
             if is_module.get_value()? {
                 let program: Program =
@@ -125,7 +145,9 @@ where
 
 #[js_function(4)]
 pub fn transform(cx: CallContext) -> napi::Result<JsObject> {
-    schedule_transform(cx, |c, src, _, options| {
+    schedule_transform(cx, |c, src, _, mut options| {
+        options.swc.swcrc = false;
+
         let input = Input::Source(c.cm.new_source_file(
             if options.swc.filename.is_empty() {
                 FileName::Anon

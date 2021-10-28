@@ -124,6 +124,15 @@
           ]
         },
         {
+          "title": "Middleware",
+          "path": "/docs/middleware.md"
+        },
+        {
+          "title": "Going to Production",
+          "path": "/docs/going-to-production.md"
+        },
+        {
+
           "title": "Deployment",
           "path": "/docs/deployment.md"
         },
@@ -232,8 +241,16 @@
               "path": "/docs/advanced-features/i18n-routing.md"
             },
             {
+              "title": "Output File Tracing",
+              "path": "/docs/advanced-features/output-file-tracing.md"
+            },
+            {
               "title": "Security Headers",
               "path": "/docs/advanced-features/security-headers.md"
+            },
+            {
+              "title": "React 18",
+              "path": "/docs/advanced-features/react-18.md"
             }
           ]
         },
@@ -293,6 +310,14 @@
         {
           "title": "next/amp",
           "path": "/docs/api-reference/next/amp.md"
+        },
+        {
+          "title": "next/server",
+          "path": "/docs/api-reference/next/server.md"
+        },
+        {
+          "title": "Edge Runtime",
+          "path": "/docs/api-reference/edge-runtime.md"
         },
         {
           "title": "Data Fetching",
@@ -405,6 +430,10 @@
             {
               "title": "React Strict Mode",
               "path": "/docs/api-reference/next.config.js/react-strict-mode.md"
+            },
+            {
+              "title": "URL Imports",
+              "path": "/docs/api-reference/next.config.js/url-imports.md"
             }
           ]
         }

@@ -11,7 +11,7 @@ import { StackFrame } from 'stacktrace-parser'
 import url from 'url'
 // @ts-ignore
 // eslint-disable-next-line import/no-extraneous-dependencies
-import type webpack from 'webpack4'
+import type webpack from 'webpack'
 import { getRawSourceMap } from './internal/helpers/getRawSourceMap'
 import { launchEditor } from './internal/helpers/launchEditor'
 
