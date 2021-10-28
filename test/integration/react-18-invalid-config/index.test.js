@@ -1,30 +1,57 @@
 /* eslint-env jest */
 
+import fs from 'fs-extra'
 import { join } from 'path'
 import { File, nextBuild } from 'next-test-utils'
 
 const appDir = __dirname
 const nextConfig = new File(join(appDir, 'next.config.js'))
 
+function writeNextConfig(config) {
+  const content = `module.exports = { experimental: ${JSON.stringify(config)} }`
+  nextConfig.write(content)
+}
+
 describe('Invalid react 18 webpack config', () => {
   it('should enable `experimental.reactRoot` when `experimental.concurrentFeatures` enables', async () => {
-    nextConfig.replace('reactRoot: true', 'reactRoot: false')
-    nextConfig.replace('serverComponents: true', 'serverComponents: false')
+    writeNextConfig({
+      concurrentFeatures: true,
+    })
     const { stderr } = await nextBuild(appDir, [], { stderr: true })
     nextConfig.restore()
 
     expect(stderr).toContain(
-      'Flag `experimental.concurrentFeatures` requires install React 18 or enable `experimental.reactRoot`.'
+      '`experimental.concurrentFeatures` requires install React 18 or enable `experimental.reactRoot`.'
     )
   })
 
   it('should enable `experimental.concurrentFeatures` for server components', async () => {
-    nextConfig.replace('concurrentFeatures: true', 'concurrentFeatures: false')
+    writeNextConfig({
+      reactRoot: true,
+      concurrentFeatures: false,
+      serverComponents: true,
+    })
     const { stderr } = await nextBuild(appDir, [], { stderr: true })
     nextConfig.restore()
 
     expect(stderr).toContain(
-      'Flag `experimental.concurrentFeatures` is required to be enabled along with `experimental.serverComponents`.'
+      '`experimental.concurrentFeatures` is required to be enabled along with `experimental.serverComponents`.'
+    )
+  })
+
+  it('should warn user when not using react 18 and `experimental.reactRoot` is enabled', async () => {
+    const reactDomPackagePah = join(appDir, 'node_modules/react-dom')
+    await fs.mkdirp(reactDomPackagePah)
+    await fs.writeFile(
+      join(reactDomPackagePah, 'package.json'),
+      JSON.stringify({ name: 'react-dom', version: '17.0.0' })
+    )
+    writeNextConfig({ reactRoot: true })
+    const { stderr } = await nextBuild(appDir, [], { stderr: true })
+    await fs.remove(reactDomPackagePah)
+
+    expect(stderr).toContain(
+      'You have to use React 18 to use `experimental.reactRoot`.'
     )
   })
 })
