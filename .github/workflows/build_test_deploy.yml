@@ -251,6 +251,8 @@ jobs:
           name: next-swc-dev-binary
           path: packages/next/build/swc/native
 
+      - run: ls packages/next/build/swc/native
+
       - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
