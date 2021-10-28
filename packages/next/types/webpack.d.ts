@@ -30,11 +30,9 @@ declare module 'next/dist/compiled/webpack/webpack' {
   import webpackSources from 'webpack-sources1'
   import webpack4, { loader } from 'webpack4'
   export { NormalModule } from 'webpack'
-  export let isWebpack5: boolean
   export function init(): void
   export let BasicEvaluatedExpression: any
   export let GraphHelpers: any
-  export function onWebpackInit(cb: () => void): void
   // TODO change this to webpack4 | webpack5
   export let sources: typeof webpackSources
   // TODO change this to webpack

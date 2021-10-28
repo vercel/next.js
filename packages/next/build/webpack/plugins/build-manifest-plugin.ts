@@ -1,9 +1,5 @@
 import devalue from 'next/dist/compiled/devalue'
-import {
-  webpack,
-  isWebpack5,
-  sources,
-} from 'next/dist/compiled/webpack/webpack'
+import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import {
   BUILD_MANIFEST,
   CLIENT_STATIC_FILES_PATH,
@@ -243,25 +239,19 @@ export default class BuildManifestPlugin {
   }
 
   apply(compiler: webpack.Compiler) {
-    if (isWebpack5) {
-      compiler.hooks.make.tap('NextJsBuildManifest', (compilation) => {
-        // @ts-ignore TODO: Remove ignore when webpack 5 is stable
-        compilation.hooks.processAssets.tap(
-          {
-            name: 'NextJsBuildManifest',
-            // @ts-ignore TODO: Remove ignore when webpack 5 is stable
-            stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
-          },
-          (assets: any) => {
-            this.createAssets(compiler, compilation, assets)
-          }
-        )
-      })
-      return
-    }
-
-    compiler.hooks.emit.tap('NextJsBuildManifest', (compilation: any) => {
-      this.createAssets(compiler, compilation, compilation.assets)
+    compiler.hooks.make.tap('NextJsBuildManifest', (compilation) => {
+      // @ts-ignore TODO: Remove ignore when webpack 5 is stable
+      compilation.hooks.processAssets.tap(
+        {
+          name: 'NextJsBuildManifest',
+          // @ts-ignore TODO: Remove ignore when webpack 5 is stable
+          stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
+        },
+        (assets: any) => {
+          this.createAssets(compiler, compilation, assets)
+        }
+      )
     })
+    return
   }
 }
