@@ -202,12 +202,16 @@ Then, add `prettier` to your existing ESLint config:
 If you would like to use `next lint` with [lint-staged](https://github.com/okonet/lint-staged) to run the linter on staged git files, you'll have to add the following to the `.lintstagedrc.js` file in the root of your project in order to specify usage of the `--file` flag.
 
 ```js
+const path = require('path');
+
+const buildEslintCommand = (filenames) =>
+  `next lint --file ${filenames
+    .map((f) => path.relative(process.cwd(), f))
+    .join(' --file ')}`;
+
 module.exports = {
-  '**/*.js?(x)': (filenames) =>
-    `next lint --fix --file ${filenames
-      .map((file) => file.split(process.cwd())[1])
-      .join(' --file ')}`,
-}
+  '*.{js,jsx,ts,tsx}': [buildEslintCommand],
+};
 ```
 
 ## Migrating Existing Config
