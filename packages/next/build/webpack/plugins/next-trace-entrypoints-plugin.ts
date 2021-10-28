@@ -13,6 +13,7 @@ import {
   nextImageLoaderRegex,
   NODE_ESM_RESOLVE_OPTIONS,
   NODE_RESOLVE_OPTIONS,
+  resolveExternal,
 } from '../../webpack-config'
 import { NextConfigComplete } from '../../../server/config-shared'
 
@@ -407,7 +408,7 @@ export class TraceEntryPointsPlugin implements webpack5.WebpackPluginInstance {
             request: string,
             job: import('@vercel/nft/out/node-file-trace').Job
           ) =>
-            new Promise<string>((resolve, reject) => {
+            new Promise<[string, boolean]>((resolve, reject) => {
               const context = nodePath.dirname(parent)
 
               curResolver.resolve(
@@ -419,7 +420,7 @@ export class TraceEntryPointsPlugin implements webpack5.WebpackPluginInstance {
                   missingDependencies: compilation.missingDependencies,
                   contextDependencies: compilation.contextDependencies,
                 },
-                async (err: any, result?: string | false, resContext?: any) => {
+                async (err: any, result?, resContext?) => {
                   if (err) return reject(err)
 
                   if (!result) {
@@ -472,7 +473,7 @@ export class TraceEntryPointsPlugin implements webpack5.WebpackPluginInstance {
                     // we failed to resolve the package.json boundary,
                     // we don't block emitting the initial asset from this
                   }
-                  resolve(result)
+                  resolve([result, options.dependencyType === 'esm'])
                 }
               )
             })
@@ -480,13 +481,23 @@ export class TraceEntryPointsPlugin implements webpack5.WebpackPluginInstance {
 
         const CJS_RESOLVE_OPTIONS = {
           ...NODE_RESOLVE_OPTIONS,
+          fullySpecified: undefined,
           modules: undefined,
           extensions: undefined,
         }
+        const BASE_CJS_RESOLVE_OPTIONS = {
+          ...CJS_RESOLVE_OPTIONS,
+          alias: false,
+        }
         const ESM_RESOLVE_OPTIONS = {
           ...NODE_ESM_RESOLVE_OPTIONS,
+          fullySpecified: undefined,
           modules: undefined,
           extensions: undefined,
+        }
+        const BASE_ESM_RESOLVE_OPTIONS = {
+          ...ESM_RESOLVE_OPTIONS,
+          alias: false,
         }
 
         const doResolve = async (
@@ -500,30 +511,25 @@ export class TraceEntryPointsPlugin implements webpack5.WebpackPluginInstance {
               `not resolving ${request} as this is handled by next-image-loader`
             )
           }
+          const context = nodePath.dirname(parent)
           // When in esm externals mode, and using import, we resolve with
           // ESM resolving options.
-          const esmExternals = this.esmExternals
-          const looseEsmExternals = this.esmExternals === 'loose'
-          const preferEsm = esmExternals && isEsmRequested
-          const resolve = getResolve(
-            preferEsm ? ESM_RESOLVE_OPTIONS : CJS_RESOLVE_OPTIONS
+          const { res } = await resolveExternal(
+            this.appDir,
+            this.esmExternals,
+            context,
+            request,
+            isEsmRequested,
+            (options) => (_: string, resRequest: string) => {
+              return getResolve(options)(parent, resRequest, job)
+            },
+            undefined,
+            undefined,
+            ESM_RESOLVE_OPTIONS,
+            CJS_RESOLVE_OPTIONS,
+            BASE_ESM_RESOLVE_OPTIONS,
+            BASE_CJS_RESOLVE_OPTIONS
           )
-          // Resolve the import with the webpack provided context, this
-          // ensures we're resolving the correct version when multiple
-          // exist.
-          let res: string = ''
-          try {
-            res = await resolve(parent, request, job)
-          } catch (_) {}
-
-          // If resolving fails, and we can use an alternative way
-          // try the alternative resolving options.
-          if (!res && (isEsmRequested || looseEsmExternals)) {
-            const resolveAlternative = getResolve(
-              preferEsm ? CJS_RESOLVE_OPTIONS : ESM_RESOLVE_OPTIONS
-            )
-            res = await resolveAlternative(parent, request, job)
-          }
 
           if (!res) {
             throw new Error(`failed to resolve ${request} from ${parent}`)
