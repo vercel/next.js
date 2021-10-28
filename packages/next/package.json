@@ -278,7 +278,6 @@
     "triples": {
       "defaults": true,
       "additional": [
-        "x86_64-unknown-linux-musl",
         "i686-pc-windows-msvc",
         "aarch64-unknown-linux-gnu",
         "armv7-unknown-linux-gnueabihf",
