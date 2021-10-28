@@ -15,8 +15,7 @@ To develop locally:
 
 1. [Fork](https://help.github.com/articles/fork-a-repo/) this repository to your
    own GitHub account and then
-   [clone](https://help.github.com/articles/cloning-a-repository/) it to your
-   local device.
+   [clone](https://help.github.com/articles/cloning-a-repository/) it to your local device.
 2. Create a new branch:
    ```
    git checkout -b MY_BRANCH_NAME
@@ -127,7 +126,7 @@ EXAMPLE=./test/integration/basic
 
 There are two options to develop with your local version of the codebase:
 
-### Set as local dependency in package.json
+### Set as a local dependency in package.json
 
 1. In your app's `package.json`, replace:
 
@@ -175,7 +174,7 @@ or
 
 This will use the version of `next` built inside of the Next.js monorepo and the
 main `yarn dev` monorepo command can be running to make changes to the local
-Next.js version at the same time (some changes might require re-running `yarn next-with-deps` to take affect).
+Next.js version at the same time (some changes might require re-running `yarn next-with-deps` to take effect).
 
 ## Adding warning/error descriptions
 
@@ -183,7 +182,7 @@ In Next.js we have a system to add helpful links to warnings and errors.
 
 This allows for the logged message to be short while giving a broader description and instructions on how to solve the warning/error.
 
-In general all warnings and errors added should have these links attached.
+In general, all warnings and errors added should have these links attached.
 
 Below are the steps to add a new link:
 
