@@ -20,25 +20,32 @@ const cwd = process.cwd()
       (name) => !name.startsWith('.')
     )
     for (let platform of platforms) {
-      let binaryName = `next-swc.${platform}.node`
-      await copy(
-        path.join(cwd, 'packages/next/build/swc/dist', binaryName),
-        path.join(nativePackagesDir, platform, binaryName)
-      )
-      let pkg = JSON.parse(
-        await readFile(path.join(nativePackagesDir, platform, 'package.json'))
-      )
-      pkg.version = version
-      await writeFile(
-        path.join(nativePackagesDir, platform, 'package.json'),
-        JSON.stringify(pkg, null, 2)
-      )
-      execSync(
-        `npm publish ${path.join(
-          nativePackagesDir,
-          platform
-        )} --access public ${gitref.includes('canary') ? ' --tag canary' : ''}`
-      )
+      try {
+        let binaryName = `next-swc.${platform}.node`
+        await copy(
+          path.join(cwd, 'packages/next/build/swc/dist', binaryName),
+          path.join(nativePackagesDir, platform, binaryName)
+        )
+        let pkg = JSON.parse(
+          await readFile(path.join(nativePackagesDir, platform, 'package.json'))
+        )
+        pkg.version = version
+        await writeFile(
+          path.join(nativePackagesDir, platform, 'package.json'),
+          JSON.stringify(pkg, null, 2)
+        )
+        execSync(
+          `npm publish ${path.join(
+            nativePackagesDir,
+            platform
+          )} --access public ${
+            gitref.includes('canary') ? ' --tag canary' : ''
+          }`
+        )
+      } catch (err) {
+        // don't block publishing other versions on single platform error
+        console.error(`Failed to publish`, platform, err)
+      }
       // lerna publish in next step will fail if git status is not clean
       execSync(
         `git update-index --skip-worktree ${path.join(
