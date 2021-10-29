@@ -21,7 +21,7 @@ describe('Invalid react 18 webpack config', () => {
     nextConfig.restore()
 
     expect(stderr).toContain(
-      '`experimental.concurrentFeatures` requires install React 18 or enable `experimental.reactRoot`.'
+      '`experimental.concurrentFeatures` requires `experimental.reactRoot` to be enabled along with React 18.'
     )
   })
 
@@ -49,6 +49,7 @@ describe('Invalid react 18 webpack config', () => {
     writeNextConfig({ reactRoot: true })
     const { stderr } = await nextBuild(appDir, [], { stderr: true })
     await fs.remove(reactDomPackagePah)
+    nextConfig.restore()
 
     expect(stderr).toContain(
       'You have to use React 18 to use `experimental.reactRoot`.'
