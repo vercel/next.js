@@ -19883,6 +19883,10 @@ webpack-sources@^3.2.0:
     watchpack "^2.2.0"
     webpack-sources "^3.2.0"
 
+"webpack@link:./node_modules/webpack5":
+  version "0.0.0"
+  uid ""
+
 websocket-driver@>=0.5.1:
   version "0.7.3"
   resolved "https://registry.yarnpkg.com/websocket-driver/-/websocket-driver-0.7.3.tgz#a2d4e0d4f4f116f1e6297eba58b05d430100e9f9"
