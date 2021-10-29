@@ -148,7 +148,9 @@ export class TraceEntryPointsPlugin implements webpack5.WebpackPluginInstance {
         readFile: async (path) => {
           if (chunksToTrace.has(path)) {
             const source =
-              assets[nodePath.relative(outputPath, path)]?.source?.()
+              assets[
+                nodePath.relative(outputPath, path).replace(/\\/g, '/')
+              ]?.source?.()
             if (source) return source
           }
           try {
