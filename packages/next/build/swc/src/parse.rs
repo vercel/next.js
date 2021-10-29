@@ -52,7 +52,7 @@ fn is_module_exec(src: String, syntax: Syntax) -> Result<bool, Error> {
     let cm = SourceMap::new(FilePathMapping::empty());
     let fm = cm.new_source_file(FileName::Anon, src);
 
-    let mut lexer = Lexer::new(
+    let lexer = Lexer::new(
         syntax,
         EsVersion::latest(),
         SourceFileInput::from(&*fm),
