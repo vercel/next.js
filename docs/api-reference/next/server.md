@@ -12,7 +12,7 @@ Middleware is created by using a `middleware` function that lives inside a `_mid
 
 These native Web API objects are extended to give you more control over how you manipulate and configure a response, based on the incoming requests.
 
-The function signature is defined as the following:
+The function signature is defined as follows:
 
 ```ts
 type NextMiddlewareResult = NextResponse | Response | null
