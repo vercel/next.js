@@ -123,6 +123,9 @@ export function eventBuildOptimize(
 
 export const EVENT_BUILD_FEATURE_USAGE = 'NEXT_BUILD_FEATURE_USAGE'
 export type EventBuildFeatureUsage = {
+  // NOTE: If you are adding features, make sure to update the `enum` field
+  // for `featureName` in https://github.com/vercel/next-telemetry/blob/master/events/v1/featureUsage.ts
+  // *before* you make changes here.
   featureName:
     | 'next/image'
     | 'next/script'

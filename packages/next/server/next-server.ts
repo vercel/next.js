@@ -108,6 +108,7 @@ import type { FetchEventResult } from './web/types'
 import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
 import type { ParsedNextUrl } from '../shared/lib/router/utils/parse-next-url'
 import type { ParsedUrl } from '../shared/lib/router/utils/parse-url'
+import { toNodeHeaders } from './web/utils'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -1168,13 +1169,11 @@ export default class Server {
 
           result.response.headers.delete('x-middleware-next')
 
-          for (const [key, value] of result.response.headers.entries()) {
-            if (key !== 'content-encoding') {
-              if (key.toLowerCase() === 'set-cookie') {
-                res.setHeader(key, value.split(', '))
-              } else {
-                res.setHeader(key, value)
-              }
+          for (const [key, value] of Object.entries(
+            toNodeHeaders(result.response.headers)
+          )) {
+            if (key !== 'content-encoding' && value !== undefined) {
+              res.setHeader(key, value)
             }
           }
 

@@ -1195,25 +1195,20 @@ export async function renderToHTML(
                 )
               }
             : null,
-          renderOpts.optimizeCss
+          !process.browser && renderOpts.optimizeCss
             ? async (html: string) => {
-                if (process.browser) {
-                  // Have to disable critters under the web environment.
-                  return html
-                } else {
-                  // eslint-disable-next-line import/no-extraneous-dependencies
-                  const Critters = require('critters')
-                  const cssOptimizer = new Critters({
-                    ssrMode: true,
-                    reduceInlineStyles: false,
-                    path: renderOpts.distDir,
-                    publicPath: `${renderOpts.assetPrefix}/_next/`,
-                    preload: 'media',
-                    fonts: false,
-                    ...renderOpts.optimizeCss,
-                  })
-                  return await cssOptimizer.process(html)
-                }
+                // eslint-disable-next-line import/no-extraneous-dependencies
+                const Critters = require('critters')
+                const cssOptimizer = new Critters({
+                  ssrMode: true,
+                  reduceInlineStyles: false,
+                  path: renderOpts.distDir,
+                  publicPath: `${renderOpts.assetPrefix}/_next/`,
+                  preload: 'media',
+                  fonts: false,
+                  ...renderOpts.optimizeCss,
+                })
+                return await cssOptimizer.process(html)
               }
             : null,
           inAmpMode || hybridAmp
@@ -1380,13 +1375,29 @@ function renderToReadableStream(
   element: React.ReactElement
 ): NodeWritablePiper {
   return (res, next) => {
-    const readable = (ReactDOMServer as any).renderToReadableStream(element)
+    let bufferedString = ''
+    let shellCompleted = false
+
+    const readable = (ReactDOMServer as any).renderToReadableStream(element, {
+      onCompleteShell() {
+        shellCompleted = true
+        if (bufferedString) {
+          res.write(bufferedString)
+          bufferedString = ''
+        }
+      },
+    })
     const reader = readable.getReader()
     const decoder = new TextDecoder()
     const process = () => {
       reader.read().then(({ done, value }: any) => {
         if (!done) {
-          res.write(typeof value === 'string' ? value : decoder.decode(value))
+          const s = typeof value === 'string' ? value : decoder.decode(value)
+          if (shellCompleted) {
+            res.write(s)
+          } else {
+            bufferedString += s
+          }
           process()
         } else {
           next()
