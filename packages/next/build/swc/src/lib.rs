@@ -104,6 +104,9 @@ fn init(mut exports: JsObject) -> napi::Result<()> {
         }));
     }
 
+    exports.create_named_method("isModule", parse::is_module)?;
+    exports.create_named_method("isModuleSync", parse::is_module_sync)?;
+
     exports.create_named_method("transform", transform::transform)?;
     exports.create_named_method("transformSync", transform::transform_sync)?;
 
