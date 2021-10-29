@@ -76,6 +76,7 @@ async function usingPnpmCreateNextApp(appDir, fn) {
     const dependencyTarballPaths = {
       '@next/env': await pack(tempDir, 'next-env'),
       '@next/polyfill-module': await pack(tempDir, 'next-polyfill-module'),
+      '@next/polyfill-nomodule': await pack(tempDir, 'next-polyfill-nomodule'),
       '@next/react-dev-overlay': await pack(tempDir, 'react-dev-overlay'),
       '@next/react-refresh-utils': await pack(tempDir, 'react-refresh-utils'),
     }
@@ -126,6 +127,7 @@ describe('pnpm support', () => {
       for (const dependency of [
         '@next/env',
         '@next/polyfill-module',
+        '@next/polyfill-nomodule',
         '@next/react-dev-overlay',
         '@next/react-refresh-utils',
       ]) {
