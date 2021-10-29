@@ -1373,13 +1373,29 @@ function renderToReadableStream(
   element: React.ReactElement
 ): NodeWritablePiper {
   return (res, next) => {
-    const readable = (ReactDOMServer as any).renderToReadableStream(element)
+    let bufferedString = ''
+    let shellCompleted = false
+
+    const readable = (ReactDOMServer as any).renderToReadableStream(element, {
+      onCompleteShell() {
+        shellCompleted = true
+        if (bufferedString) {
+          res.write(bufferedString)
+          bufferedString = ''
+        }
+      },
+    })
     const reader = readable.getReader()
     const decoder = new TextDecoder()
     const process = () => {
       reader.read().then(({ done, value }: any) => {
         if (!done) {
-          res.write(typeof value === 'string' ? value : decoder.decode(value))
+          const s = typeof value === 'string' ? value : decoder.decode(value)
+          if (shellCompleted) {
+            res.write(s)
+          } else {
+            bufferedString += s
+          }
           process()
         } else {
           next()
