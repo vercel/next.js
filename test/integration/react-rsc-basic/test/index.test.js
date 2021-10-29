@@ -12,6 +12,8 @@ import {
   renderViaHTTP,
 } from 'next-test-utils'
 
+import css from './css'
+
 const nodeArgs = ['-r', join(__dirname, '../../react-18/test/require-hook.js')]
 const appDir = join(__dirname, '../app')
 const distDir = join(__dirname, '../app/.next')
@@ -92,6 +94,35 @@ describe('RSC dev', () => {
     await killApp(context.server)
   })
   runTests(context)
+})
+
+describe('CSS prod', () => {
+  const context = { appDir }
+
+  beforeAll(async () => {
+    context.appPort = await findPort()
+    await nextBuild(context.appDir)
+    context.server = await nextStart(context.appDir, context.appPort)
+  })
+  afterAll(async () => {
+    await killApp(context.server)
+  })
+
+  css(context)
+})
+
+describe('CSS dev', () => {
+  const context = { appDir }
+
+  beforeAll(async () => {
+    context.appPort = await findPort()
+    context.server = await nextDev(context.appDir, context.appPort)
+  })
+  afterAll(async () => {
+    await killApp(context.server)
+  })
+
+  css(context)
 })
 
 async function runTests(context) {
