@@ -35,7 +35,9 @@ export function connectHMR(options: {
     const protocol = location.protocol === 'http:' ? 'ws' : 'wss'
     const assetPrefix = options.assetPrefix.replace(/^\/+/, '')
 
-    let url = `${protocol}://${hostname}:${port}/${assetPrefix}`
+    let url = `${protocol}://${hostname}:${port}${
+      assetPrefix ? `/${assetPrefix}` : ''
+    }`
 
     if (assetPrefix.startsWith('http:')) {
       url = `${protocol}://${assetPrefix.split('://')[1]}`
