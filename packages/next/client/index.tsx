@@ -657,7 +657,9 @@ if (process.env.__NEXT_RSC) {
     serialized?: string
     _fresh?: boolean
   }) => {
-    const { createFromFetch } = require('react-server-dom-webpack')
+    const {
+      createFromFetch,
+    } = require('next/dist/compiled/react-server-dom-webpack')
     let response = rscCache.get(cacheKey)
 
     // If there is no cache, or there is serialized data already
