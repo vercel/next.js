@@ -4,11 +4,11 @@ description: Use Middleware to run code before a request is completed.
 
 # next/server
 
-The `next/server` module provides several exports for server-only helpers, such as Middleware.
+The `next/server` module provides several exports for server-only helpers, such as [Middleware](/docs/middleware).
 
 ## NextMiddleware
 
-Middleware is created by using a `middleware` function that lives inside a `_middleware` file. The Middleware API is based upon the native [`FetchEvent`](https://developer.mozilla.org/en-US/docs/Web/API/FetchEvent), [`Response`](https://developer.mozilla.org/en-US/docs/Web/API/Response), and [`Request`](https://developer.mozilla.org/en-US/docs/Web/API/Request) objects.
+Middleware is created by using a `middleware` function that lives inside a `_middleware` file. The Middleware API is based upon the native [`Request`](https://developer.mozilla.org/en-US/docs/Web/API/Request), [`FetchEvent`](https://developer.mozilla.org/en-US/docs/Web/API/FetchEvent), and [`Response`](https://developer.mozilla.org/en-US/docs/Web/API/Response) objects.
 
 These native Web API objects are extended to give you more control over how you manipulate and configure a response, based on the incoming requests.
 
