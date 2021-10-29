@@ -347,8 +347,9 @@ export default async function getBaseWebpackConfig(
     cwd: dir,
     name: 'react-dom',
   })
-  const isReactExperimental =
-    Boolean(reactDomVersion) && /0\.0\.0-experimental/.test(reactDomVersion)
+  const isReactExperimental = Boolean(
+    reactDomVersion && /0\.0\.0-experimental/.test(reactDomVersion)
+  )
   const hasReact18: boolean =
     Boolean(reactDomVersion) &&
     (semver.gte(reactDomVersion!, '18.0.0') ||
@@ -356,14 +357,7 @@ export default async function getBaseWebpackConfig(
   const hasReactPrerelease =
     (Boolean(reactDomVersion) && semver.prerelease(reactDomVersion!) != null) ||
     isReactExperimental
-  console.log(
-    reactDomVersion,
-    'hasReact18',
-    hasReact18,
-    isReactExperimental,
-    'config.experimental.reactRoot',
-    config.experimental.reactRoot
-  )
+
   const hasReactRoot: boolean =
     config.experimental.reactRoot || hasReact18 || isReactExperimental
 
