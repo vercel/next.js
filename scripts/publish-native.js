@@ -16,14 +16,16 @@ const cwd = process.cwd()
 
     // Copy binaries to package folders, update version, and publish
     let nativePackagesDir = path.join(cwd, 'packages/next/build/swc/npm')
-    let platforms = await readdir(nativePackagesDir)
-    const filteredPlatforms = platforms.filter((name) => !name.startsWith('.'))
+    let platforms = (await readdir(nativePackagesDir)).filter(
+      (name) => !name.startsWith('.')
+    )
+
     const publishedPkgs = new Set()
     // TODO: update to latest version where all pacakges were
     // successfully published
     const fallbackVersion = `12.0.1`
 
-    for (let platform of filteredPlatforms) {
+    for (let platform of platforms) {
       try {
         let binaryName = `next-swc.${platform}.node`
         await copy(
