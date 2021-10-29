@@ -50,7 +50,7 @@ Rewrites are applied to client-side routing, a `<Link href="/about">` will have 
 - `locale`: `false` or `undefined` - whether the locale should not be included when matching.
 - `has` is an array of [has objects](#header-cookie-and-query-matching) with the `type`, `key` and `value` properties.
 
-Rewrites are applied after checking the filesystem (pages and `/public` files) and before dynamic routes by default. This behavior can be changed by instead returning an object instead of an array from the `rewrites` function since `v10.1` of Next.js:
+Rewrites are applied after checking the filesystem (pages and `/public` files) and before dynamic routes by default. This behavior can be changed by returning an object instead of an array from the `rewrites` function since `v10.1` of Next.js:
 
 ```js
 module.exports = {

@@ -123,7 +123,7 @@ describe('Production Usage', () => {
           /node_modules\/react\/package\.json/,
           /node_modules\/react\/cjs\/react\.production\.min\.js/,
         ],
-        notTests: [/node_modules\/react\/cjs\/react\.development\.js/],
+        notTests: [/node_modules\/react\/cjs\/react\.development\.js/, /\0/],
       },
       {
         page: '/client-error',
@@ -139,7 +139,7 @@ describe('Production Usage', () => {
           /next\/dist\/pages\/_error\.js/,
           /next\/error\.js/,
         ],
-        notTests: [/node_modules\/react\/cjs\/react\.development\.js/],
+        notTests: [/node_modules\/react\/cjs\/react\.development\.js/, /\0/],
       },
       {
         page: '/dynamic',
@@ -153,7 +153,7 @@ describe('Production Usage', () => {
           /next\/dist\/client\/link\.js/,
           /next\/dist\/shared\/lib\/router\/utils\/resolve-rewrites\.js/,
         ],
-        notTests: [/node_modules\/react\/cjs\/react\.development\.js/],
+        notTests: [/node_modules\/react\/cjs\/react\.development\.js/, /\0/],
       },
       {
         page: '/index',
@@ -168,12 +168,14 @@ describe('Production Usage', () => {
           /next\/dist\/shared\/lib\/router\/utils\/resolve-rewrites\.js/,
           /node_modules\/nanoid\/index\.js/,
           /node_modules\/nanoid\/url-alphabet\/index\.js/,
+          /node_modules\/es5-ext\/array\/#\/clear\.js/,
         ],
         notTests: [
           /node_modules\/react\/cjs\/react\.development\.js/,
           /node_modules\/nanoid\/index\.cjs/,
           /next\/dist\/pages\/_error\.js/,
           /next\/error\.js/,
+          /\0/,
         ],
       },
       {
@@ -188,7 +190,7 @@ describe('Production Usage', () => {
           /next\/dist\/client\/router\.js/,
           /next\/dist\/shared\/lib\/router\/utils\/resolve-rewrites\.js/,
         ],
-        notTests: [/node_modules\/react\/cjs\/react\.development\.js/],
+        notTests: [/node_modules\/react\/cjs\/react\.development\.js/, /\0/],
       },
       {
         page: '/next-import',
@@ -202,7 +204,7 @@ describe('Production Usage', () => {
           /next\/dist\/client\/link\.js/,
           /next\/dist\/shared\/lib\/router\/utils\/resolve-rewrites\.js/,
         ],
-        notTests: [/next\/dist\/server\/next\.js/, /next\/dist\/bin/],
+        notTests: [/next\/dist\/server\/next\.js/, /next\/dist\/bin/, /\0/],
       },
     ]
 
@@ -215,12 +217,24 @@ describe('Production Usage', () => {
       expect(version).toBe(1)
 
       expect(
-        check.tests.every((item) => files.some((file) => item.test(file)))
+        check.tests.every((item) => {
+          if (files.some((file) => item.test(file))) {
+            return true
+          }
+          console.error(`Failed to find ${item} in`, files)
+          return false
+        })
       ).toBe(true)
 
       if (sep === '/') {
         expect(
-          check.notTests.some((item) => files.some((file) => item.test(file)))
+          check.notTests.some((item) => {
+            if (files.some((file) => item.test(file))) {
+              console.error(`Found unexpected ${item} in`, files)
+              return true
+            }
+            return false
+          })
         ).toBe(false)
       }
     }
@@ -547,6 +561,8 @@ describe('Production Usage', () => {
 
     it('should navigate to nested index via client side', async () => {
       const browser = await webdriver(appPort, '/another')
+      await browser.eval('window.beforeNav = 1')
+
       const text = await browser
         .elementByCss('a')
         .click()
@@ -555,6 +571,7 @@ describe('Production Usage', () => {
         .text()
 
       expect(text).toBe('Hello World')
+      expect(await browser.eval('window.beforeNav')).toBe(1)
       await browser.close()
     })
 

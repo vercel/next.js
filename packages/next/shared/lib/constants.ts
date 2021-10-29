@@ -25,6 +25,15 @@ export const CLIENT_STATIC_FILES_PATH = 'static'
 export const CLIENT_STATIC_FILES_RUNTIME = 'runtime'
 export const BODY_RENDER_TARGET = '__NEXT_BODY_RENDER_TARGET__'
 export const STRING_LITERAL_DROP_BUNDLE = '__NEXT_DROP_CLIENT_FILE__'
+
+// server/middleware-flight-manifest.js
+export const MIDDLEWARE_FLIGHT_MANIFEST = 'middleware-flight-manifest'
+// server/middleware-build-manifest.js
+export const MIDDLEWARE_BUILD_MANIFEST = 'middleware-build-manifest'
+// server/middleware-react-loadable-manifest.js
+export const MIDDLEWARE_REACT_LOADABLE_MANIFEST =
+  'middleware-react-loadable-manifest'
+
 // static/runtime/main.js
 export const CLIENT_STATIC_FILES_RUNTIME_MAIN = `main`
 // static/runtime/react-refresh.js
@@ -35,10 +44,13 @@ export const CLIENT_STATIC_FILES_RUNTIME_AMP = `amp`
 export const CLIENT_STATIC_FILES_RUNTIME_WEBPACK = `webpack`
 // static/runtime/polyfills.js
 export const CLIENT_STATIC_FILES_RUNTIME_POLYFILLS_SYMBOL = Symbol(`polyfills`)
+// server/middleware-flight-runtime.js
+export const MIDDLEWARE_SSR_RUNTIME_WEBPACK = 'middleware-ssr-runtime'
 export const TEMPORARY_REDIRECT_STATUS = 307
 export const PERMANENT_REDIRECT_STATUS = 308
 export const STATIC_PROPS_ID = '__N_SSG'
 export const SERVER_PROPS_ID = '__N_SSP'
+export const FLIGHT_PROPS_ID = '__N_RSC'
 export const GOOGLE_FONT_PROVIDER = 'https://fonts.googleapis.com/css'
 export const OPTIMIZED_FONT_PROVIDERS = [
   { url: GOOGLE_FONT_PROVIDER, preconnect: 'https://fonts.gstatic.com' },

@@ -65,16 +65,23 @@ export class ReadableStream<T> {
     let pullPromise: any
 
     let transformController: TransformStreamDefaultController
-    const { readable, writable } = new TransformStream({
-      start: (controller: TransformStreamDefaultController) => {
-        transformController = controller
+    const { readable, writable } = new TransformStream(
+      {
+        start: (controller: TransformStreamDefaultController) => {
+          transformController = controller
+        },
       },
-    })
+      undefined,
+      {
+        highWaterMark: 1,
+      }
+    )
 
     const writer = writable.getWriter()
+    const encoder = new TextEncoder()
     const controller: ReadableStreamController<T> = {
       get desiredSize() {
-        return writer.desiredSize
+        return transformController.desiredSize
       },
       close: () => {
         if (!closed) {
@@ -83,7 +90,7 @@ export class ReadableStream<T> {
         }
       },
       enqueue: (chunk: T) => {
-        writer.write(chunk)
+        writer.write(typeof chunk === 'string' ? encoder.encode(chunk) : chunk)
         pull()
       },
       error: (reason: any) => {

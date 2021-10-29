@@ -2,7 +2,7 @@
   "name": "@next/swc-win32-arm64-msvc",
   "version": "0.0.0",
   "os": [
-    "darwin"
+    "win32"
   ],
   "cpu": [
     "arm64"

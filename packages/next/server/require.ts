@@ -55,6 +55,7 @@ export function getPagePath(
   if (!pagePath) {
     throw pageNotFoundError(page)
   }
+
   return join(serverBuildPath, pagePath)
 }
 

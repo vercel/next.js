@@ -64,6 +64,7 @@ interface PreflightData {
   redirect?: string | null
   refresh?: boolean
   rewrite?: string | null
+  ssr?: boolean
 }
 
 type PreflightEffect =
@@ -474,6 +475,7 @@ export type CompletePrivateRouteInfo = {
   styleSheets: StyleSheetTuple[]
   __N_SSG?: boolean
   __N_SSP?: boolean
+  __N_RSC?: boolean
   props?: Record<string, any>
   err?: Error
   error?: any
@@ -510,7 +512,11 @@ const manualScrollRestoration =
 
 const SSG_DATA_NOT_FOUND = Symbol('SSG_DATA_NOT_FOUND')
 
-function fetchRetry(url: string, attempts: number): Promise<any> {
+function fetchRetry(
+  url: string,
+  attempts: number,
+  opts: { text?: boolean }
+): Promise<any> {
   return fetch(url, {
     // Cookies are required to be present for Next.js' SSG "Preview Mode".
     // Cookies may also be required for `getServerSideProps`.
@@ -527,7 +533,7 @@ function fetchRetry(url: string, attempts: number): Promise<any> {
   }).then((res) => {
     if (!res.ok) {
       if (attempts > 1 && res.status >= 500) {
-        return fetchRetry(url, attempts - 1)
+        return fetchRetry(url, attempts - 1, opts)
       }
       if (res.status === 404) {
         return res.json().then((data) => {
@@ -539,13 +545,14 @@ function fetchRetry(url: string, attempts: number): Promise<any> {
       }
       throw new Error(`Failed to load static props`)
     }
-    return res.json()
+    return opts.text ? res.text() : res.json()
   })
 }
 
 function fetchNextData(
   dataHref: string,
   isServerRender: boolean,
+  text: boolean | undefined,
   inflightCache: NextDataCache,
   persistCache: boolean
 ) {
@@ -554,7 +561,11 @@ function fetchNextData(
   if (inflightCache[cacheKey] !== undefined) {
     return inflightCache[cacheKey]
   }
-  return (inflightCache[cacheKey] = fetchRetry(dataHref, isServerRender ? 3 : 1)
+  return (inflightCache[cacheKey] = fetchRetry(
+    dataHref,
+    isServerRender ? 3 : 1,
+    { text }
+  )
     .catch((err: Error) => {
       // We should only trigger a server-side transition if this was caused
       // on a client-side transition. Otherwise, we'd get into an infinite
@@ -671,6 +682,7 @@ export default class Router implements BaseRouter {
         err,
         __N_SSG: initialProps && initialProps.__N_SSG,
         __N_SSP: initialProps && initialProps.__N_SSP,
+        __N_RSC: !!(Component as any)?.__next_rsc__,
       }
     }
 
@@ -1466,9 +1478,10 @@ export default class Router implements BaseRouter {
           styleSheets: res.styleSheets,
           __N_SSG: res.mod.__N_SSG,
           __N_SSP: res.mod.__N_SSP,
+          __N_RSC: !!(res.page as any).__next_rsc__,
         })))
 
-      const { Component, __N_SSG, __N_SSP } = routeInfo
+      const { Component, __N_SSG, __N_SSP, __N_RSC } = routeInfo
 
       if (process.env.NODE_ENV !== 'production') {
         const { isValidElementType } = require('react-is')
@@ -1481,13 +1494,14 @@ export default class Router implements BaseRouter {
 
       let dataHref: string | undefined
 
-      if (__N_SSG || __N_SSP) {
-        dataHref = this.pageLoader.getDataHref(
-          formatWithValidation({ pathname, query }),
-          resolvedAs,
-          __N_SSG,
-          this.locale
-        )
+      if (__N_SSG || __N_SSP || __N_RSC) {
+        dataHref = this.pageLoader.getDataHref({
+          href: formatWithValidation({ pathname, query }),
+          asPath: resolvedAs,
+          ssg: __N_SSG,
+          rsc: __N_RSC,
+          locale: this.locale,
+        })
       }
 
       const props = await this._getData<CompletePrivateRouteInfo>(() =>
@@ -1495,6 +1509,7 @@ export default class Router implements BaseRouter {
           ? fetchNextData(
               dataHref!,
               this.isSsr,
+              false,
               __N_SSG ? this.sdc : this.sdr,
               !!__N_SSG
             )
@@ -1511,6 +1526,16 @@ export default class Router implements BaseRouter {
               } as any
             )
       )
+
+      if (__N_RSC) {
+        const { fresh, data } = (await this._getData(() =>
+          this._getFlightData(dataHref!)
+        )) as { fresh: boolean; data: string }
+        ;(props as any).pageProps = Object.assign((props as any).pageProps, {
+          __flight_serialized__: data,
+          __flight_fresh__: fresh,
+        })
+      }
 
       routeInfo.props = props
       this.components[route] = routeInfo
@@ -1693,15 +1718,17 @@ export default class Router implements BaseRouter {
       this.pageLoader._isSsg(route).then((isSsg: boolean) => {
         return isSsg
           ? fetchNextData(
-              this.pageLoader.getDataHref(
-                url,
-                resolvedAs,
-                true,
-                typeof options.locale !== 'undefined'
-                  ? options.locale
-                  : this.locale
-              ),
+              this.pageLoader.getDataHref({
+                href: url,
+                asPath: resolvedAs,
+                ssg: true,
+                locale:
+                  typeof options.locale !== 'undefined'
+                    ? options.locale
+                    : this.locale,
+              }),
               false,
+              false, // text
               this.sdc,
               true
             )
@@ -1765,6 +1792,21 @@ export default class Router implements BaseRouter {
     })
   }
 
+  _getFlightData(dataHref: string): Promise<object> {
+    const { href: cacheKey } = new URL(dataHref, window.location.href)
+
+    if (!this.isPreview && this.sdc[cacheKey]) {
+      return Promise.resolve({ fresh: false, data: this.sdc[cacheKey] })
+    }
+
+    return fetchNextData(dataHref, true, true, this.sdc, false).then(
+      (serialized) => {
+        this.sdc[cacheKey] = serialized
+        return { fresh: true, data: serialized }
+      }
+    )
+  }
+
   async _preflightRequest(options: {
     as: string
     cache?: boolean
@@ -1777,9 +1819,9 @@ export default class Router implements BaseRouter {
       this.locale
     )
 
-    const fns: string[] = await this.pageLoader.getMiddlewareList()
-    const requiresPreflight = fns.some((middleware) => {
-      return getRouteMatcher(getMiddlewareRegex(middleware))(cleanedAs)
+    const fns: [string, boolean][] = await this.pageLoader.getMiddlewareList()
+    const requiresPreflight = fns.some(([middleware, isSSR]) => {
+      return getRouteMatcher(getMiddlewareRegex(middleware, !isSSR))(cleanedAs)
     })
 
     if (!requiresPreflight) {
@@ -1859,7 +1901,8 @@ export default class Router implements BaseRouter {
       }
     }
 
-    if (preflight.refresh) {
+    // For SSR requests, they will be handled like normal pages.
+    if (preflight.refresh && !preflight.ssr) {
       return {
         type: 'refresh',
       }
@@ -1900,6 +1943,7 @@ export default class Router implements BaseRouter {
           redirect: res.headers.get('Location'),
           refresh: res.headers.has('x-middleware-refresh'),
           rewrite: res.headers.get('x-middleware-rewrite'),
+          ssr: !!res.headers.get('x-middleware-ssr'),
         }
       })
       .then((data) => {
