@@ -348,7 +348,7 @@ export default async function getBaseWebpackConfig(
     name: 'react-dom',
   })
   const isReactExperimental =
-    !!reactDomVersion && /0\.0\.0-experimental/.test(reactDomVersion)
+    Boolean(reactDomVersion) && /0\.0\.0-experimental/.test(reactDomVersion)
   const hasReact18: boolean =
     Boolean(reactDomVersion) &&
     (semver.gte(reactDomVersion!, '18.0.0') ||
