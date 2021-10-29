@@ -224,9 +224,11 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
   let { children, replace, shallow, scroll, locale } = props
 
   if (typeof children === 'string') {
-    console.warn(
-      `Warning: You're using a string directly inside <Link>. This usage has been deprecated. Please add an <a> tag as child of <Link>`
-    )
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn(
+        `Warning: You're using a string directly inside <Link>. This usage has been deprecated. Please add an <a> tag as child of <Link>`
+      )
+    }
     children = <a>{children}</a>
   }
 
