@@ -722,6 +722,9 @@ function runTests(mode) {
       expect(warnings).not.toMatch(
         /Image with src (.*)gif(.*) has a "loader" property that does not implement width/gm
       )
+      expect(warnings).not.toMatch(
+        /Image with src (.*)tiff(.*) has a "loader" property that does not implement width/gm
+      )
     })
   } else {
     //server-only tests
