@@ -48,6 +48,7 @@ pub mod minify;
 pub mod next_dynamic;
 pub mod next_ssg;
 pub mod page_config;
+mod parse;
 pub mod styled_jsx;
 mod transform;
 mod util;
