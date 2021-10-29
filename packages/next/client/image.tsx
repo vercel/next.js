@@ -451,13 +451,16 @@ export default function Image({
     }
 
     if (!unoptimized) {
-      const rand = Math.floor(Math.random() * 1000) + 100
-      const url = loader({ src, width: rand, quality: 75 })
-      if (
-        !url.includes(rand.toString()) &&
-        !url.includes('w=') &&
-        !url.includes('width=')
-      ) {
+      const urlStr = loader({
+        src,
+        width: widthInt || 400,
+        quality: qualityInt || 75,
+      })
+      let url: URL | undefined
+      try {
+        url = new URL(urlStr)
+      } catch (err) {}
+      if (urlStr === src || (url && url.pathname === src && !url.search)) {
         console.warn(
           `Image with src "${src}" has a "loader" property that does not implement width. Please implement it or use the "unoptimized" property instead.` +
             `\nRead more: https://nextjs.org/docs/messages/next-image-missing-loader-width`
