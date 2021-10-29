@@ -24,7 +24,7 @@ const {
 const prefix = assetPrefix || ''
 const webpackHMR = initWebpackHMR()
 
-connectHMR({ path: `${prefix}/_next/webpack-hmr` })
+connectHMR({ assetPrefix: prefix, path: '/_next/webpack-hmr' })
 
 window.next = {
   version,
