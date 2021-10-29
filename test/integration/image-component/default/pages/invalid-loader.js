@@ -20,18 +20,27 @@ const Page = () => {
         loader={({ src, width }) => `${src}/${width}/file.jpg`}
       />
       <Image
-        id="width-querystring"
+        id="width-querystring-w"
         src="/test.webp"
         width={100}
         height={100}
         loader={({ src, width }) => `${src}?w=${width / 2}`}
       />
       <Image
-        id="width-querystring-full"
+        id="width-querystring-width"
         src="/test.gif"
         width={100}
         height={100}
-        loader={({ src, width }) => `${src}?width=${width * 2}`}
+        loader={({ src, width }) =>
+          `https://example.com${src}?width=${width * 2}`
+        }
+      />
+      <Image
+        id="width-querystring-size"
+        src="/test.tiff"
+        width={100}
+        height={100}
+        loader={({ src }) => `https://example.com${src}?size=medium`}
       />
       <footer>footer</footer>
     </div>
