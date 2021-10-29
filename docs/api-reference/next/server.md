@@ -4,7 +4,7 @@ description: Use Middleware to run code before a request is completed.
 
 # next/server
 
-The `next/server` module provides several exports for server-only helpers, such as [Middleware](/docs/middleware).
+The `next/server` module provides several exports for server-only helpers, such as [Middleware](/docs/middleware.md).
 
 ## NextMiddleware
 
