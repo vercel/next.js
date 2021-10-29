@@ -96,13 +96,16 @@ const matchNextPageBundleRequest = route(
   '/_next/static/chunks/pages/:path*.js(\\.map|)'
 )
 
-// Recursively look up the issuer till it ends up at the root
-function findEntryModule(issuer: any): any {
-  if (issuer.issuer) {
-    return findEntryModule(issuer.issuer)
+// Iteratively look up the issuer till it ends up at the root
+function findEntryModule(
+  module: webpack5.Module,
+  compilation: webpack5.Compilation
+): any {
+  for (;;) {
+    const issuer = compilation.moduleGraph.getIssuer(module)
+    if (!issuer) return module
+    module = issuer
   }
-
-  return issuer
 }
 
 function erroredPages(compilation: webpack5.Compilation) {
@@ -112,7 +115,7 @@ function erroredPages(compilation: webpack5.Compilation) {
       continue
     }
 
-    const entryModule = findEntryModule(error.module)
+    const entryModule = findEntryModule(error.module, compilation)
     const { name } = entryModule
     if (!name) {
       continue

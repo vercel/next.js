@@ -48,7 +48,7 @@ function formatMessage(message, verbose) {
       (message.file ? stripAnsi(message.file) + '\n' : '') +
       message.message +
       (message.details && verbose ? '\n' + message.details : '') +
-      (filteredModuleTrace && filteredModuleTrace.length && verbose
+      (filteredModuleTrace && filteredModuleTrace.length
         ? '\n\nImport trace for requested module:' +
           filteredModuleTrace.map((trace) => `\n${trace.originName}`).join('')
         : '') +
@@ -132,6 +132,13 @@ function formatMessage(message, verbose) {
       ''
     ) // at ... ...:x:y
     message = message.replace(/^\s*at\s<anonymous>(\n|$)/gm, '') // at <anonymous>
+
+    // Information about next.js internal loaders can be stripped
+    message = message.replace(
+      /File was processed with these loaders:\n(.+[\\/](next[\\/]dist[\\/].+|@next[\\/]react-refresh-utils[\\/]loader)\.js\n)*You may need an additional loader to handle the result of these loaders.\n/g,
+      ''
+    )
+
     lines = message.split('\n')
   }
 
