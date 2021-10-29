@@ -361,7 +361,8 @@ export default async function getBaseWebpackConfig(
   const hasReactRoot: boolean =
     config.experimental.reactRoot || hasReact18 || isReactExperimental
 
-  if (!hasReact18 && config.experimental.reactRoot) {
+  if (config.experimental.reactRoot && !(hasReact18 || isReactExperimental)) {
+    // It's fine to only mention React 18 here as we don't recommend people to try experimental.
     Log.warn('You have to use React 18 to use `experimental.reactRoot`.')
   }
   if (config.experimental.concurrentFeatures && !hasReactRoot) {
