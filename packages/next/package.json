@@ -56,7 +56,7 @@
     "types": "tsc --declaration --emitDeclarationOnly --declarationDir dist",
     "typescript": "tsc --noEmit --declaration",
     "ncc-compiled": "ncc cache clean && taskr ncc",
-    "build-native": "npx -p @napi-rs/cli@1.2.1 napi build --platform --release --cargo-cwd build/swc native"
+    "build-native": "npx -p @napi-rs/cli@1.2.1 napi build --platform --cargo-cwd build/swc native"
   },
   "taskr": {
     "requires": [
@@ -71,7 +71,7 @@
     "@next/polyfill-module": "12.0.2-canary.9",
     "@next/react-dev-overlay": "12.0.2-canary.9",
     "@next/react-refresh-utils": "12.0.2-canary.9",
-    "@node-rs/helper": "1.2.1",
+    "@napi-rs/triples": "1.0.3",
     "acorn": "8.5.0",
     "assert": "2.0.0",
     "browserify-zlib": "0.2.0",

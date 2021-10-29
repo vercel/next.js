@@ -3553,12 +3553,67 @@
     toml "^3.0.0"
     tslib "^2.2.0"
 
-"@napi-rs/triples@^1.0.3":
+"@napi-rs/triples@1.0.3", "@napi-rs/triples@^1.0.3":
   version "1.0.3"
   resolved "https://registry.yarnpkg.com/@napi-rs/triples/-/triples-1.0.3.tgz#76d6d0c3f4d16013c61e45dfca5ff1e6c31ae53c"
   integrity sha512-jDJTpta+P4p1NZTFVLHJ/TLFVYVcOqv6l8xwOeBKNPMgY/zDYH/YH7SJbvrr/h1RcS9GzbPcLKGzpuK9cV56UA==
 
-"@node-rs/helper@1.2.1", "@node-rs/helper@^1.0.0":
+"@next/swc-android-arm64@canary":
+  version "12.0.2-canary.6"
+  resolved "https://registry.yarnpkg.com/@next/swc-android-arm64/-/swc-android-arm64-12.0.2-canary.6.tgz#565ae8142102059cc2ae287daac31567855e1eb3"
+  integrity sha512-1wwB9DOPRrlyLFud16NzszDuaI+Tv8AoD0oGTtropjyXlVZTWQb2YDqCZScCaOdnAs1Vc/MDF07bdXIpC3If0g==
+
+"@next/swc-darwin-arm64@canary":
+  version "12.0.2-canary.5"
+  resolved "https://registry.yarnpkg.com/@next/swc-darwin-arm64/-/swc-darwin-arm64-12.0.2-canary.5.tgz#bc76e5432d15bfd293bcd0be8972a82eadcbdc5f"
+  integrity sha512-6ro6LoIjF5eMjadwNDdESge7XNsZfC9xcbmPX45jzLSI/W3Q7LFBBrxkwFGME/FYJWJrabgRaQd6wBH0+mQKYQ==
+
+"@next/swc-darwin-x64@canary":
+  version "12.0.2-canary.6"
+  resolved "https://registry.yarnpkg.com/@next/swc-darwin-x64/-/swc-darwin-x64-12.0.2-canary.6.tgz#90c11c8f6526bad08769a710d83d3eebb5ac9dfe"
+  integrity sha512-tSLZoEBb4DipRK20Gy15iwe44pXYnSzkP2bb+oXRXYnf/TqSr4cLqRtImw+hVm+uBtX5TCQwhDwMJPLX1C9pAg==
+
+"@next/swc-linux-arm-gnueabihf@canary":
+  version "12.0.2-canary.6"
+  resolved "https://registry.yarnpkg.com/@next/swc-linux-arm-gnueabihf/-/swc-linux-arm-gnueabihf-12.0.2-canary.6.tgz#a5c06dd79c3f3e4da74ac84e42538a26bf87fc88"
+  integrity sha512-WIsTGpOBRcDG2S9gllyM/BswBNnD1oYt8V6PHZGCk1+MvY73IvjvuW2Mq/w7kT8onWzqe6mJec+DdoBKXpZMSQ==
+
+"@next/swc-linux-arm64-gnu@canary":
+  version "12.0.2-canary.6"
+  resolved "https://registry.yarnpkg.com/@next/swc-linux-arm64-gnu/-/swc-linux-arm64-gnu-12.0.2-canary.6.tgz#0b371b7bb2e7036581b54dc28c5deb9fa47b22df"
+  integrity sha512-Wv1mVMkhVU027Bai9c3pKlRTFE/4lrYkA5E4naiQnTIgyh6zf/y7DK7BaQVqQdcAAV7OxcQu7AHSdA1Lco9YOQ==
+
+"@next/swc-linux-arm64-musl@canary":
+  version "12.0.2-canary.6"
+  resolved "https://registry.yarnpkg.com/@next/swc-linux-arm64-musl/-/swc-linux-arm64-musl-12.0.2-canary.6.tgz#a2ada1198e59d5c37c86fc93a16bf8b48aa104eb"
+  integrity sha512-+7LL9Zsk+JemQ1qSju/bwv9tqMdD+xHsTuudbqkui+/2D0l+lGjf5xuVJd+1BLXJMJm1l0eD/ZOTdzo6UT9fdQ==
+
+"@next/swc-linux-x64-gnu@canary":
+  version "12.0.2-canary.6"
+  resolved "https://registry.yarnpkg.com/@next/swc-linux-x64-gnu/-/swc-linux-x64-gnu-12.0.2-canary.6.tgz#f25441bbd9aa8b39eca9056900762e68ebaf4fe5"
+  integrity sha512-3qLl07K+EYCM9eQlogg0GX/A7rPLecMKU/2Aq6iSvdPALzBfRxuYQNR9RgRvIzxcaGqPJmwEKm/+omTJakYnOg==
+
+"@next/swc-linux-x64-musl@canary":
+  version "12.0.2-canary.2"
+  resolved "https://registry.yarnpkg.com/@next/swc-linux-x64-musl/-/swc-linux-x64-musl-12.0.2-canary.2.tgz#b3ce05442610e16d50cba8302f243bebdc2d61bc"
+  integrity sha512-RnWuxoHmYB4JEo0Yt9pdx5+8mbqvxr0vfULPWOzY03qLILNQakYFuZzKgtuE3DkFYeJF7yEtEAMhJ0cAwVKRSw==
+
+"@next/swc-win32-arm64-msvc@canary":
+  version "12.0.2-canary.6"
+  resolved "https://registry.yarnpkg.com/@next/swc-win32-arm64-msvc/-/swc-win32-arm64-msvc-12.0.2-canary.6.tgz#1a8bbc514bcf544f6fe718a4394c3f236d847e90"
+  integrity sha512-2JPb7/8Dh1LS1iNC96hyWpZ4DFPi31m+bCMT1E5HaXkj75hkVjGFTNGiN3WRQ0t30kGIaBwhEh9scEWoyTcGyw==
+
+"@next/swc-win32-ia32-msvc@canary":
+  version "12.0.2-canary.6"
+  resolved "https://registry.yarnpkg.com/@next/swc-win32-ia32-msvc/-/swc-win32-ia32-msvc-12.0.2-canary.6.tgz#5b97d35e13c6877efb9701f91bd8dc6a0e0763f9"
+  integrity sha512-qHczht2xKYMi/ufz1zahihrmToCKUvkwz3Rdn4M8GRbYyKlrlmiv/hRskjVx6iyU34LUPzGWasaL/xcckMe00w==
+
+"@next/swc-win32-x64-msvc@canary":
+  version "12.0.2-canary.6"
+  resolved "https://registry.yarnpkg.com/@next/swc-win32-x64-msvc/-/swc-win32-x64-msvc-12.0.2-canary.6.tgz#031d808abd611a22e8c930baf8c15991bacb8112"
+  integrity sha512-ndmHXAtMwHr98HulDWNtVEXQXS/aXrQZncLCCtkKMztqGSExLYZtjrGpHnFuKfcuwGEC9izmnVDpm5hG0rPxbQ==
+
+"@node-rs/helper@^1.0.0":
   version "1.2.1"
   resolved "https://registry.yarnpkg.com/@node-rs/helper/-/helper-1.2.1.tgz#e079b05f21ff4329d82c4e1f71c0290e4ecdc70c"
   integrity sha512-R5wEmm8nbuQU0YGGmYVjEc0OHtYsuXdpRG+Ut/3wZ9XAvQWyThN08bTh2cBJgoZxHQUPtvRfeQuxcAgLuiBISg==

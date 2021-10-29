@@ -100,6 +100,10 @@ module.exports = (actionInfo) => {
         // make sure native binaries are included in local linking
         if (pkg === 'next') {
           pkgData.files.push('native')
+          console.log(
+            'using swc binaries: ',
+            await exec(`ls ${path.join(path.dirname(pkgDataPath), 'native')}`)
+          )
         }
         await fs.writeFile(
           pkgDataPath,
