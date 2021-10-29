@@ -198,15 +198,3 @@ export async function getStaticProps({ params }) {
 
 export default Post
 ```
-
-## TypeScript: Use `GetStaticPaths`
-
-For TypeScript, you can use the `GetStaticPaths` type from `next`:
-
-```ts
-import { GetStaticPaths } from 'next'
-
-export const getStaticPaths: GetStaticPaths = async () => {
-  // ...
-}
-```

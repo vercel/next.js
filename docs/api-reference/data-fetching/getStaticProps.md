@@ -137,46 +137,6 @@ export async function getStaticProps(context) {
 
 Redirecting at build-time is currently not allowed and if the redirects are known at build-time they should be added in [`next.config.js`](/docs/api-reference/next.config.js/redirects.md).
 
-## TypeScript: Use `GetStaticProps`
-
-You can use the `GetStaticProps` type from `next` to type the function:
-
-```ts
-import { GetStaticProps } from 'next'
-
-export const getStaticProps: GetStaticProps = async (context) => {
-  // ...
-}
-```
-
-If you want to get inferred typings for your props, you can use `InferGetStaticPropsType<typeof getStaticProps>`:
-
-```tsx
-import { InferGetStaticPropsType } from 'next'
-
-type Post = {
-  author: string
-  content: string
-}
-
-export const getStaticProps = async () => {
-  const res = await fetch('https://.../posts')
-  const posts: Post[] = await res.json()
-
-  return {
-    props: {
-      posts,
-    },
-  }
-}
-
-function Blog({ posts }: InferGetStaticPropsType<typeof getStaticProps>) {
-  // will resolve posts to type Post[]
-}
-
-export default Blog
-```
-
 ## Reading files: Use `process.cwd()`
 
 Files can be read directly from the filesystem in `getStaticProps`.

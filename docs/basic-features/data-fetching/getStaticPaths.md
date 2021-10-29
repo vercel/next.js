@@ -25,6 +25,18 @@ The [`getStaticPaths` API reference](/docs/api-reference/data-fetching/getStatic
 
 You should use `getStaticPaths` if you’re statically pre-rendering pages that use dynamic routes.
 
+## TypeScript: Use `GetStaticPaths`
+
+For TypeScript, you can use the `GetStaticPaths` type from `next`:
+
+```ts
+import { GetStaticPaths } from 'next'
+
+export const getStaticPaths: GetStaticPaths = async () => {
+  // ...
+}
+```
+
 ## Technical details
 
 ### Use together with [`getStaticProps`](/docs/basic-features/data-fetching/getStaticProps.md)
