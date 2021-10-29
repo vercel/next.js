@@ -4,7 +4,7 @@ import dynamic from 'next/dynamic'
 let ssr
 const suspense = false
 
-const Hello = dynamic(() => import('./hello'), {
+const Hello = dynamic(() => import(/* webpackMode: "eager" */ './hello'), {
   ssr,
   suspense,
 })

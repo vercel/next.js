@@ -283,7 +283,11 @@ function handleLoading(
               console.warn(
                 `Image with src "${src}" may not render properly as a child of a flex container. Consider wrapping the image with a div to configure the width.`
               )
-            } else if (layout === 'fill' && parent.position !== 'relative') {
+            } else if (
+              layout === 'fill' &&
+              parent.position !== 'relative' &&
+              parent.position !== 'fixed'
+            ) {
               console.warn(
                 `Image with src "${src}" may not render properly with a parent using position:"${parent.position}". Consider changing the parent style to position:"relative" with a width and height.`
               )
@@ -445,18 +449,27 @@ export default function Image({
         `Image with src "${src}" is using unsupported "style" property. Please use the "className" property instead.`
       )
     }
-    const rand = Math.floor(Math.random() * 1000) + 100
-    if (
-      !unoptimized &&
-      !loader({ src, width: rand, quality: 75 }).includes(rand.toString())
-    ) {
-      console.warn(
-        `Image with src "${src}" has a "loader" property that does not implement width. Please implement it or use the "unoptimized" property instead.` +
-          `\nRead more: https://nextjs.org/docs/messages/next-image-missing-loader-width`
-      )
+
+    if (!unoptimized) {
+      const rand = Math.floor(Math.random() * 1000) + 100
+      const url = loader({ src, width: rand, quality: 75 })
+      if (
+        !url.includes(rand.toString()) &&
+        !url.includes('w=') &&
+        !url.includes('width=')
+      ) {
+        console.warn(
+          `Image with src "${src}" has a "loader" property that does not implement width. Please implement it or use the "unoptimized" property instead.` +
+            `\nRead more: https://nextjs.org/docs/messages/next-image-missing-loader-width`
+        )
+      }
     }
 
-    if (typeof window !== 'undefined' && !perfObserver) {
+    if (
+      typeof window !== 'undefined' &&
+      !perfObserver &&
+      window.PerformanceObserver
+    ) {
       perfObserver = new PerformanceObserver((entryList) => {
         for (const entry of entryList.getEntries()) {
           // @ts-ignore - missing "LargestContentfulPaint" class with "element" prop

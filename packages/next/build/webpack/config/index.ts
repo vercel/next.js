@@ -12,6 +12,8 @@ export async function build(
     customAppFile,
     isDevelopment,
     isServer,
+    webServerRuntime,
+    targetWeb,
     assetPrefix,
     sassOptions,
     productionBrowserSourceMaps,
@@ -22,6 +24,8 @@ export async function build(
     customAppFile: RegExp
     isDevelopment: boolean
     isServer: boolean
+    webServerRuntime: boolean
+    targetWeb: boolean
     assetPrefix: string
     sassOptions: any
     productionBrowserSourceMaps: boolean
@@ -35,7 +39,9 @@ export async function build(
     isDevelopment,
     isProduction: !isDevelopment,
     isServer,
+    webServerRuntime,
     isClient: !isServer,
+    targetWeb,
     assetPrefix: assetPrefix
       ? assetPrefix.endsWith('/')
         ? assetPrefix.slice(0, -1)

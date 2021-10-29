@@ -9,8 +9,8 @@ function _iterableToArrayLimit(a, b) {
     var c = [], d = !0, e = !1, f = void 0;
     try {
         for(var g, h = a[Symbol.iterator](); !(d = (g = h.next()).done) && (c.push(g.value), !b || c.length !== b); d = !0);
-    } catch (a) {
-        e = !0, f = a;
+    } catch (i) {
+        e = !0, f = i;
     } finally{
         try {
             d || null == h.return || h.return();
@@ -26,7 +26,7 @@ function _nonIterableRest() {
 function _slicedToArray(a, b) {
     return _arrayWithHoles(a) || _iterableToArrayLimit(a, b) || _nonIterableRest();
 }
-var foo = _slicedToArray(a, 1)[0], Foo = function() {
+var _other = _slicedToArray(a, 1), foo = _other[0], Foo = function() {
     "use strict";
     _classCallCheck(this, Foo);
 };

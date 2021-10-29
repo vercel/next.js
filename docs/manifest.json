@@ -232,6 +232,10 @@
             {
               "title": "Security Headers",
               "path": "/docs/advanced-features/security-headers.md"
+            },
+            {
+              "title": "React 18",
+              "path": "/docs/advanced-features/react-18.md"
             }
           ]
         },
@@ -298,7 +302,7 @@
         },
         {
           "title": "Edge Runtime",
-          "path": "/docs/api-reference/next/edge-runtime.md"
+          "path": "/docs/api-reference/edge-runtime.md"
         },
         {
           "title": "Data Fetching",

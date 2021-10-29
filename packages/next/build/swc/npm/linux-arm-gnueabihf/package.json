@@ -2,10 +2,10 @@
   "name": "@next/swc-linux-arm-gnueabihf",
   "version": "0.0.0",
   "os": [
-    "darwin"
+    "linux"
   ],
   "cpu": [
-    "arm64"
+    "arm"
   ],
   "main": "next-swc.linux-arm-gnueabihf.node",
   "files": [

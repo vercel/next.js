@@ -5491,6 +5491,16 @@ acorn-walk@^8.0.0:
   resolved "https://registry.yarnpkg.com/acorn-walk/-/acorn-walk-8.0.0.tgz#56ae4c0f434a45fff4a125e7ea95fa9c98f67a16"
   integrity sha512-oZRad/3SMOI/pxbbmqyurIx7jHw1wZDcR9G44L8pUVFEomX/0dH89SrM1KaDXuv1NpzAXz6Op/Xu/Qd5XXzdEA==
 
+acorn@8.5.0, acorn@^8.3.0, acorn@^8.4.1:
+  version "8.5.0"
+  resolved "https://registry.yarnpkg.com/acorn/-/acorn-8.5.0.tgz#4512ccb99b3698c752591e9bb4472e38ad43cee2"
+  integrity sha512-yXbYeFy+jUuYd3/CDcg2NkIYE991XYX/bje7LmjJigUciaeO1JR4XxXgCIV1/Zc/dRuFEyw1L0pbA+qynJkW5Q==
+
+acorn@^6.2.1:
+  version "6.4.2"
+  resolved "https://registry.yarnpkg.com/acorn/-/acorn-6.4.2.tgz#35866fd710528e92de10cf06016498e47e39e1e6"
+  integrity sha512-XtGIhXwF8YM8bJhGxG5kXgjkEuNGLTkoYqVE+KMR+aspr4KGYmKYg7yUe3KghyQ9yheNwLnjmzh/7+gfDBmHCQ==
+
 acorn@^6.4.1:
   version "6.4.1"
   resolved "https://registry.yarnpkg.com/acorn/-/acorn-6.4.1.tgz#531e58ba3f51b9dacb9a6646ca4debf5b14ca474"
@@ -5518,11 +5528,6 @@ acorn@^8.2.4:
   version "8.4.1"
   resolved "https://registry.yarnpkg.com/acorn/-/acorn-8.4.1.tgz#56c36251fc7cabc7096adc18f05afe814321a28c"
   integrity sha512-asabaBSkEKosYKMITunzX177CXxQ4Q8BSSzMTKD+FefUhipQC70gfW5SiUDhYQ3vk8G+81HqQk7Fv9OXwwn9KA==
-
-acorn@^8.3.0, acorn@^8.4.1:
-  version "8.5.0"
-  resolved "https://registry.yarnpkg.com/acorn/-/acorn-8.5.0.tgz#4512ccb99b3698c752591e9bb4472e38ad43cee2"
-  integrity sha512-yXbYeFy+jUuYd3/CDcg2NkIYE991XYX/bje7LmjJigUciaeO1JR4XxXgCIV1/Zc/dRuFEyw1L0pbA+qynJkW5Q==
 
 add-stream@^1.0.0:
   version "1.0.0"
@@ -13858,6 +13863,7 @@ negotiator@0.6.2:
 neo-async@2.6.1:
   version "2.6.1"
   resolved "https://registry.yarnpkg.com/neo-async/-/neo-async-2.6.1.tgz#ac27ada66167fa8849a6addd837f6b189ad2081c"
+  integrity sha512-iyam8fBuCUpWeKPGpaNMetEocMt364qkCsfL9JuhjXX6dRnguRVOfk2GZaDpPjcOKiiXCPINZC1GczQ7iTq3Zw==
 
 neo-async@^2.5.0, neo-async@^2.6.0, neo-async@^2.6.1, neo-async@^2.6.2:
   version "2.6.2"
@@ -16344,22 +16350,22 @@ rc@^1.0.1, rc@^1.1.6, rc@^1.2.7, rc@^1.2.8:
     minimist "^1.2.0"
     strip-json-comments "~2.0.1"
 
-"react-18@npm:react@next":
-  version "18.0.0-alpha-996da67b2-20211018"
-  resolved "https://registry.yarnpkg.com/react/-/react-18.0.0-alpha-996da67b2-20211018.tgz#9b92e0f6e0dc69a7e7d85a591593bbd53e4d660f"
-  integrity sha512-N8FJrmv97+0bDyqCATzqBXwtdIleQccf950MeJEnQbufh/lA7bRphMXOC5H/99cQJ1gl4zFoXFCuaU+UGbS6HA==
+"react-18@npm:react@18.0.0-alpha-3c4c1c470-20211021":
+  version "18.0.0-alpha-3c4c1c470-20211021"
+  resolved "https://registry.yarnpkg.com/react/-/react-18.0.0-alpha-3c4c1c470-20211021.tgz#82d8d375d25e6022cee34031947537e44fcdee07"
+  integrity sha512-uuwpd6i7/SJZ5YeADm9ZYXWE0YNucKhcXXHRpNwSkFrKD3OUIH6rNme82q+jsWXzjZ0fIMhRgsKTaLXpcVYjZw==
   dependencies:
     loose-envify "^1.1.0"
     object-assign "^4.1.1"
 
-"react-dom-18@npm:react-dom@next":
-  version "18.0.0-alpha-996da67b2-20211018"
-  resolved "https://registry.yarnpkg.com/react-dom/-/react-dom-18.0.0-alpha-996da67b2-20211018.tgz#536b75359832644bae5343d638951e878b3bf438"
-  integrity sha512-cFhSJEZKsZONn5zhmD8n9FiAuAkzf0OrLxAdqCAHF6Dllp/p6lecOwptR46V7Q+ECu1zFV1CjAgU962Au/0CGA==
+"react-dom-18@npm:react-dom@18.0.0-alpha-3c4c1c470-20211021":
+  version "18.0.0-alpha-3c4c1c470-20211021"
+  resolved "https://registry.yarnpkg.com/react-dom/-/react-dom-18.0.0-alpha-3c4c1c470-20211021.tgz#74d34897397f9a5fda9c2fd9e349d908d374e8b9"
+  integrity sha512-n3Y8YMlwZ48joxM9z2MnDVZeWdsyn+TgY7H8HjuB/Z3BDv3TH088azv2oVpQpfNz2iV0apw6rxzbEpoUuHzQyw==
   dependencies:
     loose-envify "^1.1.0"
     object-assign "^4.1.1"
-    scheduler "0.21.0-alpha-996da67b2-20211018"
+    scheduler "0.21.0-alpha-3c4c1c470-20211021"
 
 react-dom@17.0.2:
   version "17.0.2"
@@ -16388,6 +16394,16 @@ react-refresh@0.8.3:
   version "0.8.3"
   resolved "https://registry.yarnpkg.com/react-refresh/-/react-refresh-0.8.3.tgz#721d4657672d400c5e3c75d063c4a85fb2d5d68f"
   integrity sha512-X8jZHc7nCMjaCqoU+V2I0cOhNW+QMBwSUkeXnTi8IPe6zaRWfn60ZzvFDZqWPfmSJfjub7dDW1SP0jaHWLu/hg==
+
+react-server-dom-webpack@0.0.0-experimental-3c4c1c470-20211021:
+  version "0.0.0-experimental-3c4c1c470-20211021"
+  resolved "https://registry.yarnpkg.com/react-server-dom-webpack/-/react-server-dom-webpack-0.0.0-experimental-3c4c1c470-20211021.tgz#cdcaa2f19c8d820c1f4d31252319fb05e2de0e88"
+  integrity sha512-YyRlED5kR0C2aQ3IJ/8BR2TELt51RcDZhnUDKz+m/HU+Gb/qak0CZkG0A8Zxffom9VI6HFkUj1dRFZqm0Lh9Pg==
+  dependencies:
+    acorn "^6.2.1"
+    loose-envify "^1.1.0"
+    neo-async "^2.6.1"
+    object-assign "^4.1.1"
 
 react-ssr-prepass@1.0.8:
   version "1.0.8"
@@ -17331,10 +17347,10 @@ saxes@^5.0.1:
   dependencies:
     xmlchars "^2.2.0"
 
-scheduler@0.21.0-alpha-996da67b2-20211018:
-  version "0.21.0-alpha-996da67b2-20211018"
-  resolved "https://registry.yarnpkg.com/scheduler/-/scheduler-0.21.0-alpha-996da67b2-20211018.tgz#de96129e104370b0a6c937c3d723d118f83afd41"
-  integrity sha512-7N20qihDl+CD+XFj8wwcqjArQ2UIW1xvwCBixHCKUAtJZ//4YYITfIjNpeci2OeYFw9RMiVabgF+LtzDT+64fw==
+scheduler@0.21.0-alpha-3c4c1c470-20211021:
+  version "0.21.0-alpha-3c4c1c470-20211021"
+  resolved "https://registry.yarnpkg.com/scheduler/-/scheduler-0.21.0-alpha-3c4c1c470-20211021.tgz#5c786383bbf1fe09a108c4f7d78e7d16eb75d338"
+  integrity sha512-G8N3UiaKIy5hGBY8Imy/fNHdslvMNK/7PbzrSS0BG2o2zFX6V/i9QBiEZ+PshVbMNH3OwihHO5LSrmAZHkwZoQ==
   dependencies:
     loose-envify "^1.1.0"
     object-assign "^4.1.1"

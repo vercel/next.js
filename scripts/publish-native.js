@@ -17,28 +17,42 @@ const cwd = process.cwd()
     // Copy binaries to package folders, update version, and publish
     let nativePackagesDir = path.join(cwd, 'packages/next/build/swc/npm')
     let platforms = (await readdir(nativePackagesDir)).filter(
-      (name) => name !== '.gitignore'
+      (name) => !name.startsWith('.')
     )
+
+    const publishedPkgs = new Set()
+    // TODO: update to latest version where all pacakges were
+    // successfully published
+    const fallbackVersion = `12.0.1`
+
     for (let platform of platforms) {
-      let binaryName = `next-swc.${platform}.node`
-      await copy(
-        path.join(cwd, 'packages/next/build/swc/dist', binaryName),
-        path.join(nativePackagesDir, platform, binaryName)
-      )
-      let pkg = JSON.parse(
-        await readFile(path.join(nativePackagesDir, platform, 'package.json'))
-      )
-      pkg.version = version
-      await writeFile(
-        path.join(nativePackagesDir, platform, 'package.json'),
-        JSON.stringify(pkg, null, 2)
-      )
-      execSync(
-        `npm publish ${path.join(
-          nativePackagesDir,
-          platform
-        )} --access public ${gitref.includes('canary') ? ' --tag canary' : ''}`
-      )
+      try {
+        let binaryName = `next-swc.${platform}.node`
+        await copy(
+          path.join(cwd, 'packages/next/build/swc/dist', binaryName),
+          path.join(nativePackagesDir, platform, binaryName)
+        )
+        let pkg = JSON.parse(
+          await readFile(path.join(nativePackagesDir, platform, 'package.json'))
+        )
+        pkg.version = version
+        await writeFile(
+          path.join(nativePackagesDir, platform, 'package.json'),
+          JSON.stringify(pkg, null, 2)
+        )
+        execSync(
+          `npm publish ${path.join(
+            nativePackagesDir,
+            platform
+          )} --access public ${
+            gitref.includes('canary') ? ' --tag canary' : ''
+          }`
+        )
+        publishedPkgs.add(platform)
+      } catch (err) {
+        // don't block publishing other versions on single platform error
+        console.error(`Failed to publish`, platform, err)
+      }
       // lerna publish in next step will fail if git status is not clean
       execSync(
         `git update-index --skip-worktree ${path.join(
@@ -55,7 +69,11 @@ const cwd = process.cwd()
     )
     for (let platform of platforms) {
       let optionalDependencies = nextPkg.optionalDependencies || {}
-      optionalDependencies['@next/swc-' + platform] = version
+      optionalDependencies['@next/swc-' + platform] = publishedPkgs.has(
+        platform
+      )
+        ? version
+        : fallbackVersion
       nextPkg.optionalDependencies = optionalDependencies
     }
     await writeFile(

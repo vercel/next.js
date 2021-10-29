@@ -2,6 +2,7 @@
 declare module 'next/dist/compiled/babel/plugin-transform-modules-commonjs'
 declare module 'next/dist/compiled/babel/plugin-syntax-jsx'
 declare module 'browserslist'
+
 declare module 'cssnano-simple' {
   const cssnanoSimple: any
   export = cssnanoSimple
