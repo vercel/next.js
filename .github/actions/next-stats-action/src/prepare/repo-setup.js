@@ -10,6 +10,12 @@ module.exports = (actionInfo) => {
     async cloneRepo(repoPath = '', dest = '') {
       await remove(dest)
       await exec(`git clone ${actionInfo.gitRoot}${repoPath} ${dest}`)
+      await exec(
+        `cp -r ${path.join(__dirname, '../../native')} ${path.join(
+          dest,
+          'packages/next/native'
+        )}`
+      )
     },
     async checkoutRef(ref = '', repoDir = '') {
       await exec(`cd ${repoDir} && git fetch && git checkout ${ref}`)
