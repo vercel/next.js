@@ -29,7 +29,6 @@ export default function middlewareRSCLoader(this: any) {
         import { renderToHTML } from 'next/dist/server/web/render'
 
         import React, { createElement } from 'react'
-        import ReactDOMServer from 'react-dom/server.browser'
 
         ${
           isServerComponent
