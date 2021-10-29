@@ -22,7 +22,7 @@ export async function middleware(request, ev) {
 
   // Ensure deep can append to this value
   if (url.searchParams.get('cookie-me') === 'true') {
-    next.headers.append('set-cookie', 'chocochip')
+    next.headers.append('set-cookie', 'bar=chocochip')
   }
 
   // Sends a header
