@@ -1,6 +1,28 @@
 import loaderUtils from 'next/dist/compiled/loader-utils'
 import { getStringifiedAbsolutePath } from './utils'
 
+const fallbackDocumentPage = `
+import { Html, Head, Main, NextScript } from 'next/document'
+
+function Document() {
+  return (
+    jsx(Html, null, 
+      jsx(Head),
+      jsx('body', null,
+        jsx(Main),
+        jsx(NextScript),
+      ),
+    )
+  )
+}
+`
+
+const fallbackAppPage = `
+function App({ Component, pageProps }) {
+  return jsx(Component, pageProps)
+}
+`
+
 export default function middlewareRSCLoader(this: any) {
   const {
     absolutePagePath,
@@ -22,6 +44,18 @@ export default function middlewareRSCLoader(this: any) {
     './pages/_app'
   )
 
+  const fs = this.fs.fileSystem
+  const hasProvidedAppPage = fs.existsSync(stringifiedAbsoluteAppPath)
+  const hasProvidedDocumentPage = fs.existsSync(stringifiedAbsoluteDocumentPath)
+
+  let appDefinition = hasProvidedDocumentPage
+    ? `const Document = require(${stringifiedAbsoluteAppPath})}).default`
+    : fallbackAppPage
+
+  let documentDefinition = hasProvidedAppPage
+    ? `const Document = require(${stringifiedAbsoluteDocumentPath})}).default`
+    : fallbackDocumentPage
+
   const transformed = `
         import { adapter } from 'next/dist/server/web/adapter'
 
@@ -38,15 +72,17 @@ export default function middlewareRSCLoader(this: any) {
             : ''
         }
 
-        var {
+        const jsx = createElement
+        ${appDefinition}
+        ${documentDefinition}
+        
+        const {
           default: Page,
           config,
           getStaticProps,
           getServerSideProps,
           getStaticPaths
         } = require(${stringifiedAbsolutePagePath})
-        var Document = require(${stringifiedAbsoluteDocumentPath}).default
-        var App = require(${stringifiedAbsoluteAppPath}).default
 
         const buildManifest = self.__BUILD_MANIFEST
         const reactLoadableManifest = self.__REACT_LOADABLE_MANIFEST
@@ -57,11 +93,11 @@ export default function middlewareRSCLoader(this: any) {
         }
 
         function wrapReadable (readable) {
-          var encoder = new TextEncoder()
-          var transformStream = new TransformStream()
-          var writer = transformStream.writable.getWriter()
-          var reader = readable.getReader()
-          var process = () => {
+          const encoder = new TextEncoder()
+          const transformStream = new TransformStream()
+          const writer = transformStream.writable.getWriter()
+          const reader = readable.getReader()
+          const process = () => {
             reader.read().then(({ done, value }) => {
               if (!done) {
                 writer.write(typeof value === 'string' ? encoder.encode(value) : value)
@@ -82,7 +118,7 @@ export default function middlewareRSCLoader(this: any) {
 
         let responseCache
         const FlightWrapper = props => {
-          var response = responseCache
+          let response = responseCache
           if (!response) {
             responseCache = response = createFromReadableStream(renderFlight(props))
           }
