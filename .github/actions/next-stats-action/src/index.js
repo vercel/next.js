@@ -43,12 +43,6 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
     if (!actionInfo.skipClone) {
       await cloneRepo(actionInfo.prRepo, diffRepoDir)
       await checkoutRef(actionInfo.prRef, diffRepoDir)
-      await exec(
-        `cp -r ${path.join(__dirname, '../native')} ${path.join(
-          diffRepoDir,
-          'packages/next/native'
-        )}`
-      )
     }
 
     if (actionInfo.isRelease) {
@@ -75,12 +69,6 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
     if (!actionInfo.skipClone) {
       await cloneRepo(statsConfig.mainRepo, mainRepoDir)
       await checkoutRef(statsConfig.mainBranch, mainRepoDir)
-      await exec(
-        `cp -r ${path.join(__dirname, '../native')} ${path.join(
-          mainRepoDir,
-          'packages/next/native'
-        )}`
-      )
     }
     /* eslint-disable-next-line */
     actionInfo.commitId = await getCommitId(diffRepoDir)
@@ -130,6 +118,12 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
         // in case of noisy environment slowing down initial repo build
         await exec(buildCommand, false, { timeout: 5 * 60 * 1000 })
       }
+      await exec(
+        `cp -r ${path.join(__dirname, '../native')} ${path.join(
+          dir,
+          'packages/next/native'
+        )}`
+      )
 
       logger(`Linking packages in ${dir}`)
       const pkgPaths = await linkPackages(dir)
