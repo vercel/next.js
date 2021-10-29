@@ -223,8 +223,10 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
 
   let { children, replace, shallow, scroll, locale } = props
 
-  // Deprecated. Warning shown by propType check. If the children provided is a string (<Link>example</Link>) we wrap it in an <a> tag
   if (typeof children === 'string') {
+    console.warn(
+      `Warning: You're using a string directly inside <Link>. This usage has been deprecated. Please add an <a> tag as child of <Link>`
+    )
     children = <a>{children}</a>
   }
 
