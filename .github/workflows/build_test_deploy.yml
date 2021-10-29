@@ -96,18 +96,6 @@ jobs:
       - run: rm -rf .git && mv .git-bak .git
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
-      - uses: actions/download-artifact@v2
-        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
-        with:
-          name: next-swc-binaries
-          path: packages/next/build/swc/dist
-
-      # Only check linux build for now, mac builds can sometimes be different even with the same code
-      - run: |
-          mv ./packages/next/build/swc/dist/next-swc.linux-x64-gnu.node \
-            ./packages/next/native/next-swc.linux-x64-gnu.node
-        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
-
       - run: ./scripts/check-pre-compiled.sh
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
@@ -120,7 +108,7 @@ jobs:
   testUnit:
     name: Test Unit
     runs-on: ubuntu-latest
-    needs: build
+    needs: [build, build-native-dev]
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
@@ -132,13 +120,18 @@ jobs:
           path: ./*
           key: ${{ github.sha }}
 
+      - uses: actions/download-artifact@v2
+        with:
+          name: next-swc-dev-binary
+          path: packages/next/native
+
       - run: node run-tests.js --type unit
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
   testDev:
     name: Test Development
     runs-on: ubuntu-latest
-    needs: build
+    needs: [build, build-native-dev]
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
@@ -155,6 +148,11 @@ jobs:
         with:
           path: ./*
           key: ${{ github.sha }}
+
+      - uses: actions/download-artifact@v2
+        with:
+          name: next-swc-dev-binary
+          path: packages/next/native
 
       - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
@@ -184,7 +182,7 @@ jobs:
   testProd:
     name: Test Production
     runs-on: ubuntu-latest
-    needs: build
+    needs: [build, build-native-dev]
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
@@ -201,6 +199,11 @@ jobs:
         with:
           path: ./*
           key: ${{ github.sha }}
+
+      - uses: actions/download-artifact@v2
+        with:
+          name: next-swc-dev-binary
+          path: packages/next/native
 
       - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
@@ -220,7 +223,7 @@ jobs:
   testIntegration:
     name: Test Integration
     runs-on: ubuntu-latest
-    needs: build
+    needs: [build, build-native-dev]
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
@@ -242,6 +245,11 @@ jobs:
         with:
           path: ./*
           key: ${{ github.sha }}
+
+      - uses: actions/download-artifact@v2
+        with:
+          name: next-swc-dev-binary
+          path: packages/next/native
 
       - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
@@ -266,7 +274,7 @@ jobs:
   testElectron:
     name: Test Electron
     runs-on: ubuntu-latest
-    needs: build
+    needs: [build, build-native-dev]
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
@@ -278,6 +286,11 @@ jobs:
         with:
           path: ./*
           key: ${{ github.sha }}
+
+      - uses: actions/download-artifact@v2
+        with:
+          name: next-swc-dev-binary
+          path: packages/next/native
 
       # TODO: remove after we fix watchpack watching too much
       - run: echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p
@@ -291,7 +304,7 @@ jobs:
 
   testYarnPnP:
     runs-on: ubuntu-latest
-    needs: build
+    needs: [build, build-native-dev]
     env:
       NODE_OPTIONS: '--unhandled-rejections=strict'
       YARN_COMPRESSION_LEVEL: '0'
@@ -302,6 +315,11 @@ jobs:
         with:
           path: ./*
           key: ${{ github.sha }}
+
+      - uses: actions/download-artifact@v2
+        with:
+          name: next-swc-dev-binary
+          path: packages/next/native
 
       - run: bash ./scripts/test-pnp.sh
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
@@ -327,7 +345,7 @@ jobs:
   testFirefox:
     name: Test Firefox (production)
     runs-on: ubuntu-latest
-    needs: build
+    needs: [build, build-native-dev]
     env:
       BROWSER_NAME: 'firefox'
       NEXT_TELEMETRY_DISABLED: 1
@@ -338,6 +356,10 @@ jobs:
         with:
           path: ./*
           key: ${{ github.sha }}
+      - uses: actions/download-artifact@v2
+        with:
+          name: next-swc-dev-binary
+          path: packages/next/native
       - run: npx playwright install-deps && npx playwright install firefox
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
       - run: node run-tests.js test/integration/production/test/index.test.js
@@ -346,7 +368,7 @@ jobs:
   testSafari:
     name: Test Safari (production)
     runs-on: ubuntu-latest
-    needs: build
+    needs: [build, build-native-dev]
     env:
       BROWSERSTACK: true
       BROWSER_NAME: 'safari'
@@ -366,6 +388,11 @@ jobs:
           path: ./*
           key: ${{ github.sha }}
 
+      - uses: actions/download-artifact@v2
+        with:
+          name: next-swc-dev-binary
+          path: packages/next/native
+
       # TODO: use macos runner so that we can use playwright to test against
       # PRs instead of only running on canary?
       - run: '[[ -z "$BROWSERSTACK_ACCESS_KEY" ]] && echo "Skipping for PR" || npm i -g browserstack-local@1.4.0'
@@ -377,7 +404,7 @@ jobs:
   testSafariOld:
     name: Test Safari 10.1 (nav)
     runs-on: ubuntu-latest
-    needs: [build, testSafari]
+    needs: [build, testSafari, build-native-dev]
     env:
       BROWSERSTACK: true
       LEGACY_SAFARI: true
@@ -397,6 +424,11 @@ jobs:
         with:
           path: ./*
           key: ${{ github.sha }}
+
+      - uses: actions/download-artifact@v2
+        with:
+          name: next-swc-dev-binary
+          path: packages/next/native
 
       - run: '[[ -z "$BROWSERSTACK_ACCESS_KEY" ]] && echo "Skipping for PR" || npm i -g browserstack-local@1.4.0'
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
@@ -454,7 +486,111 @@ jobs:
         env:
           PR_STATS_COMMENT_TOKEN: ${{ secrets.PR_STATS_COMMENT_TOKEN }}
 
+  build-native-dev:
+    name: Build dev binary for tests
+    runs-on: ubuntu-18.04
+    steps:
+      # https://github.com/actions/virtual-environments/issues/1187
+      - name: tune linux network
+        run: sudo ethtool -K eth0 tx off rx off
+
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 25
+
+      - run: echo ::set-output name=DOCS_CHANGE::$(node skip-docs-change.js echo 'not-docs-only-change')
+        id: docs-change
+
+      - name: Setup node
+        uses: actions/setup-node@v2
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
+        with:
+          node-version: 14
+          check-latest: true
+
+      - name: Install
+        uses: actions-rs/toolchain@v1
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
+        with:
+          profile: minimal
+          toolchain: nightly-2021-08-12
+
+      - name: Cache cargo registry
+        uses: actions/cache@v1
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
+        with:
+          path: ~/.cargo/registry
+          key: stable-ubuntu-18.04-node@14-cargo-registry-trimmed-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo index
+        uses: actions/cache@v1
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
+        with:
+          path: ~/.cargo/git
+          key: stable-ubuntu-18.04-node@14-cargo-index-trimmed-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache native binary
+        id: binary-cache
+        uses: actions/cache@v2
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
+        with:
+          path: packages/next/native/next-swc.linux-x64-gnu.node
+          key: dev-next-swc-nightly-2021-08-12-linux-x64-gnu-${{ hashFiles('.github/workflows/build_test_deploy.yml', 'packages/next/build/swc/**') }}
+
+      # We use restore-key to pick latest cache.
+      # We will not get exact match, but doc says
+      # "If there are multiple partial matches for a restore key, the action returns the most recently created cache."
+      # So we get latest cache
+      - name: Cache built files
+        uses: actions/cache@v2
+        with:
+          path: ./packages/next/build/swc/target
+          key: next-swc-cargo-cache-ubuntu-18.04--${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            next-swc-cargo-cache-ubuntu-18.04
+
+      - name: Build
+        if: ${{ steps.binary-cache.outputs.cache-hit != 'true' && steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
+        run: yarn build-native
+        env:
+          MACOSX_DEPLOYMENT_TARGET: '10.13'
+        working-directory: packages/next
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2.2.4
+        with:
+          name: next-swc-dev-binary
+          path: packages/next/native/next-swc.linux-x64-gnu.node
+
+      - name: Clear the cargo caches
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
+        run: |
+          cargo install cargo-cache --no-default-features --features ci-autoclean
+          cargo-cache
+
+  test-native:
+    name: Unit Test Native Code
+    runs-on: ubuntu-18.04
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 25
+      - run: echo ::set-output name=DOCS_CHANGE::$(node skip-docs-change.js echo 'not-docs-only-change')
+        id: docs-change
+      - name: Install
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly-2021-08-12
+          profile: minimal
+      - run: cd packages/next/build/swc && cargo test
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
+
+  # Build binaries for publishing
   build-native:
+    needs: build
+    if: ${{ needs.build.outputs.isRelease == 'true' }}
     strategy:
       matrix:
         os: [ubuntu-18.04, macos-latest, windows-latest]
@@ -547,7 +683,7 @@ jobs:
             next-swc-cargo-cache-${{ matrix.os }}
       - name: 'Build'
         if: ${{ steps.binary-cache.outputs.cache-hit != 'true' && steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
-        run: yarn build-native --target ${{ matrix.target }}
+        run: yarn build-native --release --target ${{ matrix.target }}
         env:
           MACOSX_DEPLOYMENT_TARGET: '10.13'
         working-directory: packages/next
@@ -561,25 +697,6 @@ jobs:
         run: |
           cargo install cargo-cache --no-default-features --features ci-autoclean
           cargo-cache
-
-  test-native:
-    name: Unit Test Native Code
-    runs-on: ubuntu-18.04
-
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          fetch-depth: 25
-      - run: echo ::set-output name=DOCS_CHANGE::$(node skip-docs-change.js echo 'not-docs-only-change')
-        id: docs-change
-      - name: Install
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: nightly-2021-08-12
-          profile: minimal
-      - run: cd packages/next/build/swc && cargo test
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
 
   build-windows-i686:
     needs: build
@@ -630,7 +747,7 @@ jobs:
       - name: Build
         if: ${{ steps.binary-cache.outputs.cache-hit != 'true' && steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         shell: bash
-        run: yarn build-native --target i686-pc-windows-msvc
+        run: yarn build-native --release --target i686-pc-windows-msvc
         working-directory: packages/next
 
       - name: Upload artifact
@@ -677,7 +794,7 @@ jobs:
       - name: Build
         if: ${{ steps.binary-cache.outputs.cache-hit != 'true' && steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         shell: bash
-        run: yarn build-native --target aarch64-pc-windows-msvc
+        run: yarn build-native --release --target aarch64-pc-windows-msvc
         working-directory: packages/next
 
       - name: Upload artifact
@@ -733,7 +850,7 @@ jobs:
   #     - name: 'Build'
   #       if: ${{ steps.binary-cache.outputs.cache-hit != 'true' && steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
   #       run: |
-  #         docker run --rm -v $(pwd)/packages/next:/swc -w /swc builder sh -c "yarn build-native"
+  #         docker run --rm -v $(pwd)/packages/next:/swc -w /swc builder sh -c "yarn build-native --release"
 
   #     - name: Upload artifact
   #       if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
@@ -794,7 +911,7 @@ jobs:
 
       - name: Cross build aarch64
         if: ${{ steps.binary-cache.outputs.cache-hit != 'true' && steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
-        run: yarn build-native --target aarch64-unknown-linux-gnu
+        run: yarn build-native --release --target aarch64-unknown-linux-gnu
         working-directory: packages/next
 
       - name: Upload artifact
@@ -854,7 +971,7 @@ jobs:
 
       - name: Cross build aarch64
         if: ${{ steps.binary-cache.outputs.cache-hit != 'true' && steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
-        run: yarn build-native --target aarch64-unknown-linux-musl
+        run: yarn build-native --release --target aarch64-unknown-linux-musl
         working-directory: packages/next
 
       - name: Upload artifact
@@ -916,7 +1033,7 @@ jobs:
 
       - name: Cross build aarch64
         if: ${{ steps.binary-cache.outputs.cache-hit != 'true' && steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
-        run: yarn build-native --target armv7-unknown-linux-gnueabihf
+        run: yarn build-native --release --target armv7-unknown-linux-gnueabihf
         working-directory: packages/next
 
       - name: Upload artifact
@@ -965,7 +1082,7 @@ jobs:
         shell: bash
         run: |
           export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/darwin-x86_64/bin/aarch64-linux-android24-clang"
-          yarn build-native --target aarch64-linux-android
+          yarn build-native --release --target aarch64-linux-android
         working-directory: packages/next
 
       - name: Upload artifact

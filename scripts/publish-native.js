@@ -21,7 +21,7 @@ const cwd = process.cwd()
     )
 
     const publishedPkgs = new Set()
-    // TODO: update to latest version where all pacakges were
+    // TODO: update to latest version where all packages were
     // successfully published
     const fallbackVersion = `12.0.1`
 

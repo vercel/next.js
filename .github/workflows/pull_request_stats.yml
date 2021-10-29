@@ -5,13 +5,103 @@ on:
 name: Generate Pull Request Stats
 
 jobs:
+  build-native-dev:
+    name: Build dev binary for tests
+    runs-on: ubuntu-18.04
+    steps:
+      # https://github.com/actions/virtual-environments/issues/1187
+      - name: tune linux network
+        run: sudo ethtool -K eth0 tx off rx off
+
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 25
+
+      - run: echo ::set-output name=DOCS_CHANGE::$(node skip-docs-change.js echo 'not-docs-only-change')
+        id: docs-change
+
+      - name: Setup node
+        uses: actions/setup-node@v2
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
+        with:
+          node-version: 14
+          check-latest: true
+
+      - name: Install
+        uses: actions-rs/toolchain@v1
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
+        with:
+          profile: minimal
+          toolchain: nightly-2021-08-12
+
+      - name: Cache cargo registry
+        uses: actions/cache@v1
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
+        with:
+          path: ~/.cargo/registry
+          key: stable-ubuntu-18.04-node@14-cargo-registry-trimmed-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo index
+        uses: actions/cache@v1
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
+        with:
+          path: ~/.cargo/git
+          key: stable-ubuntu-18.04-node@14-cargo-index-trimmed-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache native binary
+        id: binary-cache
+        uses: actions/cache@v2
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
+        with:
+          path: packages/next/native/next-swc.linux-x64-gnu.node
+          key: dev-next-swc-nightly-2021-08-12-linux-x64-gnu-${{ hashFiles('.github/workflows/build_test_deploy.yml', 'packages/next/build/swc/**') }}
+
+      # We use restore-key to pick latest cache.
+      # We will not get exact match, but doc says
+      # "If there are multiple partial matches for a restore key, the action returns the most recently created cache."
+      # So we get latest cache
+      - name: Cache built files
+        uses: actions/cache@v2
+        with:
+          path: ./packages/next/build/swc/target
+          key: next-swc-cargo-cache-ubuntu-18.04--${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            next-swc-cargo-cache-ubuntu-18.04
+
+      - name: Build
+        if: ${{ steps.binary-cache.outputs.cache-hit != 'true' && steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
+        run: yarn build-native
+        env:
+          MACOSX_DEPLOYMENT_TARGET: '10.13'
+        working-directory: packages/next
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2.2.4
+        with:
+          name: next-swc-dev-binary
+          path: packages/next/native/next-swc.linux-x64-gnu.node
+
+      - name: Clear the cargo caches
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
+        run: |
+          cargo install cargo-cache --no-default-features --features ci-autoclean
+          cargo-cache
+
   stats:
     name: PR Stats
+    needs: build-native-dev
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
         with:
           fetch-depth: 25
+
+      - uses: actions/download-artifact@v2
+        with:
+          name: next-swc-dev-binary
+          path: packages/next/native
+
+      - run: cp -r packages/next/native .github/actions/next-stats-action/native
 
       - run: echo ::set-output name=DOCS_CHANGE::$(node skip-docs-change.js echo 'not-docs-only-change')
         id: docs-change
