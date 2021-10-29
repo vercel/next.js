@@ -217,12 +217,24 @@ describe('Production Usage', () => {
       expect(version).toBe(1)
 
       expect(
-        check.tests.every((item) => files.some((file) => item.test(file)))
+        check.tests.every((item) => {
+          if (files.some((file) => item.test(file))) {
+            return true
+          }
+          console.error(`Failed to find ${item} in`, files)
+          return false
+        })
       ).toBe(true)
 
       if (sep === '/') {
         expect(
-          check.notTests.some((item) => files.some((file) => item.test(file)))
+          check.notTests.some((item) => {
+            if (files.some((file) => item.test(file))) {
+              console.error(`Found unexpected ${item} in`, files)
+              return true
+            }
+            return false
+          })
         ).toBe(false)
       }
     }
