@@ -21,6 +21,7 @@ const nodeArgs = ['-r', join(__dirname, '../../react-18/test/require-hook.js')]
 const appDir = join(__dirname, '../app')
 const distDir = join(__dirname, '../app/.next')
 const documentPage = new File(join(appDir, 'pages/_document.js'))
+const appPage = new File(join(appDir, 'pages/_app.js'))
 
 const documentWithGip = `
 import { Html, Head, Main, NextScript } from 'next/document'
@@ -40,6 +41,16 @@ export default function Document() {
 Document.getInitialProps = (ctx) => {
   return ctx.defaultGetInitialProps(ctx)
 }
+`
+
+const appWithGlobalCss = `
+import '../styles.css'
+
+function App({ Component, pageProps }) {
+  return <Component {...pageProps} />
+}
+
+export default App
 `
 
 async function nextBuild(dir) {
@@ -138,7 +149,11 @@ describe('RSC dev', () => {
   runBasicTests(context)
 })
 
-const cssSuite = { runTests: css }
+const cssSuite = {
+  runTests: css,
+  before: () => appPage.write(appWithGlobalCss),
+  after: () => appPage.delete(),
+}
 
 runSuite('CSS', 'dev', cssSuite)
 runSuite('CSS', 'prod', cssSuite)

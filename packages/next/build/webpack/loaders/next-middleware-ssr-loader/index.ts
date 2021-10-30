@@ -53,9 +53,11 @@ export default async function middlewareRSCLoader(this: any) {
     JSON.parse(stringifiedAbsoluteDocumentPath)
   )
 
-  let appDefinition = `const App = require('${
-    hasProvidedAppPage ? stringifiedAbsoluteAppPath : 'next/dist/pages/_app'
-  }').default`
+  let appDefinition = `const App = require(${
+    hasProvidedAppPage
+      ? stringifiedAbsoluteAppPath
+      : JSON.stringify('next/dist/pages/_app')
+  }).default`
 
   let documentDefinition = hasProvidedDocumentPage
     ? `const Document = require(${stringifiedAbsoluteDocumentPath}).default`
