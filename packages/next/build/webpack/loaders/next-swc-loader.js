@@ -40,7 +40,6 @@ function getSWCOptions({
   pagesDir,
   isNextDist,
   hasReactRefresh,
-  isCommonJS,
 }) {
   const isTSFile = filename.endsWith('.ts')
   const isTypeScript = isTSFile || filename.endsWith('.tsx')
@@ -77,14 +76,6 @@ function getSWCOptions({
   if (isServer) {
     return {
       jsc,
-      // Next.js dist intentionally does not have type: commonjs on server compilation
-      ...(isCommonJS
-        ? {
-            module: {
-              type: 'commonjs',
-            },
-          }
-        : {}),
       // Disables getStaticProps/getServerSideProps tree shaking on the server compilation for pages
       disableNextSsg: true,
       disablePageConfig: true,
@@ -103,7 +94,7 @@ function getSWCOptions({
     jsc.target = 'es5'
     return {
       // Ensure Next.js internals are output as commonjs modules
-      ...(isNextDist || isCommonJS
+      ...(isNextDist
         ? {
             module: {
               type: 'commonjs',
@@ -129,7 +120,6 @@ async function loaderTransform(parentTrace, source, inputSourceMap) {
   const isPageFile = filename.startsWith(pagesDir)
 
   const isNextDist = nextDistPath.test(filename)
-  const isCommonJS = source.indexOf('module.exports') !== -1
 
   const swcOptions = getSWCOptions({
     pagesDir,
@@ -138,7 +128,6 @@ async function loaderTransform(parentTrace, source, inputSourceMap) {
     isPageFile,
     development: this.mode === 'development',
     isNextDist,
-    isCommonJS,
     hasReactRefresh,
   })
 
