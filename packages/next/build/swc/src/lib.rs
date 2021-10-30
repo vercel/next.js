@@ -38,7 +38,7 @@ use auto_cjs::contains_cjs;
 use backtrace::Backtrace;
 use napi::{CallContext, Env, JsObject, JsUndefined};
 use serde::Deserialize;
-use std::{borrow::Cow, env, panic::set_hook, path::PathBuf, sync::Arc};
+use std::{env, panic::set_hook, path::PathBuf, sync::Arc};
 use swc::{config::ModuleConfig, Compiler, TransformOutput};
 use swc_common::SourceFile;
 use swc_common::{self, chain, pass::Optional, sync::Lazy, FileName, FilePathMapping, SourceMap};
@@ -134,7 +134,9 @@ pub fn complete_output(env: &Env, output: TransformOutput) -> napi::Result<JsObj
 }
 
 impl TransformOptions {
-    pub fn patch(&self, fm: &SourceFile) -> Cow<Self> {
+    pub fn patch(mut self, fm: &SourceFile) -> Self {
+        self.swc.swcrc = false;
+
         let should_enable_commonjs = self.swc.config.module.is_none() && {
             let syntax = self.swc.config.jsc.syntax.unwrap_or_default();
             let target = self.swc.config.jsc.target.unwrap_or(EsVersion::latest());
@@ -145,15 +147,11 @@ impl TransformOptions {
                 .unwrap_or_default()
         };
 
-        if !should_enable_commonjs {
-            Cow::Borrowed(self)
-        } else {
-            let mut new_options = self.clone();
-
-            new_options.swc.config.module = Some(ModuleConfig::CommonJs(Default::default()));
-
-            Cow::Owned(new_options)
+        if should_enable_commonjs {
+            self.swc.config.module = Some(ModuleConfig::CommonJs(Default::default()));
         }
+
+        self
     }
 }
 

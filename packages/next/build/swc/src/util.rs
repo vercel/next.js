@@ -26,7 +26,7 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 */
 
-use anyhow::Context;
+use anyhow::{Context, Error};
 use napi::{CallContext, JsBuffer, Status};
 use serde::de::DeserializeOwned;
 use std::any::type_name;
@@ -66,4 +66,12 @@ impl CtxtExt for CallContext<'_> {
 
         Ok(v)
     }
+}
+
+pub(crate) fn deserialize_json<T>(s: &str) -> Result<T, Error>
+where
+    T: DeserializeOwned,
+{
+    serde_json::from_str(&s)
+        .with_context(|| format!("failed to deserialize as {}\nJSON: {}", type_name::<T>(), s))
 }
