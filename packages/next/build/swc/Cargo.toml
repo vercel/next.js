@@ -41,4 +41,4 @@ testing = "0.15.1"
 walkdir = "2.3.2"
 
 [profile.release]
-# lto = true
+lto = true
