@@ -27,7 +27,6 @@ DEALINGS IN THE SOFTWARE.
 */
 
 use crate::{
-    auto_cjs::contains_cjs,
     complete_output, custom_before_pass, get_compiler,
     util::{CtxtExt, MapErr},
     TransformOptions,
@@ -38,14 +37,10 @@ use std::{
     panic::{catch_unwind, AssertUnwindSafe},
     sync::Arc,
 };
-use swc::{config::ModuleConfig, try_with_handler, Compiler, TransformOutput};
+use swc::{try_with_handler, Compiler, TransformOutput};
 use swc_common::{FileName, SourceFile};
-use swc_ecmascript::{
-    ast::EsVersion,
-    parser::{lexer::Lexer, StringInput},
-    transforms::pass::noop,
-};
-use swc_ecmascript::{ast::Program, parser::Parser};
+use swc_ecmascript::ast::Program;
+use swc_ecmascript::transforms::pass::noop;
 
 /// Input to transform
 #[derive(Debug)]
@@ -69,33 +64,7 @@ impl Task for TransformTask {
             try_with_handler(self.c.cm.clone(), true, |handler| {
                 self.c.run(|| match self.input {
                     Input::Source(ref fm) => {
-                        let should_enable_commonjs = self.options.swc.config.module.is_none() && {
-                            let syntax = self.options.swc.config.jsc.syntax.unwrap_or_default();
-                            let target = self
-                                .options
-                                .swc
-                                .config
-                                .jsc
-                                .target
-                                .unwrap_or(EsVersion::latest());
-                            let lexer = Lexer::new(syntax, target, StringInput::from(&**fm), None);
-                            let mut p = Parser::new_from(lexer);
-                            p.parse_module()
-                                .map(|m| contains_cjs(&m))
-                                .unwrap_or_default()
-                        };
-
-                        let mut new_options;
-                        let options = if !should_enable_commonjs {
-                            &self.options
-                        } else {
-                            new_options = self.options.clone();
-
-                            new_options.swc.config.module =
-                                Some(ModuleConfig::CommonJs(Default::default()));
-
-                            &new_options
-                        };
+                        let options = self.options.patch(&fm);
 
                         let before_pass = custom_before_pass(&fm.name, &options);
                         self.c.process_js_with_custom_pass(

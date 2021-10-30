@@ -34,13 +34,19 @@ extern crate napi_derive;
 /// Explicit extern crate to use allocator.
 extern crate swc_node_base;
 
+use auto_cjs::contains_cjs;
 use backtrace::Backtrace;
 use napi::{CallContext, Env, JsObject, JsUndefined};
 use serde::Deserialize;
-use std::{env, panic::set_hook, path::PathBuf, sync::Arc};
-use swc::{Compiler, TransformOutput};
+use std::{borrow::Cow, env, panic::set_hook, path::PathBuf, sync::Arc};
+use swc::{config::ModuleConfig, Compiler, TransformOutput};
+use swc_common::SourceFile;
 use swc_common::{self, chain, pass::Optional, sync::Lazy, FileName, FilePathMapping, SourceMap};
-use swc_ecmascript::visit::Fold;
+use swc_ecmascript::ast::EsVersion;
+use swc_ecmascript::{
+    parser::{lexer::Lexer, Parser, StringInput},
+    visit::Fold,
+};
 
 pub mod amp_attributes;
 mod auto_cjs;
@@ -125,6 +131,30 @@ fn construct_compiler(ctx: CallContext) -> napi::Result<JsUndefined> {
 
 pub fn complete_output(env: &Env, output: TransformOutput) -> napi::Result<JsObject> {
     env.to_js_value(&output)?.coerce_to_object()
+}
+
+impl TransformOptions {
+    pub fn patch(&self, fm: &SourceFile) -> Cow<Self> {
+        let should_enable_commonjs = self.swc.config.module.is_none() && {
+            let syntax = self.swc.config.jsc.syntax.unwrap_or_default();
+            let target = self.swc.config.jsc.target.unwrap_or(EsVersion::latest());
+            let lexer = Lexer::new(syntax, target, StringInput::from(&*fm), None);
+            let mut p = Parser::new_from(lexer);
+            p.parse_module()
+                .map(|m| contains_cjs(&m))
+                .unwrap_or_default()
+        };
+
+        if !should_enable_commonjs {
+            Cow::Borrowed(self)
+        } else {
+            let mut new_options = self.clone();
+
+            new_options.swc.config.module = Some(ModuleConfig::CommonJs(Default::default()));
+
+            Cow::Owned(new_options)
+        }
+    }
 }
 
 pub type ArcCompiler = Arc<Compiler>;
