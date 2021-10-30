@@ -17,7 +17,7 @@ function nextClientPagesLoader(this: any) {
     ) as ClientPagesLoaderOptions
 
     pagesLoaderSpan.setAttribute('absolutePagePath', absolutePagePath)
-
+    console.log('next-client-page-loader: ', absolutePagePath)
     const stringifiedPagePath = loaderUtils.stringifyRequest(
       this,
       absolutePagePath

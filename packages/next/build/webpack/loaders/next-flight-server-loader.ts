@@ -3,6 +3,7 @@ import * as acorn from 'acorn'
 import { getRawPageExtensions } from '../../utils'
 
 function isClientComponent(importSource: string, pageExtensions: string[]) {
+  // console.log("importSource", importSource)
   return new RegExp(`\\.client(\\.(${pageExtensions.join('|')}))?`).test(
     importSource
   )

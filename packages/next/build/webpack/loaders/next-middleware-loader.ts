@@ -8,6 +8,8 @@ export type MiddlewareLoaderOptions = {
 export default function middlewareLoader(this: any) {
   const { absolutePagePath, page }: MiddlewareLoaderOptions =
     loaderUtils.getOptions(this)
+  console.log('page', page)
+  console.log(absolutePagePath)
   const stringifiedPagePath = loaderUtils.stringifyRequest(
     this,
     absolutePagePath

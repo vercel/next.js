@@ -13,14 +13,17 @@ export default function middlewareRSCLoader(this: any) {
     this,
     absolutePagePath
   )
+
   const stringifiedAbsoluteDocumentPath = getStringifiedAbsolutePath(
     this,
-    './pages/_document'
+    '/.next/server/pages/_document'
   )
+  console.log(stringifiedAbsoluteDocumentPath)
   const stringifiedAbsoluteAppPath = getStringifiedAbsolutePath(
     this,
-    './pages/_app'
+    '/.next/server/pages/_app'
   )
+  console.log(stringifiedAbsolutePagePath)
 
   const transformed = `
         import { adapter } from 'next/dist/server/web/adapter'

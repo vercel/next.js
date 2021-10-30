@@ -65,6 +65,7 @@ function resolveClientImport(
   // This resolution algorithm will not necessarily have the same configuration
   // as the actual client loader. It should mostly work and if it doesn't you can
   // always convert to explicit exported names instead.
+  console.log(parentURL)
   const conditions = ['node', 'import']
   if (stashedResolve === null) {
     throw new Error(

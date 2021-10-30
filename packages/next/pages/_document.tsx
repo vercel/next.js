@@ -800,10 +800,18 @@ export class NextScript extends Component<OriginProps> {
   static getInlineScriptSource(context: Readonly<HtmlProps>): string {
     const { __NEXT_DATA__ } = context
     try {
+      console.log('__NEXT_DATA__')
+      console.log(__NEXT_DATA__)
       const data = JSON.stringify(__NEXT_DATA__)
-
+      console.log(data)
       if (process.env.NODE_ENV === 'development') {
-        const bytes = Buffer.from(data).byteLength
+        let bytes = 0
+        if (typeof Buffer !== 'undefined') {
+          bytes = Buffer.from(data).byteLength
+        } else {
+          bytes = new TextEncoder().encode(data).length
+        }
+
         const prettyBytes = require('../lib/pretty-bytes').default
         if (bytes > 128 * 1000) {
           console.warn(
@@ -817,6 +825,7 @@ export class NextScript extends Component<OriginProps> {
       return htmlEscapeJsonString(data)
     } catch (err) {
       if (isError(err) && err.message.indexOf('circular structure')) {
+        console.error(err)
         throw new Error(
           `Circular structure in "getInitialProps" result of page "${__NEXT_DATA__.page}". https://nextjs.org/docs/messages/circular-structure`
         )
