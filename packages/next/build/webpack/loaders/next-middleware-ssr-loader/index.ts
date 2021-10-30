@@ -6,24 +6,28 @@ import { Html, Head, Main, NextScript } from 'next/document'
 
 function Document() {
   return (
-    jsx(Html, null, 
-      jsx(Head),
-      jsx('body', null,
-        jsx(Main),
-        jsx(NextScript),
-      ),
+    createElement(Html, null, 
+      createElement(Head),
+      createElement('body', null,
+        createElement(Main),
+        createElement(NextScript),
+      )
     )
   )
 }
 `
 
-const fallbackAppPage = `
-function App({ Component, pageProps }) {
-  return jsx(Component, pageProps)
+function hasModule(path: string) {
+  let has
+  try {
+    has = !!require.resolve(path)
+  } catch (_) {
+    has = false
+  }
+  return has
 }
-`
 
-export default function middlewareRSCLoader(this: any) {
+export default async function middlewareRSCLoader(this: any) {
   const {
     absolutePagePath,
     basePath,
@@ -44,16 +48,17 @@ export default function middlewareRSCLoader(this: any) {
     './pages/_app'
   )
 
-  const fs = this.fs.fileSystem
-  const hasProvidedAppPage = fs.existsSync(stringifiedAbsoluteAppPath)
-  const hasProvidedDocumentPage = fs.existsSync(stringifiedAbsoluteDocumentPath)
+  const hasProvidedAppPage = hasModule(JSON.parse(stringifiedAbsoluteAppPath))
+  const hasProvidedDocumentPage = hasModule(
+    JSON.parse(stringifiedAbsoluteDocumentPath)
+  )
 
-  let appDefinition = hasProvidedDocumentPage
-    ? `const Document = require(${stringifiedAbsoluteAppPath})}).default`
-    : fallbackAppPage
+  let appDefinition = `const App = require('${
+    hasProvidedAppPage ? stringifiedAbsoluteAppPath : 'next/dist/pages/_app'
+  }').default`
 
-  let documentDefinition = hasProvidedAppPage
-    ? `const Document = require(${stringifiedAbsoluteDocumentPath})}).default`
+  let documentDefinition = hasProvidedDocumentPage
+    ? `const Document = require(${stringifiedAbsoluteDocumentPath}).default`
     : fallbackDocumentPage
 
   const transformed = `
@@ -72,9 +77,15 @@ export default function middlewareRSCLoader(this: any) {
             : ''
         }
 
-        const jsx = createElement
-        ${appDefinition}
         ${documentDefinition}
+        ${appDefinition}
+
+        // console.log('Document.getInitialProps', Document.getInitialProps)
+        let hasWarnedGip = false
+        if (!hasWarnedGip && Document.getInitialProps) {
+          hasWarnedGip = true
+          throw new Error('Document.getInitialProps is not supported when \`experimental.concurrentFeatures\` is enabled')
+        }
         
         const {
           default: Page,
@@ -89,7 +100,7 @@ export default function middlewareRSCLoader(this: any) {
         const rscManifest = self._middleware_rsc_manifest
 
         if (typeof Page !== 'function') {
-          throw new Error('Your page must export a \`default\` component');
+          throw new Error('Your page must export a \`default\` component')
         }
 
         function wrapReadable (readable) {
