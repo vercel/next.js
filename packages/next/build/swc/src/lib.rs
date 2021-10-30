@@ -53,7 +53,7 @@ pub mod styled_jsx;
 mod transform;
 mod util;
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TransformOptions {
     #[serde(flatten)]
