@@ -1183,9 +1183,13 @@ export async function release(task) {
 
 // notification helper
 function notify(msg) {
-  return notifier.notify({
-    title: '▲ Next',
-    message: msg,
-    icon: false,
-  })
+  try {
+    notifier.notify({
+      title: '▲ Next',
+      message: msg,
+      icon: false,
+    })
+  } catch (err) {
+    // notifier can fail on M1 machines
+  }
 }
