@@ -43,6 +43,7 @@ use swc_common::{self, chain, pass::Optional, sync::Lazy, FileName, FilePathMapp
 use swc_ecmascript::visit::Fold;
 
 pub mod amp_attributes;
+mod auto_cjs;
 pub mod hook_optimizer;
 pub mod minify;
 pub mod next_dynamic;
@@ -72,6 +73,9 @@ pub struct TransformOptions {
 
     #[serde(default)]
     pub is_development: bool,
+
+    #[serde(default)]
+    pub disable_auto_cjs: bool,
 }
 
 pub fn custom_before_pass(name: &FileName, opts: &TransformOptions) -> impl Fold {
