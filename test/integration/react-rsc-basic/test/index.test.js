@@ -1,5 +1,6 @@
 /* eslint-env jest */
 
+import cheerio from 'cheerio'
 import { join } from 'path'
 import fs from 'fs-extra'
 
@@ -11,6 +12,8 @@ import {
   nextStart as _nextStart,
   renderViaHTTP,
 } from 'next-test-utils'
+
+import css from './css'
 
 const nodeArgs = ['-r', join(__dirname, '../../react-18/test/require-hook.js')]
 const appDir = join(__dirname, '../app')
@@ -78,6 +81,24 @@ describe('RSC prod', () => {
     })
   })
 
+  it('should have clientInfo in middleware manifest', async () => {
+    const middlewareManifestPath = join(
+      distDir,
+      'server',
+      'middleware-manifest.json'
+    )
+    const content = JSON.parse(
+      await fs.readFile(middlewareManifestPath, 'utf8')
+    )
+    for (const item of [
+      ['/', true],
+      ['/next-api/image', true],
+      ['/next-api/link', true],
+      ['/routes/[dynamic]', true],
+    ]) {
+      expect(content.clientInfo).toContainEqual(item)
+    }
+  })
   runTests(context)
 })
 
@@ -94,12 +115,69 @@ describe('RSC dev', () => {
   runTests(context)
 })
 
+describe('CSS prod', () => {
+  const context = { appDir }
+
+  beforeAll(async () => {
+    context.appPort = await findPort()
+    await nextBuild(context.appDir)
+    context.server = await nextStart(context.appDir, context.appPort)
+  })
+  afterAll(async () => {
+    await killApp(context.server)
+  })
+
+  css(context)
+})
+
+describe('CSS dev', () => {
+  const context = { appDir }
+
+  beforeAll(async () => {
+    context.appPort = await findPort()
+    context.server = await nextDev(context.appDir, context.appPort)
+  })
+  afterAll(async () => {
+    await killApp(context.server)
+  })
+
+  css(context)
+})
+
 async function runTests(context) {
   it('should render the correct html', async () => {
     const homeHTML = await renderViaHTTP(context.appPort, '/')
-    const linkHTML = await renderViaHTTP(context.appPort, '/next-api/link')
+
+    // dynamic routes
+    const dynamicRouteHTML1 = await renderViaHTTP(
+      context.appPort,
+      '/routes/dynamic1'
+    )
+    const dynamicRouteHTML2 = await renderViaHTTP(
+      context.appPort,
+      '/routes/dynamic2'
+    )
+
     expect(homeHTML).toContain('thisistheindexpage.server')
     expect(homeHTML).toContain('foo.client')
-    expect(linkHTML).toContain('go home')
+
+    expect(dynamicRouteHTML1).toContain('[pid]')
+    expect(dynamicRouteHTML2).toContain('[pid]')
+  })
+
+  it('should suspense next/link on server side', async () => {
+    const linkHTML = await renderViaHTTP(context.appPort, '/next-api/link')
+    const $ = cheerio.load(linkHTML)
+    const linkText = $('div[hidden] > a[href="/"]').text()
+
+    expect(linkText).toContain('go home')
+  })
+
+  it('should suspense next/image on server side', async () => {
+    const imageHTML = await renderViaHTTP(context.appPort, '/next-api/image')
+    const $ = cheerio.load(imageHTML)
+    const imageTag = $('div[hidden] > span > span > img')
+
+    expect(imageTag.attr('src')).toContain('data:image')
   })
 }
