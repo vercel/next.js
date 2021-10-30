@@ -11,7 +11,6 @@
   "dependencies": {
     "@next/eslint-plugin-next": "12.0.2-canary.11",
     "@rushstack/eslint-patch": "^1.0.6",
-    "@typescript-eslint/parser": "^4.20.0",
     "eslint-import-resolver-node": "^0.3.4",
     "eslint-import-resolver-typescript": "^2.4.0",
     "eslint-plugin-import": "^2.22.1",
@@ -22,7 +21,8 @@
   "peerDependencies": {
     "eslint": "^7.23.0",
     "next": ">=10.2.0",
-    "typescript": ">=3.3.1"
+    "typescript": ">=3.3.1",
+    "@typescript-eslint/parser": ">=5.2.0"
   },
   "peerDependenciesMeta": {
     "typescript": {
