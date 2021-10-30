@@ -141,6 +141,7 @@ export default function middlewareRSCLoader(this: any) {
             // locale: detectedLocale,
             // defaultLocale,
             // domainLocales: i18n?.domains,
+            dev: process.env.NODE_ENV !== 'production',
             App,
             Document,
             buildManifest,
