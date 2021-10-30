@@ -474,13 +474,21 @@ jobs:
   releaseStats:
     name: Release Stats
     runs-on: ubuntu-latest
-    needs: [publishRelease]
+    needs: [publishRelease, build-native-dev]
     steps:
       - uses: actions/cache@v2
         id: restore-build
         with:
           path: ./*
           key: ${{ github.sha }}
+
+      - uses: actions/download-artifact@v2
+        with:
+          name: next-swc-dev-binary
+          path: packages/next/native
+
+      - run: cp -r packages/next/native .github/actions/next-stats-action/native
+
       - run: ./scripts/release-stats.sh
       - uses: ./.github/actions/next-stats-action
         env:
