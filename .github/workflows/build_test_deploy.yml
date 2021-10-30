@@ -71,7 +71,7 @@ jobs:
   checkPrecompiled:
     name: Check Pre-compiled
     runs-on: ubuntu-latest
-    needs: [build, build-native]
+    needs: build
     env:
       NEXT_TELEMETRY_DISABLED: 1
     steps:
