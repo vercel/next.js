@@ -73,9 +73,6 @@ pub struct TransformOptions {
 
     #[serde(default)]
     pub is_development: bool,
-
-    #[serde(default)]
-    pub disable_auto_cjs: bool,
 }
 
 pub fn custom_before_pass(name: &FileName, opts: &TransformOptions) -> impl Fold {
