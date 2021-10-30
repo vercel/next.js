@@ -80,13 +80,6 @@ export default async function middlewareRSCLoader(this: any) {
         ${documentDefinition}
         ${appDefinition}
 
-        // console.log('Document.getInitialProps', Document.getInitialProps)
-        let hasWarnedGip = false
-        if (!hasWarnedGip && Document.getInitialProps) {
-          hasWarnedGip = true
-          throw new Error('Document.getInitialProps is not supported when \`experimental.concurrentFeatures\` is enabled')
-        }
-        
         const {
           default: Page,
           config,
@@ -103,7 +96,11 @@ export default async function middlewareRSCLoader(this: any) {
           throw new Error('Your page must export a \`default\` component')
         }
 
-        function wrapReadable (readable) {
+        function renderError(err, status) {
+          return new Response(err.toString(), {status})
+        }
+
+        function wrapReadable(readable) {
           const encoder = new TextEncoder()
           const transformStream = new TransformStream()
           const writer = transformStream.writable.getWriter()
@@ -149,6 +146,11 @@ export default async function middlewareRSCLoader(this: any) {
         function render(request) {
           const url = request.nextUrl
           const query = Object.fromEntries(url.searchParams)
+
+          if (Document.getInitialProps) {
+            const err = new Error('Document.getInitialProps is not supported with server components, please remove it from pages/_document')
+            return renderError(err, 500)
+          }
 
           // Preflight request
           if (request.method === 'HEAD') {
