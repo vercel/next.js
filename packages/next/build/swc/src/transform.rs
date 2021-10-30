@@ -119,7 +119,7 @@ where
 
     let src = cx.get::<JsString>(0)?.into_utf8()?.as_str()?.to_owned();
     let is_module = cx.get::<JsBoolean>(1)?;
-    let options = cx.get::<JsString>(2)?.into_utf8()?.as_str()?.to_owned();
+    let options = cx.get_buffer_as_string(2)?;
 
     let task = op(&c, src, is_module.get_value()?, options);
 

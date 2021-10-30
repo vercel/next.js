@@ -41,6 +41,7 @@ pub trait MapErr<T>: Into<Result<T, anyhow::Error>> {
 impl<T> MapErr<T> for Result<T, anyhow::Error> {}
 
 pub trait CtxtExt {
+    fn get_buffer_as_string(&self, index: usize) -> napi::Result<String>;
     /// Currently this uses JsBuffer
     fn get_deserialized<T>(&self, index: usize) -> napi::Result<T>
     where
@@ -48,6 +49,12 @@ pub trait CtxtExt {
 }
 
 impl CtxtExt for CallContext<'_> {
+    fn get_buffer_as_string(&self, index: usize) -> napi::Result<String> {
+        let buffer = self.get::<JsBuffer>(index)?.into_value()?;
+
+        Ok(String::from_utf8_lossy(buffer.as_ref()).to_string())
+    }
+    
     fn get_deserialized<T>(&self, index: usize) -> napi::Result<T>
     where
         T: DeserializeOwned,
