@@ -20,22 +20,21 @@ struct CjsFinder {
 impl Visit for CjsFinder {
     fn visit_member_expr(&mut self, e: &MemberExpr, _: &dyn Node) {
         if !e.computed {
-            self.found = true;
-        }
-        match &e.obj {
-            ExprOrSuper::Super(_) => {}
-            ExprOrSuper::Expr(obj) => match &**obj {
-                Expr::Ident(obj) => match &*e.prop {
-                    Expr::Ident(prop) => {
-                        if &*obj.sym == "module" && &*prop.sym == "exports" {
-                            self.found = true;
-                            return;
+            match &e.obj {
+                ExprOrSuper::Super(_) => {}
+                ExprOrSuper::Expr(obj) => match &**obj {
+                    Expr::Ident(obj) => match &*e.prop {
+                        Expr::Ident(prop) => {
+                            if &*obj.sym == "module" && &*prop.sym == "exports" {
+                                self.found = true;
+                                return;
+                            }
                         }
-                    }
+                        _ => {}
+                    },
                     _ => {}
                 },
-                _ => {}
-            },
+            }
         }
 
         e.obj.visit_with(e, self);
