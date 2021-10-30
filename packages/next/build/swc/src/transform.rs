@@ -28,7 +28,7 @@ DEALINGS IN THE SOFTWARE.
 
 use crate::{
     complete_output, custom_before_pass, get_compiler,
-    util::{CtxtExt, MapErr},
+    util::{deserialize_json, CtxtExt, MapErr},
     TransformOptions,
 };
 use anyhow::{anyhow, Context as _, Error};
@@ -46,13 +46,13 @@ use swc_ecmascript::transforms::pass::noop;
 #[derive(Debug)]
 pub enum Input {
     /// Raw source code.
-    Source(Arc<SourceFile>),
+    Source { src: String },
 }
 
 pub struct TransformTask {
     pub c: Arc<Compiler>,
     pub input: Input,
-    pub options: TransformOptions,
+    pub options: String,
 }
 
 impl Task for TransformTask {
@@ -62,13 +62,25 @@ impl Task for TransformTask {
     fn compute(&mut self) -> napi::Result<Self::Output> {
         let res = catch_unwind(AssertUnwindSafe(|| {
             try_with_handler(self.c.cm.clone(), true, |handler| {
-                self.c.run(|| match self.input {
-                    Input::Source(ref s) => {
-                        let before_pass = custom_before_pass(&s.name, &self.options);
+                self.c.run(|| match &self.input {
+                    Input::Source { src } => {
+                        let options: TransformOptions = deserialize_json(&self.options)?;
+
+                        let filename = if options.swc.filename.is_empty() {
+                            FileName::Anon
+                        } else {
+                            FileName::Real(options.swc.filename.clone().into())
+                        };
+
+                        let fm = self.c.cm.new_source_file(filename, src.to_string());
+
+                        let options = options.patch(&fm);
+
+                        let before_pass = custom_before_pass(&fm.name, &options);
                         self.c.process_js_with_custom_pass(
-                            s.clone(),
+                            fm.clone(),
                             &handler,
-                            &self.options.swc,
+                            &options.swc,
                             before_pass,
                             noop(),
                         )
@@ -101,15 +113,15 @@ impl Task for TransformTask {
 /// returns `compiler, (src / path), options, plugin, callback`
 pub fn schedule_transform<F>(cx: CallContext, op: F) -> napi::Result<JsObject>
 where
-    F: FnOnce(&Arc<Compiler>, String, bool, TransformOptions) -> TransformTask,
+    F: FnOnce(&Arc<Compiler>, String, bool, String) -> TransformTask,
 {
     let c = get_compiler(&cx);
 
-    let s = cx.get::<JsString>(0)?.into_utf8()?.as_str()?.to_owned();
+    let src = cx.get::<JsString>(0)?.into_utf8()?.as_str()?.to_owned();
     let is_module = cx.get::<JsBoolean>(1)?;
-    let options: TransformOptions = cx.get_deserialized(2)?;
+    let options = cx.get_buffer_as_string(2)?;
 
-    let task = op(&c, s, is_module.get_value()?, options);
+    let task = op(&c, src, is_module.get_value()?, options);
 
     cx.env.spawn(task).map(|t| t.promise_object())
 }
@@ -145,17 +157,8 @@ where
 
 #[js_function(4)]
 pub fn transform(cx: CallContext) -> napi::Result<JsObject> {
-    schedule_transform(cx, |c, src, _, mut options| {
-        options.swc.swcrc = false;
-
-        let input = Input::Source(c.cm.new_source_file(
-            if options.swc.filename.is_empty() {
-                FileName::Anon
-            } else {
-                FileName::Real(options.swc.filename.clone().into())
-            },
-            src,
-        ));
+    schedule_transform(cx, |c, src, _, options| {
+        let input = Input::Source { src };
 
         TransformTask {
             c: c.clone(),
