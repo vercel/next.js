@@ -29,6 +29,10 @@ export function createPagesMapping(
   hasServerComponents: boolean
 ): PagesMapping {
   const previousPages: PagesMapping = {}
+
+  // Do not process .d.ts files inside the `pages` folder
+  pagePaths = extensions.includes('ts') ? pagePaths.filter((pagePath) => !pagePath.endsWith('.d.ts')) : pagePaths
+
   const pages: PagesMapping = pagePaths.reduce(
     (result: PagesMapping, pagePath): PagesMapping => {
       let page = pagePath.replace(
