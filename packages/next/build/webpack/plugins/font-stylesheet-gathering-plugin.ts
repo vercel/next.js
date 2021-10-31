@@ -26,7 +26,7 @@ function minifyCss(css: string): Promise<string> {
     ),
   ])
     .process(css, { from: undefined })
-    .then((res) => res.css)
+    .then((res) => res.css, (rej) => console.log(rej))
 }
 
 export class FontStylesheetGatheringPlugin {
