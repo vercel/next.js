@@ -2,7 +2,7 @@ import { IncomingMessage, ServerResponse } from 'http'
 import { ParsedUrlQuery } from 'querystring'
 import type { Writable as WritableType } from 'stream'
 import React from 'react'
-import * as ReactDOMServer from 'react-dom/server'
+import * as ReactDOMServer from './react-dom-server'
 import { StyleRegistry, createStyleRegistry } from 'styled-jsx'
 import { UnwrapPromise } from '../lib/coalesced-function'
 import {
@@ -577,12 +577,15 @@ export async function renderToHTML(
     </RouterContext.Provider>
   )
 
-  props = await loadGetInitialProps(App, {
-    AppTree: ctx.AppTree,
-    Component,
-    router,
-    ctx,
-  })
+  // `getInititalProps` will be ignored in the web runtime.
+  props = process.browser
+    ? {}
+    : await loadGetInitialProps(App, {
+        AppTree: ctx.AppTree,
+        Component,
+        router,
+        ctx,
+      })
 
   if ((isSSG || getServerSideProps) && isPreview) {
     props.__N_PREVIEW = true
@@ -950,7 +953,11 @@ export async function renderToHTML(
    */
   const generateStaticHTML = supportsDynamicHTML !== true
   const renderDocument = async () => {
-    if (Document.getInitialProps) {
+    if (Document.getInitialProps && process.browser) {
+      throw new Error(
+        "`Document.getInitialProps` isn't supported with `concurrentFeatures`."
+      )
+    } else if (Document.getInitialProps && !process.browser) {
       const renderPage: RenderPage = (
         options: ComponentsEnhancer = {}
       ): RenderPageResult | Promise<RenderPageResult> => {
@@ -1376,7 +1383,7 @@ function renderToReadableStream(
     let bufferedString = ''
     let shellCompleted = false
 
-    const readable = (ReactDOMServer as any).renderToReadableStream(element, {
+    const readable = ReactDOMServer.renderToReadableStream(element, {
       onCompleteShell() {
         shellCompleted = true
         if (bufferedString) {
