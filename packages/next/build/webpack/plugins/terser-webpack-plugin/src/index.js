@@ -299,16 +299,7 @@ export class TerserPlugin {
     const pluginName = this.constructor.name
     const availableNumberOfCores = this.options.parallel
 
-    compiler.hooks.compilation.tap(pluginName, (compilation) => {
-      // Don't run minifier against mini-css-extract-plugin
-      if (
-        compilation.name !== 'client' &&
-        compilation.name !== 'server' &&
-        compilation.name !== 'server-web'
-      ) {
-        return
-      }
-
+    compiler.hooks.thisCompilation.tap(pluginName, (compilation) => {
       const cache = compilation.getCache('TerserWebpackPlugin')
 
       const handleHashForChunk = (hash, chunk) => {

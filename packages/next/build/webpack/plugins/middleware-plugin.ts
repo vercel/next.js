@@ -33,17 +33,9 @@ export interface MiddlewareManifest {
 
 export default class MiddlewarePlugin {
   dev: boolean
-  hasServerComponents?: boolean
 
-  constructor({
-    dev,
-    hasServerComponents,
-  }: {
-    dev: boolean
-    hasServerComponents?: boolean
-  }) {
+  constructor({ dev }: { dev: boolean }) {
     this.dev = dev
-    this.hasServerComponents = hasServerComponents
   }
 
   createAssets(

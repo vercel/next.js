@@ -92,18 +92,18 @@ Or using `yarn`:
 yarn add react@latest react-dom@latest
 ```
 
-### Upgrade Next.js version to latest
+### Upgrade Next.js version to 11
 
 To upgrade you can run the following command in the terminal:
 
 ```
-npm install next@latest
+npm install next@11
 ```
 
 or
 
 ```
-yarn add next@latest
+yarn add next@11
 ```
 
 ### Webpack 5
