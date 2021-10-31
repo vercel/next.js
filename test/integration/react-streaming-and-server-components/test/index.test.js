@@ -78,7 +78,7 @@ async function nextDev(dir, port) {
   })
 }
 
-describe('concurrentFeatures - basic - build', () => {
+describe('concurrentFeatures - basic', () => {
   it('should warn user for experimental risk with server components', async () => {
     const middlewareWarning = `Using the experimental web runtime.`
     const rscWarning = `You have experimental React Server Components enabled.`
@@ -91,17 +91,6 @@ describe('concurrentFeatures - basic - build', () => {
       'Native Node.js APIs are not supported in the Edge Runtime with `concurrentFeatures` enabled. Found `fs` imported.'
     const { stderr } = await nextBuild(fsTestAppDir)
     expect(stderr).toContain(fsImportedErrorMessage)
-  })
-})
-
-describe.only('concurrentFeatures - basic - dev', () => {
-  it('should warn user that native node APIs are not supported', async () => {
-    const fsImportedErrorMessage =
-      'Native Node.js APIs are not supported in the Edge Runtime with `concurrentFeatures` enabled. Found `fs` imported.'
-    const appPort = await findPort()
-    const server = await nextDev(fsTestAppDir, appPort)
-    await renderViaHTTP(appPort, '/')
-    await killApp(server)
   })
 })
 
