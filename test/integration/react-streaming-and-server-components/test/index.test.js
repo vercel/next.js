@@ -80,11 +80,12 @@ async function nextDev(dir, port) {
 
 describe('concurrentFeatures - basic', () => {
   it('should warn user for experimental risk with server components', async () => {
-    const middlewareWarning = `Using the experimental web runtime.`
-    const rscWarning = `You have experimental React Server Components enabled.`
+    const edgeRuntimeWarning =
+      'You are using the experimental Edge Runtime with `concurrentFeatures`.'
+    const rscWarning = `You have experimental React Server Components enabled. Continue at your own risk.`
     const { stderr } = await nextBuild(appDir)
+    expect(stderr).toContain(edgeRuntimeWarning)
     expect(stderr).toContain(rscWarning)
-    expect(stderr).toContain(middlewareWarning)
   })
   it('should warn user that native node APIs are not supported', async () => {
     const fsImportedErrorMessage =
