@@ -19,7 +19,7 @@ export default async function start(
   requestHandler = app.getRequestHandler()
 
   await new Promise<void>((resolve, reject) => {
-    const isExplicitPort = serverOptions.inlinePort == null
+    const isExplicitPort = serverOptions.inlinePort != null
     srv.on('error', (err: NodeJS.ErrnoException) => {
       // This code catches EADDRINUSE error if the port is already in use
       if (
