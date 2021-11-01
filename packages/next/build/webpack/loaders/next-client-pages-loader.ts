@@ -3,6 +3,15 @@ export type ClientPagesLoaderOptions = {
   page: string
 }
 
+function stringifyRequest(loaderContext: any, request: any) {
+  return JSON.stringify(
+    loaderContext.utils.contextify(
+      loaderContext.context || loaderContext.rootContext,
+      request
+    )
+  )
+}
+
 // this parameter: https://www.typescriptlang.org/docs/handbook/functions.html#this-parameters
 function nextClientPagesLoader(this: any) {
   const pagesLoaderSpan = this.currentTraceSpan.traceChild(
@@ -15,9 +24,7 @@ function nextClientPagesLoader(this: any) {
 
     pagesLoaderSpan.setAttribute('absolutePagePath', absolutePagePath)
 
-    const stringifiedPagePath = JSON.stringify(
-      this.utils.contextify(this.context, absolutePagePath)
-    )
+    const stringifiedPagePath = stringifyRequest(this, absolutePagePath)
     const stringifiedPage = JSON.stringify(page)
 
     return `

@@ -3,7 +3,10 @@ import isEqualLocals from './runtime/isEqualLocals'
 
 function stringifyRequest(loaderContext, request) {
   return JSON.stringify(
-    loaderContext.utils.contextify(loaderContext.context, request)
+    loaderContext.utils.contextify(
+      loaderContext.context || loaderContext.rootContext,
+      request
+    )
   )
 }
 
