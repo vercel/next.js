@@ -68,6 +68,7 @@ export interface PageInfo {
   totalSize: number
   static: boolean
   isSsg: boolean
+  isWebSsr: boolean
   ssgPageRoutes: string[] | null
   initialRevalidateSeconds: number | false
   pageDuration: number | undefined
@@ -176,7 +177,6 @@ export async function printTreeView(
 
     const pageInfo = pageInfos.get(item)
     const ampFirst = buildManifest.ampFirstPages.includes(item)
-
     const totalDuration =
       (pageInfo?.pageDuration || 0) +
       (pageInfo?.ssgPageDurations?.reduce((a, b) => a + (b || 0), 0) || 0)
@@ -186,11 +186,14 @@ export async function printTreeView(
         ? ' '
         : item.endsWith('/_middleware')
         ? 'ƒ'
+        : pageInfo?.isWebSsr
+        ? 'ℇ'
         : pageInfo?.static
         ? '○'
         : pageInfo?.isSsg
         ? '●'
         : 'λ'
+
     usedSymbols.add(symbol)
 
     if (pageInfo?.initialRevalidateSeconds) usedSymbols.add('ISR')
@@ -353,6 +356,11 @@ export async function printTreeView(
           'ƒ',
           '(Middleware)',
           `intercepts requests (uses ${chalk.cyan('_middleware')})`,
+        ],
+        usedSymbols.has('ℇ') && [
+          'ℇ',
+          '(Streaming)',
+          `server-side renders with streaming (uses React 18 SSR streaming or Server Components)`,
         ],
         usedSymbols.has('λ') && [
           'λ',
@@ -841,6 +849,7 @@ export async function isPageStatic(
   isStatic?: boolean
   isAmpOnly?: boolean
   isHybridAmp?: boolean
+  hasFlightData?: boolean
   hasServerProps?: boolean
   hasStaticProps?: boolean
   prerenderRoutes?: string[]
@@ -855,6 +864,7 @@ export async function isPageStatic(
     try {
       require('../shared/lib/runtime-config').setConfig(runtimeEnvConfig)
       setHttpAgentOptions(httpAgentOptions)
+
       const mod = await loadComponents(distDir, page, serverless)
       const Comp = mod.Component
 
@@ -862,6 +872,7 @@ export async function isPageStatic(
         throw new Error('INVALID_DEFAULT_EXPORT')
       }
 
+      const hasFlightData = !!(Comp as any).__next_rsc__
       const hasGetInitialProps = !!(Comp as any).getInitialProps
       const hasStaticProps = !!mod.getStaticProps
       const hasStaticPaths = !!mod.getStaticPaths
@@ -949,7 +960,11 @@ export async function isPageStatic(
       const isNextImageImported = (global as any).__NEXT_IMAGE_IMPORTED
       const config: PageConfig = mod.pageConfig
       return {
-        isStatic: !hasStaticProps && !hasGetInitialProps && !hasServerProps,
+        isStatic:
+          !hasStaticProps &&
+          !hasGetInitialProps &&
+          !hasServerProps &&
+          !hasFlightData,
         isHybridAmp: config.amp === 'hybrid',
         isAmpOnly: config.amp === true,
         prerenderRoutes,
@@ -957,6 +972,7 @@ export async function isPageStatic(
         encodedPrerenderRoutes,
         hasStaticProps,
         hasServerProps,
+        hasFlightData,
         isNextImageImported,
         traceIncludes: config.unstable_includeFiles || [],
         traceExcludes: config.unstable_excludeFiles || [],
@@ -1089,4 +1105,31 @@ export function getCssFilePaths(buildManifest: BuildManifest): string[] {
   })
 
   return [...cssFiles]
+}
+
+export function getRawPageExtensions(pageExtensions: string[]): string[] {
+  return pageExtensions.filter(
+    (ext) => !ext.startsWith('client.') && !ext.startsWith('server.')
+  )
+}
+
+export function isFlightPage(
+  nextConfig: NextConfigComplete,
+  pagePath: string
+): boolean {
+  if (
+    !(
+      nextConfig.experimental.serverComponents &&
+      nextConfig.experimental.concurrentFeatures
+    )
+  )
+    return false
+
+  const rawPageExtensions = getRawPageExtensions(
+    nextConfig.pageExtensions || []
+  )
+  const isRscPage = rawPageExtensions.some((ext) => {
+    return new RegExp(`\\.server\\.${ext}$`).test(pagePath)
+  })
+  return isRscPage
 }
