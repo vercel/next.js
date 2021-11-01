@@ -28,7 +28,7 @@ function MyApp({ Component, pageProps }) {
 export default MyApp
 ```
 
-If your application is not using `next/image`, you can disable the built-in loader with the following next.config.js:
+If your application is not using image imports with `next/image`, you can disable the built-in loader with the following next.config.js:
 
 ```js
 module.exports = {
