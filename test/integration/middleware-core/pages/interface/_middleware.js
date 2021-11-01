@@ -1,14 +1,12 @@
-export function middleware(event) {
-  event.respondWith(
-    new Response(null, {
-      headers: {
-        'req-url-basepath': event.request.nextUrl.basePath,
-        'req-url-pathname': event.request.nextUrl.pathname,
-        'req-url-params': JSON.stringify(event.request.page.params),
-        'req-url-page': event.request.page.name,
-        'req-url-query': event.request.nextUrl.searchParams.get('foo'),
-        'req-url-locale': event.request.nextUrl.locale,
-      },
-    })
-  )
+export function middleware(request) {
+  return new Response(null, {
+    headers: {
+      'req-url-basepath': request.nextUrl.basePath,
+      'req-url-pathname': request.nextUrl.pathname,
+      'req-url-params': JSON.stringify(request.page.params),
+      'req-url-page': request.page.name,
+      'req-url-query': request.nextUrl.searchParams.get('foo'),
+      'req-url-locale': request.nextUrl.locale,
+    },
+  })
 }

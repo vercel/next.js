@@ -14,10 +14,11 @@ export type OutputState =
       | {
           loading: false
           typeChecking: boolean
-          partial: 'client' | 'server' | undefined
+          partial: 'client' | 'server' | 'serverWeb' | undefined
           modules: number
           errors: string[] | null
           warnings: string[] | null
+          hasServerWeb: boolean
         }
     ))
 
@@ -83,6 +84,16 @@ store.subscribe((state) => {
         }
         return
       }
+    }
+
+    if (
+      state.hasServerWeb &&
+      cleanError.indexOf("Module not found: Can't resolve 'fs'") > -1
+    ) {
+      console.error(
+        `Native Node.js APIs are not supported in the Edge Runtime with \`concurrentFeatures\` enabled. Found \`fs\` imported.\n`
+      )
+      return
     }
 
     // Ensure traces are flushed after each compile in development mode

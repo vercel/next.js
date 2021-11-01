@@ -12,6 +12,7 @@
     "dev": "lerna run dev --stream --parallel",
     "dev2": "while true; do yarn --check-files && yarn dev; done",
     "test-types": "yarn tsc",
+    "test": "yarn jest",
     "test-unit": "yarn jest test/unit/",
     "testonly": "yarn jest --runInBand",
     "testheadless": "cross-env HEADLESS=true yarn testonly",
@@ -127,7 +128,6 @@
     "nprogress": "0.2.0",
     "pixrem": "5.0.0",
     "playwright-chromium": "1.14.1",
-    "pnpm": "5.14.3",
     "postcss-nested": "4.2.1",
     "postcss-pseudoelements": "5.0.0",
     "postcss-short-size": "4.0.0",
@@ -138,9 +138,9 @@
     "pretty-ms": "7.0.0",
     "random-seed": "0.3.0",
     "react": "17.0.2",
-    "react-18": "npm:react@next",
+    "react-18": "npm:react@18.0.0-alpha-3c4c1c470-20211021",
     "react-dom": "17.0.2",
-    "react-dom-18": "npm:react-dom@next",
+    "react-dom-18": "npm:react-dom@18.0.0-alpha-3c4c1c470-20211021",
     "react-ssr-prepass": "1.0.8",
     "release": "6.3.0",
     "request-promise-core": "1.1.2",
@@ -148,7 +148,7 @@
     "rimraf": "2.6.3",
     "seedrandom": "3.0.5",
     "selenium-webdriver": "4.0.0-beta.4",
-    "shell-quote": "1.7.2",
+    "shell-quote": "1.7.3",
     "styled-jsx-plugin-postcss": "3.0.2",
     "tailwindcss": "1.1.3",
     "taskr": "1.1.0",
@@ -156,12 +156,26 @@
     "typescript": "4.4.3",
     "wait-port": "0.2.2",
     "web-streams-polyfill": "2.1.1",
+    "webpack": "link:./node_modules/webpack5",
     "webpack-bundle-analyzer": "4.3.0",
     "worker-loader": "3.0.7"
   },
+  "optionalDependencies": {
+    "@next/swc-android-arm64": "canary",
+    "@next/swc-darwin-arm64": "canary",
+    "@next/swc-darwin-x64": "canary",
+    "@next/swc-linux-arm-gnueabihf": "canary",
+    "@next/swc-linux-arm64-gnu": "canary",
+    "@next/swc-linux-arm64-musl": "canary",
+    "@next/swc-linux-x64-gnu": "canary",
+    "@next/swc-linux-x64-musl": "canary",
+    "@next/swc-win32-arm64-msvc": "canary",
+    "@next/swc-win32-ia32-msvc": "canary",
+    "@next/swc-win32-x64-msvc": "canary"
+  },
   "resolutions": {
     "browserslist": "4.16.6",
-    "caniuse-lite": "1.0.30001228"
+    "caniuse-lite": "1.0.30001271"
   },
   "engines": {
     "node": ">=12.22.0"

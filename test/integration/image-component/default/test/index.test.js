@@ -135,6 +135,13 @@ function runTests(mode) {
             '/_next/image?url=%2Fwide.png&w=640&q=75 640w, /_next/image?url=%2Fwide.png&w=750&q=75 750w, /_next/image?url=%2Fwide.png&w=828&q=75 828w, /_next/image?url=%2Fwide.png&w=1080&q=75 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75 3840w',
         },
       ])
+
+      const warnings = (await browser.log('browser'))
+        .map((log) => log.message)
+        .join('\n')
+      expect(warnings).not.toMatch(
+        /was detected as the Largest Contentful Paint/gm
+      )
     } finally {
       if (browser) {
         await browser.close()
@@ -613,12 +620,20 @@ function runTests(mode) {
         appPort,
         '/layout-fill-inside-nonrelative'
       )
-      await browser.eval(`document.getElementById("img").scrollIntoView()`)
-      await check(async () => {
-        return (await browser.log('browser'))
-          .map((log) => log.message)
-          .join('\n')
-      }, /Image with src (.*)jpg(.*) may not render properly with a parent using position:"static". Consider changing the parent style to position:"relative"/gm)
+      await browser.eval(`document.querySelector("footer").scrollIntoView()`)
+      await waitFor(1000)
+      const warnings = (await browser.log('browser'))
+        .map((log) => log.message)
+        .join('\n')
+      expect(warnings).toMatch(
+        /Image with src (.*)jpg(.*) may not render properly with a parent using position:"static". Consider changing the parent style to position:"relative"/gm
+      )
+      expect(warnings).not.toMatch(
+        /Image with src (.*)png(.*) may not render properly/gm
+      )
+      expect(warnings).not.toMatch(
+        /Image with src (.*)webp(.*) may not render properly/gm
+      )
       expect(await hasRedbox(browser)).toBe(false)
     })
 
@@ -657,6 +672,59 @@ function runTests(mode) {
         /Expected server HTML to contain a matching/gm
       )
       expect(warnings).not.toMatch(/cannot appear as a descendant/gm)
+    })
+
+    it('should warn when priority prop is missing on LCP image', async () => {
+      let browser
+      try {
+        browser = await webdriver(appPort, '/priority-missing-warning')
+        // Wait for image to load:
+        await check(async () => {
+          const result = await browser.eval(
+            `document.getElementById('responsive').naturalWidth`
+          )
+          if (result < 1) {
+            throw new Error('Image not ready')
+          }
+          return 'done'
+        }, 'done')
+        await waitFor(1000)
+        const warnings = (await browser.log('browser'))
+          .map((log) => log.message)
+          .join('\n')
+        expect(await hasRedbox(browser)).toBe(false)
+        expect(warnings).toMatch(
+          /Image with src (.*)wide.png(.*) was detected as the Largest Contentful Paint/gm
+        )
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
+    })
+
+    it('should warn when loader is missing width', async () => {
+      const browser = await webdriver(appPort, '/invalid-loader')
+      await browser.eval(`document.querySelector("footer").scrollIntoView()`)
+      const warnings = (await browser.log('browser'))
+        .map((log) => log.message)
+        .join('\n')
+      expect(await hasRedbox(browser)).toBe(false)
+      expect(warnings).toMatch(
+        /Image with src (.*)png(.*) has a "loader" property that does not implement width/gm
+      )
+      expect(warnings).not.toMatch(
+        /Image with src (.*)jpg(.*) has a "loader" property that does not implement width/gm
+      )
+      expect(warnings).not.toMatch(
+        /Image with src (.*)webp(.*) has a "loader" property that does not implement width/gm
+      )
+      expect(warnings).not.toMatch(
+        /Image with src (.*)gif(.*) has a "loader" property that does not implement width/gm
+      )
+      expect(warnings).not.toMatch(
+        /Image with src (.*)tiff(.*) has a "loader" property that does not implement width/gm
+      )
     })
   } else {
     //server-only tests
@@ -708,25 +776,25 @@ function runTests(mode) {
         `document.querySelector("footer").scrollIntoView({behavior: "smooth"})`
       )
 
-      const allImgs = await browser.eval(`
+      const imagesWithIds = await browser.eval(`
         function foo() {
           const imgs = document.querySelectorAll("img[id]");
           for (let img of imgs) {
             const br = window.getComputedStyle(img).getPropertyValue("border-radius");
             if (!br) return 'no-border-radius';
-            if (br !== '100px') return br;
+            if (br !== '139px') return br;
           }
           return true;
         }()
       `)
-      expect(allImgs).toBe(true)
+      expect(imagesWithIds).toBe(true)
 
       const allSpans = await browser.eval(`
         function foo() {
           const spans = document.querySelectorAll("span");
           for (let span of spans) {
-            const br = window.getComputedStyle(span).getPropertyValue("border-radius");
-            if (br && br !== '0px') return br;
+            const m = window.getComputedStyle(span).getPropertyValue("margin");
+            if (m && m !== '0px') return m;
           }
           return false;
         }()

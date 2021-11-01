@@ -17,8 +17,7 @@ jest.setTimeout(1000 * 60 * 2)
 const context = {}
 context.appDir = join(__dirname, '../')
 
-const middlewareWarning =
-  'Warning: using beta Middleware (not covered by semver)'
+const middlewareWarning = 'using beta Middleware (not covered by semver)'
 
 describe('Middleware base tests', () => {
   describe('dev mode', () => {
@@ -116,6 +115,8 @@ function rewriteTests(locale = '') {
     )
     const html = await res.text()
     const $ = cheerio.load(html)
+    // Set-Cookie header with Expires should not be split into two
+    expect(res.headers.raw()['set-cookie']).toHaveLength(1)
     const bucket = getCookieFromResponse(res, 'bucket')
     const expectedText = bucket === 'a' ? 'Welcome Page A' : 'Welcome Page B'
     const browser = await webdriver(
@@ -310,6 +311,15 @@ function responseTests(locale = '') {
     expect($('.title').text()).toBe('Hello World')
   })
 
+  it(`${locale} should respond with 2 nested headers`, async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      `${locale}/responses/header?nested-header=true`
+    )
+    expect(res.headers.get('x-first-header')).toBe('valid')
+    expect(res.headers.get('x-nested-header')).toBe('valid')
+  })
+
   it(`${locale} should respond with a header`, async () => {
     const res = await fetchViaHTTP(
       context.appPort,
@@ -318,13 +328,18 @@ function responseTests(locale = '') {
     expect(res.headers.get('x-first-header')).toBe('valid')
   })
 
-  it(`${locale} should respond with 2 nested headers`, async () => {
+  it(`${locale} should respond with top level headers and append deep headers`, async () => {
     const res = await fetchViaHTTP(
       context.appPort,
-      `${locale}/responses/header?nested-header=true`
+      `${locale}/responses/deep?nested-header=true&append-me=true&cookie-me=true`
     )
-    expect(res.headers.get('x-first-header')).toBe('valid')
     expect(res.headers.get('x-nested-header')).toBe('valid')
+    expect(res.headers.get('x-deep-header')).toBe('valid')
+    expect(res.headers.get('x-append-me')).toBe('top, deep')
+    expect(res.headers.raw()['set-cookie']).toEqual([
+      'bar=chocochip',
+      'foo=oatmeal',
+    ])
   })
 }
 
