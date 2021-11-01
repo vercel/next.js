@@ -44,7 +44,7 @@ return <h1>The value of customKey is: {process.env.customKey}</h1>
 Will end up being:
 
 ```jsx
-return <h1>The value of customKey is: {'my-value'}</h1>
+return <h1>The value of customKey is: my-value</h1>
 ```
 
 ## Related
