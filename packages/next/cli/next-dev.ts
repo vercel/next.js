@@ -73,9 +73,9 @@ const nextDev: cliCommand = (argv) => {
       )
     }
   }
-
-  let port: number | undefined =
-    args['--port'] || (process.env.PORT && parseInt(process.env.PORT))
+  const inlinePort: number | undefined = args['--port']
+  let port: number =
+    args['--port'] || (process.env.PORT && parseInt(process.env.PORT)) || 3000
 
   // we allow the server to use a random port while testing
   // instead of attempting to find a random port and then hope
@@ -88,7 +88,11 @@ const nextDev: cliCommand = (argv) => {
   // some set-ups that rely on listening on other interfaces
   const host = args['--hostname']
 
-  startServer({ dir, dev: true, isNextDevCommand: true }, port, host)
+  startServer(
+    { dir, dev: true, isNextDevCommand: true, inlinePort },
+    port,
+    host
+  )
     .then(async ({ app, actualPort }) => {
       const appUrl = `http://${
         !host || host === '0.0.0.0' ? 'localhost' : host
