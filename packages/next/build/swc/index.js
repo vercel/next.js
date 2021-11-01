@@ -20,10 +20,11 @@ for (const triple of triples) {
     Log.info('Using locally built binary of next-swc')
     try {
       bindings = require(localFilePath)
+      break
     } catch (e) {
       loadError = e
+      continue
     }
-    break
   }
 
   try {
