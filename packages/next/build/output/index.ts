@@ -150,6 +150,7 @@ buildStore.subscribe((state) => {
       (clientWasLoading ? client.modules : 0) +
       (serverWasLoading ? server.modules : 0) +
       (serverWebWasLoading ? serverWeb?.modules || 0 : 0),
+    hasServerWeb: !!serverWeb,
   }
   if (client.errors) {
     // Show only client errors

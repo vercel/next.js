@@ -19,6 +19,7 @@ import css from './css'
 
 const nodeArgs = ['-r', join(__dirname, '../../react-18/test/require-hook.js')]
 const appDir = join(__dirname, '../app')
+const fsTestAppDir = join(__dirname, '../app-fs')
 const distDir = join(__dirname, '../app/.next')
 const documentPage = new File(join(appDir, 'pages/_document.js'))
 const appPage = new File(join(appDir, 'pages/_app.js'))
@@ -77,18 +78,24 @@ async function nextDev(dir, port) {
   })
 }
 
-describe('RSC basic', () => {
-  const context = { appDir }
+describe('concurrentFeatures - basic', () => {
   it('should warn user for experimental risk with server components', async () => {
-    const middlewareWarning = `Using the experimental web runtime.`
-    const rscWarning = `You have experimental React Server Components enabled.`
-    const { stdout } = await nextBuild(context.appDir)
-    expect(stdout).toContain(rscWarning)
-    expect(stdout).toContain(middlewareWarning)
+    const edgeRuntimeWarning =
+      'You are using the experimental Edge Runtime with `concurrentFeatures`.'
+    const rscWarning = `You have experimental React Server Components enabled. Continue at your own risk.`
+    const { stderr } = await nextBuild(appDir)
+    expect(stderr).toContain(edgeRuntimeWarning)
+    expect(stderr).toContain(rscWarning)
+  })
+  it('should warn user that native node APIs are not supported', async () => {
+    const fsImportedErrorMessage =
+      'Native Node.js APIs are not supported in the Edge Runtime with `concurrentFeatures` enabled. Found `fs` imported.'
+    const { stderr } = await nextBuild(fsTestAppDir)
+    expect(stderr).toContain(fsImportedErrorMessage)
   })
 })
 
-describe('RSC prod', () => {
+describe('concurrentFeatures - prod', () => {
   const context = { appDir }
 
   beforeAll(async () => {
@@ -136,7 +143,7 @@ describe('RSC prod', () => {
   runBasicTests(context)
 })
 
-describe('RSC dev', () => {
+describe('concurrentFeatures - dev', () => {
   const context = { appDir }
 
   beforeAll(async () => {

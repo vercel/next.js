@@ -403,9 +403,13 @@ export default async function getBaseWebpackConfig(
   }
 
   if (webServerRuntime) {
-    Log.info('Using the experimental web runtime.')
+    Log.warn(
+      'You are using the experimental Edge Runtime with `concurrentFeatures`.'
+    )
     if (hasServerComponents) {
-      Log.info('You have experimental React Server Components enabled.')
+      Log.warn(
+        'You have experimental React Server Components enabled. Continue at your own risk.'
+      )
     }
   }
 
