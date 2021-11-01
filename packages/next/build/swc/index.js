@@ -32,8 +32,9 @@ for (const triple of triples) {
   } catch (e) {
     if (e?.code !== 'MODULE_NOT_FOUND') {
       loadError = e
-      continue
+      break
     }
+    continue
   }
 }
 
