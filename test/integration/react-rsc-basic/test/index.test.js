@@ -5,6 +5,8 @@ import { join } from 'path'
 import fs from 'fs-extra'
 
 import {
+  File,
+  fetchViaHTTP,
   findPort,
   killApp,
   launchApp,
@@ -18,6 +20,38 @@ import css from './css'
 const nodeArgs = ['-r', join(__dirname, '../../react-18/test/require-hook.js')]
 const appDir = join(__dirname, '../app')
 const distDir = join(__dirname, '../app/.next')
+const documentPage = new File(join(appDir, 'pages/_document.js'))
+const appPage = new File(join(appDir, 'pages/_app.js'))
+
+const documentWithGip = `
+import { Html, Head, Main, NextScript } from 'next/document'
+
+export default function Document() {
+  return (
+    <Html>
+      <Head />
+      <body>
+        <Main />
+        <NextScript />
+      </body>
+    </Html>
+  )
+}
+
+Document.getInitialProps = (ctx) => {
+  return ctx.defaultGetInitialProps(ctx)
+}
+`
+
+const appWithGlobalCss = `
+import '../styles.css'
+
+function App({ Component, pageProps }) {
+  return <Component {...pageProps} />
+}
+
+export default App
+`
 
 async function nextBuild(dir) {
   return await _nextBuild(dir, [], {
@@ -99,7 +133,7 @@ describe('RSC prod', () => {
       expect(content.clientInfo).toContainEqual(item)
     }
   })
-  runTests(context)
+  runBasicTests(context)
 })
 
 describe('RSC dev', () => {
@@ -112,39 +146,38 @@ describe('RSC dev', () => {
   afterAll(async () => {
     await killApp(context.server)
   })
-  runTests(context)
+  runBasicTests(context)
 })
 
-describe('CSS prod', () => {
-  const context = { appDir }
+const cssSuite = {
+  runTests: css,
+  before: () => appPage.write(appWithGlobalCss),
+  after: () => appPage.delete(),
+}
 
-  beforeAll(async () => {
-    context.appPort = await findPort()
-    await nextBuild(context.appDir)
-    context.server = await nextStart(context.appDir, context.appPort)
-  })
-  afterAll(async () => {
-    await killApp(context.server)
-  })
+runSuite('CSS', 'dev', cssSuite)
+runSuite('CSS', 'prod', cssSuite)
 
-  css(context)
-})
+const documentSuite = {
+  runTests: (context) => {
+    it('should error when custom _document has getInitialProps method', async () => {
+      const res = await fetchViaHTTP(context.appPort, '/')
+      const html = await res.text()
 
-describe('CSS dev', () => {
-  const context = { appDir }
+      expect(res.status).toBe(500)
+      expect(html).toContain(
+        'Document.getInitialProps is not supported with server components, please remove it from pages/_document'
+      )
+    })
+  },
+  before: () => documentPage.write(documentWithGip),
+  after: () => documentPage.delete(),
+}
 
-  beforeAll(async () => {
-    context.appPort = await findPort()
-    context.server = await nextDev(context.appDir, context.appPort)
-  })
-  afterAll(async () => {
-    await killApp(context.server)
-  })
+runSuite('document', 'dev', documentSuite)
+runSuite('document', 'prod', documentSuite)
 
-  css(context)
-})
-
-async function runTests(context) {
+async function runBasicTests(context) {
   it('should render the correct html', async () => {
     const homeHTML = await renderViaHTTP(context.appPort, '/')
 
@@ -179,5 +212,31 @@ async function runTests(context) {
     const imageTag = $('div[hidden] > span > span > img')
 
     expect(imageTag.attr('src')).toContain('data:image')
+  })
+}
+
+function runSuite(suiteName, env, { runTests, before, after }) {
+  const context = { appDir }
+  describe(`${suiteName} ${env}`, () => {
+    if (env === 'prod') {
+      beforeAll(async () => {
+        before?.()
+        context.appPort = await findPort()
+        context.server = await nextDev(context.appDir, context.appPort)
+      })
+    }
+    if (env === 'dev') {
+      beforeAll(async () => {
+        before?.()
+        context.appPort = await findPort()
+        context.server = await nextDev(context.appDir, context.appPort)
+      })
+    }
+    afterAll(async () => {
+      after?.()
+      await killApp(context.server)
+    })
+
+    runTests(context)
   })
 }
