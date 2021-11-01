@@ -47,6 +47,9 @@ if (!bindings) {
     `Failed to load SWC binary, see more info here: https://nextjs.org/docs/messages/failed-loading-swc`
   )
   process.exit(1)
+} else {
+  // Release memory
+  loadError = null
 }
 
 async function transform(src, options) {
