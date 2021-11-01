@@ -1,9 +1,10 @@
 import http from 'http'
 import next from '../next'
+import { warn } from '../../build/output/log'
 
 export default async function start(
   serverOptions: any,
-  port?: number,
+  rawPort?: number,
   hostname?: string
 ) {
   let requestHandler: ReturnType<typeof app.getRequestHandler>
@@ -18,8 +19,22 @@ export default async function start(
   requestHandler = app.getRequestHandler()
 
   await new Promise<void>((resolve, reject) => {
-    // This code catches EADDRINUSE error if the port is already in use
-    srv.on('error', reject)
+    let isExplicitPort = rawPort != null
+    let port = rawPort ?? 3000
+    srv.on('error', (err: NodeJS.ErrnoException) => {
+      // This code catches EADDRINUSE error if the port is already in use
+      if (
+        err.code === 'EADDRINUSE' &&
+        serverOptions.isNextDevCommand &&
+        !isExplicitPort
+      ) {
+        warn(`Port ${port} is in use, trying ${port + 1} instead.`)
+        port += 1
+        srv.listen(port, hostname)
+      } else {
+        reject(err)
+      }
+    })
     srv.on('listening', () => resolve())
     srv.listen(port, hostname)
   })
@@ -28,6 +43,6 @@ export default async function start(
   const addr = srv.address()
   return {
     app,
-    actualPort: addr && typeof addr === 'object' ? addr.port : port,
+    actualPort: addr && typeof addr === 'object' ? addr.port : rawPort,
   }
 }

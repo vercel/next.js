@@ -74,8 +74,8 @@ const nextDev: cliCommand = (argv) => {
     }
   }
 
-  let port: number =
-    args['--port'] || (process.env.PORT && parseInt(process.env.PORT)) || 3000
+  let port: number | undefined =
+    args['--port'] || (process.env.PORT && parseInt(process.env.PORT))
 
   // we allow the server to use a random port while testing
   // instead of attempting to find a random port and then hope
