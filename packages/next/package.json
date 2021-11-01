@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "12.0.1-canary.3",
+  "version": "12.0.2",
   "description": "The React Framework",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -56,7 +56,7 @@
     "types": "tsc --declaration --emitDeclarationOnly --declarationDir dist",
     "typescript": "tsc --noEmit --declaration",
     "ncc-compiled": "ncc cache clean && taskr ncc",
-    "build-native": "npx -p @napi-rs/cli@1.2.1 napi build --platform --release --cargo-cwd build/swc native"
+    "build-native": "npx -p @napi-rs/cli@1.2.1 napi build --platform --cargo-cwd build/swc native"
   },
   "taskr": {
     "requires": [
@@ -67,11 +67,11 @@
   "dependencies": {
     "@babel/runtime": "7.15.4",
     "@hapi/accept": "5.0.2",
-    "@next/env": "12.0.1-canary.3",
-    "@next/polyfill-module": "12.0.1-canary.3",
-    "@next/react-dev-overlay": "12.0.1-canary.3",
-    "@next/react-refresh-utils": "12.0.1-canary.3",
-    "@node-rs/helper": "1.2.1",
+    "@napi-rs/triples": "1.0.3",
+    "@next/env": "12.0.2",
+    "@next/polyfill-module": "12.0.2",
+    "@next/react-dev-overlay": "12.0.2",
+    "@next/react-refresh-utils": "12.0.2",
     "acorn": "8.5.0",
     "assert": "2.0.0",
     "browserify-zlib": "0.2.0",
@@ -103,7 +103,6 @@
     "raw-body": "2.4.1",
     "react-is": "17.0.2",
     "react-refresh": "0.8.3",
-    "react-server-dom-webpack": "0.0.0-experimental-3c4c1c470-20211021",
     "regenerator-runtime": "0.13.4",
     "stream-browserify": "3.0.0",
     "stream-http": "3.1.1",
@@ -114,8 +113,7 @@
     "use-subscription": "1.5.1",
     "util": "0.12.4",
     "vm-browserify": "1.1.2",
-    "watchpack": "2.1.1",
-    "web-streams-polyfill": "3.0.3"
+    "watchpack": "2.1.1"
   },
   "peerDependencies": {
     "fibers": ">= 3.1.0",
@@ -156,7 +154,7 @@
     "@babel/traverse": "7.15.0",
     "@babel/types": "7.15.0",
     "@napi-rs/cli": "1.1.0",
-    "@next/polyfill-nomodule": "12.0.1-canary.3",
+    "@next/polyfill-nomodule": "12.0.2",
     "@peculiar/webcrypto": "1.1.7",
     "@taskr/clear": "1.1.0",
     "@taskr/esnext": "1.1.0",
@@ -244,6 +242,7 @@
     "postcss-safe-parser": "6.0.0",
     "postcss-scss": "3.0.5",
     "postcss-value-parser": "4.1.0",
+    "react-server-dom-webpack": "0.0.0-experimental-3c4c1c470-20211021",
     "resolve-url-loader": "3.1.2",
     "sass-loader": "10.2.0",
     "schema-utils2": "npm:schema-utils@2.7.1",
@@ -264,7 +263,7 @@
     "webpack-sources1": "npm:webpack-sources@1.4.3",
     "webpack-sources3": "npm:webpack-sources@3.2.0",
     "webpack4": "npm:webpack@4.44.1",
-    "webpack5": "npm:webpack@5.60.0",
+    "webpack5": "npm:webpack@5.61.0",
     "ws": "8.2.3"
   },
   "resolutions": {
@@ -279,7 +278,6 @@
     "triples": {
       "defaults": true,
       "additional": [
-        "x86_64-unknown-linux-musl",
         "i686-pc-windows-msvc",
         "aarch64-unknown-linux-gnu",
         "armv7-unknown-linux-gnueabihf",

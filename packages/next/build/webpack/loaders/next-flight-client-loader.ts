@@ -149,7 +149,7 @@ export default async function transformSource(
     this.loadModule
   )
 
-  // next.js/packages/next/link.js
+  // next.js/packages/next/<component>.js
   if (/[\\/]next[\\/](link|image)\.js$/.test(url)) {
     names.push('default')
   }
