@@ -18,7 +18,7 @@ export default async function start(
   })
   requestHandler = app.getRequestHandler()
 
-  await new Promise<void>((resolve, reject) => {
+  const resolvedPort = await new Promise<number>((resolve, reject) => {
     let isExplicitPort = rawPort != null
     let port = rawPort ?? 3000
     srv.on('error', (err: NodeJS.ErrnoException) => {
@@ -35,7 +35,7 @@ export default async function start(
         reject(err)
       }
     })
-    srv.on('listening', () => resolve())
+    srv.on('listening', () => resolve(port))
     srv.listen(port, hostname)
   })
   // It's up to caller to run `app.prepare()`, so it can notify that the server
@@ -43,6 +43,6 @@ export default async function start(
   const addr = srv.address()
   return {
     app,
-    actualPort: addr && typeof addr === 'object' ? addr.port : rawPort,
+    actualPort: addr && typeof addr === 'object' ? addr.port : resolvedPort,
   }
 }
