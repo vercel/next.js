@@ -136,7 +136,7 @@ const nextLint: cliCommand = async (argv) => {
         Caching:
           --no-cache                     Disable caching
           --cache-location path::String  Path to the cache file or directory - default: .eslintcache
-          --cache-strategy String        Strategy to use for detecting changed files in the cache - either: metadata or content - default: metadata
+          --cache-strategy String        Strategy to use for detecting changed files in the cache, either metadata or content - default: metadata
         
         Miscellaneous:
           --error-on-unmatched-pattern   Show errors when any file patterns are unmatched - default: false
