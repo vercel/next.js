@@ -134,6 +134,11 @@ describe('Basics', () => {
       'A React component suspended while rendering, but no fallback UI was specified'
     )
   })
+
+  it('supports render prop as children in <Main />', async () => {
+    const res = await fetchViaHTTP(context.appPort, '/main-render-prop')
+    expect(res.text()).toContain('from main render prop')
+  })
 })
 
 describe('Blocking mode', () => {
@@ -167,10 +172,7 @@ describe('Concurrent mode', () => {
   runTests('concurrentFeatures is enabled', (context) => {
     concurrent(context, (p, q) => renderViaHTTP(context.appPort, p, q))
 
-    it('should stream to users', async () => {
-      const res = await fetchViaHTTP(context.appPort, '/ssr')
-      expect(res.headers.get('etag')).toBeNull()
-    })
+    c
 
     it('should not stream to bots', async () => {
       const res = await fetchViaHTTP(
