@@ -1,5 +1,10 @@
-import loaderUtils from 'next/dist/compiled/loader-utils'
 import { getStringifiedAbsolutePath } from './utils'
+
+function stringifyRequest(loaderContext: any, request: any) {
+  return JSON.stringify(
+    loaderContext.utils.contextify(loaderContext.context, request)
+  )
+}
 
 const fallbackDocumentPage = `
 import { Html, Head, Main, NextScript } from 'next/document'
@@ -34,11 +39,8 @@ export default async function middlewareRSCLoader(this: any) {
     isServerComponent,
     assetPrefix,
     buildId,
-  } = loaderUtils.getOptions(this)
-  const stringifiedAbsolutePagePath = loaderUtils.stringifyRequest(
-    this,
-    absolutePagePath
-  )
+  } = this.getOptions()
+  const stringifiedAbsolutePagePath = stringifyRequest(this, absolutePagePath)
   const stringifiedAbsoluteDocumentPath = getStringifiedAbsolutePath(
     this,
     './pages/_document'

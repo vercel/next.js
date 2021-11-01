@@ -1,6 +1,5 @@
 import devalue from 'next/dist/compiled/devalue'
 import escapeRegexp from 'next/dist/compiled/escape-string-regexp'
-import loaderUtils from 'next/dist/compiled/loader-utils'
 import { join } from 'path'
 import { parse } from 'querystring'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
@@ -31,6 +30,12 @@ export type ServerlessLoaderQuery = {
   previewProps: string
   loadedEnvFiles: string
   i18n: string
+}
+
+function stringifyRequest(loaderContext: any, request: any) {
+  return JSON.stringify(
+    loaderContext.utils.contextify(loaderContext.context, request)
+  )
 }
 
 const nextServerlessLoader: webpack.loader.Loader = function () {
@@ -113,10 +118,7 @@ const nextServerlessLoader: webpack.loader.Loader = function () {
         }
 
         const apiHandler = getApiHandler({
-          pageModule: require(${loaderUtils.stringifyRequest(
-            this,
-            absolutePagePath
-          )}),
+          pageModule: require(${stringifyRequest(this, absolutePagePath)}),
           rewrites: combinedRewrites,
           i18n: ${i18n || 'undefined'},
           page: "${page}",
@@ -141,21 +143,15 @@ const nextServerlessLoader: webpack.loader.Loader = function () {
       }
       import { getPageHandler } from 'next/dist/build/webpack/loaders/next-serverless-loader/page-handler'
 
-      const documentModule = require(${loaderUtils.stringifyRequest(
+      const documentModule = require(${stringifyRequest(
         this,
         absoluteDocumentPath
       )})
 
-      const appMod = require(${loaderUtils.stringifyRequest(
-        this,
-        absoluteAppPath
-      )})
+      const appMod = require(${stringifyRequest(this, absoluteAppPath)})
       let App = appMod.default || appMod.then && appMod.then(mod => mod.default);
 
-      const compMod = require(${loaderUtils.stringifyRequest(
-        this,
-        absolutePagePath
-      )})
+      const compMod = require(${stringifyRequest(this, absolutePagePath)})
 
       const Component = compMod.default || compMod.then && compMod.then(mod => mod.default)
       export default Component
@@ -188,13 +184,10 @@ const nextServerlessLoader: webpack.loader.Loader = function () {
         pageConfig: config,
         appModule: App,
         documentModule: documentModule,
-        errorModule: require(${loaderUtils.stringifyRequest(
-          this,
-          absoluteErrorPath
-        )}),
+        errorModule: require(${stringifyRequest(this, absoluteErrorPath)}),
         notFoundModule: ${
           absolute404Path
-            ? `require(${loaderUtils.stringifyRequest(this, absolute404Path)})`
+            ? `require(${stringifyRequest(this, absolute404Path)})`
             : undefined
         },
         pageGetStaticProps: getStaticProps,

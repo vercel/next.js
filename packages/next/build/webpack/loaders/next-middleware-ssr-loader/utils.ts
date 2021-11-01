@@ -1,7 +1,11 @@
-import loaderUtils from 'next/dist/compiled/loader-utils'
+function stringifyRequest(loaderContext: any, request: any) {
+  return JSON.stringify(
+    loaderContext.utils.contextify(loaderContext.context, request)
+  )
+}
 
 export function getStringifiedAbsolutePath(target: any, path: string) {
-  return loaderUtils.stringifyRequest(
+  return stringifyRequest(
     target,
     target.utils.absolutify(target.rootContext, path)
   )

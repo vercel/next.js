@@ -1,5 +1,3 @@
-import loaderUtils from 'next/dist/compiled/loader-utils'
-
 export type ClientPagesLoaderOptions = {
   absolutePagePath: string
   page: string
@@ -12,15 +10,13 @@ function nextClientPagesLoader(this: any) {
   )
 
   return pagesLoaderSpan.traceFn(() => {
-    const { absolutePagePath, page } = loaderUtils.getOptions(
-      this
-    ) as ClientPagesLoaderOptions
+    const { absolutePagePath, page } =
+      this.getOptions() as ClientPagesLoaderOptions
 
     pagesLoaderSpan.setAttribute('absolutePagePath', absolutePagePath)
 
-    const stringifiedPagePath = loaderUtils.stringifyRequest(
-      this,
-      absolutePagePath
+    const stringifiedPagePath = JSON.stringify(
+      this.utils.contextify(this.context, absolutePagePath)
     )
     const stringifiedPage = JSON.stringify(page)
 

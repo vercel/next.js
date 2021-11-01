@@ -1,16 +1,12 @@
-import loaderUtils from 'next/dist/compiled/loader-utils'
-
 export type MiddlewareLoaderOptions = {
   absolutePagePath: string
   page: string
 }
 
 export default function middlewareLoader(this: any) {
-  const { absolutePagePath, page }: MiddlewareLoaderOptions =
-    loaderUtils.getOptions(this)
-  const stringifiedPagePath = loaderUtils.stringifyRequest(
-    this,
-    absolutePagePath
+  const { absolutePagePath, page }: MiddlewareLoaderOptions = this.getOptions()
+  const stringifiedPagePath = JSON.stringify(
+    this.utils.contextify(this.context, absolutePagePath)
   )
 
   return `

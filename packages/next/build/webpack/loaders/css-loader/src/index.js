@@ -2,7 +2,6 @@
   MIT License http://www.opensource.org/licenses/mit-license.php
   Author Tobias Koppers @sokra
 */
-import { getOptions, stringifyRequest } from 'next/dist/compiled/loader-utils'
 import postcss from 'postcss'
 
 import CssSyntaxError from './CssSyntaxError'
@@ -24,8 +23,14 @@ import {
   sort,
 } from './utils'
 
+function stringifyRequest(loaderContext, request) {
+  return JSON.stringify(
+    loaderContext.utils.contextify(loaderContext.context, request)
+  )
+}
+
 export default async function loader(content, map, meta) {
-  const rawOptions = getOptions(this)
+  const rawOptions = this.getOptions()
 
   const plugins = []
   const callback = this.async()
