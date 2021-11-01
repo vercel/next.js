@@ -77,7 +77,7 @@ module.exports = {
 }
 ```
 
-Next, if you already have customized `pages/_document` component, you need to remove static methods like `getInitialProps` or exports like `getServerSideProps` otherwise it won't work with server components. By default next will fallback to a document component like below.
+Next, if you already have customized `pages/_document` component, you need to remove the `getInitialProps` static method and the `getServerSideProps` export if there’s any, otherwise it won't work with server components. If no custom Document component is provided, Next.js will fallback to a default one like below.
 
 ```jsx
 // pages/_document.js
