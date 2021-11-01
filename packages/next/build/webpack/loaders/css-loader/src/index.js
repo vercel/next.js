@@ -22,7 +22,7 @@ import {
   normalizeSourceMap,
   sort,
 } from './utils'
-import { stringifyRequest } from '../stringify-request'
+import { stringifyRequest } from '../../../stringify-request'
 
 export default async function loader(content, map, meta) {
   const rawOptions = this.getOptions()
