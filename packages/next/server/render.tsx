@@ -273,8 +273,6 @@ function checkRedirectValues(
   }
 }
 
-const BODY_RENDER_TARGET = '__NEXT_BODY_RENDER_TARGET__'
-
 export async function renderToHTML(
   req: IncomingMessage,
   res: ServerResponse,
@@ -1008,7 +1006,8 @@ export async function renderToHTML(
               'The `children` property is not supported by non-functional custom Document components'
             )
           }
-          return <>{BODY_RENDER_TARGET}</>
+          // @ts-ignore
+          return <next-js-internal-body-render-target />
         },
         head: docProps.head,
         headTags: await headTags(documentCtx),
@@ -1043,7 +1042,8 @@ export async function renderToHTML(
           if (fn) {
             contentWrappers.push(fn)
           }
-          return <>{BODY_RENDER_TARGET}</>
+          // @ts-ignore
+          return <next-js-internal-body-render-target />
         },
         head,
         headTags: [],
@@ -1173,10 +1173,12 @@ export async function renderToHTML(
     }
   }
 
-  const renderTargetIdx = documentHTML.indexOf(BODY_RENDER_TARGET)
+  const [renderTargetPrefix, renderTargetSuffix] = documentHTML.split(
+    /<next-js-internal-body-render-target><\/next-js-internal-body-render-target>/
+  )
   const prefix: Array<string> = []
   prefix.push('<!DOCTYPE html>')
-  prefix.push(documentHTML.substring(0, renderTargetIdx))
+  prefix.push(renderTargetPrefix)
   if (inAmpMode) {
     prefix.push('<!-- __NEXT_DATA__ -->')
   }
@@ -1184,9 +1186,7 @@ export async function renderToHTML(
   let pipers: Array<NodeWritablePiper> = [
     piperFromArray(prefix),
     await documentResult.bodyResult(),
-    piperFromArray([
-      documentHTML.substring(renderTargetIdx + BODY_RENDER_TARGET.length),
-    ]),
+    piperFromArray([renderTargetSuffix]),
   ]
 
   const postProcessors: Array<((html: string) => Promise<string>) | null> = (
