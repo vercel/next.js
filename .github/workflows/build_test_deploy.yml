@@ -979,7 +979,7 @@ jobs:
           sudo apt-get install gcc-aarch64-linux-gnu -y
 
       - name: Cache native binary
-        if: ${{ steps.binary-cache.outputs.cache-hit != 'true' && steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         id: binary-cache
         uses: actions/cache@v2
         with:
