@@ -292,6 +292,7 @@ jobs:
           key: ${{ github.sha }}
 
       - uses: actions/download-artifact@v2
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
           name: next-swc-dev-binary
           path: packages/next/native
@@ -321,6 +322,7 @@ jobs:
           key: ${{ github.sha }}
 
       - uses: actions/download-artifact@v2
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
           name: next-swc-dev-binary
           path: packages/next/native
