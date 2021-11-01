@@ -448,7 +448,7 @@ jobs:
   testFirefoxNode17:
     name: Test Firefox Node.js 17
     runs-on: ubuntu-latest
-    needs: [build, testSafari, build-native-dev]
+    needs: [build, testFirefox, build-native-dev]
     env:
       BROWSER_NAME: 'firefox'
       NEXT_TELEMETRY_DISABLED: 1
