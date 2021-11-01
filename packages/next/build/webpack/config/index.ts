@@ -19,6 +19,7 @@ export async function build(
     productionBrowserSourceMaps,
     future,
     experimental,
+    disableStaticImages,
   }: {
     rootDirectory: string
     customAppFile: RegExp
@@ -31,6 +32,7 @@ export async function build(
     productionBrowserSourceMaps: boolean
     future: NextConfigComplete['future']
     experimental: NextConfigComplete['experimental']
+    disableStaticImages: NextConfigComplete['disableStaticImages']
   }
 ): Promise<webpack.Configuration> {
   const ctx: ConfigurationContext = {
@@ -53,6 +55,9 @@ export async function build(
     experimental,
   }
 
-  const fn = pipe(base(ctx), css(ctx), images(ctx))
+  let fn = pipe(base(ctx), css(ctx))
+  if (!disableStaticImages) {
+    fn = pipe(fn, images(ctx))
+  }
   return fn(config)
 }
