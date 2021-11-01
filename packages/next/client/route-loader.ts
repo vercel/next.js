@@ -13,6 +13,8 @@ declare global {
   interface Window {
     __BUILD_MANIFEST?: ClientBuildManifest
     __BUILD_MANIFEST_CB?: Function
+    __MIDDLEWARE_MANIFEST?: any
+    __MIDDLEWARE_MANIFEST_CB?: Function
   }
 }
 
@@ -99,7 +101,11 @@ function prefetchViaDom(
   link?: HTMLLinkElement
 ): Promise<any> {
   return new Promise<void>((res, rej) => {
-    if (document.querySelector(`link[rel="prefetch"][href^="${href}"]`)) {
+    const selector = `
+      link[rel="prefetch"][href^="${href}"],
+      link[rel="preload"][href^="${href}"],
+      script[src^="${href}"]`
+    if (document.querySelector(selector)) {
       return res()
     }
 
@@ -227,6 +233,26 @@ export function getClientBuildManifest(): Promise<ClientBuildManifest> {
   )
 }
 
+export function getMiddlewareManifest(): Promise<any> {
+  if (self.__MIDDLEWARE_MANIFEST) {
+    return Promise.resolve(self.__MIDDLEWARE_MANIFEST)
+  }
+
+  const onMiddlewareManifest: Promise<any> = new Promise<any>((resolve) => {
+    const cb = self.__MIDDLEWARE_MANIFEST_CB
+    self.__MIDDLEWARE_MANIFEST_CB = () => {
+      resolve(self.__MIDDLEWARE_MANIFEST!)
+      cb && cb()
+    }
+  })
+
+  return resolvePromiseWithTimeout(
+    onMiddlewareManifest,
+    MS_MAX_IDLE_DELAY,
+    markAssetError(new Error('Failed to load client middleware manifest'))
+  )
+}
+
 interface RouteFiles {
   scripts: string[]
   css: string[]
@@ -269,18 +295,25 @@ export function createRouteLoader(assetPrefix: string): RouteLoader {
     new Map()
 
   function maybeExecuteScript(src: string): Promise<unknown> {
-    let prom: Promise<unknown> | undefined = loadedScripts.get(src)
-    if (prom) {
+    // With HMR we might need to "reload" scripts when they are
+    // disposed and readded. Executing scripts twice has no functional
+    // differences
+    if (process.env.NODE_ENV !== 'development') {
+      let prom: Promise<unknown> | undefined = loadedScripts.get(src)
+      if (prom) {
+        return prom
+      }
+
+      // Skip executing script if it's already in the DOM:
+      if (document.querySelector(`script[src^="${src}"]`)) {
+        return Promise.resolve()
+      }
+
+      loadedScripts.set(src, (prom = appendScript(src)))
       return prom
+    } else {
+      return appendScript(src)
     }
-
-    // Skip executing script if it's already in the DOM:
-    if (document.querySelector(`script[src^="${src}"]`)) {
-      return Promise.resolve()
-    }
-
-    loadedScripts.set(src, (prom = appendScript(src)))
-    return prom
   }
 
   function fetchStyleSheet(href: string): Promise<RouteStyleSheet> {
@@ -309,21 +342,37 @@ export function createRouteLoader(assetPrefix: string): RouteLoader {
     whenEntrypoint(route: string) {
       return withFuture(route, entrypoints)
     },
-    onEntrypoint(route: string, execute: () => unknown) {
-      Promise.resolve(execute)
-        .then((fn) => fn())
-        .then(
-          (exports: any) => ({
-            component: (exports && exports.default) || exports,
-            exports: exports,
-          }),
-          (err) => ({ error: err })
-        )
-        .then((input: RouteEntrypoint) => {
-          const old = entrypoints.get(route)
-          entrypoints.set(route, input)
-          if (old && 'resolve' in old) old.resolve(input)
-        })
+    onEntrypoint(route: string, execute: undefined | (() => unknown)) {
+      ;(execute
+        ? Promise.resolve()
+            .then(() => execute())
+            .then(
+              (exports: any) => ({
+                component: (exports && exports.default) || exports,
+                exports: exports,
+              }),
+              (err) => ({ error: err })
+            )
+        : Promise.resolve(undefined)
+      ).then((input: RouteEntrypoint | undefined) => {
+        const old = entrypoints.get(route)
+        if (old && 'resolve' in old) {
+          if (input) {
+            entrypoints.set(route, input)
+            old.resolve(input)
+          }
+        } else {
+          if (input) {
+            entrypoints.set(route, input)
+          } else {
+            entrypoints.delete(route)
+          }
+          // when this entrypoint has been resolved before
+          // the route is outdated and we want to invalidate
+          // this cache entry
+          routes.delete(route)
+        }
+      })
     },
     loadRoute(route: string, prefetch?: boolean) {
       return withFuture<RouteLoaderEntry>(route, routes, () => {

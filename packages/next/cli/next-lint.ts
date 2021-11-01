@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { existsSync } from 'fs'
 import arg from 'next/dist/compiled/arg/index.js'
-import { resolve, join } from 'path'
+import { join } from 'path'
 import chalk from 'chalk'
 
 import { cliCommand } from '../bin/next'
@@ -13,6 +13,8 @@ import loadConfig from '../server/config'
 import { PHASE_PRODUCTION_BUILD } from '../shared/lib/constants'
 import { eventLintCheckCompleted } from '../telemetry/events'
 import { CompileError } from '../lib/compile-error'
+import isError from '../lib/is-error'
+import { getProjectDir } from '../lib/get-project-dir'
 
 const eslintOptions = (args: arg.Spec, defaultCacheLocation: string) => ({
   overrideConfigFile: args['--config'] || null,
@@ -77,7 +79,7 @@ const nextLint: cliCommand = async (argv) => {
   try {
     args = arg({ ...validArgs, ...validEslintArgs }, { argv })
   } catch (error) {
-    if (error.code === 'ARG_UNKNOWN_OPTION') {
+    if (isError(error) && error.code === 'ARG_UNKNOWN_OPTION') {
       return printAndExit(error.message, 1)
     }
     throw error
@@ -140,7 +142,7 @@ const nextLint: cliCommand = async (argv) => {
     )
   }
 
-  const baseDir = resolve(args._[0] || '.')
+  const baseDir = getProjectDir(args._[0])
 
   // Check if the provided directory exists
   if (!existsSync(baseDir)) {

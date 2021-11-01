@@ -66,9 +66,9 @@ The `context` parameter is an object containing the following keys:
 - `params` contains the route parameters for pages using dynamic routes. For example, if the page name is `[id].js` , then `params` will look like `{ id: ... }`. To learn more, take a look at the [Dynamic Routing documentation](/docs/routing/dynamic-routes.md). You should use this together with `getStaticPaths`, which we’ll explain later.
 - `preview` is `true` if the page is in the preview mode and `undefined` otherwise. See the [Preview Mode documentation](/docs/advanced-features/preview-mode.md).
 - `previewData` contains the preview data set by `setPreviewData`. See the [Preview Mode documentation](/docs/advanced-features/preview-mode.md).
-- `locale` contains the active locale (if enabled).
-- `locales` contains all supported locales (if enabled).
-- `defaultLocale` contains the configured default locale (if enabled).
+- `locale` contains the active locale (if you've enabled [Internationalized Routing](/docs/advanced-features/i18n-routing.md)).
+- `locales` contains all supported locales (if you've enabled [Internationalized Routing](/docs/advanced-features/i18n-routing.md)).
+- `defaultLocale` contains the configured default locale (if you've enabled Internationalized Routing).
 
 `getStaticProps` should return an object with:
 
@@ -510,7 +510,7 @@ export default Post
 If `fallback` is `true`, then the behavior of `getStaticProps` changes:
 
 - The paths returned from `getStaticPaths` will be rendered to HTML at build time by `getStaticProps`.
-- The paths that have not been generated at build time will **not** result in a 404 page. Instead, Next.js will serve a “fallback” version of the page on the first request to such a path (see [“Fallback pages”](#fallback-pages) below for details).
+- The paths that have not been generated at build time will **not** result in a 404 page. Instead, Next.js will serve a “fallback” version of the page on the first request to such a path (see [“Fallback pages”](#fallback-pages) below for details). Note: this "fallback" version will not be served for crawlers like Google and instead will render the path in `blocking` mode.
 - In the background, Next.js will statically generate the requested path HTML and JSON. This includes running `getStaticProps`.
 - When that’s done, the browser receives the JSON for the generated path. This will be used to automatically render the page with the required props. From the user’s perspective, the page will be swapped from the fallback page to the full page.
 - At the same time, Next.js adds this path to the list of pre-rendered pages. Subsequent requests to the same path will serve the generated page, like other pages pre-rendered at build time.
@@ -660,15 +660,15 @@ export async function getServerSideProps(context) {
 The `context` parameter is an object containing the following keys:
 
 - `params`: If this page uses a dynamic route, `params` contains the route parameters. If the page name is `[id].js` , then `params` will look like `{ id: ... }`. To learn more, take a look at the [Dynamic Routing documentation](/docs/routing/dynamic-routes.md).
-- `req`: [The HTTP IncomingMessage object](https://nodejs.org/api/http.html#http_class_http_incomingmessage).
+- `req`: [The HTTP IncomingMessage object](https://nodejs.org/api/http.html#http_class_http_incomingmessage), plus additional [built-in parsing helpers](#provided-req-middleware-in-getserversideprops).
 - `res`: [The HTTP response object](https://nodejs.org/api/http.html#http_class_http_serverresponse).
 - `query`: An object representing the query string.
 - `preview`: `preview` is `true` if the page is in the preview mode and `false` otherwise. See the [Preview Mode documentation](/docs/advanced-features/preview-mode.md).
 - `previewData`: The preview data set by `setPreviewData`. See the [Preview Mode documentation](/docs/advanced-features/preview-mode.md).
 - `resolvedUrl`: A normalized version of the request URL that strips the `_next/data` prefix for client transitions and includes original query values.
-- `locale` contains the active locale (if enabled).
-- `locales` contains all supported locales (if enabled).
-- `defaultLocale` contains the configured default locale (if enabled).
+- `locale` contains the active locale (if you've enabled [Internationalized Routing](/docs/advanced-features/i18n-routing.md)).
+- `locales` contains all supported locales (if you've enabled [Internationalized Routing](/docs/advanced-features/i18n-routing.md)).
+- `defaultLocale` contains the configured default locale (if you've enabled [Internationalized Routing](/docs/advanced-features/i18n-routing.md)).
 
 `getServerSideProps` should return an object with:
 
@@ -726,6 +726,12 @@ The `context` parameter is an object containing the following keys:
 > You may need to slightly refactor your code for this approach.
 >
 > Fetching from an external API is fine!
+
+### Provided `req` middleware in `getServerSideProps`
+
+The `req` in the context passed to `getServerSideProps` provides built in middleware that parses the incoming request (req). That middleware is:
+
+- `req.cookies` - An object containing the cookies sent by the request. Defaults to `{}`
 
 ### Example
 

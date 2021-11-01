@@ -62,9 +62,7 @@ Next.js will automatically load the latest version of your application in the ba
 
 ### Node.js Server
 
-Next.js can be deployed to any hosting provider that supports Node.js. This is the approach you should take if you’re using a [custom server](/docs/advanced-features/custom-server.md).
-
-Make sure your `package.json` has the `"build"` and `"start"` scripts:
+Next.js can be deployed to any hosting provider that supports Node.js. Make sure your `package.json` has the `"build"` and `"start"` scripts:
 
 ```json
 {
@@ -77,6 +75,8 @@ Make sure your `package.json` has the `"build"` and `"start"` scripts:
 ```
 
 `next build` builds the production application in the `.next` folder. After building, `next start` starts a Node.js server that supports [hybrid pages](/docs/basic-features/pages.md), serving both statically generated and server-side rendered pages.
+
+If you are using [`next/image`](/docs/basic-features/image-optimization.md), consider adding `sharp` for more performant [Image Optimization](/docs/basic-features/image-optimization.md) in your production environment by running `npm install sharp` in your project directory.
 
 ### Docker Image
 

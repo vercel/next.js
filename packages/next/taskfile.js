@@ -1,25 +1,8 @@
 // eslint-disable-next-line import/no-extraneous-dependencies
 const notifier = require('node-notifier')
 // eslint-disable-next-line import/no-extraneous-dependencies
-const { relative, basename, resolve, join } = require('path')
-const { Module } = require('module')
+const { relative, basename, resolve, join, dirname } = require('path')
 const fs = require('fs')
-
-// Note:
-// "bundles" folder shadows main node_modules in workspace where all installs in
-// this shadow node_modules are alias installs only.
-// This is because Yarn alias installs have bugs with version deduping where
-// transitive versions are not resolved correctly - for example, webpack5
-// will end up resolving webpack-sources@1 instead of webpack-sources@2.
-// If/when this issue is fixed upstream in Yarn, this "shadowing" workaround can
-// then be removed to directly install the bundles/package.json packages into
-// the main package.json as normal devDependencies aliases.
-const m = new Module(resolve(__dirname, 'bundles', '_'))
-m.filename = m.id
-m.paths = Module._nodeModulePaths(m.id)
-const bundleRequire = m.require
-bundleRequire.resolve = (request, options) =>
-  Module._resolveFilename(request, m, false, options)
 
 export async function next__polyfill_nomodule(task, opts) {
   await task
@@ -51,7 +34,7 @@ const externals = {
   'cssnano-simple': 'next/dist/build/cssnano-simple',
 
   // webpack
-  'node-libs-browser': 'node-libs-browser',
+  'node-libs-browser': 'next/dist/compiled/node-libs-browser',
 
   // sass-loader
   // (also responsible for these dependencies in package.json)
@@ -61,6 +44,9 @@ const externals = {
 
   chokidar: 'chokidar',
   'jest-worker': 'jest-worker',
+
+  'terser-webpack-plugin':
+    'next/dist/build/webpack/plugins/terser-webpack-plugin',
 }
 // eslint-disable-next-line camelcase
 externals['amphtml-validator'] = 'next/dist/compiled/amphtml-validator'
@@ -89,7 +75,7 @@ export async function ncc_amp_optimizer(task, opts) {
     .target('dist/compiled/@ampproject/toolbox-optimizer')
 }
 // eslint-disable-next-line camelcase
-externals['arg'] = 'distcompiled/arg'
+externals['arg'] = 'next/dist/compiled/arg'
 export async function ncc_arg(task, opts) {
   await task
     .source(opts.src || relative(__dirname, require.resolve('arg')))
@@ -173,22 +159,6 @@ export async function ncc_babel_bundle_packages(task, opts) {
     .target('compiled/babel')
 }
 
-// eslint-disable-next-line camelcase
-externals['bfj'] = 'next/dist/compiled/bfj'
-export async function ncc_bfj(task, opts) {
-  await task
-    .source(opts.src || relative(__dirname, require.resolve('bfj')))
-    .ncc({ packageName: 'bfj' })
-    .target('compiled/bfj')
-}
-// eslint-disable-next-line camelcase
-externals['cacache'] = 'next/dist/compiled/cacache'
-export async function ncc_cacache(task, opts) {
-  await task
-    .source(opts.src || relative(__dirname, require.resolve('cacache')))
-    .ncc({ packageName: 'cacache' })
-    .target('compiled/cacache')
-}
 // eslint-disable-next-line camelcase
 externals['ci-info'] = 'next/dist/compiled/ci-info'
 export async function ncc_ci_info(task, opts) {
@@ -278,14 +248,7 @@ export async function ncc_escape_string_regexp(task, opts) {
     .ncc({ packageName: 'escape-string-regexp', externals })
     .target('compiled/escape-string-regexp')
 }
-// eslint-disable-next-line camelcase
-externals['file-loader'] = 'next/dist/compiled/file-loader'
-export async function ncc_file_loader(task, opts) {
-  await task
-    .source(opts.src || relative(__dirname, require.resolve('file-loader')))
-    .ncc({ packageName: 'file-loader', externals })
-    .target('compiled/file-loader')
-}
+
 // eslint-disable-next-line camelcase
 externals['find-cache-dir'] = 'next/dist/compiled/find-cache-dir'
 export async function ncc_find_cache_dir(task, opts) {
@@ -415,12 +378,30 @@ export async function ncc_nanoid(task, opts) {
     .target('compiled/nanoid')
 }
 // eslint-disable-next-line camelcase
+externals['native-url'] = 'next/dist/compiled/native-url'
+export async function ncc_native_url(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('native-url')))
+    .ncc({ packageName: 'native-url', externals, target: 'es5' })
+    .target('compiled/native-url')
+}
+// eslint-disable-next-line camelcase
 externals['neo-async'] = 'next/dist/compiled/neo-async'
 export async function ncc_neo_async(task, opts) {
   await task
     .source(opts.src || relative(__dirname, require.resolve('neo-async')))
     .ncc({ packageName: 'neo-async', externals })
     .target('compiled/neo-async')
+}
+// eslint-disable-next-line camelcase
+externals['node-libs-browser'] = 'next/dist/compiled/node-libs-browser'
+export async function ncc_node_libs_browser(task, opts) {
+  await task
+    .source(
+      opts.src || relative(__dirname, require.resolve('node-libs-browser'))
+    )
+    .ncc({ packageName: 'node-libs-browser', externals })
+    .target('compiled/node-libs-browser')
 }
 // eslint-disable-next-line camelcase
 externals['ora'] = 'next/dist/compiled/ora'
@@ -574,6 +555,48 @@ export async function ncc_icss_utils(task, opts) {
     .target('compiled/icss-utils')
 }
 // eslint-disable-next-line camelcase
+export async function copy_react_server_dom_webpack(task, opts) {
+  await fs.promises.mkdir(
+    join(__dirname, 'compiled/react-server-dom-webpack'),
+    { recursive: true }
+  )
+  await fs.promises.writeFile(
+    join(__dirname, 'compiled/react-server-dom-webpack/package.json'),
+    JSON.stringify({ name: 'react-server-dom-webpack', main: './index.js' })
+  )
+  await task
+    .source(require.resolve('react-server-dom-webpack'))
+    .target('compiled/react-server-dom-webpack')
+
+  await task
+    .source(
+      join(
+        dirname(require.resolve('react-server-dom-webpack')),
+        'cjs/react-server-dom-webpack.*'
+      )
+    )
+    .target('compiled/react-server-dom-webpack/cjs')
+
+  await task
+    .source(
+      join(
+        dirname(require.resolve('react-server-dom-webpack')),
+        'cjs/react-server-dom-webpack-writer.browser.*'
+      )
+    )
+    .target('compiled/react-server-dom-webpack/cjs')
+
+  await task
+    .source(
+      join(
+        dirname(require.resolve('react-server-dom-webpack')),
+        'writer.browser.server.js'
+      )
+    )
+    .target('compiled/react-server-dom-webpack')
+}
+
+// eslint-disable-next-line camelcase
 externals['resolve-url-loader'] = 'next/dist/compiled/resolve-url-loader'
 export async function ncc_resolve_url_loader(task, opts) {
   await task
@@ -597,32 +620,33 @@ export async function ncc_sass_loader(task, opts) {
       },
       externals: {
         ...externals,
-        'schema-utils': 'next/dist/compiled/schema-utils3',
+        'schema-utils': externals['schema-utils3'],
       },
       target: 'es5',
     })
     .target('compiled/sass-loader')
 }
 // eslint-disable-next-line camelcase
-externals['schema-utils'] = 'next/dist/compiled/schema-utils'
-export async function ncc_schema_utils(task, opts) {
+externals['schema-utils'] = 'MISSING_VERSION schema-utils version not specified'
+externals['schema-utils2'] = 'next/dist/compiled/schema-utils2'
+export async function ncc_schema_utils2(task, opts) {
   await task
-    .source(opts.src || relative(__dirname, require.resolve('schema-utils')))
+    .source(opts.src || relative(__dirname, require.resolve('schema-utils2')))
     .ncc({
       packageName: 'schema-utils',
+      bundleName: 'schema-utils2',
       externals,
     })
-    .target('compiled/schema-utils')
+    .target('compiled/schema-utils2')
 }
 // eslint-disable-next-line camelcase
 externals['schema-utils3'] = 'next/dist/compiled/schema-utils3'
 export async function ncc_schema_utils3(task, opts) {
   await task
-    .source(
-      opts.src || relative(__dirname, bundleRequire.resolve('schema-utils3'))
-    )
+    .source(opts.src || relative(__dirname, require.resolve('schema-utils3')))
     .ncc({
-      packageName: 'schema-utils3',
+      packageName: 'schema-utils',
+      bundleName: 'schema-utils3',
       externals,
     })
     .target('compiled/schema-utils3')
@@ -709,23 +733,36 @@ export async function ncc_web_vitals(task, opts) {
     .target('compiled/web-vitals')
 }
 // eslint-disable-next-line camelcase
-externals['webpack-sources'] = 'next/dist/compiled/webpack-sources'
-export async function ncc_webpack_sources(task, opts) {
+externals['webpack-sources'] = 'error webpack-sources version not specified'
+externals['webpack-sources1'] = 'next/dist/compiled/webpack-sources1'
+export async function ncc_webpack_sources1(task, opts) {
   await task
-    .source(opts.src || relative(__dirname, require.resolve('webpack-sources')))
-    .ncc({ packageName: 'webpack-sources', externals, target: 'es5' })
-    .target('compiled/webpack-sources')
+    .source(
+      opts.src || relative(__dirname, require.resolve('webpack-sources1'))
+    )
+    .ncc({ packageName: 'webpack-sources1', externals, target: 'es5' })
+    .target('compiled/webpack-sources1')
 }
 // eslint-disable-next-line camelcase
 externals['webpack-sources3'] = 'next/dist/compiled/webpack-sources3'
 export async function ncc_webpack_sources3(task, opts) {
   await task
     .source(
-      opts.src || relative(__dirname, bundleRequire.resolve('webpack-sources3'))
+      opts.src || relative(__dirname, require.resolve('webpack-sources3'))
     )
     .ncc({ packageName: 'webpack-sources3', externals, target: 'es5' })
     .target('compiled/webpack-sources3')
 }
+
+// eslint-disable-next-line camelcase
+externals['micromatch'] = 'next/dist/compiled/micromatch'
+export async function ncc_minimatch(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('micromatch')))
+    .ncc({ packageName: 'micromatch', externals })
+    .target('compiled/micromatch')
+}
+
 // eslint-disable-next-line camelcase
 externals['mini-css-extract-plugin'] =
   'next/dist/compiled/mini-css-extract-plugin'
@@ -741,7 +778,8 @@ export async function ncc_mini_css_extract_plugin(task, opts) {
       externals: {
         ...externals,
         './index': './index.js',
-        'schema-utils': 'next/dist/compiled/schema-utils3',
+        'schema-utils': externals['schema-utils3'],
+        'webpack-sources': externals['webpack-sources1'],
       },
     })
     .target('compiled/mini-css-extract-plugin')
@@ -755,32 +793,67 @@ export async function ncc_mini_css_extract_plugin(task, opts) {
       externals: {
         ...externals,
         './index': './index.js',
-        'schema-utils': 'next/dist/compiled/schema-utils3',
+        'schema-utils': externals['schema-utils3'],
       },
     })
     .target('compiled/mini-css-extract-plugin')
 }
-
 // eslint-disable-next-line camelcase
-export async function ncc_webpack_bundle4(task, opts) {
-  const webpackExternals = {
-    ...externals,
-  }
-  delete webpackExternals['webpack/lib/NormalModule']
+externals['web-streams-polyfill'] = 'next/dist/compiled/web-streams-polyfill'
+export async function ncc_web_streams_polyfill(task, opts) {
   await task
-    .source(opts.src || 'bundles/webpack/bundle4.js')
-    .ncc({
-      packageName: 'webpack',
-      bundleName: 'webpack',
-      externals: webpackExternals,
-      minify: false,
-      target: 'es5',
-    })
-    .target('compiled/webpack')
+    .source(
+      opts.src ||
+        relative(__dirname, require.resolve('web-streams-polyfill/ponyfill'))
+    )
+    .ncc({ packageName: 'web-streams-polyfill', externals })
+    .target('compiled/web-streams-polyfill')
+}
+// eslint-disable-next-line camelcase
+externals['formdata-node'] = 'next/dist/compiled/formdata-node'
+export async function ncc_formdata_node(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('formdata-node')))
+    .ncc({ packageName: 'formdata-node', externals })
+    .target('compiled/formdata-node')
+}
+// eslint-disable-next-line camelcase
+externals['ua-parser-js'] = 'next/dist/compiled/ua-parser-js'
+export async function ncc_ua_parser_js(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('ua-parser-js')))
+    .ncc({ packageName: 'ua-parser-js', externals })
+    .target('compiled/ua-parser-js')
+}
+// eslint-disable-next-line camelcase
+externals['@peculiar/webcrypto'] = 'next/dist/compiled/@peculiar/webcrypto'
+export async function ncc_webcrypto(task, opts) {
+  await task
+    .source(
+      opts.src || relative(__dirname, require.resolve('@peculiar/webcrypto'))
+    )
+    .ncc({ packageName: '@peculiar/webcrypto', externals })
+    .target('compiled/@peculiar/webcrypto')
+}
+// eslint-disable-next-line camelcase
+externals['uuid'] = 'next/dist/compiled/uuid'
+export async function ncc_uuid(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('uuid')))
+    .ncc({ packageName: 'uuid', externals })
+    .target('compiled/uuid')
 }
 
 // eslint-disable-next-line camelcase
 export async function ncc_webpack_bundle5(task, opts) {
+  const bundleExternals = {
+    ...externals,
+    'schema-utils': externals['schema-utils3'],
+    'webpack-sources': externals['webpack-sources3'],
+  }
+  for (const pkg of Object.keys(webpackBundlePackages)) {
+    delete bundleExternals[pkg]
+  }
   await task
     .source(opts.src || 'bundles/webpack/bundle5.js')
     .ncc({
@@ -789,11 +862,7 @@ export async function ncc_webpack_bundle5(task, opts) {
       customEmit(path) {
         if (path.endsWith('.runtime.js')) return `'./${basename(path)}'`
       },
-      externals: {
-        ...externals,
-        'schema-utils': 'next/dist/compiled/schema-utils3',
-        'webpack-sources': 'next/dist/compiled/webpack-sources3',
-      },
+      externals: bundleExternals,
       minify: false,
       target: 'es5',
     })
@@ -803,6 +872,8 @@ export async function ncc_webpack_bundle5(task, opts) {
 const webpackBundlePackages = {
   webpack: 'next/dist/compiled/webpack/webpack-lib',
   'webpack/lib/NormalModule': 'next/dist/compiled/webpack/NormalModule',
+  'webpack/lib/node/NodeTargetPlugin':
+    'next/dist/compiled/webpack/NodeTargetPlugin',
 }
 
 Object.assign(externals, webpackBundlePackages)
@@ -811,6 +882,15 @@ export async function ncc_webpack_bundle_packages(task, opts) {
   await task
     .source(opts.src || 'bundles/webpack/packages/*')
     .target('compiled/webpack/')
+}
+
+// eslint-disable-next-line camelcase
+externals['ws'] = 'next/dist/compiled/ws'
+export async function ncc_ws(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('ws')))
+    .ncc({ packageName: 'ws', externals })
+    .target('compiled/ws')
 }
 
 externals['path-to-regexp'] = 'next/dist/compiled/path-to-regexp'
@@ -844,8 +924,6 @@ export async function ncc(task, opts) {
         'ncc_async_retry',
         'ncc_async_sema',
         'ncc_babel_bundle',
-        'ncc_bfj',
-        'ncc_cacache',
         'ncc_ci_info',
         'ncc_cli_select',
         'ncc_comment_json',
@@ -857,7 +935,6 @@ export async function ncc(task, opts) {
         'ncc_debug',
         'ncc_devalue',
         'ncc_escape_string_regexp',
-        'ncc_file_loader',
         'ncc_find_cache_dir',
         'ncc_find_up',
         'ncc_fresh',
@@ -874,7 +951,9 @@ export async function ncc(task, opts) {
         'ncc_lodash_curry',
         'ncc_lru_cache',
         'ncc_nanoid',
+        'ncc_native_url',
         'ncc_neo_async',
+        'ncc_node_libs_browser',
         'ncc_ora',
         'ncc_postcss_safe_parser',
         'ncc_postcss_flexbugs_fixes',
@@ -888,7 +967,7 @@ export async function ncc(task, opts) {
         'ncc_icss_utils',
         'ncc_resolve_url_loader',
         'ncc_sass_loader',
-        'ncc_schema_utils',
+        'ncc_schema_utils2',
         'ncc_schema_utils3',
         'ncc_semver',
         'ncc_send',
@@ -900,16 +979,23 @@ export async function ncc(task, opts) {
         'ncc_text_table',
         'ncc_unistore',
         'ncc_web_vitals',
-        'ncc_webpack_bundle4',
         'ncc_webpack_bundle5',
         'ncc_webpack_bundle_packages',
-        'ncc_webpack_sources',
+        'ncc_webpack_sources1',
         'ncc_webpack_sources3',
+        'ncc_ws',
+        'ncc_ua_parser_js',
+        'ncc_webcrypto',
+        'ncc_uuid',
+        'ncc_formdata_node',
+        'ncc_web_streams_polyfill',
+        'ncc_minimatch',
         'ncc_mini_css_extract_plugin',
       ],
       opts
     )
   await task.parallel(['ncc_babel_bundle_packages'], opts)
+  await task.parallel(['copy_react_server_dom_webpack'])
 }
 
 export async function compile(task, opts) {
@@ -923,7 +1009,9 @@ export async function compile(task, opts) {
       'pages',
       'lib',
       'client',
+      'vitals',
       'telemetry',
+      'trace',
       'shared',
       'server_wasm',
       // we compile this each time so that fresh runtime data is pulled
@@ -969,7 +1057,7 @@ export async function server(task, opts) {
 export async function nextbuild(task, opts) {
   await task
     .source(opts.src || 'build/**/*.+(js|ts|tsx)', {
-      ignore: '**/fixture/**',
+      ignore: ['**/fixture/**', '**/tests/**'],
     })
     .swc('server', { dev: opts.dev })
     .target('dist/build')
@@ -982,6 +1070,14 @@ export async function client(task, opts) {
     .swc('client', { dev: opts.dev })
     .target('dist/client')
   notify('Compiled client files')
+}
+
+export async function vitals(task, opts) {
+  await task
+    .source(opts.src || 'vitals/**/*.+(js|ts|tsx)')
+    .swc('vitals', { dev: opts.dev })
+    .target('dist/vitals')
+  notify('Compiled vitals files')
 }
 
 // export is a reserved keyword for functions
@@ -1026,6 +1122,14 @@ export async function telemetry(task, opts) {
   notify('Compiled telemetry files')
 }
 
+export async function trace(task, opts) {
+  await task
+    .source(opts.src || 'trace/**/*.+(js|ts|tsx)')
+    .swc('server', { dev: opts.dev })
+    .target('dist/trace')
+  notify('Compiled trace files')
+}
+
 export async function build(task, opts) {
   await task.serial(['precompile', 'compile'], opts)
 }
@@ -1040,9 +1144,11 @@ export default async function (task) {
   await task.watch('build/**/*.+(js|ts|tsx)', 'nextbuild', opts)
   await task.watch('export/**/*.+(js|ts|tsx)', 'nextbuildstatic', opts)
   await task.watch('client/**/*.+(js|ts|tsx)', 'client', opts)
+  await task.watch('vitals/**/*.+(js|ts|tsx)', 'vitals', opts)
   await task.watch('lib/**/*.+(js|ts|tsx)', 'lib', opts)
   await task.watch('cli/**/*.+(js|ts|tsx)', 'cli', opts)
   await task.watch('telemetry/**/*.+(js|ts|tsx)', 'telemetry', opts)
+  await task.watch('trace/**/*.+(js|ts|tsx)', 'trace', opts)
   await task.watch('shared/**/*.+(js|ts|tsx)', 'shared', opts)
   await task.watch('server/**/*.+(wasm)', 'server_wasm', opts)
 }
@@ -1066,9 +1172,13 @@ export async function release(task) {
 
 // notification helper
 function notify(msg) {
-  return notifier.notify({
-    title: '▲ Next',
-    message: msg,
-    icon: false,
-  })
+  try {
+    notifier.notify({
+      title: '▲ Next',
+      message: msg,
+      icon: false,
+    })
+  } catch (err) {
+    // notifier can fail on M1 machines
+  }
 }
