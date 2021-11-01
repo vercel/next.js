@@ -1,15 +1,8 @@
+import { stringifyRequest } from '../stringify-request'
+
 export type ClientPagesLoaderOptions = {
   absolutePagePath: string
   page: string
-}
-
-function stringifyRequest(loaderContext: any, request: any) {
-  return JSON.stringify(
-    loaderContext.utils.contextify(
-      loaderContext.context || loaderContext.rootContext,
-      request
-    )
-  )
 }
 
 // this parameter: https://www.typescriptlang.org/docs/handbook/functions.html#this-parameters

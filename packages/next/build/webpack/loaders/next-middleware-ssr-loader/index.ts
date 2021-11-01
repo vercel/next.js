@@ -1,13 +1,5 @@
 import { getStringifiedAbsolutePath } from './utils'
-
-function stringifyRequest(loaderContext: any, request: any) {
-  return JSON.stringify(
-    loaderContext.utils.contextify(
-      loaderContext.context || loaderContext.rootContext,
-      request
-    )
-  )
-}
+import { stringifyRequest } from '../../stringify-request'
 
 const fallbackDocumentPage = `
 import { Html, Head, Main, NextScript } from 'next/document'

@@ -11,6 +11,7 @@ import {
   ROUTES_MANIFEST,
   REACT_LOADABLE_MANIFEST,
 } from '../../../../shared/lib/constants'
+import { stringifyRequest } from '../../stringify-request'
 
 export type ServerlessLoaderQuery = {
   page: string
@@ -30,15 +31,6 @@ export type ServerlessLoaderQuery = {
   previewProps: string
   loadedEnvFiles: string
   i18n: string
-}
-
-function stringifyRequest(loaderContext: any, request: any) {
-  return JSON.stringify(
-    loaderContext.utils.contextify(
-      loaderContext.context || loaderContext.rootContext,
-      request
-    )
-  )
 }
 
 const nextServerlessLoader: webpack.loader.Loader = function () {

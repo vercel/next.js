@@ -1,14 +1,6 @@
 import path from 'path'
 import isEqualLocals from './runtime/isEqualLocals'
-
-function stringifyRequest(loaderContext, request) {
-  return JSON.stringify(
-    loaderContext.utils.contextify(
-      loaderContext.context || loaderContext.rootContext,
-      request
-    )
-  )
-}
+import { stringifyRequest } from '../../stringify-request'
 
 const loaderApi = () => {}
 
