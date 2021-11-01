@@ -445,6 +445,36 @@ jobs:
       - run: '[[ -z "$BROWSERSTACK_ACCESS_KEY" ]] && echo "Skipping for PR" || node run-tests.js test/integration/production-nav/test/index.test.js'
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
+  testFirefoxNode17:
+    name: Test Firefox Node.js 17
+    runs-on: ubuntu-latest
+    needs: [build, testFirefox, build-native-dev]
+    env:
+      BROWSER_NAME: 'firefox'
+      NEXT_TELEMETRY_DISABLED: 1
+    steps:
+      - name: Setup node
+        uses: actions/setup-node@v2
+        if: ${{ steps.docs-change.outputs.docsChange != 'docs only change' }}
+        with:
+          node-version: 17
+          check-latest: true
+      - uses: actions/cache@v2
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        id: restore-build
+        with:
+          path: ./*
+          key: ${{ github.sha }}
+      - uses: actions/download-artifact@v2
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        with:
+          name: next-swc-dev-binary
+          path: packages/next/native
+      - run: npx playwright install-deps && npx playwright install firefox
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+      - run: node run-tests.js test/integration/production/test/index.test.js
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
   publishRelease:
     if: ${{ needs.build.outputs.isRelease == 'true' }}
     name: Potentially publish release
