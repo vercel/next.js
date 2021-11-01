@@ -1,3 +1,5 @@
+import { stringifyRequest } from '../stringify-request'
+
 export type MiddlewareLoaderOptions = {
   absolutePagePath: string
   page: string
@@ -5,9 +7,7 @@ export type MiddlewareLoaderOptions = {
 
 export default function middlewareLoader(this: any) {
   const { absolutePagePath, page }: MiddlewareLoaderOptions = this.getOptions()
-  const stringifiedPagePath = JSON.stringify(
-    this.utils.contextify(this.context, absolutePagePath)
-  )
+  const stringifiedPagePath = stringifyRequest(this, absolutePagePath)
 
   return `
         import { adapter } from 'next/dist/server/web/adapter'
