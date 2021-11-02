@@ -10,6 +10,7 @@ const exec = util.promisify(execFile)
 ;(async function () {
   try {
     let tmpdir = os.tmpdir() + `next-swc-${Date.now()}`
+    await fse.ensureDir(tmpdir)
     let cwd = process.cwd()
     let pkgJson = {
       name: 'dummy-package',
