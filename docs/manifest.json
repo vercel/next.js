@@ -17,13 +17,13 @@
               "title": "Data Fetching",
               "path": "/docs/basic-features/data-fetching.md",
               "redirect": {
-                "destination": "/docs/basic-features/data-fetching/data-fetching.md",
+                "destination": "/docs/basic-features/data-fetching/index.md",
                 "permanent": true
               },
               "routes": [
                 {
                   "title": "Overview",
-                  "path": "/docs/basic-features/data-fetching/data-fetching.md"
+                  "path": "/docs/basic-features/data-fetching/index.md"
                 },
                 {
                   "title": "getServerSideProps",
@@ -36,6 +36,14 @@
                 {
                   "title": "getStaticProps",
                   "path": "/docs/basic-features/data-fetching/getStaticProps.md"
+                },
+                {
+                  "title": "Incremental Static Regeneration",
+                  "path": "/docs/basic-features/data-fetching/incremental-static-regeneration.md"
+                },
+                {
+                  "title": "SWR",
+                  "path": "/docs/basic-features/data-fetching/swr.md"
                 }
               ]
             },
@@ -80,7 +88,7 @@
               "path": "/docs/basic-features/supported-browsers-features.md"
             },
             {
-              "title": "Script",
+              "title": "Handling Script",
               "path": "/docs/basic-features/script.md"
             }
           ]
