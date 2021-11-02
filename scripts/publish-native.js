@@ -7,6 +7,19 @@ const { execSync } = require('child_process')
 
 const cwd = process.cwd()
 
+async function updateOptionalDependencies(pkgPath, optionalDependencies) {
+  let pkg = JSON.parse(await readFile(path.join(cwd, pkgPath)))
+  pkg.optionalDependencies = pkg.optionalDependencies
+    ? { ...pkg.optionalDependencies, ...optionalDependencies }
+    : optionalDependencies
+  await writeFile(
+    path.join(path.join(cwd, pkgPath)),
+    JSON.stringify(pkg, null, 2)
+  )
+  // lerna publish in next step will fail if git status is not clean
+  execSync(`git update-index --skip-worktree ${pkgPath}`)
+}
+
 ;(async function () {
   try {
     let version = JSON.parse(
@@ -64,24 +77,16 @@ const cwd = process.cwd()
     }
 
     // Update optional dependencies versions
-    let nextPkg = JSON.parse(
-      await readFile(path.join(cwd, 'packages/next/package.json'))
-    )
+    let optionalDependencies = {}
     for (let platform of platforms) {
-      let optionalDependencies = nextPkg.optionalDependencies || {}
       optionalDependencies['@next/swc-' + platform] = publishedPkgs.has(
         platform
       )
         ? version
         : fallbackVersion
-      nextPkg.optionalDependencies = optionalDependencies
     }
-    await writeFile(
-      path.join(path.join(cwd, 'packages/next/package.json')),
-      JSON.stringify(nextPkg, null, 2)
-    )
-    // lerna publish in next step will fail if git status is not clean
-    execSync('git update-index --skip-worktree packages/next/package.json')
+    updateOptionalDependencies('package.json')
+    updateOptionalDependencies('packages/next/package.json')
   } catch (err) {
     console.error(err)
     process.exit(1)

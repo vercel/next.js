@@ -509,6 +509,12 @@ jobs:
       - run: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
       - run: ./scripts/publish-native.js $GITHUB_REF
       - run: ./scripts/publish-release.sh
+      - run: git update-index --no-skip-worktree package.json
+      - run: yarn
+      - uses: EndBug/add-and-commit@v7
+        with:
+          add: 'package.json yarn.lock'
+          message: '⚙ Update binary package versions'
 
   releaseStats:
     name: Release Stats

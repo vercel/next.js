@@ -161,17 +161,17 @@
     "worker-loader": "3.0.7"
   },
   "optionalDependencies": {
-    "@next/swc-android-arm64": "canary",
-    "@next/swc-darwin-arm64": "canary",
-    "@next/swc-darwin-x64": "canary",
-    "@next/swc-linux-arm-gnueabihf": "canary",
-    "@next/swc-linux-arm64-gnu": "canary",
-    "@next/swc-linux-arm64-musl": "canary",
-    "@next/swc-linux-x64-gnu": "canary",
-    "@next/swc-linux-x64-musl": "canary",
-    "@next/swc-win32-arm64-msvc": "canary",
-    "@next/swc-win32-ia32-msvc": "canary",
-    "@next/swc-win32-x64-msvc": "canary"
+    "@next/swc-android-arm64": "12.0.3-canary.1",
+    "@next/swc-darwin-arm64": "12.0.3-canary.1",
+    "@next/swc-darwin-x64": "12.0.3-canary.1",
+    "@next/swc-linux-arm-gnueabihf": "12.0.3-canary.1",
+    "@next/swc-linux-arm64-gnu": "12.0.3-canary.1",
+    "@next/swc-linux-arm64-musl": "12.0.3-canary.1",
+    "@next/swc-linux-x64-gnu": "12.0.3-canary.1",
+    "@next/swc-linux-x64-musl": "12.0.2-canary.2",
+    "@next/swc-win32-arm64-msvc": "12.0.3-canary.1",
+    "@next/swc-win32-ia32-msvc": "12.0.3-canary.1",
+    "@next/swc-win32-x64-msvc": "12.0.3-canary.1"
   },
   "resolutions": {
     "browserslist": "4.16.6",
