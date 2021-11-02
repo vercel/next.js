@@ -100,9 +100,8 @@ export default class MiddlewarePlugin {
     )
     middlewareManifest.clientInfo = middlewareManifest.sortedMiddleware.map(
       (key) => {
-        const ssrEntryInfo = ssrEntries.get(
-          middlewareManifest.middleware[key].name
-        )
+        const middleware = middlewareManifest.middleware[key]
+        const ssrEntryInfo = ssrEntries.get(middleware.name)
         return [key, !!ssrEntryInfo]
       }
     )
