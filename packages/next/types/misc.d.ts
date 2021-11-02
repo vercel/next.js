@@ -87,6 +87,10 @@ declare module 'next/dist/compiled/conf' {
   import m from 'conf'
   export = m
 }
+declare module 'next/dist/compiled/content-disposition' {
+  import m from 'content-disposition'
+  export = m
+}
 declare module 'next/dist/compiled/content-type' {
   import m from 'content-type'
   export = m

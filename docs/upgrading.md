@@ -56,6 +56,21 @@ The `className` prop is unchanged and will still be passed to the underlying `<i
 
 See the [documentation](https://nextjs.org/docs/basic-features/image-optimization#styling) for more info.
 
+### Next.js' HMR connection now uses a WebSocket
+
+Previously, Next.js used a [server-sent events](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events) connection to receive HMR events. Next.js 12 now uses a WebSocket connection.
+
+In some cases when proxying requests to the Next.js dev server, you will need to ensure the upgrade request is handled correctly. For example, in `nginx` you would need to add the following configuration:
+
+```nginx
+location /_next/webpack-hmr {
+    proxy_pass http://localhost:3000/_next/webpack-hmr;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+}
+```
+
 ### Webpack 4 support has been removed
 
 If you are already using webpack 5 you can skip this section.

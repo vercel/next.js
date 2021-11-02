@@ -32,7 +32,6 @@ for (const triple of triples) {
   } catch (e) {
     if (e?.code !== 'MODULE_NOT_FOUND') {
       loadError = e
-      break
     }
   }
 }
@@ -46,6 +45,8 @@ if (!bindings) {
     `Failed to load SWC binary, see more info here: https://nextjs.org/docs/messages/failed-loading-swc`
   )
   process.exit(1)
+} else {
+  loadError = null
 }
 
 async function transform(src, options) {
