@@ -139,6 +139,48 @@ When using Domain Routing, if a user with the `Accept-Language` header `fr;q=0.9
 
 When using Sub-path Routing, the user would be redirected to `/fr`.
 
+### Prefixing the Default Locale
+
+With Next.js 12 and [Middleware](/docs/middleware.md), we can add a prefix to the default locale with a [workaround](https://github.com/vercel/next.js/discussions/18419).
+
+For example, here's a `next.config.js` file with support for a few languages. Note the `"default"` locale has been added intentionally.
+
+```js
+// next.config.js
+
+module.exports = {
+  i18n: {
+    locales: ['default', 'en', 'de', 'fr'],
+    defaultLocale: 'default',
+    localeDetection: false,
+  },
+  trailingSlash: true,
+}
+```
+
+Next, we can use [Middleware](/docs/middleware.md) to add custom routing rules:
+
+```js
+// pages/_middleware.ts
+
+import { NextRequest, NextResponse } from 'next/server'
+
+const PUBLIC_FILE = /\.(.*)$/
+
+export function middleware(request: NextRequest) {
+  const shouldHandleLocale =
+    !PUBLIC_FILE.test(request.nextUrl.pathname) &&
+    !request.nextUrl.pathname.includes('/api/') &&
+    request.nextUrl.locale === 'default'
+
+  return shouldHandleLocale
+    ? NextResponse.redirect(`/en${request.nextUrl.href}`)
+    : undefined
+}
+```
+
+This [Middleware](/docs/middleware.md) skips adding the default prefix to [API Routes](/docs/api-routes/introduction.md) and [public](/docs/basic-features/static-file-serving.md) files like fonts or images. If a request is made to the default locale, we redirect to our prefix `/en`.
+
 ### Disabling Automatic Locale Detection
 
 The automatic locale detection can be disabled with:
@@ -306,4 +348,4 @@ export async function getStaticProps({ locale }) {
 - `locales`: 100 total locales
 - `domains`: 100 total locale domain items
 
-> **Note:** These limits have been added initially to prevent potential [performance issues at build time](#dynamic-routes-and-getStaticProps-pages). We are continuing to evaluate if these limits are sufficient.
+> **Note:** These limits have been added initially to prevent potential [performance issues at build time](#dynamic-routes-and-getStaticProps-pages). You can workaround these limits with custom routing using [Middleware](/docs/middleware.md) in Next.js 12.

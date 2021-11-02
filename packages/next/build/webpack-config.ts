@@ -347,20 +347,40 @@ export default async function getBaseWebpackConfig(
     cwd: dir,
     name: 'react-dom',
   })
+  const isReactExperimental = Boolean(
+    reactDomVersion && /0\.0\.0-experimental/.test(reactDomVersion)
+  )
   const hasReact18: boolean =
     Boolean(reactDomVersion) &&
     (semver.gte(reactDomVersion!, '18.0.0') ||
       semver.coerce(reactDomVersion)?.version === '18.0.0')
   const hasReactPrerelease =
-    Boolean(reactDomVersion) && semver.prerelease(reactDomVersion!) != null
-  const hasReactRoot: boolean = config.experimental.reactRoot || hasReact18
+    (Boolean(reactDomVersion) && semver.prerelease(reactDomVersion!) != null) ||
+    isReactExperimental
 
+  const hasReactRoot: boolean =
+    config.experimental.reactRoot || hasReact18 || isReactExperimental
+
+  // Only inform during one of the builds
+  if (
+    !isServer &&
+    config.experimental.reactRoot &&
+    !(hasReact18 || isReactExperimental)
+  ) {
+    // It's fine to only mention React 18 here as we don't recommend people to try experimental.
+    Log.warn('You have to use React 18 to use `experimental.reactRoot`.')
+  }
+  if (!isServer && config.experimental.concurrentFeatures && !hasReactRoot) {
+    throw new Error(
+      '`experimental.concurrentFeatures` requires `experimental.reactRoot` to be enabled along with React 18.'
+    )
+  }
   if (
     config.experimental.serverComponents &&
     !config.experimental.concurrentFeatures
   ) {
     throw new Error(
-      `Flag \`experimental.concurrentFeatures\` is required to be enabled along with \`experimental.serverComponents\`.`
+      '`experimental.concurrentFeatures` is required to be enabled along with `experimental.serverComponents`.'
     )
   }
   const hasConcurrentFeatures =
@@ -383,9 +403,13 @@ export default async function getBaseWebpackConfig(
   }
 
   if (webServerRuntime) {
-    Log.info('Using the experimental web runtime.')
+    Log.warn(
+      'You are using the experimental Edge Runtime with `concurrentFeatures`.'
+    )
     if (hasServerComponents) {
-      Log.info('You have experimental React Server Components enabled.')
+      Log.warn(
+        'You have experimental React Server Components enabled. Continue at your own risk.'
+      )
     }
   }
 
