@@ -22,7 +22,7 @@ describe('Invalid static image import in _document', () => {
     expect(stderr).toMatch(/Location:.*pages[\\/]_document\.js/)
   })
 
-  it('Should build without error when disableStaticImages in next.config.js', async () => {
+  it('Should fail to build when disableStaticImages in next.config.js', async () => {
     nextConfig.write(`
       module.exports = {
         images: {
@@ -30,7 +30,15 @@ describe('Invalid static image import in _document', () => {
         }
       }
     `)
-    const { code } = await nextBuild(appDir, [], {})
-    expect(code).toBe(0)
+    const { code, stderr } = await nextBuild(appDir, [], {
+      stderr: true,
+    })
+    expect(code).not.toBe(0)
+    expect(stderr).toMatch(
+      /You may need an appropriate loader to handle this file type, currently no loaders are configured to process this file/
+    )
+    expect(stderr).not.toMatch(
+      /Images.*cannot.*be imported within.*pages[\\/]_document\.js/
+    )
   })
 })

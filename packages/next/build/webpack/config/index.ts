@@ -55,9 +55,10 @@ export async function build(
     experimental,
   }
 
-  let fn = pipe(base(ctx), css(ctx))
+  let fns = [base(ctx), css(ctx)]
   if (!disableStaticImages) {
-    fn = pipe(fn, images(ctx))
+    fns.push(images(ctx))
   }
+  const fn = pipe(...fns)
   return fn(config)
 }
