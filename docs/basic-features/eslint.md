@@ -205,7 +205,7 @@ If you would like to use `next lint` with [lint-staged](https://github.com/okone
 const path = require('path')
 
 const buildEslintCommand = (filenames) =>
-  `next lint --file ${filenames
+  `next lint --fix --file ${filenames
     .map((f) => path.relative(process.cwd(), f))
     .join(' --file ')}`
 
