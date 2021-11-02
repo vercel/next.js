@@ -155,10 +155,6 @@ impl Namespacer {
         &mut self,
         mut node: CompoundSelector,
     ) -> Result<Vec<CompoundSelector>, Error> {
-        if self.is_global {
-            return Ok(vec![node]);
-        }
-
         let mut pseudo_index = None;
         for (i, selector) in node.subclass_selectors.iter().enumerate() {
             if let SubclassSelector::Pseudo(PseudoSelector { name, args, .. }) = selector {
@@ -216,17 +212,19 @@ impl Namespacer {
             None => node.subclass_selectors.len(),
             Some(i) => i,
         };
-        node.subclass_selectors.insert(
-            insert_index,
-            SubclassSelector::Class(ClassSelector {
-                span: DUMMY_SP,
-                text: Text {
-                    raw: subclass_selector.into(),
-                    value: subclass_selector.into(),
+        if !self.is_global {
+            node.subclass_selectors.insert(
+                insert_index,
+                SubclassSelector::Class(ClassSelector {
                     span: DUMMY_SP,
-                },
-            }),
-        );
+                    text: Text {
+                        raw: subclass_selector.into(),
+                        value: subclass_selector.into(),
+                        span: DUMMY_SP,
+                    },
+                }),
+            );
+        }
 
         Ok(vec![node])
     }

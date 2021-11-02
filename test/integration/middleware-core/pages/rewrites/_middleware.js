@@ -8,7 +8,7 @@ export async function middleware(request) {
     if (!bucket) {
       bucket = Math.random() >= 0.5 ? 'a' : 'b'
       const response = NextResponse.rewrite(`/rewrites/${bucket}`)
-      response.cookie('bucket', bucket)
+      response.cookie('bucket', bucket, { maxAge: 10000 })
       return response
     }
 
