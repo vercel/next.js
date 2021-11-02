@@ -223,7 +223,8 @@ async function runBasicTests(context) {
 
   it('should support multi-level server component imports', async () => {
     const html = await renderViaHTTP(context.appPort, '/multi')
-    expect(html).toContain('bar.server.js: foo.client')
+    expect(html).toContain('bar.server.js:')
+    expect(html).toContain('foo.client')
   })
 }
 
