@@ -1511,7 +1511,7 @@ export default class Router implements BaseRouter {
               this.isSsr,
               false,
               __N_SSG ? this.sdc : this.sdr,
-              !!__N_SSG
+              !!__N_SSG && !this.isPreview
             )
           : this.getInitialProps(
               Component,
