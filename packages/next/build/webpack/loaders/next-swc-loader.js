@@ -26,7 +26,6 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 */
 
-import { getOptions } from 'next/dist/compiled/loader-utils'
 import { transform } from '../../swc'
 
 const nextDistPath =
@@ -69,6 +68,9 @@ function getSWCOptions({
             window: isServer ? 'undefined' : 'object',
           },
         },
+      },
+      regenerator: {
+        importPath: require.resolve('regenerator-runtime'),
       },
     },
   }
@@ -114,7 +116,7 @@ async function loaderTransform(parentTrace, source, inputSourceMap) {
   // Make the loader async
   const filename = this.resourcePath
 
-  let loaderOptions = getOptions(this) || {}
+  let loaderOptions = this.getOptions() || {}
 
   const { isServer, pagesDir, hasReactRefresh } = loaderOptions
   const isPageFile = filename.startsWith(pagesDir)
