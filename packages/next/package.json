@@ -228,7 +228,7 @@
     "lodash.curry": "4.1.1",
     "lru-cache": "5.1.1",
     "micromatch": "4.0.4",
-    "mini-css-extract-plugin": "1.5.0",
+    "mini-css-extract-plugin": "2.4.3",
     "nanoid": "3.1.20",
     "native-url": "0.3.4",
     "neo-async": "2.6.1",
