@@ -45,9 +45,11 @@ export default async function middlewareRSCLoader(this: any) {
     './pages/_app'
   )
 
-  const hasProvidedAppPage = hasModule(JSON.parse(stringifiedAbsoluteAppPath))
+  const hasProvidedAppPage = hasModule(
+    this.utils.absolutify(this.rootContext, './pages/_app')
+  )
   const hasProvidedDocumentPage = hasModule(
-    JSON.parse(stringifiedAbsoluteDocumentPath)
+    this.utils.absolutify(this.rootContext, './pages/_document')
   )
 
   let appDefinition = `const App = require(${
