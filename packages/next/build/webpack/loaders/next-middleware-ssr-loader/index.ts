@@ -31,10 +31,12 @@ export default async function middlewareRSCLoader(this: any) {
   const {
     absolutePagePath,
     basePath,
-    isServerComponent,
+    isServerComponent: isServerComponentQuery,
     assetPrefix,
     buildId,
   } = this.getOptions()
+
+  const isServerComponent = isServerComponentQuery === 'true'
   const stringifiedAbsolutePagePath = stringifyRequest(this, absolutePagePath)
   const stringifiedAbsoluteDocumentPath = getStringifiedAbsolutePath(
     this,

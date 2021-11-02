@@ -591,7 +591,7 @@ export async function copy_react_server_dom_webpack(task, opts) {
     .source(
       join(
         dirname(require.resolve('react-server-dom-webpack')),
-        'cjs/react-server-dom-webpack-writer.browser.*'
+        'cjs/react-server-dom-webpack/writer.browser.*'
       )
     )
     .target('compiled/react-server-dom-webpack/cjs')
