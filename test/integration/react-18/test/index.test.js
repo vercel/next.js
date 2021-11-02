@@ -138,10 +138,10 @@ describe('Basics', () => {
   it('supports render prop as children in <Main />', async () => {
     const appPort = await findPort()
     const app = await launchApp(appDir, appPort, { nodeArgs })
-    const res = await fetchViaHTTP(appPort, '/main-render-prop')
+    const html = await renderViaHTTP(appPort, '/main-render-prop')
     await killApp(app)
 
-    expect(res.text()).toContain('from main render prop')
+    expect(html).toContain('from main render prop')
   })
 })
 
