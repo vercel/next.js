@@ -39,7 +39,7 @@ export function connectHMR(options: {
       assetPrefix ? `/${assetPrefix}` : ''
     }`
 
-    if (assetPrefix.startsWith('http:')) {
+    if (assetPrefix.startsWith('http')) {
       url = `${protocol}://${assetPrefix.split('://')[1]}`
     }
 
