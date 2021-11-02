@@ -1,4 +1,3 @@
-import loaderUtils from 'next/dist/compiled/loader-utils'
 import * as acorn from 'acorn'
 import { getRawPageExtensions } from '../../utils'
 
@@ -81,7 +80,7 @@ export default async function transformSource(
   source: string
 ): Promise<string> {
   const { client: isClientCompilation, pageExtensions: pageExtensionsJson } =
-    loaderUtils.getOptions(this)
+    this.getOptions()
   const { resourcePath } = this
   const pageExtensions = JSON.parse(pageExtensionsJson)
 

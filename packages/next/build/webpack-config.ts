@@ -361,11 +361,16 @@ export default async function getBaseWebpackConfig(
   const hasReactRoot: boolean =
     config.experimental.reactRoot || hasReact18 || isReactExperimental
 
-  if (config.experimental.reactRoot && !(hasReact18 || isReactExperimental)) {
+  // Only inform during one of the builds
+  if (
+    !isServer &&
+    config.experimental.reactRoot &&
+    !(hasReact18 || isReactExperimental)
+  ) {
     // It's fine to only mention React 18 here as we don't recommend people to try experimental.
     Log.warn('You have to use React 18 to use `experimental.reactRoot`.')
   }
-  if (config.experimental.concurrentFeatures && !hasReactRoot) {
+  if (!isServer && config.experimental.concurrentFeatures && !hasReactRoot) {
     throw new Error(
       '`experimental.concurrentFeatures` requires `experimental.reactRoot` to be enabled along with React 18.'
     )
@@ -398,9 +403,13 @@ export default async function getBaseWebpackConfig(
   }
 
   if (webServerRuntime) {
-    Log.info('Using the experimental web runtime.')
+    Log.warn(
+      'You are using the experimental Edge Runtime with `concurrentFeatures`.'
+    )
     if (hasServerComponents) {
-      Log.info('You have experimental React Server Components enabled.')
+      Log.warn(
+        'You have experimental React Server Components enabled. Continue at your own risk.'
+      )
     }
   }
 
