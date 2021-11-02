@@ -139,13 +139,17 @@ export default class MiddlewarePlugin {
               const queue = new Set(middlewareEntries)
               for (const module of queue) {
                 const { buildInfo } = module as any
-                if (buildInfo?.usingIndirectEval) {
+
+                if (
+                  buildInfo?.usingIndirectEval &&
+                  process.env.NEXT_PRIVATE_MIDDLEWARE_DISALLOW_EVAL
+                ) {
                   // @ts-ignore TODO: Remove ignore when webpack 5 is stable
                   const error = new webpack.WebpackError(
                     `\`eval\` not allowed in Middleware ${name}`
                   )
                   error.module = module
-                  compilation.warnings.push(error)
+                  compilation.errors.push(error)
                 }
 
                 if (buildInfo?.nextUsedEnvVars !== undefined) {
