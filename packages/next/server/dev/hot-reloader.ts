@@ -24,7 +24,7 @@ import onDemandEntryHandler, {
 } from './on-demand-entry-handler'
 import { denormalizePagePath, normalizePathSep } from '../normalize-page-path'
 import getRouteFromEntrypoint from '../get-route-from-entrypoint'
-import { isWriteable } from '../../build/is-writeable'
+import { fileExists } from '../../lib/file-exists'
 import { ClientPagesLoaderOptions } from '../../build/webpack/loaders/next-client-pages-loader'
 import { ssrEntries } from '../../build/webpack/plugins/middleware-plugin'
 import { stringify } from 'querystring'
@@ -452,7 +452,7 @@ export default class HotReloader {
             }
 
             const { bundlePath, absolutePagePath, dispose } = entries[pageKey]
-            const pageExists = !dispose && (await isWriteable(absolutePagePath))
+            const pageExists = !dispose && (await fileExists(absolutePagePath))
             if (!pageExists) {
               // page was removed or disposed
               delete entries[pageKey]
