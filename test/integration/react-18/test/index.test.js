@@ -140,7 +140,7 @@ describe('Basics', () => {
     const app = await launchApp(appDir, appPort, { nodeArgs })
     const res = await fetchViaHTTP(context.appPort, '/main-render-prop')
     await killApp(app)
-    
+
     expect(res.text()).toContain('from main render prop')
   })
 })
@@ -176,7 +176,10 @@ describe('Concurrent mode', () => {
   runTests('concurrentFeatures is enabled', (context) => {
     concurrent(context, (p, q) => renderViaHTTP(context.appPort, p, q))
 
-    c
+    it('should stream to users', async () => {
+      const res = await fetchViaHTTP(context.appPort, '/ssr')
+      expect(res.headers.get('etag')).toBeNull()
+    })
 
     it('should not stream to bots', async () => {
       const res = await fetchViaHTTP(
