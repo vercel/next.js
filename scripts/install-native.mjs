@@ -47,6 +47,7 @@ const exec = util.promisify(execFile)
         )
       )
     )
+    await fse.remove(tmpdir)
     console.log('Installed the following binary packages:', pkgs)
   } catch (e) {
     console.error(e)
