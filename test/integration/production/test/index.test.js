@@ -109,9 +109,6 @@ describe('Production Usage', () => {
       expect(
         serverTrace.files.some((file) => file.includes('node_modules/sharp'))
       ).toBe(false)
-      expect(
-        serverTrace.files.some((file) => file.includes('react.development.js'))
-      ).toBe(false)
     }
 
     const checks = [
