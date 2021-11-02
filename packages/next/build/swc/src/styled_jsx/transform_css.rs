@@ -129,6 +129,7 @@ struct Namespacer {
 
 impl VisitMut for Namespacer {
     fn visit_mut_complex_selector(&mut self, node: &mut ComplexSelector) {
+        dbg!(&node);
         let mut new_selectors = vec![];
         for selector in &node.selectors {
             match self.get_transformed_selectors(selector.clone()) {
@@ -155,6 +156,7 @@ impl Namespacer {
         &mut self,
         mut node: CompoundSelector,
     ) -> Result<Vec<CompoundSelector>, Error> {
+        dbg!(&node);
         let mut pseudo_index = None;
         for (i, selector) in node.subclass_selectors.iter().enumerate() {
             if let SubclassSelector::Pseudo(PseudoSelector { name, args, .. }) = selector {
@@ -182,10 +184,15 @@ impl Namespacer {
 
                     return match complex_selectors {
                         Ok(complex_selectors) => {
+                            dbg!(&complex_selectors);
                             let mut v = complex_selectors[0].selectors[1..]
                                 .iter()
                                 .cloned()
                                 .collect::<Vec<_>>();
+
+                            if node.combinator.is_some() {
+                                v[0].combinator = node.combinator;
+                            }
 
                             v.iter_mut().for_each(|sel| {
                                 if i < node.subclass_selectors.len() {
