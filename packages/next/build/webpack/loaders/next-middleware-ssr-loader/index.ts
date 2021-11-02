@@ -1,5 +1,5 @@
-import loaderUtils from 'next/dist/compiled/loader-utils'
 import { getStringifiedAbsolutePath } from './utils'
+import { stringifyRequest } from '../../stringify-request'
 
 const fallbackDocumentPage = `
 import { Html, Head, Main, NextScript } from 'next/document'
@@ -31,14 +31,13 @@ export default async function middlewareRSCLoader(this: any) {
   const {
     absolutePagePath,
     basePath,
-    isServerComponent,
+    isServerComponent: isServerComponentQuery,
     assetPrefix,
     buildId,
-  } = loaderUtils.getOptions(this)
-  const stringifiedAbsolutePagePath = loaderUtils.stringifyRequest(
-    this,
-    absolutePagePath
-  )
+  } = this.getOptions()
+
+  const isServerComponent = isServerComponentQuery === 'true'
+  const stringifiedAbsolutePagePath = stringifyRequest(this, absolutePagePath)
   const stringifiedAbsoluteDocumentPath = getStringifiedAbsolutePath(
     this,
     './pages/_document'
@@ -48,9 +47,11 @@ export default async function middlewareRSCLoader(this: any) {
     './pages/_app'
   )
 
-  const hasProvidedAppPage = hasModule(JSON.parse(stringifiedAbsoluteAppPath))
+  const hasProvidedAppPage = hasModule(
+    this.utils.absolutify(this.rootContext, './pages/_app')
+  )
   const hasProvidedDocumentPage = hasModule(
-    JSON.parse(stringifiedAbsoluteDocumentPath)
+    this.utils.absolutify(this.rootContext, './pages/_document')
   )
 
   let appDefinition = `const App = require(${

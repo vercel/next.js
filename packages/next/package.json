@@ -224,7 +224,7 @@
     "is-wsl": "2.2.0",
     "json5": "2.2.0",
     "jsonwebtoken": "8.5.1",
-    "loader-utils": "2.0.0",
+    "loader-utils": "3.1.0",
     "lodash.curry": "4.1.1",
     "lru-cache": "5.1.1",
     "micromatch": "4.0.4",
