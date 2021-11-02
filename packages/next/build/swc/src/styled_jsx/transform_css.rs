@@ -138,7 +138,7 @@ impl VisitMut for Namespacer {
                         handler
                             .struct_span_err(
                                 selector.span,
-                                "Failed to parse tokens inside one off global selector",
+                                "Failed to transform one off global selector",
                             )
                             .emit()
                     });
@@ -187,7 +187,13 @@ impl Namespacer {
                                 .cloned()
                                 .collect::<Vec<_>>();
 
-                            if node.combinator.is_some() {
+                            if v.is_empty() {
+                                bail!("Failed to transform one off global selector");
+                            }
+
+                            if node.combinator.is_some() && v[0].combinator.is_some() {
+                                bail!("Failed to transform one off global selector");
+                            } else if node.combinator.is_some() {
                                 v[0].combinator = node.combinator;
                             }
 
