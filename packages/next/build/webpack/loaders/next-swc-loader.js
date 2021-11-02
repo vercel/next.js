@@ -69,6 +69,9 @@ function getSWCOptions({
           },
         },
       },
+      regenerator: {
+        importPath: require.resolve('regenerator-runtime'),
+      },
     },
   }
 

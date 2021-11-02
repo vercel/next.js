@@ -122,7 +122,7 @@
     "minimatch": "3.0.4",
     "moment": "^2.24.0",
     "node-fetch": "2.6.1",
-    "node-notifier": "5.4.0",
+    "node-notifier": "8.0.1",
     "node-sass": "6.0.1",
     "npm-run-all": "4.1.5",
     "nprogress": "0.2.0",
