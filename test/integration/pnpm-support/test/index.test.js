@@ -12,7 +12,7 @@ const runPnpm = async (cwd, ...args) => {
   try {
     return await execa('npx', ['pnpm', ...args], { cwd })
   } catch (err) {
-    console.error({ err, stdout: err.stdout, stderr: err.stderr })
+    console.error({ err })
     throw err
   }
 }

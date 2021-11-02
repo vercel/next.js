@@ -70,6 +70,11 @@ function getSWCOptions({
           },
         },
       },
+      transform: {
+        regenerator: {
+          importPath: require.resolve('regenerator-runtime'),
+        },
+      },
     },
   }
 
