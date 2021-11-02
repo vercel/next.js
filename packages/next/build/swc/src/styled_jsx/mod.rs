@@ -8,12 +8,12 @@ use swc_ecmascript::minifier::{
     eval::{EvalResult, Evaluator},
     marks::Marks,
 };
-use swc_ecmascript::utils::private_ident;
 use swc_ecmascript::utils::{
     collect_decls,
     ident::{Id, IdentLike},
     prepend, HANDLER,
 };
+use swc_ecmascript::utils::{drop_span, private_ident};
 use swc_ecmascript::visit::{Fold, FoldWith};
 
 //use external::external_styles;
@@ -413,13 +413,13 @@ impl StyledJSXTransformer {
                     css_span = span.clone();
                     is_dynamic = false;
                 } else {
-                    expr.clone().hash(&mut hasher);
+                    drop_span(expr.clone()).hash(&mut hasher);
                     let mut s = String::new();
                     for i in 0..quasis.len() {
                         let placeholder = if i == quasis.len() - 1 {
                             String::new()
                         } else {
-                            format!("__styled-jsx-placeholder__{}", i)
+                            format!("__styled-jsx-placeholder-{}__", i)
                         };
                         s = format!("{}{}{}", s, quasis[i].raw.value, placeholder)
                     }
@@ -485,6 +485,7 @@ impl StyledJSXTransformer {
                     &style_info,
                     css,
                     self.style_import_name.as_ref().unwrap(),
+                    self.static_class_name.as_ref(),
                 ))
             }
             JSXStyle::External(style) => Ok(make_external_styled_jsx_el(
@@ -533,6 +534,7 @@ impl StyledJSXTransformer {
                             &style,
                             css,
                             &self.style_import_name.as_ref().unwrap(),
+                            self.static_class_name.as_ref(),
                         )))),
                     }))),
                     PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {

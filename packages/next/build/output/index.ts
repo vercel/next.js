@@ -4,13 +4,15 @@ import textTable from 'next/dist/compiled/text-table'
 import createStore from 'next/dist/compiled/unistore'
 import formatWebpackMessages from '../../client/dev/error-overlay/format-webpack-messages'
 import { OutputState, store as consoleStore } from './store'
+import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 
 export function startedDevelopmentServer(appUrl: string, bindAddr: string) {
   consoleStore.setState({ appUrl, bindAddr })
 }
 
-let previousClient: import('webpack').Compiler | null = null
-let previousServer: import('webpack').Compiler | null = null
+let previousClient: webpack5.Compiler | null = null
+let previousServer: webpack5.Compiler | null = null
+let previousServerWeb: webpack5.Compiler | null = null
 
 type CompilerDiagnostics = {
   modules: number
@@ -37,6 +39,7 @@ export type AmpPageStatus = {
 type BuildStatusStore = {
   client: WebpackStatus
   server: WebpackStatus
+  serverWeb?: WebpackStatus
   trigger: string | undefined
   amp: AmpPageStatus
 }
@@ -99,16 +102,17 @@ const buildStore = createStore<BuildStatusStore>()
 let buildWasDone = false
 let clientWasLoading = true
 let serverWasLoading = true
+let serverWebWasLoading = false
 
 buildStore.subscribe((state) => {
-  const { amp, client, server, trigger } = state
+  const { amp, client, server, serverWeb, trigger } = state
 
   const { bootstrap: bootstrapping, appUrl } = consoleStore.getState()
   if (bootstrapping && (client.loading || server.loading)) {
     return
   }
 
-  if (client.loading || server.loading) {
+  if (client.loading || server.loading || serverWeb?.loading) {
     consoleStore.setState(
       {
         bootstrap: false,
@@ -120,9 +124,12 @@ buildStore.subscribe((state) => {
     )
     clientWasLoading = (!buildWasDone && clientWasLoading) || client.loading
     serverWasLoading = (!buildWasDone && serverWasLoading) || server.loading
+    serverWebWasLoading =
+      (!buildWasDone && serverWasLoading) || !!serverWeb?.loading
     buildWasDone = false
     return
   }
+  if (serverWeb?.loading) return
 
   buildWasDone = true
 
@@ -132,14 +139,18 @@ buildStore.subscribe((state) => {
     loading: false,
     typeChecking: false,
     partial:
-      clientWasLoading && !serverWasLoading
+      clientWasLoading && !serverWasLoading && !serverWebWasLoading
         ? 'client'
-        : serverWasLoading && !clientWasLoading
+        : serverWasLoading && !clientWasLoading && !serverWebWasLoading
         ? 'server'
+        : serverWebWasLoading && !clientWasLoading && !serverWasLoading
+        ? 'serverWeb'
         : undefined,
     modules:
       (clientWasLoading ? client.modules : 0) +
-      (serverWasLoading ? server.modules : 0),
+      (serverWasLoading ? server.modules : 0) +
+      (serverWebWasLoading ? serverWeb?.modules || 0 : 0),
+    hasServerWeb: !!serverWeb,
   }
   if (client.errors) {
     // Show only client errors
@@ -161,11 +172,22 @@ buildStore.subscribe((state) => {
       } as OutputState,
       true
     )
+  } else if (serverWeb && serverWeb.errors) {
+    // Show only serverWeb errors
+    consoleStore.setState(
+      {
+        ...partialState,
+        errors: serverWeb.errors,
+        warnings: null,
+      } as OutputState,
+      true
+    )
   } else {
     // Show warnings from all of them
     const warnings = [
       ...(client.warnings || []),
       ...(server.warnings || []),
+      ...((serverWeb && serverWeb.warnings) || []),
       ...((Object.keys(amp).length > 0 && formatAmpMessages(amp)) || []),
     ]
 
@@ -207,16 +229,22 @@ export function ampValidation(
 }
 
 export function watchCompilers(
-  client: import('webpack').Compiler,
-  server: import('webpack').Compiler
+  client: webpack5.Compiler,
+  server: webpack5.Compiler,
+  serverWeb: webpack5.Compiler
 ) {
-  if (previousClient === client && previousServer === server) {
+  if (
+    previousClient === client &&
+    previousServer === server &&
+    previousServerWeb === serverWeb
+  ) {
     return
   }
 
   buildStore.setState({
     client: { loading: true },
     server: { loading: true },
+    serverWeb: serverWeb ? { loading: true } : undefined,
     trigger: 'initial',
   })
 
@@ -229,26 +257,26 @@ export function watchCompilers(
       onEvent({ loading: true })
     })
 
-    compiler.hooks.done.tap(
-      `NextJsDone-${key}`,
-      (stats: import('webpack5').Stats) => {
-        buildStore.setState({ amp: {} })
+    compiler.hooks.done.tap(`NextJsDone-${key}`, (stats: webpack5.Stats) => {
+      buildStore.setState({ amp: {} })
 
-        const { errors, warnings } = formatWebpackMessages(
-          stats.toJson({ all: false, warnings: true, errors: true })
-        )
-
-        const hasErrors = !!errors?.length
-        const hasWarnings = !!warnings?.length
-
-        onEvent({
-          loading: false,
-          modules: stats.compilation.modules.size,
-          errors: hasErrors ? errors : null,
-          warnings: hasWarnings ? warnings : null,
+      const { errors, warnings } = formatWebpackMessages(
+        stats.toJson({
+          preset: 'error-warnings',
+          moduleTrace: true,
         })
-      }
-    )
+      )
+
+      const hasErrors = !!errors?.length
+      const hasWarnings = !!warnings?.length
+
+      onEvent({
+        loading: false,
+        modules: stats.compilation.modules.size,
+        errors: hasErrors ? errors : null,
+        warnings: hasWarnings ? warnings : null,
+      })
+    })
   }
 
   tapCompiler('client', client, (status) => {
@@ -275,9 +303,18 @@ export function watchCompilers(
       })
     }
   })
+  if (serverWeb) {
+    tapCompiler('serverWeb', serverWeb, (status) => {
+      buildStore.setState({
+        serverWeb: status,
+        trigger: undefined,
+      })
+    })
+  }
 
   previousClient = client
   previousServer = server
+  previousServerWeb = serverWeb
 }
 
 export function reportTrigger(trigger: string) {

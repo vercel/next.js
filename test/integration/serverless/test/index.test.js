@@ -26,8 +26,14 @@ let appPort
 let app
 
 describe('Serverless', () => {
+  let output
+
   beforeAll(async () => {
-    await nextBuild(appDir)
+    const result = await nextBuild(appDir, undefined, {
+      stderr: true,
+      stdout: true,
+    })
+    output = result.stdout + result.stderr
     appPort = await findPort()
     app = await nextStart(appDir, appPort, {
       onStderr: (msg) => {
@@ -36,6 +42,12 @@ describe('Serverless', () => {
     })
   })
   afterAll(() => killApp(app))
+
+  it('should show target config deprecation warning', () => {
+    expect(output).toContain(
+      'The `target` config is deprecated and will be removed in a future version'
+    )
+  })
 
   it('should render the page', async () => {
     const html = await renderViaHTTP(appPort, '/')

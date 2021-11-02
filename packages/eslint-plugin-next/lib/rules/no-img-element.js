@@ -4,6 +4,7 @@ module.exports = {
       description: 'Prohibit usage of HTML <img> element',
       category: 'HTML',
       recommended: true,
+      url: 'https://nextjs.org/docs/messages/no-img-element',
     },
     fixable: 'code',
   },
