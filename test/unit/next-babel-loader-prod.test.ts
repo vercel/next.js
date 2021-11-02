@@ -19,6 +19,19 @@ const babel = async (code: string, queryOpts = {} as any) => {
       }
     }
 
+    const options = {
+      // loader opts
+      cwd: dir,
+      isServer,
+      distDir: path.resolve(dir, '.next'),
+      pagesDir:
+        'pagesDir' in queryOpts
+          ? queryOpts.pagesDir
+          : path.resolve(dir, 'pages'),
+      cache: false,
+      hasReactRefresh: false,
+    }
+
     const res = loader.bind({
       resourcePath,
       async() {
@@ -27,17 +40,10 @@ const babel = async (code: string, queryOpts = {} as any) => {
       },
       callback,
       emitWarning() {},
-      query: {
-        // loader opts
-        cwd: dir,
-        isServer,
-        distDir: path.resolve(dir, '.next'),
-        pagesDir:
-          'pagesDir' in queryOpts
-            ? queryOpts.pagesDir
-            : path.resolve(dir, 'pages'),
-        cache: false,
-        hasReactRefresh: false,
+      query: options,
+      // @ts-ignore exists
+      getOptions: function () {
+        return options
       },
       currentTraceSpan: new Span({ name: 'test' }),
     })(code, null)

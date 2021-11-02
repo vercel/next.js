@@ -190,3 +190,12 @@ fn test_deser() {
 
     println!("{:#?}", tr);
 }
+
+#[test]
+fn test_deserialize_transform_regenerator() {
+    const JSON_STR: &str = r#"{"jsc":{"parser":{"syntax":"ecmascript","dynamicImport":true,"jsx":true},"transform":{ "regenerator": { "importPath": "foo" }, "react":{"runtime":"automatic","pragma":"React.createElement","pragmaFrag":"React.Fragment","throwIfNamespace":true,"development":false,"useBuiltins":true}},"target":"es5"},"filename":"/Users/timneutkens/projects/next.js/packages/next/dist/client/next.js","sourceMaps":false,"sourceFileName":"/Users/timneutkens/projects/next.js/packages/next/dist/client/next.js"}"#;
+
+    let tr: TransformOptions = serde_json::from_str(&JSON_STR).unwrap();
+
+    println!("{:#?}", tr);
+}

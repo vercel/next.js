@@ -1,7 +1,6 @@
 import Warning from './Warning'
 import SyntaxError from './Error'
 import { normalizeSourceMap, normalizeSourceMapAfterPostcss } from './utils'
-import { getOptions } from 'next/dist/compiled/loader-utils'
 
 /**
  * **PostCSS Loader**
@@ -22,7 +21,7 @@ export default async function loader(content, sourceMap, meta) {
 
   loaderSpan
     .traceAsyncFn(async () => {
-      const options = getOptions(this)
+      const options = this.getOptions()
       const file = this.resourcePath
 
       const useSourceMap =

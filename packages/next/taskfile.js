@@ -359,7 +359,7 @@ export async function ncc_jsonwebtoken(task, opts) {
 externals['loader-utils'] = 'next/dist/compiled/loader-utils'
 export async function ncc_loader_utils(task, opts) {
   await task
-    .source(opts.src || relative(__dirname, require.resolve('loader-utils')))
+    .source(opts.src || 'bundles/loader-utils.js')
     .ncc({ packageName: 'loader-utils', externals })
     .target('compiled/loader-utils')
 }
