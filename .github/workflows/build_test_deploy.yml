@@ -484,8 +484,7 @@ jobs:
       - build-native
       - build-windows-i686
       - build-windows-aarch64
-      # Temporarily disabled
-      # - build-linux-musl
+      - build-linux-musl
       - build-linux-arm7
       - build-linux-aarch64
       - build-android-aarch64
