@@ -1,4 +1,14 @@
 export function middleware(request) {
+  const url = request.nextUrl
+
+  if (url.pathname === '/globalthis') {
+    return new NextResponse(JSON.stringify(Object.keys(globalThis)), {
+      headers: {
+        'content-type': 'application/json; charset=utf-8',
+      },
+    })
+  }
+
   return new Response(null, {
     headers: {
       'req-url-basepath': request.nextUrl.basePath,
