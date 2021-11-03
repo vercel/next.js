@@ -39,3 +39,6 @@ test-timings.json
 # Vercel
 .vercel
 .now
+
+# Cache
+*.tsbuildinfo

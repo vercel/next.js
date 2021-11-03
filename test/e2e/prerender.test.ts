@@ -1833,7 +1833,7 @@ describe('Prerender', () => {
               /node_modules\/react\/package\.json/,
               /node_modules\/react\/cjs\/react\.production\.min\.js/,
             ],
-            notTests: [/node_modules\/react\/cjs\/react\.development\.js/],
+            notTests: [],
           },
           {
             page: '/another',
@@ -1846,7 +1846,6 @@ describe('Prerender', () => {
               /\/world.txt/,
             ],
             notTests: [
-              /node_modules\/react\/cjs\/react\.development\.js/,
               /node_modules\/@firebase\/firestore\/.*?\.js/,
               /\/server\.js/,
             ],
@@ -1861,10 +1860,7 @@ describe('Prerender', () => {
               /node_modules\/react\/cjs\/react\.production\.min\.js/,
               /node_modules\/@firebase\/firestore\/.*?\.js/,
             ],
-            notTests: [
-              /node_modules\/react\/cjs\/react\.development\.js/,
-              /\/world.txt/,
-            ],
+            notTests: [/\/world.txt/],
           },
         ]
 

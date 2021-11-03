@@ -1,15 +1,25 @@
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import { getMiddlewareRegex } from '../../../shared/lib/router/utils'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
-import { MIDDLEWARE_MANIFEST } from '../../../shared/lib/constants'
+import {
+  MIDDLEWARE_MANIFEST,
+  MIDDLEWARE_FLIGHT_MANIFEST,
+  MIDDLEWARE_SSR_RUNTIME_WEBPACK,
+  MIDDLEWARE_BUILD_MANIFEST,
+  MIDDLEWARE_REACT_LOADABLE_MANIFEST,
+} from '../../../shared/lib/constants'
 import { MIDDLEWARE_ROUTE } from '../../../lib/constants'
+import { nonNullable } from '../../../lib/non-nullable'
 
 const PLUGIN_NAME = 'MiddlewarePlugin'
 const MIDDLEWARE_FULL_ROUTE_REGEX = /^pages[/\\]?(.*)\/_middleware$/
 
+export const ssrEntries = new Map<string, { requireFlightManifest: boolean }>()
+
 export interface MiddlewareManifest {
   version: 1
   sortedMiddleware: string[]
+  clientInfo: [string, boolean][]
   middleware: {
     [page: string]: {
       env: string[]
@@ -36,39 +46,64 @@ export default class MiddlewarePlugin {
     const entrypoints = compilation.entrypoints
     const middlewareManifest: MiddlewareManifest = {
       sortedMiddleware: [],
+      clientInfo: [],
       middleware: {},
       version: 1,
     }
 
     for (const entrypoint of entrypoints.values()) {
       const result = MIDDLEWARE_FULL_ROUTE_REGEX.exec(entrypoint.name)
-      const location = result ? `/${result[1]}` : null
+      const ssrEntryInfo = ssrEntries.get(entrypoint.name)
+
+      const location = result
+        ? `/${result[1]}`
+        : ssrEntryInfo
+        ? entrypoint.name.slice('pages'.length).replace(/\/index$/, '') || '/'
+        : null
+
       if (!location) {
         continue
       }
-
-      const files = entrypoint
-        .getFiles()
-        .filter((file: string) => !file.endsWith('.hot-update.js'))
-        .map((file: string) =>
-          // we need to use the unminified version of the webpack runtime,
-          // remove if we do start minifying middleware chunks
-          file.startsWith('static/chunks/webpack-')
-            ? file.replace('webpack-', 'webpack-middleware-')
-            : file
-        )
+      const files = ssrEntryInfo
+        ? [
+            `server/${MIDDLEWARE_SSR_RUNTIME_WEBPACK}.js`,
+            ssrEntryInfo.requireFlightManifest
+              ? `server/${MIDDLEWARE_FLIGHT_MANIFEST}.js`
+              : null,
+            `server/${MIDDLEWARE_BUILD_MANIFEST}.js`,
+            `server/${MIDDLEWARE_REACT_LOADABLE_MANIFEST}.js`,
+            `server/${entrypoint.name}.js`,
+          ].filter(nonNullable)
+        : entrypoint
+            .getFiles()
+            .filter((file: string) => !file.endsWith('.hot-update.js'))
+            .map((file: string) =>
+              // we need to use the unminified version of the webpack runtime,
+              // remove if we do start minifying middleware chunks
+              file.startsWith('static/chunks/webpack-')
+                ? file.replace('webpack-', 'webpack-middleware-')
+                : file
+            )
 
       middlewareManifest.middleware[location] = {
-        env: envPerRoute.get(entrypoint.name)!,
+        env: envPerRoute.get(entrypoint.name) || [],
         files,
         name: entrypoint.name,
         page: location,
-        regexp: getMiddlewareRegex(location).namedRegex!,
+        regexp: getMiddlewareRegex(location, !ssrEntryInfo).namedRegex!,
       }
     }
 
     middlewareManifest.sortedMiddleware = getSortedRoutes(
       Object.keys(middlewareManifest.middleware)
+    )
+    middlewareManifest.clientInfo = middlewareManifest.sortedMiddleware.map(
+      (key) => {
+        const ssrEntryInfo = ssrEntries.get(
+          middlewareManifest.middleware[key].name
+        )
+        return [key, !!ssrEntryInfo]
+      }
     )
 
     assets[`server/${MIDDLEWARE_MANIFEST}`] = new sources.RawSource(

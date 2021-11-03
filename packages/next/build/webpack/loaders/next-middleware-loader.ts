@@ -1,4 +1,4 @@
-import loaderUtils from 'next/dist/compiled/loader-utils'
+import { stringifyRequest } from '../stringify-request'
 
 export type MiddlewareLoaderOptions = {
   absolutePagePath: string
@@ -6,12 +6,8 @@ export type MiddlewareLoaderOptions = {
 }
 
 export default function middlewareLoader(this: any) {
-  const { absolutePagePath, page }: MiddlewareLoaderOptions =
-    loaderUtils.getOptions(this)
-  const stringifiedPagePath = loaderUtils.stringifyRequest(
-    this,
-    absolutePagePath
-  )
+  const { absolutePagePath, page }: MiddlewareLoaderOptions = this.getOptions()
+  const stringifiedPagePath = stringifyRequest(this, absolutePagePath)
 
   return `
         import { adapter } from 'next/dist/server/web/adapter'
