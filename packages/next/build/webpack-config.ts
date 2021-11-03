@@ -1187,7 +1187,7 @@ export default async function getBaseWebpackConfig(
               },
             ]
           : []),
-        ...(webServerRuntime && hasServerComponents
+        ...(hasServerComponents && webServerRuntime
           ? [
               {
                 ...codeCondition,
