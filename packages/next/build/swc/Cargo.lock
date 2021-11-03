@@ -1965,9 +1965,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_transforms_compat"
-version = "0.49.1"
+version = "0.49.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "57a1f9555fcc50eb59d19dc0b4c7d95cbb771f0a3cb319c9f8cded0630569ba8"
+checksum = "aefdc14b1f1a2806c887fdf804f26456bd64844fd6ef0033d4cdd058a01eabeb"
 dependencies = [
  "ahash",
  "arrayvec",
@@ -2132,9 +2132,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_utils"
-version = "0.50.0"
+version = "0.50.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7c073f1cfbf53314e6c4b02cc2d19b96202d15ff8cd13cafb01331a3e645b39e"
+checksum = "8762b5fccb1bbb5f4bcb83eb6668a78b3861ae8df692c76e75cc33605d611480"
 dependencies = [
  "once_cell",
  "swc_atoms",
