@@ -18,6 +18,6 @@ export default async function user(req, res) {
     note: 'Fetch any data from your application for authenticated user after using verifySession middleware',
     userId: req.session.getUserId(),
     sessionHandle: req.session.getHandle(),
-    userDataInJWT: req.session.getJWTPayload(),
+    accessTokenPayload: req.session.getAccessTokenPayload(),
   })
 }

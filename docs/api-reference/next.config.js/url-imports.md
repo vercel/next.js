@@ -1,10 +1,10 @@
 ---
-description: Configure Next.js to allow importing modules from external URLs.
+description: Configure Next.js to allow importing modules from external URLs (experimental).
 ---
 
-# URL imports
+# URL Imports
 
-URL Imports are an experimental feature that allows you to import modules directly from external servers (instead of from the local disk).
+URL imports are an experimental feature that allows you to import modules directly from external servers (instead of from the local disk).
 
 > **Warning**: This feature is experimental. Only use domains that you trust to download and execute on your machine. Please exercise
 > discretion, and caution until the feature is flagged as stable.
@@ -27,6 +27,10 @@ import { a, b, c } from 'https://example.com/modules/some/module.js'
 
 URL Imports can be used everywhere normal package imports can be used.
 
+## Security Model
+
+This feature is being designed with **security as the top priority**. To start, we added an experimental flag forcing you to explicitly allow the domains you accept URL imports from. We're working to take this further by limiting URL imports to execute in the browser sandbox using the [Edge Runtime](/docs/api-reference/edge-runtime.md). This runtime is used by [Middleware](/docs/middleware.md) as well as [Next.js Live](https://vercel.com/live).
+
 ## Lockfile
 
 When using URL imports, Next.js will create a lockfile in the `next.lock` directory.
@@ -41,7 +45,7 @@ These resources will have a `no-cache` entry in the lockfile and will always be 
 
 ## Examples
 
-From skypack CDN:
+#### Skypack
 
 ```js
 import confetti from 'https://cdn.skypack.dev/canvas-confetti'
@@ -55,7 +59,7 @@ export default () => {
 }
 ```
 
-Static image imports:
+#### Static Image Imports
 
 ```js
 import Image from 'next/image'
@@ -68,7 +72,7 @@ export default () => (
 )
 ```
 
-URLs in CSS:
+#### URLs in CSS
 
 ```css
 .className {
@@ -76,7 +80,7 @@ URLs in CSS:
 }
 ```
 
-Asset imports:
+#### Asset Imports
 
 ```js
 import Image from 'next/image'
