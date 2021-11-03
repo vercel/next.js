@@ -38,7 +38,8 @@
     "next": "node --trace-deprecation --enable-source-maps packages/next/dist/bin/next",
     "next-no-sourcemaps": "node --trace-deprecation packages/next/dist/bin/next",
     "clean-trace-jaeger": "rm -rf test/integration/basic/.next && TRACE_TARGET=JAEGER node --trace-deprecation --enable-source-maps packages/next/dist/bin/next build test/integration/basic",
-    "debug": "node --inspect packages/next/dist/bin/next"
+    "debug": "node --inspect packages/next/dist/bin/next",
+    "postinstall": "node scripts/install-native.mjs"
   },
   "pre-commit": "lint-staged",
   "devDependencies": {
@@ -159,19 +160,6 @@
     "webpack": "link:./node_modules/webpack5",
     "webpack-bundle-analyzer": "4.3.0",
     "worker-loader": "3.0.7"
-  },
-  "optionalDependencies": {
-    "@next/swc-android-arm64": "canary",
-    "@next/swc-darwin-arm64": "canary",
-    "@next/swc-darwin-x64": "canary",
-    "@next/swc-linux-arm-gnueabihf": "canary",
-    "@next/swc-linux-arm64-gnu": "canary",
-    "@next/swc-linux-arm64-musl": "canary",
-    "@next/swc-linux-x64-gnu": "canary",
-    "@next/swc-linux-x64-musl": "canary",
-    "@next/swc-win32-arm64-msvc": "canary",
-    "@next/swc-win32-ia32-msvc": "canary",
-    "@next/swc-win32-x64-msvc": "canary"
   },
   "resolutions": {
     "browserslist": "4.16.6",

@@ -85,6 +85,7 @@ export async function run(params: {
     }
 
     context.self = context
+    context.globalThis = context
 
     cache = {
       context,

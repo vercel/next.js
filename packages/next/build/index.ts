@@ -90,6 +90,7 @@ import {
   printCustomRoutes,
   printTreeView,
   getCssFilePaths,
+  getUnresolvedModuleFromError,
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
 import { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
@@ -131,7 +132,9 @@ export default async function build(
   debugOutput = false,
   runLint = true
 ): Promise<void> {
-  const nextBuildSpan = trace('next-build')
+  const nextBuildSpan = trace('next-build', undefined, {
+    attrs: { version: process.env.__NEXT_VERSION },
+  })
 
   const buildResult = await nextBuildSpan.traceAsyncFn(async () => {
     // attempt to load global env values so they are available in next.config.js
@@ -691,12 +694,10 @@ export default async function build(
       console.error()
 
       // When using the web runtime, common Node.js native APIs are not available.
-      if (
-        hasConcurrentFeatures &&
-        error.indexOf("Module not found: Can't resolve 'fs'") > -1
-      ) {
+      const moduleName = getUnresolvedModuleFromError(error)
+      if (hasConcurrentFeatures && moduleName) {
         const err = new Error(
-          `Native Node.js APIs are not supported in the Edge Runtime with \`concurrentFeatures\` enabled. Found \`fs\` imported.\n\n`
+          `Native Node.js APIs are not supported in the Edge Runtime with \`concurrentFeatures\` enabled. Found \`${moduleName}\` imported.\n\n`
         ) as NextError
         err.code = 'EDGE_RUNTIME_UNSUPPORTED_API'
         throw err
@@ -1226,9 +1227,6 @@ export default async function build(
                 '**/next/dist/compiled/@ampproject/toolbox-optimizer/**/*',
                 '**/next/dist/server/lib/squoosh/**/*.wasm',
                 '**/next/dist/compiled/webpack/(bundle4|bundle5).js',
-                '**/node_modules/react/**/*.development.js',
-                '**/node_modules/react-dom/**/*.development.js',
-                '**/node_modules/use-subscription/**/*.development.js',
                 '**/node_modules/sharp/**/*',
                 '**/node_modules/webpack5/**/*',
               ],
