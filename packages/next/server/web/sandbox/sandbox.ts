@@ -13,6 +13,7 @@ let cache:
       paths: Map<string, string>
       require: Map<string, any>
       sandbox: vm.Context
+      warnedEvals: Set<string>
     }
   | undefined
 
@@ -39,6 +40,7 @@ export async function run(params: {
 }): Promise<FetchEventResult> {
   if (cache === undefined) {
     const context: { [key: string]: any } = {
+      __next_eval__,
       _ENTRIES: {},
       atob: polyfills.atob,
       Blob,
@@ -89,11 +91,20 @@ export async function run(params: {
 
     cache = {
       context,
+      paths: new Map<string, string>(),
       require: new Map<string, any>([
         [require.resolve('next/dist/compiled/cookie'), { exports: cookie }],
       ]),
-      paths: new Map<string, string>(),
-      sandbox: vm.createContext(context),
+      sandbox: vm.createContext(context, {
+        codeGeneration:
+          process.env.NODE_ENV === 'production'
+            ? {
+                strings: false,
+                wasm: false,
+              }
+            : undefined,
+      }),
+      warnedEvals: new Set(),
     }
 
     loadDependencies(cache.sandbox, [
@@ -217,4 +228,17 @@ function getFetchURL(input: RequestInfo, headers: NodeHeaders = {}): string {
 
 function isRequestLike(obj: unknown): obj is Request {
   return Boolean(obj && typeof obj === 'object' && 'url' in obj)
+}
+
+function __next_eval__(fn: Function) {
+  const key = fn.toString()
+  if (!cache?.warnedEvals.has(key)) {
+    console.warn(
+      new Error(
+        `Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Middleware`
+      ).stack
+    )
+    cache?.warnedEvals.add(key)
+  }
+  return fn()
 }
