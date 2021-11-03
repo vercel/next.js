@@ -73,7 +73,7 @@ const nextDev: cliCommand = (argv) => {
       )
     }
   }
-  const inlinePort: number | undefined = args['--port']
+  const allowRetry = !args['--port']
   let port: number =
     args['--port'] || (process.env.PORT && parseInt(process.env.PORT)) || 3000
 
@@ -89,7 +89,7 @@ const nextDev: cliCommand = (argv) => {
   const host = args['--hostname']
 
   startServer(
-    { dir, dev: true, isNextDevCommand: true, inlinePort },
+    { dir, dev: true, isNextDevCommand: true, allowRetry },
     port,
     host
   )

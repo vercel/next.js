@@ -19,16 +19,18 @@ export default async function start(
   requestHandler = app.getRequestHandler()
 
   await new Promise<void>((resolve, reject) => {
-    const isExplicitPort = serverOptions.inlinePort != null
+    let retryCount = 0
     srv.on('error', (err: NodeJS.ErrnoException) => {
       // This code catches EADDRINUSE error if the port is already in use
       if (
         err.code === 'EADDRINUSE' &&
-        serverOptions.isNextDevCommand &&
-        !isExplicitPort
+        serverOptions.allowRetry &&
+        port &&
+        retryCount < 10
       ) {
-        warn(`Port ${port} is in use, trying ${port! + 1} instead.`)
-        port! += 1
+        warn(`Port ${port} is in use, trying ${port + 1} instead.`)
+        port += 1
+        retryCount += 1
         srv.listen(port, hostname)
       } else {
         reject(err)
