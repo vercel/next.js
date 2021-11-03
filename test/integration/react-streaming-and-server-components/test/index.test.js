@@ -19,7 +19,7 @@ import css from './css'
 
 const nodeArgs = ['-r', join(__dirname, '../../react-18/test/require-hook.js')]
 const appDir = join(__dirname, '../app')
-const fsTestAppDir = join(__dirname, '../app-fs')
+const nativeModuleTestAppDir = join(__dirname, '../unsupported-native-module')
 const distDir = join(__dirname, '../app/.next')
 const documentPage = new File(join(appDir, 'pages/_document.js'))
 const appPage = new File(join(appDir, 'pages/_app.js'))
@@ -89,8 +89,8 @@ describe('concurrentFeatures - basic', () => {
   })
   it('should warn user that native node APIs are not supported', async () => {
     const fsImportedErrorMessage =
-      'Native Node.js APIs are not supported in the Edge Runtime with `concurrentFeatures` enabled. Found `fs` imported.'
-    const { stderr } = await nextBuild(fsTestAppDir)
+      'Native Node.js APIs are not supported in the Edge Runtime with `concurrentFeatures` enabled. Found `dns` imported.'
+    const { stderr } = await nextBuild(nativeModuleTestAppDir)
     expect(stderr).toContain(fsImportedErrorMessage)
   })
 })
@@ -219,6 +219,12 @@ async function runBasicTests(context) {
     const imageTag = $('div[hidden] > span > span > img')
 
     expect(imageTag.attr('src')).toContain('data:image')
+  })
+
+  it('should support multi-level server component imports', async () => {
+    const html = await renderViaHTTP(context.appPort, '/multi')
+    expect(html).toContain('bar.server.js:')
+    expect(html).toContain('foo.client')
   })
 }
 
