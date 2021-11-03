@@ -866,7 +866,7 @@ jobs:
 
   build-linux-musl:
     needs: build
-    if: ${{ needs.build.outputs.isRelease == 'true' }}
+    # if: ${{ needs.build.outputs.isRelease == 'true' }}
     name: next-swc - linux-musl - node@lts
     runs-on: ubuntu-latest
     steps:
