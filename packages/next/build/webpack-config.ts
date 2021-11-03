@@ -1333,6 +1333,9 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_BUILD_INDICATOR': JSON.stringify(
           config.devIndicators.buildActivity
         ),
+        'process.env.__NEXT_BUILD_INDICATOR_POSITION': JSON.stringify(
+          config.devIndicators.buildActivityPosition
+        ),
         'process.env.__NEXT_PLUGINS': JSON.stringify(
           config.experimental.plugins
         ),
@@ -1584,6 +1587,7 @@ export default async function getBaseWebpackConfig(
     pageExtensions: config.pageExtensions,
     trailingSlash: config.trailingSlash,
     buildActivity: config.devIndicators.buildActivity,
+    buildActivityPosition: config.devIndicators.buildActivityPosition,
     productionBrowserSourceMaps: !!config.productionBrowserSourceMaps,
     plugins: config.experimental.plugins,
     reactStrictMode: config.reactStrictMode,
