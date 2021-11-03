@@ -65,7 +65,7 @@ React Server Components allow us to render everything, including the components 
 
 ### Enable React Server Components (Alpha)
 
-To use React Server Components, ensure you have React 18 installed. Then, turn on the `currentFeatures` and `serverComponents` options in `next.config.js`:
+To use React Server Components, ensure you have React 18 installed. Then, turn on the `concurrentFeatures` and `serverComponents` options in `next.config.js`:
 
 ```jsx
 // next.config.js
@@ -77,7 +77,7 @@ module.exports = {
 }
 ```
 
-Next, you need to customize your `pages/_document` component to be a functional component by removing any static methods like `getInitialProps` or exports like `getServerSideProps`
+Next, if you already have customized `pages/_document` component, you need to remove the `getInitialProps` static method and the `getServerSideProps` export if there’s any, otherwise it won't work with server components. If no custom Document component is provided, Next.js will fallback to a default one like below.
 
 ```jsx
 // pages/_document.js
@@ -121,7 +121,7 @@ export default function Home() {
       <Suspense fallback={'Loading...'}>
         <Profile />
       </Suspense>
-      <Content/>
+      <Content />
     </div>
   )
 }
@@ -142,6 +142,7 @@ To see a full example, check out [link to the demo and repository](https://githu
 While RSC and SSR streaming is still in the alpha stage, not all Next.js APIs are supported. The following Next.js APIs have limited functionality inside Server Components:
 
 - React internals: Most of React hooks such as `useContext`, `useState`, `useReducer`, `useEffect` and `useLayoutEffect` are not supported as of today since Server Components are executed per requests and aren't stateful.
+- `next/head`
 - Partial: Note that Inside `.client.js` components `useRouter` is supported
 - Styled JSX
 - CSS Modules
