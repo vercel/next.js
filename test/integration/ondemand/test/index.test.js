@@ -36,7 +36,7 @@ const startServer = async (optEnv = {}, opts) => {
 const doPing = (page) => {
   return new Promise((resolve) => {
     context.ws.onmessage = (e) => {
-      //console.log(e)
+      console.log(e)
 
       resolve()
     }
