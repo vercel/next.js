@@ -1187,7 +1187,7 @@ export default async function getBaseWebpackConfig(
               },
             ]
           : []),
-        ...(webServerRuntime && hasServerComponents
+        ...(hasServerComponents && webServerRuntime
           ? [
               {
                 ...codeCondition,
@@ -1686,6 +1686,7 @@ export default async function getBaseWebpackConfig(
     productionBrowserSourceMaps: config.productionBrowserSourceMaps,
     future: config.future,
     experimental: config.experimental,
+    disableStaticImages: config.images.disableStaticImages,
   })
 
   // @ts-ignore Cache exists
