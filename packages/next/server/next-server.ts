@@ -694,6 +694,9 @@ export default class Server {
         if (!result.response.headers.has('x-middleware-next')) {
           break
         }
+
+        // Clear "next" header when chaining middlewares to allow nested middlewares to intercept
+        allHeaders.delete('x-middleware-next')
       }
     }
 

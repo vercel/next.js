@@ -341,6 +341,14 @@ function responseTests(locale = '') {
       'foo=oatmeal',
     ])
   })
+
+  it(`${locale} should with response intercepted by deep middleware`, async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      `${locale}/responses/deep?deep-intercept=true`
+    )
+    expect(await res.text()).toBe('intercepted!')
+  })
 }
 
 function interfaceTests(locale = '') {
