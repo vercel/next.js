@@ -132,7 +132,9 @@ export default async function build(
   debugOutput = false,
   runLint = true
 ): Promise<void> {
-  const nextBuildSpan = trace('next-build')
+  const nextBuildSpan = trace('next-build', undefined, {
+    attrs: { version: process.env.__NEXT_VERSION },
+  })
 
   const buildResult = await nextBuildSpan.traceAsyncFn(async () => {
     // attempt to load global env values so they are available in next.config.js

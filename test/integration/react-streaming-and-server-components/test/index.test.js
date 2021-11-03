@@ -220,6 +220,12 @@ async function runBasicTests(context) {
 
     expect(imageTag.attr('src')).toContain('data:image')
   })
+
+  it('should support multi-level server component imports', async () => {
+    const html = await renderViaHTTP(context.appPort, '/multi')
+    expect(html).toContain('bar.server.js:')
+    expect(html).toContain('foo.client')
+  })
 }
 
 function runSuite(suiteName, env, { runTests, before, after }) {
