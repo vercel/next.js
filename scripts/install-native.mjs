@@ -1,14 +1,10 @@
-import { execFile } from 'child_process'
-import fs from 'fs-extra'
 import os from 'os'
 import path from 'path'
-import util from 'util'
-
-const exec = util.promisify(execFile)
-
+import execa from 'execa'
+import fs from 'fs-extra'
 ;(async function () {
   try {
-    let tmpdir = os.tmpdir() + `next-swc-${Date.now()}`
+    let tmpdir = path.join(os.tmpdir(), `next-swc-${Date.now()}`)
     await fs.ensureDir(tmpdir)
     let cwd = process.cwd()
     let pkgJson = {
@@ -32,7 +28,7 @@ const exec = util.promisify(execFile)
       path.join(tmpdir, 'package.json'),
       JSON.stringify(pkgJson)
     )
-    let { stdout } = await exec('yarn', ['--force'], { cwd: tmpdir })
+    let { stdout } = await execa('yarn', ['--force'], { cwd: tmpdir })
     console.log(stdout)
     let pkgs = await fs.readdir(path.join(tmpdir, 'node_modules/@next'))
     await fs.ensureDir(path.join(cwd, 'node_modules/@next'))
