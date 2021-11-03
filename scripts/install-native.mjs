@@ -2,7 +2,6 @@ import os from 'os'
 import path from 'path'
 import execa from 'execa'
 import fs from 'fs-extra'
-
 ;(async function () {
   try {
     let tmpdir = path.join(os.tmpdir(), `next-swc-${Date.now()}`)
