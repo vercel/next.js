@@ -2,7 +2,23 @@
 description: Learn how to use @next/mdx in your Next.js project.
 ---
 
-# `@next/mdx`
+# Using MDX with Next.js
+
+Next.js supports MDX through a number of different means, this page will outline some of the ways you can begin integrating MDX into your Next.js project.
+
+## What is MDX?
+
+MDX is a superset of markdown that lets you write JSX directly in your markdown files. It is a powerful way to add dynamic interactivity, and embed components within your content, helping you to bring your pages to life.
+
+### MDX plugins
+
+Internally MDX uses remark and rehype. Remark is a markdown processor powered by a plugins ecosystem. This plugin ecosystem lets you parse code, transform `HTML` elements, change syntax, extract frontmatter, and more.
+
+Rehype is an `HTML` processor, also powered by a plugin ecosystem. Similar to remark, these plugins let you manipulate, sanitize, compile and configure all types of data, elements and content.
+
+To use a plugin from either remark or rehype, you will need to add it to the MDX packages config.
+
+## `@next/mdx`
 
 The `@next/mdx` package is configured in the `next.config.js` file at your projects root. **It sources data from local files**, allowing you to create pages with a `.mdx` extension, directly in your `/pages` directory.
 
@@ -52,7 +68,7 @@ You can now import a React component directly inside your MDX page. Note that `@
 ```md
 import { CoolComponent } from 'my-components'
 
-export const metaData = {
+export const meta = {
 author: 'Rich Haines'
 }
 
@@ -141,3 +157,10 @@ export default function Post(props) {
   )
 }
 ```
+
+## Helpful links
+
+- [MDX](https://mdxjs.com)
+- [`@next/mdx`](https://www.npmjs.com/package/@next/mdx)
+- [remark](https://github.com/remarkjs/remark)
+- [rehype](https://github.com/rehypejs/rehype)
