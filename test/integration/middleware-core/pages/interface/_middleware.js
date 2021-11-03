@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server'
 export function middleware(request) {
   const url = request.nextUrl
 
-  if (url.pathname === '/globalthis') {
+  if (url.pathname.endsWith('/globalthis')) {
     return new NextResponse(JSON.stringify(Object.keys(globalThis)), {
       headers: {
         'content-type': 'application/json; charset=utf-8',
