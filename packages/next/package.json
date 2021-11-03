@@ -286,7 +286,7 @@
         "aarch64-apple-darwin",
         "aarch64-linux-android",
         "x86_64-unknown-freebsd",
-        "linux-x64-musl",
+        "x86_64-unknown-linux-musll",
         "aarch64-unknown-linux-musl",
         "aarch64-pc-windows-msvc"
       ]
