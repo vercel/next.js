@@ -91,7 +91,7 @@ initNext({ webpackHMR })
     if (process.env.__NEXT_BUILD_INDICATOR) {
       initializeBuildWatcher((handler) => {
         buildIndicatorHandler = handler
-      })
+      }, process.env.__NEXT_BUILD_INDICATOR_POSITION)
     }
 
     // delay rendering until after styles have been applied in development
