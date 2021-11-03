@@ -71,6 +71,14 @@ location /_next/webpack-hmr {
 }
 ```
 
+For custom servers, such as `express`, you may need to use `app.all` to ensure the request is passed correctly, for example:
+
+```js
+app.all('/_next/webpack-hmr', (req, res) => {
+  nextjsRequestHandler(req, res)
+})
+```
+
 ### Webpack 4 support has been removed
 
 If you are already using webpack 5 you can skip this section.
