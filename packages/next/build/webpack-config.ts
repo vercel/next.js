@@ -55,6 +55,21 @@ import { TelemetryPlugin } from './webpack/plugins/telemetry-plugin'
 import type { Span } from '../trace'
 import isError from '../lib/is-error'
 import { getRawPageExtensions } from './utils'
+import browserslist from 'browserslist'
+
+function getSupportedBrowsers(
+  dir: string,
+  isDevelopment: boolean
+): string[] | undefined {
+  let browsers: any
+  try {
+    browsers = browserslist.loadConfig({
+      path: dir,
+      env: isDevelopment ? 'development' : 'production',
+    })
+  } catch {}
+  return browsers
+}
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 
@@ -338,6 +353,7 @@ export default async function getBaseWebpackConfig(
     runWebpackSpan: Span
   }
 ): Promise<webpack.Configuration> {
+  const supportedBrowsers = await getSupportedBrowsers(dir, dev)
   const hasRewrites =
     rewrites.beforeFiles.length > 0 ||
     rewrites.afterFiles.length > 0 ||
@@ -1671,6 +1687,7 @@ export default async function getBaseWebpackConfig(
   }
 
   webpackConfig = await buildConfiguration(webpackConfig, {
+    supportedBrowsers,
     rootDirectory: dir,
     customAppFile: new RegExp(escapeRegExp(path.join(pagesDir, `_app`))),
     isDevelopment: dev,
@@ -1879,7 +1896,7 @@ export default async function getBaseWebpackConfig(
         )
     }
   } else if (!config.future.strictPostcssConfiguration) {
-    await __overrideCssConfiguration(dir, !dev, webpackConfig)
+    await __overrideCssConfiguration(dir, supportedBrowsers, webpackConfig)
   }
 
   // Inject missing React Refresh loaders so that development mode is fast:
