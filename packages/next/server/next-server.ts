@@ -682,6 +682,8 @@ export default class Server {
         })
 
         for (let [key, value] of result.response.headers) {
+          // Do not accumulate "next" header so that chaining middlewares can intercept
+          if (key === 'x-middleware-next') continue
           allHeaders.append(key, value)
         }
 
@@ -694,9 +696,6 @@ export default class Server {
         if (!result.response.headers.has('x-middleware-next')) {
           break
         }
-
-        // Clear "next" header when chaining middlewares to allow nested middlewares to intercept
-        allHeaders.delete('x-middleware-next')
       }
     }
 
