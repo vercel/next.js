@@ -8,7 +8,7 @@ const exec = util.promisify(execFile)
 
 ;(async function () {
   try {
-    let tmpdir = os.tmpdir() + `next-swc-${Date.now()}`
+    let tmpdir = path.join(os.tmpdir(), `next-swc-${Date.now()}`)
     await fs.ensureDir(tmpdir)
     let cwd = process.cwd()
     let pkgJson = {
