@@ -68,6 +68,10 @@ jobs:
           restore-keys: |
             next-swc-cargo-cache-ubuntu-18.04
 
+      # since the repo's dependencies aren't installed we need
+      # to install napi globally
+      - run: npm i -g @napi-rs/cli@1.2.1
+
       - name: Build
         if: ${{ steps.binary-cache.outputs.cache-hit != 'true' && steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         run: yarn build-native
