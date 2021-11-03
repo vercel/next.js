@@ -139,7 +139,7 @@ export const css = curry(async function css(
 
   const postCssPlugins = await getPostCssPlugins(
     ctx.rootDirectory,
-    ctx.isProduction,
+    ctx.supportedBrowsers,
     !ctx.future.strictPostcssConfiguration
   )
 
