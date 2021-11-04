@@ -2,7 +2,7 @@ use crate::{
     complete_output, get_compiler,
     util::{CtxtExt, MapErr},
 };
-use anyhow::{anyhow, bail, Error};
+use anyhow::{anyhow, bail, Context, Error};
 use napi::{CallContext, JsObject, Task};
 use once_cell::sync::Lazy;
 use serde::Deserialize;
@@ -83,7 +83,11 @@ impl Task for BundleTask {
             );
 
             let mut entries = HashMap::default();
-            entries.insert("main".to_string(), FileName::Real(option.entry.into()));
+            let path: PathBuf = option.entry.into();
+            let path = path
+                .canonicalize()
+                .context("failed to canonicalize entry file")?;
+            entries.insert("main".to_string(), FileName::Real(path));
             let outputs = bundler.bundle(entries)?;
 
             let output = outputs
