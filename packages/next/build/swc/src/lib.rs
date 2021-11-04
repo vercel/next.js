@@ -52,6 +52,7 @@ pub mod amp_attributes;
 mod auto_cjs;
 pub mod hook_optimizer;
 pub mod minify;
+mod bundle;
 pub mod next_dynamic;
 pub mod next_ssg;
 pub mod page_config;
