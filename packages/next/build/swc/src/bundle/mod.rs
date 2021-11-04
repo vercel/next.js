@@ -1,6 +1,6 @@
-use crate::{complete_output, util::MapErr};
+use crate::{complete_output, get_compiler, util::MapErr};
 use anyhow::{anyhow, bail, Error};
-use napi::{JsObject, Task};
+use napi::{CallContext, JsObject, JsString, Task};
 use once_cell::sync::Lazy;
 use serde::Deserialize;
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
@@ -22,6 +22,18 @@ use swc_ecmascript::{
     parser::{lexer::Lexer, EsConfig, Parser, StringInput, Syntax},
     visit::{noop_visit_type, Node, Visit, VisitWith},
 };
+
+#[js_function(1)]
+pub fn bundle(cx: CallContext) -> napi::Result<JsObject> {
+    let option = cx.get::<JsString>(0)?.into_utf8()?.as_str()?.to_string();
+
+    let task = BundleTask {
+        c: get_compiler(&cx),
+        config: option,
+    };
+
+    cx.env.spawn(task).map(|t| t.promise_object())
+}
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
