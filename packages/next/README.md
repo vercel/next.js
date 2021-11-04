@@ -20,6 +20,9 @@
   </a>
 </p>
 
+
+<img src="https://repobeats.axiom.co/api/embed/f917a77cbbdeee19b87fa1f2f932895d1df18b50.svg" />
+
 ## Getting Started
 
 Visit <a aria-label="next.js learn" href="https://nextjs.org/learn">https://nextjs.org/learn</a> to get started with Next.js.
