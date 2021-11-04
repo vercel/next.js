@@ -133,7 +133,7 @@ export default async function build(
   runLint = true
 ): Promise<void> {
   const nextBuildSpan = trace('next-build', undefined, {
-    attrs: { version: process.env.__NEXT_VERSION },
+    version: process.env.__NEXT_VERSION as string,
   })
 
   const buildResult = await nextBuildSpan.traceAsyncFn(async () => {
