@@ -1,9 +1,7 @@
 import { RuleTester } from 'eslint'
-;
 import path from 'path'
 import rule from '@next/eslint-plugin-next/lib/rules/no-server-import-in-page'
-
-(RuleTester as any).setDefaultConfig({
+;(RuleTester as any).setDefaultConfig({
   parserOptions: {
     ecmaVersion: 2018,
     sourceType: 'module',
