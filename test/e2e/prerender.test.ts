@@ -1845,8 +1845,6 @@ describe('Prerender', () => {
               /node_modules\/react\/package\.json/,
               /node_modules\/react\/cjs\/react\.production\.min\.js/,
               /node_modules\/next/,
-              /next\/link\.js/,
-              /next\/dist\/client\/link\.js/,
               /\/world.txt/,
             ],
             notTests: [
@@ -1863,8 +1861,6 @@ describe('Prerender', () => {
               /node_modules\/react\/package\.json/,
               /node_modules\/react\/cjs\/react\.production\.min\.js/,
               /node_modules\/next/,
-              /next\/link\.js/,
-              /next\/dist\/client\/link\.js/,
               /next\/router\.js/,
               /next\/dist\/client\/router\.js/,
               /node_modules\/@firebase\/firestore\/.*?\.js/,
