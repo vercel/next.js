@@ -159,6 +159,10 @@ export function createEntrypoints(
         name: '[name].js',
         value: `next-middleware-ssr-loader?${stringify({
           page,
+          absoluteAppPath: pages['/_app'],
+          absoluteDocumentPath: pages['/_document'],
+          absoluteErrorPath: pages['/_error'],
+          absolute404Path: pages['/404'] || '',
           absolutePagePath,
           isServerComponent: isFlight,
           buildId,

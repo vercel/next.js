@@ -1,34 +1,11 @@
-import { getStringifiedAbsolutePath } from './utils'
 import { stringifyRequest } from '../../stringify-request'
-
-const fallbackDocumentPage = `
-import { Html, Head, Main, NextScript } from 'next/document'
-
-function Document() {
-  return (
-    createElement(Html, null, 
-      createElement(Head),
-      createElement('body', null,
-        createElement(Main),
-        createElement(NextScript),
-      )
-    )
-  )
-}
-`
-
-function hasModule(path: string) {
-  let has
-  try {
-    has = !!require.resolve(path)
-  } catch (_) {
-    has = false
-  }
-  return has
-}
 
 export default async function middlewareRSCLoader(this: any) {
   const {
+    absoluteAppPath,
+    absoluteDocumentPath,
+    // absoluteErrorPath,
+    // absolute404Path,
     absolutePagePath,
     basePath,
     isServerComponent: isServerComponentQuery,
@@ -38,31 +15,13 @@ export default async function middlewareRSCLoader(this: any) {
 
   const isServerComponent = isServerComponentQuery === 'true'
   const stringifiedAbsolutePagePath = stringifyRequest(this, absolutePagePath)
-  const stringifiedAbsoluteDocumentPath = getStringifiedAbsolutePath(
-    this,
-    './pages/_document'
-  )
-  const stringifiedAbsoluteAppPath = getStringifiedAbsolutePath(
-    this,
-    './pages/_app'
-  )
 
-  const hasProvidedAppPage = hasModule(
-    this.utils.absolutify(this.rootContext, './pages/_app')
-  )
-  const hasProvidedDocumentPage = hasModule(
-    this.utils.absolutify(this.rootContext, './pages/_document')
-  )
-
-  let appDefinition = `const App = require(${
-    hasProvidedAppPage
-      ? stringifiedAbsoluteAppPath
-      : JSON.stringify('next/dist/pages/_app')
-  }).default`
-
-  let documentDefinition = hasProvidedDocumentPage
-    ? `const Document = require(${stringifiedAbsoluteDocumentPath}).default`
-    : fallbackDocumentPage
+  const appDefinition = `const App = require(${JSON.stringify(
+    absoluteAppPath
+  )}).default`
+  const documentDefinition = `const Document = require(${JSON.stringify(
+    absoluteDocumentPath
+  )}).default`
 
   const transformed = `
         import { adapter } from 'next/dist/server/web/adapter'
@@ -151,7 +110,7 @@ export default async function middlewareRSCLoader(this: any) {
           const query = Object.fromEntries(url.searchParams)
 
           if (Document.getInitialProps) {
-            const err = new Error('Document.getInitialProps is not supported with server components, please remove it from pages/_document')
+            const err = new Error('\`Document.getInitialProps\` is not supported in the Edge Runtime, please make sure pages/_document exports a function component.')
             return renderError(err, 500)
           }
 
