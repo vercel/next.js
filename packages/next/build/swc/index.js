@@ -91,6 +91,10 @@ export function minifySync(src, opts) {
   return bindings.minifySync(toBuffer(src), toBuffer(opts ?? {}))
 }
 
+export async function bundle(options) {
+  return bindings.bundle(toBuffer(options))
+}
+
 module.exports.transform = transform
 module.exports.transformSync = transformSync
 module.exports.minify = minify
