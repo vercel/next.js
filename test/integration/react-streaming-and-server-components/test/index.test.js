@@ -21,7 +21,7 @@ const nodeArgs = ['-r', join(__dirname, '../../react-18/test/require-hook.js')]
 const appDir = join(__dirname, '../app')
 const nativeModuleTestAppDir = join(__dirname, '../unsupported-native-module')
 const distDir = join(__dirname, '../app/.next')
-const documentPage = new File(join(appDir, 'pages/_document.js'))
+const documentPage = new File(join(appDir, 'pages/_document.jsx'))
 const appPage = new File(join(appDir, 'pages/_app.js'))
 
 const documentWithGip = `

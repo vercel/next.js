@@ -1,35 +1,10 @@
-import { getStringifiedAbsolutePath } from './utils'
 import { stringifyRequest } from '../../stringify-request'
-
-const fallbackDocumentPage = `
-import { Html, Head, Main, NextScript } from 'next/document'
-
-function Document() {
-  return (
-    createElement(Html, null, 
-      createElement(Head),
-      createElement('body', null,
-        createElement(Main),
-        createElement(NextScript),
-      )
-    )
-  )
-}
-`
-
-function hasModule(path: string) {
-  let has
-  try {
-    has = !!require.resolve(path)
-  } catch (_) {
-    has = false
-  }
-  return has
-}
 
 export default async function middlewareRSCLoader(this: any) {
   const {
     absolutePagePath,
+    absoluteAppPath,
+    absoluteDocumentPath,
     basePath,
     isServerComponent: isServerComponentQuery,
     assetPrefix,
@@ -38,31 +13,14 @@ export default async function middlewareRSCLoader(this: any) {
 
   const isServerComponent = isServerComponentQuery === 'true'
   const stringifiedAbsolutePagePath = stringifyRequest(this, absolutePagePath)
-  const stringifiedAbsoluteDocumentPath = getStringifiedAbsolutePath(
+  const stringifiedAbsoluteAppPath = stringifyRequest(this, absoluteAppPath)
+  const stringifiedAbsoluteDocumentPath = stringifyRequest(
     this,
-    './pages/_document'
-  )
-  const stringifiedAbsoluteAppPath = getStringifiedAbsolutePath(
-    this,
-    './pages/_app'
+    absoluteDocumentPath
   )
 
-  const hasProvidedAppPage = hasModule(
-    this.utils.absolutify(this.rootContext, './pages/_app')
-  )
-  const hasProvidedDocumentPage = hasModule(
-    this.utils.absolutify(this.rootContext, './pages/_document')
-  )
-
-  let appDefinition = `const App = require(${
-    hasProvidedAppPage
-      ? stringifiedAbsoluteAppPath
-      : JSON.stringify('next/dist/pages/_app')
-  }).default`
-
-  let documentDefinition = hasProvidedDocumentPage
-    ? `const Document = require(${stringifiedAbsoluteDocumentPath}).default`
-    : fallbackDocumentPage
+  let appDefinition = `const App = require(${stringifiedAbsoluteAppPath}).default`
+  let documentDefinition = `const Document = require(${stringifiedAbsoluteDocumentPath}).default`
 
   const transformed = `
         import { adapter } from 'next/dist/server/web/adapter'
@@ -80,9 +38,9 @@ export default async function middlewareRSCLoader(this: any) {
             : ''
         }
 
-        ${documentDefinition}
         ${appDefinition}
-
+        ${documentDefinition}
+        
         const {
           default: Page,
           config,
