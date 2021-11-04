@@ -21,7 +21,7 @@ const nodeArgs = ['-r', join(__dirname, '../../react-18/test/require-hook.js')]
 const appDir = join(__dirname, '../app')
 const nativeModuleTestAppDir = join(__dirname, '../unsupported-native-module')
 const distDir = join(__dirname, '../app/.next')
-const documentPage = new File(join(appDir, 'pages/_document.js'))
+const documentPage = new File(join(appDir, 'pages/_document.tsx'))
 const appPage = new File(join(appDir, 'pages/_app.js'))
 
 const documentWithGip = `
@@ -173,7 +173,7 @@ const documentSuite = {
 
       expect(res.status).toBe(500)
       expect(html).toContain(
-        'Document.getInitialProps is not supported with server components, please remove it from pages/_document'
+        '`Document.getInitialProps` is not supported in the Edge Runtime, please make sure pages/_document exports a function component.'
       )
     })
   },
