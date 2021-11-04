@@ -1,6 +1,9 @@
-use crate::{complete_output, get_compiler, util::MapErr};
+use crate::{
+    complete_output, get_compiler,
+    util::{CtxtExt, MapErr},
+};
 use anyhow::{anyhow, bail, Error};
-use napi::{CallContext, JsObject, JsString, Task};
+use napi::{CallContext, JsObject, Task};
 use once_cell::sync::Lazy;
 use serde::Deserialize;
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
@@ -25,7 +28,7 @@ use swc_ecmascript::{
 
 #[js_function(1)]
 pub fn bundle(cx: CallContext) -> napi::Result<JsObject> {
-    let option = cx.get::<JsString>(0)?.into_utf8()?.as_str()?.to_string();
+    let option = cx.get_buffer_as_string(0)?;
 
     let task = BundleTask {
         c: get_compiler(&cx),
