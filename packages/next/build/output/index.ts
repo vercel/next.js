@@ -262,7 +262,7 @@ export function watchCompilers(
 
       const { errors, warnings } = formatWebpackMessages(
         stats.toJson({
-          preset: 'error-warnings',
+          preset: 'errors-warnings',
           moduleTrace: true,
         })
       )
