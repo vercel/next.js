@@ -9,6 +9,7 @@ import {
   createEntrypoints,
   createPagesMapping,
   finalizeEntrypoint,
+  PagesMapping,
 } from '../../build/entries'
 import { watchCompilers } from '../../build/output'
 import getBaseWebpackConfig from '../../build/webpack-config'
@@ -156,6 +157,7 @@ export default class HotReloader {
   private rewrites: CustomRoutes['rewrites']
   private fallbackWatcher: any
   private hotReloaderSpan: Span
+  private pagesMapping: PagesMapping = {}
 
   constructor(
     dir: string,
@@ -305,7 +307,7 @@ export default class HotReloader {
           ])
         )
 
-      const pages = webpackConfigSpan
+      this.pagesMapping = webpackConfigSpan
         .traceChild('create-pages-mapping')
         .traceFn(() =>
           createPagesMapping(
@@ -315,11 +317,12 @@ export default class HotReloader {
             this.hasServerComponents
           )
         )
+
       const entrypoints = webpackConfigSpan
         .traceChild('create-entrypoints')
         .traceFn(() =>
           createEntrypoints(
-            pages,
+            this.pagesMapping,
             'server',
             this.buildId,
             this.previewProps,
@@ -513,6 +516,8 @@ export default class HotReloader {
                   name: '[name].js',
                   value: `next-middleware-ssr-loader?${stringify({
                     page,
+                    absoluteAppPath: this.pagesMapping['/_app'],
+                    absoluteDocumentPath: this.pagesMapping['/_document'],
                     absolutePagePath,
                     isServerComponent,
                     buildId: this.buildId,
