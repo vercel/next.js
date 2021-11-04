@@ -220,6 +220,11 @@ async function runBasicTests(context) {
 
     expect(imageTag.attr('src')).toContain('data:image')
   })
+
+  it('should support React.lazy and dynamic imports', async () => {
+    const html = await renderViaHTTP(context.appPort, '/dynamic-imports')
+    expect(html).toContain('foo.client')
+  })
 }
 
 function runSuite(suiteName, env, { runTests, before, after }) {
