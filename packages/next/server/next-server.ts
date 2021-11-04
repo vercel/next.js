@@ -1,6 +1,5 @@
 import compression from 'next/dist/compiled/compression'
 import fs from 'fs'
-import chalk from 'chalk'
 import { IncomingMessage, ServerResponse } from 'http'
 import Proxy from 'next/dist/compiled/http-proxy'
 import { join, relative, resolve, sep } from 'path'
@@ -85,7 +84,6 @@ import './node-polyfill-fetch'
 import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import { removePathTrailingSlash } from '../client/normalize-trailing-slash'
 import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-asset-path'
-import { FontManifest } from './font-utils'
 import { denormalizePagePath } from './denormalize-page-path'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import * as Log from '../build/output/log'
@@ -103,11 +101,14 @@ import isError from '../lib/is-error'
 import { getMiddlewareInfo } from './require'
 import { parseUrl as simpleParseUrl } from '../shared/lib/router/utils/parse-url'
 import { MIDDLEWARE_ROUTE } from '../lib/constants'
+import { NextResponse } from './web/spec-extension/response'
 import { run } from './web/sandbox'
+import type { FontManifest } from './font-utils'
 import type { FetchEventResult } from './web/types'
 import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
 import type { ParsedNextUrl } from '../shared/lib/router/utils/parse-next-url'
 import type { ParsedUrl } from '../shared/lib/router/utils/parse-url'
+import { toNodeHeaders } from './web/utils'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -125,6 +126,7 @@ export type FindComponentsResult = {
 interface RoutingItem {
   page: string
   match: ReturnType<typeof getRouteMatcher>
+  ssr?: boolean
 }
 
 export type ServerConstructor = {
@@ -569,15 +571,19 @@ export default class Server {
   }
 
   protected getMiddleware() {
-    return Object.keys(this.middlewareManifest?.middleware || {}).map(
-      (page) => ({
-        match: getRouteMatcher(getMiddlewareRegex(page)),
-        page,
-      })
-    )
+    const middleware = this.middlewareManifest?.middleware || {}
+    return Object.keys(middleware).map((page) => ({
+      match: getRouteMatcher(
+        getMiddlewareRegex(page, MIDDLEWARE_ROUTE.test(middleware[page].name))
+      ),
+      page,
+    }))
   }
 
-  protected async hasMiddleware(pathname: string): Promise<boolean> {
+  protected async hasMiddleware(
+    pathname: string,
+    _isSSR?: boolean
+  ): Promise<boolean> {
     try {
       return (
         getMiddlewareInfo({
@@ -592,7 +598,13 @@ export default class Server {
     return false
   }
 
-  protected async ensureMiddleware(_pathname: string) {}
+  protected async ensureMiddleware(_pathname: string, _isSSR?: boolean) {}
+
+  private middlewareBetaWarning = execOnce(() => {
+    Log.warn(
+      `using beta Middleware (not covered by semver) - https://nextjs.org/docs/messages/beta-middleware`
+    )
+  })
 
   protected async runMiddleware(params: {
     request: IncomingMessage
@@ -600,6 +612,8 @@ export default class Server {
     parsedUrl: ParsedNextUrl
     parsed: UrlWithParsedQuery
   }): Promise<FetchEventResult | null> {
+    this.middlewareBetaWarning()
+
     const page: { name?: string; params?: { [key: string]: string } } = {}
     if (await this.hasPage(params.parsedUrl.pathname)) {
       page.name = params.parsedUrl.pathname
@@ -614,16 +628,19 @@ export default class Server {
       }
     }
 
+    const subreq = params.request.headers[`x-middleware-subrequest`]
+    const subrequests = typeof subreq === 'string' ? subreq.split(':') : []
+    const allHeaders = new Headers()
     let result: FetchEventResult | null = null
 
     for (const middleware of this.middleware || []) {
       if (middleware.match(params.parsedUrl.pathname)) {
-        if (!(await this.hasMiddleware(middleware.page))) {
+        if (!(await this.hasMiddleware(middleware.page, middleware.ssr))) {
           console.warn(`The Edge Function for ${middleware.page} was not found`)
           continue
         }
 
-        await this.ensureMiddleware(middleware.page)
+        await this.ensureMiddleware(middleware.page, middleware.ssr)
 
         const middlewareInfo = getMiddlewareInfo({
           dev: this.renderOpts.dev,
@@ -631,6 +648,14 @@ export default class Server {
           page: middleware.page,
           serverless: this._isLikeServerless,
         })
+
+        if (subrequests.includes(middlewareInfo.name)) {
+          result = {
+            response: NextResponse.next(),
+            waitUntil: Promise.resolve(),
+          }
+          continue
+        }
 
         result = await run({
           name: middlewareInfo.name,
@@ -646,13 +671,14 @@ export default class Server {
             url: (params.request as any).__NEXT_INIT_URL,
             page: page,
           },
+          ssr: !!this.nextConfig.experimental.concurrentFeatures,
         })
 
-        if (!this.renderOpts.dev) {
-          result.promise.catch((error) => {
-            console.error(`Uncaught: middleware error after responding`, error)
-          })
+        for (let [key, value] of result.response.headers) {
+          allHeaders.append(key, value)
+        }
 
+        if (!this.renderOpts.dev) {
           result.waitUntil.catch((error) => {
             console.error(`Uncaught: middleware waitUntil errored`, error)
           })
@@ -666,6 +692,10 @@ export default class Server {
 
     if (!result) {
       this.render404(params.request, params.response, params.parsed)
+    } else {
+      for (let [key, value] of allHeaders) {
+        result.response.headers.set(key, value)
+      }
     }
 
     return result
@@ -1139,8 +1169,10 @@ export default class Server {
 
           result.response.headers.delete('x-middleware-next')
 
-          for (const [key, value] of result.response.headers.entries()) {
-            if (key !== 'content-encoding') {
+          for (const [key, value] of Object.entries(
+            toNodeHeaders(result.response.headers)
+          )) {
+            if (key !== 'content-encoding' && value !== undefined) {
               res.setHeader(key, value)
             }
           }
@@ -2289,11 +2321,8 @@ export default class Server {
   }
 
   private customErrorNo404Warn = execOnce(() => {
-    console.warn(
-      chalk.bold.yellow(`Warning: `) +
-        chalk.yellow(
-          `You have added a custom /_error page without a custom /404 page. This prevents the 404 page from being auto statically optimized.\nSee here for info: https://nextjs.org/docs/messages/custom-error-no-custom-404`
-        )
+    Log.warn(
+      `You have added a custom /_error page without a custom /404 page. This prevents the 404 page from being auto statically optimized.\nSee here for info: https://nextjs.org/docs/messages/custom-error-no-custom-404`
     )
   })
 

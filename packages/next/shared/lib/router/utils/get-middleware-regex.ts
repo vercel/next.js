@@ -1,21 +1,28 @@
 import { getParametrizedRoute, RouteRegex } from './route-regex'
 
-export function getMiddlewareRegex(normalizedRoute: string): RouteRegex {
+export function getMiddlewareRegex(
+  normalizedRoute: string,
+  catchAll: boolean = true
+): RouteRegex {
   const result = getParametrizedRoute(normalizedRoute)
+
+  let catchAllRegex = catchAll ? '(?!_next).*' : ''
+  let catchAllGroupedRegex = catchAll ? '(?:(/.*)?)' : ''
+
   if ('routeKeys' in result) {
     if (result.parameterizedRoute === '/') {
       return {
         groups: {},
-        namedRegex: `^/(?!_next).*$`,
-        re: new RegExp('^/(?!_next).*$'),
+        namedRegex: `^/${catchAllRegex}$`,
+        re: new RegExp(`^/${catchAllRegex}$`),
         routeKeys: {},
       }
     }
 
     return {
       groups: result.groups,
-      namedRegex: `^${result.namedParameterizedRoute}(?:(/.*)?)$`,
-      re: new RegExp(`^${result.parameterizedRoute}(?:(/.*)?)$`),
+      namedRegex: `^${result.namedParameterizedRoute}${catchAllGroupedRegex}$`,
+      re: new RegExp(`^${result.parameterizedRoute}${catchAllGroupedRegex}$`),
       routeKeys: result.routeKeys,
     }
   }
@@ -23,12 +30,12 @@ export function getMiddlewareRegex(normalizedRoute: string): RouteRegex {
   if (result.parameterizedRoute === '/') {
     return {
       groups: {},
-      re: new RegExp('^/.*$'),
+      re: new RegExp(`^/${catchAllRegex}$`),
     }
   }
 
   return {
     groups: {},
-    re: new RegExp(`^${result.parameterizedRoute}(?:(/.*)?)$`),
+    re: new RegExp(`^${result.parameterizedRoute}${catchAllGroupedRegex}$`),
   }
 }

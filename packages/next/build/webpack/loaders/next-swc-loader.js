@@ -26,26 +26,29 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 */
 
-import { getOptions } from 'next/dist/compiled/loader-utils'
 import { transform } from '../../swc'
 
 const nextDistPath =
   /(next[\\/]dist[\\/]shared[\\/]lib)|(next[\\/]dist[\\/]client)|(next[\\/]dist[\\/]pages)/
 
 function getSWCOptions({
-  isTypeScript,
+  filename,
   isServer,
   development,
   isPageFile,
   pagesDir,
   isNextDist,
-  isCommonJS,
+  hasReactRefresh,
 }) {
+  const isTSFile = filename.endsWith('.ts')
+  const isTypeScript = isTSFile || filename.endsWith('.tsx')
+
   const jsc = {
     parser: {
       syntax: isTypeScript ? 'typescript' : 'ecmascript',
       dynamicImport: true,
-      [isTypeScript ? 'tsx' : 'jsx']: true,
+      // Exclude regular TypeScript files from React transformation to prevent e.g. generic parameters and angle-bracket type assertion from being interpreted as JSX tags.
+      [isTypeScript ? 'tsx' : 'jsx']: isTSFile ? false : true,
     },
 
     transform: {
@@ -56,7 +59,18 @@ function getSWCOptions({
         throwIfNamespace: true,
         development: development,
         useBuiltins: true,
-        refresh: development && !isServer,
+        refresh: hasReactRefresh,
+      },
+      optimizer: {
+        simplify: false,
+        globals: {
+          typeofs: {
+            window: isServer ? 'undefined' : 'object',
+          },
+        },
+      },
+      regenerator: {
+        importPath: require.resolve('regenerator-runtime'),
       },
     },
   }
@@ -64,17 +78,12 @@ function getSWCOptions({
   if (isServer) {
     return {
       jsc,
-      // Next.js dist intentionally does not have type: commonjs on server compilation
-      ...(isCommonJS
-        ? {
-            module: {
-              type: 'commonjs',
-            },
-          }
-        : {}),
       // Disables getStaticProps/getServerSideProps tree shaking on the server compilation for pages
       disableNextSsg: true,
+      disablePageConfig: true,
+      isDevelopment: development,
       pagesDir,
+      isPageFile,
       env: {
         targets: {
           // Targets the current version of Node.js
@@ -87,7 +96,7 @@ function getSWCOptions({
     jsc.target = 'es5'
     return {
       // Ensure Next.js internals are output as commonjs modules
-      ...(isNextDist || isCommonJS
+      ...(isNextDist
         ? {
             module: {
               type: 'commonjs',
@@ -95,7 +104,9 @@ function getSWCOptions({
           }
         : {}),
       disableNextSsg: !isPageFile,
+      isDevelopment: development,
       pagesDir,
+      isPageFile,
       jsc,
     }
   }
@@ -105,24 +116,21 @@ async function loaderTransform(parentTrace, source, inputSourceMap) {
   // Make the loader async
   const filename = this.resourcePath
 
-  const isTypeScript = filename.endsWith('.ts') || filename.endsWith('.tsx')
+  let loaderOptions = this.getOptions() || {}
 
-  let loaderOptions = getOptions(this) || {}
-
-  const { isServer, pagesDir } = loaderOptions
+  const { isServer, pagesDir, hasReactRefresh } = loaderOptions
   const isPageFile = filename.startsWith(pagesDir)
 
   const isNextDist = nextDistPath.test(filename)
-  const isCommonJS = source.indexOf('module.exports') !== -1
 
   const swcOptions = getSWCOptions({
     pagesDir,
-    isTypeScript,
+    filename,
     isServer: isServer,
     isPageFile,
     development: this.mode === 'development',
     isNextDist,
-    isCommonJS,
+    hasReactRefresh,
   })
 
   const programmaticOptions = {
