@@ -18,7 +18,7 @@ import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 import { MIDDLEWARE_SSR_RUNTIME_WEBPACK } from '../shared/lib/constants'
 
 type ObjectValue<T> = T extends { [key: string]: infer V } ? V : never
-type PagesMapping = {
+export type PagesMapping = {
   [page: string]: string
 }
 
@@ -65,11 +65,11 @@ export function createPagesMapping(
   // we alias these in development and allow webpack to
   // allow falling back to the correct source file so
   // that HMR can work properly when a file is added/removed
-  const documentPage = `_document${hasServerComponents ? '.server' : ''}`
+  const documentPage = `_document${hasServerComponents ? '.modern' : ''}`
   if (isDev) {
     pages['/_app'] = `${PAGES_DIR_ALIAS}/_app`
     pages['/_error'] = `${PAGES_DIR_ALIAS}/_error`
-    pages['/_document'] = `${PAGES_DIR_ALIAS}/${documentPage}`
+    pages['/_document'] = `${PAGES_DIR_ALIAS}/_document`
   } else {
     pages['/_app'] = pages['/_app'] || 'next/dist/pages/_app'
     pages['/_error'] = pages['/_error'] || 'next/dist/pages/_error'
