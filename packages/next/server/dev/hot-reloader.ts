@@ -439,6 +439,7 @@ export default class HotReloader {
           Object.keys(entries).map(async (pageKey) => {
             const isClientKey = pageKey.startsWith('client')
             if (isClientKey !== isClientCompilation) return
+
             const page = pageKey.slice(
               isClientKey ? 'client'.length : 'server'.length
             )
