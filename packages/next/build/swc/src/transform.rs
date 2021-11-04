@@ -32,7 +32,7 @@ use crate::{
     TransformOptions,
 };
 use anyhow::{anyhow, Context as _, Error};
-use napi::{CallContext, Env, JsBoolean, JsObject, JsString, Status, Task};
+use napi::{CallContext, Env, JsBoolean, JsBuffer, JsObject, JsString, JsUnknown, Status, Task};
 use std::{
     panic::{catch_unwind, AssertUnwindSafe},
     sync::Arc,
@@ -117,7 +117,27 @@ where
 {
     let c = get_compiler(&cx);
 
-    let src = cx.get::<JsString>(0)?.into_utf8()?.as_str()?.to_owned();
+    let unknown_src = cx.get::<JsUnknown>(0)?;
+    let src = match unknown_src.get_type()? {
+        napi::ValueType::String => napi::Result::Ok(
+            unsafe { unknown_src.cast::<JsString>() }
+                .into_utf8()?
+                .as_str()?
+                .to_owned(),
+        ),
+        napi::ValueType::Object => napi::Result::Ok(
+            String::from_utf8_lossy(
+                unsafe { unknown_src.cast::<JsBuffer>() }
+                    .into_value()?
+                    .as_ref(),
+            )
+            .to_string(),
+        ),
+        _ => Err(napi::Error::new(
+            Status::GenericFailure,
+            "first argument must be a String or Buffer".to_string(),
+        )),
+    }?;
     let is_module = cx.get::<JsBoolean>(1)?;
     let options = cx.get_buffer_as_string(2)?;
 
