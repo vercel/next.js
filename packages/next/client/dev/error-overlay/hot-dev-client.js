@@ -26,10 +26,16 @@
 // can be found here:
 // https://github.com/facebook/create-react-app/blob/v3.4.1/packages/react-dev-utils/webpackHotDevClient.js
 
-import * as DevOverlay from '@next/react-dev-overlay/lib/client'
+import {
+  register,
+  onBuildError,
+  onBuildOk,
+  onRefresh,
+} from '@next/react-dev-overlay/lib/client'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
-import { addMessageListener } from './eventsource'
+import { addMessageListener } from './websocket'
 import formatWebpackMessages from './format-webpack-messages'
+import Router from 'next/router'
 
 // This alternative WebpackDevServer combines the functionality of:
 // https://github.com/webpack/webpack-dev-server/blob/webpack-1/client/index.js
@@ -43,13 +49,11 @@ import formatWebpackMessages from './format-webpack-messages'
 let hadRuntimeError = false
 let customHmrEventHandler
 export default function connect() {
-  DevOverlay.register()
+  register()
 
   addMessageListener((event) => {
-    // This is the heartbeat event
-    if (event.data === '\uD83D\uDC93') {
-      return
-    }
+    if (event.data.indexOf('action') === -1) return
+
     try {
       processMessage(event)
     } catch (ex) {
@@ -85,7 +89,9 @@ function clearOutdatedErrors() {
 function handleSuccess() {
   clearOutdatedErrors()
 
-  const isHotUpdate = !isFirstCompilation
+  const isHotUpdate =
+    !isFirstCompilation ||
+    (Router.pathname !== '/_error' && isUpdateAvailable())
   isFirstCompilation = false
   hasCompileErrors = false
 
@@ -154,7 +160,7 @@ function handleErrors(errors) {
   })
 
   // Only show the first error.
-  DevOverlay.onBuildError(formatted.errors[0])
+  onBuildError(formatted.errors[0])
 
   // Also log them to the console.
   if (typeof console !== 'undefined' && typeof console.error === 'function') {
@@ -176,9 +182,9 @@ function handleErrors(errors) {
 let startLatency = undefined
 
 function onFastRefresh(hasUpdates) {
-  DevOverlay.onBuildOk()
+  onBuildOk()
   if (hasUpdates) {
-    DevOverlay.onRefresh()
+    onRefresh()
   }
 
   if (startLatency) {
@@ -270,6 +276,7 @@ function tryApplyUpdates(onHotUpdateSuccess) {
   }
 
   if (!isUpdateAvailable() || !canApplyUpdates()) {
+    onBuildOk()
     return
   }
 
@@ -301,8 +308,9 @@ function tryApplyUpdates(onHotUpdateSuccess) {
 
     if (isUpdateAvailable()) {
       // While we were updating, there was a new update! Do it again.
-      tryApplyUpdates(hasUpdates ? undefined : onHotUpdateSuccess)
+      tryApplyUpdates(hasUpdates ? onBuildOk : onHotUpdateSuccess)
     } else {
+      onBuildOk()
       if (process.env.__NEXT_TEST_MODE) {
         afterApplyUpdates(() => {
           if (self.__NEXT_HMR_CB) {

@@ -22,7 +22,7 @@ let ServerImpl: typeof Server
 
 const getServerImpl = async () => {
   if (ServerImpl === undefined)
-    ServerImpl = (await import('./next-server')).default
+    ServerImpl = (await Promise.resolve(require('./next-server'))).default
   return ServerImpl
 }
 
@@ -112,7 +112,8 @@ export class NextServer {
       const DevServer = require('./dev/next-dev-server').default
       return new DevServer(options)
     }
-    return new (await getServerImpl())(options)
+    const ServerImplementation = await getServerImpl()
+    return new ServerImplementation(options)
   }
 
   private async loadConfig() {

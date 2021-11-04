@@ -16,13 +16,39 @@ import {
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 
-jest.setTimeout(1000 * 60 * 2)
-
 const fixturesDir = join(__dirname, '../..', 'css-fixtures')
 
 describe('CSS Support', () => {
   describe('Basic Global Support', () => {
     const appDir = join(fixturesDir, 'single-global')
+
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+    })
+
+    it('should compile successfully', async () => {
+      const { code, stdout } = await nextBuild(appDir, [], {
+        stdout: true,
+      })
+      expect(code).toBe(0)
+      expect(stdout).toMatch(/Compiled successfully/)
+    })
+
+    it(`should've emitted a single CSS file`, async () => {
+      const cssFolder = join(appDir, '.next/static/css')
+
+      const files = await readdir(cssFolder)
+      const cssFiles = files.filter((f) => /\.css$/.test(f))
+
+      expect(cssFiles.length).toBe(1)
+      expect(await readFile(join(cssFolder, cssFiles[0]), 'utf8')).toContain(
+        'color:red'
+      )
+    })
+  })
+
+  describe('Basic Global Support with special characters in path', () => {
+    const appDir = join(fixturesDir, 'single-global-special-characters', 'a+b')
 
     beforeAll(async () => {
       await remove(join(appDir, '.next'))
@@ -102,7 +128,7 @@ describe('CSS Support', () => {
       const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
       expect(
         cssContent.replace(/\/\*.*?\*\//g, '').trim()
-      ).toMatchInlineSnapshot(`".red-text{color:red}.blue-text{color:#00f}"`)
+      ).toMatchInlineSnapshot(`".red-text{color:red}.blue-text{color:blue}"`)
     })
   })
 
@@ -132,7 +158,7 @@ describe('CSS Support', () => {
       expect(
         cssContent.replace(/\/\*.*?\*\//g, '').trim()
       ).toMatchInlineSnapshot(
-        `".red-text{color:purple;font-weight:bolder;color:red}.blue-text{color:orange;font-weight:bolder;color:#00f}"`
+        `".red-text{color:purple;font-weight:bolder;color:red}.blue-text{color:orange;font-weight:bolder;color:blue}"`
       )
     })
   })
@@ -241,7 +267,7 @@ describe('CSS Support', () => {
       const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
       expect(
         cssContent.replace(/\/\*.*?\*\//g, '').trim()
-      ).toMatchInlineSnapshot(`".blue-text{color:#00f}.red-text{color:red}"`)
+      ).toMatchInlineSnapshot(`".blue-text{color:blue}.red-text{color:red}"`)
     })
   })
 
@@ -357,7 +383,7 @@ describe('CSS Support', () => {
       expect(stderr).toContain('Failed to compile')
       expect(stderr).toContain('styles/global.css')
       expect(stderr).toMatch(
-        /Please move all global CSS imports.*?pages(\/|\\)_app/
+        /Please move all first-party global CSS imports.*?pages(\/|\\)_app/
       )
       expect(stderr).toMatch(/Location:.*pages[\\/]index\.js/)
     })
@@ -407,7 +433,7 @@ describe('CSS Support', () => {
       expect(stderr).toContain('Failed to compile')
       expect(stderr).toContain('styles/global.css')
       expect(stderr).toMatch(
-        /Please move all global CSS imports.*?pages(\/|\\)_app/
+        /Please move all first-party global CSS imports.*?pages(\/|\\)_app/
       )
       expect(stderr).toMatch(/Location:.*pages[\\/]index\.js/)
     })
@@ -427,7 +453,7 @@ describe('CSS Support', () => {
       expect(code).not.toBe(0)
       expect(stderr).toContain('Failed to compile')
       expect(stderr).toContain('styles/global.css')
-      expect(stderr).toContain('Please move all global CSS imports')
+      expect(stderr).toContain('Please move all first-party global CSS imports')
       expect(stderr).toMatch(/Location:.*pages[\\/]index\.js/)
     })
   })
@@ -673,7 +699,7 @@ describe('CSS Support', () => {
       expect(cssFiles.length).toBe(1)
       const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
       expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatch(
-        /^\.red-text\{color:red;background-image:url\(\/_next\/static\/media\/dark\.[a-z0-9]{32}\.svg\) url\(\/_next\/static\/media\/dark2\.[a-z0-9]{32}\.svg\)\}\.blue-text\{color:orange;font-weight:bolder;background-image:url\(\/_next\/static\/media\/light\.[a-z0-9]{32}\.svg\);color:#00f\}$/
+        /^\.red-text\{color:red;background-image:url\(\/_next\/static\/media\/dark\.[a-f0-9]{8}\.svg\) url\(\/_next\/static\/media\/dark2\.[a-f0-9]{8}\.svg\)\}\.blue-text\{color:orange;font-weight:bolder;background-image:url\(\/_next\/static\/media\/light\.[a-f0-9]{8}\.svg\);color:blue\}$/
       )
 
       const mediaFiles = await readdir(mediaFolder)
@@ -681,7 +707,7 @@ describe('CSS Support', () => {
       expect(
         mediaFiles
           .map((fileName) =>
-            /^(.+?)\..{32}\.(.+?)$/.exec(fileName).slice(1).join('.')
+            /^(.+?)\..{8}\.(.+?)$/.exec(fileName).slice(1).join('.')
           )
           .sort()
       ).toMatchInlineSnapshot(`
@@ -719,7 +745,7 @@ describe('CSS Support', () => {
       expect(cssFiles.length).toBe(1)
       const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
       expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatch(
-        /^\.red-text\{color:red;background-image:url\(\/foo\/_next\/static\/media\/dark\.[a-z0-9]{32}\.svg\) url\(\/foo\/_next\/static\/media\/dark2\.[a-z0-9]{32}\.svg\)\}\.blue-text\{color:orange;font-weight:bolder;background-image:url\(\/foo\/_next\/static\/media\/light\.[a-z0-9]{32}\.svg\);color:#00f\}$/
+        /^\.red-text\{color:red;background-image:url\(\/foo\/_next\/static\/media\/dark\.[a-f0-9]{8}\.svg\) url\(\/foo\/_next\/static\/media\/dark2\.[a-f0-9]{8}\.svg\)\}\.blue-text\{color:orange;font-weight:bolder;background-image:url\(\/foo\/_next\/static\/media\/light\.[a-f0-9]{8}\.svg\);color:blue\}$/
       )
 
       const mediaFiles = await readdir(mediaFolder)
@@ -727,7 +753,7 @@ describe('CSS Support', () => {
       expect(
         mediaFiles
           .map((fileName) =>
-            /^(.+?)\..{32}\.(.+?)$/.exec(fileName).slice(1).join('.')
+            /^(.+?)\..{8}\.(.+?)$/.exec(fileName).slice(1).join('.')
           )
           .sort()
       ).toMatchInlineSnapshot(`
@@ -765,7 +791,7 @@ describe('CSS Support', () => {
       expect(cssFiles.length).toBe(1)
       const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
       expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatch(
-        /^\.red-text\{color:red;background-image:url\(\/foo\/_next\/static\/media\/dark\.[a-z0-9]{32}\.svg\) url\(\/foo\/_next\/static\/media\/dark2\.[a-z0-9]{32}\.svg\)\}\.blue-text\{color:orange;font-weight:bolder;background-image:url\(\/foo\/_next\/static\/media\/light\.[a-z0-9]{32}\.svg\);color:#00f\}$/
+        /^\.red-text\{color:red;background-image:url\(\/foo\/_next\/static\/media\/dark\.[a-f0-9]{8}\.svg\) url\(\/foo\/_next\/static\/media\/dark2\.[a-f0-9]{8}\.svg\)\}\.blue-text\{color:orange;font-weight:bolder;background-image:url\(\/foo\/_next\/static\/media\/light\.[a-f0-9]{8}\.svg\);color:blue\}$/
       )
 
       const mediaFiles = await readdir(mediaFolder)
@@ -773,7 +799,7 @@ describe('CSS Support', () => {
       expect(
         mediaFiles
           .map((fileName) =>
-            /^(.+?)\..{32}\.(.+?)$/.exec(fileName).slice(1).join('.')
+            /^(.+?)\..{8}\.(.+?)$/.exec(fileName).slice(1).join('.')
           )
           .sort()
       ).toMatchInlineSnapshot(`
@@ -838,7 +864,7 @@ describe('CSS Support', () => {
       const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
       expect(
         cssContent.replace(/\/\*.*?\*\//g, '').trim()
-      ).toMatchInlineSnapshot(`".other{color:#00f}.test{color:red}"`)
+      ).toMatchInlineSnapshot(`".other{color:blue}.test{color:red}"`)
     })
   })
 
@@ -1509,7 +1535,7 @@ describe('CSS Support', () => {
           await browser.waitForElementByCss('#link-other').click()
           await check(
             () => browser.eval(`document.body.innerText`),
-            'Application error: a client-side exception has occurred (developer guidance).',
+            'Application error: a client-side exception has occurred (see the browser console for more information).',
             true
           )
 

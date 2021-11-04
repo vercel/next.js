@@ -2,12 +2,11 @@
 declare module 'next/dist/compiled/babel/plugin-transform-modules-commonjs'
 declare module 'next/dist/compiled/babel/plugin-syntax-jsx'
 declare module 'browserslist'
+
 declare module 'cssnano-simple' {
-  import { OldPlugin } from 'postcss'
-  const cssnanoSimple: OldPlugin<{}>
+  const cssnanoSimple: any
   export = cssnanoSimple
 }
-declare module 'styled-jsx/server'
 
 declare module 'next/dist/compiled/amphtml-validator' {
   import m from 'amphtml-validator'
@@ -76,6 +75,10 @@ declare module 'next/dist/compiled/ci-info' {
   import m from 'ci-info'
   export = m
 }
+declare module 'next/dist/compiled/cli-select' {
+  import m from 'cli-select'
+  export = m
+}
 declare module 'next/dist/compiled/compression' {
   import m from 'compression'
   export = m
@@ -84,12 +87,20 @@ declare module 'next/dist/compiled/conf' {
   import m from 'conf'
   export = m
 }
+declare module 'next/dist/compiled/content-disposition' {
+  import m from 'content-disposition'
+  export = m
+}
 declare module 'next/dist/compiled/content-type' {
   import m from 'content-type'
   export = m
 }
 declare module 'next/dist/compiled/cookie' {
   import m from 'cookie'
+  export = m
+}
+declare module 'next/dist/compiled/cross-spawn' {
+  import m from 'cross-spawn'
   export = m
 }
 declare module 'next/dist/compiled/debug' {
@@ -110,6 +121,10 @@ declare module 'next/dist/compiled/find-up' {
 }
 declare module 'next/dist/compiled/fresh' {
   import m from 'fresh'
+  export = m
+}
+declare module 'next/dist/compiled/glob' {
+  import m from 'glob'
   export = m
 }
 declare module 'next/dist/compiled/gzip-size' {
@@ -144,6 +159,10 @@ declare module 'next/dist/compiled/lru-cache' {
   import m from 'lru-cache'
   export = m
 }
+declare module 'next/dist/compiled/micromatch' {
+  import m from 'micromatch'
+  export = m
+}
 declare module 'next/dist/compiled/nanoid/index.cjs' {
   import m from 'nanoid'
   export = m
@@ -154,10 +173,6 @@ declare module 'next/dist/compiled/ora' {
 }
 declare module 'next/dist/compiled/path-to-regexp' {
   import m from 'path-to-regexp'
-  export = m
-}
-declare module 'next/dist/compiled/recast' {
-  import m from 'recast'
   export = m
 }
 declare module 'next/dist/compiled/send' {
@@ -172,8 +187,32 @@ declare module 'next/dist/compiled/string-hash' {
   import m from 'string-hash'
   export = m
 }
+declare module 'next/dist/compiled/web-streams-polyfill' {
+  import m from 'web-streams-polyfill/ponyfill'
+  export = m
+}
+declare module 'next/dist/compiled/ua-parser-js' {
+  import m from 'ua-parser-js'
+  export = m
+}
+declare module 'next/dist/compiled/formdata-node' {
+  import m from 'formdata-node'
+  export = m
+}
+declare module 'next/dist/compiled/@peculiar/webcrypto' {
+  import m from '@peculiar/webcrypto'
+  export = m
+}
+declare module 'next/dist/compiled/uuid' {
+  import m from 'uuid'
+  export = m
+}
 declare module 'next/dist/compiled/strip-ansi' {
   import m from 'strip-ansi'
+  export = m
+}
+declare module 'next/dist/compiled/@vercel/nft' {
+  import m from '@vercel/nft'
   export = m
 }
 declare module 'next/dist/compiled/terser' {
@@ -208,6 +247,10 @@ declare module 'next/dist/compiled/web-vitals' {
   import m from 'web-vitals'
   export = m
 }
+declare module 'next/dist/compiled/ws' {
+  import m from 'ws'
+  export = m
+}
 
 declare module 'next/dist/compiled/comment-json' {
   import m from 'comment-json'
@@ -215,7 +258,7 @@ declare module 'next/dist/compiled/comment-json' {
 }
 
 declare module 'pnp-webpack-plugin' {
-  import webpack from 'webpack'
+  import webpack from 'webpack4'
 
   class PnpWebpackPlugin extends webpack.Plugin {}
 

@@ -4,25 +4,47 @@ description: learn more about the configuration file used by Next.js to handle y
 
 # next.config.js
 
-For custom advanced behavior of Next.js, you can create a `next.config.js` in the root of your project directory (next to `package.json`).
+For custom advanced configuration of Next.js, you can create a `next.config.js` or `next.config.mjs` file in the root of your project directory (next to `package.json`).
 
 `next.config.js` is a regular Node.js module, not a JSON file. It gets used by the Next.js server and build phases, and it's not included in the browser build.
 
 Take a look at the following `next.config.js` example:
 
 ```js
-module.exports = {
+/**
+ * @type {import('next').NextConfig}
+ */
+const nextConfig = {
   /* config options here */
 }
+
+module.exports = nextConfig
+```
+
+If you need [ECMAScript modules](https://nodejs.org/api/esm.html), you can use `next.config.mjs`:
+
+```js
+/**
+ * @type {import('next').NextConfig}
+ */
+const nextConfig = {
+  /* config options here */
+}
+
+export default nextConfig
 ```
 
 You can also use a function:
 
 ```js
 module.exports = (phase, { defaultConfig }) => {
-  return {
+  /**
+   * @type {import('next').NextConfig}
+   */
+  const nextConfig = {
     /* config options here */
   }
+  return nextConfig
 }
 ```
 

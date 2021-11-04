@@ -10,8 +10,6 @@ import {
   killApp,
 } from 'next-test-utils'
 
-jest.setTimeout(1000 * 60 * 2)
-
 const appDir = join(__dirname, '..')
 const nextConfig = join(appDir, 'next.config.js')
 let appPort
@@ -73,9 +71,7 @@ describe('TypeScript Image Component', () => {
 
     it('should print error when invalid Image usage', async () => {
       await renderViaHTTP(appPort, '/invalid', {})
-      expect(output).toMatch(
-        /must use "width" and "height" properties or "layout='fill'" property/
-      )
+      expect(output).toMatch(/Error: Image/)
     })
   })
 

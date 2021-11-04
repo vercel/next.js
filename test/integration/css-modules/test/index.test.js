@@ -15,8 +15,6 @@ import {
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 
-jest.setTimeout(1000 * 60 * 1)
-
 const fixturesDir = join(__dirname, '../../css-fixtures')
 
 describe('Basic CSS Module Support', () => {
@@ -379,7 +377,7 @@ describe('Valid Nested CSS Module Usage from within node_modules', () => {
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
 
     expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
-      `".other2_other2__2PUfY{color:red}.other3_other3__1f9h7{color:violet}.other_className__bt_-E{background:red;color:#ff0}.example_subClass__2YUgj{background:#00f}"`
+      `".other2_other2__2PUfY{color:red}.other3_other3__1f9h7{color:violet}.other_className__bt_-E{background:red;color:#ff0}.example_subClass__2YUgj{background:blue}"`
     )
   })
 })
@@ -412,7 +410,7 @@ describe('CSS Module Composes Usage (Basic)', () => {
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
 
     expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
-      `".index_className__3gr_q{background:red;color:#ff0}.index_subClass__FUvW6{background:#00f}"`
+      `".index_className__3gr_q{background:red;color:#ff0}.index_subClass__FUvW6{background:blue}"`
     )
   })
 })
@@ -445,7 +443,7 @@ describe('CSS Module Composes Usage (External)', () => {
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
 
     expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
-      `".other_className__21NIP{background:red;color:#ff0}.index_subClass__FUvW6{background:#00f}"`
+      `".other_className__21NIP{background:red;color:#ff0}.index_subClass__FUvW6{background:blue}"`
     )
   })
 })

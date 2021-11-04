@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-import { resolve } from 'path'
 import arg from 'next/dist/compiled/arg/index.js'
 import { existsSync } from 'fs'
 import startServer from '../server/lib/start-server'
@@ -7,6 +6,8 @@ import { printAndExit } from '../server/lib/utils'
 import * as Log from '../build/output/log'
 import { startedDevelopmentServer } from '../build/output'
 import { cliCommand } from '../bin/next'
+import isError from '../lib/is-error'
+import { getProjectDir } from '../lib/get-project-dir'
 
 const nextDev: cliCommand = (argv) => {
   const validArgs: arg.Spec = {
@@ -24,7 +25,7 @@ const nextDev: cliCommand = (argv) => {
   try {
     args = arg(validArgs, { argv })
   } catch (error) {
-    if (error.code === 'ARG_UNKNOWN_OPTION') {
+    if (isError(error) && error.code === 'ARG_UNKNOWN_OPTION') {
       return printAndExit(error.message, 1)
     }
     throw error
@@ -49,7 +50,7 @@ const nextDev: cliCommand = (argv) => {
     process.exit(0)
   }
 
-  const dir = resolve(args._[0] || '.')
+  const dir = getProjectDir(args._[0])
 
   // Check if pages dir exists and warn if not
   if (!existsSync(dir)) {
@@ -57,7 +58,9 @@ const nextDev: cliCommand = (argv) => {
   }
 
   async function preflight() {
-    const { getPackageVersion } = await import('../lib/get-package-version')
+    const { getPackageVersion } = await Promise.resolve(
+      require('../lib/get-package-version')
+    )
     const [sassVersion, nodeSassVersion] = await Promise.all([
       getPackageVersion({ cwd: dir, name: 'sass' }),
       getPackageVersion({ cwd: dir, name: 'node-sass' }),
@@ -71,14 +74,26 @@ const nextDev: cliCommand = (argv) => {
     }
   }
 
-  const port =
+  let port: number =
     args['--port'] || (process.env.PORT && parseInt(process.env.PORT)) || 3000
-  const host = args['--hostname'] || '0.0.0.0'
-  const appUrl = `http://${host === '0.0.0.0' ? 'localhost' : host}:${port}`
+
+  // we allow the server to use a random port while testing
+  // instead of attempting to find a random port and then hope
+  // it doesn't become occupied before we leverage it
+  if (process.env.__NEXT_RAND_PORT) {
+    port = 0
+  }
+
+  // We do not set a default host value here to prevent breaking
+  // some set-ups that rely on listening on other interfaces
+  const host = args['--hostname']
 
   startServer({ dir, dev: true, isNextDevCommand: true }, port, host)
-    .then(async (app) => {
-      startedDevelopmentServer(appUrl, `${host}:${port}`)
+    .then(async ({ app, actualPort }) => {
+      const appUrl = `http://${
+        !host || host === '0.0.0.0' ? 'localhost' : host
+      }:${actualPort}`
+      startedDevelopmentServer(appUrl, `${host || '0.0.0.0'}:${actualPort}`)
       // Start preflight after server is listening and ignore errors:
       preflight().catch(() => {})
       // Finalize server bootup:

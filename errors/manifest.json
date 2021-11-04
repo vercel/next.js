@@ -5,6 +5,26 @@
       "heading": true,
       "routes": [
         {
+          "title": "beta-middleware",
+          "path": "/errors/beta-middleware.md"
+        },
+        {
+          "title": "failed-loading-swc",
+          "path": "/errors/failed-loading-swc.md"
+        },
+        {
+          "title": "deprecated-target-config",
+          "path": "/errors/deprecated-target-config.md"
+        },
+        {
+          "title": "custom-document-image-import",
+          "path": "/errors/custom-document-image-import.md"
+        },
+        {
+          "title": "large-page-data",
+          "path": "/errors/large-page-data.md"
+        },
+        {
           "title": "404-get-initial-props",
           "path": "/errors/404-get-initial-props.md"
         },
@@ -135,6 +155,10 @@
           "title": "gssp-mixed-not-found-redirect",
           "path": "/errors/gssp-mixed-not-found-redirect.md"
         },
+        {
+          "title": "gssp-no-mutating-res",
+          "path": "/errors/gssp-no-mutating-res.md"
+        },
         { "title": "head-build-id", "path": "/errors/head-build-id.md" },
         {
           "title": "href-interpolation-failed",
@@ -145,11 +169,19 @@
           "title": "incompatible-href-as",
           "path": "/errors/incompatible-href-as.md"
         },
+        {
+          "title": "inline-script-id",
+          "path": "/errors/inline-script-id.md"
+        },
         { "title": "install-sass", "path": "/errors/install-sass.md" },
         { "title": "install-sharp", "path": "/errors/install-sharp.md" },
         {
           "title": "invalid-assetprefix",
           "path": "/errors/invalid-assetprefix.md"
+        },
+        {
+          "title": "invalid-dynamic-suspense",
+          "path": "/errors/invalid-dynamic-suspense.md"
         },
         {
           "title": "invalid-external-rewrite",
@@ -250,8 +282,20 @@
           "path": "/errors/next-head-count-missing.md"
         },
         {
+          "title": "next-image-missing-loader",
+          "path": "/errors/next-image-missing-loader.md"
+        },
+        {
+          "title": "next-image-missing-loader-width",
+          "path": "/errors/next-image-missing-loader-width.md"
+        },
+        {
           "title": "next-image-unconfigured-host",
           "path": "/errors/next-image-unconfigured-host.md"
+        },
+        {
+          "title": "next-script-for-ga",
+          "path": "/errors/next-script-for-ga.md"
         },
         {
           "title": "next-start-serverless",
@@ -270,6 +314,10 @@
         {
           "title": "no-document-viewport-meta",
           "path": "/errors/no-document-viewport-meta.md"
+        },
+        {
+          "title": "no-duplicate-head",
+          "path": "/errors/no-duplicate-head.md"
         },
         {
           "title": "no-head-import-in-document",
@@ -398,6 +446,66 @@
         {
           "title": "placeholder-blur-data-url",
           "path": "/errors/placeholder-blur-data-url.md"
+        },
+        {
+          "title": "import-esm-externals",
+          "path": "/errors/import-esm-externals.md"
+        },
+        {
+          "title": "static-page-generation-timeout",
+          "path": "/errors/static-page-generation-timeout.md"
+        },
+        {
+          "title": "page-data-collection-timeout",
+          "path": "/errors/page-data-collection-timeout.md"
+        },
+        {
+          "title": "sharp-missing-in-production",
+          "path": "/errors/sharp-missing-in-production.md"
+        },
+        {
+          "title": "sharp-version-avif",
+          "path": "/errors/sharp-version-avif.md"
+        },
+        {
+          "title": "script-in-document-page",
+          "path": "/errors/no-script-in-document-page.md"
+        },
+        {
+          "title": "script-in-head-component",
+          "path": "/errors/no-script-in-head-component.md"
+        },
+        {
+          "title": "max-custom-routes-reached",
+          "path": "/errors/max-custom-routes-reached.md"
+        },
+        {
+          "title": "module-not-found",
+          "path": "/errors/module-not-found.md"
+        },
+        {
+          "title": "next-config-error",
+          "path": "/errors/next-config-error.md"
+        },
+        {
+          "title": "invalid-api-status-body",
+          "path": "/errors/invalid-api-status-body.md"
+        },
+        {
+          "title": "invalid-project-dir-casing",
+          "path": "/errors/invalid-project-dir-casing.md"
+        },
+        {
+          "title": "swc-disabled",
+          "path": "/errors/swc-disabled.md"
+        },
+        {
+          "title": "swc-minify-enabled",
+          "path": "/errors/swc-minify-enabled.md"
+        },
+        {
+          "title": "middleware-new-signature",
+          "path": "/errors/middleware-new-signature.md"
         }
       ]
     }

@@ -1,4 +1,4 @@
-const NodeAttributes = require('../utils/nodeAttributes.js')
+const NodeAttributes = require('../utils/node-attributes.js')
 
 module.exports = {
   meta: {
@@ -7,6 +7,7 @@ module.exports = {
         'Ensure passHref is assigned if child of Link component is a custom component',
       category: 'HTML',
       recommended: true,
+      url: 'https://nextjs.org/docs/messages/link-passhref',
     },
     fixable: null,
   },

@@ -1,6 +1,7 @@
 import { promises as fs } from 'fs'
 import chalk from 'chalk'
 import * as CommentJson from 'next/dist/compiled/comment-json'
+import semver from 'next/dist/compiled/semver'
 import os from 'os'
 import { getTypeScriptConfiguration } from './getTypeScriptConfiguration'
 
@@ -28,6 +29,9 @@ function getDesiredCompilerOptions(
     strict: { suggested: false },
     forceConsistentCasingInFileNames: { suggested: true },
     noEmit: { suggested: true },
+    ...(semver.gte(ts.version, '4.4.2')
+      ? { incremental: { suggested: true } }
+      : undefined),
 
     // These values are required and cannot be changed by the user
     // Keep this in sync with the webpack config
@@ -95,10 +99,8 @@ export async function writeConfigurationDefaults(
   }
 
   const desiredCompilerOptions = getDesiredCompilerOptions(ts)
-  const {
-    options: tsOptions,
-    raw: rawConfig,
-  } = await getTypeScriptConfiguration(ts, tsConfigPath, true)
+  const { options: tsOptions, raw: rawConfig } =
+    await getTypeScriptConfiguration(ts, tsConfigPath, true)
 
   const userTsConfigContent = await fs.readFile(tsConfigPath, {
     encoding: 'utf8',
@@ -115,6 +117,9 @@ export async function writeConfigurationDefaults(
     const check = desiredCompilerOptions[optionKey]
     if ('suggested' in check) {
       if (!(optionKey in tsOptions)) {
+        if (!userTsConfig.compilerOptions) {
+          userTsConfig.compilerOptions = {}
+        }
         userTsConfig.compilerOptions[optionKey] = check.suggested
         suggestedActions.push(
           chalk.cyan(optionKey) + ' was set to ' + chalk.bold(check.suggested)
@@ -129,6 +134,9 @@ export async function writeConfigurationDefaults(
           ? check.parsedValue === ev
           : check.value === ev)
       ) {
+        if (!userTsConfig.compilerOptions) {
+          userTsConfig.compilerOptions = {}
+        }
         userTsConfig.compilerOptions[optionKey] = check.value
         requiredActions.push(
           chalk.cyan(optionKey) +

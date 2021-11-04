@@ -10,7 +10,6 @@ import webdriver from 'next-webdriver'
 import { join } from 'path'
 
 const context = {}
-jest.setTimeout(1000 * 60 * 5)
 
 describe('Client Navigation accessibility', () => {
   beforeAll(async () => {

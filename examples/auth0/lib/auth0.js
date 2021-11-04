@@ -1,18 +1,24 @@
 import { initAuth0 } from '@auth0/nextjs-auth0'
 
 export default initAuth0({
-  clientId: process.env.NEXT_PUBLIC_AUTH0_CLIENT_ID,
+  secret: process.env.SESSION_COOKIE_SECRET,
+  issuerBaseURL: process.env.NEXT_PUBLIC_AUTH0_DOMAIN,
+  baseURL: process.env.NEXT_PUBLIC_BASE_URL,
+  clientID: process.env.NEXT_PUBLIC_AUTH0_CLIENT_ID,
   clientSecret: process.env.AUTH0_CLIENT_SECRET,
-  scope: process.env.NEXT_PUBLIC_AUTH0_SCOPE || 'openid profile',
-  domain: process.env.NEXT_PUBLIC_AUTH0_DOMAIN,
-  redirectUri:
-    process.env.NEXT_PUBLIC_REDIRECT_URI ||
-    'http://localhost:3000/api/callback',
-  postLogoutRedirectUri:
-    process.env.NEXT_PUBLIC_POST_LOGOUT_REDIRECT_URI ||
-    'http://localhost:3000/',
+  routes: {
+    callback:
+      process.env.NEXT_PUBLIC_REDIRECT_URI ||
+      'http://localhost:3000/api/callback',
+    postLogoutRedirect:
+      process.env.NEXT_PUBLIC_POST_LOGOUT_REDIRECT_URI ||
+      'http://localhost:3000',
+  },
+  authorizationParams: {
+    response_type: 'code',
+    scope: process.env.NEXT_PUBLIC_AUTH0_SCOPE,
+  },
   session: {
-    cookieSecret: process.env.SESSION_COOKIE_SECRET,
-    cookieLifetime: Number(process.env.SESSION_COOKIE_LIFETIME) || 7200,
+    absoluteDuration: process.env.SESSION_COOKIE_LIFETIME,
   },
 })

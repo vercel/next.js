@@ -17,9 +17,16 @@ module.exports = {
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
     // limit of 50 domains values
     domains: [],
+    // path prefix for Image Optimization API, useful with `loader`
     path: '/_next/image',
-    // loader can be 'default', 'imgix', 'cloudinary', or 'akamai'
+    // loader can be 'default', 'imgix', 'cloudinary', 'akamai', or 'custom'
     loader: 'default',
+    // disable static imports for image files
+    disableStaticImages: false,
+    // minimumCacheTTL is in seconds, must be integer 0 or more
+    minimumCacheTTL: 60,
+    // ordered list of acceptable optimized image formats (mime types)
+    formats: ['image/webp'],
   },
 }
 ```
@@ -27,3 +34,4 @@ module.exports = {
 ### Useful Links
 
 - [Image Optimization Documentation](https://nextjs.org/docs/basic-features/image-optimization)
+- [`next/image` Documentation](https://nextjs.org/docs/api-reference/next/image)

@@ -1,6 +1,5 @@
 {
-  "name": "with-tailwindcss-emotion",
-  "version": "1.0.0",
+  "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -21,6 +20,5 @@
     "postcss": "^8.3.5",
     "tailwindcss": "^2.2.4",
     "xwind": "0.8.0"
-  },
-  "license": "MIT"
+  }
 }

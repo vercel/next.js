@@ -1,7 +1,7 @@
 import { IncomingMessage, ServerResponse } from 'http'
 import { parse as parseUrl, format as formatUrl, UrlWithParsedQuery } from 'url'
-import { isResSent } from '../../../../shared/lib/utils'
-import { sendPayload } from '../../../../server/send-payload'
+import { DecodeError, isResSent } from '../../../../shared/lib/utils'
+import { sendRenderResult } from '../../../../server/send-payload'
 import { getUtils, vercelHeader, ServerlessHandlerCtx } from './utils'
 
 import { renderToHTML } from '../../../../server/render'
@@ -11,6 +11,8 @@ import { setLazyProp, getCookieParser } from '../../../../server/api-utils'
 import { getRedirectStatus } from '../../../../lib/load-custom-routes'
 import getRouteNoAssetPath from '../../../../shared/lib/router/utils/get-route-from-asset-path'
 import { PERMANENT_REDIRECT_STATUS } from '../../../../shared/lib/constants'
+import RenderResult from '../../../../server/render-result'
+import isError from '../../../../lib/is-error'
 
 export function getPageHandler(ctx: ServerlessHandlerCtx) {
   const {
@@ -98,7 +100,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
 
     let hasValidParams = true
 
-    setLazyProp({ req: req as any }, 'cookies', getCookieParser(req))
+    setLazyProp({ req: req as any }, 'cookies', getCookieParser(req.headers))
 
     const options = {
       App,
@@ -115,6 +117,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
       previewProps: encodedPreviewProps,
       env: process.env,
       basePath,
+      supportsDynamicHTML: false, // Serverless target doesn't support streaming
       ..._renderOpts,
     }
     let _nextData = false
@@ -333,22 +336,19 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
                 defaultLocale: i18n?.defaultLocale,
               })
             )
-
-            sendPayload(
+            sendRenderResult({
               req,
               res,
-              result2,
-              'html',
-              {
-                generateEtags,
-                poweredByHeader,
-              },
-              {
+              result: result2 ?? RenderResult.empty,
+              type: 'html',
+              generateEtags,
+              poweredByHeader,
+              options: {
                 private: isPreviewMode || page === '/404',
                 stateful: !!getServerSideProps,
                 revalidate: renderOpts.revalidate,
-              }
-            )
+              },
+            })
             return null
           } else if (renderOpts.isRedirect && !_nextData) {
             const redirect = {
@@ -375,21 +375,21 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
             res.end()
             return null
           } else {
-            sendPayload(
+            sendRenderResult({
               req,
               res,
-              _nextData ? JSON.stringify(renderOpts.pageData) : result,
-              _nextData ? 'json' : 'html',
-              {
-                generateEtags,
-                poweredByHeader,
-              },
-              {
+              result: _nextData
+                ? RenderResult.fromStatic(JSON.stringify(renderOpts.pageData))
+                : result ?? RenderResult.empty,
+              type: _nextData ? 'json' : 'html',
+              generateEtags,
+              poweredByHeader,
+              options: {
                 private: isPreviewMode || renderOpts.is404Page,
                 stateful: !!getServerSideProps,
                 revalidate: renderOpts.revalidate,
-              }
-            )
+              },
+            })
             return null
           }
         }
@@ -401,16 +401,15 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
       }
 
       if (renderMode) return { html: result, renderOpts }
-      return result
+      return result ? result.toUnchunkedString() : null
     } catch (err) {
       if (!parsedUrl!) {
         parsedUrl = parseUrl(req.url!, true)
       }
 
-      if (err.code === 'ENOENT') {
+      if (isError(err) && err.code === 'ENOENT') {
         res.statusCode = 404
-      } else if (err.code === 'DECODE_FAILED' || err.code === 'ENAMETOOLONG') {
-        // TODO: better error?
+      } else if (err instanceof DecodeError) {
         res.statusCode = 400
       } else {
         console.error('Unhandled error during request:', err)
@@ -464,7 +463,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
           err: res.statusCode === 404 ? undefined : err,
         })
       )
-      return result2
+      return result2 ? result2.toUnchunkedString() : null
     }
   }
 
@@ -474,7 +473,11 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
       try {
         const html = await renderReqToHTML(req, res)
         if (html) {
-          sendPayload(req, res, html, 'html', {
+          sendRenderResult({
+            req,
+            res,
+            result: RenderResult.fromStatic(html as any),
+            type: 'html',
             generateEtags,
             poweredByHeader,
           })

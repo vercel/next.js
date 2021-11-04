@@ -34,7 +34,7 @@ pr:
 variables:
   YARN_CACHE_FOLDER: $(Pipeline.Workspace)/.yarn
   NEXT_TELEMETRY_DISABLED: '1'
-  node_version: ^12.0.0
+  node_version: ^12.22.0
 
 stages:
   - stage: Build
@@ -72,6 +72,8 @@ stages:
       - job: test_ie11
         pool:
           vmImage: 'windows-2019'
+        variables:
+          BROWSER_NAME: internet explorer
         steps:
           - checkout: none
           - task: NodeTool@0
@@ -85,8 +87,13 @@ stages:
               key: $(Build.SourceVersion)
               path: $(System.DefaultWorkingDirectory)
             displayName: Cache Build
+
           - script: |
-              yarn testie --forceExit test/integration/production/ test/integration/css-client-nav/ test/integration/rewrites-has-condition/
+              npm i -g selenium-standalone@6.18.0
+            displayName: 'Install selenium node'
+
+          - script: |
+              node run-tests.js -c 1 test/integration/production/test/index.test.js test/integration/css-client-nav/test/index.test.js test/integration/rewrites-has-condition/test/index.test.js
             displayName: 'Run tests'
 
       - job: test_unit
@@ -109,7 +116,7 @@ stages:
               path: $(System.DefaultWorkingDirectory)
             displayName: Cache Build
           - script: |
-              node run-tests.js -g 1/1 --timings --azure --type unit
+              node run-tests.js --type unit
             displayName: 'Run tests'
       # TODO: investigate re-enabling when stability matches running in
       # tests in ubuntu environment

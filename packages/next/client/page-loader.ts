@@ -9,8 +9,10 @@ import getAssetPathFromRoute from '../shared/lib/router/utils/get-asset-path-fro
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import { parseRelativeUrl } from '../shared/lib/router/utils/parse-relative-url'
 import { removePathTrailingSlash } from './normalize-trailing-slash'
-import createRouteLoader, {
+import {
+  createRouteLoader,
   getClientBuildManifest,
+  getMiddlewareManifest,
   RouteLoader,
 } from './route-loader'
 
@@ -36,6 +38,7 @@ export default class PageLoader {
 
   private promisedSsgManifest?: Promise<ClientSsgManifest>
   private promisedDevPagesManifest?: Promise<any>
+  private promisedMiddlewareManifest?: Promise<[string, boolean][]>
   public routeLoader: RouteLoader
 
   constructor(buildId: string, assetPrefix: string) {
@@ -81,22 +84,56 @@ export default class PageLoader {
     }
   }
 
+  getMiddlewareList(): Promise<[string, boolean][]> {
+    if (process.env.NODE_ENV === 'production') {
+      return getMiddlewareManifest()
+    } else {
+      if ((window as any).__DEV_MIDDLEWARE_MANIFEST) {
+        return (window as any).__DEV_MIDDLEWARE_MANIFEST
+      } else {
+        if (!this.promisedMiddlewareManifest) {
+          this.promisedMiddlewareManifest = fetch(
+            `${this.assetPrefix}/_next/static/${this.buildId}/_devMiddlewareManifest.json`
+          )
+            .then((res) => res.json())
+            .then((manifest) => {
+              ;(window as any).__DEV_MIDDLEWARE_MANIFEST = manifest
+              return manifest
+            })
+            .catch((err) => {
+              console.log(`Failed to fetch _devMiddlewareManifest`, err)
+            })
+        }
+        return this.promisedMiddlewareManifest
+      }
+    }
+  }
+
   /**
    * @param {string} href the route href (file-system path)
    * @param {string} asPath the URL as shown in browser (virtual path); used for dynamic routes
    * @returns {string}
    */
-  getDataHref(
-    href: string,
-    asPath: string,
-    ssg: boolean,
+  getDataHref({
+    href,
+    asPath,
+    ssg,
+    rsc,
+    locale,
+  }: {
+    href: string
+    asPath: string
+    ssg: boolean
+    rsc?: boolean
     locale?: string | false
-  ): string {
+  }): string {
     const { pathname: hrefPathname, query, search } = parseRelativeUrl(href)
     const { pathname: asPathname } = parseRelativeUrl(asPath)
     const route = normalizeRoute(hrefPathname)
 
     const getHrefForSlug = (path: string) => {
+      if (rsc) return path + '?__flight__'
+
       const dataRoute = getAssetPathFromRoute(
         removePathTrailingSlash(addLocale(path, locale)),
         '.json'

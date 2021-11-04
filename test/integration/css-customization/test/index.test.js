@@ -5,8 +5,6 @@ import { readdir, readFile, remove } from 'fs-extra'
 import { nextBuild } from 'next-test-utils'
 import escapeStringRegexp from 'escape-string-regexp'
 
-jest.setTimeout(1000 * 60 * 1)
-
 const fixturesDir = join(__dirname, '../..', 'css-fixtures')
 
 describe('CSS Customization', () => {
@@ -72,72 +70,6 @@ describe('CSS Customization', () => {
         "version": 3,
       }
     `)
-  })
-})
-
-describe('Legacy Next-CSS Customization', () => {
-  const appDir = join(fixturesDir, 'custom-configuration-legacy')
-
-  beforeAll(async () => {
-    await remove(join(appDir, '.next'))
-  })
-
-  it('should compile successfully', async () => {
-    const { code, stdout, stderr } = await nextBuild(appDir, [], {
-      stdout: true,
-      stderr: true,
-    })
-    expect(code).toBe(0)
-    expect(stdout).toMatch(/Compiled successfully/)
-    expect(stderr).toMatch(
-      /Built-in CSS support is being disabled due to custom CSS configuration being detected/
-    )
-  })
-
-  it(`should've compiled and prefixed`, async () => {
-    const cssFolder = join(appDir, '.next/static/chunks')
-
-    const files = await readdir(cssFolder)
-    const cssFiles = files.filter((f) => /\.css$/.test(f))
-
-    expect(cssFiles.length).toBe(1)
-    const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
-    expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
-      `"@media (480px <= width < 768px){::placeholder{color:green}}.video{max-width:400px;max-height:300px}"`
-    )
-  })
-})
-
-describe('Custom CSS Customization via Webpack', () => {
-  const appDir = join(fixturesDir, 'custom-configuration-webpack')
-
-  beforeAll(async () => {
-    await remove(join(appDir, '.next'))
-  })
-
-  it('should compile successfully', async () => {
-    const { code, stdout, stderr } = await nextBuild(appDir, [], {
-      stdout: true,
-      stderr: true,
-    })
-    expect(code).toBe(0)
-    expect(stdout).toMatch(/Compiled successfully/)
-    expect(stderr).not.toMatch(
-      /Built-in CSS support is being disabled due to custom CSS configuration being detected/
-    )
-  })
-
-  it(`should've compiled and prefixed`, async () => {
-    const cssFolder = join(appDir, '.next/static/css')
-
-    const files = await readdir(cssFolder)
-    const cssFiles = files.filter((f) => /\.css$/.test(f))
-
-    expect(cssFiles.length).toBe(1)
-    const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
-    expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
-      `"@media (480px <= width < 768px){::placeholder{color:green}}.video{max-width:400px;max-height:300px}"`
-    )
   })
 })
 

@@ -1,9 +1,8 @@
-import { IncomingMessage } from 'http'
-import { ParsedUrlQuery } from 'querystring'
-import { searchParamsToUrlQuery } from './querystring'
-import { parseRelativeUrl } from './parse-relative-url'
+import type { IncomingMessage } from 'http'
+import type { ParsedUrlQuery } from 'querystring'
+import { parseUrl } from './parse-url'
 import * as pathToRegexp from 'next/dist/compiled/path-to-regexp'
-import { RouteHas } from '../../../../lib/load-custom-routes'
+import type { RouteHas } from '../../../../lib/load-custom-routes'
 
 type Params = { [param: string]: any }
 
@@ -31,16 +30,6 @@ export function matchHas(
   query: Params
 ): false | Params {
   const params: Params = {}
-  let initialQueryValues: string[] = []
-
-  if (typeof window === 'undefined') {
-    initialQueryValues = Object.values((req as any).__NEXT_INIT_QUERY)
-  }
-  if (typeof window !== 'undefined') {
-    initialQueryValues = Array.from(
-      new URLSearchParams(location.search).values()
-    )
-  }
 
   const allMatch = has.every((hasItem) => {
     let value: undefined | string
@@ -57,12 +46,7 @@ export function matchHas(
         break
       }
       case 'query': {
-        // preserve initial encoding of query values
         value = query[key!]
-
-        if (initialQueryValues.includes(value || '')) {
-          value = encodeURIComponent(value!)
-        }
         break
       }
       case 'host': {
@@ -82,15 +66,19 @@ export function matchHas(
       return true
     } else if (value) {
       const matcher = new RegExp(`^${hasItem.value}$`)
-      const matches = value.match(matcher)
+      const matches = Array.isArray(value)
+        ? value.slice(-1)[0].match(matcher)
+        : value.match(matcher)
 
       if (matches) {
-        if (matches.groups) {
-          Object.keys(matches.groups).forEach((groupKey) => {
-            params[groupKey] = matches.groups![groupKey]
-          })
-        } else if (hasItem.type === 'host' && matches[0]) {
-          params.host = matches[0]
+        if (Array.isArray(matches)) {
+          if (matches.groups) {
+            Object.keys(matches.groups).forEach((groupKey) => {
+              params[groupKey] = matches.groups![groupKey]
+            })
+          } else if (hasItem.type === 'host' && matches[0]) {
+            params.host = matches[0]
+          }
         }
         return true
       }
@@ -141,61 +129,46 @@ export function compileNonPath(value: string, params: Params): string {
     .substr(1)
 }
 
+const escapeSegment = (str: string, segmentName: string) =>
+  str.replace(new RegExp(`:${segmentName}`, 'g'), `__ESC_COLON_${segmentName}`)
+
+const unescapeSegments = (str: string) => str.replace(/__ESC_COLON_/gi, ':')
+
 export default function prepareDestination(
   destination: string,
   params: Params,
   query: ParsedUrlQuery,
   appendParamsToQuery: boolean
 ) {
-  let parsedDestination: {
-    query?: ParsedUrlQuery
-    protocol?: string
-    hostname?: string
-    port?: string
-  } & ReturnType<typeof parseRelativeUrl> = {} as any
-
   // clone query so we don't modify the original
   query = Object.assign({}, query)
   const hadLocale = query.__nextLocale
   delete query.__nextLocale
   delete query.__nextDefaultLocale
 
-  if (destination.startsWith('/')) {
-    parsedDestination = parseRelativeUrl(destination)
-  } else {
-    const {
-      pathname,
-      searchParams,
-      hash,
-      hostname,
-      port,
-      protocol,
-      search,
-      href,
-    } = new URL(destination)
+  let escapedDestination = destination
 
-    parsedDestination = {
-      pathname,
-      query: searchParamsToUrlQuery(searchParams),
-      hash,
-      protocol,
-      hostname,
-      port,
-      search,
-      href,
-    }
+  for (const param of Object.keys({ ...params, ...query })) {
+    escapedDestination = escapeSegment(escapedDestination, param)
   }
 
+  const parsedDestination = parseUrl(escapedDestination)
   const destQuery = parsedDestination.query
-  const destPath = `${parsedDestination.pathname!}${
-    parsedDestination.hash || ''
-  }`
+  const destPath = unescapeSegments(
+    `${parsedDestination.pathname!}${parsedDestination.hash || ''}`
+  )
+  const destHostname = unescapeSegments(parsedDestination.hostname || '')
   const destPathParamKeys: pathToRegexp.Key[] = []
+  const destHostnameParamKeys: pathToRegexp.Key[] = []
   pathToRegexp.pathToRegexp(destPath, destPathParamKeys)
+  pathToRegexp.pathToRegexp(destHostname, destHostnameParamKeys)
 
-  const destPathParams = destPathParamKeys.map((key) => key.name)
+  const destParams: (string | number)[] = []
 
-  let destinationCompiler = pathToRegexp.compile(
+  destPathParamKeys.forEach((key) => destParams.push(key.name))
+  destHostnameParamKeys.forEach((key) => destParams.push(key.name))
+
+  const destPathCompiler = pathToRegexp.compile(
     destPath,
     // we don't validate while compiling the destination since we should
     // have already validated before we got to this point and validating
@@ -205,17 +178,22 @@ export default function prepareDestination(
     // params from a separate path-regex into another
     { validate: false }
   )
+  const destHostnameCompiler = pathToRegexp.compile(destHostname, {
+    validate: false,
+  })
   let newUrl
 
   // update any params in query values
   for (const [key, strOrArray] of Object.entries(destQuery)) {
-    let value = Array.isArray(strOrArray) ? strOrArray[0] : strOrArray
-    if (value) {
-      // the value needs to start with a forward-slash to be compiled
-      // correctly
-      value = compileNonPath(value, params)
+    // the value needs to start with a forward-slash to be compiled
+    // correctly
+    if (Array.isArray(strOrArray)) {
+      destQuery[key] = strOrArray.map((value) =>
+        compileNonPath(unescapeSegments(value), params)
+      )
+    } else {
+      destQuery[key] = compileNonPath(unescapeSegments(strOrArray), params)
     }
-    destQuery[key] = value
   }
 
   // add path params to query if it's not a redirect and not
@@ -229,7 +207,7 @@ export default function prepareDestination(
 
   if (
     appendParamsToQuery &&
-    !paramKeys.some((key) => destPathParams.includes(key))
+    !paramKeys.some((key) => destParams.includes(key))
   ) {
     for (const key of paramKeys) {
       if (!(key in destQuery)) {
@@ -239,14 +217,19 @@ export default function prepareDestination(
   }
 
   try {
-    newUrl = destinationCompiler(params)
+    newUrl = destPathCompiler(params)
 
     const [pathname, hash] = newUrl.split('#')
+    parsedDestination.hostname = destHostnameCompiler(params)
     parsedDestination.pathname = pathname
     parsedDestination.hash = `${hash ? '#' : ''}${hash || ''}`
     delete (parsedDestination as any).search
   } catch (err) {
-    if (err.message.match(/Expected .*? to not repeat, but got an array/)) {
+    if (
+      (err as Error).message.match(
+        /Expected .*? to not repeat, but got an array/
+      )
+    ) {
       throw new Error(
         `To use a multi-match in the destination you must add \`*\` at the end of the param name to signify it should repeat. https://nextjs.org/docs/messages/invalid-multi-match`
       )

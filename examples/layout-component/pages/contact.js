@@ -32,9 +32,11 @@ export default function Contact() {
   )
 }
 
-Contact.getLayout = (page) => (
-  <Layout>
-    <Sidebar />
-    {page}
-  </Layout>
-)
+Contact.getLayout = function getLayout(page) {
+  return (
+    <Layout>
+      <Sidebar />
+      {page}
+    </Layout>
+  )
+}

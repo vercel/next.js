@@ -1,12 +1,14 @@
 /* globals __REPLACE_NOOP_IMPORT__ */
-import initNext, * as next from './'
-import EventSourcePolyfill from './dev/event-source-polyfill'
+import { initNext, version, router, emitter, render, renderError } from './'
 import initOnDemandEntries from './dev/on-demand-entries-client'
 import initWebpackHMR from './dev/webpack-hot-middleware-client'
 import initializeBuildWatcher from './dev/dev-build-watcher'
 import { displayContent } from './dev/fouc'
-import { addMessageListener } from './dev/error-overlay/eventsource'
-import * as querystring from '../shared/lib/router/utils/querystring'
+import { connectHMR, addMessageListener } from './dev/error-overlay/websocket'
+import {
+  assign,
+  urlQueryToSearchParams,
+} from '../shared/lib/router/utils/querystring'
 
 // Temporary workaround for the issue described here:
 // https://github.com/vercel/next.js/issues/3775#issuecomment-407438123
@@ -15,11 +17,6 @@ import * as querystring from '../shared/lib/router/utils/querystring'
 // eslint-disable-next-line no-unused-expressions
 __REPLACE_NOOP_IMPORT__
 
-// Support EventSource on Internet Explorer 11
-if (!window.EventSource) {
-  window.EventSource = EventSourcePolyfill
-}
-
 const {
   __NEXT_DATA__: { assetPrefix },
 } = window
@@ -27,10 +24,21 @@ const {
 const prefix = assetPrefix || ''
 const webpackHMR = initWebpackHMR()
 
-window.next = next
+connectHMR({ assetPrefix: prefix, path: '/_next/webpack-hmr' })
+
+window.next = {
+  version,
+  // router is initialized later so it has to be live-binded
+  get router() {
+    return router
+  },
+  emitter,
+  render,
+  renderError,
+}
 initNext({ webpackHMR })
-  .then(({ renderCtx, render }) => {
-    initOnDemandEntries({ assetPrefix: prefix })
+  .then(({ renderCtx }) => {
+    initOnDemandEntries()
 
     let buildIndicatorHandler = () => {}
 
@@ -44,9 +52,16 @@ initNext({ webpackHMR })
           .catch((err) => {
             console.log(`Failed to fetch devPagesManifest`, err)
           })
+      } else if (event.data.indexOf('middlewareChanges') !== -1) {
+        return window.location.reload()
       } else if (event.data.indexOf('serverOnlyChanges') !== -1) {
         const { pages } = JSON.parse(event.data)
-        const router = window.next.router
+
+        // Make sure to reload when the dev-overlay is showing for an
+        // API route
+        if (pages.includes(router.query.__NEXT_PAGE)) {
+          return window.location.reload()
+        }
 
         if (!router.clc && pages.includes(router.pathname)) {
           console.log('Refreshing page data due to server-side change')
@@ -60,8 +75,8 @@ initNext({ webpackHMR })
               router.pathname +
                 '?' +
                 String(
-                  querystring.assign(
-                    querystring.urlQueryToSearchParams(router.query),
+                  assign(
+                    urlQueryToSearchParams(router.query),
                     new URLSearchParams(location.search)
                   )
                 ),
@@ -71,13 +86,12 @@ initNext({ webpackHMR })
         }
       }
     }
-    devPagesManifestListener.unfiltered = true
     addMessageListener(devPagesManifestListener)
 
     if (process.env.__NEXT_BUILD_INDICATOR) {
       initializeBuildWatcher((handler) => {
         buildIndicatorHandler = handler
-      })
+      }, process.env.__NEXT_BUILD_INDICATOR_POSITION)
     }
 
     // delay rendering until after styles have been applied in development

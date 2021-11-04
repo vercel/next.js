@@ -23,7 +23,7 @@ import { getRouteMatcher, getRouteRegex } from '../shared/lib/router/utils'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import escapePathDelimiters from '../shared/lib/router/utils/escape-path-delimiters'
 import { findPageFile } from '../server/lib/find-page-file'
-import { GetStaticPaths } from 'next/types'
+import { GetStaticPaths, PageConfig } from 'next/types'
 import { denormalizePagePath } from '../server/normalize-page-path'
 import { BuildManifest } from '../server/get-page-files'
 import { removePathTrailingSlash } from '../client/normalize-trailing-slash'
@@ -31,8 +31,12 @@ import { UnwrapPromise } from '../lib/coalesced-function'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import * as Log from './output/log'
 import { loadComponents } from '../server/load-components'
-import { trace } from '../telemetry/trace'
+import { trace } from '../trace'
+import { setHttpAgentOptions } from '../server/config'
+import { NextConfigComplete } from '../server/config-shared'
+import isError from '../lib/is-error'
 
+const { builtinModules } = require('module')
 const fileGzipStats: { [k: string]: Promise<number> | undefined } = {}
 const fsStatGzip = (file: string) => {
   const cached = fileGzipStats[file]
@@ -65,8 +69,11 @@ export interface PageInfo {
   totalSize: number
   static: boolean
   isSsg: boolean
+  isWebSsr: boolean
   ssgPageRoutes: string[] | null
   initialRevalidateSeconds: number | false
+  pageDuration: number | undefined
+  ssgPageDurations: number[] | undefined
 }
 
 export async function printTreeView(
@@ -99,6 +106,17 @@ export async function printTreeView(
     if (_size < 170 * 1000) return chalk.yellow(size)
     // red for >= 170kb
     return chalk.red.bold(size)
+  }
+
+  const MIN_DURATION = 300
+  const getPrettyDuration = (_duration: number): string => {
+    const duration = `${_duration} ms`
+    // green for 300-1000ms
+    if (_duration < 1000) return chalk.green(duration)
+    // yellow for 1000-2000ms
+    if (_duration < 2000) return chalk.yellow(duration)
+    // red for >= 2000ms
+    return chalk.red.bold(duration)
   }
 
   const getCleanName = (fileName: string) =>
@@ -134,6 +152,8 @@ export async function printTreeView(
     pageInfos
   )
 
+  const usedSymbols = new Set()
+
   const pageList = list
     .slice()
     .filter(
@@ -147,7 +167,7 @@ export async function printTreeView(
     .sort((a, b) => a.localeCompare(b))
 
   pageList.forEach((item, i, arr) => {
-    const symbol =
+    const border =
       i === 0
         ? arr.length === 1
           ? '─'
@@ -158,20 +178,36 @@ export async function printTreeView(
 
     const pageInfo = pageInfos.get(item)
     const ampFirst = buildManifest.ampFirstPages.includes(item)
+    const totalDuration =
+      (pageInfo?.pageDuration || 0) +
+      (pageInfo?.ssgPageDurations?.reduce((a, b) => a + (b || 0), 0) || 0)
+
+    const symbol =
+      item === '/_app'
+        ? ' '
+        : item.endsWith('/_middleware')
+        ? 'ƒ'
+        : pageInfo?.isWebSsr
+        ? 'ℇ'
+        : pageInfo?.static
+        ? '○'
+        : pageInfo?.isSsg
+        ? '●'
+        : 'λ'
+
+    usedSymbols.add(symbol)
+
+    if (pageInfo?.initialRevalidateSeconds) usedSymbols.add('ISR')
 
     messages.push([
-      `${symbol} ${
-        item === '/_app'
-          ? ' '
-          : pageInfo?.static
-          ? '○'
-          : pageInfo?.isSsg
-          ? '●'
-          : 'λ'
-      } ${
+      `${border} ${symbol} ${
         pageInfo?.initialRevalidateSeconds
           ? `${item} (ISR: ${pageInfo?.initialRevalidateSeconds} Seconds)`
           : item
+      }${
+        totalDuration > MIN_DURATION
+          ? ` (${getPrettyDuration(totalDuration)})`
+          : ''
       }`,
       pageInfo
         ? ampFirst
@@ -209,18 +245,64 @@ export async function printTreeView(
 
     if (pageInfo?.ssgPageRoutes?.length) {
       const totalRoutes = pageInfo.ssgPageRoutes.length
-      const previewPages = totalRoutes === 4 ? 4 : 3
       const contSymbol = i === arr.length - 1 ? ' ' : '├'
 
-      const routes = pageInfo.ssgPageRoutes.slice(0, previewPages)
-      if (totalRoutes > previewPages) {
-        const remaining = totalRoutes - previewPages
-        routes.push(`[+${remaining} more paths]`)
+      let routes: { route: string; duration: number; avgDuration?: number }[]
+      if (
+        pageInfo.ssgPageDurations &&
+        pageInfo.ssgPageDurations.some((d) => d > MIN_DURATION)
+      ) {
+        const previewPages = totalRoutes === 8 ? 8 : Math.min(totalRoutes, 7)
+        const routesWithDuration = pageInfo.ssgPageRoutes
+          .map((route, idx) => ({
+            route,
+            duration: pageInfo.ssgPageDurations![idx] || 0,
+          }))
+          .sort(({ duration: a }, { duration: b }) =>
+            // Sort by duration
+            // keep too small durations in original order at the end
+            a <= MIN_DURATION && b <= MIN_DURATION ? 0 : b - a
+          )
+        routes = routesWithDuration.slice(0, previewPages)
+        const remainingRoutes = routesWithDuration.slice(previewPages)
+        if (remainingRoutes.length) {
+          const remaining = remainingRoutes.length
+          const avgDuration = Math.round(
+            remainingRoutes.reduce(
+              (total, { duration }) => total + duration,
+              0
+            ) / remainingRoutes.length
+          )
+          routes.push({
+            route: `[+${remaining} more paths]`,
+            duration: 0,
+            avgDuration,
+          })
+        }
+      } else {
+        const previewPages = totalRoutes === 4 ? 4 : Math.min(totalRoutes, 3)
+        routes = pageInfo.ssgPageRoutes
+          .slice(0, previewPages)
+          .map((route) => ({ route, duration: 0 }))
+        if (totalRoutes > previewPages) {
+          const remaining = totalRoutes - previewPages
+          routes.push({ route: `[+${remaining} more paths]`, duration: 0 })
+        }
       }
 
-      routes.forEach((slug, index, { length }) => {
+      routes.forEach(({ route, duration, avgDuration }, index, { length }) => {
         const innerSymbol = index === length - 1 ? '└' : '├'
-        messages.push([`${contSymbol}   ${innerSymbol} ${slug}`, '', ''])
+        messages.push([
+          `${contSymbol}   ${innerSymbol} ${route}${
+            duration > MIN_DURATION ? ` (${getPrettyDuration(duration)})` : ''
+          }${
+            avgDuration && avgDuration > MIN_DURATION
+              ? ` (avg ${getPrettyDuration(avgDuration)})`
+              : ''
+          }`,
+          '',
+          '',
+        ])
       })
     }
   })
@@ -271,33 +353,43 @@ export async function printTreeView(
   console.log(
     textTable(
       [
-        [
+        usedSymbols.has('ƒ') && [
+          'ƒ',
+          '(Middleware)',
+          `intercepts requests (uses ${chalk.cyan('_middleware')})`,
+        ],
+        usedSymbols.has('ℇ') && [
+          'ℇ',
+          '(Streaming)',
+          `server-side renders with streaming (uses React 18 SSR streaming or Server Components)`,
+        ],
+        usedSymbols.has('λ') && [
           'λ',
           serverless ? '(Lambda)' : '(Server)',
           `server-side renders at runtime (uses ${chalk.cyan(
             'getInitialProps'
           )} or ${chalk.cyan('getServerSideProps')})`,
         ],
-        [
+        usedSymbols.has('○') && [
           '○',
           '(Static)',
           'automatically rendered as static HTML (uses no initial props)',
         ],
-        [
+        usedSymbols.has('●') && [
           '●',
           '(SSG)',
           `automatically generated as static HTML + JSON (uses ${chalk.cyan(
             'getStaticProps'
           )})`,
         ],
-        [
+        usedSymbols.has('ISR') && [
           '',
           '(ISR)',
           `incremental static regeneration (uses revalidate in ${chalk.cyan(
             'getStaticProps'
           )})`,
         ],
-      ] as [string, string, string][],
+      ].filter((x) => x) as [string, string, string][],
       {
         align: ['l', 'l', 'l'],
         stringLength: (str) => stripAnsi(str).length,
@@ -547,6 +639,7 @@ export async function getJsPageSizeInKb(
 export async function buildStaticPaths(
   page: string,
   getStaticPaths: GetStaticPaths,
+  configFileName: string,
   locales?: string[],
   defaultLocale?: string
 ): Promise<
@@ -718,7 +811,7 @@ export async function buildStaticPaths(
 
       if (entry.locale && !locales?.includes(entry.locale)) {
         throw new Error(
-          `Invalid locale returned from getStaticPaths for ${page}, the locale ${entry.locale} is not specified in next.config.js`
+          `Invalid locale returned from getStaticPaths for ${page}, the locale ${entry.locale} is not specified in ${configFileName}`
         )
       }
       const curLocale = entry.locale || defaultLocale || ''
@@ -747,7 +840,9 @@ export async function isPageStatic(
   page: string,
   distDir: string,
   serverless: boolean,
+  configFileName: string,
   runtimeEnvConfig: any,
+  httpAgentOptions: NextConfigComplete['httpAgentOptions'],
   locales?: string[],
   defaultLocale?: string,
   parentId?: any
@@ -755,33 +850,42 @@ export async function isPageStatic(
   isStatic?: boolean
   isAmpOnly?: boolean
   isHybridAmp?: boolean
+  hasFlightData?: boolean
   hasServerProps?: boolean
   hasStaticProps?: boolean
   prerenderRoutes?: string[]
   encodedPrerenderRoutes?: string[]
   prerenderFallback?: boolean | 'blocking'
   isNextImageImported?: boolean
+  traceIncludes?: string[]
+  traceExcludes?: string[]
 }> {
   const isPageStaticSpan = trace('is-page-static-utils', parentId)
   return isPageStaticSpan.traceAsyncFn(async () => {
     try {
       require('../shared/lib/runtime-config').setConfig(runtimeEnvConfig)
-      const components = await loadComponents(distDir, page, serverless)
-      const mod = components.ComponentMod
-      const Comp = mod.default || mod
+      setHttpAgentOptions(httpAgentOptions)
+
+      const mod = await loadComponents(distDir, page, serverless)
+      const Comp = mod.Component
 
       if (!Comp || !isValidElementType(Comp) || typeof Comp === 'string') {
         throw new Error('INVALID_DEFAULT_EXPORT')
       }
 
+      const hasFlightData = !!(Comp as any).__next_rsc__
       const hasGetInitialProps = !!(Comp as any).getInitialProps
-      const hasStaticProps = !!(await mod.getStaticProps)
-      const hasStaticPaths = !!(await mod.getStaticPaths)
-      const hasServerProps = !!(await mod.getServerSideProps)
-      const hasLegacyServerProps = !!(await mod.unstable_getServerProps)
-      const hasLegacyStaticProps = !!(await mod.unstable_getStaticProps)
-      const hasLegacyStaticPaths = !!(await mod.unstable_getStaticPaths)
-      const hasLegacyStaticParams = !!(await mod.unstable_getStaticParams)
+      const hasStaticProps = !!mod.getStaticProps
+      const hasStaticPaths = !!mod.getStaticPaths
+      const hasServerProps = !!mod.getServerSideProps
+      const hasLegacyServerProps = !!(await mod.ComponentMod
+        .unstable_getServerProps)
+      const hasLegacyStaticProps = !!(await mod.ComponentMod
+        .unstable_getStaticProps)
+      const hasLegacyStaticPaths = !!(await mod.ComponentMod
+        .unstable_getStaticPaths)
+      const hasLegacyStaticParams = !!(await mod.ComponentMod
+        .unstable_getStaticParams)
 
       if (hasLegacyStaticParams) {
         throw new Error(
@@ -847,16 +951,21 @@ export async function isPageStatic(
           encodedPaths: encodedPrerenderRoutes,
         } = await buildStaticPaths(
           page,
-          mod.getStaticPaths,
+          mod.getStaticPaths!,
+          configFileName,
           locales,
           defaultLocale
         ))
       }
 
       const isNextImageImported = (global as any).__NEXT_IMAGE_IMPORTED
-      const config = mod.config || {}
+      const config: PageConfig = mod.pageConfig
       return {
-        isStatic: !hasStaticProps && !hasGetInitialProps && !hasServerProps,
+        isStatic:
+          !hasStaticProps &&
+          !hasGetInitialProps &&
+          !hasServerProps &&
+          !hasFlightData,
         isHybridAmp: config.amp === 'hybrid',
         isAmpOnly: config.amp === true,
         prerenderRoutes,
@@ -864,10 +973,13 @@ export async function isPageStatic(
         encodedPrerenderRoutes,
         hasStaticProps,
         hasServerProps,
+        hasFlightData,
         isNextImageImported,
+        traceIncludes: config.unstable_includeFiles || [],
+        traceExcludes: config.unstable_excludeFiles || [],
       }
     } catch (err) {
-      if (err.code === 'MODULE_NOT_FOUND') return {}
+      if (isError(err) && err.code === 'MODULE_NOT_FOUND') return {}
       throw err
     }
   })
@@ -975,7 +1087,7 @@ export function detectConflictingPaths(
     })
 
     Log.error(
-      'Conflicting paths returned from getStaticPaths, paths must unique per page.\n' +
+      'Conflicting paths returned from getStaticPaths, paths must be unique per page.\n' +
         'See more info here: https://nextjs.org/docs/messages/conflicting-ssg-paths\n\n' +
         conflictingPathsOutput
     )
@@ -994,4 +1106,41 @@ export function getCssFilePaths(buildManifest: BuildManifest): string[] {
   })
 
   return [...cssFiles]
+}
+
+export function getRawPageExtensions(pageExtensions: string[]): string[] {
+  return pageExtensions.filter(
+    (ext) => !ext.startsWith('client.') && !ext.startsWith('server.')
+  )
+}
+
+export function isFlightPage(
+  nextConfig: NextConfigComplete,
+  pagePath: string
+): boolean {
+  if (
+    !(
+      nextConfig.experimental.serverComponents &&
+      nextConfig.experimental.concurrentFeatures
+    )
+  )
+    return false
+
+  const rawPageExtensions = getRawPageExtensions(
+    nextConfig.pageExtensions || []
+  )
+  const isRscPage = rawPageExtensions.some((ext) => {
+    return new RegExp(`\\.server\\.${ext}$`).test(pagePath)
+  })
+  return isRscPage
+}
+
+export function getUnresolvedModuleFromError(
+  error: string
+): string | undefined {
+  const moduleErrorRegex = new RegExp(
+    `Module not found: Can't resolve '(\\w+)'`
+  )
+  const [, moduleName] = error.match(moduleErrorRegex) || []
+  return builtinModules.find((item: string) => item === moduleName)
 }

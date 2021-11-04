@@ -11,8 +11,6 @@ import {
   check,
 } from 'next-test-utils'
 
-jest.setTimeout(1000 * 60 * 2)
-
 const appDir = join(__dirname, '..')
 let appPort
 let app
@@ -56,6 +54,19 @@ const runTests = () => {
 
     expect(await browser.elementByCss('#router-locale').text()).toBe('en')
     expect(await browser.elementByCss('#props-locale').text()).toBe('en')
+  })
+
+  it('should trigger hash change events', async () => {
+    const browser = await webdriver(appPort, `/about#hash`)
+
+    await check(() => browser.eval('window.location.hash'), '#hash')
+
+    await browser.elementByCss('#hash-change').click()
+
+    await check(() => browser.eval('window.hashChangeStart'), 'yes')
+    await check(() => browser.eval('window.hashChangeComplete'), 'yes')
+
+    await check(() => browser.eval('window.location.hash'), '#newhash')
   })
 }
 

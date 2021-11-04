@@ -1,13 +1,14 @@
-import { IncomingMessage, ServerResponse } from 'http'
-import { ParsedUrlQuery } from 'querystring'
-import { ComponentType } from 'react'
-import { UrlObject } from 'url'
 import { formatUrl } from './router/utils/format-url'
-import { NextRouter } from './router/router'
-import { Env } from '@next/env'
-import { BuildManifest } from '../../server/get-page-files'
-import { DomainLocales } from '../../server/config'
-import { PreviewData } from 'next/types'
+import type { BuildManifest } from '../../server/get-page-files'
+import type { ComponentType } from 'react'
+import type { DomainLocale } from '../../server/config'
+import type { Env } from '@next/env'
+import type { IncomingMessage, ServerResponse } from 'http'
+import type { NextRouter } from './router/router'
+import type { ParsedUrlQuery } from 'querystring'
+import type { PreviewData } from 'next/types'
+import type { UrlObject } from 'url'
+import { createContext } from 'react'
 
 export type NextComponentType<
   C extends BaseContext = NextPageContext,
@@ -26,12 +27,7 @@ export type DocumentType = NextComponentType<
   DocumentContext,
   DocumentInitialProps,
   DocumentProps
-> & {
-  renderDocument(
-    Document: DocumentType,
-    props: DocumentProps
-  ): React.ReactElement
-}
+>
 
 export type AppType = NextComponentType<
   AppContextType,
@@ -49,11 +45,21 @@ export type AppTreeType = ComponentType<
  */
 export type NextWebVitalsMetric = {
   id: string
-  label: string
-  name: string
   startTime: number
   value: number
-}
+} & (
+  | {
+      label: 'web-vital'
+      name: 'FCP' | 'LCP' | 'CLS' | 'FID' | 'TTFB'
+    }
+  | {
+      label: 'custom'
+      name:
+        | 'Next.js-hydration'
+        | 'Next.js-route-change-to-render'
+        | 'Next.js-render'
+    }
+)
 
 export type Enhancer<C> = (Component: C) => C
 
@@ -71,7 +77,7 @@ export type RenderPageResult = {
 
 export type RenderPage = (
   options?: ComponentsEnhancer
-) => RenderPageResult | Promise<RenderPageResult>
+) => DocumentInitialProps | Promise<DocumentInitialProps>
 
 export type BaseContext = {
   res?: ServerResponse
@@ -98,9 +104,10 @@ export type NEXT_DATA = {
   locale?: string
   locales?: string[]
   defaultLocale?: string
-  domainLocales?: DomainLocales
+  domainLocales?: DomainLocale[]
   scriptLoader?: any[]
   isPreview?: boolean
+  rsc?: boolean
 }
 
 /**
@@ -168,17 +175,26 @@ export type AppPropsType<
   router: R
   __N_SSG?: boolean
   __N_SSP?: boolean
+  __N_RSC?: boolean
 }
 
 export type DocumentContext = NextPageContext & {
   renderPage: RenderPage
+  defaultGetInitialProps(ctx: DocumentContext): Promise<DocumentInitialProps>
 }
 
 export type DocumentInitialProps = RenderPageResult & {
   styles?: React.ReactElement[] | React.ReactFragment
 }
 
-export type DocumentProps = DocumentInitialProps & {
+export type DocumentProps = DocumentInitialProps & HtmlProps
+
+export type MaybeDeferContentHook = (
+  name: string,
+  contentFn: () => JSX.Element
+) => [boolean, JSX.Element]
+
+export type HtmlProps = {
   __NEXT_DATA__: NEXT_DATA
   dangerousAsPath: string
   docComponentsRendered: {
@@ -202,6 +218,9 @@ export type DocumentProps = DocumentInitialProps & {
   scriptLoader: { afterInteractive?: string[]; beforeInteractive?: any[] }
   locale?: string
   disableOptimizedLoading?: boolean
+  styles?: React.ReactElement[] | React.ReactFragment
+  head?: Array<JSX.Element | null>
+  useMaybeDeferContent: MaybeDeferContentHook
 }
 
 /**
@@ -318,6 +337,20 @@ export function isResSent(res: ServerResponse) {
   return res.finished || res.headersSent
 }
 
+export function normalizeRepeatedSlashes(url: string) {
+  const urlParts = url.split('?')
+  const urlNoQuery = urlParts[0]
+
+  return (
+    urlNoQuery
+      // first we replace any non-encoded backslashes with forward
+      // then normalize repeated forward slashes
+      .replace(/\\/g, '/')
+      .replace(/\/\/+/g, '/') +
+    (urlParts[1] ? `?${urlParts.slice(1).join('?')}` : '')
+  )
+}
+
 export async function loadGetInitialProps<
   C extends BaseContext,
   IP = {},
@@ -406,3 +439,10 @@ export const ST =
   SP &&
   typeof performance.mark === 'function' &&
   typeof performance.measure === 'function'
+
+export class DecodeError extends Error {}
+
+export const HtmlContext = createContext<HtmlProps>(null as any)
+if (process.env.NODE_ENV !== 'production') {
+  HtmlContext.displayName = 'HtmlContext'
+}
