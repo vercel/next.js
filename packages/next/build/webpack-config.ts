@@ -1430,7 +1430,8 @@ export default async function getBaseWebpackConfig(
           resourceRegExp: /react-is/,
           contextRegExp: /next[\\/]dist[\\/]/,
         }),
-      isServerless && isServer && !webServerRuntime && new ServerlessPlugin(),
+      ((isServerless && isServer) || webServerRuntime) &&
+        new ServerlessPlugin(),
       isServer &&
         !webServerRuntime &&
         new PagesManifestPlugin({ serverless: isLikeServerless, dev }),
