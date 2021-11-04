@@ -629,7 +629,7 @@ export default async function getBaseWebpackConfig(
         prev.push(path.join(pagesDir, `_document.${ext}`))
         return prev
       }, [] as string[]),
-      `next/dist/pages/_document${hasServerComponents ? '.modern' : ''}.js`,
+      `next/dist/pages/_document${hasServerComponents ? '.web' : ''}.js`,
     ]
   }
 
