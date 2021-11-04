@@ -132,7 +132,9 @@ export default async function build(
   debugOutput = false,
   runLint = true
 ): Promise<void> {
-  const nextBuildSpan = trace('next-build')
+  const nextBuildSpan = trace('next-build', undefined, {
+    attrs: { version: process.env.__NEXT_VERSION },
+  })
 
   const buildResult = await nextBuildSpan.traceAsyncFn(async () => {
     // attempt to load global env values so they are available in next.config.js
@@ -1225,9 +1227,6 @@ export default async function build(
                 '**/next/dist/compiled/@ampproject/toolbox-optimizer/**/*',
                 '**/next/dist/server/lib/squoosh/**/*.wasm',
                 '**/next/dist/compiled/webpack/(bundle4|bundle5).js',
-                '**/node_modules/react/**/*.development.js',
-                '**/node_modules/react-dom/**/*.development.js',
-                '**/node_modules/use-subscription/**/*.development.js',
                 '**/node_modules/sharp/**/*',
                 '**/node_modules/webpack5/**/*',
               ],

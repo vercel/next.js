@@ -24,7 +24,6 @@ export const uh = bar
 
 export const foo = css`div { color: ${color}}`
 
-// TODO: the next 3 should not transformed as dynamic
 css.resolve`
   div {
     color: ${colors.green.light};

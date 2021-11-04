@@ -225,6 +225,12 @@ async function runBasicTests(context) {
     const html = await renderViaHTTP(context.appPort, '/dynamic-imports')
     expect(html).toContain('foo.client')
   })
+  
+  it('should support multi-level server component imports', async () => {
+    const html = await renderViaHTTP(context.appPort, '/multi')
+    expect(html).toContain('bar.server.js:')
+    expect(html).toContain('foo.client')
+  })
 }
 
 function runSuite(suiteName, env, { runTests, before, after }) {

@@ -42,17 +42,18 @@ async function parseImportsInfo(
         // When importing from a server component, ignore
         const importSource = node.source.value
 
-        if (
-          !(
-            isClientComponent(importSource, pageExtensions) ||
-            isNextComponent(importSource) ||
-            isImageImport(importSource)
-          )
-        ) {
-          continue
-        }
-
+        // For the client compilation, we have to always import the component to
+        // ensure that all dependencies are tracked.
         if (!isClientCompilation) {
+          if (
+            !(
+              isClientComponent(importSource, pageExtensions) ||
+              isNextComponent(importSource) ||
+              isImageImport(importSource)
+            )
+          ) {
+            continue
+          }
           transformedSource += source.substr(
             lastIndex,
             node.source.start - lastIndex
@@ -104,5 +105,6 @@ export default async function transformSource(
   const defaultExportNoop = isClientCompilation
     ? `\nexport default function Comp(){}\nComp.__next_rsc__=1`
     : ''
+
   return transformed + noop + defaultExportNoop
 }
