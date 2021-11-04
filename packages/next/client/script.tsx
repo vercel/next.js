@@ -41,11 +41,6 @@ const loadScript = (props: ScriptProps): void => {
 
   const cacheKey = id || src
 
-  // Script has already loaded
-  if (cacheKey && LoadCache.has(cacheKey)) {
-    return
-  }
-
   // Contents of this script are already loading/loaded
   if (ScriptCache.has(src)) {
     LoadCache.add(cacheKey)
