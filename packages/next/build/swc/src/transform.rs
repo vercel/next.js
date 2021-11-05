@@ -34,6 +34,7 @@ use crate::{
 use anyhow::{anyhow, Context as _, Error};
 use napi::{CallContext, Env, JsBoolean, JsBuffer, JsObject, JsString, JsUnknown, Status, Task};
 use std::{
+    convert::TryFrom,
     panic::{catch_unwind, AssertUnwindSafe},
     sync::Arc,
 };
@@ -120,18 +121,14 @@ where
     let unknown_src = cx.get::<JsUnknown>(0)?;
     let src = match unknown_src.get_type()? {
         napi::ValueType::String => napi::Result::Ok(
-            unsafe { unknown_src.cast::<JsString>() }
+            JsString::try_from(unknown_src)?
                 .into_utf8()?
                 .as_str()?
                 .to_owned(),
         ),
         napi::ValueType::Object => napi::Result::Ok(
-            String::from_utf8_lossy(
-                unsafe { unknown_src.cast::<JsBuffer>() }
-                    .into_value()?
-                    .as_ref(),
-            )
-            .to_string(),
+            String::from_utf8_lossy(JsBuffer::try_from(unknown_src)?.into_value()?.as_ref())
+                .to_string(),
         ),
         _ => Err(napi::Error::new(
             Status::GenericFailure,
