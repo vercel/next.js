@@ -4,10 +4,13 @@ import postcss from 'postcss'
 
 export async function __overrideCssConfiguration(
   rootDirectory: string,
-  isProduction: boolean,
+  supportedBrowsers: string[] | undefined,
   config: webpack.Configuration
 ) {
-  const postCssPlugins = await getPostCssPlugins(rootDirectory, isProduction)
+  const postCssPlugins = await getPostCssPlugins(
+    rootDirectory,
+    supportedBrowsers
+  )
 
   function patch(rule: webpack.RuleSetRule) {
     if (

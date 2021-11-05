@@ -1,26 +1,26 @@
-import loaderUtils from 'next/dist/compiled/loader-utils'
-import { getStringifiedAbsolutePath } from './utils'
+import { stringifyRequest } from '../../stringify-request'
 
-export default function middlewareRSCLoader(this: any) {
+export default async function middlewareRSCLoader(this: any) {
   const {
     absolutePagePath,
+    absoluteAppPath,
+    absoluteDocumentPath,
     basePath,
-    isServerComponent,
+    isServerComponent: isServerComponentQuery,
     assetPrefix,
     buildId,
-  } = loaderUtils.getOptions(this)
-  const stringifiedAbsolutePagePath = loaderUtils.stringifyRequest(
+  } = this.getOptions()
+
+  const isServerComponent = isServerComponentQuery === 'true'
+  const stringifiedAbsolutePagePath = stringifyRequest(this, absolutePagePath)
+  const stringifiedAbsoluteAppPath = stringifyRequest(this, absoluteAppPath)
+  const stringifiedAbsoluteDocumentPath = stringifyRequest(
     this,
-    absolutePagePath
+    absoluteDocumentPath
   )
-  const stringifiedAbsoluteDocumentPath = getStringifiedAbsolutePath(
-    this,
-    './pages/_document'
-  )
-  const stringifiedAbsoluteAppPath = getStringifiedAbsolutePath(
-    this,
-    './pages/_app'
-  )
+
+  let appDefinition = `const App = require(${stringifiedAbsoluteAppPath}).default`
+  let documentDefinition = `const Document = require(${stringifiedAbsoluteDocumentPath}).default`
 
   const transformed = `
         import { adapter } from 'next/dist/server/web/adapter'
@@ -29,40 +29,44 @@ export default function middlewareRSCLoader(this: any) {
         import { renderToHTML } from 'next/dist/server/web/render'
 
         import React, { createElement } from 'react'
-        import ReactDOMServer from 'react-dom/server.browser'
 
         ${
           isServerComponent
             ? `
-        import { renderToReadableStream } from 'react-server-dom-webpack/writer.browser.server'
-        import { createFromReadableStream } from 'react-server-dom-webpack'`
+        import { renderToReadableStream } from 'next/dist/compiled/react-server-dom-webpack/writer.browser.server'
+        import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack'`
             : ''
         }
 
-        var {
+        ${appDefinition}
+        ${documentDefinition}
+        
+        const {
           default: Page,
           config,
           getStaticProps,
           getServerSideProps,
           getStaticPaths
         } = require(${stringifiedAbsolutePagePath})
-        var Document = require(${stringifiedAbsoluteDocumentPath}).default
-        var App = require(${stringifiedAbsoluteAppPath}).default
 
         const buildManifest = self.__BUILD_MANIFEST
         const reactLoadableManifest = self.__REACT_LOADABLE_MANIFEST
-        const rscManifest = self._middleware_rsc_manifest
+        const rscManifest = self.__RSC_MANIFEST
 
         if (typeof Page !== 'function') {
-          throw new Error('Your page must export a \`default\` component');
+          throw new Error('Your page must export a \`default\` component')
         }
 
-        function wrapReadable (readable) {
-          var encoder = new TextEncoder()
-          var transformStream = new TransformStream()
-          var writer = transformStream.writable.getWriter()
-          var reader = readable.getReader()
-          var process = () => {
+        function renderError(err, status) {
+          return new Response(err.toString(), {status})
+        }
+
+        function wrapReadable(readable) {
+          const encoder = new TextEncoder()
+          const transformStream = new TransformStream()
+          const writer = transformStream.writable.getWriter()
+          const reader = readable.getReader()
+          const process = () => {
             reader.read().then(({ done, value }) => {
               if (!done) {
                 writer.write(typeof value === 'string' ? encoder.encode(value) : value)
@@ -83,7 +87,7 @@ export default function middlewareRSCLoader(this: any) {
 
         let responseCache
         const FlightWrapper = props => {
-          var response = responseCache
+          let response = responseCache
           if (!response) {
             responseCache = response = createFromReadableStream(renderFlight(props))
           }
@@ -103,6 +107,11 @@ export default function middlewareRSCLoader(this: any) {
         function render(request) {
           const url = request.nextUrl
           const query = Object.fromEntries(url.searchParams)
+
+          if (Document.getInitialProps) {
+            const err = new Error('Document.getInitialProps is not supported with server components, please remove it from pages/_document')
+            return renderError(err, 500)
+          }
 
           // Preflight request
           if (request.method === 'HEAD') {
@@ -142,6 +151,7 @@ export default function middlewareRSCLoader(this: any) {
             // locale: detectedLocale,
             // defaultLocale,
             // domainLocales: i18n?.domains,
+            dev: process.env.NODE_ENV !== 'production',
             App,
             Document,
             buildManifest,

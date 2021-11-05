@@ -90,6 +90,7 @@ import {
   printCustomRoutes,
   printTreeView,
   getCssFilePaths,
+  getUnresolvedModuleFromError,
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
 import { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
@@ -131,7 +132,9 @@ export default async function build(
   debugOutput = false,
   runLint = true
 ): Promise<void> {
-  const nextBuildSpan = trace('next-build')
+  const nextBuildSpan = trace('next-build', undefined, {
+    version: process.env.__NEXT_VERSION as string,
+  })
 
   const buildResult = await nextBuildSpan.traceAsyncFn(async () => {
     // attempt to load global env values so they are available in next.config.js
@@ -147,9 +150,9 @@ export default async function build(
     setGlobal('phase', PHASE_PRODUCTION_BUILD)
     setGlobal('distDir', distDir)
 
-    const webServerRuntime = !!config.experimental.concurrentFeatures
+    const hasConcurrentFeatures = !!config.experimental.concurrentFeatures
     const hasServerComponents =
-      webServerRuntime && !!config.experimental.serverComponents
+      hasConcurrentFeatures && !!config.experimental.serverComponents
 
     const { target } = config
     const buildId: string = await nextBuildSpan
@@ -593,7 +596,7 @@ export default async function build(
             rewrites,
             runWebpackSpan,
           }),
-          webServerRuntime
+          hasConcurrentFeatures
             ? getBaseWebpackConfig(dir, {
                 buildId,
                 reactProductionProfiling,
@@ -689,6 +692,16 @@ export default async function build(
 
       console.error(error)
       console.error()
+
+      // When using the web runtime, common Node.js native APIs are not available.
+      const moduleName = getUnresolvedModuleFromError(error)
+      if (hasConcurrentFeatures && moduleName) {
+        const err = new Error(
+          `Native Node.js APIs are not supported in the Edge Runtime with \`concurrentFeatures\` enabled. Found \`${moduleName}\` imported.\n\n`
+        ) as NextError
+        err.code = 'EDGE_RUNTIME_UNSUPPORTED_API'
+        throw err
+      }
 
       if (
         error.indexOf('private-next-pages') > -1 ||
@@ -904,7 +917,7 @@ export default async function build(
             if (
               !isMiddlewareRoute &&
               !page.match(RESERVED_PAGE) &&
-              !webServerRuntime
+              !hasConcurrentFeatures
             ) {
               try {
                 let isPageStaticSpan =
@@ -1014,7 +1027,7 @@ export default async function build(
               static: isStatic,
               isSsg,
               isWebSsr:
-                webServerRuntime &&
+                hasConcurrentFeatures &&
                 !isMiddlewareRoute &&
                 !page.match(RESERVED_PAGE),
               isHybridAmp,
@@ -1214,9 +1227,6 @@ export default async function build(
                 '**/next/dist/compiled/@ampproject/toolbox-optimizer/**/*',
                 '**/next/dist/server/lib/squoosh/**/*.wasm',
                 '**/next/dist/compiled/webpack/(bundle4|bundle5).js',
-                '**/node_modules/react/**/*.development.js',
-                '**/node_modules/react-dom/**/*.development.js',
-                '**/node_modules/use-subscription/**/*.development.js',
                 '**/node_modules/sharp/**/*',
                 '**/node_modules/webpack5/**/*',
               ],

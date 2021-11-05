@@ -620,12 +620,20 @@ function runTests(mode) {
         appPort,
         '/layout-fill-inside-nonrelative'
       )
-      await browser.eval(`document.getElementById("img").scrollIntoView()`)
-      await check(async () => {
-        return (await browser.log('browser'))
-          .map((log) => log.message)
-          .join('\n')
-      }, /Image with src (.*)jpg(.*) may not render properly with a parent using position:"static". Consider changing the parent style to position:"relative"/gm)
+      await browser.eval(`document.querySelector("footer").scrollIntoView()`)
+      await waitFor(1000)
+      const warnings = (await browser.log('browser'))
+        .map((log) => log.message)
+        .join('\n')
+      expect(warnings).toMatch(
+        /Image with src (.*)jpg(.*) may not render properly with a parent using position:"static". Consider changing the parent style to position:"relative"/gm
+      )
+      expect(warnings).not.toMatch(
+        /Image with src (.*)png(.*) may not render properly/gm
+      )
+      expect(warnings).not.toMatch(
+        /Image with src (.*)webp(.*) may not render properly/gm
+      )
       expect(await hasRedbox(browser)).toBe(false)
     })
 
@@ -693,6 +701,30 @@ function runTests(mode) {
           await browser.close()
         }
       }
+    })
+
+    it('should warn when loader is missing width', async () => {
+      const browser = await webdriver(appPort, '/invalid-loader')
+      await browser.eval(`document.querySelector("footer").scrollIntoView()`)
+      const warnings = (await browser.log('browser'))
+        .map((log) => log.message)
+        .join('\n')
+      expect(await hasRedbox(browser)).toBe(false)
+      expect(warnings).toMatch(
+        /Image with src (.*)png(.*) has a "loader" property that does not implement width/gm
+      )
+      expect(warnings).not.toMatch(
+        /Image with src (.*)jpg(.*) has a "loader" property that does not implement width/gm
+      )
+      expect(warnings).not.toMatch(
+        /Image with src (.*)webp(.*) has a "loader" property that does not implement width/gm
+      )
+      expect(warnings).not.toMatch(
+        /Image with src (.*)gif(.*) has a "loader" property that does not implement width/gm
+      )
+      expect(warnings).not.toMatch(
+        /Image with src (.*)tiff(.*) has a "loader" property that does not implement width/gm
+      )
     })
   } else {
     //server-only tests

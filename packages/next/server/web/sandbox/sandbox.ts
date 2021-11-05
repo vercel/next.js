@@ -85,6 +85,7 @@ export async function run(params: {
     }
 
     context.self = context
+    context.globalThis = context
 
     cache = {
       context,
@@ -129,13 +130,10 @@ export async function run(params: {
   const entryPoint = cache.context._ENTRIES[`middleware_${params.name}`]
 
   if (params.ssr) {
-    const rscManifest = cache.context._ENTRIES._middleware_rsc_manifest
     cache = undefined
-
-    if (rscManifest && entryPoint) {
+    if (entryPoint) {
       return entryPoint.default({
         request: params.request,
-        rscManifest,
       })
     }
   }

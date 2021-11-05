@@ -478,10 +478,26 @@ export default class DevServer extends Server {
           `Invalid IncomingMessage received, make sure http.createServer is being used to handle requests.`
         )
       } else {
+        const { basePath } = this.nextConfig
+
         server.on('upgrade', (req, socket, head) => {
+          let assetPrefix = (this.nextConfig.assetPrefix || '').replace(
+            /^\/+/,
+            ''
+          )
+
+          // assetPrefix can be a proxy server with a url locally
+          // if so, it's needed to send these HMR requests with a rewritten url directly to /_next/webpack-hmr
+          // otherwise account for a path-like prefix when listening to socket events
+          if (assetPrefix.startsWith('http')) {
+            assetPrefix = ''
+          } else if (assetPrefix) {
+            assetPrefix = `/${assetPrefix}`
+          }
+
           if (
             req.url?.startsWith(
-              `${this.nextConfig.basePath || ''}/_next/webpack-hmr`
+              `${basePath || assetPrefix || ''}/_next/webpack-hmr`
             )
           ) {
             this.hotReloader?.onHMR(req, socket, head)
