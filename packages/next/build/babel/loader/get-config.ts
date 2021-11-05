@@ -223,6 +223,8 @@ function getFreshConfig(
 
     overrides: loaderOptions.overrides,
 
+    ignore: customConfig?.ignore,
+
     caller: {
       name: 'next-babel-turbo-loader',
       supportsStaticESM: true,
