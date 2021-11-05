@@ -32,7 +32,7 @@ const vm = require('vm')
 const { transformSync } = require('./index')
 
 /**
- * Loads closes package.json in the directory hierarchy
+ * Loads closest package.json in the directory hierarchy
  */
 function loadClosesPackageJson(attempts = 1) {
   if (attempts > 5) {
