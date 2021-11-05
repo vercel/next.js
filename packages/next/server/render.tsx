@@ -1126,22 +1126,24 @@ export async function renderToHTML(
     useMaybeDeferContent,
   }
 
+  const document = (
+    <AmpStateContext.Provider value={ampState}>
+      <HtmlContext.Provider value={htmlProps}>
+        {documentResult.documentElement(htmlProps)}
+      </HtmlContext.Provider>
+    </AmpStateContext.Provider>
+  )
+
   let documentHTML: string
   if (process.browser) {
-    // There is no `renderToStaticMarkup` exposed in the web environment.
+    // There is no `renderToStaticMarkup` exposed in the web environment, use
+    // blocking `renderToReadableStream` to get the similar result.
     let result = ''
-    const readable = (ReactDOMServer as any).renderToReadableStream(
-      <AmpStateContext.Provider value={ampState}>
-        <HtmlContext.Provider value={htmlProps}>
-          {documentResult.documentElement(htmlProps)}
-        </HtmlContext.Provider>
-      </AmpStateContext.Provider>,
-      {
-        onError: (err: any) => {
-          throw err
-        },
-      }
-    )
+    const readable = (ReactDOMServer as any).renderToReadableStream(document, {
+      onError: (err: any) => {
+        throw err
+      },
+    })
     const reader = readable.getReader()
     const decoder = new TextDecoder()
     while (true) {
@@ -1153,13 +1155,7 @@ export async function renderToHTML(
     }
     documentHTML = result
   } else {
-    documentHTML = ReactDOMServer.renderToStaticMarkup(
-      <AmpStateContext.Provider value={ampState}>
-        <HtmlContext.Provider value={htmlProps}>
-          {documentResult.documentElement(htmlProps)}
-        </HtmlContext.Provider>
-      </AmpStateContext.Provider>
-    )
+    documentHTML = ReactDOMServer.renderToStaticMarkup(document)
   }
 
   if (process.env.NODE_ENV !== 'production') {
