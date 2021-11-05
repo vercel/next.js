@@ -1121,8 +1121,18 @@ export async function pages_document(task, opts) {
     .target('dist/pages')
 }
 
+export async function pages_document_server(task, opts) {
+  await task
+    .source('pages/_document.web.tsx')
+    .swc('client', { dev: opts.dev })
+    .target('dist/pages')
+}
+
 export async function pages(task, opts) {
-  await task.parallel(['pages_app', 'pages_error', 'pages_document'], opts)
+  await task.parallel(
+    ['pages_app', 'pages_error', 'pages_document', 'pages_document_server'],
+    opts
+  )
 }
 
 export async function telemetry(task, opts) {

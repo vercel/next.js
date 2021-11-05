@@ -18,7 +18,7 @@ import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 import { MIDDLEWARE_SSR_RUNTIME_WEBPACK } from '../shared/lib/constants'
 
 type ObjectValue<T> = T extends { [key: string]: infer V } ? V : never
-type PagesMapping = {
+export type PagesMapping = {
   [page: string]: string
 }
 
@@ -65,6 +65,7 @@ export function createPagesMapping(
   // we alias these in development and allow webpack to
   // allow falling back to the correct source file so
   // that HMR can work properly when a file is added/removed
+  const documentPage = `_document${hasServerComponents ? '.web' : ''}`
   if (isDev) {
     pages['/_app'] = `${PAGES_DIR_ALIAS}/_app`
     pages['/_error'] = `${PAGES_DIR_ALIAS}/_error`
@@ -72,7 +73,8 @@ export function createPagesMapping(
   } else {
     pages['/_app'] = pages['/_app'] || 'next/dist/pages/_app'
     pages['/_error'] = pages['/_error'] || 'next/dist/pages/_error'
-    pages['/_document'] = pages['/_document'] || 'next/dist/pages/_document'
+    pages['/_document'] =
+      pages['/_document'] || `next/dist/pages/${documentPage}`
   }
   return pages
 }
@@ -159,6 +161,8 @@ export function createEntrypoints(
         name: '[name].js',
         value: `next-middleware-ssr-loader?${stringify({
           page,
+          absoluteAppPath: pages['/_app'],
+          absoluteDocumentPath: pages['/_document'],
           absolutePagePath,
           isServerComponent: isFlight,
           buildId,
