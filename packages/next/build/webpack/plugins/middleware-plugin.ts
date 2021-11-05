@@ -1,4 +1,4 @@
-import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
+import { webpack, sources, webpack5 } from 'next/dist/compiled/webpack/webpack'
 import { getMiddlewareRegex } from '../../../shared/lib/router/utils'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
 import {
@@ -39,7 +39,7 @@ export default class MiddlewarePlugin {
   }
 
   createAssets(
-    compilation: any,
+    compilation: webpack5.Compilation,
     assets: any,
     envPerRoute: Map<string, string[]>
   ) {
@@ -52,6 +52,7 @@ export default class MiddlewarePlugin {
     }
 
     for (const entrypoint of entrypoints.values()) {
+      if (!entrypoint.name) continue
       const result = MIDDLEWARE_FULL_ROUTE_REGEX.exec(entrypoint.name)
       const ssrEntryInfo = ssrEntries.get(entrypoint.name)
 
@@ -111,19 +112,21 @@ export default class MiddlewarePlugin {
     )
   }
 
-  apply(compiler: webpack.Compiler) {
+  apply(compiler: webpack5.Compiler) {
+    const { dev } = this
+    const wp = compiler.webpack
     compiler.hooks.compilation.tap(
       PLUGIN_NAME,
       (compilation, { normalModuleFactory }) => {
         const envPerRoute = new Map<string, string[]>()
 
-        compilation.hooks.finishModules.tap(PLUGIN_NAME, () => {
+        compilation.hooks.afterOptimizeModules.tap(PLUGIN_NAME, () => {
           const { moduleGraph } = compilation as any
           envPerRoute.clear()
 
           for (const [name, info] of compilation.entries) {
             if (name.match(MIDDLEWARE_ROUTE)) {
-              const middlewareEntries = new Set<webpack.Module>()
+              const middlewareEntries = new Set<webpack5.Module>()
               const env = new Set<string>()
 
               const addEntriesFromDependency = (dep: any) => {
@@ -133,19 +136,41 @@ export default class MiddlewarePlugin {
                 }
               }
 
+              const runtime = wp.util.runtime.getEntryRuntime(compilation, name)
+
               info.dependencies.forEach(addEntriesFromDependency)
               info.includeDependencies.forEach(addEntriesFromDependency)
 
               const queue = new Set(middlewareEntries)
               for (const module of queue) {
-                const { buildInfo } = module as any
-                if (buildInfo?.usingIndirectEval) {
-                  // @ts-ignore TODO: Remove ignore when webpack 5 is stable
-                  const error = new webpack.WebpackError(
-                    `\`eval\` not allowed in Middleware ${name}`
+                const { buildInfo } = module
+                if (
+                  !dev &&
+                  buildInfo &&
+                  isUsedByExports({
+                    module,
+                    moduleGraph,
+                    runtime,
+                    usedByExports: buildInfo.usingIndirectEval,
+                  })
+                ) {
+                  if (
+                    /node_modules[\\/]regenerator-runtime[\\/]runtime\.js/.test(
+                      module.identifier()
+                    )
+                  )
+                    continue
+                  const error = new wp.WebpackError(
+                    `Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Middleware ${name}${
+                      typeof buildInfo.usingIndirectEval !== 'boolean'
+                        ? `\nUsed by ${Array.from(
+                            buildInfo.usingIndirectEval
+                          ).join(', ')}`
+                        : ''
+                    }`
                   )
                   error.module = module
-                  compilation.warnings.push(error)
+                  compilation.errors.push(error)
                 }
 
                 if (buildInfo?.nextUsedEnvVars !== undefined) {
@@ -167,19 +192,82 @@ export default class MiddlewarePlugin {
           }
         })
 
-        const handler = (parser: any) => {
-          const flagModule = () => {
-            parser.state.module.buildInfo.usingIndirectEval = true
+        const handler = (parser: webpack5.javascript.JavascriptParser) => {
+          const wrapExpression = (expr: any) => {
+            if (dev) {
+              const dep1 = new wp.dependencies.ConstDependency(
+                '__next_eval__(function() { return ',
+                expr.range[0]
+              )
+              dep1.loc = expr.loc
+              parser.state.module.addPresentationalDependency(dep1)
+              const dep2 = new wp.dependencies.ConstDependency(
+                '})',
+                expr.range[1]
+              )
+              dep2.loc = expr.loc
+              parser.state.module.addPresentationalDependency(dep2)
+            }
+            expressionHandler()
+            return true
           }
 
-          parser.hooks.expression.for('eval').tap(PLUGIN_NAME, flagModule)
-          parser.hooks.expression.for('Function').tap(PLUGIN_NAME, flagModule)
+          const flagModule = (
+            usedByExports: boolean | Set<string> | undefined
+          ) => {
+            if (usedByExports === undefined) usedByExports = true
+            const old = parser.state.module.buildInfo.usingIndirectEval
+            if (old === true || usedByExports === false) return
+            if (!old || usedByExports === true) {
+              parser.state.module.buildInfo.usingIndirectEval = usedByExports
+              return
+            }
+            const set = new Set(old)
+            for (const item of usedByExports) {
+              set.add(item)
+            }
+            parser.state.module.buildInfo.usingIndirectEval = set
+          }
+
+          const expressionHandler = () => {
+            wp.optimize.InnerGraph.onUsage(parser.state, flagModule)
+          }
+
+          const ignore = () => {
+            return true
+          }
+
+          // wrapping
+          parser.hooks.call.for('eval').tap(PLUGIN_NAME, wrapExpression)
+          parser.hooks.call.for('global.eval').tap(PLUGIN_NAME, wrapExpression)
+          parser.hooks.call.for('Function').tap(PLUGIN_NAME, wrapExpression)
+          parser.hooks.call
+            .for('global.Function')
+            .tap(PLUGIN_NAME, wrapExpression)
+          parser.hooks.new.for('Function').tap(PLUGIN_NAME, wrapExpression)
+          parser.hooks.new
+            .for('global.Function')
+            .tap(PLUGIN_NAME, wrapExpression)
+
+          // fallbacks
+          parser.hooks.expression
+            .for('eval')
+            .tap(PLUGIN_NAME, expressionHandler)
+          parser.hooks.expression
+            .for('Function')
+            .tap(PLUGIN_NAME, expressionHandler)
+          parser.hooks.expression
+            .for('Function.prototype')
+            .tap(PLUGIN_NAME, ignore)
           parser.hooks.expression
             .for('global.eval')
-            .tap(PLUGIN_NAME, flagModule)
+            .tap(PLUGIN_NAME, expressionHandler)
           parser.hooks.expression
             .for('global.Function')
-            .tap(PLUGIN_NAME, flagModule)
+            .tap(PLUGIN_NAME, expressionHandler)
+          parser.hooks.expression
+            .for('global.Function.prototype')
+            .tap(PLUGIN_NAME, ignore)
 
           const memberChainHandler = (_expr: any, members: string[]) => {
             if (
@@ -236,4 +324,22 @@ export default class MiddlewarePlugin {
       }
     )
   }
+}
+
+function isUsedByExports(args: {
+  module: webpack5.Module
+  moduleGraph: webpack5.ModuleGraph
+  runtime: any
+  usedByExports: boolean | Set<string> | undefined
+}): boolean {
+  const { moduleGraph, runtime, module, usedByExports } = args
+  if (usedByExports === undefined) return false
+  if (typeof usedByExports === 'boolean') return usedByExports
+  const exportsInfo = moduleGraph.getExportsInfo(module)
+  const wp = webpack as unknown as typeof webpack5
+  for (const exportName of usedByExports) {
+    if (exportsInfo.getUsed(exportName, runtime) !== wp.UsageState.Unused)
+      return true
+  }
+  return false
 }
