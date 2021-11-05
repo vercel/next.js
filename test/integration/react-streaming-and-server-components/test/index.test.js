@@ -190,7 +190,7 @@ const documentSuite = {
 
       expect(res.status).toBe(500)
       expect(html).toContain(
-        'Document.getInitialProps is not supported with server components, please remove it from pages/_document'
+        'Error: `getInitialProps` in Document component is not supported with `concurrentFeatures` enabled.'
       )
     })
   },
