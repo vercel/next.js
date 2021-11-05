@@ -91,6 +91,7 @@ import {
   printTreeView,
   getCssFilePaths,
   getUnresolvedModuleFromError,
+  copyTracedFiles,
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
 import { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
@@ -101,6 +102,7 @@ import isError, { NextError } from '../lib/is-error'
 import { TelemetryPlugin } from './webpack/plugins/telemetry-plugin'
 import { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 import type { webpack5 as webpack } from 'next/dist/compiled/webpack/webpack'
+import { recursiveCopy } from '../lib/recursive-copy'
 
 const RESERVED_PAGE = /^\/(_app|_error|_document|api(\/|$))/
 
@@ -552,6 +554,7 @@ export default async function build(
           path.relative(distDir, manifestPath),
           BUILD_MANIFEST,
           PRERENDER_MANIFEST,
+          path.join(SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
           hasServerComponents
             ? path.join(SERVER_DIRECTORY, MIDDLEWARE_FLIGHT_MANIFEST + '.js')
             : null,
@@ -1359,6 +1362,20 @@ export default async function build(
       'utf8'
     )
 
+    if (config.experimental.outputStandalone) {
+      await nextBuildSpan
+        .traceChild('copy-traced-files')
+        .traceAsyncFn(async () => {
+          await copyTracedFiles(
+            dir,
+            distDir,
+            pageKeys,
+            config.experimental.outputFileTracingRoot || dir,
+            requiredServerFiles.config
+          )
+        })
+    }
+
     const finalPrerenderRoutes: { [route: string]: SsgRoute } = {}
     const tbdPrerenderRoutes: string[] = []
     let ssgNotFoundPaths: string[] = []
@@ -1950,6 +1967,39 @@ export default async function build(
       }
       return Promise.reject(err)
     })
+
+    if (config.experimental.outputStandalone) {
+      for (const file of [
+        ...requiredServerFiles.files,
+        path.join(config.distDir, SERVER_FILES_MANIFEST),
+      ]) {
+        const filePath = path.join(dir, file)
+        await promises.copyFile(
+          filePath,
+          path.join(
+            distDir,
+            'standalone',
+            path.relative(
+              config.experimental.outputFileTracingRoot || dir,
+              filePath
+            )
+          )
+        )
+      }
+      await recursiveCopy(
+        path.join(distDir, SERVER_DIRECTORY, 'pages'),
+        path.join(
+          distDir,
+          'standalone',
+          path.relative(
+            config.experimental.outputFileTracingRoot || dir,
+            distDir
+          ),
+          SERVER_DIRECTORY,
+          'pages'
+        )
+      )
+    }
 
     staticPages.forEach((pg) => allStaticPages.add(pg))
     pageInfos.forEach((info: PageInfo, key: string) => {

@@ -156,6 +156,7 @@ export type NextConfig = { [key: string]: any } & {
     fullySpecified?: boolean
     urlImports?: NonNullable<webpack5.Configuration['experiments']>['buildHttp']
     outputFileTracingRoot?: string
+    outputStandalone?: boolean
   }
 }
 
@@ -238,6 +239,7 @@ export const defaultConfig: NextConfig = {
     serverComponents: false,
     fullySpecified: false,
     outputFileTracingRoot: process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT || '',
+    outputStandalone: !!process.env.NEXT_PRIVATE_STANDALONE,
   },
   future: {
     strictPostcssConfiguration: false,
