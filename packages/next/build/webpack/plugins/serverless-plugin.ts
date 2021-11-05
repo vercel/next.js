@@ -12,6 +12,7 @@ export class ServerlessPlugin {
       const hook = compilation.hooks.optimizeChunks
 
       hook.tap('ServerlessPlugin', (chunks) => {
+        const chunkGraph = (compilation as any).chunkGraph
         for (const chunk of chunks) {
           // If chunk is not an entry point skip them
           if (!chunk.hasEntryModule()) {

@@ -17,7 +17,7 @@ export const base = curry(function base(
   config.target = !ctx.targetWeb
     ? 'node12.22'
     : ctx.webServerRuntime
-    ? 'webworker'
+    ? ['web', 'es6']
     : ['web', 'es5']
 
   // https://webpack.js.org/configuration/devtool/#development

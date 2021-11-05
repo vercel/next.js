@@ -5,7 +5,7 @@ const Foo = lazy(() => import('../components/foo.client'))
 export default function Page() {
   return (
     <div>
-      <Suspense fallback="loading">
+      <Suspense fallback="loading...">
         <Foo />
       </Suspense>
     </div>
