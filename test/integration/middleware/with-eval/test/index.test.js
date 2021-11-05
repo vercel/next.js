@@ -1,5 +1,6 @@
 /* eslint-env jest */
 
+import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { join } from 'path'
 import {
   fetchViaHTTP,
@@ -7,6 +8,7 @@ import {
   killApp,
   launchApp,
   nextBuild,
+  waitFor,
 } from 'next-test-utils'
 
 const context = {}
@@ -22,6 +24,7 @@ describe('Middleware usage of dynamic code evaluation', () => {
     beforeAll(async () => {
       context.appPort = await findPort()
       context.app = await launchApp(context.appDir, context.appPort, {
+        env: { __NEXT_TEST_WITH_DEVTOOL: 1 },
         onStdout(msg) {
           output += msg
         },
@@ -37,13 +40,20 @@ describe('Middleware usage of dynamic code evaluation', () => {
     it('shows a warning when running code with eval', async () => {
       const res = await fetchViaHTTP(context.appPort, `/using-eval`)
       const json = await res.json()
+      await waitFor(500)
       expect(json.value).toEqual(100)
       expect(output).toContain(DYNAMIC_CODE_ERROR)
+      expect(output).toContain('DynamicCodeEvaluationWarning')
+      expect(output).toContain('pages/_middleware')
+      expect(output).toContain('lib/utils.js')
+      expect(output).toContain('usingEval')
+      expect(stripAnsi(output)).toContain("value: eval('100')")
     })
 
     it('does not show warning when no code uses eval', async () => {
       const res = await fetchViaHTTP(context.appPort, `/not-using-eval`)
       const json = await res.json()
+      await waitFor(500)
       expect(json.value).toEqual(100)
       expect(output).not.toContain(DYNAMIC_CODE_ERROR)
     })
@@ -61,6 +71,8 @@ describe('Middleware usage of dynamic code evaluation', () => {
 
     it('should have middleware warning during build', () => {
       expect(buildResult.stderr).toContain(`Failed to compile`)
+      expect(buildResult.stderr).toContain(`Used by usingEval`)
+      expect(buildResult.stderr).toContain(`./pages/_middleware.js`)
       expect(buildResult.stderr).toContain(DYNAMIC_CODE_ERROR)
     })
   })

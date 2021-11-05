@@ -10,6 +10,7 @@ import vm from 'vm'
 let cache:
   | {
       context: { [key: string]: any }
+      onWarning: (warn: Error) => void
       paths: Map<string, string>
       require: Map<string, any>
       sandbox: vm.Context
@@ -34,6 +35,7 @@ export function clearSandboxCache(path: string, content: Buffer | string) {
 
 export async function run(params: {
   name: string
+  onWarning: (warn: Error) => void
   paths: string[]
   request: RequestData
   ssr: boolean
@@ -91,6 +93,7 @@ export async function run(params: {
 
     cache = {
       context,
+      onWarning: params.onWarning,
       paths: new Map<string, string>(),
       require: new Map<string, any>([
         [require.resolve('next/dist/compiled/cookie'), { exports: cookie }],
@@ -121,6 +124,8 @@ export async function run(params: {
         map: { Request: 'Request' },
       },
     ])
+  } else {
+    cache.onWarning = params.onWarning
   }
 
   for (const paramPath of params.paths) {
@@ -233,12 +238,13 @@ function isRequestLike(obj: unknown): obj is Request {
 function __next_eval__(fn: Function) {
   const key = fn.toString()
   if (!cache?.warnedEvals.has(key)) {
-    console.warn(
-      new Error(
-        `Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Middleware`
-      ).stack
+    const warning = new Error(
+      `Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Middleware`
     )
+    warning.name = 'DynamicCodeEvaluationWarning'
+    Error.captureStackTrace(warning, __next_eval__)
     cache?.warnedEvals.add(key)
+    cache?.onWarning(warning)
   }
   return fn()
 }

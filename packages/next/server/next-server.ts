@@ -611,6 +611,7 @@ export default class Server {
     response: ServerResponse
     parsedUrl: ParsedNextUrl
     parsed: UrlWithParsedQuery
+    onWarning?: (warning: Error) => void
   }): Promise<FetchEventResult | null> {
     this.middlewareBetaWarning()
 
@@ -672,6 +673,12 @@ export default class Server {
             page: page,
           },
           ssr: !!this.nextConfig.experimental.concurrentFeatures,
+          onWarning: (warning: Error) => {
+            if (params.onWarning) {
+              warning.message += ` "./${middlewareInfo.name}"`
+              params.onWarning(warning)
+            }
+          },
         })
 
         for (let [key, value] of result.response.headers) {
