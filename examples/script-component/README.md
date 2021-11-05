@@ -6,16 +6,16 @@ This example shows how to use Next.js along with `next/script` component. Before
 
 Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-script-component&project-name=with-script-component&repository-name=with-script-component)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/script-component&project-name=script-component&repository-name=script-component)
 
 ## How to use
 
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-script-component with-script-component-app
+npx create-next-app --example script-component script-component-app
 # or
-yarn create next-app --example with-script-component with-script-component-app
+yarn create next-app --example script-component script-component-app
 ```
 
 Next, copy the `.env.local.example` file in this directory to `.env.local` (which will be ignored by Git):
