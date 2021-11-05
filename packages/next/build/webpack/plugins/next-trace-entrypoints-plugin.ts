@@ -19,12 +19,9 @@ import { NextConfigComplete } from '../../../server/config-shared'
 
 const PLUGIN_NAME = 'TraceEntryPointsPlugin'
 const TRACE_IGNORES = [
-  '**/*/node_modules/react/**/*.development.js',
-  '**/*/node_modules/react-dom/**/*.development.js',
   '**/*/next/dist/server/next.js',
   '**/*/next/dist/bin/next',
 ]
-const root = nodePath.parse(process.cwd()).root
 
 function getModuleFromDependency(
   compilation: any,
@@ -83,6 +80,7 @@ function getFilesMapFromReasons(
 
 export class TraceEntryPointsPlugin implements webpack5.WebpackPluginInstance {
   private appDir: string
+  private tracingRoot: string
   private entryTraces: Map<string, Set<string>>
   private excludeFiles: string[]
   private esmExternals?: NextConfigComplete['experimental']['esmExternals']
@@ -93,10 +91,12 @@ export class TraceEntryPointsPlugin implements webpack5.WebpackPluginInstance {
     excludeFiles,
     esmExternals,
     staticImageImports,
+    outputFileTracingRoot,
   }: {
     appDir: string
     excludeFiles?: string[]
     staticImageImports: boolean
+    outputFileTracingRoot?: string
     esmExternals?: NextConfigComplete['experimental']['esmExternals']
   }) {
     this.appDir = appDir
@@ -104,6 +104,7 @@ export class TraceEntryPointsPlugin implements webpack5.WebpackPluginInstance {
     this.esmExternals = esmExternals
     this.excludeFiles = excludeFiles || []
     this.staticImageImports = staticImageImports
+    this.tracingRoot = outputFileTracingRoot || appDir
   }
 
   // Here we output all traced assets and webpack chunks to a
@@ -143,7 +144,7 @@ export class TraceEntryPointsPlugin implements webpack5.WebpackPluginInstance {
       }
 
       const result = await nodeFileTrace([...chunksToTrace], {
-        base: root,
+        base: this.tracingRoot,
         processCwd: this.appDir,
         readFile: async (path) => {
           if (chunksToTrace.has(path)) {
@@ -195,9 +196,9 @@ export class TraceEntryPointsPlugin implements webpack5.WebpackPluginInstance {
 
         entryFiles.forEach((file) => {
           parentFilesMap
-            .get(nodePath.relative(root, file))
+            .get(nodePath.relative(this.tracingRoot, file))
             ?.forEach((child) => {
-              allEntryFiles.add(nodePath.join(root, child))
+              allEntryFiles.add(nodePath.join(this.tracingRoot, child))
             })
         })
         // don't include the entry itself in the trace
@@ -328,7 +329,7 @@ export class TraceEntryPointsPlugin implements webpack5.WebpackPluginInstance {
               })
               .traceAsyncFn(async () => {
                 const result = await nodeFileTrace(entriesToTrace, {
-                  base: root,
+                  base: this.tracingRoot,
                   processCwd: this.appDir,
                   readFile,
                   readlink,
@@ -357,25 +358,28 @@ export class TraceEntryPointsPlugin implements webpack5.WebpackPluginInstance {
                 const parentFilesMap = getFilesMapFromReasons(fileList, reasons)
                 entryPaths.forEach((entry) => {
                   const entryName = entryNameMap.get(entry)!
-                  const normalizedEntry = nodePath.relative(root, entry)
+                  const normalizedEntry = nodePath.relative(
+                    this.tracingRoot,
+                    entry
+                  )
                   const curExtraEntries = additionalEntries.get(entryName)
                   const finalDeps = new Set<string>()
 
                   parentFilesMap.get(normalizedEntry)?.forEach((dep) => {
-                    finalDeps.add(nodePath.join(root, dep))
+                    finalDeps.add(nodePath.join(this.tracingRoot, dep))
                   })
 
                   if (curExtraEntries) {
                     for (const extraEntry of curExtraEntries.keys()) {
                       const normalizedExtraEntry = nodePath.relative(
-                        root,
+                        this.tracingRoot,
                         extraEntry
                       )
                       finalDeps.add(extraEntry)
                       parentFilesMap
                         .get(normalizedExtraEntry)
                         ?.forEach((dep) => {
-                          finalDeps.add(nodePath.join(root, dep))
+                          finalDeps.add(nodePath.join(this.tracingRoot, dep))
                         })
                     }
                   }

@@ -55,6 +55,21 @@ import { TelemetryPlugin } from './webpack/plugins/telemetry-plugin'
 import type { Span } from '../trace'
 import isError from '../lib/is-error'
 import { getRawPageExtensions } from './utils'
+import browserslist from 'browserslist'
+
+function getSupportedBrowsers(
+  dir: string,
+  isDevelopment: boolean
+): string[] | undefined {
+  let browsers: any
+  try {
+    browsers = browserslist.loadConfig({
+      path: dir,
+      env: isDevelopment ? 'development' : 'production',
+    })
+  } catch {}
+  return browsers
+}
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 
@@ -338,6 +353,7 @@ export default async function getBaseWebpackConfig(
     runWebpackSpan: Span
   }
 ): Promise<webpack.Configuration> {
+  const supportedBrowsers = await getSupportedBrowsers(dir, dev)
   const hasRewrites =
     rewrites.beforeFiles.length > 0 ||
     rewrites.afterFiles.length > 0 ||
@@ -613,7 +629,7 @@ export default async function getBaseWebpackConfig(
         prev.push(path.join(pagesDir, `_document.${ext}`))
         return prev
       }, [] as string[]),
-      'next/dist/pages/_document.js',
+      `next/dist/pages/_document${hasServerComponents ? '.web' : ''}.js`,
     ]
   }
 
@@ -1187,7 +1203,7 @@ export default async function getBaseWebpackConfig(
               },
             ]
           : []),
-        ...(webServerRuntime && hasServerComponents
+        ...(hasServerComponents && webServerRuntime
           ? [
               {
                 ...codeCondition,
@@ -1317,6 +1333,9 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_BUILD_INDICATOR': JSON.stringify(
           config.devIndicators.buildActivity
         ),
+        'process.env.__NEXT_BUILD_INDICATOR_POSITION': JSON.stringify(
+          config.devIndicators.buildActivityPosition
+        ),
         'process.env.__NEXT_PLUGINS': JSON.stringify(
           config.experimental.plugins
         ),
@@ -1399,6 +1418,7 @@ export default async function getBaseWebpackConfig(
           appDir: dir,
           esmExternals: config.experimental.esmExternals,
           staticImageImports: !config.images.disableStaticImages,
+          outputFileTracingRoot: config.experimental.outputFileTracingRoot,
         }),
       // Moment.js is an extremely popular library that bundles large locale files
       // by default due to how Webpack interprets its code. This is a practical
@@ -1568,6 +1588,7 @@ export default async function getBaseWebpackConfig(
     pageExtensions: config.pageExtensions,
     trailingSlash: config.trailingSlash,
     buildActivity: config.devIndicators.buildActivity,
+    buildActivityPosition: config.devIndicators.buildActivityPosition,
     productionBrowserSourceMaps: !!config.productionBrowserSourceMaps,
     plugins: config.experimental.plugins,
     reactStrictMode: config.reactStrictMode,
@@ -1671,6 +1692,7 @@ export default async function getBaseWebpackConfig(
   }
 
   webpackConfig = await buildConfiguration(webpackConfig, {
+    supportedBrowsers,
     rootDirectory: dir,
     customAppFile: new RegExp(escapeRegExp(path.join(pagesDir, `_app`))),
     isDevelopment: dev,
@@ -1879,7 +1901,7 @@ export default async function getBaseWebpackConfig(
         )
     }
   } else if (!config.future.strictPostcssConfiguration) {
-    await __overrideCssConfiguration(dir, !dev, webpackConfig)
+    await __overrideCssConfiguration(dir, supportedBrowsers, webpackConfig)
   }
 
   // Inject missing React Refresh loaders so that development mode is fast:

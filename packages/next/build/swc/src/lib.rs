@@ -50,6 +50,7 @@ use swc_ecmascript::{
 
 pub mod amp_attributes;
 mod auto_cjs;
+mod bundle;
 pub mod hook_optimizer;
 pub mod minify;
 pub mod next_dynamic;
@@ -109,6 +110,8 @@ fn init(mut exports: JsObject) -> napi::Result<()> {
             println!("Panic: {:?}\nBacktrace: {:?}", panic_info, backtrace);
         }));
     }
+
+    exports.create_named_method("bundle", bundle::bundle)?;
 
     exports.create_named_method("transform", transform::transform)?;
     exports.create_named_method("transformSync", transform::transform_sync)?;

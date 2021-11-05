@@ -47,7 +47,7 @@ export default function Home() {
       <Suspense fallback={<Spinner />}>
         {/* A component that uses Suspense-based */}
         <Content />
-      <Suspense>
+      </Suspense>
       <Suspense fallback={<Spinner />}>
         <Profile />
       </Suspense>

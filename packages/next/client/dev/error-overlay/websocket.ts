@@ -13,6 +13,7 @@ export function sendMessage(data: any) {
 
 export function connectHMR(options: {
   path: string
+  assetPrefix: string
   timeout: number
   log?: boolean
 }) {
@@ -30,8 +31,18 @@ export function connectHMR(options: {
 
   function init() {
     if (source) source.close()
-    const { protocol, hostname, port } = location
-    const url = `${protocol === 'http:' ? 'ws' : 'wss'}://${hostname}:${port}`
+    const { hostname, port } = location
+    const protocol = location.protocol === 'http:' ? 'ws' : 'wss'
+    const assetPrefix = options.assetPrefix.replace(/^\/+/, '')
+
+    let url = `${protocol}://${hostname}:${port}${
+      assetPrefix ? `/${assetPrefix}` : ''
+    }`
+
+    if (assetPrefix.startsWith('http')) {
+      url = `${protocol}://${assetPrefix.split('://')[1]}`
+    }
+
     source = new window.WebSocket(`${url}${options.path}`)
     source.onopen = handleOnline
     source.onerror = handleDisconnect

@@ -93,6 +93,11 @@ export type NextConfig = { [key: string]: any } & {
   images?: ImageConfig
   devIndicators?: {
     buildActivity?: boolean
+    buildActivityPosition?:
+      | 'bottom-right'
+      | 'bottom-left'
+      | 'top-right'
+      | 'top-left'
   }
   onDemandEntries?: {
     maxInactiveAge?: number
@@ -150,6 +155,7 @@ export type NextConfig = { [key: string]: any } & {
     serverComponents?: boolean
     fullySpecified?: boolean
     urlImports?: NonNullable<webpack5.Configuration['experiments']>['buildHttp']
+    outputFileTracingRoot?: string
   }
 }
 
@@ -179,6 +185,7 @@ export const defaultConfig: NextConfig = {
   images: imageConfigDefault,
   devIndicators: {
     buildActivity: true,
+    buildActivityPosition: 'bottom-right',
   },
   onDemandEntries: {
     maxInactiveAge: 15 * 1000,
@@ -230,6 +237,7 @@ export const defaultConfig: NextConfig = {
     concurrentFeatures: false,
     serverComponents: false,
     fullySpecified: false,
+    outputFileTracingRoot: process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT || '',
   },
   future: {
     strictPostcssConfiguration: false,

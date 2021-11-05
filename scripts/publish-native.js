@@ -20,11 +20,6 @@ const cwd = process.cwd()
       (name) => !name.startsWith('.')
     )
 
-    const publishedPkgs = new Set()
-    // TODO: update to latest version where all packages were
-    // successfully published
-    const fallbackVersion = `12.0.1`
-
     for (let platform of platforms) {
       try {
         let binaryName = `next-swc.${platform}.node`
@@ -48,10 +43,10 @@ const cwd = process.cwd()
             gitref.includes('canary') ? ' --tag canary' : ''
           }`
         )
-        publishedPkgs.add(platform)
       } catch (err) {
         // don't block publishing other versions on single platform error
-        console.error(`Failed to publish`, platform, err)
+        console.error(`Failed to publish`, platform)
+        throw err
       }
       // lerna publish in next step will fail if git status is not clean
       execSync(
@@ -69,11 +64,7 @@ const cwd = process.cwd()
     )
     for (let platform of platforms) {
       let optionalDependencies = nextPkg.optionalDependencies || {}
-      optionalDependencies['@next/swc-' + platform] = publishedPkgs.has(
-        platform
-      )
-        ? version
-        : fallbackVersion
+      optionalDependencies['@next/swc-' + platform] = version
       nextPkg.optionalDependencies = optionalDependencies
     }
     await writeFile(

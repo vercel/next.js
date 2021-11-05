@@ -8,6 +8,7 @@ import { ConfigurationContext, pipe } from './utils'
 export async function build(
   config: webpack.Configuration,
   {
+    supportedBrowsers,
     rootDirectory,
     customAppFile,
     isDevelopment,
@@ -21,6 +22,7 @@ export async function build(
     experimental,
     disableStaticImages,
   }: {
+    supportedBrowsers: string[] | undefined
     rootDirectory: string
     customAppFile: RegExp
     isDevelopment: boolean
@@ -36,6 +38,7 @@ export async function build(
   }
 ): Promise<webpack.Configuration> {
   const ctx: ConfigurationContext = {
+    supportedBrowsers,
     rootDirectory,
     customAppFile,
     isDevelopment,
