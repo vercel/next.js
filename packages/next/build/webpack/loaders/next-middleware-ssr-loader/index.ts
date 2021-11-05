@@ -51,7 +51,7 @@ export default async function middlewareRSCLoader(this: any) {
 
         const buildManifest = self.__BUILD_MANIFEST
         const reactLoadableManifest = self.__REACT_LOADABLE_MANIFEST
-        const rscManifest = self._middleware_rsc_manifest
+        const rscManifest = self.__RSC_MANIFEST
 
         if (typeof Page !== 'function') {
           throw new Error('Your page must export a \`default\` component')

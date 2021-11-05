@@ -191,3 +191,6 @@ export default function swcLoader(inputSource, inputSourceMap) {
       }
     )
 }
+
+// accept Buffers instead of strings
+export const raw = true
