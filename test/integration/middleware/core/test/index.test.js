@@ -254,7 +254,7 @@ function responseTests(locale = '') {
       `${locale}/responses/stream-a-response`
     )
     const html = await res.text()
-    expect(html).toBe('this is a streamed response')
+    expect(html).toBe('this is a streamed response with some text')
   })
 
   it(`${locale} should respond with a body`, async () => {
