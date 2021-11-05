@@ -1140,8 +1140,8 @@ export async function renderToHTML(
     // blocking `renderToReadableStream` to get the similar result.
     let result = ''
     const readable = (ReactDOMServer as any).renderToReadableStream(document, {
-      onError: (err: any) => {
-        throw err
+      onError: (e: any) => {
+        throw e
       },
     })
     const reader = readable.getReader()
