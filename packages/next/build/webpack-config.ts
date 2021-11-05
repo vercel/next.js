@@ -676,6 +676,14 @@ export default async function getBaseWebpackConfig(
                 false,
           }
         : {}),
+
+      ...(webServerRuntime
+        ? {
+            'react-dom/server': dev
+              ? 'react-dom/cjs/react-dom-server.browser.development'
+              : 'react-dom/cjs/react-dom-server.browser.production.min',
+          }
+        : {}),
     },
     ...(targetWeb
       ? {
