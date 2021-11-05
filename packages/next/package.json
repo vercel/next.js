@@ -244,7 +244,7 @@
     "postcss-safe-parser": "6.0.0",
     "postcss-scss": "3.0.5",
     "postcss-value-parser": "4.1.0",
-    "react-server-dom-webpack": "0.0.0-experimental-3c4c1c470-20211021",
+    "react-server-dom-webpack": "0.0.0-experimental-13455d26d-20211104",
     "resolve-url-loader": "3.1.2",
     "sass-loader": "10.2.0",
     "schema-utils2": "npm:schema-utils@2.7.1",
