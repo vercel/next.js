@@ -26,10 +26,9 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 */
 
-const fs = require('fs')
-const path = require('path')
-const vm = require('vm')
-const { transformSync } = require('./index')
+import vm from 'vm'
+import { transformSync } from './index'
+import { getJestSWCOptions } from './options'
 
 /**
  * Loads closest package.json in the directory hierarchy
@@ -53,53 +52,19 @@ const isEsmProject = packageConfig.type === 'module'
 // see https://github.com/facebook/jest/issues/9430
 const isSupportEsm = 'Module' in vm
 
-let swcTransformOpts
-
 module.exports = {
   process(src, filename, jestOptions) {
     if (!/\.[jt]sx?$/.test(filename)) {
       return src
     }
 
-    if (!swcTransformOpts) {
-      swcTransformOpts = buildSwcTransformOpts(jestOptions)
-    }
-
-    if (isSupportEsm) {
-      set(
-        swcTransformOpts,
-        'module.type',
-        isEsm(filename, jestOptions) ? 'es6' : 'commonjs'
-      )
-    }
+    let swcTransformOpts = getJestSWCOptions({
+      filename,
+      esm: isSupportEsm && isEsm(filename, jestOptions),
+    })
 
     return transformSync(src, { ...swcTransformOpts, filename })
   },
-}
-
-function buildSwcTransformOpts(jestOptions) {
-  let swcOptions = getSwcTransformConfig(jestOptions)
-
-  if (!swcOptions) {
-    const swcrc = path.join(process.cwd(), '.swcrc')
-    swcOptions = fs.existsSync(swcrc)
-      ? JSON.parse(fs.readFileSync(swcrc, 'utf-8'))
-      : {}
-  }
-
-  if (!isSupportEsm) {
-    set(swcOptions, 'module.type', 'commonjs')
-  }
-
-  set(swcOptions, 'jsc.transform.hidden.jest', true)
-
-  return swcOptions
-}
-
-function getSwcTransformConfig(jestConfig) {
-  return getJestConfig(jestConfig).transform.find(([, transformerPath]) =>
-    transformerPath.includes('next/jest')
-  )?.[2]
 }
 
 function getJestConfig(jestConfig) {
@@ -117,17 +82,4 @@ function isEsm(filename, jestOptions) {
       filename.endsWith(ext)
     )
   )
-}
-
-function set(obj, filepath, value) {
-  let o = obj
-  const parents = filepath.split('.')
-  const key = parents.pop()
-
-  for (const prop of parents) {
-    if (o[prop] == null) o[prop] = {}
-    o = o[prop]
-  }
-
-  o[key] = value
 }
