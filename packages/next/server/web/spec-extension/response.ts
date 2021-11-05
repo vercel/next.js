@@ -3,6 +3,13 @@ import type { CookieSerializeOptions } from 'next/dist/compiled/cookie'
 import { NextURL } from '../next-url'
 import { toNodeHeaders } from '../utils'
 import cookie from 'next/dist/compiled/cookie'
+import {
+  isArrayBuffer,
+  isArrayBufferView,
+  isBlob,
+  isFormData,
+  isReadableStream,
+} from '../is'
 
 const INTERNALS = Symbol('internal response')
 const REDIRECTS = new Set([301, 302, 303, 307, 308])
@@ -13,8 +20,29 @@ export class NextResponse extends Response {
     url?: NextURL
   }
 
-  constructor(body?: BodyInit | null, init: ResponseInit = {}) {
-    super(body, init)
+  constructor(
+    body?: BodyInit | { [k: string]: any } | null,
+    init: ResponseInit = {}
+  ) {
+    if (
+      body &&
+      typeof body === 'object' &&
+      !isArrayBuffer(body) &&
+      !isArrayBufferView(body) &&
+      !isBlob(body) &&
+      !isFormData(body) &&
+      !isReadableStream(body)
+    ) {
+      super(JSON.stringify(body), {
+        ...init,
+        headers: {
+          'content-type': 'application/json',
+          ...init.headers,
+        },
+      })
+    } else {
+      super(body, init)
+    }
 
     const cookieParser = () => {
       const value = this.headers.get('cookie')
