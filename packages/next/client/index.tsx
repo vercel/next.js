@@ -34,6 +34,7 @@ import { RouteAnnouncer } from './route-announcer'
 import { createRouter, makePublicRouterInstance, useRouter } from './router'
 import isError from '../lib/is-error'
 import { trackWebVitalMetric } from './vitals'
+import { ServerResponse } from './server-root.client'
 
 /// <reference types="react-dom/experimental" />
 
@@ -643,60 +644,38 @@ const wrapApp =
 let RSCComponent: (props: any) => JSX.Element
 if (process.env.__NEXT_RSC) {
   function createResponseCache() {
-    return new Map<string, any>()
+    return new Map<string, ServerResponse>()
   }
+
+  const {
+    createFromFetch,
+  } = require('next/dist/compiled/react-server-dom-webpack')
+
+  const {
+    ServerResponseContext,
+    ServerRoot,
+  } = require('next/dist/client/server-root.client')
 
   const rscCache = createResponseCache()
 
-  const RSCWrapper = ({
-    cacheKey,
-    serialized,
-    _fresh,
-  }: {
-    cacheKey: string
-    serialized?: string
-    _fresh?: boolean
-  }) => {
-    const {
-      createFromFetch,
-    } = require('next/dist/compiled/react-server-dom-webpack')
-    let response = rscCache.get(cacheKey)
-
-    // If there is no cache, or there is serialized data already
-    if (!response) {
-      response = createFromFetch(
-        serialized
-          ? (() => {
-              const t = new TransformStream()
-              t.writable.getWriter().write(new TextEncoder().encode(serialized))
-              return Promise.resolve({ body: t.readable })
-            })()
-          : (() => {
-              const search = location.search
-              const flightReqUrl =
-                location.pathname +
-                search +
-                (search ? '&__flight__' : '?__flight__')
-              return fetch(flightReqUrl)
-            })()
-      )
-      rscCache.set(cacheKey, response)
+  const useServerResponse = (query: string, root: boolean) => {
+    // Try both a Server or Client entry
+    let entry = rscCache.get(query)
+    if (!entry) {
+      entry = createFromFetch(fetch(query)) as ServerResponse
+      rscCache.set(query, entry)
     }
-
-    const root = response.readRoot()
-    return root
+    return entry
   }
 
   RSCComponent = (props: any) => {
-    const { asPath: cacheKey } = useRouter() as any
+    const { asPath } = useRouter() as any
     return (
-      <React.Suspense fallback={null}>
-        <RSCWrapper
-          cacheKey={cacheKey}
-          serialized={(props as any).__flight_serialized__}
-          _fresh={(props as any).__flight_fresh__}
-        />
-      </React.Suspense>
+      <ServerResponseContext.Provider value={useServerResponse}>
+        <React.Suspense fallback={null}>
+          <ServerRoot query={asPath} root={true} />
+        </React.Suspense>
+      </ServerResponseContext.Provider>
     )
   }
 }
