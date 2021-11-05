@@ -2,8 +2,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
-    "start": "next start -p ${PORT:=3000}"
+    "build": "next build"
   },
   "dependencies": {
     "next": "latest",
