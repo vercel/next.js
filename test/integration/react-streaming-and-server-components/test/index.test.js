@@ -3,6 +3,7 @@
 import cheerio from 'cheerio'
 import { join } from 'path'
 import fs from 'fs-extra'
+import webdriver from 'next-webdriver'
 
 import {
   File,
@@ -140,6 +141,12 @@ describe('concurrentFeatures - prod', () => {
       expect(content.clientInfo).toContainEqual(item)
     }
   })
+
+  it('should support React.lazy and dynamic imports', async () => {
+    const html = await renderViaHTTP(context.appPort, '/dynamic-imports')
+    expect(html).toContain('foo.client')
+  })
+
   runBasicTests(context)
 })
 
@@ -153,6 +160,16 @@ describe('concurrentFeatures - dev', () => {
   afterAll(async () => {
     await killApp(context.server)
   })
+
+  it('should support React.lazy and dynamic imports', async () => {
+    const html = await renderViaHTTP(context.appPort, '/dynamic-imports')
+    expect(html).toContain('loading...')
+
+    const browser = await webdriver(context.appPort, '/dynamic-imports')
+    const content = await browser.eval(`window.document.body.innerText`)
+    expect(content).toMatchInlineSnapshot('"foo.client"')
+  })
+
   runBasicTests(context)
 })
 
