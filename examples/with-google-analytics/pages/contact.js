@@ -1,39 +1,37 @@
-import { Component } from 'react'
+import { useState } from 'react'
 import Page from '../components/Page'
 
-import * as gtag from '../lib/gtag'
+const Contact = ({onTrack}) => {
+  const [message, setMessage] = useState("")
 
-export default class Contact extends Component {
-  state = { message: '' }
-
-  handleInput = (e) => {
-    this.setState({ message: e.target.value })
+  function handleInput (e) {
+    setMessage(e.target.value)
   }
 
-  handleSubmit = (e) => {
+  function handleSubmit(e) {
     e.preventDefault()
 
-    gtag.event({
-      action: 'submit_form',
-      category: 'Contact',
-      label: this.state.message,
+    onTrack({
+      action: 'Contact',
+      category: 'submit_form',
+      label: message
     })
 
-    this.setState({ message: '' })
+    setMessage('')
   }
 
-  render() {
-    return (
-      <Page>
-        <h1>This is the Contact page</h1>
-        <form onSubmit={this.handleSubmit}>
-          <label>
-            <span>Message:</span>
-            <textarea onChange={this.handleInput} value={this.state.message} />
-          </label>
-          <button type="submit">submit</button>
-        </form>
-      </Page>
-    )
-  }
+  return (
+    <Page>
+      <h1>This is the Contact page</h1>
+      <form onSubmit={handleSubmit}>
+        <label>
+          <span>Message:</span>
+          <textarea onChange={handleInput} value={message} />
+        </label>
+        <button type="submit">submit</button>
+      </form>
+    </Page>
+  )
 }
+
+export default Contact
