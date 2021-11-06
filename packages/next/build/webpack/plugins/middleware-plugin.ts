@@ -4,7 +4,6 @@ import { getSortedRoutes } from '../../../shared/lib/router/utils'
 import {
   MIDDLEWARE_MANIFEST,
   MIDDLEWARE_FLIGHT_MANIFEST,
-  MIDDLEWARE_SSR_RUNTIME_WEBPACK,
   MIDDLEWARE_BUILD_MANIFEST,
   MIDDLEWARE_REACT_LOADABLE_MANIFEST,
 } from '../../../shared/lib/constants'
