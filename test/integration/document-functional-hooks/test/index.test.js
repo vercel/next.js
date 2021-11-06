@@ -7,7 +7,7 @@ const appDir = join(__dirname, '..')
 
 describe('Functional Custom Document Hook Errors', () => {
   describe('development mode', () => {
-    it('warns when using a <title> in document/head', async () => {
+    it('throws when using a built-in hook', async () => {
       const { stderr } = await nextBuild(appDir, [], { stderr: true })
       expect(stderr).toMatch(
         /Functional Next.js Document components do not currently support React hooks/
