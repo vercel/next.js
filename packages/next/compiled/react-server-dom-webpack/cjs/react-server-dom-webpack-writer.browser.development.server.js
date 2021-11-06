@@ -144,7 +144,6 @@ var REACT_SUSPENSE_LIST_TYPE = 0xead8;
 var REACT_MEMO_TYPE = 0xead3;
 var REACT_LAZY_TYPE = 0xead4;
 var REACT_SCOPE_TYPE = 0xead7;
-var REACT_OPAQUE_ID_TYPE = 0xeae0;
 var REACT_DEBUG_TRACING_MODE_TYPE = 0xeae1;
 var REACT_OFFSCREEN_TYPE = 0xeae2;
 var REACT_LEGACY_HIDDEN_TYPE = 0xeae3;
@@ -165,7 +164,6 @@ if (typeof Symbol === 'function' && Symbol.for) {
   REACT_MEMO_TYPE = symbolFor('react.memo');
   REACT_LAZY_TYPE = symbolFor('react.lazy');
   REACT_SCOPE_TYPE = symbolFor('react.scope');
-  REACT_OPAQUE_ID_TYPE = symbolFor('react.opaque.id');
   REACT_DEBUG_TRACING_MODE_TYPE = symbolFor('react.debug_trace_mode');
   REACT_OFFSCREEN_TYPE = symbolFor('react.offscreen');
   REACT_LEGACY_HIDDEN_TYPE = symbolFor('react.legacy_hidden');
@@ -219,7 +217,7 @@ function attemptResolveElement(type, key, ref, props) {
     // When the ref moves to the regular props object this will implicitly
     // throw for functions. We could probably relax it to a DEV warning for other
     // cases.
-    throw Error( 'Refs cannot be used in server components, nor passed to client components.' );
+    throw new Error('Refs cannot be used in server components, nor passed to client components.');
   }
 
   if (typeof type === 'function') {
@@ -260,7 +258,7 @@ function attemptResolveElement(type, key, ref, props) {
     }
   }
 
-  throw Error( "Unsupported server component type: " + describeValueForErrorMessage(type) );
+  throw new Error("Unsupported server component type: " + describeValueForErrorMessage(type));
 }
 
 function pingSegment(request, segment) {
@@ -480,7 +478,7 @@ function resolveModelToJSON(request, parent, key, value) {
       return '$';
 
     case REACT_LAZY_TYPE:
-      throw Error( 'React Lazy Components are not yet supported on the server.' );
+      throw new Error('React Lazy Components are not yet supported on the server.');
   } // Resolve server components.
 
 
@@ -593,9 +591,9 @@ function resolveModelToJSON(request, parent, key, value) {
 
   if (typeof value === 'function') {
     if (/^on[A-Z]/.test(key)) {
-      throw Error( 'Event handlers cannot be passed to client component props. ' + ("Remove " + describeKeyForErrorMessage(key) + " from these props if possible: " + describeObjectForErrorMessage(parent) + "\n") + 'If you need interactivity, consider converting part of this to a client component.' );
+      throw new Error('Event handlers cannot be passed to client component props. ' + ("Remove " + describeKeyForErrorMessage(key) + " from these props if possible: " + describeObjectForErrorMessage(parent) + "\n") + 'If you need interactivity, consider converting part of this to a client component.');
     } else {
-      throw Error( 'Functions cannot be passed directly to client components ' + "because they're not serializable. " + ("Remove " + describeKeyForErrorMessage(key) + " (" + (value.displayName || value.name || 'function') + ") from this object, or avoid the entire object: " + describeObjectForErrorMessage(parent)) );
+      throw new Error('Functions cannot be passed directly to client components ' + "because they're not serializable. " + ("Remove " + describeKeyForErrorMessage(key) + " (" + (value.displayName || value.name || 'function') + ") from this object, or avoid the entire object: " + describeObjectForErrorMessage(parent)));
     }
   }
 
@@ -611,7 +609,7 @@ function resolveModelToJSON(request, parent, key, value) {
     var name = value.description;
 
     if (Symbol.for(name) !== value) {
-      throw Error( 'Only global symbols received from Symbol.for(...) can be passed to client components. ' + ("The symbol Symbol.for(" + value.description + ") cannot be found among global symbols. ") + ("Remove " + describeKeyForErrorMessage(key) + " from this object, or avoid the entire object: " + describeObjectForErrorMessage(parent)) );
+      throw new Error('Only global symbols received from Symbol.for(...) can be passed to client components. ' + ("The symbol Symbol.for(" + value.description + ") cannot be found among global symbols. ") + ("Remove " + describeKeyForErrorMessage(key) + " from this object, or avoid the entire object: " + describeObjectForErrorMessage(parent)));
     }
 
     request.pendingChunks++;
@@ -623,10 +621,10 @@ function resolveModelToJSON(request, parent, key, value) {
 
 
   if (typeof value === 'bigint') {
-    throw Error( "BigInt (" + value + ") is not yet supported in client component props. " + ("Remove " + describeKeyForErrorMessage(key) + " from this object or use a plain number instead: " + describeObjectForErrorMessage(parent)) );
+    throw new Error("BigInt (" + value + ") is not yet supported in client component props. " + ("Remove " + describeKeyForErrorMessage(key) + " from this object or use a plain number instead: " + describeObjectForErrorMessage(parent)));
   }
 
-  throw Error( "Type " + typeof value + " is not supported in client component props. " + ("Remove " + describeKeyForErrorMessage(key) + " from this object, or avoid the entire object: " + describeObjectForErrorMessage(parent)) );
+  throw new Error("Type " + typeof value + " is not supported in client component props. " + ("Remove " + describeKeyForErrorMessage(key) + " from this object, or avoid the entire object: " + describeObjectForErrorMessage(parent)));
 }
 
 function reportError(request, error) {
@@ -826,12 +824,12 @@ function startFlowing(request, destination) {
 }
 
 function unsupportedHook() {
-  throw Error( 'This Hook is not supported in Server Components.' );
+  throw new Error('This Hook is not supported in Server Components.');
 }
 
 function unsupportedRefresh() {
   if (!currentCache) {
-    throw Error( 'Refreshing the cache is not supported in Server Components.' );
+    throw new Error('Refreshing the cache is not supported in Server Components.');
   }
 }
 
@@ -848,7 +846,7 @@ var Dispatcher = {
   useTransition: unsupportedHook,
   getCacheForType: function (resourceType) {
     if (!currentCache) {
-      throw Error( 'Reading the cache is only supported while rendering.' );
+      throw new Error('Reading the cache is only supported while rendering.');
     }
 
     var entry = currentCache.get(resourceType);
@@ -870,7 +868,7 @@ var Dispatcher = {
   useLayoutEffect: unsupportedHook,
   useImperativeHandle: unsupportedHook,
   useEffect: unsupportedHook,
-  useOpaqueIdentifier: unsupportedHook,
+  useId: unsupportedHook,
   useMutableSource: unsupportedHook,
   useSyncExternalStore: unsupportedHook,
   useCacheRefresh: function () {

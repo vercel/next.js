@@ -140,6 +140,7 @@ describe('concurrentFeatures - prod', () => {
     ]) {
       expect(content.clientInfo).toContainEqual(item)
     }
+    expect(content.clientInfo).not.toContainEqual([['/404', true]])
   })
 
   it('should support React.lazy and dynamic imports', async () => {
@@ -215,11 +216,20 @@ async function runBasicTests(context) {
       '/routes/dynamic2'
     )
 
+    const path404HTML = await renderViaHTTP(context.appPort, '/404')
+    const pathNotFoundHTML = await renderViaHTTP(
+      context.appPort,
+      '/this-is-not-found'
+    )
+
     expect(homeHTML).toContain('thisistheindexpage.server')
     expect(homeHTML).toContain('foo.client')
 
     expect(dynamicRouteHTML1).toContain('[pid]')
     expect(dynamicRouteHTML2).toContain('[pid]')
+
+    expect(path404HTML).toContain('custom-404-page')
+    expect(pathNotFoundHTML).toContain('custom-404-page')
   })
 
   it('should suspense next/link on server side', async () => {
