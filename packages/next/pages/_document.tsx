@@ -18,7 +18,7 @@ import isError from '../lib/is-error'
 import { useLegacyGetInitialProps } from '../server/functional-document'
 
 export { DocumentContext, DocumentInitialProps, DocumentProps }
-export { useLegacyGetInitialProps as unstable_useLegacyGetInitialProps }
+export { useLegacyGetInitialProps }
 
 export type OriginProps = {
   nonce?: string
