@@ -250,11 +250,9 @@ async function main() {
             ...process.env,
             // run tests in headless mode by default
             HEADLESS: 'true',
+            TRACE_PLAYWRIGHT: 'true',
             ...(isFinalRun
               ? {
-                  // only trace on final run as previous traces
-                  // are removed anyways
-                  TRACE_PLAYWRIGHT: 'true',
                   // Events can be finicky in CI. This switches to a more
                   // reliable polling method.
                   // CHOKIDAR_USEPOLLING: 'true',
