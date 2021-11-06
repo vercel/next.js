@@ -989,15 +989,13 @@ export async function renderToHTML(
           enhanceComponents(options, App, Component)
 
         const html = ReactDOMServer.renderToString(
-          <AppContainer>
-            {getWrappedApp(
-              <EnhancedApp
-                Component={EnhancedComponent}
-                router={router}
-                {...props}
-              />
-            )}
-          </AppContainer>
+          getWrappedApp(
+            <EnhancedApp
+              Component={EnhancedComponent}
+              router={router}
+              {...props}
+            />
+          )
         )
         return { html, head }
       }
