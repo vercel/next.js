@@ -3,6 +3,7 @@ module.exports = {
     docs: {
       description: 'Disallow using next/script inside the next/head component',
       recommended: true,
+      url: 'https://nextjs.org/docs/messages/no-script-in-head-component',
     },
   },
   create: function (context) {

@@ -1,9 +1,14 @@
+---
+description: Learn how to set up Next.js with three commonly used testing tools — Cypress, Jest, and React Testing Library.
+---
+
 # Testing
 
 <details open>
   <summary><b>Examples</b></summary>
   <ul>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-cypress">Next.js with Cypress</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-playwright">Next.js with Playwright</a></li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-jest">Next.js with Jest and React Testing Library</a></li>
   </ul>
 </details>
@@ -19,7 +24,7 @@ Cypress is a test runner used for **End-to-End (E2E)** and **Integration Testing
 You can use `create-next-app` with the [with-cypress example](https://github.com/vercel/next.js/tree/canary/examples/with-cypress) to quickly get started.
 
 ```bash
-npx create-next-app --example with-cypress with-cypress-app
+npx create-next-app@latest --example with-cypress with-cypress-app
 ```
 
 ### Manual setup
@@ -133,16 +138,119 @@ You can learn more about Cypress and Continuous Integration from these resources
 - [Cypress GitHub Actions Guide](https://on.cypress.io/github-actions)
 - [Official Cypress Github Action](https://github.com/cypress-io/github-action)
 
+## Playwright
+
+Playwright is a testing framework that lets you automate Chromium, Firefox, and WebKit with a single API. You can use it to write **End-to-End (E2E)** and **Integration** tests across all platforms.
+
+### Quickstart
+
+The fastest way to get started, is to use `create-next-app` with the [with-playwright example](https://github.com/vercel/next.js/tree/canary/examples/with-playwright). This will create a Next.js project complete with Playwright all set up.
+
+```bash
+npx create-next-app@latest --example with-playwright with-playwright-app
+```
+
+### Manual setup
+
+You can also use `npm init playwright` to add Playwright to an existing `NPM` project.
+
+To manually get started with Playwright, install the `@playwright/test` package:
+
+```bash
+npm install --save-dev @playwright/test
+```
+
+Add Playwright to the `package.json` scripts field:
+
+```json
+"scripts": {
+  "dev": "next dev",
+  "build": "next build",
+  "start": "next start",
+  "test:e2e": "playwright test",
+}
+```
+
+### Creating your first Playwright end-to-end test
+
+Assuming the following two Next.js pages:
+
+```jsx
+// pages/index.js
+import Link from 'next/link'
+
+export default function Home() {
+  return (
+    <nav>
+      <Link href="/about">
+        <a>About</a>
+      </Link>
+    </nav>
+  )
+}
+```
+
+```jsx
+// pages/about.js
+export default function About() {
+  return (
+    <div>
+      <h1>About Page</h1>
+    </div>
+  )
+}
+```
+
+Add a test to verify that your navigation is working correctly:
+
+```jsx
+// e2e/example.spec.ts
+
+import { test, expect } from '@playwright/test'
+
+test('should navigate to the about page', async ({ page }) => {
+  // Start from the index page (the baseURL is set via the webServer in the playwright.config.ts)
+  await page.goto('http://localhost:3000/')
+  // Find an element with the text 'About Page' and click on it
+  await page.click('text=About Page')
+  // The new url should be "/about" (baseURL is used there)
+  await expect(page).toHaveURL('http://localhost:3000/about')
+  // The new page should contain an h1 with "About Page"
+  await expect(page.locator('h1')).toContainText('About Page')
+})
+```
+
+You can use `page.goto("/")` instead of `page.goto("http://localhost:3000/")`, if you add [`"baseURL": "http://localhost:3000"`](https://playwright.dev/docs/api/class-testoptions#test-options-base-url) to the `playwright.config.ts` configuration file.
+
+### Running your Playwright tests
+
+Since Playwright is testing a real Next.js application, it requires the Next.js server to be running prior to starting Playwright. It is recommend to run your tests against your production code to more closely resemble how your application will behave.
+
+Run `npm run build` and `npm run start`, then run `npm run test:e2e` in another terminal window to run the Playwright tests.
+
+> **Note:** Alternatively, you can use the [`webServer`](https://playwright.dev/docs/test-advanced#launching-a-development-web-server-during-the-tests) feature to let Playwright start the development server and wait until it's fully available.
+
+### Running Playwright on Continuous Integration (CI)
+
+Playwright will by default run your tests in the [headed mode](https://playwright.dev/docs/ci). To install all the Playwright dependencies, run `npx playwright install-deps`.
+
+You can learn more about Playwright and Continuous Integration from these resources:
+
+- [Getting started with Playwright](https://playwright.dev/docs/intro)
+- [Use a development server](https://playwright.dev/docs/test-advanced#launching-a-development-web-server-during-the-tests)
+- [Playwright on your CI provider](https://playwright.dev/docs/ci)
+- [Use a development server](https://playwright.dev/docs/test-advanced#launching-a-development-web-server-during-the-tests)
+
 ## Jest and React Testing Library
 
-Jest and React Testing Library are frequently used together for Unit Testing.
+Jest and React Testing Library are frequently used together for **Unit Testing**.
 
 ### Quickstart
 
 You can use `create-next-app` with the [with-jest example](https://github.com/vercel/next.js/tree/canary/examples/with-jest) to quickly get started with Jest and React Testing Library:
 
 ```bash
-npx create-next-app --example with-jest with-jest-app
+npx create-next-app@latest --example with-jest with-jest-app
 ```
 
 ### Manual setup
@@ -167,21 +275,23 @@ module.exports = {
     '!**/node_modules/**',
   ],
   moduleNameMapper: {
-    // Handle CSS imports (with CSS modules)
-    // https://jestjs.io/docs/webpack#mocking-css-modules
+    /* Handle CSS imports (with CSS modules)
+    https://jestjs.io/docs/webpack#mocking-css-modules */
     '^.+\\.module\\.(css|sass|scss)$': 'identity-obj-proxy',
 
     // Handle CSS imports (without CSS modules)
     '^.+\\.(css|sass|scss)$': '<rootDir>/__mocks__/styleMock.js',
 
-    // Handle image imports
-    // https://jestjs.io/docs/webpack#handling-static-assets
-    '^.+\\.(jpg|jpeg|png|gif|webp|svg)$': '<rootDir>/__mocks__/fileMock.js',
+    /* Handle image imports
+    https://jestjs.io/docs/webpack#handling-static-assets */
+    '^.+\\.(jpg|jpeg|png|gif|webp|avif|svg)$':
+      '<rootDir>/__mocks__/fileMock.js',
   },
   testPathIgnorePatterns: ['<rootDir>/node_modules/', '<rootDir>/.next/'],
+  testEnvironment: 'jsdom',
   transform: {
-    // Use babel-jest to transpile tests with the next/babel preset
-    // https://jestjs.io/docs/configuration#transform-objectstring-pathtotransformer--pathtotransformer-object
+    /* Use babel-jest to transpile tests with the next/babel preset
+    https://jestjs.io/docs/configuration#transform-objectstring-pathtotransformer--pathtotransformer-object */
     '^.+\\.(js|jsx|ts|tsx)$': ['babel-jest', { presets: ['next/babel'] }],
   },
   transformIgnorePatterns: [
@@ -207,6 +317,14 @@ These files aren't useful in tests but importing them may cause errors, so we wi
 // __mocks__/styleMock.js
 
 module.exports = {};
+```
+
+If you're running into the issue `"Failed to parse src "test-file-stub" on 'next/image'"`, add a '/' to your fileMock.
+
+```json
+// __mocks__/fileMock.js
+
+(module.exports = "/test-file-stub")
 ```
 
 For more information on handling static assets, please refer to the [Jest Docs](https://jestjs.io/docs/webpack#handling-static-assets).
@@ -276,16 +394,21 @@ Your project is now ready to run tests. Follow Jests convention by adding tests 
 For example, we can add a test to check if the `<Index />` component successfully renders a heading:
 
 ```jsx
-// __tests__/testing-library.js
+// __tests__/index.test.jsx
+
+/**
+ * @jest-environment jsdom
+ */
+
 import React from 'react'
-import { render } from '@testing-library/react'
-import Index from '../pages/index'
+import { render, screen } from '@testing-library/react'
+import Home from '../pages/index'
 
-describe('App', () => {
+describe('Home', () => {
   it('renders a heading', () => {
-    const { getByRole } = render(<Index />)
+    render(<Home />)
 
-    const heading = getByRole('heading', {
+    const heading = screen.getByRole('heading', {
       name: /welcome to next\.js!/i,
     })
 
@@ -293,6 +416,8 @@ describe('App', () => {
   })
 })
 ```
+
+> **Note**: The `@jest-environment jsdom` comment above configures the testing environment as `jsdom` inside the test file because React Testing Library uses DOM elements like `document.body` which will not work in Jest's default `node` testing environment. Alternatively, you can also set the `jsdom` environment globally by adding the Jest configuration option: `"testEnvironment": "jsdom"` in `jest.config.js`.
 
 Optionally, add a [snapshot test](https://jestjs.io/docs/snapshot-testing) to keep track of any unexpected changes to your `<Index />` component:
 
@@ -312,7 +437,7 @@ it('renders homepage unchanged', () => {
 
 **Running your test suite**
 
-Run `npm run jest` to run your test suite. After your tests pass or fail, you will notice a list of interactive Jest commands that will be helpful as you add more tests.
+Run `npm run test` to run your test suite. After your tests pass or fail, you will notice a list of interactive Jest commands that will be helpful as you add more tests.
 
 For further reading, you may find these resources helpful:
 
@@ -331,8 +456,8 @@ The Next.js community has created packages and articles you may find helpful:
 For more information on what to read next, we recommend:
 
 <div class="card">
-  <a href="/docs/basic-features/environment-variables#test-environment-variable.md">
+  <a href="/docs/basic-features/environment-variables#test-environment-variables.md">
     <b>Test Environment Variables</b>
-    <small>Learn more test environments.</small>
+    <small>Learn more about the test environment variables.</small>
   </a>
 </div>

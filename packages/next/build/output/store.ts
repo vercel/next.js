@@ -1,17 +1,25 @@
 import createStore from 'next/dist/compiled/unistore'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
+import { flushAllTraces } from '../../trace'
+import { getUnresolvedModuleFromError } from '../utils'
 
 import * as Log from './log'
 
 export type OutputState =
   | { bootstrap: true; appUrl: string | null; bindAddr: string | null }
   | ({ bootstrap: false; appUrl: string | null; bindAddr: string | null } & (
-      | { loading: true }
+      | {
+          loading: true
+          trigger: string | undefined
+        }
       | {
           loading: false
           typeChecking: boolean
+          partial: 'client' | 'server' | 'serverWeb' | undefined
+          modules: number
           errors: string[] | null
           warnings: string[] | null
+          hasServerWeb: boolean
         }
     ))
 
@@ -37,6 +45,8 @@ function hasStoreChanged(nextStore: OutputState) {
   return true
 }
 
+let startTime = 0
+
 store.subscribe((state) => {
   if (!hasStoreChanged(state)) {
     return
@@ -46,11 +56,17 @@ store.subscribe((state) => {
     if (state.appUrl) {
       Log.ready(`started server on ${state.bindAddr}, url: ${state.appUrl}`)
     }
+    if (startTime === 0) startTime = Date.now()
     return
   }
 
   if (state.loading) {
-    Log.wait('compiling...')
+    if (state.trigger) {
+      Log.wait(`compiling ${state.trigger}...`)
+    } else {
+      Log.wait('compiling...')
+    }
+    if (startTime === 0) startTime = Date.now()
     return
   }
 
@@ -71,21 +87,55 @@ store.subscribe((state) => {
       }
     }
 
+    const moduleName = getUnresolvedModuleFromError(cleanError)
+    if (state.hasServerWeb && moduleName) {
+      console.error(
+        `Native Node.js APIs are not supported in the Edge Runtime with \`concurrentFeatures\` enabled. Found \`${moduleName}\` imported.\n`
+      )
+      return
+    }
+
+    // Ensure traces are flushed after each compile in development mode
+    flushAllTraces()
     return
+  }
+
+  let timeMessage = ''
+  if (startTime) {
+    const time = Date.now() - startTime
+    startTime = 0
+
+    timeMessage =
+      time > 2000 ? ` in ${Math.round(time / 100) / 10}s` : ` in ${time} ms`
+  }
+
+  let modulesMessage = ''
+  if (state.modules) {
+    modulesMessage = ` (${state.modules} modules)`
+  }
+
+  let partialMessage = ''
+  if (state.partial) {
+    partialMessage = ` ${state.partial}`
   }
 
   if (state.warnings) {
     Log.warn(state.warnings.join('\n\n'))
-    if (state.appUrl) {
-      Log.info(`ready on ${state.appUrl}`)
-    }
+    // Ensure traces are flushed after each compile in development mode
+    flushAllTraces()
     return
   }
 
   if (state.typeChecking) {
-    Log.info('bundled successfully, waiting for typecheck results...')
+    Log.info(
+      `bundled${partialMessage} successfully${timeMessage}${modulesMessage}, waiting for typecheck results...`
+    )
     return
   }
 
-  Log.event('compiled successfully')
+  Log.event(
+    `compiled${partialMessage} successfully${timeMessage}${modulesMessage}`
+  )
+  // Ensure traces are flushed after each compile in development mode
+  flushAllTraces()
 })

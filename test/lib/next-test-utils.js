@@ -10,9 +10,7 @@ import {
 import { writeFile } from 'fs-extra'
 import getPort from 'get-port'
 import http from 'http'
-// `next` here is the symlink in `test/node_modules/next` which points to the root directory.
-// This is done so that requiring from `next` works.
-// The reason we don't import the relative path `../../dist/<etc>` is that it would lead to inconsistent module singletons
+import https from 'https'
 import server from 'next/dist/server/next'
 import _pkg from 'next/package.json'
 import fetch from 'node-fetch'
@@ -22,12 +20,6 @@ import treeKill from 'tree-kill'
 
 export const nextServer = server
 export const pkg = _pkg
-
-// polyfill Object.fromEntries for the test/integration/relay-analytics tests
-// on node 10, this can be removed after we no longer support node 10
-if (!Object.fromEntries) {
-  Object.fromEntries = require('core-js/features/object/from-entries')
-}
 
 export function initNextServerScript(
   scriptPath,
@@ -81,6 +73,23 @@ export function initNextServerScript(
   })
 }
 
+export function getFullUrl(appPortOrUrl, url, hostname) {
+  let fullUrl =
+    typeof appPortOrUrl === 'string' && appPortOrUrl.startsWith('http')
+      ? appPortOrUrl
+      : `http://${hostname ? hostname : 'localhost'}:${appPortOrUrl}${url}`
+
+  if (typeof appPortOrUrl === 'string' && url) {
+    const parsedUrl = new URL(fullUrl)
+    const parsedPathQuery = new URL(url, fullUrl)
+
+    parsedUrl.search = parsedPathQuery.search
+    parsedUrl.pathname = parsedPathQuery.pathname
+    fullUrl = parsedUrl.toString()
+  }
+  return fullUrl
+}
+
 export function renderViaAPI(app, pathname, query) {
   const url = `${pathname}${query ? `?${qs.stringify(query)}` : ''}`
   return app.renderToHTML({ url }, {}, pathname, query)
@@ -91,10 +100,22 @@ export function renderViaHTTP(appPort, pathname, query, opts) {
 }
 
 export function fetchViaHTTP(appPort, pathname, query, opts) {
-  const url = `http://localhost:${appPort}${pathname}${
+  const url = `${pathname}${
     typeof query === 'string' ? query : query ? `?${qs.stringify(query)}` : ''
   }`
-  return fetch(url, opts)
+  return fetch(getFullUrl(appPort, url), {
+    // in node.js v17 fetch favors IPv6 but Next.js is
+    // listening on IPv4 by default so force IPv4 DNS resolving
+    agent: (parsedUrl) => {
+      if (parsedUrl.protocol === 'https:') {
+        return new https.Agent({ family: 4 })
+      }
+      if (parsedUrl.protocol === 'http:') {
+        return new http.Agent({ family: 4 })
+      }
+    },
+    ...opts,
+  })
 }
 
 export function findPort() {
@@ -111,6 +132,7 @@ export function runNextCommand(argv, options = {}) {
     ...options.env,
     NODE_ENV: '',
     __NEXT_TEST_MODE: 'true',
+    NEXT_PRIVATE_OUTPUT_TRACE_ROOT: path.join(__dirname, '../../'),
   }
 
   return new Promise((resolve, reject) => {
@@ -130,25 +152,37 @@ export function runNextCommand(argv, options = {}) {
       options.instance(instance)
     }
 
+    let mergedStdio = ''
+
     let stderrOutput = ''
     if (options.stderr) {
       instance.stderr.on('data', function (chunk) {
+        mergedStdio += chunk
         stderrOutput += chunk
 
         if (options.stderr === 'log') {
           console.log(chunk.toString())
         }
       })
+    } else {
+      instance.stderr.on('data', function (chunk) {
+        mergedStdio += chunk
+      })
     }
 
     let stdoutOutput = ''
     if (options.stdout) {
       instance.stdout.on('data', function (chunk) {
+        mergedStdio += chunk
         stdoutOutput += chunk
 
         if (options.stdout === 'log') {
           console.log(chunk.toString())
         }
+      })
+    } else {
+      instance.stdout.on('data', function (chunk) {
+        mergedStdio += chunk
       })
     }
 
@@ -159,7 +193,9 @@ export function runNextCommand(argv, options = {}) {
         !options.ignoreFail &&
         code !== 0
       ) {
-        return reject(new Error(`command failed with code ${code}`))
+        return reject(
+          new Error(`command failed with code ${code}\n${mergedStdio}`)
+        )
       }
 
       resolve({
@@ -372,7 +408,7 @@ export function waitFor(millis) {
   return new Promise((resolve) => setTimeout(resolve, millis))
 }
 
-export async function startStaticServer(dir, notFoundFile) {
+export async function startStaticServer(dir, notFoundFile, fixedPort) {
   const app = express()
   const server = http.createServer(app)
   app.use(express.static(dir))
@@ -383,7 +419,7 @@ export async function startStaticServer(dir, notFoundFile) {
     })
   }
 
-  await promiseCall(server, 'listen')
+  await promiseCall(server, 'listen', fixedPort)
   return server
 }
 
@@ -475,7 +511,7 @@ export class File {
 
 export async function evaluate(browser, input) {
   if (typeof input === 'function') {
-    const result = await browser.executeScript(input)
+    const result = await browser.eval(input)
     await new Promise((resolve) => setTimeout(resolve, 30))
     return result
   } else {
@@ -511,9 +547,8 @@ export async function retry(fn, duration = 3000, interval = 500, description) {
 }
 
 export async function hasRedbox(browser, expected = true) {
-  let attempts = 30
-  do {
-    const has = await evaluate(browser, () => {
+  for (let i = 0; i < 30; i++) {
+    const result = await evaluate(browser, () => {
       return Boolean(
         [].slice
           .call(document.querySelectorAll('nextjs-portal'))
@@ -524,15 +559,12 @@ export async function hasRedbox(browser, expected = true) {
           )
       )
     })
-    if (has) {
-      return true
-    }
-    if (--attempts < 0) {
-      break
-    }
 
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-  } while (expected)
+    if (result === expected) {
+      return result
+    }
+    await waitFor(1000)
+  }
   return false
 }
 
@@ -573,6 +605,26 @@ export async function getRedboxSource(browser) {
     3000,
     500,
     'getRedboxSource'
+  )
+}
+
+export async function getRedboxDescription(browser) {
+  return retry(
+    () =>
+      evaluate(browser, () => {
+        const portal = [].slice
+          .call(document.querySelectorAll('nextjs-portal'))
+          .find((p) =>
+            p.shadowRoot.querySelector('[data-nextjs-dialog-header]')
+          )
+        const root = portal.shadowRoot
+        return root
+          .querySelector('#nextjs__container_errors_desc')
+          .innerText.replace(/__WEBPACK_DEFAULT_EXPORT__/, 'Unknown')
+      }),
+    3000,
+    500,
+    'getRedboxDescription'
   )
 }
 
