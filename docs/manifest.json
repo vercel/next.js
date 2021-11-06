@@ -411,6 +411,10 @@
             {
               "title": "URL Imports",
               "path": "/docs/api-reference/next.config.js/url-imports.md"
+            },
+            {
+              "title": "Build indicator",
+              "path": "/docs/api-reference/next.config.js/build-indicator.md"
             }
           ]
         }

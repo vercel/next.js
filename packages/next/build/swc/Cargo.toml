@@ -11,32 +11,34 @@ anyhow = "1.0"
 backtrace = "0.3"
 chrono = "0.4"
 easy-error = "1.0.0"
-napi = { version = "1", features = ["serde-json"] }
+fxhash = "0.2.1"
+napi = {version = "1", features = ["serde-json"]}
 napi-derive = "1"
+once_cell = "1.8.0"
 path-clean = "0.1"
+pathdiff = "0.2.0"
 regex = "1.5"
+retain_mut = "0.1.3"
+rustc-hash = "1.1.0"
 serde = "1"
 serde_json = "1"
-swc = "0.80.0"
+swc = "0.81.1"
 swc_atoms = "0.2.7"
-swc_common = { version = "0.14.2", features = ["concurrent", "sourcemap"] }
+swc_bundler = {version = "0.79.0", features = ["concurrent"]}
+swc_common = {version = "0.14.2", features = ["concurrent", "sourcemap"]}
 swc_css = "0.20.0"
-swc_ecmascript = { version = "0.83.0", features = ["codegen", "minifier", "optimization", "parser", "react", "transforms", "typescript", "utils", "visit"] }
-swc_ecma_preset_env = "0.62.0"
+swc_ecma_loader = {version = "0.23.0", features = ["node", "lru"]}
+swc_ecma_preset_env = "0.63.1"
+swc_ecmascript = {version = "0.84.1", features = ["codegen", "minifier", "optimization", "parser", "react", "transforms", "typescript", "utils", "visit"]}
 swc_node_base = "0.5.1"
 swc_stylis = "0.17.0"
-fxhash = "0.2.1"
-retain_mut = "0.1.3"
-pathdiff = "0.2.0"
-rustc-hash = "1.1.0"
-tracing = { version = "0.1.28", features = ["release_max_level_off"] }
-
+tracing = {version = "0.1.28", features = ["release_max_level_off"]}
 
 [build-dependencies]
 napi-build = "1"
 
 [dev-dependencies]
-swc_ecma_transforms_testing = "0.42.1"
+swc_ecma_transforms_testing = "0.43.1"
 testing = "0.15.1"
 walkdir = "2.3.2"
 

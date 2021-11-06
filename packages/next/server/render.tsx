@@ -2,7 +2,7 @@ import { IncomingMessage, ServerResponse } from 'http'
 import { ParsedUrlQuery } from 'querystring'
 import type { Writable as WritableType } from 'stream'
 import React from 'react'
-import * as ReactDOMServer from 'react-dom/server'
+import ReactDOMServer from 'react-dom/server'
 import { StyleRegistry, createStyleRegistry } from 'styled-jsx'
 import { UnwrapPromise } from '../lib/coalesced-function'
 import {
@@ -950,7 +950,12 @@ export async function renderToHTML(
    */
   const generateStaticHTML = supportsDynamicHTML !== true
   const renderDocument = async () => {
-    if (Document.getInitialProps) {
+    if (process.browser && Document.getInitialProps) {
+      throw new Error(
+        '`getInitialProps` in Document component is not supported with `concurrentFeatures` enabled.'
+      )
+    }
+    if (!process.browser && Document.getInitialProps) {
       const renderPage: RenderPage = (
         options: ComponentsEnhancer = {}
       ): RenderPageResult | Promise<RenderPageResult> => {
@@ -1120,13 +1125,38 @@ export async function renderToHTML(
     styles: documentResult.styles,
     useMaybeDeferContent,
   }
-  const documentHTML = ReactDOMServer.renderToStaticMarkup(
+
+  const document = (
     <AmpStateContext.Provider value={ampState}>
       <HtmlContext.Provider value={htmlProps}>
         {documentResult.documentElement(htmlProps)}
       </HtmlContext.Provider>
     </AmpStateContext.Provider>
   )
+
+  let documentHTML: string
+  if (process.browser) {
+    // There is no `renderToStaticMarkup` exposed in the web environment, use
+    // blocking `renderToReadableStream` to get the similar result.
+    let result = ''
+    const readable = (ReactDOMServer as any).renderToReadableStream(document, {
+      onError: (e: any) => {
+        throw e
+      },
+    })
+    const reader = readable.getReader()
+    const decoder = new TextDecoder()
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) {
+        break
+      }
+      result += typeof value === 'string' ? value : decoder.decode(value)
+    }
+    documentHTML = result
+  } else {
+    documentHTML = ReactDOMServer.renderToStaticMarkup(document)
+  }
 
   if (process.env.NODE_ENV !== 'production') {
     const nonRenderedComponents = []

@@ -3,6 +3,7 @@
 import cheerio from 'cheerio'
 import { join } from 'path'
 import fs from 'fs-extra'
+import webdriver from 'next-webdriver'
 
 import {
   File,
@@ -19,8 +20,9 @@ import css from './css'
 
 const nodeArgs = ['-r', join(__dirname, '../../react-18/test/require-hook.js')]
 const appDir = join(__dirname, '../app')
+const nativeModuleTestAppDir = join(__dirname, '../unsupported-native-module')
 const distDir = join(__dirname, '../app/.next')
-const documentPage = new File(join(appDir, 'pages/_document.js'))
+const documentPage = new File(join(appDir, 'pages/_document.jsx'))
 const appPage = new File(join(appDir, 'pages/_app.js'))
 
 const documentWithGip = `
@@ -77,18 +79,24 @@ async function nextDev(dir, port) {
   })
 }
 
-describe('RSC basic', () => {
-  const context = { appDir }
+describe('concurrentFeatures - basic', () => {
   it('should warn user for experimental risk with server components', async () => {
-    const middlewareWarning = `Using the experimental web runtime.`
-    const rscWarning = `You have experimental React Server Components enabled.`
-    const { stdout } = await nextBuild(context.appDir)
-    expect(stdout).toContain(rscWarning)
-    expect(stdout).toContain(middlewareWarning)
+    const edgeRuntimeWarning =
+      'You are using the experimental Edge Runtime with `concurrentFeatures`.'
+    const rscWarning = `You have experimental React Server Components enabled. Continue at your own risk.`
+    const { stderr } = await nextBuild(appDir)
+    expect(stderr).toContain(edgeRuntimeWarning)
+    expect(stderr).toContain(rscWarning)
+  })
+  it('should warn user that native node APIs are not supported', async () => {
+    const fsImportedErrorMessage =
+      'Native Node.js APIs are not supported in the Edge Runtime with `concurrentFeatures` enabled. Found `dns` imported.'
+    const { stderr } = await nextBuild(nativeModuleTestAppDir)
+    expect(stderr).toContain(fsImportedErrorMessage)
   })
 })
 
-describe('RSC prod', () => {
+describe('concurrentFeatures - prod', () => {
   const context = { appDir }
 
   beforeAll(async () => {
@@ -133,10 +141,16 @@ describe('RSC prod', () => {
       expect(content.clientInfo).toContainEqual(item)
     }
   })
+
+  it('should support React.lazy and dynamic imports', async () => {
+    const html = await renderViaHTTP(context.appPort, '/dynamic-imports')
+    expect(html).toContain('foo.client')
+  })
+
   runBasicTests(context)
 })
 
-describe('RSC dev', () => {
+describe('concurrentFeatures - dev', () => {
   const context = { appDir }
 
   beforeAll(async () => {
@@ -146,6 +160,16 @@ describe('RSC dev', () => {
   afterAll(async () => {
     await killApp(context.server)
   })
+
+  it('should support React.lazy and dynamic imports', async () => {
+    const html = await renderViaHTTP(context.appPort, '/dynamic-imports')
+    expect(html).toContain('loading...')
+
+    const browser = await webdriver(context.appPort, '/dynamic-imports')
+    const content = await browser.eval(`window.document.body.innerText`)
+    expect(content).toMatchInlineSnapshot('"foo.client"')
+  })
+
   runBasicTests(context)
 })
 
@@ -166,7 +190,7 @@ const documentSuite = {
 
       expect(res.status).toBe(500)
       expect(html).toContain(
-        'Document.getInitialProps is not supported with server components, please remove it from pages/_document'
+        'Error: `getInitialProps` in Document component is not supported with `concurrentFeatures` enabled.'
       )
     })
   },
@@ -212,6 +236,12 @@ async function runBasicTests(context) {
     const imageTag = $('div[hidden] > span > span > img')
 
     expect(imageTag.attr('src')).toContain('data:image')
+  })
+
+  it('should support multi-level server component imports', async () => {
+    const html = await renderViaHTTP(context.appPort, '/multi')
+    expect(html).toContain('bar.server.js:')
+    expect(html).toContain('foo.client')
   })
 }
 

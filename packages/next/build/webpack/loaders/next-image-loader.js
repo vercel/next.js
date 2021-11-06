@@ -8,8 +8,7 @@ const VALID_BLUR_EXT = ['jpeg', 'png', 'webp', 'avif'] // should match next/clie
 function nextImageLoader(content) {
   const imageLoaderSpan = this.currentTraceSpan.traceChild('next-image-loader')
   return imageLoaderSpan.traceAsyncFn(async () => {
-    const { isServer, isDev, assetPrefix, basePath } =
-      loaderUtils.getOptions(this)
+    const { isServer, isDev, assetPrefix, basePath } = this.getOptions()
     const context = this.rootContext
     const opts = { context, content }
     const interpolatedName = loaderUtils.interpolateName(

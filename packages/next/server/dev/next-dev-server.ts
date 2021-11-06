@@ -478,10 +478,26 @@ export default class DevServer extends Server {
           `Invalid IncomingMessage received, make sure http.createServer is being used to handle requests.`
         )
       } else {
+        const { basePath } = this.nextConfig
+
         server.on('upgrade', (req, socket, head) => {
+          let assetPrefix = (this.nextConfig.assetPrefix || '').replace(
+            /^\/+/,
+            ''
+          )
+
+          // assetPrefix can be a proxy server with a url locally
+          // if so, it's needed to send these HMR requests with a rewritten url directly to /_next/webpack-hmr
+          // otherwise account for a path-like prefix when listening to socket events
+          if (assetPrefix.startsWith('http')) {
+            assetPrefix = ''
+          } else if (assetPrefix) {
+            assetPrefix = `/${assetPrefix}`
+          }
+
           if (
             req.url?.startsWith(
-              `${this.nextConfig.basePath || ''}/_next/webpack-hmr`
+              `${basePath || assetPrefix || ''}/_next/webpack-hmr`
             )
           ) {
             this.hotReloader?.onHMR(req, socket, head)
@@ -498,7 +514,13 @@ export default class DevServer extends Server {
     parsed: UrlWithParsedQuery
   }): Promise<FetchEventResult | null> {
     try {
-      const result = await super.runMiddleware(params)
+      const result = await super.runMiddleware({
+        ...params,
+        onWarning: (warn) => {
+          this.logErrorWithOriginalStack(warn, 'warning', 'client')
+        },
+      })
+
       result?.waitUntil.catch((error) =>
         this.logErrorWithOriginalStack(error, 'unhandledRejection', 'client')
       )
@@ -573,7 +595,7 @@ export default class DevServer extends Server {
 
   private async logErrorWithOriginalStack(
     err?: unknown,
-    type?: 'unhandledRejection' | 'uncaughtException',
+    type?: 'unhandledRejection' | 'uncaughtException' | 'warning',
     stats: 'server' | 'client' = 'server'
   ) {
     let usedOriginalStack = false
@@ -614,11 +636,15 @@ export default class DevServer extends Server {
             const { file, lineNumber, column, methodName } = originalStackFrame
 
             console.error(
-              chalk.red('error') +
+              (type === 'warning' ? chalk.yellow('warn') : chalk.red('error')) +
                 ' - ' +
                 `${file} (${lineNumber}:${column}) @ ${methodName}`
             )
-            console.error(`${chalk.red(err.name)}: ${err.message}`)
+            console.error(
+              `${(type === 'warning' ? chalk.yellow : chalk.red)(err.name)}: ${
+                err.message
+              }`
+            )
             console.error(originalCodeFrame)
             usedOriginalStack = true
           }
@@ -631,7 +657,9 @@ export default class DevServer extends Server {
     }
 
     if (!usedOriginalStack) {
-      if (type) {
+      if (type === 'warning') {
+        Log.warn(err + '')
+      } else if (type) {
         Log.error(`${type}:`, err + '')
       } else {
         Log.error(err + '')
