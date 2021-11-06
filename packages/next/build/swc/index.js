@@ -50,7 +50,7 @@ if (!bindings) {
 }
 
 async function transform(src, options) {
-  const isModule = typeof src !== 'string'
+  const isModule = typeof src !== 'string' && !Buffer.isBuffer(src)
   options = options || {}
 
   if (options?.jsc?.parser) {
@@ -65,7 +65,7 @@ async function transform(src, options) {
 }
 
 function transformSync(src, options) {
-  const isModule = typeof src !== 'string'
+  const isModule = typeof src !== 'string' && !Buffer.isBuffer(src)
   options = options || {}
 
   if (options?.jsc?.parser) {
@@ -89,6 +89,10 @@ export async function minify(src, opts) {
 
 export function minifySync(src, opts) {
   return bindings.minifySync(toBuffer(src), toBuffer(opts ?? {}))
+}
+
+export async function bundle(options) {
+  return bindings.bundle(toBuffer(options))
 }
 
 module.exports.transform = transform

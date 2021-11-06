@@ -21,6 +21,9 @@ jobs:
     runs-on: ubuntu-latest
     env:
       NEXT_TELEMETRY_DISABLED: 1
+      # we build a dev binary for use in CI so skip downloading
+      # canary next-swc binaries in the monorepo
+      NEXT_SKIP_NATIVE_POSTINSTALL: 1
     outputs:
       docsChange: ${{ steps.docs-change.outputs.DOCS_CHANGE }}
       isRelease: ${{ steps.check-release.outputs.IS_RELEASE }}
@@ -484,8 +487,7 @@ jobs:
       - build-native
       - build-windows-i686
       - build-windows-aarch64
-      # Temporarily disabled
-      # - build-linux-musl
+      - build-linux-musl
       - build-linux-arm7
       - build-linux-aarch64
       - build-android-aarch64
@@ -596,6 +598,10 @@ jobs:
           restore-keys: |
             next-swc-cargo-cache-ubuntu-18.04
 
+      # since the repo's dependencies aren't installed we need
+      # to install napi globally
+      - run: npm i -g @napi-rs/cli@1.2.1
+
       - name: Build
         if: ${{ steps.binary-cache.outputs.cache-hit != 'true' && steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         run: yarn build-native
@@ -672,45 +678,48 @@ jobs:
         run: sudo sysctl -w net.link.generic.system.hwcksum_tx=0 && sudo sysctl -w net.link.generic.system.hwcksum_rx=0
         if: ${{ matrix.os == 'macos-latest' }}
 
-      - uses: actions/checkout@v2
-        with:
-          fetch-depth: 25
-      - run: echo ::set-output name=DOCS_CHANGE::$(node skip-docs-change.js echo 'not-docs-only-change')
-        id: docs-change
       - name: Setup node
         uses: actions/setup-node@v2
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         with:
           node-version: 14
           check-latest: true
+
+      # we use checkout here instead of the build cache since
+      # it can fail to restore in different OS'
+      - uses: actions/checkout@v2
+
+      # since the repo's dependencies aren't installed we need
+      # to install napi globally
+      - run: npm i -g @napi-rs/cli@1.2.1
+
       - name: Install
         uses: actions-rs/toolchain@v1
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         with:
           profile: minimal
           toolchain: nightly-2021-08-12
           target: ${{ matrix.target }}
+
       - name: Cache cargo registry
         uses: actions/cache@v1
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         with:
           path: ~/.cargo/registry
           key: stable-${{ matrix.os }}-node@14-cargo-registry-trimmed-${{ hashFiles('**/Cargo.lock') }}
+
       - name: Cache cargo index
         uses: actions/cache@v1
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         with:
           path: ~/.cargo/git
           key: stable-${{ matrix.os }}-node@14-cargo-index-trimmed-${{ hashFiles('**/Cargo.lock') }}
+
       - name: Cache native binary
         id: binary-cache
         uses: actions/cache@v2
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         with:
           path: packages/next/native/next-swc.${{ matrix.name }}.node
           key: next-swc-nightly-2021-08-12-${{ matrix.target }}-${{ hashFiles('.github/workflows/build_test_deploy.yml', 'packages/next/build/swc/**') }}
+
       - name: Cross build aarch64 setup
-        if: ${{ matrix.target == 'aarch64-apple-darwin' && steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
+        if: ${{ matrix.target == 'aarch64-apple-darwin' }}
         run: |
           sudo rm -Rf /Library/Developer/CommandLineTools/SDKs/*;
           export CC=$(xcrun -f clang);
@@ -728,19 +737,21 @@ jobs:
           key: next-swc-cargo-cache-${{ matrix.os }}--${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             next-swc-cargo-cache-${{ matrix.os }}
+
       - name: 'Build'
-        if: ${{ steps.binary-cache.outputs.cache-hit != 'true' && steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
+        if: ${{ steps.binary-cache.outputs.cache-hit != 'true' }}
         run: yarn build-native --release --target ${{ matrix.target }}
         env:
           MACOSX_DEPLOYMENT_TARGET: '10.13'
         working-directory: packages/next
+
       - name: Upload artifact
         uses: actions/upload-artifact@v2.2.4
         with:
           name: next-swc-binaries
           path: packages/next/native/next-swc.${{ matrix.name }}.node
+
       - name: Clear the cargo caches
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         run: |
           cargo install cargo-cache --no-default-features --features ci-autoclean
           cargo-cache
@@ -754,28 +765,28 @@ jobs:
       CARGO_PROFILE_RELEASE_CODEGEN_UNITS: 32
       CARGO_PROFILE_RELEASE_LTO: 'false'
     steps:
-      - uses: actions/checkout@v2
-
-      - run: echo ::set-output name=DOCS_CHANGE::$(node skip-docs-change.js echo 'not-docs-only-change')
-        id: docs-change
-
       - name: Install node x86
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         run: |
           choco install nodejs-lts --x86 -y --force
           refreshenv
+
       - name: Set 32bit Node.js path
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         run: |
           echo "C:\\Program Files (x86)\\nodejs" >> $GITHUB_PATH
         shell: bash
 
       - name: Node.js arch
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         run: node -e "console.log(process.arch)"
 
+      # we use checkout here instead of the build cache since
+      # it can fail to restore in different OS'
+      - uses: actions/checkout@v2
+
+      # since the repo's dependencies aren't installed we need
+      # to install napi globally
+      - run: npm i -g @napi-rs/cli@1.2.1
+
       - name: Install Rust
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
@@ -784,7 +795,6 @@ jobs:
           target: i686-pc-windows-msvc
 
       - name: Cache native binary
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         id: binary-cache
         uses: actions/cache@v2
         with:
@@ -792,13 +802,12 @@ jobs:
           key: next-swc-nightly-2021-08-12-win32-ia32-msvc-${{ hashFiles('.github/workflows/build_test_deploy.yml', 'packages/next/build/swc/**') }}
 
       - name: Build
-        if: ${{ steps.binary-cache.outputs.cache-hit != 'true' && steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
+        if: ${{ steps.binary-cache.outputs.cache-hit != 'true' }}
         shell: bash
         run: yarn build-native --release --target i686-pc-windows-msvc
         working-directory: packages/next
 
       - name: Upload artifact
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         uses: actions/upload-artifact@v2
         with:
           name: next-swc-binaries
@@ -810,19 +819,20 @@ jobs:
     name: next-swc - windows-aarch64 - node@14
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v2
-
-      - run: echo ::set-output name=DOCS_CHANGE::$(node skip-docs-change.js echo 'not-docs-only-change')
-        id: docs-change
-
       - name: Setup node
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         uses: actions/setup-node@v2
         with:
           node-version: 14
 
+      # we use checkout here instead of the build cache since
+      # it can fail to restore in different OS'
+      - uses: actions/checkout@v2
+
+      # since the repo's dependencies aren't installed we need
+      # to install napi globally
+      - run: npm i -g @napi-rs/cli@1.2.1
+
       - name: Install Rust
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
@@ -831,7 +841,6 @@ jobs:
           target: aarch64-pc-windows-msvc
 
       - name: Cache native binary
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         id: binary-cache
         uses: actions/cache@v2
         with:
@@ -839,72 +848,64 @@ jobs:
           key: next-swc-nightly-2021-08-12-win32-arm64-msvc-${{ hashFiles('.github/workflows/build_test_deploy.yml', 'packages/next/build/swc/**') }}
 
       - name: Build
-        if: ${{ steps.binary-cache.outputs.cache-hit != 'true' && steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
+        if: ${{ steps.binary-cache.outputs.cache-hit != 'true' }}
         shell: bash
         run: yarn build-native --release --target aarch64-pc-windows-msvc
         working-directory: packages/next
 
       - name: Upload artifact
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         uses: actions/upload-artifact@v2
         with:
           name: next-swc-binaries
           path: packages/next/native/next-swc.win32-arm64-msvc.node
 
-  # Temporarily disabled
-  # build-linux-musl:
-  #   needs: build
-  #   if: ${{ needs.build.outputs.isRelease == 'true' }}
-  #   name: next-swc - linux-musl - node@lts
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: actions/checkout@v2
+  build-linux-musl:
+    needs: build
+    if: ${{ needs.build.outputs.isRelease == 'true' }}
+    name: next-swc - linux-musl - node@lts
+    runs-on: ubuntu-latest
+    steps:
+      # we use checkout here instead of the build cache since
+      # it can fail to restore in different OS'
+      - uses: actions/checkout@v2
 
-  #     - run: echo ::set-output name=DOCS_CHANGE::$(node skip-docs-change.js echo 'not-docs-only-change')
-  #       id: docs-change
+      - name: Login to registry
+        run: |
+          docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD $DOCKER_REGISTRY_URL
+        env:
+          DOCKER_REGISTRY_URL: ghcr.io
+          DOCKER_USERNAME: ${{ github.actor }}
+          DOCKER_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
 
-  #     - name: Login to registry
-  #       if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
-  #       run: |
-  #         docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD $DOCKER_REGISTRY_URL
-  #       env:
-  #         DOCKER_REGISTRY_URL: ghcr.io
-  #         DOCKER_USERNAME: ${{ github.actor }}
-  #         DOCKER_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+      - name: Cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            target/
+          key: linux-musl-publish-integration
 
-  #     - name: Cache
-  #       if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
-  #       uses: actions/cache@v2
-  #       with:
-  #         path: |
-  #           target/
-  #         key: linux-musl-publish-integration
+      - name: Pull docker image
+        run: |
+          docker pull ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
+          docker tag ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine builder
 
-  #     - name: Pull docker image
-  #       if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
-  #       run: |
-  #         docker pull ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
-  #         docker tag ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine builder
+      - name: Cache native binary
+        id: binary-cache
+        uses: actions/cache@v2
+        with:
+          path: packages/next/native/next-swc.linux-x64-musl.node
+          key: next-swc-nightly-2021-08-12-linux-x64-musl-${{ hashFiles('.github/workflows/build_test_deploy.yml', 'packages/next/build/swc/**') }}
 
-  #     - name: Cache native binary
-  #       if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
-  #       id: binary-cache
-  #       uses: actions/cache@v2
-  #       with:
-  #         path: packages/next/native/next-swc.linux-x64-musl.node
-  #         key: next-swc-nightly-2021-08-12-linux-x64-musl-${{ hashFiles('.github/workflows/build_test_deploy.yml', 'packages/next/build/swc/**') }}
+      - name: 'Build'
+        if: ${{ steps.binary-cache.outputs.cache-hit != 'true' }}
+        run: |
+          docker run --rm -v ~/.cargo/git:/root/.cargo/git -v ~/.cargo/registry:/root/.cargo/registry -v $(pwd)/packages/next:/build -w /build builder sh -c "npm i -g @napi-rs/cli@1.2.1 && yarn build-native --release --target x86_64-unknown-linux-musl"
 
-  #     - name: 'Build'
-  #       if: ${{ steps.binary-cache.outputs.cache-hit != 'true' && steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
-  #       run: |
-  #         docker run --rm -v $(pwd)/packages/next:/swc -w /swc builder sh -c "yarn build-native --release"
-
-  #     - name: Upload artifact
-  #       if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
-  #       uses: actions/upload-artifact@v2
-  #       with:
-  #         name: next-swc-binaries
-  #         path: packages/next/native/next-swc.linux-x64-musl.node
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: next-swc-binaries
+          path: packages/next/native/next-swc.linux-x64-musl.node
 
   build-linux-aarch64:
     needs: build
@@ -914,19 +915,20 @@ jobs:
     steps:
       - run: docker run --rm --privileged multiarch/qemu-user-static:register --reset
 
-      - uses: actions/checkout@v2
-
-      - run: echo ::set-output name=DOCS_CHANGE::$(node skip-docs-change.js echo 'not-docs-only-change')
-        id: docs-change
-
       - name: Setup node
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         uses: actions/setup-node@v2
         with:
           node-version: 14
 
+      # we use checkout here instead of the build cache since
+      # it can fail to restore in different OS'
+      - uses: actions/checkout@v2
+
+      # since the repo's dependencies aren't installed we need
+      # to install napi globally
+      - run: npm i -g @napi-rs/cli@1.2.1
+
       - name: Install Rust
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
@@ -935,7 +937,6 @@ jobs:
           target: aarch64-unknown-linux-gnu
 
       - name: Cache
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         uses: actions/cache@v2
         with:
           path: |
@@ -943,13 +944,11 @@ jobs:
           key: aarch64-linux-gnu-publish-integration
 
       - name: Install cross compile toolchain
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         run: |
           sudo apt-get update
           sudo apt-get install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu -y
 
       - name: Cache native binary
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         id: binary-cache
         uses: actions/cache@v2
         with:
@@ -957,12 +956,11 @@ jobs:
           key: next-swc-nightly-2021-08-12-linux-arm64-gnu-${{ hashFiles('.github/workflows/build_test_deploy.yml', 'packages/next/build/swc/**') }}
 
       - name: Cross build aarch64
-        if: ${{ steps.binary-cache.outputs.cache-hit != 'true' && steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
+        if: ${{ steps.binary-cache.outputs.cache-hit != 'true' }}
         run: yarn build-native --release --target aarch64-unknown-linux-gnu
         working-directory: packages/next
 
       - name: Upload artifact
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         uses: actions/upload-artifact@v2
         with:
           name: next-swc-binaries
@@ -974,19 +972,20 @@ jobs:
     name: next-swc - aarch64-unknown-linux-musl - node@14
     runs-on: ubuntu-18.04
     steps:
-      - uses: actions/checkout@v2
-
-      - run: echo ::set-output name=DOCS_CHANGE::$(node skip-docs-change.js echo 'not-docs-only-change')
-        id: docs-change
-
       - name: Setup node
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         uses: actions/setup-node@v2
         with:
           node-version: 14
 
+      # we use checkout here instead of the build cache since
+      # it can fail to restore in different OS'
+      - uses: actions/checkout@v2
+
+      # since the repo's dependencies aren't installed we need
+      # to install napi globally
+      - run: npm i -g @napi-rs/cli@1.2.1
+
       - name: Install Rust
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
@@ -995,7 +994,6 @@ jobs:
           target: aarch64-unknown-linux-musl
 
       - name: Cache
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         uses: actions/cache@v2
         with:
           path: |
@@ -1003,13 +1001,11 @@ jobs:
           key: aarch64-linux-musl-publish-integration
 
       - name: Install cross compile toolchain
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         run: |
           sudo apt-get update
           sudo apt-get install gcc-aarch64-linux-gnu -y
 
       - name: Cache native binary
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         id: binary-cache
         uses: actions/cache@v2
         with:
@@ -1017,12 +1013,11 @@ jobs:
           key: next-swc-nightly-2021-08-12-linux-arm64-musl-${{ hashFiles('.github/workflows/build_test_deploy.yml', 'packages/next/build/swc/**') }}
 
       - name: Cross build aarch64
-        if: ${{ steps.binary-cache.outputs.cache-hit != 'true' && steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
+        if: ${{ steps.binary-cache.outputs.cache-hit != 'true' }}
         run: yarn build-native --release --target aarch64-unknown-linux-musl
         working-directory: packages/next
 
       - name: Upload artifact
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         uses: actions/upload-artifact@v2
         with:
           name: next-swc-binaries
@@ -1036,19 +1031,20 @@ jobs:
     steps:
       - run: docker run --rm --privileged multiarch/qemu-user-static:register --reset
 
-      - uses: actions/checkout@v2
-
-      - run: echo ::set-output name=DOCS_CHANGE::$(node skip-docs-change.js echo 'not-docs-only-change')
-        id: docs-change
-
       - name: Setup node
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         uses: actions/setup-node@v2
         with:
           node-version: 14
 
+      # we use checkout here instead of the build cache since
+      # it can fail to restore in different OS'
+      - uses: actions/checkout@v2
+
+      # since the repo's dependencies aren't installed we need
+      # to install napi globally
+      - run: npm i -g @napi-rs/cli@1.2.1
+
       - name: Install Rust
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
@@ -1057,7 +1053,6 @@ jobs:
           target: armv7-unknown-linux-gnueabihf
 
       - name: Cache
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         uses: actions/cache@v2
         with:
           path: |
@@ -1065,13 +1060,11 @@ jobs:
           key: arm7-linux-gnu-publish-integration
 
       - name: Install cross compile toolchain
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         run: |
           sudo apt-get update
           sudo apt-get install gcc-arm-linux-gnueabihf -y
 
       - name: Cache native binary
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         id: binary-cache
         uses: actions/cache@v2
         with:
@@ -1079,12 +1072,11 @@ jobs:
           key: next-swc-nightly-2021-08-12-linux-arm-gnueabihf-${{ hashFiles('.github/workflows/build_test_deploy.yml', 'packages/next/build/swc/**') }}
 
       - name: Cross build aarch64
-        if: ${{ steps.binary-cache.outputs.cache-hit != 'true' && steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
+        if: ${{ steps.binary-cache.outputs.cache-hit != 'true' }}
         run: yarn build-native --release --target armv7-unknown-linux-gnueabihf
         working-directory: packages/next
 
       - name: Upload artifact
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         uses: actions/upload-artifact@v2
         with:
           name: next-swc-binaries
@@ -1096,19 +1088,20 @@ jobs:
     name: next-swc - Android - aarch64
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v2
-
-      - run: echo ::set-output name=DOCS_CHANGE::$(node skip-docs-change.js echo 'not-docs-only-change')
-        id: docs-change
-
       - name: Setup node
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         uses: actions/setup-node@v2
         with:
           node-version: 14
 
+      # we use checkout here instead of the build cache since
+      # it can fail to restore in different OS'
+      - uses: actions/checkout@v2
+
+      # since the repo's dependencies aren't installed we need
+      # to install napi globally
+      - run: npm i -g @napi-rs/cli@1.2.1
+
       - name: Install Rust
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
@@ -1117,7 +1110,6 @@ jobs:
           target: aarch64-linux-android
 
       - name: Cache native binary
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         id: binary-cache
         uses: actions/cache@v2
         with:
@@ -1125,7 +1117,7 @@ jobs:
           key: next-swc-nightly-2021-08-12-android-arm64-${{ hashFiles('.github/workflows/build_test_deploy.yml', 'packages/next/build/swc/**') }}
 
       - name: Build
-        if: ${{ steps.binary-cache.outputs.cache-hit != 'true' && steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
+        if: ${{ steps.binary-cache.outputs.cache-hit != 'true' }}
         shell: bash
         run: |
           export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/darwin-x86_64/bin/aarch64-linux-android24-clang"
@@ -1133,7 +1125,6 @@ jobs:
         working-directory: packages/next
 
       - name: Upload artifact
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         uses: actions/upload-artifact@v2
         with:
           name: next-swc-binaries

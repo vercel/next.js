@@ -62,7 +62,7 @@ function updateElements(type: string, components: JSX.Element[]): void {
     i < headCount;
     i++, j = j!.previousElementSibling
   ) {
-    if (j!.tagName.toLowerCase() === type) {
+    if (j?.tagName?.toLowerCase() === type) {
       oldTags.push(j!)
     }
   }
