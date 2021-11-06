@@ -934,6 +934,20 @@ export async function renderToHTML(
     }
   }
 
+  const appWrappers: Array<(content: JSX.Element) => JSX.Element> = []
+  const getWrappedApp = (app: JSX.Element) => {
+    // Prevent wrappers from reading/writing props by rendering inside an
+    // opaque component. Wrappers should use context instead.
+    const InnerApp = () => app
+    return (
+      <AppContainer>
+        {appWrappers.reduce((innerContent, fn) => {
+          return fn(innerContent)
+        }, <InnerApp />)}
+      </AppContainer>
+    )
+  }
+
   /**
    * Rules of Static & Dynamic HTML:
    *
@@ -976,11 +990,13 @@ export async function renderToHTML(
 
         const html = ReactDOMServer.renderToString(
           <AppContainer>
-            <EnhancedApp
-              Component={EnhancedComponent}
-              router={router}
-              {...props}
-            />
+            {getWrappedApp(
+              <EnhancedApp
+                Component={EnhancedComponent}
+                router={router}
+                {...props}
+              />
+            )}
           </AppContainer>
         )
         return { html, head }
@@ -1019,19 +1035,15 @@ export async function renderToHTML(
         styles: docProps.styles,
       }
     } else {
-      const contentWrappers: Array<(content: JSX.Element) => JSX.Element> = []
       const bodyResult = async () => {
-        const initialContent =
+        const content =
           ctx.err && ErrorDebug ? (
             <ErrorDebug error={ctx.err} />
           ) : (
-            <AppContainer>
+            getWrappedApp(
               <App {...props} Component={Component} router={router} />
-            </AppContainer>
+            )
           )
-        const content = contentWrappers.reduce((innerContent, fn) => {
-          return fn(innerContent)
-        }, initialContent)
 
         return concurrentFeatures
           ? process.browser
@@ -1045,7 +1057,7 @@ export async function renderToHTML(
         documentElement: () => (Document as any)(),
         useMainContent: (fn?: (content: JSX.Element) => JSX.Element) => {
           if (fn) {
-            contentWrappers.push(fn)
+            appWrappers.push(fn)
           }
           // @ts-ignore
           return <next-js-internal-body-render-target />
