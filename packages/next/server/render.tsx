@@ -60,6 +60,7 @@ import {
 import { DomainLocale } from './config'
 import RenderResult, { NodeWritablePiper } from './render-result'
 import isError from '../lib/is-error'
+import { render as renderFunctionalDocument } from './functional-document'
 
 let Writable: typeof import('stream').Writable
 let Buffer: typeof import('buffer').Buffer
@@ -1020,6 +1021,17 @@ export async function renderToHTML(
           </AppContainer>
         )
 
+      const document = await renderFunctionalDocument(
+        {
+          pathname: ctx.pathname,
+          query: ctx.query,
+          asPath: ctx.asPath,
+          locale: ctx.locale,
+          locales: ctx.locales,
+          defaultLocale: ctx.defaultLocale,
+        },
+        Document as any
+      )
       const bodyResult = concurrentFeatures
         ? process.browser
           ? await renderToReadableStream(content)
@@ -1028,7 +1040,7 @@ export async function renderToHTML(
 
       return {
         bodyResult,
-        documentElement: () => (Document as any)(),
+        documentElement: () => document,
         head,
         headTags: [],
         styles: jsxStyleRegistry.styles(),
