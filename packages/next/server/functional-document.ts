@@ -52,6 +52,12 @@ export async function render(
 
     try {
       usedDuringRender = false
+      // Note: we intentionally do not pass props to functional `Document` components. Since this
+      // component is only used on the very first render, we want to prevent handing applications
+      // a footgun where page behavior can unexpectedly differ.
+      //
+      // Instead, applications should ideally move such logic to `pages/_app`, or use the
+      // `useLegacyGetInitialProps` hook (which will be deprecated eventually).
       return Document({})
     } finally {
       CURRENT_HOOK_IMPL = prevHookImpl
