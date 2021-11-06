@@ -39,6 +39,10 @@ describe('should set-up next', () => {
               source: '/some-catch-all/:path*',
               destination: '/',
             },
+            {
+              source: '/to-dynamic/:path',
+              destination: '/dynamic/:path',
+            },
           ]
         },
       },
@@ -551,6 +555,21 @@ describe('should set-up next', () => {
     expect(JSON.parse($('#router').text()).query).toEqual({
       path: ['hello', 'world'],
     })
+  })
+
+  it('should handle bad request correctly with rewrite', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/to-dynamic/%c0.%c0.',
+      '?path=%c0.%c0.',
+      {
+        headers: {
+          'x-matched-path': '/dynamic/[slug]',
+        },
+      }
+    )
+    expect(res.status).toBe(400)
+    expect(await res.text()).toContain('Bad Request')
   })
 
   it('should bubble error correctly for gip page', async () => {
