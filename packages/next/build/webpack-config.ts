@@ -665,7 +665,7 @@ export default async function getBaseWebpackConfig(
 
       [PAGES_DIR_ALIAS]: pagesDir,
       [DOT_NEXT_ALIAS]: distDir,
-      ...(!isServer ? getOptimizedAliases() : {}),
+      ...(targetWeb ? getOptimizedAliases() : {}),
       ...getReactProfilingInProduction(),
 
       ...(targetWeb
