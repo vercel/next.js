@@ -12,4 +12,5 @@
 /// <reference path="./script.d.ts" />
 /// <reference path="./server.d.ts" />
 
+export { default } from './types'
 export * from './types'
