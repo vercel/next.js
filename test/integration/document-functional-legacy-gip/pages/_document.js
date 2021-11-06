@@ -8,7 +8,7 @@ import {
 } from 'next/document'
 
 async function getInitialProps(ctx) {
-  await new Promise(resolve => {
+  await new Promise((resolve) => {
     setTimeout(resolve, 200)
   })
   return { content: 'hello from legacy gip' }

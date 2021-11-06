@@ -4,7 +4,7 @@ import { NextSimplePageContext } from '../shared/lib/utils'
 type LegacyGetInitialPropsFn<T> = (ctx: NextSimplePageContext) => Promise<T>
 type LegacyGetInitialPropsHook = <T>(fn: LegacyGetInitialPropsFn<T>) => T
 
-let HOOK_CONTEXT: LegacyGetInitialPropsHook | null = null
+let CURRENT_HOOK_IMPL: LegacyGetInitialPropsHook | null = null
 
 export async function render(
   ctx: NextSimplePageContext,
@@ -15,7 +15,7 @@ export async function render(
     promise: Promise<void> | null
     value?: unknown
   } | null = null
-  const nextHookContext = <T>(fn: LegacyGetInitialPropsFn<T>) => {
+  const nextHookImpl = <T>(fn: LegacyGetInitialPropsFn<T>) => {
     if (!state) {
       state = {
         fn,
@@ -40,13 +40,13 @@ export async function render(
   }
 
   const tryRender = () => {
-    const prevHookContext = HOOK_CONTEXT
-    HOOK_CONTEXT = nextHookContext
+    const prevHookImpl = CURRENT_HOOK_IMPL
+    CURRENT_HOOK_IMPL = nextHookImpl
 
     try {
       return Document({})
     } finally {
-      HOOK_CONTEXT = prevHookContext
+      CURRENT_HOOK_IMPL = prevHookImpl
     }
   }
 
@@ -72,13 +72,13 @@ export async function render(
 }
 
 export function useLegacyGetInitialProps<T>(fn: LegacyGetInitialPropsFn<T>): T {
-  const impl = HOOK_CONTEXT
-  if (!impl) {
+  const currHookImpl = CURRENT_HOOK_IMPL
+  if (!currHookImpl) {
     throw new Error(
       'The useLegacyGetInitialProps hook can only be used in pages/_document'
     )
   }
-  return impl(fn)
+  return currHookImpl(fn)
 }
 
 class InternalSuspendError {
