@@ -142,6 +142,38 @@ describe('CSS Customization Array', () => {
   })
 })
 
+describe('CSS Customization custom loader', () => {
+  const appDir = join(fixturesDir, 'custom-configuration-loader')
+
+  beforeAll(async () => {
+    await remove(join(appDir, '.next'))
+  })
+
+  it('should compile successfully', async () => {
+    const { code, stdout, stderr } = await nextBuild(appDir, [], {
+      stdout: true,
+      stderr: true,
+    })
+    expect(code).toBe(0)
+    expect(stderr).toMatch(/Built-in CSS support is being disabled/)
+    expect(stdout).toMatch(/Compiled successfully/)
+  })
+
+  it(`should've applied style`, async () => {
+    const pagesFolder = join(appDir, '.next/static/chunks/pages')
+
+    const files = await readdir(pagesFolder)
+    const indexFiles = files.filter((f) => /^index.+\.js$/.test(f))
+
+    expect(indexFiles.length).toBe(1)
+    const indexContent = await readFile(
+      join(pagesFolder, indexFiles[0]),
+      'utf8'
+    )
+    expect(indexContent).toMatch(/\.my-text\.jsx-[0-9a-z]+ {color:red}/)
+  })
+})
+
 describe('Bad CSS Customization', () => {
   const appDir = join(fixturesDir, 'bad-custom-configuration')
 

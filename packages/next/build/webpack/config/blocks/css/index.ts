@@ -124,18 +124,7 @@ export const css = curry(async function css(
     },
   ]
 
-  const fns: ConfigurationFn[] = [
-    loader({
-      oneOf: [
-        {
-          // Impossible regex expression
-          test: /a^/,
-          loader: 'noop-loader',
-          options: { __next_css_remove: true },
-        },
-      ],
-    }),
-  ]
+  const fns: ConfigurationFn[] = []
 
   const postCssPlugins = await getPostCssPlugins(
     ctx.rootDirectory,
@@ -394,6 +383,21 @@ export const css = curry(async function css(
       )
     )
   }
+
+  fns.unshift(
+    loader({
+      oneOf: [
+        {
+          // Impossible regex expression
+          test: /a^/,
+          loader: 'noop-loader',
+          // Record the number of entries we need to remove if built-in CSS
+          // support is disabled
+          options: { __next_css_remove: fns.length + 1 },
+        },
+      ],
+    })
+  )
 
   const fn = pipe(...fns)
   return fn(config)
