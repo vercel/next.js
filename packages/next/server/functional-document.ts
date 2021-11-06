@@ -41,6 +41,7 @@ export async function render(
       )
     }
     if (state.promise) {
+      // Wrap the promise in a branded error so that applications don't try to suspend.
       throw new InternalSuspendError(state.promise)
     }
     return state.value as T
@@ -67,13 +68,23 @@ export async function render(
   while (true) {
     try {
       return tryRender()
-    } catch (err) {
+    } catch (err: unknown) {
+      if (
+        err &&
+        typeof err === 'object' &&
+        typeof (err as any).then === 'function'
+      ) {
+        throw new Error(
+          'Functional Next.js Document components do not currently support Suspense.'
+        )
+      }
+
       if (
         err instanceof Error &&
         /Invalid hook call|Minified React error #321/.test(err.message)
       ) {
         throw new Error(
-          'Functional Document components do not currently support React hooks.\n' +
+          'Functional Next.js Document components do not currently support React hooks.\n' +
             'Read more: https://nextjs.org/docs/messages/functional-document-hooks'
         )
       }
