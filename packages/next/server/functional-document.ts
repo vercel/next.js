@@ -54,12 +54,10 @@ export async function render(
     try {
       return tryRender()
     } catch (err) {
-      if (process.env.NODE_ENV !== 'production') {
-        if (err instanceof Error && /Invalid hook call/.test(err.message)) {
-          throw new Error(
-            'Functional Document components do not currently support React hooks'
-          )
-        }
+      if (err instanceof Error && /Invalid hook call|Minified React error #321/.test(err.message)) {
+        throw new Error(
+          'Functional Document components do not currently support React hooks'
+        )
       }
       if (!(err instanceof InternalSuspendError)) {
         throw err
