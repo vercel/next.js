@@ -57,10 +57,6 @@ export default async function middlewareRSCLoader(this: any) {
           throw new Error('Your page must export a \`default\` component')
         }
 
-        function renderError(err, status) {
-          return new Response(err.toString(), {status})
-        }
-
         function wrapReadable(readable) {
           const encoder = new TextEncoder()
           const transformStream = new TransformStream()
@@ -104,14 +100,9 @@ export default async function middlewareRSCLoader(this: any) {
         const Component = Page`
         }
 
-        function render(request) {
+        async function render(request) {
           const url = request.nextUrl
           const query = Object.fromEntries(url.searchParams)
-
-          if (Document.getInitialProps) {
-            const err = new Error('Document.getInitialProps is not supported with server components, please remove it from pages/_document')
-            return renderError(err, 500)
-          }
 
           // Preflight request
           if (request.method === 'HEAD') {
@@ -172,18 +163,27 @@ export default async function middlewareRSCLoader(this: any) {
           const writer = transformStream.writable.getWriter()
           const encoder = new TextEncoder()
 
-          renderToHTML(
-            { url: url.pathname },
-            {},
-            url.pathname,
-            query,
-            renderOpts
-          ).then(result => {
+          try {
+            const result = await renderToHTML(
+              { url: url.pathname },
+              {},
+              url.pathname,
+              query,
+              renderOpts
+            )
             result.pipe({
               write: str => writer.write(encoder.encode(str)),
               end: () => writer.close()
             })
-          })
+          } catch (err) {
+            return new Response(
+              (err || 'An error occurred while rendering ' + url.pathname + '.').toString(),
+              {
+                status: 500,
+                headers: { 'x-middleware-ssr': '1' }
+              }
+            )
+          }
 
           return new Response(transformStream.readable, {
             headers: { 'x-middleware-ssr': '1' }

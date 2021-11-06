@@ -514,7 +514,13 @@ export default class DevServer extends Server {
     parsed: UrlWithParsedQuery
   }): Promise<FetchEventResult | null> {
     try {
-      const result = await super.runMiddleware(params)
+      const result = await super.runMiddleware({
+        ...params,
+        onWarning: (warn) => {
+          this.logErrorWithOriginalStack(warn, 'warning', 'client')
+        },
+      })
+
       result?.waitUntil.catch((error) =>
         this.logErrorWithOriginalStack(error, 'unhandledRejection', 'client')
       )
@@ -589,7 +595,7 @@ export default class DevServer extends Server {
 
   private async logErrorWithOriginalStack(
     err?: unknown,
-    type?: 'unhandledRejection' | 'uncaughtException',
+    type?: 'unhandledRejection' | 'uncaughtException' | 'warning',
     stats: 'server' | 'client' = 'server'
   ) {
     let usedOriginalStack = false
@@ -630,11 +636,15 @@ export default class DevServer extends Server {
             const { file, lineNumber, column, methodName } = originalStackFrame
 
             console.error(
-              chalk.red('error') +
+              (type === 'warning' ? chalk.yellow('warn') : chalk.red('error')) +
                 ' - ' +
                 `${file} (${lineNumber}:${column}) @ ${methodName}`
             )
-            console.error(`${chalk.red(err.name)}: ${err.message}`)
+            console.error(
+              `${(type === 'warning' ? chalk.yellow : chalk.red)(err.name)}: ${
+                err.message
+              }`
+            )
             console.error(originalCodeFrame)
             usedOriginalStack = true
           }
@@ -647,7 +657,9 @@ export default class DevServer extends Server {
     }
 
     if (!usedOriginalStack) {
-      if (type) {
+      if (type === 'warning') {
+        Log.warn(err + '')
+      } else if (type) {
         Log.error(`${type}:`, err + '')
       } else {
         Log.error(err + '')
