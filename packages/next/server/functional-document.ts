@@ -15,7 +15,14 @@ export async function render(
     promise: Promise<void> | null
     value?: unknown
   } | null = null
+  let usedDuringRender = false
   const nextHookImpl = <T>(fn: LegacyGetInitialPropsFn<T>) => {
+    if (usedDuringRender) {
+      throw new Error(
+        'useLegacyGetInitialProps was called multiple times. This is not supported.'
+      )
+    }
+    usedDuringRender = true
     if (!state) {
       state = {
         fn,
@@ -30,7 +37,7 @@ export async function render(
     }
     if (state.fn !== fn) {
       throw new Error(
-        'useLegacyGetInitialProps was called with different functions. This is not supported.'
+        'The function passed to useLegacyGetInitialProps changed between renders. This is not supported.'
       )
     }
     if (state.promise) {
@@ -44,6 +51,7 @@ export async function render(
     CURRENT_HOOK_IMPL = nextHookImpl
 
     try {
+      usedDuringRender = false
       return Document({})
     } finally {
       CURRENT_HOOK_IMPL = prevHookImpl
