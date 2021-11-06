@@ -506,6 +506,10 @@
         {
           "title": "middleware-new-signature",
           "path": "/errors/middleware-new-signature.md"
+        },
+        {
+          "title": "functional-document-hooks",
+          "path": "/errors/functional-document-hooks.md"
         }
       ]
     }

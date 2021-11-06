@@ -30,7 +30,7 @@ export async function render(
     }
     if (state.fn !== fn) {
       throw new Error(
-        'useLegacyGetInitialProps was called with a different function. This is not supported.'
+        'useLegacyGetInitialProps was called with different functions. This is not supported.'
       )
     }
     if (state.promise) {
@@ -54,9 +54,13 @@ export async function render(
     try {
       return tryRender()
     } catch (err) {
-      if (err instanceof Error && /Invalid hook call|Minified React error #321/.test(err.message)) {
+      if (
+        err instanceof Error &&
+        /Invalid hook call|Minified React error #321/.test(err.message)
+      ) {
         throw new Error(
-          'Functional Document components do not currently support React hooks'
+          'Functional Document components do not currently support React hooks.\n' +
+            'Read more: https://nextjs.org/docs/messages/functional-document-hooks'
         )
       }
       if (!(err instanceof InternalSuspendError)) {
