@@ -452,7 +452,7 @@ export default async function getBaseWebpackConfig(
   let useSWCLoader = !babelConfigFile
 
   if (!loggedSwcDisabled && !useSWCLoader && babelConfigFile) {
-    Log.warn(
+    Log.info(
       `Disabled SWC as replacement for Babel because of custom Babel configuration "${path.relative(
         dir,
         babelConfigFile
