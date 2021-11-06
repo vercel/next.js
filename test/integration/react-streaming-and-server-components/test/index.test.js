@@ -140,7 +140,7 @@ describe('concurrentFeatures - prod', () => {
     ]) {
       expect(content.clientInfo).toContainEqual(item)
     }
-    expect(context.clientInfo).not.toContainEqual([['/404', true]])
+    expect(content.clientInfo).not.toContainEqual([['/404', true]])
   })
 
   it('should support React.lazy and dynamic imports', async () => {
