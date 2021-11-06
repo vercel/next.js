@@ -37,6 +37,7 @@ import { NextConfigComplete } from '../server/config-shared'
 import isError from '../lib/is-error'
 
 const { builtinModules } = require('module')
+const RESERVED_PAGE = /^\/(_app|_error|_document|api(\/|$))/
 const fileGzipStats: { [k: string]: Promise<number> | undefined } = {}
 const fsStatGzip = (file: string) => {
   const cached = fileGzipStats[file]
@@ -1143,4 +1144,12 @@ export function getUnresolvedModuleFromError(
   )
   const [, moduleName] = error.match(moduleErrorRegex) || []
   return builtinModules.find((item: string) => item === moduleName)
+}
+
+export function isReservedPage(page: string) {
+  return RESERVED_PAGE.test(page)
+}
+
+export function isCustomErrorPage(page: string) {
+  return page === '/404' || page === '/500'
 }
