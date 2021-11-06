@@ -64,18 +64,18 @@ export type NextConfig = { [key: string]: any } & {
 
   webpack?:
     | ((
-        config: webpack5.Configuration,
+        config: any,
         context: {
           dir: string
           dev: boolean
           isServer: boolean
           buildId: string
           config: NextConfigComplete
-          defaultLoaders: { babel: webpack5.RuleSetUseItem }
+          defaultLoaders: { babel: any }
           totalPages: number
-          webpack: typeof webpack5
+          webpack: any
         }
-      ) => webpack5.Configuration)
+      ) => any)
     | null
 
   trailingSlash?: boolean
