@@ -1829,7 +1829,9 @@ export default class Router implements BaseRouter {
     }
 
     const preflight = await this._getPreflightData({
-      preflightHref: options.as,
+      preflightHref: hasBasePath(options.as)
+        ? options.as
+        : addBasePath(options.as),
       shouldCache: options.cache,
     })
 
