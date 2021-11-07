@@ -13,7 +13,7 @@ It uses current best practices for authentication in the Next.js ecosystem.
 On the next-iron-session repository (https://github.com/vvo/next-iron-session) you'll find:
 
 - full API documentation and explanations on how it works
-- [TypeScript example](https://github.com/vvo/next-iron-session/tree/master/examples/next-typescript)
+- [TypeScript example](https://github.com/vvo/next-iron-session/tree/master/examples/next.js-typescript)
 - [JavaScript example](https://github.com/vvo/next-iron-session/tree/master/examples/next.js)
 - [Express.js example](https://github.com/vvo/next-iron-session/tree/master/examples/express)
 
