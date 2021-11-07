@@ -134,15 +134,6 @@ describe('Basics', () => {
       'A React component suspended while rendering, but no fallback UI was specified'
     )
   })
-
-  it('supports render prop as children in <Main />', async () => {
-    const appPort = await findPort()
-    const app = await launchApp(appDir, appPort, { nodeArgs })
-    const html = await renderViaHTTP(appPort, '/main-render-prop')
-    await killApp(app)
-
-    expect(html).toContain('from main render prop')
-  })
 })
 
 describe('Blocking mode', () => {
