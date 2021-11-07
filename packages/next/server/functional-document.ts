@@ -75,7 +75,8 @@ export async function render(
         typeof (err as any).then === 'function'
       ) {
         throw new Error(
-          'Functional Next.js Document components do not currently support Suspense.'
+          'Functional Next.js Document components do not currently support Suspense.\n' +
+            'Read more: https://nextjs.org/docs/messages/functional-document-rsc'
         )
       }
 
@@ -85,7 +86,7 @@ export async function render(
       ) {
         throw new Error(
           'Functional Next.js Document components do not currently support React hooks.\n' +
-            'Read more: https://nextjs.org/docs/messages/functional-document-hooks'
+            'Read more: https://nextjs.org/docs/messages/functional-document-rsc'
         )
       }
       if (!(err instanceof InternalSuspendError)) {

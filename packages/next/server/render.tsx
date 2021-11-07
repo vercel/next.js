@@ -1055,12 +1055,12 @@ export async function renderToHTML(
               <App {...props} Component={Component} router={router} />
             )
           )
-        
+
         return concurrentFeatures
-        ? process.browser
-          ? await renderToReadableStream(content)
-          : await renderToNodeStream(content, generateStaticHTML)
-        : piperFromArray([ReactDOMServer.renderToString(content)])
+          ? process.browser
+            ? await renderToReadableStream(content)
+            : await renderToNodeStream(content, generateStaticHTML)
+          : piperFromArray([ReactDOMServer.renderToString(content)])
       }
 
       return {
