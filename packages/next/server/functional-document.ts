@@ -2,7 +2,9 @@ import { FunctionComponent } from 'react'
 import { NextSimplePageContext } from '../shared/lib/utils'
 
 type LegacyGetInitialPropsFn<T> = (ctx: NextSimplePageContext) => Promise<T>
-type LegacyGetInitialPropsHook = <T>(fn: LegacyGetInitialPropsFn<T>) => T
+type LegacyGetInitialPropsHook = (
+  fn: LegacyGetInitialPropsFn<unknown>
+) => unknown
 
 let CURRENT_HOOK_IMPL: LegacyGetInitialPropsHook | null = null
 
@@ -16,7 +18,7 @@ export async function render(
     value?: unknown
   } | null = null
   let usedDuringRender = false
-  const nextHookImpl = <T>(fn: LegacyGetInitialPropsFn<T>) => {
+  const nextHookImpl: LegacyGetInitialPropsHook = (fn) => {
     if (usedDuringRender) {
       throw new Error(
         'useLegacyGetInitialProps was called multiple times. This is not supported.'
@@ -44,7 +46,7 @@ export async function render(
       // Wrap the promise in a branded error so that applications don't try to suspend.
       throw new InternalSuspendError(state.promise)
     }
-    return state.value as T
+    return state.value
   }
 
   const tryRender = () => {
@@ -104,7 +106,7 @@ export function useLegacyGetInitialProps<T>(fn: LegacyGetInitialPropsFn<T>): T {
       'The useLegacyGetInitialProps hook can only be used in pages/_document'
     )
   }
-  return currHookImpl(fn)
+  return currHookImpl(fn) as T
 }
 
 class InternalSuspendError {
