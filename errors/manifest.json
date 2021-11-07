@@ -506,6 +506,10 @@
         {
           "title": "middleware-new-signature",
           "path": "/errors/middleware-new-signature.md"
+        },
+        {
+          "title": "no-next-server-outside-middleware",
+          "path": "/errors/no-next-server-outside-middleware.md"
         }
       ]
     }
