@@ -514,9 +514,9 @@ export async function renderToHTML(
     defaultLocale: renderOpts.defaultLocale,
     AppTree: (props: any) => {
       return (
-        <AppContainer>
+        <AppContainerWithIsomorphicFiberStructure>
           <App {...props} Component={Component} router={router} />
-        </AppContainer>
+        </AppContainerWithIsomorphicFiberStructure>
       )
     },
     defaultGetInitialProps: async (
@@ -576,6 +576,38 @@ export async function renderToHTML(
       </AmpStateContext.Provider>
     </RouterContext.Provider>
   )
+
+  // The `useId` API uses the path indexes to generate an ID for each node.
+  // To guarantee the match of hydration, we need to ensure that the structure
+  // of wrapper nodes is isomorphic in server and client.
+  // TODO: With `enhanceApp` and `enhanceComponents` options, this approach may
+  // not be useful.
+  // https://github.com/facebook/react/pull/22644
+  const Noop = () => null
+  const AppContainerWithIsomorphicFiberStructure = ({
+    children,
+  }: {
+    children: JSX.Element
+  }) => {
+    return (
+      <>
+        <Noop />
+        <AppContainer>
+          <>
+            {dev ? (
+              <>
+                {children}
+                <Noop />
+              </>
+            ) : (
+              children
+            )}
+            <Noop />
+          </>
+        </AppContainer>
+      </>
+    )
+  }
 
   props = await loadGetInitialProps(App, {
     AppTree: ctx.AppTree,
@@ -976,13 +1008,13 @@ export async function renderToHTML(
           enhanceComponents(options, App, Component)
 
         const html = ReactDOMServer.renderToString(
-          <AppContainer>
+          <AppContainerWithIsomorphicFiberStructure>
             <EnhancedApp
               Component={EnhancedComponent}
               router={router}
               {...props}
             />
-          </AppContainer>
+          </AppContainerWithIsomorphicFiberStructure>
         )
         return { html, head }
       }
@@ -1015,9 +1047,9 @@ export async function renderToHTML(
         ctx.err && ErrorDebug ? (
           <ErrorDebug error={ctx.err} />
         ) : (
-          <AppContainer>
+          <AppContainerWithIsomorphicFiberStructure>
             <App {...props} Component={Component} router={router} />
-          </AppContainer>
+          </AppContainerWithIsomorphicFiberStructure>
         )
 
       const bodyResult = concurrentFeatures
