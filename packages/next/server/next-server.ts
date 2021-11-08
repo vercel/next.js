@@ -425,51 +425,61 @@ export default class Server {
         rewrites: combinedRewrites,
       })
 
-      utils.handleRewrites(req, parsedUrl)
+      try {
+        utils.handleRewrites(req, parsedUrl)
 
-      // interpolate dynamic params and normalize URL if needed
-      if (pageIsDynamic) {
-        let params: ParsedUrlQuery | false = {}
+        // interpolate dynamic params and normalize URL if needed
+        if (pageIsDynamic) {
+          let params: ParsedUrlQuery | false = {}
 
-        Object.assign(parsedUrl.query, query)
-        const paramsResult = utils.normalizeDynamicRouteParams(parsedUrl.query)
-
-        if (paramsResult.hasValidParams) {
-          params = paramsResult.params
-        } else if (req.headers['x-now-route-matches']) {
-          const opts: Record<string, string> = {}
-          params = utils.getParamsFromRouteMatches(
-            req,
-            opts,
-            (parsedUrl.query.__nextLocale as string | undefined) || ''
+          Object.assign(parsedUrl.query, query)
+          const paramsResult = utils.normalizeDynamicRouteParams(
+            parsedUrl.query
           )
 
-          if (opts.locale) {
-            parsedUrl.query.__nextLocale = opts.locale
+          if (paramsResult.hasValidParams) {
+            params = paramsResult.params
+          } else if (req.headers['x-now-route-matches']) {
+            const opts: Record<string, string> = {}
+            params = utils.getParamsFromRouteMatches(
+              req,
+              opts,
+              (parsedUrl.query.__nextLocale as string | undefined) || ''
+            )
+
+            if (opts.locale) {
+              parsedUrl.query.__nextLocale = opts.locale
+            }
+          } else {
+            params = utils.dynamicRouteMatcher!(matchedPathnameNoExt)
           }
-        } else {
-          params = utils.dynamicRouteMatcher!(matchedPathnameNoExt)
+
+          if (params) {
+            params = utils.normalizeDynamicRouteParams(params).params
+
+            matchedPathname = utils.interpolateDynamicPath(
+              matchedPathname,
+              params
+            )
+            req.url = utils.interpolateDynamicPath(req.url!, params)
+          }
+
+          if (reqUrlIsDataUrl && matchedPathIsDataUrl) {
+            req.url = formatUrl({
+              ...parsedPath,
+              pathname: matchedPathname,
+            })
+          }
+
+          Object.assign(parsedUrl.query, params)
+          utils.normalizeVercelUrl(req, true)
         }
-
-        if (params) {
-          params = utils.normalizeDynamicRouteParams(params).params
-
-          matchedPathname = utils.interpolateDynamicPath(
-            matchedPathname,
-            params
-          )
-          req.url = utils.interpolateDynamicPath(req.url!, params)
+      } catch (err) {
+        if (err instanceof DecodeError) {
+          res.statusCode = 400
+          return this.renderError(null, req, res, '/_error', {})
         }
-
-        if (reqUrlIsDataUrl && matchedPathIsDataUrl) {
-          req.url = formatUrl({
-            ...parsedPath,
-            pathname: matchedPathname,
-          })
-        }
-
-        Object.assign(parsedUrl.query, params)
-        utils.normalizeVercelUrl(req, true)
+        throw err
       }
 
       parsedUrl.pathname = `${basePath || ''}${
@@ -611,6 +621,7 @@ export default class Server {
     response: ServerResponse
     parsedUrl: ParsedNextUrl
     parsed: UrlWithParsedQuery
+    onWarning?: (warning: Error) => void
   }): Promise<FetchEventResult | null> {
     this.middlewareBetaWarning()
 
@@ -672,6 +683,12 @@ export default class Server {
             page: page,
           },
           ssr: !!this.nextConfig.experimental.concurrentFeatures,
+          onWarning: (warning: Error) => {
+            if (params.onWarning) {
+              warning.message += ` "./${middlewareInfo.name}"`
+              params.onWarning(warning)
+            }
+          },
         })
 
         for (let [key, value] of result.response.headers) {

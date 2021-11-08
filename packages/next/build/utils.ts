@@ -42,6 +42,7 @@ import { recursiveDelete } from '../lib/recursive-delete'
 import { Sema } from 'next/dist/compiled/async-sema'
 
 const { builtinModules } = require('module')
+const RESERVED_PAGE = /^\/(_app|_error|_document|api(\/|$))/
 const fileGzipStats: { [k: string]: Promise<number> | undefined } = {}
 const fsStatGzip = (file: string) => {
   const cached = fileGzipStats[file]
@@ -1254,4 +1255,11 @@ server.listen(currentPort, (err) => {
 })
     `
   )
+}
+export function isReservedPage(page: string) {
+  return RESERVED_PAGE.test(page)
+}
+
+export function isCustomErrorPage(page: string) {
+  return page === '/404' || page === '/500'
 }
