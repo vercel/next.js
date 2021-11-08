@@ -29,7 +29,12 @@ import { fileExists } from '../../lib/file-exists'
 import { ClientPagesLoaderOptions } from '../../build/webpack/loaders/next-client-pages-loader'
 import { ssrEntries } from '../../build/webpack/plugins/middleware-plugin'
 import { stringify } from 'querystring'
-import { difference, isFlightPage } from '../../build/utils'
+import {
+  difference,
+  isCustomErrorPage,
+  isFlightPage,
+  isReservedPage,
+} from '../../build/utils'
 import { NextConfigComplete } from '../config-shared'
 import { CustomRoutes } from '../../lib/load-custom-routes'
 import { DecodeError } from '../../shared/lib/utils'
@@ -441,11 +446,18 @@ export default class HotReloader {
         await Promise.all(
           Object.keys(entries).map(async (pageKey) => {
             const isClientKey = pageKey.startsWith('client')
+            const isServerWebKey = pageKey.startsWith('server-web')
             if (isClientKey !== isClientCompilation) return
+            if (isServerWebKey !== isServerWebCompilation) return
             const page = pageKey.slice(
-              isClientKey ? 'client'.length : 'server'.length
+              isClientKey
+                ? 'client'.length
+                : isServerWebKey
+                ? 'server-web'.length
+                : 'server'.length
             )
-            const isMiddleware = page.match(MIDDLEWARE_ROUTE)
+            const isMiddleware = !!page.match(MIDDLEWARE_ROUTE)
+
             if (isClientCompilation && page.match(API_ROUTE) && !isMiddleware) {
               return
             }
@@ -464,11 +476,18 @@ export default class HotReloader {
               return
             }
 
+            const isCustomError = isCustomErrorPage(page)
+            const isReserved = isReservedPage(page)
             const isServerComponent =
               this.hasServerComponents &&
               isFlightPage(this.config, absolutePagePath)
 
-            if (isServerCompilation && this.webServerRuntime && !isApiRoute) {
+            if (
+              isServerCompilation &&
+              this.webServerRuntime &&
+              !isApiRoute &&
+              !isCustomError
+            ) {
               return
             }
 
@@ -496,22 +515,13 @@ export default class HotReloader {
                 ssrEntries.set(bundlePath, { requireFlightManifest: true })
               } else if (
                 this.webServerRuntime &&
-                !(
-                  page === '/_app' ||
-                  page === '/_error' ||
-                  page === '/_document'
-                )
+                !isReserved &&
+                !isCustomError
               ) {
                 ssrEntries.set(bundlePath, { requireFlightManifest: false })
               }
             } else if (isServerWebCompilation) {
-              if (
-                !(
-                  page === '/_app' ||
-                  page === '/_error' ||
-                  page === '/_document'
-                )
-              ) {
+              if (!isReserved) {
                 entrypoints[bundlePath] = finalizeEntrypoint({
                   name: '[name].js',
                   value: `next-middleware-ssr-loader?${stringify({

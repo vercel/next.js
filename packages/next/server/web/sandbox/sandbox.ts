@@ -10,9 +10,11 @@ import vm from 'vm'
 let cache:
   | {
       context: { [key: string]: any }
+      onWarning: (warn: Error) => void
       paths: Map<string, string>
       require: Map<string, any>
       sandbox: vm.Context
+      warnedEvals: Set<string>
     }
   | undefined
 
@@ -33,12 +35,14 @@ export function clearSandboxCache(path: string, content: Buffer | string) {
 
 export async function run(params: {
   name: string
+  onWarning: (warn: Error) => void
   paths: string[]
   request: RequestData
   ssr: boolean
 }): Promise<FetchEventResult> {
   if (cache === undefined) {
     const context: { [key: string]: any } = {
+      __next_eval__,
       _ENTRIES: {},
       atob: polyfills.atob,
       Blob,
@@ -89,11 +93,21 @@ export async function run(params: {
 
     cache = {
       context,
+      onWarning: params.onWarning,
+      paths: new Map<string, string>(),
       require: new Map<string, any>([
         [require.resolve('next/dist/compiled/cookie'), { exports: cookie }],
       ]),
-      paths: new Map<string, string>(),
-      sandbox: vm.createContext(context),
+      sandbox: vm.createContext(context, {
+        codeGeneration:
+          process.env.NODE_ENV === 'production'
+            ? {
+                strings: false,
+                wasm: false,
+              }
+            : undefined,
+      }),
+      warnedEvals: new Set(),
     }
 
     loadDependencies(cache.sandbox, [
@@ -110,6 +124,8 @@ export async function run(params: {
         map: { Request: 'Request' },
       },
     ])
+  } else {
+    cache.onWarning = params.onWarning
   }
 
   for (const paramPath of params.paths) {
@@ -217,4 +233,18 @@ function getFetchURL(input: RequestInfo, headers: NodeHeaders = {}): string {
 
 function isRequestLike(obj: unknown): obj is Request {
   return Boolean(obj && typeof obj === 'object' && 'url' in obj)
+}
+
+function __next_eval__(fn: Function) {
+  const key = fn.toString()
+  if (!cache?.warnedEvals.has(key)) {
+    const warning = new Error(
+      `Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Middleware`
+    )
+    warning.name = 'DynamicCodeEvaluationWarning'
+    Error.captureStackTrace(warning, __next_eval__)
+    cache?.warnedEvals.add(key)
+    cache?.onWarning(warning)
+  }
+  return fn()
 }

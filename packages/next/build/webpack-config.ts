@@ -452,7 +452,7 @@ export default async function getBaseWebpackConfig(
   let useSWCLoader = !babelConfigFile
 
   if (!loggedSwcDisabled && !useSWCLoader && babelConfigFile) {
-    Log.warn(
+    Log.info(
       `Disabled SWC as replacement for Babel because of custom Babel configuration "${path.relative(
         dir,
         babelConfigFile
@@ -629,7 +629,7 @@ export default async function getBaseWebpackConfig(
         prev.push(path.join(pagesDir, `_document.${ext}`))
         return prev
       }, [] as string[]),
-      `next/dist/pages/_document${hasServerComponents ? '.web' : ''}.js`,
+      `next/dist/pages/_document${hasServerComponents ? '-web' : ''}.js`,
     ]
   }
 
@@ -674,6 +674,14 @@ export default async function getBaseWebpackConfig(
               ? clientResolveRewrites
               : // With webpack 5 an alias can be pointed to false to noop
                 false,
+          }
+        : {}),
+
+      ...(webServerRuntime
+        ? {
+            'react-dom/server': dev
+              ? 'react-dom/cjs/react-dom-server.browser.development'
+              : 'react-dom/cjs/react-dom-server.browser.production.min',
           }
         : {}),
     },
