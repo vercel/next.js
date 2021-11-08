@@ -1,0 +1,3 @@
+.hidden {
+  display: none;
+}
