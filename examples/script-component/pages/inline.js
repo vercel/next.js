@@ -21,7 +21,9 @@ export default function Inline() {
 
       <main className={s.container}>
         <h1>Inline scripts</h1>
-        <h5 id="banner" className="hidden">This is initially hidden but its being shown because the `Script` component removed the `hidden` class.</h5>
+        <h5 id="banner" className="hidden">
+          This is initially hidden but its being shown because the `Script` component removed the `hidden` class.
+        </h5>
       </main>
     </>
   )

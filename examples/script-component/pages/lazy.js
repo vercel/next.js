@@ -6,8 +6,12 @@ import s from "../styles/lazy.module.css"
 export default function Lazyload() {
   const [log, setLog] = useState([])
 
+  function addLog(text) {
+    setLog(() => log.concat({time: new Date(), text}))
+  }
+
   useEffect(() => {
-    setLog(() => log.concat({time: new Date(), text: `Page loaded window.FB is undefined`}))
+    addLog(`Page loaded window.FB is undefined`)
   }, [])
 
   return (
@@ -16,7 +20,7 @@ export default function Lazyload() {
       <Script
         src="https://connect.facebook.net/en_US/sdk.js"
         strategy="lazyOnload"
-        onLoad={() => setLog(log => log.concat({time: new Date(), text: `script loaded correctly, window.FB has been populated`}))}
+        onLoad={() => addLog(`script loaded correctly, window.FB has been populated`)}
       />
 
       <main className={s.container}>

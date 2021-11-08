@@ -5,7 +5,20 @@ import s from "../styles/onload.module.css"
 
 export default function Onload() {
   const [stripe, setStripe] = useState(null)
-  const methods = useMemo(() => stripe ? Object.entries(stripe.stripe).filter(([_key, value]) => typeof value === "function") : [], [stripe])
+  const methods = useMemo(() =>
+    stripe
+      ? Object.entries(stripe.stripe).filter(([_key, value]) => typeof value === "function")
+      : [],
+    [stripe]
+  )
+
+  function handleLoad() {
+    const stripe = window.Stripe('pk_test_1234')
+
+    console.log('Stripe loaded: ', stripe)
+
+    setStripe({ stripe })
+  }
 
   return (
     <>
@@ -13,13 +26,7 @@ export default function Onload() {
       <Script
         id="stripe-js"
         src="https://js.stripe.com/v3/"
-        onLoad={() => {
-          const stripe = window.Stripe('pk_test_1234')
-
-          console.log('Stripe loaded: ', stripe)
-
-          setStripe({ stripe })
-        }}
+        onLoad={handleLoad}
       />
 
       <main className={s.container}>
