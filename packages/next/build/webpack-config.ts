@@ -990,7 +990,12 @@ export default async function getBaseWebpackConfig(
       ? // make sure importing "next" is handled gracefully for client
         // bundles in case a user imported types and it wasn't removed
         // TODO: should we warn/error for this instead?
-        ['next', ...(webServerRuntime ? [{ etag: '{}', chalk: '{}' }] : [])]
+        [
+          'next',
+          ...(webServerRuntime
+            ? [{ etag: '{}', chalk: '{}', 'react-dom': '{}' }]
+            : []),
+        ]
       : !isServerless
       ? [
           ({
@@ -1054,10 +1059,10 @@ export default async function getBaseWebpackConfig(
           }
         : {}),
       splitChunks: isServer
-        ? dev || webServerRuntime
+        ? dev
           ? false
           : ({
-              filename: '[name].js',
+              filename: webServerRuntime ? 'chunks/[name].js' : '[name].js',
               // allow to split entrypoints
               chunks: ({ name }: any) => !name?.match(MIDDLEWARE_ROUTE),
               // size of files is not so relevant for server build
@@ -1465,7 +1470,8 @@ export default async function getBaseWebpackConfig(
         new PagesManifestPlugin({ serverless: isLikeServerless, dev }),
       // MiddlewarePlugin should be after DefinePlugin so  NEXT_PUBLIC_*
       // replacement is done before its process.env.* handling
-      !isServer && new MiddlewarePlugin({ dev }),
+      (!isServer || webServerRuntime) &&
+        new MiddlewarePlugin({ dev, webServerRuntime }),
       isServer && new NextJsSsrImportPlugin(),
       !isServer &&
         new BuildManifestPlugin({
