@@ -63,7 +63,7 @@ function updateElements(type: string, components: JSX.Element[]): void {
     i++, j = j?.previousElementSibling || null
   ) {
     if (j?.tagName?.toLowerCase() === type) {
-      oldTags.push(j!)
+      oldTags.push(j)
     }
   }
   const newTags = (components.map(reactElementToDOM) as HTMLElement[]).filter(
