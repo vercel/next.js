@@ -199,6 +199,16 @@ export async function ncc_conf(task, opts) {
     .target('compiled/conf')
 }
 // eslint-disable-next-line camelcase
+externals['content-disposition'] = 'next/dist/compiled/content-disposition'
+export async function ncc_content_disposition(task, opts) {
+  await task
+    .source(
+      opts.src || relative(__dirname, require.resolve('content-disposition'))
+    )
+    .ncc({ packageName: 'content-disposition', externals })
+    .target('compiled/content-disposition')
+}
+// eslint-disable-next-line camelcase
 externals['content-type'] = 'next/dist/compiled/content-type'
 export async function ncc_content_type(task, opts) {
   await task
@@ -349,7 +359,7 @@ export async function ncc_jsonwebtoken(task, opts) {
 externals['loader-utils'] = 'next/dist/compiled/loader-utils'
 export async function ncc_loader_utils(task, opts) {
   await task
-    .source(opts.src || relative(__dirname, require.resolve('loader-utils')))
+    .source(opts.src || 'bundles/loader-utils.js')
     .ncc({ packageName: 'loader-utils', externals })
     .target('compiled/loader-utils')
 }
@@ -929,6 +939,7 @@ export async function ncc(task, opts) {
         'ncc_comment_json',
         'ncc_compression',
         'ncc_conf',
+        'ncc_content_disposition',
         'ncc_content_type',
         'ncc_cookie',
         'ncc_cross_spawn',
@@ -1110,8 +1121,18 @@ export async function pages_document(task, opts) {
     .target('dist/pages')
 }
 
+export async function pages_document_server(task, opts) {
+  await task
+    .source('pages/_document-web.tsx')
+    .swc('client', { dev: opts.dev })
+    .target('dist/pages')
+}
+
 export async function pages(task, opts) {
-  await task.parallel(['pages_app', 'pages_error', 'pages_document'], opts)
+  await task.parallel(
+    ['pages_app', 'pages_error', 'pages_document', 'pages_document_server'],
+    opts
+  )
 }
 
 export async function telemetry(task, opts) {
@@ -1172,9 +1193,13 @@ export async function release(task) {
 
 // notification helper
 function notify(msg) {
-  return notifier.notify({
-    title: '▲ Next',
-    message: msg,
-    icon: false,
-  })
+  try {
+    notifier.notify({
+      title: '▲ Next',
+      message: msg,
+      icon: false,
+    })
+  } catch (err) {
+    // notifier can fail on M1 machines
+  }
 }
