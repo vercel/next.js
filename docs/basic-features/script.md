@@ -60,10 +60,7 @@ import Script from 'next/script'
 With `next/script`, you decide when to load your third-party script by using the `strategy` property:
 
 ```jsx
-<Script
-  src="https://connect.facebook.net/en_US/sdk.js"
-  strategy="lazyOnload"
-/>
+<Script src="https://connect.facebook.net/en_US/sdk.js" strategy="lazyOnload" />
 ```
 
 There are three different loading strategies that can be used:
@@ -104,7 +101,7 @@ Scripts that use the `afterInteractive` strategy are injected client-side and wi
     })(window,document,'script','dataLayer', 'GTM-XXXXXX');
   `,
   }}
-/>;
+/>
 ```
 
 Examples of scripts that are good candidates to load immediately after the page becomes interactive include:
@@ -114,13 +111,10 @@ Examples of scripts that are good candidates to load immediately after the page 
 
 #### lazyOnLoad
 
-Scripts that use the `lazyOnLoad` strategy are loaded late after all resources have been fetched and during idle time. This strategy should be used for background or low priority scripts that do not need to load before or immediately after a page becomes interactive. 
+Scripts that use the `lazyOnLoad` strategy are loaded late after all resources have been fetched and during idle time. This strategy should be used for background or low priority scripts that do not need to load before or immediately after a page becomes interactive.
 
 ```jsx
-<Script
-  src="https://connect.facebook.net/en_US/sdk.js"
-  strategy="lazyOnload"
-/>
+<Script src="https://connect.facebook.net/en_US/sdk.js" strategy="lazyOnload" />
 ```
 
 Examples of scripts that do not need to load immediately and can be lazy-loaded include:
@@ -144,7 +138,7 @@ Or by using the `dangerouslySetInnerHTML` property:
 <Script
   id="show-banner"
   dangerouslySetInnerHTML={{
-    __html: `document.getElementById('banner').classList.remove('hidden')`
+    __html: `document.getElementById('banner').classList.remove('hidden')`,
   }}
 />
 ```

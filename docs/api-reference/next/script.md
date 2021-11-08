@@ -36,15 +36,15 @@ A path string specifying the URL of an external script. This can be either an ab
 
 The loading strategy of the script.
 
-| `strategy`        | **Description**                                            |
-|---------------------|------------------------------------------------------------|
+| `strategy`          | **Description**                                            |
+| ------------------- | ---------------------------------------------------------- |
 | `beforeInteractive` | Load script before the page becomes interactive            |
 | `afterInteractive`  | Load script immediately after the page becomes interactive |
 | `lazyOnload`        | Load script during browser idle time                       |
 
 ### onLoad
 
-A method that returns additional JavaScript that should be executed after the script has finished loading. 
+A method that returns additional JavaScript that should be executed after the script has finished loading.
 
 The following is an example of how to use the `onLoad` property:
 
@@ -68,5 +68,3 @@ export default function Home() {
   )
 }
 ```
-
-
