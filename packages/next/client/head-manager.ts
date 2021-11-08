@@ -79,7 +79,7 @@ function updateElements(type: string, components: JSX.Element[]): void {
     }
   )
 
-  oldTags.forEach((t) => t?.parentNode?.removeChild(t))
+  oldTags.forEach((t) => t.parentNode?.removeChild(t))
   newTags.forEach((t) => headEl.insertBefore(t, headCountEl))
   headCountEl.content = (headCount - oldTags.length + newTags.length).toString()
 }
