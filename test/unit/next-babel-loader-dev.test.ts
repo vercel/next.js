@@ -10,6 +10,18 @@ const babel = async (code: string, queryOpts = {} as any) => {
   const { isServer = false, resourcePath = `index.js` } = queryOpts
 
   let isAsync = false
+
+  const options = {
+    // loader opts
+    cwd: dir,
+    isServer,
+    distDir: path.resolve(dir, '.next'),
+    pagesDir:
+      'pagesDir' in queryOpts ? queryOpts.pagesDir : path.resolve(dir, 'pages'),
+    cache: false,
+    development: true,
+    hasReactRefresh: !isServer,
+  }
   return new Promise<string>((resolve, reject) => {
     function callback(err, content) {
       if (err) {
@@ -27,18 +39,10 @@ const babel = async (code: string, queryOpts = {} as any) => {
       },
       callback,
       emitWarning() {},
-      query: {
-        // loader opts
-        cwd: dir,
-        isServer,
-        distDir: path.resolve(dir, '.next'),
-        pagesDir:
-          'pagesDir' in queryOpts
-            ? queryOpts.pagesDir
-            : path.resolve(dir, 'pages'),
-        cache: false,
-        development: true,
-        hasReactRefresh: !isServer,
+      query: options,
+      // @ts-ignore exists
+      getOptions: function () {
+        return options
       },
       currentTraceSpan: new Span({ name: 'test' }),
     })(code, null)

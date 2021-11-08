@@ -17,7 +17,7 @@ The included helpers are:
 
 When sending a response back to the client, you can set the status code of the response.
 
-The following example sets the status code of the response to `200` (`OK`) and returns a `name` property with the value of `John Doe` as a JSON response:
+The following example sets the status code of the response to `200` (`OK`) and returns a `message` property with the value of `Hello from Next.js!` as a JSON response:
 
 ```js
 export default function handler(req, res) {

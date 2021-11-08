@@ -26,117 +26,24 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 */
 
-import { getOptions } from 'next/dist/compiled/loader-utils'
 import { transform } from '../../swc'
-
-const nextDistPath =
-  /(next[\\/]dist[\\/]shared[\\/]lib)|(next[\\/]dist[\\/]client)|(next[\\/]dist[\\/]pages)/
-
-function getSWCOptions({
-  isTypeScript,
-  isServer,
-  development,
-  isPageFile,
-  pagesDir,
-  isNextDist,
-  hasReactRefresh,
-  isCommonJS,
-}) {
-  const jsc = {
-    parser: {
-      syntax: isTypeScript ? 'typescript' : 'ecmascript',
-      dynamicImport: true,
-      [isTypeScript ? 'tsx' : 'jsx']: true,
-    },
-
-    transform: {
-      react: {
-        runtime: 'automatic',
-        pragma: 'React.createElement',
-        pragmaFrag: 'React.Fragment',
-        throwIfNamespace: true,
-        development: development,
-        useBuiltins: true,
-        refresh: hasReactRefresh,
-      },
-      optimizer: {
-        simplify: false,
-        globals: {
-          typeofs: {
-            window: isServer ? 'undefined' : 'object',
-          },
-        },
-      },
-    },
-  }
-
-  if (isServer) {
-    return {
-      jsc,
-      // Next.js dist intentionally does not have type: commonjs on server compilation
-      ...(isCommonJS
-        ? {
-            module: {
-              type: 'commonjs',
-            },
-          }
-        : {}),
-      // Disables getStaticProps/getServerSideProps tree shaking on the server compilation for pages
-      disableNextSsg: true,
-      disablePageConfig: true,
-      isDevelopment: development,
-      pagesDir,
-      isPageFile,
-      env: {
-        targets: {
-          // Targets the current version of Node.js
-          node: process.versions.node,
-        },
-      },
-    }
-  } else {
-    // Matches default @babel/preset-env behavior
-    jsc.target = 'es5'
-    return {
-      // Ensure Next.js internals are output as commonjs modules
-      ...(isNextDist || isCommonJS
-        ? {
-            module: {
-              type: 'commonjs',
-            },
-          }
-        : {}),
-      disableNextSsg: !isPageFile,
-      isDevelopment: development,
-      pagesDir,
-      isPageFile,
-      jsc,
-    }
-  }
-}
+import { getLoaderSWCOptions } from '../../swc/options'
 
 async function loaderTransform(parentTrace, source, inputSourceMap) {
   // Make the loader async
   const filename = this.resourcePath
 
-  const isTypeScript = filename.endsWith('.ts') || filename.endsWith('.tsx')
-
-  let loaderOptions = getOptions(this) || {}
+  let loaderOptions = this.getOptions() || {}
 
   const { isServer, pagesDir, hasReactRefresh } = loaderOptions
   const isPageFile = filename.startsWith(pagesDir)
 
-  const isNextDist = nextDistPath.test(filename)
-  const isCommonJS = source.indexOf('module.exports') !== -1
-
-  const swcOptions = getSWCOptions({
+  const swcOptions = getLoaderSWCOptions({
     pagesDir,
-    isTypeScript,
+    filename,
     isServer: isServer,
     isPageFile,
     development: this.mode === 'development',
-    isNextDist,
-    isCommonJS,
     hasReactRefresh,
   })
 
@@ -198,3 +105,6 @@ export default function swcLoader(inputSource, inputSourceMap) {
       }
     )
 }
+
+// accept Buffers instead of strings
+export const raw = true

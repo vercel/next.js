@@ -418,6 +418,11 @@ export default function Image({
         `Image with src "${src}" has both "priority" and "loading='lazy'" properties. Only one should be used.`
       )
     }
+    if (sizes && layout !== 'fill' && layout !== 'responsive') {
+      console.warn(
+        `Image with src "${src}" has "sizes" property but it will be ignored. Only use "sizes" with "layout='fill'" or "layout='responsive'".`
+      )
+    }
     if (placeholder === 'blur') {
       if (layout !== 'fill' && (widthInt || 0) * (heightInt || 0) < 1600) {
         console.warn(
@@ -449,15 +454,23 @@ export default function Image({
         `Image with src "${src}" is using unsupported "style" property. Please use the "className" property instead.`
       )
     }
-    const rand = Math.floor(Math.random() * 1000) + 100
-    if (
-      !unoptimized &&
-      !loader({ src, width: rand, quality: 75 }).includes(rand.toString())
-    ) {
-      console.warn(
-        `Image with src "${src}" has a "loader" property that does not implement width. Please implement it or use the "unoptimized" property instead.` +
-          `\nRead more: https://nextjs.org/docs/messages/next-image-missing-loader-width`
-      )
+
+    if (!unoptimized) {
+      const urlStr = loader({
+        src,
+        width: widthInt || 400,
+        quality: qualityInt || 75,
+      })
+      let url: URL | undefined
+      try {
+        url = new URL(urlStr)
+      } catch (err) {}
+      if (urlStr === src || (url && url.pathname === src && !url.search)) {
+        console.warn(
+          `Image with src "${src}" has a "loader" property that does not implement width. Please implement it or use the "unoptimized" property instead.` +
+            `\nRead more: https://nextjs.org/docs/messages/next-image-missing-loader-width`
+        )
+      }
     }
 
     if (

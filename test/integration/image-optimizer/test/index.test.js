@@ -63,7 +63,7 @@ function runTests({
   })
 
   it('should handle non-ascii characters in image url', async () => {
-    const query = { w, q: 90, url: '/äöü.png' }
+    const query = { w, q: 90, url: '/äöüščří.png' }
     const res = await fetchViaHTTP(appPort, '/_next/image', query, {})
     expect(res.status).toBe(200)
   })
@@ -694,7 +694,7 @@ function runTests({
     if (!isDev) {
       const filename = 'test'
       const query = {
-        url: `/_next/static/media/${filename}.480a01e5.jpg`,
+        url: `/_next/static/media/${filename}.fab2915d.jpg`,
         w,
         q: 100,
       }
