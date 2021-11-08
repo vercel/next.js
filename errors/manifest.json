@@ -508,6 +508,10 @@
           "path": "/errors/middleware-new-signature.md"
         },
         {
+          "title": "experimental-jest-transformer",
+          "path": "/errors/experimental-jest-transformer.md"
+        },
+        {
           "title": "functional-document-rsc",
           "path": "/errors/functional-document-rsc.md"
         }
