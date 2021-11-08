@@ -1214,7 +1214,7 @@ export async function copyTracedFiles(
   await handleTraceFiles(path.join(distDir, 'next-server.js.nft.json'))
   const serverOutputPath = path.join(
     outputPath,
-    path.relative(tracingRoot || dir, dir),
+    path.relative(tracingRoot, dir),
     'server.js'
   )
   await fs.writeFile(
