@@ -513,9 +513,9 @@ export async function renderToHTML(
     defaultLocale: renderOpts.defaultLocale,
     AppTree: (props: any) => {
       return (
-        <AppContainer>
+        <AppContainerWithIsomorphicFiberStructure>
           <App {...props} Component={Component} router={router} />
-        </AppContainer>
+        </AppContainerWithIsomorphicFiberStructure>
       )
     },
     defaultGetInitialProps: async (
@@ -575,6 +575,41 @@ export async function renderToHTML(
       </AmpStateContext.Provider>
     </RouterContext.Provider>
   )
+
+  // The `useId` API uses the path indexes to generate an ID for each node.
+  // To guarantee the match of hydration, we need to ensure that the structure
+  // of wrapper nodes is isomorphic in server and client.
+  // TODO: With `enhanceApp` and `enhanceComponents` options, this approach may
+  // not be useful.
+  // https://github.com/facebook/react/pull/22644
+  const Noop = () => null
+  const AppContainerWithIsomorphicFiberStructure = ({
+    children,
+  }: {
+    children: JSX.Element
+  }) => {
+    return (
+      <>
+        {/* <Head/> */}
+        <Noop />
+        <AppContainer>
+          <>
+            {/* <ReactDevOverlay/> */}
+            {dev ? (
+              <>
+                {children}
+                <Noop />
+              </>
+            ) : (
+              children
+            )}
+            {/* <RouteAnnouncer/> */}
+            <Noop />
+          </>
+        </AppContainer>
+      </>
+    )
+  }
 
   props = await loadGetInitialProps(App, {
     AppTree: ctx.AppTree,
@@ -940,11 +975,11 @@ export async function renderToHTML(
     // opaque component. Wrappers should use context instead.
     const InnerApp = () => app
     return (
-      <AppContainer>
+      <AppContainerWithIsomorphicFiberStructure>
         {appWrappers.reduce((innerContent, fn) => {
           return fn(innerContent)
         }, <InnerApp />)}
-      </AppContainer>
+      </AppContainerWithIsomorphicFiberStructure>
     )
   }
 
