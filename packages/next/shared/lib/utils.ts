@@ -221,6 +221,7 @@ export type HtmlProps = {
   styles?: React.ReactElement[] | React.ReactFragment
   head?: Array<JSX.Element | null>
   useMaybeDeferContent: MaybeDeferContentHook
+  useMainContent: (fn?: (content: JSX.Element) => JSX.Element) => JSX.Element
 }
 
 /**
