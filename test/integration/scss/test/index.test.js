@@ -768,7 +768,6 @@ describe('SCSS Support', () => {
 
     it(`should've emitted expected files`, async () => {
       const cssFolder = join(appDir, '.next/static/css')
-      const mediaFolder = join(appDir, '.next/static/media')
 
       const files = await readdir(cssFolder)
       const cssFiles = files.filter((f) => /\.css$/.test(f))
@@ -776,11 +775,8 @@ describe('SCSS Support', () => {
       expect(cssFiles.length).toBe(1)
       const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
       expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatch(
-        /^\.red-text\{color:red;background-image:url\("data:[^)"]+"\)\}$/
+        /^\.red-text\{color:red;background-image:url\("data:[^"]+"\)\}$/
       )
-
-      const mediaFiles = await readdir(mediaFolder)
-      expect(mediaFiles.length).toBe(0)
     })
   })
 
