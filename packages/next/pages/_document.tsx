@@ -12,10 +12,10 @@ import { cleanAmpPath } from '../server/utils'
 import { htmlEscapeJsonString } from '../server/htmlescape'
 import Script, { ScriptProps } from '../client/script'
 import isError from '../lib/is-error'
-import { useLegacyGetInitialProps } from '../server/functional-document'
+import { useFlushHandler } from '../server/functional-document'
 
 export { DocumentContext, DocumentInitialProps, DocumentProps }
-export { useLegacyGetInitialProps }
+export { useFlushHandler }
 
 export type OriginProps = {
   nonce?: string

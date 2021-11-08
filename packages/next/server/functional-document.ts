@@ -1,75 +1,29 @@
-import { FunctionComponent } from 'react'
+import { FunctionComponent, ReactElement } from 'react'
 import { NextSimplePageContext } from '../shared/lib/utils'
 
-type LegacyGetInitialPropsFn<T> = (ctx: NextSimplePageContext) => Promise<T>
-type LegacyGetInitialPropsHook = (
-  fn: LegacyGetInitialPropsFn<unknown>
-) => unknown
-
-let CURRENT_HOOK_IMPL: LegacyGetInitialPropsHook | null = null
+type FlushHandler = () => ReactElement
+type FlushHandlerHook = (fn: FlushHandler) => void
+let CURRENT_HOOK_IMPL: FlushHandlerHook | null = null
 
 export async function render(
-  ctx: NextSimplePageContext,
   Document: FunctionComponent
-) {
-  let state: {
-    fn: LegacyGetInitialPropsFn<unknown>
-    promise: Promise<void> | null
-    value?: unknown
-  } | null = null
-  let usedDuringRender = false
-  const nextHookImpl: LegacyGetInitialPropsHook = (fn) => {
-    if (usedDuringRender) {
-      throw new Error(
-        'useLegacyGetInitialProps was called multiple times. This is not supported.'
-      )
-    }
-    usedDuringRender = true
-    if (!state) {
-      state = {
-        fn,
-        promise: fn({ ...ctx }).then((value) => {
-          state = {
-            fn,
-            promise: null,
-            value,
-          }
-        }),
-      }
-    }
-    if (state.fn !== fn) {
-      throw new Error(
-        'The function passed to useLegacyGetInitialProps changed between renders. This is not supported.'
-      )
-    }
-    if (state.promise) {
-      // Wrap the promise in a branded error so that applications don't try to suspend.
-      throw new InternalSuspendError(state.promise)
-    }
-    return state.value
+): Promise<[ReactElement | null, Array<FlushHandler>]> {
+  const flushHandlers: Array<FlushHandler> = []
+  const nextHookImpl: FlushHandlerHook = fn => {
+    flushHandlers.push(fn)
   }
 
-  const tryRender = () => {
-    const prevHookImpl = CURRENT_HOOK_IMPL
-    CURRENT_HOOK_IMPL = nextHookImpl
+  const prevHookImpl = CURRENT_HOOK_IMPL
 
     try {
-      usedDuringRender = false
+      flushHandlers.length = 0
+      CURRENT_HOOK_IMPL = nextHookImpl
       // Note: we intentionally do not pass props to functional `Document` components. Since this
       // component is only used on the very first render, we want to prevent handing applications
-      // a footgun where page behavior can unexpectedly differ.
-      //
-      // Instead, applications should ideally move such logic to `pages/_app`, or use the
-      // `useLegacyGetInitialProps` hook (which will be deprecated eventually).
-      return Document({})
-    } finally {
-      CURRENT_HOOK_IMPL = prevHookImpl
-    }
-  }
-
-  while (true) {
-    try {
-      return tryRender()
+      // a footgun where page behavior can unexpectedly differ. Instead, applications should
+      // move such logic to `pages/_app`.
+      const elem = Document({})
+      return [elem, flushHandlers]
     } catch (err: unknown) {
       if (
         err &&
@@ -91,28 +45,19 @@ export async function render(
             'Read more: https://nextjs.org/docs/messages/functional-document-rsc'
         )
       }
-      if (!(err instanceof InternalSuspendError)) {
-        throw err
-      }
-      await err.promise
+      throw err
+    }
+    finally {
+      CURRENT_HOOK_IMPL = prevHookImpl
     }
   }
-}
 
-export function useLegacyGetInitialProps<T>(fn: LegacyGetInitialPropsFn<T>): T {
+export function useFlushHandler(fn: FlushHandler): void {
   const currHookImpl = CURRENT_HOOK_IMPL
   if (!currHookImpl) {
     throw new Error(
-      'The useLegacyGetInitialProps hook can only be used in pages/_document'
+      'The useFlushHandler hook can only be used in pages/_document'
     )
   }
-  return currHookImpl(fn) as T
-}
-
-class InternalSuspendError {
-  promise: Promise<void>
-
-  constructor(promise: Promise<void>) {
-    this.promise = promise
-  }
+  return currHookImpl(fn)
 }

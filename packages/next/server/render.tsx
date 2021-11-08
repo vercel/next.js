@@ -935,6 +935,29 @@ export async function renderToHTML(
     }
   }
 
+  const renderToStaticMarkup: (elem: JSX.Element) => Promise<string> = !process.browser
+    ? async elem => ReactDOMServer.renderToStaticMarkup(elem)
+    : async elem => {
+    // There is no `renderToStaticMarkup` exposed in the web environment, use
+    // blocking `renderToReadableStream` to get the similar result.
+    let result = ''
+    const readable = (ReactDOMServer as any).renderToReadableStream(elem, {
+      onError: (e: any) => {
+        throw e
+      },
+    })
+    const reader = readable.getReader()
+    const decoder = new TextDecoder()
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) {
+        break
+      }
+      result += typeof value === 'string' ? value : decoder.decode(value)
+    }
+     return result
+    }
+
   const appWrappers: Array<(content: JSX.Element) => JSX.Element> = []
   const getWrappedApp = (app: JSX.Element) => {
     // Prevent wrappers from reading/writing props by rendering inside an
@@ -1034,17 +1057,13 @@ export async function renderToHTML(
         styles: docProps.styles,
       }
     } else {
-      const document = await renderFunctionalDocument(
-        {
-          pathname: ctx.pathname,
-          query: ctx.query,
-          asPath: ctx.asPath,
-          locale: ctx.locale,
-          locales: ctx.locales,
-          defaultLocale: ctx.defaultLocale,
-        },
-        Document as any
-      )
+      const [document, flushHandlers] = await renderFunctionalDocument(Document as any)
+      const handleFlush = () => {
+        const elements = React.Children.map(flushHandlers.map(fn => fn()).filter(Boolean), (elem, idx) => React.cloneElement(elem, {
+          key: idx
+        }))
+        return renderToStaticMarkup(<>{elements}</>)
+      }
 
       const bodyResult = async () => {
         const content =
@@ -1179,29 +1198,7 @@ export async function renderToHTML(
     </AmpStateContext.Provider>
   )
 
-  let documentHTML: string
-  if (process.browser) {
-    // There is no `renderToStaticMarkup` exposed in the web environment, use
-    // blocking `renderToReadableStream` to get the similar result.
-    let result = ''
-    const readable = (ReactDOMServer as any).renderToReadableStream(document, {
-      onError: (e: any) => {
-        throw e
-      },
-    })
-    const reader = readable.getReader()
-    const decoder = new TextDecoder()
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) {
-        break
-      }
-      result += typeof value === 'string' ? value : decoder.decode(value)
-    }
-    documentHTML = result
-  } else {
-    documentHTML = ReactDOMServer.renderToStaticMarkup(document)
-  }
+  const documentHTML = await renderToStaticMarkup(document)
 
   if (process.env.NODE_ENV !== 'production') {
     const nonRenderedComponents = []
