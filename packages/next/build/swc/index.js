@@ -50,7 +50,7 @@ if (!bindings) {
 }
 
 async function transform(src, options) {
-  const isModule = typeof src !== 'string'
+  const isModule = typeof src !== 'string' && !Buffer.isBuffer(src)
   options = options || {}
 
   if (options?.jsc?.parser) {
@@ -65,7 +65,7 @@ async function transform(src, options) {
 }
 
 function transformSync(src, options) {
-  const isModule = typeof src !== 'string'
+  const isModule = typeof src !== 'string' && !Buffer.isBuffer(src)
   options = options || {}
 
   if (options?.jsc?.parser) {

@@ -3,6 +3,7 @@
 import cheerio from 'cheerio'
 import { join } from 'path'
 import fs from 'fs-extra'
+import webdriver from 'next-webdriver'
 
 import {
   File,
@@ -139,7 +140,14 @@ describe('concurrentFeatures - prod', () => {
     ]) {
       expect(content.clientInfo).toContainEqual(item)
     }
+    expect(content.clientInfo).not.toContainEqual([['/404', true]])
   })
+
+  it('should support React.lazy and dynamic imports', async () => {
+    const html = await renderViaHTTP(context.appPort, '/dynamic-imports')
+    expect(html).toContain('foo.client')
+  })
+
   runBasicTests(context)
 })
 
@@ -153,6 +161,16 @@ describe('concurrentFeatures - dev', () => {
   afterAll(async () => {
     await killApp(context.server)
   })
+
+  it('should support React.lazy and dynamic imports', async () => {
+    const html = await renderViaHTTP(context.appPort, '/dynamic-imports')
+    expect(html).toContain('loading...')
+
+    const browser = await webdriver(context.appPort, '/dynamic-imports')
+    const content = await browser.eval(`window.document.body.innerText`)
+    expect(content).toMatchInlineSnapshot('"foo.client"')
+  })
+
   runBasicTests(context)
 })
 
@@ -173,7 +191,7 @@ const documentSuite = {
 
       expect(res.status).toBe(500)
       expect(html).toContain(
-        'Document.getInitialProps is not supported with server components, please remove it from pages/_document'
+        'Error: `getInitialProps` in Document component is not supported with `concurrentFeatures` enabled.'
       )
     })
   },
@@ -198,11 +216,20 @@ async function runBasicTests(context) {
       '/routes/dynamic2'
     )
 
+    const path404HTML = await renderViaHTTP(context.appPort, '/404')
+    const pathNotFoundHTML = await renderViaHTTP(
+      context.appPort,
+      '/this-is-not-found'
+    )
+
     expect(homeHTML).toContain('thisistheindexpage.server')
     expect(homeHTML).toContain('foo.client')
 
     expect(dynamicRouteHTML1).toContain('[pid]')
     expect(dynamicRouteHTML2).toContain('[pid]')
+
+    expect(path404HTML).toContain('custom-404-page')
+    expect(pathNotFoundHTML).toContain('custom-404-page')
   })
 
   it('should suspense next/link on server side', async () => {
