@@ -1,7 +1,7 @@
 import type { IncomingMessage } from 'http'
 import type { Key } from 'next/dist/compiled/path-to-regexp'
+import type { NextParsedUrlQuery } from '../../../../server/request-meta'
 import type { Params } from '../../../../server/router'
-import type { ParsedUrlQuery } from 'querystring'
 import type { RouteHas } from '../../../../lib/load-custom-routes'
 import { compile, pathToRegexp } from 'next/dist/compiled/path-to-regexp'
 import { parseUrl } from './parse-url'
@@ -113,7 +113,7 @@ export function prepareDestination(args: {
   appendParamsToQuery: boolean
   destination: string
   params: Params
-  query: ParsedUrlQuery
+  query: NextParsedUrlQuery
 }) {
   const query = Object.assign({}, args.query)
   const hadLocale = query.__nextLocale

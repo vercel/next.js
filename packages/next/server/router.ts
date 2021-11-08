@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { ParsedUrlQuery } from 'querystring'
-import type { UrlWithParsedQuery } from 'url'
+import type { NextUrlWithParsedQuery } from './request-meta'
 
 import pathMatch from '../shared/lib/router/utils/path-match'
 import { removePathTrailingSlash } from '../client/normalize-trailing-slash'
@@ -34,7 +34,7 @@ export type Route = {
     req: IncomingMessage,
     res: ServerResponse,
     params: Params,
-    parsedUrl: UrlWithParsedQuery
+    parsedUrl: NextUrlWithParsedQuery
   ) => Promise<RouteResult> | RouteResult
 }
 
@@ -123,7 +123,7 @@ export default class Router {
   async execute(
     req: IncomingMessage,
     res: ServerResponse,
-    parsedUrl: UrlWithParsedQuery
+    parsedUrl: NextUrlWithParsedQuery
   ): Promise<boolean> {
     // memoize page check calls so we don't duplicate checks for pages
     const pageChecks: { [name: string]: Promise<boolean> } = {}
@@ -140,7 +140,7 @@ export default class Router {
 
     let parsedUrlUpdated = parsedUrl
 
-    const applyCheckTrue = async (checkParsedUrl: UrlWithParsedQuery) => {
+    const applyCheckTrue = async (checkParsedUrl: NextUrlWithParsedQuery) => {
       const originalFsPathname = checkParsedUrl.pathname
       const fsPathname = replaceBasePath(this.basePath, originalFsPathname!)
 
@@ -364,8 +364,8 @@ export default class Router {
           return true
         }
 
-        // since the fs route didn't match we need to re-add the basePath
-        // to continue checking rewrites with the basePath present
+        // since the fs route didn't finish routing we need to re-add the
+        // basePath to continue checking with the basePath present
         if (!keepBasePath) {
           parsedUrlUpdated.pathname = originalPathname
         }

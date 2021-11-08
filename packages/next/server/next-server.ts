@@ -109,6 +109,7 @@ import type { FetchEventResult } from './web/types'
 import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
 import type { ParsedNextUrl } from '../shared/lib/router/utils/parse-next-url'
 import type { ParsedUrl } from '../shared/lib/router/utils/parse-url'
+import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
 import { addRequestMeta, getRequestMeta } from './request-meta'
 import { toNodeHeaders } from './web/utils'
 
@@ -122,7 +123,7 @@ type ExpressMiddleware = (
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
-  query: ParsedUrlQuery
+  query: NextParsedUrlQuery
 }
 
 interface RoutingItem {
@@ -152,7 +153,7 @@ type RequestContext = {
   req: IncomingMessage
   res: ServerResponse
   pathname: string
-  query: ParsedUrlQuery
+  query: NextParsedUrlQuery
   renderOpts: RenderOptsPartial
 }
 
@@ -333,7 +334,7 @@ export default class Server {
   private async handleRequest(
     req: IncomingMessage,
     res: ServerResponse,
-    parsedUrl?: UrlWithParsedQuery
+    parsedUrl?: NextUrlWithParsedQuery
   ): Promise<void> {
     const urlParts = (req.url || '').split('?')
     const urlNoQuery = urlParts[0]
@@ -351,10 +352,8 @@ export default class Server {
 
     // Parse url if parsedUrl not provided
     if (!parsedUrl || typeof parsedUrl !== 'object') {
-      const url: any = req.url
-      parsedUrl = parseUrl(url, true)
+      parsedUrl = parseUrl(req.url!, true)
     }
-    const { basePath, i18n } = this.nextConfig
 
     // Parse the querystring ourselves if the user doesn't handle querystring parsing
     if (typeof parsedUrl.query === 'string') {
@@ -371,8 +370,8 @@ export default class Server {
     })
 
     if (url.basePath) {
+      req.url = req.url!.replace(this.nextConfig.basePath, '') || '/'
       addRequestMeta(req, '_nextHadBasePath', true)
-      req.url = req.url!.replace(basePath, '') || '/'
     }
 
     if (
@@ -389,17 +388,17 @@ export default class Server {
         isDataUrl ? req.url! : (req.headers['x-matched-path'] as string),
         true
       )
-      const { pathname, query } = parsedPath
-      let matchedPathname = pathname as string
+
+      let matchedPathname = parsedPath.pathname!
 
       let matchedPathnameNoExt = isDataUrl
         ? matchedPathname.replace(/\.json$/, '')
         : matchedPathname
 
-      if (i18n) {
+      if (this.nextConfig.i18n) {
         const localePathResult = normalizeLocalePath(
           matchedPathname || '/',
-          i18n.locales
+          this.nextConfig.i18n.locales
         )
 
         if (localePathResult.detectedLocale) {
@@ -434,7 +433,7 @@ export default class Server {
         if (pageIsDynamic) {
           let params: ParsedUrlQuery | false = {}
 
-          Object.assign(parsedUrl.query, query)
+          Object.assign(parsedUrl.query, parsedPath.query)
           const paramsResult = utils.normalizeDynamicRouteParams(
             parsedUrl.query
           )
@@ -446,7 +445,7 @@ export default class Server {
             params = utils.getParamsFromRouteMatches(
               req,
               opts,
-              (parsedUrl.query.__nextLocale as string | undefined) || ''
+              parsedUrl.query.__nextLocale || ''
             )
 
             if (opts.locale) {
@@ -484,8 +483,10 @@ export default class Server {
         throw err
       }
 
-      parsedUrl.pathname = `${basePath || ''}${
-        matchedPathname === '/' && basePath ? '' : matchedPathname
+      parsedUrl.pathname = `${this.nextConfig.basePath || ''}${
+        matchedPathname === '/' && this.nextConfig.basePath
+          ? ''
+          : matchedPathname
       }`
     }
 
@@ -829,15 +830,16 @@ export default class Server {
           let pathname = `/${params.path.join('/')}`
           pathname = getRouteFromAssetPath(pathname, '.json')
 
-          const { i18n } = this.nextConfig
-
-          if (i18n) {
+          if (this.nextConfig.i18n) {
             const { host } = req?.headers || {}
             // remove port from host and remove port if present
             const hostname = host?.split(':')[0].toLowerCase()
-            const localePathResult = normalizeLocalePath(pathname, i18n.locales)
+            const localePathResult = normalizeLocalePath(
+              pathname,
+              this.nextConfig.i18n.locales
+            )
             const { defaultLocale } =
-              detectDomainLocale(i18n.domains, hostname) || {}
+              detectDomainLocale(this.nextConfig.i18n.domains, hostname) || {}
 
             let detectedLocale = ''
 
@@ -846,9 +848,9 @@ export default class Server {
               detectedLocale = localePathResult.detectedLocale
             }
 
-            _parsedUrl.query.__nextLocale = detectedLocale!
+            _parsedUrl.query.__nextLocale = detectedLocale
             _parsedUrl.query.__nextDefaultLocale =
-              defaultLocale || i18n.defaultLocale
+              defaultLocale || this.nextConfig.i18n.defaultLocale
 
             if (!detectedLocale) {
               _parsedUrl.query.__nextLocale =
@@ -1225,22 +1227,35 @@ export default class Server {
           }
 
           if (result.response.headers.has('x-middleware-rewrite')) {
-            const rewrite = result.response.headers.get('x-middleware-rewrite')!
-            const rewriteParsed = simpleParseUrl(rewrite)
-            if (rewriteParsed.protocol) {
-              return proxyRequest(req, res, rewriteParsed)
+            const { newUrl, parsedDestination } = prepareDestination({
+              appendParamsToQuery: true,
+              destination: result.response.headers.get('x-middleware-rewrite')!,
+              params: _params,
+              query: parsedUrl.query,
+            })
+
+            if (parsedDestination.protocol) {
+              return proxyRequest(req, res, parsedDestination)
             }
 
-            addRequestMeta(req, '_nextRewroteUrl', rewrite)
-            addRequestMeta(req, '_nextDidRewrite', rewrite !== req.url)
+            if (this.nextConfig.i18n) {
+              const localePathResult = normalizeLocalePath(
+                newUrl,
+                this.nextConfig.i18n.locales
+              )
+              if (localePathResult.detectedLocale) {
+                parsedDestination.query.__nextLocale =
+                  localePathResult.detectedLocale
+              }
+            }
+
+            addRequestMeta(req, '_nextRewroteUrl', newUrl)
+            addRequestMeta(req, '_nextDidRewrite', newUrl !== req.url)
 
             return {
               finished: false,
-              pathname: rewriteParsed.pathname,
-              query: {
-                ...parsedUrl.query,
-                ...rewriteParsed.query,
-              },
+              pathname: newUrl,
+              query: parsedDestination.query,
             }
           }
 
@@ -1577,7 +1592,7 @@ export default class Server {
       req: IncomingMessage
       res: ServerResponse
       pathname: string
-      query: ParsedUrlQuery
+      query: NextParsedUrlQuery
     }
   ): Promise<void> {
     const userAgent = partialContext.req.headers['user-agent']
@@ -1638,8 +1653,8 @@ export default class Server {
     req: IncomingMessage,
     res: ServerResponse,
     pathname: string,
-    query: ParsedUrlQuery = {},
-    parsedUrl?: UrlWithParsedQuery
+    query: NextParsedUrlQuery = {},
+    parsedUrl?: NextUrlWithParsedQuery
   ): Promise<void> {
     if (!pathname.startsWith('/')) {
       console.warn(
@@ -1657,8 +1672,6 @@ export default class Server {
       pathname = '/'
     }
 
-    const url: any = req.url
-
     // we allow custom servers to call render for all URLs
     // so check if we need to serve a static _next file or not.
     // we don't modify the URL for _next/data request but still
@@ -1666,8 +1679,8 @@ export default class Server {
     if (
       !this.minimalMode &&
       !query._nextDataReq &&
-      (url.match(/^\/_next\//) ||
-        (this.hasStaticDir && url.match(/^\/static\//)))
+      (req.url?.match(/^\/_next\//) ||
+        (this.hasStaticDir && req.url!.match(/^\/static\//)))
     ) {
       return this.handleRequest(req, res, parsedUrl)
     }
@@ -1691,7 +1704,7 @@ export default class Server {
 
   protected async findPageComponents(
     pathname: string,
-    query: ParsedUrlQuery = {},
+    query: NextParsedUrlQuery = {},
     params: Params | null = null
   ): Promise<FindComponentsResult | null> {
     let paths = [
@@ -1731,12 +1744,12 @@ export default class Server {
           components,
           query: {
             ...(components.getStaticProps
-              ? {
+              ? ({
                   amp: query.amp,
                   _nextDataReq: query._nextDataReq,
                   __nextLocale: query.__nextLocale,
                   __nextDefaultLocale: query.__nextDefaultLocale,
-                }
+                } as NextParsedUrlQuery)
               : query),
             ...(params || {}),
           },
@@ -1825,13 +1838,12 @@ export default class Server {
         typeof components.Document?.getInitialProps !== 'function'
     }
 
-    const locale = query.__nextLocale as string
     const defaultLocale = isSSG
       ? this.nextConfig.i18n?.defaultLocale
-      : (query.__nextDefaultLocale as string)
+      : query.__nextDefaultLocale
 
-    const { i18n } = this.nextConfig
-    const locales = i18n?.locales
+    const locale = query.__nextLocale
+    const locales = this.nextConfig.i18n?.locales
 
     let previewData: PreviewData
     let isPreviewMode = false
@@ -2316,7 +2328,7 @@ export default class Server {
     req: IncomingMessage,
     res: ServerResponse,
     pathname: string,
-    query: ParsedUrlQuery = {},
+    query: NextParsedUrlQuery = {},
     setHeaders = true
   ): Promise<void> {
     if (setHeaders) {
@@ -2468,17 +2480,18 @@ export default class Server {
   public async render404(
     req: IncomingMessage,
     res: ServerResponse,
-    parsedUrl?: UrlWithParsedQuery,
+    parsedUrl?: NextUrlWithParsedQuery,
     setHeaders = true
   ): Promise<void> {
-    const url: any = req.url
-    const { pathname, query } = parsedUrl ? parsedUrl : parseUrl(url, true)
-    const { i18n } = this.nextConfig
+    const { pathname, query }: NextUrlWithParsedQuery = parsedUrl
+      ? parsedUrl
+      : parseUrl(req.url!, true)
 
-    if (i18n) {
-      query.__nextLocale = query.__nextLocale || i18n.defaultLocale
+    if (this.nextConfig.i18n) {
+      query.__nextLocale =
+        query.__nextLocale || this.nextConfig.i18n.defaultLocale
       query.__nextDefaultLocale =
-        query.__nextDefaultLocale || i18n.defaultLocale
+        query.__nextDefaultLocale || this.nextConfig.i18n.defaultLocale
     }
 
     res.statusCode = 404

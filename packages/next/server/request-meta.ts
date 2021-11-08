@@ -1,6 +1,7 @@
 /* eslint-disable no-redeclare */
 import type { ParsedUrlQuery } from 'querystring'
 import type { IncomingMessage } from 'http'
+import type { UrlWithParsedQuery } from 'url'
 
 const NEXT_REQUEST_META = Symbol('NextRequestMeta')
 
@@ -48,4 +49,18 @@ export function addRequestMeta<K extends keyof RequestMeta>(
   const meta = getRequestMeta(request)
   meta[key] = value
   return setRequestMeta(request, meta)
+}
+
+export type NextParsedUrlQuery = ParsedUrlQuery & {
+  __nextDefaultLocale?: string
+  __nextFallback?: 'true'
+  __nextLocale?: string
+  __nextSsgPath?: string
+  _nextBubbleNoFallback?: '1'
+  _nextDataReq?: '1'
+  amp?: '1'
+}
+
+export interface NextUrlWithParsedQuery extends UrlWithParsedQuery {
+  query: NextParsedUrlQuery
 }
