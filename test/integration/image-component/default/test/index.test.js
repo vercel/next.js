@@ -726,6 +726,27 @@ function runTests(mode) {
         /Image with src (.*)tiff(.*) has a "loader" property that does not implement width/gm
       )
     })
+
+    it('should warn when using sizes with incorrect layout', async () => {
+      const browser = await webdriver(appPort, '/invalid-sizes')
+      await browser.eval(`document.querySelector("footer").scrollIntoView()`)
+      const warnings = (await browser.log('browser'))
+        .map((log) => log.message)
+        .join('\n')
+      expect(await hasRedbox(browser)).toBe(false)
+      expect(warnings).toMatch(
+        /Image with src (.*)png(.*) has "sizes" property but it will be ignored/gm
+      )
+      expect(warnings).toMatch(
+        /Image with src (.*)jpg(.*) has "sizes" property but it will be ignored/gm
+      )
+      expect(warnings).not.toMatch(
+        /Image with src (.*)webp(.*) has "sizes" property but it will be ignored/gm
+      )
+      expect(warnings).not.toMatch(
+        /Image with src (.*)gif(.*) has "sizes" property but it will be ignored/gm
+      )
+    })
   } else {
     //server-only tests
     it('should not create an image folder in server/chunks', async () => {
