@@ -24,7 +24,7 @@ description: Next.js helps you optimize loading third-party scripts with the bui
 
 </details>
 
-The Next.js Script component, [`next/image`](/docs/api-reference/next/script.md), is an extension of the HTML `<script>` element. It enables developers to set the loading priority of third-party scripts to save developer time and improve loading performance.
+The Next.js Script component, [`next/script`](/docs/api-reference/next/script.md), is an extension of the HTML `<script>` element. It enables developers to set the loading priority of third-party scripts anywhere in their application without needing to append directly to `next/head`, saving developer time while improving loading performance.
 
 ```jsx
 import Script from 'next/script'
@@ -42,7 +42,7 @@ export default function Home() {
 
 Websites often use third-party scripts to include different types of functionality into their site, such as analytics, ads, customer support widgets, and consent management. However, this can introduce problems that impact both user and developer experience:
 
-- Some third-party scripts are heavy on loading performance and can drag down the user experience, especially if they are render-blocking
+- Some third-party scripts are heavy on loading performance and can drag down the user experience, especially if they are render-blocking and delay any page content from loading
 - Developers often struggle to decide where to place third-party scripts in an application to ensure optimal loading
 
 The Script component makes it easier for developers to place a third-party script anywhere in their application while taking care of optimizing its loading strategy.
@@ -109,9 +109,9 @@ Examples of scripts that are good candidates to load immediately after the page 
 - Tag managers
 - Analytics
 
-#### lazyOnLoad
+#### lazyOnload
 
-Scripts that use the `lazyOnLoad` strategy are loaded late after all resources have been fetched and during idle time. This strategy should be used for background or low priority scripts that do not need to load before or immediately after a page becomes interactive.
+Scripts that use the `lazyOnload` strategy are loaded late after all resources have been fetched and during idle time. This strategy should be used for background or low priority scripts that do not need to load before or immediately after a page becomes interactive.
 
 ```jsx
 <Script src="https://connect.facebook.net/en_US/sdk.js" strategy="lazyOnload" />
@@ -145,12 +145,12 @@ Or by using the `dangerouslySetInnerHTML` property:
 
 There are two limitations to be aware of when using the Script component for inline scripts:
 
-- Only the `afterInteractive` and `lazyOnLoad` strategies can be used. **The `beforeInteractive` loading strategy cannot be used with inline scripts.**
+- Only the `afterInteractive` and `lazyOnload` strategies can be used. The `beforeInteractive` loading strategy injects the contents of an external script into the initial HTML response. Inline scripts already do this, which is why **the `beforeInteractive` strategy cannot be used with inline scripts.**
 - An `id` attribute must be defined in order for Next.js to track and optimize the script
 
 ### Executing Code After Loading (`onLoad`)
 
-Some third-party scripts require users to run JavaScript code after the script has finished loading in order to instantiate content or fire a method. If you are loading a script with either `beforeInteractive` or `afterInteractive` as a loading strategy, you can execute code after it has loaded using the `onLoad` property:
+Some third-party scripts require users to run JavaScript code after the script has finished loading in order to instantiate content or call a function. If you are loading a script with either `beforeInteractive` or `afterInteractive` as a loading strategy, you can execute code after it has loaded using the `onLoad` property:
 
 ```jsx
 import { useState } from 'react'
