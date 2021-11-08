@@ -767,7 +767,7 @@ export default async function getBaseWebpackConfig(
 
   // Packages which will be split into the 'framework' chunk.
   // Only top-level packages are included, e.g. nested copies like
-  // 'node_modules/react-scroll-parallax/node_modules/prop-types' are not included.
+  // 'node_modules/meow/node_modules/object-assign' are not included.
   const topLevelFrameworkPaths = [
     getPackagePath('react', dir),
     getPackagePath('react-dom', dir),
