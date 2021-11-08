@@ -6,7 +6,7 @@
       "routes": [
         { "title": "Getting Started", "path": "/docs/getting-started.md" },
         {
-          "title": "Basic Features",
+          "title": "Foundations",
           "open": true,
           "routes": [
             {
