@@ -8,6 +8,7 @@ import { ConfigurationContext, pipe } from './utils'
 export async function build(
   config: webpack.Configuration,
   {
+    supportedBrowsers,
     rootDirectory,
     customAppFile,
     isDevelopment,
@@ -19,7 +20,9 @@ export async function build(
     productionBrowserSourceMaps,
     future,
     experimental,
+    disableStaticImages,
   }: {
+    supportedBrowsers: string[] | undefined
     rootDirectory: string
     customAppFile: RegExp
     isDevelopment: boolean
@@ -31,9 +34,11 @@ export async function build(
     productionBrowserSourceMaps: boolean
     future: NextConfigComplete['future']
     experimental: NextConfigComplete['experimental']
+    disableStaticImages: NextConfigComplete['disableStaticImages']
   }
 ): Promise<webpack.Configuration> {
   const ctx: ConfigurationContext = {
+    supportedBrowsers,
     rootDirectory,
     customAppFile,
     isDevelopment,
@@ -53,6 +58,10 @@ export async function build(
     experimental,
   }
 
-  const fn = pipe(base(ctx), css(ctx), images(ctx))
+  let fns = [base(ctx), css(ctx)]
+  if (!disableStaticImages) {
+    fns.push(images(ctx))
+  }
+  const fn = pipe(...fns)
   return fn(config)
 }
