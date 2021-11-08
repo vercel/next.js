@@ -51,6 +51,7 @@ import { denormalizePagePath } from './denormalize-page-path'
 import type { FontManifest } from './font-utils'
 import type { LoadComponentsReturnType, ManifestItem } from './load-components'
 import { normalizePagePath } from './normalize-page-path'
+import { getRequestMeta } from './request-meta'
 import {
   allowedStatusCodes,
   getRedirectStatus,
@@ -498,7 +499,7 @@ export async function renderToHTML(
     renderOpts.defaultLocale,
     renderOpts.domainLocales,
     isPreview,
-    (req as any).__nextIsLocaleDomain
+    getRequestMeta(req, '__nextIsLocaleDomain')
   )
   const jsxStyleRegistry = createStyleRegistry()
   const ctx = {
@@ -1132,7 +1133,7 @@ export async function renderToHTML(
     docComponentsRendered,
     dangerousAsPath: router.asPath,
     canonicalBase:
-      !renderOpts.ampPath && (req as any).__nextStrippedLocale
+      !renderOpts.ampPath && getRequestMeta(req, '__nextStrippedLocale')
         ? `${renderOpts.canonicalBase || ''}/${renderOpts.locale}`
         : renderOpts.canonicalBase,
     ampPath,

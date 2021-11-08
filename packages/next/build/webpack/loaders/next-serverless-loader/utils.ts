@@ -23,6 +23,7 @@ import { denormalizePagePath } from '../../../../server/denormalize-page-path'
 import cookie from 'next/dist/compiled/cookie'
 import { TEMPORARY_REDIRECT_STATUS } from '../../../../shared/lib/constants'
 import { NextConfig } from '../../../../server/config'
+import { addRequestMeta } from '../../../../server/request-meta'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -372,7 +373,7 @@ export function getUtils({
     if (detectedDomain) {
       defaultLocale = detectedDomain.defaultLocale
       detectedLocale = defaultLocale
-      ;(req as any).__nextIsLocaleDomain = true
+      addRequestMeta(req, '__nextIsLocaleDomain', true)
     }
 
     // if not domain specific locale use accept-language preferred
@@ -392,7 +393,7 @@ export function getUtils({
         ...parsedUrl,
         pathname: localePathResult.pathname,
       })
-      ;(req as any).__nextStrippedLocale = true
+      addRequestMeta(req, '__nextStrippedLocale', true)
       parsedUrl.pathname = localePathResult.pathname
     }
 

@@ -108,6 +108,7 @@ import type { FetchEventResult } from './web/types'
 import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
 import type { ParsedNextUrl } from '../shared/lib/router/utils/parse-next-url'
 import type { ParsedUrl } from '../shared/lib/router/utils/parse-url'
+import { addRequestMeta, getRequestMeta } from './request-meta'
 import { toNodeHeaders } from './web/utils'
 
 const getCustomRouteMatcher = pathMatch(true)
@@ -359,8 +360,8 @@ export default class Server {
       parsedUrl.query = parseQs(parsedUrl.query)
     }
 
-    ;(req as any).__NEXT_INIT_URL = req.url
-    ;(req as any).__NEXT_INIT_QUERY = Object.assign({}, parsedUrl.query)
+    addRequestMeta(req, '__NEXT_INIT_URL', req.url)
+    addRequestMeta(req, '__NEXT_INIT_QUERY', { ...parsedUrl.query })
 
     const url = parseNextUrl({
       headers: req.headers,
@@ -369,7 +370,7 @@ export default class Server {
     })
 
     if (url.basePath) {
-      ;(req as any)._nextHadBasePath = true
+      addRequestMeta(req, '_nextHadBasePath', true)
       req.url = req.url!.replace(basePath, '') || '/'
     }
 
@@ -487,14 +488,14 @@ export default class Server {
       }`
     }
 
-    ;(req as any).__nextHadTrailingSlash = url.locale?.trailingSlash
+    addRequestMeta(req, '__nextHadTrailingSlash', url.locale?.trailingSlash)
     if (url.locale?.domain) {
-      ;(req as any).__nextIsLocaleDomain = true
+      addRequestMeta(req, '__nextIsLocaleDomain', true)
     }
 
     if (url.locale?.path.detectedLocale) {
       req.url = formatUrl(url)
-      ;(req as any).__nextStrippedLocale = true
+      addRequestMeta(req, '__nextStrippedLocale', true)
       if (url.pathname === '/api' || url.pathname.startsWith('/api/')) {
         return this.render404(req, res, parsedUrl)
       }
@@ -679,7 +680,7 @@ export default class Server {
               i18n: this.nextConfig.i18n,
               trailingSlash: this.nextConfig.trailingSlash,
             },
-            url: (params.request as any).__NEXT_INIT_URL,
+            url: getRequestMeta(params.request, '__NEXT_INIT_URL')!,
             page: page,
           },
           ssr: !!this.nextConfig.experimental.concurrentFeatures,
@@ -970,7 +971,9 @@ export default class Server {
     // we need to re-encode them here but still allow passing through
     // values from rewrites/redirects
     const stringifyQuery = (req: IncomingMessage, query: ParsedUrlQuery) => {
-      const initialQueryValues = Object.values((req as any).__NEXT_INIT_QUERY)
+      const initialQueryValues = Object.values(
+        getRequestMeta(req, '__NEXT_INIT_QUERY') || {}
+      )
 
       return stringifyQs(query, undefined, undefined, {
         encodeURIComponent(value) {
@@ -1094,9 +1097,8 @@ export default class Server {
             return proxyRequest(req, res, parsedDestination)
           }
 
-          ;(req as any)._nextRewroteUrl = newUrl
-          ;(req as any)._nextDidRewrite =
-            (req as any)._nextRewroteUrl !== req.url
+          addRequestMeta(req, '_nextRewroteUrl', newUrl)
+          addRequestMeta(req, '_nextDidRewrite', newUrl !== req.url)
 
           return {
             finished: false,
@@ -1135,7 +1137,7 @@ export default class Server {
         type: 'route',
         name: 'middleware catchall',
         fn: async (req, res, _params, parsed) => {
-          const fullUrl = (req as any).__NEXT_INIT_URL
+          const fullUrl = getRequestMeta(req, '__NEXT_INIT_URL')
           const parsedUrl = parseNextUrl({
             url: fullUrl,
             headers: req.headers,
@@ -1228,9 +1230,8 @@ export default class Server {
               return proxyRequest(req, res, rewriteParsed)
             }
 
-            ;(req as any)._nextRewroteUrl = rewrite
-            ;(req as any)._nextDidRewrite =
-              (req as any)._nextRewroteUrl !== req.url
+            addRequestMeta(req, '_nextRewroteUrl', rewrite)
+            addRequestMeta(req, '_nextDidRewrite', rewrite !== req.url)
 
             return {
               finished: false,
@@ -1844,9 +1845,8 @@ export default class Server {
     // and we need to look up the path by the rewritten path
     let urlPathname = parseUrl(req.url || '').pathname || '/'
 
-    let resolvedUrlPathname = (req as any)._nextRewroteUrl
-      ? (req as any)._nextRewroteUrl
-      : urlPathname
+    let resolvedUrlPathname =
+      getRequestMeta(req, '_nextRewroteUrl') || urlPathname
 
     urlPathname = removePathTrailingSlash(urlPathname)
     resolvedUrlPathname = normalizeLocalePath(

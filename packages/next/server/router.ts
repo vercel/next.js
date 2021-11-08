@@ -7,6 +7,7 @@ import { removePathTrailingSlash } from '../client/normalize-trailing-slash'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { RouteHas } from '../lib/load-custom-routes'
 import { matchHas } from '../shared/lib/router/utils/prepare-destination'
+import { getRequestMeta } from './request-meta'
 
 export const route = pathMatch()
 
@@ -264,7 +265,7 @@ export default class Router {
       ...(this.useFileSystemPublicRoutes ? [this.catchAllRoute] : []),
     ]
     const originallyHadBasePath =
-      !this.basePath || (req as any)._nextHadBasePath
+      !this.basePath || getRequestMeta(req, '_nextHadBasePath')
 
     for (const testRoute of allRoutes) {
       // if basePath is being used, the basePath will still be included
@@ -308,14 +309,14 @@ export default class Router {
         }
 
         if (
-          (req as any).__nextHadTrailingSlash &&
+          getRequestMeta(req, '__nextHadTrailingSlash') &&
           !currentPathname.endsWith('/')
         ) {
           currentPathname += '/'
         }
       } else {
         currentPathname = `${
-          (req as any)._nextHadBasePath ? activeBasePath : ''
+          getRequestMeta(req, '_nextHadBasePath') ? activeBasePath : ''
         }${
           activeBasePath && localePathResult.pathname === '/'
             ? ''
@@ -340,7 +341,10 @@ export default class Router {
         // since we require basePath be present for non-custom-routes we
         // 404 here when we matched an fs route
         if (!keepBasePath) {
-          if (!originallyHadBasePath && !(req as any)._nextDidRewrite) {
+          if (
+            !originallyHadBasePath &&
+            !getRequestMeta(req, '_nextDidRewrite')
+          ) {
             if (requireBasePath) {
               // consider this a non-match so the 404 renders
               return false
