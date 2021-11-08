@@ -100,12 +100,9 @@ module.exports = {
 
     domains: [
       {
-        domain: 'example.com',
-        defaultLocale: 'en-US',
-      },
-      {
         // Note: subdomains must be included in the domain value to be matched
-        domain: 'www.example.com',
+        // e.g. www.example.com should be used if that is the expected hostname
+        domain: 'example.com',
         defaultLocale: 'en-US',
       },
       {
