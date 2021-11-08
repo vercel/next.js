@@ -452,7 +452,7 @@ export default async function getBaseWebpackConfig(
   let useSWCLoader = !babelConfigFile
 
   if (!loggedSwcDisabled && !useSWCLoader && babelConfigFile) {
-    Log.warn(
+    Log.info(
       `Disabled SWC as replacement for Babel because of custom Babel configuration "${path.relative(
         dir,
         babelConfigFile
@@ -629,7 +629,7 @@ export default async function getBaseWebpackConfig(
         prev.push(path.join(pagesDir, `_document.${ext}`))
         return prev
       }, [] as string[]),
-      `next/dist/pages/_document${hasServerComponents ? '.web' : ''}.js`,
+      `next/dist/pages/_document${hasServerComponents ? '-web' : ''}.js`,
     ]
   }
 
@@ -674,6 +674,14 @@ export default async function getBaseWebpackConfig(
               ? clientResolveRewrites
               : // With webpack 5 an alias can be pointed to false to noop
                 false,
+          }
+        : {}),
+
+      ...(webServerRuntime
+        ? {
+            'react-dom/server': dev
+              ? 'react-dom/cjs/react-dom-server.browser.development'
+              : 'react-dom/cjs/react-dom-server.browser.production.min',
           }
         : {}),
     },
@@ -982,7 +990,12 @@ export default async function getBaseWebpackConfig(
       ? // make sure importing "next" is handled gracefully for client
         // bundles in case a user imported types and it wasn't removed
         // TODO: should we warn/error for this instead?
-        ['next', ...(webServerRuntime ? [{ etag: '{}', chalk: '{}' }] : [])]
+        [
+          'next',
+          ...(webServerRuntime
+            ? [{ etag: '{}', chalk: '{}', 'react-dom': '{}' }]
+            : []),
+        ]
       : !isServerless
       ? [
           ({
@@ -1046,10 +1059,10 @@ export default async function getBaseWebpackConfig(
           }
         : {}),
       splitChunks: isServer
-        ? dev || webServerRuntime
+        ? dev
           ? false
           : ({
-              filename: '[name].js',
+              filename: webServerRuntime ? 'chunks/[name].js' : '[name].js',
               // allow to split entrypoints
               chunks: ({ name }: any) => !name?.match(MIDDLEWARE_ROUTE),
               // size of files is not so relevant for server build
@@ -1450,13 +1463,15 @@ export default async function getBaseWebpackConfig(
           resourceRegExp: /react-is/,
           contextRegExp: /next[\\/]dist[\\/]/,
         }),
-      isServerless && isServer && !webServerRuntime && new ServerlessPlugin(),
+      ((isServerless && isServer) || webServerRuntime) &&
+        new ServerlessPlugin(),
       isServer &&
         !webServerRuntime &&
         new PagesManifestPlugin({ serverless: isLikeServerless, dev }),
       // MiddlewarePlugin should be after DefinePlugin so  NEXT_PUBLIC_*
       // replacement is done before its process.env.* handling
-      !isServer && new MiddlewarePlugin({ dev }),
+      (!isServer || webServerRuntime) &&
+        new MiddlewarePlugin({ dev, webServerRuntime }),
       isServer && new NextJsSsrImportPlugin(),
       !isServer &&
         new BuildManifestPlugin({

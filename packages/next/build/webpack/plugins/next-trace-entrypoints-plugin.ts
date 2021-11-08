@@ -114,8 +114,7 @@ export class TraceEntryPointsPlugin implements webpack5.WebpackPluginInstance {
     assets: any,
     span: Span,
     readlink: any,
-    stat: any,
-    doResolve: any
+    stat: any
   ) {
     const outputPath = compilation.outputOptions.path
 
@@ -173,11 +172,6 @@ export class TraceEntryPointsPlugin implements webpack5.WebpackPluginInstance {
         },
         readlink,
         stat,
-        resolve: doResolve
-          ? (id, parent, job, isCjs) => {
-              return doResolve(id, parent, job, !isCjs)
-            }
-          : undefined,
         ignore: [...TRACE_IGNORES, ...this.excludeFiles],
         mixedModules: true,
       })
@@ -455,8 +449,7 @@ export class TraceEntryPointsPlugin implements webpack5.WebpackPluginInstance {
               assets,
               traceEntrypointsPluginSpan,
               readlink,
-              stat,
-              doResolve
+              stat
             )
               .then(() => callback())
               .catch((err) => callback(err))

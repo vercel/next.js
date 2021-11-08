@@ -51,14 +51,10 @@ export default async function middlewareRSCLoader(this: any) {
 
         const buildManifest = self.__BUILD_MANIFEST
         const reactLoadableManifest = self.__REACT_LOADABLE_MANIFEST
-        const rscManifest = self._middleware_rsc_manifest
+        const rscManifest = self.__RSC_MANIFEST
 
         if (typeof Page !== 'function') {
           throw new Error('Your page must export a \`default\` component')
-        }
-
-        function renderError(err, status) {
-          return new Response(err.toString(), {status})
         }
 
         function wrapReadable(readable) {
@@ -100,18 +96,13 @@ export default async function middlewareRSCLoader(this: any) {
             createElement(FlightWrapper, props)
           )
         }`
-            : `
-        const Component = Page`
+            : `const Component = Page`
         }
 
-        function render(request) {
+        async function render(request) {
           const url = request.nextUrl
-          const query = Object.fromEntries(url.searchParams)
-
-          if (Document.getInitialProps) {
-            const err = new Error('Document.getInitialProps is not supported with server components, please remove it from pages/_document')
-            return renderError(err, 500)
-          }
+          const { pathname, searchParams } = url
+          const query = Object.fromEntries(searchParams)
 
           // Preflight request
           if (request.method === 'HEAD') {
@@ -131,9 +122,9 @@ export default async function middlewareRSCLoader(this: any) {
               wrapReadable(
                 renderFlight({
                   router: {
-                    route: url.pathname,
-                    asPath: url.pathname,
-                    pathname: url.pathname,
+                    route: pathname,
+                    asPath: pathname,
+                    pathname: pathname,
                     query,
                   }
                 })
@@ -172,18 +163,27 @@ export default async function middlewareRSCLoader(this: any) {
           const writer = transformStream.writable.getWriter()
           const encoder = new TextEncoder()
 
-          renderToHTML(
-            { url: url.pathname },
-            {},
-            url.pathname,
-            query,
-            renderOpts
-          ).then(result => {
+          try {
+            const result = await renderToHTML(
+              { url: pathname },
+              {},
+              pathname,
+              query,
+              renderOpts
+            )
             result.pipe({
               write: str => writer.write(encoder.encode(str)),
               end: () => writer.close()
             })
-          })
+          } catch (err) {
+            return new Response(
+              (err || 'An error occurred while rendering ' + pathname + '.').toString(),
+              {
+                status: 500,
+                headers: { 'x-middleware-ssr': '1' }
+              }
+            )
+          }
 
           return new Response(transformStream.readable, {
             headers: { 'x-middleware-ssr': '1' }
