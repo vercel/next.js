@@ -1204,7 +1204,8 @@ export async function copyTracedFiles(
   for (const page of pageKeys) {
     const pageFile = path.join(
       distDir,
-      'server/pages',
+      'server',
+      'pages',
       `${normalizePagePath(page)}.js`
     )
     const pageTraceFile = `${pageFile}.nft.json`

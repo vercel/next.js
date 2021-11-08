@@ -1365,6 +1365,9 @@ export default async function build(
       'utf8'
     )
 
+    const outputFileTracingRoot =
+      config.experimental.outputFileTracingRoot || dir
+
     if (config.experimental.outputStandalone) {
       await nextBuildSpan
         .traceChild('copy-traced-files')
@@ -1373,7 +1376,7 @@ export default async function build(
             dir,
             distDir,
             pageKeys,
-            config.experimental.outputFileTracingRoot || dir,
+            outputFileTracingRoot,
             requiredServerFiles.config
           )
         })
@@ -1985,10 +1988,7 @@ export default async function build(
           path.join(
             distDir,
             'standalone',
-            path.relative(
-              config.experimental.outputFileTracingRoot || dir,
-              filePath
-            )
+            path.relative(outputFileTracingRoot, filePath)
           )
         )
       }
@@ -1997,10 +1997,7 @@ export default async function build(
         path.join(
           distDir,
           'standalone',
-          path.relative(
-            config.experimental.outputFileTracingRoot || dir,
-            distDir
-          ),
+          path.relative(outputFileTracingRoot, distDir),
           SERVER_DIRECTORY,
           'pages'
         )
