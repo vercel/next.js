@@ -70,8 +70,9 @@ import Router, {
   route,
   Route,
 } from './router'
-import prepareDestination, {
+import {
   compileNonPath,
+  prepareDestination,
 } from '../shared/lib/router/utils/prepare-destination'
 import { sendRenderResult, setRevalidateHeaders } from './send-payload'
 import { serveStatic } from './serve-static'
@@ -1040,12 +1041,12 @@ export default class Server {
             statusCode: redirectRoute.statusCode,
             name: `Redirect route ${redirectRoute.source}`,
             fn: async (req, res, params, parsedUrl) => {
-              const { parsedDestination } = prepareDestination(
-                redirectRoute.destination,
-                params,
-                parsedUrl.query,
-                false
-              )
+              const { parsedDestination } = prepareDestination({
+                appendParamsToQuery: false,
+                destination: redirectRoute.destination,
+                params: params,
+                query: parsedUrl.query,
+              })
 
               const { query } = parsedDestination
               delete (parsedDestination as any).query
@@ -1085,12 +1086,12 @@ export default class Server {
         name: `Rewrite route ${rewriteRoute.source}`,
         match: rewriteRoute.match,
         fn: async (req, res, params, parsedUrl) => {
-          const { newUrl, parsedDestination } = prepareDestination(
-            rewriteRoute.destination,
-            params,
-            parsedUrl.query,
-            true
-          )
+          const { newUrl, parsedDestination } = prepareDestination({
+            appendParamsToQuery: true,
+            destination: rewriteRoute.destination,
+            params: params,
+            query: parsedUrl.query,
+          })
 
           // external rewrite, proxy it
           if (parsedDestination.protocol) {

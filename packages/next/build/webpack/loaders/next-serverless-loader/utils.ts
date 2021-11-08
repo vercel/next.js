@@ -6,8 +6,9 @@ import { normalizeLocalePath } from '../../../../shared/lib/i18n/normalize-local
 import pathMatch from '../../../../shared/lib/router/utils/path-match'
 import { getRouteRegex } from '../../../../shared/lib/router/utils/route-regex'
 import { getRouteMatcher } from '../../../../shared/lib/router/utils/route-matcher'
-import prepareDestination, {
+import {
   matchHas,
+  prepareDestination,
 } from '../../../../shared/lib/router/utils/prepare-destination'
 import { __ApiPreviewProps } from '../../../../server/api-utils'
 import { BuildManifest } from '../../../../server/get-page-files'
@@ -100,12 +101,12 @@ export function getUtils({
       }
 
       if (params) {
-        const { parsedDestination } = prepareDestination(
-          rewrite.destination,
-          params,
-          parsedUrl.query,
-          true
-        )
+        const { parsedDestination } = prepareDestination({
+          appendParamsToQuery: true,
+          destination: rewrite.destination,
+          params: params,
+          query: parsedUrl.query,
+        })
 
         Object.assign(parsedUrl.query, parsedDestination.query)
         delete (parsedDestination as any).query
