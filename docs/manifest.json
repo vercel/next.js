@@ -289,6 +289,10 @@
           "path": "/docs/api-reference/next/image.md"
         },
         {
+          "title": "next/script",
+          "path": "/docs/api-reference/next/script.md"
+        },
+        {
           "title": "next/head",
           "path": "/docs/api-reference/next/head.md"
         },
