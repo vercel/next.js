@@ -119,9 +119,11 @@ const MyImage = (props) => {
 
 A string that provides information about how wide the image will be at different breakpoints. Defaults to `100vw` (the full width of the screen) when using `layout="responsive"` or `layout="fill"`.
 
-`sizes` is important for performance when using `layout="responsive"` or `layout="fill"` with images that take up less than the full viewport width.
+If you are using `layout="fill"` or `layout="responsive"`, it's important to assign `sizes` for any image that takes up less than the full viewport width.
 
-If you are using `layout="fill"` or `layout="responsive"` and the image will always be less than half the viewport width, include `sizes="50vw"`. Without `sizes`, the image will be sent at twice the necessary resolution, decreasing performance.
+For example, when the parent element will constrain the image to always be less than half the viewport width, use `sizes="50vw"`. Without `sizes`, the image will be sent at twice the necessary resolution, decreasing performance.
+
+If you are using `layout="intrinsic"` or `layout="fixed"`, then `sizes` is not needed because the upperbound width is constrained already.
 
 [Learn more](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/img#attr-sizes).
 

@@ -4111,11 +4111,6 @@
     "@swc/core-win32-ia32-msvc" "1.2.97"
     "@swc/core-win32-x64-msvc" "1.2.97"
 
-"@swc/jest@0.2.3":
-  version "0.2.3"
-  resolved "https://registry.yarnpkg.com/@swc/jest/-/jest-0.2.3.tgz#5c32aaa6298267a955d35eb67094edabd5db598f"
-  integrity sha512-ARZIY5OkXdFRQLHc/1i+yKrl0H3B1sa7Bu9XE8yTvYZZ4G5Ewu6oyyJBM52TiROP6EpMcF7ZeQQsKMZvzuKkNw==
-
 "@szmarczak/http-timer@^1.1.2":
   version "1.1.2"
   resolved "https://registry.yarnpkg.com/@szmarczak/http-timer/-/http-timer-1.1.2.tgz#b1665e2c461a2cd92f4c1bbf50d5454de0d4b421"
