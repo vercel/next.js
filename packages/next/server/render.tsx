@@ -20,7 +20,6 @@ import { GetServerSideProps, GetStaticProps, PreviewData } from '../types'
 import { isInAmpMode } from '../shared/lib/amp'
 import { AmpStateContext } from '../shared/lib/amp-context'
 import {
-  BODY_RENDER_TARGET,
   SERVER_PROPS_ID,
   STATIC_PROPS_ID,
   STATIC_STATUS_PAGES,
@@ -935,6 +934,20 @@ export async function renderToHTML(
     }
   }
 
+  const appWrappers: Array<(content: JSX.Element) => JSX.Element> = []
+  const getWrappedApp = (app: JSX.Element) => {
+    // Prevent wrappers from reading/writing props by rendering inside an
+    // opaque component. Wrappers should use context instead.
+    const InnerApp = () => app
+    return (
+      <AppContainer>
+        {appWrappers.reduce((innerContent, fn) => {
+          return fn(innerContent)
+        }, <InnerApp />)}
+      </AppContainer>
+    )
+  }
+
   /**
    * Rules of Static & Dynamic HTML:
    *
@@ -976,13 +989,13 @@ export async function renderToHTML(
           enhanceComponents(options, App, Component)
 
         const html = ReactDOMServer.renderToString(
-          <AppContainer>
+          getWrappedApp(
             <EnhancedApp
               Component={EnhancedComponent}
               router={router}
               {...props}
             />
-          </AppContainer>
+          )
         )
         return { html, head }
       }
@@ -1002,33 +1015,51 @@ export async function renderToHTML(
       }
 
       return {
-        bodyResult: piperFromArray([docProps.html]),
+        bodyResult: () => piperFromArray([docProps.html]),
         documentElement: (htmlProps: HtmlProps) => (
           <Document {...htmlProps} {...docProps} />
         ),
+        useMainContent: (fn?: (content: JSX.Element) => JSX.Element) => {
+          if (fn) {
+            throw new Error(
+              'The `children` property is not supported by non-functional custom Document components'
+            )
+          }
+          // @ts-ignore
+          return <next-js-internal-body-render-target />
+        },
         head: docProps.head,
         headTags: await headTags(documentCtx),
         styles: docProps.styles,
       }
     } else {
-      const content =
-        ctx.err && ErrorDebug ? (
-          <ErrorDebug error={ctx.err} />
-        ) : (
-          <AppContainer>
-            <App {...props} Component={Component} router={router} />
-          </AppContainer>
-        )
+      const bodyResult = async () => {
+        const content =
+          ctx.err && ErrorDebug ? (
+            <ErrorDebug error={ctx.err} />
+          ) : (
+            getWrappedApp(
+              <App {...props} Component={Component} router={router} />
+            )
+          )
 
-      const bodyResult = concurrentFeatures
-        ? process.browser
-          ? await renderToReadableStream(content)
-          : await renderToNodeStream(content, generateStaticHTML)
-        : piperFromArray([ReactDOMServer.renderToString(content)])
+        return concurrentFeatures
+          ? process.browser
+            ? await renderToReadableStream(content)
+            : await renderToNodeStream(content, generateStaticHTML)
+          : piperFromArray([ReactDOMServer.renderToString(content)])
+      }
 
       return {
         bodyResult,
         documentElement: () => (Document as any)(),
+        useMainContent: (fn?: (content: JSX.Element) => JSX.Element) => {
+          if (fn) {
+            appWrappers.push(fn)
+          }
+          // @ts-ignore
+          return <next-js-internal-body-render-target />
+        },
         head,
         headTags: [],
         styles: jsxStyleRegistry.styles(),
@@ -1056,8 +1087,8 @@ export async function renderToHTML(
   }
 
   const hybridAmp = ampState.hybrid
-
   const docComponentsRendered: DocumentProps['docComponentsRendered'] = {}
+
   const {
     assetPrefix,
     buildId,
@@ -1123,6 +1154,7 @@ export async function renderToHTML(
     head: documentResult.head,
     headTags: documentResult.headTags,
     styles: documentResult.styles,
+    useMainContent: documentResult.useMainContent,
     useMaybeDeferContent,
   }
 
@@ -1181,20 +1213,20 @@ export async function renderToHTML(
     }
   }
 
-  const renderTargetIdx = documentHTML.indexOf(BODY_RENDER_TARGET)
+  const [renderTargetPrefix, renderTargetSuffix] = documentHTML.split(
+    /<next-js-internal-body-render-target><\/next-js-internal-body-render-target>/
+  )
   const prefix: Array<string> = []
   prefix.push('<!DOCTYPE html>')
-  prefix.push(documentHTML.substring(0, renderTargetIdx))
+  prefix.push(renderTargetPrefix)
   if (inAmpMode) {
     prefix.push('<!-- __NEXT_DATA__ -->')
   }
 
   let pipers: Array<NodeWritablePiper> = [
     piperFromArray(prefix),
-    documentResult.bodyResult,
-    piperFromArray([
-      documentHTML.substring(renderTargetIdx + BODY_RENDER_TARGET.length),
-    ]),
+    await documentResult.bodyResult(),
+    piperFromArray([renderTargetSuffix]),
   ]
 
   const postProcessors: Array<((html: string) => Promise<string>) | null> = (
