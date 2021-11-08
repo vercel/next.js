@@ -30,6 +30,10 @@ import vm from 'vm'
 import { transformSync } from './index'
 import { getJestSWCOptions } from './options'
 
+console.warn(
+  '"next/jest" is currently experimental. https://nextjs.org/docs/messages/experimental-jest-transformer'
+)
+
 /**
  * Loads closest package.json in the directory hierarchy
  */
