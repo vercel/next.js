@@ -152,7 +152,7 @@ describe('pnpm support', () => {
       try {
         appPort = await findPort()
         appProcess = runPnpm(appDir, 'run', 'start', '--', '--port', appPort)
-        await waitFor(2000)
+        await waitFor(5000)
 
         await renderViaHTTP(appPort, '/')
 
