@@ -59,6 +59,7 @@ export async function run(params: {
         timeLog: console.timeLog.bind(console),
         warn: console.warn.bind(console),
       },
+      CryptoKey: polyfills.CryptoKey,
       Crypto: polyfills.Crypto,
       crypto: new polyfills.Crypto(),
       fetch: (input: RequestInfo, init: RequestInit = {}) => {
