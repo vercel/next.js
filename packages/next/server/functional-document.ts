@@ -4,7 +4,7 @@ type FlushHandler = () => string | null
 type FlushHandlerHook = (fn: FlushHandler) => void
 let CURRENT_HOOK_IMPL: FlushHandlerHook | null = null
 
-export async function render(
+export async function renderFunctionalDocument(
   Document: FunctionComponent
 ): Promise<[ReactElement | null, Array<FlushHandler>]> {
   const flushHandlers: Array<FlushHandler> = []

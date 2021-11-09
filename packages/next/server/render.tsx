@@ -2,7 +2,7 @@ import { IncomingMessage, ServerResponse } from 'http'
 import { ParsedUrlQuery } from 'querystring'
 import type { Writable as WritableType } from 'stream'
 import React from 'react'
-import ReactDOMServer, { renderToStaticMarkup } from 'react-dom/server'
+import ReactDOMServer from 'react-dom/server'
 import { StyleRegistry, createStyleRegistry } from 'styled-jsx'
 import { UnwrapPromise } from '../lib/coalesced-function'
 import {
@@ -61,7 +61,7 @@ import { DomainLocale } from './config'
 import RenderResult, { NodeWritablePiper } from './render-result'
 import isError from '../lib/is-error'
 import {
-  render as renderFunctionalDocument,
+  renderFunctionalDocument,
   useFlushHandler,
 } from './functional-document'
 
