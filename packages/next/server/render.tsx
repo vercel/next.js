@@ -1097,7 +1097,7 @@ export async function renderToHTML(
         styles: docProps.styles,
       }
     } else {
-      const styledJsxFlushHandler = () => {
+      const styledJsxFlushEffect = () => {
         const styles = jsxStyleRegistry.styles() as any as JSX.Element[]
         jsxStyleRegistry.flush()
         // TODO: Render with React instead
@@ -1113,11 +1113,11 @@ export async function renderToHTML(
           })
           .join('')
       }
-      const [document, flushHandlers] = await renderFunctionalDocument(
+      const [document, flushEffects] = await renderFunctionalDocument(
         Document as any
       )
-      const handleFlush = () => {
-        const html = [styledJsxFlushHandler, ...flushHandlers]
+      const getFlushPrefix = () => {
+        const html = [styledJsxFlushEffect, ...flushEffects]
           .map((fn) => fn())
           .filter(Boolean)
           .join('')
@@ -1136,9 +1136,13 @@ export async function renderToHTML(
 
         return concurrentFeatures
           ? process.browser
-            ? await renderToReadableStream(content, handleFlush)
-            : await renderToNodeStream(content, generateStaticHTML, handleFlush)
-          : await renderToStaticString(content, handleFlush)
+            ? await renderToReadableStream(content, getFlushPrefix)
+            : await renderToNodeStream(
+                content,
+                generateStaticHTML,
+                getFlushPrefix
+              )
+          : await renderToStaticString(content, getFlushPrefix)
       }
 
       return {
@@ -1389,7 +1393,7 @@ function serializeError(
 function renderToNodeStream(
   element: React.ReactElement,
   generateStaticHTML: boolean,
-  handleFlush: () => string
+  getFlushPrefix: () => string
 ): Promise<NodeWritablePiper> {
   return new Promise((resolve, reject) => {
     let underlyingStream: {
@@ -1402,7 +1406,7 @@ function renderToNodeStream(
       // Use the buffer from the underlying stream
       highWaterMark: 0,
       writev(chunks, callback) {
-        let str = handleFlush()
+        let str = getFlushPrefix()
         for (let { chunk } of chunks) {
           str += chunk.toString()
         }
@@ -1503,7 +1507,7 @@ function renderToNodeStream(
 
 function renderToReadableStream(
   element: React.ReactElement,
-  handleFlush: () => string
+  getFlushPrefix: () => string
 ): NodeWritablePiper {
   return (res, next) => {
     let bufferedString = ''
@@ -1513,7 +1517,7 @@ function renderToReadableStream(
       onCompleteShell() {
         shellCompleted = true
         if (bufferedString) {
-          res.write(handleFlush())
+          res.write(getFlushPrefix())
           res.write(bufferedString)
           bufferedString = ''
         }
@@ -1526,7 +1530,7 @@ function renderToReadableStream(
         if (!done) {
           const s = typeof value === 'string' ? value : decoder.decode(value)
           if (shellCompleted) {
-            res.write(handleFlush())
+            res.write(getFlushPrefix())
             res.write(s)
           } else {
             bufferedString += s
@@ -1543,10 +1547,10 @@ function renderToReadableStream(
 
 function renderToStaticString(
   element: React.ReactElement,
-  handleFlush: () => string
+  getFlushPrefix: () => string
 ) {
   const content = ReactDOMServer.renderToString(element)
-  const prefix = handleFlush()
+  const prefix = getFlushPrefix()
   return piperFromArray([prefix, content])
 }
 

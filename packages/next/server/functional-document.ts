@@ -1,27 +1,27 @@
 import { FunctionComponent, ReactElement } from 'react'
 
-type FlushHandler = () => string | null
-type FlushHandlerHook = (fn: FlushHandler) => void
-let CURRENT_HOOK_IMPL: FlushHandlerHook | null = null
+type FlushEffect = () => string | null
+type FlushEffectHook = (fn: FlushEffect) => void
+let CURRENT_HOOK_IMPL: FlushEffectHook | null = null
 
 export async function renderFunctionalDocument(
   Document: FunctionComponent
-): Promise<[ReactElement | null, Array<FlushHandler>]> {
-  const flushHandlers: Array<FlushHandler> = []
-  const nextHookImpl: FlushHandlerHook = (fn) => {
-    flushHandlers.push(fn)
+): Promise<[ReactElement | null, Array<FlushEffect>]> {
+  const flushEffects: Array<FlushEffect> = []
+  const nextHookImpl: FlushEffectHook = (fn) => {
+    flushEffects.push(fn)
   }
   const prevHookImpl = CURRENT_HOOK_IMPL
 
   try {
-    flushHandlers.length = 0
+    flushEffects.length = 0
     CURRENT_HOOK_IMPL = nextHookImpl
     // Note: we intentionally do not pass props to functional `Document` components. Since this
     // component is only used on the very first render, we want to prevent handing applications
     // a footgun where page behavior can unexpectedly differ. Instead, applications should
     // move such logic to `pages/_app`.
     const elem = Document({})
-    return [elem, flushHandlers]
+    return [elem, flushEffects]
   } catch (err: unknown) {
     if (
       err &&
@@ -49,11 +49,11 @@ export async function renderFunctionalDocument(
   }
 }
 
-export function useFlushHandler(fn: FlushHandler): void {
+export function useFlushEffect(fn: FlushEffect): void {
   const currHookImpl = CURRENT_HOOK_IMPL
   if (!currHookImpl) {
     throw new Error(
-      'The useFlushHandler hook can only be used in pages/_document'
+      'The useFlushEffect hook can only be used by the `Document` component in `pages/_document`'
     )
   }
   return currHookImpl(fn)

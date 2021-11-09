@@ -1,9 +1,9 @@
 import React from 'react'
-import { useFlushHandler, Html, Head, Main, NextScript } from 'next/document'
+import { useFlushEffect, Html, Head, Main, NextScript } from 'next/document'
 
 export default function Document() {
-  useFlushHandler(() => `<foo />`)
-  useFlushHandler(() => `<bar />`)
+  useFlushEffect(() => `<foo />`)
+  useFlushEffect(() => `<bar />`)
   return (
     <Html>
       <Head />
