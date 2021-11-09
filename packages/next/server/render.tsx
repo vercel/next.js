@@ -1100,37 +1100,30 @@ export async function renderToHTML(
         styles: docProps.styles,
       }
     } else {
-      const StyledJsxWrapper = ({ children }: { children: JSX.Element }) => {
-        useFlushHandler(() => {
-          const styles = jsxStyleRegistry.styles() as any as JSX.Element[]
-          jsxStyleRegistry.flush()
-          // TODO: Render with React instead
-          return styles
-            .map((style) => {
-              const attrs = [
-                `id="${style.props.id}"`,
-                style.props.nonce ? `nonce="${style.props.nonce}"` : '',
-              ].filter(Boolean)
-              return `<style ${attrs.join(' ')}>${
-                style.props.dangerouslySetInnerHTML.__html
-              }</style>`
-            })
-            .join('')
-        })
-        return children
+      const styledJsxFlushHandler = () => {
+        const styles = jsxStyleRegistry.styles() as any as JSX.Element[]
+        jsxStyleRegistry.flush()
+        // TODO: Render with React instead
+        return styles
+          .map((style) => {
+            const attrs = [
+              `id="${style.props.id}"`,
+              style.props.nonce ? `nonce="${style.props.nonce}"` : '',
+            ].filter(Boolean)
+            return `<style ${attrs.join(' ')}>${
+              style.props.dangerouslySetInnerHTML.__html
+            }</style>`
+          })
+          .join('')
       }
-      appWrappers.push((content) => (
-        <StyledJsxWrapper>{content}</StyledJsxWrapper>
-      ))
-
       const [document, flushHandlers] = await renderFunctionalDocument(
         Document as any
       )
       const handleFlush = () => {
-        const html = flushHandlers
+        const html = [styledJsxFlushHandler, ...flushHandlers]
           .map((fn) => fn())
           .filter(Boolean)
-          .join()
+          .join('')
         return html
       }
 

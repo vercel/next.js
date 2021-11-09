@@ -11,7 +11,6 @@ export async function renderFunctionalDocument(
   const nextHookImpl: FlushHandlerHook = (fn) => {
     flushHandlers.push(fn)
   }
-
   const prevHookImpl = CURRENT_HOOK_IMPL
 
   try {
