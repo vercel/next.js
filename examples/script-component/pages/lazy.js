@@ -1,8 +1,6 @@
 import {useEffect, useState} from "react"
 import Script from "next/script"
 
-import s from "../styles/lazy.module.css"
-
 export default function Lazyload() {
   const [log, setLog] = useState([])
 
@@ -23,7 +21,7 @@ export default function Lazyload() {
         onLoad={() => addLog(`script loaded correctly, window.FB has been populated`)}
       />
 
-      <main className={s.container}>
+      <main>
         <h1>Lazy Loading FB sdk</h1>
         <h5>You can check `window.FB` on browser console</h5>
         <ul>

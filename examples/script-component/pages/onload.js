@@ -1,8 +1,6 @@
 import {useMemo, useState} from "react"
 import Script from "next/script"
 
-import s from "../styles/onload.module.css"
-
 export default function Onload() {
   const [stripe, setStripe] = useState(null)
   const methods = useMemo(() =>
@@ -29,7 +27,7 @@ export default function Onload() {
         onLoad={handleLoad}
       />
 
-      <main className={s.container}>
+      <main>
         <h1>Executing code after loading</h1>
         <div>
             <p>Stripe methods: </p>

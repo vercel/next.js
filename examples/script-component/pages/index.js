@@ -1,10 +1,8 @@
 import Link from "next/link"
 
-import s from "../styles/index.module.css"
-
 export default function Index() {
   return (
-    <main className={s.container}>
+    <main>
       <h1>Script component examples</h1>
       <ul>
         <li>

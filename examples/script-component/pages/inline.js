@@ -1,7 +1,5 @@
 import Script from "next/script"
 
-import s from "../styles/inline.module.css"
-
 export default function Inline() {
   return (
     <>
@@ -19,7 +17,7 @@ export default function Inline() {
         }}
       /> */}
 
-      <main className={s.container}>
+      <main>
         <h1>Inline scripts</h1>
         <h5 id="banner" className="hidden">
           This is initially hidden but its being shown because the `Script` component removed the `hidden` class.
