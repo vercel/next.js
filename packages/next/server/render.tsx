@@ -1102,16 +1102,20 @@ export async function renderToHTML(
     } else {
       const StyledJsxWrapper = ({ children }: { children: JSX.Element }) => {
         useFlushHandler(() => {
-          const styles = jsxStyleRegistry.styles()
+          const styles = jsxStyleRegistry.styles() as any as JSX.Element[]
           jsxStyleRegistry.flush()
           // TODO: Render with React instead
-          const attrs = [
-            `id="${styles.props.id}"`,
-            styles.props.nonce ? `nonce="${styles.props.nonce}"` : '',
-          ].filter(Boolean)
-          return `<style ${attrs.join(' ')}>${
-            styles.props.dangerouslySetInnerHTML.__html
-          }</style>`
+          return styles
+            .map((style) => {
+              const attrs = [
+                `id="${style.props.id}"`,
+                style.props.nonce ? `nonce="${style.props.nonce}"` : '',
+              ].filter(Boolean)
+              return `<style ${attrs.join(' ')}>${
+                style.props.dangerouslySetInnerHTML.__html
+              }</style>`
+            })
+            .join('')
         })
         return children
       }
