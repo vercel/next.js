@@ -32,7 +32,7 @@ export function connectHMR(options: {
   function init() {
     if (source) source.close()
     const { hostname, port } = location
-    const protocol = location.protocol === 'http:' ? 'ws' : 'wss'
+    let protocol = location.protocol === 'http:' ? 'ws' : 'wss'
     const assetPrefix = options.assetPrefix.replace(/^\/+/, '')
 
     let url = `${protocol}://${hostname}:${port}${
@@ -40,6 +40,7 @@ export function connectHMR(options: {
     }`
 
     if (assetPrefix.startsWith('http')) {
+      protocol = assetPrefix.split('://')[0] === 'http' ? 'ws' : 'wss';
       url = `${protocol}://${assetPrefix.split('://')[1]}`
     }
 
