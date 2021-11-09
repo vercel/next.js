@@ -257,6 +257,9 @@ describe('AMP Usage', () => {
         onStdout(msg) {
           inspectPayload += msg
         },
+        onStderr(msg) {
+          inspectPayload += msg
+        },
       })
 
       await renderViaHTTP(dynamicAppPort, '/only-amp')
@@ -516,6 +519,26 @@ describe('AMP Usage', () => {
       } finally {
         await browser.close()
       }
+    })
+
+    it('should detect amp validator warning on invalid amp', async () => {
+      let inspectPayload = ''
+      dynamicAppPort = await findPort()
+      ampDynamic = await launchApp(join(__dirname, '../'), dynamicAppPort, {
+        onStdout(msg) {
+          inspectPayload += msg
+        },
+        onStderr(msg) {
+          inspectPayload += msg
+        },
+      })
+
+      await renderViaHTTP(dynamicAppPort, '/invalid-amp')
+
+      await killApp(ampDynamic)
+
+      expect(inspectPayload).toContain('warn')
+      expect(inspectPayload).toContain('error')
     })
 
     it('should not contain missing files warning', async () => {
