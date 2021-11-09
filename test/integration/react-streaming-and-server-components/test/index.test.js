@@ -143,8 +143,7 @@ describe('concurrentFeatures - prod', () => {
     expect(content.clientInfo).not.toContainEqual([['/404', true]])
   })
 
-  // TODO: re-enabled test when update webpack with chunkLoading support
-  it.skip('should support React.lazy and dynamic imports', async () => {
+  it('should support React.lazy and dynamic imports', async () => {
     const html = await renderViaHTTP(context.appPort, '/dynamic-imports')
     expect(html).toContain('foo.client')
   })
