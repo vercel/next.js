@@ -758,6 +758,7 @@ dependencies = [
  "rustc-hash",
  "serde",
  "serde_json",
+ "styled_components",
  "swc",
  "swc_atoms",
  "swc_bundler",
@@ -1622,6 +1623,22 @@ name = "strsim"
 version = "0.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6446ced80d6c486436db5c078dde11a9f73d42b57fb273121e160b84f63d894c"
+
+[[package]]
+name = "styled_components"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3bead63e50d51304ddf1f938513b5fec3dc66c57b0b742db6e4748ba61192fd5"
+dependencies = [
+ "Inflector",
+ "once_cell",
+ "regex",
+ "serde",
+ "swc_atoms",
+ "swc_common",
+ "swc_ecmascript",
+ "tracing",
+]
 
 [[package]]
 name = "swc"
