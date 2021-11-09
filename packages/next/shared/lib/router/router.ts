@@ -1697,7 +1697,7 @@ export default class Router implements BaseRouter {
     }
 
     const effects = await this._preflightRequest({
-      as: asPath,
+      as: addBasePath(asPath),
       cache: true,
       pages,
       pathname,
@@ -1829,9 +1829,7 @@ export default class Router implements BaseRouter {
     }
 
     const preflight = await this._getPreflightData({
-      preflightHref: hasBasePath(options.as)
-        ? options.as
-        : addBasePath(options.as),
+      preflightHref: options.as,
       shouldCache: options.cache,
     })
 
