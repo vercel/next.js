@@ -280,7 +280,6 @@ export default class Router {
       const isMiddlewareCatchall = testRoute.name === 'middleware catchall'
       const keepBasePath =
         isCustomRoute || isPublicFolderCatchall || isMiddlewareCatchall
-      const keepLocale = isCustomRoute
 
       const currentPathnameNoBasePath = replaceBasePath(
         this.basePath,
@@ -289,39 +288,15 @@ export default class Router {
 
       if (!keepBasePath) {
         currentPathname = currentPathnameNoBasePath
+      } else if (getRequestMeta(req, '_nextHadBasePath')) {
+        currentPathname = `${this.basePath}${currentPathname}`
       }
 
-      const localePathResult = normalizeLocalePath(
-        currentPathnameNoBasePath,
-        this.locales
-      )
-      const activeBasePath = keepBasePath ? this.basePath : ''
-
-      if (keepLocale) {
-        if (
-          !testRoute.internal &&
-          parsedUrl.query.__nextLocale &&
-          !localePathResult.detectedLocale
-        ) {
-          currentPathname = `${activeBasePath}/${parsedUrl.query.__nextLocale}${
-            currentPathnameNoBasePath === '/' ? '' : currentPathnameNoBasePath
-          }`
-        }
-
-        if (
-          getRequestMeta(req, '__nextHadTrailingSlash') &&
-          !currentPathname.endsWith('/')
-        ) {
-          currentPathname += '/'
-        }
-      } else {
-        currentPathname = `${
-          getRequestMeta(req, '_nextHadBasePath') ? activeBasePath : ''
-        }${
-          activeBasePath && localePathResult.pathname === '/'
-            ? ''
-            : localePathResult.pathname
-        }`
+      if (
+        getRequestMeta(req, '__nextHadTrailingSlash') &&
+        !currentPathname.endsWith('/')
+      ) {
+        currentPathname += '/'
       }
 
       let newParams = testRoute.match(currentPathname)
