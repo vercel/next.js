@@ -5,7 +5,7 @@
 import { fileURLToPath } from 'url'
 import path from 'path'
 
-import { urlToRequest } from 'next/dist/compiled/loader-utils'
+import { urlToRequest } from 'next/dist/compiled/loader-utils3'
 import modulesValues from 'next/dist/compiled/postcss-modules-values'
 import localByDefault from 'next/dist/compiled/postcss-modules-local-by-default'
 import extractImports from 'next/dist/compiled/postcss-modules-extract-imports'
@@ -60,6 +60,10 @@ function normalizeUrl(url, isStringValue) {
 function requestify(url, rootContext) {
   if (/^file:/i.test(url)) {
     return fileURLToPath(url)
+  }
+
+  if (/^[a-z][a-z0-9+.-]*:/i.test(url)) {
+    return url
   }
 
   return url.charAt(0) === '/'
@@ -602,8 +606,8 @@ function isUrlRequestable(url) {
   }
 
   // Absolute URLs
-  if (/^[a-z][a-z0-9+.-]*:/i.test(url) && !matchNativeWin32Path.test(url)) {
-    return false
+  if (/^[a-z][a-z0-9+.-]*:/i.test(url)) {
+    return true
   }
 
   // `#` URLs

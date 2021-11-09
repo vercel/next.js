@@ -36,6 +36,8 @@ import { setHttpAgentOptions } from '../server/config'
 import { NextConfigComplete } from '../server/config-shared'
 import isError from '../lib/is-error'
 
+const { builtinModules } = require('module')
+const RESERVED_PAGE = /^\/(_app|_error|_document|api(\/|$))/
 const fileGzipStats: { [k: string]: Promise<number> | undefined } = {}
 const fsStatGzip = (file: string) => {
   const cached = fileGzipStats[file]
@@ -68,6 +70,7 @@ export interface PageInfo {
   totalSize: number
   static: boolean
   isSsg: boolean
+  isWebSsr: boolean
   ssgPageRoutes: string[] | null
   initialRevalidateSeconds: number | false
   pageDuration: number | undefined
@@ -150,6 +153,8 @@ export async function printTreeView(
     pageInfos
   )
 
+  const usedSymbols = new Set()
+
   const pageList = list
     .slice()
     .filter(
@@ -163,7 +168,7 @@ export async function printTreeView(
     .sort((a, b) => a.localeCompare(b))
 
   pageList.forEach((item, i, arr) => {
-    const symbol =
+    const border =
       i === 0
         ? arr.length === 1
           ? '─'
@@ -174,21 +179,29 @@ export async function printTreeView(
 
     const pageInfo = pageInfos.get(item)
     const ampFirst = buildManifest.ampFirstPages.includes(item)
-
     const totalDuration =
       (pageInfo?.pageDuration || 0) +
       (pageInfo?.ssgPageDurations?.reduce((a, b) => a + (b || 0), 0) || 0)
 
+    const symbol =
+      item === '/_app'
+        ? ' '
+        : item.endsWith('/_middleware')
+        ? 'ƒ'
+        : pageInfo?.isWebSsr
+        ? 'ℇ'
+        : pageInfo?.static
+        ? '○'
+        : pageInfo?.isSsg
+        ? '●'
+        : 'λ'
+
+    usedSymbols.add(symbol)
+
+    if (pageInfo?.initialRevalidateSeconds) usedSymbols.add('ISR')
+
     messages.push([
-      `${symbol} ${
-        item === '/_app'
-          ? ' '
-          : pageInfo?.static
-          ? '○'
-          : pageInfo?.isSsg
-          ? '●'
-          : 'λ'
-      } ${
+      `${border} ${symbol} ${
         pageInfo?.initialRevalidateSeconds
           ? `${item} (ISR: ${pageInfo?.initialRevalidateSeconds} Seconds)`
           : item
@@ -341,33 +354,43 @@ export async function printTreeView(
   console.log(
     textTable(
       [
-        [
+        usedSymbols.has('ƒ') && [
+          'ƒ',
+          '(Middleware)',
+          `intercepts requests (uses ${chalk.cyan('_middleware')})`,
+        ],
+        usedSymbols.has('ℇ') && [
+          'ℇ',
+          '(Streaming)',
+          `server-side renders with streaming (uses React 18 SSR streaming or Server Components)`,
+        ],
+        usedSymbols.has('λ') && [
           'λ',
           serverless ? '(Lambda)' : '(Server)',
           `server-side renders at runtime (uses ${chalk.cyan(
             'getInitialProps'
           )} or ${chalk.cyan('getServerSideProps')})`,
         ],
-        [
+        usedSymbols.has('○') && [
           '○',
           '(Static)',
           'automatically rendered as static HTML (uses no initial props)',
         ],
-        [
+        usedSymbols.has('●') && [
           '●',
           '(SSG)',
           `automatically generated as static HTML + JSON (uses ${chalk.cyan(
             'getStaticProps'
           )})`,
         ],
-        [
+        usedSymbols.has('ISR') && [
           '',
           '(ISR)',
           `incremental static regeneration (uses revalidate in ${chalk.cyan(
             'getStaticProps'
           )})`,
         ],
-      ] as [string, string, string][],
+      ].filter((x) => x) as [string, string, string][],
       {
         align: ['l', 'l', 'l'],
         stringLength: (str) => stripAnsi(str).length,
@@ -617,6 +640,7 @@ export async function getJsPageSizeInKb(
 export async function buildStaticPaths(
   page: string,
   getStaticPaths: GetStaticPaths,
+  configFileName: string,
   locales?: string[],
   defaultLocale?: string
 ): Promise<
@@ -788,7 +812,7 @@ export async function buildStaticPaths(
 
       if (entry.locale && !locales?.includes(entry.locale)) {
         throw new Error(
-          `Invalid locale returned from getStaticPaths for ${page}, the locale ${entry.locale} is not specified in next.config.js`
+          `Invalid locale returned from getStaticPaths for ${page}, the locale ${entry.locale} is not specified in ${configFileName}`
         )
       }
       const curLocale = entry.locale || defaultLocale || ''
@@ -817,6 +841,7 @@ export async function isPageStatic(
   page: string,
   distDir: string,
   serverless: boolean,
+  configFileName: string,
   runtimeEnvConfig: any,
   httpAgentOptions: NextConfigComplete['httpAgentOptions'],
   locales?: string[],
@@ -826,6 +851,7 @@ export async function isPageStatic(
   isStatic?: boolean
   isAmpOnly?: boolean
   isHybridAmp?: boolean
+  hasFlightData?: boolean
   hasServerProps?: boolean
   hasStaticProps?: boolean
   prerenderRoutes?: string[]
@@ -840,6 +866,7 @@ export async function isPageStatic(
     try {
       require('../shared/lib/runtime-config').setConfig(runtimeEnvConfig)
       setHttpAgentOptions(httpAgentOptions)
+
       const mod = await loadComponents(distDir, page, serverless)
       const Comp = mod.Component
 
@@ -847,6 +874,7 @@ export async function isPageStatic(
         throw new Error('INVALID_DEFAULT_EXPORT')
       }
 
+      const hasFlightData = !!(Comp as any).__next_rsc__
       const hasGetInitialProps = !!(Comp as any).getInitialProps
       const hasStaticProps = !!mod.getStaticProps
       const hasStaticPaths = !!mod.getStaticPaths
@@ -925,6 +953,7 @@ export async function isPageStatic(
         } = await buildStaticPaths(
           page,
           mod.getStaticPaths!,
+          configFileName,
           locales,
           defaultLocale
         ))
@@ -933,7 +962,11 @@ export async function isPageStatic(
       const isNextImageImported = (global as any).__NEXT_IMAGE_IMPORTED
       const config: PageConfig = mod.pageConfig
       return {
-        isStatic: !hasStaticProps && !hasGetInitialProps && !hasServerProps,
+        isStatic:
+          !hasStaticProps &&
+          !hasGetInitialProps &&
+          !hasServerProps &&
+          !hasFlightData,
         isHybridAmp: config.amp === 'hybrid',
         isAmpOnly: config.amp === true,
         prerenderRoutes,
@@ -941,6 +974,7 @@ export async function isPageStatic(
         encodedPrerenderRoutes,
         hasStaticProps,
         hasServerProps,
+        hasFlightData,
         isNextImageImported,
         traceIncludes: config.unstable_includeFiles || [],
         traceExcludes: config.unstable_excludeFiles || [],
@@ -1073,4 +1107,49 @@ export function getCssFilePaths(buildManifest: BuildManifest): string[] {
   })
 
   return [...cssFiles]
+}
+
+export function getRawPageExtensions(pageExtensions: string[]): string[] {
+  return pageExtensions.filter(
+    (ext) => !ext.startsWith('client.') && !ext.startsWith('server.')
+  )
+}
+
+export function isFlightPage(
+  nextConfig: NextConfigComplete,
+  pagePath: string
+): boolean {
+  if (
+    !(
+      nextConfig.experimental.serverComponents &&
+      nextConfig.experimental.concurrentFeatures
+    )
+  )
+    return false
+
+  const rawPageExtensions = getRawPageExtensions(
+    nextConfig.pageExtensions || []
+  )
+  const isRscPage = rawPageExtensions.some((ext) => {
+    return new RegExp(`\\.server\\.${ext}$`).test(pagePath)
+  })
+  return isRscPage
+}
+
+export function getUnresolvedModuleFromError(
+  error: string
+): string | undefined {
+  const moduleErrorRegex = new RegExp(
+    `Module not found: Can't resolve '(\\w+)'`
+  )
+  const [, moduleName] = error.match(moduleErrorRegex) || []
+  return builtinModules.find((item: string) => item === moduleName)
+}
+
+export function isReservedPage(page: string) {
+  return RESERVED_PAGE.test(page)
+}
+
+export function isCustomErrorPage(page: string) {
+  return page === '/404' || page === '/500'
 }

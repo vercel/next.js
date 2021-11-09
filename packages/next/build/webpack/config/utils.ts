@@ -2,6 +2,7 @@ import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { NextConfigComplete } from '../../../server/config-shared'
 
 export type ConfigurationContext = {
+  supportedBrowsers: string[] | undefined
   rootDirectory: string
   customAppFile: RegExp
 
@@ -10,6 +11,8 @@ export type ConfigurationContext = {
 
   isServer: boolean
   isClient: boolean
+  webServerRuntime: boolean
+  targetWeb: boolean
 
   assetPrefix: string
 
@@ -17,8 +20,7 @@ export type ConfigurationContext = {
   productionBrowserSourceMaps: boolean
 
   future: NextConfigComplete['future']
-
-  isCraCompat?: boolean
+  experimental: NextConfigComplete['experimental']
 }
 
 export type ConfigurationFn = (

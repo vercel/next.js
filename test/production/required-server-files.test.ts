@@ -5,6 +5,7 @@ import { join, dirname } from 'path'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import {
+  check,
   fetchViaHTTP,
   findPort,
   initNextServerScript,
@@ -29,9 +30,6 @@ describe('should set-up next', () => {
         ),
       },
       nextConfig: {
-        experimental: {
-          outputFileTracing: true,
-        },
         eslint: {
           ignoreDuringBuilds: true,
         },
@@ -41,13 +39,20 @@ describe('should set-up next', () => {
               source: '/some-catch-all/:path*',
               destination: '/',
             },
+            {
+              source: '/to-dynamic/:path',
+              destination: '/dynamic/:path',
+            },
           ]
         },
       },
     })
     await next.stop()
     const keptFiles = new Set<string>()
-    const nextServerTrace = require('next/dist/server/next-server.js.nft.json')
+    const nextServerTrace = require(join(
+      next.testDir,
+      '.next/next-server.js.nft.json'
+    ))
 
     requiredFilesManifest = JSON.parse(
       await next.readFile('.next/required-server-files.json')
@@ -76,12 +81,16 @@ describe('should set-up next', () => {
       dot: true,
     })
 
+    const nextServerTraceFiles = nextServerTrace.files.map((file) => {
+      return join(next.testDir, '.next', file)
+    })
+
     for (const file of allFiles) {
       const filePath = join(next.testDir, file)
       if (
         !keptFiles.has(file) &&
         !(await _fs.stat(filePath).catch(() => null))?.isDirectory() &&
-        !nextServerTrace.files.includes(file) &&
+        !nextServerTraceFiles.includes(filePath) &&
         !file.match(/node_modules\/(react|react-dom)\//) &&
         file !== 'node_modules/next/dist/server/next-server.js'
       ) {
@@ -548,13 +557,31 @@ describe('should set-up next', () => {
     })
   })
 
+  it('should handle bad request correctly with rewrite', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/to-dynamic/%c0.%c0.',
+      '?path=%c0.%c0.',
+      {
+        headers: {
+          'x-matched-path': '/dynamic/[slug]',
+        },
+      }
+    )
+    expect(res.status).toBe(400)
+    expect(await res.text()).toContain('Bad Request')
+  })
+
   it('should bubble error correctly for gip page', async () => {
     errors = []
     const res = await fetchViaHTTP(appPort, '/errors/gip', { crash: '1' })
     expect(res.status).toBe(500)
     expect(await res.text()).toBe('error')
-    expect(errors.length).toBe(1)
-    expect(errors[0]).toContain('gip hit an oops')
+
+    await check(
+      () => (errors[0].includes('gip hit an oops') ? 'success' : errors[0]),
+      'success'
+    )
   })
 
   it('should bubble error correctly for gssp page', async () => {
@@ -562,8 +589,10 @@ describe('should set-up next', () => {
     const res = await fetchViaHTTP(appPort, '/errors/gssp', { crash: '1' })
     expect(res.status).toBe(500)
     expect(await res.text()).toBe('error')
-    expect(errors.length).toBe(1)
-    expect(errors[0]).toContain('gssp hit an oops')
+    await check(
+      () => (errors[0].includes('gssp hit an oops') ? 'success' : errors[0]),
+      'success'
+    )
   })
 
   it('should bubble error correctly for gsp page', async () => {
@@ -571,8 +600,10 @@ describe('should set-up next', () => {
     const res = await fetchViaHTTP(appPort, '/errors/gsp/crash')
     expect(res.status).toBe(500)
     expect(await res.text()).toBe('error')
-    expect(errors.length).toBe(1)
-    expect(errors[0]).toContain('gsp hit an oops')
+    await check(
+      () => (errors[0].includes('gsp hit an oops') ? 'success' : errors[0]),
+      'success'
+    )
   })
 
   it('should bubble error correctly for API page', async () => {
@@ -580,8 +611,13 @@ describe('should set-up next', () => {
     const res = await fetchViaHTTP(appPort, '/api/error')
     expect(res.status).toBe(500)
     expect(await res.text()).toBe('error')
-    expect(errors.length).toBe(1)
-    expect(errors[0]).toContain('some error from /api/error')
+    await check(
+      () =>
+        errors[0].includes('some error from /api/error')
+          ? 'success'
+          : errors[0],
+      'success'
+    )
   })
 
   it('should normalize optional values correctly for SSP page', async () => {

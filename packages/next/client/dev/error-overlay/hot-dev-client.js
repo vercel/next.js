@@ -33,8 +33,9 @@ import {
   onRefresh,
 } from '@next/react-dev-overlay/lib/client'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
-import { addMessageListener } from './eventsource'
+import { addMessageListener } from './websocket'
 import formatWebpackMessages from './format-webpack-messages'
+import Router from 'next/router'
 
 // This alternative WebpackDevServer combines the functionality of:
 // https://github.com/webpack/webpack-dev-server/blob/webpack-1/client/index.js
@@ -51,10 +52,8 @@ export default function connect() {
   register()
 
   addMessageListener((event) => {
-    // This is the heartbeat event
-    if (event.data === '\uD83D\uDC93') {
-      return
-    }
+    if (event.data.indexOf('action') === -1) return
+
     try {
       processMessage(event)
     } catch (ex) {
@@ -90,7 +89,9 @@ function clearOutdatedErrors() {
 function handleSuccess() {
   clearOutdatedErrors()
 
-  const isHotUpdate = !isFirstCompilation
+  const isHotUpdate =
+    !isFirstCompilation ||
+    (Router.pathname !== '/_error' && isUpdateAvailable())
   isFirstCompilation = false
   hasCompileErrors = false
 

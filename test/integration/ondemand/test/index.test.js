@@ -1,51 +1,76 @@
 /* eslint-env jest */
-
-import webdriver from 'next-webdriver'
+import WebSocket from 'ws'
 import { join } from 'path'
-import AbortController from 'abort-controller'
+import webdriver from 'next-webdriver'
+import getPort from 'get-port'
+import clone from 'clone'
 import {
   renderViaHTTP,
   fetchViaHTTP,
-  findPort,
-  launchApp,
   killApp,
   waitFor,
   check,
   getBrowserBodyText,
   getPageFileFromBuildManifest,
   getBuildManifest,
+  initNextServerScript,
 } from 'next-test-utils'
+import { assetPrefix } from '../next.config'
 
 const appDir = join(__dirname, '../')
 const context = {}
 
+const startServer = async (optEnv = {}, opts) => {
+  const scriptPath = join(appDir, 'server.js')
+  context.appPort = await getPort()
+  const env = Object.assign(
+    {},
+    clone(process.env),
+    { PORT: `${context.appPort}` },
+    optEnv
+  )
+
+  context.server = await initNextServerScript(scriptPath, /ready on/i, env)
+}
+
 const doPing = (page) => {
-  const controller = new AbortController()
-  const signal = controller.signal
-  return fetchViaHTTP(
-    context.appPort,
-    '/_next/webpack-hmr',
-    { page },
-    { signal }
-  ).then((res) => {
-    res.body.on('data', (chunk) => {
-      try {
-        const payload = JSON.parse(chunk.toString().split('data:')[1])
-        if (payload.success || payload.invalid) {
-          controller.abort()
-        }
-      } catch (_) {}
-    })
+  return new Promise((resolve) => {
+    context.ws.onmessage = (e) => {
+      console.log(e)
+
+      resolve()
+    }
+    context.ws.send(JSON.stringify({ event: 'ping', page }))
   })
 }
 
 describe('On Demand Entries', () => {
   it('should pass', () => {})
   beforeAll(async () => {
-    context.appPort = await findPort()
-    context.server = await launchApp(appDir, context.appPort)
+    await startServer()
+
+    // Send an initial request to nextjs to establish an 'upgrade' listener
+    // If we send the websocket request as the first thing, it will result in 404 due to listener not set yet
+    // This is by design as the 'upgrade' listener is set during the first request run
+    await fetchViaHTTP(context.appPort, '/')
+
+    await new Promise((resolve, reject) => {
+      context.ws = new WebSocket(
+        `ws://localhost:${context.appPort}${
+          assetPrefix ? `/${assetPrefix}` : ''
+        }/_next/webpack-hmr`
+      )
+      context.ws.on('open', () => resolve())
+      context.ws.on('error', (err) => {
+        console.error(err)
+
+        context.ws.close()
+        reject()
+      })
+    })
   })
   afterAll(() => {
+    context.ws.close()
     killApp(context.server)
   })
 

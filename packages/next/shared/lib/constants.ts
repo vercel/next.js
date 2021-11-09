@@ -11,18 +11,28 @@ export const ROUTES_MANIFEST = 'routes-manifest.json'
 export const IMAGES_MANIFEST = 'images-manifest.json'
 export const SERVER_FILES_MANIFEST = 'required-server-files.json'
 export const DEV_CLIENT_PAGES_MANIFEST = '_devPagesManifest.json'
+export const MIDDLEWARE_MANIFEST = 'middleware-manifest.json'
+export const DEV_MIDDLEWARE_MANIFEST = '_devMiddlewareManifest.json'
 export const REACT_LOADABLE_MANIFEST = 'react-loadable-manifest.json'
 export const FONT_MANIFEST = 'font-manifest.json'
 export const SERVER_DIRECTORY = 'server'
 export const SERVERLESS_DIRECTORY = 'serverless'
-export const CONFIG_FILE = 'next.config.js'
+export const CONFIG_FILES = ['next.config.js', 'next.config.mjs']
 export const BUILD_ID_FILE = 'BUILD_ID'
 export const BLOCKED_PAGES = ['/_document', '/_app', '/_error']
 export const CLIENT_PUBLIC_FILES_PATH = 'public'
 export const CLIENT_STATIC_FILES_PATH = 'static'
 export const CLIENT_STATIC_FILES_RUNTIME = 'runtime'
-export const BODY_RENDER_TARGET = '__NEXT_BODY_RENDER_TARGET__'
 export const STRING_LITERAL_DROP_BUNDLE = '__NEXT_DROP_CLIENT_FILE__'
+
+// server/middleware-flight-manifest.js
+export const MIDDLEWARE_FLIGHT_MANIFEST = 'middleware-flight-manifest'
+// server/middleware-build-manifest.js
+export const MIDDLEWARE_BUILD_MANIFEST = 'middleware-build-manifest'
+// server/middleware-react-loadable-manifest.js
+export const MIDDLEWARE_REACT_LOADABLE_MANIFEST =
+  'middleware-react-loadable-manifest'
+
 // static/runtime/main.js
 export const CLIENT_STATIC_FILES_RUNTIME_MAIN = `main`
 // static/runtime/react-refresh.js
@@ -33,11 +43,14 @@ export const CLIENT_STATIC_FILES_RUNTIME_AMP = `amp`
 export const CLIENT_STATIC_FILES_RUNTIME_WEBPACK = `webpack`
 // static/runtime/polyfills.js
 export const CLIENT_STATIC_FILES_RUNTIME_POLYFILLS_SYMBOL = Symbol(`polyfills`)
+// server/middleware-flight-runtime.js
+export const MIDDLEWARE_SSR_RUNTIME_WEBPACK = 'middleware-ssr-runtime'
 export const TEMPORARY_REDIRECT_STATUS = 307
 export const PERMANENT_REDIRECT_STATUS = 308
 export const STATIC_PROPS_ID = '__N_SSG'
 export const SERVER_PROPS_ID = '__N_SSP'
-export const GOOGLE_FONT_PROVIDER = 'https://fonts.googleapis.com/css'
+export const FLIGHT_PROPS_ID = '__N_RSC'
+export const GOOGLE_FONT_PROVIDER = 'https://fonts.googleapis.com/'
 export const OPTIMIZED_FONT_PROVIDERS = [
   { url: GOOGLE_FONT_PROVIDER, preconnect: 'https://fonts.gstatic.com' },
   { url: 'https://use.typekit.net', preconnect: 'https://use.typekit.net' },

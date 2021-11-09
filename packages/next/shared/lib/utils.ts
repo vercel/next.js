@@ -107,6 +107,7 @@ export type NEXT_DATA = {
   domainLocales?: DomainLocale[]
   scriptLoader?: any[]
   isPreview?: boolean
+  rsc?: boolean
 }
 
 /**
@@ -174,6 +175,7 @@ export type AppPropsType<
   router: R
   __N_SSG?: boolean
   __N_SSP?: boolean
+  __N_RSC?: boolean
 }
 
 export type DocumentContext = NextPageContext & {
@@ -186,6 +188,11 @@ export type DocumentInitialProps = RenderPageResult & {
 }
 
 export type DocumentProps = DocumentInitialProps & HtmlProps
+
+export type MaybeDeferContentHook = (
+  name: string,
+  contentFn: () => JSX.Element
+) => [boolean, JSX.Element]
 
 export type HtmlProps = {
   __NEXT_DATA__: NEXT_DATA
@@ -213,6 +220,8 @@ export type HtmlProps = {
   disableOptimizedLoading?: boolean
   styles?: React.ReactElement[] | React.ReactFragment
   head?: Array<JSX.Element | null>
+  useMaybeDeferContent: MaybeDeferContentHook
+  useMainContent: (fn?: (content: JSX.Element) => JSX.Element) => JSX.Element
 }
 
 /**
