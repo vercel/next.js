@@ -60,10 +60,7 @@ import {
 import { DomainLocale } from './config'
 import RenderResult, { NodeWritablePiper } from './render-result'
 import isError from '../lib/is-error'
-import {
-  renderFunctionalDocument,
-  useFlushHandler,
-} from './functional-document'
+import { renderFunctionalDocument } from './functional-document'
 
 let Writable: typeof import('stream').Writable
 let Buffer: typeof import('buffer').Buffer
