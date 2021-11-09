@@ -77,7 +77,7 @@ impl Task for TransformTask {
 
                         let options = options.patch(&fm);
 
-                        let before_pass = custom_before_pass(&fm.name, &options);
+                        let before_pass = custom_before_pass(fm.clone(), &options);
                         self.c.process_js_with_custom_pass(
                             fm.clone(),
                             None,
