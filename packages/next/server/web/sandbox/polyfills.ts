@@ -1,4 +1,7 @@
-import { Crypto as WebCrypto } from 'next/dist/compiled/@peculiar/webcrypto'
+import {
+  Crypto as WebCrypto,
+  CryptoKey,
+} from 'next/dist/compiled/@peculiar/webcrypto'
 import { TransformStream } from 'next/dist/compiled/web-streams-polyfill'
 import { v4 as uuid } from 'next/dist/compiled/uuid'
 import crypto from 'crypto'
@@ -53,6 +56,7 @@ class TextDecoderRuntime {
 
 export { TextDecoderRuntime as TextDecoder }
 export { TextEncoderRuntime as TextEncoder }
+export { CryptoKey }
 
 export class Crypto extends WebCrypto {
   // @ts-ignore Remove once types are updated and we deprecate node 12
