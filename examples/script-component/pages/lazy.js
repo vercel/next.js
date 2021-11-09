@@ -10,7 +10,7 @@ export default function Lazyload() {
 
   useEffect(() => {
     addLog(`Page loaded window.FB is undefined`)
-  }, [])
+  }, [addLog])
 
   return (
     <>
