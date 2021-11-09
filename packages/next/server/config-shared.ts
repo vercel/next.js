@@ -126,6 +126,7 @@ export type NextConfig = { [key: string]: any } & {
   crossOrigin?: false | 'anonymous' | 'use-credentials'
   swcMinify?: boolean
   experimental?: {
+    styledComponents?: boolean
     swcMinify?: boolean
     cpus?: number
     sharedPool?: boolean
