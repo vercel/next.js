@@ -96,13 +96,13 @@ export default async function middlewareRSCLoader(this: any) {
             createElement(FlightWrapper, props)
           )
         }`
-            : `
-        const Component = Page`
+            : `const Component = Page`
         }
 
         async function render(request) {
           const url = request.nextUrl
-          const query = Object.fromEntries(url.searchParams)
+          const { pathname, searchParams } = url
+          const query = Object.fromEntries(searchParams)
 
           // Preflight request
           if (request.method === 'HEAD') {
@@ -122,9 +122,9 @@ export default async function middlewareRSCLoader(this: any) {
               wrapReadable(
                 renderFlight({
                   router: {
-                    route: url.pathname,
-                    asPath: url.pathname,
-                    pathname: url.pathname,
+                    route: pathname,
+                    asPath: pathname,
+                    pathname: pathname,
                     query,
                   }
                 })
@@ -165,9 +165,9 @@ export default async function middlewareRSCLoader(this: any) {
 
           try {
             const result = await renderToHTML(
-              { url: url.pathname },
+              { url: pathname },
               {},
-              url.pathname,
+              pathname,
               query,
               renderOpts
             )
@@ -177,7 +177,7 @@ export default async function middlewareRSCLoader(this: any) {
             })
           } catch (err) {
             return new Response(
-              (err || 'An error occurred while rendering ' + url.pathname + '.').toString(),
+              (err || 'An error occurred while rendering ' + pathname + '.').toString(),
               {
                 status: 500,
                 headers: { 'x-middleware-ssr': '1' }
