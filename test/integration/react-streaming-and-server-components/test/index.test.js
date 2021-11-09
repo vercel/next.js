@@ -288,6 +288,11 @@ async function runBasicTests(context) {
     const content = await browser.eval(`window.document.body.innerText`)
     expect(content).toMatchInlineSnapshot('"next_streaming_data"')
   })
+
+  it('should support api routes', async () => {
+    const res = await renderViaHTTP(context.appPort, '/api/ping')
+    expect(res).toContain('pong')
+  })
 }
 
 function runSuite(suiteName, env, { runTests, before, after }) {
