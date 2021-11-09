@@ -6,6 +6,7 @@ function getBaseSWCOptions({
   development,
   hasReactRefresh,
   globalWindow,
+  styledComponents,
 }) {
   const isTSFile = filename.endsWith('.ts')
   const isTypeScript = isTSFile || filename.endsWith('.tsx')
@@ -41,6 +42,10 @@ function getBaseSWCOptions({
           importPath: require.resolve('regenerator-runtime'),
         },
       },
+    },
+    styledComponents: {
+      displayName: styledComponents,
+      ssr: styledComponents,
     },
   }
 }
@@ -78,12 +83,14 @@ export function getLoaderSWCOptions({
   pagesDir,
   isPageFile,
   hasReactRefresh,
+  styledComponents,
 }) {
   let baseOptions = getBaseSWCOptions({
     filename,
     development,
     globalWindow: !isServer,
     hasReactRefresh,
+    styledComponents,
   })
 
   const isNextDist = nextDistPath.test(filename)
