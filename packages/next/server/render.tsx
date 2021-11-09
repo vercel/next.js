@@ -3,6 +3,7 @@ import { ParsedUrlQuery } from 'querystring'
 import type { Writable as WritableType } from 'stream'
 import React from 'react'
 import ReactDOMServer from 'react-dom/server'
+import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack'
 import { StyleRegistry, createStyleRegistry } from 'styled-jsx'
 import { UnwrapPromise } from '../lib/coalesced-function'
 import {
@@ -203,7 +204,8 @@ export type RenderOptsPartial = {
   devOnlyCacheBusterQueryString?: string
   resolvedUrl?: string
   resolvedAsPath?: string
-  renderServerComponent?: null | (() => Promise<string>)
+  renderServerComponent?: null | ((props: any) => Promise<string>)
+  renderServerComponentData?: boolean
   distDir?: string
   locale?: string
   locales?: string[]
@@ -274,6 +276,46 @@ function checkRedirectValues(
   }
 }
 
+// Create the wrapper component for a Flight stream.
+function createServerComponentRenderer(
+  OriginalComponent: React.ComponentType,
+  renderServerComponent: NonNullable<RenderOpts['renderServerComponent']>
+) {
+  let responseCache: any
+  const ServerComponentWrapper = (props: any) => {
+    let response = responseCache
+    if (!response) {
+      responseCache = response = createFromReadableStream(
+        renderServerComponent(props)
+      )
+    }
+    return response.readRoot()
+  }
+  const Component = (props: any) => {
+    return (
+      <React.Suspense fallback={null}>
+        <ServerComponentWrapper {...props} />
+      </React.Suspense>
+    )
+  }
+
+  // Although it's not allowed to attach some static methods to Component,
+  // we still re-assign all the component APIs to keep the behavior unchanged.
+  for (const methodName of [
+    'getInitialProps',
+    'getStaticProps',
+    'getServerSideProps',
+    'getStaticPaths',
+  ]) {
+    const method = (OriginalComponent as any)[methodName]
+    if (method) {
+      ;(Component as any)[methodName] = method
+    }
+  }
+
+  return Component
+}
+
 export async function renderToHTML(
   req: IncomingMessage,
   res: ServerResponse,
@@ -298,7 +340,6 @@ export async function renderToHTML(
     App,
     Document,
     pageConfig = {},
-    Component,
     buildManifest,
     fontManifest,
     reactLoadableManifest,
@@ -307,6 +348,7 @@ export async function renderToHTML(
     getStaticPaths,
     getServerSideProps,
     renderServerComponent,
+    renderServerComponentData,
     isDataReq,
     params,
     previewProps,
@@ -315,6 +357,11 @@ export async function renderToHTML(
     supportsDynamicHTML,
     concurrentFeatures,
   } = renderOpts
+
+  const isServerComponent = !!renderServerComponent
+  const Component = isServerComponent
+    ? createServerComponentRenderer(renderOpts.Component, renderServerComponent)
+    : renderOpts.Component
 
   const getFontDefinition = (url: string): string => {
     if (fontManifest) {
@@ -358,8 +405,6 @@ export async function renderToHTML(
     App.getInitialProps === (App as any).origGetInitialProps
 
   const hasPageGetInitialProps = !!(Component as any).getInitialProps
-
-  const isRSC = !!renderServerComponent
 
   const pageIsDynamic = isDynamicRoute(pathname)
 
@@ -943,6 +988,26 @@ export async function renderToHTML(
   // the response might be finished on the getInitialProps call
   if (isResSent(res) && !isSSG) return null
 
+  if (renderServerComponentData) {
+    return new RenderResult((res, next) => {
+      const readable = (renderServerComponent as any)(props.pageProps)
+      const reader = readable.getReader()
+      const decoder = new TextDecoder()
+      const process = () => {
+        reader.read().then(({ done, value }: any) => {
+          if (!done) {
+            res.write(typeof value === 'string' ? value : decoder.decode(value))
+            process()
+          } else {
+            res.end()
+            next()
+          }
+        })
+      }
+      process()
+    })
+  }
+
   // we preload the buildManifest for auto-export dynamic pages
   // to speed up hydrating query values
   let filteredBuildManifest = buildManifest
@@ -1154,7 +1219,7 @@ export async function renderToHTML(
       err: renderOpts.err ? serializeError(dev, renderOpts.err) : undefined, // Error if one happened, otherwise don't sent in the resulting HTML
       gsp: !!getStaticProps ? true : undefined, // whether the page is getStaticProps
       gssp: !!getServerSideProps ? true : undefined, // whether the page is getServerSideProps
-      rsc: isRSC ? true : undefined, // whether the page is a server components page
+      rsc: isServerComponent ? true : undefined, // whether the page is a server components page
       customServer, // whether the user is using a custom server
       gip: hasPageGetInitialProps ? true : undefined, // whether the page has getInitialProps
       appGip: !defaultAppGetInitialProps ? true : undefined, // whether the _app has getInitialProps

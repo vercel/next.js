@@ -57,47 +57,7 @@ export default async function middlewareRSCLoader(this: any) {
           throw new Error('Your page must export a \`default\` component')
         }
 
-        function wrapReadable(readable) {
-          const encoder = new TextEncoder()
-          const transformStream = new TransformStream()
-          const writer = transformStream.writable.getWriter()
-          const reader = readable.getReader()
-          const process = () => {
-            reader.read().then(({ done, value }) => {
-              if (!done) {
-                writer.write(typeof value === 'string' ? encoder.encode(value) : value)
-                process()
-              } else {
-                writer.close()
-              }
-            })
-          }
-          process()
-          return transformStream.readable
-        }
-        
-        ${
-          isServerComponent
-            ? `
-        const renderFlight = props => renderToReadableStream(createElement(Page, props), rscManifest)
-
-        let responseCache
-        const FlightWrapper = props => {
-          let response = responseCache
-          if (!response) {
-            responseCache = response = createFromReadableStream(renderFlight(props))
-          }
-          return response.readRoot()
-        }
-        const Component = props => {
-          return createElement(
-            React.Suspense,
-            { fallback: null },
-            createElement(FlightWrapper, props)
-          )
-        }`
-            : `const Component = Page`
-        }
+        const Component = Page
 
         async function render(request) {
           const url = request.nextUrl
@@ -115,23 +75,12 @@ export default async function middlewareRSCLoader(this: any) {
             isServerComponent
               ? `
           // Flight data request
-          const isFlightDataRequest = query.__flight__ !== undefined
-          if (isFlightDataRequest) {
+          const renderServerComponentData = query.__flight__ !== undefined
+          if (renderServerComponentData) {
             delete query.__flight__
-            return new Response(
-              wrapReadable(
-                renderFlight({
-                  router: {
-                    route: pathname,
-                    asPath: pathname,
-                    pathname: pathname,
-                    query,
-                  }
-                })
-              )
-            )
           }`
-              : ''
+              : `
+          const renderServerComponentData = false`
           }
 
           const renderOpts = {
@@ -156,7 +105,14 @@ export default async function middlewareRSCLoader(this: any) {
             basePath: ${JSON.stringify(basePath || '')},
             supportsDynamicHTML: true,
             concurrentFeatures: true,
-            renderServerComponent: ${isServerComponent ? 'true' : 'false'},
+            renderServerComponentData,
+            renderServerComponent: ${
+              !isServerComponent
+                ? 'null'
+                : `
+              props => renderToReadableStream(createElement(Page, props), rscManifest)
+            `
+            },
           }
 
           const transformStream = new TransformStream()
