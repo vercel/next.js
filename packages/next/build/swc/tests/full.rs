@@ -56,6 +56,7 @@ fn test(input: &Path, minify: bool) {
                 pages_dir: None,
                 is_page_file: false,
                 is_development: true,
+                styled_components: Some(Default::default()),
             };
 
             let options = options.patch(&fm);
@@ -65,7 +66,7 @@ fn test(input: &Path, minify: bool) {
                 None,
                 &handler,
                 &options.swc,
-                |_| custom_before_pass(&fm.name, &assert_json(&"{}")),
+                |_| custom_before_pass(fm.clone(), &options),
                 |_| noop(),
             ) {
                 Ok(v) => {
