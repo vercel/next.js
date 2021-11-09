@@ -1,6 +1,7 @@
 import { createElement } from 'react'
 import { renderToString } from 'react-dom/server.browser'
 import { NextResponse } from 'next/server'
+import { getText } from '../../lib/utils'
 
 export async function middleware(request, ev) {
   // eslint-disable-next-line no-undef
@@ -36,7 +37,8 @@ export async function middleware(request, ev) {
     ev.waitUntil(
       (async () => {
         writer.write(encoder.encode('this is a streamed '))
-        writer.write(encoder.encode('response'))
+        writer.write(encoder.encode('response '))
+        writer.write(encoder.encode(getText()))
         writer.close()
       })()
     )

@@ -28,7 +28,7 @@ async function parseImportsInfo(
   pageExtensions: string[]
 ): Promise<string> {
   const { body } = acorn.parse(source, {
-    ecmaVersion: 2019,
+    ecmaVersion: 11,
     sourceType: 'module',
   }) as any
 
