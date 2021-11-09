@@ -253,6 +253,40 @@ async function runBasicTests(context) {
     expect(html).toContain('bar.server.js:')
     expect(html).toContain('foo.client')
   })
+
+  it('should support streaming', async () => {
+    await fetchViaHTTP(context.appPort, '/streaming', null, {}).then(
+      async (response) => {
+        let result = ''
+        let gotFallback = false
+        let gotData = false
+
+        await new Promise((resolve) => {
+          response.body.on('data', (chunk) => {
+            result += chunk.toString()
+
+            gotData = result.includes('next_streaming_data')
+            if (!gotFallback) {
+              gotFallback = result.includes('next_streaming_fallback')
+              if (gotFallback) {
+                expect(gotData).toBe(false)
+              }
+            }
+          })
+
+          response.body.on('end', () => resolve())
+        })
+
+        expect(gotFallback).toBe(true)
+        expect(gotData).toBe(true)
+      }
+    )
+
+    // Should end up with "next_streaming_data".
+    const browser = await webdriver(context.appPort, '/streaming')
+    const content = await browser.eval(`window.document.body.innerText`)
+    expect(content).toMatchInlineSnapshot('"next_streaming_data"')
+  })
 }
 
 function runSuite(suiteName, env, { runTests, before, after }) {
