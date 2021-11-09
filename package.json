@@ -149,6 +149,7 @@
     "seedrandom": "3.0.5",
     "selenium-webdriver": "4.0.0-beta.4",
     "shell-quote": "1.7.3",
+    "styled-components": "5.3.3",
     "styled-jsx-plugin-postcss": "3.0.2",
     "tailwindcss": "1.1.3",
     "taskr": "1.1.0",
