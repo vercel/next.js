@@ -506,6 +506,10 @@
         {
           "title": "middleware-new-signature",
           "path": "/errors/middleware-new-signature.md"
+        },
+        {
+          "title": "experimental-jest-transformer",
+          "path": "/errors/experimental-jest-transformer.md"
         }
       ]
     }

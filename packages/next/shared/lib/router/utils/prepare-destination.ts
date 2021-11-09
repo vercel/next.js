@@ -1,28 +1,10 @@
 import type { IncomingMessage } from 'http'
-import type { ParsedUrlQuery } from 'querystring'
-import { parseUrl } from './parse-url'
-import * as pathToRegexp from 'next/dist/compiled/path-to-regexp'
+import type { Key } from 'next/dist/compiled/path-to-regexp'
+import type { NextParsedUrlQuery } from '../../../../server/request-meta'
+import type { Params } from '../../../../server/router'
 import type { RouteHas } from '../../../../lib/load-custom-routes'
-
-type Params = { [param: string]: any }
-
-// ensure only a-zA-Z are used for param names for proper interpolating
-// with path-to-regexp
-export const getSafeParamName = (paramName: string) => {
-  let newParamName = ''
-
-  for (let i = 0; i < paramName.length; i++) {
-    const charCode = paramName.charCodeAt(i)
-
-    if (
-      (charCode > 64 && charCode < 91) || // A-Z
-      (charCode > 96 && charCode < 123) // a-z
-    ) {
-      newParamName += paramName[i]
-    }
-  }
-  return newParamName
-}
+import { compile, pathToRegexp } from 'next/dist/compiled/path-to-regexp'
+import { parseUrl } from './parse-url'
 
 export function matchHas(
   req: IncomingMessage,
@@ -124,31 +106,23 @@ export function compileNonPath(value: string, params: Params): string {
 
   // the value needs to start with a forward-slash to be compiled
   // correctly
-  return pathToRegexp
-    .compile(`/${value}`, { validate: false })(params)
-    .substr(1)
+  return compile(`/${value}`, { validate: false })(params).substr(1)
 }
 
-const escapeSegment = (str: string, segmentName: string) =>
-  str.replace(new RegExp(`:${segmentName}`, 'g'), `__ESC_COLON_${segmentName}`)
-
-const unescapeSegments = (str: string) => str.replace(/__ESC_COLON_/gi, ':')
-
-export default function prepareDestination(
-  destination: string,
-  params: Params,
-  query: ParsedUrlQuery,
+export function prepareDestination(args: {
   appendParamsToQuery: boolean
-) {
-  // clone query so we don't modify the original
-  query = Object.assign({}, query)
+  destination: string
+  params: Params
+  query: NextParsedUrlQuery
+}) {
+  const query = Object.assign({}, args.query)
   const hadLocale = query.__nextLocale
   delete query.__nextLocale
   delete query.__nextDefaultLocale
 
-  let escapedDestination = destination
+  let escapedDestination = args.destination
 
-  for (const param of Object.keys({ ...params, ...query })) {
+  for (const param of Object.keys({ ...args.params, ...query })) {
     escapedDestination = escapeSegment(escapedDestination, param)
   }
 
@@ -158,17 +132,17 @@ export default function prepareDestination(
     `${parsedDestination.pathname!}${parsedDestination.hash || ''}`
   )
   const destHostname = unescapeSegments(parsedDestination.hostname || '')
-  const destPathParamKeys: pathToRegexp.Key[] = []
-  const destHostnameParamKeys: pathToRegexp.Key[] = []
-  pathToRegexp.pathToRegexp(destPath, destPathParamKeys)
-  pathToRegexp.pathToRegexp(destHostname, destHostnameParamKeys)
+  const destPathParamKeys: Key[] = []
+  const destHostnameParamKeys: Key[] = []
+  pathToRegexp(destPath, destPathParamKeys)
+  pathToRegexp(destHostname, destHostnameParamKeys)
 
   const destParams: (string | number)[] = []
 
   destPathParamKeys.forEach((key) => destParams.push(key.name))
   destHostnameParamKeys.forEach((key) => destParams.push(key.name))
 
-  const destPathCompiler = pathToRegexp.compile(
+  const destPathCompiler = compile(
     destPath,
     // we don't validate while compiling the destination since we should
     // have already validated before we got to this point and validating
@@ -178,10 +152,8 @@ export default function prepareDestination(
     // params from a separate path-regex into another
     { validate: false }
   )
-  const destHostnameCompiler = pathToRegexp.compile(destHostname, {
-    validate: false,
-  })
-  let newUrl
+
+  const destHostnameCompiler = compile(destHostname, { validate: false })
 
   // update any params in query values
   for (const [key, strOrArray] of Object.entries(destQuery)) {
@@ -189,16 +161,16 @@ export default function prepareDestination(
     // correctly
     if (Array.isArray(strOrArray)) {
       destQuery[key] = strOrArray.map((value) =>
-        compileNonPath(unescapeSegments(value), params)
+        compileNonPath(unescapeSegments(value), args.params)
       )
     } else {
-      destQuery[key] = compileNonPath(unescapeSegments(strOrArray), params)
+      destQuery[key] = compileNonPath(unescapeSegments(strOrArray), args.params)
     }
   }
 
   // add path params to query if it's not a redirect and not
   // already defined in destination query or path
-  let paramKeys = Object.keys(params)
+  let paramKeys = Object.keys(args.params)
 
   // remove internal param for i18n
   if (hadLocale) {
@@ -206,30 +178,28 @@ export default function prepareDestination(
   }
 
   if (
-    appendParamsToQuery &&
+    args.appendParamsToQuery &&
     !paramKeys.some((key) => destParams.includes(key))
   ) {
     for (const key of paramKeys) {
       if (!(key in destQuery)) {
-        destQuery[key] = params[key]
+        destQuery[key] = args.params[key]
       }
     }
   }
 
+  let newUrl
+
   try {
-    newUrl = destPathCompiler(params)
+    newUrl = destPathCompiler(args.params)
 
     const [pathname, hash] = newUrl.split('#')
-    parsedDestination.hostname = destHostnameCompiler(params)
+    parsedDestination.hostname = destHostnameCompiler(args.params)
     parsedDestination.pathname = pathname
     parsedDestination.hash = `${hash ? '#' : ''}${hash || ''}`
     delete (parsedDestination as any).search
-  } catch (err) {
-    if (
-      (err as Error).message.match(
-        /Expected .*? to not repeat, but got an array/
-      )
-    ) {
+  } catch (err: any) {
+    if (err.message.match(/Expected .*? to not repeat, but got an array/)) {
       throw new Error(
         `To use a multi-match in the destination you must add \`*\` at the end of the param name to signify it should repeat. https://nextjs.org/docs/messages/invalid-multi-match`
       )
@@ -250,4 +220,35 @@ export default function prepareDestination(
     newUrl,
     parsedDestination,
   }
+}
+
+/**
+ * Ensure only a-zA-Z are used for param names for proper interpolating
+ * with path-to-regexp
+ */
+function getSafeParamName(paramName: string) {
+  let newParamName = ''
+
+  for (let i = 0; i < paramName.length; i++) {
+    const charCode = paramName.charCodeAt(i)
+
+    if (
+      (charCode > 64 && charCode < 91) || // A-Z
+      (charCode > 96 && charCode < 123) // a-z
+    ) {
+      newParamName += paramName[i]
+    }
+  }
+  return newParamName
+}
+
+function escapeSegment(str: string, segmentName: string) {
+  return str.replace(
+    new RegExp(`:${segmentName}`, 'g'),
+    `__ESC_COLON_${segmentName}`
+  )
+}
+
+function unescapeSegments(str: string) {
+  return str.replace(/__ESC_COLON_/gi, ':')
 }
