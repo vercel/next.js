@@ -23,6 +23,15 @@ export let backendConfig = () => {
             clientId: '467101b197249757c71f',
             clientSecret: 'e97051221f4b6426e8fe8d51486396703012f5bd',
           }),
+          ThirdPartyEmailPasswordNode.Apple({
+            clientId: '4398792-io.supertokens.example.service',
+            clientSecret: {
+              keyId: '7M48Y4RYDL',
+              privateKey:
+                '-----BEGIN PRIVATE KEY-----\nMIGTAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBHkwdwIBAQQgu8gXs+XYkqXD6Ala9Sf/iJXzhbwcoG5dMh1OonpdJUmgCgYIKoZIzj0DAQehRANCAASfrvlFbFCYqn3I2zeknYXLwtH30JuOKestDbSfZYxZNMqhF/OzdZFTV0zc5u5s3eN+oCWbnvl0hM+9IW0UlkdA\n-----END PRIVATE KEY-----',
+              teamId: 'YWQCXGJRJL',
+            },
+          }),
           // ThirdPartyEmailPasswordNode.Facebook({
           //   clientSecret: process.env.FACEBOOK_CLIENT_SECRET || 'PLACEHOLDER',
           //   clientId: process.env.FACEBOOK_CLIENT_ID || 'PLACEHOLDER',
