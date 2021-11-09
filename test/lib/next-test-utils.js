@@ -347,10 +347,9 @@ export function buildTS(args = [], cwd, env = {}) {
   })
 }
 
-// Kill a launched app
-export async function killApp(instance) {
+export async function killProcess(pid) {
   await new Promise((resolve, reject) => {
-    treeKill(instance.pid, (err) => {
+    treeKill(pid, (err) => {
       if (err) {
         if (
           process.platform === 'win32' &&
@@ -371,6 +370,11 @@ export async function killApp(instance) {
       resolve()
     })
   })
+}
+
+// Kill a launched app
+export async function killApp(instance) {
+  await killProcess(instance.pid)
 }
 
 export async function startApp(app) {

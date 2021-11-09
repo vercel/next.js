@@ -60,10 +60,10 @@ function updateElements(type: string, components: JSX.Element[]): void {
   for (
     let i = 0, j = headCountEl.previousElementSibling;
     i < headCount;
-    i++, j = j!.previousElementSibling
+    i++, j = j?.previousElementSibling || null
   ) {
     if (j?.tagName?.toLowerCase() === type) {
-      oldTags.push(j!)
+      oldTags.push(j)
     }
   }
   const newTags = (components.map(reactElementToDOM) as HTMLElement[]).filter(
@@ -79,7 +79,7 @@ function updateElements(type: string, components: JSX.Element[]): void {
     }
   )
 
-  oldTags.forEach((t) => t.parentNode!.removeChild(t))
+  oldTags.forEach((t) => t.parentNode?.removeChild(t))
   newTags.forEach((t) => headEl.insertBefore(t, headCountEl))
   headCountEl.content = (headCount - oldTags.length + newTags.length).toString()
 }
