@@ -650,27 +650,28 @@ export class Head extends Component<
 
       return (
         <head {...this.props}>
-          {this.context.isDevelopment && (
-            <>
-              <style
-                data-next-hide-fouc
-                data-ampdevmode={inAmpMode ? 'true' : undefined}
-                dangerouslySetInnerHTML={{
-                  __html: `body{display:none}`,
-                }}
-              />
-              <noscript
-                data-next-hide-fouc
-                data-ampdevmode={inAmpMode ? 'true' : undefined}
-              >
+          {!process.env.__NEXT_CONCURRENT_FEATURES &&
+            this.context.isDevelopment && (
+              <>
                 <style
+                  data-next-hide-fouc
+                  data-ampdevmode={inAmpMode ? 'true' : undefined}
                   dangerouslySetInnerHTML={{
-                    __html: `body{display:block}`,
+                    __html: `body{display:none}`,
                   }}
                 />
-              </noscript>
-            </>
-          )}
+                <noscript
+                  data-next-hide-fouc
+                  data-ampdevmode={inAmpMode ? 'true' : undefined}
+                >
+                  <style
+                    dangerouslySetInnerHTML={{
+                      __html: `body{display:block}`,
+                    }}
+                  />
+                </noscript>
+              </>
+            )}
           {children}
           {process.env.__NEXT_OPTIMIZE_FONTS && (
             <meta name="next-font-preconnect" />
