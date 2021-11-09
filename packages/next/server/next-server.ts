@@ -2551,11 +2551,13 @@ export default class Server {
     }
 
     let nextFilesStatic: string[] = []
-    nextFilesStatic = !this.minimalMode
-      ? recursiveReadDirSync(join(this.distDir, 'static')).map((f) =>
-          join('.', relative(this.dir, this.distDir), 'static', f)
-        )
-      : []
+
+    nextFilesStatic =
+      !this.minimalMode && fs.existsSync(join(this.distDir, 'static'))
+        ? recursiveReadDirSync(join(this.distDir, 'static')).map((f) =>
+            join('.', relative(this.dir, this.distDir), 'static', f)
+          )
+        : []
 
     return (this._validFilesystemPathSet = new Set<string>([
       ...nextFilesStatic,

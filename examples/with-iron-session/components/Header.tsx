@@ -1,12 +1,13 @@
-import React from 'react'
 import Link from 'next/link'
-import useUser from '../lib/useUser'
+import useUser from 'lib/useUser'
 import { useRouter } from 'next/router'
-import fetchJson from '../lib/fetchJson'
+import Image from 'next/image'
+import fetchJson from 'lib/fetchJson'
 
-const Header = () => {
+export default function Header() {
   const { user, mutateUser } = useUser()
   const router = useRouter()
+
   return (
     <header>
       <nav>
@@ -16,20 +17,34 @@ const Header = () => {
               <a>Home</a>
             </Link>
           </li>
-          {!user?.isLoggedIn && (
+          {user?.isLoggedIn === false && (
             <li>
               <Link href="/login">
                 <a>Login</a>
               </Link>
             </li>
           )}
-          {user?.isLoggedIn && (
+          {user?.isLoggedIn === true && (
             <>
               <li>
                 <Link href="/profile-sg">
                   <a>
-                    <img src={user.avatarUrl} width={20} height={20} /> Profile
-                    (Static Generation, recommended)
+                    <span
+                      style={{
+                        marginRight: '.3em',
+                        verticalAlign: 'middle',
+                        borderRadius: '100%',
+                        overflow: 'hidden',
+                      }}
+                    >
+                      <Image
+                        src={user.avatarUrl}
+                        width={32}
+                        height={32}
+                        alt=""
+                      />
+                    </span>
+                    Profile (Static Generation, recommended)
                   </a>
                 </Link>
               </li>
@@ -56,8 +71,13 @@ const Header = () => {
             </>
           )}
           <li>
-            <a href="https://github.com/vvo/next-iron-session">
-              <img src="/GitHub-Mark-Light-32px.png" width="32" height="32" />
+            <a href="https://github.com/vvo/iron-session">
+              <Image
+                src="/GitHub-Mark-Light-32px.png"
+                width="32"
+                height="32"
+                alt=""
+              />
             </a>
           </li>
         </ul>
@@ -99,5 +119,3 @@ const Header = () => {
     </header>
   )
 }
-
-export default Header
