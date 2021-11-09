@@ -746,6 +746,7 @@ dependencies = [
  "backtrace",
  "chrono",
  "easy-error",
+ "either",
  "fxhash",
  "napi",
  "napi-build",

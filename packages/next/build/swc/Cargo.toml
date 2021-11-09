@@ -11,6 +11,7 @@ anyhow = "1.0"
 backtrace = "0.3"
 chrono = "0.4"
 easy-error = "1.0.0"
+either = "1"
 fxhash = "0.2.1"
 napi = {version = "1", features = ["serde-json"]}
 napi-derive = "1"
