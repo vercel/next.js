@@ -2,7 +2,7 @@ import { IncomingMessage, ServerResponse } from 'http'
 import { ParsedUrlQuery } from 'querystring'
 import type { Writable as WritableType } from 'stream'
 import React from 'react'
-import ReactDOMServer from 'react-dom/server'
+import ReactDOMServer, { renderToStaticMarkup } from 'react-dom/server'
 import { StyleRegistry, createStyleRegistry } from 'styled-jsx'
 import { UnwrapPromise } from '../lib/coalesced-function'
 import {
@@ -60,7 +60,10 @@ import {
 import { DomainLocale } from './config'
 import RenderResult, { NodeWritablePiper } from './render-result'
 import isError from '../lib/is-error'
-import { render as renderFunctionalDocument } from './functional-document'
+import {
+  render as renderFunctionalDocument,
+  useFlushHandler,
+} from './functional-document'
 
 let Writable: typeof import('stream').Writable
 let Buffer: typeof import('buffer').Buffer
@@ -971,28 +974,32 @@ export async function renderToHTML(
     }
   }
 
-  const renderToStaticMarkup: (elem: JSX.Element) => Promise<string> = !process.browser
-    ? async elem => ReactDOMServer.renderToStaticMarkup(elem)
-    : async elem => {
-    // There is no `renderToStaticMarkup` exposed in the web environment, use
-    // blocking `renderToReadableStream` to get the similar result.
-    let result = ''
-    const readable = (ReactDOMServer as any).renderToReadableStream(elem, {
-      onError: (e: any) => {
-        throw e
-      },
-    })
-    const reader = readable.getReader()
-    const decoder = new TextDecoder()
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) {
-        break
-      }
-      result += typeof value === 'string' ? value : decoder.decode(value)
-    }
-     return result
-    }
+  const renderToStaticMarkup: (elem: JSX.Element) => Promise<string> =
+    !process.browser
+      ? async (elem) => ReactDOMServer.renderToStaticMarkup(elem)
+      : async (elem) => {
+          // There is no `renderToStaticMarkup` exposed in the web environment, use
+          // blocking `renderToReadableStream` to get the similar result.
+          let result = ''
+          const readable = (ReactDOMServer as any).renderToReadableStream(
+            elem,
+            {
+              onError: (e: any) => {
+                throw e
+              },
+            }
+          )
+          const reader = readable.getReader()
+          const decoder = new TextDecoder()
+          while (true) {
+            const { done, value } = await reader.read()
+            if (done) {
+              break
+            }
+            result += typeof value === 'string' ? value : decoder.decode(value)
+          }
+          return result
+        }
 
   const appWrappers: Array<(content: JSX.Element) => JSX.Element> = []
   const getWrappedApp = (app: JSX.Element) => {
@@ -1093,12 +1100,34 @@ export async function renderToHTML(
         styles: docProps.styles,
       }
     } else {
-      const [document, flushHandlers] = await renderFunctionalDocument(Document as any)
+      const StyledJsxWrapper = ({ children }: { children: JSX.Element }) => {
+        useFlushHandler(() => {
+          const styles = jsxStyleRegistry.styles()
+          jsxStyleRegistry.flush()
+          // TODO: Render with React instead
+          const attrs = [
+            `id="${styles.props.id}"`,
+            styles.props.nonce ? `nonce="${styles.props.nonce}"` : '',
+          ].filter(Boolean)
+          return `<style ${attrs.join(' ')}>${
+            styles.props.dangerouslySetInnerHTML.__html
+          }</style>`
+        })
+        return children
+      }
+      appWrappers.push((content) => (
+        <StyledJsxWrapper>{content}</StyledJsxWrapper>
+      ))
+
+      const [document, flushHandlers] = await renderFunctionalDocument(
+        Document as any
+      )
       const handleFlush = () => {
-        const elements = React.Children.map(flushHandlers.map(fn => fn()).filter(Boolean), (elem, idx) => React.cloneElement(elem, {
-          key: idx
-        }))
-        return renderToStaticMarkup(<>{elements}</>)
+        const html = flushHandlers
+          .map((fn) => fn())
+          .filter(Boolean)
+          .join()
+        return html
       }
 
       const bodyResult = async () => {
@@ -1113,9 +1142,9 @@ export async function renderToHTML(
 
         return concurrentFeatures
           ? process.browser
-            ? await renderToReadableStream(content)
-            : await renderToNodeStream(content, generateStaticHTML)
-          : piperFromArray([ReactDOMServer.renderToString(content)])
+            ? await renderToReadableStream(content, handleFlush)
+            : await renderToNodeStream(content, generateStaticHTML, handleFlush)
+          : await renderToStaticString(content, handleFlush)
       }
 
       return {
@@ -1130,7 +1159,7 @@ export async function renderToHTML(
         },
         head,
         headTags: [],
-        styles: jsxStyleRegistry.styles(),
+        styles: [],
       }
     }
   }
@@ -1365,7 +1394,8 @@ function serializeError(
 
 function renderToNodeStream(
   element: React.ReactElement,
-  generateStaticHTML: boolean
+  generateStaticHTML: boolean,
+  handleFlush: () => string
 ): Promise<NodeWritablePiper> {
   return new Promise((resolve, reject) => {
     let underlyingStream: {
@@ -1378,7 +1408,7 @@ function renderToNodeStream(
       // Use the buffer from the underlying stream
       highWaterMark: 0,
       writev(chunks, callback) {
-        let str = ''
+        let str = handleFlush()
         for (let { chunk } of chunks) {
           str += chunk.toString()
         }
@@ -1478,7 +1508,8 @@ function renderToNodeStream(
 }
 
 function renderToReadableStream(
-  element: React.ReactElement
+  element: React.ReactElement,
+  handleFlush: () => string
 ): NodeWritablePiper {
   return (res, next) => {
     let bufferedString = ''
@@ -1488,6 +1519,7 @@ function renderToReadableStream(
       onCompleteShell() {
         shellCompleted = true
         if (bufferedString) {
+          res.write(handleFlush())
           res.write(bufferedString)
           bufferedString = ''
         }
@@ -1500,6 +1532,7 @@ function renderToReadableStream(
         if (!done) {
           const s = typeof value === 'string' ? value : decoder.decode(value)
           if (shellCompleted) {
+            res.write(handleFlush())
             res.write(s)
           } else {
             bufferedString += s
@@ -1512,6 +1545,15 @@ function renderToReadableStream(
     }
     process()
   }
+}
+
+function renderToStaticString(
+  element: React.ReactElement,
+  handleFlush: () => string
+) {
+  const content = ReactDOMServer.renderToString(element)
+  const prefix = handleFlush()
+  return piperFromArray([prefix, content])
 }
 
 function chainPipers(pipers: NodeWritablePiper[]): NodeWritablePiper {
