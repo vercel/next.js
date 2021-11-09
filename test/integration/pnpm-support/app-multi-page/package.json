@@ -1,5 +1,5 @@
 {
-  "name": "pnpm-app",
+  "name": "pnpm-app-multi-page",
   "version": "1.0.0",
   "private": true,
   "scripts": {
