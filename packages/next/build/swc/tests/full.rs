@@ -56,7 +56,7 @@ fn test(input: &Path, minify: bool) {
                 pages_dir: None,
                 is_page_file: false,
                 is_development: true,
-                styled_components: Some(Default::default()),
+                styled_components: Some(assert_json("{}")),
             };
 
             let options = options.patch(&fm);
