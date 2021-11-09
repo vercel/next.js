@@ -43,10 +43,11 @@ function getBaseSWCOptions({
         },
       },
     },
-    styledComponents: {
-      displayName: styledComponents,
-      ssr: styledComponents,
-    },
+    styledComponents: styledComponents
+      ? {
+          displayName: Boolean(development),
+        }
+      : null,
   }
 }
 
