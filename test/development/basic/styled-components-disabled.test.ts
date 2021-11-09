@@ -11,9 +11,9 @@ describe('styled-components SWC transform', () => {
     next = await createNext({
       files: {
         'next.config.js': new FileRef(
-          join(__dirname, 'styled-components/next.config.js')
+          join(__dirname, 'styled-components-disabled/next.config.js')
         ),
-        pages: new FileRef(join(__dirname, 'styled-components/pages')),
+        pages: new FileRef(join(__dirname, 'styled-components-disabled/pages')),
       },
       dependencies: {
         'styled-components': '5.3.3',
@@ -34,7 +34,7 @@ describe('styled-components SWC transform', () => {
     })
     return foundLog
   }
-  it('should not have hydration mismatch with styled-components transform enabled', async () => {
+  it('should have hydration mismatch with styled-components transform disabled', async () => {
     let browser
     try {
       browser = await webdriver(next.appPort, '/')
@@ -42,14 +42,20 @@ describe('styled-components SWC transform', () => {
       // Compile /_error
       await fetchViaHTTP(next.appPort, '/404')
 
-      // Try 4 times to be sure there is no mismatch
-      expect(await matchLogs$(browser)).toBe(false)
-      await browser.refresh()
-      expect(await matchLogs$(browser)).toBe(false)
-      await browser.refresh()
-      expect(await matchLogs$(browser)).toBe(false)
-      await browser.refresh()
-      expect(await matchLogs$(browser)).toBe(false)
+      try {
+        // Try 4 times to be sure there is no mismatch
+        expect(await matchLogs$(browser)).toBe(false)
+        await browser.refresh()
+        expect(await matchLogs$(browser)).toBe(false)
+        await browser.refresh()
+        expect(await matchLogs$(browser)).toBe(false)
+        await browser.refresh()
+        expect(await matchLogs$(browser)).toBe(false)
+        throw new Error('did not find mismatch')
+      } catch (err) {
+        // Verify that it really has the logs
+        expect(await matchLogs$(browser)).toBe(true)
+      }
     } finally {
       if (browser) {
         await browser.close()
