@@ -62,10 +62,11 @@ fn test(input: &Path, minify: bool) {
 
             match c.process_js_with_custom_pass(
                 fm.clone(),
+                None,
                 &handler,
                 &options.swc,
-                custom_before_pass(&fm.name, &assert_json(&"{}")),
-                noop(),
+                |_| custom_before_pass(&fm.name, &assert_json(&"{}")),
+                |_| noop(),
             ) {
                 Ok(v) => {
                     NormalizedOutput::from(v.code)
