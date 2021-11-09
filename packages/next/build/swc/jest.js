@@ -27,8 +27,11 @@ DEALINGS IN THE SOFTWARE.
 */
 
 import vm from 'vm'
+import path from 'path'
 import { transformSync } from './index'
 import { getJestSWCOptions } from './options'
+import findUp from '../../compiled/find-up'
+import { CONFIG_FILES } from '../../shared/lib/constants'
 
 console.warn(
   '"next/jest" is currently experimental. https://nextjs.org/docs/messages/experimental-jest-transformer'
@@ -56,19 +59,41 @@ const isEsmProject = packageConfig.type === 'module'
 // see https://github.com/facebook/jest/issues/9430
 const isSupportEsm = 'Module' in vm
 
+let nextConfig
+
 module.exports = {
   process(src, filename, jestOptions) {
     if (!/\.[jt]sx?$/.test(filename)) {
       return src
     }
 
+    if (!nextConfig) {
+      let transformConfig = getSwcTransformConfig(jestOptions)
+      let configPath = transformConfig
+        ? path.posix.isAbsolute(transformConfig.configFile)
+          ? transformConfig.configFile
+          : path.join(process.cwd(), transformConfig.configFile)
+        : findUp.sync(CONFIG_FILES, { cwd: process.cwd() })
+      if (configPath) {
+        nextConfig = require(configPath)
+      }
+    }
+
     let swcTransformOpts = getJestSWCOptions({
       filename,
       esm: isSupportEsm && isEsm(filename, jestOptions),
+      styledComponents: nextConfig?.experimental?.styledComponents,
     })
 
     return transformSync(src, { ...swcTransformOpts, filename })
   },
+}
+
+function getSwcTransformConfig(jestConfig) {
+  return getJestConfig(jestConfig).transform.find(
+    ([, transformerPath]) =>
+      transformerPath === transformerPath.includes('next/jest')
+  )?.[2]
 }
 
 function getJestConfig(jestConfig) {

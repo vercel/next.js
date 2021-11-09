@@ -51,9 +51,10 @@ function getBaseSWCOptions({
   }
 }
 
-export function getJestSWCOptions({ filename, esm }) {
+export function getJestSWCOptions({ filename, esm, styledComponents }) {
   let baseOptions = getBaseSWCOptions({
     filename,
+    styledComponents,
     development: false,
     hasReactRefresh: false,
     globalWindow: false,
