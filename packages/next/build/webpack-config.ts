@@ -754,6 +754,36 @@ export default async function getBaseWebpackConfig(
     )
   }
 
+  const getPackagePath = (name: string, relativeToPath: string) => {
+    const packageJsonPath = require.resolve(`${name}/package.json`, {
+      paths: [relativeToPath],
+    })
+    // Include a trailing slash so that a `.startsWith(packagePath)` check avoids false positives
+    // when one package name starts with the full name of a different package.
+    // For example:
+    //   "node_modules/react-slider".startsWith("node_modules/react")  // true
+    //   "node_modules/react-slider".startsWith("node_modules/react/") // false
+    return path.join(packageJsonPath, '../')
+  }
+
+  // Packages which will be split into the 'framework' chunk.
+  // Only top-level packages are included, e.g. nested copies like
+  // 'node_modules/meow/node_modules/object-assign' are not included.
+  const topLevelFrameworkPaths = [
+    getPackagePath('react', dir),
+    getPackagePath('react-dom', dir),
+    getPackagePath('scheduler', require.resolve('react-dom', { paths: [dir] })),
+    getPackagePath('object-assign', require.resolve('react', { paths: [dir] })),
+    getPackagePath(
+      'object-assign',
+      require.resolve('react-dom', { paths: [dir] })
+    ),
+    getPackagePath(
+      'use-subscription',
+      require.resolve('next', { paths: [dir] })
+    ),
+  ]
+
   // Select appropriate SplitChunksPlugin config for this build
   const splitChunksConfig: webpack.Options.SplitChunksOptions | false = dev
     ? false
@@ -770,10 +800,16 @@ export default async function getBaseWebpackConfig(
             chunks: (chunk: webpack.compilation.Chunk) =>
               !chunk.name?.match(MIDDLEWARE_ROUTE),
             name: 'framework',
-            // This regex ignores nested copies of framework libraries so they're
-            // bundled with their issuer.
-            // https://github.com/vercel/next.js/pull/9012
-            test: /(?<!node_modules.*)[\\/]node_modules[\\/](react|react-dom|scheduler|prop-types|use-subscription)[\\/]/,
+            test(module) {
+              const resource =
+                module.nameForCondition && module.nameForCondition()
+              if (!resource) {
+                return false
+              }
+              return topLevelFrameworkPaths.some((packagePath) =>
+                resource.startsWith(packagePath)
+              )
+            },
             priority: 40,
             // Don't let webpack eliminate this chunk (prevents this chunk from
             // becoming a part of the commons chunk)
