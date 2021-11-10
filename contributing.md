@@ -172,7 +172,7 @@ There are two options to develop with your local version of the codebase:
 Failed to load SWC binary, see more info here: https://nextjs.org/docs/messages/failed-loadin
 ```
 
-Try to add the above section to your package.json, then run again
+Try to add the below section to your `package.json`, then run again
 
 ```json
 "optionalDependencies": {
