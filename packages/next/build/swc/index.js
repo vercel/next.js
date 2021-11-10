@@ -1,36 +1,56 @@
-const { loadBinding } = require('@node-rs/helper')
+const fs = require('fs')
+const { platform, arch } = require('os')
 const path = require('path')
+const { platformArchTriples } = require('@napi-rs/triples')
 const Log = require('../output/log')
 
-/**
- * __dirname means load native addon from current dir
- * 'next-swc' is the name of native addon
- * the second arguments was decided by `napi.name` field in `package.json`
- * the third arguments was decided by `name` field in `package.json`
- * `loadBinding` helper will load `next-swc.[PLATFORM].node` from `__dirname` first
- * If failed to load addon, it will fallback to load from `next-swc-[PLATFORM]`
- */
-let bindings
+const ArchName = arch()
+const PlatformName = platform()
 
-try {
-  bindings = loadBinding(
-    path.join(__dirname, '../../../native'),
-    'next-swc',
-    '@next/swc'
+let bindings
+let loadError
+const triples = platformArchTriples[PlatformName][ArchName]
+for (const triple of triples) {
+  const localFilePath = path.join(
+    __dirname,
+    '../../../native',
+    `next-swc.${triple.platformArchABI}.node`
   )
-} catch (err) {
-  // only log the original error message as the stack is not
-  // helpful to the user
-  console.error(err.message)
+  if (fs.existsSync(localFilePath)) {
+    Log.info('Using locally built binary of next-swc')
+    try {
+      bindings = require(localFilePath)
+    } catch (e) {
+      loadError = e
+    }
+    break
+  }
+
+  try {
+    bindings = require(`@next/swc-${triple.platformArchABI}`)
+    break
+  } catch (e) {
+    if (e?.code !== 'MODULE_NOT_FOUND') {
+      loadError = e
+    }
+  }
+}
+
+if (!bindings) {
+  if (loadError) {
+    console.error(loadError)
+  }
 
   Log.error(
-    `failed to load SWC binary, see more info here: https://nextjs.org/docs/messages/failed-loading-swc`
+    `Failed to load SWC binary, see more info here: https://nextjs.org/docs/messages/failed-loading-swc`
   )
   process.exit(1)
+} else {
+  loadError = null
 }
 
 async function transform(src, options) {
-  const isModule = typeof src !== 'string'
+  const isModule = typeof src !== 'string' && !Buffer.isBuffer(src)
   options = options || {}
 
   if (options?.jsc?.parser) {
@@ -45,7 +65,7 @@ async function transform(src, options) {
 }
 
 function transformSync(src, options) {
-  const isModule = typeof src !== 'string'
+  const isModule = typeof src !== 'string' && !Buffer.isBuffer(src)
   options = options || {}
 
   if (options?.jsc?.parser) {
@@ -69,6 +89,10 @@ export async function minify(src, opts) {
 
 export function minifySync(src, opts) {
   return bindings.minifySync(toBuffer(src), toBuffer(opts ?? {}))
+}
+
+export async function bundle(options) {
+  return bindings.bundle(toBuffer(options))
 }
 
 module.exports.transform = transform

@@ -85,6 +85,9 @@ describe('TypeScript Features', () => {
       await nextBuild(appDir)
     })
     it('should trace correctly', async () => {
+      const appTrace = await fs.readJSON(
+        join(appDir, '.next/server/pages/_app.js.nft.json')
+      )
       const singleAliasTrace = await fs.readJSON(
         join(appDir, '.next/server/pages/single-alias.js.nft.json')
       )
@@ -100,6 +103,9 @@ describe('TypeScript Features', () => {
       const basicAliasTrace = await fs.readJSON(
         join(appDir, '.next/server/pages/basic-alias.js.nft.json')
       )
+      expect(
+        appTrace.files.some((file) => file.includes('node_modules/next'))
+      ).toBe(true)
       expect(
         singleAliasTrace.files.some((file) =>
           file.includes('components/hello.js')

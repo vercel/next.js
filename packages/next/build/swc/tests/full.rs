@@ -1,4 +1,4 @@
-use next_swc::custom_before_pass;
+use next_swc::{custom_before_pass, TransformOptions};
 use serde::de::DeserializeOwned;
 use std::path::{Path, PathBuf};
 use swc::Compiler;
@@ -26,10 +26,9 @@ fn test(input: &Path, minify: bool) {
             let c = Compiler::new(cm.clone());
 
             let fm = cm.load_file(input).expect("failed to load file");
-            match c.process_js_with_custom_pass(
-                fm.clone(),
-                &handler,
-                &swc::config::Options {
+
+            let options = TransformOptions {
+                swc: swc::config::Options {
                     swcrc: true,
                     is_module: true,
                     output_path: Some(output.to_path_buf()),
@@ -52,8 +51,23 @@ fn test(input: &Path, minify: bool) {
                     },
                     ..Default::default()
                 },
-                custom_before_pass(&fm.name, &assert_json(&"{}")),
-                noop(),
+                disable_next_ssg: false,
+                disable_page_config: false,
+                pages_dir: None,
+                is_page_file: false,
+                is_development: true,
+                styled_components: Some(assert_json("{}")),
+            };
+
+            let options = options.patch(&fm);
+
+            match c.process_js_with_custom_pass(
+                fm.clone(),
+                None,
+                &handler,
+                &options.swc,
+                |_| custom_before_pass(fm.clone(), &options),
+                |_| noop(),
             ) {
                 Ok(v) => {
                     NormalizedOutput::from(v.code)

@@ -107,7 +107,6 @@ export class TerserPlugin {
             // and doesn't provide too much of a benefit as it's server-side
             if (name.match(/(middleware-chunks|_middleware\.js$)/)) {
               hasMiddleware = true
-              return false
             }
 
             const { info } = res
@@ -134,7 +133,7 @@ export class TerserPlugin {
       )
 
       if (hasMiddleware && webpackAsset) {
-        // emit a separate un-minified version of the webpack
+        // emit a separate version of the webpack
         // runtime for the middleware
         const asset = compilation.getAsset(webpackAsset)
         compilation.emitAsset(
@@ -299,16 +298,7 @@ export class TerserPlugin {
     const pluginName = this.constructor.name
     const availableNumberOfCores = this.options.parallel
 
-    compiler.hooks.compilation.tap(pluginName, (compilation) => {
-      // Don't run minifier against mini-css-extract-plugin
-      if (
-        compilation.name !== 'client' &&
-        compilation.name !== 'server' &&
-        compilation.name !== 'server-web'
-      ) {
-        return
-      }
-
+    compiler.hooks.thisCompilation.tap(pluginName, (compilation) => {
       const cache = compilation.getCache('TerserWebpackPlugin')
 
       const handleHashForChunk = (hash, chunk) => {
