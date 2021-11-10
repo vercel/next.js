@@ -755,9 +755,26 @@ export default async function getBaseWebpackConfig(
   }
 
   const getPackagePath = (name: string, relativeToPath: string) => {
-    const packageJsonPath = require.resolve(`${name}/package.json`, {
-      paths: [relativeToPath],
-    })
+    let packageJsonPath = '';
+    try {
+        packageJsonPath = require.resolve(`${name}/package.json`, {
+            paths: [
+                relativeToPath
+            ]
+        });
+    } catch (_) {
+        // There are acceptable cases when the package with `name` is not found. e.g. when
+        // substituting 'react-dom' for '@preact/compat', the 'scheduler' package is not found
+        // relative to 'react-dom'.
+        // See: https://github.com/vercel/next.js/issues/31240
+        console.warn(
+            `Dependency '${name}' was not found relative to ${relativeToPath}. ` +
+            `Dependencies declared by the parent package may have changed, or the parent package has ` +
+            `been substituted for a compatible replacement (such as react-dom and @preact/compat). ` +
+            `Optimized chunk splitting will be unavailable for '${name}'.`
+        )
+        return '';
+    }
     // Include a trailing slash so that a `.startsWith(packagePath)` check avoids false positives
     // when one package name starts with the full name of a different package.
     // For example:
@@ -782,7 +799,7 @@ export default async function getBaseWebpackConfig(
       'use-subscription',
       require.resolve('next', { paths: [dir] })
     ),
-  ]
+  ].filter(Boolean)
 
   // Select appropriate SplitChunksPlugin config for this build
   const splitChunksConfig: webpack.Options.SplitChunksOptions | false = dev
