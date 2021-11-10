@@ -46,11 +46,11 @@ describe('should set-up next', () => {
     )
   }
 
-  it('Re-rendering should not re-execute the script', async () => {
+  it('should not re-execute the script when re-rendering', async () => {
     await runTests('/')
   })
 
-  it('Re-rendering should not re-execute the script with CSP header', async () => {
+  it('should not re-execute the script when re-rendering with CSP header', async () => {
     await runTests('/csp')
   })
 })
