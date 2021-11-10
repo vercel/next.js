@@ -67,6 +67,7 @@
   "dependencies": {
     "@babel/runtime": "7.15.4",
     "@hapi/accept": "5.0.2",
+    "@napi-rs/blake-hash": "1.2.0",
     "@napi-rs/triples": "1.0.3",
     "@next/env": "12.0.4-canary.4",
     "@next/polyfill-module": "12.0.4-canary.4",

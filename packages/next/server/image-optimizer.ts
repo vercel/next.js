@@ -1,5 +1,5 @@
 import { mediaType } from '@hapi/accept'
-import { createHash } from 'crypto'
+import { blake3UrlSafeBase64 } from '@napi-rs/blake-hash'
 import { createReadStream, promises } from 'fs'
 import { getOrientation, Orientation } from 'get-orientation'
 import imageSizeOf from 'image-size'
@@ -169,7 +169,9 @@ export async function imageOptimizer(
     return { finished: true }
   }
 
-  const hash = getHash([CACHE_VERSION, href, width, quality, mimeType])
+  const hash = blake3UrlSafeBase64(
+    [CACHE_VERSION, href, width, quality, mimeType].join('')
+  )
   const imagesDir = join(distDir, 'cache', 'images')
   const hashDir = join(imagesDir, hash)
   const now = Date.now()
@@ -495,7 +497,7 @@ async function writeToCacheDir(
 ) {
   await promises.mkdir(dir, { recursive: true })
   const extension = getExtension(contentType)
-  const etag = getHash([buffer])
+  const etag = blake3UrlSafeBase64(buffer)
   const filename = join(dir, `${maxAge}.${expireAt}.${etag}.${extension}`)
   await promises.writeFile(filename, buffer)
 }
@@ -563,7 +565,7 @@ function sendResponse(
   isStatic: boolean,
   isDev: boolean
 ) {
-  const etag = getHash([buffer])
+  const etag = blake3UrlSafeBase64(buffer)
   const result = setResponseHeaders(
     req,
     res,
@@ -582,18 +584,6 @@ function sendResponse(
 function getSupportedMimeType(options: string[], accept = ''): string {
   const mimeType = mediaType(accept, options)
   return accept.includes(mimeType) ? mimeType : ''
-}
-
-function getHash(items: (string | number | Buffer)[]) {
-  const hash = createHash('sha256')
-  for (let item of items) {
-    if (typeof item === 'number') hash.update(String(item))
-    else {
-      hash.update(item)
-    }
-  }
-  // See https://en.wikipedia.org/wiki/Base64#Filenames
-  return hash.digest('base64').replace(/\//g, '-')
 }
 
 function parseCacheControl(str: string | null): Map<string, string> {
