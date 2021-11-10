@@ -10,6 +10,7 @@ import {
 } from '../shared/lib/constants'
 import { IncomingMessage, ServerResponse } from 'http'
 import { UrlWithParsedQuery } from 'url'
+import { NextConfigComplete } from './config-shared'
 
 type NextServerConstructor = ServerConstructor & {
   /**
@@ -31,6 +32,7 @@ export class NextServer {
   private server?: Server
   private reqHandlerPromise?: Promise<any>
   private preparedAssetPrefix?: string
+  private config?: NextConfigComplete
   options: NextServerConstructor
 
   constructor(options: NextServerConstructor) {
@@ -116,13 +118,15 @@ export class NextServer {
     return new ServerImplementation(options)
   }
 
-  private async loadConfig() {
-    const phase = this.options.dev
-      ? PHASE_DEVELOPMENT_SERVER
-      : PHASE_PRODUCTION_SERVER
-    const dir = resolve(this.options.dir || '.')
-    const conf = await loadConfig(phase, dir, this.options.conf)
-    return conf
+  async loadConfig() {
+    if (!this.config) {
+      const phase = this.options.dev
+        ? PHASE_DEVELOPMENT_SERVER
+        : PHASE_PRODUCTION_SERVER
+      const dir = resolve(this.options.dir || '.')
+      this.config = await loadConfig(phase, dir, this.options.conf)
+    }
+    return this.config!
   }
 
   private async getServer() {

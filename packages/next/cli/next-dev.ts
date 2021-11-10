@@ -90,9 +90,10 @@ const nextDev: cliCommand = (argv) => {
 
   startServer({ dir, dev: true, isNextDevCommand: true }, port, host)
     .then(async ({ app, actualPort }) => {
+      const { basePath } = await app.loadConfig()
       const appUrl = `http://${
         !host || host === '0.0.0.0' ? 'localhost' : host
-      }:${actualPort}`
+      }:${actualPort}${basePath}`
       startedDevelopmentServer(appUrl, `${host || '0.0.0.0'}:${actualPort}`)
       // Start preflight after server is listening and ignore errors:
       preflight().catch(() => {})
