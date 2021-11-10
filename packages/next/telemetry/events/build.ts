@@ -1,4 +1,7 @@
-const REGEXP_DIRECTORY_DUNDER = /[\\/]__[^\\/]+(?<![\\/]__(?:tests|mocks))__[\\/]/i
+import { TelemetryPlugin } from '../../build/webpack/plugins/telemetry-plugin'
+
+const REGEXP_DIRECTORY_DUNDER =
+  /[\\/]__[^\\/]+(?<![\\/]__(?:tests|mocks))__[\\/]/i
 const REGEXP_DIRECTORY_TESTS = /[\\/]__(tests|mocks)__[\\/]/i
 const REGEXP_FILE_TEST = /\.(?:spec|test)\.[^.]+$/i
 
@@ -11,9 +14,10 @@ type EventTypeCheckCompleted = {
   incremental?: boolean
 }
 
-export function eventTypeCheckCompleted(
-  event: EventTypeCheckCompleted
-): { eventName: string; payload: EventTypeCheckCompleted } {
+export function eventTypeCheckCompleted(event: EventTypeCheckCompleted): {
+  eventName: string
+  payload: EventTypeCheckCompleted
+} {
   return {
     eventName: EVENT_TYPE_CHECK_COMPLETED,
     payload: event,
@@ -32,9 +36,10 @@ export type EventLintCheckCompleted = {
   nextEslintPluginWarningsCount?: number
 }
 
-export function eventLintCheckCompleted(
-  event: EventLintCheckCompleted
-): { eventName: string; payload: EventLintCheckCompleted } {
+export function eventLintCheckCompleted(event: EventLintCheckCompleted): {
+  eventName: string
+  payload: EventLintCheckCompleted
+} {
   return {
     eventName: EVENT_LINT_CHECK_COMPLETED,
     payload: event,
@@ -90,6 +95,7 @@ type EventBuildOptimized = {
   headersWithHasCount: number
   rewritesWithHasCount: number
   redirectsWithHasCount: number
+  middlewareCount: number
 }
 
 export function eventBuildOptimize(
@@ -113,4 +119,30 @@ export function eventBuildOptimize(
       ),
     },
   }
+}
+
+export const EVENT_BUILD_FEATURE_USAGE = 'NEXT_BUILD_FEATURE_USAGE'
+export type EventBuildFeatureUsage = {
+  // NOTE: If you are adding features, make sure to update the `enum` field
+  // for `featureName` in https://github.com/vercel/next-telemetry/blob/master/events/v1/featureUsage.ts
+  // *before* you make changes here.
+  featureName:
+    | 'next/image'
+    | 'next/script'
+    | 'next/dynamic'
+    | 'experimental/optimizeCss'
+    | 'swcLoader'
+    | 'swcMinify'
+  invocationCount: number
+}
+export function eventBuildFeatureUsage(
+  telemetryPlugin: TelemetryPlugin
+): Array<{ eventName: string; payload: EventBuildFeatureUsage }> {
+  return telemetryPlugin.usages().map(({ featureName, invocationCount }) => ({
+    eventName: EVENT_BUILD_FEATURE_USAGE,
+    payload: {
+      featureName,
+      invocationCount,
+    },
+  }))
 }

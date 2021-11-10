@@ -1,11 +1,13 @@
-import { IncomingMessage, ServerResponse } from 'http'
-import { UrlWithParsedQuery } from 'url'
+import type { IncomingMessage, ServerResponse } from 'http'
+import type { ParsedUrlQuery } from 'querystring'
+import type { NextUrlWithParsedQuery } from './request-meta'
 
 import pathMatch from '../shared/lib/router/utils/path-match'
 import { removePathTrailingSlash } from '../client/normalize-trailing-slash'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { RouteHas } from '../lib/load-custom-routes'
 import { matchHas } from '../shared/lib/router/utils/prepare-destination'
+import { getRequestMeta } from './request-meta'
 
 export const route = pathMatch()
 
@@ -16,7 +18,7 @@ export type RouteMatch = (pathname: string | null | undefined) => false | Params
 type RouteResult = {
   finished: boolean
   pathname?: string
-  query?: { [k: string]: string }
+  query?: ParsedUrlQuery
 }
 
 export type Route = {
@@ -32,7 +34,7 @@ export type Route = {
     req: IncomingMessage,
     res: ServerResponse,
     params: Params,
-    parsedUrl: UrlWithParsedQuery
+    parsedUrl: NextUrlWithParsedQuery
   ) => Promise<RouteResult> | RouteResult
 }
 
@@ -58,6 +60,7 @@ export default class Router {
     fallback: Route[]
   }
   catchAllRoute: Route
+  catchAllMiddleware?: Route
   pageChecker: PageChecker
   dynamicRoutes: DynamicRoutes
   useFileSystemPublicRoutes: boolean
@@ -74,6 +77,7 @@ export default class Router {
     },
     redirects = [],
     catchAllRoute,
+    catchAllMiddleware,
     dynamicRoutes = [],
     pageChecker,
     useFileSystemPublicRoutes,
@@ -89,6 +93,7 @@ export default class Router {
     }
     redirects: Route[]
     catchAllRoute: Route
+    catchAllMiddleware?: Route
     dynamicRoutes: DynamicRoutes | undefined
     pageChecker: PageChecker
     useFileSystemPublicRoutes: boolean
@@ -101,6 +106,7 @@ export default class Router {
     this.redirects = redirects
     this.pageChecker = pageChecker
     this.catchAllRoute = catchAllRoute
+    this.catchAllMiddleware = catchAllMiddleware
     this.dynamicRoutes = dynamicRoutes
     this.useFileSystemPublicRoutes = useFileSystemPublicRoutes
     this.locales = locales
@@ -117,14 +123,14 @@ export default class Router {
   async execute(
     req: IncomingMessage,
     res: ServerResponse,
-    parsedUrl: UrlWithParsedQuery
+    parsedUrl: NextUrlWithParsedQuery
   ): Promise<boolean> {
     // memoize page check calls so we don't duplicate checks for pages
     const pageChecks: { [name: string]: Promise<boolean> } = {}
     const memoizedPageChecker = async (p: string): Promise<boolean> => {
       p = normalizeLocalePath(p, this.locales).pathname
 
-      if (pageChecks[p]) {
+      if (pageChecks[p] !== undefined) {
         return pageChecks[p]
       }
       const result = this.pageChecker(p)
@@ -134,7 +140,7 @@ export default class Router {
 
     let parsedUrlUpdated = parsedUrl
 
-    const applyCheckTrue = async (checkParsedUrl: UrlWithParsedQuery) => {
+    const applyCheckTrue = async (checkParsedUrl: NextUrlWithParsedQuery) => {
       const originalFsPathname = checkParsedUrl.pathname
       const fsPathname = replaceBasePath(this.basePath, originalFsPathname!)
 
@@ -197,6 +203,9 @@ export default class Router {
       ...this.headers,
       ...this.redirects,
       ...this.rewrites.beforeFiles,
+      ...(this.useFileSystemPublicRoutes && this.catchAllMiddleware
+        ? [this.catchAllMiddleware]
+        : []),
       ...this.fsRoutes,
       // We only check the catch-all route if public page routes hasn't been
       // disabled
@@ -256,7 +265,7 @@ export default class Router {
       ...(this.useFileSystemPublicRoutes ? [this.catchAllRoute] : []),
     ]
     const originallyHadBasePath =
-      !this.basePath || (req as any)._nextHadBasePath
+      !this.basePath || getRequestMeta(req, '_nextHadBasePath')
 
     for (const testRoute of allRoutes) {
       // if basePath is being used, the basePath will still be included
@@ -268,7 +277,9 @@ export default class Router {
       const requireBasePath = testRoute.requireBasePath !== false
       const isCustomRoute = customRouteTypes.has(testRoute.type)
       const isPublicFolderCatchall = testRoute.name === 'public folder catchall'
-      const keepBasePath = isCustomRoute || isPublicFolderCatchall
+      const isMiddlewareCatchall = testRoute.name === 'middleware catchall'
+      const keepBasePath =
+        isCustomRoute || isPublicFolderCatchall || isMiddlewareCatchall
       const keepLocale = isCustomRoute
 
       const currentPathnameNoBasePath = replaceBasePath(
@@ -298,14 +309,14 @@ export default class Router {
         }
 
         if (
-          (req as any).__nextHadTrailingSlash &&
+          getRequestMeta(req, '__nextHadTrailingSlash') &&
           !currentPathname.endsWith('/')
         ) {
           currentPathname += '/'
         }
       } else {
         currentPathname = `${
-          (req as any)._nextHadBasePath ? activeBasePath : ''
+          getRequestMeta(req, '_nextHadBasePath') ? activeBasePath : ''
         }${
           activeBasePath && localePathResult.pathname === '/'
             ? ''
@@ -330,7 +341,10 @@ export default class Router {
         // since we require basePath be present for non-custom-routes we
         // 404 here when we matched an fs route
         if (!keepBasePath) {
-          if (!originallyHadBasePath && !(req as any)._nextDidRewrite) {
+          if (
+            !originallyHadBasePath &&
+            !getRequestMeta(req, '_nextDidRewrite')
+          ) {
             if (requireBasePath) {
               // consider this a non-match so the 404 renders
               return false
@@ -350,8 +364,8 @@ export default class Router {
           return true
         }
 
-        // since the fs route didn't match we need to re-add the basePath
-        // to continue checking rewrites with the basePath present
+        // since the fs route didn't finish routing we need to re-add the
+        // basePath to continue checking with the basePath present
         if (!keepBasePath) {
           parsedUrlUpdated.pathname = originalPathname
         }

@@ -1,9 +1,11 @@
 import chalk from 'chalk'
 import findUp from 'next/dist/compiled/find-up'
-import { basename, extname } from 'path'
+import { basename, extname, relative } from 'path'
+import { pathToFileURL } from 'url'
+import { Agent as HttpAgent } from 'http'
+import { Agent as HttpsAgent } from 'https'
 import * as Log from '../build/output/log'
-import { hasNextSupport } from '../telemetry/ci-info'
-import { CONFIG_FILE, PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
+import { CONFIG_FILES, PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import { execOnce } from '../shared/lib/utils'
 import {
   defaultConfig,
@@ -13,6 +15,7 @@ import {
 import { loadWebpackHook } from './config-utils'
 import { ImageConfig, imageConfigDefault, VALID_LOADERS } from './image-config'
 import { loadEnvConfig } from '@next/env'
+import { hasNextSupport } from '../telemetry/ci-info'
 
 export { DomainLocale, NextConfig, normalizeConfig } from './config-shared'
 
@@ -28,10 +31,11 @@ const experimentalWarning = execOnce(() => {
 })
 
 function assignDefaults(userConfig: { [key: string]: any }) {
+  const configFileName = userConfig.configFileName
   if (typeof userConfig.exportTrailingSlash !== 'undefined') {
     console.warn(
       chalk.yellow.bold('Warning: ') +
-        'The "exportTrailingSlash" option has been renamed to "trailingSlash". Please update your next.config.js.'
+        `The "exportTrailingSlash" option has been renamed to "trailingSlash". Please update your ${configFileName}.`
     )
     if (typeof userConfig.trailingSlash === 'undefined') {
       userConfig.trailingSlash = userConfig.exportTrailingSlash
@@ -42,7 +46,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
   if (typeof userConfig.experimental?.reactMode !== 'undefined') {
     console.warn(
       chalk.yellow.bold('Warning: ') +
-        'The experimental "reactMode" option has been replaced with "reactRoot". Please update your next.config.js.'
+        `The experimental "reactMode" option has been replaced with "reactRoot". Please update your ${configFileName}.`
     )
     if (typeof userConfig.experimental?.reactRoot === 'undefined') {
       userConfig.experimental.reactRoot = ['concurrent', 'blocking'].includes(
@@ -179,7 +183,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
   }
 
   if (result?.images) {
-    const images: Partial<ImageConfig> = result.images
+    const images: ImageConfig = result.images
 
     if (typeof images !== 'object') {
       throw new Error(
@@ -192,6 +196,13 @@ function assignDefaults(userConfig: { [key: string]: any }) {
         throw new Error(
           `Specified images.domains should be an Array received ${typeof images.domains}.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
         )
+      }
+
+      // static images are automatically prefixed with assetPrefix
+      // so we need to ensure _next/image allows downloading from
+      // this resource
+      if (config.assetPrefix?.startsWith('http')) {
+        images.domains.push(new URL(config.assetPrefix).hostname)
       }
 
       if (images.domains.length > 50) {
@@ -278,11 +289,22 @@ function assignDefaults(userConfig: { [key: string]: any }) {
       )
     }
 
-    // Append trailing slash for non-default loaders
+    if (
+      images.loader !== 'default' &&
+      images.loader !== 'custom' &&
+      images.path === imageConfigDefault.path
+    ) {
+      throw new Error(
+        `Specified images.loader property (${images.loader}) also requires images.path property to be assigned to a URL prefix.\nSee more info here: https://nextjs.org/docs/api-reference/next/image#loader-configuration`
+      )
+    }
+
+    // Append trailing slash for non-default loaders and when trailingSlash is set
     if (images.path) {
       if (
-        images.loader !== 'default' &&
-        images.path[images.path.length - 1] !== '/'
+        (images.loader !== 'default' &&
+          images.path[images.path.length - 1] !== '/') ||
+        result.trailingSlash
       ) {
         images.path += '/'
       }
@@ -302,7 +324,58 @@ function assignDefaults(userConfig: { [key: string]: any }) {
         )}), received  (${images.minimumCacheTTL}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
       )
     }
+
+    if (images.formats) {
+      const { formats } = images
+      if (!Array.isArray(formats)) {
+        throw new Error(
+          `Specified images.formats should be an Array received ${typeof formats}.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
+        )
+      }
+      if (formats.length < 1 || formats.length > 2) {
+        throw new Error(
+          `Specified images.formats must be length 1 or 2, received length (${formats.length}), please reduce the length of the array to continue.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
+        )
+      }
+
+      const invalid = formats.filter((f) => {
+        return f !== 'image/avif' && f !== 'image/webp'
+      })
+
+      if (invalid.length > 0) {
+        throw new Error(
+          `Specified images.formats should be an Array of mime type strings, received invalid values (${invalid.join(
+            ', '
+          )}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
+        )
+      }
+    }
   }
+
+  if (result.webpack5 === false) {
+    throw new Error(
+      `Webpack 4 is no longer supported in Next.js. Please upgrade to webpack 5 by removing "webpack5: false" from ${configFileName}. https://nextjs.org/docs/messages/webpack5`
+    )
+  }
+
+  if (result.experimental && 'swcMinify' in (result.experimental as any)) {
+    Log.warn(
+      `\`swcMinify\` has been moved out of \`experimental\`. Please update your ${configFileName} file accordingly.`
+    )
+    result.swcMinify = (result.experimental as any).swcMinify
+  }
+
+  if (result.swcMinify) {
+    Log.warn(
+      'SWC minify beta enabled. https://nextjs.org/docs/messages/swc-minify-enabled'
+    )
+  }
+
+  // TODO: Change defaultConfig type to NextConfigComplete
+  // so we don't need "!" here.
+  setHttpAgentOptions(
+    result.httpAgentOptions || defaultConfig.httpAgentOptions!
+  )
 
   if (result.i18n) {
     const { i18n } = result
@@ -321,8 +394,8 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     }
 
     if (i18n.locales.length > 100) {
-      throw new Error(
-        `Received ${i18n.locales.length} i18n.locales items which exceeds the max of 100, please reduce the number of items to continue.\nSee more info here: https://nextjs.org/docs/messages/invalid-i18n-config`
+      Log.warn(
+        `Received ${i18n.locales.length} i18n.locales items which exceeds the recommended max of 100.\nSee more info here: https://nextjs.org/docs/advanced-features/i18n-routing#how-does-this-work-with-static-generation`
       )
     }
 
@@ -437,6 +510,16 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     }
   }
 
+  if (result.experimental?.serverComponents) {
+    const pageExtensions: string[] = []
+    ;(result.pageExtensions || []).forEach((ext) => {
+      pageExtensions.push(ext)
+      pageExtensions.push(`server.${ext}`)
+      pageExtensions.push(`client.${ext}`)
+    })
+    result.pageExtensions = pageExtensions
+  }
+
   return result
 }
 
@@ -446,20 +529,36 @@ export default async function loadConfig(
   customConfig?: object | null
 ): Promise<NextConfigComplete> {
   await loadEnvConfig(dir, phase === PHASE_DEVELOPMENT_SERVER, Log)
-  await loadWebpackHook(phase, dir)
+  await loadWebpackHook()
+
+  let configFileName = 'next.config.js'
 
   if (customConfig) {
     return assignDefaults({
       configOrigin: 'server',
+      configFileName,
       ...customConfig,
     }) as NextConfigComplete
   }
 
-  const path = await findUp(CONFIG_FILE, { cwd: dir })
+  const path = await findUp(CONFIG_FILES, { cwd: dir })
 
   // If config file was found
   if (path?.length) {
-    const userConfigModule = require(path)
+    configFileName = basename(path)
+    let userConfigModule: any
+
+    try {
+      // `import()` expects url-encoded strings, so the path must be properly
+      // escaped and (especially on Windows) absolute paths must pe prefixed
+      // with the `file://` protocol
+      userConfigModule = await import(pathToFileURL(path).href)
+    } catch (err) {
+      Log.error(
+        `Failed to load ${configFileName}, see more info here https://nextjs.org/docs/messages/next-config-error`
+      )
+      throw err
+    }
     const userConfig = normalizeConfig(
       phase,
       userConfigModule.default || userConfigModule
@@ -467,7 +566,7 @@ export default async function loadConfig(
 
     if (Object.keys(userConfig).length === 0) {
       Log.warn(
-        'Detected next.config.js, no exported configuration found. https://nextjs.org/docs/messages/empty-configuration'
+        `Detected ${configFileName}, no exported configuration found. https://nextjs.org/docs/messages/empty-configuration`
       )
     }
 
@@ -476,6 +575,13 @@ export default async function loadConfig(
         `Specified target is invalid. Provided: "${
           userConfig.target
         }" should be one of ${targets.join(', ')}`
+      )
+    }
+
+    if (userConfig.target && userConfig.target !== 'server') {
+      Log.warn(
+        'The `target` config is deprecated and will be removed in a future version.\n' +
+          'See more info here https://nextjs.org/docs/messages/deprecated-target-config'
       )
     }
 
@@ -488,17 +594,18 @@ export default async function loadConfig(
           : canonicalBase) || ''
     }
 
-    if (hasNextSupport) {
+    if (process.env.NEXT_PRIVATE_TARGET || hasNextSupport) {
       userConfig.target = process.env.NEXT_PRIVATE_TARGET || 'server'
     }
 
     return assignDefaults({
-      configOrigin: CONFIG_FILE,
+      configOrigin: relative(dir, path),
       configFile: path,
+      configFileName,
       ...userConfig,
     }) as NextConfigComplete
   } else {
-    const configBaseName = basename(CONFIG_FILE, extname(CONFIG_FILE))
+    const configBaseName = basename(CONFIG_FILES[0], extname(CONFIG_FILES[0]))
     const nonJsPath = findUp.sync(
       [
         `${configBaseName}.jsx`,
@@ -512,16 +619,36 @@ export default async function loadConfig(
       throw new Error(
         `Configuring Next.js via '${basename(
           nonJsPath
-        )}' is not supported. Please replace the file with 'next.config.js'.`
+        )}' is not supported. Please replace the file with 'next.config.js' or 'next.config.mjs'.`
       )
     }
   }
 
-  return defaultConfig as NextConfigComplete
+  const completeConfig = defaultConfig as NextConfigComplete
+  completeConfig.configFileName = configFileName
+  setHttpAgentOptions(completeConfig.httpAgentOptions)
+  return completeConfig
 }
 
 export function isTargetLikeServerless(target: string) {
   const isServerless = target === 'serverless'
   const isServerlessTrace = target === 'experimental-serverless-trace'
   return isServerless || isServerlessTrace
+}
+
+export function setHttpAgentOptions(
+  options: NextConfigComplete['httpAgentOptions']
+) {
+  if ((global as any).__NEXT_HTTP_AGENT) {
+    // We only need to assign once because we want
+    // to resuse the same agent for all requests.
+    return
+  }
+
+  if (!options) {
+    throw new Error('Expected config.httpAgentOptions to be an object')
+  }
+
+  ;(global as any).__NEXT_HTTP_AGENT = new HttpAgent(options)
+  ;(global as any).__NEXT_HTTPS_AGENT = new HttpsAgent(options)
 }

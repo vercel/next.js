@@ -1,6 +1,7 @@
 **/.next/**
 **/_next/**
 **/dist/**
+packages/next/build/swc/tests/**
 packages/next/compiled/**/*
 packages/next/bundles/webpack/packages/*.runtime.js
 lerna.json

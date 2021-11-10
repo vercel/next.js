@@ -1,13 +1,9 @@
 import fetch, { Headers, Request, Response } from 'node-fetch'
-import { Agent as HttpAgent } from 'http'
-import { Agent as HttpsAgent } from 'https'
 
 // Polyfill fetch() in the Node.js environment
 if (!global.fetch) {
-  const httpAgent = new HttpAgent({ keepAlive: true })
-  const httpsAgent = new HttpsAgent({ keepAlive: true })
   const agent = ({ protocol }) =>
-    protocol === 'http:' ? httpAgent : httpsAgent
+    protocol === 'http:' ? global.__NEXT_HTTP_AGENT : global.__NEXT_HTTPS_AGENT
   const fetchWithAgent = (url, opts, ...rest) => {
     if (!opts) {
       opts = { agent }

@@ -93,10 +93,10 @@ function updateElements(type: string, components: JSX.Element[]): void {
   for (
     let i = 0, j = headCountEl.previousElementSibling;
     i < headCount;
-    i++, j = j!.previousElementSibling
+    i++, j = j?.previousElementSibling || null
   ) {
-    if (j!.tagName.toLowerCase() === type) {
-      oldTags.push(j!)
+    if (j?.tagName?.toLowerCase() === type) {
+      oldTags.push(j)
     }
   }
   const newTags = (components.map(reactElementToDOM) as HTMLElement[]).filter(
@@ -112,7 +112,7 @@ function updateElements(type: string, components: JSX.Element[]): void {
     }
   )
 
-  oldTags.forEach((t) => t.parentNode!.removeChild(t))
+  oldTags.forEach((t) => t.parentNode?.removeChild(t))
   newTags.forEach((t) => headEl.insertBefore(t, headCountEl))
   headCountEl.content = (headCount - oldTags.length + newTags.length).toString()
 }
@@ -137,14 +137,20 @@ export default function initHeadManager(): {
             // If the font tag is loaded only on client navigation
             // it won't be inlined. In this case revert to the original behavior
             h.type === 'link' &&
-            h.props['data-optimized-fonts'] &&
-            !document.querySelector(
-              `style[data-href="${h.props['data-href']}"]`
-            )
+            h.props['data-optimized-fonts']
           ) {
-            h.props.href = h.props['data-href']
-            h.props['data-href'] = undefined
+            if (
+              document.querySelector(
+                `style[data-href="${h.props['data-href']}"]`
+              )
+            ) {
+              return
+            } else {
+              h.props.href = h.props['data-href']
+              h.props['data-href'] = undefined
+            }
           }
+
           const components = tags[h.type] || []
           components.push(h)
           tags[h.type] = components

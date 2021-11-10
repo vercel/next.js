@@ -50,7 +50,7 @@ Rewrites are applied to client-side routing, a `<Link href="/about">` will have 
 - `locale`: `false` or `undefined` - whether the locale should not be included when matching.
 - `has` is an array of [has objects](#header-cookie-and-query-matching) with the `type`, `key` and `value` properties.
 
-Rewrites are applied after checking the filesystem (pages and `/public` files) and before dynamic routes by default. This behavior can be changed by instead returning an object instead of an array from the `rewrites` function since `v10.1` of Next.js:
+Rewrites are applied after checking the filesystem (pages and `/public` files) and before dynamic routes by default. This behavior can be changed by returning an object instead of an array from the `rewrites` function since `v10.1` of Next.js:
 
 ```js
 module.exports = {
@@ -148,6 +148,8 @@ module.exports = {
 }
 ```
 
+Note: for static pages from the [Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md) or [prerendering](/docs/basic-features/data-fetching.md#getstaticprops-static-generation) params from rewrites will be parsed on the client after hydration and provided in the query.
+
 ## Path Matching
 
 Path matches are allowed, for example `/blog/:slug` will match `/blog/hello-world` (no nested paths):
@@ -203,13 +205,12 @@ The following characters `(`, `)`, `{`, `}`, `:`, `*`, `+`, `?` are used for reg
 
 ```js
 module.exports = {
-  async redirects() {
+  async rewrites() {
     return [
       {
         // this will match `/english(default)/something` being requested
         source: '/english\\(default\\)/:slug',
         destination: '/en-us/:slug',
-        permanent: false,
       },
     ]
   },

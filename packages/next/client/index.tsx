@@ -2,6 +2,7 @@
 import '@next/polyfill-module'
 import React from 'react'
 import ReactDOM from 'react-dom'
+import { StyleRegistry } from 'styled-jsx'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import mitt, { MittEmitter } from '../shared/lib/mitt'
 import { RouterContext } from '../shared/lib/router-context'
@@ -18,13 +19,21 @@ import {
   assign,
 } from '../shared/lib/router/utils/querystring'
 import { setConfig } from '../shared/lib/runtime-config'
-import { getURL, loadGetInitialProps, NEXT_DATA, ST } from '../shared/lib/utils'
+import {
+  getURL,
+  loadGetInitialProps,
+  NextWebVitalsMetric,
+  NEXT_DATA,
+  ST,
+} from '../shared/lib/utils'
 import { Portal } from './portal'
 import initHeadManager from './head-manager'
 import PageLoader, { StyleSheetTuple } from './page-loader'
 import measureWebVitals from './performance-relayer'
 import { RouteAnnouncer } from './route-announcer'
-import { createRouter, makePublicRouterInstance } from './router'
+import { createRouter, makePublicRouterInstance, useRouter } from './router'
+import isError from '../lib/is-error'
+import { trackWebVitalMetric } from './vitals'
 
 /// <reference types="react-dom/experimental" />
 
@@ -72,6 +81,7 @@ const {
   locales,
   domainLocales,
   isPreview,
+  rsc,
 } = data
 
 let { defaultLocale } = data
@@ -95,21 +105,17 @@ if (hasBasePath(asPath)) {
 }
 
 if (process.env.__NEXT_I18N_SUPPORT) {
-  const {
-    normalizeLocalePath,
-  } = require('../shared/lib/i18n/normalize-locale-path') as typeof import('../shared/lib/i18n/normalize-locale-path')
+  const { normalizeLocalePath } =
+    require('../shared/lib/i18n/normalize-locale-path') as typeof import('../shared/lib/i18n/normalize-locale-path')
 
-  const {
-    detectDomainLocale,
-  } = require('../shared/lib/i18n/detect-domain-locale') as typeof import('../shared/lib/i18n/detect-domain-locale')
+  const { detectDomainLocale } =
+    require('../shared/lib/i18n/detect-domain-locale') as typeof import('../shared/lib/i18n/detect-domain-locale')
 
-  const {
-    parseRelativeUrl,
-  } = require('../shared/lib/router/utils/parse-relative-url') as typeof import('../shared/lib/router/utils/parse-relative-url')
+  const { parseRelativeUrl } =
+    require('../shared/lib/router/utils/parse-relative-url') as typeof import('../shared/lib/router/utils/parse-relative-url')
 
-  const {
-    formatUrl,
-  } = require('../shared/lib/router/utils/format-url') as typeof import('../shared/lib/router/utils/format-url')
+  const { formatUrl } =
+    require('../shared/lib/router/utils/format-url') as typeof import('../shared/lib/router/utils/format-url')
 
   if (locales) {
     const parsedAs = parseRelativeUrl(asPath)
@@ -160,6 +166,7 @@ window.__NEXT_P = []
 const headManager: {
   mountedInstances: Set<unknown>
   updateHead: (head: JSX.Element[]) => void
+  getIsSsr?: () => boolean
 } = initHeadManager()
 const appElement: HTMLElement | null = document.getElementById('__next')
 
@@ -167,6 +174,9 @@ let lastRenderReject: (() => void) | null
 let webpackHMR: any
 export let router: Router
 let CachedApp: AppComponent, onPerfEntry: (metric: any) => void
+headManager.getIsSsr = () => {
+  return router.isSsr
+}
 
 class Container extends React.Component<{
   fn: (err: Error, info?: any) => void
@@ -188,12 +198,7 @@ class Container extends React.Component<{
       // the asPath unexpectedly e.g. adding basePath when
       // it wasn't originally present
       page !== '/404' &&
-      !(
-        page === '/_error' &&
-        hydrateProps &&
-        hydrateProps.pageProps &&
-        hydrateProps.pageProps.statusCode === 404
-      ) &&
+      page !== '/_error' &&
       (isFallback ||
         (data.nextExport &&
           (isDynamicRoute(router.pathname) ||
@@ -276,37 +281,38 @@ export async function initNext(opts: { webpackHMR?: any } = {}) {
 
     const { component: app, exports: mod } = appEntrypoint
     CachedApp = app as AppComponent
-    if (mod && mod.reportWebVitals) {
-      onPerfEntry = ({
-        id,
-        name,
-        startTime,
-        value,
-        duration,
-        entryType,
-        entries,
-      }): void => {
-        // Combines timestamp with random number for unique ID
-        const uniqueID: string = `${Date.now()}-${
-          Math.floor(Math.random() * (9e12 - 1)) + 1e12
-        }`
-        let perfStartEntry: string | undefined
+    const exportedReportWebVitals = mod && mod.reportWebVitals
+    onPerfEntry = ({
+      id,
+      name,
+      startTime,
+      value,
+      duration,
+      entryType,
+      entries,
+    }: any): void => {
+      // Combines timestamp with random number for unique ID
+      const uniqueID: string = `${Date.now()}-${
+        Math.floor(Math.random() * (9e12 - 1)) + 1e12
+      }`
+      let perfStartEntry: string | undefined
 
-        if (entries && entries.length) {
-          perfStartEntry = entries[0].startTime
-        }
-
-        mod.reportWebVitals({
-          id: id || uniqueID,
-          name,
-          startTime: startTime || perfStartEntry,
-          value: value == null ? duration : value,
-          label:
-            entryType === 'mark' || entryType === 'measure'
-              ? 'custom'
-              : 'web-vital',
-        })
+      if (entries && entries.length) {
+        perfStartEntry = entries[0].startTime
       }
+
+      const webVitals: NextWebVitalsMetric = {
+        id: id || uniqueID,
+        name,
+        startTime: startTime || perfStartEntry,
+        value: value == null ? duration : value,
+        label:
+          entryType === 'mark' || entryType === 'measure'
+            ? 'custom'
+            : 'web-vital',
+      }
+      exportedReportWebVitals?.(webVitals)
+      trackWebVitalMetric(webVitals)
     }
 
     const pageEntrypoint =
@@ -330,7 +336,7 @@ export async function initNext(opts: { webpackHMR?: any } = {}) {
     }
   } catch (error) {
     // This catches errors like throwing in the top level of a module
-    initialErr = error
+    initialErr = isError(error) ? error : new Error(error + '')
   }
 
   if (process.env.NODE_ENV === 'development') {
@@ -347,11 +353,17 @@ export async function initNext(opts: { webpackHMR?: any } = {}) {
             // not overridden when we re-throw it below.
             throw new Error(initialErr!.message)
           } catch (e) {
-            error = e
+            error = e as Error
           }
 
           error.name = initialErr!.name
           error.stack = initialErr!.stack
+
+          // Errors from the middleware are reported as client-side errors
+          // since the middleware is compiled using the client compiler
+          if ('middleware' in hydrateErr) {
+            throw error
+          }
 
           const node = getNodeError(error)
           throw node
@@ -421,9 +433,10 @@ export async function render(renderingProps: RenderRouteInfo): Promise<void> {
 
   try {
     await doRender(renderingProps)
-  } catch (renderErr) {
+  } catch (err) {
+    const renderErr = err instanceof Error ? err : new Error(err + '')
     // bubble up cancelation errors
-    if (renderErr.cancelled) {
+    if ((renderErr as Error & { cancelled?: boolean }).cancelled) {
       throw renderErr
     }
 
@@ -462,6 +475,10 @@ export function renderError(renderErrorProps: RenderErrorProps): Promise<any> {
 
   // Make sure we log the error to the console, otherwise users can't track down issues.
   console.error(err)
+  console.error(
+    `A client-side exception has occurred, see here for more info: https://nextjs.org/docs/messages/client-side-exception-occurred`
+  )
+
   return pageLoader
     .loadPage('/_error')
     .then(({ page: ErrorComponent, styleSheets }) => {
@@ -574,6 +591,7 @@ function markRenderComplete(): void {
       .getEntriesByName('Next.js-route-change-to-render')
       .forEach(onPerfEntry)
   }
+
   clearMarks()
   ;['Next.js-route-change-to-render', 'Next.js-render'].forEach((measure) =>
     performance.clearMeasures(measure)
@@ -581,12 +599,9 @@ function markRenderComplete(): void {
 }
 
 function clearMarks(): void {
-  ;[
-    'beforeRender',
-    'afterHydrate',
-    'afterRender',
-    'routeChange',
-  ].forEach((mark) => performance.clearMarks(mark))
+  ;['beforeRender', 'afterHydrate', 'afterRender', 'routeChange'].forEach(
+    (mark) => performance.clearMarks(mark)
+  )
 }
 
 function AppContainer({
@@ -602,40 +617,103 @@ function AppContainer({
     >
       <RouterContext.Provider value={makePublicRouterInstance(router)}>
         <HeadManagerContext.Provider value={headManager}>
-          {children}
+          <StyleRegistry>{children}</StyleRegistry>
         </HeadManagerContext.Provider>
       </RouterContext.Provider>
     </Container>
   )
 }
 
-const wrapApp = (App: AppComponent) => (
-  wrappedAppProps: Record<string, any>
-): JSX.Element => {
-  const appProps: AppProps = {
-    ...wrappedAppProps,
-    Component: CachedComponent,
-    err: hydrateErr,
-    router,
+const wrapApp =
+  (App: AppComponent) =>
+  (wrappedAppProps: Record<string, any>): JSX.Element => {
+    const appProps: AppProps = {
+      ...wrappedAppProps,
+      Component: CachedComponent,
+      err: hydrateErr,
+      router,
+    }
+    return (
+      <AppContainer>
+        <App {...appProps} />
+      </AppContainer>
+    )
   }
-  return (
-    <AppContainer>
-      <App {...appProps} />
-    </AppContainer>
-  )
+
+let RSCComponent: (props: any) => JSX.Element
+if (process.env.__NEXT_RSC) {
+  function createResponseCache() {
+    return new Map<string, any>()
+  }
+
+  const rscCache = createResponseCache()
+
+  const RSCWrapper = ({
+    cacheKey,
+    serialized,
+    _fresh,
+  }: {
+    cacheKey: string
+    serialized?: string
+    _fresh?: boolean
+  }) => {
+    const {
+      createFromFetch,
+    } = require('next/dist/compiled/react-server-dom-webpack')
+    let response = rscCache.get(cacheKey)
+
+    // If there is no cache, or there is serialized data already
+    if (!response) {
+      response = createFromFetch(
+        serialized
+          ? (() => {
+              const t = new TransformStream()
+              t.writable.getWriter().write(new TextEncoder().encode(serialized))
+              return Promise.resolve({ body: t.readable })
+            })()
+          : (() => {
+              const search = location.search
+              const flightReqUrl =
+                location.pathname +
+                search +
+                (search ? '&__flight__' : '?__flight__')
+              return fetch(flightReqUrl)
+            })()
+      )
+      rscCache.set(cacheKey, response)
+    }
+
+    const root = response.readRoot()
+    return root
+  }
+
+  RSCComponent = (props: any) => {
+    const { asPath: cacheKey } = useRouter() as any
+    return (
+      <React.Suspense fallback={null}>
+        <RSCWrapper
+          cacheKey={cacheKey}
+          serialized={(props as any).__flight_serialized__}
+          _fresh={(props as any).__flight_fresh__}
+        />
+      </React.Suspense>
+    )
+  }
 }
 
 let lastAppProps: AppProps
 function doRender(input: RenderRouteInfo): Promise<any> {
-  let { App, Component, props, err }: RenderRouteInfo = input
+  let { App, Component, props, err, __N_RSC }: RenderRouteInfo = input
   let styleSheets: StyleSheetTuple[] | undefined =
     'initial' in input ? undefined : input.styleSheets
   Component = Component || lastAppProps.Component
   props = props || lastAppProps.props
 
+  const isRSC = process.env.__NEXT_RSC && 'initial' in input ? !!rsc : !!__N_RSC
+
   const appProps: AppProps = {
     ...props,
-    Component,
+    Component: isRSC ? RSCComponent : Component,
     err,
     router,
   }
@@ -684,9 +762,8 @@ function doRender(input: RenderRouteInfo): Promise<any> {
     const noscript: Element | null = document.querySelector(
       'noscript[data-n-css]'
     )
-    const nonce: string | null | undefined = noscript?.getAttribute(
-      'data-n-css'
-    )
+    const nonce: string | null | undefined =
+      noscript?.getAttribute('data-n-css')
 
     styleSheets.forEach(({ href, text }: { href: string; text: any }) => {
       if (!currentHrefs.has(href)) {
@@ -717,9 +794,10 @@ function doRender(input: RenderRouteInfo): Promise<any> {
       !canceled
     ) {
       const desiredHrefs: Set<string> = new Set(styleSheets.map((s) => s.href))
-      const currentStyleTags: HTMLStyleElement[] = looseToArray<
-        HTMLStyleElement
-      >(document.querySelectorAll('style[data-n-href]'))
+      const currentStyleTags: HTMLStyleElement[] =
+        looseToArray<HTMLStyleElement>(
+          document.querySelectorAll('style[data-n-href]')
+        )
       const currentHrefs: string[] = currentStyleTags.map(
         (tag) => tag.getAttribute('data-n-href')!
       )
@@ -764,10 +842,6 @@ function doRender(input: RenderRouteInfo): Promise<any> {
       ).forEach((el) => {
         el.parentNode!.removeChild(el)
       })
-
-      // Force browser to recompute layout, which should prevent a flash of
-      // unstyled content:
-      getComputedStyle(document.body, 'height')
     }
 
     if (input.scroll) {
@@ -815,9 +889,10 @@ function Root({
 }>): React.ReactElement {
   // We use `useLayoutEffect` to guarantee the callbacks are executed
   // as soon as React flushes the update
-  React.useLayoutEffect(() => callbacks.forEach((callback) => callback()), [
-    callbacks,
-  ])
+  React.useLayoutEffect(
+    () => callbacks.forEach((callback) => callback()),
+    [callbacks]
+  )
   if (process.env.__NEXT_TEST_MODE) {
     // eslint-disable-next-line react-hooks/rules-of-hooks
     React.useEffect(() => {

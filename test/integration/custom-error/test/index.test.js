@@ -11,7 +11,6 @@ import {
   launchApp,
 } from 'next-test-utils'
 
-jest.setTimeout(1000 * 60 * 2)
 const appDir = join(__dirname, '..')
 const page404 = join(appDir, 'pages/404.js')
 const nextConfig = join(appDir, 'next.config.js')
@@ -25,7 +24,8 @@ const runTests = () => {
   })
 }
 
-const customErrNo404Match = /You have added a custom \/_error page without a custom \/404 page/
+const customErrNo404Match =
+  /You have added a custom \/_error page without a custom \/404 page/
 
 describe('Custom _error', () => {
   describe('dev mode 1', () => {
@@ -46,7 +46,7 @@ describe('Custom _error', () => {
       await fs.writeFile(page404, 'export default <h1>')
       const html = await renderViaHTTP(appPort, '/404')
       await fs.remove(page404)
-      expect(html).toContain('Syntax error')
+      expect(html).toContain('Unexpected eof')
       expect(stderr).not.toMatch(customErrNo404Match)
     })
   })

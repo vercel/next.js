@@ -106,6 +106,10 @@
           ]
         },
         {
+          "title": "Middleware",
+          "path": "/docs/middleware.md"
+        },
+        {
           "title": "Going to Production",
           "path": "/docs/going-to-production.md"
         },
@@ -116,6 +120,10 @@
         {
           "title": "Authentication",
           "path": "/docs/authentication.md"
+        },
+        {
+          "title": "Testing",
+          "path": "/docs/testing.md"
         },
         {
           "title": "Advanced Features",
@@ -218,8 +226,16 @@
               "path": "/docs/advanced-features/i18n-routing.md"
             },
             {
+              "title": "Output File Tracing",
+              "path": "/docs/advanced-features/output-file-tracing.md"
+            },
+            {
               "title": "Security Headers",
               "path": "/docs/advanced-features/security-headers.md"
+            },
+            {
+              "title": "React 18",
+              "path": "/docs/advanced-features/react-18.md"
             }
           ]
         },
@@ -273,12 +289,24 @@
           "path": "/docs/api-reference/next/image.md"
         },
         {
+          "title": "next/script",
+          "path": "/docs/api-reference/next/script.md"
+        },
+        {
           "title": "next/head",
           "path": "/docs/api-reference/next/head.md"
         },
         {
           "title": "next/amp",
           "path": "/docs/api-reference/next/amp.md"
+        },
+        {
+          "title": "next/server",
+          "path": "/docs/api-reference/next/server.md"
+        },
+        {
+          "title": "Edge Runtime",
+          "path": "/docs/api-reference/edge-runtime.md"
         },
         {
           "title": "Data Fetching",
@@ -349,6 +377,10 @@
               "path": "/docs/api-reference/next.config.js/disabling-etag-generation.md"
             },
             {
+              "title": "Disabling HTTP Keep-Alive",
+              "path": "/docs/api-reference/next.config.js/disabling-http-keep-alive.md"
+            },
+            {
               "title": "Setting a custom build directory",
               "path": "/docs/api-reference/next.config.js/setting-a-custom-build-directory.md"
             },
@@ -379,6 +411,14 @@
             {
               "title": "React Strict Mode",
               "path": "/docs/api-reference/next.config.js/react-strict-mode.md"
+            },
+            {
+              "title": "URL Imports",
+              "path": "/docs/api-reference/next.config.js/url-imports.md"
+            },
+            {
+              "title": "Build indicator",
+              "path": "/docs/api-reference/next.config.js/build-indicator.md"
             }
           ]
         }
