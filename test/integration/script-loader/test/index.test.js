@@ -3,34 +3,24 @@
 import { join } from 'path'
 import {
   renderViaHTTP,
-  nextServer,
-  startApp,
-  stopApp,
-  nextBuild,
   waitFor,
+  findPort,
+  launchApp,
+  killApp,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import cheerio from 'cheerio'
 
 let appDir = join(__dirname, '..')
-let server
+let app
 let appPort
 
 describe('Script Loader', () => {
   beforeAll(async () => {
-    await nextBuild(appDir)
-    const app = nextServer({
-      dir: appDir,
-      dev: false,
-      quiet: true,
-    })
-
-    server = await startApp(app)
-    appPort = server.address().port
+    appPort = await findPort()
+    app = await launchApp(appDir, appPort)
   })
-  afterAll(() => {
-    stopApp(server)
-  })
+  afterAll(() => killApp(app))
 
   it('priority afterInteractive', async () => {
     let browser
@@ -118,9 +108,16 @@ describe('Script Loader', () => {
       expect(
         $(`#${id} ~ script[src^="/_next/static/chunks/main"]`).length
       ).toBeGreaterThan(0)
+
+      if (id === 'scriptBeforeInteractiveDangerous') {
+        expect(script.contents().first().text()).toEqual('//hello')
+        expect(script.attr('src')).toEqual(undefined)
+        expect(typeof script.attr('src')).toBe('undefined')
+      }
     }
 
     test('scriptBeforeInteractive')
+    test('scriptBeforeInteractiveDangerous')
     test('documentBeforeInteractive')
   })
 

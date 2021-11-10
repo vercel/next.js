@@ -8,6 +8,13 @@ const Page = () => {
         src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js?a=scriptBeforeInteractive"
         strategy="beforeInteractive"
       ></Script>
+      <Script
+        id="scriptBeforeInteractiveDangerous"
+        strategy="beforeInteractive"
+        dangerouslySetInnerHTML={{
+          __html: `//hello`,
+        }}
+      />
       <div>page1</div>
     </div>
   )
