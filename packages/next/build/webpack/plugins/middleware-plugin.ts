@@ -205,7 +205,12 @@ export default class MiddlewarePlugin {
         })
 
         const handler = (parser: webpack5.javascript.JavascriptParser) => {
+          const isMiddlewareModule = () =>
+            parser.state.module && parser.state.module.layer === 'middleware'
+
           const wrapExpression = (expr: any) => {
+            if (!isMiddlewareModule()) return
+
             if (dev) {
               const dep1 = new wp.dependencies.ConstDependency(
                 '__next_eval__(function() { return ',
@@ -242,10 +247,14 @@ export default class MiddlewarePlugin {
           }
 
           const expressionHandler = () => {
+            if (!isMiddlewareModule()) return
+
             wp.optimize.InnerGraph.onUsage(parser.state, flagModule)
           }
 
           const ignore = () => {
+            if (!isMiddlewareModule()) return
+
             return true
           }
 
@@ -282,12 +291,7 @@ export default class MiddlewarePlugin {
             .tap(PLUGIN_NAME, ignore)
 
           const memberChainHandler = (_expr: any, members: string[]) => {
-            if (
-              !parser.state.module ||
-              parser.state.module.layer !== 'middleware'
-            ) {
-              return
-            }
+            if (!isMiddlewareModule()) return
 
             if (members.length >= 2 && members[0] === 'env') {
               const envName = members[1]
