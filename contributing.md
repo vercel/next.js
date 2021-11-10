@@ -164,7 +164,7 @@ There are two options to develop with your local version of the codebase:
    yarn install --force
    ```
 
-#### Trouble Shooting
+#### Troubleshooting
 
 - If you see the below error while running `yarn dev` with next:
 
