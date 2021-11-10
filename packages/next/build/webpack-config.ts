@@ -554,7 +554,10 @@ export default async function getBaseWebpackConfig(
       } as ClientEntries)
     : undefined
 
-  const { jsConfig, resolvedBaseUrl } = await loadJsConfig(dir, config)
+  const { useTypeScript, jsConfig, resolvedBaseUrl } = await loadJsConfig(
+    dir,
+    config
+  )
 
   function getReactProfilingInProduction() {
     if (reactProductionProfiling) {

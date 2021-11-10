@@ -77,6 +77,7 @@ export default async function loadJsConfig(
     resolvedBaseUrl = path.resolve(dir, jsConfig.compilerOptions.baseUrl)
   }
   return {
+    useTypeScript,
     jsConfig,
     resolvedBaseUrl,
   }
