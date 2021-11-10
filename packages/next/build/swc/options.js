@@ -6,6 +6,7 @@ function getBaseSWCOptions({
   development,
   hasReactRefresh,
   globalWindow,
+  styledComponents,
 }) {
   const isTSFile = filename.endsWith('.ts')
   const isTypeScript = isTSFile || filename.endsWith('.tsx')
@@ -42,6 +43,11 @@ function getBaseSWCOptions({
         },
       },
     },
+    styledComponents: styledComponents
+      ? {
+          displayName: Boolean(development),
+        }
+      : null,
   }
 }
 
@@ -78,12 +84,14 @@ export function getLoaderSWCOptions({
   pagesDir,
   isPageFile,
   hasReactRefresh,
+  styledComponents,
 }) {
   let baseOptions = getBaseSWCOptions({
     filename,
     development,
     globalWindow: !isServer,
     hasReactRefresh,
+    styledComponents,
   })
 
   const isNextDist = nextDistPath.test(filename)

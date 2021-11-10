@@ -59,6 +59,7 @@ export async function run(params: {
         timeLog: console.timeLog.bind(console),
         warn: console.warn.bind(console),
       },
+      CryptoKey: polyfills.CryptoKey,
       Crypto: polyfills.Crypto,
       crypto: new polyfills.Crypto(),
       fetch: (input: RequestInfo, init: RequestInit = {}) => {
@@ -86,6 +87,30 @@ export async function run(params: {
       TransformStream,
       URL,
       URLSearchParams,
+
+      // Indexed collections
+      Array,
+      Int8Array,
+      Uint8Array,
+      Uint8ClampedArray,
+      Int16Array,
+      Uint16Array,
+      Int32Array,
+      Uint32Array,
+      Float32Array,
+      Float64Array,
+      BigInt64Array,
+      BigUint64Array,
+
+      // Keyed collections
+      Map,
+      Set,
+      WeakMap,
+      WeakSet,
+
+      // Structured data
+      ArrayBuffer,
+      SharedArrayBuffer,
     }
 
     context.self = context
