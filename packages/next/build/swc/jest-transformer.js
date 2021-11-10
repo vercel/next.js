@@ -30,10 +30,6 @@ import vm from 'vm'
 import { transformSync } from './index'
 import { getJestSWCOptions } from './options'
 
-console.warn(
-  '"next/jest" is currently experimental. https://nextjs.org/docs/messages/experimental-jest-transformer'
-)
-
 // Jest use the `vm` [Module API](https://nodejs.org/api/vm.html#vm_class_vm_module) for ESM.
 // see https://github.com/facebook/jest/issues/9430
 const isSupportEsm = 'Module' in vm

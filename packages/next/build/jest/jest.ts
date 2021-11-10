@@ -25,6 +25,10 @@ function loadClosestPackageJson(dir: string, attempts = 1): any {
   }
 }
 
+console.warn(
+  '"next/jest" is currently experimental. https://nextjs.org/docs/messages/experimental-jest-transformer'
+)
+
 /*
 // Usage in jest.config.js
 const nextJest = require('next/jest');
