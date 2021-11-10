@@ -243,8 +243,8 @@ function getFetchHeaders(middleware: string, init: RequestInit) {
   return headers
 }
 
-function getFetchURL(input: RequestInfo, headers: NodeHeaders = {}): string {
-  const initurl = isRequestLike(input) ? input.url : input
+function getFetchURL(input: unknown, headers: NodeHeaders = {}): string {
+  const initurl = isRequestLike(input) ? input.url : String(input)
   if (initurl.startsWith('/')) {
     const host = headers.host?.toString()
     const localhost =
