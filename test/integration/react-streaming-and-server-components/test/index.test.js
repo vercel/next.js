@@ -224,6 +224,7 @@ async function runBasicTests(context) {
     )
 
     expect(homeHTML).toContain('thisistheindexpage.server')
+    expect(homeHTML).toContain('env_var_test')
     expect(homeHTML).toContain('foo.client')
 
     expect(dynamicRouteHTML1).toContain('[pid]')
