@@ -1337,8 +1337,10 @@ export default async function getBaseWebpackConfig(
       // Makes sure `Buffer` and `process` are polyfilled in client and flight bundles (same behavior as webpack 4)
       targetWeb &&
         new webpack.ProvidePlugin({
+          // Buffer is used by getInlineScriptSource
           Buffer: [require.resolve('buffer'), 'Buffer'],
-          process: [require.resolve('process')],
+          // Avoid process being overridden when in web run time
+          ...(!isServer && { process: [require.resolve('process')] }),
         }),
       new webpack.DefinePlugin({
         ...Object.keys(process.env).reduce(
