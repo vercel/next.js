@@ -89,6 +89,22 @@ The introduction of the `307` status code means that the request method is prese
 
 The `redirect()` method uses a `307` by default, instead of a `302` temporary redirect, meaning your requests will _always_ be preserved as `POST` requests.
 
+### Accessing environment variables
+
+`process.env` holds an object with all environment variables used in Middleware, for both production and development environments. If you are not using any environment variables in your Middleware, the `process.env` object will be empty. `process.env` will only include environment variables _actually_ used.
+
+Any variables in `process.env` can be accessed directly, and **cannot** be destructured:
+
+```ts
+// This will not work
+const { NODE_ENV } = process.env
+console.log(NODE_ENV)
+// Empty object
+console.log(process.env)
+// Accessed directly, and not destructured works
+console.log(process.env.NODE_ENV)
+```
+
 ## Related
 
 <div class="card">
