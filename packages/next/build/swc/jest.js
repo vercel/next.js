@@ -61,22 +61,14 @@ const isSupportEsm = 'Module' in vm
 
 let nextConfig
 
-module.exports = {
+export default {
   process(src, filename, jestOptions) {
     if (!/\.[jt]sx?$/.test(filename)) {
       return src
     }
 
     if (!nextConfig) {
-      let transformConfig = getSwcTransformConfig(jestOptions)
-      let configPath = transformConfig
-        ? path.posix.isAbsolute(transformConfig.configFile)
-          ? transformConfig.configFile
-          : path.join(process.cwd(), transformConfig.configFile)
-        : findUp.sync(CONFIG_FILES, { cwd: process.cwd() })
-      if (configPath) {
-        nextConfig = require(configPath)
-      }
+      loadNextConfig(jestOptions, process.cwd())
     }
 
     let swcTransformOpts = getJestSWCOptions({
@@ -89,10 +81,22 @@ module.exports = {
   },
 }
 
+// exported for testing
+export function loadNextConfig(jestOptions, cwd) {
+  let transformConfig = getSwcTransformConfig(jestOptions)
+  let configPath = transformConfig?.configFile
+    ? path.posix.isAbsolute(transformConfig.configFile)
+      ? transformConfig.configFile
+      : path.join(cwd, transformConfig.configFile)
+    : findUp.sync(CONFIG_FILES, { cwd })
+  if (configPath) {
+    return require(configPath)
+  }
+}
+
 function getSwcTransformConfig(jestConfig) {
-  return getJestConfig(jestConfig).transform.find(
-    ([, transformerPath]) =>
-      transformerPath === transformerPath.includes('next/jest')
+  return getJestConfig(jestConfig).transform.find(([, transformerPath]) =>
+    transformerPath.includes('next/jest')
   )?.[2]
 }
 
