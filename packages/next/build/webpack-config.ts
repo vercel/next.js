@@ -1339,7 +1339,7 @@ export default async function getBaseWebpackConfig(
         new webpack.ProvidePlugin({
           // Buffer is used by getInlineScriptSource
           Buffer: [require.resolve('buffer'), 'Buffer'],
-          // Avoid process been overridden when in web run time
+          // Avoid process being overridden when in web run time
           ...(!isServer && { process: [require.resolve('process')] }),
         }),
       new webpack.DefinePlugin({
