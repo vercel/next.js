@@ -8,12 +8,13 @@ const Page = () => {
   return (
     <>
       <Head>
-        <script nonce="abc" src={useSrc1 ? '/src-1.js' : '/src-2.js'} />
+        <script nonce="abc123" src={useSrc1 ? '/src-1.js' : '/src-2.js'} />
       </Head>
+      <h1 id="h1">{'Count ' + counter}</h1>
       <button id="force-rerender" onClick={() => setCounter(counter + 1)}>
         Re-render
       </button>
-      <button id="change-script-src" onClick={() => setUseSrc1(!useSrc1)}>
+      <button id="change-script" onClick={() => setUseSrc1(!useSrc1)}>
         Change script src
       </button>
     </>

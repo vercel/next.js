@@ -4,10 +4,10 @@ class NextDocument extends Document {
   render() {
     return (
       <Html>
-        <Head nonce="abc" />
+        <Head nonce="abc123" />
         <body>
           <Main />
-          <NextScript nonce="abc" />
+          <NextScript nonce="abc123" />
         </body>
       </Html>
     )
