@@ -157,6 +157,7 @@ function Script(props: ScriptProps): JSX.Element | null {
           src,
           onLoad,
           onError,
+          dangerouslySetInnerHTML,
           ...restProps,
         },
       ])

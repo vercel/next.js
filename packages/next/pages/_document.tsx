@@ -75,6 +75,12 @@ function getPreNextScripts(context: HtmlProps, props: OriginProps) {
   return (scriptLoader.beforeInteractive || []).map(
     (file: ScriptProps, index: number) => {
       const { strategy, ...scriptProps } = file
+
+      // Prevent (unknown) src
+      if (!scriptProps.src) {
+        delete scriptProps.src
+      }
+
       return (
         <script
           {...scriptProps}
