@@ -820,7 +820,9 @@ export async function renderToHTML(
     props.pageProps = Object.assign(
       {},
       props.pageProps,
-      'props' in data ? data.props : undefined
+      'props' in data ? data.props : undefined,
+      // Pass router to the Server Component as a temporary workaround.
+      isServerComponent ? { router } : undefined
     )
 
     // pass up revalidate and props for export
@@ -994,7 +996,7 @@ export async function renderToHTML(
         res.write,
         next
       )
-      startWriting(renderServerComponent!(props.pageProps))
+      startWriting(renderServerComponent!(props))
     })
   }
 
