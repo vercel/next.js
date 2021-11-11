@@ -30,45 +30,30 @@ import vm from 'vm'
 import { transformSync } from './index'
 import { getJestSWCOptions } from './options'
 
-console.warn(
-  '"next/jest" is currently experimental. https://nextjs.org/docs/messages/experimental-jest-transformer'
-)
-
-/**
- * Loads closest package.json in the directory hierarchy
- */
-function loadClosestPackageJson(attempts = 1) {
-  if (attempts > 5) {
-    throw new Error("Can't resolve main package.json file")
-  }
-  var mainPath = attempts === 1 ? './' : Array(attempts).join('../')
-  try {
-    return require(mainPath + 'package.json')
-  } catch (e) {
-    return loadClosestPackageJson(attempts + 1)
-  }
-}
-
-const packageConfig = loadClosestPackageJson()
-const isEsmProject = packageConfig.type === 'module'
-
 // Jest use the `vm` [Module API](https://nodejs.org/api/vm.html#vm_class_vm_module) for ESM.
 // see https://github.com/facebook/jest/issues/9430
 const isSupportEsm = 'Module' in vm
 
 module.exports = {
-  process(src, filename, jestOptions) {
-    if (!/\.[jt]sx?$/.test(filename)) {
-      return src
-    }
+  createTransformer: (inputOptions) => ({
+    process(src, filename, jestOptions) {
+      if (!/\.[jt]sx?$/.test(filename)) {
+        return src
+      }
 
-    let swcTransformOpts = getJestSWCOptions({
-      filename,
-      esm: isSupportEsm && isEsm(filename, jestOptions),
-    })
+      let swcTransformOpts = getJestSWCOptions({
+        filename,
+        styledComponents: inputOptions.styledComponents,
+        paths: inputOptions.paths,
+        baseUrl: inputOptions.resolvedBaseUrl,
+        esm:
+          isSupportEsm &&
+          isEsm(Boolean(inputOptions.isEsmProject), filename, jestOptions),
+      })
 
-    return transformSync(src, { ...swcTransformOpts, filename })
-  },
+      return transformSync(src, { ...swcTransformOpts, filename })
+    },
+  }),
 }
 
 function getJestConfig(jestConfig) {
@@ -79,7 +64,7 @@ function getJestConfig(jestConfig) {
       jestConfig
 }
 
-function isEsm(filename, jestOptions) {
+function isEsm(isEsmProject, filename, jestOptions) {
   return (
     (/\.jsx?$/.test(filename) && isEsmProject) ||
     getJestConfig(jestOptions).extensionsToTreatAsEsm?.find((ext) =>
