@@ -129,7 +129,8 @@ export default async function middlewareRSCLoader(this: any) {
             )
             result.pipe({
               write: str => writer.write(encoder.encode(str)),
-              end: () => writer.close()
+              end: () => writer.close(),
+              // Not implemented: cork/uncork/on/removeListener
             })
           } catch (err) {
             return new Response(

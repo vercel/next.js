@@ -204,7 +204,7 @@ export type RenderOptsPartial = {
   devOnlyCacheBusterQueryString?: string
   resolvedUrl?: string
   resolvedAsPath?: string
-  renderServerComponent?: null | ((props: any) => Promise<string>)
+  renderServerComponent?: null | ((props: any) => ReadableStream)
   renderServerComponentData?: boolean
   distDir?: string
   locale?: string
@@ -990,21 +990,11 @@ export async function renderToHTML(
 
   if (renderServerComponentData) {
     return new RenderResult((res, next) => {
-      const readable = (renderServerComponent as any)(props.pageProps)
-      const reader = readable.getReader()
-      const decoder = new TextDecoder()
-      const process = () => {
-        reader.read().then(({ done, value }: any) => {
-          if (!done) {
-            res.write(typeof value === 'string' ? value : decoder.decode(value))
-            process()
-          } else {
-            res.end()
-            next()
-          }
-        })
-      }
-      process()
+      const { startWriting } = connectReactServerReadableStreamToPiper(
+        res.write,
+        next
+      )
+      startWriting(renderServerComponent!(props.pageProps))
     })
   }
 
@@ -1146,7 +1136,7 @@ export async function renderToHTML(
 
         return concurrentFeatures
           ? process.browser
-            ? await renderToReadableStream(content)
+            ? await renderToWebStream(content)
             : await renderToNodeStream(content, generateStaticHTML)
           : piperFromArray([ReactDOMServer.renderToString(content)])
       }
@@ -1532,33 +1522,32 @@ function renderToNodeStream(
   })
 }
 
-function renderToReadableStream(
-  element: React.ReactElement
-): NodeWritablePiper {
-  return (res, next) => {
-    let bufferedString = ''
-    let shellCompleted = false
+function connectReactServerReadableStreamToPiper(
+  write: (s: string) => boolean,
+  next: (err?: Error) => void
+) {
+  let bufferedString = ''
 
-    const readable = (ReactDOMServer as any).renderToReadableStream(element, {
-      onCompleteShell() {
-        shellCompleted = true
-        if (bufferedString) {
-          res.write(bufferedString)
-          bufferedString = ''
-        }
-      },
-    })
+  function flushBuffer() {
+    // Intentionally delayed writing when using ReadableStream due to the lack
+    // of cork/uncork APIs.
+    setTimeout(() => {
+      if (!bufferedString) return
+      if (write(bufferedString)) {
+        bufferedString = ''
+      }
+    }, 0)
+  }
+
+  function startWriting(readable: ReadableStream) {
     const reader = readable.getReader()
     const decoder = new TextDecoder()
     const process = () => {
       reader.read().then(({ done, value }: any) => {
         if (!done) {
           const s = typeof value === 'string' ? value : decoder.decode(value)
-          if (shellCompleted) {
-            res.write(s)
-          } else {
-            bufferedString += s
-          }
+          bufferedString += s
+          flushBuffer()
           process()
         } else {
           next()
@@ -1566,6 +1555,36 @@ function renderToReadableStream(
       })
     }
     process()
+  }
+
+  return {
+    flushBuffer,
+    startWriting,
+  }
+}
+
+function renderToWebStream(element: React.ReactElement): NodeWritablePiper {
+  return (res, next) => {
+    let shellCompleted = false
+
+    const { flushBuffer, startWriting } =
+      connectReactServerReadableStreamToPiper((s: string) => {
+        // Buffer result until the shell is completed.
+        if (shellCompleted) {
+          res.write(s)
+          return true
+        }
+        return false
+      }, next)
+
+    startWriting(
+      (ReactDOMServer as any).renderToReadableStream(element, {
+        onCompleteShell() {
+          shellCompleted = true
+          flushBuffer()
+        },
+      })
+    )
   }
 }
 
