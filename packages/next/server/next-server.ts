@@ -426,6 +426,11 @@ export default class Server {
       })
 
       try {
+        // ensure parsedUrl.pathname includes URL before processing
+        // rewrites or they won't match correctly
+        if (this.nextConfig.i18n && !url.locale?.path.detectedLocale) {
+          parsedUrl.pathname = `/${url.locale?.locale}${parsedUrl.pathname}`
+        }
         utils.handleRewrites(req, parsedUrl)
 
         // interpolate dynamic params and normalize URL if needed
@@ -487,6 +492,7 @@ export default class Server {
           ? ''
           : matchedPathname
       }`
+      url.pathname = parsedUrl.pathname
     }
 
     addRequestMeta(req, '__nextHadTrailingSlash', url.locale?.trailingSlash)
