@@ -13,7 +13,7 @@ description: Learn how to set up Next.js with three commonly used testing tools 
   </ul>
 </details>
 
-Learn how to set up Next.js with three commonly used testing tools: [Cypress](https://www.cypress.io/blog/2021/04/06/cypress-component-testing-react/), [Jest](https://jestjs.io/docs/tutorial-react), and [React Testing Library](https://testing-library.com/docs/react-testing-library/intro/).
+Learn how to set up Next.js with commonly used testing tools: [Cypress](https://nextjs.org/docs/testing#cypress), [Playwright](https://nextjs.org/docs/testing#playwright), and [Jest with React Testing Library](https://nextjs.org/docs/testing#jest-and-react-testing-library).
 
 ## Cypress
 
