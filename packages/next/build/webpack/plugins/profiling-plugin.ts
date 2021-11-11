@@ -1,6 +1,6 @@
 import { NormalModule } from 'next/dist/compiled/webpack/webpack'
 import { Span } from '../../../trace'
-import type webpack from 'webpack'
+import type { webpack5 as webpack } from 'next/dist/compiled/webpack/webpack'
 
 const pluginName = 'ProfilingPlugin'
 export const spans = new WeakMap<webpack.Compilation | webpack.Compiler, Span>()

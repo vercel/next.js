@@ -30,9 +30,10 @@ export function getGlobalCssLoader(
       importLoaders: 1 + preProcessors.length,
       // Next.js controls CSS Modules eligibility:
       modules: false,
-      url: cssFileResolve,
+      url: (url: string, resourcePath: string) =>
+        cssFileResolve(url, resourcePath, ctx.experimental.urlImports),
       import: (url: string, _: any, resourcePath: string) =>
-        cssFileResolve(url, resourcePath),
+        cssFileResolve(url, resourcePath, ctx.experimental.urlImports),
     },
   })
 

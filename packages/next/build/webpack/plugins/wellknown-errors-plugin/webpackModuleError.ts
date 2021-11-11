@@ -1,15 +1,15 @@
 import { readFileSync } from 'fs'
 import * as path from 'path'
+import type { webpack5 as webpack } from 'next/dist/compiled/webpack/webpack'
 import { getBabelError } from './parseBabel'
 import { getCssError } from './parseCss'
 import { getScssError } from './parseScss'
 import { getNotFoundError } from './parseNotFoundError'
 import { SimpleWebpackError } from './simpleWebpackError'
 import isError from '../../../../lib/is-error'
-import type webpack5 from 'webpack5'
 
 function getFileData(
-  compilation: webpack5.Compilation,
+  compilation: webpack.Compilation,
   m: any
 ): [string, string | null] {
   let resolved: string
@@ -41,7 +41,7 @@ function getFileData(
 }
 
 export async function getModuleBuildError(
-  compilation: webpack5.Compilation,
+  compilation: webpack.Compilation,
   input: any
 ): Promise<SimpleWebpackError | false> {
   if (

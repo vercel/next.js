@@ -292,7 +292,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     if (
       images.loader !== 'default' &&
       images.loader !== 'custom' &&
-      !(images.path || '').startsWith('http')
+      images.path === imageConfigDefault.path
     ) {
       throw new Error(
         `Specified images.loader property (${images.loader}) also requires images.path property to be assigned to a URL prefix.\nSee more info here: https://nextjs.org/docs/api-reference/next/image#loader-configuration`
@@ -358,14 +358,17 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     )
   }
 
-  if (result.experimental && 'nftTracing' in (result.experimental as any)) {
-    // TODO: remove this warning and assignment when we leave experimental phase
+  if (result.experimental && 'swcMinify' in (result.experimental as any)) {
     Log.warn(
-      `Experimental \`nftTracing\` has been renamed to \`outputFileTracing\`. Please update your ${configFileName} file accordingly.`
+      `\`swcMinify\` has been moved out of \`experimental\`. Please update your ${configFileName} file accordingly.`
     )
-    result.experimental.outputFileTracing = (
-      result.experimental as any
-    ).nftTracing
+    result.swcMinify = (result.experimental as any).swcMinify
+  }
+
+  if (result.swcMinify) {
+    Log.warn(
+      'SWC minify beta enabled. https://nextjs.org/docs/messages/swc-minify-enabled'
+    )
   }
 
   // TODO: Change defaultConfig type to NextConfigComplete
@@ -572,6 +575,13 @@ export default async function loadConfig(
         `Specified target is invalid. Provided: "${
           userConfig.target
         }" should be one of ${targets.join(', ')}`
+      )
+    }
+
+    if (userConfig.target && userConfig.target !== 'server') {
+      Log.warn(
+        'The `target` config is deprecated and will be removed in a future version.\n' +
+          'See more info here https://nextjs.org/docs/messages/deprecated-target-config'
       )
     }
 

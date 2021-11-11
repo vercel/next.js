@@ -228,7 +228,7 @@ async function main() {
   )
   const children = new Set()
 
-  const runTest = (test = '', usePolling, isFinalRun) =>
+  const runTest = (test = '', isFinalRun) =>
     new Promise((resolve, reject) => {
       const start = new Date().getTime()
       let outputChunks = []
@@ -250,13 +250,14 @@ async function main() {
             ...process.env,
             // run tests in headless mode by default
             HEADLESS: 'true',
-            ...(usePolling
+            TRACE_PLAYWRIGHT: 'true',
+            ...(isFinalRun
               ? {
                   // Events can be finicky in CI. This switches to a more
                   // reliable polling method.
-                  CHOKIDAR_USEPOLLING: 'true',
-                  CHOKIDAR_INTERVAL: 500,
-                  WATCHPACK_POLLING: 500,
+                  // CHOKIDAR_USEPOLLING: 'true',
+                  // CHOKIDAR_INTERVAL: 500,
+                  // WATCHPACK_POLLING: 500,
                 }
               : {}),
           },
@@ -274,7 +275,7 @@ async function main() {
 
       children.add(child)
 
-      child.on('exit', (code) => {
+      child.on('exit', async (code) => {
         children.delete(child)
         if (code) {
           if (isFinalRun && hideOutput) {
@@ -297,8 +298,19 @@ async function main() {
             }
             trimmedOutput.forEach((chunk) => process.stdout.write(chunk))
           }
-          reject(new Error(`failed with code: ${code}`))
+          return reject(new Error(`failed with code: ${code}`))
         }
+        await fs
+          .remove(
+            path.join(
+              __dirname,
+              'test/traces',
+              path
+                .relative(path.join(__dirname, 'test'), test)
+                .replace(/\//g, '-')
+            )
+          )
+          .catch(() => {})
         resolve(new Date().getTime() - start)
       })
     })
@@ -318,7 +330,7 @@ async function main() {
       for (let i = 0; i < numRetries + 1; i++) {
         try {
           console.log(`Starting ${test} retry ${i}/${numRetries}`)
-          const time = await runTest(test, i > 0, i === numRetries)
+          const time = await runTest(test, i === numRetries)
           timings.push({
             file: test,
             time,

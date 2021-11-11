@@ -1,6 +1,6 @@
 import { EventEmitter } from 'events'
 import { join, posix } from 'path'
-import { webpack } from 'next/dist/compiled/webpack/webpack'
+import type { webpack5 as webpack } from 'next/dist/compiled/webpack/webpack'
 import { normalizePagePath, normalizePathSep } from '../normalize-page-path'
 import { pageNotFoundError } from '../require'
 import { findPageFile } from '../lib/find-page-file'
@@ -8,12 +8,14 @@ import getRouteFromEntrypoint from '../get-route-from-entrypoint'
 import { API_ROUTE, MIDDLEWARE_ROUTE } from '../../lib/constants'
 import { reportTrigger } from '../../build/output'
 import type ws from 'ws'
+import { NextConfigComplete } from '../config-shared'
+import { isCustomErrorPage } from '../../build/utils'
 
 export const ADDED = Symbol('added')
 export const BUILDING = Symbol('building')
 export const BUILT = Symbol('built')
 
-export let entries: {
+export const entries: {
   [page: string]: {
     bundlePath: string
     absolutePagePath: string
@@ -28,12 +30,12 @@ export default function onDemandEntryHandler(
   multiCompiler: webpack.MultiCompiler,
   {
     pagesDir,
-    pageExtensions,
+    nextConfig,
     maxInactiveAge,
     pagesBufferLength,
   }: {
     pagesDir: string
-    pageExtensions: string[]
+    nextConfig: NextConfigComplete
     maxInactiveAge: number
     pagesBufferLength: number
   }
@@ -47,7 +49,7 @@ export default function onDemandEntryHandler(
   for (const compiler of compilers) {
     compiler.hooks.make.tap(
       'NextJsOnDemandEntries',
-      (_compilation: webpack.compilation.Compilation) => {
+      (_compilation: webpack.Compilation) => {
         invalidator.startBuilding()
       }
     )
@@ -72,7 +74,7 @@ export default function onDemandEntryHandler(
     if (invalidator.rebuildAgain) {
       return invalidator.doneBuilding()
     }
-    const [clientStats, serverStats] = multiStats.stats
+    const [clientStats, serverStats, serverWebStats] = multiStats.stats
     const pagePaths = [
       ...getPagePathsFromEntrypoints(
         'client',
@@ -82,6 +84,12 @@ export default function onDemandEntryHandler(
         'server',
         serverStats.compilation.entrypoints
       ),
+      ...(serverWebStats
+        ? getPagePathsFromEntrypoints(
+            'server-web',
+            serverWebStats.compilation.entrypoints
+          )
+        : []),
     ]
 
     for (const page of pagePaths) {
@@ -158,7 +166,7 @@ export default function onDemandEntryHandler(
       let pagePath = await findPageFile(
         pagesDir,
         normalizedPagePath,
-        pageExtensions
+        nextConfig.pageExtensions
       )
 
       // Default the /_error route to the Next.js provided default page
@@ -179,7 +187,10 @@ export default function onDemandEntryHandler(
         let pageUrl = pagePath.replace(/\\/g, '/')
 
         pageUrl = `${pageUrl[0] !== '/' ? '/' : ''}${pageUrl
-          .replace(new RegExp(`\\.+(?:${pageExtensions.join('|')})$`), '')
+          .replace(
+            new RegExp(`\\.+(?:${nextConfig.pageExtensions.join('|')})$`),
+            ''
+          )
           .replace(/\/index$/, '')}`
 
         pageUrl = pageUrl === '' ? '/' : pageUrl
@@ -193,9 +204,11 @@ export default function onDemandEntryHandler(
 
       const isMiddleware = normalizedPage.match(MIDDLEWARE_ROUTE)
       const isApiRoute = normalizedPage.match(API_ROUTE) && !isMiddleware
+      const isServerWeb = !!nextConfig.experimental.concurrentFeatures
+      const isCustomError = isCustomErrorPage(page)
 
       let entriesChanged = false
-      const addPageEntry = (type: 'client' | 'server') => {
+      const addPageEntry = (type: 'client' | 'server' | 'server-web') => {
         return new Promise<void>((resolve, reject) => {
           // Makes sure the page that is being kept in on-demand-entries matches the webpack output
           const pageKey = `${type}${page}`
@@ -231,17 +244,24 @@ export default function onDemandEntryHandler(
         })
       }
 
+      const isClientOrMiddleware = clientOnly || isMiddleware
+
       const promise = isApiRoute
         ? addPageEntry('server')
-        : clientOnly || isMiddleware
+        : isClientOrMiddleware
         ? addPageEntry('client')
-        : Promise.all([addPageEntry('client'), addPageEntry('server')])
+        : Promise.all([
+            addPageEntry('client'),
+            addPageEntry(
+              isServerWeb && !isCustomError ? 'server-web' : 'server'
+            ),
+          ])
 
       if (entriesChanged) {
         reportTrigger(
-          isApiRoute || isMiddleware
+          isApiRoute
             ? `${normalizedPage} (server only)`
-            : clientOnly
+            : isClientOrMiddleware
             ? `${normalizedPage} (client only)`
             : normalizedPage
         )

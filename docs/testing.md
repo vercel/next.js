@@ -13,7 +13,7 @@ description: Learn how to set up Next.js with three commonly used testing tools 
   </ul>
 </details>
 
-Learn how to set up Next.js with three commonly used testing tools: [Cypress](https://www.cypress.io/blog/2021/04/06/cypress-component-testing-react/), [Jest](https://jestjs.io/docs/tutorial-react), and [React Testing Library](https://testing-library.com/docs/react-testing-library/intro/).
+Learn how to set up Next.js with commonly used testing tools: [Cypress](https://nextjs.org/docs/testing#cypress), [Playwright](https://nextjs.org/docs/testing#playwright), and [Jest with React Testing Library](https://nextjs.org/docs/testing#jest-and-react-testing-library).
 
 ## Cypress
 
@@ -136,7 +136,7 @@ You can learn more about Cypress and Continuous Integration from these resources
 
 - [Cypress Continuous Integration Docs](https://docs.cypress.io/guides/continuous-integration/introduction)
 - [Cypress GitHub Actions Guide](https://on.cypress.io/github-actions)
-- [Official Cypress Github Action](https://github.com/cypress-io/github-action)
+- [Official Cypress GitHub Action](https://github.com/cypress-io/github-action)
 
 ## Playwright
 
@@ -456,7 +456,7 @@ The Next.js community has created packages and articles you may find helpful:
 For more information on what to read next, we recommend:
 
 <div class="card">
-  <a href="/docs/basic-features/environment-variables#test-environment-variable.md">
+  <a href="/docs/basic-features/environment-variables#test-environment-variables.md">
     <b>Test Environment Variables</b>
     <small>Learn more about the test environment variables.</small>
   </a>

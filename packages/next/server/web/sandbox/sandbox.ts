@@ -1,7 +1,6 @@
-import type { RequestData, FetchEventResult } from '../types'
+import type { RequestData, FetchEventResult, NodeHeaders } from '../types'
 import { Blob, File, FormData } from 'next/dist/compiled/formdata-node'
 import { dirname } from 'path'
-import { ReadableStream } from 'next/dist/compiled/web-streams-polyfill'
 import { readFileSync } from 'fs'
 import { TransformStream } from 'next/dist/compiled/web-streams-polyfill'
 import * as polyfills from './polyfills'
@@ -11,9 +10,11 @@ import vm from 'vm'
 let cache:
   | {
       context: { [key: string]: any }
+      onWarning: (warn: Error) => void
       paths: Map<string, string>
       require: Map<string, any>
       sandbox: vm.Context
+      warnedEvals: Set<string>
     }
   | undefined
 
@@ -34,11 +35,14 @@ export function clearSandboxCache(path: string, content: Buffer | string) {
 
 export async function run(params: {
   name: string
+  onWarning: (warn: Error) => void
   paths: string[]
   request: RequestData
+  ssr: boolean
 }): Promise<FetchEventResult> {
   if (cache === undefined) {
     const context: { [key: string]: any } = {
+      __next_eval__,
       _ENTRIES: {},
       atob: polyfills.atob,
       Blob,
@@ -55,13 +59,27 @@ export async function run(params: {
         timeLog: console.timeLog.bind(console),
         warn: console.warn.bind(console),
       },
+      CryptoKey: polyfills.CryptoKey,
       Crypto: polyfills.Crypto,
       crypto: new polyfills.Crypto(),
-      fetch,
+      fetch: (input: RequestInfo, init: RequestInit = {}) => {
+        const url = getFetchURL(input, params.request.headers)
+        init.headers = getFetchHeaders(params.name, init)
+        if (isRequestLike(input)) {
+          return fetch(url, {
+            ...init,
+            headers: {
+              ...Object.fromEntries(input.headers),
+              ...Object.fromEntries(init.headers),
+            },
+          })
+        }
+        return fetch(url, init)
+      },
       File,
       FormData,
       process: { env: { ...process.env } },
-      ReadableStream,
+      ReadableStream: polyfills.ReadableStream,
       setInterval,
       setTimeout,
       TextDecoder: polyfills.TextDecoder,
@@ -69,17 +87,52 @@ export async function run(params: {
       TransformStream,
       URL,
       URLSearchParams,
+
+      // Indexed collections
+      Array,
+      Int8Array,
+      Uint8Array,
+      Uint8ClampedArray,
+      Int16Array,
+      Uint16Array,
+      Int32Array,
+      Uint32Array,
+      Float32Array,
+      Float64Array,
+      BigInt64Array,
+      BigUint64Array,
+
+      // Keyed collections
+      Map,
+      Set,
+      WeakMap,
+      WeakSet,
+
+      // Structured data
+      ArrayBuffer,
+      SharedArrayBuffer,
     }
 
     context.self = context
+    context.globalThis = context
 
     cache = {
       context,
+      onWarning: params.onWarning,
+      paths: new Map<string, string>(),
       require: new Map<string, any>([
         [require.resolve('next/dist/compiled/cookie'), { exports: cookie }],
       ]),
-      paths: new Map<string, string>(),
-      sandbox: vm.createContext(context),
+      sandbox: vm.createContext(context, {
+        codeGeneration:
+          process.env.NODE_ENV === 'production'
+            ? {
+                strings: false,
+                wasm: false,
+              }
+            : undefined,
+      }),
+      warnedEvals: new Set(),
     }
 
     loadDependencies(cache.sandbox, [
@@ -96,6 +149,8 @@ export async function run(params: {
         map: { Request: 'Request' },
       },
     ])
+  } else {
+    cache.onWarning = params.onWarning
   }
 
   for (const paramPath of params.paths) {
@@ -114,6 +169,16 @@ export async function run(params: {
   }
 
   const entryPoint = cache.context._ENTRIES[`middleware_${params.name}`]
+
+  if (params.ssr) {
+    cache = undefined
+    if (entryPoint) {
+      return entryPoint.default({
+        request: params.request,
+      })
+    }
+  }
+
   return entryPoint.default({ request: params.request })
 }
 
@@ -167,4 +232,44 @@ function sandboxRequire(referrer: string, specifier: string) {
   }
   module.loaded = true
   return module.exports
+}
+
+function getFetchHeaders(middleware: string, init: RequestInit) {
+  const headers = new Headers(init.headers ?? {})
+  const prevsub = headers.get(`x-middleware-subrequest`) || ''
+  const value = prevsub.split(':').concat(middleware).join(':')
+  headers.set(`x-middleware-subrequest`, value)
+  headers.set(`user-agent`, `Next.js Middleware`)
+  return headers
+}
+
+function getFetchURL(input: RequestInfo, headers: NodeHeaders = {}): string {
+  const initurl = isRequestLike(input) ? input.url : input
+  if (initurl.startsWith('/')) {
+    const host = headers.host?.toString()
+    const localhost =
+      host === '127.0.0.1' ||
+      host === 'localhost' ||
+      host?.startsWith('localhost:')
+    return `${localhost ? 'http' : 'https'}://${host}${initurl}`
+  }
+  return initurl
+}
+
+function isRequestLike(obj: unknown): obj is Request {
+  return Boolean(obj && typeof obj === 'object' && 'url' in obj)
+}
+
+function __next_eval__(fn: Function) {
+  const key = fn.toString()
+  if (!cache?.warnedEvals.has(key)) {
+    const warning = new Error(
+      `Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Middleware`
+    )
+    warning.name = 'DynamicCodeEvaluationWarning'
+    Error.captureStackTrace(warning, __next_eval__)
+    cache?.warnedEvals.add(key)
+    cache?.onWarning(warning)
+  }
+  return fn()
 }

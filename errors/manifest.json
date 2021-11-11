@@ -9,8 +9,20 @@
           "path": "/errors/beta-middleware.md"
         },
         {
+          "title": "failed-loading-swc",
+          "path": "/errors/failed-loading-swc.md"
+        },
+        {
+          "title": "deprecated-target-config",
+          "path": "/errors/deprecated-target-config.md"
+        },
+        {
           "title": "custom-document-image-import",
           "path": "/errors/custom-document-image-import.md"
+        },
+        {
+          "title": "large-page-data",
+          "path": "/errors/large-page-data.md"
         },
         {
           "title": "404-get-initial-props",
@@ -486,6 +498,18 @@
         {
           "title": "swc-disabled",
           "path": "/errors/swc-disabled.md"
+        },
+        {
+          "title": "swc-minify-enabled",
+          "path": "/errors/swc-minify-enabled.md"
+        },
+        {
+          "title": "middleware-new-signature",
+          "path": "/errors/middleware-new-signature.md"
+        },
+        {
+          "title": "experimental-jest-transformer",
+          "path": "/errors/experimental-jest-transformer.md"
         }
       ]
     }
