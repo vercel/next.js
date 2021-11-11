@@ -412,6 +412,37 @@ describe('i18n Support', () => {
         }
       })
 
+      it('should return 404 error for repeating locales', async () => {
+        const defaultLocale = 'en-US'
+        for (const locale of nonDomainLocales) {
+          for (const asPath of [
+            '/gsp/fallback/always/',
+            '/post/comment/',
+            '/gssp/first/',
+          ]) {
+            const res = await fetchViaHTTP(
+              curCtx.appPort,
+              `/${locale}/${defaultLocale}${asPath}`,
+              undefined,
+              {
+                redirect: 'manual',
+              }
+            )
+            expect(res.status).toBe(404)
+            const $ = cheerio.load(await res.text())
+            const props = JSON.parse($('#props').text())
+            console.log(props)
+            expect($('#not-found').text().length > 0).toBe(true)
+            expect(props).toEqual({
+              is404: true,
+              locale,
+              locales,
+              defaultLocale,
+            })
+          }
+        }
+      })
+
       it('should navigate between pages correctly', async () => {
         for (const locale of nonDomainLocales) {
           const localePath = `/${locale !== 'en-US' ? `${locale}/` : ''}`
