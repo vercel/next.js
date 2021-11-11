@@ -7,12 +7,20 @@ function getBaseSWCOptions({
   hasReactRefresh,
   globalWindow,
   styledComponents,
+  paths,
+  baseUrl,
 }) {
   const isTSFile = filename.endsWith('.ts')
   const isTypeScript = isTSFile || filename.endsWith('.tsx')
 
   return {
     jsc: {
+      ...(baseUrl && paths
+        ? {
+            baseUrl,
+            paths,
+          }
+        : {}),
       parser: {
         syntax: isTypeScript ? 'typescript' : 'ecmascript',
         dynamicImport: true,
@@ -51,12 +59,21 @@ function getBaseSWCOptions({
   }
 }
 
-export function getJestSWCOptions({ filename, esm }) {
+export function getJestSWCOptions({
+  filename,
+  esm,
+  styledComponents,
+  paths,
+  baseUrl,
+}) {
   let baseOptions = getBaseSWCOptions({
     filename,
     development: false,
     hasReactRefresh: false,
     globalWindow: false,
+    styledComponents,
+    paths,
+    baseUrl,
   })
 
   const isNextDist = nextDistPath.test(filename)

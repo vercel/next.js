@@ -1,1 +1,1 @@
-module.exports = require('./dist/build/swc/jest')
+module.exports = require('./dist/build/jest/jest')
