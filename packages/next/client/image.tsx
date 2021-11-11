@@ -418,6 +418,11 @@ export default function Image({
         `Image with src "${src}" has both "priority" and "loading='lazy'" properties. Only one should be used.`
       )
     }
+    if (sizes && layout !== 'fill' && layout !== 'responsive') {
+      console.warn(
+        `Image with src "${src}" has "sizes" property but it will be ignored. Only use "sizes" with "layout='fill'" or "layout='responsive'".`
+      )
+    }
     if (placeholder === 'blur') {
       if (layout !== 'fill' && (widthInt || 0) * (heightInt || 0) < 1600) {
         console.warn(
@@ -451,13 +456,16 @@ export default function Image({
     }
 
     if (!unoptimized) {
-      const rand = Math.floor(Math.random() * 1000) + 100
-      const url = loader({ src, width: rand, quality: 75 })
-      if (
-        !url.includes(rand.toString()) &&
-        !url.includes('w=') &&
-        !url.includes('width=')
-      ) {
+      const urlStr = loader({
+        src,
+        width: widthInt || 400,
+        quality: qualityInt || 75,
+      })
+      let url: URL | undefined
+      try {
+        url = new URL(urlStr)
+      } catch (err) {}
+      if (urlStr === src || (url && url.pathname === src && !url.search)) {
         console.warn(
           `Image with src "${src}" has a "loader" property that does not implement width. Please implement it or use the "unoptimized" property instead.` +
             `\nRead more: https://nextjs.org/docs/messages/next-image-missing-loader-width`
@@ -756,7 +764,7 @@ function cloudinaryLoader({
 }: DefaultImageLoaderProps): string {
   // Demo: https://res.cloudinary.com/demo/image/upload/w_300,c_limit,q_auto/turtles.jpg
   const params = ['f_auto', 'c_limit', 'w_' + width, 'q_' + (quality || 'auto')]
-  let paramsString = params.join(',') + '/'
+  const paramsString = params.join(',') + '/'
   return `${root}${paramsString}${normalizeSrc(src)}`
 }
 

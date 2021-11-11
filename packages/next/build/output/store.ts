@@ -1,6 +1,7 @@
 import createStore from 'next/dist/compiled/unistore'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { flushAllTraces } from '../../trace'
+import { getUnresolvedModuleFromError } from '../utils'
 
 import * as Log from './log'
 
@@ -18,6 +19,7 @@ export type OutputState =
           modules: number
           errors: string[] | null
           warnings: string[] | null
+          hasServerWeb: boolean
         }
     ))
 
@@ -83,6 +85,14 @@ store.subscribe((state) => {
         }
         return
       }
+    }
+
+    const moduleName = getUnresolvedModuleFromError(cleanError)
+    if (state.hasServerWeb && moduleName) {
+      console.error(
+        `Native Node.js APIs are not supported in the Edge Runtime with \`concurrentFeatures\` enabled. Found \`${moduleName}\` imported.\n`
+      )
+      return
     }
 
     // Ensure traces are flushed after each compile in development mode

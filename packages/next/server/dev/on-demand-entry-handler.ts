@@ -9,12 +9,13 @@ import { API_ROUTE, MIDDLEWARE_ROUTE } from '../../lib/constants'
 import { reportTrigger } from '../../build/output'
 import type ws from 'ws'
 import { NextConfigComplete } from '../config-shared'
+import { isCustomErrorPage } from '../../build/utils'
 
 export const ADDED = Symbol('added')
 export const BUILDING = Symbol('building')
 export const BUILT = Symbol('built')
 
-export let entries: {
+export const entries: {
   [page: string]: {
     bundlePath: string
     absolutePagePath: string
@@ -204,6 +205,7 @@ export default function onDemandEntryHandler(
       const isMiddleware = normalizedPage.match(MIDDLEWARE_ROUTE)
       const isApiRoute = normalizedPage.match(API_ROUTE) && !isMiddleware
       const isServerWeb = !!nextConfig.experimental.concurrentFeatures
+      const isCustomError = isCustomErrorPage(page)
 
       let entriesChanged = false
       const addPageEntry = (type: 'client' | 'server' | 'server-web') => {
@@ -242,20 +244,24 @@ export default function onDemandEntryHandler(
         })
       }
 
+      const isClientOrMiddleware = clientOnly || isMiddleware
+
       const promise = isApiRoute
         ? addPageEntry('server')
-        : clientOnly || isMiddleware
+        : isClientOrMiddleware
         ? addPageEntry('client')
         : Promise.all([
             addPageEntry('client'),
-            addPageEntry(isServerWeb ? 'server-web' : 'server'),
+            addPageEntry(
+              isServerWeb && !isCustomError ? 'server-web' : 'server'
+            ),
           ])
 
       if (entriesChanged) {
         reportTrigger(
           isApiRoute
             ? `${normalizedPage} (server only)`
-            : clientOnly || isMiddleware
+            : isClientOrMiddleware
             ? `${normalizedPage} (client only)`
             : normalizedPage
         )
