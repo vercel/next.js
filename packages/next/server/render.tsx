@@ -1550,7 +1550,8 @@ function connectReactServerReadableStreamToPiper(
           flushBuffer()
           process()
         } else {
-          next()
+          // Make sure it's scheduled after the current flushing.
+          setTimeout(() => next(), 0)
         }
       })
     }
