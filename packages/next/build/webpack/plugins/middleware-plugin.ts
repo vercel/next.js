@@ -4,7 +4,6 @@ import { getSortedRoutes } from '../../../shared/lib/router/utils'
 import {
   MIDDLEWARE_MANIFEST,
   MIDDLEWARE_FLIGHT_MANIFEST,
-  MIDDLEWARE_SSR_RUNTIME_WEBPACK,
   MIDDLEWARE_BUILD_MANIFEST,
   MIDDLEWARE_REACT_LOADABLE_MANIFEST,
 } from '../../../shared/lib/constants'
@@ -31,11 +30,25 @@ export interface MiddlewareManifest {
   }
 }
 
+const middlewareManifest: MiddlewareManifest = {
+  sortedMiddleware: [],
+  clientInfo: [],
+  middleware: {},
+  version: 1,
+}
 export default class MiddlewarePlugin {
   dev: boolean
+  webServerRuntime: boolean
 
-  constructor({ dev }: { dev: boolean }) {
+  constructor({
+    dev,
+    webServerRuntime,
+  }: {
+    dev: boolean
+    webServerRuntime: boolean
+  }) {
     this.dev = dev
+    this.webServerRuntime = webServerRuntime
   }
 
   createAssets(
@@ -44,17 +57,14 @@ export default class MiddlewarePlugin {
     envPerRoute: Map<string, string[]>
   ) {
     const entrypoints = compilation.entrypoints
-    const middlewareManifest: MiddlewareManifest = {
-      sortedMiddleware: [],
-      clientInfo: [],
-      middleware: {},
-      version: 1,
-    }
 
     for (const entrypoint of entrypoints.values()) {
       if (!entrypoint.name) continue
       const result = MIDDLEWARE_FULL_ROUTE_REGEX.exec(entrypoint.name)
+
       const ssrEntryInfo = ssrEntries.get(entrypoint.name)
+      if (ssrEntryInfo && !this.webServerRuntime) continue
+      if (!ssrEntryInfo && this.webServerRuntime) continue
 
       const location = result
         ? `/${result[1]}`
@@ -67,14 +77,15 @@ export default class MiddlewarePlugin {
       }
       const files = ssrEntryInfo
         ? [
-            `server/${MIDDLEWARE_SSR_RUNTIME_WEBPACK}.js`,
             ssrEntryInfo.requireFlightManifest
               ? `server/${MIDDLEWARE_FLIGHT_MANIFEST}.js`
               : null,
             `server/${MIDDLEWARE_BUILD_MANIFEST}.js`,
             `server/${MIDDLEWARE_REACT_LOADABLE_MANIFEST}.js`,
-            `server/${entrypoint.name}.js`,
-          ].filter(nonNullable)
+            ...entrypoint.getFiles().map((file) => 'server/' + file),
+          ]
+            .filter(nonNullable)
+            .filter((file: string) => !file.endsWith('.hot-update.js'))
         : entrypoint
             .getFiles()
             .filter((file: string) => !file.endsWith('.hot-update.js'))
@@ -100,16 +111,17 @@ export default class MiddlewarePlugin {
     )
     middlewareManifest.clientInfo = middlewareManifest.sortedMiddleware.map(
       (key) => {
-        const ssrEntryInfo = ssrEntries.get(
-          middlewareManifest.middleware[key].name
-        )
+        const middleware = middlewareManifest.middleware[key]
+        const ssrEntryInfo = ssrEntries.get(middleware.name)
         return [key, !!ssrEntryInfo]
       }
     )
 
-    assets[`server/${MIDDLEWARE_MANIFEST}`] = new sources.RawSource(
-      JSON.stringify(middlewareManifest, null, 2)
-    )
+    assets[
+      this.webServerRuntime
+        ? MIDDLEWARE_MANIFEST
+        : `server/${MIDDLEWARE_MANIFEST}`
+    ] = new sources.RawSource(JSON.stringify(middlewareManifest, null, 2))
   }
 
   apply(compiler: webpack5.Compiler) {
@@ -193,7 +205,12 @@ export default class MiddlewarePlugin {
         })
 
         const handler = (parser: webpack5.javascript.JavascriptParser) => {
+          const isMiddlewareModule = () =>
+            parser.state.module && parser.state.module.layer === 'middleware'
+
           const wrapExpression = (expr: any) => {
+            if (!isMiddlewareModule()) return
+
             if (dev) {
               const dep1 = new wp.dependencies.ConstDependency(
                 '__next_eval__(function() { return ',
@@ -230,10 +247,14 @@ export default class MiddlewarePlugin {
           }
 
           const expressionHandler = () => {
+            if (!isMiddlewareModule()) return
+
             wp.optimize.InnerGraph.onUsage(parser.state, flagModule)
           }
 
           const ignore = () => {
+            if (!isMiddlewareModule()) return
+
             return true
           }
 
@@ -270,12 +291,7 @@ export default class MiddlewarePlugin {
             .tap(PLUGIN_NAME, ignore)
 
           const memberChainHandler = (_expr: any, members: string[]) => {
-            if (
-              !parser.state.module ||
-              parser.state.module.layer !== 'middleware'
-            ) {
-              return
-            }
+            if (!isMiddlewareModule()) return
 
             if (members.length >= 2 && members[0] === 'env') {
               const envName = members[1]

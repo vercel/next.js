@@ -91,6 +91,9 @@ import {
   printTreeView,
   getCssFilePaths,
   getUnresolvedModuleFromError,
+  copyTracedFiles,
+  isReservedPage,
+  isCustomErrorPage,
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
 import { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
@@ -101,8 +104,7 @@ import isError, { NextError } from '../lib/is-error'
 import { TelemetryPlugin } from './webpack/plugins/telemetry-plugin'
 import { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 import type { webpack5 as webpack } from 'next/dist/compiled/webpack/webpack'
-
-const RESERVED_PAGE = /^\/(_app|_error|_document|api(\/|$))/
+import { recursiveCopy } from '../lib/recursive-copy'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -465,7 +467,7 @@ export default async function build(
           (page) =>
             !isDynamicRoute(page) &&
             !page.match(MIDDLEWARE_ROUTE) &&
-            !page.match(RESERVED_PAGE)
+            !isReservedPage(page)
         )
         .map(pageToRoute),
       dataRoutes: [],
@@ -552,6 +554,7 @@ export default async function build(
           path.relative(distDir, manifestPath),
           BUILD_MANIFEST,
           PRERENDER_MANIFEST,
+          path.join(SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
           hasServerComponents
             ? path.join(SERVER_DIRECTORY, MIDDLEWARE_FLIGHT_MANIFEST + '.js')
             : null,
@@ -916,7 +919,7 @@ export default async function build(
 
             if (
               !isMiddlewareRoute &&
-              !page.match(RESERVED_PAGE) &&
+              !isReservedPage(page) &&
               !hasConcurrentFeatures
             ) {
               try {
@@ -1029,7 +1032,8 @@ export default async function build(
               isWebSsr:
                 hasConcurrentFeatures &&
                 !isMiddlewareRoute &&
-                !page.match(RESERVED_PAGE),
+                !isReservedPage(page) &&
+                !isCustomErrorPage(page),
               isHybridAmp,
               ssgPageRoutes,
               initialRevalidateSeconds: false,
@@ -1318,7 +1322,9 @@ export default async function build(
     // Since custom _app.js can wrap the 404 page we have to opt-out of static optimization if it has getInitialProps
     // Only export the static 404 when there is no /_error present
     const useStatic404 =
-      !customAppGetInitialProps && (!hasNonStaticErrorPage || hasPages404)
+      !hasConcurrentFeatures &&
+      !customAppGetInitialProps &&
+      (!hasNonStaticErrorPage || hasPages404)
 
     if (invalidPages.size > 0) {
       const err = new Error(
@@ -1359,6 +1365,23 @@ export default async function build(
       'utf8'
     )
 
+    const outputFileTracingRoot =
+      config.experimental.outputFileTracingRoot || dir
+
+    if (config.experimental.outputStandalone) {
+      await nextBuildSpan
+        .traceChild('copy-traced-files')
+        .traceAsyncFn(async () => {
+          await copyTracedFiles(
+            dir,
+            distDir,
+            pageKeys,
+            outputFileTracingRoot,
+            requiredServerFiles.config
+          )
+        })
+    }
+
     const finalPrerenderRoutes: { [route: string]: SsgRoute } = {}
     const tbdPrerenderRoutes: string[] = []
     let ssgNotFoundPaths: string[] = []
@@ -1383,7 +1406,10 @@ export default async function build(
 
     const combinedPages = [...staticPages, ...ssgPages]
 
-    if (combinedPages.length > 0 || useStatic404 || useDefaultStatic500) {
+    if (
+      !hasConcurrentFeatures &&
+      (combinedPages.length > 0 || useStatic404 || useDefaultStatic500)
+    ) {
       const staticGenerationSpan = nextBuildSpan.traceChild('static-generation')
       await staticGenerationSpan.traceAsyncFn(async () => {
         detectConflictingPaths(
@@ -1950,6 +1976,33 @@ export default async function build(
       }
       return Promise.reject(err)
     })
+
+    if (config.experimental.outputStandalone) {
+      for (const file of [
+        ...requiredServerFiles.files,
+        path.join(config.distDir, SERVER_FILES_MANIFEST),
+      ]) {
+        const filePath = path.join(dir, file)
+        await promises.copyFile(
+          filePath,
+          path.join(
+            distDir,
+            'standalone',
+            path.relative(outputFileTracingRoot, filePath)
+          )
+        )
+      }
+      await recursiveCopy(
+        path.join(distDir, SERVER_DIRECTORY, 'pages'),
+        path.join(
+          distDir,
+          'standalone',
+          path.relative(outputFileTracingRoot, distDir),
+          SERVER_DIRECTORY,
+          'pages'
+        )
+      )
+    }
 
     staticPages.forEach((pg) => allStaticPages.add(pg))
     pageInfos.forEach((info: PageInfo, key: string) => {
