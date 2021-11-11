@@ -40,6 +40,8 @@
     "link.d.ts",
     "router.js",
     "router.d.ts",
+    "jest.js",
+    "jest.d.ts",
     "amp.js",
     "amp.d.ts",
     "types/index.d.ts",
