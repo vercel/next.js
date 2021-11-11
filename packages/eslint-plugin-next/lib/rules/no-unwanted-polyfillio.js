@@ -69,13 +69,32 @@ module.exports = {
         'Prohibit unwanted features to be listed in Polyfill.io tag.',
       category: 'HTML',
       recommended: true,
+      url: 'https://nextjs.org/docs/messages/no-unwanted-polyfillio',
     },
     fixable: null, // or "code" or "whitespace"
   },
 
   create: function (context) {
+    let scriptImport = null
+
     return {
-      'JSXOpeningElement[name.name=script][attributes.length>0]'(node) {
+      ImportDeclaration(node) {
+        if (node.source && node.source.value === 'next/script') {
+          scriptImport = node.specifiers[0].local.name
+        }
+      },
+      JSXOpeningElement(node) {
+        if (
+          node.name &&
+          node.name.name !== 'script' &&
+          node.name.name !== scriptImport
+        ) {
+          return
+        }
+        if (node.attributes.length === 0) {
+          return
+        }
+
         const srcNode = node.attributes.find(
           (attr) => attr.type === 'JSXAttribute' && attr.name.name === 'src'
         )

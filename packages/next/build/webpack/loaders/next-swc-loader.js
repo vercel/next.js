@@ -26,58 +26,27 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 */
 
-import { getOptions } from 'next/dist/compiled/loader-utils'
 import { transform } from '../../swc'
-
-function getSWCOptions({ isTypeScript, isServer, development }) {
-  const jsc = {
-    parser: {
-      syntax: isTypeScript ? 'typescript' : 'ecmascript',
-      dynamicImport: true,
-      [isTypeScript ? 'tsx' : 'jsx']: true,
-    },
-
-    transform: {
-      react: {
-        runtime: 'automatic',
-        pragma: 'React.createElement',
-        pragmaFrag: 'React.Fragment',
-        throwIfNamespace: true,
-        development: development,
-        useBuiltins: true,
-      },
-    },
-  }
-
-  if (isServer) {
-    return {
-      jsc,
-      env: {
-        targets: {
-          // Targets the current version of Node.js
-          node: process.versions.node,
-        },
-      },
-    }
-  } else {
-    // Matches default @babel/preset-env behavior
-    jsc.target = 'es5'
-    return { jsc }
-  }
-}
+import { getLoaderSWCOptions } from '../../swc/options'
 
 async function loaderTransform(parentTrace, source, inputSourceMap) {
   // Make the loader async
   const filename = this.resourcePath
 
-  const isTypeScript = filename.endsWith('.ts') || filename.endsWith('.tsx')
+  let loaderOptions = this.getOptions() || {}
 
-  let loaderOptions = getOptions(this) || {}
+  const { isServer, pagesDir, hasReactRefresh, styledComponents } =
+    loaderOptions
+  const isPageFile = filename.startsWith(pagesDir)
 
-  const swcOptions = getSWCOptions({
-    isTypeScript,
-    isServer: loaderOptions.isServer,
+  const swcOptions = getLoaderSWCOptions({
+    pagesDir,
+    filename,
+    isServer: isServer,
+    isPageFile,
     development: this.mode === 'development',
+    hasReactRefresh,
+    styledComponents,
   })
 
   const programmaticOptions = {
@@ -87,6 +56,7 @@ async function loaderTransform(parentTrace, source, inputSourceMap) {
 
     // Set the default sourcemap behavior based on Webpack's mapping flag,
     sourceMaps: this.sourceMap,
+    inlineSourcesContent: this.sourceMap,
 
     // Ensure that Webpack will get a full absolute path in the sourcemap
     // so that it can properly map the module back to its internal cached
@@ -129,10 +99,14 @@ export default function swcLoader(inputSource, inputSourceMap) {
       loaderTransform.call(this, loaderSpan, inputSource, inputSourceMap)
     )
     .then(
-      ([transformedSource, outputSourceMap]) =>
-        callback?.(null, transformedSource, outputSourceMap || inputSourceMap),
+      ([transformedSource, outputSourceMap]) => {
+        callback(null, transformedSource, outputSourceMap || inputSourceMap)
+      },
       (err) => {
-        callback?.(err)
+        callback(err)
       }
     )
 }
+
+// accept Buffers instead of strings
+export const raw = true

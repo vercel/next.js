@@ -1,1 +1,1 @@
-{"name":"@babel/core","main":"packages-bundle.js","author":"The Babel Team (https://babel.dev/team)","license":"MIT"}
+{"name":"babel-packages","main":"./packages-bundle.js"}

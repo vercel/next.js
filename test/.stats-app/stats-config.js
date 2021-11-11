@@ -121,15 +121,19 @@ module.exports = {
       },
     },
     {
-      title: 'Webpack 4 Mode',
+      title: 'Default Build with SWC',
       diff: 'onOutputChange',
       diffConfigFiles: [
+        {
+          path: 'pages/image.js',
+          content: imagePageData,
+        },
         {
           path: 'next.config.js',
           content: `
             module.exports = {
               generateBuildId: () => 'BUILD_ID',
-              webpack5: false,
+              swcMinify: true,
               webpack(config) {
                 config.optimization.minimize = false
                 config.optimization.minimizer = undefined
@@ -139,14 +143,19 @@ module.exports = {
           `,
         },
       ],
+      // renames to apply to make file names deterministic
       renames,
       configFiles: [
+        {
+          path: 'pages/image.js',
+          content: imagePageData,
+        },
         {
           path: 'next.config.js',
           content: `
             module.exports = {
-              generateBuildId: () => 'BUILD_ID',
-              webpack5: false
+              swcMinify: true,
+              generateBuildId: () => 'BUILD_ID'
             }
           `,
         },

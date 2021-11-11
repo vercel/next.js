@@ -2,7 +2,7 @@ import React from 'react'
 import Head from '../shared/lib/head'
 import { toBase64 } from '../shared/lib/to-base-64'
 import {
-  ImageConfig,
+  ImageConfigComplete,
   imageConfigDefault,
   LoaderValue,
   VALID_LOADERS,
@@ -10,6 +10,13 @@ import {
 import { useIntersection } from './use-intersection'
 
 const loadedImageURLs = new Set<string>()
+const allImgs = new Map<
+  string,
+  { src: string; priority: boolean; placeholder: string }
+>()
+let perfObserver: PerformanceObserver | undefined
+const emptyDataURL =
+  'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
 
 if (typeof window === 'undefined') {
   ;(global as any).__NEXT_IMAGE_IMPORTED = true
@@ -110,7 +117,8 @@ const {
   loader: configLoader,
   path: configPath,
   domains: configDomains,
-} = (process.env.__NEXT_IMAGE_OPTS as any as ImageConfig) || imageConfigDefault
+} = (process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete) ||
+imageConfigDefault
 // sort smallest to largest
 const allSizes = [...configDeviceSizes, ...configImageSizes]
 configDeviceSizes.sort((a, b) => a - b)
@@ -253,7 +261,7 @@ function handleLoading(
     return
   }
   const handleLoad = () => {
-    if (!img.src.startsWith('data:')) {
+    if (img.src !== emptyDataURL) {
       const p = 'decode' in img ? img.decode() : Promise.resolve()
       p.catch(() => {}).then(() => {
         if (placeholder === 'blur') {
@@ -275,7 +283,11 @@ function handleLoading(
               console.warn(
                 `Image with src "${src}" may not render properly as a child of a flex container. Consider wrapping the image with a div to configure the width.`
               )
-            } else if (layout === 'fill' && parent.position !== 'relative') {
+            } else if (
+              layout === 'fill' &&
+              parent.position !== 'relative' &&
+              parent.position !== 'fixed'
+            ) {
               console.warn(
                 `Image with src "${src}" may not render properly with a parent using position:"${parent.position}". Consider changing the parent style to position:"relative" with a width and height.`
               )
@@ -406,6 +418,11 @@ export default function Image({
         `Image with src "${src}" has both "priority" and "loading='lazy'" properties. Only one should be used.`
       )
     }
+    if (sizes && layout !== 'fill' && layout !== 'responsive') {
+      console.warn(
+        `Image with src "${src}" has "sizes" property but it will be ignored. Only use "sizes" with "layout='fill'" or "layout='responsive'".`
+      )
+    }
     if (placeholder === 'blur') {
       if (layout !== 'fill' && (widthInt || 0) * (heightInt || 0) < 1600) {
         console.warn(
@@ -413,7 +430,7 @@ export default function Image({
         )
       }
       if (!blurDataURL) {
-        const VALID_BLUR_EXT = ['jpeg', 'png', 'webp'] // should match next-image-loader
+        const VALID_BLUR_EXT = ['jpeg', 'png', 'webp', 'avif'] // should match next-image-loader
 
         throw new Error(
           `Image with src "${src}" has "placeholder='blur'" property but is missing the "blurDataURL" property.
@@ -437,15 +454,51 @@ export default function Image({
         `Image with src "${src}" is using unsupported "style" property. Please use the "className" property instead.`
       )
     }
-    const rand = Math.floor(Math.random() * 1000) + 100
+
+    if (!unoptimized) {
+      const urlStr = loader({
+        src,
+        width: widthInt || 400,
+        quality: qualityInt || 75,
+      })
+      let url: URL | undefined
+      try {
+        url = new URL(urlStr)
+      } catch (err) {}
+      if (urlStr === src || (url && url.pathname === src && !url.search)) {
+        console.warn(
+          `Image with src "${src}" has a "loader" property that does not implement width. Please implement it or use the "unoptimized" property instead.` +
+            `\nRead more: https://nextjs.org/docs/messages/next-image-missing-loader-width`
+        )
+      }
+    }
+
     if (
-      !unoptimized &&
-      !loader({ src, width: rand, quality: 75 }).includes(rand.toString())
+      typeof window !== 'undefined' &&
+      !perfObserver &&
+      window.PerformanceObserver
     ) {
-      console.warn(
-        `Image with src "${src}" has a "loader" property that does not implement width. Please implement it or use the "unoptimized" property instead.` +
-          `\nRead more: https://nextjs.org/docs/messages/next-image-missing-loader-width`
-      )
+      perfObserver = new PerformanceObserver((entryList) => {
+        for (const entry of entryList.getEntries()) {
+          // @ts-ignore - missing "LargestContentfulPaint" class with "element" prop
+          const imgSrc = entry?.element?.src || ''
+          const lcpImage = allImgs.get(imgSrc)
+          if (
+            lcpImage &&
+            !lcpImage.priority &&
+            lcpImage.placeholder !== 'blur' &&
+            !lcpImage.src.startsWith('data:') &&
+            !lcpImage.src.startsWith('blob:')
+          ) {
+            // https://web.dev/lcp/#measure-lcp-in-javascript
+            console.warn(
+              `Image with src "${lcpImage.src}" was detected as the Largest Contentful Paint (LCP). Please add the "priority" property if this image is above the fold.` +
+                `\nRead more: https://nextjs.org/docs/api-reference/next/image#priority`
+            )
+          }
+        }
+      })
+      perfObserver.observe({ type: 'largest-contentful-paint', buffered: true })
     }
   }
 
@@ -455,10 +508,32 @@ export default function Image({
   })
   const isVisible = !isLazy || isIntersected
 
-  let wrapperStyle: JSX.IntrinsicElements['div']['style'] | undefined
-  let sizerStyle: JSX.IntrinsicElements['div']['style'] | undefined
+  const wrapperStyle: JSX.IntrinsicElements['span']['style'] = {
+    boxSizing: 'border-box',
+    display: 'block',
+    overflow: 'hidden',
+    width: 'initial',
+    height: 'initial',
+    background: 'none',
+    opacity: 1,
+    border: 0,
+    margin: 0,
+    padding: 0,
+  }
+  const sizerStyle: JSX.IntrinsicElements['span']['style'] = {
+    boxSizing: 'border-box',
+    display: 'block',
+    width: 'initial',
+    height: 'initial',
+    background: 'none',
+    opacity: 1,
+    border: 0,
+    margin: 0,
+    padding: 0,
+  }
+  let hasSizer = false
   let sizerSvg: string | undefined
-  let imgStyle: ImgElementStyle | undefined = {
+  const imgStyle: ImgElementStyle = {
     position: 'absolute',
     top: 0,
     left: 0,
@@ -492,19 +567,12 @@ export default function Image({
       : {}
   if (layout === 'fill') {
     // <Image src="i.png" layout="fill" />
-    wrapperStyle = {
-      display: 'block',
-      overflow: 'hidden',
-
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      bottom: 0,
-      right: 0,
-
-      boxSizing: 'border-box',
-      margin: 0,
-    }
+    wrapperStyle.display = 'block'
+    wrapperStyle.position = 'absolute'
+    wrapperStyle.top = 0
+    wrapperStyle.left = 0
+    wrapperStyle.bottom = 0
+    wrapperStyle.right = 0
   } else if (
     typeof widthInt !== 'undefined' &&
     typeof heightInt !== 'undefined'
@@ -514,41 +582,24 @@ export default function Image({
     const paddingTop = isNaN(quotient) ? '100%' : `${quotient * 100}%`
     if (layout === 'responsive') {
       // <Image src="i.png" width="100" height="100" layout="responsive" />
-      wrapperStyle = {
-        display: 'block',
-        overflow: 'hidden',
-        position: 'relative',
-
-        boxSizing: 'border-box',
-        margin: 0,
-      }
-      sizerStyle = { display: 'block', boxSizing: 'border-box', paddingTop }
+      wrapperStyle.display = 'block'
+      wrapperStyle.position = 'relative'
+      hasSizer = true
+      sizerStyle.paddingTop = paddingTop
     } else if (layout === 'intrinsic') {
       // <Image src="i.png" width="100" height="100" layout="intrinsic" />
-      wrapperStyle = {
-        display: 'inline-block',
-        maxWidth: '100%',
-        overflow: 'hidden',
-        position: 'relative',
-        boxSizing: 'border-box',
-        margin: 0,
-      }
-      sizerStyle = {
-        boxSizing: 'border-box',
-        display: 'block',
-        maxWidth: '100%',
-      }
+      wrapperStyle.display = 'inline-block'
+      wrapperStyle.position = 'relative'
+      wrapperStyle.maxWidth = '100%'
+      hasSizer = true
+      sizerStyle.maxWidth = '100%'
       sizerSvg = `<svg width="${widthInt}" height="${heightInt}" xmlns="http://www.w3.org/2000/svg" version="1.1"/>`
     } else if (layout === 'fixed') {
       // <Image src="i.png" width="100" height="100" layout="fixed" />
-      wrapperStyle = {
-        overflow: 'hidden',
-        boxSizing: 'border-box',
-        display: 'inline-block',
-        position: 'relative',
-        width: widthInt,
-        height: heightInt,
-      }
+      wrapperStyle.display = 'inline-block'
+      wrapperStyle.position = 'relative'
+      wrapperStyle.width = widthInt
+      wrapperStyle.height = heightInt
     }
   } else {
     // <Image src="i.png" />
@@ -560,7 +611,7 @@ export default function Image({
   }
 
   let imgAttributes: GenImgAttrsResult = {
-    src: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
+    src: emptyDataURL,
     srcSet: undefined,
     sizes: undefined,
   }
@@ -579,17 +630,33 @@ export default function Image({
 
   let srcString: string = src
 
+  if (process.env.NODE_ENV !== 'production') {
+    if (typeof window !== 'undefined') {
+      let fullUrl: URL
+      try {
+        fullUrl = new URL(imgAttributes.src)
+      } catch (e) {
+        fullUrl = new URL(imgAttributes.src, window.location.href)
+      }
+      allImgs.set(fullUrl.href, { src, priority, placeholder })
+    }
+  }
+
   return (
-    <div style={wrapperStyle}>
-      {sizerStyle ? (
-        <div style={sizerStyle}>
+    <span style={wrapperStyle}>
+      {hasSizer ? (
+        <span style={sizerStyle}>
           {sizerSvg ? (
             <img
               style={{
-                maxWidth: '100%',
                 display: 'block',
+                maxWidth: '100%',
+                width: 'initial',
+                height: 'initial',
+                background: 'none',
+                opacity: 1,
+                border: 0,
                 margin: 0,
-                border: 'none',
                 padding: 0,
               }}
               alt=""
@@ -597,7 +664,7 @@ export default function Image({
               src={`data:image/svg+xml;base64,${toBase64(sizerSvg)}`}
             />
           ) : null}
-        </div>
+        </span>
       ) : null}
       <img
         {...rest}
@@ -627,6 +694,7 @@ export default function Image({
           data-nimg={layout}
           style={imgStyle}
           className={className}
+          // @ts-ignore - TODO: upgrade to `@types/react@17`
           loading={loading || 'lazy'}
         />
       </noscript>
@@ -655,7 +723,7 @@ export default function Image({
           ></link>
         </Head>
       ) : null}
-    </div>
+    </span>
   )
 }
 
@@ -696,7 +764,7 @@ function cloudinaryLoader({
 }: DefaultImageLoaderProps): string {
   // Demo: https://res.cloudinary.com/demo/image/upload/w_300,c_limit,q_auto/turtles.jpg
   const params = ['f_auto', 'c_limit', 'w_' + width, 'q_' + (quality || 'auto')]
-  let paramsString = params.join(',') + '/'
+  const paramsString = params.join(',') + '/'
   return `${root}${paramsString}${normalizeSrc(src)}`
 }
 

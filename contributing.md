@@ -15,8 +15,7 @@ To develop locally:
 
 1. [Fork](https://help.github.com/articles/fork-a-repo/) this repository to your
    own GitHub account and then
-   [clone](https://help.github.com/articles/cloning-a-repository/) it to your
-   local device.
+   [clone](https://help.github.com/articles/cloning-a-repository/) it to your local device.
 2. Create a new branch:
    ```
    git checkout -b MY_BRANCH_NAME
@@ -52,20 +51,13 @@ yarn build
 yarn prepublish
 ```
 
+By default the latest canary of the next-swc binaries will be installed and used. If you are actively working on Rust code or you need to test out the most recent Rust code that hasn't been published as a canary yet you can [install Rust](https://www.rust-lang.org/tools/install) and run `yarn --cwd packages/next build-native`.
+
 If you need to clean the project for any reason, use `yarn clean`.
 
 ## Testing
 
-Make sure you have `chromedriver` installed, and it should match your Chrome version.
-You can install it with:
-
-- `apt install chromedriver` on Ubuntu/Debian
-- `brew install --cask chromedriver` on Mac OS X
-- `chocolatey install chromedriver` on Windows
-
-- Or manually download the version that matches your installed chrome version (if there's no match, download a version under it, but not above) from the [chromedriver repo](https://chromedriver.storage.googleapis.com/index.html) and add the binary to `<next-repo>/node_modules/.bin`
-
-You may also have to [install Rust](https://www.rust-lang.org/tools/install) and build our native packages to see all tests pass locally. We check in binaries for the most common targets and those required for CI so that most people don't have to, but if you do not see a binary for your target in `packages/next/native`, you can build it by running `yarn --cwd packages/next build-native`. If you are working on the Rust code and you need to build the binaries for ci, you can manually trigger [the workflow](https://github.com/vercel/next.js/actions/workflows/build_native.yml) to build and commit with the "Run workflow" button.
+See the [testing readme](./test/readme.md) for information on writing tests.
 
 ### Running tests
 
@@ -79,13 +71,7 @@ If you would like to run the tests in headless mode (with the browser windows hi
 yarn testheadless
 ```
 
-If you would like to use a specific Chrome/Chromium binary to run tests you can specify it with
-
-```sh
-CHROME_BIN='path/to/chrome/bin' yarn testonly
-```
-
-Running a specific test suite inside of the `test/integration` directory:
+Running a specific test suite (e.g. `production`) inside of the `test/integration` directory:
 
 ```sh
 yarn testonly --testPathPattern "production"
@@ -97,7 +83,21 @@ Running one test in the `production` test suite:
 yarn testonly --testPathPattern "production" -t "should allow etag header support"
 ```
 
-### Running the integration apps
+### Linting
+
+To check the formatting of your code:
+
+```sh
+yarn lint
+```
+
+If you get errors, you can fix them with:
+
+```sh
+yarn lint-fix
+```
+
+### Running the example apps
 
 Running examples can be done with:
 
@@ -126,7 +126,7 @@ EXAMPLE=./test/integration/basic
 
 There are two options to develop with your local version of the codebase:
 
-### Set as local dependency in package.json
+### Set as a local dependency in package.json
 
 1. In your app's `package.json`, replace:
 
@@ -164,7 +164,24 @@ There are two options to develop with your local version of the codebase:
    yarn install --force
    ```
 
-or
+#### Troubleshooting
+
+- If you see the below error while running `yarn dev` with next:
+
+```
+Failed to load SWC binary, see more info here: https://nextjs.org/docs/messages/failed-loadin
+```
+
+Try to add the below section to your `package.json`, then run again
+
+```json
+"optionalDependencies": {
+  "@next/swc-linux-x64-gnu": "canary",
+  "@next/swc-win32-x64-msvc": "canary",
+  "@next/swc-darwin-x64": "canary",
+  "@next/swc-darwin-arm64": "canary"
+},
+```
 
 ### Develop inside the monorepo
 
@@ -174,7 +191,7 @@ or
 
 This will use the version of `next` built inside of the Next.js monorepo and the
 main `yarn dev` monorepo command can be running to make changes to the local
-Next.js version at the same time (some changes might require re-running `yarn next-with-deps` to take affect).
+Next.js version at the same time (some changes might require re-running `yarn next-with-deps` to take effect).
 
 ## Adding warning/error descriptions
 
@@ -182,7 +199,7 @@ In Next.js we have a system to add helpful links to warnings and errors.
 
 This allows for the logged message to be short while giving a broader description and instructions on how to solve the warning/error.
 
-In general all warnings and errors added should have these links attached.
+In general, all warnings and errors added should have these links attached.
 
 Below are the steps to add a new link:
 

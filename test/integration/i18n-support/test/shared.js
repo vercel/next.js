@@ -15,8 +15,6 @@ import {
   check,
 } from 'next-test-utils'
 
-jest.setTimeout(1000 * 60 * 2)
-
 const domainLocales = ['go', 'go-BE', 'do', 'do-BE']
 export const nonDomainLocales = [
   'en-US',
@@ -32,8 +30,8 @@ export const locales = [...nonDomainLocales, ...domainLocales]
 async function addDefaultLocaleCookie(browser) {
   // make sure default locale is used in case browser isn't set to
   // favor en-US by default, (we use all caps to ensure it's case-insensitive)
-  await browser.manage().addCookie({ name: 'NEXT_LOCALE', value: 'EN-US' })
-  await browser.get(browser.initUrl)
+  await browser.addCookie({ name: 'NEXT_LOCALE', value: 'EN-US' })
+  await browser.refresh()
 }
 
 export function runTests(ctx) {
@@ -795,6 +793,11 @@ export function runTests(ctx) {
             \\"srcRoute\\": \\"/gsp/fallback/[slug]\\",
             \\"dataRoute\\": \\"/_next/data/BUILD_ID/en/gsp/fallback/always.json\\"
           },
+          \\"/en/not-found\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": null,
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/not-found.json\\"
+          },
           \\"/fr\\": {
             \\"initialRevalidateSeconds\\": false,
             \\"srcRoute\\": null,
@@ -1004,6 +1007,11 @@ export function runTests(ctx) {
             \\"initialRevalidateSeconds\\": false,
             \\"srcRoute\\": \\"/gsp/fallback/[slug]\\",
             \\"dataRoute\\": \\"/_next/data/BUILD_ID/nl/gsp/fallback/always.json\\"
+          },
+          \\"/nl/not-found\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": null,
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/not-found.json\\"
           }
         }"
       `)
@@ -2790,7 +2798,7 @@ export function runTests(ctx) {
 
     await checkIndexValues()
 
-    await browser.manage().deleteCookie('NEXT_LOCALE')
+    await browser.deleteCookies()
   })
 
   it('should load getStaticProps fallback non-prerender page another locale correctly', async () => {

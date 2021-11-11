@@ -1,3 +1,6 @@
+use std::path::{Path, PathBuf};
+
+use pathdiff::diff_paths;
 use swc_atoms::js_word;
 use swc_common::{FileName, DUMMY_SP};
 use swc_ecmascript::ast::{
@@ -11,17 +14,23 @@ use swc_ecmascript::utils::{
 };
 use swc_ecmascript::visit::{Fold, FoldWith};
 
-pub fn next_dynamic(filename: FileName) -> impl Fold {
+pub fn next_dynamic(filename: FileName, pages_dir: Option<PathBuf>) -> impl Fold {
   NextDynamicPatcher {
+    pages_dir,
     filename,
     dynamic_bindings: vec![],
+    is_next_dynamic_first_arg: false,
+    dynamically_imported_specifier: None,
   }
 }
 
 #[derive(Debug)]
 struct NextDynamicPatcher {
+  pages_dir: Option<PathBuf>,
   filename: FileName,
   dynamic_bindings: Vec<Id>,
+  is_next_dynamic_first_arg: bool,
+  dynamically_imported_specifier: Option<String>,
 }
 
 impl Fold for NextDynamicPatcher {
@@ -43,6 +52,18 @@ impl Fold for NextDynamicPatcher {
   }
 
   fn fold_call_expr(&mut self, expr: CallExpr) -> CallExpr {
+    if self.is_next_dynamic_first_arg {
+      if let ExprOrSuper::Expr(e) = &expr.callee {
+        if let Expr::Ident(Ident { sym, .. }) = &**e {
+          if sym == "import" {
+            if let Expr::Lit(Lit::Str(Str { value, .. })) = &*expr.args[0].expr {
+              self.dynamically_imported_specifier = Some(value.to_string());
+            }
+          }
+        }
+      }
+      return expr.fold_children_with(self);
+    }
     let mut expr = expr.fold_children_with(self);
     if let ExprOrSuper::Expr(i) = &expr.callee {
       if let Expr::Ident(identifier) = &**i {
@@ -56,49 +77,22 @@ impl Fold for NextDynamicPatcher {
                 )
                 .emit()
             });
+            return expr;
           } else if expr.args.len() > 2 {
             HANDLER.with(|handler| {
               handler
                 .struct_span_err(identifier.span, "next/dynamic only accepts 2 arguments")
                 .emit()
             });
+            return expr;
           }
 
-          let mut import_specifier = None;
-          if let Expr::Arrow(ArrowExpr {
-            body: BlockStmtOrExpr::Expr(e),
-            ..
-          }) = &*expr.args[0].expr
-          {
-            if let Expr::Call(CallExpr {
-              args: a, callee, ..
-            }) = &**e
-            {
-              if let ExprOrSuper::Expr(e) = callee {
-                if let Expr::Ident(Ident { sym, .. }) = &**e {
-                  if sym == "import" {
-                    if a.len() == 0 {
-                      // Do nothing, import_specifier will remain None
-                      // triggering error below
-                    } else if let Expr::Lit(Lit::Str(Str { value, .. })) = &*a[0].expr {
-                      import_specifier = Some(value.clone());
-                    }
-                  }
-                }
-              }
-            }
-          }
+          self.is_next_dynamic_first_arg = true;
+          expr.args[0].expr = expr.args[0].expr.clone().fold_with(self);
+          self.is_next_dynamic_first_arg = false;
 
-          if let None = import_specifier {
-            HANDLER.with(|handler| {
-              handler
-                .struct_span_err(
-                  identifier.span,
-                  "First argument for next/dynamic must be an arrow function returning a valid \
-                   dynamic import call e.g. `dynamic(() => import('../some-component'))`",
-                )
-                .emit()
-            });
+          if let None = self.dynamically_imported_specifier {
+            return expr;
           }
 
           // loadableGenerated: {
@@ -131,7 +125,12 @@ impl Fold for NextDynamicPatcher {
                         }))),
                         args: vec![ExprOrSpread {
                           expr: Box::new(Expr::Lit(Lit::Str(Str {
-                            value: self.filename.to_string().into(),
+                            value: self
+                              .dynamically_imported_specifier
+                              .as_ref()
+                              .unwrap()
+                              .clone()
+                              .into(),
                             span: DUMMY_SP,
                             kind: StrKind::Synthesized {},
                             has_escape: false,
@@ -160,13 +159,22 @@ impl Fold for NextDynamicPatcher {
                       span: DUMMY_SP,
                       op: BinaryOp::Add,
                       left: Box::new(Expr::Lit(Lit::Str(Str {
-                        value: format!("{} -> ", self.filename).into(),
+                        value: format!(
+                          "{} -> ",
+                          rel_filename(self.pages_dir.as_deref(), &self.filename)
+                        )
+                        .into(),
                         span: DUMMY_SP,
                         kind: StrKind::Synthesized {},
                         has_escape: false,
                       }))),
                       right: Box::new(Expr::Lit(Lit::Str(Str {
-                        value: import_specifier.unwrap(),
+                        value: self
+                          .dynamically_imported_specifier
+                          .as_ref()
+                          .unwrap()
+                          .clone()
+                          .into(),
                         span: DUMMY_SP,
                         kind: StrKind::Normal {
                           contains_quote: false,
@@ -205,10 +213,38 @@ impl Fold for NextDynamicPatcher {
             })),
           };
 
-          expr.args.push(second_arg);
+          if expr.args.len() == 2 {
+            expr.args[1] = second_arg;
+          } else {
+            expr.args.push(second_arg)
+          }
+          self.dynamically_imported_specifier = None;
         }
       }
     }
     expr
   }
+}
+
+fn rel_filename(base: Option<&Path>, file: &FileName) -> String {
+  let base = match base {
+    Some(v) => v,
+    None => return file.to_string(),
+  };
+
+  let file = match file {
+    FileName::Real(v) => v,
+    _ => {
+      return file.to_string();
+    }
+  };
+
+  let rel_path = diff_paths(&file, base);
+
+  let rel_path = match rel_path {
+    Some(v) => v,
+    None => return file.display().to_string(),
+  };
+
+  rel_path.display().to_string()
 }
