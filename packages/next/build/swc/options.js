@@ -60,6 +60,7 @@ function getBaseSWCOptions({
 }
 
 export function getJestSWCOptions({
+  isServer,
   filename,
   esm,
   styledComponents,
@@ -70,7 +71,7 @@ export function getJestSWCOptions({
     filename,
     development: false,
     hasReactRefresh: false,
-    globalWindow: false,
+    globalWindow: !isServer,
     styledComponents,
     paths,
     baseUrl,

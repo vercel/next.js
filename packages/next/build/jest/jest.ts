@@ -44,7 +44,7 @@ const customJestConfig = {
 // createJestConfig is exported in this way to ensure that next/jest can load the Next.js config which is async
 module.exports = createJestConfig(customJestConfig)
 */
-module.exports = function nextJest(options: { dir?: string } = {}) {
+export default function nextJest(options: { dir?: string } = {}) {
   // createJestConfig
   return (customJestConfig: any) => {
     // Function that is provided as the module.exports of jest.config.js
