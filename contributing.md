@@ -169,7 +169,7 @@ There are two options to develop with your local version of the codebase:
 - If you see the below error while running `yarn dev` with next:
 
 ```
-Failed to load SWC binary, see more info here: https://nextjs.org/docs/messages/failed-loadin
+Failed to load SWC binary, see more info here: https://nextjs.org/docs/messages/failed-loading-swc
 ```
 
 Try to add the below section to your `package.json`, then run again
