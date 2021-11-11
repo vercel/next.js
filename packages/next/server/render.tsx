@@ -1473,11 +1473,11 @@ function renderToReadableStream(
   return new Promise((resolve, reject) => {
     let reader: any = null
     let resolved = false
-    const doResolve = (getStreamReader: () => any) => {
+    const doResolve = () => {
       if (resolved) return
       resolved = true
       const piper: NodeWritablePiper = (res, next) => {
-        const streamReader: ReadableStreamDefaultReader = getStreamReader()
+        const streamReader: ReadableStreamDefaultReader = reader
         const decoder = new TextDecoder()
         const process = async () => {
           streamReader.read().then(({ done, value }) => {
@@ -1504,7 +1504,7 @@ function renderToReadableStream(
         }
       },
       onCompleteShell() {
-        doResolve(() => reader)
+        doResolve()
       },
     })
     // Start reader and lock stream immediately to consume readable,
