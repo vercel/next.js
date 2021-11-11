@@ -4,7 +4,7 @@
 
 If you want to learn more about Elasticsearch, visit the following pages:
 
-- [Elastic Stack](https://https://www.elastic.co/products)
+- [Elastic Stack](https://www.elastic.co/products)
 - [Elastic Documentation](https://elastic.co/docs)
 
 ## Deploy your own

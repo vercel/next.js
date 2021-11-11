@@ -36,6 +36,7 @@ struct StyledJSXTransformer {
     has_styled_jsx: bool,
     bindings: AHashSet<Id>,
     nearest_scope_bindings: AHashSet<Id>,
+    func_scope_level: u8,
     style_import_name: Option<String>,
     external_bindings: Vec<Id>,
     file_has_css_resolve: bool,
@@ -185,7 +186,7 @@ impl Fold for StyledJSXTransformer {
             Expr::TaggedTpl(tagged_tpl) => match &*tagged_tpl.tag {
                 Expr::Ident(identifier) => {
                     if self.external_bindings.contains(&identifier.to_id()) {
-                        match self.process_tagged_template_expr(&tagged_tpl) {
+                        match self.process_tagged_template_expr(&tagged_tpl, &identifier.sym) {
                             Ok(expr) => expr,
                             Err(_) => Expr::TaggedTpl(tagged_tpl),
                         }
@@ -199,7 +200,7 @@ impl Fold for StyledJSXTransformer {
                 }) => {
                     if let Expr::Ident(identifier) = &**boxed_ident {
                         if self.external_bindings.contains(&identifier.to_id()) {
-                            match self.process_tagged_template_expr(&tagged_tpl) {
+                            match self.process_tagged_template_expr(&tagged_tpl, &identifier.sym) {
                                 Ok(expr) => expr,
                                 Err(_) => Expr::TaggedTpl(tagged_tpl),
                             }
@@ -320,6 +321,7 @@ impl Fold for StyledJSXTransformer {
     }
 
     fn fold_function(&mut self, mut func: Function) -> Function {
+        self.func_scope_level = self.func_scope_level + 1;
         let surrounding_scope_bindings = take(&mut self.nearest_scope_bindings);
         self.in_function_params = true;
         let mut new_params = vec![];
@@ -331,10 +333,12 @@ impl Fold for StyledJSXTransformer {
         self.nearest_scope_bindings.extend(collect_decls(&func));
         func.body = func.body.fold_with(self);
         self.nearest_scope_bindings = surrounding_scope_bindings;
+        self.func_scope_level = self.func_scope_level - 1;
         func
     }
 
     fn fold_arrow_expr(&mut self, mut func: ArrowExpr) -> ArrowExpr {
+        self.func_scope_level = self.func_scope_level + 1;
         let surrounding_scope_bindings = take(&mut self.nearest_scope_bindings);
         self.in_function_params = true;
         let mut new_params = vec![];
@@ -346,6 +350,7 @@ impl Fold for StyledJSXTransformer {
         self.nearest_scope_bindings.extend(collect_decls(&func));
         func.body = func.body.fold_with(self);
         self.nearest_scope_bindings = surrounding_scope_bindings;
+        self.func_scope_level = self.func_scope_level - 1;
         func
     }
 
@@ -425,11 +430,15 @@ impl StyledJSXTransformer {
                     }
                     css = String::from(s);
                     css_span = *span;
-                    let res = self.evaluator.as_mut().unwrap().eval(&expr);
-                    is_dynamic = if let Some(EvalResult::Lit(_)) = res {
-                        false
+                    is_dynamic = if self.func_scope_level > 0 {
+                        let res = self.evaluator.as_mut().unwrap().eval(&expr);
+                        if let Some(EvalResult::Lit(_)) = res {
+                            false
+                        } else {
+                            true
+                        }
                     } else {
-                        true
+                        false
                     };
                     expressions = exprs.clone();
                 }
@@ -495,7 +504,16 @@ impl StyledJSXTransformer {
         }
     }
 
-    fn process_tagged_template_expr(&mut self, tagged_tpl: &TaggedTpl) -> Result<Expr, Error> {
+    fn process_tagged_template_expr(
+        &mut self,
+        tagged_tpl: &TaggedTpl,
+        tag: &str,
+    ) -> Result<Expr, Error> {
+        if tag != "resolve" {
+            // Check whether there are undefined references or
+            // references to this.something (e.g. props or state).
+            // We allow dynamic styles only when resolving styles.
+        }
         let style = self.get_jsx_style(&Expr::Tpl(tagged_tpl.tpl.clone()), false);
         let styles = vec![style];
         let (static_class_name, class_name) =

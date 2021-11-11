@@ -10,6 +10,7 @@ import {
 import { writeFile } from 'fs-extra'
 import getPort from 'get-port'
 import http from 'http'
+import https from 'https'
 import server from 'next/dist/server/next'
 import _pkg from 'next/package.json'
 import fetch from 'node-fetch'
@@ -102,7 +103,19 @@ export function fetchViaHTTP(appPort, pathname, query, opts) {
   const url = `${pathname}${
     typeof query === 'string' ? query : query ? `?${qs.stringify(query)}` : ''
   }`
-  return fetch(getFullUrl(appPort, url), opts)
+  return fetch(getFullUrl(appPort, url), {
+    // in node.js v17 fetch favors IPv6 but Next.js is
+    // listening on IPv4 by default so force IPv4 DNS resolving
+    agent: (parsedUrl) => {
+      if (parsedUrl.protocol === 'https:') {
+        return new https.Agent({ family: 4 })
+      }
+      if (parsedUrl.protocol === 'http:') {
+        return new http.Agent({ family: 4 })
+      }
+    },
+    ...opts,
+  })
 }
 
 export function findPort() {
@@ -119,6 +132,7 @@ export function runNextCommand(argv, options = {}) {
     ...options.env,
     NODE_ENV: '',
     __NEXT_TEST_MODE: 'true',
+    NEXT_PRIVATE_OUTPUT_TRACE_ROOT: path.join(__dirname, '../../'),
   }
 
   return new Promise((resolve, reject) => {
@@ -333,10 +347,9 @@ export function buildTS(args = [], cwd, env = {}) {
   })
 }
 
-// Kill a launched app
-export async function killApp(instance) {
+export async function killProcess(pid) {
   await new Promise((resolve, reject) => {
-    treeKill(instance.pid, (err) => {
+    treeKill(pid, (err) => {
       if (err) {
         if (
           process.platform === 'win32' &&
@@ -357,6 +370,11 @@ export async function killApp(instance) {
       resolve()
     })
   })
+}
+
+// Kill a launched app
+export async function killApp(instance) {
+  await killProcess(instance.pid)
 }
 
 export async function startApp(app) {
