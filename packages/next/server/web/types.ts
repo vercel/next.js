@@ -33,7 +33,7 @@ export interface FetchEventResult {
   waitUntil: Promise<any>
 }
 
-type NextMiddlewareResult = NextResponse | Response | null
+export type NextMiddlewareResult = NextResponse | Response | null | undefined
 
 export type NextMiddleware = (
   request: NextRequest,

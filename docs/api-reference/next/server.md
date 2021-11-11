@@ -15,7 +15,7 @@ These native Web API objects are extended to give you more control over how you 
 The function signature is defined as follows:
 
 ```ts
-type NextMiddlewareResult = NextResponse | Response | null
+type NextMiddlewareResult = NextResponse | Response | null | undefined
 
 type NextMiddleware = (
   request: NextRequest,
