@@ -12,24 +12,36 @@ import { ClientPagesLoaderOptions } from './webpack/loaders/next-client-pages-lo
 import { ServerlessLoaderQuery } from './webpack/loaders/next-serverless-loader'
 import { LoadedEnvFiles } from '@next/env'
 import { NextConfigComplete } from '../server/config-shared'
+import { isCustomErrorPage, isFlightPage, isReservedPage } from './utils'
+import { ssrEntries } from './webpack/plugins/middleware-plugin'
 import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
+import { MIDDLEWARE_SSR_RUNTIME_WEBPACK } from '../shared/lib/constants'
 
 type ObjectValue<T> = T extends { [key: string]: infer V } ? V : never
-type PagesMapping = {
+export type PagesMapping = {
   [page: string]: string
 }
 
 export function createPagesMapping(
   pagePaths: string[],
   extensions: string[],
-  isDev: boolean
+  isDev: boolean,
+  hasServerComponents: boolean
 ): PagesMapping {
   const previousPages: PagesMapping = {}
   const pages: PagesMapping = pagePaths.reduce(
     (result: PagesMapping, pagePath): PagesMapping => {
-      let page = `${pagePath
-        .replace(new RegExp(`\\.+(${extensions.join('|')})$`), '')
-        .replace(/\\/g, '/')}`.replace(/\/index$/, '')
+      let page = pagePath.replace(
+        new RegExp(`\\.+(${extensions.join('|')})$`),
+        ''
+      )
+      if (hasServerComponents && /\.client$/.test(page)) {
+        // Assume that if there's a Client Component, that there is
+        // a matching Server Component that will map to the page.
+        return result
+      }
+
+      page = page.replace(/\\/g, '/').replace(/\/index$/, '')
 
       const pageKey = page === '' ? '/' : page
 
@@ -53,6 +65,7 @@ export function createPagesMapping(
   // we alias these in development and allow webpack to
   // allow falling back to the correct source file so
   // that HMR can work properly when a file is added/removed
+  const documentPage = `_document${hasServerComponents ? '-web' : ''}`
   if (isDev) {
     pages['/_app'] = `${PAGES_DIR_ALIAS}/_app`
     pages['/_error'] = `${PAGES_DIR_ALIAS}/_error`
@@ -60,7 +73,8 @@ export function createPagesMapping(
   } else {
     pages['/_app'] = pages['/_app'] || 'next/dist/pages/_app'
     pages['/_error'] = pages['/_error'] || 'next/dist/pages/_error'
-    pages['/_document'] = pages['/_document'] || 'next/dist/pages/_document'
+    pages['/_document'] =
+      pages['/_document'] || `next/dist/pages/${documentPage}`
   }
   return pages
 }
@@ -68,6 +82,7 @@ export function createPagesMapping(
 type Entrypoints = {
   client: webpack5.EntryObject
   server: webpack5.EntryObject
+  serverWeb: webpack5.EntryObject
 }
 
 export function createEntrypoints(
@@ -80,6 +95,7 @@ export function createEntrypoints(
 ): Entrypoints {
   const client: webpack5.EntryObject = {}
   const server: webpack5.EntryObject = {}
+  const serverWeb: webpack5.EntryObject = {}
 
   const hasRuntimeConfig =
     Object.keys(config.publicRuntimeConfig).length > 0 ||
@@ -120,6 +136,11 @@ export function createEntrypoints(
     const serverBundlePath = posix.join('pages', bundleFile)
 
     const isLikeServerless = isTargetLikeServerless(target)
+    const isReserved = isReservedPage(page)
+    const isCustomError = isCustomErrorPage(page)
+    const isFlight = isFlightPage(config, absolutePagePath)
+
+    const webServerRuntime = !!config.experimental.concurrentFeatures
 
     if (page.match(MIDDLEWARE_ROUTE)) {
       const loaderOpts: MiddlewareLoaderOptions = {
@@ -133,6 +154,25 @@ export function createEntrypoints(
       return
     }
 
+    if (webServerRuntime && !isReserved && !isCustomError && !isApiRoute) {
+      ssrEntries.set(clientBundlePath, { requireFlightManifest: isFlight })
+      serverWeb[serverBundlePath] = finalizeEntrypoint({
+        name: '[name].js',
+        value: `next-middleware-ssr-loader?${stringify({
+          page,
+          absoluteAppPath: pages['/_app'],
+          absoluteDocumentPath: pages['/_document'],
+          absolutePagePath,
+          isServerComponent: isFlight,
+          buildId,
+          basePath: config.basePath,
+          assetPrefix: config.assetPrefix,
+        } as any)}!`,
+        isServer: false,
+        isServerWeb: true,
+      })
+    }
+
     if (isApiRoute && isLikeServerless) {
       const serverlessLoaderOptions: ServerlessLoaderQuery = {
         page,
@@ -143,8 +183,15 @@ export function createEntrypoints(
         serverlessLoaderOptions
       )}!`
     } else if (isApiRoute || target === 'server') {
-      server[serverBundlePath] = [absolutePagePath]
-    } else if (isLikeServerless && page !== '/_app' && page !== '/_document') {
+      if (!webServerRuntime || isReserved || isCustomError) {
+        server[serverBundlePath] = [absolutePagePath]
+      }
+    } else if (
+      isLikeServerless &&
+      page !== '/_app' &&
+      page !== '/_document' &&
+      !webServerRuntime
+    ) {
       const serverlessLoaderOptions: ServerlessLoaderQuery = {
         page,
         absolutePagePath,
@@ -182,6 +229,7 @@ export function createEntrypoints(
   return {
     client,
     server,
+    serverWeb,
   }
 }
 
@@ -189,10 +237,14 @@ export function finalizeEntrypoint({
   name,
   value,
   isServer,
+  isMiddleware,
+  isServerWeb,
 }: {
   isServer: boolean
   name: string
   value: ObjectValue<webpack5.EntryObject>
+  isMiddleware?: boolean
+  isServerWeb?: boolean
 }): ObjectValue<webpack5.EntryObject> {
   const entry =
     typeof value !== 'object' || Array.isArray(value)
@@ -209,8 +261,19 @@ export function finalizeEntrypoint({
     }
   }
 
-  if (name.match(MIDDLEWARE_ROUTE)) {
-    return {
+  if (isServerWeb) {
+    const ssrMiddlewareEntry = {
+      library: {
+        name: ['_ENTRIES', `middleware_[name]`],
+        type: 'assign',
+      },
+      runtime: MIDDLEWARE_SSR_RUNTIME_WEBPACK,
+      ...entry,
+    }
+    return ssrMiddlewareEntry
+  }
+  if (isMiddleware) {
+    const middlewareEntry = {
       filename: 'server/[name].js',
       layer: 'middleware',
       library: {
@@ -219,6 +282,7 @@ export function finalizeEntrypoint({
       },
       ...entry,
     }
+    return middlewareEntry
   }
 
   if (

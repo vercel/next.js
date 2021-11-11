@@ -30,18 +30,10 @@ do
   cd "./e2e-tests/$testCase"
 
   # TODO: remove after able to load bindings with YarnPnP
-  if [ -f "next.config.js" ]; then
-    mv next.config.js next.config.bak.js
-    echo 'module.exports = { ...require("./next.config.bak.js"), experimental: { swcLoader: false } }' > next.config.js
-  else
-    echo 'module.exports = { experimental: { swcLoader: false } }' > next.config.js
-  fi
+  echo '{"presets": ["next/babel"]}' > .babelrc
 
   touch yarn.lock
   yarn set version berry
-
-  # Temporary fix for https://github.com/yarnpkg/berry/issues/2514:
-  yarn set version from sources
 
   yarn config set pnpFallbackMode none
   yarn config set enableGlobalCache true
