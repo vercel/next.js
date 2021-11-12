@@ -162,8 +162,7 @@ describe('concurrentFeatures - dev', () => {
     await killApp(context.server)
   })
 
-  // TODO: re-enabled test when update webpack with chunkLoading support
-  it.skip('should support React.lazy and dynamic imports', async () => {
+  it('should support React.lazy and dynamic imports', async () => {
     const html = await renderViaHTTP(context.appPort, '/dynamic-imports')
     expect(html).toContain('loading...')
 
@@ -224,6 +223,7 @@ async function runBasicTests(context) {
     )
 
     expect(homeHTML).toContain('thisistheindexpage.server')
+    expect(homeHTML).toContain('env_var_test')
     expect(homeHTML).toContain('foo.client')
 
     expect(dynamicRouteHTML1).toContain('[pid]')

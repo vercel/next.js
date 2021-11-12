@@ -268,6 +268,7 @@ export function finalizeEntrypoint({
         type: 'assign',
       },
       runtime: MIDDLEWARE_SSR_RUNTIME_WEBPACK,
+      asyncChunks: false,
       ...entry,
     }
     return ssrMiddlewareEntry
