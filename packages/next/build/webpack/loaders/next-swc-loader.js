@@ -35,8 +35,13 @@ async function loaderTransform(parentTrace, source, inputSourceMap) {
 
   let loaderOptions = this.getOptions() || {}
 
-  const { isServer, pagesDir, hasReactRefresh, styledComponents } =
-    loaderOptions
+  const {
+    isServer,
+    pagesDir,
+    hasReactRefresh,
+    styledComponents,
+    importSource,
+  } = loaderOptions
   const isPageFile = filename.startsWith(pagesDir)
 
   const swcOptions = getLoaderSWCOptions({
@@ -47,6 +52,7 @@ async function loaderTransform(parentTrace, source, inputSourceMap) {
     development: this.mode === 'development',
     hasReactRefresh,
     styledComponents,
+    importSource,
   })
 
   const programmaticOptions = {
