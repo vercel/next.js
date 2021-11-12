@@ -34,15 +34,27 @@ extern crate napi_derive;
 /// Explicit extern crate to use allocator.
 extern crate swc_node_base;
 
+use auto_cjs::contains_cjs;
 use backtrace::Backtrace;
+use either::Either;
 use napi::{CallContext, Env, JsObject, JsUndefined};
 use serde::Deserialize;
+use std::cell::RefCell;
+use std::rc::Rc;
 use std::{env, panic::set_hook, path::PathBuf, sync::Arc};
-use swc::{Compiler, TransformOutput};
-use swc_common::{self, chain, pass::Optional, sync::Lazy, FileName, FilePathMapping, SourceMap};
-use swc_ecmascript::visit::Fold;
+use swc::{config::ModuleConfig, Compiler, TransformOutput};
+use swc_common::SourceFile;
+use swc_common::{self, chain, pass::Optional, sync::Lazy, FilePathMapping, SourceMap};
+use swc_ecmascript::ast::EsVersion;
+use swc_ecmascript::transforms::pass::noop;
+use swc_ecmascript::{
+    parser::{lexer::Lexer, Parser, StringInput},
+    visit::Fold,
+};
 
 pub mod amp_attributes;
+mod auto_cjs;
+mod bundle;
 pub mod hook_optimizer;
 pub mod minify;
 pub mod next_dynamic;
@@ -52,7 +64,7 @@ pub mod styled_jsx;
 mod transform;
 mod util;
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TransformOptions {
     #[serde(flatten)]
@@ -72,15 +84,32 @@ pub struct TransformOptions {
 
     #[serde(default)]
     pub is_development: bool,
+
+    #[serde(default)]
+    pub styled_components: Option<styled_components::Config>,
 }
 
-pub fn custom_before_pass(name: &FileName, opts: &TransformOptions) -> impl Fold {
+pub fn custom_before_pass(file: Arc<SourceFile>, opts: &TransformOptions) -> impl Fold {
     chain!(
         styled_jsx::styled_jsx(),
         hook_optimizer::hook_optimizer(),
+        match &opts.styled_components {
+            Some(config) => {
+                let config = Rc::new(config.clone());
+                let state: Rc<RefCell<styled_components::State>> = Default::default();
+
+                Either::Left(chain!(
+                    styled_components::analyzer(config.clone(), state.clone()),
+                    styled_components::display_name_and_id(file.clone(), config, state)
+                ))
+            }
+            None => {
+                Either::Right(noop())
+            }
+        },
         Optional::new(next_ssg::next_ssg(), !opts.disable_next_ssg),
         amp_attributes::amp_attributes(),
-        next_dynamic::next_dynamic(name.clone(), opts.pages_dir.clone()),
+        next_dynamic::next_dynamic(file.name.clone(), opts.pages_dir.clone()),
         Optional::new(
             page_config::page_config(opts.is_development, opts.is_page_file),
             !opts.disable_page_config
@@ -103,6 +132,8 @@ fn init(mut exports: JsObject) -> napi::Result<()> {
         }));
     }
 
+    exports.create_named_method("bundle", bundle::bundle)?;
+
     exports.create_named_method("transform", transform::transform)?;
     exports.create_named_method("transformSync", transform::transform_sync)?;
 
@@ -124,6 +155,29 @@ fn construct_compiler(ctx: CallContext) -> napi::Result<JsUndefined> {
 
 pub fn complete_output(env: &Env, output: TransformOutput) -> napi::Result<JsObject> {
     env.to_js_value(&output)?.coerce_to_object()
+}
+
+impl TransformOptions {
+    pub fn patch(mut self, fm: &SourceFile) -> Self {
+        self.swc.swcrc = false;
+
+        let should_enable_commonjs =
+            self.swc.config.module.is_none() && fm.src.contains("module.exports") && {
+                let syntax = self.swc.config.jsc.syntax.unwrap_or_default();
+                let target = self.swc.config.jsc.target.unwrap_or(EsVersion::latest());
+                let lexer = Lexer::new(syntax, target, StringInput::from(&*fm), None);
+                let mut p = Parser::new_from(lexer);
+                p.parse_module()
+                    .map(|m| contains_cjs(&m))
+                    .unwrap_or_default()
+            };
+
+        if should_enable_commonjs {
+            self.swc.config.module = Some(ModuleConfig::CommonJs(Default::default()));
+        }
+
+        self
+    }
 }
 
 pub type ArcCompiler = Arc<Compiler>;

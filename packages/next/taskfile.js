@@ -1,7 +1,7 @@
 // eslint-disable-next-line import/no-extraneous-dependencies
 const notifier = require('node-notifier')
 // eslint-disable-next-line import/no-extraneous-dependencies
-const { relative, basename, resolve, join } = require('path')
+const { relative, basename, resolve, join, dirname } = require('path')
 const fs = require('fs')
 
 export async function next__polyfill_nomodule(task, opts) {
@@ -199,6 +199,16 @@ export async function ncc_conf(task, opts) {
     .target('compiled/conf')
 }
 // eslint-disable-next-line camelcase
+externals['content-disposition'] = 'next/dist/compiled/content-disposition'
+export async function ncc_content_disposition(task, opts) {
+  await task
+    .source(
+      opts.src || relative(__dirname, require.resolve('content-disposition'))
+    )
+    .ncc({ packageName: 'content-disposition', externals })
+    .target('compiled/content-disposition')
+}
+// eslint-disable-next-line camelcase
 externals['content-type'] = 'next/dist/compiled/content-type'
 export async function ncc_content_type(task, opts) {
   await task
@@ -346,12 +356,21 @@ export async function ncc_jsonwebtoken(task, opts) {
     .target('compiled/jsonwebtoken')
 }
 // eslint-disable-next-line camelcase
-externals['loader-utils'] = 'next/dist/compiled/loader-utils'
-export async function ncc_loader_utils(task, opts) {
+externals['loader-utils'] = 'error loader-utils version not specified'
+externals['loader-utils2'] = 'next/dist/compiled/loader-utils2'
+export async function ncc_loader_utils2(task, opts) {
   await task
-    .source(opts.src || relative(__dirname, require.resolve('loader-utils')))
-    .ncc({ packageName: 'loader-utils', externals })
-    .target('compiled/loader-utils')
+    .source(opts.src || relative(__dirname, require.resolve('loader-utils2')))
+    .ncc({ packageName: 'loader-utils2', externals })
+    .target('compiled/loader-utils2')
+}
+// eslint-disable-next-line camelcase
+externals['loader-utils3'] = 'next/dist/compiled/loader-utils3'
+export async function ncc_loader_utils3(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('loader-utils3')))
+    .ncc({ packageName: 'loader-utils3', externals })
+    .target('compiled/loader-utils3')
 }
 // eslint-disable-next-line camelcase
 externals['lodash.curry'] = 'next/dist/compiled/lodash.curry'
@@ -555,13 +574,61 @@ export async function ncc_icss_utils(task, opts) {
     .target('compiled/icss-utils')
 }
 // eslint-disable-next-line camelcase
+export async function copy_react_server_dom_webpack(task, opts) {
+  await fs.promises.mkdir(
+    join(__dirname, 'compiled/react-server-dom-webpack'),
+    { recursive: true }
+  )
+  await fs.promises.writeFile(
+    join(__dirname, 'compiled/react-server-dom-webpack/package.json'),
+    JSON.stringify({ name: 'react-server-dom-webpack', main: './index.js' })
+  )
+  await task
+    .source(require.resolve('react-server-dom-webpack'))
+    .target('compiled/react-server-dom-webpack')
+
+  await task
+    .source(
+      join(
+        dirname(require.resolve('react-server-dom-webpack')),
+        'cjs/react-server-dom-webpack.*'
+      )
+    )
+    .target('compiled/react-server-dom-webpack/cjs')
+
+  await task
+    .source(
+      join(
+        dirname(require.resolve('react-server-dom-webpack')),
+        'cjs/react-server-dom-webpack-writer.browser.*'
+      )
+    )
+    .target('compiled/react-server-dom-webpack/cjs')
+
+  await task
+    .source(
+      join(
+        dirname(require.resolve('react-server-dom-webpack')),
+        'writer.browser.server.js'
+      )
+    )
+    .target('compiled/react-server-dom-webpack')
+}
+
+// eslint-disable-next-line camelcase
 externals['resolve-url-loader'] = 'next/dist/compiled/resolve-url-loader'
 export async function ncc_resolve_url_loader(task, opts) {
   await task
     .source(
       opts.src || relative(__dirname, require.resolve('resolve-url-loader'))
     )
-    .ncc({ packageName: 'resolve-url-loader', externals })
+    .ncc({
+      packageName: 'resolve-url-loader',
+      externals: {
+        ...externals,
+        'loader-utils': externals['loader-utils2'], // actually loader-utils@1 but that is compatible
+      },
+    })
     .target('compiled/resolve-url-loader')
 }
 // eslint-disable-next-line camelcase
@@ -579,6 +646,7 @@ export async function ncc_sass_loader(task, opts) {
       externals: {
         ...externals,
         'schema-utils': externals['schema-utils3'],
+        'loader-utils': externals['loader-utils2'],
       },
       target: 'es5',
     })
@@ -887,6 +955,7 @@ export async function ncc(task, opts) {
         'ncc_comment_json',
         'ncc_compression',
         'ncc_conf',
+        'ncc_content_disposition',
         'ncc_content_type',
         'ncc_cookie',
         'ncc_cross_spawn',
@@ -905,7 +974,8 @@ export async function ncc(task, opts) {
         'ncc_is_wsl',
         'ncc_json5',
         'ncc_jsonwebtoken',
-        'ncc_loader_utils',
+        'ncc_loader_utils2',
+        'ncc_loader_utils3',
         'ncc_lodash_curry',
         'ncc_lru_cache',
         'ncc_nanoid',
@@ -953,6 +1023,7 @@ export async function ncc(task, opts) {
       opts
     )
   await task.parallel(['ncc_babel_bundle_packages'], opts)
+  await task.parallel(['copy_react_server_dom_webpack'])
 }
 
 export async function compile(task, opts) {
@@ -1067,8 +1138,18 @@ export async function pages_document(task, opts) {
     .target('dist/pages')
 }
 
+export async function pages_document_server(task, opts) {
+  await task
+    .source('pages/_document-web.tsx')
+    .swc('client', { dev: opts.dev })
+    .target('dist/pages')
+}
+
 export async function pages(task, opts) {
-  await task.parallel(['pages_app', 'pages_error', 'pages_document'], opts)
+  await task.parallel(
+    ['pages_app', 'pages_error', 'pages_document', 'pages_document_server'],
+    opts
+  )
 }
 
 export async function telemetry(task, opts) {
@@ -1129,9 +1210,13 @@ export async function release(task) {
 
 // notification helper
 function notify(msg) {
-  return notifier.notify({
-    title: '▲ Next',
-    message: msg,
-    icon: false,
-  })
+  try {
+    notifier.notify({
+      title: '▲ Next',
+      message: msg,
+      icon: false,
+    })
+  } catch (err) {
+    // notifier can fail on M1 machines
+  }
 }

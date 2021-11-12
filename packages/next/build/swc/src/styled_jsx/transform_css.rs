@@ -74,12 +74,12 @@ pub fn transform_css(
         return Ok(string_literal_expr(&s));
     }
 
-    let mut parts: Vec<&str> = s.split("__styled-jsx-placeholder__").collect();
+    let mut parts: Vec<&str> = s.split("__styled-jsx-placeholder-").collect();
     let mut final_expressions = vec![];
     for i in 1..parts.len() {
         let (num_len, expression_index) = read_number(&parts[i]);
         final_expressions.push(style_info.expressions[expression_index].clone());
-        let substr = &parts[i][num_len..];
+        let substr = &parts[i][(num_len + 2)..];
         parts[i] = substr;
     }
 
@@ -138,7 +138,7 @@ impl VisitMut for Namespacer {
                         handler
                             .struct_span_err(
                                 selector.span,
-                                "Failed to parse tokens inside one off global selector",
+                                "Failed to transform one off global selector",
                             )
                             .emit()
                     });
@@ -155,10 +155,6 @@ impl Namespacer {
         &mut self,
         mut node: CompoundSelector,
     ) -> Result<Vec<CompoundSelector>, Error> {
-        if self.is_global {
-            return Ok(vec![node]);
-        }
-
         let mut pseudo_index = None;
         for (i, selector) in node.subclass_selectors.iter().enumerate() {
             if let SubclassSelector::Pseudo(PseudoSelector { name, args, .. }) = selector {
@@ -191,6 +187,16 @@ impl Namespacer {
                                 .cloned()
                                 .collect::<Vec<_>>();
 
+                            if v.is_empty() {
+                                bail!("Failed to transform one off global selector");
+                            }
+
+                            if node.combinator.is_some() && v[0].combinator.is_some() {
+                                bail!("Failed to transform one off global selector");
+                            } else if node.combinator.is_some() {
+                                v[0].combinator = node.combinator;
+                            }
+
                             v.iter_mut().for_each(|sel| {
                                 if i < node.subclass_selectors.len() {
                                     sel.subclass_selectors
@@ -216,17 +222,19 @@ impl Namespacer {
             None => node.subclass_selectors.len(),
             Some(i) => i,
         };
-        node.subclass_selectors.insert(
-            insert_index,
-            SubclassSelector::Class(ClassSelector {
-                span: DUMMY_SP,
-                text: Text {
-                    raw: subclass_selector.into(),
-                    value: subclass_selector.into(),
+        if !self.is_global {
+            node.subclass_selectors.insert(
+                insert_index,
+                SubclassSelector::Class(ClassSelector {
                     span: DUMMY_SP,
-                },
-            }),
-        );
+                    text: Text {
+                        raw: subclass_selector.into(),
+                        value: subclass_selector.into(),
+                        span: DUMMY_SP,
+                    },
+                }),
+            );
+        }
 
         Ok(vec![node])
     }
