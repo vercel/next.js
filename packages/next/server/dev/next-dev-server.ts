@@ -59,6 +59,7 @@ import isError from '../../lib/is-error'
 import { getMiddlewareRegex } from '../../shared/lib/router/utils/get-middleware-regex'
 import type { FetchEventResult } from '../web/types'
 import type { ParsedNextUrl } from '../../shared/lib/router/utils/parse-next-url'
+import { isCustomErrorPage, isReservedPage } from '../../build/utils'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: React.FunctionComponent
@@ -272,11 +273,7 @@ export default class DevServer extends Server {
             ssrMiddleware.add(pageName)
           } else if (
             isWebServerRuntime &&
-            !(
-              pageName === '/_app' ||
-              pageName === '/_error' ||
-              pageName === '/_document'
-            )
+            !(isReservedPage(pageName) || isCustomErrorPage(pageName))
           ) {
             routedMiddleware.push(pageName)
             ssrMiddleware.add(pageName)

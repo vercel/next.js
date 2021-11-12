@@ -6,8 +6,9 @@ import { normalizeLocalePath } from '../../../../shared/lib/i18n/normalize-local
 import pathMatch from '../../../../shared/lib/router/utils/path-match'
 import { getRouteRegex } from '../../../../shared/lib/router/utils/route-regex'
 import { getRouteMatcher } from '../../../../shared/lib/router/utils/route-matcher'
-import prepareDestination, {
+import {
   matchHas,
+  prepareDestination,
 } from '../../../../shared/lib/router/utils/prepare-destination'
 import { __ApiPreviewProps } from '../../../../server/api-utils'
 import { BuildManifest } from '../../../../server/get-page-files'
@@ -23,6 +24,7 @@ import { denormalizePagePath } from '../../../../server/denormalize-page-path'
 import cookie from 'next/dist/compiled/cookie'
 import { TEMPORARY_REDIRECT_STATUS } from '../../../../shared/lib/constants'
 import { NextConfig } from '../../../../server/config'
+import { addRequestMeta } from '../../../../server/request-meta'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -99,12 +101,12 @@ export function getUtils({
       }
 
       if (params) {
-        const { parsedDestination } = prepareDestination(
-          rewrite.destination,
-          params,
-          parsedUrl.query,
-          true
-        )
+        const { parsedDestination } = prepareDestination({
+          appendParamsToQuery: true,
+          destination: rewrite.destination,
+          params: params,
+          query: parsedUrl.query,
+        })
 
         Object.assign(parsedUrl.query, parsedDestination.query)
         delete (parsedDestination as any).query
@@ -372,7 +374,7 @@ export function getUtils({
     if (detectedDomain) {
       defaultLocale = detectedDomain.defaultLocale
       detectedLocale = defaultLocale
-      ;(req as any).__nextIsLocaleDomain = true
+      addRequestMeta(req, '__nextIsLocaleDomain', true)
     }
 
     // if not domain specific locale use accept-language preferred
@@ -392,7 +394,7 @@ export function getUtils({
         ...parsedUrl,
         pathname: localePathResult.pathname,
       })
-      ;(req as any).__nextStrippedLocale = true
+      addRequestMeta(req, '__nextStrippedLocale', true)
       parsedUrl.pathname = localePathResult.pathname
     }
 

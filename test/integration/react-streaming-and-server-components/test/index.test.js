@@ -140,6 +140,7 @@ describe('concurrentFeatures - prod', () => {
     ]) {
       expect(content.clientInfo).toContainEqual(item)
     }
+    expect(content.clientInfo).not.toContainEqual([['/404', true]])
   })
 
   it('should support React.lazy and dynamic imports', async () => {
@@ -190,7 +191,7 @@ const documentSuite = {
 
       expect(res.status).toBe(500)
       expect(html).toContain(
-        'Document.getInitialProps is not supported with server components, please remove it from pages/_document'
+        'Error: `getInitialProps` in Document component is not supported with `concurrentFeatures` enabled.'
       )
     })
   },
@@ -215,11 +216,21 @@ async function runBasicTests(context) {
       '/routes/dynamic2'
     )
 
+    const path404HTML = await renderViaHTTP(context.appPort, '/404')
+    const pathNotFoundHTML = await renderViaHTTP(
+      context.appPort,
+      '/this-is-not-found'
+    )
+
     expect(homeHTML).toContain('thisistheindexpage.server')
+    expect(homeHTML).toContain('env_var_test')
     expect(homeHTML).toContain('foo.client')
 
     expect(dynamicRouteHTML1).toContain('[pid]')
     expect(dynamicRouteHTML2).toContain('[pid]')
+
+    expect(path404HTML).toContain('custom-404-page')
+    expect(pathNotFoundHTML).toContain('custom-404-page')
   })
 
   it('should suspense next/link on server side', async () => {
@@ -242,6 +253,45 @@ async function runBasicTests(context) {
     const html = await renderViaHTTP(context.appPort, '/multi')
     expect(html).toContain('bar.server.js:')
     expect(html).toContain('foo.client')
+  })
+
+  it('should support streaming', async () => {
+    await fetchViaHTTP(context.appPort, '/streaming', null, {}).then(
+      async (response) => {
+        let result = ''
+        let gotFallback = false
+        let gotData = false
+
+        await new Promise((resolve) => {
+          response.body.on('data', (chunk) => {
+            result += chunk.toString()
+
+            gotData = result.includes('next_streaming_data')
+            if (!gotFallback) {
+              gotFallback = result.includes('next_streaming_fallback')
+              if (gotFallback) {
+                expect(gotData).toBe(false)
+              }
+            }
+          })
+
+          response.body.on('end', () => resolve())
+        })
+
+        expect(gotFallback).toBe(true)
+        expect(gotData).toBe(true)
+      }
+    )
+
+    // Should end up with "next_streaming_data".
+    const browser = await webdriver(context.appPort, '/streaming')
+    const content = await browser.eval(`window.document.body.innerText`)
+    expect(content).toMatchInlineSnapshot('"next_streaming_data"')
+  })
+
+  it('should support api routes', async () => {
+    const res = await renderViaHTTP(context.appPort, '/api/ping')
+    expect(res).toContain('pong')
   })
 }
 
