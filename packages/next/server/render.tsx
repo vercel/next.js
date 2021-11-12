@@ -51,6 +51,7 @@ import { denormalizePagePath } from './denormalize-page-path'
 import type { FontManifest } from './font-utils'
 import type { LoadComponentsReturnType, ManifestItem } from './load-components'
 import { normalizePagePath } from './normalize-page-path'
+import { getRequestMeta, NextParsedUrlQuery } from './request-meta'
 import {
   allowedStatusCodes,
   getRedirectStatus,
@@ -277,7 +278,7 @@ export async function renderToHTML(
   req: IncomingMessage,
   res: ServerResponse,
   pathname: string,
-  query: ParsedUrlQuery,
+  query: NextParsedUrlQuery,
   renderOpts: RenderOpts
 ): Promise<RenderResult | null> {
   // In dev we invalidate the cache by appending a timestamp to the resource URL.
@@ -498,7 +499,7 @@ export async function renderToHTML(
     renderOpts.defaultLocale,
     renderOpts.domainLocales,
     isPreview,
-    (req as any).__nextIsLocaleDomain
+    getRequestMeta(req, '__nextIsLocaleDomain')
   )
   const jsxStyleRegistry = createStyleRegistry()
   const ctx = {
@@ -513,9 +514,9 @@ export async function renderToHTML(
     defaultLocale: renderOpts.defaultLocale,
     AppTree: (props: any) => {
       return (
-        <AppContainer>
+        <AppContainerWithIsomorphicFiberStructure>
           <App {...props} Component={Component} router={router} />
-        </AppContainer>
+        </AppContainerWithIsomorphicFiberStructure>
       )
     },
     defaultGetInitialProps: async (
@@ -575,6 +576,41 @@ export async function renderToHTML(
       </AmpStateContext.Provider>
     </RouterContext.Provider>
   )
+
+  // The `useId` API uses the path indexes to generate an ID for each node.
+  // To guarantee the match of hydration, we need to ensure that the structure
+  // of wrapper nodes is isomorphic in server and client.
+  // TODO: With `enhanceApp` and `enhanceComponents` options, this approach may
+  // not be useful.
+  // https://github.com/facebook/react/pull/22644
+  const Noop = () => null
+  const AppContainerWithIsomorphicFiberStructure = ({
+    children,
+  }: {
+    children: JSX.Element
+  }) => {
+    return (
+      <>
+        {/* <Head/> */}
+        <Noop />
+        <AppContainer>
+          <>
+            {/* <ReactDevOverlay/> */}
+            {dev ? (
+              <>
+                {children}
+                <Noop />
+              </>
+            ) : (
+              children
+            )}
+            {/* <RouteAnnouncer/> */}
+            <Noop />
+          </>
+        </AppContainer>
+      </>
+    )
+  }
 
   props = await loadGetInitialProps(App, {
     AppTree: ctx.AppTree,
@@ -940,11 +976,11 @@ export async function renderToHTML(
     // opaque component. Wrappers should use context instead.
     const InnerApp = () => app
     return (
-      <AppContainer>
+      <AppContainerWithIsomorphicFiberStructure>
         {appWrappers.reduce((innerContent, fn) => {
           return fn(innerContent)
         }, <InnerApp />)}
-      </AppContainer>
+      </AppContainerWithIsomorphicFiberStructure>
     )
   }
 
@@ -1132,7 +1168,7 @@ export async function renderToHTML(
     docComponentsRendered,
     dangerousAsPath: router.asPath,
     canonicalBase:
-      !renderOpts.ampPath && (req as any).__nextStrippedLocale
+      !renderOpts.ampPath && getRequestMeta(req, '__nextStrippedLocale')
         ? `${renderOpts.canonicalBase || ''}/${renderOpts.locale}`
         : renderOpts.canonicalBase,
     ampPath,
@@ -1433,39 +1469,48 @@ function renderToNodeStream(
 
 function renderToReadableStream(
   element: React.ReactElement
-): NodeWritablePiper {
-  return (res, next) => {
-    let bufferedString = ''
-    let shellCompleted = false
+): Promise<NodeWritablePiper> {
+  return new Promise((resolve, reject) => {
+    let reader: any = null
+    let resolved = false
+    const doResolve = () => {
+      if (resolved) return
+      resolved = true
+      const piper: NodeWritablePiper = (res, next) => {
+        const streamReader: ReadableStreamDefaultReader = reader
+        const decoder = new TextDecoder()
+        const process = async () => {
+          streamReader.read().then(({ done, value }) => {
+            if (!done) {
+              const s =
+                typeof value === 'string' ? value : decoder.decode(value)
+              res.write(s)
+              process()
+            } else {
+              next()
+            }
+          })
+        }
+        process()
+      }
+      resolve(piper)
+    }
 
     const readable = (ReactDOMServer as any).renderToReadableStream(element, {
-      onCompleteShell() {
-        shellCompleted = true
-        if (bufferedString) {
-          res.write(bufferedString)
-          bufferedString = ''
+      onError(err: Error) {
+        if (!resolved) {
+          resolved = true
+          reject(err)
         }
       },
+      onCompleteShell() {
+        doResolve()
+      },
     })
-    const reader = readable.getReader()
-    const decoder = new TextDecoder()
-    const process = () => {
-      reader.read().then(({ done, value }: any) => {
-        if (!done) {
-          const s = typeof value === 'string' ? value : decoder.decode(value)
-          if (shellCompleted) {
-            res.write(s)
-          } else {
-            bufferedString += s
-          }
-          process()
-        } else {
-          next()
-        }
-      })
-    }
-    process()
-  }
+    // Start reader and lock stream immediately to consume readable,
+    // Otherwise the bytes before `onCompleteShell` will be missed.
+    reader = readable.getReader()
+  })
 }
 
 function chainPipers(pipers: NodeWritablePiper[]): NodeWritablePiper {

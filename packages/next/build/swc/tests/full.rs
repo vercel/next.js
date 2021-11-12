@@ -56,16 +56,18 @@ fn test(input: &Path, minify: bool) {
                 pages_dir: None,
                 is_page_file: false,
                 is_development: true,
+                styled_components: Some(assert_json("{}")),
             };
 
             let options = options.patch(&fm);
 
             match c.process_js_with_custom_pass(
                 fm.clone(),
+                None,
                 &handler,
                 &options.swc,
-                custom_before_pass(&fm.name, &assert_json(&"{}")),
-                noop(),
+                |_| custom_before_pass(fm.clone(), &options),
+                |_| noop(),
             ) {
                 Ok(v) => {
                     NormalizedOutput::from(v.code)

@@ -350,6 +350,19 @@ function interfaceTests(locale = '') {
     expect(globals.length > 0).toBe(true)
   })
 
+  it(`${locale} collection constructors are shared`, async () => {
+    const res = await fetchViaHTTP(context.appPort, '/interface/webcrypto')
+    const response = await res.json()
+    expect('error' in response).toBe(false)
+  })
+
+  it(`${locale} fetch accepts a URL instance`, async () => {
+    const res = await fetchViaHTTP(context.appPort, '/interface/fetchURL')
+    const response = await res.json()
+    expect('error' in response).toBe(true)
+    expect(response.error.name).not.toBe('TypeError')
+  })
+
   it(`${locale} should validate request url parameters from a static route`, async () => {
     const res = await fetchViaHTTP(
       context.appPort,
