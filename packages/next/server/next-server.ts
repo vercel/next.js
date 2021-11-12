@@ -700,9 +700,9 @@ export default class Server {
         })
 
         for (let [key, value] of result.response.headers) {
-          // Do not accumulate "next" header so that chaining middlewares can intercept
-          if (key === 'x-middleware-next') continue
-          allHeaders.append(key, value)
+          if (key !== 'x-middleware-next') {
+            allHeaders.append(key, value)
+          }
         }
 
         if (!this.renderOpts.dev) {
