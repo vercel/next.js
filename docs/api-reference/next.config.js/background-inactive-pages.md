@@ -9,10 +9,9 @@ In development, Next.js uses [Window.requestAnimationFrame](https://developer.mo
 
 For example, if you have an invisible IFrame:
 
-`
-
+```html
 <iframe style="visiblity: hidden;" src="http://next-dev-server:3000"></iframe>
-`
+```
 
 IFrame Next.js app:
 
@@ -29,7 +28,7 @@ In order to solve it, you can disable `Window.requestAnimationFrame` using:
 ```js
 module.exports = {
   devIndicators: {
-    foucUseAnimationFrame: true,
+    foucUseAnimationFrame: false,
   },
 }
 ```
