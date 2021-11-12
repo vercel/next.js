@@ -426,6 +426,11 @@ export default class Server {
       })
 
       try {
+        // ensure parsedUrl.pathname includes URL before processing
+        // rewrites or they won't match correctly
+        if (this.nextConfig.i18n && !url.locale?.path.detectedLocale) {
+          parsedUrl.pathname = `/${url.locale?.locale}${parsedUrl.pathname}`
+        }
         utils.handleRewrites(req, parsedUrl)
 
         // interpolate dynamic params and normalize URL if needed
@@ -487,6 +492,7 @@ export default class Server {
           ? ''
           : matchedPathname
       }`
+      url.pathname = parsedUrl.pathname
     }
 
     addRequestMeta(req, '__nextHadTrailingSlash', url.locale?.trailingSlash)
@@ -2556,11 +2562,13 @@ export default class Server {
     }
 
     let nextFilesStatic: string[] = []
-    nextFilesStatic = !this.minimalMode
-      ? recursiveReadDirSync(join(this.distDir, 'static')).map((f) =>
-          join('.', relative(this.dir, this.distDir), 'static', f)
-        )
-      : []
+
+    nextFilesStatic =
+      !this.minimalMode && fs.existsSync(join(this.distDir, 'static'))
+        ? recursiveReadDirSync(join(this.distDir, 'static')).map((f) =>
+            join('.', relative(this.dir, this.distDir), 'static', f)
+          )
+        : []
 
     return (this._validFilesystemPathSet = new Set<string>([
       ...nextFilesStatic,
