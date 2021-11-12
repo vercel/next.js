@@ -4,6 +4,7 @@ import type { Writable as WritableType } from 'stream'
 import React from 'react'
 import ReactDOMServer from 'react-dom/server'
 import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack'
+import { renderToReadableStream } from 'next/dist/compiled/react-server-dom-webpack/writer.browser.server'
 import { StyleRegistry, createStyleRegistry } from 'styled-jsx'
 import { UnwrapPromise } from '../lib/coalesced-function'
 import {
@@ -204,7 +205,7 @@ export type RenderOptsPartial = {
   devOnlyCacheBusterQueryString?: string
   resolvedUrl?: string
   resolvedAsPath?: string
-  renderServerComponent?: null | ((props: any) => ReadableStream)
+  serverComponentManifest?: any
   renderServerComponentData?: boolean
   distDir?: string
   locale?: string
@@ -279,14 +280,17 @@ function checkRedirectValues(
 // Create the wrapper component for a Flight stream.
 function createServerComponentRenderer(
   OriginalComponent: React.ComponentType,
-  renderServerComponent: NonNullable<RenderOpts['renderServerComponent']>
+  serverComponentManifest: NonNullable<RenderOpts['serverComponentManifest']>
 ) {
   let responseCache: any
   const ServerComponentWrapper = (props: any) => {
     let response = responseCache
     if (!response) {
       responseCache = response = createFromReadableStream(
-        renderServerComponent(props)
+        renderToReadableStream(
+          <OriginalComponent {...props} />,
+          serverComponentManifest
+        )
       )
     }
     return response.readRoot()
@@ -347,7 +351,7 @@ export async function renderToHTML(
     getStaticProps,
     getStaticPaths,
     getServerSideProps,
-    renderServerComponent,
+    serverComponentManifest,
     renderServerComponentData,
     isDataReq,
     params,
@@ -358,9 +362,10 @@ export async function renderToHTML(
     concurrentFeatures,
   } = renderOpts
 
-  const isServerComponent = !!renderServerComponent
+  const isServerComponent = !!serverComponentManifest
+  const OriginalComponent = renderOpts.Component
   const Component = isServerComponent
-    ? createServerComponentRenderer(renderOpts.Component, renderServerComponent)
+    ? createServerComponentRenderer(OriginalComponent, serverComponentManifest)
     : renderOpts.Component
 
   const getFontDefinition = (url: string): string => {
@@ -996,7 +1001,12 @@ export async function renderToHTML(
         res.write,
         next
       )
-      startWriting(renderServerComponent!(props))
+      startWriting(
+        renderToReadableStream(
+          <OriginalComponent {...props} />,
+          serverComponentManifest
+        )
+      )
     })
   }
 

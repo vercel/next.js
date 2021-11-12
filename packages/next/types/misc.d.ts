@@ -2,6 +2,7 @@
 declare module 'next/dist/compiled/babel/plugin-transform-modules-commonjs'
 declare module 'next/dist/compiled/babel/plugin-syntax-jsx'
 declare module 'next/dist/compiled/react-server-dom-webpack'
+declare module 'next/dist/compiled/react-server-dom-webpack/writer.browser.server'
 declare module 'browserslist'
 
 declare module 'cssnano-simple' {

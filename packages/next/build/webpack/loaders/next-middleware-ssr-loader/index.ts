@@ -28,15 +28,7 @@ export default async function middlewareRSCLoader(this: any) {
         import { RouterContext } from 'next/dist/shared/lib/router-context'
         import { renderToHTML } from 'next/dist/server/web/render'
 
-        import React, { createElement } from 'react'
-
-        ${
-          isServerComponent
-            ? `
-        import { renderToReadableStream } from 'next/dist/compiled/react-server-dom-webpack/writer.browser.server'
-        import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack'`
-            : ''
-        }
+        import { createElement } from 'react'
 
         ${appDefinition}
         ${documentDefinition}
@@ -71,17 +63,10 @@ export default async function middlewareRSCLoader(this: any) {
             })
           }
 
-          ${
-            isServerComponent
-              ? `
-          // Flight data request
-          const renderServerComponentData = query.__flight__ !== undefined
-          if (renderServerComponentData) {
-            delete query.__flight__
-          }`
-              : `
-          const renderServerComponentData = false`
+          const renderServerComponentData = ${
+            isServerComponent ? `query.__flight__ !== undefined` : 'false'
           }
+          delete query.__flight__
 
           const renderOpts = {
             Component,
@@ -106,12 +91,8 @@ export default async function middlewareRSCLoader(this: any) {
             supportsDynamicHTML: true,
             concurrentFeatures: true,
             renderServerComponentData,
-            renderServerComponent: ${
-              !isServerComponent
-                ? 'null'
-                : `
-              props => renderToReadableStream(createElement(Page, props), rscManifest)
-            `
+            serverComponentManifest: ${
+              isServerComponent ? 'rscManifest' : 'null'
             },
           }
 
