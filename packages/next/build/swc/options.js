@@ -44,6 +44,10 @@ function getBaseSWCOptions({
             typeofs: {
               window: globalWindow ? 'object' : 'undefined',
             },
+            envs: {
+              NODE_ENV: development ? '"development"' : '"production"',
+            },
+            // TODO: handle process.browser to match babel replacing as well
           },
         },
         regenerator: {
