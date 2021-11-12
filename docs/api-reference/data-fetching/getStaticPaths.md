@@ -2,15 +2,7 @@
 description: Fetch data at build time with `getStaticProps`.
 ---
 
-<<<<<<< HEAD
-
 # `getStaticPaths`
-
-=======
-
-# `getStaticPaths` (Static Generation)
-
-> > > > > > > 1d3d662c4 (merge conflicts)
 
 <details>
   <summary><b>Version History</b></summary>
@@ -22,12 +14,7 @@ description: Fetch data at build time with `getStaticProps`.
 
 </details>
 
-<<<<<<< HEAD
-When exporting an `async` function called `getStaticPaths` (static generation) from a page that uses dynamic routes, Next.js will statically pre-render all the paths specified by `getStaticPaths`.
-=======
 When exporting an `async` function called `getStaticPaths` from a page that uses dynamic routes, Next.js will statically pre-render all the paths specified by `getStaticPaths`.
-
-> > > > > > > 1d3d662c4 (merge conflicts)
 
 ```jsx
 export async function getStaticPaths() {
@@ -72,7 +59,7 @@ If `fallback` is `false`, then any paths not returned by `getStaticPaths` will r
 
 It is also useful when the new pages are not added often. If you add more items to the data source and need to render the new pages, you will need to run the build again.
 
-The following example pre-renders one blog post per page called `pages/posts/[id].js`. The list of blog posts will be fetched from a CMS and returned by `getStaticPaths`. Then, for each page, it fetches the post data from a CMS using [`getStaticProps`](/docs/api-reference/getStaticProps.md).
+The following example pre-renders one blog post per page called `pages/posts/[id].js`. The list of blog posts will be fetched from a CMS and returned by `getStaticPaths`. Then, for each page, it fetches the post data from a CMS using [`getStaticProps`](/docs/api-reference/data-fetching/getStaticProps.md).
 
 ```jsx
 // pages/posts/[id].js
@@ -128,7 +115,7 @@ If `fallback` is `true`, then the behavior of `getStaticProps` changes in the fo
 - When complete, the browser receives the `JSON` for the generated path. This will be used to automatically render the page with the required props. From the user’s perspective, the page will be swapped from the fallback page to the full page.
 - At the same time, Next.js adds this path to the list of pre-rendered pages. Subsequent requests to the same path will serve the generated page, just like other pages pre-rendered at build time.
 
-> `fallback: true` is not supported when using [`next export`](/docs/advanced-features/static-html-export.md).
+> **Note:** `fallback: true` is not supported when using [`next export`](/docs/advanced-features/static-html-export.md).
 
 #### When is `fallback: true` useful?
 
@@ -140,12 +127,7 @@ Shortly after, `getStaticProps` finishes and the page will be rendered with the 
 
 This ensures that users always have a fast experience while preserving fast builds and the benefits of Static Generation.
 
-<<<<<<< HEAD
-`fallback: true` will not _update_ generated pages, for that take a look at [Incremental Static Regeneration](/docs/basic-features/data-fetching/data-fetching#incremental-static-regeneration).
-=======
 `fallback: true` will not _update_ generated pages, for that take a look at [Incremental Static Regeneration](/docs/basic-features/data-fetching/index#incremental-static-regeneration).
-
-> > > > > > > 1d3d662c4 (merge conflicts)
 
 ### `fallback: 'blocking'`
 
@@ -158,14 +140,9 @@ If `fallback` is `'blocking'`, new paths not returned by `getStaticPaths` will w
 - When complete, the browser receives the `HTML` for the generated path. From the user’s perspective, it will transition from "the browser is requesting the page" to "the full page is loaded". There is no flash of loading/fallback state.
 - At the same time, Next.js adds this path to the list of pre-rendered pages. Subsequent requests to the same path will serve the generated page, just like other pages pre-rendered at build time.
 
-<<<<<<< HEAD
-`fallback: 'blocking'` will not _update_ generated pages by default. To update generated pages, use [Incremental Static Regeneration](/docs/basic-features/data-fetching/data-fetching#incremental-static-regeneration) in conjunction with `fallback: 'blocking'`.
-=======
 `fallback: 'blocking'` will not _update_ generated pages by default. To update generated pages, use [Incremental Static Regeneration](/docs/basic-features/data-fetching/index#incremental-static-regeneration) in conjunction with `fallback: 'blocking'`.
 
-> > > > > > > 1d3d662c4 (merge conflicts)
-
-> `fallback: 'blocking'` is not supported when using [`next export`](/docs/advanced-features/static-html-export.md).
+> **Note:** `fallback: 'blocking'` is not supported when using [`next export`](/docs/advanced-features/static-html-export.md).
 
 ### Fallback pages
 
@@ -221,19 +198,3 @@ export async function getStaticProps({ params }) {
 
 export default Post
 ```
-
-# <<<<<<< HEAD
-
-## TypeScript: Use `GetStaticPaths`
-
-For TypeScript, you can use the `GetStaticPaths` type from `next`:
-
-```ts
-import { GetStaticPaths } from 'next'
-
-export const getStaticPaths: GetStaticPaths = async () => {
-  // ...
-}
-```
-
-> > > > > > > 1d3d662c4 (merge conflicts)

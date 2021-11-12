@@ -2,15 +2,7 @@
 description: Fetch data at build time with `getStaticProps`.
 ---
 
-<<<<<<< HEAD
-
 # `getStaticProps`
-
-=======
-
-# `getStaticProps` (Static Generation)
-
-> > > > > > > 1d3d662c4 (merge conflicts)
 
 <details>
   <summary><b>Version History</b></summary>
@@ -23,12 +15,7 @@ description: Fetch data at build time with `getStaticProps`.
 
 </details>
 
-<<<<<<< HEAD
-Exporting an `async` function called `getStaticProps` (static generation) will pre-render a page at build time using the props returned from the function:
-=======
 Exporting an `async` function called `getStaticProps` will pre-render a page at build time using the props returned from the function:
-
-> > > > > > > 1d3d662c4 (merge conflicts)
 
 ```jsx
 export async function getStaticProps(context) {
@@ -39,24 +26,13 @@ export async function getStaticProps(context) {
 ```
 
 You can import modules in top-level scope for use in `getStaticProps`.
-Imports used will [**not be bundled for the client-side**](#write-server-side-code-directly). This means you can write **server-side code directly in `getStaticProps`**, including reading from the filesystem or a database.
+Imports used will **not be bundled for the client-side**. This means you can write **server-side code directly in `getStaticProps`**, including reading from the filesystem or a database.
 
-<<<<<<< HEAD
 You should not use the [`fetch()`](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) `API` to call an [`API` route](/docs/api-routes/introduction.md) in `getStaticProps`.
 
-Instead, directly import the logic used inside your `API` route.
-You may need to slightly refactor your code for this approach.
+Instead, directly import the logic used inside your `API` route. You may need to slightly refactor your code for this approach.
 
-# The `fetch()` `API` _can_ be used to fetch external data, such as from a Content Management System (CMS) or `API`.
-
-You should not use the [`fetch()`](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) API to call an [API route](/docs/api-routes/introduction.md) in `getStaticProps`.
-
-Instead, directly import the logic used inside your API route.
-You may need to slightly refactor your code for this approach.
-
-The `fetch()` API _can_ be used to fetch external data, such as from a Content Management System (CMS) or API.
-
-> > > > > > > 1d3d662c4 (merge conflicts)
+The `fetch()` `API` _can_ be used to fetch external data, such as from a Content Management System (CMS) or `API`.
 
 ## Context parameter
 
@@ -109,7 +85,7 @@ export async function getStaticProps() {
 }
 ```
 
-More information is covered in [Incremental Static Regeneration](/docs/basic-features/data-fetching/data-fetching#incremental-static-regeneration)
+More information is covered in [Incremental Static Regeneration](/docs/basic-features/data-fetching/incremental-static-regeneration)
 
 ### `notFound`
 
@@ -160,8 +136,6 @@ export async function getStaticProps(context) {
 
 Redirecting at build-time is currently not allowed and if the redirects are known at build-time they should be added in [`next.config.js`](/docs/api-reference/next.config.js/redirects.md).
 
-# <<<<<<< HEAD
-
 ## TypeScript: Use `GetStaticProps`
 
 You can use the `GetStaticProps` type from `next` to type the function:
@@ -201,8 +175,6 @@ function Blog({ posts }: InferGetStaticPropsType<typeof getStaticProps>) {
 
 export default Blog
 ```
-
-> > > > > > > 1d3d662c4 (merge conflicts)
 
 ## Reading files: Use `process.cwd()`
 
@@ -262,3 +234,14 @@ export async function getStaticProps() {
 
 export default Blog
 ```
+
+## Related
+
+For more information on what to do next, we recommend the following sections:
+
+<div class="card">
+  <a href="/docs/basic-features/data-fetching/index.md">
+    <b>Data Fetching:</b>
+    <small>Learn more about data fetching in Next.js.</small>
+  </a>
+</div>
