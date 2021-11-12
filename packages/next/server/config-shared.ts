@@ -92,6 +92,7 @@ export type NextConfig = { [key: string]: any } & {
   poweredByHeader?: boolean
   images?: ImageConfig
   devIndicators?: {
+    foucUseAnimationFrame: boolean
     buildActivity?: boolean
     buildActivityPosition?:
       | 'bottom-right'
@@ -186,6 +187,7 @@ export const defaultConfig: NextConfig = {
   analyticsId: process.env.VERCEL_ANALYTICS_ID || '',
   images: imageConfigDefault,
   devIndicators: {
+    foucUseAnimationFrame: true,
     buildActivity: true,
     buildActivityPosition: 'bottom-right',
   },

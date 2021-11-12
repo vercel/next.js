@@ -1318,6 +1318,9 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_TRAILING_SLASH': JSON.stringify(
           config.trailingSlash
         ),
+        'process.env.__NEXT_FOUC_USE_ANIMATION_FRAME': JSON.stringify(
+          config.devIndicators.foucUseAnimationFrame
+        ),
         'process.env.__NEXT_BUILD_INDICATOR': JSON.stringify(
           config.devIndicators.buildActivity
         ),

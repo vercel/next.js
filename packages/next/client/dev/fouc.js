@@ -2,7 +2,11 @@
 // `style-loader` in development. It must be called before hydration, or else
 // rendering won't have the correct computed values in effects.
 export function displayContent(callback) {
-  ;(window.requestAnimationFrame || setTimeout)(function () {
+  ;(
+    (process.env.__NEXT_FOUC_USE_ANIMATION_FRAME &&
+      window.requestAnimationFrame) ||
+    setTimeout
+  )(function () {
     for (
       var x = document.querySelectorAll('[data-next-hide-fouc]'), i = x.length;
       i--;
