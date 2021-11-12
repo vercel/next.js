@@ -283,7 +283,11 @@ function handleLoading(
               console.warn(
                 `Image with src "${src}" may not render properly as a child of a flex container. Consider wrapping the image with a div to configure the width.`
               )
-            } else if (layout === 'fill' && parent.position !== 'relative') {
+            } else if (
+              layout === 'fill' &&
+              parent.position !== 'relative' &&
+              parent.position !== 'fixed'
+            ) {
               console.warn(
                 `Image with src "${src}" may not render properly with a parent using position:"${parent.position}". Consider changing the parent style to position:"relative" with a width and height.`
               )
@@ -414,6 +418,11 @@ export default function Image({
         `Image with src "${src}" has both "priority" and "loading='lazy'" properties. Only one should be used.`
       )
     }
+    if (sizes && layout !== 'fill' && layout !== 'responsive') {
+      console.warn(
+        `Image with src "${src}" has "sizes" property but it will be ignored. Only use "sizes" with "layout='fill'" or "layout='responsive'".`
+      )
+    }
     if (placeholder === 'blur') {
       if (layout !== 'fill' && (widthInt || 0) * (heightInt || 0) < 1600) {
         console.warn(
@@ -445,18 +454,30 @@ export default function Image({
         `Image with src "${src}" is using unsupported "style" property. Please use the "className" property instead.`
       )
     }
-    const rand = Math.floor(Math.random() * 1000) + 100
-    if (
-      !unoptimized &&
-      !loader({ src, width: rand, quality: 75 }).includes(rand.toString())
-    ) {
-      console.warn(
-        `Image with src "${src}" has a "loader" property that does not implement width. Please implement it or use the "unoptimized" property instead.` +
-          `\nRead more: https://nextjs.org/docs/messages/next-image-missing-loader-width`
-      )
+
+    if (!unoptimized) {
+      const urlStr = loader({
+        src,
+        width: widthInt || 400,
+        quality: qualityInt || 75,
+      })
+      let url: URL | undefined
+      try {
+        url = new URL(urlStr)
+      } catch (err) {}
+      if (urlStr === src || (url && url.pathname === src && !url.search)) {
+        console.warn(
+          `Image with src "${src}" has a "loader" property that does not implement width. Please implement it or use the "unoptimized" property instead.` +
+            `\nRead more: https://nextjs.org/docs/messages/next-image-missing-loader-width`
+        )
+      }
     }
 
-    if (typeof window !== 'undefined' && !perfObserver) {
+    if (
+      typeof window !== 'undefined' &&
+      !perfObserver &&
+      window.PerformanceObserver
+    ) {
       perfObserver = new PerformanceObserver((entryList) => {
         for (const entry of entryList.getEntries()) {
           // @ts-ignore - missing "LargestContentfulPaint" class with "element" prop
@@ -743,7 +764,7 @@ function cloudinaryLoader({
 }: DefaultImageLoaderProps): string {
   // Demo: https://res.cloudinary.com/demo/image/upload/w_300,c_limit,q_auto/turtles.jpg
   const params = ['f_auto', 'c_limit', 'w_' + width, 'q_' + (quality || 'auto')]
-  let paramsString = params.join(',') + '/'
+  const paramsString = params.join(',') + '/'
   return `${root}${paramsString}${normalizeSrc(src)}`
 }
 

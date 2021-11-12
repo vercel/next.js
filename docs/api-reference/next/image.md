@@ -119,9 +119,11 @@ const MyImage = (props) => {
 
 A string that provides information about how wide the image will be at different breakpoints. Defaults to `100vw` (the full width of the screen) when using `layout="responsive"` or `layout="fill"`.
 
-`sizes` is important for performance when using `layout="responsive"` or `layout="fill"` with images that take up less than the full viewport width.
+If you are using `layout="fill"` or `layout="responsive"`, it's important to assign `sizes` for any image that takes up less than the full viewport width.
 
-If you are using `layout="fill"` or `layout="responsive"` and the image will always be less than half the viewport width, include `sizes="50vw"`. Without `sizes`, the image will be sent at twice the necessary resolution, decreasing performance.
+For example, when the parent element will constrain the image to always be less than half the viewport width, use `sizes="50vw"`. Without `sizes`, the image will be sent at twice the necessary resolution, decreasing performance.
+
+If you are using `layout="intrinsic"` or `layout="fixed"`, then `sizes` is not needed because the upperbound width is constrained already.
 
 [Learn more](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/img#attr-sizes).
 
@@ -302,7 +304,7 @@ module.exports = {
 
 You can specify a list of image widths using the `images.imageSizes` property in your `next.config.js` file. These widths are concatenated with the array of [device sizes](#device-sizes) to form the full array of sizes used to generate image [srcset](https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement/srcset)s.
 
-The reason there are two seperate lists is that imageSizes is only used for images which provide a [`sizes`](#sizes) prop, which indicates that the image is less than the full width of the screen. **Therefore, the sizes in imageSizes should all be smaller than the smallest size in deviceSizes.**
+The reason there are two separate lists is that imageSizes is only used for images which provide a [`sizes`](#sizes) prop, which indicates that the image is less than the full width of the screen. **Therefore, the sizes in imageSizes should all be smaller than the smallest size in deviceSizes.**
 
 If no configuration is provided, the default below is used.
 

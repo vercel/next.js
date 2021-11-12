@@ -11,8 +11,7 @@ These native Web API objects are extended to give you more control over how you 
 The function signature:
 
 ```ts
-import type { NextFetchEvent } from 'next/server'
-import type { NextRequest } from 'next/server'
+import type { NextRequest, NextFetchEvent } from 'next/server'
 
 export type Middleware = (
   request: NextRequest,
@@ -22,21 +21,7 @@ export type Middleware = (
 
 The function can be a default export and as such, does **not** have to be named `middleware`. Though this is a convention. Also note that you only need to make the function `async` if you are running asynchronous code.
 
-## NextFetchEvent
-
-The `NextFetchEvent` object extends the native [`FetchEvent`](https://developer.mozilla.org/en-US/docs/Web/API/FetchEvent) object, and includes the [`waitUntil()`](https://developer.mozilla.org/en-US/docs/Web/API/ExtendableEvent/waitUntil) method.
-
-The `waitUntil()` method can be used to prolong the execution of the function, after the response has been sent. In practice this means that you can send a response, then continue the function execution if you have other background work to make.
-
-An example of _why_ you would use `waitUntil()` is integrations with logging tools such as [Sentry](https://sentry.io) or [DataDog](https://www.datadoghq.com). After the response has been sent, you can send logs of response times, errors, API call durations or overall performance metrics.
-
-The `event` object is fully typed and can be imported from `next/server`.
-
-```ts
-import { NextFetchEvent } from 'next/server'
-```
-
-#### NextRequest
+## NextRequest
 
 The `NextRequest` object is an extension of the native [`Request`](https://developer.mozilla.org/en-US/docs/Web/API/Request) interface, with the following added methods and properties:
 
@@ -59,7 +44,21 @@ You can use the `NextRequest` object as a direct replacement for the native `Req
 import type { NextRequest } from 'next/server'
 ```
 
-#### NextResponse
+## NextFetchEvent
+
+The `NextFetchEvent` object extends the native [`FetchEvent`](https://developer.mozilla.org/en-US/docs/Web/API/FetchEvent) object, and includes the [`waitUntil()`](https://developer.mozilla.org/en-US/docs/Web/API/ExtendableEvent/waitUntil) method.
+
+The `waitUntil()` method can be used to prolong the execution of the function, after the response has been sent. In practice this means that you can send a response, then continue the function execution if you have other background work to make.
+
+An example of _why_ you would use `waitUntil()` is integrations with logging tools such as [Sentry](https://sentry.io) or [DataDog](https://www.datadoghq.com). After the response has been sent, you can send logs of response times, errors, API call durations or overall performance metrics.
+
+The `event` object is fully typed and can be imported from `next/server`.
+
+```ts
+import type { NextFetchEvent } from 'next/server'
+```
+
+## NextResponse
 
 The `NextResponse` object is an extension of the native [`Response`](https://developer.mozilla.org/en-US/docs/Web/API/Response) interface, with the following added methods and properties:
 

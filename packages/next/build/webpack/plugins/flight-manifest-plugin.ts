@@ -56,12 +56,12 @@ export class FlightManifestPlugin {
           // @ts-ignore TODO: Remove ignore when webpack 5 is stable
           stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
         },
-        (assets: any) => this.createAsset(assets, compilation, compiler)
+        (assets: any) => this.createAsset(assets, compilation)
       )
     })
   }
 
-  createAsset(assets: any, compilation: any, compiler: any) {
+  createAsset(assets: any, compilation: any) {
     const json: any = {}
     const { clientComponentsRegex } = this
     compilation.chunkGroups.forEach((chunkGroup: any) => {
@@ -103,16 +103,7 @@ export class FlightManifestPlugin {
         const chunkModules =
           compilation.chunkGraph.getChunkModulesIterable(chunk)
         for (const mod of chunkModules) {
-          let modId: string
-
-          const context = compiler.context
-          const nameForCondition = mod.nameForCondition()
-
-          if (nameForCondition && nameForCondition.startsWith(context)) {
-            modId = '.' + nameForCondition.slice(context.length)
-          } else {
-            modId = compilation.chunkGraph.getModuleId(mod)
-          }
+          let modId = compilation.chunkGraph.getModuleId(mod)
 
           // remove resource query on production
           if (typeof modId === 'string') {
@@ -129,9 +120,7 @@ export class FlightManifestPlugin {
       })
     })
 
-    const output =
-      `self._middleware_rsc_manifest=(typeof _ENTRIES === "undefined"?{}:_ENTRIES)._middleware_rsc_manifest=` +
-      JSON.stringify(json)
+    const output = `self.__RSC_MANIFEST=` + JSON.stringify(json)
     assets[`server/${MIDDLEWARE_FLIGHT_MANIFEST}.js`] = new sources.RawSource(
       output
     )
