@@ -1005,7 +1005,7 @@ export async function renderToHTML(
         renderToReadableStream(
           <OriginalComponent {...props} />,
           serverComponentManifest
-        )
+        ).getReader()
       )
     })
   }
@@ -1535,7 +1535,7 @@ function renderToNodeStream(
 }
 
 function connectReactServerReadableStreamToPiper(
-  write: (s: string) => boolean,
+  write: (s: string) => void,
   next: (err?: Error) => void
 ) {
   let bufferedString = ''
@@ -1546,16 +1546,14 @@ function connectReactServerReadableStreamToPiper(
     // of cork/uncork APIs.
     if (!flushTimeout) {
       flushTimeout = setTimeout(() => {
-        if (write(bufferedString)) {
-          bufferedString = ''
-        }
+        write(bufferedString)
+        bufferedString = ''
         flushTimeout = null
       }, 0)
     }
   }
 
-  function startWriting(readable: ReadableStream) {
-    const reader = readable.getReader()
+  function startWriting(reader: ReadableStreamDefaultReader) {
     const decoder = new TextDecoder()
     const process = () => {
       reader.read().then(({ done, value }: any) => {
@@ -1579,29 +1577,62 @@ function connectReactServerReadableStreamToPiper(
   }
 }
 
-function renderToWebStream(element: React.ReactElement): NodeWritablePiper {
-  return (res, next) => {
-    let shellCompleted = false
+function renderToWebStream(
+  element: React.ReactElement
+): Promise<NodeWritablePiper> {
+  return new Promise((resolve, reject) => {
+    let resolved = false
+    let underlyingStream: {
+      write: (s: string) => void
+      next: (err?: Error) => void
+    } | null = null
 
-    const { flushBuffer, startWriting } =
-      connectReactServerReadableStreamToPiper((s: string) => {
-        // Buffer result until the shell is completed.
-        if (shellCompleted) {
-          res.write(s)
-          return true
+    const doResolve = () => {
+      resolve((res, next) => {
+        underlyingStream = {
+          write: res.write,
+          next,
         }
-        return false
-      }, next)
+      })
+    }
 
-    startWriting(
-      (ReactDOMServer as any).renderToReadableStream(element, {
+    const { startWriting } = connectReactServerReadableStreamToPiper(
+      (s: string) => {
+        if (!underlyingStream) {
+          throw new Error(
+            'invariant: `write` called without an underlying stream. This is a bug in Next.js'
+          )
+        }
+        underlyingStream.write(s)
+      },
+      (err) => {
+        if (!underlyingStream) {
+          throw new Error(
+            'invariant: `next` called without an underlying stream. This is a bug in Next.js'
+          )
+        }
+        underlyingStream.next(err)
+      }
+    )
+
+    const reader = (ReactDOMServer as any)
+      .renderToReadableStream(element, {
+        onError(err: Error) {
+          if (!resolved) {
+            resolved = true
+            reject(err)
+          }
+        },
         onCompleteShell() {
-          shellCompleted = true
-          flushBuffer()
+          if (!resolved) {
+            resolved = true
+            doResolve()
+            startWriting(reader)
+          }
         },
       })
-    )
-  }
+      .getReader()
+  })
 }
 
 function chainPipers(pipers: NodeWritablePiper[]): NodeWritablePiper {
