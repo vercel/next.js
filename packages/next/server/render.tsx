@@ -1529,16 +1529,19 @@ function connectReactServerReadableStreamToPiper(
   next: (err?: Error) => void
 ) {
   let bufferedString = ''
+  let flushTimeout: null | NodeJS.Timeout = null
 
   function flushBuffer() {
     // Intentionally delayed writing when using ReadableStream due to the lack
     // of cork/uncork APIs.
-    setTimeout(() => {
-      if (!bufferedString) return
-      if (write(bufferedString)) {
-        bufferedString = ''
-      }
-    }, 0)
+    if (!flushTimeout) {
+      flushTimeout = setTimeout(() => {
+        if (write(bufferedString)) {
+          bufferedString = ''
+        }
+        flushTimeout = null
+      }, 0)
+    }
   }
 
   function startWriting(readable: ReadableStream) {
