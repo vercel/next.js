@@ -116,7 +116,6 @@ export function prepareDestination(args: {
   query: NextParsedUrlQuery
 }) {
   const query = Object.assign({}, args.query)
-  const hadLocale = query.__nextLocale
   delete query.__nextLocale
   delete query.__nextDefaultLocale
 
@@ -170,12 +169,9 @@ export function prepareDestination(args: {
 
   // add path params to query if it's not a redirect and not
   // already defined in destination query or path
-  let paramKeys = Object.keys(args.params)
-
-  // remove internal param for i18n
-  if (hadLocale) {
-    paramKeys = paramKeys.filter((name) => name !== 'nextInternalLocale')
-  }
+  let paramKeys = Object.keys(args.params).filter(
+    (name) => name !== 'nextInternalLocale'
+  )
 
   if (
     args.appendParamsToQuery &&
