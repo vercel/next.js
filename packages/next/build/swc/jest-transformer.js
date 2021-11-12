@@ -41,14 +41,19 @@ module.exports = {
         return src
       }
 
+      const jestConfig = getJestConfig(jestOptions)
+
       let swcTransformOpts = getJestSWCOptions({
+        // When target is node it's similar to the server option set in SWC.
+        isServer:
+          jestConfig.testEnvironment && jestConfig.testEnvironment === 'node',
         filename,
         styledComponents: inputOptions.styledComponents,
         paths: inputOptions.paths,
         baseUrl: inputOptions.resolvedBaseUrl,
         esm:
           isSupportEsm &&
-          isEsm(Boolean(inputOptions.isEsmProject), filename, jestOptions),
+          isEsm(Boolean(inputOptions.isEsmProject), filename, jestConfig),
       })
 
       return transformSync(src, { ...swcTransformOpts, filename })
@@ -64,11 +69,9 @@ function getJestConfig(jestConfig) {
       jestConfig
 }
 
-function isEsm(isEsmProject, filename, jestOptions) {
+function isEsm(isEsmProject, filename, jestConfig) {
   return (
     (/\.jsx?$/.test(filename) && isEsmProject) ||
-    getJestConfig(jestOptions).extensionsToTreatAsEsm?.find((ext) =>
-      filename.endsWith(ext)
-    )
+    jestConfig.extensionsToTreatAsEsm?.find((ext) => filename.endsWith(ext))
   )
 }

@@ -75,6 +75,11 @@ export default class MiddlewarePlugin {
       if (!location) {
         continue
       }
+
+      const entryFiles = entrypoint
+        .getFiles()
+        .filter((file: string) => !file.endsWith('.hot-update.js'))
+
       const files = ssrEntryInfo
         ? [
             ssrEntryInfo.requireFlightManifest
@@ -82,20 +87,15 @@ export default class MiddlewarePlugin {
               : null,
             `server/${MIDDLEWARE_BUILD_MANIFEST}.js`,
             `server/${MIDDLEWARE_REACT_LOADABLE_MANIFEST}.js`,
-            ...entrypoint.getFiles().map((file) => 'server/' + file),
-          ]
-            .filter(nonNullable)
-            .filter((file: string) => !file.endsWith('.hot-update.js'))
-        : entrypoint
-            .getFiles()
-            .filter((file: string) => !file.endsWith('.hot-update.js'))
-            .map((file: string) =>
-              // we need to use the unminified version of the webpack runtime,
-              // remove if we do start minifying middleware chunks
-              file.startsWith('static/chunks/webpack-')
-                ? file.replace('webpack-', 'webpack-middleware-')
-                : file
-            )
+            ...entryFiles.map((file) => 'server/' + file),
+          ].filter(nonNullable)
+        : entryFiles.map((file: string) =>
+            // we need to use the unminified version of the webpack runtime,
+            // remove if we do start minifying middleware chunks
+            file.startsWith('static/chunks/webpack-')
+              ? file.replace('webpack-', 'webpack-middleware-')
+              : file
+          )
 
       middlewareManifest.middleware[location] = {
         env: envPerRoute.get(entrypoint.name) || [],
