@@ -23,7 +23,7 @@ npm install next@latest
 
 import type { NextFetchEvent, NextRequest } from 'next/server'
 
-export function middleware(req: NextRequest, ev: NextFetchEvent) {
+export async function middleware(req: NextRequest, ev: NextFetchEvent) {
   return new Response('Hello, world!')
 }
 ```
