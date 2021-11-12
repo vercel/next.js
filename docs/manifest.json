@@ -48,10 +48,6 @@
               "path": "/docs/basic-features/built-in-css-support.md"
             },
             {
-              "title": "Layouts",
-              "path": "/docs/basic-features/layouts.md"
-            },
-            {
               "title": "Image Optimization",
               "path": "/docs/basic-features/image-optimization.md"
             },
@@ -84,7 +80,7 @@
               "path": "/docs/basic-features/supported-browsers-features.md"
             },
             {
-              "title": "Handling Script",
+              "title": "Handling Scripts",
               "path": "/docs/basic-features/script.md"
             }
           ]
@@ -146,10 +142,6 @@
         {
           "title": "Authentication",
           "path": "/docs/authentication.md"
-        },
-        {
-          "title": "Testing",
-          "path": "/docs/testing.md"
         },
         {
           "title": "Advanced Features",
@@ -421,10 +413,6 @@
             {
               "title": "Disabling ETag Generation",
               "path": "/docs/api-reference/next.config.js/disabling-etag-generation.md"
-            },
-            {
-              "title": "Disabling HTTP Keep-Alive",
-              "path": "/docs/api-reference/next.config.js/disabling-http-keep-alive.md"
             },
             {
               "title": "Setting a custom build directory",

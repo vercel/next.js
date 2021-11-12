@@ -2,7 +2,15 @@
 description: Fetch data on each request with `getServerSideProps`. Learn more about this API for data fetching in Next.js.
 ---
 
+<<<<<<< HEAD
+
 # `getServerSideProps`
+
+=======
+
+# `getServerSideProps` (Server-side Rendering)
+
+> > > > > > > 1d3d662c4 (merge conflicts)
 
 <details>
   <summary><b>Version History</b></summary>
@@ -14,7 +22,12 @@ description: Fetch data on each request with `getServerSideProps`. Learn more ab
 
 </details>
 
+<<<<<<< HEAD
 When exporting an `async` function called `getServerSideProps` (server-side rendering) from a page, Next.js will pre-render this page on each request using the data returned by `getServerSideProps`.
+=======
+When exporting an `async` function called `getServerSideProps` from a page, Next.js will pre-render this page on each request using the data returned by `getServerSideProps`.
+
+> > > > > > > 1d3d662c4 (merge conflicts)
 
 ```js
 export async function getServerSideProps(context) {
@@ -27,12 +40,22 @@ export async function getServerSideProps(context) {
 You can import modules in top-level scope for use in `getServerSideProps`.
 Imports used will [**not be bundled for the client-side**](#write-server-side-code-directly). This means you can write **server-side code directly in `getServerSideProps`**, including reading from the filesystem or a database.
 
+<<<<<<< HEAD
 You should not use the [`fetch()`](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) `API` to call an [API route](/docs/api-routes/introduction.md) in `getServerSideProps`.
 
 Instead, directly import the logic used inside your `API` route.
 You may need to slightly refactor your code for this approach.
 
-The `fetch()` `API` _can_ be used to fetch external data, such as from a Content Management System (CMS) or `API`.
+# The `fetch()` `API` _can_ be used to fetch external data, such as from a Content Management System (CMS) or `API`.
+
+You should not use the [`fetch()`](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) API to call an [API route](/docs/api-routes/introduction.md) in `getServerSideProps`.
+
+Instead, directly import the logic used inside your API route.
+You may need to slightly refactor your code for this approach.
+
+The `fetch()` API _can_ be used to fetch external data, such as from a Content Management System (CMS) or API.
+
+> > > > > > > 1d3d662c4 (merge conflicts)
 
 ## Context parameter
 

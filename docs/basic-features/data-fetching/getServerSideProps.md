@@ -2,9 +2,17 @@
 description: Fetch data at build time with `getStaticProps` API reference.
 ---
 
+<<<<<<< HEAD
+
 # `getServerSideProps`
 
-If you export an `async` function called `getServerSideProps` (server-side rendering) from a page, Next.js will pre-render this page on each request using the data returned by `getServerSideProps`.
+# If you export an `async` function called `getServerSideProps` (server-side rendering) from a page, Next.js will pre-render this page on each request using the data returned by `getServerSideProps`.
+
+# `getServerSideProps` (Server-side Rendering)
+
+If you export an `async` function called `getServerSideProps` from a page, Next.js will pre-render this page on each request using the data returned by `getServerSideProps`.
+
+> > > > > > > 1d3d662c4 (merge conflicts)
 
 ```js
 export async function getServerSideProps(context) {
@@ -14,6 +22,7 @@ export async function getServerSideProps(context) {
 }
 ```
 
+<<<<<<< HEAD
 The [`getServerSideProps` API reference](/docs/api-reference/data-fetching/getServerSideProps.md) covers all parameters and props that can be used with `getServerSideProps`.
 
 ## When should I use `getServerSideProps`?
@@ -23,6 +32,19 @@ You should use `getServerSideProps` only if you need to pre-render a page whose 
 If you do not need to pre-render the data, then you should consider fetching data on the [client side](#fetching-data-on-the-client-side).
 
 ## TypeScript: Use `GetServerSideProps`
+
+=======
+The [`getServerSideProps` API reference](/docs/api-reference/getServerSideProps.md) covers all parameters and props that can be used with `getServerSideProps`.
+
+### When should I use `getServerSideProps`?
+
+You should use `getServerSideProps` only if you need to pre-render a page whose data must be fetched at request time. Time to first byte (TTFB) will be slower than [`getStaticProps`](/docs/data-fetching/getstaticprops.md) because the server must compute the result on every request, and the result cannot be cached by a CDN without extra configuration.
+
+If you do not need to pre-render the data, then you should consider fetching data on the [client side](#fetching-data-on-the-client-side).
+
+### TypeScript: Use `GetServerSideProps`
+
+> > > > > > > 1d3d662c4 (merge conflicts)
 
 For TypeScript, you can use the `GetServerSideProps` type from `next`:
 
@@ -34,7 +56,12 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 }
 ```
 
+<<<<<<< HEAD
 If you want to get inferred typings for your props, you can use `InferGetServerSidePropsType<typeof getServerSideProps>`:
+=======
+If you want to get inferred typings for your props, you can use `InferGetServerSidePropsType<typeof getServerSideProps>`, like this:
+
+> > > > > > > 1d3d662c4 (merge conflicts)
 
 ```tsx
 import { InferGetServerSidePropsType } from 'next'
@@ -59,18 +86,39 @@ function Page({ data }: InferGetServerSidePropsType<typeof getServerSideProps>) 
 export default Page
 ```
 
+<<<<<<< HEAD
+
 ## Technical details
 
 ### Only runs on server-side
 
+=======
+
+### Technical details
+
+#### Only runs on server-side
+
+> > > > > > > 1d3d662c4 (merge conflicts)
+
 `getServerSideProps` only runs on server-side and never runs on the browser. If a page uses `getServerSideProps`, then:
 
 - When you request this page directly, `getServerSideProps` runs at the request time, and this page will be pre-rendered with the returned props.
+  <<<<<<< HEAD
 - When you request this page on client-side page transitions through `next/link` ([documentation](/docs/api-reference/next/link.md)) or `next/router` ([documentation](/docs/api-reference/next/router.md)), Next.js sends an `API` request to the server, which runs `getServerSideProps`. It’ll return `JSON` that contains the result of running `getServerSideProps`, and the `JSON` will be used to render the page. All this work will be handled automatically by Next.js, so you don’t need to do anything extra as long as you have `getServerSideProps` defined.
 
 You can use [this tool](https://next-code-elimination.vercel.app/) to verify what Next.js eliminates from the client-side bundle.
 
 ### Only allowed in a page
+
+=======
+
+- When you request this page on client-side page transitions through `next/link` ([documentation](/docs/api-reference/next/link.md)) or `next/router` ([documentation](/docs/api-reference/next/router.md)), Next.js sends an API request to the server, which runs `getServerSideProps`. It’ll return JSON that contains the result of running `getServerSideProps`, and the JSON will be used to render the page. All this work will be handled automatically by Next.js, so you don’t need to do anything extra as long as you have `getServerSideProps` defined.
+
+You can use [this tool](https://next-code-elimination.vercel.app/) to verify what Next.js eliminates from the client-side bundle.
+
+#### Only allowed in a page
+
+> > > > > > > 1d3d662c4 (merge conflicts)
 
 `getServerSideProps` can only be exported from a **page**. You can’t export it from non-page files.
 
