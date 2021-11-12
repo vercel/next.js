@@ -700,7 +700,9 @@ export default class Server {
         })
 
         for (let [key, value] of result.response.headers) {
-          allHeaders.append(key, value)
+          if (key !== 'x-middleware-next') {
+            allHeaders.append(key, value)
+          }
         }
 
         if (!this.renderOpts.dev) {

@@ -9,6 +9,7 @@ function getBaseSWCOptions({
   styledComponents,
   paths,
   baseUrl,
+  importSource,
 }) {
   const isTSFile = filename.endsWith('.ts')
   const isTypeScript = isTSFile || filename.endsWith('.tsx')
@@ -30,6 +31,7 @@ function getBaseSWCOptions({
 
       transform: {
         react: {
+          importSource: importSource || 'react',
           runtime: 'automatic',
           pragma: 'React.createElement',
           pragmaFrag: 'React.Fragment',
@@ -44,6 +46,10 @@ function getBaseSWCOptions({
             typeofs: {
               window: globalWindow ? 'object' : 'undefined',
             },
+            envs: {
+              NODE_ENV: development ? '"development"' : '"production"',
+            },
+            // TODO: handle process.browser to match babel replacing as well
           },
         },
         regenerator: {
@@ -103,6 +109,7 @@ export function getLoaderSWCOptions({
   isPageFile,
   hasReactRefresh,
   styledComponents,
+  importSource,
 }) {
   let baseOptions = getBaseSWCOptions({
     filename,
@@ -110,6 +117,7 @@ export function getLoaderSWCOptions({
     globalWindow: !isServer,
     hasReactRefresh,
     styledComponents,
+    importSource,
   })
 
   const isNextDist = nextDistPath.test(filename)
