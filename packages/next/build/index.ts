@@ -779,7 +779,7 @@ export default async function build(
             )
           }
           Log.warn(
-            `Restarted static page genertion for ${pagePath} because it took more than ${timeout} seconds`
+            `Restarted static page generation for ${pagePath} because it took more than ${timeout} seconds`
           )
         } else {
           const pagePath = arg
