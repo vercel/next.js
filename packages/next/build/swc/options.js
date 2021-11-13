@@ -75,7 +75,8 @@ export function getJestSWCOptions({
   esm,
   nextConfig,
   jsConfig,
-  resolvedBaseUrl,
+  // This is not passed yet as "paths" resolving needs a test first
+  // resolvedBaseUrl,
 }) {
   let baseOptions = getBaseSWCOptions({
     filename,
@@ -84,7 +85,7 @@ export function getJestSWCOptions({
     globalWindow: !isServer,
     nextConfig,
     jsConfig,
-    resolvedBaseUrl,
+    // resolvedBaseUrl,
   })
 
   const isNextDist = nextDistPath.test(filename)
