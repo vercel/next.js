@@ -19,7 +19,7 @@ Learn how to set up Next.js with commonly used testing tools: [Cypress](https://
 
 Cypress is a test runner used for **End-to-End (E2E)** and **Integration Testing**.
 
-### Quick start
+### Quickstart
 
 You can use `create-next-app` with the [with-cypress example](https://github.com/vercel/next.js/tree/canary/examples/with-cypress) to quickly get started.
 
@@ -142,7 +142,7 @@ You can learn more about Cypress and Continuous Integration from these resources
 
 Playwright is a testing framework that lets you automate Chromium, Firefox, and WebKit with a single API. You can use it to write **End-to-End (E2E)** and **Integration** tests across all platforms.
 
-### Quick start
+### Quickstart
 
 The fastest way to get started, is to use `create-next-app` with the [with-playwright example](https://github.com/vercel/next.js/tree/canary/examples/with-playwright). This will create a Next.js project complete with Playwright all set up.
 
@@ -245,7 +245,7 @@ You can learn more about Playwright and Continuous Integration from these resour
 
 Jest and React Testing Library are frequently used together for **Unit Testing**.
 
-### Quick start
+### Quickstart
 
 You can use `create-next-app` with the [with-jest example](https://github.com/vercel/next.js/tree/canary/examples/with-jest) to quickly get started with Jest and React Testing Library:
 
