@@ -825,9 +825,7 @@ export async function renderToHTML(
     props.pageProps = Object.assign(
       {},
       props.pageProps,
-      'props' in data ? data.props : undefined,
-      // Pass router to the Server Component as a temporary workaround.
-      isServerComponent ? { router } : undefined
+      'props' in data ? data.props : undefined
     )
 
     // pass up revalidate and props for export
@@ -990,6 +988,11 @@ export async function renderToHTML(
   // the fallback so make sure to set pageProps to an empty object
   if (isFallback) {
     props.pageProps = {}
+  }
+
+  // Pass router to the Server Component as a temporary workaround.
+  if (isServerComponent) {
+    props.pageProps = Object.assign({}, props.pageProps, { router })
   }
 
   // the response might be finished on the getInitialProps call
@@ -1572,7 +1575,6 @@ function connectReactServerReadableStreamToPiper(
   }
 
   return {
-    flushBuffer,
     startWriting,
   }
 }
@@ -1627,7 +1629,11 @@ function renderToWebStream(
           if (!resolved) {
             resolved = true
             doResolve()
-            startWriting(reader)
+            // Queue startWriting in microtasks to make sure reader is
+            // initialized.
+            Promise.resolve().then(() => {
+              startWriting(reader)
+            })
           }
         },
       })

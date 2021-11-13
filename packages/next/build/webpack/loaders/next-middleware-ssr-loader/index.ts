@@ -28,8 +28,6 @@ export default async function middlewareRSCLoader(this: any) {
         import { RouterContext } from 'next/dist/shared/lib/router-context'
         import { renderToHTML } from 'next/dist/server/web/render'
 
-        import { createElement } from 'react'
-
         ${appDefinition}
         ${documentDefinition}
         
