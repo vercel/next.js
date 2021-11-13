@@ -1,0 +1,29 @@
+[
+  {
+    "key": "user:1",
+    "value": {
+      "id": "1",
+      "name": "User #1",
+      "status": "active"
+    },
+    "label1": "active:1"
+  },
+  {
+    "key": "user:2",
+    "value": {
+      "id": "2",
+      "name": "User #2",
+      "status": "inactive"
+    },
+    "label1": "inactive:2"
+  },
+  {
+    "key": "user:3",
+    "value": {
+      "id": "3",
+      "name": "User #3",
+      "status": "active"
+    },
+    "label1": "active:3"
+  }
+]
