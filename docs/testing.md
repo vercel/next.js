@@ -19,7 +19,7 @@ Learn how to set up Next.js with commonly used testing tools: [Cypress](https://
 
 Cypress is a test runner used for **End-to-End (E2E)** and **Integration Testing**.
 
-### Quickstart
+### Quick start
 
 You can use `create-next-app` with the [with-cypress example](https://github.com/vercel/next.js/tree/canary/examples/with-cypress) to quickly get started.
 
@@ -114,7 +114,7 @@ Since Cypress is testing a real Next.js application, it requires the Next.js ser
 
 Run `npm run build` and `npm run start`, then run `npm run cypress` in another terminal window to start Cypress.
 
-> **Note:** Alternatively, you can install the `start-server-and-test` package and add it to the `package.json` scripts field: `"test": "start-server-and-test start http://localhost:3000 cypress"` to start the Next.js production server in conjuction with Cypress. Remember to rebuild your application after new changes.
+> **Note:** Alternatively, you can install the `start-server-and-test` package and add it to the `package.json` scripts field: `"test": "start-server-and-test start http://localhost:3000 cypress"` to start the Next.js production server in conjunction with Cypress. Remember to rebuild your application after new changes.
 
 ### Getting ready for Continuous Integration (CI)
 
@@ -142,7 +142,7 @@ You can learn more about Cypress and Continuous Integration from these resources
 
 Playwright is a testing framework that lets you automate Chromium, Firefox, and WebKit with a single API. You can use it to write **End-to-End (E2E)** and **Integration** tests across all platforms.
 
-### Quickstart
+### Quick start
 
 The fastest way to get started, is to use `create-next-app` with the [with-playwright example](https://github.com/vercel/next.js/tree/canary/examples/with-playwright). This will create a Next.js project complete with Playwright all set up.
 
@@ -245,7 +245,7 @@ You can learn more about Playwright and Continuous Integration from these resour
 
 Jest and React Testing Library are frequently used together for **Unit Testing**.
 
-### Quickstart
+### Quick start
 
 You can use `create-next-app` with the [with-jest example](https://github.com/vercel/next.js/tree/canary/examples/with-jest) to quickly get started with Jest and React Testing Library:
 
