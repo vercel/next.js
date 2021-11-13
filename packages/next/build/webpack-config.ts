@@ -321,6 +321,10 @@ export default async function getBaseWebpackConfig(
     runWebpackSpan: Span
   }
 ): Promise<webpack.Configuration> {
+  const { useTypeScript, jsConfig, resolvedBaseUrl } = await loadJsConfig(
+    dir,
+    config
+  )
   const supportedBrowsers = await getSupportedBrowsers(dir, dev)
   const hasRewrites =
     rewrites.beforeFiles.length > 0 ||
@@ -437,7 +441,8 @@ export default async function getBaseWebpackConfig(
             isServer: isMiddleware || isServer,
             pagesDir,
             hasReactRefresh: !isMiddleware && hasReactRefresh,
-            styledComponents: config.experimental.styledComponents,
+            nextConfig: config,
+            jsConfig,
           },
         }
       : {
@@ -520,11 +525,6 @@ export default async function getBaseWebpackConfig(
             .replace(/\\/g, '/'),
       } as ClientEntries)
     : undefined
-
-  const { useTypeScript, jsConfig, resolvedBaseUrl } = await loadJsConfig(
-    dir,
-    config
-  )
 
   function getReactProfilingInProduction() {
     if (reactProductionProfiling) {
