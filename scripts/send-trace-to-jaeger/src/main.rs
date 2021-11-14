@@ -24,13 +24,13 @@ fn log_web_url(jaeger_web_ui_url: &str, trace_id: &str) {
 }
 
 /// Send trace JSON to Jaeger using ZipKin API.
-fn send_json_to_zipkin(zipkin_api: &str, value: &str) {
+fn send_json_to_zipkin(zipkin_api: &str, value: String) {
     let client = Client::new();
 
     let res = client
         .post(zipkin_api)
         .header("Content-Type", "application/json")
-        .body(value.to_string())
+        .body(value)
         .send()
         .expect("Failed to send request");
 
@@ -59,30 +59,27 @@ fn main() {
     if let Ok(lines) = read_lines(first_arg) {
         for line in lines {
             if let Ok(json_to_parse) = line {
-                let v: Vec<Value> = match serde_json::from_str(&json_to_parse) {
-                    Ok(v) => v,
+                let v: Value = match serde_json::from_str::<Vec<Value>>(&json_to_parse) {
+                    Ok(v) => v
+                        .into_iter()
+                        .map(|mut data| {
+                            if !logged_url {
+                                log_web_url(&jaeger_web_ui_url, &data["traceId"].to_string());
+                                logged_url = true;
+                            }
+                            data["localEndpoint"] = Value::Object(local_endpoint.clone());
+                            data
+                        })
+                        .collect::<Value>(),
                     Err(e) => {
                         println!("{}", e);
                         continue;
                     }
                 };
 
-                let mapped = v
-                    .iter()
-                    .map(|data| {
-                        if !logged_url {
-                            log_web_url(&jaeger_web_ui_url, &data["traceId"].to_string());
-                            logged_url = true;
-                        }
-                        let mut data = data.clone();
-                        data["localEndpoint"] = Value::Object(local_endpoint.clone());
-                        data
-                    })
-                    .collect::<Value>();
+                let json_map = serde_json::to_string(&v).expect("Failed to serialize");
 
-                let json_map = serde_json::to_string(&mapped).expect("Failed to serialize");
-
-                send_json_to_zipkin(&zipkin_api, &json_map);
+                send_json_to_zipkin(&zipkin_api, json_map);
             }
         }
     }
