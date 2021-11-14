@@ -1,0 +1,25 @@
+{
+    "name": "with-react-query",
+    "private": true,
+    "scripts": {
+      "dev": "next dev",
+      "build": "next build",
+      "start": "next start",
+      "lint": "next lint"
+    },
+    "dependencies": {
+      "ky": "^0.23.0",
+      "ky-universal": "^0.8.2",
+      "next": "latest",
+      "react": "^16.13.1",
+      "react-dom": "^16.13.1",
+      "react-query": "^3.5.0",
+      "resolve-from": "^5.0.0",
+      "web-streams-polyfill": "^3.0.3"
+    },
+    "devDependencies": {
+      "eslint": "7",
+      "eslint-config-next": "12.0.3"
+    }
+  }
+  
