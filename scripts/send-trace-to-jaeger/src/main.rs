@@ -59,7 +59,7 @@ fn main() {
     if let Ok(lines) = read_lines(first_arg) {
         for line in lines {
             if let Ok(json_to_parse) = line {
-                let v: Value = match serde_json::from_str::<Vec<Value>>(&json_to_parse) {
+                let v = match serde_json::from_str::<Vec<Value>>(&json_to_parse) {
                     Ok(v) => v
                         .into_iter()
                         .map(|mut data| {
