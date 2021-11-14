@@ -89,6 +89,9 @@ addMessageListener((event) => {
   }
 })
 
-connectHMR({ path: `${assetPrefix}/_next/webpack-hmr` })
+connectHMR({
+  assetPrefix,
+  path: '/_next/webpack-hmr',
+})
 displayContent()
 initOnDemandEntries()

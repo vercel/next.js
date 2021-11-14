@@ -32,7 +32,6 @@ for (const triple of triples) {
   } catch (e) {
     if (e?.code !== 'MODULE_NOT_FOUND') {
       loadError = e
-      break
     }
   }
 }
@@ -46,10 +45,12 @@ if (!bindings) {
     `Failed to load SWC binary, see more info here: https://nextjs.org/docs/messages/failed-loading-swc`
   )
   process.exit(1)
+} else {
+  loadError = null
 }
 
 async function transform(src, options) {
-  const isModule = typeof src !== 'string'
+  const isModule = typeof src !== 'string' && !Buffer.isBuffer(src)
   options = options || {}
 
   if (options?.jsc?.parser) {
@@ -64,7 +65,7 @@ async function transform(src, options) {
 }
 
 function transformSync(src, options) {
-  const isModule = typeof src !== 'string'
+  const isModule = typeof src !== 'string' && !Buffer.isBuffer(src)
   options = options || {}
 
   if (options?.jsc?.parser) {
@@ -88,6 +89,10 @@ export async function minify(src, opts) {
 
 export function minifySync(src, opts) {
   return bindings.minifySync(toBuffer(src), toBuffer(opts ?? {}))
+}
+
+export async function bundle(options) {
+  return bindings.bundle(toBuffer(options))
 }
 
 module.exports.transform = transform
