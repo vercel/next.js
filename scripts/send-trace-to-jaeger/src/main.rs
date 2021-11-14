@@ -1,12 +1,11 @@
-use reqwest;
-use serde_json;
+use reqwest::blocking::Client;
+use serde_json::{Map, Number, Value};
 use std::env::args;
 use std::fs::File;
 use std::io::{self, BufRead};
 use std::path::Path;
 
-// The output is wrapped in a Result to allow matching on errors
-// Returns an Iterator to the Reader of the lines of the file.
+/// Read individual lines from a file.
 fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
 where
     P: AsRef<Path>,
@@ -15,6 +14,7 @@ where
     Ok(io::BufReader::new(file).lines())
 }
 
+/// Log the url to view the trace in the browser.
 fn log_web_url(jaeger_web_ui_url: &str, trace_id: &str) {
     println!(
         "Jaeger trace will be available on {}/trace/{}",
@@ -23,8 +23,9 @@ fn log_web_url(jaeger_web_ui_url: &str, trace_id: &str) {
     )
 }
 
+/// Send trace JSON to Jaeger using ZipKin API.
 fn send_json_to_zipkin(zipkin_api: &str, value: &str) {
-    let client = reqwest::blocking::Client::new();
+    let client = Client::new();
 
     let res = client
         .post(zipkin_api)
@@ -45,27 +46,20 @@ fn main() {
     let zipkin_api = format!("{}/api/v2/spans", zipkin_url);
     let mut logged_url = false;
 
-    let mut local_endpoint = serde_json::Map::new();
+    let mut local_endpoint = Map::new();
     local_endpoint.insert(
         "serviceName".to_string(),
-        serde_json::Value::String(service_name.to_string()),
+        Value::String(service_name.to_string()),
     );
-    local_endpoint.insert(
-        "ipv4".to_string(),
-        serde_json::Value::String(ipv4.to_string()),
-    );
-    local_endpoint.insert(
-        "port".to_string(),
-        serde_json::Value::Number(serde_json::Number::from(port)),
-    );
+    local_endpoint.insert("ipv4".to_string(), Value::String(ipv4.to_string()));
+    local_endpoint.insert("port".to_string(), Value::Number(Number::from(port)));
 
     let first_arg = args().nth(1).expect("Please provide a file name");
-    // File hosts must exist in current path before this produces output
+
     if let Ok(lines) = read_lines(first_arg) {
-        // Consumes the iterator, returns an (Optional) String
         for line in lines {
             if let Ok(json_to_parse) = line {
-                let v: Vec<serde_json::Value> = match serde_json::from_str(&json_to_parse) {
+                let v: Vec<Value> = match serde_json::from_str(&json_to_parse) {
                     Ok(v) => v,
                     Err(e) => {
                         println!("{}", e);
@@ -81,10 +75,10 @@ fn main() {
                             logged_url = true;
                         }
                         let mut data = data.clone();
-                        data["localEndpoint"] = serde_json::Value::Object(local_endpoint.clone());
+                        data["localEndpoint"] = Value::Object(local_endpoint.clone());
                         data
                     })
-                    .collect::<serde_json::Value>();
+                    .collect::<Value>();
 
                 let json_map = serde_json::to_string(&mapped).expect("Failed to serialize");
 
