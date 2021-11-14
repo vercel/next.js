@@ -441,8 +441,8 @@ export default async function getBaseWebpackConfig(
             isServer: isMiddleware || isServer,
             pagesDir,
             hasReactRefresh: !isMiddleware && hasReactRefresh,
-            styledComponents: config.experimental.styledComponents,
-            importSource: jsConfig?.compilerOptions?.jsxImportSource,
+            nextConfig: config,
+            jsConfig,
           },
         }
       : {
