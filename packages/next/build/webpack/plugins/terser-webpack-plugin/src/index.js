@@ -1,7 +1,6 @@
 // @ts-nocheck
 import * as path from 'path'
 import {
-  webpack,
   ModuleFilenameHelpers,
   sources,
 } from 'next/dist/compiled/webpack/webpack'
@@ -47,13 +46,14 @@ function buildError(error, file) {
   return new Error(`${file} from Terser\n${error.message}`)
 }
 
+const debugMinify = process.env.NEXT_DEBUG_MINIFY
+
 export class TerserPlugin {
   constructor(options = {}) {
-    const { cacheDir, terserOptions = {}, parallel, swcMinify } = options
+    const { terserOptions = {}, parallel, swcMinify } = options
 
     this.options = {
       swcMinify,
-      cacheDir,
       parallel,
       terserOptions,
     }
@@ -128,6 +128,21 @@ export class TerserPlugin {
               numberOfAssetsForMinify += 1
             }
 
+            if (
+              debugMinify &&
+              (debugMinify === '1' || new RegExp(`/${debugMinify}/`).test(name))
+            ) {
+              console.dir(
+                {
+                  name,
+                  source: new String(source.source().toString()).toString(),
+                },
+                {
+                  breakLength: Infinity,
+                  maxStringLength: Infinity,
+                }
+              )
+            }
             return { name, info, inputSource: source, output, eTag }
           })
       )
