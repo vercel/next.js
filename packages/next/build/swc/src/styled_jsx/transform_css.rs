@@ -52,7 +52,8 @@ pub fn transform_css(
         }
     };
     // ? Do we need to support optionally prefixing?
-    ss.visit_mut_with(&mut prefixer());
+    ss.visit_mut_with(&mut FixedPrefixer);
+    ss.visit_mut_with(&mut CssFixer);
     ss.visit_mut_with(&mut Namespacer {
         class_name: match class_name {
             Some(s) => s.clone(),
@@ -121,6 +122,38 @@ fn read_number(s: &str) -> (usize, usize) {
     unreachable!("read_number(`{}`) is invalid because it is empty", s)
 }
 
+/// Applies `prefixer`, but this avoids bug of `swc_stylis::prefixer()`.
+///
+/// TODO(kdy1): Remove this when we upgrade crates related to css. (The crate
+/// update is blocked by `ComplexSelectorChildren` issue)
+struct FixedPrefixer;
+
+impl VisitMut for FixedPrefixer {
+    fn visit_mut_style_rule(&mut self, n: &mut StyleRule) {
+        n.visit_mut_with(&mut prefixer());
+    }
+}
+
+/// This fixes invalid css.
+struct CssFixer;
+
+impl VisitMut for CssFixer {
+    fn visit_mut_media_query(&mut self, q: &mut MediaQuery) {
+        q.visit_mut_children_with(self);
+
+        match q {
+            MediaQuery::Text(q) => {
+                if q.raw.starts_with("__styled-jsx-placeholder-") {
+                    // TODO(kdy1): Remove this once we have CST for media query.
+                    // We need good error recovery for media queries to handle this.
+                    q.raw = format!("({})", &q.value).into();
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
 struct Namespacer {
     class_name: String,
     is_global: bool,
@@ -167,7 +200,7 @@ impl Namespacer {
                     front_tokens.extend(block_tokens);
                     args.tokens = front_tokens;
                     let complex_selectors = panic::catch_unwind(|| {
-                        let x: Vec<ComplexSelector> = parse_tokens(
+                        let x: ComplexSelector = parse_tokens(
                             &args,
                             ParserConfig {
                                 parse_values: false,
@@ -182,7 +215,7 @@ impl Namespacer {
 
                     return match complex_selectors {
                         Ok(complex_selectors) => {
-                            let mut v = complex_selectors[0].selectors[1..]
+                            let mut v = complex_selectors.selectors[1..]
                                 .iter()
                                 .cloned()
                                 .collect::<Vec<_>>();
@@ -260,7 +293,7 @@ fn get_front_selector_tokens(selector_tokens: &Tokens) -> Vec<TokenAndSpan> {
                 hi: BytePos(start_pos + 2),
                 ctxt: SyntaxContext::empty(),
             },
-            token: Token::WhiteSpace,
+            token: Token::WhiteSpace { value: " ".into() },
         },
     ]
 }
@@ -274,7 +307,7 @@ fn get_block_tokens(selector_tokens: &Tokens) -> Vec<TokenAndSpan> {
                 hi: BytePos(start_pos + 1),
                 ctxt: SyntaxContext::empty(),
             },
-            token: Token::WhiteSpace,
+            token: Token::WhiteSpace { value: " ".into() },
         },
         TokenAndSpan {
             span: Span {
@@ -290,7 +323,7 @@ fn get_block_tokens(selector_tokens: &Tokens) -> Vec<TokenAndSpan> {
                 hi: BytePos(start_pos + 3),
                 ctxt: SyntaxContext::empty(),
             },
-            token: Token::WhiteSpace,
+            token: Token::WhiteSpace { value: " ".into() },
         },
         TokenAndSpan {
             span: Span {
@@ -317,7 +350,7 @@ fn get_block_tokens(selector_tokens: &Tokens) -> Vec<TokenAndSpan> {
                 hi: BytePos(start_pos + 10),
                 ctxt: SyntaxContext::empty(),
             },
-            token: Token::WhiteSpace,
+            token: Token::WhiteSpace { value: " ".into() },
         },
         TokenAndSpan {
             span: Span {
@@ -344,7 +377,7 @@ fn get_block_tokens(selector_tokens: &Tokens) -> Vec<TokenAndSpan> {
                 hi: BytePos(start_pos + 15),
                 ctxt: SyntaxContext::empty(),
             },
-            token: Token::WhiteSpace,
+            token: Token::WhiteSpace { value: " ".into() },
         },
         TokenAndSpan {
             span: Span {
@@ -360,7 +393,7 @@ fn get_block_tokens(selector_tokens: &Tokens) -> Vec<TokenAndSpan> {
                 hi: BytePos(start_pos + 17),
                 ctxt: SyntaxContext::empty(),
             },
-            token: Token::WhiteSpace,
+            token: Token::WhiteSpace { value: " ".into() },
         },
     ]
 }

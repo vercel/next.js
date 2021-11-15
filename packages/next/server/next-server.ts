@@ -700,7 +700,9 @@ export default class Server {
         })
 
         for (let [key, value] of result.response.headers) {
-          allHeaders.append(key, value)
+          if (key !== 'x-middleware-next') {
+            allHeaders.append(key, value)
+          }
         }
 
         if (!this.renderOpts.dev) {
@@ -1239,7 +1241,12 @@ export default class Server {
               query: parsedUrl.query,
             })
 
-            if (parsedDestination.protocol) {
+            if (
+              parsedDestination.protocol &&
+              (parsedDestination.port
+                ? `${parsedDestination.hostname}:${parsedDestination.port}`
+                : parsedDestination.hostname) !== req.headers.host
+            ) {
               return proxyRequest(req, res, parsedDestination)
             }
 

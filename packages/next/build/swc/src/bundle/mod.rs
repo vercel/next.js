@@ -18,7 +18,7 @@ use swc_common::{
 };
 use swc_ecma_loader::{
     resolvers::{lru::CachingResolver, node::NodeModulesResolver},
-    NODE_BUILTINS,
+    TargetEnv, NODE_BUILTINS,
 };
 use swc_ecmascript::{
     ast::*,
