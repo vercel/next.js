@@ -168,5 +168,18 @@
   },
   "engines": {
     "node": ">=12.22.0"
+  },
+  "turbo": {
+    "pipeline": {
+      "build-native": {
+        "dependsOn": [
+          "^build-native"
+        ],
+        "outputs": [
+          "native/*.node",
+          "build/swc/target/**"
+        ]
+      }
+    }
   }
 }
