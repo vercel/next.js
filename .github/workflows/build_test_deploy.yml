@@ -601,10 +601,11 @@ jobs:
       # since the repo's dependencies aren't installed we need
       # to install napi globally
       - run: npm i -g @napi-rs/cli@1.2.1
+      - run: npm i -g turbo@next
 
       - name: Build
         if: ${{ steps.binary-cache.outputs.cache-hit != 'true' && steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
-        run: yarn turbo run build-native
+        run: turbo run build-native
         env:
           MACOSX_DEPLOYMENT_TARGET: '10.13'
 
