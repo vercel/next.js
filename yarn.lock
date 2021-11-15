@@ -18905,10 +18905,10 @@ tunnel-agent@^0.6.0:
   dependencies:
     safe-buffer "^5.0.1"
 
-turbo@0.8.5-next.2:
-  version "0.8.5-next.2"
-  resolved "https://registry.yarnpkg.com/turbo/-/turbo-0.8.5-next.2.tgz#94eaf7697a6f02de5bb3f3a6f10edf5d44a99786"
-  integrity sha512-AC0EuMsji0IevywDbtIVLaA9m3xQO4fjF0C5i5+GqxOuazUB7/QoNhMfvDQrnf+WKoIL53sH4cBKqNo7r4svwQ==
+turbo@0.8.5-next.3:
+  version "0.8.5-next.3"
+  resolved "https://registry.yarnpkg.com/turbo/-/turbo-0.8.5-next.3.tgz#a1c735bf042b06a4348e98350ef758519a579fe2"
+  integrity sha512-56h01MFAoBsxqV3wz4j9iGZLRTOZlZQSv5YnTWMv4UL6h1SS3Zpex5TtCVWGwMakiMXuxxHhN21Y/MYJj42bbw==
   dependencies:
     got "^11.8.2"
     registry-auth-token "^4.2.1"
