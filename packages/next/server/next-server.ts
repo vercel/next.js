@@ -67,6 +67,7 @@ import Router, {
   DynamicRoutes,
   PageChecker,
   Params,
+  replaceBasePath,
   route,
   Route,
 } from './router'
@@ -369,7 +370,7 @@ export default class Server {
     })
 
     if (url.basePath) {
-      req.url = req.url!.replace(this.nextConfig.basePath, '') || '/'
+      req.url = replaceBasePath(req.url!, this.nextConfig.basePath)
       addRequestMeta(req, '_nextHadBasePath', true)
     }
 
@@ -426,6 +427,11 @@ export default class Server {
       })
 
       try {
+        // ensure parsedUrl.pathname includes URL before processing
+        // rewrites or they won't match correctly
+        if (this.nextConfig.i18n && !url.locale?.path.detectedLocale) {
+          parsedUrl.pathname = `/${url.locale?.locale}${parsedUrl.pathname}`
+        }
         utils.handleRewrites(req, parsedUrl)
 
         // interpolate dynamic params and normalize URL if needed
@@ -487,6 +493,7 @@ export default class Server {
           ? ''
           : matchedPathname
       }`
+      url.pathname = parsedUrl.pathname
     }
 
     addRequestMeta(req, '__nextHadTrailingSlash', url.locale?.trailingSlash)
@@ -694,7 +701,9 @@ export default class Server {
         })
 
         for (let [key, value] of result.response.headers) {
-          allHeaders.append(key, value)
+          if (key !== 'x-middleware-next') {
+            allHeaders.append(key, value)
+          }
         }
 
         if (!this.renderOpts.dev) {
@@ -1233,7 +1242,12 @@ export default class Server {
               query: parsedUrl.query,
             })
 
-            if (parsedDestination.protocol) {
+            if (
+              parsedDestination.protocol &&
+              (parsedDestination.port
+                ? `${parsedDestination.hostname}:${parsedDestination.port}`
+                : parsedDestination.hostname) !== req.headers.host
+            ) {
               return proxyRequest(req, res, parsedDestination)
             }
 

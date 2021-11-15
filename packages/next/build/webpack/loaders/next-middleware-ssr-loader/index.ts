@@ -5,6 +5,7 @@ export default async function middlewareRSCLoader(this: any) {
     absolutePagePath,
     absoluteAppPath,
     absoluteDocumentPath,
+    absoluteErrorPath,
     basePath,
     isServerComponent: isServerComponentQuery,
     assetPrefix,
@@ -14,33 +15,28 @@ export default async function middlewareRSCLoader(this: any) {
   const isServerComponent = isServerComponentQuery === 'true'
   const stringifiedAbsolutePagePath = stringifyRequest(this, absolutePagePath)
   const stringifiedAbsoluteAppPath = stringifyRequest(this, absoluteAppPath)
+  const stringifiedAbsoluteErrorPath = stringifyRequest(this, absoluteErrorPath)
+  const stringified500PagePath = stringifyRequest(this, './pages/500')
   const stringifiedAbsoluteDocumentPath = stringifyRequest(
     this,
     absoluteDocumentPath
   )
 
-  let appDefinition = `const App = require(${stringifiedAbsoluteAppPath}).default`
-  let documentDefinition = `const Document = require(${stringifiedAbsoluteDocumentPath}).default`
-
   const transformed = `
         import { adapter } from 'next/dist/server/web/adapter'
-
         import { RouterContext } from 'next/dist/shared/lib/router-context'
         import { renderToHTML } from 'next/dist/server/web/render'
 
-        import React, { createElement } from 'react'
+        import App from ${stringifiedAbsoluteAppPath}
+        import Document from ${stringifiedAbsoluteDocumentPath}
 
-        ${
-          isServerComponent
-            ? `
-        import { renderToReadableStream } from 'next/dist/compiled/react-server-dom-webpack/writer.browser.server'
-        import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack'`
-            : ''
+        let ErrorPage
+        try {
+          ErrorPage = require(${stringified500PagePath}).default
+        } catch (_) {
+          ErrorPage = require(${stringifiedAbsoluteErrorPath}).default
         }
 
-        ${appDefinition}
-        ${documentDefinition}
-        
         const {
           default: Page,
           config,
@@ -57,47 +53,7 @@ export default async function middlewareRSCLoader(this: any) {
           throw new Error('Your page must export a \`default\` component')
         }
 
-        function wrapReadable(readable) {
-          const encoder = new TextEncoder()
-          const transformStream = new TransformStream()
-          const writer = transformStream.writable.getWriter()
-          const reader = readable.getReader()
-          const process = () => {
-            reader.read().then(({ done, value }) => {
-              if (!done) {
-                writer.write(typeof value === 'string' ? encoder.encode(value) : value)
-                process()
-              } else {
-                writer.close()
-              }
-            })
-          }
-          process()
-          return transformStream.readable
-        }
-        
-        ${
-          isServerComponent
-            ? `
-        const renderFlight = props => renderToReadableStream(createElement(Page, props), rscManifest)
-
-        let responseCache
-        const FlightWrapper = props => {
-          let response = responseCache
-          if (!response) {
-            responseCache = response = createFromReadableStream(renderFlight(props))
-          }
-          return response.readRoot()
-        }
-        const Component = props => {
-          return createElement(
-            React.Suspense,
-            { fallback: null },
-            createElement(FlightWrapper, props)
-          )
-        }`
-            : `const Component = Page`
-        }
+        const Component = Page
 
         async function render(request) {
           const url = request.nextUrl
@@ -111,29 +67,12 @@ export default async function middlewareRSCLoader(this: any) {
             })
           }
 
-          ${
-            isServerComponent
-              ? `
-          // Flight data request
-          const isFlightDataRequest = query.__flight__ !== undefined
-          if (isFlightDataRequest) {
-            delete query.__flight__
-            return new Response(
-              wrapReadable(
-                renderFlight({
-                  router: {
-                    route: pathname,
-                    asPath: pathname,
-                    pathname: pathname,
-                    query,
-                  }
-                })
-              )
-            )
-          }`
-              : ''
+          const renderServerComponentData = ${
+            isServerComponent ? `query.__flight__ !== undefined` : 'false'
           }
+          delete query.__flight__
 
+          const req = { url: pathname }
           const renderOpts = {
             Component,
             pageConfig: config || {},
@@ -156,37 +95,60 @@ export default async function middlewareRSCLoader(this: any) {
             basePath: ${JSON.stringify(basePath || '')},
             supportsDynamicHTML: true,
             concurrentFeatures: true,
-            renderServerComponent: ${isServerComponent ? 'true' : 'false'},
+            renderServerComponentData,
+            serverComponentManifest: ${
+              isServerComponent ? 'rscManifest' : 'null'
+            },
           }
 
           const transformStream = new TransformStream()
           const writer = transformStream.writable.getWriter()
           const encoder = new TextEncoder()
-
+          let result
+          let renderError
+          let statusCode = 200
           try {
-            const result = await renderToHTML(
-              { url: pathname },
+            result = await renderToHTML(
+              req,
               {},
               pathname,
               query,
               renderOpts
             )
-            result.pipe({
-              write: str => writer.write(encoder.encode(str)),
-              end: () => writer.close()
-            })
           } catch (err) {
-            return new Response(
-              (err || 'An error occurred while rendering ' + pathname + '.').toString(),
-              {
-                status: 500,
-                headers: { 'x-middleware-ssr': '1' }
-              }
-            )
+            renderError = err
+            statusCode = 500
+          }
+          if (renderError) {
+            try {
+              const errorRes = { statusCode, err: renderError }
+              result = await renderToHTML(
+                req,
+                errorRes,
+                pathname,
+                query,
+                { ...renderOpts, Component: ErrorPage }
+              )
+            } catch (err) {
+              return new Response(
+                (err || 'An error occurred while rendering ' + pathname + '.').toString(),
+                {
+                  status: 500,
+                  headers: { 'x-middleware-ssr': '1' }
+                }
+              )
+            }
           }
 
+          result.pipe({
+            write: str => writer.write(encoder.encode(str)),
+            end: () => writer.close(),
+            // Not implemented: cork/uncork/on/removeListener
+          })
+
           return new Response(transformStream.readable, {
-            headers: { 'x-middleware-ssr': '1' }
+            headers: { 'x-middleware-ssr': '1' },
+            status: statusCode
           })
         }
 
