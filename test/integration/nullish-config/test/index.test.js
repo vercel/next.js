@@ -27,7 +27,7 @@ const runTests = () => {
 
     const stdout = await getStdout()
 
-    expect(stdout).toContain('ompiled successfully')
+    expect(stdout).toMatch(/compiled (client and server )?successfully/i)
   })
 
   it('should ignore configs set to `null` in next.config.js', async () => {
