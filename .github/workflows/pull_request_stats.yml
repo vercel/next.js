@@ -74,10 +74,9 @@ jobs:
 
       - name: Build
         if: ${{ steps.binary-cache.outputs.cache-hit != 'true' && steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
-        run: yarn build-native
+        run: yarn turbo run build-native
         env:
           MACOSX_DEPLOYMENT_TARGET: '10.13'
-        working-directory: packages/next
 
       - name: Upload artifact
         uses: actions/upload-artifact@v2.2.4
