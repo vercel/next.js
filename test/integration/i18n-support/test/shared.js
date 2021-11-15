@@ -35,6 +35,27 @@ async function addDefaultLocaleCookie(browser) {
 }
 
 export function runTests(ctx) {
+  if (ctx.basePath) {
+    it.only('should handle basePath like pathname', async () => {
+      const { basePath } = ctx
+
+      for (const pathname of [
+        `${basePath}extra`,
+        `/en${basePath}`,
+        `${basePath}extra/en`,
+        `${basePath}en`,
+        `/en${basePath}`,
+      ]) {
+        console.error('checking', pathname)
+        const res = await fetchViaHTTP(ctx.appPort, pathname, undefined, {
+          redirect: 'manual',
+        })
+        expect(res.status).toBe(404)
+        expect(await res.text()).toContain('This page could not be found')
+      }
+    })
+  }
+
   it('should redirect external domain correctly', async () => {
     const res = await fetchViaHTTP(
       ctx.appPort,
