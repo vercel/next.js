@@ -5,6 +5,7 @@ export default async function middlewareRSCLoader(this: any) {
     absolutePagePath,
     absoluteAppPath,
     absoluteDocumentPath,
+    absoluteErrorPath,
     basePath,
     isServerComponent: isServerComponentQuery,
     assetPrefix,
@@ -14,23 +15,28 @@ export default async function middlewareRSCLoader(this: any) {
   const isServerComponent = isServerComponentQuery === 'true'
   const stringifiedAbsolutePagePath = stringifyRequest(this, absolutePagePath)
   const stringifiedAbsoluteAppPath = stringifyRequest(this, absoluteAppPath)
+  const stringifiedAbsoluteErrorPath = stringifyRequest(this, absoluteErrorPath)
+  const stringified500PagePath = stringifyRequest(this, './pages/500')
   const stringifiedAbsoluteDocumentPath = stringifyRequest(
     this,
     absoluteDocumentPath
   )
 
-  let appDefinition = `const App = require(${stringifiedAbsoluteAppPath}).default`
-  let documentDefinition = `const Document = require(${stringifiedAbsoluteDocumentPath}).default`
-
   const transformed = `
         import { adapter } from 'next/dist/server/web/adapter'
-
         import { RouterContext } from 'next/dist/shared/lib/router-context'
         import { renderToHTML } from 'next/dist/server/web/render'
 
-        ${appDefinition}
-        ${documentDefinition}
-        
+        import App from ${stringifiedAbsoluteAppPath}
+        import Document from ${stringifiedAbsoluteDocumentPath}
+
+        let ErrorPage
+        try {
+          ErrorPage = require(${stringified500PagePath}).default
+        } catch (_) {
+          ErrorPage = require(${stringifiedAbsoluteErrorPath}).default
+        }
+
         const {
           default: Page,
           config,
@@ -66,6 +72,7 @@ export default async function middlewareRSCLoader(this: any) {
           }
           delete query.__flight__
 
+          const req = { url: pathname }
           const renderOpts = {
             Component,
             pageConfig: config || {},
@@ -97,32 +104,51 @@ export default async function middlewareRSCLoader(this: any) {
           const transformStream = new TransformStream()
           const writer = transformStream.writable.getWriter()
           const encoder = new TextEncoder()
-
+          let result
+          let renderError
+          let statusCode = 200
           try {
-            const result = await renderToHTML(
-              { url: pathname },
+            result = await renderToHTML(
+              req,
               {},
               pathname,
               query,
               renderOpts
             )
-            result.pipe({
-              write: str => writer.write(encoder.encode(str)),
-              end: () => writer.close(),
-              // Not implemented: cork/uncork/on/removeListener
-            })
           } catch (err) {
-            return new Response(
-              (err || 'An error occurred while rendering ' + pathname + '.').toString(),
-              {
-                status: 500,
-                headers: { 'x-middleware-ssr': '1' }
-              }
-            )
+            renderError = err
+            statusCode = 500
+          }
+          if (renderError) {
+            try {
+              const errorRes = { statusCode, err: renderError }
+              result = await renderToHTML(
+                req,
+                errorRes,
+                pathname,
+                query,
+                { ...renderOpts, Component: ErrorPage }
+              )
+            } catch (err) {
+              return new Response(
+                (err || 'An error occurred while rendering ' + pathname + '.').toString(),
+                {
+                  status: 500,
+                  headers: { 'x-middleware-ssr': '1' }
+                }
+              )
+            }
           }
 
+          result.pipe({
+            write: str => writer.write(encoder.encode(str)),
+            end: () => writer.close(),
+            // Not implemented: cork/uncork/on/removeListener
+          })
+
           return new Response(transformStream.readable, {
-            headers: { 'x-middleware-ssr': '1' }
+            headers: { 'x-middleware-ssr': '1' },
+            status: statusCode
           })
         }
 
