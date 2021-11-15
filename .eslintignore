@@ -24,6 +24,7 @@ packages/next-codemod/**/*.d.ts
 packages/next-env/**/*.d.ts
 packages/create-next-app/templates/**
 test/integration/eslint/**
+test/development/basic/legacy-decorators/**/*
 test-timings.json
 packages/next/build/swc/tests/**
 bench/nested-deps/pages/**
