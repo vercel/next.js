@@ -2,11 +2,11 @@
 
 This example shows different strategies that can be used for the [`next/script` component](https://nextjs.org/docs/basic-features/script):
 
-* [Loading Polyfills](./pages/polyfill.js)
-* [Lazy loading](./pages/lazy.js)
-* [Executing code after loading](./pages/onload.js)
-* [Inline scripts](./pages/inline.js)
-* [Forwarding attributes](./pages/attributes.js)
+- [Loading Polyfills](./pages/polyfill.js)
+- [Lazy loading](./pages/lazy.js)
+- [Executing code after loading](./pages/onload.js)
+- [Inline scripts](./pages/inline.js)
+- [Forwarding attributes](./pages/attributes.js)
 
 ## Preview
 

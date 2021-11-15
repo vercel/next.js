@@ -1,4 +1,4 @@
-import Script from "next/script"
+import Script from 'next/script'
 
 export default function Inline() {
   return (
@@ -13,7 +13,9 @@ export default function Inline() {
 
       <main>
         <h1>Forwarded attributes</h1>
-        <h5>Open devtools and check that attributes has been forwarded correctly.</h5>
+        <h5>
+          Open devtools and check that attributes has been forwarded correctly.
+        </h5>
       </main>
     </>
   )
