@@ -14,7 +14,8 @@ export class ServerlessPlugin {
       hook.tap('ServerlessPlugin', (chunks) => {
         for (const chunk of chunks) {
           // If chunk is not an entry point skip them
-          if (!chunk.hasEntryModule()) {
+          // @ts-ignore TODO: Remove ignore when webpack 5 is stable
+          if (compilation.chunkGraph.getNumberOfEntryModules(chunk) === 0) {
             continue
           }
 
@@ -26,7 +27,11 @@ export class ServerlessPlugin {
               dynamicChunk
             )) {
               // Add module back into the entry chunk
-              chunk.addModule(module)
+              // @ts-ignore TODO: Remove ignore when webpack 5 is stable
+              if (!compilation.chunkGraph.isModuleInChunk(module, chunk)) {
+                // @ts-ignore TODO: Remove ignore when webpack 5 is stable
+                compilation.chunkGraph.connectChunkAndModule(chunk, module)
+              }
             }
           }
         }

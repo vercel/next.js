@@ -12,7 +12,7 @@ import { ClientPagesLoaderOptions } from './webpack/loaders/next-client-pages-lo
 import { ServerlessLoaderQuery } from './webpack/loaders/next-serverless-loader'
 import { LoadedEnvFiles } from '@next/env'
 import { NextConfigComplete } from '../server/config-shared'
-import { isFlightPage } from './utils'
+import { isCustomErrorPage, isFlightPage, isReservedPage } from './utils'
 import { ssrEntries } from './webpack/plugins/middleware-plugin'
 import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 import { MIDDLEWARE_SSR_RUNTIME_WEBPACK } from '../shared/lib/constants'
@@ -65,7 +65,7 @@ export function createPagesMapping(
   // we alias these in development and allow webpack to
   // allow falling back to the correct source file so
   // that HMR can work properly when a file is added/removed
-  const documentPage = `_document${hasServerComponents ? '.web' : ''}`
+  const documentPage = `_document${hasServerComponents ? '-web' : ''}`
   if (isDev) {
     pages['/_app'] = `${PAGES_DIR_ALIAS}/_app`
     pages['/_error'] = `${PAGES_DIR_ALIAS}/_error`
@@ -136,7 +136,10 @@ export function createEntrypoints(
     const serverBundlePath = posix.join('pages', bundleFile)
 
     const isLikeServerless = isTargetLikeServerless(target)
+    const isReserved = isReservedPage(page)
+    const isCustomError = isCustomErrorPage(page)
     const isFlight = isFlightPage(config, absolutePagePath)
+
     const webServerRuntime = !!config.experimental.concurrentFeatures
 
     if (page.match(MIDDLEWARE_ROUTE)) {
@@ -151,11 +154,7 @@ export function createEntrypoints(
       return
     }
 
-    if (
-      webServerRuntime &&
-      !(page === '/_app' || page === '/_error' || page === '/_document') &&
-      !isApiRoute
-    ) {
+    if (webServerRuntime && !isReserved && !isCustomError && !isApiRoute) {
       ssrEntries.set(clientBundlePath, { requireFlightManifest: isFlight })
       serverWeb[serverBundlePath] = finalizeEntrypoint({
         name: '[name].js',
@@ -184,12 +183,7 @@ export function createEntrypoints(
         serverlessLoaderOptions
       )}!`
     } else if (isApiRoute || target === 'server') {
-      if (
-        !webServerRuntime ||
-        page === '/_document' ||
-        page === '/_app' ||
-        page === '/_error'
-      ) {
+      if (!webServerRuntime || isReserved || isCustomError) {
         server[serverBundlePath] = [absolutePagePath]
       }
     } else if (
@@ -274,6 +268,7 @@ export function finalizeEntrypoint({
         type: 'assign',
       },
       runtime: MIDDLEWARE_SSR_RUNTIME_WEBPACK,
+      asyncChunks: false,
       ...entry,
     }
     return ssrMiddlewareEntry

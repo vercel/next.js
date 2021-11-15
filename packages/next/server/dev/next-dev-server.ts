@@ -59,6 +59,7 @@ import isError from '../../lib/is-error'
 import { getMiddlewareRegex } from '../../shared/lib/router/utils/get-middleware-regex'
 import type { FetchEventResult } from '../web/types'
 import type { ParsedNextUrl } from '../../shared/lib/router/utils/parse-next-url'
+import { isCustomErrorPage, isReservedPage } from '../../build/utils'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: React.FunctionComponent
@@ -272,11 +273,7 @@ export default class DevServer extends Server {
             ssrMiddleware.add(pageName)
           } else if (
             isWebServerRuntime &&
-            !(
-              pageName === '/_app' ||
-              pageName === '/_error' ||
-              pageName === '/_document'
-            )
+            !(isReservedPage(pageName) || isCustomErrorPage(pageName))
           ) {
             routedMiddleware.push(pageName)
             ssrMiddleware.add(pageName)
@@ -514,7 +511,13 @@ export default class DevServer extends Server {
     parsed: UrlWithParsedQuery
   }): Promise<FetchEventResult | null> {
     try {
-      const result = await super.runMiddleware(params)
+      const result = await super.runMiddleware({
+        ...params,
+        onWarning: (warn) => {
+          this.logErrorWithOriginalStack(warn, 'warning', 'client')
+        },
+      })
+
       result?.waitUntil.catch((error) =>
         this.logErrorWithOriginalStack(error, 'unhandledRejection', 'client')
       )
@@ -589,7 +592,7 @@ export default class DevServer extends Server {
 
   private async logErrorWithOriginalStack(
     err?: unknown,
-    type?: 'unhandledRejection' | 'uncaughtException',
+    type?: 'unhandledRejection' | 'uncaughtException' | 'warning',
     stats: 'server' | 'client' = 'server'
   ) {
     let usedOriginalStack = false
@@ -630,11 +633,15 @@ export default class DevServer extends Server {
             const { file, lineNumber, column, methodName } = originalStackFrame
 
             console.error(
-              chalk.red('error') +
+              (type === 'warning' ? chalk.yellow('warn') : chalk.red('error')) +
                 ' - ' +
                 `${file} (${lineNumber}:${column}) @ ${methodName}`
             )
-            console.error(`${chalk.red(err.name)}: ${err.message}`)
+            console.error(
+              `${(type === 'warning' ? chalk.yellow : chalk.red)(err.name)}: ${
+                err.message
+              }`
+            )
             console.error(originalCodeFrame)
             usedOriginalStack = true
           }
@@ -647,7 +654,9 @@ export default class DevServer extends Server {
     }
 
     if (!usedOriginalStack) {
-      if (type) {
+      if (type === 'warning') {
+        Log.warn(err + '')
+      } else if (type) {
         Log.error(`${type}:`, err + '')
       } else {
         Log.error(err + '')
