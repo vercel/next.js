@@ -15,7 +15,10 @@ const cwd = process.cwd()
     let gitref = process.argv.slice(2)[0]
 
     // Copy binaries to package folders, update version, and publish
-    let nativePackagesDir = path.join(cwd, 'packages/next/build/swc/npm')
+    let nativePackagesDir = path.join(
+      cwd,
+      'packages/next/build/swc/crates/napi/npm'
+    )
     let platforms = (await readdir(nativePackagesDir)).filter(
       (name) => !name.startsWith('.')
     )

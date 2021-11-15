@@ -754,27 +754,16 @@ checksum = "e4a24736216ec316047a1fc4252e27dabb04218aa4a3f37c6e7ddbf1f9782b54"
 name = "next-swc"
 version = "0.0.0"
 dependencies = [
- "anyhow",
- "backtrace",
  "chrono",
  "easy-error",
  "either",
  "fxhash",
- "napi",
- "napi-build",
- "napi-derive",
- "once_cell",
- "path-clean",
  "pathdiff",
- "regex",
- "retain_mut",
- "rustc-hash",
  "serde",
  "serde_json",
  "styled_components",
  "swc",
  "swc_atoms",
- "swc_bundler",
  "swc_common",
  "swc_css",
  "swc_ecma_loader",
@@ -786,6 +775,29 @@ dependencies = [
  "testing",
  "tracing",
  "walkdir",
+]
+
+[[package]]
+name = "next-swc-napi"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "backtrace",
+ "fxhash",
+ "napi",
+ "napi-build",
+ "napi-derive",
+ "next-swc",
+ "once_cell",
+ "serde",
+ "serde_json",
+ "swc",
+ "swc_atoms",
+ "swc_bundler",
+ "swc_common",
+ "swc_ecma_loader",
+ "swc_ecmascript",
+ "swc_node_base",
 ]
 
 [[package]]
