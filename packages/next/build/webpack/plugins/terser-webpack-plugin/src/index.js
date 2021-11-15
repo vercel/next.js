@@ -1,6 +1,7 @@
 // @ts-nocheck
 import * as path from 'path'
 import {
+  webpack,
   ModuleFilenameHelpers,
   sources,
 } from 'next/dist/compiled/webpack/webpack'
