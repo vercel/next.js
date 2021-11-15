@@ -133,7 +133,7 @@ export class TerserPlugin {
               console.dir(
                 {
                   name,
-                  source: new String(source.source().toString()).toString(),
+                  source: source.source().toString(),
                 },
                 {
                   breakLength: Infinity,
