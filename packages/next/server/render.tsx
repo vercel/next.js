@@ -1469,39 +1469,48 @@ function renderToNodeStream(
 
 function renderToReadableStream(
   element: React.ReactElement
-): NodeWritablePiper {
-  return (res, next) => {
-    let bufferedString = ''
-    let shellCompleted = false
+): Promise<NodeWritablePiper> {
+  return new Promise((resolve, reject) => {
+    let reader: any = null
+    let resolved = false
+    const doResolve = () => {
+      if (resolved) return
+      resolved = true
+      const piper: NodeWritablePiper = (res, next) => {
+        const streamReader: ReadableStreamDefaultReader = reader
+        const decoder = new TextDecoder()
+        const process = async () => {
+          streamReader.read().then(({ done, value }) => {
+            if (!done) {
+              const s =
+                typeof value === 'string' ? value : decoder.decode(value)
+              res.write(s)
+              process()
+            } else {
+              next()
+            }
+          })
+        }
+        process()
+      }
+      resolve(piper)
+    }
 
     const readable = (ReactDOMServer as any).renderToReadableStream(element, {
-      onCompleteShell() {
-        shellCompleted = true
-        if (bufferedString) {
-          res.write(bufferedString)
-          bufferedString = ''
+      onError(err: Error) {
+        if (!resolved) {
+          resolved = true
+          reject(err)
         }
       },
+      onCompleteShell() {
+        doResolve()
+      },
     })
-    const reader = readable.getReader()
-    const decoder = new TextDecoder()
-    const process = () => {
-      reader.read().then(({ done, value }: any) => {
-        if (!done) {
-          const s = typeof value === 'string' ? value : decoder.decode(value)
-          if (shellCompleted) {
-            res.write(s)
-          } else {
-            bufferedString += s
-          }
-          process()
-        } else {
-          next()
-        }
-      })
-    }
-    process()
-  }
+    // Start reader and lock stream immediately to consume readable,
+    // Otherwise the bytes before `onCompleteShell` will be missed.
+    reader = readable.getReader()
+  })
 }
 
 function chainPipers(pipers: NodeWritablePiper[]): NodeWritablePiper {

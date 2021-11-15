@@ -261,7 +261,9 @@ export default function onDemandEntryHandler(
         reportTrigger(
           isApiRoute
             ? `${normalizedPage} (server only)`
-            : isClientOrMiddleware
+            : isMiddleware
+            ? `${normalizedPage} (middleware only)`
+            : clientOnly
             ? `${normalizedPage} (client only)`
             : normalizedPage
         )
