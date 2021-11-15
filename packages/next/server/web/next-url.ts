@@ -2,6 +2,7 @@ import type { PathLocale } from '../../shared/lib/i18n/normalize-locale-path'
 import type { DomainLocale, I18NConfig } from '../config-shared'
 import { getLocaleMetadata } from '../../shared/lib/i18n/get-locale-metadata'
 import cookie from 'next/dist/compiled/cookie'
+import { replaceBasePath } from '../router'
 
 /**
  * TODO
@@ -48,7 +49,7 @@ export class NextURL extends URL {
     const { headers = {}, basePath, i18n } = this._options
 
     if (basePath && this._url.pathname.startsWith(basePath)) {
-      this._url.pathname = this._url.pathname.replace(basePath, '') || '/'
+      this._url.pathname = replaceBasePath(this._url.pathname, basePath)
       this._basePath = basePath
     } else {
       this._basePath = ''

@@ -44,9 +44,22 @@ export type PageChecker = (pathname: string) => Promise<boolean>
 
 const customRouteTypes = new Set(['rewrite', 'redirect', 'header'])
 
-function replaceBasePath(basePath: string, pathname: string) {
-  // If replace ends up replacing the full url it'll be `undefined`, meaning we have to default it to `/`
-  return pathname!.replace(basePath, '') || '/'
+export function hasBasePath(pathname: string, basePath: string): boolean {
+  return (
+    typeof pathname === 'string' &&
+    (pathname === basePath || pathname.startsWith(basePath + '/'))
+  )
+}
+
+export function replaceBasePath(pathname: string, basePath: string): string {
+  // ensure basePath is only stripped if it matches exactly
+  // and doesn't contain extra chars e.g. basePath /docs
+  // should replace for /docs, /docs/, /docs/a but not /docsss
+  if (hasBasePath(pathname, basePath)) {
+    pathname = pathname.substr(basePath.length)
+    if (!pathname.startsWith('/')) pathname = `/${pathname}`
+  }
+  return pathname
 }
 
 export default class Router {
@@ -142,7 +155,7 @@ export default class Router {
 
     const applyCheckTrue = async (checkParsedUrl: NextUrlWithParsedQuery) => {
       const originalFsPathname = checkParsedUrl.pathname
-      const fsPathname = replaceBasePath(this.basePath, originalFsPathname!)
+      const fsPathname = replaceBasePath(originalFsPathname!, this.basePath)
 
       for (const fsRoute of this.fsRoutes) {
         const fsParams = fsRoute.match(fsPathname)
@@ -283,8 +296,8 @@ export default class Router {
       const keepLocale = isCustomRoute
 
       const currentPathnameNoBasePath = replaceBasePath(
-        this.basePath,
-        currentPathname
+        currentPathname,
+        this.basePath
       )
 
       if (!keepBasePath) {
