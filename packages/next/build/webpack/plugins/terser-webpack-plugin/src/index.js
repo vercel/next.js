@@ -128,10 +128,7 @@ export class TerserPlugin {
               numberOfAssetsForMinify += 1
             }
 
-            if (
-              debugMinify &&
-              (debugMinify === '1' || new RegExp(`/${debugMinify}/`).test(name))
-            ) {
+            if (debugMinify && debugMinify === '1') {
               console.dir(
                 {
                   name,
