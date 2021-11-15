@@ -592,6 +592,12 @@ jobs:
           TURBO_TEAM: nextjs
           TURBO_PROJECT: nextjs
 
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2.2.4
+        with:
+          name: next-swc-dev-binary
+          path: packages/next/native/next-swc.linux-x64-gnu.node
+
       - name: Clear the cargo caches
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         run: |
