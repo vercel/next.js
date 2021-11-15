@@ -27,14 +27,6 @@ export default async function middlewareRSCLoader(this: any) {
         import { RouterContext } from 'next/dist/shared/lib/router-context'
         import { renderToHTML } from 'next/dist/server/web/render'
 
-        ${
-          isServerComponent
-            ? `
-        import { renderToReadableStream } from 'next/dist/compiled/react-server-dom-webpack/writer.browser.server'
-        import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack'`
-            : ''
-        }
-
         import App from ${stringifiedAbsoluteAppPath}
         import Document from ${stringifiedAbsoluteDocumentPath}
 
