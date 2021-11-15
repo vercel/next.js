@@ -167,7 +167,7 @@ impl Namespacer {
                     front_tokens.extend(block_tokens);
                     args.tokens = front_tokens;
                     let complex_selectors = panic::catch_unwind(|| {
-                        let x: Vec<ComplexSelector> = parse_tokens(
+                        let x: ComplexSelector = parse_tokens(
                             &args,
                             ParserConfig {
                                 parse_values: false,
@@ -182,7 +182,7 @@ impl Namespacer {
 
                     return match complex_selectors {
                         Ok(complex_selectors) => {
-                            let mut v = complex_selectors[0].selectors[1..]
+                            let mut v = complex_selectors.selectors[1..]
                                 .iter()
                                 .cloned()
                                 .collect::<Vec<_>>();
