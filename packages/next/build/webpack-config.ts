@@ -1759,12 +1759,6 @@ export default async function getBaseWebpackConfig(
     webpackConfig.module?.rules &&
     webpackConfig.plugins
   ) {
-    // CRA prevents loading all locales by default
-    // https://github.com/facebook/create-react-app/blob/fddce8a9e21bf68f37054586deb0c8636a45f50b/packages/react-scripts/config/webpack.config.js#L721
-    webpackConfig.plugins.push(
-      new webpack.IgnorePlugin(/^\.\/locale$/, /moment$/)
-    )
-
     // CRA allows importing non-webpack handled files with file-loader
     // these need to be the last rule to prevent catching other items
     // https://github.com/facebook/create-react-app/blob/fddce8a9e21bf68f37054586deb0c8636a45f50b/packages/react-scripts/config/webpack.config.js#L594
