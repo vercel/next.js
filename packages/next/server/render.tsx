@@ -999,9 +999,9 @@ export async function renderToHTML(
   if (isResSent(res) && !isSSG) return null
 
   if (renderServerComponentData) {
-    return new RenderResult((res, next) => {
+    return new RenderResult((res_, next) => {
       const { startWriting } = connectReactServerReadableStreamToPiper(
-        res.write,
+        res_.write,
         next
       )
       startWriting(
