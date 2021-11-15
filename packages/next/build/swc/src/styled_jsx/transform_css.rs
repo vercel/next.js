@@ -53,6 +53,7 @@ pub fn transform_css(
     };
     // ? Do we need to support optionally prefixing?
     ss.visit_mut_with(&mut prefixer());
+    ss.visit_mut_with(&mut CssFixer);
     ss.visit_mut_with(&mut Namespacer {
         class_name: match class_name {
             Some(s) => s.clone(),
@@ -119,6 +120,25 @@ fn read_number(s: &str) -> (usize, usize) {
     }
 
     unreachable!("read_number(`{}`) is invalid because it is empty", s)
+}
+
+struct CssFixer;
+
+impl VisitMut for CssFixer {
+    fn visit_mut_media_query(&mut self, q: &mut MediaQuery) {
+        q.visit_mut_children_with(self);
+
+        match q {
+            MediaQuery::Text(q) => {
+                if q.raw.starts_with("__styled-jsx-placeholder-") {
+                    // TODO(kdy1): Remove this once we have CST for media query.
+                    // We need good error recovery for media queries to handle this.
+                    q.raw = format!("({})", &q.value).into();
+                }
+            }
+            _ => {}
+        }
+    }
 }
 
 struct Namespacer {
