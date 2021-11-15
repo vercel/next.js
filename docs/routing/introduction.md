@@ -68,7 +68,7 @@ function Home() {
 export default Home
 ```
 
-In the example above, we have multiple links. Each one maps a path (`href`) to a known page:
+The example above uses multiple links. Each one maps a path (`href`) to a known page:
 
 - `/` → `pages/index.js`
 - `/about` → `pages/about.js`
