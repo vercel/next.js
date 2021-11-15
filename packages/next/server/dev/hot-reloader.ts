@@ -528,6 +528,7 @@ export default class HotReloader {
                     page,
                     absoluteAppPath: this.pagesMapping['/_app'],
                     absoluteDocumentPath: this.pagesMapping['/_document'],
+                    absoluteErrorPath: this.pagesMapping['/_error'],
                     absolutePagePath,
                     isServerComponent,
                     buildId: this.buildId,
