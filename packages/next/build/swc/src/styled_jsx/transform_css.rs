@@ -260,7 +260,7 @@ fn get_front_selector_tokens(selector_tokens: &Tokens) -> Vec<TokenAndSpan> {
                 hi: BytePos(start_pos + 2),
                 ctxt: SyntaxContext::empty(),
             },
-            token: Token::WhiteSpace,
+            token: Token::WhiteSpace { value: " ".into() },
         },
     ]
 }
@@ -274,7 +274,7 @@ fn get_block_tokens(selector_tokens: &Tokens) -> Vec<TokenAndSpan> {
                 hi: BytePos(start_pos + 1),
                 ctxt: SyntaxContext::empty(),
             },
-            token: Token::WhiteSpace,
+            token: Token::WhiteSpace { value: " ".into() },
         },
         TokenAndSpan {
             span: Span {
@@ -290,7 +290,7 @@ fn get_block_tokens(selector_tokens: &Tokens) -> Vec<TokenAndSpan> {
                 hi: BytePos(start_pos + 3),
                 ctxt: SyntaxContext::empty(),
             },
-            token: Token::WhiteSpace,
+            token: Token::WhiteSpace { value: " ".into() },
         },
         TokenAndSpan {
             span: Span {
@@ -317,7 +317,7 @@ fn get_block_tokens(selector_tokens: &Tokens) -> Vec<TokenAndSpan> {
                 hi: BytePos(start_pos + 10),
                 ctxt: SyntaxContext::empty(),
             },
-            token: Token::WhiteSpace,
+            token: Token::WhiteSpace { value: " ".into() },
         },
         TokenAndSpan {
             span: Span {
@@ -344,7 +344,7 @@ fn get_block_tokens(selector_tokens: &Tokens) -> Vec<TokenAndSpan> {
                 hi: BytePos(start_pos + 15),
                 ctxt: SyntaxContext::empty(),
             },
-            token: Token::WhiteSpace,
+            token: Token::WhiteSpace { value: " ".into() },
         },
         TokenAndSpan {
             span: Span {
@@ -360,7 +360,7 @@ fn get_block_tokens(selector_tokens: &Tokens) -> Vec<TokenAndSpan> {
                 hi: BytePos(start_pos + 17),
                 ctxt: SyntaxContext::empty(),
             },
-            token: Token::WhiteSpace,
+            token: Token::WhiteSpace { value: " ".into() },
         },
     ]
 }
