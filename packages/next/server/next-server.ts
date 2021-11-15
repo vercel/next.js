@@ -67,6 +67,7 @@ import Router, {
   DynamicRoutes,
   PageChecker,
   Params,
+  replaceBasePath,
   route,
   Route,
 } from './router'
@@ -369,7 +370,7 @@ export default class Server {
     })
 
     if (url.basePath) {
-      req.url = req.url!.replace(this.nextConfig.basePath, '') || '/'
+      req.url = replaceBasePath(req.url!, this.nextConfig.basePath)
       addRequestMeta(req, '_nextHadBasePath', true)
     }
 
