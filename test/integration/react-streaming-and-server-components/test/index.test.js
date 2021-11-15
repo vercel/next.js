@@ -24,6 +24,7 @@ const nativeModuleTestAppDir = join(__dirname, '../unsupported-native-module')
 const distDir = join(__dirname, '../app/.next')
 const documentPage = new File(join(appDir, 'pages/_document.jsx'))
 const appPage = new File(join(appDir, 'pages/_app.js'))
+const error500Page = new File(join(appDir, 'pages/500.js'))
 
 const documentWithGip = `
 import { Html, Head, Main, NextScript } from 'next/document'
@@ -53,6 +54,12 @@ function App({ Component, pageProps }) {
 }
 
 export default App
+`
+
+const page500 = `
+export default function Page500() {
+  return 'custom-500-page'
+}
 `
 
 async function nextBuild(dir) {
@@ -100,11 +107,13 @@ describe('concurrentFeatures - prod', () => {
   const context = { appDir }
 
   beforeAll(async () => {
+    error500Page.write(page500)
     context.appPort = await findPort()
     await nextBuild(context.appDir)
     context.server = await nextStart(context.appDir, context.appPort)
   })
   afterAll(async () => {
+    error500Page.delete()
     await killApp(context.server)
   })
 
@@ -155,10 +164,12 @@ describe('concurrentFeatures - dev', () => {
   const context = { appDir }
 
   beforeAll(async () => {
+    error500Page.write(page500)
     context.appPort = await findPort()
     context.server = await nextDev(context.appDir, context.appPort)
   })
   afterAll(async () => {
+    error500Page.delete()
     await killApp(context.server)
   })
 
@@ -217,6 +228,7 @@ async function runBasicTests(context) {
     )
 
     const path404HTML = await renderViaHTTP(context.appPort, '/404')
+    const path500HTML = await renderViaHTTP(context.appPort, '/err')
     const pathNotFoundHTML = await renderViaHTTP(
       context.appPort,
       '/this-is-not-found'
@@ -230,6 +242,7 @@ async function runBasicTests(context) {
     expect(dynamicRouteHTML2).toContain('[pid]')
 
     expect(path404HTML).toContain('custom-404-page')
+    expect(path500HTML).toContain('custom-500-page')
     expect(pathNotFoundHTML).toContain('custom-404-page')
   })
 
