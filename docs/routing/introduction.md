@@ -19,7 +19,7 @@ The router will automatically route files named `index` to the root of the direc
 
 #### Nested routes
 
-The router supports nested files. If you create a nested folder structure, files will be automatically routed in the same way still.
+The router supports nested files. If you create a nested folder structure, files will automatically be routed in the same way still.
 
 - `pages/blog/first-post.js` → `/blog/first-post`
 - `pages/dashboard/settings/username.js` → `/dashboard/settings/username`
