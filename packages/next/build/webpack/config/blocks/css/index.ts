@@ -86,6 +86,21 @@ const regexCssModules = /\.module\.css$/
 const regexSassGlobal = /(?<!\.module)\.(scss|sass)$/
 const regexSassModules = /\.module\.(scss|sass)$/
 
+/**
+ * Mark a rule as removable if built-in CSS support is disabled
+ *
+ * @param {webpack.RuleSetRule} r the rule to mark
+ *
+ * @returns {webpack.RuleSetRule} the marked rule
+ */
+function markRemovable(r: webpack.RuleSetRule): webpack.RuleSetRule {
+  Object.defineProperty(r, Symbol.for('__next_css_remove'), {
+    enumerable: false,
+    value: true,
+  })
+  return r
+}
+
 export const css = curry(async function css(
   ctx: ConfigurationContext,
   config: webpack.Configuration
@@ -137,7 +152,7 @@ export const css = curry(async function css(
   fns.push(
     loader({
       oneOf: [
-        {
+        markRemovable({
           test: regexLikeCss,
           // Use a loose regex so we don't have to crawl the file system to
           // find the real file name (if present).
@@ -148,7 +163,7 @@ export const css = curry(async function css(
               reason: getCustomDocumentError(),
             },
           },
-        },
+        }),
       ],
     })
   )
@@ -158,7 +173,7 @@ export const css = curry(async function css(
   fns.push(
     loader({
       oneOf: [
-        {
+        markRemovable({
           // CSS Modules should never have side effects. This setting will
           // allow unused CSS to be removed from the production build.
           // We ensure this by disallowing `:global()` CSS at the top-level
@@ -173,7 +188,7 @@ export const css = curry(async function css(
             not: [/node_modules/],
           },
           use: getCssModuleLoader(ctx, postCssPlugins),
-        },
+        }),
       ],
     })
   )
@@ -181,7 +196,7 @@ export const css = curry(async function css(
     loader({
       oneOf: [
         // Opt-in support for Sass (using .scss or .sass extensions).
-        {
+        markRemovable({
           // Sass Modules should never have side effects. This setting will
           // allow unused Sass to be removed from the production build.
           // We ensure this by disallowing `:global()` Sass at the top-level
@@ -196,7 +211,7 @@ export const css = curry(async function css(
             not: [/node_modules/],
           },
           use: getCssModuleLoader(ctx, postCssPlugins, sassPreprocessors),
-        },
+        }),
       ],
     })
   )
@@ -205,7 +220,7 @@ export const css = curry(async function css(
   fns.push(
     loader({
       oneOf: [
-        {
+        markRemovable({
           test: [regexCssModules, regexSassModules],
           use: {
             loader: 'error-loader',
@@ -213,7 +228,7 @@ export const css = curry(async function css(
               reason: getLocalModuleImportError(),
             },
           },
-        },
+        }),
       ],
     })
   )
@@ -222,10 +237,10 @@ export const css = curry(async function css(
     fns.push(
       loader({
         oneOf: [
-          {
+          markRemovable({
             test: [regexCssGlobal, regexSassGlobal],
             use: require.resolve('next/dist/compiled/ignore-loader'),
-          },
+          }),
         ],
       })
     )
@@ -233,7 +248,7 @@ export const css = curry(async function css(
     fns.push(
       loader({
         oneOf: [
-          {
+          markRemovable({
             // A global CSS import always has side effects. Webpack will tree
             // shake the CSS without this option if the issuer claims to have
             // no side-effects.
@@ -256,7 +271,7 @@ export const css = curry(async function css(
                   not: [/node_modules/],
                 },
             use: getGlobalCssLoader(ctx, postCssPlugins),
-          },
+          }),
         ],
       })
     )
@@ -265,7 +280,7 @@ export const css = curry(async function css(
       fns.push(
         loader({
           oneOf: [
-            {
+            markRemovable({
               // A global CSS import always has side effects. Webpack will tree
               // shake the CSS without this option if the issuer claims to have
               // no side-effects.
@@ -274,14 +289,14 @@ export const css = curry(async function css(
               test: regexCssGlobal,
               issuer: { and: [ctx.customAppFile] },
               use: getGlobalCssLoader(ctx, postCssPlugins),
-            },
+            }),
           ],
         })
       )
       fns.push(
         loader({
           oneOf: [
-            {
+            markRemovable({
               // A global Sass import always has side effects. Webpack will tree
               // shake the Sass without this option if the issuer claims to have
               // no side-effects.
@@ -290,7 +305,7 @@ export const css = curry(async function css(
               test: regexSassGlobal,
               issuer: { and: [ctx.customAppFile] },
               use: getGlobalCssLoader(ctx, postCssPlugins, sassPreprocessors),
-            },
+            }),
           ],
         })
       )
@@ -302,7 +317,7 @@ export const css = curry(async function css(
     fns.push(
       loader({
         oneOf: [
-          {
+          markRemovable({
             test: [regexCssGlobal, regexSassGlobal],
             issuer: { and: [/node_modules/] },
             use: {
@@ -311,7 +326,7 @@ export const css = curry(async function css(
                 reason: getGlobalModuleImportError(),
               },
             },
-          },
+          }),
         ],
       })
     )
@@ -321,7 +336,7 @@ export const css = curry(async function css(
   fns.push(
     loader({
       oneOf: [
-        {
+        markRemovable({
           test: [regexCssGlobal, regexSassGlobal],
           use: {
             loader: 'error-loader',
@@ -329,7 +344,7 @@ export const css = curry(async function css(
               reason: getGlobalImportError(),
             },
           },
-        },
+        }),
       ],
     })
   )
@@ -340,7 +355,7 @@ export const css = curry(async function css(
     fns.push(
       loader({
         oneOf: [
-          {
+          markRemovable({
             // This should only be applied to CSS files
             issuer: regexLikeCss,
             // Exclude extensions that webpack handles by default
@@ -353,7 +368,7 @@ export const css = curry(async function css(
             // `asset/resource` always emits a URL reference, where `asset`
             // might inline the asset as a data URI
             type: 'asset/resource',
-          },
+          }),
         ],
       })
     )
@@ -383,21 +398,6 @@ export const css = curry(async function css(
       )
     )
   }
-
-  fns.unshift(
-    loader({
-      oneOf: [
-        {
-          // Impossible regex expression
-          test: /a^/,
-          loader: 'noop-loader',
-          // Record the number of entries we need to remove if built-in CSS
-          // support is disabled
-          options: { __next_css_remove: fns.length + 1 },
-        },
-      ],
-    })
-  )
 
   const fn = pipe(...fns)
   return fn(config)

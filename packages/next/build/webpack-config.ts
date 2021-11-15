@@ -1868,21 +1868,12 @@ export default async function getBaseWebpackConfig(
     }
 
     if (webpackConfig.module?.rules.length) {
-      // Remove default CSS Loader
+      // Remove default CSS Loaders
       webpackConfig.module.rules.forEach((r) => {
         if (Array.isArray(r.oneOf)) {
-          let i = 0
-          while (i < r.oneOf.length) {
-            let o: any = r.oneOf[i]?.options
-            if (
-              typeof o === 'object' &&
-              typeof o.__next_css_remove === 'number'
-            ) {
-              // Remove all CSS-related entries
-              r.oneOf.splice(i, o.__next_css_remove)
-            }
-            i++
-          }
+          r.oneOf = r.oneOf.filter(
+            (o) => (o as any)[Symbol.for('__next_css_remove')] !== true
+          )
         }
       })
     }
