@@ -578,26 +578,6 @@ jobs:
           path: ~/.cargo/git
           key: stable-ubuntu-18.04-node@14-cargo-index-trimmed-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Cache native binary
-        id: binary-cache
-        uses: actions/cache@v2
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
-        with:
-          path: packages/next/native/next-swc.linux-x64-gnu.node
-          key: dev-next-swc-nightly-2021-08-12-linux-x64-gnu-${{ hashFiles('.github/workflows/build_test_deploy.yml', 'packages/next/build/swc/**') }}
-
-      # We use restore-key to pick latest cache.
-      # We will not get exact match, but doc says
-      # "If there are multiple partial matches for a restore key, the action returns the most recently created cache."
-      # So we get latest cache
-      - name: Cache built files
-        uses: actions/cache@v2
-        with:
-          path: ./packages/next/build/swc/target
-          key: next-swc-cargo-cache-ubuntu-18.04--${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            next-swc-cargo-cache-ubuntu-18.04
-
       # since the repo's dependencies aren't installed we need
       # to install napi globally
       - run: npm i -g @napi-rs/cli@1.2.1
@@ -608,12 +588,9 @@ jobs:
         run: turbo run build-native
         env:
           MACOSX_DEPLOYMENT_TARGET: '10.13'
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v2.2.4
-        with:
-          name: next-swc-dev-binary
-          path: packages/next/native/next-swc.linux-x64-gnu.node
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM: nextjs
+          TURBO_PROJECT: nextjs
 
       - name: Clear the cargo caches
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}

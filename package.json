@@ -176,7 +176,8 @@
           "^build-native"
         ],
         "outputs": [
-          "native/*.node"
+          "native/*.node",
+          "build/swc/target/**"
         ]
       }
     }

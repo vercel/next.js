@@ -42,3 +42,4 @@ test-timings.json
 
 # Cache
 *.tsbuildinfo
+.turbo
