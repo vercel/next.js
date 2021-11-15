@@ -52,7 +52,8 @@ pub fn transform_css(
         }
     };
     // ? Do we need to support optionally prefixing?
-    ss.visit_mut_with(&mut prefixer());
+    ss.visit_mut_with(&mut FixedPrefixer);
+    ss.visit_mut_with(&mut CssFixer);
     ss.visit_mut_with(&mut Namespacer {
         class_name: match class_name {
             Some(s) => s.clone(),
@@ -74,12 +75,12 @@ pub fn transform_css(
         return Ok(string_literal_expr(&s));
     }
 
-    let mut parts: Vec<&str> = s.split("__styled-jsx-placeholder__").collect();
+    let mut parts: Vec<&str> = s.split("__styled-jsx-placeholder-").collect();
     let mut final_expressions = vec![];
     for i in 1..parts.len() {
         let (num_len, expression_index) = read_number(&parts[i]);
         final_expressions.push(style_info.expressions[expression_index].clone());
-        let substr = &parts[i][num_len..];
+        let substr = &parts[i][(num_len + 2)..];
         parts[i] = substr;
     }
 
@@ -121,6 +122,38 @@ fn read_number(s: &str) -> (usize, usize) {
     unreachable!("read_number(`{}`) is invalid because it is empty", s)
 }
 
+/// Applies `prefixer`, but this avoids bug of `swc_stylis::prefixer()`.
+///
+/// TODO(kdy1): Remove this when we upgrade crates related to css. (The crate
+/// update is blocked by `ComplexSelectorChildren` issue)
+struct FixedPrefixer;
+
+impl VisitMut for FixedPrefixer {
+    fn visit_mut_style_rule(&mut self, n: &mut StyleRule) {
+        n.visit_mut_with(&mut prefixer());
+    }
+}
+
+/// This fixes invalid css.
+struct CssFixer;
+
+impl VisitMut for CssFixer {
+    fn visit_mut_media_query(&mut self, q: &mut MediaQuery) {
+        q.visit_mut_children_with(self);
+
+        match q {
+            MediaQuery::Text(q) => {
+                if q.raw.starts_with("__styled-jsx-placeholder-") {
+                    // TODO(kdy1): Remove this once we have CST for media query.
+                    // We need good error recovery for media queries to handle this.
+                    q.raw = format!("({})", &q.value).into();
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
 struct Namespacer {
     class_name: String,
     is_global: bool,
@@ -138,7 +171,7 @@ impl VisitMut for Namespacer {
                         handler
                             .struct_span_err(
                                 selector.span,
-                                "Failed to parse tokens inside one off global selector",
+                                "Failed to transform one off global selector",
                             )
                             .emit()
                     });
@@ -155,10 +188,6 @@ impl Namespacer {
         &mut self,
         mut node: CompoundSelector,
     ) -> Result<Vec<CompoundSelector>, Error> {
-        if self.is_global {
-            return Ok(vec![node]);
-        }
-
         let mut pseudo_index = None;
         for (i, selector) in node.subclass_selectors.iter().enumerate() {
             if let SubclassSelector::Pseudo(PseudoSelector { name, args, .. }) = selector {
@@ -171,7 +200,7 @@ impl Namespacer {
                     front_tokens.extend(block_tokens);
                     args.tokens = front_tokens;
                     let complex_selectors = panic::catch_unwind(|| {
-                        let x: Vec<ComplexSelector> = parse_tokens(
+                        let x: ComplexSelector = parse_tokens(
                             &args,
                             ParserConfig {
                                 parse_values: false,
@@ -186,10 +215,20 @@ impl Namespacer {
 
                     return match complex_selectors {
                         Ok(complex_selectors) => {
-                            let mut v = complex_selectors[0].selectors[1..]
+                            let mut v = complex_selectors.selectors[1..]
                                 .iter()
                                 .cloned()
                                 .collect::<Vec<_>>();
+
+                            if v.is_empty() {
+                                bail!("Failed to transform one off global selector");
+                            }
+
+                            if node.combinator.is_some() && v[0].combinator.is_some() {
+                                bail!("Failed to transform one off global selector");
+                            } else if node.combinator.is_some() {
+                                v[0].combinator = node.combinator;
+                            }
 
                             v.iter_mut().for_each(|sel| {
                                 if i < node.subclass_selectors.len() {
@@ -216,17 +255,19 @@ impl Namespacer {
             None => node.subclass_selectors.len(),
             Some(i) => i,
         };
-        node.subclass_selectors.insert(
-            insert_index,
-            SubclassSelector::Class(ClassSelector {
-                span: DUMMY_SP,
-                text: Text {
-                    raw: subclass_selector.into(),
-                    value: subclass_selector.into(),
+        if !self.is_global {
+            node.subclass_selectors.insert(
+                insert_index,
+                SubclassSelector::Class(ClassSelector {
                     span: DUMMY_SP,
-                },
-            }),
-        );
+                    text: Text {
+                        raw: subclass_selector.into(),
+                        value: subclass_selector.into(),
+                        span: DUMMY_SP,
+                    },
+                }),
+            );
+        }
 
         Ok(vec![node])
     }
@@ -252,7 +293,7 @@ fn get_front_selector_tokens(selector_tokens: &Tokens) -> Vec<TokenAndSpan> {
                 hi: BytePos(start_pos + 2),
                 ctxt: SyntaxContext::empty(),
             },
-            token: Token::WhiteSpace,
+            token: Token::WhiteSpace { value: " ".into() },
         },
     ]
 }
@@ -266,7 +307,7 @@ fn get_block_tokens(selector_tokens: &Tokens) -> Vec<TokenAndSpan> {
                 hi: BytePos(start_pos + 1),
                 ctxt: SyntaxContext::empty(),
             },
-            token: Token::WhiteSpace,
+            token: Token::WhiteSpace { value: " ".into() },
         },
         TokenAndSpan {
             span: Span {
@@ -282,7 +323,7 @@ fn get_block_tokens(selector_tokens: &Tokens) -> Vec<TokenAndSpan> {
                 hi: BytePos(start_pos + 3),
                 ctxt: SyntaxContext::empty(),
             },
-            token: Token::WhiteSpace,
+            token: Token::WhiteSpace { value: " ".into() },
         },
         TokenAndSpan {
             span: Span {
@@ -309,7 +350,7 @@ fn get_block_tokens(selector_tokens: &Tokens) -> Vec<TokenAndSpan> {
                 hi: BytePos(start_pos + 10),
                 ctxt: SyntaxContext::empty(),
             },
-            token: Token::WhiteSpace,
+            token: Token::WhiteSpace { value: " ".into() },
         },
         TokenAndSpan {
             span: Span {
@@ -336,7 +377,7 @@ fn get_block_tokens(selector_tokens: &Tokens) -> Vec<TokenAndSpan> {
                 hi: BytePos(start_pos + 15),
                 ctxt: SyntaxContext::empty(),
             },
-            token: Token::WhiteSpace,
+            token: Token::WhiteSpace { value: " ".into() },
         },
         TokenAndSpan {
             span: Span {
@@ -352,7 +393,7 @@ fn get_block_tokens(selector_tokens: &Tokens) -> Vec<TokenAndSpan> {
                 hi: BytePos(start_pos + 17),
                 ctxt: SyntaxContext::empty(),
             },
-            token: Token::WhiteSpace,
+            token: Token::WhiteSpace { value: " ".into() },
         },
     ]
 }

@@ -18,7 +18,9 @@ exports.keepAlive = function (options) {
 	var active = options.active;
 	var module = options.module;
 	var response;
-	var request = __nccwpck_require__(605).request(
+	var request = (
+		urlBase.startsWith("https") ? __nccwpck_require__(211) : __nccwpck_require__(605)
+	).request(
 		urlBase + data,
 		{
 			agent: false,
@@ -53,6 +55,13 @@ exports.keepAlive = function (options) {
 /***/ (function(module) {
 
 module.exports = require("http");;
+
+/***/ }),
+
+/***/ 211:
+/***/ (function(module) {
+
+module.exports = require("https");;
 
 /***/ })
 

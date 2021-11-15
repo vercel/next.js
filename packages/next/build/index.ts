@@ -1,6 +1,7 @@
 import { loadEnvConfig } from '@next/env'
 import chalk from 'chalk'
 import crypto from 'crypto'
+import { isMatch } from 'next/dist/compiled/micromatch'
 import { promises, writeFileSync } from 'fs'
 import { Worker } from '../lib/worker'
 import devalue from 'next/dist/compiled/devalue'
@@ -41,6 +42,7 @@ import {
   PAGES_MANIFEST,
   PHASE_PRODUCTION_BUILD,
   PRERENDER_MANIFEST,
+  MIDDLEWARE_FLIGHT_MANIFEST,
   REACT_LOADABLE_MANIFEST,
   ROUTES_MANIFEST,
   SERVERLESS_DIRECTORY,
@@ -88,6 +90,10 @@ import {
   printCustomRoutes,
   printTreeView,
   getCssFilePaths,
+  getUnresolvedModuleFromError,
+  copyTracedFiles,
+  isReservedPage,
+  isCustomErrorPage,
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
 import { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
@@ -97,8 +103,8 @@ import { NextConfigComplete } from '../server/config-shared'
 import isError, { NextError } from '../lib/is-error'
 import { TelemetryPlugin } from './webpack/plugins/telemetry-plugin'
 import { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
-
-const RESERVED_PAGE = /^\/(_app|_error|_document|api(\/|$))/
+import type { webpack5 as webpack } from 'next/dist/compiled/webpack/webpack'
+import { recursiveCopy } from '../lib/recursive-copy'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -128,7 +134,9 @@ export default async function build(
   debugOutput = false,
   runLint = true
 ): Promise<void> {
-  const nextBuildSpan = trace('next-build')
+  const nextBuildSpan = trace('next-build', undefined, {
+    version: process.env.__NEXT_VERSION as string,
+  })
 
   const buildResult = await nextBuildSpan.traceAsyncFn(async () => {
     // attempt to load global env values so they are available in next.config.js
@@ -139,9 +147,14 @@ export default async function build(
     const config: NextConfigComplete = await nextBuildSpan
       .traceChild('load-next-config')
       .traceAsyncFn(() => loadConfig(PHASE_PRODUCTION_BUILD, dir, conf))
+
     const distDir = path.join(dir, config.distDir)
     setGlobal('phase', PHASE_PRODUCTION_BUILD)
     setGlobal('distDir', distDir)
+
+    const hasConcurrentFeatures = !!config.experimental.concurrentFeatures
+    const hasServerComponents =
+      hasConcurrentFeatures && !!config.experimental.serverComponents
 
     const { target } = config
     const buildId: string = await nextBuildSpan
@@ -254,7 +267,6 @@ export default async function build(
     const pagePaths: string[] = await nextBuildSpan
       .traceChild('collect-pages')
       .traceAsyncFn(() => collectPages(pagesDir, config.pageExtensions))
-
     // needed for static exporting since we want to replace with HTML
     // files
     const allStaticPages = new Set<string>()
@@ -269,8 +281,14 @@ export default async function build(
     const mappedPages = nextBuildSpan
       .traceChild('create-pages-mapping')
       .traceFn(() =>
-        createPagesMapping(pagePaths, config.pageExtensions, false)
+        createPagesMapping(
+          pagePaths,
+          config.pageExtensions,
+          false,
+          hasServerComponents
+        )
       )
+
     const entrypoints = nextBuildSpan
       .traceChild('create-entrypoints')
       .traceFn(() =>
@@ -294,11 +312,8 @@ export default async function build(
     )
 
     if (hasMiddleware) {
-      console.warn(
-        chalk.bold.yellow(`Warning: `) +
-          chalk.yellow(
-            `using beta Middleware (not covered by semver) - https://nextjs.org/docs/messages/beta-middleware`
-          )
+      Log.warn(
+        `using beta Middleware (not covered by semver) - https://nextjs.org/docs/messages/beta-middleware`
       )
     }
 
@@ -452,7 +467,7 @@ export default async function build(
           (page) =>
             !isDynamicRoute(page) &&
             !page.match(MIDDLEWARE_ROUTE) &&
-            !page.match(RESERVED_PAGE)
+            !isReservedPage(page)
         )
         .map(pageToRoute),
       dataRoutes: [],
@@ -539,6 +554,10 @@ export default async function build(
           path.relative(distDir, manifestPath),
           BUILD_MANIFEST,
           PRERENDER_MANIFEST,
+          path.join(SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
+          hasServerComponents
+            ? path.join(SERVER_DIRECTORY, MIDDLEWARE_FLIGHT_MANIFEST + '.js')
+            : null,
           REACT_LOADABLE_MANIFEST,
           config.optimizeFonts
             ? path.join(
@@ -580,6 +599,20 @@ export default async function build(
             rewrites,
             runWebpackSpan,
           }),
+          hasConcurrentFeatures
+            ? getBaseWebpackConfig(dir, {
+                buildId,
+                reactProductionProfiling,
+                isServer: true,
+                webServerRuntime: true,
+                config,
+                target,
+                pagesDir,
+                entrypoints: entrypoints.serverWeb,
+                rewrites,
+                runWebpackSpan,
+              })
+            : null,
         ])
       )
 
@@ -610,9 +643,21 @@ export default async function build(
         }
       } else {
         const serverResult = await runCompiler(configs[1], { runWebpackSpan })
+        const serverWebResult = configs[2]
+          ? await runCompiler(configs[2], { runWebpackSpan })
+          : null
+
         result = {
-          warnings: [...clientResult.warnings, ...serverResult.warnings],
-          errors: [...clientResult.errors, ...serverResult.errors],
+          warnings: [
+            ...clientResult.warnings,
+            ...serverResult.warnings,
+            ...(serverWebResult?.warnings || []),
+          ],
+          errors: [
+            ...clientResult.errors,
+            ...serverResult.errors,
+            ...(serverWebResult?.errors || []),
+          ],
         }
       }
     })
@@ -650,6 +695,16 @@ export default async function build(
 
       console.error(error)
       console.error()
+
+      // When using the web runtime, common Node.js native APIs are not available.
+      const moduleName = getUnresolvedModuleFromError(error)
+      if (hasConcurrentFeatures && moduleName) {
+        const err = new Error(
+          `Native Node.js APIs are not supported in the Edge Runtime with \`concurrentFeatures\` enabled. Found \`${moduleName}\` imported.\n\n`
+        ) as NextError
+        err.code = 'EDGE_RUNTIME_UNSUPPORTED_API'
+        throw err
+      }
 
       if (
         error.indexOf('private-next-pages') > -1 ||
@@ -724,7 +779,7 @@ export default async function build(
             )
           }
           Log.warn(
-            `Restarted static page genertion for ${pagePath} because it took more than ${timeout} seconds`
+            `Restarted static page generation for ${pagePath} because it took more than ${timeout} seconds`
           )
         } else {
           const pagePath = arg
@@ -840,6 +895,7 @@ export default async function build(
         distDir,
         config.experimental.gzipSize
       )
+
       await Promise.all(
         pageKeys.map(async (page) => {
           const checkPageSpan = staticCheckSpan.traceChild('check-page', {
@@ -859,8 +915,13 @@ export default async function build(
             let isStatic = false
             let isHybridAmp = false
             let ssgPageRoutes: string[] | null = null
+            let isMiddlewareRoute = !!page.match(MIDDLEWARE_ROUTE)
 
-            if (!page.match(MIDDLEWARE_ROUTE) && !page.match(RESERVED_PAGE)) {
+            if (
+              !isMiddlewareRoute &&
+              !isReservedPage(page) &&
+              !hasConcurrentFeatures
+            ) {
               try {
                 let isPageStaticSpan =
                   checkPageSpan.traceChild('is-page-static')
@@ -878,7 +939,7 @@ export default async function build(
                   )
                 })
 
-                if (config.experimental.outputFileTracing) {
+                if (config.outputFileTracing) {
                   pageTraceIncludes.set(page, workerResult.traceIncludes || [])
                   pageTraceExcludes.set(page, workerResult.traceExcludes || [])
                 }
@@ -924,6 +985,7 @@ export default async function build(
                   serverPropsPages.add(page)
                 } else if (
                   workerResult.isStatic &&
+                  !workerResult.hasFlightData &&
                   (await customAppGetInitialPropsPromise) === false
                 ) {
                   staticPages.add(page)
@@ -967,6 +1029,11 @@ export default async function build(
               totalSize: allSize,
               static: isStatic,
               isSsg,
+              isWebSsr:
+                hasConcurrentFeatures &&
+                !isMiddlewareRoute &&
+                !isReservedPage(page) &&
+                !isCustomErrorPage(page),
               isHybridAmp,
               ssgPageRoutes,
               initialRevalidateSeconds: false,
@@ -1022,62 +1089,178 @@ export default async function build(
       )
     }
 
-    if (config.experimental.outputFileTracing) {
-      const globOrig =
-        require('next/dist/compiled/glob') as typeof import('next/dist/compiled/glob')
-      const glob = (pattern: string): Promise<string[]> => {
-        return new Promise((resolve, reject) => {
-          globOrig(pattern, { cwd: dir }, (err, files) => {
-            if (err) {
-              return reject(err)
+    if (config.outputFileTracing) {
+      const { nodeFileTrace } =
+        require('next/dist/compiled/@vercel/nft') as typeof import('next/dist/compiled/@vercel/nft')
+
+      const includeExcludeSpan = nextBuildSpan.traceChild(
+        'apply-include-excludes'
+      )
+
+      await includeExcludeSpan.traceAsyncFn(async () => {
+        const globOrig =
+          require('next/dist/compiled/glob') as typeof import('next/dist/compiled/glob')
+        const glob = (pattern: string): Promise<string[]> => {
+          return new Promise((resolve, reject) => {
+            globOrig(pattern, { cwd: dir }, (err, files) => {
+              if (err) {
+                return reject(err)
+              }
+              resolve(files)
+            })
+          })
+        }
+
+        for (let page of pageKeys) {
+          await includeExcludeSpan
+            .traceChild('include-exclude', { page })
+            .traceAsyncFn(async () => {
+              const includeGlobs = pageTraceIncludes.get(page)
+              const excludeGlobs = pageTraceExcludes.get(page)
+              page = normalizePagePath(page)
+
+              if (!includeGlobs?.length && !excludeGlobs?.length) {
+                return
+              }
+
+              const traceFile = path.join(
+                distDir,
+                'server/pages',
+                `${page}.js.nft.json`
+              )
+              const pageDir = path.dirname(traceFile)
+              const traceContent = JSON.parse(
+                await promises.readFile(traceFile, 'utf8')
+              )
+              let includes: string[] = []
+
+              if (includeGlobs?.length) {
+                for (const includeGlob of includeGlobs) {
+                  const results = await glob(includeGlob)
+                  includes.push(
+                    ...results.map((file) => {
+                      return path.relative(pageDir, path.join(dir, file))
+                    })
+                  )
+                }
+              }
+              const combined = new Set([...traceContent.files, ...includes])
+
+              if (excludeGlobs?.length) {
+                const resolvedGlobs = excludeGlobs.map((exclude) =>
+                  path.join(dir, exclude)
+                )
+                combined.forEach((file) => {
+                  if (isMatch(path.join(pageDir, file), resolvedGlobs)) {
+                    combined.delete(file)
+                  }
+                })
+              }
+
+              await promises.writeFile(
+                traceFile,
+                JSON.stringify({
+                  version: traceContent.version,
+                  files: [...combined],
+                })
+              )
+            })
+        }
+      })
+
+      // TODO: move this inside of webpack so it can be cached
+      // between builds. Should only need to be re-run on lockfile change
+      await nextBuildSpan
+        .traceChild('trace-next-server')
+        .traceAsyncFn(async () => {
+          let cacheKey: string | undefined
+          // consider all lockFiles in tree in case user accidentally
+          // has both package-lock.json and yarn.lock
+          const lockFiles: string[] = (
+            await Promise.all(
+              ['package-lock.json', 'yarn.lock', 'pnpm-lock.yaml'].map((file) =>
+                findUp(file, { cwd: dir })
+              )
+            )
+          ).filter(Boolean) as any // TypeScript doesn't like this filter
+
+          const nextServerTraceOutput = path.join(
+            distDir,
+            'next-server.js.nft.json'
+          )
+          const cachedTracePath = path.join(
+            distDir,
+            'cache/next-server.js.nft.json'
+          )
+
+          if (lockFiles.length > 0) {
+            const cacheHash = (
+              require('crypto') as typeof import('crypto')
+            ).createHash('sha256')
+
+            cacheHash.update(require('next/package').version)
+
+            await Promise.all(
+              lockFiles.map(async (lockFile) => {
+                cacheHash.update(await promises.readFile(lockFile))
+              })
+            )
+            cacheKey = cacheHash.digest('hex')
+
+            try {
+              const existingTrace = JSON.parse(
+                await promises.readFile(cachedTracePath, 'utf8')
+              )
+
+              if (existingTrace.cacheKey === cacheKey) {
+                await promises.copyFile(cachedTracePath, nextServerTraceOutput)
+                return
+              }
+            } catch (_) {}
+          }
+
+          const root = path.parse(dir).root
+          const serverResult = await nodeFileTrace(
+            [require.resolve('next/dist/server/next-server')],
+            {
+              base: root,
+              processCwd: dir,
+              ignore: [
+                '**/next/dist/pages/**/*',
+                '**/next/dist/server/image-optimizer.js',
+                '**/next/dist/compiled/@ampproject/toolbox-optimizer/**/*',
+                '**/next/dist/server/lib/squoosh/**/*.wasm',
+                '**/next/dist/compiled/webpack/(bundle4|bundle5).js',
+                '**/node_modules/sharp/**/*',
+                '**/node_modules/webpack5/**/*',
+              ],
             }
-            resolve(files)
+          )
+
+          const tracedFiles = new Set()
+
+          serverResult.fileList.forEach((file) => {
+            tracedFiles.add(
+              path.relative(distDir, path.join(root, file)).replace(/\\/g, '/')
+            )
           })
+
+          await promises.writeFile(
+            nextServerTraceOutput,
+            JSON.stringify({
+              version: 1,
+              cacheKey,
+              files: [...tracedFiles],
+            } as {
+              version: number
+              files: string[]
+            })
+          )
+          await promises.unlink(cachedTracePath).catch(() => {})
+          await promises
+            .copyFile(nextServerTraceOutput, cachedTracePath)
+            .catch(() => {})
         })
-      }
-
-      for (const page of pageKeys) {
-        const includeGlobs = pageTraceIncludes.get(page)
-        const excludeGlobs = pageTraceExcludes.get(page)
-
-        if (!includeGlobs?.length && !excludeGlobs?.length) {
-          continue
-        }
-
-        const traceFile = path.join(
-          distDir,
-          'server/pages',
-          `${page}.js.nft.json`
-        )
-        const traceContent = JSON.parse(
-          await promises.readFile(traceFile, 'utf8')
-        )
-        let includes: string[] = []
-        let excludes: string[] = []
-
-        if (includeGlobs?.length) {
-          for (const includeGlob of includeGlobs) {
-            includes.push(...(await glob(includeGlob)))
-          }
-        }
-
-        if (excludeGlobs?.length) {
-          for (const excludeGlob of excludeGlobs) {
-            excludes.push(...(await glob(excludeGlob)))
-          }
-        }
-
-        const combined = new Set([...traceContent.files, ...includes])
-        excludes.forEach((file) => combined.delete(file))
-
-        await promises.writeFile(
-          traceFile,
-          JSON.stringify({
-            version: traceContent.version,
-            files: [...combined],
-          })
-        )
-      }
     }
 
     if (serverPropsPages.size > 0 || ssgPages.size > 0) {
@@ -1102,11 +1285,11 @@ export default async function build(
           const routeRegex = getRouteRegex(dataRoute.replace(/\.json$/, ''))
 
           dataRouteRegex = normalizeRouteRegex(
-            routeRegex.re.source.replace(/\(\?:\\\/\)\?\$$/, '\\.json$')
+            routeRegex.re.source.replace(/\(\?:\\\/\)\?\$$/, `\\.json$`)
           )
           namedDataRouteRegex = routeRegex.namedRegex!.replace(
             /\(\?:\/\)\?\$$/,
-            '\\.json$'
+            `\\.json$`
           )
           routeKeys = routeRegex.routeKeys
         } else {
@@ -1139,7 +1322,9 @@ export default async function build(
     // Since custom _app.js can wrap the 404 page we have to opt-out of static optimization if it has getInitialProps
     // Only export the static 404 when there is no /_error present
     const useStatic404 =
-      !customAppGetInitialProps && (!hasNonStaticErrorPage || hasPages404)
+      !hasConcurrentFeatures &&
+      !customAppGetInitialProps &&
+      (!hasNonStaticErrorPage || hasPages404)
 
     if (invalidPages.size > 0) {
       const err = new Error(
@@ -1180,6 +1365,23 @@ export default async function build(
       'utf8'
     )
 
+    const outputFileTracingRoot =
+      config.experimental.outputFileTracingRoot || dir
+
+    if (config.experimental.outputStandalone) {
+      await nextBuildSpan
+        .traceChild('copy-traced-files')
+        .traceAsyncFn(async () => {
+          await copyTracedFiles(
+            dir,
+            distDir,
+            pageKeys,
+            outputFileTracingRoot,
+            requiredServerFiles.config
+          )
+        })
+    }
+
     const finalPrerenderRoutes: { [route: string]: SsgRoute } = {}
     const tbdPrerenderRoutes: string[] = []
     let ssgNotFoundPaths: string[] = []
@@ -1204,7 +1406,10 @@ export default async function build(
 
     const combinedPages = [...staticPages, ...ssgPages]
 
-    if (combinedPages.length > 0 || useStatic404 || useDefaultStatic500) {
+    if (
+      !hasConcurrentFeatures &&
+      (combinedPages.length > 0 || useStatic404 || useDefaultStatic500)
+    ) {
       const staticGenerationSpan = nextBuildSpan.traceChild('static-generation')
       await staticGenerationSpan.traceAsyncFn(async () => {
         detectConflictingPaths(
@@ -1652,10 +1857,14 @@ export default async function build(
         rewritesWithHasCount: combinedRewrites.filter((r: any) => !!r.has)
           .length,
         redirectsWithHasCount: redirects.filter((r: any) => !!r.has).length,
+        middlewareCount: pageKeys.filter((page) => MIDDLEWARE_ROUTE.test(page))
+          .length,
       })
     )
 
-    const telemetryPlugin = clientConfig.plugins?.find(isTelemetryPlugin)
+    const telemetryPlugin = (
+      clientConfig as webpack.Configuration
+    ).plugins?.find(isTelemetryPlugin)
     if (telemetryPlugin) {
       const events = eventBuildFeatureUsage(telemetryPlugin)
       telemetry.record(events)
@@ -1735,7 +1944,7 @@ export default async function build(
         '_middlewareManifest.js'
       ),
       `self.__MIDDLEWARE_MANIFEST=${devalue(
-        middlewareManifest.sortedMiddleware
+        middlewareManifest.clientInfo
       )};self.__MIDDLEWARE_MANIFEST_CB&&self.__MIDDLEWARE_MANIFEST_CB()`
     )
 
@@ -1767,6 +1976,33 @@ export default async function build(
       }
       return Promise.reject(err)
     })
+
+    if (config.experimental.outputStandalone) {
+      for (const file of [
+        ...requiredServerFiles.files,
+        path.join(config.distDir, SERVER_FILES_MANIFEST),
+      ]) {
+        const filePath = path.join(dir, file)
+        await promises.copyFile(
+          filePath,
+          path.join(
+            distDir,
+            'standalone',
+            path.relative(outputFileTracingRoot, filePath)
+          )
+        )
+      }
+      await recursiveCopy(
+        path.join(distDir, SERVER_DIRECTORY, 'pages'),
+        path.join(
+          distDir,
+          'standalone',
+          path.relative(outputFileTracingRoot, distDir),
+          SERVER_DIRECTORY,
+          'pages'
+        )
+      )
+    }
 
     staticPages.forEach((pg) => allStaticPages.add(pg))
     pageInfos.forEach((info: PageInfo, key: string) => {
