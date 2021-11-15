@@ -16,7 +16,6 @@ export default async function middlewareRSCLoader(this: any) {
   const stringifiedAbsolutePagePath = stringifyRequest(this, absolutePagePath)
   const stringifiedAbsoluteAppPath = stringifyRequest(this, absoluteAppPath)
   const stringifiedAbsoluteErrorPath = stringifyRequest(this, absoluteErrorPath)
-  const stringified500PagePath = stringifyRequest(this, './pages/500')
   const stringifiedAbsoluteDocumentPath = stringifyRequest(
     this,
     absoluteDocumentPath
@@ -29,13 +28,7 @@ export default async function middlewareRSCLoader(this: any) {
 
         import App from ${stringifiedAbsoluteAppPath}
         import Document from ${stringifiedAbsoluteDocumentPath}
-
-        let ErrorPage
-        try {
-          ErrorPage = require(${stringified500PagePath}).default
-        } catch (_) {
-          ErrorPage = require(${stringifiedAbsoluteErrorPath}).default
-        }
+        const errorMod = require(${stringifiedAbsoluteErrorPath})
 
         const {
           default: Page,
@@ -125,9 +118,15 @@ export default async function middlewareRSCLoader(this: any) {
               result = await renderToHTML(
                 req,
                 errorRes,
-                pathname,
+                '/_error',
                 query,
-                { ...renderOpts, Component: ErrorPage }
+                {
+                  ...renderOpts, 
+                  Component: errorMod.default,
+                  getStaticProps: errorMod.getStaticProps,
+                  getServerSideProps: errorMod.getServerSideProps,
+                  getStaticPaths: errorMod.getStaticPaths,
+                }
               )
             } catch (err) {
               return new Response(
