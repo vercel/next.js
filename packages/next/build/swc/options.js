@@ -6,30 +6,36 @@ function getBaseSWCOptions({
   development,
   hasReactRefresh,
   globalWindow,
-  styledComponents,
-  paths,
-  baseUrl,
+  nextConfig,
+  resolvedBaseUrl,
+  jsConfig,
 }) {
   const isTSFile = filename.endsWith('.ts')
   const isTypeScript = isTSFile || filename.endsWith('.tsx')
-
+  const paths = jsConfig?.compilerOptions?.paths
+  const enableDecorators = Boolean(
+    jsConfig?.compilerOptions?.experimentalDecorators
+  )
   return {
     jsc: {
-      ...(baseUrl && paths
+      ...(resolvedBaseUrl && paths
         ? {
-            baseUrl,
+            baseUrl: resolvedBaseUrl,
             paths,
           }
         : {}),
       parser: {
         syntax: isTypeScript ? 'typescript' : 'ecmascript',
         dynamicImport: true,
+        decorators: enableDecorators,
         // Exclude regular TypeScript files from React transformation to prevent e.g. generic parameters and angle-bracket type assertion from being interpreted as JSX tags.
         [isTypeScript ? 'tsx' : 'jsx']: isTSFile ? false : true,
       },
 
       transform: {
+        legacyDecorator: enableDecorators,
         react: {
+          importSource: jsConfig?.compilerOptions?.jsxImportSource || 'react',
           runtime: 'automatic',
           pragma: 'React.createElement',
           pragmaFrag: 'React.Fragment',
@@ -44,6 +50,10 @@ function getBaseSWCOptions({
             typeofs: {
               window: globalWindow ? 'object' : 'undefined',
             },
+            envs: {
+              NODE_ENV: development ? '"development"' : '"production"',
+            },
+            // TODO: handle process.browser to match babel replacing as well
           },
         },
         regenerator: {
@@ -51,7 +61,7 @@ function getBaseSWCOptions({
         },
       },
     },
-    styledComponents: styledComponents
+    styledComponents: nextConfig?.experimental?.styledComponents
       ? {
           displayName: Boolean(development),
         }
@@ -60,20 +70,22 @@ function getBaseSWCOptions({
 }
 
 export function getJestSWCOptions({
+  isServer,
   filename,
   esm,
-  styledComponents,
-  paths,
-  baseUrl,
+  nextConfig,
+  jsConfig,
+  // This is not passed yet as "paths" resolving needs a test first
+  // resolvedBaseUrl,
 }) {
   let baseOptions = getBaseSWCOptions({
     filename,
     development: false,
     hasReactRefresh: false,
-    globalWindow: false,
-    styledComponents,
-    paths,
-    baseUrl,
+    globalWindow: !isServer,
+    nextConfig,
+    jsConfig,
+    // resolvedBaseUrl,
   })
 
   const isNextDist = nextDistPath.test(filename)
@@ -101,14 +113,19 @@ export function getLoaderSWCOptions({
   pagesDir,
   isPageFile,
   hasReactRefresh,
-  styledComponents,
+  nextConfig,
+  jsConfig,
+  // This is not passed yet as "paths" resolving is handled by webpack currently.
+  // resolvedBaseUrl,
 }) {
   let baseOptions = getBaseSWCOptions({
     filename,
     development,
     globalWindow: !isServer,
     hasReactRefresh,
-    styledComponents,
+    nextConfig,
+    jsConfig,
+    // resolvedBaseUrl,
   })
 
   const isNextDist = nextDistPath.test(filename)
