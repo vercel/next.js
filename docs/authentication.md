@@ -48,7 +48,7 @@ const Profile = () => {
 export default Profile
 ```
 
-You can view this [example in action](https://next-with-iron-session.vercel.app/). Check out the [`with-iron-session`](https://github.com/vercel/next.js/tree/canary/examples/with-iron-session) example to see how it works.
+You can view this [example in action](https://iron-session-example.vercel.app/). Check out the [`with-iron-session`](https://github.com/vercel/next.js/tree/canary/examples/with-iron-session) example to see how it works.
 
 ### Authenticating Server-Rendered Pages
 
@@ -71,10 +71,7 @@ import withSession from '../lib/session'
 import Layout from '../components/Layout'
 
 export const getServerSideProps = withSession(async function ({ req, res }) {
-  // Get the user's session based on the request
-  const user = req.session.get('user')
-
-  if (!user) {
+  if (!req.session.user) {
     return {
       redirect: {
         destination: '/login',
