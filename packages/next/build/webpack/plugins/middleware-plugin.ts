@@ -75,6 +75,11 @@ export default class MiddlewarePlugin {
       if (!location) {
         continue
       }
+
+      const entryFiles = entrypoint
+        .getFiles()
+        .filter((file: string) => !file.endsWith('.hot-update.js'))
+
       const files = ssrEntryInfo
         ? [
             ssrEntryInfo.requireFlightManifest
@@ -82,20 +87,15 @@ export default class MiddlewarePlugin {
               : null,
             `server/${MIDDLEWARE_BUILD_MANIFEST}.js`,
             `server/${MIDDLEWARE_REACT_LOADABLE_MANIFEST}.js`,
-            ...entrypoint.getFiles().map((file) => 'server/' + file),
-          ]
-            .filter(nonNullable)
-            .filter((file: string) => !file.endsWith('.hot-update.js'))
-        : entrypoint
-            .getFiles()
-            .filter((file: string) => !file.endsWith('.hot-update.js'))
-            .map((file: string) =>
-              // we need to use the unminified version of the webpack runtime,
-              // remove if we do start minifying middleware chunks
-              file.startsWith('static/chunks/webpack-')
-                ? file.replace('webpack-', 'webpack-middleware-')
-                : file
-            )
+            ...entryFiles.map((file) => 'server/' + file),
+          ].filter(nonNullable)
+        : entryFiles.map((file: string) =>
+            // we need to use the unminified version of the webpack runtime,
+            // remove if we do start minifying middleware chunks
+            file.startsWith('static/chunks/webpack-')
+              ? file.replace('webpack-', 'webpack-middleware-')
+              : file
+          )
 
       middlewareManifest.middleware[location] = {
         env: envPerRoute.get(entrypoint.name) || [],
@@ -205,7 +205,12 @@ export default class MiddlewarePlugin {
         })
 
         const handler = (parser: webpack5.javascript.JavascriptParser) => {
+          const isMiddlewareModule = () =>
+            parser.state.module && parser.state.module.layer === 'middleware'
+
           const wrapExpression = (expr: any) => {
+            if (!isMiddlewareModule()) return
+
             if (dev) {
               const dep1 = new wp.dependencies.ConstDependency(
                 '__next_eval__(function() { return ',
@@ -242,10 +247,14 @@ export default class MiddlewarePlugin {
           }
 
           const expressionHandler = () => {
+            if (!isMiddlewareModule()) return
+
             wp.optimize.InnerGraph.onUsage(parser.state, flagModule)
           }
 
           const ignore = () => {
+            if (!isMiddlewareModule()) return
+
             return true
           }
 
@@ -282,12 +291,7 @@ export default class MiddlewarePlugin {
             .tap(PLUGIN_NAME, ignore)
 
           const memberChainHandler = (_expr: any, members: string[]) => {
-            if (
-              !parser.state.module ||
-              parser.state.module.layer !== 'middleware'
-            ) {
-              return
-            }
+            if (!isMiddlewareModule()) return
 
             if (members.length >= 2 && members[0] === 'env') {
               const envName = members[1]
