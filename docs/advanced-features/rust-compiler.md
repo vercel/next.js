@@ -19,7 +19,7 @@ Compilation using the Rust Compiler is 17x faster than Babel and enabled by defa
 
 ## Why SWC?
 
-[SWC](http://swc.rs/), created in 2017, is an extensible Rust-based platform for the next generation of fast developer tools. It's used by tools like Next.js, Parcel, and Deno, as well as companies like Vercel, ByteDance, Tencent, Shopify, and more.
+[SWC](http://swc.rs/) is an extensible Rust-based platform for the next generation of fast developer tools.
 
 SWC can be used for compilation, minification, bundling, and more – and is designed to be extended. It's something you can call to perform code transformations (either built-in or custom). Running those transformations happens through higher-level tools like Next.js.
 
