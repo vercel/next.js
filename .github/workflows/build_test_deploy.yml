@@ -1129,3 +1129,49 @@ jobs:
         with:
           name: next-swc-binaries
           path: packages/next/native/next-swc.android-arm64.node
+
+  build-wasm:
+    needs: build
+    strategy:
+      matrix:
+        targets: [web, node]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Setup node
+        uses: actions/setup-node@v2
+        with:
+          node-version: 14
+
+      - name: Cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/
+            **/target/
+          key: ${{ runner.os }}-publish-integration
+
+      - name: Install node dependencies
+        run: npm i
+
+      - name: Install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
+      - name: Build
+        run: (cd crates/wasm && wasm-pack build  --release --scope=next --target ${{ matrix.target }})
+
+      - name: Rename
+        run: |
+          sed -i'' -e 's/"name": "@next\/wasm"/"name": "@next\/wasm-${{ matrix.target }}"/g' package.json
+        working-directory: wasm/pkg
+
+      - run: ls packages/next/build/swc/crates/wasm/pkg
+
+      # - name: Publish
+      #   run: |
+      #     echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
+      #     (cd crates/wasm/pkg && npm publish --access public)
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #     NPM_TOKEN: ${{ secrets.NPM_TOKEN }}

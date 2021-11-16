@@ -2,7 +2,8 @@
 
 members = [
   "crates/core",
-  "crates/napi"
+  "crates/napi",
+  "crates/wasm"
 ]
 
 [profile.release]
