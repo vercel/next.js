@@ -14,7 +14,7 @@ description: Fetch data on each request with `getServerSideProps`. Learn more ab
 
 </details>
 
-When exporting an `async` function called `getServerSideProps` (server-side rendering) from a page, Next.js will pre-render this page on each request using the data returned by `getServerSideProps`.
+When exporting an `async` function called `getServerSideProps` (server-side rendering) from a page, Next.js will pre-render this page on each request using the data returned by `getServerSideProps`. This is useful if you want to fetch data that changes often, and have the page update to show the most current data.
 
 ```js
 export async function getServerSideProps(context) {
@@ -29,8 +29,6 @@ You can import modules in top-level scope for use in `getServerSideProps`. Impor
 You should not use the [`fetch()`](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) `API` to call an [API route](/docs/api-routes/introduction.md) in `getServerSideProps`.
 
 Instead, directly import the logic used inside your `API` route. You may need to slightly refactor your code for this approach.
-
-> **Note:** The `fetch()` `API` _can_ be used to fetch external data, such as from a Content Management System (CMS) or `API`.
 
 ## Context parameter
 

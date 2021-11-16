@@ -38,8 +38,8 @@
                   "path": "/docs/basic-features/data-fetching/incremental-static-regeneration.md"
                 },
                 {
-                  "title": "SWR",
-                  "path": "/docs/basic-features/data-fetching/swr.md"
+                  "title": "Client side",
+                  "path": "/docs/basic-features/data-fetching/client-side.md"
                 }
               ]
             },

@@ -1,5 +1,5 @@
 ---
-description: Fetch data at build time with `getStaticProps`.
+description: Fetch data and generate static pages with `getStaticProps`.
 ---
 
 # `getStaticPaths`
@@ -7,14 +7,14 @@ description: Fetch data at build time with `getStaticProps`.
 <details>
   <summary><b>Version History</b></summary>
 
-| Version  | Changes                                                                                                           |
-| -------- | ----------------------------------------------------------------------------------------------------------------- |
-| `v9.5.0` | Stable [Incremental Static Regeneration](https://nextjs.org/blog/next-9-5#stable-incremental-static-regeneration) |
-| `v9.3.0` | `getStaticPaths` introduced.                                                                                      |
+| Version  | Changes                                                                                                      |
+| -------- | ------------------------------------------------------------------------------------------------------------ |
+| `v9.5.0` | Stable [Incremental Static Regeneration](/docs/basic-features/data-fetching/incremental-static-regeneration) |
+| `v9.3.0` | `getStaticPaths` introduced.                                                                                 |
 
 </details>
 
-When exporting an `async` function called `getStaticPaths` from a page that uses dynamic routes, Next.js will statically pre-render all the paths specified by `getStaticPaths`.
+When exporting an `async` function called `getStaticPaths` from a page that uses [dynamic routes](/docs/routing/dynamic-routes), Next.js will statically pre-render all the paths specified by `getStaticPaths`.
 
 ```jsx
 export async function getStaticPaths() {
@@ -127,7 +127,7 @@ Shortly after, `getStaticProps` finishes and the page will be rendered with the 
 
 This ensures that users always have a fast experience while preserving fast builds and the benefits of Static Generation.
 
-`fallback: true` will not _update_ generated pages, for that take a look at [Incremental Static Regeneration](/docs/basic-features/data-fetching/index#incremental-static-regeneration).
+`fallback: true` will not _update_ generated pages, for that take a look at [Incremental Static Regeneration](/docs/basic-features/data-fetching/incremental-static-regeneration).
 
 ### `fallback: 'blocking'`
 

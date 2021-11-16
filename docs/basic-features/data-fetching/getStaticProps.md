@@ -1,5 +1,5 @@
 ---
-description: Fetch data at build time with `getStaticProps` (Static Generation) API reference.
+description: Fetch data and generate static pages with `getStaticProps`. Learn more about this API for data fetching in Next.js.
 ---
 
 # `getStaticProps`
@@ -108,13 +108,11 @@ The [`getStaticProps` API reference](/docs/api-reference/data-fetching/getStatic
 
 ### Only runs at build time
 
-Because `getStaticProps` runs at build time, it does **not** receive data that’s only available during request time, such as query parameters or `HTTP` headers as it generates static `HTML`.
+Because `getStaticProps` runs at build time, it does **not** receive data that’s only available during request time, such as query parameters or `HTTP` headers, as it generates static `HTML`.
 
 ### Write server-side code directly
 
 Note that `getStaticProps` runs only on the server-side. It will never be run on the client-side. It won’t even be included in the `JS` bundle for the browser. That means you can write code such as direct database queries without them being sent to browsers.
-
-Because `getStaticProps` runs at build time, it does **not** receive data that’s only available during request time, such as query parameters or HTTP headers as it generates static HTML.
 
 ### Write server-side code directly
 
