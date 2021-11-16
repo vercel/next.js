@@ -1160,7 +1160,7 @@ jobs:
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
       - name: Build
-        run: (cd crates/wasm && wasm-pack build  --release --scope=next --target ${{ matrix.target }})
+        run: (wasm-pack build packages/next/build/swc/crates/wasm --release --scope=next --target ${{ matrix.target }})
 
       - name: Rename
         run: |
