@@ -5,6 +5,7 @@ export default async function middlewareRSCLoader(this: any) {
     absolutePagePath,
     absoluteAppPath,
     absoluteDocumentPath,
+    absolute500Path,
     absoluteErrorPath,
     isServerComponent,
     ...restRenderOpts
@@ -12,8 +13,10 @@ export default async function middlewareRSCLoader(this: any) {
 
   const stringifiedAbsolutePagePath = stringifyRequest(this, absolutePagePath)
   const stringifiedAbsoluteAppPath = stringifyRequest(this, absoluteAppPath)
-  const stringifiedAbsoluteErrorPath = stringifyRequest(this, absoluteErrorPath)
-  const stringified500PagePath = stringifyRequest(this, './pages/500')
+  const stringifiedAbsolute500PagePath = stringifyRequest(
+    this,
+    absolute500Path || absoluteErrorPath
+  )
   const stringifiedAbsoluteDocumentPath = stringifyRequest(
     this,
     absoluteDocumentPath
@@ -28,38 +31,22 @@ export default async function middlewareRSCLoader(this: any) {
 
     import { getRender } from 'next/dist/build/webpack/loaders/next-middleware-ssr-loader/render'
 
-    let ErrorPage
-    try {
-      ErrorPage = require(${stringified500PagePath}).default
-    } catch (_) {
-      ErrorPage = require(${stringifiedAbsoluteErrorPath}).default
-    }
-
-    const {
-      default: Component,
-      config,
-      getStaticProps,
-      getServerSideProps,
-      getStaticPaths
-    } = require(${stringifiedAbsolutePagePath})
+    const pageMod = require(${stringifiedAbsolutePagePath})
+    const errorMod = require(${stringifiedAbsolute500PagePath})
 
     const buildManifest = self.__BUILD_MANIFEST
     const reactLoadableManifest = self.__REACT_LOADABLE_MANIFEST
     const rscManifest = self.__RSC_MANIFEST
 
-    if (typeof Component !== 'function') {
+    if (typeof pageMod.default !== 'function') {
       throw new Error('Your page must export a \`default\` component')
     }
 
     const render = getRender({
       App,
       Document,
-      Component,
-      ErrorPage,
-      config,
-      getStaticProps,
-      getServerSideProps,
-      getStaticPaths,
+      pageMod,
+      errorMod,
       buildManifest,
       reactLoadableManifest,
       rscManifest,

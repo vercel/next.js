@@ -5,12 +5,8 @@ import RenderResult from '../../../../server/render-result'
 export function getRender({
   App,
   Document,
-  Component,
-  ErrorPage,
-  config,
-  getStaticProps,
-  getServerSideProps,
-  getStaticPaths,
+  pageMod,
+  errorMod,
   rscManifest,
   buildManifest,
   reactLoadableManifest,
@@ -19,15 +15,11 @@ export function getRender({
 }: {
   App: any
   Document: any
-  Component: React.ComponentType
-  ErrorPage: any
-  config: any
+  pageMod: any
+  errorMod: any
   rscManifest: object
   buildManifest: any
   reactLoadableManifest: any
-  getStaticProps: any
-  getServerSideProps: any
-  getStaticPaths: any
   isServerComponent: boolean
   restRenderOpts: any
 }) {
@@ -52,8 +44,6 @@ export function getRender({
     const req = { url: pathname }
     const renderOpts = {
       ...restRenderOpts,
-      Component,
-      pageConfig: config || {},
       // Locales are not supported yet.
       // locales: i18n?.locales,
       // locale: detectedLocale,
@@ -63,9 +53,11 @@ export function getRender({
       App,
       Document,
       buildManifest,
-      getStaticProps,
-      getServerSideProps,
-      getStaticPaths,
+      Component: pageMod.default,
+      pageConfig: pageMod.config || {},
+      getStaticProps: pageMod.getStaticProps,
+      getServerSideProps: pageMod.getServerSideProps,
+      getStaticPaths: pageMod.getStaticPaths,
       reactLoadableManifest,
       env: process.env,
       supportsDynamicHTML: true,
@@ -94,9 +86,15 @@ export function getRender({
         result = await renderToHTML(
           req as any,
           errorRes as any,
-          pathname,
+          '/_error',
           query,
-          { ...renderOpts, Component: ErrorPage }
+          {
+            ...renderOpts,
+            Component: errorMod.default,
+            getStaticProps: errorMod.getStaticProps,
+            getServerSideProps: errorMod.getServerSideProps,
+            getStaticPaths: errorMod.getStaticPaths,
+          }
         )
       } catch (err: any) {
         return new Response(
