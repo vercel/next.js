@@ -578,6 +578,14 @@ jobs:
           path: ~/.cargo/git
           key: stable-ubuntu-18.04-node@14-cargo-index-trimmed-${{ hashFiles('**/Cargo.lock') }}
 
+      - name: Cache native binary
+        id: binary-cache
+        uses: actions/cache@v2
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
+        with:
+          path: packages/next/native/next-swc.linux-x64-gnu.node
+          key: dev-next-swc-nightly-2021-08-12-linux-x64-gnu-${{ hashFiles('.github/workflows/build_test_deploy.yml', 'packages/next/build/swc/**') }}
+
       # We use restore-key to pick latest cache.
       # We will not get exact match, but doc says
       # "If there are multiple partial matches for a restore key, the action returns the most recently created cache."
