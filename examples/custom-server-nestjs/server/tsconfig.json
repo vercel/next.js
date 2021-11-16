@@ -1,0 +1,9 @@
+{
+  "compilerOptions": {
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "target": "es5",
+    "outDir": "dist",
+    "skipLibCheck": true
+  }
+}
