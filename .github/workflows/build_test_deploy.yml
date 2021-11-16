@@ -1170,11 +1170,6 @@ jobs:
       - name: Build
         run: (wasm-pack build packages/next/build/swc/crates/wasm --release --scope=next --target ${{ matrix.target }})
 
-      - name: Rename
-        run: |
-          sed -i'' -e 's/"name": "@next\/wasm"/"name": "@next\/wasm-${{ matrix.target }}"/g' package.json
-        working-directory: wasm/pkg
-
       - run: ls packages/next/build/swc/crates/wasm/pkg
 
       # - name: Publish
