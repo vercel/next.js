@@ -129,10 +129,6 @@
           "title": "Advanced Features",
           "routes": [
             {
-              "title": "Rust Compiler",
-              "path": "/docs/advanced-features/rust-compiler.md"
-            },
-            {
               "title": "Preview Mode",
               "path": "/docs/advanced-features/preview-mode.md"
             },
