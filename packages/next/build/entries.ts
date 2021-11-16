@@ -162,7 +162,7 @@ export function createEntrypoints(
           page,
           absoluteAppPath: pages['/_app'],
           absoluteDocumentPath: pages['/_document'],
-          absoluteErrorPath: pages['/_error'],
+          absoluteErrorPath: pages['/500'] || pages['/_error'],
           absolutePagePath,
           isServerComponent: isFlight,
           buildId,
