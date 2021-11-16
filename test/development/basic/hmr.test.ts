@@ -57,9 +57,11 @@ describe('basic HMR', () => {
 
           expect(next.cliOutput.slice(start)).toContain('compiling...')
           expect(next.cliOutput.slice(start)).toContain(
-            'compiling /hmr/contact...'
+            'compiling /hmr/contact (client and server)...'
           )
-          expect(next.cliOutput).toContain('compiling /_error...')
+          expect(next.cliOutput).toContain(
+            'compiling /_error (client and server)...'
+          )
         } finally {
           if (browser) {
             await browser.close()
@@ -327,9 +329,11 @@ describe('basic HMR', () => {
         )
 
         expect(next.cliOutput.slice(start)).toContain(
-          'compiling /hmr/new-page...'
+          'compiling /hmr/new-page (client and server)...'
         )
-        expect(next.cliOutput).toContain('compiling /_error...')
+        expect(next.cliOutput).toContain(
+          'compiling /_error (client and server)...'
+        )
       } catch (err) {
         await next.deleteFile(newPage)
         throw err
@@ -358,9 +362,11 @@ describe('basic HMR', () => {
 
         await check(() => getBrowserBodyText(browser), /This is the about page/)
         expect(next.cliOutput.slice(start)).toContain(
-          'compiling /hmr/about2...'
+          'compiling /hmr/about2 (client and server)...'
         )
-        expect(next.cliOutput).toContain('compiling /_error...')
+        expect(next.cliOutput).toContain(
+          'compiling /_error (client and server)...'
+        )
       } catch (err) {
         await next.patchFile(aboutPage, aboutContent)
         if (browser) {
