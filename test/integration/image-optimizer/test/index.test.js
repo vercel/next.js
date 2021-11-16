@@ -441,10 +441,10 @@ function runTests({
       const webp = (await res2.buffer()).byteLength
       const jpeg = (await res3.buffer()).byteLength
 
-      console.log({ isSharp, avif, webp, jpeg })
+      console.log({ isSharp, w, avif, webp, jpeg })
 
+      expect(webp).toBeLessThan(jpeg)
       expect(avif).toBeLessThan(webp)
-      expect(avif).toBeLessThan(jpeg)
     })
   }
 
