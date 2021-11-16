@@ -5,159 +5,61 @@ export default async function middlewareRSCLoader(this: any) {
     absolutePagePath,
     absoluteAppPath,
     absoluteDocumentPath,
+    absolute500Path,
     absoluteErrorPath,
-    basePath,
-    isServerComponent: isServerComponentQuery,
-    assetPrefix,
-    buildId,
+    isServerComponent,
+    ...restRenderOpts
   } = this.getOptions()
 
-  const isServerComponent = isServerComponentQuery === 'true'
   const stringifiedAbsolutePagePath = stringifyRequest(this, absolutePagePath)
   const stringifiedAbsoluteAppPath = stringifyRequest(this, absoluteAppPath)
-  const stringifiedAbsoluteErrorPath = stringifyRequest(this, absoluteErrorPath)
+  const stringifiedAbsolute500PagePath = stringifyRequest(
+    this,
+    absolute500Path || absoluteErrorPath
+  )
   const stringifiedAbsoluteDocumentPath = stringifyRequest(
     this,
     absoluteDocumentPath
   )
 
   const transformed = `
-        import { adapter } from 'next/dist/server/web/adapter'
-        import { RouterContext } from 'next/dist/shared/lib/router-context'
-        import { renderToHTML } from 'next/dist/server/web/render'
+    import { adapter } from 'next/dist/server/web/adapter'
+    import { RouterContext } from 'next/dist/shared/lib/router-context'
 
-        import App from ${stringifiedAbsoluteAppPath}
-        import Document from ${stringifiedAbsoluteDocumentPath}
-        const errorMod = require(${stringifiedAbsoluteErrorPath})
+    import App from ${stringifiedAbsoluteAppPath}
+    import Document from ${stringifiedAbsoluteDocumentPath}
 
-        const {
-          default: Page,
-          config,
-          getStaticProps,
-          getServerSideProps,
-          getStaticPaths
-        } = require(${stringifiedAbsolutePagePath})
+    import { getRender } from 'next/dist/build/webpack/loaders/next-middleware-ssr-loader/render'
 
-        const buildManifest = self.__BUILD_MANIFEST
-        const reactLoadableManifest = self.__REACT_LOADABLE_MANIFEST
-        const rscManifest = self.__RSC_MANIFEST
+    const pageMod = require(${stringifiedAbsolutePagePath})
+    const errorMod = require(${stringifiedAbsolute500PagePath})
 
-        if (typeof Page !== 'function') {
-          throw new Error('Your page must export a \`default\` component')
-        }
+    const buildManifest = self.__BUILD_MANIFEST
+    const reactLoadableManifest = self.__REACT_LOADABLE_MANIFEST
+    const rscManifest = self.__RSC_MANIFEST
 
-        const Component = Page
+    if (typeof pageMod.default !== 'function') {
+      throw new Error('Your page must export a \`default\` component')
+    }
 
-        async function render(request) {
-          const url = request.nextUrl
-          const { pathname, searchParams } = url
-          const query = Object.fromEntries(searchParams)
+    const render = getRender({
+      App,
+      Document,
+      pageMod,
+      errorMod,
+      buildManifest,
+      reactLoadableManifest,
+      rscManifest,
+      isServerComponent: ${JSON.stringify(isServerComponent)},
+      restRenderOpts: ${JSON.stringify(restRenderOpts)}
+    })
 
-          // Preflight request
-          if (request.method === 'HEAD') {
-            return new Response('OK.', {
-              headers: { 'x-middleware-ssr': '1' }
-            })
-          }
-
-          const renderServerComponentData = ${
-            isServerComponent ? `query.__flight__ !== undefined` : 'false'
-          }
-          delete query.__flight__
-
-          const req = { url: pathname }
-          const renderOpts = {
-            Component,
-            pageConfig: config || {},
-            // Locales are not supported yet.
-            // locales: i18n?.locales,
-            // locale: detectedLocale,
-            // defaultLocale,
-            // domainLocales: i18n?.domains,
-            dev: process.env.NODE_ENV !== 'production',
-            App,
-            Document,
-            buildManifest,
-            getStaticProps,
-            getServerSideProps,
-            getStaticPaths,
-            reactLoadableManifest,
-            buildId: ${JSON.stringify(buildId)},
-            assetPrefix: ${JSON.stringify(assetPrefix || '')},
-            env: process.env,
-            basePath: ${JSON.stringify(basePath || '')},
-            supportsDynamicHTML: true,
-            concurrentFeatures: true,
-            renderServerComponentData,
-            serverComponentManifest: ${
-              isServerComponent ? 'rscManifest' : 'null'
-            },
-          }
-
-          const transformStream = new TransformStream()
-          const writer = transformStream.writable.getWriter()
-          const encoder = new TextEncoder()
-          let result
-          let renderError
-          let statusCode = 200
-          try {
-            result = await renderToHTML(
-              req,
-              {},
-              pathname,
-              query,
-              renderOpts
-            )
-          } catch (err) {
-            renderError = err
-            statusCode = 500
-          }
-          if (renderError) {
-            try {
-              const errorRes = { statusCode, err: renderError }
-              result = await renderToHTML(
-                req,
-                errorRes,
-                '/_error',
-                query,
-                {
-                  ...renderOpts, 
-                  Component: errorMod.default,
-                  getStaticProps: errorMod.getStaticProps,
-                  getServerSideProps: errorMod.getServerSideProps,
-                  getStaticPaths: errorMod.getStaticPaths,
-                }
-              )
-            } catch (err) {
-              return new Response(
-                (err || 'An error occurred while rendering ' + pathname + '.').toString(),
-                {
-                  status: 500,
-                  headers: { 'x-middleware-ssr': '1' }
-                }
-              )
-            }
-          }
-
-          result.pipe({
-            write: str => writer.write(encoder.encode(str)),
-            end: () => writer.close(),
-            // Not implemented: cork/uncork/on/removeListener
-          })
-
-          return new Response(transformStream.readable, {
-            headers: { 'x-middleware-ssr': '1' },
-            status: statusCode
-          })
-        }
-
-        export default function rscMiddleware(opts) {
-          return adapter({
-            ...opts,
-            handler: render
-          })
-        }
-    `
+    export default function rscMiddleware(opts) {
+      return adapter({
+        ...opts,
+        handler: render
+      })
+    }`
 
   return transformed
 }
