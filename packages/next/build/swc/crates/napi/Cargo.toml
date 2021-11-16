@@ -1,6 +1,6 @@
 [package]
 edition = "2018"
-name = "napi"
+name = "next-swc-napi"
 version = "0.0.0"
 
 [lib]

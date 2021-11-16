@@ -745,29 +745,6 @@ dependencies = [
 
 [[package]]
 name = "napi"
-version = "0.0.0"
-dependencies = [
- "anyhow",
- "backtrace",
- "fxhash",
- "napi 1.7.7",
- "napi-build",
- "napi-derive",
- "next-swc",
- "once_cell",
- "serde",
- "serde_json",
- "swc",
- "swc_atoms",
- "swc_bundler",
- "swc_common",
- "swc_ecma_loader",
- "swc_ecmascript",
- "swc_node_base",
-]
-
-[[package]]
-name = "napi"
 version = "1.7.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2813a6f24e181eb1faba8bc632e56049901fb71df4bf3e0cd6b4086db6606c78"
@@ -832,6 +809,29 @@ dependencies = [
  "testing",
  "tracing",
  "walkdir",
+]
+
+[[package]]
+name = "next-swc-napi"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "backtrace",
+ "fxhash",
+ "napi",
+ "napi-build",
+ "napi-derive",
+ "next-swc",
+ "once_cell",
+ "serde",
+ "serde_json",
+ "swc",
+ "swc_atoms",
+ "swc_bundler",
+ "swc_common",
+ "swc_ecma_loader",
+ "swc_ecmascript",
+ "swc_node_base",
 ]
 
 [[package]]
