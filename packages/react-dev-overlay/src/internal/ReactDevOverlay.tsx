@@ -22,7 +22,7 @@ function reducer(state: OverlayState, ev: Bus.BusEvent): OverlayState {
     case Bus.TYPE_BUILD_ERROR: {
       return { ...state, buildError: ev.message }
     }
-    case Bus.TYPE_REFFRESH: {
+    case Bus.TYPE_REFRESH: {
       return { ...state, buildError: null, errors: [] }
     }
     case Bus.TYPE_UNHANDLED_ERROR:

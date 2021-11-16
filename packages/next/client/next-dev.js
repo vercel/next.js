@@ -26,6 +26,25 @@ const webpackHMR = initWebpackHMR()
 
 connectHMR({ assetPrefix: prefix, path: '/_next/webpack-hmr' })
 
+if (!window._nextSetupHydrationWarning) {
+  const origConsoleError = window.console.error
+  window.console.error = (...args) => {
+    const isHydrateError = args.some(
+      (arg) =>
+        typeof arg === 'string' &&
+        arg.match(/Warning:.*?did not match.*?Server:/)
+    )
+    if (isHydrateError) {
+      args = [
+        ...args,
+        `\n\nSee more info here: https://nextjs.org/docs/messages/react-hydration-error`,
+      ]
+    }
+    origConsoleError.apply(window.console, args)
+  }
+  window._nextSetupHydrationWarning = true
+}
+
 window.next = {
   version,
   // router is initialized later so it has to be live-binded
