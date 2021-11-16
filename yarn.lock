@@ -8707,7 +8707,7 @@ enhanced-resolve@^4.3.0:
     memory-fs "^0.5.0"
     tapable "^1.0.0"
 
-enhanced-resolve@^5.8.3, enhanced-resolve@webpack/enhanced-resolve#feature/use-cached-stat-for-read:
+enhanced-resolve@^5.8.3:
   version "5.8.3"
   resolved "https://codeload.github.com/webpack/enhanced-resolve/tar.gz/a7c161eeb141bfc7fda375df36c13df006a8cf76"
   dependencies:
@@ -12845,7 +12845,6 @@ loader-runner@^4.2.0:
   integrity sha512-92+huvxMvYlMzMt0iIOukcwYBFpkYJdpl2xsZ7LrlayO7E8SOv+JJUEK17B/dJIHAOLMfh2dZZ/Y18WgmGtYNw==
 
 "loader-utils2@npm:loader-utils@2.0.0", loader-utils@^2.0.0:
-  name loader-utils2
   version "2.0.0"
   resolved "https://registry.yarnpkg.com/loader-utils/-/loader-utils-2.0.0.tgz#e4cace5b816d425a166b5f097e10cd12b36064b0"
   integrity sha512-rP4F0h2RaWSvPEkD7BLDFQnvSf+nK+wr3ESUjNTyAGobqrijmW92zc+SO6d4p4B1wh7+B/Jg1mkQe5NYUEHtHQ==
@@ -19990,7 +19989,7 @@ webpack-bundle-analyzer@4.3.0:
     source-list-map "^2.0.0"
     source-map "~0.6.1"
 
-"webpack-sources3@npm:webpack-sources@3.2.2", webpack-sources@^3.2.2:
+"webpack-sources3@npm:webpack-sources@3.2.2", webpack-sources@^3.2.0, webpack-sources@^3.2.2:
   version "3.2.2"
   resolved "https://registry.yarnpkg.com/webpack-sources/-/webpack-sources-3.2.2.tgz#d88e3741833efec57c4c789b6010db9977545260"
   integrity sha512-cp5qdmHnu5T8wRg2G3vZZHoJPN14aqQ89SyQ11NpGH5zEMDCclt49rzo+MaRazk7/UeILhAI+/sEtcM+7Fr0nw==
