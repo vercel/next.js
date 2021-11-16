@@ -1,6 +1,6 @@
 use next_swc::{
     amp_attributes::amp_attributes, next_dynamic::next_dynamic, next_ssg::next_ssg,
-    page_config::page_config_test, styled_jsx::styled_jsx,
+    page_config::page_config_test, remove_console::remove_console, styled_jsx::styled_jsx,
 };
 use std::path::PathBuf;
 use swc_common::{chain, comments::SingleThreadedComments, FileName, Mark, Span, DUMMY_SP};
@@ -118,4 +118,15 @@ fn styled_jsx_span_should_not_affect_hash(input: PathBuf) {
 fn page_config_fixture(input: PathBuf) {
     let output = input.parent().unwrap().join("output.js");
     test_fixture(syntax(), &|_tr| page_config_test(), &input, &output);
+}
+
+#[fixture("tests/fixture/remove-console/**/input.js")]
+fn remove_console_fixture(input: PathBuf) {
+    let output = input.parent().unwrap().join("output.js");
+    test_fixture(
+        syntax(),
+        &|_tr| remove_console(next_swc::remove_console::Config::All(true)),
+        &input,
+        &output,
+    );
 }
