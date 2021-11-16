@@ -162,6 +162,7 @@ export function createEntrypoints(
           page,
           absoluteAppPath: pages['/_app'],
           absoluteDocumentPath: pages['/_document'],
+          absoluteErrorPath: pages['/_error'],
           absolutePagePath,
           isServerComponent: isFlight,
           buildId,
@@ -268,6 +269,7 @@ export function finalizeEntrypoint({
         type: 'assign',
       },
       runtime: MIDDLEWARE_SSR_RUNTIME_WEBPACK,
+      asyncChunks: false,
       ...entry,
     }
     return ssrMiddlewareEntry
