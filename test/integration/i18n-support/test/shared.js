@@ -36,7 +36,7 @@ async function addDefaultLocaleCookie(browser) {
 
 export function runTests(ctx) {
   if (ctx.basePath) {
-    it.only('should handle basePath like pathname', async () => {
+    it('should handle basePath like pathname', async () => {
       const { basePath } = ctx
 
       for (const pathname of [
