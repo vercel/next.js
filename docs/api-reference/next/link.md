@@ -204,7 +204,7 @@ The default behavior of the `Link` component is to `push` a new URL into the `hi
 The default behavior of `Link` is to scroll to the top of the page. When there is a hash defined it will scroll to the specific id, like a normal `<a>` tag. To prevent scrolling to the top / hash `scroll={false}` can be added to `Link`:
 
 ```jsx
-<Link href="/?counter=10" scroll={false}>
+<Link href="/#hashid" scroll={false}>
   <a>Disables scrolling to the top</a>
 </Link>
 ```
