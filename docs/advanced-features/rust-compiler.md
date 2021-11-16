@@ -1,21 +1,21 @@
 ---
-description: Learn about the Rust Compiler, built with SWC, which transforms and minifies your Next.js application.
+description: Learn about the Next.js Compiler, written in Rust, which transforms and minifies your Next.js application.
 ---
 
-# Rust Compiler
+# Next.js Compiler
 
 <details open>
   <summary><b>Version History</b></summary>
 
-| Version   | Changes                                                      |
-| --------- | ------------------------------------------------------------ |
-| `v12.0.0` | Rust Compiler [introduced](https://nextjs.org/blog/next-12). |
+| Version   | Changes                                                         |
+| --------- | --------------------------------------------------------------- |
+| `v12.0.0` | Next.js Compiler [introduced](https://nextjs.org/blog/next-12). |
 
 </details>
 
-The Rust Compiler for Next.js, built with [SWC](http://swc.rs/), allows Next.js to transform and minify your JavaScript code for production. This replaces Babel for individual files and Terser for minifying output bundles.
+The Next.js Compiler, written in Rust using [SWC](http://swc.rs/), allows Next.js to transform and minify your JavaScript code for production. This replaces Babel for individual files and Terser for minifying output bundles.
 
-Compilation using the Rust Compiler is 17x faster than Babel and enabled by default using Next.js 12. If you have an existing Babel configuration or are using [unsupported features](#unsupported-features), your application will opt-out of the Rust Compiler and continue using Babel.
+Compilation using the Next.js Compiler is 17x faster than Babel and enabled by default using Next.js 12. If you have an existing Babel configuration or are using [unsupported features](#unsupported-features), your application will opt-out of the Next.js Compiler and continue using Babel.
 
 ## Why SWC?
 
@@ -30,22 +30,11 @@ We chose to build on SWC for a few reasons:
 - **WebAssembly:** Rust's support for WASM is essential for supporting all possible platforms and taking Next.js development everywhere.
 - **Community:** The Rust community and ecosystem are amazing and only growing.
 
-## Supported Features
-
-All custom code transformations Next.js uses are supported by the Rust Compiler:
-
-- `getStaticProps`
-- `getStaticPaths`
-- `getServerSideProps`
-- `styled-jsx`
-- CSS Modules
-- Sass
-
 ## Experimental Features
 
 ### Minification
 
-You can opt-in to using the Rust compiler for minification. This is 7x faster than Terser.
+You can opt-in to using the Next.js compiler for minification. This is 7x faster than Terser.
 
 ```js
 // next.config.js
@@ -55,9 +44,11 @@ module.exports = {
 }
 ```
 
+If you have any feedback about swcMinify please share it on the [feedback discussion](https://github.com/vercel/next.js/discussions/30237).
+
 ### Styled Components
 
-We're working to port `babel-plugin-styled-components` to use the Rust compiler. Currently, only the `ssr` and `displayName` options are enabled by default.
+We're working to port `babel-plugin-styled-components` to the Next.js Compiler.
 
 First, update to the canary version of Next.js: `npm install next@canary`. Then, update your `next.config.js` file:
 
@@ -72,6 +63,8 @@ module.exports = {
 }
 ```
 
+Currently, the `ssr` and `displayName` transforms have been implemented, these two transforms are the main requirement for using `styled-components` in Next.js.
+
 ### Jest
 
 Jest support not only includes the transformation previously provided by Babel, but also simplifies configuring Jest together with Next.js including:
@@ -83,7 +76,7 @@ Jest support not only includes the transformation previously provided by Babel, 
 - Ignoring `.next` from test resolving
 - Loads `next.config.js` for flags that enable experimental SWC transforms
 
-First, update to the canary version of Next.js: `npm install next@canary`. Then, update your `jest.config.js` file:
+First, update to the latest version of Next.js: `npm install next@latest`. Then, update your `jest.config.js` file:
 
 ```js
 // jest.config.js
@@ -103,9 +96,11 @@ module.exports = createJestConfig(customJestConfig)
 
 ### Legacy Decorators
 
-Next.js will automatically detect `experimentalDecorators` in `jsconfig.json` or `tsconfig.json` and apply that. This is commonly used with libraries like `mobx`. This is only added for compatibility with existing apps. We do not recommend using legacy decorators in new apps.
+Next.js will automatically detect `experimentalDecorators` in `jsconfig.json` or `tsconfig.json` and apply that. This is commonly used with older versions of libraries like `mobx`.
 
-First, update to the canary version of Next.js: `npm install next@canary`. Then, update your `jsconfig.json` or `tsconfig.json` file:
+This flag is only supported for compatibility with existing applications. We do not recommend using legacy decorators in new applications.
+
+First, update to the latest version of Next.js: `npm install next@latest`. Then, update your `jsconfig.json` or `tsconfig.json` file:
 
 ```js
 {
@@ -119,7 +114,7 @@ First, update to the canary version of Next.js: `npm install next@canary`. Then,
 
 Next.js will automatically detect `jsxImportSource` in `jsconfig.json` or `tsconfig.json` and apply that. This is commonly used with libraries like Theme UI.
 
-First, update to the canary version of Next.js: `npm install next@canary`. Then, update your `jsconfig.json` or `tsconfig.json` file:
+First, update to the latest version of Next.js: `npm install next@latest`. Then, update your `jsconfig.json` or `tsconfig.json` file:
 
 ```js
 {
@@ -131,9 +126,6 @@ First, update to the canary version of Next.js: `npm install next@canary`. Then,
 
 ## Unsupported Features
 
-- [Emotion](https://github.com/vercel/next.js/issues/30804)
-- [Relay](https://github.com/vercel/next.js/issues/30805)
-- [transform-remove-console](https://github.com/vercel/next.js/issues/31332)
-- [react-remove-properties](https://github.com/vercel/next.js/issues/31333)
+When your application has a `.babelrc` Next.js will automatically fall back to using Babel for transforming individual files. This ensures backwards compatibility with existing applications that leverage custom Babel plugins.
 
 If you're using a custom Babel setup, [please share your configuration](https://github.com/vercel/next.js/discussions/30174). We're working to port as many commonly used Babel transformations as possible, as well as supporting plugins in the future.
