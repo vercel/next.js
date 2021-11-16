@@ -11,7 +11,7 @@ description: Export your Next.js app to static HTML, and run it standalone witho
   </ul>
 </details>
 
-`next export` allows you to export your Next.js application to static HTML, which can be run standalone without the need of a Node.js server. It is recommend to only use `next export` if you don't need any of the [unsupported features](#unsupported-features) requiring a server.
+`next export` allows you to export your Next.js application to static HTML, which can be run standalone without the need of a Node.js server. It is recommended to only use `next export` if you don't need any of the [unsupported features](#unsupported-features) requiring a server.
 
 If you're looking to build a hybrid site where only _some_ pages are prerendered to static HTML, Next.js already does that automatically. Learn more about [Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md) and [Incremental Static Regeneration](/docs/basic-features/data-fetching.md#incremental-static-regeneration).
 
