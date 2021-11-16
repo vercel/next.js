@@ -85,7 +85,7 @@ You can make your response handlers more type-safe by importing the `NextApiRequ
 ```ts
 import type { NextApiRequest, NextApiResponse } from 'next'
 
-type ResponseData {
+type ResponseData = {
   message: string
 }
 
