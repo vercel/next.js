@@ -23,5 +23,6 @@ export default function Page() {
       return <p>hydration error</p>
     }
   }
+  // eslint-disable-next-line
   return <p>{useRouter().asPath}</p>
 }
