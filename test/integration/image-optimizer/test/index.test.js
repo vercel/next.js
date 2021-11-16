@@ -411,7 +411,7 @@ function runTests({
       //await expectWidth(res, w)
     })
 
-    it('should compress avif smaller than webp and smaller than original', async () => {
+    it('should compress avif smaller than webp and smaller than jpg', async () => {
       const query = { url: '/test.jpg', w, q: 75 }
       const res1 = await fetchViaHTTP(appPort, '/_next/image', query, {
         headers: {
@@ -437,12 +437,14 @@ function runTests({
       expect(res3.status).toBe(200)
       expect(res3.headers.get('Content-Type')).toBe('image/jpeg')
 
-      const avif = await res1.buffer()
-      const webp = await res2.buffer()
-      const jpeg = await res3.buffer()
+      const avif = (await res1.buffer()).byteLength
+      const webp = (await res2.buffer()).byteLength
+      const jpeg = (await res3.buffer()).byteLength
 
-      expect(avif.byteLength).toBeLessThan(webp.byteLength)
-      expect(avif.byteLength).toBeLessThan(jpeg.byteLength)
+      console.log({ isSharp, avif, webp, jpeg })
+
+      expect(avif).toBeLessThan(webp)
+      expect(avif).toBeLessThan(jpeg)
     })
   }
 

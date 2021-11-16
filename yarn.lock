@@ -4829,10 +4829,10 @@
     "@types/express-serve-static-core" "*"
     "@types/mime" "*"
 
-"@types/sharp@0.28.4":
-  version "0.28.4"
-  resolved "https://registry.yarnpkg.com/@types/sharp/-/sharp-0.28.4.tgz#7afdcf979069ddc68a915603fdaa412ada93f833"
-  integrity sha512-vfz+RlJU5FgXyyf9w8wc+JwwT8MFI98NZr0272umQegrggAQhTwwb8pKZn0PTtd+j0crXkZDWw5ABG/i6Lu/Lw==
+"@types/sharp@0.29.3":
+  version "0.29.3"
+  resolved "https://registry.yarnpkg.com/@types/sharp/-/sharp-0.29.3.tgz#54ceb81b68bb99a0e62db2b52f4fb0bea84878ac"
+  integrity sha512-83Xp05eK2hvfNnmKLr2Fz0C2A0jrr2TnSLqKRbkLTYuAu+Erj6mKQLoEMGafE73Om8p3q3ryZxtHFM/7hy4Adg==
   dependencies:
     "@types/node" "*"
 
@@ -12616,6 +12616,7 @@ loader-runner@^4.2.0:
   integrity sha512-92+huvxMvYlMzMt0iIOukcwYBFpkYJdpl2xsZ7LrlayO7E8SOv+JJUEK17B/dJIHAOLMfh2dZZ/Y18WgmGtYNw==
 
 "loader-utils2@npm:loader-utils@2.0.0", loader-utils@^2.0.0:
+  name loader-utils2
   version "2.0.0"
   resolved "https://registry.yarnpkg.com/loader-utils/-/loader-utils-2.0.0.tgz#e4cace5b816d425a166b5f097e10cd12b36064b0"
   integrity sha512-rP4F0h2RaWSvPEkD7BLDFQnvSf+nK+wr3ESUjNTyAGobqrijmW92zc+SO6d4p4B1wh7+B/Jg1mkQe5NYUEHtHQ==
@@ -19687,6 +19688,7 @@ webpack-bundle-analyzer@4.3.0:
     source-map "~0.6.1"
 
 "webpack-sources3@npm:webpack-sources@3.2.1", webpack-sources@^3.2.0:
+  name webpack-sources3
   version "3.2.1"
   resolved "https://registry.yarnpkg.com/webpack-sources/-/webpack-sources-3.2.1.tgz#251a7d9720d75ada1469ca07dbb62f3641a05b6d"
   integrity sha512-t6BMVLQ0AkjBOoRTZgqrWm7xbXMBzD+XDq2EZ96+vMfn3qKgsvdXZhbPZ4ElUOpdv4u+iiGe+w3+J75iy/bYGA==

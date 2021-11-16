@@ -58,7 +58,7 @@
     "@types/http-proxy": "1.17.3",
     "@types/jest": "24.0.13",
     "@types/selenium-webdriver": "4.0.15",
-    "@types/sharp": "0.28.4",
+    "@types/sharp": "0.29.3",
     "@types/string-hash": "1.1.1",
     "@typescript-eslint/eslint-plugin": "4.29.1",
     "@typescript-eslint/parser": "4.29.1",
