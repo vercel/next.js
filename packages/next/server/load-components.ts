@@ -57,7 +57,7 @@ export async function loadComponents(
   serverless: boolean
 ): Promise<LoadComponentsReturnType> {
   if (serverless) {
-    const ComponentMod = await requirePage(pathname, distDir, serverless)
+    const ComponentMod = requirePage(pathname, distDir, serverless)
     if (typeof ComponentMod === 'string') {
       return {
         Component: ComponentMod as any,
@@ -89,16 +89,12 @@ export async function loadComponents(
     } as LoadComponentsReturnType
   }
 
-  const [DocumentMod, AppMod, ComponentMod] = await Promise.all([
-    requirePage('/_document', distDir, serverless),
-    requirePage('/_app', distDir, serverless),
-    requirePage(pathname, distDir, serverless),
-  ])
+  const DocumentMod = requirePage('/_document', distDir, serverless)
+  const AppMod = requirePage('/_app', distDir, serverless)
+  const ComponentMod = requirePage(pathname, distDir, serverless)
 
-  const [buildManifest, reactLoadableManifest] = await Promise.all([
-    require(join(distDir, BUILD_MANIFEST)),
-    require(join(distDir, REACT_LOADABLE_MANIFEST)),
-  ])
+  const buildManifest = require(join(distDir, BUILD_MANIFEST))
+  const reactLoadableManifest = require(join(distDir, REACT_LOADABLE_MANIFEST))
 
   const Component = interopDefault(ComponentMod)
   const Document = interopDefault(DocumentMod)
