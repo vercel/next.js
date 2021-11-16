@@ -13,7 +13,7 @@ description: Learn about the Rust Compiler, built with SWC, which transforms and
 
 </details>
 
-The Rust Compiler for Next.js, built with [SWC](http://swc.rs/), allows Next.js to transform and minify your code for production. This replaces Babel for individual files and Terser for minifying output bundles.
+The Rust Compiler for Next.js, built with [SWC](http://swc.rs/), allows Next.js to transform and minify your JavaScript code for production. This replaces Babel for individual files and Terser for minifying output bundles.
 
 Compilation using the Rust Compiler is 17x faster than Babel and enabled by default using Next.js 12. If you have an existing Babel configuration or are using [unsupported features](#unsupported-features), your application will opt-out of the Rust Compiler and continue using Babel.
 
