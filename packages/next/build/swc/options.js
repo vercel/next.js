@@ -66,6 +66,7 @@ function getBaseSWCOptions({
           displayName: Boolean(development),
         }
       : null,
+    removeConsole: nextConfig?.experimental?.removeConsole,
   }
 }
 

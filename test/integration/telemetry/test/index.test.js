@@ -519,7 +519,10 @@ describe('Telemetry CLI', () => {
   })
 
   it('emits telemetry for lint during build', async () => {
-    await fs.writeFile(path.join(appDir, '.eslintrc'), `{ "extends": "next" }`)
+    await fs.writeFile(
+      path.join(appDir, '.eslintrc'),
+      `{ "root": true, "extends": "next" }`
+    )
     const { stderr } = await nextBuild(appDir, [], {
       stderr: true,
       env: { NEXT_TELEMETRY_DEBUG: 1 },
@@ -541,7 +544,10 @@ describe('Telemetry CLI', () => {
   })
 
   it('emits telemetry for `next lint`', async () => {
-    await fs.writeFile(path.join(appDir, '.eslintrc'), `{ "extends": "next" }`)
+    await fs.writeFile(
+      path.join(appDir, '.eslintrc'),
+      `{ "root": true, "extends": "next" }`
+    )
     const { stderr } = await nextLint(appDir, [], {
       stderr: true,
       env: { NEXT_TELEMETRY_DEBUG: 1 },

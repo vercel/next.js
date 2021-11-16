@@ -35,7 +35,7 @@ use serde::Deserialize;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::{path::PathBuf, sync::Arc};
-use swc::{config::ModuleConfig};
+use swc::config::ModuleConfig;
 use swc_common::SourceFile;
 use swc_common::{self, chain, pass::Optional};
 use swc_ecmascript::ast::EsVersion;
@@ -51,7 +51,9 @@ pub mod hook_optimizer;
 pub mod next_dynamic;
 pub mod next_ssg;
 pub mod page_config;
+pub mod remove_console;
 pub mod styled_jsx;
+mod top_level_binding_collector;
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -76,6 +78,9 @@ pub struct TransformOptions {
 
     #[serde(default)]
     pub styled_components: Option<styled_components::Config>,
+
+    #[serde(default)]
+    pub remove_console: Option<remove_console::Config>,
 }
 
 pub fn custom_before_pass(file: Arc<SourceFile>, opts: &TransformOptions) -> impl Fold {
@@ -102,7 +107,12 @@ pub fn custom_before_pass(file: Arc<SourceFile>, opts: &TransformOptions) -> imp
         Optional::new(
             page_config::page_config(opts.is_development, opts.is_page_file),
             !opts.disable_page_config
-        )
+        ),
+        match &opts.remove_console {
+            Some(config) if config.truthy() =>
+                Either::Left(remove_console::remove_console(config.clone())),
+            _ => Either::Right(noop()),
+        },
     )
 }
 
