@@ -1137,7 +1137,11 @@ jobs:
         targets: [web, node]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/cache@v2
+        id: restore-build
+        with:
+          path: ./*
+          key: ${{ github.sha }}
 
       - name: Setup node
         uses: actions/setup-node@v2
@@ -1151,9 +1155,6 @@ jobs:
             ~/.cargo/
             **/target/
           key: ${{ runner.os }}-publish-integration
-
-      - name: Install node dependencies
-        run: npm i
 
       - name: Install wasm-pack
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
