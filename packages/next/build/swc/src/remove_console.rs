@@ -1,7 +1,9 @@
 use serde::Deserialize;
+use swc_atoms::JsWord;
 use swc_common::collections::AHashSet;
 use swc_common::DUMMY_SP;
 use swc_ecmascript::ast::*;
+use swc_ecmascript::utils::ident::IdentLike;
 use swc_ecmascript::utils::Id;
 use swc_ecmascript::visit::{noop_fold_type, Fold, FoldWith};
 
@@ -26,22 +28,22 @@ impl Config {
 #[derive(Clone, Debug, Deserialize)]
 pub struct Options {
     #[serde(default)]
-    pub exclude: Vec<String>,
+    pub exclude: Vec<JsWord>,
 }
 
 struct RemoveConsole {
-    exclude: Vec<String>,
+    exclude: Vec<JsWord>,
     bindings: Vec<AHashSet<Id>>,
     in_function_params: bool,
 }
 
 impl RemoveConsole {
     fn is_global_console(&self, ident: &Ident) -> bool {
-        ident.sym.as_ref() == "console"
+        &ident.sym == "console"
             && self
                 .bindings
                 .iter()
-                .find(|x| x.contains(&(ident.sym.clone(), ident.span.ctxt)))
+                .find(|x| x.contains(&ident.to_id()))
                 .is_none()
     }
 
@@ -73,12 +75,7 @@ impl RemoveConsole {
         // Here we do an O(n) search on the list of excluded properties because the size
         // should be small.
         match &*member_expr.prop {
-            Expr::Ident(i)
-                if self
-                    .exclude
-                    .iter()
-                    .find(|x| x.as_str() == i.sym.as_ref())
-                    .is_none() => {}
+            Expr::Ident(i) if self.exclude.iter().find(|x| **x == i.sym).is_none() => {}
             _ => return false,
         }
 
@@ -108,10 +105,7 @@ impl Fold for RemoveConsole {
         self.in_function_params = true;
         let mut new_params: AHashSet<Id> = AHashSet::default();
         for param in &func.params {
-            let s = collect_top_level_decls(param);
-            for x in s {
-                new_params.insert(x);
-            }
+            new_params.extend(collect_top_level_decls(param));
         }
         self.in_function_params = false;
 
