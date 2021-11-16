@@ -57,6 +57,7 @@ fn test(input: &Path, minify: bool) {
                 is_page_file: false,
                 is_development: true,
                 styled_components: Some(assert_json("{}")),
+                remove_console: None,
             };
 
             let options = options.patch(&fm);
