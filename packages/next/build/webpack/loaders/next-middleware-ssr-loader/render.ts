@@ -80,7 +80,7 @@ export function getRender({
         query,
         renderOpts
       )
-    } catch (err) {
+    } catch (err: any) {
       const errorRes = { statusCode: 500, err }
       try {
         result = await renderToHTML(
@@ -96,10 +96,10 @@ export function getRender({
             getStaticPaths: errorMod.getStaticPaths,
           }
         )
-      } catch (err: any) {
+      } catch (err2: any) {
         return new Response(
           (
-            err || 'An error occurred while rendering ' + pathname + '.'
+            err2 || 'An error occurred while rendering ' + pathname + '.'
           ).toString(),
           {
             status: 500,
