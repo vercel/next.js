@@ -229,7 +229,7 @@ export async function createApp({
     /**
      * Default devDependencies.
      */
-    const devDependencies = ['eslint@7', 'eslint-config-next']
+    const devDependencies = ['eslint', 'eslint-config-next']
     /**
      * TypeScript projects will have type definitions and other devDependencies.
      */

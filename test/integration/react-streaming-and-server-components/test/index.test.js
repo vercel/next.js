@@ -157,7 +157,7 @@ describe('concurrentFeatures - prod', () => {
     expect(html).toContain('foo.client')
   })
 
-  runBasicTests(context)
+  runBasicTests(context, 'prod')
 })
 
 describe('concurrentFeatures - dev', () => {
@@ -182,7 +182,7 @@ describe('concurrentFeatures - dev', () => {
     expect(content).toMatchInlineSnapshot('"foo.client"')
   })
 
-  runBasicTests(context)
+  runBasicTests(context, 'dev')
 })
 
 const cssSuite = {
@@ -213,7 +213,8 @@ const documentSuite = {
 runSuite('document', 'dev', documentSuite)
 runSuite('document', 'prod', documentSuite)
 
-async function runBasicTests(context) {
+async function runBasicTests(context, env) {
+  const isDev = env === 'dev'
   it('should render the correct html', async () => {
     const homeHTML = await renderViaHTTP(context.appPort, '/')
 
@@ -242,7 +243,10 @@ async function runBasicTests(context) {
     expect(dynamicRouteHTML2).toContain('[pid]')
 
     expect(path404HTML).toContain('custom-404-page')
-    expect(path500HTML).toContain('custom-500-page')
+    // in dev mode: custom error page is still using default _error
+    expect(path500HTML).toContain(
+      isDev ? 'Internal Server Error' : 'custom-500-page'
+    )
     expect(pathNotFoundHTML).toContain('custom-404-page')
   })
 
@@ -330,6 +334,6 @@ function runSuite(suiteName, env, { runTests, before, after }) {
       await killApp(context.server)
     })
 
-    runTests(context)
+    runTests(context, env)
   })
 }
