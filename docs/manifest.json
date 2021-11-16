@@ -129,8 +129,8 @@
           "title": "Advanced Features",
           "routes": [
             {
-              "title": "Rust Compiler",
-              "path": "/docs/advanced-features/rust-compiler.md"
+              "title": "Next.js Compiler",
+              "path": "/docs/advanced-features/compiler.md"
             },
             {
               "title": "Preview Mode",
