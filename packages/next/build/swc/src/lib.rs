@@ -60,7 +60,9 @@ pub mod minify;
 pub mod next_dynamic;
 pub mod next_ssg;
 pub mod page_config;
+pub mod remove_console;
 pub mod styled_jsx;
+mod top_level_binding_collector;
 mod transform;
 mod util;
 
@@ -87,6 +89,9 @@ pub struct TransformOptions {
 
     #[serde(default)]
     pub styled_components: Option<styled_components::Config>,
+
+    #[serde(default)]
+    pub remove_console: Option<remove_console::Config>,
 }
 
 pub fn custom_before_pass(file: Arc<SourceFile>, opts: &TransformOptions) -> impl Fold {
@@ -113,7 +118,12 @@ pub fn custom_before_pass(file: Arc<SourceFile>, opts: &TransformOptions) -> imp
         Optional::new(
             page_config::page_config(opts.is_development, opts.is_page_file),
             !opts.disable_page_config
-        )
+        ),
+        match &opts.remove_console {
+            Some(config) if config.truthy() =>
+                Either::Left(remove_console::remove_console(config.clone())),
+            _ => Either::Right(noop()),
+        },
     )
 }
 
