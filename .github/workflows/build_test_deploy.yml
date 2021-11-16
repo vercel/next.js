@@ -1148,6 +1148,14 @@ jobs:
         with:
           node-version: 14
 
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly-2021-08-12
+          override: true
+          target: wasm32-unknown-unknown
+
       - name: Cache
         uses: actions/cache@v2
         with:
