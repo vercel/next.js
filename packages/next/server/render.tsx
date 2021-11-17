@@ -3,6 +3,8 @@ import { ParsedUrlQuery } from 'querystring'
 import type { Writable as WritableType } from 'stream'
 import React from 'react'
 import ReactDOMServer from 'react-dom/server'
+import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack'
+import { renderToReadableStream } from 'next/dist/compiled/react-server-dom-webpack/writer.browser.server'
 import { StyleRegistry, createStyleRegistry } from 'styled-jsx'
 import { UnwrapPromise } from '../lib/coalesced-function'
 import {
@@ -203,7 +205,8 @@ export type RenderOptsPartial = {
   devOnlyCacheBusterQueryString?: string
   resolvedUrl?: string
   resolvedAsPath?: string
-  renderServerComponent?: null | (() => Promise<string>)
+  serverComponentManifest?: any
+  renderServerComponentData?: boolean
   distDir?: string
   locale?: string
   locales?: string[]
@@ -274,6 +277,49 @@ function checkRedirectValues(
   }
 }
 
+// Create the wrapper component for a Flight stream.
+function createServerComponentRenderer(
+  OriginalComponent: React.ComponentType,
+  serverComponentManifest: NonNullable<RenderOpts['serverComponentManifest']>
+) {
+  let responseCache: any
+  const ServerComponentWrapper = (props: any) => {
+    let response = responseCache
+    if (!response) {
+      responseCache = response = createFromReadableStream(
+        renderToReadableStream(
+          <OriginalComponent {...props} />,
+          serverComponentManifest
+        )
+      )
+    }
+    return response.readRoot()
+  }
+  const Component = (props: any) => {
+    return (
+      <React.Suspense fallback={null}>
+        <ServerComponentWrapper {...props} />
+      </React.Suspense>
+    )
+  }
+
+  // Although it's not allowed to attach some static methods to Component,
+  // we still re-assign all the component APIs to keep the behavior unchanged.
+  for (const methodName of [
+    'getInitialProps',
+    'getStaticProps',
+    'getServerSideProps',
+    'getStaticPaths',
+  ]) {
+    const method = (OriginalComponent as any)[methodName]
+    if (method) {
+      ;(Component as any)[methodName] = method
+    }
+  }
+
+  return Component
+}
+
 export async function renderToHTML(
   req: IncomingMessage,
   res: ServerResponse,
@@ -298,7 +344,6 @@ export async function renderToHTML(
     App,
     Document,
     pageConfig = {},
-    Component,
     buildManifest,
     fontManifest,
     reactLoadableManifest,
@@ -306,7 +351,8 @@ export async function renderToHTML(
     getStaticProps,
     getStaticPaths,
     getServerSideProps,
-    renderServerComponent,
+    serverComponentManifest,
+    renderServerComponentData,
     isDataReq,
     params,
     previewProps,
@@ -315,6 +361,12 @@ export async function renderToHTML(
     supportsDynamicHTML,
     concurrentFeatures,
   } = renderOpts
+
+  const isServerComponent = !!serverComponentManifest
+  const OriginalComponent = renderOpts.Component
+  const Component = isServerComponent
+    ? createServerComponentRenderer(OriginalComponent, serverComponentManifest)
+    : renderOpts.Component
 
   const getFontDefinition = (url: string): string => {
     if (fontManifest) {
@@ -358,8 +410,6 @@ export async function renderToHTML(
     App.getInitialProps === (App as any).origGetInitialProps
 
   const hasPageGetInitialProps = !!(Component as any).getInitialProps
-
-  const isRSC = !!renderServerComponent
 
   const pageIsDynamic = isDynamicRoute(pathname)
 
@@ -940,8 +990,28 @@ export async function renderToHTML(
     props.pageProps = {}
   }
 
+  // Pass router to the Server Component as a temporary workaround.
+  if (isServerComponent) {
+    props.pageProps = Object.assign({}, props.pageProps, { router })
+  }
+
   // the response might be finished on the getInitialProps call
   if (isResSent(res) && !isSSG) return null
+
+  if (renderServerComponentData) {
+    return new RenderResult((res_, next) => {
+      const { startWriting } = connectReactServerReadableStreamToPiper(
+        res_.write,
+        next
+      )
+      startWriting(
+        renderToReadableStream(
+          <OriginalComponent {...props} />,
+          serverComponentManifest
+        ).getReader()
+      )
+    })
+  }
 
   // we preload the buildManifest for auto-export dynamic pages
   // to speed up hydrating query values
@@ -1081,7 +1151,7 @@ export async function renderToHTML(
 
         return concurrentFeatures
           ? process.browser
-            ? await renderToReadableStream(content)
+            ? await renderToWebStream(content)
             : await renderToNodeStream(content, generateStaticHTML)
           : piperFromArray([ReactDOMServer.renderToString(content)])
       }
@@ -1154,7 +1224,7 @@ export async function renderToHTML(
       err: renderOpts.err ? serializeError(dev, renderOpts.err) : undefined, // Error if one happened, otherwise don't sent in the resulting HTML
       gsp: !!getStaticProps ? true : undefined, // whether the page is getStaticProps
       gssp: !!getServerSideProps ? true : undefined, // whether the page is getServerSideProps
-      rsc: isRSC ? true : undefined, // whether the page is a server components page
+      rsc: isServerComponent ? true : undefined, // whether the page is a server components page
       customServer, // whether the user is using a custom server
       gip: hasPageGetInitialProps ? true : undefined, // whether the page has getInitialProps
       appGip: !defaultAppGetInitialProps ? true : undefined, // whether the _app has getInitialProps
@@ -1467,49 +1537,107 @@ function renderToNodeStream(
   })
 }
 
-function renderToReadableStream(
+function connectReactServerReadableStreamToPiper(
+  write: (s: string) => void,
+  next: (err?: Error) => void
+) {
+  let bufferedString = ''
+  let flushTimeout: null | NodeJS.Timeout = null
+
+  function flushBuffer() {
+    // Intentionally delayed writing when using ReadableStream due to the lack
+    // of cork/uncork APIs.
+    if (!flushTimeout) {
+      flushTimeout = setTimeout(() => {
+        write(bufferedString)
+        bufferedString = ''
+        flushTimeout = null
+      }, 0)
+    }
+  }
+
+  function startWriting(reader: ReadableStreamDefaultReader) {
+    const decoder = new TextDecoder()
+    const process = () => {
+      reader.read().then(({ done, value }: any) => {
+        if (!done) {
+          const s = typeof value === 'string' ? value : decoder.decode(value)
+          bufferedString += s
+          flushBuffer()
+          process()
+        } else {
+          // Make sure it's scheduled after the current flushing.
+          setTimeout(() => next(), 0)
+        }
+      })
+    }
+    process()
+  }
+
+  return {
+    startWriting,
+  }
+}
+
+function renderToWebStream(
   element: React.ReactElement
 ): Promise<NodeWritablePiper> {
   return new Promise((resolve, reject) => {
-    let reader: any = null
     let resolved = false
+    let underlyingStream: {
+      write: (s: string) => void
+      next: (err?: Error) => void
+    } | null = null
+
     const doResolve = () => {
-      if (resolved) return
-      resolved = true
-      const piper: NodeWritablePiper = (res, next) => {
-        const streamReader: ReadableStreamDefaultReader = reader
-        const decoder = new TextDecoder()
-        const process = async () => {
-          streamReader.read().then(({ done, value }) => {
-            if (!done) {
-              const s =
-                typeof value === 'string' ? value : decoder.decode(value)
-              res.write(s)
-              process()
-            } else {
-              next()
-            }
-          })
+      resolve((res, next) => {
+        underlyingStream = {
+          write: res.write,
+          next,
         }
-        process()
-      }
-      resolve(piper)
+      })
     }
 
-    const readable = (ReactDOMServer as any).renderToReadableStream(element, {
-      onError(err: Error) {
-        if (!resolved) {
-          resolved = true
-          reject(err)
+    const { startWriting } = connectReactServerReadableStreamToPiper(
+      (s: string) => {
+        if (!underlyingStream) {
+          throw new Error(
+            'invariant: `write` called without an underlying stream. This is a bug in Next.js'
+          )
         }
+        underlyingStream.write(s)
       },
-      onCompleteShell() {
-        doResolve()
-      },
-    })
-    // Start reader and lock stream immediately to consume readable,
-    // Otherwise the bytes before `onCompleteShell` will be missed.
-    reader = readable.getReader()
+      (err) => {
+        if (!underlyingStream) {
+          throw new Error(
+            'invariant: `next` called without an underlying stream. This is a bug in Next.js'
+          )
+        }
+        underlyingStream.next(err)
+      }
+    )
+
+    const reader = (ReactDOMServer as any)
+      .renderToReadableStream(element, {
+        onError(err: Error) {
+          if (!resolved) {
+            resolved = true
+            reject(err)
+          }
+        },
+        onCompleteShell() {
+          if (!resolved) {
+            resolved = true
+            doResolve()
+            // Queue startWriting in microtasks to make sure reader is
+            // initialized.
+            Promise.resolve().then(() => {
+              startWriting(reader)
+            })
+          }
+        },
+      })
+      .getReader()
   })
 }
 

@@ -2,14 +2,14 @@
 
 [React 18](https://reactjs.org/blog/2021/06/08/the-plan-for-react-18.html) adds new features including, Suspense, automatic batching of updates, APIs like `startTransition`, and a new streaming API for server rendering with support for `React.lazy`.
 
-React 18 is still in alpha. Read more about React 18's [release plan](https://github.com/reactwg/react-18/discussions) and discussions from the [working group](https://github.com/reactwg/react-18/discussions).
+React 18 is still in beta. Read more about React 18's [release plan](https://github.com/reactwg/react-18/discussions) and discussions from the [working group](https://github.com/reactwg/react-18/discussions).
 
 ### React 18 Usage in Next.js
 
-Ensure you have the `alpha` version of React installed:
+Ensure you have the `beta` version of React installed:
 
 ```jsx
-npm install next@latest react@alpha react-dom@alpha
+npm install next@latest react@beta react-dom@beta
 ```
 
 ### Enable SSR Streaming (Alpha)
