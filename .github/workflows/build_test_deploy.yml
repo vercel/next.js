@@ -1197,3 +1197,5 @@ jobs:
         with:
           name: wasm-binaries
           path: packages/next/build/swc/crates/wasm
+
+      - run: ls packages/next/build/swc/crates/wasm
