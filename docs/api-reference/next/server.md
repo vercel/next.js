@@ -99,7 +99,7 @@ Any variables in `process.env` must be accessed directly, and **cannot** be dest
 const { NODE_ENV } = process.env
 // NODE_ENV is `undefined`
 console.log(NODE_ENV)
-// Empty object
+// process.env is `{}`
 console.log(process.env)
 // Accessed directly, and not destructured works
 console.log(process.env.NODE_ENV)
