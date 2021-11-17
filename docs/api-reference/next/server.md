@@ -97,6 +97,7 @@ Any variables in `process.env` must be accessed directly, and **cannot** be dest
 ```ts
 // This will not work
 const { NODE_ENV } = process.env
+// NODE_ENV is `undefined`
 console.log(NODE_ENV)
 // Empty object
 console.log(process.env)
