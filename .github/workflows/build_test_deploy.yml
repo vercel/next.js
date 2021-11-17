@@ -1170,6 +1170,15 @@ jobs:
       - name: Build
         run: (wasm-pack build packages/next/build/swc/crates/wasm --release --scope=next --target ${{ matrix.target }})
 
+      - name: Add target to folder name
+        run: mv packages/next/build/swc/crates/wasm/pkg packages/next/build/swc/crates/wasm/pkg-${{ matrix.target }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: wasm-binaries
+          path: packages/next/build/swc/crates/wasm/pkg-*
+
       - run: ls packages/next/build/swc/crates/wasm/pkg
 
       # - name: Publish
@@ -1179,3 +1188,12 @@ jobs:
       #   env:
       #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       #     NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  practice:
+    needs: build-wasm
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v2
+        with:
+          name: wasm-binaries
+          path: packages/next/build/swc/crates/wasm
