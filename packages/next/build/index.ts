@@ -1350,14 +1350,24 @@ export default async function build(
       )
     }
 
-    const optimizeCss: EventBuildFeatureUsage = {
-      featureName: 'experimental/optimizeCss',
-      invocationCount: config.experimental.optimizeCss ? 1 : 0,
-    }
-    telemetry.record({
-      eventName: EVENT_BUILD_FEATURE_USAGE,
-      payload: optimizeCss,
-    })
+    const features: EventBuildFeatureUsage[] = [
+      {
+        featureName: 'experimental/optimizeCss',
+        invocationCount: config.experimental.optimizeCss ? 1 : 0,
+      },
+      {
+        featureName: 'optimizeFonts',
+        invocationCount: config.optimizeFonts ? 1 : 0,
+      },
+    ]
+    telemetry.record(
+      features.map((feature) => {
+        return {
+          eventName: EVENT_BUILD_FEATURE_USAGE,
+          payload: feature,
+        }
+      })
+    )
 
     await promises.writeFile(
       path.join(distDir, SERVER_FILES_MANIFEST),
