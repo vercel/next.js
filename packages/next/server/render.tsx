@@ -71,6 +71,8 @@ let tryGetPreviewData: typeof import('./api-utils').tryGetPreviewData
 let warn: typeof import('../build/output/log').warn
 let postProcess: typeof import('../shared/lib/post-process').default
 
+const DOCTYPE = '<!DOCTYPE html>'
+
 if (!process.browser) {
   Writable = require('stream').Writable
   Buffer = require('buffer').Buffer
@@ -1323,7 +1325,9 @@ export async function renderToHTML(
     /<next-js-internal-body-render-target><\/next-js-internal-body-render-target>/
   )
   const prefix: Array<string> = []
-  prefix.push('<!DOCTYPE html>')
+  if (!documentHTML.startsWith(DOCTYPE)) {
+    prefix.push(DOCTYPE)
+  }
   prefix.push(renderTargetPrefix)
   if (inAmpMode) {
     prefix.push('<!-- __NEXT_DATA__ -->')
