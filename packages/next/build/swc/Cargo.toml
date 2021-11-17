@@ -1,48 +1,10 @@
-[package]
-edition = "2018"
-name = "next-swc"
-version = "0.0.0"
+[workspace]
 
-[lib]
-crate-type = ["cdylib", "rlib"]
-
-[dependencies]
-anyhow = "1.0"
-backtrace = "0.3"
-chrono = "0.4"
-easy-error = "1.0.0"
-either = "1"
-fxhash = "0.2.1"
-napi = {version = "1", features = ["serde-json"]}
-napi-derive = "1"
-once_cell = "1.8.0"
-path-clean = "0.1"
-pathdiff = "0.2.0"
-regex = "1.5"
-retain_mut = "0.1.3"
-rustc-hash = "1.1.0"
-serde = "1"
-serde_json = "1"
-styled_components = "0.2.0"
-swc = "0.85.0"
-swc_atoms = "0.2.7"
-swc_bundler = { version = "0.82.0", features = ["concurrent"] }
-swc_common = {version = "0.14.2", features = ["concurrent", "sourcemap"]}
-swc_css = "0.31.0"
-swc_ecma_loader = { version = "0.24.2", features = ["node", "lru"] }
-swc_ecma_preset_env = "0.66.0"
-swc_ecmascript = { version = "0.87.0", features = ["codegen", "minifier", "optimization", "parser", "react", "transforms", "typescript", "utils", "visit"] }
-swc_node_base = "0.5.1"
-swc_stylis = "0.28.0"
-tracing = {version = "0.1.28", features = ["release_max_level_off"]}
-
-[build-dependencies]
-napi-build = "1"
-
-[dev-dependencies]
-swc_ecma_transforms_testing = "0.45.0"
-testing = "0.15.1"
-walkdir = "2.3.2"
+members = [
+  "crates/core",
+  "crates/napi",
+  "crates/wasm"
+]
 
 [profile.release]
 lto = true
