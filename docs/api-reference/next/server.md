@@ -101,7 +101,7 @@ const { NODE_ENV } = process.env
 console.log(NODE_ENV)
 // process.env is `{}`
 console.log(process.env)
-// Accessed directly, and not destructured works
+// Accessed directly, and not destructured works. process.env.NODE_ENV is `"development"` or `"production"`
 console.log(process.env.NODE_ENV)
 ```
 
