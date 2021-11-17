@@ -48,6 +48,40 @@ async function expectWidth(res, w) {
   expect(d.width).toBe(w)
 }
 
+async function expectAvifSmallerThanWebp(w, q) {
+  const query = { url: '/mountains.jpg', w, q }
+  const res1 = await fetchViaHTTP(appPort, '/_next/image', query, {
+    headers: {
+      accept: 'image/avif',
+    },
+  })
+  expect(res1.status).toBe(200)
+  expect(res1.headers.get('Content-Type')).toBe('image/avif')
+
+  const res2 = await fetchViaHTTP(appPort, '/_next/image', query, {
+    headers: {
+      accept: 'image/webp',
+    },
+  })
+  expect(res2.status).toBe(200)
+  expect(res2.headers.get('Content-Type')).toBe('image/webp')
+
+  const res3 = await fetchViaHTTP(appPort, '/_next/image', query, {
+    headers: {
+      accept: 'image/jpeg',
+    },
+  })
+  expect(res3.status).toBe(200)
+  expect(res3.headers.get('Content-Type')).toBe('image/jpeg')
+
+  const avif = (await res1.buffer()).byteLength
+  const webp = (await res2.buffer()).byteLength
+  const jpeg = (await res3.buffer()).byteLength
+
+  expect(webp).toBeLessThan(jpeg)
+  expect(avif).toBeLessThanOrEqual(webp)
+}
+
 function runTests({
   w,
   isDev,
@@ -411,40 +445,16 @@ function runTests({
       //await expectWidth(res, w)
     })
 
-    it('should compress avif smaller than webp and smaller than jpg', async () => {
-      const query = { url: '/test.jpg', w, q: 75 }
-      const res1 = await fetchViaHTTP(appPort, '/_next/image', query, {
-        headers: {
-          accept: 'image/avif',
-        },
-      })
-      expect(res1.status).toBe(200)
-      expect(res1.headers.get('Content-Type')).toBe('image/avif')
+    it('should compress avif smaller than webp at q=100', async () => {
+      await expectAvifSmallerThanWebp(w, 100)
+    })
 
-      const res2 = await fetchViaHTTP(appPort, '/_next/image', query, {
-        headers: {
-          accept: 'image/webp',
-        },
-      })
-      expect(res2.status).toBe(200)
-      expect(res2.headers.get('Content-Type')).toBe('image/webp')
+    it('should compress avif smaller than webp at q=75', async () => {
+      await expectAvifSmallerThanWebp(w, 75)
+    })
 
-      const res3 = await fetchViaHTTP(appPort, '/_next/image', query, {
-        headers: {
-          accept: 'image/jpeg',
-        },
-      })
-      expect(res3.status).toBe(200)
-      expect(res3.headers.get('Content-Type')).toBe('image/jpeg')
-
-      const avif = (await res1.buffer()).byteLength
-      const webp = (await res2.buffer()).byteLength
-      const jpeg = (await res3.buffer()).byteLength
-
-      console.log({ isSharp, w, avif, webp, jpeg })
-
-      expect(webp).toBeLessThan(jpeg)
-      expect(avif).toBeLessThanOrEqual(webp)
+    it('should compress avif smaller than webp at q=50', async () => {
+      await expectAvifSmallerThanWebp(w, 50)
     })
   }
 
@@ -1283,7 +1293,7 @@ describe('Image Optimizer', () => {
     })
 
     describe('Server support w/o next.config.js', () => {
-      const size = 828 // defaults defined in server/config.ts
+      const size = 384 // defaults defined in server/config.ts
       beforeAll(async () => {
         nextOutput = ''
         await nextBuild(appDir)
@@ -1309,7 +1319,7 @@ describe('Image Optimizer', () => {
     })
 
     describe('Server support with next.config.js', () => {
-      const size = 640
+      const size = 399
       beforeAll(async () => {
         const json = JSON.stringify({
           images: {
