@@ -444,7 +444,7 @@ function runTests({
       console.log({ isSharp, w, avif, webp, jpeg })
 
       expect(webp).toBeLessThan(jpeg)
-      expect(avif).toBeLessThan(webp)
+      expect(avif).toBeLessThanOrEqual(webp)
     })
   }
 
@@ -1241,7 +1241,7 @@ describe('Image Optimizer', () => {
     })
 
     describe('dev support with next.config.js', () => {
-      const size = 64
+      const size = 400
       beforeAll(async () => {
         const json = JSON.stringify({
           images: {
@@ -1283,7 +1283,7 @@ describe('Image Optimizer', () => {
     })
 
     describe('Server support w/o next.config.js', () => {
-      const size = 384 // defaults defined in server/config.ts
+      const size = 828 // defaults defined in server/config.ts
       beforeAll(async () => {
         nextOutput = ''
         await nextBuild(appDir)
@@ -1309,7 +1309,7 @@ describe('Image Optimizer', () => {
     })
 
     describe('Server support with next.config.js', () => {
-      const size = 128
+      const size = 640
       beforeAll(async () => {
         const json = JSON.stringify({
           images: {

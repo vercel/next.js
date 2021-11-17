@@ -65,7 +65,7 @@ export async function processBuffer(
     case 'webp':
       return Buffer.from(await worker.encodeWebp(imageData, { quality }))
     case 'avif':
-      const avifQuality = quality - 15
+      const avifQuality = quality - 20
       return Buffer.from(
         await worker.encodeAvif(imageData, {
           quality: Math.max(avifQuality, 0),
