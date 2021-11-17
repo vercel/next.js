@@ -24,6 +24,7 @@ const nativeModuleTestAppDir = join(__dirname, '../unsupported-native-module')
 const distDir = join(__dirname, '../app/.next')
 const documentPage = new File(join(appDir, 'pages/_document.jsx'))
 const appPage = new File(join(appDir, 'pages/_app.js'))
+const error500Page = new File(join(appDir, 'pages/500.js'))
 
 const documentWithGip = `
 import { Html, Head, Main, NextScript } from 'next/document'
@@ -53,6 +54,12 @@ function App({ Component, pageProps }) {
 }
 
 export default App
+`
+
+const page500 = `
+export default function Page500() {
+  return 'custom-500-page'
+}
 `
 
 async function nextBuild(dir) {
@@ -100,11 +107,13 @@ describe('concurrentFeatures - prod', () => {
   const context = { appDir }
 
   beforeAll(async () => {
+    error500Page.write(page500)
     context.appPort = await findPort()
     await nextBuild(context.appDir)
     context.server = await nextStart(context.appDir, context.appPort)
   })
   afterAll(async () => {
+    error500Page.delete()
     await killApp(context.server)
   })
 
@@ -148,22 +157,23 @@ describe('concurrentFeatures - prod', () => {
     expect(html).toContain('foo.client')
   })
 
-  runBasicTests(context)
+  runBasicTests(context, 'prod')
 })
 
 describe('concurrentFeatures - dev', () => {
   const context = { appDir }
 
   beforeAll(async () => {
+    error500Page.write(page500)
     context.appPort = await findPort()
     context.server = await nextDev(context.appDir, context.appPort)
   })
   afterAll(async () => {
+    error500Page.delete()
     await killApp(context.server)
   })
 
-  // TODO: re-enabled test when update webpack with chunkLoading support
-  it.skip('should support React.lazy and dynamic imports', async () => {
+  it('should support React.lazy and dynamic imports', async () => {
     const html = await renderViaHTTP(context.appPort, '/dynamic-imports')
     expect(html).toContain('loading...')
 
@@ -172,7 +182,7 @@ describe('concurrentFeatures - dev', () => {
     expect(content).toMatchInlineSnapshot('"foo.client"')
   })
 
-  runBasicTests(context)
+  runBasicTests(context, 'dev')
 })
 
 const cssSuite = {
@@ -203,7 +213,8 @@ const documentSuite = {
 runSuite('document', 'dev', documentSuite)
 runSuite('document', 'prod', documentSuite)
 
-async function runBasicTests(context) {
+async function runBasicTests(context, env) {
+  const isDev = env === 'dev'
   it('should render the correct html', async () => {
     const homeHTML = await renderViaHTTP(context.appPort, '/')
 
@@ -218,18 +229,24 @@ async function runBasicTests(context) {
     )
 
     const path404HTML = await renderViaHTTP(context.appPort, '/404')
+    const path500HTML = await renderViaHTTP(context.appPort, '/err')
     const pathNotFoundHTML = await renderViaHTTP(
       context.appPort,
       '/this-is-not-found'
     )
 
     expect(homeHTML).toContain('thisistheindexpage.server')
+    expect(homeHTML).toContain('env_var_test')
     expect(homeHTML).toContain('foo.client')
 
     expect(dynamicRouteHTML1).toContain('[pid]')
     expect(dynamicRouteHTML2).toContain('[pid]')
 
     expect(path404HTML).toContain('custom-404-page')
+    // in dev mode: custom error page is still using default _error
+    expect(path500HTML).toContain(
+      isDev ? 'Internal Server Error' : 'custom-500-page'
+    )
     expect(pathNotFoundHTML).toContain('custom-404-page')
   })
 
@@ -317,6 +334,6 @@ function runSuite(suiteName, env, { runTests, before, after }) {
       await killApp(context.server)
     })
 
-    runTests(context)
+    runTests(context, env)
   })
 }
