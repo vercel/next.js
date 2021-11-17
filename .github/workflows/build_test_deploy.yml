@@ -1134,7 +1134,7 @@ jobs:
     needs: build
     strategy:
       matrix:
-        target: [web, node]
+        target: [web, nodejs]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/cache@v2
