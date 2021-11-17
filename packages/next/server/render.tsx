@@ -1008,7 +1008,7 @@ export async function renderToHTML(
     return new RenderResult((innerRes, next) => {
       bufferedReadFromReadableStream(stream, (val) => innerRes.write(val)).then(
         () => next(),
-        (err) => next(err)
+        (innerErr) => next(innerErr)
       )
     })
   }
@@ -1549,14 +1549,7 @@ async function bufferedReadFromReadableStream(
   let bufferedString = ''
   let pendingFlush: Promise<void> | null = null
 
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) {
-      break
-    }
-
-    bufferedString += typeof value === 'string' ? value : decoder.decode(value)
-
+  const flushBuffer = () => {
     if (!pendingFlush) {
       pendingFlush = new Promise((resolve) =>
         setTimeout(() => {
@@ -1567,6 +1560,16 @@ async function bufferedReadFromReadableStream(
         }, 0)
       )
     }
+  }
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) {
+      break
+    }
+
+    bufferedString += typeof value === 'string' ? value : decoder.decode(value)
+    flushBuffer()
   }
 
   // Make sure the promise resolves after any pending flushes
