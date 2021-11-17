@@ -1248,6 +1248,11 @@ export default async function getBaseWebpackConfig(
                   ]
                 : defaultLoaders.babel,
             },
+            {
+              // Make all non-user modules to be compiled in a single layer
+              // This avoids compiling them mutliple times and avoids module id changes
+              layer: '',
+            },
           ],
         },
         ...(!config.images.disableStaticImages
