@@ -61,6 +61,22 @@ const cwd = process.cwd()
       )
     }
 
+    // Update name/version of wasm packages and publish
+    let wasmDir = path.join(cwd, 'packages/next/build/swc/crates/wasm')
+    for (let wasmTarget of ['web', 'nodejs']) {
+      let wasmPkg = JSON.parse(
+        await readFile(path.join(wasmDir, `pkg-${wasmTarget}/package.json`))
+      )
+      wasmPkg.name = `@next/swc-wasm-${wasmTarget}`
+      wasmPkg.version = version
+      execSync(
+        `npm publish ${path.join(
+          wasmDir,
+          `pkg-${wasmTarget}`
+        )} --access public ${gitref.includes('canary') ? ' --tag canary' : ''}`
+      )
+    }
+
     // Update optional dependencies versions
     let nextPkg = JSON.parse(
       await readFile(path.join(cwd, 'packages/next/package.json'))
