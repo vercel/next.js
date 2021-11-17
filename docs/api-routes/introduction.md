@@ -82,3 +82,10 @@ For more information on what to do next, we recommend the following sections:
     <small>Add TypeScript to your API Routes.</small>
   </a>
 </div>
+
+<div class="card">
+  <a href="https://vercel.com/docs/concepts/functions/supported-languages">
+    <b>Serverless Functions:</b>
+    <small>Supported Languages for Serverless Functions.</small>
+  </a>
+</div>
