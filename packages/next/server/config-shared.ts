@@ -43,6 +43,17 @@ export interface TypeScriptConfig {
   tsconfigPath?: string
 }
 
+export type NextWebpackContext = {
+  dir: string
+  dev: boolean
+  isServer: boolean
+  buildId: string
+  config: NextConfigComplete
+  defaultLoaders: { babel: any }
+  totalPages: number
+  webpack: any
+}
+
 export type NextConfig = { [key: string]: any } & {
   i18n?: I18NConfig | null
 
@@ -63,21 +74,7 @@ export type NextConfig = { [key: string]: any } & {
   webpack5?: false
   excludeDefaultMomentLocales?: boolean
 
-  webpack?:
-    | ((
-        config: any,
-        context: {
-          dir: string
-          dev: boolean
-          isServer: boolean
-          buildId: string
-          config: NextConfigComplete
-          defaultLoaders: { babel: any }
-          totalPages: number
-          webpack: any
-        }
-      ) => any)
-    | null
+  webpack?: ((config: any, context: NextWebpackContext) => any) | null
 
   trailingSlash?: boolean
   env?: { [key: string]: string }
