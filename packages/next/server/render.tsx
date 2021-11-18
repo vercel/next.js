@@ -1005,8 +1005,9 @@ export async function renderToHTML(
       <OriginalComponent {...props} />,
       serverComponentManifest
     )
+    const reader = stream.getReader()
     return new RenderResult((innerRes, next) => {
-      bufferedReadFromReadableStream(stream, (val) => innerRes.write(val)).then(
+      bufferedReadFromReadableStream(reader, (val) => innerRes.write(val)).then(
         () => next(),
         (innerErr) => next(innerErr)
       )
@@ -1540,12 +1541,10 @@ function renderToNodeStream(
 }
 
 async function bufferedReadFromReadableStream(
-  stream: ReadableStream,
+  reader: ReadableStreamDefaultReader,
   writeFn: (val: string) => void
 ): Promise<void> {
-  const reader = stream.getReader()
   const decoder = new TextDecoder()
-
   let bufferedString = ''
   let pendingFlush: Promise<void> | null = null
 
@@ -1594,7 +1593,7 @@ function renderToWebStream(
         if (!resolved) {
           resolved = true
           resolve((res, next) => {
-            bufferedReadFromReadableStream(stream, (val) =>
+            bufferedReadFromReadableStream(reader, (val) =>
               res.write(val)
             ).then(
               () => next(),
@@ -1604,6 +1603,7 @@ function renderToWebStream(
         }
       },
     })
+    const reader = stream.getReader()
   })
 }
 
