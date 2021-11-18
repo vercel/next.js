@@ -29,7 +29,7 @@ const buildIdPath = join(appDir, '.next/BUILD_ID')
 
 function runTests(dev) {
   if (dev) {
-    it('should have error after pinging WebSocket', async () => {
+    it('should not have error after pinging WebSocket', async () => {
       const browser = await webdriver(appPort, '/')
       await browser.eval(`(function() {
         window.uncaughtErrs = []
