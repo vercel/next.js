@@ -1298,27 +1298,25 @@ export async function renderToHTML(
     documentHTML = ReactDOMServer.renderToStaticMarkup(document)
   }
 
-  if (process.env.NODE_ENV !== 'production') {
-    const nonRenderedComponents = []
-    const expectedDocComponents = ['Main', 'Head', 'NextScript', 'Html']
+  const nonRenderedComponents = []
+  const expectedDocComponents = ['Main', 'Head', 'NextScript', 'Html']
 
-    for (const comp of expectedDocComponents) {
-      if (!(docComponentsRendered as any)[comp]) {
-        nonRenderedComponents.push(comp)
-      }
+  for (const comp of expectedDocComponents) {
+    if (!(docComponentsRendered as any)[comp]) {
+      nonRenderedComponents.push(comp)
     }
+  }
+
+  if (nonRenderedComponents.length) {
+    const missingComponentList = nonRenderedComponents
+      .map((e) => `<${e} />`)
+      .join(', ')
     const plural = nonRenderedComponents.length !== 1 ? 's' : ''
-
-    if (nonRenderedComponents.length) {
-      const missingComponentList = nonRenderedComponents
-        .map((e) => `<${e} />`)
-        .join(', ')
-      warn(
-        `Your custom Document (pages/_document) did not render all the required subcomponent${plural}.\n` +
-          `Missing component${plural}: ${missingComponentList}\n` +
-          'Read how to fix here: https://nextjs.org/docs/messages/missing-document-component'
-      )
-    }
+    throw new Error(
+      `Your custom Document (pages/_document) did not render all the required subcomponent${plural}.\n` +
+        `Missing component${plural}: ${missingComponentList}\n` +
+        'Read how to fix here: https://nextjs.org/docs/messages/missing-document-component'
+    )
   }
 
   const [renderTargetPrefix, renderTargetSuffix] = documentHTML.split(

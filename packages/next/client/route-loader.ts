@@ -376,34 +376,30 @@ export function createRouteLoader(assetPrefix: string): RouteLoader {
     },
     loadRoute(route: string, prefetch?: boolean) {
       return withFuture<RouteLoaderEntry>(route, routes, () => {
-        const routeFilesPromise = getFilesForRoute(assetPrefix, route)
-          .then(({ scripts, css }) => {
-            return Promise.all([
-              entrypoints.has(route)
-                ? []
-                : Promise.all(scripts.map(maybeExecuteScript)),
-              Promise.all(css.map(fetchStyleSheet)),
-            ] as const)
-          })
-          .then((res) => {
-            return this.whenEntrypoint(route).then((entrypoint) => ({
-              entrypoint,
-              styles: res[1],
-            }))
-          })
+        let devBuildPromiseResolve: () => void
 
         if (process.env.NODE_ENV === 'development') {
           devBuildPromise = new Promise<void>((resolve) => {
-            if (routeFilesPromise) {
-              return routeFilesPromise.finally(() => {
-                resolve()
-              })
-            }
+            devBuildPromiseResolve = resolve
           })
         }
 
         return resolvePromiseWithTimeout(
-          routeFilesPromise,
+          getFilesForRoute(assetPrefix, route)
+            .then(({ scripts, css }) => {
+              return Promise.all([
+                entrypoints.has(route)
+                  ? []
+                  : Promise.all(scripts.map(maybeExecuteScript)),
+                Promise.all(css.map(fetchStyleSheet)),
+              ] as const)
+            })
+            .then((res) => {
+              return this.whenEntrypoint(route).then((entrypoint) => ({
+                entrypoint,
+                styles: res[1],
+              }))
+            }),
           MS_MAX_IDLE_DELAY,
           markAssetError(new Error(`Route did not complete loading: ${route}`))
         )
@@ -421,6 +417,7 @@ export function createRouteLoader(assetPrefix: string): RouteLoader {
             }
             return { error: err }
           })
+          .finally(() => devBuildPromiseResolve?.())
       })
     },
     prefetch(route: string): Promise<void> {
