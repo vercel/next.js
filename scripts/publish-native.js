@@ -69,6 +69,11 @@ const cwd = process.cwd()
       )
       wasmPkg.name = `@next/swc-wasm-${wasmTarget}`
       wasmPkg.version = version
+
+      await writeFile(
+        path.join(wasmDir, `pkg-${wasmTarget}/package.json`),
+        JSON.stringify(wasmPkg, null, 2)
+      )
       execSync(
         `npm publish ${path.join(
           wasmDir,
