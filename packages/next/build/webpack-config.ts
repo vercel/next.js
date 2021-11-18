@@ -957,14 +957,10 @@ export default async function getBaseWebpackConfig(
     },
   }
 
-  const nonUserCondition = config.experimental.externalDir
-    ? {
-        include: /node_modules/,
-        exclude: babelIncludeRegexes,
-      }
-    : {
-        exclude: [dir, ...babelIncludeRegexes],
-      }
+  const nonUserCondition = {
+    include: /node_modules/,
+    exclude: babelIncludeRegexes,
+  }
 
   let webpackConfig: webpack.Configuration = {
     parallelism: Number(process.env.NEXT_WEBPACK_PARALLELISM) || undefined,
@@ -1263,6 +1259,7 @@ export default async function getBaseWebpackConfig(
           ...nonUserCondition,
           // Make all non-user modules to be compiled in a single layer
           // This avoids compiling them mutliple times and avoids module id changes
+          issuerLayer: 'middleware',
           layer: '',
         },
         ...(!config.images.disableStaticImages
