@@ -42,3 +42,13 @@ test-timings.json
 
 # Cache
 *.tsbuildinfo
+packages/next/trace/report/to-zipkin.js.map
+packages/next/trace/report/to-zipkin.js
+packages/next/shared/lib/i18n/normalize-locale-path.js.map
+packages/next/shared/lib/i18n/normalize-locale-path.js
+packages/next/client/dev/error-overlay/websocket.js.map
+packages/next/client/dev/error-overlay/websocket.js
+packages/next/client/dev/amp-dev.js.map
+examples/cms-sitecore/styles/index.css
+packages/next/client/dev/amp-dev.js
+packages/next/client/dev/amp-dev.js

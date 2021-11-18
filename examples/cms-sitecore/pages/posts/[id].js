@@ -1,4 +1,4 @@
-import {getAllPostsIds, getPostAndMorePosts} from '../../lib/api'
+import { getAllPostsIds, getPostAndMorePosts } from '../../lib/api'
 
 import { CMS_NAME } from '../../lib/constants'
 import Container from '../../components/container'
@@ -14,8 +14,8 @@ import SectionSeparator from '../../components/section-separator'
 import { useRouter } from 'next/router'
 
 export default function Post({ post, morePosts, preview }) {
-  const router = useRouter()  
-  if (!router.isFallback && !post?.id) {    
+  const router = useRouter()
+  if (!router.isFallback && !post?.id) {
     return <ErrorPage statusCode={404} />
   }
   return (
@@ -40,7 +40,7 @@ export default function Post({ post, morePosts, preview }) {
                 author={post.author}
               />
               <PostBody content={post.content} />
-              
+
               {/* This is an example to test related content.  */}
               {/* <div>
                 <h2>Example of related content!</h2>
@@ -60,8 +60,8 @@ export default function Post({ post, morePosts, preview }) {
   )
 }
 
-export async function getStaticProps({ params, preview = null }) {
-  const data = await getPostAndMorePosts(params.id, preview) ?? {}         
+export async function getStaticProps({ params, preview = false }) {
+  const data = (await getPostAndMorePosts(params.id, preview)) ?? {}
   return {
     props: {
       preview,
@@ -70,10 +70,9 @@ export async function getStaticProps({ params, preview = null }) {
     },
   }
 }
-  
 
 export async function getStaticPaths() {
-  const allPosts = await getAllPostsIds();  
+  const allPosts = await getAllPostsIds()
   return {
     paths: allPosts?.map((post) => `/posts/${post.id}`) || [],
     fallback: true,

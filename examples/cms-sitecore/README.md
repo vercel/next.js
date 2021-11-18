@@ -4,19 +4,15 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 
 # Live Demo
 
-[nextjs-sitecore-blog.vercel.app](nextjs-sitecore-blog.vercel.app)
+[https://nextjs-blog-sitecore.vercel.app/](https://nextjs-blog-sitecore.vercel.app/)
 
 # Configuration
 
-## Prerequisites
-
-To use this project, you need to have your Sitecore Content Hub sandbox up and running with **content publishing enabled**.
-
-This project uses the content schema and content entities provided **with the Lighthouse Template**.
-
-For more information: https://docs.stylelabs.com/contenthub/4.1.x/content/user-documentation/experience-edge/content-delivery/prerequisites.html
-
-## Prepare you content hub sandbox
+    ## Prerequisites
+        To use this project, you need to have your Sitecore Content Hub sandbox up and running with **content publishing enabled**.
+        This project uses the content schema and content entities provided **with the Lighthouse Template**.
+        For more information: https://docs.stylelabs.com/contenthub/4.1.x/content/user-documentation/experience-edge/content-delivery/prerequisites.html
+    ## Prepare you content hub sandbox
 
 ### STEP 1. Create Content Collection
 
@@ -128,3 +124,10 @@ npx create-next-app --example cms-sitecore cms-sitecore-app
 # or
 yarn create next-app --example cms-sitecore cms-sitecore-app
 ```
+
+# Next Steps
+
+- Fix Preview/Exit Preview functions.
+- Add Related content - like a promo card
+- Add multingual and multi-site support
+- Extend the Author propreties to support Author Avatar and Name.

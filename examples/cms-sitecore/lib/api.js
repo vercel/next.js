@@ -1,6 +1,6 @@
-import { normalizePosts } from './normalize';
+import { normalizePosts } from './normalize'
 
-export const GQL_FIELDS_ON_FINANCIAL =`
+export const GQL_FIELDS_ON_FINANCIAL = `
 {    
   articleId : id
   articleTitle: _b004_Title
@@ -23,9 +23,9 @@ export const GQL_FIELDS_ON_FINANCIAL =`
       content_Name                
     }
   }
-}`;
+}`
 
-export const GQL_FIELDS_ON_LIGHTHOUSE =`
+export const GQL_FIELDS_ON_LIGHTHOUSE = `
 {
   articleId : id
   articleTitle: _f4e3_Title
@@ -46,34 +46,28 @@ export const GQL_FIELDS_ON_LIGHTHOUSE =`
       }
     }
   }
-}`;
+}`
 
 async function fetchGraphQL(query, preview = true) {
-  
-  let edgeEndpoint = `${process.env.SITECORE_CONTENTHUB_PUBLIC_URL}/api/graphql/preview/v1`; // TODO Replace with Delivery env variables when content hub Delivery is enabled.  
-  let apiToken = process.env.SITECORE_CONTENTHUB_PREVIEW_ACCESS_TOKEN //TODO Replace with Delivery env variables when content hub Delivery is enabled. 
-  
-  if (preview){
-     edgeEndpoint = `${process.env.SITECORE_CONTENTHUB_PUBLIC_URL}/api/graphql/preview/v1`;
-     apiToken = process.env.SITECORE_CONTENTHUB_PREVIEW_ACCESS_TOKEN
+  let edgeEndpoint = process.env.SITECORE_CONTENTHUB_EDGE_DELIVERY_ENDPOINT
+  let apiToken = process.env.SITECORE_CONTENTHUB_DELIVERY_ACCESS_TOKEN
+
+  if (preview) {
+    edgeEndpoint = `${process.env.SITECORE_CONTENTHUB_PUBLIC_URL}/api/graphql/preview/v1`
+    apiToken = process.env.SITECORE_CONTENTHUB_PREVIEW_ACCESS_TOKEN
   }
-  try{  
-    return fetch(
-      `${edgeEndpoint}`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-GQL-Token': `${apiToken}`,
-        },
-        body: JSON.stringify({ query }),
-      }
-    ).then((response) => response.json());
+  try {
+    return fetch(`${edgeEndpoint}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-GQL-Token': `${apiToken}`,
+      },
+      body: JSON.stringify({ query }),
+    }).then((response) => response.json())
+  } catch (error) {
+    console.log(error)
   }
-  catch (error){
-    console.log(error);
-  }
-  
 }
 
 export async function getAllPosts(preview) {
@@ -96,23 +90,23 @@ export async function getAllPosts(preview) {
         }
       }      
     }
-  }`;    
-  const entries = await fetchGraphQL(query, preview);    
-  return AllPostEntries(entries);
+  }`
+  const entries = await fetchGraphQL(query, preview)
+  return AllPostEntries(entries)
 }
 
-
-
-// function FirstPostEntry(fetchResponse) {  
+// function FirstPostEntry(fetchResponse) {
 //   const data = fetchResponse?.data?.allM_ContentCollection?.results?.[0];
-//   const normalizedPost = normalizePosts(data)  
-//   return normalizedPost || null 
+//   const normalizedPost = normalizePosts(data)
+//   return normalizedPost || null
 // }
 
 function AllPostEntries(fetchResponse) {
-  const data = fetchResponse?.data?.allM_ContentCollection?.results?.[0]?.contentCollection?.contentItems  
-  const normalizedPosts = normalizePosts(data)    
-  return normalizedPosts || null 
+  const data =
+    fetchResponse?.data?.allM_ContentCollection?.results?.[0]?.contentCollection
+      ?.contentItems
+  const normalizedPosts = normalizePosts(data)
+  return normalizedPosts || null
 }
 
 export async function getPostById(postId, preview) {
@@ -120,24 +114,24 @@ export async function getPostById(postId, preview) {
   query {
     m_Content_4f4e3(id: "${postId}")    
     ${GQL_FIELDS_ON_LIGHTHOUSE}    
-  }`;     
-  const entry = await fetchGraphQL(query, preview);      
-  let post = new Array(entry.data?.m_Content_4f4e3);    
-  let normalizedPost =  normalizePosts(post);  
-  return normalizedPost || null ;
+  }`
+  const entry = await fetchGraphQL(query, preview)
+  let post = new Array(entry.data?.m_Content_4f4e3)
+  let normalizedPost = normalizePosts(post)
+  return normalizedPost || null
 }
 
-export async function getPostAndMorePosts(postId, preview) {  
-  const entry = await getPostById(postId, preview); 
-  const entries = await getAllPosts(preview);       
-  
+export async function getPostAndMorePosts(postId, preview) {
+  const entry = await getPostById(postId, preview)
+  const entries = await getAllPosts(preview)
+
   return {
     post: entry,
     morePosts: entries,
   }
 }
 
-export async function getAllPostsIds(preview){
+export async function getAllPostsIds(preview) {
   const query = `
   {
     allM_ContentCollection(where: { contentCollectionName_eq: "${process.env.SITECORE_CONTENTHUB_CONTENTCOLLECTION_NAME}" }) {
@@ -152,7 +146,7 @@ export async function getAllPostsIds(preview){
         }
       }
     }
-  }`   
-  const entries = await fetchGraphQL(query, preview);  
-  return entries?.results?.[0]?.contentItems;
+  }`
+  const entries = await fetchGraphQL(query, preview)
+  return entries?.results?.[0]?.contentItems
 }

@@ -2,13 +2,13 @@ import Image from 'next/image'
 import Link from 'next/link'
 import cn from 'classnames'
 
-export default function CoverImage({ title, url, id }) {  
-  const image = (       
+export default function CoverImage({ title, url, id }) {
+  const image = (
     <Image
       width={2000}
       height={1000}
-      alt={`Cover Image for ${title}`}      
-      className="object-cover"            
+      alt={`Cover Image for ${title}`}
+      className="object-cover"
       src={url}
     />
   )

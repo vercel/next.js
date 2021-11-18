@@ -36,7 +36,7 @@ module.exports = {
     extend: {
       borderColor: ['focus-visible'],
       opacity: ['disabled'],
-    }
+    },
   },
   plugins: [],
 }

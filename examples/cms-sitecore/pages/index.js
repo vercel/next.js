@@ -8,7 +8,7 @@ import MoreStories from '../components/more-stories'
 import { getAllPosts } from '../lib/api'
 
 export default function Index({ preview, allPosts }) {
-  const heroPost = allPosts[0]  
+  const heroPost = allPosts[0]
   const morePosts = allPosts.slice(1)
   return (
     <>
@@ -35,8 +35,8 @@ export default function Index({ preview, allPosts }) {
   )
 }
 
-export async function getStaticProps({ preview = true }) {
-  const allPosts = await getAllPosts(preview) ?? []
+export async function getStaticProps({ preview = false }) {
+  const allPosts = (await getAllPosts(preview)) ?? []
   return {
     props: { preview, allPosts },
   }

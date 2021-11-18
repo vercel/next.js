@@ -19,7 +19,10 @@
     "autoprefixer": "^10.4.0",
     "eslint": "7.32.0",
     "eslint-config-next": "12.0.3",
+    "eslint-config-prettier": "^8.3.0",
+    "eslint-plugin-prettier": "^4.0.0",
     "postcss": "^8.3.11",
+    "prettier": "2.4.1",
     "tailwindcss": "^2.2.19"
   }
 }
