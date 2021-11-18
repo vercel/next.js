@@ -1146,7 +1146,7 @@ export async function renderToHTML(
       }
     } else {
       const styledJsxFlushEffect = () => {
-        const styles = jsxStyleRegistry.styles() as any as JSX.Element[]
+        const styles = jsxStyleRegistry.styles() as any as React.ReactElement[]
         jsxStyleRegistry.flush()
         return styles.length > 0 ? null : <>{styles}</>
       }
@@ -1157,6 +1157,7 @@ export async function renderToHTML(
         const elements = [styledJsxFlushEffect, ...flushEffects]
           .map((fn) => fn())
           .filter(Boolean)
+          .map((elem, i) => React.cloneElement(elem!, { key: i }))
         if (elements.length > 0) {
           return renderToStaticString(<>{elements}</>)
         } else {

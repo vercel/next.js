@@ -1,6 +1,6 @@
 import { FunctionComponent, ReactElement } from 'react'
 
-type FlushEffect = () => string | null
+type FlushEffect = () => ReactElement
 type FlushEffectHook = (fn: FlushEffect) => void
 let CURRENT_HOOK_IMPL: FlushEffectHook | null = null
 
