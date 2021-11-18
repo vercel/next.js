@@ -16,16 +16,21 @@ export default function Alert({ preview }) {
           {preview ? (
             <>
               This is page is a preview.{' '}
-              <Link href="/api/exit-preview" className="underline hover:text-cyan duration-200 transition-colors">
-                <a>Click here</a>
-              </Link>               
-              {' '}
+              <a
+                href="/api/exit-preview"
+                class="underline hover:text-cyan duration-200 transition-colors"
+              >
+                Click here
+              </a>{' '}
               to exit preview mode.
             </>
           ) : (
             <>
               The source code for this blog is{' '}
-              <Link href={`${EXAMPLE_PATH}`} className="underline hover:text-success duration-200 transition-colors">
+              <Link
+                href={`${EXAMPLE_PATH}`}
+                className="underline hover:text-success duration-200 transition-colors"
+              >
                 <a>available on GitHub</a>
               </Link>
               .
