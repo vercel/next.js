@@ -1,10 +1,20 @@
 import Router from 'next/router'
 import { addMessageListener, sendMessage } from './error-overlay/websocket'
 
-export default async () => {
-  setInterval(() => {
-    sendMessage(JSON.stringify({ event: 'ping', page: Router.pathname }))
-  }, 2500)
+export default async (page) => {
+  if (page) {
+    // in AMP the router isn't initialized on the client and
+    // client-transitions don't occur so ping initial page
+    setInterval(() => {
+      sendMessage(JSON.stringify({ event: 'ping', page }))
+    }, 2500)
+  } else {
+    Router.ready(() => {
+      setInterval(() => {
+        sendMessage(JSON.stringify({ event: 'ping', page: Router.pathname }))
+      }, 2500)
+    })
+  }
 
   addMessageListener((event) => {
     if (event.data.indexOf('{') === -1) return
