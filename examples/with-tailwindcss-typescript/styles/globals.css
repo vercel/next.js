@@ -1,0 +1,35 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/**
+ * These are example global styles for h1.
+ * https://tailwindcss.com/docs/adding-base-styles#using-css
+ * Alternatively, build a Heading component.
+ */
+
+@layer base {
+  h1 {
+    @apply text-2xl font-semibold my-3;
+  }
+}
+
+/**
+ * You can also use this file to add custom fonts.
+ * https://tailwindcss.com/docs/adding-base-styles#font-face-rules
+ */
+
+/*
+@layer base {
+  @font-face {
+    font-family: Proxima Nova;
+    font-weight: 400;
+    src: url(/fonts/proxima-nova/400-regular.woff) format("woff");
+  }
+  @font-face {
+    font-family: Proxima Nova;
+    font-weight: 500;
+    src: url(/fonts/proxima-nova/500-medium.woff) format("woff");
+  }
+}
+*/
