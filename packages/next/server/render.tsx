@@ -3,6 +3,8 @@ import { ParsedUrlQuery } from 'querystring'
 import type { Writable as WritableType } from 'stream'
 import React from 'react'
 import ReactDOMServer from 'react-dom/server'
+import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack'
+import { renderToReadableStream } from 'next/dist/compiled/react-server-dom-webpack/writer.browser.server'
 import { StyleRegistry, createStyleRegistry } from 'styled-jsx'
 import { UnwrapPromise } from '../lib/coalesced-function'
 import {
@@ -68,6 +70,8 @@ let getFontDefinitionFromManifest: typeof import('./font-utils').getFontDefiniti
 let tryGetPreviewData: typeof import('./api-utils').tryGetPreviewData
 let warn: typeof import('../build/output/log').warn
 let postProcess: typeof import('../shared/lib/post-process').default
+
+const DOCTYPE = '<!DOCTYPE html>'
 
 if (!process.browser) {
   Writable = require('stream').Writable
@@ -203,7 +207,8 @@ export type RenderOptsPartial = {
   devOnlyCacheBusterQueryString?: string
   resolvedUrl?: string
   resolvedAsPath?: string
-  renderServerComponent?: null | (() => Promise<string>)
+  serverComponentManifest?: any
+  renderServerComponentData?: boolean
   distDir?: string
   locale?: string
   locales?: string[]
@@ -274,6 +279,49 @@ function checkRedirectValues(
   }
 }
 
+// Create the wrapper component for a Flight stream.
+function createServerComponentRenderer(
+  OriginalComponent: React.ComponentType,
+  serverComponentManifest: NonNullable<RenderOpts['serverComponentManifest']>
+) {
+  let responseCache: any
+  const ServerComponentWrapper = (props: any) => {
+    let response = responseCache
+    if (!response) {
+      responseCache = response = createFromReadableStream(
+        renderToReadableStream(
+          <OriginalComponent {...props} />,
+          serverComponentManifest
+        )
+      )
+    }
+    return response.readRoot()
+  }
+  const Component = (props: any) => {
+    return (
+      <React.Suspense fallback={null}>
+        <ServerComponentWrapper {...props} />
+      </React.Suspense>
+    )
+  }
+
+  // Although it's not allowed to attach some static methods to Component,
+  // we still re-assign all the component APIs to keep the behavior unchanged.
+  for (const methodName of [
+    'getInitialProps',
+    'getStaticProps',
+    'getServerSideProps',
+    'getStaticPaths',
+  ]) {
+    const method = (OriginalComponent as any)[methodName]
+    if (method) {
+      ;(Component as any)[methodName] = method
+    }
+  }
+
+  return Component
+}
+
 export async function renderToHTML(
   req: IncomingMessage,
   res: ServerResponse,
@@ -298,7 +346,6 @@ export async function renderToHTML(
     App,
     Document,
     pageConfig = {},
-    Component,
     buildManifest,
     fontManifest,
     reactLoadableManifest,
@@ -306,7 +353,8 @@ export async function renderToHTML(
     getStaticProps,
     getStaticPaths,
     getServerSideProps,
-    renderServerComponent,
+    serverComponentManifest,
+    renderServerComponentData,
     isDataReq,
     params,
     previewProps,
@@ -315,6 +363,12 @@ export async function renderToHTML(
     supportsDynamicHTML,
     concurrentFeatures,
   } = renderOpts
+
+  const isServerComponent = !!serverComponentManifest
+  const OriginalComponent = renderOpts.Component
+  const Component = isServerComponent
+    ? createServerComponentRenderer(OriginalComponent, serverComponentManifest)
+    : renderOpts.Component
 
   const getFontDefinition = (url: string): string => {
     if (fontManifest) {
@@ -358,8 +412,6 @@ export async function renderToHTML(
     App.getInitialProps === (App as any).origGetInitialProps
 
   const hasPageGetInitialProps = !!(Component as any).getInitialProps
-
-  const isRSC = !!renderServerComponent
 
   const pageIsDynamic = isDynamicRoute(pathname)
 
@@ -940,8 +992,27 @@ export async function renderToHTML(
     props.pageProps = {}
   }
 
+  // Pass router to the Server Component as a temporary workaround.
+  if (isServerComponent) {
+    props.pageProps = Object.assign({}, props.pageProps, { router })
+  }
+
   // the response might be finished on the getInitialProps call
   if (isResSent(res) && !isSSG) return null
+
+  if (renderServerComponentData) {
+    const stream: ReadableStream = renderToReadableStream(
+      <OriginalComponent {...props} />,
+      serverComponentManifest
+    )
+    const reader = stream.getReader()
+    return new RenderResult((innerRes, next) => {
+      bufferedReadFromReadableStream(reader, (val) => innerRes.write(val)).then(
+        () => next(),
+        (innerErr) => next(innerErr)
+      )
+    })
+  }
 
   // we preload the buildManifest for auto-export dynamic pages
   // to speed up hydrating query values
@@ -1081,7 +1152,7 @@ export async function renderToHTML(
 
         return concurrentFeatures
           ? process.browser
-            ? await renderToReadableStream(content)
+            ? await renderToWebStream(content)
             : await renderToNodeStream(content, generateStaticHTML)
           : piperFromArray([ReactDOMServer.renderToString(content)])
       }
@@ -1154,7 +1225,7 @@ export async function renderToHTML(
       err: renderOpts.err ? serializeError(dev, renderOpts.err) : undefined, // Error if one happened, otherwise don't sent in the resulting HTML
       gsp: !!getStaticProps ? true : undefined, // whether the page is getStaticProps
       gssp: !!getServerSideProps ? true : undefined, // whether the page is getServerSideProps
-      rsc: isRSC ? true : undefined, // whether the page is a server components page
+      rsc: isServerComponent ? true : undefined, // whether the page is a server components page
       customServer, // whether the user is using a custom server
       gip: hasPageGetInitialProps ? true : undefined, // whether the page has getInitialProps
       appGip: !defaultAppGetInitialProps ? true : undefined, // whether the _app has getInitialProps
@@ -1226,34 +1297,34 @@ export async function renderToHTML(
     documentHTML = ReactDOMServer.renderToStaticMarkup(document)
   }
 
-  if (process.env.NODE_ENV !== 'production') {
-    const nonRenderedComponents = []
-    const expectedDocComponents = ['Main', 'Head', 'NextScript', 'Html']
+  const nonRenderedComponents = []
+  const expectedDocComponents = ['Main', 'Head', 'NextScript', 'Html']
 
-    for (const comp of expectedDocComponents) {
-      if (!(docComponentsRendered as any)[comp]) {
-        nonRenderedComponents.push(comp)
-      }
+  for (const comp of expectedDocComponents) {
+    if (!(docComponentsRendered as any)[comp]) {
+      nonRenderedComponents.push(comp)
     }
+  }
+
+  if (nonRenderedComponents.length) {
+    const missingComponentList = nonRenderedComponents
+      .map((e) => `<${e} />`)
+      .join(', ')
     const plural = nonRenderedComponents.length !== 1 ? 's' : ''
-
-    if (nonRenderedComponents.length) {
-      const missingComponentList = nonRenderedComponents
-        .map((e) => `<${e} />`)
-        .join(', ')
-      warn(
-        `Your custom Document (pages/_document) did not render all the required subcomponent${plural}.\n` +
-          `Missing component${plural}: ${missingComponentList}\n` +
-          'Read how to fix here: https://nextjs.org/docs/messages/missing-document-component'
-      )
-    }
+    throw new Error(
+      `Your custom Document (pages/_document) did not render all the required subcomponent${plural}.\n` +
+        `Missing component${plural}: ${missingComponentList}\n` +
+        'Read how to fix here: https://nextjs.org/docs/messages/missing-document-component'
+    )
   }
 
   const [renderTargetPrefix, renderTargetSuffix] = documentHTML.split(
     /<next-js-internal-body-render-target><\/next-js-internal-body-render-target>/
   )
   const prefix: Array<string> = []
-  prefix.push('<!DOCTYPE html>')
+  if (!documentHTML.startsWith(DOCTYPE)) {
+    prefix.push(DOCTYPE)
+  }
   prefix.push(renderTargetPrefix)
   if (inAmpMode) {
     prefix.push('<!-- __NEXT_DATA__ -->')
@@ -1467,36 +1538,49 @@ function renderToNodeStream(
   })
 }
 
-function renderToReadableStream(
+async function bufferedReadFromReadableStream(
+  reader: ReadableStreamDefaultReader,
+  writeFn: (val: string) => void
+): Promise<void> {
+  const decoder = new TextDecoder()
+  let bufferedString = ''
+  let pendingFlush: Promise<void> | null = null
+
+  const flushBuffer = () => {
+    if (!pendingFlush) {
+      pendingFlush = new Promise((resolve) =>
+        setTimeout(() => {
+          writeFn(bufferedString)
+          bufferedString = ''
+          pendingFlush = null
+          resolve()
+        }, 0)
+      )
+    }
+  }
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) {
+      break
+    }
+
+    bufferedString += typeof value === 'string' ? value : decoder.decode(value)
+    flushBuffer()
+  }
+
+  // Make sure the promise resolves after any pending flushes
+  await pendingFlush
+}
+
+function renderToWebStream(
   element: React.ReactElement
 ): Promise<NodeWritablePiper> {
   return new Promise((resolve, reject) => {
-    let reader: any = null
     let resolved = false
-    const doResolve = () => {
-      if (resolved) return
-      resolved = true
-      const piper: NodeWritablePiper = (res, next) => {
-        const streamReader: ReadableStreamDefaultReader = reader
-        const decoder = new TextDecoder()
-        const process = async () => {
-          streamReader.read().then(({ done, value }) => {
-            if (!done) {
-              const s =
-                typeof value === 'string' ? value : decoder.decode(value)
-              res.write(s)
-              process()
-            } else {
-              next()
-            }
-          })
-        }
-        process()
-      }
-      resolve(piper)
-    }
-
-    const readable = (ReactDOMServer as any).renderToReadableStream(element, {
+    const stream: ReadableStream = (
+      ReactDOMServer as any
+    ).renderToReadableStream(element, {
       onError(err: Error) {
         if (!resolved) {
           resolved = true
@@ -1504,12 +1588,20 @@ function renderToReadableStream(
         }
       },
       onCompleteShell() {
-        doResolve()
+        if (!resolved) {
+          resolved = true
+          resolve((res, next) => {
+            bufferedReadFromReadableStream(reader, (val) =>
+              res.write(val)
+            ).then(
+              () => next(),
+              (err) => next(err)
+            )
+          })
+        }
       },
     })
-    // Start reader and lock stream immediately to consume readable,
-    // Otherwise the bytes before `onCompleteShell` will be missed.
-    reader = readable.getReader()
+    const reader = stream.getReader()
   })
 }
 

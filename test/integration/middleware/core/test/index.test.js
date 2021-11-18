@@ -156,6 +156,16 @@ function rewriteTests(locale = '') {
     expect($('.title').text()).toBe('About Page')
   })
 
+  it(`${locale} should rewrite when not using localhost`, async () => {
+    const res = await fetchViaHTTP(
+      `http://localtest.me:${context.appPort}`,
+      `${locale}/rewrites/rewrite-me-without-hard-navigation`
+    )
+    const html = await res.text()
+    const $ = cheerio.load(html)
+    expect($('.title').text()).toBe('About Page')
+  })
+
   it(`${locale} should rewrite to Vercel`, async () => {
     const res = await fetchViaHTTP(
       context.appPort,
@@ -340,6 +350,14 @@ function responseTests(locale = '') {
       'bar=chocochip',
       'foo=oatmeal',
     ])
+  })
+
+  it(`${locale} should be intercepted by deep middleware`, async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      `${locale}/responses/deep?deep-intercept=true`
+    )
+    expect(await res.text()).toBe('intercepted!')
   })
 }
 

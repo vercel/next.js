@@ -15,7 +15,7 @@ export type OutputState =
       | {
           loading: false
           typeChecking: boolean
-          partial: 'client' | 'server' | 'serverWeb' | undefined
+          partial: 'client and server' | undefined
           modules: number
           errors: string[] | null
           warnings: string[] | null
