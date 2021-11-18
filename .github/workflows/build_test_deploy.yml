@@ -505,10 +505,17 @@ jobs:
         with:
           path: ./*
           key: ${{ github.sha }}
+
       - uses: actions/download-artifact@v2
         with:
           name: next-swc-binaries
           path: packages/next/build/swc/dist
+
+      - uses: actions/download-artifact@v2
+        with:
+          name: wasm-binaries
+          path: packages/next/build/swc/crates/wasm
+
       - run: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
       - run: ./scripts/publish-native.js $GITHUB_REF
       - run: ./scripts/publish-release.sh
