@@ -1,8 +1,8 @@
 {
   "labels": {
     "type: example": ["examples/**"],
-    "type: documentation": ["docs/**", "errors/**"],
-    "type: create-next-app": ["packages/create-next-app/**"],
+    "area: documentation": ["docs/**", "errors/**"],
+    "area: create-next-app": ["packages/create-next-app/**"],
     "type: next": [
       "packages/next/**",
       "packages/react-dev-overlay/**",
@@ -29,6 +29,7 @@
       { "type": "user", "pattern": "sokra" },
       { "type": "user", "pattern": "styfle" },
       { "type": "user", "pattern": "leerob" },
+      { "type": "user", "pattern": "kdy1" },
       { "type": "user", "pattern": "timneutkens" }
     ]
   }

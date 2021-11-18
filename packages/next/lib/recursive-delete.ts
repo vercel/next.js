@@ -1,13 +1,17 @@
 import { Dirent, promises } from 'fs'
-import { join } from 'path'
+import { join, isAbsolute, dirname } from 'path'
 import { promisify } from 'util'
 import isError from './is-error'
 
 const sleep = promisify(setTimeout)
 
-const unlinkFile = async (p: string, t = 1): Promise<void> => {
+const unlinkPath = async (p: string, isDir = false, t = 1): Promise<void> => {
   try {
-    await promises.unlink(p)
+    if (isDir) {
+      await promises.rmdir(p)
+    } else {
+      await promises.unlink(p)
+    }
   } catch (e) {
     const code = isError(e) && e.code
     if (
@@ -18,7 +22,7 @@ const unlinkFile = async (p: string, t = 1): Promise<void> => {
       t < 3
     ) {
       await sleep(t * 100)
-      return unlinkFile(p, t++)
+      return unlinkPath(p, isDir, t++)
     }
 
     if (code === 'ENOENT') {
@@ -58,19 +62,29 @@ export async function recursiveDelete(
       // readdir does not follow symbolic links
       // if part is a symbolic link, follow it using stat
       let isDirectory = part.isDirectory()
-      if (part.isSymbolicLink()) {
-        const stats = await promises.stat(absolutePath)
-        isDirectory = stats.isDirectory()
+      const isSymlink = part.isSymbolicLink()
+
+      if (isSymlink) {
+        const linkPath = await promises.readlink(absolutePath)
+
+        try {
+          const stats = await promises.stat(
+            isAbsolute(linkPath)
+              ? linkPath
+              : join(dirname(absolutePath), linkPath)
+          )
+          isDirectory = stats.isDirectory()
+        } catch (_) {}
       }
 
       const pp = join(previousPath, part.name)
-      if (isDirectory && (!exclude || !exclude.test(pp))) {
-        await recursiveDelete(absolutePath, exclude, pp)
-        return promises.rmdir(absolutePath)
-      }
+      const isNotExcluded = !exclude || !exclude.test(pp)
 
-      if (!exclude || !exclude.test(pp)) {
-        return unlinkFile(absolutePath)
+      if (isNotExcluded) {
+        if (isDirectory) {
+          await recursiveDelete(absolutePath, exclude, pp)
+        }
+        return unlinkPath(absolutePath, !isSymlink && isDirectory)
       }
     })
   )

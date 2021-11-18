@@ -58,7 +58,9 @@ const nextDev: cliCommand = (argv) => {
   }
 
   async function preflight() {
-    const { getPackageVersion } = await import('../lib/get-package-version')
+    const { getPackageVersion } = await Promise.resolve(
+      require('../lib/get-package-version')
+    )
     const [sassVersion, nodeSassVersion] = await Promise.all([
       getPackageVersion({ cwd: dir, name: 'sass' }),
       getPackageVersion({ cwd: dir, name: 'node-sass' }),
@@ -71,7 +73,7 @@ const nextDev: cliCommand = (argv) => {
       )
     }
   }
-
+  const allowRetry = !args['--port']
   let port: number =
     args['--port'] || (process.env.PORT && parseInt(process.env.PORT)) || 3000
 
@@ -86,7 +88,11 @@ const nextDev: cliCommand = (argv) => {
   // some set-ups that rely on listening on other interfaces
   const host = args['--hostname']
 
-  startServer({ dir, dev: true, isNextDevCommand: true }, port, host)
+  startServer(
+    { dir, dev: true, isNextDevCommand: true, allowRetry },
+    port,
+    host
+  )
     .then(async ({ app, actualPort }) => {
       const appUrl = `http://${
         !host || host === '0.0.0.0' ? 'localhost' : host

@@ -145,10 +145,16 @@ function buildManifest(
 export class ReactLoadablePlugin {
   private filename: string
   private pagesDir: string
+  private runtimeAsset?: string
 
-  constructor(opts: { filename: string; pagesDir: string }) {
+  constructor(opts: {
+    filename: string
+    pagesDir: string
+    runtimeAsset?: string
+  }) {
     this.filename = opts.filename
     this.pagesDir = opts.pagesDir
+    this.runtimeAsset = opts.runtimeAsset
   }
 
   createAssets(compiler: any, compilation: any, assets: any) {
@@ -157,6 +163,11 @@ export class ReactLoadablePlugin {
     assets[this.filename] = new sources.RawSource(
       JSON.stringify(manifest, null, 2)
     )
+    if (this.runtimeAsset) {
+      assets[this.runtimeAsset] = new sources.RawSource(
+        `self.__REACT_LOADABLE_MANIFEST=${JSON.stringify(manifest)}`
+      )
+    }
     return assets
   }
 
