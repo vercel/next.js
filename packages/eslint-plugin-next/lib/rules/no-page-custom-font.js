@@ -40,9 +40,10 @@ module.exports = {
       },
 
       ExportDefaultDeclaration(node) {
+        exportDeclarationType = node.declaration.type
+
         if (node.declaration.type === 'FunctionDeclaration') {
           localDefaultExportName = node.declaration.id.name
-          exportDeclarationType = 'FunctionDeclaration'
           return
         }
 
@@ -52,7 +53,6 @@ module.exports = {
           node.declaration.superClass.name === documentImportName
         ) {
           localDefaultExportName = node.declaration.id.name
-          exportDeclarationType = 'ClassDeclaration'
         }
       },
 
@@ -116,8 +116,8 @@ module.exports = {
             )
           }
 
-          // function Name() {} export default XY
-          // class Name extends Document; export default Name
+          // function ...() {} export default ...
+          // class ... extends ...; export default ...
           return ancestor.id && ancestor.id.name === localDefaultExportName
         })
 
