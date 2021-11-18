@@ -78,6 +78,9 @@ export class BrowserInterface {
   async log(): Promise<any[]> {
     return []
   }
+  async websocketFrames(): Promise<any[]> {
+    return []
+  }
   async url(): Promise<string> {
     return ''
   }
