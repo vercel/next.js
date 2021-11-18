@@ -1008,7 +1008,11 @@ export async function renderToHTML(
     )
     const reader = stream.getReader()
     return new RenderResult((innerRes, next) => {
-      bufferedReadFromReadableStream(reader, (val) => innerRes.write(val)).then(
+      bufferedReadFromReadableStream(
+        reader,
+        (val) => innerRes.write(val),
+        () => null
+      ).then(
         () => next(),
         (innerErr) => next(innerErr)
       )
@@ -1041,33 +1045,6 @@ export async function renderToHTML(
       }
     }
   }
-
-  const renderToStaticMarkup: (elem: JSX.Element) => Promise<string> =
-    !process.browser
-      ? async (elem) => ReactDOMServer.renderToStaticMarkup(elem)
-      : async (elem) => {
-          // There is no `renderToStaticMarkup` exposed in the web environment, use
-          // blocking `renderToReadableStream` to get the similar result.
-          let result = ''
-          const readable = (ReactDOMServer as any).renderToReadableStream(
-            elem,
-            {
-              onError: (e: any) => {
-                throw e
-              },
-            }
-          )
-          const reader = readable.getReader()
-          const decoder = new TextDecoder()
-          while (true) {
-            const { done, value } = await reader.read()
-            if (done) {
-              break
-            }
-            result += typeof value === 'string' ? value : decoder.decode(value)
-          }
-          return result
-        }
 
   const appWrappers: Array<(content: JSX.Element) => JSX.Element> = []
   const getWrappedApp = (app: JSX.Element) => {
@@ -1171,28 +1148,20 @@ export async function renderToHTML(
       const styledJsxFlushEffect = () => {
         const styles = jsxStyleRegistry.styles() as any as JSX.Element[]
         jsxStyleRegistry.flush()
-        // TODO: Render with React instead
-        return styles
-          .map((style) => {
-            const attrs = [
-              `id="${style.props.id}"`,
-              style.props.nonce ? `nonce="${style.props.nonce}"` : '',
-            ].filter(Boolean)
-            return `<style ${attrs.join(' ')}>${
-              style.props.dangerouslySetInnerHTML.__html
-            }</style>`
-          })
-          .join('')
+        return styles.length > 0 ? null : <>{styles}</>
       }
       const [document, flushEffects] = await renderFunctionalDocument(
         Document as any
       )
       const getFlushPrefix = () => {
-        const html = [styledJsxFlushEffect, ...flushEffects]
+        const elements = [styledJsxFlushEffect, ...flushEffects]
           .map((fn) => fn())
           .filter(Boolean)
-          .join('')
-        return html
+        if (elements.length > 0) {
+          return renderToStaticString(<>{elements}</>)
+        } else {
+          return null
+        }
       }
 
       const bodyResult = async () => {
@@ -1205,11 +1174,11 @@ export async function renderToHTML(
             )
           )
 
-        return concurrentFeatures
+        return await (concurrentFeatures
           ? process.browser
-            ? await renderToWebStream(content)
-            : await renderToNodeStream(content, generateStaticHTML, getFlushPrefix)
-          : piperFromArray([ReactDOMServer.renderToString(content)])
+            ? renderToWebStream(content, getFlushPrefix)
+            : renderToNodeStream(content, generateStaticHTML, getFlushPrefix)
+          : renderToStringStream(content, getFlushPrefix))
       }
 
       return {
@@ -1328,8 +1297,7 @@ export async function renderToHTML(
     </AmpStateContext.Provider>
   )
 
-  const documentHTML = await renderToStaticMarkup(document)
-
+  const documentHTML = await renderToStaticString(document)
   const nonRenderedComponents = []
   const expectedDocComponents = ['Main', 'Head', 'NextScript', 'Html']
 
@@ -1433,6 +1401,31 @@ export async function renderToHTML(
   return new RenderResult(chainPipers(pipers))
 }
 
+async function renderToStaticString(element: JSX.Element): Promise<string> {
+  if (process.browser) {
+    // There is no `renderToStaticMarkup` exposed in the web environment, use
+    // blocking `renderToReadableStream` to get the similar result.
+    let result = ''
+    const readable = (ReactDOMServer as any).renderToReadableStream(element, {
+      onError: (e: any) => {
+        throw e
+      },
+    })
+    const reader = readable.getReader()
+    const decoder = new TextDecoder()
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) {
+        break
+      }
+      result += typeof value === 'string' ? value : decoder.decode(value)
+    }
+    return result
+  } else {
+    return ReactDOMServer.renderToStaticMarkup(element)
+  }
+}
+
 function errorToJSON(err: Error) {
   return {
     name: err.name,
@@ -1457,10 +1450,24 @@ function serializeError(
   }
 }
 
+async function renderToStringStream(
+  element: React.ReactElement,
+  getFlushPrefix: () => Promise<string> | null
+): Promise<NodeWritablePiper> {
+  const pipers = [ReactDOMServer.renderToString(element)]
+  const flushPrefix = getFlushPrefix()
+
+  if (flushPrefix) {
+    pipers.unshift(await flushPrefix)
+  }
+
+  return piperFromArray(pipers)
+}
+
 function renderToNodeStream(
   element: React.ReactElement,
   generateStaticHTML: boolean,
-  getFlushPrefix: () => string
+  getFlushPrefix: () => Promise<string> | null
 ): Promise<NodeWritablePiper> {
   return new Promise((resolve, reject) => {
     let underlyingStream: {
@@ -1472,22 +1479,27 @@ function renderToNodeStream(
     const stream = new Writable({
       // Use the buffer from the underlying stream
       highWaterMark: 0,
-      writev(chunks, callback) {
-        let str = getFlushPrefix()
-        for (let { chunk } of chunks) {
-          str += chunk.toString()
-        }
+      async writev(chunks, callback) {
+        try {
+          if (!underlyingStream) {
+            throw new Error(
+              'invariant: write called without an underlying stream. This is a bug in Next.js'
+            )
+          }
 
-        if (!underlyingStream) {
-          throw new Error(
-            'invariant: write called without an underlying stream. This is a bug in Next.js'
-          )
-        }
+          const flushPrefix = getFlushPrefix()
+          let str = flushPrefix ? await flushPrefix : ''
+          for (let { chunk } of chunks) {
+            str += chunk.toString()
+          }
 
-        if (!underlyingStream.writable.write(str)) {
-          underlyingStream.queuedCallbacks.push(() => callback())
-        } else {
-          callback()
+          if (!underlyingStream.writable.write(str)) {
+            underlyingStream.queuedCallbacks.push(() => callback())
+          } else {
+            callback()
+          }
+        } catch (err: unknown) {
+          callback(err as any)
         }
       },
     })
@@ -1574,7 +1586,8 @@ function renderToNodeStream(
 
 async function bufferedReadFromReadableStream(
   reader: ReadableStreamDefaultReader,
-  writeFn: (val: string) => void
+  writeFn: (val: string) => void,
+  getFlushPrefix: () => Promise<string> | null
 ): Promise<void> {
   const decoder = new TextDecoder()
   let bufferedString = ''
@@ -1599,6 +1612,11 @@ async function bufferedReadFromReadableStream(
       break
     }
 
+    const flushPrefix = getFlushPrefix()
+    if (flushPrefix) {
+      bufferedString += await flushPrefix
+    }
+
     bufferedString += typeof value === 'string' ? value : decoder.decode(value)
     flushBuffer()
   }
@@ -1608,7 +1626,8 @@ async function bufferedReadFromReadableStream(
 }
 
 function renderToWebStream(
-  element: React.ReactElement
+  element: React.ReactElement,
+  getFlushPrefix: () => Promise<string> | null
 ): Promise<NodeWritablePiper> {
   return new Promise((resolve, reject) => {
     let resolved = false
@@ -1625,8 +1644,10 @@ function renderToWebStream(
         if (!resolved) {
           resolved = true
           resolve((res, next) => {
-            bufferedReadFromReadableStream(reader, (val) =>
-              res.write(val)
+            bufferedReadFromReadableStream(
+              reader,
+              (val) => res.write(val),
+              getFlushPrefix
             ).then(
               () => next(),
               (err) => next(err)
@@ -1637,15 +1658,6 @@ function renderToWebStream(
     })
     const reader = stream.getReader()
   })
-}
-
-function renderToStaticString(
-  element: React.ReactElement,
-  getFlushPrefix: () => string
-) {
-  const content = ReactDOMServer.renderToString(element)
-  const prefix = getFlushPrefix()
-  return piperFromArray([prefix, content])
 }
 
 function chainPipers(pipers: NodeWritablePiper[]): NodeWritablePiper {
