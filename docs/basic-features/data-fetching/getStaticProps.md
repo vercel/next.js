@@ -108,7 +108,7 @@ The [`getStaticProps` API reference](/docs/api-reference/data-fetching/getStatic
 
 ### Only runs at build time
 
-Because `getStaticProps` runs at build time, it does **not** receive data that’s only available during request time, such as query parameters or `HTTP` headers, as it generates static `HTML`.
+Because `getStaticProps` runs at build time, it does **not** receive data that’s only available during request time, such as query parameters or `HTTP` headers, as it generates static `HTML`. When combined with [Incremental Static Regeneration](/docs/basic-features/data-fetching/incremental-static-regeneration.md) however, it will run in the background while the stale page is being revalidated, and the fresh page served to the browser.
 
 ### Write server-side code directly
 

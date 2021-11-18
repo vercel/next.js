@@ -7,14 +7,14 @@ description: Fetch data and generate static pages with `getStaticProps`.
 <details>
   <summary><b>Version History</b></summary>
 
-| Version  | Changes                                                                                                      |
-| -------- | ------------------------------------------------------------------------------------------------------------ |
-| `v9.5.0` | Stable [Incremental Static Regeneration](/docs/basic-features/data-fetching/incremental-static-regeneration) |
-| `v9.3.0` | `getStaticPaths` introduced.                                                                                 |
+| Version  | Changes                                                                                                         |
+| -------- | --------------------------------------------------------------------------------------------------------------- |
+| `v9.5.0` | Stable [Incremental Static Regeneration](/docs/basic-features/data-fetching/incremental-static-regeneration.md) |
+| `v9.3.0` | `getStaticPaths` introduced.                                                                                    |
 
 </details>
 
-When exporting an `async` function called `getStaticPaths` from a page that uses [dynamic routes](/docs/routing/dynamic-routes), Next.js will statically pre-render all the paths specified by `getStaticPaths`.
+When exporting an `async` function called `getStaticPaths` from a page that uses [dynamic routes](/docs/routing/dynamic-routes.md), Next.js will statically pre-render all the paths specified by `getStaticPaths`.
 
 ```jsx
 export async function getStaticPaths() {
