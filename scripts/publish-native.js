@@ -27,7 +27,7 @@ const cwd = process.cwd()
       try {
         let binaryName = `next-swc.${platform}.node`
         await copy(
-          path.join(cwd, 'packages/next/build/swc/dist', binaryName),
+          path.join(cwd, 'packages/next/native', binaryName),
           path.join(nativePackagesDir, platform, binaryName)
         )
         let pkg = JSON.parse(
