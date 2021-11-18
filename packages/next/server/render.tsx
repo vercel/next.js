@@ -1001,16 +1001,15 @@ export async function renderToHTML(
   if (isResSent(res) && !isSSG) return null
 
   if (renderServerComponentData) {
-    return new RenderResult((res_, next) => {
-      const { startWriting } = connectReactServerReadableStreamToPiper(
-        res_.write,
-        next
-      )
-      startWriting(
-        renderToReadableStream(
-          <OriginalComponent {...props} />,
-          serverComponentManifest
-        ).getReader()
+    const stream: ReadableStream = renderToReadableStream(
+      <OriginalComponent {...props} />,
+      serverComponentManifest
+    )
+    const reader = stream.getReader()
+    return new RenderResult((innerRes, next) => {
+      bufferedReadFromReadableStream(reader, (val) => innerRes.write(val)).then(
+        () => next(),
+        (innerErr) => next(innerErr)
       )
     })
   }
@@ -1539,46 +1538,39 @@ function renderToNodeStream(
   })
 }
 
-function connectReactServerReadableStreamToPiper(
-  write: (s: string) => void,
-  next: (err?: Error) => void
-) {
+async function bufferedReadFromReadableStream(
+  reader: ReadableStreamDefaultReader,
+  writeFn: (val: string) => void
+): Promise<void> {
+  const decoder = new TextDecoder()
   let bufferedString = ''
-  let flushTimeout: null | NodeJS.Timeout = null
+  let pendingFlush: Promise<void> | null = null
 
-  function flushBuffer() {
-    // Intentionally delayed writing when using ReadableStream due to the lack
-    // of cork/uncork APIs.
-    if (!flushTimeout) {
-      flushTimeout = setTimeout(() => {
-        write(bufferedString)
-        bufferedString = ''
-        flushTimeout = null
-      }, 0)
+  const flushBuffer = () => {
+    if (!pendingFlush) {
+      pendingFlush = new Promise((resolve) =>
+        setTimeout(() => {
+          writeFn(bufferedString)
+          bufferedString = ''
+          pendingFlush = null
+          resolve()
+        }, 0)
+      )
     }
   }
 
-  function startWriting(reader: ReadableStreamDefaultReader) {
-    const decoder = new TextDecoder()
-    const process = () => {
-      reader.read().then(({ done, value }: any) => {
-        if (!done) {
-          const s = typeof value === 'string' ? value : decoder.decode(value)
-          bufferedString += s
-          flushBuffer()
-          process()
-        } else {
-          // Make sure it's scheduled after the current flushing.
-          setTimeout(() => next(), 0)
-        }
-      })
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) {
+      break
     }
-    process()
+
+    bufferedString += typeof value === 'string' ? value : decoder.decode(value)
+    flushBuffer()
   }
 
-  return {
-    startWriting,
-  }
+  // Make sure the promise resolves after any pending flushes
+  await pendingFlush
 }
 
 function renderToWebStream(
@@ -1586,60 +1578,30 @@ function renderToWebStream(
 ): Promise<NodeWritablePiper> {
   return new Promise((resolve, reject) => {
     let resolved = false
-    let underlyingStream: {
-      write: (s: string) => void
-      next: (err?: Error) => void
-    } | null = null
-
-    const doResolve = () => {
-      resolve((res, next) => {
-        underlyingStream = {
-          write: res.write,
-          next,
+    const stream: ReadableStream = (
+      ReactDOMServer as any
+    ).renderToReadableStream(element, {
+      onError(err: Error) {
+        if (!resolved) {
+          resolved = true
+          reject(err)
         }
-      })
-    }
-
-    const { startWriting } = connectReactServerReadableStreamToPiper(
-      (s: string) => {
-        if (!underlyingStream) {
-          throw new Error(
-            'invariant: `write` called without an underlying stream. This is a bug in Next.js'
-          )
-        }
-        underlyingStream.write(s)
       },
-      (err) => {
-        if (!underlyingStream) {
-          throw new Error(
-            'invariant: `next` called without an underlying stream. This is a bug in Next.js'
-          )
+      onCompleteShell() {
+        if (!resolved) {
+          resolved = true
+          resolve((res, next) => {
+            bufferedReadFromReadableStream(reader, (val) =>
+              res.write(val)
+            ).then(
+              () => next(),
+              (err) => next(err)
+            )
+          })
         }
-        underlyingStream.next(err)
-      }
-    )
-
-    const reader = (ReactDOMServer as any)
-      .renderToReadableStream(element, {
-        onError(err: Error) {
-          if (!resolved) {
-            resolved = true
-            reject(err)
-          }
-        },
-        onCompleteShell() {
-          if (!resolved) {
-            resolved = true
-            doResolve()
-            // Queue startWriting in microtasks to make sure reader is
-            // initialized.
-            Promise.resolve().then(() => {
-              startWriting(reader)
-            })
-          }
-        },
-      })
-      .getReader()
+      },
+    })
+    const reader = stream.getReader()
   })
 }
 
