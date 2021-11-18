@@ -95,5 +95,4 @@ connectHMR({
 })
 displayContent()
 
-const data = JSON.parse(document.getElementById('__NEXT_DATA__').textContent)
 initOnDemandEntries(data.page)

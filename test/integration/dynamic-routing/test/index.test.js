@@ -46,8 +46,9 @@ function runTests(dev) {
         return newFrames.some((frame) => {
           try {
             const data = JSON.parse(frame.payload)
-            if (data.event === 'pong') return true
+            return data.event === 'pong'
           } catch (_) {}
+          return false
         })
           ? 'success'
           : JSON.stringify(newFrames)
