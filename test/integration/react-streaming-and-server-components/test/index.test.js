@@ -3,6 +3,7 @@
 import cheerio from 'cheerio'
 import { join } from 'path'
 import fs from 'fs-extra'
+import webdriver from 'next-webdriver'
 
 import {
   File,
@@ -19,10 +20,11 @@ import css from './css'
 
 const nodeArgs = ['-r', join(__dirname, '../../react-18/test/require-hook.js')]
 const appDir = join(__dirname, '../app')
-const fsTestAppDir = join(__dirname, '../app-fs')
+const nativeModuleTestAppDir = join(__dirname, '../unsupported-native-module')
 const distDir = join(__dirname, '../app/.next')
-const documentPage = new File(join(appDir, 'pages/_document.js'))
+const documentPage = new File(join(appDir, 'pages/_document.jsx'))
 const appPage = new File(join(appDir, 'pages/_app.js'))
+const error500Page = new File(join(appDir, 'pages/500.js'))
 
 const documentWithGip = `
 import { Html, Head, Main, NextScript } from 'next/document'
@@ -52,6 +54,12 @@ function App({ Component, pageProps }) {
 }
 
 export default App
+`
+
+const page500 = `
+export default function Page500() {
+  return 'custom-500-page'
+}
 `
 
 async function nextBuild(dir) {
@@ -89,8 +97,8 @@ describe('concurrentFeatures - basic', () => {
   })
   it('should warn user that native node APIs are not supported', async () => {
     const fsImportedErrorMessage =
-      'Native Node.js APIs are not supported in the Edge Runtime with `concurrentFeatures` enabled. Found `fs` imported.'
-    const { stderr } = await nextBuild(fsTestAppDir)
+      'Native Node.js APIs are not supported in the Edge Runtime with `concurrentFeatures` enabled. Found `dns` imported.'
+    const { stderr } = await nextBuild(nativeModuleTestAppDir)
     expect(stderr).toContain(fsImportedErrorMessage)
   })
 })
@@ -99,11 +107,13 @@ describe('concurrentFeatures - prod', () => {
   const context = { appDir }
 
   beforeAll(async () => {
+    error500Page.write(page500)
     context.appPort = await findPort()
     await nextBuild(context.appDir)
     context.server = await nextStart(context.appDir, context.appPort)
   })
   afterAll(async () => {
+    error500Page.delete()
     await killApp(context.server)
   })
 
@@ -139,21 +149,40 @@ describe('concurrentFeatures - prod', () => {
     ]) {
       expect(content.clientInfo).toContainEqual(item)
     }
+    expect(content.clientInfo).not.toContainEqual([['/404', true]])
   })
-  runBasicTests(context)
+
+  it('should support React.lazy and dynamic imports', async () => {
+    const html = await renderViaHTTP(context.appPort, '/dynamic-imports')
+    expect(html).toContain('foo.client')
+  })
+
+  runBasicTests(context, 'prod')
 })
 
 describe('concurrentFeatures - dev', () => {
   const context = { appDir }
 
   beforeAll(async () => {
+    error500Page.write(page500)
     context.appPort = await findPort()
     context.server = await nextDev(context.appDir, context.appPort)
   })
   afterAll(async () => {
+    error500Page.delete()
     await killApp(context.server)
   })
-  runBasicTests(context)
+
+  it('should support React.lazy and dynamic imports', async () => {
+    const html = await renderViaHTTP(context.appPort, '/dynamic-imports')
+    expect(html).toContain('loading...')
+
+    const browser = await webdriver(context.appPort, '/dynamic-imports')
+    const content = await browser.eval(`window.document.body.innerText`)
+    expect(content).toMatchInlineSnapshot('"foo.client"')
+  })
+
+  runBasicTests(context, 'dev')
 })
 
 const cssSuite = {
@@ -173,7 +202,7 @@ const documentSuite = {
 
       expect(res.status).toBe(500)
       expect(html).toContain(
-        'Document.getInitialProps is not supported with server components, please remove it from pages/_document'
+        'Error: `getInitialProps` in Document component is not supported with `concurrentFeatures` enabled.'
       )
     })
   },
@@ -184,9 +213,13 @@ const documentSuite = {
 runSuite('document', 'dev', documentSuite)
 runSuite('document', 'prod', documentSuite)
 
-async function runBasicTests(context) {
+async function runBasicTests(context, env) {
+  const isDev = env === 'dev'
   it('should render the correct html', async () => {
     const homeHTML = await renderViaHTTP(context.appPort, '/')
+
+    // should have only 1 DOCTYPE
+    expect(homeHTML).toMatch(/^<!DOCTYPE html><html/)
 
     // dynamic routes
     const dynamicRouteHTML1 = await renderViaHTTP(
@@ -198,11 +231,26 @@ async function runBasicTests(context) {
       '/routes/dynamic2'
     )
 
+    const path404HTML = await renderViaHTTP(context.appPort, '/404')
+    const path500HTML = await renderViaHTTP(context.appPort, '/err')
+    const pathNotFoundHTML = await renderViaHTTP(
+      context.appPort,
+      '/this-is-not-found'
+    )
+
     expect(homeHTML).toContain('thisistheindexpage.server')
+    expect(homeHTML).toContain('env_var_test')
     expect(homeHTML).toContain('foo.client')
 
     expect(dynamicRouteHTML1).toContain('[pid]')
     expect(dynamicRouteHTML2).toContain('[pid]')
+
+    expect(path404HTML).toContain('custom-404-page')
+    // in dev mode: custom error page is still using default _error
+    expect(path500HTML).toContain(
+      isDev ? 'Internal Server Error' : 'custom-500-page'
+    )
+    expect(pathNotFoundHTML).toContain('custom-404-page')
   })
 
   it('should suspense next/link on server side', async () => {
@@ -219,6 +267,51 @@ async function runBasicTests(context) {
     const imageTag = $('div[hidden] > span > span > img')
 
     expect(imageTag.attr('src')).toContain('data:image')
+  })
+
+  it('should support multi-level server component imports', async () => {
+    const html = await renderViaHTTP(context.appPort, '/multi')
+    expect(html).toContain('bar.server.js:')
+    expect(html).toContain('foo.client')
+  })
+
+  it('should support streaming', async () => {
+    await fetchViaHTTP(context.appPort, '/streaming', null, {}).then(
+      async (response) => {
+        let result = ''
+        let gotFallback = false
+        let gotData = false
+
+        await new Promise((resolve) => {
+          response.body.on('data', (chunk) => {
+            result += chunk.toString()
+
+            gotData = result.includes('next_streaming_data')
+            if (!gotFallback) {
+              gotFallback = result.includes('next_streaming_fallback')
+              if (gotFallback) {
+                expect(gotData).toBe(false)
+              }
+            }
+          })
+
+          response.body.on('end', () => resolve())
+        })
+
+        expect(gotFallback).toBe(true)
+        expect(gotData).toBe(true)
+      }
+    )
+
+    // Should end up with "next_streaming_data".
+    const browser = await webdriver(context.appPort, '/streaming')
+    const content = await browser.eval(`window.document.body.innerText`)
+    expect(content).toMatchInlineSnapshot('"next_streaming_data"')
+  })
+
+  it('should support api routes', async () => {
+    const res = await renderViaHTTP(context.appPort, '/api/ping')
+    expect(res).toContain('pong')
   })
 }
 
@@ -244,6 +337,6 @@ function runSuite(suiteName, env, { runTests, before, after }) {
       await killApp(context.server)
     })
 
-    runTests(context)
+    runTests(context, env)
   })
 }

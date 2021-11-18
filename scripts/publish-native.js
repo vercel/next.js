@@ -15,15 +15,13 @@ const cwd = process.cwd()
     let gitref = process.argv.slice(2)[0]
 
     // Copy binaries to package folders, update version, and publish
-    let nativePackagesDir = path.join(cwd, 'packages/next/build/swc/npm')
+    let nativePackagesDir = path.join(
+      cwd,
+      'packages/next/build/swc/crates/napi/npm'
+    )
     let platforms = (await readdir(nativePackagesDir)).filter(
       (name) => !name.startsWith('.')
     )
-
-    const publishedPkgs = new Set()
-    // TODO: update to latest version where all packages were
-    // successfully published
-    const fallbackVersion = `12.0.1`
 
     for (let platform of platforms) {
       try {
@@ -48,10 +46,10 @@ const cwd = process.cwd()
             gitref.includes('canary') ? ' --tag canary' : ''
           }`
         )
-        publishedPkgs.add(platform)
       } catch (err) {
         // don't block publishing other versions on single platform error
-        console.error(`Failed to publish`, platform, err)
+        console.error(`Failed to publish`, platform)
+        throw err
       }
       // lerna publish in next step will fail if git status is not clean
       execSync(
@@ -63,17 +61,34 @@ const cwd = process.cwd()
       )
     }
 
+    // Update name/version of wasm packages and publish
+    let wasmDir = path.join(cwd, 'packages/next/build/swc/crates/wasm')
+    for (let wasmTarget of ['web', 'nodejs']) {
+      let wasmPkg = JSON.parse(
+        await readFile(path.join(wasmDir, `pkg-${wasmTarget}/package.json`))
+      )
+      wasmPkg.name = `@next/swc-wasm-${wasmTarget}`
+      wasmPkg.version = version
+
+      await writeFile(
+        path.join(wasmDir, `pkg-${wasmTarget}/package.json`),
+        JSON.stringify(wasmPkg, null, 2)
+      )
+      execSync(
+        `npm publish ${path.join(
+          wasmDir,
+          `pkg-${wasmTarget}`
+        )} --access public ${gitref.includes('canary') ? ' --tag canary' : ''}`
+      )
+    }
+
     // Update optional dependencies versions
     let nextPkg = JSON.parse(
       await readFile(path.join(cwd, 'packages/next/package.json'))
     )
     for (let platform of platforms) {
       let optionalDependencies = nextPkg.optionalDependencies || {}
-      optionalDependencies['@next/swc-' + platform] = publishedPkgs.has(
-        platform
-      )
-        ? version
-        : fallbackVersion
+      optionalDependencies['@next/swc-' + platform] = version
       nextPkg.optionalDependencies = optionalDependencies
     }
     await writeFile(

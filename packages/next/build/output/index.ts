@@ -139,12 +139,8 @@ buildStore.subscribe((state) => {
     loading: false,
     typeChecking: false,
     partial:
-      clientWasLoading && !serverWasLoading && !serverWebWasLoading
-        ? 'client'
-        : serverWasLoading && !clientWasLoading && !serverWebWasLoading
-        ? 'server'
-        : serverWebWasLoading && !clientWasLoading && !serverWasLoading
-        ? 'serverWeb'
+      clientWasLoading && (serverWasLoading || serverWebWasLoading)
+        ? 'client and server'
         : undefined,
     modules:
       (clientWasLoading ? client.modules : 0) +
@@ -262,7 +258,7 @@ export function watchCompilers(
 
       const { errors, warnings } = formatWebpackMessages(
         stats.toJson({
-          preset: 'error-warnings',
+          preset: 'errors-warnings',
           moduleTrace: true,
         })
       )

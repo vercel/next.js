@@ -1,6 +1,7 @@
 import createStore from 'next/dist/compiled/unistore'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { flushAllTraces } from '../../trace'
+import { getUnresolvedModuleFromError } from '../utils'
 
 import * as Log from './log'
 
@@ -14,7 +15,7 @@ export type OutputState =
       | {
           loading: false
           typeChecking: boolean
-          partial: 'client' | 'server' | 'serverWeb' | undefined
+          partial: 'client and server' | undefined
           modules: number
           errors: string[] | null
           warnings: string[] | null
@@ -86,12 +87,10 @@ store.subscribe((state) => {
       }
     }
 
-    if (
-      state.hasServerWeb &&
-      cleanError.indexOf("Module not found: Can't resolve 'fs'") > -1
-    ) {
+    const moduleName = getUnresolvedModuleFromError(cleanError)
+    if (state.hasServerWeb && moduleName) {
       console.error(
-        `Native Node.js APIs are not supported in the Edge Runtime with \`concurrentFeatures\` enabled. Found \`fs\` imported.\n`
+        `Native Node.js APIs are not supported in the Edge Runtime with \`concurrentFeatures\` enabled. Found \`${moduleName}\` imported.\n`
       )
       return
     }

@@ -35,3 +35,13 @@ it('parses and reconstructs the URL alone', async () => {
 it('throws when the URL is malformed', async () => {
   expect(() => new Request('meeeh')).toThrowError('Invalid URL')
 })
+
+it('Request.referrer is `about:client` by default', async () => {
+  const request = new Request('https://vercel.com')
+  expect(request.referrer).toBe('about:client')
+})
+
+it('Request.referrer can be customized', async () => {
+  const request = new Request('https://vercel.com', { referrer: 'client' })
+  expect(request.referrer).toBe('client')
+})
