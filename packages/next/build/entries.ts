@@ -160,13 +160,10 @@ export function createEntrypoints(
         name: '[name].js',
         value: `next-middleware-ssr-loader?${stringify({
           page,
-          absoluteAppPath: pages['/_app'],
-          absoluteDocumentPath: pages['/_document'],
+          absolute500Path: pages['/500'] || '',
           absolutePagePath,
           isServerComponent: isFlight,
-          buildId,
-          basePath: config.basePath,
-          assetPrefix: config.assetPrefix,
+          ...defaultServerlessOptions,
         } as any)}!`,
         isServer: false,
         isServerWeb: true,
@@ -268,6 +265,7 @@ export function finalizeEntrypoint({
         type: 'assign',
       },
       runtime: MIDDLEWARE_SSR_RUNTIME_WEBPACK,
+      asyncChunks: false,
       ...entry,
     }
     return ssrMiddlewareEntry

@@ -340,6 +340,10 @@
           "path": "/errors/no-router-instance.md"
         },
         {
+          "title": "no-server-import-in-page",
+          "path": "/errors/no-server-import-in-page.md"
+        },
+        {
           "title": "no-sync-scripts",
           "path": "/errors/no-sync-scripts.md"
         },
