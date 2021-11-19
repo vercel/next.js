@@ -707,7 +707,7 @@ export default async function getBaseWebpackConfig(
           // For example:
           //   "node_modules/react-slider".startsWith("node_modules/react")  // true
           //   "node_modules/react-slider".startsWith("node_modules/react/") // false
-          const directory = path.default.join(packageJsonPath, '../')
+          const directory = path.join(packageJsonPath, '../')
           topLevelFrameworkPaths.add(directory)
 
           const dependencies = require(packageJsonPath).dependencies || {}
