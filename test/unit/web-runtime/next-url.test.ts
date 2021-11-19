@@ -120,7 +120,7 @@ it('parses and formats the default locale', () => {
   expect(url.toString()).toEqual('/root/fr/bar')
 })
 
-it('consider 127.0.0.1 as localhost', () => {
+it('consider 127.0.0.1 and variations as localhost', () => {
   const url = new NextURL('http://localhost:3000/hello')
   expect(new NextURL('http://127.0.0.1:3000/hello')).toStrictEqual(url)
   expect(new NextURL('http://127.0.1.0:3000/hello')).toStrictEqual(url)
