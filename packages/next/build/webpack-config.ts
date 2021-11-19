@@ -690,52 +690,42 @@ export default async function getBaseWebpackConfig(
     )
   }
 
-  const getPackagePath = (name: string, relativeToPath: string) => {
-    let packageJsonPath = '';
-    try {
-        packageJsonPath = require.resolve(`${name}/package.json`, {
-            paths: [
-                relativeToPath
-            ]
-        });
-    } catch (_) {
-        // There are acceptable cases when the package with `name` is not found. e.g. when
-        // substituting 'react-dom' for '@preact/compat', the 'scheduler' package is not found
-        // relative to 'react-dom'.
-        // See: https://github.com/vercel/next.js/issues/31240
-        console.warn(
-            `Dependency '${name}' was not found relative to ${relativeToPath}. ` +
-            `Dependencies declared by the parent package may have changed, or the parent package has ` +
-            `been substituted for a compatible replacement (such as react-dom and @preact/compat). ` +
-            `Optimized chunk splitting will be unavailable for '${name}'.`
-        )
-        return '';
-    }
-    // Include a trailing slash so that a `.startsWith(packagePath)` check avoids false positives
-    // when one package name starts with the full name of a different package.
-    // For example:
-    //   "node_modules/react-slider".startsWith("node_modules/react")  // true
-    //   "node_modules/react-slider".startsWith("node_modules/react/") // false
-    return path.join(packageJsonPath, '../')
-  }
-
   // Packages which will be split into the 'framework' chunk.
   // Only top-level packages are included, e.g. nested copies like
   // 'node_modules/meow/node_modules/object-assign' are not included.
-  const topLevelFrameworkPaths = [
-    getPackagePath('react', dir),
-    getPackagePath('react-dom', dir),
-    getPackagePath('scheduler', require.resolve('react-dom', { paths: [dir] })),
-    getPackagePath('object-assign', require.resolve('react', { paths: [dir] })),
-    getPackagePath(
-      'object-assign',
-      require.resolve('react-dom', { paths: [dir] })
-    ),
-    getPackagePath(
-      'use-subscription',
-      require.resolve('next', { paths: [dir] })
-    ),
-  ].filter(Boolean)
+  const topLevelFrameworkPaths = new Set()
+
+  // Adds package-paths of dependencies recursively
+  const addPackagePath = (packageName, relativeToPath) => {
+      try {
+          const packageJsonPath = require.resolve(`${packageName}/package.json`, {
+              paths: [relativeToPath],
+          })
+
+          // Include a trailing slash so that a `.startsWith(packagePath)` check avoids false positives
+          // when one package name starts with the full name of a different package.
+          // For example:
+          //   "node_modules/react-slider".startsWith("node_modules/react")  // true
+          //   "node_modules/react-slider".startsWith("node_modules/react/") // false
+          const directory = _path.default.join(packageJsonPath, '../')
+          topLevelFrameworkPaths.add(directory)
+
+          const dependencies = require(packageJsonPath).dependencies || {}
+          for (const name of Object.keys(dependencies)) {
+              addPackagePath(name, directory)
+          }
+      } catch {
+          console.warn(
+              `Dependency '${packageName}' was not found relative to ${relativeToPath}. ` +
+              `Optimized chunk splitting will be unavailable for '${packageName}'.`
+          )
+      }
+
+  }
+
+  for (const packageName of ["react", "react-dom", "next"]) {
+      addPackagePath(packageName, dir)
+  }
 
   // Select appropriate SplitChunksPlugin config for this build
   const splitChunksConfig: webpack.Options.SplitChunksOptions | false = dev
