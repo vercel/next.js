@@ -1046,16 +1046,18 @@ export async function renderToHTML(
     }
   }
 
-  const appWrappers: Array<(content: JSX.Element) => JSX.Element> = [
-    content => inAmpMode ? <>{content}</> : <div id="__next">{content}</div>
-  ]
+  const Body = ({ children }: { children: JSX.Element }) => {
+    return inAmpMode ? children : <div id="__next">{children}</div>
+  }
+
+  const appWrappers: Array<(content: JSX.Element) => JSX.Element> = []
   const getWrappedApp = (app: JSX.Element) => {
     // Prevent wrappers from reading/writing props by rendering inside an
     // opaque component. Wrappers should use context instead.
     const InnerApp = () => app
     return (
       <AppContainerWithIsomorphicFiberStructure>
-        {appWrappers.reduce((innerContent, fn) => {
+        {appWrappers.reduceRight((innerContent, fn) => {
           return fn(innerContent)
         }, <InnerApp />)}
       </AppContainerWithIsomorphicFiberStructure>
@@ -1088,7 +1090,9 @@ export async function renderToHTML(
       ): RenderPageResult | Promise<RenderPageResult> => {
         if (ctx.err && ErrorDebug) {
           const html = ReactDOMServer.renderToString(
-            <ErrorDebug error={ctx.err} />
+            <Body>
+              <ErrorDebug error={ctx.err} />
+            </Body>
           )
           return { html, head }
         }
@@ -1103,13 +1107,15 @@ export async function renderToHTML(
           enhanceComponents(options, App, Component)
 
         const html = ReactDOMServer.renderToString(
-          getWrappedApp(
-            <EnhancedApp
-              Component={EnhancedComponent}
-              router={router}
-              {...props}
-            />
-          )
+          <Body>
+            {getWrappedApp(
+              <EnhancedApp
+                Component={EnhancedComponent}
+                router={router}
+                {...props}
+              />
+            )}
+          </Body>
         )
         return { html, head }
       }
@@ -1168,14 +1174,17 @@ export async function renderToHTML(
       }
 
       const bodyResult = async () => {
-        const content =
-          ctx.err && ErrorDebug ? (
-            <ErrorDebug error={ctx.err} />
-          ) : (
-            getWrappedApp(
-              <App {...props} Component={Component} router={router} />
-            )
-          )
+        const content = (
+          <Body>
+            {ctx.err && ErrorDebug ? (
+              <ErrorDebug error={ctx.err} />
+            ) : (
+              getWrappedApp(
+                <App {...props} Component={Component} router={router} />
+              )
+            )}
+          </Body>
+        )
 
         return await (concurrentFeatures
           ? process.browser

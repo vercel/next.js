@@ -768,8 +768,7 @@ export function Main({
 }: {
   children?: (content: JSX.Element) => JSX.Element
 }) {
-  const { inAmpMode, docComponentsRendered, useMainContent } =
-    useContext(HtmlContext)
+  const { docComponentsRendered, useMainContent } = useContext(HtmlContext)
   const content = useMainContent(children)
   docComponentsRendered.Main = true
   return content
