@@ -1046,7 +1046,9 @@ export async function renderToHTML(
     }
   }
 
-  const appWrappers: Array<(content: JSX.Element) => JSX.Element> = []
+  const appWrappers: Array<(content: JSX.Element) => JSX.Element> = [
+    content => inAmpMode ? <>{content}</> : <div id="__next">{content}</div>
+  ]
   const getWrappedApp = (app: JSX.Element) => {
     // Prevent wrappers from reading/writing props by rendering inside an
     // opaque component. Wrappers should use context instead.
@@ -1148,14 +1150,14 @@ export async function renderToHTML(
       const styledJsxFlushEffect = () => {
         const styles = jsxStyleRegistry.styles() as any as React.ReactElement[]
         jsxStyleRegistry.flush()
-        return styles.length > 0 ? null : <>{styles}</>
+        return styles.length > 0 ? <>{styles}</> : null
       }
       const [document, flushEffects] = await renderFunctionalDocument(
         Document as any
       )
       const getFlushPrefix = () => {
         const elements = [styledJsxFlushEffect, ...flushEffects]
-          .map((fn) => fn())
+        .map((fn) => fn())
           .filter(Boolean)
           .map((elem, i) => React.cloneElement(elem!, { key: i }))
         if (elements.length > 0) {
