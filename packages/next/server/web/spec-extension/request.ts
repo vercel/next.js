@@ -1,5 +1,6 @@
 import type { I18NConfig } from '../../config-shared'
 import type { IResult } from 'next/dist/compiled/ua-parser-js'
+import type { RequestData } from '../types'
 import { NextURL } from '../next-url'
 import { isBot } from '../../utils'
 import { toNodeHeaders } from '../utils'
@@ -11,7 +12,7 @@ export const INTERNALS = Symbol('internal request')
 export class NextRequest extends Request {
   [INTERNALS]: {
     cookieParser(): { [key: string]: string }
-    geo: { city?: string; country?: string; region?: string }
+    geo: RequestData['geo']
     ip?: string
     page?: { name?: string; params?: { [key: string]: string } }
     ua?: UserAgent | null
