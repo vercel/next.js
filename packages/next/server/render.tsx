@@ -1041,14 +1041,17 @@ export async function renderToHTML(
     }
   }
 
-  const appWrappers: Array<(content: JSX.Element) => JSX.Element> = []
+  const appWrappers: Array<(content: JSX.Element) => JSX.Element> = [
+    (content) =>
+      inAmpMode ? <>{content}</> : <div id="__next">{content}</div>,
+  ]
   const getWrappedApp = (app: JSX.Element) => {
     // Prevent wrappers from reading/writing props by rendering inside an
     // opaque component. Wrappers should use context instead.
     const InnerApp = () => app
     return (
       <AppContainerWithIsomorphicFiberStructure>
-        {appWrappers.reduce((innerContent, fn) => {
+        {appWrappers.reduceRight((innerContent, fn) => {
           return fn(innerContent)
         }, <InnerApp />)}
       </AppContainerWithIsomorphicFiberStructure>
