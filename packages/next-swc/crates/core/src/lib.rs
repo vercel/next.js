@@ -46,13 +46,14 @@ use swc_ecmascript::{
 };
 
 pub mod amp_attributes;
-pub mod disallow_re_export_all_in_page;
 mod auto_cjs;
+pub mod disallow_re_export_all_in_page;
 pub mod hook_optimizer;
 pub mod next_dynamic;
 pub mod next_ssg;
 pub mod page_config;
 pub mod remove_console;
+pub mod remove_properties;
 pub mod styled_jsx;
 mod top_level_binding_collector;
 
@@ -82,6 +83,9 @@ pub struct TransformOptions {
 
     #[serde(default)]
     pub remove_console: Option<remove_console::Config>,
+
+    #[serde(default)]
+    pub remove_properties: Option<remove_properties::Config>,
 }
 
 pub fn custom_before_pass(file: Arc<SourceFile>, opts: &TransformOptions) -> impl Fold {
@@ -113,6 +117,11 @@ pub fn custom_before_pass(file: Arc<SourceFile>, opts: &TransformOptions) -> imp
         match &opts.remove_console {
             Some(config) if config.truthy() =>
                 Either::Left(remove_console::remove_console(config.clone())),
+            _ => Either::Right(noop()),
+        },
+        match &opts.remove_properties {
+            Some(config) if config.truthy() =>
+                Either::Left(remove_properties::remove_properties(config.clone())),
             _ => Either::Right(noop()),
         },
     )
