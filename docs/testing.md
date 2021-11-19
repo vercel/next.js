@@ -294,7 +294,7 @@ Under the hood, `next/jest` is automatically configuring Jest for you, including
 
 ### Setting up Jest (with Babel)
 
-If you opt-out of SWC and use Babel instead. In addition to packages above, you will need to install the `babel-jest` and `identity-obj-proxy` packages, and manually configure Jest.
+If you opt out of SWC, in addition to the packages above, you will need to install the `babel-jest` and `identity-obj-proxy` packages, and manually configure Jest.
 
 Here are the recommended options to configure Jest for Next.js:
 
