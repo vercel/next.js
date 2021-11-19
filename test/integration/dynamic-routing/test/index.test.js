@@ -28,6 +28,35 @@ const appDir = join(__dirname, '../')
 const buildIdPath = join(appDir, '.next/BUILD_ID')
 
 function runTests(dev) {
+  if (dev) {
+    it('should not have error after pinging WebSocket', async () => {
+      const browser = await webdriver(appPort, '/')
+      await browser.eval(`(function() {
+        window.uncaughtErrs = []
+        window.addEventListener('uncaughtexception', function (err) {
+          window.uncaught.push(err)
+        })
+      })()`)
+      const curFrames = [...(await browser.websocketFrames())]
+      await check(async () => {
+        const frames = await browser.websocketFrames()
+        const newFrames = frames.slice(curFrames.length)
+        // console.error({newFrames, curFrames, frames});
+
+        return newFrames.some((frame) => {
+          try {
+            const data = JSON.parse(frame.payload)
+            return data.event === 'pong'
+          } catch (_) {}
+          return false
+        })
+          ? 'success'
+          : JSON.stringify(newFrames)
+      }, 'success')
+      expect(await browser.eval('window.uncaughtErrs.length')).toBe(0)
+    })
+  }
+
   it('should support long URLs for dynamic routes', async () => {
     const res = await fetchViaHTTP(
       appPort,

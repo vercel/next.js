@@ -7,36 +7,51 @@ const Log = require('../output/log')
 const ArchName = arch()
 const PlatformName = platform()
 
-let bindings
-let loadError
-const triples = platformArchTriples[PlatformName][ArchName]
-for (const triple of triples) {
-  const localFilePath = path.join(
-    __dirname,
-    '../../../native',
-    `next-swc.${triple.platformArchABI}.node`
-  )
-  if (fs.existsSync(localFilePath)) {
-    Log.info('Using locally built binary of next-swc')
+let bindings = loadBindings()
+let isWasm = false
+
+function loadBindings() {
+  let loadError
+
+  // Try to load wasm bindings
+  for (let specifier of ['@next/swc-wasm-web', '@next/swc-wasm-nodejs']) {
     try {
-      bindings = require(localFilePath)
+      bindings = require(specifier)
+      isWasm = true
+      return bindings
     } catch (e) {
-      loadError = e
-    }
-    break
-  }
-
-  try {
-    bindings = require(`@next/swc-${triple.platformArchABI}`)
-    break
-  } catch (e) {
-    if (e?.code !== 'MODULE_NOT_FOUND') {
-      loadError = e
+      if (e?.code !== 'MODULE_NOT_FOUND') {
+        loadError = e
+      }
     }
   }
-}
 
-if (!bindings) {
+  // Try to load native bindings
+  const triples = platformArchTriples[PlatformName][ArchName]
+  for (const triple of triples) {
+    const localFilePath = path.join(
+      __dirname,
+      '../../../native',
+      `next-swc.${triple.platformArchABI}.node`
+    )
+    if (fs.existsSync(localFilePath)) {
+      Log.info('Using locally built binary of next-swc')
+      try {
+        return require(localFilePath)
+      } catch (e) {
+        loadError = e
+      }
+    }
+
+    try {
+      return require(`@next/swc-${triple.platformArchABI}`)
+    } catch (e) {
+      if (e?.code !== 'MODULE_NOT_FOUND') {
+        loadError = e
+      }
+    }
+  }
+
   if (loadError) {
     console.error(loadError)
   }
@@ -45,8 +60,6 @@ if (!bindings) {
     `Failed to load SWC binary, see more info here: https://nextjs.org/docs/messages/failed-loading-swc`
   )
   process.exit(1)
-} else {
-  loadError = null
 }
 
 async function transform(src, options) {
@@ -57,11 +70,12 @@ async function transform(src, options) {
     options.jsc.parser.syntax = options.jsc.parser.syntax ?? 'ecmascript'
   }
 
-  return bindings.transform(
+  const result = bindings.transform(
     isModule ? JSON.stringify(src) : src,
     isModule,
     toBuffer(options)
   )
+  return isWasm ? Promise.resolve(result) : result
 }
 
 function transformSync(src, options) {
@@ -84,7 +98,8 @@ function toBuffer(t) {
 }
 
 export async function minify(src, opts) {
-  return bindings.minify(toBuffer(src), toBuffer(opts ?? {}))
+  const result = bindings.minify(toBuffer(src), toBuffer(opts ?? {}))
+  return isWasm ? Promise.resolve(result) : result
 }
 
 export function minifySync(src, opts) {
@@ -92,6 +107,10 @@ export function minifySync(src, opts) {
 }
 
 export async function bundle(options) {
+  if (isWasm) {
+    Log.error(`SWC bundle() method is not supported in wasm environments yet.`)
+    process.exit(1)
+  }
   return bindings.bundle(toBuffer(options))
 }
 

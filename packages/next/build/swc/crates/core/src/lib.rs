@@ -29,22 +29,15 @@ DEALINGS IN THE SOFTWARE.
 #![recursion_limit = "2048"]
 //#![deny(clippy::all)]
 
-#[macro_use]
-extern crate napi_derive;
-/// Explicit extern crate to use allocator.
-extern crate swc_node_base;
-
 use auto_cjs::contains_cjs;
-use backtrace::Backtrace;
 use either::Either;
-use napi::{CallContext, Env, JsObject, JsUndefined};
 use serde::Deserialize;
 use std::cell::RefCell;
 use std::rc::Rc;
-use std::{env, panic::set_hook, path::PathBuf, sync::Arc};
-use swc::{config::ModuleConfig, Compiler, TransformOutput};
+use std::{path::PathBuf, sync::Arc};
+use swc::config::ModuleConfig;
 use swc_common::SourceFile;
-use swc_common::{self, chain, pass::Optional, sync::Lazy, FilePathMapping, SourceMap};
+use swc_common::{self, chain, pass::Optional};
 use swc_ecmascript::ast::EsVersion;
 use swc_ecmascript::transforms::pass::noop;
 use swc_ecmascript::{
@@ -53,18 +46,15 @@ use swc_ecmascript::{
 };
 
 pub mod amp_attributes;
+pub mod disallow_re_export_all_in_page;
 mod auto_cjs;
-mod bundle;
 pub mod hook_optimizer;
-pub mod minify;
 pub mod next_dynamic;
 pub mod next_ssg;
 pub mod page_config;
 pub mod remove_console;
 pub mod styled_jsx;
 mod top_level_binding_collector;
-mod transform;
-mod util;
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -96,6 +86,7 @@ pub struct TransformOptions {
 
 pub fn custom_before_pass(file: Arc<SourceFile>, opts: &TransformOptions) -> impl Fold {
     chain!(
+        disallow_re_export_all_in_page::disallow_re_export_all_in_page(opts.is_page_file),
         styled_jsx::styled_jsx(),
         hook_optimizer::hook_optimizer(),
         match &opts.styled_components {
@@ -127,46 +118,6 @@ pub fn custom_before_pass(file: Arc<SourceFile>, opts: &TransformOptions) -> imp
     )
 }
 
-static COMPILER: Lazy<Arc<Compiler>> = Lazy::new(|| {
-    let cm = Arc::new(SourceMap::new(FilePathMapping::empty()));
-
-    Arc::new(Compiler::new(cm.clone()))
-});
-
-#[module_exports]
-fn init(mut exports: JsObject) -> napi::Result<()> {
-    if cfg!(debug_assertions) || env::var("SWC_DEBUG").unwrap_or_default() == "1" {
-        set_hook(Box::new(|panic_info| {
-            let backtrace = Backtrace::new();
-            println!("Panic: {:?}\nBacktrace: {:?}", panic_info, backtrace);
-        }));
-    }
-
-    exports.create_named_method("bundle", bundle::bundle)?;
-
-    exports.create_named_method("transform", transform::transform)?;
-    exports.create_named_method("transformSync", transform::transform_sync)?;
-
-    exports.create_named_method("minify", minify::minify)?;
-    exports.create_named_method("minifySync", minify::minify_sync)?;
-
-    Ok(())
-}
-
-fn get_compiler(_ctx: &CallContext) -> Arc<Compiler> {
-    COMPILER.clone()
-}
-
-#[js_function]
-fn construct_compiler(ctx: CallContext) -> napi::Result<JsUndefined> {
-    // TODO: Assign swc::Compiler
-    ctx.env.get_undefined()
-}
-
-pub fn complete_output(env: &Env, output: TransformOutput) -> napi::Result<JsObject> {
-    env.to_js_value(&output)?.coerce_to_object()
-}
-
 impl TransformOptions {
     pub fn patch(mut self, fm: &SourceFile) -> Self {
         self.swc.swcrc = false;
@@ -189,5 +140,3 @@ impl TransformOptions {
         self
     }
 }
-
-pub type ArcCompiler = Arc<Compiler>;
