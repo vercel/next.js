@@ -693,7 +693,7 @@ export default async function getBaseWebpackConfig(
   // Packages which will be split into the 'framework' chunk.
   // Only top-level packages are included, e.g. nested copies like
   // 'node_modules/meow/node_modules/object-assign' are not included.
-  const topLevelFrameworkPaths = new Set()
+  const topLevelFrameworkPaths = new Set<string>()
 
   // Adds package-paths of dependencies recursively
   const addPackagePath = (packageName: string, relativeToPath: string) => {
