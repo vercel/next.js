@@ -26,6 +26,6 @@ packages/create-next-app/templates/**
 test/integration/eslint/**
 test/development/basic/legacy-decorators/**/*
 test-timings.json
-packages/next/build/swc/tests/**
+packages/next/build/swc/crates/**
 bench/nested-deps/pages/**
 bench/nested-deps/components/**

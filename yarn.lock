@@ -4829,10 +4829,10 @@
     "@types/express-serve-static-core" "*"
     "@types/mime" "*"
 
-"@types/sharp@0.28.4":
-  version "0.28.4"
-  resolved "https://registry.yarnpkg.com/@types/sharp/-/sharp-0.28.4.tgz#7afdcf979069ddc68a915603fdaa412ada93f833"
-  integrity sha512-vfz+RlJU5FgXyyf9w8wc+JwwT8MFI98NZr0272umQegrggAQhTwwb8pKZn0PTtd+j0crXkZDWw5ABG/i6Lu/Lw==
+"@types/sharp@0.29.3":
+  version "0.29.3"
+  resolved "https://registry.yarnpkg.com/@types/sharp/-/sharp-0.29.3.tgz#54ceb81b68bb99a0e62db2b52f4fb0bea84878ac"
+  integrity sha512-83Xp05eK2hvfNnmKLr2Fz0C2A0jrr2TnSLqKRbkLTYuAu+Erj6mKQLoEMGafE73Om8p3q3ryZxtHFM/7hy4Adg==
   dependencies:
     "@types/node" "*"
 
@@ -8707,7 +8707,7 @@ enhanced-resolve@^4.3.0:
     memory-fs "^0.5.0"
     tapable "^1.0.0"
 
-enhanced-resolve@^5.8.3, enhanced-resolve@webpack/enhanced-resolve#feature/use-cached-stat-for-read:
+enhanced-resolve@^5.8.3:
   version "5.8.3"
   resolved "https://codeload.github.com/webpack/enhanced-resolve/tar.gz/a7c161eeb141bfc7fda375df36c13df006a8cf76"
   dependencies:
@@ -19993,11 +19993,6 @@ webpack-bundle-analyzer@4.3.0:
   version "3.2.2"
   resolved "https://registry.yarnpkg.com/webpack-sources/-/webpack-sources-3.2.2.tgz#d88e3741833efec57c4c789b6010db9977545260"
   integrity sha512-cp5qdmHnu5T8wRg2G3vZZHoJPN14aqQ89SyQ11NpGH5zEMDCclt49rzo+MaRazk7/UeILhAI+/sEtcM+7Fr0nw==
-
-webpack-sources@^3.2.0:
-  version "3.2.1"
-  resolved "https://registry.yarnpkg.com/webpack-sources/-/webpack-sources-3.2.1.tgz#251a7d9720d75ada1469ca07dbb62f3641a05b6d"
-  integrity sha512-t6BMVLQ0AkjBOoRTZgqrWm7xbXMBzD+XDq2EZ96+vMfn3qKgsvdXZhbPZ4ElUOpdv4u+iiGe+w3+J75iy/bYGA==
 
 "webpack4@npm:webpack@4.44.1":
   version "4.44.1"

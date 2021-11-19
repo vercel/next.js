@@ -484,6 +484,7 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - build
+      - build-wasm
       - build-native
       - build-windows-i686
       - build-windows-aarch64
@@ -504,10 +505,17 @@ jobs:
         with:
           path: ./*
           key: ${{ github.sha }}
+
       - uses: actions/download-artifact@v2
         with:
           name: next-swc-binaries
           path: packages/next/build/swc/dist
+
+      - uses: actions/download-artifact@v2
+        with:
+          name: wasm-binaries
+          path: packages/next/build/swc/crates/wasm
+
       - run: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
       - run: ./scripts/publish-native.js $GITHUB_REF
       - run: ./scripts/publish-release.sh
@@ -1129,3 +1137,55 @@ jobs:
         with:
           name: next-swc-binaries
           path: packages/next/native/next-swc.android-arm64.node
+
+  build-wasm:
+    needs: build
+    if: ${{ needs.build.outputs.isRelease == 'true' }}
+    strategy:
+      matrix:
+        target: [web, nodejs]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/cache@v2
+        id: restore-build
+        with:
+          path: ./*
+          key: ${{ github.sha }}
+
+      - name: Setup node
+        uses: actions/setup-node@v2
+        with:
+          node-version: 14
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly-2021-08-12
+          override: true
+          target: wasm32-unknown-unknown
+
+      - name: Cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/
+            **/target/
+          key: ${{ runner.os }}-publish-integration
+
+      - name: Install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
+      - name: Build
+        run: (wasm-pack build packages/next/build/swc/crates/wasm --release --scope=next --target ${{ matrix.target }})
+
+      - name: Add target to folder name
+        run: mv packages/next/build/swc/crates/wasm/pkg packages/next/build/swc/crates/wasm/pkg-${{ matrix.target }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: wasm-binaries
+          path: packages/next/build/swc/crates/wasm/pkg-*
+
+      - run: ls packages/next/build/swc/crates/wasm
