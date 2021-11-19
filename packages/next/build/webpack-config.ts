@@ -748,7 +748,7 @@ export default async function getBaseWebpackConfig(
               if (!resource) {
                 return false
               }
-              return topLevelFrameworkPaths.some((packagePath) =>
+              return Array.from(topLevelFrameworkPaths).some((packagePath: string) =>
                 resource.startsWith(packagePath)
               )
             },
