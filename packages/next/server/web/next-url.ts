@@ -21,7 +21,7 @@ interface Options {
 }
 
 const REGEX_LOCALHOST_HOSTNAME =
-  /(127(?:\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}|::1)/
+  /(?!^https?:\/\/)(127(?:\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}|::1)/
 
 export class NextURL extends URL {
   private _basePath: string
