@@ -1179,7 +1179,7 @@ export async function renderToHTML(
       return {
         bodyResult,
         documentElement: () => (Document as any)(),
-        useMainContent: (fn?: (content: JSX.Element) => JSX.Element) => {
+        useMainContent: (fn?: (_content: JSX.Element) => JSX.Element) => {
           if (fn) {
             appWrappers.push(fn)
           }
