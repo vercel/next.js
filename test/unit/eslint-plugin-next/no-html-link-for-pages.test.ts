@@ -82,6 +82,36 @@ export class Blah extends Head {
 }
 `
 
+const validDownloadLinkCode = `
+import Link from 'next/link';
+
+export class Blah extends Head {
+  render() {
+    return (
+      <div>
+        <a href='/static-file.csv' download>Download</a>
+        <h1>Hello title</h1>
+      </div>
+    );
+  }
+}
+`
+
+const validPublicFile = `
+import Link from 'next/link';
+
+export class Blah extends Head {
+  render() {
+    return (
+      <div>
+        <a href='/presentation.pdf'>View PDF</a>
+        <h1>Hello title</h1>
+      </div>
+    );
+  }
+}
+`
+
 const invalidStaticCode = `
 import Link from 'next/link';
 
@@ -169,6 +199,20 @@ describe('no-html-link-for-pages', function () {
 
   it('valid external link element', function () {
     const report = linter.verify(validExternalLinkCode, linterConfig, {
+      filename: 'foo.js',
+    })
+    assert.deepEqual(report, [])
+  })
+
+  it('valid download link element', function () {
+    const report = linter.verify(validDownloadLinkCode, linterConfig, {
+      filename: 'foo.js',
+    })
+    assert.deepEqual(report, [])
+  })
+
+  it('valid public file link element', function () {
+    const report = linter.verify(validPublicFile, linterConfig, {
       filename: 'foo.js',
     })
     assert.deepEqual(report, [])

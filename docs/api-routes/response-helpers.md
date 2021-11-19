@@ -85,11 +85,14 @@ You can make your response handlers more type-safe by importing the `NextApiRequ
 ```ts
 import type { NextApiRequest, NextApiResponse } from 'next'
 
-type ResponseData {
+type ResponseData = {
   message: string
 }
 
-export default function handler(req: NextApiRequest, res: NextApiResponse<ResponseData>) {
+export default function handler(
+  req: NextApiRequest,
+  res: NextApiResponse<ResponseData>
+) {
   res.status(200).json({ message: 'Hello from Next.js!' })
 }
 ```
