@@ -696,7 +696,7 @@ export default async function getBaseWebpackConfig(
   const topLevelFrameworkPaths = new Set()
 
   // Adds package-paths of dependencies recursively
-  const addPackagePath = (packageName, relativeToPath) => {
+  const addPackagePath = (packageName: string, relativeToPath: string) => {
       try {
           const packageJsonPath = require.resolve(`${packageName}/package.json`, {
               paths: [relativeToPath],
