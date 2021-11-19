@@ -57,8 +57,7 @@
     "prepublish": "npm run release && yarn types",
     "types": "tsc --declaration --emitDeclarationOnly --declarationDir dist",
     "typescript": "tsc --noEmit --declaration",
-    "ncc-compiled": "ncc cache clean && taskr ncc",
-    "build-native": "napi build --platform --cargo-cwd build/swc --cargo-name next_swc_napi native"
+    "ncc-compiled": "ncc cache clean && taskr ncc"
   },
   "taskr": {
     "requires": [
@@ -277,22 +276,5 @@
   },
   "engines": {
     "node": ">=12.22.0"
-  },
-  "napi": {
-    "name": "next-swc",
-    "triples": {
-      "defaults": true,
-      "additional": [
-        "i686-pc-windows-msvc",
-        "aarch64-unknown-linux-gnu",
-        "armv7-unknown-linux-gnueabihf",
-        "aarch64-apple-darwin",
-        "aarch64-linux-android",
-        "x86_64-unknown-freebsd",
-        "x86_64-unknown-linux-musl",
-        "aarch64-unknown-linux-musl",
-        "aarch64-pc-windows-msvc"
-      ]
-    }
   }
 }

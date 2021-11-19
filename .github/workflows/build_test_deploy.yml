@@ -127,7 +127,7 @@ jobs:
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
           name: next-swc-dev-binary
-          path: packages/next/native
+          path: packages/next-swc/native
 
       - run: node run-tests.js --type unit
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
@@ -157,7 +157,7 @@ jobs:
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
           name: next-swc-dev-binary
-          path: packages/next/native
+          path: packages/next-swc/native
 
       - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
@@ -209,7 +209,7 @@ jobs:
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
           name: next-swc-dev-binary
-          path: packages/next/native
+          path: packages/next-swc/native
 
       - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
@@ -256,7 +256,7 @@ jobs:
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
           name: next-swc-dev-binary
-          path: packages/next/native
+          path: packages/next-swc/native
 
       - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
@@ -298,7 +298,7 @@ jobs:
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
           name: next-swc-dev-binary
-          path: packages/next/native
+          path: packages/next-swc/native
 
       # TODO: remove after we fix watchpack watching too much
       - run: echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p
@@ -328,7 +328,7 @@ jobs:
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
           name: next-swc-dev-binary
-          path: packages/next/native
+          path: packages/next-swc/native
 
       - run: bash ./scripts/test-pnp.sh
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
@@ -369,7 +369,7 @@ jobs:
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
           name: next-swc-dev-binary
-          path: packages/next/native
+          path: packages/next-swc/native
       - run: npx playwright install-deps && npx playwright install firefox
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
       - run: node run-tests.js test/integration/production/test/index.test.js
@@ -402,7 +402,7 @@ jobs:
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
           name: next-swc-dev-binary
-          path: packages/next/native
+          path: packages/next-swc/native
 
       # TODO: use macos runner so that we can use playwright to test against
       # PRs instead of only running on canary?
@@ -440,7 +440,7 @@ jobs:
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
           name: next-swc-dev-binary
-          path: packages/next/native
+          path: packages/next-swc/native
 
       - run: '[[ -z "$BROWSERSTACK_ACCESS_KEY" ]] && echo "Skipping for PR" || npm i -g browserstack-local@1.4.0'
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
@@ -472,7 +472,7 @@ jobs:
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
           name: next-swc-dev-binary
-          path: packages/next/native
+          path: packages/next-swc/native
       - run: npx playwright install-deps && npx playwright install firefox
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
       - run: node run-tests.js test/integration/production/test/index.test.js
@@ -509,12 +509,12 @@ jobs:
       - uses: actions/download-artifact@v2
         with:
           name: next-swc-binaries
-          path: packages/next/build/swc/dist
+          path: packages/next-swc/native
 
       - uses: actions/download-artifact@v2
         with:
           name: wasm-binaries
-          path: packages/next/build/swc/crates/wasm
+          path: packages/next-swc/crates/wasm
 
       - run: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
       - run: ./scripts/publish-native.js $GITHUB_REF
@@ -534,9 +534,9 @@ jobs:
       - uses: actions/download-artifact@v2
         with:
           name: next-swc-dev-binary
-          path: packages/next/native
+          path: packages/next-swc/native
 
-      - run: cp -r packages/next/native .github/actions/next-stats-action/native
+      - run: cp -r packages/next-swc/native .github/actions/next-stats-action/native
 
       - run: ./scripts/release-stats.sh
       - uses: ./.github/actions/next-stats-action
@@ -591,8 +591,8 @@ jobs:
         uses: actions/cache@v2
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         with:
-          path: packages/next/native/next-swc.linux-x64-gnu.node
-          key: dev-next-swc-nightly-2021-08-12-linux-x64-gnu-${{ hashFiles('.github/workflows/build_test_deploy.yml', 'packages/next/build/swc/**') }}
+          path: packages/next-swc/native/next-swc.linux-x64-gnu.node
+          key: dev-next-swc-nightly-2021-08-12-linux-x64-gnu-${{ hashFiles('.github/workflows/build_test_deploy.yml', 'packages/next-swc/**') }}
 
       # We use restore-key to pick latest cache.
       # We will not get exact match, but doc says
@@ -601,7 +601,7 @@ jobs:
       - name: Cache built files
         uses: actions/cache@v2
         with:
-          path: ./packages/next/build/swc/target
+          path: ./packages/next-swc/target
           key: next-swc-cargo-cache-ubuntu-18.04--${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             next-swc-cargo-cache-ubuntu-18.04
@@ -615,13 +615,13 @@ jobs:
         run: yarn build-native
         env:
           MACOSX_DEPLOYMENT_TARGET: '10.13'
-        working-directory: packages/next
+        working-directory: packages/next-swc
 
       - name: Upload artifact
         uses: actions/upload-artifact@v2.2.4
         with:
           name: next-swc-dev-binary
-          path: packages/next/native/next-swc.linux-x64-gnu.node
+          path: packages/next-swc/native/next-swc.linux-x64-gnu.node
 
       - name: Clear the cargo caches
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
@@ -645,7 +645,7 @@ jobs:
         with:
           toolchain: nightly-2021-08-12
           profile: minimal
-      - run: cd packages/next/build/swc && cargo test
+      - run: cd packages/next-swc && cargo test
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
 
   # Build binaries for publishing
@@ -723,8 +723,8 @@ jobs:
         id: binary-cache
         uses: actions/cache@v2
         with:
-          path: packages/next/native/next-swc.${{ matrix.name }}.node
-          key: next-swc-nightly-2021-08-12-${{ matrix.target }}-${{ hashFiles('.github/workflows/build_test_deploy.yml', 'packages/next/build/swc/**') }}
+          path: packages/next-swc/native/next-swc.${{ matrix.name }}.node
+          key: next-swc-nightly-2021-08-12-${{ matrix.target }}-${{ hashFiles('.github/workflows/build_test_deploy.yml', 'packages/next-swc/**') }}
 
       - name: Cross build aarch64 setup
         if: ${{ matrix.target == 'aarch64-apple-darwin' }}
@@ -741,7 +741,7 @@ jobs:
       - name: Cache built files
         uses: actions/cache@v2
         with:
-          path: ./packages/next/build/swc/target
+          path: ./packages/next-swc/target
           key: next-swc-cargo-cache-${{ matrix.os }}--${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             next-swc-cargo-cache-${{ matrix.os }}
@@ -751,13 +751,13 @@ jobs:
         run: yarn build-native --release --target ${{ matrix.target }}
         env:
           MACOSX_DEPLOYMENT_TARGET: '10.13'
-        working-directory: packages/next
+        working-directory: packages/next-swc
 
       - name: Upload artifact
         uses: actions/upload-artifact@v2.2.4
         with:
           name: next-swc-binaries
-          path: packages/next/native/next-swc.${{ matrix.name }}.node
+          path: packages/next-swc/native/next-swc.${{ matrix.name }}.node
 
       - name: Clear the cargo caches
         run: |
@@ -806,20 +806,20 @@ jobs:
         id: binary-cache
         uses: actions/cache@v2
         with:
-          path: packages/next/native/next-swc.win32-ia32-msvc.node
-          key: next-swc-nightly-2021-08-12-win32-ia32-msvc-${{ hashFiles('.github/workflows/build_test_deploy.yml', 'packages/next/build/swc/**') }}
+          path: packages/next-swc/native/next-swc.win32-ia32-msvc.node
+          key: next-swc-nightly-2021-08-12-win32-ia32-msvc-${{ hashFiles('.github/workflows/build_test_deploy.yml', 'packages/next-swc/**') }}
 
       - name: Build
         if: ${{ steps.binary-cache.outputs.cache-hit != 'true' }}
         shell: bash
         run: yarn build-native --release --target i686-pc-windows-msvc
-        working-directory: packages/next
+        working-directory: packages/next-swc
 
       - name: Upload artifact
         uses: actions/upload-artifact@v2
         with:
           name: next-swc-binaries
-          path: packages/next/native/next-swc.win32-ia32-msvc.node
+          path: packages/next-swc/native/next-swc.win32-ia32-msvc.node
 
   build-windows-aarch64:
     needs: build
@@ -852,20 +852,20 @@ jobs:
         id: binary-cache
         uses: actions/cache@v2
         with:
-          path: packages/next/native/next-swc.win32-arm64-msvc.node
-          key: next-swc-nightly-2021-08-12-win32-arm64-msvc-${{ hashFiles('.github/workflows/build_test_deploy.yml', 'packages/next/build/swc/**') }}
+          path: packages/next-swc/native/next-swc.win32-arm64-msvc.node
+          key: next-swc-nightly-2021-08-12-win32-arm64-msvc-${{ hashFiles('.github/workflows/build_test_deploy.yml', 'packages/next-swc/**') }}
 
       - name: Build
         if: ${{ steps.binary-cache.outputs.cache-hit != 'true' }}
         shell: bash
         run: yarn build-native --release --target aarch64-pc-windows-msvc
-        working-directory: packages/next
+        working-directory: packages/next-swc
 
       - name: Upload artifact
         uses: actions/upload-artifact@v2
         with:
           name: next-swc-binaries
-          path: packages/next/native/next-swc.win32-arm64-msvc.node
+          path: packages/next-swc/native/next-swc.win32-arm64-msvc.node
 
   build-linux-musl:
     needs: build
@@ -901,8 +901,8 @@ jobs:
         id: binary-cache
         uses: actions/cache@v2
         with:
-          path: packages/next/native/next-swc.linux-x64-musl.node
-          key: next-swc-nightly-2021-08-12-linux-x64-musl-${{ hashFiles('.github/workflows/build_test_deploy.yml', 'packages/next/build/swc/**') }}
+          path: packages/next-swc/native/next-swc.linux-x64-musl.node
+          key: next-swc-nightly-2021-08-12-linux-x64-musl-${{ hashFiles('.github/workflows/build_test_deploy.yml', 'packages/next-swc/**') }}
 
       - name: 'Build'
         if: ${{ steps.binary-cache.outputs.cache-hit != 'true' }}
@@ -913,7 +913,7 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: next-swc-binaries
-          path: packages/next/native/next-swc.linux-x64-musl.node
+          path: packages/next-swc/native/next-swc.linux-x64-musl.node
 
   build-linux-aarch64:
     needs: build
@@ -960,19 +960,19 @@ jobs:
         id: binary-cache
         uses: actions/cache@v2
         with:
-          path: packages/next/native/next-swc.linux-arm64-gnu.node
-          key: next-swc-nightly-2021-08-12-linux-arm64-gnu-${{ hashFiles('.github/workflows/build_test_deploy.yml', 'packages/next/build/swc/**') }}
+          path: packages/next-swc/native/next-swc.linux-arm64-gnu.node
+          key: next-swc-nightly-2021-08-12-linux-arm64-gnu-${{ hashFiles('.github/workflows/build_test_deploy.yml', 'packages/next-swc/**') }}
 
       - name: Cross build aarch64
         if: ${{ steps.binary-cache.outputs.cache-hit != 'true' }}
         run: yarn build-native --release --target aarch64-unknown-linux-gnu
-        working-directory: packages/next
+        working-directory: packages/next-swc
 
       - name: Upload artifact
         uses: actions/upload-artifact@v2
         with:
           name: next-swc-binaries
-          path: packages/next/native/next-swc.linux-arm64-gnu.node
+          path: packages/next-swc/native/next-swc.linux-arm64-gnu.node
 
   build-linux-aarch64-musl:
     needs: build
@@ -1017,19 +1017,19 @@ jobs:
         id: binary-cache
         uses: actions/cache@v2
         with:
-          path: packages/next/native/next-swc.linux-arm64-musl.node
-          key: next-swc-nightly-2021-08-12-linux-arm64-musl-${{ hashFiles('.github/workflows/build_test_deploy.yml', 'packages/next/build/swc/**') }}
+          path: packages/next-swc/native/next-swc.linux-arm64-musl.node
+          key: next-swc-nightly-2021-08-12-linux-arm64-musl-${{ hashFiles('.github/workflows/build_test_deploy.yml', 'packages/next-swc/**') }}
 
       - name: Cross build aarch64
         if: ${{ steps.binary-cache.outputs.cache-hit != 'true' }}
         run: yarn build-native --release --target aarch64-unknown-linux-musl
-        working-directory: packages/next
+        working-directory: packages/next-swc
 
       - name: Upload artifact
         uses: actions/upload-artifact@v2
         with:
           name: next-swc-binaries
-          path: packages/next/native/next-swc.linux-arm64-musl.node
+          path: packages/next-swc/native/next-swc.linux-arm64-musl.node
 
   build-linux-arm7:
     needs: build
@@ -1076,19 +1076,19 @@ jobs:
         id: binary-cache
         uses: actions/cache@v2
         with:
-          path: packages/next/native/next-swc.linux-arm-gnueabihf.node
-          key: next-swc-nightly-2021-08-12-linux-arm-gnueabihf-${{ hashFiles('.github/workflows/build_test_deploy.yml', 'packages/next/build/swc/**') }}
+          path: packages/next-swc/native/next-swc.linux-arm-gnueabihf.node
+          key: next-swc-nightly-2021-08-12-linux-arm-gnueabihf-${{ hashFiles('.github/workflows/build_test_deploy.yml', 'packages/next-swc/**') }}
 
       - name: Cross build aarch64
         if: ${{ steps.binary-cache.outputs.cache-hit != 'true' }}
         run: yarn build-native --release --target armv7-unknown-linux-gnueabihf
-        working-directory: packages/next
+        working-directory: packages/next-swc
 
       - name: Upload artifact
         uses: actions/upload-artifact@v2
         with:
           name: next-swc-binaries
-          path: packages/next/native/next-swc.linux-arm-gnueabihf.node
+          path: packages/next-swc/native/next-swc.linux-arm-gnueabihf.node
 
   build-android-aarch64:
     needs: build
@@ -1121,8 +1121,8 @@ jobs:
         id: binary-cache
         uses: actions/cache@v2
         with:
-          path: packages/next/native/next-swc.android-arm64.node
-          key: next-swc-nightly-2021-08-12-android-arm64-${{ hashFiles('.github/workflows/build_test_deploy.yml', 'packages/next/build/swc/**') }}
+          path: packages/next-swc/native/next-swc.android-arm64.node
+          key: next-swc-nightly-2021-08-12-android-arm64-${{ hashFiles('.github/workflows/build_test_deploy.yml', 'packages/next-swc/**') }}
 
       - name: Build
         if: ${{ steps.binary-cache.outputs.cache-hit != 'true' }}
@@ -1130,13 +1130,13 @@ jobs:
         run: |
           export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/darwin-x86_64/bin/aarch64-linux-android24-clang"
           yarn build-native --release --target aarch64-linux-android
-        working-directory: packages/next
+        working-directory: packages/next-swc
 
       - name: Upload artifact
         uses: actions/upload-artifact@v2
         with:
           name: next-swc-binaries
-          path: packages/next/native/next-swc.android-arm64.node
+          path: packages/next-swc/native/next-swc.android-arm64.node
 
   build-wasm:
     needs: build
@@ -1177,15 +1177,15 @@ jobs:
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
       - name: Build
-        run: (wasm-pack build packages/next/build/swc/crates/wasm --release --scope=next --target ${{ matrix.target }})
+        run: (wasm-pack build packages/next-swc/crates/wasm --release --scope=next --target ${{ matrix.target }})
 
       - name: Add target to folder name
-        run: mv packages/next/build/swc/crates/wasm/pkg packages/next/build/swc/crates/wasm/pkg-${{ matrix.target }}
+        run: mv packages/next-swc/crates/wasm/pkg packages/next-swc/crates/wasm/pkg-${{ matrix.target }}
 
       - name: Upload artifact
         uses: actions/upload-artifact@v2
         with:
           name: wasm-binaries
-          path: packages/next/build/swc/crates/wasm/pkg-*
+          path: packages/next-swc/crates/wasm/pkg-*
 
-      - run: ls packages/next/build/swc/crates/wasm
+      - run: ls packages/next-swc/crates/wasm

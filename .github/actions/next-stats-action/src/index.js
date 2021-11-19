@@ -120,7 +120,7 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
       }
       await fs.copy(
         path.join(__dirname, '../native'),
-        path.join(dir, 'packages/next/native')
+        path.join(dir, 'packages/next-swc/native')
       )
 
       logger(`Linking packages in ${dir}`)
