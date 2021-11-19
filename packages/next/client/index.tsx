@@ -652,6 +652,7 @@ if (process.env.__NEXT_RSC) {
     cacheKey,
     serialized,
     _fresh,
+    ...restProps
   }: {
     cacheKey: string
     serialized?: string
@@ -684,17 +685,19 @@ if (process.env.__NEXT_RSC) {
     }
 
     const root = response.readRoot()
-    return root
+    return React.cloneElement(root, restProps)
   }
 
   RSCComponent = (props: any) => {
     const { asPath: cacheKey } = useRouter() as any
+    const { __flight_serialized__, __flight_fresh__, ...rest } = props
     return (
       <React.Suspense fallback={null}>
         <RSCWrapper
+          {...rest}
           cacheKey={cacheKey}
-          serialized={(props as any).__flight_serialized__}
-          _fresh={(props as any).__flight_fresh__}
+          serialized={props.__flight_serialized__}
+          _fresh={props.__flight_fresh__}
         />
       </React.Suspense>
     )

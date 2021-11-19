@@ -1002,7 +1002,7 @@ export async function renderToHTML(
 
   if (renderServerComponentData) {
     const stream: ReadableStream = renderToReadableStream(
-      <OriginalComponent {...props} />,
+      <OriginalComponent {...props.pageProps} />,
       serverComponentManifest
     )
     const reader = stream.getReader()
