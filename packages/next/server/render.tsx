@@ -1148,24 +1148,29 @@ export async function renderToHTML(
         styles: docProps.styles,
       }
     } else {
-      const bodyResult = async () => {
-        const content = (
-          <Body>
-            {ctx.err && ErrorDebug ? (
-              <ErrorDebug error={ctx.err} />
-            ) : (
-              getWrappedApp(
-                <App {...props} Component={Component} router={router} />
-              )
-            )}
-          </Body>
+      const content =
+        ctx.err && ErrorDebug ? (
+          <ErrorDebug error={ctx.err} />
+        ) : (
+          getWrappedApp(
+            <App {...props} Component={Component} router={router} />
+          )
         )
 
-        return concurrentFeatures
-          ? process.browser
+      let bodyResult
+
+      if (concurrentFeatures) {
+        bodyResult = async () => {
+          return process.browser
             ? await renderToWebStream(content)
             : await renderToNodeStream(content, generateStaticHTML)
-          : piperFromArray([ReactDOMServer.renderToString(content)])
+        }
+      } else {
+        // for non-concurrent rendering we need to ensure App is rendered
+        // before _document so that updateHead is called/collected before
+        // rendering _document's head
+        const result = piperFromArray([ReactDOMServer.renderToString(content)])
+        bodyResult = () => result
       }
 
       return {
