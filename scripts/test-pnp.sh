@@ -35,9 +35,6 @@ do
   touch yarn.lock
   yarn set version berry
 
-  # Temporary fix for https://github.com/yarnpkg/berry/issues/2514:
-  yarn set version from sources
-
   yarn config set pnpFallbackMode none
   yarn config set enableGlobalCache true
   yarn link --all --private -r ../..

@@ -11,6 +11,25 @@ async function createNextInstall(dependencies) {
   const installDir = path.join(tmpDir, `next-install-${Date.now()}`)
   const tmpRepoDir = path.join(tmpDir, `next-repo-${Date.now()}`)
 
+  // ensure swc binary is present in the native folder if
+  // not already built
+  for (const folder of await fs.readdir(
+    path.join(origRepoDir, 'node_modules/@next')
+  )) {
+    if (folder.startsWith('swc-')) {
+      const swcPkgPath = path.join(origRepoDir, 'node_modules/@next', folder)
+      await fs.copy(
+        swcPkgPath,
+        path.join(origRepoDir, 'packages/next/native'),
+        {
+          filter: (item) =>
+            item === swcPkgPath ||
+            (item.endsWith('.node') && !fs.pathExistsSync(item)),
+        }
+      )
+    }
+  }
+
   for (const item of ['package.json', 'yarn.lock', 'packages']) {
     await fs.copy(path.join(origRepoDir, item), path.join(tmpRepoDir, item), {
       filter: (item) => {
@@ -23,6 +42,7 @@ async function createNextInstall(dependencies) {
       },
     })
   }
+
   const pkgPaths = await linkPackages(tmpRepoDir)
 
   await fs.ensureDir(installDir)

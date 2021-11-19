@@ -363,7 +363,11 @@ export async function imageOptimizer(
 
         if (contentType === AVIF) {
           if (transformer.avif) {
-            transformer.avif({ quality })
+            const avifQuality = quality - 15
+            transformer.avif({
+              quality: Math.max(avifQuality, 0),
+              chromaSubsampling: '4:2:0', // same as webp
+            })
           } else {
             console.warn(
               chalk.yellow.bold('Warning: ') +
