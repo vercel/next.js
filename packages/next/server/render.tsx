@@ -1148,30 +1148,52 @@ export async function renderToHTML(
         styles: docProps.styles,
       }
     } else {
-      const bodyResult = async () => {
-        const content = (
-          <Body>
-            {ctx.err && ErrorDebug ? (
-              <ErrorDebug error={ctx.err} />
-            ) : (
-              getWrappedApp(
-                <App {...props} Component={Component} router={router} />
-              )
-            )}
-          </Body>
-        )
+      let bodyResult
 
-        return concurrentFeatures
-          ? process.browser
+      if (concurrentFeatures) {
+        bodyResult = async () => {
+          // this must be called inside bodyResult so appWrappers is
+          // up to date when getWrappedApp is called
+          const content =
+            ctx.err && ErrorDebug ? (
+              <Body>
+                <ErrorDebug error={ctx.err} />
+              </Body>
+            ) : (
+              <Body>
+                {getWrappedApp(
+                  <App {...props} Component={Component} router={router} />
+                )}
+              </Body>
+            )
+          return process.browser
             ? await renderToWebStream(content)
             : await renderToNodeStream(content, generateStaticHTML)
-          : piperFromArray([ReactDOMServer.renderToString(content)])
+        }
+      } else {
+        const content =
+          ctx.err && ErrorDebug ? (
+            <Body>
+              <ErrorDebug error={ctx.err} />
+            </Body>
+          ) : (
+            <Body>
+              {getWrappedApp(
+                <App {...props} Component={Component} router={router} />
+              )}
+            </Body>
+          )
+        // for non-concurrent rendering we need to ensure App is rendered
+        // before _document so that updateHead is called/collected before
+        // rendering _document's head
+        const result = piperFromArray([ReactDOMServer.renderToString(content)])
+        bodyResult = () => result
       }
 
       return {
         bodyResult,
         documentElement: () => (Document as any)(),
-        useMainContent: (fn?: (content: JSX.Element) => JSX.Element) => {
+        useMainContent: (fn?: (_content: JSX.Element) => JSX.Element) => {
           if (fn) {
             appWrappers.push(fn)
           }
