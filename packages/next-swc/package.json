@@ -1,0 +1,25 @@
+{
+  "name": "@next/swc",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "build-native": "napi build --platform --cargo-name next_swc_napi native"
+  },
+  "napi": {
+    "name": "next-swc",
+    "triples": {
+      "defaults": true,
+      "additional": [
+        "i686-pc-windows-msvc",
+        "aarch64-unknown-linux-gnu",
+        "armv7-unknown-linux-gnueabihf",
+        "aarch64-apple-darwin",
+        "aarch64-linux-android",
+        "x86_64-unknown-freebsd",
+        "x86_64-unknown-linux-musl",
+        "aarch64-unknown-linux-musl",
+        "aarch64-pc-windows-msvc"
+      ]
+    }
+  }
+}
