@@ -18,7 +18,7 @@ describe('Functional Custom Document', () => {
 
     it('supports custom flush handlers', async () => {
       const html = await renderViaHTTP(appPort, '/')
-      expect(html).toMatch(/<foo \/><bar \/><span>Hello World!<\/span>/)
+      expect(html).toMatch(/<foo><\/foo><bar><\/bar><span>Hello World!<\/span>/)
     })
   })
 })
