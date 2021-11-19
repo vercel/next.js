@@ -46,6 +46,7 @@ use swc_ecmascript::{
 };
 
 pub mod amp_attributes;
+pub mod disallow_re_export_all_in_page;
 mod auto_cjs;
 pub mod hook_optimizer;
 pub mod next_dynamic;
@@ -85,6 +86,7 @@ pub struct TransformOptions {
 
 pub fn custom_before_pass(file: Arc<SourceFile>, opts: &TransformOptions) -> impl Fold {
     chain!(
+        disallow_re_export_all_in_page::disallow_re_export_all_in_page(opts.is_page_file),
         styled_jsx::styled_jsx(),
         hook_optimizer::hook_optimizer(),
         match &opts.styled_components {
