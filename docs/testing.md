@@ -255,7 +255,7 @@ npx create-next-app@latest --example with-jest with-jest-app
 
 ### Setting up Jest (with SWC)
 
-Since the release of (Next.js 12)[https://nextjs.org/blog/next-12], Next.js now has built-in configuration for Jest. This includes TypeScript support, auto mocking of stylesheets and images, and more.
+Since the release of (Next.js 12)[https://nextjs.org/blog/next-12], Next.js now has built-in configuration for Jest. 
 
 To set up Jest, install `jest` , `@testing-library/react`, `@testing-library/jest-dom` and `react-test-renderer`.
 
@@ -294,7 +294,7 @@ Under the hood, `next/jest` is automatically configuring Jest for you, including
 
 ### Setting up Jest (with Babel)
 
-If you opt out of SWC, in addition to the packages above, you will need to install the `babel-jest` and `identity-obj-proxy` packages, and manually configure Jest.
+If you opt out of SWC, you will need to manually configure Jest and install `babel-jest` and `identity-obj-proxy` in addition to the packages above.
 
 Here are the recommended options to configure Jest for Next.js:
 
