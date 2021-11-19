@@ -720,7 +720,6 @@ export default async function getBaseWebpackConfig(
               `Optimized chunk splitting will be unavailable for '${packageName}'.`
           )
       }
-
   }
 
   for (const packageName of ["react", "react-dom", "next"]) {
