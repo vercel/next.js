@@ -1,6 +1,6 @@
 {
   "labels": {
-    "type: example": ["examples/**"],
+    "area: examples": ["examples/**"],
     "area: documentation": ["docs/**", "errors/**"],
     "area: create-next-app": ["packages/create-next-app/**"],
     "type: next": [
