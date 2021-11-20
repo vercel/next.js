@@ -29,15 +29,6 @@ function loadBindings() {
   // Try to load native bindings
   const triples = platformArchTriples[PlatformName][ArchName]
   for (const triple of triples) {
-    try {
-      Log.info('Using locally built binary of @next/swc')
-      return require(`@next/swc/native/next-swc.${triple.platformArchABI}.node`)
-    } catch (e) {
-      if (e?.code !== 'MODULE_NOT_FOUND') {
-        loadError = e
-      }
-    }
-
     const localFilePath = path.join(
       __dirname,
       '../../../../next-swc/native',
@@ -54,6 +45,16 @@ function loadBindings() {
 
     try {
       return require(`@next/swc-${triple.platformArchABI}`)
+    } catch (e) {
+      if (e?.code !== 'MODULE_NOT_FOUND') {
+        loadError = e
+      }
+    }
+
+    // PR stats location/isolated tests location
+    try {
+      Log.info('Using locally built binary of @next/swc')
+      return require(`@next/swc/native/next-swc.${triple.platformArchABI}.node`)
     } catch (e) {
       if (e?.code !== 'MODULE_NOT_FOUND') {
         loadError = e
