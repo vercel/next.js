@@ -109,7 +109,8 @@ module.exports = (actionInfo) => {
           )
         }
         if (pkg === 'next') {
-          pkgData.dependencies['@next/swc'] = 'canary'
+          pkgData.dependencies['@next/swc'] =
+            pkgDatas.get('@next/swc').packedPkgPath
         }
         await fs.writeFile(
           pkgDataPath,
