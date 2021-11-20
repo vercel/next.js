@@ -2122,9 +2122,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_transforms_compat"
-version = "0.52.5"
+version = "0.52.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "89a53176bfa44f5bb092cda315ac34a23fe26d62a93c8deec0cb7df810f85385"
+checksum = "14fbdc06521ac615f058843728666b940488a3bf20b9a427978391484717896b"
 dependencies = [
  "ahash",
  "arrayvec",
