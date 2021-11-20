@@ -137,10 +137,16 @@ module.exports = {
           hrefValue.startsWith('https://fonts.googleapis.com/css')
 
         if (isGoogleFont) {
+          const end =
+            'This is discouraged. See https://nextjs.org/docs/messages/no-page-custom-font.'
+
+          const message = is_Document
+            ? `Rendering this <link /> not inline within <Head> of Document disables font optimization. ${end}`
+            : `Custom fonts not added at the document level will only load for a single page. ${end}`
+
           context.report({
             node,
-            message:
-              'Custom fonts not added at the document level will only load for a single page. This is discouraged. See https://nextjs.org/docs/messages/no-page-custom-font.',
+            message,
           })
         }
       },

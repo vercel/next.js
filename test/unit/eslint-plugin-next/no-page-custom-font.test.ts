@@ -138,5 +138,48 @@ ruleTester.run('no-page-custom-font', rule, {
         },
       ],
     },
+    {
+      code: `
+      import Head from 'next/head'
+
+
+      function Links() {
+        return (
+          <>
+            <link
+              href="https://fonts.googleapis.com/css2?family=Inter"
+              rel="stylesheet"
+            />
+            <link
+              href="https://fonts.googleapis.com/css2?family=Open+Sans"
+              rel="stylesheet"
+              />  
+          </>
+        )
+      }
+
+      export default function IndexPage() {
+        return (
+          <div>
+            <Head>
+              <Links />
+            </Head>
+            <p>Hello world!</p>
+          </div>
+        )
+      }
+      `,
+      filename,
+      errors: [
+        {
+          message:
+            'Rendering this <link /> not inline within <Head> of Document disables font optimization. This is discouraged. See https://nextjs.org/docs/messages/no-page-custom-font.',
+        },
+        {
+          message:
+            'Rendering this <link /> not inline within <Head> of Document disables font optimization. This is discouraged. See https://nextjs.org/docs/messages/no-page-custom-font.',
+        },
+      ],
+    },
   ],
 })
