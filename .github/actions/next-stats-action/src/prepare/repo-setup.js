@@ -109,8 +109,12 @@ module.exports = (actionInfo) => {
           )
         }
         if (pkg === 'next') {
-          pkgData.dependencies['@next/swc'] =
-            pkgDatas.get('@next/swc').packedPkgPath
+          if (pkgDatas.get('@next/swc')) {
+            pkgData.dependencies['@next/swc'] =
+              pkgDatas.get('@next/swc').packedPkgPath
+          } else {
+            pkgData.files.push('native')
+          }
         }
         await fs.writeFile(
           pkgDataPath,
