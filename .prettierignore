@@ -10,7 +10,7 @@ packages/react-dev-overlay/lib/**
 **/__tmp__/**
 lerna.json
 .github/actions/next-stats-action/.work
-packages/next/build/swc/tests/**/*
+packages/next/build/swc/crates/**/*
 packages/next-codemod/transforms/__testfixtures__/**/*
 packages/next-codemod/transforms/__tests__/**/*
 packages/next-codemod/**/*.js

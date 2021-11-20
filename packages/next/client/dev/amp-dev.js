@@ -94,4 +94,5 @@ connectHMR({
   path: '/_next/webpack-hmr',
 })
 displayContent()
-initOnDemandEntries()
+
+initOnDemandEntries(data.page)
