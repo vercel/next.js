@@ -50,7 +50,7 @@ If you have feedback about `swcMinify`, please share it on the [feedback discuss
 
 We're working to port `babel-plugin-styled-components` to the Next.js Compiler.
 
-First, update to the latest version of Next.js: `npm install next@latest`.  Then, update your `next.config.js` file:
+First, update to the latest version of Next.js: `npm install next@latest`. Then, update your `next.config.js` file:
 
 ```js
 // next.config.js
