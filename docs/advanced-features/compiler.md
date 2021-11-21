@@ -15,7 +15,7 @@ description: Learn about the Next.js Compiler, written in Rust, which transforms
 
 The Next.js Compiler, written in Rust using [SWC](http://swc.rs/), allows Next.js to transform and minify your JavaScript code for production. This replaces Babel for individual files and Terser for minifying output bundles.
 
-Compilation using the Next.js Compiler is 17x faster than Babel and enabled by default using Next.js 12. If you have an existing Babel configuration or are using [unsupported features](#unsupported-features), your application will opt-out of the Next.js Compiler and continue using Babel.
+Compilation using the Next.js Compiler is 17x faster than Babel and enabled by default since Next.js version 12. If you have an existing Babel configuration or are using [unsupported features](#unsupported-features), your application will opt-out of the Next.js Compiler and continue using Babel.
 
 ## Why SWC?
 
@@ -28,7 +28,7 @@ We chose to build on SWC for a few reasons:
 - **Extensibility:** SWC can be used as a Crate inside Next.js, without having to fork the library or workaround design constraints.
 - **Performance:** We were able to achieve ~3x faster Fast Refresh and ~5x faster builds in Next.js by switching to SWC, with more room for optimization still in progress.
 - **WebAssembly:** Rust's support for WASM is essential for supporting all possible platforms and taking Next.js development everywhere.
-- **Community:** The Rust community and ecosystem are amazing and only growing.
+- **Community:** The Rust community and ecosystem are amazing and still growing.
 
 ## Experimental Features
 
@@ -44,13 +44,13 @@ module.exports = {
 }
 ```
 
-If you have any feedback about swcMinify please share it on the [feedback discussion](https://github.com/vercel/next.js/discussions/30237).
+If you have feedback about `swcMinify`, please share it on the [feedback discussion](https://github.com/vercel/next.js/discussions/30237).
 
 ### Styled Components
 
 We're working to port `babel-plugin-styled-components` to the Next.js Compiler.
 
-First, update to the canary version of Next.js: `npm install next@canary`. Then, update your `next.config.js` file:
+First, update to the latest version of Next.js: `npm install next@latest`.  Then, update your `next.config.js` file:
 
 ```js
 // next.config.js
@@ -63,7 +63,7 @@ module.exports = {
 }
 ```
 
-Currently, the `ssr` and `displayName` transforms have been implemented, these two transforms are the main requirement for using `styled-components` in Next.js.
+Currently, only the `ssr` and `displayName` transforms have been implemented. These two transforms are the main requirement for using `styled-components` in Next.js.
 
 ### Jest
 
@@ -126,6 +126,6 @@ First, update to the latest version of Next.js: `npm install next@latest`. Then,
 
 ## Unsupported Features
 
-When your application has a `.babelrc` Next.js will automatically fall back to using Babel for transforming individual files. This ensures backwards compatibility with existing applications that leverage custom Babel plugins.
+When your application has a `.babelrc` file, Next.js will automatically fall back to using Babel for transforming individual files. This ensures backwards compatibility with existing applications that leverage custom Babel plugins.
 
 If you're using a custom Babel setup, [please share your configuration](https://github.com/vercel/next.js/discussions/30174). We're working to port as many commonly used Babel transformations as possible, as well as supporting plugins in the future.
