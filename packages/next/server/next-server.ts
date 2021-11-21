@@ -1096,12 +1096,16 @@ export default class Server {
         name: `Rewrite route ${rewriteRoute.source}`,
         match: rewriteRoute.match,
         fn: async (req, res, params, parsedUrl) => {
-          const { newUrl, parsedDestination } = prepareDestination({
+          let { newUrl, parsedDestination } = prepareDestination({
             appendParamsToQuery: true,
             destination: rewriteRoute.destination,
             params: params,
             query: parsedUrl.query,
           })
+
+          if (getRequestMeta(req, '_nextHadBasePath')) {
+            newUrl = newUrl.replace(this.nextConfig.basePath, '') || '/'
+          }
 
           // external rewrite, proxy it
           if (parsedDestination.protocol) {
