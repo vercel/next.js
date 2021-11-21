@@ -255,7 +255,7 @@ npx create-next-app@latest --example with-jest with-jest-app
 
 ### Setting up Jest (with SWC)
 
-Since the release of (Next.js 12)[https://nextjs.org/blog/next-12], Next.js now has built-in configuration for Jest. 
+Since the release of [Next.js 12](https://nextjs.org/blog/next-12), Next.js now has built-in configuration for Jest. 
 
 To set up Jest, install `jest` , `@testing-library/react`, `@testing-library/jest-dom` and `react-test-renderer`.
 
