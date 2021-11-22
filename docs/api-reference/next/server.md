@@ -88,7 +88,7 @@ The introduction of the `307` status code means that the request method is prese
 
 The `redirect()` method uses a `307` by default, instead of a `302` temporary redirect, meaning your requests will _always_ be preserved as `POST` requests.
 
-### Accessing environment variables
+### How do I access Environment Variables?
 
 `process.env` can be used to access [Environment Variables](docs/basic-features/environment-variables.md) from Middleware. These are evaluated at build time, so only environment variables _actually_ used will be included.
 
