@@ -22,6 +22,12 @@ You should use `getServerSideProps` only if you need to pre-render a page whose 
 
 If you do not need to pre-render the data, then you should consider fetching data on the [client side](#fetching-data-on-the-client-side).
 
+### `getServerSideProps` or API Routes?
+
+It can be tempting to reach for an [API Route](/docs/api-routes/introduction.md) when you want to fetch data from the server, then call that API route from `getServerSideProps`. This is an unnecessary and inefficient approach, as it will cause an extra request to be made due to both `getServerSideProps` and API Routes running on the server.
+
+Instead, directly import the logic used inside your API Route into `getServerSideProps`. This could mean calling a CMS, database, or other API directly from inside `getServerSideProps`.
+
 ### TypeScript: Use `GetServerSideProps`
 
 For TypeScript, you can use the `GetServerSideProps` type from `next`:

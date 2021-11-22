@@ -26,10 +26,6 @@ export async function getServerSideProps(context) {
 
 You can import modules in top-level scope for use in `getServerSideProps`. Imports used will **not be bundled for the client-side**. This means you can write **server-side code directly in `getServerSideProps`**, including reading from the filesystem or a database.
 
-You should not use the [`fetch()`](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) `API` to call an [API route](/docs/api-routes/introduction.md) in `getServerSideProps`.
-
-Instead, directly import the logic used inside your `API` route. You may need to slightly refactor your code for this approach.
-
 ## Context parameter
 
 The `context` parameter is an object containing the following keys:
