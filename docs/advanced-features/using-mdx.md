@@ -63,14 +63,10 @@ The following steps outline how to setup `@next/mdx` in your Next.js project:
 
 ## Using Components, Layouts and Custom Elements
 
-You can now import a React component directly inside your MDX page. Note that `@next/mdx` does **not** support frontmatter (frontmatter is a YAML like key/value pairing that can be used to store data about a page), instead, you can export data from within the `.mdx` file:
+You can now import a React component directly inside your MDX page:
 
 ```md
 import { MyComponent } from 'my-components'
-
-export const meta = {
-author: 'Rich Haines'
-}
 
 # My MDX page
 
@@ -83,6 +79,20 @@ This is a list in markdown:
 Checkout my React component:
 
 <MyComponent/>
+```
+
+### Frontmatter
+
+Frontmatter is a YAML like key/value pairing that can be used to store data about a page. `@next/mdx` does **not** support frontmatter by default, though there are many solutions for adding frontmatter to your MDX content, such as [gray-matter](https://github.com/jonschlinkert/gray-matter).
+
+To access page metadata with `@next/mdx`, you can export a meta object from within the `.mdx` file:
+
+```md
+export const meta = {
+author: 'Rich Haines'
+}
+
+# My MDX page
 ```
 
 ### Layouts
@@ -180,4 +190,3 @@ export default function Post(props) {
 - [`@next/mdx`](https://www.npmjs.com/package/@next/mdx)
 - [remark](https://github.com/remarkjs/remark)
 - [rehype](https://github.com/rehypejs/rehype)
-- [gray-matter: Adding frontmatter to your MDX file](https://github.com/jonschlinkert/gray-matter)
