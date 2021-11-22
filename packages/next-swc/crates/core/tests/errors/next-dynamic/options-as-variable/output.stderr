@@ -1,0 +1,7 @@
+error: Second argument must be an object literal.
+Read more: https://nextjs.org/docs/messages/invalid-dynamic-arguments
+ --> input.js:4:43
+  |
+4 | const DynamicComponentWithCustomLoading = dynamic(
+  |                                           ^^^^^^^
+

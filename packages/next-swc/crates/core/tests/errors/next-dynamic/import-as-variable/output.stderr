@@ -1,0 +1,7 @@
+error: import() has to be inside the dynamic() call.
+Read more: https://nextjs.org/docs/messages/invalid-dynamic-arguments
+ --> input.js:4:43
+  |
+4 | const DynamicComponentWithCustomLoading = dynamic(module)
+  |                                           ^^^^^^^
+

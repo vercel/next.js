@@ -514,6 +514,10 @@
         {
           "title": "experimental-jest-transformer",
           "path": "/errors/experimental-jest-transformer.md"
+        },
+        {
+          "title": "invalid-dynamic-arguments",
+          "path": "/errors/invalid-dynamic-arguments.md"
         }
       ]
     }
