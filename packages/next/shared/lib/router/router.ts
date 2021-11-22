@@ -48,7 +48,7 @@ interface RouteProperties {
   shallow: boolean
 }
 
-interface TransitionOptions {
+export interface TransitionOptions {
   shallow?: boolean
   locale?: string | false
   scroll?: boolean
@@ -223,7 +223,7 @@ export function isLocalURL(url: string): boolean {
   }
 }
 
-type Url = UrlObject | string
+export type Url = UrlObject | string
 
 export function interpolateAs(
   route: string,
