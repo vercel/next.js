@@ -73,7 +73,8 @@ function loadBindings() {
 }
 
 async function transform(src, options) {
-  const isModule = typeof src !== 'string' && !Buffer.isBuffer(src)
+  const isModule =
+    typeof src !== undefined && typeof src !== 'string' && !Buffer.isBuffer(src)
   options = options || {}
 
   if (options?.jsc?.parser) {
@@ -89,7 +90,16 @@ async function transform(src, options) {
 }
 
 function transformSync(src, options) {
-  const isModule = typeof src !== 'string' && !Buffer.isBuffer(src)
+  if (typeof src === undefined) {
+    throw new Error(
+      "transformSync doesn't implement reading the file from filesystem"
+    )
+  } else if (Buffer.isBuffer(src)) {
+    throw new Error(
+      "transformSync doesn't implement taking the source code as Buffer"
+    )
+  }
+  const isModule = typeof src !== 'string'
   options = options || {}
 
   if (options?.jsc?.parser) {
