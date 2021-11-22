@@ -657,6 +657,7 @@ if (process.env.__NEXT_RSC) {
     cacheKey: string
     serialized?: string
     _fresh?: boolean
+    [x: string]: any
   }) => {
     const {
       createFromFetch,
@@ -685,11 +686,12 @@ if (process.env.__NEXT_RSC) {
     }
 
     const root = response.readRoot()
+    delete restProps.router
     return React.cloneElement(root, restProps)
   }
 
   RSCComponent = (props: any) => {
-    const { asPath: cacheKey } = useRouter() as any
+    const cacheKey = useRouter().asPath
     const { __flight_serialized__, __flight_fresh__, ...rest } = props
     return (
       <React.Suspense fallback={null}>

@@ -242,10 +242,11 @@ async function runBasicTests(context, env) {
       '/this-is-not-found'
     )
 
-    expect(homeHTML).toContain('thisistheindexpage.server')
-    expect(homeHTML).toContain('env_var_test')
+    expect(homeHTML).toContain('component:index.server')
+    expect(homeHTML).toContain('env:env_var_test')
+    expect(homeHTML).toContain('header:test-util')
+    expect(homeHTML).toContain('path:/')
     expect(homeHTML).toContain('foo.client')
-    expect(homeHTML).toContain('test-util')
 
     expect(dynamicRouteHTML1).toContain('[pid]')
     expect(dynamicRouteHTML2).toContain('[pid]')
