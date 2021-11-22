@@ -218,6 +218,9 @@ async function runBasicTests(context, env) {
   it('should render the correct html', async () => {
     const homeHTML = await renderViaHTTP(context.appPort, '/')
 
+    // should have only 1 DOCTYPE
+    expect(homeHTML).toMatch(/^<!DOCTYPE html><html/)
+
     // dynamic routes
     const dynamicRouteHTML1 = await renderViaHTTP(
       context.appPort,

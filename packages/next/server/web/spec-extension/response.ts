@@ -46,16 +46,20 @@ export class NextResponse extends Response {
     const val =
       typeof value === 'object' ? 'j:' + JSON.stringify(value) : String(value)
 
-    if (opts.maxAge) {
-      opts.expires = new Date(Date.now() + opts.maxAge)
-      opts.maxAge /= 1000
+    const options = { ...opts }
+    if (options.maxAge) {
+      options.expires = new Date(Date.now() + options.maxAge)
+      options.maxAge /= 1000
     }
 
-    if (opts.path == null) {
-      opts.path = '/'
+    if (options.path == null) {
+      options.path = '/'
     }
 
-    this.headers.append('Set-Cookie', cookie.serialize(name, String(val), opts))
+    this.headers.append(
+      'Set-Cookie',
+      cookie.serialize(name, String(val), options)
+    )
     return this
   }
 

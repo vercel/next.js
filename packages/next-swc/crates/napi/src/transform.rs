@@ -27,10 +27,10 @@ DEALINGS IN THE SOFTWARE.
 */
 
 use crate::{
-    complete_output, custom_before_pass, get_compiler,
+    complete_output, get_compiler,
     util::{deserialize_json, CtxtExt, MapErr},
-    TransformOptions,
 };
+use next_swc::{custom_before_pass, TransformOptions};
 use anyhow::{anyhow, Context as _, Error};
 use napi::{CallContext, Env, JsBoolean, JsBuffer, JsObject, JsString, JsUnknown, Status, Task};
 use std::{
