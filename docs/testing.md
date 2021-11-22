@@ -347,7 +347,7 @@ Styleheets and images aren't used in the tests but importing them may cause erro
 (module.exports = "test-file-stub")
 ```
 
-```json
+```js
 // __mocks__/styleMock.js
 module.exports = {};
 ```
