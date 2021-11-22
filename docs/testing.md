@@ -342,7 +342,7 @@ You can learn more about each configuration option in the [Jest docs](https://je
 
 Styleheets and images aren't used in the tests but importing them may cause errors, so we will need to mock them. Create the mock files we referenced in the configuration above - `fileMock.js` and `styleMock.js` - inside a `__mocks__` directory:
 
-```json
+```js
 // __mocks__/fileMock.js
 (module.exports = "test-file-stub")
 ```
