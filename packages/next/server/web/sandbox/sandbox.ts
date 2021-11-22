@@ -168,6 +168,19 @@ export async function run(params: {
     }
   }
 
+  const subHeader = params.request.headers[`x-middleware-subrequest`]
+  const subrequests = typeof subHeader === 'string' ? subHeader.split(':') : []
+  if (subrequests.includes(params.name)) {
+    return {
+      waitUntil: Promise.resolve(),
+      response: new cache.context.Response(null, {
+        headers: {
+          'x-middleware-next': '1',
+        },
+      }),
+    }
+  }
+
   const entryPoint = cache.context._ENTRIES[`middleware_${params.name}`]
 
   if (params.ssr) {
