@@ -32,7 +32,7 @@ The following steps outline how to setup `@next/mdx` in your Next.js project:
 
 1. Install the required packages:
 
-   ```terminal
+   ```bash
      npm install @next/mdx @mdx-js/loader
    ```
 
