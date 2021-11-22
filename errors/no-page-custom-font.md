@@ -41,7 +41,7 @@ Or as a function component:
 ```js
 // pages/_document.js
 
-import Document, { Html, Head, Main, NextScript } from 'next/document'
+import { Html, Head, Main, NextScript } from 'next/document'
 
 export default function Document() {
   return (
