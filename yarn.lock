@@ -8707,7 +8707,7 @@ enhanced-resolve@^4.3.0:
     memory-fs "^0.5.0"
     tapable "^1.0.0"
 
-enhanced-resolve@^5.8.3, enhanced-resolve@webpack/enhanced-resolve#feature/use-cached-stat-for-read:
+enhanced-resolve@^5.8.3:
   version "5.8.3"
   resolved "https://codeload.github.com/webpack/enhanced-resolve/tar.gz/a7c161eeb141bfc7fda375df36c13df006a8cf76"
   dependencies:
@@ -19990,6 +19990,7 @@ webpack-bundle-analyzer@4.3.0:
     source-map "~0.6.1"
 
 "webpack-sources3@npm:webpack-sources@3.2.2", webpack-sources@^3.2.2:
+  name webpack-sources3
   version "3.2.2"
   resolved "https://registry.yarnpkg.com/webpack-sources/-/webpack-sources-3.2.2.tgz#d88e3741833efec57c4c789b6010db9977545260"
   integrity sha512-cp5qdmHnu5T8wRg2G3vZZHoJPN14aqQ89SyQ11NpGH5zEMDCclt49rzo+MaRazk7/UeILhAI+/sEtcM+7Fr0nw==

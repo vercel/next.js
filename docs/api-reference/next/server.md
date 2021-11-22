@@ -25,7 +25,7 @@ The function can be a default export and as such, does **not** have to be named 
 
 The `NextRequest` object is an extension of the native [`Request`](https://developer.mozilla.org/en-US/docs/Web/API/Request) interface, with the following added methods and properties:
 
-- `cookies` - Has the cookies from the `Request`
+- `cookie` - Has the cookies from the `Request`
 - `nextUrl` - Includes an extended, parsed, URL object that gives you access to Next.js specific properties such as `pathname`, `basePath`, `trailingSlash` and `i18n`
 - `geo` - Has the geo location from the `Request`
   - `geo.country` - The country code
@@ -95,14 +95,14 @@ The `redirect()` method uses a `307` by default, instead of a `302` temporary re
 Any variables in `process.env` must be accessed directly, and **cannot** be destructured:
 
 ```ts
+// Accessed directly, and not destructured works. process.env.NODE_ENV is `"development"` or `"production"`
+console.log(process.env.NODE_ENV)
 // This will not work
 const { NODE_ENV } = process.env
 // NODE_ENV is `undefined`
 console.log(NODE_ENV)
 // process.env is `{}`
 console.log(process.env)
-// Accessed directly, and not destructured works. process.env.NODE_ENV is `"development"` or `"production"`
-console.log(process.env.NODE_ENV)
 ```
 
 ## Related
