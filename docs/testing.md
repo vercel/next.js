@@ -257,7 +257,7 @@ npx create-next-app@latest --example with-jest with-jest-app
 
 Since the release of [Next.js 12](https://nextjs.org/blog/next-12), Next.js now has built-in configuration for Jest. 
 
-To set up Jest, install `jest` , `@testing-library/react`, `@testing-library/jest-dom` and `react-test-renderer`.
+To set up Jest, install `jest` , `@testing-library/react`, `@testing-library/jest-dom` and `react-test-renderer`:
 
 ```bash
 npm install --save-dev jest @testing-library/react @testing-library/jest-dom react-test-renderer
