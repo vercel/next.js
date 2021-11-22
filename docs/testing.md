@@ -365,7 +365,7 @@ For more information on handling static assets, please refer to the [Jest Docs](
 
 `@testing-library/jest-dom` includes a set of convenient [custom matchers](https://github.com/testing-library/jest-dom#custom-matchers) such as `.toBeInTheDocument()` making it easier to write tests. You can import the custom matchers for every test by adding the following option to the Jest configuration file:
 
-```json
+```js
 // jest.config.js
 setupFilesAfterEnv: ['<rootDir>/jest.setup.js']
 ```
