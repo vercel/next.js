@@ -1,9 +1,52 @@
 import { randomBytes } from 'crypto'
-import { batcher } from './to-zipkin'
 import { traceGlobals } from '../shared'
 import fs from 'fs'
 import path from 'path'
 import { PHASE_DEVELOPMENT_SERVER } from '../../shared/lib/constants'
+
+const localEndpoint = {
+  serviceName: 'nextjs',
+  ipv4: '127.0.0.1',
+  port: 9411,
+}
+
+type Event = {
+  traceId: string
+  parentId?: string
+  name: string
+  id: string
+  timestamp: number
+  duration: number
+  localEndpoint?: typeof localEndpoint
+  tags?: Object
+}
+
+// Batch events as zipkin allows for multiple events to be sent in one go
+export function batcher(reportEvents: (evts: Event[]) => Promise<void>) {
+  const events: Event[] = []
+  // Promise queue to ensure events are always sent on flushAll
+  const queue = new Set()
+  return {
+    flushAll: async () => {
+      await Promise.all(queue)
+      if (events.length > 0) {
+        await reportEvents(events)
+        events.length = 0
+      }
+    },
+    report: (event: Event) => {
+      events.push(event)
+
+      if (events.length > 100) {
+        const evts = events.slice()
+        events.length = 0
+        const report = reportEvents(evts)
+        queue.add(report)
+        report.then(() => queue.delete(report))
+      }
+    },
+  }
+}
 
 let writeStream: RotatingWriteStream
 let traceId: string
