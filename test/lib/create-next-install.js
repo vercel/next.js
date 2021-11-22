@@ -20,7 +20,7 @@ async function createNextInstall(dependencies) {
       const swcPkgPath = path.join(origRepoDir, 'node_modules/@next', folder)
       await fs.copy(
         swcPkgPath,
-        path.join(origRepoDir, 'packages/next/native'),
+        path.join(origRepoDir, 'packages/next-swc/native'),
         {
           filter: (item) =>
             item === swcPkgPath ||
