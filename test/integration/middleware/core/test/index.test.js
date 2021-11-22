@@ -34,6 +34,7 @@ describe('Middleware base tests', () => {
       })
     })
     afterAll(() => killApp(context.app))
+
     rewriteTests()
     rewriteTests('/fr')
     redirectTests()
@@ -47,6 +48,7 @@ describe('Middleware base tests', () => {
       expect(output).toContain(middlewareWarning)
     })
   })
+
   describe('production mode', () => {
     let buildOutput
     let serverOutput
@@ -437,6 +439,13 @@ function interfaceTests(locale = '') {
     if (locale !== '') {
       expect(res.headers.get('req-url-locale')).toBe(locale.slice(1))
     }
+  })
+
+  it(`${locale} should allow to do subrequests without an infinite loop`, async () => {
+    const res = await fetchViaHTTP(context.appPort, `/interface/fetchDynamic`)
+    const text = await res.text()
+    expect(res.headers.get('x-dynamic-path')).toBe('true')
+    expect(text.includes('<p class="title">Dynamic route</p>')).toBe(true)
   })
 }
 

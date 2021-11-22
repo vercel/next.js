@@ -53,6 +53,10 @@ export async function middleware(request) {
     }
   }
 
+  if (url.pathname.endsWith('/fetchDynamic')) {
+    return fetch(url.pathname)
+  }
+
   return new Response(null, {
     headers: {
       'req-url-basepath': request.nextUrl.basePath,
