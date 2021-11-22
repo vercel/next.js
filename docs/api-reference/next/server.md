@@ -90,7 +90,7 @@ The `redirect()` method uses a `307` by default, instead of a `302` temporary re
 
 ### Accessing environment variables
 
-`process.env` can be used to access [environment variables](docs/basic-features/environment-variables.md) from Middleware. However, these are evaluated at build time so only environment variables _actually_ used will be included.
+`process.env` can be used to access [Environment Variables](docs/basic-features/environment-variables.md) from Middleware. These are evaluated at build time, so only environment variables _actually_ used will be included.
 
 Any variables in `process.env` must be accessed directly, and **cannot** be destructured:
 
