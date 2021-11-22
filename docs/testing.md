@@ -243,7 +243,13 @@ You can learn more about Playwright and Continuous Integration from these resour
 
 ## Jest and React Testing Library
 
-Jest and React Testing Library are frequently used together for **Unit Testing**.
+Jest and React Testing Library are frequently used together for **Unit Testing**. There are three ways you can start using Jest within your Next.js application:
+
+1. Using one of our [quickstart examples](https://nextjs.org/docs/testing#quickstart-2)
+2. With the [Next.js Rust Compiler](https://nextjs.org/docs/testing#setting-up-jest-with-the-rust-compiler)
+3. With [Babel](https://nextjs.org/docs/testing#setting-up-jest-with-babel)
+
+The following sections will go through how you can set up Jest with each of these options:
 
 ### Quickstart
 
