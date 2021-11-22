@@ -287,10 +287,10 @@ Under the hood, `next/jest` is automatically configuring Jest for you, including
 
 - Auto mocking stylesheets (`.css`, `.module.css`, and their scss variants) and image imports
 - Setting up `transform` using SWC
-- Loading .env (and all variants) into process.env
-- Ignoring node_modules from test resolving and transforms
-- Ignoring .next from test resolving
-- Loading next.config.js for flags that enable experimental SWC transforms
+- Loading `.env` (and all variants) into `process.env`
+- Ignoring `node_modules` from test resolving and transforms
+- Ignoring `.next` from test resolving
+- Loading `next.config.js` for flags that enable experimental SWC transforms
 
 ### Setting up Jest (with Babel)
 
