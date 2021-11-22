@@ -701,7 +701,7 @@ describe('should set-up next', () => {
     expect(JSON.parse($('#router').text()).locale).toBe('en')
   })
 
-  it('should have the correct asPath for fallback page', async () => {
+  it('should have the correct asPath for fallback page locale', async () => {
     const res = await fetchViaHTTP(appPort, '/fr/fallback/[slug]', undefined, {
       headers: {
         'x-matched-path': '/fr/fallback/[slug]',

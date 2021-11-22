@@ -114,7 +114,7 @@ Since Cypress is testing a real Next.js application, it requires the Next.js ser
 
 Run `npm run build` and `npm run start`, then run `npm run cypress` in another terminal window to start Cypress.
 
-> **Note:** Alternatively, you can install the `start-server-and-test` package and add it to the `package.json` scripts field: `"test": "start-server-and-test start http://localhost:3000 cypress"` to start the Next.js production server in conjuction with Cypress. Remember to rebuild your application after new changes.
+> **Note:** Alternatively, you can install the `start-server-and-test` package and add it to the `package.json` scripts field: `"test": "start-server-and-test start http://localhost:3000 cypress"` to start the Next.js production server in conjunction with Cypress. Remember to rebuild your application after new changes.
 
 ### Getting ready for Continuous Integration (CI)
 
@@ -224,7 +224,7 @@ You can use `page.goto("/")` instead of `page.goto("http://localhost:3000/")`, i
 
 ### Running your Playwright tests
 
-Since Playwright is testing a real Next.js application, it requires the Next.js server to be running prior to starting Playwright. It is recommend to run your tests against your production code to more closely resemble how your application will behave.
+Since Playwright is testing a real Next.js application, it requires the Next.js server to be running prior to starting Playwright. It is recommended to run your tests against your production code to more closely resemble how your application will behave.
 
 Run `npm run build` and `npm run start`, then run `npm run test:e2e` in another terminal window to run the Playwright tests.
 

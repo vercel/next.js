@@ -129,10 +129,10 @@ export function runNextCommand(argv, options = {}) {
   // Let Next.js decide the environment
   const env = {
     ...process.env,
-    ...options.env,
     NODE_ENV: '',
     __NEXT_TEST_MODE: 'true',
     NEXT_PRIVATE_OUTPUT_TRACE_ROOT: path.join(__dirname, '../../'),
+    ...options.env,
   }
 
   return new Promise((resolve, reject) => {
@@ -240,7 +240,7 @@ export function runNextCommandDev(argv, stdOut, opts = {}) {
     function handleStdout(data) {
       const message = data.toString()
       const bootupMarkers = {
-        dev: /compiled successfully/i,
+        dev: /compiled .*successfully/i,
         start: /started server/i,
       }
       if (

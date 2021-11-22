@@ -2,7 +2,7 @@ import { loadEnvConfig } from '@next/env'
 import { resolve, join } from 'path'
 import loadConfig from '../../server/config'
 import { PHASE_TEST } from '../../shared/lib/constants'
-// import loadJsConfig from '../load-jsconfig'
+import loadJsConfig from '../load-jsconfig'
 import * as Log from '../output/log'
 
 async function getConfig(dir: string) {
@@ -51,7 +51,7 @@ export default function nextJest(options: { dir?: string } = {}) {
     // Will be called and awaited by Jest
     return async () => {
       let nextConfig
-      let paths
+      let jsConfig
       let resolvedBaseUrl
       let isEsmProject = false
       if (options.dir) {
@@ -62,9 +62,9 @@ export default function nextJest(options: { dir?: string } = {}) {
         nextConfig = await getConfig(resolvedDir)
         loadEnvConfig(resolvedDir, false, Log)
         // TODO: revisit when bug in SWC is fixed that strips `.css`
-        // const result = await loadJsConfig(resolvedDir, nextConfig)
-        // paths = result?.jsConfig?.compilerOptions?.paths
-        // resolvedBaseUrl = result.resolvedBaseUrl
+        const result = await loadJsConfig(resolvedDir, nextConfig)
+        jsConfig = result.jsConfig
+        resolvedBaseUrl = result.resolvedBaseUrl
       }
       // Ensure provided async config is supported
       const resolvedJestConfig =
@@ -107,10 +107,9 @@ export default function nextJest(options: { dir?: string } = {}) {
           '^.+\\.(js|jsx|ts|tsx)$': [
             require.resolve('../swc/jest-transformer'),
             {
-              styledComponents:
-                nextConfig && nextConfig.experimental.styledComponents,
-              paths,
-              resolvedBaseUrl: resolvedBaseUrl,
+              nextConfig,
+              jsConfig,
+              resolvedBaseUrl,
               isEsmProject,
             },
           ],

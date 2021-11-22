@@ -156,6 +156,16 @@ function rewriteTests(locale = '') {
     expect($('.title').text()).toBe('About Page')
   })
 
+  it(`${locale} should rewrite when not using localhost`, async () => {
+    const res = await fetchViaHTTP(
+      `http://localtest.me:${context.appPort}`,
+      `${locale}/rewrites/rewrite-me-without-hard-navigation`
+    )
+    const html = await res.text()
+    const $ = cheerio.load(html)
+    expect($('.title').text()).toBe('About Page')
+  })
+
   it(`${locale} should rewrite to Vercel`, async () => {
     const res = await fetchViaHTTP(
       context.appPort,
@@ -341,6 +351,14 @@ function responseTests(locale = '') {
       'foo=oatmeal',
     ])
   })
+
+  it(`${locale} should be intercepted by deep middleware`, async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      `${locale}/responses/deep?deep-intercept=true`
+    )
+    expect(await res.text()).toBe('intercepted!')
+  })
 }
 
 function interfaceTests(locale = '') {
@@ -354,6 +372,13 @@ function interfaceTests(locale = '') {
     const res = await fetchViaHTTP(context.appPort, '/interface/webcrypto')
     const response = await res.json()
     expect('error' in response).toBe(false)
+  })
+
+  it(`${locale} fetch accepts a URL instance`, async () => {
+    const res = await fetchViaHTTP(context.appPort, '/interface/fetchURL')
+    const response = await res.json()
+    expect('error' in response).toBe(true)
+    expect(response.error.name).not.toBe('TypeError')
   })
 
   it(`${locale} should validate request url parameters from a static route`, async () => {

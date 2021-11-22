@@ -321,6 +321,10 @@ export default async function getBaseWebpackConfig(
     runWebpackSpan: Span
   }
 ): Promise<webpack.Configuration> {
+  const { useTypeScript, jsConfig, resolvedBaseUrl } = await loadJsConfig(
+    dir,
+    config
+  )
   const supportedBrowsers = await getSupportedBrowsers(dir, dev)
   const hasRewrites =
     rewrites.beforeFiles.length > 0 ||
@@ -437,7 +441,8 @@ export default async function getBaseWebpackConfig(
             isServer: isMiddleware || isServer,
             pagesDir,
             hasReactRefresh: !isMiddleware && hasReactRefresh,
-            styledComponents: config.experimental.styledComponents,
+            nextConfig: config,
+            jsConfig,
           },
         }
       : {
@@ -520,11 +525,6 @@ export default async function getBaseWebpackConfig(
             .replace(/\\/g, '/'),
       } as ClientEntries)
     : undefined
-
-  const { useTypeScript, jsConfig, resolvedBaseUrl } = await loadJsConfig(
-    dir,
-    config
-  )
 
   function getReactProfilingInProduction() {
     if (reactProductionProfiling) {
@@ -957,6 +957,11 @@ export default async function getBaseWebpackConfig(
     },
   }
 
+  const nonUserCondition = {
+    include: /node_modules/,
+    exclude: babelIncludeRegexes,
+  }
+
   let webpackConfig: webpack.Configuration = {
     parallelism: Number(process.env.NEXT_WEBPACK_PARALLELISM) || undefined,
     externals: targetWeb
@@ -1249,6 +1254,13 @@ export default async function getBaseWebpackConfig(
                 : defaultLoaders.babel,
             },
           ],
+        },
+        {
+          ...nonUserCondition,
+          // Make all non-user modules to be compiled in a single layer
+          // This avoids compiling them mutliple times and avoids module id changes
+          issuerLayer: 'middleware',
+          layer: '',
         },
         ...(!config.images.disableStaticImages
           ? [
@@ -1759,12 +1771,6 @@ export default async function getBaseWebpackConfig(
     webpackConfig.module?.rules &&
     webpackConfig.plugins
   ) {
-    // CRA prevents loading all locales by default
-    // https://github.com/facebook/create-react-app/blob/fddce8a9e21bf68f37054586deb0c8636a45f50b/packages/react-scripts/config/webpack.config.js#L721
-    webpackConfig.plugins.push(
-      new webpack.IgnorePlugin(/^\.\/locale$/, /moment$/)
-    )
-
     // CRA allows importing non-webpack handled files with file-loader
     // these need to be the last rule to prevent catching other items
     // https://github.com/facebook/create-react-app/blob/fddce8a9e21bf68f37054586deb0c8636a45f50b/packages/react-scripts/config/webpack.config.js#L594

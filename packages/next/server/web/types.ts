@@ -12,6 +12,8 @@ export interface RequestData {
     city?: string
     country?: string
     region?: string
+    latitude?: string
+    longitude?: string
   }
   headers: NodeHeaders
   ip?: string
