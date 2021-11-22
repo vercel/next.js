@@ -63,6 +63,7 @@ import type { NextFetchEvent } from 'next/server'
 The `NextResponse` object is an extension of the native [`Response`](https://developer.mozilla.org/en-US/docs/Web/API/Response) interface, with the following added methods and properties:
 
 - `cookies` - An object with the cookies in the `Response`
+- `cookie` - Set a cookie in the `Response`
 - `redirect()` - Returns a `NextResponse` with a redirect set
 - `rewrite()` - Returns a `NextResponse` with a rewrite set
 - `next()` - Returns a `NextResponse` that will continue the middleware chain
