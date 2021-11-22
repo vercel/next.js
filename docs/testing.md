@@ -253,9 +253,9 @@ You can use `create-next-app` with the [with-jest](https://github.com/vercel/nex
 npx create-next-app@latest --example with-jest with-jest-app
 ```
 
-### Setting up Jest (with SWC)
+### Setting up Jest (with the Rust Compiler)
 
-Since the release of [Next.js 12](https://nextjs.org/blog/next-12), Next.js now has built-in configuration for Jest. 
+Since the release of [Next.js 12](https://nextjs.org/blog/next-12), Next.js now has built-in configuration for Jest.
 
 To set up Jest, install `jest` , `@testing-library/react`, `@testing-library/jest-dom` and `react-test-renderer`:
 
@@ -285,8 +285,8 @@ module.exports = createJestConfig(customJestConfig)
 
 Under the hood, `next/jest` is automatically configuring Jest for you, including:
 
+- Setting up `transform` using [SWC](https://nextjs.org/docs/advanced-features/compiler)
 - Auto mocking stylesheets (`.css`, `.module.css`, and their scss variants) and image imports
-- Setting up `transform` using SWC
 - Loading `.env` (and all variants) into `process.env`
 - Ignoring `node_modules` from test resolving and transforms
 - Ignoring `.next` from test resolving
@@ -294,7 +294,7 @@ Under the hood, `next/jest` is automatically configuring Jest for you, including
 
 ### Setting up Jest (with Babel)
 
-If you opt out of SWC, you will need to manually configure Jest and install `babel-jest` and `identity-obj-proxy` in addition to the packages above.
+If you opt out of the [Rust Compiler](https://nextjs.org/docs/advanced-features/compiler), you will need to manually configure Jest and install `babel-jest` and `identity-obj-proxy` in addition to the packages above.
 
 Here are the recommended options to configure Jest for Next.js:
 
@@ -344,19 +344,19 @@ Styleheets and images aren't used in the tests but importing them may cause erro
 
 ```js
 // __mocks__/fileMock.js
-(module.exports = "test-file-stub")
+module.exports = 'test-file-stub'
 ```
 
 ```js
 // __mocks__/styleMock.js
-module.exports = {};
+module.exports = {}
 ```
 
 If you're running into the issue `"Failed to parse src "test-file-stub" on 'next/image'"`, add a '/' to your fileMock.
 
 ```js
 // __mocks__/fileMock.js
-(module.exports = "/test-file-stub")
+module.exports = '/test-file-stub'
 ```
 
 For more information on handling static assets, please refer to the [Jest Docs](https://jestjs.io/docs/webpack#handling-static-assets).
