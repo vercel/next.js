@@ -57,14 +57,22 @@ use swc_ecmascript::{
 /// require("z")
 /// module.hot.accept("x", () => {     })
 /// ```
-pub fn ast_minimalizer() -> impl VisitMut {
-    Minimalizer::default()
+pub fn ast_minimalizer(data: Arc<ScopeData>) -> impl VisitMut {
+    Minimalizer {
+        data,
+        should_preserve_all_expr: false,
+    }
 }
 
-#[derive(Default)]
 pub struct ScopeData {}
 
-#[derive(Default, Clone)]
+impl ScopeData {
+    pub fn analyze(module: &Module) -> Self {
+        ScopeData {}
+    }
+}
+
+#[derive(Clone)]
 struct Minimalizer {
     data: Arc<ScopeData>,
     /// `true` if we should preserve all expressions.
