@@ -404,8 +404,24 @@ impl VisitMut for Minimalizer {
                 *e = seq;
             }
 
+            Expr::Array(arr) => {
+                let mut seq = Expr::Seq(SeqExpr {
+                    span: DUMMY_SP,
+                    exprs: arr
+                        .elems
+                        .take()
+                        .into_iter()
+                        .flatten()
+                        .map(|elem| elem.expr)
+                        .collect(),
+                });
+
+                seq.visit_mut_with(self);
+
+                *e = seq;
+            }
+
             // TODO:
-            // Expr::Array(_) => todo!(),
             // Expr::Object(_) => todo!(),
             // Expr::Fn(_) => todo!(),
             // Expr::Member(_) => todo!(),
