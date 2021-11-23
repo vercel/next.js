@@ -9,6 +9,11 @@ use swc_ecmascript::{
     visit::{noop_visit_mut_type, VisitMut, VisitMutWith},
 };
 
+/// # Usage
+///
+/// This transform should be applied after applying resolver.
+///
+///
 /// # Preserved nodes
 ///
 ///  - import
