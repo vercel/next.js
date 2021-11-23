@@ -190,8 +190,6 @@ impl VisitMut for Minimalizer {
 
                 true
             }
-
-            _ => true,
         });
     }
 
