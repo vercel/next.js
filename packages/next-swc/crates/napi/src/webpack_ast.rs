@@ -300,6 +300,15 @@ impl VisitMut for Minimalizer {
         e.visit_mut_children_with(self);
 
         match e {
+            Expr::Seq(seq) => {
+                if seq.exprs.len() == 1 {
+                    *e = *seq.exprs.pop().unwrap();
+                }
+            }
+            _ => {}
+        }
+
+        match e {
             Expr::Await(expr) => {
                 *e = *expr.arg.take();
             }
@@ -378,10 +387,6 @@ impl VisitMut for Minimalizer {
                 if seq.exprs.is_empty() {
                     *e = Expr::Invalid(Invalid { span: DUMMY_SP });
                     return;
-                }
-
-                if seq.exprs.len() == 1 {
-                    *e = *seq.exprs.pop().unwrap();
                 }
             }
 
