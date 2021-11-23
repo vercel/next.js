@@ -97,6 +97,12 @@ impl Minimalizer {
         } else {
             stmts.visit_mut_children_with(&mut self.clone());
         }
+
+        // Remove empty statements
+        stmts.retain(|stmt| match stmt.as_stmt() {
+            Ok(Stmt::Empty(..)) => return false,
+            _ => true,
+        });
     }
 }
 
