@@ -3,6 +3,7 @@
 //! This code lives at `napi` crate because it's not used by wasm.
 
 use rayon::prelude::*;
+use std::sync::Arc;
 use swc_ecmascript::{
     ast::*,
     utils::StmtOrModuleItem,
@@ -60,8 +61,12 @@ pub fn ast_minimalizer() -> impl VisitMut {
     Minimalizer::default()
 }
 
-#[derive(Default, Clone, Copy)]
+#[derive(Default)]
+pub struct ScopeData {}
+
+#[derive(Default, Clone)]
 struct Minimalizer {
+    data: Arc<ScopeData>,
     /// `true` if we should preserve all expressions.
     should_preserve_all_expr: bool,
 }
@@ -75,14 +80,12 @@ impl Minimalizer {
         // Process in parallel, if required
         if stmts.len() >= 8 {
             stmts.par_iter_mut().for_each(|stmt| {
-                stmt.visit_mut_with(&mut Minimalizer::default());
+                stmt.visit_mut_with(&mut self.clone());
             });
         } else {
-            stmts.visit_mut_children_with(&mut Minimalizer::default());
+            stmts.visit_mut_children_with(&mut self.clone());
         }
     }
-
-    fn can_ignore_expr(&mut self, e: &mut Expr) {}
 }
 
 impl VisitMut for Minimalizer {
