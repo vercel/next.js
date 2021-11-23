@@ -368,11 +368,26 @@ impl VisitMut for Minimalizer {
                 }
             }
 
+            Expr::Bin(expr) => {
+                let mut exprs = Vec::with_capacity(2);
+
+                exprs.push(expr.left.take());
+                exprs.push(expr.right.take());
+
+                let mut seq = Expr::Seq(SeqExpr {
+                    span: DUMMY_SP,
+                    exprs,
+                });
+
+                seq.visit_mut_with(self);
+
+                *e = seq;
+            }
+
             // TODO:
             // Expr::Array(_) => todo!(),
             // Expr::Object(_) => todo!(),
             // Expr::Fn(_) => todo!(),
-            // Expr::Bin(_) => todo!(),
             // Expr::Member(_) => todo!(),
             // Expr::Cond(_) => todo!(),
             // Expr::Call(_) => todo!(),
