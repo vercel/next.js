@@ -147,6 +147,8 @@ impl Minimalizer {
                 Stmt::Block(b) => {
                     to.extend(b.stmts.into_iter().map(T::from_stmt));
                 }
+
+                // Flatten a function declaration.
                 Stmt::Decl(Decl::Fn(fn_decl)) => {
                     let Function {
                         params,
