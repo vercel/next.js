@@ -105,6 +105,18 @@ impl ScopeData {
             return true;
         }
 
+        match &*i.sym {
+            "module" | "import" | "define" | "require" => {
+                return true;
+            }
+
+            _ => {
+                if i.sym.starts_with("__webpack_") {
+                    return true;
+                }
+            }
+        }
+
         false
     }
 }
