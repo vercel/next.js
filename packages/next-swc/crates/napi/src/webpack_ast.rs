@@ -247,7 +247,6 @@ impl Minimalizer {
             // Expr::Object(_) => todo!(),
             // Expr::Fn(_) => todo!(),
             // Expr::Bin(_) => todo!(),
-            // Expr::Assign(_) => todo!(),
             // Expr::Member(_) => todo!(),
             // Expr::Cond(_) => todo!(),
             // Expr::Call(_) => todo!(),
@@ -256,7 +255,6 @@ impl Minimalizer {
             // Expr::Class(_) => todo!(),
             // Expr::Yield(_) => todo!(),
             // Expr::MetaProp(_) => todo!(),
-            // Expr::Paren(_) => todo!(),
             // Expr::JSXMember(_) => todo!(),
             // Expr::JSXNamespacedName(_) => todo!(),
             // Expr::JSXEmpty(_) => todo!(),
@@ -357,6 +355,20 @@ impl VisitMut for Minimalizer {
                 let mut seq = Expr::Seq(SeqExpr {
                     span: DUMMY_SP,
                     exprs: expr.exprs.take(),
+                });
+
+                seq.visit_mut_with(self);
+
+                *e = seq;
+            }
+
+            Expr::Assign(expr) => {
+                let mut exprs = Vec::with_capacity(2);
+                preserve_pat_or_expr(&mut exprs, expr.left.take());
+                exprs.push(expr.right.take());
+                let mut seq = Expr::Seq(SeqExpr {
+                    span: DUMMY_SP,
+                    exprs,
                 });
 
                 seq.visit_mut_with(self);
@@ -605,6 +617,15 @@ impl VisitMut for Minimalizer {
 
     fn visit_mut_stmts(&mut self, stmts: &mut Vec<Stmt>) {
         self.visit_mut_stmt_likes(stmts);
+    }
+}
+
+fn preserve_pat_or_expr(exprs: &mut Vec<Box<Expr>>, p: PatOrExpr) {
+    match p {
+        PatOrExpr::Expr(e) => {
+            exprs.push(e);
+        }
+        PatOrExpr::Pat(p) => preserve_pat(exprs, *p),
     }
 }
 
