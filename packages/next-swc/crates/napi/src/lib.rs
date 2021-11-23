@@ -37,14 +37,14 @@ extern crate swc_node_base;
 use backtrace::Backtrace;
 use napi::{CallContext, Env, JsObject, JsUndefined};
 use std::{env, panic::set_hook, sync::Arc};
-use swc::{ Compiler, TransformOutput};
+use swc::{Compiler, TransformOutput};
 use swc_common::{self, sync::Lazy, FilePathMapping, SourceMap};
 
 mod bundle;
 mod minify;
 mod transform;
 mod util;
-
+mod webpack_ast;
 
 static COMPILER: Lazy<Arc<Compiler>> = Lazy::new(|| {
     let cm = Arc::new(SourceMap::new(FilePathMapping::empty()));
