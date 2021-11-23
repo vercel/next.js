@@ -126,6 +126,9 @@ impl ScopeData {
 struct Minimalizer {
     data: Arc<ScopeData>,
     top_level_ctxt: SyntaxContext,
+
+    var_decl_kind: Option<VarDeclKind>,
+
     /// `true` if we should preserve literals.
     preserve_literals: bool,
 
@@ -794,14 +797,23 @@ impl VisitMut for Minimalizer {
         self.visit_mut_stmt_likes(stmts);
     }
 
+    fn visit_mut_var_decl(&mut self, var: &mut VarDecl) {
+        let old_var_decl_kind = self.var_decl_kind;
+        self.var_decl_kind = Some(var.kind);
+        var.visit_mut_children_with(self);
+        self.var_decl_kind = old_var_decl_kind;
+    }
+
     fn visit_mut_var_declarator(&mut self, v: &mut VarDeclarator) {
         v.visit_mut_children_with(self);
 
-        if let Some(e) = &mut v.init {
-            self.ignore_expr(&mut **e);
+        if !matches!(self.var_decl_kind, Some(VarDeclKind::Const)) {
+            if let Some(e) = &mut v.init {
+                self.ignore_expr(&mut **e);
 
-            if e.is_invalid() {
-                v.init = None;
+                if e.is_invalid() {
+                    v.init = None;
+                }
             }
         }
     }
