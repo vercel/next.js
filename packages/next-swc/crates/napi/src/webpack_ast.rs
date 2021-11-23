@@ -1,6 +1,7 @@
 //! Minimalizer for AST.
 //!
-//! This code lives at `napi` crate because it depends on `rayon` and it's not used by wasm.
+//! This code lives at `napi` crate because it depends on `rayon` and it's not
+//! used by wasm.
 
 use rayon::prelude::*;
 use std::sync::Arc;
@@ -58,23 +59,20 @@ use swc_ecmascript::{
 /// require("z")
 /// module.hot.accept("x", () => {     })
 /// ```
-pub fn ast_minimalizer(data: Arc<ScopeData>) -> impl VisitMut {
-    Minimalizer {
-        data,
-        preserve_literals: false,
-        can_remove_pat: false,
-    }
+pub fn ast_minimalizer() -> impl VisitMut {
+    Minimalizer::default()
 }
 
-pub struct ScopeData {}
+#[derive(Default)]
+struct ScopeData {}
 
 impl ScopeData {
-    pub fn analyze(module: &Module) -> Self {
+    fn analyze(module: &[ModuleItem]) -> Self {
         ScopeData {}
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 struct Minimalizer {
     data: Arc<ScopeData>,
     /// `true` if we should preserve literals.
@@ -142,6 +140,8 @@ impl VisitMut for Minimalizer {
     }
 
     fn visit_mut_module_items(&mut self, stmts: &mut Vec<ModuleItem>) {
+        self.data = Arc::new(ScopeData::analyze(&stmts));
+
         self.visit_mut_stmt_likes(stmts);
     }
 
