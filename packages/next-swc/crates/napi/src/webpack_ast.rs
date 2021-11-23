@@ -172,6 +172,7 @@ impl VisitMut for Minimalizer {
     ///  - Invalid [Stmt::Expr] => [Stmt::Empty]
     ///  - Empty [Stmt::Block] => [Stmt::Empty]
     ///  - Single-item [Stmt::Block] => the item
+    ///  - Invalid [Stmt::Decl] => [Stmt::Empty]
     fn visit_mut_stmt(&mut self, stmt: &mut Stmt) {
         stmt.visit_mut_children_with(self);
 
@@ -190,6 +191,13 @@ impl VisitMut for Minimalizer {
                 }
                 if block.stmts.len() == 1 {
                     *stmt = block.stmts.take().into_iter().next().unwrap();
+                    return;
+                }
+            }
+
+            Stmt::Decl(Decl::Var(var)) => {
+                if var.decls.is_empty() {
+                    *stmt = Stmt::Empty(EmptyStmt { span: DUMMY_SP });
                     return;
                 }
             }
