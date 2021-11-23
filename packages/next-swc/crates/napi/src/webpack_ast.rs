@@ -699,6 +699,18 @@ impl VisitMut for Minimalizer {
     fn visit_mut_stmts(&mut self, stmts: &mut Vec<Stmt>) {
         self.visit_mut_stmt_likes(stmts);
     }
+
+    fn visit_mut_var_declarator(&mut self, v: &mut VarDeclarator) {
+        v.visit_mut_children_with(self);
+
+        if let Some(e) = &mut v.init {
+            self.ignore_expr(&mut **e);
+
+            if e.is_invalid() {
+                v.init = None;
+            }
+        }
+    }
 }
 
 fn preserve_pat_or_expr(exprs: &mut Vec<Box<Expr>>, p: PatOrExpr) {
