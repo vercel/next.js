@@ -242,25 +242,6 @@ impl Minimalizer {
                 return;
             }
 
-            // TODO:
-            // Expr::Array(_) => todo!(),
-            // Expr::Object(_) => todo!(),
-            // Expr::Fn(_) => todo!(),
-            // Expr::Bin(_) => todo!(),
-            // Expr::Member(_) => todo!(),
-            // Expr::Cond(_) => todo!(),
-            // Expr::Call(_) => todo!(),
-            // Expr::New(_) => todo!(),
-            // Expr::Arrow(_) => todo!(),
-            // Expr::Class(_) => todo!(),
-            // Expr::Yield(_) => todo!(),
-            // Expr::MetaProp(_) => todo!(),
-            // Expr::JSXMember(_) => todo!(),
-            // Expr::JSXNamespacedName(_) => todo!(),
-            // Expr::JSXEmpty(_) => todo!(),
-            // Expr::JSXElement(_) => todo!(),
-            // Expr::JSXFragment(_) => todo!(),
-            // Expr::OptChain(_) => todo!(),
             _ => {}
         }
     }
@@ -386,6 +367,26 @@ impl VisitMut for Minimalizer {
                     *e = *seq.exprs.pop().unwrap();
                 }
             }
+
+            // TODO:
+            // Expr::Array(_) => todo!(),
+            // Expr::Object(_) => todo!(),
+            // Expr::Fn(_) => todo!(),
+            // Expr::Bin(_) => todo!(),
+            // Expr::Member(_) => todo!(),
+            // Expr::Cond(_) => todo!(),
+            // Expr::Call(_) => todo!(),
+            // Expr::New(_) => todo!(),
+            // Expr::Arrow(_) => todo!(),
+            // Expr::Class(_) => todo!(),
+            // Expr::Yield(_) => todo!(),
+            // Expr::MetaProp(_) => todo!(),
+            // Expr::JSXMember(_) => todo!(),
+            // Expr::JSXNamespacedName(_) => todo!(),
+            // Expr::JSXEmpty(_) => todo!(),
+            // Expr::JSXElement(_) => todo!(),
+            // Expr::JSXFragment(_) => todo!(),
+            // Expr::OptChain(_) => todo!(),
             _ => {}
         }
     }
