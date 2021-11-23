@@ -1,7 +1,7 @@
 use regex::Regex;
 use serde::Deserialize;
 use swc_ecmascript::ast::*;
-use swc_ecmascript::visit::{noop_fold_type, Fold};
+use swc_ecmascript::visit::{noop_fold_type, Fold, FoldWith};
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(untagged)]
@@ -46,7 +46,7 @@ impl Fold for RemoveProperties {
             }) if self.should_remove_property(ident.sym.as_ref()) => false,
             _ => true,
         });
-        el
+        el.fold_children_with(self)
     }
 }
 
