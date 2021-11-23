@@ -8,7 +8,7 @@ use std::sync::Arc;
 use swc_common::{util::take::Take, Mark, SyntaxContext, DUMMY_SP};
 use swc_ecmascript::{
     ast::*,
-    utils::StmtOrModuleItem,
+    utils::{StmtLike, StmtOrModuleItem},
     visit::{VisitMut, VisitMutWith},
 };
 
@@ -86,11 +86,33 @@ struct Minimalizer {
 }
 
 impl Minimalizer {
-    fn flatten_stmt<T>(&mut self, to: &mut Vec<T>, item: &mut T) {}
+    fn flatten_stmt<T>(&mut self, to: &mut Vec<T>, item: &mut T)
+    where
+        T: StmtOrModuleItem + StmtLike + Take,
+    {
+        let item = item.take();
+
+        match item.try_into_stmt() {
+            Ok(stmt) => match stmt {
+                Stmt::Block(b) => {
+                    to.extend(b.stmts.into_iter().map(T::from_stmt));
+                }
+                // Stmt::Decl(Decl::Fn(fn_decl)) => {
+
+                // }
+                _ => {
+                    to.push(T::from_stmt(stmt));
+                }
+            },
+            Err(item) => {
+                to.push(item);
+            }
+        }
+    }
 
     fn visit_mut_stmt_likes<T>(&mut self, stmts: &mut Vec<T>)
     where
-        T: StmtOrModuleItem + VisitMutWith<Self>,
+        T: StmtOrModuleItem + StmtLike + VisitMutWith<Self> + Take,
         Vec<T>: VisitMutWith<Self>,
     {
         // Process in parallel, if required
@@ -108,7 +130,7 @@ impl Minimalizer {
         }
 
         // Remove empty statements
-        new.retain(|stmt| match stmt.as_stmt() {
+        new.retain(|stmt| match StmtOrModuleItem::as_stmt(stmt) {
             Ok(Stmt::Empty(..)) => return false,
             _ => true,
         });
