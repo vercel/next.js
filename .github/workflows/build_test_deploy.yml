@@ -907,7 +907,7 @@ jobs:
       - name: 'Build'
         if: ${{ steps.binary-cache.outputs.cache-hit != 'true' }}
         run: |
-          docker run --rm -v ~/.cargo/git:/root/.cargo/git -v ~/.cargo/registry:/root/.cargo/registry -v $(pwd)/packages/next:/build -w /build builder sh -c "npm i -g @napi-rs/cli@1.2.1 && yarn build-native --release --target x86_64-unknown-linux-musl"
+          docker run --rm -v ~/.cargo/git:/root/.cargo/git -v ~/.cargo/registry:/root/.cargo/registry -v $(pwd)/packages/next-swc:/build -w /build builder sh -c "npm i -g @napi-rs/cli@1.2.1 && yarn build-native --release --target x86_64-unknown-linux-musl"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v2
