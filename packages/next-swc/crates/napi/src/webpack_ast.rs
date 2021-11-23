@@ -131,8 +131,9 @@ impl VisitMut for Minimalizer {
             _ => {}
         }
 
+        pat.visit_mut_children_with(self);
+
         if !self.can_remove_pat {
-            pat.visit_mut_children_with(self);
             return;
         }
     }
