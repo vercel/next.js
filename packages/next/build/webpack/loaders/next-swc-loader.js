@@ -104,9 +104,11 @@ export function pitch() {
       .traceAsyncFn(() => loaderTransform.call(this, loaderSpan))
       .then(
         ([transformedSource, outputSourceMap]) => {
+          this.addDependency(this.resourcePath)
           callback(null, transformedSource, outputSourceMap)
         },
         (err) => {
+          this.addDependency(this.resourcePath)
           callback(err)
         }
       )
