@@ -3,6 +3,8 @@ import { ParsedUrlQuery } from 'querystring'
 import type { Writable as WritableType } from 'stream'
 import React from 'react'
 import ReactDOMServer from 'react-dom/server'
+import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack'
+import { renderToReadableStream } from 'next/dist/compiled/react-server-dom-webpack/writer.browser.server'
 import { StyleRegistry, createStyleRegistry } from 'styled-jsx'
 import { UnwrapPromise } from '../lib/coalesced-function'
 import {
@@ -51,6 +53,7 @@ import { denormalizePagePath } from './denormalize-page-path'
 import type { FontManifest } from './font-utils'
 import type { LoadComponentsReturnType, ManifestItem } from './load-components'
 import { normalizePagePath } from './normalize-page-path'
+import { getRequestMeta, NextParsedUrlQuery } from './request-meta'
 import {
   allowedStatusCodes,
   getRedirectStatus,
@@ -67,6 +70,8 @@ let getFontDefinitionFromManifest: typeof import('./font-utils').getFontDefiniti
 let tryGetPreviewData: typeof import('./api-utils').tryGetPreviewData
 let warn: typeof import('../build/output/log').warn
 let postProcess: typeof import('../shared/lib/post-process').default
+
+const DOCTYPE = '<!DOCTYPE html>'
 
 if (!process.browser) {
   Writable = require('stream').Writable
@@ -202,7 +207,8 @@ export type RenderOptsPartial = {
   devOnlyCacheBusterQueryString?: string
   resolvedUrl?: string
   resolvedAsPath?: string
-  renderServerComponent?: null | (() => Promise<string>)
+  serverComponentManifest?: any
+  renderServerComponentData?: boolean
   distDir?: string
   locale?: string
   locales?: string[]
@@ -273,11 +279,54 @@ function checkRedirectValues(
   }
 }
 
+// Create the wrapper component for a Flight stream.
+function createServerComponentRenderer(
+  OriginalComponent: React.ComponentType,
+  serverComponentManifest: NonNullable<RenderOpts['serverComponentManifest']>
+) {
+  let responseCache: any
+  const ServerComponentWrapper = (props: any) => {
+    let response = responseCache
+    if (!response) {
+      responseCache = response = createFromReadableStream(
+        renderToReadableStream(
+          <OriginalComponent {...props} />,
+          serverComponentManifest
+        )
+      )
+    }
+    return response.readRoot()
+  }
+  const Component = (props: any) => {
+    return (
+      <React.Suspense fallback={null}>
+        <ServerComponentWrapper {...props} />
+      </React.Suspense>
+    )
+  }
+
+  // Although it's not allowed to attach some static methods to Component,
+  // we still re-assign all the component APIs to keep the behavior unchanged.
+  for (const methodName of [
+    'getInitialProps',
+    'getStaticProps',
+    'getServerSideProps',
+    'getStaticPaths',
+  ]) {
+    const method = (OriginalComponent as any)[methodName]
+    if (method) {
+      ;(Component as any)[methodName] = method
+    }
+  }
+
+  return Component
+}
+
 export async function renderToHTML(
   req: IncomingMessage,
   res: ServerResponse,
   pathname: string,
-  query: ParsedUrlQuery,
+  query: NextParsedUrlQuery,
   renderOpts: RenderOpts
 ): Promise<RenderResult | null> {
   // In dev we invalidate the cache by appending a timestamp to the resource URL.
@@ -297,7 +346,6 @@ export async function renderToHTML(
     App,
     Document,
     pageConfig = {},
-    Component,
     buildManifest,
     fontManifest,
     reactLoadableManifest,
@@ -305,7 +353,8 @@ export async function renderToHTML(
     getStaticProps,
     getStaticPaths,
     getServerSideProps,
-    renderServerComponent,
+    serverComponentManifest,
+    renderServerComponentData,
     isDataReq,
     params,
     previewProps,
@@ -314,6 +363,12 @@ export async function renderToHTML(
     supportsDynamicHTML,
     concurrentFeatures,
   } = renderOpts
+
+  const isServerComponent = !!serverComponentManifest
+  const OriginalComponent = renderOpts.Component
+  const Component = isServerComponent
+    ? createServerComponentRenderer(OriginalComponent, serverComponentManifest)
+    : renderOpts.Component
 
   const getFontDefinition = (url: string): string => {
     if (fontManifest) {
@@ -357,8 +412,6 @@ export async function renderToHTML(
     App.getInitialProps === (App as any).origGetInitialProps
 
   const hasPageGetInitialProps = !!(Component as any).getInitialProps
-
-  const isRSC = !!renderServerComponent
 
   const pageIsDynamic = isDynamicRoute(pathname)
 
@@ -498,7 +551,7 @@ export async function renderToHTML(
     renderOpts.defaultLocale,
     renderOpts.domainLocales,
     isPreview,
-    (req as any).__nextIsLocaleDomain
+    getRequestMeta(req, '__nextIsLocaleDomain')
   )
   const jsxStyleRegistry = createStyleRegistry()
   const ctx = {
@@ -513,9 +566,9 @@ export async function renderToHTML(
     defaultLocale: renderOpts.defaultLocale,
     AppTree: (props: any) => {
       return (
-        <AppContainer>
+        <AppContainerWithIsomorphicFiberStructure>
           <App {...props} Component={Component} router={router} />
-        </AppContainer>
+        </AppContainerWithIsomorphicFiberStructure>
       )
     },
     defaultGetInitialProps: async (
@@ -575,6 +628,41 @@ export async function renderToHTML(
       </AmpStateContext.Provider>
     </RouterContext.Provider>
   )
+
+  // The `useId` API uses the path indexes to generate an ID for each node.
+  // To guarantee the match of hydration, we need to ensure that the structure
+  // of wrapper nodes is isomorphic in server and client.
+  // TODO: With `enhanceApp` and `enhanceComponents` options, this approach may
+  // not be useful.
+  // https://github.com/facebook/react/pull/22644
+  const Noop = () => null
+  const AppContainerWithIsomorphicFiberStructure = ({
+    children,
+  }: {
+    children: JSX.Element
+  }) => {
+    return (
+      <>
+        {/* <Head/> */}
+        <Noop />
+        <AppContainer>
+          <>
+            {/* <ReactDevOverlay/> */}
+            {dev ? (
+              <>
+                {children}
+                <Noop />
+              </>
+            ) : (
+              children
+            )}
+            {/* <RouteAnnouncer/> */}
+            <Noop />
+          </>
+        </AppContainer>
+      </>
+    )
+  }
 
   props = await loadGetInitialProps(App, {
     AppTree: ctx.AppTree,
@@ -904,8 +992,27 @@ export async function renderToHTML(
     props.pageProps = {}
   }
 
+  // Pass router to the Server Component as a temporary workaround.
+  if (isServerComponent) {
+    props.pageProps = Object.assign({}, props.pageProps, { router })
+  }
+
   // the response might be finished on the getInitialProps call
   if (isResSent(res) && !isSSG) return null
+
+  if (renderServerComponentData) {
+    const stream: ReadableStream = renderToReadableStream(
+      <OriginalComponent {...props.pageProps} />,
+      serverComponentManifest
+    )
+    const reader = stream.getReader()
+    return new RenderResult((innerRes, next) => {
+      bufferedReadFromReadableStream(reader, (val) => innerRes.write(val)).then(
+        () => next(),
+        (innerErr) => next(innerErr)
+      )
+    })
+  }
 
   // we preload the buildManifest for auto-export dynamic pages
   // to speed up hydrating query values
@@ -934,17 +1041,21 @@ export async function renderToHTML(
     }
   }
 
+  const Body = ({ children }: { children: JSX.Element }) => {
+    return inAmpMode ? children : <div id="__next">{children}</div>
+  }
+
   const appWrappers: Array<(content: JSX.Element) => JSX.Element> = []
   const getWrappedApp = (app: JSX.Element) => {
     // Prevent wrappers from reading/writing props by rendering inside an
     // opaque component. Wrappers should use context instead.
     const InnerApp = () => app
     return (
-      <AppContainer>
-        {appWrappers.reduce((innerContent, fn) => {
+      <AppContainerWithIsomorphicFiberStructure>
+        {appWrappers.reduceRight((innerContent, fn) => {
           return fn(innerContent)
         }, <InnerApp />)}
-      </AppContainer>
+      </AppContainerWithIsomorphicFiberStructure>
     )
   }
 
@@ -974,7 +1085,9 @@ export async function renderToHTML(
       ): RenderPageResult | Promise<RenderPageResult> => {
         if (ctx.err && ErrorDebug) {
           const html = ReactDOMServer.renderToString(
-            <ErrorDebug error={ctx.err} />
+            <Body>
+              <ErrorDebug error={ctx.err} />
+            </Body>
           )
           return { html, head }
         }
@@ -989,13 +1102,15 @@ export async function renderToHTML(
           enhanceComponents(options, App, Component)
 
         const html = ReactDOMServer.renderToString(
-          getWrappedApp(
-            <EnhancedApp
-              Component={EnhancedComponent}
-              router={router}
-              {...props}
-            />
-          )
+          <Body>
+            {getWrappedApp(
+              <EnhancedApp
+                Component={EnhancedComponent}
+                router={router}
+                {...props}
+              />
+            )}
+          </Body>
         )
         return { html, head }
       }
@@ -1033,27 +1148,52 @@ export async function renderToHTML(
         styles: docProps.styles,
       }
     } else {
-      const bodyResult = async () => {
+      let bodyResult
+
+      if (concurrentFeatures) {
+        bodyResult = async () => {
+          // this must be called inside bodyResult so appWrappers is
+          // up to date when getWrappedApp is called
+          const content =
+            ctx.err && ErrorDebug ? (
+              <Body>
+                <ErrorDebug error={ctx.err} />
+              </Body>
+            ) : (
+              <Body>
+                {getWrappedApp(
+                  <App {...props} Component={Component} router={router} />
+                )}
+              </Body>
+            )
+          return process.browser
+            ? await renderToWebStream(content)
+            : await renderToNodeStream(content, generateStaticHTML)
+        }
+      } else {
         const content =
           ctx.err && ErrorDebug ? (
-            <ErrorDebug error={ctx.err} />
+            <Body>
+              <ErrorDebug error={ctx.err} />
+            </Body>
           ) : (
-            getWrappedApp(
-              <App {...props} Component={Component} router={router} />
-            )
+            <Body>
+              {getWrappedApp(
+                <App {...props} Component={Component} router={router} />
+              )}
+            </Body>
           )
-
-        return concurrentFeatures
-          ? process.browser
-            ? await renderToReadableStream(content)
-            : await renderToNodeStream(content, generateStaticHTML)
-          : piperFromArray([ReactDOMServer.renderToString(content)])
+        // for non-concurrent rendering we need to ensure App is rendered
+        // before _document so that updateHead is called/collected before
+        // rendering _document's head
+        const result = piperFromArray([ReactDOMServer.renderToString(content)])
+        bodyResult = () => result
       }
 
       return {
         bodyResult,
         documentElement: () => (Document as any)(),
-        useMainContent: (fn?: (content: JSX.Element) => JSX.Element) => {
+        useMainContent: (fn?: (_content: JSX.Element) => JSX.Element) => {
           if (fn) {
             appWrappers.push(fn)
           }
@@ -1118,7 +1258,7 @@ export async function renderToHTML(
       err: renderOpts.err ? serializeError(dev, renderOpts.err) : undefined, // Error if one happened, otherwise don't sent in the resulting HTML
       gsp: !!getStaticProps ? true : undefined, // whether the page is getStaticProps
       gssp: !!getServerSideProps ? true : undefined, // whether the page is getServerSideProps
-      rsc: isRSC ? true : undefined, // whether the page is a server components page
+      rsc: isServerComponent ? true : undefined, // whether the page is a server components page
       customServer, // whether the user is using a custom server
       gip: hasPageGetInitialProps ? true : undefined, // whether the page has getInitialProps
       appGip: !defaultAppGetInitialProps ? true : undefined, // whether the _app has getInitialProps
@@ -1132,7 +1272,7 @@ export async function renderToHTML(
     docComponentsRendered,
     dangerousAsPath: router.asPath,
     canonicalBase:
-      !renderOpts.ampPath && (req as any).__nextStrippedLocale
+      !renderOpts.ampPath && getRequestMeta(req, '__nextStrippedLocale')
         ? `${renderOpts.canonicalBase || ''}/${renderOpts.locale}`
         : renderOpts.canonicalBase,
     ampPath,
@@ -1190,34 +1330,34 @@ export async function renderToHTML(
     documentHTML = ReactDOMServer.renderToStaticMarkup(document)
   }
 
-  if (process.env.NODE_ENV !== 'production') {
-    const nonRenderedComponents = []
-    const expectedDocComponents = ['Main', 'Head', 'NextScript', 'Html']
+  const nonRenderedComponents = []
+  const expectedDocComponents = ['Main', 'Head', 'NextScript', 'Html']
 
-    for (const comp of expectedDocComponents) {
-      if (!(docComponentsRendered as any)[comp]) {
-        nonRenderedComponents.push(comp)
-      }
+  for (const comp of expectedDocComponents) {
+    if (!(docComponentsRendered as any)[comp]) {
+      nonRenderedComponents.push(comp)
     }
+  }
+
+  if (nonRenderedComponents.length) {
+    const missingComponentList = nonRenderedComponents
+      .map((e) => `<${e} />`)
+      .join(', ')
     const plural = nonRenderedComponents.length !== 1 ? 's' : ''
-
-    if (nonRenderedComponents.length) {
-      const missingComponentList = nonRenderedComponents
-        .map((e) => `<${e} />`)
-        .join(', ')
-      warn(
-        `Your custom Document (pages/_document) did not render all the required subcomponent${plural}.\n` +
-          `Missing component${plural}: ${missingComponentList}\n` +
-          'Read how to fix here: https://nextjs.org/docs/messages/missing-document-component'
-      )
-    }
+    throw new Error(
+      `Your custom Document (pages/_document) did not render all the required subcomponent${plural}.\n` +
+        `Missing component${plural}: ${missingComponentList}\n` +
+        'Read how to fix here: https://nextjs.org/docs/messages/missing-document-component'
+    )
   }
 
   const [renderTargetPrefix, renderTargetSuffix] = documentHTML.split(
     /<next-js-internal-body-render-target><\/next-js-internal-body-render-target>/
   )
   const prefix: Array<string> = []
-  prefix.push('<!DOCTYPE html>')
+  if (!documentHTML.startsWith(DOCTYPE)) {
+    prefix.push(DOCTYPE)
+  }
   prefix.push(renderTargetPrefix)
   if (inAmpMode) {
     prefix.push('<!-- __NEXT_DATA__ -->')
@@ -1431,41 +1571,71 @@ function renderToNodeStream(
   })
 }
 
-function renderToReadableStream(
-  element: React.ReactElement
-): NodeWritablePiper {
-  return (res, next) => {
-    let bufferedString = ''
-    let shellCompleted = false
+async function bufferedReadFromReadableStream(
+  reader: ReadableStreamDefaultReader,
+  writeFn: (val: string) => void
+): Promise<void> {
+  const decoder = new TextDecoder()
+  let bufferedString = ''
+  let pendingFlush: Promise<void> | null = null
 
-    const readable = (ReactDOMServer as any).renderToReadableStream(element, {
-      onCompleteShell() {
-        shellCompleted = true
-        if (bufferedString) {
-          res.write(bufferedString)
+  const flushBuffer = () => {
+    if (!pendingFlush) {
+      pendingFlush = new Promise((resolve) =>
+        setTimeout(() => {
+          writeFn(bufferedString)
           bufferedString = ''
+          pendingFlush = null
+          resolve()
+        }, 0)
+      )
+    }
+  }
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) {
+      break
+    }
+
+    bufferedString += typeof value === 'string' ? value : decoder.decode(value)
+    flushBuffer()
+  }
+
+  // Make sure the promise resolves after any pending flushes
+  await pendingFlush
+}
+
+function renderToWebStream(
+  element: React.ReactElement
+): Promise<NodeWritablePiper> {
+  return new Promise((resolve, reject) => {
+    let resolved = false
+    const stream: ReadableStream = (
+      ReactDOMServer as any
+    ).renderToReadableStream(element, {
+      onError(err: Error) {
+        if (!resolved) {
+          resolved = true
+          reject(err)
+        }
+      },
+      onCompleteShell() {
+        if (!resolved) {
+          resolved = true
+          resolve((res, next) => {
+            bufferedReadFromReadableStream(reader, (val) =>
+              res.write(val)
+            ).then(
+              () => next(),
+              (err) => next(err)
+            )
+          })
         }
       },
     })
-    const reader = readable.getReader()
-    const decoder = new TextDecoder()
-    const process = () => {
-      reader.read().then(({ done, value }: any) => {
-        if (!done) {
-          const s = typeof value === 'string' ? value : decoder.decode(value)
-          if (shellCompleted) {
-            res.write(s)
-          } else {
-            bufferedString += s
-          }
-          process()
-        } else {
-          next()
-        }
-      })
-    }
-    process()
-  }
+    const reader = stream.getReader()
+  })
 }
 
 function chainPipers(pipers: NodeWritablePiper[]): NodeWritablePiper {

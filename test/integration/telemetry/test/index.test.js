@@ -519,7 +519,10 @@ describe('Telemetry CLI', () => {
   })
 
   it('emits telemetry for lint during build', async () => {
-    await fs.writeFile(path.join(appDir, '.eslintrc'), `{ "extends": "next" }`)
+    await fs.writeFile(
+      path.join(appDir, '.eslintrc'),
+      `{ "root": true, "extends": "next" }`
+    )
     const { stderr } = await nextBuild(appDir, [], {
       stderr: true,
       env: { NEXT_TELEMETRY_DEBUG: 1 },
@@ -541,7 +544,10 @@ describe('Telemetry CLI', () => {
   })
 
   it('emits telemetry for `next lint`', async () => {
-    await fs.writeFile(path.join(appDir, '.eslintrc'), `{ "extends": "next" }`)
+    await fs.writeFile(
+      path.join(appDir, '.eslintrc'),
+      `{ "root": true, "extends": "next" }`
+    )
     const { stderr } = await nextLint(appDir, [], {
       stderr: true,
       env: { NEXT_TELEMETRY_DEBUG: 1 },
@@ -569,6 +575,9 @@ describe('Telemetry CLI', () => {
     })
     const regex = /NEXT_BUILD_FEATURE_USAGE[\s\S]+?{([\s\S]+?)}/g
     regex.exec(stderr).pop() // optimizeCss
+    const optimizeFonts = regex.exec(stderr).pop()
+    expect(optimizeFonts).toContain(`"featureName": "optimizeFonts"`)
+    expect(optimizeFonts).toContain(`"invocationCount": 1`)
     const swcLoader = regex.exec(stderr).pop()
     expect(swcLoader).toContain(`"featureName": "swcLoader"`)
     expect(swcLoader).toContain(`"invocationCount": 1`)

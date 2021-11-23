@@ -34,7 +34,7 @@ import Server, {
   FindComponentsResult,
 } from '../next-server'
 import { normalizePagePath } from '../normalize-page-path'
-import Router, { Params, route } from '../router'
+import Router, { hasBasePath, Params, replaceBasePath, route } from '../router'
 import { eventCliSession } from '../../telemetry/events'
 import { Telemetry } from '../../telemetry/storage'
 import { setGlobal } from '../../trace'
@@ -543,11 +543,11 @@ export default class DevServer extends Server {
     const { basePath } = this.nextConfig
     let originalPathname: string | null = null
 
-    if (basePath && parsedUrl.pathname?.startsWith(basePath)) {
+    if (basePath && hasBasePath(parsedUrl.pathname || '/', basePath)) {
       // strip basePath before handling dev bundles
       // If replace ends up replacing the full url it'll be `undefined`, meaning we have to default it to `/`
       originalPathname = parsedUrl.pathname
-      parsedUrl.pathname = parsedUrl.pathname!.slice(basePath.length) || '/'
+      parsedUrl.pathname = replaceBasePath(parsedUrl.pathname || '/', basePath)
     }
 
     const { pathname } = parsedUrl
