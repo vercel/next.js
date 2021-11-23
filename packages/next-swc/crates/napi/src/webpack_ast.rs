@@ -4,6 +4,7 @@
 
 use rayon::prelude::*;
 use std::sync::Arc;
+use swc_common::util::take::Take;
 use swc_ecmascript::{
     ast::*,
     utils::StmtOrModuleItem,
@@ -60,7 +61,8 @@ use swc_ecmascript::{
 pub fn ast_minimalizer(data: Arc<ScopeData>) -> impl VisitMut {
     Minimalizer {
         data,
-        should_preserve_all_expr: false,
+        preserve_literals: false,
+        can_remove_pat: false,
     }
 }
 
@@ -75,8 +77,10 @@ impl ScopeData {
 #[derive(Clone)]
 struct Minimalizer {
     data: Arc<ScopeData>,
-    /// `true` if we should preserve all expressions.
-    should_preserve_all_expr: bool,
+    /// `true` if we should preserve literals.
+    preserve_literals: bool,
+
+    can_remove_pat: bool,
 }
 
 impl Minimalizer {
@@ -106,6 +110,21 @@ impl VisitMut for Minimalizer {
 
     fn visit_mut_module_items(&mut self, stmts: &mut Vec<ModuleItem>) {
         self.visit_mut_stmt_likes(stmts);
+    }
+
+    fn visit_mut_pat(&mut self, pat: &mut Pat) {
+        // We don't need rest pattern.
+        match pat {
+            Pat::Rest(rest) => {
+                *pat = *rest.arg.take();
+            }
+            _ => {}
+        }
+
+        if !self.can_remove_pat {
+            pat.visit_mut_children_with(self);
+            return;
+        }
     }
 
     fn visit_mut_stmts(&mut self, stmts: &mut Vec<Stmt>) {
