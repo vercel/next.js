@@ -215,7 +215,14 @@ impl Minimalizer {
 
     fn ignore_expr(&mut self, e: &mut Expr) {
         match e {
-            Expr::Lit(..) | Expr::This(..) => {
+            Expr::Lit(..)
+            | Expr::This(..)
+            | Expr::Member(MemberExpr {
+                obj: ExprOrSuper::Super(..),
+                computed: false,
+                ..
+            })
+            | Expr::Yield(YieldExpr { arg: None, .. }) => {
                 e.take();
                 return;
             }
@@ -286,9 +293,6 @@ impl VisitMut for Minimalizer {
             Expr::Yield(expr) => {
                 if let Some(arg) = expr.arg.take() {
                     *e = *arg;
-                } else {
-                    e.take();
-                    return;
                 }
             }
 
@@ -298,16 +302,6 @@ impl VisitMut for Minimalizer {
 
             Expr::Update(expr) => {
                 *e = *expr.arg.take();
-            }
-
-            // Remove super.foo
-            Expr::Member(MemberExpr {
-                obj: ExprOrSuper::Super(..),
-                computed: false,
-                ..
-            }) => {
-                *e = Expr::Invalid(Invalid { span: DUMMY_SP });
-                return;
             }
 
             Expr::TsAs(expr) => {
