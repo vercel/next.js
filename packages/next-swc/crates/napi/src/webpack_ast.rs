@@ -537,6 +537,11 @@ impl VisitMut for Minimalizer {
                 callee: ExprOrSuper::Expr(callee),
                 args,
                 ..
+            })
+            | Expr::New(NewExpr {
+                callee,
+                args: Some(args),
+                ..
             }) => {
                 self.ignore_expr(callee);
 
@@ -554,7 +559,6 @@ impl VisitMut for Minimalizer {
 
             // TODO:
             // Expr::Member(_) => todo!(),
-            // Expr::New(_) => todo!(),
             // Expr::Arrow(_) => todo!(),
             // Expr::Class(_) => todo!(),
             // Expr::MetaProp(_) => todo!(),
