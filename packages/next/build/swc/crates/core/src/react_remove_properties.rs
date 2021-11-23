@@ -30,12 +30,8 @@ struct RemoveProperties {
 }
 
 impl RemoveProperties {
-    fn should_remove_property(&self, name: &[u8]) -> bool {
-        if let Ok(name) = std::str::from_utf8(name) {
-            self.properties.iter().any(|p| p.is_match(name))
-        } else {
-            false
-        }
+    fn should_remove_property(&self, name: &str) -> bool {
+        self.properties.iter().any(|p| p.is_match(name))
     }
 }
 
@@ -47,7 +43,7 @@ impl Fold for RemoveProperties {
             JSXAttrOrSpread::JSXAttr(JSXAttr {
                 name: JSXAttrName::Ident(ident),
                 ..
-            }) if self.should_remove_property(ident.sym.as_bytes()) => false,
+            }) if self.should_remove_property(ident.sym.as_ref()) => false,
             _ => true,
         });
         el
