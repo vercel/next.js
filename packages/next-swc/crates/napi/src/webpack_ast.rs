@@ -169,6 +169,12 @@ impl VisitMut for Minimalizer {
         elems.retain(|e| !e.expr.is_invalid());
     }
 
+    fn visit_mut_expr_stmt(&mut self, s: &mut ExprStmt) {
+        s.visit_mut_children_with(self);
+
+        self.ignore_expr(&mut s.expr);
+    }
+
     fn visit_mut_exprs(&mut self, exprs: &mut Vec<Box<Expr>>) {
         exprs.visit_mut_children_with(self);
 
