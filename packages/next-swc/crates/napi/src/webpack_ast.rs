@@ -4,7 +4,7 @@
 //! used by wasm.
 
 use rayon::prelude::*;
-use std::sync::Arc;
+use std::{iter::once, sync::Arc};
 use swc_common::{collections::AHashSet, util::take::Take, Mark, SyntaxContext, DUMMY_SP};
 use swc_ecmascript::{
     ast::*,
@@ -440,11 +440,29 @@ impl VisitMut for Minimalizer {
                 *e = seq;
             }
 
+            Expr::Call(CallExpr {
+                callee: ExprOrSuper::Expr(callee),
+                args,
+                ..
+            }) => {
+                self.ignore_expr(callee);
+
+                if callee.is_invalid() {
+                    let mut seq = Expr::Seq(SeqExpr {
+                        span: DUMMY_SP,
+                        exprs: args.take().into_iter().map(|arg| arg.expr).collect(),
+                    });
+
+                    seq.visit_mut_with(self);
+
+                    *e = seq;
+                }
+            }
+
             // TODO:
             // Expr::Object(_) => todo!(),
             // Expr::Fn(_) => todo!(),
             // Expr::Member(_) => todo!(),
-            // Expr::Call(_) => todo!(),
             // Expr::New(_) => todo!(),
             // Expr::Arrow(_) => todo!(),
             // Expr::Class(_) => todo!(),
