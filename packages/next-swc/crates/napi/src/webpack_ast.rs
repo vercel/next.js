@@ -106,6 +106,12 @@ impl VisitMut for Minimalizer {
         expr.expr.visit_mut_with(self);
     }
 
+    fn visit_mut_exprs(&mut self, exprs: &mut Vec<Box<Expr>>) {
+        exprs.visit_mut_children_with(self);
+
+        exprs.retain(|e| !e.is_invalid());
+    }
+
     fn visit_mut_module_items(&mut self, stmts: &mut Vec<ModuleItem>) {
         self.visit_mut_stmt_likes(stmts);
     }
