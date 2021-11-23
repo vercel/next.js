@@ -127,6 +127,12 @@ impl VisitMut for Minimalizer {
         }
     }
 
+    fn visit_mut_pats(&mut self, pats: &mut Vec<Pat>) {
+        pats.visit_mut_children_with(self);
+
+        pats.retain(|pat| !pat.is_invalid());
+    }
+
     fn visit_mut_stmts(&mut self, stmts: &mut Vec<Stmt>) {
         self.visit_mut_stmt_likes(stmts);
     }
