@@ -251,7 +251,12 @@ impl Minimalizer {
                         return;
                     }
                     (true, false) => {
-                        *e = *prop.take();
+                        if *computed {
+                            *e = *prop.take();
+                        } else {
+                            e.take();
+                            return;
+                        }
                     }
                     (false, true) => {
                         *e = *obj.take();
