@@ -31,7 +31,7 @@ function loadBindings() {
   for (const triple of triples) {
     const localFilePath = path.join(
       __dirname,
-      '../../../native',
+      '../../../../next-swc/native',
       `next-swc.${triple.platformArchABI}.node`
     )
     if (fs.existsSync(localFilePath)) {
@@ -45,6 +45,16 @@ function loadBindings() {
 
     try {
       return require(`@next/swc-${triple.platformArchABI}`)
+    } catch (e) {
+      if (e?.code !== 'MODULE_NOT_FOUND') {
+        loadError = e
+      }
+    }
+
+    // PR stats location/isolated tests location
+    try {
+      Log.info('Using locally built binary of @next/swc')
+      return require(`@next/swc/native/next-swc.${triple.platformArchABI}.node`)
     } catch (e) {
       if (e?.code !== 'MODULE_NOT_FOUND') {
         loadError = e

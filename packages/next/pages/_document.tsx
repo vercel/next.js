@@ -766,13 +766,10 @@ export function Main({
 }: {
   children?: (content: JSX.Element) => JSX.Element
 }) {
-  const { inAmpMode, docComponentsRendered, useMainContent } =
-    useContext(HtmlContext)
+  const { docComponentsRendered, useMainContent } = useContext(HtmlContext)
   const content = useMainContent(children)
   docComponentsRendered.Main = true
-
-  if (inAmpMode) return content
-  return <div id="__next">{content}</div>
+  return content
 }
 
 export class NextScript extends Component<OriginProps> {

@@ -2,6 +2,11 @@ import { NextRequest } from '../../../../server/web/spec-extension/request'
 import { renderToHTML } from '../../../../server/web/render'
 import RenderResult from '../../../../server/render-result'
 
+const createHeaders = (args?: any) => ({
+  ...args,
+  'x-middleware-ssr': '1',
+})
+
 export function getRender({
   App,
   Document,
@@ -24,15 +29,15 @@ export function getRender({
   restRenderOpts: any
 }) {
   return async function render(request: NextRequest) {
-    const url = request.nextUrl
+    const { nextUrl: url, cookies, headers } = request
     const { pathname, searchParams } = url
 
     const query = Object.fromEntries(searchParams)
 
     // Preflight request
     if (request.method === 'HEAD') {
-      return new Response('OK.', {
-        headers: { 'x-middleware-ssr': '1' },
+      return new Response(null, {
+        headers: createHeaders(),
       })
     }
 
@@ -41,7 +46,11 @@ export function getRender({
       : false
     delete query.__flight__
 
-    const req = { url: pathname }
+    const req = {
+      url: pathname,
+      cookies,
+      headers,
+    }
     const renderOpts = {
       ...restRenderOpts,
       // Locales are not supported yet.
@@ -103,7 +112,7 @@ export function getRender({
           ).toString(),
           {
             status: 500,
-            headers: { 'x-middleware-ssr': '1' },
+            headers: createHeaders(),
           }
         )
       }
@@ -114,7 +123,7 @@ export function getRender({
         'An error occurred while rendering ' + pathname + '.',
         {
           status: 500,
-          headers: { 'x-middleware-ssr': '1' },
+          headers: createHeaders(),
         }
       )
     }
@@ -126,7 +135,7 @@ export function getRender({
     } as any)
 
     return new Response(transformStream.readable, {
-      headers: { 'x-middleware-ssr': '1' },
+      headers: createHeaders(),
       status: 200,
     })
   }
