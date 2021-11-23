@@ -15,7 +15,7 @@ fn fixture(input: PathBuf) {
 
             chain!(
                 resolver_with_mark(top_level_mark),
-                as_folder(webpack_ast::ast_minimalizer())
+                as_folder(webpack_ast::ast_minimalizer(top_level_mark))
             )
         },
         &input,

@@ -5,7 +5,7 @@
 
 use rayon::prelude::*;
 use std::sync::Arc;
-use swc_common::{util::take::Take, DUMMY_SP};
+use swc_common::{util::take::Take, Mark, DUMMY_SP};
 use swc_ecmascript::{
     ast::*,
     utils::StmtOrModuleItem,
@@ -59,8 +59,11 @@ use swc_ecmascript::{
 /// require("z")
 /// module.hot.accept("x", () => {     })
 /// ```
-pub fn ast_minimalizer() -> impl VisitMut {
-    Minimalizer::default()
+pub fn ast_minimalizer(top_level_mark: Mark) -> impl VisitMut {
+    Minimalizer {
+        top_level_mark,
+        ..Default::default()
+    }
 }
 
 #[derive(Default)]
@@ -75,6 +78,7 @@ impl ScopeData {
 #[derive(Clone, Default)]
 struct Minimalizer {
     data: Arc<ScopeData>,
+    top_level_mark: Mark,
     /// `true` if we should preserve literals.
     preserve_literals: bool,
 
