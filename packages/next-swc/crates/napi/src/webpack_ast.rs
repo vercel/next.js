@@ -182,6 +182,15 @@ impl VisitMut for Minimalizer {
 
                 true
             }
+
+            ObjectPatProp::KeyValue(p) => {
+                if p.value.is_invalid() {
+                    return false;
+                }
+
+                true
+            }
+
             _ => true,
         });
     }
