@@ -252,9 +252,6 @@ impl Minimalizer {
             // Expr::Cond(_) => todo!(),
             // Expr::Call(_) => todo!(),
             // Expr::New(_) => todo!(),
-            // Expr::Seq(_) => todo!(),
-            // Expr::Tpl(_) => todo!(),
-            // Expr::TaggedTpl(_) => todo!(),
             // Expr::Arrow(_) => todo!(),
             // Expr::Class(_) => todo!(),
             // Expr::Yield(_) => todo!(),
@@ -339,6 +336,32 @@ impl VisitMut for Minimalizer {
 
             Expr::TsNonNull(expr) => {
                 *e = *expr.expr.take();
+            }
+
+            Expr::TaggedTpl(expr) => {
+                let mut exprs = Vec::with_capacity(expr.tpl.exprs.len() + 1);
+                exprs.push(expr.tag.take());
+                exprs.extend(expr.tpl.exprs.take());
+
+                let mut seq = Expr::Seq(SeqExpr {
+                    span: DUMMY_SP,
+                    exprs,
+                });
+
+                seq.visit_mut_with(self);
+
+                *e = seq;
+            }
+
+            Expr::Tpl(expr) => {
+                let mut seq = Expr::Seq(SeqExpr {
+                    span: DUMMY_SP,
+                    exprs: expr.exprs.take(),
+                });
+
+                seq.visit_mut_with(self);
+
+                *e = seq;
             }
 
             Expr::Seq(seq) => {
