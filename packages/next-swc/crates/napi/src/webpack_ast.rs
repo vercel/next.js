@@ -10,10 +10,13 @@ use swc_ecmascript::{
 };
 
 pub fn ast_minimalizer() -> impl VisitMut {
-    Minimalizer
+    Minimalizer::default()
 }
 
-struct Minimalizer;
+#[derive(Default, Clone, Copy)]
+struct Minimalizer {
+    in_require: bool,
+}
 
 impl Minimalizer {
     fn visit_mut_stmt_likes<T>(&mut self, stmts: &mut Vec<T>)
@@ -23,11 +26,11 @@ impl Minimalizer {
     {
         // Process in parallel, if required
         if stmts.len() >= 8 {
-            stmts
-                .par_iter_mut()
-                .for_each(|stmt| stmt.visit_mut_with(&mut Minimalizer));
+            stmts.par_iter_mut().for_each(|stmt| {
+                stmt.visit_mut_with(&mut Minimalizer::default());
+            });
         } else {
-            stmts.visit_mut_children_with(self);
+            stmts.visit_mut_children_with(&mut Minimalizer::default());
         }
     }
 }
