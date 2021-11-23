@@ -25,7 +25,7 @@ module.exports = function (task) {
         jsc: {
           loose: true,
 
-          target: 'es2016',
+          target: 'es5',
           parser: {
             syntax: 'typescript',
             dynamicImport: true,

@@ -475,12 +475,14 @@ export default async function getBaseWebpackConfig(
     `\\.client\\.(${rawPageExtensions.join('|')})$`
   )
 
-  const babelIncludeRegexes: RegExp[] = [
-    /next[\\/]dist[\\/]shared[\\/]lib/,
-    /next[\\/]dist[\\/]client/,
-    /next[\\/]dist[\\/]pages/,
-    /[\\/](strip-ansi|ansi-regex)[\\/]/,
-  ]
+  const babelIncludeRegexes: RegExp[] = useSWCLoader
+    ? []
+    : [
+        /next[\\/]dist[\\/]shared[\\/]lib/,
+        /next[\\/]dist[\\/]client/,
+        /next[\\/]dist[\\/]pages/,
+        /[\\/](strip-ansi|ansi-regex)[\\/]/,
+      ]
 
   // Support for NODE_PATH
   const nodePathList = (process.env.NODE_PATH || '')
