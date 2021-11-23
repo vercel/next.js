@@ -296,8 +296,8 @@ impl Minimalizer {
             }
 
             Expr::Seq(seq) => {
-                for e in &mut seq.exprs {
-                    self.ignore_expr(e);
+                if let Some(e) = seq.exprs.last_mut() {
+                    self.ignore_expr(&mut **e);
                 }
                 seq.exprs.retain(|e| !e.is_invalid());
                 if seq.exprs.is_empty() {
@@ -552,7 +552,6 @@ impl VisitMut for Minimalizer {
             }
 
             // TODO:
-            // Expr::Fn(_) => todo!(),
             // Expr::Member(_) => todo!(),
             // Expr::New(_) => todo!(),
             // Expr::Arrow(_) => todo!(),
