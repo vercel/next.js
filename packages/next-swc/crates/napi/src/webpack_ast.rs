@@ -250,10 +250,6 @@ impl Minimalizer {
             // Expr::JSXEmpty(_) => todo!(),
             // Expr::JSXElement(_) => todo!(),
             // Expr::JSXFragment(_) => todo!(),
-            // Expr::TsTypeAssertion(_) => todo!(),
-            // Expr::TsConstAssertion(_) => todo!(),
-            // Expr::TsNonNull(_) => todo!(),
-            // Expr::TsAs(_) => todo!(),
             // Expr::OptChain(_) => todo!(),
             _ => {}
         }
@@ -302,6 +298,32 @@ impl VisitMut for Minimalizer {
 
             Expr::Update(expr) => {
                 *e = *expr.arg.take();
+            }
+
+            // Remove super.foo
+            Expr::Member(MemberExpr {
+                obj: ExprOrSuper::Super(..),
+                computed: false,
+                ..
+            }) => {
+                *e = Expr::Invalid(Invalid { span: DUMMY_SP });
+                return;
+            }
+
+            Expr::TsAs(expr) => {
+                *e = *expr.expr.take();
+            }
+
+            Expr::TsConstAssertion(expr) => {
+                *e = *expr.expr.take();
+            }
+
+            Expr::TsTypeAssertion(expr) => {
+                *e = *expr.expr.take();
+            }
+
+            Expr::TsNonNull(expr) => {
+                *e = *expr.expr.take();
             }
 
             Expr::Seq(seq) => {
