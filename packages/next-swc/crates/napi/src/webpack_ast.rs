@@ -162,6 +162,21 @@ impl VisitMut for Minimalizer {
         self.visit_mut_stmt_likes(stmts);
     }
 
+    fn visit_mut_object_pat_props(&mut self, props: &mut Vec<ObjectPatProp>) {
+        props.visit_mut_children_with(self);
+
+        props.retain(|prop| match prop {
+            ObjectPatProp::Rest(p) => {
+                if p.arg.is_invalid() {
+                    return false;
+                }
+
+                true
+            }
+            _ => true,
+        });
+    }
+
     fn visit_mut_pat(&mut self, pat: &mut Pat) {
         // We don't need rest pattern.
         match pat {
