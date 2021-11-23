@@ -186,6 +186,14 @@ impl VisitMut for Minimalizer {
         });
     }
 
+    fn visit_mut_opt_expr(&mut self, e: &mut Option<Box<Expr>>) {
+        e.visit_mut_children_with(self);
+
+        if let Some(Expr::Invalid(..)) = e.as_deref() {
+            e.take();
+        }
+    }
+
     fn visit_mut_pat(&mut self, pat: &mut Pat) {
         // We don't need rest pattern.
         match pat {
