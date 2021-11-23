@@ -296,6 +296,7 @@ impl Minimalizer {
             }
 
             Expr::Seq(seq) => {
+                // visit_mut_seq_expr handles the elements other than last one.
                 if let Some(e) = seq.exprs.last_mut() {
                     self.ignore_expr(&mut **e);
                 }
