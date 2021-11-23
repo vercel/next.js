@@ -97,9 +97,50 @@ impl Minimalizer {
                 Stmt::Block(b) => {
                     to.extend(b.stmts.into_iter().map(T::from_stmt));
                 }
-                // Stmt::Decl(Decl::Fn(fn_decl)) => {
+                Stmt::Decl(Decl::Fn(fn_decl)) => {
+                    let Function {
+                        params,
+                        decorators,
+                        body,
+                        ..
+                    } = fn_decl.function;
 
-                // }
+                    if !decorators.is_empty() {
+                        let mut s = Stmt::Expr(ExprStmt {
+                            span: DUMMY_SP,
+                            expr: Box::new(Expr::Seq(SeqExpr {
+                                span: DUMMY_SP,
+                                exprs: decorators.into_iter().map(|d| d.expr).collect(),
+                            })),
+                        });
+                        s.visit_mut_with(self);
+                        to.push(T::from_stmt(s));
+                    }
+
+                    if !params.is_empty() {
+                        let mut exprs = Vec::with_capacity(params.len());
+
+                        for p in params {
+                            exprs.extend(p.decorators.into_iter().map(|d| d.expr));
+
+                            preserve_pat(&mut exprs, p.pat);
+                        }
+
+                        let mut s = Stmt::Expr(ExprStmt {
+                            span: DUMMY_SP,
+                            expr: Box::new(Expr::Seq(SeqExpr {
+                                span: DUMMY_SP,
+                                exprs,
+                            })),
+                        });
+                        s.visit_mut_with(self);
+                        to.push(T::from_stmt(s));
+                    }
+
+                    if let Some(body) = body {
+                        to.extend(body.stmts.into_iter().map(T::from_stmt));
+                    }
+                }
                 _ => {
                     to.push(T::from_stmt(stmt));
                 }
@@ -411,5 +452,51 @@ impl VisitMut for Minimalizer {
 
     fn visit_mut_stmts(&mut self, stmts: &mut Vec<Stmt>) {
         self.visit_mut_stmt_likes(stmts);
+    }
+}
+
+fn preserve_pat(exprs: &mut Vec<Box<Expr>>, p: Pat) {
+    match p {
+        Pat::Ident(..) => {}
+        Pat::Array(p) => {
+            p.elems
+                .into_iter()
+                .flatten()
+                .for_each(|elem| preserve_pat(exprs, elem));
+        }
+        Pat::Rest(p) => preserve_pat(exprs, *p.arg),
+        Pat::Object(p) => p.props.into_iter().for_each(|p| {
+            preserve_obj_pat(exprs, p);
+        }),
+        Pat::Assign(p) => {
+            preserve_pat(exprs, *p.left);
+            exprs.push(p.right)
+        }
+        Pat::Invalid(_) => {}
+        Pat::Expr(e) => {
+            exprs.push(e);
+        }
+    }
+}
+
+fn preserve_obj_pat(exprs: &mut Vec<Box<Expr>>, p: ObjectPatProp) {
+    match p {
+        ObjectPatProp::KeyValue(p) => {
+            preserve_prop_name(exprs, p.key);
+            preserve_pat(exprs, *p.value);
+        }
+        ObjectPatProp::Assign(p) => {
+            exprs.extend(p.value);
+        }
+        ObjectPatProp::Rest(p) => preserve_pat(exprs, *p.arg),
+    }
+}
+
+fn preserve_prop_name(exprs: &mut Vec<Box<Expr>>, p: PropName) {
+    match p {
+        PropName::Computed(e) => {
+            exprs.push(e.expr);
+        }
+        _ => {}
     }
 }
