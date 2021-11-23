@@ -327,8 +327,40 @@ impl VisitMut for Minimalizer {
     ///  - Empty [Stmt::Block] => [Stmt::Empty]
     ///  - Single-item [Stmt::Block] => the item
     ///  - Invalid [Stmt::Decl] => [Stmt::Empty]
+    ///  - Useless stmt => [Stmt::Empty]
     fn visit_mut_stmt(&mut self, stmt: &mut Stmt) {
         stmt.visit_mut_children_with(self);
+
+        match stmt {
+            Stmt::Return(s) => {
+                if let Some(arg) = s.arg.take() {
+                    *stmt = Stmt::Expr(ExprStmt {
+                        span: DUMMY_SP,
+                        expr: arg,
+                    });
+                } else {
+                    *stmt = Stmt::Empty(EmptyStmt { span: DUMMY_SP });
+                    return;
+                }
+            }
+            Stmt::Throw(s) => {
+                *stmt = Stmt::Expr(ExprStmt {
+                    span: DUMMY_SP,
+                    expr: s.arg.take(),
+                });
+            }
+
+            Stmt::Debugger(_) | Stmt::Break(_) | Stmt::Continue(_) => {
+                *stmt = Stmt::Empty(EmptyStmt { span: DUMMY_SP });
+                return;
+            }
+
+            Stmt::Labeled(l) => {
+                *stmt = *l.body.take();
+            }
+
+            _ => {}
+        }
 
         match stmt {
             Stmt::Expr(e) => {
@@ -356,6 +388,8 @@ impl VisitMut for Minimalizer {
                 }
             }
 
+            // TODO: Flatten loops
+            // TODO: Flatten try catch
             _ => {}
         }
     }
