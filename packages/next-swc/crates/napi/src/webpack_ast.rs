@@ -227,6 +227,27 @@ impl Minimalizer {
                 return;
             }
 
+            Expr::Ident(i) => {
+                if !self.data.should_preserve(&*i) {
+                    e.take();
+                }
+                return;
+            }
+
+            Expr::Array(a) => {
+                if a.elems.is_empty() {
+                    e.take();
+                    return;
+                }
+            }
+
+            Expr::Object(obj) => {
+                if obj.props.is_empty() {
+                    e.take();
+                    return;
+                }
+            }
+
             Expr::Seq(seq) => {
                 for e in &mut seq.exprs {
                     self.ignore_expr(e);
@@ -240,13 +261,6 @@ impl Minimalizer {
                     *e = *seq.exprs.pop().unwrap();
                     return;
                 }
-            }
-
-            Expr::Ident(i) => {
-                if !self.data.should_preserve(&*i) {
-                    e.take();
-                }
-                return;
             }
 
             _ => {}
