@@ -101,8 +101,6 @@ impl Minimalizer {
 }
 
 impl VisitMut for Minimalizer {
-    noop_visit_mut_type!();
-
     fn visit_mut_expr_or_spread(&mut self, expr: &mut ExprOrSpread) {
         expr.spread = None;
         expr.expr.visit_mut_with(self);
