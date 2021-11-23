@@ -4,7 +4,7 @@
 
 use rayon::prelude::*;
 use std::sync::Arc;
-use swc_common::util::take::Take;
+use swc_common::{util::take::Take, DUMMY_SP};
 use swc_ecmascript::{
     ast::*,
     utils::StmtOrModuleItem,
@@ -107,6 +107,23 @@ impl Minimalizer {
 }
 
 impl VisitMut for Minimalizer {
+    /// Normalize expressions.
+    ///
+    ///  - empty [Expr::Seq] => [Expr::Invalid]
+    fn visit_mut_expr(&mut self, e: &mut Expr) {
+        e.visit_mut_children_with(self);
+
+        match e {
+            Expr::Seq(seq) => {
+                if seq.exprs.is_empty() {
+                    *e = Expr::Invalid(Invalid { span: DUMMY_SP });
+                    return;
+                }
+            }
+            _ => {}
+        }
+    }
+
     fn visit_mut_expr_or_spread(&mut self, expr: &mut ExprOrSpread) {
         expr.spread = None;
         expr.expr.visit_mut_with(self);
@@ -148,6 +165,37 @@ impl VisitMut for Minimalizer {
         pats.visit_mut_children_with(self);
 
         pats.retain(|pat| !pat.is_invalid());
+    }
+
+    /// Normalize statements.
+    ///
+    ///  - Invalid [Stmt::Expr] => [Stmt::Empty]
+    ///  - Empty [Stmt::Block] => [Stmt::Empty]
+    ///  - Single-item [Stmt::Block] => the item
+    fn visit_mut_stmt(&mut self, stmt: &mut Stmt) {
+        stmt.visit_mut_children_with(self);
+
+        match stmt {
+            Stmt::Expr(e) => {
+                if e.expr.is_invalid() {
+                    *stmt = Stmt::Empty(EmptyStmt { span: DUMMY_SP });
+                    return;
+                }
+            }
+
+            Stmt::Block(block) => {
+                if block.stmts.is_empty() {
+                    *stmt = Stmt::Empty(EmptyStmt { span: DUMMY_SP });
+                    return;
+                }
+                if block.stmts.len() == 1 {
+                    *stmt = block.stmts.take().into_iter().next().unwrap();
+                    return;
+                }
+            }
+
+            _ => {}
+        }
     }
 
     fn visit_mut_stmts(&mut self, stmts: &mut Vec<Stmt>) {
