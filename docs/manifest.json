@@ -272,6 +272,15 @@
             }
           ]
         },
+        {
+          "title": "Guides",
+          "routes": [
+            {
+              "title": "Building Forms",
+              "path": "/docs/guides/building-forms.md"
+            }
+          ]
+        },
         { "title": "FAQ", "path": "/docs/faq.md" }
       ]
     },
