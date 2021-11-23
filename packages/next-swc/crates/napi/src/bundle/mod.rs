@@ -74,7 +74,7 @@ impl Task for BundleTask {
                 },
                 make_resolver(),
                 swc_bundler::Config {
-                    require: false,
+                    require: true,
                     disable_inliner: false,
                     external_modules: builtins,
                     module: swc_bundler::ModuleType::Es,
