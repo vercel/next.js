@@ -215,6 +215,21 @@ impl VisitMut for Minimalizer {
         exprs.retain(|e| !e.is_invalid());
     }
 
+    fn visit_mut_function(&mut self, f: &mut Function) {
+        f.decorators.visit_mut_with(self);
+
+        let old_can_remove_pat = self.can_remove_pat;
+        self.can_remove_pat = true;
+        f.params.visit_mut_with(self);
+        self.can_remove_pat = old_can_remove_pat;
+
+        f.body.visit_mut_with(self);
+
+        f.type_params.visit_mut_with(self);
+
+        f.return_type.visit_mut_with(self);
+    }
+
     fn visit_mut_module_items(&mut self, stmts: &mut Vec<ModuleItem>) {
         self.data = Arc::new(ScopeData::analyze(&stmts));
 
