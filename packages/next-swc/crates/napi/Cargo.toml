@@ -27,3 +27,7 @@ rayon = "1.5.1"
 
 [build-dependencies]
 napi-build = "1"
+
+[dev-dependencies]
+swc_ecma_transforms_testing = "0.45.0"
+testing = "0.15.1"

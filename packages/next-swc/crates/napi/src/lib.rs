@@ -44,7 +44,7 @@ mod bundle;
 mod minify;
 mod transform;
 mod util;
-mod webpack_ast;
+pub mod webpack_ast;
 
 static COMPILER: Lazy<Arc<Compiler>> = Lazy::new(|| {
     let cm = Arc::new(SourceMap::new(FilePathMapping::empty()));

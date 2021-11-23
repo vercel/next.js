@@ -1,6 +1,6 @@
-//! Minimalize AST for webpack.
+//! Minimalizer for AST.
 //!
-//! This code lives at `napi` crate because it's not used by wasm.
+//! This code lives at `napi` crate because it depends on `rayon` and it's not used by wasm.
 
 use rayon::prelude::*;
 use std::sync::Arc;
@@ -8,7 +8,7 @@ use swc_common::{util::take::Take, DUMMY_SP};
 use swc_ecmascript::{
     ast::*,
     utils::StmtOrModuleItem,
-    visit::{noop_visit_mut_type, VisitMut, VisitMutWith},
+    visit::{VisitMut, VisitMutWith},
 };
 
 /// # Usage
