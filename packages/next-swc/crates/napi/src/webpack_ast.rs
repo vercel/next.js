@@ -5,10 +5,10 @@
 
 use rayon::prelude::*;
 use std::sync::Arc;
-use swc_common::{util::take::Take, Mark, SyntaxContext, DUMMY_SP};
+use swc_common::{collections::AHashSet, util::take::Take, Mark, SyntaxContext, DUMMY_SP};
 use swc_ecmascript::{
     ast::*,
-    utils::{StmtLike, StmtOrModuleItem},
+    utils::{ident::IdentLike, Id, StmtLike, StmtOrModuleItem},
     visit::{VisitMut, VisitMutWith},
 };
 
@@ -67,11 +67,45 @@ pub fn ast_minimalizer(top_level_mark: Mark) -> impl VisitMut {
 }
 
 #[derive(Default)]
-struct ScopeData {}
+struct ScopeData {
+    imported_ids: AHashSet<Id>,
+}
 
 impl ScopeData {
-    fn analyze(module: &[ModuleItem]) -> Self {
-        ScopeData {}
+    fn analyze(items: &[ModuleItem]) -> Self {
+        let mut imported_ids = AHashSet::default();
+
+        for item in items {
+            match item {
+                ModuleItem::ModuleDecl(ModuleDecl::Import(i)) => {
+                    for s in &i.specifiers {
+                        match s {
+                            ImportSpecifier::Named(s) => {
+                                imported_ids.insert(s.local.to_id());
+                            }
+                            ImportSpecifier::Default(s) => {
+                                imported_ids.insert(s.local.to_id());
+                            }
+                            ImportSpecifier::Namespace(s) => {
+                                imported_ids.insert(s.local.to_id());
+                            }
+                        }
+                    }
+                }
+
+                _ => {}
+            }
+        }
+
+        ScopeData { imported_ids }
+    }
+
+    fn should_preserve(&self, i: &Ident) -> bool {
+        if self.imported_ids.contains(&i.to_id()) {
+            return true;
+        }
+
+        false
     }
 }
 
@@ -186,6 +220,41 @@ impl Minimalizer {
                 return;
             }
 
+            Expr::Ident(i) => {
+                if !self.data.should_preserve(&*i) {
+                    e.take();
+                }
+                return;
+            }
+
+            // TODO:
+            // Expr::Array(_) => todo!(),
+            // Expr::Object(_) => todo!(),
+            // Expr::Fn(_) => todo!(),
+            // Expr::Bin(_) => todo!(),
+            // Expr::Assign(_) => todo!(),
+            // Expr::Member(_) => todo!(),
+            // Expr::Cond(_) => todo!(),
+            // Expr::Call(_) => todo!(),
+            // Expr::New(_) => todo!(),
+            // Expr::Seq(_) => todo!(),
+            // Expr::Tpl(_) => todo!(),
+            // Expr::TaggedTpl(_) => todo!(),
+            // Expr::Arrow(_) => todo!(),
+            // Expr::Class(_) => todo!(),
+            // Expr::Yield(_) => todo!(),
+            // Expr::MetaProp(_) => todo!(),
+            // Expr::Paren(_) => todo!(),
+            // Expr::JSXMember(_) => todo!(),
+            // Expr::JSXNamespacedName(_) => todo!(),
+            // Expr::JSXEmpty(_) => todo!(),
+            // Expr::JSXElement(_) => todo!(),
+            // Expr::JSXFragment(_) => todo!(),
+            // Expr::TsTypeAssertion(_) => todo!(),
+            // Expr::TsConstAssertion(_) => todo!(),
+            // Expr::TsNonNull(_) => todo!(),
+            // Expr::TsAs(_) => todo!(),
+            // Expr::OptChain(_) => todo!(),
             _ => {}
         }
     }
@@ -223,10 +292,26 @@ impl VisitMut for Minimalizer {
         e.visit_mut_children_with(self);
 
         match e {
+            Expr::Await(expr) => {
+                *e = *expr.arg.take();
+            }
+
+            Expr::Unary(expr) => {
+                *e = *expr.arg.take();
+            }
+
+            Expr::Update(expr) => {
+                *e = *expr.arg.take();
+            }
+
             Expr::Seq(seq) => {
                 if seq.exprs.is_empty() {
                     *e = Expr::Invalid(Invalid { span: DUMMY_SP });
                     return;
+                }
+
+                if seq.exprs.len() == 1 {
+                    *e = *seq.exprs.pop().unwrap();
                 }
             }
             _ => {}
@@ -269,6 +354,14 @@ impl VisitMut for Minimalizer {
         f.type_params.visit_mut_with(self);
 
         f.return_type.visit_mut_with(self);
+    }
+
+    fn visit_mut_member_expr(&mut self, e: &mut MemberExpr) {
+        e.obj.visit_mut_with(self);
+
+        if e.computed {
+            e.prop.visit_mut_with(self);
+        }
     }
 
     fn visit_mut_module_items(&mut self, stmts: &mut Vec<ModuleItem>) {
