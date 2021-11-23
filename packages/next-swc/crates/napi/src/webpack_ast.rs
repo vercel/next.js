@@ -9,13 +9,56 @@ use swc_ecmascript::{
     visit::{noop_visit_mut_type, VisitMut, VisitMutWith},
 };
 
+/// # Preserved nodes
+///
+///  - import
+///  - export
+///  - all imported identifiers
+///  - `process.env.NODE_ENV`
+///  - `require`
+///  - `module`
+///  - `__webpack_*`
+///  - `import.meta`
+///  - `import()`
+///  - `define()`
+///  - `require.ensure`
+///
+///
+///
+/// # Example
+///
+/// ## Input
+///
+///```js
+/// import { a } from "x";
+/// import b from "y";
+///
+/// function d() {
+///   a.x.y(), console.log(b);
+///   require("z");
+///   module.hot.accept("x", x => { ... })
+/// }
+/// ```
+///
+/// ## Output
+///
+/// ```js
+/// import { a } from "x";
+/// import b from "y";
+///
+///             
+/// a.x.y();             b;
+/// require("z")
+/// module.hot.accept("x", () => {     })
+/// ```
 pub fn ast_minimalizer() -> impl VisitMut {
     Minimalizer::default()
 }
 
 #[derive(Default, Clone, Copy)]
 struct Minimalizer {
-    in_require: bool,
+    /// `true` if we should preserve all expressions.
+    should_preserve_all_expr: bool,
 }
 
 impl Minimalizer {
@@ -33,6 +76,8 @@ impl Minimalizer {
             stmts.visit_mut_children_with(&mut Minimalizer::default());
         }
     }
+
+    fn can_ignore_expr(&mut self, e: &mut Expr) {}
 }
 
 impl VisitMut for Minimalizer {
