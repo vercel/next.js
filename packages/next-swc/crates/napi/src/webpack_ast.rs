@@ -216,6 +216,21 @@ impl VisitMut for Minimalizer {
                     return;
                 }
             }
+
+            Pat::Array(arr) => {
+                if arr.elems.is_empty() {
+                    pat.take();
+                    return;
+                }
+            }
+
+            Pat::Object(obj) => {
+                if obj.props.is_empty() {
+                    pat.take();
+                    return;
+                }
+            }
+
             _ => {}
         }
     }
