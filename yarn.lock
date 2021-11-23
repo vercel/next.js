@@ -5099,6 +5099,11 @@
     "@typescript-eslint/types" "5.0.0"
     eslint-visitor-keys "^3.0.0"
 
+"@ungap/structured-clone@0.3.4":
+  version "0.3.4"
+  resolved "https://registry.yarnpkg.com/@ungap/structured-clone/-/structured-clone-0.3.4.tgz#f6d804e185591373992781361e4aa5bb81ffba35"
+  integrity sha512-TSVh8CpnwNAsPC5wXcIyh92Bv1gq6E9cNDeeLu7Z4h8V4/qWtXJp7y42qljRkqcpmsve1iozwv1wr+3BNdILCg==
+
 "@vercel/fetch-cached-dns@^2.0.2":
   version "2.0.2"
   resolved "https://registry.yarnpkg.com/@vercel/fetch-cached-dns/-/fetch-cached-dns-2.0.2.tgz#975c395cf53f188fa618fad57f27af6b5ffc5bab"

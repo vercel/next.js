@@ -1,6 +1,8 @@
 import { Crypto as WebCrypto } from 'next/dist/compiled/@peculiar/webcrypto'
 import { CryptoKey } from 'next/dist/compiled/@peculiar/webcrypto'
 import { TransformStream } from 'next/dist/compiled/web-streams-polyfill'
+// @ts-expect-error Missing types
+import structuredClone from '@ungap/structured-clone'
 import { v4 as uuid } from 'next/dist/compiled/uuid'
 import crypto from 'crypto'
 
@@ -13,6 +15,7 @@ export function btoa(str: string) {
 }
 
 export { CryptoKey }
+export { structuredClone }
 
 export class Crypto extends WebCrypto {
   // @ts-ignore Remove once types are updated and we deprecate node 12

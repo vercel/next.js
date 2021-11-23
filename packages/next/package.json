@@ -66,6 +66,7 @@
     ]
   },
   "dependencies": {
+    "@ungap/structured-clone": "0.3.4",
     "@babel/runtime": "7.15.4",
     "@hapi/accept": "5.0.2",
     "@napi-rs/triples": "1.0.3",
