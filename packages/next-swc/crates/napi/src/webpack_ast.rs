@@ -106,6 +106,17 @@ impl Minimalizer {
             _ => true,
         });
     }
+
+    fn ignore_expr(&self, e: &mut Expr) {
+        match e {
+            Expr::Lit(..) | Expr::This(..) => {
+                e.take();
+                return;
+            }
+
+            _ => {}
+        }
+    }
 }
 
 impl VisitMut for Minimalizer {
@@ -120,6 +131,14 @@ impl VisitMut for Minimalizer {
         e.type_params.visit_mut_with(self);
 
         e.return_type.visit_mut_with(self);
+    }
+
+    fn visit_mut_assign_pat_prop(&mut self, p: &mut AssignPatProp) {
+        p.visit_mut_children_with(self);
+
+        if let Some(v) = &mut p.value {
+            self.ignore_expr(&mut **v);
+        }
     }
 
     /// Normalize expressions.
