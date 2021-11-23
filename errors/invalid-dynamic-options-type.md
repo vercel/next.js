@@ -1,11 +1,8 @@
-# Invalid argument in `next/dynamic` call
+# Invalid options type in a `next/dynamic` call
 
 #### Why This Error Occurred
 
-You have passed an invalid argument to a `next/dynamic` call.
-
-- The `import()` call must be inside the `dynamic()` call.
-- The options object literal must be created inside the `dynamic()` call.
+You have an invalid options type in a `next/dynamic` call. The options must be an object literal.
 
 #### Possible Ways to Fix It
 
@@ -14,9 +11,8 @@ You have passed an invalid argument to a `next/dynamic` call.
 ```jsx
 import dynamic from 'next/dynamic'
 
-const module = () => import('../components/hello')
 const options = { loading: () => <p>...</p>, ssr: false }
-const DynamicComponent = dynamic(module, options)
+const DynamicComponent = dynamic(() => import('../components/hello'), options)
 ```
 
 **After**

@@ -94,7 +94,7 @@ impl Fold for NextDynamicPatcher {
                           handler
                               .struct_span_err(
                                   identifier.span,
-                                  "Second argument must be an object literal.\nRead more: https://nextjs.org/docs/messages/invalid-dynamic-arguments",
+                                  "next/dynamic options must be an object literal.\nRead more: https://nextjs.org/docs/messages/invalid-dynamic-options-type",
                               )
                               .emit();
                       });
@@ -109,14 +109,6 @@ impl Fold for NextDynamicPatcher {
 
 
           if let None = self.dynamically_imported_specifier {
-            HANDLER.with(|handler| {
-                handler
-                    .struct_span_err(
-                        identifier.span,
-                        "import() has to be inside the dynamic() call.\nRead more: https://nextjs.org/docs/messages/invalid-dynamic-arguments",
-                    )
-                    .emit();
-            });
             return expr;
           }
 
