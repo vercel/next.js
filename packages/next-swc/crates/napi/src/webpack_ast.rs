@@ -855,12 +855,12 @@ impl VisitMut for Minimalizer {
             self.ignore_expr(&mut **e);
 
             if e.is_invalid() {
-                if matches!(self.var_decl_kind, Some(VarDeclKind::Const)) {
-                    v.init = Some(undefined(DUMMY_SP));
-                } else {
-                    v.init = None;
-                }
+                v.init = None;
             }
+        }
+
+        if v.init.is_none() && matches!(self.var_decl_kind, Some(VarDeclKind::Const)) {
+            v.init = Some(undefined(DUMMY_SP));
         }
     }
 }
