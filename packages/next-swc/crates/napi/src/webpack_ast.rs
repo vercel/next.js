@@ -561,7 +561,6 @@ impl VisitMut for Minimalizer {
 
             // TODO:
             // Expr::Member(_) => todo!(),
-            // Expr::Arrow(_) => todo!(),
             // Expr::Class(_) => todo!(),
             // Expr::MetaProp(_) => todo!(),
             // Expr::JSXMember(_) => todo!(),
