@@ -86,6 +86,8 @@ struct Minimalizer {
 }
 
 impl Minimalizer {
+    fn flatten_stmt<T>(&mut self, to: &mut Vec<T>, item: &mut T) {}
+
     fn visit_mut_stmt_likes<T>(&mut self, stmts: &mut Vec<T>)
     where
         T: StmtOrModuleItem + VisitMutWith<Self>,
@@ -100,11 +102,18 @@ impl Minimalizer {
             stmts.visit_mut_children_with(&mut self.clone());
         }
 
+        let mut new = Vec::with_capacity(stmts.len());
+        for stmt in stmts.iter_mut() {
+            self.flatten_stmt(&mut new, stmt);
+        }
+
         // Remove empty statements
-        stmts.retain(|stmt| match stmt.as_stmt() {
+        new.retain(|stmt| match stmt.as_stmt() {
             Ok(Stmt::Empty(..)) => return false,
             _ => true,
         });
+
+        *stmts = new;
     }
 
     fn ignore_expr(&self, e: &mut Expr) {
