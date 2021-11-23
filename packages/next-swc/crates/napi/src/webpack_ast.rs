@@ -619,6 +619,8 @@ impl VisitMut for Minimalizer {
 
             self.ignore_expr(&mut **elem);
         }
+
+        e.exprs.retain(|e| !e.is_invalid());
     }
 
     /// Normalize statements.
