@@ -487,6 +487,51 @@ impl VisitMut for Minimalizer {
                 *e = seq;
             }
 
+            Expr::Object(obj) => {
+                if obj.props.iter().all(|prop| match prop {
+                    PropOrSpread::Spread(..) => true,
+                    PropOrSpread::Prop(prop) => match &**prop {
+                        Prop::Shorthand(..) | Prop::KeyValue(..) | Prop::Assign(..) => true,
+                        _ => false,
+                    },
+                }) {
+                    let mut exprs = Vec::with_capacity(obj.props.len());
+
+                    for prop in obj.props.take() {
+                        match prop {
+                            PropOrSpread::Spread(prop) => {
+                                exprs.push(prop.expr);
+                            }
+                            PropOrSpread::Prop(prop) => match *prop {
+                                Prop::Shorthand(i) => {
+                                    exprs.push(Box::new(Expr::Ident(i)));
+                                }
+                                Prop::KeyValue(p) => {
+                                    preserve_prop_name(&mut exprs, p.key);
+                                    exprs.push(p.value);
+                                }
+                                Prop::Assign(p) => {
+                                    exprs.push(Box::new(Expr::Ident(p.key)));
+                                    exprs.push(p.value);
+                                }
+                                _ => {
+                                    unreachable!()
+                                }
+                            },
+                        }
+                    }
+
+                    let mut seq = Expr::Seq(SeqExpr {
+                        span: DUMMY_SP,
+                        exprs,
+                    });
+
+                    seq.visit_mut_with(self);
+
+                    *e = seq;
+                }
+            }
+
             Expr::Call(CallExpr {
                 callee: ExprOrSuper::Expr(callee),
                 args,
@@ -507,7 +552,6 @@ impl VisitMut for Minimalizer {
             }
 
             // TODO:
-            // Expr::Object(_) => todo!(),
             // Expr::Fn(_) => todo!(),
             // Expr::Member(_) => todo!(),
             // Expr::New(_) => todo!(),
