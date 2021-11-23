@@ -545,6 +545,16 @@ impl VisitMut for Minimalizer {
         }
     }
 
+    fn visit_mut_opt_expr_or_spread(&mut self, e: &mut Option<ExprOrSpread>) {
+        e.visit_mut_children_with(self);
+
+        if let Some(elem) = e {
+            if elem.expr.is_invalid() {
+                *e = None;
+            }
+        }
+    }
+
     fn visit_mut_pat(&mut self, pat: &mut Pat) {
         // We don't need rest pattern.
         match pat {
