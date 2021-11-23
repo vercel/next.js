@@ -138,6 +138,9 @@ impl VisitMut for Minimalizer {
 
         if let Some(v) = &mut p.value {
             self.ignore_expr(&mut **v);
+            if v.is_invalid() {
+                p.value = None;
+            }
         }
     }
 
