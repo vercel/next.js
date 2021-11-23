@@ -4,7 +4,7 @@
 //! used by wasm.
 
 use rayon::prelude::*;
-use std::{iter::once, sync::Arc};
+use std::sync::Arc;
 use swc_common::{collections::AHashSet, util::take::Take, Mark, SyntaxContext, DUMMY_SP};
 use swc_ecmascript::{
     ast::*,
@@ -232,6 +232,32 @@ impl Minimalizer {
                     e.take();
                 }
                 return;
+            }
+
+            Expr::Member(MemberExpr {
+                obj: ExprOrSuper::Expr(obj),
+                prop,
+                computed,
+                ..
+            }) => {
+                self.ignore_expr(obj);
+                if *computed {
+                    self.ignore_expr(prop);
+                }
+
+                match (obj.is_invalid(), prop.is_invalid()) {
+                    (true, true) => {
+                        e.take();
+                        return;
+                    }
+                    (true, false) => {
+                        *e = *prop.take();
+                    }
+                    (false, true) => {
+                        *e = *obj.take();
+                    }
+                    (false, false) => {}
+                }
             }
 
             Expr::Array(a) => {
