@@ -213,11 +213,26 @@ impl Minimalizer {
         *stmts = new;
     }
 
-    fn ignore_expr(&self, e: &mut Expr) {
+    fn ignore_expr(&mut self, e: &mut Expr) {
         match e {
             Expr::Lit(..) | Expr::This(..) => {
                 e.take();
                 return;
+            }
+
+            Expr::Seq(seq) => {
+                for e in &mut seq.exprs {
+                    self.ignore_expr(e);
+                }
+                seq.exprs.retain(|e| !e.is_invalid());
+                if seq.exprs.is_empty() {
+                    e.take();
+                    return;
+                }
+                if seq.exprs.len() == 1 {
+                    *e = *seq.exprs.pop().unwrap();
+                    return;
+                }
             }
 
             Expr::Ident(i) => {
