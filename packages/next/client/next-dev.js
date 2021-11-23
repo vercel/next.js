@@ -24,7 +24,7 @@ const {
 const prefix = assetPrefix || ''
 const webpackHMR = initWebpackHMR()
 
-connectHMR({ path: `${prefix}/_next/webpack-hmr` })
+connectHMR({ assetPrefix: prefix, path: '/_next/webpack-hmr' })
 
 window.next = {
   version,
@@ -91,7 +91,7 @@ initNext({ webpackHMR })
     if (process.env.__NEXT_BUILD_INDICATOR) {
       initializeBuildWatcher((handler) => {
         buildIndicatorHandler = handler
-      })
+      }, process.env.__NEXT_BUILD_INDICATOR_POSITION)
     }
 
     // delay rendering until after styles have been applied in development

@@ -117,7 +117,7 @@ describe.skip('Production Usage with swcMinify', () => {
           /node_modules\/react\/package\.json/,
           /node_modules\/react\/cjs\/react\.production\.min\.js/,
         ],
-        notTests: [/node_modules\/react\/cjs\/react\.development\.js/],
+        notTests: [],
       },
       {
         page: '/client-error',
@@ -133,7 +133,7 @@ describe.skip('Production Usage with swcMinify', () => {
           /next\/dist\/pages\/_error\.js/,
           /next\/error\.js/,
         ],
-        notTests: [/node_modules\/react\/cjs\/react\.development\.js/],
+        notTests: [],
       },
       {
         page: '/dynamic',
@@ -147,7 +147,7 @@ describe.skip('Production Usage with swcMinify', () => {
           /next\/dist\/client\/link\.js/,
           /next\/dist\/shared\/lib\/router\/utils\/resolve-rewrites\.js/,
         ],
-        notTests: [/node_modules\/react\/cjs\/react\.development\.js/],
+        notTests: [],
       },
       {
         page: '/index',
@@ -164,7 +164,6 @@ describe.skip('Production Usage with swcMinify', () => {
           /node_modules\/nanoid\/url-alphabet\/index\.js/,
         ],
         notTests: [
-          /node_modules\/react\/cjs\/react\.development\.js/,
           /node_modules\/nanoid\/index\.cjs/,
           /next\/dist\/pages\/_error\.js/,
           /next\/error\.js/,
@@ -182,7 +181,7 @@ describe.skip('Production Usage with swcMinify', () => {
           /next\/dist\/client\/router\.js/,
           /next\/dist\/shared\/lib\/router\/utils\/resolve-rewrites\.js/,
         ],
-        notTests: [/node_modules\/react\/cjs\/react\.development\.js/],
+        notTests: [],
       },
       {
         page: '/next-import',

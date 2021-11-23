@@ -148,6 +148,8 @@ module.exports = {
 }
 ```
 
+Note: for static pages from the [Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md) or [prerendering](/docs/basic-features/data-fetching.md#getstaticprops-static-generation) params from rewrites will be parsed on the client after hydration and provided in the query.
+
 ## Path Matching
 
 Path matches are allowed, for example `/blog/:slug` will match `/blog/hello-world` (no nested paths):

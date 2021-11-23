@@ -292,7 +292,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     if (
       images.loader !== 'default' &&
       images.loader !== 'custom' &&
-      !(images.path || '').startsWith('http')
+      images.path === imageConfigDefault.path
     ) {
       throw new Error(
         `Specified images.loader property (${images.loader}) also requires images.path property to be assigned to a URL prefix.\nSee more info here: https://nextjs.org/docs/api-reference/next/image#loader-configuration`

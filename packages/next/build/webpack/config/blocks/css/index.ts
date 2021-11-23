@@ -139,7 +139,7 @@ export const css = curry(async function css(
 
   const postCssPlugins = await getPostCssPlugins(
     ctx.rootDirectory,
-    ctx.isProduction,
+    ctx.supportedBrowsers,
     !ctx.future.strictPostcssConfiguration
   )
 
@@ -376,7 +376,6 @@ export const css = curry(async function css(
       plugin(
         // @ts-ignore webpack 5 compat
         new MiniCssExtractPlugin({
-          experimentalUseImportModule: true,
           filename: 'static/css/[contenthash].css',
           chunkFilename: 'static/css/[contenthash].css',
           // Next.js guarantees that CSS order "doesn't matter", due to imposed

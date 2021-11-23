@@ -67,7 +67,7 @@ Next.js can be deployed to any hosting provider that supports Node.js. Make sure
 ```json
 {
   "scripts": {
-    "dev": "next",
+    "dev": "next dev",
     "build": "next build",
     "start": "next start"
   }
@@ -127,12 +127,14 @@ USER nextjs
 
 EXPOSE 3000
 
+ENV PORT 3000
+
 # Next.js collects completely anonymous telemetry data about general usage.
 # Learn more here: https://nextjs.org/telemetry
 # Uncomment the following line in case you want to disable telemetry.
 # ENV NEXT_TELEMETRY_DISABLED 1
 
-CMD ["yarn", "start"]
+CMD ["node_modules/.bin/next", "start"]
 ```
 
 Make sure to place this Dockerfile in the root folder of your project.
