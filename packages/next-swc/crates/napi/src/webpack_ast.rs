@@ -283,6 +283,15 @@ impl VisitMut for Minimalizer {
                 *e = *expr.arg.take();
             }
 
+            Expr::Yield(expr) => {
+                if let Some(arg) = expr.arg.take() {
+                    *e = *arg;
+                } else {
+                    e.take();
+                    return;
+                }
+            }
+
             Expr::Unary(expr) => {
                 *e = *expr.arg.take();
             }
@@ -410,7 +419,6 @@ impl VisitMut for Minimalizer {
             // Expr::New(_) => todo!(),
             // Expr::Arrow(_) => todo!(),
             // Expr::Class(_) => todo!(),
-            // Expr::Yield(_) => todo!(),
             // Expr::MetaProp(_) => todo!(),
             // Expr::JSXMember(_) => todo!(),
             // Expr::JSXNamespacedName(_) => todo!(),
