@@ -173,6 +173,15 @@ impl VisitMut for Minimalizer {
 
                 true
             }
+            ObjectPatProp::Assign(p) => {
+                if self.can_remove_pat {
+                    if p.value.is_none() {
+                        return false;
+                    }
+                }
+
+                true
+            }
             _ => true,
         });
     }
