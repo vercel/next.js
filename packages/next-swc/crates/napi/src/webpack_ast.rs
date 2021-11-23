@@ -276,6 +276,20 @@ impl VisitMut for Minimalizer {
         pats.retain(|pat| !pat.is_invalid());
     }
 
+    fn visit_mut_seq_expr(&mut self, e: &mut SeqExpr) {
+        e.visit_mut_children_with(self);
+
+        let cnt = e.exprs.len();
+
+        for (idx, elem) in e.exprs.iter_mut().enumerate() {
+            if idx == cnt - 1 {
+                continue;
+            }
+
+            self.ignore_expr(&mut **elem);
+        }
+    }
+
     /// Normalize statements.
     ///
     ///  - Invalid [Stmt::Expr] => [Stmt::Empty]
