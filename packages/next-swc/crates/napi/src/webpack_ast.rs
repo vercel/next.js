@@ -9,7 +9,7 @@ use swc_atoms::js_word;
 use swc_common::{collections::AHashSet, util::take::Take, Mark, SyntaxContext, DUMMY_SP};
 use swc_ecmascript::{
     ast::*,
-    utils::{ident::IdentLike, Id, StmtLike, StmtOrModuleItem},
+    utils::{ident::IdentLike, undefined, Id, StmtLike, StmtOrModuleItem},
     visit::{VisitMut, VisitMutWith},
 };
 
@@ -807,11 +807,13 @@ impl VisitMut for Minimalizer {
     fn visit_mut_var_declarator(&mut self, v: &mut VarDeclarator) {
         v.visit_mut_children_with(self);
 
-        if !matches!(self.var_decl_kind, Some(VarDeclKind::Const)) {
-            if let Some(e) = &mut v.init {
-                self.ignore_expr(&mut **e);
+        if let Some(e) = &mut v.init {
+            self.ignore_expr(&mut **e);
 
-                if e.is_invalid() {
+            if e.is_invalid() {
+                if matches!(self.var_decl_kind, Some(VarDeclKind::Const)) {
+                    v.init = Some(undefined(DUMMY_SP));
+                } else {
                     v.init = None;
                 }
             }
