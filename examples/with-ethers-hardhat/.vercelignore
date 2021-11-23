@@ -1,0 +1,8 @@
+__mocks__
+__tests__
+jest.config.js
+.env.development
+.env.example
+.env.production
+web3
+.vscode

@@ -1,0 +1,8 @@
+{
+  "overrides": [{
+    "files": [ "*.test.ts" ],
+    "rules": {
+      "jest/valid-expect": 0
+    }
+  }]
+}
