@@ -5,6 +5,7 @@
 
 use rayon::prelude::*;
 use std::sync::Arc;
+use swc_atoms::js_word;
 use swc_common::{collections::AHashSet, util::take::Take, Mark, SyntaxContext, DUMMY_SP};
 use swc_ecmascript::{
     ast::*,
@@ -666,6 +667,38 @@ impl VisitMut for Minimalizer {
         pats.visit_mut_children_with(self);
 
         pats.retain(|pat| !pat.is_invalid());
+    }
+
+    fn visit_mut_prop(&mut self, p: &mut Prop) {
+        p.visit_mut_children_with(self);
+
+        match p {
+            Prop::Shorthand(i) => {
+                if !self.data.should_preserve(&*i) {
+                    i.take();
+                    return;
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn visit_mut_prop_or_spreads(&mut self, props: &mut Vec<PropOrSpread>) {
+        props.visit_mut_children_with(self);
+
+        props.retain(|p| match p {
+            PropOrSpread::Spread(..) => true,
+            PropOrSpread::Prop(p) => match &**p {
+                Prop::Shorthand(p) => {
+                    if p.sym == js_word!("") {
+                        return false;
+                    }
+
+                    true
+                }
+                _ => true,
+            },
+        })
     }
 
     fn visit_mut_seq_expr(&mut self, e: &mut SeqExpr) {
