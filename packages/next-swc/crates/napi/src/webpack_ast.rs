@@ -5,7 +5,7 @@
 
 use rayon::prelude::*;
 use std::sync::Arc;
-use swc_common::{util::take::Take, Mark, DUMMY_SP};
+use swc_common::{util::take::Take, Mark, SyntaxContext, DUMMY_SP};
 use swc_ecmascript::{
     ast::*,
     utils::StmtOrModuleItem,
@@ -61,7 +61,7 @@ use swc_ecmascript::{
 /// ```
 pub fn ast_minimalizer(top_level_mark: Mark) -> impl VisitMut {
     Minimalizer {
-        top_level_mark,
+        top_level_ctxt: SyntaxContext::empty().apply_mark(top_level_mark),
         ..Default::default()
     }
 }
@@ -78,7 +78,7 @@ impl ScopeData {
 #[derive(Clone, Default)]
 struct Minimalizer {
     data: Arc<ScopeData>,
-    top_level_mark: Mark,
+    top_level_ctxt: SyntaxContext,
     /// `true` if we should preserve literals.
     preserve_literals: bool,
 
@@ -109,6 +109,19 @@ impl Minimalizer {
 }
 
 impl VisitMut for Minimalizer {
+    fn visit_mut_arrow_expr(&mut self, e: &mut ArrowExpr) {
+        let old_can_remove_pat = self.can_remove_pat;
+        self.can_remove_pat = true;
+        e.params.visit_mut_with(self);
+        self.can_remove_pat = old_can_remove_pat;
+
+        e.body.visit_mut_with(self);
+
+        e.type_params.visit_mut_with(self);
+
+        e.return_type.visit_mut_with(self);
+    }
+
     /// Normalize expressions.
     ///
     ///  - empty [Expr::Seq] => [Expr::Invalid]
@@ -162,6 +175,16 @@ impl VisitMut for Minimalizer {
 
         if !self.can_remove_pat {
             return;
+        }
+
+        match pat {
+            Pat::Ident(p) => {
+                if p.id.span.ctxt != self.top_level_ctxt {
+                    pat.take();
+                    return;
+                }
+            }
+            _ => {}
         }
     }
 
