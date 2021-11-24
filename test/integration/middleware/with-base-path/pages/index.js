@@ -22,6 +22,11 @@ export default function Main({ message }) {
             <a>Rewrite me to Vercel</a>
           </Link>
         </li>
+        <li>
+          <Link href="/redirect-me-to-about">
+            <a>redirect me to about</a>
+          </Link>
+        </li>
       </ul>
     </div>
   )

@@ -1,4 +1,4 @@
-import loaderUtils from 'next/dist/compiled/loader-utils'
+import loaderUtils from 'next/dist/compiled/loader-utils3'
 import { resizeImage, getImageSize } from '../../../server/image-optimizer'
 
 const BLUR_IMG_SIZE = 8
