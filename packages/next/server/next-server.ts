@@ -1056,6 +1056,7 @@ export default class Server {
                 destination: redirectRoute.destination,
                 params: params,
                 query: parsedUrl.query,
+                trailingSlash: this.nextConfig.trailingSlash,
               })
 
               const { query } = parsedDestination
