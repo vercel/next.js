@@ -17,9 +17,6 @@ export const NEXT_PROJECT_ROOT_DIST_SERVER = join(
 // Regex for API routes
 export const API_ROUTE = /^\/api(?:\/|$)/
 
-// Regex for middleware
-export const MIDDLEWARE_ROUTE = /_middleware$/
-
 // Because on Windows absolute paths in the generated code can break because of numbers, eg 1 in the path,
 // we have to use a private alias
 export const PAGES_DIR_ALIAS = 'private-next-pages'
@@ -51,32 +48,3 @@ export const GSSP_COMPONENT_MEMBER_ERROR = `can not be attached to a page's comp
 export const NON_STANDARD_NODE_ENV = `You are using a non-standard "NODE_ENV" value in your environment. This creates inconsistencies in the project and is strongly advised against. Read more: https://nextjs.org/docs/messages/non-standard-node-env`
 
 export const SSG_FALLBACK_EXPORT_ERROR = `Pages with \`fallback\` enabled in \`getStaticPaths\` can not be exported. See more info here: https://nextjs.org/docs/messages/ssg-fallback-true-export`
-
-export const ESLINT_DEFAULT_DIRS = [
-  'pages',
-  'components',
-  'lib',
-  'src/pages',
-  'src/components',
-  'src/lib',
-]
-
-export const ESLINT_PROMPT_VALUES = [
-  {
-    title: 'Strict',
-    recommended: true,
-    config: {
-      extends: 'next/core-web-vitals',
-    },
-  },
-  {
-    title: 'Base',
-    config: {
-      extends: 'next',
-    },
-  },
-  {
-    title: 'Cancel',
-    config: null,
-  },
-]

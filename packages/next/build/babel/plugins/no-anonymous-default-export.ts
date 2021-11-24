@@ -18,7 +18,7 @@ export default function NoAnonymousDefaultExport({
     return { visitor: {} }
   }
 
-  const warn: any = onWarning
+  const warn = onWarning!
   return {
     visitor: {
       ExportDefaultDeclaration(path) {
@@ -40,7 +40,6 @@ export default function NoAnonymousDefaultExport({
                 chalk.yellow.bold(
                   'Anonymous arrow functions cause Fast Refresh to not preserve local component state.'
                 ),
-                chalk.cyan(this.file.opts.filename),
                 'Please add a name to your function, for example:',
                 '',
                 chalk.bold('Before'),
@@ -65,7 +64,6 @@ export default function NoAnonymousDefaultExport({
                   chalk.yellow.bold(
                     'Anonymous function declarations cause Fast Refresh to not preserve local component state.'
                   ),
-                  chalk.cyan(this.file.opts.filename),
                   'Please add a name to your function, for example:',
                   '',
                   chalk.bold('Before'),

@@ -1,14 +1,10 @@
 import cn from 'classnames'
-import Image from 'next/image'
 import Link from 'next/link'
 import { getImageUrl } from 'takeshape-routing'
 
 export default function CoverImage({ title, coverImage, slug }) {
   const image = (
-    <Image
-      width={2000}
-      height={1000}
-      alt={`Cover Image for ${title}`}
+    <img
       src={getImageUrl(coverImage.path, {
         fm: 'jpg',
         fit: 'crop',
@@ -23,7 +19,7 @@ export default function CoverImage({ title, coverImage, slug }) {
   return (
     <div className="sm:mx-0">
       {slug ? (
-        <Link href={slug}>
+        <Link as={`/posts/${slug}`} href="/posts/[slug]">
           <a aria-label={title}>{image}</a>
         </Link>
       ) : (

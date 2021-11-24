@@ -1,51 +1,34 @@
-import Link from 'next/link'
-import { useRouter } from 'next/router'
-import { FormattedMessage } from 'react-intl'
-import styles from './Nav.module.css'
+import * as React from 'react';
+import {FormattedMessage} from 'react-intl';
+import Link from 'next/link';
 
 export default function Nav() {
-  const { locale, locales, asPath } = useRouter()
   return (
-    <nav className={styles.nav}>
-      <li className={styles.li}>
-        <Link href="/" passHref>
+    <nav>
+      <li>
+        <Link href="/">
           <a>
-            <FormattedMessage
-              defaultMessage="Home"
-              description="Nav: Index name"
-            />
+            <FormattedMessage defaultMessage="Home" />
           </a>
         </Link>
       </li>
-      <li className={styles.li}>
-        <Link href="/about" passHref>
+      <li>
+        <Link href="/about">
           <a>
-            <FormattedMessage
-              defaultMessage="About"
-              description="Nav: About item"
-            />
+            <FormattedMessage defaultMessage="About" />
           </a>
         </Link>
       </li>
 
-      <li className={styles.divider}></li>
-
-      {locales.map((availableLocale) => (
-        <li key={availableLocale} className={styles.li}>
-          <Link
-            href={asPath}
-            locale={availableLocale}
-            passHref
-            prefetch={false}
-          >
-            <a
-              className={availableLocale === locale ? styles.active : undefined}
-            >
-              {availableLocale}
-            </a>
-          </Link>
-        </li>
-      ))}
+      <style jsx>{`
+        nav {
+          display: flex;
+        }
+        li {
+          list-style: none;
+          margin-right: 1rem;
+        }
+      `}</style>
     </nav>
-  )
+  );
 }

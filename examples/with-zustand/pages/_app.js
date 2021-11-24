@@ -1,9 +1,9 @@
-import { useCreateStore, Provider } from '../lib/store'
+import { useHydrate, Provider } from '../lib/store'
 
 export default function App({ Component, pageProps }) {
-  const createStore = useCreateStore(pageProps.initialZustandState)
+  const store = useHydrate(pageProps.initialZustandState)
   return (
-    <Provider createStore={createStore}>
+    <Provider initialStore={store}>
       <Component {...pageProps} />
     </Provider>
   )

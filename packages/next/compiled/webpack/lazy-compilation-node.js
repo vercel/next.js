@@ -3,7 +3,7 @@ module.exports =
 /******/ 	"use strict";
 /******/ 	var __webpack_modules__ = ({
 
-/***/ 668:
+/***/ 887:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 var __resourceQuery = "";
@@ -18,9 +18,7 @@ exports.keepAlive = function (options) {
 	var active = options.active;
 	var module = options.module;
 	var response;
-	var request = (
-		urlBase.startsWith("https") ? __nccwpck_require__(211) : __nccwpck_require__(605)
-	).request(
+	var request = __nccwpck_require__(605).request(
 		urlBase + data,
 		{
 			agent: false,
@@ -55,13 +53,6 @@ exports.keepAlive = function (options) {
 /***/ (function(module) {
 
 module.exports = require("http");;
-
-/***/ }),
-
-/***/ 211:
-/***/ (function(module) {
-
-module.exports = require("https");;
 
 /***/ })
 
@@ -103,6 +94,6 @@ module.exports = require("https");;
 /******/ 	// module exports must be returned from runtime so entry inlining is disabled
 /******/ 	// startup
 /******/ 	// Load entry module and return exports
-/******/ 	return __nccwpck_require__(668);
+/******/ 	return __nccwpck_require__(887);
 /******/ })()
 ;

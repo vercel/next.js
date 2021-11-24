@@ -1,5 +1,7 @@
 {
-  "private": true,
+  "name": "with-storybook",
+  "version": "1.0.0",
+  "main": "index.js",
   "scripts": {
     "dev": "next",
     "build": "next build",
@@ -10,9 +12,10 @@
   },
   "dependencies": {
     "next": "latest",
-    "react": "^17.0.2",
-    "react-dom": "^17.0.2"
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0"
   },
+  "license": "MIT",
   "devDependencies": {
     "@storybook/addon-essentials": "6.0.26",
     "@storybook/addon-links": "6.0.26",

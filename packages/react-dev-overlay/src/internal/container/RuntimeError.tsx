@@ -33,7 +33,7 @@ const CallStackFrame: React.FC<{
       .then(
         () => {},
         () => {
-          console.error('There was an issue opening this code in your editor.')
+          // TODO: report error
         }
       )
   }, [hasSource, f])

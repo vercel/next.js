@@ -59,7 +59,7 @@
 }
 
 .cards {
-  margin: 2rem;
+  margin: 2rem 0;
 }
 
 .card {
@@ -118,8 +118,6 @@
 }
 
 .cardContent {
-  background: transparent;
-  border: none;
   display: grid;
   grid-template-columns: 24px 1fr;
   gap: 1em;
@@ -188,14 +186,11 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    height: 100%;
   }
 
   .cardContent {
     grid-template-columns: 24px 1fr 42px;
     padding: 2em;
-    cursor: pointer;
-    font: inherit;
   }
 
   .links {
@@ -216,22 +211,4 @@
   .linkText:hover {
     border-bottom: 2px solid #335bf1;
   }
-}
-
-.backend {
-  margin-bottom: 4rem;
-}
-.backend h2 {
-  text-align: center;
-}
-.backend h4 {
-  margin-bottom: 0;
-}
-.backend h4 em {
-  font-weight: normal;
-  margin-left: 0.5rem;
-}
-.backend pre {
-  font-size: 80%;
-  border-radius: 0.5rem;
 }

@@ -1,30 +1,25 @@
-import type { ComponentType } from 'react'
-import type { FontManifest } from '../server/font-utils'
-import type { GetStaticProps } from '../types'
-import type { IncomingMessage, ServerResponse } from 'http'
-import type { NextConfigComplete } from '../server/config-shared'
-import type { NextParsedUrlQuery } from '../server/request-meta'
 import url from 'url'
 import { extname, join, dirname, sep } from 'path'
-import { renderToHTML } from '../server/render'
+import { renderToHTML } from '../next-server/server/render'
 import { promises } from 'fs'
 import AmpHtmlValidator from 'next/dist/compiled/amphtml-validator'
-import { loadComponents } from '../server/load-components'
-import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
-import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
-import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
-import { normalizePagePath } from '../server/normalize-page-path'
+import { loadComponents } from '../next-server/server/load-components'
+import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
+import { getRouteMatcher } from '../next-server/lib/router/utils/route-matcher'
+import { getRouteRegex } from '../next-server/lib/router/utils/route-regex'
+import { normalizePagePath } from '../next-server/server/normalize-page-path'
 import { SERVER_PROPS_EXPORT_ERROR } from '../lib/constants'
-import '../server/node-polyfill-fetch'
-import { requireFontManifest } from '../server/require'
-import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
-import { trace } from '../trace'
-import { isInAmpMode } from '../shared/lib/amp'
-import { setHttpAgentOptions } from '../server/config'
-import RenderResult from '../server/render-result'
-import isError from '../lib/is-error'
+import 'next/dist/next-server/server/node-polyfill-fetch'
+import { IncomingMessage, ServerResponse } from 'http'
+import { ComponentType } from 'react'
+import { GetStaticProps } from '../types'
+import { requireFontManifest } from '../next-server/server/require'
+import { FontManifest } from '../next-server/server/font-utils'
+import { normalizeLocalePath } from '../next-server/lib/i18n/normalize-locale-path'
+import { trace } from '../telemetry/trace'
+import { isInAmpMode } from '../next-server/lib/amp'
 
-const envConfig = require('../shared/lib/runtime-config')
+const envConfig = require('../next-server/lib/runtime-config')
 
 ;(global as any).__NEXT_DATA__ = {
   nextExport: true,
@@ -40,7 +35,7 @@ interface AmpValidation {
 
 interface PathMap {
   page: string
-  query?: NextParsedUrlQuery
+  query?: { [key: string]: string | string[] }
 }
 
 interface ExportPageInput {
@@ -51,7 +46,7 @@ interface ExportPageInput {
   pagesDataDir: string
   renderOpts: RenderOpts
   buildExport?: boolean
-  serverRuntimeConfig: { [key: string]: any }
+  serverRuntimeConfig: string
   subFolders?: boolean
   serverless: boolean
   optimizeFonts: boolean
@@ -59,7 +54,6 @@ interface ExportPageInput {
   optimizeCss: any
   disableOptimizedLoading: any
   parentSpanId: any
-  httpAgentOptions: NextConfigComplete['httpAgentOptions']
 }
 
 interface ExportPageResults {
@@ -67,7 +61,6 @@ interface ExportPageResults {
   fromBuildExportRevalidate?: number
   error?: boolean
   ssgNotFound?: boolean
-  duration: number
 }
 
 interface RenderOpts {
@@ -108,14 +101,11 @@ export default async function exportPage({
   optimizeImages,
   optimizeCss,
   disableOptimizedLoading,
-  httpAgentOptions,
 }: ExportPageInput): Promise<ExportPageResults> {
-  setHttpAgentOptions(httpAgentOptions)
   const exportPageSpan = trace('export-page-worker', parentSpanId)
 
   return exportPageSpan.traceAsyncFn(async () => {
-    const start = Date.now()
-    let results: Omit<ExportPageResults, 'duration'> = {
+    let results: ExportPageResults = {
       ampValidations: [],
     }
 
@@ -129,7 +119,7 @@ export default async function exportPage({
       let query = { ...originalQuery }
       let params: { [key: string]: string | string[] } | undefined
 
-      let updatedPath = query.__nextSsgPath || path
+      let updatedPath = (query.__nextSsgPath as string) || path
       let locale = query.__nextLocale || renderOpts.locale
       delete query.__nextLocale
       delete query.__nextSsgPath
@@ -159,10 +149,8 @@ export default async function exportPage({
       }
 
       // Check if the page is a specified dynamic route
-      const nonLocalizedPath = normalizeLocalePath(
-        path,
-        renderOpts.locales
-      ).pathname
+      const nonLocalizedPath = normalizeLocalePath(path, renderOpts.locales)
+        .pathname
 
       if (isDynamic && page !== nonLocalizedPath) {
         params = getRouteMatcher(getRouteRegex(page))(updatedPath) || undefined
@@ -190,15 +178,15 @@ export default async function exportPage({
         getHeaderNames: () => [],
       }
 
-      const req = {
+      const req = ({
         url: updatedPath,
         ...headerMocks,
-      } as unknown as IncomingMessage
-      const res = {
+      } as unknown) as IncomingMessage
+      const res = ({
         ...headerMocks,
-      } as unknown as ServerResponse
+      } as unknown) as ServerResponse
 
-      if (updatedPath === '/500' && page === '/_error') {
+      if (path === '/500' && page === '/_error') {
         res.statusCode = 500
       }
 
@@ -211,22 +199,15 @@ export default async function exportPage({
         publicRuntimeConfig: renderOpts.runtimeConfig,
       })
 
-      const getHtmlFilename = (_path: string) =>
-        subFolders ? `${_path}${sep}index.html` : `${_path}.html`
-      let htmlFilename = getHtmlFilename(filePath)
+      let htmlFilename = `${filePath}${sep}index.html`
+      if (!subFolders) htmlFilename = `${filePath}.html`
 
       const pageExt = extname(page)
       const pathExt = extname(path)
       // Make sure page isn't a folder with a dot in the name e.g. `v1.2`
       if (pageExt !== pathExt && pathExt !== '') {
-        const isBuiltinPaths = ['/500', '/404'].some(
-          (p) => p === path || p === path + '.html'
-        )
-        // If the ssg path has .html extension, and it's not builtin paths, use it directly
-        // Otherwise, use that as the filename instead
-        const isHtmlExtPath =
-          !serverless && !isBuiltinPaths && path.endsWith('.html')
-        htmlFilename = isHtmlExtPath ? getHtmlFilename(path) : path
+        // If the path has an extension, use that as the filename instead
+        htmlFilename = path
       } else if (path === '/') {
         // If the path is the root, just use index.html
         htmlFilename = 'index.html'
@@ -236,7 +217,7 @@ export default async function exportPage({
       let htmlFilepath = join(outDir, htmlFilename)
 
       await promises.mkdir(baseDir, { recursive: true })
-      let renderResult
+      let html
       let curRenderOpts: RenderOpts = {}
       let renderMethod = renderToHTML
       let inAmpMode = false,
@@ -256,10 +237,8 @@ export default async function exportPage({
           },
         })
         const {
-          Component,
-          ComponentMod,
+          Component: mod,
           getServerSideProps,
-          getStaticProps,
           pageConfig,
         } = await loadComponents(distDir, page, serverless)
         const ampState = {
@@ -277,22 +256,25 @@ export default async function exportPage({
         }
 
         // if it was auto-exported the HTML is loaded here
-        if (typeof Component === 'string') {
-          renderResult = RenderResult.fromStatic(Component)
+        if (typeof mod === 'string') {
+          html = mod
           queryWithAutoExportWarn()
         } else {
           // for non-dynamic SSG pages we should have already
           // prerendered the file
-          if (renderedDuringBuild(getStaticProps))
-            return { ...results, duration: Date.now() - start }
+          if (renderedDuringBuild((mod as ComponentModule).getStaticProps))
+            return results
 
-          if (getStaticProps && !htmlFilepath.endsWith('.html')) {
+          if (
+            (mod as ComponentModule).getStaticProps &&
+            !htmlFilepath.endsWith('.html')
+          ) {
             // make sure it ends with .html if the name contains a dot
             htmlFilename += '.html'
             htmlFilepath += '.html'
           }
 
-          renderMethod = (ComponentMod as ComponentModule).renderReqToHTML
+          renderMethod = (mod as ComponentModule).renderReqToHTML
           const result = await renderMethod(
             req,
             res,
@@ -317,10 +299,10 @@ export default async function exportPage({
             params
           )
           curRenderOpts = (result as any).renderOpts || {}
-          renderResult = (result as any).html
+          html = (result as any).html
         }
 
-        if (!renderResult && !(curRenderOpts as any).isNotFound) {
+        if (!html && !(curRenderOpts as any).isNotFound) {
           throw new Error(`Failed to render serverless page`)
         }
       } else {
@@ -342,7 +324,7 @@ export default async function exportPage({
         // for non-dynamic SSG pages we should have already
         // prerendered the file
         if (renderedDuringBuild(components.getStaticProps)) {
-          return { ...results, duration: Date.now() - start }
+          return results
         }
 
         // TODO: de-dupe the logic here between serverless and server mode
@@ -353,7 +335,7 @@ export default async function exportPage({
         }
 
         if (typeof components.Component === 'string') {
-          renderResult = RenderResult.fromStatic(components.Component)
+          html = components.Component
           queryWithAutoExportWarn()
         } else {
           /**
@@ -385,14 +367,8 @@ export default async function exportPage({
               : null,
             locale: locale as string,
           }
-          renderResult = await renderMethod(
-            req,
-            res,
-            page,
-            query,
-            // @ts-ignore
-            curRenderOpts
-          )
+          // @ts-ignore
+          html = await renderMethod(req, res, page, query, curRenderOpts)
         }
       }
       results.ssgNotFound = (curRenderOpts as any).isNotFound
@@ -418,7 +394,6 @@ export default async function exportPage({
         }
       }
 
-      const html = renderResult ? renderResult.toUnchunkedString() : ''
       if (inAmpMode && !curRenderOpts.ampSkipValidation) {
         if (!results.ssgNotFound) {
           await validateAmp(html, path, curRenderOpts.ampValidatorPath)
@@ -436,11 +411,11 @@ export default async function exportPage({
           await promises.access(ampHtmlFilepath)
         } catch (_) {
           // make sure it doesn't exist from manual mapping
-          let ampRenderResult
+          let ampHtml
           if (serverless) {
             req.url += (req.url!.includes('?') ? '&' : '?') + 'amp=1'
             // @ts-ignore
-            ampRenderResult = (
+            ampHtml = (
               await (renderMethod as any)(
                 req,
                 res,
@@ -450,7 +425,7 @@ export default async function exportPage({
               )
             ).html
           } else {
-            ampRenderResult = await renderMethod(
+            ampHtml = await renderMethod(
               req,
               res,
               page,
@@ -460,9 +435,6 @@ export default async function exportPage({
             )
           }
 
-          const ampHtml = ampRenderResult
-            ? ampRenderResult.toUnchunkedString()
-            : ''
           if (!curRenderOpts.ampSkipValidation) {
             await validateAmp(ampHtml, page + '?amp=1')
           }
@@ -494,17 +466,18 @@ export default async function exportPage({
       }
       results.fromBuildExportRevalidate = (curRenderOpts as any).revalidate
 
-      if (!results.ssgNotFound) {
+      if (results.ssgNotFound) {
         // don't attempt writing to disk if getStaticProps returned not found
-        await promises.writeFile(htmlFilepath, html, 'utf8')
+        return results
       }
+      await promises.writeFile(htmlFilepath, html, 'utf8')
+      return results
     } catch (error) {
       console.error(
         `\nError occurred prerendering page "${path}". Read more: https://nextjs.org/docs/messages/prerender-error\n` +
-          (isError(error) ? error.stack : error)
+          error.stack
       )
-      results.error = true
+      return { ...results, error: true }
     }
-    return { ...results, duration: Date.now() - start }
   })
 }

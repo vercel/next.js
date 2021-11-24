@@ -10,6 +10,8 @@ import {
   waitFor,
 } from 'next-test-utils'
 
+jest.setTimeout(1000 * 30 * 2)
+
 let app
 let appPort
 let stderr = ''

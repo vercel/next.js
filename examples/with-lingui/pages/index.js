@@ -1,5 +1,7 @@
 import Link from 'next/link'
 import { Trans } from '@lingui/macro'
+import withLang from '../components/withLang'
+import LangSwitcher from '../components/LangSwitcher'
 
 const Index = () => (
   <div>
@@ -10,7 +12,8 @@ const Index = () => (
       </a>
     </Link>
     <br />
+    <LangSwitcher />
   </div>
 )
 
-export default Index
+export default withLang(Index)

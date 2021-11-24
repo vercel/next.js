@@ -1,18 +1,19 @@
 import { IncomingMessage, ServerResponse } from 'http'
 import { parse as parseUrl, format as formatUrl, UrlWithParsedQuery } from 'url'
-import { DecodeError, isResSent } from '../../../../shared/lib/utils'
-import { sendRenderResult } from '../../../../server/send-payload'
+import { isResSent } from '../../../../next-server/lib/utils'
+import { sendPayload } from '../../../../next-server/server/send-payload'
 import { getUtils, vercelHeader, ServerlessHandlerCtx } from './utils'
 
-import { renderToHTML } from '../../../../server/render'
-import { tryGetPreviewData } from '../../../../server/api-utils'
-import { denormalizePagePath } from '../../../../server/denormalize-page-path'
-import { setLazyProp, getCookieParser } from '../../../../server/api-utils'
+import { renderToHTML } from '../../../../next-server/server/render'
+import { tryGetPreviewData } from '../../../../next-server/server/api-utils'
+import { denormalizePagePath } from '../../../../next-server/server/denormalize-page-path'
+import {
+  setLazyProp,
+  getCookieParser,
+} from '../../../../next-server/server/api-utils'
 import { getRedirectStatus } from '../../../../lib/load-custom-routes'
-import getRouteNoAssetPath from '../../../../shared/lib/router/utils/get-route-from-asset-path'
-import { PERMANENT_REDIRECT_STATUS } from '../../../../shared/lib/constants'
-import RenderResult from '../../../../server/render-result'
-import isError from '../../../../lib/is-error'
+import getRouteNoAssetPath from '../../../../next-server/lib/router/utils/get-route-from-asset-path'
+import { PERMANENT_REDIRECT_STATUS } from '../../../../next-server/lib/constants'
 
 export function getPageHandler(ctx: ServerlessHandlerCtx) {
   const {
@@ -100,7 +101,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
 
     let hasValidParams = true
 
-    setLazyProp({ req: req as any }, 'cookies', getCookieParser(req.headers))
+    setLazyProp({ req: req as any }, 'cookies', getCookieParser(req))
 
     const options = {
       App,
@@ -117,7 +118,6 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
       previewProps: encodedPreviewProps,
       env: process.env,
       basePath,
-      supportsDynamicHTML: false, // Serverless target doesn't support streaming
       ..._renderOpts,
     }
     let _nextData = false
@@ -336,19 +336,22 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
                 defaultLocale: i18n?.defaultLocale,
               })
             )
-            sendRenderResult({
+
+            sendPayload(
               req,
               res,
-              result: result2 ?? RenderResult.empty,
-              type: 'html',
-              generateEtags,
-              poweredByHeader,
-              options: {
-                private: isPreviewMode || page === '/404',
+              result2,
+              'html',
+              {
+                generateEtags,
+                poweredByHeader,
+              },
+              {
+                private: isPreviewMode,
                 stateful: !!getServerSideProps,
                 revalidate: renderOpts.revalidate,
-              },
-            })
+              }
+            )
             return null
           } else if (renderOpts.isRedirect && !_nextData) {
             const redirect = {
@@ -375,21 +378,21 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
             res.end()
             return null
           } else {
-            sendRenderResult({
+            sendPayload(
               req,
               res,
-              result: _nextData
-                ? RenderResult.fromStatic(JSON.stringify(renderOpts.pageData))
-                : result ?? RenderResult.empty,
-              type: _nextData ? 'json' : 'html',
-              generateEtags,
-              poweredByHeader,
-              options: {
-                private: isPreviewMode || renderOpts.is404Page,
+              _nextData ? JSON.stringify(renderOpts.pageData) : result,
+              _nextData ? 'json' : 'html',
+              {
+                generateEtags,
+                poweredByHeader,
+              },
+              {
+                private: isPreviewMode,
                 stateful: !!getServerSideProps,
                 revalidate: renderOpts.revalidate,
-              },
-            })
+              }
+            )
             return null
           }
         }
@@ -401,15 +404,16 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
       }
 
       if (renderMode) return { html: result, renderOpts }
-      return result ? result.toUnchunkedString() : null
+      return result
     } catch (err) {
       if (!parsedUrl!) {
         parsedUrl = parseUrl(req.url!, true)
       }
 
-      if (isError(err) && err.code === 'ENOENT') {
+      if (err.code === 'ENOENT') {
         res.statusCode = 404
-      } else if (err instanceof DecodeError) {
+      } else if (err.code === 'DECODE_FAILED' || err.code === 'ENAMETOOLONG') {
+        // TODO: better error?
         res.statusCode = 400
       } else {
         console.error('Unhandled error during request:', err)
@@ -463,7 +467,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
           err: res.statusCode === 404 ? undefined : err,
         })
       )
-      return result2 ? result2.toUnchunkedString() : null
+      return result2
     }
   }
 
@@ -473,11 +477,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
       try {
         const html = await renderReqToHTML(req, res)
         if (html) {
-          sendRenderResult({
-            req,
-            res,
-            result: RenderResult.fromStatic(html as any),
-            type: 'html',
+          sendPayload(req, res, html, 'html', {
             generateEtags,
             poweredByHeader,
           })

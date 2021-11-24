@@ -1,40 +1,36 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
 import { join } from 'path'
-import { nextBuild } from 'next-test-utils'
+import { runNextCommand, findPort, File } from 'next-test-utils'
 
-const appDir = join(__dirname, '..')
+jest.setTimeout(1000 * 30)
+const configFile = new File(join(__dirname, '../next.config.js'))
 
 describe('Promise in next config', () => {
-  afterEach(() => fs.remove(join(appDir, 'next.config.js')))
+  afterAll(() => configFile.restore())
 
   it('should throw error when a promise is return on config', async () => {
-    fs.writeFile(
-      join(appDir, 'next.config.js'),
-      `
+    configFile.write(`
       module.exports = (phase, { isServer }) => {
         return new Promise((resolve) => {
           resolve({ target: 'serverless' })
         })
       }
-    `
+    `)
+
+    const { stderr } = await runNextCommand(
+      ['dev', join(__dirname, '..'), '-p', await findPort()],
+      { stderr: true }
     )
 
-    const { stderr, stdout } = await nextBuild(appDir, undefined, {
-      stderr: true,
-      stdout: true,
-    })
-
-    expect(stderr + stdout).toMatch(
+    expect(stderr).toMatch(
       /Error: > Promise returned in next config\. https:\/\//
     )
   })
 
   it('should warn when a promise is returned on webpack', async () => {
-    fs.writeFile(
-      join(appDir, 'next.config.js'),
-      `
+    configFile.write(`
+      setTimeout(() => process.exit(0), 2 * 1000)
       module.exports = (phase, { isServer }) => {
         return {
           webpack: async (config) => {
@@ -42,15 +38,13 @@ describe('Promise in next config', () => {
           }
         }
       }
-    `
+    `)
+
+    const { stderr } = await runNextCommand(
+      ['dev', join(__dirname, '..'), '-p', await findPort()],
+      { stderr: true }
     )
 
-    const { stderr, stdout } = await nextBuild(appDir, undefined, {
-      stderr: true,
-      stdout: true,
-    })
-    expect(stderr + stdout).toMatch(
-      /> Promise returned in next config\. https:\/\//
-    )
+    expect(stderr).toMatch(/> Promise returned in next config\. https:\/\//)
   })
 })

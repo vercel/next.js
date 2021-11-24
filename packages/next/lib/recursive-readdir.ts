@@ -1,4 +1,4 @@
-import { Dirent, promises } from 'fs'
+import { promises } from 'fs'
 import { join } from 'path'
 
 /**
@@ -16,27 +16,21 @@ export async function recursiveReadDir(
   arr: string[] = [],
   rootDir: string = dir
 ): Promise<string[]> {
-  const result = await promises.readdir(dir, { withFileTypes: true })
+  const result = await promises.readdir(dir)
 
   await Promise.all(
-    result.map(async (part: Dirent) => {
-      const absolutePath = join(dir, part.name)
-      if (ignore && ignore.test(part.name)) return
+    result.map(async (part: string) => {
+      const absolutePath = join(dir, part)
+      if (ignore && ignore.test(part)) return
 
-      // readdir does not follow symbolic links
-      // if part is a symbolic link, follow it using stat
-      let isDirectory = part.isDirectory()
-      if (part.isSymbolicLink()) {
-        const stats = await promises.stat(absolutePath)
-        isDirectory = stats.isDirectory()
-      }
+      const pathStat = await promises.stat(absolutePath)
 
-      if (isDirectory) {
+      if (pathStat.isDirectory()) {
         await recursiveReadDir(absolutePath, filter, ignore, arr, rootDir)
         return
       }
 
-      if (!filter.test(part.name)) {
+      if (!filter.test(part)) {
         return
       }
 

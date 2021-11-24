@@ -5,6 +5,7 @@ import { join } from 'path'
 import { validateAMP } from 'amp-test-utils'
 import { File, nextBuild, nextExport, runNextCommand } from 'next-test-utils'
 
+jest.setTimeout(1000 * 60 * 2)
 const { access, readFile } = promises
 const appDir = join(__dirname, '../')
 const outDir = join(appDir, 'out')

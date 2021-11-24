@@ -15,6 +15,8 @@ import {
   check,
 } from 'next-test-utils'
 
+jest.setTimeout(1000 * 60 * 2)
+
 const domainLocales = ['go', 'go-BE', 'do', 'do-BE']
 export const nonDomainLocales = [
   'en-US',
@@ -30,88 +32,11 @@ export const locales = [...nonDomainLocales, ...domainLocales]
 async function addDefaultLocaleCookie(browser) {
   // make sure default locale is used in case browser isn't set to
   // favor en-US by default, (we use all caps to ensure it's case-insensitive)
-  await browser.addCookie({ name: 'NEXT_LOCALE', value: 'EN-US' })
-  await browser.refresh()
+  await browser.manage().addCookie({ name: 'NEXT_LOCALE', value: 'EN-US' })
+  await browser.get(browser.initUrl)
 }
 
 export function runTests(ctx) {
-  if (ctx.basePath) {
-    it('should handle basePath like pathname', async () => {
-      const { basePath } = ctx
-
-      for (const pathname of [
-        `${basePath}extra`,
-        `/en${basePath}`,
-        `${basePath}extra/en`,
-        `${basePath}en`,
-        `/en${basePath}`,
-      ]) {
-        console.error('checking', pathname)
-        const res = await fetchViaHTTP(ctx.appPort, pathname, undefined, {
-          redirect: 'manual',
-        })
-        expect(res.status).toBe(404)
-        expect(await res.text()).toContain('This page could not be found')
-      }
-    })
-  }
-
-  it('should redirect external domain correctly', async () => {
-    const res = await fetchViaHTTP(
-      ctx.appPort,
-      `${ctx.basePath || ''}/do/redirect-5`,
-      undefined,
-      {
-        headers: {
-          'accept-language': 'do',
-        },
-        redirect: 'manual',
-      }
-    )
-
-    expect(res.status).toBe(307)
-    expect(res.headers.get('location')).toBe('https://jobs.example.com/')
-
-    const res2 = await fetchViaHTTP(
-      ctx.appPort,
-      `${ctx.basePath || ''}/redirect-5`,
-      undefined,
-      {
-        redirect: 'manual',
-      }
-    )
-
-    expect(res2.status).toBe(307)
-    expect(res2.headers.get('location')).toBe('https://jobs.example.com/')
-
-    const res3 = await fetchViaHTTP(
-      ctx.appPort,
-      `${ctx.basePath || ''}/fr/redirect-5`,
-      undefined,
-      {
-        redirect: 'manual',
-      }
-    )
-
-    expect(res3.status).toBe(307)
-    expect(res3.headers.get('location')).toBe('https://jobs.example.com/')
-  })
-
-  it('should have domainLocales available on useRouter', async () => {
-    const browser = await webdriver(ctx.appPort, `${ctx.basePath || '/'}`)
-    expect(
-      JSON.parse(await browser.elementByCss('#router-domain-locales').text())
-    ).toEqual([
-      {
-        http: true,
-        domain: 'example.do',
-        defaultLocale: 'do',
-        locales: ['do-BE'],
-      },
-      { domain: 'example.com', defaultLocale: 'go', locales: ['go-BE'] },
-    ])
-  })
-
   it('should not error with similar named cookie to locale cookie', async () => {
     const res = await fetchViaHTTP(
       ctx.appPort,
@@ -814,11 +739,6 @@ export function runTests(ctx) {
             \\"srcRoute\\": \\"/gsp/fallback/[slug]\\",
             \\"dataRoute\\": \\"/_next/data/BUILD_ID/en/gsp/fallback/always.json\\"
           },
-          \\"/en/not-found\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": null,
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/not-found.json\\"
-          },
           \\"/fr\\": {
             \\"initialRevalidateSeconds\\": false,
             \\"srcRoute\\": null,
@@ -1028,11 +948,6 @@ export function runTests(ctx) {
             \\"initialRevalidateSeconds\\": false,
             \\"srcRoute\\": \\"/gsp/fallback/[slug]\\",
             \\"dataRoute\\": \\"/_next/data/BUILD_ID/nl/gsp/fallback/always.json\\"
-          },
-          \\"/nl/not-found\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": null,
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/not-found.json\\"
           }
         }"
       `)
@@ -1216,54 +1131,44 @@ export function runTests(ctx) {
     for (const locale of locales) {
       const res = await fetchViaHTTP(
         ctx.appPort,
-        `${ctx.basePath || ''}/${locale}/api/hello`,
+        `${ctx.basePath || ''}${
+          locale === 'en-US' ? '' : `/${locale}`
+        }/api/hello`,
         undefined,
         {
           redirect: 'manual',
         }
       )
 
-      expect(res.status).toBe(404)
+      const data = await res.json()
+      expect(data).toEqual({
+        hello: true,
+        query: {},
+      })
     }
-
-    const res = await fetchViaHTTP(
-      ctx.appPort,
-      `${ctx.basePath || ''}/api/hello`
-    )
-
-    const data = await res.json()
-    expect(data).toEqual({
-      hello: true,
-      query: {},
-    })
   })
 
   it('should visit dynamic API route directly correctly', async () => {
     for (const locale of locales) {
       const res = await fetchViaHTTP(
         ctx.appPort,
-        `${ctx.basePath || ''}/${locale}/api/post/first`,
+        `${ctx.basePath || ''}${
+          locale === 'en-US' ? '' : `/${locale}`
+        }/api/post/first`,
         undefined,
         {
           redirect: 'manual',
         }
       )
 
-      expect(res.status).toBe(404)
+      const data = await res.json()
+      expect(data).toEqual({
+        post: true,
+        query: {
+          slug: 'first',
+        },
+      })
     }
-
-    const res = await fetchViaHTTP(
-      ctx.appPort,
-      `${ctx.basePath || ''}/api/post/first`
-    )
-
-    const data = await res.json()
-    expect(data).toEqual({
-      post: true,
-      query: {
-        slug: 'first',
-      },
-    })
   })
 
   it('should rewrite to API route correctly', async () => {
@@ -2819,7 +2724,7 @@ export function runTests(ctx) {
 
     await checkIndexValues()
 
-    await browser.deleteCookies()
+    await browser.manage().deleteCookie('NEXT_LOCALE')
   })
 
   it('should load getStaticProps fallback non-prerender page another locale correctly', async () => {

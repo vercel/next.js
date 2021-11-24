@@ -6,10 +6,7 @@
     "target": "es2015",
     "lib": ["dom"],
     "downlevelIteration": true,
-    "preserveWatchOutput": true,
-    "paths": {
-      "webpack": ["../../node_modules/webpack5"]
-    }
+    "preserveWatchOutput": true
   },
   "include": ["**/*.ts"],
   "exclude": ["node_modules"]

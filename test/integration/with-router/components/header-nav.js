@@ -19,8 +19,7 @@ class HeaderNav extends React.Component {
   }
 
   componentDidMount() {
-    Router.onRouteChangeComplete =
-      this.handleRouteChangeTopLevelRouterDeprecatedBehavior
+    Router.onRouteChangeComplete = this.handleRouteChangeTopLevelRouterDeprecatedBehavior
     Router.events.on(
       'routeChangeComplete',
       this.handleRouteChangeTopLevelRouter

@@ -1,5 +1,6 @@
 {
-  "private": true,
+  "name": "with-typescript-styled-components",
+  "version": "1.0.0",
   "scripts": {
     "dev": "next",
     "build": "next build",
@@ -19,5 +20,6 @@
     "@types/styled-components": "5.1.9",
     "babel-plugin-styled-components": "^1.12.0",
     "typescript": "4.2.4"
-  }
+  },
+  "license": "MIT"
 }

@@ -1,6 +1,7 @@
 import * as React from 'react'
 /// @ts-ignore
-import Document, { Main, NextScript, Head, Html } from 'next/document'
+import Document, { Main, NextScript, Head } from 'next/document'
+import Script from 'next/experimental-script'
 
 export default class MyDocument extends Document {
   constructor(props) {
@@ -13,19 +14,39 @@ export default class MyDocument extends Document {
 
   render() {
     return (
-      <Html>
+      <html>
         <Head>
           <link
             rel="stylesheet"
             href="https://fonts.googleapis.com/css?family=Voces"
           />
+          <Script
+            id="documentAfterInteractive"
+            src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js?a=documentAfterInteractive"
+            strategy="afterInteractive"
+          ></Script>
+          <Script
+            id="documentLazyOnload"
+            src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js?a=documentLazyOnload"
+            strategy="lazyOnload"
+          ></Script>
+          <Script
+            id="documentBlock"
+            src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js?a=documentBlock"
+            strategy="dangerouslyBlockRendering"
+          ></Script>
+          <Script
+            id="documentBeforeInteractive"
+            src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js?a=documentBeforeInteractive"
+            strategy="beforeInteractive"
+          ></Script>
         </Head>
         <body>
           <Main />
           <NextScript />
-          <div id="text" />
+          <div id="text"></div>
         </body>
-      </Html>
+      </html>
     )
   }
 }

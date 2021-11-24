@@ -6,6 +6,7 @@ import { renderViaHTTP, findPort, launchApp, killApp } from 'next-test-utils'
 const context = {
   output: '',
 }
+jest.setTimeout(1000 * 60 * 5)
 
 const collectOutput = (message) => {
   context.output += message

@@ -6,8 +6,10 @@ import path from 'path'
 
 const cli = require.resolve('create-next-app/dist/index.js')
 
-const exampleRepo = 'https://github.com/vercel/next.js/tree/canary'
-const examplePath = 'examples/basic-css'
+const exampleRepo = 'https://github.com/vercel/next-learn-starter/tree/master'
+const examplePath = 'navigate-between-pages-starter'
+
+jest.setTimeout(1000 * 60 * 5)
 
 const run = (args, options) => execa('node', [cli].concat(args), options)
 
@@ -49,9 +51,6 @@ describe('create next app', () => {
         ).toBeTruthy()
         expect(
           fs.existsSync(path.join(cwd, projectName, 'pages/index.js'))
-        ).toBeTruthy()
-        expect(
-          fs.existsSync(path.join(cwd, projectName, '.eslintrc.json'))
         ).toBeTruthy()
         expect(
           fs.existsSync(path.join(cwd, projectName, 'node_modules/next'))
@@ -123,9 +122,6 @@ describe('create next app', () => {
         fs.existsSync(path.join(cwd, projectName, 'next-env.d.ts'))
       ).toBeTruthy()
       expect(
-        fs.existsSync(path.join(cwd, projectName, '.eslintrc.json'))
-      ).toBeTruthy()
-      expect(
         fs.existsSync(path.join(cwd, projectName, 'node_modules/next'))
       ).toBe(true)
       // check we copied default `.gitignore`
@@ -141,10 +137,7 @@ describe('create next app', () => {
         'react-dom',
       ])
       expect(Object.keys(pkgJSON.devDependencies)).toEqual([
-        '@types/node',
         '@types/react',
-        'eslint',
-        'eslint-config-next',
         'typescript',
       ])
     })
@@ -249,12 +242,7 @@ describe('create next app', () => {
         )
         expect(res.exitCode).toBe(0)
 
-        const files = [
-          'package.json',
-          'pages/index.js',
-          '.gitignore',
-          '.eslintrc.json',
-        ]
+        const files = ['package.json', 'pages/index.js', '.gitignore']
         files.forEach((file) =>
           expect(fs.existsSync(path.join(cwd, projectName, file))).toBeTruthy()
         )
@@ -321,7 +309,6 @@ describe('create next app', () => {
         'pages/index.js',
         '.gitignore',
         'node_modules/next',
-        '.eslintrc.json',
       ]
       files.forEach((file) =>
         expect(fs.existsSync(path.join(cwd, file))).toBeTruthy()
@@ -340,7 +327,6 @@ describe('create next app', () => {
         'pages/index.js',
         '.gitignore',
         'node_modules/next',
-        '.eslintrc.json',
       ]
       files.forEach((file) =>
         expect(fs.existsSync(path.join(cwd, projectName, file))).toBeTruthy()
@@ -358,7 +344,6 @@ describe('create next app', () => {
         'package.json',
         'pages/index.js',
         '.gitignore',
-        '.eslintrc.json',
         'package-lock.json',
         'node_modules/next',
       ]
@@ -376,7 +361,7 @@ describe('create next app', () => {
           projectName,
           '--use-npm',
           '--example',
-          `${exampleRepo}/${examplePath}`,
+          'https://github.com/vercel/next-learn-starter/tree/master/learn-starter',
         ],
         { cwd }
       )

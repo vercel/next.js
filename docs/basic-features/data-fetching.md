@@ -66,14 +66,14 @@ The `context` parameter is an object containing the following keys:
 - `params` contains the route parameters for pages using dynamic routes. For example, if the page name is `[id].js` , then `params` will look like `{ id: ... }`. To learn more, take a look at the [Dynamic Routing documentation](/docs/routing/dynamic-routes.md). You should use this together with `getStaticPaths`, which we’ll explain later.
 - `preview` is `true` if the page is in the preview mode and `undefined` otherwise. See the [Preview Mode documentation](/docs/advanced-features/preview-mode.md).
 - `previewData` contains the preview data set by `setPreviewData`. See the [Preview Mode documentation](/docs/advanced-features/preview-mode.md).
-- `locale` contains the active locale (if you've enabled [Internationalized Routing](/docs/advanced-features/i18n-routing.md)).
-- `locales` contains all supported locales (if you've enabled [Internationalized Routing](/docs/advanced-features/i18n-routing.md)).
-- `defaultLocale` contains the configured default locale (if you've enabled [Internationalized Routing](/docs/advanced-features/i18n-routing.md)).
+- `locale` contains the active locale (if enabled).
+- `locales` contains all supported locales (if enabled).
+- `defaultLocale` contains the configured default locale (if enabled).
 
 `getStaticProps` should return an object with:
 
 - `props` - An **optional** object with the props that will be received by the page component. It should be a [serializable object](https://en.wikipedia.org/wiki/Serialization)
-- `revalidate` - An **optional** amount in seconds after which a page re-generation can occur. Defaults to `false`. When `revalidate` is `false` it means that there is no revalidation, so the page will be cached as built until your next build. More on [Incremental Static Regeneration](#incremental-static-regeneration)
+- `revalidate` - An **optional** amount in seconds after which a page re-generation can occur (defaults to: `false` or no revalidating). More on [Incremental Static Regeneration](#incremental-static-regeneration)
 - `notFound` - An **optional** boolean value to allow the page to return a 404 status and page. Below is an example of how it works:
 
   ```js
@@ -134,7 +134,7 @@ The `context` parameter is an object containing the following keys:
 >
 > Fetching from an external API is fine!
 
-### Example
+### Simple Example
 
 Here’s an example which uses `getStaticProps` to fetch a list of blog posts from a CMS (content management system). This example is also in the [Pages documentation](/docs/basic-features/pages.md).
 
@@ -299,7 +299,7 @@ When a request is made to a page that was pre-rendered at build time, it will in
 - Any requests to the page after the initial request and before 10 seconds are also cached and instantaneous.
 - After the 10-second window, the next request will still show the cached (stale) page
 - Next.js triggers a regeneration of the page in the background.
-- Once the page has been successfully generated, Next.js will invalidate the cache and show the updated product page. If the background regeneration fails, the old page will stay unaltered.
+- Once the page has been successfully generated, Next.js will invalidate the cache and show the updated product page. If the background regeneration fails, the old page remains unaltered.
 
 When a request is made to a path that hasn’t been generated, Next.js will server-render the page on the first request. Future requests will serve the static file from the cache.
 
@@ -382,7 +382,7 @@ When a page with `getStaticProps` is pre-rendered at build time, in addition to 
 
 This JSON file will be used in client-side routing through `next/link` ([documentation](/docs/api-reference/next/link.md)) or `next/router` ([documentation](/docs/api-reference/next/router.md)). When you navigate to a page that’s pre-rendered using `getStaticProps`, Next.js fetches this JSON file (pre-computed at build time) and uses it as the props for the page component. This means that client-side page transitions will **not** call `getStaticProps` as only the exported JSON is used.
 
-When using Incremental Static Generation `getStaticProps` will be executed out of band to generate the JSON needed for client-side navigation. You may see this in the form of multiple requests being made for the same page, however, this is intended and has no impact on end-user performance.
+When using Incremental Static Generation `getStaticProps` will be executed out of band to generate the JSON needed for client-side navigation. You may see this in the form of multiple requests being made for the same page, however, this is intended and has no impact on end-user performance
 
 #### Only allowed in a page
 
@@ -424,7 +424,7 @@ export async function getStaticPaths() {
     paths: [
       { params: { ... } } // See the "paths" section below
     ],
-    fallback: true, false, or 'blocking' // See the "fallback" section below
+    fallback: true or false // See the "fallback" section below
   };
 }
 ```
@@ -510,10 +510,10 @@ export default Post
 If `fallback` is `true`, then the behavior of `getStaticProps` changes:
 
 - The paths returned from `getStaticPaths` will be rendered to HTML at build time by `getStaticProps`.
-- The paths that have not been generated at build time will **not** result in a 404 page. Instead, Next.js will serve a “fallback” version of the page on the first request to such a path (see [“Fallback pages”](#fallback-pages) below for details). Note: this "fallback" version will not be served for crawlers like Google and instead will render the path in `blocking` mode.
+- The paths that have not been generated at build time will **not** result in a 404 page. Instead, Next.js will serve a “fallback” version of the page on the first request to such a path (see [“Fallback pages”](#fallback-pages) below for details).
 - In the background, Next.js will statically generate the requested path HTML and JSON. This includes running `getStaticProps`.
 - When that’s done, the browser receives the JSON for the generated path. This will be used to automatically render the page with the required props. From the user’s perspective, the page will be swapped from the fallback page to the full page.
-- At the same time, Next.js adds this path to the list of pre-rendered pages. Subsequent requests to the same path will serve the generated page, like other pages pre-rendered at build time.
+- At the same time, Next.js adds this path to the list of pre-rendered pages. Subsequent requests to the same path will serve the generated page, just like other pages pre-rendered at build time.
 
 > `fallback: true` is not supported when using [`next export`](/docs/advanced-features/static-html-export.md).
 
@@ -591,7 +591,7 @@ If `fallback` is `'blocking'`, new paths not returned by `getStaticPaths` will w
 - The paths returned from `getStaticPaths` will be rendered to HTML at build time by `getStaticProps`.
 - The paths that have not been generated at build time will **not** result in a 404 page. Instead, Next.js will SSR on the first request and return the generated HTML.
 - When that’s done, the browser receives the HTML for the generated path. From the user’s perspective, it will transition from "the browser is requesting the page" to "the full page is loaded". There is no flash of loading/fallback state.
-- At the same time, Next.js adds this path to the list of pre-rendered pages. Subsequent requests to the same path will serve the generated page, like other pages pre-rendered at build time.
+- At the same time, Next.js adds this path to the list of pre-rendered pages. Subsequent requests to the same path will serve the generated page, just like other pages pre-rendered at build time.
 
 `fallback: 'blocking'` will not _update_ generated pages by default. To update generated pages, use [Incremental Static Regeneration](#incremental-static-regeneration) in conjunction with `fallback: 'blocking'`.
 
@@ -660,19 +660,19 @@ export async function getServerSideProps(context) {
 The `context` parameter is an object containing the following keys:
 
 - `params`: If this page uses a dynamic route, `params` contains the route parameters. If the page name is `[id].js` , then `params` will look like `{ id: ... }`. To learn more, take a look at the [Dynamic Routing documentation](/docs/routing/dynamic-routes.md).
-- `req`: [The HTTP IncomingMessage object](https://nodejs.org/api/http.html#http_class_http_incomingmessage), plus additional [built-in parsing helpers](#provided-req-middleware-in-getserversideprops).
+- `req`: [The HTTP IncomingMessage object](https://nodejs.org/api/http.html#http_class_http_incomingmessage).
 - `res`: [The HTTP response object](https://nodejs.org/api/http.html#http_class_http_serverresponse).
 - `query`: An object representing the query string.
 - `preview`: `preview` is `true` if the page is in the preview mode and `false` otherwise. See the [Preview Mode documentation](/docs/advanced-features/preview-mode.md).
 - `previewData`: The preview data set by `setPreviewData`. See the [Preview Mode documentation](/docs/advanced-features/preview-mode.md).
 - `resolvedUrl`: A normalized version of the request URL that strips the `_next/data` prefix for client transitions and includes original query values.
-- `locale` contains the active locale (if you've enabled [Internationalized Routing](/docs/advanced-features/i18n-routing.md)).
-- `locales` contains all supported locales (if you've enabled [Internationalized Routing](/docs/advanced-features/i18n-routing.md)).
-- `defaultLocale` contains the configured default locale (if you've enabled [Internationalized Routing](/docs/advanced-features/i18n-routing.md)).
+- `locale` contains the active locale (if enabled).
+- `locales` contains all supported locales (if enabled).
+- `defaultLocale` contains the configured default locale (if enabled).
 
 `getServerSideProps` should return an object with:
 
-- `props` - An **optional** object with the props that will be received by the page component. It should be a [serializable object](https://en.wikipedia.org/wiki/Serialization) or a Promise that resolves to a serializable object.
+- `props` - An **optional** object with the props that will be received by the page component. It should be a [serializable object](https://en.wikipedia.org/wiki/Serialization)
 - `notFound` - An **optional** boolean value to allow the page to return a 404 status and page. Below is an example of how it works:
 
   ```js
@@ -727,13 +727,7 @@ The `context` parameter is an object containing the following keys:
 >
 > Fetching from an external API is fine!
 
-### Provided `req` middleware in `getServerSideProps`
-
-The `req` in the context passed to `getServerSideProps` provides built in middleware that parses the incoming request (req). That middleware is:
-
-- `req.cookies` - An object containing the cookies sent by the request. Defaults to `{}`
-
-### Example
+### Simple example
 
 Here’s an example which uses `getServerSideProps` to fetch data at request time and pre-renders it. This example is also in the [Pages documentation](/docs/basic-features/pages.md).
 
@@ -831,10 +825,8 @@ The team behind Next.js has created a React hook for data fetching called [**SWR
 ```jsx
 import useSWR from 'swr'
 
-const fetcher = (url) => fetch(url).then((res) => res.json())
-
 function Profile() {
-  const { data, error } = useSWR('/api/user', fetcher)
+  const { data, error } = useSWR('/api/user', fetch)
 
   if (error) return <div>failed to load</div>
   if (!data) return <div>loading...</div>

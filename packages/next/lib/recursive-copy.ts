@@ -1,7 +1,6 @@
 import path from 'path'
-import { promises, constants, Dirent, Stats } from 'fs'
+import { promises, constants } from 'fs'
 import { Sema } from 'next/dist/compiled/async-sema'
-import isError from './is-error'
 
 const COPYFILE_EXCL = constants.COPYFILE_EXCL
 
@@ -24,43 +23,26 @@ export async function recursiveCopy(
 
   const sema = new Sema(concurrency)
 
-  // deep copy the file/directory
-  async function _copy(item: string, lstats?: Stats | Dirent): Promise<void> {
+  async function _copy(item: string): Promise<void> {
     const target = item.replace(from, to)
+    const stats = await promises.stat(item)
 
     await sema.acquire()
 
-    if (!lstats) {
-      // after lock on first run
-      lstats = await promises.lstat(from)
-    }
-
-    // readdir & lstat do not follow symbolic links
-    // if part is a symbolic link, follow it with stat
-    let isFile = lstats.isFile()
-    let isDirectory = lstats.isDirectory()
-    if (lstats.isSymbolicLink()) {
-      const stats = await promises.stat(item)
-      isFile = stats.isFile()
-      isDirectory = stats.isDirectory()
-    }
-
-    if (isDirectory) {
+    if (stats.isDirectory()) {
       try {
-        await promises.mkdir(target, { recursive: true })
+        await promises.mkdir(target)
       } catch (err) {
         // do not throw `folder already exists` errors
-        if (isError(err) && err.code !== 'EEXIST') {
+        if (err.code !== 'EEXIST') {
           throw err
         }
       }
       sema.release()
-      const files = await promises.readdir(item, { withFileTypes: true })
-      await Promise.all(
-        files.map((file) => _copy(path.join(item, file.name), file))
-      )
+      const files = await promises.readdir(item)
+      await Promise.all(files.map((file) => _copy(path.join(item, file))))
     } else if (
-      isFile &&
+      stats.isFile() &&
       // before we send the path to filter
       // we remove the base path (from) and replace \ by / (windows)
       filter(item.replace(from, '').replace(/\\/g, '/'))
@@ -70,8 +52,6 @@ export async function recursiveCopy(
         target,
         overwrite ? undefined : COPYFILE_EXCL
       )
-      sema.release()
-    } else {
       sema.release()
     }
   }

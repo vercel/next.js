@@ -21,7 +21,7 @@ const Index = () => (
     <Main>
       <Text>
         Example repository of <Code>Next.js</Code> + <Code>chakra-ui</Code> +{' '}
-        <Code>TypeScript</Code>.
+        <Code>typescript</Code>.
       </Text>
 
       <List spacing={3} my={0}>

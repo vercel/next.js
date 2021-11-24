@@ -9,7 +9,7 @@ import {
   killApp,
 } from 'next-test-utils'
 
-// test suites
+// test suits
 import rendering from './rendering'
 import client from './client'
 import csp from './csp'
@@ -17,6 +17,7 @@ import csp from './csp'
 const context = {
   output: '',
 }
+jest.setTimeout(1000 * 60 * 5)
 
 const collectOutput = (message) => {
   context.output += message

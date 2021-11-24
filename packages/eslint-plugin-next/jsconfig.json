@@ -1,7 +1,0 @@
-{
-  "compilerOptions": {
-    "module": "commonjs",
-    "target": "es2019"
-  },
-  "exclude": ["node_modules"]
-}

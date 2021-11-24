@@ -1,24 +1,18 @@
-import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
-import { clearSandboxCache } from '../../../server/web/sandbox'
+import { webpack } from 'next/dist/compiled/webpack/webpack'
+import { isWebpack5 } from 'next/dist/compiled/webpack/webpack'
 import { realpathSync } from 'fs'
 import path from 'path'
-import isError from '../../../lib/is-error'
-
-type Compiler = webpack5.Compiler
-type WebpackPluginInstance = webpack5.WebpackPluginInstance
 
 const originModules = [
-  require.resolve('../../../server/require'),
-  require.resolve('../../../server/load-components'),
+  require.resolve('../../../next-server/server/require'),
+  require.resolve('../../../next-server/server/load-components'),
 ]
-
-const RUNTIME_NAMES = ['webpack-runtime', 'webpack-api-runtime']
 
 function deleteCache(filePath: string) {
   try {
     filePath = realpathSync(filePath)
   } catch (e) {
-    if (isError(e) && e.code !== 'ENOENT') throw e
+    if (e.code !== 'ENOENT') throw e
   }
   const module = require.cache[filePath]
   if (module) {
@@ -41,47 +35,68 @@ function deleteCache(filePath: string) {
 const PLUGIN_NAME = 'NextJsRequireCacheHotReloader'
 
 // This plugin flushes require.cache after emitting the files. Providing 'hot reloading' of server files.
-export class NextJsRequireCacheHotReloader implements WebpackPluginInstance {
+export class NextJsRequireCacheHotReloader implements webpack.Plugin {
   prevAssets: any = null
   previousOutputPathsWebpack5: Set<string> = new Set()
   currentOutputPathsWebpack5: Set<string> = new Set()
 
-  apply(compiler: Compiler) {
-    compiler.hooks.assetEmitted.tap(
-      PLUGIN_NAME,
-      (_file, { targetPath, content }) => {
-        this.currentOutputPathsWebpack5.add(targetPath)
-        deleteCache(targetPath)
-        clearSandboxCache(targetPath, content.toString('utf-8'))
-      }
-    )
-
-    compiler.hooks.afterEmit.tap(PLUGIN_NAME, (compilation) => {
-      RUNTIME_NAMES.forEach((name) => {
-        const runtimeChunkPath = path.join(
-          compilation.outputOptions.path!,
-          `${name}.js`
-        )
-        deleteCache(runtimeChunkPath)
-      })
-
-      // we need to make sure to clear all server entries from cache
-      // since they can have a stale webpack-runtime cache
-      // which needs to always be in-sync
-      const entries = [...compilation.entries.keys()].filter((entry) =>
-        entry.toString().startsWith('pages/')
+  apply(compiler: webpack.Compiler) {
+    if (isWebpack5) {
+      // @ts-ignored Webpack has this hooks
+      compiler.hooks.assetEmitted.tap(
+        PLUGIN_NAME,
+        (_file: any, { targetPath }: any) => {
+          this.currentOutputPathsWebpack5.add(targetPath)
+          deleteCache(targetPath)
+        }
       )
 
-      entries.forEach((page) => {
-        const outputPath = path.join(
-          compilation.outputOptions.path!,
-          page + '.js'
+      compiler.hooks.afterEmit.tap(PLUGIN_NAME, (compilation) => {
+        const runtimeChunkPath = path.join(
+          compilation.outputOptions.path,
+          'webpack-runtime.js'
         )
-        deleteCache(outputPath)
-      })
-    })
+        deleteCache(runtimeChunkPath)
 
-    this.previousOutputPathsWebpack5 = new Set(this.currentOutputPathsWebpack5)
-    this.currentOutputPathsWebpack5.clear()
+        // we need to make sure to clear all server entries from cache
+        // since they can have a stale webpack-runtime cache
+        // which needs to always be in-sync
+        const entries = [...compilation.entries.keys()].filter((entry) =>
+          entry.toString().startsWith('pages/')
+        )
+
+        entries.forEach((page) => {
+          const outputPath = path.join(
+            compilation.outputOptions.path,
+            page + '.js'
+          )
+          deleteCache(outputPath)
+        })
+      })
+
+      this.previousOutputPathsWebpack5 = new Set(
+        this.currentOutputPathsWebpack5
+      )
+      this.currentOutputPathsWebpack5.clear()
+      return
+    }
+
+    compiler.hooks.afterEmit.tapAsync(PLUGIN_NAME, (compilation, callback) => {
+      const { assets } = compilation
+
+      if (this.prevAssets) {
+        for (const f of Object.keys(assets)) {
+          deleteCache(assets[f].existsAt)
+        }
+        for (const f of Object.keys(this.prevAssets)) {
+          if (!assets[f]) {
+            deleteCache(this.prevAssets[f].existsAt)
+          }
+        }
+      }
+      this.prevAssets = assets
+
+      callback()
+    })
   }
 }

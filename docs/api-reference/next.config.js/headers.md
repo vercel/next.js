@@ -83,7 +83,7 @@ module.exports = {
           },
         ],
       },
-    ]
+    ],
   },
 }
 ```
@@ -109,7 +109,7 @@ module.exports = {
           },
         ],
       },
-    ]
+    ],
   },
 }
 ```
@@ -135,7 +135,7 @@ module.exports = {
           },
         ],
       },
-    ]
+    ],
   },
 }
 ```
@@ -157,7 +157,7 @@ module.exports = {
           },
         ],
       },
-    ]
+    ],
   },
 }
 ```
@@ -166,17 +166,13 @@ The following characters `(`, `)`, `{`, `}`, `:`, `*`, `+`, `?` are used for reg
 
 ```js
 module.exports = {
-  async headers() {
+  async redirects() {
     return [
       {
         // this will match `/english(default)/something` being requested
         source: '/english\\(default\\)/:slug',
-        headers: [
-          {
-            key: 'x-header',
-            value: 'value',
-          },
-        ],
+        destination: '/en-us/:slug',
+        permanent: false,
       },
     ]
   },
@@ -365,7 +361,7 @@ module.exports = {
         headers: [
           {
             key: 'x-hello',
-            value: 'world',
+            value: 'worlld',
           },
         ],
       },
@@ -377,14 +373,3 @@ module.exports = {
 ### Cache-Control
 
 Cache-Control headers set in next.config.js will be overwritten in production to ensure that static assets can be cached effectively. If you need to revalidate the cache of a page that has been [statically generated](https://nextjs.org/docs/basic-features/pages#static-generation-recommended), you can do so by setting `revalidate` in the page's [`getStaticProps`](https://nextjs.org/docs/basic-features/data-fetching#getstaticprops-static-generation) function.
-
-## Related
-
-For more information, we recommend the following sections:
-
-<div class="card">
-  <a href="/docs/advanced-features/security-headers.md">
-    <b>Security Headers:</b>
-    <small>Improve the security of your Next.js application by add HTTP response headers.</small>
-  </a>
-</div>

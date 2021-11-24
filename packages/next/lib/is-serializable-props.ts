@@ -1,11 +1,7 @@
 const regexpPlainIdentifier = /^[A-Za-z_$][A-Za-z0-9_$]*$/
 
-function getObjectClassLabel(value: any): string {
-  return Object.prototype.toString.call(value)
-}
-
 function isPlainObject(value: any): boolean {
-  if (getObjectClassLabel(value) !== '[object Object]') {
+  if (Object.prototype.toString.call(value) !== '[object Object]') {
     return false
   }
 
@@ -23,9 +19,7 @@ export function isSerializableProps(
       page,
       method,
       '',
-      `Props must be returned as a plain object from ${method}: \`{ props: { ... } }\` (received: \`${getObjectClassLabel(
-        input
-      )}\`).`
+      `Props must be returned as a plain object from ${method}: \`{ props: { ... } }\`.`
     )
   }
 

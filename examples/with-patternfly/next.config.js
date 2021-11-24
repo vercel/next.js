@@ -5,4 +5,8 @@ const withTM = require('next-transpile-modules')([
   '@patternfly/react-styles',
 ])
 
-module.exports = withTM({})
+module.exports = withTM({
+  future: {
+    webpack5: true,
+  },
+})

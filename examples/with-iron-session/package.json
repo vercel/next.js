@@ -1,4 +1,6 @@
 {
+  "name": "with-iron-session",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
     "build": "next build",
@@ -6,16 +8,12 @@
     "start": "next start"
   },
   "dependencies": {
-    "iron-session": "latest",
     "next": "latest",
-    "octokit": "^1.7.0",
-    "react": "^17.0.2",
-    "react-dom": "^17.0.2",
-    "swr": "^1.0.1"
+    "next-iron-session": "4.1.7",
+    "prop-types": "15.7.2",
+    "react": "16.13.1",
+    "react-dom": "16.13.1",
+    "swr": "0.2.3"
   },
-  "devDependencies": {
-    "@octokit/types": "^6.34.0",
-    "@types/react": "^17.0.34",
-    "typescript": "^4.4.4"
-  }
+  "license": "MIT"
 }

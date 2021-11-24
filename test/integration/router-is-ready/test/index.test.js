@@ -9,72 +9,64 @@ import {
   nextStart,
   nextBuild,
   File,
-  check,
 } from 'next-test-utils'
+
+jest.setTimeout(1000 * 60 * 1)
 
 let app
 let appPort
 const appDir = join(__dirname, '../')
 const invalidPage = new File(join(appDir, 'pages/invalid.js'))
 
-const checkIsReadyValues = (browser, expected = []) => {
-  return check(async () => {
-    const values = JSON.stringify(
-      (await browser.eval('window.isReadyValues')).sort()
-    )
-    return JSON.stringify(expected.sort()) === values ? 'success' : values
-  }, 'success')
-}
-
-function runTests() {
+function runTests(isDev) {
   it('isReady should be true immediately for getInitialProps page', async () => {
     const browser = await webdriver(appPort, '/gip')
-    await checkIsReadyValues(browser, [true])
+    expect(await browser.eval('window.isReadyValues')).toEqual([true])
   })
 
   it('isReady should be true immediately for getInitialProps page with query', async () => {
     const browser = await webdriver(appPort, '/gip?hello=world')
-    await checkIsReadyValues(browser, [true])
+    expect(await browser.eval('window.isReadyValues')).toEqual([true])
   })
 
   it('isReady should be true immediately for getServerSideProps page', async () => {
     const browser = await webdriver(appPort, '/gssp')
-    await checkIsReadyValues(browser, [true])
+    expect(await browser.eval('window.isReadyValues')).toEqual([true])
   })
 
   it('isReady should be true immediately for getServerSideProps page with query', async () => {
     const browser = await webdriver(appPort, '/gssp?hello=world')
-    await checkIsReadyValues(browser, [true])
+    expect(await browser.eval('window.isReadyValues')).toEqual([true])
   })
 
   it('isReady should be true immediately for auto-export page without query', async () => {
     const browser = await webdriver(appPort, '/auto-export')
-    await checkIsReadyValues(browser, [true])
+    expect(await browser.eval('window.isReadyValues')).toEqual([true])
   })
 
   it('isReady should be true after query update for auto-export page with query', async () => {
     const browser = await webdriver(appPort, '/auto-export?hello=world')
-    await checkIsReadyValues(browser, [false, true])
+    expect(await browser.eval('window.isReadyValues')).toEqual([false, true])
   })
 
   it('isReady should be true after query update for dynamic auto-export page without query', async () => {
     const browser = await webdriver(appPort, '/auto-export/first')
-    await checkIsReadyValues(browser, [false, true])
+    expect(await browser.eval('window.isReadyValues')).toEqual([false, true])
   })
 
   it('isReady should be true after query update for dynamic auto-export page with query', async () => {
     const browser = await webdriver(appPort, '/auto-export/first?hello=true')
-    await checkIsReadyValues(browser, [false, true])
+    expect(await browser.eval('window.isReadyValues')).toEqual([false, true])
   })
 
   it('isReady should be true after query update for getStaticProps page with query', async () => {
     const browser = await webdriver(appPort, '/gsp?hello=world')
-    await checkIsReadyValues(browser, [false, true])
+    expect(await browser.eval('window.isReadyValues')).toEqual([false, true])
   })
 
   it('isReady should be true immediately for getStaticProps page without query', async () => {
     const browser = await webdriver(appPort, '/gsp')
-    await checkIsReadyValues(browser, [true])
+    expect(await browser.eval('window.isReadyValues')).toEqual([true])
   })
 }
 
@@ -89,7 +81,7 @@ describe('router.isReady', () => {
       invalidPage.restore()
     })
 
-    runTests()
+    runTests(true)
   })
 
   describe('production mode', () => {

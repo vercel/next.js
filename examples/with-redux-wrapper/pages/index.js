@@ -18,7 +18,7 @@ const Index = (props) => {
   return <Page title="Index Page" linkTo="/other" />
 }
 
-export const getStaticProps = wrapper.getStaticProps((store) => () => {
+export const getStaticProps = wrapper.getStaticProps(async ({ store }) => {
   store.dispatch(serverRenderClock(true))
   store.dispatch(addCount())
 })

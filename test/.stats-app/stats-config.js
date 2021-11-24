@@ -1,12 +1,3 @@
-const fs = require('fs')
-const path = require('path')
-// this page is conditionally added when not testing
-// in webpack 4 mode since it's not supported for webpack 4
-const imagePageData = fs.readFileSync(
-  path.join(__dirname, './image.js'),
-  'utf8'
-)
-
 const clientGlobs = [
   {
     name: 'Client Bundles (main, webpack, commons)',
@@ -21,11 +12,11 @@ const clientGlobs = [
   },
   {
     name: 'Client Pages',
-    globs: ['.next/static/BUILD_ID/pages/**/*.js', '.next/static/css/**/*'],
+    globs: ['.next/static/*/pages/**/*', '.next/static/css/**/*'],
   },
   {
     name: 'Client Build Manifests',
-    globs: ['.next/static/BUILD_ID/_buildManifest*'],
+    globs: ['.next/static/*/_buildManifest*'],
   },
   {
     name: 'Rendered Page Sizes',
@@ -35,19 +26,19 @@ const clientGlobs = [
 
 const renames = [
   {
-    srcGlob: '.next/static/chunks/pages',
+    srcGlob: '.next/static/*/pages',
     dest: '.next/static/BUILD_ID/pages',
   },
   {
-    srcGlob: '.next/static/BUILD_ID/pages/**/*.js',
+    srcGlob: '.next/static/*/pages/**/*',
     removeHash: true,
   },
   {
-    srcGlob: '.next/static/runtime/*.js',
+    srcGlob: '.next/static/runtime/*',
     removeHash: true,
   },
   {
-    srcGlob: '.next/static/chunks/*.js',
+    srcGlob: '.next/static/chunks/*',
     removeHash: true,
   },
   {
@@ -66,18 +57,17 @@ module.exports = {
   autoMergeMain: true,
   configs: [
     {
-      title: 'Default Build',
+      title: 'Default Server Mode',
       diff: 'onOutputChange',
       diffConfigFiles: [
-        {
-          path: 'pages/image.js',
-          content: imagePageData,
-        },
         {
           path: 'next.config.js',
           content: `
             module.exports = {
               generateBuildId: () => 'BUILD_ID',
+              future: {
+                webpack5: true
+              },
               webpack(config) {
                 config.optimization.minimize = false
                 config.optimization.minimizer = undefined
@@ -90,10 +80,6 @@ module.exports = {
       // renames to apply to make file names deterministic
       renames,
       configFiles: [
-        {
-          path: 'pages/image.js',
-          content: imagePageData,
-        },
         {
           path: 'next.config.js',
           content: `
@@ -121,19 +107,40 @@ module.exports = {
       },
     },
     {
-      title: 'Default Build with SWC',
-      diff: 'onOutputChange',
-      diffConfigFiles: [
-        {
-          path: 'pages/image.js',
-          content: imagePageData,
-        },
+      title: 'Serverless Mode',
+      diff: false,
+      renames,
+      configFiles: [
         {
           path: 'next.config.js',
           content: `
             module.exports = {
               generateBuildId: () => 'BUILD_ID',
-              swcMinify: true,
+              target: 'serverless'
+            }
+          `,
+        },
+      ],
+      filesToTrack: [
+        ...clientGlobs,
+        {
+          name: 'Serverless bundles',
+          globs: ['.next/serverless/pages/**/*'],
+        },
+      ],
+    },
+    {
+      title: 'Webpack 4 Mode',
+      diff: 'onOutputChange',
+      diffConfigFiles: [
+        {
+          path: 'next.config.js',
+          content: `
+            module.exports = {
+              generateBuildId: () => 'BUILD_ID',
+              future: {
+                webpack5: false
+              },
               webpack(config) {
                 config.optimization.minimize = false
                 config.optimization.minimizer = undefined
@@ -143,19 +150,16 @@ module.exports = {
           `,
         },
       ],
-      // renames to apply to make file names deterministic
       renames,
       configFiles: [
-        {
-          path: 'pages/image.js',
-          content: imagePageData,
-        },
         {
           path: 'next.config.js',
           content: `
             module.exports = {
-              swcMinify: true,
-              generateBuildId: () => 'BUILD_ID'
+              generateBuildId: () => 'BUILD_ID',
+              future: {
+                webpack5: false
+              }
             }
           `,
         },

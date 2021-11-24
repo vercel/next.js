@@ -1,4 +1,4 @@
-import type { webpack5 as webpack } from 'next/dist/compiled/webpack/webpack'
+import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { getModuleBuildError } from './webpackModuleError'
 
 export class WellKnownErrorsPlugin {
@@ -8,18 +8,17 @@ export class WellKnownErrorsPlugin {
         'WellKnownErrorsPlugin',
         async () => {
           if (compilation.errors?.length) {
-            await Promise.all(
-              compilation.errors.map(async (err, i) => {
+            compilation.errors = await Promise.all(
+              compilation.errors.map(async (err) => {
                 try {
                   const moduleError = await getModuleBuildError(
                     compilation,
                     err
                   )
-                  if (moduleError !== false) {
-                    compilation.errors[i] = moduleError
-                  }
+                  return moduleError === false ? err : moduleError
                 } catch (e) {
                   console.log(e)
+                  return err
                 }
               })
             )

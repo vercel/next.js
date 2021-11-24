@@ -1,5 +1,5 @@
 export async function generateBuildId(
-  generate: () => string | null | Promise<string | null>,
+  generate: () => string | null,
   fallback: () => string
 ): Promise<string> {
   let buildId = await generate()

@@ -1,5 +1,6 @@
 {
-  "private": true,
+  "name": "with-dynamic-import",
+  "version": "1.0.0",
   "scripts": {
     "dev": "next",
     "build": "next build",
@@ -9,7 +10,8 @@
   "dependencies": {
     "fuse.js": "6.4.1",
     "next": "latest",
-    "react": "^17.0.2",
-    "react-dom": "^17.0.2"
-  }
+    "react": "^16.13.1",
+    "react-dom": "^16.13.1"
+  },
+  "license": "MIT"
 }

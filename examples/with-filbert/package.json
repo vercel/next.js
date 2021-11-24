@@ -1,16 +1,22 @@
 {
-  "private": true,
+  "name": "with-filbert",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
   "scripts": {
     "dev": "next",
     "build": "next build",
     "start": "next start"
   },
+  "keywords": [],
+  "author": "Kuldeep Keshwar",
+  "license": "MIT",
   "dependencies": {
     "@filbert-js/core": "latest",
     "@filbert-js/macro": "latest",
     "@filbert-js/server-stylesheet": "latest",
     "next": "latest",
-    "react": "^17.0.2",
-    "react-dom": "^17.0.2"
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0"
   }
 }

@@ -17,9 +17,9 @@ export default async function handler(req, res) {
           async (transaction) => {
             const cypher = `
               MATCH (actor:Person {name: $actorName})
-              RETURN actor {.*,
-                movies: [ (actor)-[:ACTED_IN]->(m) | m.title ]
-              } as actor
+              MATCH (m:Movie)
+              WHERE (actor)-[:ACTED_IN]->(m)
+              RETURN actor {.*, movies: collect(m.title)} as actor
             `
 
             const actorTxResponse = await transaction.run(cypher, { actorName })

@@ -4,6 +4,7 @@ import fs from 'fs'
 import path from 'path'
 import { nextBuild } from 'next-test-utils'
 
+jest.setTimeout(1000 * 60 * 1)
 const appDir = path.join(__dirname, '..')
 
 describe('Auto Export Error Serverless', () => {

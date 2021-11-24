@@ -1,11 +1,10 @@
-const NodeAttributes = require('../utils/node-attributes.js')
+const NodeAttributes = require('../utils/nodeAttributes.js')
 
 module.exports = {
   meta: {
     docs: {
       description: 'Ensure preconnect is used with Google Fonts',
       recommended: true,
-      url: 'https://nextjs.org/docs/messages/google-font-preconnect',
     },
   },
   create: function (context) {

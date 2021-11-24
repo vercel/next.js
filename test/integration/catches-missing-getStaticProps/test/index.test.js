@@ -10,6 +10,8 @@ import {
   killApp,
 } from 'next-test-utils'
 
+jest.setTimeout(1000 * 60 * 1)
+
 const appDir = join(__dirname, '../')
 const nextConfig = join(appDir, 'next.config.js')
 const errorRegex = /getStaticPaths was added without a getStaticProps in/

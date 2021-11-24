@@ -1,9 +1,9 @@
 import { superTokensNextWrapper } from 'supertokens-node/nextjs'
-import { verifySession } from 'supertokens-node/recipe/session/framework/express'
+import { verifySession } from 'supertokens-node/recipe/session'
 import supertokens from 'supertokens-node'
-import { backendConfig } from '../../config/backendConfig'
+import * as SuperTokensConfig from '../../config/supertokensConfig'
 
-supertokens.init(backendConfig())
+supertokens.init(SuperTokensConfig.backendConfig())
 
 export default async function user(req, res) {
   await superTokensNextWrapper(
@@ -15,9 +15,10 @@ export default async function user(req, res) {
   )
 
   return res.json({
-    note: 'Fetch any data from your application for authenticated user after using verifySession middleware',
+    note:
+      'Fetch any data from your application for authenticated user after using verifySession middleware',
     userId: req.session.getUserId(),
     sessionHandle: req.session.getHandle(),
-    accessTokenPayload: req.session.getAccessTokenPayload(),
+    userDataInJWT: req.session.getJWTPayload(),
   })
 }

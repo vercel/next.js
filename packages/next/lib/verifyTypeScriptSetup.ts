@@ -4,66 +4,45 @@ import {
   hasNecessaryDependencies,
   NecessaryDependencies,
 } from './has-necessary-dependencies'
-import semver from 'next/dist/compiled/semver'
 import { CompileError } from './compile-error'
 import { FatalError } from './fatal-error'
-import * as log from '../build/output/log'
 
 import { getTypeScriptIntent } from './typescript/getTypeScriptIntent'
 import { TypeCheckResult } from './typescript/runTypeCheck'
 import { writeAppTypeDeclarations } from './typescript/writeAppTypeDeclarations'
 import { writeConfigurationDefaults } from './typescript/writeConfigurationDefaults'
-import { missingDepsError } from './typescript/missingDependencyError'
-import { NextConfigComplete } from '../server/config-shared'
-
-const requiredPackages = [
-  { file: 'typescript', pkg: 'typescript' },
-  { file: '@types/react/index.d.ts', pkg: '@types/react' },
-  { file: '@types/node/index.d.ts', pkg: '@types/node' },
-]
 
 export async function verifyTypeScriptSetup(
   dir: string,
   pagesDir: string,
   typeCheckPreflight: boolean,
-  config: NextConfigComplete,
   cacheDir?: string
 ): Promise<{ result?: TypeCheckResult; version: string | null }> {
-  const tsConfigPath = path.join(dir, config.typescript.tsconfigPath)
+  const tsConfigPath = path.join(dir, 'tsconfig.json')
 
   try {
     // Check if the project uses TypeScript:
-    const intent = await getTypeScriptIntent(dir, pagesDir, config)
+    const intent = await getTypeScriptIntent(dir, pagesDir)
     if (!intent) {
       return { version: null }
     }
+    const firstTimeSetup = intent.firstTimeSetup
 
     // Ensure TypeScript and necessary `@types/*` are installed:
     const deps: NecessaryDependencies = await hasNecessaryDependencies(
       dir,
-      requiredPackages
+      !!intent,
+      false
     )
 
-    if (deps.missing?.length > 0) {
-      await missingDepsError(dir, deps.missing)
-    }
-
     // Load TypeScript after we're sure it exists:
-    const ts = (await Promise.resolve(
-      require(deps.resolved.get('typescript')!)
-    )) as typeof import('typescript')
-
-    if (semver.lt(ts.version, '4.3.2')) {
-      log.warn(
-        `Minimum recommended TypeScript version is v4.3.2, older versions can potentially be incompatible with Next.js. Detected: ${ts.version}`
-      )
-    }
+    const ts = (await import(deps.resolved)) as typeof import('typescript')
 
     // Reconfigure (or create) the user's `tsconfig.json` for them:
-    await writeConfigurationDefaults(ts, tsConfigPath, intent.firstTimeSetup)
+    await writeConfigurationDefaults(ts, tsConfigPath, firstTimeSetup)
     // Write out the necessary `next-env.d.ts` file to correctly register
     // Next.js' types:
-    await writeAppTypeDeclarations(dir, !config.images.disableStaticImages)
+    await writeAppTypeDeclarations(dir)
 
     let result
     if (typeCheckPreflight) {

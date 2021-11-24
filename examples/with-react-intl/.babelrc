@@ -2,9 +2,11 @@
   "presets": ["next/babel"],
   "plugins": [
     [
-      "formatjs",
+      "babel-plugin-react-intl",
       {
-        "ast": true
+        "ast": true,
+        "idInterpolationPattern": "[sha512:contenthash:base64:6]",
+        "extractFromFormatMessageCall": true
       }
     ]
   ]

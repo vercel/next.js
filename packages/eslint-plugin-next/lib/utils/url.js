@@ -1,20 +1,12 @@
 const fs = require('fs')
 const path = require('path')
 
-// Cache for fs.lstatSync lookup.
-// Prevent multiple blocking IO requests that have already been calculated.
-const fsLstatSyncCache = {}
-const fsLstatSync = (source) => {
-  fsLstatSyncCache[source] = fsLstatSyncCache[source] || fs.lstatSync(source)
-  return fsLstatSyncCache[source]
-}
-
 /**
  * Checks if the source is a directory.
  * @param {string} source
  */
 function isDirectory(source) {
-  return fsLstatSync(source).isDirectory()
+  return fs.lstatSync(source).isDirectory()
 }
 
 /**
@@ -22,35 +14,20 @@ function isDirectory(source) {
  * @param {string} source
  */
 function isSymlink(source) {
-  return fsLstatSync(source).isSymbolicLink()
+  return fs.lstatSync(source).isSymbolicLink()
 }
 
 /**
  * Gets the possible URLs from a directory.
  * @param {string} urlprefix
- * @param {string[]} directories
+ * @param {string} directory
  */
-function getUrlFromPagesDirectories(urlPrefix, directories) {
-  return Array.from(
-    // De-duplicate similar pages across multiple directories.
-    new Set(
-      directories
-        .map((directory) => parseUrlForPages(urlPrefix, directory))
-        .flat()
-        .map(
-          // Since the URLs are normalized we add `^` and `$` to the RegExp to make sure they match exactly.
-          (url) => `^${normalizeURL(url)}$`
-        )
-    )
-  ).map((urlReg) => {
-    urlReg = urlReg.replace(/\[.*\]/g, '((?!.+?\\..+?).*?)')
-    return new RegExp(urlReg)
-  })
+function getUrlFromPagesDirectory(urlPrefix, directory) {
+  return parseUrlForPages(urlPrefix, directory).map(
+    // Since the URLs are normalized we add `^` and `$` to the RegExp to make sure they match exactly.
+    (url) => new RegExp(`^${normalizeURL(url)}$`)
+  )
 }
-
-// Cache for fs.readdirSync lookup.
-// Prevent multiple blocking IO requests that have already been calculated.
-const fsReadDirSyncCache = {}
 
 /**
  * Recursively parse directory for page URLs.
@@ -58,13 +35,11 @@ const fsReadDirSyncCache = {}
  * @param {string} directory
  */
 function parseUrlForPages(urlprefix, directory) {
-  fsReadDirSyncCache[directory] =
-    fsReadDirSyncCache[directory] || fs.readdirSync(directory)
+  const files = fs.readdirSync(directory)
   const res = []
-  fsReadDirSyncCache[directory].forEach((fname) => {
-    // TODO: this should account for all page extensions
-    // not just js(x) and ts(x)
+  files.forEach((fname) => {
     if (/(\.(j|t)sx?)$/.test(fname)) {
+      fname = fname.replace(/\[.*\]/g, '.*')
       if (/^index(\.(j|t)sx?)$/.test(fname)) {
         res.push(`${urlprefix}${fname.replace(/^index(\.(j|t)sx?)$/, '')}`)
       }
@@ -115,7 +90,7 @@ function execOnce(fn) {
 }
 
 module.exports = {
-  getUrlFromPagesDirectories,
+  getUrlFromPagesDirectory,
   normalizeURL,
   execOnce,
 }

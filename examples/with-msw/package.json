@@ -1,17 +1,16 @@
 {
-  "private": true,
+  "name": "with-msw",
+  "version": "1.0.0",
   "scripts": {
     "dev": "next",
     "build": "next build",
     "start": "next start"
   },
+  "license": "MIT",
   "dependencies": {
-    "msw": "^0.29.0",
+    "msw": "^0.24.2",
     "next": "latest",
-    "react": "^17.0.2",
-    "react-dom": "^17.0.2"
-  },
-  "msw": {
-    "workerDirectory": "public"
+    "react": "^17.0.1",
+    "react-dom": "^17.0.1"
   }
 }

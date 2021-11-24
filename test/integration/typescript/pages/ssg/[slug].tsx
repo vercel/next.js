@@ -6,11 +6,6 @@ type Params = {
 
 type Props = {
   data: string
-  title: string
-}
-
-type PreviewData = {
-  title: string
 }
 
 export const getStaticPaths: GetStaticPaths<Params> = async () => {
@@ -20,21 +15,15 @@ export const getStaticPaths: GetStaticPaths<Params> = async () => {
   }
 }
 
-export const getStaticProps: GetStaticProps<Props, Params, PreviewData> =
-  async ({ params, previewData }) => {
-    return {
-      props: {
-        data: params!.slug,
-        title: previewData?.title || 'default title',
-      },
-      revalidate: false,
-    }
+export const getStaticProps: GetStaticProps<Props, Params> = async ({
+  params,
+}) => {
+  return {
+    props: { data: params!.slug },
+    revalidate: false,
   }
+}
 
-export default function Page({ data, title }: Props) {
-  return (
-    <h1>
-      {data} {title}
-    </h1>
-  )
+export default function Page({ data }: Props) {
+  return <h1>{data}</h1>
 }

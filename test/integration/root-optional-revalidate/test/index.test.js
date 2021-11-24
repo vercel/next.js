@@ -13,12 +13,14 @@ import {
   waitFor,
 } from 'next-test-utils'
 
+jest.setTimeout(1000 * 60 * 2)
+
 const appDir = join(__dirname, '../')
 const nextConfig = new File(join(appDir, 'next.config.js'))
 let app
 let appPort
 
-const getProps = async (path) => {
+const getProps = async (path, expected) => {
   const html = await renderViaHTTP(appPort, path)
   const $ = cheerio.load(html)
   return JSON.parse($('#props').text())
@@ -26,13 +28,13 @@ const getProps = async (path) => {
 
 const runTests = (rawServerless = false) => {
   it('should render / correctly', async () => {
-    const props = await getProps('/')
+    const props = await getProps('/', { params: {} })
     expect(props.params).toEqual({})
 
     await waitFor(1000)
     await getProps('/')
 
-    const newProps = await getProps('/')
+    const newProps = await getProps('/', { params: {} })
     expect(newProps.params).toEqual({})
     expect(props.random).not.toBe(newProps.random)
   })

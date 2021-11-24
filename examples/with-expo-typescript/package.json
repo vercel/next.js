@@ -1,5 +1,6 @@
 {
-  "private": true,
+  "name": "with-expo-typescript",
+  "version": "1.0.0",
   "main": "node_modules/expo/AppEntry.js",
   "scripts": {
     "dev": "next",
@@ -15,8 +16,8 @@
   "dependencies": {
     "expo": "~37.0.3",
     "next": "latest",
-    "react": "^17.0.2",
-    "react-dom": "^17.0.2",
+    "react": "~16.9.0",
+    "react-dom": "~16.9.0",
     "react-native": "https://github.com/expo/react-native/archive/sdk-37.0.1.tar.gz",
     "react-native-web": "~0.11.7"
   },
@@ -28,6 +29,7 @@
     "@types/react-dom": "16.9.8",
     "@types/react-native": "0.62.10",
     "babel-preset-expo": "~8.1.0",
-    "typescript": "4.4.4"
-  }
+    "typescript": "4.0"
+  },
+  "license": "MIT"
 }

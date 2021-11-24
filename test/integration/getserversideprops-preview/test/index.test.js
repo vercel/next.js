@@ -18,6 +18,7 @@ import os from 'os'
 import { join } from 'path'
 import qs from 'querystring'
 
+jest.setTimeout(1000 * 60 * 2)
 const appDir = join(__dirname, '..')
 const nextConfigPath = join(appDir, 'next.config.js')
 

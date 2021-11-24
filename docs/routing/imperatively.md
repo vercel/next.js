@@ -18,13 +18,13 @@ The following example shows how to do basic page navigations with [`useRouter`](
 ```jsx
 import { useRouter } from 'next/router'
 
-export default function ReadMore() {
+function ReadMore() {
   const router = useRouter()
 
   return (
-    <button onClick={() => router.push('/about')}>
-      Click here to read more
-    </button>
+    <span onClick={() => router.push('/about')}>Click here to read more</span>
   )
 }
+
+export default ReadMore
 ```

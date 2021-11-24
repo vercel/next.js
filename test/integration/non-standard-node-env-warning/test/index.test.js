@@ -1,6 +1,5 @@
 /* eslint-env jest */
-import glob from 'glob'
-import fs from 'fs-extra'
+
 import { join } from 'path'
 import {
   findPort,
@@ -8,8 +7,9 @@ import {
   killApp,
   waitFor,
   initNextServerScript,
-  nextBuild,
 } from 'next-test-utils'
+
+jest.setTimeout(1000 * 60 * 2)
 
 const appDir = join(__dirname, '..')
 const warningText = `You are using a non-standard "NODE_ENV" value in your environment`
@@ -77,29 +77,6 @@ describe('Non-Standard NODE_ENV', () => {
     await waitFor(2000)
     await killApp(app)
     expect(output).not.toContain(warningText)
-  })
-
-  it('should still DCE NODE_ENV specific code', async () => {
-    await nextBuild(appDir, undefined, {
-      env: {
-        NODE_ENV: 'test',
-      },
-    })
-
-    const staticFiles = glob.sync('**/*.js', {
-      cwd: join(appDir, '.next/static'),
-    })
-    expect(staticFiles.length).toBeGreaterThan(0)
-
-    for (const file of staticFiles) {
-      const content = await fs.readFile(
-        join(appDir, '.next/static', file),
-        'utf8'
-      )
-      if (content.match(/cannot find module/i)) {
-        throw new Error(`${file} contains module not found error`)
-      }
-    }
   })
 
   it('should show the warning with NODE_ENV set to invalid value', async () => {

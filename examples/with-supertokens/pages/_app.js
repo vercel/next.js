@@ -2,20 +2,15 @@ import '../styles/globals.css'
 import React from 'react'
 import { useEffect } from 'react'
 import SuperTokensReact from 'supertokens-auth-react'
-import * as SuperTokensConfig from '../config/frontendConfig'
+import * as SuperTokensConfig from '../config/supertokensConfig'
 import Session from 'supertokens-auth-react/recipe/session'
+import SuperTokensNode from 'supertokens-node'
 import { redirectToAuth } from 'supertokens-auth-react/recipe/thirdpartyemailpassword'
-
-async function initNode() {
-  const supertokensNode = await import('supertokens-node')
-  const { backendConfig } = await import('../config/backendConfig')
-  supertokensNode.init(backendConfig())
-}
 
 if (typeof window !== 'undefined') {
   SuperTokensReact.init(SuperTokensConfig.frontendConfig())
 } else {
-  initNode().catch(console.error)
+  SuperTokensNode.init(SuperTokensConfig.backendConfig())
 }
 
 function MyApp({ Component, pageProps }) {

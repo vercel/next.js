@@ -1,93 +1,54 @@
-const os = require('os')
 const path = require('path')
 const _glob = require('glob')
-const fs = require('fs-extra')
-const nodeFetch = require('node-fetch')
-const vercelFetch = require('@vercel/fetch')
-const fetch = vercelFetch(nodeFetch)
+const fs = require('fs').promises
+const fetch = require('node-fetch')
 const { promisify } = require('util')
 const { Sema } = require('async-sema')
 const { spawn, exec: execOrig } = require('child_process')
-const { createNextInstall } = require('./test/lib/create-next-install')
+
 const glob = promisify(_glob)
 const exec = promisify(execOrig)
 
 const timings = []
-const DEFAULT_NUM_RETRIES = os.platform() === 'win32' ? 2 : 1
+const NUM_RETRIES = 2
 const DEFAULT_CONCURRENCY = 2
 const RESULTS_EXT = `.results.json`
 const isTestJob = !!process.env.NEXT_TEST_JOB
-const TIMINGS_API = `https://api.github.com/gists/4500dd89ae2f5d70d9aaceb191f528d1`
-const TIMINGS_API_HEADERS = {
-  Accept: 'application/vnd.github.v3+json',
-}
+const TIMINGS_API = `https://next-timings.jjsweb.site/api/timings`
 
-const testFilters = {
-  unit: 'unit/',
-  e2e: 'e2e/',
-  production: 'production/',
-  development: 'development/',
-}
+const UNIT_TEST_EXT = '.unit.test.js'
+const DEV_TEST_EXT = '.dev.test.js'
+const PROD_TEST_EXT = '.prod.test.js'
 
 // which types we have configured to run separate
-const configuredTestTypes = Object.values(testFilters)
-
-const cleanUpAndExit = async (code) => {
-  if (process.env.NEXT_TEST_STARTER) {
-    await fs.remove(process.env.NEXT_TEST_STARTER)
-  }
-  process.exit(code)
-}
-
-async function getTestTimings() {
-  const timingsRes = await fetch(TIMINGS_API, {
-    headers: {
-      ...TIMINGS_API_HEADERS,
-    },
-  })
-
-  if (!timingsRes.ok) {
-    throw new Error(`request status: ${timingsRes.status}`)
-  }
-  const timingsData = await timingsRes.json()
-  return JSON.parse(timingsData.files['test-timings.json'].content)
-}
+const configuredTestTypes = [UNIT_TEST_EXT]
 
 async function main() {
-  let numRetries = DEFAULT_NUM_RETRIES
   let concurrencyIdx = process.argv.indexOf('-c')
-  let concurrency =
-    (concurrencyIdx > -1 && parseInt(process.argv[concurrencyIdx + 1], 10)) ||
-    DEFAULT_CONCURRENCY
+  const concurrency =
+    parseInt(process.argv[concurrencyIdx + 1], 10) || DEFAULT_CONCURRENCY
 
-  const hideOutput = !process.argv.includes('--debug')
-  const outputTimings = process.argv.includes('--timings')
-  const writeTimings = process.argv.includes('--write-timings')
+  const outputTimings = process.argv.indexOf('--timings') !== -1
+  const writeTimings = process.argv.indexOf('--write-timings') !== -1
+  const isAzure = process.argv.indexOf('--azure') !== -1
   const groupIdx = process.argv.indexOf('-g')
   const groupArg = groupIdx !== -1 && process.argv[groupIdx + 1]
 
   const testTypeIdx = process.argv.indexOf('--type')
-  const testType = testTypeIdx > -1 ? process.argv[testTypeIdx + 1] : undefined
+  const testType = process.argv[testTypeIdx + 1]
+
   let filterTestsBy
 
   switch (testType) {
-    case 'unit': {
-      numRetries = 0
-      filterTestsBy = testFilters.unit
+    case 'unit':
+      filterTestsBy = UNIT_TEST_EXT
       break
-    }
-    case 'development': {
-      filterTestsBy = testFilters.development
+    case 'dev':
+      filterTestsBy = DEV_TEST_EXT
       break
-    }
-    case 'production': {
-      filterTestsBy = testFilters.production
+    case 'production':
+      filterTestsBy = PROD_TEST_EXT
       break
-    }
-    case 'e2e': {
-      filterTestsBy = testFilters.e2e
-      break
-    }
     case 'all':
       filterTestsBy = 'none'
       break
@@ -96,23 +57,22 @@ async function main() {
   }
 
   console.log('Running tests with concurrency:', concurrency)
-
-  let tests = process.argv.filter((arg) => arg.match(/\.test\.(js|ts|tsx)/))
+  let tests = process.argv.filter((arg) => arg.endsWith('.test.js'))
   let prevTimings
 
   if (tests.length === 0) {
     tests = (
-      await glob('**/*.test.{js,ts,tsx}', {
+      await glob('**/*.test.js', {
         nodir: true,
         cwd: path.join(__dirname, 'test'),
       })
     ).filter((test) => {
+      // only include the specified type
       if (filterTestsBy) {
-        // only include the specified type
-        return filterTestsBy === 'none' ? true : test.startsWith(filterTestsBy)
-      } else {
+        return filterTestsBy === 'none' ? true : test.endsWith(filterTestsBy)
         // include all except the separately configured types
-        return !configuredTestTypes.some((type) => test.startsWith(type))
+      } else {
+        return !configuredTestTypes.some((type) => test.endsWith(type))
       }
     })
 
@@ -126,18 +86,24 @@ async function main() {
         } catch (_) {}
 
         if (!prevTimings) {
-          prevTimings = await getTestTimings()
+          const timingsRes = await fetch(
+            `${TIMINGS_API}?which=${isAzure ? 'azure' : 'actions'}`
+          )
+
+          if (!timingsRes.ok) {
+            throw new Error(`request status: ${timingsRes.status}`)
+          }
+          prevTimings = await timingsRes.json()
           console.log('Fetched previous timings data successfully')
 
           if (writeTimings) {
             await fs.writeFile(timingsFile, JSON.stringify(prevTimings))
             console.log('Wrote previous timings data to', timingsFile)
-            await cleanUpAndExit(0)
+            process.exit(0)
           }
         }
       } catch (err) {
         console.log(`Failed to fetch timings data`, err)
-        await cleanUpAndExit(1)
       }
     }
   }
@@ -156,6 +122,10 @@ async function main() {
     const groupParts = groupArg.split('/')
     const groupPos = parseInt(groupParts[0], 10)
     const groupTotal = parseInt(groupParts[1], 10)
+    const numPerGroup = Math.ceil(testNames.length / groupTotal)
+    let offset = groupPos === 1 ? 0 : (groupPos - 1) * numPerGroup - 1
+    // if there's an odd number of suites give the first group the extra
+    if (testNames.length % 2 !== 0 && groupPos !== 1) offset++
 
     if (prevTimings) {
       const groups = [[]]
@@ -190,36 +160,10 @@ async function main() {
         Math.round(groupTimes[curGroupIdx]) + 's'
       )
     } else {
-      const numPerGroup = Math.ceil(testNames.length / groupTotal)
-      let offset = (groupPos - 1) * numPerGroup
-      testNames = testNames.slice(offset, offset + numPerGroup)
+      testNames = testNames.splice(offset, numPerGroup)
     }
   }
-
-  if (testNames.length === 0) {
-    console.log('No tests found for', testType, 'exiting..')
-    return cleanUpAndExit(0)
-  }
-
   console.log('Running tests:', '\n', ...testNames.map((name) => `${name}\n`))
-
-  const hasIsolatedTests = testNames.some((test) => {
-    return configuredTestTypes.some(
-      (type) => type !== testFilters.unit && test.startsWith(`test/${type}`)
-    )
-  })
-
-  if ((testType && testType !== 'unit') || hasIsolatedTests) {
-    // for isolated next tests: e2e, dev, prod we create
-    // a starter Next.js install to re-use to speed up tests
-    // to avoid having to run yarn each time
-    console.log('Creating Next.js install for isolated tests')
-    const testStarter = await createNextInstall({
-      react: 'latest',
-      'react-dom': 'latest',
-    })
-    process.env.NEXT_TEST_STARTER = testStarter
-  }
 
   const sema = new Sema(concurrency, { capacity: testNames.length })
   const jestPath = path.join(
@@ -228,10 +172,9 @@ async function main() {
   )
   const children = new Set()
 
-  const runTest = (test = '', isFinalRun) =>
+  const runTest = (test = '', usePolling) =>
     new Promise((resolve, reject) => {
       const start = new Date().getTime()
-      let outputChunks = []
       const child = spawn(
         'node',
         [
@@ -245,103 +188,51 @@ async function main() {
           test,
         ],
         {
-          stdio: ['ignore', 'pipe', 'pipe'],
+          stdio: 'inherit',
           env: {
+            JEST_RETRY_TIMES: 0,
             ...process.env,
-            // run tests in headless mode by default
-            HEADLESS: 'true',
-            TRACE_PLAYWRIGHT: 'true',
-            ...(isFinalRun
+            ...(isAzure
+              ? {
+                  HEADLESS: 'true',
+                  __POST_PROCESS_MIDDLEWARE_TIME_BUDGET: '50',
+                }
+              : {}),
+            ...(usePolling
               ? {
                   // Events can be finicky in CI. This switches to a more
                   // reliable polling method.
-                  // CHOKIDAR_USEPOLLING: 'true',
-                  // CHOKIDAR_INTERVAL: 500,
-                  // WATCHPACK_POLLING: 500,
+                  CHOKIDAR_USEPOLLING: 'true',
+                  CHOKIDAR_INTERVAL: 500,
                 }
               : {}),
           },
         }
       )
-      const handleOutput = (chunk) => {
-        if (hideOutput) {
-          outputChunks.push(chunk)
-        } else {
-          process.stderr.write(chunk)
-        }
-      }
-      child.stdout.on('data', handleOutput)
-      child.stderr.on('data', handleOutput)
-
       children.add(child)
-
-      child.on('exit', async (code) => {
+      child.on('exit', (code) => {
         children.delete(child)
-        if (code) {
-          if (isFinalRun && hideOutput) {
-            // limit out to last 64kb so that we don't
-            // run out of log room in CI
-            let trimmedOutputSize = 0
-            const trimmedOutputLimit = 64 * 1024
-            const trimmedOutput = []
-
-            for (let i = outputChunks.length; i >= 0; i--) {
-              const chunk = outputChunks[i]
-              if (!chunk) continue
-
-              trimmedOutputSize += chunk.byteLength || chunk.length
-              trimmedOutput.unshift(chunk)
-
-              if (trimmedOutputSize > trimmedOutputLimit) {
-                break
-              }
-            }
-            trimmedOutput.forEach((chunk) => process.stdout.write(chunk))
-          }
-          return reject(new Error(`failed with code: ${code}`))
-        }
-        await fs
-          .remove(
-            path.join(
-              __dirname,
-              'test/traces',
-              path
-                .relative(path.join(__dirname, 'test'), test)
-                .replace(/\//g, '-')
-            )
-          )
-          .catch(() => {})
+        if (code) reject(new Error(`failed with code: ${code}`))
         resolve(new Date().getTime() - start)
       })
     })
 
-  const directorySemas = new Map()
-
   await Promise.all(
     testNames.map(async (test) => {
-      const dirName = path.dirname(test)
-      let dirSema = directorySemas.get(dirName)
-      if (dirSema === undefined)
-        directorySemas.set(dirName, (dirSema = new Sema(1)))
-      await dirSema.acquire()
       await sema.acquire()
       let passed = false
 
-      for (let i = 0; i < numRetries + 1; i++) {
+      for (let i = 0; i < NUM_RETRIES + 1; i++) {
         try {
-          console.log(`Starting ${test} retry ${i}/${numRetries}`)
-          const time = await runTest(test, i === numRetries)
+          const time = await runTest(test, i > 0)
           timings.push({
             file: test,
             time,
           })
           passed = true
-          console.log(
-            `Finished ${test} on retry ${i}/${numRetries} in ${time / 1000}s`
-          )
           break
         } catch (err) {
-          if (i < numRetries) {
+          if (i < NUM_RETRIES) {
             try {
               const testDir = path.dirname(path.join(__dirname, test))
               console.log('Cleaning test files at', testDir)
@@ -352,7 +243,7 @@ async function main() {
         }
       }
       if (!passed) {
-        console.error(`${test} failed to pass within ${numRetries} retries`)
+        console.error(`${test} failed to pass within ${NUM_RETRIES} retries`)
         children.forEach((child) => child.kill())
 
         if (isTestJob) {
@@ -370,10 +261,9 @@ async function main() {
             console.log(`Failed to load test output`, err)
           }
         }
-        cleanUpAndExit(1)
+        process.exit(1)
       }
       sema.release()
-      dirSema.release()
     })
   )
 
@@ -404,32 +294,16 @@ async function main() {
     // junitData += `</testsuites>`
     // console.log('output timing data to junit.xml')
 
-    if (prevTimings && process.env.TEST_TIMINGS_TOKEN) {
+    if (prevTimings) {
       try {
-        const newTimings = {
-          ...(await getTestTimings()),
-          ...curTimings,
-        }
-
-        for (const test of Object.keys(newTimings)) {
-          if (!(await fs.pathExists(path.join(__dirname, test)))) {
-            console.log('removing stale timing', test)
-            delete newTimings[test]
-          }
-        }
-
         const timingsRes = await fetch(TIMINGS_API, {
-          method: 'PATCH',
+          method: 'POST',
           headers: {
-            ...TIMINGS_API_HEADERS,
-            Authorization: `Bearer ${process.env.TEST_TIMINGS_TOKEN}`,
+            'content-type': 'application/json',
           },
           body: JSON.stringify({
-            files: {
-              'test-timings.json': {
-                content: JSON.stringify(newTimings),
-              },
-            },
+            timings: curTimings,
+            which: isAzure ? 'azure' : 'actions',
           }),
         })
 
@@ -445,7 +319,6 @@ async function main() {
       }
     }
   }
-  await cleanUpAndExit(0)
 }
 
 main().catch((err) => {

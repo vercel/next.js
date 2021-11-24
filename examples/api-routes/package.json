@@ -1,5 +1,6 @@
 {
-  "private": true,
+  "name": "api-routes",
+  "version": "1.0.0",
   "scripts": {
     "dev": "next",
     "build": "next build",
@@ -7,8 +8,9 @@
   },
   "dependencies": {
     "next": "latest",
-    "react": "^17.0.2",
-    "react-dom": "^17.0.2",
-    "swr": "^1.0.1"
-  }
+    "react": "^16.8.6",
+    "react-dom": "^16.8.6",
+    "swr": "0.1.18"
+  },
+  "license": "MIT"
 }

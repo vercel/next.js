@@ -10,6 +10,8 @@ import {
   nextStart,
 } from 'next-test-utils'
 
+jest.setTimeout(1000 * 60 * 2)
+
 let app
 let appPort
 const appDir = join(__dirname, '../')

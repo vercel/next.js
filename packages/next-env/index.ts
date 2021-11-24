@@ -106,7 +106,7 @@ export function loadEnvConfig(
         path: envFile,
         contents,
       })
-    } catch (err: any) {
+    } catch (err) {
       if (err.code !== 'ENOENT') {
         log.error(`Failed to load env from ${envFile}`, err)
       }

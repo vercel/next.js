@@ -1,5 +1,6 @@
 {
-  "private": true,
+  "name": "with-zustand",
+  "version": "1.0.0",
   "scripts": {
     "dev": "next",
     "build": "next build",
@@ -7,8 +8,9 @@
   },
   "dependencies": {
     "next": "latest",
-    "react": "^17.0.2",
-    "react-dom": "^17.0.2",
-    "zustand": "^3.5.4"
-  }
+    "react": "^16.9.0",
+    "react-dom": "^16.9.0",
+    "zustand": "3.5.0"
+  },
+  "license": "MIT"
 }

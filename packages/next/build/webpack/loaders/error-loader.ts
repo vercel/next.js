@@ -1,10 +1,10 @@
 import chalk from 'chalk'
+import loaderUtils from 'next/dist/compiled/loader-utils'
 import path from 'path'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 
 const ErrorLoader: webpack.loader.Loader = function () {
-  // @ts-ignore exists
-  const options = this.getOptions() || {}
+  const options = loaderUtils.getOptions(this) || {}
 
   const { reason = 'An unknown error has occurred' } = options
 

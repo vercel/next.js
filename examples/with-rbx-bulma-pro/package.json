@@ -1,5 +1,5 @@
 {
-  "private": true,
+  "name": "with-rbx-bulma-pro",
   "scripts": {
     "dev": "next",
     "build": "next build",
@@ -7,12 +7,10 @@
   },
   "dependencies": {
     "bulma-pro": "^0.1.7",
-    "next": "latest",
+    "next": "^9.1.8-canary.11",
     "rbx": "^2.2.0",
-    "react": "^17.0.2",
-    "react-dom": "^17.0.2"
+    "react": "^16.13.1",
+    "react-dom": "^16.13.1"
   },
-  "devDependencies": {
-    "tslib": "2.3.0"
-  }
+  "license": "MIT"
 }

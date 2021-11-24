@@ -6,27 +6,16 @@ type Params = {
 
 type Props = {
   data: string
-  title: string
 }
 
-type PreviewData = {
-  title: string
-}
-
-export const getServerSideProps: GetServerSideProps<
-  Props,
-  Params,
-  PreviewData
-> = async ({ params, previewData }) => {
+export const getServerSideProps: GetServerSideProps<Props, Params> = async ({
+  params,
+}) => {
   return {
-    props: { data: params!.slug, title: previewData?.title || 'default title' },
+    props: { data: params!.slug },
   }
 }
 
-export default function Page({ data, title }: Props) {
-  return (
-    <h1>
-      {data} {title}
-    </h1>
-  )
+export default function Page({ data }: Props) {
+  return <h1>{data}</h1>
 }

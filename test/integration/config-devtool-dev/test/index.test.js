@@ -11,6 +11,8 @@ import {
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 
+jest.setTimeout(1000 * 30)
+
 const appDir = join(__dirname, '../')
 
 describe('devtool set in development mode in next config', () => {

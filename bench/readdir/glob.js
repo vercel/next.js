@@ -1,7 +1,6 @@
-import { join } from 'path'
-import { promisify } from 'util'
-import globMod from 'glob'
-
+const { join } = require('path')
+const { promisify } = require('util')
+const globMod = require('glob')
 const glob = promisify(globMod)
 const resolveDataDir = join(__dirname, 'fixtures', '**/*')
 

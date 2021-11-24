@@ -12,6 +12,7 @@ import {
 const appDir = join(__dirname, '../')
 let appPort
 let app
+jest.setTimeout(1000 * 60 * 5)
 
 describe('External Assets', () => {
   beforeAll(async () => {

@@ -1,3 +1,1 @@
-const Page = () => 'multi-rewrites'
-
-export default Page
+export default () => 'multi-rewrites'

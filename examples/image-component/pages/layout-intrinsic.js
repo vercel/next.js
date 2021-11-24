@@ -1,6 +1,5 @@
 import Image from 'next/image'
 import ViewSource from '../components/view-source'
-import mountains from '../public/mountains.jpg'
 
 const Intrinsic = () => (
   <div>
@@ -8,7 +7,7 @@ const Intrinsic = () => (
     <h1>Image Component With Layout Intrinsic</h1>
     <Image
       alt="Mountains"
-      src={mountains}
+      src="/mountains.jpg"
       layout="intrinsic"
       width={700}
       height={475}

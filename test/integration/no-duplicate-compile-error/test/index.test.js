@@ -10,6 +10,8 @@ import {
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 
+jest.setTimeout(1000 * 60 * 3)
+
 const appDir = join(__dirname, '../')
 
 describe('no duplicate compile error output', () => {
@@ -54,8 +56,7 @@ describe('no duplicate compile error output', () => {
       return (str.match(regex) || []).length
     }
 
-    const correctMessagesRegex =
-      /error - [^\r\n]+\r?\n[^\r\n]+Unexpected token/g
+    const correctMessagesRegex = /error - [^\r\n]+\r?\n[^\r\n]+Unexpected token/g
     const totalMessagesRegex = /Unexpected token/g
 
     const correctMessages = getRegexCount(stderr, correctMessagesRegex)

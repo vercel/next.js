@@ -4,6 +4,8 @@ import { readdir, readFile, remove } from 'fs-extra'
 import { nextBuild } from 'next-test-utils'
 import { join } from 'path'
 
+jest.setTimeout(1000 * 60 * 1)
+
 const fixturesDir = join(__dirname, '../fixtures')
 
 describe('Browserslist: Old', () => {
@@ -197,7 +199,7 @@ describe('CSS Modules: Import Global CSS', () => {
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
 
     expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
-      `"a .styles_foo__Io_Us{all:initial}"`
+      `"a .styles_foo__31qlD{all:initial}"`
     )
   })
 })
@@ -247,7 +249,7 @@ describe('CSS Modules: Import Exports', () => {
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
 
     expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
-      `".styles_blk__CqbFg{color:#000}"`
+      `".styles_blk__2ns7r{color:#000}"`
     )
   })
 })

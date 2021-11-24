@@ -40,36 +40,6 @@ function reactElementToDOM({ type, props }: JSX.Element): HTMLElement {
   return el
 }
 
-/**
- * When a `nonce` is present on an element, browsers such as Chrome and Firefox strip it out of the
- * actual HTML attributes for security reasons *when the element is added to the document*. Thus,
- * given two equivalent elements that have nonces, `Element,isEqualNode()` will return false if one
- * of those elements gets added to the document. Although the `element.nonce` property will be the
- * same for both elements, the one that was added to the document will return an empty string for
- * its nonce HTML attribute value.
- *
- * This custom `isEqualNode()` function therefore removes the nonce value from the `newTag` before
- * comparing it to `oldTag`, restoring it afterwards.
- *
- * For more information, see:
- * https://bugs.chromium.org/p/chromium/issues/detail?id=1211471#c12
- */
-export function isEqualNode(oldTag: Element, newTag: Element) {
-  if (oldTag instanceof HTMLElement && newTag instanceof HTMLElement) {
-    const nonce = newTag.getAttribute('nonce')
-    // Only strip the nonce if `oldTag` has had it stripped. An element's nonce attribute will not
-    // be stripped if there is no content security policy response header that includes a nonce.
-    if (nonce && !oldTag.getAttribute('nonce')) {
-      const cloneTag = newTag.cloneNode(true) as typeof newTag
-      cloneTag.setAttribute('nonce', '')
-      cloneTag.nonce = nonce
-      return nonce === oldTag.nonce && oldTag.isEqualNode(cloneTag)
-    }
-  }
-
-  return oldTag.isEqualNode(newTag)
-}
-
 function updateElements(type: string, components: JSX.Element[]): void {
   const headEl = document.getElementsByTagName('head')[0]
   const headCountEl: HTMLMetaElement = headEl.querySelector(
@@ -90,17 +60,17 @@ function updateElements(type: string, components: JSX.Element[]): void {
   for (
     let i = 0, j = headCountEl.previousElementSibling;
     i < headCount;
-    i++, j = j?.previousElementSibling || null
+    i++, j = j!.previousElementSibling
   ) {
-    if (j?.tagName?.toLowerCase() === type) {
-      oldTags.push(j)
+    if (j!.tagName.toLowerCase() === type) {
+      oldTags.push(j!)
     }
   }
   const newTags = (components.map(reactElementToDOM) as HTMLElement[]).filter(
     (newTag) => {
       for (let k = 0, len = oldTags.length; k < len; k++) {
         const oldTag = oldTags[k]
-        if (isEqualNode(oldTag, newTag)) {
+        if (oldTag.isEqualNode(newTag)) {
           oldTags.splice(k, 1)
           return false
         }
@@ -109,7 +79,7 @@ function updateElements(type: string, components: JSX.Element[]): void {
     }
   )
 
-  oldTags.forEach((t) => t.parentNode?.removeChild(t))
+  oldTags.forEach((t) => t.parentNode!.removeChild(t))
   newTags.forEach((t) => headEl.insertBefore(t, headCountEl))
   headCountEl.content = (headCount - oldTags.length + newTags.length).toString()
 }
@@ -134,20 +104,14 @@ export default function initHeadManager(): {
             // If the font tag is loaded only on client navigation
             // it won't be inlined. In this case revert to the original behavior
             h.type === 'link' &&
-            h.props['data-optimized-fonts']
+            h.props['data-optimized-fonts'] &&
+            !document.querySelector(
+              `style[data-href="${h.props['data-href']}"]`
+            )
           ) {
-            if (
-              document.querySelector(
-                `style[data-href="${h.props['data-href']}"]`
-              )
-            ) {
-              return
-            } else {
-              h.props.href = h.props['data-href']
-              h.props['data-href'] = undefined
-            }
+            h.props.href = h.props['data-href']
+            h.props['data-href'] = undefined
           }
-
           const components = tags[h.type] || []
           components.push(h)
           tags[h.type] = components

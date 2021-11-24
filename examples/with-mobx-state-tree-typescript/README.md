@@ -1,4 +1,4 @@
-# MobX State Tree with TypeScript example
+# MobX State Tree with Typescript example
 
 Usually splitting your app state into `pages` feels natural but sometimes you'll want to have global state for your app. This is an example on how you can use mobx that also works with our universal rendering approach.
 
@@ -9,12 +9,6 @@ To illustrate SSG and SSR, go to `/ssg` and `/ssr`, those pages are using Next.j
 The trick here for supporting universal mobx is to separate the cases for the client and the server. When we are on the server we want to create a new store every time, otherwise different users data will be mixed up. If we are in the client we want to use always the same store. That's what we accomplish on `store.js`
 
 The clock, under `components/Clock.js`, has access to the state using the `inject` and `observer` functions from `mobx-react`. In this case Clock is a direct child from the page but it could be deep down the render tree.
-
-## Preview
-
-Preview the example live on [StackBlitz](http://stackblitz.com/):
-
-[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-mobx-state-tree-typescript)
 
 ## Deploy your own
 

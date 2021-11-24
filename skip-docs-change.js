@@ -3,16 +3,7 @@ const { exec: execOrig, spawn } = require('child_process')
 
 const exec = promisify(execOrig)
 
-const DOCS_FOLDERS = [
-  'bench',
-  'docs',
-  'errors',
-  'examples',
-  'UPGRADING.md',
-  'contributing.md',
-  'CODE_OF_CONDUCT.md',
-  'readme.md',
-]
+const DOCS_FOLDERS = ['bench', 'docs', 'errors', 'examples']
 
 async function main() {
   await exec('git fetch origin canary')

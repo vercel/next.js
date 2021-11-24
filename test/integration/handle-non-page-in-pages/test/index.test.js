@@ -3,6 +3,7 @@
 import path from 'path'
 import { nextBuild } from 'next-test-utils'
 
+jest.setTimeout(1000 * 60 * 2)
 const appDir = path.join(__dirname, '..')
 
 describe('Handle non-page in pages when target: serverless', () => {

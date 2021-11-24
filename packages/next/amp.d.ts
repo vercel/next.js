@@ -1,1 +1,1 @@
-export * from './dist/shared/lib/amp'
+export * from './dist/next-server/lib/amp'

@@ -1,7 +1,9 @@
 /* eslint-env jest */
 import fs from 'fs-extra'
 import { join } from 'path'
-import { launchApp, findPort, nextBuild, killApp } from 'next-test-utils'
+import { launchApp, findPort, nextBuild } from 'next-test-utils'
+
+jest.setTimeout(1000 * 60 * 2)
 
 const appDir = join(__dirname, '..')
 const nextConfig = join(appDir, 'next.config.js')
@@ -27,7 +29,7 @@ const runTests = () => {
 
     const stdout = await getStdout()
 
-    expect(stdout).toMatch(/compiled .*successfully/i)
+    expect(stdout).toContain('ompiled successfully')
   })
 
   it('should ignore configs set to `null` in next.config.js', async () => {
@@ -48,7 +50,7 @@ const runTests = () => {
 
     const stdout = await getStdout()
 
-    expect(stdout).toMatch(/compiled .*successfully/i)
+    expect(stdout).toContain('ompiled successfully')
   })
 }
 
@@ -59,12 +61,11 @@ describe('Nullish configs in next.config.js', () => {
     beforeAll(() => {
       getStdout = async () => {
         let stdout = ''
-        const app = await launchApp(appDir, await findPort(), {
+        await launchApp(appDir, await findPort(), {
           onStdout: (msg) => {
             stdout += msg
           },
         })
-        await killApp(app)
         return stdout
       }
     })

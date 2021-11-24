@@ -7,7 +7,7 @@ import {
   readFileSync,
   writeFileSync,
 } from 'fs'
-import { Worker } from '../lib/worker'
+import { Worker } from 'jest-worker'
 import { dirname, join, resolve, sep } from 'path'
 import { promisify } from 'util'
 import { AmpPageStatus, formatAmpMessages } from '../build/output/index'
@@ -20,6 +20,7 @@ import {
   BUILD_ID_FILE,
   CLIENT_PUBLIC_FILES_PATH,
   CLIENT_STATIC_FILES_PATH,
+  CONFIG_FILE,
   EXPORT_DETAIL,
   EXPORT_MARKER,
   PAGES_MANIFEST,
@@ -27,21 +28,24 @@ import {
   PRERENDER_MANIFEST,
   SERVERLESS_DIRECTORY,
   SERVER_DIRECTORY,
-} from '../shared/lib/constants'
-import loadConfig, { isTargetLikeServerless } from '../server/config'
-import { NextConfigComplete } from '../server/config-shared'
+} from '../next-server/lib/constants'
+import loadConfig, {
+  isTargetLikeServerless,
+  NextConfig,
+} from '../next-server/server/config'
 import { eventCliSession } from '../telemetry/events'
 import { hasNextSupport } from '../telemetry/ci-info'
 import { Telemetry } from '../telemetry/storage'
 import {
   normalizePagePath,
   denormalizePagePath,
-} from '../server/normalize-page-path'
+} from '../next-server/server/normalize-page-path'
 import { loadEnvConfig } from '@next/env'
 import { PrerenderManifest } from '../build'
+import exportPage from './worker'
 import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
-import { getPagePath } from '../server/require'
-import { Span } from '../trace'
+import { getPagePath } from '../next-server/server/require'
+import { trace } from '../telemetry/trace'
 
 const exists = promisify(existsOrig)
 
@@ -66,7 +70,6 @@ const createProgress = (total: number, label: string) => {
   }
   let currentSegmentTotal = segments.shift()
   let currentSegmentCount = 0
-  let lastProgressOutput = Date.now()
   let curProgress = 0
   let progressSpinner = createSpinner(`${label} (${curProgress}/${total})`, {
     spinner: {
@@ -87,29 +90,21 @@ const createProgress = (total: number, label: string) => {
         '[==  ]',
         '[=   ]',
       ],
-      interval: 500,
+      interval: 80,
     },
   })
 
   return () => {
     curProgress++
+    currentSegmentCount++
 
-    // Make sure we only log once
-    // - per fully generated segment, or
-    // - per minute
-    // when not showing the spinner
-    if (!progressSpinner) {
-      currentSegmentCount++
-
-      if (currentSegmentCount === currentSegmentTotal) {
-        currentSegmentTotal = segments.shift()
-        currentSegmentCount = 0
-      } else if (lastProgressOutput + 60000 > Date.now()) {
-        return
-      }
-
-      lastProgressOutput = Date.now()
+    // Make sure we only log once per fully generated segment
+    if (currentSegmentCount !== currentSegmentTotal) {
+      return
     }
+
+    currentSegmentTotal = segments.shift()
+    currentSegmentCount = 0
 
     const newText = `${label} (${curProgress}/${total})`
     if (progressSpinner) {
@@ -136,17 +131,14 @@ interface ExportOptions {
   pages?: string[]
   buildExport?: boolean
   statusMessage?: string
-  exportPageWorker?: typeof import('./worker').default
-  endWorker?: () => Promise<void>
 }
 
 export default async function exportApp(
   dir: string,
   options: ExportOptions,
-  span: Span,
-  configuration?: NextConfigComplete
+  configuration?: NextConfig
 ): Promise<void> {
-  const nextExportSpan = span.traceChild('next-export')
+  const nextExportSpan = trace('next-export')
 
   return nextExportSpan.traceAsyncFn(async () => {
     dir = resolve(dir)
@@ -168,7 +160,7 @@ export default async function exportApp(
 
     if (telemetry) {
       telemetry.record(
-        eventCliSession(distDir, nextConfig, {
+        eventCliSession(PHASE_EXPORT, distDir, {
           webpackVersion: null,
           cliCommand: 'export',
           isSrcDir: null,
@@ -316,7 +308,7 @@ export default async function exportApp(
     if (typeof nextConfig.exportPathMap !== 'function') {
       if (!options.silent) {
         Log.info(
-          `No "exportPathMap" found in "${nextConfig.configFile}". Generating map from "./pages"`
+          `No "exportPathMap" found in "${CONFIG_FILE}". Generating map from "./pages"`
         )
       }
       nextConfig.exportPathMap = async (defaultMap: ExportPathMap) => {
@@ -378,9 +370,6 @@ export default async function exportApp(
       domainLocales: i18n?.domains,
       trailingSlash: nextConfig.trailingSlash,
       disableOptimizedLoading: nextConfig.experimental.disableOptimizedLoading,
-      // Exported pages do not currently support dynamic HTML.
-      supportsDynamicHTML: false,
-      concurrentFeatures: nextConfig.experimental.concurrentFeatures,
     }
 
     const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
@@ -520,42 +509,15 @@ export default async function exportApp(
         )
     }
 
-    const timeout = configuration?.staticPageGenerationTimeout || 0
-    let infoPrinted = false
-    let exportPage: typeof import('./worker').default
-    let endWorker: () => Promise<void>
-    if (options.exportPageWorker) {
-      exportPage = options.exportPageWorker
-      endWorker = options.endWorker || (() => Promise.resolve())
-    } else {
-      const worker = new Worker(require.resolve('./worker'), {
-        timeout: timeout * 1000,
-        onRestart: (_method, [{ path }], attempts) => {
-          if (attempts >= 3) {
-            throw new Error(
-              `Static page generation for ${path} is still timing out after 3 attempts. See more info here https://nextjs.org/docs/messages/static-page-generation-timeout`
-            )
-          }
-          Log.warn(
-            `Restarted static page generation for ${path} because it took more than ${timeout} seconds`
-          )
-          if (!infoPrinted) {
-            Log.warn(
-              'See more info here https://nextjs.org/docs/messages/static-page-generation-timeout'
-            )
-            infoPrinted = true
-          }
-        },
-        maxRetries: 0,
-        numWorkers: threads,
-        enableWorkerThreads: nextConfig.experimental.workerThreads,
-        exposedMethods: ['default'],
-      }) as Worker & typeof import('./worker')
-      exportPage = worker.default.bind(worker)
-      endWorker = async () => {
-        await worker.end()
-      }
-    }
+    const worker = new Worker(require.resolve('./worker'), {
+      maxRetries: 0,
+      numWorkers: threads,
+      enableWorkerThreads: nextConfig.experimental.workerThreads,
+      exposedMethods: ['default'],
+    }) as Worker & { default: typeof exportPage }
+
+    worker.getStdout().pipe(process.stdout)
+    worker.getStderr().pipe(process.stderr)
 
     let renderError = false
     const errorPaths: string[] = []
@@ -566,10 +528,9 @@ export default async function exportApp(
         pageExportSpan.setAttribute('path', path)
 
         return pageExportSpan.traceAsyncFn(async () => {
-          const pathMap = exportPathMap[path]
-          const result = await exportPage({
+          const result = await worker.default({
             path,
-            pathMap,
+            pathMap: exportPathMap[path],
             distDir,
             outDir,
             pagesDataDir,
@@ -584,7 +545,6 @@ export default async function exportApp(
             disableOptimizedLoading:
               nextConfig.experimental.disableOptimizedLoading,
             parentSpanId: pageExportSpan.id,
-            httpAgentOptions: nextConfig.httpAgentOptions,
           })
 
           for (const validation of result.ampValidations || []) {
@@ -607,10 +567,6 @@ export default async function exportApp(
             if (result.ssgNotFound === true) {
               configuration.ssgNotFoundPaths.push(path)
             }
-
-            const durations = (configuration.pageDurationMap[pathMap.page] =
-              configuration.pageDurationMap[pathMap.page] || {})
-            durations[path] = result.duration
           }
 
           if (progress) progress()
@@ -618,7 +574,7 @@ export default async function exportApp(
       })
     )
 
-    const endWorkerPromise = endWorker()
+    worker.end()
 
     // copy prerendered routes to outDir
     if (!options.buildExport && prerenderManifest) {
@@ -626,14 +582,6 @@ export default async function exportApp(
         Object.keys(prerenderManifest.routes).map(async (route) => {
           const { srcRoute } = prerenderManifest!.routes[route]
           const pageName = srcRoute || route
-          route = normalizePagePath(route)
-
-          // returning notFound: true from getStaticProps will not
-          // output html/json files during the build
-          if (prerenderManifest!.notFoundRoutes.includes(route)) {
-            return
-          }
-
           const pagePath = getPagePath(pageName, distDir, isLikeServerless)
           const distPagesDir = join(
             pagePath,
@@ -645,6 +593,7 @@ export default async function exportApp(
               .map(() => '..')
               .join('/')
           )
+          route = normalizePagePath(route)
 
           const orig = join(distPagesDir, route)
           const htmlDest = join(
@@ -661,12 +610,8 @@ export default async function exportApp(
 
           await promises.mkdir(dirname(htmlDest), { recursive: true })
           await promises.mkdir(dirname(jsonDest), { recursive: true })
-
-          const htmlSrc = `${orig}.html`
-          const jsonSrc = `${orig}.json`
-
-          await promises.copyFile(htmlSrc, htmlDest)
-          await promises.copyFile(jsonSrc, jsonDest)
+          await promises.copyFile(`${orig}.html`, htmlDest)
+          await promises.copyFile(`${orig}.json`, jsonDest)
 
           if (await exists(`${orig}.amp.html`)) {
             await promises.mkdir(dirname(ampHtmlDest), { recursive: true })
@@ -706,7 +651,5 @@ export default async function exportApp(
     if (telemetry) {
       await telemetry.flush()
     }
-
-    await endWorkerPromise
   })
 }

@@ -1,13 +1,24 @@
-import { initNext, version, router, emitter, render, renderError } from './'
+/* globals __REPLACE_NOOP_IMPORT__ */
+import initNext, * as next from './'
+import EventSourcePolyfill from './dev/event-source-polyfill'
 import initOnDemandEntries from './dev/on-demand-entries-client'
 import initWebpackHMR from './dev/webpack-hot-middleware-client'
 import initializeBuildWatcher from './dev/dev-build-watcher'
 import { displayContent } from './dev/fouc'
-import { connectHMR, addMessageListener } from './dev/error-overlay/websocket'
-import {
-  assign,
-  urlQueryToSearchParams,
-} from '../shared/lib/router/utils/querystring'
+import { addMessageListener } from './dev/error-overlay/eventsource'
+import * as querystring from '../next-server/lib/router/utils/querystring'
+
+// Temporary workaround for the issue described here:
+// https://github.com/vercel/next.js/issues/3775#issuecomment-407438123
+// The runtimeChunk doesn't have dynamic import handling code when there hasn't been a dynamic import
+// The runtimeChunk can't hot reload itself currently to correct it when adding pages using on-demand-entries
+// eslint-disable-next-line no-unused-expressions
+__REPLACE_NOOP_IMPORT__
+
+// Support EventSource on Internet Explorer 11
+if (!window.EventSource) {
+  window.EventSource = EventSourcePolyfill
+}
 
 const {
   __NEXT_DATA__: { assetPrefix },
@@ -16,40 +27,10 @@ const {
 const prefix = assetPrefix || ''
 const webpackHMR = initWebpackHMR()
 
-connectHMR({ assetPrefix: prefix, path: '/_next/webpack-hmr' })
-
-if (!window._nextSetupHydrationWarning) {
-  const origConsoleError = window.console.error
-  window.console.error = (...args) => {
-    const isHydrateError = args.some(
-      (arg) =>
-        typeof arg === 'string' &&
-        arg.match(/Warning:.*?did not match.*?Server:/)
-    )
-    if (isHydrateError) {
-      args = [
-        ...args,
-        `\n\nSee more info here: https://nextjs.org/docs/messages/react-hydration-error`,
-      ]
-    }
-    origConsoleError.apply(window.console, args)
-  }
-  window._nextSetupHydrationWarning = true
-}
-
-window.next = {
-  version,
-  // router is initialized later so it has to be live-binded
-  get router() {
-    return router
-  },
-  emitter,
-  render,
-  renderError,
-}
+window.next = next
 initNext({ webpackHMR })
-  .then(({ renderCtx }) => {
-    initOnDemandEntries()
+  .then(({ renderCtx, render }) => {
+    initOnDemandEntries({ assetPrefix: prefix })
 
     let buildIndicatorHandler = () => {}
 
@@ -63,16 +44,9 @@ initNext({ webpackHMR })
           .catch((err) => {
             console.log(`Failed to fetch devPagesManifest`, err)
           })
-      } else if (event.data.indexOf('middlewareChanges') !== -1) {
-        return window.location.reload()
       } else if (event.data.indexOf('serverOnlyChanges') !== -1) {
         const { pages } = JSON.parse(event.data)
-
-        // Make sure to reload when the dev-overlay is showing for an
-        // API route
-        if (pages.includes(router.query.__NEXT_PAGE)) {
-          return window.location.reload()
-        }
+        const router = window.next.router
 
         if (!router.clc && pages.includes(router.pathname)) {
           console.log('Refreshing page data due to server-side change')
@@ -86,8 +60,8 @@ initNext({ webpackHMR })
               router.pathname +
                 '?' +
                 String(
-                  assign(
-                    urlQueryToSearchParams(router.query),
+                  querystring.assign(
+                    querystring.urlQueryToSearchParams(router.query),
                     new URLSearchParams(location.search)
                   )
                 ),
@@ -97,12 +71,13 @@ initNext({ webpackHMR })
         }
       }
     }
+    devPagesManifestListener.unfiltered = true
     addMessageListener(devPagesManifestListener)
 
     if (process.env.__NEXT_BUILD_INDICATOR) {
       initializeBuildWatcher((handler) => {
         buildIndicatorHandler = handler
-      }, process.env.__NEXT_BUILD_INDICATOR_POSITION)
+      })
     }
 
     // delay rendering until after styles have been applied in development

@@ -1,7 +1,6 @@
 /// <reference types="node" />
 /// <reference types="react" />
 /// <reference types="react-dom" />
-/// <reference types="styled-jsx" />
 
 import React from 'react'
 import { ParsedUrlQuery } from 'querystring'
@@ -14,18 +13,15 @@ import {
   NextApiRequest,
   NextApiHandler,
   // @ts-ignore This path is generated at build time and conflicts otherwise
-} from '../dist/shared/lib/utils'
+} from '../dist/next-server/lib/utils'
 
 import {
   NextApiRequestCookies,
   // @ts-ignore This path is generated at build time and conflicts otherwise
-} from '../dist/server/api-utils'
+} from '../dist/next-server/server/api-utils'
 
 // @ts-ignore This path is generated at build time and conflicts otherwise
 import next from '../dist/server/next'
-
-// @ts-ignore This path is generated at build time and conflicts otherwise
-export { NextConfig } from '../dist/server/config'
 
 // Extend the React types with missing properties
 declare module 'react' {
@@ -37,6 +33,12 @@ declare module 'react' {
   // <link nonce=""> support
   interface LinkHTMLAttributes<T> extends HTMLAttributes<T> {
     nonce?: string
+  }
+
+  // <style jsx> and <style jsx global> support for styled-jsx
+  interface StyleHTMLAttributes<T> extends HTMLAttributes<T> {
+    jsx?: boolean
+    global?: boolean
   }
 }
 
@@ -78,8 +80,6 @@ export type PageConfig = {
   env?: Array<string>
   unstable_runtimeJS?: false
   unstable_JsPreload?: false
-  unstable_includeFiles?: string[]
-  unstable_excludeFiles?: string[]
 }
 
 export {
@@ -92,13 +92,10 @@ export {
 
 export type PreviewData = string | false | object | undefined
 
-export type GetStaticPropsContext<
-  Q extends ParsedUrlQuery = ParsedUrlQuery,
-  D extends PreviewData = PreviewData
-> = {
+export type GetStaticPropsContext<Q extends ParsedUrlQuery = ParsedUrlQuery> = {
   params?: Q
   preview?: boolean
-  previewData?: D
+  previewData?: PreviewData
   locale?: string
   locales?: string[]
   defaultLocale?: string
@@ -107,21 +104,18 @@ export type GetStaticPropsContext<
 export type GetStaticPropsResult<P> =
   | { props: P; revalidate?: number | boolean }
   | { redirect: Redirect; revalidate?: number | boolean }
-  | { notFound: true; revalidate?: number | boolean }
+  | { notFound: true }
 
 export type GetStaticProps<
   P extends { [key: string]: any } = { [key: string]: any },
-  Q extends ParsedUrlQuery = ParsedUrlQuery,
-  D extends PreviewData = PreviewData
-> = (
-  context: GetStaticPropsContext<Q, D>
-) => Promise<GetStaticPropsResult<P>> | GetStaticPropsResult<P>
+  Q extends ParsedUrlQuery = ParsedUrlQuery
+> = (context: GetStaticPropsContext<Q>) => Promise<GetStaticPropsResult<P>>
 
 export type InferGetStaticPropsType<T> = T extends GetStaticProps<infer P, any>
   ? P
   : T extends (
       context?: GetStaticPropsContext<any>
-    ) => Promise<GetStaticPropsResult<infer P>> | GetStaticPropsResult<infer P>
+    ) => Promise<GetStaticPropsResult<infer P>>
   ? P
   : never
 
@@ -137,11 +131,10 @@ export type GetStaticPathsResult<P extends ParsedUrlQuery = ParsedUrlQuery> = {
 
 export type GetStaticPaths<P extends ParsedUrlQuery = ParsedUrlQuery> = (
   context: GetStaticPathsContext
-) => Promise<GetStaticPathsResult<P>> | GetStaticPathsResult<P>
+) => Promise<GetStaticPathsResult<P>>
 
 export type GetServerSidePropsContext<
-  Q extends ParsedUrlQuery = ParsedUrlQuery,
-  D extends PreviewData = PreviewData
+  Q extends ParsedUrlQuery = ParsedUrlQuery
 > = {
   req: IncomingMessage & {
     cookies: NextApiRequestCookies
@@ -150,7 +143,7 @@ export type GetServerSidePropsContext<
   params?: Q
   query: ParsedUrlQuery
   preview?: boolean
-  previewData?: D
+  previewData?: PreviewData
   resolvedUrl: string
   locale?: string
   locales?: string[]
@@ -158,16 +151,15 @@ export type GetServerSidePropsContext<
 }
 
 export type GetServerSidePropsResult<P> =
-  | { props: P | Promise<P> }
+  | { props: P }
   | { redirect: Redirect }
   | { notFound: true }
 
 export type GetServerSideProps<
   P extends { [key: string]: any } = { [key: string]: any },
-  Q extends ParsedUrlQuery = ParsedUrlQuery,
-  D extends PreviewData = PreviewData
+  Q extends ParsedUrlQuery = ParsedUrlQuery
 > = (
-  context: GetServerSidePropsContext<Q, D>
+  context: GetServerSidePropsContext<Q>
 ) => Promise<GetServerSidePropsResult<P>>
 
 export type InferGetServerSidePropsType<T> = T extends GetServerSideProps<
@@ -180,28 +172,5 @@ export type InferGetServerSidePropsType<T> = T extends GetServerSideProps<
     ) => Promise<GetServerSidePropsResult<infer P>>
   ? P
   : never
-
-declare global {
-  interface Crypto {
-    readonly subtle: SubtleCrypto
-    getRandomValues<
-      T extends
-        | Int8Array
-        | Int16Array
-        | Int32Array
-        | Uint8Array
-        | Uint16Array
-        | Uint32Array
-        | Uint8ClampedArray
-        | Float32Array
-        | Float64Array
-        | DataView
-        | null
-    >(
-      array: T
-    ): T
-    randomUUID?(): string
-  }
-}
 
 export default next

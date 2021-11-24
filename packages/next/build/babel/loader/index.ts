@@ -1,4 +1,6 @@
-import { Span } from '../../../trace'
+import { getOptions } from 'next/dist/compiled/loader-utils'
+import { trace } from '../../../telemetry/trace'
+import { Span } from '../../../telemetry/trace'
 import transform from './transform'
 import { NextJsLoaderContext } from './types'
 
@@ -12,22 +14,23 @@ async function nextBabelLoader(
   const target = this.target
   const loaderOptions = parentTrace
     .traceChild('get-options')
-    // @ts-ignore TODO: remove ignore once webpack 5 types are used
-    .traceFn(() => this.getOptions())
+    .traceFn(() => getOptions(this))
 
   const loaderSpanInner = parentTrace.traceChild('next-babel-turbo-transform')
-  const { code: transformedSource, map: outputSourceMap } =
-    loaderSpanInner.traceFn(() =>
-      transform.call(
-        this,
-        inputSource,
-        inputSourceMap,
-        loaderOptions,
-        filename,
-        target,
-        loaderSpanInner
-      )
+  const {
+    code: transformedSource,
+    map: outputSourceMap,
+  } = loaderSpanInner.traceFn(() =>
+    transform.call(
+      this,
+      inputSource,
+      inputSourceMap,
+      loaderOptions,
+      filename,
+      target,
+      loaderSpanInner
     )
+  )
 
   return [transformedSource, outputSourceMap]
 }
@@ -39,7 +42,7 @@ const nextBabelLoaderOuter = function nextBabelLoaderOuter(
 ) {
   const callback = this.async()
 
-  const loaderSpan = this.currentTraceSpan.traceChild('next-babel-turbo-loader')
+  const loaderSpan = trace('next-babel-turbo-loader', this.currentTraceSpan?.id)
   loaderSpan
     .traceAsyncFn(() =>
       nextBabelLoader.call(this, loaderSpan, inputSource, inputSourceMap)

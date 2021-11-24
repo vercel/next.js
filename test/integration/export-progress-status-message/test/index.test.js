@@ -3,6 +3,7 @@
 import { join } from 'path'
 import { nextBuild, nextExportDefault } from 'next-test-utils'
 
+jest.setTimeout(1000 * 60 * 5)
 const appDir = join(__dirname, '../')
 
 describe('Export cli prints progress info', () => {

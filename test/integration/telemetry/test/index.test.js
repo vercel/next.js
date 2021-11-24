@@ -9,8 +9,9 @@ import {
   killApp,
   waitFor,
   nextBuild,
-  nextLint,
 } from 'next-test-utils'
+
+jest.setTimeout(1000 * 60 * 2)
 
 const appDir = path.join(__dirname, '..')
 
@@ -331,8 +332,8 @@ describe('Telemetry CLI', () => {
     expect(event1).toMatch(/"staticPropsPageCount": 2/)
     expect(event1).toMatch(/"serverPropsPageCount": 1/)
     expect(event1).toMatch(/"ssrPageCount": 1/)
-    expect(event1).toMatch(/"staticPageCount": 4/)
-    expect(event1).toMatch(/"totalPageCount": 8/)
+    expect(event1).toMatch(/"staticPageCount": 2/)
+    expect(event1).toMatch(/"totalPageCount": 6/)
   })
 
   it('detects isSrcDir dir correctly for `next dev`', async () => {
@@ -450,7 +451,6 @@ describe('Telemetry CLI', () => {
     expect(event1).toMatch(/"headersCount": 1/)
     expect(event1).toMatch(/"rewritesCount": 2/)
     expect(event1).toMatch(/"redirectsCount": 1/)
-    expect(event1).toMatch(/"middlewareCount": 0/)
   })
 
   it('detects i18n and image configs for session start', async () => {
@@ -516,131 +516,5 @@ describe('Telemetry CLI', () => {
     expect(event2).toMatch(/"imageSizes": "64,128,256,512,1024"/)
     expect(event2).toMatch(/"trailingSlashEnabled": false/)
     expect(event2).toMatch(/"reactStrictMode": false/)
-  })
-
-  it('emits telemetry for lint during build', async () => {
-    await fs.writeFile(
-      path.join(appDir, '.eslintrc'),
-      `{ "root": true, "extends": "next" }`
-    )
-    const { stderr } = await nextBuild(appDir, [], {
-      stderr: true,
-      env: { NEXT_TELEMETRY_DEBUG: 1 },
-    })
-    await fs.remove(path.join(appDir, '.eslintrc'))
-
-    const event1 = /NEXT_LINT_CHECK_COMPLETED[\s\S]+?{([\s\S]+?)}/
-      .exec(stderr)
-      .pop()
-
-    expect(event1).toMatch(/"durationInSeconds": [\d]{1,}/)
-    expect(event1).toMatch(/"eslintVersion": ".*?\..*?\..*?"/)
-    expect(event1).toMatch(/"lintedFilesCount": [\d]{1,}/)
-    expect(event1).toMatch(/"lintFix": false/)
-    expect(event1).toMatch(/"buildLint": true/)
-    expect(event1).toMatch(/"nextEslintPluginVersion": ".*?\..*?\..*?"/)
-    expect(event1).toMatch(/"nextEslintPluginErrorsCount": \d{1,}/)
-    expect(event1).toMatch(/"nextEslintPluginWarningsCount": \d{1,}/)
-  })
-
-  it('emits telemetry for `next lint`', async () => {
-    await fs.writeFile(
-      path.join(appDir, '.eslintrc'),
-      `{ "root": true, "extends": "next" }`
-    )
-    const { stderr } = await nextLint(appDir, [], {
-      stderr: true,
-      env: { NEXT_TELEMETRY_DEBUG: 1 },
-    })
-    await fs.remove(path.join(appDir, '.eslintrc'))
-
-    const event1 = /NEXT_LINT_CHECK_COMPLETED[\s\S]+?{([\s\S]+?)}/
-      .exec(stderr)
-      .pop()
-
-    expect(event1).toMatch(/"durationInSeconds": [\d]{1,}/)
-    expect(event1).toMatch(/"eslintVersion": ".*?\..*?\..*?"/)
-    expect(event1).toMatch(/"lintedFilesCount": [\d]{1,}/)
-    expect(event1).toMatch(/"lintFix": false/)
-    expect(event1).toMatch(/"buildLint": false/)
-    expect(event1).toMatch(/"nextEslintPluginVersion": ".*?\..*?\..*?"/)
-    expect(event1).toMatch(/"nextEslintPluginErrorsCount": \d{1,}/)
-    expect(event1).toMatch(/"nextEslintPluginWarningsCount": \d{1,}/)
-  })
-
-  it('emits telemery for usage of image, script & dynamic', async () => {
-    const { stderr } = await nextBuild(appDir, [], {
-      stderr: true,
-      env: { NEXT_TELEMETRY_DEBUG: 1 },
-    })
-    const regex = /NEXT_BUILD_FEATURE_USAGE[\s\S]+?{([\s\S]+?)}/g
-    regex.exec(stderr).pop() // optimizeCss
-    const optimizeFonts = regex.exec(stderr).pop()
-    expect(optimizeFonts).toContain(`"featureName": "optimizeFonts"`)
-    expect(optimizeFonts).toContain(`"invocationCount": 1`)
-    const swcLoader = regex.exec(stderr).pop()
-    expect(swcLoader).toContain(`"featureName": "swcLoader"`)
-    expect(swcLoader).toContain(`"invocationCount": 1`)
-    const swcMinify = regex.exec(stderr).pop()
-    expect(swcMinify).toContain(`"featureName": "swcMinify"`)
-    expect(swcMinify).toContain(`"invocationCount": 0`)
-    const image = regex.exec(stderr).pop()
-    expect(image).toContain(`"featureName": "next/image"`)
-    expect(image).toContain(`"invocationCount": 1`)
-    const script = regex.exec(stderr).pop()
-    expect(script).toContain(`"featureName": "next/script"`)
-    expect(script).toContain(`"invocationCount": 1`)
-    const dynamic = regex.exec(stderr).pop()
-    expect(dynamic).toContain(`"featureName": "next/dynamic"`)
-    expect(dynamic).toContain(`"invocationCount": 1`)
-  })
-
-  it('emits telemetry for usage of `optimizeCss`', async () => {
-    await fs.rename(
-      path.join(appDir, 'next.config.optimize-css'),
-      path.join(appDir, 'next.config.js')
-    )
-
-    const { stderr } = await nextBuild(appDir, [], {
-      stderr: true,
-      env: { NEXT_TELEMETRY_DEBUG: 1 },
-    })
-
-    await fs.rename(
-      path.join(appDir, 'next.config.js'),
-      path.join(appDir, 'next.config.optimize-css')
-    )
-
-    const regex = /NEXT_BUILD_FEATURE_USAGE[\s\S]+?{([\s\S]+?)}/g
-    const optimizeCss = regex.exec(stderr).pop()
-    expect(optimizeCss).toContain(`"featureName": "experimental/optimizeCss"`)
-    expect(optimizeCss).toContain(`"invocationCount": 1`)
-  })
-
-  it('emits telemetry for usage of _middleware', async () => {
-    await fs.writeFile(
-      path.join(appDir, 'pages/ssg/_middleware.js'),
-      `export function middleware (evt) {
-        evt.respondWith(new Response(null))
-      }`
-    )
-    await fs.writeFile(
-      path.join(appDir, 'pages/_middleware.js'),
-      `export function middleware (evt) {
-        evt.respondWith(new Response(null))
-      }`
-    )
-
-    const { stderr } = await nextBuild(appDir, [], {
-      stderr: true,
-      env: { NEXT_TELEMETRY_DEBUG: 1 },
-    })
-
-    await fs.remove(path.join(appDir, 'pages/ssg/_middleware.js'))
-    await fs.remove(path.join(appDir, 'pages/_middleware.js'))
-
-    const regex = /NEXT_BUILD_OPTIMIZED[\s\S]+?{([\s\S]+?)}/
-    const optimizedEvt = regex.exec(stderr).pop()
-    expect(optimizedEvt).toContain(`"middlewareCount": 2`)
   })
 })

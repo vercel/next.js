@@ -1,6 +1,5 @@
 import Image from 'next/image'
 import ViewSource from '../components/view-source'
-import mountains from '../public/mountains.jpg'
 
 const Responsive = () => (
   <div>
@@ -8,7 +7,7 @@ const Responsive = () => (
     <h1>Image Component With Layout Responsive</h1>
     <Image
       alt="Mountains"
-      src={mountains}
+      src="/mountains.jpg"
       layout="responsive"
       width={700}
       height={475}

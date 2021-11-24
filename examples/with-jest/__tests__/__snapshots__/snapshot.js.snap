@@ -8,7 +8,7 @@ exports[`renders homepage unchanged 1`] = `
     <h1
       className="title"
     >
-      Welcome to 
+      Welcome to
       <a
         href="https://nextjs.org"
       >
@@ -18,7 +18,7 @@ exports[`renders homepage unchanged 1`] = `
     <p
       className="description"
     >
-      Get started by editing 
+      Get started by editing
       <code>
         pages/index.js
       </code>

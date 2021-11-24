@@ -5,6 +5,8 @@ import { check, findPort, killApp, launchApp } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 
+jest.setTimeout(1000 * 60 * 3)
+
 const appDir = join(__dirname, '../')
 
 describe('no anonymous default export warning', () => {

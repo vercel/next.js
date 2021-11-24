@@ -16,10 +16,10 @@ Then, follow these steps:
 
 1. [Sign up to Vercel](https://vercel.com/signup) (no credit card is required).
 2. After signing up, you’ll arrive on the [“Import Project”](https://vercel.com/new) page. Under “From Git Repository”, choose the Git provider you use and set up an integration. (Instructions: [GitHub](https://vercel.com/docs/git/vercel-for-github) / [GitLab](https://vercel.com/docs/git/vercel-for-gitlab) / [BitBucket](https://vercel.com/docs/git/vercel-for-bitbucket)).
-3. Once that’s set up, click “Import Project From …” and import your Next.js app. It auto-detects that your app is using Next.js and sets up the build configuration for you. No need to change anything — everything should work fine!
+3. Once that’s set up, click “Import Project From …” and import your Next.js app. It auto-detects that your app is using Next.js and sets up the build configuration for you. No need to change anything — everything should work just fine!
 4. After importing, it’ll deploy your Next.js app and provide you with a deployment URL. Click “Visit” to see your app in production.
 
-Congratulations! You’ve deployed your Next.js app! If you have questions, take a look at the [Vercel documentation](https://vercel.com/docs).
+Congratulations! You’ve just deployed your Next.js app! If you have questions, take a look at the [Vercel documentation](https://vercel.com/docs).
 
 > If you’re using a [custom server](/docs/advanced-features/custom-server.md), we strongly recommend migrating away from it (for example, by using [dynamic routing](/docs/routing/dynamic-routes.md)). If you cannot migrate, consider [other hosting options](#other-hosting-options).
 
@@ -56,18 +56,20 @@ When you deploy your Next.js application, you want to see the latest version wit
 
 Next.js will automatically load the latest version of your application in the background when routing. For client-side navigation, `next/link` will temporarily function as a normal `<a>` tag.
 
-**Note:** If a new page (with an old version) has already been prefetched by `next/link`, Next.js will use the old version. Then, after either a full page refresh or multiple client-side page transitions, Next.js will show the latest version.
+If a new page (with an old version) has already been prefetched by `next/link`, Next.js will use the old version. Then, after either a full page refresh or multiple client-side transitions, Next.js will show the latest version.
 
 ## Other hosting options
 
 ### Node.js Server
 
-Next.js can be deployed to any hosting provider that supports Node.js. Make sure your `package.json` has the `"build"` and `"start"` scripts:
+Next.js can be deployed to any hosting provider that supports Node.js. This is the approach you should take if you’re using a [custom server](/docs/advanced-features/custom-server.md).
+
+Make sure your `package.json` has the `"build"` and `"start"` scripts:
 
 ```json
 {
   "scripts": {
-    "dev": "next dev",
+    "dev": "next",
     "build": "next build",
     "start": "next start"
   }
@@ -75,8 +77,6 @@ Next.js can be deployed to any hosting provider that supports Node.js. Make sure
 ```
 
 `next build` builds the production application in the `.next` folder. After building, `next start` starts a Node.js server that supports [hybrid pages](/docs/basic-features/pages.md), serving both statically generated and server-side rendered pages.
-
-If you are using [`next/image`](/docs/basic-features/image-optimization.md), consider adding `sharp` for more performant [Image Optimization](/docs/basic-features/image-optimization.md) in your production environment by running `npm install sharp` in your project directory.
 
 ### Docker Image
 
@@ -127,14 +127,12 @@ USER nextjs
 
 EXPOSE 3000
 
-ENV PORT 3000
-
 # Next.js collects completely anonymous telemetry data about general usage.
 # Learn more here: https://nextjs.org/telemetry
 # Uncomment the following line in case you want to disable telemetry.
 # ENV NEXT_TELEMETRY_DISABLED 1
 
-CMD ["node_modules/.bin/next", "start"]
+CMD ["yarn", "start"]
 ```
 
 Make sure to place this Dockerfile in the root folder of your project.

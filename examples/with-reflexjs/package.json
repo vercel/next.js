@@ -1,5 +1,7 @@
 {
-  "private": true,
+  "name": "with-reflexjs",
+  "version": "1.0.0",
+  "license": "MIT",
   "scripts": {
     "dev": "next",
     "build": "next build",

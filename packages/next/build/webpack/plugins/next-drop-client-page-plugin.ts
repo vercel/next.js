@@ -1,5 +1,6 @@
 import { webpack } from 'next/dist/compiled/webpack/webpack'
-import { STRING_LITERAL_DROP_BUNDLE } from '../../../shared/lib/constants'
+import { isWebpack5 } from 'next/dist/compiled/webpack/webpack'
+import { STRING_LITERAL_DROP_BUNDLE } from '../../../next-server/lib/constants'
 
 export const ampFirstEntryNamesMap: WeakMap<
   webpack.compilation.Compilation,
@@ -20,13 +21,22 @@ export class DropClientPage implements webpack.Plugin {
         function findEntryModule(mod: any): webpack.compilation.Module | null {
           const queue = new Set([mod])
           for (const module of queue) {
-            // @ts-ignore TODO: webpack 5 types
-            const incomingConnections =
-              compilation.moduleGraph.getIncomingConnections(module)
+            if (isWebpack5) {
+              // @ts-ignore TODO: webpack 5 types
+              const incomingConnections = compilation.moduleGraph.getIncomingConnections(
+                module
+              )
 
-            for (const incomingConnection of incomingConnections) {
-              if (!incomingConnection.originModule) return module
-              queue.add(incomingConnection.originModule)
+              for (const incomingConnection of incomingConnections) {
+                if (!incomingConnection.originModule) return module
+                queue.add(incomingConnection.originModule)
+              }
+              continue
+            }
+
+            for (const reason of module.reasons) {
+              if (!reason.module) return module
+              queue.add(reason.module)
             }
           }
 
@@ -45,11 +55,18 @@ export class DropClientPage implements webpack.Plugin {
             entryModule.buildInfo.NEXT_ampFirst = true
           }
 
-          parser.hooks.preDeclarator.tap(PLUGIN_NAME, (declarator: any) => {
-            if (declarator?.id?.name === STRING_LITERAL_DROP_BUNDLE) {
-              markAsAmpFirst()
-            }
-          })
+          if (isWebpack5) {
+            parser.hooks.preDeclarator.tap(PLUGIN_NAME, (declarator: any) => {
+              if (declarator?.id?.name === STRING_LITERAL_DROP_BUNDLE) {
+                markAsAmpFirst()
+              }
+            })
+            return
+          }
+
+          parser.hooks.varDeclaration
+            .for(STRING_LITERAL_DROP_BUNDLE)
+            .tap(PLUGIN_NAME, markAsAmpFirst)
         }
 
         normalModuleFactory.hooks.parser
@@ -73,15 +90,38 @@ export class DropClientPage implements webpack.Plugin {
         ) as string[]
 
         compilation.hooks.seal.tap(PLUGIN_NAME, () => {
-          for (const [name, entryData] of compilation.entries) {
-            for (const dependency of entryData.dependencies) {
-              // @ts-ignore TODO: webpack 5 types
-              const module = compilation.moduleGraph.getModule(dependency)
-              if (module?.buildInfo?.NEXT_ampFirst) {
-                ampFirstEntryNamesItem.push(name)
-                // @ts-ignore @types/webpack has outdated types for webpack 5
-                compilation.entries.delete(name)
+          if (isWebpack5) {
+            for (const [name, entryData] of compilation.entries) {
+              for (const dependency of entryData.dependencies) {
+                // @ts-ignore TODO: webpack 5 types
+                const module = compilation.moduleGraph.getModule(dependency)
+                if (module?.buildInfo?.NEXT_ampFirst) {
+                  ampFirstEntryNamesItem.push(name)
+                  // @ts-ignore @types/webpack has outdated types for webpack 5
+                  compilation.entries.delete(name)
+                }
               }
+            }
+            return
+          }
+          // Remove preparedEntrypoint that has bundle drop marker
+          // This will ensure webpack does not create chunks/bundles for this particular entrypoint
+          for (
+            let i = compilation._preparedEntrypoints.length - 1;
+            i >= 0;
+            i--
+          ) {
+            const entrypoint = compilation._preparedEntrypoints[i]
+            if (entrypoint?.module?.buildInfo?.NEXT_ampFirst) {
+              ampFirstEntryNamesItem.push(entrypoint.name)
+              compilation._preparedEntrypoints.splice(i, 1)
+            }
+          }
+
+          for (let i = compilation.entries.length - 1; i >= 0; i--) {
+            const entryModule = compilation.entries[i]
+            if (entryModule?.buildInfo?.NEXT_ampFirst) {
+              compilation.entries.splice(i, 1)
             }
           }
         })

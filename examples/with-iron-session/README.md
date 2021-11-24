@@ -1,31 +1,27 @@
-# Example application using [`iron-session`](https://github.com/vvo/iron-session)
+# Example application using [`next-iron-session`](https://github.com/vvo/next-iron-session)
 
-<p align="center"><b>👀 Online demo at <a href="https://iron-session-example.vercel.app/">https://iron-session-example.vercel.app</a></b></p>
+This example creates an authentication system that uses a **signed and encrypted cookie to store session data**. It relies on [`next-iron-session`](https://github.com/vvo/next-iron-session).
+
+It uses current best practices for authentication in the Next.js ecosystem.
+
+**Features:**
+
+- [Static Generation](https://nextjs.org/docs/basic-features/pages#static-generation-recommended) (SG), recommended example
+- [Server-side Rendering](https://nextjs.org/docs/basic-features/pages#server-side-rendering) (SSR) example in case you need it
+- Logged in status synchronized between browser windows/tabs using **`useUser`** hook and [`swr`](https://swr.vercel.app/) module
+- Layout based on the user's logged-in/out status
+- Session data is signed and encrypted in a cookie
+
+[`next-iron-session`](https://github.com/vvo/next-iron-session) also supports:
+
+- Express / Connect middlewares
+- Multiple encryption keys (password) to allow for seamless updates or just password rotation
 
 ---
 
-This example creates an authentication system that uses a **signed and encrypted cookie to store session data**. It relies on [`iron-session`](https://github.com/vvo/iron-session).
+<p align="center"><b>Online demo at <a href="https://next-iron-session.vercel.app/">https://next-iron-session.vercel.app/</a> 👀</b></p>
 
-It uses current best practices for authentication in the Next.js ecosystem and replicates parts of how the Vercel dashboard is built.
-
-**Features of the example:**
-
-- [API Routes](https://nextjs.org/docs/api-routes/dynamic-api-routes) and [getServerSideProps](https://nextjs.org/docs/basic-features/data-fetching#getserversideprops-server-side-rendering) examples.
-- The logged in status is synchronized between browser windows/tabs using **`useUser`** hook and the [`swr`](https://swr.vercel.app/).
-- The layout is based on the user's logged-in/out status.
-- The session data is signed and encrypted in a cookie (this is done automatically by `iron-session`).
-
-[`iron-session`](https://github.com/vvo/iron-session) also provides:
-
-- An Express middleware, which can be used in any Node.js HTTP framework.
-- Multiple encryption keys (passwords) to allow for seamless updates or just password rotation.
-- Full TypeScript support, including session data.
-
-## Preview
-
-Preview the example live on [StackBlitz](http://stackblitz.com/):
-
-[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-iron-session)
+---
 
 ## Deploy your own
 

@@ -76,17 +76,6 @@ describe('i18n Support', () => {
     })
 
     runTests(ctx)
-
-    it('should have pre-rendered /500 correctly', async () => {
-      for (const locale of locales) {
-        const content = await fs.readFile(
-          join(appDir, '.next/server/pages/', locale, '500.html'),
-          'utf8'
-        )
-        expect(content).toContain('500')
-        expect(content).toMatch(/internal server error/i)
-      }
-    })
   })
 
   describe('serverless mode', () => {
@@ -278,28 +267,6 @@ describe('i18n Support', () => {
       expect($('#router-as-path').text()).toBe('/')
     })
 
-    it('should ignore the invalid accept-language header', async () => {
-      nextConfig.replace('localeDetection: false', 'localeDetection: true')
-      const res = await fetchViaHTTP(
-        ctx.appPort,
-        '/',
-        {},
-        {
-          headers: {
-            'accept-language': 'ldfir;',
-          },
-        }
-      )
-
-      expect(res.status).toBe(200)
-      const $ = cheerio.load(await res.text())
-      expect($('html').attr('lang')).toBe('en-US')
-      expect($('#router-locale').text()).toBe('en-US')
-      expect(JSON.parse($('#router-locales').text())).toEqual(locales)
-      expect($('#router-pathname').text()).toBe('/')
-      expect($('#router-as-path').text()).toBe('/')
-    })
-
     it('should set locale from detected path', async () => {
       for (const locale of nonDomainLocales) {
         const res = await fetchViaHTTP(
@@ -412,36 +379,6 @@ describe('i18n Support', () => {
         }
       })
 
-      it('should return 404 error for repeating locales', async () => {
-        const defaultLocale = 'en-US'
-        for (const locale of nonDomainLocales) {
-          for (const asPath of [
-            '/gsp/fallback/always/',
-            '/post/comment/',
-            '/gssp/first/',
-          ]) {
-            const res = await fetchViaHTTP(
-              curCtx.appPort,
-              `/${locale}/${defaultLocale}${asPath}`,
-              undefined,
-              {
-                redirect: 'manual',
-              }
-            )
-            expect(res.status).toBe(404)
-            const $ = cheerio.load(await res.text())
-            const props = JSON.parse($('#props').text())
-            expect($('#not-found').text().length > 0).toBe(true)
-            expect(props).toEqual({
-              is404: true,
-              locale,
-              locales,
-              defaultLocale,
-            })
-          }
-        }
-      })
-
       it('should navigate between pages correctly', async () => {
         for (const locale of nonDomainLocales) {
           const localePath = `/${locale !== 'en-US' ? `${locale}/` : ''}`
@@ -538,39 +475,5 @@ describe('i18n Support', () => {
 
       runSlashTests(curCtx)
     })
-  })
-
-  it('should show proper error for duplicate defaultLocales', async () => {
-    nextConfig.write(`
-      module.exports = {
-        i18n: {
-          locales: ['en', 'fr', 'nl'],
-          defaultLocale: 'en',
-          domains: [
-            {
-              domain: 'example.com',
-              defaultLocale: 'en'
-            },
-            {
-              domain: 'fr.example.com',
-              defaultLocale: 'fr',
-            },
-            {
-              domain: 'french.example.com',
-              defaultLocale: 'fr',
-            }
-          ]
-        }
-      }
-    `)
-
-    const { code, stderr } = await nextBuild(appDir, undefined, {
-      stderr: true,
-    })
-    nextConfig.restore()
-    expect(code).toBe(1)
-    expect(stderr).toContain(
-      'Both fr.example.com and french.example.com configured the defaultLocale fr but only one can'
-    )
   })
 })

@@ -7,7 +7,6 @@ export const prefixes = {
   ready: chalk.green('ready') + ' -',
   info: chalk.cyan('info') + '  -',
   event: chalk.magenta('event') + ' -',
-  trace: chalk.magenta('trace') + ' -',
 }
 
 export function wait(...message: string[]) {
@@ -32,8 +31,4 @@ export function info(...message: string[]) {
 
 export function event(...message: string[]) {
   console.log(prefixes.event, ...message)
-}
-
-export function trace(...message: string[]) {
-  console.log(prefixes.trace, ...message)
 }

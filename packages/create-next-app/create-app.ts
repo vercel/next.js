@@ -44,7 +44,7 @@ export async function createApp({
 
     try {
       repoUrl = new URL(example)
-    } catch (error: any) {
+    } catch (error) {
       if (error.code !== 'ERR_INVALID_URL') {
         console.error(error)
         process.exit(1)
@@ -89,11 +89,7 @@ export async function createApp({
         console.error(
           `Could not locate an example named ${chalk.red(
             `"${example}"`
-          )}. It could be due to the following:\n`,
-          `1. Your spelling of example ${chalk.red(
-            `"${example}"`
-          )} might be incorrect.\n`,
-          `2. You might not be connected to the internet.`
+          )}. Please check your spelling and try again.`
         )
         process.exit(1)
       }
@@ -158,16 +154,7 @@ export async function createApp({
         })
       }
     } catch (reason) {
-      function isErrorLike(err: unknown): err is { message: string } {
-        return (
-          typeof err === 'object' &&
-          err !== null &&
-          typeof (err as { message?: unknown }).message === 'string'
-        )
-      }
-      throw new DownloadError(
-        isErrorLike(reason) ? reason.message : reason + ''
-      )
+      throw new DownloadError(reason)
     }
     // Copy our default `.gitignore` if the application did not provide one
     const ignorePath = path.join(root, '.gitignore')
@@ -175,15 +162,6 @@ export async function createApp({
       fs.copyFileSync(
         path.join(__dirname, 'templates', template, 'gitignore'),
         ignorePath
-      )
-    }
-
-    // Copy default `next-env.d.ts` to any example that is typescript
-    const tsconfigPath = path.join(root, 'tsconfig.json')
-    if (fs.existsSync(tsconfigPath)) {
-      fs.copyFileSync(
-        path.join(__dirname, 'templates', 'typescript', 'next-env.d.ts'),
-        path.join(root, 'next-env.d.ts')
       )
     }
 
@@ -203,12 +181,12 @@ export async function createApp({
      */
     const packageJson = {
       name: appName,
+      version: '0.1.0',
       private: true,
       scripts: {
         dev: 'next dev',
         build: 'next build',
         start: 'next start',
-        lint: 'next lint',
       },
     }
     /**
@@ -229,12 +207,12 @@ export async function createApp({
     /**
      * Default devDependencies.
      */
-    const devDependencies = ['eslint', 'eslint-config-next']
+    const devDependencies = []
     /**
      * TypeScript projects will have type definitions and other devDependencies.
      */
     if (typescript) {
-      devDependencies.push('typescript', '@types/react', '@types/node')
+      devDependencies.push('typescript', '@types/react')
     }
     /**
      * Install package.json dependencies if they exist.
@@ -272,12 +250,11 @@ export async function createApp({
       cwd: path.join(__dirname, 'templates', template),
       rename: (name) => {
         switch (name) {
-          case 'gitignore':
-          case 'eslintrc.json': {
+          case 'gitignore': {
             return '.'.concat(name)
           }
           // README.md is ignored by webpack-asset-relocator-loader used by ncc:
-          // https://github.com/vercel/webpack-asset-relocator-loader/blob/e9308683d47ff507253e37c9bcbb99474603192b/src/asset-relocator.js#L227
+          // https://github.com/zeit/webpack-asset-relocator-loader/blob/e9308683d47ff507253e37c9bcbb99474603192b/src/asset-relocator.js#L227
           case 'README-template.md': {
             return 'README.md'
           }

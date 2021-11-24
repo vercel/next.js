@@ -1,12 +1,6 @@
 # Example app with [Compiled](https://github.com/atlassian-labs/compiled) (CSS-in-JS)
 
-This example features how to use [Compiled](https://github.com/atlassian-labs/compiled) as the build time CSS-in-JS styling solution instead of [styled-jsx](https://github.com/vercel/styled-jsx).
-
-## Preview
-
-Preview the example live on [StackBlitz](http://stackblitz.com/):
-
-[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-compiled-css)
+This example features how to use [Compiled](https://github.com/atlassian-labs/compiled) as the build time CSS-in-JS styling solution instead of [styled-jsx](https://github.com/zeit/styled-jsx).
 
 ## Deploy your own
 

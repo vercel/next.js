@@ -8,7 +8,6 @@ export default function Page(props) {
 }
 
 export const getStaticProps = () => {
-  console.log('404 getStaticProps')
   return {
     props: {
       notFound: true,

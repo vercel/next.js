@@ -1,5 +1,7 @@
 {
-  "private": true,
+  "name": "with-react-helmet",
+  "license": "MIT",
+  "version": "1.0.0",
   "scripts": {
     "dev": "next",
     "build": "next build",
@@ -7,8 +9,8 @@
   },
   "dependencies": {
     "next": "latest",
-    "react": "^17.0.2",
-    "react-dom": "^17.0.2",
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0",
     "react-helmet": "^6.0.0"
   }
 }

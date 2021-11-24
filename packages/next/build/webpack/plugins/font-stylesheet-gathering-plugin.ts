@@ -1,29 +1,28 @@
 import {
   webpack,
   BasicEvaluatedExpression,
+  isWebpack5,
   sources,
 } from 'next/dist/compiled/webpack/webpack'
+import { namedTypes } from 'ast-types'
 import {
   getFontDefinitionFromNetwork,
   FontManifest,
-} from '../../../server/font-utils'
+} from '../../../next-server/server/font-utils'
 import postcss from 'postcss'
 import minifier from 'cssnano-simple'
 import {
   FONT_MANIFEST,
   OPTIMIZED_FONT_PROVIDERS,
-} from '../../../shared/lib/constants'
+} from '../../../next-server/lib/constants'
 
 function minifyCss(css: string): Promise<string> {
   return postcss([
-    minifier(
-      {
-        excludeAll: true,
-        discardComments: true,
-        normalizeWhitespace: { exclude: false },
-      },
-      postcss
-    ),
+    minifier({
+      excludeAll: true,
+      discardComments: true,
+      normalizeWhitespace: { exclude: false },
+    }),
   ])
     .process(css, { from: undefined })
     .then((res) => res.css)
@@ -59,7 +58,7 @@ export class FontStylesheetGatheringPlugin {
            */
           parser.hooks.evaluate
             .for('Identifier')
-            .tap(this.constructor.name, (node: any) => {
+            .tap(this.constructor.name, (node: namedTypes.Identifier) => {
               // We will only optimize fonts from first party code.
               if (parser?.state?.module?.resource.includes('node_modules')) {
                 return
@@ -72,13 +71,15 @@ export class FontStylesheetGatheringPlugin {
                 result.setExpression(node)
                 result.setIdentifier(node.name)
 
-                // This was added in webpack 5.
-                result.getMembers = () => []
+                // This was added webpack 5.
+                if (isWebpack5) {
+                  result.getMembers = () => []
+                }
               }
               return result
             })
 
-          const jsxNodeHandler = (node: any) => {
+          const jsxNodeHandler = (node: namedTypes.CallExpression) => {
             if (node.arguments.length !== 2) {
               // A font link tag has only two arguments rel=stylesheet and href='...'
               return
@@ -88,30 +89,24 @@ export class FontStylesheetGatheringPlugin {
             }
 
             // node.arguments[0] is the name of the tag and [1] are the props.
-            const arg1 = node.arguments[1]
-
-            const propsNode =
-              arg1.type === 'ObjectExpression' ? (arg1 as any) : undefined
+            const propsNode = node.arguments[1] as namedTypes.ObjectExpression
             const props: { [key: string]: string } = {}
-            if (propsNode) {
-              propsNode.properties.forEach((prop: any) => {
-                if (prop.type !== 'Property') {
-                  return
-                }
-                if (
-                  prop.key.type === 'Identifier' &&
-                  prop.value.type === 'Literal'
-                ) {
-                  props[prop.key.name] = prop.value.value as string
-                }
-              })
-            }
-
+            propsNode.properties.forEach((prop) => {
+              if (prop.type !== 'Property') {
+                return
+              }
+              if (
+                prop.key.type === 'Identifier' &&
+                prop.value.type === 'Literal'
+              ) {
+                props[prop.key.name] = prop.value.value as string
+              }
+            })
             if (
               !props.rel ||
               props.rel !== 'stylesheet' ||
               !props.href ||
-              !OPTIMIZED_FONT_PROVIDERS.some(({ url }) =>
+              !OPTIMIZED_FONT_PROVIDERS.some((url) =>
                 props.href.startsWith(url)
               )
             ) {
@@ -120,13 +115,15 @@ export class FontStylesheetGatheringPlugin {
 
             this.gatheredStylesheets.push(props.href)
 
-            const buildInfo = parser?.state?.module?.buildInfo
+            if (isWebpack5) {
+              const buildInfo = parser?.state?.module?.buildInfo
 
-            if (buildInfo) {
-              buildInfo.valueDependencies.set(
-                FONT_MANIFEST,
-                this.gatheredStylesheets
-              )
+              if (buildInfo) {
+                buildInfo.valueDependencies.set(
+                  FONT_MANIFEST,
+                  this.gatheredStylesheets
+                )
+              }
             }
           }
 
@@ -164,9 +161,11 @@ export class FontStylesheetGatheringPlugin {
           (source: string) => {
             return `${source}
                 // Font manifest declaration
-                __webpack_require__.__NEXT_FONT_MANIFEST__ = ${JSON.stringify(
-                  this.manifestContent
-                )};
+                ${
+                  isWebpack5 ? '__webpack_require__' : mainTemplate.requireFn
+                }.__NEXT_FONT_MANIFEST__ = ${JSON.stringify(
+              this.manifestContent
+            )};
             // Enable feature:
             process.env.__NEXT_OPTIMIZE_FONTS = JSON.stringify(true);`
           }
@@ -177,16 +176,19 @@ export class FontStylesheetGatheringPlugin {
         async (modules: any, modulesFinished: Function) => {
           let fontStylesheets = this.gatheredStylesheets
 
-          const fontUrls = new Set<string>()
-          modules.forEach((module: any) => {
-            const fontDependencies =
-              module?.buildInfo?.valueDependencies?.get(FONT_MANIFEST)
-            if (fontDependencies) {
-              fontDependencies.forEach((v: string) => fontUrls.add(v))
-            }
-          })
+          if (isWebpack5) {
+            const fontUrls = new Set<string>()
+            modules.forEach((module: any) => {
+              const fontDependencies = module?.buildInfo?.valueDependencies?.get(
+                FONT_MANIFEST
+              )
+              if (fontDependencies) {
+                fontDependencies.forEach((v: string) => fontUrls.add(v))
+              }
+            })
 
-          fontStylesheets = Array.from(fontUrls)
+            fontStylesheets = Array.from(fontUrls)
+          }
 
           const fontDefinitionPromises = fontStylesheets.map((url) =>
             getFontDefinitionFromNetwork(url)
@@ -204,41 +206,43 @@ export class FontStylesheetGatheringPlugin {
               })
             }
           }
-
-          compilation.assets[FONT_MANIFEST] = new sources.RawSource(
-            JSON.stringify(this.manifestContent, null, '  ')
-          )
-
+          if (!isWebpack5) {
+            compilation.assets[FONT_MANIFEST] = new sources.RawSource(
+              JSON.stringify(this.manifestContent, null, '  ')
+            )
+          }
           modulesFinished()
         }
       )
       cb()
     })
 
-    compiler.hooks.make.tap(this.constructor.name, (compilation) => {
-      // @ts-ignore TODO: Remove ignore when webpack 5 is stable
-      compilation.hooks.processAssets.tap(
-        {
-          name: this.constructor.name,
-          // @ts-ignore TODO: Remove ignore when webpack 5 is stable
-          stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
-        },
-        (assets: any) => {
-          assets['../' + FONT_MANIFEST] = new sources.RawSource(
-            JSON.stringify(this.manifestContent, null, '  ')
-          )
-        }
-      )
-    })
+    if (isWebpack5) {
+      compiler.hooks.make.tap(this.constructor.name, (compilation) => {
+        // @ts-ignore TODO: Remove ignore when webpack 5 is stable
+        compilation.hooks.processAssets.tap(
+          {
+            name: this.constructor.name,
+            // @ts-ignore TODO: Remove ignore when webpack 5 is stable
+            stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
+          },
+          (assets: any) => {
+            assets['../' + FONT_MANIFEST] = new sources.RawSource(
+              JSON.stringify(this.manifestContent, null, '  ')
+            )
+          }
+        )
+      })
+    }
   }
 }
 
-function isNodeCreatingLinkElement(node: any) {
-  const callee = node.callee as any
+function isNodeCreatingLinkElement(node: namedTypes.CallExpression) {
+  const callee = node.callee as namedTypes.Identifier
   if (callee.type !== 'Identifier') {
     return false
   }
-  const componentNode = node.arguments[0] as any
+  const componentNode = node.arguments[0] as namedTypes.Literal
   if (componentNode.type !== 'Literal') {
     return false
   }

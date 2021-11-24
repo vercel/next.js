@@ -9,5 +9,6 @@ export const imageBuilder = createImageUrlBuilder(sanityConfig)
 export const urlForImage = (source) =>
   imageBuilder.image(source).auto('format').fit('max')
 
-export const usePreviewSubscription =
-  createPreviewSubscriptionHook(sanityConfig)
+export const usePreviewSubscription = createPreviewSubscriptionHook(
+  sanityConfig
+)

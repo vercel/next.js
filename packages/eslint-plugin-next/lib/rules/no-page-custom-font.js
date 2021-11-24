@@ -1,4 +1,4 @@
-const NodeAttributes = require('../utils/node-attributes.js')
+const NodeAttributes = require('../utils/nodeAttributes.js')
 
 module.exports = {
   meta: {
@@ -6,19 +6,15 @@ module.exports = {
       description:
         'Recommend adding custom font in a custom document and not in a specific page',
       recommended: true,
-      url: 'https://nextjs.org/docs/messages/no-page-custom-font',
     },
   },
   create: function (context) {
-    let documentImportName
+    let documentImport = false
     return {
       ImportDeclaration(node) {
         if (node.source.value === 'next/document') {
-          const documentImport = node.specifiers.find(
-            ({ type }) => type === 'ImportDefaultSpecifier'
-          )
-          if (documentImport && documentImport.local) {
-            documentImportName = documentImport.local.name
+          if (node.specifiers.some(({ local }) => local.name === 'Document')) {
+            documentImport = true
           }
         }
       },
@@ -29,10 +25,10 @@ module.exports = {
             (ancestorNode) =>
               ancestorNode.type === 'ClassDeclaration' &&
               ancestorNode.superClass &&
-              ancestorNode.superClass.name === documentImportName
+              ancestorNode.superClass.name === 'Document'
           )
 
-        if (documentClass || node.name.name !== 'link') {
+        if ((documentImport && documentClass) || node.name.name !== 'link') {
           return
         }
 

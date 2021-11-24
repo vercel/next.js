@@ -3,6 +3,8 @@
 import { join } from 'path'
 import { renderViaHTTP, launchApp, findPort, killApp } from 'next-test-utils'
 
+jest.setTimeout(1000 * 30)
+
 let server
 let appPort
 

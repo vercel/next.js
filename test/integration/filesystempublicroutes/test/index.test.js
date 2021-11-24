@@ -13,6 +13,7 @@ import clone from 'clone'
 const appDir = join(__dirname, '../')
 let appPort
 let server
+jest.setTimeout(1000 * 60 * 2)
 
 const context = {}
 

@@ -11,11 +11,13 @@ import {
 import clone from 'clone'
 import getPort from 'get-port'
 
+jest.setTimeout(1000 * 60 * 2)
 const appDir = join(__dirname, '../')
 let appPort
 
 let app
 let server
+jest.setTimeout(1000 * 60 * 2)
 
 const context = {}
 

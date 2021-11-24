@@ -11,7 +11,7 @@ interface IOwnProps {
 }
 
 const SampleComponent: React.FC<IOwnProps> = observer((props) => {
-  const { lastUpdate, light, start, stop } = useStore(props.store)
+  const { lastUpdate, light, start, stop } = useStore('')
 
   useEffect(() => {
     start()

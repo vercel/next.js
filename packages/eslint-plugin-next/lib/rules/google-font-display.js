@@ -1,4 +1,4 @@
-const NodeAttributes = require('../utils/node-attributes.js')
+const NodeAttributes = require('../utils/nodeAttributes.js')
 
 module.exports = {
   meta: {
@@ -6,7 +6,6 @@ module.exports = {
       description:
         'Ensure correct font-display property is assigned for Google Fonts',
       recommended: true,
-      url: 'https://nextjs.org/docs/messages/google-font-display',
     },
   },
   create: function (context) {

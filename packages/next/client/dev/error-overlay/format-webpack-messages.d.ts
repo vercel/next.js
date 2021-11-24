@@ -1,1 +1,1 @@
-export default function formatWebpackMessages(json: any, verbose?: boolean): any
+export default function formatWebpackMessages(json: any): any

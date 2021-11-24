@@ -1,5 +1,6 @@
 {
-  "private": true,
+  "name": "with-chakra-ui",
+  "version": "0.1.0",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -14,5 +15,6 @@
     "next": "latest",
     "react": "^17.0.2",
     "react-dom": "^17.0.2"
-  }
+  },
+  "license": "MIT"
 }

@@ -10,11 +10,13 @@ import {
   renderViaHTTP,
 } from 'next-test-utils'
 
+jest.setTimeout(1000 * 60 * 5)
+
 let appDir = join(__dirname, '../')
 let server
 let appPort
 
-describe('excludeDefaultMomentLocales', () => {
+describe('future.excludeDefaultMomentLocales', () => {
   beforeAll(async () => {
     await nextBuild(appDir)
     const app = nextServer({

@@ -14,6 +14,8 @@ import {
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 
+jest.setTimeout(1000 * 60 * 2)
+
 const fixturesDir = join(__dirname, '..', 'fixtures')
 
 const fsExists = (file) =>
@@ -52,7 +54,6 @@ describe('Font Optimization', () => {
         /<style data-href="https:\/\/fonts\.googleapis\.com\/css2\?family=Roboto:wght@700">.*<\/style>/,
         /<style data-href="https:\/\/fonts.googleapis.com\/css2\?family=Roboto:wght@400;700;900&display=swap">.*<\/style>/,
       ],
-      'https://fonts.gstatic.com',
     ],
     [
       'typekit',
@@ -68,15 +69,13 @@ describe('Font Optimization', () => {
         /<style data-href="https:\/\/use.typekit.net\/ucs7mcf.css">.*<\/style>/,
         /<style data-href="https:\/\/use.typekit.net\/ucs7mcf.css">.*<\/style>/,
       ],
-      'https://use.typekit.net',
     ],
   ])(
     'with-%s',
     (
       property,
       [staticFont, staticHeadFont, starsFont, withFont],
-      [staticPattern, staticHeadPattern, starsPattern, withFontPattern],
-      preconnectUrl
+      [staticPattern, staticHeadPattern, starsPattern, withFontPattern]
     ) => {
       const appDir = join(fixturesDir, `with-${property}`)
       const nextConfig = join(appDir, 'next.config.js')
@@ -94,11 +93,12 @@ describe('Font Optimization', () => {
           const link = $(
             `link[rel="stylesheet"][data-href="${staticHeadFont}"]`
           )
-
+          const nonce = link.attr('nonce')
           const style = $(`style[data-href="${staticHeadFont}"]`)
           const styleNonce = style.attr('nonce')
 
-          expect(link.length).toBe(0)
+          expect(link).toBeDefined()
+          expect(nonce).toBe('VmVyY2Vs')
           expect(styleNonce).toBe('VmVyY2Vs')
         })
 
@@ -108,14 +108,17 @@ describe('Font Optimization', () => {
 
           const $ = cheerio.load(html)
 
-          expect($(`link[data-href="${withFont}"]`).length).toBe(0)
+          expect($(`link[data-href="${withFont}"]`).attr().rel).toBe(
+            'stylesheet'
+          )
 
           expect(html).toMatch(withFontPattern)
 
           const htmlWithoutFont = await renderViaHTTP(appPort, '/without-font')
+
           const $2 = cheerio.load(htmlWithoutFont)
 
-          expect($2(`link[data-href="${withFont}"]`).length).toBe(0)
+          expect($2(`link[data-href="${withFont}"]`).attr()).toBeUndefined()
           expect(htmlWithoutFont).not.toMatch(withFontPattern)
         })
 
@@ -125,7 +128,7 @@ describe('Font Optimization', () => {
           expect(await fsExists(builtPage('font-manifest.json'))).toBe(true)
           expect(
             $(`link[rel=stylesheet][data-href="${staticFont}"]`).length
-          ).toBe(0)
+          ).toBe(1)
           expect(html).toMatch(staticPattern)
         })
 
@@ -135,7 +138,7 @@ describe('Font Optimization', () => {
           expect(await fsExists(builtPage('font-manifest.json'))).toBe(true)
           expect(
             $(`link[rel=stylesheet][data-href="${staticHeadFont}"]`).length
-          ).toBe(0)
+          ).toBe(1)
           expect(html).toMatch(staticHeadPattern)
         })
 
@@ -145,16 +148,8 @@ describe('Font Optimization', () => {
           expect(await fsExists(builtPage('font-manifest.json'))).toBe(true)
           expect(
             $(`link[rel=stylesheet][data-href="${starsFont}"]`).length
-          ).toBe(0)
-          expect(html).toMatch(starsPattern)
-        })
-
-        it(`should add preconnect tag`, async () => {
-          const html = await renderViaHTTP(appPort, '/stars')
-          const $ = cheerio.load(html)
-          expect(
-            $(`link[rel=preconnect][href="${preconnectUrl}"]`).length
           ).toBe(1)
+          expect(html).toMatch(starsPattern)
         })
 
         it('should skip this optimization for AMP pages', async () => {
@@ -230,11 +225,7 @@ describe('Font Optimization', () => {
 
       describe('Font optimization for SSR apps', () => {
         beforeAll(async () => {
-          await fs.writeFile(
-            nextConfig,
-            `module.exports = { cleanDistDir: false }`,
-            'utf8'
-          )
+          await fs.writeFile(nextConfig, `module.exports = { }`, 'utf8')
 
           if (fs.pathExistsSync(join(appDir, '.next'))) {
             await fs.remove(join(appDir, '.next'))
@@ -253,7 +244,7 @@ describe('Font Optimization', () => {
         beforeAll(async () => {
           await fs.writeFile(
             nextConfig,
-            `module.exports = { target: 'serverless', cleanDistDir: false }`,
+            `module.exports = { target: 'serverless' }`,
             'utf8'
           )
           await nextBuild(appDir)
@@ -270,7 +261,7 @@ describe('Font Optimization', () => {
         beforeAll(async () => {
           await fs.writeFile(
             nextConfig,
-            `module.exports = { target: 'experimental-serverless-trace', cleanDistDir: false }`,
+            `module.exports = { target: 'experimental-serverless-trace' }`,
             'utf8'
           )
           await nextBuild(appDir)
@@ -288,11 +279,7 @@ describe('Font Optimization', () => {
 
       describe('Font optimization for unreachable font definitions.', () => {
         beforeAll(async () => {
-          await fs.writeFile(
-            nextConfig,
-            `module.exports = { cleanDistDir: false }`,
-            'utf8'
-          )
+          await fs.writeFile(nextConfig, `module.exports = { }`, 'utf8')
           await nextBuild(appDir)
           await fs.writeFile(
             join(appDir, '.next', 'server', 'font-manifest.json'),
@@ -322,10 +309,4 @@ describe('Font Optimization', () => {
       })
     }
   )
-
-  test('Spread operator regression on <link>', async () => {
-    const appDir = join(fixturesDir, 'spread-operator-regression')
-    const { code } = await nextBuild(appDir)
-    expect(code).toBe(0)
-  })
 })

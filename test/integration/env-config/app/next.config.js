@@ -1,5 +1,4 @@
 module.exports = {
-  cleanDistDir: false,
   // update me
   env: {
     nextConfigEnv: process.env.ENV_KEY_IN_NEXT_CONFIG,

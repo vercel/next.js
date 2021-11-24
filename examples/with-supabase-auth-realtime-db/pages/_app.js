@@ -1,5 +1,5 @@
 import { Auth } from '@supabase/ui'
-import { supabase } from '../lib/initSupabase'
+import { supabase } from '../utils/initSupabase'
 import './../style.css'
 
 export default function MyApp({ Component, pageProps }) {

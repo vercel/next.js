@@ -1,4 +1,4 @@
-import loaderUtils from 'next/dist/compiled/loader-utils3'
+import loaderUtils from 'next/dist/compiled/loader-utils'
 import path from 'path'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 

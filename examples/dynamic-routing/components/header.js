@@ -14,12 +14,12 @@ const Header = () => (
         </Link>
       </li>
       <li>
-        <Link href="/post/first">
+        <Link href="/post/[id]" as="/post/first">
           <a>First Post</a>
         </Link>
       </li>
       <li>
-        <Link href="/post/second">
+        <Link href="/post/[id]" as="/post/second">
           <a>Second Post</a>
         </Link>
       </li>

@@ -191,16 +191,6 @@ module.exports = {
           destination: '/with-params?idk=:idk',
         },
         {
-          source: '/has-rewrite-8',
-          has: [
-            {
-              type: 'query',
-              key: 'post',
-            },
-          ],
-          destination: '/blog-catchall/:post',
-        },
-        {
           source: '/blog/about',
           destination: '/hello',
         },
@@ -376,40 +366,6 @@ module.exports = {
           },
         ],
         destination: '/another?host=1',
-        permanent: false,
-      },
-      {
-        source: '/:path/has-redirect-5',
-        has: [
-          {
-            type: 'header',
-            key: 'x-test-next',
-          },
-        ],
-        destination: '/somewhere',
-        permanent: false,
-      },
-      {
-        source: '/has-redirect-6',
-        has: [
-          {
-            type: 'host',
-            value: '(?<subdomain>.*)-test.example.com',
-          },
-        ],
-        destination: 'https://:subdomain.example.com/some-path/end?a=b',
-        permanent: false,
-      },
-      {
-        source: '/has-redirect-7',
-        has: [
-          {
-            type: 'query',
-            key: 'hello',
-            value: '(?<hello>.*)',
-          },
-        ],
-        destination: '/somewhere?value=:hello',
         permanent: false,
       },
     ]

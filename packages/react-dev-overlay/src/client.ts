@@ -80,7 +80,7 @@ function onBuildError(message: string) {
 }
 
 function onRefresh() {
-  Bus.emit({ type: Bus.TYPE_REFRESH })
+  Bus.emit({ type: Bus.TYPE_REFFRESH })
 }
 
 export { getNodeError } from './internal/helpers/nodeStackFrames'

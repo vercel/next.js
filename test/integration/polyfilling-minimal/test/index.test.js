@@ -4,6 +4,8 @@ import { remove } from 'fs-extra'
 import { nextBuild } from 'next-test-utils'
 import { join } from 'path'
 
+jest.setTimeout(1000 * 60 * 1)
+
 const appDir = join(__dirname, '../')
 
 describe('Polyfilling (minimal)', () => {

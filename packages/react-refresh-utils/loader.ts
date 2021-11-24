@@ -1,4 +1,7 @@
-import type { LoaderDefinition } from 'webpack'
+import {
+  // @ts-ignore exists in webpack 5
+  loader,
+} from 'webpack'
 import RefreshModuleRuntime from './internal/ReactRefreshModule.runtime'
 
 let refreshModuleRuntime = RefreshModuleRuntime.toString()
@@ -7,7 +10,7 @@ refreshModuleRuntime = refreshModuleRuntime.slice(
   refreshModuleRuntime.lastIndexOf('}')
 )
 
-const ReactRefreshLoader: LoaderDefinition = function ReactRefreshLoader(
+const ReactRefreshLoader: loader.Loader = function ReactRefreshLoader(
   source,
   inputSourceMap
 ) {

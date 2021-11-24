@@ -1,16 +1,13 @@
 import { Trans } from '@lingui/macro'
-import Link from 'next/link'
+import withLang from '../components/withLang'
+import LangSwitcher from '../components/LangSwitcher'
 
 const Two = () => (
   <div>
-    <Trans>Page two.</Trans>{' '}
-    <Link href="/">
-      <a>
-        <Trans>Back home</Trans>
-      </a>
-    </Link>
+    <Trans>Page two. </Trans>
     <br />
+    <LangSwitcher />
   </div>
 )
 
-export default Two
+export default withLang(Two)

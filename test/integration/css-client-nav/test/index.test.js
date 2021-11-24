@@ -15,6 +15,8 @@ import {
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 
+jest.setTimeout(1000 * 60 * 1)
+
 const fixturesDir = join(__dirname, '../../css-fixtures')
 const appDir = join(fixturesDir, 'multi-module')
 
@@ -62,7 +64,7 @@ function runTests(dev) {
     if (!dev) {
       // Ensure only `/blue` page's CSS is preloaded
       const serverCssPreloads = $('link[rel="preload"][as="style"]')
-      expect(serverCssPreloads.length).toBe(2)
+      expect(serverCssPreloads.length).toBe(1)
 
       const serverCssPrefetches = $('link[rel="prefetch"][as="style"]')
       expect(serverCssPrefetches.length).toBe(0)
@@ -189,7 +191,7 @@ describe('CSS Module client-side navigation', () => {
 
       try {
         browser = await webdriver(appPort, '/red')
-        await browser.eval('window.beforeNav = "hello"')
+        browser.eval('window.beforeNav = "hello"')
 
         const redColor = await browser.eval(
           `window.getComputedStyle(document.querySelector('#verify-red')).color`
@@ -208,7 +210,7 @@ describe('CSS Module client-side navigation', () => {
 
         // the timeout should have been reached and we did a hard
         // navigation
-        expect(await browser.eval('window.beforeNav')).toBeFalsy()
+        expect(await browser.eval('window.beforeNav')).toBe(null)
       } finally {
         stallCss = false
         if (browser) {

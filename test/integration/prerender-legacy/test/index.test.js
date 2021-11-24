@@ -4,6 +4,7 @@ import fs from 'fs-extra'
 import { join } from 'path'
 import { nextBuild } from 'next-test-utils'
 
+jest.setTimeout(1000 * 60 * 2)
 const appDir = join(__dirname, '..')
 const nextConfig = join(appDir, 'next.config.js')
 

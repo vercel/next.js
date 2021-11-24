@@ -1,8 +1,8 @@
 // section -> label
 const sectionLabelMap = {
   'Core Changes': 'type: next',
-  'Documentation Changes': 'area: documentation',
-  'Example Changes': 'area: examples',
+  'Documentation Changes': 'type: documentation',
+  'Example Changes': 'type: example',
 }
 
 const fallbackSection = 'Misc Changes'

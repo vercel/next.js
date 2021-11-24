@@ -1,6 +1,5 @@
 import { promises as fs } from 'fs'
 import path from 'path'
-import { NextConfigComplete } from '../../server/config-shared'
 import { fileExists } from '../file-exists'
 import { recursiveReadDir } from '../recursive-readdir'
 
@@ -8,10 +7,9 @@ export type TypeScriptIntent = { firstTimeSetup: boolean }
 
 export async function getTypeScriptIntent(
   baseDir: string,
-  pagesDir: string,
-  config: NextConfigComplete
+  pagesDir: string
 ): Promise<TypeScriptIntent | false> {
-  const tsConfigPath = path.join(baseDir, config.typescript.tsconfigPath)
+  const tsConfigPath = path.join(baseDir, 'tsconfig.json')
 
   // The integration turns on if we find a `tsconfig.json` in the user's
   // project.

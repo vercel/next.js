@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import dbConnect from '../lib/dbConnect'
+import dbConnect from '../utils/dbConnect'
 import Pet from '../models/Pet'
 
 const Index = ({ pets }) => (

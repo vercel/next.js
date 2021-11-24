@@ -1,5 +1,7 @@
 {
-  "private": true,
+  "name": "with-next-css",
+  "version": "1.0.0",
+  "main": "index.js",
   "scripts": {
     "dev": "next",
     "build": "next build",
@@ -7,7 +9,8 @@
   },
   "dependencies": {
     "next": "^9.1.8-canary.11",
-    "react": "^17.0.2",
-    "react-dom": "^17.0.2"
-  }
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0"
+  },
+  "license": "MIT"
 }

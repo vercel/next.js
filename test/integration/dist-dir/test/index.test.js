@@ -11,6 +11,7 @@ import {
   renderViaHTTP,
 } from 'next-test-utils'
 
+jest.setTimeout(1000 * 60 * 2)
 const appDir = join(__dirname, '../')
 const nextConfig = join(appDir, 'next.config.js')
 let appPort
@@ -55,10 +56,7 @@ describe('distDir', () => {
 
   it('should handle null/undefined distDir', async () => {
     const origNextConfig = await fs.readFile(nextConfig, 'utf8')
-    await fs.writeFile(
-      nextConfig,
-      `module.exports = { distDir: null, eslint: { ignoreDuringBuilds: true } }`
-    )
+    await fs.writeFile(nextConfig, `module.exports = { distDir: null }`)
     const { stderr } = await nextBuild(appDir, [], { stderr: true })
     await fs.writeFile(nextConfig, origNextConfig)
 

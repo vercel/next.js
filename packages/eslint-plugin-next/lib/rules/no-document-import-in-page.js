@@ -6,7 +6,6 @@ module.exports = {
       description:
         'Disallow importing next/document outside of pages/document.js',
       recommended: true,
-      url: 'https://nextjs.org/docs/messages/no-document-import-in-page',
     },
   },
   create: function (context) {
@@ -16,14 +15,8 @@ module.exports = {
           return
         }
 
-        const paths = context.getFilename().split('pages')
-        const page = paths[paths.length - 1]
-
-        if (
-          !page ||
-          page.startsWith(`${path.sep}_document`) ||
-          page.startsWith(`${path.posix.sep}_document`)
-        ) {
+        const page = context.getFilename().split('pages')[1]
+        if (!page || path.parse(page).name === '_document') {
           return
         }
 

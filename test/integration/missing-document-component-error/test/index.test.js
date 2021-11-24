@@ -10,6 +10,8 @@ import {
   renderViaHTTP,
 } from 'next-test-utils'
 
+jest.setTimeout(1000 * 60 * 2)
+
 const appDir = join(__dirname, '..')
 const docPath = join(appDir, 'pages/_document.js')
 let appPort

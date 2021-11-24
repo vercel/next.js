@@ -60,9 +60,11 @@ Once the site is ready, you'll need to install the [WPGraphQL](https://www.wpgra
 
 ![WPGraphQL installed](./docs/plugin-installed.png)
 
-#### GraphiQL
+#### Optional: Add WPGraphiQL
 
-The [WPGraphQL](https://www.wpgraphql.com/) plugin also gives you access to a GraphQL IDE directly from your WordPress Admin, allowing you to inspect and play around with the GraphQL API.
+The [WPGraphiQL](https://github.com/wp-graphql/wp-graphiql) plugin gives you access to a GraphQL IDE directly from your WordPress Admin, allowing you to inspect and play around with the GraphQL API.
+
+The process to add WPGraphiQL is the same as the one for WPGraphQL: Go to the [WPGraphiQL repo](https://github.com/wp-graphql/wp-graphiql), download the ZIP archive, and install it as a plugin in your WordPress site. Once that's done you should be able to access the GraphiQL page in the admin:
 
 ![WPGraphiQL page](./docs/wp-graphiql.png)
 
