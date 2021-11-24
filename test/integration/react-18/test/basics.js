@@ -28,4 +28,15 @@ export default (context) => {
     expect(content).toBe('rab')
     expect(nextData.dynamicIds).toBeUndefined()
   })
+
+  it('useId() values should match on hydration', async () => {
+    const html = await renderViaHTTP(context.appPort, '/use-id')
+    const $ = cheerio.load(html)
+    const ssrId = $('#id').text()
+
+    const browser = await webdriver(context.appPort, '/use-id')
+    const csrId = await browser.eval('document.getElementById("id").innerText')
+
+    expect(ssrId).toEqual(csrId)
+  })
 }

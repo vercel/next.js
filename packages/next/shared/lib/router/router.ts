@@ -1697,7 +1697,7 @@ export default class Router implements BaseRouter {
     }
 
     const effects = await this._preflightRequest({
-      as: asPath,
+      as: addBasePath(asPath),
       cache: true,
       pages,
       pathname,
