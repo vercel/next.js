@@ -114,7 +114,7 @@
     "use-subscription": "1.5.1",
     "util": "0.12.4",
     "vm-browserify": "1.1.2",
-    "watchpack": "2.1.1"
+    "watchpack": "2.3.0"
   },
   "peerDependencies": {
     "fibers": ">= 3.1.0",
