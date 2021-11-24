@@ -1,6 +1,5 @@
 {
-  "name": "with-styled-jsx-scss",
-  "version": "1.0.0",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",
@@ -14,6 +13,5 @@
   "devDependencies": {
     "sass": "^1.32.8",
     "@styled-jsx/plugin-sass": "^3.0.0"
-  },
-  "license": "MIT"
+  }
 }

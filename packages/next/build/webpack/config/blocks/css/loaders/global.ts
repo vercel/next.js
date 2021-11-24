@@ -3,10 +3,11 @@ import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { ConfigurationContext } from '../../../utils'
 import { getClientStyleLoader } from './client'
 import { cssFileResolve } from './file-resolve'
+import postcss from 'postcss'
 
 export function getGlobalCssLoader(
   ctx: ConfigurationContext,
-  postCssPlugins: readonly AcceptedPlugin[],
+  postCssPlugins: AcceptedPlugin[],
   preProcessors: readonly webpack.RuleSetUseItem[] = []
 ): webpack.RuleSetUseItem[] {
   const loaders: webpack.RuleSetUseItem[] = []
@@ -24,24 +25,23 @@ export function getGlobalCssLoader(
 
   // Resolve CSS `@import`s and `url()`s
   loaders.push({
-    loader: require.resolve('next/dist/compiled/css-loader'),
+    loader: require.resolve('../../../../loaders/css-loader/src'),
     options: {
       importLoaders: 1 + preProcessors.length,
-      sourceMap: true,
       // Next.js controls CSS Modules eligibility:
       modules: false,
-      url: cssFileResolve,
+      url: (url: string, resourcePath: string) =>
+        cssFileResolve(url, resourcePath, ctx.experimental.urlImports),
       import: (url: string, _: any, resourcePath: string) =>
-        cssFileResolve(url, resourcePath),
+        cssFileResolve(url, resourcePath, ctx.experimental.urlImports),
     },
   })
 
   // Compile CSS
   loaders.push({
-    loader: require.resolve('next/dist/compiled/postcss-loader'),
+    loader: require.resolve('../../../../loaders/postcss-loader/src'),
     options: {
-      postcssOptions: { plugins: postCssPlugins, config: false },
-      sourceMap: true,
+      postcss: postcss(postCssPlugins),
     },
   })
 

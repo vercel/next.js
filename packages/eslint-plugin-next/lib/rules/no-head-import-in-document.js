@@ -5,6 +5,7 @@ module.exports = {
     docs: {
       description: 'Disallow importing next/head in pages/document.js',
       recommended: true,
+      url: 'https://nextjs.org/docs/messages/no-head-import-in-document',
     },
   },
   create: function (context) {
@@ -15,14 +16,21 @@ module.exports = {
         }
 
         const document = context.getFilename().split('pages')[1]
-        if (!document || !path.parse(document).name.startsWith('_document')) {
+        if (!document) {
           return
         }
 
-        context.report({
-          node,
-          message: `next/head should not be imported in pages${document}. Import Head from next/document instead. See https://nextjs.org/docs/messages/no-head-import-in-document.`,
-        })
+        const { name, dir } = path.parse(document)
+
+        if (
+          name.startsWith('_document') ||
+          (dir === '/_document' && name === 'index')
+        ) {
+          context.report({
+            node,
+            message: `next/head should not be imported in pages${document}. Import Head from next/document instead. See https://nextjs.org/docs/messages/no-head-import-in-document.`,
+          })
+        }
       },
     }
   },

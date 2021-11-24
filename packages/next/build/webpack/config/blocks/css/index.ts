@@ -1,6 +1,5 @@
 import curry from 'next/dist/compiled/lodash.curry'
-import path from 'path'
-import { webpack, isWebpack5 } from 'next/dist/compiled/webpack/webpack'
+import { webpack } from 'next/dist/compiled/webpack/webpack'
 import MiniCssExtractPlugin from '../../../plugins/mini-css-extract-plugin'
 import { loader, plugin } from '../../helpers'
 import { ConfigurationContext, ConfigurationFn, pipe } from '../../utils'
@@ -12,9 +11,72 @@ import {
   getLocalModuleImportError,
 } from './messages'
 import { getPostCssPlugins } from './plugins'
+import postcss from 'postcss'
+
+// @ts-ignore backwards compat
+postcss.plugin = function postcssPlugin(name, initializer) {
+  function creator(...args: any) {
+    let transformer = initializer(...args)
+    transformer.postcssPlugin = name
+    // transformer.postcssVersion = new Processor().version
+    return transformer
+  }
+
+  let cache: any
+  Object.defineProperty(creator, 'postcss', {
+    get() {
+      if (!cache) cache = creator()
+      return cache
+    },
+  })
+
+  creator.process = function (css: any, processOpts: any, pluginOpts: any) {
+    return postcss([creator(pluginOpts)]).process(css, processOpts)
+  }
+
+  return creator
+}
+
+// @ts-ignore backwards compat
+postcss.vendor = {
+  /**
+   * Returns the vendor prefix extracted from an input string.
+   *
+   * @param {string} prop String with or without vendor prefix.
+   *
+   * @return {string} vendor prefix or empty string
+   *
+   * @example
+   * postcss.vendor.prefix('-moz-tab-size') //=> '-moz-'
+   * postcss.vendor.prefix('tab-size')      //=> ''
+   */
+  prefix: function prefix(prop: any) {
+    const match = prop.match(/^(-\w+-)/)
+
+    if (match) {
+      return match[0]
+    }
+
+    return ''
+  },
+
+  /**
+   * Returns the input string stripped of its vendor prefix.
+   *
+   * @param {string} prop String with or without vendor prefix.
+   *
+   * @return {string} String name without vendor prefixes.
+   *
+   * @example
+   * postcss.vendor.unprefixed('-moz-tab-size') //=> 'tab-size'
+   */
+  unprefixed: function unprefixed(prop: any) {
+    return prop.replace(/^-\w+-/, '')
+  },
+}
 
 // RegExps for all Style Sheet variants
-export const regexLikeCss = /\.(css|scss|sass)(\.webpack\[javascript\/auto\])?$/
+export const regexLikeCss = /\.(css|scss|sass)$/
 
 // RegExps for Style Sheets
 const regexCssGlobal = /(?<!\.module)\.css$/
@@ -77,7 +139,7 @@ export const css = curry(async function css(
 
   const postCssPlugins = await getPostCssPlugins(
     ctx.rootDirectory,
-    ctx.isProduction,
+    ctx.supportedBrowsers,
     !ctx.future.strictPostcssConfiguration
   )
 
@@ -198,7 +260,7 @@ export const css = curry(async function css(
             include: { and: [/node_modules/] },
             // Global CSS is only supported in the user's application, not in
             // node_modules.
-            issuer: ctx.isCraCompat
+            issuer: ctx.experimental.craCompat
               ? undefined
               : {
                   and: [ctx.rootDirectory],
@@ -247,7 +309,7 @@ export const css = curry(async function css(
   }
 
   // Throw an error for Global CSS used inside of `node_modules`
-  if (!ctx.isCraCompat) {
+  if (!ctx.experimental.craCompat) {
     fns.push(
       loader({
         oneOf: [
@@ -275,10 +337,7 @@ export const css = curry(async function css(
           use: {
             loader: 'error-loader',
             options: {
-              reason: getGlobalImportError(
-                ctx.customAppFile &&
-                  path.relative(ctx.rootDirectory, ctx.customAppFile)
-              ),
+              reason: getGlobalImportError(),
             },
           },
         },
@@ -302,15 +361,9 @@ export const css = curry(async function css(
               /\.json$/,
               /\.webpack\[[^\]]+\]$/,
             ],
-            use: {
-              // `file-loader` always emits a URL reference, where `url-loader`
-              // might inline the asset as a data URI
-              loader: require.resolve('next/dist/compiled/file-loader'),
-              options: {
-                // Hash the file for immutable cacheability
-                name: 'static/media/[name].[hash].[ext]',
-              },
-            },
+            // `asset/resource` always emits a URL reference, where `asset`
+            // might inline the asset as a data URI
+            type: 'asset/resource',
           },
         ],
       })
@@ -323,7 +376,6 @@ export const css = curry(async function css(
       plugin(
         // @ts-ignore webpack 5 compat
         new MiniCssExtractPlugin({
-          experimentalUseImportModule: isWebpack5,
           filename: 'static/css/[contenthash].css',
           chunkFilename: 'static/css/[contenthash].css',
           // Next.js guarantees that CSS order "doesn't matter", due to imposed

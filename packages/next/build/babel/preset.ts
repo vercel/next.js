@@ -113,7 +113,8 @@ export default (
     presetEnvConfig.targets = {
       // Targets the current process' version of Node. This requires apps be
       // built and deployed on the same version of Node.
-      node: 'current',
+      // This is the same as using "current" but explicit
+      node: process.versions.node,
     }
   }
 

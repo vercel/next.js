@@ -39,7 +39,7 @@ Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&ut
 > ## Special note
 >
 > `next build` does a hard coded variable substitution into your JavaScript before the final bundle is created. This means
-> that if you change your environmental variables outside of your running app, such as in windows with `set` or lunix with `setenv`
+> that if you change your environmental variables outside of your running app, such as in windows with `set` or linux with `setenv`
 > those changes will not be reflected in your running application until a build happens again (with `next build`).
 
 ## Discussion regarding this example

@@ -2,8 +2,8 @@ import { getSnapshot } from 'mobx-state-tree'
 import SampleComponent from '../components/SampleComponent'
 import { initializeStore } from '../store'
 
-export default function Ssr() {
-  return <SampleComponent title={'SSR Page'} linkTo="/" />
+export default function Ssr({ initialState }) {
+  return <SampleComponent title={'SSR Page'} linkTo="/" store={initialState} />
 }
 
 // The date returned here will be different for every request that hits the page,

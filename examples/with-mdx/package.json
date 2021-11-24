@@ -1,6 +1,5 @@
 {
-  "name": "with-mdx",
-  "version": "1.0.1",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",
@@ -13,6 +12,5 @@
     "next": "latest",
     "react": "^17.0.2",
     "react-dom": "^17.0.2"
-  },
-  "license": "MIT"
+  }
 }

@@ -1,12 +1,10 @@
 {
-  "name": "catch-all-routes",
-  "version": "1.0.0",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",
     "start": "next start"
   },
-  "license": "MIT",
   "dependencies": {
     "next": "latest",
     "react": "^17.0.2",

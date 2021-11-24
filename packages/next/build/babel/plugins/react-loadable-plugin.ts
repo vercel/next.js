@@ -76,9 +76,8 @@ export default function ({
 
           if (!callExpression.isCallExpression()) return
 
-          const callExpression_ = callExpression as NodePath<
-            BabelTypes.CallExpression
-          >
+          const callExpression_ =
+            callExpression as NodePath<BabelTypes.CallExpression>
 
           let args = callExpression_.get('arguments')
           if (args.length > 2) {

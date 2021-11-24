@@ -1,6 +1,5 @@
 {
-  "name": "with-custom-reverse-proxy",
-  "license": "MIT",
+  "private": true,
   "dependencies": {
     "express": "^4.15.3",
     "next": "latest",

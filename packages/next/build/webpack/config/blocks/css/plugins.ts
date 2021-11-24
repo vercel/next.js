@@ -1,6 +1,5 @@
 import chalk from 'chalk'
 import { findConfig } from '../../../../../lib/find-config'
-import browserslist from 'browserslist'
 
 type CssPluginCollection_Array = (string | [string, boolean | object])[]
 
@@ -25,7 +24,8 @@ function getError_NullConfig(pluginName: string) {
 }
 
 function isIgnoredPlugin(pluginPath: string): boolean {
-  const ignoredRegex = /(?:^|[\\/])(postcss-modules-values|postcss-modules-scope|postcss-modules-extract-imports|postcss-modules-local-by-default|postcss-modules)(?:[\\/]|$)/i
+  const ignoredRegex =
+    /(?:^|[\\/])(postcss-modules-values|postcss-modules-scope|postcss-modules-extract-imports|postcss-modules-local-by-default|postcss-modules)(?:[\\/]|$)/i
   const match = ignoredRegex.exec(pluginPath)
   if (match == null) {
     return false
@@ -88,23 +88,14 @@ async function loadPlugin(
 }
 
 function getDefaultPlugins(
-  baseDirectory: string,
-  isProduction: boolean
+  supportedBrowsers: string[] | undefined
 ): CssPluginCollection {
-  let browsers: any
-  try {
-    browsers = browserslist.loadConfig({
-      path: baseDirectory,
-      env: isProduction ? 'production' : 'development',
-    })
-  } catch {}
-
   return [
     require.resolve('next/dist/compiled/postcss-flexbugs-fixes'),
     [
       require.resolve('next/dist/compiled/postcss-preset-env'),
       {
-        browsers: browsers ?? ['defaults'],
+        browsers: supportedBrowsers ?? ['defaults'],
         autoprefixer: {
           // Disable legacy flexbox support
           flexbox: 'no-2009',
@@ -122,7 +113,7 @@ function getDefaultPlugins(
 
 export async function getPostCssPlugins(
   dir: string,
-  isProduction: boolean,
+  supportedBrowsers: string[] | undefined,
   defaults: boolean = false
 ): Promise<import('postcss').AcceptedPlugin[]> {
   let config = defaults
@@ -130,7 +121,7 @@ export async function getPostCssPlugins(
     : await findConfig<{ plugins: CssPluginCollection }>(dir, 'postcss')
 
   if (config == null) {
-    config = { plugins: getDefaultPlugins(dir, isProduction) }
+    config = { plugins: getDefaultPlugins(supportedBrowsers) }
   }
 
   if (typeof config === 'function') {

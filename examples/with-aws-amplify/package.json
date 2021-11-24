@@ -1,12 +1,10 @@
 {
-  "name": "with-aws-amplify",
-  "version": "1.0.0",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",
     "start": "next start"
   },
-  "license": "MIT",
   "dependencies": {
     "aws-amplify": "2.1.0",
     "immer": "3.1.3",

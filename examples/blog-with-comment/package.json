@@ -1,8 +1,5 @@
 {
-  "name": "blog-with-comment",
-  "version": "1.0.0",
-  "author": "Adem ilter <ademilter@gmail.com>",
-  "license": "MIT",
+  "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",

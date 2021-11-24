@@ -1,6 +1,5 @@
 {
-  "name": "with-orbit-components",
-  "version": "1.0.0",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",
@@ -16,6 +15,5 @@
   "devDependencies": {
     "@kiwicom/babel-plugin-orbit-components": "latest",
     "babel-plugin-styled-components": "^1.8.0"
-  },
-  "license": "MIT"
+  }
 }

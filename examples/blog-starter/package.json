@@ -1,6 +1,5 @@
 {
-  "name": "blog-starter",
-  "version": "1.0.0",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",
@@ -20,6 +19,5 @@
     "autoprefixer": "^10.2.1",
     "postcss": "^8.2.4",
     "tailwindcss": "^2.0.2"
-  },
-  "license": "MIT"
+  }
 }

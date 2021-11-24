@@ -1,6 +1,5 @@
 {
-  "name": "with-why-did-you-render",
-  "license": "MIT",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",

@@ -1,23 +1,21 @@
-import Link from 'next/link'
-
-export default function Home() {
+export default function Index({ time }) {
   return (
-    <ul>
-      <li>
-        <Link href="/blog?id=first" as="/blog/first">
-          <a>My first blog post</a>
-        </Link>
-      </li>
-      <li>
-        <Link href="/blog?id=second" as="/blog/second">
-          <a>My second blog post</a>
-        </Link>
-      </li>
-      <li>
-        <Link href="/blog?id=last" as="/blog/last">
-          <a>My last blog post</a>
-        </Link>
-      </li>
-    </ul>
+    <main>
+      <h1>SSR Caching with Next.js</h1>
+      <time dateTime={time}>{time}</time>
+    </main>
   )
+}
+
+export async function getServerSideProps({ req, res }) {
+  res.setHeader(
+    'Cache-Control',
+    'public, s-maxage=10, stale-while-revalidate=59'
+  )
+
+  return {
+    props: {
+      time: new Date().toISOString(),
+    },
+  }
 }

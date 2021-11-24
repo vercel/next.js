@@ -1,6 +1,5 @@
 {
-  "name": "with-linaria",
-  "version": "1.0.0",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",
@@ -15,6 +14,5 @@
   },
   "devDependencies": {
     "@babel/core": "^7.13.10"
-  },
-  "license": "MIT"
+  }
 }

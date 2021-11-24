@@ -1,1 +1,1 @@
-export * from './dist/next-server/lib/constants'
+export * from './dist/shared/lib/constants'

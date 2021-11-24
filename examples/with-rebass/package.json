@@ -1,5 +1,5 @@
 {
-  "name": "with-rebass",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",
@@ -16,6 +16,5 @@
     "babel-plugin-styled-components": "^1.1.7",
     "babel-plugin-transform-object-assign": "^6.22.0",
     "babel-plugin-transform-object-set-prototype-of-to-assign": "^6.22.0"
-  },
-  "license": "MIT"
+  }
 }

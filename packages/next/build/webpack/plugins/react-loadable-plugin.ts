@@ -21,53 +21,33 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWAR
 // Implementation of this PR: https://github.com/jamiebuilds/react-loadable/pull/132
 // Modified to strip out unneeded results for Next's specific use case
 
-import {
-  webpack,
-  isWebpack5,
-  sources,
-} from 'next/dist/compiled/webpack/webpack'
+import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 
 import path from 'path'
 
 function getModuleId(compilation: any, module: any): string | number {
-  if (isWebpack5) {
-    return compilation.chunkGraph.getModuleId(module)
-  }
-
-  return module.id
+  return compilation.chunkGraph.getModuleId(module)
 }
 
 function getModuleFromDependency(
   compilation: any,
   dep: any
 ): webpack.Module & { resource?: string } {
-  if (isWebpack5) {
-    return compilation.moduleGraph.getModule(dep)
-  }
-
-  return dep.module
+  return compilation.moduleGraph.getModule(dep)
 }
 
 function getOriginModuleFromDependency(
   compilation: any,
   dep: any
 ): webpack.Module & { resource?: string } {
-  if (isWebpack5) {
-    return compilation.moduleGraph.getParentModule(dep)
-  }
-
-  return dep.originModule
+  return compilation.moduleGraph.getParentModule(dep)
 }
 
 function getChunkGroupFromBlock(
   compilation: any,
   block: any
 ): webpack.compilation.ChunkGroup {
-  if (isWebpack5) {
-    return compilation.chunkGraph.getBlockChunkGroup(block)
-  }
-
-  return block.chunkGroup
+  return compilation.chunkGraph.getBlockChunkGroup(block)
 }
 
 function buildManifest(
@@ -165,10 +145,16 @@ function buildManifest(
 export class ReactLoadablePlugin {
   private filename: string
   private pagesDir: string
+  private runtimeAsset?: string
 
-  constructor(opts: { filename: string; pagesDir: string }) {
+  constructor(opts: {
+    filename: string
+    pagesDir: string
+    runtimeAsset?: string
+  }) {
     this.filename = opts.filename
     this.pagesDir = opts.pagesDir
+    this.runtimeAsset = opts.runtimeAsset
   }
 
   createAssets(compiler: any, compilation: any, assets: any) {
@@ -177,29 +163,27 @@ export class ReactLoadablePlugin {
     assets[this.filename] = new sources.RawSource(
       JSON.stringify(manifest, null, 2)
     )
+    if (this.runtimeAsset) {
+      assets[this.runtimeAsset] = new sources.RawSource(
+        `self.__REACT_LOADABLE_MANIFEST=${JSON.stringify(manifest)}`
+      )
+    }
     return assets
   }
 
   apply(compiler: webpack.Compiler) {
-    if (isWebpack5) {
-      compiler.hooks.make.tap('ReactLoadableManifest', (compilation) => {
-        // @ts-ignore TODO: Remove ignore when webpack 5 is stable
-        compilation.hooks.processAssets.tap(
-          {
-            name: 'ReactLoadableManifest',
-            // @ts-ignore TODO: Remove ignore when webpack 5 is stable
-            stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
-          },
-          (assets: any) => {
-            this.createAssets(compiler, compilation, assets)
-          }
-        )
-      })
-      return
-    }
-
-    compiler.hooks.emit.tap('ReactLoadableManifest', (compilation: any) => {
-      this.createAssets(compiler, compilation, compilation.assets)
+    compiler.hooks.make.tap('ReactLoadableManifest', (compilation) => {
+      // @ts-ignore TODO: Remove ignore when webpack 5 is stable
+      compilation.hooks.processAssets.tap(
+        {
+          name: 'ReactLoadableManifest',
+          // @ts-ignore TODO: Remove ignore when webpack 5 is stable
+          stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
+        },
+        (assets: any) => {
+          this.createAssets(compiler, compilation, assets)
+        }
+      )
     })
   }
 }

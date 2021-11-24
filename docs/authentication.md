@@ -48,7 +48,7 @@ const Profile = () => {
 export default Profile
 ```
 
-You can view this [example in action](https://next-with-iron-session.vercel.app/). Check out the [`with-iron-session`](https://github.com/vercel/next.js/tree/canary/examples/with-iron-session) example to see how it works.
+You can view this [example in action](https://iron-session-example.vercel.app/). Check out the [`with-iron-session`](https://github.com/vercel/next.js/tree/canary/examples/with-iron-session) example to see how it works.
 
 ### Authenticating Server-Rendered Pages
 
@@ -71,10 +71,7 @@ import withSession from '../lib/session'
 import Layout from '../components/Layout'
 
 export const getServerSideProps = withSession(async function ({ req, res }) {
-  // Get the user's session based on the request
-  const user = req.session.get('user')
-
-  if (!user) {
+  if (!req.session.user) {
     return {
       redirect: {
         destination: '/login',
@@ -101,7 +98,7 @@ const Profile = ({ user }) => {
 export default Profile
 ```
 
-An advantage of this pattern is preventing a flash of unauthenticated content before redirecting. It's important to note fetching user data in `getServerSideProps` will block rendering until the request to your authentication provider resolves. To prevent creating a bottleneck and decreasing your TTFB ([Time to First Byte](https://web.dev/time-to-first-byte/)), you should ensure your authentication lookup is fast. Otherwise, consider [static generation](#authenticating-statically-generated-pages).
+An advantage of this pattern is preventing a flash of unauthenticated content before redirecting. It's important to note fetching user data in `getServerSideProps` will block rendering until the request to your authentication provider resolves. To prevent creating a bottleneck and increasing your TTFB ([Time to First Byte](https://web.dev/time-to-first-byte/)), you should ensure your authentication lookup is fast. Otherwise, consider [static generation](#authenticating-statically-generated-pages).
 
 ## Authentication Providers
 
@@ -119,7 +116,7 @@ Now that we've discussed authentication patterns, let's look at specific provide
 
 If you have an existing database with user data, you'll likely want to utilize an open-source solution that's provider agnostic.
 
-- If you want a low-level, encrypted, and stateless session utility use [`next-iron-session`](https://github.com/vercel/next.js/tree/canary/examples/with-iron-session).
+- If you want a low-level, encrypted, and stateless session utility use [`iron-session`](https://github.com/vercel/next.js/tree/canary/examples/with-iron-session).
 - If you want a full-featured authentication system with built-in providers (Google, Facebook, GitHub…), JWT, JWE, email/password, magic links and more… use [`next-auth`](https://github.com/nextauthjs/next-auth-example).
 
 Both of these libraries support either authentication pattern. If you're interested in [Passport](http://www.passportjs.org/), we also have examples for it using secure and encrypted cookies:
@@ -141,6 +138,7 @@ To see examples with other authentication providers, check out the [examples fol
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-userbase">with-userbase</a></li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-supertokens">with-supertokens</a></li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-nhost-auth-realtime-graphql">with-nhost-auth-realtime-graphql</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-clerk">with-clerk</a></li>
   </ul>
 </details>
 

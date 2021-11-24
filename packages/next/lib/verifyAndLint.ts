@@ -6,9 +6,11 @@ import { ESLINT_DEFAULT_DIRS } from './constants'
 import { Telemetry } from '../telemetry/storage'
 import { eventLintCheckCompleted } from '../telemetry/events'
 import { CompileError } from './compile-error'
+import isError from './is-error'
 
 export async function verifyAndLint(
   dir: string,
+  cacheLocation: string,
   configLintDirs: string[] | undefined,
   numWorkers: number | undefined,
   enableWorkerThreads: boolean | undefined,
@@ -35,7 +37,9 @@ export async function verifyAndLint(
       []
     )
 
-    const lintResults = await lintWorkers.runLintCheck(dir, lintDirs, true)
+    const lintResults = await lintWorkers.runLintCheck(dir, lintDirs, true, {
+      cacheLocation,
+    })
     const lintOutput =
       typeof lintResults === 'string' ? lintResults : lintResults?.output
 
@@ -59,13 +63,15 @@ export async function verifyAndLint(
 
     lintWorkers.end()
   } catch (err) {
-    if (err.type === 'CompileError' || err instanceof CompileError) {
-      console.error(chalk.red('\nFailed to compile.'))
-      console.error(err.message)
-      process.exit(1)
-    } else if (err.type === 'FatalError') {
-      console.error(err.message)
-      process.exit(1)
+    if (isError(err)) {
+      if (err.type === 'CompileError' || err instanceof CompileError) {
+        console.error(chalk.red('\nFailed to compile.'))
+        console.error(err.message)
+        process.exit(1)
+      } else if (err.type === 'FatalError') {
+        console.error(err.message)
+        process.exit(1)
+      }
     }
     throw err
   }

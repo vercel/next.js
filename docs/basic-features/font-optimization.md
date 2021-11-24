@@ -35,7 +35,7 @@ export default function IndexPage() {
     <div>
       <Head>
         <link
-          href="https://fonts.googleapis.com/css2?family=Inter"
+          href="https://fonts.googleapis.com/css2?family=Inter&display=optional"
           rel="stylesheet"
         />
       </Head>
@@ -58,7 +58,7 @@ class MyDocument extends Document {
       <Html>
         <Head>
           <link
-            href="https://fonts.googleapis.com/css2?family=Inter"
+            href="https://fonts.googleapis.com/css2?family=Inter&display=optional"
             rel="stylesheet"
           />
         </Head>
@@ -75,6 +75,8 @@ export default MyDocument
 ```
 
 Automatic Webfont Optimization currently supports Google Fonts and Typekit with support for other font providers coming soon. We're also planning to add control over [loading strategies](https://github.com/vercel/next.js/issues/21555) and `font-display` values.
+
+See [Google Font Display](https://nextjs.org/docs/messages/google-font-display) for more information.
 
 ## Disabling Optimization
 

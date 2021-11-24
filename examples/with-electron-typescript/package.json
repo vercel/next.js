@@ -1,7 +1,5 @@
 {
-  "name": "with-electron-typescript",
-  "version": "1.0.0",
-  "license": "MIT",
+  "private": true,
   "main": "main/index.js",
   "productName": "ElectronTypescriptNext",
   "scripts": {
