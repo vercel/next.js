@@ -4,8 +4,6 @@ import Log from '../output/log'
 
 const ArchName = arch()
 const PlatformName = platform()
-console.log(ArchName, PlatformName)
-console.log(platformArchTriples)
 const triples = platformArchTriples[PlatformName][ArchName]
 
 async function loadBindings() {
