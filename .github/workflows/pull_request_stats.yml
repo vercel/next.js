@@ -53,8 +53,8 @@ jobs:
         uses: actions/cache@v2
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         with:
-          path: packages/next/native/next-swc.linux-x64-gnu.node
-          key: dev-next-swc-nightly-2021-08-12-linux-x64-gnu-${{ hashFiles('.github/workflows/build_test_deploy.yml', 'packages/next/build/swc/**') }}
+          path: packages/next-swc/native/next-swc.linux-x64-gnu.node
+          key: dev-next-swc-nightly-2021-08-12-linux-x64-gnu-${{ hashFiles('.github/workflows/build_test_deploy.yml', 'packages/next-swc/**') }}
 
       # We use restore-key to pick latest cache.
       # We will not get exact match, but doc says
@@ -63,7 +63,7 @@ jobs:
       - name: Cache built files
         uses: actions/cache@v2
         with:
-          path: ./packages/next/build/swc/target
+          path: ./packages/next-target
           key: next-swc-cargo-cache-ubuntu-18.04--${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             next-swc-cargo-cache-ubuntu-18.04
@@ -77,13 +77,13 @@ jobs:
         run: yarn build-native
         env:
           MACOSX_DEPLOYMENT_TARGET: '10.13'
-        working-directory: packages/next
+        working-directory: packages/next-swc
 
       - name: Upload artifact
         uses: actions/upload-artifact@v2.2.4
         with:
           name: next-swc-dev-binary
-          path: packages/next/native/next-swc.linux-x64-gnu.node
+          path: packages/next-swc/native/next-swc.linux-x64-gnu.node
 
       - name: Clear the cargo caches
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
@@ -107,9 +107,9 @@ jobs:
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         with:
           name: next-swc-dev-binary
-          path: packages/next/native
+          path: packages/next-swc/native
 
-      - run: cp -r packages/next/native .github/actions/next-stats-action/native
+      - run: cp -r packages/next-swc/native .github/actions/next-stats-action/native
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
 
       - uses: ./.github/actions/next-stats-action
