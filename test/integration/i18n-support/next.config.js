@@ -61,6 +61,17 @@ module.exports = {
         destination: 'https://jobs.example.com',
         permanent: false,
       },
+      {
+        source: '/redirect-6',
+        has: [
+          {
+            type: 'query',
+            key: 'search',
+          },
+        ],
+        destination: '/redirect-6?filter[query]=:search',
+        permanent: false,
+      },
     ]
   },
   async rewrites() {
