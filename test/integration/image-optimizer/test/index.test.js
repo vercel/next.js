@@ -48,14 +48,56 @@ async function expectWidth(res, w) {
   expect(d.width).toBe(w)
 }
 
-function runTests({ w, isDev, domains = [], ttl, isSharp, isOutdatedSharp }) {
+async function expectAvifSmallerThanWebp(w, q) {
+  const query = { url: '/mountains.jpg', w, q }
+  const res1 = await fetchViaHTTP(appPort, '/_next/image', query, {
+    headers: {
+      accept: 'image/avif',
+    },
+  })
+  expect(res1.status).toBe(200)
+  expect(res1.headers.get('Content-Type')).toBe('image/avif')
+
+  const res2 = await fetchViaHTTP(appPort, '/_next/image', query, {
+    headers: {
+      accept: 'image/webp',
+    },
+  })
+  expect(res2.status).toBe(200)
+  expect(res2.headers.get('Content-Type')).toBe('image/webp')
+
+  const res3 = await fetchViaHTTP(appPort, '/_next/image', query, {
+    headers: {
+      accept: 'image/jpeg',
+    },
+  })
+  expect(res3.status).toBe(200)
+  expect(res3.headers.get('Content-Type')).toBe('image/jpeg')
+
+  const avif = (await res1.buffer()).byteLength
+  const webp = (await res2.buffer()).byteLength
+  const jpeg = (await res3.buffer()).byteLength
+
+  expect(webp).toBeLessThan(jpeg)
+  expect(avif).toBeLessThanOrEqual(webp)
+}
+
+function runTests({
+  w,
+  isDev,
+  domains = [],
+  ttl,
+  isSharp,
+  isOutdatedSharp,
+  avifEnabled,
+}) {
   it('should return home page', async () => {
     const res = await fetchViaHTTP(appPort, '/', null, {})
     expect(await res.text()).toMatch(/Image Optimizer Home/m)
   })
 
   it('should handle non-ascii characters in image url', async () => {
-    const query = { w, q: 90, url: '/äöü.png' }
+    const query = { w, q: 90, url: '/äöüščří.png' }
     const res = await fetchViaHTTP(appPort, '/_next/image', query, {})
     expect(res.status).toBe(200)
   })
@@ -379,26 +421,42 @@ function runTests({ w, isDev, domains = [], ttl, isSharp, isOutdatedSharp }) {
     await expectWidth(res, w)
   })
 
-  it('should resize relative url and new Chrome accept header as avif', async () => {
-    const query = { url: '/test.png', w, q: 80 }
-    const opts = {
-      headers: { accept: 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8' },
-    }
-    const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
-    expect(res.status).toBe(200)
-    expect(res.headers.get('Content-Type')).toBe('image/avif')
-    expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=0, must-revalidate`
-    )
-    expect(res.headers.get('Vary')).toBe('Accept')
-    expect(res.headers.get('etag')).toBeTruthy()
-    expect(res.headers.get('Content-Disposition')).toBe(
-      `inline; filename="test.avif"`
-    )
-    // TODO: upgrade "image-size" package to support AVIF
-    // See https://github.com/image-size/image-size/issues/348
-    //await expectWidth(res, w)
-  })
+  if (avifEnabled) {
+    it('should resize relative url and new Chrome accept header as avif', async () => {
+      const query = { url: '/test.png', w, q: 80 }
+      const opts = {
+        headers: {
+          accept: 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
+        },
+      }
+      const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+      expect(res.status).toBe(200)
+      expect(res.headers.get('Content-Type')).toBe('image/avif')
+      expect(res.headers.get('Cache-Control')).toBe(
+        `public, max-age=0, must-revalidate`
+      )
+      expect(res.headers.get('Vary')).toBe('Accept')
+      expect(res.headers.get('etag')).toBeTruthy()
+      expect(res.headers.get('Content-Disposition')).toBe(
+        `inline; filename="test.avif"`
+      )
+      // TODO: upgrade "image-size" package to support AVIF
+      // See https://github.com/image-size/image-size/issues/348
+      //await expectWidth(res, w)
+    })
+
+    it('should compress avif smaller than webp at q=100', async () => {
+      await expectAvifSmallerThanWebp(w, 100)
+    })
+
+    it('should compress avif smaller than webp at q=75', async () => {
+      await expectAvifSmallerThanWebp(w, 75)
+    })
+
+    it('should compress avif smaller than webp at q=50', async () => {
+      await expectAvifSmallerThanWebp(w, 50)
+    })
+  }
 
   if (domains.includes('localhost')) {
     it('should resize absolute url from localhost', async () => {
@@ -682,7 +740,7 @@ function runTests({ w, isDev, domains = [], ttl, isSharp, isOutdatedSharp }) {
     if (!isDev) {
       const filename = 'test'
       const query = {
-        url: `/_next/static/image/public/${filename}.480a01e5ea850d0231aec0fa94bd23a0.jpg`,
+        url: `/_next/static/media/${filename}.fab2915d.jpg`,
         w,
         q: 100,
       }
@@ -756,7 +814,7 @@ function runTests({ w, isDev, domains = [], ttl, isSharp, isOutdatedSharp }) {
     })
   }
 
-  if (isSharp && isOutdatedSharp) {
+  if (isSharp && isOutdatedSharp && avifEnabled) {
     it('should have sharp outdated warning', () => {
       expect(nextOutput).toContain(sharpOutdatedText)
     })
@@ -943,6 +1001,31 @@ describe('Image Optimizer', () => {
 
       expect(stderr).toContain(
         `Specified images.formats should be an Array of mime type strings, received invalid values (jpeg)`
+      )
+    })
+
+    it('should error when images.loader is assigned but images.path is not', async () => {
+      await nextConfig.replace(
+        '{ /* replaceme */ }',
+        JSON.stringify({
+          images: {
+            loader: 'imgix',
+          },
+        })
+      )
+      let stderr = ''
+
+      app = await launchApp(appDir, await findPort(), {
+        onStderr(msg) {
+          stderr += msg || ''
+        },
+      })
+      await waitFor(1000)
+      await killApp(app).catch(() => {})
+      await nextConfig.restore()
+
+      expect(stderr).toContain(
+        `Specified images.loader property (imgix) also requires images.path property to be assigned to a URL prefix.`
       )
     })
   })
@@ -1157,17 +1240,25 @@ describe('Image Optimizer', () => {
         await fs.remove(imagesDir)
       })
 
-      runTests({ w: size, isDev: true, domains: [], isSharp, isOutdatedSharp })
+      runTests({
+        w: size,
+        isDev: true,
+        domains: [],
+        isSharp,
+        isOutdatedSharp,
+        avifEnabled: false,
+      })
     })
 
     describe('dev support with next.config.js', () => {
-      const size = 64
+      const size = 400
       beforeAll(async () => {
         const json = JSON.stringify({
           images: {
             deviceSizes: [largeSize],
             imageSizes: [size],
             domains,
+            formats: ['image/avif', 'image/webp'],
           },
         })
         nextOutput = ''
@@ -1191,7 +1282,14 @@ describe('Image Optimizer', () => {
         await fs.remove(imagesDir)
       })
 
-      runTests({ w: size, isDev: true, domains, isSharp, isOutdatedSharp })
+      runTests({
+        w: size,
+        isDev: true,
+        domains,
+        isSharp,
+        isOutdatedSharp,
+        avifEnabled: true,
+      })
     })
 
     describe('Server support w/o next.config.js', () => {
@@ -1221,10 +1319,11 @@ describe('Image Optimizer', () => {
     })
 
     describe('Server support with next.config.js', () => {
-      const size = 128
+      const size = 399
       beforeAll(async () => {
         const json = JSON.stringify({
           images: {
+            formats: ['image/avif', 'image/webp'],
             deviceSizes: [size, largeSize],
             domains,
           },
@@ -1251,7 +1350,14 @@ describe('Image Optimizer', () => {
         await fs.remove(imagesDir)
       })
 
-      runTests({ w: size, isDev: false, domains, isSharp, isOutdatedSharp })
+      runTests({
+        w: size,
+        isDev: false,
+        domains,
+        isSharp,
+        isOutdatedSharp,
+        avifEnabled: true,
+      })
     })
   }
 

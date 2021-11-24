@@ -1,6 +1,11 @@
-import type { Compiler, Compilation } from 'webpack'
+import type { webpack5 as webpack } from 'next/dist/compiled/webpack/webpack'
 
-type Feature = 'next/image' | 'next/script' | 'next/dynamic'
+type Feature =
+  | 'next/image'
+  | 'next/script'
+  | 'next/dynamic'
+  | 'swcLoader'
+  | 'swcMinify'
 
 interface FeatureUsage {
   featureName: Feature
@@ -29,15 +34,26 @@ const FEATURE_MODULE_MAP: ReadonlyMap<Feature, string> = new Map([
   ['next/dynamic', '/next/dynamic.js'],
 ])
 
+// List of build features used in webpack configuration
+const BUILD_FEATURES: Array<Feature> = ['swcLoader', 'swcMinify']
+
 /**
  * Plugin that queries the ModuleGraph to look for modules that correspond to
  * certain features (e.g. next/image and next/script) and record how many times
  * they are imported.
  */
-export class TelemetryPlugin {
+export class TelemetryPlugin implements webpack.WebpackPluginInstance {
   private usageTracker = new Map<Feature, FeatureUsage>()
 
-  constructor() {
+  // Build feature usage is on/off and is known before the build starts
+  constructor(buildFeaturesMap: Map<Feature, boolean>) {
+    for (const featureName of BUILD_FEATURES) {
+      this.usageTracker.set(featureName, {
+        featureName,
+        invocationCount: buildFeaturesMap.get(featureName) ? 1 : 0,
+      })
+    }
+
     for (const featureName of FEATURE_MODULE_MAP.keys()) {
       this.usageTracker.set(featureName, {
         featureName,
@@ -46,13 +62,13 @@ export class TelemetryPlugin {
     }
   }
 
-  apply(compiler: Compiler): void {
+  apply(compiler: webpack.Compiler): void {
     compiler.hooks.make.tapAsync(
       TelemetryPlugin.name,
-      async (compilation: Compilation, callback: () => void) => {
+      async (compilation: webpack.Compilation, callback: () => void) => {
         compilation.hooks.finishModules.tapAsync(
           TelemetryPlugin.name,
-          async (modules: Set<Module>, modulesFinish: () => void) => {
+          async (modules: Iterable<Module>, modulesFinish: () => void) => {
             for (const module of modules) {
               const feature = findFeatureInModule(module)
               if (!feature) {

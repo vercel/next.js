@@ -67,11 +67,16 @@ exports[`ReactRefreshLogBox logbox: can recover from a event handler error 1`] =
 `;
 
 exports[`ReactRefreshLogBox logbox: can recover from a syntax error without losing state 1`] = `
-"./index.js:1:26
-Syntax error: Unexpected token, expected \\"jsxTagEnd\\"
+"./index.js
+Error: error: Unexpected eof
+ 
+  |
+1 | export default () => <div/
+  |                           ^
 
-> 1 | export default () => <div/
-    |                           ^"
+Caused by:
+    0: failed to process js file
+    1: Syntax Error"
 `;
 
 exports[`ReactRefreshLogBox module init error not shown 1`] = `
@@ -122,34 +127,40 @@ exports[`ReactRefreshLogBox syntax > runtime error 1`] = `
 `;
 
 exports[`ReactRefreshLogBox syntax > runtime error 2`] = `
-"./index.js:8:49
-Syntax error: Unexpected token
+"./index.js
+Error: error: Unexpected eof
+ 
+  |
+8 |         export default function FunctionNamed() {
+  |                                                  ^
 
-  6 |           throw Error('no ' + i)
-  7 |         }, 1000)
-> 8 |         export default function FunctionNamed() {
-    |                                                  ^"
+Caused by:
+    0: failed to process js file
+    1: Syntax Error"
 `;
 
 exports[`ReactRefreshLogBox syntax > runtime error 3`] = `
-"./index.js:8:49
-Syntax error: Unexpected token
+"./index.js
+Error: error: Unexpected eof
+ 
+  |
+8 |         export default function FunctionNamed() {
+  |                                                  ^
 
-  6 |           throw Error('no ' + i)
-  7 |         }, 1000)
-> 8 |         export default function FunctionNamed() {
-    |                                                  ^"
+Caused by:
+    0: failed to process js file
+    1: Syntax Error"
 `;
 
 exports[`ReactRefreshLogBox unterminated JSX 1`] = `
-"./index.js:5:24
-Syntax error: Unterminated JSX contents.
+"./index.js
+Error: error: Unexpected eof
+ 
+  |
+9 |       
+  |       ^
 
-  3 |           return (
-  4 |             <div>
-> 5 |               <p>lol</p>
-    |                         ^
-  6 |             div
-  7 |           )
-  8 |         }"
+Caused by:
+    0: failed to process js file
+    1: Syntax Error"
 `;

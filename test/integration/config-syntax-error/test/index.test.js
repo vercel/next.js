@@ -4,12 +4,13 @@ import { join } from 'path'
 import { nextBuild } from 'next-test-utils'
 
 const appDir = join(__dirname, '..')
-const nextConfig = join(appDir, 'next.config.js')
+const nextConfigJS = join(appDir, 'next.config.js')
+const nextConfigMJS = join(appDir, 'next.config.mjs')
 
-describe('Invalid resolve alias', () => {
-  it('should show relevant error when webpack resolve alias is wrong', async () => {
+describe('Invalid config syntax', () => {
+  it('should error when next.config.js contains syntax error', async () => {
     await fs.writeFile(
-      nextConfig,
+      nextConfigJS,
       `
       module.exports = {
         reactStrictMode: true,,
@@ -19,10 +20,31 @@ describe('Invalid resolve alias', () => {
     const { stderr } = await nextBuild(appDir, undefined, {
       stderr: true,
     })
-    await fs.remove(nextConfig)
+    await fs.remove(nextConfigJS)
 
     expect(stderr).toContain(
-      'Error: failed to load next.config.js, see more info here https://nextjs.org/docs/messages/next-config-error'
+      'error - Failed to load next.config.js, see more info here https://nextjs.org/docs/messages/next-config-error'
+    )
+    expect(stderr).toContain('SyntaxError')
+  })
+
+  it('should error when next.config.mjs contains syntax error', async () => {
+    await fs.writeFile(
+      nextConfigMJS,
+      `
+      const config = {
+        reactStrictMode: true,,
+      }
+      export default config
+    `
+    )
+    const { stderr } = await nextBuild(appDir, undefined, {
+      stderr: true,
+    })
+    await fs.remove(nextConfigMJS)
+
+    expect(stderr).toContain(
+      'error - Failed to load next.config.mjs, see more info here https://nextjs.org/docs/messages/next-config-error'
     )
     expect(stderr).toContain('SyntaxError')
   })

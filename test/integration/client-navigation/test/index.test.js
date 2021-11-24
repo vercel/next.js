@@ -733,7 +733,8 @@ describe('Client Navigation', () => {
 
         const counter = await browser.elementByCss('p').text()
 
-        expect(counter).toBe('COUNT: 2')
+        // getInitialProps should not be called with only hash changes
+        expect(counter).toBe('COUNT: 0')
 
         await browser.close()
       })

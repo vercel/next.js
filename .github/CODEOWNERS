@@ -1,6 +1,24 @@
 # Learn how to add code owners here:
 # https://help.github.com/en/articles/about-code-owners
 
-*          @timneutkens @ijjk @shuding @styfle @huozhi @padmaia
+*          @timneutkens @ijjk @shuding @huozhi
+/.github/  @timneutkens @ijjk @shuding @styfle @huozhi @padmaia
 /docs/     @timneutkens @ijjk @shuding @styfle @huozhi @padmaia @leerob @lfades @molebox
 /examples/ @timneutkens @ijjk @shuding @leerob @lfades
+
+# SWC Build (@padmaia)
+
+/packages/next/build/   @timneutkens @ijjk @shuding @padmaia @huozhi 
+
+# Image Component (@styfle)
+
+/examples/image-component/                                   @timneutkens @ijjk @shuding @styfle
+/packages/next/build/webpack/loaders/next-image-loader.js    @timneutkens @ijjk @shuding @styfle
+/packages/next/client/image.tsx                              @timneutkens @ijjk @shuding @styfle
+/packages/next/image-types/                                  @timneutkens @ijjk @shuding @styfle
+/packages/next/server/image-config.ts                        @timneutkens @ijjk @shuding @styfle
+/packages/next/server/image-optimizer.ts                     @timneutkens @ijjk @shuding @styfle
+/packages/next/server/serve-static.ts                        @timneutkens @ijjk @shuding @styfle
+/packages/next/server/config.ts                              @timneutkens @ijjk @shuding @styfle
+/test/integration/image-optimizer/                           @timneutkens @ijjk @shuding @styfle
+/test/integration/image-component/                           @timneutkens @ijjk @shuding @styfle

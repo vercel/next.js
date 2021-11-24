@@ -520,7 +520,7 @@ export default async function exportApp(
         )
     }
 
-    const timeout = configuration?.experimental.staticPageGenerationTimeout || 0
+    const timeout = configuration?.staticPageGenerationTimeout || 0
     let infoPrinted = false
     let exportPage: typeof import('./worker').default
     let endWorker: () => Promise<void>

@@ -56,7 +56,7 @@ export default function connect() {
     try {
       processMessage(event)
     } catch (ex) {
-      console.warn('Invalid HMR message: ' + event.data + '\n' + ex)
+      console.warn('Invalid HMR message: ' + event.data + '\n', ex)
     }
   })
 
@@ -88,7 +88,9 @@ function clearOutdatedErrors() {
 function handleSuccess() {
   clearOutdatedErrors()
 
-  const isHotUpdate = !isFirstCompilation
+  const isHotUpdate =
+    !isFirstCompilation ||
+    (window.__NEXT_DATA__.page !== '/_error' && isUpdateAvailable())
   isFirstCompilation = false
   hasCompileErrors = false
 

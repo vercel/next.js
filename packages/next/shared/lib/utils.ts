@@ -107,6 +107,7 @@ export type NEXT_DATA = {
   domainLocales?: DomainLocale[]
   scriptLoader?: any[]
   isPreview?: boolean
+  rsc?: boolean
 }
 
 /**
@@ -174,6 +175,7 @@ export type AppPropsType<
   router: R
   __N_SSG?: boolean
   __N_SSP?: boolean
+  __N_RSC?: boolean
 }
 
 export type DocumentContext = NextPageContext & {
@@ -219,6 +221,7 @@ export type HtmlProps = {
   styles?: React.ReactElement[] | React.ReactFragment
   head?: Array<JSX.Element | null>
   useMaybeDeferContent: MaybeDeferContentHook
+  useMainContent: (fn?: (content: JSX.Element) => JSX.Element) => JSX.Element
 }
 
 /**

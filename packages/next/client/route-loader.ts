@@ -13,6 +13,8 @@ declare global {
   interface Window {
     __BUILD_MANIFEST?: ClientBuildManifest
     __BUILD_MANIFEST_CB?: Function
+    __MIDDLEWARE_MANIFEST?: any
+    __MIDDLEWARE_MANIFEST_CB?: Function
   }
 }
 
@@ -231,6 +233,26 @@ export function getClientBuildManifest(): Promise<ClientBuildManifest> {
   )
 }
 
+export function getMiddlewareManifest(): Promise<any> {
+  if (self.__MIDDLEWARE_MANIFEST) {
+    return Promise.resolve(self.__MIDDLEWARE_MANIFEST)
+  }
+
+  const onMiddlewareManifest: Promise<any> = new Promise<any>((resolve) => {
+    const cb = self.__MIDDLEWARE_MANIFEST_CB
+    self.__MIDDLEWARE_MANIFEST_CB = () => {
+      resolve(self.__MIDDLEWARE_MANIFEST!)
+      cb && cb()
+    }
+  })
+
+  return resolvePromiseWithTimeout(
+    onMiddlewareManifest,
+    MS_MAX_IDLE_DELAY,
+    markAssetError(new Error('Failed to load client middleware manifest'))
+  )
+}
+
 interface RouteFiles {
   scripts: string[]
   css: string[]
@@ -354,34 +376,30 @@ export function createRouteLoader(assetPrefix: string): RouteLoader {
     },
     loadRoute(route: string, prefetch?: boolean) {
       return withFuture<RouteLoaderEntry>(route, routes, () => {
-        const routeFilesPromise = getFilesForRoute(assetPrefix, route)
-          .then(({ scripts, css }) => {
-            return Promise.all([
-              entrypoints.has(route)
-                ? []
-                : Promise.all(scripts.map(maybeExecuteScript)),
-              Promise.all(css.map(fetchStyleSheet)),
-            ] as const)
-          })
-          .then((res) => {
-            return this.whenEntrypoint(route).then((entrypoint) => ({
-              entrypoint,
-              styles: res[1],
-            }))
-          })
+        let devBuildPromiseResolve: () => void
 
         if (process.env.NODE_ENV === 'development') {
           devBuildPromise = new Promise<void>((resolve) => {
-            if (routeFilesPromise) {
-              return routeFilesPromise.finally(() => {
-                resolve()
-              })
-            }
+            devBuildPromiseResolve = resolve
           })
         }
 
         return resolvePromiseWithTimeout(
-          routeFilesPromise,
+          getFilesForRoute(assetPrefix, route)
+            .then(({ scripts, css }) => {
+              return Promise.all([
+                entrypoints.has(route)
+                  ? []
+                  : Promise.all(scripts.map(maybeExecuteScript)),
+                Promise.all(css.map(fetchStyleSheet)),
+              ] as const)
+            })
+            .then((res) => {
+              return this.whenEntrypoint(route).then((entrypoint) => ({
+                entrypoint,
+                styles: res[1],
+              }))
+            }),
           MS_MAX_IDLE_DELAY,
           markAssetError(new Error(`Route did not complete loading: ${route}`))
         )
@@ -399,6 +417,7 @@ export function createRouteLoader(assetPrefix: string): RouteLoader {
             }
             return { error: err }
           })
+          .finally(() => devBuildPromiseResolve?.())
       })
     },
     prefetch(route: string): Promise<void> {

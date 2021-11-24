@@ -1,7 +1,11 @@
-import { webpack } from 'next/dist/compiled/webpack/webpack'
+import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
+import { clearSandboxCache } from '../../../server/web/sandbox'
 import { realpathSync } from 'fs'
 import path from 'path'
 import isError from '../../../lib/is-error'
+
+type Compiler = webpack5.Compiler
+type WebpackPluginInstance = webpack5.WebpackPluginInstance
 
 const originModules = [
   require.resolve('../../../server/require'),
@@ -37,25 +41,25 @@ function deleteCache(filePath: string) {
 const PLUGIN_NAME = 'NextJsRequireCacheHotReloader'
 
 // This plugin flushes require.cache after emitting the files. Providing 'hot reloading' of server files.
-export class NextJsRequireCacheHotReloader implements webpack.Plugin {
+export class NextJsRequireCacheHotReloader implements WebpackPluginInstance {
   prevAssets: any = null
   previousOutputPathsWebpack5: Set<string> = new Set()
   currentOutputPathsWebpack5: Set<string> = new Set()
 
-  apply(compiler: webpack.Compiler) {
-    // @ts-ignored Webpack has this hooks
+  apply(compiler: Compiler) {
     compiler.hooks.assetEmitted.tap(
       PLUGIN_NAME,
-      (_file: any, { targetPath }: any) => {
+      (_file, { targetPath, content }) => {
         this.currentOutputPathsWebpack5.add(targetPath)
         deleteCache(targetPath)
+        clearSandboxCache(targetPath, content.toString('utf-8'))
       }
     )
 
     compiler.hooks.afterEmit.tap(PLUGIN_NAME, (compilation) => {
       RUNTIME_NAMES.forEach((name) => {
         const runtimeChunkPath = path.join(
-          compilation.outputOptions.path,
+          compilation.outputOptions.path!,
           `${name}.js`
         )
         deleteCache(runtimeChunkPath)
@@ -70,7 +74,7 @@ export class NextJsRequireCacheHotReloader implements webpack.Plugin {
 
       entries.forEach((page) => {
         const outputPath = path.join(
-          compilation.outputOptions.path,
+          compilation.outputOptions.path!,
           page + '.js'
         )
         deleteCache(outputPath)
