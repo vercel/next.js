@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { existsSync } from 'fs'
 import arg from 'next/dist/compiled/arg/index.js'
-import { resolve, join } from 'path'
+import { join } from 'path'
 import chalk from 'chalk'
 
 import { cliCommand } from '../bin/next'
@@ -13,6 +13,8 @@ import loadConfig from '../server/config'
 import { PHASE_PRODUCTION_BUILD } from '../shared/lib/constants'
 import { eventLintCheckCompleted } from '../telemetry/events'
 import { CompileError } from '../lib/compile-error'
+import isError from '../lib/is-error'
+import { getProjectDir } from '../lib/get-project-dir'
 
 const eslintOptions = (args: arg.Spec, defaultCacheLocation: string) => ({
   overrideConfigFile: args['--config'] || null,
@@ -28,6 +30,7 @@ const eslintOptions = (args: arg.Spec, defaultCacheLocation: string) => ({
     args['--report-unused-disable-directives'] || null,
   cache: !Boolean(args['--no-cache']),
   cacheLocation: args['--cache-location'] || defaultCacheLocation,
+  cacheStrategy: args['--cache-strategy'] || 'metadata',
   errorOnUnmatchedPattern: args['--error-on-unmatched-pattern']
     ? Boolean(args['--error-on-unmatched-pattern'])
     : false,
@@ -39,6 +42,7 @@ const nextLint: cliCommand = async (argv) => {
     '--help': Boolean,
     '--base-dir': String,
     '--dir': [String],
+    '--file': [String],
     '--strict': Boolean,
 
     // Aliases
@@ -64,6 +68,7 @@ const nextLint: cliCommand = async (argv) => {
     '--cache': Boolean, // Although cache is enabled by default, this dummy flag still exists to not cause any breaking changes
     '--no-cache': Boolean,
     '--cache-location': String,
+    '--cache-strategy': String,
     '--error-on-unmatched-pattern': Boolean,
     '--format': String,
 
@@ -76,7 +81,7 @@ const nextLint: cliCommand = async (argv) => {
   try {
     args = arg({ ...validArgs, ...validEslintArgs }, { argv })
   } catch (error) {
-    if (error.code === 'ARG_UNKNOWN_OPTION') {
+    if (isError(error) && error.code === 'ARG_UNKNOWN_OPTION') {
       return printAndExit(error.message, 1)
     }
     throw error
@@ -89,15 +94,16 @@ const nextLint: cliCommand = async (argv) => {
         If not configured, ESLint will be set up for the first time.
 
       Usage
-        $ next lint <baseDir> [options]
-      
+        $ next lint <baseDir> [options]      
+
       <baseDir> represents the directory of the Next.js application.
       If no directory is provided, the current directory will be used.
 
       Options
         Basic configuration:
           -h, --help                     List this help
-          -d, --dir Array                Set directory, or directories, to run ESLint - default: 'pages', 'components', and 'lib'
+          -d, --dir Array                Include directory, or directories, to run ESLint - default: 'pages', 'components', and 'lib'
+          --file Array                   Include file, or files, to run ESLint
           -c, --config path::String      Use this configuration file, overriding all other config options
           --ext [String]                 Specify JavaScript file extensions - default: .js, .jsx, .ts, .tsx
           --resolve-plugins-relative-to path::String  A folder where plugins should be resolved from, CWD by default
@@ -130,6 +136,7 @@ const nextLint: cliCommand = async (argv) => {
         Caching:
           --no-cache                     Disable caching
           --cache-location path::String  Path to the cache file or directory - default: .eslintcache
+          --cache-strategy String        Strategy to use for detecting changed files in the cache, either metadata or content - default: metadata
         
         Miscellaneous:
           --error-on-unmatched-pattern   Show errors when any file patterns are unmatched - default: false
@@ -138,7 +145,7 @@ const nextLint: cliCommand = async (argv) => {
     )
   }
 
-  const baseDir = resolve(args._[0] || '.')
+  const baseDir = getProjectDir(args._[0])
 
   // Check if the provided directory exists
   if (!existsSync(baseDir)) {
@@ -147,16 +154,18 @@ const nextLint: cliCommand = async (argv) => {
 
   const nextConfig = await loadConfig(PHASE_PRODUCTION_BUILD, baseDir)
 
+  const files: string[] = args['--file'] ?? []
   const dirs: string[] = args['--dir'] ?? nextConfig.eslint?.dirs
-  const lintDirs = (dirs ?? ESLINT_DEFAULT_DIRS).reduce(
-    (res: string[], d: string) => {
-      const currDir = join(baseDir, d)
-      if (!existsSync(currDir)) return res
-      res.push(currDir)
-      return res
-    },
-    []
-  )
+  const filesToLint = [...(dirs ?? []), ...files]
+
+  const pathsToLint = (
+    filesToLint.length ? filesToLint : ESLINT_DEFAULT_DIRS
+  ).reduce((res: string[], d: string) => {
+    const currDir = join(baseDir, d)
+    if (!existsSync(currDir)) return res
+    res.push(currDir)
+    return res
+  }, [])
 
   const reportErrorsOnly = Boolean(args['--quiet'])
   const maxWarnings = args['--max-warnings'] ?? -1
@@ -168,7 +177,7 @@ const nextLint: cliCommand = async (argv) => {
 
   runLintCheck(
     baseDir,
-    lintDirs,
+    pathsToLint,
     false,
     eslintOptions(args, defaultCacheLocation),
     reportErrorsOnly,

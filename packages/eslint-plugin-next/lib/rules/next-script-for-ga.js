@@ -22,6 +22,7 @@ module.exports = {
       description:
         'Prefer next script component when using the inline script for Google Analytics',
       recommended: true,
+      url: 'https://nextjs.org/docs/messages/next-script-for-ga',
     },
   },
   create: function (context) {
@@ -52,8 +53,8 @@ module.exports = {
         // https://developers.google.com/analytics/devguides/collection/analyticsjs#the_google_analytics_tag
         // https://developers.google.com/tag-manager/quickstart
         if (
-          attributes.has('dangerouslySetInnerHTML') &&
-          attributes.value('dangerouslySetInnerHTML')[0]
+          attributes.value('dangerouslySetInnerHTML') &&
+          attributes.value('dangerouslySetInnerHTML').length > 0
         ) {
           const htmlContent =
             attributes.value('dangerouslySetInnerHTML')[0].value.quasis &&

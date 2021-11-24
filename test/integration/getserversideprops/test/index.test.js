@@ -21,7 +21,6 @@ import {
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 
-jest.setTimeout(1000 * 60 * 2)
 const appDir = join(__dirname, '..')
 const nextConfig = new File(join(appDir, 'next.config.js'))
 
@@ -135,6 +134,34 @@ const expectedManifestRoutes = () => [
     routeKeys: {
       slug: 'slug',
     },
+  },
+  {
+    dataRouteRegex: normalizeRegEx(
+      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/promise.json$`
+    ),
+    page: '/promise',
+  },
+  {
+    dataRouteRegex: normalizeRegEx(
+      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/promise\\/mutate-res.json$`
+    ),
+    page: '/promise/mutate-res',
+  },
+  {
+    dataRouteRegex: normalizeRegEx(
+      `^\\/_next\\/data\\/${escapeRegex(
+        buildId
+      )}\\/promise\\/mutate-res-no-streaming.json$`
+    ),
+    page: '/promise/mutate-res-no-streaming',
+  },
+  {
+    dataRouteRegex: normalizeRegEx(
+      `^\\/_next\\/data\\/${escapeRegex(
+        buildId
+      )}\\/promise\\/mutate-res-props.json$`
+    ),
+    page: '/promise/mutate-res-props',
   },
   {
     dataRouteRegex: normalizeRegEx(
@@ -523,6 +550,11 @@ const runTests = (dev = false) => {
     expect(data.pageProps.post).toBe('post-1')
   })
 
+  it('should return data correctly when props is a promise', async () => {
+    const html = await renderViaHTTP(appPort, `/promise`)
+    expect(html).toMatch(/hello.*?promise/)
+  })
+
   it('should navigate to a normal page and back', async () => {
     const browser = await webdriver(appPort, '/')
     let text = await browser.elementByCss('p').text()
@@ -700,6 +732,33 @@ const runTests = (dev = false) => {
         /Error serializing `.time` returned from `getServerSideProps`/
       )
     })
+
+    it('should show error for accessing res after gssp returns', async () => {
+      const html = await renderViaHTTP(appPort, '/promise/mutate-res')
+      expect(html).toContain(
+        `You should not access 'res' after getServerSideProps resolves`
+      )
+    })
+
+    it('should show error for accessing res through props promise after gssp returns', async () => {
+      const html = await renderViaHTTP(appPort, '/promise/mutate-res-props')
+      expect(html).toContain(
+        `You should not access 'res' after getServerSideProps resolves`
+      )
+    })
+
+    it('should only warn for accessing res if not streaming', async () => {
+      const html = await renderViaHTTP(
+        appPort,
+        '/promise/mutate-res-no-streaming'
+      )
+      expect(html).not.toContain(
+        `You should not access 'res' after getServerSideProps resolves`
+      )
+      expect(stderr).toContain(
+        `You should not access 'res' after getServerSideProps resolves`
+      )
+    })
   } else {
     it('should not fetch data on mount', async () => {
       const browser = await webdriver(appPort, '/blog/post-100')
@@ -756,6 +815,16 @@ const runTests = (dev = false) => {
       const browser = await webdriver(appPort, '/')
       await browser.elementByCss('#non-json').click()
       await check(() => getBrowserBodyText(browser), /hello /)
+    })
+
+    it('should not show error for accessing res after gssp returns', async () => {
+      const html = await renderViaHTTP(appPort, '/promise/mutate-res')
+      expect(html).toMatch(/hello.*?res/)
+    })
+
+    it('should not warn for accessing res after gssp returns', async () => {
+      const html = await renderViaHTTP(appPort, '/promise/mutate-res')
+      expect(html).toMatch(/hello.*?res/)
     })
   }
 }

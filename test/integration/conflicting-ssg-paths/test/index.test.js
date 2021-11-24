@@ -4,8 +4,6 @@ import fs from 'fs-extra'
 import { join } from 'path'
 import { nextBuild } from 'next-test-utils'
 
-jest.setTimeout(1000 * 60 * 1)
-
 const appDir = join(__dirname, '../')
 const pagesDir = join(appDir, 'pages')
 
@@ -70,7 +68,7 @@ describe('Conflicting SSG paths', () => {
     })
     const output = result.stdout + result.stderr
     expect(output).toContain(
-      'Conflicting paths returned from getStaticPaths, paths must unique per page'
+      'Conflicting paths returned from getStaticPaths, paths must be unique per page'
     )
     expect(output).toContain(
       'https://nextjs.org/docs/messages/conflicting-ssg-paths'
@@ -123,7 +121,7 @@ describe('Conflicting SSG paths', () => {
     })
     const output = result.stdout + result.stderr
     expect(output).toContain(
-      'Conflicting paths returned from getStaticPaths, paths must unique per page'
+      'Conflicting paths returned from getStaticPaths, paths must be unique per page'
     )
     expect(output).toContain(
       'https://nextjs.org/docs/messages/conflicting-ssg-paths'
@@ -177,7 +175,7 @@ describe('Conflicting SSG paths', () => {
     })
     const output = result.stdout + result.stderr
     expect(output).toContain(
-      'Conflicting paths returned from getStaticPaths, paths must unique per page'
+      'Conflicting paths returned from getStaticPaths, paths must be unique per page'
     )
     expect(output).toContain(
       'https://nextjs.org/docs/messages/conflicting-ssg-paths'

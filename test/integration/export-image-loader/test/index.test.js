@@ -5,7 +5,6 @@ import { join } from 'path'
 import cheerio from 'cheerio'
 import { nextBuild, nextExport, File } from 'next-test-utils'
 
-jest.setTimeout(1000 * 60 * 5)
 const appDir = join(__dirname, '../')
 const outdir = join(appDir, 'out')
 const nextConfig = new File(join(appDir, 'next.config.js'))

@@ -1,12 +1,16 @@
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { getPostCssPlugins } from './plugins'
+import postcss from 'postcss'
 
 export async function __overrideCssConfiguration(
   rootDirectory: string,
-  isProduction: boolean,
+  supportedBrowsers: string[] | undefined,
   config: webpack.Configuration
 ) {
-  const postCssPlugins = await getPostCssPlugins(rootDirectory, isProduction)
+  const postCssPlugins = await getPostCssPlugins(
+    rootDirectory,
+    supportedBrowsers
+  )
 
   function patch(rule: webpack.RuleSetRule) {
     if (
@@ -15,6 +19,12 @@ export async function __overrideCssConfiguration(
       typeof rule.options.postcssOptions === 'object'
     ) {
       rule.options.postcssOptions.plugins = postCssPlugins
+    } else if (
+      rule.options &&
+      typeof rule.options === 'object' &&
+      typeof rule.options.postcss !== 'undefined'
+    ) {
+      rule.options.postcss = postcss(postCssPlugins)
     } else if (Array.isArray(rule.oneOf)) {
       rule.oneOf.forEach(patch)
     } else if (Array.isArray(rule.use)) {

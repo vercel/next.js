@@ -11,8 +11,6 @@ import {
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 
-jest.setTimeout(1000 * 30)
-
 const appDir = join(__dirname, '../')
 let appPort
 let app
@@ -217,19 +215,22 @@ function lazyLoadingTests() {
     let topOfBottomImage = await browser.eval(
       `document.getElementById('lazy-boundary').parentElement.offsetTop`
     )
-    let buffer = 500
+    let buffer = 450
     await browser.eval(
       `window.scrollTo(0, ${topOfBottomImage - (viewportHeight + buffer)})`
     )
-    await waitFor(200)
-    expect(await browser.elementById('lazy-boundary').getAttribute('src')).toBe(
-      'https://example.com/myaccount/lazy6.jpg?auto=format&fit=max&w=1600'
-    )
-    expect(
-      await browser.elementById('lazy-boundary').getAttribute('srcset')
-    ).toBe(
-      'https://example.com/myaccount/lazy6.jpg?auto=format&fit=max&w=1024 1x, https://example.com/myaccount/lazy6.jpg?auto=format&fit=max&w=1600 2x'
-    )
+
+    await check(() => {
+      return browser.eval(
+        'document.querySelector("#lazy-boundary").getAttribute("src")'
+      )
+    }, 'https://example.com/myaccount/lazy6.jpg?auto=format&fit=max&w=1600')
+
+    await check(() => {
+      return browser.eval(
+        'document.querySelector("#lazy-boundary").getAttribute("srcset")'
+      )
+    }, 'https://example.com/myaccount/lazy6.jpg?auto=format&fit=max&w=1024 1x, https://example.com/myaccount/lazy6.jpg?auto=format&fit=max&w=1600 2x')
   })
 }
 
@@ -335,16 +336,14 @@ describe('Image Component Tests', () => {
       ).toBe(false)
     })
     it('should only be loaded once if `sizes` is set', async () => {
-      // Get all network requests
-      const resourceEntries = await browser.eval(
-        'window.performance.getEntries()'
-      )
+      const numRequests = await browser.eval(`(function() {
+        const entries = window.performance.getEntries()
+        return entries.filter(function(entry) {
+          return entry.name.includes('test-sizes.jpg')
+        }).length
+      })()`)
 
-      // "test-sizes.jpg" should only occur once
-      const requests = resourceEntries.filter((entry) =>
-        entry.name.includes('test-sizes.jpg')
-      )
-      expect(requests.length).toBe(1)
+      expect(numRequests).toBe(1)
     })
     describe('Client-side Errors', () => {
       beforeAll(async () => {

@@ -6,9 +6,9 @@
     "start": "next start"
   },
   "dependencies": {
-    "@react-three/drei": "4.3.3",
-    "@react-three/fiber": "6.0.19",
-    "next": "10.2.0",
+    "@react-three/drei": "7.6.1",
+    "@react-three/fiber": "7.0.6",
+    "next": "latest",
     "react": "^17.0.2",
     "react-dom": "^17.0.2",
     "three": "0.128.0"

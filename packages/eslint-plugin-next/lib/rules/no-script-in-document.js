@@ -5,6 +5,7 @@ module.exports = {
     docs: {
       description: 'Disallow importing next/script inside pages/_document.js',
       recommended: true,
+      url: 'https://nextjs.org/docs/messages/no-script-in-document-page',
     },
   },
   create: function (context) {

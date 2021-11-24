@@ -5,8 +5,12 @@ import arg from 'next/dist/compiled/arg/index.js'
 import exportApp from '../export'
 import { printAndExit } from '../server/lib/utils'
 import { cliCommand } from '../bin/next'
+import { trace } from '../trace'
+import isError from '../lib/is-error'
+import { getProjectDir } from '../lib/get-project-dir'
 
 const nextExport: cliCommand = (argv) => {
+  const nextExportCliSpan = trace('next-export-cli')
   const validArgs: arg.Spec = {
     // Types
     '--help': Boolean,
@@ -23,7 +27,7 @@ const nextExport: cliCommand = (argv) => {
   try {
     args = arg(validArgs, { argv })
   } catch (error) {
-    if (error.code === 'ARG_UNKNOWN_OPTION') {
+    if (isError(error) && error.code === 'ARG_UNKNOWN_OPTION') {
       return printAndExit(error.message, 1)
     }
     throw error
@@ -47,7 +51,7 @@ const nextExport: cliCommand = (argv) => {
     process.exit(0)
   }
 
-  const dir = resolve(args._[0] || '.')
+  const dir = getProjectDir(args._[0])
 
   // Check if pages dir exists and warn if not
   if (!existsSync(dir)) {
@@ -60,11 +64,13 @@ const nextExport: cliCommand = (argv) => {
     outdir: args['--outdir'] ? resolve(args['--outdir']) : join(dir, 'out'),
   }
 
-  exportApp(dir, options)
+  exportApp(dir, options, nextExportCliSpan)
     .then(() => {
+      nextExportCliSpan.stop()
       printAndExit(`Export successful. Files written to ${options.outdir}`, 0)
     })
     .catch((err) => {
+      nextExportCliSpan.stop()
       printAndExit(err)
     })
 }

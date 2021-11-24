@@ -23,6 +23,7 @@ test/**/out*
 test/**/next-env.d.ts
 .DS_Store
 /e2e-tests
+test/tmp/**
 
 # Editors
 **/.idea
@@ -38,3 +39,6 @@ test-timings.json
 # Vercel
 .vercel
 .now
+
+# Cache
+*.tsbuildinfo

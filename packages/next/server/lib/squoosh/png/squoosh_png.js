@@ -1,5 +1,3 @@
-import { TextDecoder } from '../text-decoder'
-
 let wasm
 
 let cachedTextDecoder = new TextDecoder('utf-8', {
@@ -85,8 +83,7 @@ function getArrayU8FromWasm0(ptr, len) {
  */
 export function encode(data, width, height) {
   try {
-    const retptr = wasm.__wbindgen_export_1.value - 16
-    wasm.__wbindgen_export_1.value = retptr
+    const retptr = wasm.__wbindgen_add_to_stack_pointer(-16)
     var ptr0 = passArray8ToWasm0(data, wasm.__wbindgen_malloc)
     var len0 = WASM_VECTOR_LEN
     wasm.encode(retptr, ptr0, len0, width, height)
@@ -96,7 +93,7 @@ export function encode(data, width, height) {
     wasm.__wbindgen_free(r0, r1 * 1)
     return v1
   } finally {
-    wasm.__wbindgen_export_1.value += 16
+    wasm.__wbindgen_add_to_stack_pointer(16)
   }
 }
 
@@ -129,18 +126,7 @@ export function decode(data) {
 async function load(module, imports) {
   if (typeof Response === 'function' && module instanceof Response) {
     if (typeof WebAssembly.instantiateStreaming === 'function') {
-      try {
-        return await WebAssembly.instantiateStreaming(module, imports)
-      } catch (e) {
-        if (module.headers.get('Content-Type') !== 'application/wasm') {
-          console.warn(
-            '`WebAssembly.instantiateStreaming` failed because your server does not serve wasm with `application/wasm` MIME type. Falling back to `WebAssembly.instantiate` which is slower. Original error:\n',
-            e
-          )
-        } else {
-          throw e
-        }
-      }
+      return await WebAssembly.instantiateStreaming(module, imports)
     }
 
     const bytes = await module.arrayBuffer()
@@ -157,10 +143,6 @@ async function load(module, imports) {
 }
 
 async function init(input) {
-  if (typeof input === 'undefined') {
-    // input = import.meta.url.replace(/\.js$/, '_bg.wasm')
-    throw new Error('invariant')
-  }
   const imports = {}
   imports.wbg = {}
   imports.wbg.__wbg_newwithownedu8clampedarrayandsh_787b2db8ea6bfd62 =
@@ -173,6 +155,7 @@ async function init(input) {
   imports.wbg.__wbindgen_throw = function (arg0, arg1) {
     throw new Error(getStringFromWasm0(arg0, arg1))
   }
+
   if (
     typeof input === 'string' ||
     (typeof Request === 'function' && input instanceof Request) ||

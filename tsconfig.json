@@ -5,6 +5,7 @@
     "allowJs": true,
     "jsx": "react",
     "module": "esnext",
+    "target": "ESNext",
     "skipLibCheck": true,
     "esModuleInterop": true,
     "moduleResolution": "node",
@@ -12,7 +13,8 @@
     "paths": {
       "next-test-utils": ["test/lib/next-test-utils"],
       "amp-test-utils": ["test/lib/amp-test-utils"],
-      "next-webdriver": ["test/lib/next-webdriver"]
+      "next-webdriver": ["test/lib/next-webdriver"],
+      "e2e-utils": ["test/lib/e2e-utils"]
     }
   },
   "include": ["test/**/*.test.ts", "test/**/*.test.tsx", "test/**/test/*"]

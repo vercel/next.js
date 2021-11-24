@@ -4,14 +4,15 @@ import cheerio from 'cheerio'
 import fs, { existsSync } from 'fs-extra'
 import globOriginal from 'glob'
 import {
-  nextServer,
   renderViaHTTP,
-  runNextCommand,
-  startApp,
-  stopApp,
   waitFor,
   getPageFileFromPagesManifest,
   check,
+  nextBuild,
+  nextStart,
+  findPort,
+  killApp,
+  fetchViaHTTP,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import {
@@ -20,7 +21,6 @@ import {
   REACT_LOADABLE_MANIFEST,
 } from 'next/constants'
 import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
-import fetch from 'node-fetch'
 import { join, sep } from 'path'
 import dynamicImportTests from './dynamic'
 import processEnv from './process-env'
@@ -31,54 +31,40 @@ const glob = promisify(globOriginal)
 
 const appDir = join(__dirname, '../')
 let appPort
-let server
 let app
-jest.setTimeout(1000 * 60 * 5)
 
 const context = {}
 
 describe('Production Usage', () => {
   let output = ''
   beforeAll(async () => {
-    if (process.env.NEXT_PRIVATE_TEST_WEBPACK4_MODE) {
-      await fs.rename(
-        join(appDir, 'pages/static-image.js'),
-        join(appDir, 'pages/static-image.js.bak')
-      )
-    }
-
-    const result = await runNextCommand(['build', appDir], {
+    const result = await nextBuild(appDir, undefined, {
       stderr: true,
       stdout: true,
     })
 
-    app = nextServer({
-      dir: join(__dirname, '../'),
-      dev: false,
-      quiet: true,
-    })
+    appPort = await findPort()
+    context.appPort = appPort
+    app = await nextStart(appDir, appPort)
     output = (result.stderr || '') + (result.stdout || '')
     console.log(output)
 
     if (result.code !== 0) {
       throw new Error(`Failed to build, exited with code ${result.code}`)
     }
-
-    server = await startApp(app)
-    context.appPort = appPort = server.address().port
   })
   afterAll(async () => {
-    if (process.env.NEXT_PRIVATE_TEST_WEBPACK4_MODE) {
-      await fs.rename(
-        join(appDir, 'pages/static-image.js.bak'),
-        join(appDir, 'pages/static-image.js')
-      )
-    }
-    await stopApp(server)
+    await killApp(app)
+  })
+
+  it('should not show target deprecation warning', () => {
+    expect(output).not.toContain(
+      'The `target` config is deprecated and will be removed in a future version'
+    )
   })
 
   it('should contain generated page count in output', async () => {
-    const pageCount = process.env.NEXT_PRIVATE_TEST_WEBPACK4_MODE ? 37 : 38
+    const pageCount = 40
     expect(output).toContain(`Generating static pages (0/${pageCount})`)
     expect(output).toContain(
       `Generating static pages (${pageCount}/${pageCount})`
@@ -87,69 +73,186 @@ describe('Production Usage', () => {
     expect(output.match(/Generating static pages/g).length).toBe(5)
   })
 
-  if (!process.env.NEXT_PRIVATE_TEST_WEBPACK4_MODE) {
-    it('should output traces', async () => {
-      const checks = [
-        {
-          page: '/_app',
-          tests: [
-            /webpack-runtime\.js/,
-            /node_modules\/react\/index\.js/,
-            /node_modules\/react\/package\.json/,
-            /node_modules\/react\/cjs\/react\.production\.min\.js/,
-          ],
-          notTests: [/node_modules\/react\/cjs\/react\.development\.js/],
-        },
-        {
-          page: '/dynamic',
-          tests: [
-            /webpack-runtime\.js/,
-            /chunks\/.*?\.js/,
-            /node_modules\/react\/index\.js/,
-            /node_modules\/react\/package\.json/,
-            /node_modules\/react\/cjs\/react\.production\.min\.js/,
-          ],
-          notTests: [/node_modules\/react\/cjs\/react\.development\.js/],
-        },
-      ]
+  it('should output traces', async () => {
+    const serverTrace = await fs.readJSON(
+      join(appDir, '.next/next-server.js.nft.json')
+    )
 
-      for (const check of checks) {
-        const contents = await fs.readFile(
-          join(appDir, '.next/server/pages/', check.page + '.js.nft.json'),
-          'utf8'
+    expect(serverTrace.version).toBe(1)
+    expect(
+      serverTrace.files.some((file) =>
+        file.includes('next/dist/server/send-payload.js')
+      )
+    ).toBe(true)
+    expect(
+      serverTrace.files.some((file) =>
+        file.includes('next/dist/server/normalize-page-path.js')
+      )
+    ).toBe(true)
+    expect(
+      serverTrace.files.some((file) =>
+        file.includes('next/dist/server/render.js')
+      )
+    ).toBe(true)
+    expect(
+      serverTrace.files.some((file) =>
+        file.includes('next/dist/server/load-components.js')
+      )
+    ).toBe(true)
+
+    if (process.platform !== 'win32') {
+      expect(
+        serverTrace.files.some((file) =>
+          file.includes('next/dist/compiled/webpack/bundle5.js')
         )
-        const { version, files } = JSON.parse(contents)
-        expect(version).toBe(1)
+      ).toBe(false)
+      expect(
+        serverTrace.files.some((file) => file.includes('node_modules/sharp'))
+      ).toBe(false)
+    }
 
-        expect(
-          check.tests.every((item) => files.some((file) => item.test(file)))
-        ).toBe(true)
+    const checks = [
+      {
+        page: '/_app',
+        tests: [
+          /webpack-runtime\.js/,
+          /node_modules\/react\/index\.js/,
+          /node_modules\/react\/package\.json/,
+          /node_modules\/react\/cjs\/react\.production\.min\.js/,
+        ],
+        notTests: [/\0/],
+      },
+      {
+        page: '/client-error',
+        tests: [
+          /webpack-runtime\.js/,
+          /chunks\/.*?\.js/,
+          /node_modules\/react\/index\.js/,
+          /node_modules\/react\/package\.json/,
+          /node_modules\/react\/cjs\/react\.production\.min\.js/,
+          /node_modules\/next/,
+          /next\/link\.js/,
+          /next\/dist\/client\/link\.js/,
+          /next\/dist\/shared\/lib\/router\/utils\/resolve-rewrites\.js/,
+          /next\/dist\/pages\/_error\.js/,
+          /next\/error\.js/,
+        ],
+        notTests: [/\0/],
+      },
+      {
+        page: '/dynamic',
+        tests: [
+          /webpack-runtime\.js/,
+          /chunks\/.*?\.js/,
+          /node_modules\/react\/index\.js/,
+          /node_modules\/react\/package\.json/,
+          /node_modules\/react\/cjs\/react\.production\.min\.js/,
+          /node_modules\/next/,
+          /next\/link\.js/,
+          /next\/dist\/client\/link\.js/,
+          /next\/dist\/shared\/lib\/router\/utils\/resolve-rewrites\.js/,
+        ],
+        notTests: [/\0/],
+      },
+      {
+        page: '/index',
+        tests: [
+          /webpack-runtime\.js/,
+          /chunks\/.*?\.js/,
+          /node_modules\/react\/index\.js/,
+          /node_modules\/react\/package\.json/,
+          /node_modules\/react\/cjs\/react\.production\.min\.js/,
+          /node_modules\/next/,
+          /next\/link\.js/,
+          /next\/dist\/client\/link\.js/,
+          /next\/dist\/shared\/lib\/router\/utils\/resolve-rewrites\.js/,
+          /node_modules\/nanoid\/index\.js/,
+          /node_modules\/nanoid\/url-alphabet\/index\.js/,
+          /node_modules\/es5-ext\/array\/#\/clear\.js/,
+        ],
+        notTests: [/next\/dist\/pages\/_error\.js/, /next\/error\.js/, /\0/],
+      },
+      {
+        page: '/counter',
+        tests: [
+          /webpack-runtime\.js/,
+          /chunks\/.*?\.js/,
+          /node_modules\/react\/index\.js/,
+          /node_modules\/react\/package\.json/,
+          /node_modules\/react\/cjs\/react\.production\.min\.js/,
+          /node_modules\/react\/cjs\/react\.development\.js/,
+          /node_modules\/next/,
+          /next\/router\.js/,
+          /next\/dist\/client\/router\.js/,
+          /next\/dist\/shared\/lib\/router\/utils\/resolve-rewrites\.js/,
+        ],
+        notTests: [/\0/],
+      },
+      {
+        page: '/next-import',
+        tests: [
+          /webpack-runtime\.js/,
+          /chunks\/.*?\.js/,
+          /node_modules\/react\/index\.js/,
+          /node_modules\/react\/package\.json/,
+          /node_modules\/react\/cjs\/react\.production\.min\.js/,
+          /node_modules\/next/,
+          /next\/link\.js/,
+          /next\/dist\/client\/link\.js/,
+          /next\/dist\/shared\/lib\/router\/utils\/resolve-rewrites\.js/,
+        ],
+        notTests: [/next\/dist\/server\/next\.js/, /next\/dist\/bin/, /\0/],
+      },
+    ]
 
-        if (sep === '/') {
-          expect(
-            check.notTests.some((item) => files.some((file) => item.test(file)))
-          ).toBe(false)
-        }
-      }
-    })
-
-    it('should not contain currentScript usage for publicPath', async () => {
-      const globResult = await glob('webpack-*.js', {
-        cwd: join(appDir, '.next/static/chunks'),
-      })
-
-      if (!globResult || globResult.length !== 1) {
-        throw new Error('could not find webpack-hash.js chunk')
-      }
-
-      const content = await fs.readFile(
-        join(appDir, '.next/static/chunks', globResult[0]),
+    for (const check of checks) {
+      const contents = await fs.readFile(
+        join(appDir, '.next/server/pages/', check.page + '.js.nft.json'),
         'utf8'
       )
+      const { version, files } = JSON.parse(contents)
+      expect(version).toBe(1)
 
-      expect(content).not.toContain('.currentScript')
+      expect(
+        check.tests.every((item) => {
+          if (files.some((file) => item.test(file))) {
+            return true
+          }
+          console.error(`Failed to find ${item} in`, files)
+          return false
+        })
+      ).toBe(true)
+
+      if (sep === '/') {
+        expect(
+          check.notTests.some((item) => {
+            if (files.some((file) => item.test(file))) {
+              console.error(`Found unexpected ${item} in`, files)
+              return true
+            }
+            return false
+          })
+        ).toBe(false)
+      }
+    }
+  })
+
+  it('should not contain currentScript usage for publicPath', async () => {
+    const globResult = await glob('webpack-*.js', {
+      cwd: join(appDir, '.next/static/chunks'),
     })
-  }
+
+    if (!globResult || globResult.length !== 1) {
+      throw new Error('could not find webpack-hash.js chunk')
+    }
+
+    const content = await fs.readFile(
+      join(appDir, '.next/static/chunks', globResult[0]),
+      'utf8'
+    )
+
+    expect(content).not.toContain('.currentScript')
+  })
 
   describe('With basic usage', () => {
     it('should render the page', async () => {
@@ -194,42 +297,50 @@ describe('Production Usage', () => {
     })
 
     it('should allow etag header support', async () => {
-      const url = `http://localhost:${appPort}/`
-      const etag = (await fetch(url)).headers.get('ETag')
+      const url = `http://localhost:${appPort}`
+      const etag = (await fetchViaHTTP(url, '/')).headers.get('ETag')
 
       const headers = { 'If-None-Match': etag }
-      const res2 = await fetch(url, { headers })
+      const res2 = await fetchViaHTTP(url, '/', undefined, { headers })
       expect(res2.status).toBe(304)
     })
 
     it('should allow etag header support with getStaticProps', async () => {
-      const url = `http://localhost:${appPort}/fully-static`
-      const etag = (await fetch(url)).headers.get('ETag')
+      const url = `http://localhost:${appPort}`
+      const etag = (await fetchViaHTTP(url, '/fully-static')).headers.get(
+        'ETag'
+      )
 
       const headers = { 'If-None-Match': etag }
-      const res2 = await fetch(url, { headers })
+      const res2 = await fetchViaHTTP(url, '/fully-static', undefined, {
+        headers,
+      })
       expect(res2.status).toBe(304)
     })
 
     it('should allow etag header support with getServerSideProps', async () => {
-      const url = `http://localhost:${appPort}/fully-dynamic`
-      const etag = (await fetch(url)).headers.get('ETag')
+      const url = `http://localhost:${appPort}`
+      const etag = (await fetchViaHTTP(url, '/fully-dynamic')).headers.get(
+        'ETag'
+      )
 
       const headers = { 'If-None-Match': etag }
-      const res2 = await fetch(url, { headers })
+      const res2 = await fetchViaHTTP(url, '/fully-dynamic', undefined, {
+        headers,
+      })
       expect(res2.status).toBe(304)
     })
 
     it('should have X-Powered-By header support', async () => {
-      const url = `http://localhost:${appPort}/`
-      const header = (await fetch(url)).headers.get('X-Powered-By')
+      const url = `http://localhost:${appPort}`
+      const header = (await fetchViaHTTP(url, '/')).headers.get('X-Powered-By')
 
       expect(header).toBe('Next.js')
     })
 
     it('should render 404 for routes that do not exist', async () => {
-      const url = `http://localhost:${appPort}/abcdefghijklmno`
-      const res = await fetch(url)
+      const url = `http://localhost:${appPort}`
+      const res = await fetchViaHTTP(url, '/abcdefghijklmno')
       const text = await res.text()
       const $html = cheerio.load(text)
       expect($html('html').text()).toMatch(/404/)
@@ -243,43 +354,57 @@ describe('Production Usage', () => {
     })
 
     it('should render 200 for POST on page', async () => {
-      const res = await fetch(`http://localhost:${appPort}/about`, {
-        method: 'POST',
-      })
+      const res = await fetchViaHTTP(
+        `http://localhost:${appPort}`,
+        '/about',
+        undefined,
+        {
+          method: 'POST',
+        }
+      )
       expect(res.status).toBe(200)
     })
 
     it('should render 404 for POST on missing page', async () => {
-      const res = await fetch(`http://localhost:${appPort}/fake-page`, {
-        method: 'POST',
-      })
+      const res = await fetchViaHTTP(
+        `http://localhost:${appPort}`,
+        '/fake-page',
+        undefined,
+        {
+          method: 'POST',
+        }
+      )
       expect(res.status).toBe(404)
     })
 
     it('should render 404 for _next routes that do not exist', async () => {
-      const url = `http://localhost:${appPort}/_next/abcdef`
-      const res = await fetch(url)
+      const url = `http://localhost:${appPort}`
+      const res = await fetchViaHTTP(url, '/_next/abcdef')
       expect(res.status).toBe(404)
     })
 
     it('should render 404 even if the HTTP method is not GET or HEAD', async () => {
-      const url = `http://localhost:${appPort}/_next/abcdef`
+      const url = `http://localhost:${appPort}`
       const methods = ['POST', 'PUT', 'DELETE']
       for (const method of methods) {
-        const res = await fetch(url, { method })
+        const res = await fetchViaHTTP(url, '/_next/abcdef', undefined, {
+          method,
+        })
         expect(res.status).toBe(404)
       }
     })
 
     it('should render 404 for dotfiles in /static', async () => {
-      const url = `http://localhost:${appPort}/static/.env`
-      const res = await fetch(url)
+      const url = `http://localhost:${appPort}`
+      const res = await fetchViaHTTP(url, '/static/.env')
       expect(res.status).toBe(404)
     })
 
     it('should return 405 method on static then GET and HEAD', async () => {
-      const res = await fetch(
-        `http://localhost:${appPort}/static/data/item.txt`,
+      const res = await fetchViaHTTP(
+        `http://localhost:${appPort}`,
+        '/static/data/item.txt',
+        undefined,
         {
           method: 'POST',
         }
@@ -297,10 +422,15 @@ describe('Production Usage', () => {
       const files = buildManifest.pages['/']
 
       for (const file of files) {
-        const res = await fetch(`http://localhost:${appPort}/_next/${file}`, {
-          method: 'GET',
-          headers: { 'if-unmodified-since': 'Fri, 12 Jul 2019 20:00:13 GMT' },
-        })
+        const res = await fetchViaHTTP(
+          `http://localhost:${appPort}`,
+          `/_next/${file}`,
+          undefined,
+          {
+            method: 'GET',
+            headers: { 'if-unmodified-since': 'Fri, 12 Jul 2019 20:00:13 GMT' },
+          }
+        )
         expect(res.status).toBe(412)
       }
     })
@@ -314,17 +444,22 @@ describe('Production Usage', () => {
       const files = buildManifest.pages['/']
 
       for (const file of files) {
-        const res = await fetch(`http://localhost:${appPort}/_next/${file}`, {
-          method: 'GET',
-          headers: { 'if-unmodified-since': 'nextjs' },
-        })
+        const res = await fetchViaHTTP(
+          `http://localhost:${appPort}`,
+          `/_next/${file}`,
+          undefined,
+          {
+            method: 'GET',
+            headers: { 'if-unmodified-since': 'nextjs' },
+          }
+        )
         expect(res.status).toBe(200)
       }
     })
 
     it('should set Content-Length header', async () => {
       const url = `http://localhost:${appPort}`
-      const res = await fetch(url)
+      const res = await fetchViaHTTP(url, '/')
       expect(res.headers.get('Content-Length')).toBeDefined()
     })
 
@@ -334,7 +469,7 @@ describe('Production Usage', () => {
         '../.next',
         REACT_LOADABLE_MANIFEST
       ))
-      const url = `http://localhost:${appPort}/_next/`
+      const url = `http://localhost:${appPort}`
 
       const resources = new Set()
 
@@ -346,12 +481,12 @@ describe('Production Usage', () => {
 
       // test dynamic chunk
       reactLoadableManifest[manifestKey].files.forEach((f) => {
-        resources.add(url + f)
+        resources.add('/' + f)
       })
 
       // test main.js runtime etc
       for (const item of buildManifest.pages['/']) {
-        resources.add(url + item)
+        resources.add('/' + item)
       }
 
       const cssStaticAssets = await recursiveReadDir(
@@ -367,11 +502,13 @@ describe('Production Usage', () => {
       expect(mediaStaticAssets.length).toBeGreaterThanOrEqual(1)
       expect(mediaStaticAssets[0]).toMatch(/[\\/]media[\\/]/)
       ;[...cssStaticAssets, ...mediaStaticAssets].forEach((asset) => {
-        resources.add(`${url}static${asset.replace(/\\+/g, '/')}`)
+        resources.add(`/static${asset.replace(/\\+/g, '/')}`)
       })
 
       const responses = await Promise.all(
-        [...resources].map((resource) => fetch(resource))
+        [...resources].map((resource) =>
+          fetchViaHTTP(url, join('/_next', resource))
+        )
       )
 
       responses.forEach((res) => {
@@ -388,8 +525,9 @@ describe('Production Usage', () => {
 
     it('should set correct Cache-Control header for static 404s', async () => {
       // this is to fix where 404 headers are set to 'public, max-age=31536000, immutable'
-      const res = await fetch(
-        `http://localhost:${appPort}/_next//static/common/bad-static.js`
+      const res = await fetchViaHTTP(
+        `http://localhost:${appPort}`,
+        `/_next//static/common/bad-static.js`
       )
 
       expect(res.status).toBe(404)
@@ -417,22 +555,22 @@ describe('Production Usage', () => {
 
   describe('API routes', () => {
     it('should work with pages/api/index.js', async () => {
-      const url = `http://localhost:${appPort}/api`
-      const res = await fetch(url)
+      const url = `http://localhost:${appPort}`
+      const res = await fetchViaHTTP(url, `/api`)
       const body = await res.text()
       expect(body).toEqual('API index works')
     })
 
     it('should work with pages/api/hello.js', async () => {
-      const url = `http://localhost:${appPort}/api/hello`
-      const res = await fetch(url)
+      const url = `http://localhost:${appPort}`
+      const res = await fetchViaHTTP(url, `/api/hello`)
       const body = await res.text()
       expect(body).toEqual('API hello works')
     })
 
     it('should work with dynamic params and search string', async () => {
-      const url = `http://localhost:${appPort}/api/post-1?val=1`
-      const res = await fetch(url)
+      const url = `http://localhost:${appPort}`
+      const res = await fetchViaHTTP(url, `/api/post-1?val=1`)
       const body = await res.json()
 
       expect(body).toEqual({ val: '1', post: 'post-1' })
@@ -455,6 +593,8 @@ describe('Production Usage', () => {
 
     it('should navigate to nested index via client side', async () => {
       const browser = await webdriver(appPort, '/another')
+      await browser.eval('window.beforeNav = 1')
+
       const text = await browser
         .elementByCss('a')
         .click()
@@ -463,6 +603,7 @@ describe('Production Usage', () => {
         .text()
 
       expect(text).toBe('Hello World')
+      expect(await browser.eval('window.beforeNav')).toBe(1)
       await browser.close()
     })
 
@@ -616,19 +757,8 @@ describe('Production Usage', () => {
 
   describe('Misc', () => {
     it('should handle already finished responses', async () => {
-      const res = {
-        finished: false,
-        end() {
-          this.finished = true
-        },
-      }
-      const html = await app.renderToHTML(
-        { method: 'GET' },
-        res,
-        '/finish-response',
-        {}
-      )
-      expect(html).toBeFalsy()
+      const html = await renderViaHTTP(appPort, '/finish-response')
+      expect(html).toBe('hi')
     })
 
     it('should allow to access /static/ and /_next/', async () => {
@@ -649,32 +779,38 @@ describe('Production Usage', () => {
       expect(legacy).toMatch(`new static folder`)
     })
 
-    it('should reload the page on page script error', async () => {
-      const browser = await webdriver(appPort, '/counter')
-      const counter = await browser
-        .elementByCss('#increase')
-        .click()
-        .click()
-        .elementByCss('#counter')
-        .text()
-      expect(counter).toBe('Counter: 2')
+    // TODO: do we want to normalize this for firefox? It seems in
+    // the latest version of firefox the window state is not reset
+    // when navigating back from a hard navigation. This might be
+    // a bug as other browsers do not behave this way.
+    if (browserName !== 'firefox') {
+      it('should reload the page on page script error', async () => {
+        const browser = await webdriver(appPort, '/counter')
+        const counter = await browser
+          .elementByCss('#increase')
+          .click()
+          .click()
+          .elementByCss('#counter')
+          .text()
+        expect(counter).toBe('Counter: 2')
 
-      // When we go to the 404 page, it'll do a hard reload.
-      // So, it's possible for the front proxy to load a page from another zone.
-      // Since the page is reloaded, when we go back to the counter page again,
-      // previous counter value should be gone.
-      const counterAfter404Page = await browser
-        .elementByCss('#no-such-page')
-        .click()
-        .waitForElementByCss('h1')
-        .back()
-        .waitForElementByCss('#counter-page')
-        .elementByCss('#counter')
-        .text()
-      expect(counterAfter404Page).toBe('Counter: 0')
+        // When we go to the 404 page, it'll do a hard reload.
+        // So, it's possible for the front proxy to load a page from another zone.
+        // Since the page is reloaded, when we go back to the counter page again,
+        // previous counter value should be gone.
+        const counterAfter404Page = await browser
+          .elementByCss('#no-such-page')
+          .click()
+          .waitForElementByCss('h1')
+          .back()
+          .waitForElementByCss('#counter-page')
+          .elementByCss('#counter')
+          .text()
+        expect(counterAfter404Page).toBe('Counter: 0')
 
-      await browser.close()
-    })
+        await browser.close()
+      })
+    }
 
     it('should have default runtime values when not defined', async () => {
       const html = await renderViaHTTP(appPort, '/runtime-config')
@@ -797,16 +933,18 @@ describe('Production Usage', () => {
 
   it('should not expose the compiled page file in development', async () => {
     const url = `http://localhost:${appPort}`
-    await fetch(`${url}/stateless`) // make sure the stateless page is built
-    const clientSideJsRes = await fetch(
-      `${url}/_next/development/static/development/pages/stateless.js`
+    await fetchViaHTTP(`${url}`, `/stateless`) // make sure the stateless page is built
+    const clientSideJsRes = await fetchViaHTTP(
+      `${url}`,
+      '/_next/development/static/development/pages/stateless.js'
     )
     expect(clientSideJsRes.status).toBe(404)
     const clientSideJsBody = await clientSideJsRes.text()
     expect(clientSideJsBody).toMatch(/404/)
 
-    const serverSideJsRes = await fetch(
-      `${url}/_next/development/server/static/development/pages/stateless.js`
+    const serverSideJsRes = await fetchViaHTTP(
+      `${url}`,
+      '/_next/development/server/static/development/pages/stateless.js'
     )
     expect(serverSideJsRes.status).toBe(404)
     const serverSideJsBody = await serverSideJsRes.text()
@@ -984,7 +1122,7 @@ describe('Production Usage', () => {
         /page could not be found/
       )
 
-      expect(await browser.eval('window.beforeNav')).toBe(null)
+      expect(await browser.eval('window.beforeNav')).toBeFalsy()
       expect(await browser.eval('window.location.hash')).toBe('')
       expect(await browser.eval('window.location.search')).toBe('?hello=world')
       expect(await browser.eval('window.location.pathname')).toBe(
@@ -993,56 +1131,54 @@ describe('Production Usage', () => {
     })
   }
 
-  if (!process.env.NEXT_PRIVATE_TEST_WEBPACK4_MODE) {
-    it('should remove placeholder for next/image correctly', async () => {
-      const browser = await webdriver(context.appPort, '/')
+  it('should remove placeholder for next/image correctly', async () => {
+    const browser = await webdriver(context.appPort, '/')
 
-      await browser.eval(`(function() {
+    await browser.eval(`(function() {
         window.beforeNav = 1
         window.next.router.push('/static-image')
       })()`)
-      await browser.waitForElementByCss('#static-image')
+    await browser.waitForElementByCss('#static-image')
 
-      expect(await browser.eval('window.beforeNav')).toBe(1)
+    expect(await browser.eval('window.beforeNav')).toBe(1)
 
-      await check(
-        () => browser.elementByCss('img').getComputedCss('background-image'),
-        'none'
-      )
+    await check(
+      () => browser.elementByCss('img').getComputedCss('background-image'),
+      'none'
+    )
 
-      await browser.eval(`(function() {
+    await browser.eval(`(function() {
         window.beforeNav = 1
         window.next.router.push('/')
       })()`)
-      await browser.waitForElementByCss('.index-page')
-      await waitFor(1000)
+    await browser.waitForElementByCss('.index-page')
+    await waitFor(1000)
 
-      await browser.eval(`(function() {
+    await browser.eval(`(function() {
         window.beforeNav = 1
         window.next.router.push('/static-image')
       })()`)
-      await browser.waitForElementByCss('#static-image')
+    await browser.waitForElementByCss('#static-image')
 
-      expect(await browser.eval('window.beforeNav')).toBe(1)
+    expect(await browser.eval('window.beforeNav')).toBe(1)
 
-      await check(
-        () =>
-          browser
-            .elementByCss('#static-image')
-            .getComputedCss('background-image'),
-        'none'
-      )
+    await check(
+      () =>
+        browser
+          .elementByCss('#static-image')
+          .getComputedCss('background-image'),
+      'none'
+    )
 
-      for (let i = 0; i < 5; i++) {
-        expect(
-          await browser
-            .elementByCss('#static-image')
-            .getComputedCss('background-image')
-        ).toBe('none')
-        await waitFor(500)
-      }
-    })
-  }
+    for (let i = 0; i < 5; i++) {
+      expect(
+        await browser
+          .elementByCss('#static-image')
+          .getComputedCss('background-image')
+      ).toBe('none')
+      await waitFor(500)
+    }
+  })
 
   dynamicImportTests(context, (p, q) => renderViaHTTP(context.appPort, p, q))
 

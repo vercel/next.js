@@ -10,10 +10,13 @@
       "request": "launch",
       "cwd": "${workspaceFolder}",
       "runtimeExecutable": "yarn",
-      "runtimeArgs": ["run", "debug", "dev", "test/integration/basic"],
+      "runtimeArgs": ["run", "debug", "dev", "bench/nested-deps"],
       "skipFiles": ["<node_internals>/**"],
       "outFiles": ["${workspaceFolder}/packages/next/dist/**/*"],
-      "port": 9229
+      "port": 9229,
+      "env": {
+        "NEXT_PRIVATE_LOCAL_WEBPACK5": "1"
+      }
     },
     {
       "name": "Launch app build",
@@ -21,10 +24,13 @@
       "request": "launch",
       "cwd": "${workspaceFolder}",
       "runtimeExecutable": "yarn",
-      "runtimeArgs": ["run", "debug", "build", "test/integration/basic"],
+      "runtimeArgs": ["run", "debug", "build", "bench/nested-deps"],
       "skipFiles": ["<node_internals>/**"],
       "port": 9229,
-      "outFiles": ["${workspaceFolder}/packages/next/dist/**/*"]
+      "outFiles": ["${workspaceFolder}/packages/next/dist/**/*"],
+      "env": {
+        "NEXT_PRIVATE_LOCAL_WEBPACK5": "1"
+      }
     },
     {
       "name": "Launch app build trace jaeger",
@@ -35,7 +41,10 @@
       "runtimeArgs": ["run", "clean-trace-jaeger"],
       "skipFiles": ["<node_internals>/**"],
       "port": 9229,
-      "outFiles": ["${workspaceFolder}/packages/next/dist/**/*"]
+      "outFiles": ["${workspaceFolder}/packages/next/dist/**/*"],
+      "env": {
+        "NEXT_PRIVATE_LOCAL_WEBPACK5": "1"
+      }
     },
     {
       "name": "Launch app production",
@@ -43,9 +52,12 @@
       "request": "launch",
       "cwd": "${workspaceFolder}",
       "runtimeExecutable": "yarn",
-      "runtimeArgs": ["run", "debug", "start", "test/integration/basic"],
+      "runtimeArgs": ["run", "debug", "start", "bench/nested-deps"],
       "skipFiles": ["<node_internals>/**"],
-      "port": 9229
+      "port": 9229,
+      "env": {
+        "NEXT_PRIVATE_LOCAL_WEBPACK5": "1"
+      }
     },
     {
       "type": "node",
@@ -53,7 +65,10 @@
       "name": "Attach to existing debugger",
       "port": 9229,
       "skipFiles": ["<node_internals>/**"],
-      "outFiles": ["${workspaceFolder}/packages/next/dist/**/*"]
+      "outFiles": ["${workspaceFolder}/packages/next/dist/**/*"],
+      "env": {
+        "NEXT_PRIVATE_LOCAL_WEBPACK5": "1"
+      }
     },
     {
       "name": "Launch this example",
@@ -63,7 +78,10 @@
       "runtimeExecutable": "yarn",
       "runtimeArgs": ["run", "debug", "dev", "${fileDirname}"],
       "skipFiles": ["<node_internals>/**"],
-      "port": 9229
+      "port": 9229,
+      "env": {
+        "NEXT_PRIVATE_LOCAL_WEBPACK5": "1"
+      }
     }
   ]
 }

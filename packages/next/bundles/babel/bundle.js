@@ -1,5 +1,9 @@
 /* eslint-disable import/no-extraneous-dependencies */
 
+function types() {
+  return require('@babel/types')
+}
+
 function codeFrame() {
   return require('@babel/code-frame')
 }
@@ -97,6 +101,7 @@ function presetTypescript() {
 }
 
 module.exports = {
+  types,
   codeFrame,
   core,
   coreLibConfig,

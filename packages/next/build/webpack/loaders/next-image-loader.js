@@ -1,23 +1,22 @@
-import loaderUtils from 'next/dist/compiled/loader-utils'
-import sizeOf from 'image-size'
-import { resizeImage } from '../../../server/image-optimizer'
+import loaderUtils from 'next/dist/compiled/loader-utils3'
+import { resizeImage, getImageSize } from '../../../server/image-optimizer'
 
 const BLUR_IMG_SIZE = 8
 const BLUR_QUALITY = 70
-const VALID_BLUR_EXT = ['jpeg', 'png', 'webp']
+const VALID_BLUR_EXT = ['jpeg', 'png', 'webp', 'avif'] // should match next/client/image.tsx
 
 function nextImageLoader(content) {
   const imageLoaderSpan = this.currentTraceSpan.traceChild('next-image-loader')
   return imageLoaderSpan.traceAsyncFn(async () => {
-    const { isServer, isDev, assetPrefix } = loaderUtils.getOptions(this)
+    const { isServer, isDev, assetPrefix, basePath } = this.getOptions()
     const context = this.rootContext
     const opts = { context, content }
     const interpolatedName = loaderUtils.interpolateName(
       this,
-      '/static/image/[path][name].[hash].[ext]',
+      '/static/media/[name].[hash:8].[ext]',
       opts
     )
-    const outputPath = '/_next' + interpolatedName
+    const outputPath = assetPrefix + '/_next' + interpolatedName
 
     let extension = loaderUtils.interpolateName(this, '[ext]', opts)
     if (extension === 'jpg') {
@@ -25,14 +24,16 @@ function nextImageLoader(content) {
     }
 
     const imageSizeSpan = imageLoaderSpan.traceChild('image-size-calculation')
-    const imageSize = imageSizeSpan.traceFn(() => sizeOf(content))
+    const imageSize = await imageSizeSpan.traceAsyncFn(() =>
+      getImageSize(content, extension)
+    )
     let blurDataURL
 
     if (VALID_BLUR_EXT.includes(extension)) {
       if (isDev) {
         const prefix = 'http://localhost'
-        const url = new URL('/_next/image', prefix)
-        url.searchParams.set('url', assetPrefix + outputPath)
+        const url = new URL(`${basePath || ''}/_next/image`, prefix)
+        url.searchParams.set('url', outputPath)
         url.searchParams.set('w', BLUR_IMG_SIZE)
         url.searchParams.set('q', BLUR_QUALITY)
         blurDataURL = url.href.slice(prefix.length)

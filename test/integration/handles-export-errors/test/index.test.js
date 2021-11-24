@@ -3,7 +3,6 @@
 import path from 'path'
 import { nextBuild } from 'next-test-utils'
 
-jest.setTimeout(1000 * 60 * 5)
 const appDir = path.join(__dirname, '..')
 
 describe('Handles Errors During Export', () => {

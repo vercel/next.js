@@ -1,13 +1,16 @@
 {
   "labels": {
-    "type: example": ["examples/**"],
-    "type: documentation": ["docs/**", "errors/**"],
-    "type: create-next-app": ["packages/create-next-app/**"],
+    "area: examples": ["examples/**"],
+    "area: documentation": ["docs/**", "errors/**"],
+    "area: create-next-app": ["packages/create-next-app/**"],
     "type: next": [
       "packages/next/**",
       "packages/react-dev-overlay/**",
       "packages/react-refresh-utils/**",
-      "packages/next-codemod/**"
+      "packages/next-codemod/**",
+      "packages/eslint-plugin-next/**",
+      "packages/eslint-config-next/**",
+      "packages/next-env/**"
     ],
     "created-by: Chrome Aurora": [
       { "type": "user", "pattern": "spanicker" },
@@ -26,6 +29,7 @@
       { "type": "user", "pattern": "sokra" },
       { "type": "user", "pattern": "styfle" },
       { "type": "user", "pattern": "leerob" },
+      { "type": "user", "pattern": "kdy1" },
       { "type": "user", "pattern": "timneutkens" }
     ]
   }
