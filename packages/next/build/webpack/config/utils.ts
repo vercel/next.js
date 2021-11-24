@@ -2,6 +2,7 @@ import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { NextConfigComplete } from '../../../server/config-shared'
 
 export type ConfigurationContext = {
+  disablePostcssPresetEnv: NextConfigComplete['experimental']['disablePostcssPresetEnv']
   supportedBrowsers: string[] | undefined
   rootDirectory: string
   customAppFile: RegExp

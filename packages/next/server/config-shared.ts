@@ -126,6 +126,7 @@ export type NextConfig = { [key: string]: any } & {
   crossOrigin?: false | 'anonymous' | 'use-credentials'
   swcMinify?: boolean
   experimental?: {
+    disablePostcssPresetEnv?: boolean
     removeConsole?:
       | boolean
       | {

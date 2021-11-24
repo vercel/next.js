@@ -95,7 +95,8 @@ async function lazyPostCSS(ctx: ConfigurationContext) {
   const postCssPlugins = await getPostCssPlugins(
     ctx.rootDirectory,
     ctx.supportedBrowsers,
-    !ctx.future.strictPostcssConfiguration
+    !ctx.future.strictPostcssConfiguration,
+    ctx.experimental.disablePostcssPresetEnv
   )
 
   postcssInstance = {
