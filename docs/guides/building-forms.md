@@ -12,7 +12,7 @@ This makes Next.js a **compelling, all-in-one solution for creating forms**.
 
 A standard HTML form is a convenient way to make an HTTP request to send data to a server (either your own server or external service). In the example below, clicking "Register" will make a POST request to the specified URL.
 
-```
+```js
 <form action="http://www.acme.com/register" method="POST">
   <label for="name">Name</label>
   <input id="name" type="text" autocomplete="name" required />
@@ -35,9 +35,9 @@ We can extend our knowledge of HTML forms and bring them into React (using [JSX]
 
 By default, submitting an HTML form will redirect the browser. In most cases with React forms, we want to handle the form submission and perform some additional action (e.g. call an API). Let's convert the HTML form above into a React component.
 
-```
+```js
 function Form() {
-  const registerUser = event => {
+  const registerUser = (event) => {
     event.preventDefault() // don't redirect the page
     // where we'll add our form logic
   }
@@ -63,20 +63,21 @@ Here's what's changed:
 
 Next, let's update `registerUser` to call an external API. For example, we might call a service like [Zapier](https://zapier.com/) to forward a JSON body and add it to a Google Sheet.
 
-```function Form() {
-  const registerUser = async event => {
+```js
+function Form() {
+  const registerUser = async (event) => {
     event.preventDefault()
 
     const res = await fetch(
       'https://hooks.zapier.com/hooks/catch/123456/abcde',
       {
         body: JSON.stringify({
-          name: event.target.name.value
+          name: event.target.name.value,
         }),
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
-        method: 'POST'
+        method: 'POST',
       }
     )
 
@@ -111,7 +112,7 @@ As previously mentioned, we can use both the client and the server in a Next.js 
 
 First, create a new file at `pages/api/register.js`. Any file inside the [pages folder](https://nextjs.org/docs/basic-features/pages) (e.g. `pages/api`) is mapped to `/api/*` and will be treated as an API endpoint instead of a Next.js [page](https://nextjs.org/docs/basic-features/pages).
 
-```
+```js
 // pages/api/register.js
 
 export default function handler(req, res) {
@@ -121,19 +122,19 @@ export default function handler(req, res) {
 
 After [starting our application locally](https://nextjs.org/docs/getting-started`) with `next dev` and visiting `localhost:3000/api/register`, we should be able to see the JSON response above with a status code of `200`. Next, let's call this API route from inside our form instead of the external API endpoint.
 
-```
+```js
 function Form() {
-  const registerUser = async event => {
+  const registerUser = async (event) => {
     event.preventDefault()
 
     const res = await fetch('/api/register', {
       body: JSON.stringify({
-        name: event.target.name.value
+        name: event.target.name.value,
       }),
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
       },
-      method: 'POST'
+      method: 'POST',
     })
 
     const result = await res.json()
