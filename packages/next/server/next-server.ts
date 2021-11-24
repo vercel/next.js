@@ -1069,6 +1069,21 @@ export default class Server {
                 updatedDestination =
                   normalizeRepeatedSlashes(updatedDestination)
               }
+              const defaultLocale = parsedUrl.query.__nextDefaultLocale
+              let prevUrl = getRequestMeta(req, '__NEXT_INIT_URL')
+              if (
+                defaultLocale &&
+                parsedDestination.pathname ===
+                  `${this.nextConfig.basePath || ''}/${defaultLocale}/`
+              ) {
+                parsedDestination.pathname = `${
+                  this.nextConfig.basePath || ''
+                }${this.nextConfig.trailingSlash ? '/' : ''}`
+              }
+
+              if (updatedDestination === prevUrl) {
+                return { finished: false }
+              }
 
               res.setHeader('Location', updatedDestination)
               res.statusCode = getRedirectStatus(redirectRoute as Redirect)
