@@ -11,69 +11,6 @@ import {
   getLocalModuleImportError,
 } from './messages'
 import { getPostCssPlugins } from './plugins'
-import postcss from 'postcss'
-
-// @ts-ignore backwards compat
-postcss.plugin = function postcssPlugin(name, initializer) {
-  function creator(...args: any) {
-    let transformer = initializer(...args)
-    transformer.postcssPlugin = name
-    // transformer.postcssVersion = new Processor().version
-    return transformer
-  }
-
-  let cache: any
-  Object.defineProperty(creator, 'postcss', {
-    get() {
-      if (!cache) cache = creator()
-      return cache
-    },
-  })
-
-  creator.process = function (css: any, processOpts: any, pluginOpts: any) {
-    return postcss([creator(pluginOpts)]).process(css, processOpts)
-  }
-
-  return creator
-}
-
-// @ts-ignore backwards compat
-postcss.vendor = {
-  /**
-   * Returns the vendor prefix extracted from an input string.
-   *
-   * @param {string} prop String with or without vendor prefix.
-   *
-   * @return {string} vendor prefix or empty string
-   *
-   * @example
-   * postcss.vendor.prefix('-moz-tab-size') //=> '-moz-'
-   * postcss.vendor.prefix('tab-size')      //=> ''
-   */
-  prefix: function prefix(prop: any) {
-    const match = prop.match(/^(-\w+-)/)
-
-    if (match) {
-      return match[0]
-    }
-
-    return ''
-  },
-
-  /**
-   * Returns the input string stripped of its vendor prefix.
-   *
-   * @param {string} prop String with or without vendor prefix.
-   *
-   * @return {string} String name without vendor prefixes.
-   *
-   * @example
-   * postcss.vendor.unprefixed('-moz-tab-size') //=> 'tab-size'
-   */
-  unprefixed: function unprefixed(prop: any) {
-    return prop.replace(/^-\w+-/, '')
-  },
-}
 
 // RegExps for all Style Sheet variants
 export const regexLikeCss = /\.(css|scss|sass)$/
@@ -85,6 +22,88 @@ const regexCssModules = /\.module\.css$/
 // RegExps for Syntactically Awesome Style Sheets
 const regexSassGlobal = /(?<!\.module)\.(scss|sass)$/
 const regexSassModules = /\.module\.(scss|sass)$/
+
+let postcssInstance: any
+async function lazyPostCSS(ctx: ConfigurationContext) {
+  if (postcssInstance) {
+    return postcssInstance
+  }
+
+  const postcss = require('postcss')
+  // @ts-ignore backwards compat
+  postcss.plugin = function postcssPlugin(name, initializer) {
+    function creator(...args: any) {
+      let transformer = initializer(...args)
+      transformer.postcssPlugin = name
+      // transformer.postcssVersion = new Processor().version
+      return transformer
+    }
+
+    let cache: any
+    Object.defineProperty(creator, 'postcss', {
+      get() {
+        if (!cache) cache = creator()
+        return cache
+      },
+    })
+
+    creator.process = function (css: any, processOpts: any, pluginOpts: any) {
+      return postcss([creator(pluginOpts)]).process(css, processOpts)
+    }
+
+    return creator
+  }
+
+  // @ts-ignore backwards compat
+  postcss.vendor = {
+    /**
+     * Returns the vendor prefix extracted from an input string.
+     *
+     * @param {string} prop String with or without vendor prefix.
+     *
+     * @return {string} vendor prefix or empty string
+     *
+     * @example
+     * postcss.vendor.prefix('-moz-tab-size') //=> '-moz-'
+     * postcss.vendor.prefix('tab-size')      //=> ''
+     */
+    prefix: function prefix(prop: any) {
+      const match = prop.match(/^(-\w+-)/)
+
+      if (match) {
+        return match[0]
+      }
+
+      return ''
+    },
+
+    /**
+     * Returns the input string stripped of its vendor prefix.
+     *
+     * @param {string} prop String with or without vendor prefix.
+     *
+     * @return {string} String name without vendor prefixes.
+     *
+     * @example
+     * postcss.vendor.unprefixed('-moz-tab-size') //=> 'tab-size'
+     */
+    unprefixed: function unprefixed(prop: any) {
+      return prop.replace(/^-\w+-/, '')
+    },
+  }
+
+  const postCssPlugins = await getPostCssPlugins(
+    ctx.rootDirectory,
+    ctx.supportedBrowsers,
+    !ctx.future.strictPostcssConfiguration
+  )
+
+  postcssInstance = {
+    postcss,
+    postcssWithPlugins: postcss(postCssPlugins),
+  }
+  return postcssInstance
+}
 
 export const css = curry(async function css(
   ctx: ConfigurationContext,
@@ -137,12 +156,6 @@ export const css = curry(async function css(
     }),
   ]
 
-  const postCssPlugins = await getPostCssPlugins(
-    ctx.rootDirectory,
-    ctx.supportedBrowsers,
-    !ctx.future.strictPostcssConfiguration
-  )
-
   // CSS cannot be imported in _document. This comes before everything because
   // global CSS nor CSS modules work in said file.
   fns.push(
@@ -183,7 +196,7 @@ export const css = curry(async function css(
             and: [ctx.rootDirectory],
             not: [/node_modules/],
           },
-          use: getCssModuleLoader(ctx, postCssPlugins),
+          use: getCssModuleLoader(ctx, () => lazyPostCSS(ctx)),
         },
       ],
     })
@@ -206,7 +219,11 @@ export const css = curry(async function css(
             and: [ctx.rootDirectory],
             not: [/node_modules/],
           },
-          use: getCssModuleLoader(ctx, postCssPlugins, sassPreprocessors),
+          use: getCssModuleLoader(
+            ctx,
+            () => lazyPostCSS(ctx),
+            sassPreprocessors
+          ),
         },
       ],
     })
@@ -266,7 +283,7 @@ export const css = curry(async function css(
                   and: [ctx.rootDirectory],
                   not: [/node_modules/],
                 },
-            use: getGlobalCssLoader(ctx, postCssPlugins),
+            use: getGlobalCssLoader(ctx, () => lazyPostCSS(ctx)),
           },
         ],
       })
@@ -284,7 +301,7 @@ export const css = curry(async function css(
               sideEffects: true,
               test: regexCssGlobal,
               issuer: { and: [ctx.customAppFile] },
-              use: getGlobalCssLoader(ctx, postCssPlugins),
+              use: getGlobalCssLoader(ctx, () => lazyPostCSS(ctx)),
             },
           ],
         })
@@ -300,7 +317,11 @@ export const css = curry(async function css(
               sideEffects: true,
               test: regexSassGlobal,
               issuer: { and: [ctx.customAppFile] },
-              use: getGlobalCssLoader(ctx, postCssPlugins, sassPreprocessors),
+              use: getGlobalCssLoader(
+                ctx,
+                () => lazyPostCSS(ctx),
+                sassPreprocessors
+              ),
             },
           ],
         })
