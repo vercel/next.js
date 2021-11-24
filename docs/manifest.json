@@ -153,6 +153,10 @@
               "path": "/docs/advanced-features/module-path-aliases.md"
             },
             {
+              "title": "Using MDX",
+              "path": "/docs/advanced-features/using-mdx.md"
+            },
+            {
               "title": "AMP Support",
               "routes": [
                 {

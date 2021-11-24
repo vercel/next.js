@@ -688,13 +688,14 @@ if (process.env.__NEXT_RSC) {
   }
 
   RSCComponent = (props: any) => {
-    const { asPath: cacheKey } = useRouter() as any
+    const cacheKey = useRouter().asPath
+    const { __flight_serialized__, __flight_fresh__ } = props
     return (
       <React.Suspense fallback={null}>
         <RSCWrapper
           cacheKey={cacheKey}
-          serialized={(props as any).__flight_serialized__}
-          _fresh={(props as any).__flight_fresh__}
+          serialized={__flight_serialized__}
+          _fresh={__flight_fresh__}
         />
       </React.Suspense>
     )
