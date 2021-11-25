@@ -366,7 +366,7 @@ impl Minimalizer {
         // Remove empty statements
         new.retain(|stmt| match StmtOrModuleItem::as_stmt(stmt) {
             Ok(Stmt::Empty(..)) => return false,
-            Ok(Stmt::Expr(es)) => return es.expr.is_lit(),
+            Ok(Stmt::Expr(es)) => return !es.expr.is_lit(),
             _ => true,
         });
 
