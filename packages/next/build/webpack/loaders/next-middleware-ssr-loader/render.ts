@@ -8,6 +8,8 @@ import {
   WebIncomingMessage,
   WebServerResponse,
 } from '../../../../server/web/http-adapter'
+import { renderToHTML } from '../../../../server/web/render'
+import RenderResult from '../../../../server/render-result'
 
 const createHeaders = (args?: any) => ({
   ...args,
@@ -16,7 +18,7 @@ const createHeaders = (args?: any) => ({
 
 export function getRender({
   App,
-  Document,
+  documentMod,
   pageMod,
   errorMod,
   rscManifest,
@@ -26,7 +28,7 @@ export function getRender({
   restRenderOpts,
 }: {
   App: any
-  Document: any
+  documentMod: any
   pageMod: any
   errorMod: any
   rscManifest: object
@@ -68,7 +70,7 @@ export function getRender({
       // domainLocales: i18n?.domains,
       dev: process.env.NODE_ENV !== 'production',
       App,
-      Document,
+      Document: documentMod.default,
       buildManifest,
       Component: pageMod.default,
       pageConfig: pageMod.config || {},
@@ -89,7 +91,7 @@ export function getRender({
       pageComponent: pageMod.default,
       pageConfig: pageMod.config || {},
       appModule: App,
-      documentModule: { default: Document },
+      documentModule: documentMod,
       errorModule: errorMod,
       // notFoundModule: ${
       //   absolute404Path
@@ -121,15 +123,54 @@ export function getRender({
       distDir: restRenderOpts.distDir,
     })
 
-    const result = await pageHandler.renderReqToHTML(
-      new WebIncomingMessage(request),
-      new WebServerResponse(),
-      'passthrough',
-      {
-        supportsDynamicHTML: true,
-        ...renderOpts,
+    const req = new WebIncomingMessage(request)
+    const res = new WebServerResponse()
+    let result: null | string | RenderResult = null
+    let statusCode = 200
+
+    try {
+      const rendered = await pageHandler.renderReqToHTML(
+        req,
+        res,
+        'passthrough',
+        {
+          supportsDynamicHTML: true,
+          ...renderOpts,
+        }
+      )
+      if (typeof rendered === 'string') {
+        result = rendered
+      } else if (rendered) {
+        result = rendered.html
       }
-    )
+    } catch (err) {
+      statusCode = 500
+      try {
+        result = await renderToHTML(
+          req as any,
+          { statusCode: 500, err } as any,
+          '/_error',
+          query,
+          {
+            ...renderOpts,
+            Component: errorMod.default,
+            getStaticProps: errorMod.getStaticProps,
+            getServerSideProps: errorMod.getServerSideProps,
+            getStaticPaths: errorMod.getStaticPaths,
+          }
+        )
+      } catch (err2: any) {
+        return new Response(
+          (
+            err2 || 'An error occurred while rendering ' + pathname + '.'
+          ).toString(),
+          {
+            status: 500,
+            headers: createHeaders(),
+          }
+        )
+      }
+    }
 
     const transformStream = new TransformStream()
     const writer = transformStream.writable.getWriter()
@@ -138,11 +179,11 @@ export function getRender({
     if (typeof result === 'string') {
       return new Response(result, {
         headers: { 'x-middleware-ssr': '1' },
-        status: 200,
+        status: statusCode,
       })
     }
 
-    if (!result || !result.html) {
+    if (!result) {
       return new Response(
         'An error occurred while rendering ' + pathname + '.',
         {
@@ -152,7 +193,7 @@ export function getRender({
       )
     }
 
-    result.html.pipe({
+    result.pipe({
       write: (str: string) => writer.write(encoder.encode(str)),
       end: () => writer.close(),
       // Not implemented: cork/uncork/on/removeListener
@@ -160,7 +201,7 @@ export function getRender({
 
     return new Response(transformStream.readable, {
       headers: createHeaders(),
-      status: 200,
+      status: statusCode,
     })
   }
 }

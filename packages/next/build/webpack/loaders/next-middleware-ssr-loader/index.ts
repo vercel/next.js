@@ -27,10 +27,10 @@ export default async function middlewareSSRLoader(this: any) {
     import { RouterContext } from 'next/dist/shared/lib/router-context'
 
     import App from ${stringifiedAbsoluteAppPath}
-    import Document from ${stringifiedAbsoluteDocumentPath}
 
     import { getRender } from 'next/dist/build/webpack/loaders/next-middleware-ssr-loader/render'
 
+    const documentMod = require(${stringifiedAbsoluteDocumentPath})
     const pageMod = require(${stringifiedAbsolutePagePath})
     const errorMod = require(${stringifiedAbsolute500PagePath})
 
@@ -44,7 +44,7 @@ export default async function middlewareSSRLoader(this: any) {
 
     const render = getRender({
       App,
-      Document,
+      documentMod,
       pageMod,
       errorMod,
       buildManifest,
