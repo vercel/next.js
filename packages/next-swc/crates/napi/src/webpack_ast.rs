@@ -868,7 +868,7 @@ impl VisitMut for Minimalizer {
             return;
         }
 
-        if el.children.len() != 1 {
+        if el.children.len() == 1 {
             match &mut el.children[0] {
                 JSXElementChild::JSXElement(c) => {
                     *el = *c.take();
