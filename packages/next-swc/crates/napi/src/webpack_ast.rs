@@ -485,6 +485,45 @@ impl VisitMut for Minimalizer {
         }
     }
 
+    fn visit_mut_jsx_attr_or_spreads(&mut self, attrs: &mut Vec<JSXAttrOrSpread>) {
+        attrs.visit_mut_children_with(self);
+
+        attrs.retain(|attr| match attr {
+            JSXAttrOrSpread::JSXAttr(attr) => {
+                match &attr.name {
+                    JSXAttrName::Ident(..) => {}
+                    JSXAttrName::JSXNamespacedName(_) => {
+                        // We don't handle this because no one uses it
+                        return true;
+                    }
+                }
+
+                // Remove jsx attributes
+                match &attr.value {
+                    Some(v) => match v {
+                        JSXAttrValue::Lit(_) => return false,
+                        JSXAttrValue::JSXExprContainer(e) => match &e.expr {
+                            JSXExpr::JSXEmptyExpr(_) => {
+                                return true;
+                            }
+                            JSXExpr::Expr(e) => {
+                                if e.is_lit() {
+                                    return false;
+                                }
+                            }
+                        },
+                        JSXAttrValue::JSXElement(_) => {}
+                        JSXAttrValue::JSXFragment(_) => {}
+                    },
+                    None => return false,
+                }
+
+                true
+            }
+            JSXAttrOrSpread::SpreadElement(..) => true,
+        });
+    }
+
     /// Normalize expressions.
     ///
     ///  - empty [Expr::Seq] => [Expr::Invalid]
