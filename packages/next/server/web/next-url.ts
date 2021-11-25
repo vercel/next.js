@@ -2,6 +2,7 @@ import type { PathLocale } from '../../shared/lib/i18n/normalize-locale-path'
 import type { DomainLocale, I18NConfig } from '../config-shared'
 import { getLocaleMetadata } from '../../shared/lib/i18n/get-locale-metadata'
 import cookie from 'next/dist/compiled/cookie'
+import { replaceBasePath } from '../router'
 
 /**
  * TODO
@@ -19,6 +20,9 @@ interface Options {
   trailingSlash?: boolean
 }
 
+const REGEX_LOCALHOST_HOSTNAME =
+  /(?!^https?:\/\/)(127(?:\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}|::1)/
+
 export class NextURL extends URL {
   private _basePath: string
   private _locale?: {
@@ -32,11 +36,12 @@ export class NextURL extends URL {
   private _options: Options
   private _url: URL
 
-  constructor(url: string, options: Options = {}) {
-    super(formatRelative(url))
+  constructor(input: string, options: Options = {}) {
+    const url = createWHATWGURL(input)
+    super(url)
     this._options = options
     this._basePath = ''
-    this._url = formatRelative(url)
+    this._url = url
     this.analyzeUrl()
   }
 
@@ -48,7 +53,7 @@ export class NextURL extends URL {
     const { headers = {}, basePath, i18n } = this._options
 
     if (basePath && this._url.pathname.startsWith(basePath)) {
-      this._url.pathname = this._url.pathname.replace(basePath, '') || '/'
+      this._url.pathname = replaceBasePath(this._url.pathname, basePath)
       this._basePath = basePath
     } else {
       this._basePath = ''
@@ -162,7 +167,7 @@ export class NextURL extends URL {
   }
 
   set href(url: string) {
-    this._url = formatRelative(url)
+    this._url = createWHATWGURL(url)
     this.analyzeUrl()
   }
 
@@ -227,8 +232,13 @@ export class NextURL extends URL {
   }
 }
 
-function formatRelative(url: string) {
-  return url.startsWith('/')
+function createWHATWGURL(url: string) {
+  url = url.replace(REGEX_LOCALHOST_HOSTNAME, 'localhost')
+  return isRelativeURL(url)
     ? new URL(url.replace(/^\/+/, '/'), new URL('https://localhost'))
     : new URL(url)
+}
+
+function isRelativeURL(url: string) {
+  return url.startsWith('/')
 }

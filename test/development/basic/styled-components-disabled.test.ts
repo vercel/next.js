@@ -54,6 +54,7 @@ describe('styled-components SWC transform', () => {
         throw new Error('did not find mismatch')
       } catch (err) {
         // Verify that it really has the logs
+        // eslint-disable-next-line jest/no-try-expect
         expect(await matchLogs$(browser)).toBe(true)
       }
     } finally {

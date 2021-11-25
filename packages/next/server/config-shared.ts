@@ -126,6 +126,11 @@ export type NextConfig = { [key: string]: any } & {
   crossOrigin?: false | 'anonymous' | 'use-credentials'
   swcMinify?: boolean
   experimental?: {
+    removeConsole?:
+      | boolean
+      | {
+          exclude?: string[]
+        }
     styledComponents?: boolean
     swcMinify?: boolean
     cpus?: number

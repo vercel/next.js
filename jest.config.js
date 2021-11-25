@@ -1,16 +1,16 @@
-const path = require('path')
+const nextJest = require('next/jest')
 
-module.exports = {
+const createJestConfig = nextJest()
+
+// Any custom config you want to pass to Jest
+const customJestConfig = {
   testMatch: ['**/*.test.js', '**/*.test.ts', '**/*.test.tsx'],
   setupFilesAfterEnv: ['<rootDir>/jest-setup-after-env.ts'],
   verbose: true,
   rootDir: 'test',
   modulePaths: ['<rootDir>/lib'],
-  transformIgnorePatterns: ['/node_modules/', '/next[/\\\\]dist/', '/.next/'],
-  transform: {
-    '.+\\.(t|j)sx?$': [
-      // this matches our SWC options used in https://github.com/vercel/next.js/blob/canary/packages/next/taskfile-swc.js
-      path.join(__dirname, './packages/next/jest.js'),
-    ],
-  },
+  transformIgnorePatterns: ['/next[/\\\\]dist/'],
 }
+
+// createJestConfig is exported in this way to ensure that next/jest can load the Next.js config which is async
+module.exports = createJestConfig(customJestConfig)
