@@ -30,7 +30,7 @@ fn test(input: &Path, minify: bool) {
             let options = TransformOptions {
                 swc: swc::config::Options {
                     swcrc: true,
-                    is_module: true,
+                    is_module: swc::config::IsModule::Bool(true),
                     output_path: Some(output.to_path_buf()),
 
                     config: swc::config::Config {
