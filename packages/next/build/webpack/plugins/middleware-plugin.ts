@@ -18,7 +18,7 @@ export const ssrEntries = new Map<string, { requireFlightManifest: boolean }>()
 export interface MiddlewareManifest {
   version: 1
   sortedMiddleware: string[]
-  clientInfo: [string, boolean][]
+  clientInfo: [location: string, isSSR: boolean][]
   middleware: {
     [page: string]: {
       env: string[]
