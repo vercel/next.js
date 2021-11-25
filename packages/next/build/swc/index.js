@@ -219,3 +219,8 @@ export async function bundle(options) {
   let bindings = loadBindingsSync()
   return bindings.bundle(toBuffer(options))
 }
+
+export async function webpackAST(path) {
+  let bindings = loadNative()
+  return bindings.webpackAST(path)
+}
