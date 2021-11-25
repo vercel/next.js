@@ -1700,7 +1700,6 @@ export default async function getBaseWebpackConfig(
     future: config.future,
     experimental: config.experimental,
     disableStaticImages: config.images.disableStaticImages,
-    disablePostcssPresetEnv: config.disablePostcssPresetEnv,
   })
 
   // @ts-ignore Cache exists

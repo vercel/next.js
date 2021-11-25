@@ -21,9 +21,7 @@ export async function build(
     future,
     experimental,
     disableStaticImages,
-    disablePostcssPresetEnv,
   }: {
-    disablePostcssPresetEnv: NextConfigComplete['experimental']['disablePostcssPresetEnv']
     supportedBrowsers: string[] | undefined
     rootDirectory: string
     customAppFile: RegExp
@@ -40,7 +38,6 @@ export async function build(
   }
 ): Promise<webpack.Configuration> {
   const ctx: ConfigurationContext = {
-    disablePostcssPresetEnv,
     supportedBrowsers,
     rootDirectory,
     customAppFile,

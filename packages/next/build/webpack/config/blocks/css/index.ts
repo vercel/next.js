@@ -131,7 +131,7 @@ export const css = curry(async function css(
       ctx.rootDirectory,
       ctx.supportedBrowsers,
       ctx.future.strictPostcssConfiguration,
-      ctx.disablePostcssPresetEnv
+      ctx.experimental.disablePostcssPresetEnv
     )
 
   const sassPreprocessors: webpack.RuleSetUseItem[] = [
