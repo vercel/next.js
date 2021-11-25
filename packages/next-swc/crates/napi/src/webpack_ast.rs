@@ -366,7 +366,7 @@ impl Minimalizer {
         // Remove empty statements
         new.retain(|stmt| match StmtOrModuleItem::as_stmt(stmt) {
             Ok(Stmt::Empty(..)) => return false,
-            Ok(Stmt::Expr(es)) => return !es.expr.is_lit(),
+            Ok(Stmt::Expr(es)) => return !can_remove(&es.expr),
             _ => true,
         });
 
@@ -834,7 +834,7 @@ impl VisitMut for Minimalizer {
                                 return true;
                             }
                             JSXExpr::Expr(e) => {
-                                if e.is_lit() {
+                                if can_remove(&e) {
                                     return false;
                                 }
                             }
@@ -863,7 +863,7 @@ impl VisitMut for Minimalizer {
             JSXElementChild::JSXExprContainer(JSXExprContainer {
                 expr: JSXExpr::Expr(expr),
                 ..
-            }) => return !expr.is_lit(),
+            }) => return !can_remove(&expr),
 
             JSXElementChild::JSXElement(el) => {
                 // Remove empty, non-component elements.
@@ -1143,7 +1143,7 @@ impl VisitMut for Minimalizer {
                 }
 
                 //
-                if is.test.is_lit() {
+                if can_remove(&is.test) {
                     if is.cons.is_empty() && is.alt.is_none() {
                         *stmt = Stmt::Empty(EmptyStmt { span: DUMMY_SP });
                         return;
@@ -1262,4 +1262,12 @@ fn left_most(e: &Expr) -> Option<Ident> {
 
 fn null_expr() -> Expr {
     Expr::Lit(Lit::Null(Null { span: DUMMY_SP }))
+}
+
+fn can_remove(e: &Expr) -> bool {
+    match e {
+        Expr::Lit(..) => true,
+        Expr::Seq(seq) => seq.exprs.iter().all(|e| can_remove(e)),
+        _ => false,
+    }
 }
