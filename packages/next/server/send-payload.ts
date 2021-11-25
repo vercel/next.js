@@ -3,6 +3,7 @@ import { isResSent } from '../shared/lib/utils'
 import generateETag from 'etag'
 import fresh from 'next/dist/compiled/fresh'
 import RenderResult from './render-result'
+import { WebRequestBasedIncomingMessage } from '../build/webpack/loaders/next-middleware-ssr-loader/utils'
 
 export type PayloadOptions =
   | { private: true }
@@ -45,7 +46,7 @@ export async function sendRenderResult({
   poweredByHeader,
   options,
 }: {
-  req: IncomingMessage
+  req: IncomingMessage | WebRequestBasedIncomingMessage
   res: ServerResponse
   result: RenderResult
   type: 'html' | 'json'
@@ -95,7 +96,7 @@ export async function sendRenderResult({
 }
 
 export function sendEtagResponse(
-  req: IncomingMessage,
+  req: IncomingMessage | WebRequestBasedIncomingMessage,
   res: ServerResponse,
   etag: string | undefined
 ): boolean {

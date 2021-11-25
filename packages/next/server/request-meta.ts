@@ -2,10 +2,15 @@
 import type { ParsedUrlQuery } from 'querystring'
 import type { IncomingMessage } from 'http'
 import type { UrlWithParsedQuery } from 'url'
+import { WebRequestBasedIncomingMessage } from '../build/webpack/loaders/next-middleware-ssr-loader/utils'
 
 const NEXT_REQUEST_META = Symbol('NextRequestMeta')
 
 interface NextIncomingMessage extends IncomingMessage {
+  [NEXT_REQUEST_META]?: RequestMeta
+}
+interface WebRequestBasedNextIncomingMessage
+  extends WebRequestBasedIncomingMessage {
   [NEXT_REQUEST_META]?: RequestMeta
 }
 
@@ -21,28 +26,31 @@ interface RequestMeta {
 }
 
 export function getRequestMeta(
-  req: NextIncomingMessage,
+  req: NextIncomingMessage | WebRequestBasedNextIncomingMessage,
   key?: undefined
 ): RequestMeta
 export function getRequestMeta<K extends keyof RequestMeta>(
-  req: NextIncomingMessage,
+  req: NextIncomingMessage | WebRequestBasedNextIncomingMessage,
   key: K
 ): RequestMeta[K]
 export function getRequestMeta<K extends keyof RequestMeta>(
-  req: NextIncomingMessage,
+  req: NextIncomingMessage | WebRequestBasedNextIncomingMessage,
   key?: K
 ): RequestMeta | RequestMeta[K] {
   const meta = req[NEXT_REQUEST_META] || {}
   return typeof key === 'string' ? meta[key] : meta
 }
 
-export function setRequestMeta(req: NextIncomingMessage, meta: RequestMeta) {
+export function setRequestMeta(
+  req: NextIncomingMessage | WebRequestBasedNextIncomingMessage,
+  meta: RequestMeta
+) {
   req[NEXT_REQUEST_META] = meta
   return getRequestMeta(req)
 }
 
 export function addRequestMeta<K extends keyof RequestMeta>(
-  request: NextIncomingMessage,
+  request: NextIncomingMessage | WebRequestBasedNextIncomingMessage,
   key: K,
   value: RequestMeta[K]
 ) {

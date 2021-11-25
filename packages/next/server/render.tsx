@@ -62,6 +62,7 @@ import {
 import { DomainLocale } from './config'
 import RenderResult, { NodeWritablePiper } from './render-result'
 import isError from '../lib/is-error'
+import { WebRequestBasedIncomingMessage } from '../build/webpack/loaders/next-middleware-ssr-loader/utils'
 
 let Writable: typeof import('stream').Writable
 let Buffer: typeof import('buffer').Buffer
@@ -233,7 +234,7 @@ const invalidKeysMsg = (methodName: string, invalidKeys: string[]) => {
 
 function checkRedirectValues(
   redirect: Redirect,
-  req: IncomingMessage,
+  req: IncomingMessage | WebRequestBasedIncomingMessage,
   method: 'getStaticProps' | 'getServerSideProps'
 ) {
   const { destination, permanent, statusCode, basePath } = redirect
@@ -323,7 +324,7 @@ function createServerComponentRenderer(
 }
 
 export async function renderToHTML(
-  req: IncomingMessage,
+  req: IncomingMessage | WebRequestBasedIncomingMessage,
   res: ServerResponse,
   pathname: string,
   query: NextParsedUrlQuery,

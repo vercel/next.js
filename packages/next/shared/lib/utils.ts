@@ -9,6 +9,7 @@ import type { ParsedUrlQuery } from 'querystring'
 import type { PreviewData } from 'next/types'
 import type { UrlObject } from 'url'
 import { createContext } from 'react'
+import { WebRequestBasedIncomingMessage } from '../../build/webpack/loaders/next-middleware-ssr-loader/utils'
 
 export type NextComponentType<
   C extends BaseContext = NextPageContext,
@@ -121,7 +122,7 @@ export interface NextPageContext {
   /**
    * `HTTP` request object.
    */
-  req?: IncomingMessage
+  req?: IncomingMessage | WebRequestBasedIncomingMessage
   /**
    * `HTTP` response object.
    */

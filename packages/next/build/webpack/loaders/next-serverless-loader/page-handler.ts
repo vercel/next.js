@@ -13,6 +13,7 @@ import getRouteNoAssetPath from '../../../../shared/lib/router/utils/get-route-f
 import { PERMANENT_REDIRECT_STATUS } from '../../../../shared/lib/constants'
 import RenderResult from '../../../../server/render-result'
 import isError from '../../../../lib/is-error'
+import { WebRequestBasedIncomingMessage } from '../next-middleware-ssr-loader/utils'
 
 export function getPageHandler(ctx: ServerlessHandlerCtx) {
   const {
@@ -58,7 +59,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
   } = getUtils(ctx)
 
   async function renderReqToHTML(
-    req: IncomingMessage,
+    req: IncomingMessage | WebRequestBasedIncomingMessage,
     res: ServerResponse,
     renderMode?: 'export' | 'passthrough' | true,
     _renderOpts?: any,
