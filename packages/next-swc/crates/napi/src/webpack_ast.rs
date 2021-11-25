@@ -1035,6 +1035,11 @@ impl VisitMut for Minimalizer {
                         *stmt = Stmt::Empty(EmptyStmt { span: DUMMY_SP });
                         return;
                     }
+
+                    if is.alt.is_none() {
+                        *stmt = *is.cons.take();
+                        return;
+                    }
                 }
             }
 
