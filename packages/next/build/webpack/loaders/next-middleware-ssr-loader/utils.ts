@@ -21,11 +21,11 @@ export class WebResponseBasedServerResponse {
   private headers: { [name: string]: number | string | string[] } = {}
 
   statusCode: number = 200
-  finished: boolean = false // TODO
-  headersSent: boolean = false // TODO
-  body: [] = [] // TODO
 
-  constructor() {}
+  // FIXME
+  finished: boolean = false
+  headersSent: boolean = false
+  body: [] = []
 
   setHeader(name: string, value: number | string | string[]) {
     this.headers[name] = value
@@ -46,19 +46,12 @@ export class WebResponseBasedServerResponse {
     delete this.headers[name]
   }
 
-  // Not supported in Web Streams, left to empty here.
+  // Leave the implementation empty here because they're not currently used.
+  // The underlying stream is abstracted out with `RenderResult`.
   cork() {}
   uncork() {}
-
   on(_name: string, _callback: () => void) {}
   removeListener(_name: string, _callback: () => void) {}
-
-  write(chunk?: string) {
-    // TODO
-    console.log('write ->', chunk)
-  }
-  end(chunk?: string) {
-    // TODO
-    console.log('end ->', chunk)
-  }
+  write(_chunk?: string) {}
+  end(_chunk?: string) {}
 }

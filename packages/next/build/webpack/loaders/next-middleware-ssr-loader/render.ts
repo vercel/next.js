@@ -1,10 +1,6 @@
-// import devalue from 'next/dist/compiled/devalue'
 import escapeRegexp from 'next/dist/compiled/escape-string-regexp'
 
 import { NextRequest } from '../../../../server/web/spec-extension/request'
-import { renderToHTML } from '../../../../server/web/render'
-import RenderResult from '../../../../server/render-result'
-
 import { getPageHandler } from '../next-serverless-loader/page-handler'
 import { isDynamicRoute } from '../../../../shared/lib/router/utils'
 import { __ApiPreviewProps } from '../../../../server/api-utils'
@@ -59,7 +55,6 @@ export function getRender({
       : false
     delete query.__flight__
 
-    const req = { url: pathname }
     const renderOpts = {
       ...restRenderOpts,
       // Locales are not supported yet.
@@ -122,56 +117,28 @@ export function getRender({
       distDir: restRenderOpts.distDir,
     })
 
-    console.log(
-      await pageHandler.renderReqToHTML(
-        new WebRequestBasedIncomingMessage(request),
-        new WebResponseBasedServerResponse()
-      )
+    const result = await pageHandler.renderReqToHTML(
+      new WebRequestBasedIncomingMessage(request),
+      new WebResponseBasedServerResponse(),
+      'passthrough',
+      {
+        supportsDynamicHTML: true,
+        ...renderOpts,
+      }
     )
 
     const transformStream = new TransformStream()
     const writer = transformStream.writable.getWriter()
     const encoder = new TextEncoder()
 
-    let result: RenderResult | null
-    try {
-      result = await renderToHTML(
-        req as any,
-        {} as any,
-        pathname,
-        query,
-        renderOpts
-      )
-    } catch (err: any) {
-      const errorRes = { statusCode: 500, err }
-      try {
-        result = await renderToHTML(
-          req as any,
-          errorRes as any,
-          '/_error',
-          query,
-          {
-            ...renderOpts,
-            Component: errorMod.default,
-            getStaticProps: errorMod.getStaticProps,
-            getServerSideProps: errorMod.getServerSideProps,
-            getStaticPaths: errorMod.getStaticPaths,
-          }
-        )
-      } catch (err2: any) {
-        return new Response(
-          (
-            err2 || 'An error occurred while rendering ' + pathname + '.'
-          ).toString(),
-          {
-            status: 500,
-            headers: { 'x-middleware-ssr': '1' },
-          }
-        )
-      }
+    if (typeof result === 'string') {
+      return new Response(result, {
+        headers: { 'x-middleware-ssr': '1' },
+        status: 200,
+      })
     }
 
-    if (!result) {
+    if (!result || !result.html) {
       return new Response(
         'An error occurred while rendering ' + pathname + '.',
         {
@@ -181,7 +148,7 @@ export function getRender({
       )
     }
 
-    result.pipe({
+    result.html.pipe({
       write: (str: string) => writer.write(encoder.encode(str)),
       end: () => writer.close(),
       // Not implemented: cork/uncork/on/removeListener
