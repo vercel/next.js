@@ -570,7 +570,7 @@ jobs:
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         with:
           profile: minimal
-          toolchain: nightly-2021-08-12
+          toolchain: nightly-2021-11-15
 
       - name: Cache cargo registry
         uses: actions/cache@v1
@@ -592,7 +592,7 @@ jobs:
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         with:
           path: packages/next-swc/native/next-swc.linux-x64-gnu.node
-          key: dev-next-swc-nightly-2021-08-12-linux-x64-gnu-${{ hashFiles('.github/workflows/build_test_deploy.yml', 'packages/next-swc/**') }}
+          key: dev-next-swc-nightly-2021-11-15-linux-x64-gnu-${{ hashFiles('.github/workflows/build_test_deploy.yml', 'packages/next-swc/**') }}
 
       # We use restore-key to pick latest cache.
       # We will not get exact match, but doc says
@@ -643,7 +643,7 @@ jobs:
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly-2021-08-12
+          toolchain: nightly-2021-11-15
           profile: minimal
       - run: cd packages/next-swc && cargo test
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
@@ -704,7 +704,7 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: nightly-2021-08-12
+          toolchain: nightly-2021-11-15
           target: ${{ matrix.target }}
 
       - name: Cache cargo registry
@@ -724,7 +724,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: packages/next-swc/native/next-swc.${{ matrix.name }}.node
-          key: next-swc-nightly-2021-08-12-${{ matrix.target }}-${{ hashFiles('.github/workflows/build_test_deploy.yml', 'packages/next-swc/**') }}
+          key: next-swc-nightly-2021-11-15-${{ matrix.target }}-${{ hashFiles('.github/workflows/build_test_deploy.yml', 'packages/next-swc/**') }}
 
       - name: Cross build aarch64 setup
         if: ${{ matrix.target == 'aarch64-apple-darwin' }}
@@ -798,7 +798,7 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: nightly-2021-08-12
+          toolchain: nightly-2021-11-15
           override: true
           target: i686-pc-windows-msvc
 
@@ -807,7 +807,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: packages/next-swc/native/next-swc.win32-ia32-msvc.node
-          key: next-swc-nightly-2021-08-12-win32-ia32-msvc-${{ hashFiles('.github/workflows/build_test_deploy.yml', 'packages/next-swc/**') }}
+          key: next-swc-nightly-2021-11-15-win32-ia32-msvc-${{ hashFiles('.github/workflows/build_test_deploy.yml', 'packages/next-swc/**') }}
 
       - name: Build
         if: ${{ steps.binary-cache.outputs.cache-hit != 'true' }}
@@ -844,7 +844,7 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: nightly-2021-08-12
+          toolchain: nightly-2021-11-15
           override: true
           target: aarch64-pc-windows-msvc
 
@@ -853,7 +853,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: packages/next-swc/native/next-swc.win32-arm64-msvc.node
-          key: next-swc-nightly-2021-08-12-win32-arm64-msvc-${{ hashFiles('.github/workflows/build_test_deploy.yml', 'packages/next-swc/**') }}
+          key: next-swc-nightly-2021-11-15-win32-arm64-msvc-${{ hashFiles('.github/workflows/build_test_deploy.yml', 'packages/next-swc/**') }}
 
       - name: Build
         if: ${{ steps.binary-cache.outputs.cache-hit != 'true' }}
@@ -902,7 +902,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: packages/next-swc/native/next-swc.linux-x64-musl.node
-          key: next-swc-nightly-2021-08-12-linux-x64-musl-${{ hashFiles('.github/workflows/build_test_deploy.yml', 'packages/next-swc/**') }}
+          key: next-swc-nightly-2021-11-15-linux-x64-musl-${{ hashFiles('.github/workflows/build_test_deploy.yml', 'packages/next-swc/**') }}
 
       - name: 'Build'
         if: ${{ steps.binary-cache.outputs.cache-hit != 'true' }}
@@ -940,7 +940,7 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: nightly-2021-08-12
+          toolchain: nightly-2021-11-15
           override: true
           target: aarch64-unknown-linux-gnu
 
@@ -961,7 +961,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: packages/next-swc/native/next-swc.linux-arm64-gnu.node
-          key: next-swc-nightly-2021-08-12-linux-arm64-gnu-${{ hashFiles('.github/workflows/build_test_deploy.yml', 'packages/next-swc/**') }}
+          key: next-swc-nightly-2021-11-15-linux-arm64-gnu-${{ hashFiles('.github/workflows/build_test_deploy.yml', 'packages/next-swc/**') }}
 
       - name: Cross build aarch64
         if: ${{ steps.binary-cache.outputs.cache-hit != 'true' }}
@@ -997,7 +997,7 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: nightly-2021-08-12
+          toolchain: nightly-2021-11-15
           override: true
           target: aarch64-unknown-linux-musl
 
@@ -1018,7 +1018,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: packages/next-swc/native/next-swc.linux-arm64-musl.node
-          key: next-swc-nightly-2021-08-12-linux-arm64-musl-${{ hashFiles('.github/workflows/build_test_deploy.yml', 'packages/next-swc/**') }}
+          key: next-swc-nightly-2021-11-15-linux-arm64-musl-${{ hashFiles('.github/workflows/build_test_deploy.yml', 'packages/next-swc/**') }}
 
       - name: Cross build aarch64
         if: ${{ steps.binary-cache.outputs.cache-hit != 'true' }}
@@ -1056,7 +1056,7 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: nightly-2021-08-12
+          toolchain: nightly-2021-11-15
           override: true
           target: armv7-unknown-linux-gnueabihf
 
@@ -1077,7 +1077,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: packages/next-swc/native/next-swc.linux-arm-gnueabihf.node
-          key: next-swc-nightly-2021-08-12-linux-arm-gnueabihf-${{ hashFiles('.github/workflows/build_test_deploy.yml', 'packages/next-swc/**') }}
+          key: next-swc-nightly-2021-11-15-linux-arm-gnueabihf-${{ hashFiles('.github/workflows/build_test_deploy.yml', 'packages/next-swc/**') }}
 
       - name: Cross build aarch64
         if: ${{ steps.binary-cache.outputs.cache-hit != 'true' }}
@@ -1113,7 +1113,7 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: nightly-2021-08-12
+          toolchain: nightly-2021-11-15
           override: true
           target: aarch64-linux-android
 
@@ -1122,7 +1122,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: packages/next-swc/native/next-swc.android-arm64.node
-          key: next-swc-nightly-2021-08-12-android-arm64-${{ hashFiles('.github/workflows/build_test_deploy.yml', 'packages/next-swc/**') }}
+          key: next-swc-nightly-2021-11-15-android-arm64-${{ hashFiles('.github/workflows/build_test_deploy.yml', 'packages/next-swc/**') }}
 
       - name: Build
         if: ${{ steps.binary-cache.outputs.cache-hit != 'true' }}
@@ -1161,7 +1161,7 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: nightly-2021-08-12
+          toolchain: nightly-2021-11-15
           override: true
           target: wasm32-unknown-unknown
 
