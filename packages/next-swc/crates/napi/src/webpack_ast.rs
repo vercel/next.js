@@ -485,45 +485,6 @@ impl VisitMut for Minimalizer {
         }
     }
 
-    fn visit_mut_jsx_attr_or_spreads(&mut self, attrs: &mut Vec<JSXAttrOrSpread>) {
-        attrs.visit_mut_children_with(self);
-
-        attrs.retain(|attr| match attr {
-            JSXAttrOrSpread::JSXAttr(attr) => {
-                match &attr.name {
-                    JSXAttrName::Ident(..) => {}
-                    JSXAttrName::JSXNamespacedName(_) => {
-                        // We don't handle this because no one uses it
-                        return true;
-                    }
-                }
-
-                // Remove jsx attributes
-                match &attr.value {
-                    Some(v) => match v {
-                        JSXAttrValue::Lit(_) => return false,
-                        JSXAttrValue::JSXExprContainer(e) => match &e.expr {
-                            JSXExpr::JSXEmptyExpr(_) => {
-                                return true;
-                            }
-                            JSXExpr::Expr(e) => {
-                                if e.is_lit() {
-                                    return false;
-                                }
-                            }
-                        },
-                        JSXAttrValue::JSXElement(_) => {}
-                        JSXAttrValue::JSXFragment(_) => {}
-                    },
-                    None => return false,
-                }
-
-                true
-            }
-            JSXAttrOrSpread::SpreadElement(..) => true,
-        });
-    }
-
     /// Normalize expressions.
     ///
     ///  - empty [Expr::Seq] => [Expr::Invalid]
@@ -812,6 +773,62 @@ impl VisitMut for Minimalizer {
         f.type_params.visit_mut_with(self);
 
         f.return_type.visit_mut_with(self);
+    }
+
+    fn visit_mut_jsx_attr_or_spreads(&mut self, attrs: &mut Vec<JSXAttrOrSpread>) {
+        attrs.visit_mut_children_with(self);
+
+        attrs.retain(|attr| match attr {
+            JSXAttrOrSpread::JSXAttr(attr) => {
+                match &attr.name {
+                    JSXAttrName::Ident(..) => {}
+                    JSXAttrName::JSXNamespacedName(_) => {
+                        // We don't handle this because no one uses it
+                        return true;
+                    }
+                }
+
+                // Remove jsx attributes
+                match &attr.value {
+                    Some(v) => match v {
+                        JSXAttrValue::Lit(_) => return false,
+                        JSXAttrValue::JSXExprContainer(e) => match &e.expr {
+                            JSXExpr::JSXEmptyExpr(_) => {
+                                return true;
+                            }
+                            JSXExpr::Expr(e) => {
+                                if e.is_lit() {
+                                    return false;
+                                }
+                            }
+                        },
+                        JSXAttrValue::JSXElement(_) => {}
+                        JSXAttrValue::JSXFragment(_) => {}
+                    },
+                    None => return false,
+                }
+
+                true
+            }
+            JSXAttrOrSpread::SpreadElement(..) => true,
+        });
+    }
+
+    fn visit_mut_jsx_element_children(&mut self, v: &mut Vec<JSXElementChild>) {
+        v.visit_mut_children_with(self);
+
+        v.retain(|c| match c {
+            JSXElementChild::JSXText(_)
+            | JSXElementChild::JSXExprContainer(JSXExprContainer {
+                expr: JSXExpr::JSXEmptyExpr(..),
+                ..
+            }) => return false,
+            JSXElementChild::JSXExprContainer(JSXExprContainer {
+                expr: JSXExpr::Expr(expr),
+                ..
+            }) => return !expr.is_lit(),
+            _ => true,
+        })
     }
 
     fn visit_mut_jsx_expr(&mut self, e: &mut JSXExpr) {
