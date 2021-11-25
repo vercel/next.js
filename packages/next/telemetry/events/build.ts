@@ -131,6 +131,7 @@ export type EventBuildFeatureUsage = {
     | 'next/script'
     | 'next/dynamic'
     | 'experimental/optimizeCss'
+    | 'optimizeFonts'
     | 'swcLoader'
     | 'swcMinify'
   invocationCount: number

@@ -64,7 +64,7 @@ fn main() {
                         .into_iter()
                         .map(|mut data| {
                             if !logged_url {
-                                log_web_url(&jaeger_web_ui_url, &data["traceId"].to_string());
+                                log_web_url(&jaeger_web_ui_url, &data["traceId"].as_str().unwrap());
                                 logged_url = true;
                             }
                             data["localEndpoint"] = Value::Object(local_endpoint.clone());
