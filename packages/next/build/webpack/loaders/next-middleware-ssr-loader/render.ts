@@ -42,7 +42,7 @@ export function getRender({
   const encodedPreviewProps = JSON.parse(previewProps) as __ApiPreviewProps
 
   return async function render(request: NextRequest) {
-    const { nextUrl: url, cookies, headers } = request
+    const { nextUrl: url } = request
     const { pathname, searchParams } = url
 
     const query = Object.fromEntries(searchParams)
