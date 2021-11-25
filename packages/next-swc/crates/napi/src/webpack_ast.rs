@@ -915,9 +915,12 @@ impl VisitMut for Minimalizer {
     ///  - Invalid [Stmt::Decl] => [Stmt::Empty]
     ///  - Useless stmt => [Stmt::Empty]
     fn visit_mut_stmt(&mut self, stmt: &mut Stmt) {
-        stmt.visit_mut_children_with(self);
-
         match stmt {
+            Stmt::Debugger(_) | Stmt::Break(_) | Stmt::Continue(_) => {
+                *stmt = Stmt::Empty(EmptyStmt { span: DUMMY_SP });
+                return;
+            }
+
             Stmt::Return(s) => {
                 if let Some(arg) = s.arg.take() {
                     *stmt = Stmt::Expr(ExprStmt {
@@ -936,11 +939,12 @@ impl VisitMut for Minimalizer {
                 });
             }
 
-            Stmt::Debugger(_) | Stmt::Break(_) | Stmt::Continue(_) => {
-                *stmt = Stmt::Empty(EmptyStmt { span: DUMMY_SP });
-                return;
-            }
+            _ => {}
+        }
 
+        stmt.visit_mut_children_with(self);
+
+        match stmt {
             Stmt::Labeled(l) => {
                 *stmt = *l.body.take();
             }
