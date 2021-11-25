@@ -24,7 +24,12 @@ const regexSassGlobal = /(?<!\.module)\.(scss|sass)$/
 const regexSassModules = /\.module\.(scss|sass)$/
 
 let postcssInstancePromise: Promise<any>
-async function lazyPostCSS(ctx: ConfigurationContext) {
+export async function lazyPostCSS(
+  rootDirectory: string,
+  supportedBrowsers: string[] | undefined,
+  strictPostcssConfiguration: boolean | undefined,
+  disablePostcssPresetEnv: boolean | undefined
+) {
   if (!postcssInstancePromise) {
     postcssInstancePromise = (async () => {
       const postcss = require('postcss')
@@ -95,10 +100,10 @@ async function lazyPostCSS(ctx: ConfigurationContext) {
       }
 
       const postCssPlugins = await getPostCssPlugins(
-        ctx.rootDirectory,
-        ctx.supportedBrowsers,
-        !ctx.future.strictPostcssConfiguration,
-        ctx.experimental.disablePostcssPresetEnv
+        rootDirectory,
+        supportedBrowsers,
+        strictPostcssConfiguration,
+        disablePostcssPresetEnv
       )
 
       return {
@@ -120,6 +125,14 @@ export const css = curry(async function css(
     additionalData: sassAdditionalData,
     ...sassOptions
   } = ctx.sassOptions
+
+  const lazyPostCSSInitalizer = () =>
+    lazyPostCSS(
+      ctx.rootDirectory,
+      ctx.supportedBrowsers,
+      ctx.future.strictPostcssConfiguration,
+      ctx.disablePostcssPresetEnv
+    )
 
   const sassPreprocessors: webpack.RuleSetUseItem[] = [
     // First, process files with `sass-loader`: this inlines content, and
@@ -202,7 +215,7 @@ export const css = curry(async function css(
             and: [ctx.rootDirectory],
             not: [/node_modules/],
           },
-          use: getCssModuleLoader(ctx, () => lazyPostCSS(ctx)),
+          use: getCssModuleLoader(ctx, lazyPostCSSInitalizer),
         },
       ],
     })
@@ -227,7 +240,7 @@ export const css = curry(async function css(
           },
           use: getCssModuleLoader(
             ctx,
-            () => lazyPostCSS(ctx),
+            lazyPostCSSInitalizer,
             sassPreprocessors
           ),
         },
@@ -289,7 +302,7 @@ export const css = curry(async function css(
                   and: [ctx.rootDirectory],
                   not: [/node_modules/],
                 },
-            use: getGlobalCssLoader(ctx, () => lazyPostCSS(ctx)),
+            use: getGlobalCssLoader(ctx, lazyPostCSSInitalizer),
           },
         ],
       })
@@ -307,7 +320,7 @@ export const css = curry(async function css(
               sideEffects: true,
               test: regexCssGlobal,
               issuer: { and: [ctx.customAppFile] },
-              use: getGlobalCssLoader(ctx, () => lazyPostCSS(ctx)),
+              use: getGlobalCssLoader(ctx, lazyPostCSSInitalizer),
             },
           ],
         })
@@ -325,7 +338,7 @@ export const css = curry(async function css(
               issuer: { and: [ctx.customAppFile] },
               use: getGlobalCssLoader(
                 ctx,
-                () => lazyPostCSS(ctx),
+                lazyPostCSSInitalizer,
                 sassPreprocessors
               ),
             },
