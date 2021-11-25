@@ -591,12 +591,14 @@ export default class Server {
 
   protected getMiddleware() {
     const middleware = this.middlewareManifest?.middleware || {}
-    return Object.keys(middleware).map((page) => ({
-      match: getRouteMatcher(
-        getMiddlewareRegex(page, MIDDLEWARE_ROUTE.test(middleware[page].name))
-      ),
-      page,
-    }))
+    return (
+      this.middlewareManifest?.sortedMiddleware.map((page) => ({
+        match: getRouteMatcher(
+          getMiddlewareRegex(page, MIDDLEWARE_ROUTE.test(middleware[page].name))
+        ),
+        page,
+      })) || []
+    )
   }
 
   protected async hasMiddleware(
