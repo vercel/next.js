@@ -1,5 +1,5 @@
 import jwt from "jsonwebtoken"
-export default async function checkExpired(accessToken) {
+export default function checkExpired(accessToken) {
     const decodedToken = jwt.decode(accessToken)
     /*  
         Expiry time is in seconds with our example data, we need miliseconds (might be different in other implementaions) so we do *1000
