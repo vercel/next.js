@@ -9,6 +9,11 @@ import {
   WebServerResponse,
 } from '../../../../server/web/http-adapter'
 
+const createHeaders = (args?: any) => ({
+  ...args,
+  'x-middleware-ssr': '1',
+})
+
 export function getRender({
   App,
   Document,
@@ -37,15 +42,15 @@ export function getRender({
   const encodedPreviewProps = JSON.parse(previewProps) as __ApiPreviewProps
 
   return async function render(request: NextRequest) {
-    const url = request.nextUrl
+    const { nextUrl: url, cookies, headers } = request
     const { pathname, searchParams } = url
 
     const query = Object.fromEntries(searchParams)
 
     // Preflight request
     if (request.method === 'HEAD') {
-      return new Response('OK.', {
-        headers: { 'x-middleware-ssr': '1' },
+      return new Response(null, {
+        headers: createHeaders(),
       })
     }
 
@@ -142,7 +147,7 @@ export function getRender({
         'An error occurred while rendering ' + pathname + '.',
         {
           status: 500,
-          headers: { 'x-middleware-ssr': '1' },
+          headers: createHeaders(),
         }
       )
     }
@@ -154,7 +159,7 @@ export function getRender({
     } as any)
 
     return new Response(transformStream.readable, {
-      headers: { 'x-middleware-ssr': '1' },
+      headers: createHeaders(),
       status: 200,
     })
   }

@@ -44,9 +44,6 @@ jobs:
           path: ./*
           key: ${{ github.sha }}-react-experimental
 
-      # TODO: remove after we fix watchpack watching too much
-      - run: echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p
-
       - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
 
       - run: node run-tests.js --timings -g ${{ matrix.group }}/6
