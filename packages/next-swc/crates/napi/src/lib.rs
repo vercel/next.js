@@ -69,6 +69,8 @@ fn init(mut exports: JsObject) -> napi::Result<()> {
     exports.create_named_method("minify", minify::minify)?;
     exports.create_named_method("minifySync", minify::minify_sync)?;
 
+    exports.create_named_method("webpackAST", webpack_ast::process_webpack_ast)?;
+
     Ok(())
 }
 
