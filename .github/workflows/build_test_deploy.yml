@@ -162,10 +162,6 @@ jobs:
       - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
-      # TODO: remove after we fix watchpack watching too much
-      - run: echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p
-        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
-
       - run: node run-tests.js --type development
         name: Run test/development
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
@@ -214,10 +210,6 @@ jobs:
       - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
-      # TODO: remove after we fix watchpack watching too much
-      - run: echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p
-        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
-
       - run: node run-tests.js --type production
         name: Run test/production
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
@@ -261,10 +253,6 @@ jobs:
       - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
-      # TODO: remove after we fix watchpack watching too much
-      - run: echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p
-        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
-
       - run: xvfb-run node run-tests.js --timings -g ${{ matrix.group }}/6
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
@@ -299,10 +287,6 @@ jobs:
         with:
           name: next-swc-dev-binary
           path: packages/next-swc/native
-
-      # TODO: remove after we fix watchpack watching too much
-      - run: echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p
-        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
       - run: cd test/integration/with-electron/app && yarn
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}

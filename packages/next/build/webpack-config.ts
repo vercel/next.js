@@ -54,6 +54,11 @@ import { getRawPageExtensions } from './utils'
 import browserslist from 'browserslist'
 import loadJsConfig from './load-jsconfig'
 
+const watchOptions = Object.freeze({
+  aggregateTimeout: 5,
+  ignored: ['**/.git/**', '**/node_modules/**', '**/.next/**'],
+})
+
 function getSupportedBrowsers(
   dir: string,
   isDevelopment: boolean
@@ -941,8 +946,6 @@ export default async function getBaseWebpackConfig(
     // Default behavior: bundle the code!
   }
 
-  const emacsLockfilePattern = '**/.#*'
-
   const codeCondition = {
     test: /\.(tsx|ts|js|cjs|mjs|jsx)$/,
     ...(config.experimental.externalDir
@@ -1095,16 +1098,7 @@ export default async function getBaseWebpackConfig(
         ...entrypoints,
       }
     },
-    watchOptions: {
-      aggregateTimeout: 5,
-      ignored: [
-        '**/.git/**',
-        '**/node_modules/**',
-        '**/.next/**',
-        // can be removed after https://github.com/paulmillr/chokidar/issues/955 is released
-        emacsLockfilePattern,
-      ],
-    },
+    watchOptions,
     output: {
       // we must set publicPath to an empty value to override the default of
       // auto which doesn't work in IE11
