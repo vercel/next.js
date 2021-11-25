@@ -26,7 +26,7 @@ module.exports = {
     // minimumCacheTTL is in seconds, must be integer 0 or more
     minimumCacheTTL: 60,
     // ordered list of acceptable optimized image formats (mime types)
-    formats: ['image/avif', 'image/webp'],
+    formats: ['image/webp'],
   },
 }
 ```

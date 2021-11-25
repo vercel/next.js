@@ -26,7 +26,7 @@ type Config = {
 }
 
 const requiredPackages = [
-  { file: 'eslint/lib/api.js', pkg: 'eslint' },
+  { file: 'eslint', pkg: 'eslint' },
   { file: 'eslint-config-next', pkg: 'eslint-config-next' },
 ]
 
@@ -111,7 +111,7 @@ async function lint(
         'error'
       )} - Your project has an older version of ESLint installed${
         eslintVersion ? ' (' + eslintVersion + ')' : ''
-      }. Please upgrade to ESLint version 7 or later`
+      }. Please upgrade to ESLint version 7 or above`
     }
 
     let options: any = {
@@ -200,12 +200,13 @@ async function lint(
         eslintVersion: eslintVersion,
         lintedFilesCount: results.length,
         lintFix: !!options.fix,
-        nextEslintPluginVersion: nextEslintPluginIsEnabled
-          ? require(path.join(
-              path.dirname(deps.resolved.get('eslint-config-next')!),
-              'package.json'
-            )).version
-          : null,
+        nextEslintPluginVersion:
+          nextEslintPluginIsEnabled && deps.resolved.has('eslint-config-next')
+            ? require(path.join(
+                path.dirname(deps.resolved.get('eslint-config-next')!),
+                'package.json'
+              )).version
+            : null,
         nextEslintPluginErrorsCount: formattedResult.totalNextPluginErrorCount,
         nextEslintPluginWarningsCount:
           formattedResult.totalNextPluginWarningCount,

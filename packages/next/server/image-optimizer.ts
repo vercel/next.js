@@ -6,6 +6,7 @@ import imageSizeOf from 'image-size'
 import { IncomingMessage, ServerResponse } from 'http'
 // @ts-ignore no types for is-animated
 import isAnimated from 'next/dist/compiled/is-animated'
+import contentDisposition from 'next/dist/compiled/content-disposition'
 import { join } from 'path'
 import Stream from 'stream'
 import nodeUrl, { UrlWithParsedQuery } from 'url'
@@ -61,7 +62,7 @@ export async function imageOptimizer(
     domains = [],
     loader,
     minimumCacheTTL = 60,
-    formats = ['image/avif', 'image/webp'],
+    formats = ['image/webp'],
   } = imageData
 
   if (loader !== 'default') {
@@ -137,7 +138,7 @@ export async function imageOptimizer(
 
   // Should match output from next-image-loader
   const isStatic = url.startsWith(
-    `${nextConfig.basePath || ''}/_next/static/image`
+    `${nextConfig.basePath || ''}/_next/static/media`
   )
 
   const width = parseInt(w, 10)
@@ -362,7 +363,11 @@ export async function imageOptimizer(
 
         if (contentType === AVIF) {
           if (transformer.avif) {
-            transformer.avif({ quality })
+            const avifQuality = quality - 15
+            transformer.avif({
+              quality: Math.max(avifQuality, 0),
+              chromaSubsampling: '4:2:0', // same as webp
+            })
           } else {
             console.warn(
               chalk.yellow.bold('Warning: ') +
@@ -541,7 +546,10 @@ function setResponseHeaders(
 
   const fileName = getFileNameWithExtension(url, contentType)
   if (fileName) {
-    res.setHeader('Content-Disposition', `inline; filename="${fileName}"`)
+    res.setHeader(
+      'Content-Disposition',
+      contentDisposition(fileName, { type: 'inline' })
+    )
   }
 
   res.setHeader('Content-Security-Policy', `script-src 'none'; sandbox;`)

@@ -1,7 +1,10 @@
 /* eslint-disable import/no-extraneous-dependencies */
 declare module 'next/dist/compiled/babel/plugin-transform-modules-commonjs'
 declare module 'next/dist/compiled/babel/plugin-syntax-jsx'
+declare module 'next/dist/compiled/react-server-dom-webpack'
+declare module 'next/dist/compiled/react-server-dom-webpack/writer.browser.server'
 declare module 'browserslist'
+
 declare module 'cssnano-simple' {
   const cssnanoSimple: any
   export = cssnanoSimple
@@ -86,6 +89,10 @@ declare module 'next/dist/compiled/conf' {
   import m from 'conf'
   export = m
 }
+declare module 'next/dist/compiled/content-disposition' {
+  import m from 'content-disposition'
+  export = m
+}
 declare module 'next/dist/compiled/content-type' {
   import m from 'content-type'
   export = m
@@ -152,6 +159,10 @@ declare module 'next/dist/compiled/lodash.curry' {
 }
 declare module 'next/dist/compiled/lru-cache' {
   import m from 'lru-cache'
+  export = m
+}
+declare module 'next/dist/compiled/micromatch' {
+  import m from 'micromatch'
   export = m
 }
 declare module 'next/dist/compiled/nanoid/index.cjs' {

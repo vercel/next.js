@@ -9,6 +9,8 @@ export interface RequestData {
     city?: string
     country?: string
     region?: string
+    latitude?: string
+    longitude?: string
   }
   headers: NodeHeaders
   ip?: string
@@ -26,7 +28,6 @@ export interface RequestData {
 }
 
 export interface FetchEventResult {
-  promise: Promise<any>
   response: Response
   waitUntil: Promise<any>
 }

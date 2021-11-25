@@ -5,7 +5,4 @@ module.exports = {
     config.experiments.topLevelAwait = true
     return config
   },
-  experimental: {
-    swcLoader: false,
-  },
 }

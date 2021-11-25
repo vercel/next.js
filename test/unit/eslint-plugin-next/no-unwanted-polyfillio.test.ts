@@ -38,6 +38,16 @@ ruleTester.run('unwanted-polyfillsio', rule, {
           );
         }
     }`,
+    `import Script from 'next/script';
+
+      export function MyApp({ Component, pageProps }) {
+          return (
+            <div>
+              <Component {...pageProps} />
+              <Script src='https://polyfill.io/v3/polyfill.min.js?features=IntersectionObserver' />
+            </div>
+          );
+    }`,
   ],
 
   invalid: [
@@ -73,6 +83,25 @@ ruleTester.run('unwanted-polyfillsio', rule, {
             </div>
           );
         }
+    }`,
+      errors: [
+        {
+          message:
+            'No duplicate polyfills from Polyfill.io are allowed. Array.prototype.copyWithin is already shipped with Next.js. See: https://nextjs.org/docs/messages/no-unwanted-polyfillio.',
+          type: 'JSXOpeningElement',
+        },
+      ],
+    },
+    {
+      code: `import NextScript from 'next/script';
+
+      export function MyApp({ Component, pageProps }) {
+          return (
+            <div>
+              <Component {...pageProps} />
+              <NextScript src='https://polyfill.io/v3/polyfill.min.js?features=Array.prototype.copyWithin' />
+            </div>
+          );
     }`,
       errors: [
         {

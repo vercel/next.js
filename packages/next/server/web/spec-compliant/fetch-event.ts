@@ -3,14 +3,12 @@ export const passThroughSymbol = Symbol('passThrough')
 export const waitUntilSymbol = Symbol('waitUntil')
 
 export class FetchEvent {
-  readonly request: Request;
   readonly [waitUntilSymbol]: Promise<any>[] = [];
   [responseSymbol]?: Promise<Response>;
   [passThroughSymbol] = false
 
-  constructor(request: Request) {
-    this.request = request
-  }
+  // eslint-disable-next-line @typescript-eslint/no-useless-constructor
+  constructor(_request: Request) {}
 
   respondWith(response: Response | Promise<Response>): void {
     if (!this[responseSymbol]) {

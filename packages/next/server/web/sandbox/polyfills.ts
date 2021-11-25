@@ -1,4 +1,5 @@
 import { Crypto as WebCrypto } from 'next/dist/compiled/@peculiar/webcrypto'
+import { CryptoKey } from 'next/dist/compiled/@peculiar/webcrypto'
 import { TransformStream } from 'next/dist/compiled/web-streams-polyfill'
 import { v4 as uuid } from 'next/dist/compiled/uuid'
 import crypto from 'crypto'
@@ -11,48 +12,7 @@ export function btoa(str: string) {
   return Buffer.from(str, 'binary').toString('base64')
 }
 
-class TextEncoderRuntime {
-  encoder: TextEncoder
-
-  constructor() {
-    this.encoder = new TextEncoder()
-  }
-
-  get encoding() {
-    return this.encoder.encoding
-  }
-
-  public encode(input: string) {
-    return this.encoder.encode(input)
-  }
-}
-
-class TextDecoderRuntime {
-  decoder: TextDecoder
-
-  constructor() {
-    this.decoder = new TextDecoder()
-  }
-
-  get encoding() {
-    return this.decoder.encoding
-  }
-
-  get fatal() {
-    return this.decoder.fatal
-  }
-
-  get ignoreBOM() {
-    return this.decoder.ignoreBOM
-  }
-
-  public decode(input: BufferSource, options?: TextDecodeOptions) {
-    return this.decoder.decode(input, options)
-  }
-}
-
-export { TextDecoderRuntime as TextDecoder }
-export { TextEncoderRuntime as TextEncoder }
+export { CryptoKey }
 
 export class Crypto extends WebCrypto {
   // @ts-ignore Remove once types are updated and we deprecate node 12
@@ -65,16 +25,23 @@ export class ReadableStream<T> {
     let pullPromise: any
 
     let transformController: TransformStreamDefaultController
-    const { readable, writable } = new TransformStream({
-      start: (controller: TransformStreamDefaultController) => {
-        transformController = controller
+    const { readable, writable } = new TransformStream(
+      {
+        start: (controller: TransformStreamDefaultController) => {
+          transformController = controller
+        },
       },
-    })
+      undefined,
+      {
+        highWaterMark: 1,
+      }
+    )
 
     const writer = writable.getWriter()
+    const encoder = new TextEncoder()
     const controller: ReadableStreamController<T> = {
       get desiredSize() {
-        return writer.desiredSize
+        return transformController.desiredSize
       },
       close: () => {
         if (!closed) {
@@ -83,7 +50,7 @@ export class ReadableStream<T> {
         }
       },
       enqueue: (chunk: T) => {
-        writer.write(chunk)
+        writer.write(typeof chunk === 'string' ? encoder.encode(chunk) : chunk)
         pull()
       },
       error: (reason: any) => {

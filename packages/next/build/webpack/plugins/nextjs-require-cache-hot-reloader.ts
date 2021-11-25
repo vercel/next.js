@@ -1,8 +1,11 @@
-import type { Compiler, WebpackPluginInstance } from 'webpack5'
+import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 import { clearSandboxCache } from '../../../server/web/sandbox'
 import { realpathSync } from 'fs'
 import path from 'path'
 import isError from '../../../lib/is-error'
+
+type Compiler = webpack5.Compiler
+type WebpackPluginInstance = webpack5.WebpackPluginInstance
 
 const originModules = [
   require.resolve('../../../server/require'),

@@ -34,7 +34,7 @@ describe('Image Component Trailing Slash Tests', () => {
           `document.getElementById('${id}').src`
         )
         expect(srcImage).toMatch(
-          /\/_next\/image\/\?url=%2F_next%2Fstatic%2Fimage%2Fpublic%2Ftest(.+).jpg&w=828&q=75/
+          /\/_next\/image\/\?url=%2F_next%2Fstatic%2Fmedia%2Ftest(.+).jpg&w=828&q=75/
         )
       } finally {
         if (browser) {
@@ -62,7 +62,7 @@ describe('Image Component Trailing Slash Tests', () => {
           `document.getElementById('${id}').src`
         )
         expect(srcImage).toMatch(
-          /\/_next\/image\/\?url=%2F_next%2Fstatic%2Fimage%2Fpublic%2Ftest(.+).jpg&w=828&q=75/
+          /\/_next\/image\/\?url=%2F_next%2Fstatic%2Fmedia%2Ftest(.+).jpg&w=828&q=75/
         )
       } finally {
         if (browser) {

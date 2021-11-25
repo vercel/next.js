@@ -100,7 +100,11 @@ export class Span {
   }
 }
 
-export const trace = (name: string, parentId?: SpanId, attrs?: Object) => {
+export const trace = (
+  name: string,
+  parentId?: SpanId,
+  attrs?: { [key: string]: string }
+) => {
   return new Span({ name, parentId, attrs })
 }
 
