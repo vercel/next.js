@@ -656,6 +656,19 @@ impl VisitMut for Minimalizer {
                 }
             }
 
+            Expr::Member(MemberExpr {
+                obj: ExprOrSuper::Expr(obj),
+                computed: false,
+                ..
+            }) => {
+                if let Some(left) = left_most(&obj) {
+                    if self.data.should_preserve(&left) {
+                        return;
+                    }
+                }
+                *e = *obj.take();
+            }
+
             // TODO:
             // Expr::Member(_) => todo!(),
             // Expr::Class(_) => todo!(),
@@ -1038,5 +1051,18 @@ fn preserve_prop_name(exprs: &mut Vec<Box<Expr>>, p: PropName) {
             exprs.push(e.expr);
         }
         _ => {}
+    }
+}
+
+fn left_most(e: &Expr) -> Option<Ident> {
+    match e {
+        Expr::Ident(i) => Some(i.clone()),
+        Expr::Member(MemberExpr {
+            obj: ExprOrSuper::Expr(obj),
+            computed: false,
+            ..
+        }) => left_most(obj),
+
+        _ => None,
     }
 }
