@@ -456,6 +456,28 @@ impl VisitMut for Minimalizer {
         }
 
         match e {
+            Expr::Ident(i) => {
+                if self.data.should_preserve(&i) {
+                    return;
+                }
+
+                *e = *undefined(DUMMY_SP);
+            }
+
+            Expr::Member(MemberExpr {
+                obj: ExprOrSuper::Expr(obj),
+                computed: false,
+                ..
+            }) => {
+                if let Some(left) = left_most(&obj) {
+                    if self.data.should_preserve(&left) {
+                        return;
+                    }
+                }
+                *e = *obj.take();
+                return;
+            }
+
             Expr::Await(expr) => {
                 *e = *expr.arg.take();
             }
@@ -654,19 +676,6 @@ impl VisitMut for Minimalizer {
 
                     *e = seq;
                 }
-            }
-
-            Expr::Member(MemberExpr {
-                obj: ExprOrSuper::Expr(obj),
-                computed: false,
-                ..
-            }) => {
-                if let Some(left) = left_most(&obj) {
-                    if self.data.should_preserve(&left) {
-                        return;
-                    }
-                }
-                *e = *obj.take();
             }
 
             // TODO:
