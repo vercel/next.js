@@ -5,7 +5,7 @@ import PropTypes from 'prop-types'
 const SsrProfile = ({ user }) => {
   return (
     <Layout>
-      <h1>Your GitHub profile</h1>
+      <h1>Your profile</h1>
       <h2>
         This page uses{' '}
         <a href="https://nextjs.org/docs/basic-features/pages#server-side-rendering">
@@ -19,11 +19,6 @@ const SsrProfile = ({ user }) => {
 
       {user?.isLoggedIn && (
         <>
-          <p style={{ fontStyle: 'italic' }}>
-            Public data, from{' '}
-            <a href={githubUrl(user.login)}>{githubUrl(user.login)}</a>, reduced
-            to `login` and `avatar_url`.
-          </p>
           <pre>{JSON.stringify(user, null, 2)}</pre>
         </>
       )}
@@ -50,14 +45,10 @@ export const getServerSideProps = withSession(async function ({ req, res }) {
 
 export default SsrProfile
 
-function githubUrl(login) {
-  return `https://api.github.com/users/${login}`
-}
-
 SsrProfile.propTypes = {
   user: PropTypes.shape({
     isLoggedIn: PropTypes.bool,
-    login: PropTypes.string,
+    login: PropTypes.object,
     avatarUrl: PropTypes.string,
   }),
 }

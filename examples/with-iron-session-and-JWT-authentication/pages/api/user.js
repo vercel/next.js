@@ -4,25 +4,24 @@ import withSession from '../../lib/session'
 
 export default withSession(async (req, res) => {
   const user = req.session.get('user')
-  const accessToken = process.env.ACCESS_TOKEN_INDEX_IN_SERVER_JSON_RESPONSE
-  const refreshToken = process.env.REFRESH_TOKEN_INDEX_IN_SERVER_JSON_RESPONSE
-  console.log("USER API");
+  const aTIndex = process.env.ACCESS_TOKEN_INDEX_IN_SERVER_AUTH_JSON_RESPONSE
+  const rtIndex = process.env.REFRESH_TOKEN_INDEX_IN_SERVER_AUTH_JSON_RESPONSE
   if (user) {
     // in a real world application you might read the user id from the session and then do a database request
     // to get more information on the user if needed
-    if (checkExpired(user[accessToken])) {
+    if (checkExpired(user[aTIndex])) {
       // Get new access/auth token
-      newAccessToken = refreshAuthToken(user[refreshToken])
+      const newAccessToken = refreshAuthToken(user[rtIndex])
       // Remove old access/auth token and store in cookie
       let oldUser = user
-      delete oldUser[accessToken]
-      newUser = { ...oldUser, [accessToken]: newAccessToken }
-      req.session.set('user', newUser)
+      delete oldUser[aTIndex]
+      const newUser = { ...oldUser, [aTIndex]: newAccessToken }
+      await req.session.set('user', newUser)
       // Send back the updated user data
-      const user = req.session.get('user')
+      const savedUser = await req.session.get('user')
       res.json({
         isLoggedIn: true,
-        ...user,
+        ...savedUser,
       })
     } else {
       res.json({
