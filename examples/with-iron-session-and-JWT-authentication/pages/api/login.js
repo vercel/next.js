@@ -8,6 +8,7 @@ export default withSession(async (req, res) => {
   // const { password } = await req.body
   console.log("LOGIN API")
   try {
+    const accessToken = process.env.ACCESS_TOKEN_INDEX_IN_SERVER_JSON_RESPONSE
     // we check that the user exists on server and store tokens and login data in session
     // const { login, avatar_url: avatarUrl } = await fetchJson(URL_TO_AUTHENTICATE_AND_GET_LOGIN_DATA, {
     //   method: 'POST',
@@ -21,9 +22,9 @@ export default withSession(async (req, res) => {
     // });
 
     // Comment below line after your implementation
-    const { login, authToken, refreshToken } = sampleData
+    const { login:login, accessToken:[accessToken], refreshToken:[refreshToken] } = sampleData
     
-    const user = { isLoggedIn: true, login, authToken, refreshToken }
+    const user = { isLoggedIn: true, login, [accessToken]:accessToken, [refreshToken]:refreshToken }
     req.session.set('user', user)
     await req.session.save()
     res.json(user)
