@@ -314,6 +314,26 @@ impl Minimalizer {
                         to.extend(f.stmts.into_iter().map(T::from_stmt));
                     }
                 }
+                Stmt::Decl(Decl::Var(d)) => {
+                    let mut exprs = vec![];
+
+                    for decl in d.decls {
+                        preserve_pat(&mut exprs, decl.name);
+                        exprs.extend(decl.init);
+                    }
+
+                    if !exprs.is_empty() {
+                        let mut s = Stmt::Expr(ExprStmt {
+                            span: DUMMY_SP,
+                            expr: Box::new(Expr::Seq(SeqExpr {
+                                span: DUMMY_SP,
+                                exprs,
+                            })),
+                        });
+                        s.visit_mut_with(self);
+                        to.push(T::from_stmt(s));
+                    }
+                }
                 _ => {
                     to.push(T::from_stmt(stmt));
                 }
