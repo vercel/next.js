@@ -724,13 +724,11 @@ impl VisitMut for Minimalizer {
             }
 
             // TODO:
-            // Expr::Member(_) => todo!(),
             // Expr::Class(_) => todo!(),
             // Expr::MetaProp(_) => todo!(),
             // Expr::JSXMember(_) => todo!(),
             // Expr::JSXNamespacedName(_) => todo!(),
             // Expr::JSXEmpty(_) => todo!(),
-            // Expr::JSXElement(_) => todo!(),
             // Expr::JSXFragment(_) => todo!(),
             // Expr::OptChain(_) => todo!(),
             _ => {}
@@ -827,6 +825,25 @@ impl VisitMut for Minimalizer {
                 expr: JSXExpr::Expr(expr),
                 ..
             }) => return !expr.is_lit(),
+
+            JSXElementChild::JSXElement(el) => {
+                // Remove empty, non-component elements.
+                match &el.opening.name {
+                    JSXElementName::Ident(name) => {
+                        if name.sym.chars().next().unwrap().is_uppercase() {
+                            return true;
+                        }
+                    }
+                    _ => return true,
+                }
+
+                if el.opening.attrs.is_empty() && el.children.is_empty() {
+                    return false;
+                }
+
+                true
+            }
+
             _ => true,
         })
     }
