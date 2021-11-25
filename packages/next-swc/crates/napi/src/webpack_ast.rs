@@ -88,13 +88,15 @@ pub fn parse_file_as_webpack_ast(path: &Path) -> Result<String, Error> {
             None => Default::default(),
         };
 
-        let lexer = Lexer::new(syntax, EsVersion::latest(), StringInput::from(&*fm), None);
-        let mut parser = Parser::new_from(lexer);
+        let module = {
+            let lexer = Lexer::new(syntax, EsVersion::latest(), StringInput::from(&*fm), None);
+            let mut parser = Parser::new_from(lexer);
 
-        let module = parser.parse_module().map_err(|err| {
-            err.into_diagnostic(handler).emit();
-            anyhow!("failed to parse module")
-        })?;
+            parser.parse_module().map_err(|err| {
+                err.into_diagnostic(handler).emit();
+                anyhow!("failed to parse module")
+            })?
+        };
 
         let json = Flavor::Acorn.with(|| {
             let ctx = swc_estree_compat::babelify::Context {
