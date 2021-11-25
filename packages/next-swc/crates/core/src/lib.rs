@@ -46,8 +46,8 @@ use swc_ecmascript::{
 };
 
 pub mod amp_attributes;
-pub mod disallow_re_export_all_in_page;
 mod auto_cjs;
+pub mod disallow_re_export_all_in_page;
 pub mod hook_optimizer;
 pub mod next_dynamic;
 pub mod next_ssg;

@@ -1,23 +1,25 @@
 // tslint:disable:no-console
-import { ParsedUrlQuery } from 'querystring'
-import { ComponentType } from 'react'
-import { UrlObject } from 'url'
+import type { ComponentType } from 'react'
+import type { DomainLocale } from '../../../server/config'
+import type { MittEmitter } from '../mitt'
+import type { ParsedUrlQuery } from 'querystring'
+import type { RouterEvent } from '../../../client/router'
+import type { StyleSheetTuple } from '../../../client/page-loader'
+import type { UrlObject } from 'url'
+import type PageLoader from '../../../client/page-loader'
 import {
   normalizePathTrailingSlash,
   removePathTrailingSlash,
 } from '../../../client/normalize-trailing-slash'
-import { GoodPageCache, StyleSheetTuple } from '../../../client/page-loader'
 import {
   getClientBuildManifest,
   isAssetError,
   markAssetError,
 } from '../../../client/route-loader'
-import { RouterEvent } from '../../../client/router'
 import isError from '../../../lib/is-error'
-import type { DomainLocale } from '../../../server/config'
 import { denormalizePagePath } from '../../../server/denormalize-page-path'
 import { normalizeLocalePath } from '../i18n/normalize-locale-path'
-import mitt, { MittEmitter } from '../mitt'
+import mitt from '../mitt'
 import {
   AppContextType,
   formatWithValidation,
@@ -612,7 +614,7 @@ export default class Router implements BaseRouter {
 
   sub: Subscription
   clc: ComponentLoadCancel
-  pageLoader: any
+  pageLoader: PageLoader
   _bps: BeforePopStateCallback | undefined
   events: MittEmitter<RouterEvent>
   _wrapApp: (App: AppComponent) => any
@@ -1738,7 +1740,7 @@ export default class Router implements BaseRouter {
     ])
   }
 
-  async fetchComponent(route: string): Promise<GoodPageCache> {
+  async fetchComponent(route: string) {
     let cancelled = false
     const cancel = (this.clc = () => {
       cancelled = true
@@ -1819,7 +1821,7 @@ export default class Router implements BaseRouter {
       this.locale
     )
 
-    const fns: [string, boolean][] = await this.pageLoader.getMiddlewareList()
+    const fns = await this.pageLoader.getMiddlewareList()
     const requiresPreflight = fns.some(([middleware, isSSR]) => {
       return getRouteMatcher(getMiddlewareRegex(middleware, !isSSR))(cleanedAs)
     })
