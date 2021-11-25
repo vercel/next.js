@@ -242,8 +242,8 @@ async function runBasicTests(context, env) {
     expect(homeHTML).toContain('env_var_test')
     expect(homeHTML).toContain('foo.client')
 
-    expect(dynamicRouteHTML1).toContain('[pid]')
-    expect(dynamicRouteHTML2).toContain('[pid]')
+    expect(dynamicRouteHTML1).toContain('dynamic1')
+    expect(dynamicRouteHTML2).toContain('dynamic2')
 
     expect(path404HTML).toContain('custom-404-page')
     // in dev mode: custom error page is still using default _error
