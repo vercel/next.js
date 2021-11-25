@@ -771,6 +771,12 @@ impl VisitMut for Minimalizer {
         }
     }
 
+    fn visit_mut_params(&mut self, ps: &mut Vec<Param>) {
+        ps.visit_mut_children_with(self);
+
+        ps.retain(|param| !param.pat.is_invalid());
+    }
+
     fn visit_mut_pat(&mut self, pat: &mut Pat) {
         // We don't need rest pattern.
         match pat {
