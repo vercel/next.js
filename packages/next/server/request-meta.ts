@@ -2,15 +2,15 @@
 import type { ParsedUrlQuery } from 'querystring'
 import type { IncomingMessage } from 'http'
 import type { UrlWithParsedQuery } from 'url'
-import { WebRequestBasedIncomingMessage } from '../build/webpack/loaders/next-middleware-ssr-loader/utils'
+
+import { WebIncomingMessage } from './web/http-adapter'
 
 const NEXT_REQUEST_META = Symbol('NextRequestMeta')
 
 interface NextIncomingMessage extends IncomingMessage {
   [NEXT_REQUEST_META]?: RequestMeta
 }
-interface WebRequestBasedNextIncomingMessage
-  extends WebRequestBasedIncomingMessage {
+interface WebRequestBasedNextIncomingMessage extends WebIncomingMessage {
   [NEXT_REQUEST_META]?: RequestMeta
 }
 

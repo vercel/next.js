@@ -4,11 +4,10 @@ import { NextRequest } from '../../../../server/web/spec-extension/request'
 import { getPageHandler } from '../next-serverless-loader/page-handler'
 import { isDynamicRoute } from '../../../../shared/lib/router/utils'
 import { __ApiPreviewProps } from '../../../../server/api-utils'
-
 import {
-  WebRequestBasedIncomingMessage,
-  WebResponseBasedServerResponse,
-} from './utils'
+  WebIncomingMessage,
+  WebServerResponse,
+} from '../../../../server/web/http-adapter'
 
 export function getRender({
   App,
@@ -118,8 +117,8 @@ export function getRender({
     })
 
     const result = await pageHandler.renderReqToHTML(
-      new WebRequestBasedIncomingMessage(request),
-      new WebResponseBasedServerResponse(),
+      new WebIncomingMessage(request),
+      new WebServerResponse(),
       'passthrough',
       {
         supportsDynamicHTML: true,

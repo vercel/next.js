@@ -62,10 +62,7 @@ import {
 import { DomainLocale } from './config'
 import RenderResult, { NodeWritablePiper } from './render-result'
 import isError from '../lib/is-error'
-import {
-  WebRequestBasedIncomingMessage,
-  WebResponseBasedServerResponse,
-} from '../build/webpack/loaders/next-middleware-ssr-loader/utils'
+import { WebIncomingMessage, WebServerResponse } from './web/http-adapter'
 
 let Writable: typeof import('stream').Writable
 let Buffer: typeof import('buffer').Buffer
@@ -237,7 +234,7 @@ const invalidKeysMsg = (methodName: string, invalidKeys: string[]) => {
 
 function checkRedirectValues(
   redirect: Redirect,
-  req: IncomingMessage | WebRequestBasedIncomingMessage,
+  req: IncomingMessage | WebIncomingMessage,
   method: 'getStaticProps' | 'getServerSideProps'
 ) {
   const { destination, permanent, statusCode, basePath } = redirect
@@ -327,8 +324,8 @@ function createServerComponentRenderer(
 }
 
 export async function renderToHTML(
-  req: IncomingMessage | WebRequestBasedIncomingMessage,
-  res: ServerResponse | WebResponseBasedServerResponse,
+  req: IncomingMessage | WebIncomingMessage,
+  res: ServerResponse | WebServerResponse,
   pathname: string,
   query: NextParsedUrlQuery,
   renderOpts: RenderOpts
@@ -858,25 +855,22 @@ export async function renderToHTML(
     let resOrProxy = res
     let deferredContent = false
     if (process.env.NODE_ENV !== 'production') {
-      resOrProxy = new Proxy<ServerResponse | WebResponseBasedServerResponse>(
-        res,
-        {
-          get: function (obj, prop, receiver) {
-            if (!canAccessRes) {
-              const message =
-                `You should not access 'res' after getServerSideProps resolves.` +
-                `\nRead more: https://nextjs.org/docs/messages/gssp-no-mutating-res`
+      resOrProxy = new Proxy<ServerResponse | WebServerResponse>(res, {
+        get: function (obj, prop, receiver) {
+          if (!canAccessRes) {
+            const message =
+              `You should not access 'res' after getServerSideProps resolves.` +
+              `\nRead more: https://nextjs.org/docs/messages/gssp-no-mutating-res`
 
-              if (deferredContent) {
-                throw new Error(message)
-              } else {
-                warn(message)
-              }
+            if (deferredContent) {
+              throw new Error(message)
+            } else {
+              warn(message)
             }
-            return Reflect.get(obj, prop, receiver)
-          },
-        }
-      )
+          }
+          return Reflect.get(obj, prop, receiver)
+        },
+      })
     }
 
     try {
@@ -884,7 +878,9 @@ export async function renderToHTML(
         req: req as IncomingMessage & {
           cookies: NextApiRequestCookies
         },
-        res: resOrProxy,
+        // When using the web runtime, `res` will not be the expected HTTP
+        // server response.
+        res: resOrProxy as ServerResponse,
         query,
         resolvedUrl: renderOpts.resolvedUrl as string,
         ...(pageIsDynamic ? { params: params as ParsedUrlQuery } : undefined),
@@ -1440,7 +1436,7 @@ function renderToNodeStream(
   return new Promise((resolve, reject) => {
     let underlyingStream: {
       resolve: (error?: Error) => void
-      writable: WritableType | WebResponseBasedServerResponse
+      writable: WritableType | WebServerResponse
       queuedCallbacks: Array<() => void>
     } | null = null
 

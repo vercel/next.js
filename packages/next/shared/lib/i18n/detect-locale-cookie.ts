@@ -1,8 +1,8 @@
 import { IncomingMessage } from 'http'
-import { WebRequestBasedIncomingMessage } from '../../../build/webpack/loaders/next-middleware-ssr-loader/utils'
+import { WebIncomingMessage } from '../../../server/web/http-adapter'
 
 export function detectLocaleCookie(
-  req: IncomingMessage | WebRequestBasedIncomingMessage,
+  req: IncomingMessage | WebIncomingMessage,
   locales: string[]
 ) {
   const { NEXT_LOCALE } = (req as any).cookies || {}

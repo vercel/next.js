@@ -26,9 +26,9 @@ import { TEMPORARY_REDIRECT_STATUS } from '../../../../shared/lib/constants'
 import { NextConfig } from '../../../../server/config'
 import { addRequestMeta } from '../../../../server/request-meta'
 import {
-  WebRequestBasedIncomingMessage,
-  WebResponseBasedServerResponse,
-} from '../next-middleware-ssr-loader/utils'
+  WebIncomingMessage,
+  WebServerResponse,
+} from '../../../../server/web/http-adapter'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -90,7 +90,7 @@ export function getUtils({
   }
 
   function handleRewrites(
-    req: IncomingMessage | WebRequestBasedIncomingMessage,
+    req: IncomingMessage | WebIncomingMessage,
     parsedUrl: UrlWithParsedQuery
   ) {
     for (const rewrite of rewrites) {
@@ -158,7 +158,7 @@ export function getUtils({
   }
 
   function handleBasePath(
-    req: IncomingMessage | WebRequestBasedIncomingMessage,
+    req: IncomingMessage | WebIncomingMessage,
     parsedUrl: UrlWithParsedQuery
   ) {
     // always strip the basePath if configured since it is required
@@ -168,7 +168,7 @@ export function getUtils({
   }
 
   function getParamsFromRouteMatches(
-    req: IncomingMessage | WebRequestBasedIncomingMessage,
+    req: IncomingMessage | WebIncomingMessage,
     renderOpts?: any,
     detectedLocale?: string
   ) {
@@ -280,7 +280,7 @@ export function getUtils({
   }
 
   function normalizeVercelUrl(
-    req: IncomingMessage | WebRequestBasedIncomingMessage,
+    req: IncomingMessage | WebIncomingMessage,
     trustQuery: boolean
   ) {
     // make sure to normalize req.url on Vercel to strip dynamic params
@@ -358,8 +358,8 @@ export function getUtils({
   }
 
   function handleLocale(
-    req: IncomingMessage | WebRequestBasedIncomingMessage,
-    res: ServerResponse | WebResponseBasedServerResponse,
+    req: IncomingMessage | WebIncomingMessage,
+    res: ServerResponse | WebServerResponse,
     parsedUrl: UrlWithParsedQuery,
     routeNoAssetPath: string,
     shouldNotRedirect: boolean

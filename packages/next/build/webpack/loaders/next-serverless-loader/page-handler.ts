@@ -14,9 +14,9 @@ import { PERMANENT_REDIRECT_STATUS } from '../../../../shared/lib/constants'
 import RenderResult from '../../../../server/render-result'
 import isError from '../../../../lib/is-error'
 import {
-  WebRequestBasedIncomingMessage,
-  WebResponseBasedServerResponse,
-} from '../next-middleware-ssr-loader/utils'
+  WebIncomingMessage,
+  WebServerResponse,
+} from '../../../../server/web/http-adapter'
 
 export function getPageHandler(ctx: ServerlessHandlerCtx) {
   const {
@@ -62,8 +62,8 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
   } = getUtils(ctx)
 
   async function renderReqToHTML(
-    req: IncomingMessage | WebRequestBasedIncomingMessage,
-    res: ServerResponse | WebResponseBasedServerResponse,
+    req: IncomingMessage | WebIncomingMessage,
+    res: ServerResponse | WebServerResponse,
     renderMode?: 'export' | 'passthrough' | true,
     _renderOpts?: any,
     _params?: any

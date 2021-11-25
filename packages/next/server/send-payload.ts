@@ -3,10 +3,7 @@ import { isResSent } from '../shared/lib/utils'
 import generateETag from 'etag'
 import fresh from 'next/dist/compiled/fresh'
 import RenderResult from './render-result'
-import {
-  WebRequestBasedIncomingMessage,
-  WebResponseBasedServerResponse,
-} from '../build/webpack/loaders/next-middleware-ssr-loader/utils'
+import { WebIncomingMessage, WebServerResponse } from './web/http-adapter'
 
 export type PayloadOptions =
   | { private: true }
@@ -14,7 +11,7 @@ export type PayloadOptions =
   | { private: boolean; stateful: false; revalidate: number | false }
 
 export function setRevalidateHeaders(
-  res: ServerResponse | WebResponseBasedServerResponse,
+  res: ServerResponse | WebServerResponse,
   options: PayloadOptions
 ) {
   if (options.private || options.stateful) {
@@ -49,8 +46,8 @@ export async function sendRenderResult({
   poweredByHeader,
   options,
 }: {
-  req: IncomingMessage | WebRequestBasedIncomingMessage
-  res: ServerResponse | WebResponseBasedServerResponse
+  req: IncomingMessage | WebIncomingMessage
+  res: ServerResponse | WebServerResponse
   result: RenderResult
   type: 'html' | 'json'
   generateEtags: boolean
@@ -99,8 +96,8 @@ export async function sendRenderResult({
 }
 
 export function sendEtagResponse(
-  req: IncomingMessage | WebRequestBasedIncomingMessage,
-  res: ServerResponse | WebResponseBasedServerResponse,
+  req: IncomingMessage | WebIncomingMessage,
+  res: ServerResponse | WebServerResponse,
   etag: string | undefined
 ): boolean {
   if (etag) {

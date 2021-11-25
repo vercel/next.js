@@ -11,9 +11,9 @@ import generateETag from 'etag'
 import isError from '../lib/is-error'
 import { interopDefault } from '../lib/interop-default'
 import {
-  WebRequestBasedIncomingMessage,
-  WebResponseBasedServerResponse,
-} from '../build/webpack/loaders/next-middleware-ssr-loader/utils'
+  WebIncomingMessage,
+  WebServerResponse,
+} from '../server/web/http-adapter'
 
 export type NextApiRequestCookies = { [key: string]: string }
 export type NextApiRequestQuery = { [key: string]: string | string[] }
@@ -342,8 +342,8 @@ export const SYMBOL_PREVIEW_DATA = Symbol(COOKIE_NAME_PRERENDER_DATA)
 const SYMBOL_CLEARED_COOKIES = Symbol(COOKIE_NAME_PRERENDER_BYPASS)
 
 export function tryGetPreviewData(
-  req: IncomingMessage | WebRequestBasedIncomingMessage,
-  res: ServerResponse | WebResponseBasedServerResponse,
+  req: IncomingMessage | WebIncomingMessage,
+  res: ServerResponse | WebServerResponse,
   options: __ApiPreviewProps
 ): PreviewData {
   // Read cached preview data if present

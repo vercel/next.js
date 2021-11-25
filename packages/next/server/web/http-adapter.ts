@@ -1,9 +1,9 @@
 import type { IncomingHttpHeaders } from 'http'
 
-import { NextRequest } from '../../../../server/web/spec-extension/request'
-import { toNodeHeaders } from '../../../../server/web/utils'
+import { NextRequest } from './spec-extension/request'
+import { toNodeHeaders } from './utils'
 
-export class WebRequestBasedIncomingMessage {
+export class WebIncomingMessage {
   url: string
   headers: IncomingHttpHeaders
   cookies: { [key: string]: string }
@@ -17,7 +17,7 @@ export class WebRequestBasedIncomingMessage {
   }
 }
 
-export class WebResponseBasedServerResponse {
+export class WebServerResponse {
   private headers: { [name: string]: number | string | string[] } = {}
 
   statusCode: number = 200

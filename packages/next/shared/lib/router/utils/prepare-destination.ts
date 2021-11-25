@@ -5,10 +5,10 @@ import type { Params } from '../../../../server/router'
 import type { RouteHas } from '../../../../lib/load-custom-routes'
 import { compile, pathToRegexp } from 'next/dist/compiled/path-to-regexp'
 import { parseUrl } from './parse-url'
-import { WebRequestBasedIncomingMessage } from '../../../../build/webpack/loaders/next-middleware-ssr-loader/utils'
+import { WebIncomingMessage } from '../../../../server/web/http-adapter'
 
 export function matchHas(
-  req: IncomingMessage | WebRequestBasedIncomingMessage,
+  req: IncomingMessage | WebIncomingMessage,
   has: RouteHas[],
   query: Params
 ): false | Params {

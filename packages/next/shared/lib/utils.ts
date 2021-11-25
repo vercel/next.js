@@ -10,9 +10,9 @@ import type { PreviewData } from 'next/types'
 import type { UrlObject } from 'url'
 import { createContext } from 'react'
 import {
-  WebRequestBasedIncomingMessage,
-  WebResponseBasedServerResponse,
-} from '../../build/webpack/loaders/next-middleware-ssr-loader/utils'
+  WebIncomingMessage,
+  WebServerResponse,
+} from '../../server/web/http-adapter'
 
 export type NextComponentType<
   C extends BaseContext = NextPageContext,
@@ -84,7 +84,7 @@ export type RenderPage = (
 ) => DocumentInitialProps | Promise<DocumentInitialProps>
 
 export type BaseContext = {
-  res?: ServerResponse | WebResponseBasedServerResponse
+  res?: ServerResponse | WebServerResponse
   [k: string]: any
 }
 
@@ -125,11 +125,11 @@ export interface NextPageContext {
   /**
    * `HTTP` request object.
    */
-  req?: IncomingMessage | WebRequestBasedIncomingMessage
+  req?: IncomingMessage | WebIncomingMessage
   /**
    * `HTTP` response object.
    */
-  res?: ServerResponse | WebResponseBasedServerResponse
+  res?: ServerResponse | WebServerResponse
   /**
    * Path section of `URL`.
    */
@@ -338,9 +338,7 @@ export function getDisplayName<P>(Component: ComponentType<P>) {
     : Component.displayName || Component.name || 'Unknown'
 }
 
-export function isResSent(
-  res: ServerResponse | WebResponseBasedServerResponse
-) {
+export function isResSent(res: ServerResponse | WebServerResponse) {
   return res.finished || res.headersSent
 }
 
