@@ -1,6 +1,8 @@
 const nextDistPath =
   /(next[\\/]dist[\\/]shared[\\/]lib)|(next[\\/]dist[\\/]client)|(next[\\/]dist[\\/]pages)/
 
+const regeneratorRuntimePath = require.resolve('regenerator-runtime')
+
 function getBaseSWCOptions({
   filename,
   development,
@@ -57,7 +59,7 @@ function getBaseSWCOptions({
           },
         },
         regenerator: {
-          importPath: require.resolve('regenerator-runtime'),
+          importPath: regeneratorRuntimePath,
         },
       },
     },
