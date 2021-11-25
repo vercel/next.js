@@ -81,6 +81,7 @@ pub fn parse_file_as_webpack_ast(path: &Path) -> Result<String, Error> {
                 } else {
                     Syntax::Es(EsConfig {
                         dynamic_import: true,
+                        jsx: true,
                         ..Default::default()
                     })
                 }
