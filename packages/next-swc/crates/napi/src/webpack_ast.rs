@@ -20,7 +20,7 @@ use swc_common::{
 use swc_ecmascript::{
     ast::*,
     parser::{lexer::Lexer, EsConfig, Parser, StringInput, Syntax, TsConfig},
-    utils::{ident::IdentLike, undefined, Id, StmtLike, StmtOrModuleItem},
+    utils::{ident::IdentLike, Id, StmtLike, StmtOrModuleItem},
     visit::{VisitMut, VisitMutWith},
 };
 use swc_estree_ast::flavor::Flavor;
@@ -461,7 +461,7 @@ impl VisitMut for Minimalizer {
                     return;
                 }
 
-                *e = *undefined(DUMMY_SP);
+                *e = null_expr();
             }
 
             Expr::Member(MemberExpr {
@@ -1003,7 +1003,7 @@ impl VisitMut for Minimalizer {
         }
 
         if v.init.is_none() && matches!(self.var_decl_kind, Some(VarDeclKind::Const)) {
-            v.init = Some(undefined(DUMMY_SP));
+            v.init = Some(Box::new(null_expr()));
         }
     }
 }
@@ -1074,4 +1074,8 @@ fn left_most(e: &Expr) -> Option<Ident> {
 
         _ => None,
     }
+}
+
+fn null_expr() -> Expr {
+    Expr::Lit(Lit::Null(Null { span: DUMMY_SP }))
 }
