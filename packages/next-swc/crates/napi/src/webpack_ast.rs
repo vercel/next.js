@@ -723,6 +723,23 @@ impl VisitMut for Minimalizer {
                 }
             }
 
+            Expr::JSXElement(el) => {
+                // Remove empty, non-component elements.
+                match &el.opening.name {
+                    JSXElementName::Ident(name) => {
+                        if name.sym.chars().next().unwrap().is_uppercase() {
+                            return;
+                        }
+                    }
+                    _ => return,
+                }
+
+                if el.opening.attrs.is_empty() && el.children.is_empty() {
+                    *e = null_expr();
+                    return;
+                }
+            }
+
             // TODO:
             // Expr::Class(_) => todo!(),
             // Expr::MetaProp(_) => todo!(),
