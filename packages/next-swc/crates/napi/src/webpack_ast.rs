@@ -207,7 +207,7 @@ impl ScopeData {
         }
 
         match &*i.sym {
-            "module" | "import" | "define" | "require" => {
+            "process" | "module" | "import" | "define" | "require" => {
                 return true;
             }
 
