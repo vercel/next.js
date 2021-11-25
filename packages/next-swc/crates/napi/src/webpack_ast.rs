@@ -1007,7 +1007,14 @@ impl VisitMut for Minimalizer {
     fn visit_mut_var_decl(&mut self, var: &mut VarDecl) {
         let old_var_decl_kind = self.var_decl_kind;
         self.var_decl_kind = Some(var.kind);
+
+        let old_can_remove_pat = self.can_remove_pat;
+        self.can_remove_pat = true;
+
         var.visit_mut_children_with(self);
+
+        self.can_remove_pat = old_can_remove_pat;
+
         self.var_decl_kind = old_var_decl_kind;
     }
 
