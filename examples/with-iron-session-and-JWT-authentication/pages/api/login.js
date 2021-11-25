@@ -3,9 +3,9 @@ import withSession from '../../lib/session'
 import sampleData from "../../lib/sampleData.json"
 
 export default withSession(async (req, res) => {
-  const { username } = await req.body
-  const { password } = await req.body
-  // const url = `https://api.github.com/users/${username}`
+  // Uncomment below lines for your real world implementation
+  // const { username } = await req.body
+  // const { password } = await req.body
   try {
     // we check that the user exists on server and store tokens and login data in session
     // const { login, avatar_url: avatarUrl } = await fetchJson(URL_TO_AUTHENTICATE_AND_GET_LOGIN_DATA, {
@@ -20,9 +20,9 @@ export default withSession(async (req, res) => {
     // });
 
     // Comment below line after your implementation
-    const { login, avatar_url: avatarUrl } = sampleData
-
-    const user = { isLoggedIn: true, login, avatarUrl }
+    const { login, authToken, refreshToken } = sampleData
+    
+    const user = { isLoggedIn: true, login, authToken, refreshToken }
     req.session.set('user', user)
     await req.session.save()
     res.json(user)
