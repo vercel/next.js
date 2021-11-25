@@ -4,10 +4,13 @@
 //! used by wasm.
 
 use crate::util::MapErr;
-use anyhow::{anyhow, Context};
+use anyhow::{anyhow, Context, Error};
 use napi::{CallContext, JsObject, JsString, Task};
 use rayon::prelude::*;
-use std::{path::PathBuf, sync::Arc};
+use std::{
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 use swc::try_with_handler;
 use swc_atoms::js_word;
 use swc_common::{
@@ -46,62 +49,65 @@ impl Task for WebpackAstTask {
     type JsValue = JsString;
 
     fn compute(&mut self) -> napi::Result<Self::Output> {
-        let cm = Arc::new(SourceMap::new(FilePathMapping::empty()));
-
-        try_with_handler(cm.clone(), true, |handler| {
-            let fm = cm
-                .load_file(&self.path)
-                .with_context(|| format!("failed to load file at `{}`", self.path.display()))?;
-
-            let syntax = match self.path.extension() {
-                Some(ext) => {
-                    if ext == "tsx" {
-                        Syntax::Typescript(TsConfig {
-                            tsx: true,
-                            no_early_errors: true,
-                            ..Default::default()
-                        })
-                    } else if ext == "ts" {
-                        Syntax::Typescript(TsConfig {
-                            no_early_errors: true,
-                            ..Default::default()
-                        })
-                    } else {
-                        Syntax::Es(EsConfig {
-                            dynamic_import: true,
-                            ..Default::default()
-                        })
-                    }
-                }
-                None => Default::default(),
-            };
-
-            let lexer = Lexer::new(syntax, EsVersion::latest(), StringInput::from(&*fm), None);
-            let mut parser = Parser::new_from(lexer);
-
-            let module = parser.parse_module().map_err(|err| {
-                err.into_diagnostic(handler).emit();
-                anyhow!("failed to parse module")
-            })?;
-
-            let json = Flavor::Acorn.with(|| {
-                let ctx = swc_estree_compat::babelify::Context {
-                    fm,
-                    cm: cm.clone(),
-                    comments: Default::default(),
-                };
-                let babel_ast = module.babelify(&ctx);
-                serde_json::to_string(&babel_ast).context("failed to serialize babel ast")
-            })?;
-
-            Ok(json)
-        })
-        .convert_err()
+        parse_file_as_webpack_ast(&self.path).convert_err()
     }
 
     fn resolve(self, env: napi::Env, output: Self::Output) -> napi::Result<Self::JsValue> {
         env.create_string(&output)
     }
+}
+
+pub fn parse_file_as_webpack_ast(path: &Path) -> Result<String, Error> {
+    let cm = Arc::new(SourceMap::new(FilePathMapping::empty()));
+
+    try_with_handler(cm.clone(), true, |handler| {
+        let fm = cm
+            .load_file(&path)
+            .with_context(|| format!("failed to load file at `{}`", path.display()))?;
+
+        let syntax = match path.extension() {
+            Some(ext) => {
+                if ext == "tsx" {
+                    Syntax::Typescript(TsConfig {
+                        tsx: true,
+                        no_early_errors: true,
+                        ..Default::default()
+                    })
+                } else if ext == "ts" {
+                    Syntax::Typescript(TsConfig {
+                        no_early_errors: true,
+                        ..Default::default()
+                    })
+                } else {
+                    Syntax::Es(EsConfig {
+                        dynamic_import: true,
+                        ..Default::default()
+                    })
+                }
+            }
+            None => Default::default(),
+        };
+
+        let lexer = Lexer::new(syntax, EsVersion::latest(), StringInput::from(&*fm), None);
+        let mut parser = Parser::new_from(lexer);
+
+        let module = parser.parse_module().map_err(|err| {
+            err.into_diagnostic(handler).emit();
+            anyhow!("failed to parse module")
+        })?;
+
+        let json = Flavor::Acorn.with(|| {
+            let ctx = swc_estree_compat::babelify::Context {
+                fm,
+                cm: cm.clone(),
+                comments: Default::default(),
+            };
+            let babel_ast = module.babelify(&ctx);
+            serde_json::to_string(&babel_ast).context("failed to serialize babel ast")
+        })?;
+
+        Ok(json)
+    })
 }
 
 /// # Usage
