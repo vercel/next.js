@@ -1,8 +1,9 @@
 import type { ServerResponse } from 'http'
 import type { Writable } from 'stream'
+import { WebResponseBasedServerResponse } from '../build/webpack/loaders/next-middleware-ssr-loader/utils'
 
 export type NodeWritablePiper = (
-  res: Writable,
+  res: Writable | WebResponseBasedServerResponse,
   next: (err?: Error) => void
 ) => void
 
@@ -22,7 +23,7 @@ export default class RenderResult {
     return this._result
   }
 
-  pipe(res: ServerResponse): Promise<void> {
+  pipe(res: ServerResponse | WebResponseBasedServerResponse): Promise<void> {
     if (typeof this._result === 'string') {
       throw new Error(
         'invariant: static responses cannot be piped. This is a bug in Next.js'

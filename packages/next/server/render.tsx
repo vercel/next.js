@@ -62,7 +62,10 @@ import {
 import { DomainLocale } from './config'
 import RenderResult, { NodeWritablePiper } from './render-result'
 import isError from '../lib/is-error'
-import { WebRequestBasedIncomingMessage } from '../build/webpack/loaders/next-middleware-ssr-loader/utils'
+import {
+  WebRequestBasedIncomingMessage,
+  WebResponseBasedServerResponse,
+} from '../build/webpack/loaders/next-middleware-ssr-loader/utils'
 
 let Writable: typeof import('stream').Writable
 let Buffer: typeof import('buffer').Buffer
@@ -325,7 +328,7 @@ function createServerComponentRenderer(
 
 export async function renderToHTML(
   req: IncomingMessage | WebRequestBasedIncomingMessage,
-  res: ServerResponse,
+  res: ServerResponse | WebResponseBasedServerResponse,
   pathname: string,
   query: NextParsedUrlQuery,
   renderOpts: RenderOpts
@@ -854,22 +857,25 @@ export async function renderToHTML(
     let resOrProxy = res
     let deferredContent = false
     if (process.env.NODE_ENV !== 'production') {
-      resOrProxy = new Proxy<ServerResponse>(res, {
-        get: function (obj, prop, receiver) {
-          if (!canAccessRes) {
-            const message =
-              `You should not access 'res' after getServerSideProps resolves.` +
-              `\nRead more: https://nextjs.org/docs/messages/gssp-no-mutating-res`
+      resOrProxy = new Proxy<ServerResponse | WebResponseBasedServerResponse>(
+        res,
+        {
+          get: function (obj, prop, receiver) {
+            if (!canAccessRes) {
+              const message =
+                `You should not access 'res' after getServerSideProps resolves.` +
+                `\nRead more: https://nextjs.org/docs/messages/gssp-no-mutating-res`
 
-            if (deferredContent) {
-              throw new Error(message)
-            } else {
-              warn(message)
+              if (deferredContent) {
+                throw new Error(message)
+              } else {
+                warn(message)
+              }
             }
-          }
-          return Reflect.get(obj, prop, receiver)
-        },
-      })
+            return Reflect.get(obj, prop, receiver)
+          },
+        }
+      )
     }
 
     try {
@@ -1433,7 +1439,7 @@ function renderToNodeStream(
   return new Promise((resolve, reject) => {
     let underlyingStream: {
       resolve: (error?: Error) => void
-      writable: WritableType
+      writable: WritableType | WebResponseBasedServerResponse
       queuedCallbacks: Array<() => void>
     } | null = null
 

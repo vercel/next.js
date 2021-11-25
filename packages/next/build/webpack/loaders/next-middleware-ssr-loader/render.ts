@@ -1,6 +1,18 @@
+// import devalue from 'next/dist/compiled/devalue'
+import escapeRegexp from 'next/dist/compiled/escape-string-regexp'
+
 import { NextRequest } from '../../../../server/web/spec-extension/request'
 import { renderToHTML } from '../../../../server/web/render'
 import RenderResult from '../../../../server/render-result'
+
+import { getPageHandler } from '../next-serverless-loader/page-handler'
+import { isDynamicRoute } from '../../../../shared/lib/router/utils'
+import { __ApiPreviewProps } from '../../../../server/api-utils'
+
+import {
+  WebRequestBasedIncomingMessage,
+  WebResponseBasedServerResponse,
+} from './utils'
 
 export function getRender({
   App,
@@ -23,6 +35,12 @@ export function getRender({
   isServerComponent: boolean
   restRenderOpts: any
 }) {
+  const { page, buildId, previewProps, runtimeConfig } = restRenderOpts
+
+  const pageIsDynamicRoute = isDynamicRoute(page)
+  const escapedBuildId = escapeRegexp(buildId)
+  const encodedPreviewProps = JSON.parse(previewProps) as __ApiPreviewProps
+
   return async function render(request: NextRequest) {
     const url = request.nextUrl
     const { pathname, searchParams } = url
@@ -66,6 +84,50 @@ export function getRender({
       serverComponentManifest: isServerComponent ? rscManifest : null,
       ComponentMod: null,
     }
+
+    const pageHandler = getPageHandler({
+      pageModule: pageMod,
+      pageComponent: pageMod.default,
+      pageConfig: pageMod.config || {},
+      appModule: App,
+      documentModule: { default: Document },
+      errorModule: errorMod,
+      // notFoundModule: ${
+      //   absolute404Path
+      //     ? `require(${stringifyRequest(this, absolute404Path)})`
+      //     : undefined
+      // },
+      pageGetStaticProps: pageMod.getStaticProps,
+      pageGetStaticPaths: pageMod.getStaticPaths,
+      pageGetServerSideProps: pageMod.getServerSideProps,
+
+      assetPrefix: restRenderOpts.assetPrefix,
+      canonicalBase: restRenderOpts.canonicalBase,
+      generateEtags: restRenderOpts.generateEtags || false,
+      poweredByHeader: restRenderOpts.poweredByHeader || false,
+
+      runtimeConfig,
+      buildManifest,
+      reactLoadableManifest,
+
+      // rewrites: combinedRewrites,
+      rewrites: [],
+      i18n: restRenderOpts.i18n,
+      page,
+      buildId,
+      escapedBuildId: escapedBuildId,
+      basePath: restRenderOpts.basePath,
+      pageIsDynamic: pageIsDynamicRoute,
+      encodedPreviewProps,
+      distDir: restRenderOpts.distDir,
+    })
+
+    console.log(
+      await pageHandler.renderReqToHTML(
+        new WebRequestBasedIncomingMessage(request),
+        new WebResponseBasedServerResponse()
+      )
+    )
 
     const transformStream = new TransformStream()
     const writer = transformStream.writable.getWriter()

@@ -25,7 +25,10 @@ import cookie from 'next/dist/compiled/cookie'
 import { TEMPORARY_REDIRECT_STATUS } from '../../../../shared/lib/constants'
 import { NextConfig } from '../../../../server/config'
 import { addRequestMeta } from '../../../../server/request-meta'
-import { WebRequestBasedIncomingMessage } from '../next-middleware-ssr-loader/utils'
+import {
+  WebRequestBasedIncomingMessage,
+  WebResponseBasedServerResponse,
+} from '../next-middleware-ssr-loader/utils'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -356,7 +359,7 @@ export function getUtils({
 
   function handleLocale(
     req: IncomingMessage | WebRequestBasedIncomingMessage,
-    res: ServerResponse,
+    res: ServerResponse | WebResponseBasedServerResponse,
     parsedUrl: UrlWithParsedQuery,
     routeNoAssetPath: string,
     shouldNotRedirect: boolean

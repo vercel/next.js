@@ -10,7 +10,10 @@ import { sendEtagResponse } from './send-payload'
 import generateETag from 'etag'
 import isError from '../lib/is-error'
 import { interopDefault } from '../lib/interop-default'
-import { WebRequestBasedIncomingMessage } from '../build/webpack/loaders/next-middleware-ssr-loader/utils'
+import {
+  WebRequestBasedIncomingMessage,
+  WebResponseBasedServerResponse,
+} from '../build/webpack/loaders/next-middleware-ssr-loader/utils'
 
 export type NextApiRequestCookies = { [key: string]: string }
 export type NextApiRequestQuery = { [key: string]: string | string[] }
@@ -340,7 +343,7 @@ const SYMBOL_CLEARED_COOKIES = Symbol(COOKIE_NAME_PRERENDER_BYPASS)
 
 export function tryGetPreviewData(
   req: IncomingMessage | WebRequestBasedIncomingMessage,
-  res: ServerResponse,
+  res: ServerResponse | WebResponseBasedServerResponse,
   options: __ApiPreviewProps
 ): PreviewData {
   // Read cached preview data if present

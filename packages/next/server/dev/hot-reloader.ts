@@ -522,6 +522,10 @@ export default class HotReloader {
               }
             } else if (isServerWebCompilation) {
               if (!isReserved) {
+                const hasRuntimeConfig =
+                  Object.keys(this.config.publicRuntimeConfig).length > 0 ||
+                  Object.keys(this.config.serverRuntimeConfig).length > 0
+
                 entrypoints[bundlePath] = finalizeEntrypoint({
                   name: '[name].js',
                   value: `next-middleware-ssr-loader?${stringify({
@@ -539,7 +543,14 @@ export default class HotReloader {
                     poweredByHeader: this.config.poweredByHeader,
                     canonicalBase: this.config.amp.canonicalBase,
                     i18n: this.config.i18n,
-                    previewProps: this.previewProps,
+                    previewProps: JSON.stringify(this.previewProps),
+                    runtimeConfig: hasRuntimeConfig
+                      ? JSON.stringify({
+                          publicRuntimeConfig: this.config.publicRuntimeConfig,
+                          serverRuntimeConfig: this.config.serverRuntimeConfig,
+                        })
+                      : '',
+                    distDir: this.config.distDir,
                   } as any)}!`,
                   isServer: false,
                   isServerWeb: true,

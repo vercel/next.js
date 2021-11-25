@@ -13,7 +13,10 @@ import getRouteNoAssetPath from '../../../../shared/lib/router/utils/get-route-f
 import { PERMANENT_REDIRECT_STATUS } from '../../../../shared/lib/constants'
 import RenderResult from '../../../../server/render-result'
 import isError from '../../../../lib/is-error'
-import { WebRequestBasedIncomingMessage } from '../next-middleware-ssr-loader/utils'
+import {
+  WebRequestBasedIncomingMessage,
+  WebResponseBasedServerResponse,
+} from '../next-middleware-ssr-loader/utils'
 
 export function getPageHandler(ctx: ServerlessHandlerCtx) {
   const {
@@ -60,7 +63,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
 
   async function renderReqToHTML(
     req: IncomingMessage | WebRequestBasedIncomingMessage,
-    res: ServerResponse,
+    res: ServerResponse | WebResponseBasedServerResponse,
     renderMode?: 'export' | 'passthrough' | true,
     _renderOpts?: any,
     _params?: any
