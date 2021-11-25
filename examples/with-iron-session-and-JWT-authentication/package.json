@@ -8,6 +8,7 @@
     "start": "next start"
   },
   "dependencies": {
+    "jsonwebtoken": "^8.5.1",
     "next": "10.0.9",
     "next-iron-session": "^4.2.0",
     "prop-types": "15.7.2",

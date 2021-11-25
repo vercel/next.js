@@ -6,6 +6,7 @@ export default withSession(async (req, res) => {
   // Uncomment below lines for your real world implementation
   // const { username } = await req.body
   // const { password } = await req.body
+  console.log("LOGIN API")
   try {
     // we check that the user exists on server and store tokens and login data in session
     // const { login, avatar_url: avatarUrl } = await fetchJson(URL_TO_AUTHENTICATE_AND_GET_LOGIN_DATA, {
