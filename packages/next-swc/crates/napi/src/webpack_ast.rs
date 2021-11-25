@@ -740,6 +740,28 @@ impl VisitMut for Minimalizer {
                 }
             }
 
+            Expr::Arrow(ArrowExpr {
+                params,
+                body: BlockStmtOrExpr::Expr(body),
+                ..
+            }) => {
+                let mut exprs = vec![];
+                for p in params.take() {
+                    preserve_pat(&mut exprs, p);
+                }
+
+                exprs.push(body.take());
+
+                let mut seq = Expr::Seq(SeqExpr {
+                    span: DUMMY_SP,
+                    exprs,
+                });
+
+                seq.visit_mut_with(self);
+
+                *e = seq;
+            }
+
             // TODO:
             // Expr::Class(_) => todo!(),
             // Expr::MetaProp(_) => todo!(),
