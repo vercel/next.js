@@ -24,6 +24,8 @@ swc_ecma_loader = { version = "0.25.0", features = ["node", "lru"] }
 swc_ecmascript = { version = "0.95.0", features = ["codegen", "minifier", "optimization", "parser", "react", "transforms", "typescript", "utils", "visit"] }
 swc_node_base = "0.5.1"
 rayon = "1.5.1"
+swc_estree_ast = "0.2.0"
+swc_estree_compat = "0.3.0"
 
 [build-dependencies]
 napi-build = "1"
