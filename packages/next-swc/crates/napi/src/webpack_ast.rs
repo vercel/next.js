@@ -978,6 +978,22 @@ impl VisitMut for Minimalizer {
                 }
             }
 
+            Stmt::If(is) => {
+                if let Some(alt) = &mut is.alt {
+                    if alt.is_empty() {
+                        is.alt = None;
+                    }
+                }
+
+                //
+                if is.test.is_lit() {
+                    if is.cons.is_empty() && is.alt.is_none() {
+                        *stmt = Stmt::Empty(EmptyStmt { span: DUMMY_SP });
+                        return;
+                    }
+                }
+            }
+
             // TODO: Flatten loops
             // TODO: Flatten try catch
             _ => {}
