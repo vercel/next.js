@@ -9,12 +9,11 @@ const Home = () => (
         height="32"
         style={{ marginRight: '.3em', verticalAlign: 'middle' }}
       />
-      <a href="https://github.com/vvo/next-iron-session">next-iron-session</a> -
-      Authentication example
+      <a href="https://github.com/next.js/examples/with-next-iron-session-and-JWT-authentication">next-iron-session-with-JWT-authentication</a> example
     </h1>
 
     <p>
-      This example creates an authentication system that uses a{' '}
+      This example creates an JWT authentication system that uses a{' '}
       <b>signed and encrypted cookie to store session data</b>.
     </p>
 
@@ -40,7 +39,9 @@ const Home = () => (
     <h2>Steps to test the functionality:</h2>
 
     <ol>
-      <li>Click login and enter your GitHub username.</li>
+      <li>Write login and refresh queries in pages/api/login and lib/refreshToken</li>
+      <li>Set environment variables with respect to your server response. Sample Data is available as well.</li>
+      <li>Click login and enter your username and password.</li>
       <li>
         Click home and click profile again, notice how your session is being
         used through a token stored in a cookie.

@@ -28,7 +28,7 @@ const Header = () => {
               <li>
                 <Link href="/profile-sg">
                   <a>
-                    <img src={user.avatarUrl} width={20} height={20} /> Profile
+                    <img src={user.login.avatarUrl} width={20} height={20} /> Profile
                     (Static Generation, recommended)
                   </a>
                 </Link>
@@ -56,8 +56,8 @@ const Header = () => {
             </>
           )}
           <li>
-            <a href="https://github.com/vvo/next-iron-session">
-              <img src="/GitHub-Mark-Light-32px.png" width="32" height="32" />
+            <a href="https://github.com/majhoolsoft/">
+              <img src="/JWT.png" width="32" height="32" />
             </a>
           </li>
         </ul>
