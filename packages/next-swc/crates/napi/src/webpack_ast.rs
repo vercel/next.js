@@ -851,6 +851,33 @@ impl VisitMut for Minimalizer {
         });
     }
 
+    fn visit_mut_jsx_element(&mut self, el: &mut JSXElement) {
+        el.visit_mut_children_with(self);
+
+        // Remove empty, non-component elements.
+        match &el.opening.name {
+            JSXElementName::Ident(name) => {
+                if name.sym.chars().next().unwrap().is_uppercase() {
+                    return;
+                }
+            }
+            _ => return,
+        }
+
+        if !el.opening.attrs.is_empty() {
+            return;
+        }
+
+        if el.children.len() != 1 {
+            match &mut el.children[0] {
+                JSXElementChild::JSXElement(c) => {
+                    *el = *c.take();
+                }
+                _ => {}
+            }
+        }
+    }
+
     fn visit_mut_jsx_element_children(&mut self, v: &mut Vec<JSXElementChild>) {
         v.visit_mut_children_with(self);
 
