@@ -10,9 +10,9 @@ describe('styled-components SWC transform', () => {
   beforeAll(async () => {
     next = await createNext({
       files: {
-        // 'next.config.js': new FileRef(
-        //   join(__dirname, 'styled-components/next.config.js')
-        // ),
+        'next.config.js': new FileRef(
+          join(__dirname, 'styled-components/next.config.js')
+        ),
         pages: new FileRef(join(__dirname, 'styled-components/pages')),
       },
       dependencies: {
@@ -28,7 +28,6 @@ describe('styled-components SWC transform', () => {
     const browserLogs = await browser.log('browser')
 
     browserLogs.forEach((log) => {
-      console.error({ log })
       if (log.message.includes('Warning: Prop `%s` did not match.')) {
         foundLog = true
       }
