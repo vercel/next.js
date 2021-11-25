@@ -290,6 +290,30 @@ impl Minimalizer {
                         to.extend(body.stmts.into_iter().map(T::from_stmt));
                     }
                 }
+                Stmt::Try(ts) => {
+                    to.extend(ts.block.stmts.into_iter().map(T::from_stmt));
+                    if let Some(h) = ts.handler {
+                        if let Some(p) = h.param {
+                            let mut exprs = vec![];
+                            preserve_pat(&mut exprs, p);
+
+                            if !exprs.is_empty() {
+                                to.push(T::from_stmt(Stmt::Expr(ExprStmt {
+                                    span: DUMMY_SP,
+                                    expr: Box::new(Expr::Seq(SeqExpr {
+                                        span: DUMMY_SP,
+                                        exprs,
+                                    })),
+                                })));
+                            }
+                        }
+                        to.extend(h.body.stmts.into_iter().map(T::from_stmt));
+                    }
+
+                    if let Some(f) = ts.finalizer {
+                        to.extend(f.stmts.into_iter().map(T::from_stmt));
+                    }
+                }
                 _ => {
                     to.push(T::from_stmt(stmt));
                 }
@@ -1008,12 +1032,7 @@ impl VisitMut for Minimalizer {
         let old_var_decl_kind = self.var_decl_kind;
         self.var_decl_kind = Some(var.kind);
 
-        let old_can_remove_pat = self.can_remove_pat;
-        self.can_remove_pat = true;
-
         var.visit_mut_children_with(self);
-
-        self.can_remove_pat = old_can_remove_pat;
 
         self.var_decl_kind = old_var_decl_kind;
     }
