@@ -1,6 +1,6 @@
 import type { ServerResponse } from 'http'
 import type { Writable } from 'stream'
-import { WebServerResponse } from '../build/webpack/loaders/next-middleware-ssr-loader/utils'
+import { WebServerResponse } from './web/http-adapter'
 
 export type NodeWritablePiper = (
   res: Writable | WebServerResponse,
