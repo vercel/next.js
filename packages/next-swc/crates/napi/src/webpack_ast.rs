@@ -708,6 +708,19 @@ impl VisitMut for Minimalizer {
         f.return_type.visit_mut_with(self);
     }
 
+    fn visit_mut_jsx_expr(&mut self, e: &mut JSXExpr) {
+        e.visit_mut_children_with(self);
+
+        match e {
+            JSXExpr::JSXEmptyExpr(_) => {}
+            JSXExpr::Expr(expr) => {
+                if expr.is_invalid() {
+                    *e = JSXExpr::JSXEmptyExpr(JSXEmptyExpr { span: DUMMY_SP });
+                }
+            }
+        }
+    }
+
     fn visit_mut_member_expr(&mut self, e: &mut MemberExpr) {
         e.obj.visit_mut_with(self);
 
