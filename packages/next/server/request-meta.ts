@@ -10,7 +10,7 @@ const NEXT_REQUEST_META = Symbol('NextRequestMeta')
 interface NextIncomingMessage extends IncomingMessage {
   [NEXT_REQUEST_META]?: RequestMeta
 }
-interface WebRequestBasedNextIncomingMessage extends WebIncomingMessage {
+interface NextWebIncomingMessage extends WebIncomingMessage {
   [NEXT_REQUEST_META]?: RequestMeta
 }
 
@@ -26,15 +26,15 @@ interface RequestMeta {
 }
 
 export function getRequestMeta(
-  req: NextIncomingMessage | WebRequestBasedNextIncomingMessage,
+  req: NextIncomingMessage | NextWebIncomingMessage,
   key?: undefined
 ): RequestMeta
 export function getRequestMeta<K extends keyof RequestMeta>(
-  req: NextIncomingMessage | WebRequestBasedNextIncomingMessage,
+  req: NextIncomingMessage | NextWebIncomingMessage,
   key: K
 ): RequestMeta[K]
 export function getRequestMeta<K extends keyof RequestMeta>(
-  req: NextIncomingMessage | WebRequestBasedNextIncomingMessage,
+  req: NextIncomingMessage | NextWebIncomingMessage,
   key?: K
 ): RequestMeta | RequestMeta[K] {
   const meta = req[NEXT_REQUEST_META] || {}
@@ -42,7 +42,7 @@ export function getRequestMeta<K extends keyof RequestMeta>(
 }
 
 export function setRequestMeta(
-  req: NextIncomingMessage | WebRequestBasedNextIncomingMessage,
+  req: NextIncomingMessage | NextWebIncomingMessage,
   meta: RequestMeta
 ) {
   req[NEXT_REQUEST_META] = meta
@@ -50,7 +50,7 @@ export function setRequestMeta(
 }
 
 export function addRequestMeta<K extends keyof RequestMeta>(
-  request: NextIncomingMessage | WebRequestBasedNextIncomingMessage,
+  request: NextIncomingMessage | NextWebIncomingMessage,
   key: K,
   value: RequestMeta[K]
 ) {

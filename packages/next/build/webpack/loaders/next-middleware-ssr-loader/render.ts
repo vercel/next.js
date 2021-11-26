@@ -93,11 +93,6 @@ export function getRender({
       appModule: App,
       documentModule: documentMod,
       errorModule: errorMod,
-      // notFoundModule: ${
-      //   absolute404Path
-      //     ? `require(${stringifyRequest(this, absolute404Path)})`
-      //     : undefined
-      // },
       pageGetStaticProps: pageMod.getStaticProps,
       pageGetStaticPaths: pageMod.getStaticPaths,
       pageGetServerSideProps: pageMod.getServerSideProps,
@@ -111,7 +106,7 @@ export function getRender({
       buildManifest,
       reactLoadableManifest,
 
-      // rewrites: combinedRewrites,
+      // FIXME: implement rewrites
       rewrites: [],
       i18n: restRenderOpts.i18n,
       page,
@@ -178,7 +173,7 @@ export function getRender({
 
     if (typeof result === 'string') {
       return new Response(result, {
-        headers: { 'x-middleware-ssr': '1' },
+        headers: createHeaders(),
         status: statusCode,
       })
     }

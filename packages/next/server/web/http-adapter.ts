@@ -22,7 +22,9 @@ export class WebServerResponse {
 
   statusCode: number = 200
 
-  // FIXME
+  // FIXME: The internal states should support correctly throwing errors when
+  // using improperly. And in the future it should be able to be translated to
+  // the Node HTTP OutgoingMessage.
   finished: boolean = false
   headersSent: boolean = false
   body: [] = []
