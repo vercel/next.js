@@ -10,6 +10,34 @@ description: Learn how to upgrade Next.js.
 
 The minimum Node.js version has been bumped from 12.0.0 to 12.22.0 which is the first version of Node.js with native ES Modules support.
 
+### Upgrade React version to latest
+
+To upgrade you can run the following command:
+
+```
+npm install react@latest react-dom@latest
+```
+
+Or using `yarn`:
+
+```
+yarn add react@latest react-dom@latest
+```
+
+### Upgrade Next.js version to 12
+
+To upgrade you can run the following command in the terminal:
+
+```
+npm install next@12
+```
+
+or
+
+```
+yarn add next@12
+```
+
 ### SWC replacing Babel
 
 Next.js now uses Rust-based compiler [SWC](https://swc.rs/) to compile JavaScript/TypeScript. This new compiler is up to 17x faster than Babel when compiling individual files and up to 5x faster Fast Refresh.
@@ -69,6 +97,14 @@ location /_next/webpack-hmr {
     proxy_set_header Upgrade $http_upgrade;
     proxy_set_header Connection "upgrade";
 }
+```
+
+For custom servers, such as `express`, you may need to use `app.all` to ensure the request is passed correctly, for example:
+
+```js
+app.all('/_next/webpack-hmr', (req, res) => {
+  nextjsRequestHandler(req, res)
+})
 ```
 
 ### Webpack 4 support has been removed

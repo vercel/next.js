@@ -365,7 +365,7 @@ module.exports = {
         headers: [
           {
             key: 'x-hello',
-            value: 'worlld',
+            value: 'world',
           },
         ],
       },

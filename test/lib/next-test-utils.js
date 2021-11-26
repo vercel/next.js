@@ -129,9 +129,10 @@ export function runNextCommand(argv, options = {}) {
   // Let Next.js decide the environment
   const env = {
     ...process.env,
-    ...options.env,
     NODE_ENV: '',
     __NEXT_TEST_MODE: 'true',
+    NEXT_PRIVATE_OUTPUT_TRACE_ROOT: path.join(__dirname, '../../'),
+    ...options.env,
   }
 
   return new Promise((resolve, reject) => {
@@ -239,7 +240,7 @@ export function runNextCommandDev(argv, stdOut, opts = {}) {
     function handleStdout(data) {
       const message = data.toString()
       const bootupMarkers = {
-        dev: /compiled successfully/i,
+        dev: /compiled .*successfully/i,
         start: /started server/i,
       }
       if (
@@ -346,10 +347,9 @@ export function buildTS(args = [], cwd, env = {}) {
   })
 }
 
-// Kill a launched app
-export async function killApp(instance) {
+export async function killProcess(pid) {
   await new Promise((resolve, reject) => {
-    treeKill(instance.pid, (err) => {
+    treeKill(pid, (err) => {
       if (err) {
         if (
           process.platform === 'win32' &&
@@ -370,6 +370,11 @@ export async function killApp(instance) {
       resolve()
     })
   })
+}
+
+// Kill a launched app
+export async function killApp(instance) {
+  await killProcess(instance.pid)
 }
 
 export async function startApp(app) {

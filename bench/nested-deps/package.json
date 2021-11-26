@@ -1,11 +1,11 @@
 {
   "scripts": {
-    "prepare": "rm -rf components && mkdir components && node ./fuzzponent.js -d 2 -s 206 -o components",
-    "dev": "cross-env NEXT_PRIVATE_LOCAL_WEBPACK5=1 ../../node_modules/.bin/next dev",
-    "build": "cross-env NEXT_PRIVATE_LOCAL_WEBPACK5=1 ../../node_modules/.bin/next build",
-    "start": "cross-env NEXT_PRIVATE_LOCAL_WEBPACK5=1 ../../node_modules/.bin/next start",
-    "dev-nocache": "rm -rf .next && yarn dev",
-    "dev-cpuprofile-nocache": "rm -rf .next && cross-env NEXT_PRIVATE_LOCAL_WEBPACK5=1 node --cpu-prof ../../node_modules/.bin/next",
-    "build-nocache": "rm -rf .next && yarn build"
+    "prepare": "rimraf components && mkdir components && node ./fuzzponent.js -d 2 -s 206 -o components",
+    "dev": "cross-env NEXT_PRIVATE_LOCAL_WEBPACK5=1 node ../../node_modules/next/dist/bin/next dev",
+    "build": "cross-env NEXT_PRIVATE_LOCAL_WEBPACK5=1 node ../../node_modules/next/dist/bin/next build",
+    "start": "cross-env NEXT_PRIVATE_LOCAL_WEBPACK5=1 node ../../node_modules/next/dist/bin/next start",
+    "dev-nocache": "rimraf .next && yarn dev",
+    "dev-cpuprofile-nocache": "rimraf .next && cross-env NEXT_PRIVATE_LOCAL_WEBPACK5=1 node --cpu-prof ../../node_modules/next/dist/bin/next",
+    "build-nocache": "rimraf .next && yarn build"
   }
 }

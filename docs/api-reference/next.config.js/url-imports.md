@@ -45,7 +45,7 @@ These resources will have a `no-cache` entry in the lockfile and will always be 
 
 ## Examples
 
-#### Skypack
+### Skypack
 
 ```js
 import confetti from 'https://cdn.skypack.dev/canvas-confetti'
@@ -59,7 +59,7 @@ export default () => {
 }
 ```
 
-#### Static Image Imports
+### Static Image Imports
 
 ```js
 import Image from 'next/image'
@@ -72,7 +72,7 @@ export default () => (
 )
 ```
 
-#### URLs in CSS
+### URLs in CSS
 
 ```css
 .className {
@@ -80,7 +80,7 @@ export default () => (
 }
 ```
 
-#### Asset Imports
+### Asset Imports
 
 ```js
 import Image from 'next/image'

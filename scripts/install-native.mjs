@@ -3,6 +3,13 @@ import path from 'path'
 import execa from 'execa'
 import fs from 'fs-extra'
 ;(async function () {
+  if (process.env.NEXT_SKIP_NATIVE_POSTINSTALL) {
+    console.log(
+      `Skipping next-swc postinstall due to NEXT_SKIP_NATIVE_POSTINSTALL env`
+    )
+    return
+  }
+
   try {
     let tmpdir = path.join(os.tmpdir(), `next-swc-${Date.now()}`)
     await fs.ensureDir(tmpdir)
