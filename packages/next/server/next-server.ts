@@ -749,9 +749,7 @@ export default class Server {
     locales: string[]
   } {
     const server: Server = this
-    const publicRoutes = fs.existsSync(this.publicDir)
-      ? this.generatePublicRoutes()
-      : []
+    const publicRoutes = this.generatePublicRoutes()
 
     const staticFilesRoute = this.hasStaticDir
       ? [
@@ -1493,6 +1491,8 @@ export default class Server {
   }
 
   protected generatePublicRoutes(): Route[] {
+    if (!fs.existsSync(this.publicDir)) return []
+
     const publicFiles = new Set(
       recursiveReadDirSync(this.publicDir).map((p) =>
         encodeURI(p.replace(/\\/g, '/'))
