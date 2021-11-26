@@ -185,6 +185,8 @@ function createContext() {
       timeLog: console.timeLog.bind(console),
       warn: console.warn.bind(console),
     },
+    AbortController: polyfills.AbortController,
+    AbortSignal: polyfills.AbortSignal,
     CryptoKey: polyfills.CryptoKey,
     Crypto: polyfills.Crypto,
     crypto: new polyfills.Crypto(),
