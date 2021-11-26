@@ -1,9 +1,14 @@
+import type { NextServerOptions } from '../next'
+import { warn } from '../../build/output/log'
 import http from 'http'
 import next from '../next'
-import { warn } from '../../build/output/log'
+
+interface StartServerOptions extends NextServerOptions {
+  allowRetry?: boolean
+}
 
 export default async function start(
-  serverOptions: any,
+  serverOptions: StartServerOptions,
   port?: number,
   hostname?: string
 ) {
