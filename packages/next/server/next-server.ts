@@ -693,7 +693,7 @@ export default class Server {
             url: getRequestMeta(params.request, '__NEXT_INIT_URL')!,
             page: page,
           },
-          ssr: !!this.nextConfig.experimental.concurrentFeatures,
+          useCache: !this.nextConfig.experimental.concurrentFeatures,
           onWarning: (warning: Error) => {
             if (params.onWarning) {
               warning.message += ` "./${middlewareInfo.name}"`
