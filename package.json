@@ -82,7 +82,7 @@
     "@webassemblyjs/wast-parser": "npm:empty-npm-package@1.0.0",
     "@webassemblyjs/wast-printer": "1.11.1",
     "@zeit/next-typescript": "1.1.2-canary.0",
-    "abort-controller": "3.0.0",
+    "@aws-sdk/abort-controller": "3.40.0",
     "alex": "9.1.0",
     "amphtml-validator": "1.0.33",
     "async-sema": "3.0.1",
