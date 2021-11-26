@@ -2,7 +2,7 @@
 
 import fs from 'fs-extra'
 import { join } from 'path'
-import AbortController from 'abort-controller'
+import { AbortController } from '@aws-sdk/abort-controller'
 import {
   killApp,
   findPort,

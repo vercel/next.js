@@ -136,6 +136,7 @@
     }
   },
   "devDependencies": {
+    "@aws-sdk/abort-controller": "3.40.0",
     "@ampproject/toolbox-optimizer": "2.7.1-alpha.0",
     "@babel/code-frame": "7.12.11",
     "@babel/core": "7.15.0",

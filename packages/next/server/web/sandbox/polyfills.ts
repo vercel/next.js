@@ -4,6 +4,11 @@ import { TransformStream } from 'next/dist/compiled/web-streams-polyfill'
 import { v4 as uuid } from 'next/dist/compiled/uuid'
 import crypto from 'crypto'
 
+export {
+  AbortController,
+  AbortSignal,
+} from 'next/dist/compiled/@aws-sdk/abort-controller'
+
 export function atob(b64Encoded: string) {
   return Buffer.from(b64Encoded, 'base64').toString('binary')
 }
