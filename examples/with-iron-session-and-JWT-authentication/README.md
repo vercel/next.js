@@ -33,7 +33,7 @@ Preview the example live on [Vercel](http://vercel.com/):
 
 [![Open in Vercel](https://vercel.com/button)](https://next-js-with-iron-session-and-jwt-authentication.vercel.app/)
 
-## Implement your own
+## Deploy your own
 
 [`Example with Graphql API is comming soon.`](#)
 
