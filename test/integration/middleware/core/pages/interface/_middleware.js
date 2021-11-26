@@ -53,6 +53,12 @@ export async function middleware(request) {
     }
   }
 
+  if (url.pathname.endsWith('/root-subrequest')) {
+    return fetch(
+      `http://${request.headers.get('host')}/interface/root-subrequest`
+    )
+  }
+
   return new Response(null, {
     headers: {
       'req-url-basepath': request.nextUrl.basePath,

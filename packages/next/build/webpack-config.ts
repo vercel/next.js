@@ -33,7 +33,6 @@ import { NextConfigComplete } from '../server/config-shared'
 import { finalizeEntrypoint } from './entries'
 import * as Log from './output/log'
 import { build as buildConfiguration } from './webpack/config'
-import { __overrideCssConfiguration } from './webpack/config/blocks/css/overrideCssConfiguration'
 import MiddlewarePlugin from './webpack/plugins/middleware-plugin'
 import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
 import { JsConfigPathsPlugin } from './webpack/plugins/jsconfig-paths-plugin'
@@ -53,6 +52,11 @@ import type { Span } from '../trace'
 import { getRawPageExtensions } from './utils'
 import browserslist from 'browserslist'
 import loadJsConfig from './load-jsconfig'
+
+const watchOptions = Object.freeze({
+  aggregateTimeout: 5,
+  ignored: ['**/.git/**', '**/node_modules/**', '**/.next/**'],
+})
 
 function getSupportedBrowsers(
   dir: string,
@@ -941,8 +945,6 @@ export default async function getBaseWebpackConfig(
     // Default behavior: bundle the code!
   }
 
-  const emacsLockfilePattern = '**/.#*'
-
   const codeCondition = {
     test: /\.(tsx|ts|js|cjs|mjs|jsx)$/,
     ...(config.experimental.externalDir
@@ -1095,16 +1097,7 @@ export default async function getBaseWebpackConfig(
         ...entrypoints,
       }
     },
-    watchOptions: {
-      aggregateTimeout: 5,
-      ignored: [
-        '**/.git/**',
-        '**/node_modules/**',
-        '**/.next/**',
-        // can be removed after https://github.com/paulmillr/chokidar/issues/955 is released
-        emacsLockfilePattern,
-      ],
-    },
+    watchOptions,
     output: {
       // we must set publicPath to an empty value to override the default of
       // auto which doesn't work in IE11
@@ -1896,8 +1889,6 @@ export default async function getBaseWebpackConfig(
           (e) => (e as any).__next_css_remove !== true
         )
     }
-  } else if (!config.future.strictPostcssConfiguration) {
-    await __overrideCssConfiguration(dir, supportedBrowsers, webpackConfig)
   }
 
   // Inject missing React Refresh loaders so that development mode is fast:
