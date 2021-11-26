@@ -127,7 +127,7 @@ function createModuleContext(options: {
 
   context.__next_eval__ = function __next_eval__(fn: Function) {
     const key = fn.toString()
-    if (!moduleCache?.warnedEvals.has(key)) {
+    if (!moduleCache.warnedEvals.has(key)) {
       const warning = new Error(
         `Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Middleware`
       )
