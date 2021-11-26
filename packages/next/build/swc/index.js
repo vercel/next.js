@@ -89,11 +89,11 @@ async function loadWasm() {
   throw attempts
 }
 
+let loadCache
 function loadNative() {
-  if (nativeBindings) {
-    return nativeBindings
+  if (loadCache) {
+    return loadCache
   }
-
   let bindings
   let attempts = []
 
@@ -124,8 +124,7 @@ function loadNative() {
   }
 
   if (bindings) {
-    nativeBindings = {
-      isWasm: false,
+    loadCache = {
       transform(src, options) {
         const isModule =
           typeof src !== undefined &&
@@ -179,8 +178,13 @@ function loadNative() {
       bundle(options) {
         return bindings.bundle(toBuffer(options))
       },
+
+      webpackAST(path) {
+        return bindings.webpackAST(path)
+      },
     }
-    return nativeBindings
+
+    return loadCache
   }
 
   throw attempts
