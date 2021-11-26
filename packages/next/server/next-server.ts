@@ -591,12 +591,14 @@ export default class Server {
 
   protected getMiddleware() {
     const middleware = this.middlewareManifest?.middleware || {}
-    return Object.keys(middleware).map((page) => ({
-      match: getRouteMatcher(
-        getMiddlewareRegex(page, MIDDLEWARE_ROUTE.test(middleware[page].name))
-      ),
-      page,
-    }))
+    return (
+      this.middlewareManifest?.sortedMiddleware.map((page) => ({
+        match: getRouteMatcher(
+          getMiddlewareRegex(page, MIDDLEWARE_ROUTE.test(middleware[page].name))
+        ),
+        page,
+      })) || []
+    )
   }
 
   protected async hasMiddleware(
@@ -691,7 +693,7 @@ export default class Server {
             url: getRequestMeta(params.request, '__NEXT_INIT_URL')!,
             page: page,
           },
-          ssr: !!this.nextConfig.experimental.concurrentFeatures,
+          useCache: !this.nextConfig.experimental.concurrentFeatures,
           onWarning: (warning: Error) => {
             if (params.onWarning) {
               warning.message += ` "./${middlewareInfo.name}"`
