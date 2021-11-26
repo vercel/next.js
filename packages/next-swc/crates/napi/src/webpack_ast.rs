@@ -11,7 +11,7 @@ use std::{
     sync::Arc,
 };
 use swc::try_with_handler;
-use swc_common::{FilePathMapping, SourceMap};
+use swc_common::{FilePathMapping, Globals, SourceMap, GLOBALS};
 use swc_ecmascript::{
     ast::*,
     parser::{lexer::Lexer, EsConfig, Parser, StringInput, Syntax, TsConfig},
@@ -49,6 +49,7 @@ impl Task for WebpackAstTask {
 }
 
 pub fn parse_file_as_webpack_ast(path: &Path) -> Result<String, Error> {
+    let globals = Globals::new();
     let cm = Arc::new(SourceMap::new(FilePathMapping::empty()));
 
     try_with_handler(cm.clone(), true, |handler| {
@@ -90,6 +91,8 @@ pub fn parse_file_as_webpack_ast(path: &Path) -> Result<String, Error> {
             })?
         };
 
-        swc_webpack_ast::webpack_ast(cm.clone(), fm, module)
+        GLOBALS.set(&globals, || {
+            swc_webpack_ast::webpack_ast(cm.clone(), fm, module)
+        })
     })
 }
