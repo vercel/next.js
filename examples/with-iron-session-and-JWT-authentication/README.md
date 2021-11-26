@@ -1,21 +1,18 @@
-# Example application using [`next-iron-session`](https://github.com/vvo/next-iron-session)
+# Example application using [`next-iron-session-with-JWT-authentication`](https://github.com/majhoolsoft/next-js-with-iron-session-and-JWT-authentication)
 
 ---
 
-<p align="center"><b>Online demo at <a href="https://next-iron-session.vercel.app/">https://next-iron-session.vercel.app/</a> 👀</b></p>
+<p align="center"><b>Online demo at <a href="https://next-js-with-iron-session-and-jwt-authentication.vercel.app/">https://next-js-with-iron-session-and-jwt-authentication.vercel.app/</a> 👀</b></p>
 
 ---
 
-This example creates an authentication system that uses a **signed and encrypted cookie to store session data**. It relies on [`next-iron-session`](https://github.com/vvo/next-iron-session).
+This example creates an authentication system that uses a **signed and encrypted cookie to store session data with JWT**. It relies on [`next-iron-session`](https://github.com/vvo/next-iron-session),
+[`SWR`](https://github.com/vercel/swr) and [`JsonWebToken`](https://github.com/auth0/node-jsonwebtoken).
 
 It uses current best practices for authentication in the Next.js ecosystem.
 
-On the next-iron-session repository (https://github.com/vvo/next-iron-session) you'll find:
+On the next-iron-session repository (https://github.com/majhoolsoft/next-js-with-iron-session-and-JWT-authentication) you'll find:
 
-- full API documentation and explanations on how it works
-- [TypeScript example](https://github.com/vvo/next-iron-session/tree/master/examples/next-typescript)
-- [JavaScript example](https://github.com/vvo/next-iron-session/tree/master/examples/next.js)
-- [Express.js example](https://github.com/vvo/next-iron-session/tree/master/examples/express)
 
 **Features:**
 
@@ -24,32 +21,43 @@ On the next-iron-session repository (https://github.com/vvo/next-iron-session) y
 - Logged in status synchronized between browser windows/tabs using **`useUser`** hook and [`swr`](https://swr.vercel.app/) module
 - Layout based on the user's logged-in/out status
 - Session data is signed and encrypted in a cookie
-
-[`next-iron-session`](https://github.com/vvo/next-iron-session) also supports:
-
 - Express / Connect middlewares
 - Multiple encryption keys (passwords) to allow for seamless updates or just password rotation
 
+[`next-iron-session-with-JWT-Auth`](https://github.com/majhoolsoft/next-js-with-iron-session-and-JWT-authentication) now supports:
+- JWT authentication
+
 ## Preview
 
-Preview the example live on [StackBlitz](http://stackblitz.com/):
+Preview the example live on [Vercel](http://vercel.com/):
 
-[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-iron-session)
+[![Open in Vercel](https://vercel.com/button)](https://next-js-with-iron-session-and-jwt-authentication.vercel.app/)
 
-## Deploy your own
+## Implement your own
 
-Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
+[`Example with Graphql API is comming soon.`](#)
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-iron-session&project-name=with-iron-session&repository-name=with-iron-session)
+This package comes with 2 sample data files which can be found in /lib.
+
+sampleData.json is an example of access response from server, sampleData2.json is an example of refreshed access token
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+1. Clone this project. then:
 
 ```bash
-npx create-next-app --example with-iron-session with-iron-session-app
-# or
-yarn create next-app --example with-iron-session with-iron-session-app
+npm run install
 ```
 
+2. Set up your authentication index keys according to your server response as environment variables (.env).
+
+3. Write your own authentication request in /lib/authenticate.js and refresh access token request in /lib/refreshToken.js
+
 Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+<!-- 
+4.  
+```bash
+npm run dev 
+#or
+npm run build
+``` -->
