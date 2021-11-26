@@ -53,24 +53,25 @@ export function getModuleContext(options: {
   onWarning: (warn: Error) => void
   useCache: boolean
 }) {
-  const cache = options.useCache
+  let moduleCache = options.useCache
     ? caches.get(options.module)
     : createModuleContext(options)
 
-  if (cache === undefined) {
-    caches.set(options.module, cache = createModuleContext(options))
+  if (!moduleCache) {
+    moduleCache = createModuleContext(options)
+    caches.set(options.module, moduleCache)
   }
 
   return {
-    context: cache.context,
+    context: moduleCache.context,
     runInContext: (paramPath: string) => {
-      if (!cache.paths.has(paramPath)) {
+      if (!moduleCache!.paths.has(paramPath)) {
         const content = readFileSync(paramPath, 'utf-8')
         try {
-          vm.runInNewContext(content, cache.context, {
+          vm.runInNewContext(content, moduleCache!.context, {
             filename: paramPath,
           })
-          cache.paths.set(paramPath, content)
+          moduleCache!.paths.set(paramPath, content)
         } catch (error) {
           if (options.useCache) {
             caches.delete(options.module)
