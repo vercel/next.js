@@ -11,7 +11,7 @@ export default withSession(async (req, res) => {
     // to get more information on the user if needed
     if (checkExpired(user[aTIndex])) {
       // Get new access/auth token
-      const newAccessToken = refreshAuthToken(user[rtIndex])
+      const newAccessToken = refreshAuthToken(user[rtIndex])[aTIndex]
       // Remove old access/auth token and store in cookie
       let oldUser = user
       delete oldUser[aTIndex]

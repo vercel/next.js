@@ -39,8 +39,8 @@ const Home = () => (
     <h2>Steps to test the functionality:</h2>
 
     <ol>
-      <li>Write login and refresh queries in pages/api/login and lib/refreshToken</li>
-      <li>Set environment variables with respect to your server response. Sample Data is available as well.</li>
+      <li>Write login and refresh queries in lib/authenticate and lib/refreshToken. Sample Data is available as well.</li>
+      <li>Set environment variables with respect to your server response.</li>
       <li>Click login and enter your username and password.</li>
       <li>
         Click home and click profile again, notice how your session is being
