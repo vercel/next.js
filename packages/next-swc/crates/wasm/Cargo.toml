@@ -16,7 +16,7 @@ path-clean = "0.1"
 serde = {version = "1", features = ["derive"]}
 serde_json = "1"
 next-swc = { version = "0.0.0", path = "../core" }
-swc = "0.87.0"
+swc = "0.87.1"
 swc_common = {version = "0.14.2", features = ["concurrent", "sourcemap"]}
 swc_ecmascript = { version = "0.88.1", features = ["codegen", "minifier", "optimization", "parser", "react", "transforms", "typescript", "utils", "visit"] }
 tracing = {version = "0.1.28", features = ["release_max_level_off"]}
