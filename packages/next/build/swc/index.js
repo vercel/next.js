@@ -226,5 +226,6 @@ export async function bundle(options) {
 
 export async function webpackAST(path) {
   let bindings = loadNative()
-  return bindings.webpackAST(path)
+  const ast = await bindings.webpackAST(path)
+  return JSON.parse(ast)
 }
