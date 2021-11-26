@@ -33,6 +33,14 @@ export class NextServer {
     this.options = options
   }
 
+  get hostname() {
+    return this.options.hostname
+  }
+
+  get port() {
+    return this.options.port
+  }
+
   getRequestHandler(): RequestHandler {
     return async (
       req: IncomingMessage,
@@ -175,3 +183,4 @@ exports = module.exports
 
 // Support `import next from 'next'`
 export default createServer
+export type { RequestHandler }

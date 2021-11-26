@@ -144,6 +144,14 @@ export interface Options {
    * Hide error messages containing server information
    */
   quiet?: boolean
+  /**
+   * The hostname the server is running behind
+   */
+  hostname?: string
+  /**
+   * The port the server is running behind
+   */
+  port?: number
 }
 
 export interface RequestHandler {
@@ -207,6 +215,8 @@ export default class Server {
   protected customRoutes: CustomRoutes
   protected middlewareManifest?: MiddlewareManifest
   protected middleware?: RoutingItem[]
+  public readonly hostname?: string
+  public readonly port?: number
 
   public constructor({
     dir = '.',
@@ -215,12 +225,16 @@ export default class Server {
     dev = false,
     minimalMode = false,
     customServer = true,
+    hostname,
+    port,
   }: Options) {
     this.dir = resolve(dir)
     this.quiet = quiet
     loadEnvConfig(this.dir, dev, Log)
 
     this.nextConfig = conf
+    this.hostname = hostname
+    this.port = port
 
     this.distDir = join(this.dir, this.nextConfig.distDir)
     this.publicDir = join(this.dir, CLIENT_PUBLIC_FILES_PATH)
