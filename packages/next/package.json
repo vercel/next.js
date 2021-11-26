@@ -7,7 +7,7 @@
   "repository": "vercel/next.js",
   "bugs": "https://github.com/vercel/next.js/issues",
   "homepage": "https://nextjs.org",
-  "types": "types/index.d.ts",
+  "types": "index.d.ts",
   "files": [
     "dist",
     "app.js",
@@ -44,6 +44,7 @@
     "jest.d.ts",
     "amp.js",
     "amp.d.ts",
+    "index.d.ts",
     "types/index.d.ts",
     "types/global.d.ts",
     "image-types/global.d.ts"
