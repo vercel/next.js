@@ -67,6 +67,7 @@ function getBaseSWCOptions({
         }
       : null,
     removeConsole: nextConfig?.experimental?.removeConsole,
+    reactRemoveProperties: nextConfig?.experimental?.reactRemoveProperties,
   }
 }
 

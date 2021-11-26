@@ -822,6 +822,7 @@ dependencies = [
  "either",
  "fxhash",
  "pathdiff",
+ "regex",
  "serde",
  "serde_json",
  "styled_components",

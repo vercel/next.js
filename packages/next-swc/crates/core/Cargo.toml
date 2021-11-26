@@ -25,6 +25,7 @@ swc_ecmascript = { version = "0.88.1", features = ["codegen", "minifier", "optim
 swc_node_base = "0.5.1"
 swc_stylis = "0.28.0"
 tracing = {version = "0.1.28", features = ["release_max_level_off"]}
+regex = "1.5"
 
 [dev-dependencies]
 swc_ecma_transforms_testing = "0.45.1"
