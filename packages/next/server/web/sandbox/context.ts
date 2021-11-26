@@ -133,7 +133,7 @@ function createModuleContext(options: {
       )
       warning.name = 'DynamicCodeEvaluationWarning'
       Error.captureStackTrace(warning, __next_eval__)
-      moduleCache?.warnedEvals.add(key)
+      moduleCache.warnedEvals.add(key)
       options.onWarning(warning)
     }
     return fn()
