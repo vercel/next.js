@@ -28,6 +28,7 @@ DEALINGS IN THE SOFTWARE.
 
 import { transform } from '../../swc'
 import { getLoaderSWCOptions } from '../../swc/options'
+import { isAbsolute } from 'path'
 
 async function loaderTransform(parentTrace, source, inputSourceMap) {
   // Make the loader async
@@ -90,6 +91,28 @@ async function loaderTransform(parentTrace, source, inputSourceMap) {
       return [output.code, output.map ? JSON.parse(output.map) : undefined]
     })
   )
+}
+
+export function pitch() {
+  if (
+    this.loaders.length - 1 === this.loaderIndex &&
+    isAbsolute(this.resourcePath)
+  ) {
+    const loaderSpan = this.currentTraceSpan.traceChild('next-swc-loader')
+    const callback = this.async()
+    loaderSpan
+      .traceAsyncFn(() => loaderTransform.call(this, loaderSpan))
+      .then(
+        ([transformedSource, outputSourceMap]) => {
+          this.addDependency(this.resourcePath)
+          callback(null, transformedSource, outputSourceMap)
+        },
+        (err) => {
+          this.addDependency(this.resourcePath)
+          callback(err)
+        }
+      )
+  }
 }
 
 export default function swcLoader(inputSource, inputSourceMap) {

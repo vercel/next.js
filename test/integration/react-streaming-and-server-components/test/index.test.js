@@ -216,7 +216,11 @@ runSuite('document', 'prod', documentSuite)
 async function runBasicTests(context, env) {
   const isDev = env === 'dev'
   it('should render the correct html', async () => {
-    const homeHTML = await renderViaHTTP(context.appPort, '/')
+    const homeHTML = await renderViaHTTP(context.appPort, '/', null, {
+      headers: {
+        'x-next-test-client': 'test-util',
+      },
+    })
 
     // should have only 1 DOCTYPE
     expect(homeHTML).toMatch(/^<!DOCTYPE html><html/)
@@ -238,8 +242,10 @@ async function runBasicTests(context, env) {
       '/this-is-not-found'
     )
 
-    expect(homeHTML).toContain('thisistheindexpage.server')
-    expect(homeHTML).toContain('env_var_test')
+    expect(homeHTML).toContain('component:index.server')
+    expect(homeHTML).toContain('env:env_var_test')
+    expect(homeHTML).toContain('header:test-util')
+    expect(homeHTML).toContain('path:/')
     expect(homeHTML).toContain('foo.client')
 
     expect(dynamicRouteHTML1).toContain('[pid]')

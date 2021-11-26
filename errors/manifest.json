@@ -5,6 +5,10 @@
       "heading": true,
       "routes": [
         {
+          "title": "react-hydration-error",
+          "path": "/errors/react-hydration-error.md"
+        },
+        {
           "title": "beta-middleware",
           "path": "/errors/beta-middleware.md"
         },

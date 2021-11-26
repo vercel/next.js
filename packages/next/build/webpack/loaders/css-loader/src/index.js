@@ -2,27 +2,134 @@
   MIT License http://www.opensource.org/licenses/mit-license.php
   Author Tobias Koppers @sokra
 */
-import postcss from 'postcss'
-
 import CssSyntaxError from './CssSyntaxError'
 import Warning from '../../postcss-loader/src/Warning'
-import { icssParser, importParser, urlParser } from './plugins'
-import {
-  normalizeOptions,
-  shouldUseModulesPlugins,
-  shouldUseImportPlugin,
-  shouldUseURLPlugin,
-  shouldUseIcssPlugin,
-  getPreRequester,
-  getExportCode,
-  getFilter,
-  getImportCode,
-  getModuleCode,
-  getModulesPlugins,
-  normalizeSourceMap,
-  sort,
-} from './utils'
+// import { icssParser, importParser, urlParser } from './plugins'
 import { stringifyRequest } from '../../../stringify-request'
+
+const moduleRegExp = /\.module\.\w+$/i
+
+function getModulesOptions(rawOptions, loaderContext) {
+  const { resourcePath } = loaderContext
+
+  if (typeof rawOptions.modules === 'undefined') {
+    const isModules = moduleRegExp.test(resourcePath)
+
+    if (!isModules) {
+      return false
+    }
+  } else if (
+    typeof rawOptions.modules === 'boolean' &&
+    rawOptions.modules === false
+  ) {
+    return false
+  }
+
+  let modulesOptions = {
+    compileType: rawOptions.icss ? 'icss' : 'module',
+    auto: true,
+    mode: 'local',
+    exportGlobals: false,
+    localIdentName: '[hash:base64]',
+    localIdentContext: loaderContext.rootContext,
+    localIdentHashPrefix: '',
+    // eslint-disable-next-line no-undefined
+    localIdentRegExp: undefined,
+    namedExport: false,
+    exportLocalsConvention: 'asIs',
+    exportOnlyLocals: false,
+  }
+
+  if (
+    typeof rawOptions.modules === 'boolean' ||
+    typeof rawOptions.modules === 'string'
+  ) {
+    modulesOptions.mode =
+      typeof rawOptions.modules === 'string' ? rawOptions.modules : 'local'
+  } else {
+    if (rawOptions.modules) {
+      if (typeof rawOptions.modules.auto === 'boolean') {
+        const isModules =
+          rawOptions.modules.auto && moduleRegExp.test(resourcePath)
+
+        if (!isModules) {
+          return false
+        }
+      } else if (rawOptions.modules.auto instanceof RegExp) {
+        const isModules = rawOptions.modules.auto.test(resourcePath)
+
+        if (!isModules) {
+          return false
+        }
+      } else if (typeof rawOptions.modules.auto === 'function') {
+        const isModule = rawOptions.modules.auto(resourcePath)
+
+        if (!isModule) {
+          return false
+        }
+      }
+
+      if (
+        rawOptions.modules.namedExport === true &&
+        typeof rawOptions.modules.exportLocalsConvention === 'undefined'
+      ) {
+        modulesOptions.exportLocalsConvention = 'camelCaseOnly'
+      }
+    }
+
+    modulesOptions = { ...modulesOptions, ...(rawOptions.modules || {}) }
+  }
+
+  if (typeof modulesOptions.mode === 'function') {
+    modulesOptions.mode = modulesOptions.mode(loaderContext.resourcePath)
+  }
+
+  if (modulesOptions.namedExport === true) {
+    if (rawOptions.esModule === false) {
+      throw new Error(
+        'The "modules.namedExport" option requires the "esModules" option to be enabled'
+      )
+    }
+
+    if (modulesOptions.exportLocalsConvention !== 'camelCaseOnly') {
+      throw new Error(
+        'The "modules.namedExport" option requires the "modules.exportLocalsConvention" option to be "camelCaseOnly"'
+      )
+    }
+  }
+
+  return modulesOptions
+}
+
+function normalizeOptions(rawOptions, loaderContext) {
+  if (rawOptions.icss) {
+    loaderContext.emitWarning(
+      new Error(
+        'The "icss" option is deprecated, use "modules.compileType: "icss"" instead'
+      )
+    )
+  }
+
+  const modulesOptions = getModulesOptions(rawOptions, loaderContext)
+
+  return {
+    url: typeof rawOptions.url === 'undefined' ? true : rawOptions.url,
+    import: typeof rawOptions.import === 'undefined' ? true : rawOptions.import,
+    modules: modulesOptions,
+    // TODO remove in the next major release
+    icss: typeof rawOptions.icss === 'undefined' ? false : rawOptions.icss,
+    sourceMap:
+      typeof rawOptions.sourceMap === 'boolean'
+        ? rawOptions.sourceMap
+        : loaderContext.sourceMap,
+    importLoaders:
+      typeof rawOptions.importLoaders === 'string'
+        ? parseInt(rawOptions.importLoaders, 10)
+        : rawOptions.importLoaders,
+    esModule:
+      typeof rawOptions.esModule === 'undefined' ? true : rawOptions.esModule,
+  }
+}
 
 export default async function loader(content, map, meta) {
   const rawOptions = this.getOptions()
@@ -41,6 +148,25 @@ export default async function loader(content, map, meta) {
       } catch (error) {
         throw error
       }
+
+      const { postcss } = await rawOptions.postcss()
+
+      const {
+        shouldUseModulesPlugins,
+        shouldUseImportPlugin,
+        shouldUseURLPlugin,
+        shouldUseIcssPlugin,
+        getPreRequester,
+        getExportCode,
+        getFilter,
+        getImportCode,
+        getModuleCode,
+        getModulesPlugins,
+        normalizeSourceMap,
+        sort,
+      } = require('./utils')
+
+      const { icssParser, importParser, urlParser } = require('./plugins')
 
       const replacements = []
       const exports = []
