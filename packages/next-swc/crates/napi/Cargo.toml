@@ -26,6 +26,7 @@ swc_node_base = "0.5.1"
 rayon = "1.5.1"
 swc_estree_ast = "0.2.0"
 swc_estree_compat = "0.3.0"
+swc_webpack_ast = "0.1.0"
 
 [build-dependencies]
 napi-build = "1"
