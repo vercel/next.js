@@ -54,11 +54,11 @@ export function getModuleContext(options: {
   useCache: boolean
 }) {
   const cache = options.useCache
-    ? caches.get(options.module) || createModuleContext(options)
+    ? caches.get(options.module)
     : createModuleContext(options)
 
-  if (options.useCache) {
-    caches.set(options.module, cache)
+  if (cache === undefined) {
+    caches.set(options.module, cache = createModuleContext(options))
   }
 
   return {
