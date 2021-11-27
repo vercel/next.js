@@ -48,13 +48,15 @@ function loadNative() {
     }
   }
 
-  for (const triple of triples) {
-    try {
-      bindings = require(`@next/swc-${triple.platformArchABI}`)
-      break
-    } catch (e) {
-      if (e?.code !== 'MODULE_NOT_FOUND') {
-        loadError = e
+  if (!bindings) {
+    for (const triple of triples) {
+      try {
+        bindings = require(`@next/swc-${triple.platformArchABI}`)
+        break
+      } catch (e) {
+        if (e?.code !== 'MODULE_NOT_FOUND') {
+          loadError = e
+        }
       }
     }
   }
@@ -62,7 +64,10 @@ function loadNative() {
   if (bindings) {
     return {
       transform(src, options) {
-        const isModule = typeof src !== 'string' && !Buffer.isBuffer(src)
+        const isModule =
+          typeof src !== undefined &&
+          typeof src !== 'string' &&
+          !Buffer.isBuffer(src)
         options = options || {}
 
         if (options?.jsc?.parser) {
@@ -77,7 +82,16 @@ function loadNative() {
       },
 
       transformSync(src, options) {
-        const isModule = typeof src !== 'string' && !Buffer.isBuffer(src)
+        if (typeof src === undefined) {
+          throw new Error(
+            "transformSync doesn't implement reading the file from filesystem"
+          )
+        } else if (Buffer.isBuffer(src)) {
+          throw new Error(
+            "transformSync doesn't implement taking the source code as Buffer"
+          )
+        }
+        const isModule = typeof src !== 'string'
         options = options || {}
 
         if (options?.jsc?.parser) {

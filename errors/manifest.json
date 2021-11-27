@@ -518,6 +518,10 @@
         {
           "title": "experimental-jest-transformer",
           "path": "/errors/experimental-jest-transformer.md"
+        },
+        {
+          "title": "invalid-dynamic-options-type",
+          "path": "/errors/invalid-dynamic-options-type.md"
         }
       ]
     }
