@@ -132,6 +132,11 @@ export type NextConfig = { [key: string]: any } & {
       | {
           exclude?: string[]
         }
+    reactRemoveProperties?:
+      | boolean
+      | {
+          properties?: string[]
+        }
     styledComponents?: boolean
     swcMinify?: boolean
     cpus?: number

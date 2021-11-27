@@ -1133,28 +1133,35 @@ export default class Router implements BaseRouter {
 
     resolvedAs = delLocale(delBasePath(resolvedAs), this.locale)
 
-    const effect = await this._preflightRequest({
-      as,
-      cache: process.env.NODE_ENV === 'production',
-      pages,
-      pathname,
-      query,
-    })
+    /**
+     * If the route update was triggered for client-side hydration then
+     * do not check the preflight request. Otherwise when rendering
+     * a page with refresh it might get into an infinite loop.
+     */
+    if ((options as any)._h !== 1) {
+      const effect = await this._preflightRequest({
+        as,
+        cache: process.env.NODE_ENV === 'production',
+        pages,
+        pathname,
+        query,
+      })
 
-    if (effect.type === 'rewrite') {
-      query = { ...query, ...effect.parsedAs.query }
-      resolvedAs = effect.asPath
-      pathname = effect.resolvedHref
-      parsed.pathname = effect.resolvedHref
-      url = formatWithValidation(parsed)
-    } else if (effect.type === 'redirect' && effect.newAs) {
-      return this.change(method, effect.newUrl, effect.newAs, options)
-    } else if (effect.type === 'redirect' && effect.destination) {
-      window.location.href = effect.destination
-      return new Promise(() => {})
-    } else if (effect.type === 'refresh') {
-      window.location.href = as
-      return new Promise(() => {})
+      if (effect.type === 'rewrite') {
+        query = { ...query, ...effect.parsedAs.query }
+        resolvedAs = effect.asPath
+        pathname = effect.resolvedHref
+        parsed.pathname = effect.resolvedHref
+        url = formatWithValidation(parsed)
+      } else if (effect.type === 'redirect' && effect.newAs) {
+        return this.change(method, effect.newUrl, effect.newAs, options)
+      } else if (effect.type === 'redirect' && effect.destination) {
+        window.location.href = effect.destination
+        return new Promise(() => {})
+      } else if (effect.type === 'refresh') {
+        window.location.href = as
+        return new Promise(() => {})
+      }
     }
 
     const route = removePathTrailingSlash(pathname)
