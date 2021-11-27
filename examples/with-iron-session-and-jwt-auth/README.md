@@ -4,8 +4,10 @@
 
 <p align="center"><b>Online demo at <a href="https://next-js-with-iron-session-and-jwt-authentication.vercel.app/">https://next-js-with-iron-session-and-jwt-authentication.vercel.app/</a> 👀</b></p>
 
----
 
+You can use any credentials since sample data will be returned as default.
+
+---
 This example creates an authentication system that uses a **signed and encrypted cookie to store session data with JWT**. It relies on [`next-iron-session`](https://github.com/vvo/next-iron-session),
 [`SWR`](https://github.com/vercel/swr) and [`JsonWebToken`](https://github.com/auth0/node-jsonwebtoken).
 
@@ -30,7 +32,6 @@ On the next-iron-session repository (https://github.com/majhoolsoft/next-js-with
 ## Preview
 
 Preview the example live on [Vercel](http://vercel.com/):
-
 [![Open in Vercel](https://vercel.com/button)](https://next-js-with-iron-session-and-jwt-authentication.vercel.app/)
 
 ## Deploy your own
