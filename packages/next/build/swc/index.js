@@ -48,13 +48,15 @@ function loadNative() {
     }
   }
 
-  for (const triple of triples) {
-    try {
-      bindings = require(`@next/swc-${triple.platformArchABI}`)
-      break
-    } catch (e) {
-      if (e?.code !== 'MODULE_NOT_FOUND') {
-        loadError = e
+  if (!bindings) {
+    for (const triple of triples) {
+      try {
+        bindings = require(`@next/swc-${triple.platformArchABI}`)
+        break
+      } catch (e) {
+        if (e?.code !== 'MODULE_NOT_FOUND') {
+          loadError = e
+        }
       }
     }
   }

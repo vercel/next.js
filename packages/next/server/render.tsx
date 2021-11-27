@@ -419,7 +419,8 @@ export async function renderToHTML(
     !hasPageGetInitialProps &&
     defaultAppGetInitialProps &&
     !isSSG &&
-    !getServerSideProps
+    !getServerSideProps &&
+    !concurrentFeatures
 
   for (const methodName of [
     'getStaticProps',

@@ -181,8 +181,7 @@ buildStore.subscribe((state) => {
       ...(client.warnings || []),
       ...(server.warnings || []),
       ...((serverWeb && serverWeb.warnings) || []),
-      ...((Object.keys(amp).length > 0 && formatAmpMessages(amp)) || []),
-    ]
+    ].concat(formatAmpMessages(amp) || [])
 
     consoleStore.setState(
       {

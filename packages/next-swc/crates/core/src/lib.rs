@@ -52,6 +52,7 @@ pub mod hook_optimizer;
 pub mod next_dynamic;
 pub mod next_ssg;
 pub mod page_config;
+pub mod react_remove_properties;
 pub mod remove_console;
 pub mod styled_jsx;
 mod top_level_binding_collector;
@@ -82,6 +83,9 @@ pub struct TransformOptions {
 
     #[serde(default)]
     pub remove_console: Option<remove_console::Config>,
+
+    #[serde(default)]
+    pub react_remove_properties: Option<react_remove_properties::Config>,
 }
 
 pub fn custom_before_pass(file: Arc<SourceFile>, opts: &TransformOptions) -> impl Fold {
@@ -113,6 +117,11 @@ pub fn custom_before_pass(file: Arc<SourceFile>, opts: &TransformOptions) -> imp
         match &opts.remove_console {
             Some(config) if config.truthy() =>
                 Either::Left(remove_console::remove_console(config.clone())),
+            _ => Either::Right(noop()),
+        },
+        match &opts.react_remove_properties {
+            Some(config) if config.truthy() =>
+                Either::Left(react_remove_properties::remove_properties(config.clone())),
             _ => Either::Right(noop()),
         },
     )
