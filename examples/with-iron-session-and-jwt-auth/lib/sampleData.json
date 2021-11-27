@@ -1,0 +1,10 @@
+{
+  "authToken": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwczovL3d3dy5tYWpob29sc29mdC5jb20iLCJpYXQiOjE2Mzc4NTAwMTYsIm5iZiI6MTYzNzg1MDAxNiwiZXhwIjoxNjM3ODc3MjE2LCJkYXRhIjp7InVzZXIiOnsiaWQiOiIwIn19fQ.IFns4LsuMMqzXmPbNe3_CWHxYwOxcUodQm8kRSx2Z9o",
+  "refreshToken": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwczovL3d3dy5tYWpob29sc29mdC5jb20iLCJpYXQiOjE2Mzc4NTAwMTYsIm5iZiI6MTYzNzg1MDAxNiwiZXhwIjoxNjY5Mzg2MDE2LCJkYXRhIjp7InVzZXIiOnsiaWQiOiIwIiwidXNlcl9zZWNyZXQiOiJqd3RfMWExIn19fQ.bBBqkcHOhwmxckwUo3F3UEjI-f2ZMOt7v9OgMngRIcM",
+  "login": {
+    "id": "dXNlcjoz",
+    "name": "Name Surname",
+    "username": "Username",
+    "avatarUrl": "/profile.png"
+  }
+}

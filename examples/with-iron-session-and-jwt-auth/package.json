@@ -1,0 +1,21 @@
+{
+  "name": "next.js-with-iron-session-and-jwt-authentication",
+  "version": "1.0.1",
+  "private": true,
+  "scripts": {
+    "build": "next build",
+    "dev": "next dev",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "jsonwebtoken": "latest",
+    "next": "latest",
+    "next-iron-session": "latest",
+    "prop-types": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "swr": "latest"
+  },
+  "license": "MIT"
+}
