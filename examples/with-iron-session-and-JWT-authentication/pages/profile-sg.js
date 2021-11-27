@@ -1,5 +1,6 @@
 import useUser from '../lib/useUser'
 import Layout from '../components/Layout'
+import Link from 'next/link'
 
 const SgProfile = () => {
   const { user } = useUser({ redirectTo: '/login' })
@@ -16,7 +17,7 @@ const SgProfile = () => {
         <a href="https://nextjs.org/docs/basic-features/pages#static-generation-recommended">
           Static Generation (SG)
         </a>{' '}
-        and the <a href="/api/user">/api/user</a> route (using{' '}
+        and the <Link href="/api/user">/api/user</Link> route (using{' '}
         <a href="https://github.com/vercel/swr">SWR</a>)
       </h2>
       

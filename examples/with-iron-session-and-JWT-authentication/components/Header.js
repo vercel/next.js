@@ -28,7 +28,7 @@ const Header = () => {
               <li>
                 <Link href="/profile-sg">
                   <a>
-                    <img src={user.login.avatarUrl} width={20} height={20} /> Profile
+                    <img src={user.login.avatarUrl} width={20} height={20} alt="Profile"/> Profile
                     (Static Generation, recommended)
                   </a>
                 </Link>
@@ -40,7 +40,7 @@ const Header = () => {
               </li>
               <li>
                 <a
-                  href="/api/logout"
+                  style={{cursor:"pointer"}}
                   onClick={async (e) => {
                     e.preventDefault()
                     mutateUser(
@@ -57,7 +57,7 @@ const Header = () => {
           )}
           <li>
             <a href="https://github.com/majhoolsoft/">
-              <img src="/JWT.png" width="32" height="32" />
+              <img src="/JWT.png" width="32" height="32" alt="JWT Logo"/>
             </a>
           </li>
         </ul>
