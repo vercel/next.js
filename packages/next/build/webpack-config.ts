@@ -702,33 +702,33 @@ export default async function getBaseWebpackConfig(
 
   // Adds package-paths of dependencies recursively
   const addPackagePath = (packageName: string, relativeToPath: string) => {
-      try {
-          const packageJsonPath = require.resolve(`${packageName}/package.json`, {
-              paths: [relativeToPath],
-          })
+    try {
+      const packageJsonPath = require.resolve(`${packageName}/package.json`, {
+        paths: [relativeToPath],
+      })
 
-          // Include a trailing slash so that a `.startsWith(packagePath)` check avoids false positives
-          // when one package name starts with the full name of a different package.
-          // For example:
-          //   "node_modules/react-slider".startsWith("node_modules/react")  // true
-          //   "node_modules/react-slider".startsWith("node_modules/react/") // false
-          const directory = path.join(packageJsonPath, '../')
-          topLevelFrameworkPaths.add(directory)
+      // Include a trailing slash so that a `.startsWith(packagePath)` check avoids false positives
+      // when one package name starts with the full name of a different package.
+      // For example:
+      //   "node_modules/react-slider".startsWith("node_modules/react")  // true
+      //   "node_modules/react-slider".startsWith("node_modules/react/") // false
+      const directory = path.join(packageJsonPath, '../')
+      topLevelFrameworkPaths.add(directory)
 
-          const dependencies = require(packageJsonPath).dependencies || {}
-          for (const name of Object.keys(dependencies)) {
-              addPackagePath(name, directory)
-          }
-      } catch {
-          console.warn(
-              `Dependency '${packageName}' was not found relative to ${relativeToPath}. ` +
-              `Optimized chunk splitting will be unavailable for '${packageName}'.`
-          )
+      const dependencies = require(packageJsonPath).dependencies || {}
+      for (const name of Object.keys(dependencies)) {
+        addPackagePath(name, directory)
       }
+    } catch {
+      console.warn(
+        `Dependency '${packageName}' was not found relative to ${relativeToPath}. ` +
+          `Optimized chunk splitting will be unavailable for '${packageName}'.`
+      )
+    }
   }
 
-  for (const packageName of ["react", "react-dom", "next"]) {
-      addPackagePath(packageName, dir)
+  for (const packageName of ['react', 'react-dom', 'next']) {
+    addPackagePath(packageName, dir)
   }
 
   // Select appropriate SplitChunksPlugin config for this build
@@ -753,8 +753,8 @@ export default async function getBaseWebpackConfig(
               if (!resource) {
                 return false
               }
-              return Array.from(topLevelFrameworkPaths).some((packagePath: string) =>
-                resource.startsWith(packagePath)
+              return Array.from(topLevelFrameworkPaths).some(
+                (packagePath: string) => resource.startsWith(packagePath)
               )
             },
             priority: 40,
