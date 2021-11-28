@@ -11,12 +11,13 @@ export default withSession(async (req, res) => {
     // to get more information on the user if needed
     if (checkExpired(user[aTIndex])) {
       // Get new access/auth token
-      const newAccessToken = refreshAuthToken(user[rtIndex])[aTIndex]
+      const newAccessToken = (await refreshAuthToken(user[rtIndex]))[aTIndex]
       // Remove old access/auth token and store in cookie
       let oldUser = user
       delete oldUser[aTIndex]
       const newUser = { ...oldUser, [aTIndex]: newAccessToken }
       await req.session.set('user', newUser)
+      await req.session.save()
       // Send back the updated user data
       const savedUser = await req.session.get('user')
       res.json({
