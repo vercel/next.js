@@ -27,7 +27,7 @@ Update your build script in `package.json` to use `next export`:
 
 Running `npm run build` will generate an `out` directory.
 
-With `next export`, we build an HTML version of your app. At export time, we call [`getStaticProps`](/docs/basic-features/data-fetching.md#getstaticprops-static-generation) for each page that exports it, and pass the result to the page's component. `next export` will generate an HTML file for each page in your `pages` directory (or more for [dynamic routes](/docs/routing/dynamic-routes.md), where it will call [`getStaticPaths`](/docs/basic-features/data-fetching.md#getstaticpaths-static-generation) and generate pages based on the result).
+`next export` builds an HTML version of your app. During `next build`, [`getStaticProps`](/docs/basic-features/data-fetching.md#getstaticprops-static-generation) and [`getStaticPaths`](/docs/basic-features/data-fetching.md#getstaticpaths-static-generation) will generate an HTML file for each page in your `pages` directory (or more for [dynamic routes](/docs/routing/dynamic-routes.md). Then, `next export` will copy the already exported files into the correct directory. `getInitialProps` will generate the HTML files during `next export` instead of `next build`.
 
 For more advanced scenarios, you can define a parameter called [`exportPathMap`](/docs/api-reference/next.config.js/exportPathMap.md) in your [`next.config.js`](/docs/api-reference/next.config.js/introduction.md) file to configure exactly which pages will be generated.
 
@@ -35,7 +35,7 @@ For more advanced scenarios, you can define a parameter called [`exportPathMap`]
 
 The majority of core Next.js features needed to build a static site are supported, including:
 
-- [Dynamic Routes](/docs/routing/dynamic-routes.md)
+- [Dynamic Routes when using `getStaticPaths`](/docs/routing/dynamic-routes.md)
 - Prefetching with `next/link`
 - Preloading JavaScript
 - [Dynamic Imports](/docs/advanced-features/dynamic-import.md)
