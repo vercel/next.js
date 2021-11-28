@@ -61,10 +61,10 @@ describe('React 18 Support', () => {
   describe('Use legacy render', () => {
     beforeAll(async () => {
       await fs.remove(join(appDir, 'node_modules'))
-      nextConfig.replace('reactRoot: true', '// reactRoot: true')
+      nextConfig.replace('reactRoot: true', 'reactRoot: false')
     })
     afterAll(() => {
-      nextConfig.replace('// reactRoot: true', 'reactRoot: true')
+      nextConfig.replace('reactRoot: false', 'reactRoot: true')
     })
 
     test('supported version of react in dev', async () => {

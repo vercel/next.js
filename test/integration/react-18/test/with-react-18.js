@@ -1,5 +1,7 @@
 module.exports = function withReact18(config) {
-  config.experimental.reactRoot = true
+  if (typeof config.experimental.reactRoot === 'undefined') {
+    config.experimental.reactRoot = true
+  }
 
   config.webpack = (webpackConfig) => {
     const { alias } = webpackConfig.resolve
