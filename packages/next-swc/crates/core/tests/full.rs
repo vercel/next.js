@@ -30,7 +30,7 @@ fn test(input: &Path, minify: bool) {
             let options = TransformOptions {
                 swc: swc::config::Options {
                     swcrc: true,
-                    is_module: true,
+                    is_module: swc::config::IsModule::Bool(true),
                     output_path: Some(output.to_path_buf()),
 
                     config: swc::config::Config {
@@ -58,6 +58,7 @@ fn test(input: &Path, minify: bool) {
                 is_development: true,
                 styled_components: Some(assert_json("{}")),
                 remove_console: None,
+                react_remove_properties: None,
             };
 
             let options = options.patch(&fm);
