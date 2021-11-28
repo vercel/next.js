@@ -1,6 +1,6 @@
 import { stringifyRequest } from '../../stringify-request'
 
-export default async function middlewareRSCLoader(this: any) {
+export default async function middlewareSSRLoader(this: any) {
   const {
     absolutePagePath,
     absoluteAppPath,

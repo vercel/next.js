@@ -32,7 +32,7 @@ jobs:
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         with:
           profile: minimal
-          toolchain: nightly-2021-08-12
+          toolchain: nightly-2021-11-15
 
       - name: Cache cargo registry
         uses: actions/cache@v1
@@ -54,7 +54,7 @@ jobs:
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         with:
           path: packages/next-swc/native/next-swc.linux-x64-gnu.node
-          key: dev-next-swc-nightly-2021-08-12-linux-x64-gnu-${{ hashFiles('.github/workflows/build_test_deploy.yml', 'packages/next-swc/**') }}
+          key: dev-next-swc-nightly-2021-11-15-linux-x64-gnu-${{ hashFiles('.github/workflows/build_test_deploy.yml', 'packages/next-swc/**') }}
 
       # We use restore-key to pick latest cache.
       # We will not get exact match, but doc says

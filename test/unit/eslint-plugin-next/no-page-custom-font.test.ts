@@ -12,10 +12,12 @@ import { RuleTester } from 'eslint'
 })
 const ruleTester = new RuleTester()
 
+const filename = 'pages/_document.js'
+
 ruleTester.run('no-page-custom-font', rule, {
   valid: [
-    `import Document, { Html, Head } from "next/document";
-
+    {
+      code: `import Document, { Html, Head } from "next/document";
     class MyDocument extends Document {
       render() {
         return (
@@ -30,11 +32,11 @@ ruleTester.run('no-page-custom-font', rule, {
         );
       }
     }
-    
-    export default MyDocument;
-    `,
-    `import NextDocument, { Html, Head } from "next/document";
-
+    export default MyDocument;`,
+      filename,
+    },
+    {
+      code: `import NextDocument, { Html, Head } from "next/document";
     class Document extends NextDocument {
       render() {
         return (
@@ -49,42 +51,46 @@ ruleTester.run('no-page-custom-font', rule, {
         );
       }
     }
-    
     export default Document;
     `,
-  ],
-
-  invalid: [
+      filename,
+    },
     {
-      code: `
-      import Head from 'next/head'
+      code: `export default function CustomDocument() {
+      return (
+        <Html>
+          <Head>
+            <link
+              href="https://fonts.googleapis.com/css2?family=Krona+One&display=swap"
+              rel="stylesheet"
+            />
+          </Head>
+        </Html>
+      )
+    }`,
+      filename,
+    },
+    {
+      code: `function CustomDocument() {
+      return (
+        <Html>
+          <Head>
+            <link
+              href="https://fonts.googleapis.com/css2?family=Krona+One&display=swap"
+              rel="stylesheet"
+            />
+          </Head>
+        </Html>
+      )
+    }
 
-      export default function IndexPage() {
-        return (
-          <div>
-            <Head>
-              <link
-                href="https://fonts.googleapis.com/css2?family=Inter"
-                rel="stylesheet"
-              />
-            </Head>
-            <p>Hello world!</p>
-          </div>
-        )
-      }
-      `,
-      errors: [
-        {
-          message:
-            'Custom fonts not added at the document level will only load for a single page. This is discouraged. See https://nextjs.org/docs/messages/no-page-custom-font.',
-          type: 'JSXOpeningElement',
-        },
-      ],
+    export default CustomDocument;
+    `,
+      filename,
     },
     {
       code: `
       import Document, { Html, Head } from "next/document";
-
       class MyDocument {
         render() {
           return (
@@ -101,11 +107,77 @@ ruleTester.run('no-page-custom-font', rule, {
       }
       
       export default MyDocument;`,
+      filename,
+    },
+  ],
+
+  invalid: [
+    {
+      code: `
+      import Head from 'next/head'
+      export default function IndexPage() {
+        return (
+          <div>
+            <Head>
+              <link
+                href="https://fonts.googleapis.com/css2?family=Inter"
+                rel="stylesheet"
+              />
+            </Head>
+            <p>Hello world!</p>
+          </div>
+        )
+      }
+      `,
+      filename: 'pages/index.tsx',
       errors: [
         {
           message:
             'Custom fonts not added at the document level will only load for a single page. This is discouraged. See https://nextjs.org/docs/messages/no-page-custom-font.',
           type: 'JSXOpeningElement',
+        },
+      ],
+    },
+    {
+      code: `
+      import Head from 'next/head'
+
+
+      function Links() {
+        return (
+          <>
+            <link
+              href="https://fonts.googleapis.com/css2?family=Inter"
+              rel="stylesheet"
+            />
+            <link
+              href="https://fonts.googleapis.com/css2?family=Open+Sans"
+              rel="stylesheet"
+              />  
+          </>
+        )
+      }
+
+      export default function IndexPage() {
+        return (
+          <div>
+            <Head>
+              <Links />
+            </Head>
+            <p>Hello world!</p>
+          </div>
+        )
+      }
+      `,
+      filename,
+      errors: [
+        {
+          message:
+            'Rendering this <link /> not inline within <Head> of Document disables font optimization. This is discouraged. See https://nextjs.org/docs/messages/no-page-custom-font.',
+        },
+        {
+          message:
+            'Rendering this <link /> not inline within <Head> of Document disables font optimization. This is discouraged. See https://nextjs.org/docs/messages/no-page-custom-font.',
         },
       ],
     },
