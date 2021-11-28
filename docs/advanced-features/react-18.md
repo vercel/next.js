@@ -33,7 +33,7 @@ Once enabled, you can use Suspense and SSR streaming for all pages. This also me
 
 ```jsx
 import dynamic from 'next/dynamic'
-import { lazy } from 'react'
+import { lazy, Suspense } from 'react'
 
 import Content from '../components/content'
 
