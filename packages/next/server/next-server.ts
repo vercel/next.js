@@ -1,24 +1,31 @@
+import type { __ApiPreviewProps } from './api-utils'
+import type { CustomRoutes, Header } from '../lib/load-custom-routes'
+import type { DomainLocale } from './config'
+import type { DynamicRoutes, PageChecker, Params, Route } from './router'
+import type { FetchEventResult } from './web/types'
+import type { FontManifest } from './font-utils'
+import type { IncomingMessage, ServerResponse } from 'http'
+import type { LoadComponentsReturnType } from './load-components'
+import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
+import type { NextApiRequest, NextApiResponse } from '../shared/lib/utils'
+import type { NextConfigComplete } from './config-shared'
+import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
+import type { ParsedNextUrl } from '../shared/lib/router/utils/parse-next-url'
+import type { ParsedUrl } from '../shared/lib/router/utils/parse-url'
+import type { ParsedUrlQuery } from 'querystring'
+import type { PrerenderManifest } from '../build'
+import type { Redirect, Rewrite, RouteType } from '../lib/load-custom-routes'
+import type { RenderOpts, RenderOptsPartial } from './render'
+import type { ResponseCacheEntry, ResponseCacheValue } from './response-cache'
+import type { UrlWithParsedQuery } from 'url'
+
 import compression from 'next/dist/compiled/compression'
 import fs from 'fs'
-import { IncomingMessage, ServerResponse } from 'http'
 import Proxy from 'next/dist/compiled/http-proxy'
 import { join, relative, resolve, sep } from 'path'
-import {
-  parse as parseQs,
-  stringify as stringifyQs,
-  ParsedUrlQuery,
-} from 'querystring'
-import { format as formatUrl, parse as parseUrl, UrlWithParsedQuery } from 'url'
-import { PrerenderManifest } from '../build'
-import {
-  getRedirectStatus,
-  Header,
-  Redirect,
-  Rewrite,
-  RouteType,
-  CustomRoutes,
-  modifyRouteRegex,
-} from '../lib/load-custom-routes'
+import { parse as parseQs, stringify as stringifyQs } from 'querystring'
+import { format as formatUrl, parse as parseUrl } from 'url'
+import { getRedirectStatus, modifyRouteRegex } from '../lib/load-custom-routes'
 import {
   BUILD_ID_FILE,
   CLIENT_PUBLIC_FILES_PATH,
@@ -45,8 +52,6 @@ import * as envConfig from '../shared/lib/runtime-config'
 import {
   DecodeError,
   isResSent,
-  NextApiRequest,
-  NextApiResponse,
   normalizeRepeatedSlashes,
 } from '../shared/lib/utils'
 import {
@@ -54,23 +59,15 @@ import {
   setLazyProp,
   getCookieParser,
   tryGetPreviewData,
-  __ApiPreviewProps,
 } from './api-utils'
-import { DomainLocale, isTargetLikeServerless, NextConfig } from './config'
+import { isTargetLikeServerless } from './config'
 import pathMatch from '../shared/lib/router/utils/path-match'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
-import { loadComponents, LoadComponentsReturnType } from './load-components'
+import { loadComponents } from './load-components'
 import { normalizePagePath } from './normalize-page-path'
-import { RenderOpts, RenderOptsPartial, renderToHTML } from './render'
+import { renderToHTML } from './render'
 import { getPagePath, requireFontManifest } from './require'
-import Router, {
-  DynamicRoutes,
-  PageChecker,
-  Params,
-  replaceBasePath,
-  route,
-  Route,
-} from './router'
+import Router, { replaceBasePath, route } from './router'
 import {
   compileNonPath,
   prepareDestination,
@@ -93,23 +90,13 @@ import { detectDomainLocale } from '../shared/lib/i18n/detect-domain-locale'
 import escapePathDelimiters from '../shared/lib/router/utils/escape-path-delimiters'
 import { getUtils } from '../build/webpack/loaders/next-serverless-loader/utils'
 import { PreviewData } from 'next/types'
-import ResponseCache, {
-  ResponseCacheEntry,
-  ResponseCacheValue,
-} from './response-cache'
-import { NextConfigComplete } from './config-shared'
+import ResponseCache from './response-cache'
 import { parseNextUrl } from '../shared/lib/router/utils/parse-next-url'
 import isError from '../lib/is-error'
 import { getMiddlewareInfo } from './require'
 import { MIDDLEWARE_ROUTE } from '../lib/constants'
 import { NextResponse } from './web/spec-extension/response'
 import { run } from './web/sandbox'
-import type { FontManifest } from './font-utils'
-import type { FetchEventResult } from './web/types'
-import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
-import type { ParsedNextUrl } from '../shared/lib/router/utils/parse-next-url'
-import type { ParsedUrl } from '../shared/lib/router/utils/parse-url'
-import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
 import { addRequestMeta, getRequestMeta } from './request-meta'
 import { toNodeHeaders } from './web/utils'
 
@@ -132,21 +119,47 @@ interface RoutingItem {
   ssr?: boolean
 }
 
-export type ServerConstructor = {
+export interface Options {
   /**
-   * Where the Next project is located - @default '.'
+   * Object containing the configuration next.config.js
+   */
+  conf: NextConfigComplete
+  /**
+   * Set to false when the server was created by Next.js
+   */
+  customServer?: boolean
+  /**
+   * Tells if Next.js is running in dev mode
+   */
+  dev?: boolean
+  /**
+   * Where the Next project is located
    */
   dir?: string
   /**
-   * Hide error messages containing server information - @default false
+   * Tells if Next.js is running in a Serverless platform
+   */
+  minimalMode?: boolean
+  /**
+   * Hide error messages containing server information
    */
   quiet?: boolean
   /**
-   * Object what you would use in next.config.js - @default {}
+   * The hostname the server is running behind
    */
-  conf?: NextConfig | null
-  dev?: boolean
-  customServer?: boolean
+  hostname?: string
+  /**
+   * The port the server is running behind
+   */
+  port?: number
+}
+
+export interface RequestHandler {
+  (
+    req: IncomingMessage,
+    res: ServerResponse,
+    parsedUrl?: NextUrlWithParsedQuery | undefined
+  ): Promise<void>
 }
 
 type RequestContext = {
@@ -202,6 +215,8 @@ export default class Server {
   protected customRoutes: CustomRoutes
   protected middlewareManifest?: MiddlewareManifest
   protected middleware?: RoutingItem[]
+  public readonly hostname?: string
+  public readonly port?: number
 
   public constructor({
     dir = '.',
@@ -210,12 +225,16 @@ export default class Server {
     dev = false,
     minimalMode = false,
     customServer = true,
-  }: ServerConstructor & { conf: NextConfig; minimalMode?: boolean }) {
+    hostname,
+    port,
+  }: Options) {
     this.dir = resolve(dir)
     this.quiet = quiet
     loadEnvConfig(this.dir, dev, Log)
 
-    this.nextConfig = conf as NextConfigComplete
+    this.nextConfig = conf
+    this.hostname = hostname
+    this.port = port
 
     this.distDir = join(this.dir, this.nextConfig.distDir)
     this.publicDir = join(this.dir, CLIENT_PUBLIC_FILES_PATH)
@@ -539,7 +558,7 @@ export default class Server {
     }
   }
 
-  public getRequestHandler() {
+  public getRequestHandler(): RequestHandler {
     return this.handleRequest.bind(this)
   }
 
