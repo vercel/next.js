@@ -123,7 +123,7 @@ If you are using `layout="fill"` or `layout="responsive"`, it's important to ass
 
 For example, when the parent element will constrain the image to always be less than half the viewport width, use `sizes="50vw"`. Without `sizes`, the image will be sent at twice the necessary resolution, decreasing performance.
 
-If you are using `layout="intrinsic"` or `layout="fixed"`, then `sizes` is not needed because the upperbound width is constrained already.
+If you are using `layout="intrinsic"` or `layout="fixed"`, then `sizes` is not needed because the upper bound width is constrained already.
 
 [Learn more](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/img#attr-sizes).
 

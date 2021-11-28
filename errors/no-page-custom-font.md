@@ -2,7 +2,8 @@
 
 ### Why This Error Occurred
 
-A custom font was added to a page and not with a custom `Document`. This only adds the font to the specific page and not to the entire application.
+- The custom font you're adding was added to a page - this only adds the font to the specific page and not the entire application.
+- The custom font you're adding was added to a separate component within `Document` - this disables automatic font optimiztion.
 
 ### Possible Ways to Fix It
 
@@ -35,9 +36,34 @@ class MyDocument extends Document {
 export default MyDocument
 ```
 
+Or as a function component:
+
+```js
+// pages/_document.js
+
+import { Html, Head, Main, NextScript } from 'next/document'
+
+export default function Document() {
+  return (
+    <Html>
+      <Head>
+        <link
+          href="https://fonts.googleapis.com/css2?family=Inter&display=optional"
+          rel="stylesheet"
+        />
+      </Head>
+      <body>
+        <Main />
+        <NextScript />
+      </body>
+    </Html>
+  )
+}
+```
+
 ### When Not To Use It
 
-If you have a reason to only load a font for a particular page, then you can disable this rule.
+If you have a reason to only load a font for a particular page or don't care about font optimization, then you can disable this rule.
 
 ### Useful Links
 

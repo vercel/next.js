@@ -51,7 +51,7 @@ yarn build
 yarn prepublish
 ```
 
-By default the latest canary of the next-swc binaries will be installed and used. If you are actively working on Rust code or you need to test out the most recent Rust code that hasn't been published as a canary yet you can [install Rust](https://www.rust-lang.org/tools/install) and run `yarn --cwd packages/next build-native`.
+By default the latest canary of the next-swc binaries will be installed and used. If you are actively working on Rust code or you need to test out the most recent Rust code that hasn't been published as a canary yet you can [install Rust](https://www.rust-lang.org/tools/install) and run `yarn --cwd packages/next-swc build-native`.
 
 If you need to clean the project for any reason, use `yarn clean`.
 
@@ -164,7 +164,24 @@ There are two options to develop with your local version of the codebase:
    yarn install --force
    ```
 
-or
+#### Troubleshooting
+
+- If you see the below error while running `yarn dev` with next:
+
+```
+Failed to load SWC binary, see more info here: https://nextjs.org/docs/messages/failed-loading-swc
+```
+
+Try to add the below section to your `package.json`, then run again
+
+```json
+"optionalDependencies": {
+  "@next/swc-linux-x64-gnu": "canary",
+  "@next/swc-win32-x64-msvc": "canary",
+  "@next/swc-darwin-x64": "canary",
+  "@next/swc-darwin-arm64": "canary"
+},
+```
 
 ### Develop inside the monorepo
 

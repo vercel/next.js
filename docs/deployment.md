@@ -67,7 +67,7 @@ Next.js can be deployed to any hosting provider that supports Node.js. Make sure
 ```json
 {
   "scripts": {
-    "dev": "next",
+    "dev": "next dev",
     "build": "next build",
     "start": "next start"
   }

@@ -8,6 +8,7 @@ import {
   killApp,
   launchApp,
   nextBuild,
+  renderViaHTTP,
   waitFor,
 } from 'next-test-utils'
 
@@ -45,7 +46,8 @@ describe('Middleware usage of dynamic code evaluation', () => {
       expect(output).toContain(DYNAMIC_CODE_ERROR)
       expect(output).toContain('DynamicCodeEvaluationWarning')
       expect(output).toContain('pages/_middleware')
-      expect(output).toContain('lib/utils.js')
+      // TODO check why that has a backslash on windows
+      expect(output).toMatch(/lib[\\/]utils\.js/)
       expect(output).toContain('usingEval')
       expect(stripAnsi(output)).toContain("value: eval('100')")
     })
@@ -55,6 +57,13 @@ describe('Middleware usage of dynamic code evaluation', () => {
       const json = await res.json()
       await waitFor(500)
       expect(json.value).toEqual(100)
+      expect(output).not.toContain(DYNAMIC_CODE_ERROR)
+    })
+
+    it('does not has problems with eval in page or server code', async () => {
+      const html = await renderViaHTTP(context.appPort, `/`)
+      expect(html).toMatch(/>100<!-- --> and <!-- -->100<\//)
+      await waitFor(500)
       expect(output).not.toContain(DYNAMIC_CODE_ERROR)
     })
   })

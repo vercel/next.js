@@ -13,6 +13,24 @@ export async function middleware(request) {
     })
   }
 
+  if (url.pathname.endsWith('/fetchURL')) {
+    const response = {}
+    try {
+      await fetch(new URL('http://localhost'))
+    } catch (err) {
+      response.error = {
+        name: err.name,
+        message: err.message,
+      }
+    } finally {
+      return new NextResponse(JSON.stringify(response), {
+        headers: {
+          'content-type': 'application/json; charset=utf-8',
+        },
+      })
+    }
+  }
+
   if (url.pathname.endsWith('/webcrypto')) {
     const response = {}
     try {
@@ -33,6 +51,12 @@ export async function middleware(request) {
         },
       })
     }
+  }
+
+  if (url.pathname.endsWith('/root-subrequest')) {
+    return fetch(
+      `http://${request.headers.get('host')}/interface/root-subrequest`
+    )
   }
 
   return new Response(null, {

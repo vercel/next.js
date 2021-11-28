@@ -6,3 +6,8 @@ export async function usingEval() {
 export async function notUsingEval() {
   return { value: 100 }
 }
+
+export function usingEvalSync() {
+  // eslint-disable-next-line no-eval
+  return { value: eval('100') }
+}

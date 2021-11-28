@@ -198,7 +198,7 @@ $primary-color: #64FF00
 
 ```js
 // pages/_app.js
-import variables from '../styles/variables.module.css'
+import variables from '../styles/variables.module.scss'
 
 export default function MyApp({ Component, pageProps }) {
   return (
