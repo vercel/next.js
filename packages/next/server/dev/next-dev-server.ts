@@ -1,19 +1,30 @@
+import type { __ApiPreviewProps } from '../api-utils'
+import type { CustomRoutes } from '../../lib/load-custom-routes'
+import type { FetchEventResult } from '../web/types'
+import type { FindComponentsResult } from '../next-server'
+import type { IncomingMessage, ServerResponse } from 'http'
+import type { LoadComponentsReturnType } from '../load-components'
+import type { Options as ServerOptions } from '../next-server'
+import type { Params } from '../router'
+import type { ParsedNextUrl } from '../../shared/lib/router/utils/parse-next-url'
+import type { ParsedUrlQuery } from 'querystring'
+import type { Server as HTTPServer } from 'http'
+import type { UrlWithParsedQuery } from 'url'
+
 import crypto from 'crypto'
 import fs from 'fs'
 import chalk from 'chalk'
-import { IncomingMessage, ServerResponse, Server as HTTPServer } from 'http'
 import { Worker } from 'jest-worker'
 import AmpHtmlValidator from 'next/dist/compiled/amphtml-validator'
 import findUp from 'next/dist/compiled/find-up'
 import { join as pathJoin, relative, resolve as pathResolve, sep } from 'path'
 import React from 'react'
-import { UrlWithParsedQuery } from 'url'
 import Watchpack from 'watchpack'
 import { ampValidation } from '../../build/output'
 import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../../lib/constants'
 import { fileExists } from '../../lib/file-exists'
 import { findPagesDir } from '../../lib/find-pages-dir'
-import loadCustomRoutes, { CustomRoutes } from '../../lib/load-custom-routes'
+import loadCustomRoutes from '../../lib/load-custom-routes'
 import { verifyTypeScriptSetup } from '../../lib/verifyTypeScriptSetup'
 import {
   PHASE_DEVELOPMENT_SERVER,
@@ -27,14 +38,9 @@ import {
   getSortedRoutes,
   isDynamicRoute,
 } from '../../shared/lib/router/utils'
-import { __ApiPreviewProps } from '../api-utils'
-import Server, {
-  WrappedBuildError,
-  ServerConstructor,
-  FindComponentsResult,
-} from '../next-server'
+import Server, { WrappedBuildError } from '../next-server'
 import { normalizePagePath } from '../normalize-page-path'
-import Router, { hasBasePath, Params, replaceBasePath, route } from '../router'
+import Router, { hasBasePath, replaceBasePath, route } from '../router'
 import { eventCliSession } from '../../telemetry/events'
 import { Telemetry } from '../../telemetry/storage'
 import { setGlobal } from '../../trace'
@@ -42,12 +48,7 @@ import HotReloader from './hot-reloader'
 import { findPageFile } from '../lib/find-page-file'
 import { getNodeOptionsWithoutInspect } from '../lib/utils'
 import { withCoalescedInvoke } from '../../lib/coalesced-function'
-import { NextConfig } from '../config'
-import { ParsedUrlQuery } from 'querystring'
-import {
-  LoadComponentsReturnType,
-  loadDefaultErrorComponents,
-} from '../load-components'
+import { loadDefaultErrorComponents } from '../load-components'
 import { DecodeError } from '../../shared/lib/utils'
 import { parseStack } from '@next/react-dev-overlay/lib/internal/helpers/parseStack'
 import {
@@ -57,8 +58,6 @@ import {
 import * as Log from '../../build/output/log'
 import isError from '../../lib/is-error'
 import { getMiddlewareRegex } from '../../shared/lib/router/utils/get-middleware-regex'
-import type { FetchEventResult } from '../web/types'
-import type { ParsedNextUrl } from '../../shared/lib/router/utils/parse-next-url'
 import { isCustomErrorPage, isReservedPage } from '../../build/utils'
 
 // Load ReactDevOverlay only when needed
@@ -69,6 +68,17 @@ const ReactDevOverlay = (props: any) => {
       require('@next/react-dev-overlay/lib/client').ReactDevOverlay
   }
   return ReactDevOverlayImpl(props)
+}
+
+export interface Options extends ServerOptions {
+  /**
+   * The HTTP Server that Next.js is running behind
+   */
+  httpServer?: HTTPServer
+  /**
+   * Tells of Next.js is running from the `next dev` command
+   */
+  isNextDevCommand?: boolean
 }
 
 export default class DevServer extends Server {
@@ -117,13 +127,7 @@ export default class DevServer extends Server {
     return this.staticPathsWorker
   }
 
-  constructor(
-    options: ServerConstructor & {
-      conf: NextConfig
-      isNextDevCommand?: boolean
-      httpServer?: HTTPServer
-    }
-  ) {
+  constructor(options: Options) {
     super({ ...options, dev: true })
     this.renderOpts.dev = true
     ;(this.renderOpts as any).ErrorDebug = ReactDevOverlay
