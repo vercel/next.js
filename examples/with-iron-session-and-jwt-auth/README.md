@@ -1,4 +1,4 @@
-# Example application using [`next-iron-session-with-JWT-authentication`](https://github.com/majhoolsoft/next-js-with-iron-session-and-JWT-authentication)
+# Example application using [`next-iron-session-with-JWT-auth`](https://github.com/majhoolsoft/next-js-with-iron-session-and-JWT-authentication)
 
 ---
 
