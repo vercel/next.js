@@ -16514,22 +16514,22 @@ rc@^1.0.1, rc@^1.1.6, rc@^1.2.7, rc@^1.2.8:
     minimist "^1.2.0"
     strip-json-comments "~2.0.1"
 
-"react-18@npm:react@18.0.0-alpha-13455d26d-20211104":
-  version "18.0.0-alpha-13455d26d-20211104"
-  resolved "https://registry.yarnpkg.com/react/-/react-18.0.0-alpha-13455d26d-20211104.tgz#e21dbcf65b72a8ca15c8b078853b4c3eca428d40"
-  integrity sha512-rECM1RFXERi6L1KyvOylhxIzBznD40YB3cT5sFno5hyIpMCfbuKgH9UFchz3eIXUZbSaWDa5ljSH71dvs4tZPg==
+"react-18@npm:react@18.0.0-beta-0cc724c77-20211125":
+  version "18.0.0-beta-0cc724c77-20211125"
+  resolved "https://registry.yarnpkg.com/react/-/react-18.0.0-beta-0cc724c77-20211125.tgz#e0050eb21c398902c5c0f7da9f4b8b52b8effd66"
+  integrity sha512-odsMe3EsqWSZy/ksPiSGuUcs41iAQQGEcws0565jsSQskJMLm7NOZ51AAoClIj8kZI4i3uHe/o22tZff9EsGnA==
   dependencies:
     loose-envify "^1.1.0"
     object-assign "^4.1.1"
 
-"react-dom-18@npm:react-dom@18.0.0-alpha-13455d26d-20211104":
-  version "18.0.0-alpha-13455d26d-20211104"
-  resolved "https://registry.yarnpkg.com/react-dom/-/react-dom-18.0.0-alpha-13455d26d-20211104.tgz#e56be16370bfe2c1c9f68876f251ab995c22b6a6"
-  integrity sha512-LwfWfMoVjc6GCmqvhYeC07Pdn643GYCT0BvIAJWHRIVwdAdaSvSlnVl0iTpWVu4D9KMMEAZf1xSS3m/2NuGJ9w==
+"react-dom-18@npm:react-dom@18.0.0-beta-0cc724c77-20211125":
+  version "18.0.0-beta-0cc724c77-20211125"
+  resolved "https://registry.yarnpkg.com/react-dom/-/react-dom-18.0.0-beta-0cc724c77-20211125.tgz#7f7ac2a37e69c16cb97a42a52ffe24e80ab02027"
+  integrity sha512-SzWHSBjNIzn43jB+IeQhqgQE3zLJTFMv5KzvSFttKC9QSBS11vuYLdELjpiUNAMaAOmY4qmcnLEQvmKNwGK5fQ==
   dependencies:
     loose-envify "^1.1.0"
     object-assign "^4.1.1"
-    scheduler "0.21.0-alpha-13455d26d-20211104"
+    scheduler "0.21.0-beta-0cc724c77-20211125"
 
 react-dom@17.0.2:
   version "17.0.2"
@@ -17496,10 +17496,10 @@ saxes@^5.0.1:
   dependencies:
     xmlchars "^2.2.0"
 
-scheduler@0.21.0-alpha-13455d26d-20211104:
-  version "0.21.0-alpha-13455d26d-20211104"
-  resolved "https://registry.yarnpkg.com/scheduler/-/scheduler-0.21.0-alpha-13455d26d-20211104.tgz#e317f99cdc61ec047abb91153b198374f9ae0d20"
-  integrity sha512-unjpzhesSK4cHetlpEKmHolIUMSb6HdRzmYK2fTK8rHd4TfooyzYPgytPClL2dd4r7aItvs7389uWiYZWcTB4A==
+scheduler@0.21.0-beta-0cc724c77-20211125:
+  version "0.21.0-beta-0cc724c77-20211125"
+  resolved "https://registry.yarnpkg.com/scheduler/-/scheduler-0.21.0-beta-0cc724c77-20211125.tgz#2251f681a2e4e24bb0ad42909ce6dae253a39925"
+  integrity sha512-ZqjVAbosIfddFmNMdlJO/F0kr33qdgTGlLFCgIXsNIz/SjNq0Hn+lIaYtaIQPhZRFPwIgYOt+ssui0zZJ58rVg==
   dependencies:
     loose-envify "^1.1.0"
     object-assign "^4.1.1"
@@ -19884,7 +19884,7 @@ watchpack-chokidar2@^2.0.0:
   dependencies:
     chokidar "^2.1.8"
 
-watchpack@2.3.0, watchpack@^2.2.0, watchpack@^2.3.0:
+watchpack@2.3.0, watchpack@^2.3.0:
   version "2.3.0"
   resolved "https://registry.yarnpkg.com/watchpack/-/watchpack-2.3.0.tgz#a41bca3da6afaff31e92a433f4c856a0c25ea0c4"
   integrity sha512-MnN0Q1OsvB/GGHETrFeZPQaOelWh/7O+EiFlj8sM9GPjtQkis7k01aAxrg/18kTfoIVcLL+haEVFlXDaSRwKRw==
@@ -19981,7 +19981,7 @@ webpack-bundle-analyzer@4.3.0:
     source-list-map "^2.0.0"
     source-map "~0.6.1"
 
-"webpack-sources3@npm:webpack-sources@3.2.2", webpack-sources@^3.2.0, webpack-sources@^3.2.2:
+"webpack-sources3@npm:webpack-sources@3.2.2", webpack-sources@^3.2.2:
   version "3.2.2"
   resolved "https://registry.yarnpkg.com/webpack-sources/-/webpack-sources-3.2.2.tgz#d88e3741833efec57c4c789b6010db9977545260"
   integrity sha512-cp5qdmHnu5T8wRg2G3vZZHoJPN14aqQ89SyQ11NpGH5zEMDCclt49rzo+MaRazk7/UeILhAI+/sEtcM+7Fr0nw==
