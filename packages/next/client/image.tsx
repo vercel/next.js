@@ -649,9 +649,8 @@ export default function Image({
     imageSizesPropName = imageSizesPropName.toLowerCase()
   }
   const linkProps = {
-    // @ts-ignore: imagesrcset is not yet in the link element type.
+    // Note: imagesrcset and imagesizes are not in the link element type with react 17.
     [imageSrcSetPropName]: imgAttributes.srcSet,
-    // @ts-ignore: imagesizes is not yet in the link element type.
     [imageSizesPropName]: imgAttributes.sizes,
   }
 
