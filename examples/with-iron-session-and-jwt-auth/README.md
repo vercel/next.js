@@ -36,7 +36,7 @@ Preview the example live on [Vercel](http://vercel.com/):
 
 ## Deploy your own
 
-[`Example with Graphql API is comming soon.`](#)
+[`How to deploy with Graphql API.`](https://medium.com/@majhool.yf/how-to-authenticate-react-next-js-e3ccf3c2860e)
 
 This package comes with 2 sample data files which can be found in /lib.
 
