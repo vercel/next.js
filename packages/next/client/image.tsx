@@ -642,6 +642,19 @@ export default function Image({
     }
   }
 
+  let imageSrcSetPropName = 'imageSrcSet'
+  let imageSizesPropName = 'imageSizes'
+  if (!process.env.__NEXT_REACT_ROOT) {
+    imageSrcSetPropName = imageSrcSetPropName.toLowerCase()
+    imageSizesPropName = imageSizesPropName.toLowerCase()
+  }
+  const linkProps = {
+    // @ts-ignore: imagesrcset is not yet in the link element type.
+    [imageSrcSetPropName]: imgAttributes.srcSet,
+    // @ts-ignore: imagesizes is not yet in the link element type.
+    [imageSizesPropName]: imgAttributes.sizes,
+  }
+
   return (
     <span style={wrapperStyle}>
       {hasSizer ? (
@@ -716,11 +729,8 @@ export default function Image({
             rel="preload"
             as="image"
             href={imgAttributes.srcSet ? undefined : imgAttributes.src}
-            // @ts-ignore: imagesrcset is not yet in the link element type.
-            imageSrcSet={imgAttributes.srcSet}
-            // @ts-ignore: imagesizes is not yet in the link element type.
-            imageSizes={imgAttributes.sizes}
-          ></link>
+            {...linkProps}
+          />
         </Head>
       ) : null}
     </span>
