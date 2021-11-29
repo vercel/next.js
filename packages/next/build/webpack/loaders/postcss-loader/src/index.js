@@ -56,13 +56,16 @@ export default async function loader(content, sourceMap, meta) {
         loaderSpan.setAttribute('astUsed', 'true')
       }
 
+      // Initializes postcss with plugins
+      const { postcssWithPlugins } = await options.postcss()
+
       let result
 
       try {
         result = await loaderSpan
           .traceChild('postcss-process')
           .traceAsyncFn(() =>
-            options.postcss.process(root || content, processOptions)
+            postcssWithPlugins.process(root || content, processOptions)
           )
       } catch (error) {
         if (error.file) {
