@@ -296,11 +296,11 @@ Under the hood, `next/jest` is automatically configuring Jest for you, including
 - Loading `.env` (and all variants) into `process.env`
 - Ignoring `node_modules` from test resolving and transforms
 - Ignoring `.next` from test resolving
-- Loading `next.config.js` for flags that enable experimental SWC transforms
+- Loading `next.config.js` for flags that enable SWC transforms
 
 ### Setting up Jest (with Babel)
 
-If you opt out of the [Rust Compiler](https://nextjs.org/docs/advanced-features/compiler), you will need to manually configure Jest and install `babel-jest` and `identity-obj-proxy` in addition to the packages above.
+If you opt-out of the [Rust Compiler](https://nextjs.org/docs/advanced-features/compiler), you will need to manually configure Jest and install `babel-jest` and `identity-obj-proxy` in addition to the packages above.
 
 Here are the recommended options to configure Jest for Next.js:
 
