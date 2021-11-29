@@ -38,7 +38,7 @@ import {
   ComponentsEnhancer,
   DocumentInitialProps,
   DocumentProps,
-  DocumentContext,
+  LegacyDocumentContext,
   HtmlContext,
   HtmlProps,
   getDisplayName,
@@ -47,6 +47,7 @@ import {
   NextComponentType,
   RenderPage,
   RenderPageResult,
+  ModernDocumentContext,
 } from '../shared/lib/utils'
 import type { NextApiRequestCookies, __ApiPreviewProps } from './api-utils'
 import { denormalizePagePath } from './denormalize-page-path'
@@ -62,6 +63,7 @@ import {
 import { DomainLocale } from './config'
 import RenderResult, { NodeWritablePiper } from './render-result'
 import isError from '../lib/is-error'
+import { Head, Html, Main, NextScript } from './document'
 
 let Writable: typeof import('stream').Writable
 let Buffer: typeof import('buffer').Buffer
@@ -573,7 +575,7 @@ export async function renderToHTML(
       )
     },
     defaultGetInitialProps: async (
-      docCtx: DocumentContext
+      docCtx: LegacyDocumentContext
     ): Promise<DocumentInitialProps> => {
       const enhanceApp = (AppComp: any) => {
         return (props: any) => <AppComp {...props} />
@@ -1300,11 +1302,20 @@ export async function renderToHTML(
   }
 
   const document = (
-    <AmpStateContext.Provider value={ampState}>
-      <HtmlContext.Provider value={htmlProps}>
-        {documentResult.documentElement(htmlProps)}
-      </HtmlContext.Provider>
-    </AmpStateContext.Provider>
+    <ModernDocumentContext.Provider
+      value={{
+        Head,
+        Html,
+        Main,
+        NextScript,
+      }}
+    >
+      <AmpStateContext.Provider value={ampState}>
+        <HtmlContext.Provider value={htmlProps}>
+          {documentResult.documentElement(htmlProps)}
+        </HtmlContext.Provider>
+      </AmpStateContext.Provider>
+    </ModernDocumentContext.Provider>
   )
 
   let documentHTML: string

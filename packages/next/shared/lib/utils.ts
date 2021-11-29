@@ -8,7 +8,13 @@ import type { NextRouter } from './router/router'
 import type { ParsedUrlQuery } from 'querystring'
 import type { PreviewData } from 'next/types'
 import type { UrlObject } from 'url'
-import { createContext } from 'react'
+import React, { createContext } from 'react'
+import {
+  HeadComponentProps,
+  HtmlComponentProps,
+  MainComponentProps,
+  NextScriptComponentProps,
+} from '../../server/document'
 
 export type NextComponentType<
   C extends BaseContext = NextPageContext,
@@ -24,7 +30,7 @@ export type NextComponentType<
 }
 
 export type DocumentType = NextComponentType<
-  DocumentContext,
+  LegacyDocumentContext,
   DocumentInitialProps,
   DocumentProps
 >
@@ -178,9 +184,11 @@ export type AppPropsType<
   __N_RSC?: boolean
 }
 
-export type DocumentContext = NextPageContext & {
+export type LegacyDocumentContext = NextPageContext & {
   renderPage: RenderPage
-  defaultGetInitialProps(ctx: DocumentContext): Promise<DocumentInitialProps>
+  defaultGetInitialProps(
+    ctx: LegacyDocumentContext
+  ): Promise<DocumentInitialProps>
 }
 
 export type DocumentInitialProps = RenderPageResult & {
@@ -193,6 +201,13 @@ export type MaybeDeferContentHook = (
   name: string,
   contentFn: () => JSX.Element
 ) => [boolean, JSX.Element]
+
+export type ModernDocumentContextValue = {
+  Head: React.ComponentType<HeadComponentProps>
+  Html: React.ComponentType<HtmlComponentProps>
+  Main: React.ComponentType<MainComponentProps>
+  NextScript: React.ComponentType<NextScriptComponentProps>
+}
 
 export type HtmlProps = {
   __NEXT_DATA__: NEXT_DATA
@@ -446,4 +461,11 @@ export class DecodeError extends Error {}
 export const HtmlContext = createContext<HtmlProps>(null as any)
 if (process.env.NODE_ENV !== 'production') {
   HtmlContext.displayName = 'HtmlContext'
+}
+
+export const ModernDocumentContext = createContext<ModernDocumentContextValue>(
+  null as any
+)
+if (process.env.NODE_ENV !== 'production') {
+  ModernDocumentContext.displayName = 'ModernDocumentContext'
 }
