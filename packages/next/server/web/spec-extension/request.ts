@@ -112,4 +112,5 @@ export interface RequestInit extends globalThis.RequestInit {
 
 interface UserAgent extends IResult {
   isBot: boolean
+  ua: string
 }
