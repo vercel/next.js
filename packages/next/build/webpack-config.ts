@@ -1139,6 +1139,7 @@ export default async function getBaseWebpackConfig(
       alias: [
         'error-loader',
         'next-swc-loader',
+        'webpack-ast-parser-loader',
         'next-client-pages-loader',
         'next-image-loader',
         'next-serverless-loader',
@@ -1221,6 +1222,10 @@ export default async function getBaseWebpackConfig(
             // Switch back to normal URL handling
             url: true,
           },
+        },
+        {
+          test: /[\\/]node_modules[\\/].*\.(js|cjs|mjs)$/,
+          use: 'webpack-ast-parser-loader',
         },
         {
           oneOf: [
