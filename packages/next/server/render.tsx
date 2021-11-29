@@ -419,7 +419,8 @@ export async function renderToHTML(
     !hasPageGetInitialProps &&
     defaultAppGetInitialProps &&
     !isSSG &&
-    !getServerSideProps
+    !getServerSideProps &&
+    !concurrentFeatures
 
   for (const methodName of [
     'getStaticProps',
@@ -1002,7 +1003,7 @@ export async function renderToHTML(
 
   if (renderServerComponentData) {
     const stream: ReadableStream = renderToReadableStream(
-      <OriginalComponent {...props} />,
+      <OriginalComponent {...props.pageProps} />,
       serverComponentManifest
     )
     const reader = stream.getReader()

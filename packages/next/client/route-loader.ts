@@ -1,5 +1,4 @@
-import { ComponentType } from 'react'
-import { ClientBuildManifest } from '../build/webpack/plugins/build-manifest-plugin'
+import type { ComponentType } from 'react'
 import getAssetPathFromRoute from '../shared/lib/router/utils/get-asset-path-from-route'
 import { requestIdleCallback } from './request-idle-callback'
 
@@ -11,36 +10,36 @@ const MS_MAX_IDLE_DELAY = 3800
 
 declare global {
   interface Window {
-    __BUILD_MANIFEST?: ClientBuildManifest
+    __BUILD_MANIFEST?: Record<string, string[]>
     __BUILD_MANIFEST_CB?: Function
-    __MIDDLEWARE_MANIFEST?: any
+    __MIDDLEWARE_MANIFEST?: [location: string, isSSR: boolean][]
     __MIDDLEWARE_MANIFEST_CB?: Function
   }
 }
 
-export interface LoadedEntrypointSuccess {
+interface LoadedEntrypointSuccess {
   component: ComponentType
   exports: any
 }
-export interface LoadedEntrypointFailure {
+interface LoadedEntrypointFailure {
   error: unknown
 }
-export type RouteEntrypoint = LoadedEntrypointSuccess | LoadedEntrypointFailure
+type RouteEntrypoint = LoadedEntrypointSuccess | LoadedEntrypointFailure
 
-export interface RouteStyleSheet {
+interface RouteStyleSheet {
   href: string
   content: string
 }
 
-export interface LoadedRouteSuccess extends LoadedEntrypointSuccess {
+interface LoadedRouteSuccess extends LoadedEntrypointSuccess {
   styles: RouteStyleSheet[]
 }
-export interface LoadedRouteFailure {
+interface LoadedRouteFailure {
   error: unknown
 }
-export type RouteLoaderEntry = LoadedRouteSuccess | LoadedRouteFailure
+type RouteLoaderEntry = LoadedRouteSuccess | LoadedRouteFailure
 
-export type Future<V> = {
+interface Future<V> {
   resolve: (entrypoint: V) => void
   future: Promise<V>
 }
@@ -211,34 +210,35 @@ function resolvePromiseWithTimeout<T>(
 // Only cache this response as a last resort if we cannot eliminate all other
 // code branches that use the Build Manifest Callback and push them through
 // the Route Loader interface.
-export function getClientBuildManifest(): Promise<ClientBuildManifest> {
+export function getClientBuildManifest() {
   if (self.__BUILD_MANIFEST) {
     return Promise.resolve(self.__BUILD_MANIFEST)
   }
 
-  const onBuildManifest: Promise<ClientBuildManifest> =
-    new Promise<ClientBuildManifest>((resolve) => {
-      // Mandatory because this is not concurrent safe:
-      const cb = self.__BUILD_MANIFEST_CB
-      self.__BUILD_MANIFEST_CB = () => {
-        resolve(self.__BUILD_MANIFEST!)
-        cb && cb()
-      }
-    })
+  const onBuildManifest = new Promise<Record<string, string[]>>((resolve) => {
+    // Mandatory because this is not concurrent safe:
+    const cb = self.__BUILD_MANIFEST_CB
+    self.__BUILD_MANIFEST_CB = () => {
+      resolve(self.__BUILD_MANIFEST!)
+      cb && cb()
+    }
+  })
 
-  return resolvePromiseWithTimeout<ClientBuildManifest>(
+  return resolvePromiseWithTimeout(
     onBuildManifest,
     MS_MAX_IDLE_DELAY,
     markAssetError(new Error('Failed to load client build manifest'))
   )
 }
 
-export function getMiddlewareManifest(): Promise<any> {
+export function getMiddlewareManifest() {
   if (self.__MIDDLEWARE_MANIFEST) {
     return Promise.resolve(self.__MIDDLEWARE_MANIFEST)
   }
 
-  const onMiddlewareManifest: Promise<any> = new Promise<any>((resolve) => {
+  const onMiddlewareManifest = new Promise<
+    [location: string, isSSR: boolean][]
+  >((resolve) => {
     const cb = self.__MIDDLEWARE_MANIFEST_CB
     self.__MIDDLEWARE_MANIFEST_CB = () => {
       resolve(self.__MIDDLEWARE_MANIFEST!)
