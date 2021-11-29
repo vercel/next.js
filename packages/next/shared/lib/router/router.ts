@@ -16,6 +16,8 @@ import {
   isAssetError,
   markAssetError,
 } from '../../../client/route-loader'
+import { RouterEvent } from '../../../client/router'
+import { handleClientScriptLoad } from '../../../client/script'
 import isError from '../../../lib/is-error'
 import { denormalizePagePath } from '../../../server/denormalize-page-path'
 import { normalizeLocalePath } from '../i18n/normalize-locale-path'
@@ -1234,6 +1236,14 @@ export default class Router implements BaseRouter {
         routeProps
       )
       let { error, props, __N_SSG, __N_SSP } = routeInfo
+
+      if(routeInfo.Component && routeInfo.Component.scriptLoader) {
+        const scripts = [].concat(routeInfo.Component.scriptLoader())
+
+        scripts.forEach(script => {
+          handleClientScriptLoad(script.props)
+        })
+      }
 
       // handle redirect on client-transition
       if ((__N_SSG || __N_SSP) && props) {

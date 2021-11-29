@@ -104,9 +104,9 @@ const loadScript = (props: ScriptProps): void => {
   document.body.appendChild(el)
 }
 
-function handleClientScriptLoad(props: ScriptProps) {
+export function handleClientScriptLoad(props: ScriptProps) {
   const { strategy = 'afterInteractive' } = props
-  if (strategy === 'afterInteractive') {
+  if (strategy === 'afterInteractive' || strategy === 'beforeInteractive') {
     loadScript(props)
   } else if (strategy === 'lazyOnload') {
     window.addEventListener('load', () => {
@@ -125,8 +125,19 @@ function loadLazyScript(props: ScriptProps) {
   }
 }
 
+function addBeforeInteractiveToCache() {
+  const scripts = document.querySelectorAll(
+    '[data-nscript="beforeInteractive"]'
+  )
+  scripts.forEach((script) => {
+    const cacheKey = script.id || script.src
+    LoadCache.add(cacheKey)
+  })
+}
+
 export function initScriptLoader(scriptLoaderItems: ScriptProps[]) {
   scriptLoaderItems.forEach(handleClientScriptLoad)
+  addBeforeInteractiveToCache()
 }
 
 function Script(props: ScriptProps): JSX.Element | null {
