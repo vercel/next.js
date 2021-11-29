@@ -59,7 +59,11 @@ By default, `next export` will generate an `out` directory, which can be served 
 
 ## Caveats
 
-- With `next export`, we build an HTML version of your app. At export time, we call [`getStaticProps`](/docs/basic-features/data-fetching.md#getstaticprops-static-generation) for each page that exports it, and pass the result to the page's component. It's also possible to use the older [`getInitialProps`](/docs/api-reference/data-fetching/getInitialProps.md) API instead of `getStaticProps`, but it comes with a few caveats:
+- With `next export`, we build an HTML version of your app. At export time, we call [`getStaticProps`](/docs/basic-features/data-fetching.md#getstaticprops-static-generation) for each page that exports it, and pass the result to the page's component.
+
+> **Note**: `getStaticProps` overrides anything configured in `exportPathMap`, this is by design.
+
+- It's also possible to use the older [`getInitialProps`](/docs/api-reference/data-fetching/getInitialProps.md) API instead of `getStaticProps`, but it comes with a few caveats:
 
   - `getInitialProps` cannot be used alongside `getStaticProps` or `getStaticPaths` on any given page. If you have dynamic routes, instead of using `getStaticPaths` you'll need to configure the [`exportPathMap`](/docs/api-reference/next.config.js/exportPathMap.md) parameter in your [`next.config.js`](/docs/api-reference/next.config.js/introduction.md) file to let the exporter know which HTML files it should output.
   - When `getInitialProps` is called during export, the `req` and `res` fields of its [`context`](/docs/api-reference/data-fetching/getInitialProps.md#context-object) parameter will be empty objects, since during export there is no server running.
