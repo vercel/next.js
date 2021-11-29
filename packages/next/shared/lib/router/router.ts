@@ -1004,7 +1004,7 @@ export default class Router implements BaseRouter {
       performance.mark('routeChange')
     }
 
-    const { shallow = false } = options
+    const { shallow = false, scroll = true } = options
     const routeProps = { shallow }
 
     if (this._inFlightRoute) {
@@ -1041,7 +1041,9 @@ export default class Router implements BaseRouter {
       Router.events.emit('hashChangeStart', as, routeProps)
       // TODO: do we need the resolved href when only a hash change?
       this.changeState(method, url, as, options)
-      this.scrollToHash(cleanedAs)
+      if (scroll) {
+        this.scrollToHash(cleanedAs)
+      }
       this.notify(this.components[this.route], null)
       Router.events.emit('hashChangeComplete', as, routeProps)
       return true
