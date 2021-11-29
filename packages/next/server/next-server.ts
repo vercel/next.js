@@ -95,7 +95,6 @@ import { parseNextUrl } from '../shared/lib/router/utils/parse-next-url'
 import isError from '../lib/is-error'
 import { getMiddlewareInfo } from './require'
 import { MIDDLEWARE_ROUTE } from '../lib/constants'
-import { NextResponse } from './web/spec-extension/response'
 import { run } from './web/sandbox'
 import { addRequestMeta, getRequestMeta } from './request-meta'
 import { toNodeHeaders } from './web/utils'
@@ -673,8 +672,6 @@ export default class Server {
       }
     }
 
-    const subreq = params.request.headers[`x-middleware-subrequest`]
-    const subrequests = typeof subreq === 'string' ? subreq.split(':') : []
     const allHeaders = new Headers()
     let result: FetchEventResult | null = null
 
@@ -693,14 +690,6 @@ export default class Server {
           page: middleware.page,
           serverless: this._isLikeServerless,
         })
-
-        if (subrequests.includes(middlewareInfo.name)) {
-          result = {
-            response: NextResponse.next(),
-            waitUntil: Promise.resolve(),
-          }
-          continue
-        }
 
         result = await run({
           name: middlewareInfo.name,
