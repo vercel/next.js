@@ -57,7 +57,7 @@ const Header = () => {
           )}
           <li>
             <a href="https://github.com/majhoolsoft/">
-              <img src="/JWT.png" width="32" height="32" alt="JWT Logo"/>
+              <img src="https://jwt.io/img/pic_logo.svg" width="32" height="32" alt="JWT Logo"/>
             </a>
           </li>
         </ul>
