@@ -15,7 +15,7 @@ export async function installDependencies(
   deps: any,
   dev: boolean = false
 ) {
-  const useYarn = shouldUseYarn()
+  const useYarn = shouldUseYarn(baseDir)
   const isOnline = !useYarn || (await getOnline())
 
   if (deps.length) {

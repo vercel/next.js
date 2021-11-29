@@ -1,15 +1,16 @@
 import { execSync } from 'child_process'
 import fs from 'fs'
+import path from 'path'
 
-export function shouldUseYarn(): boolean {
+export function shouldUseYarn(baseDir: string): boolean {
   try {
     const userAgent = process.env.npm_config_user_agent
     if (userAgent) {
       return Boolean(userAgent && userAgent.startsWith('yarn'))
     } else {
-      if (fs.existsSync('yarn.lock')) {
+      if (fs.existsSync(path.join(baseDir, 'yarn.lock'))) {
         return true
-      } else if (fs.existsSync('package-lock.json')) {
+      } else if (fs.existsSync(path.join(baseDir, 'package-lock.json'))) {
         return false
       }
       execSync('yarnpkg --version', { stdio: 'ignore' })
