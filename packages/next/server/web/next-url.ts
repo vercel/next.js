@@ -1,31 +1,22 @@
 import type { PathLocale } from '../../shared/lib/i18n/normalize-locale-path'
 import type { DomainLocale, I18NConfig } from '../config-shared'
 import { getLocaleMetadata } from '../../shared/lib/i18n/get-locale-metadata'
-import cookie from 'next/dist/compiled/cookie'
 import { replaceBasePath } from '../router'
-
-/**
- * TODO
- *
- * - Add comments to the URLNext API.
- * - Move internals to be using symbols for its shape.
- * - Make sure logging does not show any implementation details.
- * - Include in the event payload the nextJS configuration
- */
+import cookie from 'next/dist/compiled/cookie'
 
 interface Options {
+  base?: string | URL
   basePath?: string
   headers?: { [key: string]: string | string[] | undefined }
   i18n?: I18NConfig | null
   trailingSlash?: boolean
 }
 
-const REGEX_LOCALHOST_HOSTNAME =
-  /(?!^https?:\/\/)(127(?:\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}|::1)/
-
 export class NextURL extends URL {
-  private _basePath: string
-  private _locale?: {
+  #url: URL
+  #options: Options
+  #basePath: string
+  #locale?: {
     defaultLocale: string
     domain?: DomainLocale
     locale: string
@@ -33,34 +24,44 @@ export class NextURL extends URL {
     redirect?: string
     trailingSlash?: boolean
   }
-  private _options: Options
-  private _url: URL
 
-  constructor(input: string, options: Options = {}) {
-    const url = createWHATWGURL(input)
-    super(url)
-    this._options = options
-    this._basePath = ''
-    this._url = url
-    this.analyzeUrl()
-  }
+  constructor(input: string | URL, base?: string | URL, opts?: Options)
+  constructor(input: string | URL, opts?: Options)
+  constructor(
+    input: string | URL,
+    baseOrOpts?: string | URL | Options,
+    opts?: Options
+  ) {
+    super('http://127.0.0.1') // This works as a placeholder
 
-  get absolute() {
-    return this._url.hostname !== 'localhost'
-  }
+    let base: undefined | string | URL
+    let options: Options
 
-  analyzeUrl() {
-    const { headers = {}, basePath, i18n } = this._options
-
-    if (basePath && this._url.pathname.startsWith(basePath)) {
-      this._url.pathname = replaceBasePath(this._url.pathname, basePath)
-      this._basePath = basePath
+    if (baseOrOpts instanceof URL || typeof baseOrOpts === 'string') {
+      base = baseOrOpts
+      options = opts || {}
     } else {
-      this._basePath = ''
+      options = opts || baseOrOpts || {}
+    }
+
+    this.#url = parseURL(input, base ?? options.base)
+    this.#options = options
+    this.#basePath = ''
+    this.#analyzeUrl()
+  }
+
+  #analyzeUrl() {
+    const { headers = {}, basePath, i18n } = this.#options
+
+    if (basePath && this.#url.pathname.startsWith(basePath)) {
+      this.#url.pathname = replaceBasePath(this.#url.pathname, basePath)
+      this.#basePath = basePath
+    } else {
+      this.#basePath = ''
     }
 
     if (i18n) {
-      this._locale = getLocaleMetadata({
+      this.#locale = getLocaleMetadata({
         cookies: () => {
           const value = headers['cookie']
           return value
@@ -73,154 +74,150 @@ export class NextURL extends URL {
           i18n: i18n,
         },
         url: {
-          hostname: this._url.hostname || null,
-          pathname: this._url.pathname,
+          hostname: this.#url.hostname || null,
+          pathname: this.#url.pathname,
         },
       })
 
-      if (this._locale?.path.detectedLocale) {
-        this._url.pathname = this._locale.path.pathname
+      if (this.#locale?.path.detectedLocale) {
+        this.#url.pathname = this.#locale.path.pathname
       }
     }
   }
 
-  formatPathname() {
-    const { i18n } = this._options
-    let pathname = this._url.pathname
+  #formatPathname() {
+    const { i18n } = this.#options
+    let pathname = this.#url.pathname
 
-    if (this._locale?.locale && i18n?.defaultLocale !== this._locale?.locale) {
-      pathname = `/${this._locale?.locale}${pathname}`
+    if (this.#locale?.locale && i18n?.defaultLocale !== this.#locale?.locale) {
+      pathname = `/${this.#locale?.locale}${pathname}`
     }
 
-    if (this._basePath) {
-      pathname = `${this._basePath}${pathname}`
+    if (this.#basePath) {
+      pathname = `${this.#basePath}${pathname}`
     }
 
     return pathname
   }
 
   get locale() {
-    if (!this._locale) {
-      throw new TypeError(`The URL is not configured with i18n`)
-    }
-
-    return this._locale.locale
+    return this.#locale?.locale ?? ''
   }
 
   set locale(locale: string) {
-    if (!this._locale) {
-      throw new TypeError(`The URL is not configured with i18n`)
+    if (!this.#locale || !this.#options.i18n?.locales.includes(locale)) {
+      throw new TypeError(
+        `The NextURL configuration includes no locale "${locale}"`
+      )
     }
 
-    this._locale.locale = locale
+    this.#locale.locale = locale
   }
 
   get defaultLocale() {
-    return this._locale?.defaultLocale
+    return this.#locale?.defaultLocale
   }
 
   get domainLocale() {
-    return this._locale?.domain
+    return this.#locale?.domain
   }
 
   get searchParams() {
-    return this._url.searchParams
+    return this.#url.searchParams
   }
 
   get host() {
-    return this.absolute ? this._url.host : ''
+    return this.#url.host
   }
 
   set host(value: string) {
-    this._url.host = value
+    this.#url.host = value
   }
 
   get hostname() {
-    return this.absolute ? this._url.hostname : ''
+    return this.#url.hostname
   }
 
   set hostname(value: string) {
-    this._url.hostname = value || 'localhost'
+    this.#url.hostname = value
   }
 
   get port() {
-    return this.absolute ? this._url.port : ''
+    return this.#url.port
   }
 
   set port(value: string) {
-    this._url.port = value
+    this.#url.port = value
   }
 
   get protocol() {
-    return this.absolute ? this._url.protocol : ''
+    return this.#url.protocol
   }
 
   set protocol(value: string) {
-    this._url.protocol = value
+    this.#url.protocol = value
   }
 
   get href() {
-    const pathname = this.formatPathname()
-    return this.absolute
-      ? `${this.protocol}//${this.host}${pathname}${this._url.search}`
-      : `${pathname}${this._url.search}`
+    const pathname = this.#formatPathname()
+    return `${this.protocol}//${this.host}${pathname}${this.#url.search}`
   }
 
   set href(url: string) {
-    this._url = createWHATWGURL(url)
-    this.analyzeUrl()
+    this.#url = parseURL(url)
+    this.#analyzeUrl()
   }
 
   get origin() {
-    return this.absolute ? this._url.origin : ''
+    return this.#url.origin
   }
 
   get pathname() {
-    return this._url.pathname
+    return this.#url.pathname
   }
 
   set pathname(value: string) {
-    this._url.pathname = value
+    this.#url.pathname = value
   }
 
   get hash() {
-    return this._url.hash
+    return this.#url.hash
   }
 
   set hash(value: string) {
-    this._url.hash = value
+    this.#url.hash = value
   }
 
   get search() {
-    return this._url.search
+    return this.#url.search
   }
 
   set search(value: string) {
-    this._url.search = value
+    this.#url.search = value
   }
 
   get password() {
-    return this._url.password
+    return this.#url.password
   }
 
   set password(value: string) {
-    this._url.password = value
+    this.#url.password = value
   }
 
   get username() {
-    return this._url.username
+    return this.#url.username
   }
 
   set username(value: string) {
-    this._url.username = value
+    this.#url.username = value
   }
 
   get basePath() {
-    return this._basePath
+    return this.#basePath
   }
 
   set basePath(value: string) {
-    this._basePath = value.startsWith('/') ? value : `/${value}`
+    this.#basePath = value.startsWith('/') ? value : `/${value}`
   }
 
   toString() {
@@ -232,13 +229,12 @@ export class NextURL extends URL {
   }
 }
 
-function createWHATWGURL(url: string) {
-  url = url.replace(REGEX_LOCALHOST_HOSTNAME, 'localhost')
-  return isRelativeURL(url)
-    ? new URL(url.replace(/^\/+/, '/'), new URL('https://localhost'))
-    : new URL(url)
-}
+const REGEX_LOCALHOST_HOSTNAME =
+  /(?!^https?:\/\/)(127(?:\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}|::1|localhost)/
 
-function isRelativeURL(url: string) {
-  return url.startsWith('/')
+function parseURL(url: string | URL, base?: string | URL) {
+  return new URL(
+    String(url).replace(REGEX_LOCALHOST_HOSTNAME, 'localhost'),
+    base && String(base).replace(REGEX_LOCALHOST_HOSTNAME, 'localhost')
+  )
 }
