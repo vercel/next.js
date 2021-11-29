@@ -24,13 +24,11 @@ swc_ecma_loader = { version = "0.25.0", features = ["node", "lru"] }
 swc_ecmascript = { version = "0.95.0", features = ["codegen", "minifier", "optimization", "parser", "react", "transforms", "typescript", "utils", "visit"] }
 swc_node_base = "0.5.1"
 rayon = "1.5.1"
-swc_estree_ast = "0.2.0"
-swc_estree_compat = "0.3.0"
-swc_webpack_ast = "0.1.0"
+swc_webpack_ast = "0.2.1"
 
 [build-dependencies]
 napi-build = "1"
 
 [dev-dependencies]
-swc_ecma_transforms_testing = "0.45.0"
-testing = "0.15.1"
+swc_ecma_transforms_testing = "0.45.1"
+testing = "0.15.2"

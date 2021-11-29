@@ -900,8 +900,6 @@ dependencies = [
  "swc_ecma_loader",
  "swc_ecma_transforms_testing 0.45.2",
  "swc_ecmascript",
- "swc_estree_ast",
- "swc_estree_compat",
  "swc_node_base",
  "swc_webpack_ast",
  "testing 0.15.3",
@@ -2643,9 +2641,9 @@ dependencies = [
 
 [[package]]
 name = "swc_estree_ast"
-version = "0.2.0"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6d8cac7888f065afef9bd647a89179cc941a9b17e1c47c93a1dfe51587830ced"
+checksum = "a2f134cf78800a8e9875443d7a3470e370a2fe329e2e34fc244fd14b265bd325"
 dependencies = [
  "scoped-tls",
  "serde",
@@ -2656,9 +2654,9 @@ dependencies = [
 
 [[package]]
 name = "swc_estree_compat"
-version = "0.3.1"
+version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ead2f084cf22698115e0df571adbc1816e57f2b15f323256035d8263eec5a8f8"
+checksum = "d4f3f0f22ab58ebccff2cdbd50cf1cd1a6dcccdb48e6816103efba46ca1d5f5d"
 dependencies = [
  "ahash",
  "anyhow",
@@ -2826,9 +2824,9 @@ dependencies = [
 
 [[package]]
 name = "swc_webpack_ast"
-version = "0.1.0"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "80eaaddc50b3392917312282a49e1dc6bd28f49888648bf01e31a189a6b00fac"
+checksum = "c00e92c1810f79801c419229a69a643610034f5c75d0e5335917d23126a17737"
 dependencies = [
  "anyhow",
  "rayon",
