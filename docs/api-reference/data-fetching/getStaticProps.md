@@ -89,7 +89,7 @@ More information is covered in [Incremental Static Regeneration](/docs/basic-fea
 
 ### `notFound`
 
-The `notFound` boolean allows the page to return a 404 status and page. With `notFound: true` the page will return a 404 even if there was a successfully generated page before. This is meant to support use-cases like user generated content getting removed by its author.
+The `notFound` boolean allows the page to return a `404` status and [404 Page](/docs/advanced-features/custom-error-page.md#404-page). With `notFound: true`, the page will return a `404` even if there was a successfully generated page before. This is meant to support use-cases like user-generated content getting removed by its author.
 
 ```js
 export async function getStaticProps(context) {
