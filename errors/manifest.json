@@ -5,6 +5,10 @@
       "heading": true,
       "routes": [
         {
+          "title": "react-hydration-error",
+          "path": "/errors/react-hydration-error.md"
+        },
+        {
           "title": "beta-middleware",
           "path": "/errors/beta-middleware.md"
         },
@@ -514,6 +518,10 @@
         {
           "title": "experimental-jest-transformer",
           "path": "/errors/experimental-jest-transformer.md"
+        },
+        {
+          "title": "invalid-dynamic-options-type",
+          "path": "/errors/invalid-dynamic-options-type.md"
         }
       ]
     }

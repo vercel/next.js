@@ -5,6 +5,12 @@ import cheerio from 'cheerio'
 import { fetchViaHTTP, renderViaHTTP } from 'next-test-utils'
 
 export default (context) => {
+  it('no warnings for image related link props', async () => {
+    await renderViaHTTP(context.appPort, '/')
+    expect(context.stderr).not.toContain('Warning: Invalid DOM property')
+    expect(context.stderr).not.toContain('Warning: React does not recognize')
+  })
+
   it('hydrates correctly for normal page', async () => {
     const browser = await webdriver(context.appPort, '/')
     expect(await browser.eval('window.didHydrate')).toBe(true)

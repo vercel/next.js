@@ -1,0 +1,6 @@
+error: next/dynamic requires at least one argument
+ --> input.js:3:26
+  |
+3 | const DynamicComponent = dynamic()
+  |                          ^^^^^^^
+

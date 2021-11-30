@@ -281,12 +281,11 @@ export default async function build(
     const mappedPages = nextBuildSpan
       .traceChild('create-pages-mapping')
       .traceFn(() =>
-        createPagesMapping(
-          pagePaths,
-          config.pageExtensions,
-          false,
-          hasServerComponents
-        )
+        createPagesMapping(pagePaths, config.pageExtensions, {
+          isDev: false,
+          hasServerComponents,
+          hasConcurrentFeatures,
+        })
       )
 
     const entrypoints = nextBuildSpan
@@ -2057,8 +2056,6 @@ export default async function build(
   return buildResult
 }
 
-export type ClientSsgManifest = Set<string>
-
 function generateClientSsgManifest(
   prerenderManifest: PrerenderManifest,
   {
@@ -2067,7 +2064,7 @@ function generateClientSsgManifest(
     locales,
   }: { buildId: string; distDir: string; locales: string[] }
 ) {
-  const ssgPages: ClientSsgManifest = new Set<string>([
+  const ssgPages = new Set<string>([
     ...Object.entries(prerenderManifest.routes)
       // Filter out dynamic routes
       .filter(([, { srcRoute }]) => srcRoute == null)

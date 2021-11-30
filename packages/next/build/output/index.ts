@@ -107,10 +107,7 @@ let serverWebWasLoading = false
 buildStore.subscribe((state) => {
   const { amp, client, server, serverWeb, trigger } = state
 
-  const { bootstrap: bootstrapping, appUrl } = consoleStore.getState()
-  if (bootstrapping && (client.loading || server.loading)) {
-    return
-  }
+  const { appUrl } = consoleStore.getState()
 
   if (client.loading || server.loading || serverWeb?.loading) {
     consoleStore.setState(
@@ -184,8 +181,7 @@ buildStore.subscribe((state) => {
       ...(client.warnings || []),
       ...(server.warnings || []),
       ...((serverWeb && serverWeb.warnings) || []),
-      ...((Object.keys(amp).length > 0 && formatAmpMessages(amp)) || []),
-    ]
+    ].concat(formatAmpMessages(amp) || [])
 
     consoleStore.setState(
       {

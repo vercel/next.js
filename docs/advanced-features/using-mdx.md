@@ -97,7 +97,7 @@ author: 'Rich Haines'
 
 ### Layouts
 
-To add a layout to your MDX page, create a new component and import it into the MDX page. Then you can wrap the MDx page with your layout component:
+To add a layout to your MDX page, create a new component and import it into the MDX page. Then you can wrap the MDX page with your layout component:
 
 ```md
 import { MyComponent, MyLayoutComponent } from 'my-components'
