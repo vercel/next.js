@@ -1,5 +1,5 @@
 ---
-description: Fetch data and generate static pages with `getStaticProps`.
+description: Fetch data and generate static pages with `getStaticPaths`.
 ---
 
 # `getStaticPaths`
