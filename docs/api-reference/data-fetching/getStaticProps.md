@@ -63,7 +63,7 @@ export async function getStaticProps(context) {
 
 ### `revalidate`
 
-The `revalidate` property is the amount in seconds after which a page re-generation can occur (defaults to: `false` or no revalidating).
+The `revalidate` property is the amount in seconds after which a page re-generation can occur (defaults to `false` or no revalidation).
 
 ```js
 // This function gets called at build time on server-side.
