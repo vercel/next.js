@@ -7,6 +7,12 @@ function isClientComponent(importSource: string, pageExtensions: string[]) {
   )
 }
 
+function isServerComponent(importSource: string, pageExtensions: string[]) {
+  return new RegExp(`\\.server(\\.(${pageExtensions.join('|')}))?`).test(
+    importSource
+  )
+}
+
 function isNextComponent(importSource: string) {
   return (
     importSource.includes('next/link') || importSource.includes('next/image')
@@ -57,10 +63,13 @@ async function parseImportsInfo(
           )
           transformedSource += JSON.stringify(`${node.source.value}?flight`)
         } else {
-          // For the client compilation, we skip all node_modules imports but
-          // always import other modules to ensure that all dependencies are
-          // tracked.
-          if (!importSource.startsWith('.')) {
+          // For the client compilation, we skip all modules imports but
+          // always keep client components in the bundle. All client components
+          // have to be imported from either server or client components.
+          if (
+            !isClientComponent(importSource, pageExtensions) &&
+            !isServerComponent(importSource, pageExtensions)
+          ) {
             continue
           }
         }
