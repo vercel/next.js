@@ -60,7 +60,7 @@ export function useHydrate(initialState) {
     // is ignorable as this code runs in the same order in a given environment (CSR/SSR/SSG)
     // eslint-disable-next-line react-hooks/rules-of-hooks
     useLayoutEffect(() => {
-      if (initialState && store) {
+      if (initialState) {
         store.setState({
           ...store.getState(),
           ...initialState,
