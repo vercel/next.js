@@ -45,7 +45,7 @@ return {
 }
 ```
 
-Then Next.js will statically generate `posts/1` and `posts/2` at build time using the page component in `pages/posts/[id].js`.
+Then, Next.js will statically generate `/posts/1` and `/posts/2` during `next build` using the page component in `pages/posts/[id].js`.
 
 Note that the value for each `params` must match the parameters used in the page name:
 
