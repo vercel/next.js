@@ -1,7 +1,12 @@
 use next_swc::{
-    amp_attributes::amp_attributes, next_dynamic::next_dynamic, next_ssg::next_ssg,
-    page_config::page_config_test, react_remove_properties::remove_properties,
-    remove_console::remove_console, styled_jsx::styled_jsx,
+    amp_attributes::amp_attributes,
+    next_dynamic::next_dynamic,
+    next_ssg::next_ssg,
+    page_config::page_config_test,
+    react_remove_properties::remove_properties,
+    remove_console::remove_console,
+    shake_exports::{shake_exports, Config as ShakeExportsConfig},
+    styled_jsx::styled_jsx,
 };
 use std::path::PathBuf;
 use swc_common::{chain, comments::SingleThreadedComments, FileName, Mark, Span, DUMMY_SP};
@@ -154,6 +159,42 @@ fn react_remove_properties_custom_fixture(input: PathBuf) {
                     properties: vec!["^data-custom$".into()],
                 },
             ))
+        },
+        &input,
+        &output,
+    );
+}
+
+#[fixture("tests/fixture/shake-exports/most-usecases/input.js")]
+fn shake_exports_fixture(input: PathBuf) {
+    let output = input.parent().unwrap().join("output.js");
+    test_fixture(
+        syntax(),
+        &|_tr| {
+            shake_exports(ShakeExportsConfig {
+                ignore: vec![
+                    String::from("keep"),
+                    String::from("keep1"),
+                    String::from("keep2"),
+                    String::from("keep3"),
+                    String::from("keep4"),
+                ],
+            })
+        },
+        &input,
+        &output,
+    );
+}
+
+#[fixture("tests/fixture/shake-exports/keep-default/input.js")]
+fn shake_exports_fixture_default(input: PathBuf) {
+    let output = input.parent().unwrap().join("output.js");
+    test_fixture(
+        syntax(),
+        &|_tr| {
+            shake_exports(ShakeExportsConfig {
+                ignore: vec![String::from("default")],
+            })
         },
         &input,
         &output,
