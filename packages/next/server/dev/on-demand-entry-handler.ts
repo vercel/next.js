@@ -259,11 +259,9 @@ export default function onDemandEntryHandler(
 
       if (entriesChanged) {
         reportTrigger(
-          isApiRoute
-            ? `${normalizedPage} (server only)`
-            : isClientOrMiddleware
-            ? `${normalizedPage} (client only)`
-            : normalizedPage
+          isApiRoute || isMiddleware || clientOnly
+            ? normalizedPage
+            : `${normalizedPage} (client and server)`
         )
         invalidator.invalidate()
       }

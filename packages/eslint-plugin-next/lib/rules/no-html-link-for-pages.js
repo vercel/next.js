@@ -94,7 +94,16 @@ module.exports = {
           (attr) => attr.type === 'JSXAttribute' && attr.name.name === 'href'
         )
 
-        if (!href || href.value.type !== 'Literal') {
+        if (!href || (href.value && href.value.type !== 'Literal')) {
+          return
+        }
+
+        const hasDownloadAttr = node.attributes.find(
+          (attr) =>
+            attr.type === 'JSXAttribute' && attr.name.name === 'download'
+        )
+
+        if (hasDownloadAttr) {
           return
         }
 

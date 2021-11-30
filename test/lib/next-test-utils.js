@@ -240,7 +240,7 @@ export function runNextCommandDev(argv, stdOut, opts = {}) {
     function handleStdout(data) {
       const message = data.toString()
       const bootupMarkers = {
-        dev: /compiled successfully/i,
+        dev: /compiled .*successfully/i,
         start: /started server/i,
       }
       if (

@@ -33,7 +33,6 @@ import { NextConfigComplete } from '../server/config-shared'
 import { finalizeEntrypoint } from './entries'
 import * as Log from './output/log'
 import { build as buildConfiguration } from './webpack/config'
-import { __overrideCssConfiguration } from './webpack/config/blocks/css/overrideCssConfiguration'
 import MiddlewarePlugin from './webpack/plugins/middleware-plugin'
 import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
 import { JsConfigPathsPlugin } from './webpack/plugins/jsconfig-paths-plugin'
@@ -53,6 +52,11 @@ import type { Span } from '../trace'
 import { getRawPageExtensions } from './utils'
 import browserslist from 'browserslist'
 import loadJsConfig from './load-jsconfig'
+
+const watchOptions = Object.freeze({
+  aggregateTimeout: 5,
+  ignored: ['**/.git/**', '**/node_modules/**', '**/.next/**'],
+})
 
 function getSupportedBrowsers(
   dir: string,
@@ -566,7 +570,7 @@ export default async function getBaseWebpackConfig(
         prev.push(path.join(pagesDir, `_document.${ext}`))
         return prev
       }, [] as string[]),
-      `next/dist/pages/_document${hasServerComponents ? '-web' : ''}.js`,
+      `next/dist/pages/_document${webServerRuntime ? '-web' : ''}.js`,
     ]
   }
 
@@ -941,8 +945,6 @@ export default async function getBaseWebpackConfig(
     // Default behavior: bundle the code!
   }
 
-  const emacsLockfilePattern = '**/.#*'
-
   const codeCondition = {
     test: /\.(tsx|ts|js|cjs|mjs|jsx)$/,
     ...(config.experimental.externalDir
@@ -955,6 +957,11 @@ export default async function getBaseWebpackConfig(
       }
       return /node_modules/.test(excludePath)
     },
+  }
+
+  const nonUserCondition = {
+    include: /node_modules/,
+    exclude: babelIncludeRegexes,
   }
 
   let webpackConfig: webpack.Configuration = {
@@ -1090,16 +1097,7 @@ export default async function getBaseWebpackConfig(
         ...entrypoints,
       }
     },
-    watchOptions: {
-      aggregateTimeout: 5,
-      ignored: [
-        '**/.git/**',
-        '**/node_modules/**',
-        '**/.next/**',
-        // can be removed after https://github.com/paulmillr/chokidar/issues/955 is released
-        emacsLockfilePattern,
-      ],
-    },
+    watchOptions,
     output: {
       // we must set publicPath to an empty value to override the default of
       // auto which doesn't work in IE11
@@ -1249,6 +1247,13 @@ export default async function getBaseWebpackConfig(
                 : defaultLoaders.babel,
             },
           ],
+        },
+        {
+          ...nonUserCondition,
+          // Make all non-user modules to be compiled in a single layer
+          // This avoids compiling them mutliple times and avoids module id changes
+          issuerLayer: 'middleware',
+          layer: '',
         },
         ...(!config.images.disableStaticImages
           ? [
@@ -1759,12 +1764,6 @@ export default async function getBaseWebpackConfig(
     webpackConfig.module?.rules &&
     webpackConfig.plugins
   ) {
-    // CRA prevents loading all locales by default
-    // https://github.com/facebook/create-react-app/blob/fddce8a9e21bf68f37054586deb0c8636a45f50b/packages/react-scripts/config/webpack.config.js#L721
-    webpackConfig.plugins.push(
-      new webpack.IgnorePlugin(/^\.\/locale$/, /moment$/)
-    )
-
     // CRA allows importing non-webpack handled files with file-loader
     // these need to be the last rule to prevent catching other items
     // https://github.com/facebook/create-react-app/blob/fddce8a9e21bf68f37054586deb0c8636a45f50b/packages/react-scripts/config/webpack.config.js#L594
@@ -1868,14 +1867,14 @@ export default async function getBaseWebpackConfig(
     }
 
     if (webpackConfig.module?.rules.length) {
-      // Remove default CSS Loader
-      webpackConfig.module.rules = webpackConfig.module.rules.filter(
-        (r) =>
-          !(
-            typeof r.oneOf?.[0]?.options === 'object' &&
-            r.oneOf[0].options.__next_css_remove === true
+      // Remove default CSS Loaders
+      webpackConfig.module.rules.forEach((r) => {
+        if (Array.isArray(r.oneOf)) {
+          r.oneOf = r.oneOf.filter(
+            (o) => (o as any)[Symbol.for('__next_css_remove')] !== true
           )
-      )
+        }
+      })
     }
     if (webpackConfig.plugins?.length) {
       // Disable CSS Extraction Plugin
@@ -1890,8 +1889,6 @@ export default async function getBaseWebpackConfig(
           (e) => (e as any).__next_css_remove !== true
         )
     }
-  } else if (!config.future.strictPostcssConfiguration) {
-    await __overrideCssConfiguration(dir, supportedBrowsers, webpackConfig)
   }
 
   // Inject missing React Refresh loaders so that development mode is fast:
