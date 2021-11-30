@@ -39,11 +39,8 @@ async function parseImportsInfo(
     const node = body[i]
     switch (node.type) {
       case 'ImportDeclaration':
-        // When importing from a server component, ignore
         const importSource = node.source.value
 
-        // For the client compilation, we have to always import the component to
-        // ensure that all dependencies are tracked.
         if (!isClientCompilation) {
           if (
             !(
@@ -59,6 +56,13 @@ async function parseImportsInfo(
             node.source.start - lastIndex
           )
           transformedSource += JSON.stringify(`${node.source.value}?flight`)
+        } else {
+          // For the client compilation, we skip all node_modules imports but
+          // always import other modules to ensure that all dependencies are
+          // tracked.
+          if (!importSource.startsWith('.')) {
+            continue
+          }
         }
 
         lastIndex = node.source.end
