@@ -458,11 +458,7 @@ export class Head extends Component<
         newProps['data-href'] = newProps['href']
         newProps['href'] = undefined
         return React.cloneElement(c, newProps)
-      } else if (
-        c.props &&
-        c.props['children'] &&
-        Object.getOwnPropertyDescriptor(c.props, 'children')?.writable
-      ) {
+      } else if (c.props && c.props['children']) {
         c.props['children'] = this.makeStylesheetInert(c.props['children'])
       }
       return c
