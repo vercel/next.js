@@ -33,7 +33,7 @@ The `getStaticPaths` function should return an object with the following **requi
 
 ### `paths`
 
-The `paths` key determines which paths will be pre-rendered. For example, suppose that you have a page that uses dynamic routes named `pages/posts/[id].js`. If you export `getStaticPaths` from this page and return the following for `paths`:
+The `paths` key determines which paths will be pre-rendered. For example, suppose that you have a page that uses [Dynamic Routes](/docs/routing/dynamic-routes.md) named `pages/posts/[id].js`. If you export `getStaticPaths` from this page and return the following for `paths`:
 
 ```js
 return {
