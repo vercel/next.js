@@ -55,7 +55,7 @@ The value for each `params` object must match the parameters used in the page na
 
 ### `fallback: false`
 
-If `fallback` is `false`, then any paths not returned by `getStaticPaths` will result in a **404 page**. You can do this if you have a small number of paths to pre-render - so they are all statically generated during build time.
+If `fallback` is `false`, then any paths not returned by `getStaticPaths` will result in a **404 page**. This is useful if you have a small number of paths to pre-render and want to statically generate them all during `next build`.
 
 It is also useful when the new pages are not added often. If you add more items to the data source and need to render the new pages, you will need to run the build again.
 
