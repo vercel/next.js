@@ -47,7 +47,7 @@ return {
 
 Then, Next.js will statically generate `/posts/1` and `/posts/2` during `next build` using the page component in `pages/posts/[id].js`.
 
-Note that the value for each `params` must match the parameters used in the page name:
+The value for each `params` object must match the parameters used in the page name:
 
 - If the page name is `pages/posts/[postId]/[commentId]`, then `params` should contain `postId` and `commentId`.
 - If the page name uses catch-all routes, for example `pages/[...slug]`, then `params` should contain `slug` which is an array. For example, if this array is `['foo', 'bar']`, then Next.js will statically generate the page at `/foo/bar`.
