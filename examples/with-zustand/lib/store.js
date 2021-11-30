@@ -58,7 +58,7 @@ export function useCreateStore(initialState) {
   // is ignorable as this code runs in same order in a given environment
   // eslint-disable-next-line react-hooks/rules-of-hooks
   useLayoutEffect(() => {
-    if (initialState && store) {
+    if (initialState) {
       store.setState({
         ...store.getState(),
         ...initialState,
