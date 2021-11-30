@@ -193,6 +193,10 @@ declare module 'next/dist/compiled/web-streams-polyfill' {
   import m from 'web-streams-polyfill/ponyfill'
   export = m
 }
+declare module 'next/dist/compiled/@aws-sdk/abort-controller' {
+  import m from '@aws-sdk/abort-controller'
+  export = m
+}
 declare module 'next/dist/compiled/ua-parser-js' {
   import m from 'ua-parser-js'
   export = m
