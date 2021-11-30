@@ -4,7 +4,7 @@ import Log from '../output/log'
 
 const ArchName = arch()
 const PlatformName = platform()
-const triples = platformArchTriples[PlatformName][ArchName]
+const triples = platformArchTriples[PlatformName][ArchName] || []
 
 async function loadBindings() {
   return (await loadWasm()) || loadNative()
