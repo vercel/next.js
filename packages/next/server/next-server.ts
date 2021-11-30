@@ -278,18 +278,9 @@ export default class Server {
       this.distDir,
       this._isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY
     )
-    const pagesManifestPath = join(this.serverBuildDir, PAGES_MANIFEST)
-    const middlewareManifestPath = join(
-      join(this.distDir, SERVER_DIRECTORY),
-      MIDDLEWARE_MANIFEST
-    )
 
-    if (!dev) {
-      this.pagesManifest = require(pagesManifestPath)
-      if (!this.minimalMode) {
-        this.middlewareManifest = require(middlewareManifestPath)
-      }
-    }
+    this.pagesManifest = this.getPagesManifest()
+    this.middlewareManifest = this.getMiddlewareManifest()
 
     this.customRoutes = this.getCustomRoutes()
     this.router = new Router(this.generateRoutes())
@@ -587,6 +578,22 @@ export default class Server {
 
   protected getPreviewProps(): __ApiPreviewProps {
     return this.getPrerenderManifest().preview
+  }
+
+  protected getPagesManifest(): PagesManifest | undefined {
+    const pagesManifestPath = join(this.serverBuildDir, PAGES_MANIFEST)
+    return require(pagesManifestPath)
+  }
+
+  protected getMiddlewareManifest(): MiddlewareManifest | undefined {
+    if (!this.minimalMode) {
+      const middlewareManifestPath = join(
+        join(this.distDir, SERVER_DIRECTORY),
+        MIDDLEWARE_MANIFEST
+      )
+      return require(middlewareManifestPath)
+    }
+    return undefined
   }
 
   protected getMiddleware() {

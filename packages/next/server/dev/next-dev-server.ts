@@ -696,6 +696,13 @@ export default class DevServer extends Server {
     })
   }
 
+  protected getPagesManifest(): undefined {
+    return undefined
+  }
+  protected getMiddlewareManifest(): undefined {
+    return undefined
+  }
+
   protected getMiddleware(): never[] {
     return []
   }
