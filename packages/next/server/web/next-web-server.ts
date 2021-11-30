@@ -30,4 +30,8 @@ export default class WebServer extends Server {
   protected readBuildId(): string {
     return this.runtimeConfig.buildId
   }
+  // The web runtime doesn't need to serve any static files
+  protected isServeableUrl(): boolean {
+    return false
+  }
 }
