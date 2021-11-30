@@ -3,14 +3,22 @@
 
 rustdocflags = []
 rustflags = [
+  "-Z",
+  "new-llvm-pass-manager=no",
 ]
 
 [target.aarch64-apple-darwin]
-rustflags = []
+rustflags = [
+  "-Z",
+  "new-llvm-pass-manager=no",
+]
 
 [target.aarch64-unknown-linux-gnu]
 linker = "aarch64-linux-gnu-gcc"
-rustflags = []
+rustflags = [
+  "-Z",
+  "new-llvm-pass-manager=no",
+]
 
 [target.aarch64-unknown-linux-musl]
 linker = "aarch64-linux-gnu-gcc"
@@ -19,17 +27,31 @@ rustflags = [
   "target-feature=-crt-static",
   "-C",
   "link-arg=-lgcc",
+  "-Z",
+  "new-llvm-pass-manager=no",
 ]
 
 [target.armv7-unknown-linux-gnueabihf]
 linker = "arm-linux-gnueabihf-gcc"
-rustflags = []
+rustflags = [
+  "-Z",
+  "new-llvm-pass-manager=no",
+]
 
 [target.aarch64-linux-android]
-rustflags = []
+rustflags = [
+  "-Z",
+  "new-llvm-pass-manager=no",
+]
 
 [target.aarch64-pc-windows-msvc]
-rustflags = []
+rustflags = [
+  "-Z",
+  "new-llvm-pass-manager=no",
+]
 
 [target.wasm32-unknown-unknown]
-rustflags = []
+rustflags = [
+  "-Z",
+  "new-llvm-pass-manager=no",
+]

@@ -31,8 +31,9 @@ use crate::{
     util::{deserialize_json, CtxtExt, MapErr},
 };
 use next_swc::{custom_before_pass, TransformOptions};
-use anyhow::{anyhow, Context as _, Error};
+use anyhow::{anyhow, bail, Context as _, Error};
 use napi::{CallContext, Env, JsBoolean, JsBuffer, JsObject, JsString, JsUnknown, Status, Task};
+use std::fs::read_to_string;
 use std::{
     convert::TryFrom,
     panic::{catch_unwind, AssertUnwindSafe},
@@ -48,6 +49,8 @@ use swc_ecmascript::transforms::pass::noop;
 pub enum Input {
     /// Raw source code.
     Source { src: String },
+    /// Get source code from filename in options
+    FromFilename,
 }
 
 pub struct TransformTask {
@@ -63,30 +66,43 @@ impl Task for TransformTask {
     fn compute(&mut self) -> napi::Result<Self::Output> {
         let res = catch_unwind(AssertUnwindSafe(|| {
             try_with_handler(self.c.cm.clone(), true, |handler| {
-                self.c.run(|| match &self.input {
-                    Input::Source { src } => {
-                        let options: TransformOptions = deserialize_json(&self.options)?;
+                self.c.run(|| {
+                    let options: TransformOptions = deserialize_json(&self.options)?;
+                    let fm = match &self.input {
+                        Input::Source { src } => {
+                            let filename = if options.swc.filename.is_empty() {
+                                FileName::Anon
+                            } else {
+                                FileName::Real(options.swc.filename.clone().into())
+                            };
 
-                        let filename = if options.swc.filename.is_empty() {
-                            FileName::Anon
-                        } else {
-                            FileName::Real(options.swc.filename.clone().into())
-                        };
+                            self.c.cm.new_source_file(filename, src.to_string())
+                        }
+                        Input::FromFilename => {
+                            let filename = &options.swc.filename;
+                            if filename.is_empty() {
+                                bail!("no filename is provided via options");
+                            }
 
-                        let fm = self.c.cm.new_source_file(filename, src.to_string());
+                            self.c.cm.new_source_file(
+                                FileName::Real(filename.into()),
+                                read_to_string(filename).with_context(|| {
+                                    format!("Failed to read source code from {}", filename)
+                                })?,
+                            )
+                        }
+                    };
+                    let options = options.patch(&fm);
 
-                        let options = options.patch(&fm);
-
-                        let before_pass = custom_before_pass(fm.clone(), &options);
-                        self.c.process_js_with_custom_pass(
-                            fm.clone(),
-                            None,
-                            &handler,
-                            &options.swc,
-                            |_| before_pass,
-                            |_| noop(),
-                        )
-                    }
+                    let before_pass = custom_before_pass(fm.clone(), &options);
+                    self.c.process_js_with_custom_pass(
+                        fm.clone(),
+                        None,
+                        &handler,
+                        &options.swc,
+                        |_| before_pass,
+                        |_| noop(),
+                    )
                 })
             })
         }))
@@ -115,22 +131,23 @@ impl Task for TransformTask {
 /// returns `compiler, (src / path), options, plugin, callback`
 pub fn schedule_transform<F>(cx: CallContext, op: F) -> napi::Result<JsObject>
 where
-    F: FnOnce(&Arc<Compiler>, String, bool, String) -> TransformTask,
+    F: FnOnce(&Arc<Compiler>, Input, bool, String) -> TransformTask,
 {
     let c = get_compiler(&cx);
 
     let unknown_src = cx.get::<JsUnknown>(0)?;
     let src = match unknown_src.get_type()? {
-        napi::ValueType::String => napi::Result::Ok(
-            JsString::try_from(unknown_src)?
+        napi::ValueType::String => napi::Result::Ok(Input::Source {
+            src: JsString::try_from(unknown_src)?
                 .into_utf8()?
                 .as_str()?
                 .to_owned(),
-        ),
-        napi::ValueType::Object => napi::Result::Ok(
-            String::from_utf8_lossy(JsBuffer::try_from(unknown_src)?.into_value()?.as_ref())
+        }),
+        napi::ValueType::Object => napi::Result::Ok(Input::Source {
+            src: String::from_utf8_lossy(JsBuffer::try_from(unknown_src)?.into_value()?.as_ref())
                 .to_string(),
-        ),
+        }),
+        napi::ValueType::Undefined => napi::Result::Ok(Input::FromFilename),
         _ => Err(napi::Error::new(
             Status::GenericFailure,
             "first argument must be a String or Buffer".to_string(),
@@ -175,14 +192,10 @@ where
 
 #[js_function(4)]
 pub fn transform(cx: CallContext) -> napi::Result<JsObject> {
-    schedule_transform(cx, |c, src, _, options| {
-        let input = Input::Source { src };
-
-        TransformTask {
-            c: c.clone(),
-            input,
-            options,
-        }
+    schedule_transform(cx, |c, input, _, options| TransformTask {
+        c: c.clone(),
+        input,
+        options,
     })
 }
 

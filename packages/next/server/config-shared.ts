@@ -126,10 +126,16 @@ export type NextConfig = { [key: string]: any } & {
   crossOrigin?: false | 'anonymous' | 'use-credentials'
   swcMinify?: boolean
   experimental?: {
+    disablePostcssPresetEnv?: boolean
     removeConsole?:
       | boolean
       | {
           exclude?: string[]
+        }
+    reactRemoveProperties?:
+      | boolean
+      | {
+          properties?: string[]
         }
     styledComponents?: boolean
     swcMinify?: boolean
