@@ -4,7 +4,7 @@ import Log from '../output/log'
 
 const ArchName = arch()
 const PlatformName = platform()
-const triples = platformArchTriples[PlatformName][ArchName]
+const triples = platformArchTriples[PlatformName][ArchName] || []
 
 async function loadBindings() {
   return (await loadWasm()) || loadNative()
@@ -48,13 +48,15 @@ function loadNative() {
     }
   }
 
-  for (const triple of triples) {
-    try {
-      bindings = require(`@next/swc-${triple.platformArchABI}`)
-      break
-    } catch (e) {
-      if (e?.code !== 'MODULE_NOT_FOUND') {
-        loadError = e
+  if (!bindings) {
+    for (const triple of triples) {
+      try {
+        bindings = require(`@next/swc-${triple.platformArchABI}`)
+        break
+      } catch (e) {
+        if (e?.code !== 'MODULE_NOT_FOUND') {
+          loadError = e
+        }
       }
     }
   }
