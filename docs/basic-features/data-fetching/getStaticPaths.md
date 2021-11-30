@@ -51,7 +51,7 @@ When you use `getStaticProps` on a page with dynamic route parameters, you **mus
 
 Note that you **cannot** use `getStaticPaths` with [`getServerSideProps`](/docs/basic-features/data-fetching/getServerSideProps.md).
 
-### Only runs at build time on server-side
+### When does `getStaticPaths` run?
 
 `getStaticPaths` only runs at build time on server-side. If you're using [Incremental Static Regeneration](/docs/basic-features/data-fetching/incremental-static-regeneration.md), `getStaticPaths` can also be ran on-demand _in the background_, but still only on the server-side..
 
