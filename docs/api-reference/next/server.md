@@ -35,7 +35,7 @@ The function can be a default export and as such, does **not** have to be named 
 
 The `NextRequest` object is an extension of the native [`Request`](https://developer.mozilla.org/en-US/docs/Web/API/Request) interface, with the following added methods and properties:
 
-- `cookie` - Has the cookies from the `Request`
+- `cookies` - Has the cookies from the `Request`
 - `nextUrl` - Includes an extended, parsed, URL object that gives you access to Next.js specific properties such as `pathname`, `basePath`, `trailingSlash` and `i18n`
 - `geo` - Has the geo location from the `Request`
   - `geo.country` - The country code
