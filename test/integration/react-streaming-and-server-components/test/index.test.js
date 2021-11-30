@@ -182,6 +182,18 @@ describe('concurrentFeatures - dev', () => {
     expect(content).toMatchInlineSnapshot('"foo.client"')
   })
 
+  it('should not bundle external imports into client builds for RSC', async () => {
+    const html = await renderViaHTTP(context.appPort, '/external-imports')
+    expect(html).toContain('date:')
+
+    const distServerDir = join(distDir, 'static', 'chunks', 'pages')
+    const bundle = fs
+      .readFileSync(join(distServerDir, 'external-imports.js'))
+      .toString()
+
+    expect(bundle).not.toContain('moment')
+  })
+
   runBasicTests(context, 'dev')
 })
 

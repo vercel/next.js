@@ -67,8 +67,14 @@ async function parseImportsInfo(
           // always keep client components in the bundle. All client components
           // have to be imported from either server or client components.
           if (
-            !isClientComponent(importSource, pageExtensions) &&
-            !isServerComponent(importSource, pageExtensions)
+            !(
+              isClientComponent(importSource, pageExtensions) ||
+              isServerComponent(importSource, pageExtensions) ||
+              // Special cases for Next.js APIs that are considered as client
+              // components:
+              isNextComponent(importSource) ||
+              isImageImport(importSource)
+            )
           ) {
             continue
           }
