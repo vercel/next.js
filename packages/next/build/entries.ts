@@ -25,8 +25,15 @@ export type PagesMapping = {
 export function createPagesMapping(
   pagePaths: string[],
   extensions: string[],
-  isDev: boolean,
-  hasServerComponents: boolean
+  {
+    isDev,
+    hasServerComponents,
+    hasConcurrentFeatures,
+  }: {
+    isDev: boolean
+    hasServerComponents: boolean
+    hasConcurrentFeatures: boolean
+  }
 ): PagesMapping {
   const previousPages: PagesMapping = {}
   const pages: PagesMapping = pagePaths.reduce(
@@ -65,7 +72,7 @@ export function createPagesMapping(
   // we alias these in development and allow webpack to
   // allow falling back to the correct source file so
   // that HMR can work properly when a file is added/removed
-  const documentPage = `_document${hasServerComponents ? '-web' : ''}`
+  const documentPage = `_document${hasConcurrentFeatures ? '-web' : ''}`
   if (isDev) {
     pages['/_app'] = `${PAGES_DIR_ALIAS}/_app`
     pages['/_error'] = `${PAGES_DIR_ALIAS}/_error`

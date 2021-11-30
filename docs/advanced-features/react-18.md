@@ -33,7 +33,7 @@ Once enabled, you can use Suspense and SSR streaming for all pages. This also me
 
 ```jsx
 import dynamic from 'next/dynamic'
-import { lazy } from 'react'
+import { lazy, Suspense } from 'react'
 
 import Content from '../components/content'
 
@@ -109,7 +109,7 @@ You can then import other server or client components from any server component.
 ```jsx
 // pages/home.server.js
 
-import React, { Suspense } from 'react'
+import { Suspense } from 'react'
 
 import Profile from '../components/profile.server'
 import Content from '../components/content.client'

@@ -1,22 +1,16 @@
-import './node-polyfill-fetch'
-import { default as Server, ServerConstructor } from './next-server'
-import { NON_STANDARD_NODE_ENV } from '../lib/constants'
-import * as log from '../build/output/log'
-import loadConfig, { NextConfig } from './config'
-import { resolve } from 'path'
-import {
-  PHASE_DEVELOPMENT_SERVER,
-  PHASE_PRODUCTION_SERVER,
-} from '../shared/lib/constants'
-import { IncomingMessage, ServerResponse } from 'http'
-import { UrlWithParsedQuery } from 'url'
+import type { IncomingMessage, ServerResponse } from 'http'
+import type { Options as DevServerOptions } from './dev/next-dev-server'
+import type { RequestHandler } from './next-server'
+import type { UrlWithParsedQuery } from 'url'
 
-type NextServerConstructor = ServerConstructor & {
-  /**
-   * Whether to launch Next.js in dev mode - @default false
-   */
-  dev?: boolean
-}
+import './node-polyfill-fetch'
+import { default as Server } from './next-server'
+import * as log from '../build/output/log'
+import loadConfig from './config'
+import { resolve } from 'path'
+import { NON_STANDARD_NODE_ENV } from '../lib/constants'
+import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
+import { PHASE_PRODUCTION_SERVER } from '../shared/lib/constants'
 
 let ServerImpl: typeof Server
 
@@ -26,18 +20,28 @@ const getServerImpl = async () => {
   return ServerImpl
 }
 
+export type NextServerOptions = Partial<DevServerOptions>
+
 export class NextServer {
   private serverPromise?: Promise<Server>
   private server?: Server
-  private reqHandlerPromise?: Promise<any>
+  private reqHandlerPromise?: Promise<RequestHandler>
   private preparedAssetPrefix?: string
-  options: NextServerConstructor
+  public options: NextServerOptions
 
-  constructor(options: NextServerConstructor) {
+  constructor(options: NextServerOptions) {
     this.options = options
   }
 
-  getRequestHandler() {
+  get hostname() {
+    return this.options.hostname
+  }
+
+  get port() {
+    return this.options.port
+  }
+
+  getRequestHandler(): RequestHandler {
     return async (
       req: IncomingMessage,
       res: ServerResponse,
@@ -102,12 +106,7 @@ export class NextServer {
     return (server as any).close()
   }
 
-  private async createServer(
-    options: NextServerConstructor & {
-      conf: NextConfig
-      isNextDevCommand?: boolean
-    }
-  ): Promise<Server> {
+  private async createServer(options: DevServerOptions): Promise<Server> {
     if (options.dev) {
       const DevServer = require('./dev/next-dev-server').default
       return new DevServer(options)
@@ -154,9 +153,7 @@ export class NextServer {
 }
 
 // This file is used for when users run `require('next')`
-function createServer(options: NextServerConstructor): NextServer {
-  const standardEnv = ['production', 'development', 'test']
-
+function createServer(options: NextServerOptions): NextServer {
   if (options == null) {
     throw new Error(
       'The server has not been instantiated properly. https://nextjs.org/docs/messages/invalid-server-options'
@@ -164,19 +161,17 @@ function createServer(options: NextServerConstructor): NextServer {
   }
 
   if (
-    !(options as any).isNextDevCommand &&
+    !('isNextDevCommand' in options) &&
     process.env.NODE_ENV &&
-    !standardEnv.includes(process.env.NODE_ENV)
+    !['production', 'development', 'test'].includes(process.env.NODE_ENV)
   ) {
     log.warn(NON_STANDARD_NODE_ENV)
   }
 
-  if (options.dev) {
-    if (typeof options.dev !== 'boolean') {
-      console.warn(
-        "Warning: 'dev' is not a boolean which could introduce unexpected behavior. https://nextjs.org/docs/messages/invalid-server-options"
-      )
-    }
+  if (options.dev && typeof options.dev !== 'boolean') {
+    console.warn(
+      "Warning: 'dev' is not a boolean which could introduce unexpected behavior. https://nextjs.org/docs/messages/invalid-server-options"
+    )
   }
 
   return new NextServer(options)
@@ -188,3 +183,4 @@ exports = module.exports
 
 // Support `import next from 'next'`
 export default createServer
+export type { RequestHandler }

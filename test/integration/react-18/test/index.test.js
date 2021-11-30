@@ -58,13 +58,13 @@ async function getDevOutput(dir) {
 }
 
 describe('React 18 Support', () => {
-  describe('no warns with stable supported version of react-dom', () => {
+  describe('Use legacy render', () => {
     beforeAll(async () => {
       await fs.remove(join(appDir, 'node_modules'))
-      nextConfig.replace('reactRoot: true', '// reactRoot: true')
+      nextConfig.replace('reactRoot: true', 'reactRoot: false')
     })
     afterAll(() => {
-      nextConfig.replace('// reactRoot: true', 'reactRoot: true')
+      nextConfig.replace('reactRoot: false', 'reactRoot: true')
     })
 
     test('supported version of react in dev', async () => {
@@ -91,7 +91,7 @@ describe('React 18 Support', () => {
     })
   })
 
-  describe('warns with stable supported version of react-dom', () => {
+  describe('Use react-dom 18 prerelease', () => {
     beforeAll(async () => {
       const reactDomPkgPath = join(
         appDir,
@@ -208,14 +208,21 @@ function runTest(mode, name, fn) {
   describe(`${name} (${mode})`, () => {
     beforeAll(async () => {
       context.appPort = await findPort()
+      context.stderr = ''
       if (mode === 'dev') {
         context.server = await launchApp(context.appDir, context.appPort, {
           nodeArgs,
+          onStderr(msg) {
+            context.stderr += msg
+          },
         })
       } else {
         await nextBuild(context.appDir, [], { nodeArgs })
         context.server = await nextStart(context.appDir, context.appPort, {
           nodeArgs,
+          onStderr(msg) {
+            context.stderr += msg
+          },
         })
       }
     })
