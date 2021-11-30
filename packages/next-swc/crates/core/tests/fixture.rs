@@ -1,6 +1,7 @@
 use next_swc::{
     amp_attributes::amp_attributes, next_dynamic::next_dynamic, next_ssg::next_ssg,
-    page_config::page_config_test, remove_console::remove_console, styled_jsx::styled_jsx,
+    page_config::page_config_test, react_remove_properties::remove_properties,
+    remove_console::remove_console, styled_jsx::styled_jsx,
 };
 use std::path::PathBuf;
 use swc_common::{chain, comments::SingleThreadedComments, FileName, Mark, Span, DUMMY_SP};
@@ -126,6 +127,34 @@ fn remove_console_fixture(input: PathBuf) {
     test_fixture(
         syntax(),
         &|_tr| remove_console(next_swc::remove_console::Config::All(true)),
+        &input,
+        &output,
+    );
+}
+
+#[fixture("tests/fixture/react-remove-properties/default/**/input.js")]
+fn react_remove_properties_default_fixture(input: PathBuf) {
+    let output = input.parent().unwrap().join("output.js");
+    test_fixture(
+        syntax(),
+        &|_tr| remove_properties(next_swc::react_remove_properties::Config::All(true)),
+        &input,
+        &output,
+    );
+}
+
+#[fixture("tests/fixture/react-remove-properties/custom/**/input.js")]
+fn react_remove_properties_custom_fixture(input: PathBuf) {
+    let output = input.parent().unwrap().join("output.js");
+    test_fixture(
+        syntax(),
+        &|_tr| {
+            remove_properties(next_swc::react_remove_properties::Config::WithOptions(
+                next_swc::react_remove_properties::Options {
+                    properties: vec!["^data-custom$".into()],
+                },
+            ))
+        },
         &input,
         &output,
     );

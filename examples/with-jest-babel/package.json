@@ -1,0 +1,28 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "lint": "next lint",
+    "build": "next build",
+    "start": "next start",
+    "test": "jest --watch",
+    "test:ci": "jest --ci"
+  },
+  "dependencies": {
+    "next": "latest",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "5.14.1",
+    "@testing-library/react": "12.0.0",
+    "@testing-library/user-event": "13.2.1",
+    "babel-jest": "27.0.6",
+    "eslint": "7.32.0",
+    "eslint-config-next": "latest",
+    "eslint-plugin-testing-library": "4.11.0",
+    "identity-obj-proxy": "3.0.0",
+    "jest": "27.0.6",
+    "react-test-renderer": "17.0.2"
+  }
+}

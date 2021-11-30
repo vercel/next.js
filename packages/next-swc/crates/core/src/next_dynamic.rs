@@ -86,10 +86,27 @@ impl Fold for NextDynamicPatcher {
             });
             return expr;
           }
+          if expr.args.len() == 2 {
+              match &*expr.args[1].expr {
+                  Expr::Object(_) => {},
+                  _ => {
+                      HANDLER.with(|handler| {
+                          handler
+                              .struct_span_err(
+                                  identifier.span,
+                                  "next/dynamic options must be an object literal.\nRead more: https://nextjs.org/docs/messages/invalid-dynamic-options-type",
+                              )
+                              .emit();
+                      });
+                      return expr;
+                  }
+              }
+          }
 
           self.is_next_dynamic_first_arg = true;
           expr.args[0].expr = expr.args[0].expr.clone().fold_with(self);
           self.is_next_dynamic_first_arg = false;
+
 
           if let None = self.dynamically_imported_specifier {
             return expr;

@@ -1,5 +1,5 @@
 ---
-description: Learn how to set up Next.js with three commonly used testing tools — Cypress, Jest, and React Testing Library.
+description: Learn how to set up Next.js with three commonly used testing tools — Cypress, Playwright, Jest, and React Testing Library.
 ---
 
 # Testing
@@ -243,31 +243,69 @@ You can learn more about Playwright and Continuous Integration from these resour
 
 ## Jest and React Testing Library
 
-Jest and React Testing Library are frequently used together for **Unit Testing**.
+Jest and React Testing Library are frequently used together for **Unit Testing**. There are three ways you can start using Jest within your Next.js application:
+
+1. Using one of our [quickstart examples](https://nextjs.org/docs/testing#quickstart-2)
+2. With the [Next.js Rust Compiler](https://nextjs.org/docs/testing#setting-up-jest-with-the-rust-compiler)
+3. With [Babel](https://nextjs.org/docs/testing#setting-up-jest-with-babel)
+
+The following sections will go through how you can set up Jest with each of these options:
 
 ### Quickstart
 
-You can use `create-next-app` with the [with-jest example](https://github.com/vercel/next.js/tree/canary/examples/with-jest) to quickly get started with Jest and React Testing Library:
+You can use `create-next-app` with the [with-jest](https://github.com/vercel/next.js/tree/canary/examples/with-jest) example to quickly get started with Jest and React Testing Library:
 
 ```bash
 npx create-next-app@latest --example with-jest with-jest-app
 ```
 
-### Manual setup
+### Setting up Jest (with the Rust Compiler)
 
-To manually set up Jest and React Testing Library, install `jest` , `@testing-library/react`, `@testing-library/jest-dom` as well as some supporting packages:
+Since the release of [Next.js 12](https://nextjs.org/blog/next-12), Next.js now has built-in configuration for Jest.
+
+To set up Jest, install `jest` , `@testing-library/react`, `@testing-library/jest-dom` and `react-test-renderer`:
 
 ```bash
-npm install --save-dev jest babel-jest @testing-library/react @testing-library/jest-dom identity-obj-proxy react-test-renderer
+npm install --save-dev jest @testing-library/react @testing-library/jest-dom react-test-renderer
 ```
 
-**Configuring Jest**
-
-Create a `jest.config.js` file in your project's root directory and add the following configuration options:
+Create a `jest.config.js` file in your project's root directory and add the following:
 
 ```jsx
 // jest.config.js
+const nextJest = require('next/jest')
 
+const createJestConfig = nextJest({
+  // Provide the path to your Next.js app to load next.config.js and .env files in your test environment
+  dir: './',
+})
+
+// Add any custom config to be passed to Jest
+const customJestConfig = {
+  setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
+}
+
+// createJestConfig is exported this way to ensure that next/jest can load the Next.js config which is async
+module.exports = createJestConfig(customJestConfig)
+```
+
+Under the hood, `next/jest` is automatically configuring Jest for you, including:
+
+- Setting up `transform` using [SWC](https://nextjs.org/docs/advanced-features/compiler)
+- Auto mocking stylesheets (`.css`, `.module.css`, and their scss variants) and image imports
+- Loading `.env` (and all variants) into `process.env`
+- Ignoring `node_modules` from test resolving and transforms
+- Ignoring `.next` from test resolving
+- Loading `next.config.js` for flags that enable SWC transforms
+
+### Setting up Jest (with Babel)
+
+If you opt-out of the [Rust Compiler](https://nextjs.org/docs/advanced-features/compiler), you will need to manually configure Jest and install `babel-jest` and `identity-obj-proxy` in addition to the packages above.
+
+Here are the recommended options to configure Jest for Next.js:
+
+```jsx
+// jest.config.js
 module.exports = {
   collectCoverageFrom: [
     '**/*.{js,jsx,ts,tsx}',
@@ -275,23 +313,26 @@ module.exports = {
     '!**/node_modules/**',
   ],
   moduleNameMapper: {
-    /* Handle CSS imports (with CSS modules)
-    https://jestjs.io/docs/webpack#mocking-css-modules */
+    // Handle CSS imports (with CSS modules)
+    // https://jestjs.io/docs/webpack#mocking-css-modules
     '^.+\\.module\\.(css|sass|scss)$': 'identity-obj-proxy',
 
     // Handle CSS imports (without CSS modules)
     '^.+\\.(css|sass|scss)$': '<rootDir>/__mocks__/styleMock.js',
 
-    /* Handle image imports
-    https://jestjs.io/docs/webpack#handling-static-assets */
-    '^.+\\.(jpg|jpeg|png|gif|webp|avif|svg)$':
-      '<rootDir>/__mocks__/fileMock.js',
+    // Handle image imports
+    // https://jestjs.io/docs/webpack#handling-static-assets
+    '^.+\\.(jpg|jpeg|png|gif|webp|avif|svg)$': `<rootDir>/__mocks__/fileMock.js`,
+
+    // Handle module aliases
+    '^@/components/(.*)$': '<rootDir>/components/$1',
   },
+  setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   testPathIgnorePatterns: ['<rootDir>/node_modules/', '<rootDir>/.next/'],
   testEnvironment: 'jsdom',
   transform: {
-    /* Use babel-jest to transpile tests with the next/babel preset
-    https://jestjs.io/docs/configuration#transform-objectstring-pathtotransformer--pathtotransformer-object */
+    // Use babel-jest to transpile tests with the next/babel preset
+    // https://jestjs.io/docs/configuration#transform-objectstring-pathtotransformer--pathtotransformer-object
     '^.+\\.(js|jsx|ts|tsx)$': ['babel-jest', { presets: ['next/babel'] }],
   },
   transformIgnorePatterns: [
@@ -301,41 +342,37 @@ module.exports = {
 }
 ```
 
-You can learn more about each option above in the [Jest docs](https://jestjs.io/docs/configuration).
+You can learn more about each configuration option in the [Jest docs](https://jestjs.io/docs/configuration).
 
 **Handling stylesheets and image imports**
 
-These files aren't useful in tests but importing them may cause errors, so we will need to mock them. Create the mock files we referenced in the configuration above - `fileMock.js` and `styleMock.js` - inside a `__mocks__` directory:
+Styleheets and images aren't used in the tests but importing them may cause errors, so they will need to be mocked. Create the mock files referenced in the configuration above - `fileMock.js` and `styleMock.js` - inside a `__mocks__` directory:
 
-```json
+```js
 // __mocks__/fileMock.js
-
-(module.exports = "test-file-stub")
+module.exports = 'test-file-stub'
 ```
 
-```json
+```js
 // __mocks__/styleMock.js
-
-module.exports = {};
+module.exports = {}
 ```
 
 If you're running into the issue `"Failed to parse src "test-file-stub" on 'next/image'"`, add a '/' to your fileMock.
 
-```json
+```js
 // __mocks__/fileMock.js
-
-(module.exports = "/test-file-stub")
+module.exports = '/test-file-stub'
 ```
 
 For more information on handling static assets, please refer to the [Jest Docs](https://jestjs.io/docs/webpack#handling-static-assets).
 
-**Extend Jest with custom matchers**
+**Optional: Extend Jest with custom matchers**
 
 `@testing-library/jest-dom` includes a set of convenient [custom matchers](https://github.com/testing-library/jest-dom#custom-matchers) such as `.toBeInTheDocument()` making it easier to write tests. You can import the custom matchers for every test by adding the following option to the Jest configuration file:
 
-```json
+```js
 // jest.config.js
-
 setupFilesAfterEnv: ['<rootDir>/jest.setup.js']
 ```
 
@@ -343,13 +380,12 @@ Then, inside `jest.setup.js`, add the following import:
 
 ```jsx
 // jest.setup.js
-
 import '@testing-library/jest-dom/extend-expect'
 ```
 
 If you need to add more setup options before each test, it's common to add them to the `jest.setup.js` file above.
 
-**Absolute Imports and Module Path Aliases**
+**Optional: Absolute Imports and Module Path Aliases**
 
 If your project is using [Module Path Aliases](https://nextjs.org/docs/advanced-features/module-path-aliases), you will need to configure Jest to resolve the imports by matching the paths option in the `jsconfig.json` file with the `moduleNameMapper` option in the `jest.config.js` file. For example:
 
@@ -371,6 +407,8 @@ moduleNameMapper: {
   '^@/components/(.*)$': '<rootDir>/components/$1',
 }
 ```
+
+### Creating your tests:
 
 **Add a test script to package.json**
 

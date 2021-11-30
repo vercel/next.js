@@ -1,8 +1,11 @@
-import { buildStaticPaths } from '../../build/utils'
-import { setHttpAgentOptions } from '../config'
-import { NextConfigComplete } from '../config-shared'
-import { loadComponents } from '../load-components'
+import type { GetStaticPaths } from 'next/types'
+import type { NextConfigComplete } from '../config-shared'
+import type { UnwrapPromise } from '../../lib/coalesced-function'
+
 import '../node-polyfill-fetch'
+import { buildStaticPaths } from '../../build/utils'
+import { loadComponents } from '../load-components'
+import { setHttpAgentOptions } from '../config'
 
 type RuntimeConfig = any
 
@@ -19,7 +22,12 @@ export async function loadStaticPaths(
   httpAgentOptions: NextConfigComplete['httpAgentOptions'],
   locales?: string[],
   defaultLocale?: string
-) {
+): Promise<
+  Omit<UnwrapPromise<ReturnType<GetStaticPaths>>, 'paths'> & {
+    paths: string[]
+    encodedPaths: string[]
+  }
+> {
   // we only want to use each worker once to prevent any invalid
   // caches
   if (workerWasUsed) {
