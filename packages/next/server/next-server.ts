@@ -219,7 +219,7 @@ export default class Server {
 
     this.distDir = join(this.dir, this.nextConfig.distDir)
     this.publicDir = join(this.dir, CLIENT_PUBLIC_FILES_PATH)
-    this.hasStaticDir = !minimalMode && fs.existsSync(join(this.dir, 'static'))
+    this.hasStaticDir = !minimalMode && this.getHasStaticDir()
 
     // Only serverRuntimeConfig needs the default
     // publicRuntimeConfig gets it's default in client/index.js
@@ -1488,6 +1488,10 @@ export default class Server {
       page
     )
     return true
+  }
+
+  protected getHasStaticDir(): boolean {
+    return fs.existsSync(join(this.dir, 'static'))
   }
 
   protected generatePublicRoutes(): Route[] {
