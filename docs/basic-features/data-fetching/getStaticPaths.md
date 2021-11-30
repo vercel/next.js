@@ -53,7 +53,7 @@ Note that you **cannot** use `getStaticPaths` with [`getServerSideProps`](/docs/
 
 ### Only runs at build time on server-side
 
-`getStaticPaths` only runs at build time on server-side. Except when using [Incremental Static Regeneration](/docs/basic-features/data-fetching/incremental-static-regeneration.md), it will run at request time.
+`getStaticPaths` only runs at build time on server-side. If you're using [Incremental Static Regeneration](/docs/basic-features/data-fetching/incremental-static-regeneration.md), `getStaticPaths` can also be ran on-demand _in the background_, but still only on the server-side..
 
 ### Only allowed in a page
 
