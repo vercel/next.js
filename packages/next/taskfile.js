@@ -836,6 +836,17 @@ export async function ncc_web_streams_polyfill(task, opts) {
     .target('compiled/web-streams-polyfill')
 }
 // eslint-disable-next-line camelcase
+externals['@aws-sdk/abort-controller'] = 'next/dist/compiled/@aws-sdk/abort-controller'
+export async function ncc_abort_controller(task, opts) {
+  await task
+    .source(
+      opts.src ||
+        relative(__dirname, require.resolve('@aws-sdk/abort-controller'))
+    )
+    .ncc({ packageName: '@aws-sdk/abort-controller', externals })
+    .target('compiled/@aws-sdk/abort-controller')
+}
+// eslint-disable-next-line camelcase
 externals['formdata-node'] = 'next/dist/compiled/formdata-node'
 export async function ncc_formdata_node(task, opts) {
   await task
@@ -1017,6 +1028,7 @@ export async function ncc(task, opts) {
         'ncc_uuid',
         'ncc_formdata_node',
         'ncc_web_streams_polyfill',
+        'ncc_abort_controller',
         'ncc_minimatch',
         'ncc_mini_css_extract_plugin',
       ],
