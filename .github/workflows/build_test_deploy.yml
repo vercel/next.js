@@ -44,7 +44,6 @@ jobs:
         id: docs-change
       - run: echo ${{steps.docs-change.outputs.DOCS_CHANGE}}
       - run: git fetch --depth=1 origin +refs/tags/*:refs/tags/*
-      - run: git describe
       - id: check-release
         run: |
           if [[ $(git describe --exact-match 2> /dev/null || :) = v* ]];
