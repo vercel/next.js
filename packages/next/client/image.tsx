@@ -642,11 +642,11 @@ export default function Image({
     }
   }
 
-  let imageSrcSetPropName = 'imageSrcSet'
-  let imageSizesPropName = 'imageSizes'
-  if (!process.env.__NEXT_REACT_ROOT) {
-    imageSrcSetPropName = imageSrcSetPropName.toLowerCase()
-    imageSizesPropName = imageSizesPropName.toLowerCase()
+  let imageSrcSetPropName = 'imagesrcset'
+  let imageSizesPropName = 'imagesizes'
+  if (process.env.__NEXT_REACT_ROOT) {
+    imageSrcSetPropName = 'imageSrcSet'
+    imageSizesPropName = 'imageSizes'
   }
   const linkProps = {
     // Note: imagesrcset and imagesizes are not in the link element type with react 17.
