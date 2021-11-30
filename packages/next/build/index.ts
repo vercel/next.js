@@ -281,12 +281,11 @@ export default async function build(
     const mappedPages = nextBuildSpan
       .traceChild('create-pages-mapping')
       .traceFn(() =>
-        createPagesMapping(
-          pagePaths,
-          config.pageExtensions,
-          false,
-          hasServerComponents
-        )
+        createPagesMapping(pagePaths, config.pageExtensions, {
+          isDev: false,
+          hasServerComponents,
+          hasConcurrentFeatures,
+        })
       )
 
     const entrypoints = nextBuildSpan
