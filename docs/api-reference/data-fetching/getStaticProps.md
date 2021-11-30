@@ -51,7 +51,7 @@ The `getStaticProps` function should return an object with the following **optio
 
 ### `props`
 
-The `props` object is a key value pair, where each value is received by the page component. It should be a [serializable object](https://en.wikipedia.org/wiki/Serialization)
+The `props` object is a key-value pair, where each value is received by the page component. It should be a [serializable object](https://en.wikipedia.org/wiki/Serialization)
 
 ```jsx
 export async function getStaticProps(context) {
