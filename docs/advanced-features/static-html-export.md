@@ -15,7 +15,7 @@ description: Export your Next.js app to static HTML, and run it standalone witho
 
 If you're looking to build a hybrid site where only _some_ pages are prerendered to static HTML, Next.js already does that automatically. Learn more about [Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md) and [Incremental Static Regeneration](/docs/basic-features/data-fetching.md#incremental-static-regeneration).
 
-## Usage
+## `next export`
 
 Update your build script in `package.json` to use `next export`:
 
