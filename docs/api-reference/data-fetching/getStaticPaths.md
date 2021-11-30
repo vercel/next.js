@@ -14,7 +14,7 @@ description: Fetch data and generate static pages with `getStaticPaths`.
 
 </details>
 
-When exporting an `async` function called `getStaticPaths` from a page that uses [dynamic routes](/docs/routing/dynamic-routes.md), Next.js will statically pre-render all the paths specified by `getStaticPaths`.
+When exporting an `async` function called `getStaticPaths` from a page that uses [Dynamic Routes](/docs/routing/dynamic-routes.md), Next.js will statically pre-render all the paths specified by `getStaticPaths`.
 
 ```jsx
 export async function getStaticPaths() {
