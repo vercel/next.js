@@ -24,7 +24,7 @@ export async function getServerSideProps(context) {
 }
 ```
 
-You can import modules in top-level scope for use in `getServerSideProps`. Imports used will **not be bundled for the client-side**. This means you can write **server-side code directly in `getServerSideProps`**, including reading from the filesystem or a database.
+You can import modules in top-level scope for use in `getServerSideProps`. Imports used will **not be bundled for the client-side**. This means you can write **server-side code directly in `getServerSideProps`**, including fetching data from your database.
 
 ## Context parameter
 
