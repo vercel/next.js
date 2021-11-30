@@ -1,5 +1,4 @@
 import type { I18NConfig } from '../../config-shared'
-import type { IResult } from 'next/dist/compiled/ua-parser-js'
 import type { RequestData } from '../types'
 import { NextURL } from '../next-url'
 import { isBot } from '../../utils'
@@ -110,6 +109,27 @@ export interface RequestInit extends globalThis.RequestInit {
   }
 }
 
-interface UserAgent extends IResult {
+interface UserAgent {
   isBot: boolean
+  ua: string
+  browser: {
+    name?: string
+    version?: string
+  }
+  device: {
+    model?: string
+    type?: string
+    vendor?: string
+  }
+  engine: {
+    name?: string
+    version?: string
+  }
+  os: {
+    name?: string
+    version?: string
+  }
+  cpu: {
+    architecture?: string
+  }
 }

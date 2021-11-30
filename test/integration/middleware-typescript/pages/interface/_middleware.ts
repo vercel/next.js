@@ -1,6 +1,10 @@
 import { NextMiddleware } from 'next/server'
 
 export const middleware: NextMiddleware = function (request) {
+  console.log(request.ua?.browser)
+  console.log(request.ua?.isBot)
+  console.log(request.ua?.ua)
+
   return new Response(null, {
     headers: {
       'req-url-basepath': request.nextUrl.basePath,
