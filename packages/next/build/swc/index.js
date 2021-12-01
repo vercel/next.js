@@ -7,29 +7,39 @@ const PlatformName = platform()
 const triples = platformArchTriples[PlatformName][ArchName] || []
 
 async function loadBindings() {
-  let bindings = loadNative()
-  if (bindings) {
-    return bindings
+  let attempts = []
+  try {
+    return loadNative()
+  } catch (a) {
+    attempts = attempts.concat(a)
   }
 
-  bindings = await loadWasm()
-  if (bindings) {
+  try {
+    let bindings = await loadWasm()
     return bindings
+  } catch (a) {
+    attempts = attempts.concat(a)
   }
 
-  logLoadFailure()
+  logLoadFailure(attempts)
 }
 
 function loadBindingsSync() {
-  let bindings = loadNative()
-  if (bindings) {
-    return bindings
+  let attempts = []
+  try {
+    return loadNative()
+  } catch (a) {
+    attempts = attempts.concat(a)
   }
 
-  logLoadFailure()
+  logLoadFailure(attempts)
 }
 
-function logLoadFailure() {
+function logLoadFailure(attempts) {
+  for (let attempt of attempts) {
+    Log.info(attempt)
+  }
+
   Log.error(
     `Failed to load SWC binary, see more info here: https://nextjs.org/docs/messages/failed-loading-swc`
   )
@@ -37,6 +47,7 @@ function logLoadFailure() {
 }
 
 async function loadWasm() {
+  let attempts = []
   for (let pkg of ['@next/swc-wasm-web', '@next/swc-wasm-nodejs']) {
     try {
       let bindings = await import(pkg)
@@ -53,12 +64,23 @@ async function loadWasm() {
           return Promise.resolve(bindings.minifySync(src.toString(), options))
         },
       }
-    } catch (e) {}
+    } catch (e) {
+      if (e?.code === 'ERR_MODULE_NOT_FOUND') {
+        attempts.push(`Attempted to load ${pkg}, but it was not installed`)
+      } else {
+        attempts.push(
+          `Attempted to load ${pkg}, but an error occurred: ${e.message ?? e}`
+        )
+      }
+    }
   }
+
+  throw attempts
 }
 
 function loadNative() {
   let bindings
+  let attempts = []
 
   for (const triple of triples) {
     try {
@@ -74,7 +96,15 @@ function loadNative() {
       try {
         bindings = require(pkg)
         break
-      } catch (e) {}
+      } catch (e) {
+        if (e?.code === 'MODULE_NOT_FOUND') {
+          attempts.push(`Attempted to load ${pkg}, but it was not installed`)
+        } else {
+          attempts.push(
+            `Attempted to load ${pkg}, but an error occurred: ${e.message ?? e}`
+          )
+        }
+      }
     }
   }
 
@@ -135,6 +165,8 @@ function loadNative() {
       },
     }
   }
+
+  throw attempts
 }
 
 function toBuffer(t) {
