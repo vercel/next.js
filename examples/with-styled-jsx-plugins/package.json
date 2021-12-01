@@ -1,6 +1,5 @@
 {
-  "name": "with-styled-jsx-plugins",
-  "version": "1.0.0",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",
@@ -11,11 +10,10 @@
     "lost": "8.2.0",
     "postcss-nested": "5.0.5",
     "postcss": "8.2.9",
-    "react": "^16.7.0",
-    "react-dom": "^16.7.0",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
     "styled-jsx-plugin-postcss": "4.0.1"
   },
-  "license": "MIT",
   "postcss": {
     "plugins": {
       "lost": {},

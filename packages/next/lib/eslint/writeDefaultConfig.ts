@@ -2,63 +2,66 @@ import { promises as fs } from 'fs'
 import chalk from 'chalk'
 import os from 'os'
 import path from 'path'
-
 import * as CommentJson from 'next/dist/compiled/comment-json'
+import { ConfigAvailable } from './hasEslintConfiguration'
+
+import * as Log from '../../build/output/log'
 
 export async function writeDefaultConfig(
+  baseDir: string,
+  { exists, emptyEslintrc, emptyPkgJsonConfig }: ConfigAvailable,
+  selectedConfig: any,
   eslintrcFile: string | null,
-  pkgJsonPath: string | null
+  pkgJsonPath: string | null,
+  packageJsonConfig: { eslintConfig: any } | null
 ) {
-  const defaultConfig = {
-    extends: 'next',
-  }
-
-  if (eslintrcFile) {
+  if (!exists && emptyEslintrc && eslintrcFile) {
     const ext = path.extname(eslintrcFile)
 
-    let fileContent
+    let newFileContent
     if (ext === '.yaml' || ext === '.yml') {
-      fileContent = "extends: 'next'"
+      newFileContent = "extends: 'next'"
     } else {
-      fileContent = CommentJson.stringify(defaultConfig, null, 2)
+      newFileContent = CommentJson.stringify(selectedConfig, null, 2)
 
       if (ext === '.js') {
-        fileContent = 'module.exports = ' + fileContent
+        newFileContent = 'module.exports = ' + newFileContent
       }
     }
 
-    await fs.writeFile(eslintrcFile, fileContent + os.EOL)
+    await fs.writeFile(eslintrcFile, newFileContent + os.EOL)
 
-    console.log(
-      '\n' +
-        chalk.green(
-          `We detected ESLint in your project and updated the ${chalk.bold(
-            path.basename(eslintrcFile)
-          )} file for you.`
-        ) +
-        '\n'
+    Log.info(
+      `We detected an empty ESLint configuration file (${chalk.bold(
+        path.basename(eslintrcFile)
+      )}) and updated it for you!`
     )
-  } else if (pkgJsonPath) {
-    const pkgJsonContent = await fs.readFile(pkgJsonPath, {
-      encoding: 'utf8',
-    })
-    let packageJsonConfig = CommentJson.parse(pkgJsonContent)
+  } else if (!exists && emptyPkgJsonConfig && packageJsonConfig) {
+    packageJsonConfig.eslintConfig = selectedConfig
 
-    packageJsonConfig.eslintConfig = defaultConfig
+    if (pkgJsonPath)
+      await fs.writeFile(
+        pkgJsonPath,
+        CommentJson.stringify(packageJsonConfig, null, 2) + os.EOL
+      )
 
+    Log.info(
+      `We detected an empty ${chalk.bold(
+        'eslintConfig'
+      )} field in package.json and updated it for you!`
+    )
+  } else if (!exists) {
     await fs.writeFile(
-      pkgJsonPath,
-      CommentJson.stringify(packageJsonConfig, null, 2) + os.EOL
+      path.join(baseDir, '.eslintrc.json'),
+      CommentJson.stringify(selectedConfig, null, 2) + os.EOL
     )
 
     console.log(
-      '\n' +
-        chalk.green(
-          `We detected ESLint in your project and updated the ${chalk.bold(
-            'eslintConfig'
-          )} field for you in package.json...`
-        ) +
-        '\n'
+      chalk.green(
+        `We created the ${chalk.bold(
+          '.eslintrc.json'
+        )} file for you and included your selected configuration.`
+      )
     )
   }
 }

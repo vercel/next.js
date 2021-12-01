@@ -3,6 +3,7 @@ import os from 'os'
 import path from 'path'
 
 import { FatalError } from '../fatal-error'
+import isError from '../is-error'
 
 export async function getTypeScriptConfiguration(
   ts: typeof import('typescript'),
@@ -54,8 +55,8 @@ export async function getTypeScriptConfiguration(
 
     return result
   } catch (err) {
-    if (err?.name === 'SyntaxError') {
-      const reason = '\n' + (err?.message ?? '')
+    if (isError(err) && err.name === 'SyntaxError') {
+      const reason = '\n' + (err.message ?? '')
       throw new FatalError(
         chalk.red.bold(
           'Could not parse',

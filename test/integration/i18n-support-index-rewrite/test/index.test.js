@@ -14,8 +14,6 @@ import {
   check,
 } from 'next-test-utils'
 
-jest.setTimeout(1000 * 60 * 2)
-
 const appDir = join(__dirname, '..')
 const locales = ['nl-NL', 'nl-BE', 'nl', 'fr-BE', 'fr', 'en']
 let appPort

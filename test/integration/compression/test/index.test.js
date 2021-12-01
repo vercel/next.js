@@ -10,7 +10,6 @@ import {
 } from 'next-test-utils'
 
 const context = {}
-jest.setTimeout(1000 * 60 * 5)
 
 describe('Compression', () => {
   beforeAll(async () => {

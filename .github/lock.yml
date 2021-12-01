@@ -1,6 +1,6 @@
 # Configuration for lock-threads - https://github.com/dessant/lock-threads
 
 # Number of days of inactivity before a closed issue or pull request is locked
-daysUntilLock: 365
+daysUntilLock: 45
 # Comment to post before locking. Set to `false` to disable
-lockComment: false
+lockComment: 'This issue has been automatically locked due to no recent activity. If you are running into a similar issue, please open a new issue with a reproduction. Thank you.'

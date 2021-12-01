@@ -1,1 +1,3 @@
-export default () => <div>API - support</div>
+export default function Page() {
+  return <div>API - support</div>
+}

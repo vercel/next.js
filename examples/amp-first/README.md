@@ -1,6 +1,6 @@
 # AMP First Boilerplate ⚡
 
-This example sets up the boilerplate for an AMP First Site. You can see a live version [here](https://my-next-app.sebastianbenz.vercel.app). The boilerplate includes the following features:
+This example sets up the boilerplate for an AMP First Site. You can see a [live version here](https://my-next-app.sebastianbenz.vercel.app). The boilerplate includes the following features:
 
 - AMP Extension helpers (`amp-state`, `amp-script`, ...)
 - AMP Serviceworker integration

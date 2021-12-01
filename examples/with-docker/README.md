@@ -22,7 +22,7 @@ You can view your images created with `docker images`.
 
 ## Deploying to Google Cloud Run
 
-The `start` script in `package.json` has been modified to accept a `PORT` environment variable (for compatability with Google Cloud Run).
+The `start` script in `package.json` has been modified to accept a `PORT` environment variable (for compatibility with Google Cloud Run).
 
 1. Install the [Google Cloud SDK](https://cloud.google.com/sdk/docs/install) so you can use `gcloud` on the command line.
 1. Run `gcloud auth login` to log in to your account.
@@ -33,6 +33,10 @@ The `start` script in `package.json` has been modified to accept a `PORT` enviro
    - You will be prompted for the service name: press Enter to accept the default name, `helloworld`.
    - You will be prompted for [region](https://cloud.google.com/run/docs/quickstarts/build-and-deploy#follow-cloud-run): select the region of your choice, for example `us-central1`.
    - You will be prompted to **allow unauthenticated invocations**: respond `y`.
+
+Or click the button below, authorize the script, and select the project and region when prompted:
+
+[![Run on Google Cloud](https://deploy.cloud.run/button.svg)](https://deploy.cloud.run/?git_repo=https://github.com/vercel/next.js.git&dir=examples/with-docker)
 
 ## Running Locally
 

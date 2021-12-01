@@ -29,7 +29,7 @@ function getDesiredCompilerOptions(
     strict: { suggested: false },
     forceConsistentCasingInFileNames: { suggested: true },
     noEmit: { suggested: true },
-    ...(semver.gte(ts.version, '4.3.0-beta')
+    ...(semver.gte(ts.version, '4.4.2')
       ? { incremental: { suggested: true } }
       : undefined),
 
@@ -38,7 +38,7 @@ function getDesiredCompilerOptions(
     // 'parsedValue' matches the output value from ts.parseJsonConfigFileContent()
     esModuleInterop: {
       value: true,
-      reason: 'requirement for babel',
+      reason: 'requirement for SWC / babel',
     },
     module: {
       parsedValue: ts.ModuleKind.ESNext,
@@ -60,7 +60,7 @@ function getDesiredCompilerOptions(
     resolveJsonModule: { value: true, reason: 'to match webpack resolution' },
     isolatedModules: {
       value: true,
-      reason: 'requirement for babel',
+      reason: 'requirement for SWC / Babel',
     },
     jsx: {
       parsedValue: ts.JsxEmit.Preserve,
@@ -99,10 +99,8 @@ export async function writeConfigurationDefaults(
   }
 
   const desiredCompilerOptions = getDesiredCompilerOptions(ts)
-  const {
-    options: tsOptions,
-    raw: rawConfig,
-  } = await getTypeScriptConfiguration(ts, tsConfigPath, true)
+  const { options: tsOptions, raw: rawConfig } =
+    await getTypeScriptConfiguration(ts, tsConfigPath, true)
 
   const userTsConfigContent = await fs.readFile(tsConfigPath, {
     encoding: 'utf8',
@@ -119,6 +117,9 @@ export async function writeConfigurationDefaults(
     const check = desiredCompilerOptions[optionKey]
     if ('suggested' in check) {
       if (!(optionKey in tsOptions)) {
+        if (!userTsConfig.compilerOptions) {
+          userTsConfig.compilerOptions = {}
+        }
         userTsConfig.compilerOptions[optionKey] = check.suggested
         suggestedActions.push(
           chalk.cyan(optionKey) + ' was set to ' + chalk.bold(check.suggested)
@@ -133,6 +134,9 @@ export async function writeConfigurationDefaults(
           ? check.parsedValue === ev
           : check.value === ev)
       ) {
+        if (!userTsConfig.compilerOptions) {
+          userTsConfig.compilerOptions = {}
+        }
         userTsConfig.compilerOptions[optionKey] = check.value
         requiredActions.push(
           chalk.cyan(optionKey) +

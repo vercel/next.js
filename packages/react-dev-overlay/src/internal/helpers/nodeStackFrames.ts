@@ -30,7 +30,7 @@ export function getNodeError(error: Error): Error {
   try {
     throw new Error(error.message)
   } catch (e) {
-    n = e
+    n = e as Error
   }
 
   n.name = error.name

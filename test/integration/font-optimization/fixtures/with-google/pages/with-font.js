@@ -11,7 +11,7 @@ const WithFont = () => {
         />
       </Head>
 
-      <div>
+      <div id="with-font-container">
         Page with custom fonts
         <br />
         <br />

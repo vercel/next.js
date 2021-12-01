@@ -24,23 +24,37 @@
 /// <reference types="node" />
 
 declare module 'mini-css-extract-plugin'
-declare module 'next/dist/compiled/loader-utils'
+declare module 'next/dist/compiled/loader-utils3'
 
 declare module 'next/dist/compiled/webpack/webpack' {
-  import webpackSources from 'webpack-sources'
-  import webpack, { loader } from 'webpack'
-  export let isWebpack5: boolean
-  export function init(useWebpack5: boolean): void
+  import webpackSources from 'webpack-sources1'
+  import webpack4, { loader } from 'webpack4'
+  import webpack5 from 'webpack5'
+  export { NormalModule } from 'webpack5'
+  export function init(): void
   export let BasicEvaluatedExpression: any
   export let GraphHelpers: any
-  export function onWebpackInit(cb: () => void): void
   export let sources: typeof webpackSources
-  export { webpack, loader }
+  // TODO change this to webpack5
+  export { webpack4 as webpack, loader, webpack4, webpack5 }
 }
 
 declare module 'webpack' {
+  export {
+    Compiler,
+    Compilation,
+    Module,
+    Stats,
+    Template,
+    RuntimeModule,
+    RuntimeGlobals,
+    NormalModule,
+  } from 'webpack5'
+}
+
+declare module 'webpack4' {
   import { RawSourceMap } from 'source-map'
-  import { ConcatSource } from 'webpack-sources'
+  import { ConcatSource } from 'webpack-sources1'
 
   export = webpack
 
@@ -145,6 +159,9 @@ declare module 'webpack' {
       parallelism?: number
       /** Optimization options */
       optimization?: Options.Optimization
+      experiments?: {
+        layers: boolean
+      }
     }
 
     interface Entry {
@@ -256,6 +273,8 @@ declare module 'webpack' {
       futureEmitAssets?: boolean
       /** The filename of WebAssembly modules as relative path inside the `output.path` directory. */
       webassemblyModuleFilename?: string
+      /** Library types enabled */
+      enabledLibraryTypes?: string[]
     }
 
     type LibraryTarget =
@@ -293,6 +312,12 @@ declare module 'webpack' {
       strictExportPresence?: boolean
       /** An array of rules applied for modules. */
       rules: RuleSetRule[]
+      parser?: {
+        javascript?: any
+      }
+      generator?: {
+        asset?: any
+      }
     }
 
     interface Resolve {
@@ -544,6 +569,7 @@ declare module 'webpack' {
         | 'javascript/esm'
         | 'json'
         | 'webassembly/experimental'
+        | 'asset/resource'
       /**
        * Match the resource path of the module
        */

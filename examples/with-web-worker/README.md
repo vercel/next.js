@@ -2,6 +2,12 @@
 
 This example shows how to run code in WebWorkers by utilizing [webpack 5](https://nextjs.org/docs/messages/webpack5).
 
+## Preview
+
+Preview the example live on [StackBlitz](http://stackblitz.com/):
+
+[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-web-worker)
+
 ## Deploy your own
 
 Deploy the example using [Vercel](https://vercel.com/):
