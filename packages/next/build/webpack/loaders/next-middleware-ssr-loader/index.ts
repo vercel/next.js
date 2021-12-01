@@ -1,4 +1,11 @@
+import { join } from 'path'
+
 import { stringifyRequest } from '../../stringify-request'
+import {
+  BUILD_MANIFEST,
+  REACT_LOADABLE_MANIFEST,
+} from '../../../../shared/lib/constants'
+import { DOT_NEXT_ALIAS } from '../../../../lib/constants'
 
 export default async function middlewareSSRLoader(this: any) {
   const {
@@ -21,6 +28,11 @@ export default async function middlewareSSRLoader(this: any) {
     this,
     absoluteDocumentPath
   )
+  const buildManifest = join(DOT_NEXT_ALIAS, BUILD_MANIFEST).replace(/\\/g, '/')
+  const ReactLoadableManifest = join(
+    DOT_NEXT_ALIAS,
+    REACT_LOADABLE_MANIFEST
+  ).replace(/\\/g, '/')
 
   const transformed = `
     import { adapter } from 'next/dist/server/web/adapter'
@@ -29,13 +41,14 @@ export default async function middlewareSSRLoader(this: any) {
     import App from ${stringifiedAbsoluteAppPath}
     import Document from ${stringifiedAbsoluteDocumentPath}
 
+    import buildManifest from '${buildManifest}'
+    import reactLoadableManifest from '${ReactLoadableManifest}'
+
     import { getRender } from 'next/dist/build/webpack/loaders/next-middleware-ssr-loader/render'
 
     const pageMod = require(${stringifiedAbsolutePagePath})
     const errorMod = require(${stringifiedAbsolute500PagePath})
 
-    const buildManifest = self.__BUILD_MANIFEST
-    const reactLoadableManifest = self.__REACT_LOADABLE_MANIFEST
     const rscManifest = self.__RSC_MANIFEST
 
     if (typeof pageMod.default !== 'function') {

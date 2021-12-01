@@ -4,8 +4,6 @@ import { getSortedRoutes } from '../../../shared/lib/router/utils'
 import {
   MIDDLEWARE_MANIFEST,
   MIDDLEWARE_FLIGHT_MANIFEST,
-  MIDDLEWARE_BUILD_MANIFEST,
-  MIDDLEWARE_REACT_LOADABLE_MANIFEST,
 } from '../../../shared/lib/constants'
 import { MIDDLEWARE_ROUTE } from '../../../lib/constants'
 import { nonNullable } from '../../../lib/non-nullable'
@@ -85,8 +83,6 @@ export default class MiddlewarePlugin {
             ssrEntryInfo.requireFlightManifest
               ? `server/${MIDDLEWARE_FLIGHT_MANIFEST}.js`
               : null,
-            `server/${MIDDLEWARE_BUILD_MANIFEST}.js`,
-            `server/${MIDDLEWARE_REACT_LOADABLE_MANIFEST}.js`,
             ...entryFiles.map((file) => 'server/' + file),
           ].filter(nonNullable)
         : entryFiles.map((file: string) =>

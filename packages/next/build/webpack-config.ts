@@ -23,7 +23,6 @@ import {
   CLIENT_STATIC_FILES_RUNTIME_POLYFILLS_SYMBOL,
   CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
   CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
-  MIDDLEWARE_REACT_LOADABLE_MANIFEST,
   REACT_LOADABLE_MANIFEST,
   SERVERLESS_DIRECTORY,
   SERVER_DIRECTORY,
@@ -1399,9 +1398,6 @@ export default async function getBaseWebpackConfig(
         new ReactLoadablePlugin({
           filename: REACT_LOADABLE_MANIFEST,
           pagesDir,
-          runtimeAsset: hasConcurrentFeatures
-            ? `server/${MIDDLEWARE_REACT_LOADABLE_MANIFEST}.js`
-            : undefined,
           dev,
         }),
       targetWeb && new DropClientPage(),
@@ -1460,7 +1456,6 @@ export default async function getBaseWebpackConfig(
           buildId,
           rewrites,
           isDevFallback,
-          exportRuntime: hasConcurrentFeatures,
         }),
       new ProfilingPlugin({ runWebpackSpan }),
       config.optimizeFonts &&

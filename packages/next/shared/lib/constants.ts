@@ -28,11 +28,6 @@ export const STRING_LITERAL_DROP_BUNDLE = '__NEXT_DROP_CLIENT_FILE__'
 
 // server/middleware-flight-manifest.js
 export const MIDDLEWARE_FLIGHT_MANIFEST = 'middleware-flight-manifest'
-// server/middleware-build-manifest.js
-export const MIDDLEWARE_BUILD_MANIFEST = 'middleware-build-manifest'
-// server/middleware-react-loadable-manifest.js
-export const MIDDLEWARE_REACT_LOADABLE_MANIFEST =
-  'middleware-react-loadable-manifest'
 
 // static/runtime/main.js
 export const CLIENT_STATIC_FILES_RUNTIME_MAIN = `main`
