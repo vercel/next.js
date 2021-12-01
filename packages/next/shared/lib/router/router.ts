@@ -1,23 +1,25 @@
 // tslint:disable:no-console
-import { ParsedUrlQuery } from 'querystring'
-import { ComponentType } from 'react'
-import { UrlObject } from 'url'
+import type { ComponentType } from 'react'
+import type { DomainLocale } from '../../../server/config'
+import type { MittEmitter } from '../mitt'
+import type { ParsedUrlQuery } from 'querystring'
+import type { RouterEvent } from '../../../client/router'
+import type { StyleSheetTuple } from '../../../client/page-loader'
+import type { UrlObject } from 'url'
+import type PageLoader from '../../../client/page-loader'
 import {
   normalizePathTrailingSlash,
   removePathTrailingSlash,
 } from '../../../client/normalize-trailing-slash'
-import { GoodPageCache, StyleSheetTuple } from '../../../client/page-loader'
 import {
   getClientBuildManifest,
   isAssetError,
   markAssetError,
 } from '../../../client/route-loader'
-import { RouterEvent } from '../../../client/router'
 import isError from '../../../lib/is-error'
-import type { DomainLocale } from '../../../server/config'
 import { denormalizePagePath } from '../../../server/denormalize-page-path'
 import { normalizeLocalePath } from '../i18n/normalize-locale-path'
-import mitt, { MittEmitter } from '../mitt'
+import mitt from '../mitt'
 import {
   AppContextType,
   formatWithValidation,
@@ -612,7 +614,7 @@ export default class Router implements BaseRouter {
 
   sub: Subscription
   clc: ComponentLoadCancel
-  pageLoader: any
+  pageLoader: PageLoader
   _bps: BeforePopStateCallback | undefined
   events: MittEmitter<RouterEvent>
   _wrapApp: (App: AppComponent) => any
@@ -1131,28 +1133,35 @@ export default class Router implements BaseRouter {
 
     resolvedAs = delLocale(delBasePath(resolvedAs), this.locale)
 
-    const effect = await this._preflightRequest({
-      as,
-      cache: process.env.NODE_ENV === 'production',
-      pages,
-      pathname,
-      query,
-    })
+    /**
+     * If the route update was triggered for client-side hydration then
+     * do not check the preflight request. Otherwise when rendering
+     * a page with refresh it might get into an infinite loop.
+     */
+    if ((options as any)._h !== 1) {
+      const effect = await this._preflightRequest({
+        as,
+        cache: process.env.NODE_ENV === 'production',
+        pages,
+        pathname,
+        query,
+      })
 
-    if (effect.type === 'rewrite') {
-      query = { ...query, ...effect.parsedAs.query }
-      resolvedAs = effect.asPath
-      pathname = effect.resolvedHref
-      parsed.pathname = effect.resolvedHref
-      url = formatWithValidation(parsed)
-    } else if (effect.type === 'redirect' && effect.newAs) {
-      return this.change(method, effect.newUrl, effect.newAs, options)
-    } else if (effect.type === 'redirect' && effect.destination) {
-      window.location.href = effect.destination
-      return new Promise(() => {})
-    } else if (effect.type === 'refresh') {
-      window.location.href = as
-      return new Promise(() => {})
+      if (effect.type === 'rewrite') {
+        query = { ...query, ...effect.parsedAs.query }
+        resolvedAs = effect.asPath
+        pathname = effect.resolvedHref
+        parsed.pathname = effect.resolvedHref
+        url = formatWithValidation(parsed)
+      } else if (effect.type === 'redirect' && effect.newAs) {
+        return this.change(method, effect.newUrl, effect.newAs, options)
+      } else if (effect.type === 'redirect' && effect.destination) {
+        window.location.href = effect.destination
+        return new Promise(() => {})
+      } else if (effect.type === 'refresh') {
+        window.location.href = as
+        return new Promise(() => {})
+      }
     }
 
     const route = removePathTrailingSlash(pathname)
@@ -1738,7 +1747,7 @@ export default class Router implements BaseRouter {
     ])
   }
 
-  async fetchComponent(route: string): Promise<GoodPageCache> {
+  async fetchComponent(route: string) {
     let cancelled = false
     const cancel = (this.clc = () => {
       cancelled = true
@@ -1819,7 +1828,7 @@ export default class Router implements BaseRouter {
       this.locale
     )
 
-    const fns: [string, boolean][] = await this.pageLoader.getMiddlewareList()
+    const fns = await this.pageLoader.getMiddlewareList()
     const requiresPreflight = fns.some(([middleware, isSSR]) => {
       return getRouteMatcher(getMiddlewareRegex(middleware, !isSSR))(cleanedAs)
     })

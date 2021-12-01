@@ -156,6 +156,16 @@ function rewriteTests(locale = '') {
     expect($('.title').text()).toBe('About Page')
   })
 
+  it(`${locale} should rewrite when not using localhost`, async () => {
+    const res = await fetchViaHTTP(
+      `http://localtest.me:${context.appPort}`,
+      `${locale}/rewrites/rewrite-me-without-hard-navigation`
+    )
+    const html = await res.text()
+    const $ = cheerio.load(html)
+    expect($('.title').text()).toBe('About Page')
+  })
+
   it(`${locale} should rewrite to Vercel`, async () => {
     const res = await fetchViaHTTP(
       context.appPort,
@@ -341,6 +351,14 @@ function responseTests(locale = '') {
       'foo=oatmeal',
     ])
   })
+
+  it(`${locale} should be intercepted by deep middleware`, async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      `${locale}/responses/deep?deep-intercept=true`
+    )
+    expect(await res.text()).toBe('intercepted!')
+  })
 }
 
 function interfaceTests(locale = '') {
@@ -419,6 +437,15 @@ function interfaceTests(locale = '') {
     if (locale !== '') {
       expect(res.headers.get('req-url-locale')).toBe(locale.slice(1))
     }
+  })
+
+  it(`${locale} renders correctly rewriting with a root subrequest`, async () => {
+    const browser = await webdriver(
+      context.appPort,
+      '/interface/root-subrequest'
+    )
+    const element = await browser.elementByCss('.title')
+    expect(await element.text()).toEqual('Dynamic route')
   })
 }
 

@@ -35,7 +35,6 @@ import {
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { addMessageListener } from './websocket'
 import formatWebpackMessages from './format-webpack-messages'
-import Router from 'next/router'
 
 // This alternative WebpackDevServer combines the functionality of:
 // https://github.com/webpack/webpack-dev-server/blob/webpack-1/client/index.js
@@ -57,7 +56,7 @@ export default function connect() {
     try {
       processMessage(event)
     } catch (ex) {
-      console.warn('Invalid HMR message: ' + event.data + '\n' + ex)
+      console.warn('Invalid HMR message: ' + event.data + '\n', ex)
     }
   })
 
@@ -91,7 +90,7 @@ function handleSuccess() {
 
   const isHotUpdate =
     !isFirstCompilation ||
-    (Router.pathname !== '/_error' && isUpdateAvailable())
+    (window.__NEXT_DATA__.page !== '/_error' && isUpdateAvailable())
   isFirstCompilation = false
   hasCompileErrors = false
 

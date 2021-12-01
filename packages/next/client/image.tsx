@@ -642,6 +642,18 @@ export default function Image({
     }
   }
 
+  let imageSrcSetPropName = 'imagesrcset'
+  let imageSizesPropName = 'imagesizes'
+  if (process.env.__NEXT_REACT_ROOT) {
+    imageSrcSetPropName = 'imageSrcSet'
+    imageSizesPropName = 'imageSizes'
+  }
+  const linkProps = {
+    // Note: imagesrcset and imagesizes are not in the link element type with react 17.
+    [imageSrcSetPropName]: imgAttributes.srcSet,
+    [imageSizesPropName]: imgAttributes.sizes,
+  }
+
   return (
     <span style={wrapperStyle}>
       {hasSizer ? (
@@ -716,11 +728,8 @@ export default function Image({
             rel="preload"
             as="image"
             href={imgAttributes.srcSet ? undefined : imgAttributes.src}
-            // @ts-ignore: imagesrcset is not yet in the link element type.
-            imagesrcset={imgAttributes.srcSet}
-            // @ts-ignore: imagesizes is not yet in the link element type.
-            imagesizes={imgAttributes.sizes}
-          ></link>
+            {...linkProps}
+          />
         </Head>
       ) : null}
     </span>
