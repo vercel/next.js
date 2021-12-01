@@ -14,12 +14,13 @@ async function loadBindings() {
     attempts = attempts.concat(a)
   }
 
-  try {
-    let bindings = await loadWasm()
-    return bindings
-  } catch (a) {
-    attempts = attempts.concat(a)
-  }
+  // TODO: reenable once working
+  // try {
+  //   let bindings = await loadWasm()
+  //   return bindings
+  // } catch (a) {
+  //   attempts = attempts.concat(a)
+  // }
 
   logLoadFailure(attempts)
 }
