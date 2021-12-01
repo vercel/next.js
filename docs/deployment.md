@@ -6,8 +6,6 @@ description: Learn how to deploy your Next.js app to production either managed o
 
 Congratulations, you are ready to deploy your Next.js application to production. This document will show how to deploy either managed or self-hosted using the [Next.js Build API](#nextjs-build-api).
 
-If you haven't already, read [Going to Production](/docs/going-to-production.md) to help achieve the best performance and user experience in your application before deploying.
-
 ## Next.js Build API
 
 `next build` generates an optimized version of your application for production. This standard output includes:
@@ -29,8 +27,6 @@ This output is generated inside the `.next` folder:
 All JavaScript code inside `.next` has been **compiled** and browser bundles have been **minified** to help achieve the best performance and support [all modern browsers](/docs/basic-features/supported-browsers-features.md).
 
 ## Managed Next.js with Vercel
-
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/hello-world&project-name=hello-world&repository-name=hello-world)
 
 [Vercel](https://vercel.com/) is a frontend cloud platform from the creators of Next.js. It's the fastest way to deploy your managed Next.js application with zero configuration.
 
@@ -54,6 +50,8 @@ In addition, Vercel provides features like:
 - Instant global deployments by pushing to git
 
 You can start using Vercel (for free) through a personal Hobby account, or create a team to start the next big thing. Learn more about [Next.js on Vercel](https://vercel.com/solutions/nextjs) or read the [Vercel Documentation](https://vercel.com/docs).
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/hello-world&project-name=hello-world&repository-name=hello-world)
 
 ## Self-Hosting
 
@@ -97,3 +95,14 @@ When you deploy your Next.js application, you want to see the latest version wit
 Next.js will automatically load the latest version of your application in the background when routing. For client-side navigations, `next/link` will temporarily function as a normal `<a>` tag.
 
 **Note:** If a new page (with an old version) has already been prefetched by `next/link`, Next.js will use the old version. Then, after either a full page refresh or multiple client-side page transitions, Next.js will show the latest version.
+
+## Related
+
+For more information on what to do next, we recommend the following sections:
+
+<div class="card">
+  <a href="/docs/going-to-production.md">
+    <b>Going to Production:</b>
+    <small>Ensure the best performance and user experience.</small>
+  </a>
+</div>
