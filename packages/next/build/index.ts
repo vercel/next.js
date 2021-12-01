@@ -281,12 +281,11 @@ export default async function build(
     const mappedPages = nextBuildSpan
       .traceChild('create-pages-mapping')
       .traceFn(() =>
-        createPagesMapping(
-          pagePaths,
-          config.pageExtensions,
-          false,
-          hasServerComponents
-        )
+        createPagesMapping(pagePaths, config.pageExtensions, {
+          isDev: false,
+          hasServerComponents,
+          hasConcurrentFeatures,
+        })
       )
 
     const entrypoints = nextBuildSpan
@@ -1350,14 +1349,24 @@ export default async function build(
       )
     }
 
-    const optimizeCss: EventBuildFeatureUsage = {
-      featureName: 'experimental/optimizeCss',
-      invocationCount: config.experimental.optimizeCss ? 1 : 0,
-    }
-    telemetry.record({
-      eventName: EVENT_BUILD_FEATURE_USAGE,
-      payload: optimizeCss,
-    })
+    const features: EventBuildFeatureUsage[] = [
+      {
+        featureName: 'experimental/optimizeCss',
+        invocationCount: config.experimental.optimizeCss ? 1 : 0,
+      },
+      {
+        featureName: 'optimizeFonts',
+        invocationCount: config.optimizeFonts ? 1 : 0,
+      },
+    ]
+    telemetry.record(
+      features.map((feature) => {
+        return {
+          eventName: EVENT_BUILD_FEATURE_USAGE,
+          payload: feature,
+        }
+      })
+    )
 
     await promises.writeFile(
       path.join(distDir, SERVER_FILES_MANIFEST),
@@ -2047,8 +2056,6 @@ export default async function build(
   return buildResult
 }
 
-export type ClientSsgManifest = Set<string>
-
 function generateClientSsgManifest(
   prerenderManifest: PrerenderManifest,
   {
@@ -2057,7 +2064,7 @@ function generateClientSsgManifest(
     locales,
   }: { buildId: string; distDir: string; locales: string[] }
 ) {
-  const ssgPages: ClientSsgManifest = new Set<string>([
+  const ssgPages = new Set<string>([
     ...Object.entries(prerenderManifest.routes)
       // Filter out dynamic routes
       .filter(([, { srcRoute }]) => srcRoute == null)

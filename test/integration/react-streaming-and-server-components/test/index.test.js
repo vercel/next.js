@@ -157,7 +157,7 @@ describe('concurrentFeatures - prod', () => {
     expect(html).toContain('foo.client')
   })
 
-  runBasicTests(context)
+  runBasicTests(context, 'prod')
 })
 
 describe('concurrentFeatures - dev', () => {
@@ -182,7 +182,19 @@ describe('concurrentFeatures - dev', () => {
     expect(content).toMatchInlineSnapshot('"foo.client"')
   })
 
-  runBasicTests(context)
+  it('should not bundle external imports into client builds for RSC', async () => {
+    const html = await renderViaHTTP(context.appPort, '/external-imports')
+    expect(html).toContain('date:')
+
+    const distServerDir = join(distDir, 'static', 'chunks', 'pages')
+    const bundle = fs
+      .readFileSync(join(distServerDir, 'external-imports.js'))
+      .toString()
+
+    expect(bundle).not.toContain('moment')
+  })
+
+  runBasicTests(context, 'dev')
 })
 
 const cssSuite = {
@@ -213,9 +225,17 @@ const documentSuite = {
 runSuite('document', 'dev', documentSuite)
 runSuite('document', 'prod', documentSuite)
 
-async function runBasicTests(context) {
+async function runBasicTests(context, env) {
+  const isDev = env === 'dev'
   it('should render the correct html', async () => {
-    const homeHTML = await renderViaHTTP(context.appPort, '/')
+    const homeHTML = await renderViaHTTP(context.appPort, '/', null, {
+      headers: {
+        'x-next-test-client': 'test-util',
+      },
+    })
+
+    // should have only 1 DOCTYPE
+    expect(homeHTML).toMatch(/^<!DOCTYPE html><html/)
 
     // dynamic routes
     const dynamicRouteHTML1 = await renderViaHTTP(
@@ -234,15 +254,20 @@ async function runBasicTests(context) {
       '/this-is-not-found'
     )
 
-    expect(homeHTML).toContain('thisistheindexpage.server')
-    expect(homeHTML).toContain('env_var_test')
+    expect(homeHTML).toContain('component:index.server')
+    expect(homeHTML).toContain('env:env_var_test')
+    expect(homeHTML).toContain('header:test-util')
+    expect(homeHTML).toContain('path:/')
     expect(homeHTML).toContain('foo.client')
 
     expect(dynamicRouteHTML1).toContain('[pid]')
     expect(dynamicRouteHTML2).toContain('[pid]')
 
     expect(path404HTML).toContain('custom-404-page')
-    expect(path500HTML).toContain('custom-500-page')
+    // in dev mode: custom error page is still using default _error
+    expect(path500HTML).toContain(
+      isDev ? 'Internal Server Error' : 'custom-500-page'
+    )
     expect(pathNotFoundHTML).toContain('custom-404-page')
   })
 
@@ -330,6 +355,6 @@ function runSuite(suiteName, env, { runTests, before, after }) {
       await killApp(context.server)
     })
 
-    runTests(context)
+    runTests(context, env)
   })
 }
