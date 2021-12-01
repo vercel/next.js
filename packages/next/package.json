@@ -118,7 +118,7 @@
     "watchpack": "2.3.0"
   },
   "peerDependencies": {
-    "@babel/core": "7.15.0",
+    "@babel/core": "^7.0.0-0",
     "fibers": ">= 3.1.0",
     "node-sass": "^4.0.0 || ^5.0.0 || ^6.0.0",
     "react": "^17.0.2 || ^18.0.0",
