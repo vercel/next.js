@@ -35,11 +35,10 @@ npx create-next-app@latest --typescript
 yarn create next-app --typescript
 ```
 
-After the installation is complete, follow the instructions to start the development server. Run `npm run dev` or `yarn dev`. This starts the development server on `http://localhost:3000`.
-
-Visit `http://localhost:3000` to view your application.
-
-Now try editing `pages/index.js` and see the result on your browser.
+After the installation is complete:
+-  Start the development server by running `npm run dev` or `yarn dev`. This starts the development server on `http://localhost:3000`.
+- Visit `http://localhost:3000` to view your application.
+- Now try editing `pages/index.js` and see the result on your browser.
 
 For more information on how to use `create-next-app`, you can review the [`create-next-app` documentation](/docs/api-reference/create-next-app.md)
 
