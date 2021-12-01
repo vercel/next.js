@@ -218,6 +218,7 @@ export type RenderOptsPartial = {
   supportsDynamicHTML?: boolean
   concurrentFeatures?: boolean
   customServer?: boolean
+  crossOrigin?: string
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
@@ -1007,12 +1008,13 @@ export async function renderToHTML(
       serverComponentManifest
     )
     const reader = stream.getReader()
-    return new RenderResult((innerRes, next) => {
+    const piper: NodeWritablePiper = (innerRes, next) => {
       bufferedReadFromReadableStream(reader, (val) => innerRes.write(val)).then(
         () => next(),
         (innerErr) => next(innerErr)
       )
-    })
+    }
+    return new RenderResult(chainPipers([piper]))
   }
 
   // we preload the buildManifest for auto-export dynamic pages
@@ -1297,6 +1299,11 @@ export async function renderToHTML(
     styles: documentResult.styles,
     useMainContent: documentResult.useMainContent,
     useMaybeDeferContent,
+    crossOrigin: renderOpts.crossOrigin,
+    optimizeCss: renderOpts.optimizeCss,
+    optimizeFonts: renderOpts.optimizeFonts,
+    optimizeImages: renderOpts.optimizeImages,
+    concurrentFeatures: renderOpts.concurrentFeatures,
   }
 
   const document = (

@@ -206,6 +206,7 @@ export default class Server {
     domainLocales?: DomainLocale[]
     distDir: string
     concurrentFeatures?: boolean
+    crossOrigin?: string
   }
   private compression?: ExpressMiddleware
   private incrementalCache: IncrementalCache
@@ -275,6 +276,9 @@ export default class Server {
       domainLocales: this.nextConfig.i18n?.domains,
       distDir: this.distDir,
       concurrentFeatures: this.nextConfig.experimental.concurrentFeatures,
+      crossOrigin: this.nextConfig.crossOrigin
+        ? this.nextConfig.crossOrigin
+        : undefined,
     }
 
     // Only the `publicRuntimeConfig` key is exposed to the client side
