@@ -47,6 +47,7 @@ function logLoadFailure(attempts) {
   process.exit(1)
 }
 
+// eslint-disable-next-line
 async function loadWasm() {
   let attempts = []
   for (let pkg of ['@next/swc-wasm-web', '@next/swc-wasm-nodejs']) {
