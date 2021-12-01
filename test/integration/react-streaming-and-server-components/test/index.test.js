@@ -137,7 +137,6 @@ describe('concurrentFeatures - prod', () => {
     const hasFile = (filename) => fs.existsSync(join(distServerDir, filename))
 
     const files = [
-      'middleware-build-manifest.js',
       'middleware-flight-manifest.js',
       'middleware-ssr-runtime.js',
       'middleware-manifest.json',
