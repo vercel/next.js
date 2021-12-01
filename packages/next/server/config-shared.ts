@@ -54,6 +54,10 @@ export type NextWebpackContext = {
   webpack: any
 }
 
+export type WebpackConfig =
+  | ((config: any, context: NextWebpackContext) => any)
+  | null
+
 export type NextConfig = { [key: string]: any } & {
   i18n?: I18NConfig | null
 
@@ -74,7 +78,7 @@ export type NextConfig = { [key: string]: any } & {
   webpack5?: false
   excludeDefaultMomentLocales?: boolean
 
-  webpack?: ((config: any, context: NextWebpackContext) => any) | null
+  webpack?: WebpackConfig
 
   trailingSlash?: boolean
   env?: { [key: string]: string }
