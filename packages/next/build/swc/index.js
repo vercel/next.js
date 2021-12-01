@@ -42,7 +42,7 @@ function logLoadFailure(attempts) {
   }
 
   Log.error(
-    `Failed to load SWC binary, see more info here: https://nextjs.org/docs/messages/failed-loading-swc`
+    `Failed to load SWC binary for ${PlatformName}/${ArchName}, see more info here: https://nextjs.org/docs/messages/failed-loading-swc`
   )
   process.exit(1)
 }
