@@ -2,7 +2,6 @@ import React from 'react'
 import { createPortal } from 'react-dom'
 
 type PortalProps = {
-  children: React.ReactNode
   type: string
 }
 

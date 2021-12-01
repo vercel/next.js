@@ -6,7 +6,7 @@ import Nav from './Nav'
 interface LayoutProps {
   title?: string
   description?: string
-  children: ReactChild | ReactChild[]
+  children?: ReactChild | ReactChild[]
 }
 
 export default function Layout({ title, description, children }: LayoutProps) {

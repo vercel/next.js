@@ -604,7 +604,7 @@ export async function renderToHTML(
   const nextExport =
     !isSSG && (renderOpts.nextExport || (dev && (isAutoExport || isFallback)))
 
-  const AppContainer = ({ children }: { children: JSX.Element }) => (
+  const AppContainer = ({ children }: { children?: JSX.Element }) => (
     <RouterContext.Provider value={router}>
       <AmpStateContext.Provider value={ampState}>
         <HeadManagerContext.Provider
@@ -641,7 +641,7 @@ export async function renderToHTML(
   const AppContainerWithIsomorphicFiberStructure = ({
     children,
   }: {
-    children: JSX.Element
+    children?: JSX.Element
   }) => {
     return (
       <>
@@ -1043,7 +1043,7 @@ export async function renderToHTML(
     }
   }
 
-  const Body = ({ children }: { children: JSX.Element }) => {
+  const Body = ({ children }: { children?: JSX.Element }) => {
     return inAmpMode ? children : <div id="__next">{children}</div>
   }
 

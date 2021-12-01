@@ -1,13 +1,7 @@
 import * as React from 'react'
 import { createPortal } from 'react-dom'
 
-export type ShadowPortalProps = {
-  children: React.ReactNode
-}
-
-export const ShadowPortal: React.FC<ShadowPortalProps> = function Portal({
-  children,
-}) {
+export const ShadowPortal: React.FC = function Portal({ children }) {
   let mountNode = React.useRef<HTMLDivElement | null>(null)
   let portalNode = React.useRef<HTMLElement | null>(null)
   let shadowNode = React.useRef<ShadowRoot | null>(null)
