@@ -1,10 +1,10 @@
 module.exports = {
+  mode: 'JIT',
   purge: ['./components/**/*.js', './pages/**/*.js'],
   theme: {
     extend: {
       fontFamily: {
-        sans:
-          '-apple-system, "Helvetica Neue", "Segoe UI", Roboto, Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"',
+        sans: '-apple-system, "Helvetica Neue", "Segoe UI", Roboto, Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"',
       },
       colors: {
         'accent-1': '#FAFAFA',

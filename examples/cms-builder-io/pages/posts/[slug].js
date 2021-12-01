@@ -50,7 +50,7 @@ export default function Post({ post, morePosts, preview }) {
                       <PostHeader
                         title={data.title}
                         coverImage={data.image}
-                        date={post.publishedAt || post.createdAt}
+                        date={post.lastUpdated}
                         author={data.author.value?.data}
                       />
                     )}

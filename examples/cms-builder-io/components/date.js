@@ -1,13 +1,9 @@
-import { parseISO, format } from 'date-fns'
-import { useEffect, useState } from 'react'
+import { format } from 'date-fns'
 
-// dateString might be null for unpublished posts
 export default function DateComponent({ dateString }) {
-  const [date, setDate] = useState(dateString ? parseISO(dateString) : null)
-  useEffect(() => {
-    if (!date) {
-      setDate(new Date())
-    }
-  }, [date])
-  return date && <time dateTime={date}>{format(date, 'LLLL d, yyyy')}</time>
+  return (
+    <time dateTime={new Date(dateString)}>
+      {format(new Date(dateString), 'LLLL	d, yyyy')}
+    </time>
+  )
 }
