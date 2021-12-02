@@ -453,9 +453,9 @@ export class Head extends Component<
     return React.Children.map(node, (c: any) => {
       if (
         c?.type === 'link' &&
-        c?.props['href'] &&
+        c?.props?.['href'] &&
         OPTIMIZED_FONT_PROVIDERS.some(({ url }) =>
-          c?.props['href'].startsWith(url)
+          c?.props?.['href'].startsWith(url)
         )
       ) {
         const newProps = { ...(c.props || {}) }
