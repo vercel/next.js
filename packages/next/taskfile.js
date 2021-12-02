@@ -836,7 +836,8 @@ export async function ncc_web_streams_polyfill(task, opts) {
     .target('compiled/web-streams-polyfill')
 }
 // eslint-disable-next-line camelcase
-externals['@aws-sdk/abort-controller'] = 'next/dist/compiled/@aws-sdk/abort-controller'
+externals['@aws-sdk/abort-controller'] =
+  'next/dist/compiled/@aws-sdk/abort-controller'
 export async function ncc_abort_controller(task, opts) {
   await task
     .source(
