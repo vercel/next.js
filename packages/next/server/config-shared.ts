@@ -244,7 +244,7 @@ export const defaultConfig: NextConfig = {
     reactRoot: Number(process.env.NEXT_PRIVATE_REACT_ROOT) > 0,
     disableOptimizedLoading: false,
     gzipSize: true,
-    swcFileReading: true,
+    swcFileReading: false,
     craCompat: false,
     esmExternals: true,
     // default to 50MB limit
