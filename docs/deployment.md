@@ -51,13 +51,13 @@ In addition, Vercel provides features like:
 
 You can start using Vercel (for free) through a personal Hobby account, or create a team to start the next big thing. Learn more about [Next.js on Vercel](https://vercel.com/solutions/nextjs) or read the [Vercel Documentation](https://vercel.com/docs).
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/hello-world&project-name=hello-world&repository-name=hello-world)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/hello-world&project-name=hello-world&repository-name=hello-world&utm_source=github.com&utm_medium=referral&utm_campaign=deployment)
 
 ## Self-Hosting
 
 ### Node.js Server
 
-Next.js can be deployed to any hosting provider that supports Node.js. For example, [AWS EC2]() or a [DigitalOcean Droplet]().
+Next.js can be deployed to any hosting provider that supports Node.js. For example, [AWS EC2](https://aws.amazon.com/ec2/) or a [DigitalOcean Droplet](https://www.digitalocean.com/products/droplets/).
 
 First, ensure your `package.json` has the `"build"` and `"start"` scripts:
 
