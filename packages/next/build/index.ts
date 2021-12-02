@@ -1088,7 +1088,125 @@ export default async function build(
       )
     }
 
+    if (serverPropsPages.size > 0 || ssgPages.size > 0) {
+      // We update the routes manifest after the build with the
+      // data routes since we can't determine these until after build
+      routesManifest.dataRoutes = getSortedRoutes([
+        ...serverPropsPages,
+        ...ssgPages,
+      ]).map((page) => {
+        const pagePath = normalizePagePath(page)
+        const dataRoute = path.posix.join(
+          '/_next/data',
+          buildId,
+          `${pagePath}.json`
+        )
+
+        let dataRouteRegex: string
+        let namedDataRouteRegex: string | undefined
+        let routeKeys: { [named: string]: string } | undefined
+
+        if (isDynamicRoute(page)) {
+          const routeRegex = getRouteRegex(dataRoute.replace(/\.json$/, ''))
+
+          dataRouteRegex = normalizeRouteRegex(
+            routeRegex.re.source.replace(/\(\?:\\\/\)\?\$$/, `\\.json$`)
+          )
+          namedDataRouteRegex = routeRegex.namedRegex!.replace(
+            /\(\?:\/\)\?\$$/,
+            `\\.json$`
+          )
+          routeKeys = routeRegex.routeKeys
+        } else {
+          dataRouteRegex = normalizeRouteRegex(
+            new RegExp(
+              `^${path.posix.join(
+                '/_next/data',
+                escapeStringRegexp(buildId),
+                `${pagePath}.json`
+              )}$`
+            ).source
+          )
+        }
+
+        return {
+          page,
+          routeKeys,
+          dataRouteRegex,
+          namedDataRouteRegex,
+        }
+      })
+
+      await promises.writeFile(
+        routesManifestPath,
+        JSON.stringify(routesManifest),
+        'utf8'
+      )
+    }
+
+    // Since custom _app.js can wrap the 404 page we have to opt-out of static optimization if it has getInitialProps
+    // Only export the static 404 when there is no /_error present
+    const useStatic404 =
+      !hasConcurrentFeatures &&
+      !customAppGetInitialProps &&
+      (!hasNonStaticErrorPage || hasPages404)
+
+    if (invalidPages.size > 0) {
+      const err = new Error(
+        `Build optimization failed: found page${
+          invalidPages.size === 1 ? '' : 's'
+        } without a React Component as default export in \n${[...invalidPages]
+          .map((pg) => `pages${pg}`)
+          .join(
+            '\n'
+          )}\n\nSee https://nextjs.org/docs/messages/page-without-valid-component for more info.\n`
+      ) as NextError
+      err.code = 'BUILD_OPTIMIZATION_FAILED'
+      throw err
+    }
+
+    await writeBuildId(distDir, buildId)
+
+    if (config.experimental.optimizeCss) {
+      const cssFilePaths = getCssFilePaths(buildManifest)
+
+      requiredServerFiles.files.push(
+        ...cssFilePaths.map((filePath) => path.join(config.distDir, filePath))
+      )
+    }
+
+    const features: EventBuildFeatureUsage[] = [
+      {
+        featureName: 'experimental/optimizeCss',
+        invocationCount: config.experimental.optimizeCss ? 1 : 0,
+      },
+      {
+        featureName: 'optimizeFonts',
+        invocationCount: config.optimizeFonts ? 1 : 0,
+      },
+    ]
+    telemetry.record(
+      features.map((feature) => {
+        return {
+          eventName: EVENT_BUILD_FEATURE_USAGE,
+          payload: feature,
+        }
+      })
+    )
+
+    await promises.writeFile(
+      path.join(distDir, SERVER_FILES_MANIFEST),
+      JSON.stringify(requiredServerFiles),
+      'utf8'
+    )
+
+    if (postCompileSpinner) postCompileSpinner.stopAndPersist()
+
     if (config.outputFileTracing) {
+      const outputFileTracingSpinner = createSpinner({
+        prefixText: `${Log.prefixes.info} Tracing output files`,
+      })
+
       const { nodeFileTrace } =
         require('next/dist/compiled/@vercel/nft') as typeof import('next/dist/compiled/@vercel/nft')
 
@@ -1260,119 +1378,9 @@ export default async function build(
             .copyFile(nextServerTraceOutput, cachedTracePath)
             .catch(() => {})
         })
+
+      if (outputFileTracingSpinner) outputFileTracingSpinner.stopAndPersist()
     }
-
-    if (serverPropsPages.size > 0 || ssgPages.size > 0) {
-      // We update the routes manifest after the build with the
-      // data routes since we can't determine these until after build
-      routesManifest.dataRoutes = getSortedRoutes([
-        ...serverPropsPages,
-        ...ssgPages,
-      ]).map((page) => {
-        const pagePath = normalizePagePath(page)
-        const dataRoute = path.posix.join(
-          '/_next/data',
-          buildId,
-          `${pagePath}.json`
-        )
-
-        let dataRouteRegex: string
-        let namedDataRouteRegex: string | undefined
-        let routeKeys: { [named: string]: string } | undefined
-
-        if (isDynamicRoute(page)) {
-          const routeRegex = getRouteRegex(dataRoute.replace(/\.json$/, ''))
-
-          dataRouteRegex = normalizeRouteRegex(
-            routeRegex.re.source.replace(/\(\?:\\\/\)\?\$$/, `\\.json$`)
-          )
-          namedDataRouteRegex = routeRegex.namedRegex!.replace(
-            /\(\?:\/\)\?\$$/,
-            `\\.json$`
-          )
-          routeKeys = routeRegex.routeKeys
-        } else {
-          dataRouteRegex = normalizeRouteRegex(
-            new RegExp(
-              `^${path.posix.join(
-                '/_next/data',
-                escapeStringRegexp(buildId),
-                `${pagePath}.json`
-              )}$`
-            ).source
-          )
-        }
-
-        return {
-          page,
-          routeKeys,
-          dataRouteRegex,
-          namedDataRouteRegex,
-        }
-      })
-
-      await promises.writeFile(
-        routesManifestPath,
-        JSON.stringify(routesManifest),
-        'utf8'
-      )
-    }
-
-    // Since custom _app.js can wrap the 404 page we have to opt-out of static optimization if it has getInitialProps
-    // Only export the static 404 when there is no /_error present
-    const useStatic404 =
-      !hasConcurrentFeatures &&
-      !customAppGetInitialProps &&
-      (!hasNonStaticErrorPage || hasPages404)
-
-    if (invalidPages.size > 0) {
-      const err = new Error(
-        `Build optimization failed: found page${
-          invalidPages.size === 1 ? '' : 's'
-        } without a React Component as default export in \n${[...invalidPages]
-          .map((pg) => `pages${pg}`)
-          .join(
-            '\n'
-          )}\n\nSee https://nextjs.org/docs/messages/page-without-valid-component for more info.\n`
-      ) as NextError
-      err.code = 'BUILD_OPTIMIZATION_FAILED'
-      throw err
-    }
-
-    await writeBuildId(distDir, buildId)
-
-    if (config.experimental.optimizeCss) {
-      const cssFilePaths = getCssFilePaths(buildManifest)
-
-      requiredServerFiles.files.push(
-        ...cssFilePaths.map((filePath) => path.join(config.distDir, filePath))
-      )
-    }
-
-    const features: EventBuildFeatureUsage[] = [
-      {
-        featureName: 'experimental/optimizeCss',
-        invocationCount: config.experimental.optimizeCss ? 1 : 0,
-      },
-      {
-        featureName: 'optimizeFonts',
-        invocationCount: config.optimizeFonts ? 1 : 0,
-      },
-    ]
-    telemetry.record(
-      features.map((feature) => {
-        return {
-          eventName: EVENT_BUILD_FEATURE_USAGE,
-          payload: feature,
-        }
-      })
-    )
-
-    await promises.writeFile(
-      path.join(distDir, SERVER_FILES_MANIFEST),
-      JSON.stringify(requiredServerFiles),
-      'utf8'
-    )
 
     const outputFileTracingRoot =
       config.experimental.outputFileTracingRoot || dir
@@ -1394,8 +1402,6 @@ export default async function build(
     const finalPrerenderRoutes: { [route: string]: SsgRoute } = {}
     const tbdPrerenderRoutes: string[] = []
     let ssgNotFoundPaths: string[] = []
-
-    if (postCompileSpinner) postCompileSpinner.stopAndPersist()
 
     const { i18n } = config
 
