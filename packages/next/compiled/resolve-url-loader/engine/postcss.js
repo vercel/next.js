@@ -1,1 +1,89 @@
-module.exports=(()=>{"use strict";var e={136:(e,r,o)=>{var s=o(87),u=o(622),t=o(43);var n=o(95);var p=/\r(?!\n)(.|\n)?/g;function process(e,r,o){var i=o.removeCR&&s.EOL!=="\r"?r.replace(p," $1"):r;return t([t.plugin("postcss-resolve-url",postcssPlugin)]).process(i,{from:n.prepend(e),map:o.outputSourceMap&&{prev:!!o.absSourceMap&&n.prepend(o.absSourceMap),inline:false,annotation:false,sourcesContent:true}}).then(e=>({content:e.css,map:o.outputSourceMap?n.remove(e.map.toJSON()):null}));function postcssPlugin(){return function(e){e.walkDecls(eachDeclaration)};function eachDeclaration(e){var s=e.value&&e.value.indexOf("url")>=0;if(s){var t=e.source.start,i=o.sourceMapConsumer&&o.sourceMapConsumer.originalPositionFor(t);var c=i&&i.source&&n.remove(u.dirname(i.source));if(c){e.value=o.transformDeclaration(e.value,c)}else if(o.sourceMapConsumer){throw new Error("source-map information is not available at url() declaration "+(p.test(r)?"(found orphan CR, try removeCR option)":"(no orphan CR found)"))}}}}}e.exports=process},95:(e,r)=>{function prepend(e){if(typeof e==="string"){return"file://"+e}else if(e&&typeof e==="object"&&Array.isArray(e.sources)){return Object.assign({},e,{sources:e.sources.map(prepend)})}else{throw new Error("expected string|object")}}r.prepend=prepend;function remove(e){if(typeof e==="string"){return e.replace(/^file:\/{2}/,"")}else if(e&&typeof e==="object"&&Array.isArray(e.sources)){return Object.assign({},e,{sources:e.sources.map(remove)})}else{throw new Error("expected string|object")}}r.remove=remove},87:e=>{e.exports=require("os")},622:e=>{e.exports=require("path")},43:e=>{e.exports=require("postcss")}};var r={};function __nccwpck_require__(o){if(r[o]){return r[o].exports}var s=r[o]={exports:{}};var u=true;try{e[o](s,s.exports,__nccwpck_require__);u=false}finally{if(u)delete r[o]}return s.exports}__nccwpck_require__.ab=__dirname+"/";return __nccwpck_require__(136)})();
+/*
+ * MIT License http://opensource.org/licenses/MIT
+ * Author: Ben Holloway @bholloway
+ */
+'use strict';
+
+var os      = require('os'),
+    path    = require('path'),
+    postcss = require('postcss');
+
+var fileProtocol = require('../file-protocol');
+
+var ORPHAN_CR_REGEX = /\r(?!\n)(.|\n)?/g;
+
+/**
+ * Process the given CSS content into reworked CSS content.
+ *
+ * @param {string} sourceFile The absolute path of the file being processed
+ * @param {string} sourceContent CSS content without source-map
+ * @param {{outputSourceMap: boolean, transformDeclaration:function, absSourceMap:object,
+ *        sourceMapConsumer:object, removeCR:boolean}} params Named parameters
+ * @return {{content: string, map: object}} Reworked CSS and optional source-map
+ */
+function process(sourceFile, sourceContent, params) {
+  // #107 libsass emits orphan CR not considered newline, postcss does consider newline (content vs source-map mismatch)
+  var correctedContent = params.removeCR && (os.EOL !== '\r') ?
+    sourceContent.replace(ORPHAN_CR_REGEX, ' $1') :
+    sourceContent;
+
+  // prepend file protocol to all sources to avoid problems with source map
+  return postcss([
+    postcss.plugin('postcss-resolve-url', postcssPlugin)
+  ])
+    .process(correctedContent, {
+      from: fileProtocol.prepend(sourceFile),
+      map : params.outputSourceMap && {
+        prev          : !!params.absSourceMap && fileProtocol.prepend(params.absSourceMap),
+        inline        : false,
+        annotation    : false,
+        sourcesContent: true  // #98 sourcesContent missing from output map
+      }
+    })
+    .then(result => ({
+      content: result.css,
+      map    : params.outputSourceMap ? fileProtocol.remove(result.map.toJSON()) : null
+    }));
+
+  /**
+   * Plugin for postcss that follows SASS transpilation.
+   */
+  function postcssPlugin() {
+    return function(styles) {
+      styles.walkDecls(eachDeclaration);
+    };
+
+    /**
+     * Process a declaration from the syntax tree.
+     * @param declaration
+     */
+    function eachDeclaration(declaration) {
+      var isValid = declaration.value && (declaration.value.indexOf('url') >= 0);
+      if (isValid) {
+
+        // reverse the original source-map to find the original source file before transpilation
+        var startPosApparent = declaration.source.start,
+            startPosOriginal = params.sourceMapConsumer &&
+              params.sourceMapConsumer.originalPositionFor(startPosApparent);
+
+        // we require a valid directory for the specified file
+        var directory =
+          startPosOriginal &&
+          startPosOriginal.source &&
+          fileProtocol.remove(path.dirname(startPosOriginal.source));
+        if (directory) {
+          declaration.value = params.transformDeclaration(declaration.value, directory);
+        }
+        // source-map present but invalid entry
+        else if (params.sourceMapConsumer) {
+          throw new Error(
+            'source-map information is not available at url() declaration ' +
+            (ORPHAN_CR_REGEX.test(sourceContent) ? '(found orphan CR, try removeCR option)' : '(no orphan CR found)')
+          );
+        }
+      }
+    }
+  }
+}
+
+module.exports = process;

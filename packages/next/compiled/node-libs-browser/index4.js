@@ -1,1 +1,70 @@
-module.exports=(()=>{"use strict";var r={242:function(r,e,t){r.exports=function(){var r=t(614);var e={};e.createDomain=e.create=function(){var e=new r.EventEmitter;function emitError(r){e.emit("error",r)}e.add=function(r){r.on("error",emitError)};e.remove=function(r){r.removeListener("error",emitError)};e.bind=function(r){return function(){var e=Array.prototype.slice.call(arguments);try{r.apply(null,e)}catch(r){emitError(r)}}};e.intercept=function(r){return function(e){if(e){emitError(e)}else{var t=Array.prototype.slice.call(arguments,1);try{r.apply(null,t)}catch(e){emitError(e)}}}};e.run=function(r){try{r()}catch(r){emitError(r)}return this};e.dispose=function(){this.removeAllListeners();return this};e.enter=e.exit=function(){return this};return e};return e}.call(this)},614:r=>{r.exports=require("events")}};var e={};function __nccwpck_require__(t){if(e[t]){return e[t].exports}var n=e[t]={exports:{}};var i=true;try{r[t].call(n.exports,n,n.exports,__nccwpck_require__);i=false}finally{if(i)delete e[t]}return n.exports}__nccwpck_require__.ab=__dirname+"/";return __nccwpck_require__(242)})();
+// This file should be ES5 compatible
+/* eslint prefer-spread:0, no-var:0, prefer-reflect:0, no-magic-numbers:0 */
+'use strict'
+
+module.exports = (function () {
+	// Import Events
+	var events = require('events')
+
+	// Export Domain
+	var domain = {}
+	domain.createDomain = domain.create = function () {
+		var d = new events.EventEmitter()
+
+		function emitError (e) {
+			d.emit('error', e)
+		}
+
+		d.add = function (emitter) {
+			emitter.on('error', emitError)
+		}
+		d.remove = function (emitter) {
+			emitter.removeListener('error', emitError)
+		}
+		d.bind = function (fn) {
+			return function () {
+				var args = Array.prototype.slice.call(arguments)
+				try {
+					fn.apply(null, args)
+				}
+				catch (err) {
+					emitError(err)
+				}
+			}
+		}
+		d.intercept = function (fn) {
+			return function (err) {
+				if ( err ) {
+					emitError(err)
+				}
+				else {
+					var args = Array.prototype.slice.call(arguments, 1)
+					try {
+						fn.apply(null, args)
+					}
+					catch (err) {
+						emitError(err)
+					}
+				}
+			}
+		}
+		d.run = function (fn) {
+			try {
+				fn()
+			}
+			catch (err) {
+				emitError(err)
+			}
+			return this
+		}
+		d.dispose = function () {
+			this.removeAllListeners()
+			return this
+		}
+		d.enter = d.exit = function () {
+			return this
+		}
+		return d
+	}
+	return domain
+}).call(this)

@@ -1,1 +1,87 @@
-module.exports=(()=>{var r={29:(r,e,n)=>{var o=n(669);var t=n(357);function now(){return(new Date).getTime()}var a=Array.prototype.slice;var i;var l={};if(typeof global!=="undefined"&&global.console){i=global.console}else if(typeof window!=="undefined"&&window.console){i=window.console}else{i={}}var s=[[log,"log"],[info,"info"],[warn,"warn"],[error,"error"],[time,"time"],[timeEnd,"timeEnd"],[trace,"trace"],[dir,"dir"],[consoleAssert,"assert"]];for(var f=0;f<s.length;f++){var u=s[f];var c=u[0];var p=u[1];if(!i[p]){i[p]=c}}r.exports=i;function log(){}function info(){i.log.apply(i,arguments)}function warn(){i.log.apply(i,arguments)}function error(){i.warn.apply(i,arguments)}function time(r){l[r]=now()}function timeEnd(r){var e=l[r];if(!e){throw new Error("No such label: "+r)}delete l[r];var n=now()-e;i.log(r+": "+n+"ms")}function trace(){var r=new Error;r.name="Trace";r.message=o.format.apply(null,arguments);i.error(r.stack)}function dir(r){i.log(o.inspect(r)+"\n")}function consoleAssert(r){if(!r){var e=a.call(arguments,1);t.ok(false,o.format.apply(null,e))}}},357:r=>{"use strict";r.exports=require("assert")},669:r=>{"use strict";r.exports=require("util")}};var e={};function __nccwpck_require__(n){if(e[n]){return e[n].exports}var o=e[n]={exports:{}};var t=true;try{r[n](o,o.exports,__nccwpck_require__);t=false}finally{if(t)delete e[n]}return o.exports}__nccwpck_require__.ab=__dirname+"/";return __nccwpck_require__(29)})();
+/*global window, global*/
+var util = require("util")
+var assert = require("assert")
+function now() { return new Date().getTime() }
+
+var slice = Array.prototype.slice
+var console
+var times = {}
+
+if (typeof global !== "undefined" && global.console) {
+    console = global.console
+} else if (typeof window !== "undefined" && window.console) {
+    console = window.console
+} else {
+    console = {}
+}
+
+var functions = [
+    [log, "log"],
+    [info, "info"],
+    [warn, "warn"],
+    [error, "error"],
+    [time, "time"],
+    [timeEnd, "timeEnd"],
+    [trace, "trace"],
+    [dir, "dir"],
+    [consoleAssert, "assert"]
+]
+
+for (var i = 0; i < functions.length; i++) {
+    var tuple = functions[i]
+    var f = tuple[0]
+    var name = tuple[1]
+
+    if (!console[name]) {
+        console[name] = f
+    }
+}
+
+module.exports = console
+
+function log() {}
+
+function info() {
+    console.log.apply(console, arguments)
+}
+
+function warn() {
+    console.log.apply(console, arguments)
+}
+
+function error() {
+    console.warn.apply(console, arguments)
+}
+
+function time(label) {
+    times[label] = now()
+}
+
+function timeEnd(label) {
+    var time = times[label]
+    if (!time) {
+        throw new Error("No such label: " + label)
+    }
+
+    delete times[label]
+    var duration = now() - time
+    console.log(label + ": " + duration + "ms")
+}
+
+function trace() {
+    var err = new Error()
+    err.name = "Trace"
+    err.message = util.format.apply(null, arguments)
+    console.error(err.stack)
+}
+
+function dir(object) {
+    console.log(util.inspect(object) + "\n")
+}
+
+function consoleAssert(expression) {
+    if (!expression) {
+        var arr = slice.call(arguments, 1)
+        assert.ok(false, util.format.apply(null, arr))
+    }
+}

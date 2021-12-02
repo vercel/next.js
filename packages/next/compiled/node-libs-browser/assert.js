@@ -1,1 +1,506 @@
-module.exports=(()=>{var e={241:(e,r,t)=>{"use strict";var n=t(594);function compare(e,r){if(e===r){return 0}var t=e.length;var n=r.length;for(var i=0,o=Math.min(t,n);i<o;++i){if(e[i]!==r[i]){t=e[i];n=r[i];break}}if(t<n){return-1}if(n<t){return 1}return 0}function isBuffer(e){if(global.Buffer&&typeof global.Buffer.isBuffer==="function"){return global.Buffer.isBuffer(e)}return!!(e!=null&&e._isBuffer)}var i=t(554);var o=Object.prototype.hasOwnProperty;var f=Array.prototype.slice;var u=function(){return function foo(){}.name==="foo"}();function pToString(e){return Object.prototype.toString.call(e)}function isView(e){if(isBuffer(e)){return false}if(typeof global.ArrayBuffer!=="function"){return false}if(typeof ArrayBuffer.isView==="function"){return ArrayBuffer.isView(e)}if(!e){return false}if(e instanceof DataView){return true}if(e.buffer&&e.buffer instanceof ArrayBuffer){return true}return false}var a=e.exports=ok;var s=/\s*function\s+([^\(\s]*)\s*/;function getName(e){if(!i.isFunction(e)){return}if(u){return e.name}var r=e.toString();var t=r.match(s);return t&&t[1]}a.AssertionError=function AssertionError(e){this.name="AssertionError";this.actual=e.actual;this.expected=e.expected;this.operator=e.operator;if(e.message){this.message=e.message;this.generatedMessage=false}else{this.message=getMessage(this);this.generatedMessage=true}var r=e.stackStartFunction||fail;if(Error.captureStackTrace){Error.captureStackTrace(this,r)}else{var t=new Error;if(t.stack){var n=t.stack;var i=getName(r);var o=n.indexOf("\n"+i);if(o>=0){var f=n.indexOf("\n",o+1);n=n.substring(f+1)}this.stack=n}}};i.inherits(a.AssertionError,Error);function truncate(e,r){if(typeof e==="string"){return e.length<r?e:e.slice(0,r)}else{return e}}function inspect(e){if(u||!i.isFunction(e)){return i.inspect(e)}var r=getName(e);var t=r?": "+r:"";return"[Function"+t+"]"}function getMessage(e){return truncate(inspect(e.actual),128)+" "+e.operator+" "+truncate(inspect(e.expected),128)}function fail(e,r,t,n,i){throw new a.AssertionError({message:t,actual:e,expected:r,operator:n,stackStartFunction:i})}a.fail=fail;function ok(e,r){if(!e)fail(e,true,r,"==",a.ok)}a.ok=ok;a.equal=function equal(e,r,t){if(e!=r)fail(e,r,t,"==",a.equal)};a.notEqual=function notEqual(e,r,t){if(e==r){fail(e,r,t,"!=",a.notEqual)}};a.deepEqual=function deepEqual(e,r,t){if(!_deepEqual(e,r,false)){fail(e,r,t,"deepEqual",a.deepEqual)}};a.deepStrictEqual=function deepStrictEqual(e,r,t){if(!_deepEqual(e,r,true)){fail(e,r,t,"deepStrictEqual",a.deepStrictEqual)}};function _deepEqual(e,r,t,n){if(e===r){return true}else if(isBuffer(e)&&isBuffer(r)){return compare(e,r)===0}else if(i.isDate(e)&&i.isDate(r)){return e.getTime()===r.getTime()}else if(i.isRegExp(e)&&i.isRegExp(r)){return e.source===r.source&&e.global===r.global&&e.multiline===r.multiline&&e.lastIndex===r.lastIndex&&e.ignoreCase===r.ignoreCase}else if((e===null||typeof e!=="object")&&(r===null||typeof r!=="object")){return t?e===r:e==r}else if(isView(e)&&isView(r)&&pToString(e)===pToString(r)&&!(e instanceof Float32Array||e instanceof Float64Array)){return compare(new Uint8Array(e.buffer),new Uint8Array(r.buffer))===0}else if(isBuffer(e)!==isBuffer(r)){return false}else{n=n||{actual:[],expected:[]};var o=n.actual.indexOf(e);if(o!==-1){if(o===n.expected.indexOf(r)){return true}}n.actual.push(e);n.expected.push(r);return objEquiv(e,r,t,n)}}function isArguments(e){return Object.prototype.toString.call(e)=="[object Arguments]"}function objEquiv(e,r,t,n){if(e===null||e===undefined||r===null||r===undefined)return false;if(i.isPrimitive(e)||i.isPrimitive(r))return e===r;if(t&&Object.getPrototypeOf(e)!==Object.getPrototypeOf(r))return false;var o=isArguments(e);var u=isArguments(r);if(o&&!u||!o&&u)return false;if(o){e=f.call(e);r=f.call(r);return _deepEqual(e,r,t)}var a=l(e);var s=l(r);var c,p;if(a.length!==s.length)return false;a.sort();s.sort();for(p=a.length-1;p>=0;p--){if(a[p]!==s[p])return false}for(p=a.length-1;p>=0;p--){c=a[p];if(!_deepEqual(e[c],r[c],t,n))return false}return true}a.notDeepEqual=function notDeepEqual(e,r,t){if(_deepEqual(e,r,false)){fail(e,r,t,"notDeepEqual",a.notDeepEqual)}};a.notDeepStrictEqual=notDeepStrictEqual;function notDeepStrictEqual(e,r,t){if(_deepEqual(e,r,true)){fail(e,r,t,"notDeepStrictEqual",notDeepStrictEqual)}}a.strictEqual=function strictEqual(e,r,t){if(e!==r){fail(e,r,t,"===",a.strictEqual)}};a.notStrictEqual=function notStrictEqual(e,r,t){if(e===r){fail(e,r,t,"!==",a.notStrictEqual)}};function expectedException(e,r){if(!e||!r){return false}if(Object.prototype.toString.call(r)=="[object RegExp]"){return r.test(e)}try{if(e instanceof r){return true}}catch(e){}if(Error.isPrototypeOf(r)){return false}return r.call({},e)===true}function _tryBlock(e){var r;try{e()}catch(e){r=e}return r}function _throws(e,r,t,n){var o;if(typeof r!=="function"){throw new TypeError('"block" argument must be a function')}if(typeof t==="string"){n=t;t=null}o=_tryBlock(r);n=(t&&t.name?" ("+t.name+").":".")+(n?" "+n:".");if(e&&!o){fail(o,t,"Missing expected exception"+n)}var f=typeof n==="string";var u=!e&&i.isError(o);var a=!e&&o&&!t;if(u&&f&&expectedException(o,t)||a){fail(o,t,"Got unwanted exception"+n)}if(e&&o&&t&&!expectedException(o,t)||!e&&o){throw o}}a.throws=function(e,r,t){_throws(true,e,r,t)};a.doesNotThrow=function(e,r,t){_throws(false,e,r,t)};a.ifError=function(e){if(e)throw e};function strict(e,r){if(!e)fail(e,true,r,"==",strict)}a.strict=n(strict,a,{equal:a.strictEqual,deepEqual:a.deepStrictEqual,notEqual:a.notStrictEqual,notDeepEqual:a.notDeepStrictEqual});a.strict.strict=a.strict;var l=Object.keys||function(e){var r=[];for(var t in e){if(o.call(e,t))r.push(t)}return r}},514:(e,r,t)=>{e.exports=t(669).inherits},557:e=>{e.exports=function isBuffer(e){return e instanceof Buffer}},554:(e,r,t)=>{var n=/%[sdj%]/g;r.format=function(e){if(!isString(e)){var r=[];for(var t=0;t<arguments.length;t++){r.push(inspect(arguments[t]))}return r.join(" ")}var t=1;var i=arguments;var o=i.length;var f=String(e).replace(n,function(e){if(e==="%%")return"%";if(t>=o)return e;switch(e){case"%s":return String(i[t++]);case"%d":return Number(i[t++]);case"%j":try{return JSON.stringify(i[t++])}catch(e){return"[Circular]"}default:return e}});for(var u=i[t];t<o;u=i[++t]){if(isNull(u)||!isObject(u)){f+=" "+u}else{f+=" "+inspect(u)}}return f};r.deprecate=function(e,t){if(isUndefined(global.process)){return function(){return r.deprecate(e,t).apply(this,arguments)}}if(process.noDeprecation===true){return e}var n=false;function deprecated(){if(!n){if(process.throwDeprecation){throw new Error(t)}else if(process.traceDeprecation){console.trace(t)}else{console.error(t)}n=true}return e.apply(this,arguments)}return deprecated};var i={};var o;r.debuglog=function(e){if(isUndefined(o))o=process.env.NODE_DEBUG||"";e=e.toUpperCase();if(!i[e]){if(new RegExp("\\b"+e+"\\b","i").test(o)){var t=process.pid;i[e]=function(){var n=r.format.apply(r,arguments);console.error("%s %d: %s",e,t,n)}}else{i[e]=function(){}}}return i[e]};function inspect(e,t){var n={seen:[],stylize:stylizeNoColor};if(arguments.length>=3)n.depth=arguments[2];if(arguments.length>=4)n.colors=arguments[3];if(isBoolean(t)){n.showHidden=t}else if(t){r._extend(n,t)}if(isUndefined(n.showHidden))n.showHidden=false;if(isUndefined(n.depth))n.depth=2;if(isUndefined(n.colors))n.colors=false;if(isUndefined(n.customInspect))n.customInspect=true;if(n.colors)n.stylize=stylizeWithColor;return formatValue(n,e,n.depth)}r.inspect=inspect;inspect.colors={bold:[1,22],italic:[3,23],underline:[4,24],inverse:[7,27],white:[37,39],grey:[90,39],black:[30,39],blue:[34,39],cyan:[36,39],green:[32,39],magenta:[35,39],red:[31,39],yellow:[33,39]};inspect.styles={special:"cyan",number:"yellow",boolean:"yellow",undefined:"grey",null:"bold",string:"green",date:"magenta",regexp:"red"};function stylizeWithColor(e,r){var t=inspect.styles[r];if(t){return"["+inspect.colors[t][0]+"m"+e+"["+inspect.colors[t][1]+"m"}else{return e}}function stylizeNoColor(e,r){return e}function arrayToHash(e){var r={};e.forEach(function(e,t){r[e]=true});return r}function formatValue(e,t,n){if(e.customInspect&&t&&isFunction(t.inspect)&&t.inspect!==r.inspect&&!(t.constructor&&t.constructor.prototype===t)){var i=t.inspect(n,e);if(!isString(i)){i=formatValue(e,i,n)}return i}var o=formatPrimitive(e,t);if(o){return o}var f=Object.keys(t);var u=arrayToHash(f);if(e.showHidden){f=Object.getOwnPropertyNames(t)}if(isError(t)&&(f.indexOf("message")>=0||f.indexOf("description")>=0)){return formatError(t)}if(f.length===0){if(isFunction(t)){var a=t.name?": "+t.name:"";return e.stylize("[Function"+a+"]","special")}if(isRegExp(t)){return e.stylize(RegExp.prototype.toString.call(t),"regexp")}if(isDate(t)){return e.stylize(Date.prototype.toString.call(t),"date")}if(isError(t)){return formatError(t)}}var s="",l=false,c=["{","}"];if(isArray(t)){l=true;c=["[","]"]}if(isFunction(t)){var p=t.name?": "+t.name:"";s=" [Function"+p+"]"}if(isRegExp(t)){s=" "+RegExp.prototype.toString.call(t)}if(isDate(t)){s=" "+Date.prototype.toUTCString.call(t)}if(isError(t)){s=" "+formatError(t)}if(f.length===0&&(!l||t.length==0)){return c[0]+s+c[1]}if(n<0){if(isRegExp(t)){return e.stylize(RegExp.prototype.toString.call(t),"regexp")}else{return e.stylize("[Object]","special")}}e.seen.push(t);var g;if(l){g=formatArray(e,t,n,u,f)}else{g=f.map(function(r){return formatProperty(e,t,n,u,r,l)})}e.seen.pop();return reduceToSingleString(g,s,c)}function formatPrimitive(e,r){if(isUndefined(r))return e.stylize("undefined","undefined");if(isString(r)){var t="'"+JSON.stringify(r).replace(/^"|"$/g,"").replace(/'/g,"\\'").replace(/\\"/g,'"')+"'";return e.stylize(t,"string")}if(isNumber(r))return e.stylize(""+r,"number");if(isBoolean(r))return e.stylize(""+r,"boolean");if(isNull(r))return e.stylize("null","null")}function formatError(e){return"["+Error.prototype.toString.call(e)+"]"}function formatArray(e,r,t,n,i){var o=[];for(var f=0,u=r.length;f<u;++f){if(hasOwnProperty(r,String(f))){o.push(formatProperty(e,r,t,n,String(f),true))}else{o.push("")}}i.forEach(function(i){if(!i.match(/^\d+$/)){o.push(formatProperty(e,r,t,n,i,true))}});return o}function formatProperty(e,r,t,n,i,o){var f,u,a;a=Object.getOwnPropertyDescriptor(r,i)||{value:r[i]};if(a.get){if(a.set){u=e.stylize("[Getter/Setter]","special")}else{u=e.stylize("[Getter]","special")}}else{if(a.set){u=e.stylize("[Setter]","special")}}if(!hasOwnProperty(n,i)){f="["+i+"]"}if(!u){if(e.seen.indexOf(a.value)<0){if(isNull(t)){u=formatValue(e,a.value,null)}else{u=formatValue(e,a.value,t-1)}if(u.indexOf("\n")>-1){if(o){u=u.split("\n").map(function(e){return"  "+e}).join("\n").substr(2)}else{u="\n"+u.split("\n").map(function(e){return"   "+e}).join("\n")}}}else{u=e.stylize("[Circular]","special")}}if(isUndefined(f)){if(o&&i.match(/^\d+$/)){return u}f=JSON.stringify(""+i);if(f.match(/^"([a-zA-Z_][a-zA-Z_0-9]*)"$/)){f=f.substr(1,f.length-2);f=e.stylize(f,"name")}else{f=f.replace(/'/g,"\\'").replace(/\\"/g,'"').replace(/(^"|"$)/g,"'");f=e.stylize(f,"string")}}return f+": "+u}function reduceToSingleString(e,r,t){var n=0;var i=e.reduce(function(e,r){n++;if(r.indexOf("\n")>=0)n++;return e+r.replace(/\u001b\[\d\d?m/g,"").length+1},0);if(i>60){return t[0]+(r===""?"":r+"\n ")+" "+e.join(",\n  ")+" "+t[1]}return t[0]+r+" "+e.join(", ")+" "+t[1]}function isArray(e){return Array.isArray(e)}r.isArray=isArray;function isBoolean(e){return typeof e==="boolean"}r.isBoolean=isBoolean;function isNull(e){return e===null}r.isNull=isNull;function isNullOrUndefined(e){return e==null}r.isNullOrUndefined=isNullOrUndefined;function isNumber(e){return typeof e==="number"}r.isNumber=isNumber;function isString(e){return typeof e==="string"}r.isString=isString;function isSymbol(e){return typeof e==="symbol"}r.isSymbol=isSymbol;function isUndefined(e){return e===void 0}r.isUndefined=isUndefined;function isRegExp(e){return isObject(e)&&objectToString(e)==="[object RegExp]"}r.isRegExp=isRegExp;function isObject(e){return typeof e==="object"&&e!==null}r.isObject=isObject;function isDate(e){return isObject(e)&&objectToString(e)==="[object Date]"}r.isDate=isDate;function isError(e){return isObject(e)&&(objectToString(e)==="[object Error]"||e instanceof Error)}r.isError=isError;function isFunction(e){return typeof e==="function"}r.isFunction=isFunction;function isPrimitive(e){return e===null||typeof e==="boolean"||typeof e==="number"||typeof e==="string"||typeof e==="symbol"||typeof e==="undefined"}r.isPrimitive=isPrimitive;r.isBuffer=t(557);function objectToString(e){return Object.prototype.toString.call(e)}function pad(e){return e<10?"0"+e.toString(10):e.toString(10)}var f=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];function timestamp(){var e=new Date;var r=[pad(e.getHours()),pad(e.getMinutes()),pad(e.getSeconds())].join(":");return[e.getDate(),f[e.getMonth()],r].join(" ")}r.log=function(){console.log("%s - %s",timestamp(),r.format.apply(r,arguments))};r.inherits=t(514);r._extend=function(e,r){if(!r||!isObject(r))return e;var t=Object.keys(r);var n=t.length;while(n--){e[t[n]]=r[t[n]]}return e};function hasOwnProperty(e,r){return Object.prototype.hasOwnProperty.call(e,r)}},594:e=>{"use strict";var r=Object.getOwnPropertySymbols;var t=Object.prototype.hasOwnProperty;var n=Object.prototype.propertyIsEnumerable;function toObject(e){if(e===null||e===undefined){throw new TypeError("Object.assign cannot be called with null or undefined")}return Object(e)}function shouldUseNative(){try{if(!Object.assign){return false}var e=new String("abc");e[5]="de";if(Object.getOwnPropertyNames(e)[0]==="5"){return false}var r={};for(var t=0;t<10;t++){r["_"+String.fromCharCode(t)]=t}var n=Object.getOwnPropertyNames(r).map(function(e){return r[e]});if(n.join("")!=="0123456789"){return false}var i={};"abcdefghijklmnopqrst".split("").forEach(function(e){i[e]=e});if(Object.keys(Object.assign({},i)).join("")!=="abcdefghijklmnopqrst"){return false}return true}catch(e){return false}}e.exports=shouldUseNative()?Object.assign:function(e,i){var o;var f=toObject(e);var u;for(var a=1;a<arguments.length;a++){o=Object(arguments[a]);for(var s in o){if(t.call(o,s)){f[s]=o[s]}}if(r){u=r(o);for(var l=0;l<u.length;l++){if(n.call(o,u[l])){f[u[l]]=o[u[l]]}}}}return f}},669:e=>{"use strict";e.exports=require("util")}};var r={};function __nccwpck_require__(t){if(r[t]){return r[t].exports}var n=r[t]={exports:{}};var i=true;try{e[t](n,n.exports,__nccwpck_require__);i=false}finally{if(i)delete r[t]}return n.exports}__nccwpck_require__.ab=__dirname+"/";return __nccwpck_require__(241)})();
+'use strict';
+
+var objectAssign = require('object-assign');
+
+// compare and isBuffer taken from https://github.com/feross/buffer/blob/680e9e5e488f22aac27599a57dc844a6315928dd/index.js
+// original notice:
+
+/*!
+ * The buffer module from node.js, for the browser.
+ *
+ * @author   Feross Aboukhadijeh <feross@feross.org> <http://feross.org>
+ * @license  MIT
+ */
+function compare(a, b) {
+  if (a === b) {
+    return 0;
+  }
+
+  var x = a.length;
+  var y = b.length;
+
+  for (var i = 0, len = Math.min(x, y); i < len; ++i) {
+    if (a[i] !== b[i]) {
+      x = a[i];
+      y = b[i];
+      break;
+    }
+  }
+
+  if (x < y) {
+    return -1;
+  }
+  if (y < x) {
+    return 1;
+  }
+  return 0;
+}
+function isBuffer(b) {
+  if (global.Buffer && typeof global.Buffer.isBuffer === 'function') {
+    return global.Buffer.isBuffer(b);
+  }
+  return !!(b != null && b._isBuffer);
+}
+
+// based on node assert, original notice:
+// NB: The URL to the CommonJS spec is kept just for tradition.
+//     node-assert has evolved a lot since then, both in API and behavior.
+
+// http://wiki.commonjs.org/wiki/Unit_Testing/1.0
+//
+// THIS IS NOT TESTED NOR LIKELY TO WORK OUTSIDE V8!
+//
+// Originally from narwhal.js (http://narwhaljs.org)
+// Copyright (c) 2009 Thomas Robinson <280north.com>
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the 'Software'), to
+// deal in the Software without restriction, including without limitation the
+// rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+// sell copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+// ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+var util = require('util/');
+var hasOwn = Object.prototype.hasOwnProperty;
+var pSlice = Array.prototype.slice;
+var functionsHaveNames = (function () {
+  return function foo() {}.name === 'foo';
+}());
+function pToString (obj) {
+  return Object.prototype.toString.call(obj);
+}
+function isView(arrbuf) {
+  if (isBuffer(arrbuf)) {
+    return false;
+  }
+  if (typeof global.ArrayBuffer !== 'function') {
+    return false;
+  }
+  if (typeof ArrayBuffer.isView === 'function') {
+    return ArrayBuffer.isView(arrbuf);
+  }
+  if (!arrbuf) {
+    return false;
+  }
+  if (arrbuf instanceof DataView) {
+    return true;
+  }
+  if (arrbuf.buffer && arrbuf.buffer instanceof ArrayBuffer) {
+    return true;
+  }
+  return false;
+}
+// 1. The assert module provides functions that throw
+// AssertionError's when particular conditions are not met. The
+// assert module must conform to the following interface.
+
+var assert = module.exports = ok;
+
+// 2. The AssertionError is defined in assert.
+// new assert.AssertionError({ message: message,
+//                             actual: actual,
+//                             expected: expected })
+
+var regex = /\s*function\s+([^\(\s]*)\s*/;
+// based on https://github.com/ljharb/function.prototype.name/blob/adeeeec8bfcc6068b187d7d9fb3d5bb1d3a30899/implementation.js
+function getName(func) {
+  if (!util.isFunction(func)) {
+    return;
+  }
+  if (functionsHaveNames) {
+    return func.name;
+  }
+  var str = func.toString();
+  var match = str.match(regex);
+  return match && match[1];
+}
+assert.AssertionError = function AssertionError(options) {
+  this.name = 'AssertionError';
+  this.actual = options.actual;
+  this.expected = options.expected;
+  this.operator = options.operator;
+  if (options.message) {
+    this.message = options.message;
+    this.generatedMessage = false;
+  } else {
+    this.message = getMessage(this);
+    this.generatedMessage = true;
+  }
+  var stackStartFunction = options.stackStartFunction || fail;
+  if (Error.captureStackTrace) {
+    Error.captureStackTrace(this, stackStartFunction);
+  } else {
+    // non v8 browsers so we can have a stacktrace
+    var err = new Error();
+    if (err.stack) {
+      var out = err.stack;
+
+      // try to strip useless frames
+      var fn_name = getName(stackStartFunction);
+      var idx = out.indexOf('\n' + fn_name);
+      if (idx >= 0) {
+        // once we have located the function frame
+        // we need to strip out everything before it (and its line)
+        var next_line = out.indexOf('\n', idx + 1);
+        out = out.substring(next_line + 1);
+      }
+
+      this.stack = out;
+    }
+  }
+};
+
+// assert.AssertionError instanceof Error
+util.inherits(assert.AssertionError, Error);
+
+function truncate(s, n) {
+  if (typeof s === 'string') {
+    return s.length < n ? s : s.slice(0, n);
+  } else {
+    return s;
+  }
+}
+function inspect(something) {
+  if (functionsHaveNames || !util.isFunction(something)) {
+    return util.inspect(something);
+  }
+  var rawname = getName(something);
+  var name = rawname ? ': ' + rawname : '';
+  return '[Function' +  name + ']';
+}
+function getMessage(self) {
+  return truncate(inspect(self.actual), 128) + ' ' +
+         self.operator + ' ' +
+         truncate(inspect(self.expected), 128);
+}
+
+// At present only the three keys mentioned above are used and
+// understood by the spec. Implementations or sub modules can pass
+// other keys to the AssertionError's constructor - they will be
+// ignored.
+
+// 3. All of the following functions must throw an AssertionError
+// when a corresponding condition is not met, with a message that
+// may be undefined if not provided.  All assertion methods provide
+// both the actual and expected values to the assertion error for
+// display purposes.
+
+function fail(actual, expected, message, operator, stackStartFunction) {
+  throw new assert.AssertionError({
+    message: message,
+    actual: actual,
+    expected: expected,
+    operator: operator,
+    stackStartFunction: stackStartFunction
+  });
+}
+
+// EXTENSION! allows for well behaved errors defined elsewhere.
+assert.fail = fail;
+
+// 4. Pure assertion tests whether a value is truthy, as determined
+// by !!guard.
+// assert.ok(guard, message_opt);
+// This statement is equivalent to assert.equal(true, !!guard,
+// message_opt);. To test strictly for the value true, use
+// assert.strictEqual(true, guard, message_opt);.
+
+function ok(value, message) {
+  if (!value) fail(value, true, message, '==', assert.ok);
+}
+assert.ok = ok;
+
+// 5. The equality assertion tests shallow, coercive equality with
+// ==.
+// assert.equal(actual, expected, message_opt);
+
+assert.equal = function equal(actual, expected, message) {
+  if (actual != expected) fail(actual, expected, message, '==', assert.equal);
+};
+
+// 6. The non-equality assertion tests for whether two objects are not equal
+// with != assert.notEqual(actual, expected, message_opt);
+
+assert.notEqual = function notEqual(actual, expected, message) {
+  if (actual == expected) {
+    fail(actual, expected, message, '!=', assert.notEqual);
+  }
+};
+
+// 7. The equivalence assertion tests a deep equality relation.
+// assert.deepEqual(actual, expected, message_opt);
+
+assert.deepEqual = function deepEqual(actual, expected, message) {
+  if (!_deepEqual(actual, expected, false)) {
+    fail(actual, expected, message, 'deepEqual', assert.deepEqual);
+  }
+};
+
+assert.deepStrictEqual = function deepStrictEqual(actual, expected, message) {
+  if (!_deepEqual(actual, expected, true)) {
+    fail(actual, expected, message, 'deepStrictEqual', assert.deepStrictEqual);
+  }
+};
+
+function _deepEqual(actual, expected, strict, memos) {
+  // 7.1. All identical values are equivalent, as determined by ===.
+  if (actual === expected) {
+    return true;
+  } else if (isBuffer(actual) && isBuffer(expected)) {
+    return compare(actual, expected) === 0;
+
+  // 7.2. If the expected value is a Date object, the actual value is
+  // equivalent if it is also a Date object that refers to the same time.
+  } else if (util.isDate(actual) && util.isDate(expected)) {
+    return actual.getTime() === expected.getTime();
+
+  // 7.3 If the expected value is a RegExp object, the actual value is
+  // equivalent if it is also a RegExp object with the same source and
+  // properties (`global`, `multiline`, `lastIndex`, `ignoreCase`).
+  } else if (util.isRegExp(actual) && util.isRegExp(expected)) {
+    return actual.source === expected.source &&
+           actual.global === expected.global &&
+           actual.multiline === expected.multiline &&
+           actual.lastIndex === expected.lastIndex &&
+           actual.ignoreCase === expected.ignoreCase;
+
+  // 7.4. Other pairs that do not both pass typeof value == 'object',
+  // equivalence is determined by ==.
+  } else if ((actual === null || typeof actual !== 'object') &&
+             (expected === null || typeof expected !== 'object')) {
+    return strict ? actual === expected : actual == expected;
+
+  // If both values are instances of typed arrays, wrap their underlying
+  // ArrayBuffers in a Buffer each to increase performance
+  // This optimization requires the arrays to have the same type as checked by
+  // Object.prototype.toString (aka pToString). Never perform binary
+  // comparisons for Float*Arrays, though, since e.g. +0 === -0 but their
+  // bit patterns are not identical.
+  } else if (isView(actual) && isView(expected) &&
+             pToString(actual) === pToString(expected) &&
+             !(actual instanceof Float32Array ||
+               actual instanceof Float64Array)) {
+    return compare(new Uint8Array(actual.buffer),
+                   new Uint8Array(expected.buffer)) === 0;
+
+  // 7.5 For all other Object pairs, including Array objects, equivalence is
+  // determined by having the same number of owned properties (as verified
+  // with Object.prototype.hasOwnProperty.call), the same set of keys
+  // (although not necessarily the same order), equivalent values for every
+  // corresponding key, and an identical 'prototype' property. Note: this
+  // accounts for both named and indexed properties on Arrays.
+  } else if (isBuffer(actual) !== isBuffer(expected)) {
+    return false;
+  } else {
+    memos = memos || {actual: [], expected: []};
+
+    var actualIndex = memos.actual.indexOf(actual);
+    if (actualIndex !== -1) {
+      if (actualIndex === memos.expected.indexOf(expected)) {
+        return true;
+      }
+    }
+
+    memos.actual.push(actual);
+    memos.expected.push(expected);
+
+    return objEquiv(actual, expected, strict, memos);
+  }
+}
+
+function isArguments(object) {
+  return Object.prototype.toString.call(object) == '[object Arguments]';
+}
+
+function objEquiv(a, b, strict, actualVisitedObjects) {
+  if (a === null || a === undefined || b === null || b === undefined)
+    return false;
+  // if one is a primitive, the other must be same
+  if (util.isPrimitive(a) || util.isPrimitive(b))
+    return a === b;
+  if (strict && Object.getPrototypeOf(a) !== Object.getPrototypeOf(b))
+    return false;
+  var aIsArgs = isArguments(a);
+  var bIsArgs = isArguments(b);
+  if ((aIsArgs && !bIsArgs) || (!aIsArgs && bIsArgs))
+    return false;
+  if (aIsArgs) {
+    a = pSlice.call(a);
+    b = pSlice.call(b);
+    return _deepEqual(a, b, strict);
+  }
+  var ka = objectKeys(a);
+  var kb = objectKeys(b);
+  var key, i;
+  // having the same number of owned properties (keys incorporates
+  // hasOwnProperty)
+  if (ka.length !== kb.length)
+    return false;
+  //the same set of keys (although not necessarily the same order),
+  ka.sort();
+  kb.sort();
+  //~~~cheap key test
+  for (i = ka.length - 1; i >= 0; i--) {
+    if (ka[i] !== kb[i])
+      return false;
+  }
+  //equivalent values for every corresponding key, and
+  //~~~possibly expensive deep test
+  for (i = ka.length - 1; i >= 0; i--) {
+    key = ka[i];
+    if (!_deepEqual(a[key], b[key], strict, actualVisitedObjects))
+      return false;
+  }
+  return true;
+}
+
+// 8. The non-equivalence assertion tests for any deep inequality.
+// assert.notDeepEqual(actual, expected, message_opt);
+
+assert.notDeepEqual = function notDeepEqual(actual, expected, message) {
+  if (_deepEqual(actual, expected, false)) {
+    fail(actual, expected, message, 'notDeepEqual', assert.notDeepEqual);
+  }
+};
+
+assert.notDeepStrictEqual = notDeepStrictEqual;
+function notDeepStrictEqual(actual, expected, message) {
+  if (_deepEqual(actual, expected, true)) {
+    fail(actual, expected, message, 'notDeepStrictEqual', notDeepStrictEqual);
+  }
+}
+
+
+// 9. The strict equality assertion tests strict equality, as determined by ===.
+// assert.strictEqual(actual, expected, message_opt);
+
+assert.strictEqual = function strictEqual(actual, expected, message) {
+  if (actual !== expected) {
+    fail(actual, expected, message, '===', assert.strictEqual);
+  }
+};
+
+// 10. The strict non-equality assertion tests for strict inequality, as
+// determined by !==.  assert.notStrictEqual(actual, expected, message_opt);
+
+assert.notStrictEqual = function notStrictEqual(actual, expected, message) {
+  if (actual === expected) {
+    fail(actual, expected, message, '!==', assert.notStrictEqual);
+  }
+};
+
+function expectedException(actual, expected) {
+  if (!actual || !expected) {
+    return false;
+  }
+
+  if (Object.prototype.toString.call(expected) == '[object RegExp]') {
+    return expected.test(actual);
+  }
+
+  try {
+    if (actual instanceof expected) {
+      return true;
+    }
+  } catch (e) {
+    // Ignore.  The instanceof check doesn't work for arrow functions.
+  }
+
+  if (Error.isPrototypeOf(expected)) {
+    return false;
+  }
+
+  return expected.call({}, actual) === true;
+}
+
+function _tryBlock(block) {
+  var error;
+  try {
+    block();
+  } catch (e) {
+    error = e;
+  }
+  return error;
+}
+
+function _throws(shouldThrow, block, expected, message) {
+  var actual;
+
+  if (typeof block !== 'function') {
+    throw new TypeError('"block" argument must be a function');
+  }
+
+  if (typeof expected === 'string') {
+    message = expected;
+    expected = null;
+  }
+
+  actual = _tryBlock(block);
+
+  message = (expected && expected.name ? ' (' + expected.name + ').' : '.') +
+            (message ? ' ' + message : '.');
+
+  if (shouldThrow && !actual) {
+    fail(actual, expected, 'Missing expected exception' + message);
+  }
+
+  var userProvidedMessage = typeof message === 'string';
+  var isUnwantedException = !shouldThrow && util.isError(actual);
+  var isUnexpectedException = !shouldThrow && actual && !expected;
+
+  if ((isUnwantedException &&
+      userProvidedMessage &&
+      expectedException(actual, expected)) ||
+      isUnexpectedException) {
+    fail(actual, expected, 'Got unwanted exception' + message);
+  }
+
+  if ((shouldThrow && actual && expected &&
+      !expectedException(actual, expected)) || (!shouldThrow && actual)) {
+    throw actual;
+  }
+}
+
+// 11. Expected to throw an error:
+// assert.throws(block, Error_opt, message_opt);
+
+assert.throws = function(block, /*optional*/error, /*optional*/message) {
+  _throws(true, block, error, message);
+};
+
+// EXTENSION! This is annoying to write outside this module.
+assert.doesNotThrow = function(block, /*optional*/error, /*optional*/message) {
+  _throws(false, block, error, message);
+};
+
+assert.ifError = function(err) { if (err) throw err; };
+
+// Expose a strict only variant of assert
+function strict(value, message) {
+  if (!value) fail(value, true, message, '==', strict);
+}
+assert.strict = objectAssign(strict, assert, {
+  equal: assert.strictEqual,
+  deepEqual: assert.deepStrictEqual,
+  notEqual: assert.notStrictEqual,
+  notDeepEqual: assert.notDeepStrictEqual
+});
+assert.strict.strict = assert.strict;
+
+var objectKeys = Object.keys || function (obj) {
+  var keys = [];
+  for (var key in obj) {
+    if (hasOwn.call(obj, key)) keys.push(key);
+  }
+  return keys;
+};
