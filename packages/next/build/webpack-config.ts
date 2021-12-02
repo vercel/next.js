@@ -445,7 +445,6 @@ export default async function getBaseWebpackConfig(
             isServer: isMiddleware || isServer,
             pagesDir,
             hasReactRefresh: !isMiddleware && hasReactRefresh,
-            fileReading: config.experimental.swcFileReading,
             nextConfig: config,
             jsConfig,
           },
