@@ -14,13 +14,12 @@ async function loadBindings() {
     attempts = attempts.concat(a)
   }
 
-  // TODO: reenable once working
-  // try {
-  //   let bindings = await loadWasm()
-  //   return bindings
-  // } catch (a) {
-  //   attempts = attempts.concat(a)
-  // }
+  try {
+    let bindings = await loadWasm()
+    return bindings
+  } catch (a) {
+    attempts = attempts.concat(a)
+  }
 
   logLoadFailure(attempts)
 }
@@ -68,13 +67,14 @@ async function loadWasm() {
         },
       }
     } catch (e) {
-      if (e?.code === 'ERR_MODULE_NOT_FOUND') {
-        attempts.push(`Attempted to load ${pkg}, but it was not installed`)
-      } else {
-        attempts.push(
-          `Attempted to load ${pkg}, but an error occurred: ${e.message ?? e}`
-        )
-      }
+      // Do not report attempts to load wasm when it is still experimental
+      // if (e?.code === 'ERR_MODULE_NOT_FOUND') {
+      //   attempts.push(`Attempted to load ${pkg}, but it was not installed`)
+      // } else {
+      //   attempts.push(
+      //     `Attempted to load ${pkg}, but an error occurred: ${e.message ?? e}`
+      //   )
+      // }
     }
   }
 
