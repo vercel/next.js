@@ -107,7 +107,6 @@ export function pitch() {
       isAbsolute(this.resourcePath) &&
       !(await isWasm())
     ) {
-      console.log(this.resourcePath)
       const loaderSpan = this.currentTraceSpan.traceChild('next-swc-loader')
       this.addDependency(this.resourcePath)
       return loaderSpan.traceAsyncFn(() =>
