@@ -4,19 +4,29 @@ description: Use Middleware to run code before a request is completed.
 
 # next/server
 
-Middleware is created by using a `middleware` function that lives inside a `_middleware` file. The Middleware API is based upon the native [`FetchEvent`](https://developer.mozilla.org/en-US/docs/Web/API/FetchEvent), [`Response`](https://developer.mozilla.org/en-US/docs/Web/API/Response), and [`Request`](https://developer.mozilla.org/en-US/docs/Web/API/Request) objects.
+The `next/server` module provides several exports for server-only helpers, such as [Middleware](/docs/middleware.md).
+
+## NextMiddleware
+
+Middleware is created by using a `middleware` function that lives inside a `_middleware` file. The Middleware API is based upon the native [`Request`](https://developer.mozilla.org/en-US/docs/Web/API/Request), [`FetchEvent`](https://developer.mozilla.org/en-US/docs/Web/API/FetchEvent), and [`Response`](https://developer.mozilla.org/en-US/docs/Web/API/Response) objects.
 
 These native Web API objects are extended to give you more control over how you manipulate and configure a response, based on the incoming requests.
 
-The function signature:
+The function signature is defined as follows:
 
 ```ts
-import type { NextRequest, NextFetchEvent } from 'next/server'
+type NextMiddlewareResult = NextResponse | Response | null | undefined
 
-export type Middleware = (
+type NextMiddleware = (
   request: NextRequest,
   event: NextFetchEvent
-) => Promise<Response | undefined> | Response | undefined
+) => NextMiddlewareResult | Promise<NextMiddlewareResult>
+```
+
+It can be imported from `next/server` with the following:
+
+```ts
+import type { NextMiddleware } from 'next/server'
 ```
 
 The function can be a default export and as such, does **not** have to be named `middleware`. Though this is a convention. Also note that you only need to make the function `async` if you are running asynchronous code.
@@ -63,6 +73,7 @@ import type { NextFetchEvent } from 'next/server'
 The `NextResponse` object is an extension of the native [`Response`](https://developer.mozilla.org/en-US/docs/Web/API/Response) interface, with the following added methods and properties:
 
 - `cookies` - An object with the cookies in the `Response`
+- `cookie` - Set a cookie in the `Response`
 - `redirect()` - Returns a `NextResponse` with a redirect set
 - `rewrite()` - Returns a `NextResponse` with a rewrite set
 - `next()` - Returns a `NextResponse` that will continue the middleware chain
@@ -87,6 +98,23 @@ The introduction of the `307` status code means that the request method is prese
 - `307` - Temporary redirect, will preserve the request method as `POST`
 
 The `redirect()` method uses a `307` by default, instead of a `302` temporary redirect, meaning your requests will _always_ be preserved as `POST` requests.
+
+### How do I access Environment Variables?
+
+`process.env` can be used to access [Environment Variables](/docs/basic-features/environment-variables.md) from Middleware. These are evaluated at build time, so only environment variables _actually_ used will be included.
+
+Any variables in `process.env` must be accessed directly, and **cannot** be destructured:
+
+```ts
+// Accessed directly, and not destructured works. process.env.NODE_ENV is `"development"` or `"production"`
+console.log(process.env.NODE_ENV)
+// This will not work
+const { NODE_ENV } = process.env
+// NODE_ENV is `undefined`
+console.log(NODE_ENV)
+// process.env is `{}`
+console.log(process.env)
+```
 
 ## Related
 

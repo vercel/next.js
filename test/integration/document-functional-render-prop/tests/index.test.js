@@ -3,7 +3,8 @@
 import { join } from 'path'
 import { findPort, launchApp, killApp, renderViaHTTP } from 'next-test-utils'
 
-const appDir = join(__dirname, '..')
+const nodeArgs = ['-r', join(__dirname, '../../react-18/test/require-hook.js')]
+const appDir = join(__dirname, '../app')
 let appPort
 let app
 
@@ -11,7 +12,7 @@ describe('Functional Custom Document', () => {
   describe('development mode', () => {
     beforeAll(async () => {
       appPort = await findPort()
-      app = await launchApp(appDir, appPort)
+      app = await launchApp(appDir, appPort, { nodeArgs })
     })
 
     afterAll(() => killApp(app))

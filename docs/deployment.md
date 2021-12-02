@@ -73,7 +73,7 @@ First, ensure your `package.json` has the `"build"` and `"start"` scripts:
 
 Next, run `next build` to build your application. Finally, run `next start` to start the Node.js server. This server supports every feature of Next.js.
 
-> If you are using [`next/image`](/docs/basic-features/image-optimization.md), consider adding `sharp` for more performant [Image Optimization](/docs/basic-features/image-optimization.md) in your production environment by running `npm install sharp` in your project directory.
+> If you are using [`next/image`](/docs/basic-features/image-optimization.md), consider adding `sharp` for more performant [Image Optimization](/docs/basic-features/image-optimization.md) in your production environment by running `npm install sharp` in your project directory. On Linux platforms, `sharp` may require [additional configuration](https://sharp.pixelplumbing.com/install#linux-memory-allocator) to prevent excessive memory usage.
 
 ### Docker Image
 
