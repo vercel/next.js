@@ -631,6 +631,25 @@ jobs:
       - run: cd packages/next-swc && cargo test
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
 
+  test-wasm:
+    name: Test the wasm build
+    runs-on: ubuntu-18.04
+    #needs: build-wasm
+
+    steps:
+      - uses: actions/cache@v2
+        id: restore-build
+        with:
+          path: ./*
+          key: ${{ github.sha }}
+
+      # - uses: actions/download-artifact@v2
+      #   with:
+      #     name: wasm-binaries
+      #     path: packages/next-swc/crates/wasm
+
+      - run: ls ./node_modules/@next
+
   # Build binaries for publishing
   build-native:
     needs: build
