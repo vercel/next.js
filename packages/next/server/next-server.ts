@@ -239,7 +239,7 @@ export default class Server {
 
     this.distDir = join(this.dir, this.nextConfig.distDir)
     this.publicDir = join(this.dir, CLIENT_PUBLIC_FILES_PATH)
-    this.hasStaticDir = !minimalMode && fs.existsSync(join(this.dir, 'static'))
+    this.hasStaticDir = !minimalMode && this.getHasStaticDir()
 
     // Only serverRuntimeConfig needs the default
     // publicRuntimeConfig gets it's default in client/index.js
@@ -301,18 +301,9 @@ export default class Server {
       this.distDir,
       this._isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY
     )
-    const pagesManifestPath = join(this.serverBuildDir, PAGES_MANIFEST)
-    const middlewareManifestPath = join(
-      join(this.distDir, SERVER_DIRECTORY),
-      MIDDLEWARE_MANIFEST
-    )
 
-    if (!dev) {
-      this.pagesManifest = require(pagesManifestPath)
-      if (!this.minimalMode) {
-        this.middlewareManifest = require(middlewareManifestPath)
-      }
-    }
+    this.pagesManifest = this.getPagesManifest()
+    this.middlewareManifest = this.getMiddlewareManifest()
 
     this.customRoutes = this.getCustomRoutes()
     this.router = new Router(this.generateRoutes())
@@ -612,6 +603,22 @@ export default class Server {
     return this.getPrerenderManifest().preview
   }
 
+  protected getPagesManifest(): PagesManifest | undefined {
+    const pagesManifestPath = join(this.serverBuildDir, PAGES_MANIFEST)
+    return require(pagesManifestPath)
+  }
+
+  protected getMiddlewareManifest(): MiddlewareManifest | undefined {
+    if (!this.minimalMode) {
+      const middlewareManifestPath = join(
+        join(this.distDir, SERVER_DIRECTORY),
+        MIDDLEWARE_MANIFEST
+      )
+      return require(middlewareManifestPath)
+    }
+    return undefined
+  }
+
   protected getMiddleware() {
     const middleware = this.middlewareManifest?.middleware || {}
     return (
@@ -772,9 +779,7 @@ export default class Server {
     locales: string[]
   } {
     const server: Server = this
-    const publicRoutes = fs.existsSync(this.publicDir)
-      ? this.generatePublicRoutes()
-      : []
+    const publicRoutes = this.generatePublicRoutes()
 
     const staticFilesRoute = this.hasStaticDir
       ? [
@@ -1515,7 +1520,13 @@ export default class Server {
     return true
   }
 
+  protected getHasStaticDir(): boolean {
+    return fs.existsSync(join(this.dir, 'static'))
+  }
+
   protected generatePublicRoutes(): Route[] {
+    if (!fs.existsSync(this.publicDir)) return []
+
     const publicFiles = new Set(
       recursiveReadDirSync(this.publicDir).map((p) =>
         encodeURI(p.replace(/\\/g, '/'))
