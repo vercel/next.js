@@ -22,7 +22,7 @@ const externals = {
   browserslist: 'browserslist',
   // don't bundle caniuse-lite data so users can
   // update it manually
-  'caniuse-lite': 'caniuse-lite', 
+  'caniuse-lite': 'caniuse-lite',
   '/caniuse-lite(/.*)/': 'caniuse-lite$1',
 
   chalk: 'chalk',
