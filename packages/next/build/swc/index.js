@@ -1,6 +1,6 @@
 import { platform, arch } from 'os'
 import { platformArchTriples } from '@napi-rs/triples'
-import Log from '../output/log'
+import * as Log from '../output/log'
 
 const ArchName = arch()
 const PlatformName = platform()

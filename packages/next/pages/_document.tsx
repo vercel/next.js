@@ -452,17 +452,17 @@ export class Head extends Component<
   makeStylesheetInert(node: ReactNode): ReactNode[] {
     return React.Children.map(node, (c: any) => {
       if (
-        c.type === 'link' &&
-        c.props['href'] &&
+        c?.type === 'link' &&
+        c?.props['href'] &&
         OPTIMIZED_FONT_PROVIDERS.some(({ url }) =>
-          c.props['href'].startsWith(url)
+          c?.props['href'].startsWith(url)
         )
       ) {
         const newProps = { ...(c.props || {}) }
         newProps['data-href'] = newProps['href']
         newProps['href'] = undefined
         return React.cloneElement(c, newProps)
-      } else if (c.props && c.props['children']) {
+      } else if (c?.props?.['children']) {
         c.props['children'] = this.makeStylesheetInert(c.props['children'])
       }
       return c
