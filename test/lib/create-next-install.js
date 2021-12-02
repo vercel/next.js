@@ -18,15 +18,16 @@ async function createNextInstall(dependencies) {
   )) {
     if (folder.startsWith('swc-')) {
       const swcPkgPath = path.join(origRepoDir, 'node_modules/@next', folder)
-      await fs.copy(
-        swcPkgPath,
-        path.join(origRepoDir, 'packages/next-swc/native'),
-        {
-          filter: (item) =>
+      const outputPath = path.join(origRepoDir, 'packages/next-swc/native')
+      await fs.copy(swcPkgPath, outputPath, {
+        filter: (item) => {
+          return (
             item === swcPkgPath ||
-            (item.endsWith('.node') && !fs.pathExistsSync(item)),
-        }
-      )
+            (item.endsWith('.node') &&
+              !fs.pathExistsSync(path.join(outputPath, path.basename(item))))
+          )
+        },
+      })
     }
   }
 
