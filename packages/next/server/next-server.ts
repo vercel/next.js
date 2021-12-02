@@ -340,6 +340,10 @@ export default class Server {
     }
   }
 
+  private notImplemented(): never {
+    throw new Error('Not implemented')
+  }
+
   public logError(err: Error): void {
     if (this.quiet) return
     console.error(err)
@@ -1521,7 +1525,7 @@ export default class Server {
   }
 
   protected getHasStaticDir(): boolean {
-    return fs.existsSync(join(this.dir, 'static'))
+    this.notImplemented()
   }
 
   protected generatePublicRoutes(): Route[] {

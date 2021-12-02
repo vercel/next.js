@@ -1,10 +1,10 @@
 import type { __ApiPreviewProps } from '../api-utils'
 import type { CustomRoutes } from '../../lib/load-custom-routes'
 import type { FetchEventResult } from '../web/types'
-import type { FindComponentsResult } from '../next-server'
+import type { FindComponentsResult } from '../next-node-server'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { LoadComponentsReturnType } from '../load-components'
-import type { Options as ServerOptions } from '../next-server'
+import type { Options as ServerOptions } from '../next-node-server'
 import type { Params } from '../router'
 import type { ParsedNextUrl } from '../../shared/lib/router/utils/parse-next-url'
 import type { ParsedUrlQuery } from 'querystring'
@@ -38,7 +38,7 @@ import {
   getSortedRoutes,
   isDynamicRoute,
 } from '../../shared/lib/router/utils'
-import Server, { WrappedBuildError } from '../next-server'
+import Server, { WrappedBuildError } from '../next-node-server'
 import { normalizePagePath } from '../normalize-page-path'
 import Router, { hasBasePath, replaceBasePath, route } from '../router'
 import { eventCliSession } from '../../telemetry/events'
