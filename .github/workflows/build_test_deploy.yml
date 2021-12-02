@@ -62,7 +62,7 @@ jobs:
         id: cache-build
         with:
           path: ./*
-          key: ${{ github.sha }}
+          key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt }}
 
   lint:
     runs-on: ubuntu-latest
@@ -78,7 +78,7 @@ jobs:
         id: restore-build
         with:
           path: ./*
-          key: ${{ github.sha }}
+          key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt }}
       - run: ./scripts/check-manifests.js
       - run: yarn lint
 
@@ -111,7 +111,7 @@ jobs:
         id: restore-build
         with:
           path: ./*
-          key: ${{ github.sha }}
+          key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt }}
 
       - run: rm -rf .git && mv .git-bak .git
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
@@ -144,7 +144,7 @@ jobs:
         id: restore-build
         with:
           path: ./*
-          key: ${{ github.sha }}
+          key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt }}
 
       - uses: actions/download-artifact@v2
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
@@ -180,7 +180,7 @@ jobs:
         id: restore-build
         with:
           path: ./*
-          key: ${{ github.sha }}
+          key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt }}
 
       - uses: actions/download-artifact@v2
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
@@ -234,7 +234,7 @@ jobs:
         id: restore-build
         with:
           path: ./*
-          key: ${{ github.sha }}
+          key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt }}
 
       - uses: actions/download-artifact@v2
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
@@ -283,7 +283,7 @@ jobs:
         id: restore-build
         with:
           path: ./*
-          key: ${{ github.sha }}
+          key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt }}
 
       - uses: actions/download-artifact@v2
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
@@ -327,7 +327,7 @@ jobs:
         id: restore-build
         with:
           path: ./*
-          key: ${{ github.sha }}
+          key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt }}
 
       - uses: actions/download-artifact@v2
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
@@ -359,7 +359,7 @@ jobs:
         id: restore-build
         with:
           path: ./*
-          key: ${{ github.sha }}
+          key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt }}
 
       - uses: actions/download-artifact@v2
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
@@ -407,7 +407,7 @@ jobs:
         id: restore-build
         with:
           path: ./*
-          key: ${{ github.sha }}
+          key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt }}
       - uses: actions/download-artifact@v2
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
@@ -445,7 +445,7 @@ jobs:
         id: restore-build
         with:
           path: ./*
-          key: ${{ github.sha }}
+          key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt }}
 
       - uses: actions/download-artifact@v2
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
@@ -489,7 +489,7 @@ jobs:
         id: restore-build
         with:
           path: ./*
-          key: ${{ github.sha }}
+          key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt }}
 
       - uses: actions/download-artifact@v2
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
@@ -522,7 +522,7 @@ jobs:
         id: restore-build
         with:
           path: ./*
-          key: ${{ github.sha }}
+          key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt }}
       - uses: actions/download-artifact@v2
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
@@ -565,7 +565,7 @@ jobs:
         id: restore-build
         with:
           path: ./*
-          key: ${{ github.sha }}
+          key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt }}
 
       - uses: actions/download-artifact@v2
         with:
@@ -596,7 +596,7 @@ jobs:
         id: restore-build
         with:
           path: ./*
-          key: ${{ github.sha }}
+          key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt }}
 
       - uses: actions/download-artifact@v2
         with:
@@ -1217,7 +1217,7 @@ jobs:
         id: restore-build
         with:
           path: ./*
-          key: ${{ github.sha }}
+          key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt }}
 
       - name: Setup node
         uses: actions/setup-node@v2
