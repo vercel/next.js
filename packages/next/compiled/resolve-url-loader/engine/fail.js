@@ -1,18 +1,1 @@
-/*
- * MIT License http://opensource.org/licenses/MIT
- * Author: Ben Holloway @bholloway
- */
-'use strict';
-
-/**
- * Process the given CSS content into reworked CSS content.
- */
-function process() {
-  return new Promise(function (_, reject) {
-    setTimeout(function () {
-      reject(new Error('This "engine" is designed to fail, for testing purposes only'));
-    }, 100);
-  });
-}
-
-module.exports = process;
+(()=>{"use strict";var e={948:e=>{function process(){return new Promise((function(e,r){setTimeout((function(){r(new Error('This "engine" is designed to fail, for testing purposes only'))}),100)}))}e.exports=process}};var r={};function __nccwpck_require__(_){var i=r[_];if(i!==undefined){return i.exports}var n=r[_]={exports:{}};var t=true;try{e[_](n,n.exports,__nccwpck_require__);t=false}finally{if(t)delete r[_]}return n.exports}if(typeof __nccwpck_require__!=="undefined")__nccwpck_require__.ab=__dirname+"/";var _=__nccwpck_require__(948);module.exports=_})();

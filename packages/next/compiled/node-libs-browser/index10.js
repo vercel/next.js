@@ -1,11 +1,1 @@
-exports.isatty = function () { return false; };
-
-function ReadStream() {
-  throw new Error('tty.ReadStream is not implemented');
-}
-exports.ReadStream = ReadStream;
-
-function WriteStream() {
-  throw new Error('tty.ReadStream is not implemented');
-}
-exports.WriteStream = WriteStream;
+(()=>{if(typeof __nccwpck_require__!=="undefined")__nccwpck_require__.ab=__dirname+"/";var e={};(()=>{var r=e;r.isatty=function(){return false};function ReadStream(){throw new Error("tty.ReadStream is not implemented")}r.ReadStream=ReadStream;function WriteStream(){throw new Error("tty.ReadStream is not implemented")}r.WriteStream=WriteStream})();module.exports=e})();
