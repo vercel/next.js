@@ -243,7 +243,8 @@ export default async function build(
 
     const ignoreESLint = Boolean(config.eslint.ignoreDuringBuilds)
     const eslintCacheDir = path.join(cacheDir, 'eslint/')
-    if (!ignoreESLint && runLint) {
+    const shouldLint = !ignoreESLint && runLint
+    if (shouldLint) {
       await nextBuildSpan
         .traceChild('verify-and-lint')
         .traceAsyncFn(async () => {
@@ -257,6 +258,14 @@ export default async function build(
           )
         })
     }
+    const buildLintEvent: EventBuildFeatureUsage = {
+      featureName: 'build-lint',
+      invocationCount: shouldLint ? 1 : 0,
+    }
+    telemetry.record({
+      eventName: EVENT_BUILD_FEATURE_USAGE,
+      payload: buildLintEvent,
+    })
 
     const buildSpinner = createSpinner({
       prefixText: `${Log.prefixes.info} Creating an optimized production build`,
