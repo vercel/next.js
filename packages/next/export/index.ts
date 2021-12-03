@@ -600,7 +600,10 @@ export default async function exportApp(
                 ampValidationResult.errors.length > 0)
           }
           renderError = renderError || !!result.error
-          if (!!result.error) errorPaths.push(path)
+          if (!!result.error) {
+            const { page } = pathMap
+            errorPaths.push(page !== path ? `${page}: ${path}` : path)
+          }
 
           if (options.buildExport && configuration) {
             if (typeof result.fromBuildExportRevalidate !== 'undefined') {
