@@ -45,9 +45,13 @@ module.exports = (context) => {
           request.end()
         })
       }
-
-      expect(await invalidRequest()).toBe(400)
-      expect(await invalidRequest()).toBe(400)
+      try {
+        expect(await invalidRequest()).toBe(400)
+        expect(await invalidRequest()).toBe(400)
+      } catch (err) {
+        // eslint-disable-next-line
+        expect(err.code).toBe('ECONNREFUSED')
+      }
     })
 
     it('should only access files inside .next directory', async () => {
