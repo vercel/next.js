@@ -1,0 +1,37 @@
+{
+  "name": "stytch-nextjs-integration",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "precommit-msg": "echo 'Pre-commit checks...' && exit 0",
+    "prettier": "prettier --write pages/ lib/ components/"
+  },
+  "pre-commit": [
+    "precommit-msg",
+    "lint"
+  ],
+  "dependencies": {
+    "@stytch/stytch-react": "^3.0.2",
+    "next": "11.1.2",
+    "next-auth": "^3.29.0",
+    "next-iron-session": "^4.2.0",
+    "react": "17.0.2",
+    "react-dom": "17.0.2",
+    "stytch": "^3.4.0"
+  },
+  "devDependencies": {
+    "@types/react": "17.0.22",
+    "@typescript-eslint/eslint-plugin": "^4.31.2",
+    "@typescript-eslint/parser": "^4.31.2",
+    "eslint": "^7.32.0",
+    "eslint-config-next": "11.1.2",
+    "eslint-config-prettier": "^8.3.0",
+    "pre-commit": "^1.2.2",
+    "prettier": "2.4.1",
+    "typescript": "^4.4.3"
+  }
+}
