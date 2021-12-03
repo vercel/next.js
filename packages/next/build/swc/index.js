@@ -6,6 +6,9 @@ const ArchName = arch()
 const PlatformName = platform()
 const triples = platformArchTriples[PlatformName][ArchName] || []
 
+let nativeBindings
+let wasmBindings
+
 async function loadBindings() {
   let attempts = []
   try {
@@ -48,6 +51,10 @@ function logLoadFailure(attempts) {
 
 // eslint-disable-next-line
 async function loadWasm() {
+  if (wasmBindings) {
+    return wasmBindings
+  }
+
   let attempts = []
   for (let pkg of ['@next/swc-wasm-web', '@next/swc-wasm-nodejs']) {
     try {
@@ -55,7 +62,8 @@ async function loadWasm() {
       if (pkg === '@next/swc-wasm-web') {
         bindings = await bindings.default()
       }
-      return {
+      Log.info('Using experimental wasm build of next-swc')
+      wasmBindings = {
         isWasm: true,
         transform(src, options) {
           return Promise.resolve(
@@ -66,6 +74,7 @@ async function loadWasm() {
           return Promise.resolve(bindings.minifySync(src.toString(), options))
         },
       }
+      return wasmBindings
     } catch (e) {
       // Do not report attempts to load wasm when it is still experimental
       // if (e?.code === 'ERR_MODULE_NOT_FOUND') {
@@ -82,6 +91,10 @@ async function loadWasm() {
 }
 
 function loadNative() {
+  if (nativeBindings) {
+    return nativeBindings
+  }
+
   let bindings
   let attempts = []
 
@@ -112,7 +125,7 @@ function loadNative() {
   }
 
   if (bindings) {
-    return {
+    nativeBindings = {
       isWasm: false,
       transform(src, options) {
         const isModule =
@@ -168,6 +181,7 @@ function loadNative() {
         return bindings.bundle(toBuffer(options))
       },
     }
+    return nativeBindings
   }
 
   throw attempts
