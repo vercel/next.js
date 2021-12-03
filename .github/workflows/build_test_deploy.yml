@@ -664,6 +664,9 @@ jobs:
           node-version: 16
           check-latest: true
 
+      - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
       - run: node ./scripts/setup-wasm.mjs
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
