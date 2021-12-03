@@ -95,10 +95,10 @@ import { parseNextUrl } from '../shared/lib/router/utils/parse-next-url'
 import isError from '../lib/is-error'
 import { getMiddlewareInfo } from './require'
 import { MIDDLEWARE_ROUTE } from '../lib/constants'
+import { NextResponse } from './web/spec-extension/response'
 import { run } from './web/sandbox'
 import { addRequestMeta, getRequestMeta } from './request-meta'
 import { toNodeHeaders } from './web/utils'
-import { relativizeURL } from '../shared/lib/router/utils/relativize-url'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -384,13 +384,7 @@ export default class Server {
         parsedUrl.query = parseQs(parsedUrl.query)
       }
 
-      // When there are hostname and port we build an absolute URL
-      const initUrl =
-        this.hostname && this.port
-          ? `http://${this.hostname}:${this.port}${req.url}`
-          : req.url
-
-      addRequestMeta(req, '__NEXT_INIT_URL', initUrl)
+      addRequestMeta(req, '__NEXT_INIT_URL', req.url)
       addRequestMeta(req, '__NEXT_INIT_QUERY', { ...parsedUrl.query })
 
       const url = parseNextUrl({
@@ -673,14 +667,6 @@ export default class Server {
   }): Promise<FetchEventResult | null> {
     this.middlewareBetaWarning()
 
-    // For middleware to "fetch" we must always provide an absolute URL
-    const url = getRequestMeta(params.request, '__NEXT_INIT_URL')!
-    if (!url.startsWith('http')) {
-      throw new Error(
-        'To use middleware you must provide a `hostname` and `port` to the Next.js Server'
-      )
-    }
-
     const page: { name?: string; params?: { [key: string]: string } } = {}
     if (await this.hasPage(params.parsedUrl.pathname)) {
       page.name = params.parsedUrl.pathname
@@ -695,6 +681,8 @@ export default class Server {
       }
     }
 
+    const subreq = params.request.headers[`x-middleware-subrequest`]
+    const subrequests = typeof subreq === 'string' ? subreq.split(':') : []
     const allHeaders = new Headers()
     let result: FetchEventResult | null = null
 
@@ -714,6 +702,14 @@ export default class Server {
           serverless: this._isLikeServerless,
         })
 
+        if (subrequests.includes(middlewareInfo.name)) {
+          result = {
+            response: NextResponse.next(),
+            waitUntil: Promise.resolve(),
+          }
+          continue
+        }
+
         result = await run({
           name: middlewareInfo.name,
           paths: middlewareInfo.paths,
@@ -725,7 +721,7 @@ export default class Server {
               i18n: this.nextConfig.i18n,
               trailingSlash: this.nextConfig.trailingSlash,
             },
-            url: url,
+            url: getRequestMeta(params.request, '__NEXT_INIT_URL')!,
             page: page,
           },
           useCache: !this.nextConfig.experimental.concurrentFeatures,
@@ -1185,13 +1181,9 @@ export default class Server {
         type: 'route',
         name: 'middleware catchall',
         fn: async (req, res, _params, parsed) => {
-          if (!this.middleware?.length) {
-            return { finished: false }
-          }
-
-          const initUrl = getRequestMeta(req, '__NEXT_INIT_URL')!
+          const fullUrl = getRequestMeta(req, '__NEXT_INIT_URL')
           const parsedUrl = parseNextUrl({
-            url: initUrl,
+            url: fullUrl,
             headers: req.headers,
             nextConfig: {
               basePath: this.nextConfig.basePath,
@@ -1228,18 +1220,6 @@ export default class Server {
 
           if (result === null) {
             return { finished: true }
-          }
-
-          if (result.response.headers.has('x-middleware-rewrite')) {
-            const value = result.response.headers.get('x-middleware-rewrite')!
-            const rel = relativizeURL(value, initUrl)
-            result.response.headers.set('x-middleware-rewrite', rel)
-          }
-
-          if (result.response.headers.has('Location')) {
-            const value = result.response.headers.get('Location')!
-            const rel = relativizeURL(value, initUrl)
-            result.response.headers.set('Location', rel)
           }
 
           if (
