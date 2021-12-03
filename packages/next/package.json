@@ -70,7 +70,6 @@
     "@aws-sdk/abort-controller": "3.40.0",
     "@babel/runtime": "7.15.4",
     "@hapi/accept": "5.0.2",
-    "@aws-sdk/abort-controller": "3.40.0",
     "@napi-rs/triples": "1.0.3",
     "@next/env": "12.0.5-canary.14",
     "@next/polyfill-module": "12.0.5-canary.14",
