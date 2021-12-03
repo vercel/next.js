@@ -2654,9 +2654,9 @@ dependencies = [
 
 [[package]]
 name = "swc_estree_compat"
-version = "0.4.1"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d4f3f0f22ab58ebccff2cdbd50cf1cd1a6dcccdb48e6816103efba46ca1d5f5d"
+checksum = "40d896c6057f80fe19981e6ab5226f93db8ece1124e0e665aa68b10b3c27489c"
 dependencies = [
  "ahash",
  "anyhow",
@@ -2824,9 +2824,9 @@ dependencies = [
 
 [[package]]
 name = "swc_webpack_ast"
-version = "0.2.1"
+version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c00e92c1810f79801c419229a69a643610034f5c75d0e5335917d23126a17737"
+checksum = "3c6a8991a346f77ea569fc0f5f92e66df91983df24c3d0f2d80e3ac6387901f9"
 dependencies = [
  "anyhow",
  "rayon",
