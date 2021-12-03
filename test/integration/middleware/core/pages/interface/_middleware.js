@@ -59,6 +59,29 @@ export async function middleware(request) {
     )
   }
 
+  if (url.pathname.endsWith('/abort-controller')) {
+    const controller = new AbortController()
+    const signal = controller.signal
+
+    controller.abort()
+    const response = {}
+
+    try {
+      await fetch('https://example.com', { signal })
+    } catch (err) {
+      response.error = {
+        name: err.name,
+        message: err.message,
+      }
+    } finally {
+      return new NextResponse(JSON.stringify(response), {
+        headers: {
+          'content-type': 'application/json; charset=utf-8',
+        },
+      })
+    }
+  }
+
   return new Response(null, {
     headers: {
       'req-url-basepath': request.nextUrl.basePath,
