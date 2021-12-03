@@ -571,104 +571,111 @@ export default async function build(
         ignore: [] as string[],
       }))
 
-    const runWebpackSpan = nextBuildSpan.traceChild('run-webpack-compiler')
-    const configs = await runWebpackSpan
-      .traceChild('generate-webpack-config')
-      .traceAsyncFn(() =>
-        Promise.all([
-          getBaseWebpackConfig(dir, {
-            buildId,
-            reactProductionProfiling,
-            isServer: false,
-            config,
-            target,
-            pagesDir,
-            entrypoints: entrypoints.client,
-            rewrites,
-            runWebpackSpan,
-          }),
-          getBaseWebpackConfig(dir, {
-            buildId,
-            reactProductionProfiling,
-            isServer: true,
-            config,
-            target,
-            pagesDir,
-            entrypoints: entrypoints.server,
-            rewrites,
-            runWebpackSpan,
-          }),
-          hasConcurrentFeatures
-            ? getBaseWebpackConfig(dir, {
-                buildId,
-                reactProductionProfiling,
-                isServer: true,
-                webServerRuntime: true,
-                config,
-                target,
-                pagesDir,
-                entrypoints: entrypoints.serverWeb,
-                rewrites,
-                runWebpackSpan,
-              })
-            : null,
-        ])
-      )
-
-    const clientConfig = configs[0]
-
-    if (
-      clientConfig.optimization &&
-      (clientConfig.optimization.minimize !== true ||
-        (clientConfig.optimization.minimizer &&
-          clientConfig.optimization.minimizer.length === 0))
-    ) {
-      Log.warn(
-        `Production code optimization has been disabled in your project. Read more: https://nextjs.org/docs/messages/minification-disabled`
-      )
-    }
-
-    const webpackBuildStart = process.hrtime()
-
     let result: CompilerResult = { warnings: [], errors: [] }
-    // We run client and server compilation separately to optimize for memory usage
-    await runWebpackSpan.traceAsyncFn(async () => {
-      const clientResult = await runCompiler(clientConfig, { runWebpackSpan })
-      // Fail build if clientResult contains errors
-      if (clientResult.errors.length > 0) {
-        result = {
-          warnings: [...clientResult.warnings],
-          errors: [...clientResult.errors],
-        }
-      } else {
-        const serverResult = await runCompiler(configs[1], { runWebpackSpan })
-        const serverWebResult = configs[2]
-          ? await runCompiler(configs[2], { runWebpackSpan })
-          : null
+    let webpackBuildStart
+    let telemetryPlugin
+    await (async () => {
+      // IIFE to isolate locals and avoid retaining memory too long
+      const runWebpackSpan = nextBuildSpan.traceChild('run-webpack-compiler')
+      const configs = await runWebpackSpan
+        .traceChild('generate-webpack-config')
+        .traceAsyncFn(() =>
+          Promise.all([
+            getBaseWebpackConfig(dir, {
+              buildId,
+              reactProductionProfiling,
+              isServer: false,
+              config,
+              target,
+              pagesDir,
+              entrypoints: entrypoints.client,
+              rewrites,
+              runWebpackSpan,
+            }),
+            getBaseWebpackConfig(dir, {
+              buildId,
+              reactProductionProfiling,
+              isServer: true,
+              config,
+              target,
+              pagesDir,
+              entrypoints: entrypoints.server,
+              rewrites,
+              runWebpackSpan,
+            }),
+            hasConcurrentFeatures
+              ? getBaseWebpackConfig(dir, {
+                  buildId,
+                  reactProductionProfiling,
+                  isServer: true,
+                  webServerRuntime: true,
+                  config,
+                  target,
+                  pagesDir,
+                  entrypoints: entrypoints.serverWeb,
+                  rewrites,
+                  runWebpackSpan,
+                })
+              : null,
+          ])
+        )
 
-        result = {
-          warnings: [
-            ...clientResult.warnings,
-            ...serverResult.warnings,
-            ...(serverWebResult?.warnings || []),
-          ],
-          errors: [
-            ...clientResult.errors,
-            ...serverResult.errors,
-            ...(serverWebResult?.errors || []),
-          ],
-        }
+      const clientConfig = configs[0]
+
+      if (
+        clientConfig.optimization &&
+        (clientConfig.optimization.minimize !== true ||
+          (clientConfig.optimization.minimizer &&
+            clientConfig.optimization.minimizer.length === 0))
+      ) {
+        Log.warn(
+          `Production code optimization has been disabled in your project. Read more: https://nextjs.org/docs/messages/minification-disabled`
+        )
       }
-    })
 
+      webpackBuildStart = process.hrtime()
+
+      // We run client and server compilation separately to optimize for memory usage
+      await runWebpackSpan.traceAsyncFn(async () => {
+        const clientResult = await runCompiler(clientConfig, { runWebpackSpan })
+        // Fail build if clientResult contains errors
+        if (clientResult.errors.length > 0) {
+          result = {
+            warnings: [...clientResult.warnings],
+            errors: [...clientResult.errors],
+          }
+        } else {
+          const serverResult = await runCompiler(configs[1], { runWebpackSpan })
+          const serverWebResult = configs[2]
+            ? await runCompiler(configs[2], { runWebpackSpan })
+            : null
+
+          result = {
+            warnings: [
+              ...clientResult.warnings,
+              ...serverResult.warnings,
+              ...(serverWebResult?.warnings || []),
+            ],
+            errors: [
+              ...clientResult.errors,
+              ...serverResult.errors,
+              ...(serverWebResult?.errors || []),
+            ],
+          }
+        }
+      })
+      result = nextBuildSpan
+        .traceChild('format-webpack-messages')
+        .traceFn(() => formatWebpackMessages(result, true))
+
+      telemetryPlugin = (clientConfig as webpack.Configuration).plugins?.find(
+        isTelemetryPlugin
+      )
+    })()
     const webpackBuildEnd = process.hrtime(webpackBuildStart)
     if (buildSpinner) {
       buildSpinner.stopAndPersist()
     }
-
-    result = nextBuildSpan
-      .traceChild('format-webpack-messages')
-      .traceFn(() => formatWebpackMessages(result, true))
 
     if (result.errors.length > 0) {
       // Only keep the first few errors. Others are often indicative
@@ -1871,9 +1878,6 @@ export default async function build(
       })
     )
 
-    const telemetryPlugin = (
-      clientConfig as webpack.Configuration
-    ).plugins?.find(isTelemetryPlugin)
     if (telemetryPlugin) {
       const events = eventBuildFeatureUsage(telemetryPlugin)
       telemetry.record(events)
