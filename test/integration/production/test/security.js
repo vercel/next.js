@@ -2,6 +2,7 @@
 /* global browserName */
 import webdriver from 'next-webdriver'
 import { readFileSync } from 'fs'
+import http from 'http'
 import url from 'url'
 import { join } from 'path'
 import {
@@ -27,6 +28,28 @@ async function checkInjected(browser) {
 
 module.exports = (context) => {
   describe('With Security Related Issues', () => {
+    it('should handle invalid URL properly', async () => {
+      async function invalidRequest() {
+        return new Promise((resolve, reject) => {
+          const request = http.request(
+            {
+              hostname: `localhost`,
+              port: context.appPort,
+              path: `*`,
+            },
+            (response) => {
+              resolve(response.statusCode)
+            }
+          )
+          request.on('error', (err) => reject(err))
+          request.end()
+        })
+      }
+
+      expect(await invalidRequest()).toBe(400)
+      expect(await invalidRequest()).toBe(400)
+    })
+
     it('should only access files inside .next directory', async () => {
       const buildId = readFileSync(join(__dirname, '../.next/BUILD_ID'), 'utf8')
 
