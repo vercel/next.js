@@ -13,10 +13,12 @@ Both flows use Stytch's [Node client library](https://github.com/stytchauth/styt
 
 **Note:** By default this example app enables three of our OAuth providers, Google, Microsoft, and Apple. If you haven't set up these OAuth providers in your [Dashboard](https://stytch.com/dashboard/oauth), you'll receive a redirect error when you attempt to login via those providers. You may remove all OAuth methods by removing `SDKProductTypes.oauth` from the `products` array in [pages/index.tsx](pages/index.tsx) or adjust which ones are displayed by via `oauthOptions.providers` in the same file. More detail on working with OAuth providers in our SDK may be found in our [Docs](https://stytch.com/docs/javascript-sdk#javascript-sdk/oauth).
 
-# Deploying with Vercel
+# Deploy on Vercel
 
+## Setting up Stytch
 The first step is to configure the appropriate redirect URLs for your project. You'll set these magic link redirect URLs in the [Redirect URLs](https://stytch.com/dashboard/redirect-urls) section of your Dashboard. Add `https://*.vercel.app:3000` as both a login and sign-up redirect URL.
 
+## Running the example app
 Now just click the deploy button below! Once you're signed in to your Vercel account, you'll be guided through how to get up and running quickly. Check out [.env.template](/.env.template) for pointers on filling in the appropriate environment variables for this step.
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Fblob%2Fcanary%2Fexamples%2Fauth-with-stytch%2F&env=STYTCH_PROJECT_ENV,STYTCH_PROJECT_ID,STYTCH_SECRET,STYTCH_PUBLIC_TOKEN,IRON_SESSION_PASSWORD,IRON_SESSION_COOKIE_NAME&envDescription=All%20variables%20here%20need%20values%2C%20see%20the%20following%20link%20for%20pointers%20on%20how%20to%20feel%20these%20out.&envLink=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Fblob%2Fcanary%2Fexamples%2Fauth-with-stytch%2F.env.template&project-name=stytch-nextjs-vercel&repo-name=stytch-nextjs-vercel&demo-title=Stytch%20on%20Next.js%20with%20Vercel&demo-description=Next.js%20example%20app%20using%20Stytch%20authentication&demo-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Fblob%2Fcanary%2Fexamples%2Fauth-with-stytch&demo-image=https%3A%2F%2Fstytch.com%2Flogo-preview.png)
