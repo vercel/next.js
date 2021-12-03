@@ -447,6 +447,14 @@ function interfaceTests(locale = '') {
     const element = await browser.elementByCss('.title')
     expect(await element.text()).toEqual('Dynamic route')
   })
+
+  it(`${locale} allows subrequests without infinite loops`, async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      `/interface/root-subrequest`
+    )
+    expect(res.headers.get('x-dynamic-path')).toBe('true')
+  })
 }
 
 function getCookieFromResponse(res, cookieName) {
