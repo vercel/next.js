@@ -42,7 +42,6 @@ let postcssInstancePromise: Promise<any>
 export async function lazyPostCSS(
   rootDirectory: string,
   supportedBrowsers: string[] | undefined,
-  strictPostcssConfiguration: boolean | undefined,
   disablePostcssPresetEnv: boolean | undefined
 ) {
   if (!postcssInstancePromise) {
@@ -117,7 +116,6 @@ export async function lazyPostCSS(
       const postCssPlugins = await getPostCssPlugins(
         rootDirectory,
         supportedBrowsers,
-        strictPostcssConfiguration,
         disablePostcssPresetEnv
       )
 
@@ -145,7 +143,6 @@ export const css = curry(async function css(
     lazyPostCSS(
       ctx.rootDirectory,
       ctx.supportedBrowsers,
-      ctx.future.strictPostcssConfiguration,
       ctx.experimental.disablePostcssPresetEnv
     )
 
