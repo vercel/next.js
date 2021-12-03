@@ -251,7 +251,7 @@ export default class HotReloader {
         } catch (error) {
           await renderScriptError(
             pageBundleRes,
-            isError(error) ? error : new Error(error + '')
+            isError(error) ? error : new Error(JSON.stringify(error))
           )
           return { finished: true }
         }

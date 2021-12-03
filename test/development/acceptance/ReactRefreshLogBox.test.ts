@@ -903,4 +903,27 @@ describe('ReactRefreshLogBox', () => {
 
     await cleanup()
   })
+
+  test('custom error prints JSON as string', async () => {
+    const { session, cleanup } = await sandbox(next)
+
+    await session.patch(
+      'index.js',
+      `
+        export default () => {
+          throw {'a': 1, 'b': 'x'};
+          return (
+            <div>hello</div>
+          )
+        }
+      `
+    )
+
+    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
+      `"Error: {\\"a\\":1,\\"b\\":\\"x\\"}"`
+    )
+
+    await cleanup()
+  })
 })

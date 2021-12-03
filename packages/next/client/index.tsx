@@ -338,7 +338,7 @@ export async function initNext(opts: { webpackHMR?: any } = {}) {
     }
   } catch (error) {
     // This catches errors like throwing in the top level of a module
-    initialErr = isError(error) ? error : new Error(error + '')
+    initialErr = isError(error) ? error : new Error(JSON.stringify(error))
   }
 
   if (process.env.NODE_ENV === 'development') {
