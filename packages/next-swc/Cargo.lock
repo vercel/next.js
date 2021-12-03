@@ -2641,9 +2641,9 @@ dependencies = [
 
 [[package]]
 name = "swc_estree_ast"
-version = "0.2.1"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a2f134cf78800a8e9875443d7a3470e370a2fe329e2e34fc244fd14b265bd325"
+checksum = "3dd23cc49044f5062a6ccc8f4689103ac52bf5376f874bd9005f1c6ff30ed5ba"
 dependencies = [
  "scoped-tls",
  "serde",
@@ -2654,9 +2654,9 @@ dependencies = [
 
 [[package]]
 name = "swc_estree_compat"
-version = "0.5.0"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "40d896c6057f80fe19981e6ab5226f93db8ece1124e0e665aa68b10b3c27489c"
+checksum = "66b1bffbe2f68f5594d55fa5a775e96c82842be9b64fffd2b140e650295023b8"
 dependencies = [
  "ahash",
  "anyhow",
@@ -2824,9 +2824,9 @@ dependencies = [
 
 [[package]]
 name = "swc_webpack_ast"
-version = "0.3.3"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3c6a8991a346f77ea569fc0f5f92e66df91983df24c3d0f2d80e3ac6387901f9"
+checksum = "02ec6adac0a1e3edc0d41ef5d601acfa20218636d6e03ed20d2ed311ffeb5536"
 dependencies = [
  "anyhow",
  "rayon",
