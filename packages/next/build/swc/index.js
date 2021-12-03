@@ -1,6 +1,6 @@
 import { platform, arch } from 'os'
 import { platformArchTriples } from '@napi-rs/triples'
-import Log from '../output/log'
+import * as Log from '../output/log'
 
 const ArchName = arch()
 const PlatformName = platform()
@@ -19,6 +19,7 @@ async function loadWasm() {
         bindings = await bindings.default()
       }
       return {
+        isWasm: true,
         transform(src, options) {
           return Promise.resolve(
             bindings.transformSync(src.toString(), options)
@@ -63,6 +64,7 @@ function loadNative() {
 
   if (bindings) {
     return {
+      isWasm: false,
       transform(src, options) {
         const isModule =
           typeof src !== undefined &&
@@ -131,6 +133,11 @@ function loadNative() {
 
 function toBuffer(t) {
   return Buffer.from(JSON.stringify(t))
+}
+
+export async function isWasm() {
+  let bindings = await loadBindings()
+  return bindings.isWasm
 }
 
 export async function transform(src, options) {
