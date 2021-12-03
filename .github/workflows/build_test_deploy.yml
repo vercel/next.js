@@ -634,21 +634,41 @@ jobs:
   test-wasm:
     name: Test the wasm build
     runs-on: ubuntu-18.04
-    #needs: build-wasm
+    needs: [build, build-native-dev, build-wasm]
 
     steps:
       - uses: actions/cache@v2
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         id: restore-build
         with:
           path: ./*
           key: ${{ github.sha }}
 
-      # - uses: actions/download-artifact@v2
-      #   with:
-      #     name: wasm-binaries
-      #     path: packages/next-swc/crates/wasm
+      - uses: actions/download-artifact@v2
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        with:
+          name: wasm-binaries
+          path: packages/next-swc/crates/wasm
 
-      - run: ls ./node_modules/@next
+      - uses: actions/download-artifact@v2
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        with:
+          name: next-swc-dev-binary
+          path: packages/next-swc/native
+
+      # node version needs to be 16+ to use --no-addons option
+      - name: Setup node
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        uses: actions/setup-node@v2
+        with:
+          node-version: 16
+          check-latest: true
+
+      - run: node ./scripts/setup-wasm.mjs
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
+      - run: TEST_WASM=true yarn testonly test/integration/production/test/index.test.js
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
   # Build binaries for publishing
   build-native:
@@ -1142,7 +1162,7 @@ jobs:
 
   build-wasm:
     needs: build
-    if: ${{ needs.build.outputs.isRelease == 'true' }}
+    # if: ${{ needs.build.outputs.isRelease == 'true' }}
     strategy:
       matrix:
         target: [web, nodejs]
