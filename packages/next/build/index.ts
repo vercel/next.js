@@ -1227,7 +1227,7 @@ export default async function build(
 
           const root = path.parse(dir).root
           const serverResult = await nodeFileTrace(
-            [require.resolve('next/dist/server/next-node-server')],
+            [require.resolve('next/dist/server/next-server')],
             {
               base: root,
               processCwd: dir,

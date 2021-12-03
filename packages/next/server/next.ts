@@ -1,10 +1,10 @@
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { Options as DevServerOptions } from './dev/next-dev-server'
-import type { RequestHandler } from './next-node-server'
+import type { RequestHandler } from './next-server'
 import type { UrlWithParsedQuery } from 'url'
 
 import './node-polyfill-fetch'
-import { default as Server } from './next-node-server'
+import { default as Server } from './next-server'
 import * as log from '../build/output/log'
 import loadConfig from './config'
 import { resolve } from 'path'
@@ -16,7 +16,7 @@ let ServerImpl: typeof Server
 
 const getServerImpl = async () => {
   if (ServerImpl === undefined)
-    ServerImpl = (await Promise.resolve(require('./next-node-server'))).default
+    ServerImpl = (await Promise.resolve(require('./next-server'))).default
   return ServerImpl
 }
 

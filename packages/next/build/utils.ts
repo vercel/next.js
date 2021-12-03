@@ -1222,7 +1222,7 @@ export async function copyTracedFiles(
     `
 process.env.NODE_ENV = 'production'
 process.chdir(__dirname)
-const NextServer = require('next/dist/server/next-node-server').default
+const NextServer = require('next/dist/server/next-server').default
 const http = require('http')
 const path = require('path')
 
