@@ -170,7 +170,7 @@ type RequestContext = {
   renderOpts: RenderOptsPartial
 }
 
-export default class Server {
+export default abstract class Server {
   protected dir: string
   protected quiet: boolean
   protected nextConfig: NextConfigComplete
@@ -218,6 +218,8 @@ export default class Server {
   protected middleware?: RoutingItem[]
   public readonly hostname?: string
   public readonly port?: number
+
+  protected abstract getHasStaticDir(): boolean
 
   public constructor({
     dir = '.',
@@ -338,10 +340,6 @@ export default class Server {
     if (this.renderOpts.optimizeCss) {
       process.env.__NEXT_OPTIMIZE_CSS = JSON.stringify(true)
     }
-  }
-
-  private notImplemented(): never {
-    throw new Error('Not implemented')
   }
 
   public logError(err: Error): void {
@@ -1522,10 +1520,6 @@ export default class Server {
       page
     )
     return true
-  }
-
-  protected getHasStaticDir(): boolean {
-    this.notImplemented()
   }
 
   protected generatePublicRoutes(): Route[] {
