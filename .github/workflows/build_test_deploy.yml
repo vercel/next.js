@@ -670,7 +670,7 @@ jobs:
       - run: node ./scripts/setup-wasm.mjs
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
-      - run: TEST_WASM=true yarn testonly test/integration/production/test/index.test.js
+      - run: TEST_WASM=true xvfb-run node run-tests.js test/integration/production/test/index.test.js
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
   # Build binaries for publishing
