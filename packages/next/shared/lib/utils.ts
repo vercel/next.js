@@ -299,8 +299,8 @@ export type NextApiResponse<T = any> = ServerResponse & {
 /**
  * Next `API` route handler
  */
-export type NextApiHandler<T = any> = (
-  req: NextApiRequest,
+export type NextApiHandler<T = any, B = any> = (
+  req: NextApiRequest<B>,
   res: NextApiResponse<T>
 ) => void | Promise<void>
 
