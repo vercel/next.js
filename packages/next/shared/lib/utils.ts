@@ -232,7 +232,7 @@ export type HtmlProps = {
 /**
  * Next `API` route request
  */
-export interface NextApiRequest extends IncomingMessage {
+export interface NextApiRequest<T = any> extends IncomingMessage {
   /**
    * Object of `query` values from url
    */
@@ -246,7 +246,7 @@ export interface NextApiRequest extends IncomingMessage {
     [key: string]: string
   }
 
-  body: any
+  body: T
 
   env: Env
 
