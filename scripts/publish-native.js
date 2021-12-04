@@ -12,7 +12,7 @@ const cwd = process.cwd()
     let version = JSON.parse(
       await readFile(path.join(cwd, 'lerna.json'))
     ).version
-    let gitref = process.argv.slice(2)[0]
+    // let gitref = process.argv.slice(2)[0]
 
     // Copy binaries to package folders, update version, and publish
     let nativePackagesDir = path.join(cwd, 'packages/next/build/swc/npm')
