@@ -13,7 +13,7 @@
       "allowBranch": [
         "master",
         "canary",
-        "v11-patch"
+        "next-11"
       ],
       "registry": "https://registry.npmjs.org/"
     }
