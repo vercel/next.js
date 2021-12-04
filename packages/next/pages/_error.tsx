@@ -49,7 +49,15 @@ export default class Error<P = {}> extends React.Component<P & ErrorProps> {
           </title>
         </Head>
         <div>
-          <style dangerouslySetInnerHTML={{ __html: 'body { margin: 0 }' }} />
+          <style
+            dangerouslySetInnerHTML={{
+              __html: `
+                body { margin: 0; color: #fff; background: #000; }
+                @media (prefers-color-scheme: dark) {
+                  body { color:#000; background: #fff; }
+                }`,
+            }}
+          />
           {statusCode ? <h1 style={styles.h1}>{statusCode}</h1> : null}
           <div style={styles.desc}>
             <h2 style={styles.h2}>
@@ -72,8 +80,6 @@ export default class Error<P = {}> extends React.Component<P & ErrorProps> {
 
 const styles: { [k: string]: React.CSSProperties } = {
   error: {
-    color: '#000',
-    background: '#fff',
     fontFamily:
       '-apple-system, BlinkMacSystemFont, Roboto, "Segoe UI", "Fira Sans", Avenir, "Helvetica Neue", "Lucida Grande", sans-serif',
     height: '100vh',
