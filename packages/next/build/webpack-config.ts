@@ -473,6 +473,7 @@ export default async function getBaseWebpackConfig(
     ? getRawPageExtensions(config.pageExtensions)
     : config.pageExtensions
 
+  const pageExtensionsRegex = new RegExp(`\\.(${rawPageExtensions.join('|')})$`)
   const serverComponentsRegex = new RegExp(
     `\\.server\\.(${rawPageExtensions.join('|')})$`
   )
@@ -1174,44 +1175,60 @@ export default async function getBaseWebpackConfig(
               } as any,
             ]
           : []),
-        ...(hasServerComponents && !isServer
+        ...(hasServerComponents
           ? [
-              {
-                ...codeCondition,
-                test: serverComponentsRegex,
-                use: {
-                  loader: `next-flight-server-loader?${stringify({
-                    client: 1,
-                    pageExtensions: JSON.stringify(rawPageExtensions),
-                  })}`,
-                },
-              },
-            ]
-          : []),
-        ...(hasServerComponents && webServerRuntime
-          ? [
-              {
-                ...codeCondition,
-                test: serverComponentsRegex,
-                use: {
-                  loader: `next-flight-server-loader?${stringify({
-                    pageExtensions: JSON.stringify(rawPageExtensions),
-                  })}`,
-                },
-              },
-              {
-                ...codeCondition,
-                test: clientComponentsRegex,
-                use: {
-                  loader: 'next-flight-client-loader',
-                },
-              },
-              {
-                test: /next[\\/](dist[\\/]client[\\/])?(link|image)/,
-                use: {
-                  loader: 'next-flight-client-loader',
-                },
-              },
+              ...(!isServer
+                ? [
+                    {
+                      ...codeCondition,
+                      test: (resource: string) => {
+                        const isNotClientComponent =
+                          pageExtensionsRegex.test(resource) &&
+                          !clientComponentsRegex.test(resource)
+                        return isNotClientComponent
+                      },
+                      include: [dir],
+                      use: {
+                        loader: `next-flight-server-loader?${stringify({
+                          client: 1,
+                          pageExtensions: JSON.stringify(rawPageExtensions),
+                        })}`,
+                      },
+                    },
+                  ]
+                : []),
+              ...(webServerRuntime
+                ? [
+                    {
+                      ...codeCondition,
+                      test: (resource: string) => {
+                        const isNotClientComponent =
+                          pageExtensionsRegex.test(resource) &&
+                          !clientComponentsRegex.test(resource)
+                        return isNotClientComponent
+                      },
+                      include: [dir],
+                      use: {
+                        loader: `next-flight-server-loader?${stringify({
+                          pageExtensions: JSON.stringify(rawPageExtensions),
+                        })}`,
+                      },
+                    },
+                    {
+                      ...codeCondition,
+                      test: clientComponentsRegex,
+                      use: {
+                        loader: 'next-flight-client-loader',
+                      },
+                    },
+                    {
+                      test: /next[\\/](dist[\\/]client[\\/])?(link|image)/,
+                      use: {
+                        loader: 'next-flight-client-loader',
+                      },
+                    },
+                  ]
+                : []),
             ]
           : []),
         {

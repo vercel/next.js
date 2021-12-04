@@ -1,3 +1,6 @@
+import { useMemo } from 'react'
+
 export default function foo() {
-  return 'foo.client'
+  const value = useMemo(() => 'foo.client', [])
+  return value
 }

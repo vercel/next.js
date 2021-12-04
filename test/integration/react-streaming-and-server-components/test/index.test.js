@@ -268,11 +268,17 @@ async function runBasicTests(context, env) {
       '/this-is-not-found'
     )
 
+    const $ = cheerio.load(homeHTML)
+    const $shared = $('#shared')
+
     expect(homeHTML).toContain('component:index.server')
     expect(homeHTML).toContain('env:env_var_test')
     expect(homeHTML).toContain('header:test-util')
     expect(homeHTML).toContain('path:/')
     expect(homeHTML).toContain('foo.client')
+
+    // shared components are treated as server components
+    expect($shared.text()).toContain('shared:server:true:foo.client')
 
     expect(dynamicRouteHTML1).toContain('[pid]')
     expect(dynamicRouteHTML2).toContain('[pid]')

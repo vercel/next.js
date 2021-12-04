@@ -127,6 +127,13 @@ async function parseExportNamesInto(
   }
 }
 
+export const moduleReferenceDef = `const MODULE_REFERENCE = Symbol.for('react.module.reference')`
+export function createModuleReference(url: string, name: string): string {
+  return `{ $$typeof: MODULE_REFERENCE, filepath: ${JSON.stringify(
+    url
+  )}, name: ${JSON.stringify(name)}}`
+}
+
 export default async function transformSource(
   this: any,
   source: Source
@@ -154,8 +161,7 @@ export default async function transformSource(
     names.push('default')
   }
 
-  let newSrc =
-    "const MODULE_REFERENCE = Symbol.for('react.module.reference');\n"
+  let newSrc = moduleReferenceDef + '\n'
   for (let i = 0; i < names.length; i++) {
     const name = names[i]
     if (name === 'default') {
@@ -163,11 +169,7 @@ export default async function transformSource(
     } else {
       newSrc += 'export const ' + name + ' = '
     }
-    newSrc += '{ $$typeof: MODULE_REFERENCE, filepath: '
-    newSrc += JSON.stringify(url)
-    newSrc += ', name: '
-    newSrc += JSON.stringify(name)
-    newSrc += '};\n'
+    newSrc += createModuleReference(url, name) + ';\n'
   }
 
   return newSrc
