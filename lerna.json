@@ -12,7 +12,8 @@
       "npmClient": "npm",
       "allowBranch": [
         "master",
-        "canary"
+        "canary",
+        "v11-patch"
       ],
       "registry": "https://registry.npmjs.org/"
     }
