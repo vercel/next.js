@@ -37,7 +37,7 @@ const cwd = process.cwd()
         `npm publish ${path.join(
           nativePackagesDir,
           platform
-        )} --access public ${gitref.includes('canary') ? ' --tag canary' : ''}`
+        )} --access public --tag next-11`
       )
       // lerna publish in next step will fail if git status is not clean
       execSync(

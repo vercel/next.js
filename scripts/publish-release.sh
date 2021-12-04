@@ -27,7 +27,7 @@ fi
 
 if [[ ! $(git describe --exact-match 2> /dev/null || :) =~ -canary ]];then
   echo "Publishing stable"
-  yarn run lerna publish from-git --no-git-reset --yes
+  yarn run lerna publish from-git --npm-tag next-11 --no-git-reset --yes
 
   # Make sure to exit script with code 1 if publish failed
   if [[ ! $? -eq 0 ]];then
