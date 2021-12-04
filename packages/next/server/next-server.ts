@@ -8,7 +8,7 @@ import type { IncomingMessage, ServerResponse } from 'http'
 import type { LoadComponentsReturnType } from './load-components'
 import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
 import type { NextApiRequest, NextApiResponse } from '../shared/lib/utils'
-import type { NextConfigComplete } from './config-shared'
+import type { NextConfig, NextConfigComplete } from './config-shared'
 import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
 import type { ParsedNextUrl } from '../shared/lib/router/utils/parse-next-url'
 import type { ParsedUrl } from '../shared/lib/router/utils/parse-url'
@@ -123,7 +123,7 @@ export interface Options {
   /**
    * Object containing the configuration next.config.js
    */
-  conf: NextConfigComplete
+  conf: NextConfig
   /**
    * Set to false when the server was created by Next.js
    */
@@ -233,7 +233,9 @@ export default class Server {
     this.quiet = quiet
     loadEnvConfig(this.dir, dev, Log)
 
-    this.nextConfig = conf
+    // TODO: should conf be normalized to prevent missing
+    // values from causing issues as this can be user provided
+    this.nextConfig = conf as NextConfigComplete
     this.hostname = hostname
     this.port = port
 
