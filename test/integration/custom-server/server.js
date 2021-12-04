@@ -1,7 +1,3 @@
-if (process.env.POLYFILL_FETCH) {
-  global.fetch = require('node-fetch').default
-}
-
 const http = require('http')
 const next = require('next')
 
