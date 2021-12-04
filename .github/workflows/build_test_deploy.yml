@@ -1,6 +1,6 @@
 on:
   push:
-    branches: [canary]
+    branches: [canary, v11-patch]
     tags: [v*]
   pull_request:
     types: [opened, synchronize]
