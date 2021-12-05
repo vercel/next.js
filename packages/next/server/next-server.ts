@@ -1,24 +1,31 @@
+import type { __ApiPreviewProps } from './api-utils'
+import type { CustomRoutes, Header } from '../lib/load-custom-routes'
+import type { DomainLocale } from './config'
+import type { DynamicRoutes, PageChecker, Params, Route } from './router'
+import type { FetchEventResult } from './web/types'
+import type { FontManifest } from './font-utils'
+import type { IncomingMessage, ServerResponse } from 'http'
+import type { LoadComponentsReturnType } from './load-components'
+import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
+import type { NextApiRequest, NextApiResponse } from '../shared/lib/utils'
+import type { NextConfig, NextConfigComplete } from './config-shared'
+import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
+import type { ParsedNextUrl } from '../shared/lib/router/utils/parse-next-url'
+import type { ParsedUrl } from '../shared/lib/router/utils/parse-url'
+import type { ParsedUrlQuery } from 'querystring'
+import type { PrerenderManifest } from '../build'
+import type { Redirect, Rewrite, RouteType } from '../lib/load-custom-routes'
+import type { RenderOpts, RenderOptsPartial } from './render'
+import type { ResponseCacheEntry, ResponseCacheValue } from './response-cache'
+import type { UrlWithParsedQuery } from 'url'
+
 import compression from 'next/dist/compiled/compression'
 import fs from 'fs'
-import { IncomingMessage, ServerResponse } from 'http'
 import Proxy from 'next/dist/compiled/http-proxy'
 import { join, relative, resolve, sep } from 'path'
-import {
-  parse as parseQs,
-  stringify as stringifyQs,
-  ParsedUrlQuery,
-} from 'querystring'
-import { format as formatUrl, parse as parseUrl, UrlWithParsedQuery } from 'url'
-import { PrerenderManifest } from '../build'
-import {
-  getRedirectStatus,
-  Header,
-  Redirect,
-  Rewrite,
-  RouteType,
-  CustomRoutes,
-  modifyRouteRegex,
-} from '../lib/load-custom-routes'
+import { parse as parseQs, stringify as stringifyQs } from 'querystring'
+import { format as formatUrl, parse as parseUrl } from 'url'
+import { getRedirectStatus, modifyRouteRegex } from '../lib/load-custom-routes'
 import {
   BUILD_ID_FILE,
   CLIENT_PUBLIC_FILES_PATH,
@@ -45,8 +52,6 @@ import * as envConfig from '../shared/lib/runtime-config'
 import {
   DecodeError,
   isResSent,
-  NextApiRequest,
-  NextApiResponse,
   normalizeRepeatedSlashes,
 } from '../shared/lib/utils'
 import {
@@ -54,23 +59,15 @@ import {
   setLazyProp,
   getCookieParser,
   tryGetPreviewData,
-  __ApiPreviewProps,
 } from './api-utils'
-import { DomainLocale, isTargetLikeServerless, NextConfig } from './config'
+import { isTargetLikeServerless } from './config'
 import pathMatch from '../shared/lib/router/utils/path-match'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
-import { loadComponents, LoadComponentsReturnType } from './load-components'
+import { loadComponents } from './load-components'
 import { normalizePagePath } from './normalize-page-path'
-import { RenderOpts, RenderOptsPartial, renderToHTML } from './render'
+import { renderToHTML } from './render'
 import { getPagePath, requireFontManifest } from './require'
-import Router, {
-  DynamicRoutes,
-  PageChecker,
-  Params,
-  replaceBasePath,
-  route,
-  Route,
-} from './router'
+import Router, { replaceBasePath, route } from './router'
 import {
   compileNonPath,
   prepareDestination,
@@ -93,23 +90,13 @@ import { detectDomainLocale } from '../shared/lib/i18n/detect-domain-locale'
 import escapePathDelimiters from '../shared/lib/router/utils/escape-path-delimiters'
 import { getUtils } from '../build/webpack/loaders/next-serverless-loader/utils'
 import { PreviewData } from 'next/types'
-import ResponseCache, {
-  ResponseCacheEntry,
-  ResponseCacheValue,
-} from './response-cache'
-import { NextConfigComplete } from './config-shared'
+import ResponseCache from './response-cache'
 import { parseNextUrl } from '../shared/lib/router/utils/parse-next-url'
 import isError from '../lib/is-error'
 import { getMiddlewareInfo } from './require'
 import { MIDDLEWARE_ROUTE } from '../lib/constants'
 import { NextResponse } from './web/spec-extension/response'
 import { run } from './web/sandbox'
-import type { FontManifest } from './font-utils'
-import type { FetchEventResult } from './web/types'
-import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
-import type { ParsedNextUrl } from '../shared/lib/router/utils/parse-next-url'
-import type { ParsedUrl } from '../shared/lib/router/utils/parse-url'
-import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
 import { addRequestMeta, getRequestMeta } from './request-meta'
 import { toNodeHeaders } from './web/utils'
 
@@ -132,21 +119,47 @@ interface RoutingItem {
   ssr?: boolean
 }
 
-export type ServerConstructor = {
+export interface Options {
   /**
-   * Where the Next project is located - @default '.'
+   * Object containing the configuration next.config.js
+   */
+  conf: NextConfig
+  /**
+   * Set to false when the server was created by Next.js
+   */
+  customServer?: boolean
+  /**
+   * Tells if Next.js is running in dev mode
+   */
+  dev?: boolean
+  /**
+   * Where the Next project is located
    */
   dir?: string
   /**
-   * Hide error messages containing server information - @default false
+   * Tells if Next.js is running in a Serverless platform
+   */
+  minimalMode?: boolean
+  /**
+   * Hide error messages containing server information
    */
   quiet?: boolean
   /**
-   * Object what you would use in next.config.js - @default {}
+   * The hostname the server is running behind
    */
-  conf?: NextConfig | null
-  dev?: boolean
-  customServer?: boolean
+  hostname?: string
+  /**
+   * The port the server is running behind
+   */
+  port?: number
+}
+
+export interface RequestHandler {
+  (
+    req: IncomingMessage,
+    res: ServerResponse,
+    parsedUrl?: NextUrlWithParsedQuery | undefined
+  ): Promise<void>
 }
 
 type RequestContext = {
@@ -193,6 +206,7 @@ export default class Server {
     domainLocales?: DomainLocale[]
     distDir: string
     concurrentFeatures?: boolean
+    crossOrigin?: string
   }
   private compression?: ExpressMiddleware
   private incrementalCache: IncrementalCache
@@ -202,6 +216,8 @@ export default class Server {
   protected customRoutes: CustomRoutes
   protected middlewareManifest?: MiddlewareManifest
   protected middleware?: RoutingItem[]
+  public readonly hostname?: string
+  public readonly port?: number
 
   public constructor({
     dir = '.',
@@ -210,12 +226,18 @@ export default class Server {
     dev = false,
     minimalMode = false,
     customServer = true,
-  }: ServerConstructor & { conf: NextConfig; minimalMode?: boolean }) {
+    hostname,
+    port,
+  }: Options) {
     this.dir = resolve(dir)
     this.quiet = quiet
     loadEnvConfig(this.dir, dev, Log)
 
+    // TODO: should conf be normalized to prevent missing
+    // values from causing issues as this can be user provided
     this.nextConfig = conf as NextConfigComplete
+    this.hostname = hostname
+    this.port = port
 
     this.distDir = join(this.dir, this.nextConfig.distDir)
     this.publicDir = join(this.dir, CLIENT_PUBLIC_FILES_PATH)
@@ -256,6 +278,9 @@ export default class Server {
       domainLocales: this.nextConfig.i18n?.domains,
       distDir: this.distDir,
       concurrentFeatures: this.nextConfig.experimental.concurrentFeatures,
+      crossOrigin: this.nextConfig.crossOrigin
+        ? this.nextConfig.crossOrigin
+        : undefined,
     }
 
     // Only the `publicRuntimeConfig` key is exposed to the client side
@@ -336,200 +361,208 @@ export default class Server {
     res: ServerResponse,
     parsedUrl?: NextUrlWithParsedQuery
   ): Promise<void> {
-    const urlParts = (req.url || '').split('?')
-    const urlNoQuery = urlParts[0]
+    try {
+      const urlParts = (req.url || '').split('?')
+      const urlNoQuery = urlParts[0]
 
-    if (urlNoQuery?.match(/(\\|\/\/)/)) {
-      const cleanUrl = normalizeRepeatedSlashes(req.url!)
-      res.setHeader('Location', cleanUrl)
-      res.setHeader('Refresh', `0;url=${cleanUrl}`)
-      res.statusCode = 308
-      res.end(cleanUrl)
-      return
-    }
-
-    setLazyProp({ req: req as any }, 'cookies', getCookieParser(req.headers))
-
-    // Parse url if parsedUrl not provided
-    if (!parsedUrl || typeof parsedUrl !== 'object') {
-      parsedUrl = parseUrl(req.url!, true)
-    }
-
-    // Parse the querystring ourselves if the user doesn't handle querystring parsing
-    if (typeof parsedUrl.query === 'string') {
-      parsedUrl.query = parseQs(parsedUrl.query)
-    }
-
-    addRequestMeta(req, '__NEXT_INIT_URL', req.url)
-    addRequestMeta(req, '__NEXT_INIT_QUERY', { ...parsedUrl.query })
-
-    const url = parseNextUrl({
-      headers: req.headers,
-      nextConfig: this.nextConfig,
-      url: req.url?.replace(/^\/+/, '/'),
-    })
-
-    if (url.basePath) {
-      req.url = replaceBasePath(req.url!, this.nextConfig.basePath)
-      addRequestMeta(req, '_nextHadBasePath', true)
-    }
-
-    if (
-      this.minimalMode &&
-      req.headers['x-matched-path'] &&
-      typeof req.headers['x-matched-path'] === 'string'
-    ) {
-      const reqUrlIsDataUrl = req.url?.includes('/_next/data')
-      const matchedPathIsDataUrl =
-        req.headers['x-matched-path']?.includes('/_next/data')
-      const isDataUrl = reqUrlIsDataUrl || matchedPathIsDataUrl
-
-      let parsedPath = parseUrl(
-        isDataUrl ? req.url! : (req.headers['x-matched-path'] as string),
-        true
-      )
-
-      let matchedPathname = parsedPath.pathname!
-
-      let matchedPathnameNoExt = isDataUrl
-        ? matchedPathname.replace(/\.json$/, '')
-        : matchedPathname
-
-      if (this.nextConfig.i18n) {
-        const localePathResult = normalizeLocalePath(
-          matchedPathname || '/',
-          this.nextConfig.i18n.locales
-        )
-
-        if (localePathResult.detectedLocale) {
-          parsedUrl.query.__nextLocale = localePathResult.detectedLocale
-        }
+      if (urlNoQuery?.match(/(\\|\/\/)/)) {
+        const cleanUrl = normalizeRepeatedSlashes(req.url!)
+        res.setHeader('Location', cleanUrl)
+        res.setHeader('Refresh', `0;url=${cleanUrl}`)
+        res.statusCode = 308
+        res.end(cleanUrl)
+        return
       }
 
-      if (isDataUrl) {
-        matchedPathname = denormalizePagePath(matchedPathname)
-        matchedPathnameNoExt = denormalizePagePath(matchedPathnameNoExt)
+      setLazyProp({ req: req as any }, 'cookies', getCookieParser(req.headers))
+
+      // Parse url if parsedUrl not provided
+      if (!parsedUrl || typeof parsedUrl !== 'object') {
+        parsedUrl = parseUrl(req.url!, true)
       }
 
-      const pageIsDynamic = isDynamicRoute(matchedPathnameNoExt)
-      const combinedRewrites: Rewrite[] = []
+      // Parse the querystring ourselves if the user doesn't handle querystring parsing
+      if (typeof parsedUrl.query === 'string') {
+        parsedUrl.query = parseQs(parsedUrl.query)
+      }
 
-      combinedRewrites.push(...this.customRoutes.rewrites.beforeFiles)
-      combinedRewrites.push(...this.customRoutes.rewrites.afterFiles)
-      combinedRewrites.push(...this.customRoutes.rewrites.fallback)
+      addRequestMeta(req, '__NEXT_INIT_URL', req.url)
+      addRequestMeta(req, '__NEXT_INIT_QUERY', { ...parsedUrl.query })
 
-      const utils = getUtils({
-        pageIsDynamic,
-        page: matchedPathnameNoExt,
-        i18n: this.nextConfig.i18n,
-        basePath: this.nextConfig.basePath,
-        rewrites: combinedRewrites,
+      const url = parseNextUrl({
+        headers: req.headers,
+        nextConfig: this.nextConfig,
+        url: req.url?.replace(/^\/+/, '/'),
       })
 
-      try {
-        // ensure parsedUrl.pathname includes URL before processing
-        // rewrites or they won't match correctly
-        if (this.nextConfig.i18n && !url.locale?.path.detectedLocale) {
-          parsedUrl.pathname = `/${url.locale?.locale}${parsedUrl.pathname}`
-        }
-        utils.handleRewrites(req, parsedUrl)
+      if (url.basePath) {
+        req.url = replaceBasePath(req.url!, this.nextConfig.basePath)
+        addRequestMeta(req, '_nextHadBasePath', true)
+      }
 
-        // interpolate dynamic params and normalize URL if needed
-        if (pageIsDynamic) {
-          let params: ParsedUrlQuery | false = {}
+      if (
+        this.minimalMode &&
+        req.headers['x-matched-path'] &&
+        typeof req.headers['x-matched-path'] === 'string'
+      ) {
+        const reqUrlIsDataUrl = req.url?.includes('/_next/data')
+        const matchedPathIsDataUrl =
+          req.headers['x-matched-path']?.includes('/_next/data')
+        const isDataUrl = reqUrlIsDataUrl || matchedPathIsDataUrl
 
-          Object.assign(parsedUrl.query, parsedPath.query)
-          const paramsResult = utils.normalizeDynamicRouteParams(
-            parsedUrl.query
+        let parsedPath = parseUrl(
+          isDataUrl ? req.url! : (req.headers['x-matched-path'] as string),
+          true
+        )
+
+        let matchedPathname = parsedPath.pathname!
+
+        let matchedPathnameNoExt = isDataUrl
+          ? matchedPathname.replace(/\.json$/, '')
+          : matchedPathname
+
+        if (this.nextConfig.i18n) {
+          const localePathResult = normalizeLocalePath(
+            matchedPathname || '/',
+            this.nextConfig.i18n.locales
           )
 
-          if (paramsResult.hasValidParams) {
-            params = paramsResult.params
-          } else if (req.headers['x-now-route-matches']) {
-            const opts: Record<string, string> = {}
-            params = utils.getParamsFromRouteMatches(
-              req,
-              opts,
-              parsedUrl.query.__nextLocale || ''
+          if (localePathResult.detectedLocale) {
+            parsedUrl.query.__nextLocale = localePathResult.detectedLocale
+          }
+        }
+
+        if (isDataUrl) {
+          matchedPathname = denormalizePagePath(matchedPathname)
+          matchedPathnameNoExt = denormalizePagePath(matchedPathnameNoExt)
+        }
+
+        const pageIsDynamic = isDynamicRoute(matchedPathnameNoExt)
+        const combinedRewrites: Rewrite[] = []
+
+        combinedRewrites.push(...this.customRoutes.rewrites.beforeFiles)
+        combinedRewrites.push(...this.customRoutes.rewrites.afterFiles)
+        combinedRewrites.push(...this.customRoutes.rewrites.fallback)
+
+        const utils = getUtils({
+          pageIsDynamic,
+          page: matchedPathnameNoExt,
+          i18n: this.nextConfig.i18n,
+          basePath: this.nextConfig.basePath,
+          rewrites: combinedRewrites,
+        })
+
+        try {
+          // ensure parsedUrl.pathname includes URL before processing
+          // rewrites or they won't match correctly
+          if (this.nextConfig.i18n && !url.locale?.path.detectedLocale) {
+            parsedUrl.pathname = `/${url.locale?.locale}${parsedUrl.pathname}`
+          }
+          utils.handleRewrites(req, parsedUrl)
+
+          // interpolate dynamic params and normalize URL if needed
+          if (pageIsDynamic) {
+            let params: ParsedUrlQuery | false = {}
+
+            Object.assign(parsedUrl.query, parsedPath.query)
+            const paramsResult = utils.normalizeDynamicRouteParams(
+              parsedUrl.query
             )
 
-            if (opts.locale) {
-              parsedUrl.query.__nextLocale = opts.locale
+            if (paramsResult.hasValidParams) {
+              params = paramsResult.params
+            } else if (req.headers['x-now-route-matches']) {
+              const opts: Record<string, string> = {}
+              params = utils.getParamsFromRouteMatches(
+                req,
+                opts,
+                parsedUrl.query.__nextLocale || ''
+              )
+
+              if (opts.locale) {
+                parsedUrl.query.__nextLocale = opts.locale
+              }
+            } else {
+              params = utils.dynamicRouteMatcher!(matchedPathnameNoExt)
             }
-          } else {
-            params = utils.dynamicRouteMatcher!(matchedPathnameNoExt)
+
+            if (params) {
+              params = utils.normalizeDynamicRouteParams(params).params
+
+              matchedPathname = utils.interpolateDynamicPath(
+                matchedPathname,
+                params
+              )
+              req.url = utils.interpolateDynamicPath(req.url!, params)
+            }
+
+            if (reqUrlIsDataUrl && matchedPathIsDataUrl) {
+              req.url = formatUrl({
+                ...parsedPath,
+                pathname: matchedPathname,
+              })
+            }
+
+            Object.assign(parsedUrl.query, params)
+            utils.normalizeVercelUrl(req, true)
           }
-
-          if (params) {
-            params = utils.normalizeDynamicRouteParams(params).params
-
-            matchedPathname = utils.interpolateDynamicPath(
-              matchedPathname,
-              params
-            )
-            req.url = utils.interpolateDynamicPath(req.url!, params)
+        } catch (err) {
+          if (err instanceof DecodeError) {
+            res.statusCode = 400
+            return this.renderError(null, req, res, '/_error', {})
           }
-
-          if (reqUrlIsDataUrl && matchedPathIsDataUrl) {
-            req.url = formatUrl({
-              ...parsedPath,
-              pathname: matchedPathname,
-            })
-          }
-
-          Object.assign(parsedUrl.query, params)
-          utils.normalizeVercelUrl(req, true)
+          throw err
         }
-      } catch (err) {
-        if (err instanceof DecodeError) {
-          res.statusCode = 400
-          return this.renderError(null, req, res, '/_error', {})
+
+        parsedUrl.pathname = `${this.nextConfig.basePath || ''}${
+          matchedPathname === '/' && this.nextConfig.basePath
+            ? ''
+            : matchedPathname
+        }`
+        url.pathname = parsedUrl.pathname
+      }
+
+      addRequestMeta(req, '__nextHadTrailingSlash', url.locale?.trailingSlash)
+      if (url.locale?.domain) {
+        addRequestMeta(req, '__nextIsLocaleDomain', true)
+      }
+
+      if (url.locale?.path.detectedLocale) {
+        req.url = formatUrl(url)
+        addRequestMeta(req, '__nextStrippedLocale', true)
+        if (url.pathname === '/api' || url.pathname.startsWith('/api/')) {
+          return this.render404(req, res, parsedUrl)
         }
-        throw err
       }
 
-      parsedUrl.pathname = `${this.nextConfig.basePath || ''}${
-        matchedPathname === '/' && this.nextConfig.basePath
-          ? ''
-          : matchedPathname
-      }`
-      url.pathname = parsedUrl.pathname
-    }
-
-    addRequestMeta(req, '__nextHadTrailingSlash', url.locale?.trailingSlash)
-    if (url.locale?.domain) {
-      addRequestMeta(req, '__nextIsLocaleDomain', true)
-    }
-
-    if (url.locale?.path.detectedLocale) {
-      req.url = formatUrl(url)
-      addRequestMeta(req, '__nextStrippedLocale', true)
-      if (url.pathname === '/api' || url.pathname.startsWith('/api/')) {
-        return this.render404(req, res, parsedUrl)
+      if (!this.minimalMode || !parsedUrl.query.__nextLocale) {
+        if (url?.locale?.locale) {
+          parsedUrl.query.__nextLocale = url.locale.locale
+        }
       }
-    }
 
-    if (!this.minimalMode || !parsedUrl.query.__nextLocale) {
-      if (url?.locale?.locale) {
-        parsedUrl.query.__nextLocale = url.locale.locale
+      if (url?.locale?.defaultLocale) {
+        parsedUrl.query.__nextDefaultLocale = url.locale.defaultLocale
       }
-    }
 
-    if (url?.locale?.defaultLocale) {
-      parsedUrl.query.__nextDefaultLocale = url.locale.defaultLocale
-    }
+      if (url.locale?.redirect) {
+        res.setHeader('Location', url.locale.redirect)
+        res.statusCode = TEMPORARY_REDIRECT_STATUS
+        res.end()
+        return
+      }
 
-    if (url.locale?.redirect) {
-      res.setHeader('Location', url.locale.redirect)
-      res.statusCode = TEMPORARY_REDIRECT_STATUS
-      res.end()
-      return
-    }
-
-    res.statusCode = 200
-    try {
+      res.statusCode = 200
       return await this.run(req, res, parsedUrl)
-    } catch (err) {
+    } catch (err: any) {
+      if (
+        (err && typeof err === 'object' && err.code === 'ERR_INVALID_URL') ||
+        err instanceof DecodeError
+      ) {
+        res.statusCode = 400
+        return this.renderError(null, req, res, '/_error', {})
+      }
+
       if (this.minimalMode || this.renderOpts.dev) {
         throw err
       }
@@ -539,7 +572,7 @@ export default class Server {
     }
   }
 
-  public getRequestHandler() {
+  public getRequestHandler(): RequestHandler {
     return this.handleRequest.bind(this)
   }
 

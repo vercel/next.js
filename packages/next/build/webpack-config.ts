@@ -445,6 +445,7 @@ export default async function getBaseWebpackConfig(
             isServer: isMiddleware || isServer,
             pagesDir,
             hasReactRefresh: !isMiddleware && hasReactRefresh,
+            fileReading: config.experimental.swcFileReading,
             nextConfig: config,
             jsConfig,
           },
@@ -570,7 +571,7 @@ export default async function getBaseWebpackConfig(
         prev.push(path.join(pagesDir, `_document.${ext}`))
         return prev
       }, [] as string[]),
-      `next/dist/pages/_document${hasServerComponents ? '-web' : ''}.js`,
+      `next/dist/pages/_document${webServerRuntime ? '-web' : ''}.js`,
     ]
   }
 
@@ -1889,14 +1890,14 @@ export default async function getBaseWebpackConfig(
     }
 
     if (webpackConfig.module?.rules.length) {
-      // Remove default CSS Loader
-      webpackConfig.module.rules = webpackConfig.module.rules.filter(
-        (r) =>
-          !(
-            typeof r.oneOf?.[0]?.options === 'object' &&
-            r.oneOf[0].options.__next_css_remove === true
+      // Remove default CSS Loaders
+      webpackConfig.module.rules.forEach((r) => {
+        if (Array.isArray(r.oneOf)) {
+          r.oneOf = r.oneOf.filter(
+            (o) => (o as any)[Symbol.for('__next_css_remove')] !== true
           )
-      )
+        }
+      })
     }
     if (webpackConfig.plugins?.length) {
       // Disable CSS Extraction Plugin
