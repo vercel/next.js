@@ -49,14 +49,13 @@ function logLoadFailure(attempts) {
   process.exit(1)
 }
 
-// eslint-disable-next-line
 async function loadWasm() {
   if (wasmBindings) {
     return wasmBindings
   }
 
   let attempts = []
-  for (let pkg of ['@next/swc-wasm-web', '@next/swc-wasm-nodejs']) {
+  for (let pkg of ['@next/swc-wasm-nodejs', '@next/swc-wasm-web']) {
     try {
       let bindings = await import(pkg)
       if (pkg === '@next/swc-wasm-web') {
