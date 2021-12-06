@@ -756,7 +756,7 @@ export class Head extends Component<
   }
 }
 
-export function Main({}: {}) {
+export function Main() {
   const { docComponentsRendered } = useContext(HtmlContext)
   docComponentsRendered.Main = true
   // @ts-ignore
