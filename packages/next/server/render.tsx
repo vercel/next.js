@@ -1008,12 +1008,13 @@ export async function renderToHTML(
       serverComponentManifest
     )
     const reader = stream.getReader()
-    return new RenderResult((innerRes, next) => {
+    const piper: NodeWritablePiper = (innerRes, next) => {
       bufferedReadFromReadableStream(reader, (val) => innerRes.write(val)).then(
         () => next(),
         (innerErr) => next(innerErr)
       )
-    })
+    }
+    return new RenderResult(chainPipers([piper]))
   }
 
   // we preload the buildManifest for auto-export dynamic pages

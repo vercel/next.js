@@ -86,6 +86,20 @@ async function nextDev(dir, port) {
   })
 }
 
+async function resolveStreamResponse(response, onData) {
+  let result = ''
+  onData = onData || (() => {})
+  await new Promise((resolve) => {
+    response.body.on('data', (chunk) => {
+      result += chunk.toString()
+      onData(chunk.toString(), result)
+    })
+
+    response.body.on('end', resolve)
+  })
+  return result
+}
+
 describe('concurrentFeatures - basic', () => {
   it('should warn user for experimental risk with server components', async () => {
     const edgeRuntimeWarning =
@@ -296,24 +310,17 @@ async function runBasicTests(context, env) {
   it('should support streaming', async () => {
     await fetchViaHTTP(context.appPort, '/streaming', null, {}).then(
       async (response) => {
-        let result = ''
         let gotFallback = false
         let gotData = false
 
-        await new Promise((resolve) => {
-          response.body.on('data', (chunk) => {
-            result += chunk.toString()
-
-            gotData = result.includes('next_streaming_data')
-            if (!gotFallback) {
-              gotFallback = result.includes('next_streaming_fallback')
-              if (gotFallback) {
-                expect(gotData).toBe(false)
-              }
+        await resolveStreamResponse(response, (_, result) => {
+          gotData = result.includes('next_streaming_data')
+          if (!gotFallback) {
+            gotFallback = result.includes('next_streaming_fallback')
+            if (gotFallback) {
+              expect(gotData).toBe(false)
             }
-          })
-
-          response.body.on('end', () => resolve())
+          }
         })
 
         expect(gotFallback).toBe(true)
@@ -325,6 +332,15 @@ async function runBasicTests(context, env) {
     const browser = await webdriver(context.appPort, '/streaming')
     const content = await browser.eval(`window.document.body.innerText`)
     expect(content).toMatchInlineSnapshot('"next_streaming_data"')
+  })
+
+  it('should support streaming flight request', async () => {
+    await fetchViaHTTP(context.appPort, '/?__flight__=1').then(
+      async (response) => {
+        const result = await resolveStreamResponse(response)
+        expect(result).toContain('component:index.server')
+      }
+    )
   })
 
   it('should support api routes', async () => {

@@ -291,11 +291,12 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
   }
 
   childProps.onMouseEnter = (e: React.MouseEvent) => {
-    if (!isLocalURL(href)) return
     if (child.props && typeof child.props.onMouseEnter === 'function') {
       child.props.onMouseEnter(e)
     }
-    prefetch(router, href, as, { priority: true })
+    if (isLocalURL(href)) {
+      prefetch(router, href, as, { priority: true })
+    }
   }
 
   // If child is an <a> tag and doesn't have a href attribute, or if the 'passHref' property is
