@@ -119,7 +119,6 @@ export type NextConfig = { [key: string]: any } & {
      * @deprecated this options was moved to the top level
      */
     webpack5?: false
-    strictPostcssConfiguration?: boolean
   }
   outputFileTracing?: boolean
   staticPageGenerationTimeout?: number
@@ -254,9 +253,6 @@ export const defaultConfig: NextConfig = {
     fullySpecified: false,
     outputFileTracingRoot: process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT || '',
     outputStandalone: !!process.env.NEXT_PRIVATE_STANDALONE,
-  },
-  future: {
-    strictPostcssConfiguration: false,
   },
 }
 
