@@ -1,10 +1,12 @@
-import React from 'react'
+import React, { useContext } from 'react'
 import {
   loadGetInitialProps,
   AppContextType,
   AppInitialProps,
   AppPropsType,
   NextWebVitalsMetric,
+  FlushEffect,
+  FlushEffectsContext,
 } from '../shared/lib/utils'
 import type { Router } from '../client/router'
 
@@ -40,4 +42,9 @@ export default class App<P = {}, CP = {}, S = {}> extends React.Component<
 
     return <Component {...pageProps} />
   }
+}
+
+export function useFlushEffects(flushEffects: FlushEffect[]): void {
+  const setFlushEffects = useContext(FlushEffectsContext)
+  setFlushEffects(flushEffects)
 }

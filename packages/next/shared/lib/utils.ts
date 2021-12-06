@@ -8,7 +8,7 @@ import type { NextRouter } from './router/router'
 import type { ParsedUrlQuery } from 'querystring'
 import type { PreviewData } from 'next/types'
 import type { UrlObject } from 'url'
-import { createContext } from 'react'
+import React, { createContext } from 'react'
 
 export type NextComponentType<
   C extends BaseContext = NextPageContext,
@@ -38,6 +38,8 @@ export type AppType = NextComponentType<
 export type AppTreeType = ComponentType<
   AppInitialProps & { [name: string]: any }
 >
+
+export type FlushEffect = () => React.ReactElement | null
 
 /**
  * Web vitals provided to _app.reportWebVitals by Core Web Vitals plugin developed by Google Chrome team.
@@ -451,4 +453,11 @@ export class DecodeError extends Error {}
 export const HtmlContext = createContext<HtmlProps>(null as any)
 if (process.env.NODE_ENV !== 'production') {
   HtmlContext.displayName = 'HtmlContext'
+}
+
+export const FlushEffectsContext = createContext<
+  (flushEffects: FlushEffect[]) => void
+>(null as any)
+if (process.env.NODE_ENV !== 'production') {
+  FlushEffectsContext.displayName = 'FlushEffectsContext'
 }
