@@ -59,7 +59,6 @@ import {
 } from './api-utils'
 import { isTargetLikeServerless } from './config'
 import pathMatch from '../shared/lib/router/utils/path-match'
-import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
 import { loadComponents } from './load-components'
 import { normalizePagePath } from './normalize-page-path'
 import { renderToHTML } from './render'

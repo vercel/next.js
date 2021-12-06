@@ -171,7 +171,7 @@ export default class DevServer extends Server {
     this.pagesDir = findPagesDir(this.dir)
   }
 
-  protected readBuildId(): string {
+  protected getBuildId(): string {
     return 'development'
   }
 
