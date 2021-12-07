@@ -188,11 +188,16 @@ impl VisitMut for Namespacer {
 
                     combinator = None;
                 }
-                ComplexSelectorChildren::Combinator(v) => {
-                    combinator = Some(v.clone());
+                ComplexSelectorChildren::Combinator(v) => match v.value {
+                    CombinatorValue::Descendant => {}
+                    CombinatorValue::NextSibling
+                    | CombinatorValue::Child
+                    | CombinatorValue::LaterSibling => {
+                        combinator = Some(v.clone());
 
-                    new_selectors.push(sel);
-                }
+                        new_selectors.push(sel);
+                    }
+                },
             };
         }
         node.children = new_selectors;
@@ -249,6 +254,8 @@ impl Namespacer {
 
                 return match complex_selectors {
                     Ok(complex_selectors) => {
+                        dbg!(&complex_selectors.children);
+
                         let mut v = complex_selectors.children[2..]
                             .iter()
                             .cloned()
