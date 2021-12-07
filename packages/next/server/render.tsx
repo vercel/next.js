@@ -1048,20 +1048,6 @@ export async function renderToHTML(
     return inAmpMode ? children : <div id="__next">{children}</div>
   }
 
-  const appWrappers: Array<(content: JSX.Element) => JSX.Element> = []
-  const getWrappedApp = (app: JSX.Element) => {
-    // Prevent wrappers from reading/writing props by rendering inside an
-    // opaque component. Wrappers should use context instead.
-    const InnerApp = () => app
-    return (
-      <AppContainerWithIsomorphicFiberStructure>
-        {appWrappers.reduceRight((innerContent, fn) => {
-          return fn(innerContent)
-        }, <InnerApp />)}
-      </AppContainerWithIsomorphicFiberStructure>
-    )
-  }
-
   /**
    * Rules of Static & Dynamic HTML:
    *
@@ -1106,13 +1092,13 @@ export async function renderToHTML(
 
         const html = ReactDOMServer.renderToString(
           <Body>
-            {getWrappedApp(
+            <AppContainerWithIsomorphicFiberStructure>
               <EnhancedApp
                 Component={EnhancedComponent}
                 router={router}
                 {...props}
               />
-            )}
+            </AppContainerWithIsomorphicFiberStructure>
           </Body>
         )
         return { html, head }
@@ -1137,15 +1123,6 @@ export async function renderToHTML(
         documentElement: (htmlProps: HtmlProps) => (
           <Document {...htmlProps} {...docProps} />
         ),
-        useMainContent: (fn?: (content: JSX.Element) => JSX.Element) => {
-          if (fn) {
-            throw new Error(
-              'The `children` property is not supported by non-functional custom Document components'
-            )
-          }
-          // @ts-ignore
-          return <next-js-internal-body-render-target />
-        },
         head: docProps.head,
         headTags: await headTags(documentCtx),
         styles: docProps.styles,
@@ -1164,9 +1141,9 @@ export async function renderToHTML(
               </Body>
             ) : (
               <Body>
-                {getWrappedApp(
+                <AppContainerWithIsomorphicFiberStructure>
                   <App {...props} Component={Component} router={router} />
-                )}
+                </AppContainerWithIsomorphicFiberStructure>
               </Body>
             )
           return process.browser
@@ -1181,9 +1158,9 @@ export async function renderToHTML(
             </Body>
           ) : (
             <Body>
-              {getWrappedApp(
+              <AppContainerWithIsomorphicFiberStructure>
                 <App {...props} Component={Component} router={router} />
-              )}
+              </AppContainerWithIsomorphicFiberStructure>
             </Body>
           )
         // for non-concurrent rendering we need to ensure App is rendered
@@ -1196,13 +1173,6 @@ export async function renderToHTML(
       return {
         bodyResult,
         documentElement: () => (Document as any)(),
-        useMainContent: (fn?: (_content: JSX.Element) => JSX.Element) => {
-          if (fn) {
-            appWrappers.push(fn)
-          }
-          // @ts-ignore
-          return <next-js-internal-body-render-target />
-        },
         head,
         headTags: [],
         styles: jsxStyleRegistry.styles(),
@@ -1243,7 +1213,7 @@ export async function renderToHTML(
     locales,
     runtimeConfig,
   } = renderOpts
-  const htmlProps: any = {
+  const htmlProps: HtmlProps = {
     __NEXT_DATA__: {
       props, // The result of getInitialProps
       page: pathname, // The rendered page
@@ -1297,7 +1267,6 @@ export async function renderToHTML(
     head: documentResult.head,
     headTags: documentResult.headTags,
     styles: documentResult.styles,
-    useMainContent: documentResult.useMainContent,
     useMaybeDeferContent,
     crossOrigin: renderOpts.crossOrigin,
     optimizeCss: renderOpts.optimizeCss,

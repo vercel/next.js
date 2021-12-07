@@ -171,7 +171,7 @@ export default class DevServer extends Server {
     this.pagesDir = findPagesDir(this.dir)
   }
 
-  protected readBuildId(): string {
+  protected getBuildId(): string {
     return 'development'
   }
 
@@ -700,8 +700,16 @@ export default class DevServer extends Server {
     })
   }
 
+  protected getPagesManifest(): undefined {
+    return undefined
+  }
+
   protected getMiddleware(): never[] {
     return []
+  }
+
+  protected getMiddlewareManifest(): undefined {
+    return undefined
   }
 
   protected async hasMiddleware(
