@@ -156,6 +156,16 @@ struct Namespacer {
 
 impl VisitMut for Namespacer {
     fn visit_mut_complex_selector(&mut self, node: &mut ComplexSelector) {
+        #[cfg(debug_assertions)]
+        let _tracing = tracing::span!(
+            tracing::Level::TRACE,
+            "Namespacer::visit_mut_complex_selector",
+            class_name = &*self.class_name,
+            is_global = self.is_global,
+            is_dynamic = self.is_dynamic,
+        )
+        .entered();
+
         let mut new_selectors = vec![];
         let mut combinator = None;
         for sel in node.children.take() {
