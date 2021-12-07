@@ -715,6 +715,50 @@ jobs:
       - run: cd packages/next-swc && cargo test
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
 
+  test-wasm:
+    name: Test the wasm build
+    runs-on: ubuntu-18.04
+    needs: [build, build-native-dev, build-wasm-dev]
+
+    steps:
+      - uses: actions/cache@v2
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        id: restore-build
+        with:
+          path: ./*
+          key: ${{ github.sha }}
+
+      - uses: actions/download-artifact@v2
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        with:
+          name: wasm-dev-binary
+          path: packages/next-swc/crates/wasm/pkg-nodejs
+
+      - run: ls packages/next-swc/crates/wasm
+
+      - uses: actions/download-artifact@v2
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        with:
+          name: next-swc-dev-binary
+          path: packages/next-swc/native
+
+      # node version needs to be 16+ to use --no-addons option
+      - name: Setup node
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        uses: actions/setup-node@v2
+        with:
+          node-version: 16
+          check-latest: true
+
+      - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
+      - run: node ./scripts/setup-wasm.mjs
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
+      - run: TEST_WASM=true xvfb-run node run-tests.js test/integration/production/test/index.test.js
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
   # Build binaries for publishing
   build-native:
     needs: build
@@ -1255,4 +1299,64 @@ jobs:
           name: wasm-binaries
           path: packages/next-swc/crates/wasm/pkg-*
 
-      - run: ls packages/next-swc/crates/wasm
+  build-wasm-dev:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/cache@v2
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        id: restore-build
+        with:
+          path: ./*
+          key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt }}
+
+      - name: Setup node
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        uses: actions/setup-node@v2
+        with:
+          node-version: 14
+
+      - name: Install Rust
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly-2021-11-15
+          override: true
+          target: wasm32-unknown-unknown
+
+      - name: Cache
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/
+            **/target/
+          key: ${{ runner.os }}-publish-integration
+
+      - name: Cache wasm binary
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        id: binary-cache
+        uses: actions/cache@v2
+        with:
+          path: packages/next-swc/crates/wasm/pkg-nodejs
+          key: dev-wasm-next-swc-nightly-2021-11-15-${{ hashFiles('.github/workflows/build_test_deploy.yml', 'packages/next-swc/**') }}
+
+      - name: Install wasm-pack
+        if: ${{needs.build.outputs.docsChange != 'docs only change' && steps.binary-cache.outputs.cache-hit != 'true'}}
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
+      - name: Build
+        if: ${{needs.build.outputs.docsChange != 'docs only change' && steps.binary-cache.outputs.cache-hit != 'true'}}
+        run: (wasm-pack build packages/next-swc/crates/wasm --dev --scope=next --target nodejs)
+
+      - name: Add target to folder name
+        if: ${{needs.build.outputs.docsChange != 'docs only change' && steps.binary-cache.outputs.cache-hit != 'true'}}
+        run: mv packages/next-swc/crates/wasm/pkg packages/next-swc/crates/wasm/pkg-nodejs
+
+      - name: Upload artifact
+        if: ${{needs.build.outputs.docsChange != 'docs only change' && steps.binary-cache.outputs.cache-hit != 'true'}}
+        uses: actions/upload-artifact@v2
+        with:
+          name: wasm-dev-binary
+          path: packages/next-swc/crates/wasm/pkg-nodejs

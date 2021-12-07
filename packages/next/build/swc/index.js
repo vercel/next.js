@@ -6,19 +6,63 @@ const ArchName = arch()
 const PlatformName = platform()
 const triples = platformArchTriples[PlatformName][ArchName] || []
 
+let nativeBindings
+let wasmBindings
+
 async function loadBindings() {
-  return (await loadWasm()) || loadNative()
+  let attempts = []
+  try {
+    return loadNative()
+  } catch (a) {
+    attempts = attempts.concat(a)
+  }
+
+  try {
+    let bindings = await loadWasm()
+    return bindings
+  } catch (a) {
+    attempts = attempts.concat(a)
+  }
+
+  logLoadFailure(attempts)
+}
+
+function loadBindingsSync() {
+  let attempts = []
+  try {
+    return loadNative()
+  } catch (a) {
+    attempts = attempts.concat(a)
+  }
+
+  logLoadFailure(attempts)
+}
+
+function logLoadFailure(attempts) {
+  for (let attempt of attempts) {
+    Log.info(attempt)
+  }
+
+  Log.error(
+    `Failed to load SWC binary for ${PlatformName}/${ArchName}, see more info here: https://nextjs.org/docs/messages/failed-loading-swc`
+  )
+  process.exit(1)
 }
 
 async function loadWasm() {
-  // Try to load wasm bindings
-  for (let specifier of ['@next/swc-wasm-web', '@next/swc-wasm-nodejs']) {
+  if (wasmBindings) {
+    return wasmBindings
+  }
+
+  let attempts = []
+  for (let pkg of ['@next/swc-wasm-nodejs', '@next/swc-wasm-web']) {
     try {
-      let bindings = await import(specifier)
-      if (specifier === '@next/swc-wasm-web') {
+      let bindings = await import(pkg)
+      if (pkg === '@next/swc-wasm-web') {
         bindings = await bindings.default()
       }
-      return {
+      Log.info('Using experimental wasm build of next-swc')
+      wasmBindings = {
         isWasm: true,
         transform(src, options) {
           return Promise.resolve(
@@ -29,41 +73,58 @@ async function loadWasm() {
           return Promise.resolve(bindings.minifySync(src.toString(), options))
         },
       }
-    } catch (e) {}
+      return wasmBindings
+    } catch (e) {
+      // Do not report attempts to load wasm when it is still experimental
+      // if (e?.code === 'ERR_MODULE_NOT_FOUND') {
+      //   attempts.push(`Attempted to load ${pkg}, but it was not installed`)
+      // } else {
+      //   attempts.push(
+      //     `Attempted to load ${pkg}, but an error occurred: ${e.message ?? e}`
+      //   )
+      // }
+    }
   }
+
+  throw attempts
 }
 
 function loadNative() {
+  if (nativeBindings) {
+    return nativeBindings
+  }
+
   let bindings
-  let loadError
+  let attempts = []
 
   for (const triple of triples) {
     try {
       bindings = require(`@next/swc/native/next-swc.${triple.platformArchABI}.node`)
       Log.info('Using locally built binary of @next/swc')
       break
-    } catch (e) {
-      if (e?.code !== 'MODULE_NOT_FOUND') {
-        loadError = e
-      }
-    }
+    } catch (e) {}
   }
 
   if (!bindings) {
     for (const triple of triples) {
+      let pkg = `@next/swc-${triple.platformArchABI}`
       try {
-        bindings = require(`@next/swc-${triple.platformArchABI}`)
+        bindings = require(pkg)
         break
       } catch (e) {
-        if (e?.code !== 'MODULE_NOT_FOUND') {
-          loadError = e
+        if (e?.code === 'MODULE_NOT_FOUND') {
+          attempts.push(`Attempted to load ${pkg}, but it was not installed`)
+        } else {
+          attempts.push(
+            `Attempted to load ${pkg}, but an error occurred: ${e.message ?? e}`
+          )
         }
       }
     }
   }
 
   if (bindings) {
-    return {
+    nativeBindings = {
       isWasm: false,
       transform(src, options) {
         const isModule =
@@ -119,16 +180,10 @@ function loadNative() {
         return bindings.bundle(toBuffer(options))
       },
     }
+    return nativeBindings
   }
 
-  if (loadError) {
-    console.error(loadError)
-  }
-
-  Log.error(
-    `Failed to load SWC binary, see more info here: https://nextjs.org/docs/messages/failed-loading-swc`
-  )
-  process.exit(1)
+  throw attempts
 }
 
 function toBuffer(t) {
@@ -146,7 +201,7 @@ export async function transform(src, options) {
 }
 
 export function transformSync(src, options) {
-  let bindings = loadNative()
+  let bindings = loadBindingsSync()
   return bindings.transformSync(src, options)
 }
 
@@ -156,11 +211,11 @@ export async function minify(src, options) {
 }
 
 export function minifySync(src, options) {
-  let bindings = loadNative()
+  let bindings = loadBindingsSync()
   return bindings.minifySync(src, options)
 }
 
 export async function bundle(options) {
-  let bindings = loadNative()
+  let bindings = loadBindingsSync()
   return bindings.bundle(toBuffer(options))
 }
