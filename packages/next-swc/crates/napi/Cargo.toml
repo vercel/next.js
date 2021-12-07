@@ -21,7 +21,7 @@ swc_atoms = "0.2.7"
 swc_bundler = { version = "0.88.0", features = ["concurrent"] }
 swc_common = { version = "0.15.0", features = ["concurrent", "sourcemap"] }
 swc_ecma_loader = { version = "0.25.0", features = ["node", "lru"] }
-swc_ecmascript = { version = "0.94.0", features = ["codegen", "minifier", "optimization", "parser", "react", "transforms", "typescript", "utils", "visit"] }
+swc_ecmascript = { version = "0.95.0", features = ["codegen", "minifier", "optimization", "parser", "react", "transforms", "typescript", "utils", "visit"] }
 swc_node_base = "0.5.1"
 
 [build-dependencies]
