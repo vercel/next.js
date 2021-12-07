@@ -259,7 +259,17 @@ impl Namespacer {
                         }
 
                         if combinator.is_some() {
-                            v[1] = ComplexSelectorChildren::Combinator(combinator.unwrap());
+                            match v.get(1) {
+                                Some(ComplexSelectorChildren::Combinator(..)) => {}
+                                Some(..) => {
+                                    v[1] = ComplexSelectorChildren::Combinator(combinator.unwrap());
+                                }
+                                _ => {
+                                    v.push(ComplexSelectorChildren::Combinator(
+                                        combinator.unwrap(),
+                                    ));
+                                }
+                            }
                         }
 
                         v.iter_mut().for_each(|sel| {
