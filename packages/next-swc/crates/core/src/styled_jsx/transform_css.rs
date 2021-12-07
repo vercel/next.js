@@ -66,7 +66,6 @@ pub fn transform_css(
         is_global,
         is_dynamic: style_info.is_dynamic,
     });
-    dbg!(&ss);
 
     let mut s = String::new();
     {
