@@ -1146,9 +1146,11 @@ export async function renderToHTML(
                 </AppContainerWithIsomorphicFiberStructure>
               </Body>
             )
-          return process.browser
-            ? await renderToWebStream(content)
-            : await renderToNodeStream(content, generateStaticHTML)
+          return await renderToStream({
+            element: content,
+            generateStaticHTML,
+            getFlushEffects: () => null,
+          })
         }
       } else {
         const content =
@@ -1283,29 +1285,12 @@ export async function renderToHTML(
     </AmpStateContext.Provider>
   )
 
-  let documentHTML: string
-  if (process.browser) {
-    // There is no `renderToStaticMarkup` exposed in the web environment, use
-    // blocking `renderToReadableStream` to get the similar result.
-    let result = ''
-    const readable = (ReactDOMServer as any).renderToReadableStream(document, {
-      onError: (e: any) => {
-        throw e
-      },
-    })
-    const reader = readable.getReader()
-    const decoder = new TextDecoder()
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) {
-        break
-      }
-      result += typeof value === 'string' ? value : decoder.decode(value)
-    }
-    documentHTML = result
-  } else {
-    documentHTML = ReactDOMServer.renderToStaticMarkup(document)
-  }
+  const documentStream = await renderToStream({
+    element: document,
+    generateStaticHTML: true,
+    getFlushEffects: () => null,
+  })
+  const documentHTML = await piperToString(documentStream)
 
   const nonRenderedComponents = []
   const expectedDocComponents = ['Main', 'Head', 'NextScript', 'Html']
@@ -1434,92 +1419,72 @@ function serializeError(
   }
 }
 
-function renderToNodeStream(
-  element: React.ReactElement,
+interface RenderToStreamOptions {
+  element: React.ReactElement
   generateStaticHTML: boolean
+  getFlushEffects: () => React.ReactElement | null
+}
+
+function renderToStream(
+  options: RenderToStreamOptions
 ): Promise<NodeWritablePiper> {
+  return process.browser
+    ? renderToStreamWithWebReadable(options)
+    : renderToStreamWithNodeWritable(options)
+}
+
+function renderToStreamWithNodeWritable({
+  element,
+  generateStaticHTML,
+}: RenderToStreamOptions): Promise<NodeWritablePiper> {
   return new Promise((resolve, reject) => {
-    let underlyingStream: {
-      resolve: (error?: Error) => void
-      writable: WritableType
-      queuedCallbacks: Array<() => void>
-    } | null = null
+    let underlyingWritable: WritableType | null = null
 
-    const stream = new Writable({
-      // Use the buffer from the underlying stream
-      highWaterMark: 0,
-      writev(chunks, callback) {
-        let str = ''
-        for (let { chunk } of chunks) {
-          str += chunk.toString()
-        }
-
-        if (!underlyingStream) {
+    // Based on the suggestion here:
+    // https://github.com/reactwg/react-18/discussions/110
+    class NextWritable extends Writable {
+      _write(
+        chunk: any,
+        encoding: string,
+        callback: (error?: Error | null) => void
+      ) {
+        if (!underlyingWritable) {
           throw new Error(
             'invariant: write called without an underlying stream. This is a bug in Next.js'
           )
         }
+        underlyingWritable.write(chunk, encoding, callback)
+      }
 
-        if (!underlyingStream.writable.write(str)) {
-          underlyingStream.queuedCallbacks.push(() => callback())
-        } else {
-          callback()
-        }
-      },
-    })
-    stream.once('finish', () => {
-      if (!underlyingStream) {
-        throw new Error(
-          'invariant: finish called without an underlying stream. This is a bug in Next.js'
-        )
-      }
-      underlyingStream.resolve()
-    })
-    stream.once('error', (err) => {
-      if (!underlyingStream) {
-        throw new Error(
-          'invariant: error called without an underlying stream. This is a bug in Next.js'
-        )
-      }
-      underlyingStream.resolve(err)
-    })
-    // React uses `flush` to prevent stream middleware like gzip from buffering to the
-    // point of harming streaming performance, so we make sure to expose it and forward it.
-    // See: https://github.com/reactwg/react-18/discussions/91
-    Object.defineProperty(stream, 'flush', {
-      value: () => {
-        if (!underlyingStream) {
+      flush() {
+        if (!underlyingWritable) {
           throw new Error(
             'invariant: flush called without an underlying stream. This is a bug in Next.js'
           )
         }
-        if (typeof (underlyingStream.writable as any).flush === 'function') {
-          ;(underlyingStream.writable as any).flush()
-        }
-      },
-      enumerable: true,
-    })
 
+        const anyWritable = underlyingWritable as any
+        if (typeof anyWritable.flush === 'function') {
+          anyWritable.flush()
+        }
+      }
+    }
+
+    const stream = new NextWritable()
     let resolved = false
     const doResolve = (startWriting: any) => {
       if (!resolved) {
         resolved = true
         resolve((res, next) => {
-          const drainHandler = () => {
-            const prevCallbacks = underlyingStream!.queuedCallbacks
-            underlyingStream!.queuedCallbacks = []
-            prevCallbacks.forEach((callback) => callback())
+          const doNext = (err?: Error) => {
+            underlyingWritable = null
+            next(err)
           }
-          res.on('drain', drainHandler)
-          underlyingStream = {
-            resolve: (err) => {
-              underlyingStream = null
-              res.removeListener('drain', drainHandler)
-              next(err)
-            },
-            writable: res,
-            queuedCallbacks: [],
-          }
+
+          stream.once('error', (err) => doNext(err))
+          stream.once('finish', () => doNext())
+
+          underlyingWritable = res
           startWriting()
         })
       }
@@ -1583,9 +1548,9 @@ async function bufferedReadFromReadableStream(
   await pendingFlush
 }
 
-function renderToWebStream(
-  element: React.ReactElement
-): Promise<NodeWritablePiper> {
+function renderToStreamWithWebReadable({
+  element,
+}: RenderToStreamOptions): Promise<NodeWritablePiper> {
   return new Promise((resolve, reject) => {
     let resolved = false
     const stream: ReadableStream = (
@@ -1642,20 +1607,37 @@ function piperFromArray(chunks: string[]): NodeWritablePiper {
 
 function piperToString(input: NodeWritablePiper): Promise<string> {
   return new Promise((resolve, reject) => {
-    const bufferedChunks: Buffer[] = []
-    const stream = new Writable({
-      writev(chunks, callback) {
-        chunks.forEach((chunk) => bufferedChunks.push(chunk.chunk))
-        callback()
-      },
-    })
-    input(stream, (err) => {
-      if (err) {
-        reject(err)
-      } else {
-        resolve(Buffer.concat(bufferedChunks).toString())
+    if (process.browser) {
+      let bufferedContent = ''
+      const stream = {
+        write(chunk: string) {
+          bufferedContent = bufferedContent + chunk
+        },
+        end() {},
       }
-    })
+      input(stream as any, (err) => {
+        if (err) {
+          reject(err)
+        } else {
+          resolve(bufferedContent)
+        }
+      })
+    } else {
+      const bufferedChunks: Buffer[] = []
+      const stream = new Writable({
+        writev(chunks, callback) {
+          chunks.forEach((chunk) => bufferedChunks.push(chunk.chunk))
+          callback()
+        },
+      })
+      input(stream, (err) => {
+        if (err) {
+          reject(err)
+        } else {
+          resolve(Buffer.concat(bufferedChunks).toString())
+        }
+      })
+    }
   })
 }
 
