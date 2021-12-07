@@ -12,6 +12,7 @@ use swc_css::visit::{VisitMut, VisitMutWith};
 use swc_ecmascript::ast::{Expr, Str, StrKind, Tpl, TplElement};
 use swc_ecmascript::utils::HANDLER;
 use swc_stylis::prefixer::prefixer;
+use tracing::trace;
 
 use super::{hash_string, string_literal_expr, LocalStyle};
 
@@ -254,8 +255,6 @@ impl Namespacer {
 
                 return match complex_selectors {
                     Ok(complex_selectors) => {
-                        dbg!(&complex_selectors.children);
-
                         let mut v = complex_selectors.children[2..]
                             .iter()
                             .cloned()
@@ -264,6 +263,8 @@ impl Namespacer {
                         if v.is_empty() {
                             bail!("Failed to transform one off global selector");
                         }
+
+                        trace!("Combinator: {:?}", combinator);
 
                         if combinator.is_some() {
                             match v.get(1) {
