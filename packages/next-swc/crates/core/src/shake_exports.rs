@@ -79,15 +79,15 @@ impl Fold for ExportShaker {
     fn fold_named_export(&mut self, mut export: NamedExport) -> NamedExport {
         export.specifiers = export
             .specifiers
-            .iter()
+            .into_iter()
             .filter_map(|spec| {
                 if let ExportSpecifier::Named(named_spec) = spec {
                     if let Some(ident) = &named_spec.exported {
                         if self.ignore.contains(&ident.sym.to_string()) {
-                            return Some(ExportSpecifier::Named(named_spec.to_owned()));
+                            return Some(ExportSpecifier::Named(named_spec));
                         }
                     } else if self.ignore.contains(&named_spec.orig.sym.to_string()) {
-                        return Some(ExportSpecifier::Named(named_spec.to_owned()));
+                        return Some(ExportSpecifier::Named(named_spec));
                     }
                 }
                 None
