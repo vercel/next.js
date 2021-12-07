@@ -158,6 +158,9 @@ impl VisitMut for Namespacer {
     fn visit_mut_complex_selector(&mut self, node: &mut ComplexSelector) {
         #[cfg(debug_assertions)]
         let _tracing = {
+            // This will add information to the log messages, only for debug build.
+            // Note that we use cargo feature to remove all logging on production builds.
+
             let mut code = String::new();
             {
                 let mut wr = BasicCssWriter::new(&mut code, BasicCssWriterConfig { indent: "  " });
