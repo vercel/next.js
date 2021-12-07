@@ -1,10 +1,10 @@
 import { platform, arch } from 'os'
 import { platformArchTriples } from '@napi-rs/triples'
-import Log from '../output/log'
+import * as Log from '../output/log'
 
 const ArchName = arch()
 const PlatformName = platform()
-const triples = platformArchTriples[PlatformName][ArchName]
+const triples = platformArchTriples[PlatformName][ArchName] || []
 
 async function loadBindings() {
   return (await loadWasm()) || loadNative()
@@ -19,6 +19,7 @@ async function loadWasm() {
         bindings = await bindings.default()
       }
       return {
+        isWasm: true,
         transform(src, options) {
           return Promise.resolve(
             bindings.transformSync(src.toString(), options)
@@ -48,19 +49,22 @@ function loadNative() {
     }
   }
 
-  for (const triple of triples) {
-    try {
-      bindings = require(`@next/swc-${triple.platformArchABI}`)
-      break
-    } catch (e) {
-      if (e?.code !== 'MODULE_NOT_FOUND') {
-        loadError = e
+  if (!bindings) {
+    for (const triple of triples) {
+      try {
+        bindings = require(`@next/swc-${triple.platformArchABI}`)
+        break
+      } catch (e) {
+        if (e?.code !== 'MODULE_NOT_FOUND') {
+          loadError = e
+        }
       }
     }
   }
 
   if (bindings) {
     return {
+      isWasm: false,
       transform(src, options) {
         const isModule =
           typeof src !== undefined &&
@@ -129,6 +133,11 @@ function loadNative() {
 
 function toBuffer(t) {
   return Buffer.from(JSON.stringify(t))
+}
+
+export async function isWasm() {
+  let bindings = await loadBindings()
+  return bindings.isWasm
 }
 
 export async function transform(src, options) {
