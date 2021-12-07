@@ -225,21 +225,27 @@ impl Namespacer {
         mut node: CompoundSelector,
     ) -> Result<Vec<ComplexSelectorChildren>, Error> {
         let mut pseudo_index = None;
+
+        let empty_tokens = Tokens {
+            span: node.span,
+            tokens: vec![],
+        };
+
         for (i, selector) in node.subclass_selectors.iter().enumerate() {
             let (name, args) = match selector {
-                SubclassSelector::PseudoClass(PseudoClassSelector {
-                    name,
-                    children: Some(children),
-                    ..
-                }) => match children {
-                    PseudoSelectorChildren::Nth(_) => todo!("nth"),
-                    PseudoSelectorChildren::Tokens(v) => (name, v),
-                },
+                SubclassSelector::PseudoClass(PseudoClassSelector { name, children, .. }) => {
+                    match children {
+                        Some(PseudoSelectorChildren::Nth(_)) => todo!("nth"),
+                        Some(PseudoSelectorChildren::Tokens(v)) => (name, v),
+                        None => (name, &empty_tokens),
+                    }
+                }
                 SubclassSelector::PseudoElement(PseudoElementSelector {
-                    name,
-                    children: Some(children),
-                    ..
-                }) => (name, children),
+                    name, children, ..
+                }) => match children {
+                    Some(children) => (name, children),
+                    None => (name, &empty_tokens),
+                },
                 _ => continue,
             };
 
