@@ -756,15 +756,11 @@ export class Head extends Component<
   }
 }
 
-export function Main({
-  children,
-}: {
-  children?: (content: JSX.Element) => JSX.Element
-}) {
-  const { docComponentsRendered, useMainContent } = useContext(HtmlContext)
-  const content = useMainContent(children)
+export function Main() {
+  const { docComponentsRendered } = useContext(HtmlContext)
   docComponentsRendered.Main = true
-  return content
+  // @ts-ignore
+  return <next-js-internal-body-render-target />
 }
 
 export class NextScript extends Component<OriginProps> {

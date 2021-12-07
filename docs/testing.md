@@ -239,7 +239,6 @@ You can learn more about Playwright and Continuous Integration from these resour
 - [Getting started with Playwright](https://playwright.dev/docs/intro)
 - [Use a development server](https://playwright.dev/docs/test-advanced#launching-a-development-web-server-during-the-tests)
 - [Playwright on your CI provider](https://playwright.dev/docs/ci)
-- [Use a development server](https://playwright.dev/docs/test-advanced#launching-a-development-web-server-during-the-tests)
 
 ## Jest and React Testing Library
 

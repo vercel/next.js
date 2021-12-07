@@ -279,7 +279,9 @@ function handleLoading(
         if (process.env.NODE_ENV !== 'production') {
           if (img.parentElement?.parentElement) {
             const parent = getComputedStyle(img.parentElement.parentElement)
-            if (layout === 'responsive' && parent.display === 'flex') {
+            if (!parent.position) {
+              // The parent has not been rendered to the dom yet and therefore it has no position. Skip the warnings for such cases.
+            } else if (layout === 'responsive' && parent.display === 'flex') {
               console.warn(
                 `Image with src "${src}" may not render properly as a child of a flex container. Consider wrapping the image with a div to configure the width.`
               )
