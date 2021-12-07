@@ -12,7 +12,7 @@ use swc_css::visit::{VisitMut, VisitMutWith};
 use swc_ecmascript::ast::{Expr, Str, StrKind, Tpl, TplElement};
 use swc_ecmascript::utils::HANDLER;
 use swc_stylis::prefixer::prefixer;
-use tracing::trace;
+use tracing::{debug, trace};
 
 use super::{hash_string, string_literal_expr, LocalStyle};
 
@@ -21,6 +21,8 @@ pub fn transform_css(
     is_global: bool,
     class_name: &Option<String>,
 ) -> Result<Expr, Error> {
+    debug!("CSS: \n{}", style_info.css);
+
     let result: Result<Stylesheet, _> = parse_str(
         &style_info.css,
         style_info.css_span.lo,
