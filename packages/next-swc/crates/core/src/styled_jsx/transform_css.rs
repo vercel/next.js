@@ -281,12 +281,7 @@ impl Namespacer {
                         if combinator.is_some() {
                             match v.get(0) {
                                 Some(ComplexSelectorChildren::Combinator(..)) => {}
-                                Some(..) => {
-                                    v.insert(
-                                        0,
-                                        ComplexSelectorChildren::Combinator(combinator.unwrap()),
-                                    );
-                                }
+                                Some(..) => {}
                                 _ => {
                                     v.push(ComplexSelectorChildren::Combinator(
                                         combinator.unwrap(),
