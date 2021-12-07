@@ -133,7 +133,7 @@ fn read_number(s: &str) -> (usize, usize) {
 struct FixedPrefixer;
 
 impl VisitMut for FixedPrefixer {
-    fn visit_mut_declaration_block_item(&mut self, n: &mut DeclarationBlockItem) {
+    fn visit_mut_block(&mut self, n: &mut Block) {
         n.visit_mut_with(&mut prefixer());
     }
 }
