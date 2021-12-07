@@ -4,9 +4,15 @@ With [Shallow Routing](https://nextjs.org/docs/routing/shallow-routing), we can 
 
 We do this by passing the `shallow: true` option to `Router.push` or `Router.replace`.
 
+## Preview
+
+Preview the example live on [StackBlitz](http://stackblitz.com/):
+
+[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-shallow-routing)
+
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com):
+Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-shallow-routing&project-name=with-shallow-routing&repository-name=with-shallow-routing)
 

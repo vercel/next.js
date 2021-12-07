@@ -1,4 +1,4 @@
-import webpack from 'webpack'
+import { webpack } from 'next/dist/compiled/webpack/webpack'
 import MiniCssExtractPlugin from '../../../../plugins/mini-css-extract-plugin'
 
 export function getClientStyleLoader({
@@ -10,7 +10,7 @@ export function getClientStyleLoader({
 }): webpack.RuleSetUseItem {
   return isDevelopment
     ? {
-        loader: require.resolve('style-loader'),
+        loader: 'next-style-loader',
         options: {
           // By default, style-loader injects CSS into the bottom
           // of <head>. This causes ordering problems between dev
@@ -35,6 +35,6 @@ export function getClientStyleLoader({
     : {
         // @ts-ignore: TODO: remove when webpack 5 is stable
         loader: MiniCssExtractPlugin.loader,
-        options: { publicPath: `${assetPrefix}/_next/` },
+        options: { publicPath: `${assetPrefix}/_next/`, esModule: false },
       }
 }

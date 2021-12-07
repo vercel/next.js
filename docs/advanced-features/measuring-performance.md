@@ -1,14 +1,19 @@
 ---
-description: Measure and track page performance using Next.js's build-in performance relayer
+description: Measure and track page performance using Next.js Analytics
 ---
 
 # Measuring performance
 
-Next.js has a built-in relayer that allows you to analyze and measure the performance of
+[Next.js Analytics](https://nextjs.org/analytics) allows you to analyze and measure the performance of
 pages using different metrics.
 
-To measure any of the supported metrics, you will need to create a [custom
-App](/docs/advanced-features/custom-app.md) component and define a `reportWebVitals` function:
+You can start collecting your [Real Experience Score](https://vercel.com/docs/analytics#metrics) with zero-configuration on [Vercel deployments](https://vercel.com/docs/analytics). There's also support for Analytics if you're [self-hosting](https://vercel.com/docs/analytics#self-hosted).
+
+The rest of this documentation describes the built-in relayer Next.js Analytics uses.
+
+## Build Your Own
+
+First, you will need to create a [custom App](/docs/advanced-features/custom-app.md) component and define a `reportWebVitals` function:
 
 ```js
 // pages/_app.js
@@ -170,7 +175,7 @@ export function reportWebVitals(metric) {
 > }
 > ```
 >
-> Read more about sending results to Google Analytics [here](https://github.com/GoogleChrome/web-vitals#send-the-results-to-google-analytics).
+> Read more about [sending results to Google Analytics](https://github.com/GoogleChrome/web-vitals#send-the-results-to-google-analytics).
 
 ## TypeScript
 

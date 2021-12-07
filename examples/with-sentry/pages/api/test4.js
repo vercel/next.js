@@ -1,10 +1,6 @@
-import * as Sentry from '@sentry/node'
+import * as Sentry from '@sentry/nextjs'
 
-import { init } from '../../utils/sentry'
-
-init()
-
-export default async function handler(req, res) {
+async function handler(req, res) {
   try {
     throw new Error('API Test 4')
   } catch (error) {
@@ -14,6 +10,7 @@ export default async function handler(req, res) {
   // Flushing before returning is necessary if deploying to Vercel, see
   // https://vercel.com/docs/platform/limits#streaming-responses
   await Sentry.flush(2000)
-  res.statusCode = 200
-  res.json({ name: 'John Doe' })
+  res.status(200).json({ name: 'John Doe' })
 }
+
+export default Sentry.withSentry(handler)

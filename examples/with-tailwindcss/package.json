@@ -1,20 +1,18 @@
 {
-  "name": "with-tailwindcss",
-  "version": "1.0.0",
+  "private": true,
   "scripts": {
-    "dev": "next",
+    "dev": "next dev",
     "build": "next build",
     "start": "next start"
   },
   "dependencies": {
     "next": "latest",
-    "react": "^16.13.1",
-    "react-dom": "^16.13.1"
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2"
   },
   "devDependencies": {
-    "autoprefixer": "10.0.2",
-    "postcss": "8.1.7",
-    "tailwindcss": "^2.0.2"
-  },
-  "license": "MIT"
+    "autoprefixer": "^10.2.6",
+    "postcss": "^8.3.5",
+    "tailwindcss": "^2.2.4"
+  }
 }

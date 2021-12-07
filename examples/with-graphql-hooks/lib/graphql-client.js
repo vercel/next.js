@@ -7,7 +7,7 @@ let graphQLClient
 function createClient(initialState) {
   return new GraphQLClient({
     ssrMode: typeof window === 'undefined',
-    url: 'https://api.graph.cool/simple/v1/cixmkt2ul01q00122mksg82pn', // Server URL (must be absolute)
+    url: 'https://nextjs-graphql-with-prisma-simple.vercel.app/api', // Server URL (must be absolute)
     cache: memCache({ initialState }),
   })
 }

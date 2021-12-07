@@ -2,9 +2,15 @@
 
 This example shows how to generate a `sitemap.xml` file based on the pages in your [Next.js](https://nextjs.org/) app. The sitemap will be generated and saved in the `public` directory after starting the development server or by making a build.
 
+## Preview
+
+Preview the example live on [StackBlitz](http://stackblitz.com/):
+
+[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-sitemap)
+
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com):
+Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-sitemap&project-name=with-sitemap&repository-name=with-sitemap)
 

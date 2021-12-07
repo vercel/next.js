@@ -26,6 +26,7 @@ Once you have access to [the environment variables you'll need](#step-3-set-up-e
 - [ButterCMS](/examples/cms-buttercms)
 - [Storyblok](/examples/cms-storyblok)
 - [GraphCMS](/examples/cms-graphcms)
+- [Ghost](/examples/cms-ghost)
 - [Blog Starter](/examples/blog-starter)
 
 ## How to use
@@ -67,7 +68,7 @@ To import the content models with their data follow the next steps:
    kbm --action=restore --apiKey=<Management API key> --projectId=<Project ID> --zipFilename=kontent-backup
    ```
 
-   > **💡 Alternatively, you can use the [Template Manager UI](https://kentico.github.io/kontent-template-manager/import-from-file) for importing the content.**
+   > **💡 Alternatively, you can use the [Template Manager UI](https://kentico.github.io/kontent-template-manager/import) for importing the content.**
 
 1. Go to your Kontent project and publish all the imported items.
    > You could deactivate Management API key, it is not necessary any more.

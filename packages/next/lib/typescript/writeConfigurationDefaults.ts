@@ -1,6 +1,7 @@
 import { promises as fs } from 'fs'
 import chalk from 'chalk'
 import * as CommentJson from 'next/dist/compiled/comment-json'
+import semver from 'next/dist/compiled/semver'
 import os from 'os'
 import { getTypeScriptConfiguration } from './getTypeScriptConfiguration'
 
@@ -28,13 +29,16 @@ function getDesiredCompilerOptions(
     strict: { suggested: false },
     forceConsistentCasingInFileNames: { suggested: true },
     noEmit: { suggested: true },
+    ...(semver.gte(ts.version, '4.4.2')
+      ? { incremental: { suggested: true } }
+      : undefined),
 
     // These values are required and cannot be changed by the user
     // Keep this in sync with the webpack config
     // 'parsedValue' matches the output value from ts.parseJsonConfigFileContent()
     esModuleInterop: {
       value: true,
-      reason: 'requirement for babel',
+      reason: 'requirement for SWC / babel',
     },
     module: {
       parsedValue: ts.ModuleKind.ESNext,
@@ -56,7 +60,7 @@ function getDesiredCompilerOptions(
     resolveJsonModule: { value: true, reason: 'to match webpack resolution' },
     isolatedModules: {
       value: true,
-      reason: 'requirement for babel',
+      reason: 'requirement for SWC / Babel',
     },
     jsx: {
       parsedValue: ts.JsxEmit.Preserve,
@@ -95,16 +99,14 @@ export async function writeConfigurationDefaults(
   }
 
   const desiredCompilerOptions = getDesiredCompilerOptions(ts)
-  const effectiveConfiguration = await getTypeScriptConfiguration(
-    ts,
-    tsConfigPath
-  )
+  const { options: tsOptions, raw: rawConfig } =
+    await getTypeScriptConfiguration(ts, tsConfigPath, true)
 
   const userTsConfigContent = await fs.readFile(tsConfigPath, {
     encoding: 'utf8',
   })
   const userTsConfig = CommentJson.parse(userTsConfigContent)
-  if (userTsConfig.compilerOptions == null) {
+  if (userTsConfig.compilerOptions == null && !('extends' in rawConfig)) {
     userTsConfig.compilerOptions = {}
     isFirstTimeSetup = true
   }
@@ -114,14 +116,17 @@ export async function writeConfigurationDefaults(
   for (const optionKey of Object.keys(desiredCompilerOptions)) {
     const check = desiredCompilerOptions[optionKey]
     if ('suggested' in check) {
-      if (!(optionKey in effectiveConfiguration.options)) {
+      if (!(optionKey in tsOptions)) {
+        if (!userTsConfig.compilerOptions) {
+          userTsConfig.compilerOptions = {}
+        }
         userTsConfig.compilerOptions[optionKey] = check.suggested
         suggestedActions.push(
           chalk.cyan(optionKey) + ' was set to ' + chalk.bold(check.suggested)
         )
       }
     } else if ('value' in check) {
-      const ev = effectiveConfiguration.options[optionKey]
+      const ev = tsOptions[optionKey]
       if (
         !('parsedValues' in check
           ? check.parsedValues?.includes(ev)
@@ -129,6 +134,9 @@ export async function writeConfigurationDefaults(
           ? check.parsedValue === ev
           : check.value === ev)
       ) {
+        if (!userTsConfig.compilerOptions) {
+          userTsConfig.compilerOptions = {}
+        }
         userTsConfig.compilerOptions[optionKey] = check.value
         requiredActions.push(
           chalk.cyan(optionKey) +
@@ -143,7 +151,7 @@ export async function writeConfigurationDefaults(
     }
   }
 
-  if (userTsConfig.include == null) {
+  if (!('include' in rawConfig)) {
     userTsConfig.include = ['next-env.d.ts', '**/*.ts', '**/*.tsx']
     suggestedActions.push(
       chalk.cyan('include') +
@@ -152,7 +160,7 @@ export async function writeConfigurationDefaults(
     )
   }
 
-  if (userTsConfig.exclude == null) {
+  if (!('exclude' in rawConfig)) {
     userTsConfig.exclude = ['node_modules']
     suggestedActions.push(
       chalk.cyan('exclude') + ' was set to ' + chalk.bold(`['node_modules']`)
@@ -183,7 +191,7 @@ export async function writeConfigurationDefaults(
     chalk.green(
       `We detected TypeScript in your project and reconfigured your ${chalk.bold(
         'tsconfig.json'
-      )} file for you.`
+      )} file for you. Strict-mode is set to ${chalk.bold('false')} by default.`
     ) + '\n'
   )
   if (suggestedActions.length) {

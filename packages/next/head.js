@@ -1,1 +1,1 @@
-module.exports = require('./dist/next-server/lib/head')
+module.exports = require('./dist/shared/lib/head')

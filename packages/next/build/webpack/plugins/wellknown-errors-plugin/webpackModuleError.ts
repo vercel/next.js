@@ -1,20 +1,19 @@
 import { readFileSync } from 'fs'
 import * as path from 'path'
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import { compilation as CompilationType } from 'webpack'
+import type { webpack5 as webpack } from 'next/dist/compiled/webpack/webpack'
 import { getBabelError } from './parseBabel'
 import { getCssError } from './parseCss'
 import { getScssError } from './parseScss'
 import { getNotFoundError } from './parseNotFoundError'
 import { SimpleWebpackError } from './simpleWebpackError'
+import isError from '../../../../lib/is-error'
 
 function getFileData(
-  compilation: CompilationType.Compilation,
+  compilation: webpack.Compilation,
   m: any
 ): [string, string | null] {
   let resolved: string
-  let ctx: string | null =
-    compilation.compiler?.context ?? compilation.context ?? null
+  let ctx: string | null = compilation.compiler?.context ?? null
   if (ctx !== null && typeof m.resource === 'string') {
     const res = path.relative(ctx, m.resource).replace(/\\/g, path.posix.sep)
     resolved = res.startsWith('.') ? res : `.${path.posix.sep}${res}`
@@ -42,7 +41,7 @@ function getFileData(
 }
 
 export async function getModuleBuildError(
-  compilation: CompilationType.Compilation,
+  compilation: webpack.Compilation,
   input: any
 ): Promise<SimpleWebpackError | false> {
   if (
@@ -51,7 +50,7 @@ export async function getModuleBuildError(
       (input?.name === 'ModuleBuildError' ||
         input?.name === 'ModuleNotFoundError') &&
       Boolean(input.module) &&
-      input.error instanceof Error
+      isError(input.error)
     )
   ) {
     return false

@@ -10,6 +10,7 @@
     "strict": false,
     "forceConsistentCasingInFileNames": true,
     "noEmit": true,
+    "incremental": true,
     "moduleResolution": "node",
     "resolveJsonModule": true,
     "isolatedModules": true

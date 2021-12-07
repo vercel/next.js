@@ -8,9 +8,15 @@ In this example we have three workspaces:
 - **foo**: A normal node module
 - **bar**: A react component, that gets compiled by Next.js (see [packages/web-app/next.config.js](./packages/web-app/next.config.js) for more info)
 
+## Preview
+
+Preview the example live on [StackBlitz](http://stackblitz.com/):
+
+[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-yarn-workspaces)
+
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com):
+Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-yarn-workspaces&project-name=with-yarn-workspaces&repository-name=with-yarn-workspaces)
 
@@ -31,6 +37,6 @@ Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&ut
 ## Useful Links
 
 - [Documentation](https://yarnpkg.com/en/docs/workspaces)
-- [yarn workspaces](https://yarnpkg.com/lang/en/docs/cli/workspace)
-- [yarn workspace](https://yarnpkg.com/lang/en/docs/cli/workspaces)
+- [yarn workspace](https://yarnpkg.com/lang/en/docs/cli/workspace)
+- [yarn workspaces](https://yarnpkg.com/lang/en/docs/cli/workspaces)
 - [next-transpile-modules](https://www.npmjs.com/package/next-transpile-modules)

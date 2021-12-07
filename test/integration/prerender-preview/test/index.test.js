@@ -18,7 +18,6 @@ import os from 'os'
 import { join } from 'path'
 import qs from 'querystring'
 
-jest.setTimeout(1000 * 60 * 2)
 const appDir = join(__dirname, '..')
 const nextConfigPath = join(appDir, 'next.config.js')
 
@@ -30,7 +29,12 @@ function getData(html) {
   const $ = cheerio.load(html)
   const nextData = $('#__NEXT_DATA__')
   const preEl = $('#props-pre')
-  return { nextData: JSON.parse(nextData.html()), pre: preEl.text() }
+  const routerData = JSON.parse($('#router').text())
+  return {
+    nextData: JSON.parse(nextData.html()),
+    pre: preEl.text(),
+    routerData,
+  }
 }
 
 function runTests(startServer = nextStart) {
@@ -51,16 +55,20 @@ function runTests(startServer = nextStart) {
 
   it('should return prerendered page on first request', async () => {
     const html = await renderViaHTTP(appPort, '/')
-    const { nextData, pre } = getData(html)
+    const { nextData, pre, routerData } = getData(html)
     expect(nextData).toMatchObject({ isFallback: false })
+    expect(nextData.isPreview).toBeUndefined()
     expect(pre).toBe('false and null')
+    expect(routerData.isPreview).toBe(false)
   })
 
   it('should return prerendered page on second request', async () => {
     const html = await renderViaHTTP(appPort, '/')
-    const { nextData, pre } = getData(html)
+    const { nextData, pre, routerData } = getData(html)
     expect(nextData).toMatchObject({ isFallback: false })
+    expect(nextData.isPreview).toBeUndefined()
     expect(pre).toBe('false and null')
+    expect(routerData.isPreview).toBe(false)
   })
 
   it('should throw error when setting too large of preview data', async () => {
@@ -122,12 +130,13 @@ function runTests(startServer = nextStart) {
     )
     const html = await res.text()
 
-    const { nextData, pre } = getData(html)
+    const { nextData, pre, routerData } = getData(html)
     expect(res.headers.get('cache-control')).toBe(
       'private, no-cache, no-store, max-age=0, must-revalidate'
     )
-    expect(nextData).toMatchObject({ isFallback: false })
+    expect(nextData).toMatchObject({ isFallback: false, isPreview: true })
     expect(pre).toBe('true and {"lets":"goooo"}')
+    expect(routerData.isPreview).toBe(true)
   })
 
   it('should return correct caching headers for data preview request', async () => {
@@ -309,6 +318,24 @@ describe('Prerender Preview Mode', () => {
       await browser.waitForElementByCss('#props-pre')
       expect(await browser.elementById('props-pre').text()).toBe(
         'false and null'
+      )
+    })
+
+    it('should fetch live static props with preview active', async () => {
+      await browser.get(`http://localhost:${appPort}/`)
+
+      await browser.waitForElementByCss('#ssg-random')
+      const initialRandom = await browser.elementById('ssg-random').text()
+
+      // reload static props with router.replace
+      await browser.elementById('reload-props').click()
+
+      // wait for route change to complete and set updated state
+      await browser.waitForElementByCss('#ssg-reloaded')
+
+      // assert that the random number from static props has changed (thus, was re-evaluated)
+      expect(await browser.elementById('ssg-random').text()).not.toBe(
+        initialRandom
       )
     })
 

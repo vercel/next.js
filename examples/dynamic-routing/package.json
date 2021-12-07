@@ -1,15 +1,13 @@
 {
-  "name": "dynamic-routing",
-  "version": "1.0.0",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",
     "start": "next start"
   },
-  "license": "MIT",
   "dependencies": {
     "next": "latest",
-    "react": "^16.13.1",
-    "react-dom": "^16.13.1"
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2"
   }
 }

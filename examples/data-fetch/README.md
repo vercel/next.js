@@ -5,9 +5,15 @@ on the server and the client when necessary is so easy with Next.js.
 
 By using `getStaticProps` Next.js will fetch data at build time from a page, and pre-render the page to static assets.
 
+## Preview
+
+Preview the example live on [StackBlitz](http://stackblitz.com/):
+
+[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/data-fetch)
+
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com):
+Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/data-fetch&project-name=data-fetch&repository-name=data-fetch)
 

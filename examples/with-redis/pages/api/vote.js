@@ -1,30 +1,24 @@
-import redis from 'redis'
-import { promisify } from 'util'
+import redis from '../../lib/redis'
 
-export default async function list(req, res) {
-  const client = redis.createClient({
-    url: process.env.REDIS_URL,
-  })
-  client.on('error', function (err) {
-    throw err
-  })
+export default async function upvote(req, res) {
+  const { title, id } = req.body
+  const ip =
+    req.headers['x-forwarded-for'] || req.headers['Remote_Addr'] || 'NA'
+  const count = ip === 'NA' ? 1 : await redis.sadd('s:' + title, ip)
 
-  const body = req.body
-  const id = body['id']
-  let ip = req.headers['x-forwarded-for']
-  const saddAsync = promisify(client.sadd).bind(client)
-  let c = await saddAsync('s:' + id, ip ? ip : '-')
-  if (c === 0) {
-    client.quit()
-    res.json({
+  if (count === 0) {
+    res.status(400).json({
       error: 'You can not vote an item multiple times',
     })
   } else {
-    const zincrbyAsync = promisify(client.zincrby).bind(client)
-    let v = await zincrbyAsync('roadmap', 1, id)
-    client.quit()
-    res.json({
-      body: v,
-    })
+    const entry = JSON.parse((await redis.hget('features', id)) || 'null')
+    const updated = {
+      ...entry,
+      score: entry.score + 1,
+      ip,
+    }
+
+    await redis.hset('features', id, JSON.stringify(updated))
+    return res.status(201).json(updated)
   }
 }

@@ -12,8 +12,6 @@ import {
   nextStart,
 } from 'next-test-utils'
 
-jest.setTimeout(1000 * 60 * 2)
-
 let app
 let appPort
 const appDir = join(__dirname, '../')
@@ -49,9 +47,9 @@ function runTests() {
     try {
       browser = await webdriver(appPort, '/')
       await browser.elementByCss('#view-post-1').click()
-      await browser.waitForElementByCss('p')
+      await browser.waitForElementByCss('p#post-1')
 
-      const text = await browser.elementByCss('p').text()
+      const text = await browser.elementByCss('p#post-1').text()
       expect(text).toMatch(/this is.*?post-1/i)
     } finally {
       if (browser) await browser.close()
@@ -63,9 +61,9 @@ function runTests() {
     try {
       browser = await webdriver(appPort, '/')
       await browser.elementByCss('#view-post-1-comment-1').click()
-      await browser.waitForElementByCss('p')
+      await browser.waitForElementByCss('p#comment-1')
 
-      const text = await browser.elementByCss('p').text()
+      const text = await browser.elementByCss('p#comment-1').text()
       expect(text).toMatch(/i am.*comment-1.*on.*post-1/i)
     } finally {
       if (browser) await browser.close()

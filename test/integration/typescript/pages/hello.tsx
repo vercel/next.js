@@ -15,11 +15,27 @@ export enum SearchEntity {
   SEARCH_ENTITY_TOPIC = 4,
 }
 
+// supports override
+class Test {
+  show() {
+    console.log('show Test')
+  }
+}
+
+class Test2 extends Test {
+  override show() {
+    console.log('overriding show Test')
+  }
+}
+
+new Test2().show()
+
 export default function HelloPage(): JSX.Element {
   const router = useRouter()
   console.log(process.browser)
   console.log(router.pathname)
   console.log(router.isReady)
+  console.log(router.isPreview)
   return (
     <div>
       <p>One trillion dollars: {1_000_000_000_000}</p>

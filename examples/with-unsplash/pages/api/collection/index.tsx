@@ -15,15 +15,12 @@ export default function getCollections(
       .then((json) => {
         json.map((c) => (c.slug = slug(c.title)))
 
-        res.statusCode = 200
-        res.setHeader('Content-Type', 'application/json')
         res.setHeader('Cache-Control', 'max-age=180000')
-        res.end(JSON.stringify(json))
+        res.status(200).json(json)
         resolve()
       })
       .catch((error) => {
-        res.json(error)
-        res.status(405).end()
+        res.status(405).json(error)
         resolve()
       })
   })

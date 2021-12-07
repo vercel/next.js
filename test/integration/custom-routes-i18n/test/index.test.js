@@ -16,8 +16,6 @@ import {
   check,
 } from 'next-test-utils'
 
-jest.setTimeout(1000 * 60 * 2)
-
 const appDir = join(__dirname, '..')
 const nextConfig = new File(join(appDir, 'next.config.js'))
 let server
@@ -94,7 +92,13 @@ const runTests = () => {
       await browser.elementByCss('#to-about').click()
 
       await check(async () => {
-        const data = JSON.parse(await browser.elementByCss('#data').text())
+        const data = JSON.parse(
+          cheerio
+            .load(await browser.eval('document.documentElement.innerHTML'))(
+              '#data'
+            )
+            .text()
+        )
         console.log(data)
         return data.url === `${expectedIndex ? '/fr' : ''}/about`
           ? 'success'
@@ -108,7 +112,13 @@ const runTests = () => {
         .click()
 
       await check(async () => {
-        const data = JSON.parse(await browser.elementByCss('#data').text())
+        const data = JSON.parse(
+          cheerio
+            .load(await browser.eval('document.documentElement.innerHTML'))(
+              '#data'
+            )
+            .text()
+        )
         console.log(data)
         return data.url === `${expectedIndex ? '/fr' : ''}/hello`
           ? 'success'

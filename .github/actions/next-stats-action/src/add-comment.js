@@ -83,7 +83,7 @@ module.exports = async function addComment(
         else if (!isGzipItem && !groupKey.match(gzipIgnoreRegex)) return
 
         if (
-          itemKey !== 'buildDuration' ||
+          !itemKey.startsWith('buildDuration') ||
           (isBenchmark && itemKey.match(/req\/sec/))
         ) {
           if (typeof mainItemVal === 'number') mainRepoTotal += mainItemVal

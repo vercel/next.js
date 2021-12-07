@@ -4,8 +4,6 @@ import { join } from 'path'
 import { killApp, findPort, nextStart, nextBuild } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 
-jest.setTimeout(1000 * 30)
-
 const appDir = join(__dirname, '../')
 let appPort
 let app
@@ -50,7 +48,10 @@ describe('Custom Resolver Tests', () => {
   describe('Client-side Custom Loader Tests', () => {
     beforeAll(async () => {
       browser = await webdriver(appPort, '/')
-      await browser.waitForElementByCss('#clientlink').click()
+      await browser
+        .elementByCss('#clientlink')
+        .click()
+        .waitForElementByCss('#client-side')
     })
     afterAll(async () => {
       browser = null

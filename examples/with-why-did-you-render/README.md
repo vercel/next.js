@@ -29,11 +29,43 @@ You can see `why-did-you-render` console logs about this redundant re-render in 
    }
    ```
 
-1. import `scripts/wdyr.js` as the first import of `_app`.
+1. Import `scripts/wdyr.js` as the first import of `_app`.
+
+1. Make sure that [`react-preset`](https://babeljs.io/docs/en/babel-preset-react) uses `@welldone-software/why-did-you-render` to import the monkey patched `React` with WDYR, by modifying `next/babel` in `babel.config.js`:
+
+```jsx
+// babel.config.js
+module.exports = function (api) {
+  const isServer = api.caller((caller) => caller?.isServer)
+  const isCallerDevelopment = api.caller((caller) => caller?.isDev)
+
+  const presets = [
+    [
+      'next/babel',
+      {
+        'preset-react': {
+          importSource:
+            !isServer && isCallerDevelopment
+              ? '@welldone-software/why-did-you-render'
+              : 'react',
+        },
+      },
+    ],
+  ]
+
+  return { presets }
+}
+```
+
+## Preview
+
+Preview the example live on [StackBlitz](http://stackblitz.com/):
+
+[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-why-did-you-render)
 
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com):
+Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-why-did-you-render&project-name=with-why-did-you-render&repository-name=with-why-did-you-render)
 

@@ -4,7 +4,6 @@ import { promises } from 'fs'
 import { join } from 'path'
 import { nextBuild, nextExport } from 'next-test-utils'
 
-jest.setTimeout(1000 * 60 * 5)
 const { readFile } = promises
 const appDir = join(__dirname, '../')
 const outdir = join(appDir, 'out')

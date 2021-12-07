@@ -13,6 +13,7 @@
     "node-fetch": "^2.6.0",
     "prettier": "^1.18.2",
     "pretty-bytes": "^5.3.0",
-    "pretty-ms": "^5.0.0"
+    "pretty-ms": "^5.0.0",
+    "semver": "7.3.4"
   }
 }

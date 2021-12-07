@@ -1,1 +1,3 @@
-export default () => 'hi'
+export default function Page(props) {
+  return 'hi'
+}

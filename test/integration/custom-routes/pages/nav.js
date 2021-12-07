@@ -1,6 +1,6 @@
 import Link from 'next/link'
 
-export default () => (
+const Page = () => (
   <>
     <h3 id="nav">Nav</h3>
     <Link href="/hello" as="/first">
@@ -32,5 +32,14 @@ export default () => (
       <a id="to-rewritten-dynamic">to rewritten dynamic</a>
     </Link>
     <br />
+    <Link href="/hello?overrideMe=1">
+      <a id="to-overridden">to /hello?overrideMe=1</a>
+    </Link>
+    <br />
+    <Link href="/old-blog/about">
+      <a id="to-old-blog">to /old-blog/post-1</a>
+    </Link>
+    <br />
   </>
 )
+export default Page

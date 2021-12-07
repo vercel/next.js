@@ -1,6 +1,6 @@
 # AMP First Boilerplate ⚡
 
-This example sets up the boilerplate for an AMP First Site. You can see a live version [here](https://my-next-app.sebastianbenz.now.sh). The boilerplate includes the following features:
+This example sets up the boilerplate for an AMP First Site. You can see a [live version here](https://my-next-app.sebastianbenz.vercel.app). The boilerplate includes the following features:
 
 - AMP Extension helpers (`amp-state`, `amp-script`, ...)
 - AMP Serviceworker integration
@@ -9,7 +9,7 @@ This example sets up the boilerplate for an AMP First Site. You can see a live v
 
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com):
+Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/amp-first&project-name=amp-first&repository-name=amp-first)
 

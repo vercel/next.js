@@ -16,9 +16,8 @@ export default async function uploadHandler(req, res) {
           url: upload.url,
         })
       } catch (e) {
-        res.statusCode = 500
         console.error('Request error', e)
-        res.json({ error: 'Error creating upload' })
+        res.status(500).json({ error: 'Error creating upload' })
       }
       break
     default:

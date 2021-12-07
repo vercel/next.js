@@ -1,7 +1,18 @@
 // eslint-disable-next-line import/no-extraneous-dependencies
+const findUp = require('find-up')
+// eslint-disable-next-line import/no-extraneous-dependencies
 const ncc = require('@vercel/ncc')
 const { existsSync, readFileSync } = require('fs')
-const { basename, dirname, extname, join } = require('path')
+const { basename, dirname, extname, join, resolve } = require('path')
+const { Module } = require('module')
+
+// See taskfile.js bundleContext definition for explanation
+const m = new Module(resolve(__dirname, 'bundles', '_'))
+m.filename = m.id
+m.paths = Module._nodeModulePaths(m.id)
+const bundleRequire = m.require
+bundleRequire.resolve = (request, options) =>
+  Module._resolveFilename(request, m, false, options)
 
 module.exports = function (task) {
   // eslint-disable-next-line require-yield
@@ -10,9 +21,12 @@ module.exports = function (task) {
       options.externals = { ...options.externals }
       delete options.externals[options.packageName]
     }
+    let precompiled = options.precompiled !== false
+    delete options.precompiled
+
     return ncc(join(__dirname, file.dir, file.base), {
       filename: file.base,
-      minify: true,
+      minify: options.minify === false ? false : true,
       ...options,
     }).then(({ code, assets }) => {
       Object.keys(assets).forEach((key) => {
@@ -30,7 +44,8 @@ module.exports = function (task) {
           this,
           options.packageName,
           file.base,
-          options.bundleName
+          options.bundleName,
+          precompiled
         )
       }
 
@@ -42,13 +57,23 @@ module.exports = function (task) {
 // This function writes a minimal `package.json` file for a compiled package.
 // It defines `name`, `main`, `author`, and `license`. It also defines `types`.
 // n.b. types intended for development usage only.
-function writePackageManifest(packageName, main, bundleName) {
-  const packagePath = require.resolve(packageName + '/package.json')
+function writePackageManifest(packageName, main, bundleName, precompiled) {
+  // some newer packages fail to include package.json in the exports
+  // so we can't reliably use require.resolve here
+  let packagePath
+
+  try {
+    packagePath = bundleRequire.resolve(packageName + '/package.json')
+  } catch (_) {
+    packagePath = findUp.sync('package.json', {
+      cwd: dirname(bundleRequire.resolve(packageName)),
+    })
+  }
   let { name, author, license } = require(packagePath)
 
   const compiledPackagePath = join(
     __dirname,
-    `compiled/${bundleName || packageName}`
+    `${!precompiled ? 'dist/' : ''}compiled/${bundleName || packageName}`
   )
 
   const potentialLicensePath = join(dirname(packagePath), './LICENSE')
