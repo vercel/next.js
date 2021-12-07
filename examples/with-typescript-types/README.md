@@ -8,6 +8,12 @@ Attempted import error: 'TypeA' is not exported from './package-1'.
 
 error as raised in [vercel/next.js#7882](https://github.com/vercel/next.js/issues/7882).
 
+## Preview
+
+Preview the example live on [StackBlitz](http://stackblitz.com/):
+
+[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-typescript-types)
+
 ## Useful links
 
 [Add import type and export type support to TypeScript](https://github.com/babel/babel/pull/11171)

@@ -1,12 +1,10 @@
 {
-  "name": "with-emotion",
-  "version": "1.0.0",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",
     "start": "next start"
   },
-  "license": "MIT",
   "devDependencies": {
     "@emotion/babel-plugin": "11.0.0"
   },
@@ -14,7 +12,7 @@
     "@emotion/react": "11.1.1",
     "@emotion/styled": "11.0.0",
     "next": "latest",
-    "react": "^17.0.1",
-    "react-dom": "^17.0.1"
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2"
   }
 }

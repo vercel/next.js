@@ -1,0 +1,11 @@
+.displayFlex {
+  display: flex;
+}
+
+.mainContainer span {
+  margin: 57px;
+}
+
+.mainContainer img {
+  border-radius: 139px;
+}

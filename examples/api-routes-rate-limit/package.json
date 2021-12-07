@@ -1,6 +1,4 @@
 {
-  "name": "nextjs-rate-limit",
-  "version": "0.0.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -10,8 +8,8 @@
   "dependencies": {
     "lru-cache": "^6.0.0",
     "next": "10.0.3",
-    "react": "17.0.1",
-    "react-dom": "17.0.1",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
     "uuid": "^8.3.1"
   }
 }

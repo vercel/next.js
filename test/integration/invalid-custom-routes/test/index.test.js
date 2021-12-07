@@ -4,8 +4,6 @@ import fs from 'fs-extra'
 import { join } from 'path'
 import { launchApp, findPort, nextBuild } from 'next-test-utils'
 
-jest.setTimeout(1000 * 60 * 2)
-
 let appDir = join(__dirname, '..')
 const nextConfigPath = join(appDir, 'next.config.js')
 
@@ -25,6 +23,49 @@ const writeConfig = async (routes, type = 'redirects') => {
 let getStderr
 
 const runTests = () => {
+  it('should error when empty headers array is present on header item', async () => {
+    await writeConfig(
+      [
+        {
+          source: `/:path*`,
+          headers: [],
+        },
+      ],
+      'headers'
+    )
+    const stderr = await getStderr()
+
+    expect(stderr).toContain(
+      '`headers` field cannot be empty for route {"source":"/:path*"'
+    )
+  })
+
+  it('should error when source and destination length is exceeded', async () => {
+    await writeConfig(
+      [
+        {
+          source: `/${Array(4096).join('a')}`,
+          destination: `/another`,
+          permanent: false,
+        },
+        {
+          source: `/`,
+          destination: `/${Array(4096).join('a')}`,
+          permanent: false,
+        },
+      ],
+      'redirects'
+    )
+    const stderr = await getStderr()
+
+    expect(stderr).toContain(
+      '`source` exceeds max built length of 4096 for route {"source":"/aaaaaaaaaaaaaaaaaa'
+    )
+    expect(stderr).toContain(
+      '`destination` exceeds max built length of 4096 for route {"source":"/","destination":"/aaaa'
+    )
+  })
+
   it('should error during next build for invalid redirects', async () => {
     await writeConfig(
       [
@@ -66,6 +107,33 @@ const runTests = () => {
         // invalid objects
         null,
         'string',
+
+        // invalid has items
+        {
+          source: '/hello',
+          destination: '/another',
+          has: [
+            {
+              type: 'cookiee',
+              key: 'loggedIn',
+            },
+          ],
+          permanent: false,
+        },
+        {
+          source: '/hello',
+          destination: '/another',
+          permanent: false,
+          has: [
+            {
+              type: 'headerr',
+            },
+            {
+              type: 'queryr',
+              key: 'hello',
+            },
+          ],
+        },
       ],
       'redirects'
     )
@@ -114,6 +182,26 @@ const runTests = () => {
     expect(stderr).toContain(
       `The route "string" is not a valid object with \`source\` and \`destination\``
     )
+
+    expect(stderr).toContain('Invalid `has` item:')
+    expect(stderr).toContain(
+      `invalid type "cookiee" for {"type":"cookiee","key":"loggedIn"}`
+    )
+    expect(stderr).toContain(
+      `invalid \`has\` item found for route {"source":"/hello","destination":"/another","has":[{"type":"cookiee","key":"loggedIn"}],"permanent":false}`
+    )
+
+    expect(stderr).toContain('Invalid `has` items:')
+    expect(stderr).toContain(
+      `invalid type "headerr", invalid key "undefined" for {"type":"headerr"}`
+    )
+    expect(stderr).toContain(
+      `invalid type "queryr" for {"type":"queryr","key":"hello"}`
+    )
+    expect(stderr).toContain(
+      `invalid \`has\` items found for route {"source":"/hello","destination":"/another","permanent":false,"has":[{"type":"headerr"},{"type":"queryr","key":"hello"}]}`
+    )
+    expect(stderr).toContain(`Valid \`has\` object shape is {`)
 
     expect(stderr).toContain('Invalid redirects found')
   })
@@ -164,6 +252,31 @@ const runTests = () => {
         // invalid objects
         null,
         'string',
+
+        // invalid has items
+        {
+          source: '/hello',
+          destination: '/another',
+          has: [
+            {
+              type: 'cookiee',
+              key: 'loggedIn',
+            },
+          ],
+        },
+        {
+          source: '/hello',
+          destination: '/another',
+          has: [
+            {
+              type: 'headerr',
+            },
+            {
+              type: 'queryr',
+              key: 'hello',
+            },
+          ],
+        },
       ],
       'rewrites'
     )
@@ -190,7 +303,7 @@ const runTests = () => {
     )
 
     expect(stderr).toContain(
-      `Error parsing \`/feedback/(?!general)\` https://err.sh/vercel/next.js/invalid-route-source`
+      `Error parsing \`/feedback/(?!general)\` https://nextjs.org/docs/messages/invalid-route-source`
     )
 
     expect(stderr).toContain(
@@ -213,8 +326,28 @@ const runTests = () => {
     )
 
     expect(stderr).toContain(
-      `The route /hello rewrites urls outside of the basePath. Please use a destination that starts with \`http://\` or \`https://\` https://err.sh/vercel/next.js/invalid-external-rewrite.md`
+      `The route /hello rewrites urls outside of the basePath. Please use a destination that starts with \`http://\` or \`https://\` https://nextjs.org/docs/messages/invalid-external-rewrite`
     )
+
+    expect(stderr).toContain('Invalid `has` item:')
+    expect(stderr).toContain(
+      `invalid type "cookiee" for {"type":"cookiee","key":"loggedIn"}`
+    )
+    expect(stderr).toContain(
+      `invalid \`has\` item found for route {"source":"/hello","destination":"/another","has":[{"type":"cookiee","key":"loggedIn"}]}`
+    )
+
+    expect(stderr).toContain('Invalid `has` items:')
+    expect(stderr).toContain(
+      `invalid type "headerr", invalid key "undefined" for {"type":"headerr"}`
+    )
+    expect(stderr).toContain(
+      `invalid type "queryr" for {"type":"queryr","key":"hello"}`
+    )
+    expect(stderr).toContain(
+      `invalid \`has\` items found for route {"source":"/hello","destination":"/another","has":[{"type":"headerr"},{"type":"queryr","key":"hello"}]}`
+    )
+    expect(stderr).toContain(`Valid \`has\` object shape is {`)
 
     expect(stderr).toContain('Invalid rewrites found')
   })
@@ -283,6 +416,41 @@ const runTests = () => {
         // invalid objects
         null,
         'string',
+
+        // invalid has items
+        {
+          source: '/hello',
+          has: [
+            {
+              type: 'cookiee',
+              key: 'loggedIn',
+            },
+          ],
+          headers: [
+            {
+              key: 'x-hello',
+              value: 'world',
+            },
+          ],
+        },
+        {
+          source: '/hello',
+          has: [
+            {
+              type: 'headerr',
+            },
+            {
+              type: 'queryr',
+              key: 'hello',
+            },
+          ],
+          headers: [
+            {
+              key: 'x-hello',
+              value: 'world',
+            },
+          ],
+        },
       ],
       'headers'
     )
@@ -316,6 +484,26 @@ const runTests = () => {
       `The route "string" is not a valid object with \`source\` and \`headers\``
     )
 
+    expect(stderr).toContain('Invalid `has` item:')
+    expect(stderr).toContain(
+      `invalid type "cookiee" for {"type":"cookiee","key":"loggedIn"}`
+    )
+    expect(stderr).toContain(
+      `invalid \`has\` item found for route {"source":"/hello","has":[{"type":"cookiee","key":"loggedIn"}],"headers":[{"key":"x-hello","value":"world"}]}`
+    )
+
+    expect(stderr).toContain('Invalid `has` items:')
+    expect(stderr).toContain(
+      `invalid type "headerr", invalid key "undefined" for {"type":"headerr"}`
+    )
+    expect(stderr).toContain(
+      `invalid type "queryr" for {"type":"queryr","key":"hello"}`
+    )
+    expect(stderr).toContain(
+      `invalid \`has\` items found for route {"source":"/hello","has":[{"type":"headerr"},{"type":"queryr","key":"hello"}],"headers":[{"key":"x-hello","value":"world"}]}`
+    )
+    expect(stderr).toContain(`Valid \`has\` object shape is {`)
+
     expect(stderr).not.toContain('/valid-header')
   })
 
@@ -339,13 +527,13 @@ const runTests = () => {
     const stderr = await getStderr()
 
     expect(stderr).toContain(
-      `Error parsing \`/feedback/(?!general)\` https://err.sh/vercel/next.js/invalid-route-source`
+      `Error parsing \`/feedback/(?!general)\` https://nextjs.org/docs/messages/invalid-route-source`
     )
     expect(stderr).toContain(`Reason: Pattern cannot start with "?" at 11`)
     expect(stderr).toContain(`/feedback/(?!general)`)
 
     expect(stderr).toContain(
-      `Error parsing \`/learning/?\` https://err.sh/vercel/next.js/invalid-route-source`
+      `Error parsing \`/learning/?\` https://nextjs.org/docs/messages/invalid-route-source`
     )
     expect(stderr).toContain(`Reason: Unexpected MODIFIER at 10, expected END`)
     expect(stderr).toContain(`/learning/?`)
@@ -395,7 +583,7 @@ const runTests = () => {
     const stderr = await getStderr()
 
     expect(stderr).toContain(
-      `\`destination\` has segments not in \`source\` (id) for route {"source":"/feedback/:type","destination":"/feedback/:id"}`
+      `\`destination\` has segments not in \`source\` or \`has\` (id) for route {"source":"/feedback/:type","destination":"/feedback/:id"}`
     )
   })
 }

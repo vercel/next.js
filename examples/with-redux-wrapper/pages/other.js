@@ -18,12 +18,10 @@ const Other = (props) => {
   return <Page title="Other Page" linkTo="/" />
 }
 
-export const getServerSideProps = wrapper.getServerSideProps(
-  async ({ store }) => {
-    store.dispatch(serverRenderClock(true))
-    store.dispatch(addCount())
-  }
-)
+export const getServerSideProps = wrapper.getServerSideProps((store) => () => {
+  store.dispatch(serverRenderClock(true))
+  store.dispatch(addCount())
+})
 
 const mapDispatchToProps = (dispatch) => {
   return {

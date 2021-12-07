@@ -1,5 +1,9 @@
+/* global localStorage */
+import { useExperimentalWebVitalsReport } from 'next/vitals'
+
 if (typeof navigator !== 'undefined') {
   window.__BEACONS = window.__BEACONS || []
+  window.__BEACONS_COUNT = new Map()
 
   navigator.sendBeacon = async function () {
     const args = await Promise.all(
@@ -16,6 +20,19 @@ if (typeof navigator !== 'undefined') {
 }
 
 export default () => {
+  // Below comment will be used for replacing exported report method with hook based one.
+  ///* useExperimentalWebVitalsReport
+  useExperimentalWebVitalsReport((data) => {
+    const name = data.name || data.entryType
+    localStorage.setItem(
+      name,
+      data.value !== undefined ? data.value : data.startTime
+    )
+    const countMap = window.__BEACONS_COUNT
+    countMap.set(name, (countMap.get(name) || 0) + 1)
+  })
+  // useExperimentalWebVitalsReport */
+
   return (
     <div>
       <h1>Foo!</h1>

@@ -2,6 +2,12 @@
 
 Next.js ships with [styled-jsx](https://github.com/vercel/styled-jsx) allowing you to write scoped styled components with full CSS support. This is important for the modularity and code size of your bundles and also for the learning curve of the framework. If you know CSS you can write `styled-jsx` right away.
 
+## Preview
+
+Preview the example live on [StackBlitz](http://stackblitz.com/):
+
+[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-styled-jsx)
+
 ## Deploy your own
 
 Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):

@@ -9,6 +9,7 @@ var $interceptModuleExecution$ = undefined;
 var $moduleCache$ = undefined;
 // eslint-disable-next-line no-unused-vars
 var $hmrModuleData$ = undefined;
+/** @type {() => Promise}  */
 var $hmrDownloadManifest$ = undefined;
 var $hmrDownloadUpdateHandlers$ = undefined;
 var $hmrInvalidateModuleHandlers$ = undefined;
@@ -101,30 +102,37 @@ module.exports = function () {
 	}
 
 	function createModuleHotObject(moduleId, me) {
+		var _main = currentChildModule !== moduleId;
 		var hot = {
 			// private stuff
 			_acceptedDependencies: {},
+			_acceptedErrorHandlers: {},
 			_declinedDependencies: {},
 			_selfAccepted: false,
 			_selfDeclined: false,
 			_selfInvalidated: false,
 			_disposeHandlers: [],
-			_main: currentChildModule !== moduleId,
+			_main: _main,
 			_requireSelf: function () {
 				currentParents = me.parents.slice();
-				currentChildModule = moduleId;
+				currentChildModule = _main ? undefined : moduleId;
 				__webpack_require__(moduleId);
 			},
 
 			// Module API
 			active: true,
-			accept: function (dep, callback) {
+			accept: function (dep, callback, errorHandler) {
 				if (dep === undefined) hot._selfAccepted = true;
 				else if (typeof dep === "function") hot._selfAccepted = dep;
-				else if (typeof dep === "object" && dep !== null)
-					for (var i = 0; i < dep.length; i++)
+				else if (typeof dep === "object" && dep !== null) {
+					for (var i = 0; i < dep.length; i++) {
 						hot._acceptedDependencies[dep[i]] = callback || function () {};
-				else hot._acceptedDependencies[dep] = callback || function () {};
+						hot._acceptedErrorHandlers[dep[i]] = errorHandler;
+					}
+				} else {
+					hot._acceptedDependencies[dep] = callback || function () {};
+					hot._acceptedErrorHandlers[dep] = errorHandler;
+				}
 			},
 			decline: function (dep) {
 				if (dep === undefined) hot._selfDeclined = true;
@@ -202,8 +210,12 @@ module.exports = function () {
 
 	function setStatus(newStatus) {
 		currentStatus = newStatus;
+		var results = [];
+
 		for (var i = 0; i < registeredStatusHandlers.length; i++)
-			registeredStatusHandlers[i].call(null, newStatus);
+			results[i] = registeredStatusHandlers[i].call(null, newStatus);
+
+		return Promise.all(results);
 	}
 
 	function trackBlockingPromise(promise) {
@@ -212,7 +224,7 @@ module.exports = function () {
 				setStatus("prepare");
 				blockingPromises.push(promise);
 				waitForBlockingPromises(function () {
-					setStatus("ready");
+					return setStatus("ready");
 				});
 				return promise;
 			case "prepare":
@@ -236,47 +248,51 @@ module.exports = function () {
 		if (currentStatus !== "idle") {
 			throw new Error("check() is only allowed in idle status");
 		}
-		setStatus("check");
-		return $hmrDownloadManifest$().then(function (update) {
-			if (!update) {
-				setStatus(applyInvalidatedModules() ? "ready" : "idle");
-				return null;
-			}
-
-			setStatus("prepare");
-
-			var updatedModules = [];
-			blockingPromises = [];
-			currentUpdateApplyHandlers = [];
-
-			return Promise.all(
-				Object.keys($hmrDownloadUpdateHandlers$).reduce(function (
-					promises,
-					key
-				) {
-					$hmrDownloadUpdateHandlers$[key](
-						update.c,
-						update.r,
-						update.m,
-						promises,
-						currentUpdateApplyHandlers,
-						updatedModules
+		return setStatus("check")
+			.then($hmrDownloadManifest$)
+			.then(function (update) {
+				if (!update) {
+					return setStatus(applyInvalidatedModules() ? "ready" : "idle").then(
+						function () {
+							return null;
+						}
 					);
-					return promises;
-				},
-				[])
-			).then(function () {
-				return waitForBlockingPromises(function () {
-					if (applyOnUpdate) {
-						return internalApply(applyOnUpdate);
-					} else {
-						setStatus("ready");
+				}
 
-						return updatedModules;
-					}
+				return setStatus("prepare").then(function () {
+					var updatedModules = [];
+					blockingPromises = [];
+					currentUpdateApplyHandlers = [];
+
+					return Promise.all(
+						Object.keys($hmrDownloadUpdateHandlers$).reduce(function (
+							promises,
+							key
+						) {
+							$hmrDownloadUpdateHandlers$[key](
+								update.c,
+								update.r,
+								update.m,
+								promises,
+								currentUpdateApplyHandlers,
+								updatedModules
+							);
+							return promises;
+						},
+						[])
+					).then(function () {
+						return waitForBlockingPromises(function () {
+							if (applyOnUpdate) {
+								return internalApply(applyOnUpdate);
+							} else {
+								return setStatus("ready").then(function () {
+									return updatedModules;
+								});
+							}
+						});
+					});
 				});
 			});
-		});
 	}
 
 	function hotApply(options) {
@@ -305,21 +321,20 @@ module.exports = function () {
 			.filter(Boolean);
 
 		if (errors.length > 0) {
-			setStatus("abort");
-			return Promise.resolve().then(function () {
+			return setStatus("abort").then(function () {
 				throw errors[0];
 			});
 		}
 
 		// Now in "dispose" phase
-		setStatus("dispose");
+		var disposePromise = setStatus("dispose");
 
 		results.forEach(function (result) {
 			if (result.dispose) result.dispose();
 		});
 
 		// Now in "apply" phase
-		setStatus("apply");
+		var applyPromise = setStatus("apply");
 
 		var error;
 		var reportError = function (err) {
@@ -338,25 +353,27 @@ module.exports = function () {
 			}
 		});
 
-		// handle errors in accept handlers and self accepted module load
-		if (error) {
-			setStatus("fail");
-			return Promise.resolve().then(function () {
-				throw error;
-			});
-		}
-
-		if (queuedInvalidatedModules) {
-			return internalApply(options).then(function (list) {
-				outdatedModules.forEach(function (moduleId) {
-					if (list.indexOf(moduleId) < 0) list.push(moduleId);
+		return Promise.all([disposePromise, applyPromise]).then(function () {
+			// handle errors in accept handlers and self accepted module load
+			if (error) {
+				return setStatus("fail").then(function () {
+					throw error;
 				});
-				return list;
-			});
-		}
+			}
 
-		setStatus("idle");
-		return Promise.resolve(outdatedModules);
+			if (queuedInvalidatedModules) {
+				return internalApply(options).then(function (list) {
+					outdatedModules.forEach(function (moduleId) {
+						if (list.indexOf(moduleId) < 0) list.push(moduleId);
+					});
+					return list;
+				});
+			}
+
+			return setStatus("idle").then(function () {
+				return outdatedModules;
+			});
+		});
 	}
 
 	function applyInvalidatedModules() {

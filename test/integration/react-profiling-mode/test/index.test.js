@@ -5,8 +5,6 @@ import { join } from 'path'
 import webdriver from 'next-webdriver'
 import { nextBuild, nextStart, findPort, killApp } from 'next-test-utils'
 
-jest.setTimeout(1000 * 60 * 2)
-
 const appDir = join(__dirname, '..')
 const nextConfig = join(appDir, 'next.config.js')
 
@@ -26,7 +24,7 @@ describe('React Profiling Mode', () => {
       const browser = await webdriver(appPort, '/')
       const results = await browser.eval('window.profileResults')
 
-      expect(results).toBe(null)
+      expect(results).toBeFalsy()
     })
   })
 

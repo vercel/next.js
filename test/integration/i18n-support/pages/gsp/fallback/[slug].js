@@ -4,7 +4,14 @@ import { useRouter } from 'next/router'
 export default function Page(props) {
   const router = useRouter()
 
-  if (router.isFallback) return 'Loading...'
+  if (router.isFallback) {
+    return (
+      <>
+        <p>Loading...</p>
+        <p id="router-query">{JSON.stringify(router.query)}</p>
+      </>
+    )
+  }
 
   return (
     <>
