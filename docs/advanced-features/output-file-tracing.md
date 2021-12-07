@@ -39,5 +39,16 @@ To make leveraging this output easier a minimal `server.js` file is also output 
 ## Caveats
 
 - While tracing in monorepo setups, the project directory is used for tracing by default. For `next build packages/web-app`, `packages/web-app` would be the tracing root and any files outside of that folder will not be included. To include files outside of this folder you can set `experimental.outputFileTracingRoot` in your `next.config.js`.
+
+```js
+// packages/web-app/next.config.js
+module.exports = {
+  experimental: {
+    // this includes files from the monorepo base two directories up
+    outputFileTracingRoot: path.join(__dirname, '../../'),
+  },
+}
+```
+
 - There are some cases that Next.js might fail to include required files, or might incorrectly include unused files. In those cases, you can export page configs props `unstable_includeFiles` and `unstable_excludeFiles` respectively. Each prop accepts an array of [globs](<https://en.wikipedia.org/wiki/Glob_(programming)>) relative to the project's root to either include or exclude in the trace.
 - Currently, Next.js does not do anything with the emitted `.nft.json` files. The files must be read by your deployment platform, for example [Vercel](https://vercel.com), to create a minimal deployment. In a future release, a new command is planned to utilize these `.nft.json` files.
