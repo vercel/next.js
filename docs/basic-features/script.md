@@ -174,7 +174,7 @@ export default function Home() {
 }
 ```
 
-Sometimes it is helpful to catch when a script fails to load. These events can be caught with the `onError` property:
+Sometimes it is helpful to catch when a script fails to load. These errors can be handled with the `onError` property:
 
 ```jsx
 import Script from 'next/script'
