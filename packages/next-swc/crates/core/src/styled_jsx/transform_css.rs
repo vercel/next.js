@@ -157,14 +157,25 @@ struct Namespacer {
 impl VisitMut for Namespacer {
     fn visit_mut_complex_selector(&mut self, node: &mut ComplexSelector) {
         #[cfg(debug_assertions)]
-        let _tracing = tracing::span!(
-            tracing::Level::TRACE,
-            "Namespacer::visit_mut_complex_selector",
-            class_name = &*self.class_name,
-            is_global = self.is_global,
-            is_dynamic = self.is_dynamic,
-        )
-        .entered();
+        let _tracing = {
+            let mut code = String::new();
+            {
+                let mut wr = BasicCssWriter::new(&mut code, BasicCssWriterConfig { indent: "  " });
+                let mut gen = CodeGenerator::new(&mut wr, CodegenConfig { minify: true });
+
+                gen.emit(&*node).unwrap();
+            }
+
+            tracing::span!(
+                tracing::Level::TRACE,
+                "Namespacer::visit_mut_complex_selector",
+                class_name = &*self.class_name,
+                is_global = self.is_global,
+                is_dynamic = self.is_dynamic,
+                input = &*code
+            )
+            .entered()
+        };
 
         let mut new_selectors = vec![];
         let mut combinator = None;
