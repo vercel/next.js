@@ -279,7 +279,9 @@ function handleLoading(
         if (process.env.NODE_ENV !== 'production') {
           if (img.parentElement?.parentElement) {
             const parent = getComputedStyle(img.parentElement.parentElement)
-            if (layout === 'responsive' && parent.display === 'flex') {
+            if (!parent.position) {
+              // The parent has not been rendered to the dom yet and therefore it has no position. Skip the warnings for such cases.
+            } else if (layout === 'responsive' && parent.display === 'flex') {
               console.warn(
                 `Image with src "${src}" may not render properly as a child of a flex container. Consider wrapping the image with a div to configure the width.`
               )
@@ -642,6 +644,18 @@ export default function Image({
     }
   }
 
+  let imageSrcSetPropName = 'imagesrcset'
+  let imageSizesPropName = 'imagesizes'
+  if (process.env.__NEXT_REACT_ROOT) {
+    imageSrcSetPropName = 'imageSrcSet'
+    imageSizesPropName = 'imageSizes'
+  }
+  const linkProps = {
+    // Note: imagesrcset and imagesizes are not in the link element type with react 17.
+    [imageSrcSetPropName]: imgAttributes.srcSet,
+    [imageSizesPropName]: imgAttributes.sizes,
+  }
+
   return (
     <span style={wrapperStyle}>
       {hasSizer ? (
@@ -716,11 +730,8 @@ export default function Image({
             rel="preload"
             as="image"
             href={imgAttributes.srcSet ? undefined : imgAttributes.src}
-            // @ts-ignore: imagesrcset is not yet in the link element type.
-            imagesrcset={imgAttributes.srcSet}
-            // @ts-ignore: imagesizes is not yet in the link element type.
-            imagesizes={imgAttributes.sizes}
-          ></link>
+            {...linkProps}
+          />
         </Head>
       ) : null}
     </span>
