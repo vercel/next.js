@@ -2,7 +2,6 @@ import { promises } from 'fs'
 import { join } from 'path'
 import {
   FONT_MANIFEST,
-  MIDDLEWARE_MANIFEST,
   PAGES_MANIFEST,
   SERVER_DIRECTORY,
   SERVERLESS_DIRECTORY,
@@ -10,7 +9,6 @@ import {
 import { normalizePagePath, denormalizePagePath } from './normalize-page-path'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
-import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
 
 export function pageNotFoundError(page: string): Error {
   const err: any = new Error(`Cannot find module for page: ${page}`)
@@ -78,39 +76,4 @@ export function requireFontManifest(distDir: string, serverless: boolean) {
   )
   const fontManifest = require(join(serverBuildPath, FONT_MANIFEST))
   return fontManifest
-}
-
-export function getMiddlewareInfo(params: {
-  dev?: boolean
-  distDir: string
-  page: string
-  serverless: boolean
-}): { name: string; paths: string[] } {
-  const serverBuildPath = join(
-    params.distDir,
-    params.serverless && !params.dev ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY
-  )
-
-  const middlewareManifest: MiddlewareManifest = require(join(
-    serverBuildPath,
-    MIDDLEWARE_MANIFEST
-  ))
-
-  let page: string
-
-  try {
-    page = denormalizePagePath(normalizePagePath(params.page))
-  } catch (err) {
-    throw pageNotFoundError(params.page)
-  }
-
-  let pageInfo = middlewareManifest.middleware[page]
-  if (!pageInfo) {
-    throw pageNotFoundError(page)
-  }
-
-  return {
-    name: pageInfo.name,
-    paths: pageInfo.files.map((file) => join(params.distDir, file)),
-  }
 }

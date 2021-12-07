@@ -3,6 +3,8 @@ import { renderToHTML } from '../../../../server/web/render'
 import RenderResult from '../../../../server/render-result'
 import { toNodeHeaders } from '../../../../server/web/utils'
 
+import NextWebServer from '../../../../server/web/next-web-server'
+
 const createHeaders = (args?: any) => ({
   ...args,
   'x-middleware-ssr': '1',
@@ -29,6 +31,11 @@ export function getRender({
   isServerComponent: boolean
   restRenderOpts: any
 }) {
+  const server = new NextWebServer({
+    conf: {},
+    minimalMode: true,
+  })
+
   return async function render(request: NextRequest) {
     const { nextUrl: url, cookies, headers } = request
     const { pathname, searchParams } = url

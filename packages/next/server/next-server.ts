@@ -1,13 +1,26 @@
+import type { Route, Params } from './router'
+import type { NextParsedUrlQuery } from './request-meta'
+import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
+
 import fs from 'fs'
 import { join, relative } from 'path'
 
-import { PAGES_MANIFEST, BUILD_ID_FILE } from '../shared/lib/constants'
 import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
-import type { Route } from './router'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
 import { route } from './router'
+import { loadComponents } from './load-components'
+import isError from '../lib/is-error'
+import { normalizePagePath, denormalizePagePath } from './normalize-page-path'
+import { pageNotFoundError } from './require'
+import {
+  MIDDLEWARE_MANIFEST,
+  BUILD_ID_FILE,
+  PAGES_MANIFEST,
+  SERVER_DIRECTORY,
+  SERVERLESS_DIRECTORY,
+} from '../shared/lib/constants'
 
-import BaseServer from './base-server'
+import BaseServer, { FindComponentsResult } from './base-server'
 export * from './base-server'
 
 export default class NextNodeServer extends BaseServer {
@@ -132,5 +145,99 @@ export default class NextNodeServer extends BaseServer {
       ...userFilesPublic,
       ...userFilesStatic,
     ]))
+  }
+
+  protected async findPageComponents(
+    pathname: string,
+    query: NextParsedUrlQuery = {},
+    params: Params | null = null
+  ): Promise<FindComponentsResult | null> {
+    let paths = [
+      // try serving a static AMP version first
+      query.amp ? normalizePagePath(pathname) + '.amp' : null,
+      pathname,
+    ].filter(Boolean)
+
+    if (query.__nextLocale) {
+      paths = [
+        ...paths.map(
+          (path) => `/${query.__nextLocale}${path === '/' ? '' : path}`
+        ),
+        ...paths,
+      ]
+    }
+
+    for (const pagePath of paths) {
+      try {
+        const components = await loadComponents(
+          this.distDir,
+          pagePath!,
+          !this.renderOpts.dev && this._isLikeServerless
+        )
+
+        if (
+          query.__nextLocale &&
+          typeof components.Component === 'string' &&
+          !pagePath?.startsWith(`/${query.__nextLocale}`)
+        ) {
+          // if loading an static HTML file the locale is required
+          // to be present since all HTML files are output under their locale
+          continue
+        }
+
+        return {
+          components,
+          query: {
+            ...(components.getStaticProps
+              ? ({
+                  amp: query.amp,
+                  _nextDataReq: query._nextDataReq,
+                  __nextLocale: query.__nextLocale,
+                  __nextDefaultLocale: query.__nextDefaultLocale,
+                } as NextParsedUrlQuery)
+              : query),
+            ...(params || {}),
+          },
+        }
+      } catch (err) {
+        if (isError(err) && err.code !== 'ENOENT') throw err
+      }
+    }
+    return null
+  }
+
+  protected getMiddlewareInfo(params: {
+    dev?: boolean
+    distDir: string
+    page: string
+    serverless: boolean
+  }): { name: string; paths: string[] } {
+    const serverBuildPath = join(
+      params.distDir,
+      params.serverless && !params.dev ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY
+    )
+
+    const middlewareManifest: MiddlewareManifest = require(join(
+      serverBuildPath,
+      MIDDLEWARE_MANIFEST
+    ))
+
+    let page: string
+
+    try {
+      page = denormalizePagePath(normalizePagePath(params.page))
+    } catch (err) {
+      throw pageNotFoundError(params.page)
+    }
+
+    let pageInfo = middlewareManifest.middleware[page]
+    if (!pageInfo) {
+      throw pageNotFoundError(page)
+    }
+
+    return {
+      name: pageInfo.name,
+      paths: pageInfo.files.map((file) => join(params.distDir, file)),
+    }
   }
 }

@@ -1,4 +1,3 @@
-import { formatUrl } from './router/utils/format-url'
 import type { BuildManifest } from '../../server/get-page-files'
 import type { ComponentType } from 'react'
 import type { DomainLocale } from '../../server/config'
@@ -8,6 +7,8 @@ import type { NextRouter } from './router/router'
 import type { ParsedUrlQuery } from 'querystring'
 import type { PreviewData } from 'next/types'
 import type { UrlObject } from 'url'
+
+import { formatUrl } from './router/utils/format-url'
 import { createContext } from 'react'
 
 export type NextComponentType<

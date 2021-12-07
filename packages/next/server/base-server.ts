@@ -59,8 +59,6 @@ import {
 } from './api-utils'
 import { isTargetLikeServerless } from './config'
 import pathMatch from '../shared/lib/router/utils/path-match'
-import { loadComponents } from './load-components'
-import { normalizePagePath } from './normalize-page-path'
 import { renderToHTML } from './render'
 import { getPagePath, requireFontManifest } from './require'
 import Router, { replaceBasePath, route } from './router'
@@ -89,7 +87,6 @@ import { PreviewData } from 'next/types'
 import ResponseCache from './response-cache'
 import { parseNextUrl } from '../shared/lib/router/utils/parse-next-url'
 import isError from '../lib/is-error'
-import { getMiddlewareInfo } from './require'
 import { MIDDLEWARE_ROUTE } from '../lib/constants'
 import { NextResponse } from './web/spec-extension/response'
 import { run } from './web/sandbox'
@@ -220,6 +217,17 @@ export default abstract class Server {
   protected abstract getBuildId(): string
   protected abstract generatePublicRoutes(): Route[]
   protected abstract getFilesystemPaths(): Set<string>
+  protected abstract findPageComponents(
+    pathname: string,
+    query?: NextParsedUrlQuery,
+    params?: Params | null
+  ): Promise<FindComponentsResult | null>
+  protected abstract getMiddlewareInfo(params: {
+    dev?: boolean
+    distDir: string
+    page: string
+    serverless: boolean
+  }): { name: string; paths: string[] }
 
   public constructor({
     dir = '.',
@@ -644,7 +652,7 @@ export default abstract class Server {
   ): Promise<boolean> {
     try {
       return (
-        getMiddlewareInfo({
+        this.getMiddlewareInfo({
           dev: this.renderOpts.dev,
           distDir: this.distDir,
           page: pathname,
@@ -701,7 +709,7 @@ export default abstract class Server {
 
         await this.ensureMiddleware(middleware.page, middleware.ssr)
 
-        const middlewareInfo = getMiddlewareInfo({
+        const middlewareInfo = this.getMiddlewareInfo({
           dev: this.renderOpts.dev,
           distDir: this.distDir,
           page: middleware.page,
@@ -1690,65 +1698,6 @@ export default abstract class Server {
       pathname,
       query,
     })
-  }
-
-  protected async findPageComponents(
-    pathname: string,
-    query: NextParsedUrlQuery = {},
-    params: Params | null = null
-  ): Promise<FindComponentsResult | null> {
-    let paths = [
-      // try serving a static AMP version first
-      query.amp ? normalizePagePath(pathname) + '.amp' : null,
-      pathname,
-    ].filter(Boolean)
-
-    if (query.__nextLocale) {
-      paths = [
-        ...paths.map(
-          (path) => `/${query.__nextLocale}${path === '/' ? '' : path}`
-        ),
-        ...paths,
-      ]
-    }
-
-    for (const pagePath of paths) {
-      try {
-        const components = await loadComponents(
-          this.distDir,
-          pagePath!,
-          !this.renderOpts.dev && this._isLikeServerless
-        )
-
-        if (
-          query.__nextLocale &&
-          typeof components.Component === 'string' &&
-          !pagePath?.startsWith(`/${query.__nextLocale}`)
-        ) {
-          // if loading an static HTML file the locale is required
-          // to be present since all HTML files are output under their locale
-          continue
-        }
-
-        return {
-          components,
-          query: {
-            ...(components.getStaticProps
-              ? ({
-                  amp: query.amp,
-                  _nextDataReq: query._nextDataReq,
-                  __nextLocale: query.__nextLocale,
-                  __nextDefaultLocale: query.__nextDefaultLocale,
-                } as NextParsedUrlQuery)
-              : query),
-            ...(params || {}),
-          },
-        }
-      } catch (err) {
-        if (isError(err) && err.code !== 'ENOENT') throw err
-      }
-    }
-    return null
   }
 
   protected async getStaticPaths(pathname: string): Promise<{

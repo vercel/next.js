@@ -1,4 +1,5 @@
-import { IncomingMessage, ServerResponse } from 'http'
+import type { IncomingMessage, ServerResponse } from 'http'
+
 import { parse } from 'next/dist/compiled/content-type'
 import { CookieSerializeOptions } from 'next/dist/compiled/cookie'
 import getRawBody from 'raw-body'
