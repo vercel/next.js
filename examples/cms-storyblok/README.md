@@ -27,6 +27,7 @@ Once you have access to [the environment variables you'll need](#step-6-set-up-e
 - [GraphCMS](/examples/cms-graphcms)
 - [Kontent](/examples/cms-kontent)
 - [Ghost](/examples/cms-ghost)
+- [Umbraco Heartcore](/examples/cms-umbraco-heartcore)
 - [Blog Starter](/examples/blog-starter)
 
 ## How to use
