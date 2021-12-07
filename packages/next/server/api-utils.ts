@@ -167,7 +167,7 @@ export async function parseBody(
     }
   }
 
-  const body = buffer.toString(encoding)
+  const body = buffer.toString()
 
   if (type === 'application/json' || type === 'application/ld+json') {
     return parseJson(body)
