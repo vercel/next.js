@@ -1355,7 +1355,7 @@ jobs:
         run: mv packages/next-swc/crates/wasm/pkg packages/next-swc/crates/wasm/pkg-nodejs
 
       - name: Upload artifact
-        if: ${{needs.build.outputs.docsChange != 'docs only change' && steps.binary-cache.outputs.cache-hit != 'true'}}
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         uses: actions/upload-artifact@v2
         with:
           name: wasm-dev-binary
