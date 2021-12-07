@@ -38,10 +38,16 @@ const context = {}
 describe('Production Usage', () => {
   let output = ''
   beforeAll(async () => {
-    const result = await nextBuild(appDir, undefined, {
+    let opts = {
       stderr: true,
       stdout: true,
-    })
+    }
+    if (process.env.TEST_WASM) {
+      opts.env = {
+        NODE_OPTIONS: '--no-addons',
+      }
+    }
+    const result = await nextBuild(appDir, undefined, opts)
 
     appPort = await findPort()
     context.appPort = appPort
