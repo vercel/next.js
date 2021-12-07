@@ -21,8 +21,8 @@ module.exports = {
 
         if (
           !page ||
-          page.startsWith(`${path.sep}_middleware`) ||
-          page.startsWith(`${path.posix.sep}_middleware`)
+          page.includes(`${path.sep}_middleware`) ||
+          page.includes(`${path.posix.sep}_middleware`)
         ) {
           return
         }

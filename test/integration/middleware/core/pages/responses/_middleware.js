@@ -57,11 +57,11 @@ export async function middleware(request, ev) {
     ev.waitUntil(
       (async () => {
         writer.write(encoder.encode('this is a streamed '.repeat(10)))
-        await sleep(200)
+        await sleep(2000)
         writer.write(encoder.encode('after 2 seconds '.repeat(10)))
-        await sleep(200)
+        await sleep(2000)
         writer.write(encoder.encode('after 4 seconds '.repeat(10)))
-        await sleep(200)
+        await sleep(2000)
         writer.close()
       })()
     )
