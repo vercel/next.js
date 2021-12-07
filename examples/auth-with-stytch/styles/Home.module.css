@@ -1,5 +1,5 @@
 .root {
-  background-color: #ECFAFF;
+  background-color: #ecfaff;
   width: 100%;
   height: 100vh;
   display: flex;
@@ -31,18 +31,17 @@
 
 @media only screen and (max-width: 400px) {
   .container {
-    padding: 40px
+    padding: 40px;
   }
 }
 
-
 .primaryButton {
-  background-color: #19303D;
+  background-color: #19303d;
 }
 
 .primaryButton:disabled {
-  background-color: #F3F5F6;
-  color: #5C727D;
+  background-color: #f3f5f6;
+  color: #5c727d;
   opacity: 1;
 }
 
@@ -50,7 +49,7 @@
 
 .nav {
   align-items: center;
-  background-color: #C7F1FF;
+  background-color: #c7f1ff;
   display: flex;
   height: 64px;
   justify-content: space-between;
@@ -61,7 +60,7 @@
 }
 .navLogos {
   align-items: center;
-  background-color: #C7F1FF;
+  background-color: #c7f1ff;
   display: flex;
   height: 64px;
   padding: 0 28px;
@@ -87,8 +86,8 @@
 }
 
 .entryButton {
-  background-color: #E5E8EB;
-  color: #19303D;
+  background-color: #e5e8eb;
+  color: #19303d;
   margin-bottom: 16px;
 }
 
@@ -99,7 +98,7 @@
 }
 
 .smsDisclaimer {
-  color: #5C727D;
+  color: #5c727d;
   font-size: 14px;
   line-height: 20px;
   margin-bottom: 16px;
@@ -160,7 +159,7 @@
 }
 
 .resendCodeText {
-  color: #5C727D;
+  color: #5c727d;
   display: inline;
   font-size: 16px;
   line-height: 20px;
@@ -184,9 +183,9 @@
 }
 
 .code {
-  background: #F3F5F6;
+  background: #f3f5f6;
   border-radius: 5px;
-  color: #10232E;
+  color: #10232e;
   padding: 8px;
   font-size: 16px;
   font-family: IBM Plex Mono, monospace;

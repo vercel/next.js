@@ -11,11 +11,11 @@ a {
 
 * {
   box-sizing: border-box;
-  font-family: IBM Plex Sans, "sans-serif";
+  font-family: IBM Plex Sans, 'sans-serif';
 }
 
 p {
-  color: #19303D;
+  color: #19303d;
   font-size: 18px;
   line-height: 25px;
   margin: 0;
@@ -33,10 +33,10 @@ h2 {
 }
 
 input {
-  border: 1px solid #ADBCC5;
+  border: 1px solid #adbcc5;
   box-sizing: border-box;
   border-radius: 3px;
-  color: #19303D;
+  color: #19303d;
   font-size: 18px;
   height: 45px;
   line-height: 25px;
@@ -45,7 +45,7 @@ input {
 
 input:disabled {
   background-color: white;
-  color: #19303D;
+  color: #19303d;
 }
 
 input:focus {
@@ -53,10 +53,11 @@ input:focus {
 }
 
 input::placeholder {
-  color: #ADBCC5;
+  color: #adbcc5;
 }
 
-button, input[type="submit"] {
+button,
+input[type='submit'] {
   border: none;
   border-radius: 3px;
   color: white;
@@ -66,6 +67,7 @@ button, input[type="submit"] {
   width: 100%;
 }
 
-button:hover, input[type="submit"]:hover {
+button:hover,
+input[type='submit']:hover {
   opacity: 0.8;
 }

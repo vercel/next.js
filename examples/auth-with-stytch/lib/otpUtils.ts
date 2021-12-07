@@ -5,7 +5,7 @@ export async function sendOTP(phoneNumber: string) {
       intlCode: '+1',
       phoneNumber,
     }),
-  });
-  const data = await resp.json();
-  return data.methodId;
+  })
+  const data = await resp.json()
+  return data.methodId
 }

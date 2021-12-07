@@ -1,11 +1,18 @@
-import { NextApiRequest, NextApiResponse } from 'next';
-import { Session, withIronSession } from 'next-iron-session';
+import { NextApiRequest, NextApiResponse } from 'next'
+import { Session, withIronSession } from 'next-iron-session'
 
-type NextIronRequest = NextApiRequest & { session: Session };
+type NextIronRequest = NextApiRequest & { session: Session }
 
-type APIHandler = (req: NextIronRequest, res: NextApiResponse<any>) => Promise<any>;
+type APIHandler = (
+  req: NextIronRequest,
+  res: NextApiResponse<any>
+) => Promise<any>
 
-export type ServerSideProps = ({ req }: { req: NextIronRequest }) => Promise<any>;
+export type ServerSideProps = ({
+  req,
+}: {
+  req: NextIronRequest
+}) => Promise<any>
 
 const withSession = (handler: APIHandler | ServerSideProps) =>
   withIronSession(handler, {
@@ -16,6 +23,6 @@ const withSession = (handler: APIHandler | ServerSideProps) =>
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
     },
-  });
+  })
 
-export default withSession;
+export default withSession

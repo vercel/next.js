@@ -8,4 +8,4 @@ module.exports = {
     VERCEL_URL: process.env.VERCEL_URL,
     USE_VERCEL: process.env.USE_VERCEL,
   },
-};
+}
