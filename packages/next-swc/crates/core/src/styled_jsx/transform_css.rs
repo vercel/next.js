@@ -232,6 +232,7 @@ impl Namespacer {
                 front_tokens.extend(args.tokens);
                 front_tokens.extend(block_tokens);
                 args.tokens = front_tokens;
+
                 let complex_selectors = panic::catch_unwind(|| {
                     let x: ComplexSelector = parse_tokens(
                         &args,
@@ -248,7 +249,7 @@ impl Namespacer {
 
                 return match complex_selectors {
                     Ok(complex_selectors) => {
-                        let mut v = complex_selectors.children[1..]
+                        let mut v = complex_selectors.children[2..]
                             .iter()
                             .cloned()
                             .collect::<Vec<_>>();
@@ -258,7 +259,7 @@ impl Namespacer {
                         }
 
                         if combinator.is_some() {
-                            v.insert(0, ComplexSelectorChildren::Combinator(combinator.unwrap()));
+                            v[1] = ComplexSelectorChildren::Combinator(combinator.unwrap());
                         }
 
                         v.iter_mut().for_each(|sel| {
