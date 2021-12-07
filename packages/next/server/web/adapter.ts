@@ -1,4 +1,4 @@
-import type { RequestData, FetchEventResult } from './types'
+import type { NextMiddleware, RequestData, FetchEventResult } from './types'
 import { DeprecationError } from './error'
 import { fromNodeHeaders } from './utils'
 import { NextFetchEvent } from './spec-extension/fetch-event'
@@ -7,7 +7,7 @@ import { NextResponse } from './spec-extension/response'
 import { waitUntilSymbol } from './spec-compliant/fetch-event'
 
 export async function adapter(params: {
-  handler: (request: NextRequest, event: NextFetchEvent) => Promise<Response>
+  handler: NextMiddleware
   page: string
   request: RequestData
 }): Promise<FetchEventResult> {
