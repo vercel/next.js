@@ -255,22 +255,36 @@ impl Namespacer {
 
                 return match complex_selectors {
                     Ok(complex_selectors) => {
-                        let mut v = complex_selectors.children[2..]
+                        let mut v = complex_selectors.children[1..]
                             .iter()
                             .cloned()
                             .collect::<Vec<_>>();
+
+                        match v[0] {
+                            ComplexSelectorChildren::Combinator(Combinator {
+                                value: CombinatorValue::Descendant,
+                                ..
+                            }) => {
+                                v.remove(0);
+                            }
+                            _ => {}
+                        }
 
                         if v.is_empty() {
                             bail!("Failed to transform one off global selector");
                         }
 
                         trace!("Combinator: {:?}", combinator);
+                        trace!("v[0]: {:?}", v[0]);
 
                         if combinator.is_some() {
-                            match v.get(1) {
+                            match v.get(0) {
                                 Some(ComplexSelectorChildren::Combinator(..)) => {}
                                 Some(..) => {
-                                    v[1] = ComplexSelectorChildren::Combinator(combinator.unwrap());
+                                    v.insert(
+                                        0,
+                                        ComplexSelectorChildren::Combinator(combinator.unwrap()),
+                                    );
                                 }
                                 _ => {
                                     v.push(ComplexSelectorChildren::Combinator(
