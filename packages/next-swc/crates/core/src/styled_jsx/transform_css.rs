@@ -56,7 +56,7 @@ pub fn transform_css(
         }
     };
     // ? Do we need to support optionally prefixing?
-    ss.visit_mut_with(&mut FixedPrefixer);
+    ss.visit_mut_with(&mut prefixer());
     ss.visit_mut_with(&mut CssPlaceholderFixer);
     ss.visit_mut_with(&mut Namespacer {
         class_name: match class_name {
@@ -124,18 +124,6 @@ fn read_number(s: &str) -> (usize, usize) {
     }
 
     unreachable!("read_number(`{}`) is invalid because it is empty", s)
-}
-
-/// Applies `prefixer`, but this avoids bug of `swc_stylis::prefixer()`.
-///
-/// TODO(kdy1): Remove this when we upgrade crates related to css. (The crate
-/// update is blocked by `ComplexSelectorChildren` issue)
-struct FixedPrefixer;
-
-impl VisitMut for FixedPrefixer {
-    fn visit_mut_block(&mut self, n: &mut Block) {
-        n.visit_mut_with(&mut prefixer());
-    }
 }
 
 /// This fixes invalid css which is created from interpolated expressions.
