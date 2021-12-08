@@ -252,7 +252,6 @@ export function watchCompilers(
     compiler.hooks.done.tap(`NextJsDone-${key}`, (stats: webpack5.Stats) => {
       buildStore.setState({ amp: {} })
 
-      console.log({ err: stats.compilation.errors[0] })
       const { errors, warnings } = formatWebpackMessages(
         stats.toJson({
           preset: 'errors-warnings',
