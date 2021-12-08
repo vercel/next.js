@@ -29,7 +29,7 @@ export class BrowserInterface {
   elementById(selector: string): BrowserInterface {
     return this
   }
-  click(selector: string): BrowserInterface {
+  click(): BrowserInterface {
     return this
   }
   type(text: string): BrowserInterface {
