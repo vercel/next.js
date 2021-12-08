@@ -78,6 +78,15 @@ ruleTester.run('no-server-import-in-page', rule, {
     `,
       filename: 'pagesapp/src/pages/_middleware.js',
     },
+    {
+      code: `import { NextFetchEvent, NextRequest } from "next/server"
+
+      export function middleware(req, ev) {
+        return new Response('Hello, world!')
+      }
+    `,
+      filename: 'src/pages/subFolder/_middleware.js',
+    },
   ],
   invalid: [
     {
