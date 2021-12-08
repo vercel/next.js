@@ -20,18 +20,15 @@ import type { ResponseCacheEntry, ResponseCacheValue } from './response-cache'
 import type { UrlWithParsedQuery } from 'url'
 
 import compression from 'next/dist/compiled/compression'
-import fs from 'fs'
 import Proxy from 'next/dist/compiled/http-proxy'
 import { join, relative, resolve, sep } from 'path'
 import { parse as parseQs, stringify as stringifyQs } from 'querystring'
 import { format as formatUrl, parse as parseUrl } from 'url'
 import { getRedirectStatus, modifyRouteRegex } from '../lib/load-custom-routes'
 import {
-  BUILD_ID_FILE,
   CLIENT_PUBLIC_FILES_PATH,
   CLIENT_STATIC_FILES_PATH,
   CLIENT_STATIC_FILES_RUNTIME,
-  PAGES_MANIFEST,
   PERMANENT_REDIRECT_STATUS,
   PRERENDER_MANIFEST,
   ROUTES_MANIFEST,
@@ -62,7 +59,6 @@ import {
 } from './api-utils'
 import { isTargetLikeServerless } from './config'
 import pathMatch from '../shared/lib/router/utils/path-match'
-import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
 import { loadComponents } from './load-components'
 import { normalizePagePath } from './normalize-page-path'
 import { renderToHTML } from './render'
@@ -219,6 +215,12 @@ export default abstract class Server {
   public readonly hostname?: string
   public readonly port?: number
 
+  protected abstract getHasStaticDir(): boolean
+  protected abstract getPagesManifest(): PagesManifest | undefined
+  protected abstract getBuildId(): string
+  protected abstract generatePublicRoutes(): Route[]
+  protected abstract getFilesystemPaths(): Set<string>
+
   public constructor({
     dir = '.',
     quiet = false,
@@ -241,7 +243,7 @@ export default abstract class Server {
 
     this.distDir = join(this.dir, this.nextConfig.distDir)
     this.publicDir = join(this.dir, CLIENT_PUBLIC_FILES_PATH)
-    this.hasStaticDir = !minimalMode && fs.existsSync(join(this.dir, 'static'))
+    this.hasStaticDir = !minimalMode && this.getHasStaticDir()
 
     // Only serverRuntimeConfig needs the default
     // publicRuntimeConfig gets it's default in client/index.js
@@ -253,7 +255,7 @@ export default abstract class Server {
       compress,
     } = this.nextConfig
 
-    this.buildId = this.readBuildId()
+    this.buildId = this.getBuildId()
     this.minimalMode = minimalMode
 
     this.renderOpts = {
@@ -303,18 +305,9 @@ export default abstract class Server {
       this.distDir,
       this._isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY
     )
-    const pagesManifestPath = join(this.serverBuildDir, PAGES_MANIFEST)
-    const middlewareManifestPath = join(
-      join(this.distDir, SERVER_DIRECTORY),
-      MIDDLEWARE_MANIFEST
-    )
 
-    if (!dev) {
-      this.pagesManifest = require(pagesManifestPath)
-      if (!this.minimalMode) {
-        this.middlewareManifest = require(middlewareManifestPath)
-      }
-    }
+    this.pagesManifest = this.getPagesManifest()
+    this.middlewareManifest = this.getMiddlewareManifest()
 
     this.customRoutes = this.getCustomRoutes()
     this.router = new Router(this.generateRoutes())
@@ -622,6 +615,17 @@ export default abstract class Server {
     return this.getPrerenderManifest().preview
   }
 
+  protected getMiddlewareManifest(): MiddlewareManifest | undefined {
+    if (!this.minimalMode) {
+      const middlewareManifestPath = join(
+        join(this.distDir, SERVER_DIRECTORY),
+        MIDDLEWARE_MANIFEST
+      )
+      return require(middlewareManifestPath)
+    }
+    return undefined
+  }
+
   protected getMiddleware() {
     const middleware = this.middlewareManifest?.middleware || {}
     return (
@@ -782,9 +786,7 @@ export default abstract class Server {
     locales: string[]
   } {
     const server: Server = this
-    const publicRoutes = fs.existsSync(this.publicDir)
-      ? this.generatePublicRoutes()
-      : []
+    const publicRoutes = this.generatePublicRoutes()
 
     const staticFilesRoute = this.hasStaticDir
       ? [
@@ -1523,66 +1525,6 @@ export default abstract class Server {
       page
     )
     return true
-  }
-
-  protected generatePublicRoutes(): Route[] {
-    const publicFiles = new Set(
-      recursiveReadDirSync(this.publicDir).map((p) =>
-        encodeURI(p.replace(/\\/g, '/'))
-      )
-    )
-
-    return [
-      {
-        match: route('/:path*'),
-        name: 'public folder catchall',
-        fn: async (req, res, params, parsedUrl) => {
-          const pathParts: string[] = params.path || []
-          const { basePath } = this.nextConfig
-
-          // if basePath is defined require it be present
-          if (basePath) {
-            const basePathParts = basePath.split('/')
-            // remove first empty value
-            basePathParts.shift()
-
-            if (
-              !basePathParts.every((part: string, idx: number) => {
-                return part === pathParts[idx]
-              })
-            ) {
-              return { finished: false }
-            }
-
-            pathParts.splice(0, basePathParts.length)
-          }
-
-          let path = `/${pathParts.join('/')}`
-
-          if (!publicFiles.has(path)) {
-            // In `next-dev-server.ts`, we ensure encoded paths match
-            // decoded paths on the filesystem. So we need do the
-            // opposite here: make sure decoded paths match encoded.
-            path = encodeURI(path)
-          }
-
-          if (publicFiles.has(path)) {
-            await this.serveStatic(
-              req,
-              res,
-              join(this.publicDir, ...pathParts),
-              parsedUrl
-            )
-            return {
-              finished: true,
-            }
-          }
-          return {
-            finished: false,
-          }
-        },
-      } as Route,
-    ]
   }
 
   protected getDynamicRoutes(): Array<RoutingItem> {
@@ -2578,43 +2520,6 @@ export default abstract class Server {
     }
   }
 
-  private _validFilesystemPathSet: Set<string> | null = null
-  private getFilesystemPaths(): Set<string> {
-    if (this._validFilesystemPathSet) {
-      return this._validFilesystemPathSet
-    }
-
-    const pathUserFilesStatic = join(this.dir, 'static')
-    let userFilesStatic: string[] = []
-    if (this.hasStaticDir && fs.existsSync(pathUserFilesStatic)) {
-      userFilesStatic = recursiveReadDirSync(pathUserFilesStatic).map((f) =>
-        join('.', 'static', f)
-      )
-    }
-
-    let userFilesPublic: string[] = []
-    if (this.publicDir && fs.existsSync(this.publicDir)) {
-      userFilesPublic = recursiveReadDirSync(this.publicDir).map((f) =>
-        join('.', 'public', f)
-      )
-    }
-
-    let nextFilesStatic: string[] = []
-
-    nextFilesStatic =
-      !this.minimalMode && fs.existsSync(join(this.distDir, 'static'))
-        ? recursiveReadDirSync(join(this.distDir, 'static')).map((f) =>
-            join('.', relative(this.dir, this.distDir), 'static', f)
-          )
-        : []
-
-    return (this._validFilesystemPathSet = new Set<string>([
-      ...nextFilesStatic,
-      ...userFilesPublic,
-      ...userFilesStatic,
-    ]))
-  }
-
   protected isServeableUrl(untrustedFileUrl: string): boolean {
     // This method mimics what the version of `send` we use does:
     // 1. decodeURIComponent:
@@ -2653,21 +2558,6 @@ export default abstract class Server {
     const filesystemUrls = this.getFilesystemPaths()
     const resolved = relative(this.dir, untrustedFilePath)
     return filesystemUrls.has(resolved)
-  }
-
-  protected readBuildId(): string {
-    const buildIdFile = join(this.distDir, BUILD_ID_FILE)
-    try {
-      return fs.readFileSync(buildIdFile, 'utf8').trim()
-    } catch (err) {
-      if (!fs.existsSync(buildIdFile)) {
-        throw new Error(
-          `Could not find a production build in the '${this.distDir}' directory. Try building your app with 'next build' before starting the production server. https://nextjs.org/docs/messages/production-start-no-build-id`
-        )
-      }
-
-      throw err
-    }
   }
 
   protected get _isLikeServerless(): boolean {
