@@ -77,9 +77,9 @@
     "acorn": "8.5.0",
     "assert": "2.0.0",
     "browserify-zlib": "0.2.0",
-    "browserslist": "4.16.6",
+    "browserslist": "4.18.1",
     "buffer": "5.6.0",
-    "caniuse-lite": "^1.0.30001228",
+    "caniuse-lite": "^1.0.30001283",
     "chalk": "2.4.2",
     "chokidar": "3.5.1",
     "constants-browserify": "1.0.0",
@@ -273,8 +273,8 @@
     "ws": "8.2.3"
   },
   "resolutions": {
-    "browserslist": "4.16.6",
-    "caniuse-lite": "1.0.30001271"
+    "browserslist": "4.18.1",
+    "caniuse-lite": "1.0.30001283"
   },
   "engines": {
     "node": ">=12.22.0"
