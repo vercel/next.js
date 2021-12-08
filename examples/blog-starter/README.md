@@ -37,6 +37,7 @@ Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_mediu
 - [Storyblok](/examples/cms-storyblok)
 - [GraphCMS](/examples/cms-graphcms)
 - [Kontent](/examples/cms-kontent)
+- [Umbraco Heartcore](/examples/cms-umbraco-heartcore)
 
 ## How to use
 
