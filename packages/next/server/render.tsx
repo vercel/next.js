@@ -1149,7 +1149,6 @@ export async function renderToHTML(
           return await renderToStream({
             element: content,
             generateStaticHTML,
-            getFlushEffects: () => null,
           })
         }
       } else {
@@ -1288,7 +1287,6 @@ export async function renderToHTML(
   const documentStream = await renderToStream({
     element: document,
     generateStaticHTML: true,
-    getFlushEffects: () => null,
   })
   const documentHTML = await piperToString(documentStream)
 
@@ -1422,7 +1420,6 @@ function serializeError(
 interface RenderToStreamOptions {
   element: React.ReactElement
   generateStaticHTML: boolean
-  getFlushEffects: () => React.ReactElement | null
 }
 
 function renderToStream(
