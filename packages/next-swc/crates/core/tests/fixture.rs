@@ -173,11 +173,11 @@ fn shake_exports_fixture(input: PathBuf) {
         &|_tr| {
             shake_exports(ShakeExportsConfig {
                 ignore: vec![
-                    String::from("keep"),
-                    String::from("keep1"),
-                    String::from("keep2"),
-                    String::from("keep3"),
-                    String::from("keep4"),
+                    String::from("keep").into(),
+                    String::from("keep1").into(),
+                    String::from("keep2").into(),
+                    String::from("keep3").into(),
+                    String::from("keep4").into(),
                 ],
             })
         },
@@ -193,7 +193,7 @@ fn shake_exports_fixture_default(input: PathBuf) {
         syntax(),
         &|_tr| {
             shake_exports(ShakeExportsConfig {
-                ignore: vec![String::from("default")],
+                ignore: vec![String::from("default").into()],
             })
         },
         &input,

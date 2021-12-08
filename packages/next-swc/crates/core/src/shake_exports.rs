@@ -1,12 +1,13 @@
 use serde::Deserialize;
 use swc_atoms::js_word;
+use swc_atoms::JsWord;
 use swc_ecmascript::ast::*;
 use swc_ecmascript::transforms::optimization::simplify::dce::{dce, Config as DCEConfig};
 use swc_ecmascript::visit::{Fold, FoldWith};
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct Config {
-    pub ignore: Vec<String>,
+    pub ignore: Vec<JsWord>,
 }
 
 pub fn shake_exports(config: Config) -> impl Fold {
@@ -18,7 +19,7 @@ pub fn shake_exports(config: Config) -> impl Fold {
 
 #[derive(Debug, Default)]
 struct ExportShaker {
-    ignore: Vec<String>,
+    ignore: Vec<JsWord>,
     remove_export: bool,
 }
 
@@ -45,12 +46,12 @@ impl Fold for ExportShaker {
     fn fold_export_decl(&mut self, mut decl: ExportDecl) -> ExportDecl {
         match &mut decl.decl {
             Decl::Fn(fn_decl) => {
-                if !self.ignore.contains(&fn_decl.ident.sym.to_string()) {
+                if !self.ignore.contains(&fn_decl.ident.sym) {
                     self.remove_export = true;
                 }
             }
             Decl::Class(class_decl) => {
-                if !self.ignore.contains(&class_decl.ident.sym.to_string()) {
+                if !self.ignore.contains(&class_decl.ident.sym) {
                     self.remove_export = true;
                 }
             }
@@ -60,7 +61,7 @@ impl Fold for ExportShaker {
                     .iter()
                     .filter_map(|var_decl| {
                         if let Pat::Ident(BindingIdent { id, .. }) = &var_decl.name {
-                            if self.ignore.contains(&id.sym.to_string()) {
+                            if self.ignore.contains(&id.sym) {
                                 return Some(var_decl.to_owned());
                             }
                         }
@@ -83,10 +84,10 @@ impl Fold for ExportShaker {
             .filter_map(|spec| {
                 if let ExportSpecifier::Named(named_spec) = spec {
                     if let Some(ident) = &named_spec.exported {
-                        if self.ignore.contains(&ident.sym.to_string()) {
+                        if self.ignore.contains(&ident.sym) {
                             return Some(ExportSpecifier::Named(named_spec));
                         }
-                    } else if self.ignore.contains(&named_spec.orig.sym.to_string()) {
+                    } else if self.ignore.contains(&named_spec.orig.sym) {
                         return Some(ExportSpecifier::Named(named_spec));
                     }
                 }
@@ -100,14 +101,14 @@ impl Fold for ExportShaker {
     }
 
     fn fold_export_default_decl(&mut self, decl: ExportDefaultDecl) -> ExportDefaultDecl {
-        if !self.ignore.contains(&js_word!("default").to_string()) {
+        if !self.ignore.contains(&js_word!("default")) {
             self.remove_export = true
         }
         decl
     }
 
     fn fold_export_default_expr(&mut self, expr: ExportDefaultExpr) -> ExportDefaultExpr {
-        if !self.ignore.contains(&js_word!("default").to_string()) {
+        if !self.ignore.contains(&js_word!("default")) {
             self.remove_export = true
         }
         expr
