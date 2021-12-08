@@ -221,7 +221,7 @@ function Blog({ posts }: InferGetStaticPropsType<typeof getStaticProps>) {
 export default Blog
 ```
 
-Note: Next.js has a default static generation timeout of 60 seconds. If no new pages complete generating within the timeout period, it will attempt generation three more times. If the fourth attempt fails, the build will fail. This timeout can be modified using the following configuration:
+Note: Next.js has a default static generation timeout of 60 seconds. If no new pages complete generating within the timeout, it will attempt generation three more times. If the fourth attempt fails, the build will fail. This timeout can be modified using the following configuration:
 
 ```js
 // next.config.js
