@@ -1223,7 +1223,7 @@ export default async function getBaseWebpackConfig(
             url: true,
           },
         },
-        {
+        config.experimental.swcWebpackAST && {
           test: /[\\/]node_modules[\\/].*\.(js|cjs|mjs)$/,
           use: 'webpack-ast-parser-loader',
         },

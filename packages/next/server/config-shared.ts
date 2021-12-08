@@ -126,6 +126,7 @@ export type NextConfig = { [key: string]: any } & {
   swcMinify?: boolean
   experimental?: {
     disablePostcssPresetEnv?: boolean
+    swcWebpackAST?: boolean
     removeConsole?:
       | boolean
       | {
