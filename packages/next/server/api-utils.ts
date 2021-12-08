@@ -141,7 +141,7 @@ export async function apiResolver(
  * @param req request object
  */
 export async function parseBody(
-  req: NextApiRequest,
+  req: IncomingMessage,
   limit: string | number
 ): Promise<any> {
   let contentType
