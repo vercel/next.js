@@ -42,7 +42,6 @@ fn test(input: &Path, minify: bool) {
                             },
                             syntax: Some(Syntax::Typescript(TsConfig {
                                 tsx: true,
-                                dynamic_import: true,
                                 ..Default::default()
                             })),
                             ..Default::default()
