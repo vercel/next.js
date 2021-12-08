@@ -1439,7 +1439,8 @@ function renderToNodeStream(
   generateStaticHTML: boolean
 ): Promise<NodeWritablePiper> {
   return new Promise((resolve, reject) => {
-    let underlyingWritable: WritableType | null = null
+    let underlyingStream: WritableType | null = null
+    let queuedCallbacks: Array<(error?: Error | null) => void> = []
 
     // Based on the suggestion here:
     // https://github.com/reactwg/react-18/discussions/110
@@ -1449,22 +1450,28 @@ function renderToNodeStream(
         encoding: string,
         callback: (error?: Error | null) => void
       ) {
-        if (!underlyingWritable) {
+        if (!underlyingStream) {
           throw new Error(
             'invariant: write called without an underlying stream. This is a bug in Next.js'
           )
         }
-        underlyingWritable.write(chunk, encoding, callback)
+        // The compression module (https://github.com/expressjs/compression) doesn't
+        // support callbacks, so we have to wait for a drain event.
+        if (!underlyingStream.write(chunk, encoding)) {
+          queuedCallbacks.push(callback)
+        } else {
+          callback()
+        }
       }
 
       flush() {
-        if (!underlyingWritable) {
+        if (!underlyingStream) {
           throw new Error(
             'invariant: flush called without an underlying stream. This is a bug in Next.js'
           )
         }
 
-        const anyWritable = underlyingWritable as any
+        const anyWritable = underlyingStream as any
         if (typeof anyWritable.flush === 'function') {
           anyWritable.flush()
         }
@@ -1472,20 +1479,27 @@ function renderToNodeStream(
     }
 
     const stream = new NextWritable()
+    stream.on('drain', () => {
+      const callbacks = queuedCallbacks
+      queuedCallbacks = []
+      callbacks.forEach((callback) => callback())
+    })
+
     let resolved = false
     const doResolve = (startWriting: any) => {
       if (!resolved) {
         resolved = true
         resolve((res, next) => {
           const doNext = (err?: Error) => {
-            underlyingWritable = null
+            underlyingStream = null
+            queuedCallbacks = []
             next(err)
           }
 
           stream.once('error', (err) => doNext(err))
           stream.once('finish', () => doNext())
 
-          underlyingWritable = res
+          underlyingStream = res
           startWriting()
         })
       }
