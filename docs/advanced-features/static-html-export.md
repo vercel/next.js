@@ -59,7 +59,7 @@ By default, `next export` will generate an `out` directory, which can be served 
 
 ## Caveats
 
-- With `next export`, we build an HTML version of your app. At export time, we call [`getStaticProps`](/docs/basic-features/data-fetching.md#getstaticprops-static-generation) for each page that exports it, and pass the result to the page's component.
+- At export time, [`getStaticProps`](/docs/basic-features/data-fetching.md#getstaticprops-static-generation) is called for each page that exports it, and the result passed to the page's component. This creates an HTML version of your app.
 
 > **Note**: `getStaticProps` overrides anything configured in `exportPathMap`, this is by design.
 
