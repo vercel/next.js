@@ -735,6 +735,7 @@ jobs:
           path: packages/next-swc/crates/wasm/pkg-nodejs
 
       - run: ls packages/next-swc/crates/wasm
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
       - uses: actions/download-artifact@v2
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
