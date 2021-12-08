@@ -1,7 +1,8 @@
 import { IncomingMessage, ServerResponse } from 'http'
 import { parse } from 'next/dist/compiled/content-type'
 import { CookieSerializeOptions } from 'next/dist/compiled/cookie'
-import getRawBody from 'raw-body'
+import getStream from 'get-stream'
+import bytes from 'bytes'
 import { PageConfig, PreviewData } from 'next/types'
 import { Stream } from 'stream'
 import { isResSent, NextApiRequest, NextApiResponse } from '../shared/lib/utils'
@@ -136,6 +137,45 @@ export async function apiResolver(
   }
 }
 
+// Ensures that the user-provided encoding type is a valid encoding
+function getValidEncoding(encoding: string): BufferEncoding | undefined {
+  switch (encoding) {
+    case 'ascii': {
+      return 'ascii'
+    }
+    case 'utf8': {
+      return 'utf8'
+    }
+    case 'utf-8': {
+      return 'utf-8'
+    }
+    case 'utf16le': {
+      return 'utf16le'
+    }
+    case 'ucs2': {
+      return 'ucs2'
+    }
+    case 'ucs-2': {
+      return 'ucs-2'
+    }
+    case 'base64': {
+      return 'base64'
+    }
+    case 'latin1': {
+      return 'latin1'
+    }
+    case 'binary': {
+      return 'binary'
+    }
+    case 'hex': {
+      return 'hex'
+    }
+    default: {
+      return undefined
+    }
+  }
+}
+
 /**
  * Parse incoming message like `json` or `urlencoded`
  * @param req request object
@@ -151,14 +191,16 @@ export async function parseBody(
     contentType = parse('text/plain')
   }
   const { type, parameters } = contentType
-  const encoding = parameters.charset || 'utf-8'
+
+  const encoding = getValidEncoding(parameters.charset) || 'utf-8'
 
   let buffer
 
   try {
-    buffer = await getRawBody(req, { encoding, limit })
+    const maxBuffer = bytes.parse(limit)
+    buffer = await getStream.buffer(req, { maxBuffer, encoding })
   } catch (e) {
-    if (isError(e) && e.type === 'entity.too.large') {
+    if (isError(e) && e.name === 'MaxBufferError') {
       throw new ApiError(413, `Body exceeded ${limit} limit`)
     } else {
       throw new ApiError(400, 'Invalid body')
