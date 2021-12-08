@@ -24,7 +24,7 @@ module.exports = {
       page.startsWith(`${posix.sep}_document`)
 
     let documentImportName
-    let localDefaultExportName
+    let localDefaultExportId
     let exportDeclarationType
 
     return {
@@ -43,7 +43,7 @@ module.exports = {
         exportDeclarationType = node.declaration.type
 
         if (node.declaration.type === 'FunctionDeclaration') {
-          localDefaultExportName = node.declaration.id.name
+          localDefaultExportId = node.declaration.id
           return
         }
 
@@ -52,7 +52,7 @@ module.exports = {
           node.declaration.superClass &&
           node.declaration.superClass.name === documentImportName
         ) {
-          localDefaultExportName = node.declaration.id.name
+          localDefaultExportId = node.declaration.id
         }
       },
 
@@ -66,7 +66,7 @@ module.exports = {
         // if `export default <name>` is further down within the file after the
         // currently traversed component, then `localDefaultExportName` will
         // still be undefined
-        if (!localDefaultExportName) {
+        if (!localDefaultExportId) {
           // find the top level of the module
           const program = ancestors.find(
             (ancestor) => ancestor.type === 'Program'
@@ -74,7 +74,7 @@ module.exports = {
 
           // go over each token to find the combination of `export default <name>`
           for (let i = 0; i <= program.tokens.length - 1; i++) {
-            if (localDefaultExportName) {
+            if (localDefaultExportId) {
               break
             }
 
@@ -91,7 +91,7 @@ module.exports = {
                 const maybeIdentifier = program.tokens[i + 2]
 
                 if (maybeIdentifier && maybeIdentifier.type === 'Identifier') {
-                  localDefaultExportName = maybeIdentifier.value
+                  localDefaultExportId = { name: maybeIdentifier.value }
                 }
               }
             }
@@ -112,13 +112,13 @@ module.exports = {
           if (exportDeclarationType === 'FunctionDeclaration') {
             return (
               ancestor.type === exportDeclarationType &&
-              ancestor.id.name === localDefaultExportName
+              isIdentifierMatch(ancestor.id, localDefaultExportId)
             )
           }
 
           // function ...() {} export default ...
           // class ... extends ...; export default ...
-          return ancestor.id && ancestor.id.name === localDefaultExportName
+          return isIdentifierMatch(ancestor.id, localDefaultExportId)
         })
 
         // file starts with _document and this <link /> is within the default export
@@ -152,4 +152,8 @@ module.exports = {
       },
     }
   },
+}
+
+function isIdentifierMatch(id1, id2) {
+  return (id1 === null && id2 === null) || (id1 && id2 && id1.name === id2.name)
 }

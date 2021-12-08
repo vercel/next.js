@@ -21,7 +21,7 @@ export default class {
 
           <_JSXStyle id={"1dd34a5c235f087f"} dynamic={[
             a
-        ]}>{`@media only screen {a.__jsx-style-dynamic-selector {color:${a}}}`}</_JSXStyle>
+        ]}>{`@media only screen {a.__jsx-style-dynamic-selector{color:${a}}}`}</_JSXStyle>
 
         </div>;
     }
