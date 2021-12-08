@@ -179,8 +179,8 @@ function loadNative() {
         return bindings.bundle(toBuffer(options))
       },
 
-      webpackAST(path) {
-        return bindings.webpackAST(path)
+      webpackAST(path, includeSrc) {
+        return bindings.webpackAST(path, includeSrc)
       },
     }
 
@@ -224,8 +224,8 @@ export async function bundle(options) {
   return bindings.bundle(toBuffer(options))
 }
 
-export async function webpackAST(path) {
+export async function webpackAST(path, includeSrc) {
   let bindings = loadNative()
-  const ast = await bindings.webpackAST(path)
-  return JSON.parse(ast)
+  const { ast, src } = await bindings.webpackAST(path, includeSrc)
+  return [JSON.parse(ast), src]
 }

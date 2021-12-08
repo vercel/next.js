@@ -93,7 +93,7 @@ async function loaderTransform(parentTrace, source, inputSourceMap) {
   )
 }
 
-const EXCLUDED_PATHS =
+export const EXCLUDED_PATHS =
   /[\\/](cache[\\/][^\\/]+\.zip[\\/]node_modules|__virtual__)[\\/]/g
 
 export function pitch() {

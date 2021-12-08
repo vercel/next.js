@@ -1,26 +1,26 @@
-import { webpackAST } from '../../swc'
+import { isWasm, webpackAST } from '../../swc'
 import { isAbsolute } from 'path'
+import { EXCLUDED_PATHS } from './next-swc-loader'
 
-export default function swcLoader(inputSource, inputSourceMap) {
-  const resourcePath = this.resourcePath
-
-  if (!isAbsolute(resourcePath)) {
-    return inputSource
-  }
-
+export function pitch() {
   const callback = this.async()
-
-  const loaderSpan = this.currentTraceSpan.traceChild('next-ast-loader')
-  loaderSpan
-    .traceAsyncFn(() => webpackAST(resourcePath, loaderSpan))
-    .then(
-      (ast) => {
-        callback(null, inputSource, inputSourceMap, { webpackAST: ast })
-      },
-      (err) => {
-        callback(err)
-      }
-    )
+  ;(async () => {
+    if (
+      !EXCLUDED_PATHS.test(this.resourcePath) &&
+      this.loaders.length - 1 === this.loaderIndex &&
+      isAbsolute(this.resourcePath) &&
+      !(await isWasm())
+    ) {
+      const loaderSpan = this.currentTraceSpan.traceChild('next-ast-loader')
+      this.addDependency(this.resourcePath)
+      return loaderSpan.traceAsyncFn(() => webpackAST(this.resourcePath, true))
+    }
+  })().then((result) => {
+    if (result) {
+      return callback(null, result[1] || null, null, { webpackAST: result[0] })
+    }
+    callback()
+  }, callback)
 }
 
 // accept Buffers instead of strings
