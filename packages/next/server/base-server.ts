@@ -60,7 +60,6 @@ import {
 import { isTargetLikeServerless } from './config'
 import pathMatch from '../shared/lib/router/utils/path-match'
 import { renderToHTML } from './render'
-import { getPagePath, requireFontManifest } from './require'
 import Router, { replaceBasePath, route } from './router'
 import {
   compileNonPath,
@@ -189,7 +188,7 @@ export default abstract class Server {
     basePath: string
     optimizeFonts: boolean
     images: string
-    fontManifest: FontManifest
+    fontManifest?: FontManifest
     optimizeImages: boolean
     disableOptimizedLoading?: boolean
     optimizeCss: any
@@ -228,6 +227,11 @@ export default abstract class Server {
     page: string
     serverless: boolean
   }): { name: string; paths: string[] }
+  protected abstract getPagePath(
+    pathname: string,
+    locales?: string[]
+  ): Promise<string>
+  protected abstract getFontManifest(): FontManifest | undefined
 
   public constructor({
     dir = '.',
@@ -279,8 +283,8 @@ export default abstract class Server {
       optimizeFonts: !!this.nextConfig.optimizeFonts && !dev,
       fontManifest:
         this.nextConfig.optimizeFonts && !dev
-          ? requireFontManifest(this.distDir, this._isLikeServerless)
-          : null,
+          ? this.getFontManifest()
+          : undefined,
       optimizeImages: !!this.nextConfig.experimental.optimizeImages,
       optimizeCss: this.nextConfig.experimental.optimizeCss,
       disableOptimizedLoading:
@@ -1425,19 +1429,6 @@ export default abstract class Server {
       pageChecker: this.hasPage.bind(this),
       locales: this.nextConfig.i18n?.locales || [],
     }
-  }
-
-  private async getPagePath(
-    pathname: string,
-    locales?: string[]
-  ): Promise<string> {
-    return getPagePath(
-      pathname,
-      this.distDir,
-      this._isLikeServerless,
-      this.renderOpts.dev,
-      locales
-    )
   }
 
   protected async hasPage(pathname: string): Promise<boolean> {

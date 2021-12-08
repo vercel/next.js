@@ -1,6 +1,7 @@
 import type { Route, Params } from './router'
 import type { NextParsedUrlQuery } from './request-meta'
 import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
+import type { FontManifest } from './font-utils'
 
 import fs from 'fs'
 import { join, relative } from 'path'
@@ -11,7 +12,7 @@ import { route } from './router'
 import { loadComponents } from './load-components'
 import isError from '../lib/is-error'
 import { normalizePagePath, denormalizePagePath } from './normalize-page-path'
-import { pageNotFoundError } from './require'
+import { pageNotFoundError, getPagePath, requireFontManifest } from './require'
 import {
   MIDDLEWARE_MANIFEST,
   BUILD_ID_FILE,
@@ -204,6 +205,23 @@ export default class NextNodeServer extends BaseServer {
       }
     }
     return null
+  }
+
+  protected async getPagePath(
+    pathname: string,
+    locales?: string[]
+  ): Promise<string> {
+    return getPagePath(
+      pathname,
+      this.distDir,
+      this._isLikeServerless,
+      this.renderOpts.dev,
+      locales
+    )
+  }
+
+  protected getFontManifest(): FontManifest {
+    return requireFontManifest(this.distDir, this._isLikeServerless)
   }
 
   protected getMiddlewareInfo(params: {

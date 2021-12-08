@@ -37,4 +37,20 @@ export default class NextWebServer extends BaseServer {
   }): { name: string; paths: string[] } {
     throw new Error('Not implemented')
   }
+  protected async getPagePath(
+    pathname: string,
+    locales?: string[]
+  ): Promise<string> {
+    // return getPagePath(
+    //   pathname,
+    //   this.distDir,
+    //   this._isLikeServerless,
+    //   this.renderOpts.dev,
+    //   locales
+    // )
+    throw new Error(`Cannot find module for page: ${pathname}`)
+  }
+  protected getFontManifest() {
+    return undefined
+  }
 }
