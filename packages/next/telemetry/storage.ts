@@ -138,6 +138,7 @@ export class Telemetry {
   setEnabled = (_enabled: boolean) => {
     const enabled = !!_enabled
     this.conf && this.conf.set(TELEMETRY_KEY_ENABLED, enabled)
+    return this.conf && this.conf.path
   }
 
   get isEnabled(): boolean {

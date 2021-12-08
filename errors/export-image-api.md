@@ -11,8 +11,9 @@ This is because Next.js optimizes images on-demand, as users request them (not a
 #### Possible Ways to Fix It
 
 - Use `next start` to run a server, which includes the Image Optimization API.
-- Use Vercel to deploy, which supports [Image Optimization](https://vercel.com/docs/next.js/image-optimization).
+- Use any provider which supports Image Optimization (like [Vercel](https://vercel.com/docs/next.js/image-optimization)).
 - Configure a third-party [loader](https://nextjs.org/docs/basic-features/image-optimization#loader) in `next.config.js`.
+- Use the [`loader`](https://nextjs.org/docs/api-reference/next/image#loader) prop for `next/image`.
 
 ### Useful Links
 

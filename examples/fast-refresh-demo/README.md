@@ -4,6 +4,12 @@ Next.js ships with [Fast Refresh](https://nextjs.org/docs/basic-features/fast-re
 
 This demos shows how the state of an auto incrementing value and a classic counter is preserved after edits or if there are errors.
 
+## Preview
+
+Preview the example live on [StackBlitz](http://stackblitz.com/):
+
+[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/fast-refresh-demo)
+
 ## Deploy your own
 
 Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):

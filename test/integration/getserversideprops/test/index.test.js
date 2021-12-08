@@ -21,7 +21,6 @@ import {
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 
-jest.setTimeout(1000 * 60 * 2)
 const appDir = join(__dirname, '..')
 const nextConfig = new File(join(appDir, 'next.config.js'))
 
@@ -138,9 +137,43 @@ const expectedManifestRoutes = () => [
   },
   {
     dataRouteRegex: normalizeRegEx(
+      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/promise.json$`
+    ),
+    page: '/promise',
+  },
+  {
+    dataRouteRegex: normalizeRegEx(
+      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/promise\\/mutate-res.json$`
+    ),
+    page: '/promise/mutate-res',
+  },
+  {
+    dataRouteRegex: normalizeRegEx(
+      `^\\/_next\\/data\\/${escapeRegex(
+        buildId
+      )}\\/promise\\/mutate-res-no-streaming.json$`
+    ),
+    page: '/promise/mutate-res-no-streaming',
+  },
+  {
+    dataRouteRegex: normalizeRegEx(
+      `^\\/_next\\/data\\/${escapeRegex(
+        buildId
+      )}\\/promise\\/mutate-res-props.json$`
+    ),
+    page: '/promise/mutate-res-props',
+  },
+  {
+    dataRouteRegex: normalizeRegEx(
       `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/refresh.json$`
     ),
     page: '/refresh',
+  },
+  {
+    dataRouteRegex: normalizeRegEx(
+      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/slow.json$`
+    ),
+    page: '/slow',
   },
   {
     dataRouteRegex: normalizeRegEx(
@@ -517,6 +550,11 @@ const runTests = (dev = false) => {
     expect(data.pageProps.post).toBe('post-1')
   })
 
+  it('should return data correctly when props is a promise', async () => {
+    const html = await renderViaHTTP(appPort, `/promise`)
+    expect(html).toMatch(/hello.*?promise/)
+  })
+
   it('should navigate to a normal page and back', async () => {
     const browser = await webdriver(appPort, '/')
     let text = await browser.elementByCss('p').text()
@@ -616,6 +654,32 @@ const runTests = (dev = false) => {
     expect(curRandom).toBe(initialRandom + '')
   })
 
+  it('should dedupe server data requests', async () => {
+    const browser = await webdriver(appPort, '/')
+    await waitFor(2000)
+
+    // Keep clicking on the link
+    await browser.elementByCss('#slow').click()
+    await browser.elementByCss('#slow').click()
+    await browser.elementByCss('#slow').click()
+    await browser.elementByCss('#slow').click()
+
+    await check(() => getBrowserBodyText(browser), /a slow page/)
+
+    // Requests should be deduped
+    const hitCount = await browser.elementByCss('#hit').text()
+    expect(hitCount).toBe('hit: 1')
+
+    // Should send request again
+    await browser.elementByCss('#home').click()
+    await browser.waitForElementByCss('#slow')
+    await browser.elementByCss('#slow').click()
+    await check(() => getBrowserBodyText(browser), /a slow page/)
+
+    const newHitCount = await browser.elementByCss('#hit').text()
+    expect(newHitCount).toBe('hit: 2')
+  })
+
   if (dev) {
     it('should not show warning from url prop being returned', async () => {
       const urlPropPage = join(appDir, 'pages/url-prop.js')
@@ -666,6 +730,33 @@ const runTests = (dev = false) => {
       await check(
         () => getRedboxHeader(browser),
         /Error serializing `.time` returned from `getServerSideProps`/
+      )
+    })
+
+    it('should show error for accessing res after gssp returns', async () => {
+      const html = await renderViaHTTP(appPort, '/promise/mutate-res')
+      expect(html).toContain(
+        `You should not access 'res' after getServerSideProps resolves`
+      )
+    })
+
+    it('should show error for accessing res through props promise after gssp returns', async () => {
+      const html = await renderViaHTTP(appPort, '/promise/mutate-res-props')
+      expect(html).toContain(
+        `You should not access 'res' after getServerSideProps resolves`
+      )
+    })
+
+    it('should only warn for accessing res if not streaming', async () => {
+      const html = await renderViaHTTP(
+        appPort,
+        '/promise/mutate-res-no-streaming'
+      )
+      expect(html).not.toContain(
+        `You should not access 'res' after getServerSideProps resolves`
+      )
+      expect(stderr).toContain(
+        `You should not access 'res' after getServerSideProps resolves`
       )
     })
   } else {
@@ -724,6 +815,16 @@ const runTests = (dev = false) => {
       const browser = await webdriver(appPort, '/')
       await browser.elementByCss('#non-json').click()
       await check(() => getBrowserBodyText(browser), /hello /)
+    })
+
+    it('should not show error for accessing res after gssp returns', async () => {
+      const html = await renderViaHTTP(appPort, '/promise/mutate-res')
+      expect(html).toMatch(/hello.*?res/)
+    })
+
+    it('should not warn for accessing res after gssp returns', async () => {
+      const html = await renderViaHTTP(appPort, '/promise/mutate-res')
+      expect(html).toMatch(/hello.*?res/)
     })
   }
 }

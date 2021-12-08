@@ -3,11 +3,14 @@
 import { resolve } from 'path'
 import chalk from 'chalk'
 import arg from 'next/dist/compiled/arg/index.js'
-import startServer from '../server/lib/start-server'
+import { startServer } from '../server/lib/start-server'
 import { printAndExit } from '../server/lib/utils'
 import { cliCommand } from '../bin/next'
 import { getNetworkHost } from '../lib/get-network-host'
 import * as Log from '../build/output/log'
+import isError from '../lib/is-error'
+import { getProjectDir } from '../lib/get-project-dir'
+
 const nextStart: cliCommand = (argv) => {
   const validArgs: arg.Spec = {
     // Types
@@ -24,7 +27,7 @@ const nextStart: cliCommand = (argv) => {
   try {
     args = arg(validArgs, { argv })
   } catch (error) {
-    if (error.code === 'ARG_UNKNOWN_OPTION') {
+    if (isError(error) && error.code === 'ARG_UNKNOWN_OPTION') {
       return printAndExit(error.message, 1)
     }
     throw error
@@ -49,10 +52,15 @@ const nextStart: cliCommand = (argv) => {
     process.exit(0)
   }
 
-  const dir = resolve(args._[0] || '.')
-  const port = args['--port'] || 3000
+  const dir = getProjectDir(args._[0])
+  let port: number =
+    args['--port'] || (process.env.PORT && parseInt(process.env.PORT)) || 3000
   const host = args['--hostname'] || '0.0.0.0'
   const appUrl = `http://${host === '0.0.0.0' ? 'localhost' : host}:${port}`
+
+  if (process.env.__NEXT_RAND_PORT) {
+    port = 0
+  }
 
   function logNetworkUrls() {
     const space = ' '.repeat(8)
@@ -69,10 +77,13 @@ const nextStart: cliCommand = (argv) => {
     Log.ready(message)
   }
 
-  startServer({ dir }, port, host)
+  startServer({
+    dir,
+    hostname: host,
+    port,
+  })
     .then(async (app) => {
-      logNetworkUrls()
-      await app.prepare()
+      logNetworkUrls())      await app.prepare()
     })
     .catch((err) => {
       console.error(err)

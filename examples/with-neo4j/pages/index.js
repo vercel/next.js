@@ -42,16 +42,11 @@ export default function Home() {
                 <tr className="movie" key={movie.title}>
                   <th>{index + 1}</th>
                   <td>
-                    <Link
-                      href="/movie/[title]"
-                      as={{
-                        pathname: `/movie/${encodeURIComponent(movie.title)}`,
-                      }}
-                    >
+                    <Link href={`/movie/${encodeURIComponent(movie.title)}`}>
                       <a className="link">{movie.title}</a>
                     </Link>
                   </td>
-                  <td>{movie.released.low}</td>
+                  <td>{movie.released}</td>
                   <td>{movie.tagline}</td>
                   <td>
                     <ul>
@@ -64,12 +59,7 @@ export default function Home() {
                     <ul>
                       {movie.actors.map((actor) => (
                         <li key={actor}>
-                          <Link
-                            href="/actor/[name]"
-                            as={{
-                              pathname: `/actor/${encodeURIComponent(actor)}`,
-                            }}
-                          >
+                          <Link href={`/actor/${encodeURIComponent(actor)}`}>
                             <a className="link">{actor}</a>
                           </Link>
                         </li>

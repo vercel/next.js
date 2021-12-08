@@ -1,3 +1,12 @@
+import {
+  API,
+  ArrowFunctionExpression,
+  ASTPath,
+  ExportDefaultDeclaration,
+  FileInfo,
+  FunctionDeclaration,
+  Options,
+} from 'jscodeshift'
 import { basename, extname } from 'path'
 
 const camelCase = (value: string): string => {
@@ -10,16 +19,11 @@ const camelCase = (value: string): string => {
 const isValidIdentifier = (value: string): boolean =>
   /^[a-zA-ZÀ-ÿ][0-9a-zA-ZÀ-ÿ]+$/.test(value)
 
-type Node = {
-  type: string
-  declaration: {
-    type: string
-    body: any
-    id?: any
-  }
-}
-
-export default function transformer(file, api, options) {
+export default function transformer(
+  file: FileInfo,
+  api: API,
+  options: Options
+) {
   const j = api.jscodeshift
   const root = j(file.source)
 
@@ -37,8 +41,10 @@ export default function transformer(file, api, options) {
     return !program || program?.value?.type === 'Program'
   }
 
-  const nameFunctionComponent = (path): void => {
-    const node: Node = path.value
+  const nameFunctionComponent = (
+    path: ASTPath<ExportDefaultDeclaration>
+  ): void => {
+    const node = path.value
 
     if (!node.declaration) {
       return
@@ -77,14 +83,17 @@ export default function transformer(file, api, options) {
     if (isArrowFunction) {
       path.insertBefore(
         j.variableDeclaration('const', [
-          j.variableDeclarator(j.identifier(name), node.declaration),
+          j.variableDeclarator(
+            j.identifier(name),
+            node.declaration as ArrowFunctionExpression
+          ),
         ])
       )
 
       node.declaration = j.identifier(name)
     } else {
       // Anonymous Function
-      node.declaration.id = j.identifier(name)
+      ;(node.declaration as FunctionDeclaration).id = j.identifier(name)
     }
   }
 

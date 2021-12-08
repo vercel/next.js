@@ -5,8 +5,6 @@ import { nextBuild, nextExport, nextExportDefault } from 'next-test-utils'
 import path, { join } from 'path'
 import fs from 'fs'
 
-jest.setTimeout(1000 * 60 * 2)
-
 const fixturesDir = join(__dirname, '..', 'fixtures')
 
 describe('Application Export Intent Output', () => {

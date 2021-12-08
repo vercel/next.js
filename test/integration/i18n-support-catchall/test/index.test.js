@@ -18,8 +18,6 @@ import {
   getPageFileFromPagesManifest,
 } from 'next-test-utils'
 
-jest.setTimeout(1000 * 60 * 2)
-
 const appDir = join(__dirname, '../')
 const nextConfig = new File(join(appDir, 'next.config.js'))
 let app
@@ -291,7 +289,7 @@ describe('i18n Support Root Catch-all', () => {
         headers: {
           'x-vercel-id': 'hi',
           'x-now-route-matches': qs.stringify({
-            '1': 'nl-NL',
+            1: 'nl-NL',
           }),
         },
         redirect: 'manual',

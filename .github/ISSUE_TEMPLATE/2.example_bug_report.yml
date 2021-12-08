@@ -1,8 +1,6 @@
 name: Example Bug Report
-about: Create a bug report for the examples
-title: ''
+description: Create a bug report for the examples
 labels: 'type: example,template: bug'
-issue_body: true
 body:
   - type: markdown
     attributes:

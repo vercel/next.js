@@ -1,8 +1,8 @@
-FROM node:10-buster
+FROM node:14-buster
 
 LABEL com.github.actions.name="Next.js PR Stats"
 LABEL com.github.actions.description="Compares stats of a PR with the main branch"
-LABEL repository="https://github.com/zeit/next-stats-action"
+LABEL repository="https://github.com/vercel/next-stats-action"
 
 COPY . /next-stats
 

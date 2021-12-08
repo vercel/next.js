@@ -6,4 +6,4 @@ Next.js can only handle running a server when the `target` is set to `server` (t
 
 #### Possible Ways to Fix It
 
-Use a different handler than `next start` when testing a serverless **production** build, otherwise just use `next dev`.
+Use a different handler than `next start` when testing a serverless **production** build, otherwise use `next dev`.

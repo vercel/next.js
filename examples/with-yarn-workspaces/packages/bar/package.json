@@ -1,8 +1,6 @@
 {
-  "name": "bar",
-  "version": "1.0.0",
-  "license": "ISC",
+  "private": true,
   "peerDependencies": {
-    "react": "^16.0.0"
+    "react": "^17.0.2"
   }
 }

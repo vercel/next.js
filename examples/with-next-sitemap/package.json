@@ -1,7 +1,5 @@
 {
-  "name": "with-next-sitemap",
-  "version": "1.0.0",
-  "license": "MIT",
+  "private": true,
   "scripts": {
     "dev": "next",
     "build": "next build",
@@ -10,12 +8,13 @@
   },
   "dependencies": {
     "next": "latest",
-    "react": "^16.13.1",
-    "react-dom": "^16.13.1"
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2"
   },
   "devDependencies": {
     "@types/node": "14.6.0",
     "@types/react": "^16.9.45",
-    "next-sitemap": "latest"
+    "next-sitemap": "latest",
+    "typescript": "^4.3.2"
   }
 }

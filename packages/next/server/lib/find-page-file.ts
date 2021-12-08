@@ -1,9 +1,9 @@
 import { join, sep as pathSeparator, normalize } from 'path'
 import chalk from 'chalk'
-import { isWriteable } from '../../build/is-writeable'
 import { warn } from '../../build/output/log'
 import { promises } from 'fs'
-import { denormalizePagePath } from '../../next-server/server/normalize-page-path'
+import { denormalizePagePath } from '../normalize-page-path'
+import { fileExists } from '../../lib/file-exists'
 
 async function isTrueCasePagePath(pagePath: string, pagesDir: string) {
   const pageSegments = normalize(pagePath).split(pathSeparator).filter(Boolean)
@@ -31,14 +31,14 @@ export async function findPageFile(
       const relativePagePath = `${page}.${extension}`
       const pagePath = join(rootDir, relativePagePath)
 
-      if (await isWriteable(pagePath)) {
+      if (await fileExists(pagePath)) {
         foundPagePaths.push(relativePagePath)
       }
     }
 
     const relativePagePathWithIndex = join(page, `index.${extension}`)
     const pagePathWithIndex = join(rootDir, relativePagePathWithIndex)
-    if (await isWriteable(pagePathWithIndex)) {
+    if (await fileExists(pagePathWithIndex)) {
       foundPagePaths.push(relativePagePathWithIndex)
     }
   }

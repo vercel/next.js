@@ -1,12 +1,25 @@
-import { getEventSourceWrapper } from './error-overlay/eventsource'
+import { addMessageListener } from './error-overlay/websocket'
 
-export default function initializeBuildWatcher(toggleCallback) {
+export default function initializeBuildWatcher(
+  toggleCallback,
+  position = 'bottom-right'
+) {
   const shadowHost = document.createElement('div')
   shadowHost.id = '__next-build-watcher'
   // Make sure container is fixed and on a high zIndex so it shows
   shadowHost.style.position = 'fixed'
-  shadowHost.style.bottom = '10px'
-  shadowHost.style.right = '20px'
+  // Ensure container's position to be top or bottom (default)
+  if (['top-left', 'top-right'].indexOf(position) > -1) {
+    shadowHost.style.top = '10px'
+  } else {
+    shadowHost.style.bottom = '10px'
+  }
+  // Ensure container's position to be left or right (default)
+  if (['bottom-left', 'top-left'].indexOf(position) > -1) {
+    shadowHost.style.left = '20px'
+  } else {
+    shadowHost.style.right = '20px'
+  }
   shadowHost.style.width = 0
   shadowHost.style.height = 0
   shadowHost.style.zIndex = 99999
@@ -39,8 +52,8 @@ export default function initializeBuildWatcher(toggleCallback) {
   let timeoutId = null
 
   // Handle events
-  const evtSource = getEventSourceWrapper({ path: '/_next/webpack-hmr' })
-  evtSource.addMessageListener((event) => {
+
+  addMessageListener((event) => {
     // This is the heartbeat event
     if (event.data === '\uD83D\uDC93') {
       return
@@ -66,7 +79,7 @@ export default function initializeBuildWatcher(toggleCallback) {
       case 'built':
       case 'sync':
         isBuilding = false
-        // Wait for the fade out transtion to complete
+        // Wait for the fade out transition to complete
         timeoutId = setTimeout(() => {
           isVisible = false
           updateContainer()

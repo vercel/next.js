@@ -4,6 +4,12 @@ This example shows how to integrate Recoil in Next.js.
 
 [Recoil](https://recoiljs.org) is an experimental set of utilities for state management with React used by some teams at Facebook. This example takes the code from the redux examples and demonstrates how it would be implemented with Recoil.
 
+## Preview
+
+Preview the example live on [StackBlitz](http://stackblitz.com/):
+
+[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-recoil)
+
 ## Deploy your own
 
 Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
