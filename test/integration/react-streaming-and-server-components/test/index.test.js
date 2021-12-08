@@ -294,9 +294,11 @@ async function runBasicTests(context, env) {
     expect(linkText).toContain('go home')
 
     const browser = await webdriver(context.appPort, '/next-api/link')
+    await browser.eval('window.beforeNav = 1')
     await browser.elementByCss('#next_id').click()
     await browser.elementByCss('#next_id').click()
     await check(() => browser.waitForElementByCss('#query').text(), /query:2/)
+    expect(await browser.eval('window.beforeNav')).toBe(1)
   })
 
   it('should suspense next/image on server side', async () => {
