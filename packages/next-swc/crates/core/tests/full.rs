@@ -58,6 +58,7 @@ fn test(input: &Path, minify: bool) {
                 styled_components: Some(assert_json("{}")),
                 remove_console: None,
                 react_remove_properties: None,
+                shake_exports: None,
             };
 
             let options = options.patch(&fm);
