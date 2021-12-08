@@ -1,7 +1,7 @@
 const escape = require('shell-quote').quote
-const { CLIEngine } = require('eslint')
+const { ESLint } = require('eslint')
 
-const cli = new CLIEngine({})
+const eslint = new ESLint()
 const isWin = process.platform === 'win32'
 
 module.exports = {
@@ -12,7 +12,7 @@ module.exports = {
     return [
       `prettier --with-node-modules --ignore-path .prettierignore_staged --write ${escapedFileNames}`,
       `eslint --no-ignore --max-warnings=0 --fix ${filenames
-        .filter((file) => !cli.isPathIgnored(file))
+        .filter((file) => !eslint.isPathIgnored(file))
         .map((f) => `"${f}"`)
         .join(' ')}`,
     ]

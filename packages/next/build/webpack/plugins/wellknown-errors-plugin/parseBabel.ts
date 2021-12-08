@@ -6,7 +6,7 @@ const chalk = new Chalk.constructor({ enabled: true })
 export function getBabelError(
   fileName: string,
   err: Error & {
-    code?: 'BABEL_PARSE_ERROR'
+    code?: string | number
     loc?: { line: number; column: number }
   }
 ): SimpleWebpackError | false {

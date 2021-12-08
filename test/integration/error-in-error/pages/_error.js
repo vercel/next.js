@@ -2,7 +2,7 @@ import React from 'react'
 
 class Error extends React.Component {
   static async getInitialProps({ req, res, err }) {
-    if (req.url !== '/404.html') {
+    if (!req.url.startsWith('/404') && !req.url.startsWith('/500')) {
       await Promise.reject(new Error('an error in error'))
     }
     const statusCode = res ? res.statusCode : err ? err.statusCode : null

@@ -7,7 +7,6 @@ import { join } from 'path'
 const appDir = join(__dirname, '../')
 let appPort
 let server
-jest.setTimeout(1000 * 60 * 2)
 
 describe('hydrate/render ordering', () => {
   beforeAll(async () => {

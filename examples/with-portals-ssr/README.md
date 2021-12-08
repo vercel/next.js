@@ -2,6 +2,12 @@
 
 An example of Server Side Rendered React [Portals](https://reactjs.org/docs/portals.html) with [`@jesstelford/react-portal-universal`](https://www.npmjs.com/package/@jesstelford/react-portal-universal) and Next.js.
 
+## Preview
+
+Preview the example live on [StackBlitz](http://stackblitz.com/):
+
+[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-portals-ssr)
+
 ## Deploy your own
 
 Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):

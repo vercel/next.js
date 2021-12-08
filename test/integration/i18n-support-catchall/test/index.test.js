@@ -18,8 +18,6 @@ import {
   getPageFileFromPagesManifest,
 } from 'next-test-utils'
 
-jest.setTimeout(1000 * 60 * 2)
-
 const appDir = join(__dirname, '../')
 const nextConfig = new File(join(appDir, 'next.config.js'))
 let app
@@ -291,7 +289,7 @@ describe('i18n Support Root Catch-all', () => {
         headers: {
           'x-vercel-id': 'hi',
           'x-now-route-matches': qs.stringify({
-            '1': 'nl-NL',
+            1: 'nl-NL',
           }),
         },
         redirect: 'manual',
@@ -315,11 +313,16 @@ describe('i18n Support Root Catch-all', () => {
         redirect: 'manual',
       })
 
+      const res4 = await fetchViaHTTP(port, '/fr', undefined, {
+        redirect: 'manual',
+      })
+
       server.close()
 
       expect(res.status).toBe(200)
       expect(res2.status).toBe(200)
       expect(res3.status).toBe(200)
+      expect(res4.status).toBe(200)
 
       const $ = cheerio.load(await res.text())
       const $2 = cheerio.load(await res2.text())

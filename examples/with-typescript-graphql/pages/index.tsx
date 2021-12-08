@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { useState } from 'react'
 import {
+  ViewerQuery,
   useViewerQuery,
   useUpdateNameMutation,
   ViewerDocument,
@@ -19,21 +20,18 @@ const Index = () => {
       },
       //Follow apollo suggestion to update cache
       //https://www.apollographql.com/docs/angular/features/cache-updates/#update
-      update: (
-        store,
-        {
-          data: {
-            updateName: { name },
-          },
-        }
-      ) => {
+      update: (cache, mutationResult) => {
+        const { data } = mutationResult
+        if (!data) return // Cancel updating name in cache if no data is returned from mutation.
         // Read the data from our cache for this query.
-        const { viewer } = store.readQuery({ query: ViewerDocument })
+        const { viewer } = cache.readQuery({
+          query: ViewerDocument,
+        }) as ViewerQuery
         const newViewer = { ...viewer }
         // Add our comment from the mutation to the end.
-        newViewer.name = name
+        newViewer.name = data.updateName.name
         // Write our data back to the cache.
-        store.writeQuery({ query: ViewerDocument, data: { viewer: newViewer } })
+        cache.writeQuery({ query: ViewerDocument, data: { viewer: newViewer } })
       },
     })
   }
