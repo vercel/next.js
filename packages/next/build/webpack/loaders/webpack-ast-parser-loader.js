@@ -10,12 +10,12 @@ export default function swcLoader(inputSource, inputSourceMap) {
 
   const callback = this.async()
 
-  const loaderSpan = this.currentTraceSpan.traceChild('next-swc-loader')
+  const loaderSpan = this.currentTraceSpan.traceChild('next-ast-loader')
   loaderSpan
-    .traceAsyncFn(() => webpackAST(resourcePath))
+    .traceAsyncFn(() => webpackAST(resourcePath, loaderSpan))
     .then(
-      (webpackAST) => {
-        callback(null, inputSource, inputSourceMap, { webpackAST })
+      (ast) => {
+        callback(null, inputSource, inputSourceMap, { webpackAST: ast })
       },
       (err) => {
         callback(err)
