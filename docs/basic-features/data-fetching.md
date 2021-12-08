@@ -45,7 +45,7 @@ In addition, we’ll talk briefly about how to fetch data on the client side.
 
 | Version   | Changes                                                                                                           |
 | --------- | ----------------------------------------------------------------------------------------------------------------- |
-| `v12.0.0` | `staticPageGenerationTimeout` added.                                                                            |
+| `v12.0.0` | `staticPageGenerationTimeout` added.                                                                              |
 | `v10.0.0` | `locale`, `locales`, `defaultLocale`, and `notFound` options added.                                               |
 | `v9.5.0`  | Stable [Incremental Static Regeneration](https://nextjs.org/blog/next-9-5#stable-incremental-static-regeneration) |
 | `v9.3.0`  | `getStaticProps` introduced.                                                                                      |
@@ -221,12 +221,13 @@ function Blog({ posts }: InferGetStaticPropsType<typeof getStaticProps>) {
 export default Blog
 ```
 
-Note: by default Next.js has a timeout for static generation where if no activity occurs for 60 seconds it will re-attempt generation three times and if it still fails after retrying the build will fail. This timeout can be increased if needed via the below config:
+Note: by default Next.js has a timeout for static generation where if no new pages complete generating within 60 seconds it will re-attempt generation three times and if it still fails after retrying the build will fail. This timeout can be increased if needed via the below config:
 
 ```js
 // next.config.js
 module.exports = {
-  // time in seconds of no activity from static generation
+  // time in seconds of no pages generating during static
+  // generation before timing out
   staticPageGenerationTimeout: 90,
 }
 ```
