@@ -1287,6 +1287,7 @@ export async function renderToHTML(
   const documentStream = await renderToStream({
     element: document,
     generateStaticHTML: true,
+    generateLegacyStaticMarkup: true,
   })
   const documentHTML = await piperToString(documentStream)
 
@@ -1420,11 +1421,20 @@ function serializeError(
 interface RenderToStreamOptions {
   element: React.ReactElement
   generateStaticHTML: boolean
+  generateLegacyStaticMarkup?: boolean
 }
 
 function renderToStream(
   options: RenderToStreamOptions
 ): Promise<NodeWritablePiper> {
+  const ReactDOMServerAny: any = ReactDOMServer
+  if (typeof ReactDOMServerAny.renderToPipeableStream !== 'function' && typeof ReactDOMServerAny.renderToReadableStream !== 'function') {
+    const html = options.generateLegacyStaticMarkup
+      ? ReactDOMServer.renderToStaticMarkup(options.element)
+      : ReactDOMServer.renderToString(options.element)
+    return Promise.resolve(piperFromArray([html]))
+  }
+
   return process.browser
     ? renderToStreamWithWebReadable(options)
     : renderToStreamWithNodeWritable(options)
