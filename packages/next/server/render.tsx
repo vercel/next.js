@@ -280,22 +280,78 @@ function checkRedirectValues(
   }
 }
 
+function createRSCHook() {
+  const rscCache = new Map()
+  const decoder = new TextDecoder()
+
+  return (
+    writable: WritableStream,
+    id: string,
+    req: ReadableStream,
+    bootstrap: boolean
+  ) => {
+    let entry = rscCache.get(id)
+    if (!entry) {
+      const [renderStream, forwardStream] = req.tee()
+      entry = createFromReadableStream(renderStream)
+      rscCache.set(id, entry)
+
+      const transfomer = new TransformStream({
+        start(controller) {
+          if (bootstrap) {
+            controller.enqueue(
+              ReactDOMServer.renderToString(
+                <script
+                  dangerouslySetInnerHTML={{
+                    __html: `(self.__next_s=self.__next_s||[]).push(${JSON.stringify(
+                      [0, id]
+                    )})`,
+                  }}
+                />
+              )
+            )
+          }
+        },
+        transform(chunk, controller) {
+          controller.enqueue(
+            ReactDOMServer.renderToString(
+              <script
+                dangerouslySetInnerHTML={{
+                  __html: `(self.__next_s=self.__next_s||[]).push(${JSON.stringify(
+                    [1, id, decoder.decode(chunk)]
+                  )})`,
+                }}
+              />
+            )
+          )
+        },
+      })
+      forwardStream.pipeThrough(transfomer).pipeTo(writable)
+    }
+    return entry
+  }
+}
+
+const useRSCResponse = createRSCHook()
+
 // Create the wrapper component for a Flight stream.
 function createServerComponentRenderer(
+  transformStream: TransformStream,
   OriginalComponent: React.ComponentType,
   serverComponentManifest: NonNullable<RenderOpts['serverComponentManifest']>
 ) {
-  let responseCache: any
+  const writable = transformStream.writable
   const ServerComponentWrapper = (props: any) => {
-    let response = responseCache
-    if (!response) {
-      responseCache = response = createFromReadableStream(
-        renderToReadableStream(
-          <OriginalComponent {...props} />,
-          serverComponentManifest
-        )
-      )
-    }
+    const id = (React as any).useId()
+    const response = useRSCResponse(
+      writable,
+      id,
+      renderToReadableStream(
+        <OriginalComponent {...props} />,
+        serverComponentManifest
+      ),
+      true
+    )
     return response.readRoot()
   }
   const Component = (props: any) => {
@@ -367,8 +423,14 @@ export async function renderToHTML(
 
   const isServerComponent = !!serverComponentManifest
   const OriginalComponent = renderOpts.Component
+  const serverComponentsInlinedTransformStream =
+    process.browser && isServerComponent ? new TransformStream() : null
   const Component = isServerComponent
-    ? createServerComponentRenderer(OriginalComponent, serverComponentManifest)
+    ? createServerComponentRenderer(
+        serverComponentsInlinedTransformStream!,
+        OriginalComponent,
+        serverComponentManifest
+      )
     : renderOpts.Component
 
   const getFontDefinition = (url: string): string => {
@@ -1147,7 +1209,10 @@ export async function renderToHTML(
               </Body>
             )
           return process.browser
-            ? await renderToWebStream(content)
+            ? await renderToWebStream(
+                content,
+                serverComponentsInlinedTransformStream
+              )
             : await renderToNodeStream(content, generateStaticHTML)
         }
       } else {
@@ -1564,10 +1629,14 @@ async function bufferedReadFromReadableStream(
 }
 
 function renderToWebStream(
-  element: React.ReactElement
+  element: React.ReactElement,
+  serverComponentsInlinedTransformStream: TransformStream | null
 ): Promise<NodeWritablePiper> {
   return new Promise((resolve, reject) => {
     let resolved = false
+    const inlinedReader = serverComponentsInlinedTransformStream
+      ? serverComponentsInlinedTransformStream.readable.getReader()
+      : null
     const stream: ReadableStream = (
       ReactDOMServer as any
     ).renderToReadableStream(element, {
@@ -1581,12 +1650,24 @@ function renderToWebStream(
         if (!resolved) {
           resolved = true
           resolve((res, next) => {
+            console.log('complete shell')
             bufferedReadFromReadableStream(reader, (val) =>
               res.write(val)
             ).then(
               () => next(),
               (err) => next(err)
             )
+            if (inlinedReader) {
+              const process = () => {
+                inlinedReader.read().then(({ done, value }) => {
+                  if (!done) {
+                    res.write(value)
+                    process()
+                  }
+                })
+              }
+              process()
+            }
           })
         }
       },
