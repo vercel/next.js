@@ -42,9 +42,9 @@ jobs:
       - name: tune linux network
         run: sudo ethtool -K eth0 tx off rx off
 
-      - run: node ./scripts/fetch-tags.mjs
       - run: yarn install --frozen-lockfile --check-files
       - run: node run-tests.js --timings --write-timings -g 1/1
+      - run: node ./scripts/fetch-tags.mjs
 
       - name: Check docs only change
         run: echo ::set-output name=DOCS_CHANGE::$(node skip-docs-change.js echo 'not-docs-only-change')
