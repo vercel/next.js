@@ -170,7 +170,7 @@ describe('CSS Customization custom loader', () => {
       join(pagesFolder, indexFiles[0]),
       'utf8'
     )
-    expect(indexContent).toMatch(/\.my-text\.jsx-[0-9a-z]+ {color:red}/)
+    expect(indexContent).toMatch(/\.my-text\.jsx-[0-9a-z]+{color:red}/)
   })
 })
 

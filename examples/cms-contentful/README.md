@@ -27,6 +27,7 @@ Using the Deploy Button below, you'll deploy the Next.js project as well as conn
 - [GraphCMS](/examples/cms-graphcms)
 - [Kontent](/examples/cms-kontent)
 - [Ghost](/examples/cms-ghost)
+- [Umbraco Heartcore](/examples/cms-umbraco-heartcore)
 - [Blog Starter](/examples/blog-starter)
 
 ## How to use

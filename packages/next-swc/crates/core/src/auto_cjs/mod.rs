@@ -1,12 +1,11 @@
-use swc_common::DUMMY_SP;
 use swc_ecmascript::{
     ast::*,
-    visit::{Node, Visit, VisitWith},
+    visit::{Visit, VisitWith},
 };
 
 pub(crate) fn contains_cjs(m: &Module) -> bool {
     let mut v = CjsFinder::default();
-    m.visit_with(&Invalid { span: DUMMY_SP }, &mut v);
+    m.visit_with(&mut v);
     v.found
 }
 
@@ -18,7 +17,7 @@ struct CjsFinder {
 /// This visitor implementation supports typescript, because the api of `swc`
 /// does not support changing configuration based on content of the file.
 impl Visit for CjsFinder {
-    fn visit_member_expr(&mut self, e: &MemberExpr, _: &dyn Node) {
+    fn visit_member_expr(&mut self, e: &MemberExpr) {
         if !e.computed {
             match &e.obj {
                 ExprOrSuper::Super(_) => {}
@@ -37,10 +36,10 @@ impl Visit for CjsFinder {
             }
         }
 
-        e.obj.visit_with(e, self);
+        e.obj.visit_with(self);
 
         if e.computed {
-            e.prop.visit_with(e, self);
+            e.prop.visit_with(self);
         }
     }
 }
