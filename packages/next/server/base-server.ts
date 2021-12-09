@@ -215,6 +215,7 @@ export default abstract class Server {
   protected abstract getPagesManifest(): PagesManifest | undefined
   protected abstract getBuildId(): string
   protected abstract generatePublicRoutes(): Route[]
+  protected abstract generateImageRoutes(): Route[]
   protected abstract getFilesystemPaths(): Set<string>
   protected abstract findPageComponents(
     pathname: string,
@@ -799,6 +800,7 @@ export default abstract class Server {
   } {
     const server: Server = this
     const publicRoutes = this.generatePublicRoutes()
+    const imageRoutes = this.generateImageRoutes()
 
     const staticFilesRoute = this.hasStaticDir
       ? [
@@ -931,32 +933,7 @@ export default abstract class Server {
           }
         },
       },
-      {
-        match: route('/_next/image'),
-        type: 'route',
-        name: '_next/image catchall',
-        fn: (req, res, _params, parsedUrl) => {
-          if (this.minimalMode) {
-            res.statusCode = 400
-            res.end('Bad Request')
-            return {
-              finished: true,
-            }
-          }
-          const { imageOptimizer } =
-            require('./image-optimizer') as typeof import('./image-optimizer')
-
-          return imageOptimizer(
-            server,
-            req,
-            res,
-            parsedUrl,
-            server.nextConfig,
-            server.distDir,
-            this.renderOpts.dev
-          )
-        },
-      },
+      ...imageRoutes,
       {
         match: route('/_next/:path*'),
         type: 'route',

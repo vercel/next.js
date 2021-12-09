@@ -15,6 +15,9 @@ export default class NextWebServer extends BaseServer {
   protected getBuildId(): string {
     return ''
   }
+  protected generateImageRoutes(): Route[] {
+    return []
+  }
   protected generatePublicRoutes(): Route[] {
     return []
   }

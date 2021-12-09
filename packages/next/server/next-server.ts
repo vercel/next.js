@@ -49,6 +49,38 @@ export default class NextNodeServer extends BaseServer {
     }
   }
 
+  protected generateImageRoutes(): Route[] {
+    const server = this
+    return [
+      {
+        match: route('/_next/image'),
+        type: 'route',
+        name: '_next/image catchall',
+        fn: (req, res, _params, parsedUrl) => {
+          if (this.minimalMode) {
+            res.statusCode = 400
+            res.end('Bad Request')
+            return {
+              finished: true,
+            }
+          }
+          const { imageOptimizer } =
+            require('./image-optimizer') as typeof import('./image-optimizer')
+
+          return imageOptimizer(
+            server,
+            req,
+            res,
+            parsedUrl,
+            server.nextConfig,
+            server.distDir,
+            this.renderOpts.dev
+          )
+        },
+      },
+    ]
+  }
+
   protected generatePublicRoutes(): Route[] {
     if (!fs.existsSync(this.publicDir)) return []
 
