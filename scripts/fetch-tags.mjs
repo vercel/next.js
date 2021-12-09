@@ -1,14 +1,22 @@
 import { execSync } from 'child_process'
 import execa from 'execa'
 ;(async () => {
+  let commitId = process.argv[process.argv.length - 1]
+  
+  if (commitId.match(/[a-zA-Z0-9]/)) {
+    commitId = ''
+  }
+  
   // <hash> (<tag>) <message>
   // parse only the last string which should be version if
   // it's a publish commit
-  const commitMsg = execSync('git log --oneline -1').toString().trim()
+  const commitMsg = execSync(
+    `git log --oneline -n 1 ${commitId ? ` ${commitId}` : ''}`
+  ).toString().trim()
   const versionString = commitMsg.split(' ').pop().trim()
   const publishMsgRegex = /^v\d{1,}\.\d{1,}\.\d{1,}(-\w{1,}\.\d{1,})?$/
 
-  console.log({ commitMsg, versionString })
+  console.log({ commitId, commitMsg, versionString })
 
   if (publishMsgRegex.test(versionString)) {
     console.log('publish commit, fetching tags')
