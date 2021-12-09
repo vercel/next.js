@@ -3,7 +3,7 @@ import execa from 'execa'
 ;(async () => {
   let commitId = process.argv[process.argv.length - 1]
 
-  if (commitId.match(/[a-zA-Z0-9]/)) {
+  if (commitId.endsWith('fetch-tags.mjs')) {
     commitId = ''
   }
 
