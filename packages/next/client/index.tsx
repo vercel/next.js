@@ -1,6 +1,6 @@
 /* global location */
 import '@next/polyfill-module'
-import React, { useState, createContext } from 'react'
+import React, { useState } from 'react'
 import ReactDOM from 'react-dom'
 import { StyleRegistry } from 'styled-jsx'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
