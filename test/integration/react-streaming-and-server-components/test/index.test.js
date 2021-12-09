@@ -14,6 +14,7 @@ import {
   nextBuild as _nextBuild,
   nextStart as _nextStart,
   renderViaHTTP,
+  check,
 } from 'next-test-utils'
 
 import css from './css'
@@ -285,12 +286,19 @@ async function runBasicTests(context, env) {
     expect(pathNotFoundHTML).toContain('custom-404-page')
   })
 
-  it('should suspense next/link on server side', async () => {
+  it('should support next/link', async () => {
     const linkHTML = await renderViaHTTP(context.appPort, '/next-api/link')
     const $ = cheerio.load(linkHTML)
     const linkText = $('div[hidden] > a[href="/"]').text()
 
     expect(linkText).toContain('go home')
+
+    const browser = await webdriver(context.appPort, '/next-api/link')
+    await browser.eval('window.beforeNav = 1')
+    await browser.elementByCss('#next_id').click()
+    await browser.elementByCss('#next_id').click()
+    await check(() => browser.waitForElementByCss('#query').text(), /query:2/)
+    expect(await browser.eval('window.beforeNav')).toBe(1)
   })
 
   it('should suspense next/image on server side', async () => {

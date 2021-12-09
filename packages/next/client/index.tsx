@@ -673,11 +673,9 @@ if (process.env.__NEXT_RSC) {
               return Promise.resolve({ body: t.readable })
             })()
           : (() => {
-              const search = location.search
+              const { search, pathname } = location
               const flightReqUrl =
-                location.pathname +
-                search +
-                (search ? '&__flight__' : '?__flight__')
+                pathname + search + (search ? '&' : '?') + '__flight__'
               return fetch(flightReqUrl)
             })()
       )
