@@ -3,11 +3,10 @@ import execa from 'execa'
 ;(async () => {
   let commitId = process.argv[2] || ''
 
-  // <hash> (<tag>) <message>
   // parse only the last string which should be version if
   // it's a publish commit
   const commitMsg = execSync(
-    `git log --oneline -n 1${commitId ? ` ${commitId}` : ''}`
+    `git log -n 1 --pretty='format:%B'${commitId ? ` ${commitId}` : ''}`
   )
     .toString()
     .trim()
@@ -25,17 +24,10 @@ import execa from 'execa'
       ['fetch', '--depth=1', 'origin', '+refs/tags/*:refs/tags/*'],
       {
         stdio: ['ignore', 'inherit', 'inherit'],
-        env: {
-          ...process.env,
-        },
       }
     )
 
-    if (result.exitCode !== 0) {
-      throw new Error(
-        `Failed to fetch tags, exited with code ${result.exitCode}`
-      )
-    }
+    process.exit(result.exitCode)
   } else {
     console.log('not publish commit')
   }
