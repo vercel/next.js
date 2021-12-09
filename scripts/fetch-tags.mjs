@@ -1,11 +1,7 @@
 import { execSync } from 'child_process'
 import execa from 'execa'
 ;(async () => {
-  let commitId = process.argv[process.argv.length - 1]
-
-  if (commitId.endsWith('fetch-tags.mjs')) {
-    commitId = ''
-  }
+  let commitId = process.argv[2] || ''
 
   // <hash> (<tag>) <message>
   // parse only the last string which should be version if
