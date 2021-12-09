@@ -1650,7 +1650,6 @@ function renderToWebStream(
         if (!resolved) {
           resolved = true
           resolve((res, next) => {
-            console.log('complete shell')
             bufferedReadFromReadableStream(reader, (val) =>
               res.write(val)
             ).then(
