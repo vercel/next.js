@@ -1099,14 +1099,6 @@ export async function client(task, opts) {
   notify('Compiled client files')
 }
 
-export async function vitals(task, opts) {
-  await task
-    .source(opts.src || 'vitals/**/*.+(js|ts|tsx)')
-    .swc('vitals', { dev: opts.dev })
-    .target('dist/vitals')
-  notify('Compiled vitals files')
-}
-
 // export is a reserved keyword for functions
 export async function nextbuildstatic(task, opts) {
   await task

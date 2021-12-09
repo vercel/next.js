@@ -1,1 +1,1 @@
-export { useExperimentalWebVitalsReport } from './dist/vitals/index'
+export { unstable_useWebVitalsReport } from './dist/vitals/index'
