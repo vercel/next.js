@@ -693,15 +693,19 @@ export default async function getBaseWebpackConfig(
   }
 
   const getPackagePath = (name: string, relativeToPath: string) => {
-    const packageJsonPath = require.resolve(`${name}/package.json`, {
-      paths: [relativeToPath],
-    })
-    // Include a trailing slash so that a `.startsWith(packagePath)` check avoids false positives
-    // when one package name starts with the full name of a different package.
-    // For example:
-    //   "node_modules/react-slider".startsWith("node_modules/react")  // true
-    //   "node_modules/react-slider".startsWith("node_modules/react/") // false
-    return path.join(packageJsonPath, '../')
+    try {
+      const packageJsonPath = require.resolve(`${name}/package.json`, {
+        paths: [relativeToPath],
+      })
+      // Include a trailing slash so that a `.startsWith(packagePath)` check avoids false positives
+      // when one package name starts with the full name of a different package.
+      // For example:
+      //   "node_modules/react-slider".startsWith("node_modules/react")  // true
+      //   "node_modules/react-slider".startsWith("node_modules/react/") // false
+      return path.join(packageJsonPath, '../')
+    } catch (err) {
+      return '';
+    }
   }
 
   // Packages which will be split into the 'framework' chunk.
@@ -720,7 +724,7 @@ export default async function getBaseWebpackConfig(
       'use-subscription',
       require.resolve('next', { paths: [dir] })
     ),
-  ]
+  ].filter((entry) => Boolean(entry))
 
   // Select appropriate SplitChunksPlugin config for this build
   const splitChunksConfig: webpack.Options.SplitChunksOptions | false = dev
