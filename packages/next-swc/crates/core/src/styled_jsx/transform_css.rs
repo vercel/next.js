@@ -1,5 +1,6 @@
 use easy_error::{bail, Error};
 use std::panic;
+use swc_common::util::take::Take;
 use swc_common::{source_map::Pos, BytePos, Span, SyntaxContext, DUMMY_SP};
 use swc_css::ast::*;
 use swc_css::codegen::{
@@ -11,6 +12,7 @@ use swc_css::visit::{VisitMut, VisitMutWith};
 use swc_ecmascript::ast::{Expr, Str, StrKind, Tpl, TplElement};
 use swc_ecmascript::utils::HANDLER;
 use swc_stylis::prefixer::prefixer;
+use tracing::{debug, trace};
 
 use super::{hash_string, string_literal_expr, LocalStyle};
 
@@ -19,6 +21,8 @@ pub fn transform_css(
     is_global: bool,
     class_name: &Option<String>,
 ) -> Result<Expr, Error> {
+    debug!("CSS: \n{}", style_info.css);
+
     let result: Result<Stylesheet, _> = parse_str(
         &style_info.css,
         style_info.css_span.lo,
@@ -52,8 +56,8 @@ pub fn transform_css(
         }
     };
     // ? Do we need to support optionally prefixing?
-    ss.visit_mut_with(&mut FixedPrefixer);
-    ss.visit_mut_with(&mut CssFixer);
+    ss.visit_mut_with(&mut prefixer());
+    ss.visit_mut_with(&mut CssPlaceholderFixer);
     ss.visit_mut_with(&mut Namespacer {
         class_name: match class_name {
             Some(s) => s.clone(),
@@ -122,27 +126,17 @@ fn read_number(s: &str) -> (usize, usize) {
     unreachable!("read_number(`{}`) is invalid because it is empty", s)
 }
 
-/// Applies `prefixer`, but this avoids bug of `swc_stylis::prefixer()`.
+/// This fixes invalid css which is created from interpolated expressions.
 ///
-/// TODO(kdy1): Remove this when we upgrade crates related to css. (The crate
-/// update is blocked by `ComplexSelectorChildren` issue)
-struct FixedPrefixer;
+/// `__styled-jsx-placeholder-` is handled at here.
+struct CssPlaceholderFixer;
 
-impl VisitMut for FixedPrefixer {
-    fn visit_mut_style_rule(&mut self, n: &mut StyleRule) {
-        n.visit_mut_with(&mut prefixer());
-    }
-}
-
-/// This fixes invalid css.
-struct CssFixer;
-
-impl VisitMut for CssFixer {
+impl VisitMut for CssPlaceholderFixer {
     fn visit_mut_media_query(&mut self, q: &mut MediaQuery) {
         q.visit_mut_children_with(self);
 
         match q {
-            MediaQuery::Text(q) => {
+            MediaQuery::Ident(q) => {
                 if q.raw.starts_with("__styled-jsx-placeholder-") {
                     // TODO(kdy1): Remove this once we have CST for media query.
                     // We need good error recovery for media queries to handle this.
@@ -162,88 +156,177 @@ struct Namespacer {
 
 impl VisitMut for Namespacer {
     fn visit_mut_complex_selector(&mut self, node: &mut ComplexSelector) {
+        #[cfg(debug_assertions)]
+        let _tracing = {
+            // This will add information to the log messages, only for debug build.
+            // Note that we use cargo feature to remove all logging on production builds.
+
+            let mut code = String::new();
+            {
+                let mut wr = BasicCssWriter::new(&mut code, BasicCssWriterConfig { indent: "  " });
+                let mut gen = CodeGenerator::new(&mut wr, CodegenConfig { minify: true });
+
+                gen.emit(&*node).unwrap();
+            }
+
+            tracing::span!(
+                tracing::Level::TRACE,
+                "Namespacer::visit_mut_complex_selector",
+                class_name = &*self.class_name,
+                is_global = self.is_global,
+                is_dynamic = self.is_dynamic,
+                input = &*code
+            )
+            .entered()
+        };
+
         let mut new_selectors = vec![];
-        for selector in &node.selectors {
-            match self.get_transformed_selectors(selector.clone()) {
-                Ok(transformed_selectors) => new_selectors.extend(transformed_selectors),
-                Err(_) => {
-                    HANDLER.with(|handler| {
-                        handler
-                            .struct_span_err(
-                                selector.span,
-                                "Failed to transform one off global selector",
-                            )
-                            .emit()
-                    });
-                    new_selectors.push(selector.clone());
+        let mut combinator = None;
+        for sel in node.children.take() {
+            match &sel {
+                ComplexSelectorChildren::CompoundSelector(selector) => {
+                    match self.get_transformed_selectors(combinator, selector.clone()) {
+                        Ok(transformed_selectors) => new_selectors.extend(transformed_selectors),
+                        Err(_) => {
+                            HANDLER.with(|handler| {
+                                handler
+                                    .struct_span_err(
+                                        selector.span,
+                                        "Failed to transform one off global selector",
+                                    )
+                                    .emit()
+                            });
+                            new_selectors.push(sel);
+                        }
+                    }
+
+                    combinator = None;
                 }
+                ComplexSelectorChildren::Combinator(v) => match v.value {
+                    CombinatorValue::Descendant => {}
+                    CombinatorValue::NextSibling
+                    | CombinatorValue::Child
+                    | CombinatorValue::LaterSibling => {
+                        combinator = Some(v.clone());
+
+                        new_selectors.push(sel);
+                    }
+                },
             };
         }
-        node.selectors = new_selectors;
+        node.children = new_selectors;
     }
 }
 
 impl Namespacer {
     fn get_transformed_selectors(
         &mut self,
+        combinator: Option<Combinator>,
         mut node: CompoundSelector,
-    ) -> Result<Vec<CompoundSelector>, Error> {
+    ) -> Result<Vec<ComplexSelectorChildren>, Error> {
         let mut pseudo_index = None;
+
+        let empty_tokens = Tokens {
+            span: node.span,
+            tokens: vec![],
+        };
+
         for (i, selector) in node.subclass_selectors.iter().enumerate() {
-            if let SubclassSelector::Pseudo(PseudoSelector { name, args, .. }) = selector {
-                // One off global selector
-                if &name.value == "global" {
-                    let block_tokens = get_block_tokens(&args);
-                    let mut front_tokens = get_front_selector_tokens(&args);
-                    let mut args = args.clone();
-                    front_tokens.extend(args.tokens);
-                    front_tokens.extend(block_tokens);
-                    args.tokens = front_tokens;
-                    let complex_selectors = panic::catch_unwind(|| {
-                        let x: ComplexSelector = parse_tokens(
-                            &args,
-                            ParserConfig {
-                                parse_values: false,
-                                allow_wrong_line_comments: true,
-                            },
-                            // TODO(kdy1): We might be able to report syntax errors.
-                            &mut vec![],
-                        )
-                        .unwrap();
-                        return x;
-                    });
-
-                    return match complex_selectors {
-                        Ok(complex_selectors) => {
-                            let mut v = complex_selectors.selectors[1..]
-                                .iter()
-                                .cloned()
-                                .collect::<Vec<_>>();
-
-                            if v.is_empty() {
-                                bail!("Failed to transform one off global selector");
-                            }
-
-                            if node.combinator.is_some() && v[0].combinator.is_some() {
-                                bail!("Failed to transform one off global selector");
-                            } else if node.combinator.is_some() {
-                                v[0].combinator = node.combinator;
-                            }
-
-                            v.iter_mut().for_each(|sel| {
-                                if i < node.subclass_selectors.len() {
-                                    sel.subclass_selectors
-                                        .extend(node.subclass_selectors[i + 1..].to_vec());
-                                }
-                            });
-
-                            Ok(v)
-                        }
-                        Err(_) => bail!("Failed to transform one off global selector"),
-                    };
-                } else if pseudo_index.is_none() {
-                    pseudo_index = Some(i);
+            let (name, args) = match selector {
+                SubclassSelector::PseudoClass(PseudoClassSelector { name, children, .. }) => {
+                    match children {
+                        Some(PseudoSelectorChildren::Nth(_)) => todo!("nth"),
+                        Some(PseudoSelectorChildren::Tokens(v)) => (name, v),
+                        None => (name, &empty_tokens),
+                    }
                 }
+                SubclassSelector::PseudoElement(PseudoElementSelector {
+                    name, children, ..
+                }) => match children {
+                    Some(children) => (name, children),
+                    None => (name, &empty_tokens),
+                },
+                _ => continue,
+            };
+
+            // One off global selector
+            if &name.value == "global" {
+                let block_tokens = get_block_tokens(&args);
+                let mut front_tokens = get_front_selector_tokens(&args);
+                let mut args = args.clone();
+                front_tokens.extend(args.tokens);
+                front_tokens.extend(block_tokens);
+                args.tokens = front_tokens;
+
+                let complex_selectors = panic::catch_unwind(|| {
+                    let x: ComplexSelector = parse_tokens(
+                        &args,
+                        ParserConfig {
+                            parse_values: false,
+                            allow_wrong_line_comments: true,
+                        },
+                        // TODO(kdy1): We might be able to report syntax errors.
+                        &mut vec![],
+                    )
+                    .unwrap();
+                    return x;
+                });
+
+                return match complex_selectors {
+                    Ok(complex_selectors) => {
+                        let mut v = complex_selectors.children[1..]
+                            .iter()
+                            .cloned()
+                            .collect::<Vec<_>>();
+
+                        match v[0] {
+                            ComplexSelectorChildren::Combinator(Combinator {
+                                value: CombinatorValue::Descendant,
+                                ..
+                            }) => {
+                                v.remove(0);
+                            }
+                            _ => {}
+                        }
+
+                        if v.is_empty() {
+                            bail!("Failed to transform one off global selector");
+                        }
+
+                        trace!("Combinator: {:?}", combinator);
+                        trace!("v[0]: {:?}", v[0]);
+
+                        if combinator.is_some() {
+                            match v.get(0) {
+                                Some(ComplexSelectorChildren::Combinator(..)) => {}
+                                Some(..) => {}
+                                _ => {
+                                    v.push(ComplexSelectorChildren::Combinator(
+                                        combinator.unwrap(),
+                                    ));
+                                }
+                            }
+                        }
+
+                        v.iter_mut().for_each(|sel| {
+                            if i < node.subclass_selectors.len() {
+                                match sel {
+                                    ComplexSelectorChildren::CompoundSelector(sel) => {
+                                        sel.subclass_selectors.extend(
+                                            node.subclass_selectors[i + 1..].iter().cloned(),
+                                        );
+                                    }
+                                    _ => {}
+                                }
+                            }
+                        });
+
+                        Ok(v)
+                    }
+                    Err(_) => bail!("Failed to transform one off global selector"),
+                };
+            } else if pseudo_index.is_none() {
+                pseudo_index = Some(i);
             }
         }
 
@@ -260,7 +343,7 @@ impl Namespacer {
                 insert_index,
                 SubclassSelector::Class(ClassSelector {
                     span: DUMMY_SP,
-                    text: Text {
+                    text: Ident {
                         raw: subclass_selector.into(),
                         value: subclass_selector.into(),
                         span: DUMMY_SP,
@@ -269,7 +352,7 @@ impl Namespacer {
             );
         }
 
-        Ok(vec![node])
+        Ok(vec![ComplexSelectorChildren::CompoundSelector(node)])
     }
 }
 

@@ -10,7 +10,6 @@ use testing::fixture;
 fn syntax() -> Syntax {
     Syntax::Es(EsConfig {
         jsx: true,
-        dynamic_import: true,
         ..Default::default()
     })
 }

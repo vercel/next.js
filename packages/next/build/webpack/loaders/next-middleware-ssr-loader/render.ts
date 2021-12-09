@@ -1,6 +1,7 @@
 import { NextRequest } from '../../../../server/web/spec-extension/request'
 import { renderToHTML } from '../../../../server/web/render'
 import RenderResult from '../../../../server/render-result'
+import { toNodeHeaders } from '../../../../server/web/utils'
 
 const createHeaders = (args?: any) => ({
   ...args,
@@ -49,7 +50,7 @@ export function getRender({
     const req = {
       url: pathname,
       cookies,
-      headers,
+      headers: toNodeHeaders(headers),
     }
     const renderOpts = {
       ...restRenderOpts,

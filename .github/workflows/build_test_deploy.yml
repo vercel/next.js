@@ -28,6 +28,12 @@ jobs:
       docsChange: ${{ steps.docs-change.outputs.DOCS_CHANGE }}
       isRelease: ${{ steps.check-release.outputs.IS_RELEASE }}
     steps:
+      - name: Setup node
+        uses: actions/setup-node@v2
+        if: ${{ steps.docs-change.outputs.docsChange != 'docs only change' }}
+        with:
+          node-version: 14
+
       - uses: actions/checkout@v2
         with:
           fetch-depth: 25
@@ -44,7 +50,6 @@ jobs:
         id: docs-change
       - run: echo ${{steps.docs-change.outputs.DOCS_CHANGE}}
       - run: git fetch --depth=1 origin +refs/tags/*:refs/tags/*
-      - run: git describe
       - id: check-release
         run: |
           if [[ $(git describe --exact-match 2> /dev/null || :) = v* ]];
@@ -57,17 +62,23 @@ jobs:
         id: cache-build
         with:
           path: ./*
-          key: ${{ github.sha }}
+          key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt }}
 
   lint:
     runs-on: ubuntu-latest
     needs: build
     steps:
+      - name: Setup node
+        uses: actions/setup-node@v2
+        if: ${{ steps.docs-change.outputs.docsChange != 'docs only change' }}
+        with:
+          node-version: 14
+
       - uses: actions/cache@v2
         id: restore-build
         with:
           path: ./*
-          key: ${{ github.sha }}
+          key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt }}
       - run: ./scripts/check-manifests.js
       - run: yarn lint
 
@@ -78,6 +89,12 @@ jobs:
     env:
       NEXT_TELEMETRY_DISABLED: 1
     steps:
+      - name: Setup node
+        uses: actions/setup-node@v2
+        if: ${{ steps.docs-change.outputs.docsChange != 'docs only change' }}
+        with:
+          node-version: 14
+
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
@@ -94,7 +111,7 @@ jobs:
         id: restore-build
         with:
           path: ./*
-          key: ${{ github.sha }}
+          key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt }}
 
       - run: rm -rf .git && mv .git-bak .git
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
@@ -116,12 +133,18 @@ jobs:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
     steps:
+      - name: Setup node
+        uses: actions/setup-node@v2
+        if: ${{ steps.docs-change.outputs.docsChange != 'docs only change' }}
+        with:
+          node-version: 14
+
       - uses: actions/cache@v2
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         id: restore-build
         with:
           path: ./*
-          key: ${{ github.sha }}
+          key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt }}
 
       - uses: actions/download-artifact@v2
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
@@ -140,6 +163,12 @@ jobs:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
     steps:
+      - name: Setup node
+        uses: actions/setup-node@v2
+        if: ${{ steps.docs-change.outputs.docsChange != 'docs only change' }}
+        with:
+          node-version: 14
+
       - run: echo ${{needs.build.outputs.docsChange}}
 
       # https://github.com/actions/virtual-environments/issues/1187
@@ -151,7 +180,7 @@ jobs:
         id: restore-build
         with:
           path: ./*
-          key: ${{ github.sha }}
+          key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt }}
 
       - uses: actions/download-artifact@v2
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
@@ -188,6 +217,12 @@ jobs:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
     steps:
+      - name: Setup node
+        uses: actions/setup-node@v2
+        if: ${{ steps.docs-change.outputs.docsChange != 'docs only change' }}
+        with:
+          node-version: 14
+
       - run: echo ${{needs.build.outputs.docsChange}}
 
       # https://github.com/actions/virtual-environments/issues/1187
@@ -199,7 +234,7 @@ jobs:
         id: restore-build
         with:
           path: ./*
-          key: ${{ github.sha }}
+          key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt }}
 
       - uses: actions/download-artifact@v2
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
@@ -231,6 +266,12 @@ jobs:
       matrix:
         group: [1, 2, 3, 4, 5, 6]
     steps:
+      - name: Setup node
+        uses: actions/setup-node@v2
+        if: ${{ steps.docs-change.outputs.docsChange != 'docs only change' }}
+        with:
+          node-version: 14
+
       - run: echo ${{needs.build.outputs.docsChange}}
 
       # https://github.com/actions/virtual-environments/issues/1187
@@ -242,7 +283,7 @@ jobs:
         id: restore-build
         with:
           path: ./*
-          key: ${{ github.sha }}
+          key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt }}
 
       - uses: actions/download-artifact@v2
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
@@ -275,12 +316,18 @@ jobs:
       NEXT_TEST_JOB: 1
       TEST_ELECTRON: 1
     steps:
+      - name: Setup node
+        uses: actions/setup-node@v2
+        if: ${{ steps.docs-change.outputs.docsChange != 'docs only change' }}
+        with:
+          node-version: 14
+
       - uses: actions/cache@v2
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         id: restore-build
         with:
           path: ./*
-          key: ${{ github.sha }}
+          key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt }}
 
       - uses: actions/download-artifact@v2
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
@@ -301,12 +348,18 @@ jobs:
       NODE_OPTIONS: '--unhandled-rejections=strict'
       YARN_COMPRESSION_LEVEL: '0'
     steps:
+      - name: Setup node
+        uses: actions/setup-node@v2
+        if: ${{ steps.docs-change.outputs.docsChange != 'docs only change' }}
+        with:
+          node-version: 14
+
       - uses: actions/cache@v2
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         id: restore-build
         with:
           path: ./*
-          key: ${{ github.sha }}
+          key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt }}
 
       - uses: actions/download-artifact@v2
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
@@ -343,12 +396,18 @@ jobs:
       BROWSER_NAME: 'firefox'
       NEXT_TELEMETRY_DISABLED: 1
     steps:
+      - name: Setup node
+        uses: actions/setup-node@v2
+        if: ${{ steps.docs-change.outputs.docsChange != 'docs only change' }}
+        with:
+          node-version: 14
+
       - uses: actions/cache@v2
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         id: restore-build
         with:
           path: ./*
-          key: ${{ github.sha }}
+          key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt }}
       - uses: actions/download-artifact@v2
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
@@ -371,6 +430,12 @@ jobs:
       BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
       BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
     steps:
+      - name: Setup node
+        uses: actions/setup-node@v2
+        if: ${{ steps.docs-change.outputs.docsChange != 'docs only change' }}
+        with:
+          node-version: 14
+
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network
         run: sudo ethtool -K eth0 tx off rx off
@@ -380,7 +445,7 @@ jobs:
         id: restore-build
         with:
           path: ./*
-          key: ${{ github.sha }}
+          key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt }}
 
       - uses: actions/download-artifact@v2
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
@@ -409,6 +474,12 @@ jobs:
       BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
       BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
     steps:
+      - name: Setup node
+        uses: actions/setup-node@v2
+        if: ${{ steps.docs-change.outputs.docsChange != 'docs only change' }}
+        with:
+          node-version: 14
+
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network
         run: sudo ethtool -K eth0 tx off rx off
@@ -418,7 +489,7 @@ jobs:
         id: restore-build
         with:
           path: ./*
-          key: ${{ github.sha }}
+          key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt }}
 
       - uses: actions/download-artifact@v2
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
@@ -451,7 +522,7 @@ jobs:
         id: restore-build
         with:
           path: ./*
-          key: ${{ github.sha }}
+          key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt }}
       - uses: actions/download-artifact@v2
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         with:
@@ -480,6 +551,12 @@ jobs:
     env:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN_ELEVATED }}
     steps:
+      - name: Setup node
+        uses: actions/setup-node@v2
+        if: ${{ steps.docs-change.outputs.docsChange != 'docs only change' }}
+        with:
+          node-version: 14
+
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network
         run: sudo ethtool -K eth0 tx off rx off
@@ -488,7 +565,7 @@ jobs:
         id: restore-build
         with:
           path: ./*
-          key: ${{ github.sha }}
+          key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt }}
 
       - uses: actions/download-artifact@v2
         with:
@@ -509,11 +586,17 @@ jobs:
     runs-on: ubuntu-latest
     needs: [publishRelease, build-native-dev]
     steps:
+      - name: Setup node
+        uses: actions/setup-node@v2
+        if: ${{ steps.docs-change.outputs.docsChange != 'docs only change' }}
+        with:
+          node-version: 14
+
       - uses: actions/cache@v2
         id: restore-build
         with:
           path: ./*
-          key: ${{ github.sha }}
+          key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt }}
 
       - uses: actions/download-artifact@v2
         with:
@@ -634,6 +717,51 @@ jobs:
           profile: minimal
       - run: cd packages/next-swc && cargo test
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
+
+  test-wasm:
+    name: Test the wasm build
+    runs-on: ubuntu-18.04
+    needs: [build, build-native-dev, build-wasm-dev]
+
+    steps:
+      - uses: actions/cache@v2
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        id: restore-build
+        with:
+          path: ./*
+          key: ${{ github.sha }}
+
+      - uses: actions/download-artifact@v2
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        with:
+          name: wasm-dev-binary
+          path: packages/next-swc/crates/wasm/pkg-nodejs
+
+      - run: ls packages/next-swc/crates/wasm
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
+      - uses: actions/download-artifact@v2
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        with:
+          name: next-swc-dev-binary
+          path: packages/next-swc/native
+
+      # node version needs to be 16+ to use --no-addons option
+      - name: Setup node
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        uses: actions/setup-node@v2
+        with:
+          node-version: 16
+          check-latest: true
+
+      - run: npm i -g playwright-chromium@1.14.1 && npx playwright install-deps
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
+      - run: node ./scripts/setup-wasm.mjs
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
+      - run: TEST_WASM=true xvfb-run node run-tests.js test/integration/production/test/index.test.js
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
   # Build binaries for publishing
   build-native:
@@ -1160,7 +1288,7 @@ jobs:
         id: restore-build
         with:
           path: ./*
-          key: ${{ github.sha }}
+          key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt }}
 
       - name: Setup node
         uses: actions/setup-node@v2
@@ -1198,4 +1326,64 @@ jobs:
           name: wasm-binaries
           path: packages/next-swc/crates/wasm/pkg-*
 
-      - run: ls packages/next-swc/crates/wasm
+  build-wasm-dev:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/cache@v2
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        id: restore-build
+        with:
+          path: ./*
+          key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt }}
+
+      - name: Setup node
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        uses: actions/setup-node@v2
+        with:
+          node-version: 14
+
+      - name: Install Rust
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly-2021-11-15
+          override: true
+          target: wasm32-unknown-unknown
+
+      - name: Cache
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/
+            **/target/
+          key: ${{ runner.os }}-publish-integration
+
+      - name: Cache wasm binary
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        id: binary-cache
+        uses: actions/cache@v2
+        with:
+          path: packages/next-swc/crates/wasm/pkg-nodejs
+          key: dev-wasm-next-swc-nightly-2021-11-15-${{ hashFiles('.github/workflows/build_test_deploy.yml', 'packages/next-swc/**') }}
+
+      - name: Install wasm-pack
+        if: ${{needs.build.outputs.docsChange != 'docs only change' && steps.binary-cache.outputs.cache-hit != 'true'}}
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
+      - name: Build
+        if: ${{needs.build.outputs.docsChange != 'docs only change' && steps.binary-cache.outputs.cache-hit != 'true'}}
+        run: (wasm-pack build packages/next-swc/crates/wasm --dev --scope=next --target nodejs)
+
+      - name: Add target to folder name
+        if: ${{needs.build.outputs.docsChange != 'docs only change' && steps.binary-cache.outputs.cache-hit != 'true'}}
+        run: mv packages/next-swc/crates/wasm/pkg packages/next-swc/crates/wasm/pkg-nodejs
+
+      - name: Upload artifact
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        uses: actions/upload-artifact@v2
+        with:
+          name: wasm-dev-binary
+          path: packages/next-swc/crates/wasm/pkg-nodejs
