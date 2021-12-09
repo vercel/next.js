@@ -521,6 +521,7 @@ export default function Image({
     border: 0,
     margin: 0,
     padding: 0,
+    zIndex: -1,
   }
   const sizerStyle: JSX.IntrinsicElements['span']['style'] = {
     boxSizing: 'border-box',
