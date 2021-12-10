@@ -14,7 +14,7 @@ import {
   nextBuild as _nextBuild,
   nextStart as _nextStart,
   renderViaHTTP,
-  waitFor,
+  check,
 } from 'next-test-utils'
 
 import css from './css'
@@ -296,11 +296,10 @@ async function runBasicTests(context, env) {
     const browser = await webdriver(context.appPort, '/next-api/link')
     await browser.eval('window.beforeNav = 1')
     await browser.waitForElementByCss('#next_id').click()
-    await waitFor(500)
-    expect(await browser.waitForElementByCss('#query').text()).toBe('query:1')
+    await check(() => browser.elementByCss('#query').text(), 'query:1')
+
     await browser.waitForElementByCss('#next_id').click()
-    await waitFor(500)
-    expect(await browser.waitForElementByCss('#query').text()).toBe('query:2')
+    await check(() => browser.elementByCss('#query').text(), 'query:2')
     expect(await browser.eval('window.beforeNav')).toBe(1)
   })
 
