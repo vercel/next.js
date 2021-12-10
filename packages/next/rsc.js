@@ -1,1 +1,3 @@
-module.exports = require('./dist/client/rsc')
+module.exports = {
+  unstable_useRefreshRoot: require('./dist/client/rsc').useRefreshRoot,
+}
