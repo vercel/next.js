@@ -7,9 +7,11 @@ use swc_css::codegen::{
     writer::basic::{BasicCssWriter, BasicCssWriterConfig},
     CodeGenerator, CodegenConfig, Emit,
 };
+use swc_css::parser::parser::input::ParserInput;
 use swc_css::parser::{parse_str, parse_tokens, parser::ParserConfig};
 use swc_css::visit::{VisitMut, VisitMutWith};
 use swc_ecmascript::ast::{Expr, Str, StrKind, Tpl, TplElement};
+use swc_ecmascript::parser::StringInput;
 use swc_ecmascript::utils::HANDLER;
 use swc_stylis::prefixer::prefixer;
 use tracing::{debug, trace};
@@ -230,12 +232,16 @@ impl Namespacer {
             span: node.span,
             tokens: vec![],
         };
+        let mut arg_tokens;
 
         for (i, selector) in node.subclass_selectors.iter().enumerate() {
             let (name, args) = match selector {
                 SubclassSelector::PseudoClass(PseudoClassSelector { name, children, .. }) => {
                     match children {
-                        Some(PseudoSelectorChildren::Nth(_)) => todo!("nth"),
+                        Some(PseudoSelectorChildren::Nth(v)) => {
+                            arg_tokens = nth_to_tokens(&v);
+                            (name, &arg_tokens)
+                        }
                         Some(PseudoSelectorChildren::Tokens(v)) => (name, v),
                         None => (name, &empty_tokens),
                     }
@@ -479,4 +485,34 @@ fn get_block_tokens(selector_tokens: &Tokens) -> Vec<TokenAndSpan> {
             token: Token::WhiteSpace { value: " ".into() },
         },
     ]
+}
+
+fn nth_to_tokens(nth: &Nth) -> Tokens {
+    let mut s = String::new();
+    {
+        let mut wr = BasicCssWriter::new(&mut s, BasicCssWriterConfig { indent: "  " });
+        let mut gen = CodeGenerator::new(&mut wr, CodegenConfig { minify: true });
+
+        gen.emit(&nth).unwrap();
+    }
+
+    let mut lexer = swc_css::parser::lexer::Lexer::new(
+        StringInput::new(&s, nth.span.lo, nth.span.hi),
+        ParserConfig {
+            parse_values: false,
+            allow_wrong_line_comments: true,
+            ..Default::default()
+        },
+    );
+
+    let mut tokens = vec![];
+
+    while let Ok(t) = lexer.next() {
+        tokens.push(t);
+    }
+
+    Tokens {
+        span: Span::new(nth.span.lo, nth.span.hi, Default::default()),
+        tokens,
+    }
 }
