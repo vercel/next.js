@@ -254,7 +254,7 @@ export async function ncc_escape_string_regexp(task, opts) {
     .source(
       opts.src || relative(__dirname, require.resolve('escape-string-regexp'))
     )
-    .ncc({ packageName: 'escape-string-regexp', externals })
+    .ncc({ packageName: 'escape-string-regexp', externals, target: 'es5' })
     .target('compiled/escape-string-regexp')
 }
 
