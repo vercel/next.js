@@ -15,6 +15,7 @@ import {
   nextStart as _nextStart,
   renderViaHTTP,
   check,
+  waitFor,
 } from 'next-test-utils'
 
 import css from './css'
@@ -295,15 +296,13 @@ async function runBasicTests(context, env) {
 
     const browser = await webdriver(context.appPort, '/next-api/link')
     await browser.eval('window.beforeNav = 1')
-    await browser.elementByCss('#next_id').click()
-    await browser.elementByCss('#next_id').click()
-    await check(() => browser.waitForElementByCss('#query').text(), /query:2/)
-
-    if (!isDev) {
-      // this might do a hard navigation in development
-      // so only require this check in production
-      expect(await browser.eval('window.beforeNav')).toBe(1)
-    }
+    await browser.waitForElementByCss('#next_id').click()
+    await waitFor(500)
+    await browser.waitForElementByCss('#next_id').click()
+    await waitFor(500)
+    const text = await browser.waitForElementByCss('#query').text()
+    expect(text).toBe('query:2')
+    expect(await browser.eval('window.beforeNav')).toBe(1)
   })
 
   it('should suspense next/image on server side', async () => {
