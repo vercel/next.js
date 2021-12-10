@@ -59,7 +59,7 @@ Note that you **cannot** use `getStaticPaths` with [`getServerSideProps`](/docs/
 
 `getStaticPaths` can only be exported from a **page**. You **cannot** export it from non-page files.
 
-You must use `export async function getStaticPaths() {}` — it will **not** work if you add `getStaticPaths` as a property of the page component.
+You must use export `getStaticPaths` as a standalone function — it will **not** work if you add `getStaticPaths` as a property of the page component.
 
 ### Runs on every request in development
 
