@@ -381,9 +381,9 @@ export default abstract class Server {
 
       // When there are hostname and port we build an absolute URL
       const initUrl =
-      this.hostname && this.port
-        ? `http://${this.hostname}:${this.port}${req.url}`
-        : req.url
+        this.hostname && this.port
+          ? `http://${this.hostname}:${this.port}${req.url}`
+          : req.url
 
       addRequestMeta(req, '__NEXT_INIT_URL', initUrl)
       addRequestMeta(req, '__NEXT_INIT_QUERY', { ...parsedUrl.query })
