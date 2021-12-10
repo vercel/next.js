@@ -297,10 +297,10 @@ async function runBasicTests(context, env) {
     await browser.eval('window.beforeNav = 1')
     await browser.waitForElementByCss('#next_id').click()
     await waitFor(500)
+    expect(await browser.waitForElementByCss('#query').text()).toBe('query:1')
     await browser.waitForElementByCss('#next_id').click()
     await waitFor(500)
-    const text = await browser.waitForElementByCss('#query').text()
-    expect(text).toBe('query:2')
+    expect(await browser.waitForElementByCss('#query').text()).toBe('query:2')
     expect(await browser.eval('window.beforeNav')).toBe(1)
   })
 
