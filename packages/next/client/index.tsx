@@ -1,6 +1,6 @@
 /* global location */
 import '@next/polyfill-module'
-import React from 'react'
+import React, { useState } from 'react'
 import ReactDOM from 'react-dom'
 import { StyleRegistry } from 'styled-jsx'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
@@ -35,6 +35,7 @@ import { RouteAnnouncer } from './route-announcer'
 import { createRouter, makePublicRouterInstance, useRouter } from './router'
 import isError from '../lib/is-error'
 import { trackWebVitalMetric } from './vitals'
+import { RefreshContext } from './rsc'
 
 /// <reference types="react-dom/experimental" />
 
@@ -643,6 +644,10 @@ const wrapApp =
 
 let RSCComponent: (props: any) => JSX.Element
 if (process.env.__NEXT_RSC) {
+  const {
+    createFromFetch,
+  } = require('next/dist/compiled/react-server-dom-webpack')
+
   const encoder = new TextEncoder()
   const serverDataBuffer = new Map<string, string[]>()
   const serverDataWriter = new Map<string, WritableStreamDefaultWriter>()
@@ -698,17 +703,26 @@ if (process.env.__NEXT_RSC) {
   function createResponseCache() {
     return new Map<string, any>()
   }
-
-  const {
-    createFromFetch,
-  } = require('next/dist/compiled/react-server-dom-webpack')
   const rscCache = createResponseCache()
 
-  function useServerResponse(
-    id: string,
-    cacheKey: string,
-    serialized?: string
-  ) {
+  function fetchFlight(href: string, props?: any) {
+    const url = new URL(href, location.origin)
+    const searchParams = url.searchParams
+    searchParams.append('__flight__', '1')
+    if (props) {
+      searchParams.append('__props__', JSON.stringify(props))
+    }
+    return fetch(url.toString())
+  }
+
+  const getCacheKey = () => {
+    const { pathname, search } = location
+    return pathname + search
+  }
+
+  function useServerResponse(cacheKey: string, serialized?: string) {
+    const id = (React as any).useId()
+
     let response = rscCache.get(cacheKey)
     if (response) return response
 
@@ -725,12 +739,7 @@ if (process.env.__NEXT_RSC) {
               t.writable.getWriter().write(new TextEncoder().encode(serialized))
               return Promise.resolve({ body: t.readable })
             })()
-          : (() => {
-              const { search, pathname } = location
-              const flightReqUrl =
-                pathname + search + (search ? '&' : '?') + '__flight__'
-              return fetch(flightReqUrl)
-            })()
+          : fetchFlight(getCacheKey())
       )
     }
 
@@ -747,22 +756,38 @@ if (process.env.__NEXT_RSC) {
     serialized?: string
     _fresh?: boolean
   }) => {
-    const id = (React as any).useId()
-    const response = useServerResponse(id, cacheKey, serialized)
+    const response = useServerResponse(cacheKey, serialized)
     return response.readRoot()
   }
 
   RSCComponent = (props: any) => {
-    const cacheKey = location ? location.href : ''
+    const cacheKey = getCacheKey()
     const { __flight_serialized__, __flight_fresh__ } = props
+    const [, dispatch] = useState({})
+    // @ts-ignore TODO: remove when react 18 types are supported
+    const startTransition = React.startTransition
+    const renrender = () => dispatch({})
+    // If there is no cache, or there is serialized data already
+    function refreshCache(nextProps: any) {
+      startTransition(() => {
+        const cacheKey = getCacheKey()
+        const response = createFromFetch(fetchFlight(cacheKey, nextProps))
+        // FIXME: router.asPath can be different from current location due to navigation
+        rscCache.set(cacheKey, response)
+        renrender()
+      })
+    }
+
     return (
-      <React.Suspense fallback={null}>
-        <ServerRoot
-          cacheKey={cacheKey}
-          serialized={__flight_serialized__}
-          _fresh={__flight_fresh__}
-        />
-      </React.Suspense>
+      <RefreshContext.Provider value={refreshCache}>
+        <React.Suspense fallback={null}>
+          <ServerRoot
+            cacheKey={cacheKey}
+            serialized={__flight_serialized__}
+            _fresh={__flight_fresh__}
+          />
+        </React.Suspense>
+      </RefreshContext.Provider>
     )
   }
 }

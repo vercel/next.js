@@ -209,6 +209,7 @@ export type RenderOptsPartial = {
   resolvedAsPath?: string
   serverComponentManifest?: any
   renderServerComponentData?: boolean
+  serverComponentProps?: any
   distDir?: string
   locale?: string
   locales?: string[]
@@ -412,6 +413,7 @@ export async function renderToHTML(
     getServerSideProps,
     serverComponentManifest,
     renderServerComponentData,
+    serverComponentProps,
     isDataReq,
     params,
     previewProps,
@@ -1066,7 +1068,7 @@ export async function renderToHTML(
 
   if (renderServerComponentData) {
     const stream: ReadableStream = renderToReadableStream(
-      <OriginalComponent {...props.pageProps} />,
+      <OriginalComponent {...props.pageProps} {...serverComponentProps} />,
       serverComponentManifest
     )
     const reader = stream.getReader()
