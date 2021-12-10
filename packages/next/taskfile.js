@@ -20,11 +20,10 @@ export async function browser_polyfills(task, opts) {
 const externals = {
   // Browserslist (post-css plugins)
   browserslist: 'browserslist',
-  'caniuse-lite': 'caniuse-lite', // FIXME: `autoprefixer` will still bundle this because it uses direct imports
-  'caniuse-lite/data/features/border-radius':
-    'caniuse-lite/data/features/border-radius',
-  'caniuse-lite/data/features/css-featurequeries.js':
-    'caniuse-lite/data/features/css-featurequeries',
+  // don't bundle caniuse-lite data so users can
+  // update it manually
+  'caniuse-lite': 'caniuse-lite',
+  '/caniuse-lite(/.*)/': 'caniuse-lite$1',
 
   chalk: 'chalk',
   'node-fetch': 'node-fetch',
@@ -255,7 +254,7 @@ export async function ncc_escape_string_regexp(task, opts) {
     .source(
       opts.src || relative(__dirname, require.resolve('escape-string-regexp'))
     )
-    .ncc({ packageName: 'escape-string-regexp', externals })
+    .ncc({ packageName: 'escape-string-regexp', externals, target: 'es5' })
     .target('compiled/escape-string-regexp')
 }
 
