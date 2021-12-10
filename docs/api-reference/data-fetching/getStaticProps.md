@@ -15,7 +15,7 @@ description: API reference for `getStaticProps`. Learn how to use `getStaticProp
 
 </details>
 
-Exporting an `async` function called `getStaticProps` will pre-render a page at build time using the props returned from the function:
+Exporting a function called `getStaticProps` will pre-render a page at build time using the props returned from the function:
 
 ```jsx
 export async function getStaticProps(context) {
@@ -25,14 +25,7 @@ export async function getStaticProps(context) {
 }
 ```
 
-You can import modules in top-level scope for use in `getStaticProps`.
-Imports used will **not be bundled for the client-side**. This means you can write **server-side code directly in `getStaticProps`**, including fetching data from your database.
-
-If you are calling an external `API`, or fetching data from a database or Content Management System (CMS) in an `API` route, you can move that logic to `getStaticProps`, as both `API` routes and `getStaticProps` run on the server.
-
-Calling an `API` route from within `getStaticProps` can result in an additional call, reducing performance.
-
-Alternatively, if you are **not** using `API` routes to fetch data, then the [`fetch()`](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) `API` _can_ be used directly in `getStaticProps` to fetch data.
+You can import modules in top-level scope for use in `getStaticProps`. Imports used will **not be bundled for the client-side**. This means you can write **server-side code directly in `getStaticProps`**, including fetching data from your database.
 
 ## Context parameter
 
@@ -51,7 +44,7 @@ The `getStaticProps` function should return an object with the following **optio
 
 ### `props`
 
-The `props` object is a key-value pair, where each value is received by the page component. It should be a [serializable object](https://en.wikipedia.org/wiki/Serialization)
+The `props` object is a key-value pair, where each value is received by the page component. It should be a [serializable object](https://developer.mozilla.org/en-US/docs/Glossary/Serialization) so that any props passed, could be serialized with [`JSON.stringify`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify).
 
 ```jsx
 export async function getStaticProps(context) {

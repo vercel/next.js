@@ -14,7 +14,7 @@ description: API reference for `getServerSideProps`. Learn how to fetch data on 
 
 </details>
 
-When exporting an `async` function called `getServerSideProps` (server-side rendering) from a page, Next.js will pre-render this page on each request using the data returned by `getServerSideProps`. This is useful if you want to fetch data that changes often, and have the page update to show the most current data.
+When exporting a function called `getServerSideProps` (Server-Side Rendering) from a page, Next.js will pre-render this page on each request using the data returned by `getServerSideProps`. This is useful if you want to fetch data that changes often, and have the page update to show the most current data.
 
 ```js
 export async function getServerSideProps(context) {
@@ -47,7 +47,7 @@ The `getServerSideProps` function should return an object with the following **o
 
 ### `props`
 
-The `props` object is a key-value pair, where each value is forwarded to the page component. It should be a [serializable object](https://en.wikipedia.org/wiki/Serialization).
+The `props` object is a key-value pair, where each value is received by the page component. It should be a [serializable object](https://developer.mozilla.org/en-US/docs/Glossary/Serialization) so that any props passed, could be serialized with [`JSON.stringify`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify).
 
 ```jsx
 export async function getServerSideProps(context) {

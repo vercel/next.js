@@ -14,7 +14,7 @@ description: API reference for `getStaticPaths`. Learn how to fetch data and gen
 
 </details>
 
-When exporting an `async` function called `getStaticPaths` from a page that uses [Dynamic Routes](/docs/routing/dynamic-routes.md), Next.js will statically pre-render all the paths specified by `getStaticPaths`.
+When exporting a function called `getStaticPaths` from a page that uses [Dynamic Routes](/docs/routing/dynamic-routes.md), Next.js will statically pre-render all the paths specified by `getStaticPaths`.
 
 ```jsx
 export async function getStaticPaths() {
@@ -55,7 +55,7 @@ The value for each `params` object must match the parameters used in the page na
 
 ### `fallback: false`
 
-If `fallback` is `false`, then any paths not returned by `getStaticPaths` will result in a **404 page**. This is useful if you have a small number of paths to pre-render and want to statically generate them all during `next build`.
+If `fallback` is `false`, then any paths not returned by `getStaticPaths` will result in a **404 page**.
 
 When `next build` is run, Next.js will check if `getStaticPaths` returned `fallback: false`, it will then build **only** the paths returned by `getStaticPaths`. This option is useful if you have a small number of paths to create, or new page data is not added often. If you find that you need to add more paths, and you have `fallback: false`, you will need to run `next build` again so that the new paths can be generated.
 

@@ -4,7 +4,7 @@ description: Fetch data and generate static pages with `getStaticProps`. Learn m
 
 # `getStaticProps`
 
-If you export an `async` function called `getStaticProps` (static generation) from a page, Next.js will pre-render this page at build time using the props returned by `getStaticProps`.
+If you export a function called `getStaticProps` (Static Site Generation) from a page, Next.js will pre-render this page at build time using the props returned by `getStaticProps`.
 
 ```jsx
 export async function getStaticProps(context) {
@@ -43,7 +43,7 @@ function Blog({ posts }) {
 
 // This function gets called at build time on server-side.
 // It won't be called on client-side, so you can even do
-// direct database queries. See the "Technical details" section.
+// direct database queries.
 export async function getStaticProps() {
   // Call an external API endpoint to get posts.
   // You can use any data fetching library
@@ -66,11 +66,15 @@ The [`getStaticProps` API reference](/docs/api-reference/data-fetching/getStatic
 
 ## Write server-side code directly
 
-As `getStaticProps` runs only on the server-side, it will never run on the client-side. It won’t even be included in the JS bundle for the browser. That means you can write code such as direct database queries without them being sent to browsers.
+As `getStaticProps` runs only on the server-side, it will never run on the client-side. It won’t even be included in the JS bundle for the browser, so you can write direct database queries without them being sent to browsers.
 
-This means that instead of fetching an **API route** from `getStaticProps`, you can write the server-side code directly in `getStaticProps`.
+This means that instead of fetching an **API route** from `getStaticProps` (that itself fetches data from an external source), you can write the server-side code directly in `getStaticProps`.
 
-You can use the [next-code-elimination tool](https://next-code-elimination.vercel.app/) to verify what Next.js eliminates from the client-side bundle.
+Take the following example. An API route is used to fetch some data from a CMS. That API route is then called directly from `getStaticProps`. This produces an additional call, reducing performance. Instead, the logic for fetching the data from the CMS can be moved to `getStaticProps`.
+
+Alternatively, if you are **not** using API routes to fetch data, then the [`fetch()`](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) API _can_ be used directly in `getStaticProps` to fetch data.
+
+To verify what Next.js eliminates from the client-side bundle, you can use the [next-code-elimination tool](https://next-code-elimination.vercel.app/).
 
 ## Statically Generates both HTML and JSON
 

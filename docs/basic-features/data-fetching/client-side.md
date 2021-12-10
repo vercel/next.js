@@ -1,5 +1,5 @@
 ---
-description: 'Learn how to use SWR, a data fetching React hook library that handles caching, revalidation, focus tracking, refetching on interval and more.'
+description: 'Learn about client-side data fetching, and how to use SWR, a data fetching React hook library that handles caching, revalidation, focus tracking, refetching on interval and more.'
 ---
 
 # Client-side data fetching
@@ -52,8 +52,10 @@ For more information on using SWR, check out the [SWR docs](https://swr.vercel.a
 ```jsx
 import useSWR from 'swr'
 
+const fetcher = (...args) => fetch(...args).then((res) => res.json())
+
 function Profile() {
-  const { data, error } = useSWR('/api/profile-data', fetch)
+  const { data, error } = useSWR('/api/profile-data', fetcher)
 
   if (error) return <div>Failed to load</div>
   if (!data) return <div>Loading...</div>
