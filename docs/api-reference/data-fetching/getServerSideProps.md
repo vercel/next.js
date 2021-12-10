@@ -80,7 +80,7 @@ export async function getServerSideProps(context) {
 
 ### `redirect`
 
-The `redirect` object to allows redirecting to internal and external resources. It should match the shape of `{ destination: string, permanent: boolean }`. In some rare cases, you might need to assign a custom status code for older `HTTP` Clients to properly redirect. In these cases, you can use the `statusCode` property instead of the `permanent` property, but not both.
+The `redirect` object allows redirecting to internal and external resources. It should match the shape of `{ destination: string, permanent: boolean }`. In some rare cases, you might need to assign a custom status code for older `HTTP` clients to properly redirect. In these cases, you can use the `statusCode` property instead of the `permanent` property, but not both.
 
 ```js
 export async function getServerSideProps(context) {
