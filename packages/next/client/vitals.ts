@@ -10,9 +10,11 @@ export function trackWebVitalMetric(metric: NextWebVitalsMetric) {
   webVitalsCallbacks.forEach((callback) => callback(metric))
 }
 
+// eslint-disable-next-line react-hooks/rules-of-hooks
 export function unstable_useWebVitalsReport(callback: ReportWebVitalsCallback) {
   const metricIndexRef = useRef(0)
 
+  // eslint-disable-next-line react-hooks/rules-of-hooks
   useEffect(() => {
     // Flush calculated metrics
     const reportMetric = (metric: NextWebVitalsMetric) => {
