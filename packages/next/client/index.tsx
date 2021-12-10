@@ -653,10 +653,13 @@ if (process.env.__NEXT_RSC) {
 
   const rscCache = createResponseCache()
 
-  function fetchFlight(href: string) {
+  function fetchFlight(href: string, props?: any) {
     const url = new URL(href, location.origin)
     const searchParams = url.searchParams
     searchParams.append('__flight__', '1')
+    if (props) {
+      searchParams.append('__props__', JSON.stringify(props))
+    }
     return fetch(url.toString())
   }
 
@@ -700,10 +703,10 @@ if (process.env.__NEXT_RSC) {
     const startTransition = React.startTransition
     const renrender = () => dispatch({})
     // If there is no cache, or there is serialized data already
-    function refreshCache() {
+    function refreshCache(nextProps: any) {
       startTransition(() => {
         const href = getHref()
-        const response = createFromFetch(fetchFlight(href))
+        const response = createFromFetch(fetchFlight(href, nextProps))
         // FIXME: router.asPath can be different from current location due to navigation
         rscCache.set(href, response)
         renrender()
