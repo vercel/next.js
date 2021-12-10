@@ -134,7 +134,7 @@ When using Incremental Static Generation `getStaticProps` will be executed out o
 
 One of the reasons for this restriction is that React needs to have all the required data before the page is rendered.
 
-Also, you must use `export async function getStaticProps() {}` — it will **not** work if you add `getStaticProps` as a property of the page component.
+Also, you must use export `getStaticProps` as a standalone function — it will **not** work if you add `getStaticProps` as a property of the page component.
 
 ### Runs on every request in development
 
