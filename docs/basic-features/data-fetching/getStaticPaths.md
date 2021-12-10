@@ -41,7 +41,7 @@ You should use `getStaticPaths` if you’re statically pre-rendering pages that 
 
 `getStaticPaths` can only be exported from a **page**. You **cannot** export it from non-page files.
 
-You must use export `getStaticPaths` as a standalone function — it will **not** work if you add `getStaticPaths` as a property of the page component.
+Note that you must use export `getStaticPaths` as a standalone function — it will **not** work if you add `getStaticPaths` as a property of the page component.
 
 ## Runs on every request in development
 

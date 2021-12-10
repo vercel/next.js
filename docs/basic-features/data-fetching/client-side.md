@@ -41,7 +41,7 @@ function Profile() {
 }
 ```
 
-# Client-side data fetching with SWR
+## Client-side data fetching with SWR
 
 The team behind Next.js has created a React hook library for data fetching called [**SWR**](https://swr.vercel.app/). It is **highly recommend** if you are fetching data on the client-side. It handles caching, revalidation, focus tracking, refetching on intervals, and more.
 

@@ -84,7 +84,7 @@ This JSON file will be used in client-side routing through [`next/link`](/docs/a
 
 When using Incremental Static Generation `getStaticProps` will be executed out of band to generate the JSON needed for client-side navigation. You may see this in the form of multiple requests being made for the same page, however, this is intended and has no impact on end-user performance
 
-### Where can I use `getStaticProps`
+## Where can I use `getStaticProps`
 
 `getStaticProps` can only be exported from a **page**. You **cannot** export it from non-page files.
 
@@ -92,11 +92,11 @@ One of the reasons for this restriction is that React needs to have all the requ
 
 Also, you must use export `getStaticProps` as a standalone function — it will **not** work if you add `getStaticProps` as a property of the page component.
 
-### Runs on every request in development
+## Runs on every request in development
 
 In development (`next dev`), `getStaticProps` will be called on every request.
 
-### Preview Mode
+## Preview Mode
 
 In some cases, you might want to temporarily bypass Static Generation and render the page at **request time** instead of build time. For example, you might be using a headless CMS and want to preview drafts before they're published.
 
