@@ -85,4 +85,4 @@ When a request is made to a page that was pre-rendered at build time, it will in
 
 When a request is made to a path that hasn’t been generated, Next.js will server-render the page on the first request. Future requests will serve the static file from the cache.
 
-[Incremental Static Regeneration](https://vercel.com/docs/next.js/incremental-static-regeneration) covers how to persist the cache globally and handle rollbacks.
+[Incremental Static Regeneration](https://vercel.com/docs/concepts/next.js/incremental-static-regeneration) covers how to persist the cache globally and handle rollbacks.
