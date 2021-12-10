@@ -1,6 +1,6 @@
 /* global location */
 import '@next/polyfill-module'
-import React from 'react'
+import React, { useState } from 'react'
 import ReactDOM from 'react-dom'
 import { StyleRegistry } from 'styled-jsx'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
@@ -35,6 +35,7 @@ import { RouteAnnouncer } from './route-announcer'
 import { createRouter, makePublicRouterInstance, useRouter } from './router'
 import isError from '../lib/is-error'
 import { trackWebVitalMetric } from './vitals'
+import { RefreshContext } from './rsc'
 
 /// <reference types="react-dom/experimental" />
 
@@ -643,11 +644,29 @@ const wrapApp =
 
 let RSCComponent: (props: any) => JSX.Element
 if (process.env.__NEXT_RSC) {
+  const {
+    createFromFetch,
+  } = require('next/dist/compiled/react-server-dom-webpack')
   function createResponseCache() {
     return new Map<string, any>()
   }
 
   const rscCache = createResponseCache()
+
+  function fetchFlight(href: string, props?: any) {
+    const url = new URL(href, location.origin)
+    const searchParams = url.searchParams
+    searchParams.append('__flight__', '1')
+    if (props) {
+      searchParams.append('__props__', JSON.stringify(props))
+    }
+    return fetch(url.toString())
+  }
+
+  const getHref = () => {
+    const { pathname, search } = location
+    return pathname + search
+  }
 
   const RSCWrapper = ({
     cacheKey,
@@ -658,12 +677,8 @@ if (process.env.__NEXT_RSC) {
     serialized?: string
     _fresh?: boolean
   }) => {
-    const {
-      createFromFetch,
-    } = require('next/dist/compiled/react-server-dom-webpack')
     let response = rscCache.get(cacheKey)
 
-    // If there is no cache, or there is serialized data already
     if (!response) {
       response = createFromFetch(
         serialized
@@ -672,16 +687,10 @@ if (process.env.__NEXT_RSC) {
               t.writable.getWriter().write(new TextEncoder().encode(serialized))
               return Promise.resolve({ body: t.readable })
             })()
-          : (() => {
-              const { search, pathname } = location
-              const flightReqUrl =
-                pathname + search + (search ? '&' : '?') + '__flight__'
-              return fetch(flightReqUrl)
-            })()
+          : fetchFlight(getHref())
       )
       rscCache.set(cacheKey, response)
     }
-
     const root = response.readRoot()
     return root
   }
@@ -689,14 +698,31 @@ if (process.env.__NEXT_RSC) {
   RSCComponent = (props: any) => {
     const cacheKey = useRouter().asPath
     const { __flight_serialized__, __flight_fresh__ } = props
+    const [, dispatch] = useState({})
+    // @ts-ignore TODO: remove when react 18 types are supported
+    const startTransition = React.startTransition
+    const renrender = () => dispatch({})
+    // If there is no cache, or there is serialized data already
+    function refreshCache(nextProps: any) {
+      startTransition(() => {
+        const href = getHref()
+        const response = createFromFetch(fetchFlight(href, nextProps))
+        // FIXME: router.asPath can be different from current location due to navigation
+        rscCache.set(href, response)
+        renrender()
+      })
+    }
+
     return (
-      <React.Suspense fallback={null}>
-        <RSCWrapper
-          cacheKey={cacheKey}
-          serialized={__flight_serialized__}
-          _fresh={__flight_fresh__}
-        />
-      </React.Suspense>
+      <RefreshContext.Provider value={refreshCache}>
+        <React.Suspense fallback={null}>
+          <RSCWrapper
+            cacheKey={cacheKey}
+            serialized={__flight_serialized__}
+            _fresh={__flight_fresh__}
+          />
+        </React.Suspense>
+      </RefreshContext.Provider>
     )
   }
 }
