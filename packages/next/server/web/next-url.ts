@@ -35,6 +35,7 @@ export class NextURL extends URL {
   }
   private _options: Options
   private _url: URL
+  originalUrl: URL
 
   constructor(input: string, options: Options = {}) {
     const url = createWHATWGURL(input)
@@ -42,6 +43,7 @@ export class NextURL extends URL {
     this._options = options
     this._basePath = ''
     this._url = url
+    this.originalUrl = url
     this.analyzeUrl()
   }
 
