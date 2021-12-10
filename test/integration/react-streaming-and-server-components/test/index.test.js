@@ -14,7 +14,6 @@ import {
   nextBuild as _nextBuild,
   nextStart as _nextStart,
   renderViaHTTP,
-  check,
   waitFor,
 } from 'next-test-utils'
 
