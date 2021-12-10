@@ -73,6 +73,8 @@ export function getRender({
       supportsDynamicHTML: true,
       concurrentFeatures: true,
       renderServerComponentData,
+      // When streaming, opt-out the `defer` behavior for script tags.
+      disableOptimizedLoading: true,
       serverComponentManifest: isServerComponent ? rscManifest : null,
       ComponentMod: null,
     }

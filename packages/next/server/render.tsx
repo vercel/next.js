@@ -1181,7 +1181,7 @@ export async function renderToHTML(
       }
 
       return {
-        bodyResult: () => piperFromArray([docProps.html]),
+        bodyResult: (suffix: string) => piperFromArray([docProps.html, suffix]),
         documentElement: (htmlProps: HtmlProps) => (
           <Document {...htmlProps} {...docProps} />
         ),
@@ -1193,7 +1193,7 @@ export async function renderToHTML(
       let bodyResult
 
       if (concurrentFeatures) {
-        bodyResult = async () => {
+        bodyResult = async (suffix: string) => {
           // this must be called inside bodyResult so appWrappers is
           // up to date when getWrappedApp is called
           const content =
@@ -1211,9 +1211,10 @@ export async function renderToHTML(
           return process.browser
             ? await renderToWebStream(
                 content,
+                suffix,
                 serverComponentsInlinedTransformStream
               )
-            : await renderToNodeStream(content, generateStaticHTML)
+            : await renderToNodeStream(content, suffix, generateStaticHTML)
         }
       } else {
         const content =
@@ -1231,8 +1232,8 @@ export async function renderToHTML(
         // for non-concurrent rendering we need to ensure App is rendered
         // before _document so that updateHead is called/collected before
         // rendering _document's head
-        const result = piperFromArray([ReactDOMServer.renderToString(content)])
-        bodyResult = () => result
+        const result = ReactDOMServer.renderToString(content)
+        bodyResult = (suffix: string) => piperFromArray([result, suffix])
       }
 
       return {
@@ -1396,6 +1397,7 @@ export async function renderToHTML(
   const [renderTargetPrefix, renderTargetSuffix] = documentHTML.split(
     /<next-js-internal-body-render-target><\/next-js-internal-body-render-target>/
   )
+
   const prefix: Array<string> = []
   if (!documentHTML.startsWith(DOCTYPE)) {
     prefix.push(DOCTYPE)
@@ -1407,8 +1409,7 @@ export async function renderToHTML(
 
   let pipers: Array<NodeWritablePiper> = [
     piperFromArray(prefix),
-    await documentResult.bodyResult(),
-    piperFromArray([renderTargetSuffix]),
+    await documentResult.bodyResult(renderTargetSuffix),
   ]
 
   const postProcessors: Array<((html: string) => Promise<string>) | null> = (
@@ -1501,11 +1502,16 @@ function serializeError(
 
 function renderToNodeStream(
   element: React.ReactElement,
+  suffix: string,
   generateStaticHTML: boolean
 ): Promise<NodeWritablePiper> {
   return new Promise((resolve, reject) => {
     let underlyingStream: WritableType | null = null
     let queuedCallbacks: Array<(error?: Error | null) => void> = []
+    let shellFlushed = false
+
+    const closeTag = '</body></html>'
+    const [suffixUnclosed] = suffix.split(closeTag)
 
     // Based on the suggestion here:
     // https://github.com/reactwg/react-18/discussions/110
@@ -1526,6 +1532,11 @@ function renderToNodeStream(
           queuedCallbacks.push(callback)
         } else {
           callback()
+        }
+
+        if (!shellFlushed) {
+          shellFlushed = true
+          underlyingStream.write(suffixUnclosed)
         }
       }
 
@@ -1556,6 +1567,9 @@ function renderToNodeStream(
         resolved = true
         resolve((res, next) => {
           const doNext = (err?: Error) => {
+            if (!err) {
+              res.write(closeTag)
+            }
             underlyingStream = null
             queuedCallbacks = []
             next(err)
@@ -1630,13 +1644,18 @@ async function bufferedReadFromReadableStream(
 
 function renderToWebStream(
   element: React.ReactElement,
+  suffix: string,
   serverComponentsInlinedTransformStream: TransformStream | null
 ): Promise<NodeWritablePiper> {
   return new Promise((resolve, reject) => {
     let resolved = false
-    const inlinedReader = serverComponentsInlinedTransformStream
+    const inlinedDataReader = serverComponentsInlinedTransformStream
       ? serverComponentsInlinedTransformStream.readable.getReader()
       : null
+
+    const closeTag = '</body></html>'
+    const [suffixUnclosed] = suffix.split(closeTag)
+
     const stream: ReadableStream = (
       ReactDOMServer as any
     ).renderToReadableStream(element, {
@@ -1650,23 +1669,24 @@ function renderToWebStream(
         if (!resolved) {
           resolved = true
           resolve((res, next) => {
-            bufferedReadFromReadableStream(reader, (val) =>
-              res.write(val)
-            ).then(
-              () => next(),
+            let shellFlushed = false
+            Promise.all([
+              bufferedReadFromReadableStream(reader, (val) => {
+                if (!shellFlushed) {
+                  shellFlushed = true
+                  val += suffixUnclosed
+                }
+                res.write(val)
+              }),
+              inlinedDataReader &&
+                bufferedReadFromReadableStream(inlinedDataReader, res.write),
+            ]).then(
+              () => {
+                res.write(closeTag)
+                next()
+              },
               (err) => next(err)
             )
-            if (inlinedReader) {
-              const process = () => {
-                inlinedReader.read().then(({ done, value }) => {
-                  if (!done) {
-                    res.write(value)
-                    process()
-                  }
-                })
-              }
-              process()
-            }
           })
         }
       },

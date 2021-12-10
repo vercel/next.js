@@ -643,28 +643,81 @@ const wrapApp =
 
 let RSCComponent: (props: any) => JSX.Element
 if (process.env.__NEXT_RSC) {
+  const encoder = new TextEncoder()
+  const serverDataBuffer = new Map<string, string[]>()
+  const serverDataWriter = new Map<string, WritableStreamDefaultWriter>()
+  const ssrCacheKey = location ? location.href : ''
+  function nextServerDataCallback(data: [number, string, string]) {
+    const key = ssrCacheKey + ',' + data[1]
+    if (data[0] === 0) {
+      serverDataBuffer.set(key, [])
+    } else {
+      const buffer = serverDataBuffer.get(key)
+      if (!buffer)
+        throw new Error('Unexpected server data: missing bootstrap script.')
+
+      const writer = serverDataWriter.get(key)
+      if (writer) {
+        writer.write(encoder.encode(data[2]))
+      } else {
+        buffer.push(data[2])
+      }
+    }
+  }
+  function nextServerDataRegisterWriter(
+    key: string,
+    writer: WritableStreamDefaultWriter
+  ) {
+    const buffer = serverDataBuffer.get(key)
+    if (buffer) {
+      buffer.forEach((val) => {
+        writer.write(encoder.encode(val))
+      })
+      buffer.length = 0
+    }
+    serverDataWriter.set(key, writer)
+  }
+  // When `DOMContentLoaded`, we can close all pending writers to finish hydration.
+  document.addEventListener(
+    'DOMContentLoaded',
+    function () {
+      serverDataWriter.forEach((writer) => {
+        if (!writer.closed) {
+          writer.close()
+        }
+      })
+    },
+    false
+  )
+
+  const nextServerDataLoadingGlobal = ((self as any).__next_s =
+    (self as any).__next_s || [])
+  nextServerDataLoadingGlobal.forEach(nextServerDataCallback)
+  nextServerDataLoadingGlobal.push = nextServerDataCallback
+
   function createResponseCache() {
     return new Map<string, any>()
   }
 
+  const {
+    createFromFetch,
+  } = require('next/dist/compiled/react-server-dom-webpack')
   const rscCache = createResponseCache()
 
-  const RSCWrapper = ({
-    cacheKey,
-    serialized,
-    _fresh,
-  }: {
-    cacheKey: string
+  function useServerResponse(
+    id: string,
+    cacheKey: string,
     serialized?: string
-    _fresh?: boolean
-  }) => {
-    const {
-      createFromFetch,
-    } = require('next/dist/compiled/react-server-dom-webpack')
+  ) {
     let response = rscCache.get(cacheKey)
+    if (response) return response
 
-    // If there is no cache, or there is serialized data already
-    if (!response) {
+    if (serverDataBuffer.has(cacheKey + ',' + id)) {
+      const t = new TransformStream()
+      const writer = t.writable.getWriter()
+      response = createFromFetch(Promise.resolve({ body: t.readable }))
+      nextServerDataRegisterWriter(cacheKey + ',' + id, writer)
+    } else {
       response = createFromFetch(
         serialized
           ? (() => {
@@ -679,19 +732,32 @@ if (process.env.__NEXT_RSC) {
               return fetch(flightReqUrl)
             })()
       )
-      rscCache.set(cacheKey, response)
     }
 
-    const root = response.readRoot()
-    return root
+    rscCache.set(cacheKey, response)
+    return response
+  }
+
+  const ServerRoot = ({
+    cacheKey,
+    serialized,
+    _fresh,
+  }: {
+    cacheKey: string
+    serialized?: string
+    _fresh?: boolean
+  }) => {
+    const id = (React as any).useId()
+    const response = useServerResponse(id, cacheKey, serialized)
+    return response.readRoot()
   }
 
   RSCComponent = (props: any) => {
-    const cacheKey = useRouter().asPath
+    const cacheKey = location ? location.href : ''
     const { __flight_serialized__, __flight_fresh__ } = props
     return (
       <React.Suspense fallback={null}>
-        <RSCWrapper
+        <ServerRoot
           cacheKey={cacheKey}
           serialized={__flight_serialized__}
           _fresh={__flight_fresh__}
