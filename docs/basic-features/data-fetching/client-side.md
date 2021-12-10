@@ -4,7 +4,7 @@ description: 'Learn how to use SWR, a data fetching React hook library that hand
 
 # Client-side data fetching
 
-Client-side data fetching is useful when your page doesn't require SEO indexing, when you don't need to pre-render your data, or when your pages content needs to update frequently. Unlike the server-side rendering APIs, you can use client side data fetching at the component level.
+Client-side data fetching is useful when your page doesn't require SEO indexing, when you don't need to pre-render your data, or when the content of your pages needs to update frequently. Unlike the server-side rendering APIs, you can use client-side data fetching at the component level.
 
 If done at the page level, the data is fetched at runtime, and the contents of the page updated as the data changes. When used at the component level, the data is fetched at the time of the component mount, and the contents of the component are updated as the data changes.
 
