@@ -78,7 +78,7 @@ You can use the [next-code-elimination tool](https://next-code-elimination.verce
 
 `getServerSideProps` can only be exported from a **page**. You can’t export it from non-page files.
 
-Also, you must use `export async function getServerSideProps() {}` — it will **not** work if you add `getServerSideProps` as a property of the page component.
+Also, you must export `getServerSideProps` as a standalone function. — it will **not** work if you add `getServerSideProps` as a property of the page component.
 
 ## Fetching data on the client side
 
