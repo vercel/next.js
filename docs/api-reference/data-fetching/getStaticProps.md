@@ -198,6 +198,46 @@ export async function getStaticProps() {
 export default Blog
 ```
 
+## `getStaticProps` with TypeScript
+
+You can use the `GetStaticProps` type from `next` to type the function:
+
+```ts
+import { GetStaticProps } from 'next'
+
+export const getStaticProps: GetStaticProps = async (context) => {
+  // ...
+}
+```
+
+If you want to get inferred typings for your props, you can use `InferGetStaticPropsType<typeof getStaticProps>`:
+
+```tsx
+import { InferGetStaticPropsType } from 'next'
+
+type Post = {
+  author: string
+  content: string
+}
+
+export const getStaticProps = async () => {
+  const res = await fetch('https://.../posts')
+  const posts: Post[] = await res.json()
+
+  return {
+    props: {
+      posts,
+    },
+  }
+}
+
+function Blog({ posts }: InferGetStaticPropsType<typeof getStaticProps>) {
+  // will resolve posts to type Post[]
+}
+
+export default Blog
+```
+
 ## Related
 
 For more information on what to do next, we recommend the following sections:

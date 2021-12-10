@@ -14,11 +14,26 @@ export async function getServerSideProps(context) {
 }
 ```
 
+## When does `getServerSideProps` run
+
+`getServerSideProps` only runs on server-side and never runs on the browser. If a page uses `getServerSideProps`, then:
+
+- When you request this page directly, `getServerSideProps` runs at request time, and this page will be pre-rendered with the returned props
+- When you request this page on client-side page transitions through ([`next/link`](/docs/api-reference/next/link.md)) or ([`next/router`](/docs/api-reference/next/router.md)), Next.js sends an API request to the server, which runs `getServerSideProps`.
+
+It then returns `JSON` that contains the result of running `getServerSideProps`, that `JSON` will be used to render the page. All this work will be handled automatically by Next.js, so you don’t need to do anything extra as long as you have `getServerSideProps` defined.
+
+You can use the [next-code-elimination tool](https://next-code-elimination.vercel.app/) to verify what Next.js eliminates from the client-side bundle.
+
+`getServerSideProps` can only be exported from a **page**. You can’t export it from non-page files.
+
+You must export `getServerSideProps` as a standalone function — it will **not** work if you add `getServerSideProps` as a property of the page component.
+
 The [`getServerSideProps` API reference](/docs/api-reference/data-fetching/getServerSideProps.md) covers all parameters and props that can be used with `getServerSideProps`.
 
 ## When should I use `getServerSideProps`?
 
-You should use `getServerSideProps` only if you need to pre-render a page whose data must be fetched at request time. [Time to First Byte (TTFB)](/learn/seo/web-performance) will be higher than [`getStaticProps`](/docs/basic-features/data-fetching/getStaticProps.md) because the server must compute the result on every request, and the result can only be cached by a CDN using `cache-control` headers (which could require extra configuration).
+You should use `getServerSideProps` only if you need to pre-render a page whose data must be fetched at request time. [Time to First Byte (TTFB)](/learn/seo/web-performance) will be slower than [`getStaticProps`](/docs/basic-features/data-fetching/getStaticProps.md) because the server must compute the result on every request, and the result can only be cached by a CDN using `cache-control` headers (which could require extra configuration).
 
 If you do not need to pre-render the data, then you should consider fetching data on the [client side](#fetching-data-on-the-client-side).
 
@@ -27,58 +42,6 @@ If you do not need to pre-render the data, then you should consider fetching dat
 It can be tempting to reach for an [API Route](/docs/api-routes/introduction.md) when you want to fetch data from the server, then call that API route from `getServerSideProps`. This is an unnecessary and inefficient approach, as it will cause an extra request to be made due to both `getServerSideProps` and API Routes running on the server.
 
 Instead, directly import the logic used inside your API Route into `getServerSideProps`. This could mean calling a CMS, database, or other API directly from inside `getServerSideProps`.
-
-### TypeScript: Use `GetServerSideProps`
-
-For TypeScript, you can use the `GetServerSideProps` type from `next`:
-
-```ts
-import { GetServerSideProps } from 'next'
-
-export const getServerSideProps: GetServerSideProps = async (context) => {
-  // ...
-}
-```
-
-If you want to get inferred typings for your props, you can use `InferGetServerSidePropsType<typeof getServerSideProps>`:
-
-```tsx
-import { InferGetServerSidePropsType } from 'next'
-
-type Data = { ... }
-
-export const getServerSideProps = async () => {
-  const res = await fetch('https://.../data')
-  const data: Data = await res.json()
-
-  return {
-    props: {
-      data,
-    },
-  }
-}
-
-function Page({ data }: InferGetServerSidePropsType<typeof getServerSideProps>) {
-  // will resolve posts to type Data
-}
-
-export default Page
-```
-
-### Technical details
-
-#### Only runs on server-side
-
-`getServerSideProps` only runs on server-side and never runs on the browser. If a page uses `getServerSideProps`, then:
-
-- When you request this page directly, `getServerSideProps` runs at the request time, and this page will be pre-rendered with the returned props
-- When you request this page on client-side page transitions through [`next/link`](/docs/api-reference/next/link.md) or [`next/router`](/docs/api-reference/next/router.md), Next.js sends an API request to the server, which runs `getServerSideProps`. It’ll return JSON that contains the result of running `getServerSideProps`, and the `JSON` will be used to render the page. All this work will be handled automatically by Next.js, so you don’t need to do anything extra as long as you have `getServerSideProps` defined
-
-You can use the [next-code-elimination tool](https://next-code-elimination.vercel.app/) to verify what Next.js eliminates from the client-side bundle.
-
-`getServerSideProps` can only be exported from a **page**. You can’t export it from non-page files.
-
-Also, you must export `getServerSideProps` as a standalone function. — it will **not** work if you add `getServerSideProps` as a property of the page component.
 
 ## Fetching data on the client side
 

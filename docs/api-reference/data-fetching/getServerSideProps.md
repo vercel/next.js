@@ -102,6 +102,43 @@ export async function getServerSideProps(context) {
 }
 ```
 
+### `getServerSideProps` with TypeScript
+
+For TypeScript, you can use the `GetServerSideProps` type from `next`:
+
+```ts
+import { GetServerSideProps } from 'next'
+
+export const getServerSideProps: GetServerSideProps = async (context) => {
+  // ...
+}
+```
+
+If you want to get inferred typings for your props, you can use `InferGetServerSidePropsType<typeof getServerSideProps>`:
+
+```tsx
+import { InferGetServerSidePropsType } from 'next'
+
+type Data = { ... }
+
+export const getServerSideProps = async () => {
+  const res = await fetch('https://.../data')
+  const data: Data = await res.json()
+
+  return {
+    props: {
+      data,
+    },
+  }
+}
+
+function Page({ data }: InferGetServerSidePropsType<typeof getServerSideProps>) {
+  // will resolve posts to type Data
+}
+
+export default Page
+```
+
 ## Related
 
 For more information on what to do next, we recommend the following sections:

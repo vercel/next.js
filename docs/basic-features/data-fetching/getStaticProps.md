@@ -23,45 +23,7 @@ You should use `getStaticProps` if:
 - The data can be publicly cached (not user-specific)
 - The page must be pre-rendered (for SEO) and be very fast — `getStaticProps` generates `HTML` and `JSON` files, both of which can be cached by a CDN for performance
 
-## TypeScript: Use `GetStaticProps`
-
-You can use the `GetStaticProps` type from `next` to type the function:
-
-```ts
-import { GetStaticProps } from 'next'
-
-export const getStaticProps: GetStaticProps = async (context) => {
-  // ...
-}
-```
-
-If you want to get inferred typings for your props, you can use `InferGetStaticPropsType<typeof getStaticProps>`:
-
-```tsx
-import { InferGetStaticPropsType } from 'next'
-
-type Post = {
-  author: string
-  content: string
-}
-
-export const getStaticProps = async () => {
-  const res = await fetch('https://.../posts')
-  const posts: Post[] = await res.json()
-
-  return {
-    props: {
-      posts,
-    },
-  }
-}
-
-function Blog({ posts }: InferGetStaticPropsType<typeof getStaticProps>) {
-  // will resolve posts to type Post[]
-}
-
-export default Blog
-```
+Because `getStaticProps` runs at build time, it does **not** receive data that’s only available during request time, such as query parameters or `HTTP` headers, as it generates static `HTML`. When combined with [Incremental Static Regeneration](/docs/basic-features/data-fetching/incremental-static-regeneration.md) however, it will run in the background while the stale page is being revalidated, and the fresh page served to the browser.
 
 ## Using `getStaticProps` to fetch data from a CMS
 
@@ -102,25 +64,15 @@ export default Blog
 
 The [`getStaticProps` API reference](/docs/api-reference/data-fetching/getStaticProps.md) covers all parameters and props that can be used with `getStaticProps`.
 
-## Technical details
+## Write server-side code directly
 
-### Only runs at build time
+As `getStaticProps` runs only on the server-side, it will never run on the client-side. It won’t even be included in the JS bundle for the browser. That means you can write code such as direct database queries without them being sent to browsers.
 
-Because `getStaticProps` runs at build time, it does **not** receive data that’s only available during request time, such as query parameters or `HTTP` headers, as it generates static `HTML`. When combined with [Incremental Static Regeneration](/docs/basic-features/data-fetching/incremental-static-regeneration.md) however, it will run in the background while the stale page is being revalidated, and the fresh page served to the browser.
-
-### Write server-side code directly
-
-Note that `getStaticProps` runs only on the server-side. It will never be run on the client-side. It won’t even be included in the `JS` bundle for the browser. That means you can write code such as direct database queries without them being sent to browsers.
-
-### Write server-side code directly
-
-Note that `getStaticProps` runs only on the server-side. It will never be run on the client-side. It won’t even be included in the JS bundle for the browser. That means you can write code such as direct database queries without them being sent to browsers.
-
-You should not fetch an **API route** from `getStaticProps` — instead, you can write the server-side code directly in `getStaticProps`.
+This means that instead of fetching an **API route** from `getStaticProps`, you can write the server-side code directly in `getStaticProps`.
 
 You can use the [next-code-elimination tool](https://next-code-elimination.vercel.app/) to verify what Next.js eliminates from the client-side bundle.
 
-### Statically Generates both HTML and JSON
+## Statically Generates both HTML and JSON
 
 When a page with `getStaticProps` is pre-rendered at build time, in addition to the page HTML file, Next.js generates a JSON file holding the result of running `getStaticProps`.
 
@@ -128,7 +80,7 @@ This JSON file will be used in client-side routing through [`next/link`](/docs/a
 
 When using Incremental Static Generation `getStaticProps` will be executed out of band to generate the JSON needed for client-side navigation. You may see this in the form of multiple requests being made for the same page, however, this is intended and has no impact on end-user performance
 
-### Only allowed in a page
+### Where can I use `getStaticProps`
 
 `getStaticProps` can only be exported from a **page**. You **cannot** export it from non-page files.
 
