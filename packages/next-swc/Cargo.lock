@@ -2273,9 +2273,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_transforms_react"
-version = "0.65.0"
+version = "0.65.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c0f9a87fba33abfae51b6442c521af5bc607fe81aca98efb131102eff2b3df38"
+checksum = "99f7d18dca4fbdc563244658bcea15b8151cd37ae7462588bf4b15eada4e5688"
 dependencies = [
  "ahash",
  "base64 0.13.0",
