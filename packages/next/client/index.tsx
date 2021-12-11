@@ -32,7 +32,7 @@ import initHeadManager from './head-manager'
 import PageLoader, { StyleSheetTuple } from './page-loader'
 import measureWebVitals from './performance-relayer'
 import { RouteAnnouncer } from './route-announcer'
-import { createRouter, makePublicRouterInstance, useRouter } from './router'
+import { createRouter, makePublicRouterInstance } from './router'
 import isError from '../lib/is-error'
 import { trackWebVitalMetric } from './vitals'
 import { RefreshContext } from './rsc'
@@ -652,9 +652,9 @@ if (process.env.__NEXT_RSC) {
   const serverDataBuffer = new Map<string, string[]>()
   const serverDataWriter = new Map<string, WritableStreamDefaultWriter>()
   const ssrCacheKey = location ? location.href : ''
-  function nextServerDataCallback(data: [number, string, string]) {
-    const key = ssrCacheKey + ',' + data[1]
-    if (data[0] === 0) {
+  function nextServerDataCallback(seg: [number, string, string]) {
+    const key = ssrCacheKey + ',' + seg[1]
+    if (seg[0] === 0) {
       serverDataBuffer.set(key, [])
     } else {
       const buffer = serverDataBuffer.get(key)
@@ -663,9 +663,9 @@ if (process.env.__NEXT_RSC) {
 
       const writer = serverDataWriter.get(key)
       if (writer) {
-        writer.write(encoder.encode(data[2]))
+        writer.write(encoder.encode(seg[2]))
       } else {
-        buffer.push(data[2])
+        buffer.push(seg[2])
       }
     }
   }
@@ -770,10 +770,12 @@ if (process.env.__NEXT_RSC) {
     // If there is no cache, or there is serialized data already
     function refreshCache(nextProps: any) {
       startTransition(() => {
-        const cacheKey = getCacheKey()
-        const response = createFromFetch(fetchFlight(cacheKey, nextProps))
+        const currentCacheKey = getCacheKey()
+        const response = createFromFetch(
+          fetchFlight(currentCacheKey, nextProps)
+        )
         // FIXME: router.asPath can be different from current location due to navigation
-        rscCache.set(cacheKey, response)
+        rscCache.set(currentCacheKey, response)
         renrender()
       })
     }
