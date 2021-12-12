@@ -215,8 +215,8 @@ export default async function exportPage({
         subFolders ? `${_path}${sep}index.html` : `${_path}.html`
       let htmlFilename = getHtmlFilename(filePath)
 
-      const pageExt = extname(page)
-      const pathExt = extname(path)
+      const pageExt = isDynamic ? '' : extname(page)
+      const pathExt = isDynamic ? '' : extname(path)
       // Make sure page isn't a folder with a dot in the name e.g. `v1.2`
       if (pageExt !== pathExt && pathExt !== '') {
         const isBuiltinPaths = ['/500', '/404'].some(
