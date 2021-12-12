@@ -295,9 +295,11 @@ async function runBasicTests(context, env) {
 
     const browser = await webdriver(context.appPort, '/next-api/link')
     await browser.eval('window.beforeNav = 1')
-    await browser.elementByCss('#next_id').click()
-    await browser.elementByCss('#next_id').click()
-    await check(() => browser.waitForElementByCss('#query').text(), /query:2/)
+    await browser.waitForElementByCss('#next_id').click()
+    await check(() => browser.elementByCss('#query').text(), 'query:1')
+
+    await browser.waitForElementByCss('#next_id').click()
+    await check(() => browser.elementByCss('#query').text(), 'query:2')
     expect(await browser.eval('window.beforeNav')).toBe(1)
   })
 
