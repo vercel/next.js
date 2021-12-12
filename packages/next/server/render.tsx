@@ -1324,7 +1324,7 @@ export async function renderToHTML(
         .map((e) => `<${e} />`)
         .join(', ')
       const plural = nonRenderedComponents.length !== 1 ? 's' : ''
-      throw new Error(
+      console.warn(
         `Your custom Document (pages/_document) did not render all the required subcomponent${plural}.\n` +
           `Missing component${plural}: ${missingComponentList}\n` +
           'Read how to fix here: https://nextjs.org/docs/messages/missing-document-component'
