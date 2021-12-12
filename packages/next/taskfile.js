@@ -1036,7 +1036,6 @@ export async function compile(task, opts) {
       'pages',
       'lib',
       'client',
-      'vitals',
       'telemetry',
       'trace',
       'shared',
@@ -1097,14 +1096,6 @@ export async function client(task, opts) {
     .swc('client', { dev: opts.dev })
     .target('dist/client')
   notify('Compiled client files')
-}
-
-export async function vitals(task, opts) {
-  await task
-    .source(opts.src || 'vitals/**/*.+(js|ts|tsx)')
-    .swc('vitals', { dev: opts.dev })
-    .target('dist/vitals')
-  notify('Compiled vitals files')
 }
 
 // export is a reserved keyword for functions
@@ -1181,7 +1172,6 @@ export default async function (task) {
   await task.watch('build/**/*.+(js|ts|tsx)', 'nextbuild', opts)
   await task.watch('export/**/*.+(js|ts|tsx)', 'nextbuildstatic', opts)
   await task.watch('client/**/*.+(js|ts|tsx)', 'client', opts)
-  await task.watch('vitals/**/*.+(js|ts|tsx)', 'vitals', opts)
   await task.watch('lib/**/*.+(js|ts|tsx)', 'lib', opts)
   await task.watch('cli/**/*.+(js|ts|tsx)', 'cli', opts)
   await task.watch('telemetry/**/*.+(js|ts|tsx)', 'telemetry', opts)
