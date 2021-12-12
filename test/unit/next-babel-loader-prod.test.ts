@@ -30,6 +30,7 @@ const babel = async (code: string, queryOpts = {} as any) => {
           : path.resolve(dir, 'pages'),
       cache: false,
       hasReactRefresh: false,
+      pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
     }
 
     const res = loader.bind({
