@@ -449,6 +449,7 @@ export default async function getBaseWebpackConfig(
             development: dev,
             hasReactRefresh: isMiddleware ? false : hasReactRefresh,
             hasJsxRuntime: true,
+            pageExtensions: config.pageExtensions,
           },
         }
   }

@@ -1109,6 +1109,17 @@ export function getRawPageExtensions(pageExtensions: string[]): string[] {
   )
 }
 
+export function isPage(
+  filename: string,
+  pagesDir: string,
+  pageExtensions: string[]
+): boolean {
+  return (
+    filename.startsWith(pagesDir) &&
+    new RegExp(`\\.(?:${pageExtensions.join('|')})$`).test(filename)
+  )
+}
+
 export function isFlightPage(
   nextConfig: NextConfigComplete,
   pagePath: string
