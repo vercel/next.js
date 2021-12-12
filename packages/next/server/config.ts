@@ -16,6 +16,7 @@ import { loadWebpackHook } from './config-utils'
 import { ImageConfig, imageConfigDefault, VALID_LOADERS } from './image-config'
 import { loadEnvConfig } from '@next/env'
 import { hasNextSupport } from '../telemetry/ci-info'
+import { NextConfig } from '../types'
 
 export { DomainLocale, NextConfig, normalizeConfig } from './config-shared'
 
@@ -138,7 +139,9 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     {}
   )
 
-  const result = { ...defaultConfig, ...config }
+  const result: NextConfig = JSON.parse(
+    JSON.stringify({ ...defaultConfig, ...config })
+  )
 
   if (typeof result.assetPrefix !== 'string') {
     throw new Error(
