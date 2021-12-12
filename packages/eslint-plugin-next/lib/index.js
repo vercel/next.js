@@ -19,6 +19,7 @@ module.exports = {
     'no-duplicate-head': require('./rules/no-duplicate-head'),
     'inline-script-id': require('./rules/inline-script-id'),
     'next-script-for-ga': require('./rules/next-script-for-ga'),
+    'no-node-api-outside-server': require('./rules/no-node-api-outside-server'),
   },
   configs: {
     recommended: {
@@ -43,6 +44,7 @@ module.exports = {
         '@next/next/no-typos': 1,
         '@next/next/no-duplicate-head': 2,
         '@next/next/inline-script-id': 2,
+        '@next/next/no-node-api-outside-server': 2,
       },
     },
     'core-web-vitals': {
