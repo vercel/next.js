@@ -1,48 +1,50 @@
 import React from 'react'
 import Link from 'next/link'
 import { render } from 'react-dom'
-import App, { AppContext } from 'next/app'
+import { AppContext, AppType } from 'next/app'
 import { renderToString } from 'react-dom/server'
 
-class MyApp<P = {}> extends App<P & { html: string }> {
-  static async getInitialProps({ Component, AppTree, ctx }: AppContext) {
-    let pageProps = {}
+const MyApp: AppType<{}, { html: string }> = ({
+  Component,
+  pageProps,
+  html,
+  router,
+}) => {
+  const href = router.pathname === '/' ? '/another' : '/'
 
-    if (Component.getInitialProps) {
-      pageProps = await Component.getInitialProps(ctx)
-    }
+  return html && router.pathname !== '/hello' ? (
+    <>
+      <div dangerouslySetInnerHTML={{ __html: html }} />
+      <Link href={href}>
+        <a id={href === '/' ? 'home' : 'another'}>to {href}</a>
+      </Link>
+    </>
+  ) : (
+    <Component {...pageProps} />
+  )
+}
 
-    let html: string
-    const toRender = <AppTree pageProps={pageProps} another="prop" />
+MyApp.getInitialProps = async ({ Component, AppTree, ctx }: AppContext) => {
+  let pageProps = {}
 
-    if (typeof window !== 'undefined') {
-      const el = document.createElement('div')
-      document.querySelector('body').appendChild(el)
-      render(toRender, el)
-      html = el.innerHTML
-      el.remove()
-    } else {
-      html = renderToString(toRender)
-    }
-
-    return { pageProps, html }
+  if (Component.getInitialProps) {
+    pageProps = await Component.getInitialProps(ctx)
   }
 
-  render() {
-    const { Component, pageProps, html, router } = this.props
-    const href = router.pathname === '/' ? '/another' : '/'
+  let html: string
+  const toRender = <AppTree pageProps={pageProps} another="prop" />
 
-    return html && router.pathname !== '/hello' ? (
-      <>
-        <div dangerouslySetInnerHTML={{ __html: html }} />
-        <Link href={href}>
-          <a id={href === '/' ? 'home' : 'another'}>to {href}</a>
-        </Link>
-      </>
-    ) : (
-      <Component {...pageProps} />
-    )
+  if (typeof window !== 'undefined') {
+    const el = document.createElement('div')
+    document.querySelector('body').appendChild(el)
+    render(toRender, el)
+    html = el.innerHTML
+    el.remove()
+  } else {
+    html = renderToString(toRender)
   }
+
+  return { pageProps, html }
 }
 
 export default MyApp

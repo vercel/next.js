@@ -3,27 +3,30 @@ import {
   loadGetInitialProps,
   AppContextType,
   AppInitialProps,
+  AppType,
   AppPropsType,
   NextWebVitalsMetric,
 } from '../shared/lib/utils'
-import type { Router } from '../client/router'
+import type { NextRouter } from '../client/router'
 
 export { AppInitialProps }
 
+export { AppType }
+
 export { NextWebVitalsMetric }
 
-export type AppContext = AppContextType<Router>
+export type AppContext<IP = {}, P = {}> = AppContextType<NextRouter, IP, P>
 
-export type AppProps<P = {}> = AppPropsType<Router, P>
+export type AppProps<P = {}> = AppPropsType<NextRouter, P>
 
 /**
  * `App` component is used for initialize of pages. It allows for overwriting and full control of the `page` initialization.
  * This allows for keeping state between navigation, custom error handling, injecting additional data.
  */
-async function appGetInitialProps({
+async function appGetInitialProps<IP = {}, P = {}>({
   Component,
   ctx,
-}: AppContext): Promise<AppInitialProps> {
+}: AppContext<IP, P>): Promise<AppInitialProps<IP>> {
   const pageProps = await loadGetInitialProps(Component, ctx)
   return { pageProps }
 }

@@ -29,14 +29,18 @@ export type DocumentType = NextComponentType<
   DocumentProps
 >
 
-export type AppType = NextComponentType<
-  AppContextType,
-  AppInitialProps,
-  AppPropsType
+export type AppType<
+  P = {},
+  IP = any,
+  R extends NextRouter = NextRouter
+> = NextComponentType<
+  AppContextType<R, IP, P>,
+  AppInitialProps<P, IP>,
+  AppPropsType<R, P, IP>
 >
 
-export type AppTreeType = ComponentType<
-  AppInitialProps & { [name: string]: any }
+export type AppTreeType<IP = any> = ComponentType<
+  AppInitialProps<IP> & { [name: string]: any }
 >
 
 /**
@@ -156,22 +160,27 @@ export interface NextPageContext {
   AppTree: AppTreeType
 }
 
-export type AppContextType<R extends NextRouter = NextRouter> = {
-  Component: NextComponentType<NextPageContext>
+export type AppContextType<
+  R extends NextRouter = NextRouter,
+  IP = {},
+  P = {}
+> = {
+  Component: NextComponentType<NextPageContext, IP, P>
   AppTree: AppTreeType
   ctx: NextPageContext
   router: R
 }
 
-export type AppInitialProps = {
-  pageProps: any
-}
+export type AppInitialProps<CP = any, AP = {}> = {
+  pageProps: CP
+} & AP
 
 export type AppPropsType<
   R extends NextRouter = NextRouter,
-  P = {}
-> = AppInitialProps & {
-  Component: NextComponentType<NextPageContext, any, P>
+  CP = {},
+  IP = any
+> = AppInitialProps<IP> & {
+  Component: NextComponentType<NextPageContext, any, CP>
   router: R
   __N_SSG?: boolean
   __N_SSP?: boolean
