@@ -25,7 +25,6 @@ module.exports = {
     }
 
     const nodeImportSpecifiers = []
-    const serverMethodDeclarations = []
 
     return {
       ImportDeclaration(node) {
@@ -33,48 +32,29 @@ module.exports = {
           node.specifiers.map((s) => nodeImportSpecifiers.push(s.local.name))
         }
       },
-      ExportNamedDeclaration(node) {
-        const d = node.declaration
-        if (
-          (d.type === 'FunctionDeclaration' &&
-            SERVER_METHODS.includes(d.id.name)) ||
-          (d.type === 'VariableDeclaration' &&
-            SERVER_METHODS.includes(d.declarations[0].id.name))
-        ) {
-          serverMethodDeclarations.push(node)
-        }
-      },
       ExpressionStatement(node) {
-        if (nodeImportSpecifiers.every((s) => s !== node.expression.name)) {
-          return
-        }
-        const ancestors = context.getAncestors()
-        const allowedParents = ancestors.filter((ancestor) => {
-          return serverMethodDeclarations.some(
-            ({ declaration: d }) =>
-              // export function ...
-              (d.type === 'FunctionDeclaration' &&
-                isIdentifierMatch(d.id, ancestor.id)) ||
-              // export const
-              (d.type === 'VariableDeclaration' &&
-                isIdentifierMatch(d.declarations[0].id, ancestor.id))
+        const expressionName = node.expression.name
+        if (nodeImportSpecifiers.includes(expressionName)) {
+          const ancestors = context.getAncestors()
+
+          const allowedParent = SERVER_METHODS.some((s) =>
+            ancestors.some(isIdentifierMatch(s))
           )
-        })
+          if (allowedParent) return
 
-        if (allowedParents.length) {
-          return
+          context.report({
+            node,
+            message:
+              'Node.js APIs should only be referenced within server-side methods. See https://nextjs.org/docs/messages/no-node-api-outside-server.',
+          })
         }
-
-        context.report({
-          node,
-          message:
-            'Node.js APIs should only be referenced within server-side methods. See https://nextjs.org/docs/messages/no-node-api-outside-server.',
-        })
       },
     }
   },
 }
 
-function isIdentifierMatch(id1, id2) {
-  return (id1 === null && id2 === null) || (id1 && id2 && id1.name === id2.name)
+function isIdentifierMatch(id1Name) {
+  return function (id2) {
+    return id2.id === null || (id2.id && id2.id.name === id1Name)
+  }
 }
