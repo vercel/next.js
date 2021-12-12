@@ -54,6 +54,7 @@ pub mod next_ssg;
 pub mod page_config;
 pub mod react_remove_properties;
 pub mod remove_console;
+pub mod shake_exports;
 pub mod styled_jsx;
 mod top_level_binding_collector;
 
@@ -86,6 +87,9 @@ pub struct TransformOptions {
 
     #[serde(default)]
     pub react_remove_properties: Option<react_remove_properties::Config>,
+
+    #[serde(default)]
+    pub shake_exports: Option<shake_exports::Config>,
 }
 
 pub fn custom_before_pass(file: Arc<SourceFile>, opts: &TransformOptions) -> impl Fold {
@@ -124,6 +128,10 @@ pub fn custom_before_pass(file: Arc<SourceFile>, opts: &TransformOptions) -> imp
                 Either::Left(react_remove_properties::remove_properties(config.clone())),
             _ => Either::Right(noop()),
         },
+        match &opts.shake_exports {
+            Some(config) => Either::Left(shake_exports::shake_exports(config.clone())),
+            None => Either::Right(noop()),
+        }
     )
 }
 
