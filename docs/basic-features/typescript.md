@@ -140,6 +140,31 @@ function MyApp({ Component, pageProps }: AppProps) {
 export default MyApp
 ```
 
+or use the `AppType` type if you want to type the props of the page component:
+
+```ts
+import type { AppType } from 'next/app'
+
+// First the props of the page component, then the props returned by
+// `getInitialProps`, if any. `MyApp.getInitialProps` will get its `appProps`
+// typed by the second parameter of `AppType`
+const MyApp: AppType<{ propA: string; propB: string }, { propB: string }> = ({
+  Component,
+  pageProps,
+}) => {
+  return <Component {...pageProps} propA="propA" />
+}
+
+MyApp.getInitialProps = async (appContext) => {
+  // calls page's `getInitialProps` and fills `appProps.pageProps`
+  const appProps = await App.getInitialProps(appContext)
+
+  return { ...appProps }
+}
+
+export default MyApp
+```
+
 ## Path aliases and baseUrl
 
 Next.js automatically supports the `tsconfig.json` `"paths"` and `"baseUrl"` options.
