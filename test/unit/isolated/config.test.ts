@@ -2,8 +2,10 @@
 import os from 'os'
 import { join } from 'path'
 import loadConfig from 'next/dist/server/config'
+import { imageConfigDefault } from 'next/dist/server/image-config'
 import { PHASE_DEVELOPMENT_SERVER } from 'next/constants'
 
+const pathToBasePathConfig = join(__dirname, '_resolvedata', 'with-base-path')
 const pathToConfig = join(__dirname, '_resolvedata', 'without-function')
 const pathToConfigFn = join(__dirname, '_resolvedata', 'with-function')
 
@@ -28,6 +30,26 @@ describe('config', () => {
       const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, pathToConfigFn)
       expect(config.distDir).toEqual('.next')
       expect(config.onDemandEntries.maxInactiveAge).toBeDefined()
+      expect(config.images).toEqual(imageConfigDefault)
+    })
+
+    it('Should prefix base path to images path', async () => {
+      const config = await loadConfig(
+        PHASE_DEVELOPMENT_SERVER,
+        pathToBasePathConfig
+      )
+      expect(config.images.path).toBe(`/docs${imageConfigDefault.path}`)
+    })
+
+    it('Should be an idempotent function', async () => {
+      let config = await loadConfig(
+        PHASE_DEVELOPMENT_SERVER,
+        pathToBasePathConfig
+      )
+      expect(config.images.path).toBe(`/docs${imageConfigDefault.path}`)
+
+      config = await loadConfig(PHASE_DEVELOPMENT_SERVER, pathToBasePathConfig)
+      expect(config.images.path).toBe(`/docs${imageConfigDefault.path}`)
     })
 
     it('Should pass the customConfig correctly', async () => {
@@ -49,6 +71,7 @@ describe('config', () => {
       })
       expect(config.customConfig).toBe(true)
       expect(config.onDemandEntries.maxInactiveAge).toBeDefined()
+      expect(config.images).toEqual(imageConfigDefault)
     })
 
     it('Should allow setting objects which do not have defaults', async () => {
