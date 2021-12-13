@@ -1964,13 +1964,11 @@ export default async function build(
 
     let serverWebMiddlewareManifest: MiddlewareManifest | null = null
     if (hasConcurrentFeatures) {
-      const manifestPath = path.join(
-        distDir,
-        SERVER_DIRECTORY,
-        getMiddlewareManifestName(true)
-      )
       serverWebMiddlewareManifest = JSON.parse(
-        await promises.readFile(manifestPath, 'utf8')
+        await promises.readFile(
+          path.join(distDir, SERVER_DIRECTORY, getMiddlewareManifestName(true)),
+          'utf8'
+        )
       ) as MiddlewareManifest
       const mergedManifest = mergeMiddlewareManifests(
         middlewareManifest,

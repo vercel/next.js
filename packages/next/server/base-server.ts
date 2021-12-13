@@ -39,7 +39,6 @@ import {
   SERVER_DIRECTORY,
   STATIC_STATUS_PAGES,
   TEMPORARY_REDIRECT_STATUS,
-  MIDDLEWARE_MANIFEST,
 } from '../shared/lib/constants'
 import {
   getRouteMatcher,
