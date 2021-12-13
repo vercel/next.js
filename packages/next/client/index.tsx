@@ -39,8 +39,6 @@ import { RefreshContext } from './rsc'
 
 /// <reference types="react-dom/experimental" />
 
-declare let __webpack_public_path__: string
-
 declare global {
   interface Window {
     /* test fns */
@@ -90,9 +88,6 @@ let { defaultLocale } = data
 
 const prefix: string = assetPrefix || ''
 
-// With dynamic assetPrefix it's no longer possible to set assetPrefix at the build time
-// So, this is how we do it in the client side at runtime
-__webpack_public_path__ = `${prefix}/_next/` //eslint-disable-line
 // Initialize next/config with the environment configuration
 setConfig({
   serverRuntimeConfig: {},

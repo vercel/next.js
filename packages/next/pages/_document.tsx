@@ -61,7 +61,7 @@ function getPolyfillScripts(context: HtmlProps, props: OriginProps) {
     .map((polyfill) => (
       <script
         key={polyfill}
-        defer={!disableOptimizedLoading}
+        async={!disableOptimizedLoading}
         nonce={props.nonce}
         crossOrigin={props.crossOrigin || crossOrigin}
         noModule={true}
@@ -80,7 +80,7 @@ function getPreNextScripts(context: HtmlProps, props: OriginProps) {
         <script
           {...scriptProps}
           key={scriptProps.src || index}
-          defer={!disableOptimizedLoading}
+          async={!disableOptimizedLoading}
           nonce={props.nonce}
           data-nscript="beforeInteractive"
           crossOrigin={props.crossOrigin || crossOrigin}
@@ -109,8 +109,7 @@ function getDynamicChunks(
 
     return (
       <script
-        async={!isDevelopment && disableOptimizedLoading}
-        defer={!disableOptimizedLoading}
+        async={!isDevelopment}
         key={file}
         src={`${assetPrefix}/_next/${encodeURI(
           file
@@ -132,7 +131,6 @@ function getScripts(
     buildManifest,
     isDevelopment,
     devOnlyCacheBusterQueryString,
-    disableOptimizedLoading,
     crossOrigin,
   } = context
 
@@ -149,8 +147,7 @@ function getScripts(
           file
         )}${devOnlyCacheBusterQueryString}`}
         nonce={props.nonce}
-        async={!isDevelopment && disableOptimizedLoading}
-        defer={!disableOptimizedLoading}
+        async={!isDevelopment}
         crossOrigin={props.crossOrigin || crossOrigin}
       />
     )
@@ -845,16 +842,26 @@ export class NextScript extends Component<OriginProps> {
           return (
             <>
               {disableRuntimeJS ? null : (
-                <script
-                  id="__NEXT_DATA__"
-                  type="application/json"
-                  nonce={this.props.nonce}
-                  crossOrigin={this.props.crossOrigin || crossOrigin}
-                  dangerouslySetInnerHTML={{
-                    __html: NextScript.getInlineScriptSource(this.context),
-                  }}
-                  data-ampdevmode
-                />
+                <>
+                  <script
+                    id="__NEXT_DATA__"
+                    type="application/json"
+                    nonce={this.props.nonce}
+                    crossOrigin={this.props.crossOrigin || crossOrigin}
+                    dangerouslySetInnerHTML={{
+                      __html: NextScript.getInlineScriptSource(this.context),
+                    }}
+                    data-ampdevmode
+                  />
+                  <script
+                    nonce={this.props.nonce}
+                    crossOrigin={this.props.crossOrigin || crossOrigin}
+                    dangerouslySetInnerHTML={{
+                      __html: `(self.__next_s=self.__next_s||[]).push([0])`,
+                    }}
+                    data-ampdevmode
+                  />
+                </>
               )}
               {ampDevFiles.map((file) => (
                 <script
@@ -919,6 +926,16 @@ export class NextScript extends Component<OriginProps> {
             {disableOptimizedLoading &&
               !disableRuntimeJS &&
               this.getScripts(files)}
+            {disableRuntimeJS ? null : (
+              <script
+                nonce={this.props.nonce}
+                crossOrigin={this.props.crossOrigin || crossOrigin}
+                dangerouslySetInnerHTML={{
+                  __html: `(self.__next_s=self.__next_s||[]).push([0])`,
+                }}
+                defer={!disableOptimizedLoading}
+              />
+            )}
           </>
         )
       })

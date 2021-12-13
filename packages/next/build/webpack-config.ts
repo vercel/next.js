@@ -517,17 +517,15 @@ export default async function getBaseWebpackConfig(
                 ).replace(/\\/g, '/'),
             }
           : {}),
-        [CLIENT_STATIC_FILES_RUNTIME_MAIN]:
-          `./` +
-          path
-            .relative(
-              dir,
-              path.join(
-                NEXT_PROJECT_ROOT_DIST_CLIENT,
-                dev ? `next-dev.js` : 'next.js'
-              )
+        [CLIENT_STATIC_FILES_RUNTIME_MAIN]: `next-bootstrap-loader!./${path
+          .relative(
+            dir,
+            path.join(
+              NEXT_PROJECT_ROOT_DIST_CLIENT,
+              dev ? `next-dev.js` : 'next.js'
             )
-            .replace(/\\/g, '/'),
+          )
+          .replace(/\\/g, '/')}`,
       } as ClientEntries)
     : undefined
 
@@ -1148,6 +1146,7 @@ export default async function getBaseWebpackConfig(
         'noop-loader',
         'next-middleware-loader',
         'next-middleware-ssr-loader',
+        'next-bootstrap-loader',
       ].reduce((alias, loader) => {
         // using multiple aliases to replace `resolveLoader.modules`
         alias[loader] = path.join(__dirname, 'webpack', 'loaders', loader)
