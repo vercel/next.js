@@ -10,6 +10,7 @@ import { execOnce } from '../shared/lib/utils'
 import {
   defaultConfig,
   DomainLocale,
+  NextConfig,
   NextConfigComplete,
   normalizeConfig,
 } from './config-shared'
@@ -17,7 +18,6 @@ import { loadWebpackHook } from './config-utils'
 import { ImageConfig, imageConfigDefault, VALID_LOADERS } from './image-config'
 import { loadEnvConfig } from '@next/env'
 import { hasNextSupport } from '../telemetry/ci-info'
-import { NextConfig } from '../types'
 
 export { DomainLocale, NextConfig, normalizeConfig } from './config-shared'
 
