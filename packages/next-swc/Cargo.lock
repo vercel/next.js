@@ -1918,9 +1918,9 @@ dependencies = [
 
 [[package]]
 name = "swc_css_parser"
-version = "0.44.0"
+version = "0.44.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a1e320dae7460f78c5496bfd58b7a3494addd34a8df8841e689774cdecf760b4"
+checksum = "c75f4add57624662c408f1fe61a8a14522a16dce24d5114885652701b6921f4f"
 dependencies = [
  "bitflags",
  "lexical",
@@ -2273,9 +2273,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_transforms_react"
-version = "0.65.0"
+version = "0.65.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c0f9a87fba33abfae51b6442c521af5bc607fe81aca98efb131102eff2b3df38"
+checksum = "99f7d18dca4fbdc563244658bcea15b8151cd37ae7462588bf4b15eada4e5688"
 dependencies = [
  "ahash",
  "base64 0.13.0",
