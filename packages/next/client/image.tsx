@@ -2,12 +2,14 @@ import React from 'react'
 import Head from '../shared/lib/head'
 import { toBase64 } from '../shared/lib/to-base-64'
 import {
+  getImageConfigDefault,
   ImageConfigComplete,
-  imageConfigDefault,
   LoaderValue,
   VALID_LOADERS,
 } from '../server/image-config'
 import { useIntersection } from './use-intersection'
+
+const imageConfigDefault = getImageConfigDefault()
 
 const loadedImageURLs = new Set<string>()
 const allImgs = new Map<

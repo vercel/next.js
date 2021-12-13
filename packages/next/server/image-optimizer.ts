@@ -12,7 +12,7 @@ import Stream from 'stream'
 import nodeUrl, { UrlWithParsedQuery } from 'url'
 import { NextConfig } from './config-shared'
 import { fileExists } from '../lib/file-exists'
-import { ImageConfig, imageConfigDefault } from './image-config'
+import { getImageConfigDefault, ImageConfig } from './image-config'
 import { processBuffer, decodeBuffer, Operation } from './lib/squoosh/main'
 import type Server from './base-server'
 import { sendEtagResponse } from './send-payload'
@@ -55,7 +55,7 @@ export async function imageOptimizer(
   distDir: string,
   isDev = false
 ) {
-  const imageData: ImageConfig = nextConfig.images || imageConfigDefault
+  const imageData: ImageConfig = nextConfig.images || getImageConfigDefault()
   const {
     deviceSizes = [],
     imageSizes = [],

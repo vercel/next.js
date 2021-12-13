@@ -2,9 +2,9 @@ import os from 'os'
 import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 import { Header, Redirect, Rewrite } from '../lib/load-custom-routes'
 import {
+  getImageConfigDefault,
   ImageConfig,
   ImageConfigComplete,
-  imageConfigDefault,
 } from './image-config'
 
 export type NextConfigComplete = Required<NextConfig> & {
@@ -172,6 +172,9 @@ export type NextConfig = { [key: string]: any } & {
   }
 }
 
+/**
+ * @deprecated The getDefaultConfig function should be used instead.
+ */
 export const defaultConfig: NextConfig = {
   env: {},
   webpack: null,
@@ -195,7 +198,7 @@ export const defaultConfig: NextConfig = {
   poweredByHeader: true,
   compress: true,
   analyticsId: process.env.VERCEL_ANALYTICS_ID || '',
-  images: imageConfigDefault,
+  images: getImageConfigDefault(),
   devIndicators: {
     buildActivity: true,
     buildActivityPosition: 'bottom-right',
@@ -255,6 +258,8 @@ export const defaultConfig: NextConfig = {
     outputStandalone: !!process.env.NEXT_PRIVATE_STANDALONE,
   },
 }
+
+export const getDefaultConfig: () => NextConfig = () => ({ ...defaultConfig })
 
 export function normalizeConfig(phase: string, config: any) {
   if (typeof config === 'function') {
