@@ -1,12 +1,14 @@
-import React, { useRef, useEffect } from 'react'
-import Head from '../shared/lib/head'
+import React, { useEffect, useRef } from 'react'
 import {
+  getImageConfigDefault,
   ImageConfigComplete,
-  imageConfigDefault,
   LoaderValue,
   VALID_LOADERS,
 } from '../server/image-config'
+import Head from '../shared/lib/head'
 import { useIntersection } from './use-intersection'
+
+const imageConfigDefault = getImageConfigDefault()
 
 const allImgs = new Map<
   string,

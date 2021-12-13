@@ -8,12 +8,16 @@ import * as Log from '../build/output/log'
 import { CONFIG_FILES, PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import { execOnce } from '../shared/lib/utils'
 import {
-  defaultConfig,
+  getDefaultConfig,
   NextConfigComplete,
   normalizeConfig,
 } from './config-shared'
 import { loadWebpackHook } from './config-utils'
-import { ImageConfig, imageConfigDefault, VALID_LOADERS } from './image-config'
+import {
+  getImageConfigDefault,
+  ImageConfig,
+  VALID_LOADERS,
+} from './image-config'
 import { loadEnvConfig } from '@next/env'
 import { hasNextSupport } from '../telemetry/ci-info'
 
@@ -55,6 +59,8 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     }
     delete userConfig.experimental.reactMode
   }
+
+  const defaultConfig = getDefaultConfig()
 
   const config = Object.keys(userConfig).reduce<{ [key: string]: any }>(
     (currentConfig, key) => {
@@ -288,6 +294,8 @@ function assignDefaults(userConfig: { [key: string]: any }) {
         }).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
       )
     }
+
+    const imageConfigDefault = getImageConfigDefault()
 
     if (
       images.loader !== 'default' &&
@@ -650,7 +658,7 @@ export default async function loadConfig(
     }
   }
 
-  const completeConfig = defaultConfig as NextConfigComplete
+  const completeConfig = getDefaultConfig() as NextConfigComplete
   completeConfig.configFileName = configFileName
   setHttpAgentOptions(completeConfig.httpAgentOptions)
   return completeConfig
