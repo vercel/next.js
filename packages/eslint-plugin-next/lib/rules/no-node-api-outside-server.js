@@ -1,10 +1,10 @@
+const { builtinModules } = require('module')
+
 const SERVER_METHODS = [
   'getStaticPaths',
   'getStaticProps',
   'getServerSideProps',
 ]
-
-const COMMON_NODE_APIS = ['fs', 'fs/promises', 'path']
 
 module.exports = {
   meta: {
@@ -28,7 +28,10 @@ module.exports = {
 
     return {
       ImportDeclaration(node) {
-        if (COMMON_NODE_APIS.includes(node.source.value)) {
+        if (
+          builtinModules.includes(node.source.value) ||
+          node.source.value.startsWith('node:')
+        ) {
           node.specifiers.map((s) => nodeImportSpecifiers.push(s.local.name))
         }
       },
