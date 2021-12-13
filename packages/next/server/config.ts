@@ -9,6 +9,7 @@ import { CONFIG_FILES, PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import { execOnce } from '../shared/lib/utils'
 import {
   defaultConfig,
+  DomainLocale,
   NextConfigComplete,
   normalizeConfig,
 } from './config-shared'
@@ -139,9 +140,29 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     {}
   )
 
-  const result: NextConfig = JSON.parse(
-    JSON.stringify({ ...defaultConfig, ...config })
-  )
+  // Copy properties we intend to mutate.
+  const copy = (nextConfig: NextConfig): NextConfig => {
+    return {
+      ...nextConfig,
+      ...(nextConfig.pageExtensions && {
+        pageExtensions: [...nextConfig.pageExtensions],
+      }),
+      images: {
+        ...nextConfig.images,
+      },
+      amp: {
+        ...nextConfig.amp,
+      },
+      httpAgentOptions: {
+        ...nextConfig.httpAgentOptions,
+      },
+      experimental: {
+        ...nextConfig.experimental,
+      },
+    }
+  }
+
+  const result = { ...copy(defaultConfig), ...config }
 
   if (typeof result.assetPrefix !== 'string') {
     throw new Error(
@@ -436,13 +457,13 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     }
 
     if (i18n.domains) {
-      const invalidDomainItems = i18n.domains.filter((item) => {
+      const invalidDomainItems = i18n.domains.filter((item: DomainLocale) => {
         if (!item || typeof item !== 'object') return true
         if (!item.defaultLocale) return true
         if (!item.domain || typeof item.domain !== 'string') return true
 
         const defaultLocaleDuplicate = i18n.domains?.find(
-          (altItem) =>
+          (altItem: DomainLocale) =>
             altItem.defaultLocale === item.defaultLocale &&
             altItem.domain !== item.domain
         )
@@ -517,7 +538,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     // make sure default Locale is at the front
     i18n.locales = [
       i18n.defaultLocale,
-      ...i18n.locales.filter((locale) => locale !== i18n.defaultLocale),
+      ...i18n.locales.filter((locale: string) => locale !== i18n.defaultLocale),
     ]
 
     const localeDetectionType = typeof i18n.localeDetection
@@ -534,7 +555,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
 
   if (result.experimental?.serverComponents) {
     const pageExtensions: string[] = []
-    ;(result.pageExtensions || []).forEach((ext) => {
+    ;(result.pageExtensions || []).forEach((ext: string) => {
       pageExtensions.push(ext)
       pageExtensions.push(`server.${ext}`)
       pageExtensions.push(`client.${ext}`)
