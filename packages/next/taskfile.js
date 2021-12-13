@@ -20,11 +20,10 @@ export async function browser_polyfills(task, opts) {
 const externals = {
   // Browserslist (post-css plugins)
   browserslist: 'browserslist',
-  'caniuse-lite': 'caniuse-lite', // FIXME: `autoprefixer` will still bundle this because it uses direct imports
-  'caniuse-lite/data/features/border-radius':
-    'caniuse-lite/data/features/border-radius',
-  'caniuse-lite/data/features/css-featurequeries.js':
-    'caniuse-lite/data/features/css-featurequeries',
+  // don't bundle caniuse-lite data so users can
+  // update it manually
+  'caniuse-lite': 'caniuse-lite',
+  '/caniuse-lite(/.*)/': 'caniuse-lite$1',
 
   chalk: 'chalk',
   'node-fetch': 'node-fetch',
@@ -255,7 +254,7 @@ export async function ncc_escape_string_regexp(task, opts) {
     .source(
       opts.src || relative(__dirname, require.resolve('escape-string-regexp'))
     )
-    .ncc({ packageName: 'escape-string-regexp', externals })
+    .ncc({ packageName: 'escape-string-regexp', externals, target: 'es5' })
     .target('compiled/escape-string-regexp')
 }
 
@@ -1037,7 +1036,6 @@ export async function compile(task, opts) {
       'pages',
       'lib',
       'client',
-      'vitals',
       'telemetry',
       'trace',
       'shared',
@@ -1098,14 +1096,6 @@ export async function client(task, opts) {
     .swc('client', { dev: opts.dev })
     .target('dist/client')
   notify('Compiled client files')
-}
-
-export async function vitals(task, opts) {
-  await task
-    .source(opts.src || 'vitals/**/*.+(js|ts|tsx)')
-    .swc('vitals', { dev: opts.dev })
-    .target('dist/vitals')
-  notify('Compiled vitals files')
 }
 
 // export is a reserved keyword for functions
@@ -1182,7 +1172,6 @@ export default async function (task) {
   await task.watch('build/**/*.+(js|ts|tsx)', 'nextbuild', opts)
   await task.watch('export/**/*.+(js|ts|tsx)', 'nextbuildstatic', opts)
   await task.watch('client/**/*.+(js|ts|tsx)', 'client', opts)
-  await task.watch('vitals/**/*.+(js|ts|tsx)', 'vitals', opts)
   await task.watch('lib/**/*.+(js|ts|tsx)', 'lib', opts)
   await task.watch('cli/**/*.+(js|ts|tsx)', 'cli', opts)
   await task.watch('telemetry/**/*.+(js|ts|tsx)', 'telemetry', opts)

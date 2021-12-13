@@ -8,7 +8,7 @@ jobs:
   stale:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/stale@main
+      - uses: actions/stale@v4
         id: stale
         name: 'Close stale issues with no reproduction'
         with:

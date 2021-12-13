@@ -11,7 +11,7 @@ export default function IndexPage() {
 
       </Link>
 
-      <_JSXStyle id={"bc8a8bae32099ce8"}>{`a.jsx-bc8a8bae32099ce8 {color:${"#abcdef"}12}`}</_JSXStyle>
+      <_JSXStyle id={"bc8a8bae32099ce8"}>{`a.jsx-bc8a8bae32099ce8{color:${"#abcdef"}12}`}</_JSXStyle>
 
     </div>;
 };

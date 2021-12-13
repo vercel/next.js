@@ -1,6 +1,6 @@
 import chalk from 'chalk'
 import findUp from 'next/dist/compiled/find-up'
-import { basename, extname, relative } from 'path'
+import { basename, extname, relative, isAbsolute, resolve } from 'path'
 import { pathToFileURL } from 'url'
 import { Agent as HttpAgent } from 'http'
 import { Agent as HttpsAgent } from 'https'
@@ -369,6 +369,25 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     Log.warn(
       'SWC minify beta enabled. https://nextjs.org/docs/messages/swc-minify-enabled'
     )
+  }
+
+  if (
+    result.experimental?.outputFileTracingRoot &&
+    !isAbsolute(result.experimental.outputFileTracingRoot)
+  ) {
+    result.experimental.outputFileTracingRoot = resolve(
+      result.experimental.outputFileTracingRoot
+    )
+    Log.warn(
+      `experimental.outputFileTracingRoot should be absolute, using: ${result.experimental.outputFileTracingRoot}`
+    )
+  }
+
+  if (result.experimental?.outputStandalone && !result.outputFileTracing) {
+    Log.warn(
+      `experimental.outputStandalone requires outputFileTracing not be disabled please enable it to leverage the standalone build`
+    )
+    result.experimental.outputStandalone = false
   }
 
   // TODO: Change defaultConfig type to NextConfigComplete
