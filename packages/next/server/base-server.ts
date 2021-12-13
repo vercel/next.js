@@ -212,6 +212,7 @@ export default abstract class Server {
   protected customRoutes: CustomRoutes
   protected middlewareManifest?: MiddlewareManifest
   protected middleware?: RoutingItem[]
+  protected webServerRuntime: boolean
   public readonly hostname?: string
   public readonly port?: number
 
@@ -284,6 +285,8 @@ export default abstract class Server {
         ? this.nextConfig.crossOrigin
         : undefined,
     }
+
+    this.webServerRuntime = !!this.nextConfig.experimental.concurrentFeatures
 
     // Only the `publicRuntimeConfig` key is exposed to the client side
     // It'll be rendered as part of __NEXT_DATA__ on the client side
@@ -627,7 +630,19 @@ export default abstract class Server {
         join(this.distDir, SERVER_DIRECTORY),
         MIDDLEWARE_MANIFEST
       )
-      return require(middlewareManifestPath)
+      const middlewareManifest = require(middlewareManifestPath)
+      let serverWebMiddlewareManifest = {}
+      if (this.webServerRuntime) {
+        // __serverWeb_
+        const serverWebMiddlewareManifestPath = join(
+          join(this.distDir, SERVER_DIRECTORY),
+          '__serverWeb_' + MIDDLEWARE_MANIFEST
+        )
+        serverWebMiddlewareManifest = require(serverWebMiddlewareManifestPath)
+      }
+      console.log('middlewareManifest', middlewareManifest)
+      console.log('serverWebMiddlewareManifest', serverWebMiddlewareManifest)
+      return Object.assign({}, middlewareManifest, serverWebMiddlewareManifest)
     }
     return undefined
   }
@@ -734,7 +749,7 @@ export default abstract class Server {
             url: url,
             page: page,
           },
-          useCache: !this.nextConfig.experimental.concurrentFeatures,
+          useCache: !this.webServerRuntime,
           onWarning: (warning: Error) => {
             if (params.onWarning) {
               warning.message += ` "./${middlewareInfo.name}"`

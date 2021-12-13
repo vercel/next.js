@@ -15,6 +15,20 @@ const MIDDLEWARE_FULL_ROUTE_REGEX = /^pages[/\\]?(.*)\/_middleware$/
 
 export const ssrEntries = new Map<string, { requireFlightManifest: boolean }>()
 
+export function mergeMiddlewareManifests(
+  a: MiddlewareManifest,
+  b: MiddlewareManifest
+): MiddlewareManifest {
+  const clientInfo = a.clientInfo.concat(b.clientInfo)
+  const sortedMiddleware = a.sortedMiddleware.concat(b.sortedMiddleware)
+  const middleware = Object.assign({}, a.middleware, b.middleware)
+  return {
+    version: a.version,
+    clientInfo,
+    sortedMiddleware,
+    middleware,
+  }
+}
 export interface MiddlewareManifest {
   version: 1
   sortedMiddleware: string[]
@@ -28,13 +42,6 @@ export interface MiddlewareManifest {
       regexp: string
     }
   }
-}
-
-const middlewareManifest: MiddlewareManifest = {
-  sortedMiddleware: [],
-  clientInfo: [],
-  middleware: {},
-  version: 1,
 }
 export default class MiddlewarePlugin {
   dev: boolean
@@ -57,6 +64,12 @@ export default class MiddlewarePlugin {
     envPerRoute: Map<string, string[]>
   ) {
     const entrypoints = compilation.entrypoints
+    const middlewareManifest: MiddlewareManifest = {
+      sortedMiddleware: [],
+      clientInfo: [],
+      middleware: {},
+      version: 1,
+    }
 
     for (const entrypoint of entrypoints.values()) {
       if (!entrypoint.name) continue
@@ -117,11 +130,12 @@ export default class MiddlewarePlugin {
       }
     )
 
-    assets[
-      this.webServerRuntime
-        ? MIDDLEWARE_MANIFEST
-        : `server/${MIDDLEWARE_MANIFEST}`
-    ] = new sources.RawSource(JSON.stringify(middlewareManifest, null, 2))
+    const assetName = this.webServerRuntime
+      ? '__serverWeb_' + MIDDLEWARE_MANIFEST
+      : `server/${MIDDLEWARE_MANIFEST}`
+    assets[assetName] = new sources.RawSource(
+      JSON.stringify(middlewareManifest, null, 2)
+    )
   }
 
   apply(compiler: webpack5.Compiler) {

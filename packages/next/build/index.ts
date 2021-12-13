@@ -102,7 +102,10 @@ import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { NextConfigComplete } from '../server/config-shared'
 import isError, { NextError } from '../lib/is-error'
 import { TelemetryPlugin } from './webpack/plugins/telemetry-plugin'
-import { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
+import {
+  mergeMiddlewareManifests,
+  MiddlewareManifest,
+} from './webpack/plugins/middleware-plugin'
 import type { webpack5 as webpack } from 'next/dist/compiled/webpack/webpack'
 import { recursiveCopy } from '../lib/recursive-copy'
 
@@ -1957,6 +1960,32 @@ export default async function build(
         'utf8'
       )
     )
+
+    let serverWebMiddlewareManifest: MiddlewareManifest | null = null
+    if (hasConcurrentFeatures) {
+      serverWebMiddlewareManifest = JSON.parse(
+        await promises.readFile(
+          path.join(
+            distDir,
+            SERVER_DIRECTORY,
+            '__serverWeb_' + MIDDLEWARE_MANIFEST
+          ),
+          'utf8'
+        )
+      ) as MiddlewareManifest
+      const mergedManifest = mergeMiddlewareManifests(
+        middlewareManifest,
+        serverWebMiddlewareManifest
+      )
+
+      await promises.writeFile(
+        path.join(distDir, SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
+        JSON.stringify(mergedManifest),
+        'utf8'
+      )
+    }
+
+    // Object.assign(middlewareManifest, serverWebMiddlewareManifest)
 
     await promises.writeFile(
       path.join(
