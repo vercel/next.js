@@ -14,7 +14,7 @@ interface Options {
 
 const Internal = Symbol('NextURLInternal')
 
-export class NextURL extends URL {
+export class NextURL {
   [Internal]: {
     url: URL
     options: Options
@@ -36,12 +36,13 @@ export class NextURL extends URL {
     baseOrOpts?: string | URL | Options,
     opts?: Options
   ) {
-    super('http://127.0.0.1') // This works as a placeholder
-
     let base: undefined | string | URL
     let options: Options
 
-    if (baseOrOpts instanceof URL || typeof baseOrOpts === 'string') {
+    if (
+      (typeof baseOrOpts === 'object' && 'pathname' in baseOrOpts) ||
+      typeof baseOrOpts === 'string'
+    ) {
       base = baseOrOpts
       options = opts || {}
     } else {
