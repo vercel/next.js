@@ -301,29 +301,20 @@ function createRSCHook() {
         start(controller) {
           if (bootstrap) {
             controller.enqueue(
-              ReactDOMServer.renderToString(
-                <script
-                  dangerouslySetInnerHTML={{
-                    __html: `(self.__next_s=self.__next_s||[]).push(${JSON.stringify(
-                      [0, id]
-                    )})`,
-                  }}
-                />
-              )
+              `<script>(self.__next_s=self.__next_s||[]).push(${JSON.stringify([
+                0,
+                id,
+              ])})</script>`
             )
           }
         },
         transform(chunk, controller) {
           controller.enqueue(
-            ReactDOMServer.renderToString(
-              <script
-                dangerouslySetInnerHTML={{
-                  __html: `(self.__next_s=self.__next_s||[]).push(${JSON.stringify(
-                    [1, id, decoder.decode(chunk)]
-                  )})`,
-                }}
-              />
-            )
+            `<script>(self.__next_s=self.__next_s||[]).push(${JSON.stringify([
+              1,
+              id,
+              decoder.decode(chunk),
+            ])})</script>`
           )
         },
       })
