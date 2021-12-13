@@ -1,3 +1,4 @@
+import { join } from 'path'
 import { webpack, sources, webpack5 } from 'next/dist/compiled/webpack/webpack'
 import { getMiddlewareRegex } from '../../../shared/lib/router/utils'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
@@ -11,17 +12,24 @@ import { MIDDLEWARE_ROUTE } from '../../../lib/constants'
 import { nonNullable } from '../../../lib/non-nullable'
 
 const PLUGIN_NAME = 'MiddlewarePlugin'
+const SSR_PREFIX = 'ssr__'
 const MIDDLEWARE_FULL_ROUTE_REGEX = /^pages[/\\]?(.*)\/_middleware$/
 
 export const ssrEntries = new Map<string, { requireFlightManifest: boolean }>()
 
+export const getMiddlewareManifestName = (
+  hasConcurrentFeatures: boolean = false
+) => (hasConcurrentFeatures ? SSR_PREFIX : '') + MIDDLEWARE_MANIFEST
+
 export function mergeMiddlewareManifests(
   a: MiddlewareManifest,
-  b: MiddlewareManifest
+  b?: MiddlewareManifest
 ): MiddlewareManifest {
-  const clientInfo = a.clientInfo.concat(b.clientInfo)
-  const sortedMiddleware = a.sortedMiddleware.concat(b.sortedMiddleware)
-  const middleware = Object.assign({}, a.middleware, b.middleware)
+  const clientInfo = a.clientInfo.concat(b ? b.clientInfo : [])
+  const sortedMiddleware = a.sortedMiddleware.concat(
+    b ? b.sortedMiddleware : []
+  )
+  const middleware = Object.assign({}, a.middleware, b?.middleware)
   return {
     version: a.version,
     clientInfo,
@@ -29,6 +37,27 @@ export function mergeMiddlewareManifests(
     middleware,
   }
 }
+
+export function readMiddlewareManifest(
+  dir: string,
+  hasConcurrentFeatures: boolean
+): MiddlewareManifest {
+  const middlewareManifestPath = join(dir, getMiddlewareManifestName())
+  const serverWebMiddlewareManifestPath = join(
+    dir,
+    getMiddlewareManifestName(true)
+  )
+  const middlewareManifest = require(middlewareManifestPath)
+  let serverWebMiddlewareManifest
+  if (hasConcurrentFeatures) {
+    serverWebMiddlewareManifest = require(serverWebMiddlewareManifestPath)
+  }
+  return mergeMiddlewareManifests(
+    middlewareManifest,
+    serverWebMiddlewareManifest
+  )
+}
+
 export interface MiddlewareManifest {
   version: 1
   sortedMiddleware: string[]
@@ -131,8 +160,8 @@ export default class MiddlewarePlugin {
     )
 
     const assetName = this.webServerRuntime
-      ? '__serverWeb_' + MIDDLEWARE_MANIFEST
-      : `server/${MIDDLEWARE_MANIFEST}`
+      ? getMiddlewareManifestName(true)
+      : `server/${getMiddlewareManifestName()}`
     assets[assetName] = new sources.RawSource(
       JSON.stringify(middlewareManifest, null, 2)
     )

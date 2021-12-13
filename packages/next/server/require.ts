@@ -10,7 +10,10 @@ import {
 import { normalizePagePath, denormalizePagePath } from './normalize-page-path'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
-import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
+import {
+  MiddlewareManifest,
+  readMiddlewareManifest,
+} from '../build/webpack/plugins/middleware-plugin'
 
 export function pageNotFoundError(page: string): Error {
   const err: any = new Error(`Cannot find module for page: ${page}`)
@@ -85,16 +88,17 @@ export function getMiddlewareInfo(params: {
   distDir: string
   page: string
   serverless: boolean
+  ssr: boolean
 }): { name: string; paths: string[] } {
   const serverBuildPath = join(
     params.distDir,
     params.serverless && !params.dev ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY
   )
 
-  const middlewareManifest: MiddlewareManifest = require(join(
+  const middlewareManifest: MiddlewareManifest = readMiddlewareManifest(
     serverBuildPath,
-    MIDDLEWARE_MANIFEST
-  ))
+    params.ssr
+  )
 
   let page: string
 

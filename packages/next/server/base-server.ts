@@ -6,7 +6,10 @@ import type { FetchEventResult } from './web/types'
 import type { FontManifest } from './font-utils'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { LoadComponentsReturnType } from './load-components'
-import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
+import {
+  MiddlewareManifest,
+  readMiddlewareManifest,
+} from '../build/webpack/plugins/middleware-plugin'
 import type { NextApiRequest, NextApiResponse } from '../shared/lib/utils'
 import type { NextConfig, NextConfigComplete } from './config-shared'
 import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
@@ -626,23 +629,10 @@ export default abstract class Server {
 
   protected getMiddlewareManifest(): MiddlewareManifest | undefined {
     if (!this.minimalMode) {
-      const middlewareManifestPath = join(
+      return readMiddlewareManifest(
         join(this.distDir, SERVER_DIRECTORY),
-        MIDDLEWARE_MANIFEST
+        this.webServerRuntime
       )
-      const middlewareManifest = require(middlewareManifestPath)
-      let serverWebMiddlewareManifest = {}
-      if (this.webServerRuntime) {
-        // __serverWeb_
-        const serverWebMiddlewareManifestPath = join(
-          join(this.distDir, SERVER_DIRECTORY),
-          '__serverWeb_' + MIDDLEWARE_MANIFEST
-        )
-        serverWebMiddlewareManifest = require(serverWebMiddlewareManifestPath)
-      }
-      console.log('middlewareManifest', middlewareManifest)
-      console.log('serverWebMiddlewareManifest', serverWebMiddlewareManifest)
-      return Object.assign({}, middlewareManifest, serverWebMiddlewareManifest)
     }
     return undefined
   }
@@ -670,6 +660,7 @@ export default abstract class Server {
           distDir: this.distDir,
           page: pathname,
           serverless: this._isLikeServerless,
+          ssr: !!_isSSR,
         }).paths.length > 0
       )
     } catch (_) {}
@@ -733,6 +724,7 @@ export default abstract class Server {
           distDir: this.distDir,
           page: middleware.page,
           serverless: this._isLikeServerless,
+          ssr: !!middleware.ssr,
         })
 
         result = await run({

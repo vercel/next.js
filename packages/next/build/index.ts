@@ -103,6 +103,7 @@ import { NextConfigComplete } from '../server/config-shared'
 import isError, { NextError } from '../lib/is-error'
 import { TelemetryPlugin } from './webpack/plugins/telemetry-plugin'
 import {
+  getMiddlewareManifestName,
   mergeMiddlewareManifests,
   MiddlewareManifest,
 } from './webpack/plugins/middleware-plugin'
@@ -1956,22 +1957,20 @@ export default async function build(
 
     const middlewareManifest: MiddlewareManifest = JSON.parse(
       await promises.readFile(
-        path.join(distDir, SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
+        path.join(distDir, SERVER_DIRECTORY, getMiddlewareManifestName()),
         'utf8'
       )
     )
 
     let serverWebMiddlewareManifest: MiddlewareManifest | null = null
     if (hasConcurrentFeatures) {
+      const manifestPath = path.join(
+        distDir,
+        SERVER_DIRECTORY,
+        getMiddlewareManifestName(true)
+      )
       serverWebMiddlewareManifest = JSON.parse(
-        await promises.readFile(
-          path.join(
-            distDir,
-            SERVER_DIRECTORY,
-            '__serverWeb_' + MIDDLEWARE_MANIFEST
-          ),
-          'utf8'
-        )
+        await promises.readFile(manifestPath, 'utf8')
       ) as MiddlewareManifest
       const mergedManifest = mergeMiddlewareManifests(
         middlewareManifest,
@@ -1984,8 +1983,6 @@ export default async function build(
         'utf8'
       )
     }
-
-    // Object.assign(middlewareManifest, serverWebMiddlewareManifest)
 
     await promises.writeFile(
       path.join(

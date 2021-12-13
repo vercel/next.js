@@ -138,11 +138,17 @@ describe('concurrentFeatures - prod', () => {
       '.next/server/middleware-manifest.json'
     )
     const manifest = await fs.readJson(manifestPath)
-    const files = manifest.middleware['/mdw'].files
-    const webpackFile = files.find((f) =>
+    const mdw = manifest.middleware['/mdw']
+    const middlewareChunkName = mdw.files.find((f) =>
       f.startsWith('static/chunks/webpack-middleware')
     )
-    expect(fs.existsSync(join(context.appDir, webpackFile))).toBe(true)
+    const mdwFoo = manifest.middleware['/mdw/foo']
+    const hasMiddlewareRuntime = mdwFoo.files.includes(
+      'server/middleware-ssr-runtime.js'
+    )
+
+    expect(fs.existsSync(join(context.appDir, middlewareChunkName))).toBe(true)
+    expect(hasMiddlewareRuntime).toBe(true)
   })
 
   it('should generate rsc middleware manifests', async () => {
