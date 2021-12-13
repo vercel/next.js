@@ -62,6 +62,7 @@ import {
 import { DomainLocale } from './config'
 import RenderResult, { NodeWritablePiper } from './render-result'
 import isError from '../lib/is-error'
+import { readableStreamTee } from './web/utils'
 
 let Writable: typeof import('stream').Writable
 let Buffer: typeof import('buffer').Buffer
@@ -293,7 +294,7 @@ function createRSCHook() {
   ) => {
     let entry = rscCache.get(id)
     if (!entry) {
-      const [renderStream, forwardStream] = req.tee()
+      const [renderStream, forwardStream] = readableStreamTee(req)
       entry = createFromReadableStream(renderStream)
       rscCache.set(id, entry)
 
