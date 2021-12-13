@@ -131,13 +131,7 @@ export default class MiddlewarePlugin {
             `server/${MIDDLEWARE_REACT_LOADABLE_MANIFEST}.js`,
             ...entryFiles.map((file) => 'server/' + file),
           ].filter(nonNullable)
-        : entryFiles.map((file: string) =>
-            // we need to use the unminified version of the webpack runtime,
-            // remove if we do start minifying middleware chunks
-            file.startsWith('static/chunks/webpack-')
-              ? file.replace('webpack-', 'webpack-middleware-')
-              : file
-          )
+        : entryFiles
 
       middlewareManifest.middleware[location] = {
         env: envPerRoute.get(entrypoint.name) || [],

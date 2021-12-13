@@ -2,7 +2,6 @@ import { promises } from 'fs'
 import { join } from 'path'
 import {
   FONT_MANIFEST,
-  MIDDLEWARE_MANIFEST,
   PAGES_MANIFEST,
   SERVER_DIRECTORY,
   SERVERLESS_DIRECTORY,

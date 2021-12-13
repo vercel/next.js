@@ -139,15 +139,22 @@ describe('concurrentFeatures - prod', () => {
     )
     const manifest = await fs.readJson(manifestPath)
     const mdw = manifest.middleware['/mdw']
+    // We have both static/chunks/webpack-[hash].js and static/chunks/webpack-middleware-[hash].js.
+    // Pick the one without the middleware prefix before hash.
     const middlewareChunkName = mdw.files.find((f) =>
-      f.startsWith('static/chunks/webpack-middleware')
+      /^static\/chunks\/webpack-(?!middleware)/.test(f)
+    )
+    const middlewareChunkPath = join(
+      context.appDir,
+      '.next',
+      middlewareChunkName
     )
     const mdwFoo = manifest.middleware['/mdw/foo']
     const hasMiddlewareRuntime = mdwFoo.files.includes(
       'server/middleware-ssr-runtime.js'
     )
 
-    expect(fs.existsSync(join(context.appDir, middlewareChunkName))).toBe(true)
+    expect(fs.existsSync(middlewareChunkPath)).toBe(true)
     expect(hasMiddlewareRuntime).toBe(true)
   })
 
