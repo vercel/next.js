@@ -132,6 +132,19 @@ describe('concurrentFeatures - prod', () => {
     await killApp(context.server)
   })
 
+  it('should generate correctly middleware manifest', async () => {
+    const manifestPath = join(
+      context.appDir,
+      '.next/server/middleware-manifest.json'
+    )
+    const manifest = await fs.readJson(manifestPath)
+    const files = manifest.middleware['/mdw'].files
+    const webpackFile = files.find((f) =>
+      f.startsWith('static/chunks/webpack-middleware')
+    )
+    expect(fs.existsSync(join(context.appDir, webpackFile))).toBe(true)
+  })
+
   it('should generate rsc middleware manifests', async () => {
     const distServerDir = join(distDir, 'server')
     const hasFile = (filename) => fs.existsSync(join(distServerDir, filename))
