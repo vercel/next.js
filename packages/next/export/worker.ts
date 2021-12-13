@@ -215,6 +215,8 @@ export default async function exportPage({
         subFolders ? `${_path}${sep}index.html` : `${_path}.html`
       let htmlFilename = getHtmlFilename(filePath)
 
+      // dynamic routes can provide invalid extensions e.g. /blog/[...slug] returns an 
+      // extension of `.slug]`
       const pageExt = isDynamic ? '' : extname(page)
       const pathExt = isDynamic ? '' : extname(path)
       // Make sure page isn't a folder with a dot in the name e.g. `v1.2`
