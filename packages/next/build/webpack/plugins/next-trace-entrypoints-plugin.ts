@@ -617,9 +617,6 @@ export class TraceEntryPointsPlugin implements webpack5.WebpackPluginInstance {
           if (!res) {
             throw new Error(`failed to resolve ${request} from ${parent}`)
           }
-          if (res.includes('?')) {
-            console.log('wtf?', res)
-          }
           return res.replace(/\0/g, '')
         }
 
