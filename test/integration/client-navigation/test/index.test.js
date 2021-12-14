@@ -118,6 +118,21 @@ describe('Client Navigation', () => {
       )
     })
 
+    it('should call mouse handlers with an absolute url', async () => {
+      const browser = await webdriver(
+        context.appPort,
+        `/absolute-url?port=${context.appPort}`
+      )
+
+      await browser.elementByCss('#absolute-link-mouse-events').moveTo()
+
+      expect(
+        await browser
+          .waitForElementByCss('#absolute-link-mouse-events')
+          .getAttribute('data-hover')
+      ).toBe('true')
+    })
+
     it('should navigate an absolute local url', async () => {
       const browser = await webdriver(
         context.appPort,
