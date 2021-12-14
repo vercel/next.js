@@ -20,18 +20,15 @@ import type { ResponseCacheEntry, ResponseCacheValue } from './response-cache'
 import type { UrlWithParsedQuery } from 'url'
 
 import compression from 'next/dist/compiled/compression'
-import fs from 'fs'
 import Proxy from 'next/dist/compiled/http-proxy'
 import { join, relative, resolve, sep } from 'path'
 import { parse as parseQs, stringify as stringifyQs } from 'querystring'
 import { format as formatUrl, parse as parseUrl } from 'url'
 import { getRedirectStatus, modifyRouteRegex } from '../lib/load-custom-routes'
 import {
-  BUILD_ID_FILE,
   CLIENT_PUBLIC_FILES_PATH,
   CLIENT_STATIC_FILES_PATH,
   CLIENT_STATIC_FILES_RUNTIME,
-  PAGES_MANIFEST,
   PERMANENT_REDIRECT_STATUS,
   PRERENDER_MANIFEST,
   ROUTES_MANIFEST,
@@ -62,7 +59,6 @@ import {
 } from './api-utils'
 import { isTargetLikeServerless } from './config'
 import pathMatch from '../shared/lib/router/utils/path-match'
-import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
 import { loadComponents } from './load-components'
 import { normalizePagePath } from './normalize-page-path'
 import { renderToHTML } from './render'
@@ -95,10 +91,10 @@ import { parseNextUrl } from '../shared/lib/router/utils/parse-next-url'
 import isError from '../lib/is-error'
 import { getMiddlewareInfo } from './require'
 import { MIDDLEWARE_ROUTE } from '../lib/constants'
-import { NextResponse } from './web/spec-extension/response'
 import { run } from './web/sandbox'
 import { addRequestMeta, getRequestMeta } from './request-meta'
 import { toNodeHeaders } from './web/utils'
+import { relativizeURL } from '../shared/lib/router/utils/relativize-url'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -219,6 +215,12 @@ export default abstract class Server {
   public readonly hostname?: string
   public readonly port?: number
 
+  protected abstract getHasStaticDir(): boolean
+  protected abstract getPagesManifest(): PagesManifest | undefined
+  protected abstract getBuildId(): string
+  protected abstract generatePublicRoutes(): Route[]
+  protected abstract getFilesystemPaths(): Set<string>
+
   public constructor({
     dir = '.',
     quiet = false,
@@ -241,7 +243,7 @@ export default abstract class Server {
 
     this.distDir = join(this.dir, this.nextConfig.distDir)
     this.publicDir = join(this.dir, CLIENT_PUBLIC_FILES_PATH)
-    this.hasStaticDir = !minimalMode && fs.existsSync(join(this.dir, 'static'))
+    this.hasStaticDir = !minimalMode && this.getHasStaticDir()
 
     // Only serverRuntimeConfig needs the default
     // publicRuntimeConfig gets it's default in client/index.js
@@ -253,7 +255,7 @@ export default abstract class Server {
       compress,
     } = this.nextConfig
 
-    this.buildId = this.readBuildId()
+    this.buildId = this.getBuildId()
     this.minimalMode = minimalMode
 
     this.renderOpts = {
@@ -303,18 +305,9 @@ export default abstract class Server {
       this.distDir,
       this._isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY
     )
-    const pagesManifestPath = join(this.serverBuildDir, PAGES_MANIFEST)
-    const middlewareManifestPath = join(
-      join(this.distDir, SERVER_DIRECTORY),
-      MIDDLEWARE_MANIFEST
-    )
 
-    if (!dev) {
-      this.pagesManifest = require(pagesManifestPath)
-      if (!this.minimalMode) {
-        this.middlewareManifest = require(middlewareManifestPath)
-      }
-    }
+    this.pagesManifest = this.getPagesManifest()
+    this.middlewareManifest = this.getMiddlewareManifest()
 
     this.customRoutes = this.getCustomRoutes()
     this.router = new Router(this.generateRoutes())
@@ -386,7 +379,13 @@ export default abstract class Server {
         parsedUrl.query = parseQs(parsedUrl.query)
       }
 
-      addRequestMeta(req, '__NEXT_INIT_URL', req.url)
+      // When there are hostname and port we build an absolute URL
+      const initUrl =
+        this.hostname && this.port
+          ? `http://${this.hostname}:${this.port}${req.url}`
+          : req.url
+
+      addRequestMeta(req, '__NEXT_INIT_URL', initUrl)
       addRequestMeta(req, '__NEXT_INIT_QUERY', { ...parsedUrl.query })
 
       const url = parseNextUrl({
@@ -622,6 +621,17 @@ export default abstract class Server {
     return this.getPrerenderManifest().preview
   }
 
+  protected getMiddlewareManifest(): MiddlewareManifest | undefined {
+    if (!this.minimalMode) {
+      const middlewareManifestPath = join(
+        join(this.distDir, SERVER_DIRECTORY),
+        MIDDLEWARE_MANIFEST
+      )
+      return require(middlewareManifestPath)
+    }
+    return undefined
+  }
+
   protected getMiddleware() {
     const middleware = this.middlewareManifest?.middleware || {}
     return (
@@ -669,6 +679,14 @@ export default abstract class Server {
   }): Promise<FetchEventResult | null> {
     this.middlewareBetaWarning()
 
+    // For middleware to "fetch" we must always provide an absolute URL
+    const url = getRequestMeta(params.request, '__NEXT_INIT_URL')!
+    if (!url.startsWith('http')) {
+      throw new Error(
+        'To use middleware you must provide a `hostname` and `port` to the Next.js Server'
+      )
+    }
+
     const page: { name?: string; params?: { [key: string]: string } } = {}
     if (await this.hasPage(params.parsedUrl.pathname)) {
       page.name = params.parsedUrl.pathname
@@ -683,8 +701,6 @@ export default abstract class Server {
       }
     }
 
-    const subreq = params.request.headers[`x-middleware-subrequest`]
-    const subrequests = typeof subreq === 'string' ? subreq.split(':') : []
     const allHeaders = new Headers()
     let result: FetchEventResult | null = null
 
@@ -704,14 +720,6 @@ export default abstract class Server {
           serverless: this._isLikeServerless,
         })
 
-        if (subrequests.includes(middlewareInfo.name)) {
-          result = {
-            response: NextResponse.next(),
-            waitUntil: Promise.resolve(),
-          }
-          continue
-        }
-
         result = await run({
           name: middlewareInfo.name,
           paths: middlewareInfo.paths,
@@ -723,7 +731,7 @@ export default abstract class Server {
               i18n: this.nextConfig.i18n,
               trailingSlash: this.nextConfig.trailingSlash,
             },
-            url: getRequestMeta(params.request, '__NEXT_INIT_URL')!,
+            url: url,
             page: page,
           },
           useCache: !this.nextConfig.experimental.concurrentFeatures,
@@ -782,9 +790,7 @@ export default abstract class Server {
     locales: string[]
   } {
     const server: Server = this
-    const publicRoutes = fs.existsSync(this.publicDir)
-      ? this.generatePublicRoutes()
-      : []
+    const publicRoutes = this.generatePublicRoutes()
 
     const staticFilesRoute = this.hasStaticDir
       ? [
@@ -1183,9 +1189,13 @@ export default abstract class Server {
         type: 'route',
         name: 'middleware catchall',
         fn: async (req, res, _params, parsed) => {
-          const fullUrl = getRequestMeta(req, '__NEXT_INIT_URL')
+          if (!this.middleware?.length) {
+            return { finished: false }
+          }
+
+          const initUrl = getRequestMeta(req, '__NEXT_INIT_URL')!
           const parsedUrl = parseNextUrl({
-            url: fullUrl,
+            url: initUrl,
             headers: req.headers,
             nextConfig: {
               basePath: this.nextConfig.basePath,
@@ -1222,6 +1232,18 @@ export default abstract class Server {
 
           if (result === null) {
             return { finished: true }
+          }
+
+          if (result.response.headers.has('x-middleware-rewrite')) {
+            const value = result.response.headers.get('x-middleware-rewrite')!
+            const rel = relativizeURL(value, initUrl)
+            result.response.headers.set('x-middleware-rewrite', rel)
+          }
+
+          if (result.response.headers.has('Location')) {
+            const value = result.response.headers.get('Location')!
+            const rel = relativizeURL(value, initUrl)
+            result.response.headers.set('Location', rel)
           }
 
           if (
@@ -1523,66 +1545,6 @@ export default abstract class Server {
       page
     )
     return true
-  }
-
-  protected generatePublicRoutes(): Route[] {
-    const publicFiles = new Set(
-      recursiveReadDirSync(this.publicDir).map((p) =>
-        encodeURI(p.replace(/\\/g, '/'))
-      )
-    )
-
-    return [
-      {
-        match: route('/:path*'),
-        name: 'public folder catchall',
-        fn: async (req, res, params, parsedUrl) => {
-          const pathParts: string[] = params.path || []
-          const { basePath } = this.nextConfig
-
-          // if basePath is defined require it be present
-          if (basePath) {
-            const basePathParts = basePath.split('/')
-            // remove first empty value
-            basePathParts.shift()
-
-            if (
-              !basePathParts.every((part: string, idx: number) => {
-                return part === pathParts[idx]
-              })
-            ) {
-              return { finished: false }
-            }
-
-            pathParts.splice(0, basePathParts.length)
-          }
-
-          let path = `/${pathParts.join('/')}`
-
-          if (!publicFiles.has(path)) {
-            // In `next-dev-server.ts`, we ensure encoded paths match
-            // decoded paths on the filesystem. So we need do the
-            // opposite here: make sure decoded paths match encoded.
-            path = encodeURI(path)
-          }
-
-          if (publicFiles.has(path)) {
-            await this.serveStatic(
-              req,
-              res,
-              join(this.publicDir, ...pathParts),
-              parsedUrl
-            )
-            return {
-              finished: true,
-            }
-          }
-          return {
-            finished: false,
-          }
-        },
-      } as Route,
-    ]
   }
 
   protected getDynamicRoutes(): Array<RoutingItem> {
@@ -2578,43 +2540,6 @@ export default abstract class Server {
     }
   }
 
-  private _validFilesystemPathSet: Set<string> | null = null
-  private getFilesystemPaths(): Set<string> {
-    if (this._validFilesystemPathSet) {
-      return this._validFilesystemPathSet
-    }
-
-    const pathUserFilesStatic = join(this.dir, 'static')
-    let userFilesStatic: string[] = []
-    if (this.hasStaticDir && fs.existsSync(pathUserFilesStatic)) {
-      userFilesStatic = recursiveReadDirSync(pathUserFilesStatic).map((f) =>
-        join('.', 'static', f)
-      )
-    }
-
-    let userFilesPublic: string[] = []
-    if (this.publicDir && fs.existsSync(this.publicDir)) {
-      userFilesPublic = recursiveReadDirSync(this.publicDir).map((f) =>
-        join('.', 'public', f)
-      )
-    }
-
-    let nextFilesStatic: string[] = []
-
-    nextFilesStatic =
-      !this.minimalMode && fs.existsSync(join(this.distDir, 'static'))
-        ? recursiveReadDirSync(join(this.distDir, 'static')).map((f) =>
-            join('.', relative(this.dir, this.distDir), 'static', f)
-          )
-        : []
-
-    return (this._validFilesystemPathSet = new Set<string>([
-      ...nextFilesStatic,
-      ...userFilesPublic,
-      ...userFilesStatic,
-    ]))
-  }
-
   protected isServeableUrl(untrustedFileUrl: string): boolean {
     // This method mimics what the version of `send` we use does:
     // 1. decodeURIComponent:
@@ -2653,21 +2578,6 @@ export default abstract class Server {
     const filesystemUrls = this.getFilesystemPaths()
     const resolved = relative(this.dir, untrustedFilePath)
     return filesystemUrls.has(resolved)
-  }
-
-  protected readBuildId(): string {
-    const buildIdFile = join(this.distDir, BUILD_ID_FILE)
-    try {
-      return fs.readFileSync(buildIdFile, 'utf8').trim()
-    } catch (err) {
-      if (!fs.existsSync(buildIdFile)) {
-        throw new Error(
-          `Could not find a production build in the '${this.distDir}' directory. Try building your app with 'next build' before starting the production server. https://nextjs.org/docs/messages/production-start-no-build-id`
-        )
-      }
-
-      throw err
-    }
   }
 
   protected get _isLikeServerless(): boolean {

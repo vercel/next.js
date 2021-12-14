@@ -45,7 +45,14 @@ export function getRender({
     const renderServerComponentData = isServerComponent
       ? query.__flight__ !== undefined
       : false
+
+    const serverComponentProps =
+      isServerComponent && query.__props__
+        ? JSON.parse(query.__props__)
+        : undefined
+
     delete query.__flight__
+    delete query.__props__
 
     const req = {
       url: pathname,
@@ -72,7 +79,10 @@ export function getRender({
       env: process.env,
       supportsDynamicHTML: true,
       concurrentFeatures: true,
+      // When streaming, opt-out the `defer` behavior for script tags.
+      disableOptimizedLoading: true,
       renderServerComponentData,
+      serverComponentProps,
       serverComponentManifest: isServerComponent ? rscManifest : null,
       ComponentMod: null,
     }

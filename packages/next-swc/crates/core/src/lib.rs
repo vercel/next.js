@@ -54,6 +54,7 @@ pub mod next_ssg;
 pub mod page_config;
 pub mod react_remove_properties;
 pub mod remove_console;
+pub mod shake_exports;
 pub mod styled_jsx;
 mod top_level_binding_collector;
 
@@ -79,6 +80,9 @@ pub struct TransformOptions {
     pub is_development: bool,
 
     #[serde(default)]
+    pub is_server: bool,
+
+    #[serde(default)]
     pub styled_components: Option<styled_components::Config>,
 
     #[serde(default)]
@@ -86,6 +90,9 @@ pub struct TransformOptions {
 
     #[serde(default)]
     pub react_remove_properties: Option<react_remove_properties::Config>,
+
+    #[serde(default)]
+    pub shake_exports: Option<shake_exports::Config>,
 }
 
 pub fn custom_before_pass(file: Arc<SourceFile>, opts: &TransformOptions) -> impl Fold {
@@ -109,7 +116,12 @@ pub fn custom_before_pass(file: Arc<SourceFile>, opts: &TransformOptions) -> imp
         },
         Optional::new(next_ssg::next_ssg(), !opts.disable_next_ssg),
         amp_attributes::amp_attributes(),
-        next_dynamic::next_dynamic(file.name.clone(), opts.pages_dir.clone()),
+        next_dynamic::next_dynamic(
+            opts.is_development,
+            opts.is_server,
+            file.name.clone(),
+            opts.pages_dir.clone()
+        ),
         Optional::new(
             page_config::page_config(opts.is_development, opts.is_page_file),
             !opts.disable_page_config
@@ -124,6 +136,10 @@ pub fn custom_before_pass(file: Arc<SourceFile>, opts: &TransformOptions) -> imp
                 Either::Left(react_remove_properties::remove_properties(config.clone())),
             _ => Either::Right(noop()),
         },
+        match &opts.shake_exports {
+            Some(config) => Either::Left(shake_exports::shake_exports(config.clone())),
+            None => Either::Right(noop()),
+        }
     )
 }
 
