@@ -172,10 +172,9 @@ export type NextConfig = { [key: string]: any } & {
   }
 }
 
-/**
- * @deprecated The getDefaultConfig function should be used instead.
- */
-export const defaultConfig: NextConfig = {
+const noop = () => null
+
+export const getDefaultConfig: () => NextConfig = () => ({
   env: {},
   webpack: null,
   webpackDevMiddleware: null,
@@ -191,7 +190,7 @@ export const defaultConfig: NextConfig = {
   assetPrefix: '',
   configOrigin: 'default',
   useFileSystemPublicRoutes: true,
-  generateBuildId: () => null,
+  generateBuildId: noop,
   generateEtags: true,
   pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
   target: 'server',
@@ -257,13 +256,11 @@ export const defaultConfig: NextConfig = {
     outputFileTracingRoot: process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT || '',
     outputStandalone: !!process.env.NEXT_PRIVATE_STANDALONE,
   },
-}
-
-export const getDefaultConfig: () => NextConfig = () => ({ ...defaultConfig })
+})
 
 export function normalizeConfig(phase: string, config: any) {
   if (typeof config === 'function') {
-    config = config(phase, { defaultConfig })
+    config = config(phase, { defaultConfig: getDefaultConfig() })
 
     if (typeof config.then === 'function') {
       throw new Error(

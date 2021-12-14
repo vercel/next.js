@@ -6,7 +6,7 @@ import config, {
   normalizeConfig,
   setHttpAgentOptions,
 } from 'next/dist/server/config'
-import { defaultConfig } from 'next/dist/server/config-shared'
+import { getDefaultConfig } from 'next/dist/server/config-shared'
 
 describe('next/server/config', () => {
   describe('config', () => {
@@ -55,7 +55,11 @@ describe('next/server/config', () => {
 
       expect(result).toBe('mock-return-value')
       expect(config).toHaveBeenCalledTimes(1)
-      expect(config).toHaveBeenCalledWith('mock-phase', { defaultConfig })
+
+      const [phase, options] = config.mock.calls[0]
+
+      expect(phase).toBe('mock-phase')
+      expect(options).toStrictEqual({ defaultConfig: getDefaultConfig() })
     })
 
     it('should throw an error if config returns a promise', () => {
