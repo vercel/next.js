@@ -14,7 +14,6 @@ use swc_ecma_transforms_testing::{test, test_fixture};
 use swc_ecmascript::{
     parser::{EsConfig, Syntax},
     transforms::{react::jsx, resolver},
-    visit::as_folder,
 };
 use testing::fixture;
 
@@ -100,7 +99,7 @@ fn styled_jsx_fixture(input: PathBuf) {
                 let _mark = Mark::fresh(Mark::root());
             }
 
-            chain!(as_folder(DropSpan), resolver(), styled_jsx(t.cm.clone()))
+            chain!(resolver(), styled_jsx(t.cm.clone()))
         },
         &input,
         &output,
