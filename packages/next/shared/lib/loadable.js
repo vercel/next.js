@@ -95,21 +95,17 @@ function createLoadableComponent(loadFn, options) {
   }
 
   // Client only
-  if (
-    !initialized &&
-    typeof window !== 'undefined' &&
-    typeof opts.webpack === 'function' &&
-    typeof require.resolveWeak === 'function' &&
-    !opts.suspense
-  ) {
-    const moduleIds = opts.webpack()
-    READY_INITIALIZERS.push((ids) => {
-      for (const moduleId of moduleIds) {
-        if (ids.indexOf(moduleId) !== -1) {
-          return init()
+  if (!initialized && typeof window !== 'undefined' && !opts.suspense) {
+    const moduleIds = opts.webpack ? opts.webpack() : opts.modules
+    if (moduleIds) {
+      READY_INITIALIZERS.push((ids) => {
+        for (const moduleId of moduleIds) {
+          if (ids.indexOf(moduleId) !== -1) {
+            return init()
+          }
         }
-      }
-    })
+      })
+    }
   }
 
   function LoadableImpl(props, ref) {
