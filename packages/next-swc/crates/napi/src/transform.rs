@@ -30,9 +30,9 @@ use crate::{
     complete_output, get_compiler,
     util::{deserialize_json, CtxtExt, MapErr},
 };
-use next_swc::{custom_before_pass, TransformOptions};
 use anyhow::{anyhow, bail, Context as _, Error};
 use napi::{CallContext, Env, JsBoolean, JsBuffer, JsObject, JsString, JsUnknown, Status, Task};
+use next_swc::{custom_before_pass, TransformOptions};
 use std::fs::read_to_string;
 use std::{
     convert::TryFrom,
