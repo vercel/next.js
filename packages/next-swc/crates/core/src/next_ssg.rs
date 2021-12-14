@@ -509,23 +509,22 @@ impl Fold for NextSsg {
             };
 
             match preserve {
-                Ok(should_preserve) => {
-                    if !should_preserve {
-                        tracing::trace!(
-                            "Dropping a export specifier because it's a data identifier"
-                        );
+                Ok(false) => {
+                    tracing::trace!(
+                        "Dropping a export specifier because it's a data identifier"
+                    );
 
-                        match s {
-                            ExportSpecifier::Named(ExportNamedSpecifier { orig, .. }) => {
-                                self.state.should_run_again = true;
-                                self.state.refs_from_data_fn.insert(orig.to_id());
-                            }
-                            _ => {}
+                    match s {
+                        ExportSpecifier::Named(ExportNamedSpecifier { orig, .. }) => {
+                            self.state.should_run_again = true;
+                            self.state.refs_from_data_fn.insert(orig.to_id());
                         }
+                        _ => {}
                     }
 
-                    should_preserve
+                    false
                 }
+                Ok(true) => true,
                 Err(_) => false,
             }
         });
