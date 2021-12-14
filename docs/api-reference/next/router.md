@@ -426,7 +426,7 @@ The affected methods are:
 - `router.replace`
 - `router.prefetch`
 
-### Example
+### Potential solutions
 
 ```jsx
 import { useEffect } from 'react'
