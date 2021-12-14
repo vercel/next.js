@@ -87,19 +87,7 @@ fn styled_jsx_fixture(input: PathBuf) {
         &input,
         &output,
     );
-}
 
-pub struct DropSpan;
-impl swc_ecmascript::visit::VisitMut for DropSpan {
-    fn visit_mut_span(&mut self, span: &mut Span) {
-        *span = DUMMY_SP
-    }
-}
-
-/// Hash of styled-jsx should not depend on the span of expressions.
-#[fixture("tests/fixture/styled-jsx/**/input.js")]
-fn styled_jsx_span_should_not_affect_hash(input: PathBuf) {
-    let output = input.parent().unwrap().join("output.js");
     test_fixture(
         syntax(),
         &|t| {
@@ -117,6 +105,13 @@ fn styled_jsx_span_should_not_affect_hash(input: PathBuf) {
         &input,
         &output,
     );
+}
+
+pub struct DropSpan;
+impl swc_ecmascript::visit::VisitMut for DropSpan {
+    fn visit_mut_span(&mut self, span: &mut Span) {
+        *span = DUMMY_SP
+    }
 }
 
 #[fixture("tests/fixture/page-config/**/input.js")]
