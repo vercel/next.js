@@ -83,7 +83,7 @@ fn styled_jsx_fixture(input: PathBuf) {
     let output = input.parent().unwrap().join("output.js");
     test_fixture(
         syntax(),
-        &|_tr| chain!(resolver(), styled_jsx()),
+        &|t| chain!(resolver(), styled_jsx(t.cm.clone())),
         &input,
         &output,
     );
@@ -102,7 +102,7 @@ fn styled_jsx_span_should_not_affect_hash(input: PathBuf) {
     let output = input.parent().unwrap().join("output.js");
     test_fixture(
         syntax(),
-        &|_tr| {
+        &|t| {
             // `resolver` uses `Mark` which is stored in a thread-local storage (namely
             // swc_common::GLOBALS), and this loop will make `Mark` to be different from the
             // invocation above.
@@ -112,7 +112,7 @@ fn styled_jsx_span_should_not_affect_hash(input: PathBuf) {
                 let _mark = Mark::fresh(Mark::root());
             }
 
-            chain!(as_folder(DropSpan), resolver(), styled_jsx())
+            chain!(as_folder(DropSpan), resolver(), styled_jsx(t.cm.clone()))
         },
         &input,
         &output,
