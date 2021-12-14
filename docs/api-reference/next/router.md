@@ -418,7 +418,7 @@ export default function MyApp({ Component, pageProps }) {
 
 Certain methods accessible on the `router` object return a Promise. If you have the ESLint rule, [no-floating-promises](https://github.com/typescript-eslint/typescript-eslint/blob/master/packages/eslint-plugin/docs/rules/no-floating-promises.md) enabled, consider disabling it either globally, or for the affected line.
 
-If your application needs this rule you will need to either `void` the promise, or use an `async` function, `await` the Promise, then void the function call. **This is not applicable when the method is called from inside an `onClick` handler**.
+If your application needs this rule, you should either `void` the promise – or use an `async` function, `await` the Promise, then void the function call. **This is not applicable when the method is called from inside an `onClick` handler**.
 
 The affected methods are:
 
