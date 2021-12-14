@@ -113,7 +113,7 @@ If `fallback` is `true`, then the behavior of `getStaticProps` changes in the fo
 - The paths that have not been generated at build time will **not** result in a 404 page. Instead, Next.js will serve a [“fallback”](#fallback-pages) version of the page on the first request to such a path.
 - In the background, Next.js will statically generate the requested path `HTML` and `JSON`. This includes running `getStaticProps`.
 - When complete, the browser receives the `JSON` for the generated path. This will be used to automatically render the page with the required props. From the user’s perspective, the page will be swapped from the fallback page to the full page.
-- At the same time, Next.js adds this path to the list of pre-rendered pages. Subsequent requests to the same path will serve the generated page, just like other pages pre-rendered at build time.
+- At the same time, Next.js adds this path to the list of pre-rendered pages. Subsequent requests to the same path will serve the generated page, like other pages pre-rendered at build time.
 
 > **Note:** `fallback: true` is not supported when using [`next export`](/docs/advanced-features/static-html-export.md).
 
@@ -138,7 +138,7 @@ If `fallback` is `'blocking'`, new paths not returned by `getStaticPaths` will w
 - The paths returned from `getStaticPaths` will be rendered to `HTML` at build time by `getStaticProps`.
 - The paths that have not been generated at build time will **not** result in a 404 page. Instead, Next.js will SSR on the first request and return the generated `HTML`.
 - When complete, the browser receives the `HTML` for the generated path. From the user’s perspective, it will transition from "the browser is requesting the page" to "the full page is loaded". There is no flash of loading/fallback state.
-- At the same time, Next.js adds this path to the list of pre-rendered pages. Subsequent requests to the same path will serve the generated page, just like other pages pre-rendered at build time.
+- At the same time, Next.js adds this path to the list of pre-rendered pages. Subsequent requests to the same path will serve the generated page, like other pages pre-rendered at build time.
 
 `fallback: 'blocking'` will not _update_ generated pages by default. To update generated pages, use [Incremental Static Regeneration](/docs/basic-features/data-fetching/incremental-static-regeneration.md) in conjunction with `fallback: 'blocking'`.
 
