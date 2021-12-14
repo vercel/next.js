@@ -120,7 +120,7 @@
     "use-subscription": "1.5.1",
     "util": "0.12.4",
     "vm-browserify": "1.1.2",
-    "watchpack": "2.3.0"
+    "watchpack": "2.3.1"
   },
   "peerDependencies": {
     "fibers": ">= 3.1.0",
@@ -273,7 +273,7 @@
     "webpack-sources1": "npm:webpack-sources@1.4.3",
     "webpack-sources3": "npm:webpack-sources@3.2.2",
     "webpack4": "npm:webpack@4.44.1",
-    "webpack5": "npm:webpack@5.64.3",
+    "webpack5": "npm:webpack@5.65.0",
     "ws": "8.2.3"
   },
   "resolutions": {
