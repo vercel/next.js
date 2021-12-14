@@ -80,6 +80,9 @@ pub struct TransformOptions {
     pub is_development: bool,
 
     #[serde(default)]
+    pub is_server: bool,
+
+    #[serde(default)]
     pub styled_components: Option<styled_components::Config>,
 
     #[serde(default)]
@@ -113,7 +116,12 @@ pub fn custom_before_pass(file: Arc<SourceFile>, opts: &TransformOptions) -> imp
         },
         Optional::new(next_ssg::next_ssg(), !opts.disable_next_ssg),
         amp_attributes::amp_attributes(),
-        next_dynamic::next_dynamic(file.name.clone(), opts.pages_dir.clone()),
+        next_dynamic::next_dynamic(
+            opts.is_development,
+            opts.is_server,
+            file.name.clone(),
+            opts.pages_dir.clone()
+        ),
         Optional::new(
             page_config::page_config(opts.is_development, opts.is_page_file),
             !opts.disable_page_config
