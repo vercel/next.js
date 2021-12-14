@@ -1095,7 +1095,7 @@ describe('Production Usage', () => {
       // application/json doesn't need async
       if (
         script.attribs.type === 'application/json' ||
-        script.attribs.src.includes('polyfills')
+        (script.attribs.src && script.attribs.src.includes('polyfills'))
       ) {
         continue
       }
