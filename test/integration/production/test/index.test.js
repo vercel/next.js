@@ -126,7 +126,7 @@ describe('Production Usage', () => {
           /node_modules\/react\/package\.json/,
           /node_modules\/react\/cjs\/react\.production\.min\.js/,
         ],
-        notTests: [/\0/],
+        notTests: [/\0/, /\?/, /!/],
       },
       {
         page: '/client-error',
@@ -138,12 +138,10 @@ describe('Production Usage', () => {
           /node_modules\/react\/cjs\/react\.production\.min\.js/,
           /node_modules\/next/,
           /next\/link\.js/,
-          /next\/dist\/client\/link\.js/,
           /next\/dist\/shared\/lib\/router\/utils\/resolve-rewrites\.js/,
-          /next\/dist\/pages\/_error\.js/,
           /next\/error\.js/,
         ],
-        notTests: [/\0/],
+        notTests: [/\0/, /\?/, /!/],
       },
       {
         page: '/dynamic',
@@ -155,10 +153,9 @@ describe('Production Usage', () => {
           /node_modules\/react\/cjs\/react\.production\.min\.js/,
           /node_modules\/next/,
           /next\/link\.js/,
-          /next\/dist\/client\/link\.js/,
           /next\/dist\/shared\/lib\/router\/utils\/resolve-rewrites\.js/,
         ],
-        notTests: [/\0/],
+        notTests: [/\0/, /\?/, /!/],
       },
       {
         page: '/index',
@@ -170,13 +167,18 @@ describe('Production Usage', () => {
           /node_modules\/react\/cjs\/react\.production\.min\.js/,
           /node_modules\/next/,
           /next\/link\.js/,
-          /next\/dist\/client\/link\.js/,
           /next\/dist\/shared\/lib\/router\/utils\/resolve-rewrites\.js/,
           /node_modules\/nanoid\/index\.js/,
           /node_modules\/nanoid\/url-alphabet\/index\.js/,
           /node_modules\/es5-ext\/array\/#\/clear\.js/,
         ],
-        notTests: [/next\/dist\/pages\/_error\.js/, /next\/error\.js/, /\0/],
+        notTests: [
+          /next\/dist\/pages\/_error\.js/,
+          /next\/error\.js/,
+          /\0/,
+          /\?/,
+          /!/,
+        ],
       },
       {
         page: '/counter',
@@ -189,10 +191,9 @@ describe('Production Usage', () => {
           /node_modules\/react\/cjs\/react\.development\.js/,
           /node_modules\/next/,
           /next\/router\.js/,
-          /next\/dist\/client\/router\.js/,
           /next\/dist\/shared\/lib\/router\/utils\/resolve-rewrites\.js/,
         ],
-        notTests: [/\0/],
+        notTests: [/\0/, /\?/, /!/],
       },
       {
         page: '/next-import',
@@ -204,10 +205,15 @@ describe('Production Usage', () => {
           /node_modules\/react\/cjs\/react\.production\.min\.js/,
           /node_modules\/next/,
           /next\/link\.js/,
-          /next\/dist\/client\/link\.js/,
           /next\/dist\/shared\/lib\/router\/utils\/resolve-rewrites\.js/,
         ],
-        notTests: [/next\/dist\/server\/next\.js/, /next\/dist\/bin/, /\0/],
+        notTests: [
+          /next\/dist\/server\/next\.js/,
+          /next\/dist\/bin/,
+          /\0/,
+          /\?/,
+          /!/,
+        ],
       },
     ]
 
@@ -218,6 +224,7 @@ describe('Production Usage', () => {
       )
       const { version, files } = JSON.parse(contents)
       expect(version).toBe(1)
+      expect([...new Set(files)].length).toBe(files.length)
 
       expect(
         check.tests.every((item) => {
