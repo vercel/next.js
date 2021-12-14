@@ -52,6 +52,13 @@ const program = new Commander.Command(packageJson.name)
   --example-path foo/bar
 `
   )
+  .option(
+    '--skip-install',
+    `
+
+  Skips dependencies installation step
+`
+  )
   .allowUnknownOption()
   .parse(process.argv)
 
@@ -127,6 +134,7 @@ async function run(): Promise<void> {
       example: example && example !== 'default' ? example : undefined,
       examplePath: program.examplePath,
       typescript: program.typescript,
+      skipInstall: program.skipInstall,
     })
   } catch (reason) {
     if (!(reason instanceof DownloadError)) {
@@ -149,6 +157,7 @@ async function run(): Promise<void> {
       appPath: resolvedProjectPath,
       useNpm: !!program.useNpm,
       typescript: program.typescript,
+      skipInstall: program.skipInstall,
     })
   }
 }

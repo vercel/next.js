@@ -3,7 +3,6 @@ import retry from 'async-retry'
 import chalk from 'chalk'
 import cpy from 'cpy'
 import fs from 'fs'
-import os from 'os'
 import path from 'path'
 import {
   downloadAndExtractExample,
@@ -20,6 +19,7 @@ import { isFolderEmpty } from './helpers/is-folder-empty'
 import { getOnline } from './helpers/is-online'
 import { shouldUseYarn } from './helpers/should-use-yarn'
 import { isWriteable } from './helpers/is-writeable'
+import { writePackageJsonToDisk } from './helpers/write-package-json'
 
 export class DownloadError extends Error {}
 
@@ -29,12 +29,14 @@ export async function createApp({
   example,
   examplePath,
   typescript,
+  skipInstall,
 }: {
   appPath: string
   useNpm: boolean
   example?: string
   examplePath?: string
   typescript?: boolean
+  skipInstall?: boolean
 }): Promise<void> {
   let repoInfo: RepoInfo | undefined
   const template = typescript ? 'typescript' : 'default'
@@ -190,7 +192,9 @@ export async function createApp({
     console.log('Installing packages. This might take a couple of minutes.')
     console.log()
 
-    await install(root, null, { useYarn, isOnline })
+    if (!skipInstall) console.log('Skipping dependency installation step.')
+    else await install(root, null, { useYarn, isOnline })
+
     console.log()
   } else {
     /**
@@ -212,13 +216,6 @@ export async function createApp({
       },
     }
     /**
-     * Write it to disk.
-     */
-    fs.writeFileSync(
-      path.join(root, 'package.json'),
-      JSON.stringify(packageJson, null, 2) + os.EOL
-    )
-    /**
      * These flags will be passed to `install()`.
      */
     const installFlags = { useYarn, isOnline }
@@ -236,34 +233,69 @@ export async function createApp({
     if (typescript) {
       devDependencies.push('typescript', '@types/react', '@types/node')
     }
-    /**
-     * Install package.json dependencies if they exist.
-     */
-    if (dependencies.length) {
-      console.log()
-      console.log('Installing dependencies:')
-      for (const dependency of dependencies) {
-        console.log(`- ${chalk.cyan(dependency)}`)
+
+    if (skipInstall) {
+      console.log('Skipping dependency installation step.')
+
+      let dependenciesObj: Record<string, string> | undefined
+      let devDependenciesObj: Record<string, string> | undefined
+
+      if (dependencies.length) {
+        dependenciesObj = Object.fromEntries(
+          dependencies.map((dependency) => [dependency, 'latest'])
+        )
+      }
+
+      if (devDependencies.length) {
+        devDependenciesObj = Object.fromEntries(
+          devDependencies.map((devDependency) => [devDependency, 'latest'])
+        )
+      }
+
+      /**
+       * Write packageJson it to disk.
+       */
+      writePackageJsonToDisk(root, {
+        ...packageJson,
+        dependencies: dependenciesObj,
+        devDependencies: devDependenciesObj,
+      })
+    } else {
+      /**
+       * Write packageJson it to disk.
+       */
+      writePackageJsonToDisk(root, packageJson)
+
+      /**
+       * Install package.json dependencies if they exist.
+       */
+      if (dependencies.length) {
+        console.log()
+        console.log('Installing dependencies:')
+        for (const dependency of dependencies) {
+          console.log(`- ${chalk.cyan(dependency)}`)
+        }
+        console.log()
+
+        await install(root, dependencies, installFlags)
+      }
+      /**
+       * Install package.json devDependencies if they exist.
+       */
+      if (devDependencies.length) {
+        console.log()
+        console.log('Installing devDependencies:')
+        for (const devDependency of devDependencies) {
+          console.log(`- ${chalk.cyan(devDependency)}`)
+        }
+        console.log()
+
+        const devInstallFlags = { devDependencies: true, ...installFlags }
+        await install(root, devDependencies, devInstallFlags)
       }
       console.log()
-
-      await install(root, dependencies, installFlags)
     }
-    /**
-     * Install package.json devDependencies if they exist.
-     */
-    if (devDependencies.length) {
-      console.log()
-      console.log('Installing devDependencies:')
-      for (const devDependency of devDependencies) {
-        console.log(`- ${chalk.cyan(devDependency)}`)
-      }
-      console.log()
 
-      const devInstallFlags = { devDependencies: true, ...installFlags }
-      await install(root, devDependencies, devInstallFlags)
-    }
-    console.log()
     /**
      * Copy the template files to the target directory.
      */
