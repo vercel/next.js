@@ -683,7 +683,7 @@ jobs:
 
       - name: Build
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
-        run: turbo run --cacheFolder .turbo build-native
+        run: turbo run build-native --cacheFolder .turbo
         env:
           MACOSX_DEPLOYMENT_TARGET: '10.13'
           TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
