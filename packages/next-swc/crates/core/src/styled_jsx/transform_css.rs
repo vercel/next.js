@@ -144,10 +144,28 @@ impl VisitMut for CssPlaceholderFixer {
 
         match q {
             MediaQuery::Ident(q) => {
-                if q.raw.starts_with("__styled-jsx-placeholder-") {
-                    // TODO(kdy1): Remove this once we have CST for media query.
-                    // We need good error recovery for media queries to handle this.
-                    q.raw = format!("({})", &q.value).into();
+                if !q.raw.starts_with("__styled-jsx-placeholder-") {
+                    return;
+                }
+                // We need to support both of @media ($breakPoint) {} and @media $queryString {}
+                // This is complex because @media (__styled-jsx-placeholder-0__) {} is valid
+                // while @media __styled-jsx-placeholder-0__ {} is not
+                //
+                // So we check original source code to determine if we should inject
+                // parenthesis.
+
+                // TODO(kdy1): Avoid allocation.
+                // To remove allocation, we should patch swc_common to provide a way to get
+                // source code without allocation.
+                //
+                //
+                // We need
+                //
+                // fn with_source_code (self: &mut Self, f: impl FnOnce(&str) -> Ret) -> _ {}
+                if let Ok(source) = self.cm.span_to_snippet(q.span) {
+                    if source.starts_with('(') {
+                        q.raw = format!("({})", &q.value).into();
+                    }
                 }
             }
             _ => {}
