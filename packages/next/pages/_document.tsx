@@ -100,7 +100,6 @@ function getDynamicChunks(
     assetPrefix,
     isDevelopment,
     devOnlyCacheBusterQueryString,
-    disableOptimizedLoading,
     crossOrigin,
   } = context
 
@@ -859,6 +858,7 @@ export class NextScript extends Component<OriginProps> {
                     dangerouslySetInnerHTML={{
                       __html: `(self.__next_s=self.__next_s||[]).push([0])`,
                     }}
+                    defer={!disableOptimizedLoading}
                     data-ampdevmode
                   />
                 </>
