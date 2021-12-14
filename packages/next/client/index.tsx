@@ -644,6 +644,11 @@ const wrapApp =
 
 let RSCComponent: (props: any) => JSX.Element
 if (process.env.__NEXT_RSC) {
+  const getCacheKey = () => {
+    const { pathname, search } = location
+    return pathname + search
+  }
+
   const {
     createFromFetch,
   } = require('next/dist/compiled/react-server-dom-webpack')
@@ -651,9 +656,9 @@ if (process.env.__NEXT_RSC) {
   const encoder = new TextEncoder()
   const serverDataBuffer = new Map<string, string[]>()
   const serverDataWriter = new Map<string, WritableStreamDefaultWriter>()
-  const ssrCacheKey = location ? location.href : ''
+  const serverDataCacheKey = getCacheKey()
   function nextServerDataCallback(seg: [number, string, string]) {
-    const key = ssrCacheKey + ',' + seg[1]
+    const key = serverDataCacheKey + ',' + seg[1]
     if (seg[0] === 0) {
       serverDataBuffer.set(key, [])
     } else {
@@ -713,11 +718,6 @@ if (process.env.__NEXT_RSC) {
       searchParams.append('__props__', JSON.stringify(props))
     }
     return fetch(url.toString())
-  }
-
-  const getCacheKey = () => {
-    const { pathname, search } = location
-    return pathname + search
   }
 
   function useServerResponse(cacheKey: string, serialized?: string) {
