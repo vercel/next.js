@@ -318,8 +318,11 @@ export default class HotReloader {
           createPagesMapping(
             pagePaths.filter((i) => i !== null) as string[],
             this.config.pageExtensions,
-            true,
-            this.hasServerComponents
+            {
+              isDev: true,
+              hasConcurrentFeatures: this.webServerRuntime,
+              hasServerComponents: this.hasServerComponents,
+            }
           )
         )
 

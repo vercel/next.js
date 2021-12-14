@@ -13,9 +13,7 @@ use swc::{
 };
 use swc_atoms::JsWord;
 use swc_bundler::{Bundler, ModuleData, ModuleRecord};
-use swc_common::{
-    collections::AHashMap, errors::Handler, BytePos, FileName, SourceMap, Span, DUMMY_SP,
-};
+use swc_common::{collections::AHashMap, errors::Handler, BytePos, FileName, SourceMap, Span};
 use swc_ecma_loader::{
     resolvers::{lru::CachingResolver, node::NodeModulesResolver},
     TargetEnv, NODE_BUILTINS,
@@ -23,7 +21,7 @@ use swc_ecma_loader::{
 use swc_ecmascript::{
     ast::*,
     parser::{lexer::Lexer, EsConfig, Parser, StringInput, Syntax},
-    visit::{noop_visit_type, Node, Visit, VisitWith},
+    visit::{noop_visit_type, Visit, VisitWith},
 };
 
 #[js_function(1)]
@@ -100,9 +98,7 @@ impl Task for BundleTask {
                     names: Default::default(),
                 };
 
-                output
-                    .module
-                    .visit_with(&Invalid { span: DUMMY_SP }, &mut v);
+                output.module.visit_with(&mut v);
 
                 v.names
             };
@@ -197,7 +193,7 @@ pub struct SourceMapIdentCollector {
 impl Visit for SourceMapIdentCollector {
     noop_visit_type!();
 
-    fn visit_ident(&mut self, ident: &Ident, _: &dyn Node) {
+    fn visit_ident(&mut self, ident: &Ident) {
         self.names.insert(ident.span.lo, ident.sym.clone());
     }
 }

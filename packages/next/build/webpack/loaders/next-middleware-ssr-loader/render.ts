@@ -1,6 +1,7 @@
 import { NextRequest } from '../../../../server/web/spec-extension/request'
 import { renderToHTML } from '../../../../server/web/render'
 import RenderResult from '../../../../server/render-result'
+import { toNodeHeaders } from '../../../../server/web/utils'
 
 const createHeaders = (args?: any) => ({
   ...args,
@@ -44,12 +45,19 @@ export function getRender({
     const renderServerComponentData = isServerComponent
       ? query.__flight__ !== undefined
       : false
+
+    const serverComponentProps =
+      isServerComponent && query.__props__
+        ? JSON.parse(query.__props__)
+        : undefined
+
     delete query.__flight__
+    delete query.__props__
 
     const req = {
       url: pathname,
       cookies,
-      headers,
+      headers: toNodeHeaders(headers),
     }
     const renderOpts = {
       ...restRenderOpts,
@@ -71,7 +79,10 @@ export function getRender({
       env: process.env,
       supportsDynamicHTML: true,
       concurrentFeatures: true,
+      // When streaming, opt-out the `defer` behavior for script tags.
+      disableOptimizedLoading: true,
       renderServerComponentData,
+      serverComponentProps,
       serverComponentManifest: isServerComponent ? rscManifest : null,
       ComponentMod: null,
     }

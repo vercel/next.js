@@ -438,6 +438,23 @@ function interfaceTests(locale = '') {
       expect(res.headers.get('req-url-locale')).toBe(locale.slice(1))
     }
   })
+
+  it(`${locale} renders correctly rewriting with a root subrequest`, async () => {
+    const browser = await webdriver(
+      context.appPort,
+      '/interface/root-subrequest'
+    )
+    const element = await browser.elementByCss('.title')
+    expect(await element.text()).toEqual('Dynamic route')
+  })
+
+  it(`${locale} allows subrequests without infinite loops`, async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      `/interface/root-subrequest`
+    )
+    expect(res.headers.get('x-dynamic-path')).toBe('true')
+  })
 }
 
 function getCookieFromResponse(res, cookieName) {
