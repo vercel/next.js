@@ -1293,7 +1293,7 @@ export default abstract class Server {
           }
 
           if (result.response.headers.has('x-middleware-rewrite')) {
-            const parsedDestination: ParsedUrl = simpleParseUrl(
+            const parsedDestination = simpleParseUrl(
               result.response.headers.get('x-middleware-rewrite')!
             )
             const newUrl = formatUrl({
