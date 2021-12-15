@@ -90,6 +90,7 @@ import ResponseCache from './response-cache'
 import { parseNextUrl } from '../shared/lib/router/utils/parse-next-url'
 import isError from '../lib/is-error'
 import { getMiddlewareInfo } from './require'
+import { parseUrl as simpleParseUrl } from '../shared/lib/router/utils/parse-url'
 import { MIDDLEWARE_ROUTE } from '../lib/constants'
 import { run } from './web/sandbox'
 import { addRequestMeta, getRequestMeta } from './request-meta'
@@ -1292,19 +1293,14 @@ export default abstract class Server {
           }
 
           if (result.response.headers.has('x-middleware-rewrite')) {
-            const destination = parseUrl(
-              result.response.headers.get('x-middleware-rewrite')!
-            )
-
-            const { newUrl, parsedDestination } = prepareDestination({
-              appendParamsToQuery: true,
-              destination: formatUrl({ ...destination, pathname: '/:path*' }),
-              params: {
-                ..._params,
-                path: destination.pathname?.split('/').filter(Boolean),
-              },
-              query: parsedUrl.query,
-            })
+            const parsedDestination: ParsedUrl = {
+              ...simpleParseUrl(
+                result.response.headers.get('x-middleware-rewrite')!
+              ),
+              query: {},
+              search: '',
+            }
+            const newUrl = formatUrl(parsedDestination)
 
             if (
               parsedDestination.protocol &&
