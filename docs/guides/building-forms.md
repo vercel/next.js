@@ -104,7 +104,7 @@ Open the URL printed in the terminal to ensure that your app is running successf
 
 At the beginning of this guide, you learned that web forms have a client-server relationship. Next you will set up the server environment using Vercel.
 
-Vercel supports out-the-box deployment of [Serverless Functions](https://vercel.com/docs/concepts/functions/serverless-functions), which you can code in your favorite backend languages (Node.js, Go, Python and Ruby). These functions take an HTTP request and return a response.
+Vercel supports out-the-box deployments of [Serverless Functions](https://vercel.com/docs/concepts/functions/serverless-functions), which you can code in your favorite backend languages (Node.js, Go, Python and Ruby). These functions take an HTTP request and return a response.
 
 Serverless functions perform a significant role in handling tasks like form submission because:
 
