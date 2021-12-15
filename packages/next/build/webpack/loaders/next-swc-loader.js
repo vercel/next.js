@@ -64,6 +64,7 @@ async function loaderTransform(parentTrace, source, inputSourceMap) {
     // so that it can properly map the module back to its internal cached
     // modules.
     sourceFileName: filename,
+    webpackAST: loaderOptions.swcWebpackAST,
   }
 
   if (!programmaticOptions.inputSourceMap) {
@@ -88,7 +89,10 @@ async function loaderTransform(parentTrace, source, inputSourceMap) {
   const swcSpan = parentTrace.traceChild('next-swc-transform')
   return swcSpan.traceAsyncFn(() =>
     transform(source, programmaticOptions).then((output) => {
-      return [output.code, output.map ? JSON.parse(output.map) : undefined]
+      return {
+        result: [output.code, output.map ? JSON.parse(output.map) : undefined],
+        webpackAST: output.webpackAST,
+      }
     })
   )
 }
@@ -113,8 +117,14 @@ export function pitch() {
         loaderTransform.call(this, loaderSpan)
       )
     }
-  })().then((r) => {
-    if (r) return callback(null, ...r)
+  })().then(({ result: [transformedSource, outputSourceMap], webpackAST }) => {
+    if (transformedSource)
+      return callback(
+        null,
+        transformedSource,
+        outputSourceMap || undefined,
+        webpackAST
+      )
     callback()
   }, callback)
 }
@@ -127,8 +137,10 @@ export default function swcLoader(inputSource, inputSourceMap) {
       loaderTransform.call(this, loaderSpan, inputSource, inputSourceMap)
     )
     .then(
-      ([transformedSource, outputSourceMap]) => {
-        callback(null, transformedSource, outputSourceMap || inputSourceMap)
+      ({ result: [transformedSource, outputSourceMap], webpackAST }) => {
+        callback(null, transformedSource, outputSourceMap || inputSourceMap, {
+          webpackAST,
+        })
       },
       (err) => {
         callback(err)

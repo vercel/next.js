@@ -448,6 +448,7 @@ export default async function getBaseWebpackConfig(
             fileReading: config.experimental.swcFileReading,
             nextConfig: config,
             jsConfig,
+            swcWebpackAST: config.experimental.swcWebpackAST,
           },
         }
       : {
