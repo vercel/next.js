@@ -157,7 +157,7 @@ You can now use `/api/form` relative endpoint inside the `action` attribute of t
 </form>
 ```
 
-If you submit this form, it will submit the data to our forms API endpoint `/api/form`. The server then responds, generally handling the data and loading the URL defined by the action attribute, causing a new page load. So in this case you'll be redirected to `http://localhost:3000/api/form` with the following response from the server.
+If you submit this form, it will submit the data to the forms API endpoint `/api/form`. The server then responds, generally handling the data and loading the URL defined by the action attribute, causing a new page load. So in this case you'll be redirected to `http://localhost:3000/api/form` with the following response from the server.
 
 ![form-no-js](/docs/guides/images/form-no-js.jpg)
 
