@@ -1,10 +1,8 @@
 name: 'Docs Request for an Update or Improvement'
 description: A task to update or improve Next.js documentation
-title: ''
+title: 'Docs: '
 labels:
   - 'area: documentation'
-projects:
-  - Documentation
 body:
   - type: textarea
     attributes:
