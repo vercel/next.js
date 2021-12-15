@@ -9,7 +9,7 @@ body:
   - type: textarea
     attributes:
       label: What is the improvement or update you wish to see?
-      description: 'Example: Id like to see more examples of how to use the `<Link>` component. Or, the <Link> component docs are missing information.'
+      description: 'Example: I would like to see more examples of how to use the `<Link>` component. Or, the `<Link>` component docs are missing information.'
     validations:
       required: true
   - type: textarea
