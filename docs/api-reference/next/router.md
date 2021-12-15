@@ -440,6 +440,10 @@ export default function Page() {
   const router = useRouter()
 
   useEffect(() => {
+    // disable the linting on the next line - This is the cleanest solution
+    // eslint:disable-next-line:no-floating-promises
+    router.push('/login')
+
     // void the Promise returned by router.push
     if (!(user || loading)) {
       void router.push('/login')
