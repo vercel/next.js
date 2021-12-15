@@ -168,7 +168,7 @@ You have created a server with Vercel via Serverless Functions. Now it's time to
 Here's the same form in a [React function component](https://reactjs.org/docs/components-and-props.html) written using [JSX](https://reactjs.org/docs/introducing-jsx.html).
 
 ```js
-export default function Page() {
+export default function Form() {
   return (
     <form action="/api/form" method="post">
       <label htmlFor="first">First Name</label>
