@@ -1,12 +1,13 @@
 /* global location */
 import '@next/polyfill-module'
-import React from 'react'
+import React, { useState } from 'react'
 import ReactDOM from 'react-dom'
 import { StyleRegistry } from 'styled-jsx'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import mitt, { MittEmitter } from '../shared/lib/mitt'
 import { RouterContext } from '../shared/lib/router-context'
-import Router, {
+import type Router from '../shared/lib/router/router'
+import {
   AppComponent,
   AppProps,
   delBasePath,
@@ -31,9 +32,10 @@ import initHeadManager from './head-manager'
 import PageLoader, { StyleSheetTuple } from './page-loader'
 import measureWebVitals from './performance-relayer'
 import { RouteAnnouncer } from './route-announcer'
-import { createRouter, makePublicRouterInstance, useRouter } from './router'
+import { createRouter, makePublicRouterInstance } from './router'
 import isError from '../lib/is-error'
 import { trackWebVitalMetric } from './vitals'
+import { RefreshContext } from './rsc'
 
 /// <reference types="react-dom/experimental" />
 
@@ -642,13 +644,110 @@ const wrapApp =
 
 let RSCComponent: (props: any) => JSX.Element
 if (process.env.__NEXT_RSC) {
+  const getCacheKey = () => {
+    const { pathname, search } = location
+    return pathname + search
+  }
+
+  const {
+    createFromFetch,
+  } = require('next/dist/compiled/react-server-dom-webpack')
+
+  const encoder = new TextEncoder()
+  const serverDataBuffer = new Map<string, string[]>()
+  const serverDataWriter = new Map<string, WritableStreamDefaultWriter>()
+  const serverDataCacheKey = getCacheKey()
+  function nextServerDataCallback(seg: [number, string, string]) {
+    const key = serverDataCacheKey + ',' + seg[1]
+    if (seg[0] === 0) {
+      serverDataBuffer.set(key, [])
+    } else {
+      const buffer = serverDataBuffer.get(key)
+      if (!buffer)
+        throw new Error('Unexpected server data: missing bootstrap script.')
+
+      const writer = serverDataWriter.get(key)
+      if (writer) {
+        writer.write(encoder.encode(seg[2]))
+      } else {
+        buffer.push(seg[2])
+      }
+    }
+  }
+  function nextServerDataRegisterWriter(
+    key: string,
+    writer: WritableStreamDefaultWriter
+  ) {
+    const buffer = serverDataBuffer.get(key)
+    if (buffer) {
+      buffer.forEach((val) => {
+        writer.write(encoder.encode(val))
+      })
+      buffer.length = 0
+    }
+    serverDataWriter.set(key, writer)
+  }
+  // When `DOMContentLoaded`, we can close all pending writers to finish hydration.
+  document.addEventListener(
+    'DOMContentLoaded',
+    function () {
+      serverDataWriter.forEach((writer) => {
+        if (!writer.closed) {
+          writer.close()
+        }
+      })
+    },
+    false
+  )
+
+  const nextServerDataLoadingGlobal = ((self as any).__next_s =
+    (self as any).__next_s || [])
+  nextServerDataLoadingGlobal.forEach(nextServerDataCallback)
+  nextServerDataLoadingGlobal.push = nextServerDataCallback
+
   function createResponseCache() {
     return new Map<string, any>()
   }
-
   const rscCache = createResponseCache()
 
-  const RSCWrapper = ({
+  function fetchFlight(href: string, props?: any) {
+    const url = new URL(href, location.origin)
+    const searchParams = url.searchParams
+    searchParams.append('__flight__', '1')
+    if (props) {
+      searchParams.append('__props__', JSON.stringify(props))
+    }
+    return fetch(url.toString())
+  }
+
+  function useServerResponse(cacheKey: string, serialized?: string) {
+    const id = (React as any).useId()
+
+    let response = rscCache.get(cacheKey)
+    if (response) return response
+
+    if (serverDataBuffer.has(cacheKey + ',' + id)) {
+      const t = new TransformStream()
+      const writer = t.writable.getWriter()
+      response = createFromFetch(Promise.resolve({ body: t.readable }))
+      nextServerDataRegisterWriter(cacheKey + ',' + id, writer)
+    } else {
+      response = createFromFetch(
+        serialized
+          ? (() => {
+              const t = new TransformStream()
+              t.writable.getWriter().write(new TextEncoder().encode(serialized))
+              return Promise.resolve({ body: t.readable })
+            })()
+          : fetchFlight(getCacheKey())
+      )
+    }
+
+    rscCache.set(cacheKey, response)
+    return response
+  }
+
+  const ServerRoot = ({
     cacheKey,
     serialized,
     _fresh,
@@ -657,46 +756,40 @@ if (process.env.__NEXT_RSC) {
     serialized?: string
     _fresh?: boolean
   }) => {
-    const {
-      createFromFetch,
-    } = require('next/dist/compiled/react-server-dom-webpack')
-    let response = rscCache.get(cacheKey)
-
-    // If there is no cache, or there is serialized data already
-    if (!response) {
-      response = createFromFetch(
-        serialized
-          ? (() => {
-              const t = new TransformStream()
-              t.writable.getWriter().write(new TextEncoder().encode(serialized))
-              return Promise.resolve({ body: t.readable })
-            })()
-          : (() => {
-              const search = location.search
-              const flightReqUrl =
-                location.pathname +
-                search +
-                (search ? '&__flight__' : '?__flight__')
-              return fetch(flightReqUrl)
-            })()
-      )
-      rscCache.set(cacheKey, response)
-    }
-
-    const root = response.readRoot()
-    return root
+    const response = useServerResponse(cacheKey, serialized)
+    return response.readRoot()
   }
 
   RSCComponent = (props: any) => {
-    const { asPath: cacheKey } = useRouter() as any
+    const cacheKey = getCacheKey()
+    const { __flight_serialized__, __flight_fresh__ } = props
+    const [, dispatch] = useState({})
+    // @ts-ignore TODO: remove when react 18 types are supported
+    const startTransition = React.startTransition
+    const renrender = () => dispatch({})
+    // If there is no cache, or there is serialized data already
+    function refreshCache(nextProps: any) {
+      startTransition(() => {
+        const currentCacheKey = getCacheKey()
+        const response = createFromFetch(
+          fetchFlight(currentCacheKey, nextProps)
+        )
+        // FIXME: router.asPath can be different from current location due to navigation
+        rscCache.set(currentCacheKey, response)
+        renrender()
+      })
+    }
+
     return (
-      <React.Suspense fallback={null}>
-        <RSCWrapper
-          cacheKey={cacheKey}
-          serialized={(props as any).__flight_serialized__}
-          _fresh={(props as any).__flight_fresh__}
-        />
-      </React.Suspense>
+      <RefreshContext.Provider value={refreshCache}>
+        <React.Suspense fallback={null}>
+          <ServerRoot
+            cacheKey={cacheKey}
+            serialized={__flight_serialized__}
+            _fresh={__flight_fresh__}
+          />
+        </React.Suspense>
+      </RefreshContext.Provider>
     )
   }
 }

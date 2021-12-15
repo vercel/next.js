@@ -27,7 +27,36 @@ let buildId
 const appDir = join(__dirname, '../')
 const buildIdPath = join(appDir, '.next/BUILD_ID')
 
-function runTests(dev) {
+function runTests({ dev, serverless }) {
+  if (dev) {
+    it('should not have error after pinging WebSocket', async () => {
+      const browser = await webdriver(appPort, '/')
+      await browser.eval(`(function() {
+        window.uncaughtErrs = []
+        window.addEventListener('uncaughtexception', function (err) {
+          window.uncaught.push(err)
+        })
+      })()`)
+      const curFrames = [...(await browser.websocketFrames())]
+      await check(async () => {
+        const frames = await browser.websocketFrames()
+        const newFrames = frames.slice(curFrames.length)
+        // console.error({newFrames, curFrames, frames});
+
+        return newFrames.some((frame) => {
+          try {
+            const data = JSON.parse(frame.payload)
+            return data.event === 'pong'
+          } catch (_) {}
+          return false
+        })
+          ? 'success'
+          : JSON.stringify(newFrames)
+      }, 'success')
+      expect(await browser.eval('window.uncaughtErrs.length')).toBe(0)
+    })
+  }
+
   it('should support long URLs for dynamic routes', async () => {
     const res = await fetchViaHTTP(
       appPort,
@@ -1228,6 +1257,14 @@ function runTests(dev) {
             },
           },
           {
+            namedRegex: '^/index/(?<slug>.+?)(?:/)?$',
+            page: '/index/[...slug]',
+            regex: normalizeRegEx('^/index/(.+?)(?:/)?$'),
+            routeKeys: {
+              slug: 'slug',
+            },
+          },
+          {
             namedRegex: `^/on\\-mount/(?<post>[^/]+?)(?:/)?$`,
             page: '/on-mount/[post]',
             regex: normalizeRegEx('^\\/on\\-mount\\/([^\\/]+?)(?:\\/)?$'),
@@ -1309,6 +1346,43 @@ function runTests(dev) {
         ],
       })
     })
+
+    if (!serverless) {
+      it('should output a pages-manifest correctly', async () => {
+        const manifest = await fs.readJson(
+          join(appDir, '.next/server/pages-manifest.json')
+        )
+
+        expect(manifest).toEqual({
+          '/[name]/[comment]': 'pages/[name]/[comment].js',
+          '/[name]/comments': 'pages/[name]/comments.js',
+          '/[name]': 'pages/[name].js',
+          '/[name]/on-mount-redir': 'pages/[name]/on-mount-redir.html',
+          '/another': 'pages/another.html',
+          '/b/[123]': 'pages/b/[123].js',
+          '/blog/[name]/comment/[id]': 'pages/blog/[name]/comment/[id].js',
+          '/c/[alongparamnameshouldbeallowedeventhoughweird]':
+            'pages/c/[alongparamnameshouldbeallowedeventhoughweird].js',
+          '/catchall-dash/[...hello-world]':
+            'pages/catchall-dash/[...hello-world].html',
+          '/d/[id]': 'pages/d/[id].html',
+          '/dash/[hello-world]': 'pages/dash/[hello-world].html',
+          '/': 'pages/index.html',
+          '/index/[...slug]': 'pages/index/[...slug].html',
+          '/on-mount/[post]': 'pages/on-mount/[post].html',
+          '/p1/p2/all-ssg/[...rest]': 'pages/p1/p2/all-ssg/[...rest].js',
+          '/p1/p2/all-ssr/[...rest]': 'pages/p1/p2/all-ssr/[...rest].js',
+          '/p1/p2/nested-all-ssg/[...rest]':
+            'pages/p1/p2/nested-all-ssg/[...rest].js',
+          '/p1/p2/predefined-ssg/[...rest]':
+            'pages/p1/p2/predefined-ssg/[...rest].js',
+          '/_app': 'pages/_app.js',
+          '/_error': 'pages/_error.js',
+          '/_document': 'pages/_document.js',
+          '/404': 'pages/404.html',
+        })
+      })
+    }
   }
 }
 
@@ -1325,7 +1399,7 @@ describe('Dynamic Routing', () => {
     })
     afterAll(() => killApp(app))
 
-    runTests(true)
+    runTests({ dev: true, serverless: false })
   })
 
   describe('production mode', () => {
@@ -1340,7 +1414,7 @@ describe('Dynamic Routing', () => {
     })
     afterAll(() => killApp(app))
 
-    runTests()
+    runTests({ dev: false, serverless: false })
   })
 
   describe('serverless mode', () => {
@@ -1360,6 +1434,6 @@ describe('Dynamic Routing', () => {
       await killApp(app)
       await fs.remove(nextConfig)
     })
-    runTests()
+    runTests({ dev: false, serverless: true })
   })
 })

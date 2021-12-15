@@ -14,7 +14,7 @@ import { NextConfig } from './config-shared'
 import { fileExists } from '../lib/file-exists'
 import { ImageConfig, imageConfigDefault } from './image-config'
 import { processBuffer, decodeBuffer, Operation } from './lib/squoosh/main'
-import Server from './next-server'
+import type Server from './base-server'
 import { sendEtagResponse } from './send-payload'
 import { getContentType, getExtension } from './serve-static'
 import chalk from 'chalk'
@@ -363,7 +363,11 @@ export async function imageOptimizer(
 
         if (contentType === AVIF) {
           if (transformer.avif) {
-            transformer.avif({ quality })
+            const avifQuality = quality - 15
+            transformer.avif({
+              quality: Math.max(avifQuality, 0),
+              chromaSubsampling: '4:2:0', // same as webp
+            })
           } else {
             console.warn(
               chalk.yellow.bold('Warning: ') +
@@ -383,6 +387,19 @@ export async function imageOptimizer(
         optimizedBuffer = await transformer.toBuffer()
         // End sharp transformation logic
       } else {
+        if (
+          showSharpMissingWarning &&
+          nextConfig.experimental?.outputStandalone
+        ) {
+          // TODO: should we ensure squoosh also works even though we don't
+          // recommend it be used in production and this is a production feature
+          console.error(
+            `Error: 'sharp' is required to be installed in standalone mode for the image optimization to function correctly`
+          )
+          req.statusCode = 500
+          res.end('internal server error')
+          return { finished: true }
+        }
         // Show sharp warning in production once
         if (showSharpMissingWarning) {
           console.warn(

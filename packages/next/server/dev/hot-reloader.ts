@@ -318,8 +318,11 @@ export default class HotReloader {
           createPagesMapping(
             pagePaths.filter((i) => i !== null) as string[],
             this.config.pageExtensions,
-            true,
-            this.hasServerComponents
+            {
+              isDev: true,
+              hasConcurrentFeatures: this.webServerRuntime,
+              hasServerComponents: this.hasServerComponents,
+            }
           )
         )
 
@@ -528,11 +531,18 @@ export default class HotReloader {
                     page,
                     absoluteAppPath: this.pagesMapping['/_app'],
                     absoluteDocumentPath: this.pagesMapping['/_document'],
+                    absoluteErrorPath: this.pagesMapping['/_error'],
+                    absolute404Path: this.pagesMapping['/404'] || '',
                     absolutePagePath,
                     isServerComponent,
                     buildId: this.buildId,
                     basePath: this.config.basePath,
                     assetPrefix: this.config.assetPrefix,
+                    generateEtags: this.config.generateEtags,
+                    poweredByHeader: this.config.poweredByHeader,
+                    canonicalBase: this.config.amp.canonicalBase,
+                    i18n: this.config.i18n,
+                    previewProps: this.previewProps,
                   } as any)}!`,
                   isServer: false,
                   isServerWeb: true,

@@ -14,6 +14,7 @@ import {
   nextBuild as _nextBuild,
   nextStart as _nextStart,
   renderViaHTTP,
+  check,
 } from 'next-test-utils'
 
 import css from './css'
@@ -24,6 +25,7 @@ const nativeModuleTestAppDir = join(__dirname, '../unsupported-native-module')
 const distDir = join(__dirname, '../app/.next')
 const documentPage = new File(join(appDir, 'pages/_document.jsx'))
 const appPage = new File(join(appDir, 'pages/_app.js'))
+const error500Page = new File(join(appDir, 'pages/500.js'))
 
 const documentWithGip = `
 import { Html, Head, Main, NextScript } from 'next/document'
@@ -55,6 +57,12 @@ function App({ Component, pageProps }) {
 export default App
 `
 
+const page500 = `
+export default function Page500() {
+  return 'custom-500-page'
+}
+`
+
 async function nextBuild(dir) {
   return await _nextBuild(dir, [], {
     stdout: true,
@@ -79,6 +87,20 @@ async function nextDev(dir, port) {
   })
 }
 
+async function resolveStreamResponse(response, onData) {
+  let result = ''
+  onData = onData || (() => {})
+  await new Promise((resolve) => {
+    response.body.on('data', (chunk) => {
+      result += chunk.toString()
+      onData(chunk.toString(), result)
+    })
+
+    response.body.on('end', resolve)
+  })
+  return result
+}
+
 describe('concurrentFeatures - basic', () => {
   it('should warn user for experimental risk with server components', async () => {
     const edgeRuntimeWarning =
@@ -100,11 +122,13 @@ describe('concurrentFeatures - prod', () => {
   const context = { appDir }
 
   beforeAll(async () => {
+    error500Page.write(page500)
     context.appPort = await findPort()
     await nextBuild(context.appDir)
     context.server = await nextStart(context.appDir, context.appPort)
   })
   afterAll(async () => {
+    error500Page.delete()
     await killApp(context.server)
   })
 
@@ -148,22 +172,23 @@ describe('concurrentFeatures - prod', () => {
     expect(html).toContain('foo.client')
   })
 
-  runBasicTests(context)
+  runBasicTests(context, 'prod')
 })
 
 describe('concurrentFeatures - dev', () => {
   const context = { appDir }
 
   beforeAll(async () => {
+    error500Page.write(page500)
     context.appPort = await findPort()
     context.server = await nextDev(context.appDir, context.appPort)
   })
   afterAll(async () => {
+    error500Page.delete()
     await killApp(context.server)
   })
 
-  // TODO: re-enabled test when update webpack with chunkLoading support
-  it.skip('should support React.lazy and dynamic imports', async () => {
+  it('should support React.lazy and dynamic imports', async () => {
     const html = await renderViaHTTP(context.appPort, '/dynamic-imports')
     expect(html).toContain('loading...')
 
@@ -172,7 +197,19 @@ describe('concurrentFeatures - dev', () => {
     expect(content).toMatchInlineSnapshot('"foo.client"')
   })
 
-  runBasicTests(context)
+  it('should not bundle external imports into client builds for RSC', async () => {
+    const html = await renderViaHTTP(context.appPort, '/external-imports')
+    expect(html).toContain('date:')
+
+    const distServerDir = join(distDir, 'static', 'chunks', 'pages')
+    const bundle = fs
+      .readFileSync(join(distServerDir, 'external-imports.js'))
+      .toString()
+
+    expect(bundle).not.toContain('moment')
+  })
+
+  runBasicTests(context, 'dev')
 })
 
 const cssSuite = {
@@ -203,9 +240,17 @@ const documentSuite = {
 runSuite('document', 'dev', documentSuite)
 runSuite('document', 'prod', documentSuite)
 
-async function runBasicTests(context) {
+async function runBasicTests(context, env) {
+  const isDev = env === 'dev'
   it('should render the correct html', async () => {
-    const homeHTML = await renderViaHTTP(context.appPort, '/')
+    const homeHTML = await renderViaHTTP(context.appPort, '/', null, {
+      headers: {
+        'x-next-test-client': 'test-util',
+      },
+    })
+
+    // should have only 1 DOCTYPE
+    expect(homeHTML).toMatch(/^<!DOCTYPE html><html/)
 
     // dynamic routes
     const dynamicRouteHTML1 = await renderViaHTTP(
@@ -218,28 +263,44 @@ async function runBasicTests(context) {
     )
 
     const path404HTML = await renderViaHTTP(context.appPort, '/404')
+    const path500HTML = await renderViaHTTP(context.appPort, '/err')
     const pathNotFoundHTML = await renderViaHTTP(
       context.appPort,
       '/this-is-not-found'
     )
 
-    expect(homeHTML).toContain('thisistheindexpage.server')
-    expect(homeHTML).toContain('env_var_test')
+    expect(homeHTML).toContain('component:index.server')
+    expect(homeHTML).toContain('env:env_var_test')
+    expect(homeHTML).toContain('header:test-util')
+    expect(homeHTML).toContain('path:/')
     expect(homeHTML).toContain('foo.client')
 
     expect(dynamicRouteHTML1).toContain('[pid]')
     expect(dynamicRouteHTML2).toContain('[pid]')
 
     expect(path404HTML).toContain('custom-404-page')
+    // in dev mode: custom error page is still using default _error
+    expect(path500HTML).toContain(
+      isDev ? 'Internal Server Error' : 'custom-500-page'
+    )
     expect(pathNotFoundHTML).toContain('custom-404-page')
   })
 
-  it('should suspense next/link on server side', async () => {
+  it('should support next/link', async () => {
     const linkHTML = await renderViaHTTP(context.appPort, '/next-api/link')
     const $ = cheerio.load(linkHTML)
     const linkText = $('div[hidden] > a[href="/"]').text()
 
     expect(linkText).toContain('go home')
+
+    const browser = await webdriver(context.appPort, '/next-api/link')
+    await browser.eval('window.beforeNav = 1')
+    await browser.waitForElementByCss('#next_id').click()
+    await check(() => browser.elementByCss('#query').text(), 'query:1')
+
+    await browser.waitForElementByCss('#next_id').click()
+    await check(() => browser.elementByCss('#query').text(), 'query:2')
+    expect(await browser.eval('window.beforeNav')).toBe(1)
   })
 
   it('should suspense next/image on server side', async () => {
@@ -259,24 +320,17 @@ async function runBasicTests(context) {
   it('should support streaming', async () => {
     await fetchViaHTTP(context.appPort, '/streaming', null, {}).then(
       async (response) => {
-        let result = ''
         let gotFallback = false
         let gotData = false
 
-        await new Promise((resolve) => {
-          response.body.on('data', (chunk) => {
-            result += chunk.toString()
-
-            gotData = result.includes('next_streaming_data')
-            if (!gotFallback) {
-              gotFallback = result.includes('next_streaming_fallback')
-              if (gotFallback) {
-                expect(gotData).toBe(false)
-              }
+        await resolveStreamResponse(response, (_, result) => {
+          gotData = result.includes('next_streaming_data')
+          if (!gotFallback) {
+            gotFallback = result.includes('next_streaming_fallback')
+            if (gotFallback) {
+              expect(gotData).toBe(false)
             }
-          })
-
-          response.body.on('end', () => resolve())
+          }
         })
 
         expect(gotFallback).toBe(true)
@@ -288,6 +342,55 @@ async function runBasicTests(context) {
     const browser = await webdriver(context.appPort, '/streaming')
     const content = await browser.eval(`window.document.body.innerText`)
     expect(content).toMatchInlineSnapshot('"next_streaming_data"')
+  })
+
+  it('should support streaming flight request', async () => {
+    await fetchViaHTTP(context.appPort, '/?__flight__=1').then(
+      async (response) => {
+        const result = await resolveStreamResponse(response)
+        expect(result).toContain('component:index.server')
+      }
+    )
+  })
+
+  it('should support partial hydration with inlined server data', async () => {
+    await fetchViaHTTP(context.appPort, '/partial-hydration', null, {}).then(
+      async (response) => {
+        let gotFallback = false
+        let gotData = false
+        let gotInlinedData = false
+
+        await resolveStreamResponse(response, (_, result) => {
+          gotInlinedData = result.includes('self.__next_s=')
+          gotData = result.includes('next_streaming_data')
+          if (!gotFallback) {
+            gotFallback = result.includes('next_streaming_fallback')
+            if (gotFallback) {
+              expect(gotData).toBe(false)
+              expect(gotInlinedData).toBe(false)
+            }
+          }
+        })
+
+        expect(gotFallback).toBe(true)
+        expect(gotData).toBe(true)
+        expect(gotInlinedData).toBe(true)
+      }
+    )
+
+    // Should end up with "next_streaming_data".
+    const browser = await webdriver(context.appPort, '/partial-hydration')
+    const content = await browser.eval(`window.document.body.innerText`)
+    expect(content).toContain('next_streaming_data')
+
+    // Should support partial hydration: the boundary should still be pending
+    // while another part is hydrated already.
+    expect(await browser.eval(`window.partial_hydration_suspense_result`)).toBe(
+      'next_streaming_fallback'
+    )
+    expect(await browser.eval(`window.partial_hydration_counter_result`)).toBe(
+      'count: 1'
+    )
   })
 
   it('should support api routes', async () => {
@@ -318,6 +421,6 @@ function runSuite(suiteName, env, { runTests, before, after }) {
       await killApp(context.server)
     })
 
-    runTests(context)
+    runTests(context, env)
   })
 }

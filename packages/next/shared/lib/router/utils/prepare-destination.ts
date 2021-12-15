@@ -4,6 +4,7 @@ import type { NextParsedUrlQuery } from '../../../../server/request-meta'
 import type { Params } from '../../../../server/router'
 import type { RouteHas } from '../../../../lib/load-custom-routes'
 import { compile, pathToRegexp } from 'next/dist/compiled/path-to-regexp'
+import escapeStringRegexp from 'next/dist/compiled/escape-string-regexp'
 import { parseUrl } from './parse-url'
 
 export function matchHas(
@@ -116,7 +117,6 @@ export function prepareDestination(args: {
   query: NextParsedUrlQuery
 }) {
   const query = Object.assign({}, args.query)
-  const hadLocale = query.__nextLocale
   delete query.__nextLocale
   delete query.__nextDefaultLocale
 
@@ -170,12 +170,9 @@ export function prepareDestination(args: {
 
   // add path params to query if it's not a redirect and not
   // already defined in destination query or path
-  let paramKeys = Object.keys(args.params)
-
-  // remove internal param for i18n
-  if (hadLocale) {
-    paramKeys = paramKeys.filter((name) => name !== 'nextInternalLocale')
-  }
+  let paramKeys = Object.keys(args.params).filter(
+    (name) => name !== 'nextInternalLocale'
+  )
 
   if (
     args.appendParamsToQuery &&
@@ -244,7 +241,7 @@ function getSafeParamName(paramName: string) {
 
 function escapeSegment(str: string, segmentName: string) {
   return str.replace(
-    new RegExp(`:${segmentName}`, 'g'),
+    new RegExp(`:${escapeStringRegexp(segmentName)}`, 'g'),
     `__ESC_COLON_${segmentName}`
   )
 }

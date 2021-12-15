@@ -431,7 +431,6 @@ describe('i18n Support', () => {
             expect(res.status).toBe(404)
             const $ = cheerio.load(await res.text())
             const props = JSON.parse($('#props').text())
-            console.log(props)
             expect($('#not-found').text().length > 0).toBe(true)
             expect(props).toEqual({
               is404: true,

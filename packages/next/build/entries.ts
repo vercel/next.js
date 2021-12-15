@@ -25,8 +25,15 @@ export type PagesMapping = {
 export function createPagesMapping(
   pagePaths: string[],
   extensions: string[],
-  isDev: boolean,
-  hasServerComponents: boolean
+  {
+    isDev,
+    hasServerComponents,
+    hasConcurrentFeatures,
+  }: {
+    isDev: boolean
+    hasServerComponents: boolean
+    hasConcurrentFeatures: boolean
+  }
 ): PagesMapping {
   const previousPages: PagesMapping = {}
   const pages: PagesMapping = pagePaths.reduce(
@@ -65,7 +72,7 @@ export function createPagesMapping(
   // we alias these in development and allow webpack to
   // allow falling back to the correct source file so
   // that HMR can work properly when a file is added/removed
-  const documentPage = `_document${hasServerComponents ? '-web' : ''}`
+  const documentPage = `_document${hasConcurrentFeatures ? '-web' : ''}`
   if (isDev) {
     pages['/_app'] = `${PAGES_DIR_ALIAS}/_app`
     pages['/_error'] = `${PAGES_DIR_ALIAS}/_error`
@@ -160,13 +167,10 @@ export function createEntrypoints(
         name: '[name].js',
         value: `next-middleware-ssr-loader?${stringify({
           page,
-          absoluteAppPath: pages['/_app'],
-          absoluteDocumentPath: pages['/_document'],
+          absolute500Path: pages['/500'] || '',
           absolutePagePath,
           isServerComponent: isFlight,
-          buildId,
-          basePath: config.basePath,
-          assetPrefix: config.assetPrefix,
+          ...defaultServerlessOptions,
         } as any)}!`,
         isServer: false,
         isServerWeb: true,
@@ -268,6 +272,7 @@ export function finalizeEntrypoint({
         type: 'assign',
       },
       runtime: MIDDLEWARE_SSR_RUNTIME_WEBPACK,
+      asyncChunks: false,
       ...entry,
     }
     return ssrMiddlewareEntry
