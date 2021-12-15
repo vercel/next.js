@@ -59,6 +59,7 @@ fn test(input: &Path, minify: bool) {
                 remove_console: None,
                 react_remove_properties: None,
                 shake_exports: None,
+                webpack_ast: false,
             };
 
             let options = options.patch(&fm);

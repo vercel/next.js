@@ -90,6 +90,9 @@ pub struct TransformOptions {
 
     #[serde(default)]
     pub shake_exports: Option<shake_exports::Config>,
+
+    #[serde(default, rename = "webpackAST")]
+    pub webpack_ast: bool,
 }
 
 pub fn custom_before_pass(file: Arc<SourceFile>, opts: &TransformOptions) -> impl Fold {
