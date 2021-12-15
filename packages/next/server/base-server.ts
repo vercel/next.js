@@ -1293,14 +1293,14 @@ export default abstract class Server {
           }
 
           if (result.response.headers.has('x-middleware-rewrite')) {
-            const parsedDestination: ParsedUrl = {
-              ...simpleParseUrl(
-                result.response.headers.get('x-middleware-rewrite')!
-              ),
+            const parsedDestination: ParsedUrl = simpleParseUrl(
+              result.response.headers.get('x-middleware-rewrite')!
+            )
+            const newUrl = formatUrl({
+              ...parsedDestination,
               query: {},
               search: '',
-            }
-            const newUrl = formatUrl(parsedDestination)
+            })
 
             if (
               parsedDestination.protocol &&
