@@ -1292,12 +1292,20 @@ export default abstract class Server {
           }
 
           if (result.response.headers.has('x-middleware-rewrite')) {
-            const { newUrl, parsedDestination } = prepareDestination({
+            const destination = parseUrl(
+              result.response.headers.get('x-middleware-rewrite')!
+            )
+
+            let { newUrl, parsedDestination } = prepareDestination({
               appendParamsToQuery: true,
-              destination: result.response.headers.get('x-middleware-rewrite')!,
+              destination: formatUrl({
+                ...destination,
+                pathname: destination.pathname?.replace(/:/g, '__ESC__COLON__'),
+              }),
               params: _params,
               query: parsedUrl.query,
             })
+            newUrl = newUrl.replace(/__ESC__COLON__/g, ':')
 
             if (
               parsedDestination.protocol &&
