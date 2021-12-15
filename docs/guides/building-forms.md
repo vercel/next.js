@@ -234,7 +234,7 @@ The form data will be submitted on the server as a request `req` to the form han
 
 > To improve the experience here, as a response you can redirect the user to a page and thank them for submitting the form.
 
-## PART 5: Form Submission with JavaScript Enabled
+## Part 5: Form Submission with JavaScript Enabled
 
 Let's handle the form submission with JavaScript, which offers much more robust functionality.
 
