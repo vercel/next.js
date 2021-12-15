@@ -196,7 +196,7 @@ This completes the basic structure of your Next.js-based form.
 
 ## Part 4: Form Submission without JavaScript
 
-JavaScript brings interactivity to our web applications, but sometimes you need to control the JavaScript size from being too big.
+JavaScript brings interactivity to our web applications, but sometimes you need to control the JavaScript bundle from being too large, or your sites visitors might have JavaScript disabled.
 
 There are several reasons why users disable JavaScript, e.g., addressing bandwidth constraints, increasing device (phone or laptop) battery life, and even for privacy so they won’t be tracked with analytical scripts. Regardless of the reason, disabling JavaScript will impact site functionality partially, if not completely.
 
