@@ -1608,6 +1608,9 @@ export default async function getBaseWebpackConfig(
     concurrentFeatures: config.experimental.concurrentFeatures,
     swcMinify: config.swcMinify,
     swcLoader: useSWCLoader,
+    removeConsole: config.experimental.removeConsole,
+    reactRemoveProperties: config.experimental.reactRemoveProperties,
+    styledComponents: config.experimental.styledComponents,
   })
 
   const cache: any = {
