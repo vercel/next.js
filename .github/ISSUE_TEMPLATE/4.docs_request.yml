@@ -14,8 +14,8 @@ body:
       required: true
   - type: textarea
     attributes:
-      label: Is there any context that might help us understand better?
-      description: A clear description of any added context that might help us understand better.
+      label: Is there any context that might help us understand?
+      description: A clear description of any added context that might help us understand.
     validations:
       required: true
   - type: input
