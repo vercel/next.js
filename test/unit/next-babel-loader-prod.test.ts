@@ -193,7 +193,7 @@ describe('next-babel-loader', () => {
       expect(
         code.replace(/modules: \[".*?"/, 'modules:["/path/to/page"')
       ).toMatchInlineSnapshot(
-        `"var _jsxFileName = \\"index.js\\";import React from \\"react\\";var __jsx = React.createElement;import dynamic from 'next/dynamic';const Comp = dynamic(() => import('comp'), {  loadableGenerated: {    webpack: () => [require.resolveWeak('comp')],    modules:[\\"/path/to/page\\" + 'comp']  }});export default function Page(props) {  return __jsx(Comp, {    __self: this,    __source: {      fileName: _jsxFileName,      lineNumber: 7,      columnNumber: 18    }  });}"`
+        `"var _jsxFileName = \\"index.js\\";import React from \\"react\\";var __jsx = React.createElement;import dynamic from 'next/dynamic';const Comp = dynamic(() => import('comp'), {  loadableGenerated: {    webpack: () => [require.resolveWeak('comp')]  }});export default function Page(props) {  return __jsx(Comp, {    __self: this,    __source: {      fileName: _jsxFileName,      lineNumber: 7,      columnNumber: 18    }  });}"`
       )
     })
 
