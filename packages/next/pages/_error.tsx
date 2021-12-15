@@ -41,13 +41,15 @@ export default class Error<P = {}> extends React.Component<P & ErrorProps> {
 
     return (
       <div style={styles.error}>
-        <Head>
-          <title>
-            {statusCode
-              ? `${statusCode}: ${title}`
-              : 'Application error: a client-side exception has occurred'}
-          </title>
-        </Head>
+        {!process.env.__NEXT_RSC && (
+          <Head>
+            <title>
+              {statusCode
+                ? `${statusCode}: ${title}`
+                : 'Application error: a client-side exception has occurred'}
+            </title>
+          </Head>
+        )}
         <div>
           <style dangerouslySetInnerHTML={{ __html: 'body { margin: 0 }' }} />
           {statusCode ? <h1 style={styles.h1}>{statusCode}</h1> : null}

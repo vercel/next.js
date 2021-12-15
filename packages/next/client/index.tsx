@@ -721,7 +721,7 @@ if (process.env.__NEXT_RSC) {
   }
 
   function useServerResponse(cacheKey: string, serialized?: string) {
-    const id = (React as any).useId()
+    const id = (React as any).useId() + cacheKey
 
     let response = rscCache.get(cacheKey)
     if (response) return response
@@ -756,7 +756,16 @@ if (process.env.__NEXT_RSC) {
     serialized?: string
     _fresh?: boolean
   }) => {
-    const response = useServerResponse(cacheKey, serialized)
+    const errCacheKey = 'err:' + cacheKey
+    let response
+    if (rscCache.has(errCacheKey)) {
+      return null
+    }
+    try {
+      response = useServerResponse(cacheKey, serialized)
+    } catch (err: any) {
+      rscCache.set(errCacheKey, true)
+    }
     return response.readRoot()
   }
 
@@ -764,8 +773,7 @@ if (process.env.__NEXT_RSC) {
     const cacheKey = getCacheKey()
     const { __flight_serialized__, __flight_fresh__ } = props
     const [, dispatch] = useState({})
-    // @ts-ignore TODO: remove when react 18 types are supported
-    const startTransition = React.startTransition
+    const startTransition = (React as any).startTransition
     const renrender = () => dispatch({})
     // If there is no cache, or there is serialized data already
     function refreshCache(nextProps: any) {
@@ -774,7 +782,7 @@ if (process.env.__NEXT_RSC) {
         const response = createFromFetch(
           fetchFlight(currentCacheKey, nextProps)
         )
-        // FIXME: router.asPath can be different from current location due to navigation
+
         rscCache.set(currentCacheKey, response)
         renrender()
       })
