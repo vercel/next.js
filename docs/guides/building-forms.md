@@ -86,7 +86,7 @@ This was a quick recap of setting up web forms in HTML.
 
 > To learn more about HTML forms, check out the [MDN Web Docs](https://developer.mozilla.org/en-US/docs/Learn/Forms).
 
-## PART 2: [SERVER] Serverless Forms with Vercel and Next.js
+## Part 2: [SERVER] Serverless Forms with Vercel and Next.js
 
 Let's jump on to the next part, where you'll be recreating these HTML forms in React using Next.js and Vercel.
 
