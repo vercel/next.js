@@ -10,7 +10,7 @@ This guide will help you learn and create a serverless web form with Next.js (cl
 
 ## Part 1: [CLIENT] HTML Form
 
-Traditionally, HTML forms are quite popular and built using the `<form>` tag. This further takes up a set of attributes and fields to structure the form for features like text fields, checkboxes, dropdown menus, buttons, radio buttons, etc.
+HTML forms are built using the `<form>` tag. It takes a set of attributes and fields to structure the form for features like text fields, checkboxes, dropdown menus, buttons, radio buttons, etc.
 
 Here's the syntax of a simple HTML form:
 
