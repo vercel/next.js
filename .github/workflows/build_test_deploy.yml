@@ -1334,8 +1334,18 @@ jobs:
       - name: Install wasm-pack
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
+      - name: Turbo Cache
+        id: turbo-cache
+        uses: actions/cache@v2
+        with:
+          path: .turbo
+          key: turbo-${{ github.job }}-${{ matrix.target }}-${{ github.ref_name }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ github.job }}-${{ matrix.target }}-${{ github.ref_name }}-
+            turbo-${{ github.job }}-${{ matrix.target }}-canary-
+
       - name: Build
-        run: (wasm-pack build packages/next-swc/crates/wasm --release --scope=next --target ${{ matrix.target }})
+        run: turbo run build-wasm --cache-dir=".turbo" -- --release --target ${{ matrix.target }}
 
       - name: Add target to folder name
         run: mv packages/next-swc/crates/wasm/pkg packages/next-swc/crates/wasm/pkg-${{ matrix.target }}
@@ -1381,21 +1391,24 @@ jobs:
             **/target/
           key: ${{ runner.os }}-publish-integration
 
-      - name: Cache wasm binary
+      - name: Turbo Cache
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
-        id: binary-cache
+        id: turbo-cache
         uses: actions/cache@v2
         with:
-          path: packages/next-swc/crates/wasm/pkg-nodejs
-          key: dev-wasm-next-swc-nightly-2021-11-15-${{ hashFiles('.github/workflows/build_test_deploy.yml', 'packages/next-swc/**') }}
+          path: .turbo
+          key: turbo-${{ github.job }}-${{ github.ref_name }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ github.job }}-${{ github.ref_name }}-
+            turbo-${{ github.job }}-canary-
 
       - name: Install wasm-pack
         if: ${{needs.build.outputs.docsChange != 'docs only change' && steps.binary-cache.outputs.cache-hit != 'true'}}
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
       - name: Build
-        if: ${{needs.build.outputs.docsChange != 'docs only change' && steps.binary-cache.outputs.cache-hit != 'true'}}
-        run: (wasm-pack build packages/next-swc/crates/wasm --dev --scope=next --target nodejs)
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+        run: turbo run build-wasm --cache-dir=".turbo" -- --dev --target nodejs
 
       - name: Add target to folder name
         if: ${{needs.build.outputs.docsChange != 'docs only change' && steps.binary-cache.outputs.cache-hit != 'true'}}
