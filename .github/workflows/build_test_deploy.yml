@@ -1413,15 +1413,15 @@ jobs:
             turbo-${{ github.job }}-canary-${{ needs.build.outputs.weekNum }}-
 
       - name: Install wasm-pack
-        if: ${{needs.build.outputs.docsChange != 'docs only change' && steps.binary-cache.outputs.cache-hit != 'true'}}
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
       - name: Build
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
-        run: turbo run build-wasm --cache-dir=".turbo" -- --dev --target nodejs
+        run: yarn turbo run build-wasm --cache-dir=".turbo" -- --dev --target nodejs
 
       - name: Add target to folder name
-        if: ${{needs.build.outputs.docsChange != 'docs only change' && steps.binary-cache.outputs.cache-hit != 'true'}}
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         run: mv packages/next-swc/crates/wasm/pkg packages/next-swc/crates/wasm/pkg-nodejs
 
       - name: Upload artifact
