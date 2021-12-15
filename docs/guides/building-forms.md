@@ -228,7 +228,7 @@ export default function PageWithoutJSbasedForm() {
 
 With JavaScript disabled, when you hit the Submit button, an event is triggered, which collects the form data and sends it to our forms API endpoint as defined in the `action` attribute and using `POST` HTTP `method`. You'll be redirected to the `/api/form` endpoint since that's how form `action` works.
 
-The form data will be submitted on the server as a request `req` to the form handler function we wrote above. It will process the data and return a JSON string as a response `res` with your submitted name in it.
+The form data will be submitted on the server as a request `req` to the form handler function written above. It will process the data and return a JSON string as a response `res` with your submitted name included.
 
 **ADD VIDEO**
 
