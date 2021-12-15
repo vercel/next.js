@@ -2571,9 +2571,9 @@ dependencies = [
 
 [[package]]
 name = "swc_webpack_ast"
-version = "0.13.1"
+version = "0.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1cf525ed0014aef5eeb461fb728e7db68ba77a1a3ff44c161ea68bc8b37396ee"
+checksum = "f4281f7b64a76d97137cf075ef7765b370c0ca37d132f9112e01b85bf7083b80"
 dependencies = [
  "anyhow",
  "rayon",
