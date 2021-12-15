@@ -114,7 +114,7 @@ Serverless functions perform a significant role in handling tasks like form subm
 
 ### Next.js Form Serverless API Endpoint
 
-Since we are using Next.js — we will build both the client and the server with it. For the server part, let's create a serverless API where we'll send the form data.
+Both the client and the server will be built using Next.js. For the server part, create a serverless API where you will send the form data.
 
 In case you don't know, Next.js offers a file-based system for routing that's built on the [concept of pages](https://nextjs.org/docs/basic-features/pages). Any file inside the folder `pages/api` is mapped to `/api/*` and will be treated as an API endpoint instead of a page. This API endpoint is going to be server-side only.
 
