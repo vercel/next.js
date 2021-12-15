@@ -4,26 +4,15 @@
 //! used by wasm.
 
 use crate::util::MapErr;
-use anyhow::{anyhow, Context, Error};
+use anyhow::Error;
 use napi::{CallContext, JsBoolean, JsObject, JsString, Task};
-use serde::Serialize;
 use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
 use swc::try_with_handler;
-use swc_common::sync::Lrc;
-use swc_common::{FilePathMapping, Globals, SourceMap, GLOBALS};
-use swc_ecmascript::{
-    ast::*,
-    parser::{lexer::Lexer, EsConfig, Parser, StringInput, Syntax, TsConfig},
-};
-
-#[derive(Serialize)]
-pub struct AstOutput {
-    ast: String,
-    src: Option<Lrc<String>>,
-}
+use swc_common::{FilePathMapping, SourceMap};
+use swc_webpack_ast::{process_file, AstOutput};
 
 #[js_function(2)]
 pub(crate) fn process_webpack_ast(cx: CallContext) -> napi::Result<JsObject> {
@@ -59,58 +48,9 @@ impl Task for WebpackAstTask {
 }
 
 pub fn parse_file_as_webpack_ast(path: &Path, include_src: bool) -> Result<AstOutput, Error> {
-    let globals = Globals::new();
     let cm = Arc::new(SourceMap::new(FilePathMapping::empty()));
 
-    try_with_handler(cm.clone(), true, |handler| {
-        let fm = cm
-            .load_file(&path)
-            .with_context(|| format!("failed to load file at `{}`", path.display()))?;
-
-        let syntax = match path.extension() {
-            Some(ext) => {
-                if ext == "tsx" {
-                    Syntax::Typescript(TsConfig {
-                        tsx: true,
-                        no_early_errors: true,
-                        ..Default::default()
-                    })
-                } else if ext == "ts" {
-                    Syntax::Typescript(TsConfig {
-                        no_early_errors: true,
-                        ..Default::default()
-                    })
-                } else {
-                    Syntax::Es(EsConfig {
-                        jsx: true,
-                        ..Default::default()
-                    })
-                }
-            }
-            None => Default::default(),
-        };
-
-        let module = {
-            let lexer = Lexer::new(syntax, EsVersion::latest(), StringInput::from(&*fm), None);
-            let mut parser = Parser::new_from(lexer);
-
-            parser.parse_module().map_err(|err| {
-                err.into_diagnostic(handler).emit();
-                anyhow!("failed to parse module")
-            })?
-        };
-
-        let ast = GLOBALS.set(&globals, || {
-            swc_webpack_ast::webpack_ast(cm.clone(), fm.clone(), module)
-        })?;
-
-        Ok(AstOutput {
-            ast,
-            src: if include_src {
-                Some(fm.src.clone())
-            } else {
-                None
-            },
-        })
+    try_with_handler(cm.clone(), true, |_handler| {
+        process_file(|cm| Ok(cm.load_file(&path)?), include_src)
     })
 }
