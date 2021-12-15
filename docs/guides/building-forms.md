@@ -145,7 +145,7 @@ This serverless form `handler` function will receive the request `req` from the 
 
 ### Form Submission without JavaScript
 
-Now we can use `/api/form` relative endpoint inside the `action` attribute for our form. We are sending form data to our server (serverless API at Vercel) when the form is submitted via `POST` HTTP method (which is used to send data).
+You can now use `/api/form` relative endpoint inside the `action` attribute of the form. You are sending form data to the server (serverless API at Vercel) when the form is submitted via `POST` HTTP method (which is used to send data).
 
 ```html
 <form action="/send-data-here" method="post">
