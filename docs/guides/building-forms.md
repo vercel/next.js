@@ -98,7 +98,7 @@ npx create-next-app
 
 Answer the questions to create your project, and give it a name, this example uses `next-forms`. Next `cd` into this directory, and run `npm run dev` or `yarn dev` command to start the development server.
 
-Now read the localhost URL printed in the command line. Generally it's `http://localhost:3000`. Open this URL to ensure that your app is running successfully.
+Open the URL printed in the terminal to ensure that your app is running successfully.
 
 ## Setting up the Serverless Environment
 
