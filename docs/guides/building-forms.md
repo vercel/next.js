@@ -8,7 +8,7 @@ Web forms are the primary source of communication between a user and a web appli
 
 This guide will help you learn and create a serverless web form with Next.js (client) and Vercel (server). But let's start with some basics:
 
-## PART 1: [CLIENT] HTML Form
+## Part 1: [CLIENT] HTML Form
 
 Traditionally, HTML forms are quite popular and built using the `<form>` tag. This further takes up a set of attributes and fields to structure the form for features like text fields, checkboxes, dropdown menus, buttons, radio buttons, etc.
 
