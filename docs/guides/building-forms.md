@@ -2,7 +2,7 @@
 description: This guide is tailored at creating web forms with Next.js and Vercel.
 ---
 
-# GUIDE: Building a Serverless Web Form with Vercel and Next.js
+# Building a Serverless Web Form with Vercel and Next.js
 
 Web forms are the primary source of communication between a user and a web application. These are used to send data handled by a web server for processing and storage. A web form has a **client-server** relationship. The form itself is the client, and the server is any storage mechanism that can be used to store, retrieve and send data when needed.
 
