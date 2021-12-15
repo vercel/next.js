@@ -6,11 +6,6 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 
 [https://cms-builder-blog.vercel.app/](https://cms-builder-blog.vercel.app/)
 
-## Deploy your own
-
-Once you have access to [the environment variables you'll need](#step-2-generate-a-space), deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
-
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/cms-storyblok&project-name=cms-storyblok&repository-name=cms-builder-io&env=BUILDER_PUBLIC_KEY&envDescription=Required%20to%20connect%20the%20app%20with%20Builder.io&envLink=https://www.builder.io/c/docs/custom-react-components#api-key)
 
 ### Related examples
 
