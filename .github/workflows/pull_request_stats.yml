@@ -48,13 +48,20 @@ jobs:
           path: ~/.cargo/git
           key: stable-ubuntu-18.04-node@14-cargo-index-trimmed-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Cache native binary
-        id: binary-cache
+      # We use week in the turbo cache key to keep the cache from infinitely growing
+      - id: get-week
+        run: echo ::set-output name=WEEK::$(date +%U)
+
+      - name: Turbo Cache
+        id: turbo-cache
         uses: actions/cache@v2
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
         with:
-          path: packages/next-swc/native/next-swc.linux-x64-gnu.node
-          key: dev-next-swc-nightly-2021-11-15-linux-x64-gnu-${{ hashFiles('.github/workflows/build_test_deploy.yml', 'packages/next-swc/**') }}
+          path: .turbo
+          key: turbo-${{ github.job }}-${{ github.ref_name }}-${{ steps.get-week.outputs.WEEK }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ github.job }}-${{ github.ref_name }}-${{ steps.get-week.outputs.WEEK }}-
+            turbo-${{ github.job }}-canary-${{ steps.get-week.outputs.WEEK }}-
 
       # We use restore-key to pick latest cache.
       # We will not get exact match, but doc says
@@ -74,8 +81,8 @@ jobs:
       - run: npm i -g turbo@0.8.5-next.3
 
       - name: Build
-        if: ${{ steps.binary-cache.outputs.cache-hit != 'true' && steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
-        run: turbo run --cacheFolder .turbo build-native
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
+        run: turbo run build-native --cache-dir=".turbo"
         env:
           MACOSX_DEPLOYMENT_TARGET: '10.13'
           TURBO_TOKEN: ${{secrets.TURBO_TOKEN}}
