@@ -156,6 +156,27 @@ function rewriteTests(locale = '') {
     expect($('.title').text()).toBe('About Page')
   })
 
+  it(`${locale} should rewrite with respect to colons in path`, async () => {
+    const res = await fetchViaHTTP(
+      context.appPort,
+      `${locale}/rewrites/not:param`
+    )
+    const html = await res.text()
+    const $ = cheerio.load(html)
+    expect($('#props').text()).toBe('not:param')
+    const browser = await webdriver(
+      context.appPort,
+      `${locale}/rewrites/not:param`
+    )
+    try {
+      expect(await browser.eval(`window.location.pathname`)).toBe(
+        `${locale}/rewrites/not:param`
+      )
+    } finally {
+      await browser.close()
+    }
+  })
+
   it(`${locale} should rewrite when not using localhost`, async () => {
     const res = await fetchViaHTTP(
       `http://localtest.me:${context.appPort}`,
