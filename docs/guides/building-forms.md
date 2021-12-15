@@ -96,7 +96,7 @@ Create a simple Next.js app. You can use the [create-next-app](https://nextjs.or
 npx create-next-app
 ```
 
-Answer the few questions to create your project, I created a project called `next-forms` and then `cd` into this directory. Now run the `npm run dev` or `yarn dev` command to start the development server.
+Answer the questions to create your project, and give it a name, this example uses `next-forms`. Next `cd` into this directory, and run `npm run dev` or `yarn dev` command to start the development server.
 
 Now read the localhost URL printed in the command line. Generally it's `http://localhost:3000`. Open this URL to ensure that your app is running successfully.
 
