@@ -163,7 +163,7 @@ If you submit this form, it will submit the data to the forms API endpoint `/api
 
 ## Part 3: Forms in Next.js
 
-We created a server with Vercel via serverless functions. Now it's time to configure the client (the form itself) inside Next.js using React. The first step will be extending your knowledge of HTML forms and converting it into React (using [JSX](https://reactjs.org/docs/introducing-jsx.html)).
+You have created a server with Vercel via Serverless Functions. Now it's time to configure the client (the form itself) inside Next.js using React. The first step will be extending your knowledge of HTML forms and converting it into React (using [JSX](https://reactjs.org/docs/introducing-jsx.html)).
 
 Here's the same form in a [React function component](https://reactjs.org/docs/components-and-props.html) written using [JSX](https://reactjs.org/docs/introducing-jsx.html).
 
