@@ -117,12 +117,12 @@ function getDefaultPlugins(
 export async function getPostCssPlugins(
   dir: string,
   supportedBrowsers: string[] | undefined,
-  defaults: boolean = false,
   disablePostcssPresetEnv: boolean = false
 ): Promise<import('postcss').AcceptedPlugin[]> {
-  let config = defaults
-    ? null
-    : await findConfig<{ plugins: CssPluginCollection }>(dir, 'postcss')
+  let config = await findConfig<{ plugins: CssPluginCollection }>(
+    dir,
+    'postcss'
+  )
 
   if (config == null) {
     config = {

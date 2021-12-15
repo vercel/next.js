@@ -141,6 +141,7 @@ export function getLoaderSWCOptions({
       disableNextSsg: true,
       disablePageConfig: true,
       isDevelopment: development,
+      isServer,
       pagesDir,
       isPageFile,
       env: {
@@ -165,6 +166,7 @@ export function getLoaderSWCOptions({
         : {}),
       disableNextSsg: !isPageFile,
       isDevelopment: development,
+      isServer,
       pagesDir,
       isPageFile,
     }

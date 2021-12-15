@@ -10,7 +10,6 @@ use testing::fixture;
 fn syntax() -> Syntax {
     Syntax::Es(EsConfig {
         jsx: true,
-        dynamic_import: true,
         ..Default::default()
     })
 }
@@ -33,6 +32,8 @@ fn next_dynamic_errors(input: PathBuf) {
         syntax(),
         &|_tr| {
             next_dynamic(
+                true,
+                false,
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
                 Some("/some-project/src".into()),
             )

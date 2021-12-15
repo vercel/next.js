@@ -12,11 +12,9 @@
     "dev": "lerna run dev --stream --parallel",
     "dev2": "while true; do yarn --check-files && yarn dev; done",
     "test-types": "yarn tsc",
-    "test": "yarn jest",
     "test-unit": "yarn jest test/unit/",
     "testonly": "yarn jest --runInBand",
     "testheadless": "cross-env HEADLESS=true yarn testonly",
-    "testall": "yarn test -- --ci --forceExit && lerna run --scope @next/codemod test",
     "genstats": "cross-env LOCAL_STATS=true node .github/actions/next-stats-action/src/index.js",
     "git-reset": "git reset --hard HEAD",
     "git-clean": "git clean -d -x -e node_modules -e packages -f",
@@ -87,7 +85,7 @@
     "alex": "9.1.0",
     "amphtml-validator": "1.0.33",
     "async-sema": "3.0.1",
-    "browserslist": "4.16.6",
+    "browserslist": "4.18.1",
     "cheerio": "0.22.0",
     "clone": "2.1.2",
     "cookie": "0.4.1",
@@ -163,8 +161,8 @@
     "worker-loader": "3.0.7"
   },
   "resolutions": {
-    "browserslist": "4.16.6",
-    "caniuse-lite": "1.0.30001271"
+    "browserslist": "4.18.1",
+    "caniuse-lite": "1.0.30001283"
   },
   "engines": {
     "node": ">=12.22.0"
