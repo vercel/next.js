@@ -455,6 +455,17 @@ function interfaceTests(locale = '') {
     )
     expect(res.headers.get('x-dynamic-path')).toBe('true')
   })
+
+  it(`${locale} renders correctly rewriting to a different dynamic path`, async () => {
+    const browser = await webdriver(
+      context.appPort,
+      '/interface/dynamic-replace'
+    )
+    const element = await browser.elementByCss('.title')
+    expect(await element.text()).toEqual('Parts page')
+    const logs = await browser.log()
+    expect(logs.every((log) => log.source === 'log')).toEqual(true)
+  })
 }
 
 function getCookieFromResponse(res, cookieName) {
