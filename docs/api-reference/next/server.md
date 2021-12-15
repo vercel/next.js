@@ -86,6 +86,21 @@ All methods above return a `NextResponse` object that only takes effect if it's 
 import { NextResponse } from 'next/server'
 ```
 
+### Setting the cookie before a redirect
+
+In order to set the `cookie` _before_ a redirect, you can create an instance of `NextResponse`, then access the `cookie` method on the instance, before returning the response.
+
+```ts
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+
+export function middleware(req: NextRequest, res: NextResponse) {
+  const res = NextResponse.redirect('/') // creates an actual instance
+  res.cookie('hello', 'world') // can be called on an instance
+  return res
+}
+```
+
 ### Why does redirect use 307 and 308?
 
 When using `redirect()` you may notice that the status codes used are `307` for a temporary redirect, and `308` for a permanent redirect. While traditionally a `302` was used for a temporary redirect, and a `301` for a permanent redirect, many browsers changed the request method of the redirect, from a `POST` to `GET` request when using a `302`, regardless of the origins request method.
