@@ -194,7 +194,7 @@ This completes the basic structure of your Next.js-based form.
 
 ![forms with nextjs](/docs/guides/images/forms-with-nextjs.jpg)
 
-## PART 4: Form Submission without JavaScript
+## Part 4: Form Submission without JavaScript
 
 JavaScript brings interactivity to our web applications, but sometimes you need to control the JavaScript size from being too big.
 
