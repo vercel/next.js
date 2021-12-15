@@ -236,8 +236,6 @@ The form data will be submitted on the server as a request `req` to the form han
 
 ## Part 5: Form Submission with JavaScript Enabled
 
-Let's handle the form submission with JavaScript, which offers much more robust functionality.
-
 Inside `/pages`, you'll create another file called `js-form.js`. This will create a `/js-form` page on your Next.js app.
 
 Now, as soon as the form is submitted, we prevent the form's default behavior of reloading the page. We'll take the form data, convert it to JSON string, and send it to our server, the API endpoint. Finally, our server will respond with the name submitted. All of this with a simple JavaScript `handleSubmit()` function.
