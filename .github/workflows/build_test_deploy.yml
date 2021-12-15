@@ -868,7 +868,7 @@ jobs:
             next-swc-cargo-cache-${{ matrix.os }}
 
       - name: 'Build'
-        run: turbo run --cacheFolder .turbo build-native -- --release --target ${{ matrix.target }}
+        run: turbo run  build-native --cache-dir=".turbo" -- --release --target ${{ matrix.target }}
         env:
           MACOSX_DEPLOYMENT_TARGET: '10.13'
           TURBO_TOKEN: ${{secrets.TURBO_TOKEN}}
@@ -936,7 +936,7 @@ jobs:
 
       - name: Build
         shell: bash
-        run: turbo run --cacheFolder .turbo build-native -- --release --target i686-pc-windows-msvc
+        run: turbo run build-native --cache-dir=".turbo" -- --release --target i686-pc-windows-msvc
         env:
           TURBO_TOKEN: ${{secrets.TURBO_TOKEN}}
           TURBO_TEAM: nextjs
@@ -987,7 +987,7 @@ jobs:
 
       - name: Build
         shell: bash
-        run: turbo run --cacheFolder .turbo build-native -- --release --target aarch64-pc-windows-msvc
+        run: turbo run build-native --cache-dir=".turbo" -- --release --target aarch64-pc-windows-msvc
         env:
           TURBO_TOKEN: ${{secrets.TURBO_TOKEN}}
           TURBO_TEAM: nextjs
@@ -1041,7 +1041,7 @@ jobs:
 
       - name: 'Build'
         run: |
-          docker run --rm -v ~/.cargo/git:/root/.cargo/git -v ~/.cargo/registry:/root/.cargo/registry -v $(pwd)/packages/next-swc:/build -w /build builder sh -c "npm i -g @napi-rs/cli@1.2.1 && npm i -g turbo@1.0.11 && turbo run --cacheFolder .turbo build-native -- --release --target x86_64-unknown-linux-musl"
+          docker run --rm -v ~/.cargo/git:/root/.cargo/git -v ~/.cargo/registry:/root/.cargo/registry -v $(pwd)/packages/next-swc:/build -w /build builder sh -c "npm i -g @napi-rs/cli@1.2.1 && npm i -g turbo@1.0.11 && turbo run build-native --cache-dir=".turbo" -- --release --target x86_64-unknown-linux-musl"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v2
@@ -1091,16 +1091,19 @@ jobs:
           sudo apt-get update
           sudo apt-get install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu -y
 
-      - name: Cache native binary
-        id: binary-cache
+      - name: Turbo Cache
+        id: turbo-cache
         uses: actions/cache@v2
         with:
-          path: packages/next-swc/native/next-swc.linux-arm64-gnu.node
-          key: next-swc-nightly-2021-11-15-linux-arm64-gnu-${{ hashFiles('.github/workflows/build_test_deploy.yml', 'packages/next-swc/**') }}
+          path: .turbo
+          key: turbo-${{ github.job }}-${{ github.ref_name }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ github.job }}-${{ github.ref_name }}-
+            turbo-${{ github.job }}-canary-
 
       - name: Cross build aarch64
         if: ${{ steps.binary-cache.outputs.cache-hit != 'true' }}
-        run: turbo run --cacheFolder .turbo build-native -- --release --target aarch64-unknown-linux-gnu
+        run: turbo run build-native --cache-dir=".turbo" -- --release --target aarch64-unknown-linux-gnu
         env:
           TURBO_TOKEN: ${{secrets.TURBO_TOKEN}}
           TURBO_TEAM: nextjs
@@ -1162,7 +1165,7 @@ jobs:
             turbo-${{ github.job }}-canary-
 
       - name: Cross build aarch64
-        run: turbo run --cacheFolder .turbo build-native -- --release --target aarch64-unknown-linux-musl
+        run: turbo run build-native --cache-dir=".turbo" -- --release --target aarch64-unknown-linux-musl
         env:
           TURBO_TOKEN: ${{secrets.TURBO_TOKEN}}
           TURBO_TEAM: nextjs
@@ -1227,7 +1230,7 @@ jobs:
             turbo-${{ github.job }}-canary-
 
       - name: Cross build aarch64
-        run: turbo run --cacheFolder .turbo build-native -- --release --target armv7-unknown-linux-gnueabihf
+        run: turbo run build-native --cache-dir=".turbo" -- --release --target armv7-unknown-linux-gnueabihf
         env:
           TURBO_TOKEN: ${{secrets.TURBO_TOKEN}}
           TURBO_TEAM: nextjs
@@ -1281,7 +1284,7 @@ jobs:
         shell: bash
         run: |
           export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/darwin-x86_64/bin/aarch64-linux-android24-clang"
-          turbo run --cacheFolder .turbo build-native -- --release --target aarch64-linux-android
+          turbo run build-native --cache-dir=".turbo" -- --release --target aarch64-linux-android
         env:
           TURBO_TOKEN: ${{secrets.TURBO_TOKEN}}
           TURBO_TEAM: nextjs
