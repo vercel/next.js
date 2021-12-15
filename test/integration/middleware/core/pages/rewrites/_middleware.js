@@ -19,6 +19,14 @@ export async function middleware(request) {
     return NextResponse.rewrite('/rewrites/about')
   }
 
+  if (url.pathname === '/rewrites/rewrite-me-with-a-colon') {
+    return NextResponse.rewrite('/rewrites/with:colon')
+  }
+
+  if (url.pathname === '/rewrites/colon:here') {
+    return NextResponse.rewrite('/rewrites/no-colon-here')
+  }
+
   if (url.pathname === '/rewrites/rewrite-me-to-vercel') {
     return NextResponse.rewrite('https://vercel.com')
   }
