@@ -42,14 +42,15 @@ jobs:
       - name: tune linux network
         run: sudo ethtool -K eth0 tx off rx off
 
-      - run: git fetch --depth=1 origin +refs/tags/*:refs/tags/*
       - run: yarn install --frozen-lockfile --check-files
       - run: node run-tests.js --timings --write-timings -g 1/1
+      - run: node ./scripts/fetch-tags.mjs ${{ github.sha }}
+
       - name: Check docs only change
         run: echo ::set-output name=DOCS_CHANGE::$(node skip-docs-change.js echo 'not-docs-only-change')
         id: docs-change
+
       - run: echo ${{steps.docs-change.outputs.DOCS_CHANGE}}
-      - run: git fetch --depth=1 origin +refs/tags/*:refs/tags/*
       - id: check-release
         run: |
           if [[ $(git describe --exact-match 2> /dev/null || :) = v* ]];
@@ -58,6 +59,7 @@ jobs:
             else
               echo "::set-output name=IS_RELEASE::false"
           fi
+
       - uses: actions/cache@v2
         id: cache-build
         with:

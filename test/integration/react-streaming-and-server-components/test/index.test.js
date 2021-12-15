@@ -295,9 +295,11 @@ async function runBasicTests(context, env) {
 
     const browser = await webdriver(context.appPort, '/next-api/link')
     await browser.eval('window.beforeNav = 1')
-    await browser.elementByCss('#next_id').click()
-    await browser.elementByCss('#next_id').click()
-    await check(() => browser.waitForElementByCss('#query').text(), /query:2/)
+    await browser.waitForElementByCss('#next_id').click()
+    await check(() => browser.elementByCss('#query').text(), 'query:1')
+
+    await browser.waitForElementByCss('#next_id').click()
+    await check(() => browser.elementByCss('#query').text(), 'query:2')
     expect(await browser.eval('window.beforeNav')).toBe(1)
   })
 
@@ -348,6 +350,46 @@ async function runBasicTests(context, env) {
         const result = await resolveStreamResponse(response)
         expect(result).toContain('component:index.server')
       }
+    )
+  })
+
+  it('should support partial hydration with inlined server data', async () => {
+    await fetchViaHTTP(context.appPort, '/partial-hydration', null, {}).then(
+      async (response) => {
+        let gotFallback = false
+        let gotData = false
+        let gotInlinedData = false
+
+        await resolveStreamResponse(response, (_, result) => {
+          gotInlinedData = result.includes('self.__next_s=')
+          gotData = result.includes('next_streaming_data')
+          if (!gotFallback) {
+            gotFallback = result.includes('next_streaming_fallback')
+            if (gotFallback) {
+              expect(gotData).toBe(false)
+              expect(gotInlinedData).toBe(false)
+            }
+          }
+        })
+
+        expect(gotFallback).toBe(true)
+        expect(gotData).toBe(true)
+        expect(gotInlinedData).toBe(true)
+      }
+    )
+
+    // Should end up with "next_streaming_data".
+    const browser = await webdriver(context.appPort, '/partial-hydration')
+    const content = await browser.eval(`window.document.body.innerText`)
+    expect(content).toContain('next_streaming_data')
+
+    // Should support partial hydration: the boundary should still be pending
+    // while another part is hydrated already.
+    expect(await browser.eval(`window.partial_hydration_suspense_result`)).toBe(
+      'next_streaming_fallback'
+    )
+    expect(await browser.eval(`window.partial_hydration_counter_result`)).toBe(
+      'count: 1'
     )
   })
 
