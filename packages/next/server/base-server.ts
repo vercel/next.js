@@ -1296,16 +1296,15 @@ export default abstract class Server {
               result.response.headers.get('x-middleware-rewrite')!
             )
 
-            let { newUrl, parsedDestination } = prepareDestination({
+            const { newUrl, parsedDestination } = prepareDestination({
               appendParamsToQuery: true,
-              destination: formatUrl({
-                ...destination,
-                pathname: destination.pathname?.replace(/:/g, '__ESC__COLON__'),
-              }),
-              params: _params,
+              destination: formatUrl({ ...destination, pathname: '/:path*' }),
+              params: {
+                ..._params,
+                path: destination.pathname?.split('/').filter(Boolean),
+              },
               query: parsedUrl.query,
             })
-            newUrl = newUrl.replace(/__ESC__COLON__/g, ':')
 
             if (
               parsedDestination.protocol &&
