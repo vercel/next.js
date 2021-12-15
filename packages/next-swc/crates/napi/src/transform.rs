@@ -33,13 +33,14 @@ use crate::{
 use anyhow::{anyhow, bail, Context as _, Error};
 use napi::{CallContext, Env, JsBoolean, JsBuffer, JsObject, JsString, JsUnknown, Status, Task};
 use next_swc::{custom_before_pass, TransformOptions};
+use serde::Serialize;
 use std::fs::read_to_string;
 use std::{
     convert::TryFrom,
     panic::{catch_unwind, AssertUnwindSafe},
     sync::Arc,
 };
-use swc::{try_with_handler, Compiler, TransformOutput};
+use swc::{try_with_handler, Compiler};
 use swc_common::{FileName, SourceFile};
 use swc_ecmascript::ast::Program;
 use swc_ecmascript::transforms::pass::noop;
@@ -57,6 +58,26 @@ pub struct TransformTask {
     pub c: Arc<Compiler>,
     pub input: Input,
     pub options: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct TransformOutput {
+    pub code: Arc<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub map: Option<String>,
+
+    #[serde(rename = "webpackAST", skip_serializing_if = "Option::is_none")]
+    pub webpack_ast: Option<String>,
+}
+
+impl From<swc::TransformOutput> for TransformOutput {
+    fn from(output: swc::TransformOutput) -> Self {
+        TransformOutput {
+            code: Arc::new(output.code),
+            map: output.map,
+            webpack_ast: None,
+        }
+    }
 }
 
 impl Task for TransformTask {
@@ -95,14 +116,37 @@ impl Task for TransformTask {
                     let options = options.patch(&fm);
 
                     let before_pass = custom_before_pass(fm.clone(), &options);
-                    self.c.process_js_with_custom_pass(
-                        fm.clone(),
-                        None,
-                        &handler,
-                        &options.swc,
-                        |_| before_pass,
-                        |_| noop(),
-                    )
+                    self.c
+                        .process_js_with_custom_pass(
+                            fm.clone(),
+                            None,
+                            &handler,
+                            &options.swc,
+                            |_| before_pass,
+                            |_| noop(),
+                        )
+                        .and_then(|output| {
+                            if options.webpack_ast {
+                                let code = output.code;
+                                let map = output.map;
+                                let webpack_output = swc_webpack_ast::process_file(
+                                    |cm| Ok(cm.new_source_file(FileName::Anon, code)),
+                                    true,
+                                )?;
+
+                                Ok(TransformOutput {
+                                    code: webpack_output.src.unwrap(),
+                                    map,
+                                    webpack_ast: Some(webpack_output.ast),
+                                })
+                            } else {
+                                Ok(TransformOutput {
+                                    code: Arc::new(output.code),
+                                    map: output.map,
+                                    webpack_ast: None,
+                                })
+                            }
+                        })
                 })
             })
         }))
@@ -187,7 +231,7 @@ where
     })
     .convert_err()?;
 
-    complete_output(cx.env, output)
+    complete_output(cx.env, output.into())
 }
 
 #[js_function(4)]

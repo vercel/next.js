@@ -34,10 +34,11 @@ extern crate napi_derive;
 /// Explicit extern crate to use allocator.
 extern crate swc_node_base;
 
+use crate::transform::TransformOutput;
 use backtrace::Backtrace;
 use napi::{CallContext, Env, JsObject, JsUndefined};
 use std::{env, panic::set_hook, sync::Arc};
-use swc::{Compiler, TransformOutput};
+use swc::Compiler;
 use swc_common::{self, sync::Lazy, FilePathMapping, SourceMap};
 
 mod bundle;

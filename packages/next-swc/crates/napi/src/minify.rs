@@ -85,7 +85,7 @@ impl Task for MinifyTask {
     }
 
     fn resolve(self, env: napi::Env, output: Self::Output) -> napi::Result<Self::JsValue> {
-        complete_output(&env, output)
+        complete_output(&env, output.into())
     }
 }
 
@@ -113,5 +113,5 @@ pub fn minify_sync(cx: CallContext) -> napi::Result<JsObject> {
     let output = try_with_handler(c.cm.clone(), true, |handler| c.minify(fm, &handler, &opts))
         .convert_err()?;
 
-    complete_output(&cx.env, output)
+    complete_output(&cx.env, output.into())
 }
