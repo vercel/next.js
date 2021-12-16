@@ -14,9 +14,9 @@ import LoginEntryPoint from '../components/LoginEntryPoint'
 // 3. Running locally via `npm run dev`; VERCEL_URL will be undefined and the app will be at localhost.
 let REDIRECT_URL_BASE = ''
 
-if (process.env.VERCEL_URL?.includes('localhost')) {
+if (process.env.NEXT_PUBLIC_VERCEL_URL?.includes('localhost')) {
   REDIRECT_URL_BASE = 'http://localhost:3000'
-} else if (process.env.VERCEL_URL !== undefined) {
+} else if (process.env.NEXT_PUBLIC_VERCEL_URL !== undefined) {
   REDIRECT_URL_BASE = `https://${process.env.VERCEL_URL}`
 } else {
   REDIRECT_URL_BASE = 'http://localhost:3000'
@@ -46,7 +46,7 @@ const stytchProps: StytchProps = {
     primaryTextColor: '#090909',
     width: '321px',
   },
-  publicToken: process.env.STYTCH_PUBLIC_TOKEN || '',
+  publicToken: process.env.NEXT_PUBLIC_STYTCH_PUBLIC_TOKEN || '',
   callbacks: {
     onEvent: (data) => {
       // TODO: check whether the user exists in your DB
