@@ -153,6 +153,7 @@
     "tailwindcss": "1.1.3",
     "taskr": "1.1.0",
     "tree-kill": "1.2.2",
+    "turbo": "1.0.14",
     "typescript": "4.4.3",
     "wait-port": "0.2.2",
     "web-streams-polyfill": "2.1.1",
@@ -166,5 +167,25 @@
   },
   "engines": {
     "node": ">=12.22.0"
+  },
+  "turbo": {
+    "pipeline": {
+      "build-native": {
+        "dependsOn": [
+          "^build-native"
+        ],
+        "outputs": [
+          "native/*.node"
+        ]
+      },
+      "build-wasm": {
+        "dependsOn": [
+          "^build-wasm"
+        ],
+        "outputs": [
+          "crates/wasm/pkg/*"
+        ]
+      }
+    }
   }
 }
