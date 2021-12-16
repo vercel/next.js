@@ -223,10 +223,10 @@ When you add an example to the [examples](examples) directory, don’t forget to
 
 - Replace `DIRECTORY_NAME` with the directory name you’re adding.
 - Fill in `Example Name` and `Description`.
-- Make sure the examples you're added are Typescript-first
-- You don’t need to add name or version in your package.json
-- Ensure all your dependencies are up to date
-- Ensure you’re using [next/image](https://nextjs.org/docs/api-reference/next/image)
+- Examples should be TypeScript first, if possible.
+- You don’t need to add `name` or `version` in your `package.json`.
+- Ensure all your dependencies are up to date.
+- Ensure you’re using [`next/image`](https://nextjs.org/docs/api-reference/next/image).
 - To add additional installation instructions, please add it where appropriate.
 - To add additional notes, add `## Notes` section at the end.
 - Remove the `Deploy your own` section if your example can’t be immediately deployed to Vercel.
