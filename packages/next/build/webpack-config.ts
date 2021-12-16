@@ -1402,6 +1402,7 @@ export default async function getBaseWebpackConfig(
           runtimeAsset: hasConcurrentFeatures
             ? `server/${MIDDLEWARE_REACT_LOADABLE_MANIFEST}.js`
             : undefined,
+          dev,
         }),
       targetWeb && new DropClientPage(),
       config.outputFileTracing &&
@@ -1607,6 +1608,9 @@ export default async function getBaseWebpackConfig(
     concurrentFeatures: config.experimental.concurrentFeatures,
     swcMinify: config.swcMinify,
     swcLoader: useSWCLoader,
+    removeConsole: config.experimental.removeConsole,
+    reactRemoveProperties: config.experimental.reactRemoveProperties,
+    styledComponents: config.experimental.styledComponents,
   })
 
   const cache: any = {
@@ -1731,6 +1735,21 @@ export default async function getBaseWebpackConfig(
     if (dev && originalDevtool !== webpackConfig.devtool) {
       webpackConfig.devtool = originalDevtool
       devtoolRevertWarning(originalDevtool)
+    }
+
+    // eslint-disable-next-line no-shadow
+    const webpack5Config = webpackConfig as webpack5.Configuration
+
+    // disable lazy compilation of entries as next.js has it's own method here
+    if (webpack5Config.experiments?.lazyCompilation === true) {
+      webpack5Config.experiments.lazyCompilation = {
+        entries: false,
+      }
+    } else if (
+      typeof webpack5Config.experiments?.lazyCompilation === 'object' &&
+      webpack5Config.experiments.lazyCompilation.entries !== false
+    ) {
+      webpack5Config.experiments.lazyCompilation.entries = false
     }
 
     if (typeof (webpackConfig as any).then === 'function') {

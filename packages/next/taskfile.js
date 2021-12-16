@@ -254,7 +254,7 @@ export async function ncc_escape_string_regexp(task, opts) {
     .source(
       opts.src || relative(__dirname, require.resolve('escape-string-regexp'))
     )
-    .ncc({ packageName: 'escape-string-regexp', externals })
+    .ncc({ packageName: 'escape-string-regexp', externals, target: 'es5' })
     .target('compiled/escape-string-regexp')
 }
 
@@ -1007,7 +1007,6 @@ export async function ncc(task, opts) {
         'ncc_unistore',
         'ncc_web_vitals',
         'ncc_webpack_bundle5',
-        'ncc_webpack_bundle_packages',
         'ncc_webpack_sources1',
         'ncc_webpack_sources3',
         'ncc_ws',
@@ -1021,6 +1020,7 @@ export async function ncc(task, opts) {
       ],
       opts
     )
+  await task.parallel(['ncc_webpack_bundle_packages'], opts)
   await task.parallel(['ncc_babel_bundle_packages'], opts)
   await task.parallel(['copy_react_server_dom_webpack'])
 }
@@ -1036,7 +1036,6 @@ export async function compile(task, opts) {
       'pages',
       'lib',
       'client',
-      'vitals',
       'telemetry',
       'trace',
       'shared',
@@ -1097,14 +1096,6 @@ export async function client(task, opts) {
     .swc('client', { dev: opts.dev })
     .target('dist/client')
   notify('Compiled client files')
-}
-
-export async function vitals(task, opts) {
-  await task
-    .source(opts.src || 'vitals/**/*.+(js|ts|tsx)')
-    .swc('vitals', { dev: opts.dev })
-    .target('dist/vitals')
-  notify('Compiled vitals files')
 }
 
 // export is a reserved keyword for functions
@@ -1181,7 +1172,6 @@ export default async function (task) {
   await task.watch('build/**/*.+(js|ts|tsx)', 'nextbuild', opts)
   await task.watch('export/**/*.+(js|ts|tsx)', 'nextbuildstatic', opts)
   await task.watch('client/**/*.+(js|ts|tsx)', 'client', opts)
-  await task.watch('vitals/**/*.+(js|ts|tsx)', 'vitals', opts)
   await task.watch('lib/**/*.+(js|ts|tsx)', 'lib', opts)
   await task.watch('cli/**/*.+(js|ts|tsx)', 'cli', opts)
   await task.watch('telemetry/**/*.+(js|ts|tsx)', 'telemetry', opts)
