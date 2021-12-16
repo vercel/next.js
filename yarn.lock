@@ -19131,12 +19131,10 @@ tunnel-agent@^0.6.0:
   dependencies:
     safe-buffer "^5.0.1"
 
-turbo@1.0.11:
-  version "1.0.11"
-  resolved "https://registry.yarnpkg.com/turbo/-/turbo-1.0.11.tgz#e832459ed4ec98bdd41fa7c9a12f2720c10ad5b3"
-  integrity sha512-hTvO3EXaa4D7bfuKE7w2Ba1WpoS5vTfUAbA7Y8szLcmxCTpvfiDGtudl8iu82HRRRn+v1LvpgLSPr/N+ZXbYFQ==
-  dependencies:
-    zlib "^1.0.5"
+turbo@1.0.14:
+  version "1.0.14"
+  resolved "https://registry.yarnpkg.com/turbo/-/turbo-1.0.14.tgz#42ace0d1c699f0c1cb19b589b6d629dfa72b62b4"
+  integrity sha512-FfKP1rjx8LF/n8eibVOVlv7XzTszMHCg43RHCLFxGAEKluDCw3hyFAFNJumECktiGOt19M54h+HEGW/BDZeW2g==
 
 tweetnacl@^0.14.3, tweetnacl@~0.14.0:
   version "0.14.5"
@@ -20468,11 +20466,6 @@ yocto-queue@^0.1.0:
   version "0.1.0"
   resolved "https://registry.yarnpkg.com/yocto-queue/-/yocto-queue-0.1.0.tgz#0294eb3dee05028d31ee1a5fa2c556a6aaf10a1b"
   integrity sha512-rVksvsnNCdJ/ohGc6xgPwyN8eheCxsiLM8mxuE/t/mOVqJewPuO1miLpTHQiRgTKCLexL4MeAFVagts7HmNZ2Q==
-
-zlib@^1.0.5:
-  version "1.0.5"
-  resolved "https://registry.yarnpkg.com/zlib/-/zlib-1.0.5.tgz#6e7c972fc371c645a6afb03ab14769def114fcc0"
-  integrity sha1-bnyXL8NxxkWmr7A6sUdp3vEU/MA=
 
 zwitch@^1.0.0:
   version "1.0.5"
