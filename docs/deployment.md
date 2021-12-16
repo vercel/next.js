@@ -10,19 +10,19 @@ Congratulations, you are ready to deploy your Next.js application to production.
 
 `next build` generates an optimized version of your application for production. This standard output includes:
 
-- HTML files for pages using `getStaticProps` or Automatic Static Optimization
+- HTML files for pages using `getStaticProps` or [Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md)
 - CSS files for global styles or for individually scoped styles.
 - JavaScript for pre-rendering dynamic content from the Next.js server.
 - JavaScript for interactivity on the client-side through React.
 
 This output is generated inside the `.next` folder:
 
-- `.next/chunks/pages*` – Each JavaScript file inside this folder relates to the route with the same name. For example, `.next/chunks/pages/about.js` would be the JavaScript chunk loaded when viewing the `/about` route in your application.
+- `.next/chunks/pages` – Each JavaScript file inside this folder relates to the route with the same name. For example, `.next/chunks/pages/about.js` would be the JavaScript chunk loaded when viewing the `/about` route in your application.
 - `.next/static/media` – Statically import images from `next/image` are hashed and copied here.
 - `.next/static/css` – Global CSS files for all pages in your application.
 - `.next/server/pages` – The HTML and JavaScript entry points prerendered from the server. The `.nft.json` files are used to understand how to [bundle dependencies](/docs/advanced-features/output-file-tracing.md).
 - `.next/server/chunks` – Shared JavaScript chunks used in multiple places throughout your application.
-- `.next/cache` – Output for the build cache and cached images, responses, and pages from the Next.js server. Using a cache helps improve build times and persist client-side JavaScript bundles across deployments.
+- `.next/cache` – Output for the build cache and cached images, responses, and pages from the Next.js server. Using a cache helps decrease build times and improve performance of loading images.
 
 All JavaScript code inside `.next` has been **compiled** and browser bundles have been **minified** to help achieve the best performance and support [all modern browsers](/docs/basic-features/supported-browsers-features.md).
 
@@ -36,12 +36,12 @@ When deploying to Vercel, the `next build` output is automatically transformed a
 - Immutable deployments with a unique URL for every commit
 - [Pages](/docs/basic-features/pages.md) are automatically statically optimized, if possible
 - Assets (JavaScript, CSS, images, fonts) are compressed and served from a [Global Edge Network](https://vercel.com/features/infrastructure)
-- [API Routes](/docs/api-routes/introduction.md) are automatically optimized as independent, isolated [Serverless Functions](https://vercel.com/features/infrastructure) that can scale infinitely
+- [API Routes](/docs/api-routes/introduction.md) are automatically optimized as isolated [Serverless Functions](https://vercel.com/features/infrastructure) that can scale infinitely
 - [Middleware](/docs/middleware.md) are automatically optimized as [Edge Functions](https://vercel.com/edge) that have zero cold starts and boot instantly
 
 In addition, Vercel provides features like:
 
-- Automatic performance monitoring with [Vercel Analytics](/analytics)
+- Automatic performance monitoring with [Next.js Analytics](/analytics)
 - Automatic HTTPS and SSL certificates
 - Automatic CI/CD (through GitHub, GitLab, Bitbucket, etc.)
 - Support for [Environment Variables](https://vercel.com/docs/environment-variables)
@@ -54,6 +54,8 @@ You can start using Vercel (for free) through a personal Hobby account, or creat
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/hello-world&project-name=hello-world&repository-name=hello-world&utm_source=github.com&utm_medium=referral&utm_campaign=deployment)
 
 ## Self-Hosting
+
+You can self-host Next.js with support for all features using Node.js or Docker. You can also do a Static HTML Export, which [has some limitations](/docs/advanced-features/static-html-export.md).
 
 ### Node.js Server
 
@@ -71,7 +73,7 @@ First, ensure your `package.json` has the `"build"` and `"start"` scripts:
 }
 ```
 
-Next, run `next build` to build your application. Finally, run `next start` to start the Node.js server. This server supports every feature of Next.js.
+Then, run `next build` to build your application. Finally, run `next start` to start the Node.js server. This server supports all features of Next.js.
 
 > If you are using [`next/image`](/docs/basic-features/image-optimization.md), consider adding `sharp` for more performant [Image Optimization](/docs/basic-features/image-optimization.md) in your production environment by running `npm install sharp` in your project directory. On Linux platforms, `sharp` may require [additional configuration](https://sharp.pixelplumbing.com/install#linux-memory-allocator) to prevent excessive memory usage.
 
@@ -86,7 +88,7 @@ Next.js can be deployed to any hosting provider that supports [Docker](https://w
 
 ### Static HTML Export
 
-If you’d like to do a static HTML export of your Next.js app, follow the directions on [our documentation](/docs/advanced-features/static-html-export.md).
+If you’d like to do a static HTML export of your Next.js app, follow the directions on our [Static HTML Expor tdocumentation](/docs/advanced-features/static-html-export.md).
 
 ## Automatic Updates
 
@@ -94,7 +96,7 @@ When you deploy your Next.js application, you want to see the latest version wit
 
 Next.js will automatically load the latest version of your application in the background when routing. For client-side navigations, `next/link` will temporarily function as a normal `<a>` tag.
 
-**Note:** If a new page (with an old version) has already been prefetched by `next/link`, Next.js will use the old version. Then, after either a full page refresh or multiple client-side page transitions, Next.js will show the latest version.
+**Note:** If a new page (with an old version) has already been prefetched by `next/link`, Next.js will use the old version. Then, navigating to a page that has not been prefetched yet will show the latest version.
 
 ## Related
 
