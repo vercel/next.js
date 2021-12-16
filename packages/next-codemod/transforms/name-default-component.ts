@@ -29,13 +29,22 @@ export default function transformer(
 
   let hasModifications: boolean
 
-  const returnsJSX = (node): boolean =>
-    node.type === 'JSXElement' ||
-    (node.type === 'BlockStatement' &&
-      j(node)
-        .find(j.ReturnStatement)
-        .some((path) => path.value.argument?.type === 'JSXElement'))
-
+  const returnsJSX = (node): boolean => {
+    if (!node) {
+      return false
+    } else {
+      return (
+        node?.type === 'JSXElement' ||
+        (node?.type === 'BlockStatement' &&
+          j(node)
+            .find(j.ReturnStatement)
+            .some((path) => {
+              console.log('path in returnsJSX', path)
+              return path?.value?.argument?.type === 'JSXElement'
+            }))
+      )
+    }
+  }
   const hasRootAsParent = (path): boolean => {
     const program = path.parentPath.parentPath.parentPath.parentPath.parentPath
     return !program || program?.value?.type === 'Program'
@@ -45,14 +54,15 @@ export default function transformer(
     path: ASTPath<ExportDefaultDeclaration>
   ): void => {
     const node = path.value
-
     if (!node.declaration) {
+      console.log('node without declaration', node)
       return
     }
 
     const isArrowFunction =
       node.declaration.type === 'ArrowFunctionExpression' &&
       returnsJSX(node.declaration.body)
+
     const isAnonymousFunction =
       node.declaration.type === 'FunctionDeclaration' && !node.declaration.id
 
