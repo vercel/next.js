@@ -100,7 +100,7 @@ const runTests = (isDev) => {
     expect(res.status).toBe(301)
 
     const text = await res.text()
-    expect(text).toEqual(`${basePath}/401`)
+    expect(text).toEqual(`${basePath}/404`)
 
     const { pathname } = url.parse(res.headers.get('location'))
 
