@@ -55,6 +55,7 @@ fn test(input: &Path, minify: bool) {
                 pages_dir: None,
                 is_page_file: false,
                 is_development: true,
+                is_server: false,
                 styled_components: Some(assert_json("{}")),
                 remove_console: None,
                 react_remove_properties: None,
