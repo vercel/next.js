@@ -10,7 +10,6 @@ import { TRACE_OUTPUT_VERSION } from '../../../shared/lib/constants'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import type { webpack5 } from 'next/dist/compiled/webpack/webpack'
 import {
-  nextImageLoaderRegex,
   NODE_ESM_RESOLVE_OPTIONS,
   NODE_RESOLVE_OPTIONS,
   resolveExternal,
@@ -32,7 +31,8 @@ function getModuleFromDependency(
 
 function getFilesMapFromReasons(
   fileList: Set<string>,
-  reasons: NodeFileTraceReasons
+  reasons: NodeFileTraceReasons,
+  ignoreFn?: (file: string, parent?: string) => Boolean
 ) {
   // this uses the reasons tree to collect files specific to a
   // certain parent allowing us to not have to trace each parent
@@ -53,7 +53,10 @@ function getFilesMapFromReasons(
           parentFiles = new Set()
           parentFilesMap.set(parent, parentFiles)
         }
-        parentFiles.add(file)
+
+        if (!ignoreFn?.(file, parent)) {
+          parentFiles.add(file)
+        }
         const parentReason = reasons.get(parent)
 
         if (parentReason?.parents) {
@@ -202,9 +205,11 @@ export class TraceEntryPointsPlugin implements webpack5.WebpackPluginInstance {
           JSON.stringify({
             version: TRACE_OUTPUT_VERSION,
             files: [
-              ...entryFiles,
-              ...allEntryFiles,
-              ...(this.entryTraces.get(entrypoint.name) || []),
+              ...new Set([
+                ...entryFiles,
+                ...allEntryFiles,
+                ...(this.entryTraces.get(entrypoint.name) || []),
+              ]),
             ].map((file) => {
               return nodePath
                 .relative(traceOutputPath, file)
@@ -349,7 +354,19 @@ export class TraceEntryPointsPlugin implements webpack5.WebpackPluginInstance {
             await finishModulesSpan
               .traceChild('collect-traced-files')
               .traceAsyncFn(() => {
-                const parentFilesMap = getFilesMapFromReasons(fileList, reasons)
+                const parentFilesMap = getFilesMapFromReasons(
+                  fileList,
+                  reasons,
+                  (file) => {
+                    file = nodePath.join(this.tracingRoot, file)
+                    const depMod = depModMap.get(file)
+
+                    return (
+                      Array.isArray(depMod?.loaders) &&
+                      depMod.loaders.length > 0
+                    )
+                  }
+                )
                 entryPaths.forEach((entry) => {
                   const entryName = entryNameMap.get(entry)!
                   const normalizedEntry = nodePath.relative(
@@ -455,6 +472,7 @@ export class TraceEntryPointsPlugin implements webpack5.WebpackPluginInstance {
               .catch((err) => callback(err))
           }
         )
+
         let resolver = compilation.resolverFactory.get('normal')
 
         function getPkgName(name: string) {
@@ -489,6 +507,12 @@ export class TraceEntryPointsPlugin implements webpack5.WebpackPluginInstance {
 
                   if (!result) {
                     return reject(new Error('module not found'))
+                  }
+
+                  // webpack resolver doesn't strip loader query info
+                  // from the result so use path instead
+                  if (result.includes('?') || result.includes('!')) {
+                    result = resContext?.path || result
                   }
 
                   try {
@@ -570,11 +594,6 @@ export class TraceEntryPointsPlugin implements webpack5.WebpackPluginInstance {
           job: import('@vercel/nft/out/node-file-trace').Job,
           isEsmRequested: boolean
         ): Promise<string> => {
-          if (this.staticImageImports && nextImageLoaderRegex.test(request)) {
-            throw new Error(
-              `not resolving ${request} as this is handled by next-image-loader`
-            )
-          }
           const context = nodePath.dirname(parent)
           // When in esm externals mode, and using import, we resolve with
           // ESM resolving options.
