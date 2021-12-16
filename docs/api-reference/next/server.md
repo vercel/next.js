@@ -103,12 +103,15 @@ The following static methods are available on the `NextResponse` class directly:
 - `redirect()` - Returns a `NextResponse` with a redirect set
 - `rewrite()` - Returns a `NextResponse` with a rewrite set
 - `next()` - Returns a `NextResponse` that will continue the middleware chain
+- `json()` - Returns a JSON.Stringified serializable object or value
 
 ```ts
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 export function middleware(req: NextRequest) {
+  const res = NextResponse.next()
+
   // if the request is coming from New York, redirect to the home page
   if (req.geo.city === 'New York') {
     return NextResponse.redirect('/home')
@@ -117,7 +120,7 @@ export function middleware(req: NextRequest) {
     return NextResponse.rewrite('/not-home')
   }
 
-  return NextResponse.next()
+  return res.json({ message: 'Hello World!' })
 }
 ```
 
