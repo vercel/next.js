@@ -81,7 +81,7 @@ export class NextResponse extends Response {
     }
     const destination = typeof url === 'string' ? url : url.toString()
     return new NextResponse(destination, {
-      headers: { Location:  destination},
+      headers: { Location: destination },
       status,
     })
   }
