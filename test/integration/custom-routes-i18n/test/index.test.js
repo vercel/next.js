@@ -16,8 +16,6 @@ import {
   check,
 } from 'next-test-utils'
 
-jest.setTimeout(1000 * 60 * 2)
-
 const appDir = join(__dirname, '..')
 const nextConfig = new File(join(appDir, 'next.config.js'))
 let server
@@ -41,6 +39,8 @@ const runTests = () => {
       expect(res.status).toBe(dest ? 307 : 404)
 
       if (dest) {
+        const text = await res.text()
+        expect(text).toEqual(dest)
         if (dest.startsWith('/')) {
           const parsed = url.parse(res.headers.get('location'))
           expect(parsed.pathname).toBe(dest)

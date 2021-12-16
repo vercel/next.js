@@ -49,11 +49,14 @@ file.pipe(eventStream.split()).pipe(
     )
       .then(async (res) => {
         if (res.status !== 202) {
-          console.log({
-            status: res.status,
-            body: await res.text(),
-            events: eventsJson,
-          })
+          console.dir(
+            {
+              status: res.status,
+              body: await res.text(),
+              events: eventsJson,
+            },
+            { depth: null }
+          )
         }
         cb(null, '')
       })

@@ -10,8 +10,6 @@ import {
   nextStart,
 } from 'next-test-utils'
 
-jest.setTimeout(1000 * 60 * 2)
-
 const appDir = join(__dirname, '../')
 const nextConfig = join(appDir, 'next.config.js')
 let appPort
@@ -31,6 +29,9 @@ function runTests() {
       redirect: 'manual',
     })
     expect(res.status).toBe(308)
+    const text = await res.text()
+    console.log('### ', text)
+    expect(text).toEqual('/api/users')
   })
 
   it('should return data when catch-all with index and trailing slash', async () => {

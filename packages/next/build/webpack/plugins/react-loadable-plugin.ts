@@ -21,59 +21,40 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWAR
 // Implementation of this PR: https://github.com/jamiebuilds/react-loadable/pull/132
 // Modified to strip out unneeded results for Next's specific use case
 
-import {
-  webpack,
-  isWebpack5,
-  sources,
-} from 'next/dist/compiled/webpack/webpack'
+import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 
 import path from 'path'
 
 function getModuleId(compilation: any, module: any): string | number {
-  if (isWebpack5) {
-    return compilation.chunkGraph.getModuleId(module)
-  }
-
-  return module.id
+  return compilation.chunkGraph.getModuleId(module)
 }
 
 function getModuleFromDependency(
   compilation: any,
   dep: any
 ): webpack.Module & { resource?: string } {
-  if (isWebpack5) {
-    return compilation.moduleGraph.getModule(dep)
-  }
-
-  return dep.module
+  return compilation.moduleGraph.getModule(dep)
 }
 
 function getOriginModuleFromDependency(
   compilation: any,
   dep: any
 ): webpack.Module & { resource?: string } {
-  if (isWebpack5) {
-    return compilation.moduleGraph.getParentModule(dep)
-  }
-
-  return dep.originModule
+  return compilation.moduleGraph.getParentModule(dep)
 }
 
 function getChunkGroupFromBlock(
   compilation: any,
   block: any
 ): webpack.compilation.ChunkGroup {
-  if (isWebpack5) {
-    return compilation.chunkGraph.getBlockChunkGroup(block)
-  }
-
-  return block.chunkGroup
+  return compilation.chunkGraph.getBlockChunkGroup(block)
 }
 
 function buildManifest(
   _compiler: webpack.Compiler,
   compilation: webpack.compilation.Compilation,
-  pagesDir: string
+  pagesDir: string,
+  dev: boolean
 ) {
   let manifest: { [k: string]: { id: string | number; files: string[] } } = {}
 
@@ -145,7 +126,7 @@ function buildManifest(
         // next/dynamic so they are loaded by the same technique
 
         // add the id and files to the manifest
-        const id = getModuleId(compilation, module)
+        const id = dev ? key : getModuleId(compilation, module)
         manifest[key] = { id, files: Array.from(files) }
       }
     }
@@ -165,41 +146,53 @@ function buildManifest(
 export class ReactLoadablePlugin {
   private filename: string
   private pagesDir: string
+  private runtimeAsset?: string
+  private dev: boolean
 
-  constructor(opts: { filename: string; pagesDir: string }) {
+  constructor(opts: {
+    filename: string
+    pagesDir: string
+    runtimeAsset?: string
+    dev: boolean
+  }) {
     this.filename = opts.filename
     this.pagesDir = opts.pagesDir
+    this.runtimeAsset = opts.runtimeAsset
+    this.dev = opts.dev
   }
 
   createAssets(compiler: any, compilation: any, assets: any) {
-    const manifest = buildManifest(compiler, compilation, this.pagesDir)
+    const manifest = buildManifest(
+      compiler,
+      compilation,
+      this.pagesDir,
+      this.dev
+    )
     // @ts-ignore: TODO: remove when webpack 5 is stable
     assets[this.filename] = new sources.RawSource(
       JSON.stringify(manifest, null, 2)
     )
+    if (this.runtimeAsset) {
+      assets[this.runtimeAsset] = new sources.RawSource(
+        `self.__REACT_LOADABLE_MANIFEST=${JSON.stringify(manifest)}`
+      )
+    }
     return assets
   }
 
   apply(compiler: webpack.Compiler) {
-    if (isWebpack5) {
-      compiler.hooks.make.tap('ReactLoadableManifest', (compilation) => {
-        // @ts-ignore TODO: Remove ignore when webpack 5 is stable
-        compilation.hooks.processAssets.tap(
-          {
-            name: 'ReactLoadableManifest',
-            // @ts-ignore TODO: Remove ignore when webpack 5 is stable
-            stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
-          },
-          (assets: any) => {
-            this.createAssets(compiler, compilation, assets)
-          }
-        )
-      })
-      return
-    }
-
-    compiler.hooks.emit.tap('ReactLoadableManifest', (compilation: any) => {
-      this.createAssets(compiler, compilation, compilation.assets)
+    compiler.hooks.make.tap('ReactLoadableManifest', (compilation) => {
+      // @ts-ignore TODO: Remove ignore when webpack 5 is stable
+      compilation.hooks.processAssets.tap(
+        {
+          name: 'ReactLoadableManifest',
+          // @ts-ignore TODO: Remove ignore when webpack 5 is stable
+          stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
+        },
+        (assets: any) => {
+          this.createAssets(compiler, compilation, assets)
+        }
+      )
     })
   }
 }

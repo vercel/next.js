@@ -5,6 +5,7 @@ module.exports = {
     docs: {
       description: 'Ensure preconnect is used with Google Fonts',
       recommended: true,
+      url: 'https://nextjs.org/docs/messages/google-font-preconnect',
     },
   },
   create: function (context) {

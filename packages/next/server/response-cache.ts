@@ -107,7 +107,7 @@ export default class ResponseCache {
           )
         }
       } catch (err) {
-        rejecter(err)
+        rejecter(err as Error)
       } finally {
         if (key) {
           this.pendingResponses.delete(key)

@@ -1,3 +1,4 @@
+/* global location */
 import {
   getCLS,
   getFCP,

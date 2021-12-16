@@ -2,6 +2,7 @@ module.exports = {
   meta: {
     docs: {
       description: 'Disallow using <title> with Head from next/document',
+      url: 'https://nextjs.org/docs/messages/no-title-in-document-head',
     },
   },
   create: function (context) {

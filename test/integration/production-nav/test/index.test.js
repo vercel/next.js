@@ -8,7 +8,6 @@ import { join } from 'path'
 const appDir = join(__dirname, '../')
 let appPort
 let app
-jest.setTimeout(1000 * 60 * 1)
 
 describe('Production Usage', () => {
   beforeAll(async () => {

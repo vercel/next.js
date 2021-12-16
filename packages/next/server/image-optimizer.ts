@@ -2,29 +2,30 @@ import { mediaType } from '@hapi/accept'
 import { createHash } from 'crypto'
 import { createReadStream, promises } from 'fs'
 import { getOrientation, Orientation } from 'get-orientation'
+import imageSizeOf from 'image-size'
 import { IncomingMessage, ServerResponse } from 'http'
 // @ts-ignore no types for is-animated
 import isAnimated from 'next/dist/compiled/is-animated'
+import contentDisposition from 'next/dist/compiled/content-disposition'
 import { join } from 'path'
 import Stream from 'stream'
 import nodeUrl, { UrlWithParsedQuery } from 'url'
 import { NextConfig } from './config-shared'
 import { fileExists } from '../lib/file-exists'
 import { ImageConfig, imageConfigDefault } from './image-config'
-import { processBuffer, Operation } from './lib/squoosh/main'
-import Server from './next-server'
+import { processBuffer, decodeBuffer, Operation } from './lib/squoosh/main'
+import type Server from './base-server'
 import { sendEtagResponse } from './send-payload'
 import { getContentType, getExtension } from './serve-static'
 import chalk from 'chalk'
 
-//const AVIF = 'image/avif'
+const AVIF = 'image/avif'
 const WEBP = 'image/webp'
 const PNG = 'image/png'
 const JPEG = 'image/jpeg'
 const GIF = 'image/gif'
 const SVG = 'image/svg+xml'
 const CACHE_VERSION = 3
-const MODERN_TYPES = [/* AVIF, */ WEBP]
 const ANIMATABLE_TYPES = [WEBP, PNG, GIF]
 const VECTOR_TYPES = [SVG]
 const BLUR_IMG_SIZE = 8 // should match `next-image-loader`
@@ -43,7 +44,7 @@ try {
   // Sharp not present on the server, Squoosh fallback will be used
 }
 
-let shouldShowSharpWarning = process.env.NODE_ENV === 'production'
+let showSharpMissingWarning = process.env.NODE_ENV === 'production'
 
 export async function imageOptimizer(
   server: Server,
@@ -61,6 +62,7 @@ export async function imageOptimizer(
     domains = [],
     loader,
     minimumCacheTTL = 60,
+    formats = ['image/webp'],
   } = imageData
 
   if (loader !== 'default') {
@@ -70,7 +72,7 @@ export async function imageOptimizer(
 
   const { headers } = req
   const { url, w, q } = parsedUrl.query
-  const mimeType = getSupportedMimeType(MODERN_TYPES, headers.accept)
+  const mimeType = getSupportedMimeType(formats, headers.accept)
   let href: string
 
   if (!url) {
@@ -135,7 +137,9 @@ export async function imageOptimizer(
   }
 
   // Should match output from next-image-loader
-  const isStatic = url.startsWith('/_next/static/image')
+  const isStatic = url.startsWith(
+    `${nextConfig.basePath || ''}/_next/static/media`
+  )
 
   const width = parseInt(w, 10)
 
@@ -357,7 +361,22 @@ export async function imageOptimizer(
           transformer.resize(width)
         }
 
-        if (contentType === WEBP) {
+        if (contentType === AVIF) {
+          if (transformer.avif) {
+            const avifQuality = quality - 15
+            transformer.avif({
+              quality: Math.max(avifQuality, 0),
+              chromaSubsampling: '4:2:0', // same as webp
+            })
+          } else {
+            console.warn(
+              chalk.yellow.bold('Warning: ') +
+                `Your installed version of the 'sharp' package does not support AVIF images. Run 'yarn add sharp@latest' to upgrade to the latest version.\n` +
+                'Read more: https://nextjs.org/docs/messages/sharp-version-avif'
+            )
+            transformer.webp({ quality })
+          }
+        } else if (contentType === WEBP) {
           transformer.webp({ quality })
         } else if (contentType === PNG) {
           transformer.png({ quality })
@@ -368,14 +387,27 @@ export async function imageOptimizer(
         optimizedBuffer = await transformer.toBuffer()
         // End sharp transformation logic
       } else {
+        if (
+          showSharpMissingWarning &&
+          nextConfig.experimental?.outputStandalone
+        ) {
+          // TODO: should we ensure squoosh also works even though we don't
+          // recommend it be used in production and this is a production feature
+          console.error(
+            `Error: 'sharp' is required to be installed in standalone mode for the image optimization to function correctly`
+          )
+          req.statusCode = 500
+          res.end('internal server error')
+          return { finished: true }
+        }
         // Show sharp warning in production once
-        if (shouldShowSharpWarning) {
+        if (showSharpMissingWarning) {
           console.warn(
             chalk.yellow.bold('Warning: ') +
               `For production Image Optimization with Next.js, the optional 'sharp' package is strongly recommended. Run 'yarn add sharp', and Next.js will use it automatically for Image Optimization.\n` +
               'Read more: https://nextjs.org/docs/messages/sharp-missing-in-production'
           )
-          shouldShowSharpWarning = false
+          showSharpMissingWarning = false
         }
 
         // Begin Squoosh transformation logic
@@ -397,9 +429,14 @@ export async function imageOptimizer(
 
         operations.push({ type: 'resize', width })
 
-        //if (contentType === AVIF) {
-        //} else
-        if (contentType === WEBP) {
+        if (contentType === AVIF) {
+          optimizedBuffer = await processBuffer(
+            upstreamBuffer,
+            operations,
+            'avif',
+            quality
+          )
+        } else if (contentType === WEBP) {
           optimizedBuffer = await processBuffer(
             upstreamBuffer,
             operations,
@@ -522,7 +559,10 @@ function setResponseHeaders(
 
   const fileName = getFileNameWithExtension(url, contentType)
   if (fileName) {
-    res.setHeader('Content-Disposition', `inline; filename="${fileName}"`)
+    res.setHeader(
+      'Content-Disposition',
+      contentDisposition(fileName, { type: 'inline' })
+    )
   }
 
   res.setHeader('Content-Security-Policy', `script-src 'none'; sandbox;`)
@@ -618,6 +658,13 @@ export function detectContentType(buffer: Buffer) {
   if ([0x3c, 0x3f, 0x78, 0x6d, 0x6c].every((b, i) => buffer[i] === b)) {
     return SVG
   }
+  if (
+    [0, 0, 0, 0, 0x66, 0x74, 0x79, 0x70, 0x61, 0x76, 0x69, 0x66].every(
+      (b, i) => !b || buffer[i] === b
+    )
+  ) {
+    return AVIF
+  }
   return null
 }
 
@@ -640,13 +687,25 @@ export async function resizeImage(
   content: Buffer,
   dimension: 'width' | 'height',
   size: number,
-  extension: 'webp' | 'png' | 'jpeg',
+  // Should match VALID_BLUR_EXT
+  extension: 'avif' | 'webp' | 'png' | 'jpeg',
   quality: number
 ): Promise<Buffer> {
   if (sharp) {
     const transformer = sharp(content)
 
-    if (extension === 'webp') {
+    if (extension === 'avif') {
+      if (transformer.avif) {
+        transformer.avif({ quality })
+      } else {
+        console.warn(
+          chalk.yellow.bold('Warning: ') +
+            `Your installed version of the 'sharp' package does not support AVIF images. Run 'yarn add sharp@latest' to upgrade to the latest version.\n` +
+            'Read more: https://nextjs.org/docs/messages/sharp-version-avif'
+        )
+        transformer.webp({ quality })
+      }
+    } else if (extension === 'webp') {
       transformer.webp({ quality })
     } else if (extension === 'png') {
       transformer.png({ quality })
@@ -673,4 +732,29 @@ export async function resizeImage(
     )
     return buf
   }
+}
+
+export async function getImageSize(
+  buffer: Buffer,
+  // Should match VALID_BLUR_EXT
+  extension: 'avif' | 'webp' | 'png' | 'jpeg'
+): Promise<{
+  width?: number
+  height?: number
+}> {
+  // TODO: upgrade "image-size" package to support AVIF
+  // See https://github.com/image-size/image-size/issues/348
+  if (extension === 'avif') {
+    if (sharp) {
+      const transformer = sharp(buffer)
+      const { width, height } = await transformer.metadata()
+      return { width, height }
+    } else {
+      const { width, height } = await decodeBuffer(buffer)
+      return { width, height }
+    }
+  }
+
+  const { width, height } = imageSizeOf(buffer)
+  return { width, height }
 }

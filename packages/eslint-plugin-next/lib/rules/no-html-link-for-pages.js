@@ -25,6 +25,7 @@ module.exports = {
       description: 'Prohibit full page refresh for Next.js pages',
       category: 'HTML',
       recommended: true,
+      url: 'https://nextjs.org/docs/messages/no-html-link-for-pages',
     },
     fixable: null, // or "code" or "whitespace"
     schema: [
@@ -93,7 +94,16 @@ module.exports = {
           (attr) => attr.type === 'JSXAttribute' && attr.name.name === 'href'
         )
 
-        if (!href || href.value.type !== 'Literal') {
+        if (!href || (href.value && href.value.type !== 'Literal')) {
+          return
+        }
+
+        const hasDownloadAttr = node.attributes.find(
+          (attr) =>
+            attr.type === 'JSXAttribute' && attr.name.name === 'download'
+        )
+
+        if (hasDownloadAttr) {
           return
         }
 

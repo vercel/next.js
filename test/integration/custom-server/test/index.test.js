@@ -20,7 +20,6 @@ const indexPg = new File(join(appDir, 'pages/index.js'))
 
 let appPort
 let server
-jest.setTimeout(1000 * 60 * 2)
 
 const context = {}
 
@@ -195,5 +194,15 @@ describe('Custom Server', () => {
         expect(response.headers.get('Content-Encoding')).toBe('gzip')
       }
     )
+  })
+
+  describe('with a custom fetch polyfill', () => {
+    beforeAll(() => startServer({ POLYFILL_FETCH: 'true' }))
+    afterAll(() => killApp(server))
+
+    it('should serve internal file from render', async () => {
+      const data = await renderViaHTTP(appPort, '/static/hello.txt')
+      expect(data).toMatch(/hello world/)
+    })
   })
 })

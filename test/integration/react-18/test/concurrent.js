@@ -61,4 +61,13 @@ export default (context, _render) => {
       )
     })
   })
+
+  it('should drain the entire response', async () => {
+    await withBrowser('/suspense/backpressure', async (browser) => {
+      await check(
+        () => browser.eval('document.querySelectorAll(".item").length'),
+        /2000/
+      )
+    })
+  })
 }

@@ -17,8 +17,6 @@ import blocking from './blocking'
 import concurrent from './concurrent'
 import basics from './basics'
 
-jest.setTimeout(1000 * 60 * 5)
-
 // overrides react and react-dom to v18
 const nodeArgs = ['-r', join(__dirname, 'require-hook.js')]
 const appDir = join(__dirname, '../app')
@@ -60,13 +58,13 @@ async function getDevOutput(dir) {
 }
 
 describe('React 18 Support', () => {
-  describe('no warns with stable supported version of react-dom', () => {
+  describe('Use legacy render', () => {
     beforeAll(async () => {
       await fs.remove(join(appDir, 'node_modules'))
-      nextConfig.replace('reactRoot: true', '// reactRoot: true')
+      nextConfig.replace('reactRoot: true', 'reactRoot: false')
     })
     afterAll(() => {
-      nextConfig.replace('// reactRoot: true', 'reactRoot: true')
+      nextConfig.replace('reactRoot: false', 'reactRoot: true')
     })
 
     test('supported version of react in dev', async () => {
@@ -93,7 +91,7 @@ describe('React 18 Support', () => {
     })
   })
 
-  describe('warns with stable supported version of react-dom', () => {
+  describe('Use react-dom 18 prerelease', () => {
     beforeAll(async () => {
       const reactDomPkgPath = join(
         appDir,
@@ -187,6 +185,21 @@ describe('Concurrent mode', () => {
       )
       expect(res.headers.get('etag')).toBeDefined()
     })
+
+    it('should not stream to google pagerender bot', async () => {
+      const res = await fetchViaHTTP(
+        context.appPort,
+        '/ssr',
+        {},
+        {
+          headers: {
+            'user-agent':
+              'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36 Google-PageRenderer Google (+https://developers.google.com/+/web/snippet/)',
+          },
+        }
+      )
+      expect(res.headers.get('etag')).toBeDefined()
+    })
   })
 })
 
@@ -195,14 +208,21 @@ function runTest(mode, name, fn) {
   describe(`${name} (${mode})`, () => {
     beforeAll(async () => {
       context.appPort = await findPort()
+      context.stderr = ''
       if (mode === 'dev') {
         context.server = await launchApp(context.appDir, context.appPort, {
           nodeArgs,
+          onStderr(msg) {
+            context.stderr += msg
+          },
         })
       } else {
         await nextBuild(context.appDir, [], { nodeArgs })
         context.server = await nextStart(context.appDir, context.appPort, {
           nodeArgs,
+          onStderr(msg) {
+            context.stderr += msg
+          },
         })
       }
     })

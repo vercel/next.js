@@ -4,6 +4,7 @@ module.exports = {
       description:
         'next/script components with inline content must specify an `id` attribute.',
       recommended: true,
+      url: 'https://nextjs.org/docs/messages/inline-script-id',
     },
   },
   create: function (context) {

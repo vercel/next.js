@@ -20,7 +20,6 @@ import {
   BUILD_ID_FILE,
   CLIENT_PUBLIC_FILES_PATH,
   CLIENT_STATIC_FILES_PATH,
-  CONFIG_FILE,
   EXPORT_DETAIL,
   EXPORT_MARKER,
   PAGES_MANIFEST,
@@ -42,7 +41,7 @@ import { loadEnvConfig } from '@next/env'
 import { PrerenderManifest } from '../build'
 import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import { getPagePath } from '../server/require'
-import { trace } from '../telemetry/trace'
+import { Span } from '../trace'
 
 const exists = promisify(existsOrig)
 
@@ -144,9 +143,10 @@ interface ExportOptions {
 export default async function exportApp(
   dir: string,
   options: ExportOptions,
+  span: Span,
   configuration?: NextConfigComplete
 ): Promise<void> {
-  const nextExportSpan = trace('next-export')
+  const nextExportSpan = span.traceChild('next-export')
 
   return nextExportSpan.traceAsyncFn(async () => {
     dir = resolve(dir)
@@ -168,7 +168,7 @@ export default async function exportApp(
 
     if (telemetry) {
       telemetry.record(
-        eventCliSession(PHASE_EXPORT, distDir, {
+        eventCliSession(distDir, nextConfig, {
           webpackVersion: null,
           cliCommand: 'export',
           isSrcDir: null,
@@ -316,7 +316,7 @@ export default async function exportApp(
     if (typeof nextConfig.exportPathMap !== 'function') {
       if (!options.silent) {
         Log.info(
-          `No "exportPathMap" found in "${CONFIG_FILE}". Generating map from "./pages"`
+          `No "exportPathMap" found in "${nextConfig.configFile}". Generating map from "./pages"`
         )
       }
       nextConfig.exportPathMap = async (defaultMap: ExportPathMap) => {
@@ -381,6 +381,10 @@ export default async function exportApp(
       // Exported pages do not currently support dynamic HTML.
       supportsDynamicHTML: false,
       concurrentFeatures: nextConfig.experimental.concurrentFeatures,
+      crossOrigin: nextConfig.crossOrigin,
+      optimizeCss: nextConfig.experimental.optimizeCss,
+      optimizeFonts: nextConfig.optimizeFonts,
+      optimizeImages: nextConfig.experimental.optimizeImages,
     }
 
     const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
@@ -520,7 +524,7 @@ export default async function exportApp(
         )
     }
 
-    const timeout = configuration?.experimental.staticPageGenerationTimeout || 0
+    const timeout = configuration?.staticPageGenerationTimeout || 0
     let infoPrinted = false
     let exportPage: typeof import('./worker').default
     let endWorker: () => Promise<void>
@@ -537,7 +541,7 @@ export default async function exportApp(
             )
           }
           Log.warn(
-            `Restarted static page genertion for ${path} because it took more than ${timeout} seconds`
+            `Restarted static page generation for ${path} because it took more than ${timeout} seconds`
           )
           if (!infoPrinted) {
             Log.warn(
@@ -596,7 +600,10 @@ export default async function exportApp(
                 ampValidationResult.errors.length > 0)
           }
           renderError = renderError || !!result.error
-          if (!!result.error) errorPaths.push(path)
+          if (!!result.error) {
+            const { page } = pathMap
+            errorPaths.push(page !== path ? `${page}: ${path}` : path)
+          }
 
           if (options.buildExport && configuration) {
             if (typeof result.fromBuildExportRevalidate !== 'undefined') {
@@ -626,6 +633,14 @@ export default async function exportApp(
         Object.keys(prerenderManifest.routes).map(async (route) => {
           const { srcRoute } = prerenderManifest!.routes[route]
           const pageName = srcRoute || route
+          route = normalizePagePath(route)
+
+          // returning notFound: true from getStaticProps will not
+          // output html/json files during the build
+          if (prerenderManifest!.notFoundRoutes.includes(route)) {
+            return
+          }
+
           const pagePath = getPagePath(pageName, distDir, isLikeServerless)
           const distPagesDir = join(
             pagePath,
@@ -637,7 +652,6 @@ export default async function exportApp(
               .map(() => '..')
               .join('/')
           )
-          route = normalizePagePath(route)
 
           const orig = join(distPagesDir, route)
           const htmlDest = join(
@@ -654,8 +668,12 @@ export default async function exportApp(
 
           await promises.mkdir(dirname(htmlDest), { recursive: true })
           await promises.mkdir(dirname(jsonDest), { recursive: true })
-          await promises.copyFile(`${orig}.html`, htmlDest)
-          await promises.copyFile(`${orig}.json`, jsonDest)
+
+          const htmlSrc = `${orig}.html`
+          const jsonSrc = `${orig}.json`
+
+          await promises.copyFile(htmlSrc, htmlDest)
+          await promises.copyFile(jsonSrc, jsonDest)
 
           if (await exists(`${orig}.amp.html`)) {
             await promises.mkdir(dirname(ampHtmlDest), { recursive: true })

@@ -23,7 +23,6 @@ const appDir = join(__dirname, '../')
 let appPort
 let server
 let app
-jest.setTimeout(1000 * 60 * 5)
 
 const context = {}
 
@@ -83,7 +82,7 @@ describe('AMP Usage', () => {
 
         const result = await browser.eval('window.NAV_PAGE_LOADED')
 
-        expect(result).toBe(null)
+        expect(result).toBeFalsy()
       })
 
       it('should not output client pages for AMP only with config exported after declaration', async () => {
@@ -92,7 +91,7 @@ describe('AMP Usage', () => {
 
         const result = await browser.eval('window.NAV_PAGE_LOADED')
 
-        expect(result).toBe(null)
+        expect(result).toBeFalsy()
       })
 
       it('should add link preload for amp script', async () => {
@@ -256,6 +255,9 @@ describe('AMP Usage', () => {
       dynamicAppPort = await findPort()
       ampDynamic = await launchApp(join(__dirname, '../'), dynamicAppPort, {
         onStdout(msg) {
+          inspectPayload += msg
+        },
+        onStderr(msg) {
           inspectPayload += msg
         },
       })
@@ -519,9 +521,29 @@ describe('AMP Usage', () => {
       }
     })
 
+    it('should detect amp validator warning on invalid amp', async () => {
+      let inspectPayload = ''
+      dynamicAppPort = await findPort()
+      ampDynamic = await launchApp(join(__dirname, '../'), dynamicAppPort, {
+        onStdout(msg) {
+          inspectPayload += msg
+        },
+        onStderr(msg) {
+          inspectPayload += msg
+        },
+      })
+
+      await renderViaHTTP(dynamicAppPort, '/invalid-amp')
+
+      await killApp(ampDynamic)
+
+      expect(inspectPayload).toContain('warn')
+      expect(inspectPayload).toContain('error')
+    })
+
     it('should not contain missing files warning', async () => {
-      expect(output).toContain('compiled successfully')
-      expect(output).toContain('build page: /only-amp')
+      expect(output).toContain('compiled client and server successfully')
+      expect(output).toContain('compiling /only-amp')
       expect(output).not.toContain('Could not find files for')
     })
   })

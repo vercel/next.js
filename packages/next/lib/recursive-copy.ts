@@ -1,6 +1,7 @@
 import path from 'path'
 import { promises, constants, Dirent, Stats } from 'fs'
 import { Sema } from 'next/dist/compiled/async-sema'
+import isError from './is-error'
 
 const COPYFILE_EXCL = constants.COPYFILE_EXCL
 
@@ -46,10 +47,10 @@ export async function recursiveCopy(
 
     if (isDirectory) {
       try {
-        await promises.mkdir(target)
+        await promises.mkdir(target, { recursive: true })
       } catch (err) {
         // do not throw `folder already exists` errors
-        if (err.code !== 'EEXIST') {
+        if (isError(err) && err.code !== 'EEXIST') {
           throw err
         }
       }
