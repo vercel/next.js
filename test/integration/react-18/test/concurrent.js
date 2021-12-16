@@ -16,6 +16,20 @@ export default (context, _render) => {
     }
   }
 
+  it('should resolve suspense on server side if suspended on server', async () => {
+    await withBrowser('/suspense/thrown', async (browser) => {
+      await check(
+        () => browser.waitForElementByCss('#server-rendered').text(),
+        /true/
+      )
+      await check(() => browser.waitForElementByCss('#hydrated').text(), /true/)
+      await check(
+        () => browser.eval('typeof __NEXT_DATA__.dynamicIds'),
+        /undefined/
+      )
+    })
+  })
+
   it('should resolve suspense modules on server side if suspense', async () => {
     await withBrowser('/suspense/no-preload', async (browser) => {
       await check(() => browser.waitForElementByCss('#__next').text(), /barfoo/)
@@ -32,29 +46,6 @@ export default (context, _render) => {
         () => browser.waitForElementByCss('#server-rendered').text(),
         /true/
       )
-      await check(
-        () => browser.eval('typeof __NEXT_DATA__.dynamicIds'),
-        /undefined/
-      )
-    })
-  })
-
-  it('should resolve suspense on server side if suspended on server', async () => {
-    await withBrowser('/suspense/thrown', async (browser) => {
-      await check(
-        () => browser.waitForElementByCss('#server-rendered').text(),
-        /true/
-      )
-      await check(
-        () => browser.eval('typeof __NEXT_DATA__.dynamicIds'),
-        /undefined/
-      )
-    })
-  })
-
-  it('should hydrate suspenses on client side if suspended on server', async () => {
-    await withBrowser('/suspense/thrown', async (browser) => {
-      await check(() => browser.waitForElementByCss('#hydrated').text(), /true/)
       await check(
         () => browser.eval('typeof __NEXT_DATA__.dynamicIds'),
         /undefined/

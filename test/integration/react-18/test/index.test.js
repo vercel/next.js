@@ -140,8 +140,9 @@ describe('Blocking mode', () => {
   beforeAll(() => {
     dynamicHello.replace('suspense = false', `suspense = true`)
   })
-  afterAll(() => {
+  afterAll(async () => {
     dynamicHello.restore()
+    await fs.removeSync(join(appDir, '.next'))
   })
 
   runTests('concurrentFeatures is disabled', (context) =>
@@ -207,6 +208,7 @@ function runTest(mode, name, fn) {
   const context = { appDir }
   describe(`${name} (${mode})`, () => {
     beforeAll(async () => {
+      await fs.remove(join(appDir, '.next'))
       context.appPort = await findPort()
       context.stderr = ''
       if (mode === 'dev') {
