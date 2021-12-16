@@ -85,7 +85,7 @@
     "alex": "9.1.0",
     "amphtml-validator": "1.0.33",
     "async-sema": "3.0.1",
-    "browserslist": "4.16.6",
+    "browserslist": "4.18.1",
     "cheerio": "0.22.0",
     "clone": "2.1.2",
     "cookie": "0.4.1",
@@ -161,8 +161,8 @@
     "worker-loader": "3.0.7"
   },
   "resolutions": {
-    "browserslist": "4.16.6",
-    "caniuse-lite": "1.0.30001271"
+    "browserslist": "4.18.1",
+    "caniuse-lite": "1.0.30001283"
   },
   "engines": {
     "node": ">=12.22.0"
