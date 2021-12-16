@@ -186,7 +186,7 @@ export default function Home() {
         id="will-fail"
         src="https://example.com/non-existant-script.js"
         onError={(e) => {
-          console.error("Script failed to load", e);
+          console.error('Script failed to load', e)
         }}
       />
     </>
