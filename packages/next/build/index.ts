@@ -783,6 +783,9 @@ export default async function build(
       ? require.resolve('./worker')
       : require.resolve('./utils')
     let infoPrinted = false
+
+    process.env.NEXT_PHASE = PHASE_PRODUCTION_BUILD
+
     const staticWorkers = new Worker(staticWorker, {
       timeout: timeout * 1000,
       onRestart: (method, [arg], attempts) => {
@@ -834,7 +837,6 @@ export default async function build(
       >
 
     const analysisBegin = process.hrtime()
-
     const staticCheckSpan = nextBuildSpan.traceChild('static-check')
     const {
       customAppGetInitialProps,
@@ -843,8 +845,6 @@ export default async function build(
       hasSsrAmpPages,
       hasNonStaticErrorPage,
     } = await staticCheckSpan.traceAsyncFn(async () => {
-      process.env.NEXT_PHASE = PHASE_PRODUCTION_BUILD
-
       const { configFileName, publicRuntimeConfig, serverRuntimeConfig } =
         config
       const runtimeEnvConfig = { publicRuntimeConfig, serverRuntimeConfig }
