@@ -1,5 +1,5 @@
 ---
-description: Fetch data and generate static pages with `getStaticPaths`.
+description: API reference for `getStaticPaths`. Learn how to fetch data and generate static pages with `getStaticPaths`.
 ---
 
 # `getStaticPaths`
@@ -57,7 +57,7 @@ The value for each `params` object must match the parameters used in the page na
 
 If `fallback` is `false`, then any paths not returned by `getStaticPaths` will result in a **404 page**. This is useful if you have a small number of paths to pre-render and want to statically generate them all during `next build`.
 
-It is also useful when the new pages are not added often. If you add more items to the data source and need to render the new pages, you will need to run the build again.
+When `next build` is run, Next.js will check if `getStaticPaths` returned `fallback: false`, it will then build **only** the paths returned by `getStaticPaths`. This option is useful if you have a small number of paths to create, or new page data is not added often. If you find that you need to add more paths, and you have `fallback: false`, you will need to run `next build` again so that the new paths can be generated.
 
 The following example pre-renders one blog post per page called `pages/posts/[id].js`. The list of blog posts will be fetched from a CMS and returned by `getStaticPaths`. Then, for each page, it fetches the post data from a CMS using [`getStaticProps`](/docs/api-reference/data-fetching/getStaticProps.md).
 

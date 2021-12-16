@@ -1,5 +1,5 @@
 ---
-description: Fetch data at build time with `getStaticProps`.
+description: API reference for `getStaticProps`. Learn how to use `getStaticProps` to generate static pages with Next.js.
 ---
 
 # `getStaticProps`
@@ -28,11 +28,11 @@ export async function getStaticProps(context) {
 You can import modules in top-level scope for use in `getStaticProps`.
 Imports used will **not be bundled for the client-side**. This means you can write **server-side code directly in `getStaticProps`**, including fetching data from your database.
 
-You should not use the [`fetch()`](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) `API` to call an [`API` route](/docs/api-routes/introduction.md) in `getStaticProps`.
+If you are calling an external `API`, or fetching data from a database or Content Management System (CMS) in an `API` route, you can move that logic to `getStaticProps`, as both `API` routes and `getStaticProps` run on the server.
 
-Instead, directly import the logic used inside your `API` route. You may need to slightly refactor your code for this approach.
+Calling an `API` route from within `getStaticProps` can result in an additional call, reducing performance.
 
-The `fetch()` `API` _can_ be used to fetch external data, such as from a Content Management System (CMS) or `API`.
+Alternatively, if you are **not** using `API` routes to fetch data, then the [`fetch()`](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) `API` _can_ be used directly in `getStaticProps` to fetch data.
 
 ## Context parameter
 
@@ -85,7 +85,7 @@ export async function getStaticProps() {
 }
 ```
 
-More information is covered in [Incremental Static Regeneration](/docs/basic-features/data-fetching/incremental-static-regeneration)
+Learn more about [Incremental Static Regeneration](/docs/basic-features/data-fetching/incremental-static-regeneration)
 
 ### `notFound`
 
@@ -112,7 +112,9 @@ export async function getStaticProps(context) {
 
 ### `redirect`
 
-The `redirect` object allows redirecting to internal or external resources. It should match the shape of `{ destination: string, permanent: boolean }`. In some rare cases, you might need to assign a custom status code for older `HTTP` Clients to properly redirect. In these cases, you can use the `statusCode` property instead of the `permanent` property, but not both. You can also set `basePath: false` similar to redirects in `next.config.js`.
+The `redirect` object allows redirecting to internal or external resources. It should match the shape of `{ destination: string, permanent: boolean }`.
+
+In some rare cases, you might need to assign a custom status code for older `HTTP` clients to properly redirect. In these cases, you can use the `statusCode` property instead of the `permanent` property, **but not both**. You can also set `basePath: false` similar to redirects in `next.config.js`.
 
 ```js
 export async function getStaticProps(context) {
@@ -124,6 +126,7 @@ export async function getStaticProps(context) {
       redirect: {
         destination: '/',
         permanent: false,
+        // statusCode: 301
       },
     }
   }
@@ -134,47 +137,7 @@ export async function getStaticProps(context) {
 }
 ```
 
-Redirecting at build-time is currently not allowed and if the redirects are known at build-time they should be added in [`next.config.js`](/docs/api-reference/next.config.js/redirects.md).
-
-## TypeScript: Use `GetStaticProps`
-
-You can use the `GetStaticProps` type from `next` to type the function:
-
-```ts
-import { GetStaticProps } from 'next'
-
-export const getStaticProps: GetStaticProps = async (context) => {
-  // ...
-}
-```
-
-If you want to get inferred typings for your props, you can use `InferGetStaticPropsType<typeof getStaticProps>`:
-
-```tsx
-import { InferGetStaticPropsType } from 'next'
-
-type Post = {
-  author: string
-  content: string
-}
-
-export const getStaticProps = async () => {
-  const res = await fetch('https://.../posts')
-  const posts: Post[] = await res.json()
-
-  return {
-    props: {
-      posts,
-    },
-  }
-}
-
-function Blog({ posts }: InferGetStaticPropsType<typeof getStaticProps>) {
-  // will resolve posts to type Post[]
-}
-
-export default Blog
-```
+If the redirects are known at build-time, they should be added in [`next.config.js`](/docs/api-reference/next.config.js/redirects.md) instead.
 
 ## Reading files: Use `process.cwd()`
 

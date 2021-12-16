@@ -1,5 +1,5 @@
 ---
-description: Fetch data at build time with `getStaticProps` API reference.
+description: Fetch data on each request with `getServerSideProps`.
 ---
 
 # `getServerSideProps`
@@ -18,7 +18,7 @@ The [`getServerSideProps` API reference](/docs/api-reference/data-fetching/getSe
 
 ## When should I use `getServerSideProps`?
 
-You should use `getServerSideProps` only if you need to pre-render a page whose data must be fetched at request time. Time to first byte (TTFB) will be slower than [`getStaticProps`](/docs/basic-features/data-fetching/getStaticProps.md) because the server must compute the result on every request, and the result cannot be cached by a CDN without extra configuration.
+You should use `getServerSideProps` only if you need to pre-render a page whose data must be fetched at request time. [Time to First Byte (TTFB)](/learn/seo/web-performance) will be slower than [`getStaticProps`](/docs/basic-features/data-fetching/getStaticProps.md) because the server must compute the result on every request, and the result can only be cached by a CDN using `cache-control` headers (which could require extra configuration).
 
 If you do not need to pre-render the data, then you should consider fetching data on the [client side](#fetching-data-on-the-client-side).
 
@@ -82,7 +82,7 @@ Also, you must use `export async function getServerSideProps() {}` — it will *
 
 ## Fetching data on the client side
 
-If your page contains frequently updating data, and you don’t need to pre-render the data, you can fetch the data on the client side. An example of this is user-specific data:
+If your page contains frequently updating data, and you don’t need to pre-render the data, you can fetch the data on the [client side](/docs/basic-features/client-side.md). An example of this is user-specific data:
 
 - First, immediately show the page without data. Parts of the page can be pre-rendered using Static Generation. You can show loading states for missing data.
 - Then, fetch the data on the client side and display it when ready.

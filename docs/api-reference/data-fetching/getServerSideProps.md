@@ -1,5 +1,5 @@
 ---
-description: Fetch data on each request with `getServerSideProps`. Learn more about this API for data fetching in Next.js.
+description: API reference for `getServerSideProps`. Learn how to fetch data on each request with Next.js.
 ---
 
 # `getServerSideProps`

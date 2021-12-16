@@ -63,8 +63,6 @@ function Blog({ posts }: InferGetStaticPropsType<typeof getStaticProps>) {
 export default Blog
 ```
 
-The page must be pre-rendered (for SEO) and be very fast — `getStaticProps` generates HTML and JSON files, both of which can be cached by a CDN for performance.
-
 ## Using `getStaticProps` to fetch data from a CMS
 
 The following example shows how you can fetch a list of blog posts from a CMS.
