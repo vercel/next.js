@@ -70,13 +70,56 @@ import type { NextFetchEvent } from 'next/server'
 
 ## NextResponse
 
-The `NextResponse` object is an extension of the native [`Response`](https://developer.mozilla.org/en-US/docs/Web/API/Response) interface, with the following added methods and properties:
+The `NextResponse` class extends the native [`Response`](https://developer.mozilla.org/en-US/docs/Web/API/Response) interface, with the following:
+
+### Public methods
+
+Public methods are available on an instance of the `NextResponse` class. Depending on your use case, you can create an instance and assign to a variable, then access the following public methods:
 
 - `cookies` - An object with the cookies in the `Response`
 - `cookie` - Set a cookie in the `Response`
+
+```ts
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+
+export function middleware(req: NextRequest) {
+  // create an instance of the class to access the public methods. This uses `next()`,
+  // you could use `redirect()` or `rewrite()` as well
+  const res = NextResponse.next()
+  // access the `cookies`
+  console.log(res.cookies['cookie-name'])
+  // set the `cookie`
+  res.cookie('hello', 'world')
+
+  return res
+}
+```
+
+### Static methods
+
+The following static methods are available on the `NextResponse` class directly:
+
 - `redirect()` - Returns a `NextResponse` with a redirect set
 - `rewrite()` - Returns a `NextResponse` with a rewrite set
 - `next()` - Returns a `NextResponse` that will continue the middleware chain
+
+```ts
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+
+export function middleware(req: NextRequest) {
+  // if the request is coming from New York, redirect to the home page
+  if (req.geo.city === 'New York') {
+    return NextResponse.redirect('/home')
+    // if the request is coming from London, rewrite to a special page
+  } else if (req.geo.city === 'London') {
+    return NextResponse.rewrite('/not-home')
+  }
+
+  return NextResponse.next()
+}
+```
 
 All methods above return a `NextResponse` object that only takes effect if it's returned in the middleware function.
 
@@ -94,7 +137,7 @@ In order to set the `cookie` _before_ a redirect, you can create an instance of 
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-export function middleware(req: NextRequest, res: NextResponse) {
+export function middleware(req: NextRequest) {
   const res = NextResponse.redirect('/') // creates an actual instance
   res.cookie('hello', 'world') // can be called on an instance
   return res
