@@ -2,6 +2,8 @@ use easy_error::{bail, Error};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::mem::take;
+use std::sync::Arc;
+use swc_common::SourceMap;
 use swc_common::{collections::AHashSet, Span, DUMMY_SP};
 use swc_ecmascript::ast::*;
 use swc_ecmascript::minifier::{
@@ -23,12 +25,30 @@ use utils::*;
 mod transform_css;
 mod utils;
 
-pub fn styled_jsx() -> impl Fold {
-    StyledJSXTransformer::default()
+pub fn styled_jsx(cm: Arc<SourceMap>) -> impl Fold {
+    StyledJSXTransformer {
+        cm,
+        styles: Default::default(),
+        static_class_name: Default::default(),
+        class_name: Default::default(),
+        file_has_styled_jsx: Default::default(),
+        has_styled_jsx: Default::default(),
+        bindings: Default::default(),
+        nearest_scope_bindings: Default::default(),
+        func_scope_level: Default::default(),
+        style_import_name: Default::default(),
+        external_bindings: Default::default(),
+        file_has_css_resolve: Default::default(),
+        external_hash: Default::default(),
+        add_hash: Default::default(),
+        add_default_decl: Default::default(),
+        in_function_params: Default::default(),
+        evaluator: Default::default(),
+    }
 }
 
-#[derive(Default)]
 struct StyledJSXTransformer {
+    cm: Arc<SourceMap>,
     styles: Vec<JSXStyle>,
     static_class_name: Option<String>,
     class_name: Option<Expr>,
@@ -489,7 +509,12 @@ impl StyledJSXTransformer {
 
         match &style_info {
             JSXStyle::Local(style_info) => {
-                let css = transform_css(&style_info, is_global, &self.static_class_name)?;
+                let css = transform_css(
+                    self.cm.clone(),
+                    &style_info,
+                    is_global,
+                    &self.static_class_name,
+                )?;
                 Ok(make_local_styled_jsx_el(
                     &style_info,
                     css,
@@ -537,7 +562,7 @@ impl StyledJSXTransformer {
         } else {
             bail!("This shouldn't happen, we already know that this is a template literal");
         };
-        let css = transform_css(&style, tag == "global", &static_class_name)?;
+        let css = transform_css(self.cm.clone(), &style, tag == "global", &static_class_name)?;
         if tag == "resolve" {
             self.file_has_css_resolve = true;
             return Ok(Expr::Object(ObjectLit {
