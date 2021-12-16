@@ -27,7 +27,7 @@ export default class {
             a[b],
             -1 * (c || 0),
             d
-        ]}>{`.a:hover .b.__jsx-style-dynamic-selector {a:${a[b]}px!important;
+        ]}>{`.a:hover .b.__jsx-style-dynamic-selector{a:${a[b]}px!important;
 b:translate3d(0, ${-1 * (c || 0)}px, -${d}px) scale(1)!important}`}</_JSXStyle>
 
         </div>;

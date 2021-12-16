@@ -16,11 +16,11 @@ export const indexQuery = `
 
 export const postQuery = `
 {
-  "post": *[_type == "post" && slug.current == $slug] | order(_updatedAt desc) | [0] {
+  "post": *[_type == "post" && slug.current == $slug] | order(_updatedAt desc) [0] {
     content,
     ${postFields}
   },
-  "morePosts": *[_type == "post" && slug.current != $slug] | order(date desc, _updatedAt desc) | [0...2] {
+  "morePosts": *[_type == "post" && slug.current != $slug] | order(date desc, _updatedAt desc) [0...2] {
     content,
     ${postFields}
   }

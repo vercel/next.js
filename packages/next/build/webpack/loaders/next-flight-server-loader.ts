@@ -7,6 +7,12 @@ function isClientComponent(importSource: string, pageExtensions: string[]) {
   )
 }
 
+function isServerComponent(importSource: string, pageExtensions: string[]) {
+  return new RegExp(`\\.server(\\.(${pageExtensions.join('|')}))?`).test(
+    importSource
+  )
+}
+
 function isNextComponent(importSource: string) {
   return (
     importSource.includes('next/link') || importSource.includes('next/image')
@@ -39,11 +45,8 @@ async function parseImportsInfo(
     const node = body[i]
     switch (node.type) {
       case 'ImportDeclaration':
-        // When importing from a server component, ignore
         const importSource = node.source.value
 
-        // For the client compilation, we have to always import the component to
-        // ensure that all dependencies are tracked.
         if (!isClientCompilation) {
           if (
             !(
@@ -59,6 +62,22 @@ async function parseImportsInfo(
             node.source.start - lastIndex
           )
           transformedSource += JSON.stringify(`${node.source.value}?flight`)
+        } else {
+          // For the client compilation, we skip all modules imports but
+          // always keep client components in the bundle. All client components
+          // have to be imported from either server or client components.
+          if (
+            !(
+              isClientComponent(importSource, pageExtensions) ||
+              isServerComponent(importSource, pageExtensions) ||
+              // Special cases for Next.js APIs that are considered as client
+              // components:
+              isNextComponent(importSource) ||
+              isImageImport(importSource)
+            )
+          ) {
+            continue
+          }
         }
 
         lastIndex = node.source.end
