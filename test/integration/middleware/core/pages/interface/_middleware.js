@@ -57,6 +57,10 @@ export async function middleware(request) {
     return fetch(url)
   }
 
+  if (url.pathname.endsWith('/dynamic-replace')) {
+    return NextResponse.rewrite('/_interface/dynamic-path')
+  }
+
   return new Response(null, {
     headers: {
       'req-url-basepath': request.nextUrl.basePath,

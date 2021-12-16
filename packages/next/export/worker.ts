@@ -503,7 +503,7 @@ export default async function exportPage({
     } catch (error) {
       console.error(
         `\nError occurred prerendering page "${path}". Read more: https://nextjs.org/docs/messages/prerender-error\n` +
-          (isError(error) ? error.stack : error)
+          (isError(error) && error.stack ? error.stack : error)
       )
       results.error = true
     }
