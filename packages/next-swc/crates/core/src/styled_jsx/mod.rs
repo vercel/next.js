@@ -378,7 +378,7 @@ impl StyledJSXTransformer {
     fn check_for_jsx_styles(
         &mut self,
         el: Option<&JSXElement>,
-        children: &Vec<JSXElementChild>,
+        children: &[JSXElementChild],
     ) -> Result<(), Error> {
         let mut styles = vec![];
         let mut process_style = |el: &JSXElement| {
@@ -692,10 +692,9 @@ fn get_style_expr(el: &JSXElement) -> Result<StyleExpr, Error> {
         ..
     }) = non_whitespace_children[0]
     {
-        let expr_value = &**expr;
-        return Ok(match expr_value {
+        return Ok(match &**expr {
             Expr::Lit(Lit::Str(str)) => StyleExpr::Str(str),
-            Expr::Tpl(tpl) => StyleExpr::Tpl(tpl, expr_value),
+            Expr::Tpl(tpl) => StyleExpr::Tpl(tpl, &**expr),
             Expr::Ident(ident) => StyleExpr::Ident(ident),
             _ => {
                 HANDLER.with(|handler| {
