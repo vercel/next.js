@@ -12,11 +12,9 @@
     "dev": "lerna run dev --stream --parallel",
     "dev2": "while true; do yarn --check-files && yarn dev; done",
     "test-types": "yarn tsc",
-    "test": "yarn jest",
     "test-unit": "yarn jest test/unit/",
     "testonly": "yarn jest --runInBand",
     "testheadless": "cross-env HEADLESS=true yarn testonly",
-    "testall": "yarn test -- --ci --forceExit && lerna run --scope @next/codemod test",
     "genstats": "cross-env LOCAL_STATS=true node .github/actions/next-stats-action/src/index.js",
     "git-reset": "git reset --hard HEAD",
     "git-clean": "git clean -d -x -e node_modules -e packages -f",
@@ -36,6 +34,7 @@
     "lint-staged": "lint-staged",
     "next-with-deps": "./scripts/next-with-deps.sh",
     "next": "node --trace-deprecation --enable-source-maps packages/next/dist/bin/next",
+    "next-react-18": "node --trace-deprecation --enable-source-maps -r ./test/integration/react-18/test/require-hook.js packages/next/dist/bin/next",
     "next-no-sourcemaps": "node --trace-deprecation packages/next/dist/bin/next",
     "clean-trace-jaeger": "rm -rf test/integration/basic/.next && TRACE_TARGET=JAEGER node --trace-deprecation --enable-source-maps packages/next/dist/bin/next build test/integration/basic",
     "debug": "node --inspect packages/next/dist/bin/next",
@@ -86,7 +85,7 @@
     "alex": "9.1.0",
     "amphtml-validator": "1.0.33",
     "async-sema": "3.0.1",
-    "browserslist": "4.16.6",
+    "browserslist": "4.18.1",
     "cheerio": "0.22.0",
     "clone": "2.1.2",
     "cookie": "0.4.1",
@@ -138,9 +137,9 @@
     "pretty-ms": "7.0.0",
     "random-seed": "0.3.0",
     "react": "17.0.2",
-    "react-18": "npm:react@18.0.0-alpha-13455d26d-20211104",
+    "react-18": "npm:react@18.0.0-beta-0cc724c77-20211125",
     "react-dom": "17.0.2",
-    "react-dom-18": "npm:react-dom@18.0.0-alpha-13455d26d-20211104",
+    "react-dom-18": "npm:react-dom@18.0.0-beta-0cc724c77-20211125",
     "react-ssr-prepass": "1.0.8",
     "release": "6.3.0",
     "request-promise-core": "1.1.2",
@@ -162,8 +161,8 @@
     "worker-loader": "3.0.7"
   },
   "resolutions": {
-    "browserslist": "4.16.6",
-    "caniuse-lite": "1.0.30001271"
+    "browserslist": "4.18.1",
+    "caniuse-lite": "1.0.30001283"
   },
   "engines": {
     "node": ">=12.22.0"
