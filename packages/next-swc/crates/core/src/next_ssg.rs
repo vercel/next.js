@@ -1,3 +1,4 @@
+use easy_error::{bail, Error};
 use fxhash::FxHashSet;
 use std::mem::take;
 use swc_common::pass::{Repeat, Repeated};
@@ -6,7 +7,7 @@ use swc_ecmascript::ast::*;
 use swc_ecmascript::utils::ident::IdentLike;
 use swc_ecmascript::visit::FoldWith;
 use swc_ecmascript::{
-    utils::Id,
+    utils::{Id, HANDLER},
     visit::{noop_fold_type, Fold},
 };
 
@@ -43,7 +44,7 @@ struct State {
 }
 
 impl State {
-    fn is_data_identifier(&mut self, i: &Ident) -> bool {
+    fn is_data_identifier(&mut self, i: &Ident) -> Result<bool, Error> {
         let ssg_exports = &[
             "getStaticProps",
             "getStaticPaths",
@@ -53,27 +54,39 @@ impl State {
         if ssg_exports.contains(&&*i.sym) {
             if &*i.sym == "getServerSideProps" {
                 if self.is_prerenderer {
-                    panic!(
-                        "You can not use getStaticProps or getStaticPaths with \
-                         getServerSideProps. To use SSG, please remove getServerSideProps"
-                    )
+                    HANDLER.with(|handler| {
+                        handler
+                            .struct_span_err(
+                                i.span,
+                                "You can not use getStaticProps or getStaticPaths with \
+                                 getServerSideProps. To use SSG, please remove getServerSideProps",
+                            )
+                            .emit()
+                    });
+                    bail!("both ssg and ssr functions present");
                 }
 
                 self.is_server_props = true;
             } else {
                 if self.is_server_props {
-                    panic!(
-                        "You can not use getStaticProps or getStaticPaths with \
-                         getServerSideProps. To use SSG, please remove getServerSideProps"
-                    )
+                    HANDLER.with(|handler| {
+                        handler
+                            .struct_span_err(
+                                i.span,
+                                "You can not use getStaticProps or getStaticPaths with \
+                                 getServerSideProps. To use SSG, please remove getServerSideProps",
+                            )
+                            .emit()
+                    });
+                    bail!("both ssg and ssr functions present");
                 }
 
                 self.is_prerenderer = true;
             }
 
-            true
+            Ok(true)
         } else {
-            false
+            Ok(false)
         }
     }
 }
@@ -135,7 +148,11 @@ impl Fold for Analyzer<'_> {
 
         self.state.cur_declaring.insert(f.ident.to_id());
 
-        self.in_data_fn |= self.state.is_data_identifier(&f.ident);
+        if let Ok(is_data_identifier) = self.state.is_data_identifier(&f.ident) {
+            self.in_data_fn |= is_data_identifier;
+        } else {
+            return f;
+        }
         tracing::trace!(
             "ssg: Handling `{}{:?}`; in_data_fn = {:?}",
             f.ident.sym,
@@ -194,8 +211,13 @@ impl Fold for Analyzer<'_> {
             ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(e)) => match &e.decl {
                 Decl::Fn(f) => {
                     // Drop getStaticProps.
-                    if self.state.is_data_identifier(&f.ident) {
-                        return ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }));
+                    if let Ok(is_data_identifier) = self.state.is_data_identifier(&f.ident)
+                    {
+                        if is_data_identifier {
+                            return ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }));
+                        }
+                    } else {
+                        return s;
                     }
                 }
 
@@ -239,8 +261,12 @@ impl Fold for Analyzer<'_> {
 
         match &v.name {
             Pat::Ident(name) => {
-                if self.state.is_data_identifier(&name.id) {
-                    self.in_data_fn = true;
+                if let Ok(is_data_identifier) = self.state.is_data_identifier(&name.id) {
+                    if is_data_identifier {
+                        self.in_data_fn = true;
+                    }
+                } else {
+                    return v;
                 }
             }
             _ => {}
@@ -472,23 +498,35 @@ impl Fold for NextSsg {
                 | ExportSpecifier::Named(ExportNamedSpecifier {
                     exported: Some(exported),
                     ..
-                }) => !self.state.is_data_identifier(&exported),
-                ExportSpecifier::Named(s) => !self.state.is_data_identifier(&s.orig),
+                }) => self
+                    .state
+                    .is_data_identifier(&exported)
+                    .map(|is_data_identifier| !is_data_identifier),
+                ExportSpecifier::Named(s) => self
+                    .state
+                    .is_data_identifier(&s.orig)
+                    .map(|is_data_identifier| !is_data_identifier),
             };
 
-            if !preserve {
-                tracing::trace!("Dropping a export specifier because it's a data identifier");
+            match preserve {
+                Ok(false) => {
+                    tracing::trace!(
+                        "Dropping a export specifier because it's a data identifier"
+                    );
 
-                match s {
-                    ExportSpecifier::Named(ExportNamedSpecifier { orig, .. }) => {
-                        self.state.should_run_again = true;
-                        self.state.refs_from_data_fn.insert(orig.to_id());
+                    match s {
+                        ExportSpecifier::Named(ExportNamedSpecifier { orig, .. }) => {
+                            self.state.should_run_again = true;
+                            self.state.refs_from_data_fn.insert(orig.to_id());
+                        }
+                        _ => {}
                     }
-                    _ => {}
-                }
-            }
 
-            preserve
+                    false
+                }
+                Ok(true) => true,
+                Err(_) => false,
+            }
         });
 
         n

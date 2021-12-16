@@ -254,6 +254,8 @@ describe('basePath', () => {
       const { pathname } = url.parse(res.headers.get('location') || '')
       expect(pathname).toBe(`${basePath}/somewhere-else`)
       expect(res.status).toBe(307)
+      const text = await res.text()
+      expect(text).toEqual(`${basePath}/somewhere-else`)
     })
 
     it('should not redirect without basePath without disabling', async () => {
@@ -284,6 +286,8 @@ describe('basePath', () => {
       const { pathname } = url.parse(res.headers.get('location') || '')
       expect(pathname).toBe('/another-destination')
       expect(res.status).toBe(307)
+      const text = await res.text()
+      expect(text).toEqual('/another-destination')
     })
 
     //
@@ -466,6 +470,8 @@ describe('basePath', () => {
       expect(res.status).toBe(308)
       const { pathname } = new URL(res.headers.get('location'))
       expect(pathname).toBe(`${basePath}/hello`)
+      const text = await res.text()
+      expect(text).toEqual(`${basePath}/hello`)
     })
 
     it('should redirect trailing slash on root correctly', async () => {
@@ -478,6 +484,8 @@ describe('basePath', () => {
       expect(res.status).toBe(308)
       const { pathname } = new URL(res.headers.get('location'))
       expect(pathname).toBe(`${basePath}`)
+      const text = await res.text()
+      expect(text).toEqual(`${basePath}`)
     })
 
     it('should navigate an absolute url', async () => {
