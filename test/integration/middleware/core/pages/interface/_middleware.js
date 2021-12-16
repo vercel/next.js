@@ -54,9 +54,11 @@ export async function middleware(request) {
   }
 
   if (url.pathname.endsWith('/root-subrequest')) {
-    return fetch(
-      `http://${request.headers.get('host')}/interface/root-subrequest`
-    )
+    return fetch(url)
+  }
+
+  if (url.pathname.endsWith('/dynamic-replace')) {
+    return NextResponse.rewrite('/_interface/dynamic-path')
   }
 
   return new Response(null, {
