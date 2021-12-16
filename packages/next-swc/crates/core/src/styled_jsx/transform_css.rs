@@ -1,6 +1,8 @@
 use easy_error::{bail, Error};
 use std::panic;
+use std::sync::Arc;
 use swc_common::util::take::Take;
+use swc_common::SourceMap;
 use swc_common::{source_map::Pos, BytePos, Span, SyntaxContext, DUMMY_SP};
 use swc_css::ast::*;
 use swc_css::codegen::{
@@ -19,6 +21,7 @@ use tracing::{debug, trace};
 use super::{hash_string, string_literal_expr, LocalStyle};
 
 pub fn transform_css(
+    cm: Arc<SourceMap>,
     style_info: &LocalStyle,
     is_global: bool,
     class_name: &Option<String>,
@@ -59,7 +62,7 @@ pub fn transform_css(
     };
     // ? Do we need to support optionally prefixing?
     ss.visit_mut_with(&mut prefixer());
-    ss.visit_mut_with(&mut CssPlaceholderFixer);
+    ss.visit_mut_with(&mut CssPlaceholderFixer { cm });
     ss.visit_mut_with(&mut Namespacer {
         class_name: match class_name {
             Some(s) => s.clone(),
@@ -131,7 +134,9 @@ fn read_number(s: &str) -> (usize, usize) {
 /// This fixes invalid css which is created from interpolated expressions.
 ///
 /// `__styled-jsx-placeholder-` is handled at here.
-struct CssPlaceholderFixer;
+struct CssPlaceholderFixer {
+    cm: Arc<SourceMap>,
+}
 
 impl VisitMut for CssPlaceholderFixer {
     fn visit_mut_media_query(&mut self, q: &mut MediaQuery) {
@@ -139,10 +144,28 @@ impl VisitMut for CssPlaceholderFixer {
 
         match q {
             MediaQuery::Ident(q) => {
-                if q.raw.starts_with("__styled-jsx-placeholder-") {
-                    // TODO(kdy1): Remove this once we have CST for media query.
-                    // We need good error recovery for media queries to handle this.
-                    q.raw = format!("({})", &q.value).into();
+                if !q.raw.starts_with("__styled-jsx-placeholder-") {
+                    return;
+                }
+                // We need to support both of @media ($breakPoint) {} and @media $queryString {}
+                // This is complex because @media (__styled-jsx-placeholder-0__) {} is valid
+                // while @media __styled-jsx-placeholder-0__ {} is not
+                //
+                // So we check original source code to determine if we should inject
+                // parenthesis.
+
+                // TODO(kdy1): Avoid allocation.
+                // To remove allocation, we should patch swc_common to provide a way to get
+                // source code without allocation.
+                //
+                //
+                // We need
+                //
+                // fn with_source_code (self: &mut Self, f: impl FnOnce(&str) -> Ret) -> _ {}
+                if let Ok(source) = self.cm.span_to_snippet(q.span) {
+                    if source.starts_with('(') {
+                        q.raw = format!("({})", &q.value).into();
+                    }
                 }
             }
             _ => {}
