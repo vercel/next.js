@@ -12,7 +12,6 @@ import {
   nextBuild,
   nextStart,
 } from 'next-test-utils'
-import clone from 'clone'
 import cheerio from 'cheerio'
 
 const appDir = join(__dirname, '../')
@@ -26,8 +25,7 @@ const startApiServer = async (optEnv = {}, opts) => {
   const scriptPath = join(appDir, 'api-server.js')
   apiServerPort = await findPort()
   const env = Object.assign(
-    {},
-    clone(process.env),
+    { ...process.env },
     { PORT: `${apiServerPort}` },
     optEnv
   )

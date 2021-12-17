@@ -11,7 +11,6 @@ import {
   nextBuild,
   nextStart,
 } from 'next-test-utils'
-import clone from 'clone'
 
 const appDir = join(__dirname, '../')
 const nextConfig = join(appDir, 'next.config.js')
@@ -24,8 +23,7 @@ const startApiServer = async (optEnv = {}, opts) => {
   const scriptPath = join(appDir, 'api-server.js')
   apiServerPort = await findPort()
   const env = Object.assign(
-    {},
-    clone(process.env),
+    { ...process.env },
     { PORT: `${apiServerPort}` },
     optEnv
   )
