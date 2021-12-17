@@ -1,13 +1,14 @@
+import type { Route } from './router'
+import type { CacheFs } from '../shared/lib/utils'
+
 import fs from 'fs'
 import { join, relative } from 'path'
-
 import { PAGES_MANIFEST, BUILD_ID_FILE } from '../shared/lib/constants'
 import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
-import type { Route } from './router'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
 import { route } from './router'
-
 import BaseServer from './base-server'
+
 export * from './base-server'
 
 export default class NextNodeServer extends BaseServer {
@@ -132,5 +133,15 @@ export default class NextNodeServer extends BaseServer {
       ...userFilesPublic,
       ...userFilesStatic,
     ]))
+  }
+
+  protected getCacheFilesystem(): CacheFs {
+    return {
+      readFile: (f) => fs.promises.readFile(f, 'utf8'),
+      readFileSync: (f) => fs.readFileSync(f, 'utf8'),
+      writeFile: (f, d) => fs.promises.writeFile(f, d, 'utf8'),
+      mkdir: (dir) => fs.promises.mkdir(dir, { recursive: true }),
+      stat: (f) => fs.promises.stat(f),
+    }
   }
 }
