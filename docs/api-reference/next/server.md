@@ -145,6 +145,8 @@ import { NextResponse } from 'next/server'
 
 In order to set the `cookie` _before_ a redirect, you can create an instance of `NextResponse`, then access the `cookie` method on the instance, before returning the response.
 
+Note that there is a [Chrome bug](https://bugs.chromium.org/p/chromium/issues/detail?id=696204) which means the entire redirect chain **must** be from the same origin, if they are from different origins, then the `cookie` might be missing until a refresh.
+
 ```ts
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
