@@ -28,10 +28,11 @@
     "release": "ncc build ./index.ts -o ./dist/ --minify --no-cache --no-source-map-register",
     "prepublish": "yarn release && yarn types"
   },
-  "devDependencies": {
-    "@types/dotenv": "8.2.0",
-    "@zeit/ncc": "0.20.4",
-    "dotenv": "8.2.0",
+  "dependencies": {
+    "dotenv": "10.0.0",
     "dotenv-expand": "5.1.0"
+  },
+  "devDependencies": {
+    "@vercel/ncc": "0.33.0"
   }
 }
