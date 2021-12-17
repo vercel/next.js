@@ -88,7 +88,11 @@ This was a quick recap of setting up web forms in HTML.
 
 ## Part 2: [SERVER] Serverless Forms with Vercel and Next.js
 
-Let's jump on to the next part, where you'll be recreating these HTML forms in React using Next.js and Vercel.
+A serverless architecture, in literal terms, does involve servers. The difference is that they are managed and hosted by the cloud computing companies like [Amazon Web Services](https://aws.amazon.com/lambda/), [Microsoft Azure](https://docs.microsoft.com/en-us/azure/azure-functions/functions-overview), [Vercel](https://vercel.com/docs/concepts/functions/introduction#serverless-functions), and [Google Cloud Platform](https://cloud.google.com/functions/). Being relatively new to the league, Vercel offers top-notch cloud computing services — the first among them is its ease of use. You can write functions both as a part of its [Functions](https://vercel.com/docs/concepts/functions/introduction) framework and Next.js Framework via [API routes](https://nextjs.org/docs/api-routes/introduction).
+
+Vercel empowers you to write JavaScript Serverless functions and deploy them at its edge network. This significantly minimizes latency because your web application runs code in a serverless architecture as close to the end-user as possible. It works incredibly well if you want to build lightweight and flexible applications that can be expanded or updated quickly.
+
+Having said that, let's jump on to the next part, where you'll be recreating these HTML forms in React using Next.js and Vercel.
 
 Create a simple Next.js app. You can use the [create-next-app](https://nextjs.org/docs/getting-started#setup) for a quick start. In your command line terminal, run the following:
 
