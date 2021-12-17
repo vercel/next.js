@@ -879,7 +879,7 @@ jobs:
             next-swc-cargo-cache-${{ matrix.os }}
 
       - name: 'Build'
-        run: turbo run  build-native --cache-dir=".turbo" -- --release --target ${{ matrix.target }}
+        run: turbo run build-native --cache-dir=".turbo" -- --release --target ${{ matrix.target }}
         env:
           MACOSX_DEPLOYMENT_TARGET: '10.13'
           TURBO_TOKEN: ${{secrets.TURBO_TOKEN}}
