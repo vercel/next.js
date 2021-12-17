@@ -221,7 +221,6 @@ export default abstract class Server {
   protected abstract getBuildId(): string
   protected abstract generatePublicRoutes(): Route[]
   protected abstract getFilesystemPaths(): Set<string>
-  protected abstract getCacheFilesystem(): CacheFs
 
   public constructor({
     dir = '.',
@@ -2483,6 +2482,16 @@ export default abstract class Server {
       pathname,
       query,
     })
+  }
+
+  protected getCacheFilesystem(): CacheFs {
+    return {
+      readFile: () => Promise.resolve(''),
+      readFileSync: () => '',
+      writeFile: () => Promise.resolve(),
+      mkdir: () => Promise.resolve(),
+      stat: () => Promise.resolve({ mtime: new Date() }),
+    }
   }
 
   protected async getFallbackErrorComponents(): Promise<LoadComponentsReturnType | null> {

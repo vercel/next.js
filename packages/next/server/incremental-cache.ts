@@ -79,9 +79,10 @@ export class IncrementalCache {
         preview: null as any, // `preview` is special case read in next-dev-server
       }
     } else {
-      this.prerenderManifest = JSON.parse(
-        this.fs.readFileSync(path.join(distDir, PRERENDER_MANIFEST))
+      const manifestJson = this.fs.readFileSync(
+        path.join(distDir, PRERENDER_MANIFEST)
       )
+      this.prerenderManifest = JSON.parse(manifestJson)
     }
 
     if (process.env.__NEXT_TEST_MAX_ISR_CACHE) {
@@ -231,7 +232,7 @@ export class IncrementalCache {
       try {
         const seedHtmlPath = this.getSeedPath(pathname, 'html')
         const seedJsonPath = this.getSeedPath(pathname, 'json')
-        await this.fs.mkdir(seedHtmlPath)
+        await this.fs.mkdir(path.dirname(seedHtmlPath))
         await this.fs.writeFile(seedHtmlPath, data.html)
         await this.fs.writeFile(seedJsonPath, JSON.stringify(data.pageData))
       } catch (error) {
